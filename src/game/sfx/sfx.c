@@ -112,6 +112,11 @@
 #include "types.h"
 #include "game/camera.h"
 #include "game/effect.h"
+#include "game/player.h"
+
+#ifndef offsetof
+#define offsetof(type, member) ((u32)&(((type*)0)->member))
+#endif
 
 /* --- partial MB scene-node view (offsets verified in this TU's asm) --- */
 struct mbnode {
@@ -179,6 +184,13 @@ typedef struct EffectPage {
     EffectHeader info[248]; /* == EffectInfo            */
     Effect fx[64];          /* == Effects (at +0xBA0)   */
 } EffectPage;
+
+/* Authoring row consumed by InitEffects before it becomes EffectHeader. */
+typedef struct EffectSourceInfoView {
+    char desc[32];
+    s32 zmod;
+    s32 alpha;
+} EffectSourceInfoView;
 #define EFFECTS_POOL ((Effect*)&EffectInfo[248])
 
 /* view of the fx .bss page with the per-enemy fx-type tables that sit
@@ -190,6 +202,8 @@ typedef struct EnemyFxPage {
     s32 hitfx[45];          /* +0xAEC (2796) per-enemy hit fx type   */
     Effect fx[64];          /* +0xBA0 == Effects      */
 } EnemyFxPage;
+#define EFFECT_HEADER_OFFSET(kind, member) \
+    ((kind) * sizeof(EffectHeader) + offsetof(EffectHeader, member))
 /* per-element form that keeps EffectInfo+idx*240 as the CSE base so the
  * +0xBA0 pool offset folds into each store displacement (target shape) */
 #define EFFECTS_POOL_AT(i) ((Effect*)((u8*)EffectInfo + (i) * 240 + 2976))
@@ -855,14 +869,14 @@ s32 StartBlockFX(f32 time, s32 pnum)
     }
     if (idx >= 0) {
         MBTreeSetColor(page->fx[idx].node,
-                    lbl_8011A178[*(s32*)(gPlayers + pnum * 0x335C + 4)], 1);
+                    lbl_8011A178[((Player*)gPlayers)[pnum].class_id], 1);
         MBTreeSetAlpha(page->fx[idx].node, 0x40, 1);
         if (idx >= 0) {
             Effect* e = &page->fx[idx];
             struct anode* root;
 
             MBNodeSetParent(e->node,
-                        *(struct mbnode**)(gPlayers + pnum * 0x335C + 0x74));
+                        (struct mbnode*)((Player*)gPlayers)[pnum].node);
             root = ATREE_ROOT(e);
             if (root != NULL) {
                 MBTreeSetFlags(root->node, 0x10, 0);
@@ -1936,7 +1950,7 @@ s32 fn_80093918(s32 idx, s32 player, f32* pos, f32* vec, f32 scale, f32 spd,
         e->damagedelay = k;
         e->owner = player + 1;
     }
-    pi = *(s32*)((u8*)gPlayers + player * 13148 + 4);
+    pi = ((Player*)gPlayers)[player].class_id;
     cp = tbl->colorpick[pi];
     cp3 = tbl->colors[cp];
     if (idx >= 0) {
@@ -4164,9 +4178,12 @@ void InitEffects(void)
     u8 unused[352];
 
     for (i = 0; i < 64; i++) {
-        *(struct mbnode**)(ei + i * 240 + 2996) = NULL;
-        *(struct anode**)(ei + i * 240 + 3000) = NULL;
-        *(void**)(ei + i * 240 + 3188) = NULL;
+        *(struct mbnode**)(ei + i * sizeof(Effect) +
+                           offsetof(EffectPage, fx[0].node)) = NULL;
+        *(struct anode**)(ei + i * sizeof(Effect) +
+                          offsetof(EffectPage, fx[0].atree)) = NULL;
+        *(void**)(ei + i * sizeof(Effect) +
+                  offsetof(EffectPage, fx[0].streak)) = NULL;
     }
     NumEffects = 0;
     lbl_80344BD8 = 0;
@@ -4177,10 +4194,10 @@ void InitEffects(void)
     tbl = lbl_80122118;
     for (i = 0, o40 = 0; (u32)i < 80; i++, o40 += 40) {
         row = tbl + o40;
-        v36 = *(s32*)(row + 36);
-        q36 = (s32*)(row + 36);
-        v32 = *(s32*)(row + 32);
-        q32 = (s32*)(row + 32);
+        v36 = *(s32*)(row + offsetof(EffectSourceInfoView, alpha));
+        q36 = (s32*)(row + offsetof(EffectSourceInfoView, alpha));
+        v32 = *(s32*)(row + offsetof(EffectSourceInfoView, zmod));
+        q32 = (s32*)(row + offsetof(EffectSourceInfoView, zmod));
         if (sWeaponsBuf == NULL || row == NULL || *(s8*)row == 0) {
             ((EffectHeader*)ei)[i].atree = NULL;
         } else {
@@ -4210,21 +4227,21 @@ void InitEffects(void)
         s32 off = i * 12;
 
         *(s32*)(ei + off) = 0;
-        *(s32*)(ei + off + 4) = 0;
-        *(s32*)(ei + off + 8) = 0;
+        *(s32*)(ei + off + offsetof(EffectHeader, zmod)) = 0;
+        *(s32*)(ei + off + offsetof(EffectHeader, alpha)) = 0;
     }
-    p1140 = (u32*)(ei + 1140);
-    p1152 = (u32*)(ei + 1152);
-    p1032 = (u32*)(ei + 1032);
-    p1044 = (u32*)(ei + 1044);
-    p1056 = (u32*)(ei + 1056);
-    p1068 = (u32*)(ei + 1068);
-    p1008 = (u32*)(ei + 1008);
-    p1020 = (u32*)(ei + 1020);
-    p960 = (u32*)(ei + 960);
-    p972 = (u32*)(ei + 972);
-    p984 = (u32*)(ei + 984);
-    p996 = (u32*)(ei + 996);
+    p1140 = (u32*)(ei + EFFECT_HEADER_OFFSET(FX_DEATH_HEALTH, atree));
+    p1152 = (u32*)(ei + EFFECT_HEADER_OFFSET(FX_DEATH_EXP, atree));
+    p1032 = (u32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK1, atree));
+    p1044 = (u32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK2, atree));
+    p1056 = (u32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEDEATH1, atree));
+    p1068 = (u32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEDEATH2, atree));
+    p1008 = (u32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTHIT, atree));
+    p1020 = (u32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTDIE, atree));
+    p960 = (u32*)(ei + EFFECT_HEADER_OFFSET(FX_SUICIDEEXP, atree));
+    p972 = (u32*)(ei + EFFECT_HEADER_OFFSET(FX_GENFX1, atree));
+    p984 = (u32*)(ei + EFFECT_HEADER_OFFSET(FX_GENFX2, atree));
+    p996 = (u32*)(ei + EFFECT_HEADER_OFFSET(FX_GENFX3, atree));
     for (i = 0; i < 45; i++) {
         *(s32*)((u8*)lbl_80251148 + i * 4) = 0;
         hp = (u8**)((u8*)gWadAtreeHeaders + i * 4);
@@ -4235,8 +4252,8 @@ void InitEffects(void)
             } else {
                 *p960 = (s32)AtreeMatch(*hp, strs + 68, 0);
             }
-            *(s32*)(ei + 964) = -512;
-            *(s32*)(ei + 968) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_SUICIDEEXP, zmod)) = -512;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_SUICIDEEXP, alpha)) = 0;
         }
         if (*p972 == 0) {
             if (*hp == NULL || lbl_80348290 == 0) {
@@ -4244,8 +4261,8 @@ void InitEffects(void)
             } else {
                 *p972 = (s32)AtreeMatch(*hp, (char*)&lbl_80348290, 0);
             }
-            *(s32*)(ei + 976) = -512;
-            *(s32*)(ei + 980) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_GENFX1, zmod)) = -512;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_GENFX1, alpha)) = 0;
             *(s32*)((u8*)lbl_80251148 + i * 4) = 1;
         }
         if (*p984 == 0) {
@@ -4254,8 +4271,8 @@ void InitEffects(void)
             } else {
                 *p984 = (s32)AtreeMatch(*hp, (char*)&lbl_80348298, 0);
             }
-            *(s32*)(ei + 988) = -512;
-            *(s32*)(ei + 992) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_GENFX2, zmod)) = -512;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_GENFX2, alpha)) = 0;
             *(s32*)((u8*)lbl_80251148 + i * 4) = 1;
         }
         if (*p996 == 0) {
@@ -4264,8 +4281,8 @@ void InitEffects(void)
             } else {
                 *p996 = (s32)AtreeMatch(*hp, (char*)&lbl_803482A0, 0);
             }
-            *(s32*)(ei + 1000) = -512;
-            *(s32*)(ei + 1004) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_GENFX3, zmod)) = -512;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_GENFX3, alpha)) = 0;
             *(s32*)((u8*)lbl_80251148 + i * 4) = 1;
         }
         if (i == 11 || i == 21) {
@@ -4277,8 +4294,8 @@ void InitEffects(void)
                     ErrorPrintf(strs + 48, &lbl_803482A8);
                 }
             }
-            *(s32*)(ei + 1012) = -512;
-            *(s32*)(ei + 1016) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTHIT, zmod)) = -512;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTHIT, alpha)) = 0;
             if (*hp == NULL || lbl_803482B0 == 0) {
                 *p1020 = 0;
             } else {
@@ -4287,8 +4304,8 @@ void InitEffects(void)
                     ErrorPrintf(strs + 48, &lbl_803482B0);
                 }
             }
-            *(s32*)(ei + 1024) = -512;
-            *(s32*)(ei + 1028) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTDIE, zmod)) = -512;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTDIE, alpha)) = 0;
         }
         if (i == 27) {
             if (*hp == NULL || lbl_803482B8 == 0) {
@@ -4299,8 +4316,8 @@ void InitEffects(void)
                     ErrorPrintf(strs + 48, &lbl_803482B8);
                 }
             }
-            *(s32*)(ei + 1036) = -512;
-            *(s32*)(ei + 1040) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK1, zmod)) = -512;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK1, alpha)) = 0;
             if (*hp == NULL || lbl_803482C0 == 0) {
                 *p1044 = 0;
             } else {
@@ -4309,8 +4326,8 @@ void InitEffects(void)
                     ErrorPrintf(strs + 48, &lbl_803482C0);
                 }
             }
-            *(s32*)(ei + 1048) = -512;
-            *(s32*)(ei + 1052) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK2, zmod)) = -512;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK2, alpha)) = 0;
             if (*hp == NULL || *(s8*)(strs + 80) == 0) {
                 *p1056 = 0;
             } else {
@@ -4319,8 +4336,8 @@ void InitEffects(void)
                     ErrorPrintf(strs + 48, strs + 80);
                 }
             }
-            *(s32*)(ei + 1060) = -512;
-            *(s32*)(ei + 1064) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEDEATH1, zmod)) = -512;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEDEATH1, alpha)) = 0;
             if (*hp == NULL || *(s8*)(strs + 92) == 0) {
                 *p1068 = 0;
             } else {
@@ -4329,8 +4346,8 @@ void InitEffects(void)
                     ErrorPrintf(strs + 48, strs + 92);
                 }
             }
-            *(s32*)(ei + 1072) = -512;
-            *(s32*)(ei + 1076) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEDEATH2, zmod)) = -512;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEDEATH2, alpha)) = 0;
         }
         if (i == 30) {
             if (*hp == NULL || *(s8*)(strs + 104) == 0) {
@@ -4341,8 +4358,8 @@ void InitEffects(void)
                     ErrorPrintf(strs + 48, strs + 104);
                 }
             }
-            *(s32*)(ei + 1144) = -512;
-            *(s32*)(ei + 1148) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_DEATH_HEALTH, zmod)) = -512;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_DEATH_HEALTH, alpha)) = 0;
             if (*hp == NULL || *(s8*)(strs + 116) == 0) {
                 *p1152 = 0;
             } else {
@@ -4351,53 +4368,57 @@ void InitEffects(void)
                     ErrorPrintf(strs + 48, strs + 116);
                 }
             }
-            *(s32*)(ei + 1156) = -512;
-            *(s32*)(ei + 1160) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_DEATH_EXP, zmod)) = -512;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_DEATH_EXP, alpha)) = 0;
         }
-        *(s32*)(ei + i * 4 + 2796) =
+        *(s32*)(ei + i * sizeof(s32) + offsetof(EnemyFxPage, hitfx)) =
             InitCustomEffectSub(*hp, (char*)&lbl_803482C8, 0, 0, 0);
-        *(s32*)(ei + i * 4 + 2616) =
+        *(s32*)(ei + i * sizeof(s32) + offsetof(EnemyFxPage, deathfx)) =
             InitCustomEffectSub(*hp, (char*)&lbl_803482D0, 0, 0, 0);
         } else {
-            *(s32*)(ei + i * 4 + 2796) = -1;
-            *(s32*)(ei + i * 4 + 2616) = -1;
+            *(s32*)(ei + i * sizeof(s32) + offsetof(EnemyFxPage, hitfx)) = -1;
+            *(s32*)(ei + i * sizeof(s32) + offsetof(EnemyFxPage, deathfx)) = -1;
         }
     }
     if ((u32)(sMusicTrackHi - 5) <= 1) {
-        *(s32*)(ei + 2796) =
+        *(s32*)(ei + offsetof(EnemyFxPage, hitfx)) =
             InitCustomEffectSub(sGoodWizObj, (char*)&lbl_803482C8, 0, 0, 0);
-        *(s32*)(ei + 2616) =
+        *(s32*)(ei + offsetof(EnemyFxPage, deathfx)) =
             InitCustomEffectSub(sGoodWizObj, (char*)&lbl_803482D0, 0, 0, 0);
     }
     if (gBossType >= 0) {
         if (sItemFile1Buf == NULL || *(s8*)(strs + 128) == 0) {
-            *(s32*)(ei + 1080) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGEND1, atree)) = 0;
         } else {
-            *(s32*)(ei + 1080) = (s32)AtreeMatch(sItemFile1Buf, strs + 128, 0);
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGEND1, atree)) =
+                (s32)AtreeMatch(sItemFile1Buf, strs + 128, 0);
         }
-        *(s32*)(ei + 1084) = 0;
-        *(s32*)(ei + 1088) = 0;
+        *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGEND1, zmod)) = 0;
+        *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGEND1, alpha)) = 0;
         if (sItemFile1Buf == NULL || *(s8*)(strs + 140) == 0) {
-            *(s32*)(ei + 1092) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGEND2, atree)) = 0;
         } else {
-            *(s32*)(ei + 1092) = (s32)AtreeMatch(sItemFile1Buf, strs + 140, 0);
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGEND2, atree)) =
+                (s32)AtreeMatch(sItemFile1Buf, strs + 140, 0);
         }
-        *(s32*)(ei + 1096) = 0;
-        *(s32*)(ei + 1100) = 0;
+        *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGEND2, zmod)) = 0;
+        *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGEND2, alpha)) = 0;
         if (sItemFile1Buf == NULL || *(s8*)(strs + 152) == 0) {
-            *(s32*)(ei + 1116) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGENDPRJ, atree)) = 0;
         } else {
-            *(s32*)(ei + 1116) = (s32)AtreeMatch(sItemFile1Buf, strs + 152, 0);
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGENDPRJ, atree)) =
+                (s32)AtreeMatch(sItemFile1Buf, strs + 152, 0);
         }
-        *(s32*)(ei + 1120) = 0;
-        *(s32*)(ei + 1124) = 0;
+        *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGENDPRJ, zmod)) = 0;
+        *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGENDPRJ, alpha)) = 0;
         if (sItemFile1Buf == NULL || *(s8*)(strs + 164) == 0) {
-            *(s32*)(ei + 1104) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGENDHLD, atree)) = 0;
         } else {
-            *(s32*)(ei + 1104) = (s32)AtreeMatch(sItemFile1Buf, strs + 164, 0);
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGENDHLD, atree)) =
+                (s32)AtreeMatch(sItemFile1Buf, strs + 164, 0);
         }
-        *(s32*)(ei + 1108) = 0;
-        *(s32*)(ei + 1112) = 0;
+        *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGENDHLD, zmod)) = 0;
+        *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_LEGENDHLD, alpha)) = 0;
     }
     if (((EffectHeader*)ei)[82].atree == NULL) {
         ((EffectHeader*)ei)[82] = ((EffectHeader*)ei)[81];
@@ -4408,24 +4429,26 @@ void InitEffects(void)
     if (InLevel((char*)&lbl_803482D8) != 0 ||
         InLevel((char*)&lbl_803482DC) != 0) {
         if (sItemFile1Buf == NULL || *(s8*)(strs + 176) == 0) {
-            *(s32*)(ei + 360) = 0;
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_GENDEST, atree)) = 0;
         } else {
-            *(s32*)(ei + 360) = (s32)AtreeMatch(sItemFile1Buf, strs + 176, 0);
-            if (*(u32*)(ei + 360) == 0) {
+            *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_GENDEST, atree)) =
+                (s32)AtreeMatch(sItemFile1Buf, strs + 176, 0);
+            if (*(u32*)(ei + EFFECT_HEADER_OFFSET(FX_GENDEST, atree)) == 0) {
                 ErrorPrintf(strs + 48, strs + 176);
             }
         }
-        *(s32*)(ei + 364) = 0;
-        *(s32*)(ei + 368) = 0;
+        *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_GENDEST, zmod)) = 0;
+        *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_GENDEST, alpha)) = 0;
     }
     if (sGoodWizObj == NULL || *(s8*)(strs + 188) == 0) {
-        *(s32*)(ei + 1128) = 0;
+        *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_WORLD_EXP, atree)) = 0;
     } else {
-        *(s32*)(ei + 1128) = (s32)AtreeMatch(sGoodWizObj, strs + 188, 0);
+        *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_WORLD_EXP, atree)) =
+            (s32)AtreeMatch(sGoodWizObj, strs + 188, 0);
     }
-    *(p1132 = (s32*)(ei + 1132)) = -512;
-    *(p1136 = (s32*)(ei + 1136)) = 0;
-    p1128 = (s32*)(ei + 1128);
+    *(p1132 = (s32*)(ei + EFFECT_HEADER_OFFSET(FX_WORLD_EXP, zmod))) = -512;
+    *(p1136 = (s32*)(ei + EFFECT_HEADER_OFFSET(FX_WORLD_EXP, alpha))) = 0;
+    p1128 = (s32*)(ei + EFFECT_HEADER_OFFSET(FX_WORLD_EXP, atree));
     got = (*(u32*)p1128 != 0) ? 1 : 0;
     if (got == 0) {
         if (sItemFile1Buf == NULL || *(s8*)(strs + 188) == 0) {
@@ -4539,7 +4562,8 @@ s32 InitCustomEffectSub(void* hdr, char* name, s32 zmod, s32 alpha, s32 err)
 
     n = lbl_80344BD8;
     for (i = 0; i < n; i++) {
-        if (*(struct atreeheader**)((u8*)page + i * 12 + 1164) == NULL) {
+        if (*(struct atreeheader**)((u8*)page + i * sizeof(EffectHeader) +
+                                    EFFECT_HEADER_OFFSET(FX_CUSTOM1, atree)) == NULL) {
             break;
         }
     }

@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Second TU-scoped de-fakematch pass over untouched Player records and independently verified Effect/EffectHeader initialization regions, preserving every raw and guarded WebFrank hash",
+  "attributes": {
+    "anchors": "src/game/sfx/sfx.c; flagship SuicideExplosion target 0x80092FC0 size 0x3fc; reproduce with ninja -j2 build/GUNE5D/src/game/sfx/sfx.o, tools/gdl/fndiff.py game/sfx/sfx, and ninja -j2",
+    "axis_log": "Player.class_id/node point-of-use casts preserved StartBlockFX/fn_80093918 output. Fused offsetof/sizeof spellings preserved InitEffects and InitCustomEffectSub address webs for EffectPage pool clears, authoring row zmod/alpha, fixed EffectHeader enum rows, and EnemyFxPage hit/death tables. One semantic trial mapped raw +3188 to Effect.additem and emitted +3212 (InitEffects real36->38); clean target diff proved +3188 is EffectPage.fx[].streak, whose corrected spelling restored both hashes. V1's rejected SfxSetLight rebasing and StartExplosion/high-displacement/cast-transit axes were not retried.",
+    "baseline_and_best": "TU fuzzy 93.676216%, guarded exact 49/64 and raw exact 45/64 unchanged; audited raw census 137 -> 71. SuicideExplosion raw 255/255 REGISTER_ONLY real100 frame0x50 and guarded 255/255 fuzzy100% real0 unchanged. StartBlockFX 74/74 real48, fn_80093918 123/123 real62, InitEffects 747/747 real36, and InitCustomEffectSub real0 unchanged.",
+    "hash_guards": "Raw compiler body SHA-256 1ACEDCDA1428FFDB374858B46205796185751308F8DC54E25967AE01A40AE6E7 and guarded object SHA-256 69A5731D3906EDA072B10283154497568C64F373FB1DB8910466A24A6E549927 equal the untouched baseline after every retained region; existing WebFrank rules/configuration were not changed.",
+    "semantic_audit": "No behavior changes. Player stride/offsets, effect table strides, field widths, enum row identities, initialization order, pool reset, custom-row scan, enemy hit/death tables, and WebFrank inputs/outputs remain identical. Local EffectSourceInfoView is the documented 32-byte desc plus zmod/alpha authoring row verified by target +32/+36 loads.",
+    "sites_left_raw": "71 census lines remain. SuicideExplosion, StartShieldFX, StartThrowMagicFX, and StartExplosion retain fragile high-displacement/lwzu/cast-transit webs covered by accepted caps; InitEffects string-block displacements lack named fields, +0x47A0 globals immediately after Effects lack a verified owner, and ProcessEffects has opaque external state. These boundaries were not renamed or structurally disturbed."
+  },
+  "function": "function:SuicideExplosion",
+  "id": "attempt.sfx-defakematch-tupass.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.sfx-defakematch-tupass.20260830.v1",
+  "valid_from": "2026-08-30"
+}
