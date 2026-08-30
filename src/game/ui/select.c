@@ -1301,7 +1301,7 @@ s32 do_player_select(void)
                                       lbl_801200B0[*(s32*)(pl + offsetof(Player, respawn_char)) & 7]);
                             mbBlitProject(*(void**)((blitbase + boff) + 0x18), -1, 320);
                             if (*(s32*)(pl + offsetof(Player, respawn_char)) == 16 ||
-                                *(u32*)(pl + 0xF0) != 0) {
+                                *(u32*)(pl + offsetof(Player, hidden_code)) != 0) {
                                 wflag = 0;
                             }
                             if (*(s32*)(pl + offsetof(Player, exp)) == 0) {
@@ -1316,14 +1316,14 @@ s32 do_player_select(void)
                             s32 wflag;
                             *(s32*)(p2 + offsetof(Player, state)) = 3;
                             *(s32*)(p2 + offsetof(Player, exit_dest)) = other_players_next_level(i);
-                            saved = *(s32*)(p2 + 0xF0);
+                            saved = *(s32*)(p2 + offsetof(Player, hidden_code));
                             change_player(i, picked);
-                            *(s32*)(p2 + 0xF0) = saved;
+                            *(s32*)(p2 + offsetof(Player, hidden_code)) = saved;
                             setup_tex(i, 2, 0, 0, pool + 168,
                                       lbl_801200B0[picked & 7]);
                             mbBlitProject(*(void**)((blitbase + boff) + 0x18),
                                           -1, 320);
-                            if (*(u32*)(p2 + 0xF0) != 0) {
+                            if (*(u32*)(p2 + offsetof(Player, hidden_code)) != 0) {
                                 wflag = 0;
                             } else {
                                 wflag = 1;
@@ -1376,7 +1376,7 @@ s32 do_player_select(void)
                 }
             }
             if (*(s32*)(pl + offsetof(Player, character)) == 2 &&
-                *(u32*)(pl + 0xF0) == lbl_80343D6C) {
+                *(u32*)(pl + offsetof(Player, hidden_code)) == lbl_80343D6C) {
                 setup_tex(i, 8, 0, 0, pool + 232);
             } else {
                 setup_tex(i, 8, 0, 0, lbl_80347F58,
