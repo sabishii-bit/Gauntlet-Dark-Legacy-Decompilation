@@ -2150,7 +2150,7 @@ void setup_sel_menu(s32 player, s32 mode)
     field = data;
     field += playerOffset;
     baseChoice = ((s32*)data)[player];
-    *(s32*)(field += 724) -= baseChoice;
+    *(s32*)(field += 712 + offsetof(OptMenuLayout, x)) -= baseChoice;
     *(s32*)menu = mode;
 
     switch (mode) {
