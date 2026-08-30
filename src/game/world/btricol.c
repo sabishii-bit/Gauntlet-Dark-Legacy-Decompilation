@@ -199,8 +199,10 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
     u8 padC[4];
     Vec ex1;
     u8 padB[4];
-    Vec tmp1;
-    u8 padA[8];
+    struct {
+        Vec value;
+        u8 pad[8];
+    } tmp1;
     Vec tmp2;
     f32 r2;
     f32 dist;
@@ -258,7 +260,7 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
         dx = tpA.x - tpB.x;
         dz = tpA.z - tpB.z;
         if ((f64)fqdist(dx, dz) > lbl_80345D78) {
-            sum = (ayA = btri_fabsf(tpA.y)) + (ayB = btri_fabsf(tpB.y));
+            sum = (ayB = btri_fabsf(tpB.y)) + (ayA = btri_fabsf(tpA.y));
             if (lbl_80345D40 == sum) {
                 cross = 0;
             } else {
@@ -287,23 +289,23 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
         }
         num = (ex1.x - ex0.x) * (pz - ex0.z) - (ex1.z - ex0.z) * (px - ex0.x);
         if ((f64)num > lbl_80345D40) {
-            d = LineLineDist3D2D(&tpB, &tpA, &tmp1, &ex0, &ex1, 1);
+            d = LineLineDist3D2D(&tpB, &tpA, &tmp1.value, &ex0, &ex1, 1);
             if (cross != 0 || d < dist) {
                 dist = d;
-                o2.x = tmp1.x;
-                o2.y = tmp1.y;
-                o2.z = tmp1.z;
+                o2.x = tmp1.value.x;
+                o2.y = tmp1.value.y;
+                o2.z = tmp1.value.z;
             }
             cross = 0;
         }
-        num = -ex1.z * (px - ex1.x) - (-ex1.x * (pz - ex1.z));
+        num = -ex1.x * (pz - ex1.z) - (-ex1.z * (px - ex1.x));
         if ((f64)num > lbl_80345D40) {
-            d = LineLineDist3D2D(&tpB, &tpA, &tmp1, &zero2, &ex1, 1);
+            d = LineLineDist3D2D(&tpB, &tpA, &tmp1.value, &zero2, &ex1, 1);
             if (cross != 0 || d < dist) {
                 dist = d;
-                o2.x = tmp1.x;
-                o2.y = tmp1.y;
-                o2.z = tmp1.z;
+                o2.x = tmp1.value.x;
+                o2.y = tmp1.value.y;
+                o2.z = tmp1.value.z;
             }
             cross = 0;
         }
@@ -364,14 +366,14 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
                 goto classified;
             }
         }
-        num = -ex1.z * (bx - ex1.x) - (-ex1.x * (bz - ex1.z));
+        num = -ex1.x * (bz - ex1.z) - (-ex1.z * (bx - ex1.x));
         if ((f64)num > *(volatile const f64*)&lbl_80345D40) {
             okB = 0;
             if (!(side & 2)) {
                 goto classified;
             }
         }
-        num = -ex1.z * (ax - ex1.x) - (-ex1.x * (az - ex1.z));
+        num = -ex1.x * (az - ex1.z) - (-ex1.z * (ax - ex1.x));
         if ((f64)num > lbl_80345D40) {
             okA = 0;
         }
