@@ -1,4 +1,9 @@
 #include "types.h"
+#include "game/enemy.h"
+#include "game/leveldata.h"
+#include "game/player.h"
+
+#define offsetof(type, member) ((u32)&((type*)0)->member)
 
 /*
  * game/game/gamemain.c -- the top-level game-flow TU (a slice of it).
@@ -125,7 +130,6 @@ extern u8 sWorldLevelTable[];
 extern s32  sCurWorldIndex;        /* 0x80344844 */
 
 /* Flat views of the big module globals (avoids header coupling). */
-extern s32  gEnemies[];            /* 0x80251C18 Enemy[25], stride 0x394 */
 extern s32  gWorldInfo[];          /* 0x8028CA8C world info block        */
 extern s32  lbl_80250E00[];        /* enemy/texmod pool base             */
 extern s32  lbl_802511FC[];        /* per-index sign-flip table          */
@@ -646,183 +650,183 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
 /* Xbox PDB: format_brain -- initialize a newly allocated enemy's AI state. */
 void format_brain(s32 index)
 {
-    u8* enemy = (u8*)gEnemies + index * 916;
+    Enemy* enemy = &gEnemies[index];
 
-    *(f32*)(enemy + 764) = lbl_80346A7C;
-    *(u32*)(enemy + 816) = 0;
+    enemy->view = lbl_80346A7C;
+    enemy->ai_flags = 0;
 
-    switch (*(s16*)(enemy + 784)) {
+    switch (enemy->algorithm) {
     case 0:
-        *(s32*)(enemy + 852) = 1;
-        *(s16*)(enemy + 868) = 0;
+        enemy->route = 1;
+        enemy->collided = 0;
         break;
     case 3:
-        *(s32*)(enemy + 852) = 1;
-        *(s16*)(enemy + 868) = 0;
-        *(s32*)(enemy + 804) = 0;
-        *(s32*)(enemy + 808) = -1;
-        *(s32*)(enemy + 800) = 0;
+        enemy->route = 1;
+        enemy->collided = 0;
+        enemy->counter1 = 0;
+        enemy->counter2 = -1;
+        enemy->flag2 = 0;
         break;
     case 2:
     case 4:
-        *(s32*)(enemy + 884) = 0;
-        *(u32*)(enemy + 816) |= 1;
+        enemy->play = 0;
+        enemy->ai_flags |= 1;
         break;
     case 5:
     case 6:
-        *(u32*)(enemy + 816) |= 1;
+        enemy->ai_flags |= 1;
         break;
     case 7:
-        *(s32*)(enemy + 852) = 0;
-        *(s16*)(enemy + 868) = 0;
-        *(s16*)(enemy + 870) = 0;
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
         break;
     case 8:
-        *(s32*)(enemy + 852) = 0;
-        *(s16*)(enemy + 868) = 0;
-        *(s16*)(enemy + 870) = 0;
-        *(s32*)(enemy + 828) = 0;
-        *(s32*)(enemy + 832) = -1;
-        *(f32*)(enemy + 836) = lbl_803468B0;
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
+        enemy->guard_mode = 0;
+        enemy->guard_closest = -1;
+        enemy->guard_dist = lbl_803468B0;
         break;
     case 9:
-        *(s32*)(enemy + 208) = 0;
-        *(u32*)(enemy + 816) |= 5;
+        enemy->daction = 0;
+        enemy->ai_flags |= 5;
         break;
     case 10:
-        *(s32*)(enemy + 852) = 0;
-        *(s16*)(enemy + 868) = 0;
-        *(s16*)(enemy + 870) = 0;
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
         break;
     case 11:
-        *(u32*)(enemy + 816) |= 7;
+        enemy->ai_flags |= 7;
         break;
     case 12: {
         f32 zero = lbl_80346820;
-        *(f32*)(enemy + 736) = zero;
-        *(f32*)(enemy + 740) = zero;
-        *(f32*)(enemy + 744) = zero;
-        *(s32*)(enemy + 852) = 0;
-        *(s16*)(enemy + 868) = 0;
-        *(s16*)(enemy + 870) = 0;
+        enemy->dest[0] = zero;
+        enemy->dest[1] = zero;
+        enemy->dest[2] = zero;
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
         break;
     }
     case 13:
-        *(s32*)(enemy + 852) = 0;
-        *(s16*)(enemy + 868) = 0;
-        *(s16*)(enemy + 870) = 0;
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
         break;
     case 14:
-        *(s32*)(enemy + 852) = 0;
-        *(s16*)(enemy + 868) = 0;
-        *(s16*)(enemy + 870) = 0;
-        *(s32*)(enemy + 804) = 0;
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
+        enemy->counter1 = 0;
         break;
     case 16:
     case 23:
-        *(s32*)(enemy + 800) = RandInt(10);
-        *(s32*)(enemy + 804) = 0;
+        enemy->flag2 = RandInt(10);
+        enemy->counter1 = 0;
         break;
     case 17:
     case 26:
-        *(s32*)(enemy + 800) = RandInt(10);
-        *(s32*)(enemy + 804) = 0;
+        enemy->flag2 = RandInt(10);
+        enemy->counter1 = 0;
         break;
     case 20:
-        *(s32*)(enemy + 852) = 0;
-        *(s16*)(enemy + 868) = 0;
-        *(s16*)(enemy + 870) = 0;
+        enemy->route = 0;
+        enemy->collided = 0;
+        enemy->stuck_count = 0;
         break;
     case 21:
-        *(s32*)(enemy + 804) = 0;
+        enemy->counter1 = 0;
         break;
     case 24:
-        *(s32*)(enemy + 804) = 0;
+        enemy->counter1 = 0;
         break;
     case 27:
-        *(s32*)(enemy + 852) = 1;
-        *(s16*)(enemy + 868) = 0;
+        enemy->route = 1;
+        enemy->collided = 0;
         break;
     case 28:
     case 29:
     case 31:
-        *(s32*)(enemy + 800) = RandInt(30);
-        *(s32*)(enemy + 804) = 0;
-        *(s32*)(enemy + 808) = 0;
+        enemy->flag2 = RandInt(30);
+        enemy->counter1 = 0;
+        enemy->counter2 = 0;
         break;
     case 30:
-        *(s32*)(enemy + 852) = 1;
-        *(s16*)(enemy + 868) = 0;
-        *(s32*)(enemy + 804) = RandInt(60) + 60;
+        enemy->route = 1;
+        enemy->collided = 0;
+        enemy->counter1 = RandInt(60) + 60;
         break;
     }
 
-    *(s32*)(enemy + 860) = 0;
-    *(s32*)(enemy + 856) = 0;
-    *(s32*)(enemy + 840) = -1;
-    *(s32*)(enemy + 844) = 0;
-    *(s32*)(enemy + 848) = 4;
-    *(s16*)(enemy + 726) = 0;
-    *(s32*)(enemy + 880) = PlayersAverageLevel();
-    *(s32*)(enemy + 872) = 8;
-    *(s32*)(enemy + 876) = RandInt(*(u32*)(enemy + 872));
+    enemy->count = 0;
+    enemy->dead_end = 0;
+    enemy->plr_ms = -1;
+    enemy->ms_idx = 0;
+    enemy->max_msidx = 4;
+    enemy->watchdog = 0;
+    enemy->lv = PlayersAverageLevel();
+    enemy->operation_speed = 8;
+    enemy->operation_count = RandInt(enemy->operation_speed);
 }
 
 /* Rebuild an enemy's animation tree, render object, actions, and shadow. */
-void SetEnemyObj(u8* enemy, s32 type, s32 level, s32 unused)
+void SetEnemyObj(Enemy* enemy, s32 type, s32 level, s32 unused)
 {
     void* object;
     s32 shadowObject;
     s32 shadowLevel;
 
-    if (*(s32*)enemy == 27) {
-        SfxDeleteParented(*(void**)(enemy + 100), 0, -1);
+    if (enemy->type == 27) {
+        SfxDeleteParented(enemy->objgrp.node, 0, -1);
     }
-    if (*(void**)(enemy + 108) != 0) {
-        AtreeDelete(enemy + 108);
+    if (enemy->atree.root != 0) {
+        AtreeDelete(&enemy->atree.root);
     }
-    if (*(void**)(enemy + 100) != 0) {
+    if (enemy->objgrp.node != 0) {
         lbl_80344734 = 1;
-        MBRemoveNode(*(void**)(enemy + 100), 0);
+        MBRemoveNode(enemy->objgrp.node, 0);
         lbl_80344734 = 0;
     }
-    *(void**)(enemy + 108) = 0;
-    *(void**)(enemy + 100) = 0;
-    *(f32*)(enemy + 540) = lbl_80346820;
+    enemy->atree.root = 0;
+    enemy->objgrp.node = 0;
+    enemy->flooroffset = lbl_80346820;
 
     if (type == 31) {
-        *(void**)(enemy + 108) = (void*)fn_80011BBC(
-            sGoodWizObj, lbl_80346770, enemy + 108, lbl_80346770, 2048);
-        *(f32*)(enemy + 540) = lbl_80346A80;
+        enemy->atree.root = (void*)fn_80011BBC(
+            sGoodWizObj, lbl_80346770, &enemy->atree.root, lbl_80346770, 2048);
+        enemy->flooroffset = lbl_80346A80;
     } else if (gWadAtreeHeaders[type] != 0) {
         char* name = fn_80051E1C(type, level, 0);
-        *(void**)(enemy + 108) = (void*)fn_80011BBC(
-            gWadAtreeHeaders[type], name, enemy + 108, name, 2048);
+        enemy->atree.root = (void*)fn_80011BBC(
+            gWadAtreeHeaders[type], name, &enemy->atree.root, name, 2048);
     }
 
-    if (*(void**)(enemy + 108) != 0) {
-        *(void**)(enemy + 100) = MBNewNode(lbl_8034473C,
-                                            (void*)gIdentityMatrix, 1);
-        MBNodeSetParent(**(void***)(enemy + 108), *(void**)(enemy + 100));
-        InitActions(enemy + 108, enemy + 212, lbl_80126EC0);
+    if (enemy->atree.root != 0) {
+        enemy->objgrp.node = MBNewNode(lbl_8034473C,
+                                      (void*)gIdentityMatrix, 1);
+        MBNodeSetParent(*(void**)enemy->atree.root, enemy->objgrp.node);
+        InitActions(&enemy->atree.root, enemy->actionlist, lbl_80126EC0);
     } else {
-        InitActions(0, enemy + 212, lbl_80126EC0);
+        InitActions(0, enemy->actionlist, lbl_80126EC0);
     }
 
-    if (*(void**)(enemy + 100) == 0) {
+    if (enemy->objgrp.node == 0) {
         char* name = fn_80051E1C(type, level, 1);
-        *(void**)(enemy + 100) = MBOX_NewObject(name, (f32*)gIdentityMatrix,
-                                                (void*)lbl_8034473C, 0);
-        MBTreeSetFlags(*(void**)(enemy + 100), 2048, 0);
+        enemy->objgrp.node = MBOX_NewObject(name, (f32*)gIdentityMatrix,
+                                            (void*)lbl_8034473C, 0);
+        MBTreeSetFlags(enemy->objgrp.node, 2048, 0);
     }
 
-    if (*(void**)(enemy + 476) != 0) {
-        MBRemoveNode(*(void**)(enemy + 476), 0);
-        *(void**)(enemy + 476) = 0;
+    if (enemy->shadow != 0) {
+        MBRemoveNode(enemy->shadow, 0);
+        enemy->shadow = 0;
     }
 
-    if (*(s32*)enemy != 30 && *(s32*)enemy != 0 &&
-        *(s32*)enemy != 31 && *(s32*)enemy != 21) {
+    if (enemy->type != 30 && enemy->type != 0 &&
+        enemy->type != 31 && enemy->type != 21) {
         shadowObject = lbl_802512B0[type];
         if (level < 1) {
             shadowLevel = 1;
@@ -834,10 +838,9 @@ void SetEnemyObj(u8* enemy, s32 type, s32 level, s32 unused)
         level = shadowLevel - 1;
         object = MBOX_ReallyFindObject(lbl_8011BFF8[level],
                                        shadowObject, shadowObject, 1);
-        *(void**)(enemy + 476) = MBNewObject(object, (f32*)gIdentityMatrix,
-                                             0, 2176);
-        *(f32*)(*(u8**)(enemy + 476) + 84) = lbl_80346A80;
-        *(s16*)(*(u8**)(enemy + 476) + 104) = -32;
+        enemy->shadow = MBNewObject(object, (f32*)gIdentityMatrix, 0, 2176);
+        *(f32*)((u8*)enemy->shadow + 84) = lbl_80346A80;
+        *(s16*)((u8*)enemy->shadow + 104) = -32;
     }
 }
 
@@ -1124,7 +1127,7 @@ void ResetModels(void)
 /* 0x80053A10 -- clear two per-enemy fields for all 25 enemy records. */
 void init_moving_objects(void)
 {
-    s32* e = gEnemies;
+    s32* e = (s32*)gEnemies;
     s32 i;
 
     for (i = 0; i < 25; i++) {
@@ -1400,19 +1403,20 @@ extern void AudioClearActiveTracks(void);
 extern void AudioSetupBossStreams(s32 idx, void* data);
 extern char lbl_801129D4[];
 
+typedef struct EnemyTypeRow {
+    u8 pad0[0xEC];
+    u8* ent;
+    u8 pad1[0x1C];
+    s32 subtype;
+    u8 pad2[0x1C];
+    s32 reverse;
+    u8 pad3[0x1C];
+    s32 type;
+} EnemyTypeRow;
+
 #pragma opt_lifetimes off
 void GetEnemyTypes(void)
 {
-    typedef struct {
-        u8 pad0[0xEC];
-        u8* ent;
-        u8 pad1[0x1C];
-        s32 subtype;
-        u8 pad2[0x1C];
-        s32 reverse;
-        u8 pad3[0x1C];
-        s32 type;
-    } EnemyTypeRow;
     u8* tbl = (u8*)lbl_80257680;
     s32 i;
     s32 seen1e = 0;
@@ -1432,7 +1436,7 @@ void GetEnemyTypes(void)
         u8* typeWords;
 
         if (i < 6) {
-            type = *(s16*)(gCurLevel + levelOff + 0x4C);
+            type = *(s16*)(gCurLevel + levelOff + offsetof(level_data, enemytype));
         } else {
             type = -1;
         }
@@ -1453,7 +1457,7 @@ void GetEnemyTypes(void)
                 slot = (EnemyTypeRow*)((u8*)slot + off);
                 slot->ent = ent;
             }
-        } else if (*(s32*)(gCurLevel + 0x44) < 0 && *(s32*)gWorldData != 0xD &&
+        } else if (((level_data*)gCurLevel)->bosstype < 0 && *(s32*)gWorldData != 0xD &&
                    seen1e == 0) {
             *(s32*)(tbl + off + 0x14C) = 0x1E;
             *(s32*)(tbl + off + 0x10C) = 0;
@@ -2121,7 +2125,7 @@ void SetPlayerVars(void)
     s32 count1 = 0;
     s32 count2 = 0;
     s32 count3 = 0;
-    u8* e;
+    Player* e;
     s32 i;
     s32 type;
     s32 f292;
@@ -2131,8 +2135,8 @@ void SetPlayerVars(void)
     lbl_803447D8 = lbl_80346AF0;
     lbl_803447E0 = offset;
     for (i = 0; i < 4; i++, offset += 13148) {
-        e = base + offset;
-        type = *(s32*)(e + 232);
+        e = (Player*)(base + offset);
+        type = e->state;
         if (type != 0) {
             count1++;
             if (type != 2 && type != 3) {
@@ -2144,7 +2148,7 @@ void SetPlayerVars(void)
             count3++;
         }
         if (type == 1) {
-            f292 = *(s32*)(e + 292);
+            f292 = e->flags;
             if (f292 & 0x8) {
                 lbl_803447DC = 1;
             }
@@ -2152,7 +2156,7 @@ void SetPlayerVars(void)
                 lbl_803447D8 = lbl_803447D8 * lbl_80346B00;
             }
         }
-        *(s16*)(e + 2406) = 0;
+        e->hud_flags2 = 0;
     }
     fn_8005207C(count1, count2, count3);
 }
@@ -2326,10 +2330,11 @@ state4:
 state5:
     lbl_80343C30 = 10;
 state10:
-    type = *(s32*)(table + 0x14C + lbl_80344870 * 4);
+    type = *(s32*)(table + offsetof(EnemyTypeRow, type) + lbl_80344870 * 4);
     arg1 = type;
     if (type >= 0) {
-        qty = *(s32*)(table + 0x10C + lbl_80344870 * 4);
+        qty = *(s32*)(table + offsetof(EnemyTypeRow, subtype) +
+                      lbl_80344870 * 4);
         fn_80050DD8(name, arg1, qty);
         MBOX_BGLoadModelStart(name, (void*)lbl_802512B0[arg1]);
         lbl_80343C30 = 11;
@@ -2347,9 +2352,11 @@ state11:
 
 state12:
     {
-        type = *(s32*)(table + 0x14C + lbl_80344870 * 4);
+        type = *(s32*)(table + offsetof(EnemyTypeRow, type) +
+                       lbl_80344870 * 4);
         if (gWadAtreeHeaders[type] != 0) {
-            qty = *(s32*)(table + 0x10C + lbl_80344870 * 4);
+            qty = *(s32*)(table + offsetof(EnemyTypeRow, subtype) +
+                          lbl_80344870 * 4);
             fn_80050DD8(name, type, qty);
             size = FileSize(name, lbl_80346BF8);
             lbl_80344878 = StartFileRead(name, lbl_80346BF8, 0, size,
@@ -2363,12 +2370,12 @@ state12:
 
 state13:
     if (lbl_80344878[4] != 0) {
-        s32* entry;
+        EnemyTypeRow* entry;
 
         lbl_80344878[4] = -1;
-        entry = (s32*)table;
-        entry += lbl_80344870;
-        type = entry[0x53];
+        entry = (EnemyTypeRow*)table;
+        entry = (EnemyTypeRow*)((u8*)entry + lbl_80344870 * 4);
+        type = entry->type;
         fn_8001267C(gWadAtreeHeaders[type], (void*)lbl_802512B0[type], -1);
         lbl_80343C30 = arg1 != 0 ? 100 : 14;
         lbl_80344874 = pbLoad;
@@ -2378,10 +2385,10 @@ state13:
 state14:
     {
         s32 next;
-        s32* entry = (s32*)table;
+        EnemyTypeRow* entry = (EnemyTypeRow*)table;
 
-        entry += lbl_80344870;
-        type = entry[0x53];
+        entry = (EnemyTypeRow*)((u8*)entry + lbl_80344870 * 4);
+        type = entry->type;
     if (type >= 0) {
         fn_80050910(type);
     }
@@ -2454,21 +2461,21 @@ s32 fn_80056698(s32 arg0, s32 arg1)
 void fn_800510A4(void)
 {
     s32* pool = lbl_80250E00;
-    s32* e = (s32*)((u8*)pool + 3608);   /* = gEnemies */
+    Enemy* e = (Enemy*)((u8*)pool + 3608);   /* = gEnemies */
     f32 fv = lbl_80346820;
     s32 i;
 
     for (i = 0; i < 25; i++) {
-        e[45] = 0;                       /* +0xB4 */
-        e[25] = 0;                       /* +0x64 */
-        e[26] = 2;                       /* +0x68 */
-        *(f32*)(e + 135) = fv;           /* +0x21C */
-        e[27] = 0;                       /* +0x6C */
-        e[119] = 0;                      /* +0x1DC */
-        e += 229;
+        e->state = 0;
+        e->objgrp.node = 0;
+        e->objgrp.flags = 2;
+        e->flooroffset = fv;
+        e->atree.root = 0;
+        e->shadow = 0;
+        e++;
     }
     lbl_8034473C = (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
-    gNumEnemies = *(s16*)((u8*)gCurLevel + 142);
+    gNumEnemies = ((level_data*)gCurLevel)->maxenemies;
     lbl_80344740 = 0;
     lbl_80344748 = -1;
     lbl_80344750 = -1;
@@ -3364,7 +3371,7 @@ void fn_80055AFC(void)
     }
     n = 0;
     for (i = 0; i < 4; i++) {
-        if (*(s32*)((u8*)gPlayers + i * 13148 + 232) == 1) {
+        if (((Player*)((u8*)gPlayers + i * 13148))->state == 1) {
             break;
         }
         n++;
@@ -3684,12 +3691,12 @@ void fn_8005351C(void)
     lbl_803448B4 = sMusicTrackHi;
     lbl_803448B0 = sMusicTrackLo;
     lbl_80343C00 = -1;
-    SetScrollLevelMsgList(0, gCurLevel + 8);
+    SetScrollLevelMsgList(0, ((level_data*)gCurLevel)->name);
     {
-        u8* e = (u8*)gEnemies;
-        for (i = 0; i < 25; i++, e += 916) {
-            *(s32*)(e + 180) = 0;
-            *(s32*)(e + 100) = 0;
+        Enemy* e = gEnemies;
+        for (i = 0; i < 25; i++, e++) {
+            e->state = 0;
+            e->objgrp.node = 0;
         }
     }
     sumnerUpdatePresence();
@@ -3700,12 +3707,13 @@ void fn_8005351C(void)
     if (sMusicTrackHi == 13) {
         s32 one = 1;
         for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
-            s32 st = *(s32*)(p + 232);
+            Player* player = (Player*)p;
+            s32 st = player->state;
             if (st == 1) {
                 player_store_in_save(p);
             } else if (st == 11) {
                 PlayerRestoreState(i);
-                *(s32*)(p + 232) = one;
+                player->state = one;
             }
         }
         EnterTower();
@@ -3720,22 +3728,23 @@ void fn_8005351C(void)
         idmat = (f32*)gIdentityMatrix;
         tbl = (u8*)lbl_80257650;
         for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 12, p += 13148) {
-            *(s32*)(p + 2096) = sLastWorldLevel;
-            *(s32*)(p + 116) = 0;
-            *(s32*)(p + 124) = 0;
-            if ((lbl_80344824 & (1 << i)) && *(s32*)(p + 232) != 11) {
-                *(s32*)(p + 232) = 1;
+            ((Player*)p)->exit_dest = sLastWorldLevel;
+            ((Player*)p)->node = 0;
+            ((Player*)p)->platform = 0;
+            if ((lbl_80344824 & (1 << i)) && ((Player*)p)->state != 11) {
+                Player* player = (Player*)p;
+                player->state = 1;
                 load_player(i);
-                add_target(p + 20);
-                LoadPlyrData(i, *(s32*)(p + 12), 1);
+                add_target(player->mat);
+                LoadPlyrData(i, player->character, 1);
                 if (isSelect != 0) {
                     f32* v;
-                    CopyMat3(idmat, (f32*)(p + 20));
+                    CopyMat3(idmat, player->mat);
                     v = (f32*)(tbl + off);
-                    *(f32*)(p + 68) = v[0];
-                    *(f32*)(p + 72) = v[1];
-                    *(f32*)(p + 76) = v[2];
-                    UpdatePlayerWorldMat(p, 0);
+                    player->pos[0] = v[0];
+                    player->pos[1] = v[1];
+                    player->pos[2] = v[2];
+                    UpdatePlayerWorldMat(player, 0);
                 }
             }
             setup_player_display(i);
@@ -3747,14 +3756,15 @@ void fn_8005351C(void)
         u8* base = gPlayers;
         for (i = 0, off2 = 0; i < 4; i++, off2 += 13148) {
             u8* q = base + off2;
-            if (*(s32*)(q + 232) != 0) {
+            Player* player = (Player*)q;
+            if (player->state != 0) {
                 if (sMusicTrackHi == 13) {
                     PlayerSaveState(i, 0);
                 } else if (sMusicTrackHi != 12) {
                     PlayerSaveState(i, 1);
                 }
-                if (*(s32*)(q + 7872) == 0) {
-                    *(s32*)(q + 7872) = 1;
+                if (player->exp == 0) {
+                    player->exp = 1;
                     *(s8*)(q + 2699) = 0;
                 }
             }
@@ -3782,7 +3792,7 @@ void fn_8005351C(void)
         }
         if (mt == 13) {
             for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
-                if (*(s32*)(p + 232) == 1) {
+                if (((Player*)p)->state == 1) {
                     *(PlayerSaveBlk*)(p + 7884) = *(PlayerSaveBlk*)(p + 2688);
                 }
             }
@@ -4286,16 +4296,19 @@ void fn_80054E78(void)
     }
 
     if ((gControllerButtons & 0x10) == 0) {
-        if (active != 0 && (*(u32*)gCurLevel & 4) && *(void**)(state + 124) != 0) {
+        if (active != 0 && (((level_data*)gCurLevel)->flags & 4) &&
+            *(void**)(state + 124) != 0) {
             mbBlitInit3414(*(void**)(state + 124), 0);
         }
-        if (lbl_80344818 > lbl_80346AF0 + (f32)*(s16*)(gCurLevel + 12)) {
+        if (lbl_80344818 >
+            lbl_80346AF0 + (f32)((level_data*)gCurLevel)->wavetime) {
             lbl_80344814 = lbl_80346B08;
             lbl_80344818 = lbl_80346B08;
         }
     }
 
-    if ((*(u32*)gCurLevel & 4) && (gGameBusy | gGameplayPauseTimer) == 0 &&
+    if ((((level_data*)gCurLevel)->flags & 4) &&
+        (gGameBusy | gGameplayPauseTimer) == 0 &&
         (gControllerButtons & 4) == 0 && active != 0) {
         f32 t;
         f32 nt;
@@ -4328,11 +4341,12 @@ void fn_80054E78(void)
                 p = gPlayers;
                 for (player_off = 0; player_off < 48;
                      player_off += 12, p += 13148) {
-                    if (*(s32*)(p + 232) != 0) {
+                    Player* player = (Player*)p;
+                    if (player->state != 0) {
                         row = state + player_off;
-                        *(f32*)(row + 144) = *(f32*)(p + 68);
-                        *(f32*)(row + 148) = *(f32*)(p + 72);
-                        *(f32*)(row + 152) = *(f32*)(p + 76);
+                        *(f32*)(row + 144) = player->pos[0];
+                        *(f32*)(row + 148) = player->pos[1];
+                        *(f32*)(row + 152) = player->pos[2];
                     }
                 }
             } else {

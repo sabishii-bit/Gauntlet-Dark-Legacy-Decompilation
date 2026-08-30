@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Sustained TU-scoped de-fakematch pass over game/game/gamemain.c: replace raw offsets with GC-verified Player, Enemy, and level_data fields plus a target-verified EnemyTypeRow view while preserving every function's baseline score.",
+  "attributes": {
+    "anchors": "src/game/game/gamemain.c; GUNE5D fn_80055F68 0x80055F68 size 0x404; fndiff --count/--ops/--clean per affected function; include/game/player.h, enemy.h, leveldata.h",
+    "axis_log": "GetEnemyTypes indexed enemytype form preserved 143 insns but regressed exactness to real4 by eliminating the two-byte induction web; typed-subobject byte-walk counter-form became add+lha and real6. After graph signature search, offsetof(level_data,enemytype) preserved target addi+lhax and restored exact. fn_8005351C first player-loop repeated access-site casts regressed 317->318 and real124->165 via an extra pointer-transit addi; one declared typed alias restored baseline. A whole second-loop alias held 317 insns but worsened real124->126 by moving the shared zero-value li; partial single-use casts plus a scoped alias restored baseline.",
+    "measurements": "TU baseline fuzzy 97.992195 with 58/74 exact. Retained: fn_80055F68 257/257 fuzzy100 real0 frame0x128; SetPlayerVars 65/65 real0 frame0x8; fn_80055AFC 111/111 real0 frame0x38; GetEnemyTypes 143/143 real0 frame0x30; format_brain 161/161 clean-real0 frame0x18; SetEnemyObj 162/162 real0 frame0x28; fn_800510A4 48/48 real0 frame0x10; fn_8005351C unchanged 317/317 real124 frame0x38; fn_80054E78 unchanged 267/267 real38 frame0x48.",
+    "sites_converted": "Raw-cast census 380->266 (114 removed). Converted Enemy AI/setup/object fields, Player state/flags/position/runtime fields, level flags/wavetime/enemy slots/boss/maxenemy fields, and the transposed EnemyTypeRow table used by GetEnemyTypes and fn_80055F68.",
+    "sites_left_raw": "266 regex-census sites remain: unnamed enemy initialization fields, opaque world/runtime/UI records, high-pressure milestone/player save-block address webs, and offsets without GC name authority. Accepted parked matching axes for fn_80054E78 were not retried; only score-neutral de-fakematch forms were tested.",
+    "verification": "Object rebuilt and affected functions re-gated after every retained region; all exact functions clean real0 and fuzzy functions equal baseline. matchtool unchanged OK55/OK~2/bad17/ties2; datadiff reported only unclaimed .data 0x1B8/.sdata 0x8/.sdata2 0x58; full ninja -j2 succeeded with main.dol OK; project 97.82% fuzzy/58.15% matched/26.09% linked; portable C only."
+  },
+  "function": "function:fn_80055F68",
+  "id": "attempt.gamemain-defakematch-tupass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
