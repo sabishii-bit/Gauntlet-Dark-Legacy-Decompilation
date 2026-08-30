@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "src/game/sfx/psfx.c::DoPlyrSfxSub (worktree GDL-Claude-PsfxDefake, work_claim.psfx-defake.20260830.v1); attempt.psfx-defakematch-tupass-w2.20260830.v1",
+    "scope": "MWCC GC 1.2.5 family; applies to any function with an active WebFrank REGISTER_ONLY (or other) rule in config/GUNE5D/webfrank.json, during de-fakematch or matching work on that function's source."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.webfrank-hash-pinned-site.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "A WebFrank rule (config/GUNE5D/webfrank.json) pins an exact SHA-256 of the RAW (pre-WebFrank) compiled function body as its 'before_sha256'; the guard fails closed (SystemExit/ValueError 'input hash != expected') if the raw compile no longer matches, even for a source change that looks purely cosmetic. In DoPlyrSfxSub, converting `*(void**)(*(u8**)(player + 0x74) + 0x78)` to `((MBObject*)((Player*)player)->node)->child` -- the SAME struct-field pattern that was simultaneously neutral in the sibling function DoPlyrSfx -- changed DoPlyrSfxSub's raw compiled bytes enough to break its pinned REGISTER_ONLY rule (raw hash 39b5811c... vs the rule's expected 71879a9b...), aborting the ninja build outright (not merely a fndiff regression). A DIFFERENT rewrite of the SAME logical access at a DIFFERENT expression shape (e.g. going through an already-established `PsfxHeader*`/`Player*` typed pointer instead of introducing a fresh nested cast chain) may or may not preserve the hash; the only way to know is to try and read whether ninja itself fails at the WEBFRANK step (distinct from a normal fndiff regression, which still produces a buildable object). Consequence for de-fakematching a WebFrank-guarded function: (1) always run the full `ninja build/.../<obj>.o` (not just check fndiff) after any source edit near a hash-pinned site, since a broken guard aborts the object build entirely; (2) on failure, do not edit config/GUNE5D/webfrank.json to accept the new hash -- that requires the full audited tool.webfrank re-proof process (webfrank_audit.py + individual rule audit per tool.webfrank.20260830.v1's constraints), which is out of scope for a de-fakematch pass; (3) revert to the original raw expression at that specific site and move on -- the same struct-field conversion is very likely still safe at every OTHER, non-hash-pinned occurrence in the same or sibling functions."
+}
