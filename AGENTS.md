@@ -26,11 +26,18 @@ documents as durable memory.
 
 ```text
 python memory_graph/gdlmem.py ensure
+python memory_graph/gdlmem.py brief <tu-path-fragment>
 python memory_graph/gdlmem.py context <symbol>
+python memory_graph/gdlmem.py find [--kind K] [--function F] [--tu T] [--outcome O] [--law L] [terms]
 python memory_graph/gdlmem.py search "<terms>"
-python memory_graph/gdlmem.py laws [--query <term>]
+python memory_graph/gdlmem.py laws [--query <term>] [--tag <tag>]
 python memory_graph/gdlmem.py tool <tool-or-workflow>
 ```
+
+Law tags are a controlled vocabulary — `laws` reports `tags_available`
+with live counts (don't guess names), and `--tag core-screen` returns the
+mandatory de-fakematch screen set. Proposals using tags outside the
+vocabulary are rejected at staging.
 
 - Run `context` before claiming a function or TU. It returns accepted claims,
   recorded attempts, parked caps, and Xbox candidate links for the symbol.
@@ -77,9 +84,18 @@ python memory_graph/gdlmem.py tool <tool-or-workflow>
 
 Query at these moments, not only at claim time:
 
-1. **Before the first edit** — `context <function>` (plus `xbox <function>`
-   for real names and PDB source-order neighbors). A recorded cap on your
-   planned axis is a VETO; an empty briefing is a green light, not an error.
+0. **At spawn, for TU-scoped work** — `brief <tu>` (e.g.
+   `gdlmem.py brief game/enemy/enemy`) is the one-call briefing: function
+   roster with scores, every live attempt record (parks and caps first —
+   each is a VETO on its axis), active claims from every fleet, the
+   core-screen law list, and the TU's raw-offset debt. Start here; it
+   replaces running `context` per function for the roster overview.
+1. **Before the first edit of a specific function** — `context <function>`
+   (plus `xbox <function>` for real names and PDB source-order neighbors).
+   A recorded cap on your planned axis is a VETO; an empty briefing is a
+   green light, not an error. `find` slices records by facet when you need
+   a cross-section (`find --tu game/ui/select --outcome parked`,
+   `find --law lwzu-idiom --kind attempt`).
 2. **At every classified residual** — before spending an A/B probe on a diff
    cluster, search the graph by its **codegen signature**, not the function
    name: `laws --query "lfsx"`, `search "assignment in condition"`,
@@ -267,9 +283,19 @@ per-TU raw-cast + PF() counts, heaviest first, timestamped for
 wave-over-wave comparison. Its counts include legitimate raw forms
 (protected webs, structless pools), so read the TU's attempt records
 before claiming. `gdlmem.py stale` now also emits `reopen_candidates`:
-parks whose score moved since parking, and caps that never documented the
-failing form (re-try those with offsetof-on-raw-pointer per
-`claim.law.offsetof-overturns-typed-alias-caps`).
+parks whose score moved since parking, and conversion caps that never
+documented the failing form (re-try those with offsetof-on-raw-pointer
+per `claim.law.offsetof-overturns-typed-alias-caps`).
+
+Parked-record hygiene (integrator duty): parked/capped records live as
+per-function attempt records under `records/attempts/parked/` — never as
+entries appended to a bulk list (the legacy
+`claim.parked-unresolved` blob was migrated 2026-08-30; its v2 residual
+holds only genuinely non-per-function entries). After each integration
+wave, run `gdlmem.py stale`: delete parks in `stale_solved` (the function
+now measures fully matched — the park is moot; git history keeps the
+text), and queue `reopen_candidates` for cheap re-probes. A park must be
+anchored to its function or `context`/`brief`/`find` cannot surface it.
 
 Core tools, from the repository root:
 

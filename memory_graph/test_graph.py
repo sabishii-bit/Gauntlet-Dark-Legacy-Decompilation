@@ -31,9 +31,11 @@ from memory_graph.core import (
     attempt_staleness,
     build_database,
     fakematch_debt,
+    find_records,
     law_corpus,
     prune_attempts,
     stage_record_proposal,
+    tu_briefing,
     work_claims,
 )
 
@@ -65,6 +67,11 @@ def make_root(with_symbols=True) -> Path:
         (root / "config" / "GUNE5D" / "symbols.txt").write_text(
             "test_fn = .text:0x80001000; // type:function size:0x20 scope:global\n"
             "other_fn = .text:0x80001020; // type:function size:0x20 scope:global\n",
+            encoding="utf-8",
+        )
+        (root / "config" / "GUNE5D" / "splits.txt").write_text(
+            "game/test/foo.c:\n"
+            "\t.text start:0x80001000 end:0x80001040\n",
             encoding="utf-8",
         )
     return root
@@ -187,16 +194,19 @@ class GraphSurfaceTests(unittest.TestCase):
             "kind": "claim", "subject": "compiler:test",
             "predicate": "codegen_law", "epistemic_state": "verified",
             "value": "old law text", "valid_from": "2026-08-01",
-            "attributes": {"scope": "test scope v1"},
+            "attributes": {"scope": "test scope v1",
+                           "tags": ["alias-form", "defake"]},
         })
         _write(records / "claims" / "claim.law.test-law.v2.json", {
             "schema_version": 1, "id": "claim.law.test-law.v2",
             "kind": "claim", "subject": "compiler:test",
             "predicate": "codegen_law", "epistemic_state": "verified",
-            "value": "new law text", "valid_from": TODAY,
+            "value": "new law text mentioning game/test/foo.c",
+            "valid_from": TODAY,
             "recorded_at": f"{TODAY}T09:00:00Z",
             "supersedes": "claim.law.test-law.v1",
-            "attributes": {"scope": "test scope v2"},
+            "attributes": {"scope": "test scope v2",
+                           "tags": ["core-screen", "alias-form", "defake"]},
         })
         # improved attempt applying the v2 law
         _write(records / "attempts" / "attempt.applies.v1.json", _attempt(
@@ -210,11 +220,16 @@ class GraphSurfaceTests(unittest.TestCase):
             axis="offsetof probe capped",
             after={"fuzzy_percent": 90.0},
         ))
-        # parked attempt on other_fn with no measurement and no form terms
+        # parked CONVERSION attempt on other_fn with no form documented
         # -> failing_form_undocumented
         _write(records / "attempts" / "attempt.formless.v1.json", _attempt(
             "attempt.formless.v1", "function:other_fn", outcome="parked",
-            axis="register rotation resisted",
+            axis="raw offset conversion regressed, reverted",
+        ))
+        # scheduler park on other_fn: conversion heuristic must NOT flag it
+        _write(records / "attempts" / "attempt.schedpark.v1.json", _attempt(
+            "attempt.schedpark.v1", "function:other_fn", outcome="parked",
+            axis="register rotation resisted, scheduler fog",
         ))
         # push other_fn over the 5-attempt cap (formless + 5 = 6)
         for i in range(5):
@@ -233,8 +248,8 @@ class GraphSurfaceTests(unittest.TestCase):
             "state": "released", "claimed_at": "2026-08-19",
             "released_at": "2026-08-20",
         })
-        # debt fixture
-        src = cls.root / "src" / "game" / "foo.c"
+        # debt fixture (path matches the splits module game/test/foo.c)
+        src = cls.root / "src" / "game" / "test" / "foo.c"
         src.parent.mkdir(parents=True)
         src.write_text(
             "void f(u8* p, u8* q, u8* r, void* x) {\n"
@@ -250,7 +265,7 @@ class GraphSurfaceTests(unittest.TestCase):
         report = cls.root / "build" / "GUNE5D" / "report.json"
         report.parent.mkdir(parents=True)
         report.write_text(json.dumps({
-            "units": [{"name": "main/game/x", "functions": [
+            "units": [{"name": "main/game/test/foo", "functions": [
                 {"name": "test_fn", "fuzzy_match_percent": 95.0},
                 {"name": "other_fn", "fuzzy_match_percent": 80.0},
             ]}]
@@ -263,7 +278,7 @@ class GraphSurfaceTests(unittest.TestCase):
 
     def test_build_reports_attempt_overflow(self):
         overflow = self.stats.get("attempt_overflow", {})
-        self.assertEqual(overflow.get("function:other_fn"), 6)
+        self.assertEqual(overflow.get("function:other_fn"), 7)
         self.assertNotIn("function:test_fn", overflow)
 
     def test_law_corpus_counts_and_supersession(self):
@@ -295,7 +310,7 @@ class GraphSurfaceTests(unittest.TestCase):
         result = fakematch_debt(root=self.root)
         self.assertEqual(result["tu_count"], 1)
         row = result["tus"][0]
-        self.assertEqual(row["tu"], "src/game/foo.c")
+        self.assertEqual(row["tu"], "src/game/test/foo.c")
         self.assertEqual(row["cast_sites"], 3)
         self.assertEqual(row["pf_sites"], 2)
         self.assertEqual(result["site_total"], 5)
@@ -309,6 +324,76 @@ class GraphSurfaceTests(unittest.TestCase):
                          "score_moved_since_park")
         self.assertEqual(reasons.get("attempt.formless.v1"),
                          "failing_form_undocumented")
+        # scheduler/regalloc parks are NOT conversion re-try candidates
+        self.assertNotIn("attempt.schedpark.v1", reasons)
+
+    def test_laws_tag_filter_and_vocabulary_report(self):
+        result = law_corpus(root=self.root, tag="core-screen")
+        self.assertEqual([row["id"] for row in result["laws"]],
+                         ["claim.law.test-law.v2"])
+        self.assertEqual(result["laws"][0]["tags"],
+                         ["core-screen", "alias-form", "defake"])
+        self.assertEqual(result["tags_available"],
+                         {"alias-form": 2, "core-screen": 1, "defake": 2})
+
+    def test_find_facets(self):
+        by_kind = find_records(root=self.root, kind="work_claim")
+        self.assertTrue(all(row["kind"] == "work_claim"
+                            for row in by_kind["results"]))
+        self.assertGreaterEqual(by_kind["count"], 2)
+
+        by_fn = find_records(root=self.root, function="test_fn",
+                             kind="attempt")
+        ids = {row["id"] for row in by_fn["results"]}
+        self.assertIn("attempt.applies.v1", ids)
+        self.assertIn("attempt.moved.v1", ids)
+        self.assertNotIn("attempt.formless.v1", ids)  # other_fn
+
+        by_tu = find_records(root=self.root, tu="game/test/foo",
+                             kind="attempt")
+        tu_ids = {row["id"] for row in by_tu["results"]}
+        # TU facet reaches BOTH functions through the derived module join
+        self.assertIn("attempt.moved.v1", tu_ids)
+        self.assertIn("attempt.formless.v1", tu_ids)
+        self.assertEqual(by_tu["results"][0]["tu"], "game/test/foo.c")
+
+        parked = find_records(root=self.root, tu="game/test/foo",
+                              outcome="parked")
+        self.assertEqual(
+            {row["id"] for row in parked["results"]},
+            {"attempt.moved.v1", "attempt.formless.v1",
+             "attempt.schedpark.v1"},
+        )
+
+        by_law = find_records(root=self.root, law="claim.law.test-law.v2",
+                              kind="attempt")
+        self.assertIn("attempt.applies.v1",
+                      {row["id"] for row in by_law["results"]})
+
+        with self.assertRaisesRegex(MemoryGraphError, "at least one"):
+            find_records(root=self.root)
+
+    def test_tu_briefing_assembles_sections(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        self.assertEqual(brief["tu"], ["game/test/foo.c"])
+        roster = {row["function"]: row for row in brief["functions"]}
+        self.assertEqual(set(roster), {"test_fn", "other_fn"})
+        self.assertEqual(roster["test_fn"]["fuzzy"], 95.0)
+        attempt_ids = [row["id"] for row in brief["live_attempts"]]
+        self.assertIn("attempt.moved.v1", attempt_ids)
+        # parked/capped records lead the list
+        self.assertIn(brief["live_attempts"][0]["outcome"],
+                      ("parked", "capped"))
+        self.assertEqual(
+            [row["id"] for row in brief["active_claims"]], ["work_claim.a"]
+        )
+        self.assertEqual(
+            [row["id"] for row in brief["core_screen_laws"]],
+            ["claim.law.test-law.v2"],
+        )
+        self.assertEqual(brief["raw_offset_debt"][0]["total"], 5)
+        with self.assertRaisesRegex(MemoryGraphError, "no GameCube module"):
+            tu_briefing("does/not/exist", root=self.root)
 
 
 class AcceptRecordsTests(unittest.TestCase):

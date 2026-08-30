@@ -159,9 +159,11 @@ propose-record ──▶ full validation ──▶ inbox/ ──(integrator revi
 ## Query surface
 
 ```sh
-python memory_graph/gdlmem.py context <symbol>   # the briefing command
+python memory_graph/gdlmem.py brief <tu>         # one-call TU briefing for workers
+python memory_graph/gdlmem.py context <symbol>   # the per-symbol briefing command
+python memory_graph/gdlmem.py find [facets]      # faceted search: kind/function/TU/outcome/law
 python memory_graph/gdlmem.py search "<terms>"   # FTS over records/symbols/entities
-python memory_graph/gdlmem.py laws [--query X]   # the codegen-law corpus, newest first
+python memory_graph/gdlmem.py laws [--query X] [--tag T]  # law corpus; tags_available lists tags
 python memory_graph/gdlmem.py claims             # work claims w/ owner, age, stale flags
 python memory_graph/gdlmem.py debt [--tu X]      # raw-offset fakematch census per TU
 python memory_graph/gdlmem.py tool <name>        # reviewed tool policy

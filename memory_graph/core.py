@@ -36,6 +36,22 @@ INBOX_DIR = REPO_ROOT / "memory_graph" / "inbox"
 ATTEMPT_BYTE_CAP = 16384
 ATTEMPT_LIMIT_PER_FUNCTION = 5
 
+# Controlled applicability vocabulary for law records (attributes.tags).
+# `laws` reports live per-tag counts; proposals with tags outside this set
+# fail closed so the vocabulary cannot drift silently. Extend it here, in one
+# reviewed change, when a genuinely new pattern class emerges.
+LAW_TAG_VOCABULARY = frozenset({
+    "core-screen",
+    # pattern classes
+    "walked-pointer", "alias-form", "offsetof-form", "lwzu-fusion",
+    "index-form", "entry-schedule", "register-web", "sda-global",
+    "param-retype", "cse", "decl-order", "store-placement", "switch-form",
+    "symbol-identity", "relocation", "inline", "peephole", "pool-layout",
+    # context classes
+    "defake", "matching", "metrics", "batch-gating", "postprocessor",
+    "workflow", "build-hygiene",
+})
+
 PDB_MODULE_RE = re.compile(r"^==\s+\.\\Release\\(.+?)\s+\((.*?)\)\s*$", re.I)
 PDB_SYMBOL_RE = re.compile(
     r"^\[(\d{4}):([0-9A-Fa-f]{8})\]\s+([0-9A-Fa-f]+)\s+([GLD])\s+(.*)$"
@@ -2118,6 +2134,21 @@ def stage_record_proposal(
                 " (run `gdlmem.py laws` for the current corpus); an explicit"
                 " 'none applicable: <why>' is acceptable"
             )
+    proposed_tags = (
+        record.get("attributes", {}).get("tags")
+        if isinstance(record.get("attributes"), dict) else None
+    )
+    if proposed_tags is not None:
+        unknown = [tag for tag in proposed_tags
+                   if tag not in LAW_TAG_VOCABULARY]
+        if unknown:
+            raise MemoryGraphError(
+                f"unknown tag(s) {unknown}: attributes.tags must come from"
+                " the controlled vocabulary — "
+                + ", ".join(sorted(LAW_TAG_VOCABULARY))
+                + " (extend LAW_TAG_VOCABULARY in memory_graph/core.py via a"
+                " reviewed change if a new pattern class is real)"
+            )
     _validate_record(record, Path("<proposal>"))
     _probe_record_references(record, root)
     record_id = record["id"]
@@ -2469,14 +2500,21 @@ def law_corpus(
     *,
     root: Path = REPO_ROOT,
     db_path: Path | None = None,
+    tag: str | None = None,
     limit: int = 100,
 ) -> dict[str, Any]:
-    """List the codegen-law corpus, newest first, with freshness and supersession."""
+    """List the codegen-law corpus, newest first, with freshness and supersession.
+
+    ``tag`` filters on the structured ``attributes.tags`` array (e.g.
+    ``core-screen``, ``alias-form``, ``entry-schedule``) — the curated
+    applicability vocabulary, cheaper and more precise than prose search.
+    """
     ensure_database(root, db_path)
     sql = """
         SELECT r.record_id, r.record_state, r.valid_from, r.recorded_at,
                c.epistemic_state, c.value_json,
                json_extract(r.raw_json, '$.attributes.scope') AS scope,
+               json_extract(r.raw_json, '$.attributes.tags') AS tags,
                COALESCE(
                    c.superseded_by,
                    (SELECT newer.record_id FROM record_ingest newer
@@ -2489,6 +2527,9 @@ def law_corpus(
         WHERE (c.predicate = 'codegen_law' OR r.record_id LIKE '%law%')
     """
     params: list[Any] = []
+    if tag:
+        sql += " AND json_extract(r.raw_json, '$.attributes.tags') LIKE ?"
+        params.append(f'%"{tag}"%')
     if query:
         sql += (
             " AND (r.record_id LIKE ? OR c.value_json LIKE ?"
@@ -2509,6 +2550,10 @@ def law_corpus(
             pass
         if isinstance(value, str) and len(value) > 300:
             value = value[:300] + " …[gdlmem.py record <id> for full text]"
+        try:
+            tags = json.loads(row["tags"]) if row["tags"] else []
+        except (TypeError, json.JSONDecodeError):
+            tags = []
         laws.append(
             {
                 "id": row["record_id"],
@@ -2519,17 +2564,36 @@ def law_corpus(
                 "age_days": _record_age_days(row["valid_from"], row["recorded_at"]),
                 "applied_count": row["applied_count"],
                 "superseded_by": row["superseded_by"],
+                "tags": tags,
                 "scope": row["scope"],
                 "head": value,
             }
         )
+    with closing(open_database(root, db_path)) as connection:
+        tag_rows = connection.execute(
+            """
+            SELECT json_extract(r.raw_json, '$.attributes.tags') AS tags
+            FROM claim c JOIN record_ingest r ON r.record_id = c.record_id
+            WHERE (c.predicate = 'codegen_law' OR r.record_id LIKE '%law%')
+              AND tags IS NOT NULL
+            """
+        ).fetchall()
+    tag_counts: dict[str, int] = {}
+    for row in tag_rows:
+        try:
+            for tag_name in json.loads(row["tags"]):
+                tag_counts[tag_name] = tag_counts.get(tag_name, 0) + 1
+        except (TypeError, json.JSONDecodeError):
+            continue
     return {
         "laws": laws,
         "count": len(laws),
+        "tags_available": dict(sorted(tag_counts.items())),
         "note": (
             "laws are compiler-scoped observations, not instructions:"
             " re-verify against your target bytes; a superseded_by entry means"
-            " read the newer record instead"
+            " read the newer record instead; filter with --tag <name> using"
+            " tags_available (core-screen = the mandatory de-fakematch screen)"
         ),
     }
 
@@ -2654,6 +2718,276 @@ def fakematch_debt(
     }
 
 
+def _record_head(record: dict[str, Any]) -> str:
+    for key in ("attempted_axis", "value", "scope", "detail", "name", "purpose"):
+        value = record.get(key)
+        if not value and isinstance(record.get("attributes"), dict):
+            value = record["attributes"].get(key)
+        if isinstance(value, str) and value.strip():
+            text = " ".join(value.split())
+            return text[:200] + (" …" if len(text) > 200 else "")
+    return ""
+
+
+def find_records(
+    query: str | None = None,
+    *,
+    root: Path = REPO_ROOT,
+    db_path: Path | None = None,
+    kind: str | None = None,
+    function: str | None = None,
+    tu: str | None = None,
+    outcome: str | None = None,
+    law: str | None = None,
+    limit: int = 25,
+) -> dict[str, Any]:
+    """Faceted record search: filter by kind, anchor function, TU, attempt
+    outcome, and associated law, freely combined with FTS terms.
+
+    The TU facet is derived through the symbol import (function -> module),
+    so historical records are TU-searchable without carrying a `tu` field.
+    The law facet matches structured `laws_applied` links and prose mentions
+    (law_screen text) alike.
+    """
+    if not any((query, kind, function, tu, outcome, law)):
+        raise MemoryGraphError(
+            "find needs at least one facet or search term"
+            " (--kind/--function/--tu/--outcome/--law or query)"
+        )
+    ensure_database(root, db_path)
+    sql = """
+        SELECT r.record_id, r.record_kind, r.record_state,
+               r.valid_from, r.recorded_at, r.raw_json,
+               MIN(fe.entity_key) AS fn_key,
+               MIN(bm.object_name) AS tu_name,
+               MIN(at.outcome) AS outcome
+        FROM record_ingest r
+        LEFT JOIN (
+            SELECT record_id, function_entity_id FROM attempt
+            UNION ALL
+            SELECT record_id, function_entity_id FROM work_claim
+        ) fx ON fx.record_id = r.record_id
+        LEFT JOIN entity fe ON fe.id = fx.function_entity_id
+        LEFT JOIN binary_symbol bs
+            ON fe.entity_key LIKE 'function:%'
+            AND bs.raw_name = substr(fe.entity_key, 10)
+            AND bs.platform = 'gamecube' AND bs.symbol_kind = 'function'
+        LEFT JOIN binary_module bm ON bm.id = bs.module_id
+        LEFT JOIN attempt at ON at.record_id = r.record_id
+        WHERE 1=1
+    """
+    params: list[Any] = []
+    if kind:
+        sql += " AND r.record_kind = ?"
+        params.append(kind)
+    if function:
+        name = function.split(":", 1)[-1]
+        sql += " AND fe.entity_key = ?"
+        params.append(f"function:{name}")
+    if tu:
+        sql += " AND bm.object_name LIKE ?"
+        params.append(f"%{tu}%")
+    if outcome:
+        sql += " AND at.outcome = ?"
+        params.append(outcome)
+    if law:
+        sql += (
+            " AND (EXISTS (SELECT 1 FROM attempt_law_application ala"
+            "      WHERE ala.attempt_record_id = r.record_id"
+            "        AND ala.law_record_id LIKE ?)"
+            "   OR r.raw_json LIKE ?)"
+        )
+        params.extend([f"%{law}%", f"%{law}%"])
+    if query:
+        sql += (
+            " AND r.record_id IN"
+            " (SELECT record_id FROM record_fts WHERE record_fts MATCH ?)"
+        )
+        params.append(_fts_query(query))
+    sql += """
+        GROUP BY r.record_id
+        ORDER BY CASE r.record_state WHEN 'accepted' THEN 0 ELSE 1 END,
+                 COALESCE(r.recorded_at, r.valid_from, '') DESC,
+                 r.record_id
+        LIMIT ?
+    """
+    params.append(limit)
+    with closing(open_database(root, db_path)) as connection:
+        rows = connection.execute(sql, params).fetchall()
+    results = []
+    for row in rows:
+        try:
+            record = json.loads(row["raw_json"])
+        except json.JSONDecodeError:
+            record = {}
+        fn_key = row["fn_key"] or ""
+        results.append(
+            {
+                "id": row["record_id"],
+                "kind": row["record_kind"],
+                "state": row["record_state"],
+                "function": fn_key.split(":", 1)[-1] if fn_key else None,
+                "tu": row["tu_name"],
+                "outcome": row["outcome"],
+                "age_days": _record_age_days(row["valid_from"], row["recorded_at"]),
+                "head": _record_head(record),
+            }
+        )
+    return {
+        "results": results,
+        "count": len(results),
+        "note": "heads only; fetch full detail with gdlmem.py record <id>",
+    }
+
+
+def tu_briefing(
+    tu: str,
+    *,
+    root: Path = REPO_ROOT,
+    db_path: Path | None = None,
+    limit: int = 100,
+) -> dict[str, Any]:
+    """One-call spawn briefing for a TU-scoped pass.
+
+    Assembles what a fresh worker needs before the first edit: the TU's
+    function roster with current fuzzy scores, every live attempt record
+    (parks and caps first), active claims touching the TU, the core-screen
+    law list plus laws that mention this TU, and the raw-offset debt count.
+    Heads only — fetch forensics per record id.
+    """
+    ensure_database(root, db_path)
+    with closing(open_database(root, db_path)) as connection:
+        modules = connection.execute(
+            "SELECT id, object_name FROM binary_module"
+            " WHERE platform='gamecube' AND object_name LIKE ?"
+            " ORDER BY object_name",
+            (f"%{tu}%",),
+        ).fetchall()
+        if not modules:
+            raise MemoryGraphError(
+                f"no GameCube module matches {tu!r}; try a path fragment like"
+                " game/enemy/enemy"
+            )
+        module_ids = [row["id"] for row in modules]
+        marks = ",".join("?" * len(module_ids))
+        functions = connection.execute(
+            f"SELECT raw_name, address, size FROM binary_symbol"
+            f" WHERE module_id IN ({marks}) AND symbol_kind='function'"
+            f" ORDER BY address LIMIT ?",
+            module_ids + [limit],
+        ).fetchall()
+        fn_names = [row["raw_name"] for row in functions]
+        attempts: list[dict[str, Any]] = []
+        claims: list[dict[str, Any]] = []
+        if fn_names:
+            fn_marks = ",".join("?" * len(fn_names))
+            keys = [f"function:{name}" for name in fn_names]
+            attempt_rows = connection.execute(
+                f"""
+                SELECT r.record_id, r.valid_from, r.recorded_at, r.raw_json,
+                       a.outcome, e.entity_key
+                FROM attempt a
+                JOIN entity e ON e.id = a.function_entity_id
+                JOIN record_ingest r ON r.record_id = a.record_id
+                WHERE e.entity_key IN ({fn_marks})
+                  AND NOT EXISTS (SELECT 1 FROM record_ingest newer
+                      WHERE json_extract(newer.raw_json, '$.supersedes')
+                            = a.record_id
+                        AND newer.record_state = 'accepted')
+                ORDER BY CASE WHEN a.outcome IN ('parked', 'capped')
+                         THEN 0 ELSE 1 END,
+                         COALESCE(r.recorded_at, '') DESC
+                """,
+                keys,
+            ).fetchall()
+            for row in attempt_rows:
+                try:
+                    record = json.loads(row["raw_json"])
+                except json.JSONDecodeError:
+                    record = {}
+                attempts.append(
+                    {
+                        "id": row["record_id"],
+                        "function": row["entity_key"].split(":", 1)[-1],
+                        "outcome": row["outcome"],
+                        "age_days": _record_age_days(
+                            row["valid_from"], row["recorded_at"]),
+                        "head": _record_head(record),
+                    }
+                )
+            claim_rows = connection.execute(
+                f"""
+                SELECT w.record_id, w.owner, w.state, w.claimed_at,
+                       e.entity_key,
+                       json_extract(r.raw_json, '$.attributes.scope') AS scope
+                FROM work_claim w
+                JOIN entity e ON e.id = w.function_entity_id
+                JOIN record_ingest r ON r.record_id = w.record_id
+                WHERE e.entity_key IN ({fn_marks})
+                  AND w.released_at IS NULL
+                  AND w.state NOT IN ('released', 'done')
+                """,
+                keys,
+            ).fetchall()
+            claims = [
+                {
+                    "id": row["record_id"], "owner": row["owner"],
+                    "state": row["state"], "claimed_at": row["claimed_at"],
+                    "function": row["entity_key"].split(":", 1)[-1],
+                    "scope": row["scope"],
+                }
+                for row in claim_rows
+            ]
+    # fuzzy scores from the current objdiff report, when built
+    scores: dict[str, float] = {}
+    report_path = root / "build" / "GUNE5D" / "report.json"
+    stems = {row["object_name"].rsplit(".", 1)[0] for row in modules}
+    if report_path.exists():
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        for unit in report.get("units", []):
+            if any(unit.get("name", "").endswith(stem) for stem in stems):
+                for function in unit.get("functions", []):
+                    scores[function["name"]] = float(
+                        function.get("fuzzy_match_percent", 0.0))
+    roster = [
+        {
+            "function": row["raw_name"],
+            "size": row["size"],
+            "fuzzy": scores.get(row["raw_name"]),
+        }
+        for row in functions
+    ]
+    core_laws = law_corpus(root=root, db_path=db_path, tag="core-screen",
+                           limit=50)["laws"]
+    mentioned = law_corpus(tu, root=root, db_path=db_path, limit=20)["laws"]
+    mentioned_ids = {row["id"] for row in core_laws}
+    try:
+        debt_rows = fakematch_debt(tu, root=root, db_path=db_path,
+                                   limit=10)["tus"]
+    except MemoryGraphError:
+        debt_rows = []
+    return {
+        "tu": [row["object_name"] for row in modules],
+        "functions": roster,
+        "live_attempts": attempts,
+        "active_claims": claims,
+        "core_screen_laws": [
+            {"id": row["id"], "tags": row["tags"]} for row in core_laws
+        ],
+        "tu_mentioned_laws": [
+            {"id": row["id"], "scope": row["scope"]}
+            for row in mentioned if row["id"] not in mentioned_ids
+        ],
+        "raw_offset_debt": debt_rows,
+        "note": (
+            "briefing heads only: fetch forensics with gdlmem.py record <id>;"
+            " parked/capped attempts are VETOes on their axes; run"
+            " tools/gdl/defake_gate.py baseline before the first edit and"
+            " honor active_claims from other owners"
+        ),
+    }
+
+
 def build_surface_ops() -> tuple[SurfaceOp, ...]:
     """The registry every query consumer derives its surface from."""
     return (
@@ -2676,12 +3010,52 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
         SurfaceOp(
             name="laws", mcp_name="memory_law_corpus",
             doc=("List the codegen-law corpus (newest first) with scope, "
-                 "age, application counts, and supersession flags."),
+                 "age, tags, application counts, and supersession flags."),
             call=lambda root, db, **kw: law_corpus(
-                kw["query"], root=root, db_path=db, limit=kw["limit"]),
+                kw["query"], root=root, db_path=db, tag=kw["tag"],
+                limit=kw["limit"]),
             params=(
                 SurfaceParam("query", str, default=None,
                              help="optional filter over id/scope/law text"),
+                SurfaceParam("tag", str, default=None,
+                             help="filter by structured applicability tag"),
+                SurfaceParam("limit", int, default=100, maximum=200),
+            ),
+        ),
+        SurfaceOp(
+            name="find", mcp_name="memory_find_records",
+            doc=("Faceted record search: by kind, function, TU, attempt "
+                 "outcome, associated law, plus optional FTS terms."),
+            call=lambda root, db, **kw: find_records(
+                kw["query"], root=root, db_path=db, kind=kw["kind"],
+                function=kw["function"], tu=kw["tu"], outcome=kw["outcome"],
+                law=kw["law"], limit=kw["limit"]),
+            params=(
+                SurfaceParam("query", str, default=None,
+                             help="optional FTS terms"),
+                SurfaceParam("kind", str, default=None,
+                             help="attempt|claim|work_claim|evidence|entity"),
+                SurfaceParam("function", str, default=None,
+                             help="anchor function name"),
+                SurfaceParam("tu", str, default=None,
+                             help="TU path fragment (derived via symbol map)"),
+                SurfaceParam("outcome", str, default=None,
+                             help="attempt outcome, e.g. parked|capped|improved"),
+                SurfaceParam("law", str, default=None,
+                             help="law id fragment (structured links + prose)"),
+                SurfaceParam("limit", int, default=25, maximum=100),
+            ),
+        ),
+        SurfaceOp(
+            name="brief", mcp_name="memory_tu_briefing",
+            doc=("One-call spawn briefing for a TU: function roster with "
+                 "scores, live attempts, active claims, screened laws, and "
+                 "raw-offset debt."),
+            call=lambda root, db, **kw: tu_briefing(
+                kw["tu"], root=root, db_path=db, limit=kw["limit"]),
+            params=(
+                SurfaceParam("tu", str, required=True,
+                             help="TU path fragment, e.g. game/enemy/enemy"),
                 SurfaceParam("limit", int, default=100, maximum=200),
             ),
         ),
@@ -2906,6 +3280,12 @@ def attempt_staleness(
     valid = 0
     form_terms = ("offsetof", "typed alias", "repeated cast", "inline cast",
                   "declared alias")
+    # form-undocumented only applies to parks about FIELD-CONVERSION work —
+    # scheduler/regalloc parks document different axes and re-probing them
+    # with offsetof forms would be noise, not signal.
+    conversion_terms = ("raw offset", "raw-offset", "fakematch", "defake",
+                        "field conversion", "member conversion", "cast",
+                        "member-displacement", "struct field")
     for row in rows:
         name = row["name"]
         score = scores.get(name)
@@ -2935,7 +3315,8 @@ def attempt_staleness(
             )
         else:
             body = ((row["attempted_axis"] or "") + (row["raw_json"] or "")).lower()
-            if not any(term in body for term in form_terms):
+            if (any(term in body for term in conversion_terms)
+                    and not any(term in body for term in form_terms)):
                 reopen.append(
                     {"function": name, "record": row["record_id"],
                      "reason": "failing_form_undocumented",
