@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
-"""MCP adapter for the deterministic GDL project-memory graph."""
+"""MCP adapter for the deterministic GDL project-memory graph.
+
+Read tools are generated from `memory_graph.core.build_surface_ops()`, the
+single registry the CLI also derives its query surface from. Add new query
+operations to the registry, not here; only the review-gated write tools are
+defined explicitly below.
+"""
 
 from __future__ import annotations
 
+import inspect
 import os
 import sys
 from pathlib import Path
@@ -15,18 +22,10 @@ from mcp.server import MCPServer  # noqa: E402
 
 from memory_graph.core import (  # noqa: E402
     REPO_ROOT,
-    attempt_staleness,
+    build_surface_ops,
     ensure_database,
-    memory_audit,
-    memory_stats,
-    migration_proposals,
     register_tool_proposal,
     stage_record_proposal,
-    search_memory,
-    symbol_context,
-    tool_context,
-    validate_records,
-    xbox_symbol_context,
 )
 
 
@@ -42,70 +41,33 @@ server = MCPServer(
 )
 
 
-@server.tool()
-def memory_graph_stats() -> dict[str, Any]:
-    """Return graph build metadata and row counts."""
-    database = ensure_database(ROOT)
-    return {"database": str(database), **memory_stats(ROOT, database)}
+def _register_surface_tools() -> None:
+    for op in build_surface_ops():
+        def impl(_op=op, **kwargs: Any) -> Any:
+            return _op.call(ROOT, None, **_op.clamped(kwargs))
+
+        parameters = []
+        annotations: dict[str, Any] = {"return": Any}
+        for param in op.params:
+            annotation = param.annotation if param.required else param.annotation | None
+            parameters.append(
+                inspect.Parameter(
+                    param.name,
+                    inspect.Parameter.KEYWORD_ONLY,
+                    default=inspect.Parameter.empty if param.required else param.default,
+                    annotation=annotation,
+                )
+            )
+            annotations[param.name] = annotation
+        impl.__name__ = op.mcp_name
+        impl.__qualname__ = op.mcp_name
+        impl.__doc__ = op.doc
+        impl.__signature__ = inspect.Signature(parameters, return_annotation=Any)
+        impl.__annotations__ = annotations
+        server.tool(name=op.mcp_name)(impl)
 
 
-@server.tool()
-def memory_search(query: str, limit: int = 20) -> dict[str, Any]:
-    """Search accepted records, legacy evidence, symbols, and entities."""
-    return search_memory(query, root=ROOT, limit=max(1, min(limit, 100)))
-
-
-@server.tool()
-def memory_context(symbol: str, document_limit: int = 12) -> dict[str, Any]:
-    """Assemble GameCube, Xbox, claim, parking, and legacy context for a symbol."""
-    return symbol_context(
-        symbol, root=ROOT, document_limit=max(1, min(document_limit, 50))
-    )
-
-
-@server.tool()
-def xbox_context(query: str, limit: int = 20, neighbor_radius: int = 4) -> dict[str, Any]:
-    """Search Xbox PDB symbols/types and show source-order module neighbors."""
-    return xbox_symbol_context(
-        query,
-        root=ROOT,
-        limit=max(1, min(limit, 100)),
-        radius=max(0, min(neighbor_radius, 20)),
-    )
-
-
-@server.tool()
-def memory_tool_context(query: str, limit: int = 20) -> dict[str, Any]:
-    """Return reviewed usage policy, discovered tools, and legacy provenance."""
-    return tool_context(query, root=ROOT, limit=max(1, min(limit, 100)))
-
-
-@server.tool()
-def memory_migration_audit(duplicate_limit: int = 100) -> dict[str, Any]:
-    """Report migration coverage and duplicates without modifying source notes."""
-    return memory_audit(
-        root=ROOT, duplicate_limit=max(1, min(duplicate_limit, 500))
-    )
-
-
-@server.tool()
-def memory_pending_proposals(kind: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
-    """List unreviewed legacy law/parking proposals."""
-    return migration_proposals(
-        root=ROOT, kind=kind, limit=max(1, min(limit, 500))
-    )
-
-
-@server.tool()
-def memory_stale() -> dict[str, Any]:
-    """Compare parked/capped attempts against the current objdiff report."""
-    return attempt_staleness(ROOT)
-
-
-@server.tool()
-def memory_validate() -> dict[str, Any]:
-    """Validate durable and inbox JSON records, including reference resolution."""
-    return validate_records(ROOT)
+_register_surface_tools()
 
 
 @server.tool()

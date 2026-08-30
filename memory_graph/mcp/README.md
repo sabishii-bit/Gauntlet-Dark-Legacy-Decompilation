@@ -36,11 +36,15 @@ Example stdio MCP configuration:
 Host configuration is machine-local; do not commit absolute paths or API keys.
 The CLI remains available when an MCP host is not configured.
 
-The adapter exposes search/context, Xbox symbol/type lookup, tool policy,
-audit/proposal/staleness/validation queries, and two review-gated writes:
-`memory_register_tool` and `memory_propose_record`. Writes create JSON only in
-`memory_graph/inbox/`; they never mutate the generated SQLite database or
-accept their own proposal. A unit test
-(`tools/gdl/tests/test_memory_graph.py::test_cli_and_mcp_surfaces_stay_in_step`)
-fails whenever `gdlmem.py` gains a core capability this adapter does not
-mirror, so the two surfaces cannot drift apart silently.
+Read tools are **generated** from `memory_graph.core.build_surface_ops()` —
+the same registry the CLI derives its query subcommands from — so the two
+surfaces cannot drift: adding an operation to the registry exposes it in both
+places with no adapter edit. Only the two review-gated writes are defined
+explicitly: `memory_register_tool` and `memory_propose_record`. Writes create
+JSON only in `memory_graph/inbox/`; they never mutate the generated SQLite
+database or accept their own proposal.
+
+`test_server.py` (run inside this project's uv environment) verifies the
+generated tools both list and execute through a real MCP client, and
+`tools/gdl/tests/test_memory_graph.py` verifies the CLI exposes exactly the
+registry.

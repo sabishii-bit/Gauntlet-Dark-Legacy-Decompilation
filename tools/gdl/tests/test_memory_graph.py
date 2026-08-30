@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from memory_graph.core import (  # noqa: E402
     MemoryGraphError,
@@ -217,43 +217,33 @@ class MemoryGraphTests(unittest.TestCase):
                 root=self.root,
             )
 
-    def test_cli_and_mcp_surfaces_stay_in_step(self):
-        """Every core capability the CLI exposes must exist in the MCP adapter.
+    def test_query_surface_registry_drives_cli_and_mcp(self):
+        """Query ops live once in core.build_surface_ops; consumers derive.
 
-        Lifecycle plumbing (build/ensure/paths/errors) is CLI-only by design;
-        everything else added to gdlmem.py must be mirrored in mcp/server.py.
+        The CLI must expose exactly the registry (plus lifecycle/write
+        commands), and the MCP adapter must generate its read tools from the
+        same registry (its in-env smoke test verifies the generated tools
+        actually list and execute).
         """
-        import ast
+        import argparse
 
-        base = Path(__file__).resolve().parents[2] / "memory_graph"
+        from memory_graph.core import build_surface_ops
+        from memory_graph.gdlmem import build_parser
 
-        def core_imports(path):
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-            names = set()
-            for node in ast.walk(tree):
-                if (
-                    isinstance(node, ast.ImportFrom)
-                    and node.module == "memory_graph.core"
-                ):
-                    names.update(alias.name for alias in node.names)
-            return names
-
-        cli = core_imports(base / "gdlmem.py")
-        mcp = core_imports(base / "mcp" / "server.py")
-        lifecycle_cli_only = {
-            "MemoryGraphError",
-            "REPO_ROOT",
-            "build_database",
-            "default_database_path",
-            "ensure_database",
-            "memory_stats",
-            "open_database",
-        }
-        missing = (cli - lifecycle_cli_only) - mcp
-        self.assertFalse(
-            missing,
-            f"mcp/server.py lags gdlmem.py; expose or allowlist: {sorted(missing)}",
+        registry = {op.name for op in build_surface_ops()}
+        parser, ops = build_parser()
+        self.assertEqual(set(ops), registry)
+        sub = next(
+            action
+            for action in parser._actions
+            if isinstance(action, argparse._SubParsersAction)
         )
+        self.assertTrue(registry <= set(sub.choices))
+        base = Path(__file__).resolve().parents[3] / "memory_graph"
+        server_text = (base / "mcp" / "server.py").read_text(encoding="utf-8")
+        self.assertIn("build_surface_ops", server_text)
+        mcp_names = {op.mcp_name for op in build_surface_ops()}
+        self.assertEqual(len(mcp_names), len(registry), "mcp_name collision")
 
     def test_audit_reports_duplicates_without_modifying_documents(self):
         build_database(self.root, self.db)

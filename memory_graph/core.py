@@ -1927,6 +1927,135 @@ def register_tool_proposal(
     return stage_record_proposal(record, root=root)
 
 
+@dataclass(frozen=True)
+class SurfaceParam:
+    """One parameter of a query-surface operation."""
+
+    name: str
+    annotation: type | object
+    default: Any = None
+    required: bool = False
+    maximum: int | None = None
+    help: str = ""
+
+
+@dataclass(frozen=True)
+class SurfaceOp:
+    """One read operation exposed by every consumer (CLI, MCP, future hosts).
+
+    `call(root, db_path, **params)` is the single implementation; consumers
+    generate their argument surfaces from `params` instead of hand-mirroring
+    each other.
+    """
+
+    name: str
+    mcp_name: str
+    doc: str
+    call: Any
+    params: tuple[SurfaceParam, ...] = ()
+
+    def clamped(self, values: dict[str, Any]) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        for param in self.params:
+            value = values.get(param.name, param.default)
+            if param.maximum is not None and isinstance(value, int):
+                value = max(1, min(value, param.maximum))
+            out[param.name] = value
+        return out
+
+
+def _stats_surface(root: Path, db_path: Path | None) -> dict[str, Any]:
+    path = ensure_database(root, db_path)
+    return {"database": str(path), **memory_stats(root, path)}
+
+
+def build_surface_ops() -> tuple[SurfaceOp, ...]:
+    """The registry every query consumer derives its surface from."""
+    return (
+        SurfaceOp(
+            name="stats", mcp_name="memory_graph_stats",
+            doc="Show graph build metadata and row counts.",
+            call=lambda root, db, **kw: _stats_surface(root, db),
+        ),
+        SurfaceOp(
+            name="search", mcp_name="memory_search",
+            doc="Search accepted records, legacy evidence, symbols, and entities.",
+            call=lambda root, db, **kw: search_memory(
+                kw["query"], root=root, db_path=db, limit=kw["limit"]),
+            params=(
+                SurfaceParam("query", str, required=True,
+                             help="AND-combined search terms"),
+                SurfaceParam("limit", int, default=20, maximum=100),
+            ),
+        ),
+        SurfaceOp(
+            name="context", mcp_name="memory_context",
+            doc=("Assemble GameCube, Xbox, claim, attempt, and provenance "
+                 "context for a symbol."),
+            call=lambda root, db, **kw: symbol_context(
+                kw["symbol"], root=root, db_path=db,
+                document_limit=kw["document_limit"]),
+            params=(
+                SurfaceParam("symbol", str, required=True),
+                SurfaceParam("document_limit", int, default=12, maximum=50),
+            ),
+        ),
+        SurfaceOp(
+            name="xbox", mcp_name="xbox_context",
+            doc="Search Xbox PDB symbols/types and show module neighbors.",
+            call=lambda root, db, **kw: xbox_symbol_context(
+                kw["query"], root=root, db_path=db,
+                limit=kw["limit"], radius=kw["radius"]),
+            params=(
+                SurfaceParam("query", str, required=True),
+                SurfaceParam("limit", int, default=20, maximum=100),
+                SurfaceParam("radius", int, default=4, maximum=20),
+            ),
+        ),
+        SurfaceOp(
+            name="tool", mcp_name="memory_tool_context",
+            doc="Return reviewed tool policy, discovered tools, and provenance.",
+            call=lambda root, db, **kw: tool_context(
+                kw["query"], root=root, db_path=db, limit=kw["limit"]),
+            params=(
+                SurfaceParam("query", str, required=True),
+                SurfaceParam("limit", int, default=20, maximum=100),
+            ),
+        ),
+        SurfaceOp(
+            name="audit", mcp_name="memory_migration_audit",
+            doc="Report duplicates and migration coverage without deleting anything.",
+            call=lambda root, db, **kw: memory_audit(
+                root=root, db_path=db, duplicate_limit=kw["duplicate_limit"]),
+            params=(
+                SurfaceParam("duplicate_limit", int, default=100, maximum=500),
+            ),
+        ),
+        SurfaceOp(
+            name="proposals", mcp_name="memory_pending_proposals",
+            doc="List unreviewed migration proposals.",
+            call=lambda root, db, **kw: migration_proposals(
+                root=root, db_path=db, kind=kw["kind"], state=kw["state"],
+                limit=kw["limit"]),
+            params=(
+                SurfaceParam("kind", str, default=None),
+                SurfaceParam("state", str, default="pending"),
+                SurfaceParam("limit", int, default=100, maximum=500),
+            ),
+        ),
+        SurfaceOp(
+            name="stale", mcp_name="memory_stale",
+            doc="Compare parked/capped attempts against the current objdiff report.",
+            call=lambda root, db, **kw: attempt_staleness(root, db),
+        ),
+        SurfaceOp(
+            name="validate", mcp_name="memory_validate",
+            doc="Validate durable and inbox records, including reference resolution.",
+            call=lambda root, db, **kw: validate_records(root),
+        ),
+    )
+
+
 def attempt_staleness(
     root: Path = REPO_ROOT, db_path: Path | None = None
 ) -> dict[str, Any]:

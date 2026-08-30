@@ -156,10 +156,12 @@ do-not-retry list), candidate Xbox links with module neighbors, and ranked
 full-text hits, under an explicit authority note. Search terms are
 AND-combined; retry with fewer words before concluding the graph is silent.
 
-Consumers beyond the CLI: `tools/gdl/nearmiss.py` and `lowmatch.py` read
-parked caps from attempt records, and `mcp/server.py` exposes the same core
-functions as MCP tools for hosts that want them — the adapter is stateless and
-optional; nothing depends on it.
+The query surface is defined **once**, as a registry
+(`core.build_surface_ops()`): the CLI generates its subcommands from it and
+the MCP adapter generates its tools from it, so new operations appear in both
+surfaces by construction. Other consumers: `tools/gdl/nearmiss.py` and
+`lowmatch.py` read parked caps from attempt records; the MCP adapter is
+stateless and optional — nothing depends on it.
 
 ## Concurrency and disposability
 
