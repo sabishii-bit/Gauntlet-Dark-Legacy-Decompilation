@@ -147,7 +147,9 @@ typedef struct Critter {
     f32 moveOrigin[3];        /* 0x3C8 cached move origin                      */
     u8  _blk3D4[0x54];        /* 0x3D4 .. 0x428                              */
     f32 moveMatrix[3];        /* 0x428 current move-space position             */
-    u8  _blk434[0x18];        /* 0x434 .. 0x44C                              */
+    u8  _blk434[4];           /* 0x434 .. 0x438                              */
+    f32 floorContact[3];      /* 0x438 last FloorCollide contact point (CollideWorld) */
+    u8  _blk444[8];           /* 0x444 .. 0x44C                              */
     s16 healthmtr;            /* 0x44C health-meter handle (>=0 == present)     */
     s8  childcnt;             /* 0x44E spawned child count                    */
     s8  alivecnt;             /* 0x44F live child count (ProcessCritter)       */

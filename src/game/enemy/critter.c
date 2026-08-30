@@ -46,6 +46,25 @@ typedef struct CritterHitNode {
     f32 activeFrom;
 } CritterHitNode;
 
+/* -- CritterItemView (0xF0): a file-local partial view of game/item.h's
+ *    verified GC-exact Item record, covering only the fields
+ *    CritterDropItem touches.  item.h itself is not #included here to avoid
+ *    an extern-signature conflict with this TU's own PlaceItem/AddItemSub
+ *    prototypes (a cross-TU extern-conflict fix is a separate claimed pass);
+ *    offsets are GC-verified against include/game/item.h's Item/OBJGRP
+ *    layout (info@0x00, objgrp.worldmat[3]@0x34, objgrp.node@0x64,
+ *    minoff@0xCD). -- */
+typedef struct CritterItemView {
+    void *info;          /* 0x00 iteminfo* */
+    u8 _pad04[0x30];
+    f32 pos[3];           /* 0x34 objgrp.worldmat[3][0..2] (translation row) */
+    u8 _pad40[0x24];
+    void *node;            /* 0x64 objgrp.node */
+    u8 _pad68[0x65];
+    s8 minoff;               /* 0xCD */
+    u8 _padCE[0x22];
+} CritterItemView;             /* size 0xF0 */
+
 /* -- CritterColDescriptor (0x50): the type-table record CritterHitNode's
  *    descriptor points at once resolved by CritterInitColnodes.  Verified
  *    against CritterInitColnodes, CritterCollideWorld and CritterCollideItems
@@ -299,7 +318,12 @@ typedef struct CritterPackedType {
     u8 _pad060[0x94];
     s16 sfxIndex0;          /* 0xF4 type-level sfx descriptor index (idle/ambient)  */
     s16 sfxIndex1;          /* 0xF6 type-level sfx descriptor index (idle/ambient)  */
-    u8 _pad0F8[0x18];
+    s16 meterX;              /* 0xF8 health-meter HealthMeterStart x                */
+    s16 meterY;              /* 0xFA health-meter HealthMeterStart y                */
+    s16 meterW;              /* 0xFC health-meter HealthMeterStart width            */
+    s16 meterH;              /* 0xFE health-meter HealthMeterStart height           */
+    f32 healthbarOffset[3];  /* 0x100 healthbar root-node position offset           */
+    u8 _pad10C[4];
     s16 moveCount;          /* 0x110 move table entry count (CritterInitMoves)      */
     s16 moveIndex;          /* 0x112 base index into container->moves[]             */
     s16 auxMoveCount;       /* 0x114 secondary move count (high-water tracked)      */
@@ -4065,12 +4089,13 @@ void CritterDropItem(Critter *c)
 
     item = NULL;
     type = 0;
-    if (*(void **)((u8 *)c + 0xACC) != NULL) {
-        item = *(void **)((u8 *)c + 0xACC);
+    if (*(void **)((u8 *)c + offsetof(Critter, _blkACC)) != NULL) {
+        item = *(void **)((u8 *)c + offsetof(Critter, _blkACC));
         *(void **)c->_blkACC = NULL;
         type = 1;
     } else {
-        switch (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20)) {
+        switch (*(s16 *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType,
+                          descriptor)) + offsetof(CritterDescriptor, type))) {
         case 7: {
             char *p;
 
@@ -4089,7 +4114,8 @@ void CritterDropItem(Critter *c)
     if (item == NULL) {
         return;
     }
-    switch (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20)) {
+    switch (*(s16 *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType,
+                      descriptor)) + offsetof(CritterDescriptor, type))) {
     case 8:
         msgPost(0x86, -1, 0);
         break;
@@ -4098,19 +4124,24 @@ void CritterDropItem(Critter *c)
         break;
     }
     if (type != 0) {
-        *(u8 *)((u8 *)item + 0xCD) = 10;
-        fn_800920E0((f32 *)((u8 *)c + 0x438), item, lbl_80346470);
+        *(s8 *)((u8 *)item + offsetof(CritterItemView, minoff)) = 10;
+        fn_800920E0((f32 *)((u8 *)c + offsetof(Critter, floorContact)), item,
+                    lbl_80346470);
         return;
     }
 
-    *(u8 *)((u8 *)item + 0xCD) = 0;
-    MBTreeClearFlags(*(void **)((u8 *)item + 0x64), 2, 0);
-    if (**(s32 **)((u8 *)item + 0x0) == 1) {
+    *(s8 *)((u8 *)item + offsetof(CritterItemView, minoff)) = 0;
+    MBTreeClearFlags(*(void **)((u8 *)item + offsetof(CritterItemView, node)),
+                      2, 0);
+    if (**(s32 **)((u8 *)item + offsetof(CritterItemView, info)) == 1) {
         *(s16 *)((u8 *)item + 0xEC) = 60;
     }
-    *(f32 *)((u8 *)item + 0x34) = *(f32 *)((u8 *)c + 0x438);
-    *(f32 *)((u8 *)item + 0x38) = *(f32 *)((u8 *)c + 0x43C);
-    *(f32 *)((u8 *)item + 0x3C) = *(f32 *)((u8 *)c + 0x440);
+    *(f32 *)((u8 *)item + offsetof(CritterItemView, pos)) =
+        *(f32 *)((u8 *)c + offsetof(Critter, floorContact));
+    *(f32 *)((u8 *)item + offsetof(CritterItemView, pos) + 4) =
+        *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 4);
+    *(f32 *)((u8 *)item + offsetof(CritterItemView, pos) + 8) =
+        *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 8);
     AddItemSub(item);
 }
 
@@ -6379,18 +6410,23 @@ void CritterAddHealthMeter(Critter *c)
 
     header = (u8 *)c->hdr;
     meter = -1;
-    if ((*(u32 *)(header + 0x5C) & 4) != 0) {
-        style = (*(u32 *)(header + 0x5C) & 8) != 0 ? 1 : 0;
+    if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 4) != 0) {
+        style = (*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 8)
+                != 0 ? 1 : 0;
         meter = HealthMeterStart(
-            header, *(s16 *)(header + 0xF8), *(s16 *)(header + 0xFA),
-            *(s16 *)(header + 0xFC), *(s16 *)(header + 0xFE),
+            header, *(s16 *)(header + offsetof(CritterPackedType, meterX)),
+            *(s16 *)(header + offsetof(CritterPackedType, meterY)),
+            *(s16 *)(header + offsetof(CritterPackedType, meterW)),
+            *(s16 *)(header + offsetof(CritterPackedType, meterH)),
             style, c->health);
     }
     c->healthmtr = (s16)meter;
 
-    if ((*(u32 *)(header + 0x5C) & 0x800) != 0) {
+    if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x800)
+        != 0) {
         match = AtreeMatch(
-            *(void **)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x28),
+            *(void **)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType,
+                       descriptor)) + offsetof(CritterDescriptor, model)),
             lbl_80346644, 1);
         if (match != NULL) {
             *(void **)&c->healthbar[0] =
@@ -6401,11 +6437,14 @@ void CritterAddHealthMeter(Critter *c)
             root = **(void ***)&c->healthbar[0];
             *(f32 *)((u8 *)root + 0x30) =
                 *(f32 *)((u8 *)root + 0x30) +
-                *(f32 *)((u8 *)c->hdr + 0x100);
+                *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType,
+                          healthbarOffset));
             *(f32 *)((u8 *)**(void ***)&c->healthbar[0] + 0x34) +=
-                *(f32 *)((u8 *)c->hdr + 0x104);
+                *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType,
+                          healthbarOffset) + 4);
             *(f32 *)((u8 *)**(void ***)&c->healthbar[0] + 0x38) +=
-                *(f32 *)((u8 *)c->hdr + 0x108);
+                *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType,
+                          healthbarOffset) + 8);
 
             c->damageflash =
                 AtreeFindNode(&c->healthbar[0], lbl_80112238, 9);
