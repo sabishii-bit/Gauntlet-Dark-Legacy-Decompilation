@@ -381,7 +381,7 @@ u32 fn_800D87FC(MovieDecodeState* state, int param_2, char* param_3, int param_4
         int dir;
         int row;
 
-        if (*(int*)(param_5 + 8) < 0) {
+        if (*(int*)(param_5 + offsetof(MovieBitmapHeader, height)) < 0) {
             dir = -1;
             row = state->height - 1;
         } else {
@@ -547,7 +547,7 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
         int dir;
         int row;
 
-        if (*(int*)(param_5 + 8) < 0) {
+        if (*(int*)(param_5 + offsetof(MovieBitmapHeader, height)) < 0) {
             dir = -1;
             row = state->height - 1;
         } else {
@@ -832,7 +832,7 @@ u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param
     u8 hasAlpha;
     u8 auStack_20[8];
 
-    iVar4 = *(int*)(param_3 + 0x14);
+    iVar4 = *(int*)(param_3 + offsetof(MovieBitmapHeader, sizeImage));
     iVar1 = ReadF32LE((u8*)param_4);
     if (1 < iVar1) {
         iVar4 = ReadF32LE((u8*)param_4);
@@ -841,14 +841,14 @@ u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param
     fn_800D9DBC((u32)auStack_20, param_4, iVar4, (u8*)param_1[6]);
     hasAlpha = (u16)ReadU16LE((u8*)(param_1[6] + 2)) != 0;
     if (hasAlpha == 0) {
-        switch (*(int*)(param_5 + 0x10)) {
+        switch (*(int*)(param_5 + offsetof(MovieBitmapHeader, compression))) {
         case 0:
         case 3:
-            if (*(u16*)(param_5 + 0xe) == 0x18) {
+            if (*(u16*)(param_5 + offsetof(MovieBitmapHeader, bitCount)) == 0x18) {
                 return fn_800D8F28((MovieDecodeState*)param_1, param_3,
                                     param_4, param_5, param_6);
             }
-            if (*(u16*)(param_5 + 0xe) == 0x10) {
+            if (*(u16*)(param_5 + offsetof(MovieBitmapHeader, bitCount)) == 0x10) {
                 return fn_800D87FC((MovieDecodeState*)param_1, param_3, param_4, 2, param_5, param_6);
             }
             break;
@@ -858,14 +858,14 @@ u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param
             return fn_800D87FC((MovieDecodeState*)param_1, param_3, param_4, 1, param_5, param_6);
         }
     } else {
-        switch (*(int*)(param_5 + 0x10)) {
+        switch (*(int*)(param_5 + offsetof(MovieBitmapHeader, compression))) {
         case 0:
         case 3:
-            if (*(u16*)(param_5 + 0xe) == 0x18) {
+            if (*(u16*)(param_5 + offsetof(MovieBitmapHeader, bitCount)) == 0x18) {
                 return fn_800D91B4((MovieDecodeState*)param_1, param_3,
                                     param_4, param_5, param_6);
             }
-            if (*(u16*)(param_5 + 0xe) == 0x10) {
+            if (*(u16*)(param_5 + offsetof(MovieBitmapHeader, bitCount)) == 0x10) {
                 return fn_800D8BCC((MovieDecodeState*)param_1, param_3, param_4, 2, param_5, param_6);
             }
             break;
