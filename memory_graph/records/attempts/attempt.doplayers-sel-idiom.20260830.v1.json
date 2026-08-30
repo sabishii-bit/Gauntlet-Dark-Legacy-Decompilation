@@ -1,7 +1,7 @@
 {
   "attempted_axis": "do_players state==2||state==3 sel idiom: if/else assignment baseline vs boolean-assignment vs two-case switch spellings to block MWCC range-canonicalization (addi+cmplwi/bgt) into the target's cmpwi/beq/cmpwi/bne pair",
   "attributes": {
-    "anchors": "src/game/game/player.c::do_players; GameCube target 0x8007xxx size 0x1258; reproduce: ninja build/GUNE5D/src/game/game/player.o; python tools/gdl/fndiff.py game/game/player do_players --clean",
+    "anchors": "src/game/game/player.c::do_players; GameCube target 0x80076998 size 0x1258; reproduce: ninja build/GUNE5D/src/game/game/player.o; python tools/gdl/fndiff.py game/game/player do_players --clean",
     "baseline_and_best": "baseline real 1109 insns 1174/1163 fuzzy 93.431; boolean-assignment probe real 1096 insns 1174/1162 but fuzzy 92.951 (REVERTED: fuzzy regression); switch spelling real 1163 (worse, killed)",
     "detail": "MWCC 1.2.5 -O4 range-canonicalizes x==2||x==3 into (x-2)<=1u regardless of if/else vs assignment spelling; switch-case-2-3 emits cmpwi/bge+b (worse). Target keeps two explicit compares; the original source shape that preserves them is still unknown. Same cluster recurs at fn+0x433 (second sel-style site) and the cmpwi-vs-extsh. s16 test family (T[491..518], five sites) is a separate unfixed idiom.",
     "residual": "STRUCTURAL clusters remain: ==/== compare-pair shape (x2), cmpwi vs extsh. s16 tests (x5), one fmul/fmuls/frsp FP-order swap (T[292]), addi/li scheduling throughout. Target keeps PT(0) base (r18) + separate i*stride offset (r16) rather than a walking p++ pointer."

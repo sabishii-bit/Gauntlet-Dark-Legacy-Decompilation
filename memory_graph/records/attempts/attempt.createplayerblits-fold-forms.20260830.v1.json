@@ -1,7 +1,7 @@
 {
   "attempted_axis": "full structural convergence: PRF full-constant record folds, rxv single-load local, tab+i*2 base forms, sprintf arg reassociation, declaration order, rec-local CSE web, hoisted rx pointer",
   "attributes": {
-    "anchors": "src/game/game/player.c::create_player_blits; GameCube target 0x8007C550 size 0x53C; reproduce: ninja build/GUNE5D/src/game/game/player.o; python tools/gdl/fndiff.py game/game/player create_player_blits --count/--ops/--clean",
+    "anchors": "src/game/game/player.c::create_player_blits; GameCube target 0x8007C3FC size 0x53C; reproduce: ninja build/GUNE5D/src/game/game/player.o; python tools/gdl/fndiff.py game/game/player create_player_blits --count/--ops/--clean",
     "baseline_and_best": "baseline real 278 insns 335/337 fuzzy 90.675; best probe real 261 insns 335/334 fuzzy 90.155 (WIP commit 881e0af0d, later dropped: fuzzy regression fails acceptance bar)",
     "detail": "Target folds all record accesses off potionicon_tab + i*13148 with +0xC40 inside store displacements (16256=0x3F80, 5524=0x1594, 3252 node, 3136 index); PRF-style full-constant writes reproduce the displacement folds. Target HUD-right-x reads fold as lhz 1528(tab+i*2) with ONE load CSEd across x_right/x_left and a reload for rune13; our builds keep folding +1528 into the pointer (3 spellings tried) and rematerialize the load under pressure. Target CSEs i*13148 across the tb block into the tail stores (single mulli, callee-saved); ours recomputes. neg r6,r9 for -0x143 vs our li r6,-323.",
     "policy": "REGISTER/SCHEDULE axes killed: rec-local CSE web (real 441), hoisted rx pointer (real 292), declaration-order swaps (no change, twice). Do not retry without a new idea.",
