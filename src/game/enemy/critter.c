@@ -220,6 +220,53 @@ extern void *gWorldData;              /* 0x80344838 world data record           
 extern s32   FileSize(char *name, const char *wad);
 extern s32  *StartFileRead(char *name, const char *wad, s32 mode, s32 size,
                            s32 arg, void *callback);
+
+typedef struct CritterDescriptor {
+    u8 _pad00[0x20];
+    s16 type;
+    s16 modelIndex;
+    s16 loadState;
+    s16 loadTick;
+    void *model;
+    u8 _pad2C[4];
+} CritterDescriptor;
+
+typedef struct CritterPackedType {
+    u8 _pad000[0x50];
+    s16 descriptorIndex;
+    s16 subtype;
+    u8 _pad054[0xCC];
+    CritterDescriptor *descriptor;
+    u8 *_pad124;
+    u8 *_pad128;
+    u8 *_pad12C;
+    struct CritterFileHeader *file;
+    void *attachments;
+    void *atree;
+    u8 _pad13C[4];
+} CritterPackedType;
+
+typedef struct CritterFileHeader {
+    s32 state;
+    s32 wad[3];
+    s32 typeCount;
+    u8 *types;
+    s32 descriptorCount;
+    u8 *descriptors;
+    s32 addAnimCount;
+    u8 *addAnims;
+    s32 moveCount;
+    u8 *moves;
+    s32 patternCount;
+    u8 *patterns;
+    s32 nodeCount;
+    u8 *nodes;
+    s32 damageCount;
+    u8 *damage;
+    s32 sfxCount;
+    u8 *sfx;
+} CritterFileHeader;
+
 extern void  fn_8001267C(s32 handle, s32 index, s32 flag);
 extern void  InitTexMods(s32 handle, s32 index);
 extern s32   LoadModel(char *name, void *out, s32 a, s32 b);
@@ -6870,13 +6917,15 @@ void CritterLoadAllTypes(s32 arg)
 {
     s32 type;
     s32 sub;
-    u8 *hdr;
+    CritterFileHeader *hdr;
 
     for (type = 0; type < lbl_80344660; type++) {
-        hdr = lbl_80241070[type];
-        if (*(s32 *)hdr != 0) {
-            for (sub = 0; sub < *(s32 *)(hdr + 16); sub++) {
-                CritterAllocType(hdr, *(u8 **)(hdr + 20) + sub * 320, arg);
+        hdr = (CritterFileHeader *)lbl_80241070[type];
+        if (hdr->state != 0) {
+            for (sub = 0; sub < hdr->typeCount; sub++) {
+                CritterAllocType(hdr,
+                                 &((CritterPackedType *)hdr->types)[sub],
+                                 arg);
             }
         }
     }
@@ -6893,17 +6942,18 @@ struct CritterHeader *CritterTypeLoaded(s32 type, s32 subtype)
 void CritterAllocType(void *hdr, void *move, s32 arg)
 {
     char buf[32];
-    u8 *desc;
+    CritterDescriptor *desc;
     u8 *fmtbase;
     s32 k;
-#define m ((u8 *)move)
+#define M ((CritterPackedType *)move)
 
-    *(void **)(m + 0x130) = hdr;
+    M->file = (CritterFileHeader *)hdr;
     fmtbase = (u8 *)lbl_801120E0;
-    desc = *(u8 **)((u8 *)hdr + 0x1C) + *(s16 *)(m + 0x50) * 48;
-    *(u8 **)(m + 0x120) = desc;
-    if (*(s16 *)(desc + 0x22) < 0) {
-        switch (*(s16 *)(desc + 0x20)) {
+    desc = &((CritterDescriptor *)((CritterFileHeader *)hdr)->descriptors)
+        [M->descriptorIndex];
+    M->descriptor = desc;
+    if (desc->modelIndex < 0) {
+        switch (desc->type) {
         case 3:
         case 8:
             sprintf(buf, (char *)&fmtbase[416], desc, (u8 *)gWorldData + 4);
@@ -6922,28 +6972,28 @@ void CritterAllocType(void *hdr, void *move, s32 arg)
             break;
         }
         if (arg != 0) {
-            *(s16 *)(desc + 0x22) = LoadModel(buf, (u8 *)desc + 0x28, 0, -1);
-            *(s16 *)(desc + 0x24) = 2;
-            if (*(u8 **)(desc + 0x28) != NULL) {
-                InitTexMods(*(s32 *)(desc + 0x28), *(s16 *)(desc + 0x22));
-                *(s16 *)(desc + 0x24) = 3;
+            desc->modelIndex = LoadModel(buf, &desc->model, 0, -1);
+            desc->loadState = 2;
+            if (desc->model != NULL) {
+                InitTexMods((s32)desc->model, desc->modelIndex);
+                desc->loadState = 3;
             }
         } else {
-            *(s16 *)(desc + 0x22) = fn_8005A1EC(buf, (u8 *)desc + 0x28);
-            *(s16 *)(desc + 0x24) = 1;
+            desc->modelIndex = fn_8005A1EC(buf, &desc->model);
+            desc->loadState = 1;
         }
-        *(s16 *)(desc + 0x26) = lbl_80344664;
+        desc->loadTick = lbl_80344664;
     }
     if (arg != 0) {
-        CritterLoadFinish(m);
+        CritterLoadFinish((u8 *)M);
     } else {
-        *(s32 *)(m + 0x138) = 0;
+        M->atree = NULL;
     }
-    if (*(s16 *)(m + 0x52) >= 0) {
-        gCritterHeaders[*(s16 *)(desc + 0x20)][*(s16 *)(m + 0x52)] =
-            (struct CritterHeader *)m;
+    if (M->subtype >= 0) {
+        gCritterHeaders[desc->type][M->subtype] =
+            (struct CritterHeader *)M;
     }
-#undef m
+#undef M
 }
 
 /* 0x8003F9F4 -- resolve the animation tree and named attachment nodes for a
@@ -7023,12 +7073,12 @@ void CritterInitAllMoves(void)
 {
     s32 type;
     s32 sub;
-    u8 *hdr;
+    CritterFileHeader *hdr;
 
     for (type = 0; type < lbl_80344660; type++) {
-        hdr = lbl_80241070[type];
-        for (sub = 0; sub < *(s32 *)(hdr + 16); sub++) {
-            CritterInitMoves(*(u8 **)(hdr + 20) + sub * 320);
+        hdr = (CritterFileHeader *)lbl_80241070[type];
+        for (sub = 0; sub < hdr->typeCount; sub++) {
+            CritterInitMoves((u8 *)&((CritterPackedType *)hdr->types)[sub]);
         }
     }
 }
@@ -7212,27 +7262,6 @@ void CritterInitSfx(void *file, s32 index, void *atreeHeader)
     }
     CritterInitSfx(file, *(s32 *)(entry + 4), atreeHeader);
 }
-typedef struct CritterFileHeader {
-    s32 state;
-    s32 wad[3];
-    s32 typeCount;
-    u8 *types;
-    s32 descriptorCount;
-    u8 *descriptors;
-    s32 addAnimCount;
-    u8 *addAnims;
-    s32 moveCount;
-    u8 *moves;
-    s32 patternCount;
-    u8 *patterns;
-    s32 nodeCount;
-    u8 *nodes;
-    s32 damageCount;
-    u8 *damage;
-    s32 sfxCount;
-    u8 *sfx;
-} CritterFileHeader;
-
 extern char lbl_8034665C[8]; /* "SFXX" */
 extern char lbl_80346664[8]; /* "DAMG" */
 extern char lbl_8034666C[8]; /* "MOVE" */

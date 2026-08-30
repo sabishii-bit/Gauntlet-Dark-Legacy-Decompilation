@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Follow-up TU-scoped de-fakematch pass on src/game/enemy/critter.c loader/data-layout code, converting exact loader loops and CritterAllocType to GC-verified file-header, subtype-header, and descriptor field views while preserving byte identity",
+  "attributes": {
+    "anchors": "src/game/enemy/critter.c::{CritterLoadAllTypes,CritterInitAllMoves,CritterAllocType}; python tools/gdl/fndiff.py game/enemy/critter <fn> --clean; python tools/gdl/matchtool.py probe game/enemy/critter --brief",
+    "axis_log": "Accepted v1 left loader/header raw offsets untested. This pass targeted exact loader functions only. Initial CritterAllocType typed-local spelling compiled to identical opcodes but rotated move/arg/desc callee-saved registers (REGISTER_ONLY, 54 real lines), so it was rejected; using a macro for the typed move parameter while keeping desc as the long-lived local restored exact bytes.",
+    "baseline_and_best": "CritterLoadFile flagship 26/26 frame 0x18 fuzzy 100.0 real 0. TU summary stayed OK 56, OK~ 2, bad 26, ties 1. CritterLoadAllTypes 38/38 frame 0x30, CritterInitAllMoves 31/31 frame 0x20, and CritterAllocType 110/110 frame 0x48 all stayed --ops OK and --clean EXACT real 0.",
+    "converted": "Moved the existing CritterFileHeader view before loader uses, added file-local CritterPackedType stride view (0x140) and CritterDescriptor view (0x30), then converted raw state/typeCount/types iteration plus CritterAllocType fields descriptorIndex/subtype/descriptor/file/atree and descriptor type/modelIndex/loadState/loadTick/model.",
+    "remaining": "Raw-looking line census dropped from 1059 to 1039; remaining sites are chiefly CritterInitHeader endian-swap tables, CritterInitMoves/CritterLoadFinish header fields, and other unpublished record layouts. No shared headers were changed.",
+    "scope": "src/game/enemy/critter.c only; portable C/C++; no postprocessor changes; no push",
+    "verification": "ninja -j2 build/GUNE5D/src/game/enemy/critter.o succeeded after each retained region; fndiff --clean exact for CritterLoadAllTypes, CritterInitAllMoves, and CritterAllocType; git diff --check passed before proposal."
+  },
+  "function": "function:CritterLoadFile",
+  "id": "attempt.critter-defakematch-tu-pass.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.critter-defakematch-tu-pass.20260830.v1",
+  "valid_from": "2026-08-30"
+}
