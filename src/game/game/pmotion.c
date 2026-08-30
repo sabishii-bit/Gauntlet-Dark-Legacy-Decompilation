@@ -4586,7 +4586,7 @@ s32 fn_80088938(Player* p, f32 angle) {
     f32 facing;
     s32 action;
 
-    angle = angle + ctl->pad.lx - PF(p, 0x894, f32);
+    angle = angle + ctl->pad.lx - p->move_yaw;
     if ((f64)angle > lbl_80347B50) {
         wrapped = (f64)angle - lbl_80347B60;
     } else if ((f64)angle <= lbl_80347B68) {
@@ -4596,7 +4596,7 @@ s32 fn_80088938(Player* p, f32 angle) {
     }
     facing = (f32)wrapped;
 
-    if (PF(p, 0x834, s32) != 0 && gBossType >= 0) {
+    if (p->quest_state != 0 && gBossType >= 0) {
         ctl->pad.edges &= ~0x900;
         ctl->pad.levels &= ~0x900;
     }
@@ -4615,11 +4615,11 @@ s32 fn_80088938(Player* p, f32 angle) {
     }
 
     action = 0;
-    if ((PF(p, 0x964, s16) & 0x40) != 0) {
+    if ((p->hud_flags & 0x40) != 0) {
         action = 0x27;
-    } else if ((PF(p, 0x964, s16) & 0x10) != 0) {
+    } else if ((p->hud_flags & 0x10) != 0) {
         action = 0x26;
-    } else if ((PF(p, 0x964, s16) & 0x80) != 0) {
+    } else if ((p->hud_flags & 0x80) != 0) {
         action = 0x17;
     } else if (((gControllerButtons & 0x10) != 0 || gGameOptions[6] != 0) &&
                (ctl->pad.levels & 0x08000000) != 0) {
@@ -4648,10 +4648,10 @@ s32 fn_80088938(Player* p, f32 angle) {
         goto final_action;
     }
     if ((ctl->pad.levels & 0x20000) != 0 &&
-        (f64)PF(p, 0x828, f32) >= lbl_80347BB8) {
+        (f64)p->power_target >= lbl_80347BB8) {
         s32 target = fn_80088EF4(p, lbl_80347C6C, lbl_80347D08);
         if (target >= 0) {
-            PF(p, 0x6BC, Player*) = &gPlayerRecords[target];
+            p->grab_pending = &gPlayerRecords[target];
             action = 0x16;
             goto final_action;
         }
@@ -4659,7 +4659,7 @@ s32 fn_80088938(Player* p, f32 angle) {
 
     if ((ctl->pad.levels & 0x800) != 0 &&
         (ctl->pad.edges & 0x200) != 0 &&
-        (f64)PF(p, 0x828, f32) >= lbl_80347B08) {
+        (f64)p->power_target >= lbl_80347B08) {
         action = 0x15;
         goto final_action;
     }
@@ -4717,7 +4717,7 @@ s32 fn_80088938(Player* p, f32 angle) {
         }
         goto selected;
     } else if ((ctl->pad.edges & 0x2000) != 0 &&
-               (f64)PF(p, 0x828, f32) >= lbl_80347C78) {
+               (f64)p->power_target >= lbl_80347C78) {
         action = 7;
         goto selected;
     } else if ((ctl->pad.levels & 0x200) != 0) {
