@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Second TU de-fakematch pass over untested mb_model loader, setup, allocation, lookup, and reset layouts using GC-target-verified file-local views while preserving every function score",
+  "attributes": {
+    "anchors": "src/game/mb/mb_model.c; target displacements gWinGlobals+0x30, 0x10-stride model rows with +4 entry header, background-load +0x2CC, MODELHEADER 0x00-0x80, OBJDEF/TEXDEF/ROMOBJECT PDB layouts verified against GC fnasm; reproduce with ninja -j2 build/GUNE5D/src/game/mb/mb_model.o and fndiff/matchtool",
+    "axis_log": "Allocator direct repeated typed-row expressions changed add/stw to addi/stwx and regressed real96->134; preserving the original row temporary with the table-row view restored real96. Direct background->loads[index] materialized an extra addi and regressed Done real83->121; an indexed-base +0x2CC view preserved the target web and restored real83. Broad direct MODELHEADER member spelling materialized an extra base addi, changed SetupModel 686/687 real361 to 686/688 real794, and was reverted; bounded row/tex_start/ROMOBJECT views retain 361.",
+    "baseline_and_best": "fresh audited raw-offset occurrence census 60 -> 16; TU fuzzy 96.366270% and 18/24 exact unchanged. Fuzzy real: MBOX_BGLoadModelDone 83, MBOX_BGLoadModelStart 46, MBOX_LoadModelFixed 121, SetupModel 361, MBOX_AllocModelMem 96, MBOX_FindTexture_Sub 10; all target/current counts unchanged",
+    "left_raw": "16 audited occurrences remain, concentrated in MBOX_BGLoadModelStart's raw row/background initialization web. Its accepted owner/schedule matrix attempt.mbox-bgloadmodelstart-owner-matrix.20260829.v1 caps typed-owner rewrites, so that function was not reopened. Endian-swapped SetupModel record walkers remain macro-based where a broad member form demonstrably cascades allocation.",
+    "retained": "Named the gWinGlobals model-table root and 0x10-stride row/header layout across reset, lookup, loader, allocator and SetupModel; named MODELHEADER tex_start, TEXDEF, OBJDEF and ROMOBJECT ObjDef fields; preserved the allocator reload/address web with an indexed-base row view; converted the background completion record through an indexed +0x2CC view. MBOX_ReallyFindObject, MBOX_GetTexDef, texidxcmp, objcmp and both reset functions remain byte-identical real0.",
+    "semantic_audit": "No behavior change: allocation sizes/states/bases, loader state transitions, background read callbacks, model endian/fixup walks, lookup bounds and packed IDs are unchanged. No headers, other TUs, postprocessors, assembly, or orig inputs changed."
+  },
+  "function": "function:SetupModel",
+  "id": "attempt.mb-model-defakematch-tu-pass.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.mb-model-defakematch-tu-pass.20260830.v1",
+  "valid_from": "2026-08-30"
+}

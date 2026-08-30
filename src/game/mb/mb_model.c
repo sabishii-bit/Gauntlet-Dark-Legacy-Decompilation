@@ -112,6 +112,63 @@ typedef struct MboxModelLoadSlot {
     s32 state;
 } MboxModelLoadSlot;
 
+/* Model rows are indexed at 0x10-byte intervals from a four-byte header. */
+typedef struct MboxModelTableRowView {
+    u8 _leading[4];
+    MboxModelLoadSlot slot;
+} MboxModelTableRowView;
+
+/* GC displacements 0x00-0x80 agree with the Xbox MODELHEADER layout. */
+typedef struct MboxModelHeaderView {
+    char DirName[0x20];
+    char ModelName[0x20];
+    u32 Version;
+    u32 romobj_cnt;
+    u32 romtex_cnt;
+    u32 objdef_cnt;
+    u32 texdef_cnt;
+    u32 romobjs;
+    u32 romtexs;
+    u32 objdefs;
+    u32 texdefs;
+    u32 subobjs;
+    u32 geom;
+    u32 obj_end;
+    u32 tex_start;
+    u32 tex_end;
+    u32 texbits;
+    u16 lmtex_first;
+    u16 lmtex_num;
+    u32 texinfo;
+} MboxModelHeaderView;
+
+/* Object records are 0x18 bytes; the target reads their index at 0x14. */
+typedef struct MboxObjectDefView {
+    u8 name[0x10];
+    f32 bndrad;
+    s16 index;
+    s16 nframes;
+} MboxObjectDefView;
+
+/* The 0x40-byte target ROMOBJECT agrees with the PDB through ObjDef. */
+typedef struct MboxRomObjectView {
+    f32 InvRad;
+    f32 BndRad;
+    u32 Flags;
+    s32 SubObjCnt;
+    u16 SubObj0_QWC;
+    u16 SubObj0_TexIdx;
+    u16 SubObj0_LMIdx;
+    s16 SubObj0_LodK;
+    void* SubObjPtr;
+    u32* DataPtr;
+    s32 VertCount;
+    s32 TriCount;
+    s32 IDnum;
+    MboxObjectDefView* ObjDef;
+    s32 Unused[4];
+} MboxRomObjectView;
+
 typedef struct MboxBackgroundLoad {
     u8* objectRead;
     u8* textureRead;
@@ -121,12 +178,24 @@ typedef struct MboxBackgroundLoad {
     u32 time;
 } MboxBackgroundLoad;
 
+/* The indexed background-load web reaches its record at target offset 0x2CC. */
+typedef struct MboxIndexedBackgroundLoadView {
+    u8 _leading[0x2CC];
+    MboxBackgroundLoad load;
+} MboxIndexedBackgroundLoadView;
+
 typedef struct MboxBackgroundState {
     u8 unknown[28];
     s32 modelCount[4];
     char names[21][32];
     MboxBackgroundLoad loads[21];
 } MboxBackgroundState;
+
+/* Target accesses the model-table root at gWinGlobals + 0x30. */
+typedef struct MboxWinGlobalsView {
+    u8 _pad00[0x30];
+    u8* modelTable;
+} MboxWinGlobalsView;
 
 /* ---- 0x800B7758 : finish a pending background model load ---- */
 int MBOX_BGLoadModelDone(void) {
@@ -147,11 +216,11 @@ int MBOX_BGLoadModelDone(void) {
         return 1;
     }
     indexed = (u8*)background + index * sizeof(MboxBackgroundLoad);
-    models = *(u8**)(models + 48);
+    models = ((MboxWinGlobalsView*)models)->modelTable;
     model = (MboxModelLoadSlot*)(models + (index << 4) + 4);
-    load = (MboxBackgroundLoad*)(indexed + 716);
+    load = &((MboxIndexedBackgroundLoadView*)indexed)->load;
     slot = index;
-    switch (((MboxBackgroundLoad*)(indexed + 716))->state) {
+    switch (((MboxIndexedBackgroundLoadView*)indexed)->load.state) {
     case 0: {
         char* objectName;
         s32 objectSize;
@@ -160,7 +229,7 @@ int MBOX_BGLoadModelDone(void) {
         objectBuffer = model->model;
         indexed = models;
         indexed += slot << 4;
-        objectSize = *(s32*)(indexed + 8);
+        objectSize = ((MboxModelLoadSlot*)(indexed + 4))->objectSize;
         objectName = (char*)background + (slot << 5);
         model->state = 2;
         load->objectRead = StartFileRead(objectName += 44, strs, 0, objectSize,
@@ -313,59 +382,60 @@ int MBOX_LoadModel(const char* dir) {
 int MBOX_LoadModelFixed(const char* dir, void* buf, int a, int b, int slot) {
     char* strs;
     s32 off;
-    u8* row;
+    MboxModelLoadSlot* row;
     s32 objSize;
     u8* nameBase;
-    u8* row2;
-    u8* g;
+    MboxModelLoadSlot* row2;
+    MboxWinGlobalsView* g;
     s32 nameOff;
     s32 got;
     u8* base;
     u8 unused[8];
 
     strs = (char*)lbl_80115DA8;
-    g = gWinGlobals;
+    g = (MboxWinGlobalsView*)gWinGlobals;
     if (slot < 0) {
         objSize = FileSize(dir, strs);
         slot = MBOX_AllocModelMem(objSize, FileSize(dir, strs + 12), dir);
     }
     off = slot << 4;
-    row = *(u8**)(g + 48) + off + 4;
-    base = *(u8**)row;
+    row = (MboxModelLoadSlot*)(g->modelTable + off + 4);
+    base = row->model;
     nameBase = lbl_802A5D1C;
     nameOff = slot << 5;
-    *(s32*)(row + 12) = 2;
+    row->state = 2;
     strncpy((char*)(nameBase + nameOff), dir, 32);
-    *(u8*)(nameBase + nameOff + 31) = 0;
+    nameBase[nameOff + 31] = 0;
     if (strcmp(dir, lbl_80348C28) != 0) {
         got = MLMReadFile(dir, strs, buf, (int)base);
-        bulletproof_printf(strs + 244, slot, dir, *(s32*)(row + 4));
-        if ((u32)got > (u32)*(s32*)(row + 4)) {
+        bulletproof_printf(strs + 244, slot, dir, row->objectSize);
+        if ((u32)got > (u32)row->objectSize) {
             ErrorPrintf(strs + 288, slot, dir, got);
         }
     }
     strncpy((char*)(base + 32), dir, 32);
-    *(u8*)(base + 63) = 0;
+    base[63] = 0;
     SetupModel(slot, dir);
-    if (*(s32*)(row + 12) != 2) {
+    if (row->state != 2) {
         return slot;
     }
-    *(s32*)(row + 12) = 1;
+    row->state = 1;
     if (strcmp(dir, lbl_80348C28) == 0) {
         fn_800C7214(slot);
     } else {
-        row2 = *(u8**)(gWinGlobals + 48) + off + 4;
-        got = MLMReadFile(dir, strs + 12, (void*)*(s32*)(row2 + 8),
-                          *(s32*)(*(u8**)row2 + 112));
-        if ((u32)((got + 15) & ~15) > (u32)*(s32*)(row2 + 8)) {
+        row2 = (MboxModelLoadSlot*)(
+            ((MboxWinGlobalsView*)gWinGlobals)->modelTable + off + 4);
+        got = MLMReadFile(dir, strs + 12, (void*)row2->textureSize,
+                          ((MboxModelHeaderView*)row2->model)->tex_start);
+        if ((u32)((got + 15) & ~15) > (u32)row2->textureSize) {
             ErrorPrintf(strs + 336, dir);
         }
         fn_800C7214(slot);
     }
-    if (*(s32*)(row + 12) != 1) {
+    if (row->state != 1) {
         return slot;
     }
-    *(s32*)(row + 12) = 0;
+    row->state = 0;
     return slot;
 }
 
@@ -411,7 +481,7 @@ static void SetupModel(slot, name)
 int slot;
 const char* name;
 {
-    u8* globals;
+    MboxWinGlobalsView* globals;
     u8* model;
     u8* records;
     u8* record;
@@ -430,8 +500,9 @@ const char* name;
     s32 count;
     s32 recordIndex;
 
-    globals = gWinGlobals;
-    model = *(u8**)(*(u8**)(globals + 48) + (slot << 4) + 4);
+    globals = (MboxWinGlobalsView*)gWinGlobals;
+    model = ((MboxModelTableRowView*)(globals->modelTable +
+              (slot << 4)))->slot.model;
     swapData = 1;
 
     MODEL_U32(model, 64) = ModelSwap32(MODEL_U32(model, 64));
@@ -475,10 +546,13 @@ const char* name;
     MODEL_U32(model, 120) = (u32)model + MODEL_U32(model, 120);
     MODEL_U32(model, 108) = (u32)model + MODEL_U32(model, 108);
     MODEL_U32(model, 112) = (u32)model +
-                            MODEL_U32(*(u8**)(globals + 48) + (slot << 4), 8);
+                            ((MboxModelTableRowView*)(globals->modelTable +
+                              (slot << 4)))->slot.objectSize;
     MODEL_U32(model, 116) = (u32)model +
-                            MODEL_U32(*(u8**)(globals + 48) + (slot << 4), 8) +
-                            MODEL_U32(*(u8**)(globals + 48) + (slot << 4), 12);
+                            ((MboxModelTableRowView*)(globals->modelTable +
+                              (slot << 4)))->slot.objectSize +
+                            ((MboxModelTableRowView*)(globals->modelTable +
+                              (slot << 4)))->slot.textureSize;
 
     records = (u8*)MODEL_U32(model, 88);
     if (swapData) {
@@ -580,7 +654,8 @@ const char* name;
     for (i = 0; i < MODEL_U32(model, 76); i++, offset += 24) {
         record = (u8*)MODEL_U32(model, 92) + offset;
         recordIndex = MODEL_S16(record, 20);
-        *(u8**)((u8*)MODEL_U32(model, 84) + recordIndex * 64 + 44) = record;
+        ((MboxRomObjectView*)((u8*)MODEL_U32(model, 84) +
+          recordIndex * 64))->ObjDef = (MboxObjectDefView*)record;
     }
 }
 
@@ -602,7 +677,7 @@ typedef struct ModelRec {
 
 int MBOX_AllocModelMem(int objSize, int texSize, const char* dir) {
     char* strs = (char*)lbl_80115DA8;
-    u8* g;
+    MboxWinGlobalsView* g;
     s32 off;
     s32 memUsed;
     s32 slot;
@@ -615,23 +690,23 @@ int MBOX_AllocModelMem(int objSize, int texSize, const char* dir) {
 
     objSize = (objSize + 255) & ~255;
     texAlloc = (texSize + 15) & ~15;
-    g = gWinGlobals;
-    counter = *(s32**)(g + 48);
+    g = (MboxWinGlobalsView*)gWinGlobals;
+    counter = (s32*)g->modelTable;
     slot = (*counter)++;
     off = slot << 4;
-    lbl_80344E8C = **(s32**)(g + 48);
-    row = *(u8**)(g + 48);
+    lbl_80344E8C = *(s32*)g->modelTable;
+    row = g->modelTable;
     row += off;
-    *(s32*)(row + 16) = 8;
-    row = *(u8**)(g + 48);
+    ((MboxModelTableRowView*)row)->slot.state = 8;
+    row = g->modelTable;
     row += off;
-    *(s32*)(row + 4) = 0;
-    row = *(u8**)(g + 48);
+    ((MboxModelTableRowView*)row)->slot.model = NULL;
+    row = g->modelTable;
     row += off;
-    *(s32*)(row + 8) = 0;
-    row = *(u8**)(g + 48);
+    ((MboxModelTableRowView*)row)->slot.objectSize = 0;
+    row = g->modelTable;
     row += off;
-    *(s32*)(row + 12) = 0;
+    ((MboxModelTableRowView*)row)->slot.textureSize = 0;
     if (strcmp(dir, lbl_80348C28) != 0) {
         want = objSize + texAlloc;
         texAlloc = BytesFree();
@@ -648,20 +723,20 @@ int MBOX_AllocModelMem(int objSize, int texSize, const char* dir) {
         aligned += pad;
         AllocMem(want);
         texAlloc = texAlloc - BytesFree() - objSize;
-        row = *(u8**)(g + 48);
+        row = g->modelTable;
         row += off;
-        *(u8**)(row + 4) = aligned;
+        ((MboxModelTableRowView*)row)->slot.model = aligned;
     } else {
-        row = *(u8**)(g + 48);
+        row = g->modelTable;
         row += off;
-        *(u8**)(row + 4) = lbl_80129740;
+        ((MboxModelTableRowView*)row)->slot.model = lbl_80129740;
     }
-    row = *(u8**)(g + 48);
+    row = g->modelTable;
     row += off;
-    *(s32*)(row + 8) = objSize;
-    row = *(u8**)(g + 48);
+    ((MboxModelTableRowView*)row)->slot.objectSize = objSize;
+    row = g->modelTable;
     row += off;
-    *(s32*)(row + 12) = texAlloc;
+    ((MboxModelTableRowView*)row)->slot.textureSize = texAlloc;
     bulletproof_printf(strs + 508, slot,
                        (dir != NULL) ? dir : strs + 496,
                        memUsed >> 10);
@@ -679,13 +754,13 @@ void MBOX_LockModels(int slot) {
 
 /* ---- 0x800B8A38 : free all models above the highest lock point ---- */
 void MBOX_ResetUnlockedModels(int slot) {
-    u8* g = gWinGlobals;
+    MboxWinGlobalsView* g = (MboxWinGlobalsView*)gWinGlobals;
 
     fn_800C7884(slot);
     FreeUnlockedMem(slot);
     MBResetUnlockedFonts(slot);
     lbl_80344E8C = lbl_802A5D0C[slot];
-    (*(s32**)(g + 0x30))[0] = lbl_80344E8C;
+    ((s32*)g->modelTable)[0] = lbl_80344E8C;
     MBTreeInit();
     lbl_80344E88 = -1;
     if (slot == 1) {
@@ -696,11 +771,11 @@ void MBOX_ResetUnlockedModels(int slot) {
 
 /* ---- 0x800B8AB8 : reset the whole model system ---- */
 void MBOX_ResetModels(void) {
-    u8* g = gWinGlobals;
+    MboxWinGlobalsView* g = (MboxWinGlobalsView*)gWinGlobals;
     MBResetFonts();
     fn_800C7884(0);
     lbl_80344E8C = 0;
-    (*(s32**)(g + 0x30))[0] = 0;
+    ((s32*)g->modelTable)[0] = 0;
     lbl_80344E88 = -1;
 }
 
@@ -712,6 +787,14 @@ typedef struct MboxTextureArchive {
     void* objectDefs;
     void* textureDefs;
 } MboxTextureArchive;
+
+/* Texture records are 0x24 bytes; both comparators use the index at 0x1E. */
+typedef struct MboxTextureDefView {
+    char Name[0x1E];
+    s16 Index;
+    u16 Width;
+    u16 Height;
+} MboxTextureDefView;
 
 typedef struct MboxModelSlot {
     u8 _pad00[4];
@@ -734,14 +817,14 @@ int MBOX_FindTexture_Err(const char* name, void** out, int flag) {
 int MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag) {
     char* destination;
     void** out = (void**)p2;
-    u8* g;
+    MboxWinGlobalsView* g;
     void* result;
     s32 model;
     char key[0x24];
 
     destination = key;
     result = NULL;
-    g = gWinGlobals;
+    g = (MboxWinGlobalsView*)gWinGlobals;
     while (*name == ' ' || *name == '\t' || *name == '\n') {
         name++;
     }
@@ -761,7 +844,7 @@ int MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag) {
     lo <<= 4;
     while (model <= hi) {
         MboxModelSlot* current =
-            (MboxModelSlot*)(*(u8**)(g + 0x30) + lo);
+            (MboxModelSlot*)(g->modelTable + lo);
 
         if (current->locked == 0) {
             result = bsearch(key, current->archive->textureDefs,
@@ -783,7 +866,7 @@ int MBOX_FindTexture_Sub(const char* name, int p2, int lo, int hi, int flag) {
         return 0;
     }
     {
-        s32 textureIndex = *(s16*)((u8*)result + 0x1E);
+        s32 textureIndex = ((MboxTextureDefView*)result)->Index;
         u32 id = (u16)textureIndex;
 
         id |= model << 16;
@@ -807,12 +890,9 @@ static void setTextureKey(s16* destination, s32 value) {
 #pragma opt_propagation off
 void* MBOX_GetTexDef(int idx) {
     u8 unused[8];
-    struct {
-        u8 _pad[30];
-        s16 h;
-    } key;
+    MboxTextureDefView key;
     u16 textureIndex = idx;
-    u8* g = gWinGlobals;
+    MboxWinGlobalsView* g = (MboxWinGlobalsView*)gWinGlobals;
     s32 bank = idx >> 16;
     void* result;
 
@@ -822,20 +902,20 @@ void* MBOX_GetTexDef(int idx) {
         goto done;
     }
     bank <<= 4;
-    if (((MboxModelSlot*)(*(u8**)(g + 0x30) + bank))->locked != 0) {
+    if (((MboxModelSlot*)(g->modelTable + bank))->locked != 0) {
         result = NULL;
         goto done;
     }
-    if (((MboxModelSlot*)(*(u8**)(g + 0x30) + bank))->archive
+    if (((MboxModelSlot*)(g->modelTable + bank))->archive
             ->textureCount == 0) {
         result = NULL;
         goto done;
     }
-    setTextureKey(&key.h, (s16)textureIndex);
+    setTextureKey(&key.Index, (s16)textureIndex);
     {
         MboxModelSlot* slot;
 
-        slot = (MboxModelSlot*)(*(u8**)(g + 0x30) + bank);
+        slot = (MboxModelSlot*)(g->modelTable + bank);
         result = bsearch(&key, slot->archive->textureDefs,
                          slot->archive->textureCount, 0x24, texidxcmp);
     }
@@ -847,7 +927,8 @@ done:
 
 /* ---- 0x800B8DC0 : texture-index comparator ---- */
 static int texidxcmp(const void* a, const void* b) {
-    return ((const s16*)a)[0xf] - ((const s16*)b)[0xf];
+    return ((const MboxTextureDefView*)a)->Index -
+           ((const MboxTextureDefView*)b)->Index;
 }
 
 /* ---- 0x800B8DD0 : register a new object def + create an MB object ---- */
@@ -873,7 +954,7 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
     u8 unused[8];
     char nm[16];
     const char* strings;
-    u8* win;
+    MboxWinGlobalsView* win;
     MboxModelSlot* slot;
     MboxTextureArchive* model;
     u8* found;
@@ -882,7 +963,7 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
 
     strings = lbl_80115DA8;
     found = NULL;
-    win = gWinGlobals;
+    win = (MboxWinGlobalsView*)gWinGlobals;
     if (a < 0) {
         a = 0;
     }
@@ -898,7 +979,7 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
 
     slotIndex = a;
     for (; slotIndex <= b; slotIndex++) {
-        slot = (MboxModelSlot*)(*(u8**)(win + 48) + slotIndex * 16);
+        slot = (MboxModelSlot*)(win->modelTable + slotIndex * 16);
         if (slot->locked == 0) {
             model = slot->archive;
             found = bsearch(nm, model->objectDefs,
@@ -917,7 +998,7 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
         strcpy(nm, strings + 580);
         slotIndex = 0;
         for (; slotIndex < lbl_80344E8C; slotIndex++) {
-            slot = (MboxModelSlot*)(*(u8**)(win + 48) + slotIndex * 16);
+            slot = (MboxModelSlot*)(win->modelTable + slotIndex * 16);
             if (slot->locked == 0) {
                 model = slot->archive;
                 found = bsearch(nm, model->objectDefs,
@@ -933,12 +1014,12 @@ int MBOX_ReallyFindObject(const char* name, int a, int b, int create) {
         FatalErrorf(strings + 592, name, nm);
     }
 
-    slot = (MboxModelSlot*)(*(u8**)(win + 48) + slotIndex * 16);
+    slot = (MboxModelSlot*)(win->modelTable + slotIndex * 16);
     model = slot->archive;
     if (model->objectCount == 0) {
         objectIndex = (found - (u8*)model->objectDefs) / 24;
     } else {
-        objectIndex = *(s16*)(found + 20);
+        objectIndex = ((MboxObjectDefView*)found)->index;
     }
     return (u16)objectIndex | (slotIndex << 16);
 }
