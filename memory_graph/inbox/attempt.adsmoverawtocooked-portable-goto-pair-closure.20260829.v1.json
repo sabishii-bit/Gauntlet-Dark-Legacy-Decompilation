@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "portable-C exact closure of the divisor and available-space clamp goto pairs through explicit two-destination labels and dead-value if/else control-flow shapes",
+  "attributes": {
+    "anchors": "src/game/audio/adstream.c::adsMoveRawToCooked; target .text 0x800D6588 size 0x2B4; python tools/gdl/fnasm.py game/audio/adstream.c adsMoveRawToCooked; python tools/gdl/fndiff.py game/audio/adstream.c adsMoveRawToCooked --count/--ops/--clean; immutable commits fe139362fccfd341bcda24258bbcc9d23b40f64e and 866b8deb6ce546338c391705590c385130f16e84",
+    "baseline": "target/current 173/171 instructions, fuzzy 98.728325%, count-real 74, 0x48-byte frame, saves r19-r31; residual classified STRUCTURAL",
+    "final_state": "best portable source restored unchanged at target/current 173/171 instructions, fuzzy 98.728325%, count-real 74, 0x48-byte frame, saves r19-r31; the only opcode differences are two target conditional-plus-unconditional branch pairs collapsed by MWCC into inverse single branches",
+    "measurements": "an explicit conditional-goto/set-goto/done label shape and the historical dead-value if/else shape both compiled identically to baseline (171 instructions, real 74, same two opcode clusters), so the axis was killed after two identical A/B results and both probes were reverted",
+    "policy": "capped under portable-C-only policy; do not retry inverse clamp conditions, explicit set/done goto chains, or unused dead-value else arms without genuinely new compiler evidence. Historical fe139362f was byte-exact only because it used two inline-assembly branch devices; 866b8deb6 removed those devices under project policy and exposed this P6 goto-pair wall",
+    "semantic_audit": "complete 173-instruction target reviewed: blocks is clamped to a nonzero divisor; raw availability is divided by block count and clamped to cooked-ring space; frame alignment truncates copy size; loop-marker and raw-ring boundaries select one- or two-memcpy paths per block; raw source and cooked destination planes advance and wrap; loop-marker padding adjusts destinationEnd/copySize; consumed raw bytes equal divisor*(copySize+padding); ringRead/ringPtr/ringWrite updates and all field offsets, memcpy calls, loop architecture, and non-branch instructions/relocations align with the retained source",
+    "verification": "owning object rebuilt; fndiff count/ops/clean inspected; matchtool reports 22 exact siblings unchanged with adsMoveRawToCooked L-2/D74; datadiff reports only pre-existing unclaimed .rodata 0x2D and .sdata2 0x10; fresh full ninja linked main.dol with checksum OK; progress 97.66% fuzzy and 57.85% matched; no source changes retained and no assembly modified"
+  },
+  "function": "function:adsMoveRawToCooked",
+  "id": "attempt.adsmoverawtocooked-portable-goto-pair-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
