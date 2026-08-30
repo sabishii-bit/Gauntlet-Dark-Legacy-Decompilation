@@ -2186,8 +2186,11 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
             if (old_type != trigger_type) {
                 if (old_type >= 27 && old_type <= 29 &&
                     trigger_type >= 27 && trigger_type <= 29) {
-                    *(s16*)(target + 0x14) &= 0xFF00;
-                    *(s16*)(target + 0x14) |= 27;
+                    flags &= ~0xFF;
+                    *(s16*)(target + 0x14) = flags;
+                    flags = *(s16*)(target + 0x14);
+                    flags |= 27;
+                    *(s16*)(target + 0x14) = flags;
                 } else {
                     ErrorPrintf(strings + 0x480, target, old_type, trigger_type);
                 }
@@ -2211,17 +2214,14 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
     if (++sNumItemWobjs >= 150) {
         FatalError(strings + 0x4B0, 0x800000);
     }
-    {
-        void* node = *(void**)(target + 0x28);
-
-        runtime->wobjTarget[i] = target;
-        runtime->wobjNodeY[i] = *(f32*)((u8*)node + 0x34);
-        runtime->wobjX[i] = x;
-        runtime->wobjX2[i] = x;
-        runtime->wobjZ[i] = z;
-        runtime->wobjValue[i] = (f32)value;
-        *(s16*)(target + 0x14) = (s16)type;
-    }
+    runtime->wobjTarget[i] = target;
+    runtime->wobjNodeY[i] =
+        *(f32*)((u8*)*(void**)(target + 0x28) + 0x34);
+    runtime->wobjX[i] = x;
+    runtime->wobjX2[i] = x;
+    runtime->wobjZ[i] = z;
+    runtime->wobjValue[i] = (f32)value;
+    *(s16*)(target + 0x14) = (s16)type;
     return i;
 }
 
