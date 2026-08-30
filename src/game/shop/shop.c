@@ -68,6 +68,7 @@
  */
 
 #include "types.h"
+#include "game/player.h"
 
 extern u8 gPlayers[];
 extern s32 lbl_8028A520[];
@@ -1281,7 +1282,7 @@ isavailable:
 
 void init_shop(s32 fromMenu)
 {
-    u8* player;
+    Player* player;
     s32 i;
 
     lbl_80344C0C = fromMenu;
@@ -1300,9 +1301,9 @@ void init_shop(s32 fromMenu)
         return;
     }
 
-    player = gPlayers;
-    for (i = 0; i < 4; i++, player += 13148) {
-        if (*(s32*)(player + 232) == 5 || *(s32*)(player + 232) == 1) {
+    player = (Player*)gPlayers;
+    for (i = 0; i < 4; i++, player++) {
+        if (player->state == 5 || player->state == 1) {
             break;
         }
     }
@@ -1367,10 +1368,18 @@ static s32 write_shop_menu(s32 player, s32 scroll);
 
 /* Buy/sell driver for one shop player: cursor movement over available
  * items, sell-back, and the per-item purchase effects. */
-typedef struct { u8 _pad[72]; s32 price; u8 _pad2[4]; } DSItem;
+typedef struct {
+    u8 _pad[32];
+    s8 field_20[32];
+    f32 field_40;
+    u32 field_44;
+    s32 price;
+    u32 field_4C;
+} DSItem;
 typedef struct { u8 _pad[336]; u32 v; } DSFlag4;
 typedef struct { u8 _pad[13056]; s32 v; } DSPot4;
 typedef struct { u8 _pad[5456]; s32 v; } DSTim4;
+typedef struct { u8 _pad[0xA68]; s32 field_A68; } DSPlayerView;
 
 static s32 do_shopping_8009AA48(s32 player)
 {
@@ -2154,15 +2163,15 @@ void calc_shop_ypos(s32 player)
         if (MBBlitGetTex(blits[i]) > 0) {
             y += 24;
         }
-        if ((s8)entry[32] != 0) {
+        if (((DSItem*)entry)->field_20[0] != 0) {
             y = y + TextHeightMLines((f32)(scale *
-                                            (f64)*(f32*)(entry + 64)),
+                                            (f64)((DSItem*)entry)->field_40),
                                      6, (char*)entry + 32);
             y = y + 16;
         }
     }
 
-    y = ypos[*(s32*)(p + 2664)];
+    y = ypos[((DSPlayerView*)p)->field_A68];
     {
         s32 count;
 
@@ -2230,15 +2239,15 @@ void ShopLoadData(void)
         while (i < lbl_80344C10) {
             u8* entry = lbl_80344C14 + offset;
 
-            *(f32*)(entry + 64) = shopSwapF32(*(f32*)(entry + 64));
-            *(u32*)(entry + 68) = shopSwapU32(*(u32*)(entry + 68));
-            *(u32*)(entry + 72) = shopSwapU32(*(u32*)(entry + 72));
-            *(u32*)(entry + 76) = shopSwapU32(*(u32*)(entry + 76));
+            ((DSItem*)entry)->field_40 = shopSwapF32(((DSItem*)entry)->field_40);
+            ((DSItem*)entry)->field_44 = shopSwapU32(((DSItem*)entry)->field_44);
+            ((DSItem*)entry)->price = shopSwapU32(((DSItem*)entry)->price);
+            ((DSItem*)entry)->field_4C = shopSwapU32(((DSItem*)entry)->field_4C);
             i++;
             offset += 80;
         }
     }
-    lbl_80344C04 = *(s32*)(lbl_80344C14 + 152);
+    lbl_80344C04 = ((DSItem*)lbl_80344C14)[1].price;
 }
 #pragma opt_common_subs reset
 

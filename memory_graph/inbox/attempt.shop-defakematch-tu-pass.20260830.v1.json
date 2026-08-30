@@ -1,0 +1,16 @@
+{
+  "attempted_axis": "TU-scoped replacement of raw Player and shop-item offsets with the GC Player layout and target-verified 80-byte local descriptor views",
+  "attributes": {
+    "anchors": "src/game/shop/shop.c at c2c750c41; reproduce with ninja -j1 build/GUNE5D/src/game/shop/shop.o and tools/gdl/fndiff.py game/shop/shop.c <function> --clean",
+    "baseline_and_best": "audited numeric-offset/PF census 226 -> 218 lines; init_shop target/current 80/80, fuzzy 100%, real 0, frame 0x18; TU fuzzy 93.93806% and 5/13 real-0 exact functions unchanged",
+    "constraints": "Did not retry parked shop_setup/do_shop/do_shopping/write_shop_menu matching axes. calc_shop_ypos call text address remains `(char*)entry + 32`: inline member address hoisted addi before lbz (2 real schedule lines), scoped pointer added early addi+mr (15 real structural lines), and standard offsetof was unavailable in the no-system-header build. The exact late raw address web is retained.",
+    "retained": "init_shop Player iteration/state uses GC Player; calc_shop_ypos uses target-verified DSPlayerView field_A68 and DSItem byte/float loads; ShopLoadData uses the verified 80-byte DSItem view for four endian-fixed fields and the entry-count read. init_shop and calc_shop_ypos stayed direct exact; shop_show_lv, ShopLoadData, and calculate_player_shopping_parameters stayed real 0 with only pre-existing pool-name normalization noise.",
+    "sites_left_raw": "218 census lines remain, principally in the four binding capped large shop functions and other fuzzy display/stat helpers; unverified semantic field names were not invented."
+  },
+  "function": "function:init_shop",
+  "id": "attempt.shop-defakematch-tu-pass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1
+}
