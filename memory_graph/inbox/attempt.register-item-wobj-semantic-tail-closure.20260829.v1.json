@@ -1,0 +1,23 @@
+{
+  "attempted_axis": "semantic reconstruction of duplicate trigger-type normalization and new-entry node-Y ownership, followed by bounded declaration, parameter-type, alias/lifetime, and expression-order closure probes",
+  "attributes": {
+    "anchor": "src/game/world/items.c:RegisterItemWobj; target 0x80065E68; git:99a1a4ad6",
+    "axis_log": [
+      "retained: split flags mask/store/reload/ori/store closed the duplicate-type opcode sequence",
+      "retained: inline node dereference closed the new-entry tail load/store schedule",
+      "no effect: declaration/assignment order, scoped or register offset, u32 offset, node-check temporary, induction-slot alias",
+      "negative and reverted: direct pointer parameter (140 insns/95 clean), trigger-type elision (138/87), saved type/value aliases (84 clean), s32 parameter (140/87); u16 parameter had no effect"
+    ],
+    "conclusion": "Retain the two source shapes. Do not retry the closed declaration-order, offset type/register/scoping, direct-pointer, trigger-type-elision, parameter-width, node-temporary, slot-alias, or saved-alias axes without a genuinely new source-level ownership idea.",
+    "measurements": "139/139 insns retained; fuzzy 79.273384 -> 85.21583; fndiff --count real 94 -> 74; --clean real 96 -> 76; frame 88 bytes unchanged; TU fuzzy 96.65998 -> 96.83629; raw project fuzzy 97.6337 -> 97.63678",
+    "residual": "STRUCTURAL head scheduling and saved-register cycle only: target/offset/type/value occupy r26-r29 in a rotated allocation; body calls and tail semantics are aligned",
+    "semantic_result": "explicit s16 mask/store/reload/or/store matches duplicate trigger-type normalization; direct target->node->Y expression matches the new-slot node-Y load/store without changing calls, CFG, field offsets, or return behavior",
+    "verification": "owning object rebuilt; complete target assembly/CFG/calls/fields audited; exact siblings and TU data unchanged; git diff --check passed; full ninja passed with build/GUNE5D/main.dol OK"
+  },
+  "function": "function:RegisterItemWobj",
+  "id": "attempt.register-item-wobj-semantic-tail-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
