@@ -140,8 +140,12 @@ typedef struct Critter {
     s16 unk126;               /* 0x126 (init -1)                              */
     s16 unk128;               /* 0x128 (init -1)                              */
     s16 targetCount;          /* 0x12A active target count                     */
-    s32 targetPlayer;         /* 0x12C player index for the single-target case */
-    u8  _blk130[0x8C];        /* 0x130 .. 0x1BC                              */
+    s32 targetPlayer;         /* 0x12C targetInfo[0].player; also read alone as
+                                * the single-target player index (CritterGetTarget) */
+    u8  _blk130[4];           /* 0x130 .. 0x134 (targetInfo[0], +4)          */
+    f32 targetAngle;          /* 0x134 targetInfo[0].angle; base of a walked,
+                                * stride-0x24 per-target record array          */
+    u8  _blk138[0x84];        /* 0x138 .. 0x1BC                              */
     f32 unk1BC[4][4];         /* 0x1BC 4x4 floats (init 0; per-limb scratch)   */
     f32 targetPos[3];         /* 0x1FC resolved target position                */
     u8  _blk208[4];           /* 0x208 .. 0x20C                              */
@@ -153,7 +157,9 @@ typedef struct Critter {
     f32 patternTimes[0x20];   /* 0x318 per-pattern last-use timestamps         */
     f32 worldMoveMatrix[12];  /* 0x398 move-node world transform              */
     f32 moveOrigin[3];        /* 0x3C8 cached move origin                      */
-    u8  _blk3D4[0x54];        /* 0x3D4 .. 0x428                              */
+    u8  _blk3D4[0x44];        /* 0x3D4 .. 0x418                              */
+    f32 prevMovePathPos[3];   /* 0x418 prior-frame movePathPos snapshot        */
+    u8  _blk424[4];           /* 0x424 .. 0x428                              */
     f32 moveMatrix[3];        /* 0x428 current move-space position             */
     u8  _blk434[4];           /* 0x434 .. 0x438                              */
     f32 floorContact[3];      /* 0x438 last FloorCollide contact point (CollideWorld) */
