@@ -291,6 +291,16 @@ Cross-fleet concurrency (multiple independent agent fleets sharing `main`):
 - The graph inbox is the cross-fleet mailbox: records land there
   fleet-by-fleet, and each fleet accepts only its own proposals into
   `records/`. Never move, edit, or delete another fleet's inbox files.
+- Worktree plumbing: the fleets drive this repository with different git
+  flavors, whose worktree add/remove churn rewrites the shared registry
+  (`.git/worktrees/*/gitdir` and each worktree's `.git` link) in
+  incompatible path forms, breaking plain git commands in worktrees
+  ("does not point back" / mixed-separator paths). The interoperable form
+  is forward-slash Windows paths (`W:/...`); run
+  `python tools/gdl/fix_worktrees.py` from the main checkout to normalize
+  every registered worktree (plumbing files only — it never touches
+  tracked content, so it is safe to run while other fleets work). Create
+  new worktrees with forward-slash paths to avoid seeding the problem.
 
 Worktrees: writing workers use separate worktrees/branches; the shared
 checkout is read-only to them. Reuse existing clean campaign worktrees before
