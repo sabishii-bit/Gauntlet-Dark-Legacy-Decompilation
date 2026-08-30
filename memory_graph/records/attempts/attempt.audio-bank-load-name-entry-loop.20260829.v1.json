@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "bank-name lookup address staging followed by exact-closure probes for the live-zero induction copy via arithmetic initializer forms, signedness, and a fallthrough control-flow label",
+  "attributes": {
+    "anchors": "src/game/audio/audio.c::AudioBankLoadName; target .text 0x80016F30 size 0x1CC; python tools/gdl/fnasm.py game/audio/audio AudioBankLoadName; python tools/gdl/fndiff.py game/audio/audio AudioBankLoadName --clean; ninja",
+    "baseline": "target/current 115/115 instructions, fuzzy 97.608696%, real 8, 0x38-byte frame, saves r25-r31",
+    "final_state": "target/current 115/115 instructions, fuzzy 99.478264%, real 2, 0x38-byte frame, saves r25-r31; sole residual at target +0x34 is addi r25,r30,0 while MWCC emits li r25,0",
+    "measurements": "bankIdx + 0 and bankIdx * 292 initializer spellings both reproduced the retained real-2 object; changing the offset induction variable to u32 and inserting a fallthrough goto/label also reproduced it exactly; all unsuccessful closure probes were reverted",
+    "policy": "retain the address-staging improvement; exact closure is capped under the source-shape iteration limit, and the arithmetic-initializer, induction-scaling, signedness, or fallthrough-label axes must not be retried without a genuinely new source-level idea",
+    "retained_improvement": "staging the first lookup address in a block-local char* before strncmp corrected the target add-before-argument schedule and reduced the function to fuzzy 99.478264%, real 2 with unchanged instruction count, frame, calls, CFG, relocations, and ABI",
+    "semantic_audit": "two bank/part lookup loops and strncmp calls, error suspension paths, already-loaded returns, drain loop with sndSysUpdate and FreeHiMem, and AudioUnloadPart/AudioLoadPart tail sequence align with the complete target assembly; AudioBankQueueName remained at its accepted 75/75, fuzzy 99.20%, real-2 cap"
+  },
+  "function": "function:AudioBankLoadName",
+  "id": "attempt.audio-bank-load-name-entry-loop.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

@@ -767,7 +767,9 @@ s32 AudioBankLoadName(char* bankName, char* partName, s32 mode)
     bankIdx = 0;
     i = bankIdx;
     while (bankIdx < gAudioBankTbl[4]) {
-        if (strncmp((char*)((u8*)gAudioBankTbl + i + 20), bankName, 16) == 0) {
+        char* name = (char*)((u8*)gAudioBankTbl + i + 20);
+
+        if (strncmp(name, bankName, 16) == 0) {
             break;
         }
         bankIdx++;
