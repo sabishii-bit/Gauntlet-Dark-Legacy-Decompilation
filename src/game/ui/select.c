@@ -2810,7 +2810,7 @@ s32 serve_blits(s32 player)
     u8* page = lbl_80121688;
     u8* blits = lbl_80284878 + player * 132;
     s32* xp = (s32*)(lbl_80121688 + player * 4);
-    f64 kb = lbl_80348040;
+    f64 kb;
     f64 ka = lbl_80348048;
     f32 kf = lbl_80348050;
     s32* sp;
@@ -2822,6 +2822,7 @@ s32 serve_blits(s32 player)
     u8* e;
     s32 off;
 
+    kb = lbl_80348040;
     for (j = 0, off = 0; j < 11; j++, off += 12) {
         e = blits + off;
         sp = (s32*)(e + 4);
