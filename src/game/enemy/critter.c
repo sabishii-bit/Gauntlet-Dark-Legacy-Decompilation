@@ -2684,8 +2684,12 @@ s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
         }
     }
 
-    ModifyDamage(*(f32 *)((u8 *)c->hdr + 0xBC), &damage, &flags,
-                 *(u32 *)((u8 *)c->hdr + 0xE0));
+    {
+        u32 shieldFlags = *(u32 *)((u8 *)c->hdr + 0xE0);
+        f32 armor = *(f32 *)((u8 *)c->hdr + 0xBC);
+
+        ModifyDamage(armor, &damage, &flags, shieldFlags);
+    }
     descriptor = *(u8 **)((u8 *)c->hdr + 0x120);
     critterClass = *(s16 *)(descriptor + 0x20);
 
@@ -2865,9 +2869,11 @@ credited_damage_done:
         CritterAwardExp(-1, (f32)(lbl_80346580 *                             \
                                   (f64)*(f32 *)((u8 *)(victim)->hdr + 0xE8))); \
         if ((victim)->parent == NULL) {                                        \
-            for (deathChild = (victim)->next; deathChild != NULL;              \
-                 deathChild = deathChild->next) {                              \
-                deathChild->health = lbl_803464A8;                             \
+            f32 deadHealth;                                                    \
+            deathChild = (victim)->next;                                       \
+            deadHealth = lbl_803464A8;                                         \
+            for (; deathChild != NULL; deathChild = deathChild->next) {        \
+                deathChild->health = deadHealth;                               \
             }                                                                  \
         }                                                                      \
         switch (*(s16 *)(*(u8 **)((u8 *)(victim)->hdr + 0x120) + 0x20)) {     \
