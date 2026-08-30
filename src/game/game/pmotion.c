@@ -2582,19 +2582,19 @@ store_motion_state:
         /* Target +0x3824: low-byte melee/target resolution. */
         if ((p->act_bits & 0xFF) != 0) {
             if ((p->act_bits & 0xFE) != 0) {
-                f32 damage = PF(p, 0x104, f32);
+                f32 damage = p->stat_damage;
                 u32 damageFlags = p->field_11C;
                 f32 hitRange;
 
-                if (PF(p, 0x8A8, u8*) == NULL && ctl->values[8] == 0.0f) {
+                if (p->collision_item == NULL && ctl->values[8] == 0.0f) {
                     hit[0] = (f32)(targetDir[0] *
-                                   (lbl_80347C28 * PF(p, 0x850, f32)) +
+                                   (lbl_80347C28 * p->col_radius) +
                                    oldpos[0]);
                     hit[1] = (f32)(targetDir[1] *
-                                   (lbl_80347C28 * PF(p, 0x850, f32)) +
+                                   (lbl_80347C28 * p->col_radius) +
                                    oldpos[1]);
                     hit[2] = (f32)(targetDir[2] *
-                                   (lbl_80347C28 * PF(p, 0x850, f32)) +
+                                   (lbl_80347C28 * p->col_radius) +
                                    oldpos[2]);
                     PlayerCollideEnemies(p, (s32)oldpos, hit, NULL, 0,
                                          NULL, radius, height);
@@ -2885,7 +2885,7 @@ player_motion_phase_exit:
                     kind = 4;
                 } else if ((p->shield_flags & 0x10000) != 0) {
                     kind = 3;
-                } else if ((PF(p, 0x8C0, u32) & 8) != 0) {
+                } else if ((SV(p)->floor_flags & 8) != 0) {
                     kind = 2;
                 } else {
                     kind = 0;
