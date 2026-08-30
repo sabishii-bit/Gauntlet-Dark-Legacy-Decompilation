@@ -128,6 +128,17 @@ typedef struct SelectSlot {
 
 extern SelectSlot lbl_80121950[];
 
+/* 36-byte option-list record used by the load/save sub-menus (VMU file
+ * entries, memcard-slot entries, etc.); verified stride and field offsets
+ * against target asm in setup_vmu_entries/sel_set_choice. */
+typedef struct VmuMenuEntry {
+    char* text;
+    s32 id;
+    s32 type;
+    u8 _pad0C[20];
+    s32 state;
+} VmuMenuEntry;
+
 /* ---- audio / front-end (other TUs) ---- */
 extern void AudioWelcome(s32 pidx, s32 flag);
 extern void AudioWelcomeBack(s32 pidx, s32 flag);
@@ -412,8 +423,8 @@ s32 do_player_select(void)
                                 if (*(u32*)en == 0) {
                                     break;
                                 }
-                                if (*(s32*)(en + 4) == 1001) {
-                                    if (*(s32*)(en + 32) >= 0) {
+                                if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1001) {
+                                    if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
                                         found = k;
                                         break;
                                     }
@@ -469,8 +480,8 @@ s32 do_player_select(void)
                             if (*(u32*)en == 0) {
                                 break;
                             }
-                            if (*(s32*)(en + 4) == 1005) {
-                                if (*(s32*)(en + 32) >= 0) {
+                            if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1005) {
+                                if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
                                     found = k;
                                     break;
                                 }
@@ -490,9 +501,9 @@ s32 do_player_select(void)
                             if (*(u32*)en == 0) {
                                 break;
                             }
-                            if (*(s32*)(en + 4) == 1003) {
-                                if (*(s32*)(en + 32) >= 0) {
-                                    *(s32*)(en + 32) = -1;
+                            if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1003) {
+                                if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
+                                    *(s32*)(en + offsetof(VmuMenuEntry, state)) = -1;
                                 }
                             }
                             off2 += 36;
@@ -503,9 +514,9 @@ s32 do_player_select(void)
                             if (*(u32*)en == 0) {
                                 break;
                             }
-                            if (*(s32*)(en + 4) == 1001) {
-                                if (*(s32*)(en + 32) >= 0) {
-                                    *(s32*)(en + 32) = -1;
+                            if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1001) {
+                                if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
+                                    *(s32*)(en + offsetof(VmuMenuEntry, state)) = -1;
                                 }
                             }
                             off2 += 36;
@@ -516,9 +527,9 @@ s32 do_player_select(void)
                             if (*(u32*)en == 0) {
                                 break;
                             }
-                            if (*(s32*)(en + 4) == 1004) {
-                                if (*(s32*)(en + 32) >= 0) {
-                                    *(s32*)(en + 32) = -1;
+                            if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1004) {
+                                if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
+                                    *(s32*)(en + offsetof(VmuMenuEntry, state)) = -1;
                                 }
                             }
                             off2 += 36;
@@ -1111,8 +1122,8 @@ s32 do_player_select(void)
                                     if (*(u32*)en == 0) {
                                         break;
                                     }
-                                    if (*(s32*)(en + 4) == 1005) {
-                                        if (*(s32*)(en + 32) >= 0) {
+                                    if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1005) {
+                                        if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
                                             found = k;
                                             break;
                                         }
@@ -1284,8 +1295,8 @@ s32 do_player_select(void)
                                     if (*(u32*)en == 0) {
                                         break;
                                     }
-                                    if (*(s32*)(en + 4) == 1005) {
-                                        if (*(s32*)(en + 32) >= 0) {
+                                    if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1005) {
+                                        if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
                                             found = k;
                                             break;
                                         }
@@ -2042,14 +2053,6 @@ int verify_vmu_file_ok(u8* pl, s32 v)
     }
     return 1;
 }
-
-typedef struct VmuMenuEntry {
-    char* text;
-    s32 id;
-    s32 type;
-    u8 _pad0C[20];
-    s32 state;
-} VmuMenuEntry;
 
 void setup_vmu_entries(void)
 {
