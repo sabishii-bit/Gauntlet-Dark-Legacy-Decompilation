@@ -116,6 +116,23 @@ typedef struct GsFldB1b { u8 a : 1; u8 b : 1; u8 rest : 6; } GsFldB1b;
 
 /* pbFrameMode support */
 typedef struct P8 { u32 a; u32 b; } P8;
+typedef union PBGSReg {
+    u64 d;
+    P8 words;
+    u32 w[2];
+    u16 h[4];
+    u8 b[8];
+} PBGSReg;
+typedef struct PBFRAMEBUF {
+    u8 _pad000[0x1C0];
+    PBGSReg o__pmode[2];
+    PBGSReg o__smode2;
+    PBGSReg o__bgcolor;
+    PBGSReg o1_dispfb;
+    PBGSReg o1_display;
+    PBGSReg o2_dispfb;
+    PBGSReg o2_display;
+} PBFRAMEBUF;
 typedef struct GsFldB5b1 { u8 a : 5; u8 b : 1; u8 c : 2; } GsFldB5b1;
 extern s32 lbl_80343F00;
 extern f64 lbl_80348F18;
@@ -147,7 +164,7 @@ extern u32 sceGsSyncV(s32 mode);
 void fn_800C151C(s32 which)
 {
     WinGlobals* g = gWinGlobals;
-    u8* frame;
+    PBFRAMEBUF* frame;
 
     lbl_80344F98 = 1;
     if (lbl_80344F9C == 0) {
@@ -157,12 +174,12 @@ void fn_800C151C(s32 which)
     lbl_80343EFC->m18 = which;
     g->frame = g->screen->frames + which * 0x200;
     *lbl_80343F20 = (u32)(g->screen->frames + which * 0x200);
-    frame = g->frame;
-    *lbl_80343E8C = *(u32*)(frame + 0x1D4);
-    *lbl_80343E90 = *(u32*)(frame + 0x1E4);
-    *lbl_80343E94 = *(u32*)(frame + 0x1EC);
-    *lbl_80343E98 = *(u32*)(frame + 0x1F4);
-    *lbl_80343E9C = *(u32*)(frame + 0x1FC);
+    frame = (PBFRAMEBUF*)g->frame;
+    *lbl_80343E8C = frame->o__smode2.words.b;
+    *lbl_80343E90 = frame->o1_dispfb.words.b;
+    *lbl_80343E94 = frame->o1_display.words.b;
+    *lbl_80343E98 = frame->o2_dispfb.words.b;
+    *lbl_80343E9C = frame->o2_display.words.b;
     fn_800C116C(0x100, lbl_8011656C);
     *lbl_80343E88 = 4;
     *lbl_80343E80 = 0;
@@ -658,13 +675,6 @@ void fn_800C25F0(u32 x, u32 y)
     gWinGlobals->screen->m48 = 1;
 }
 
-typedef struct GsPmodeView {
-    u8  _pad0[0x1D0];
-    s64 pmode1;        /* 0x1D0 */
-    u8  _pad1d8[0x1F8];
-    s64 pmode2;        /* 0x3D0 */
-} GsPmodeView;
-
 /* GS display-register decode block, viewed at lbl_80343EFC+0x18. */
 typedef struct PbFrameDecode {
     /* +0x18 */ s32 frameIdx;
@@ -672,7 +682,7 @@ typedef struct PbFrameDecode {
     u8 _pad1d[3];
     /* +0x20 */ u32 m20;
     /* +0x24 */ u32 m24;
-    /* +0x28 */ GsPmodeView* m28;
+    /* +0x28 */ PBFRAMEBUF* m28;
     /* +0x2C */ u8* regs;
     /* +0x30 */ u32 m30;
     /* +0x34 */ u32 m34;
@@ -757,12 +767,12 @@ void fn_800C2618(void)
             *(u8*)(s->regs + 0x3C1) = s->m1C;
             *(f64*)(s->regs + 0x3C8) = *(f64*)(s->regs + 0x3C0);
 
-            s->m28->pmode1 &= ~3;
-            s->m28->pmode1 |= (s32)s->m20;
-            s->m28->pmode1 |= (s32)(s->m24 << 1);
-            s->m28->pmode2 &= ~3;
-            s->m28->pmode2 |= (s32)s->m20;
-            s->m28->pmode2 |= (s32)(s->m24 << 1);
+            s->m28[0].o__smode2.d &= ~3;
+            s->m28[0].o__smode2.d |= (s32)s->m20;
+            s->m28[0].o__smode2.d |= (s32)(s->m24 << 1);
+            s->m28[1].o__smode2.d &= ~3;
+            s->m28[1].o__smode2.d |= (s32)s->m20;
+            s->m28[1].o__smode2.d |= (s32)(s->m24 << 1);
         }
     }
 }
@@ -777,35 +787,35 @@ void fn_800C2C74(void)
     u8 unused[8];
 
     if (s->m28 != 0) {
-        s->m34 = (*(u16*)(s->regs + 0x1E0) >> 7) & 0x1FF;
-        s->m38 = (*(u16*)(s->regs + 0x3E0) >> 7) & 0x1FF;
-        s->m3C = (*(u8*)(s->regs + 0x1E1) >> 1) & 0x3F;
-        s->m40 = (*(u32*)(s->regs + 0x1E0) >> 12) & 0x1F;
-        s->m44 = (*(u16*)(s->regs + 0x1E4) >> 5) & 0x7FF;
-        s->m48 = (*(u32*)(s->regs + 0x1E4) >> 10) & 0x7FF;
-        s->m4C = (*(u16*)(s->regs + 0x1E8) >> 4) & 0xFFF;
-        s->m50 = (*(u32*)(s->regs + 0x1E8) >> 9) & 0x7FF;
-        s->m54 = (*(u16*)(s->regs + 0x1EA) >> 5) & 0xF;
-        s->m58 = (*(u8*)(s->regs + 0x1EB) >> 3) & 3;
-        s->m5C = (*(u16*)(s->regs + 0x1EC) >> 4) & 0xFFF;
-        s->m60 = (*(u32*)(s->regs + 0x1EC) >> 9) & 0x7FF;
-        s->m70 = (*(u16*)(s->regs + 0x1F0) >> 7) & 0x1FF;
-        s->m74 = (*(u16*)(s->regs + 0x3F0) >> 7) & 0x1FF;
-        s->m78 = (*(u8*)(s->regs + 0x1F1) >> 1) & 0x3F;
-        s->m7C = (*(u32*)(s->regs + 0x1F0) >> 12) & 0x1F;
-        s->m80 = (*(u16*)(s->regs + 0x1F4) >> 5) & 0x7FF;
-        s->m84 = (*(u32*)(s->regs + 0x1F4) >> 10) & 0x7FF;
-        s->m88 = (*(u16*)(s->regs + 0x1F8) >> 4) & 0xFFF;
-        s->m8C = (*(u32*)(s->regs + 0x1F8) >> 9) & 0x7FF;
-        s->m90 = (*(u16*)(s->regs + 0x1FA) >> 5) & 0xF;
-        s->m94 = (*(u8*)(s->regs + 0x1FB) >> 3) & 3;
-        s->m98 = (*(u16*)(s->regs + 0x1FC) >> 4) & 0xFFF;
-        s->m9C = (*(u32*)(s->regs + 0x1FC) >> 9) & 0x7FF;
-        s->m30 = (*(u8*)(s->regs + 0x1C0) >> 7) & 1;
-        s->m6C = (*(u8*)(s->regs + 0x1C0) >> 6) & 1;
-        s->m1C = *(u8*)(s->regs + 0x1C1);
-        s->m20 = (u32)(*(u64*)((u8*)s->m28 + 0x1D0) & 1);
-        s->m24 = (u32)(*(u64*)((u8*)s->m28 + 0x1D0) & 2);
+        s->m34 = (((PBFRAMEBUF*)s->regs)[0].o1_dispfb.h[0] >> 7) & 0x1FF;
+        s->m38 = (((PBFRAMEBUF*)s->regs)[1].o1_dispfb.h[0] >> 7) & 0x1FF;
+        s->m3C = (((PBFRAMEBUF*)s->regs)[0].o1_dispfb.b[1] >> 1) & 0x3F;
+        s->m40 = (((PBFRAMEBUF*)s->regs)[0].o1_dispfb.w[0] >> 12) & 0x1F;
+        s->m44 = (((PBFRAMEBUF*)s->regs)[0].o1_dispfb.h[2] >> 5) & 0x7FF;
+        s->m48 = (((PBFRAMEBUF*)s->regs)[0].o1_dispfb.w[1] >> 10) & 0x7FF;
+        s->m4C = (((PBFRAMEBUF*)s->regs)[0].o1_display.h[0] >> 4) & 0xFFF;
+        s->m50 = (((PBFRAMEBUF*)s->regs)[0].o1_display.w[0] >> 9) & 0x7FF;
+        s->m54 = (((PBFRAMEBUF*)s->regs)[0].o1_display.h[1] >> 5) & 0xF;
+        s->m58 = (((PBFRAMEBUF*)s->regs)[0].o1_display.b[3] >> 3) & 3;
+        s->m5C = (((PBFRAMEBUF*)s->regs)[0].o1_display.h[2] >> 4) & 0xFFF;
+        s->m60 = (((PBFRAMEBUF*)s->regs)[0].o1_display.w[1] >> 9) & 0x7FF;
+        s->m70 = (((PBFRAMEBUF*)s->regs)[0].o2_dispfb.h[0] >> 7) & 0x1FF;
+        s->m74 = (((PBFRAMEBUF*)s->regs)[1].o2_dispfb.h[0] >> 7) & 0x1FF;
+        s->m78 = (((PBFRAMEBUF*)s->regs)[0].o2_dispfb.b[1] >> 1) & 0x3F;
+        s->m7C = (((PBFRAMEBUF*)s->regs)[0].o2_dispfb.w[0] >> 12) & 0x1F;
+        s->m80 = (((PBFRAMEBUF*)s->regs)[0].o2_dispfb.h[2] >> 5) & 0x7FF;
+        s->m84 = (((PBFRAMEBUF*)s->regs)[0].o2_dispfb.w[1] >> 10) & 0x7FF;
+        s->m88 = (((PBFRAMEBUF*)s->regs)[0].o2_display.h[0] >> 4) & 0xFFF;
+        s->m8C = (((PBFRAMEBUF*)s->regs)[0].o2_display.w[0] >> 9) & 0x7FF;
+        s->m90 = (((PBFRAMEBUF*)s->regs)[0].o2_display.h[1] >> 5) & 0xF;
+        s->m94 = (((PBFRAMEBUF*)s->regs)[0].o2_display.b[3] >> 3) & 3;
+        s->m98 = (((PBFRAMEBUF*)s->regs)[0].o2_display.h[2] >> 4) & 0xFFF;
+        s->m9C = (((PBFRAMEBUF*)s->regs)[0].o2_display.w[1] >> 9) & 0x7FF;
+        s->m30 = (((PBFRAMEBUF*)s->regs)[0].o__pmode[0].b[0] >> 7) & 1;
+        s->m6C = (((PBFRAMEBUF*)s->regs)[0].o__pmode[0].b[0] >> 6) & 1;
+        s->m1C = ((PBFRAMEBUF*)s->regs)[0].o__pmode[0].b[1];
+        s->m20 = (u32)(s->m28[0].o__smode2.d & 1);
+        s->m24 = (u32)(s->m28[0].o__smode2.d & 2);
         s->f64 = (f32)(s32)s->m5C / (f32)(s32)s->m54;
         s->f68 = (f32)(s32)s->m60 / (f32)(s32)s->m58;
         s->fA0 = (f32)(s32)s->m98 / (f32)(s32)s->m90;

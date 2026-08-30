@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "TU-scoped de-fakematch pass over game/pb/pb_frame.c: replace raw GS packet offsets with a target-verified file-local PBFRAMEBUF view using PDB-owned register names.",
+  "attributes": {
+    "anchors": "src/game/pb/pb_frame.c; GUNE5D fn_800C151C 0x800C151C size 0x108, fn_800C2618 0x800C2618 size 0x65C, fn_800C2C74 0x800C2C74 size 0x2DC; research/xbox_symbols/misc.h PBFRAMEBUF",
+    "authority": "gdlmem.py struct PBFRAMEBUF returned no imported type. The checked-in Xbox PDB reconstruction names o__pmode/o__smode2/o1_dispfb/o1_display/o2_dispfb/o2_display, while full GC fnasm independently verifies offsets 0x1C0-0x1FC and the second 0x200-byte packet at +0x200.",
+    "measurements": "fn_800C151C target/current 66/66, fuzzy 100%, real 0, frame 0x20; fn_800C2618 407/407, real 0 (pool-name noise only), frame 0x50; fn_800C2C74 183/183, real 0 (pool-name noise only), frame 0x50. pbFrameMode unchanged at 958/959, real 391; all 13 exact siblings preserved.",
+    "sites_converted": "34 raw-offset reads: fn_800C151C five high-word loads at 0x1D4/0x1E4/0x1EC/0x1F4/0x1FC; fn_800C2C74 27 byte/half/word register decodes plus two SMODE2 dword reads. fn_800C2618's existing invented GsPmodeView was folded into PBFRAMEBUF[2] and renamed to the PDB-authoritative SMODE2 register.",
+    "sites_left_raw": "pbFrameMode's large packet-construction/template tables remain raw because it is fuzzy and its accepted attempt forbids retrying logged matching axes; fn_800C2618's GS bitfield write overlays and the +0x400 default-screen boundary remain for later independently gated regions.",
+    "verification": "Owning object built after each region; fndiff --count/--ops/--clean preserved real 0; matchtool reports OK:13 bad:1 and pbFrameMode D391; datadiff reported only pre-existing unclaimed .data/.sdata2 emissions; full ninja succeeded and main.dol SHA-1 gate OK; project 97.80% fuzzy/58.15% matched/26.09% linked; git diff --check clean; portable C only."
+  },
+  "function": "function:fn_800C151C",
+  "id": "attempt.pb-frame-defakematch-tupass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
