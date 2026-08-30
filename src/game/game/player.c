@@ -586,13 +586,6 @@ extern void PlayerDoWeapTrail(void* p);
 /* attachment ops                                                      */
 /* ------------------------------------------------------------------ */
 
-/* tiny vec helper; auto-inlined everywhere, standalone copy deadstripped */
-static void VecSub(f32* d, f32* a, f32* b) {
-    d[0] = a[0] - b[0];
-    d[1] = a[1] - b[1];
-    d[2] = a[2] - b[2];
-}
-
 /* Query whether player i is mid-attack; level widens the accepted set. */
 s32 PlayerAttacking(s32 i, s32 level) {
     Player* p = P(i);
@@ -2827,6 +2820,7 @@ f32 player_max_health(void* vp) {
     }
     return cap;
 }
+
 
 /* Vulnerability gate shared with damage_player.                       */
 s32 player_can_be_damaged(void* vp) {
@@ -5569,7 +5563,7 @@ typedef struct PlayerSkinView {
 
 /* Rebuild a level-tier halo atree if its source changed; inlined per   */
 /* tier by PlayerProcessSkinFX.  Returns 1 when a fresh tree was built.  */
-static int PlayerSetupSkinTree(PlayerSkinView* p, void* atree, void* parent) {
+static inline int PlayerSetupSkinTree(PlayerSkinView* p, void* atree, void* parent) {
     if (p->atree != NULL) {
         if (atree == NULL || p->src_id != ((u32*)atree)[1]) {
             AtreeDelete(&p->atree);
