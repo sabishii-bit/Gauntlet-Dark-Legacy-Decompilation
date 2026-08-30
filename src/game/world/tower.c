@@ -1,6 +1,13 @@
 #include "types.h"
 #include "game/player.h"
 #include "game/tower.h"
+#include "game/leveldata.h"
+#include "game/worldobj.h"
+#include "game/effect.h"
+
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 
 /* Gauntlet Dark Legacy - TOWER module (Xbox TOWER.OBJ), region
  * 0x800A18E8-0x800A4870 in the GC build (between game/sound/sounds.c and
@@ -232,6 +239,34 @@ extern char lbl_803485D8;
     (*(type*)((u8*)&gPlayers[(player)] + (offset)))
 #define TOWER_SAVE(player) \
     (&gPlayers[(player)].char_save[gPlayers[(player)].character])
+/* char_save[]-relative field offsets, spelled via offsetof so raw walked-
+ * pointer arithmetic (`record + record->character * CHAR_SAVE_STRIDE +
+ * COMPLETIONx_OFF`) documents itself without introducing a typed
+ * intermediate pointer (see claim.law.offsetof-rename-preserves-protected-web /
+ * claim.law.multifield-alias-defeats-indexed-addressing). */
+#define CHAR_SAVE_STRIDE sizeof(PlayerCharSave)
+#define COMPLETION1_OFF (offsetof(Player, char_save) + offsetof(PlayerCharSave, completion1))
+#define COMPLETION2_OFF (offsetof(Player, char_save) + offsetof(PlayerCharSave, completion2))
+/* Per-level status byte array, index = character * 14 + level (see the
+ * "0x1CD0" note in the field-offset comment above). Not part of PlayerCharSave
+ * proper - char_save[16] runs 0xDD4-0x1CD4 so this falls in char_save[15]'s
+ * trailing padding (game/player.h pad_1C) rather than any GC-verified named
+ * field, so it stays a plain constant rather than an offsetof(). */
+#define LEVEL_STATUS_BYTES_OFF 0x1CD0
+/* Fields below have NO game/player.h coverage (they land in the still-raw
+ * pad_0A88/pad_223A spans) - named here from this TU's own read/write usage
+ * only, not GC-asm-verified, so they stay plain constants rather than
+ * offsetof(). Left as a single source of truth instead of repeating the
+ * bare hex at every site. */
+#define PLAYER_WORLD_RUNES_OFF   0xA8C  /* PLAYER_AT: world-rune bit accumulator (TU header note) */
+#define CHAR_BANKED_RUNES_OFF    8736   /* char*CHAR_SAVE_STRIDE base: last-seen rune bitmask (TowerCheckMessages/EnterTower) */
+#define CHAR_BANKED_SHARDS_OFF   8738   /* char*CHAR_SAVE_STRIDE base: last-seen shard bitmask */
+#define CHAR_LEVEL_EXTRA_OFF     8756   /* char*CHAR_SAVE_STRIDE base: record-A overflow counter (towerAdvanceLevelRecord) */
+#define CHAR_BOSS_EXTRA_OFF      8762   /* char*CHAR_SAVE_STRIDE base: record-B overflow counter (towerAdvanceBossRecord) */
+#define CHAR_GARG_BIT_LO_OFF     0x2230 /* char*sizeof(PlayerCharSave) base: garg-item bit test (playerGiveGargItem) */
+#define CHAR_GARG_BIT_HI_OFF     0x2232 /* char*sizeof(PlayerCharSave) base: garg-item bit set-if-already-had */
+#define CHAR_EXP_SHADOW_OFF      0x1EDC /* char*24 base: last-recorded exp, level-up edge detect (sumnerCheckLevelUp) */
+#define CHAR_EXP_PRESENCE_OFF    0xA90  /* char*24 (or k*24) base: same shape, read by sumnerUpdatePresence */
 
 /* ===================================================================== */
 
@@ -274,6 +309,18 @@ void towerUpdateCurWorldObj(void) {
     }
 }
 
+/* obj/node below are really Item* / iteminfo* (game/item.h); the header is
+ * not included here because its FindLookoutParam/FindClosestWaypoint
+ * prototypes conflict with this TU's own narrower extern signatures (the
+ * same reason SumnerLookoutParam is a local partial view above). Offsets
+ * verified against Item/iteminfo/iteminfodata: node = obj->info (Item+0x00);
+ * node[0] = info->type (+0x00), node[1] = info->item.subtype (+0x04);
+ * ITEM_DATA_RUNE_OFF = obj->data + 4 (Item.data is a per-type union at
+ * +0xDC, the rune index for a type1/sub13 pickup lives at +0xE0);
+ * ITEM_INFO_VALUE_OFF = info->item.value (iteminfo+0x04 + iteminfodata+0x3C). */
+#define ITEM_DATA_RUNE_OFF   0xE0
+#define ITEM_INFO_VALUE_OFF  0x40
+
 /* Per-frame: if a rune/shard object (type1 sub13/sub10) is near and not yet
  * collected by any player, play the proximity audio cue. */
 void towerRuneNearAudio(void) {
@@ -288,7 +335,7 @@ void towerRuneNearAudio(void) {
     if (obj != 0) {
         node = *(s32**)obj;
         if (node[0] == 1 && node[1] == 13) {
-            s32 rune = *(s32*)(obj + 224);
+            s32 rune = *(s32*)(obj + ITEM_DATA_RUNE_OFF);
             s32 found;
 
             for (i = 0; i < 4; i++) {
@@ -312,7 +359,7 @@ void towerRuneNearAudio(void) {
     if (obj != 0) {
         node = *(s32**)obj;
         if (node[0] == 1 && node[1] == 10) {
-            if (PlayerHasShard(-1, *(s16*)((u8*)node + 64)) == 0) {
+            if (PlayerHasShard(-1, *(s16*)((u8*)node + ITEM_INFO_VALUE_OFF)) == 0) {
                 fn_8009C378();
             }
         }
@@ -364,8 +411,8 @@ int WorldOpen(int world) {
                     goto done;
                 }
                 levelRecord = (u8*)(requirement * 2);
-                value = *(s16*)(levelRecord + (s32)p + p->character * 240 +
-                                3566);
+                value = *(s16*)(levelRecord + (s32)p + p->character * CHAR_SAVE_STRIDE +
+                                COMPLETION2_OFF);
                 if (best <= value) {
                     best = value;
                 }
@@ -401,11 +448,11 @@ int towerAwardWorldRunes(void) {
     for (player = 0; player < 4; player++) {
         u8* record = (u8*)&gPlayers[player];
 
-        if (*(s32*)(record + 0xE8) == 1) {
-            (*(s32*)(record + 0x930))++;
-            *(s32*)(record + 0x928) = rune + 0x200;
-            *(f32*)(record + 0x92C) = resetValue;
-            if (*(s32*)(record + 0x930) >= sVisibleSumCoinCount) {
+        if (*(s32*)(record + offsetof(Player, state)) == 1) {
+            (*(s32*)(record + offsetof(Player, got_count)))++;
+            *(s32*)(record + offsetof(Player, got_type)) = rune + 0x200;
+            *(f32*)(record + offsetof(Player, got_timer)) = resetValue;
+            if (*(s32*)(record + offsetof(Player, got_count)) >= sVisibleSumCoinCount) {
                 awarded = 1;
             }
         }
@@ -413,7 +460,7 @@ int towerAwardWorldRunes(void) {
     if (awarded != 0) {
         for (player = 0; player < 4; player++) {
             if (gPlayers[player].state == 1) {
-                PLAYER_AT(player, 0xA8C, u16) |= 1 << (rune - 8);
+                PLAYER_AT(player, PLAYER_WORLD_RUNES_OFF, u16) |= 1 << (rune - 8);
             }
         }
     }
@@ -424,11 +471,11 @@ int towerAwardWorldRunes(void) {
 int towerGetLevelFlag(u8* rec, int level) {
     u32 offset;
 
-    if (*(u32*)(rec + 0xF0) == (u32)lbl_80343D6C) {
+    if (*(u32*)(rec + offsetof(Player, hidden_code)) == (u32)lbl_80343D6C) {
         return -1;
     }
-    offset = *(s32*)(rec + 0xC) * 14;
-    return rec[offset + level + 0x1CD0];
+    offset = *(s32*)(rec + offsetof(Player, character)) * 14;
+    return rec[offset + level + LEVEL_STATUS_BYTES_OFF];
 }
 
 /* Record level/boss completion across players (ResolveWorldData, sets
@@ -444,7 +491,7 @@ void towerRecordLevelBeaten(int level, int world) {
         s32 state = rec->state;
 
         if (state == 1 || state == 4 || state == 5) {
-            s16 lvl = *(s16*)(gCurLevel + 0x90);
+            s16 lvl = *(s16*)(gCurLevel + offsetof(level_data, rune));
 
             if (lvl > 0) {
                 int mask = 1 << (lvl - 1);
@@ -456,7 +503,7 @@ void towerRecordLevelBeaten(int level, int world) {
                 }
             }
             {
-                s16 boss = *(s16*)(gCurLevel + 0x92);
+                s16 boss = *(s16*)(gCurLevel + offsetof(level_data, legend));
 
                 if (boss > 0) {
                     int mask = 1 << boss;
@@ -468,7 +515,7 @@ void towerRecordLevelBeaten(int level, int world) {
                     }
                 }
             }
-            ((u8*)rec)[rec->character * 14 + level + 0x1CD0] |= (1 << world);
+            ((u8*)rec)[rec->character * 14 + level + LEVEL_STATUS_BYTES_OFF] |= (1 << world);
         }
     }
 }
@@ -486,10 +533,10 @@ void playerGiveGargItem(int player, int item, int count) {
                 (characterOffset = record->character * sizeof(PlayerCharSave));
         bit = 1 << item;
 
-        if (*(u16*)(first += 0x2230) & bit) {
+        if (*(u16*)(first += CHAR_GARG_BIT_LO_OFF) & bit) {
             u8* save = (u8*)record;
             save += characterOffset;
-            *(u16*)(save + 0x2232) |= bit;
+            *(u16*)(save + CHAR_GARG_BIT_HI_OFF) |= bit;
         } else {
             *(u16*)first |= bit;
         }
@@ -505,14 +552,14 @@ static inline int towerLevelStatusA(int player, int level) {
     if (gPlayers[player].state == 0) {
         return 0;
     }
-    world = PLAYER_AT(player, 0xF0, u32);
+    world = PLAYER_AT(player, offsetof(Player, hidden_code), u32);
     if (world == (u32)lbl_80343D6C) {
         return 2;
     }
     levelRecord = (u8*)(level * 2);
     record = &gPlayers[player];
     value = *(s16*)(levelRecord + (s32)record +
-                   record->character * 240 + 3560);
+                   record->character * CHAR_SAVE_STRIDE + COMPLETION1_OFF);
     if (value < 0) {
         return 2;
     }
@@ -543,7 +590,7 @@ int towerAllPlayersMetLevelReq(int level) {
             levelRecord = (u8*)(level * 2);
             record = &gPlayers[player];
             value = *(s16*)(levelRecord + (s32)record +
-                           record->character * 240 + 3560);
+                           record->character * CHAR_SAVE_STRIDE + COMPLETION1_OFF);
             if (best > value) {
                 value = best;
             }
@@ -583,17 +630,17 @@ void towerAdvanceLevelRecord(int player, int level) {
 
             levelRecord = (u8*)(level * 2);
             levelRecord += (s32)record;
-            value = (s16*)(levelRecord + record->character * 240 + 3560);
+            value = (s16*)(levelRecord + record->character * CHAR_SAVE_STRIDE + COMPLETION1_OFF);
 
             if (*value >= 0 && *value < lbl_80124D94[level]) {
                 (*value)++;
                 if (sMusicTrackHi == 13) {
-                    s16* extra = (s16*)(levelRecord + record->character * 240 + 8756);
+                    s16* extra = (s16*)(levelRecord + record->character * 240 + CHAR_LEVEL_EXTRA_OFF);
                     (*extra)++;
                 }
             }
-            PLAYER_AT(i, 0x928, s32) = level + 0x100;
-            PLAYER_AT(i, 0x92C, f32) = resetTime;
+            PLAYER_AT(i, offsetof(Player, got_type), s32) = level + 0x100;
+            PLAYER_AT(i, offsetof(Player, got_timer), f32) = resetTime;
         }
     }
 }
@@ -607,14 +654,14 @@ static inline int towerLevelStatusB(int player, int level) {
     if (gPlayers[player].state == 0) {
         return 0;
     }
-    world = PLAYER_AT(player, 0xF0, u32);
+    world = PLAYER_AT(player, offsetof(Player, hidden_code), u32);
     if (world == (u32)lbl_80343D6C) {
         return 2;
     }
     levelRecord = (u8*)(level * 2);
     record = &gPlayers[player];
     value = *(s16*)(levelRecord + (s32)record +
-                   record->character * 240 + 3566);
+                   record->character * CHAR_SAVE_STRIDE + COMPLETION2_OFF);
     if (value < 0) {
         return 2;
     }
@@ -641,7 +688,7 @@ int towerAllPlayersMetBossReq(int level) {
             levelRecord = (u8*)(level * 2);
             record = &gPlayers[player];
             value = *(s16*)(levelRecord + (s32)record +
-                           record->character * 240 + 3566);
+                           record->character * CHAR_SAVE_STRIDE + COMPLETION2_OFF);
             if (best > value) {
                 value = best;
             }
@@ -663,13 +710,13 @@ int towerLevelStatus(int player, int level) {
     if (gPlayers[player].state == 0) {
         return 0;
     }
-    world = PLAYER_AT(player, 0xF0, u32);
+    world = PLAYER_AT(player, offsetof(Player, hidden_code), u32);
     if (world == (u32)lbl_80343D6C) {
         return 2;
     }
-    save = (u8*)&gPlayers[player] + gPlayers[player].character * 240;
+    save = (u8*)&gPlayers[player] + gPlayers[player].character * CHAR_SAVE_STRIDE;
     save += level * 2;
-    value = *(s16*)(save + 3566);
+    value = *(s16*)(save + COMPLETION2_OFF);
     if (value < 0) {
         return 2;
     }
@@ -712,17 +759,17 @@ void towerAdvanceBossRecord(int player, int level) {
 
             levelRecord = (u8*)(level * 2);
             levelRecord += (s32)record;
-            value = (s16*)(levelRecord + record->character * 240 + 3566);
+            value = (s16*)(levelRecord + record->character * CHAR_SAVE_STRIDE + COMPLETION2_OFF);
 
             if (*value >= 0 && *value < lbl_80124C70[level]) {
                 (*value)++;
                 if (sMusicTrackHi == 13) {
-                    s16* extra = (s16*)(levelRecord + record->character * 240 + 8762);
+                    s16* extra = (s16*)(levelRecord + record->character * 240 + CHAR_BOSS_EXTRA_OFF);
                     (*extra)++;
                 }
             }
-            PLAYER_AT(i, 0x928, s32) = level;
-            PLAYER_AT(i, 0x92C, f32) = resetTime;
+            PLAYER_AT(i, offsetof(Player, got_type), s32) = level;
+            PLAYER_AT(i, offsetof(Player, got_timer), f32) = resetTime;
         }
     }
 }
@@ -1007,9 +1054,9 @@ void TowerCheckMessages(s32 mode) {
                 MBTreeSetAlpha(*(void**)(lbl_80344C88 + 100), 255, 1);
                 object = (u8*)FindWORLDOBJ(strings + 44);
                 if (object != 0) {
-                    MBTreeClearFlags(*(void**)(object + 40), 2, 0);
+                    MBTreeClearFlags(*(void**)(object + offsetof(WorldObj, nodeptr)), 2, 0);
                 }
-                lbl_80344C84 = *(s32*)(object + 40);
+                lbl_80344C84 = *(s32*)(object + offsetof(WorldObj, nodeptr));
                 MBTreeSetAlpha((void*)lbl_80344C84, 255, 1);
                 lbl_80344C80 = 180;
                 lbl_80344C7C = 116;
@@ -1130,13 +1177,13 @@ void TowerCheckMessages(s32 mode) {
                 Player* p = &gPlayers[i];
 
                 if (p->state != 0 &&
-                    *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
-                    u8* rec = (u8*)p + p->character * 240;
+                    *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)lbl_80343D6C) {
+                    u8* rec = (u8*)p + p->character * CHAR_SAVE_STRIDE;
 
                     runeGot |= p->runes;
-                    runeBanked |= *(u16*)(rec + 8736);
-                    *(u16*)(rec + 3540) |= p->runes;
-                    *(u16*)((u8*)p + p->character * 240 + 8736) |= p->runes;
+                    runeBanked |= *(u16*)(rec + CHAR_BANKED_RUNES_OFF);
+                    *(u16*)(rec + offsetof(Player, char_save) + offsetof(PlayerCharSave, rune_stones)) |= p->runes;
+                    *(u16*)((u8*)p + p->character * 240 + CHAR_BANKED_RUNES_OFF) |= p->runes;
                 }
             }
             newRunes = (u16)((u16)runeGot & ((u16)runeGot ^ (u16)runeBanked));
@@ -1156,13 +1203,13 @@ void TowerCheckMessages(s32 mode) {
                 Player* p = &gPlayers[i];
 
                 if (p->state != 0 &&
-                    *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
-                    u8* rec = (u8*)p + p->character * 240;
+                    *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)lbl_80343D6C) {
+                    u8* rec = (u8*)p + p->character * CHAR_SAVE_STRIDE;
 
                     shardGot |= p->shards;
-                    shardBanked |= *(u16*)(rec + 8738);
-                    *(u16*)(rec + 3542) |= p->shards;
-                    *(u16*)((u8*)p + p->character * 240 + 8738) |= p->shards;
+                    shardBanked |= *(u16*)(rec + CHAR_BANKED_SHARDS_OFF);
+                    *(u16*)(rec + offsetof(Player, char_save) + offsetof(PlayerCharSave, rune_stones2)) |= p->shards;
+                    *(u16*)((u8*)p + p->character * 240 + CHAR_BANKED_SHARDS_OFF) |= p->shards;
                 }
             }
             shardBanked = (u16)shardBanked;
@@ -1224,9 +1271,9 @@ void TowerCheckMessages(s32 mode) {
                     Player* p = &gPlayers[i];
 
                     if (p->state != 0 &&
-                        *(u32*)((u8*)p + 0xF0) != curWorld) {
-                        s32 val = *(s16*)((u8*)p + p->character * 240 +
-                                          3560 + j * 2);
+                        *(u32*)((u8*)p + offsetof(Player, hidden_code)) != curWorld) {
+                        s32 val = *(s16*)((u8*)p + p->character * CHAR_SAVE_STRIDE +
+                                          COMPLETION1_OFF + j * 2);
 
                         if (*best >= 0 && (val < 0 || val > *best)) {
                             *best = val;
@@ -1240,7 +1287,7 @@ void TowerCheckMessages(s32 mode) {
                     for (i = 0; i < 4; i++) {
                         Player* p = &gPlayers[i];
                         s16* val = (s16*)((u8*)(j * 2) + (s32)p +
-                                          p->character * 240 + 3560);
+                                          p->character * CHAR_SAVE_STRIDE + COMPLETION1_OFF);
 
                         if (*val == lbl_80124CDC[j]) {
                             *val = -1;
@@ -1262,9 +1309,9 @@ void TowerCheckMessages(s32 mode) {
                         Player* p = &gPlayers[i];
 
                         if (p->state != 0 &&
-                            *(u32*)((u8*)p + 0xF0) != curWorld) {
-                            s32 val = *(s16*)((u8*)p + p->character * 240 +
-                                              3566 + j * 2);
+                            *(u32*)((u8*)p + offsetof(Player, hidden_code)) != curWorld) {
+                            s32 val = *(s16*)((u8*)p + p->character * CHAR_SAVE_STRIDE +
+                                              COMPLETION2_OFF + j * 2);
 
                             if (*best >= 0 && (val < 0 || val > *best)) {
                                 *best = val;
@@ -1278,7 +1325,7 @@ void TowerCheckMessages(s32 mode) {
                         for (i = 0; i < 4; i++) {
                             Player* p = &gPlayers[i];
                             s16* val = (s16*)((u8*)(j * 2) + (s32)p +
-                                              p->character * 240 + 3566);
+                                              p->character * CHAR_SAVE_STRIDE + COMPLETION2_OFF);
 
                             if (*val == lbl_80124C70[j]) {
                                 *val = -1;
@@ -1364,12 +1411,12 @@ void EnterTower(void) {
                 p = &gPlayers[i];
                 if (p->state == 0) {
                     st = 0;
-                } else if (*(u32*)((u8*)p + 0xF0) ==
+                } else if (*(u32*)((u8*)p + offsetof(Player, hidden_code)) ==
                            (u32)lbl_80343D6C) {
                     st = 2;
                 } else {
                     s32 val =
-                        *(s16*)((u8*)p + p->character * 240 + 3560 +
+                        *(s16*)((u8*)p + p->character * CHAR_SAVE_STRIDE + COMPLETION1_OFF +
                                 recordOffset);
 
                     if (val < 0) {
@@ -1413,12 +1460,12 @@ void EnterTower(void) {
                     p = &gPlayers[i];
                     if (p->state == 0) {
                         st = 0;
-                    } else if (*(u32*)((u8*)p + 0xF0) ==
+                    } else if (*(u32*)((u8*)p + offsetof(Player, hidden_code)) ==
                                (u32)lbl_80343D6C) {
                         st = 2;
                     } else {
                         s32 val =
-                            *(s16*)((u8*)p + p->character * 240 + 3566 +
+                            *(s16*)((u8*)p + p->character * CHAR_SAVE_STRIDE + COMPLETION2_OFF +
                                     recordOffset);
 
                         if (val < 0) {
@@ -1445,10 +1492,10 @@ void EnterTower(void) {
         Player* p = &gPlayers[i];
 
         if (p->state != 0) {
-            if (*(u32*)((u8*)p + 0xF0) == (u32)lbl_80343D6C) {
+            if (*(u32*)((u8*)p + offsetof(Player, hidden_code)) == (u32)lbl_80343D6C) {
                 runes = 0x7FE;
             } else {
-                runes |= *(u16*)((u8*)p + p->character * 240 + 8736);
+                runes |= *(u16*)((u8*)p + p->character * 240 + CHAR_BANKED_RUNES_OFF);
             }
         }
     }
@@ -1456,7 +1503,7 @@ void EnterTower(void) {
     if (runeMask != 0) {
         object = (u8*)FindWORLDOBJ(strings + 88);
         if (object != 0) {
-            GetWorldMat(*(f32**)(object + 40), world.matrix, 0);
+            GetWorldMat(*(f32**)(object + offsetof(WorldObj, nodeptr)), world.matrix, 0);
             {
             f64 scale = lbl_803485C8;
             for (j = 1; j < 9; j++) {
@@ -1470,12 +1517,12 @@ void EnterTower(void) {
                         fx = StartFXSub(lbl_80348588, effect, world.matrix + 12,
                                         0x80000, 0x800);
                         SfxSetParent(fx, gSceneRoot);
-                        e = (u8*)Effects + fx * 240;
-                        ai = e + 28;
+                        e = (u8*)Effects + fx * sizeof(Effect);
+                        ai = e + offsetof(Effect, atree) + 4;
                         *(f32*)(ai + 32) =
-                            (f32)(gClockTime - scale * *(s16*)(e + 44));
+                            (f32)(gClockTime - scale * *(s16*)(e + offsetof(Effect, atree) + 0x14));
                         *(f32*)(ai + 24) = *(s16*)(ai + 16);
-                        AtreeKillPsys(e + 24);
+                        AtreeKillPsys(e + offsetof(Effect, atree));
                     }
                 }
             }
@@ -1485,17 +1532,17 @@ void EnterTower(void) {
         }
     }
     if (((s32)runes & 0x1FE) != 0x1FE) {
-        MBTreeSetFlags(*(void**)((u8*)FindWORLDOBJ(strings + 44) + 40), 2, 0);
+        MBTreeSetFlags(*(void**)((u8*)FindWORLDOBJ(strings + 44) + offsetof(WorldObj, nodeptr)), 2, 0);
     }
     shards = 0;
     for (i = 0; i < 4; i++) {
         Player* p = &gPlayers[i];
 
         if (p->state != 0) {
-            if (*(u32*)((u8*)p + 0xF0) == (u32)lbl_80343D6C) {
+            if (*(u32*)((u8*)p + offsetof(Player, hidden_code)) == (u32)lbl_80343D6C) {
                 shards = 0x1FFF;
             } else {
-                shards |= *(u16*)((u8*)p + p->character * 240 + 8738);
+                shards |= *(u16*)((u8*)p + p->character * 240 + CHAR_BANKED_SHARDS_OFF);
             }
         }
     }
@@ -1507,7 +1554,7 @@ void EnterTower(void) {
         }
         object = (u8*)FindWORLDOBJ(strings + 128);
         if (object != 0) {
-            GetWorldMat(*(f32**)(object + 40), world.matrix, 0);
+            GetWorldMat(*(f32**)(object + offsetof(WorldObj, nodeptr)), world.matrix, 0);
             {
             f64 scale = lbl_803485C8;
             for (j = 0; j < 12; j++) {
@@ -1521,8 +1568,8 @@ void EnterTower(void) {
                         fx = StartFXSub(lbl_80348588, effect, world.matrix + 12,
                                         0x80000, 0x800);
                         SfxSetParent(fx, gSceneRoot);
-                        e = (u8*)Effects + fx * 240;
-                        ai = e + 28;
+                        e = (u8*)Effects + fx * sizeof(Effect);
+                        ai = e + offsetof(Effect, atree) + 4;
                         *(f32*)(ai + 32) =
                             (f32)(gClockTime - scale * *(s16*)(ai + 16));
                         *(f32*)(ai + 24) = *(s16*)(ai + 16);
@@ -1539,17 +1586,17 @@ void EnterTower(void) {
                 u8* e;
                 u8* ai;
 
-                GetWorldMat(*(f32**)(object + 40), world.matrix, 0);
+                GetWorldMat(*(f32**)(object + offsetof(WorldObj, nodeptr)), world.matrix, 0);
                 effect = InitCustomEffect(0, &lbl_803485D8, 0, 0);
                 if (object != 0 && effect >= 0) {
                     fx = StartFXSub(lbl_80348588, effect, world.matrix + 12,
                                     0x80000, 0x800);
                     SfxSetParent(fx, gSceneRoot);
-                    e = (u8*)Effects + fx * 240;
-                    ai = e + 28;
+                    e = (u8*)Effects + fx * sizeof(Effect);
+                    ai = e + offsetof(Effect, atree) + 4;
                     *(f32*)(ai + 32) =
                         (f32)(gClockTime -
-                              lbl_803485C8 * *(s16*)(e + 44));
+                              lbl_803485C8 * *(s16*)(e + offsetof(Effect, atree) + 0x14));
                     *(f32*)(ai + 24) = *(s16*)(ai + 16);
                 }
             }
@@ -1575,7 +1622,7 @@ void sumnerUpdatePresence(void) {
                 s32 k;
 
                 for (k = 0; k < 16; k++) {
-                    if (*(s32*)((u8*)rec + k * 24 + 0xA90) > 0) {
+                    if (*(s32*)((u8*)rec + k * 24 + CHAR_EXP_PRESENCE_OFF) > 0) {
                         gSumnerReady = 0;
                     }
                 }
@@ -1663,7 +1710,7 @@ void SumnerDoSpeech(void) {
             entry = (u8*)state;
             entry += i;
 
-            if (*(s32*)(entry + 76) > 0) {
+            if (*(s32*)(entry + offsetof(TowerMsgState, levelUpLevel)) > 0) {
                 hasLevelUp = 1;
             }
         }
@@ -1867,7 +1914,7 @@ void SumnerSpeechEnd(void) {
     if (speech == 112) {
         object = (u8*)FindWORLDOBJ(strings + 164);
         if (object != 0) {
-            GetWorldMat(*(f32**)(object + 40), world, 0);
+            GetWorldMat(*(f32**)(object + offsetof(WorldObj, nodeptr)), world, 0);
             effect = InitCustomEffect(0, &lbl_803485D8, 0, 0);
             if (object != 0 && effect >= 0) {
                 effect = StartFXSub(lbl_80348588, effect, effectState,
@@ -1889,7 +1936,7 @@ void SumnerSpeechEnd(void) {
         if (speech <= 14 &&
             (object = (u8*)FindWORLDOBJ(strings + 128)) != 0) {
             if (speech < 13) {
-                GetWorldMat(*(f32**)(object + 40), world, 0);
+                GetWorldMat(*(f32**)(object + offsetof(WorldObj, nodeptr)), world, 0);
                 sprintf(state->effectName, &lbl_803485D0, speech + 1);
                 effect = InitCustomEffect(0, state->effectName, 0, 0);
                 if (object != 0 && effect >= 0) {
@@ -1924,7 +1971,7 @@ void SumnerSpeechEnd(void) {
     } else if (speech >= 0) {
         if (speech < 9 &&
             (object = (u8*)FindWORLDOBJ(strings + 88)) != 0) {
-            GetWorldMat(*(f32**)(object + 40), world, 0);
+            GetWorldMat(*(f32**)(object + offsetof(WorldObj, nodeptr)), world, 0);
             sprintf(state->effectName, &lbl_803485C0, speech);
             effect = InitCustomEffect(0, state->effectName, 0, 0);
             if (object != 0 && effect >= 0) {
@@ -1935,7 +1982,7 @@ void SumnerSpeechEnd(void) {
             WindowCamActivate(0);
             object = (u8*)FindWORLDOBJ(strings + 44);
             if (object != 0) {
-                MBTreeSetFlags(*(void**)(object + 40), 2, 0);
+                MBTreeSetFlags(*(void**)(object + offsetof(WorldObj, nodeptr)), 2, 0);
             }
             if (PlayerHasRune(-1, 0x1FE) != 0) {
                 MBTreeSetAlpha(*(void**)(fn_8005B558(0x500) + 100),
@@ -1972,9 +2019,9 @@ int sumnerCheckLevelUp(void) {
     }
     for (p = &gPlayers[0], i = 0, off = 0; i < 4; i++, off += 4, p++) {
         levelSlot = (u8*)s + off;
-        *(s32*)(levelSlot += 76) = 0;
-        if (p->state != 0 && *(u32*)((u8*)p + 0xF0) != (u32)lbl_80343D6C) {
-            int lvlOld = ExpToLevel(*(s32*)((u8*)p + p->character * 24 + 0x1EDC));
+        *(s32*)(levelSlot += offsetof(TowerMsgState, levelUpLevel)) = 0;
+        if (p->state != 0 && *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)lbl_80343D6C) {
+            int lvlOld = ExpToLevel(*(s32*)((u8*)p + p->character * 24 + CHAR_EXP_SHADOW_OFF));
             int lvlNew = ExpToLevel(p->exp);
 
             if (lvlNew >= 99 && lvlOld < 99) {
@@ -1984,8 +2031,8 @@ int sumnerCheckLevelUp(void) {
                 *(s32*)levelSlot = lvlNew;
                 count++;
             }
-            *(s32*)((u8*)p + p->character * 24 + 0x1EDC) = p->exp;
-            *(s32*)((u8*)p + p->character * 24 + 0xA90) = p->exp;
+            *(s32*)((u8*)p + p->character * 24 + CHAR_EXP_SHADOW_OFF) = p->exp;
+            *(s32*)((u8*)p + p->character * 24 + CHAR_EXP_PRESENCE_OFF) = p->exp;
         }
     }
     if (count == 0) {
