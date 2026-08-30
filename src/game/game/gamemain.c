@@ -1,6 +1,9 @@
 #include "types.h"
 #include "game/enemy.h"
+#include "game/item.h"
 #include "game/leveldata.h"
+#include "game/mbobject.h"
+#include "game/worldinfo.h"
 #include "game/player.h"
 
 #define offsetof(type, member) ((u32)&((type*)0)->member)
@@ -130,7 +133,6 @@ extern u8 sWorldLevelTable[];
 extern s32  sCurWorldIndex;        /* 0x80344844 */
 
 /* Flat views of the big module globals (avoids header coupling). */
-extern s32  gWorldInfo[];          /* 0x8028CA8C world info block        */
 extern s32  lbl_80250E00[];        /* enemy/texmod pool base             */
 extern s32  lbl_802511FC[];        /* per-index sign-flip table          */
 typedef struct Row36 {
@@ -433,7 +435,6 @@ extern void  reset_players(void);
 extern void  LoadPdataFile(void);
 extern void  setup_player_models(void);
 extern void  UnloadWeaponsPowerups(void);
-extern void  LoadPowerups(s32 arg0);
 extern void  LoadWeapons(void);
 extern void  LoadWorldData(void);
 extern void  MBOX_LockModels(void);
@@ -839,8 +840,8 @@ void SetEnemyObj(Enemy* enemy, s32 type, s32 level, s32 unused)
         object = MBOX_ReallyFindObject(lbl_8011BFF8[level],
                                        shadowObject, shadowObject, 1);
         enemy->shadow = MBNewObject(object, (f32*)gIdentityMatrix, 0, 2176);
-        *(f32*)((u8*)enemy->shadow + 84) = lbl_80346A80;
-        *(s16*)((u8*)enemy->shadow + 104) = -32;
+        ((MBObject*)enemy->shadow)->zsort_add = lbl_80346A80;
+        ((MBObject*)enemy->shadow)->zmod = -32;
     }
 }
 
@@ -1191,11 +1192,12 @@ static s32 worldAnimIndexMatches(s32 entry, s32 index)
 /* 0x80055CB8 -- find the worldanim bound to a given world object. */
 s16* FindWobjWanim(void* wobj)
 {
-    s32 idx = ((s32)wobj - gWorldInfo[1]) / 60;   /* wobjs @0x04, stride 60 */
-    u8* wa = (u8*)gWorldInfo[35];                  /* worldanims @0x8C       */
+    s32 idx = ((s32)wobj - (s32)gWorldInfo.wobjs) / 60;   /* stride 60 */
+    u8* wa = (u8*)gWorldInfo.worldanims;
+
     s32 i;
 
-    for (i = 0; i < gWorldInfo[36]; i++) {         /* nworldanims @0x90      */
+    for (i = 0; i < gWorldInfo.nworldanims; i++) {
         if (worldAnimIndexMatches(*(s16*)(wa + i * 16), idx)) {
             return (s16*)(wa + i * 16);
         }
@@ -1208,21 +1210,19 @@ void DoWorldAnimation(void)
 {
     u8* data_off;
     u8* track_off;
-    s32* wi;
     s32* count;
     s32* header;
     s32 i;
     u8* anim_base;
 
-    if ((void*)gWorldInfo[32] != NULL) {
-        DoTexMods((void*)gWorldInfo[32]);
+    if ((void*)gWorldInfo.atreelist != NULL) {
+        DoTexMods((void*)gWorldInfo.atreelist);
     }
     if ((lbl_80344768 > 0 || (gGameMode & 0x8000) != 0) &&
         (lbl_803443BC <= 10 || lbl_803443BC >= 100000) &&
-        gWorldInfo[36] != 0 && (void*)gWorldInfo[37] != NULL) {
-        wi = gWorldInfo;
-        count = &wi[36];
-        header = (s32*)wi[37];
+        gWorldInfo.nworldanims != 0 && (void*)gWorldInfo.animheader != NULL) {
+        count = &gWorldInfo.nworldanims;
+        header = (s32*)gWorldInfo.animheader;
         anim_base = (u8*)header[3];
         i = 0;
         data_off = NULL;
@@ -1231,9 +1231,9 @@ void DoWorldAnimation(void)
         lbl_803441B4 = header[1];
         lbl_803441B0 = header[2];
         while (i < *count) {
-            u8* track = (u8*)wi[35] + (u32)track_off;
+            u8* track = (u8*)gWorldInfo.worldanims + (u32)track_off;
             if (*(u32*)(track + 12) != 0) {
-                DoWorldAnimSub(track, (u8*)wi[38] + (u32)data_off, anim_base);
+                DoWorldAnimSub(track, (u8*)gWorldInfo.animdata + (u32)data_off, anim_base);
             }
             i++;
             data_off += 160;
@@ -1459,25 +1459,25 @@ void GetEnemyTypes(void)
             }
         } else if (((level_data*)gCurLevel)->bosstype < 0 && *(s32*)gWorldData != 0xD &&
                    seen1e == 0) {
-            *(s32*)(tbl + off + 0x14C) = 0x1E;
-            *(s32*)(tbl + off + 0x10C) = 0;
-            *(s32*)(tbl + off + 0xEC) = 0;
+            *(s32*)(tbl + off + offsetof(EnemyTypeRow, type)) = 0x1E;
+            *(s32*)(tbl + off + offsetof(EnemyTypeRow, subtype)) = 0;
+            *(s32*)(tbl + off + offsetof(EnemyTypeRow, ent)) = 0;
         } else {
-            *(s32*)(tbl + off + 0x14C) = -1;
-            *(s32*)(tbl + off + 0x10C) = 0;
-            *(s32*)(tbl + off + 0xEC) = 0;
+            *(s32*)(tbl + off + offsetof(EnemyTypeRow, type)) = -1;
+            *(s32*)(tbl + off + offsetof(EnemyTypeRow, subtype)) = 0;
+            *(s32*)(tbl + off + offsetof(EnemyTypeRow, ent)) = 0;
         }
 
         typeWords = tbl;
         typeWords += off;
-        t14c = *(s32*)(typeWords += 0x14C);
+        t14c = *(s32*)(typeWords += offsetof(EnemyTypeRow, type));
         if (t14c == 0x1E) {
             seen1e = 1;
         }
         if (t14c >= 0) {
             subWords = tbl;
             subWords += off;
-            if (*(s32*)(subWords += 0x10C) == 0) {
+            if (*(s32*)(subWords += offsetof(EnemyTypeRow, subtype)) == 0) {
                 *(s32*)subWords = GetEnemySubtype(t14c);
             }
             if (*(s32*)subWords <= 0) {
@@ -1509,13 +1509,13 @@ void GetEnemyTypes(void)
             u8* words;
             words = tbl;
             words += i * 4;
-            if (*(s32*)(words += 0x10C) == 2) {
+            if (*(s32*)(words += offsetof(EnemyTypeRow, subtype)) == 2) {
                 *(s32*)words = 4;
             } else {
                 s32 value;
                 words = tbl;
                 words += i * 4;
-                value = *(s32*)(words += 0x14C);
+                value = *(s32*)(words += offsetof(EnemyTypeRow, type));
                 if (value >= 0 && value < 28) {
                     *(s32*)words = -1;
                 } else {
@@ -1866,10 +1866,10 @@ s32 next_world(void)
 
         world = -1;
         for (i = 0, transitioning = 0; i < 4; i++, transitioning += 13148) {
-            u8* player = gPlayers + transitioning;
-            state = *(s32*)(player + 232);
+            Player* player = (Player*)(gPlayers + transitioning);
+            state = player->state;
             if (state != 0 && state != 2) {
-                state = *(s32*)(player + 2096);
+                state = player->exit_dest;
                 if (world < state) {
                     world = state;
                 }
@@ -1883,7 +1883,7 @@ s32 next_world(void)
         }
     }
     ResolveWorldData(world);
-    if (!forced && ((*(s16*)(gCurLevel + 4) & 1) == 0)) {
+    if (!forced && ((((level_data*)gCurLevel)->enabled & 1) == 0)) {
         world = NextWorldLevel(1);
         ResolveWorldData(world);
     }
@@ -1929,12 +1929,12 @@ void fn_800553B4(void)
     s32 hide;
     s32 texture;
 
-    if ((*(u32*)gCurLevel & 4) != 0) {
+    if ((((level_data*)gCurLevel)->flags & 4) != 0) {
         if ((gControllerButtons & 0x10) != 0) {
             lbl_80344814 = lbl_80346B60;
         } else {
             lbl_80344814 =
-                (f32)(lbl_80346B68 + (f64)*(s16*)(gCurLevel + 12));
+                (f32)(lbl_80346B68 + (f64)((level_data*)gCurLevel)->wavetime);
         }
         lbl_80344818 = lbl_80344814;
     }
@@ -1951,7 +1951,7 @@ void fn_800553B4(void)
     mbBlitCvtCoord(*blit3, lbl_80346B78);
 
     if ((gControllerButtons & 0x10) == 0) {
-        if ((*(u32*)gCurLevel & 4) != 0) {
+        if ((((level_data*)gCurLevel)->flags & 4) != 0) {
             hide = 0;
         } else {
             hide = 1;
@@ -2059,9 +2059,9 @@ void fn_80052134(void)
             MBTreeClearFlags(lbl_8034479C, 1, 0);
             MBWindowTo3D(lbl_80343C1C, &lbl_80343C14,
                          (f32*)(lbl_80344EE8 + 100),
-                         (f32*)((u8*)lbl_8034479C + 0x30));
+                         ((MBObject*)lbl_8034479C)->mat[3]);
             for (i = 0; i < 3; i++) {
-                *(f32*)((u8*)lbl_8034479C + 0x40 + i * 4) = lbl_80343C18;
+                ((MBObject*)lbl_8034479C)->scale[i] = lbl_80343C18;
             }
             MBTreeSetAlpha(lbl_8034479C, lbl_80343C20, 0);
         }
@@ -2820,7 +2820,7 @@ s32 fn_80057F44(s32 code, s32 mask)
             }
         } else {
             if (gWorldData != 0) {
-                if (sub >= *(s16*)(gWorldData + 24)) {
+                if (sub >= ((WorldDataNav*)gWorldData)->numLevels) {
                     sub = 0;
                 }
             } else {
@@ -2833,7 +2833,7 @@ s32 fn_80057F44(s32 code, s32 mask)
         if (mask == 0) {
             break;
         }
-        if (*(s16*)(gCurLevel + 4) & mask) {
+        if (((level_data*)gCurLevel)->enabled & mask) {
             break;
         }
         code = NextWorldLevel(mask);
@@ -3115,7 +3115,6 @@ suffix:
 }
 
 /* 0x80051568 - find the nearest live idle item for an enemy (grid scan) */
-extern u8* sItems;
 extern f64 lbl_80346A88;        /* health floor */
 extern f32 lbl_803468B0;        /* big initial distance */
 extern f32 lbl_803469D4;        /* grid radius */
@@ -3129,9 +3128,8 @@ void fn_80051568(s32 index)
 {
     u8* e = (u8*)gEnemies + index * 916;
     s32 i;
-    s32 off;
-    u8* it;
-    u8* hdr;
+    Item* it;
+    iteminfo* hdr;
     f32 dx;
     f32 dy;
     f32 dz;
@@ -3140,36 +3138,37 @@ void fn_80051568(s32 index)
     f32 kZero;
     f64 kThree;
     u8 _spare[24];
+    u8 unused[8];
 
-    if (*(s16*)(e + 628) >= 0 && *(f32*)(e + 636) <= lbl_80346A88) {
-        *(s32*)(e + 828) = 0;
-        *(s32*)(e + 832) = -1;
-        *(f32*)(e + 836) = lbl_803468B0;
+    if (*(s16*)(e + offsetof(Enemy, closest)) >= 0 &&
+        *(f32*)(e + offsetof(Enemy, actual_dist)) <= lbl_80346A88) {
+        *(s32*)(e + offsetof(Enemy, guard_mode)) = 0;
+        *(s32*)(e + offsetof(Enemy, guard_closest)) = -1;
+        *(f32*)(e + offsetof(Enemy, guard_dist)) = lbl_803468B0;
         return;
     }
-    if (*(s32*)(e + 828) != 0) {
+    if (*(s32*)(e + offsetof(Enemy, guard_mode)) != 0) {
         return;
     }
-    StartEnemyGrid((f32*)(e + 52), lbl_803469D4);
+    StartEnemyGrid((f32*)(e + offsetof(Enemy, objgrp.worldmat[3])), lbl_803469D4);
     kZero = lbl_80346820;
     kHalf = lbl_80346830;
     kThree = lbl_803468B8;
     while ((i = NextGridEnemy()) >= 0) {
-        off = i * 240;
-        it = (u8*)sItems + off;
-        hdr = *(u8**)it;
-        if (*(s16*)(it + 196) == -1) {
+        it = &sItems[i];
+        hdr = it->info;
+        if (it->active == -1) {
             continue;
         }
-        if (*(s32*)hdr != 2) {
+        if (hdr->type != 2) {
             continue;
         }
-        if (*(s8*)(it + 205) != 0) {
+        if (it->minoff != 0) {
             continue;
         }
-        dx = *(f32*)(it + 52) - *(f32*)(e + 52);
-        dy = *(f32*)(it + 56) - *(f32*)(e + 56);
-        dz = *(f32*)(it + 60) - *(f32*)(e + 60);
+        dx = it->objgrp.worldmat[3][0] - *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][0]));
+        dy = it->objgrp.worldmat[3][1] - *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][1]));
+        dz = it->objgrp.worldmat[3][2] - *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][2]));
         dist2 = dx * dx + dy * dy + dz * dz;
         if (dist2 > kZero) {
             volatile f32 tmp;
@@ -3181,10 +3180,10 @@ void fn_80051568(s32 index)
             tmp = dist2;
             dist2 = tmp;
         }
-        if (dist2 < *(f32*)(e + 836)) {
-            *(f32*)(e + 836) = dist2;
-            *(s32*)(e + 832) = i;
-            *(s32*)(e + 828) = 1;
+        if (dist2 < *(f32*)(e + offsetof(Enemy, guard_dist))) {
+            *(f32*)(e + offsetof(Enemy, guard_dist)) = dist2;
+            *(s32*)(e + offsetof(Enemy, guard_closest)) = i;
+            *(s32*)(e + offsetof(Enemy, guard_mode)) = 1;
         }
     }
 }
@@ -3421,7 +3420,7 @@ void fn_80055AFC(void)
 }
 
 extern s32 lbl_803447A8[2];        /* meter blit handles */
-extern u32 sSpecialItem10;
+extern Item* sSpecialItem10;
 extern s32 lbl_80344790;
 extern s32 lbl_8034478C;
 extern f32 lbl_80346AFC;           /* 0.0f */
@@ -3539,12 +3538,13 @@ void init_thermometer(void)
         player = 0;
         do {
             playerData = players + playerOffset;
-            if (PlayerHasShard(player, *(s16*)(*(u32*)sSpecialItem10 + 64)) != 0) {
+            if (PlayerHasShard(player, sSpecialItem10->info->item.value) != 0) {
                 enabled = 1;
                 break;
             }
             if (sMusicTrackHi == 8) {
-                if ((*(u8*)(playerData + 7384 + *(s32*)(playerData + 12) * 14) & 4) != 0) {
+                s32 charIdx = ((Player*)playerData)->character;
+                if ((*(u8*)(playerData + 7384 + charIdx * 14) & 4) != 0) {
                     enabled = 0;
                 }
             } else if (PlayerHasRune(player, GetWorldOrder(5)) != 0) {
@@ -3568,9 +3568,9 @@ void init_thermometer(void)
                      lbl_80346BD0, lbl_80346AF0);
     mbBlitProject((void*)*blits, 0, 27);
 
-    x = ((f32*)gWorldInfo)[12];
-    yCoord = ((f32*)gWorldInfo)[13];
-    z = ((f32*)gWorldInfo)[14];
+    x = gWorldInfo.worldsize[0];
+    yCoord = gWorldInfo.worldsize[1];
+    z = gWorldInfo.worldsize[2];
     length = x * x + yCoord * yCoord + z * z;
     if (length > lbl_80346AFC) {
         f64 y = __frsqrte(length);
@@ -4194,7 +4194,7 @@ void game_main(void)
             flag2 = cond ? 1 : 0;
             all = 1;
             for (i = 0; i < 4; i++) {
-                v = *(s32*)(gPlayers + i * 13148 + 0xe8);
+                v = ((Player*)(gPlayers + i * 13148))->state;
                 if (v != 0 && v != 11) {
                     all = 0;
                 }
@@ -4821,7 +4821,7 @@ void fn_80057024(void)
     }
 
     WorldSaveInitState();
-    lbl_80344880 = (f32)(*(f32*)((u8*)gWorldInfo + 28) - lbl_80346C98);
+    lbl_80344880 = (f32)(gWorldInfo.worldmin[1] - lbl_80346C98);
     GetEnemyTypes();
 
     if (gGameOptions[2] < 2 && gBossType < 0 && sMusicTrackHi != 13 &&
@@ -4859,16 +4859,15 @@ chk:
         if (!(gGameMode & 0x8000)) {
             LoadWeapons();
         }
-        LoadPowerups(lbl_80344888);
+        LoadPowerups((char*)lbl_80344888);
         lbl_80344858 = lbl_80344858 + (free0 - BytesFree());
         free0 = BytesFree();
         LoadItems();
         lbl_8034485C = free0 - BytesFree();
     }
 
-    if (*(void**)((u8*)gWorldInfo + 128) != 0) {
-        InitTexMods(*(void**)((u8*)gWorldInfo + 128),
-                    *(s32*)((u8*)gWorldInfo + 132));
+    if (gWorldInfo.atreelist != 0) {
+        InitTexMods(gWorldInfo.atreelist, gWorldInfo.model);
     }
     fn_800508A0();
     SetupWeaponPowerupTexMods();
