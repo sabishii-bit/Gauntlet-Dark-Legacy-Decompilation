@@ -3980,7 +3980,8 @@ void game_main(void)
         init_attract_mode(0x8009);
     }
     cond = 0;
-    if (lbl_8034481C >= 13 && lbl_8034481C < 0x10000) {
+    c = lbl_8034481C;
+    if (c >= 13 && c < 0x10000) {
         cond = 1;
     }
     flag = cond ? 1 : 0;
@@ -4176,7 +4177,8 @@ void game_main(void)
             }
             next = -1;
             cond = 0;
-            if (lbl_8034481C >= 13 && lbl_8034481C < 0x10000) {
+            c = lbl_8034481C;
+            if (c >= 13 && c < 0x10000) {
                 cond = 1;
             }
             flag2 = cond ? 1 : 0;
@@ -4193,7 +4195,7 @@ void game_main(void)
                 next = lbl_80344B84;
             } else if (opt_restart_request) {
                 next = sWorldDataConst;
-            } else if (lbl_8034481C == 0 || lbl_8034481C == 12) {
+            } else if (c == 0 || c == 12) {
                 if (gBossType == 0x2c) {
                     init_gamemovie(0x2c);
                     sLastWorldLevel = sWorldDataConst;
