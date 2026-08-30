@@ -2001,15 +2001,15 @@ void init_player_change(s32 idx, s32 arg1)
 gotv:
     ((Player*)pl)->exit_dest = v;
 
-    saved = *(s32*)(pl + 0xF0);
+    saved = *(s32*)(pl + offsetof(Player, hidden_code));
     change_player(idx, arg1);
-    *(s32*)(pl + 0xF0) = saved;
+    *(s32*)(pl + offsetof(Player, hidden_code)) = saved;
 
     setup_tex(idx, 2, 0, 0, lbl_801144A0, lbl_801200B0[arg1 & 7]);
 
     mbBlitProject(*(void**)((u8*)lbl_80284878 + idx * 132 + 24), -1, 320);
 
-    wflag = *(u32*)(pl + 0xF0) ? 0 : 1;
+    wflag = *(u32*)(pl + offsetof(Player, hidden_code)) ? 0 : 1;
     if (((Player*)pl)->exp == 0) {
         AudioWelcomeBack(idx, wflag);
     } else {
