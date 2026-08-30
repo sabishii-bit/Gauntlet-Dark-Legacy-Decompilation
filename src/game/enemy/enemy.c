@@ -3918,16 +3918,16 @@ void move_logic15(s32 index)
     switch (e->mode1) {
     case 0: {
         u8* n = sLookoutParams;
+        s32 i;
         s32 best_idx = -1;
         f32 best_dist = lbl_803468B0;
         f32 thresh = lbl_80346820;
         f32 d;
-        s32 i;
         f32 ex = e->objgrp.worldmat[3][0];
         f32 ey = e->objgrp.worldmat[3][1];
         f32 ez = e->objgrp.worldmat[3][2];
 
-        for (i = 0; i < sNumLookoutParams; i++) {
+        for (i = 0; i < sNumLookoutParams; i++, n += 108) {
             if (*(s16*)(n + 104) >= 0) {
                 f32 dx = *(f32*)(n + 48) - ex;
                 f32 dy = *(f32*)(n + 52) - ey;
@@ -3946,7 +3946,6 @@ void move_logic15(s32 index)
                     best_idx = i;
                 }
             }
-            n += 108;
         }
         e->flag1 = best_idx;
         e->mode1 = 1;
