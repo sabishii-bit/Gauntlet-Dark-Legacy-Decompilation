@@ -43,7 +43,12 @@ python memory_graph/gdlmem.py tool <tool-or-workflow>
 - Record durable results as structured records via
   `gdlmem.py propose-record` (attempts, claims, evidence, entities, edges) or
   `register-tool`. Proposals are fully validated before staging and require
-  integrator review before acceptance into `records/`. References like
+  integrator review before acceptance into `records/`.
+- Keep attempt records compact: one live record per function (revisits bump
+  the version, set `supersedes`, and fold prior probes into one-line
+  `attributes.axis_log` entries), a hard 4 KB cap, and the do-not-retry
+  conclusion in the head fields. `context` returns only that head; fetch full
+  forensics with `gdlmem.py record <id>` when actually revisiting. References like
   `function:<symbol>` and `tu:<module>` resolve automatically against the
   symbol import; add an explicit entity record only for curated attributes or
   name disambiguation.

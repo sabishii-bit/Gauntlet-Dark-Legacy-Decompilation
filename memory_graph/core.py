@@ -664,6 +664,15 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
         raise MemoryGraphError(f"{source}: claim needs object or value")
     if kind == "evidence" and "claim" not in record and "edge" not in record:
         raise MemoryGraphError(f"{source}: evidence needs claim or edge")
+    if kind == "attempt":
+        encoded = json.dumps(record, sort_keys=True).encode("utf-8")
+        if len(encoded) > 4096:
+            raise MemoryGraphError(
+                f"{source}: attempt record is {len(encoded)} bytes (cap 4096);"
+                " keep the do-not-retry head compact — fold history into"
+                " one-line axis_log entries and put deep forensics in an"
+                " evidence record or the commit itself"
+            )
     anchors: list[str] = []
     attributes = record.get("attributes", {})
     if isinstance(attributes, dict):
@@ -1499,11 +1508,13 @@ def symbol_context(
                     (entity["id"],),
                 )
             ]
+            # Compact projection: the do-not-retry payload only. Full
+            # forensic attributes stay in the record; fetch them on demand
+            # with the `record <id>` operation so briefings stay small.
             for row in connection.execute(
                 """
                 SELECT a.record_id, r.record_state, a.attempted_axis, a.outcome,
-                       a.residual_class, a.semantic_note, a.commit_hash,
-                       a.started_at, a.finished_at, r.raw_json
+                       a.residual_class, a.commit_hash, r.raw_json
                 FROM attempt a JOIN record_ingest r ON r.record_id=a.record_id
                 WHERE a.function_entity_id=?
                 ORDER BY r.record_state='accepted' DESC, a.id DESC
@@ -1512,9 +1523,11 @@ def symbol_context(
             ):
                 attempt = dict(row)
                 raw = json.loads(attempt.pop("raw_json") or "{}")
-                attributes = raw.get("attributes")
-                if attributes:
-                    attempt["attributes"] = attributes
+                axis = attempt.get("attempted_axis") or ""
+                if len(axis) > 300:
+                    attempt["attempted_axis"] = axis[:297] + "..."
+                if raw.get("attributes"):
+                    attempt["detail"] = f"gdlmem.py record {attempt['record_id']}"
                 attempts.append(attempt)
     try:
         documents = search_memory(
@@ -1969,6 +1982,26 @@ def _stats_surface(root: Path, db_path: Path | None) -> dict[str, Any]:
     return {"database": str(path), **memory_stats(root, path)}
 
 
+def record_lookup(
+    record_id: str, *, root: Path = REPO_ROOT, db_path: Path | None = None
+) -> dict[str, Any]:
+    """Return one record's full JSON by id (the on-demand detail fetch)."""
+    ensure_database(root, db_path)
+    with closing(open_database(root, db_path)) as connection:
+        row = connection.execute(
+            "SELECT record_state, source_path, raw_json FROM record_ingest"
+            " WHERE record_id=?",
+            (record_id,),
+        ).fetchone()
+    if row is None:
+        raise MemoryGraphError(f"no record with id {record_id!r}")
+    return {
+        "record_state": row["record_state"],
+        "source_path": row["source_path"],
+        "record": json.loads(row["raw_json"]),
+    }
+
+
 def build_surface_ops() -> tuple[SurfaceOp, ...]:
     """The registry every query consumer derives its surface from."""
     return (
@@ -2044,6 +2077,15 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
             ),
         ),
         SurfaceOp(
+            name="record", mcp_name="memory_record",
+            doc="Fetch one record's full JSON by id (on-demand attempt detail).",
+            call=lambda root, db, **kw: record_lookup(
+                kw["record_id"], root=root, db_path=db),
+            params=(
+                SurfaceParam("record_id", str, required=True),
+            ),
+        ),
+        SurfaceOp(
             name="stale", mcp_name="memory_stale",
             doc="Compare parked/capped attempts against the current objdiff report.",
             call=lambda root, db, **kw: attempt_staleness(root, db),
@@ -2095,6 +2137,16 @@ def attempt_staleness(
             " JOIN entity e ON e.id = a.function_entity_id"
             " WHERE a.outcome IN ('parked', 'capped')"
         ).fetchall()
+    with closing(open_database(root, db_path)) as connection:
+        multi_rows = connection.execute(
+            "SELECT e.name, COUNT(*) AS n, GROUP_CONCAT(a.record_id) AS ids"
+            " FROM attempt a JOIN entity e ON e.id = a.function_entity_id"
+            " GROUP BY a.function_entity_id HAVING COUNT(*) > 1"
+        ).fetchall()
+    multi = [
+        {"function": row["name"], "records": row["ids"].split(",")}
+        for row in multi_rows
+    ]
     stale: list[dict[str, Any]] = []
     walls: list[dict[str, Any]] = []
     suspect: list[dict[str, Any]] = []
@@ -2120,12 +2172,15 @@ def attempt_staleness(
         "postprocessor_walls": walls,
         "suspect_low_fuzzy": suspect,
         "missing_from_report": missing,
+        "multi_record_functions": multi,
         "valid_count": valid,
         "note": (
             "stale_solved parks are moot (function fully matched without a"
             " postprocessor rule): remove or supersede them."
             " postprocessor_walls are valid source-level walls."
             " suspect_low_fuzzy and missing_from_report need re-triage."
+            " multi_record_functions should be consolidated into one live"
+            " attempt record per function (fold prior axes into axis_log)."
         ),
     }
 

@@ -191,10 +191,17 @@ trustworthy and bounded:
   unique evidence, so a moot one is simply deleted. A hand-authored attempt
   with measurements and conclusions is history: when it becomes obsolete,
   supersede it rather than deleting it.
-- **One live attempt per function/axis.** A revisit of a recorded axis
-  produces a new record that `supersedes` the old one; do not accumulate
-  parallel attempts describing the same probe. `context` ranks accepted and
-  newest first, and superseded records remain queryable lineage.
+- **One live attempt record per function.** A revisit updates that record in
+  place (bump the id version, set `supersedes`, fold the prior probe into a
+  one-line `attributes.axis_log` entry); git history is the lineage. Do not
+  accumulate parallel attempt files per function — `stale` reports
+  `multi_record_functions` as the consolidation queue.
+- **Compact head, on-demand detail.** Attempt records are hard-capped at
+  4 KB by the validator. `context` returns only the do-not-retry head (axis,
+  outcome, residual class); full forensic attributes are fetched explicitly
+  with `gdlmem.py record <id>`, so briefings stay small no matter how much
+  history a function accumulates. Deep forensics that exceed the cap belong
+  in an evidence record or the commit message, not the attempt head.
 - **Growth check.** `stats` row counts are the early-warning signal; if
   `attempt` growth outpaces actual matching work, the inbox review boundary
   is being skipped or axes are being re-recorded instead of superseded.
