@@ -31,6 +31,39 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
 #endif
 typedef struct PMotionCtx PMotionCtx;
 
+/* Offset-only layout of Enemy fields read off an index-computed base (grid
+ * scan, closest-target probes) throughout this TU (verified against
+ * include/game/enemy.h's Enemy struct: type@0, objgrp.coll_pos@0x54,
+ * state@0xB4, rad@0x238, hht@0x23C).  Never cast a live pointer to this type
+ * -- it exists only to feed offsetof() so the raw walked/indexed base pointer
+ * keeps its fused-immediate-displacement addressing (see
+ * claim.law.multifield-alias-defeats-indexed-addressing / offsetof-fused-
+ * immediate-counter): 3+ nearby fields are read off one index-computed base
+ * in these call sites, and a typed alias measured worse in the sibling TUs
+ * that hit this exact pattern. */
+typedef struct PCollideEnemyLayout {
+    s32 type;                /* 0x000 */
+    u8  _004[0x50];
+    f32 coll_pos[3];         /* 0x054 objgrp.coll_pos */
+    u8  _060[0x54];
+    s32 state;                /* 0x0B4 */
+    u8  _0B8[0x148];
+    f32 health;               /* 0x200 */
+    u8  _204[0x34];
+    f32 rad;                  /* 0x238 */
+    f32 hht;                  /* 0x23C */
+} PCollideEnemyLayout;
+
+/* Same rationale as PCollideEnemyLayout, for the gCritterPool index-computed
+ * scans in this TU (verified against include/game/critter.h's Critter
+ * struct: hdr@4, pos@0x05C).  Never cast a live pointer to this type. */
+typedef struct PCollideCritterLayout {
+    u8   _000[4];
+    void* hdr;                /* 0x004 */
+    u8   _008[0x54];
+    f32  pos[3];               /* 0x05C */
+} PCollideCritterLayout;
+
 /* ------------------------------------------------------------------ */
 /* extern globals (.sbss/.sdata runtime state)                         */
 /* ------------------------------------------------------------------ */
@@ -787,13 +820,13 @@ void PlayerMotion_SetAnimState(Player* p) {
     u8 unused[32];
     if (lbl_803447B8 >= 2) {
         MBTreeClearFlags(p->node, 2, 0);
-        if (PF(p, 0x6C8, void*) != NULL) {
-            MBTreeClearFlags(PF(p, 0x6C8, void*), 2, 0);
+        if (p->mbnode != NULL) {
+            MBTreeClearFlags(p->mbnode, 2, 0);
         }
         if (p->anim_208 == 0x7C) {
-            PF(p, 0x964, s16) |= 0x1000;
+            p->hud_flags |= 0x1000;
         }
-        if ((PF(p, 0x964, s16) & 0x1000) == 0) {
+        if ((p->hud_flags & 0x1000) == 0) {
             p->anim_20C = 0x7C;
         } else {
             p->anim_20C = 0;
@@ -801,8 +834,8 @@ void PlayerMotion_SetAnimState(Player* p) {
     } else {
         p->anim_20C = 0;
         MBTreeSetFlags(p->node, 2, 0);
-        if (PF(p, 0x6C8, void*) != NULL) {
-            MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 0);
+        if (p->mbnode != NULL) {
+            MBTreeSetFlags(p->mbnode, 2, 0);
         }
     }
     DoPlayerAction(p);
@@ -4061,36 +4094,6 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
     }
     return closest;
 }
-/* Offset-only layout of the fields PlayerCollideItems' index-computed enemy
- * scan reads (verified against include/game/enemy.h's Enemy struct: type@0,
- * objgrp.coll_pos@0x54, state@0xB4, rad@0x238, hht@0x23C).  Never cast a live
- * pointer to this type -- it exists only to feed offsetof() so the raw walked
- * `item` pointer keeps its fused-immediate-displacement addressing (see
- * claim.law.multifield-alias-defeats-indexed-addressing / offsetof-fused-
- * immediate-counter): 3+ nearby fields are read off one index-computed base
- * in this loop, and a typed alias measured worse in the sibling TUs that hit
- * this exact pattern. */
-typedef struct PCollideEnemyLayout {
-    s32 type;                /* 0x000 */
-    u8  _004[0x50];
-    f32 coll_pos[3];         /* 0x054 objgrp.coll_pos */
-    u8  _060[0x54];
-    s32 state;                /* 0x0B4 */
-    u8  _0B8[0x180];
-    f32 rad;                  /* 0x238 */
-    f32 hht;                  /* 0x23C */
-} PCollideEnemyLayout;
-
-/* Same rationale as PCollideEnemyLayout, for the gCritterPool index-computed
- * scan below (verified against include/game/critter.h's Critter struct:
- * hdr@4, pos@0x05C).  Never cast a live pointer to this type. */
-typedef struct PCollideCritterLayout {
-    u8   _000[4];
-    void* hdr;                /* 0x004 */
-    u8   _008[0x54];
-    f32  pos[3];               /* 0x05C */
-} PCollideCritterLayout;
-
 s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
                        f32* hit) {
     f32 localHit[12];
