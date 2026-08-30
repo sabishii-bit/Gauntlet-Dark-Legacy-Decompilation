@@ -1,6 +1,11 @@
 #include "game/enemy.h"
 #include "game/worldobj.h"
 #include "game/dyngrid.h"
+#include "game/leveldata.h"
+
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 
 /* Gauntlet Dark Legacy enemy module (Xbox ENEMY.OBJ / enemy.c).
  *
@@ -846,7 +851,7 @@ extern f64 lbl_803468A8;
 extern f64 lbl_80346858;
 extern f64 lbl_80346890;
 extern f32 lbl_80344880;
-extern u8* gCurLevel;
+extern level_data* gCurLevel;
 extern void RequestEnemyAction(Enemy* enemy, s32 action);
 
 /* file-local view of world/worldcol.c's FloorCollisionResult; only the
@@ -1320,7 +1325,7 @@ void fn_80046140(s32 index)
                         enemy->area = (s16)playerIndex;
                         if (enemy->algorithm == 18) {
                             SuicideExplosion(&enemy->objgrp.coll_pos[0],
-                                (f32)(lbl_803468A8 * *(f32*)(gCurLevel + 0xBC)));
+                                (f32)(lbl_803468A8 * gCurLevel->ene_damage));
                             fn_8009DAC8(&enemy->objgrp.coll_pos[0]);
                         }
                         uncouple_enemy((s32)pool);
@@ -1344,7 +1349,7 @@ void fn_80046140(s32 index)
         enemy->area = (s16)playerIndex;
         if (enemy->algorithm == 18) {
             SuicideExplosion(&enemy->objgrp.coll_pos[0],
-                (f32)(lbl_803468A8 * *(f32*)(gCurLevel + 0xBC)));
+                (f32)(lbl_803468A8 * gCurLevel->ene_damage));
             fn_8009DAC8(&enemy->objgrp.coll_pos[0]);
         }
         uncouple_enemy((s32)pool);
@@ -1373,7 +1378,7 @@ extern f32 lbl_8011BF60[];    /* 0x8011BF60 imp retreat-speed ramp table */
 extern const f64 lbl_803469B8; /* 1.25 action-speed threshold */
 extern s32 lbl_80344748;      /* 0x80344748 current "IT" enemy slot */
 extern s32 RandInt(s32 n);
-extern u8* gCurLevel;         /* 0x8034483C active level record */
+extern level_data* gCurLevel;         /* 0x8034483C active level record */
 extern f32 sin(f32 x);
 extern f32 cos(f32 x);
 extern void fn_8009DDCC(f32* pos);   /* skeleton assemble fx */
@@ -4942,7 +4947,7 @@ void move_logic30(s32 index)
         format_brain(index);
     }
     if (e->dead_end <= 0 && (e->counter1 -= gFrameTicks) <= 0) {
-        s32 n = (s32)(lbl_803469A0 * *(f32*)(gCurLevel + 192));
+        s32 n = (s32)(lbl_803469A0 * gCurLevel->ene_mrate);
         s32 r = RandInt(10) + 20;
         if (e->dead_end <= 0) {
             e->dead_end = r;
@@ -5191,7 +5196,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
             e->area = (s16)player_index;
             if (e->algorithm == 18) {
                 SuicideExplosion(e->objgrp.coll_pos,
-                    (f32)(lbl_803468A8 * *(f32*)(gCurLevel + 0xBC)));
+                    (f32)(lbl_803468A8 * gCurLevel->ene_damage));
                 fn_8009DAC8(e->objgrp.coll_pos);
             }
             uncouple_enemy(enemy_index);
@@ -5212,9 +5217,9 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         do_heal_players(player, &e->objgrp.worldmat[0][0], healed);
     }
 
-    if (player_index >= 0 && *(f32*)(gCurLevel + 0x9C) > lbl_80346820) {
+    if (player_index >= 0 && gCurLevel->plevel > lbl_80346820) {
         f32 level = (f32)player->level;
-        f32 target_level = *(f32*)(gCurLevel + 0x9C);
+        f32 target_level = gCurLevel->plevel;
         f32 scale = lbl_803468F0;
 
         if (level < target_level) {
@@ -5278,9 +5283,9 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         e->health = (f32)((f64)e->health - applied);
     }
 
-    fight = *(f32*)(gCurLevel + 0xBC) * lbl_8011B900[e->type];
+    fight = gCurLevel->ene_damage * lbl_8011B900[e->type];
     {
-        f32 threshold = *(f32*)(gCurLevel + 0xAC) * lbl_8011BA10[e->type];
+        f32 threshold = gCurLevel->ene_health * lbl_8011BA10[e->type];
         f32 upper = (f32)(lbl_80346A30 * threshold);
         f32 lower = (f32)(lbl_80346A28 * threshold);
 
@@ -5326,7 +5331,7 @@ store_fight:
         e->area = (s16)player_index;
         if (e->algorithm == 18) {
             SuicideExplosion(e->objgrp.coll_pos,
-                (f32)(lbl_803468A8 * *(f32*)(gCurLevel + 0xBC)));
+                (f32)(lbl_803468A8 * gCurLevel->ene_damage));
             fn_8009DAC8(e->objgrp.coll_pos);
         }
         uncouple_enemy(enemy_index);
@@ -7314,7 +7319,7 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
         scale = *(f32*)(r + 2760);
     }
     if (type != 30) {
-        scale = scale * *(f32*)(gCurLevel + 172);
+        scale = scale * gCurLevel->ene_health;
     }
     if (type < 28) {
         scale = (f32)(lbl_80346A28 * scale * level);

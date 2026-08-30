@@ -14,6 +14,18 @@
  *   +0x9C plevel     matches fn_8005C1DC's gold-ramp f32 read (matched region)
  *   +0xCC..0xDC gen_health..trap_damage
  *                    match items.c's generator/trap tuning reads
+ * GC offset verification (2026-08-30 secondary enemy.c de-fakematch pass),
+ * four more anchors confirmed by fnasm.py displacement + byte-gate (two of
+ * the five converting functions are byte-exact MATCHED, unchanged after):
+ *   +0xAC ene_health fn_80046140(x0)/damage_enemy(fight-threshold)/
+ *                    init_enemy(scale) - lfs ...,172(rN) in all three
+ *   +0xB0 ene_speed  do_enemies per-type speed-table refresh -
+ *                    lfs ...,176(rN)
+ *   +0xBC ene_damage fn_80046140(x2, MATCHED fn unchanged)/damage_enemy(x3)
+ *                    suicide-explosion scale - lfs ...,188(rN)
+ *   +0xC0 ene_mrate  move_logic30 (MATCHED fn unchanged) dead-end timer -
+ *                    lfs ...,192(rN)
+ * See attempt.enemy-c-defakematch-tupass.20260830.v2.
  * Remaining fields carry the Xbox names unverified; verify a field's
  * displacement against GC target asm before relying on it in matching work.
  */
@@ -56,12 +68,12 @@ typedef struct level_data {
     f32   xpmul;              /* 0xA0 */
     f32   damagemul;          /* 0xA4 */
     f32   difficulty;         /* 0xA8 */
-    f32   ene_health;         /* 0xAC */
-    f32   ene_speed;          /* 0xB0 */
+    f32   ene_health;         /* 0xAC GC-VERIFIED (enemy.c fight threshold/scale) */
+    f32   ene_speed;          /* 0xB0 GC-VERIFIED (do_enemies speed-table refresh) */
     f32   ene_visrad;         /* 0xB4 */
     f32   ene_attack;         /* 0xB8 */
-    f32   ene_damage;         /* 0xBC */
-    f32   ene_mrate;          /* 0xC0 */
+    f32   ene_damage;         /* 0xBC GC-VERIFIED (enemy.c suicide-explosion scale) */
+    f32   ene_mrate;          /* 0xC0 GC-VERIFIED (move_logic30 dead-end timer) */
     f32   ene_mspeed;         /* 0xC4 */
     f32   ene_macc;           /* 0xC8 */
     f32   gen_health;         /* 0xCC GC-VERIFIED (items generator tuning) */
