@@ -287,7 +287,7 @@ u32 fn_800D91B4(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D9A14(MovieRingBuffer* p1, u8* p2, int p3, u8 p4);
 void fn_800DBE98(void* param_1, u8* param_2);
 int fn_800DB2F4(MovieChunkStream* param_1, u8* param_2, u32 param_3, u32 param_4);
-void fn_800DB3D4(u32* stream, s32 fd, u32 length);
+void fn_800DB3D4(MovieChunkStream* stream, s32 fd, u32 length);
 void fn_800DB29C(MovieChunkStream* stream);
 MovieChunkNode* fn_800DB36C(MovieChunkStream* stream);
 void fn_800DB82C(MovieChunkStream* stream, int fd, u32 offset);
@@ -1648,7 +1648,7 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
         elapsed = lbl_803493BC;
     }
 
-    fn_800DB3D4((u32*)(movie + 0x20), *(s32*)(movie + 0x1C), 0xA000);
+    fn_800DB3D4((MovieChunkStream*)(movie + 0x20), *(s32*)(movie + 0x1C), 0xA000);
     if (movie[0x19] != 0) {
         if (movie[0x18] != 0) {
             s32 tag = gMovieAllocCount++;
@@ -1861,7 +1861,6 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
     u8* q;
     int ofs;
     int strl;
-    int chunk_ofs;
     u8* p;
 
     *(u8*)(param_1 + 0x18) = 0;
@@ -1895,8 +1894,7 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
     *(u32*)(param_1 + 0xE0) = ReadF32LE(p + 0x2C);
     *(u32*)(param_1 + 0xE4) = ReadF32LE(p + 0x30);
     ofs += ReadF32LE(q);
-    chunk_ofs = ofs + 4;
-    if (ReadF32LE(param_2 + chunk_ofs) != 0x66727473) {
+    if (ReadF32LE(param_2 + ofs + 4) != 0x66727473) {
         return 0;
     }
     q = param_2 + (u32)ofs + 0xC;
@@ -2106,7 +2104,7 @@ ret:
 #endif
 
 /* VQ codebook/frame reader (memcpy, ReadF32LE, sceRead) */
-void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
+void fn_800DB3D4(MovieChunkStream* stream, s32 fd, volatile u32 length) {
     u32 available;
     u32 chunkOffset;
     u32 chunkSize;
@@ -2116,48 +2114,48 @@ void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
     u32 offset;
     u32 tag;
     u8* chunk;
-    u32* node;
-    u32* next;
+    MovieChunkNode* node;
+    MovieChunkNode* next;
     s32 len;
     u8 unused[16];
 
-    if (stream[7] == 0 && stream[4] <= stream[6] - 0x800) {
+    if (stream->pendingLength == 0 && stream->writePos <= stream->bufferSize - 0x800) {
         goto request_more;
     }
 
-    if (stream[7] <= 0x10000) {
-        memcpy((u8*)stream[0] + stream[4], (void*)stream[2], stream[7]);
+    if (stream->pendingLength <= 0x10000) {
+        memcpy(stream->buffer + stream->writePos, (void*)stream->stagingBuffer, stream->pendingLength);
     }
-    stream[10] += stream[7];
-    stream[4] += stream[7];
-    stream[7] = 0;
+    stream->filePos += stream->pendingLength;
+    stream->writePos += stream->pendingLength;
+    stream->pendingLength = 0;
 
     for (;;) {
-        node = (u32*)stream[20];
-        while (node != NULL && *node != 0) {
-            node = (u32*)*node;
+        node = stream->activeNode;
+        while (node != NULL && node->next != NULL) {
+            node = node->next;
         }
 
-        chunkOffset = node[2];
-        chunkEnd = chunkOffset + node[1];
-        if (chunkEnd >= stream[6] - 0x800) {
-            available = stream[4] - chunkOffset;
+        chunkOffset = node->dataOffset;
+        chunkEnd = chunkOffset + node->totalSize;
+        if (chunkEnd >= stream->bufferSize - 0x800) {
+            available = stream->writePos - chunkOffset;
             if (available) {
-                if (stream[5] > stream[4]) {
+                if (stream->highWater > stream->writePos) {
                     return;
                 }
-                if (!(stream[5] > available)) {
+                if (!(stream->highWater > available)) {
                     return;
                 }
-                memcpy((void*)stream[0], (u8*)stream[0] + chunkOffset, available);
-                stream[4] = available;
-                node[2] = 0;
+                memcpy((void*)stream->buffer, stream->buffer + chunkOffset, available);
+                stream->writePos = available;
+                node->dataOffset = 0;
                 goto request_more;
             }
         }
 
-        available = stream[4];
-        if (available > stream[5]) {
+        available = stream->writePos;
+        if (available > stream->highWater) {
             if (chunkEnd >= available - 8) {
                 goto request_more;
             }
@@ -2167,12 +2165,12 @@ void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
             }
         }
 
-        node[6] = 0;
-        node[4] = 0;
-        node[5] = 0;
+        node->junkSize = 0;
+        node->videoSize = 0;
+        node->audioSize = 0;
         offset = 0;
         do {
-            chunk = (u8*)(node[2] + offset + (u32)stream[0]);
+            chunk = (u8*)(node->dataOffset + offset + (u32)stream->buffer);
             tag = ReadF32LE(chunk);
             chunkSize = ReadF32LE(chunk + 4);
             if (tag == 0x5453494c) {
@@ -2181,40 +2179,40 @@ void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
                 offset += chunkSize + 8;
                 switch (tag) {
                 case 0x62773130:
-                    node[9] = (u32)(chunk + 8);
-                    node[5] = chunkSize;
-                    node[7] = stream[14];
-                    stream[14] += chunkSize;
-                    fn_800D9B48((MovieRingBuffer*)(stream + 15), chunk + 8, chunkSize);
+                    node->audioData = chunk + 8;
+                    node->audioSize = chunkSize;
+                    node->audioByteOffset = stream->audioBytesProduced;
+                    stream->audioBytesProduced += chunkSize;
+                    fn_800D9B48(&stream->audio, chunk + 8, chunkSize);
                     break;
                 case 0x4b4e554a:
-                    node[6] = chunkSize;
+                    node->junkSize = chunkSize;
                     break;
                 case 0x62643030:
                 case 0x63643030:
-                    node[8] = (u32)(chunk + 8);
-                    node[4] = chunkSize;
-                    node[3] = stream[13];
-                    stream[13]++;
+                    node->videoData = chunk + 8;
+                    node->videoSize = chunkSize;
+                    node->videoFrameIndex = stream->videoFrameCount;
+                    stream->videoFrameCount++;
                     break;
                 default:
                     break;
                 }
                 offset = (offset + 1) & 0xfffffffe;
             }
-        } while (offset < (sz = node[1]));
+        } while (offset < (sz = node->totalSize));
 
-        if (stream[10] == stream[11] || stream[13] == stream[12]) {
+        if (stream->filePos == stream->fileSize || stream->videoFrameCount == stream->videoFrameLimit) {
             goto request_more;
         }
-        pos = node[2] + sz;
-        if (pos + 8 > stream[4]) {
+        pos = node->dataOffset + sz;
+        if (pos + 8 > stream->writePos) {
             goto request_more;
         }
-        if (pos >= stream[6]) {
-            tag = ReadF32LE((u8*)stream[0]);
+        if (pos >= stream->bufferSize) {
+            tag = ReadF32LE(stream->buffer);
         } else {
-            tag = ReadF32LE((u8*)stream[0] + pos);
+            tag = ReadF32LE(stream->buffer + pos);
         }
         switch (tag) {
         case 0x62643030:
@@ -2224,55 +2222,55 @@ void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
         case 0x62773130:
             break;
         default:
-            stream[13] = stream[12];
+            stream->videoFrameCount = stream->videoFrameLimit;
             return;
         }
 
-        pos = node[1] + 4;
-        if (pos + node[2] >= stream[6]) {
-            chunkSize = ReadF32LE((u8*)stream[0]);
+        pos = node->totalSize + 4;
+        if (pos + node->dataOffset >= stream->bufferSize) {
+            chunkSize = ReadF32LE(stream->buffer);
         } else {
-            chunkSize = ReadF32LE((u8*)stream[0] + (node[2] + node[1]) + 4);
+            chunkSize = ReadF32LE(stream->buffer + (node->dataOffset + node->totalSize) + 4);
         }
-        *node = stream[22];
-        stream[22] = *(u32*)stream[22];
-        next = (u32*)*node;
-        next[0] = 0;
-        next[2] = chunkEnd;
+        node->next = stream->freeListHead;
+        stream->freeListHead = stream->freeListHead->next;
+        next = node->next;
+        next->next = NULL;
+        next->dataOffset = chunkEnd;
         chunkSize += chunkSize & 1;
-        next[1] = chunkSize + 8;
-        next[8] = 0;
-        next[9] = 0;
-        next[6] = 0;
-        next[4] = 0;
-        next[5] = 0;
+        next->totalSize = chunkSize + 8;
+        next->videoData = NULL;
+        next->audioData = NULL;
+        next->junkSize = 0;
+        next->videoSize = 0;
+        next->audioSize = 0;
     }
 
 request_more:
     length = (length + 0x7ff) & 0xfffff800;
-    if (stream[4] >= stream[5]) {
-        if (stream[5] != 0) {
-            available = stream[6] - stream[4];
+    if (stream->writePos >= stream->highWater) {
+        if (stream->highWater != 0) {
+            available = stream->bufferSize - stream->writePos;
         } else {
-            available = (stream[6] - stream[4]) - 0x800;
+            available = (stream->bufferSize - stream->writePos) - 0x800;
         }
     } else {
-        available = (stream[5] - stream[4]) - 0x800;
+        available = (stream->highWater - stream->writePos) - 0x800;
     }
     if ((s32)available < (s32)length) {
         length = available;
     }
-    if ((s32)(stream[11] - stream[10]) < (s32)length) {
-        length = stream[11] - stream[10];
+    if ((s32)(stream->fileSize - stream->filePos) < (s32)length) {
+        length = stream->fileSize - stream->filePos;
     }
     if ((s32)length < 0) {
         length = 0;
     }
     length &= 0xfffff800;
     len = length;
-    if (len > 0 && stream[13] < stream[12]) {
-        sceRead(fd, (void*)stream[2], len);
-        stream[7] = length;
+    if (len > 0 && stream->videoFrameCount < stream->videoFrameLimit) {
+        sceRead(fd, (void*)stream->stagingBuffer, len);
+        stream->pendingLength = length;
     }
 }
 
