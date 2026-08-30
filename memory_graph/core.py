@@ -1734,6 +1734,93 @@ def xbox_symbol_context(
     }
 
 
+_LOCAL_OFFSET_COMMENT_RE = re.compile(r"/\*\s*(0[xX][0-9A-Fa-f]+)")
+
+
+def _local_header_structs(
+    root: Path, query: str, off_val: int | None
+) -> list[dict[str, Any]]:
+    """GC-verified project headers are the FIRST authority for struct names.
+
+    Scans include/ for a struct/typedef block matching ``query`` exactly
+    (case-insensitive) and parses the project's `/* 0xNN */` offset-comment
+    convention; with an offset, reports the covering field line. This is
+    what resolves `struct Player --offset 0x956` to include/game/player.h
+    instead of an unrelated PDB substring match.
+    """
+    include = root / "include"
+    results: list[dict[str, Any]] = []
+    if not include.exists():
+        return results
+    name = re.escape(query)
+    open_re = re.compile(rf"(?:struct|union)\s+{name}\s*\{{", re.I)
+    close_re = re.compile(rf"\}}\s*{name}\s*;", re.I)
+    for path in sorted(include.rglob("*.h")):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if not re.search(rf"\b{name}\b", text, re.I):
+            continue
+        block_start = block_end = None
+        open_match = open_re.search(text)
+        if open_match:
+            depth = 0
+            for index in range(open_match.end() - 1, len(text)):
+                if text[index] == "{":
+                    depth += 1
+                elif text[index] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        block_start, block_end = open_match.start(), index
+                        break
+        else:
+            close_match = close_re.search(text)
+            if close_match:
+                depth = 0
+                for index in range(close_match.start(), -1, -1):
+                    if text[index] == "}":
+                        depth += 1
+                    elif text[index] == "{":
+                        depth -= 1
+                        if depth == 0:
+                            block_start, block_end = index, close_match.start()
+                            break
+        if block_start is None:
+            continue
+        entry: dict[str, Any] = {
+            "file": str(path.relative_to(root)).replace("\\", "/"),
+            "line": text.count("\n", 0, block_start) + 1,
+            "authority": "GC project header (primary — PDB is reference only)",
+        }
+        if off_val is not None:
+            best_line = None
+            best_off = -1
+            block = text[block_start:block_end]
+            base_line = text.count("\n", 0, block_start)
+            for line_index, line in enumerate(block.splitlines()):
+                comment = _LOCAL_OFFSET_COMMENT_RE.search(line)
+                if not comment:
+                    continue
+                field_off = int(comment.group(1), 16)
+                if best_off < field_off <= off_val:
+                    best_off = field_off
+                    best_line = (base_line + line_index + 1, line.strip())
+            if best_line:
+                entry["covering_field"] = {
+                    "line": best_line[0],
+                    "text": best_line[1][:160],
+                    "field_offset": hex(best_off),
+                    "delta_into_field": hex(off_val - best_off),
+                }
+            else:
+                entry["covering_field"] = None
+        results.append(entry)
+        if len(results) >= 3:
+            break
+    return results
+
+
 def xbox_struct_layout(
     query: str,
     *,
@@ -1746,7 +1833,9 @@ def xbox_struct_layout(
 
     Answers the two questions that keep raw-offset casts out of reconstructed
     source: "which field sits at +0xNN of this struct?" and "exactly how many
-    bytes of padding fill the hole between two known fields?".
+    bytes of padding fill the hole between two known fields?". Project-local
+    headers under include/ are checked FIRST and reported as the primary
+    authority; the Xbox PDB layout follows as cross-platform reference.
     """
     ensure_database(root, db_path)
     off_val: int | None = None
@@ -1851,13 +1940,17 @@ def xbox_struct_layout(
                     "result": hit or "outside recorded layout",
                 }
             types.append(entry)
-    if not types:
+    local_headers = _local_header_structs(root, query, off_val)
+    if local_headers:
+        hint = ("a GC project header defines this struct — that is the"
+                " authority; the PDB entries below are reference only")
+    elif not types:
         hint = (
             "no PDB struct matched this name — PDB lookup needs the Xbox"
-            " type name, which often differs from the GC symbol; try"
-            " `search \"<global-or-base-name>\"` for project-local authority"
-            " (headers, sibling-TU attempt records) before leaving sites raw"
-            " or inventing a name"
+            " type name, which often differs from the GC symbol; grep"
+            " research/xbox_symbols/misc.h for the struct NAME (the tsv"
+            " index is incomplete) and try `search \"<name>\"` for"
+            " project-local authority before leaving sites raw"
         )
     elif not any(entry["match_kind"] == "exact" for entry in types):
         hint = (
@@ -1872,6 +1965,7 @@ def xbox_struct_layout(
     return {
         "query": query,
         "offset": hex(off_val) if off_val is not None else None,
+        "local_headers": local_headers,
         "types": types,
         "hint": hint,
         "authority_note": (
@@ -2799,13 +2893,35 @@ def _strip_c_comments(text: str) -> str:
     )
 
 
-def _cast_site_is_named(text: str, start: int) -> bool:
-    """True when the cast's displacement is already offsetof/sizeof-named."""
+_OFFSETOF_MACRO_RE = re.compile(
+    r"^\s*#\s*define\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^)]*\).*?"
+    r"\b(?:offsetof|sizeof)\b", re.M)
+_FN_START_RE = re.compile(
+    r"^(?:static\s+)?\w[\w\s\*]*?\b(\w+)\s*\([^;{]*?\)\s*\{", re.M)
+
+
+def _cast_site_is_named(text: str, start: int,
+                        named_macros: frozenset[str] = frozenset()) -> bool:
+    """True when the cast's displacement is already offsetof/sizeof-named,
+    including via a file-local macro whose #define body contains offsetof
+    (world.c's IOFF() pattern once inflated the bare count by ~25)."""
     window = text[start:start + 240]
     stop = window.find(";")
     if stop != -1:
         window = window[:stop]
-    return "offsetof" in window or "sizeof" in window
+    if "offsetof" in window or "sizeof" in window:
+        return True
+    return any(macro + "(" in window for macro in named_macros)
+
+
+def _enclosing_function(marks: list[tuple[int, str]], position: int) -> str:
+    owner = "<file-scope>"
+    for mark_pos, name in marks:
+        if mark_pos <= position:
+            owner = name
+        else:
+            break
+    return owner
 
 
 def fakematch_debt(
@@ -2841,15 +2957,19 @@ def fakematch_debt(
                 path.read_text(encoding="utf-8", errors="replace"))
         except OSError:
             continue
+        named_macros = frozenset(_OFFSETOF_MACRO_RE.findall(text))
+        marks = ([(m.start(), m.group(1)) for m in _FN_START_RE.finditer(text)]
+                 if show_lines and tu else [])
         bare = named = 0
         for match in _DEBT_CAST_RE.finditer(text):
-            if _cast_site_is_named(text, match.start()):
+            if _cast_site_is_named(text, match.start(), named_macros):
                 named += 1
             else:
                 bare += 1
                 if show_lines and tu:
                     line = text.count("\n", 0, match.start()) + 1
-                    sites.append(f"{relative}:{line}")
+                    owner = _enclosing_function(marks, match.start())
+                    sites.append(f"{relative}:{line} ({owner})")
         pf_sites = len(_DEBT_PF_RE.findall(text))
         if bare or named or pf_sites:
             rows.append(
@@ -2874,7 +2994,9 @@ def fakematch_debt(
         ),
     }
     if show_lines and tu:
-        result["bare_site_lines"] = sites[:400]
+        result["bare_site_lines"] = sites[:1500]
+        if len(sites) > 1500:
+            result["bare_site_lines_truncated"] = len(sites) - 1500
     return result
 
 

@@ -10,8 +10,13 @@ diverge from a TU's actual cflags).
 
 Usage:
   python tools/gdl/defake_gate.py baseline game/enemy/enemy.c
-  python tools/gdl/defake_gate.py check game/enemy/enemy.c
+  python tools/gdl/defake_gate.py check game/enemy/enemy.c --rebuild
   python tools/gdl/defake_gate.py check game/enemy/enemy.c --update-improved
+
+--rebuild runs the unit's ninja object target first, so rebuild+gate is one
+call and a stale object can never be gated. On any REGRESSION the check
+automatically prints each regressing function's fndiff --ops summary so the
+diagnosis doesn't need a separate command.
 
 `baseline` writes build/GUNE5D/gate/<unit>.json. `check` exits 1 on any
 regression and lists it; improvements are reported (and, with
@@ -142,11 +147,22 @@ def normalize_unit(unit):
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     update_improved = "--update-improved" in sys.argv
+    rebuild = "--rebuild" in sys.argv or "--build" in sys.argv
     if len(args) != 2 or args[0] not in ("baseline", "check"):
         print(__doc__)
         return 2
     mode, unit = args
     unit = normalize_unit(unit)
+    if rebuild:
+        obj = re.sub(r"\.(c|cpp)$", "", unit)
+        build = subprocess.run(
+            ["ninja", f"build/{VERSION}/src/{obj}.o"],
+            capture_output=True, text=True,
+        )
+        if build.returncode != 0:
+            print("BUILD FAILED (gate not run):")
+            print((build.stdout + build.stderr).strip()[-1500:])
+            return 1
     snap = snapshot(run_fndiff(unit, "--classify"), run_fndiff(unit, "--count"))
     path = gate_path(unit)
     if mode == "baseline":
@@ -166,6 +182,17 @@ def main():
     if regressions:
         print(f"GATE FAILED: {len(regressions)} regression(s) — revert or fix"
               " before committing")
+        bare_unit = re.sub(r"\.(c|cpp)$", "", unit)
+        for name, _verdict, detail in regressions[:4]:
+            if "vanished" in detail:
+                continue
+            print(f"---- fndiff --ops {name} ----")
+            ops = subprocess.run(
+                [sys.executable, str(FNDIFF), bare_unit, name,
+                 "--ops", "--no-build"],
+                capture_output=True, text=True,
+            ).stdout
+            print("\n".join(ops.strip().splitlines()[:14]))
         return 1
     improved = [v for v in verdicts if v[1] == "IMPROVED"]
     if improved and update_improved:

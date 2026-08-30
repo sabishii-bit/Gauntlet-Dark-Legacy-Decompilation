@@ -47,6 +47,10 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
     parser.add_argument("--root", type=Path, default=REPO_ROOT, help="repository root")
     parser.add_argument("--db", type=Path, help="override generated SQLite path")
     parser.add_argument("--compact", action="store_true", help="emit compact JSON")
+    parser.add_argument("--out", type=Path, default=None,
+                        help="write result JSON to this file (UTF-8, no BOM)"
+                             " instead of stdout — immune to PowerShell pipe"
+                             " re-encoding and Bash/Windows path mismatches")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     build = subparsers.add_parser("build", help="atomically rebuild the SQLite graph")
@@ -174,6 +178,14 @@ def main(argv: list[str] | None = None) -> int:
     except (MemoryGraphError, OSError, ValueError, json.JSONDecodeError) as error:
         print(f"gdlmem: error: {error}", file=sys.stderr)
         return 1
+    if args.out is not None:
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(
+            json.dumps(result, indent=2, sort_keys=True, default=str),
+            encoding="utf-8",
+        )
+        print(f"wrote {args.out}")
+        return 0
     _print(result, args.compact)
     return 0
 

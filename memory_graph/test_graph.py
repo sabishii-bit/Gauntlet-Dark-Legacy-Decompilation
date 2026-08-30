@@ -286,15 +286,30 @@ class GraphSurfaceTests(unittest.TestCase):
         src = cls.root / "src" / "game" / "test" / "foo.c"
         src.parent.mkdir(parents=True)
         src.write_text(
+            "#define IOFF(f) (offsetof(TestFoo, f))\n"
             "void f(u8* p, u8* q, u8* r, void* x) {\n"
             "  *(s32*)(p + 4) = 1;\n"
             "  *(f32*)(q + 8) = 2.0f;\n"
             "  *(u8*)(r+1) = 3;\n"
             "  *(s16*)(p + offsetof(Player, gold)) = 6;  /* converted */\n"
+            "  *(s32*)(p + IOFF(bar)) = 7;  /* macro-named, not bare */\n"
             "  /* commented out: *(s32*)(p + 12) = 9; */\n"
             "  PF(p, 0x10, s32) = 4;\n"
             "  PF(x,1,u8) = 5;\n"
+            "}\n"
+            "void g(u8* p) {\n"
+            "  *(s32*)(p + 20) = 8;\n"
             "}\n",
+            encoding="utf-8",
+        )
+        header = cls.root / "include" / "game" / "testfoo.h"
+        header.parent.mkdir(parents=True)
+        header.write_text(
+            "typedef struct TestFoo {\n"
+            "    s32   alpha;          /* 0x00 */\n"
+            "    f32   beta[3];        /* 0x04 */\n"
+            "    s16   gamma;          /* 0x10 */\n"
+            "} TestFoo;               /* size 0x14 */\n",
             encoding="utf-8",
         )
         # objdiff report for the stale op
@@ -347,17 +362,31 @@ class GraphSurfaceTests(unittest.TestCase):
         self.assertEqual(result["tu_count"], 1)
         row = result["tus"][0]
         self.assertEqual(row["tu"], "src/game/test/foo.c")
-        # 3 bare + 1 offsetof-named; the commented-out cast is NOT counted
-        self.assertEqual(row["bare_sites"], 3)
-        self.assertEqual(row["named_sites"], 1)
-        self.assertEqual(row["cast_sites"], 4)
+        # 4 bare + 2 named (explicit offsetof AND the IOFF macro whose
+        # #define body contains offsetof); commented-out cast not counted
+        self.assertEqual(row["bare_sites"], 4)
+        self.assertEqual(row["named_sites"], 2)
+        self.assertEqual(row["cast_sites"], 6)
         self.assertEqual(row["pf_sites"], 2)
-        self.assertEqual(result["bare_total"], 3)
+        self.assertEqual(result["bare_total"], 4)
         self.assertEqual(fakematch_debt("nomatch", root=self.root)["tu_count"], 0)
         lined = fakematch_debt("game/test/foo", root=self.root, show_lines=1)
-        self.assertEqual(len(lined["bare_site_lines"]), 3)
-        self.assertTrue(all(entry.startswith("src/game/test/foo.c:")
-                            for entry in lined["bare_site_lines"]))
+        self.assertEqual(len(lined["bare_site_lines"]), 4)
+        owners = [entry.rsplit("(", 1)[1].rstrip(")")
+                  for entry in lined["bare_site_lines"]]
+        self.assertEqual(owners, ["f", "f", "f", "g"])
+
+    def test_struct_local_header_authority(self):
+        from memory_graph.core import xbox_struct_layout
+        result = xbox_struct_layout("TestFoo", root=self.root, offset="0x8")
+        self.assertEqual(len(result["local_headers"]), 1)
+        local = result["local_headers"][0]
+        self.assertEqual(local["file"], "include/game/testfoo.h")
+        covering = local["covering_field"]
+        self.assertEqual(covering["field_offset"], "0x4")  # beta[3] @ 0x04
+        self.assertIn("beta", covering["text"])
+        self.assertEqual(covering["delta_into_field"], "0x4")
+        self.assertIn("GC project header", result["hint"] or local["authority"])
 
     def test_record_lookup_batch(self):
         single = record_lookup("claim.law.test-law.v2", root=self.root)
@@ -471,8 +500,8 @@ class GraphSurfaceTests(unittest.TestCase):
             [row["id"] for row in brief["core_screen_laws"]],
             ["claim.law.test-law.v2"],
         )
-        self.assertEqual(brief["raw_offset_debt"][0]["total"], 6)
-        self.assertEqual(brief["raw_offset_debt"][0]["bare_sites"], 3)
+        self.assertEqual(brief["raw_offset_debt"][0]["total"], 8)
+        self.assertEqual(brief["raw_offset_debt"][0]["bare_sites"], 4)
         with self.assertRaisesRegex(MemoryGraphError, "no GameCube module"):
             tu_briefing("does/not/exist", root=self.root)
 
@@ -624,6 +653,22 @@ class DefakeGateTests(unittest.TestCase):
         verdicts = {name: verdict for name, verdict, _ in
                     self.gate.compare(baseline, current)}
         self.assertEqual(verdicts["fn_b"], "REGRESSION")
+
+    def test_defake_rewrite_patterns(self):
+        rewrite_path = (Path(__file__).resolve().parent.parent
+                        / "tools" / "gdl" / "defake_rewrite.py")
+        spec = importlib.util.spec_from_file_location("defake_rewrite",
+                                                      rewrite_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        pattern = module.build_pattern("c->hdr")
+        m1 = pattern.search("x = *(s32*)((u8*)c->hdr + 0x124);")
+        self.assertIsNotNone(m1)
+        self.assertEqual(int(m1.group("off"), 0), 0x124)
+        m2 = pattern.search("y = *(f32 *)(c->hdr + 92);")
+        self.assertIsNotNone(m2)
+        self.assertEqual(int(m2.group("off"), 0), 92)
+        self.assertIsNone(pattern.search("z = *(s32*)((u8*)other + 4);"))
 
     def test_normalize_unit_strips_src_prefix(self):
         self.assertEqual(self.gate.normalize_unit("src/game/mb/mb_font.c"),

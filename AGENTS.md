@@ -246,10 +246,20 @@ as matching work:
 
 1. **Scope by name authority.** Convert only accesses resolvable through a
    GC-verified struct (the `include/game/` headers, and
-   `gdlmem.py struct <T> --offset 0xNN` for the covering field). Never
-   adopt an Xbox PDB name whose offset is not GC-verified: leave the
-   access raw, or introduce a file-local view struct with the verifying
-   target-asm evidence noted. Never invent names.
+   `gdlmem.py struct <T> --offset 0xNN` — it now reports project headers
+   FIRST as `local_headers`, then PDB reference). Never adopt an Xbox PDB
+   name whose offset is not GC-verified: leave the access raw, or
+   introduce a file-local view struct with the verifying target-asm
+   evidence noted. Never invent names. Three proven authority moves in
+   priority order: (a) an opaque forward-declared struct with a known
+   size deserves a `struct <name>` PDB-body lookup BEFORE per-site work —
+   completing the body converts whole loops at once; (b) after a `struct`
+   miss, grep `research/xbox_symbols/misc.h` for the struct NAME (the tsv
+   index is incomplete — PBFRAMEBUF's full 0x200 layout was found this
+   way after the op missed); (c) before inventing ANY file-local view,
+   grep the TU for an existing `typedef struct`/`struct <Name>` of the
+   same purpose — critter.c accumulated two CONFLICTING partial
+   reconstructions of one struct because nobody checked.
 2. **Gate every region.** Take the fndiff baseline first. For a matched
    function the conversion must stay byte-identical
    (`fndiff --clean` = MATCH, real 0) or be reverted. For a fuzzy function
@@ -311,9 +321,11 @@ Core tools, from the repository root:
 ```text
 python configure.py
 ninja build/GUNE5D/<object-path>.o
-python tools/gdl/fnasm.py <unit> <fn> [0xA:0xB | i:j] [--ours]
+python tools/gdl/probe.py <unit> <fn> [--ops]  # MATCHING loop: build+score+verdict, one call
+python tools/gdl/defake_gate.py check <unit> --rebuild  # DEFAKE loop: build+gate, one call
+python tools/gdl/fnasm.py <unit> <fn> [0xA:0xB | i:j] [--ours | --diff]
 python tools/gdl/fndiff.py <unit> <function> --count | --ops | --clean
-python tools/gdl/defake_gate.py baseline|check <unit>
+python tools/gdl/defake_rewrite.py <file> --base X --type T --map off=field,...
 python tools/gdl/fuzzy.py <unit> [<fn>]        # fuzzy from last report, no regen
 python tools/gdl/xrefnum.py <const...> [--cast-only]  # who else uses this offset
 python tools/gdl/externcheck.py                # cross-TU extern type conflicts
@@ -321,6 +333,19 @@ python tools/gdl/matchtool.py probe <unit> --brief
 python tools/gdl/lowmatch.py --max 50 --min-size 200 --sort impact
 python configure.py progress
 ```
+
+Loop discipline: the edit loop is ONE command now — `probe.py` (matching:
+prints BASELINE/IMPROVED/REGRESSED/NEUTRAL against a remembered best) or
+`defake_gate.py check --rebuild` (defake: builds first, prints each
+regressing fn's --ops summary inline). Never hand-pair ninja+fndiff or
+ninja+gate again. To read a residual: take `--ops`'s `@0xA-0xB` offsets
+straight into `fnasm.py <unit> <fn> 0xA:0xB --diff` — the aligned view;
+NEVER eyeball target and ours at the same absolute offset (instruction
+drift makes that silently wrong). A `--ops` multiset DIFFERS line means
+structure is hiding even if it "looks like regalloc noise" — and when a
+small function's real improves while fuzzy dips, read the --ops diff and
+apply claim.law.fuzzy-can-underweight-a-real-improvement: the finer
+metric wins once the diff is read.
 
 Reading `--ops`: each cluster carries `@0xA-0xB` function-relative byte
 offsets — paste them straight into `fnasm.py <unit> <fn> 0xA:0xB` (target)
@@ -331,9 +356,14 @@ like regalloc noise" — chase the named +/- opcodes before any register
 theory (a cross-TU extern type conflict announced itself exactly this way:
 fctiwz/stfd in one stream only).
 
-Shell note: in worktrees run git through PowerShell only (the Bash tool's
-`python3` alias is also unreliable — use `python`, from a script file for
-anything multi-line).
+Shell note: in worktrees run git through PowerShell only. The Bash tool
+CANNOT run multi-line inline code of ANY kind on this platform (a cmd-shim
+injects `goto :error` artifacts into `python -c`/here-docs — every fleet
+worker rediscovers this): write a script file to the scratchpad and run
+`python <file>`. Global gdlmem flags (`--out`, `--compact`) go BEFORE the
+subcommand; use `--out <windows-path>` for any large JSON result instead
+of shell pipes/redirects (PowerShell pipes re-encode with a BOM, and
+Bash-side `/tmp` paths are invisible to Windows python).
 
 First-build note (fresh worktree): `configure.py` alone emits a BOOTSTRAP
 build.ninja (tool download + DOL split only, no object graph) — that is
