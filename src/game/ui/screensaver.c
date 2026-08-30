@@ -41,6 +41,8 @@
  */
 
 #include "types.h"
+#include "game/mbobject.h"
+#include "game/player.h"
 
 /* ---- text / message-box library (other TUs) ---- */
 int FixMLineText(char* src, char* dst, void* lines);
@@ -52,18 +54,18 @@ void msgUpdate();
 void sndTestStopAll(void);
 
 /* ---- MB blit library (other TUs) ---- */
-void* MBNewBlit(void* tex, int a, int b);
+MBBlit* MBNewBlit(void* tex, int a, int b);
 void* MBNewTempQuad(void);
-void* MBNewTempBlit(void* tex, int x, int y, int w, int h);
+MBBlit* MBNewTempBlit(void* tex, int x, int y, int w, int h);
 void MBEndFrame(void);
-void* MBRemoveBlit(void* blit);   /* returns NULL (clears the handle) */
-void mbBlitProject(void* blit, int w, int h);
-void mbBlitCalcWidth(void* blit, int x, int y, f64 depth);
-void MBBlitSetAlpha(void* blit, u32 alpha);
-void mbInitBlitEntry(void* blit, u32 pos, int a);   /* 0x800B2988 */
-void* MBCreateBlit(void* node, s32 tex, s32 x, s32 y, s32 w, s32 h);
-void mbBlitCvtCoord(void* blit, f32 depth);
-void mbBlitUpdateEntry(void* blit, u32 keepMask, u32 setBits);
+MBBlit* MBRemoveBlit(MBBlit* blit); /* returns NULL (clears the handle) */
+void mbBlitProject(MBBlit* blit, int w, int h);
+void mbBlitCalcWidth(MBBlit* blit, int x, int y, f64 depth);
+void MBBlitSetAlpha(MBBlit* blit, u32 alpha);
+void mbInitBlitEntry(MBBlit* blit, u32 pos, int a); /* 0x800B2988 */
+MBBlit* MBCreateBlit(void* node, s32 tex, s32 x, s32 y, s32 w, s32 h);
+void mbBlitCvtCoord(MBBlit* blit, f32 depth);
+void mbBlitUpdateEntry(MBBlit* blit, u32 keepMask, u32 setBits);
 s32 MBOX_FindTexture(const char* name, s32* out);
 
 /* ---- misc engine helpers (other TUs) ---- */
@@ -110,9 +112,9 @@ extern int lbl_80344A48;        /* screensaver idle timer */
 extern int gGameMode;        /* game-mode flag */
 
 /* ---- screen-transition blit handles + wipe state (green-circle wipe) ---- */
-extern void* gFireScrollImageBlit;
-extern void* gFireScrollMaskBlits[2];
-extern void* gFireScrollCircleBlits[2]; /* first handle is the active flag */
+extern MBBlit* gFireScrollImageBlit;
+extern MBBlit* gFireScrollMaskBlits[2];
+extern MBBlit* gFireScrollCircleBlits[2]; /* first handle is the active flag */
 extern int gFireScrollCircleFrame;
 extern int gFireScrollMaskFrame;
 extern int gFireScrollTicks;
@@ -312,6 +314,21 @@ extern void* sPowerupsBuf;             /* atree wad */
 extern f32 lbl_80347398;               /* initial weapon spin */
 int RandInt(int range);                 /* 0x800BCCA8 */
 
+typedef struct ScreenSaverWeapon {
+    u8 _pad00[0x20];
+    f32 position[4];
+    f32 velocity[4];
+    f32 angle;
+    s32 collisionState;
+    s32 elapsed;
+    s32 duration;
+    s32 resetAt;
+    f32 jitterX;
+    f32 jitterY;
+    void* node;
+    u8 atree[0x28];
+} ScreenSaverWeapon;
+
 /* Set up one screensaver weapon: scene node + weapon object parented to it,
  * then seed its position/velocity from the per-weapon init table. */
 #pragma opt_propagation off
@@ -349,18 +366,23 @@ void ScreenSaverStartWeap(int idx)
         }
     }
     atree = initTable + idx * 0x0c;
-    *(f32*)(position + 0x00) = *(f32*)((u8*)atree + 0x754);
+    *(f32*)position = *(f32*)((u8*)atree + 0x754);
     {
         u8* copyDest = weaponTable + offset;
 
-        *(f32*)(copyDest + 0x24) = *(f32*)((u8*)atree + 0x758);
-        *(f32*)(copyDest + 0x28) = *(f32*)((u8*)atree + 0x75c);
-        *(f32*)(copyDest + 0x30) = *(f32*)((u8*)atree + 0x784);
-        *(f32*)(copyDest + 0x34) = *(f32*)((u8*)atree + 0x788);
-        *(f32*)(copyDest + 0x38) = *(f32*)((u8*)atree + 0x78c);
+        ((ScreenSaverWeapon*)copyDest)->position[1] =
+            *(f32*)((u8*)atree + 0x758);
+        ((ScreenSaverWeapon*)copyDest)->position[2] =
+            *(f32*)((u8*)atree + 0x75c);
+        ((ScreenSaverWeapon*)copyDest)->velocity[0] =
+            *(f32*)((u8*)atree + 0x784);
+        ((ScreenSaverWeapon*)copyDest)->velocity[1] =
+            *(f32*)((u8*)atree + 0x788);
+        ((ScreenSaverWeapon*)copyDest)->velocity[2] =
+            *(f32*)((u8*)atree + 0x78c);
         spin = lbl_80347398;
-        *(f32*)(copyDest + 0x2c) = spin;
-        *(f32*)(copyDest + 0x3c) = spin;
+        ((ScreenSaverWeapon*)copyDest)->position[3] = spin;
+        ((ScreenSaverWeapon*)copyDest)->velocity[3] = spin;
     }
 }
 #pragma opt_common_subs reset
@@ -370,7 +392,7 @@ void ScreenSaverStart(void)
 {
     u8* weaponPositions;
     u8* initialPositions;
-    u8* node;
+    MBObject* node;
     s32 i;
     s32 randomDelay;
     f64 timeScale;
@@ -382,10 +404,11 @@ void ScreenSaverStart(void)
     lbl_80344A60 = options_state;
     options_state = 100;
 
-    for (node = (u8*)lbl_80344ECC; node != NULL;
-         node = *(u8**)(node + 0x7c)) {
-        if (*(s8*)(node + 0x52) != 7 && *(s8*)(node + 0x52) != 9 &&
-            node != (u8*)lbl_80344EDC) {
+    for (node = (MBObject*)lbl_80344ECC; node != NULL;
+         node = node->next) {
+        if (node->type != MB_SORT_OBJECTS_NODE &&
+            node->type != MB_PSYS_DRAW_NODE &&
+            node != (MBObject*)lbl_80344EDC) {
             MBTreeSetFlags((s32)node, 2, 0);
         }
     }
@@ -419,23 +442,6 @@ void ScreenSaverStart(void)
         *(s32*)(weaponPositions + i * 0x88 + 0x2c) = randomDelay + 1;
     }
 }
-
-typedef struct ScreenSaverWeapon {
-    u8 _pad00[0x20];
-    f32 position[3];
-    f32 _pad2C;
-    f32 velocity[3];
-    f32 _pad3C;
-    f32 angle;
-    s32 collisionState;
-    s32 elapsed;
-    s32 duration;
-    s32 resetAt;
-    f32 jitterX;
-    f32 jitterY;
-    void* node;
-    u8 atree[0x28];
-} ScreenSaverWeapon;
 
 void ScreenSaverUpdateWeap(s32 idx)
 {
@@ -607,7 +613,7 @@ void ScreenSaverEnd(void)
 {
     u8* base;
     s32 off;
-    u8* node;
+    MBObject* node;
     s32 i;
 
     base = lbl_80274620;
@@ -618,7 +624,7 @@ void ScreenSaverEnd(void)
             MBRemoveNode(*(s32*)(base + 0x3c + off), 1);
     }
     MBRemoveNode(lbl_80344A64, 1);
-    for (node = (u8*)lbl_80344ECC; node != 0; node = *(u8**)(node + 0x7c)) {
+    for (node = (MBObject*)lbl_80344ECC; node != 0; node = node->next) {
         MBTreeClearFlags((s32)node, 2, 0);
     }
     ClearAllPlayerControls(-2);
@@ -757,7 +763,7 @@ int draw_inventory_panel(int player)
     } else {
         prog = (f32)*(s32*)(state + 16) / lbl_803473E8;
     }
-    if (*(s32*)(pl + 232) == 0) {
+    if (((Player*)pl)->state == 0) {
         return 1;
     }
     poff48 = player * 48;
@@ -1373,7 +1379,7 @@ s32 StartFireScroll(char* name, s32 variant, s32 x, s32 y, s32 width,
 /* Tear down all screen-transition blits (green-circle wipe cleanup). */
 void EndFireScroll(void)
 {
-    void** handle;
+    MBBlit** handle;
 
     if (gFireScrollImageBlit) { gFireScrollImageBlit = MBRemoveBlit(gFireScrollImageBlit); }
     if (gFireScrollMaskBlits[0]) { gFireScrollMaskBlits[0] = MBRemoveBlit(gFireScrollMaskBlits[0]); }

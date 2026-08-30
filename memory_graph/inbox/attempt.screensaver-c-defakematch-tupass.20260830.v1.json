@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "TU-scoped de-fakematch pass over src/game/ui/screensaver.c: replace GC-verified MBObject, Player, screensaver-weapon, and MBBlit raw/opaque accesses with existing typed members while preserving the compiled object byte-for-byte",
+  "attributes": {
+    "anchors": "src/game/ui/screensaver.c; build/GUNE5D/src/game/ui/screensaver.o SHA-256 E40E3ADEF6EAE5710BE7D570DA1B8514D6FD0E578D3C83A5BE7CA220622BC6DC; reproducible with ninja build/GUNE5D/src/game/ui/screensaver.o and tools/gdl/fndiff.py game/ui/screensaver <fn> --clean",
+    "axis_log": "ScreenSaverStartWeap typed f32* position form FAILED (6 structural real lines: address web changed add/addi order); retained original u8* position web and converted only independent destination members, restoring exact. draw_inventory_panel direct PlayerCharSave completion1 form FAILED (real 547->549, add/lha became addi/lhzx); restored it. ControllerMessageBox and ScreenSaverUpdateWeap were VETO due accepted caps, untouched.",
+    "baseline_and_best": "Whole TU report baseline/best 95.099556% fuzzy, 35.929344% matched, 14/22 matched functions. ScreenSaverStartWeap 61/61 fuzzy 100% real 0 frame 40; ScreenSaverStart 106/106 fuzzy 100% real 0 frame 88; ScreenSaverEnd 51/51 fuzzy 100% real 0 frame 24. draw_inventory_panel stays 413/408 real 547 frame target/current 200/256. Full object SHA-256 is identical to main baseline.",
+    "converted": "12 raw dereference expressions: ScreenSaverStart/End MBObject next/type traversal (4); ScreenSaverStartWeap position[1..3] and velocity[0..3] writes (7) using the existing 0x88 ScreenSaverWeapon view; draw_inventory_panel Player.state (1). Also typed the TU-local MB blit API declarations, fire-scroll handles, and EndFireScroll cursor as MBBlit pointers. No semantic/control-flow change.",
+    "residual": "Unresolved raw sites remain for unidentified init/config tables, PB window gaps, MBRomTexPtr metadata, panel-piece records, Player padding fields, and address-sensitive weapon/panel webs. ScreenSaverUpdateWeap REGISTER_ONLY/SCHEDULE and ControllerMessageBox STRUCTURAL caps remain binding; no capped axes were retried.",
+    "verification": "Owning object builds; compiled screensaver.o hashes byte-identically to the main baseline; all 14 report-exact functions preserved (13 fndiff real 0, ServeFireScroll retains only its baseline four symbol-normalization relocation lines); draw_inventory_panel unchanged at 413/408 real 547; full ninja/main.dol checksum gate; git diff --check; portable-C/prohibited-assembly scan."
+  },
+  "function": "function:ScreenSaverStartWeap",
+  "id": "attempt.screensaver-c-defakematch-tupass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
