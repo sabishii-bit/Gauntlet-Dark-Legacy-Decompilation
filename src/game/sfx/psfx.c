@@ -862,7 +862,7 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
 
     if ((flags & 0x80) != 0) {
         SfxSetMat(effect, ((Player*)player)->mat,
-                  (f32*)(((Player*)player)->node + 0x30));
+                  (f32*)((u8*)((Player*)player)->node + 0x30));
     } else if ((flags & 0x40) != 0) {
         if ((flags & 0x2000) != 0 && lbl_80344B40 != NULL) {
             player = lbl_80344B40;
@@ -878,11 +878,11 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
         if ((flags & 0x40000) != 0 && effectIndex >= 0) {
             parent = Effects[effectIndex].node;
         } else if ((flags & 0x800) != 0) {
-            parent = *(void**)(((Player*)player)->node + 0x74);
+            parent = *(void**)((u8*)((Player*)player)->node + 0x74);
         } else if ((flags & 1) != 0) {
             parent = ((Player*)player)->node;
         } else {
-            parent = *(void**)(((Player*)player)->node + 0x78);
+            parent = *(void**)((u8*)((Player*)player)->node + 0x78);
         }
         SfxSetParent(effect, parent);
     } else if ((flags & 0x40000) != 0 && effectIndex >= 0) {
