@@ -17,6 +17,7 @@
 #include "types.h"
 #include "game/effect.h"
 #include "game/player.h"
+#include "game/mbobject.h"
 
 extern u8* lbl_80282930[4];
 extern void ClearCustomEffect(s32 index);
@@ -32,6 +33,15 @@ typedef struct PsfxFileTable {
     u8    pad[0x60];
     void* files[16];
 } PsfxFileTable;
+/* player-data header (first chunk of the pdata wad) */
+typedef struct PsfxHeader {
+    /* 0x00 */ s16 count;    /* number of SfxRecords            */
+    /* 0x02 */ s16 _02;
+    /* 0x04 */ u8* records;  /* SfxRecord[count], 0x50 each     */
+    /* 0x08 */ u8* moves;    /* third chunk rows, 0x58 each     */
+    /* 0x0C */ u8 _0c[0x18];
+    /* 0x24 */ s32 resolved; /* handles resolved this level     */
+} PsfxHeader;
 extern PsfxPdataBuf lbl_802828B0;
 extern u8 lbl_8012006C[];
 extern void* lbl_80120E00[16];
@@ -150,10 +160,10 @@ ticks_active:
                 index = 0;
                 offset = 0;
                 while (index <= lastIndex) {
-                    slot = (void**)((u8*)player + offset + 0x808);
+                    slot = (void**)&player->trails[index];
                     if ((node = *slot) != NULL) {
-                        if ((*(u32*)((u8*)node + 0x60) & 0x200) != 0) {
-                            alpha = 255 - *(u8*)((u8*)node + 0x53);
+                        if ((((MBObject*)node)->flags & 0x200) != 0) {
+                            alpha = 255 - ((MBObject*)node)->alpha;
                         } else {
                             alpha = 0;
                         }
@@ -180,7 +190,7 @@ ticks_active:
 
                 offset = lastIndex * 4;
                 while (lastIndex >= 0 &&
-                       *(void**)((u8*)player + offset + 0x808) == NULL) {
+                       player->trails[lastIndex] == NULL) {
                     lastIndex--;
                     offset -= 4;
                 }
@@ -196,9 +206,9 @@ ticks_active:
                     if (minimumIndex <= lastIndex) {
                         node = player->trails[minimumIndex];
                         if (node != NULL) {
-                            dx = *(f32*)((u8*)node + 0x30) - matrix[12];
-                            dy = *(f32*)((u8*)node + 0x34) - matrix[13];
-                            dz = *(f32*)((u8*)node + 0x38) - matrix[14];
+                            dx = ((MBObject*)node)->mat[3][0] - matrix[12];
+                            dy = ((MBObject*)node)->mat[3][1] - matrix[13];
+                            dz = ((MBObject*)node)->mat[3][2] - matrix[14];
                             if ((f64)(dx * dx + dy * dy + dz * dz) < 0.01) {
                                 return;
                             }
@@ -207,7 +217,7 @@ ticks_active:
 
                     node = player->worldNode;
                     slot = (void**)((u8*)player + chosenIndex * 4);
-                    object = (*(u32*)((u8*)node + 0x6C) & 0xFFFF) |
+                    object = (((MBObject*)node)->index & 0xFFFF) |
                              (player->objectGroup << 16);
                     if (*(slot += 0x202) != NULL) {
                         MBRemoveNode(*slot, 1);
@@ -266,7 +276,7 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     if (idx < 0) {
         return;
     }
-    row = *(u8**)(lbl_80282930[*(s32*)p] + 8) + idx * 88;
+    row = *(u8**)(lbl_80282930[((Player*)p)->index] + 8) + idx * 88;
     sf = (f32)*(s16*)(row + 80);
     ef = (f32)*(s16*)(row + 82);
     if (t1 >= sf) {
@@ -276,27 +286,27 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                 fn_80067AE0(fl, lbl_80347DA4, lbl_80347DA8);
                 {
                     f32 v = lbl_80347DAC;
-                    *(f32*)(p + 2044) = v;
+                    ((Player*)p)->pulse_7FC = v;
                     if (p2 != NULL) {
-                        *(f32*)(p2 + 2044) = v;
+                        ((Player*)p2)->pulse_7FC = v;
                     }
                 }
             } else if (fl & 0x20) {
                 fn_80067AE0(fl, lbl_80347DA4, lbl_80347DB0);
                 {
                     f32 v = lbl_80347DAC;
-                    *(f32*)(p + 2044) = v;
+                    ((Player*)p)->pulse_7FC = v;
                     if (p2 != NULL) {
-                        *(f32*)(p2 + 2044) = v;
+                        ((Player*)p2)->pulse_7FC = v;
                     }
                 }
             } else if (fl & 0x10) {
                 fn_80067AE0(fl, lbl_80347DA4, lbl_80347DB4);
                 {
                     f32 v = lbl_80347DAC;
-                    *(f32*)(p + 2044) = v;
+                    ((Player*)p)->pulse_7FC = v;
                     if (p2 != NULL) {
-                        *(f32*)(p2 + 2044) = v;
+                        ((Player*)p2)->pulse_7FC = v;
                     }
                 }
             }
@@ -310,17 +320,17 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     {
         f32 one = lbl_80347DB8;
         if (t0 < one && t1 >= one && *(s16*)(row + 84) >= 0) {
-            msgPost(*(s16*)(row + 84), *(s32*)p, p + 84);
+            msgPost(*(s16*)(row + 84), ((Player*)p)->index, ((Player*)p)->col_pos);
         }
     }
     if (*(s16*)(row + 2) & 0x400) {
         if (t1 >= sf && t1 < ef) {
-            if (*(void**)(p + 1760) != NULL) {
-                MBTreeSetFlags(*(void**)(p + 1760), 2, 0);
+            if (((Player*)p)->weaphold_node != NULL) {
+                MBTreeSetFlags(((Player*)p)->weaphold_node, 2, 0);
             }
         } else {
-            if (*(void**)(p + 1760) != NULL) {
-                MBTreeClearFlags(*(void**)(p + 1760), 2, 0);
+            if (((Player*)p)->weaphold_node != NULL) {
+                MBTreeClearFlags(((Player*)p)->weaphold_node, 2, 0);
             }
         }
     }
@@ -330,8 +340,8 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     if (t1 >= sf && t0 < ef) {
         f32 zero = lbl_80347DA0;
         if (zero != *(f32*)(row + 56)) {
-            *(f32*)(p + 2088) = *(f32*)(p + 2088) - *(f32*)(p + 2320);
-            *(f32*)(p + 2320) = zero;
+            ((Player*)p)->power_target = ((Player*)p)->power_target - ((Player*)p)->coll_score;
+            ((Player*)p)->coll_score = zero;
         }
         lbl_80344B40 = p2;
         switch (*(s16*)row) {
@@ -347,10 +357,10 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
             if (t1 == t0) {
                 break;
             }
-            mask = *(u32*)(p + 284) & 0xFFB7FFFF;
+            mask = ((Player*)p)->field_11C & 0xFFB7FFFF;
             if (sf == ef) {
                 if (lbl_80347DC0 == (f64)*(f32*)(row + 20)) {
-                    YawVec3((f32*)(p + 52), buf, *(f32*)(row + 32));
+                    YawVec3(&((Player*)p)->mat[8], buf, *(f32*)(row + 32));
                     n = PlayerStartMissile(p, buf, mask, 0, lbl_80347DC8,
                                            lbl_80347DAC);
                 } else {
@@ -363,7 +373,7 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                     ky = lbl_80347DD8;
                     kone = lbl_80347DE8;
                     while (acc < kone) {
-                        YawVec3((f32*)(p + 52), buf,
+                        YawVec3(&((Player*)p)->mat[8], buf,
                                 *(f32*)(row + 32) * acc);
                         rate = lbl_80347DE0;
                         buf[0] = (f32)(buf[0] * kx);
@@ -399,7 +409,7 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                     }
                     scale = scale * k;
                 }
-                YawVec3((f32*)(p + 52), buf, scale);
+                YawVec3(&((Player*)p)->mat[8], buf, scale);
                 buf[1] = lbl_80347DB8;
                 buf[0] = buf[0] * *(f32*)(row + 44);
                 buf[1] = buf[1] * *(f32*)(row + 48);
@@ -489,25 +499,25 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
     f32 health;
     u8 unused[20];
 
-    pidx = *(s32*)p;
+    pidx = ((Player*)p)->index;
     if (mode != 0) {
         pos[0] = *(f32*)(row + 44);
         pos[1] = *(f32*)(row + 48);
         pos[2] = *(f32*)(row + 52);
         if (other != NULL) {
-            MulBodyVecMat4((f32*)other, (f32*)other, p + 20);
+            MulBodyVecMat4((f32*)other, (f32*)other, ((Player*)p)->mat);
             pos[0] = *(f32*)other + pos[0];
             pos[1] = *(f32*)(other + 4) + pos[1];
             pos[2] = *(f32*)(other + 8) + pos[2];
         }
     } else {
         if (other != NULL) {
-            MulVecMat3((f32*)(row + 44), pos, (f32*)(p + 20));
+            MulVecMat3((f32*)(row + 44), pos, ((Player*)p)->mat);
             pos[0] = *(f32*)other + pos[0];
             pos[1] = *(f32*)(other + 4) + pos[1];
             pos[2] = *(f32*)(other + 8) + pos[2];
         } else {
-            MulVecMat4((f32*)(row + 44), pos, (f32*)(p + 20));
+            MulVecMat4((f32*)(row + 44), pos, ((Player*)p)->mat);
         }
     }
     mode = DoPlyrSfxSub(p, *(s16*)(row + 72), pos, mode, -1);
@@ -515,7 +525,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
         goto done;
     }
     hdrp = &lbl_80282930[pidx];
-    seq = *(u8**)(*hdrp + 4) + *(s16*)(row + 72) * 80;
+    seq = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + 72) * 80;
     fl = 0;
     switch (*(s16*)row) {
     case 2:
@@ -558,7 +568,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
     }
     health = *(f32*)(row + 56);
     if (health < 0.0f) {
-        health = *(f32*)(p + 260) * -health;
+        health = ((Player*)p)->stat_damage * -health;
     }
     if (health > 0.0f) {
         Effects[mode].damage = health;
@@ -571,7 +581,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
         }
         Effects[mode].owner = pidx + 1;
         if (*(s16*)(row + 74) >= 0) {
-            sub = *(u8**)(*hdrp + 4) + *(s16*)(row + 74) * 80;
+            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + 74) * 80;
             SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
                       *(u32*)(sub + 12));
             if (*(u32*)sub & 0x10) {
@@ -579,17 +589,17 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
             }
         }
         if (*(s16*)(row + 76) >= 0) {
-            sub = *(u8**)(*hdrp + 4) + *(s16*)(row + 76) * 80;
+            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + 76) * 80;
             SfxSetMorph(mode, *(u32*)(sub + 8), 0, *(f32*)(row + 28));
             if (*(s16*)(row + 2) & 0x800) {
                 *(u32*)flp |= 0x8000;
             }
         }
         if (*(f32*)(row + 12) != 0.0f) {
-            SfxSetLight(mode, lbl_80120DA0 + *(s32*)(p + 8) * 12,
+            SfxSetLight(mode, lbl_80120DA0 + ((Player*)p)->char_type * 12,
                         (f32)(lbl_80347DF8 * *(f32*)(row + 12)));
         } else if (*(f32*)(row + 8) != 0.0f) {
-            SfxSetLight(mode, lbl_80120DA0 + *(s32*)(p + 8) * 12,
+            SfxSetLight(mode, lbl_80120DA0 + ((Player*)p)->char_type * 12,
                         (f32)(lbl_80347DF8 * *(f32*)(row + 8)));
         }
         if (*(f32*)(row + 60) > 0.0f) {
@@ -597,9 +607,9 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
             f32 spd = lbl_80347E00 * (*(f32*)(row + 64) - *(f32*)(row + 60)) +
                       *(f32*)(row + 60);
             if (*(s16*)(row + 2) & 4) {
-                vel[0] = *(f32*)(p + 52);
-                vel[1] = *(f32*)(p + 56);
-                vel[2] = *(f32*)(p + 60);
+                vel[0] = ((Player*)p)->mat[8];
+                vel[1] = ((Player*)p)->mat[9];
+                vel[2] = ((Player*)p)->mat[10];
             } else {
                 vy = *(f32*)(p + 2236);
                 if (*(u32*)(p + 2240) & 8) {
@@ -610,9 +620,9 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
                         vy = lbl_80347E00;
                     }
                 }
-                vel[0] = *(f32*)(p + 52) * spd;
+                vel[0] = ((Player*)p)->mat[8] * spd;
                 vel[1] = vy * spd;
-                vel[2] = *(f32*)(p + 60) * spd;
+                vel[2] = ((Player*)p)->mat[10] * spd;
             }
             if (*(s16*)row == 2) {
                 if (0.0f != *(f32*)(row + 32)) {
@@ -641,7 +651,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
         }
     } else {
         if (*(s16*)(row + 74) >= 0) {
-            sub = *(u8**)(*hdrp + 4) + *(s16*)(row + 74) * 80;
+            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + 74) * 80;
             SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
                       *(u32*)(sub + 12));
         }
@@ -698,7 +708,7 @@ void PsfxDoParticle(u8* player, PlayerSfxRecord* record, s32 effectIndex)
     if ((flags & 0x40000) != 0 && effectIndex >= 0) {
         parent = Effects[effectIndex].node;
     } else if ((flags & 0x2000) != 0 && lbl_80344B40 != NULL) {
-        parent = *(void**)(lbl_80344B40 + 0x74);
+        parent = ((MBObject*)lbl_80344B40)->parent;
     } else if (parentHandle == -1) {
         parent = ((Player*)player)->node;
     } else {
@@ -733,9 +743,9 @@ void PsfxDoParticle(u8* player, PlayerSfxRecord* record, s32 effectIndex)
     if (psys == NULL) {
         ErrorPrintf(lbl_80114288);
     } else {
-        *(f32*)((u8*)psys + 0x30) = record->position[0];
-        *(f32*)((u8*)psys + 0x34) = record->position[1];
-        *(f32*)((u8*)psys + 0x38) = record->position[2];
+        ((MBObject*)psys)->mat[3][0] = record->position[0];
+        ((MBObject*)psys)->mat[3][1] = record->position[1];
+        ((MBObject*)psys)->mat[3][2] = record->position[2];
         MBPsysSetPSpeed(speed, psys);
         MBPsysSetPTex(psys, texture);
     }
@@ -757,7 +767,7 @@ s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
         return -1;
     }
 
-    record = (PlayerSfxRecord*)(*(u8**)(lbl_80282930[playerIndex] + 4) +
+    record = (PlayerSfxRecord*)(((PsfxHeader*)lbl_80282930[playerIndex])->records +
                                       recordIndex * sizeof(PlayerSfxRecord));
     flags = record->flags;
 
@@ -862,7 +872,7 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
 
     if ((flags & 0x80) != 0) {
         SfxSetMat(effect, ((Player*)player)->mat,
-                  (f32*)((u8*)((Player*)player)->node + 0x30));
+                  ((MBObject*)((Player*)player)->node)->mat[3]);
     } else if ((flags & 0x40) != 0) {
         if ((flags & 0x2000) != 0 && lbl_80344B40 != NULL) {
             player = lbl_80344B40;
@@ -878,11 +888,11 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
         if ((flags & 0x40000) != 0 && effectIndex >= 0) {
             parent = Effects[effectIndex].node;
         } else if ((flags & 0x800) != 0) {
-            parent = *(void**)((u8*)((Player*)player)->node + 0x74);
+            parent = ((MBObject*)((Player*)player)->node)->parent;
         } else if ((flags & 1) != 0) {
             parent = ((Player*)player)->node;
         } else {
-            parent = *(void**)((u8*)((Player*)player)->node + 0x78);
+            parent = ((MBObject*)((Player*)player)->node)->child;
         }
         SfxSetParent(effect, parent);
     } else if ((flags & 0x40000) != 0 && effectIndex >= 0) {
@@ -971,8 +981,8 @@ void fn_8008A678(s32* player, u32* rec, void* p11)
             }
         } else {
             rec[2] = (u32)InitCustomEffect(p11, (char*)(rec + 4),
-                                           *(s16*)((u8*)rec + 0x30),
-                                           *(s16*)((u8*)rec + 0x32));
+                                           ((PlayerSfxRecord*)rec)->skinLoops,
+                                           ((PlayerSfxRecord*)rec)->speed);
         }
     }
     if ((s32)rec[3] == -1) {
@@ -1008,8 +1018,8 @@ void ClearAllPlyrData(void)
     for (i = 0; i < 4; i++) {
         u8* hdr = lbl_80282930[i];
         if (hdr != 0) {
-            PlayerSfxClearData(*(u32**)(hdr + 4), *(s16*)hdr);
-            *(s32*)(lbl_80282930[i] + 0x24) = 0;
+            PlayerSfxClearData((u32*)((PsfxHeader*)hdr)->records, ((PsfxHeader*)hdr)->count);
+            ((PsfxHeader*)lbl_80282930[i])->resolved = 0;
         }
     }
 }
@@ -1031,8 +1041,8 @@ void ClearPlyrData(s32 player)
 {
     u8* hdr = lbl_80282930[player];
 
-    ClearPlyrRecords(*(u32**)(hdr + 4), *(s16*)hdr);
-    *(s32*)(lbl_80282930[player] + 0x24) = 0;
+    ClearPlyrRecords((u32*)((PsfxHeader*)hdr)->records, ((PsfxHeader*)hdr)->count);
+    ((PsfxHeader*)lbl_80282930[player])->resolved = 0;
 }
 
 /* --- LoadPlyrData support ------------------------------------------------ */
@@ -1068,16 +1078,6 @@ void ClearPlyrData(s32 player)
 
 /* 4-char wad chunk tags kept as strings in sdata2 (chars are signed) */
 #define WADTAG(s) (((s)[0] << 24) | ((s)[1] << 16) | ((s)[2] << 8) | (s)[3])
-
-/* player-data header (first chunk of the pdata wad) */
-typedef struct PsfxHeader {
-    /* 0x00 */ s16 count;    /* number of SfxRecords            */
-    /* 0x02 */ s16 _02;
-    /* 0x04 */ u8* records;  /* SfxRecord[count], 0x50 each     */
-    /* 0x08 */ u8* moves;    /* third chunk rows, 0x58 each     */
-    /* 0x0C */ u8 _0c[0x18];
-    /* 0x24 */ s32 resolved; /* handles resolved this level     */
-} PsfxHeader;
 
 extern char lbl_80347E54[8]; /* header-chunk wad tag  */
 extern char lbl_80347E5C[8]; /* record-chunk wad tag  */
@@ -1120,7 +1120,7 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
     if (cls < 0) {
         return;
     }
-    if (cls != pdata->cur[plr] || (*(s32*)(gPlayers + plr * 0x335C + 0xE8) != 0 && resolve != 0)) {
+    if (cls != pdata->cur[plr] || (((Player*)(gPlayers + plr * 0x335C))->state != 0 && resolve != 0)) {
         if ((*(u64*)&gControllerButtons & 0x10) != 0 && fn_80055F68(0, -1) != 0) {
             mode = 2;
         } else {

@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "src/game/sfx/psfx.c::PlayerDoWeapTrail and fn_80089350 (worktree GDL-Claude-PsfxDefake, work_claim.psfx-defake.20260830.v1); attempt.psfx-defakematch-tupass-w2.20260830.v1",
+    "scope": "MWCC GC 1.2.5 family; functions well under the project's ~4000-insn fuzzy-arbitration threshold, where fndiff real/--ops is already the mandated primary metric -- this documents that fuzzy can still disagree with real in the OPPOSITE direction from claim.law.large-fn-batch-fuzzy-can-mask-subfield-regression (which showed fuzzy masking a real regression)."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.fuzzy-can-underweight-a-real-improvement.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "objdiff's fuzzy_match_percent moved DOWN for two genuine, --ops-verified improvements in this session, the mirror case of claim.law.large-fn-batch-fuzzy-can-mask-subfield-regression (which showed fuzzy masking a real regression by moving UP). PlayerDoWeapTrail: converting a walked trails-array access from raw offset arithmetic to `player->trails[index]` form closed the function's instruction-count gap exactly (140/139 -> 140/140) and cut real diff lines 129 -> 102, with --ops collapsing to the single already-documented capped entry-guard residual plus one new `mr`; fuzzy dropped 97.53571% -> 96.78571%. fn_80089350: converting a stationary-parameter forward-vector access from `(f32*)(p + 52)` to `&((Player*)p)->mat[8]` achieved exact target instruction-count parity (355/354 -> 355/355) and cut real diff lines 127 -> 86, with --ops collapsing to just 2 lines (one addi insert, one ble+b-vs-bgt fold); fuzzy dropped 99.056335% -> 98.757744%. In both cases the alternate, fuzzy-neutral form was also tried (e.g. an offsetof-based raw-pointer rewrite for the mat[8] case) and scored strictly worse on real/insns while matching the OLD fuzzy number, confirming the higher-fuzzy/higher-real state was not an accidental artifact -- the array-indexed form is the genuinely better result and the lower fuzzy score is the misleading signal. Consequence: for functions under the ~4000-insn threshold (where real/--ops is already policy-authoritative, not fuzzy), do not let a fuzzy DECREASE alone block accepting a change that improves real/--ops/insn-count-parity -- inspect the actual --clean/--ops diff every time fuzzy and real disagree in either direction, on functions of any size, and trust the finer-grained metric once the diff is read."
+}
