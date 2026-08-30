@@ -203,7 +203,6 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
         Vec value;
         u8 pad[8];
     } tmp1;
-    Vec tmp2;
     f32 r2;
     f32 dist;
     f32 cx;
@@ -319,6 +318,7 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
             o2.z = pz;
         }
     } else {
+        Vec tmp2;
         s32 side;
         s32 okB = 1;
         s32 okA = 1;
