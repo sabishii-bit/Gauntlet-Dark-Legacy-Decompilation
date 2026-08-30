@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/movie/movieplayer.c exclusively; matching pass on the structural-residual trio fn_800DA920, fn_800DACD8, fn_800DB3D4 (C++ exceptions TU); fn_800DBA80 stays untouched per its retriage record; movieplayer has NO xbox counterpart module (platform-divergent, see its symnames record) - name nothing; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:fn_800DA920",
+  "id": "work_claim.movieplayer-structural.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-RJ",
+  "recorded_at": "2026-08-30T23:02:09Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-30"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/pb/pb_diag.c exclusively; de-fakematch pass, ~84 bare sites (3 parked matching records - byte-gate them); parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:pbDiagDrawAudio",
+  "id": "work_claim.pbdiag-defake.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-RA",
+  "recorded_at": "2026-08-30T23:01:40Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-30"
+}

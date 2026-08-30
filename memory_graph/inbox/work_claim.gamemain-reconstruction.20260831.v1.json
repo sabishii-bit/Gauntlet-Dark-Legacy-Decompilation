@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/game/gamemain.c exclusively; RECONSTRUCTION pass on init_enemy_vars (91.4% fuzzy, ~72 raw sites - a body-shape gap, not schedule polish) primary, fn_800516F8 (98.6%) secondary; gamemain's 5 symaudit name candidates are OUT of scope (sibling worker owns renames - do not rename); parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:init_enemy_vars",
+  "id": "work_claim.gamemain-reconstruction.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-RG",
+  "recorded_at": "2026-08-30T23:01:58Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-30"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/ps2/fakelib.c exclusively; body-fill pass on the 5 remaining large TODO bodies (41/48 fns matched; full semantics banked in graph records - search fakelib); parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:sceSifLoadModule",
+  "id": "work_claim.fakelib-bodies.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-RH",
+  "recorded_at": "2026-08-30T23:02:02Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-30"
+}

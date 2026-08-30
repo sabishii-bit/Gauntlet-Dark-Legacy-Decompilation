@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CROSS-TU symbol-adoption pass consuming the 2026-08-30 symaudit: verify and adopt exact-gap fn_* name candidates in sounds_evt.c(16), pb_frame.c(4), sfx.c(4), pb_objregs.c(4), psfx.c(2), enemy.c(2), newcam.c(1) via the recorded cross-TU rename procedure with per-TU gates; spelling mismatches: verify but adopt only airtight cases, defer the rest into superseding symnames records; SKIP TUs claimed this run (pb_diag, tower, auxscreen, atree, boss.c, gamemain, critter, movieplayer, fakelib); parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:AudioSetupBossStreams",
+  "id": "work_claim.symbol-adoption.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-RF",
+  "recorded_at": "2026-08-30T23:01:55Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-30"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/enemy/critter.c exclusively; SEMANTIC RECONSTRUCTION of CritterInitHeader's WAD-record byte-swap loops (308 bare sites over 7 unnamed on-disk record types - recover the record layouts, then convert); prior pass records are the map; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:CritterInitHeader",
+  "id": "work_claim.critter-initheader.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-RI",
+  "recorded_at": "2026-08-30T23:02:06Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-30"
+}
