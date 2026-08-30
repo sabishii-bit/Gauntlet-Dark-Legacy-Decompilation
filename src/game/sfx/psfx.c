@@ -33,6 +33,15 @@ typedef struct PsfxFileTable {
     u8    pad[0x60];
     void* files[16];
 } PsfxFileTable;
+/* player-data header (first chunk of the pdata wad) */
+typedef struct PsfxHeader {
+    /* 0x00 */ s16 count;    /* number of SfxRecords            */
+    /* 0x02 */ s16 _02;
+    /* 0x04 */ u8* records;  /* SfxRecord[count], 0x50 each     */
+    /* 0x08 */ u8* moves;    /* third chunk rows, 0x58 each     */
+    /* 0x0C */ u8 _0c[0x18];
+    /* 0x24 */ s32 resolved; /* handles resolved this level     */
+} PsfxHeader;
 extern PsfxPdataBuf lbl_802828B0;
 extern u8 lbl_8012006C[];
 extern void* lbl_80120E00[16];
@@ -516,7 +525,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
         goto done;
     }
     hdrp = &lbl_80282930[pidx];
-    seq = *(u8**)(*hdrp + 4) + *(s16*)(row + 72) * 80;
+    seq = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + 72) * 80;
     fl = 0;
     switch (*(s16*)row) {
     case 2:
@@ -572,7 +581,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
         }
         Effects[mode].owner = pidx + 1;
         if (*(s16*)(row + 74) >= 0) {
-            sub = *(u8**)(*hdrp + 4) + *(s16*)(row + 74) * 80;
+            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + 74) * 80;
             SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
                       *(u32*)(sub + 12));
             if (*(u32*)sub & 0x10) {
@@ -580,7 +589,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
             }
         }
         if (*(s16*)(row + 76) >= 0) {
-            sub = *(u8**)(*hdrp + 4) + *(s16*)(row + 76) * 80;
+            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + 76) * 80;
             SfxSetMorph(mode, *(u32*)(sub + 8), 0, *(f32*)(row + 28));
             if (*(s16*)(row + 2) & 0x800) {
                 *(u32*)flp |= 0x8000;
@@ -642,7 +651,7 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
         }
     } else {
         if (*(s16*)(row + 74) >= 0) {
-            sub = *(u8**)(*hdrp + 4) + *(s16*)(row + 74) * 80;
+            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + 74) * 80;
             SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
                       *(u32*)(sub + 12));
         }
@@ -1001,16 +1010,6 @@ void fn_8008A678(s32* player, u32* rec, void* p11)
         }
     }
 }
-
-/* player-data header (first chunk of the pdata wad) */
-typedef struct PsfxHeader {
-    /* 0x00 */ s16 count;    /* number of SfxRecords            */
-    /* 0x02 */ s16 _02;
-    /* 0x04 */ u8* records;  /* SfxRecord[count], 0x50 each     */
-    /* 0x08 */ u8* moves;    /* third chunk rows, 0x58 each     */
-    /* 0x0C */ u8 _0c[0x18];
-    /* 0x24 */ s32 resolved; /* handles resolved this level     */
-} PsfxHeader;
 
 /* ClearAllPlyrData @0x8008A82C -- clear every player's sfx records. */
 void ClearAllPlyrData(void)
