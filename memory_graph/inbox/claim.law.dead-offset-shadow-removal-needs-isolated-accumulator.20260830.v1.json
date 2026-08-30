@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/world/tower.c EnterTower, probed during work_claim.tower-defake.20260831.v1 (see attempt.tower-c-defakematch-tupass.20260830.v1); python tools/gdl/fndiff.py game/world/tower EnterTower --ops showed opcode multiset DIFFERS (target-only +mtctr/+addi/+bne/+b, ours-only -li/-beq) after the conversion, reverted and re-verified GATE OK via defake_gate.py.",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.dead-offset-shadow-removal-safe - applies when the loop carries a SECOND live (non-dead) stepped/accumulator variable alongside the dead byte-offset shadow being removed.",
+    "tags": [
+      "core-screen",
+      "index-form",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.dead-offset-shadow-removal-needs-isolated-accumulator.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T23:35:52Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "claim.law.dead-offset-shadow-removal-safe's two verified instances (TriggerCamUpdate, BossCamBossCalc) both had the byte-offset shadow as the loop's ONLY extra stepped variable alongside the counter. Counter-example found in tower.c EnterTower: `for (j=0, reqOffset=0, recordOffset=0; j<3; j++, reqOffset+=4, recordOffset+=2) { req = *(s32*)((u8*)lbl_80124D94 + reqOffset); ... recordOffset used 3x later in the body ... }` - reqOffset is textbook-dead (used exactly once, always == j*4, sole purpose is addressing lbl_80124D94[3]). Converting to `req = lbl_80124D94[j];` and deleting reqOffset regressed EnterTower real 321->323 with a STRUCTURAL (DIFFERS opcode multiset) change: the target keeps a counted-loop form (mtctr/addi at the loop header, bne/b branch pair) that the array-index rewrite lost (replaced by li/beq), even though reqOffset itself was provably dead and unrelated to recordOffset. Reverted; not committed. Root cause (working hypothesis, not proven): the loop carries a SECOND live stepped variable (recordOffset) whose presence apparently changes MWCC's loop-compilation strategy choice (counted mtctr-loop vs compare-and-branch) independent of whether the first (dead) shadow is removed - i.e. the shadow-removal law's safety may depend on the shadow being the loop's only extra live-out induction variable, not just on the shadow itself being dead. Consequence: before applying dead-offset-shadow removal, check whether the loop carries ANOTHER live stepped variable besides the counter and the shadow being removed; if so, A/B the removal explicitly rather than assuming the parent law's neutrality transfers."
+}
