@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "close a 1-insn structural short-fall (146 vs target 145) by fixing an eager pre-prologue address resolution for `cameraBuffer = lbl_8023E880;`, the same root-cause class as the already-parked TriggerCameraActivate residual",
+  "attributes": {
+    "anchors": "src/game/boss/bosscam.c::TriggerCamUpdate (body line 181); fndiff.py game/boss/bosscam.c TriggerCamUpdate --count|--ops",
+    "axis_log": "AX1(FAILED) point-of-use delay: moved `cameraBuffer = lbl_8023E880;` from the first statement to immediately before its first real use (after the two early-return gates, right before `position = (f32*)(cameraBuffer+48)`), keeping a bare decl at top: real WORSENED 63->67, --ops grew a NEW `lis,addi,mr` 3-insn cluster (worse than the original 1-insn gap) -- reverted. This is the SAME law tried and reverted on TriggerCameraActivate (also failed there); confirms the law's fix does NOT apply to this residual shape for either function in this TU. AX2(FAILED) decl-order: moved `u8* cameraBuffer;`'s declaration to be FIRST (before blit/position/x/y/z/i/offset) while keeping the eager assignment position: real WORSENED 63->71 -- reverted.",
+    "baseline": "insns 145/146 (1 over), real 63, fuzzy 96.86%; --ops shows target resolves lbl_8023E880's LO half DIRECTLY into r27 (its permanent home) via ONE `addi r27,r9,0` issued AFTER the stwu/stmw prologue, while ours resolves it into r3 BEFORE stwu then adds a `mr`-style copy after -- byte-identical root cause to attempt.parked.triggercameraactivate.20260829.v1's recorded residual ('global buf pre-prologue addi-to-r0 then mr vs target direct r31')",
+    "final_state": "reverted to baseline unchanged: insns 145/146, real 63, fuzzy 96.86%; root cause (pre-vs-post-stwu address materialization timing for an eagerly-assigned multi-use SDA21 pointer local) remains unresolved in this TU across 2 independent functions (TriggerCamUpdate here, TriggerCameraActivate previously parked) and 2 distinct fix families (point-of-use delay, decl-order) -- likely needs a scheduler-level or #pragma-level lever not yet identified, or is a genuine MWCC prologue-scheduling quirk outside source-shape control",
+    "law_candidate": "CAVEAT to claim.law.point-of-use-single-use-pointer-delay: that law's fix (bare-declare + move assignment to point of use) does NOT help -- and actively regresses -- when the local is used at MANY scattered sites through a large function body (multi-use, not single-use) and target keeps it in ONE persistent callee-saved register resolved directly post-prologue; delaying the assignment in source does not reproduce target's post-stwu direct-into-permanent-register resolution, it just moves where the (still 2-step) resolution happens. Two independent functions in game/boss/bosscam.c (TriggerCamUpdate, TriggerCameraActivate) now confirm this negative result for the eager-early-SDA21-local class; do not retry point-of-use delay OR simple decl-order reshuffle for this residual shape without a new theory.",
+    "verification": "ninja build/GUNE5D/src/game/boss/bosscam.o green each probe; git diff --check clean; reverted, no commit (net no-op on this function)"
+  },
+  "function": "function:TriggerCamUpdate",
+  "id": "attempt.triggercamupdate-eager-sda21-prologue-negative.20260830.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "record_state": "proposed",
+  "residual_class": "REGISTER_ONLY/SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
