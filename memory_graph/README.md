@@ -252,12 +252,3 @@ cross-platform *reference* evidence: exact-name links stay candidates until
 target-backed behavioral, ordering, signature, call-graph, or layout evidence
 verifies them. Every `context`/`xbox` response restates this so downstream
 agents cannot mistake retrieval for truth.
-
-## History
-
-The project's earlier Markdown memory was terminally migrated on 2026-08-29:
-parked caps became per-function `attempt` records, the compiler-law corpus
-became `claim` records, tool policies became `tool` records, and the
-remaining prose was retired. The builder still indexes an optional
-`memory_graph/legacy/` directory if one ever reappears, but nothing depends
-on it.
