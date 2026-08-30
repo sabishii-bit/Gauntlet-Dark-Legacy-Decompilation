@@ -39,12 +39,19 @@ def type_class(type_text):
     return "float" if base.split()[-1] in FLOAT_TYPES else "int"
 
 
-def scan(src_root):
-    """{symbol: {type_text: [(file, line)]}} for every extern declaration."""
+def scan(src_root, include_root="include"):
+    """{symbol: {type_text: [(file, line)]}} for every extern declaration.
+
+    Headers are scanned too (explicit patterns — a bare "*.c*" glob skips
+    any header without ".c" in its name, which hid camera.h's canonical
+    gCameras declaration from the first version of this tool).
+    """
     declarations = defaultdict(lambda: defaultdict(list))
-    for path in sorted(Path(src_root).rglob("*.c*")):
-        if path.suffix.lower() not in (".c", ".cpp", ".h"):
-            continue
+    paths = []
+    for root in (src_root, include_root):
+        for pattern in ("*.c", "*.cpp", "*.h"):
+            paths.extend(Path(root).rglob(pattern))
+    for path in sorted(paths):
         text = COMMENT_RE.sub(
             lambda match: re.sub(r"[^\n]", " ", match.group(0)),
             path.read_text(encoding="utf-8", errors="replace"))
