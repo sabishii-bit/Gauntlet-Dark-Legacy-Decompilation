@@ -3689,12 +3689,12 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
     }
 
     cameraMatrix = (f32*)(state + 0xCC);
+    oldX = *(f32*)(playerData + 0x8A0);
+    oldY = *(f32*)(playerData + 0x8A4);
     scratch.futurePosition[0] =
         *(f32*)(playerData + 0x54) + movementDelta[0];
-    oldX = *(f32*)(playerData + 0x8A0);
     scratch.futurePosition[1] =
         *(f32*)(playerData + 0x58) + movementDelta[1];
-    oldY = *(f32*)(playerData + 0x8A4);
     scratch.futurePosition[2] =
         *(f32*)(playerData + 0x5C) + movementDelta[2];
     MBWindowProject(scratch.futurePosition, cameraMatrix, 0,
