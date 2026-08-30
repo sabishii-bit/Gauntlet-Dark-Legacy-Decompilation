@@ -1028,13 +1028,16 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                     sSwapF32(*(f32*)(p + offsetof(iteminst, pyr) + k * 4));
             }
         }
-        /* locators (stride 0x1C) */
+        /* locators (stride 0x1C); fields are locator (game/item.h) */
         for (i = 0; i < blob[0x16]; i++) {
             p = (u8*)wi->locators + i * 0x1C;
-            *(u16*)(p + 0x02) = sSwapU16(*(u16*)(p + 0x02));
+            *(u16*)(p + offsetof(locator, index)) =
+                sSwapU16(*(u16*)(p + offsetof(locator, index)));
             for (k = 0; k < 3; k++) {
-                *(f32*)(p + 0x04 + k * 4) = sSwapF32(*(f32*)(p + 0x04 + k * 4));
-                *(f32*)(p + 0x10 + k * 4) = sSwapF32(*(f32*)(p + 0x10 + k * 4));
+                *(f32*)(p + offsetof(locator, pos) + k * 4) =
+                    sSwapF32(*(f32*)(p + offsetof(locator, pos) + k * 4));
+                *(f32*)(p + offsetof(locator, pyr) + k * 4) =
+                    sSwapF32(*(f32*)(p + offsetof(locator, pyr) + k * 4));
             }
         }
     }
