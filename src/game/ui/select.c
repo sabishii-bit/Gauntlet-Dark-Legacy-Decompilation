@@ -2746,6 +2746,14 @@ void init_player_select(s32 mode)
 #pragma opt_propagation reset
 
 #pragma opt_propagation off
+/* file-local view: per-slot select blit entry, 12 bytes (handle, mode,
+ * timer) -- same layout documented above serve_blits(). */
+typedef struct BlitEntry {
+    void* handle;
+    s32 mode;
+    s32 timer;
+} BlitEntry;
+
 void hide_select_blits(s32 arg0, s32 flag)
 {
     u8* pagebase;
@@ -2771,7 +2779,7 @@ void hide_select_blits(s32 arg0, s32 flag)
                 } else {
                     mbBlitInit3414(handle, 0);
                 }
-                *(s32*)(entry + 4) = 0;
+                ((BlitEntry*)entry)->mode = 0;
             }
         }
     }
