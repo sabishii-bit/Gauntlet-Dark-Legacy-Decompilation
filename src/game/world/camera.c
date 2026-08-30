@@ -43,6 +43,11 @@
 #include "types.h"
 #include "game/camera.h"
 #include "game/player.h"
+#include "game/worldinfo.h"
+
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 
 typedef struct Vec3 {
     f32 x;
@@ -277,7 +282,8 @@ extern u8 sTriggerCameras[];
 extern u8 gPlayers[];
 extern u8* gCurLevel;
 extern u8* CurTransmitter;
-extern u8 gWorldInfo[];
+/* gWorldInfo: see game/worldinfo.h (GC-verified WorldInfo, worldmin/worldmax
+ * at +0x18/+0x24 confirmed against this TU's own target disassembly). */
 extern s32 gNumEnemies;
 extern s32 lbl_80344414;
 extern s32 lbl_8034441C;
@@ -1672,7 +1678,7 @@ void camera_mode_follow(s32 camIdx)
         Camera* backupCamera;
         s32 backupAttentionMode;
         playerData = (Player*)gPlayers;
-        projectionMatrix = (f32*)(state + 0xCC);
+        projectionMatrix = (f32*)(state + offsetof(CameraStateView, cameras[0].mat[0][0]));
         for (viewportPlayer = 0; viewportPlayer < 4;
              viewportPlayer++, playerData++) {
             if (playerData->state == 1) {
@@ -2555,17 +2561,17 @@ void camera_mode_level(s32 reset)
     if (*(s8*)(levelCamera + 0x24) == 0) {
         levelOffset = lbl_80346010;
         *(f32*)(levelCamera + 0x0C) =
-            *(f32*)(gWorldInfo + 0x18) + levelOffset;
+            gWorldInfo.worldmin[0] + levelOffset;
         *(f32*)(levelCamera + 0x10) =
-            *(f32*)(gWorldInfo + 0x1C) + lbl_80345EC8;
+            gWorldInfo.worldmin[1] + lbl_80345EC8;
         *(f32*)(levelCamera + 0x14) =
-            *(f32*)(gWorldInfo + 0x20) + levelOffset;
+            gWorldInfo.worldmin[2] + levelOffset;
         *(f32*)(levelCamera + 0x18) =
-            *(f32*)(gWorldInfo + 0x24) + (levelOffset = lbl_80346014);
+            gWorldInfo.worldmax[0] + (levelOffset = lbl_80346014);
         *(f32*)(levelCamera + 0x1C) =
-            *(f32*)(gWorldInfo + 0x28) + lbl_80346018;
+            gWorldInfo.worldmax[1] + lbl_80346018;
         *(f32*)(levelCamera + 0x20) =
-            *(f32*)(gWorldInfo + 0x2C) + levelOffset;
+            gWorldInfo.worldmax[2] + levelOffset;
     }
     *(f32*)(state + 0xBC) = *(f32*)(levelCamera + 0x0C);
     *(f32*)(state + 0xC0) = *(f32*)(levelCamera + 0x10);
@@ -2677,7 +2683,7 @@ void camera_mode_level(s32 reset)
         player = (Player*)gPlayers + playerIndex;
         if (player->state == 1 || player->state == 4) {
             *playerNumber = playerIndex;
-            playerObject = (struct OBJGRP*)((u8*)player + 0x14);
+            playerObject = (struct OBJGRP*)&player->mat[0];
             goto level_player_found;
         }
         playerIndex++;
@@ -2804,9 +2810,9 @@ level_player_found:
     cam3->avel[0] = cam3Zero;
     cam3->avel[1] = cam3Zero;
     cam3->avel[2] = cam3Zero;
-    cam3->attn[0] = *(f32*)(state + 0x1F4);
-    cam3->attn[1] = *(f32*)(state + 0x1F8);
-    cam3->attn[2] = *(f32*)(state + 0x1FC);
+    cam3->attn[0] = *(f32*)(state + offsetof(CameraStateView, cameras[0].attn[0]));
+    cam3->attn[1] = *(f32*)(state + offsetof(CameraStateView, cameras[0].attn[1]));
+    cam3->attn[2] = *(f32*)(state + offsetof(CameraStateView, cameras[0].attn[2]));
     cam3->radius = lbl_80346020;
     cam3->pyr[0] = lbl_80346024;
     cam3->pyr[1] = cam3Zero;
@@ -3606,8 +3612,9 @@ s32 debug_camera_pos(s32 lastPlayer)
     playerData = gPlayers;
     for (player = 0; player <= lastPlayer;
          player++, playerData += 0x335C) {
-        if (*(s32*)(playerData + 0xE8) == 1) {
-            MBWindowProject((f32*)(playerData + 0x54),
+        Player* pd = (Player*)playerData;
+        if (pd->state == 1) {
+            MBWindowProject(pd->col_pos,
                             &((Camera*)(state + 0xC8))[cameraIndex].mat[0][0],
                             0, projected);
             screenX = (f32)projected[0];
@@ -3676,6 +3683,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
 {
     u8* state = gCameraState;
     u8* playerData = gPlayers + playerIndex * 0x335C;
+    Player* pd = (Player*)playerData;
     f32* cameraMatrix;
     f32* cameraPositionX;
     f32* cameraPositionZ;
@@ -3713,19 +3721,19 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
 
     screenHeight = MBScreenHeight();
     screenWidth = MBScreenWidth();
-    if (*(s32*)(playerData + 0x204) == 29) {
+    if (pd->vibe_on == 29) {
         return 0;
     }
 
     cameraMatrix = (f32*)(state + 0xCC);
-    oldX = *(f32*)(playerData + 0x8A0);
-    oldY = *(f32*)(playerData + 0x8A4);
+    oldX = pd->floor_hi;
+    oldY = pd->floor_lo;
     scratch.futurePosition[0] =
-        *(f32*)(playerData + 0x54) + movementDelta[0];
+        pd->col_pos[0] + movementDelta[0];
     scratch.futurePosition[1] =
-        *(f32*)(playerData + 0x58) + movementDelta[1];
+        pd->col_pos[1] + movementDelta[1];
     scratch.futurePosition[2] =
-        *(f32*)(playerData + 0x5C) + movementDelta[2];
+        pd->col_pos[2] + movementDelta[2];
     MBWindowProject(scratch.futurePosition, cameraMatrix, 0,
                     scratch.projected);
     currentX = (f32)scratch.projected[0];
@@ -3742,11 +3750,11 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
             (f64)lbl_80345F90 *
                 (f64)((lbl_80344518 - 20) - (lbl_80344514 + 40))) {
         scratch.alternatePosition[0] =
-            *(f32*)(playerData + 0x44) + movementDelta[0];
+            pd->pos[0] + movementDelta[0];
         scratch.alternatePosition[1] =
-            *(f32*)(playerData + 0x48) + movementDelta[1];
+            pd->pos[1] + movementDelta[1];
         scratch.alternatePosition[2] =
-            *(f32*)(playerData + 0x4C) + movementDelta[2];
+            pd->pos[2] + movementDelta[2];
         MBWindowProject(scratch.alternatePosition, cameraMatrix, 0,
                         scratch.alternateProjected);
         if (target->limitedTop[1] - target->limitedBottom[1] <=
@@ -3767,7 +3775,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
              oldX >= (f32)(lbl_8034451C - 30) ||
              oldY <= (f32)(lbl_80344514 + 40) ||
              oldY >= (f32)(lbl_80344518 - 20)) &&
-            ((f64)*(f32*)(state + 0x18C) >= lbl_80345FF0 ||
+            ((f64)*(f32*)(state + offsetof(CameraStateView, cameras[0].radius)) >= lbl_80345FF0 ||
              lbl_80344960 < 0) &&
             lbl_80343BD8 != 0) {
             CAMERA_LATCH_CHANGE();
@@ -3785,7 +3793,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         if (gCameraTargetCount > 1 &&
             (oldY <= (f32)(lbl_80344514 + 40) ||
              oldY >= (f32)(lbl_80344518 - 20)) &&
-            ((f64)*(f32*)(state + 0x18C) >= lbl_80345FF0 ||
+            ((f64)*(f32*)(state + offsetof(CameraStateView, cameras[0].radius)) >= lbl_80345FF0 ||
              lbl_80344960 < 0) &&
             lbl_80343BD8 != 0) {
             CAMERA_LATCH_CHANGE();
@@ -3803,7 +3811,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         if (gCameraTargetCount > 1 &&
             (oldX <= (f32)(lbl_80344520 + 30) ||
              oldX >= (f32)(lbl_8034451C - 30)) &&
-            ((f64)*(f32*)(state + 0x18C) >= lbl_80345FF0 ||
+            ((f64)*(f32*)(state + offsetof(CameraStateView, cameras[0].radius)) >= lbl_80345FF0 ||
              lbl_80344960 < 0) &&
             lbl_80343BD8 != 0) {
             CAMERA_LATCH_CHANGE();
@@ -3824,7 +3832,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
              oldX >= (f32)(lbl_8034451C - 30) ||
              oldY <= (f32)(lbl_80344514 + 40) ||
              oldY >= (f32)(lbl_80344518 - 20)) &&
-            ((f64)*(f32*)(state + 0x18C) >= lbl_80345FF0 ||
+            ((f64)*(f32*)(state + offsetof(CameraStateView, cameras[0].radius)) >= lbl_80345FF0 ||
              lbl_80344960 < 0) &&
             lbl_80343BD8 != 0) {
             CAMERA_LATCH_CHANGE();
@@ -3838,20 +3846,20 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         currentY >= (f32)(lbl_80344518 - 20)) {
         s32 bottomEdge;
         s32 halfWidth;
-        dy = (*(f32*)(playerData + 0x48) +
-              *(f32*)(playerData + 0x83C)) - *(f32*)(state + 0x1F8);
+        dy = (pd->pos[1] +
+              pd->anchor_pos[1]) - *(f32*)(state + offsetof(CameraStateView, cameras[0].attn[1]));
         bottomEdge = screenHeight - 64;
-        dx = (*(f32*)(playerData + 0x44) +
-              *(f32*)(playerData + 0x838)) - *(f32*)(state + 0x1F4);
+        dx = (pd->pos[0] +
+              pd->anchor_pos[0]) - *(f32*)(state + offsetof(CameraStateView, cameras[0].attn[0]));
         halfWidth = screenWidth / 2;
-        dz = (*(f32*)(playerData + 0x4C) +
-              *(f32*)(playerData + 0x840)) - *(f32*)(state + 0x1FC);
+        dz = (pd->pos[2] +
+              pd->anchor_pos[2]) - *(f32*)(state + offsetof(CameraStateView, cameras[0].attn[2]));
         currentDistance = dy * dy + dx * dx + dz * dz;
         movedX = dx + movementDelta[0];
         movedY = dy + movementDelta[1];
         movedZ = dz + movementDelta[2];
-        cameraPositionX = (f32*)(state + 0x1F4);
-        cameraPositionZ = (f32*)(state + 0x1FC);
+        cameraPositionX = (f32*)(state + offsetof(CameraStateView, cameras[0].attn[0]));
+        cameraPositionZ = (f32*)(state + offsetof(CameraStateView, cameras[0].attn[2]));
 
         currentAbsY = oldY - (f32)bottomEdge;
         currentAbsX = oldX - (f32)halfWidth;
@@ -3903,8 +3911,8 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
                 movementDelta[2] = zeroValue;
             }
         } else if (movedScreenDistance > currentScreenDistance) {
-            cameraDz = *cameraPositionZ - *(f32*)(playerData + 0x5C);
-            cameraDx = *cameraPositionX - *(f32*)(playerData + 0x54);
+            cameraDz = *cameraPositionZ - pd->col_pos[2];
+            cameraDx = *cameraPositionX - pd->col_pos[0];
             movedCameraDz = cameraDz - movementDelta[2];
             movedCameraDx = cameraDx - movementDelta[0];
             if (movedCameraDx * movedCameraDx +
@@ -3939,9 +3947,9 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
             s32 cameraTarget = lbl_80344960;
 
             if (((cameraTarget < 0 &&
-                  *(f32*)(state + 0x18C) >= lbl_80344528) ||
+                  *(f32*)(state + offsetof(CameraStateView, cameras[0].radius)) >= lbl_80344528) ||
                  (cameraTarget >= 0 &&
-                  (f64)*(f32*)(state + 0x18C) >= lbl_80345FF0)) &&
+                  (f64)*(f32*)(state + offsetof(CameraStateView, cameras[0].radius)) >= lbl_80345FF0)) &&
                 (f64)(latchValue = lbl_803444E8) >= lbl_80346008) {
                 if (gBossType >= 0) {
                     if (gCameraTargetCount > 1) {
@@ -3977,22 +3985,20 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         return 5;
     }
 
-    scratch.futurePosition[0] = *(f32*)(playerData + 0x44);
-    scratch.futurePosition[1] = *(f32*)(playerData + 0x48);
-    scratch.futurePosition[2] = *(f32*)(playerData + 0x4C);
-    *(f32*)(playerData + 0x44) += movementDelta[0];
-    *(f32*)(playerData + 0x48) += movementDelta[1];
-    *(f32*)(playerData + 0x4C) += movementDelta[2];
-    fn_8005A588((struct OBJGRP*)(playerData + 0x14),
-                (f32*)(playerData + 0x838));
+    scratch.futurePosition[0] = pd->pos[0];
+    scratch.futurePosition[1] = pd->pos[1];
+    scratch.futurePosition[2] = pd->pos[2];
+    pd->pos[0] += movementDelta[0];
+    pd->pos[1] += movementDelta[1];
+    pd->pos[2] += movementDelta[2];
+    fn_8005A588((struct OBJGRP*)(playerData + 0x14), pd->anchor_pos);
     if (debug_camera_pos(playerIndex) != 0 && lbl_80343BD8 != 0) {
         CAMERA_LATCH_CHANGE();
     }
-    *(f32*)(playerData + 0x44) = scratch.futurePosition[0];
-    *(f32*)(playerData + 0x48) = scratch.futurePosition[1];
-    *(f32*)(playerData + 0x4C) = scratch.futurePosition[2];
-    fn_8005A588((struct OBJGRP*)(playerData + 0x14),
-                (f32*)(playerData + 0x838));
+    pd->pos[0] = scratch.futurePosition[0];
+    pd->pos[1] = scratch.futurePosition[1];
+    pd->pos[2] = scratch.futurePosition[2];
+    fn_8005A588((struct OBJGRP*)(playerData + 0x14), pd->anchor_pos);
     return 6;
 }
 

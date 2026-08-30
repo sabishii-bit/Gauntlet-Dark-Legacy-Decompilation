@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "wave-2 pass (work_claim.camera-defake.20260830.v1): resolve raw gCameraState/Player/WorldInfo offsets left by wave1 under per-region byte/score gates; 5 hazard laws screened first",
+  "attributes": {
+    "axis_log": "wave1 folded: NEGATIVE camera_orbit_update CameraStateView spelling (real0->189); NEGATIVE camera_mode_spin 2 forms (real0->12/4); NEGATIVE debug_camera_pos full/state-only forms (real12->22). wave2: NEGATIVE camera_mode_level cam3->attn=cam0->attn direct reuse (real62->285/240, cam0 live-range extension cascades whole-fn regalloc) -> countered with offsetof(CameraStateView,cameras[0].attn[i]) on raw state base, restored real62 exactly (offsetof-fused-immediate-counter law generalizes past its walked-loop origin). SEPARATE negative: playerIndex/*playerNumber -> cam0->pn direct collapse lost target's cached-store-address codegen (whole-fn-address-cache case); reverted, left raw, not retried. POSITIVE debug_camera_pos: untried player-only axis (per-iteration Player* pd alias on playerData walk, state region left exactly as wave1) held real12, resolving the fn wave1 had to park.",
+    "baseline_and_best": "camera.o SHA-256 byte-identical to wave1 end state (93c728da...16b24) -- every conversion compiled to the same bytes as its raw predecessor. Full ninja green, doldiff clean. Per-fn real unchanged vs wave1 record: do_camera4 init2 run_mode0 target24 orbit0 spin0 orbit_mode0 collide266 dest166 follow386 level62 debug_pos12 supervisor372(1006/1008)",
+    "constraints": "Left raw (no covering struct anywhere in project): sTriggerCameras trigger-rail records (camera_collide_step bestTrigger/selectedTrigger, camera_mode_dest triggerX/Y/Z -- collide_step also carries the unrelated CAPPED register-permutation record, extra caution); gCurLevel+0x60/CurTransmitter (raw in action.c/bosscam.c/critter.c too); lbl_80344EE8 (untyped global). Left raw (register-behavior root cause, laws apply): camera_orbit_update's cam/previous prologue IS the lwzu-idiom-web-retention pattern itself; camera_mode_level's playerNumber is a whole-fn-address-cache case. Left raw (no name, shared-struct risk): CameraStateView's own _pad00[0xC8] prefix fields (state+0x10/0x14/0xB0-0xC4) -- unnamed workspace shared by exact sibling fns, not worth guessing.",
+    "converted": "~38 sites, all equal-or-better, 4 fns: camera_mode_level (10: gWorldInfo.worldmin/worldmax via new #include game/worldinfo.h; cam3->attn via offsetof-fused; playerObject via &player->mat[0]) real62 unchanged. camera_mode_follow (1: projectionMatrix via offsetof-fused) real386 unchanged. debug_camera_pos (2: playerData walk -> per-iter Player* pd) real12 unchanged, UNPARKED. camera_debug_supervisor (~25: single Player* pd alias for vibe_on/floor_hi/floor_lo/col_pos/pos/anchor_pos per declared-alias-vs-repeated-cast law; state+0x18C/0x1F4/0x1F8/0x1FC via offsetof-fused; playerData+0x14 left raw, non-field pointer-identity/cast uses) 1006/1008 real372 unchanged.",
+    "residual": "82 sites at claim time, ~38 converted, ~30 remain (Level/Transmitter/TriggerCamera record structs unrecovered project-wide; camera_orbit_update/spin/playerNumber register-behavior parks). Future win: recover those 3 record types (also benefits action.c/bosscam.c/critter.c).",
+    "scope": "camera.c only; portable C; added 1 #include + 1 local offsetof fallback macro (items.c precedent); no asm/postprocessor changes"
+  },
+  "function": "function:camera_collide_step",
+  "id": "attempt.camera-tu-defakematch.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.camera-tu-defakematch.20260830.v1",
+  "valid_from": "2026-08-30"
+}
