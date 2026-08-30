@@ -1481,10 +1481,10 @@ void DoPlayerAction(void* player)
     }
 
     adv = DoAnimateTree(speed, node, seq, frame, mode, 1);
-    if (adv == 0) {
-        p[0x23C] = PlayerAttackType(cur);
-    } else {
+    if (adv != 0) {
         p[0x23C] = PlayerAttackType(act);
+    } else {
+        p[0x23C] = PlayerAttackType(cur);
     }
 
     if (adv != 0) {
