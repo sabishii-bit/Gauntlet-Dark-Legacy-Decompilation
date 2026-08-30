@@ -253,6 +253,7 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     u8* row;
     s32 fl;
     s32 n;
+    s32 i;
     u32 mask;
     f32 sf;
     f32 ef;
@@ -260,7 +261,6 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     f32 rate;
     f32 scale;
     f32 k;
-    s32 i;
 
     if (idx < 0) {
         return;
@@ -327,9 +327,10 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
         ef = sf;
     }
     if (t1 >= sf && t0 < ef) {
-        if (lbl_80347DA0 != *(f32*)(row + 56)) {
+        f32 zero = lbl_80347DA0;
+        if (zero != *(f32*)(row + 56)) {
             *(f32*)(p + 2088) = *(f32*)(p + 2088) - *(f32*)(p + 2320);
-            *(f32*)(p + 2320) = lbl_80347DA0;
+            *(f32*)(p + 2320) = zero;
         }
         lbl_80344B40 = p2;
         switch (*(s16*)row) {
@@ -363,11 +364,13 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                     while (acc < kone) {
                         YawVec3((f32*)(p + 52), buf,
                                 *(f32*)(row + 32) * acc);
+                        rate = lbl_80347DE0;
                         buf[0] = (f32)(buf[0] * kx);
+                        scale = lbl_80347DAC;
                         buf[1] = (f32)(buf[1] * ky);
                         buf[2] = (f32)(buf[2] * kx);
                         n += PlayerStartMissile(p, buf, mask, 0,
-                                                lbl_80347DE0, lbl_80347DAC);
+                                                rate, scale);
                         acc = (f32)(acc + kone / *(f32*)(row + 20));
                     }
                 }
