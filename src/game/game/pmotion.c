@@ -3346,7 +3346,7 @@ void PlayerMotion_FloorFX(Player* p, WorldObj* obj, f32* v1, f32* v2) {
     if ((flags & 0x2000000) != 0 && (flags & 0x8000000) == 0) {
         return;
     }
-    if (PF(p, 0x204, s32) >= 31) {
+    if (p->vibe_on >= 31) {
         return;
     }
     if (sMusicFadeBase < p->floor_fx_time) {
@@ -3544,7 +3544,7 @@ void PlayerMotion_HitTarget(Player* p, void* target, s32 arg, f32 range) {
     f64 priority;
 
     if (lbl_80347B30 == range) {
-        range = PF(p, 0x104, f32);
+        range = p->stat_damage;
     }
     if (target == NULL) {
         return;
