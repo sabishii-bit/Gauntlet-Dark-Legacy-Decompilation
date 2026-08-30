@@ -74,6 +74,11 @@ extern PbTexMgr* gWinGlobals;
 /* TLUT region manager: 0x30-byte header, then GXTlutRegionObj[] at +0x30,
  * an s32 handle table at +0x320, and per-region bookkeeping at +0x52c/+0x580.
  * dtk splits it into lbl_802C7438 (header) + lbl_802C7468 (the +0x30 body). */
+typedef struct PbSpecialTlut {
+    u8 object[0x0c];
+    s32 handle;
+} PbSpecialTlut;
+
 typedef struct PbTlutMgrView {
     u8  _00[0x30];           /* 0x000 : per-class use counts / header */
     u8  regions[0x2f][0x10]; /* 0x030 : GXTlutRegionObj[] */
@@ -81,9 +86,52 @@ typedef struct PbTlutMgrView {
     u8  _3dc[0x150];         /* 0x3dc */
     u32 owners[0x15];        /* 0x52c : owning texture entry per lightmap */
     u16 keys[0x15];          /* 0x580 : lightmap TLUT keys */
+    u8 _5aa[2];              /* 0x5aa */
+    PbSpecialTlut special[2];/* 0x5ac : 4-bit and 8-bit fallback TLUTs */
 } PbTlutMgrView;
 extern PbTlutMgrView lbl_802C7438; /* TLUT manager base (0x802C7438) */
 extern u8 lbl_802C7468[];   /* &mgr.regions[0]     (0x802C7468) */
+
+/* GC ROM texture record and its corresponding 0x30-byte GX object. */
+typedef struct PbRomTexture {
+    u8 format;       /* 0x00 */
+    s8 model;        /* 0x01 */
+    u16 flags;       /* 0x02 */
+    void* data;      /* 0x04 */
+    u16 _unk08;      /* 0x08 */
+    u16 width;       /* 0x0a */
+    u16 height;      /* 0x0c */
+    s16 index;       /* 0x0e */
+} PbRomTexture;
+
+typedef struct PbTextureObject {
+    u8 _pad00[0x20];
+    u8 tlutObject[0x0C];
+    s8 region;
+    s8 paletteRegion;
+    u8 _pad2E[2];
+} PbTextureObject;
+
+typedef struct PbTextureDescView {
+    u8 _pad00[0x48];
+    u32 textureCount;             /* 0x48 */
+    u8 _pad4c[0x0c];
+    PbRomTexture* romTextures;    /* 0x58 */
+    u8 _pad5c[0x14];
+    s32 dataShift;                /* 0x70 */
+    u8 _pad74[4];
+    u8* usedFlags;                /* 0x78 */
+    u16 lightmapBase;             /* 0x7c */
+    u16 lightmapCount;            /* 0x7e */
+    PbTextureObject* texObjects;  /* 0x80 */
+} PbTextureDescView;
+
+typedef struct TEXDESCENT {
+    /* 0x0 */ u32 key;
+    /* 0x4 */ u8* desc;
+    /* 0x8 */ u32 unk8;
+    /* 0xC */ u32 unkC;
+} TEXDESCENT; /* 0x10-stride entry of the tbl */
 
 extern u8 lbl_802C7A08[];   /* default PbTexCtx     (0x802C7A08, 0x2C8) */
 extern u8 lbl_802C7CD0[];   /* scratch struct       (0x802C7CD0, 0x28) */
@@ -214,9 +262,10 @@ int fn_800C6BB4(u8 sizeClass, s32 handle) {
         lo = old & 0xFFFF;
         if (hi != -1) {
             u8* desc = *(u8**)((u8*)gWinGlobals->tbl + hi * 16 + 4);
-            u8* t = *(u8**)(desc + 0x80) + (s16)lo * 48;
-            t[44] = -1;
-            t[45] = -1;
+            PbTextureObject* t = (PbTextureObject*)(
+                (u8*)((PbTextureDescView*)desc)->texObjects + (s16)lo * 48);
+            t->region = -1;
+            t->paletteRegion = -1;
         } else {
             *(s32*)(mgr + (s16)lo * 16 + 0x5B8) = -1;
         }
@@ -229,13 +278,13 @@ int fn_800C6BB4(u8 sizeClass, s32 handle) {
 /* Build the GX texture objects for model `id`'s texture list. */
 void pbSetupTextures(s32 id) {
     u8* lookup;
-    u8* desc;
-    u8* obj;
+    PbTextureDescView* desc;
+    PbTextureObject* obj;
     s32 i;
     u32 width;
     u32 height;
     u8* data;
-    u8* texObjs;
+    PbTextureObject* texObjs;
     s32 bitsPerPixel;
     s32 texOffset;
     s32 objOffset;
@@ -248,34 +297,35 @@ void pbSetupTextures(s32 id) {
     i = 0;
     texOffset = 0;
     objOffset = 0;
-    desc = *(u8**)((u8*)gWinGlobals->tbl + id * 0x10 + 4);
-    texObjs = *(u8**)(desc + 0x80);
+    desc = (PbTextureDescView*)((TEXDESCENT*)gWinGlobals->tbl)[id].desc;
+    texObjs = desc->texObjects;
 
-    while ((u32)i < *(u32*)(desc + 0x48)) {
-        u8* tex;
-        u8* texBase;
+    while ((u32)i < desc->textureCount) {
+        PbRomTexture* tex;
+        PbRomTexture* texBase;
         s32 previousOffset;
         u32 currentData;
         u32* previous;
         s32 j;
         u8 found;
 
-        obj = texObjs + objOffset;
-        *(s8*)(obj + 0x2C) = -1;
+        obj = (PbTextureObject*)((u8*)texObjs + objOffset);
+        obj->region = -1;
         found = 0;
-        *(s8*)(obj + 0x2D) = -1;
-        tex = (texBase = *(u8**)(desc + 0x58)) + texOffset;
+        obj->paletteRegion = -1;
+        tex = (PbRomTexture*)((u8*)(texBase = desc->romTextures) +
+                              texOffset);
 
-        if ((*(u16*)(tex + 2) & 0x100) == 0) {
+        if ((tex->flags & 0x100) == 0) {
             j = 0;
             previousOffset = 0;
             while ((u32)j < (u32)i && !found) {
-                previous = *(u32**)(desc + 0x58);
-                if ((currentData = *(u32*)(tex + 4)) ==
+                previous = (u32*)desc->romTextures;
+                if ((currentData = (u32)tex->data) ==
                     (previous = (u32*)((u8*)previous + previousOffset))[1]) {
                     s32 paletteIndex = *(s16*)((u8*)previous + 0xE);
                     found = 1;
-                    *(u16*)(tex + 0xE) = paletteIndex;
+                    tex->index = paletteIndex;
                 }
                 j++;
                 previousOffset += 0x10;
@@ -285,12 +335,12 @@ void pbSetupTextures(s32 id) {
                 s32 type;
                 s32 subtype;
 
-                *(u16*)(tex + 0xE) = (s16)i;
-                type = *(u8*)tex >> 4;
-                width = *(u16*)(tex + 0xA);
-                height = *(u16*)(tex + 0xC);
-                data = *(u8**)(tex + 4);
-                subtype = *(u8*)tex & 7;
+                tex->index = (s16)i;
+                type = tex->format >> 4;
+                width = tex->width;
+                height = tex->height;
+                data = tex->data;
+                subtype = tex->format & 7;
 
                 if ((type & 8) != 0) {
                     if (type == 8) {
@@ -313,7 +363,7 @@ void pbSetupTextures(s32 id) {
                             paletteEntries = 0x10;
                         }
                         DCFlushRange(data, paletteEntries << 1);
-                        GXInitTlutObj(obj + 0x20, data, 2,
+                        GXInitTlutObj(obj->tlutObject, data, 2,
                                      (u16)paletteEntries);
                         {
                             u8* entry = lookup;
@@ -379,8 +429,8 @@ void pbResetTextures(void) {
         u8* e = (u8*)g->tbl + i * 0x10;
         u8** pp = (u8**)(e + 0x4);
         if (*(s32*)(e + 0x10) == 0) {
-            u8* p = *pp;
-            memset(*(void**)(p + 0x78), 0, (*(u32*)(p + 0x48) + 7) & ~7);
+            PbTextureDescView* desc = (PbTextureDescView*)*pp;
+            memset(desc->usedFlags, 0, (desc->textureCount + 7) & ~7);
         }
     }
     lbl_80343F78 = -1;
@@ -443,25 +493,24 @@ void fn_800C70C8(s32 id) {
 void fn_800C7214(s32 id) {
     u8* mgr = gWinGlobals->tbl;
     u8* e = mgr + id * 0x10 + 0x4;
-    u8* desc = *(u8**)e;
-    u8* t;
+    PbTextureDescView* desc = *(PbTextureDescView**)e;
+    PbRomTexture* t;
     s32 shift;
     s32 i;
 
     if (*(s32*)(e + 0xc) > 7)
         return;
 
-    shift = *(s32*)(desc + 0x70);
-    for (i = 0; i < *(u32*)(desc + 0x48); i++) {
-        t = *(u8**)(desc + 0x58) + i * 0x10;
-        *(s16*)(t + 0xe) = -1;
-        t[0x1] = (s8)id;
-        if (*(u16*)(t + 0xa) < 1 || *(u16*)(t + 0xc) < 1 ||
-            (*(u16*)(t + 0x2) & 0x100)) {
-            *(u16*)(t + 0x2) |= 0x100;
-            *(s32*)(t + 0x4) = 0;
+    shift = desc->dataShift;
+    for (i = 0; i < desc->textureCount; i++) {
+        t = &desc->romTextures[i];
+        t->index = -1;
+        t->model = (s8)id;
+        if (t->width < 1 || t->height < 1 || (t->flags & 0x100)) {
+            t->flags |= 0x100;
+            t->data = 0;
         } else {
-            *(s32*)(t + 0x4) = shift + *(s32*)(t + 0x4);
+            t->data = (void*)(shift + (s32)t->data);
         }
     }
     pbSetupTextures(id);
@@ -482,13 +531,14 @@ void fn_800C72DC(void) {
         s32 base;
         if (*(s32*)(e + 0x10) != 0)
             continue;
-        if (*(u16*)(*ep + 0x7e) == 0)
+        if (((PbTextureDescView*)*ep)->lightmapCount == 0)
             continue;
-        base = *(u16*)(*ep + 0x7c);
-        for (t = 0; t < *(u16*)(*ep + 0x7e); t++) {
+        base = ((PbTextureDescView*)*ep)->lightmapBase;
+        for (t = 0; t < ((PbTextureDescView*)*ep)->lightmapCount; t++) {
             if (fn_800C7558((m << 16) | (u16)(base + t)) == 0) {
                 u8* tb = (u8*)wg->tbl + 0x4;
-                FatalErrorf(lbl_80116AC0, 0x200, t + 1, *(u16*)(*ep + 0x7e),
+                FatalErrorf(lbl_80116AC0, 0x200, t + 1,
+                            ((PbTextureDescView*)*ep)->lightmapCount,
                             *(void**)(m * 0x10 + tb));
             }
             loaded++;
@@ -506,22 +556,24 @@ void fn_800C73E0(void) {
 
     if (lbl_80345114 == 1) {
         DCFlushRange((void*)lbl_803450E8, 4);
-        GXInitTlutObj(mgr + 0x5AC, (void*)lbl_803450E8, 2, 16);
+        GXInitTlutObj(((PbTlutMgrView*)mgr)->special[0].object,
+                      (void*)lbl_803450E8, 2, 16);
         DCFlushRange((void*)lbl_803450EC, 4);
-        GXInitTlutObj(mgr + 0x5BC, (void*)lbl_803450EC, 2, 0x100);
+        GXInitTlutObj(((PbTlutMgrView*)mgr)->special[1].object,
+                      (void*)lbl_803450EC, 2, 0x100);
         lbl_80345114 = 2;
     }
     if (lbl_80345114 == 2) {
         s32* cur;
         s32 region;
         u64 bit;
-        if (*(cur = (s32*)(mgr + 0x5B8)) == -1) {
+        if (*(cur = &((PbTlutMgrView*)mgr)->special[0].handle) == -1) {
             *cur = fn_800C6BB4(0, 0xFFFF0000);
             region = *cur;
             bit = __shl2i(0, 1, region);
             lbl_803450E0 |= bit;
             lbl_80345108 = lbl_80345108 + 1;
-            GXLoadTlut(mgr + 0x5AC, region);
+            GXLoadTlut(((PbTlutMgrView*)mgr)->special[0].object, region);
         }
     }
     if (lbl_80345114 == 0) {
@@ -533,30 +585,14 @@ void fn_800C73E0(void) {
         for (i = 0; i < 256; i++) {
             ((u16*)lbl_803450EC)[i] = (i * 128) | 0xFFF;
         }
-        *(s32*)(mgr + 0x5C8) = -1;
-        *(s32*)(mgr + 0x5B8) = -1;
+        ((PbTlutMgrView*)mgr)->special[1].handle = -1;
+        ((PbTlutMgrView*)mgr)->special[0].handle = -1;
         lbl_80345114 = 1;
     }
 }
 
 /* Ensure a texture's TLUT is resident, loading it if necessary, and bind it
  * to the texture object (GXInitTexObjTlut). Returns non-zero on success. */
-typedef struct PbRomTexture {
-    u8 format;
-    s8 model;
-    u16 flags;
-    u8 _pad04[10];
-    s16 index;
-} PbRomTexture;
-
-typedef struct PbTextureObject {
-    u8 _pad00[0x20];
-    u8 tlutObject[0x0C];
-    s8 region;
-    s8 paletteRegion;
-    u8 _pad2E[2];
-} PbTextureObject;
-
 int fn_800C7558(s32 key) {
     PbTexMgr* globals;
     u8* modelDesc;
@@ -577,7 +613,8 @@ int fn_800C7558(s32 key) {
     which = 1;
     globals = gWinGlobals;
     modelDesc = *(u8**)((u8*)globals->tbl + ((u32)key >> 16) * 0x10 + 4);
-    rom = (PbRomTexture*)(*(u8**)(modelDesc + 0x58) + (u16)key * 0x10);
+    rom = (PbRomTexture*)((u8*)((PbTextureDescView*)modelDesc)->romTextures +
+                          (u16)key * 0x10);
     model = (u32)key >> 16;
     texnum = (u16)key;
     if (*(s32*)((u8*)globals->tbl + ((u32)key >> 16) * 0x10 + 0x10) != 0 ||
@@ -587,8 +624,8 @@ int fn_800C7558(s32 key) {
         rom = (PbRomTexture*)MBRomTexPtr(0);
     }
     if (lbl_80345110 == 0) {
-        u8* used = *(u8**)(*(u8**)((u8*)globals->tbl + model * 0x10 + 4) +
-                              0x78);
+        u8* used = ((PbTextureDescView*)*(u8**)((u8*)globals->tbl +
+                                                model * 0x10 + 4))->usedFlags;
         used[texnum] |= 1 << lbl_80343F78;
     }
 
@@ -598,7 +635,7 @@ int fn_800C7558(s32 key) {
     }
     modelDesc =
         *(u8**)((u8*)globals->tbl + (model = rom->model) * 0x10 + 4);
-    texture = (PbTextureObject*)(*(u8**)(modelDesc + 0x80) +
+    texture = (PbTextureObject*)((u8*)((PbTextureDescView*)modelDesc)->texObjects +
                                  (texnum = rom->index) * 0x30);
     if ((format & 8) != 0) {
         u8* specialBase;
@@ -661,17 +698,10 @@ int fn_800C7558(s32 key) {
 
 /* Return the 1-based index (1..2) of the first flag bit set in
  * (mask & desc->flags[idx]), or 0 if none. */
-typedef struct TEXDESCENT {
-    /* 0x0 */ u32 key;
-    /* 0x4 */ u8* desc;
-    /* 0x8 */ u32 unk8;
-    /* 0xC */ u32 unkC;
-} TEXDESCENT; /* 0x10-stride entry of the tbl */
-
 int fn_800C780C(s32 id, s32 idx, u32 mask) {
     TEXDESCENT* t = (TEXDESCENT*)gWinGlobals->tbl;
-    u8* p = t[id].desc;
-    u8* flags = *(u8**)(p + 0x78);
+    PbTextureDescView* desc = (PbTextureDescView*)t[id].desc;
+    u8* flags = desc->usedFlags;
     s32 i;
     u32 bit;
 

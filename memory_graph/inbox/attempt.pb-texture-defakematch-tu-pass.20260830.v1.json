@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "TU-scoped removal of raw texture descriptor, ROM texture, GX texture-object, lightmap descriptor, and special-TLUT manager offsets using GC target-verified file-local views while preserving MWCC pointer webs",
+  "attributes": {
+    "anchors": "src/game/pb/pb_texture.c; flagship pbSetupTextures target 0x800C6DC8 size 0x264; reproduce with ninja build/GUNE5D/src/game/pb/pb_texture.o and tools/gdl/fndiff.py game/pb/pb_texture",
+    "baseline_and_best": "TU fuzzy 95.935684% -> 95.935684%, matched functions 15/19; raw-cast-line census 70 -> 50; pbSetupTextures 153/153 fuzzy 100% real 0 frame 0x60 retained exact; fn_800C6BB4 133/134 fuzzy 85.06767% real 157 -> 155 frame 0x48; fn_800C7558 retained baseline 173/171 fuzzy 90.33526% real 120 frame 0x38",
+    "failed_forms": "pbInitTlutRegions direct manager global added address materialization and live-base cast changed add/stw to addi/stwx, both reverted; fn_800C70C8 typed texture-array and descriptor-only forms perturbed its parked allocator/relocation web, both reverted; fn_800C73E0 typed alias enlarged frame by 8, direct-cast counter-form exact; fn_800C72DC typed local broke fail-closed WebFrank input hash, direct-cast counter-form exact; fn_800C7558 typed special pointer worsened real 120->125, member-cast counter-form improved real 120->110 and count 171->173 but regressed fuzzy 90.33526%->88.64162%, so the whole special region was reverted.",
+    "retained": "GC-verified PbRomTexture/PbTextureObject/PbTextureDescView fields in pbSetupTextures, pbResetTextures, fn_800C7214, fn_800C72DC, fn_800C7558, fn_800C780C; PbSpecialTlut manager slots in fn_800C73E0; evicted texture-object fields in fn_800C6BB4. Exact regions remained byte-identical; fn_800C6BB4 real improved by 2 with unchanged fuzzy.",
+    "semantic_audit": "No behavior change: named fields preserve target-verified offsets, widths, signedness, table strides, texture counts, ROM data/size fields, GX object regions, lightmap ranges, and TLUT object/handle layout. No shared headers or postprocessor rules changed.",
+    "sites_left_raw": "50 census lines remain: protected lwzu/handle webs in pbInitTlutRegions and fn_800C6BB4, parked allocator web in fn_800C70C8, table header/status stepping, format lookup tables without authoritative field types, and fn_800C7558 special-TLUT address-fusion region rejected by fuzzy arbitration."
+  },
+  "function": "function:pbSetupTextures",
+  "id": "attempt.pb-texture-defakematch-tu-pass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
