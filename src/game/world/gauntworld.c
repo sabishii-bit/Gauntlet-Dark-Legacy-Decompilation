@@ -2884,7 +2884,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
     /* scale generator hits by how far the player's gold exceeds the ramp */
     if (info->type == 3 && owner >= 0 &&
         *(f32*)((u8*)gCurLevel + 0x9C) > sItemZero) {
-        f32 mult = sItemFloorRadius;
+        f32 mult;
         f32 ramp = *(f32*)((u8*)gCurLevel + 0x9C);
         f32 gold = (f32)*(s32*)((u8*)gPlayers + owner * 0x335C + 0x3324);
 
@@ -2892,6 +2892,8 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
             mult = (f32)(lbl_80346EE8 - lbl_80346F40 * (ramp - gold));
         } else if (gold > ramp) {
             mult = (f32)(sItemFloorYOffset * (gold - ramp) + lbl_80346EE8);
+        } else {
+            mult = sItemFloorRadius;
         }
         power = power * mult;
         if (power < (f32)lbl_80346EE8) {
