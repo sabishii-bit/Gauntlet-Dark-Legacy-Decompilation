@@ -2131,7 +2131,7 @@ void show_optmenu(OPTMENU* m)
             MBNewTempBlit(lbl_80344E34, px, py, sx, sy);
         }
         if ((m->flags & 2) != 0) {
-            pc = (m->flags & 0x102) == 0x102 ? "Accept" : "Select";
+            pc = (s32)(m->flags & 0x102) == 0x102 ? "Accept" : "Select";
             idx = idx + px;
             if (OPTMSG_SHADOW != 0) {
                 DrawTextKeepScale(msg_scale, -(idx + OPTMSG_SHADOW),
