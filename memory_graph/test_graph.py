@@ -34,6 +34,7 @@ from memory_graph.core import (
     find_records,
     law_corpus,
     prune_attempts,
+    record_lookup,
     stage_record_proposal,
     tu_briefing,
     work_claims,
@@ -233,6 +234,19 @@ class GraphSurfaceTests(unittest.TestCase):
             "attempt.applies.v1", "function:test_fn",
             attributes={"laws_applied": ["claim.law.test-law.v2"]},
         ))
+        # matching-tagged law for the brief matching_laws list
+        _write(records / "claims" / "claim.law.match-lever.v1.json", {
+            "schema_version": 1, "id": "claim.law.match-lever.v1",
+            "kind": "claim", "subject": "compiler:test",
+            "predicate": "codegen_law", "epistemic_state": "verified",
+            "value": "entry schedule lever", "valid_from": TODAY,
+            "attributes": {"scope": "matching",
+                           "tags": ["entry-schedule", "matching"]},
+        })
+        # improved attempt with a schedule residual class
+        _write(records / "attempts" / "attempt.sched-residual.v1.json",
+               _attempt("attempt.sched-residual.v1", "function:test_fn",
+                        residual_class="REGISTER_ONLY/SCHEDULE"))
         # parked attempt on test_fn whose recorded measurement (90) no longer
         # matches the report (95) -> score_moved_since_park
         _write(records / "attempts" / "attempt.moved.v1.json", _attempt(
@@ -276,6 +290,8 @@ class GraphSurfaceTests(unittest.TestCase):
             "  *(s32*)(p + 4) = 1;\n"
             "  *(f32*)(q + 8) = 2.0f;\n"
             "  *(u8*)(r+1) = 3;\n"
+            "  *(s16*)(p + offsetof(Player, gold)) = 6;  /* converted */\n"
+            "  /* commented out: *(s32*)(p + 12) = 9; */\n"
             "  PF(p, 0x10, s32) = 4;\n"
             "  PF(x,1,u8) = 5;\n"
             "}\n",
@@ -331,10 +347,53 @@ class GraphSurfaceTests(unittest.TestCase):
         self.assertEqual(result["tu_count"], 1)
         row = result["tus"][0]
         self.assertEqual(row["tu"], "src/game/test/foo.c")
-        self.assertEqual(row["cast_sites"], 3)
+        # 3 bare + 1 offsetof-named; the commented-out cast is NOT counted
+        self.assertEqual(row["bare_sites"], 3)
+        self.assertEqual(row["named_sites"], 1)
+        self.assertEqual(row["cast_sites"], 4)
         self.assertEqual(row["pf_sites"], 2)
-        self.assertEqual(result["site_total"], 5)
+        self.assertEqual(result["bare_total"], 3)
         self.assertEqual(fakematch_debt("nomatch", root=self.root)["tu_count"], 0)
+        lined = fakematch_debt("game/test/foo", root=self.root, show_lines=1)
+        self.assertEqual(len(lined["bare_site_lines"]), 3)
+        self.assertTrue(all(entry.startswith("src/game/test/foo.c:")
+                            for entry in lined["bare_site_lines"]))
+
+    def test_record_lookup_batch(self):
+        single = record_lookup("claim.law.test-law.v2", root=self.root)
+        self.assertEqual(single["record"]["id"], "claim.law.test-law.v2")
+        batch = record_lookup(
+            "claim.law.test-law.v1, claim.law.test-law.v2, nope.missing",
+            root=self.root)
+        self.assertEqual(batch["count"], 2)
+        self.assertEqual(batch["missing"], ["nope.missing"])
+        with self.assertRaises(MemoryGraphError):
+            record_lookup("nope.missing", root=self.root)
+
+    def test_laws_full_inlines_text(self):
+        heads = law_corpus(root=self.root, tag="core-screen")
+        full = law_corpus(root=self.root, tag="core-screen", full=1)
+        self.assertEqual(full["laws"][0]["head"], "new law text mentioning"
+                         " game/test/foo.c")
+        self.assertEqual(heads["laws"][0]["id"], full["laws"][0]["id"])
+
+    def test_find_residual_facet(self):
+        hits = find_records(root=self.root, residual="SCHED")
+        self.assertIn("attempt.sched-residual.v1",
+                      {row["id"] for row in hits["results"]})
+        self.assertNotIn("attempt.moved.v1",
+                         {row["id"] for row in hits["results"]})
+
+    def test_brief_matching_laws_and_residuals(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        matching_ids = {row["id"] for row in brief["matching_laws"]}
+        self.assertIn("claim.law.match-lever.v1", matching_ids)
+        self.assertNotIn("claim.law.test-law.v2", matching_ids)  # defake law
+        self.assertIsNone(brief["scores_note"])  # report exists in fixture
+        by_id = {row["id"]: row for row in brief["live_attempts"]}
+        self.assertEqual(
+            by_id["attempt.sched-residual.v1"]["residual_class"],
+            "REGISTER_ONLY/SCHEDULE")
 
     def test_stale_reopen_heuristics(self):
         result = attempt_staleness(self.root)
@@ -354,7 +413,8 @@ class GraphSurfaceTests(unittest.TestCase):
         self.assertEqual(result["laws"][0]["tags"],
                          ["core-screen", "alias-form", "defake"])
         self.assertEqual(result["tags_available"],
-                         {"alias-form": 2, "core-screen": 1, "defake": 2})
+                         {"alias-form": 2, "core-screen": 1, "defake": 2,
+                          "entry-schedule": 1, "matching": 1})
 
     def test_find_facets(self):
         by_kind = find_records(root=self.root, kind="work_claim")
@@ -411,7 +471,8 @@ class GraphSurfaceTests(unittest.TestCase):
             [row["id"] for row in brief["core_screen_laws"]],
             ["claim.law.test-law.v2"],
         )
-        self.assertEqual(brief["raw_offset_debt"][0]["total"], 5)
+        self.assertEqual(brief["raw_offset_debt"][0]["total"], 6)
+        self.assertEqual(brief["raw_offset_debt"][0]["bare_sites"], 3)
         with self.assertRaisesRegex(MemoryGraphError, "no GameCube module"):
             tu_briefing("does/not/exist", root=self.root)
 

@@ -28,11 +28,17 @@ documents as durable memory.
 python memory_graph/gdlmem.py ensure
 python memory_graph/gdlmem.py brief <tu-path-fragment>
 python memory_graph/gdlmem.py context <symbol>
-python memory_graph/gdlmem.py find [--kind K] [--function F] [--tu T] [--outcome O] [--law L] [terms]
+python memory_graph/gdlmem.py find [--kind K] [--function F] [--tu T] [--outcome O] [--residual R] [--law L] [terms]
 python memory_graph/gdlmem.py search "<terms>"
-python memory_graph/gdlmem.py laws [--query <term>] [--tag <tag>]
+python memory_graph/gdlmem.py laws [--query <term>] [--tag <tag>] [--full 1]
+python memory_graph/gdlmem.py record <id1>,<id2>,...   # batch detail fetch
 python memory_graph/gdlmem.py tool <tool-or-workflow>
 ```
+
+Fetch your law screen in ONE call: `laws --tag core-screen --full 1`
+(de-fakematch) — `brief` also lists `matching_laws` (schedule/register/
+entry levers) for matching sessions. `record` takes a comma-separated id
+list. Do not loop single-id subprocess calls.
 
 Law tags are a controlled vocabulary — `laws` reports `tags_available`
 with live counts (don't guess names), and `--tag core-screen` returns the
@@ -305,13 +311,29 @@ Core tools, from the repository root:
 ```text
 python configure.py
 ninja build/GUNE5D/<object-path>.o
-python tools/gdl/fnasm.py <unit> <function>
+python tools/gdl/fnasm.py <unit> <fn> [0xA:0xB | i:j] [--ours]
 python tools/gdl/fndiff.py <unit> <function> --count | --ops | --clean
 python tools/gdl/defake_gate.py baseline|check <unit>
+python tools/gdl/fuzzy.py <unit> [<fn>]        # fuzzy from last report, no regen
+python tools/gdl/xrefnum.py <const...> [--cast-only]  # who else uses this offset
+python tools/gdl/externcheck.py                # cross-TU extern type conflicts
 python tools/gdl/matchtool.py probe <unit> --brief
 python tools/gdl/lowmatch.py --max 50 --min-size 200 --sort impact
 python configure.py progress
 ```
+
+Reading `--ops`: each cluster carries `@0xA-0xB` function-relative byte
+offsets — paste them straight into `fnasm.py <unit> <fn> 0xA:0xB` (target)
+or `... --ours` (our object). The `opcode multiset:` line above the
+clusters is the classifier: IDENTICAL = pure reorder (schedule-class);
+DIFFERS = something STRUCTURAL is still hiding even when the diff "looks
+like regalloc noise" — chase the named +/- opcodes before any register
+theory (a cross-TU extern type conflict announced itself exactly this way:
+fctiwz/stfd in one stream only).
+
+Shell note: in worktrees run git through PowerShell only (the Bash tool's
+`python3` alias is also unreliable — use `python`, from a script file for
+anything multi-line).
 
 First-build note (fresh worktree): `configure.py` alone emits a BOOTSTRAP
 build.ninja (tool download + DOL split only, no object graph) — that is

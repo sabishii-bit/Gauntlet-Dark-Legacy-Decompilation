@@ -42,3 +42,6 @@ tools/mwcc_compiler
 gdl-build
 misc/
 
+
+# generated memory-graph database (never commit; see memory_graph/README.md)
+.gdl-memory/

@@ -281,8 +281,23 @@ def ops_diff(name, t, b):
     print(f"==== {name}: target {len(to)} insns, ours {len(bo)}"
           + (" (opcode streams identical -- diffs are register/reloc only)"
              if not clusters else ""))
+    # Multiset verdict: IDENTICAL means every difference is pure reorder
+    # (SCHEDULE class); any +/- means something structural is hiding in the
+    # diff even when insn counts look close.
+    delta = Counter(to) - Counter(bo), Counter(bo) - Counter(to)
+    if not delta[0] and not delta[1]:
+        print(f"  opcode multiset: IDENTICAL ({len(to)}/{len(bo)})"
+              " -- pure reorder, schedule-class residual")
+    else:
+        gains = " ".join(f"+{n} {op}" for op, n in sorted(delta[0].items()))
+        losses = " ".join(f"-{n} {op}" for op, n in sorted(delta[1].items()))
+        print(f"  opcode multiset: DIFFERS  target-only: {gains or '(none)'}"
+              f"  ours-only: {losses or '(none)'}")
+    # @0x offsets are function-relative byte offsets (index*4), directly
+    # usable as fnasm.py 0xA:0xB slices on the target (T) / --ours (O) dumps.
     for tag, i1, i2, j1, j2 in clusters:
-        print(f"  {tag:7} T[{i1}:{i2}]={to[i1:i2]}  O[{j1}:{j2}]={bo[j1:j2]}")
+        print(f"  {tag:7} T[{i1}:{i2}]@{i1 * 4:x}-{i2 * 4:x}={to[i1:i2]}"
+              f"  O[{j1}:{j2}]@{j1 * 4:x}-{j2 * 4:x}={bo[j1:j2]}")
 
 
 def main():

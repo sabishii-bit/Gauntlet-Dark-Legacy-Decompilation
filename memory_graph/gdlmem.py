@@ -87,6 +87,8 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
         help="validate and stage a structured JSON record for review",
     )
     propose_record.add_argument("json_file", type=Path)
+    propose_record.add_argument("--dry-run", action="store_true",
+                                help="validate fully but write nothing")
 
     accept = subparsers.add_parser(
         "accept",
@@ -145,11 +147,16 @@ def main(argv: list[str] | None = None) -> int:
             source = args.json_file.resolve()
             inbox_dir = (root / "memory_graph" / "inbox").resolve()
             in_place = source if source.parent == inbox_dir else None
-            path = stage_record_proposal(record, root=root, in_place=in_place)
+            path = stage_record_proposal(record, root=root, in_place=in_place,
+                                         dry_run=args.dry_run)
             result = {
                 "proposal": str(path),
-                "review_state": "pending",
-                "next": "review the JSON, then move it from memory_graph/inbox to records",
+                "review_state": "valid (not staged)" if args.dry_run
+                                else "pending",
+                "next": ("re-run without --dry-run to stage"
+                         if args.dry_run else
+                         "review the JSON, then move it from"
+                         " memory_graph/inbox to records"),
             }
         elif args.command == "accept":
             result = accept_records(

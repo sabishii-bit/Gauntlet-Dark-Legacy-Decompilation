@@ -152,9 +152,14 @@ propose-record ──▶ full validation ──▶ inbox/ ──(integrator revi
   savepoint and reported as `inbox_rejected` in `build`/`stats`. Accepted
   `records/` remain fail-closed: an invalid accepted record stops the build,
   because accepted truth must never be silently partial.
-- Inbox records are ingested with `record_state: proposed` so queries can rank
-  accepted facts above them; acceptance is a human/integrator moving the file
-  into `records/` and rebuilding.
+- Inbox records are ingested as proposed so queries can rank accepted facts
+  above them; acceptance is a human/integrator moving the file into
+  `records/` and rebuilding. State is determined by LOCATION alone — any
+  `record_state` field inside a file is ignored by the importer (stale
+  "proposed" values in accepted files once silently down-ranked 16 records).
+- The generated SQLite database lives at `<git-common-dir>/gdl-memory/` when
+  git resolution succeeds, else `<root>/.gdl-memory/` (gitignored). Either
+  way it is never committed.
 
 ## Query surface
 
@@ -163,7 +168,8 @@ python memory_graph/gdlmem.py brief <tu>         # one-call TU briefing for work
 python memory_graph/gdlmem.py context <symbol>   # the per-symbol briefing command
 python memory_graph/gdlmem.py find [facets]      # faceted search: kind/function/TU/outcome/law
 python memory_graph/gdlmem.py search "<terms>"   # FTS over records/symbols/entities
-python memory_graph/gdlmem.py laws [--query X] [--tag T]  # law corpus; tags_available lists tags
+python memory_graph/gdlmem.py laws [--query X] [--tag T] [--full 1]  # corpus; --full inlines text
+python memory_graph/gdlmem.py record <id1>,<id2>  # batch full-record fetch
 python memory_graph/gdlmem.py claims             # work claims w/ owner, age, stale flags
 python memory_graph/gdlmem.py debt [--tu X]      # raw-offset fakematch census per TU
 python memory_graph/gdlmem.py tool <name>        # reviewed tool policy

@@ -182,7 +182,9 @@ def _open_raw(path: Path, *, readonly: bool = False) -> sqlite3.Connection:
         connection = sqlite3.connect(path)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
-    connection.execute("PRAGMA busy_timeout = 5000")
+    # generous: concurrent fleet workers share this DB when git common-dir
+    # resolution succeeds; a build's atomic replace can hold it for seconds
+    connection.execute("PRAGMA busy_timeout = 20000")
     return connection
 
 
@@ -843,7 +845,10 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
                 }
             )
             continue
-        state = "proposed" if is_inbox else record.get("record_state", "accepted")
+        # Acceptance is by LOCATION: a file under records/ is accepted no
+        # matter what a stale record_state field claims (superseded v1 files
+        # were found still carrying "proposed" after their inbox move).
+        state = "proposed" if is_inbox else "accepted"
         connection.execute(
             """
             INSERT INTO record_ingest(record_id, record_kind, record_state,
@@ -1810,6 +1815,8 @@ def xbox_struct_layout(
                 })
             entry: dict[str, Any] = {
                 "name": trow["name"],
+                "match_kind": ("exact" if trow["name"].lower() == query.lower()
+                               else "substring"),
                 "kind": trow["type_kind"],
                 "size": struct_size,
                 "size_hex": hex(struct_size) if struct_size else None,
@@ -1844,17 +1851,29 @@ def xbox_struct_layout(
                     "result": hit or "outside recorded layout",
                 }
             types.append(entry)
-    return {
-        "query": query,
-        "offset": hex(off_val) if off_val is not None else None,
-        "types": types,
-        "hint": None if types else (
+    if not types:
+        hint = (
             "no PDB struct matched this name — PDB lookup needs the Xbox"
             " type name, which often differs from the GC symbol; try"
             " `search \"<global-or-base-name>\"` for project-local authority"
             " (headers, sibling-TU attempt records) before leaving sites raw"
             " or inventing a name"
-        ),
+        )
+    elif not any(entry["match_kind"] == "exact" for entry in types):
+        hint = (
+            f"NO type is named exactly {query!r} — every entry below is a"
+            " SUBSTRING match and may be unrelated (a past worker was misled"
+            " by exactly this). Project-local structs (include/game headers,"
+            " e.g. the GC Player) are not in the PDB: verify via"
+            " `search \"<name>\"` before trusting any of these"
+        )
+    else:
+        hint = None
+    return {
+        "query": query,
+        "offset": hex(off_val) if off_val is not None else None,
+        "types": types,
+        "hint": hint,
         "authority_note": (
             "Xbox PDB layouts are cross-platform reference evidence; the GC"
             " record may be more compact. Verify offsets against GameCube"
@@ -2130,13 +2149,16 @@ def stage_record_proposal(
     *,
     root: Path = REPO_ROOT,
     in_place: Path | None = None,
+    dry_run: bool = False,
 ) -> Path:
     """Atomically stage one validated record in the review-required inbox.
 
     ``in_place`` supports re-proposing a file that already sits in the inbox
     (a natural authoring flow): the record is validated, stamped, and
     rewritten at its existing path instead of being rejected as a duplicate
-    of itself.
+    of itself. ``dry_run`` runs the full validation (schema, law_screen,
+    tags, references, duplicates) but writes nothing — for iterating on a
+    draft without producing throwaway inbox files.
     """
     if not isinstance(record, dict):
         raise MemoryGraphError("proposed record must be a JSON object")
@@ -2198,6 +2220,8 @@ def stage_record_proposal(
         destination = destination_dir / f"{slug}.json"
         if destination.exists():
             raise MemoryGraphError(f"proposal destination already exists: {destination}")
+    if dry_run:
+        return destination
     temp = destination.with_suffix(f".{uuid.uuid4().hex}.tmp")
     try:
         temp.write_text(
@@ -2407,30 +2431,43 @@ def accept_records(
         path.unlink()
         touched.append(str(path.relative_to(root)).replace("\\", "/"))
     staged = False
+    staging_error = None
     stageable = touched
     if (root / ".git").exists():
         # A moved/deleted source that was never git-tracked matches no
         # pathspec and would abort the whole `git add` AFTER the filesystem
         # mutations — stage only paths that exist on disk or are tracked.
-        tracked = set(
-            subprocess.run(
-                ["git", "-C", str(root), "ls-files", "--"] + touched,
-                capture_output=True, text=True,
-            ).stdout.splitlines()
-        )
-        stageable = [
-            path for path in touched
-            if (root / path).exists() or path in tracked
-        ]
-        if stageable:
-            subprocess.run(
-                ["git", "-C", str(root), "add", "--"] + stageable,
-                check=True, capture_output=True, text=True,
+        # Any residual git failure must NOT raise: the moves have already
+        # happened, so report precisely and hand the caller a recovery path.
+        try:
+            tracked = set(
+                subprocess.run(
+                    ["git", "-C", str(root), "ls-files", "--"] + touched,
+                    capture_output=True, text=True,
+                ).stdout.splitlines()
             )
-        staged = True
+            stageable = [
+                path for path in touched
+                if (root / path).exists() or path in tracked
+            ]
+            if stageable:
+                subprocess.run(
+                    ["git", "-C", str(root), "add", "--"] + stageable,
+                    check=True, capture_output=True, text=True,
+                )
+            staged = True
+        except (OSError, subprocess.CalledProcessError) as error:
+            detail = getattr(error, "stderr", "") or str(error)
+            staging_error = (
+                "file moves/deletions COMPLETED but git staging failed"
+                f" ({detail.strip()[:300]}). Do NOT re-run accept or"
+                " propose-record — the records are already in place."
+                " Recover by staging manually (PowerShell, not the POSIX"
+                " shell): git add -- " + " ".join(stageable or touched)
+            )
     build_database(root)
     quoted = " ".join(f'"{path}"' for path in stageable)
-    return {
+    result = {
         "accepted": [record_id for record_id in record_ids],
         "released": release,
         "paths": touched,
@@ -2439,6 +2476,9 @@ def accept_records(
         "graph_rebuilt": True,
         "commit_command": f'git commit -m "<message>" -- {quoted}',
     }
+    if staging_error:
+        result["staging_error"] = staging_error
+    return result
 
 
 def register_tool_proposal(
@@ -2525,21 +2565,41 @@ def _stats_surface(root: Path, db_path: Path | None) -> dict[str, Any]:
 def record_lookup(
     record_id: str, *, root: Path = REPO_ROOT, db_path: Path | None = None
 ) -> dict[str, Any]:
-    """Return one record's full JSON by id (the on-demand detail fetch)."""
+    """Return full record JSON by id (the on-demand detail fetch).
+
+    Accepts a comma-separated id list so a law-corpus screen is one round
+    trip instead of a dozen subprocess spawns.
+    """
+    ids = [part.strip() for part in record_id.split(",") if part.strip()]
+    if not ids:
+        raise MemoryGraphError("no record id given")
     ensure_database(root, db_path)
+    results = []
+    missing = []
     with closing(open_database(root, db_path)) as connection:
-        row = connection.execute(
-            "SELECT record_state, source_path, raw_json FROM record_ingest"
-            " WHERE record_id=?",
-            (record_id,),
-        ).fetchone()
-    if row is None:
-        raise MemoryGraphError(f"no record with id {record_id!r}")
-    return {
-        "record_state": row["record_state"],
-        "source_path": row["source_path"],
-        "record": json.loads(row["raw_json"]),
-    }
+        for one_id in ids:
+            row = connection.execute(
+                "SELECT record_state, source_path, raw_json FROM record_ingest"
+                " WHERE record_id=?",
+                (one_id,),
+            ).fetchone()
+            if row is None:
+                missing.append(one_id)
+                continue
+            results.append(
+                {
+                    "record_state": row["record_state"],
+                    "source_path": row["source_path"],
+                    "record": json.loads(row["raw_json"]),
+                }
+            )
+    if not results:
+        raise MemoryGraphError(f"no record with id {ids[0]!r}"
+                               if len(ids) == 1 else
+                               f"none of the {len(ids)} ids matched a record")
+    if len(ids) == 1:
+        return results[0]
+    return {"records": results, "missing": missing, "count": len(results)}
 
 
 def _record_age_days(valid_from: str | None, recorded_at: str | None) -> int | None:
@@ -2561,6 +2621,7 @@ def law_corpus(
     root: Path = REPO_ROOT,
     db_path: Path | None = None,
     tag: str | None = None,
+    full: int = 0,
     limit: int = 100,
 ) -> dict[str, Any]:
     """List the codegen-law corpus, newest first, with freshness and supersession.
@@ -2568,6 +2629,8 @@ def law_corpus(
     ``tag`` filters on the structured ``attributes.tags`` array (e.g.
     ``core-screen``, ``alias-form``, ``entry-schedule``) — the curated
     applicability vocabulary, cheaper and more precise than prose search.
+    ``full=1`` inlines each law's complete text (one round trip for a whole
+    tagged screen set instead of a `record <id>` call per law).
     """
     ensure_database(root, db_path)
     sql = """
@@ -2608,8 +2671,8 @@ def law_corpus(
             value = json.loads(value)
         except (TypeError, json.JSONDecodeError):
             pass
-        if isinstance(value, str) and len(value) > 300:
-            value = value[:300] + " …[gdlmem.py record <id> for full text]"
+        if not full and isinstance(value, str) and len(value) > 300:
+            value = value[:300] + " …[--full or gdlmem.py record <id> for full text]"
         try:
             tags = json.loads(row["tags"]) if row["tags"] else []
         except (TypeError, json.JSONDecodeError):
@@ -2726,6 +2789,23 @@ _DEBT_CAST_RE = re.compile(
     r"|void\s*\*|\w+\s*\*)\s*\*?\s*\)\s*\("
 )
 _DEBT_PF_RE = re.compile(r"\bPF\s*\(")
+_C_COMMENT_RE = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
+
+
+def _strip_c_comments(text: str) -> str:
+    """Blank out comments, preserving newlines so line numbers stay true."""
+    return _C_COMMENT_RE.sub(
+        lambda match: re.sub(r"[^\n]", " ", match.group(0)), text
+    )
+
+
+def _cast_site_is_named(text: str, start: int) -> bool:
+    """True when the cast's displacement is already offsetof/sizeof-named."""
+    window = text[start:start + 240]
+    stop = window.find(";")
+    if stop != -1:
+        window = window[:stop]
+    return "offsetof" in window or "sizeof" in window
 
 
 def fakematch_debt(
@@ -2734,18 +2814,22 @@ def fakematch_debt(
     root: Path = REPO_ROOT,
     db_path: Path | None = None,
     limit: int = 40,
+    show_lines: int = 0,
 ) -> dict[str, Any]:
     """Census raw-offset fakematch debt per TU, heaviest first.
 
-    Counts broad raw-cast sites (``*(T*)(...)``) and PF() macro sites in each
-    C/C++ file under src/. Pass ``tu`` to filter to paths containing it. The
-    scan runs against the working tree at query time, so the result is always
-    current; the generated_at stamp makes saved copies comparable over time.
+    Counts raw-cast sites (``*(T*)(...)``) and PF() macro sites in each C/C++
+    file under src/, with comments stripped, splitting cast sites into
+    ``bare_sites`` (numeric displacement — the actual remaining debt) and
+    ``named_sites`` (already offsetof/sizeof-spelled — converted, kept for
+    the total so old censuses stay comparable). Pass ``tu`` to filter;
+    ``show_lines=1`` (with a tu filter) lists each bare site as file:line.
     """
     src = root / "src"
     if not src.exists():
         raise MemoryGraphError(f"no src/ directory under {root}")
     rows = []
+    sites: list[str] = []
     for path in sorted(src.rglob("*.c*")):
         if path.suffix.lower() not in (".c", ".cpp"):
             continue
@@ -2753,29 +2837,45 @@ def fakematch_debt(
         if tu and tu.lower() not in relative.lower():
             continue
         try:
-            text = path.read_text(encoding="utf-8", errors="replace")
+            text = _strip_c_comments(
+                path.read_text(encoding="utf-8", errors="replace"))
         except OSError:
             continue
-        casts = len(_DEBT_CAST_RE.findall(text))
+        bare = named = 0
+        for match in _DEBT_CAST_RE.finditer(text):
+            if _cast_site_is_named(text, match.start()):
+                named += 1
+            else:
+                bare += 1
+                if show_lines and tu:
+                    line = text.count("\n", 0, match.start()) + 1
+                    sites.append(f"{relative}:{line}")
         pf_sites = len(_DEBT_PF_RE.findall(text))
-        if casts or pf_sites:
+        if bare or named or pf_sites:
             rows.append(
-                {"tu": relative, "cast_sites": casts, "pf_sites": pf_sites,
-                 "total": casts + pf_sites}
+                {"tu": relative, "cast_sites": bare + named,
+                 "bare_sites": bare, "named_sites": named,
+                 "pf_sites": pf_sites, "total": bare + named + pf_sites}
             )
-    rows.sort(key=lambda row: (-row["total"], row["tu"]))
-    total = sum(row["total"] for row in rows)
-    return {
+    rows.sort(key=lambda row: (-(row["bare_sites"] + row["pf_sites"]),
+                               row["tu"]))
+    result = {
         "tus": rows[:limit],
         "tu_count": len(rows),
-        "site_total": total,
+        "site_total": sum(row["total"] for row in rows),
+        "bare_total": sum(row["bare_sites"] for row in rows),
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "note": (
-            "broad census: includes legitimate raw forms (protected webs,"
-            " structless pools) — read the TU's attempt records before"
-            " claiming; counts are for wave planning, not a to-zero target"
+            "bare_sites (+pf_sites) is the remaining debt; named_sites are"
+            " already offsetof/sizeof-converted. The census is a floor —"
+            " cast-then-index and cast-assign shapes escape the regex — and"
+            " includes legitimate raw forms (protected webs, structless"
+            " pools): read the TU's attempt records before claiming."
         ),
     }
+    if show_lines and tu:
+        result["bare_site_lines"] = sites[:400]
+    return result
 
 
 def _record_head(record: dict[str, Any]) -> str:
@@ -2798,21 +2898,22 @@ def find_records(
     function: str | None = None,
     tu: str | None = None,
     outcome: str | None = None,
+    residual: str | None = None,
     law: str | None = None,
     limit: int = 25,
 ) -> dict[str, Any]:
     """Faceted record search: filter by kind, anchor function, TU, attempt
-    outcome, and associated law, freely combined with FTS terms.
+    outcome, residual class, and associated law, plus optional FTS terms.
 
     The TU facet is derived through the symbol import (function -> module),
     so historical records are TU-searchable without carrying a `tu` field.
     The law facet matches structured `laws_applied` links and prose mentions
     (law_screen text) alike.
     """
-    if not any((query, kind, function, tu, outcome, law)):
+    if not any((query, kind, function, tu, outcome, residual, law)):
         raise MemoryGraphError(
             "find needs at least one facet or search term"
-            " (--kind/--function/--tu/--outcome/--law or query)"
+            " (--kind/--function/--tu/--outcome/--residual/--law or query)"
         )
     ensure_database(root, db_path)
     sql = """
@@ -2850,6 +2951,9 @@ def find_records(
     if outcome:
         sql += " AND at.outcome = ?"
         params.append(outcome)
+    if residual:
+        sql += " AND at.residual_class LIKE ?"
+        params.append(f"%{residual}%")
     if law:
         sql += (
             " AND (EXISTS (SELECT 1 FROM attempt_law_application ala"
@@ -2973,6 +3077,7 @@ def tu_briefing(
                         "id": row["record_id"],
                         "function": row["entity_key"].split(":", 1)[-1],
                         "outcome": row["outcome"],
+                        "residual_class": record.get("residual_class"),
                         "age_days": _record_age_days(
                             row["valid_from"], row["recorded_at"]),
                         "head": _record_head(record),
@@ -3022,6 +3127,19 @@ def tu_briefing(
     ]
     core_laws = law_corpus(root=root, db_path=db_path, tag="core-screen",
                            limit=50)["laws"]
+    # Matching sessions need the schedule/register/entry levers too —
+    # core-screen is the de-fakematch set, not the whole toolbox.
+    matching_laws = []
+    seen_matching: set[str] = set()
+    for match_tag in ("matching", "entry-schedule", "register-web",
+                      "store-placement"):
+        for row in law_corpus(root=root, db_path=db_path, tag=match_tag,
+                              limit=20)["laws"]:
+            if row["id"] not in seen_matching and not row["superseded_by"]:
+                seen_matching.add(row["id"])
+                matching_laws.append({"id": row["id"], "tags": row["tags"],
+                                      "age_days": row["age_days"]})
+    matching_laws.sort(key=lambda row: row["age_days"] or 0)
     mentioned = law_corpus(tu, root=root, db_path=db_path, limit=20)["laws"]
     mentioned_ids = {row["id"] for row in core_laws}
     try:
@@ -3032,18 +3150,24 @@ def tu_briefing(
     return {
         "tu": [row["object_name"] for row in modules],
         "functions": roster,
+        "scores_note": (None if scores else
+                        "fuzzy is null because build/GUNE5D/report.json does"
+                        " not exist yet in this checkout — run a full ninja"
+                        " first, then re-run brief for scores"),
         "live_attempts": attempts,
         "active_claims": claims,
         "core_screen_laws": [
             {"id": row["id"], "tags": row["tags"]} for row in core_laws
         ],
+        "matching_laws": matching_laws,
         "tu_mentioned_laws": [
             {"id": row["id"], "scope": row["scope"]}
             for row in mentioned if row["id"] not in mentioned_ids
         ],
         "raw_offset_debt": debt_rows,
         "note": (
-            "briefing heads only: fetch forensics with gdlmem.py record <id>;"
+            "briefing heads only: fetch full law/attempt text in ONE call"
+            " with gdlmem.py record <id1>,<id2>,... or laws --tag X --full;"
             " parked/capped attempts are VETOes on their axes; run"
             " tools/gdl/defake_gate.py baseline before the first edit and"
             " honor active_claims from other owners"
@@ -3076,12 +3200,14 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                  "age, tags, application counts, and supersession flags."),
             call=lambda root, db, **kw: law_corpus(
                 kw["query"], root=root, db_path=db, tag=kw["tag"],
-                limit=kw["limit"]),
+                full=kw["full"], limit=kw["limit"]),
             params=(
                 SurfaceParam("query", str, default=None,
                              help="optional filter over id/scope/law text"),
                 SurfaceParam("tag", str, default=None,
                              help="filter by structured applicability tag"),
+                SurfaceParam("full", int, default=0, maximum=1,
+                             help="1 = inline complete law text"),
                 SurfaceParam("limit", int, default=100, maximum=200),
             ),
         ),
@@ -3092,7 +3218,7 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
             call=lambda root, db, **kw: find_records(
                 kw["query"], root=root, db_path=db, kind=kw["kind"],
                 function=kw["function"], tu=kw["tu"], outcome=kw["outcome"],
-                law=kw["law"], limit=kw["limit"]),
+                residual=kw["residual"], law=kw["law"], limit=kw["limit"]),
             params=(
                 SurfaceParam("query", str, default=None,
                              help="optional FTS terms"),
@@ -3104,6 +3230,8 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                              help="TU path fragment (derived via symbol map)"),
                 SurfaceParam("outcome", str, default=None,
                              help="attempt outcome, e.g. parked|capped|improved"),
+                SurfaceParam("residual", str, default=None,
+                             help="residual class fragment, e.g. SCHEDULE"),
                 SurfaceParam("law", str, default=None,
                              help="law id fragment (structured links + prose)"),
                 SurfaceParam("limit", int, default=25, maximum=100),
@@ -3141,11 +3269,15 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
             doc=("Census raw-offset fakematch debt per TU (heaviest first) "
                  "for wave planning."),
             call=lambda root, db, **kw: fakematch_debt(
-                kw["tu"], root=root, db_path=db, limit=kw["limit"]),
+                kw["tu"], root=root, db_path=db, limit=kw["limit"],
+                show_lines=kw["show_lines"]),
             params=(
                 SurfaceParam("tu", str, default=None,
                              help="optional path substring filter"),
                 SurfaceParam("limit", int, default=40, maximum=200),
+                SurfaceParam("show_lines", int, default=0, maximum=1,
+                             help="1 = list bare sites as file:line"
+                                  " (requires --tu)"),
             ),
         ),
         SurfaceOp(

@@ -4,6 +4,8 @@
 Usage:
   python tools/gdl/fnasm.py game/pb_window pbProjCalc          # whole function
   python tools/gdl/fnasm.py game/pb_window pbProjCalc 40:120   # insn index slice
+  python tools/gdl/fnasm.py game/pb_window pbProjCalc 0x68:0xa0  # offset slice
+  python tools/gdl/fnasm.py game/pb_window pbProjCalc --ours   # OUR built object
   python tools/gdl/fnasm.py game/pb_window                     # list functions
 
 Output is one line per instruction: function-relative hex offset, mnemonic,
@@ -11,8 +13,15 @@ operands, with any relocation folded onto the same line ("@sym"). Branch
 targets stay as real function-relative offsets so label adjacency can be
 verified (bge-to-next vs bge-over-one is visible at a glance).
 
-Reads build/GUNE5D/obj/<unit>.o (the dtk-extracted target), never our build,
-so it works before any source exists and is immune to stale-object issues.
+Slices with a 0x prefix are byte-offset ranges (matching the printed offsets
+and fndiff --ops @0x annotations); bare numbers are instruction indices.
+
+Default reads build/GUNE5D/obj/<unit>.o (the dtk-extracted target), so it
+works before any source exists and is immune to stale-object issues.
+--ours reads build/GUNE5D/src/<unit>.o (our compile) instead — run ninja on
+the object first or the dump is stale.
+
+OBJDUMP is resolved to an absolute path so this works from any cwd/script.
 """
 
 import re
@@ -21,21 +30,32 @@ import sys
 from pathlib import Path
 
 VERSION = "GUNE5D"
-OBJDUMP = Path("build/binutils/powerpc-eabi-objdump.exe")
+OBJDUMP = (Path(__file__).resolve().parents[2]
+           / "build" / "binutils" / "powerpc-eabi-objdump.exe")
 
 
 def main():
-    if len(sys.argv) < 2:
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    ours = "--ours" in sys.argv
+    if not args or args[0] in ("--help", "-h", "help"):
         print(__doc__)
         return 1
-    unit = re.sub(r"\.(c|cpp)$", "", sys.argv[1].replace("\\", "/"))
-    fn = sys.argv[2] if len(sys.argv) > 2 else None
+    unit = args[0].replace("\\", "/").strip("/")
+    if unit.startswith("src/"):
+        unit = unit[len("src/"):]
+    unit = re.sub(r"\.(c|cpp)$", "", unit)
+    fn = args[1] if len(args) > 1 else None
     lo, hi = 0, 1 << 30
-    if len(sys.argv) > 3 and ":" in sys.argv[3]:
-        a, b = sys.argv[3].split(":")
-        lo, hi = int(a or 0), int(b or (1 << 30))
+    by_offset = False
+    if len(args) > 2 and ":" in args[2]:
+        a, b = args[2].split(":")
+        by_offset = a.startswith("0x") or b.startswith("0x")
+        conv = (lambda s, d: int(s, 16) if s else d) if by_offset \
+            else (lambda s, d: int(s) if s else d)
+        lo, hi = conv(a, 0), conv(b, 1 << 30)
 
-    obj = Path(f"build/{VERSION}/obj/{unit}.o")
+    kind = "src" if ours else "obj"
+    obj = Path(f"build/{VERSION}/{kind}/{unit}.o")
     if not obj.exists():
         # dtk merges runs of tiny fns into auto_03_* objects and names auto
         # units after their first fn; try the common variants before giving up
@@ -46,7 +66,9 @@ def main():
                 obj = c
                 break
     if not obj.exists():
-        print(f"missing {obj} (run ninja once so dtk extracts it)")
+        hint = (f"run ninja build/{VERSION}/src/{unit}.o first" if ours
+                else "run ninja once so dtk extracts it")
+        print(f"missing {obj} ({hint})")
         return 1
     out = subprocess.run([str(OBJDUMP), "-dr", str(obj)],
                          capture_output=True, text=True).stdout
@@ -86,9 +108,10 @@ def main():
         print(f"function {fn} not found; has: {', '.join(names)}")
         return 1
     for i, (off, ins) in enumerate(rows):
-        if lo <= i < hi:
+        key = off if by_offset else i
+        if lo <= key < hi:
             print(f"{off:4x}: {ins}")
-    print(f"[{len(rows)} insns]")
+    print(f"[{len(rows)} insns{' (ours)' if ours else ''}]")
     return 0
 
 
