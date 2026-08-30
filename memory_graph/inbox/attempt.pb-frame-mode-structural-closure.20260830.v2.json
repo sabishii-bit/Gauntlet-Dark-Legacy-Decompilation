@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "portable-C exact closure of packet-loop zero initialization, mode-arm conversion spills, smode bitfield edits, clamp lifetime, 8-byte packet-copy scheduling, and (this revisit) de-fakematch offsetof-rename of the packet-build loop's raw GS-register/template offsets",
+  "attributes": {
+    "anchors": "src/game/pb/pb_frame.c::pbFrameMode; GUNE5D .text 0x800C16F8 size 0xEF8; fnasm/fndiff/objdiff report commands",
+    "axis_log": "2026-08-29 matching-axis probes (all negative/reverted, do not retry without a new source-level lever): per-case conv locals real499; direct mode-arm casts real561; direct/assignment-expression/clamp-lifetime aR forms real459-461; smode reuse/literals real483; named y-offset temp and explicit pair copy real473; P8-u64 collapsed copies to lfd/stfd real650; declaration order/register hints/smode scope/add operand order/alternate aR copy placement all neutral-reverted. 2026-08-30 de-fakematch pass (attempt.pb-frame-defakematch-tupass.20260830.v2): offsetof-rename of buf/env/tA/tB/tC displacements to PBFRAMEBUF/PbDispEnvRec/PbTplA/B/C fields, gated per-region; net real 391->389 IMPROVED as a side effect of removing magic numbers, not a deliberate matching probe. One isolated site (tC+40) regressed 389->393 and was bisected out (see claim.law.offsetof-rename-isolated-site-outlier.20260830.v1); all 14 sibling tA/tB/tC conversions plus the full buf/env/MBScreen/fn_800C2618-tail batches held real steady or better.",
+    "baseline_and_best": "session-start baseline (pre this revisit) target/current 958/959, fndiff real 391, direct fuzzy 96.95198%, report fuzzy 96.98852%, frame 0x360; NEW best 958/959, real 389, direct fuzzy 96.9635%, frame 0x360 (unchanged) -- de-fakematch pass improvement, banked via defake_gate.py --update-improved",
+    "law_screen": "Same TU-pass screen as attempt.pb-frame-defakematch-tupass.20260830.v2 (laws --tag core-screen --full 1, 12 laws). offsetof-rename-preserves-protected-web applied to this function's packet-build loop specifically; the new claim.law.offsetof-rename-isolated-site-outlier.20260830.v1 was authored FROM this function's tC+40 outlier and applied here to justify keeping that one site raw instead of forcing a match. No typed alias/repeated-cast/lwzu-idiom hazards applicable -- no typed intermediate introduced anywhere in the revisit.",
+    "laws_applied": [
+      "claim.law.offsetof-rename-preserves-protected-web.20260830.v1",
+      "claim.law.offsetof-rename-isolated-site-outlier.20260830.v1"
+    ],
+    "residual": "structurally the same class as before: schedule/register-color cascades (stfd-pair placement shifted at 4 sites, one rlwinm/add association seam, one lwz/add reorder near an addi, one extra mr eliminated net, two stw pair-order seams) -- opcode multiset now DIFFERS by exactly 'ours-only: -1 mr' (was 0 net delta at the prior baseline). Do not retry the 2026-08-29 logged matching axes without a new source-level lever; the de-fakematch technique (offsetof-rename) is exhausted for this function at the field-and-template-boundary level covered by PBFRAMEBUF/PbDispEnvRec/PbTplA/B/C -- next lever, if any, is scheduler-level (fctiwz/stfd slot ordering) or a fresh register-pressure probe, not another offset-spelling pass.",
+    "retained_change": "bufOff = envOff = k = 0 right-to-left chained assignment (2026-08-29, unchanged); PLUS (2026-08-30) all raw GS-packet/template offsets in the mode-3..6 case arms and the 2-iteration packet-build loop now resolve through PBFRAMEBUF (PDB-verified, full header+tail) / PbDispEnvRec / PbTplA / PbTplB / PbTplC named fields via offsetof(), except the single tC+40 site kept raw and commented.",
+    "semantic_audit": "calls, seven-arm mode switch, saved r14-r31 topology, 0x360 frame, two packet iterations, GS bitfield offsets, buffer strides, mode fields, flush/publish tail, and all 13 sibling functions remain aligned across both the 2026-08-29 matching pass and the 2026-08-30 de-fakematch pass; Xbox PB_FRAME.OBJ exact-name/PBFRAMEMODE/PBGLOBAL_FRAME evidence and the PDB PBFRAMEBUF struct (Id=3398) used only for semantics/naming, never as a match-forcing device",
+    "verification": "owning object and full ninja succeeded after both passes; main.dol SHA-1 gate OK; fndiff --ops/--clean inspected at every step of the 2026-08-30 revisit; git diff --check clean; no assembly; project progress 97.83% fuzzy, 58.15% matched, 26.09% linked"
+  },
+  "function": "function:pbFrameMode",
+  "id": "attempt.pb-frame-mode-structural-closure.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-30T22:08:16Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.pb-frame-mode-structural-closure.20260829.v1",
+  "valid_from": "2026-08-30"
+}

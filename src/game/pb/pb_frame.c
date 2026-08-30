@@ -23,6 +23,10 @@
 
 #include "types.h"
 
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
 typedef struct MBScreen {
     s32 m00;           /* 0x00 */
     s32 m04;           /* 0x04 */
@@ -36,11 +40,12 @@ typedef struct MBScreen {
     s32 height;        /* 0x24 */
     s32 m28;           /* 0x28 */
     s32 m2c;           /* 0x2C */
-    u8  _pad30[8];
+    s32 m30;           /* 0x30 : set 1 on mode reprogram */
+    s32 m34;           /* 0x34 : GS field-mask (0xFFFFFF or 0xFFFF) */
     f32 f38;           /* 0x38 */
     f32 f3c;           /* 0x3C */
     s32 m40;           /* 0x40 */
-    u8  _pad44[4];
+    s32 m44;           /* 0x44 : block-count total (halfBlocks+dblBlocks) */
     s32 m48;           /* 0x48 : force-refresh flag */
 } MBScreen;
 
@@ -123,8 +128,43 @@ typedef union PBGSReg {
     u16 h[4];
     u8 b[8];
 } PBGSReg;
+/* Xbox PDB struct PBFRAMEBUF (shell3D.pdb, Size=0x200): a DMA tag, a GIF
+ * tag, then a fixed A+D (address+data) register-write list -- each
+ * PBGSReg[2] entry is {data, addr} for one GS privileged register, in the
+ * PDB's own declared field order. GC target displacements at every touched
+ * offset (fn_800C151C/fn_800C2618/fn_800C2C74's already-matched o__pmode..
+ * o2_display tail, and pbFrameMode's packet-build loop) confirm the layout
+ * field-for-field. */
 typedef struct PBFRAMEBUF {
-    u8 _pad000[0x1C0];
+    PBGSReg dma_tag;
+    PBGSReg pad;
+    PBGSReg gif_tag[2];
+    PBGSReg c1_frame[2];
+    PBGSReg c1_zbuf[2];
+    PBGSReg c1_xyoffset[2];
+    PBGSReg c1_scissor[2];
+    PBGSReg c1_fba[2];
+    PBGSReg c2_frame[2];
+    PBGSReg c2_zbuf[2];
+    PBGSReg c2_xyoffset[2];
+    PBGSReg c2_scissor[2];
+    PBGSReg c2_fba[2];
+    PBGSReg prmodecont[2];
+    PBGSReg colclamp[2];
+    PBGSReg dthe[2];
+    PBGSReg dimx[2];
+    PBGSReg scanmsk[2];
+    PBGSReg fogcol[2];
+    PBGSReg pabe[2];
+    PBGSReg texa[2];
+    PBGSReg clr_test[2];
+    PBGSReg clr_prim[2];
+    PBGSReg clr_rgbaq[2];
+    PBGSReg clr_xyz2a[2];
+    PBGSReg clr_xyz2b[2];
+    PBGSReg c1_test[2];
+    PBGSReg c2_test[2];
+    PBGSReg end_packet[2];
     PBGSReg o__pmode[2];
     PBGSReg o__smode2;
     PBGSReg o__bgcolor;
@@ -133,6 +173,54 @@ typedef struct PBFRAMEBUF {
     PBGSReg o2_dispfb;
     PBGSReg o2_display;
 } PBFRAMEBUF;
+/* Per-field sceGs display-environment record (40 bytes; dispenv[] holds
+ * two back to back). No PDB struct match -- GC target displacements only,
+ * placeholder mNN field names in this file's established idiom. */
+typedef struct PbDispEnvRec {
+    PBGSReg m00;
+    PBGSReg m08;
+    PBGSReg m10;
+    PBGSReg m18;
+    PBGSReg m20;
+} PbDispEnvRec;
+/* per-field templates copied into the packet body -- local stack
+ * buffers (tplA1/tplA2/tplB1/tplB2/tplC1/tplC2), no PDB struct match.
+ * Only the touched fields are named; gaps stay raw padding. */
+typedef struct PbTplA {
+    PBGSReg m00;
+    u8 _pad08[4];
+    PBGSReg m0C;
+    u8 _pad14[4];
+    PBGSReg m18;
+    u8 _pad20[4];
+    PBGSReg m24;
+    u8 _pad2C[4];
+    PBGSReg m30;
+    PBGSReg m38;
+    u8 _pad40[4];
+    PBGSReg m44;
+    PBGSReg m4C;
+} PbTplA;
+typedef struct PbTplB {
+    PBGSReg m00;
+    u8 _pad08[4];
+    PBGSReg m0C;
+    u8 _pad14[4];
+    PBGSReg m18;
+    u8 _pad20[4];
+    PBGSReg m24;
+    u8 _pad2C[32];
+    PBGSReg m4C;
+} PbTplB;
+typedef struct PbTplC {
+    PBGSReg m00;
+    PBGSReg m08;
+    PBGSReg m10;
+    u8 _pad18[4];
+    PBGSReg m1C;
+    u8 _pad24[4];
+    PBGSReg m28;
+} PbTplC;
 typedef struct GsFldB5b1 { u8 a : 5; u8 b : 1; u8 c : 2; } GsFldB5b1;
 extern s32 lbl_80343F00;
 extern f64 lbl_80348F18;
@@ -283,8 +371,8 @@ void pbFrameMode(s32 mode, s32 flag)
         convH = (s32)(f32)(lbl_80343F0C / 2);
         g->screen->width = convW;
         g->screen->height = convH;
-        *(s32*)((u8*)g->screen + 48) = 1;
-        *(s32*)((u8*)g->screen + 52) = 0x1000000 - 1;
+        g->screen->m30 = 1;
+        g->screen->m34 = 0x1000000 - 1;
         if (g->screen->m28 == 0 || g->screen->m2c == 0) {
             WinGlobals* defaults = gWinGlobals;
             defaults->screen->m28 = 512;
@@ -304,8 +392,8 @@ void pbFrameMode(s32 mode, s32 flag)
         convH = (s32)(f32)lbl_80343F0C;
         g->screen->width = convW;
         g->screen->height = convH;
-        *(s32*)((u8*)g->screen + 48) = 1;
-        *(s32*)((u8*)g->screen + 52) = 0x1000000 - 1;
+        g->screen->m30 = 1;
+        g->screen->m34 = 0x1000000 - 1;
         if (g->screen->m28 == 0 || g->screen->m2c == 0) {
             WinGlobals* defaults = gWinGlobals;
             defaults->screen->m28 = 512;
@@ -325,8 +413,8 @@ void pbFrameMode(s32 mode, s32 flag)
         convH = (s32)(f32)(lbl_80343F0C / 2);
         g->screen->width = convW;
         g->screen->height = convH;
-        *(s32*)((u8*)g->screen + 48) = 1;
-        *(s32*)((u8*)g->screen + 52) = 0x10000 - 1;
+        g->screen->m30 = 1;
+        g->screen->m34 = 0x10000 - 1;
         if (g->screen->m28 == 0 || g->screen->m2c == 0) {
             WinGlobals* defaults = gWinGlobals;
             defaults->screen->m28 = 512;
@@ -346,8 +434,8 @@ void pbFrameMode(s32 mode, s32 flag)
         convH = (s32)(f32)lbl_80343F0C;
         g->screen->width = convW;
         g->screen->height = convH;
-        *(s32*)((u8*)g->screen + 48) = 1;
-        *(s32*)((u8*)g->screen + 52) = 0x10000 - 1;
+        g->screen->m30 = 1;
+        g->screen->m34 = 0x10000 - 1;
         if (g->screen->m28 == 0 || g->screen->m2c == 0) {
             WinGlobals* defaults = gWinGlobals;
             defaults->screen->m28 = 512;
@@ -382,7 +470,7 @@ void pbFrameMode(s32 mode, s32 flag)
         halfBlocks = (halfBlocks + 1) >> 1;
     }
     dblBlocks = blocks * 2;
-    *(s32*)((u8*)g->screen + 68) = halfBlocks + dblBlocks;
+    g->screen->m44 = halfBlocks + dblBlocks;
     g->screen->m08 = !sceGsSyncV(0);
     if (flag != 0) {
         sceGsResetGraph(0, (s16)fieldA, (s16)sync0, (s16)fieldB);
@@ -409,14 +497,14 @@ void pbFrameMode(s32 mode, s32 flag)
         tA = (k != 0) ? tplA2p : pA1;
         tB = (k != 0) ? pB1 : pB2;
         tC = (k != 0) ? pC1 : pC2;
-        *(P8*)(buf + 448) = *(P8*)env;
-        *(P8*)(buf + 456) = *(P8*)env;
-        *(P8*)(buf + 464) = *(P8*)(env + 8);
-        *(P8*)(buf + 472) = *(P8*)(env + 32);
-        *(P8*)(buf + 496) = *(P8*)(env + 16);
-        *(P8*)(buf + 504) = *(P8*)(env + 24);
-        *(P8*)(buf + 480) = *(P8*)(env + 16);
-        *(P8*)(buf + 488) = *(P8*)(env + 24);
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, o__pmode))) = *(P8*)env;
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, o__pmode) + 8)) = *(P8*)env;
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, o__smode2))) = *(P8*)(env + (offsetof(PbDispEnvRec, m08)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, o__bgcolor))) = *(P8*)(env + (offsetof(PbDispEnvRec, m20)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, o2_dispfb))) = *(P8*)(env + (offsetof(PbDispEnvRec, m10)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, o2_display))) = *(P8*)(env + (offsetof(PbDispEnvRec, m18)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, o1_dispfb))) = *(P8*)(env + (offsetof(PbDispEnvRec, m10)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, o1_display))) = *(P8*)(env + (offsetof(PbDispEnvRec, m18)));
 
         smode = lbl_80344FA0;
         if (smode == 0) {
@@ -424,37 +512,37 @@ void pbFrameMode(s32 mode, s32 flag)
             s32 one = 1;
             s32 zero = 0;
 
-            ((GsFldB1a*)(buf + 448))->a = one;
-            ((GsFldB1b*)(buf + 448))->b = one;
-            *(u8*)(buf + 449) = 128;
-            *(f64*)(buf + 456) = *(f64*)(buf + 448);
-            ((GsFldH11*)(buf + 484))->hi = one;
-            ((GsFldW11a*)(buf + 484))->b = zero;
-            ((GsFldH4*)(buf + 490))->b = ((GsFldH4*)(env + 26))->b;
-            ((GsFldB2*)(buf + 491))->b = ((GsFldB2*)(env + 27))->b;
-            ((GsFldH12*)(buf + 488))->hi =
-                ((u32)*(u16*)(env + 24) >> 4 & 0xFFF) +
+            ((GsFldB1a*)(buf + (offsetof(PBFRAMEBUF, o__pmode))))->a = one;
+            ((GsFldB1b*)(buf + (offsetof(PBFRAMEBUF, o__pmode))))->b = one;
+            *(u8*)(buf + (offsetof(PBFRAMEBUF, o__pmode) + 1)) = 128;
+            *(f64*)(buf + (offsetof(PBFRAMEBUF, o__pmode) + 8)) = *(f64*)(buf + (offsetof(PBFRAMEBUF, o__pmode)));
+            ((GsFldH11*)(buf + (offsetof(PBFRAMEBUF, o1_dispfb) + 4)))->hi = one;
+            ((GsFldW11a*)(buf + (offsetof(PBFRAMEBUF, o1_dispfb) + 4)))->b = zero;
+            ((GsFldH4*)(buf + (offsetof(PBFRAMEBUF, o1_display) + 2)))->b = ((GsFldH4*)(env + (offsetof(PbDispEnvRec, m18) + 2)))->b;
+            ((GsFldB2*)(buf + (offsetof(PBFRAMEBUF, o1_display) + 3)))->b = ((GsFldB2*)(env + (offsetof(PbDispEnvRec, m18) + 3)))->b;
+            ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o1_display))))->hi =
+                ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18))) >> 4 & 0xFFF) +
                 (lbl_80344FA4 + lbl_80344FAC);
-            ((GsFldW11b*)(buf + 488))->b =
-                (*(u32*)(env + 24) >> 9 & 0x7FF) + (lbl_80344FA8 + xoff);
-            ((GsFldH12*)(buf + 492))->hi =
-                ((u32)*(u16*)(env + 28) >> 4 & 0xFFF) - 4 - lbl_80344FA4 * 2;
-            ((GsFldW11b*)(buf + 492))->b =
-                (*(u32*)(env + 28) >> 9 & 0x7FF) - lbl_80344FA8 * 2;
-            ((GsFldH11*)(buf + 500))->hi = one;
-            ((GsFldW11a*)(buf + 500))->b = one;
-            ((GsFldH4*)(buf + 506))->b = ((GsFldH4*)(env + 26))->b;
-            ((GsFldB2*)(buf + 507))->b = ((GsFldB2*)(env + 27))->b;
-            ((GsFldH12*)(buf + 504))->hi =
-                ((u32)*(u16*)(env + 24) >> 4 & 0xFFF) +
-                ((u32)*(u16*)(env + 26) >> 5 & 0xF) +
+            ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o1_display))))->b =
+                (*(u32*)(env + (offsetof(PbDispEnvRec, m18))) >> 9 & 0x7FF) + (lbl_80344FA8 + xoff);
+            ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o1_display) + 4)))->hi =
+                ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 4)) >> 4 & 0xFFF) - 4 - lbl_80344FA4 * 2;
+            ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o1_display) + 4)))->b =
+                (*(u32*)(env + (offsetof(PbDispEnvRec, m18) + 4)) >> 9 & 0x7FF) - lbl_80344FA8 * 2;
+            ((GsFldH11*)(buf + (offsetof(PBFRAMEBUF, o2_dispfb) + 4)))->hi = one;
+            ((GsFldW11a*)(buf + (offsetof(PBFRAMEBUF, o2_dispfb) + 4)))->b = one;
+            ((GsFldH4*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 2)))->b = ((GsFldH4*)(env + (offsetof(PbDispEnvRec, m18) + 2)))->b;
+            ((GsFldB2*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 3)))->b = ((GsFldB2*)(env + (offsetof(PbDispEnvRec, m18) + 3)))->b;
+            ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o2_display))))->hi =
+                ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18))) >> 4 & 0xFFF) +
+                ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 2)) >> 5 & 0xF) +
                 lbl_80344FA4 + lbl_80344FAC + 1;
-            ((GsFldW11b*)(buf + 504))->b =
-                (*(u32*)(env + 24) >> 9 & 0x7FF) + (lbl_80344FA8 + xoff);
-            ((GsFldH12*)(buf + 508))->hi =
-                ((u32)*(u16*)(env + 28) >> 4 & 0xFFF) - 4 - lbl_80344FA4 * 2;
-            ((GsFldW11b*)(buf + 508))->b =
-                (*(u32*)(env + 28) >> 9 & 0x7FF) - 1 - lbl_80344FA8 * 2;
+            ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o2_display))))->b =
+                (*(u32*)(env + (offsetof(PbDispEnvRec, m18))) >> 9 & 0x7FF) + (lbl_80344FA8 + xoff);
+            ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 4)))->hi =
+                ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 4)) >> 4 & 0xFFF) - 4 - lbl_80344FA4 * 2;
+            ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 4)))->b =
+                (*(u32*)(env + (offsetof(PbDispEnvRec, m18) + 4)) >> 9 & 0x7FF) - 1 - lbl_80344FA8 * 2;
         } else {
             s32 aR;
             s32 aG;
@@ -495,146 +583,148 @@ void pbFrameMode(s32 mode, s32 flag)
                 aG = 64;
             }
             if (smode == 8) {
-                ((GsFldB1a*)(buf + 448))->a = one;
-                ((GsFldB1b*)(buf + 448))->b = one;
-                ((GsFldB5b1*)(buf + 448))->b = one;
-                *(u8*)(buf + 449) = 128;
-                *(f64*)(buf + 456) = *(f64*)(buf + 448);
-                ((GsFldW11b*)(buf + 508))->b =
-                    (*(u32*)(env + 28) >> 9 & 0x7FF) - 1;
+                ((GsFldB1a*)(buf + (offsetof(PBFRAMEBUF, o__pmode))))->a = one;
+                ((GsFldB1b*)(buf + (offsetof(PBFRAMEBUF, o__pmode))))->b = one;
+                ((GsFldB5b1*)(buf + (offsetof(PBFRAMEBUF, o__pmode))))->b = one;
+                *(u8*)(buf + (offsetof(PBFRAMEBUF, o__pmode) + 1)) = 128;
+                *(f64*)(buf + (offsetof(PBFRAMEBUF, o__pmode) + 8)) = *(f64*)(buf + (offsetof(PBFRAMEBUF, o__pmode)));
+                ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 4)))->b =
+                    (*(u32*)(env + (offsetof(PbDispEnvRec, m18) + 4)) >> 9 & 0x7FF) - 1;
             } else if (smode == 9) {
-                ((GsFldH11*)(buf + 500))->hi = 0;
-                ((GsFldW11a*)(buf + 500))->b = 1;
-                ((GsFldW11b*)(buf + 508))->b =
-                    (*(u32*)(env + 28) >> 9 & 0x7FF) - 1;
+                ((GsFldH11*)(buf + (offsetof(PBFRAMEBUF, o2_dispfb) + 4)))->hi = 0;
+                ((GsFldW11a*)(buf + (offsetof(PBFRAMEBUF, o2_dispfb) + 4)))->b = 1;
+                ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 4)))->b =
+                    (*(u32*)(env + (offsetof(PbDispEnvRec, m18) + 4)) >> 9 & 0x7FF) - 1;
             } else {
-            ((GsFldB1a*)(buf + 448))->a = one;
-            ((GsFldB1b*)(buf + 448))->b = one;
-            *(u8*)(buf + 449) = (u8)aR;
-            ((GsFldB1a*)(buf + 456))->a = one;
-            ((GsFldB1b*)(buf + 456))->b = one;
-            *(u8*)(buf + 457) = (u8)aG;
-            ((GsFldH11*)(buf + 484))->hi = 0;
-            ((GsFldW11a*)(buf + 484))->b = 0;
-            ((GsFldH4*)(buf + 490))->b = ((GsFldH4*)(env + 26))->b;
-            ((GsFldB2*)(buf + 491))->b = ((GsFldB2*)(env + 27))->b;
-            ((GsFldH12*)(buf + 488))->hi =
-                ((u32)*(u16*)(env + 24) >> 4 & 0xFFF) +
-                noBlend * (((u32)*(u16*)(env + 26) >> 5 & 0xF) + 1);
-            ((GsFldW11b*)(buf + 488))->b =
-                (*(u32*)(env + 24) >> 9 & 0x7FF) +
-                selB * (((u32)*(u8*)(env + 27) >> 3 & 3) + 1);
-            ((GsFldH12*)(buf + 492))->hi =
-                (u32)*(u16*)(env + 28) >> 4 & 0xFFF;
-            ((GsFldW11b*)(buf + 492))->b = *(u32*)(env + 28) >> 9 & 0x7FF;
-            ((GsFldH11*)(buf + 500))->hi = 0;
-            ((GsFldW11a*)(buf + 500))->b = one;
-            ((GsFldH4*)(buf + 506))->b = ((GsFldH4*)(env + 26))->b;
-            ((GsFldB2*)(buf + 507))->b = ((GsFldB2*)(env + 27))->b;
-            ((GsFldH12*)(buf + 504))->hi =
-                ((u32)*(u16*)(env + 24) >> 4 & 0xFFF) +
-                flag * (((u32)*(u16*)(env + 26) >> 5 & 0xF) + 1);
-            ((GsFldW11b*)(buf + 504))->b =
-                (*(u32*)(env + 24) >> 9 & 0x7FF) +
-                selC * (((u32)*(u8*)(env + 27) >> 3 & 3) + 1);
-            ((GsFldH12*)(buf + 508))->hi =
-                (u32)*(u16*)(env + 28) >> 4 & 0xFFF;
-            ((GsFldW11b*)(buf + 508))->b =
-                (*(u32*)(env + 28) >> 9 & 0x7FF) - 1;
+            ((GsFldB1a*)(buf + (offsetof(PBFRAMEBUF, o__pmode))))->a = one;
+            ((GsFldB1b*)(buf + (offsetof(PBFRAMEBUF, o__pmode))))->b = one;
+            *(u8*)(buf + (offsetof(PBFRAMEBUF, o__pmode) + 1)) = (u8)aR;
+            ((GsFldB1a*)(buf + (offsetof(PBFRAMEBUF, o__pmode) + 8)))->a = one;
+            ((GsFldB1b*)(buf + (offsetof(PBFRAMEBUF, o__pmode) + 8)))->b = one;
+            *(u8*)(buf + (offsetof(PBFRAMEBUF, o__pmode) + 9)) = (u8)aG;
+            ((GsFldH11*)(buf + (offsetof(PBFRAMEBUF, o1_dispfb) + 4)))->hi = 0;
+            ((GsFldW11a*)(buf + (offsetof(PBFRAMEBUF, o1_dispfb) + 4)))->b = 0;
+            ((GsFldH4*)(buf + (offsetof(PBFRAMEBUF, o1_display) + 2)))->b = ((GsFldH4*)(env + (offsetof(PbDispEnvRec, m18) + 2)))->b;
+            ((GsFldB2*)(buf + (offsetof(PBFRAMEBUF, o1_display) + 3)))->b = ((GsFldB2*)(env + (offsetof(PbDispEnvRec, m18) + 3)))->b;
+            ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o1_display))))->hi =
+                ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18))) >> 4 & 0xFFF) +
+                noBlend * (((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 2)) >> 5 & 0xF) + 1);
+            ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o1_display))))->b =
+                (*(u32*)(env + (offsetof(PbDispEnvRec, m18))) >> 9 & 0x7FF) +
+                selB * (((u32)*(u8*)(env + (offsetof(PbDispEnvRec, m18) + 3)) >> 3 & 3) + 1);
+            ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o1_display) + 4)))->hi =
+                (u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 4)) >> 4 & 0xFFF;
+            ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o1_display) + 4)))->b = *(u32*)(env + (offsetof(PbDispEnvRec, m18) + 4)) >> 9 & 0x7FF;
+            ((GsFldH11*)(buf + (offsetof(PBFRAMEBUF, o2_dispfb) + 4)))->hi = 0;
+            ((GsFldW11a*)(buf + (offsetof(PBFRAMEBUF, o2_dispfb) + 4)))->b = one;
+            ((GsFldH4*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 2)))->b = ((GsFldH4*)(env + (offsetof(PbDispEnvRec, m18) + 2)))->b;
+            ((GsFldB2*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 3)))->b = ((GsFldB2*)(env + (offsetof(PbDispEnvRec, m18) + 3)))->b;
+            ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o2_display))))->hi =
+                ((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18))) >> 4 & 0xFFF) +
+                flag * (((u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 2)) >> 5 & 0xF) + 1);
+            ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o2_display))))->b =
+                (*(u32*)(env + (offsetof(PbDispEnvRec, m18))) >> 9 & 0x7FF) +
+                selC * (((u32)*(u8*)(env + (offsetof(PbDispEnvRec, m18) + 3)) >> 3 & 3) + 1);
+            ((GsFldH12*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 4)))->hi =
+                (u32)*(u16*)(env + (offsetof(PbDispEnvRec, m18) + 4)) >> 4 & 0xFFF;
+            ((GsFldW11b*)(buf + (offsetof(PBFRAMEBUF, o2_display) + 4)))->b =
+                (*(u32*)(env + (offsetof(PbDispEnvRec, m18) + 4)) >> 9 & 0x7FF) - 1;
             }
         }
 
-        *(P8*)(buf + 32) = *(P8*)tA;
-        *(P8*)(buf + 48) = *(P8*)(tA + 12);
-        *(P8*)(buf + 64) = *(P8*)(tA + 24);
-        *(P8*)(buf + 80) = *(P8*)(tA + 36);
-        *(P8*)(buf + 400) = *(P8*)(tA + 76);
-        *(P8*)(buf + 112) = *(P8*)tB;
-        *(P8*)(buf + 128) = *(P8*)(tB + 12);
-        *(P8*)(buf + 144) = *(P8*)(tB + 24);
-        *(P8*)(buf + 160) = *(P8*)(tB + 36);
-        *(P8*)(buf + 416) = *(P8*)(tB + 76);
-        *(P8*)(buf + 192) = *(P8*)(tA + 48);
-        *(P8*)(buf + 208) = *(P8*)(tA + 56);
-        lbl_80344FB4 = (*(u64*)(buf + 208) & 1) != 0;
-        *(P8*)(buf + 224) = *(P8*)(tA + 68);
-        *(u32*)(buf + 100) = 0;
-        *(u32*)(buf + 96) = 0;
-        *(u32*)(buf + 180) = 0;
-        *(u32*)(buf + 176) = 0;
-        *(u32*)(buf + 240) = 0x71603524;
-        *(u32*)(buf + 244) = gifTag2;
-        *(u32*)(buf + 260) = 0;
-        *(u32*)(buf + 256) = 0;
-        *(u32*)(buf + 276) = colorMask;
-        *(u32*)(buf + 272) = 0;
-        *(u32*)(buf + 292) = 0;
-        *(u32*)(buf + 288) = 0;
-        *(u32*)(buf + 304) = 0;
-        *(u32*)(buf + 308) = 128;
-        *(P8*)(buf + 320) = *(P8*)tC;
-        *(P8*)(buf + 336) = *(P8*)(tC + 8);
-        *(P8*)(buf + 352) = *(P8*)(tC + 16);
-        *(P8*)(buf + 368) = *(P8*)(tC + 28);
-        *(P8*)(buf + 384) = *(P8*)(tC + 40);
-        *(u32*)(buf + 44) = 76;
-        *(u32*)(buf + 40) = 0;
-        *(u32*)(buf + 60) = 78;
-        *(u32*)(buf + 56) = 0;
-        *(u32*)(buf + 76) = 24;
-        *(u32*)(buf + 72) = 0;
-        *(u32*)(buf + 92) = 64;
-        *(u32*)(buf + 88) = 0;
-        *(u32*)(buf + 108) = 74;
-        *(u32*)(buf + 104) = 0;
-        *(u32*)(buf + 412) = 71;
-        *(u32*)(buf + 408) = 0;
-        *(u32*)(buf + 124) = 77;
-        *(u32*)(buf + 120) = 0;
-        *(u32*)(buf + 140) = 79;
-        *(u32*)(buf + 136) = 0;
-        *(u32*)(buf + 156) = 25;
-        *(u32*)(buf + 152) = 0;
-        *(u32*)(buf + 172) = 65;
-        *(u32*)(buf + 168) = 0;
-        *(u32*)(buf + 188) = 75;
-        *(u32*)(buf + 184) = 0;
-        *(u32*)(buf + 428) = 72;
-        *(u32*)(buf + 424) = 0;
-        *(u32*)(buf + 204) = 26;
-        *(u32*)(buf + 200) = 0;
-        *(u32*)(buf + 220) = 70;
-        *(u32*)(buf + 216) = 0;
-        *(u32*)(buf + 236) = 69;
-        *(u32*)(buf + 232) = 0;
-        *(u32*)(buf + 252) = 68;
-        *(u32*)(buf + 248) = 0;
-        *(u32*)(buf + 268) = 34;
-        *(u32*)(buf + 264) = 0;
-        *(u32*)(buf + 284) = 61;
-        *(u32*)(buf + 280) = 0;
-        *(u32*)(buf + 300) = 73;
-        *(u32*)(buf + 296) = 0;
-        *(u32*)(buf + 316) = 59;
-        *(u32*)(buf + 312) = 0;
-        *(u32*)(buf + 332) = 71;
-        *(u32*)(buf + 328) = 0;
-        *(u32*)(buf + 348) = 0;
-        *(u32*)(buf + 344) = 0;
-        *(u32*)(buf + 364) = 1;
-        *(u32*)(buf + 360) = 0;
-        *(u32*)(buf + 380) = 5;
-        *(u32*)(buf + 376) = 0;
-        *(u32*)(buf + 396) = 5;
-        *(u32*)(buf + 392) = 0;
-        *(u32*)(buf + 12) = 0;
-        *(u32*)(buf + 8) = 0;
-        *(u32*)(buf + 16) = 0x8019;
-        *(u32*)(buf + 20) = kBig;
-        *(u32*)(buf + 28) = 14;
-        *(u32*)(buf + 24) = 0;
-        *(u32*)(buf + 0) = kNop;
-        *(u32*)(buf + 4) = 0;
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, c1_frame))) = *(P8*)tA;
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, c1_zbuf))) = *(P8*)(tA + (offsetof(PbTplA, m0C)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, c1_xyoffset))) = *(P8*)(tA + (offsetof(PbTplA, m18)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, c1_scissor))) = *(P8*)(tA + (offsetof(PbTplA, m24)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, c1_test))) = *(P8*)(tA + (offsetof(PbTplA, m4C)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, c2_frame))) = *(P8*)tB;
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, c2_zbuf))) = *(P8*)(tB + (offsetof(PbTplB, m0C)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, c2_xyoffset))) = *(P8*)(tB + (offsetof(PbTplB, m18)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, c2_scissor))) = *(P8*)(tB + (offsetof(PbTplB, m24)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, c2_test))) = *(P8*)(tB + (offsetof(PbTplB, m4C)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, prmodecont))) = *(P8*)(tA + (offsetof(PbTplA, m30)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, colclamp))) = *(P8*)(tA + (offsetof(PbTplA, m38)));
+        lbl_80344FB4 = (*(u64*)(buf + (offsetof(PBFRAMEBUF, colclamp))) & 1) != 0;
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, dthe))) = *(P8*)(tA + (offsetof(PbTplA, m44)));
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_fba) + 4)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_fba))) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_fba) + 4)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_fba))) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, dimx))) = 0x71603524;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, dimx) + 4)) = gifTag2;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, scanmsk) + 4)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, scanmsk))) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, fogcol) + 4)) = colorMask;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, fogcol))) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, pabe) + 4)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, pabe))) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, texa))) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, texa) + 4)) = 128;
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_test))) = *(P8*)tC;
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_prim))) = *(P8*)(tC + (offsetof(PbTplC, m08)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_rgbaq))) = *(P8*)(tC + (offsetof(PbTplC, m10)));
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2a))) = *(P8*)(tC + (offsetof(PbTplC, m1C)));
+        /* kept raw (not offsetof(PbTplC, m28)): A/B-verified regression,
+         * real 389->393 -- see attempt record for the isolation. */
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2b))) = *(P8*)(tC + 40);
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_frame) + 12)) = 76;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_frame) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_zbuf) + 12)) = 78;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_zbuf) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_xyoffset) + 12)) = 24;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_xyoffset) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_scissor) + 12)) = 64;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_scissor) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_fba) + 12)) = 74;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_fba) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_test) + 12)) = 71;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_test) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_frame) + 12)) = 77;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_frame) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_zbuf) + 12)) = 79;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_zbuf) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_xyoffset) + 12)) = 25;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_xyoffset) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_scissor) + 12)) = 65;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_scissor) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_fba) + 12)) = 75;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_fba) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_test) + 12)) = 72;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, c2_test) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, prmodecont) + 12)) = 26;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, prmodecont) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, colclamp) + 12)) = 70;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, colclamp) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, dthe) + 12)) = 69;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, dthe) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, dimx) + 12)) = 68;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, dimx) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, scanmsk) + 12)) = 34;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, scanmsk) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, fogcol) + 12)) = 61;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, fogcol) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, pabe) + 12)) = 73;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, pabe) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, texa) + 12)) = 59;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, texa) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, clr_test) + 12)) = 71;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, clr_test) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, clr_prim) + 12)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, clr_prim) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, clr_rgbaq) + 12)) = 1;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, clr_rgbaq) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2a) + 12)) = 5;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2a) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2b) + 12)) = 5;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2b) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, pad) + 4)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, pad))) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, gif_tag))) = 0x8019;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, gif_tag) + 4)) = kBig;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, gif_tag) + 12)) = 14;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, gif_tag) + 8)) = 0;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, dma_tag))) = kNop;
+        *(u32*)(buf + (offsetof(PBFRAMEBUF, dma_tag) + 4)) = 0;
         envOff += 40;
         bufOff += 512;
     }
@@ -760,12 +850,15 @@ void fn_800C2618(void)
 
             ((GsFldB1a*)(s->regs + 0x1C0))->a = (u8)s->m30;
             ((GsFldB1b*)(s->regs + 0x1C0))->b = (u8)s->m6C;
-            *(u8*)(s->regs + 0x1C1) = s->m1C;
-            *(f64*)(s->regs + 0x1C8) = *(f64*)(s->regs + 0x1C0);
+            *(u8*)(s->regs + offsetof(PBFRAMEBUF, o__pmode) + 1) = s->m1C;
+            *(f64*)(s->regs + offsetof(PBFRAMEBUF, o__pmode) + 8) =
+                *(f64*)(s->regs + offsetof(PBFRAMEBUF, o__pmode));
             ((GsFldB1a*)(s->regs + 0x3C0))->a = (u8)s->m30;
             ((GsFldB1b*)(s->regs + 0x3C0))->b = (u8)s->m6C;
-            *(u8*)(s->regs + 0x3C1) = s->m1C;
-            *(f64*)(s->regs + 0x3C8) = *(f64*)(s->regs + 0x3C0);
+            *(u8*)(s->regs + sizeof(PBFRAMEBUF) + offsetof(PBFRAMEBUF, o__pmode) + 1) =
+                s->m1C;
+            *(f64*)(s->regs + sizeof(PBFRAMEBUF) + offsetof(PBFRAMEBUF, o__pmode) + 8) =
+                *(f64*)(s->regs + sizeof(PBFRAMEBUF) + offsetof(PBFRAMEBUF, o__pmode));
 
             s->m28[0].o__smode2.d &= ~3;
             s->m28[0].o__smode2.d |= (s32)s->m20;
