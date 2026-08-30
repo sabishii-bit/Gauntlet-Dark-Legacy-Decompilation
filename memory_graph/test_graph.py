@@ -454,6 +454,21 @@ class GraphSurfaceTests(unittest.TestCase):
         self.assertEqual(proposal["confidence"], "exact-gap")
         self.assertEqual(module["no_candidate"], [])
 
+    def test_symbol_rename_atomic(self):
+        from memory_graph.core import rename_symbol
+        # dry-run reports the full plan without touching anything
+        plan = rename_symbol("fn_80001010", "mystery_one", root=self.root)
+        self.assertFalse(plan["applied"])
+        symbols = (self.root / "config" / "GUNE5D" / "symbols.txt"
+                   ).read_text(encoding="utf-8")
+        self.assertIn("fn_80001010", symbols)
+        # collision with a live symbol fails closed
+        with self.assertRaisesRegex(MemoryGraphError, "multiply-defined"):
+            rename_symbol("fn_80001010", "other_fn", root=self.root)
+        # unknown source symbol fails closed
+        with self.assertRaisesRegex(MemoryGraphError, "not a symbol"):
+            rename_symbol("fn_deadbeef", "whatever", root=self.root)
+
     def test_stale_reopen_heuristics(self):
         result = attempt_staleness(self.root)
         reasons = {entry["record"]: entry["reason"]
@@ -629,6 +644,37 @@ class AcceptRecordsTests(unittest.TestCase):
         self.assertTrue(
             (self.root / "memory_graph" / "inbox" / "attempt.wave.v1.json").exists()
         )
+
+
+class RenameSymbolApplyTests(unittest.TestCase):
+    def test_apply_patches_symbols_source_and_records(self):
+        from memory_graph.core import rename_symbol
+        root = make_root()
+        src = root / "src" / "game" / "test" / "foo.c"
+        src.parent.mkdir(parents=True)
+        src.write_text("void fn_80001010(void);\n"
+                       "void caller(void) { fn_80001010(); }\n",
+                       encoding="utf-8")
+        record = root / "memory_graph" / "records" / "attempts" / "a.json"
+        _write(record, _attempt("attempt.a.v1", "function:fn_80001010",
+                                outcome="parked"))
+        try:
+            result = rename_symbol("fn_80001010", "mystery_one", root=root,
+                                   apply=True)
+            self.assertTrue(result["applied"])
+            symbols = (root / "config" / "GUNE5D" / "symbols.txt"
+                       ).read_text(encoding="utf-8")
+            self.assertNotIn("fn_80001010", symbols)
+            self.assertIn("mystery_one = .text:0x80001010", symbols)
+            source = src.read_text(encoding="utf-8")
+            self.assertNotIn("fn_80001010", source)
+            self.assertEqual(source.count("mystery_one"), 2)
+            patched = json.loads(record.read_text(encoding="utf-8"))
+            self.assertEqual(patched["function"], "function:mystery_one")
+            self.assertIn("src/game/test/foo.c", result["source_files"])
+            self.assertTrue(result["record_files_patched"])
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
 
 
 class DefakeGateTests(unittest.TestCase):

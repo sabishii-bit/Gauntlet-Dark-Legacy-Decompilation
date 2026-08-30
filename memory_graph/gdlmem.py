@@ -32,6 +32,7 @@ from memory_graph.core import (
     memory_stats,
     prune_attempts,
     register_tool_proposal,
+    rename_symbol,
     stage_record_proposal,
 )
 
@@ -106,6 +107,17 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
     accept.add_argument("--any-branch", action="store_true",
                         help="override the integrator-only main-branch guard")
 
+    rename = subparsers.add_parser(
+        "rename-symbol",
+        help="atomic project-wide symbol rename: collision check, "
+             "symbols.txt+src+include, graph-anchor patch, stale .s/.o "
+             "cleanup (dry-run unless --apply)",
+    )
+    rename.add_argument("old_name")
+    rename.add_argument("new_name")
+    rename.add_argument("--apply", action="store_true",
+                        help="execute (default: report the plan)")
+
     prune = subparsers.add_parser(
         "prune-attempts",
         help="eject attempt records beyond the per-function cap (dry-run "
@@ -167,6 +179,9 @@ def main(argv: list[str] | None = None) -> int:
                 args.record_ids, release=args.release, root=root,
                 allow_any_branch=args.any_branch,
             )
+        elif args.command == "rename-symbol":
+            result = rename_symbol(args.old_name, args.new_name, root=root,
+                                   apply=args.apply)
         elif args.command == "prune-attempts":
             kwargs = {"apply": args.apply}
             if args.limit is not None:

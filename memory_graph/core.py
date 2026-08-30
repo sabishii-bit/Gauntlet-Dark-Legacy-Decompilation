@@ -3405,7 +3405,15 @@ def symbol_naming_audit(
             " WHERE s.platform='gamecube' AND s.raw_name LIKE 'lbl\\_%' ESCAPE '\\'"
             " GROUP BY m.object_name"
         ).fetchall()
+        taken_rows = connection.execute(
+            "SELECT raw_name FROM binary_symbol WHERE platform='gamecube'"
+        ).fetchall()
     lbl_counts = {row["module"]: row["n"] for row in lbl_rows}
+    # A candidate whose name is ALREADY a live GC symbol cannot be adopted —
+    # it links multiply-defined. Behavioral verification can't catch this
+    # (the name may fit perfectly); only a namespace check can, and the
+    # adoption field test hit it twice before this flag existed.
+    gc_taken = {row["raw_name"].lower() for row in taken_rows}
 
     gc_modules: dict[str, list[tuple[str, int]]] = {}
     for row in gc_rows:
@@ -3496,12 +3504,21 @@ def symbol_naming_audit(
                 # audit's second deliverable (UpdateCam vs CamUpdate class).
                 for (name, addr), candidate in zip(gc_gap, xbox_gap):
                     if name.startswith("fn_"):
-                        proposals.append({
+                        proposal = {
                             "gc": name, "address": hex(addr),
                             "xbox_candidate": candidate,
                             "confidence": "exact-gap",
-                        })
-                        totals["exact_gap"] += 1
+                        }
+                        if candidate.lower() in gc_taken:
+                            proposal["confidence"] = "NAME-TAKEN"
+                            proposal["warning"] = (
+                                "a live GC symbol already uses this name —"
+                                " adopting it links multiply-defined; either"
+                                " the existing holder is the misnamed one or"
+                                " the alignment is off here")
+                        else:
+                            totals["exact_gap"] += 1
+                        proposals.append(proposal)
                     elif normalize(name) != candidate.lower():
                         mismatches.append({
                             "gc": name, "xbox": candidate,
@@ -3535,6 +3552,97 @@ def symbol_naming_audit(
             " full gates; record no-candidate placeholders per TU as claim"
             " records with predicate symbol_naming for future revisits;"
             " lbl_* data alignment is not attempted (inventory only)"
+        ),
+    }
+
+
+def rename_symbol(
+    old: str,
+    new: str,
+    *,
+    root: Path = REPO_ROOT,
+    apply: bool = False,
+) -> dict[str, Any]:
+    """Atomic project-wide symbol rename with every invariant held at once.
+
+    The adoption field test proved that hand-rolling these five steps is how
+    one gets missed: (1) same-namespace collision pre-check; (2) whole-word
+    rename across symbols.txt + src/ + include/; (3) graph-record anchor
+    patch (a rename otherwise orphans every record whose `function:`/
+    `subject:` field names the old symbol, breaking gdlmem build
+    project-wide); (4) stale generated .s/.o cleanup so the build
+    regenerates them; (5) a printed gate reminder. Dry-run by default.
+    """
+    word_re = re.compile(rf"\b{re.escape(old)}\b")
+    symbols_path = root / "config" / "GUNE5D" / "symbols.txt"
+    symbols_text = symbols_path.read_text(encoding="utf-8", errors="replace")
+    if not re.search(rf"^{re.escape(old)}\s*=", symbols_text, re.M):
+        raise MemoryGraphError(f"{old!r} is not a symbol in symbols.txt")
+    if re.search(rf"\b{re.escape(new)}\b", symbols_text):
+        raise MemoryGraphError(
+            f"{new!r} already exists in symbols.txt — adopting it would link"
+            " multiply-defined (the field-tested failure); the existing"
+            " holder must be resolved first")
+    touched: dict[str, list[str]] = {"source": [], "records": [],
+                                     "stale_objects": []}
+    edits: list[tuple[Path, str]] = [(symbols_path,
+                                      word_re.sub(new, symbols_text))]
+    for base in ("src", "include"):
+        directory = root / base
+        if not directory.exists():
+            continue
+        for path in sorted(directory.rglob("*")):
+            if not path.is_file() or path.suffix.lower() not in (
+                    ".c", ".cpp", ".h"):
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if word_re.search(text):
+                edits.append((path, word_re.sub(new, text)))
+                touched["source"].append(
+                    str(path.relative_to(root)).replace("\\", "/"))
+    marker = f"function:{old}"
+    for base in ("memory_graph/records", "memory_graph/inbox"):
+        directory = root / base
+        if not directory.exists():
+            continue
+        for path in sorted(directory.rglob("*.json")):
+            text = path.read_text(encoding="utf-8-sig", errors="replace")
+            if f'"{marker}"' in text:
+                edits.append(
+                    (path, text.replace(f'"{marker}"', f'"function:{new}"')))
+                touched["records"].append(
+                    str(path.relative_to(root)).replace("\\", "/"))
+    build_dir = root / "build" / "GUNE5D"
+    if build_dir.exists():
+        for path in sorted(build_dir.rglob("*.s")):
+            try:
+                if word_re.search(path.read_text(encoding="utf-8",
+                                                 errors="replace")):
+                    touched["stale_objects"].append(
+                        str(path.relative_to(root)).replace("\\", "/"))
+            except OSError:
+                continue
+    if apply:
+        for path, text in edits:
+            path.write_text(text, encoding="utf-8")
+        for relative in touched["stale_objects"]:
+            stale = root / relative
+            stale.unlink(missing_ok=True)
+            sibling = stale.with_suffix(".o")
+            sibling.unlink(missing_ok=True)
+    return {
+        "old": old,
+        "new": new,
+        "applied": apply,
+        "symbols_txt": True,
+        "source_files": touched["source"],
+        "record_files_patched": touched["records"],
+        "stale_generated_deleted": touched["stale_objects"],
+        "next": (
+            "python configure.py; ninja -j2 (must be green, main.dol OK);"
+            " fndiff --clean the renamed function; gdlmem.py build to"
+            " confirm no orphaned record anchors"
+            if apply else "re-run with --apply / apply=True to execute"
         ),
     }
 
