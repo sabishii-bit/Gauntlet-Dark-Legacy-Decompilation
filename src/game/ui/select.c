@@ -2678,15 +2678,15 @@ void init_player_select(s32 mode)
                 abort_player(i1);
             }
             *(s32*)pl = i1;
-            if (*(s32*)(pl + 232) == 4) {
-                *(s32*)(pl + 232) = 1;
+            if (*(s32*)(pl + offsetof(Player, state)) == 4) {
+                *(s32*)(pl + offsetof(Player, state)) = 1;
             }
-            if (mode == 2 && *(s32*)(pl + 232) == 5) {
-                *(s32*)(pl + 232) = 2;
-                *(s32*)(pl + 13112) = 1;
+            if (mode == 2 && *(s32*)(pl + offsetof(Player, state)) == 5) {
+                *(s32*)(pl + offsetof(Player, state)) = 2;
+                *(s32*)(pl + offsetof(Player, motion_state)) = 1;
             }
-            if (*(s32*)(pl + 232) == 1) {
-                *(s32*)(pl + 232) = 3;
+            if (*(s32*)(pl + offsetof(Player, state)) == 1) {
+                *(s32*)(pl + offsetof(Player, state)) = 3;
                 player_store_in_save(pl);
                 remove_player_geo(i1);
             }
@@ -2709,7 +2709,7 @@ void init_player_select(s32 mode)
     new_menu_accept(-1, 1);
     {
         for (pl = gPlayers; i2 < 4; i2++, pl += 13148) {
-            if (*(s32*)(pl + 232) == 0 && (lbl_80344824 & (1 << i2))) {
+            if (*(s32*)(pl + offsetof(Player, state)) == 0 && (lbl_80344824 & (1 << i2))) {
                 new_player(i2);
             }
         }
@@ -2736,9 +2736,9 @@ void init_player_select(s32 mode)
                 mbBlitInit3414(*(void**)(blits + joff), 1);
                 mbBlitCvtCoord(*(void**)(blits + joff),
                                (f32)*(s32*)(e + 8));
-                *(s32*)(blits + joff + 4) = 0;
+                *(s32*)(blits + joff + offsetof(BlitEntry, mode)) = 0;
             }
-            *(s32*)(pl + 2096) = sLastWorldLevel;
+            *(s32*)(pl + offsetof(Player, exit_dest)) = sLastWorldLevel;
             if (!(((SelOptsView*)gGameOptions)->flags44 & 1)) {
                 setup_tex(i3, 0, 0, 0, pool + 868, i3 + 1);
                 setup_tex(i3, 1, 0, 0, pool + 880, i3 + 1);
