@@ -916,39 +916,45 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
             u32* wp = (u32*)wi->grid + i;
             *wp = sSwapU32(*wp);
         }
-        /* item infos (stride 0x50) */
+        /* item infos (stride 0x50); fields are iteminfo/iteminfodata
+         * (game/item.h) - IOFF resolves an iteminfodata field's absolute
+         * offset off the walked p (raw pointer kept, per the offsetof-
+         * fused-immediate counter-form; see wobjs loop note above). */
+#define IOFF(f) (offsetof(iteminfo, item) + offsetof(iteminfodata, f))
         for (i = 0; i < blob[0x12]; i++) {
             p = (u8*)wi->iteminfo + i * 0x50;
-            *(u32*)p = sSwapU32(*(u32*)p);
-            if (*(s32*)p != -1) {
-                *(u16*)(p + 0x08) = sSwapU16(*(u16*)(p + 0x08));
-                *(u16*)(p + 0x0A) = sSwapU16(*(u16*)(p + 0x0A));
-                *(u16*)(p + 0x40) = sSwapU16(*(u16*)(p + 0x40));
-                *(u16*)(p + 0x42) = sSwapU16(*(u16*)(p + 0x42));
-                *(u16*)(p + 0x44) = sSwapU16(*(u16*)(p + 0x44));
-                *(u16*)(p + 0x46) = sSwapU16(*(u16*)(p + 0x46));
-                *(u16*)(p + 0x48) = sSwapU16(*(u16*)(p + 0x48));
-                *(u16*)(p + 0x4A) = sSwapU16(*(u16*)(p + 0x4A));
-                *(f32*)(p + 0x0C) = sSwapF32(*(f32*)(p + 0x0C));
-                *(f32*)(p + 0x10) = sSwapF32(*(f32*)(p + 0x10));
-                *(f32*)(p + 0x14) = sSwapF32(*(f32*)(p + 0x14));
-                *(f32*)(p + 0x18) = sSwapF32(*(f32*)(p + 0x18));
-                *(u32*)(p + 0x38) = sSwapU32(*(u32*)(p + 0x38));
-                *(u32*)(p + 0x3C) = sSwapU32(*(u32*)(p + 0x3C));
-                *(u32*)(p + 0x04) = sSwapU32(*(u32*)(p + 0x04));
-                *(u32*)(p + 0x4C) = sSwapU32(*(u32*)(p + 0x4C));
+            *(u32*)(p + offsetof(iteminfo, type)) =
+                sSwapU32(*(u32*)(p + offsetof(iteminfo, type)));
+            if (*(s32*)(p + offsetof(iteminfo, type)) != -1) {
+                *(u16*)(p + IOFF(coltype)) = sSwapU16(*(u16*)(p + IOFF(coltype)));
+                *(u16*)(p + IOFF(colflags)) = sSwapU16(*(u16*)(p + IOFF(colflags)));
+                *(u16*)(p + IOFF(value)) = sSwapU16(*(u16*)(p + IOFF(value)));
+                *(u16*)(p + IOFF(armor)) = sSwapU16(*(u16*)(p + IOFF(armor)));
+                *(u16*)(p + IOFF(hitpoints)) = sSwapU16(*(u16*)(p + IOFF(hitpoints)));
+                *(u16*)(p + IOFF(activetype)) = sSwapU16(*(u16*)(p + IOFF(activetype)));
+                *(u16*)(p + IOFF(activeoff)) = sSwapU16(*(u16*)(p + IOFF(activeoff)));
+                *(u16*)(p + IOFF(activeon)) = sSwapU16(*(u16*)(p + IOFF(activeon)));
+                *(f32*)(p + IOFF(radius)) = sSwapF32(*(f32*)(p + IOFF(radius)));
+                *(f32*)(p + IOFF(height)) = sSwapF32(*(f32*)(p + IOFF(height)));
+                *(f32*)(p + IOFF(xdim)) = sSwapF32(*(f32*)(p + IOFF(xdim)));
+                *(f32*)(p + IOFF(zdim)) = sSwapF32(*(f32*)(p + IOFF(zdim)));
+                *(u32*)(p + IOFF(mbflags)) = sSwapU32(*(u32*)(p + IOFF(mbflags)));
+                *(u32*)(p + IOFF(properties)) = sSwapU32(*(u32*)(p + IOFF(properties)));
+                *(u32*)(p + IOFF(subtype)) = sSwapU32(*(u32*)(p + IOFF(subtype)));
+                *(u32*)(p + IOFF(atreeheader)) = sSwapU32(*(u32*)(p + IOFF(atreeheader)));
                 for (k = 0; k < 3; k++) {
-                    *(f32*)(p + 0x1C + k * 4) =
-                        sSwapF32(*(f32*)(p + 0x1C + k * 4));
+                    *(f32*)(p + IOFF(coloffset) + k * 4) =
+                        sSwapF32(*(f32*)(p + IOFF(coloffset) + k * 4));
                 }
             } else {
-                *(u32*)(p + 0x04) = sSwapU32(*(u32*)(p + 0x04));
+                *(u32*)(p + IOFF(subtype)) = sSwapU32(*(u32*)(p + IOFF(subtype)));
                 for (k = 0; k < 16; k++) {
-                    *(u16*)(p + 0x08 + k * 2) =
-                        sSwapU16(*(u16*)(p + 0x08 + k * 2));
+                    *(u16*)(p + IOFF(coltype) + k * 2) =
+                        sSwapU16(*(u16*)(p + IOFF(coltype) + k * 2));
                 }
             }
         }
+#undef IOFF
         /* item instances (stride 0x3C); payload layout depends on info type */
         for (i = 0; i < blob[0x14]; i++) {
             p = (u8*)wi->iteminst + i * 0x3C;
