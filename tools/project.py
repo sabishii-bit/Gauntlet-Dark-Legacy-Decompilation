@@ -1425,15 +1425,20 @@ def generate_build_ninja(
         # Generate progress report
         ###
         n.comment("Generate progress report")
+        # objdiff omits fuzzy_match_percent when it is exactly 0.0 (protobuf
+        # default-skipping); normalize so consumers see scored-zero, not
+        # missing (tools/gdl/normalize_report.py).
+        normalize_report = config.tools_dir / "gdl" / "normalize_report.py"
         n.rule(
             name="report",
-            command=f"{objdiff} report generate $objdiff_report_args -o $out",
+            command=f"{CHAIN}{objdiff} report generate $objdiff_report_args -o $out"
+            f" && $python {normalize_report} $out",
             description="REPORT",
         )
         n.build(
             outputs=report_path,
             rule="report",
-            implicit=[objdiff, "objdiff.json", "all_source"],
+            implicit=[objdiff, "objdiff.json", "all_source", normalize_report],
             order_only="post-build",
         )
 
