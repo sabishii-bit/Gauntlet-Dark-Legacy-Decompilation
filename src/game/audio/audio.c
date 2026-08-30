@@ -1,5 +1,9 @@
 #include "types.h"
 
+#ifndef offsetof
+#define offsetof(type, member) ((u32)&(((type*)0)->member))
+#endif
+
 /*
  * Game audio core -- upper slice (Xbox AUDIO.OBJ port), text 0x800160F0-0x800183FC.
  *
@@ -145,10 +149,40 @@ typedef struct AudTrack {
 } AudTrack;
 extern AudTrack sAudioChanUpdate[12];   /* 0x8023DD28 */
 
+/* audatps2.rom root; offsets verified by AudioLoadRom's GC displacements and
+ * the independent SndBankHdr view in sndfx.c. */
+typedef struct AudioRomRoot {
+    s32 modeCount;              /* 0x00 */
+    s32 bankCount;              /* 0x04 */
+    s32 soundCount;             /* 0x08 */
+    u8* modes;                  /* 0x0C */
+    u8* banks;                  /* 0x10 */
+    u8* sounds;                 /* 0x14 */
+} AudioRomRoot;
+
+/* Each ROM mode contains up to 32 bank/part descriptors.  The fields and
+ * 0x124 stride are verified by AudioLoadRom and all bank-load users below. */
+typedef struct AudioRomModeBankEntry {
+    char name[16];              /* 0x000 */
+    s32 partCount;              /* 0x010 */
+    u32 _014;                   /* 0x014 */
+    u32 _018;                   /* 0x018 */
+    s32 partRomBank[64];        /* 0x01C */
+    s32 loadedPart;             /* 0x11C */
+    s32 loadedHandle;           /* 0x120 */
+} AudioRomModeBankEntry;
+
+typedef struct AudioRomMode {
+    char name[16];
+    s32 bankCount;
+    AudioRomModeBankEntry banks[32];
+} AudioRomMode;
+
 typedef struct AudioRomBankEntry {
     u8 _pad00[38];
     s16 firstSound;
-    u8 _pad28[4];
+    s16 loadState;              /* 0x28 */
+    u16 handle;                 /* 0x2A */
 } AudioRomBankEntry;
 
 typedef struct AudioRomSoundEntry {
@@ -157,7 +191,16 @@ typedef struct AudioRomSoundEntry {
     u8 _pad18[4];
 } AudioRomSoundEntry;
 
-/* 32-entry kill/voice table, stride 48 (gAudioKillTbl, 0x8023D728) */
+/* 32-entry kill/voice table, stride 48 (gAudioKillTbl, 0x8023D728).
+ * The named fields are verified by the three exact AudioKillBy* consumers. */
+typedef struct AudioKillEntry {
+    s32 soundId;                /* 0x00 */
+    s32 event;                  /* 0x04 */
+    u8 _pad08[12];
+    s32 handle;                 /* 0x14 */
+    u8 _pad18[24];
+} AudioKillEntry;
+
 extern u8 gAudioKillTbl[32 * 48];   /* 0x8023D728 */
 
 /* 12-slot spatial voice descriptor table, stride 32 (gAudioVoiceDesc, 0x8023D218) */
@@ -389,8 +432,9 @@ s32 AudioKillByEvent(s32 event)
         AudioKillMask(mask);
     }
     for (i = 0; i < 32; i++) {
-        if (event == *(s32*)(gAudioKillTbl + i * 48 + 4)) {
-            *(s32*)(gAudioKillTbl + i * 48 + 20) = 0;
+        AudioKillEntry* entry = &((AudioKillEntry*)gAudioKillTbl)[i];
+        if (event == entry->event) {
+            entry->handle = 0;
         }
     }
     return mask;
@@ -411,9 +455,9 @@ s32 AudioKillBySound(s32 soundId)
         AudioKillMask(mask);
     }
     for (i = 0; i < 32; i++) {
-        if (soundId == *(s32*)(gAudioKillTbl + i * 48 + 0)
-            && *(s32*)(gAudioKillTbl + i * 48 + 4) != 0) {
-            *(s32*)(gAudioKillTbl + i * 48 + 20) = 0;
+        AudioKillEntry* entry = &((AudioKillEntry*)gAudioKillTbl)[i];
+        if (soundId == entry->soundId && entry->event != 0) {
+            entry->handle = 0;
         }
     }
     return mask;
@@ -435,8 +479,8 @@ void AudioKillByBank(s32 bankId)
         AudioKillMask(mask);
     }
     for (i = 0; i < 32; i++) {
-        if ((*(s32*)(gAudioKillTbl + i * 48 + 0) >> 16) == bankId) {
-            *(s32*)(gAudioKillTbl + i * 48 + 20) = 0;
+        if ((((AudioKillEntry*)gAudioKillTbl)[i].soundId >> 16) == bankId) {
+            ((AudioKillEntry*)gAudioKillTbl)[i].handle = 0;
         }
     }
 }
@@ -525,9 +569,9 @@ s32 AudioSetMode(char* modeName)
 
     gAudioBankTbl = 0;
     for (attempt = 0; attempt < 2; attempt++) {
-        for (i = 0; i < *(s32*)(sAudioBankTable + 0); i++) {
-            if (strncmp((char*)(*(u8**)(sAudioBankTable + 12) + i * 9364), modeName, 16) == 0) {
-                gAudioBankTbl = (s32*)(*(u8**)(sAudioBankTable + 12) + i * 9364);
+        for (i = 0; i < ((AudioRomRoot*)sAudioBankTable)->modeCount; i++) {
+            if (strncmp((char*)(((AudioRomRoot*)sAudioBankTable)->modes + i * 9364), modeName, 16) == 0) {
+                gAudioBankTbl = (s32*)(((AudioRomRoot*)sAudioBankTable)->modes + i * 9364);
                 break;
             }
         }
@@ -685,30 +729,36 @@ void AudioLoadRom(void)
     {
         u8* root;
         root = sAudioBankTable;
-        *(u32*)(root + 12) = (u32)root + *(u32*)(root + 12);
+        ((AudioRomRoot*)root)->modes = root + (u32)((AudioRomRoot*)root)->modes;
         root = sAudioBankTable;
-        *(u32*)(root + 16) = (u32)root + *(u32*)(root + 16);
+        ((AudioRomRoot*)root)->banks = root + (u32)((AudioRomRoot*)root)->banks;
         root = sAudioBankTable;
-        *(u32*)(root + 20) = (u32)root + *(u32*)(root + 20);
+        ((AudioRomRoot*)root)->sounds = root + (u32)((AudioRomRoot*)root)->sounds;
     }
 
     modeOffset = 0;
-    for (modeIndex = 0; modeIndex < *(s32*)(sAudioBankTable + 0);
+    for (modeIndex = 0; modeIndex < ((AudioRomRoot*)sAudioBankTable)->modeCount;
          modeIndex++, modeOffset += 9364) {
-        mode = *(u8**)(sAudioBankTable + 12) + modeOffset;
+        mode = ((AudioRomRoot*)sAudioBankTable)->modes + modeOffset;
         AUDIO_SWAP_WORD_AT(frame.modeSrc, frame.modeDst, (u32*)(mode + 16));
         partIndex = 0;
         partOffset = 0;
-        while (partIndex < *(s32*)(mode + 16)) {
+        while (partIndex < ((AudioRomMode*)mode)->bankCount) {
             part = mode + 20 + partOffset;
-            AUDIO_SWAP_WORD_AT(frame.part1Src, frame.part1Dst, (u32*)(part + 16));
-            AUDIO_SWAP_WORD_AT(frame.part2Src, frame.part2Dst, (u32*)(part + 20));
-            AUDIO_SWAP_WORD_AT(frame.part3Src, frame.part3Dst, (u32*)(part + 24));
-            AUDIO_SWAP_WORD_AT(frame.part4Src, frame.part4Dst, (u32*)(part + 284));
-            AUDIO_SWAP_WORD_AT(frame.part5Src, frame.part5Dst, (u32*)(part + 288));
+            AUDIO_SWAP_WORD_AT(frame.part1Src, frame.part1Dst,
+                               (u32*)&((AudioRomModeBankEntry*)part)->partCount);
+            AUDIO_SWAP_WORD_AT(frame.part2Src, frame.part2Dst,
+                               (u32*)(part + offsetof(AudioRomModeBankEntry, _014)));
+            AUDIO_SWAP_WORD_AT(frame.part3Src, frame.part3Dst,
+                               (u32*)(part + offsetof(AudioRomModeBankEntry, _018)));
+            AUDIO_SWAP_WORD_AT(frame.part4Src, frame.part4Dst,
+                               (u32*)(part + offsetof(AudioRomModeBankEntry, loadedPart)));
+            AUDIO_SWAP_WORD_AT(frame.part5Src, frame.part5Dst,
+                               (u32*)(part + offsetof(AudioRomModeBankEntry, loadedHandle)));
             for (wordIndex = 0; wordIndex < 64; wordIndex++) {
                 AUDIO_SWAP_WORD_AT(frame.arraySrc, frame.arrayDst,
-                                   (u32*)(part + 28 + wordIndex * 4));
+                                   (u32*)(part + offsetof(AudioRomModeBankEntry, partRomBank)
+                                          + wordIndex * sizeof(u32)));
             }
             partIndex++;
             partOffset += 292;
@@ -717,8 +767,9 @@ void AudioLoadRom(void)
 
     bankIndex = 0;
     modeIndex = 0;
-    while ((table = sAudioBankTable, bankIndex < *(s32*)(table + 4))) {
-        bank = *(u8**)(table + 16) + modeIndex;
+    while ((table = sAudioBankTable,
+            bankIndex < ((AudioRomRoot*)table)->bankCount)) {
+        bank = ((AudioRomRoot*)table)->banks + modeIndex;
         AUDIO_SWAP_WORD_AT(frame.bankSrc, frame.bankDst, (u32*)(bank + 32));
         AUDIO_SWAP_HALF_AT(frame.half36, (u16*)(bank + 36));
         AUDIO_SWAP_HALF_AT(frame.half38, (u16*)(bank + 38));
@@ -730,8 +781,9 @@ void AudioLoadRom(void)
 
     soundIndex = 0;
     modeIndex = 0;
-    while ((table = sAudioBankTable, soundIndex < *(s32*)(table + 8))) {
-        sound = *(u8**)(table + 20) + modeIndex;
+    while ((table = sAudioBankTable,
+            soundIndex < ((AudioRomRoot*)table)->soundCount)) {
+        sound = ((AudioRomRoot*)table)->sounds + modeIndex;
         AUDIO_SWAP_WORD_AT(frame.soundSrc, frame.soundDst, (u32*)(sound + 16));
         AUDIO_SWAP_FLOAT_AT(frame.float1Input, frame.float1Src, frame.float1Dst,
                             frame.float1Output, (f32*)(sound + 20));
@@ -992,23 +1044,18 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
  * descriptor; on success it records the returned voice handle in both the mode
  * bank table (+284/+288) and the ROM bank (+40/+42); on failure it retries up
  * to 5 times, then suspends audio. */
-typedef struct AudioModeBankEntry {
-    u8 _pad00[28];
-    s32 partRomBank[64];
-} AudioModeBankEntry;
-
 void AudioLoadComplete(volatile s32* slot)
 {
     s32* desc = *(s32**)((u8*)slot + 16);
     u8* bankEntry = (u8*)gAudioBankTbl + desc[0] * 292 + 20;
-    AudioModeBankEntry* modeBank = (AudioModeBankEntry*)bankEntry;
-    u8* romBank = *(u8**)(sAudioBankTable + 16)
+    AudioRomModeBankEntry* modeBank = (AudioRomModeBankEntry*)bankEntry;
+    u8* romBank = ((AudioRomRoot*)sAudioBankTable)->banks
                   + modeBank->partRomBank[desc[1]] * 44;
 
     if (slot[1] != 0) {
         ErrorPrintf(lbl_80111434, romBank + 16, desc[2], slot[1]);
         lbl_803442C8++;
-        *(s16*)(romBank + 40) = -2;
+        ((AudioRomBankEntry*)romBank)->loadState = -2;
         lbl_803442B4 = 0;
         sAudioMute--;
         if (desc[2] < 5) {
@@ -1022,11 +1069,11 @@ void AudioLoadComplete(volatile s32* slot)
         u16 h0;
         u16 h1;
         u32 unused;
-        *(s32*)(bankEntry + 284) = desc[1];
-        *(s16*)(romBank + 40) = (s16)slot[2];
-        sndCmd7(*(s16*)(romBank + 40), &h0, &h1);
-        *(u16*)(romBank + 42) = h0;
-        *(s32*)(bankEntry + 288) = *(u16*)(romBank + 42);
+        modeBank->loadedPart = desc[1];
+        ((AudioRomBankEntry*)romBank)->loadState = (s16)slot[2];
+        sndCmd7(((AudioRomBankEntry*)romBank)->loadState, &h0, &h1);
+        ((AudioRomBankEntry*)romBank)->handle = h0;
+        modeBank->loadedHandle = ((AudioRomBankEntry*)romBank)->handle;
         lbl_803442B4 = 0;
         sAudioMute--;
     }
@@ -1170,12 +1217,12 @@ void AudioClearTracks(void)
         return;
     }
     for (i = 0; i < gAudioBankTbl[4]; i++) {
-        *(s32*)((u8*)gAudioBankTbl + i * 292 + 304) = -1;
-        *(s32*)((u8*)gAudioBankTbl + i * 292 + 308) = -1;
+        ((AudioRomMode*)gAudioBankTbl)->banks[i].loadedPart = -1;
+        ((AudioRomMode*)gAudioBankTbl)->banks[i].loadedHandle = -1;
     }
-    for (i = 0; i < *(s32*)(sAudioBankTable + 4); i++) {
-        *(u16*)(*(u8**)(sAudioBankTable + 16) + i * 44 + 40) = 0;
-        *(u16*)(*(u8**)(sAudioBankTable + 16) + i * 44 + 42) = 0;
+    for (i = 0; i < ((AudioRomRoot*)sAudioBankTable)->bankCount; i++) {
+        ((AudioRomBankEntry*)((AudioRomRoot*)sAudioBankTable)->banks)[i].loadState = 0;
+        ((AudioRomBankEntry*)((AudioRomRoot*)sAudioBankTable)->banks)[i].handle = 0;
     }
     sndCmd6();
 }
@@ -1459,8 +1506,8 @@ f32 AudioGetSoundVol(s32 packedId)
     s32 firstSound;
 
     root = sAudioBankTable;
-    banks = *(AudioRomBankEntry**)(root + 16);
-    sounds = *(AudioRomSoundEntry**)(root + 20);
+    banks = (AudioRomBankEntry*)((AudioRomRoot*)root)->banks;
+    sounds = (AudioRomSoundEntry*)((AudioRomRoot*)root)->sounds;
     firstSound = banks[packedId >> 16].firstSound;
     packedId &= 0xFFF;
     firstSound = packedId + firstSound;

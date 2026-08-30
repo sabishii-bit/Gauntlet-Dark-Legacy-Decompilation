@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Sustained TU-scoped de-fakematch pass over src/game/audio/audio.c: replace raw ROM-root, mode-bank, ROM-bank, and kill-table offsets with target-verified file-local views while preserving all function output.",
+  "attributes": {
+    "anchors": "src/game/audio/audio.c; GUNE5D AudioLoadRom 0x80016A28 size 0x508; fndiff --count/--ops/--clean and fnasm for affected functions",
+    "axis_log": "AudioLoadRom typed root local failed at 322/322 real386 because its lifetime shifted the li/stack web; retaining u8* root and casting at each access restored real0. Direct typed lvalues for the late mode-bank members failed at 324/322 real180, frame 0x158 vs target 0x150, with stmw/lmw and register cascade; scalar-only typed lvalues reproduced the failure. After codegen-signature queries found pointer-walk/offsetof laws, one walked-pointer addition with offsetof(...) preserved fused displacements and restored real0. AudioKillByBank's declared entry alias reversed cmpw operands (real2); repeated cast-at-use preserved exact output.",
+    "measurements": "Raw-offset census 86->52 (34 removed). AudioLoadRom stayed 322/322, fuzzy100, real0, frame0x150. AudioSetMode, AudioKillByEvent/Sound/Bank, AudioLoadComplete, AudioClearTracks, and AudioGetSoundVol also remained exact. TU matchtool stayed OK32/OK~2/bad6/ties2; objdiff report fuzzy 97.838165 and matched 34/40 including normalized exacts.",
+    "sites_converted": "AudioRomRoot counts/pointers; AudioRomMode/AudioRomModeBankEntry count, part metadata, ROM-bank indices, loaded part/handle; AudioRomBankEntry first-sound/load-state/handle; AudioKillEntry sound/event/handle. Converted exact consumers only; no fuzzy-function source was changed.",
+    "sites_left_raw": "52 remain: AudioSoundExists' six target lwzu/cast-transit accesses intentionally retained under claim.law.lwzu-idiom-web-retention; AudioLoadPart/AudioUnloadPart address webs and queue/state layouts; fuzzy AudioFindSound/AudioTrackRegister ROM walks; opaque sAudioState fields. No unverified field names were introduced.",
+    "verification": "Owned object rebuilt after each region; all affected fndiff --clean gates exact real0; TU matchtool unchanged; full ninja -j2 succeeded, build/GUNE5D/main.dol OK, project 97.82% fuzzy/58.15% matched/26.09% linked; git diff --check clean; portable C only."
+  },
+  "function": "function:AudioLoadRom",
+  "id": "attempt.audio-c-defakematch-tupass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
