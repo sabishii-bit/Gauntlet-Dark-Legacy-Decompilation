@@ -75,7 +75,10 @@ Query at these moments, not only at claim time:
    `gdlmem.py record <id>` before applying it.
 3. **Before naming anything** — search a struct offset, field, or symbol name
    before inventing one; a header, PDB link, or prior record may already own
-   it, and cross-TU renames have their own recorded procedure.
+   it, and cross-TU renames have their own recorded procedure. For struct
+   fields specifically, `gdlmem.py struct <TypeName> --offset 0xNN` resolves
+   a raw byte offset to the Xbox PDB field covering it (and reports exact
+   pad-gap sizes) — use it instead of writing `*(T*)(p + 0xNN)` casts.
 4. **Before parking** — search the residual class for known levers first;
    then record the cap with the exact probes tried, so the next agent's
    step 1 screen works.
@@ -169,6 +172,29 @@ assembly remains the authority for ABI, control flow, order, and bytes.
 Work in this order: semantics/ABI/types/control flow and calls; opcode/count
 structure; frame and local layout; saved-register and FPR roles; only then
 scheduling and register-color residuals.
+
+Reconstruction quality (fakematches): a fakematch is code that compiles to
+the right bytes but is clearly not what a Midway developer plausibly wrote
+in ~2001 C — nonsense casts, contrived temporaries, or raw
+`*(T*)(p + 0xNN)` offset arithmetic where a real field is knowable. This
+project tolerates such forms as **staged progress** (a verified fuzzy gain
+is kept), but they are reconstruction debt, not an endpoint:
+
+- Before writing any raw-offset access, resolve the field first:
+  `python memory_graph/gdlmem.py struct <TypeName> --offset 0xNN` returns
+  the Xbox PDB field covering that offset, the full layout, and the exact
+  pad-gap sizes between known fields. Prefer the named field or a typed
+  view struct; verify the offset against GC target displacements before
+  adopting the name — GC records can be more compact than Xbox.
+- Padding locals (`u8 unused[N]`) that close a frame-size delta are an
+  accepted idiom here — they usually stand for genuinely unrecovered
+  locals — but a pad does not always resolve a frame gap: a missing inline
+  expanded at the right point is sometimes the true fix (verified in other
+  MWCC projects and this one). Say what the pad stands in for in the
+  function's attempt record.
+- When only obviously artificial code would close the final bytes, cap the
+  function with a record instead of committing the trick (see Mandatory
+  result policy for the hard prohibitions).
 
 Core tools, from the repository root:
 

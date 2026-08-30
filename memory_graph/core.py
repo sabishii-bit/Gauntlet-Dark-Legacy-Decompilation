@@ -1663,6 +1663,133 @@ def xbox_symbol_context(
     }
 
 
+def xbox_struct_layout(
+    query: str,
+    *,
+    root: Path = REPO_ROOT,
+    db_path: Path | None = None,
+    offset: str | None = None,
+    limit: int = 8,
+) -> dict[str, Any]:
+    """PDB struct field layout, pad-gap analysis, and offset-to-field lookup.
+
+    Answers the two questions that keep raw-offset casts out of reconstructed
+    source: "which field sits at +0xNN of this struct?" and "exactly how many
+    bytes of padding fill the hole between two known fields?".
+    """
+    ensure_database(root, db_path)
+    off_val: int | None = None
+    if offset is not None and str(offset).strip() != "":
+        off_val = int(str(offset).strip(), 0)
+    pattern = f"%{query}%"
+    with closing(open_database(root, db_path)) as connection:
+        type_rows = connection.execute(
+            """
+            SELECT id, name, type_kind, size, category, source_file
+            FROM pdb_type WHERE name LIKE ?
+            ORDER BY CASE WHEN lower(name)=lower(?) THEN 0 ELSE 1 END,
+                     length(name), name
+            LIMIT ?
+            """,
+            (pattern, query, limit),
+        ).fetchall()
+        types: list[dict[str, Any]] = []
+        for trow in type_rows:
+            field_rows = connection.execute(
+                """
+                SELECT name, field_type, byte_offset, bit_offset, bit_size,
+                       byte_size, array_count
+                FROM pdb_field WHERE type_id=?
+                ORDER BY byte_offset, bit_offset
+                """,
+                (trow["id"],),
+            ).fetchall()
+            fields: list[dict[str, Any]] = []
+            gaps: list[dict[str, Any]] = []
+            prev_end = 0
+            prev_name = "<start>"
+            for frow in field_rows:
+                start = frow["byte_offset"]
+                if start is None:
+                    continue
+                size = frow["byte_size"] or 0
+                if start > prev_end:
+                    gaps.append({
+                        "after_field": prev_name,
+                        "before_field": frow["name"],
+                        "start": hex(prev_end),
+                        "size": start - prev_end,
+                    })
+                field = {
+                    "name": frow["name"],
+                    "offset": hex(start),
+                    "size": size or None,
+                    "type": frow["field_type"],
+                }
+                if frow["array_count"]:
+                    field["array_count"] = frow["array_count"]
+                if frow["bit_size"]:
+                    field["bit_offset"] = frow["bit_offset"]
+                    field["bit_size"] = frow["bit_size"]
+                fields.append(field)
+                prev_end = max(prev_end, start + size)
+                prev_name = frow["name"]
+            struct_size = trow["size"]
+            if struct_size and struct_size > prev_end:
+                gaps.append({
+                    "after_field": prev_name,
+                    "before_field": "<end>",
+                    "start": hex(prev_end),
+                    "size": struct_size - prev_end,
+                })
+            entry: dict[str, Any] = {
+                "name": trow["name"],
+                "kind": trow["type_kind"],
+                "size": struct_size,
+                "size_hex": hex(struct_size) if struct_size else None,
+                "category": trow["category"],
+                "source_file": trow["source_file"],
+                "fields": fields,
+                "pad_gaps": gaps,
+            }
+            if off_val is not None:
+                hit = None
+                for frow in field_rows:
+                    start = frow["byte_offset"]
+                    if start is None:
+                        continue
+                    size = frow["byte_size"] or 0
+                    if start <= off_val < start + max(size, 1):
+                        hit = {
+                            "field": frow["name"],
+                            "field_offset": hex(start),
+                            "delta_into_field": off_val - start,
+                            "type": frow["field_type"],
+                        }
+                        break
+                if hit is None:
+                    for gap in gaps:
+                        gstart = int(gap["start"], 16)
+                        if gstart <= off_val < gstart + gap["size"]:
+                            hit = {"in_pad_gap": gap}
+                            break
+                entry["offset_lookup"] = {
+                    "offset": hex(off_val),
+                    "result": hit or "outside recorded layout",
+                }
+            types.append(entry)
+    return {
+        "query": query,
+        "offset": hex(off_val) if off_val is not None else None,
+        "types": types,
+        "authority_note": (
+            "Xbox PDB layouts are cross-platform reference evidence; the GC"
+            " record may be more compact. Verify offsets against GameCube"
+            " target displacements before adopting names."
+        ),
+    }
+
+
 def migration_proposals(
     *,
     root: Path = REPO_ROOT,
@@ -2107,6 +2234,21 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                 SurfaceParam("query", str, required=True),
                 SurfaceParam("limit", int, default=20, maximum=100),
                 SurfaceParam("radius", int, default=4, maximum=20),
+            ),
+        ),
+        SurfaceOp(
+            name="struct", mcp_name="xbox_struct_layout",
+            doc=("Show a PDB struct's field layout and pad gaps; optional "
+                 "offset locates the covering field."),
+            call=lambda root, db, **kw: xbox_struct_layout(
+                kw["query"], root=root, db_path=db,
+                offset=kw["offset"], limit=kw["limit"]),
+            params=(
+                SurfaceParam("query", str, required=True,
+                             help="struct/union/enum name (LIKE match)"),
+                SurfaceParam("offset", str, default=None,
+                             help="byte offset to resolve (0x hex or decimal)"),
+                SurfaceParam("limit", int, default=8, maximum=50),
             ),
         ),
         SurfaceOp(

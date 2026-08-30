@@ -19,6 +19,7 @@ from memory_graph.core import (  # noqa: E402
     symbol_context,
     tool_context,
     validate_records,
+    xbox_struct_layout,
     xbox_symbol_context,
 )
 
@@ -51,7 +52,7 @@ class MemoryGraphTests(unittest.TestCase):
         )
         (self.root / "research/xbox_symbols/shell3D.pdb").write_bytes(b"test-pdb")
         (self.root / "research/xbox_symbols/xbox_structs.tsv").write_text(
-            "S\tExample\t8\tgame\nF\t0\t4\tfirst\nF\t4\t4\tsecond\n",
+            "S\tExample\t16\tgame\nF\t0\t4\tfirst\nF\t4\t4\tsecond\nF\t12\t4\tthird\n",
             encoding="utf-8",
         )
         parked = "# legacy list\nfoo # allocator residual\n"
@@ -105,7 +106,7 @@ class MemoryGraphTests(unittest.TestCase):
         self.assertEqual(stats["gcn_symbols_imported"], 2)
         self.assertEqual(stats["xbox_symbols_imported"], 2)
         self.assertEqual(stats["pdb_types_imported"], 1)
-        self.assertEqual(stats["pdb_fields_imported"], 2)
+        self.assertEqual(stats["pdb_fields_imported"], 3)
         self.assertEqual(stats["exact_name_candidates"], 1)
         self.assertEqual(stats["migration_proposals_imported"], 2)
 
@@ -346,6 +347,25 @@ class MemoryGraphTests(unittest.TestCase):
         self.assertEqual(hits["records"][0]["record_state"], "accepted")
         # Inbox proposals stay searchable but rank behind accepted records.
         self.assertIn("snippet", hits["records"][0])
+
+    def test_struct_layout_resolves_offsets_and_pad_gaps(self):
+        # The de-fakematch lookup: given a raw byte offset, name the PDB
+        # field that covers it; given a hole between fields, report the
+        # exact pad size a reconstruction needs.
+        build_database(self.root, self.db)
+        hit = xbox_struct_layout(
+            "Example", root=self.root, db_path=self.db, offset="0x4")
+        entry = hit["types"][0]
+        self.assertEqual([f["name"] for f in entry["fields"]],
+                         ["first", "second", "third"])
+        self.assertEqual(entry["offset_lookup"]["result"]["field"], "second")
+        self.assertEqual(entry["pad_gaps"],
+                         [{"after_field": "second", "before_field": "third",
+                           "start": "0x8", "size": 4}])
+        gap = xbox_struct_layout(
+            "Example", root=self.root, db_path=self.db, offset="9")
+        self.assertIn("in_pad_gap",
+                      gap["types"][0]["offset_lookup"]["result"])
 
     def test_generic_record_proposal_is_validated_and_duplicate_safe(self):
         record = {
