@@ -1,0 +1,24 @@
+{
+  "attempted_axis": "USER-DIRECTED deep-scrutiny pass over game/enemy/enemy.c (work_claim.enemy-deepscrutiny.20260830.v1): target-CFG decode of the 12 sub-100% fns hunting SEMANTIC divergence, then raw-offset debt resolution. Deeper successor to attempt.enemy-c-defakematch-tupass.20260830.v1/.v2, which stand.",
+  "attributes": {
+    "anchors": "src/game/enemy/enemy.c; include/game/enemy.h (GC-verified 0x394); branch claude/enemy-deepscrutiny-20260830 commits 48618397b..69767dd2b",
+    "axis_log": [
+      "init_enemy 93.82->99.01% fuzzy, real 45->27: split t4/z decl-initializers into statements after `e->type=type` (45->37); pass just-stored field as arg, SetEnemyObj(...,e->state) not literal 1, sharing the store register (37->27, costs one lwz = residual +1 insn). DEAD: shared s32 local (51), chained `e->state=st=ACTIVE` (43), separate st assign (43), store swap (35).",
+      "move_logic15 96.63->96.85%, real 108->100: declare `s32 i` before `s32 best_idx` (register homes); `i++, n+=108` in for-increment fixed increment placement. DEAD: moving ex/ey/ez earlier in the decl list, 3 positions, all worse (114/104/104). Left: best_dist homes f4 not f0; ady/tmp slots vs target 20,24 (pad move took ady 64->16, neutral, reverted).",
+      "do_enemies PARKED real 392 after 4 axes: offsetof grouping identical, pointer-variable form 394 (reproduces prior pass's recorded 394 vs 392), shown/i decl swap neutral. 568/568 insn-exact, 7-op structural cluster only; residual = whole-fn GPR/FPR rotation (r28<->r30 walker, f25<->f26), not declaration-reachable.",
+      "damage_enemy VETO - attempt.damage-enemy-constant-lifetime-closure.20260829.v1 caps this exact bne+b vs beq axis. fn_8004DB3C has the SAME residual (60/59, real 19); flat &&, nested if and goto all fold to beq here too, corroborating it. Scoped `#pragma peephole off`+`#pragma reset` REJECTED: reset does not restore peephole, it changed move_logic00 and tripped WebFrank's hash guard.",
+      "fn_8004646C (72), find_neighbor_milestone (48) surveyed only: opcode-identical or near, residual = callee-saved permutation / register+reloc."
+    ],
+    "phase1_semantic_audit": "NO semantic divergence found - offsets, guards, signedness, association already correct everywhere decoded. Established: init_enemy's `scale` local is HEALTH (table * gCurLevel->ene_health * level -> e->health); type!=30/type<28 are E_DEATH/E_NTYPES (non-boss types scale health by level); SetEnemyObj really takes 3 args at damage_enemy's site and 4 at init_enemy's (target sets r3-r5 vs r3-r6), so the K&R decl at line 5102 is load-bearing, not a bug.",
+    "phase2": "313 bare-offset sites -> 64 (249 named, ~80% of the debt), every batch byte-gated, all 26 matched fns still MATCH. init_enemy 40 sites member-converted at zero cost; move_logic05/06 68 to e->field; then offsetof-renames (new law offsetof-rename-preserves-protected-web): 75 flee-block via new OFF_E(f)=0xE18+offsetof(Enemy,f), 99 e0-based across 15 move_logics, 61 do_enemy_collide sites the lwzu law had marked OFF-LIMITS (stayed real 0), 11 row/op.",
+    "phase2_left_raw": "64 sites: move_logic05/06 probe-block worldmat[3][0..2] typed-member conversion is LOAD-BEARING (bisected - reverting exactly those 3 restored MATCH from 235/236 real 105), kept raw+offsetof; a typed `Enemy* other=&page->enemies[it]` alias on the 5-field flee block regressed move_logic05 real 0->83 (third confirmation of multifield-alias v2); rest have no struct authority (p+2532..2588, q+2128/2132, cursor+0x20/0x564 parked by pass v2, n/node/gp/ip/t).",
+    "verification": "fndiff --count/--ops/--clean per fn per batch; whole-TU table diffed vs HEAD after each rollout (a suspected move_logic10/do_enemy_move regression was disproven by git-stash A/B - matchtool D-numbers and fndiff --count differ); full ninja green, main.dol OK after every commit; OK count held at 26; only enemy.c touched; no asm/postprocessor/configure.py changes."
+  },
+  "function": "function:move_logic10",
+  "id": "attempt.enemy-c-deepscrutiny.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
