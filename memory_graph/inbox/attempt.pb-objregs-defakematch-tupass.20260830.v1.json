@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "TU-scoped de-fakematch pass over game/pb/pb_objregs.c: replace raw offset dereferences with existing GC-verified members or narrow target-verified local views while preserving the complete object byte-for-byte.",
+  "attributes": {
+    "anchors": "src/game/pb/pb_objregs.c; build/GUNE5D/obj/game/pb/pb_objregs.o; python tools/gdl/fndiff.py game/pb/pb_objregs <fn> --count/--ops/--clean",
+    "axis_log": "pbSetupPosLights whole typed pointer FAIL 72->71 real39/frame +8 from cached g->lights; point-of-use view PASS exact. fn_800C6350 direct regs members FAIL 85->88 real23 duplicate index address; element pointer FAIL 85->86 real29 extra base addi; sliding typed PbDOObj view PASS exact. pbSetDORegs all three m68 members FAIL 353->354 real39 address-PRE addi; mixed two named/one raw PASS. fn_800C64A4 three color members FAIL real6 via lwzu+zero-offset reloads; one named/two raw PASS. pbSetTexture typed array FAIL real10 addi+lwzx -> add+lwz; pointer locals restored ops but frame +8/real10; inline point-of-use typed refs PASS exact.",
+    "baseline_and_best": "Flagship pbSetDORegs target/current 353/353, fuzzy 100%, real 0, frame 0x80 before and after. pbSetupPosLights 72/72 real 0; fn_800C6350 85/85 real 0; fn_800C64A4 81/81 real 0; pbSetTexture 41/41 real 0.",
+    "measurements": "Raw offset-access lines 70->50. Complete compiled object SHA-256 stayed 25A7608837E5EB00848262CED72F22C1DFB7EE456BD8C2638ED1E094148D06F6, identical to the pre-edit baseline, proving all TU text/data and siblings unchanged.",
+    "sites_converted": "Added narrow GC views for the positional-light state (count, 0x20-byte entries, radii and 0x78..0x98 state) and PBTREENODE material slice 0x50..0x6A. Converted pbSetupPosLights count/entry/radius/value/color accesses; pbSetDORegs id/material/light fields; fn_800C64A4 light arrays, node m6A and one color read; fn_800C6350 register-pair stores; pbSetTexture bank references.",
+    "sites_left_raw": "50 raw-access lines remain, dominated by capped sDrawGeom state/FIFO decoding plus deliberate exact-codegen holds: pbSetDORegs third m68 read, fn_800C64A4 later two color reads, and regions lacking a bounded GC owner. sDrawGeom matching axes were not retried.",
+    "verification": "Object rebuilt and --clean/--ops inspected after each region; all retained affected functions real 0; whole-object hash equals baseline; git diff --check clean; portable C only; no shared header, assembly, postprocessor, or configuration changes."
+  },
+  "function": "function:pbSetDORegs",
+  "id": "attempt.pb-objregs-defakematch-tupass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

@@ -311,6 +311,45 @@ typedef struct PbEnvBlk {
     u32 m30;     /* 0x30 */
 } PbEnvBlk;
 
+/* GC pbSetupPosLights view: count @0xA0, twelve 0x20-byte light records
+ * @0xDC, then the parallel radius table @0x25C. */
+typedef struct PbPosLight {
+    f32 position[3];
+    f32 value;
+    f32 color[4];
+} PbPosLight;
+
+typedef struct PbLightState {
+    u8 _pad000[0x78];
+    f32 f78;
+    s32 m7C;
+    f32 f80[2];
+    f32 f88[2];
+    f32 f90[2];
+    u8 _pad098[8];
+    s32 count;
+    u8 _pad0A4[0x38];
+    PbPosLight entries[12];
+    f32 radii[12];
+} PbLightState;
+
+/* Narrow GC material-state slice of PBTREENODE, verified by pbSetDORegs
+ * target displacements. Unknown fields intentionally keep offset names. */
+typedef struct PbNodeStateView {
+    u8 _pad00[0x50];
+    u16 id;
+    u8 type;
+    u8 m53;
+    u8 _pad54[4];
+    s32 m58;
+    u8 _pad5C[2];
+    u8 m5E;
+    u8 _pad5F[5];
+    u32 color;
+    s16 m68;
+    s16 m6A;
+} PbNodeStateView;
+
 /* *gWinGlobals view used by this TU */
 typedef struct PbORGlobals {
     u8    _pad00[0x04];
@@ -1063,7 +1102,7 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
     lbl_80345090 = bank;
     lbl_80345098 = texture;
     if (node != 0) {
-        lbl_803450A0 = *(u16*)(node + 0x50);
+        lbl_803450A0 = ((PbNodeStateView*)node)->id;
     }
 
     if (state->mc4 != texture || state->mc8 != textureMode) {
@@ -1074,7 +1113,7 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
 
     if (node != 0) {
         state->m80 = (s32)node;
-        if (*(s32*)(globals->lights + 0x7C) != 0) {
+        if (((PbLightState*)globals->lights)->m7C != 0) {
             state->m78 |= 0x40;
         } else {
             state->m78 &= ~0x40;
@@ -1104,17 +1143,17 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
         }
         state->md0 = flags;
 
-        if (state->fdc != (f32)*(s16*)(node + 0x6A) ||
+        if (state->fdc != (f32)((PbNodeStateView*)node)->m6A ||
             (changedFlags & 0x7100) != 0) {
             changedFlags &= ~0x7100;
-            state->fdc = (f32)*(s16*)(node + 0x6A);
+            state->fdc = (f32)((PbNodeStateView*)node)->m6A;
             fn_800C64A4((PbDOObj*)state, flags, node);
         }
 
         if ((changedFlags & 0x100600) != 0) {
             changedFlags &= ~0x100600;
             if ((flags & 0x100600) != 0) {
-                state->f1c = (f32)*(u8*)(node + 0x53);
+                state->f1c = (f32)((PbNodeStateView*)node)->m53;
                 state->m78 |= 0x10;
             } else {
                 state->f1c = lbl_80348F74;
@@ -1126,7 +1165,8 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
         if ((changedFlags & 0x10000000) != 0) {
             changedFlags &= ~0x10000000;
             if ((flags & 0x10000000) != 0) {
-                state->mf0 = (u32)&lbl_802C2A28[*(u8*)(node + 0x5E) * 4];
+                state->mf0 =
+                    (u32)&lbl_802C2A28[((PbNodeStateView*)node)->m5E * 4];
                 state->mbc = 4;
             } else if (state->mf0 != 0) {
                 state->mf0 = 0;
@@ -1151,7 +1191,7 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
         if ((changedFlags & 0x08000000) != 0) {
             changedFlags &= ~0x08000000;
             if ((flags & 0x08000000) != 0) {
-                state->me4 = *(s32*)(node + 0x58);
+                state->me4 = ((PbNodeStateView*)node)->m58;
                 fn_800C5D44((u32*)state, state->me4);
                 state->mcc = -1;
                 drawFlags = 8;
@@ -1162,10 +1202,10 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
             }
         }
 
-        if (state->mc0 != *(s16*)(node + 0x68)) {
-            state->mc0 = *(s16*)(node + 0x68);
+        if (state->mc0 != ((PbNodeStateView*)node)->m68) {
+            state->mc0 = ((PbNodeStateView*)node)->m68;
             state->f38 = (f32)*(s16*)(node + 0x68) *
-                         *(f32*)(globals->lights + 0x78);
+                         ((PbLightState*)globals->lights)->f78;
             state->mbc = 4;
         }
         if (changedFlags != 0) {
@@ -1307,15 +1347,16 @@ s32 pbSetupPosLights(f32 extra, s32 a, s32 b, f32* m)
 
     mat44InvRigid__FR5mat44R5mat44(inv, m);
     hits = 0;
-    for (i = 0; i < *(s32*)(g->lights + 0xA0); i++) {
-        light = g->lights + i * 32 + 0xDC;
+    for (i = 0; i < ((PbLightState*)g->lights)->count; i++) {
+        light = (u8*)&((PbLightState*)g->lights)->entries[i];
         out = (f32*)(lbl_802C71F8 + hits * 32);
-        vec4ApplyTrans__FR4vec4R4vec4R5mat44(out, (f32*)light, inv);
+        vec4ApplyTrans__FR4vec4R4vec4R5mat44(
+            out, ((PbPosLight*)light)->position, inv);
         if (vec3LengthSquared__FR4vec3(out) <
-            (extra + *(f32*)(g->lights + i * 4 + 0x25C)) *
-                (extra + *(f32*)(g->lights + i * 4 + 0x25C))) {
-            __as__4vec4FRC4vec4(out + 4, (f32*)(light + 16));
-            out[3] = *(f32*)(light + 12);
+            (extra + ((PbLightState*)g->lights)->radii[i]) *
+                (extra + ((PbLightState*)g->lights)->radii[i])) {
+            __as__4vec4FRC4vec4(out + 4, ((PbPosLight*)light)->color);
+            out[3] = ((PbPosLight*)light)->value;
             hits++;
         }
         if (hits >= 12) {
@@ -1541,7 +1582,7 @@ void fn_800C6350(PbDOObj* obj, s32 flags, u32 mask, u8* node)
 
     if (mask & 0x80) {
         PbEnvBlk* env = g->env;
-        u8* q;
+        PbDOObj* slot;
         s32 zon = 0;
         u32 val = env->m30;
         if (flags & 0x80) {
@@ -1551,9 +1592,9 @@ void fn_800C6350(PbDOObj* obj, s32 flags, u32 mask, u8* node)
         if (flags & 0x80) {
             lbl_80343F58 = 0;
         }
-        q = (u8*)obj + obj->nregs * 8;
-        *(u32*)(q + 0x8C) = val;
-        *(u32*)(q + 0x88) = zon;
+        slot = (PbDOObj*)((u8*)obj + obj->nregs * sizeof(PbRegPair));
+        slot->regs[0].hi = val;
+        slot->regs[0].lo = zon;
         obj->regid[obj->nregs] = 0x4E;
         obj->nregs = obj->nregs + 1;
     }
@@ -1608,20 +1649,20 @@ void fn_800C64A4(PbDOObj* obj, u32 flags, u8* node)
     f32 s;
 
     if (flags & 0x2000) {
-        p = (f32*)(g->lights + 0x88);
+        p = ((PbLightState*)g->lights)->f88;
     } else if (flags & 0x5000) {
         u32 f = obj->flags78 | 1;
-        p = (f32*)(g->lights + 0x80);
+        p = ((PbLightState*)g->lights)->f80;
         obj->flags78 = f;
     } else {
-        p = (f32*)(g->lights + 0x90);
+        p = ((PbLightState*)g->lights)->f90;
         base = 0.0f;
         obj->flags78 &= ~1;
     }
-    obj->f48 = p[1] + (f32)*(s16*)(node + 0x6A) + base;
+    obj->f48 = p[1] + (f32)((PbNodeStateView*)node)->m6A + base;
     if (flags & 0x100) {
         s = (128.0f / 255.0f) * p[0];
-        obj->r = (f32)((*(u32*)(node + 100) >> 16) & 0xFF) * s;
+        obj->r = (f32)((((PbNodeStateView*)node)->color >> 16) & 0xFF) * s;
         obj->g = (f32)((*(u32*)(node + 100) >> 8) & 0xFF) * s;
         obj->b = (f32)(*(u32*)(node + 100) & 0xFF) * s;
         obj->flags78 |= 8;
@@ -1820,12 +1861,14 @@ void pbSetTexture(u32 handle, u32 flag)
 {
     u8 unused[8];
     u8* banks = (u8*)gWinGlobals->banks;
-    PbTexBank* bank = *(PbTexBank**)(banks + (s16)(handle >> 16) * 16 + 4);
+    PbTexBank* bank =
+        ((PbTexBankRef*)(banks + (s16)(handle >> 16) * 16))->bank;
     PbTexEntry* t =
         (PbTexEntry*)((u8*)bank->entries + (s16)(handle & 0xFFFF) * 16);
 
     if (t->slot != -1) {
-        u8* texObj = (*(PbTexBank**)(banks + t->bank * 16 + 4))->texObjs;
+        u8* texObj =
+            ((PbTexBankRef*)(banks + t->bank * 16))->bank->texObjs;
         texObj += t->slot * 48;
         fn_800C7558(handle);
         GXLoadTexObj(texObj, flag);
