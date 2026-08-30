@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "do_enemies pl-loop, src/game/enemy/enemy.c; see attempt.enemy-c-defakematch-tupass.20260830.v1",
+    "scope": "MWCC GC 1.2.5 family; general pointer-walk-loop de-fakematch pattern, distinct from and additional to claim.law.lwzu-idiom-web-retention (that law is about a lwzu-fusable prologue specifically; this one triggered with no lwzu idiom in play at all)."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.pointer-walk-array-index-regression.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "Converting a raw pointer-walk loop (u8* p = base; for (...) p += STRIDE;) into array-style indexing of a named struct/union view (namedArray[i]) can regress codegen even when the address arithmetic is mathematically identical and the loop is nowhere near a lwzu-fusion prologue: in do_enemies (game/enemy/enemy.c), rewriting the per-player scan from `u8* pl; pl += 0x335C` to `gEnemyPlayers[i]` (a union view over the same global) cost do_enemies +2 insns and real-diff-line count 394->606 (a whole-function register-pressure cascade), even though only one field read changed shape. Casting the SAME walked pointer through a named view type at the point of use (`((EnemyPlayerView*)pl)->state`) while leaving the walk (`pl += 0x335C`) unchanged was completely neutral (real stayed 394). Consequence: when de-fakematching a walked-pointer loop, prefer a type-cast at the access site over switching the loop itself to indexed form; A/B both before accepting either."
+}

@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "TU-scoped de-fakematch pass over game/enemy/enemy.c (work_claim.enemy-defake.20260830.v1): convert *(T*)(ptr+0xNN) casts to named fields, continuing the prior do_enemy_collide pass (attempt.do-enemy-collide-defakematch.20260830.v1).",
+  "attributes": {
+    "anchors": "src/game/enemy/enemy.c whole TU; tools/gdl/fndiff.py game/enemy/enemy.c <fn> --count/--clean",
+    "probes_tried_for_pl_loop": "First form (array-index gEnemyPlayers[i], drop u8* walk) FAILED: real 394->606. Second form (keep u8* pl walk with pl+=0x335C, cast only the read via ((EnemyPlayerView*)pl)->state) held real 394 - kept. Banked as claim.law.pointer-walk-array-index-regression.20260830.v1.",
+    "score_changes": "do_enemies: insns 568/568, real 394, both unchanged (lines 422->426 pool-name noise only) - neutral, 78 sites at zero cost. check_enemy_pos EXACT before/after. do_enemy_collide MATCH before/after (real 0). fn_80046140/fn_8004E67C/damage_enemy untouched, scores unchanged. Full project: ninja green, main.dol OK, 97.80% fuzzy/58.15% matched - unchanged from baseline as expected.",
+    "sites_converted": "147->66 raw sites (81 converted). do_enemies (~78 sites): retyped e to Enemy* (e+=0x394 -> e++, same stride), resolved every switch/loop field via include/game/enemy.h (state/type/daction/action/algorithm/old_ai/prev_ai/operation_count/operation_speed/idle_secs/pushed[]/skinfx/specialfx/alpha/shadow/objgrp.node/attn_pos/worldmat[3][0..2]/pyr[1]/ang/area/coll_pnum/flag2/org_lvl/atree.root/atree.animinfo.starttime); boss+0xECC (skips +0xE18, folds into immediate) -> gEnemies[gBoss398].state. check_enemy_pos (1 site): gFloorCollisionResult retyped FloorCollisionResultView{pad[0x34];f32 floorY} ->floorY. do_enemy_collide (1 NEW site): FloorCollide scratch buf at pool+0x300 retyped same view, ->floorY at +0x334 (unrelated to the e/e0 lwzu web, so off-limits law doesn't cover it); verified still MATCH real 0.",
+    "sites_left_raw": "66 remain: do_enemy_collide ai_flags+behavior-chain+gravity (~52 sites) - RECORDED OFF-LIMITS per claim.law.lwzu-idiom-web-retention, untouched. gCurLevel+0x9C/0xAC/0xB0/0xBC (8 sites: fn_80046140 x2, damage_enemy x6) - no struct anywhere in the codebase (same raw idiom in critter.c/action.c/bosscam.c/combat.c), cross-TU, out of scope; damage_enemy's are also in the fight-threshold block flagged fragile by attempt.damage-enemy-constant-lifetime-closure.20260829.v1. fn_8004E67C cursor+0x20 (1) - unidentified 2-level resource table at lbl_80250E00, no struct. do_enemies pl+0xA24/0xA28 (2) - inside EnemyPlayerView's own documented _A22 padding gap. do_enemies dst+0x40 (1) - unidentified stride-4 sub-table in the same lbl_80250E00 pool, no struct.",
+    "verification": "fndiff --count/--clean per function before/after each region; full ninja rebuild green, main.dol OK; git diff --check clean; only enemy.c touched; no assembly/postprocessor changes."
+  },
+  "function": "function:damage_enemy",
+  "id": "attempt.enemy-c-defakematch-tupass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
