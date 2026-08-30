@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "target-backed WORLDPSYS structure reconstruction followed by portable exact closure of array-address topology and the final parameter-type carrier",
+  "attributes": {
+    "anchors": "src/game/anim/atree.c::fn_80011DCC at GCN 0x80011DCC; Xbox ATREE.OBJ::AtreeXlatPSys and WORLDPSYS PDB type 3284; git:46a41fc93; python tools/gdl/fnasm.py game/anim/atree fn_80011DCC; python tools/gdl/fndiff.py game/anim/atree fn_80011DCC --count --ops --clean",
+    "axis_log": "negative/invariant: 1.2.5/1.2.5n O4 flag matrix, declaration order, distinct loop counters/pointer locals, pointer copies, typed temporaries, comma/macro advance, explicit loop-bound forms, scalar volatile/local/union spellings; negative: inline advance helper enlarged frame by 0x20 and real 748, loop-carried pointer produced 554/556 real 52, explicit byte-offset induction produced real 72. improved: named WORLDPSYS scalar/array members closed all three lfsu/store0 folds and register webs (real 42 to 8). exact: accepting AtreeWorldPsys* directly instead of a u32* plus local cast closed the last 8-line schedule cluster.",
+    "baseline": "target/current 556/556 instructions, fuzzy 98.37%, clean real 42, 0x3D8 frame, no saved GPR/FPR set; STRUCTURAL residual with three lfsu/store0 address folds, final-loop web/schedule drift, and one scalar scheduling cluster",
+    "best": "target/current 556/556 instructions, fuzzy 100%, clean real 0, 0x3D8 frame, no saved GPR/FPR set; source commit 46a41fc93",
+    "project_effect": "fn_80011DCC became the 2601st exact function and adds 2224 matched code bytes; worktree progress after the change was 622960/1071824 bytes, 58.12% matched, 97.74% fuzzy, and 26.09% linked. The TU remains NonMatching because other code and data residuals remain.",
+    "semantic_audit": "Xbox ATREE.OBJ identifies the platform stub as AtreeXlatPSys; PDB WORLDPSYS is exactly 0x138 bytes and every named field/array offset and loop bound matches the GameCube target. Scalar and array byte swaps retain the original semantics. matchtool reports one additional OK function with sibling residuals unchanged; datadiff remains at the TU's pre-existing unclaimed .rodata 0x16F, .data 0x60, and .sdata2 0x4; fresh full ninja passed main.dol checksum."
+  },
+  "function": "function:fn_80011DCC",
+  "id": "attempt.fn-80011dcc-worldpsys-struct-exact.20260829.v1",
+  "kind": "attempt",
+  "outcome": "exact",
+  "residual_class": "EXACT",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
