@@ -64,6 +64,16 @@ typedef struct PCollideCritterLayout {
     f32  pos[3];               /* 0x05C */
 } PCollideCritterLayout;
 
+/* Same rationale, for sItems index-computed scans in this TU (verified
+ * against include/game/item.h's Item struct: active@0xC4, action@0xC8).
+ * Never cast a live pointer to this type. */
+typedef struct PCollideItemLayout {
+    u8  _000[0xC4];
+    s16 active;                /* 0x0C4 */
+    s16 activetime;             /* 0x0C6 */
+    s8  action;                  /* 0x0C8 */
+} PCollideItemLayout;
+
 /* ------------------------------------------------------------------ */
 /* extern globals (.sbss/.sdata runtime state)                         */
 /* ------------------------------------------------------------------ */
@@ -3277,7 +3287,7 @@ int PlayerCollideWalls(Player* p, s32 unused, f32* dpos, f32* from, f32* to) {
         }
         count = 1;
     } else {
-        PF(p, 0x864, f32) += gClockFrameReciprocal * dx;
+        p->light_vel[0] += gClockFrameReciprocal * dx;
         dpos[0] = 0.0f;
     }
 
@@ -3294,7 +3304,7 @@ int PlayerCollideWalls(Player* p, s32 unused, f32* dpos, f32* from, f32* to) {
         }
         count++;
     } else {
-        PF(p, 0x86C, f32) += gClockFrameReciprocal * (to[2] - from[2]);
+        p->light_vel[2] += gClockFrameReciprocal * (to[2] - from[2]);
         dpos[2] = 0.0f;
     }
 
@@ -3972,9 +3982,9 @@ s32 PlayerCollideEnemies(Player* p, s32 a2, f32* pos, f32* out, s32 a5,
                 }
                 break;
             case 8: {
-                s8 sub = PF(item, 0xC8, s8);
+                s8 sub = *(s8*)(item + offsetof(PCollideItemLayout, action));
                 if ((sub != 2 && sub != 4) ||
-                    (PF(item, 0xC4, s16) & 1) == 0) {
+                    (*(s16*)(item + offsetof(PCollideItemLayout, active)) & 1) == 0) {
                     skip = 1;
                 }
                 break;
@@ -4021,7 +4031,7 @@ s32 PlayerCollideEnemies(Player* p, s32 a2, f32* pos, f32* out, s32 a5,
     }
 
     if (a5 == 0) {
-        PF(p, 0x8A8, u8*) = last;
+        p->collision_item = last;
     }
     if (out2 != NULL) {
         *out2 = (s32)last;
