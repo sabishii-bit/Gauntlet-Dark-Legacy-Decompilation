@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "whole TU src/game/mb/mb_particle.c exclusively; second sustained de-fakematch pass over untested large-body regions after attempt.mb-particle-defakematch-tu-pass.20260830.v1; parallel fleets please pick another TU"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:MBDrawPsys",
+  "id": "work_claim.mb-particle-defake2.codex.20260830.v1",
+  "kind": "work_claim",
+  "owner": "codex-mb-particle-defake2",
+  "schema_version": 1,
+  "state": "active"
+}
