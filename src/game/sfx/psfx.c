@@ -1002,6 +1002,16 @@ void fn_8008A678(s32* player, u32* rec, void* p11)
     }
 }
 
+/* player-data header (first chunk of the pdata wad) */
+typedef struct PsfxHeader {
+    /* 0x00 */ s16 count;    /* number of SfxRecords            */
+    /* 0x02 */ s16 _02;
+    /* 0x04 */ u8* records;  /* SfxRecord[count], 0x50 each     */
+    /* 0x08 */ u8* moves;    /* third chunk rows, 0x58 each     */
+    /* 0x0C */ u8 _0c[0x18];
+    /* 0x24 */ s32 resolved; /* handles resolved this level     */
+} PsfxHeader;
+
 /* ClearAllPlyrData @0x8008A82C -- clear every player's sfx records. */
 void ClearAllPlyrData(void)
 {
@@ -1010,7 +1020,7 @@ void ClearAllPlyrData(void)
         u8* hdr = lbl_80282930[i];
         if (hdr != 0) {
             PlayerSfxClearData(*(u32**)(hdr + 4), *(s16*)hdr);
-            *(s32*)(lbl_80282930[i] + 0x24) = 0;
+            ((PsfxHeader*)lbl_80282930[i])->resolved = 0;
         }
     }
 }
@@ -1033,7 +1043,7 @@ void ClearPlyrData(s32 player)
     u8* hdr = lbl_80282930[player];
 
     ClearPlyrRecords(*(u32**)(hdr + 4), *(s16*)hdr);
-    *(s32*)(lbl_80282930[player] + 0x24) = 0;
+    ((PsfxHeader*)lbl_80282930[player])->resolved = 0;
 }
 
 /* --- LoadPlyrData support ------------------------------------------------ */
@@ -1069,16 +1079,6 @@ void ClearPlyrData(s32 player)
 
 /* 4-char wad chunk tags kept as strings in sdata2 (chars are signed) */
 #define WADTAG(s) (((s)[0] << 24) | ((s)[1] << 16) | ((s)[2] << 8) | (s)[3])
-
-/* player-data header (first chunk of the pdata wad) */
-typedef struct PsfxHeader {
-    /* 0x00 */ s16 count;    /* number of SfxRecords            */
-    /* 0x02 */ s16 _02;
-    /* 0x04 */ u8* records;  /* SfxRecord[count], 0x50 each     */
-    /* 0x08 */ u8* moves;    /* third chunk rows, 0x58 each     */
-    /* 0x0C */ u8 _0c[0x18];
-    /* 0x24 */ s32 resolved; /* handles resolved this level     */
-} PsfxHeader;
 
 extern char lbl_80347E54[8]; /* header-chunk wad tag  */
 extern char lbl_80347E5C[8]; /* record-chunk wad tag  */
