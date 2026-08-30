@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "TU-scoped struct-layout pass over src/game/world/camera.c: replace raw gCameraState/OBJGRP/Player byte-offset accesses with GC-verified CameraStateView, CameraObjectView, Camera, and Player members under per-region byte/score gates",
+  "attributes": {
+    "axis_log": "NEGATIVE camera_orbit_update direct CameraStateView camera/pyr spelling: 269/269 real0 -> 269/272 real189, reverted. NEGATIVE camera_mode_spin two forms: typed state gave real12 and inline state-view cast gave real4 from real0, both reverted. NEGATIVE debug_camera_pos full state+Player conversion and state-only form both gave 427/427 real22 from real12, reverted after the two-form cap.",
+    "baseline_and_best": "complete camera.o SHA-256 remained 93C728DAB205BA6184F51E90DB20C72653F130F13A8EFF2A24236DCF1F616B24; TU fuzzy 97.99474% and matched 26.727325% unchanged; full ninja linked main.dol checksum OK",
+    "constraints": "camera_mode_follow allocator/scheduler closure axis was a VETO and was not retried; function remained 1048/1048 real386. Leave camera_orbit_update and camera_mode_spin raw state-base arithmetic for byte identity. Leave debug_camera_pos camera-state/player region raw unless a genuinely new web-preserving form is found.",
+    "converted": "32 raw-offset expressions across do_camera (CameraState cameras/targets plus projected object worldmat[3]/attn_pos), camera_init_for_gamemode (camera array), camera_run_mode (Player.mat object base plus OBJGRP node/attn_pos), and camera_mode_target (Player.mat plus OBJGRP node/worldmat[2]/attn_pos). camera_run_mode stayed exact at 831/831, real 0; do_camera stayed 247/247 real 4; camera_init_for_gamemode 266/266 real 2; camera_mode_target 452/452 real 24.",
+    "residual": "Remaining TU raw accesses are mostly camera_mode_follow state workspace, camera_mode_level level/world/transmitter records, trigger-camera rail records, debug_camera_pos/debug supervisor address-web-sensitive Player/state regions, and deliberate CAM_F32/TC_Z macros; resolve each owning type and re-gate in a future pass.",
+    "scope": "src/game/world/camera.c only; portable C; no header, postprocessor, assembly, or data changes"
+  },
+  "function": "function:camera_run_mode",
+  "id": "attempt.camera-tu-defakematch.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

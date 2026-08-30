@@ -50,6 +50,15 @@ typedef struct Vec3 {
     f32 z;
 } Vec3;
 
+/* OBJGRP prefix used by camera projection.  The GC target accesses the
+ * world-matrix translation row at +0x30 and the attention position at +0x40. */
+typedef struct CameraObjectView {
+    f32 worldmat[4][4];
+    f32 attn_pos[4];
+    f32 coll_pos[4];
+    struct mbnode* node;
+} CameraObjectView;
+
 typedef struct CameraMilestone {
     f32 matrix[12];
     f32 position[3];
@@ -66,6 +75,14 @@ typedef struct CameraTarget {
     /* 0x28 */ f32 limitedTop[2];
     /* 0x30 */ f32 limitedBottom[2];
 } CameraTarget; /* 0x38 */
+
+/* GC camera-supervisor prefix: six 0x18C cameras begin at +0xC8, followed
+ * immediately by the projection targets at +0xA10. */
+typedef struct CameraStateView {
+    u8 _pad00[0xC8];
+    Camera cameras[6];
+    CameraTarget targets[15];
+} CameraStateView;
 
 /* Address-taken workspace used by camera_mode_level.  Keeping both camera
  * matrices in one object reproduces the retail function's 0x198-byte frame. */
@@ -484,7 +501,7 @@ void LookInDirection(f32* dir, u32 matAddress)
  * renderer-facing camera matrices. */
 void do_camera(void)
 {
-    u8* state;
+    CameraStateView* state;
     f32* cameraMatrix;
     s32 projectedIndex;
     s32 limitedIndex;
@@ -500,7 +517,7 @@ void do_camera(void)
     s32 sign;
     s32 moving;
 
-    state = gCameraState;
+    state = (CameraStateView*)gCameraState;
     if (PlayerOnMovingObject() != 0) {
         moving = 0;
     } else {
@@ -508,20 +525,22 @@ void do_camera(void)
     }
     lbl_80343BD8 = moving;
 
-    cameraMatrix = (f32*)(state + 0xCC);
-    projectedTarget = (CameraTarget*)(state + 0xA10);
+    cameraMatrix = state->cameras[0].mat[0];
+    projectedTarget = state->targets;
     for (projectedIndex = 0; projectedIndex < 15;
          projectedIndex++, projectedTarget++) {
         sign = projectedTarget->active >> 31;
         if ((sign ^ projectedTarget->active) - sign == 1) {
-            MBWindowProject((f32*)(projectedTarget->object + 0x40), cameraMatrix,
+            MBWindowProject(((CameraObjectView*)projectedTarget->object)->attn_pos,
+                            cameraMatrix,
                             NULL, projectedTop);
             projectedTarget->projectedTop[0] = (f32)projectedTop[0];
             projectedTarget->projectedTop[1] = (f32)projectedTop[1];
             CLAMP_PROJECTED(projectedTarget->projectedTop[0]);
             CLAMP_PROJECTED(projectedTarget->projectedTop[1]);
 
-            MBWindowProject((f32*)(projectedTarget->object + 0x30), cameraMatrix,
+            MBWindowProject(((CameraObjectView*)projectedTarget->object)->worldmat[3],
+                            cameraMatrix,
                             NULL, projectedBottom);
             projectedTarget->projectedBottom[0] = (f32)projectedBottom[0];
             projectedTarget->projectedBottom[1] = (f32)projectedBottom[1];
@@ -536,7 +555,7 @@ void do_camera(void)
     }
 
     moving = cameraIndex = 0;
-    camera = (Camera*)(state + 0xC8);
+    camera = state->cameras;
     for (; cameraIndex < 6; cameraIndex++, camera++) {
         if (camera->state == 1) {
             if ((gGameBusy | gGameplayPauseTimer) == 0) {
@@ -550,19 +569,21 @@ void do_camera(void)
         }
     }
 
-    limitedTarget = (CameraTarget*)(state + 0xA10);
+    limitedTarget = state->targets;
     for (limitedIndex = 0; limitedIndex < 15;
          limitedIndex++, limitedTarget++) {
         sign = limitedTarget->active >> 31;
         if ((sign ^ limitedTarget->active) - sign == 1) {
-            MBWindowProject((f32*)(limitedTarget->object + 0x40), cameraMatrix,
+            MBWindowProject(((CameraObjectView*)limitedTarget->object)->attn_pos,
+                            cameraMatrix,
                             NULL, limitedTop);
             limitedTarget->limitedTop[0] = (f32)limitedTop[0];
             limitedTarget->limitedTop[1] = (f32)limitedTop[1];
             CLAMP_PROJECTED(limitedTarget->limitedTop[0]);
             CLAMP_PROJECTED(limitedTarget->limitedTop[1]);
 
-            MBWindowProject((f32*)(limitedTarget->object + 0x30), cameraMatrix,
+            MBWindowProject(((CameraObjectView*)limitedTarget->object)->worldmat[3],
+                            cameraMatrix,
                             NULL, limitedBottom);
             limitedTarget->limitedBottom[0] = (f32)limitedBottom[0];
             limitedTarget->limitedBottom[1] = (f32)limitedBottom[1];
@@ -573,8 +594,8 @@ void do_camera(void)
 
     screen_limitation();
     cameraIndex = lbl_8034453C;
-    MBCameraUpdate((f32*)(state + cameraIndex * sizeof(Camera) + 0xFC),
-                   (f32*)(state + cameraIndex * sizeof(Camera) + 0xCC));
+    MBCameraUpdate(state->cameras[cameraIndex].mat[3],
+                   state->cameras[cameraIndex].mat[0]);
 }
 
 #undef CLAMP_PROJECTED
@@ -626,8 +647,8 @@ void do_camera(void)
 /* Select the camera/attention modes required by the current game state. */
 void camera_init_for_gamemode(s32 camIndex)
 {
-    u8* state = gCameraState;
-    Camera* cam = (Camera*)(state + 200 + camIndex * 396);
+    CameraStateView* state = (CameraStateView*)gCameraState;
+    Camera* cam = &state->cameras[camIndex];
     s32 tableMode;
     s32 changed;
     Camera* menuCam;
@@ -667,7 +688,7 @@ menu_done:
             return;
         }
         if (camIndex != 1) return;
-        menuCam = (Camera*)(state + 596);
+        menuCam = &state->cameras[1];
         tableMode = menuCam->a_mode;
         changed = menuCam->c_mode;
         if (changed != CAM_OFF) {
@@ -754,7 +775,7 @@ void camera_run_mode(s32 camIdx)
     s32 attentionMode = cam->a_mode;
     s32 playerIndex;
     s32 tries;
-    u8* playerObject;
+    CameraObjectView* playerObject;
     Player* players;
     Player* player;
     s32* playerCursor;
@@ -797,10 +818,12 @@ void camera_run_mode(s32 camIdx)
     f32 normalizeGameMode[3];
     u8 runModePad[0x1C];
 
-    if (cam->camobj != 0 && *(u32*)((u8*)cam->camobj + 0x60) == 0) {
+    if (cam->camobj != 0 &&
+        ((CameraObjectView*)cam->camobj)->node == 0) {
         cam->camobj = 0;
     }
-    if (cam->attnobj != 0 && *(u32*)((u8*)cam->attnobj + 0x60) == 0) {
+    if (cam->attnobj != 0 &&
+        ((CameraObjectView*)cam->attnobj)->node == 0) {
         cam->attnobj = 0;
     }
 
@@ -1014,7 +1037,7 @@ void camera_run_mode(s32 camIdx)
         for (tries = 0; tries < 4; tries++) {
             player = &players[playerIndex];
             if (player->state == 1 || player->state == 4) {
-                playerObject = (u8*)player + 0x14;
+                playerObject = (CameraObjectView*)player->mat;
                 *playerCursor = playerIndex;
                 goto found_player_object;
             }
@@ -1026,17 +1049,21 @@ void camera_run_mode(s32 camIdx)
         playerObject = 0;
 found_player_object:
         cam->camobj = (struct OBJGRP*)playerObject;
-        if (cam->camobj != 0 && *(u32*)((u8*)cam->camobj + 0x60) != 0) {
-            cam->wpos[0] = *(f32*)((u8*)cam->camobj + 0x40);
-            cam->wpos[1] = *(f32*)((u8*)cam->camobj + 0x44);
-            cam->wpos[2] = *(f32*)((u8*)cam->camobj + 0x48);
+        if (cam->camobj != 0 &&
+            ((CameraObjectView*)cam->camobj)->node != 0) {
+            cam->wpos[0] = ((CameraObjectView*)cam->camobj)->attn_pos[0];
+            cam->wpos[1] = ((CameraObjectView*)cam->camobj)->attn_pos[1];
+            cam->wpos[2] = ((CameraObjectView*)cam->camobj)->attn_pos[2];
         }
         if (attentionMode == ATN_OBJECT ||
             (u32)(attentionMode - ATN_PLAYER) <= 4) {
             if (cam->attnobj != 0) {
-                cam->attn[0] = *(f32*)((u8*)cam->attnobj + 0x40);
-                cam->attn[1] = *(f32*)((u8*)cam->attnobj + 0x44);
-                cam->attn[2] = *(f32*)((u8*)cam->attnobj + 0x48);
+                cam->attn[0] =
+                    ((CameraObjectView*)cam->attnobj)->attn_pos[0];
+                cam->attn[1] =
+                    ((CameraObjectView*)cam->attnobj)->attn_pos[1];
+                cam->attn[2] =
+                    ((CameraObjectView*)cam->attnobj)->attn_pos[2];
             }
         } else if (attentionMode == ATN_TARGET) {
             get_attn_pos(camIdx, cam->attn);
@@ -1689,7 +1716,7 @@ void camera_mode_follow(s32 camIdx)
 void camera_mode_target(s32 camIdx)
 {
     Camera* cam = &gCameras[camIdx];
-    u8* playerObject;
+    CameraObjectView* playerObject;
     s32 playerIndex;
     s32 objectWasMissing = cam->camobj == 0 ? -1 : 0;
     Player* player;
@@ -1731,7 +1758,7 @@ void camera_mode_target(s32 camIdx)
     for (tries = 0; tries < 4; tries++) {
         player = (Player*)gPlayers + playerIndex;
         if (player->state == 1 || player->state == 4) {
-            playerObject = (u8*)player + 0x14;
+            playerObject = (CameraObjectView*)player->mat;
             *playerNumber = playerIndex;
             goto found_target_player;
         }
@@ -1747,15 +1774,17 @@ found_target_player:
     if (cam->camobj == 0) {
         return;
     }
-    if (*(u32*)((u8*)cam->camobj + 0x60) == 0) {
+    if (((CameraObjectView*)cam->camobj)->node == 0) {
         return;
     }
     if (objectWasMissing != 0) {
         cam->trans_mode = 0;
     }
 
-    targetDirectionZ = *(f32*)((u8*)cam->camobj + 0x28);
-    targetYaw = atan2(*(f32*)((u8*)cam->camobj + 0x20), targetDirectionZ);
+    targetDirectionZ = ((CameraObjectView*)cam->camobj)->worldmat[2][2];
+    targetYaw =
+        atan2(((CameraObjectView*)cam->camobj)->worldmat[2][0],
+              targetDirectionZ);
 
     switch (cam->trans_mode) {
     case 0:
@@ -1765,9 +1794,9 @@ found_target_player:
         cam->trans_mode++;
         /* fall through */
     case 1:
-        cam->attn[0] = *(f32*)((u8*)cam->camobj + 0x40);
-        cam->attn[1] = *(f32*)((u8*)cam->camobj + 0x44);
-        cam->attn[2] = *(f32*)((u8*)cam->camobj + 0x48);
+        cam->attn[0] = ((CameraObjectView*)cam->camobj)->attn_pos[0];
+        cam->attn[1] = ((CameraObjectView*)cam->camobj)->attn_pos[1];
+        cam->attn[2] = ((CameraObjectView*)cam->camobj)->attn_pos[2];
         dx = cam->attn[0] - cam->wpos[0];
         dy = cam->attn[1] - cam->wpos[1];
         dz = cam->attn[2] - cam->wpos[2];
@@ -1877,9 +1906,9 @@ found_target_player:
     }
 
     if (cam->trans_mode != 1) {
-        cam->wpos[0] = *(f32*)((u8*)cam->camobj + 0x40);
-        cam->wpos[1] = *(f32*)((u8*)cam->camobj + 0x44);
-        cam->wpos[2] = *(f32*)((u8*)cam->camobj + 0x48);
+        cam->wpos[0] = ((CameraObjectView*)cam->camobj)->attn_pos[0];
+        cam->wpos[1] = ((CameraObjectView*)cam->camobj)->attn_pos[1];
+        cam->wpos[2] = ((CameraObjectView*)cam->camobj)->attn_pos[2];
         CreateYPRMatrix(matrix, cam->pyr);
         offset[0] = 0.0f;
         offset[1] = 0.0f;
