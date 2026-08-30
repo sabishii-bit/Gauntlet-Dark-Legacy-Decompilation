@@ -116,6 +116,59 @@ typedef struct MovieRingBuffer {
     u32 readPos;
 } MovieRingBuffer;
 
+/* File-local RIFF chunk-list node, 0x28 bytes (matches the 0x2800-byte pool
+ * of 256 nodes allocated by MovieDecoderInitBuffers). Filled by fn_800DB3D4
+ * while walking .avi '00db'/'00dc' (video) and '01wb' (audio) sub-chunks;
+ * consumed by fn_800DB36C/fn_800DB29C. Not a GC-verified name. */
+typedef struct MovieChunkNode {
+    /* 0x00 */ struct MovieChunkNode* next;
+    /* 0x04 */ u32 totalSize;       /* RIFF LIST payload size + 8, word-aligned */
+    /* 0x08 */ u32 dataOffset;      /* byte offset of this chunk's data in stream.buffer */
+    /* 0x0C */ u32 videoFrameIndex; /* stream.videoFrameCount snapshot at '00db'/'00dc' */
+    /* 0x10 */ u32 videoSize;       /* '00db'/'00dc' payload size */
+    /* 0x14 */ u32 audioSize;       /* '01wb' payload size */
+    /* 0x18 */ u32 junkSize;        /* 'JUNK' payload size */
+    /* 0x1C */ u32 audioByteOffset; /* stream.audioBytesProduced snapshot at '01wb' */
+    /* 0x20 */ u8* videoData;
+    /* 0x24 */ u8* audioData;
+} MovieChunkNode;
+
+/* File-local .avi RIFF read-ahead stream state, embedded at movie+0x20
+ * (verified via fn_800DA6A4's fn_800DB3D4((u32*)(movie+0x20), ...) call and
+ * PlayVQMovie's MovieDecoderInitBuffers((u32*)(movie+32), ...)). Owns a main
+ * double-buffered read window (buffer/rawBuffer + stagingBuffer/rawStaging),
+ * an embedded MovieRingBuffer at 0x3C for demuxed audio bytes, and a
+ * MovieChunkNode free-list/pool for demuxed RIFF chunks. Not a GC-verified
+ * name - offsets verified purely from this TU's own usage across
+ * MovieDecoderInitBuffers, fn_800DB82C, fn_800DB3D4, fn_800DB29C,
+ * fn_800DB36C, fn_800DB2F4 and the dtor cluster (fn_800DB008/fn_800DB0F8/
+ * dtor_800DB21C). self[8]/self[9] are always zeroed but never read in this
+ * TU - left as unknown padding. self+0x4C (word 19) is written once (a byte
+ * flag in fn_800DB2F4) with no corroborating read - left raw there. */
+typedef struct MovieChunkStream {
+    /* 0x00 */ u8* buffer;            /* aligned view of rawBuffer, main read window */
+    /* 0x04 */ u8* rawBuffer;         /* AllocHiMem'd block backing buffer */
+    /* 0x08 */ u8* stagingBuffer;     /* aligned view of rawStaging, read-ahead landing pad */
+    /* 0x0C */ u8* rawStaging;        /* AllocHiMem'd block (0x10020 bytes) backing stagingBuffer */
+    /* 0x10 */ u32 writePos;          /* bytes consumed into buffer so far */
+    /* 0x14 */ u32 highWater;         /* compared against writePos when reclaiming space */
+    /* 0x18 */ u32 bufferSize;        /* total allocated size of buffer */
+    /* 0x1C */ u32 pendingLength;     /* bytes just landed in stagingBuffer, awaiting copy-in */
+    /* 0x20 */ u32 _20;
+    /* 0x24 */ u32 _24;
+    /* 0x28 */ u32 filePos;           /* bytes consumed from the source file so far */
+    /* 0x2C */ u32 fileSize;          /* total source file size (sceLseek SEEK_END) */
+    /* 0x30 */ u32 videoFrameLimit;   /* total video frame count */
+    /* 0x34 */ u32 videoFrameCount;   /* video frames demuxed so far */
+    /* 0x38 */ u32 audioBytesProduced;/* cumulative demuxed audio byte offset */
+    /* 0x3C */ MovieRingBuffer audio; /* demuxed-audio ring buffer, fed by fn_800D9B48 */
+    /* 0x4C */ u8 _4C;                /* byte flag (fn_800DB2F4/fn_800DB82C); no read evidence */
+    /* 0x4D */ u8 _4D_pad[3];
+    /* 0x50 */ MovieChunkNode* activeNode;
+    /* 0x54 */ u8* nodePoolRaw;       /* AllocHiMem'd block (0x2800 bytes = 256 nodes) */
+    /* 0x58 */ MovieChunkNode* freeListHead;
+} MovieChunkStream;
+
 extern void GXInitTexObj(MovieGXTexObj* obj, void* data, u16 width, u16 height,
                          u32 format, u32 wrapS, u32 wrapT, u8 mipmap);
 extern void GXLoadTexObj(MovieGXTexObj* obj, u8 map);
@@ -213,16 +266,16 @@ u32 fn_800D8F28(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D91B4(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D9A14(MovieRingBuffer* p1, u8* p2, int p3, u8 p4);
 void fn_800DBE98(void* param_1, u8* param_2);
-int fn_800DB2F4(u8* param_1, u8* param_2, u32 param_3, u32 param_4);
+int fn_800DB2F4(MovieChunkStream* param_1, u8* param_2, u32 param_3, u32 param_4);
 void fn_800DB3D4(u32* stream, s32 fd, u32 length);
 void fn_800DB29C(int stream);
 u32* fn_800DB36C(int stream);
-void fn_800DB82C(u32* stream, int fd, u32 offset);
+void fn_800DB82C(MovieChunkStream* stream, int fd, u32 offset);
 void fn_800DA60C(u8* movie);
 u32 fn_800DA6A4(u8* movie, u32 decodeFrame, f32 elapsed);
 s32 fn_800DA920(u8* movie, const char* name);
 u32 fn_800DACD8(int movie, u8* header);
-u8 MovieDecoderInitBuffers(u32* decoder, u32 size, u32 hasAudio);
+u8 MovieDecoderInitBuffers(MovieChunkStream* decoder, u32 size, u32 hasAudio);
 void fn_800D9F20(int audio);
 u32* fn_800DBF6C(u32* self, s16 deleting);
 u32* fn_800DB008(u32* self, s16 deleting);
@@ -1300,7 +1353,7 @@ void fn_800D9F20(int param_1) {
             requestSize = *(u32*)(param_1 + 0x10);
             requestOffset = *(u32*)(param_1 + 0xc);
             requestData = *(u8**)(param_1 + 4);
-            if ((u8)fn_800DB2F4(gMovieStreamState + 0x20, requestData,
+            if ((u8)fn_800DB2F4((MovieChunkStream*)(gMovieStreamState + 0x20), requestData,
                                 requestOffset, requestSize)) {
                 *(u32*)(param_1 + 8) = *(u32*)(param_1 + 0x10);
                 *(int*)(param_1 + 0xc) = *(int*)(param_1 + 0xc) + *(int*)(param_1 + 0x10);
@@ -1487,7 +1540,7 @@ extern "C" void PlayVQMovie(const char* name) throw()
                     requestSize = audio->requestSize;
                     requestOffset = audio->offset;
                     requestData = audio->buffer;
-                    if ((u8)fn_800DB2F4(gMovieStreamState + 32,
+                    if ((u8)fn_800DB2F4((MovieChunkStream*)(gMovieStreamState + 32),
                                         requestData,
                                         requestOffset,
                                         requestSize) != 0) {
@@ -1591,7 +1644,7 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
             }
             *(MovieAudioState**)(movie + 0x190) = audio;
             audio = *(MovieAudioState**)(movie + 0x190);
-            audio->active = (u8)fn_800DB2F4(gMovieStreamState + 0x20, audio->buffer, 0, 0xC000);
+            audio->active = (u8)fn_800DB2F4((MovieChunkStream*)(gMovieStreamState + 0x20), audio->buffer, 0, 0xC000);
             if (audio->active != 0) {
                 audio->offset = 0xC000;
                 audio->remaining = 0xC000;
@@ -1771,8 +1824,8 @@ extern "C" s32 fn_800DA920(u8* movie, const char* name)
         };
         ((MovieConfigureObject*)(movie + 336))->configure(movie + 284, 0);
     }
-    MovieDecoderInitBuffers((u32*)(movie + 32), 0x80000, movie[24]);
-    fn_800DB82C((u32*)(movie + 32), *(s32*)(movie + 28),
+    MovieDecoderInitBuffers((MovieChunkStream*)(movie + 32), 0x80000, movie[24]);
+    fn_800DB82C((MovieChunkStream*)(movie + 32), *(s32*)(movie + 28),
                 *(u32*)(movie + 20));
     *(u32*)(movie + 80) = *(u32*)(movie + 212);
     movie[25] = 1;
@@ -1982,17 +2035,17 @@ void fn_800DB29C(int stream) {
 #pragma scheduling on
 #endif
 
-int fn_800DB2F4(u8* param_1, u8* param_2, u32 param_3, u32 param_4) {
+int fn_800DB2F4(MovieChunkStream* param_1, u8* param_2, u32 param_3, u32 param_4) {
     int iVar1;
     int ret;
     u8 unused[8];
-    iVar1 = fn_800D9C34((MovieRingBuffer*)(param_1 + 0x3c));
+    iVar1 = fn_800D9C34(&param_1->audio);
     if (iVar1 < (int)param_4) {
         memset(param_2, 0, param_4);
         ret = 0;
     } else {
-        *(u8*)(param_1 + 0x4c) = 1;
-        fn_800D9A14((MovieRingBuffer*)(param_1 + 0x3c), param_2, param_4, *(char*)(param_1 + 0x4c));
+        param_1->_4C = 1;
+        fn_800D9A14(&param_1->audio, param_2, param_4, param_1->_4C);
         ret = 1;
     }
     return ret;
@@ -2205,70 +2258,69 @@ request_more:
     }
 }
 
-void fn_800DB82C(u32* param_1, int param_2, u32 param_3) {
+void fn_800DB82C(MovieChunkStream* param_1, int param_2, u32 param_3) {
     int iVar2;
 
-    param_1[0xb] = sceLseek(param_2, 0, 2);
+    param_1->fileSize = sceLseek(param_2, 0, 2);
     sceLseek(param_2, param_3, 0);
-    param_1[10] = param_3;
-    param_1[7] = (param_1[6] - 0x2000) & 0xfffff800;
-    sceRead(param_2, (void*)param_1[0], param_1[7]);
-    param_1[0x14] = param_1[0x16];
-    param_1[0x16] = *(u32*)param_1[0x16];
-    *(u32*)param_1[0x14] = 0;
-    *(u32*)(param_1[0x14] + 8) = 0;
-    iVar2 = ReadF32LE((u8*)(param_1[0] + 4));
-    *(int*)(param_1[0x14] + 4) = iVar2 + 8;
-    *(u32*)(param_1[0x14] + 4) =
-        *(u32*)(param_1[0x14] + 4) + (*(u32*)(param_1[0x14] + 4) & 1);
-    *(u32*)(param_1[0x14] + 0x20) = 0;
-    *(u32*)(param_1[0x14] + 0x24) = 0;
-    *(u32*)(param_1[0x14] + 0x18) = 0;
-    param_1[0xd] = 0;
-    *(u8*)(param_1 + 0x13) = 0;
+    param_1->filePos = param_3;
+    param_1->pendingLength = (param_1->bufferSize - 0x2000) & 0xfffff800;
+    sceRead(param_2, param_1->buffer, param_1->pendingLength);
+    param_1->activeNode = param_1->freeListHead;
+    param_1->freeListHead = (MovieChunkNode*)*(u32*)param_1->freeListHead;
+    param_1->activeNode->next = 0;
+    param_1->activeNode->dataOffset = 0;
+    iVar2 = ReadF32LE(param_1->buffer + 4);
+    param_1->activeNode->totalSize = iVar2 + 8;
+    param_1->activeNode->totalSize += param_1->activeNode->totalSize & 1;
+    param_1->activeNode->videoData = 0;
+    param_1->activeNode->audioData = 0;
+    param_1->activeNode->junkSize = 0;
+    param_1->videoFrameCount = 0;
+    param_1->_4C = 0;
 }
 
-u8 MovieDecoderInitBuffers(u32* param_1, u32 param_2, u32 param_3) {
+u8 MovieDecoderInitBuffers(MovieChunkStream* param_1, u32 param_2, u32 param_3) {
     int iVar3;
     int iVar4;
     u8 unused[24];
 
-    __dla__FPv((void*)param_1[1]);
-    param_1[1] = 0;
-    param_1[0] = 0;
-    __dla__FPv((void*)param_1[3]);
-    param_1[3] = 0;
-    param_1[2] = 0;
-    __dla__FPv((void*)param_1[0x15]);
-    param_1[6] = 0;
-    param_1[5] = 0;
-    param_1[4] = 0;
-    param_1[8] = 0;
-    param_1[9] = 0;
-    param_1[0x16] = 0;
-    param_1[0x14] = 0;
-    param_1[0x15] = 0;
+    __dla__FPv(param_1->rawBuffer);
+    param_1->rawBuffer = 0;
+    param_1->buffer = 0;
+    __dla__FPv(param_1->rawStaging);
+    param_1->rawStaging = 0;
+    param_1->stagingBuffer = 0;
+    __dla__FPv(param_1->nodePoolRaw);
+    param_1->bufferSize = 0;
+    param_1->highWater = 0;
+    param_1->writePos = 0;
+    param_1->_20 = 0;
+    param_1->_24 = 0;
+    param_1->freeListHead = 0;
+    param_1->activeNode = 0;
+    param_1->nodePoolRaw = 0;
     if ((param_3 & 0xff) != 0) {
-        fn_800D9C5C((MovieRingBuffer*)(param_1 + 0xf), 0x40000);
+        fn_800D9C5C(&param_1->audio, 0x40000);
     }
-    param_1[6] = param_2 & 0xfffff800;
-    iVar3 = param_1[6];
+    param_1->bufferSize = param_2 & 0xfffff800;
+    iVar3 = param_1->bufferSize;
     gMovieAllocCount++;
-    param_1[1] = (u32)AllocHiMem(iVar3 + 0x20, iVar3);
+    param_1->rawBuffer = (u8*)AllocHiMem(iVar3 + 0x20, iVar3);
     iVar3 = gMovieAllocCount;
     gMovieAllocCount++;
-    param_1[3] = (u32)AllocHiMem(0x10020, iVar3);
-    param_1[0] = param_1[1] + 0x20 & 0xffffffe0;
-    param_1[2] = param_1[3] + 0x20 & 0xffffffe0;
+    param_1->rawStaging = (u8*)AllocHiMem(0x10020, iVar3);
+    param_1->buffer = (u8*)((u32)param_1->rawBuffer + 0x20 & 0xffffffe0);
+    param_1->stagingBuffer = (u8*)((u32)param_1->rawStaging + 0x20 & 0xffffffe0);
     iVar3 = gMovieAllocCount;
     gMovieAllocCount++;
-    param_1[0x15] = (u32)AllocHiMem(0x2800, iVar3);
-    param_1[0x16] = param_1[0x15];
+    param_1->nodePoolRaw = (u8*)AllocHiMem(0x2800, iVar3);
+    param_1->freeListHead = (MovieChunkNode*)param_1->nodePoolRaw;
     for (iVar4 = 0; iVar4 < 255; iVar4++) {
-        *(u32*)(param_1[0x15] + iVar4 * 0x28) = param_1[0x15] + (iVar4 + 1) * 0x28;
+        *(u32*)(param_1->nodePoolRaw + iVar4 * 0x28) = (u32)param_1->nodePoolRaw + (iVar4 + 1) * 0x28;
     }
-    *(u32*)(param_1[0x15] + iVar4 * 0x28) = 0;
-    return param_1[0] != 0;
+    *(u32*)(param_1->nodePoolRaw + iVar4 * 0x28) = 0;
+    return param_1->buffer != 0;
 }
 
 void fn_800DBA80(u8* dec, s32 fd) {
