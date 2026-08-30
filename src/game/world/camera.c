@@ -3645,8 +3645,8 @@ s32 debug_camera_pos(s32 lastPlayer)
  */
 s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
 {
-    u8* playerData = gPlayers + playerIndex * 0x335C;
     u8* state = gCameraState;
+    u8* playerData = gPlayers + playerIndex * 0x335C;
     f32* cameraMatrix;
     f32* cameraPositionX;
     f32* cameraPositionZ;
