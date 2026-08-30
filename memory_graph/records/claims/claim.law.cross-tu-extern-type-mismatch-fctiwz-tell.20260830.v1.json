@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "detection_recipe": "1) In a function's fndiff --ops output, look for a target-side single load/store (lfs/stfs, or lfd/stfd) replaced by an ours-side cluster containing fctiwz+stfd+lwz+stw (int-from-float) or the mirror (float-from-int would show lwz+stw replaced by fctiwz-adjacent patterns on the OTHER side). 2) Identify the destination global from the surrounding source. 3) `grep -rn \"extern.*\\b<symbol>\\b\" src/game` across the whole tree; if any TU disagrees on f32/f64 vs an integer type, the TU with the mismatch is very likely the wrong one (cross-check against how the value is produced, e.g. `*(f32*)` reads or other correctly-typed peers of the same source struct).",
+    "provenance": "src/game/game/combat.c::InitCamera (work_claim.combat-camera-match.20260830.v1); commit 6eee2ccdc",
+    "scope": "MWCC GC 1.2.5 family; applies whenever a raw-offset or otherwise float-producing RHS expression is assigned into an extern global whose OWN TU declares a narrower/integer type than the value's true representation; most exploitable in this project because many globals are declared per-TU as bare `extern TYPE name;` without a shared header, so a single wrong declaration silently compiles instead of erroring.",
+    "tags": [
+      "matching",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.cross-tu-extern-type-mismatch-fctiwz-tell.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T21:09:33Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "When the SAME extern global is declared with a NARROWER/wrong numeric type (s32) in one TU while another TU correctly declares it f32/f64, an assignment into the mistyped lvalue from a float-typed RHS in the wrong TU compiles to an implicit narrowing conversion: fctiwz (convert-to-int) + stfd (spill the FPR pair to a stack temp) + lwz (reload the low word) + stw (store as int), a 4-instruction sequence, in place of the single stfs/lfs the correctly-typed declaration would produce. This is a mechanically recognizable tell in a fndiff --ops diff: a target-side single stfs/lfs aligned against a 3-4-instruction ours-side fctiwz/stfd/lwz/stw cluster at the SAME semantic position is strong evidence of an extern type mismatch, not a register/scheduling residual. Fix: grep the symbol across every TU's extern declarations (a whole-tree extern-decl census, e.g. one regex pass over `extern TYPE name;` groups) and adopt whichever type a sibling TU already declares (cross-checked against how the value is actually produced/consumed, e.g. a `*(f32*)(ptr+N)` read feeding the assignment). Verified case: src/game/game/combat.c's InitCamera declared `lbl_80344524` as `s32` while src/game/world/camera.c already declared the same symbol `extern f32 lbl_80344524;`; correcting combat.c's declaration to f32 removed the fctiwz/stfd/lwz/stw cluster, insns 1099->1096, real 1000->995, fuzzy 91.29->91.62%, no other function affected, full ninja green."
+}
