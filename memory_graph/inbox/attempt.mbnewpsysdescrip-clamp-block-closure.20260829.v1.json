@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "structural verification only (insn count already EXACT 793/793; all 21 --ops clusters are the SAME single repeated pattern occurring 5x as attempt.setworldparms-clamp-block-closure.20260829.v1, once per q->p_parms[0..4] RGBA clamp-and-scale block at lines ~2705-2960: identical shape, just named x0-x3/v instead of t0-t3/fv and storing to the .o view instead of .i view). No new probes run here: the 3 axes already tested against this EXACT codegen pattern in setWorldParms (fade_end/4th-field standard-form rewrite, sc/lo/hi decl-merge, staged-temp mirroring the ageTmp lever) were all negative or no-op there, and this function's clamp blocks are byte-for-byte the same shape/residual, so re-running them here would violate the two-identical-A/B-kills-an-axis rule without a new hypothesis",
+  "attributes": {
+    "anchors": "src/game/mb/mb_particle.c::MBNewPsysDescrip lines ~2513-3010 (function body); the 5 clamp blocks specifically at lines 2705-2960; target .text 3172B (793 insns) == ours 793 insns EXACTLY",
+    "baseline_and_best": "baseline 95.67% fuzzy / real 496 (insns 793, EXACT count) = BEST (unchanged, no edits made this session)",
+    "measurements": "none run directly; cross-referenced setWorldParms's 3 negative probes (axis1 standard-form rewrite of 4th field: worse; axis2 decl-merge: no-op; axis3 staged-temp/ageTmp-mirror: worse) which apply verbatim to this identical residual shape",
+    "policy": "portable C only; VETO-equivalent self-screen against a same-session sibling finding, no edits made, no revert needed",
+    "residual": "same root cause as setWorldParms: each clamp block's first field emits one extra `fmr` (target reuses the register holding the scale-table 'lo' bound directly for both compare and clamp-assign; our compile allocates a fresh register needing a copy) x5 blocks = the entire real-diff residual for this function. See claim/attempt on setWorldParms for full asm-level decode (target vs ours instruction-by-instruction) -- do not re-derive.",
+    "supersedes_note": "if a future session finds a working fix for the setWorldParms clamp-block fmr residual, apply it here too since the code shape is identical -- these two functions' clamp blocks should be fixed together in one pass"
+  },
+  "function": "function:MBNewPsysDescrip",
+  "id": "attempt.mbnewpsysdescrip-clamp-block-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

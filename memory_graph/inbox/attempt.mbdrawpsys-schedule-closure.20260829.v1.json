@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "structural verification (all --ops clusters cross-checked against target asm: fields/branches/calls all semantically correct, no logic bugs found) + 5 source-shape probes on the residual SCHEDULE-class clusters: (1) reorder plf/page/cursor block to target's apparent load order -> no change; (2) if/else->ternary for lim2 assignment -> IMPROVED; (2b) same ternary form for wrapStop if/else -> WORSE, reverted; (3) split age/agef cast into a separate ageTmp intermediate (mirrors target's extra register copy) -> IMPROVED further, stacks with (2); (3b) same but unscoped (top-level decl vs block-local) -> identical to (3), scoping irrelevant; (4) split DrawPsysSub 6th-arg ratio into its own temp -> no change, reverted",
+  "attributes": {
+    "anchors": "src/game/mb/mb_particle.c::MBDrawPsys; target .text size 3240B (810 insns); offset drift analysis via 3 cror landmarks (0x6fc,0x718,0xa64) confirmed BYTE-EXACT function-offset alignment through idx665, proving the pervasive GPR/FPR register-letter shift (r15->r16 node, f30->f31 rate, etc.) seen in --clean is pure coloring noise, not structural drift",
+    "baseline_and_best": "baseline 91.71% fuzzy / real 782 (insns 812) -> best 92.11% fuzzy / real 733 (insns 813), commit 19e84fc80",
+    "law_candidate": "MWCC list-scheduling for demo/-O4 cflags files reorders/coalesces INDEPENDENT statements within a basic block regardless of source declaration or statement order (proven by two independent no-op reorder probes); introducing an extra INTERMEDIATE named temp for a value that is both stack-stored (bias-trick float cast) and separately kept live sometimes changes register-web coloring for the *rest* of the function even when the immediate instruction cluster is unchanged -- worth trying elsewhere as a distinct-from-reorder axis",
+    "measurements": "axis1 reorder: 782->782 (no-op); axis2 lim2 ternary: 782->774; axis2b wrapStop ternary: 774->779 (worse, reverted); axis3 ageTmp split: 774->733; axis3b unscoped ageTmp: 733->733 (identical); axis4 ratio temp: 733->733 (no-op, reverted)",
+    "policy": "portable C only; kept axis2+axis3 (strictly better), reverted axis1/axis2b/axis4",
+    "residual": "~30 --ops clusters remain, all SCHEDULE-class (same opcode multiset, different MWCC list-scheduling order/register web coalescing) around: (a) age/agef bias-trick conversion prologue (target keeps a redundant mr copy we still don't reproduce), (b) wrapStop branch-sense inversion at target+0x82c (single bgt vs our ble+addi+b, same net effect), (c) DrawPsysSub 6th-arg (slots[4].cur/pi[284]*node->scale[1]) interleaved with the p_nactive++ store -- MWCC schedules this independent of source statement order at this opt level (proven by axis1/axis4 both being complete no-ops), so this class is not source-order-controllable via reasonable portable C; capping after 5 axes with 2 real wins retained"
+  },
+  "function": "function:MBDrawPsys",
+  "id": "attempt.mbdrawpsys-schedule-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

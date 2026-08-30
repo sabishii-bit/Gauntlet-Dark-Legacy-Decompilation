@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "structural verification (all 32 --ops clusters reviewed; fields/branches/calls semantically correct against target asm, no logic bugs found) + 4 source-shape probes: (1) split assignment-in-condition `if ((u32)(n = p->p_max) == 0)` into separate `n = p->p_max; if ((u32)n == 0)` to try to match target's branch-around block layout for the p_max==0 default-formula case -> CATASTROPHIC regression (real 650->767); (2) move `dirMode |= mode0;` between `vf = 1;` and `va = vf;` to break trivial constant-propagation (target keeps a genuine fmr/copy for va=vf where ours folds to `li`) -> no-op (650->650); (3) claim.law.chained-init-constant-share applied to est/pl (both init from lbl_80349154, currently 2 separate `= lbl_80349154` decls) as `est = pl = lbl_80349154;` -> regression (650->763); (4) reversed chain order `pl = est = lbl_80349154;` -> same regression (650->763, confirms axis killed per 2 identical negative A/Bs)",
+  "attributes": {
+    "anchors": "src/game/mb/mb_particle.c::setupNewPMode_800CDCE4; target .text 2676B (669 insns), ours 663 insns (6 SHORTER, not longer)",
+    "baseline_and_best": "baseline 91.86% fuzzy / real 650 (insns 663) = BEST (no improvement found, all 4 probes reverted); function left byte-identical to pre-session state",
+    "measurements": "axis1 assignment-split: 650->767 (severe regression, reverted); axis2 vf/va statement-order: 650->650 (no-op, reverted); axis3 chained-init est=pl forward: 650->763 (regression, reverted); axis3b chained-init pl=est reverse: 650->763 (same regression, axis killed, reverted)",
+    "policy": "portable C only; all 4 probes reverted (none strictly better); file confirmed byte-identical to session start via git diff",
+    "residual": "target is 6 insns LONGER than ours (669 vs 663) with ~32 --ops clusters, all confirmed SAME-multiset reorderings (pure MWCC list-scheduling/branch-layout choices) except one genuine 1-insn extra 'b' at T[19:21] (short-circuit-OR p_max!=0 check, branch-around layout choice) which axis1 tried and badly regressed touching. This file's register/branch allocator is unusually FRAGILE to source perturbation here: 3 of 4 probes caused 100+ line real-diff regressions despite being semantically-neutral, source-shape-only changes proven safe/beneficial elsewhere in this exact TU (MBDrawPsys). claim.law.chained-init-constant-share does NOT transfer to this site -- do not retry here without a new hypothesis.",
+    "warning_for_next_agent": "this function's codegen is highly sensitive to trivial reorderings/refactors that are no-ops or wins elsewhere in the same TU; treat any further axis here as high-risk and verify score before considering it safe, even for 'obviously neutral' changes"
+  },
+  "function": "function:setupNewPMode_800CDCE4",
+  "id": "attempt.setupnewpmode-800cdce4-schedule-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
