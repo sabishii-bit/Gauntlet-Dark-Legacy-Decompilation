@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "TU-scoped de-fakematch pass over game/sfx/psfx.c: replace raw Player byte-offset accesses with GC-verified Player members under an exact-object gate.",
+  "attributes": {
+    "anchors": "src/game/sfx/psfx.c; target object build/GUNE5D/obj/game/sfx/psfx.o; python tools/gdl/fndiff.py game/sfx/psfx <fn> --count/--ops/--clean",
+    "axis_log": "DoPlyrSfxSub: index alone PASS exact; grouped node/mat/pos conversion FAIL (WebFrank fail-closed input-hash mismatch); mat+pos alone PASS; first node load alone PASS; converting both node loads FAIL with the same input hash. Do not retry the second node load as a member without a genuinely new source form.",
+    "baseline_and_best": "PsfxDoParticle 142/142 insns, fuzzy 100%, real 0, frame 0x58; DoPlyrSfxSub 143/143, fuzzy 100%, real 0, frame 0x60; DoPlyrSfx 154/154, fuzzy 100%, real 0, frame 0x40. All unchanged after conversion.",
+    "measurements": "Raw compiler body SHA-256 CA570AE0D8243A4F2B2F3CA1B8582605A8852E0171AEFA630192BBA933382486 and guarded postprocessed object SHA-256 3127E5A1F06F2AB032C40C271FB52E842552D0BA56B6E5D5135E9A9CB829C both equal the untouched main-worktree baseline; whole-TU text/data and all siblings are therefore byte-identical.",
+    "sites_converted": "13 raw Player accesses: PsfxDoParticle node; DoPlyrSfxSub index, first node load, mat, pos; DoPlyrSfx mat (3 sites), node (4 sites including nested-node bases), class_id. Names and GC offsets came from include/game/player.h and target displacements; casts stay in-place to preserve the original u8* web.",
+    "sites_left_raw": "DoPlyrSfxSub second node+0x78 expression remains raw after two failed full-member forms changed the raw function hash; keeping its original spelling preserves the reload across MBTreeSetFlags. Player+0x7DC, scene-node internal offsets, lbl_80344B40+0x74, and unverified large fuzzy/loading regions remain raw because no GC-verified owning field/type was established in this pass.",
+    "verification": "Owning object rebuilt after every region; retained functions --ops/--clean exact (PsfxDoParticle pool-name normalization only, real 0); raw and postprocessed object hashes equal baseline; git diff --check clean; no assembly, shared-header, postprocessor, or configuration edits."
+  },
+  "function": "function:PsfxDoParticle",
+  "id": "attempt.psfx-defakematch-tupass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

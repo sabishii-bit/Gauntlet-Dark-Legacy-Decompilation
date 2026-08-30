@@ -16,6 +16,7 @@
 
 #include "types.h"
 #include "game/effect.h"
+#include "game/player.h"
 
 extern u8* lbl_80282930[4];
 extern void ClearCustomEffect(s32 index);
@@ -699,7 +700,7 @@ void PsfxDoParticle(u8* player, PlayerSfxRecord* record, s32 effectIndex)
     } else if ((flags & 0x2000) != 0 && lbl_80344B40 != NULL) {
         parent = *(void**)(lbl_80344B40 + 0x74);
     } else if (parentHandle == -1) {
-        parent = *(void**)(player + 0x74);
+        parent = ((Player*)player)->node;
     } else {
         parent = (void*)parentHandle;
     }
@@ -750,7 +751,7 @@ s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
     s32 result = -1;
     f32 finalPosition[3];
     f32 localPosition[3];
-    s32 playerIndex = *(s32*)player;
+    s32 playerIndex = ((Player*)player)->index;
 
     if (recordIndex < 0) {
         return -1;
@@ -761,7 +762,7 @@ s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
     flags = record->flags;
 
     if ((flags & 0x400) != 0) {
-        MBTreeSetFlags(*(void**)(player + 0x74), 1, 0);
+        MBTreeSetFlags(((Player*)player)->node, 1, 0);
         MBTreeSetFlags(*(void**)(*(u8**)(player + 0x74) + 0x78), 2, 2);
     }
 
@@ -776,7 +777,7 @@ s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
     } else if ((flags & 0x200) == 0) {
         if (absolute == 0) {
             MulVecMat3(record->position, localPosition,
-                       (f32*)(player + 0x14));
+                       ((Player*)player)->mat);
         } else {
             localPosition[0] = record->position[0];
             localPosition[1] = record->position[1];
@@ -802,7 +803,7 @@ s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
     }
 
     if (record->parent >= 0 && (flags & 0x0F000000) == 0) {
-        AudioPlay3DSel(record->parent, 0xE0, (f32*)(player + 0x44), 1);
+        AudioPlay3DSel(record->parent, 0xE0, ((Player*)player)->pos, 1);
     }
     if ((flags & 2) != 0) {
         ShakeCamera(0, 0, 90, lbl_80347E24, 100);
@@ -860,16 +861,16 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
     }
 
     if ((flags & 0x80) != 0) {
-        SfxSetMat(effect, (f32*)(player + 0x14),
-                  (f32*)(*(u8**)(player + 0x74) + 0x30));
+        SfxSetMat(effect, ((Player*)player)->mat,
+                  (f32*)(((Player*)player)->node + 0x30));
     } else if ((flags & 0x40) != 0) {
         if ((flags & 0x2000) != 0 && lbl_80344B40 != NULL) {
             player = lbl_80344B40;
         }
         if (absolute != 0) {
-            MulVecMat4(position, position, (f32*)(player + 0x14));
+            MulVecMat4(position, position, ((Player*)player)->mat);
         }
-        SfxSetMat(effect, (f32*)(player + 0x14), position);
+        SfxSetMat(effect, ((Player*)player)->mat, position);
     } else if (absolute != 0) {
         if ((flags & 0x2000) != 0 && lbl_80344B40 != NULL) {
             player = lbl_80344B40;
@@ -877,11 +878,11 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
         if ((flags & 0x40000) != 0 && effectIndex >= 0) {
             parent = Effects[effectIndex].node;
         } else if ((flags & 0x800) != 0) {
-            parent = *(void**)(*(u8**)(player + 0x74) + 0x74);
+            parent = *(void**)(((Player*)player)->node + 0x74);
         } else if ((flags & 1) != 0) {
-            parent = *(void**)(player + 0x74);
+            parent = ((Player*)player)->node;
         } else {
-            parent = *(void**)(*(u8**)(player + 0x74) + 0x78);
+            parent = *(void**)(((Player*)player)->node + 0x78);
         }
         SfxSetParent(effect, parent);
     } else if ((flags & 0x40000) != 0 && effectIndex >= 0) {
@@ -889,7 +890,8 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
     }
 
     if ((flags & 0x20000) != 0) {
-        fn_80093D98(effect, WeaponStreakTex, lbl_8011A178[*(s32*)(player + 4)],
+        fn_80093D98(effect, WeaponStreakTex,
+                    lbl_8011A178[((Player*)player)->class_id],
                     0x40, lbl_80347DAC, lbl_80347DB8);
     }
 
