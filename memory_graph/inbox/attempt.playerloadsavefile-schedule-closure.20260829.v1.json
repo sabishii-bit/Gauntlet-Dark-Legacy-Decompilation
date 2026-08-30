@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "portable-C exact closure of the save-load prologue schedule and r28/r30 result-versus-prompt register assignment through explicit prompt lifetime/declaration order and pointer initialization timing",
+  "attributes": {
+    "anchors": "src/game/game/player.c::PlayerLoadSaveFile; target .text 0x8007A3B8 size 0x11C; python tools/gdl/fnasm.py game/game/player.c PlayerLoadSaveFile; python tools/gdl/fndiff.py game/game/player.c PlayerLoadSaveFile --count/--ops/--clean; Xbox PLAYER.OBJ::PlayerLoadSaveFile candidate at segment 1 offset 0x60050 size 0xA0",
+    "baseline": "target/current 71/71 instructions, fuzzy 77.8169%, count-real 30 (clean residual 38), 0x28-byte frame, saves r28-r31; SCHEDULE_CANDIDATE",
+    "final_state": "best source restored unchanged at target/current 71/71 instructions, fuzzy 77.8169%, count-real 30, 0x28-byte frame, saves r28-r31; body opcodes, calls, branches, stack slot, copy loops, and field displacements align, with residual concentrated in prologue scheduling and the r28/r30 result-versus-error-string allocation",
+    "measurements": "explicit prompt local with pointer declared before result worsened to 72 instructions/count-real 71; moving the prompt declaration before the result while retaining pointer after it also produced 72 instructions/count-real 45; separating pointer initialization from assignment and moving the size store earlier remained 71 instructions/count-real 30 and fuzzy 77.8169% (clean display 34 versus 38), so it was not an objective fuzzy/count improvement. All probes were reverted.",
+    "policy": "capped under the three-axis opcode-aligned iteration limit; do not retry explicit error-prompt locals/declaration order or separated PlayerMemcardView pointer initialization/size-store timing without a genuinely new source-level or compiler idea",
+    "semantic_audit": "complete 71-instruction target reviewed against change_player, exact PlayerWriteSaveFile, and Xbox P_SAVE fields: card slot is stored, size 0x1434 is passed by address to saveLoad, failure prompts retry until success or cancel, successful loads initialize preferences/options, the save image is unpacked and marked saved, 0x1434 bytes copy to backup through the target 646-iteration 8-byte loop plus tail, 256 help bytes have their low nibble cleared, and change_player receives the original player index and loaded character; all calls, branch architecture, offsets, and post-load state semantics align",
+    "verification": "owning object rebuilt; fndiff count/ops/clean inspected; matchtool reports 50 exact siblings and 14 relocation-only siblings preserved; datadiff reports only pre-existing unclaimed .rodata 0x286, .data 0xA0, and .sdata2 0x2BC; fresh full ninja linked main.dol with checksum OK; progress 97.66% fuzzy and 57.85% matched; git diff --check clean; no source or assembly changes retained"
+  },
+  "function": "function:PlayerLoadSaveFile",
+  "id": "attempt.playerloadsavefile-schedule-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
