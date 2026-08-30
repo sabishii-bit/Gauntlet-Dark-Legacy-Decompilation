@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "prevent MWCC from constant-folding a `volatile_val & 0` term back down to a bare register test, to reproduce target's 5-instruction (and/and/xor/xor/or.) redundant boolean combine instead of ours' 2-instruction (clrlwi.,stw) collapsed form",
+  "attributes": {
+    "anchors": "src/game/game/combat.c::screen_limitation, line ~3180-3185 `register volatile s32 buttons = gControllerButtons.word.buttons; if (((buttons & 0) | (sFlags & 1)) == 0) return;`; target .text size 0x94C (2380B)",
+    "axis_log": "AXIS1 `#pragma opt_propagation off` around the if-statement: no effect (byte-identical to baseline). AXIS2 `#pragma opt_strength_reduction off`: no effect. AXIS3 `#pragma opt_common_subs off`: no effect. All 3 reverted (neutral). Conclusion: the `X & 0 -> 0` fold is evidently a front-end/parse-time constant-fold in this MWCC build, not gated by any of the 3 optimizer pragmas already used elsewhere in this file (opt_propagation/opt_strength_reduction/opt_common_subs all control back-end scheduling/CSE choices, not this class of algebraic identity simplification).",
+    "baseline": "insns 595/588 (ours -7, unusual direction), real 875, lines 1023, fuzzy 93.59%; frame/save-set already match (56B both, stmw r26 both)",
+    "not_yet_tried": "did not try removing `register`/`volatile` entirely (would likely eliminate the load too, moving further from target, not closer). Did not try `#pragma peephole off` scoped locally (used elsewhere in the codebase for a related class of over-aggressive-simplification issue per memory: 'OS.c peephole off' law) -- worth trying first next session since peephole is the one pragma class not yet probed here.",
+    "structural_finding": "target disassembly: li r4,0; li r3,1; lwz gControllerButtons; lwz sFlags; and r0,r0,r4(=0); and r3,r5,r3(=1); xor r3,r3,r4; xor r0,r0,r4; or. r0,r3,r0 -- literally evaluates `(buttons&0)^0` and keeps it in a register through the full boolean combine even though it is mathematically always 0. Ours (with `register volatile buttons`) loads gControllerButtons (volatile forces the load, matching target) but then constant-folds `X&0` and the surrounding xor/or down to a single `clrlwi. r0,r0,31` (=sFlags&1) plus a `stw` that merely satisfies the volatile local's storage requirement -- semantically identical result, 3 fewer real instructions than target wants here.",
+    "unpark_condition": "a #pragma peephole off probe (untried), or evidence the mask truly isn't literal 0 in target's original source (e.g. it might be a named build-config constant that only reads as `li r4,0` because of a #if/#ifdef branch we haven't located)",
+    "verification": "all 3 probes reverted to baseline; git diff --check clean; no commit (no retained improvement)"
+  },
+  "function": "function:screen_limitation",
+  "id": "attempt.screen-limitation-debug-mask-fold.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "record_state": "proposed",
+  "residual_class": "STRUCTURAL (algebraic constant-fold, no known lever)",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

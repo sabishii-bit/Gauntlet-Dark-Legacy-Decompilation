@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "close the 1-saved-GPR frame gap (stmw r22 vs target r21, frame 440 vs 448) by forcing Camera* c0's live range to overlap Camera* cam's loop live range, after a neutral decl-order swap probe",
+  "attributes": {
+    "anchors": "src/game/game/combat.c::InitCamera; target .text size 0x1144 (4420B); python tools/gdl/fnasm.py game/game/combat InitCamera; python tools/gdl/fndiff.py game/game/combat.c InitCamera --count|--clean; ninja build/GUNE5D/src/game/game/combat.o",
+    "axis_log": "AXIS1 swap decl order (Camera* c0; Camera* cam;): neutral, no byte change. AXIS2 hoist `Camera* c0 = (Camera*)(cs+200);` to be the SECOND local (right after `cs = gCameraState`, before scrH/scrW calls), removing the later `c0 = ...` statement after the loop: forces c0's live range to span the whole init loop, same as cam's -> target's non-coalescing register behavior reproduced (r28 for c0 distinct from cam's loop register). real 1260->1000, lines 1401->1107, fuzzy 90.77->91.29%. KEPT. AXIS3 same idea but assign c0 right before the loop instead of at fn top (less prologue disturbance): WORSE, real 1294 (worse than even baseline). reverted.",
+    "baseline": "insns 1105/1099, real 1260, lines 1401, fuzzy 90.77%; frame stwu -440 vs target -448, stmw r22 vs target r21 (ours coalesces cam+c0 onto one GPR r27; target keeps them distinct: r21 for the init-loop cam pointer, r28 for c0, since c0 = (Camera*)(cs+200) is computed ONCE unconditionally right after the loop and stays live across all 3 mode branches)",
+    "final_state": "insns 1105/1099 (unchanged, purely register/schedule residual, opcode multiset already close), real 1000, lines 1107, fuzzy 91.29%; still 1 saved-GPR short vs target (frame 440 vs 448) -- deeper root cause not fully closed, remaining diff is scattered lfs/addi/mr reordering (MWCC list-scheduler artifact) throughout the ~1105-insn body",
+    "law_candidate": "when a target keeps two textually-adjacent, semantically-identical pointer expressions (same base+offset, e.g. `cam` used in an early loop and `c0` used after) in DISTINCT saved registers instead of coalescing them, hoisting the SECOND expression's initializer earlier so its live range OVERLAPS the first's can force MWCC's allocator to also keep them distinct -- but the hoist point matters a lot (too early disturbs unrelated prologue scheduling and can regress; right at natural entry, before intervening calls, worked best here). Companion to claim.law.whole-fn-address-cache; this is about preventing coalescing rather than creating a cache.",
+    "verification": "ninja build/GUNE5D/src/game/game/combat.o green; full ninja green, build/GUNE5D/main.dol: OK; git diff --check clean; commit d01ec0d57"
+  },
+  "function": "function:InitCamera",
+  "id": "attempt.initcamera-c0-live-range-overlap.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "record_state": "proposed",
+  "residual_class": "REGISTER_ONLY/SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

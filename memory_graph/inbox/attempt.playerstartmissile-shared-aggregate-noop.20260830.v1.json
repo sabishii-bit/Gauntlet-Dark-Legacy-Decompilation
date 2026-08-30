@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "reuse the already-cached pmissile_sfxidx base register for PlayerMissileTreeInfo access (same shared-aggregate pattern that worked for InitCamera/get_cam_wpos), plus a flagged-but-untested branch-operator lead",
+  "attributes": {
+    "anchors": "src/game/game/combat.c::PlayerStartMissile; target .text size 0x758 (1880B); config/GUNE5D/symbols.txt: pmissile_sfxidx=0x80240560, PlayerMissileTreeInfo=0x80240798 (delta 568 = 0x238)",
+    "axis_log": "AXIS1 rewrote `treeInfo = &PlayerMissileTreeInfo[idx];` as `treeInfo = (MissileTreeInfo*)((u8*)missileFx + 568) + idx;`: ZERO measurable effect (insns/real/lines all byte-identical to baseline). MWCC apparently already treats these as equivalent regardless of spelling, OR (more likely) the compiler does NOT fold two distinct extern symbol addresses at compile time and my rewrite produced the identical instruction sequence as the original by coincidence -- not confirmed either way. Reverted (neutral, no reason to keep the less-idiomatic form).",
+    "baseline": "insns 470/475 (ours +5), real 451, lines 479, fuzzy 91.12%; frame and save-set already match target (208 both, savefpr_25/stmw r14 both)",
+    "other_diffs_not_chased": "4 scattered 'insert lis,addi' clusters (ops-diff indices ~26,31,38,42) corresponding to the mutually-exclusive desc=&BossElecMissileInfo / &BossAcidMissileInfo / &BallistaMissileInfo / &PlayerMissileInfo[player[2]] branches -- each needs its own relocation regardless of branch, unclear why target avoids some of these; not investigated due to time budget.",
+    "structural_finding": "target computes `s32* missileFx = pmissile_sfxidx;`'s address ONCE near fn entry and reuses that SAME register (offset +568) for `MissileTreeInfo* treeInfo = &PlayerMissileTreeInfo[idx];`, avoiding a second lis+addi for PlayerMissileTreeInfo's own symbol -- textbook shared-aggregate-ownership case, and the two locals are declared on ADJACENT lines (4154/4155) unlike the get_cam_wpos inlined-helper case.",
+    "unpark_condition": "a genuinely new source-level theory for the desc-branch relocations, OR target-behavior research (asm trace / Xbox reference) resolving whether the dmg>=threshold vs dmg>threshold guard is a real bug fix opportunity",
+    "unresolved_semantic_lead_NOT_applied": "ops-diff showed a target `fcmpo cr0,f27,f0; ble ->skip` (skip when dmg<=threshold, i.e. enter body only on STRICT dmg>threshold) versus our compiled `bge` for the same region, at the `if (dmg >= lbl_80346340)` guard (~line 4234) inside the killed-enemy block. This LOOKS like an operator mismatch (>= vs >) but the block contains an explicit nested `if (lbl_80346340 == dmg) killed=1; else killed=0;` that deliberately handles the equality case -- changing the outer guard to strict `>` would make that equality branch unreachable, a likely REAL semantic regression, not just a match fix. Did NOT change it. Needs target-behavior verification (what does 'killed' control downstream, and does the boss/kill-credit logic actually require the equality case to route through the killed=1 path) before ANY edit here -- flag for a future session with more research budget, do not blindly flip the operator.",
+    "verification": "reverted to baseline; git diff --check clean; no commit (no retained improvement)"
+  },
+  "function": "function:PlayerStartMissile",
+  "id": "attempt.playerstartmissile-shared-aggregate-noop.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "record_state": "proposed",
+  "residual_class": "REGISTER_ONLY/SCHEDULE + unresolved semantic lead (not attempted, see below)",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

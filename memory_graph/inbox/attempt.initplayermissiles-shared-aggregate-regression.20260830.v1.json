@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "reuse an adjacent-in-.data unnamed symbol (lbl_80118DF8) as the base register for PlayerMissileDesc[charType] access, matching target's compiled form",
+  "attributes": {
+    "anchors": "src/game/game/combat.c::InitPlayerMissiles, line ~4424-4452; target .text size 0x398 (920B); config/GUNE5D/symbols.txt: lbl_80118DF8=.data:0x80118DF8 size 0x30, PlayerMissileDesc=.data:0x80118E28 (delta exactly 0x30=48, matching target's `addi r8,r8,48` after `lbl_80118DF8`'s own lis+addi)",
+    "axis_log": "AXIS1 declared `extern u8 lbl_80118DF8[0x30];`, introduced `MissileDescription* charDesc = (MissileDescription*)(lbl_80118DF8 + 0x30) + charType;`, and routed all 3 PlayerMissileDesc[charType] use sites (throwDescription, throwLevel[throwLevel], flags) through charDesc. Result: insns 231->229 (closer to target's 230) but real 289->335 and lines 356->410 -- BOTH got clearly worse, not just a fuzzy-vs-real conflict like get_cam_wpos's case. Reverted in full.",
+    "baseline": "insns 230/231 (ours +1), real 289, lines 356, fuzzy 87.34%; frame/save-set already match (104B both, stmw r18 both)",
+    "law_caveat_reinforced": "This is the THIRD tested instance of 'substitute a separately-named global with adjacent-base+offset arithmetic' in this session: InitCamera's cam/c0 case (different mechanism, live-range overlap, WORKED), get_cam_wpos's top-level `cam` (direct substitution, WORKED), get_cam_wpos's inlined cam_blocked() gCameraTargets (direct substitution, REGRESSED x2), PlayerStartMissile's treeInfo/pmissile_sfxidx (direct substitution, NEUTRAL), and now this one (direct substitution, REGRESSED). Net: direct base+offset substitution for a DIFFERENT extern symbol only reliably helped when it was the FIRST/primary use of the base symbol in a simple, non-inlined, straight-line context (get_cam_wpos's own `cam`); it fails or is a no-op in every other tested shape here. Do not keep re-trying this axis on remaining low-match functions without a new mechanism idea (e.g. matching target's exact register FOR the base first, or checking whether the base symbol needs to be volatile/register-hinted like the pmissile_sfxidx case).",
+    "other_diffs_not_chased": "ops-diff also showed a mulli/mulli -> lis/addi swap around FamiliarTree/WeapHoldFxTree/WeapThrowFx indexing (~index 80-88) -- a different addressing-strategy divergence, not investigated due to time budget.",
+    "structural_finding": "target: lis/addi r31=lbl_80118DF8 (an UNNAMED/untyped 48-byte .data object with no other reference anywhere in this file); r8 = r31 + charType*20 + 48 = &PlayerMissileDesc[charType]. Third confirmed instance in this TU of a global reached via an adjacent, differently-named base + constant offset instead of its own relocation.",
+    "unpark_condition": "a genuinely new mechanism for the shared-aggregate substitution class, or asm-first study of why target's r8 stays a plain accumulator while ours re-derives via lis/addi",
+    "verification": "reverted to baseline; git diff --check clean; no commit (no retained improvement)"
+  },
+  "function": "function:InitPlayerMissiles",
+  "id": "attempt.initplayermissiles-shared-aggregate-regression.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "record_state": "proposed",
+  "residual_class": "REGISTER_ONLY/SCHEDULE + REJECTED third instance of shared-aggregate-substitution axis",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

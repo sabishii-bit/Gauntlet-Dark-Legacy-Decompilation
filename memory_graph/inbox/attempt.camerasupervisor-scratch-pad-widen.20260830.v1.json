@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "close an 8-byte-undersized frame by widening an existing dead-gap pad field inside a file-local scratch struct",
+  "attributes": {
+    "anchors": "src/game/game/combat.c::CameraSupervisor, struct CombatCameraSupervisorScratch (defined just above the function, ~line 373); target .text size 0x6E4 (1764B)",
+    "axis_log": "AXIS1 the scratch struct already has two dead-gap pads from a prior session (`u8 _pad00[0x20]` and `u8 _pad40[4]`, both unused, no raw-offset code depends on them, all real fields accessed by name). Widened `_pad40` from [4] to [12] (+8B) to match the frame delta exactly. real 535->527, lines 628->620, fuzzy 89.76->89.77%; --clean confirmed frame now byte-exact (stmw r27,116(r1) identical to target). KEPT.",
+    "baseline": "insns 441/446 (ours +5), real 535, lines 628, fuzzy 89.76%; fndiff --clean showed stwu -176 vs target -184 (ours 8B SHORT this time, opposite direction from InitCamera/StandardCamera); GPR save set identical (both stmw r27,...)",
+    "final_state": "insns 441/446, real 527, lines 620, fuzzy 89.77%; remaining residual is scattered scheduling reorder of the prologue's address/constant materialization (gCameras HA/LO, sTriggerCameras HA/LO, several fmr zero-copies, mtctr loop setup) -- same MWCC list-scheduler class seen across this whole TU; not chased further (diminishing returns, moved on per iteration cap)",
+    "verification": "ninja build/GUNE5D/src/game/game/combat.o green; full ninja green, main.dol: OK; commit 1d0ca99bb"
+  },
+  "function": "function:CameraSupervisor",
+  "id": "attempt.camerasupervisor-scratch-pad-widen.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "record_state": "proposed",
+  "residual_class": "REGISTER_ONLY/SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
