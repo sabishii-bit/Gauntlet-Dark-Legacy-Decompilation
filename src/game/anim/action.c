@@ -1262,10 +1262,10 @@ void DoPlayerAction(void* player)
         }
         break;
     case 0x1B:
-        if (act < 0x82) {
-            mode = 2;
-        } else {
+        if (act >= 0x82) {
             mode = 3;
+        } else {
+            mode = 2;
         }
         if (cur == 0 || cur == 0x11 || cur == 0x13) {
             mode = 0;
@@ -1281,7 +1281,7 @@ void DoPlayerAction(void* player)
     case 0x81:
     case 0x82:
         mode = 0;
-        if (next > 0x82) {
+        if (next >= 0x83) {
             mode = 3;
         }
         if (next == cur) {
@@ -1515,7 +1515,7 @@ void DoPlayerAction(void* player)
             }
             break;
         case 0x63:
-            if (p[2] != 6 || p[0x20D] > 1) {
+            if (p[2] != 6 || p[0x20D] >= 2) {
                 p[0x240] |= 0x1000;
             }
             break;
@@ -1837,11 +1837,11 @@ void DoPlayerAction(void* player)
         } else if (cur == 0x7B) {
             pf[0x292] = 1.0f;
             pf[0x293] = 1.0f;
-        } else if (cur <= 0x72) {
+        } else if (cur > 0x72) {
+            pf[0x294] = 0.0f;
             pf[0x292] = 1.0f;
             pf[0x293] = 1.0f;
         } else {
-            pf[0x294] = 0.0f;
             pf[0x292] = 1.0f;
             pf[0x293] = 1.0f;
         }
