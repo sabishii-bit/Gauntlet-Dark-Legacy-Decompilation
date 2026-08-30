@@ -48,6 +48,18 @@
 #include "__va_arg.h"
 #include "game/player.h"
 
+/* Never cast a live u8* player-record pointer to Player* at these call
+ * sites -- MWCC's addressing for a walked/multi-field-touching base
+ * regresses under a typed alias (see claim.law.multifield-alias-defeats-
+ * indexed-addressing) while a bare offsetof()-computed displacement on the
+ * raw pointer constant-folds to the identical literal pre-codegen (see
+ * claim.law.offsetof-fused-immediate-counter). offsetof() is only used to
+ * name a verified include/game/player.h field; never introduce a Player*
+ * lvalue alongside it. */
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
 /* ---- boss-requirement table (this TU, .data 0x80121DD8, 12 x 0x24) ---- */
 typedef struct SelOptsView { u8 _pad[44]; u32 flags44; } SelOptsView;
 typedef struct BossRuneReq {
@@ -318,7 +330,7 @@ s32 do_player_select(void)
 
     pl = gPlayers;
     for (i = 0; i < 4; i++, pl += 13148) {
-        if (*(s32*)(pl + 0xE8) == 0 && (lbl_80344824 & (1 << i))) {
+        if (*(s32*)(pl + offsetof(Player, state)) == 0 && (lbl_80344824 & (1 << i))) {
             new_player(i);
         }
     }
@@ -326,7 +338,7 @@ s32 do_player_select(void)
 
     pl = gPlayers;
     for (i = 4; i != 0; i--, pl += 13148) {
-        switch (*(s32*)(pl + 0xE8)) {
+        switch (*(s32*)(pl + offsetof(Player, state))) {
         case 2:
             anySelecting = 1;
             allIdle = 0;
@@ -366,7 +378,7 @@ s32 do_player_select(void)
     pl = gPlayers;
     for (i = 0; i < 4; i++, padoff += 60, poff += 13148, xoff += 4,
         boff += 132, moff += 232, pl += 13148) {
-        s32 costume = *(s32*)(pl + 4);
+        s32 costume = *(s32*)(pl + offsetof(Player, class_id));
         s32 st;
         u8* menu;
 
@@ -377,7 +389,7 @@ s32 do_player_select(void)
         if (lbl_80344BA8 != 0) {
             continue;
         }
-        st = *(s32*)(pl + 0xE8);
+        st = *(s32*)(pl + offsetof(Player, state));
         switch (st) {
         case 2:
             switch (*(u32*)(pl + 0x3338)) {
@@ -385,8 +397,8 @@ s32 do_player_select(void)
                 *(s32*)(pl + 0x333C) = *(s32*)(pl + 0x3338);
                 menu = page + moff + 712;
                 if (gControllerButtons & 4) {
-                    *(s32*)(pl + 0xE8) = 3;
-                    strcpy((char*)(pl + 0xA80), lbl_80347F40);
+                    *(s32*)(pl + offsetof(Player, state)) = 3;
+                    strcpy((char*)(pl + offsetof(Player, name)), lbl_80347F40);
                 } else {
                     if (*(s32*)(menu + 108) == 0) {
                         setup_sel_menu(i, 0);
@@ -520,7 +532,7 @@ s32 do_player_select(void)
                 case 1005:
                     AudioCursorSelect();
                     remove_optmenu(menu);
-                    *(s32*)(pl + 0xE8) = 3;
+                    *(s32*)(pl + offsetof(Player, state)) = 3;
                     break;
                 case 1002:
                     remove_optmenu(menu);
@@ -540,7 +552,7 @@ s32 do_player_select(void)
                     if (set_hidden_player(pl) != 0) {
                         s32 pi = *(s32*)pl;
                         u8* b;
-                        init_player_change(pi, *(s32*)(pl + 0xC));
+                        init_player_change(pi, *(s32*)(pl + offsetof(Player, character)));
                         b = blitbase + pi * 132;
                         *(s32*)(b + 0x1C) = 5;
                         *(s32*)(b + 0x20) = 0;
@@ -555,8 +567,8 @@ s32 do_player_select(void)
                         *(s32*)(b + 0x40) = 1;
                         *(s32*)(b + 0x44) = 0;
                     } else {
-                        *(s32*)(pl + 0x10) =
-                            LimitSeltype(pl, *(s32*)(pl + 0xC), 0);
+                        *(s32*)(pl + offsetof(Player, respawn_char)) =
+                            LimitSeltype(pl, *(s32*)(pl + offsetof(Player, character)), 0);
                         *(s32*)(pl + 0x3338) = 4;
                     }
                     break;
@@ -659,7 +671,7 @@ s32 do_player_select(void)
                             s32 n;
                             for (n = 4; n != 0; n--, qoff += 13148) {
                                 u8* q = gPlayers + qoff;
-                                if (*(s32*)(q + 0xE8) == 2 && pl != q &&
+                                if (*(s32*)(q + offsetof(Player, state)) == 2 && pl != q &&
                                     *(s32*)(q + 0x334C) == *(s32*)(pl + 0x334C) &&
                                     *(s32*)(q + 0x3350) == *(s32*)(pl + 0x3350)) {
                                     switch (*(s32*)(q + 0x3338)) {
@@ -755,7 +767,7 @@ s32 do_player_select(void)
                         if (set_hidden_player(pl) != 0) {
                             s32 pi = *(s32*)pl;
                             u8* b;
-                            init_player_change(pi, *(s32*)(pl + 0xC));
+                            init_player_change(pi, *(s32*)(pl + offsetof(Player, character)));
                             b = blitbase + pi * 132;
                             *(s32*)(b + 0x1C) = 5;
                             *(s32*)(b + 0x20) = 0;
@@ -770,11 +782,11 @@ s32 do_player_select(void)
                             *(s32*)(b + 0x40) = 1;
                             *(s32*)(b + 0x44) = 0;
                         } else {
-                            *(s32*)(pl + 0x10) =
-                                LimitSeltype(pl, *(s32*)(pl + 0xC), 0);
+                            *(s32*)(pl + offsetof(Player, respawn_char)) =
+                                LimitSeltype(pl, *(s32*)(pl + offsetof(Player, character)), 0);
                             *(s32*)(pl + 0x3338) = 4;
                         }
-                        *(s32*)(pl + 0x3328) = 1;
+                        *(s32*)(pl + offsetof(Player, intower)) = 1;
                         *(s32*)(pl + 0x3348) = -1;
                     }
                 } else {
@@ -823,7 +835,7 @@ s32 do_player_select(void)
                         s32 n;
                         for (n = 4; n != 0; n--, qoff += 13148) {
                             u8* q = gPlayers + qoff;
-                            if (*(s32*)(q + 0xE8) == 2 && pl != q &&
+                            if (*(s32*)(q + offsetof(Player, state)) == 2 && pl != q &&
                                 *(s32*)(q + 0x334C) == *(s32*)(pl + 0x334C) &&
                                 *(s32*)(q + 0x3350) == *(s32*)(pl + 0x3350)) {
                                 switch (*(s32*)(q + 0x3338)) {
@@ -849,7 +861,7 @@ s32 do_player_select(void)
                         s32 n;
                         for (n = 4; n != 0; n--, qoff += 13148) {
                             u8* q = gPlayers + qoff;
-                            if (*(s32*)(q + 0xE8) == 2 && pl != q &&
+                            if (*(s32*)(q + offsetof(Player, state)) == 2 && pl != q &&
                                 *(s32*)(q + 0x334C) == *(s32*)(pl + 0x334C) &&
                                 *(s32*)(q + 0x3350) == *(s32*)(pl + 0x3350)) {
                                 switch (*(s32*)(q + 0x3338)) {
@@ -902,7 +914,7 @@ s32 do_player_select(void)
                         s32 n;
                         for (n = 4; n != 0; n--, qoff += 13148) {
                             u8* q = gPlayers + qoff;
-                            if (*(s32*)(q + 0xE8) == 2 && pl != q &&
+                            if (*(s32*)(q + offsetof(Player, state)) == 2 && pl != q &&
                                 *(s32*)(q + 0x334C) == *(s32*)(pl + 0x334C) &&
                                 *(s32*)(q + 0x3350) == *(s32*)(pl + 0x3350)) {
                                 switch (*(s32*)(q + 0x3338)) {
@@ -1076,8 +1088,8 @@ s32 do_player_select(void)
                         add_vmu_file(*(s32*)(pl + 0x334C),
                                      *(s32*)(pl + 0x3350),
                                      *(s32*)(pl + 0x3354),
-                                     (char*)(pl + 0xA80),
-                                     *(u16*)(pl + 0xA8E), *(s32*)(pl + 0xC));
+                                     (char*)(pl + offsetof(Player, name)),
+                                     *(u16*)(pl + 0xA8E), *(s32*)(pl + offsetof(Player, character)));
                     } else {
                         *(s32*)(pl + 0x3348) = -1;
                     }
@@ -1136,7 +1148,7 @@ s32 do_player_select(void)
                     if (set_hidden_player(pl) != 0) {
                         s32 pi = *(s32*)pl;
                         u8* b;
-                        init_player_change(pi, *(s32*)(pl + 0xC));
+                        init_player_change(pi, *(s32*)(pl + offsetof(Player, character)));
                         b = blitbase + pi * 132;
                         *(s32*)(b + 0x1C) = 5;
                         *(s32*)(b + 0x20) = 0;
@@ -1151,11 +1163,11 @@ s32 do_player_select(void)
                         *(s32*)(b + 0x40) = 1;
                         *(s32*)(b + 0x44) = 0;
                     } else {
-                        *(s32*)(pl + 0x10) =
-                            LimitSeltype(pl, *(s32*)(pl + 0xC), 0);
+                        *(s32*)(pl + offsetof(Player, respawn_char)) =
+                            LimitSeltype(pl, *(s32*)(pl + offsetof(Player, character)), 0);
                         *(s32*)(pl + 0x3338) = 4;
                     }
-                    *(SaveSnap*)(pl + 0x1ECC) = *(SaveSnap*)(pl + 0xA80);
+                    *(SaveSnap*)(pl + 0x1ECC) = *(SaveSnap*)(pl + offsetof(Player, name));
                 }
                 choice = do_optmenu(menu, 0);
                 do_sel_menu_8008E4F4(i, 2);
@@ -1166,7 +1178,7 @@ s32 do_player_select(void)
                 }
                 break;
             case 4: { /* class / costume pick */
-                s32 sel = *(s32*)(pl + 0x10);
+                s32 sel = *(s32*)(pl + offsetof(Player, respawn_char));
                 s32 moved = 0;
                 s32 step = 0;
                 s32 known;
@@ -1207,18 +1219,18 @@ s32 do_player_select(void)
                     break;
                 }
                 sel += step;
-                if (!(moved == 0 && sel == *(s32*)(pl + 0x10) &&
-                      *(s32*)(pl + 0xEC) == 2)) {
-                    *(s32*)(pl + 0xEC) = 2;
+                if (!(moved == 0 && sel == *(s32*)(pl + offsetof(Player, respawn_char)) &&
+                      *(s32*)(pl + offsetof(Player, prev_state)) == 2)) {
+                    *(s32*)(pl + offsetof(Player, prev_state)) = 2;
                     sel = LimitSeltype(pl, sel, step);
                     if (sel != 16) {
                         LoadPlyrData(i, sel, 0);
                     }
-                    if (moved != 0 || sel != *(s32*)(pl + 0x10)) {
-                        if (*(s32*)(pl + 0x10) < 8) {
+                    if (moved != 0 || sel != *(s32*)(pl + offsetof(Player, respawn_char))) {
+                        if (*(s32*)(pl + offsetof(Player, respawn_char)) < 8) {
                             known = 1;
                         } else if (*(u16*)(pl + 0xA8C) &
-                                   (1 << (*(s32*)(pl + 0x10) - 8))) {
+                                   (1 << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
                             known = 1;
                         } else {
                             known = 0;
@@ -1229,11 +1241,11 @@ s32 do_player_select(void)
                             texname = lbl_80347F44;
                         }
                         AudioCursorChar();
-                        if (*(s32*)(pl + 0x10) == 16) {
+                        if (*(s32*)(pl + offsetof(Player, respawn_char)) == 16) {
                             setup_tex(i, 4, 0, 0, lbl_80347F4C);
                         } else {
                             setup_tex(i, 4, 0, 0, pool + 156,
-                                      lbl_801200B0[*(s32*)(pl + 0x10)],
+                                      lbl_801200B0[*(s32*)(pl + offsetof(Player, respawn_char))],
                                       texname);
                         }
                         *(s32*)((blitbase + boff) + 0x34) = 2;
@@ -1242,24 +1254,24 @@ s32 do_player_select(void)
                             servedMask |= 1 << i;
                         }
                     }
-                    *(s32*)(pl + 0x10) = sel;
-                    *(s32*)(pl + 4) = costume;
+                    *(s32*)(pl + offsetof(Player, respawn_char)) = sel;
+                    *(s32*)(pl + offsetof(Player, class_id)) = costume;
                 }
                 if (new_menu_accept(i, 0) != 0) {
-                    if (*(s32*)(pl + 0x10) < 8) {
+                    if (*(s32*)(pl + offsetof(Player, respawn_char)) < 8) {
                         known = 1;
                     } else if (*(u16*)(pl + 0xA8C) &
-                               (1 << (*(s32*)(pl + 0x10) - 8))) {
+                               (1 << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
                         known = 1;
                     } else {
                         known = 0;
                     }
                     if (known) {
                         AudioCursorSelect();
-                        if (*(s32*)(pl + 0x3328) != 0) {
+                        if (*(s32*)(pl + offsetof(Player, intower)) != 0) {
                             s32 wflag = 1;
-                            change_player(i, *(s32*)(pl + 0x10));
-                            *(s32*)(pl + 0x3328) = 1;
+                            change_player(i, *(s32*)(pl + offsetof(Player, respawn_char)));
+                            *(s32*)(pl + offsetof(Player, intower)) = 1;
                             *(s32*)(pl + 0x3338) = 1;
                             setup_sel_menu(i, *(s32*)(pl + 0x3338));
                             {
@@ -1286,24 +1298,24 @@ s32 do_player_select(void)
                                 }
                             }
                             setup_tex(i, 2, 0, 0, pool + 168,
-                                      lbl_801200B0[*(s32*)(pl + 0x10) & 7]);
+                                      lbl_801200B0[*(s32*)(pl + offsetof(Player, respawn_char)) & 7]);
                             mbBlitProject(*(void**)((blitbase + boff) + 0x18), -1, 320);
-                            if (*(s32*)(pl + 0x10) == 16 ||
+                            if (*(s32*)(pl + offsetof(Player, respawn_char)) == 16 ||
                                 *(u32*)(pl + 0xF0) != 0) {
                                 wflag = 0;
                             }
-                            if (*(s32*)(pl + 0x1EC0) == 0) {
+                            if (*(s32*)(pl + offsetof(Player, exp)) == 0) {
                                 AudioWelcomeBack(i, wflag);
                             } else {
                                 AudioWelcome(i, wflag);
                             }
                         } else {
-                            s32 picked = *(s32*)(pl + 0x10);
+                            s32 picked = *(s32*)(pl + offsetof(Player, respawn_char));
                             u8* p2 = gPlayers + poff;
                             s32 saved;
                             s32 wflag;
-                            *(s32*)(p2 + 0xE8) = 3;
-                            *(s32*)(p2 + 0x830) = other_players_next_level(i);
+                            *(s32*)(p2 + offsetof(Player, state)) = 3;
+                            *(s32*)(p2 + offsetof(Player, exit_dest)) = other_players_next_level(i);
                             saved = *(s32*)(p2 + 0xF0);
                             change_player(i, picked);
                             *(s32*)(p2 + 0xF0) = saved;
@@ -1316,7 +1328,7 @@ s32 do_player_select(void)
                             } else {
                                 wflag = 1;
                             }
-                            if (*(s32*)(p2 + 0x1EC0) == 0) {
+                            if (*(s32*)(p2 + offsetof(Player, exp)) == 0) {
                                 AudioWelcomeBack(i, wflag);
                             } else {
                                 AudioWelcome(i, wflag);
@@ -1341,7 +1353,7 @@ s32 do_player_select(void)
 
             }
 
-            if (*(s32*)(pl + 0xE8) == 2) {
+            if (*(s32*)(pl + offsetof(Player, state)) == 2) {
                 update_class_spec(i);
                 update_class_attr(i);
             }
@@ -1358,17 +1370,17 @@ s32 do_player_select(void)
                 DrawTextKeepScale(lbl_80347F54, nx, 0xB2, 0, 0xFFFFFF,
                                   pool + 220);
                 if (*(u32*)(lbl_80240E30 + padoff + 8) & 0x40000) {
-                    *(s32*)(pl + 0xE8) = 2;
+                    *(s32*)(pl + offsetof(Player, state)) = 2;
                     *(s32*)(pl + 0x3338) = 1;
                     *(s32*)(pl + 0x333C) = 1;
                 }
             }
-            if (*(s32*)(pl + 0xC) == 2 &&
+            if (*(s32*)(pl + offsetof(Player, character)) == 2 &&
                 *(u32*)(pl + 0xF0) == lbl_80343D6C) {
                 setup_tex(i, 8, 0, 0, pool + 232);
             } else {
                 setup_tex(i, 8, 0, 0, lbl_80347F58,
-                          lbl_801200B0[*(s32*)(pl + 0xC)]);
+                          lbl_801200B0[*(s32*)(pl + offsetof(Player, character))]);
             }
             break;
         case 1:
