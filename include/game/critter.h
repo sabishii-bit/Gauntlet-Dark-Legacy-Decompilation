@@ -118,7 +118,7 @@ typedef struct Critter {
     void *hitnode1;           /* 0x0CC hit/attach node (hdr->0x58 index)       */
     void *obj_d0;             /* 0x0D0                                        */
     void *emitter;            /* 0x0D4 particle/emitter handle (MBRemoveNode)   */
-    s32  emitterset;          /* 0x0D8 emitter-present flag                    */
+    u32  emitterset;          /* 0x0D8 emitter-present flag                    */
     void *hitnode2;           /* 0x0DC hit/attach node (hdr->0x5A index)       */
     u8  _blk0E0[0x30];        /* 0x0E0 .. 0x110                              */
     f32 rateScale;            /* 0x110 move-rate scale (health-derived)       */

@@ -6369,7 +6369,7 @@ void CritterDelInst(Critter *c)
         MBRemoveNode(c->shadow, 0);
     }
     SfxDeleteParented(c->anim, 1, -1);
-    if ((u32)c->emitterset != 0) {
+    if (c->emitterset != 0) {
         MBRemoveNode(c->emitter, 2);
     }
     if (c->colhandle != NULL) {
