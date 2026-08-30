@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "bounded portable-C closure of the entry zero, loop-index/stride induction, wobjsp, and mlmMemUsed saved-register webs using storage hints, entry-to-loop lifetime shapes, chained assignment, a branch-disjoint named zero, and explicit byte-offset induction variables",
+  "attributes": {
+    "anchors": "src/game/world/world.c::WorldSaveInitState at GCN 0x800A8ECC; python tools/gdl/fnasm.py game/world/world WorldSaveInitState; python tools/gdl/fndiff.py game/world/world WorldSaveInitState --count/--ops/--clean; build/GUNE5D/report.json",
+    "axis_log": "negative: register hints were byte-invariant. Entry i=0 kept through the loop hoisted three strength-reduced IVs across calls, worsening to real82/frame0x20; resetting i in the for initializer restored baseline. Explicit byte-offset IVs produced 111/112 real85. A separate zero feeding WorldDisplay/loop/false arm produced real74/frame0x20. Chained WorldDisplay=i=0 plus a loop reset reduced real to36 but emitted 113 instructions and regressed fuzzy to95.315315%; keeping that web through the loop again produced real82/frame0x20. All probes restored.",
+    "baseline_and_best": "No retained change: target/current 111/111 instructions, fuzzy 97.64865%, --count real 64 (--clean 70 diff lines), frame 0x18, saves r29-r31; owning object builds.",
+    "remaining": "Target and current are both 111 instructions with identical calls, CFG, frame, relocations, fields, and all opcodes except target addi r5,r29,0 versus current li r11,0. The coupled allocation differs: target has entry/loop/false-arm zero-index r29, mlmMemUsed baseline r30, and volatile wobjsp r12; current has zero/object-stride r30, mlmMemUsed r29, wobjsp r12, and loop count r11. Do not retry the recorded zero/chaining/register-hint/explicit-IV axes without a genuinely new source-level allocator lever.",
+    "semantic_audit": "The retained baseline already matches initialization, allocation sizes, four snapshot fields, loop bound, memory report, both world-node construction arms, display flags, and the final ToggleWorldDisplay call. No source change survived; exact siblings and TU data remain untouched."
+  },
+  "function": "function:WorldSaveInitState",
+  "id": "attempt.world-save-init-state-zero-web-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
