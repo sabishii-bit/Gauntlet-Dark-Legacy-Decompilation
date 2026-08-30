@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "portable exact closure of stack layout, accumulator scheduling, SDA relocation identity, expiry-tail register flow, and the final zero-copy opcode",
+  "attributes": {
+    "anchors": "src/game/world/newcam.c::fn_8006E654 at GCN 0x8006E654; git:e17bfea30; python tools/gdl/fnasm.py game/world/newcam fn_8006E654; python tools/gdl/fndiff.py game/world/newcam fn_8006E654 --clean",
+    "axis_log": "improved: explicit a=a+rate closed three FP load-order pairs; direct sFlags/NcApplyMask spelling plus unused[52] closed the relocation while preserving the 0x230 frame; staging the countdown in result closed the expiry tail. negative: rate+a and scalar staging worsened FP register allocation; explicit flags without frame compensation shifted all stack references; inline identity and iter&iter left the final li unchanged. accepted attempt.audio-bank-queue-name-zero-copy.20260829.v1 also caps combined/chained init, ordinary staging, storage hints, guard motion, and nested-scope forms; do not retry those zero-copy axes without a genuinely new idea.",
+    "baseline": "target/current 369/369 instructions, fuzzy 99.67209%, clean real 20 (--count real 16), 0x230 frame, saves r29-r31 and f31; TU fuzzy 98.71593%",
+    "best": "target/current 369/369 instructions, fuzzy 99.837395%, clean/count real 2, 0x230 frame, saves r29-r31 and f31; TU fuzzy 98.73656%; source commit e17bfea30",
+    "remaining": "one structural opcode at function +0x3C: target addi r30,r29,0 copies the live zero while MWCC rematerializes it as li r30,0; operands, calls, CFG, stack slots, fields, and relocations otherwise align",
+    "semantic_audit": "Camera convergence, angle/rate derivation, per-frame integration, history-ring writes, matrix/window updates, debug test, and expiry semantics remain unchanged. Object/full build passed; sibling scores were unchanged; baseline/best .rodata, .sdata2, extab, extabindex hashes and normalized relocations outside the function were identical; fresh main.dol checksum passed."
+  },
+  "function": "function:fn_8006E654",
+  "id": "attempt.fn-8006e654-portable-hard-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
