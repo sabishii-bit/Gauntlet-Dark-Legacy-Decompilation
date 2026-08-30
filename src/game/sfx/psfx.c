@@ -1289,9 +1289,8 @@ void LoadPdataFile(void)
     u8* temp = (u8*)&lbl_802828B0;
     s32 maxSize;
     s32 index;
-    u8* zero2;
+    s32 zero2;
     u8* record;
-    u8** headers;
 
     maxSize = 0;
     index = 0;
@@ -1321,13 +1320,12 @@ void LoadPdataFile(void)
     } while (index < 16);
 
     index = 0;
-    zero2 = NULL;
-    headers = lbl_80282930;
+    zero2 = index;
     do {
         record = temp + index * 4;
         *(s32*)(record + 0x20) = -1;
         *(void**)(record + 0x30) = AllocMem(maxSize);
-        headers[index] = zero2;
+        *(s32*)(record + 0x80) = zero2;
         index++;
     } while (index < 4);
 }
