@@ -955,13 +955,20 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
             }
         }
 #undef IOFF
-        /* item instances (stride 0x3C); payload layout depends on info type */
+        /* item instances (stride 0x3C); fields are iteminst (game/item.h).
+         * The 0x30..0x3C switch-case payload is iteminst.params, an opaque
+         * u8[12] union whose per-type breakdown has no header names - left
+         * raw. */
         for (i = 0; i < blob[0x14]; i++) {
             p = (u8*)wi->iteminst + i * 0x3C;
-            *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
-            *(u16*)(p + 0x04) = sSwapU16(*(u16*)(p + 0x04));
-            *(u16*)(p + 0x06) = sSwapU16(*(u16*)(p + 0x06));
-            switch (*(s32*)((u8*)wi->iteminfo + *(s16*)p * 0x50)) {
+            *(u16*)(p + offsetof(iteminst, index)) =
+                sSwapU16(*(u16*)(p + offsetof(iteminst, index)));
+            *(u16*)(p + offsetof(iteminst, ctriidx)) =
+                sSwapU16(*(u16*)(p + offsetof(iteminst, ctriidx)));
+            *(u16*)(p + offsetof(iteminst, nctris)) =
+                sSwapU16(*(u16*)(p + offsetof(iteminst, nctris)));
+            switch (*(s32*)((u8*)wi->iteminfo +
+                             *(s16*)(p + offsetof(iteminst, index)) * 0x50)) {
             case 2:
                 *(u16*)(p + 0x34) = sSwapU16(*(u16*)(p + 0x34));
                 *(u32*)(p + 0x30) = sSwapU32(*(u32*)(p + 0x30));
@@ -1015,8 +1022,10 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
                 break;
             }
             for (k = 0; k < 3; k++) {
-                *(f32*)(p + 0x18 + k * 4) = sSwapF32(*(f32*)(p + 0x18 + k * 4));
-                *(f32*)(p + 0x24 + k * 4) = sSwapF32(*(f32*)(p + 0x24 + k * 4));
+                *(f32*)(p + offsetof(iteminst, pos) + k * 4) =
+                    sSwapF32(*(f32*)(p + offsetof(iteminst, pos) + k * 4));
+                *(f32*)(p + offsetof(iteminst, pyr) + k * 4) =
+                    sSwapF32(*(f32*)(p + offsetof(iteminst, pyr) + k * 4));
             }
         }
         /* locators (stride 0x1C) */
