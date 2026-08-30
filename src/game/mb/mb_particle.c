@@ -103,9 +103,20 @@ extern char  lbl_80116F30[]; /* "freePsysMem: bad free block..." */
 extern char  lbl_80116D70[]; /* TU string block base */
 
 typedef struct PsysModuleGlobals {
-    u8 pad00[0x54];
+    s32 active;
+    Psys* list;
+    s32 removed;
+    MBObject* removeQueue;
+    s32 idCounter;
+    s32 frame;
+    f32 frameFrac;
+    struct ROMTEX* defaultTexA;
+    struct ROMTEX* defaultTexXp;
+    PsysMemPool pool;
+    u8 pad48[0x0c];
     s16 dirSlot;
     s16 posSlot;
+    s32 disabled;
 } PsysModuleGlobals;
 
 extern PsysModuleGlobals lbl_80128710; /* retail module-global data block */
@@ -1339,13 +1350,13 @@ BOOL MBDrawPsysTest(MBObject* node, void* draw) {
 /* 0x800CDC5C - MBTraversePsys visitor: guard non-psys / filtered nodes */
 s32 MBTraversePsys(MBObject* node, void* fn) {
     Psys* p = (Psys*)node->data.psys;
-    u8* globals = (u8*)&lbl_80128710;
-    if (p == NULL || *(s32*)(globals + 0x58) != 0) {
+    PsysModuleGlobals* globals = &lbl_80128710;
+    if (p == NULL || globals->disabled != 0) {
         if (p == NULL) {
             ErrorPrintf("MBTraversePsys: PSYS node with psys=0");
             return 1;
         }
-        if (*(s32*)(globals + 0x58) != p->id) {
+        if (globals->disabled != p->id) {
             return 0;
         }
     }
@@ -1369,7 +1380,7 @@ static void setupParms(Psys* p) {
     f32 fadeProduct;
     f32 maxWidth;
     u8* win;
-    u8* globals;
+    PsysModuleGlobals* globals;
     PsysParm* parm;
 
     win = (u8*)gWinGlobals;
@@ -1457,11 +1468,11 @@ static void setupParms(Psys* p) {
     }
 
     if (p->p_tex == NULL) {
-        globals = (u8*)&lbl_80128710;
-        p->p_tex = *(struct ROMTEX**)(globals + 0x1c);
+        globals = &lbl_80128710;
+        p->p_tex = globals->defaultTexA;
         if ((((MBObject*)p->node)->flags & 0x00800000) != 0 &&
-            *(struct ROMTEX**)(globals + 0x20) != NULL) {
-            p->p_tex = *(struct ROMTEX**)(globals + 0x20);
+            globals->defaultTexXp != NULL) {
+            p->p_tex = globals->defaultTexXp;
         }
         if (p->p_tex == NULL) {
             p->p_tex = *(struct ROMTEX**)(*(u8**)(*(u8**)(win + 0x30) + 4) + 0x58);
@@ -3149,11 +3160,11 @@ MBObject* MBNewPsysDefault(void* matrix, MBObject* parent, s32 flags,
 extern f32 lbl_80349220;        /* psys default rate */
 
 MBObject* createPsysNode(s32 a, s32 b, s32 c, s32 d) {
-    u8* globals = (u8*)&lbl_80128710;
+    PsysModuleGlobals* globals = &lbl_80128710;
     MBObject* node;
     Psys* p;
 
-    if (*(s32*)(globals + 88) == -1) {
+    if (globals->disabled == -1) {
         return NULL;
     }
     node = MBNewNode(b, (void*)a, 14);
@@ -3162,24 +3173,24 @@ MBObject* createPsysNode(s32 a, s32 b, s32 c, s32 d) {
     }
     p = allocPsys(c);
     if (p == NULL) {
-        *(u32*)((u8*)node + 112) = 0;
+        node->data.psys = NULL;
         MBRemoveNode(node, 1);
         return NULL;
     }
-    *(Psys**)((u8*)node + 112) = p;
-    *(MBObject**)((u8*)p + 40) = node;
+    node->data.psys = p;
+    p->node = (struct mbnode*)node;
     if (d != 0) {
         if (d == -1) {
-            *(u16*)((u8*)p + 44) |= 128;
+            p->flags |= 128;
         } else if (d == -2) {
-            *(u16*)((u8*)p + 44) |= 64;
+            p->flags |= 64;
         } else {
-            *(u16*)((u8*)p + 44) |= 192;
+            p->flags |= 192;
         }
     }
-    *(s32*)((u8*)p + 144) = *(s32*)(globals + 20);
-    *(u8*)((u8*)p + 55) = 0;
-    *(f32*)((u8*)p + 164) = lbl_80349220;
+    p->e_last_time = globals->frame;
+    p->e_phase = 0;
+    p->max_dist = lbl_80349220;
     return node;
 }
 
@@ -3218,29 +3229,29 @@ static Psys* allocPsys(s32 fromArena) {
     }
     memset(p, 0, 304);
     *(s32*)(pi + 64) += 1;
-    *(void**)((u8*)p + 36) = *(void**)(pi + 68);
+    p->next = *(Psys**)(pi + 68);
     *(Psys**)(pi + 68) = p;
-    *(u16*)((u8*)p + 44) |= 0x4000;
-    *(s32*)((u8*)p + 0) = *(s32*)(g + 16);
-    *(u16*)((u8*)p + 58) = 300;
-    *(u16*)((u8*)p + 60) = 300;
+    p->flags |= 0x4000;
+    p->id = *(s32*)(g + 16);
+    p->e_life = 300;
+    p->e_fade = 300;
     one = lbl_8034915C;
     zero = lbl_80349154;
-    *(f32*)((u8*)p + 68) = zero;
-    *(f32*)((u8*)p + 72) = one;
-    *(f32*)((u8*)p + 76) = zero;
-    *(f32*)((u8*)p + 64) = lbl_80349184;
-    *(f32*)((u8*)p + 80) = zero;
-    *(f32*)((u8*)p + 84) = zero;
-    *(f32*)((u8*)p + 88) = zero;
-    *(f32*)((u8*)p + 204) = zero;
-    *(f32*)((u8*)p + 208) = one;
-    *(f32*)((u8*)p + 212) = one;
-    *(f32*)((u8*)p + 216) = one;
-    *(f32*)((u8*)p + 220) = one;
-    *(u8*)((u8*)p + 96) = 20;
-    *(u8*)((u8*)p + 97) = 10;
-    *(f32*)((u8*)p + 132) = lbl_803492A4;
+    p->e_dir[0] = zero;
+    p->e_dir[1] = one;
+    p->e_dir[2] = zero;
+    p->e_angle = lbl_80349184;
+    p->e_vol[0] = zero;
+    p->e_vol[1] = zero;
+    p->e_vol[2] = zero;
+    p->e_rate_rand = zero;
+    p->e_rate.i.life_start = one;
+    p->e_rate.i.life_end = one;
+    p->e_rate.i.fade_start = one;
+    p->e_rate.i.fade_end = one;
+    p->p_life = 20;
+    p->p_fade = 10;
+    p->p_speed = lbl_803492A4;
     off = 0;
     for (k = 0; k < 5; k++) {
         f32* src = (f32*)(pi + off);
@@ -3267,8 +3278,8 @@ static Psys* allocPsys(s32 fromArena) {
             *(s32*)(g + 32) = 0;
         }
     }
-    *(s32*)((u8*)p + 136) = 0;
-    *(s32*)((u8*)p + 140) = 0;
+    p->p_texidx = 0;
+    p->p_tex = NULL;
     return p;
 }
 

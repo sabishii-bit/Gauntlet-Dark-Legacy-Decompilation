@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "TU-scoped replacement of raw Psys, MBObject, and particle-module-global offsets with GC-verified shared fields and a target-verified narrow module-global view",
+  "attributes": {
+    "anchors": "src/game/mb/mb_particle.c; flagship setupParms target 0x800CD7D8 size 0x2c0; reproduce with ninja -j2 build/GUNE5D/src/game/mb/mb_particle.o and tools/gdl/fndiff.py game/mb/mb_particle",
+    "baseline_and_best": "TU fuzzy 96.06587%, 40/50 exact; raw-site census 177 -> 154; setupParms 176/176 fuzzy 100% real 0 frame 0x20; createPsysNode 64/64 fuzzy 100% real 0 frame 0x28; allocPsys 134/134 fuzzy 95.16418% real 70 frame 0x28 unchanged",
+    "retained": "PsysModuleGlobals field view used for default textures, frame, and disabled traversal id; direct MBObject/Psys fields in createPsysNode; direct Psys list/state/emitter/default fields in allocPsys. Exact functions remained byte-identical and fuzzy allocPsys remained equal on count, opcode structure, and real score.",
+    "semantic_audit": "No behavior changes: converted fields preserve GC-verified offsets, types, widths, signedness, initialization order, module base addressing, default texture selection, ownership links, flags, emitter defaults, and traversal filtering. No headers or postprocessor rules changed.",
+    "sites_left_raw": "154 census lines remain, concentrated in MBDrawPsys/large reconstruction bodies, psysInfo configuration storage, texture-table address webs, deferred queues, allocator blocks, and functions requiring additional target-verified narrow views."
+  },
+  "function": "function:setupParms",
+  "id": "attempt.mb-particle-defakematch-tu-pass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
