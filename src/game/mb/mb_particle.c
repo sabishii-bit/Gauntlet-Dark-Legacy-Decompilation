@@ -851,6 +851,7 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
     f32 rate = lbl_80349150;
     u32 dt;
     u32 age;
+    u32 ageTmp;
     f32 agef;
     u16* ringbase;
     u16* ringend;
@@ -883,9 +884,10 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
     if (dt > 15) {
         dt = 1;
     }
-    age = p->e_age + dt;
+    ageTmp = p->e_age + dt;
     p->e_last_time = *(u32*)(blk + 20);
-    agef = (f32)age;
+    agef = (f32)ageTmp;
+    age = ageTmp;
 
     switch (p->e_phase) {
     case 0:
@@ -1153,11 +1155,7 @@ phaseD:
                 p->p_newest_age = 0;
                 carry = (carry + dt) - filled;
                 e = *scan;
-                if (cursor <= scan) {
-                    lim2 = ringend;
-                } else {
-                    lim2 = cursor;
-                }
+                lim2 = (cursor <= scan) ? ringend : cursor;
                 if (carry > (s32)am16) {
                     do {
                         *scan = e | am16;
