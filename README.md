@@ -32,7 +32,7 @@ It builds `main.dol`:
 
 | Version    | Game ID  | SHA-1                                      |
 | ---------- | -------- | ------------------------------------------ |
-| Rev 0 (USA) | `GUNE5D` | `7cba77aa496eb0fc5ffec60efd9680aa9635d679` |
+| Rev 1 (USA) | `GUNE5D` | `7cba77aa496eb0fc5ffec60efd9680aa9635d679` |
 
 Dependencies
 ============
@@ -94,6 +94,16 @@ cannot reproduce. The build therefore targets an **extab-cleaned** DOL (`clean_e
 - `build.sha1` verifies the *output* DOL against the cleaned hash (`540bed0b...`), equivalent to running
   `dtk extab clean` on the original.
 
+In practice the difference is tiny: for this title the cleaned target differs from retail by
+**two bytes** of uninitialized `extab` padding. The build additionally produces
+`build/GUNE5D/main.retail.dol`, a byte-perfect retail image made by splicing those unreproducible
+bytes from *your own* original DOL into a copy of the verified output
+([`tools/gdl/retaildol.py`](tools/gdl/retaildol.py)). The step is fail-closed: it verifies the
+original against the disc hash, refuses to splice anything outside the `extab` address range or
+beyond a small byte budget, and only writes the artifact if the result hashes exactly to retail.
+Mod (`--non-matching`) builds skip it. Both DOLs boot identically — the spliced bytes are dead
+padding that the game never reads.
+
 Diffing
 =======
 
@@ -146,101 +156,6 @@ at or below 50% fuzzy match. `--sort lowest` emphasizes the least reconstructed
 functions; `--sort impact` emphasizes their estimated remaining byte gap. Use
 `tools/gdl/nearmiss.py` separately when deliberately closing already high-match
 functions. Both queues honor the project's maintained parked-function cap list.
-
-### Compiler variants and guarded postprocessing
-
-The build harness supports two narrowly scoped CodeWarrior postprocessors for
-historical compiler walls:
-
-- `tools/gdl/frank.py` implements Melee's two-object GC/1.2.5e profile merge.
-  It is intended for evidence-backed epilogue scheduling probes, not as a
-  project-wide compiler replacement.
-- `tools/gdl/webfrank.py` can correct an individually audited
-  `REGISTER_ONLY` function after proving that every non-register instruction
-  bit already matches. The register proof is form-aware: each differing word is
-  decoded so immediates, rotate counts, XO bits, and CR selectors can never
-  pass as register fields. Every register-field rule must additionally pass a
-  position-consistent renaming bisimulation (with commutative-operand and
-  callee-save-millicode awareness) proving the change is a genuine allocator
-  recolor; the eight rules whose residual is a deeper allocator artifact
-  (copy propagation, coalescing/duplicated value homes, operand-order
-  exchange) carry an explicit per-rule `unproven_recolor_audit` note and print
-  a warning in every build. It also supports an exceptional scheduler rule
-  that permutes an explicit bijection of straight-line instruction atoms,
-  moving relocations with their atoms; the tool verifies the permutation
-  preserves every def-use chain (loads/stores modelled with per-slot r1 stack
-  disjointness) and that any moved final write is dead at region exit. Rules
-  carry exact input, target, relocation, and output hashes and fail the build
-  closed on source/compiler drift.
-
-The repository-wide Frank sweep found no improvements, so Frank is opt-in per
-object. WebFrank is likewise restricted to reviewed rules in
-[`config/GUNE5D/webfrank.json`](config/GUNE5D/webfrank.json); it must not be
-used to hide opcode, branch, immediate, relocation-payload, ABI, semantic, or
-data differences. Scheduler permutations additionally require a recorded
-dependency audit, no control instructions, and an exact relocation-preserving
-bijection; they are not a general target-byte-copy mechanism.
-
-An experimental `GC/1.2.5s` open patch recipe for the recovered `regFind`
-PCode-layout carrier is documented in
-[`tools/gdl/mwcc_p6/`](tools/gdl/mwcc_p6/). It derives a separately named
-compiler from a user-supplied, SHA-pinned GC/1.2.5 or 1.2.5n executable and
-contains no proprietary compiler bytes. It is not selected by the normal build
-yet. Compiler-derived, raw-compiler, and postprocessed matches must remain
-distinguishable in reporting.
-
-Current workflow status:
-
-- Traditional Melee-style Frank has no configured build consumers. Its script
-  and tests are retained only for compiler research and historical regression
-  coverage.
-- P6Frank is the default exact-build fallback for `game/sys/registry`. Selecting
-  `--experimental-p6-compiler` compiles that unit with `GC/1.2.5s` instead and
-  bypasses P6Frank; both paths produce the same exact object and DOL.
-- WebFrank remains a separate, explicitly postprocessed exact-build mechanism.
-  `GC/1.2.5s` currently addresses only the proven PCode carrier and does not
-  replace WebFrank's guarded register-web or instruction-order rules.
-- `--non-matching` uses none of these postprocessors. It links editable source
-  compiled normally for equivalent/mod builds.
-
-P6Frank can be removed from the default build once the open `GC/1.2.5s` payload
-can be reproduced in supported setup/CI environments without adding proprietary
-files or a fragile host-tool dependency. Until then it remains a disclosed,
-fail-closed exact-build fallback rather than part of the mod workflow.
-
-A `NonMatching` object may be promoted to `Matching` only when its complete
-postprocessed object is exact, including code, relocations, data/BSS and
-exception metadata, and a fresh full build reproduces the configured DOL hash.
-The first audited closure pass used this process to link `g3dpad`, `vsprintf`,
-and `mempool`; their former PARKED notes remain useful source-codegen diagnoses,
-not permanent binary-matching vetoes.
-
-Project memory graph
-====================
-
-Project knowledge is migrated into a local, deterministic SQLite graph.
-The reviewed source records live under [`memory_graph/`](memory_graph/);
-the generated database lives in Git's common directory at
-`.git/gdl-memory/memory.sqlite`, so it is shared by worktrees and never
-committed.
-
-The CLI uses only Python's standard library:
-
-```sh
-python memory_graph/gdlmem.py build
-python memory_graph/gdlmem.py context PlayerMotion
-python memory_graph/gdlmem.py xbox pool_garbage_collect
-python memory_graph/gdlmem.py tool Frank
-python memory_graph/gdlmem.py audit
-```
-
-It indexes GameCube symbols and TU ownership, Xbox PDB symbol/module order and
-type fields, reviewed claims/attempts/tools, and granular document chunks.
-Automatic exact-name Xbox/GameCube links are candidates only; target assembly
-and accepted evidence remain authoritative. An optional local MCP adapter is
-locked with `uv` under [`memory_graph/mcp/`](memory_graph/mcp/); MCP host
-configuration stays machine-local. Record-authoring and review conventions are
-documented in [`memory_graph/README.md`](memory_graph/README.md).
 
 Xbox debug symbols
 ==================

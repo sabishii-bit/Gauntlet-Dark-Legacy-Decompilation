@@ -830,6 +830,11 @@ config.custom_build_rules = [
         "command": f"$python tools/fix_exception_objects.py {exc_nmw_obj} {exc_ppc_obj} $out",
         "description": "FIXUP $out",
     },
+    {
+        "name": "retail_dol",
+        "command": "$python tools/gdl/retaildol.py $in $out",
+        "description": "RETAILDOL $out",
+    },
 ]
 webfrank_config = Path(f"config/{config.version}/webfrank.json")
 webfrank_units = json.loads(webfrank_config.read_text(encoding="utf-8"))["units"]
@@ -886,6 +891,22 @@ config.custom_build_steps = {
         },
     ],
 }
+
+# Post-build: splice the retail DOL's unreproducible extab padding bytes from
+# the user's own original DOL into a copy of the verified cleaned-target
+# output, producing a byte-perfect retail artifact (see tools/gdl/retaildol.py
+# for the fail-closed guards). Skipped for mod builds and when the original
+# DOL is not present.
+retail_orig_dol = Path(f"orig/{config.version}/sys/main.dol")
+if not config.non_matching and retail_orig_dol.exists():
+    config.custom_build_steps["post-build"] = [
+        {
+            "rule": "retail_dol",
+            "inputs": [f"build/{config.version}/main.dol"],
+            "implicit": ["tools/gdl/retaildol.py", str(retail_orig_dol)],
+            "outputs": [f"build/{config.version}/main.retail.dol"],
+        },
+    ]
 # Optional extra arguments to `objdiff-cli report generate`
 config.progress_report_args = [
     # Marks relocations as mismatching if the target value is different
