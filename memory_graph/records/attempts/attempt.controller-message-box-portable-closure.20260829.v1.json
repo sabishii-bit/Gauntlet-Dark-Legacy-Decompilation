@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "portable-C exact closure of the four-player input-scan register web and the bottom-of-frame branch shape via label loops, for/break/continue loops, bottom-test while loops, accumulator declaration and initialization permutations, storage and signedness hints, typed player access, aggregate state, dedicated scan induction, and explicit pad/player offsets",
+  "attributes": {
+    "anchors": "src/game/ui/screensaver.c::ControllerMessageBox; python tools/gdl/fnasm.py game/ui/screensaver.c ControllerMessageBox; python tools/gdl/fndiff.py game/ui/screensaver.c ControllerMessageBox --count; python tools/gdl/fndiff.py game/ui/screensaver.c ControllerMessageBox --ops; python tools/gdl/fndiff.py game/ui/screensaver.c ControllerMessageBox --clean",
+    "final_state": "target/current 272/271 instructions, fuzzy 99.23%, real 45, 0x70-byte frame, saves r14-r31; target has bne-to-cleanup plus unconditional backedge after fn_80054CDC while MWCC folds it to one beq, and the four-player scan retains an accumulator/temporary register-color cascade",
+    "measurements": "label, inner for/break/continue, bottom-test while, outer-lifetime, signed, register-qualified, typed-player, and separated initialization shapes were identical at 271 instructions and real 45; swapped declaration/init and comma-for permutations worsened to real 47 or 57; aggregate state worsened to 279 instructions, real 125, and a 0x78 frame; dedicated scan induction worsened to real 55; explicit pad/player offsets worsened to real 75; all probes reverted",
+    "policy": "capped after bounded source-shape screening; do not retry these loop-control, accumulator-order, storage-hint, aggregate/type-view, scan-index, or explicit-offset axes without a genuinely new source-level idea",
+    "semantic_audit": "complete 272-instruction target was reviewed: 0x70 frame, r14-r31 save set, modal setup, message-page loop, render/audio/control calls, four-player mask/state/button scan, fire-scroll teardown, render-depth/game-busy restore, and player cleanup all remain semantically aligned"
+  },
+  "function": "function:ControllerMessageBox",
+  "id": "attempt.controller-message-box-portable-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
