@@ -1,7 +1,13 @@
 {
   "attributes": {
     "provenance": "src/game/world/items.c::update_player_milestone (worktree GDL-Claude-ItemsDefake, work_claim.items-defake.20260830.v1); attempt.items-c-defakematch-tupass.20260830.v1",
-    "scope": "MWCC GC 1.2.5 family; applies whenever a walked-pointer loop's per-field raw offset is >1 struct level away from the walk's own base type and array-index conversion has already been shown to regress (see claim.law.pointer-walk-array-index-regression for the failure mode this counters)."
+    "scope": "MWCC GC 1.2.5 family; applies whenever a walked-pointer loop's per-field raw offset is >1 struct level away from the walk's own base type and array-index conversion has already been shown to regress (see claim.law.pointer-walk-array-index-regression for the failure mode this counters).",
+    "tags": [
+      "core-screen",
+      "offsetof-form",
+      "walked-pointer",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.offsetof-fused-immediate-counter.20260830.v1",

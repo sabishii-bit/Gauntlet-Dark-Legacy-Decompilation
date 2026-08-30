@@ -1,7 +1,12 @@
 {
   "attributes": {
     "provenance": "src/game/game/pmotion.c::PlayerMotion (worktree GDL-Claude-PmotionDefake, work_claim.pmotion-defake.20260830.v1); attempt.pmotion-c-defakematch-tupass.20260830.v1",
-    "scope": "MWCC GC 1.2.5 family; applies to functions above the project's ~4000-insn fuzzy-arbitration threshold when a batch of several de-fakematch field conversions is applied and gated in one shot."
+    "scope": "MWCC GC 1.2.5 family; applies to functions above the project's ~4000-insn fuzzy-arbitration threshold when a batch of several de-fakematch field conversions is applied and gated in one shot.",
+    "tags": [
+      "core-screen",
+      "metrics",
+      "batch-gating"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.large-fn-batch-fuzzy-can-mask-subfield-regression.20260830.v1",

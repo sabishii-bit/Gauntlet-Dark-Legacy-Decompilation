@@ -1,7 +1,12 @@
 {
   "attributes": {
     "provenance": "PlayerProcessPowerups 0x8007CC48 refinement, commit 756da878e: weapon_time = alpha_time = 0.0f; familiar_time = shield_time = lbl_80347920; reproduced target fmr f30,f31 / fmr f29,f0 exactly. Statement position matters: the chain must precede the first FP-heavy statements it originally preceded - moving it later re-rotated the webs.",
-    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py",
+    "tags": [
+      "entry-schedule",
+      "cse",
+      "matching"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.chained-init-constant-share.20260829.v1",

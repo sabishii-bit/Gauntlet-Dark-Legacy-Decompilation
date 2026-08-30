@@ -1,0 +1,15 @@
+{
+  "attempted_axis": "renum + base-const assoc: 4 handle-free loops off lbl_80274600 (+928/992/736/592).",
+  "attributes": {
+    "law_screen": "legacy migration: screened at migration time; original pass predates the law_screen field",
+    "listed_name": "fn_8006C4D0",
+    "migrated_from": "claim.parked-unresolved.20260829.v1"
+  },
+  "function": "function:end_inventory_panel",
+  "id": "attempt.parked.end-inventory-panel.20260830.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-30T20:00:00Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

@@ -1,7 +1,10 @@
 {
   "attributes": {
     "provenance": "src/game/sfx/psfx.c::PlayerDoWeapTrail and fn_80089350 (worktree GDL-Claude-PsfxDefake, work_claim.psfx-defake.20260830.v1); attempt.psfx-defakematch-tupass-w2.20260830.v1",
-    "scope": "MWCC GC 1.2.5 family; functions well under the project's ~4000-insn fuzzy-arbitration threshold, where fndiff real/--ops is already the mandated primary metric -- this documents that fuzzy can still disagree with real in the OPPOSITE direction from claim.law.large-fn-batch-fuzzy-can-mask-subfield-regression (which showed fuzzy masking a real regression)."
+    "scope": "MWCC GC 1.2.5 family; functions well under the project's ~4000-insn fuzzy-arbitration threshold, where fndiff real/--ops is already the mandated primary metric -- this documents that fuzzy can still disagree with real in the OPPOSITE direction from claim.law.large-fn-batch-fuzzy-can-mask-subfield-regression (which showed fuzzy masking a real regression).",
+    "tags": [
+      "metrics"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.fuzzy-can-underweight-a-real-improvement.20260830.v1",

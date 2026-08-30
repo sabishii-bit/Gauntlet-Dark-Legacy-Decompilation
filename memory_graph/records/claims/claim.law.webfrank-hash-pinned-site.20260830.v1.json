@@ -1,7 +1,11 @@
 {
   "attributes": {
     "provenance": "src/game/sfx/psfx.c::DoPlyrSfxSub (worktree GDL-Claude-PsfxDefake, work_claim.psfx-defake.20260830.v1); attempt.psfx-defakematch-tupass-w2.20260830.v1",
-    "scope": "MWCC GC 1.2.5 family; applies to any function with an active WebFrank REGISTER_ONLY (or other) rule in config/GUNE5D/webfrank.json, during de-fakematch or matching work on that function's source."
+    "scope": "MWCC GC 1.2.5 family; applies to any function with an active WebFrank REGISTER_ONLY (or other) rule in config/GUNE5D/webfrank.json, during de-fakematch or matching work on that function's source.",
+    "tags": [
+      "postprocessor",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.webfrank-hash-pinned-site.20260830.v1",

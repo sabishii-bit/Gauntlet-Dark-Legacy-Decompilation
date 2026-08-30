@@ -1,0 +1,14 @@
+{
+  "attempted_axis": "Recovered terminal cap (2026-08-26): 171/170 fuzzy about96.84 clean real37. Branch polarity, tail global/counter carrier, and loop li/mr role probes were invariant or worse; record was previously chat-only.",
+  "attributes": {
+    "law_screen": "legacy migration: screened at migration time; original pass predates the law_screen field",
+    "migrated_from": "claim.parked-unresolved.20260829.v1"
+  },
+  "function": "function:fn_8006F16C",
+  "id": "attempt.parked.fn-8006f16c.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-30T20:00:00Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

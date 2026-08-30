@@ -1,0 +1,14 @@
+{
+  "attempted_axis": "HARD CAP after retained 201/201 fuzzy95.95025 real124 frame64.",
+  "attributes": {
+    "law_screen": "legacy migration: screened at migration time; original pass predates the law_screen field",
+    "migrated_from": "claim.parked-unresolved.20260829.v1"
+  },
+  "function": "function:DoTexModSeqSub",
+  "id": "attempt.parked.dotexmodseqsub.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-30T20:00:00Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

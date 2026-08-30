@@ -1,7 +1,12 @@
 {
   "attributes": {
     "provenance": "do_enemies speed-table refresh loop, src/game/enemy/enemy.c; see attempt.enemy-c-defakematch-tupass.20260830.v2",
-    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.pointer-walk-array-index-regression - applies to a loop index used to freshly recompute an element address each iteration, as distinct from that law's accumulator-walked pointer case."
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.pointer-walk-array-index-regression - applies to a loop index used to freshly recompute an element address each iteration, as distinct from that law's accumulator-walked pointer case.",
+    "tags": [
+      "core-screen",
+      "index-form",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.recomputed-index-array-form-safe.20260830.v1",

@@ -1,7 +1,10 @@
 {
   "attributes": {
     "provenance": "terminal consolidation of the legacy matching playbook, 2026-08-29; each law was verified in committed matching work",
-    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py",
+    "tags": [
+      "workflow"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.iteration-limits.20260829.v1",

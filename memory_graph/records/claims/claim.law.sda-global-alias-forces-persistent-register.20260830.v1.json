@@ -1,7 +1,12 @@
 {
   "attributes": {
     "provenance": "src/game/game/gamemain.c::fn_80052134 (worktree GDL-Claude-GamemainDefake, work_claim.gamemain-defake.20260830.v1); attempt.gamemain-defakematch-tupass.20260830.v2",
-    "scope": "MWCC GC 1.2.5 family; applies to a small-data (.sdata/.sbss, SDA21-relative) global pointer with few (2-3) field-access sites in one function, distinct from claim.law.declared-alias-vs-repeated-cast's register-pressure/indexed-addressing framing."
+    "scope": "MWCC GC 1.2.5 family; applies to a small-data (.sdata/.sbss, SDA21-relative) global pointer with few (2-3) field-access sites in one function, distinct from claim.law.declared-alias-vs-repeated-cast's register-pressure/indexed-addressing framing.",
+    "tags": [
+      "sda-global",
+      "alias-form",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.sda-global-alias-forces-persistent-register.20260830.v1",

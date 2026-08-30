@@ -1,7 +1,13 @@
 {
   "attributes": {
     "provenance": "src/game/ui/select.c do_player_select and setup_sel_menu (worktree GDL-Claude-SelectDefake2, work_claim.select-defake2.20260830.v1); attempt.select-defake-tu.20260830.v2, superseding wave-1's attempt.select-defake-tu.20260830.v1 which recorded both caps.",
-    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.offsetof-fused-immediate-counter and claim.law.multifield-alias-defeats-indexed-addressing - applies when a prior attempt regressed converting a field on a heavily-multi-field-touching or high-site-count base pointer and the exact form of that prior attempt (typed alias vs repeated cast) was not recorded."
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.offsetof-fused-immediate-counter and claim.law.multifield-alias-defeats-indexed-addressing - applies when a prior attempt regressed converting a field on a heavily-multi-field-touching or high-site-count base pointer and the exact form of that prior attempt (typed alias vs repeated cast) was not recorded.",
+    "tags": [
+      "core-screen",
+      "offsetof-form",
+      "workflow",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.offsetof-overturns-typed-alias-caps.20260830.v1",

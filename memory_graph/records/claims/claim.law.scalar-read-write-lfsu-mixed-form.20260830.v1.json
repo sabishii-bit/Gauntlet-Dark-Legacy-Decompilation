@@ -1,7 +1,12 @@
 {
   "attributes": {
     "provenance": "src/game/pb/pb_objregs.c::fn_800C5DA8 (worktree GDL-Claude-PbObjregsDefake, work_claim.pbobjregs-defake2.20260830.v1); attempt.pb-objregs-defakematch-tupass.20260830.v2",
-    "scope": "MWCC GC 1.2.5 family; applies to a scalar (non-loop) read-then-immediately-write pair on the SAME struct field, as distinct from claim.law.lwzu-idiom-web-retention's walked-loop-pointer case."
+    "scope": "MWCC GC 1.2.5 family; applies to a scalar (non-loop) read-then-immediately-write pair on the SAME struct field, as distinct from claim.law.lwzu-idiom-web-retention's walked-loop-pointer case.",
+    "tags": [
+      "core-screen",
+      "lwzu-fusion",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.scalar-read-write-lfsu-mixed-form.20260830.v1",

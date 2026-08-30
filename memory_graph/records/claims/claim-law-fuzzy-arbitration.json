@@ -2,7 +2,11 @@
   "attributes": {
     "examples": "0x904 two-phase store-reload split: fuzzy-negative at 92%, fuzzy-positive at 94.8% with identical code",
     "provenance_sessions": "2026-08-28 and 2026-08-29 PlayerMotion drives",
-    "scope": "large-function matching workflow"
+    "scope": "large-function matching workflow",
+    "tags": [
+      "metrics",
+      "workflow"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.fuzzy-metric-arbitration.20260829.v1",

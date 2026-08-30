@@ -1,0 +1,14 @@
+{
+  "attempted_axis": "Portable-source cap (2026-08-26): 195/195 fuzzy95.32821 real56 frame0x38. Scoped/inline typed s16 row bases and an explicit raw-index copy all regressed. Residual combines prologue address chronology, folded ble+b, a missing index mr, add/lha association, and late-zero scheduling; reopen only with a new target-backed carrier.",
+  "attributes": {
+    "law_screen": "legacy migration: screened at migration time; original pass predates the law_screen field",
+    "migrated_from": "claim.parked-unresolved.20260829.v1"
+  },
+  "function": "function:AudioSetupLevelStreams",
+  "id": "attempt.parked.audiosetuplevelstreams.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-30T20:00:00Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

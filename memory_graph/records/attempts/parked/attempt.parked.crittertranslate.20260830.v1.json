@@ -1,0 +1,14 @@
+{
+  "attempted_axis": "Portable-source cap (2026-08-26): 354/354 fuzzy97.62712 real160 frame0xA0. Assignment-expression return accumulation, declaration orders, register hints, and zero-carrier storage were byte-invariant. Residual is one addi schedule move plus coupled GPR/FPR coloring.",
+  "attributes": {
+    "law_screen": "legacy migration: screened at migration time; original pass predates the law_screen field",
+    "migrated_from": "claim.parked-unresolved.20260829.v1"
+  },
+  "function": "function:CritterTranslate",
+  "id": "attempt.parked.crittertranslate.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-30T20:00:00Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

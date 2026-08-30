@@ -1,7 +1,12 @@
 {
   "attributes": {
     "provenance": "src/game/movie/movieplayer.c::fn_800DBE04 (worktree GDL-Claude-MovieDefake, work_claim.movieplayer-defake.20260830.v1); attempt.movieplayer-defakematch-tupass.20260830.v1",
-    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.declared-alias-vs-repeated-cast and claim.law.multifield-alias-defeats-indexed-addressing - applies even to a LOW field-count (as few as 2), single-site-per-field direct function PARAMETER, not just walked/indexed/loaded/multifield bases."
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.declared-alias-vs-repeated-cast and claim.law.multifield-alias-defeats-indexed-addressing - applies even to a LOW field-count (as few as 2), single-site-per-field direct function PARAMETER, not just walked/indexed/loaded/multifield bases.",
+    "tags": [
+      "param-retype",
+      "alias-form",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.low-field-count-param-retype-can-regress-exact.20260830.v1",

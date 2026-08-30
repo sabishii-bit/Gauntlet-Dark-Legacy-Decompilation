@@ -1,7 +1,12 @@
 {
   "attributes": {
     "provenance": "src/game/world/world.c::WorldSaveInitState, WorldPsysActivate (worktree GDL-Claude-WorldDefake, work_claim.world-defake.20260830.v1); attempt.world-c-defakematch-tupass.20260830.v1",
-    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.declared-alias-vs-repeated-cast and claim.law.pointer-walk-array-index-regression - applies when 2+ NEARBY fields (not just one) are read/written off the same walked or index-computed base pointer within one loop iteration or straight-line block."
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.declared-alias-vs-repeated-cast and claim.law.pointer-walk-array-index-regression - applies when 2+ NEARBY fields (not just one) are read/written off the same walked or index-computed base pointer within one loop iteration or straight-line block.",
+    "tags": [
+      "alias-form",
+      "index-form",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.multifield-alias-defeats-indexed-addressing.20260830.v1",

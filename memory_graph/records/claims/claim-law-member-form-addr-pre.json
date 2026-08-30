@@ -2,7 +2,12 @@
   "attributes": {
     "caveat": "Where the target reloads a value per use across a call, member spelling can over-CSE to one load (atree 0x790 case); check the target's reload count per site.",
     "commit_range": "git:f92065de..git:40caf10d",
-    "scope": "cflags_demo -O4 no-peephole game code; measured on src/game/game/pmotion.c"
+    "scope": "cflags_demo -O4 no-peephole game code; measured on src/game/game/pmotion.c",
+    "tags": [
+      "alias-form",
+      "cse",
+      "matching"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.member-form-kills-addr-pre.20260829.v1",

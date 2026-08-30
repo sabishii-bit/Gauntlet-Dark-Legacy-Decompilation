@@ -1,7 +1,13 @@
 {
   "attributes": {
     "provenance": "do_enemies pl-loop, src/game/enemy/enemy.c; see attempt.enemy-c-defakematch-tupass.20260830.v1",
-    "scope": "MWCC GC 1.2.5 family; general pointer-walk-loop de-fakematch pattern, distinct from and additional to claim.law.lwzu-idiom-web-retention (that law is about a lwzu-fusable prologue specifically; this one triggered with no lwzu idiom in play at all)."
+    "scope": "MWCC GC 1.2.5 family; general pointer-walk-loop de-fakematch pattern, distinct from and additional to claim.law.lwzu-idiom-web-retention (that law is about a lwzu-fusable prologue specifically; this one triggered with no lwzu idiom in play at all).",
+    "tags": [
+      "core-screen",
+      "walked-pointer",
+      "index-form",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.pointer-walk-array-index-regression.20260830.v1",

@@ -1,7 +1,13 @@
 {
   "attributes": {
     "provenance": "src/game/enemy/enemy.c deep-scrutiny pass (worktree GDL-Claude-EnemyDeep, work_claim.enemy-deepscrutiny.20260830.v1); attempt.enemy-c-deepscrutiny.20260830.v1. 235 sites converted across three gated batches, every one byte-identical: do_enemy_collide 61 (the sites claim.law.lwzu-idiom-web-retention had declared off-limits, real 0 before and after), 99 e0-based Enemy-field sites across 15 move_logic functions, and 75 pool-relative flee-block sites.",
-    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.lwzu-idiom-web-retention, claim.law.declared-alias-vs-repeated-cast and claim.law.multifield-alias-defeats-indexed-addressing - separates the SPELLING of a displacement constant from the TYPE/web changes those laws actually govern."
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.lwzu-idiom-web-retention, claim.law.declared-alias-vs-repeated-cast and claim.law.multifield-alias-defeats-indexed-addressing - separates the SPELLING of a displacement constant from the TYPE/web changes those laws actually govern.",
+    "tags": [
+      "core-screen",
+      "offsetof-form",
+      "lwzu-fusion",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.offsetof-rename-preserves-protected-web.20260830.v1",

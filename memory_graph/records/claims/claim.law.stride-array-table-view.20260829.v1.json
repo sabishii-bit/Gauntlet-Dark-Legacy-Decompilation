@@ -1,7 +1,11 @@
 {
   "attributes": {
     "provenance": "PlayerProcessPowerups weapon-hold tier colors, commit 756da878e: ((TierColor*)(lbl_80282930[p->index] + 0x68))[tier].rgb[k] with 12-byte TierColor replaced 7 lfsx + 6 hoisted addi with target's add+lfs 0x68/0xE0 displacement form. Extends the items.c induction-form law (base+i*stride beats named offset accumulator).",
-    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py",
+    "tags": [
+      "index-form",
+      "matching"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.stride-array-table-view.20260829.v1",

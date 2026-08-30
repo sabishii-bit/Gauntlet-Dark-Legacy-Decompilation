@@ -1,7 +1,13 @@
 {
   "attributes": {
     "provenance": "src/game/world/world.c::FindWorldAnimNode (worktree GDL-Claude-WorldDefake, work_claim.world-defake.20260830.v1); attempt.world-c-defakematch-tupass.20260830.v1",
-    "scope": "MWCC GC 1.2.5 family; applies whenever a TU has TWO OR MORE named globals that overlap/adjoin the same underlying memory block (e.g. a combined struct-blob split into separate documented sub-objects) and a raw-offset access could be rewritten against EITHER symbol at an identical final address."
+    "scope": "MWCC GC 1.2.5 family; applies whenever a TU has TWO OR MORE named globals that overlap/adjoin the same underlying memory block (e.g. a combined struct-blob split into separate documented sub-objects) and a raw-offset access could be rewritten against EITHER symbol at an identical final address.",
+    "tags": [
+      "core-screen",
+      "symbol-identity",
+      "walked-pointer",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.walked-base-symbol-identity.20260830.v1",

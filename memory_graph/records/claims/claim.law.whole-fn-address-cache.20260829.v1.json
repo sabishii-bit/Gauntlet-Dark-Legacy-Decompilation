@@ -1,7 +1,12 @@
 {
   "attributes": {
     "provenance": "src/game/world/gauntworld.c::fn_800606FC (worktree GDL-Claude-Gauntworld, commit e8da20c55): sItemRuntime accessed at 4 sites spread across the entire ~2221-insn function (offsets +3256, +idx*40, +30184/+30188/+30192) all resolved via ONE `lis+addi` at function+0x1c into r23, verified byte-exact against target's 4 immediate-displacement uses off that single register. Fixed by adding `u8* rt = sItemRuntime;` as the FIRST local declared/initialized (before any conditional), replacing all 4 raw `sItemRuntime + off` expressions with `rt + off`. real diff dropped 1468->1384 lines, fuzzy 95.76%->96.77%.",
-    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py; applies to large (1000+ insn) functions where a fixed global/array address is read at several non-adjacent, non-dominating call sites"
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py; applies to large (1000+ insn) functions where a fixed global/array address is read at several non-adjacent, non-dominating call sites",
+    "tags": [
+      "cse",
+      "register-web",
+      "matching"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.whole-fn-address-cache.20260829.v1",

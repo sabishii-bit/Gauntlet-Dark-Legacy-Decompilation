@@ -1,7 +1,14 @@
 {
   "attributes": {
     "provenance": "do_enemy_collide (enemy.c, 100% fuzzy, 490 insns): full member conversion regressed to 492 insns/real 160-164 twice; partial conversion (hit/floor/reparent + entry guards named, behavior chains left raw) holds byte-identical real 0. See attempt.do-enemy-collide-defakematch.20260830.v1.",
-    "scope": "MWCC GC 1.2.5 family, TUs compiled with peephole on (lwzu fusion present)"
+    "scope": "MWCC GC 1.2.5 family, TUs compiled with peephole on (lwzu fusion present)",
+    "tags": [
+      "core-screen",
+      "lwzu-fusion",
+      "walked-pointer",
+      "register-web",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.lwzu-idiom-web-retention.20260830.v1",

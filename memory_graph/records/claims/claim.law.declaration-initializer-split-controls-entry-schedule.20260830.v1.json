@@ -1,7 +1,12 @@
 {
   "attributes": {
     "provenance": "src/game/enemy/enemy.c::init_enemy (worktree GDL-Claude-EnemyDeep, work_claim.enemy-deepscrutiny.20260830.v1); attempt.enemy-c-deepscrutiny.20260830.v1. init_enemy real 45 -> 37 from the split alone; a second, independent confirmation in the same pass came from move_logic15, where swapping the declaration order of two same-type locals (`s32 i` before `s32 best_idx`) moved their register homes to the target's and took real 108 -> 100.",
-    "scope": "MWCC GC 1.2.5 family; applies to C89 function bodies whose first statements are stores, where one or more declarations carry initializers that the target evaluates AFTER that first store."
+    "scope": "MWCC GC 1.2.5 family; applies to C89 function bodies whose first statements are stores, where one or more declarations carry initializers that the target evaluates AFTER that first store.",
+    "tags": [
+      "entry-schedule",
+      "decl-order",
+      "matching"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1",

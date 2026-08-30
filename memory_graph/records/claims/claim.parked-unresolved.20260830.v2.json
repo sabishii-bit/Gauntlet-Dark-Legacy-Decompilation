@@ -1,0 +1,44 @@
+{
+  "epistemic_state": "observed",
+  "id": "claim.parked-unresolved.20260830.v2",
+  "kind": "claim",
+  "note": "Residual non-per-function parked entries after the 2026-08-30 migration: per-function entries became records/attempts/parked/attempt.parked.<fn>.20260830.v1; CLOSED and duplicate entries were dropped (see git history of the v1 record for their text).",
+  "predicate": "parked_functions_unresolved",
+  "recorded_at": "2026-08-30T20:00:00Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "supersedes": "claim.parked-unresolved.20260829.v1",
+  "valid_from": "2026-08-30",
+  "value": [
+    {
+      "name": "player_bss_pool_family",
+      "note": "bss-pool displacement class, NOT per-fn: GetPlayerPos/GetPlayerColPos/PlayerSelecting/new_player/change_player/player_can_be_damaged/all_players_go_to_same_level + every gPlayerRecords toucher; target pools off potionicon_tab (-0xC40); opcode-identical; blocked on flip-time .bss claim (gPlayerRecords pinned extern by Matching shopquery)",
+      "symbol_matches": 0
+    },
+    {
+      "name": "DrawGlowText/MLines",
+      "note": "register/sched, streams match (86/87, 59/57): glow-config full body,",
+      "symbol_matches": 0
+    },
+    {
+      "name": "mbPoolOrder / mb_main",
+      "note": "OBJECT/LINKER METADATA CAP (2026-08-24): all four target functions are exact;",
+      "symbol_matches": 0
+    },
+    {
+      "name": "adstream whole TU",
+      "note": "HARD CAP for this pass (2026-08-25): 22/26 exact/report-exact, TU fuzzy98.31039;",
+      "symbol_matches": 0
+    },
+    {
+      "name": "auxanim constant pool",
+      "note": "Named 255.0 definitions always precede compiler-private 0.0/1.0 pools,",
+      "symbol_matches": 0
+    },
+    {
+      "name": "init_next_level / gamemain",
+      "note": "Report target name `init_next_level_8005638C` is a local-name",
+      "symbol_matches": 0
+    }
+  ]
+}

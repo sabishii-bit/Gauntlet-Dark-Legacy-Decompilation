@@ -1,0 +1,14 @@
+{
+  "attempted_axis": "150/152 fuzzy96.12666 direct real74/clean80 frame0x2080",
+  "attributes": {
+    "law_screen": "legacy migration: screened at migration time; original pass predates the law_screen field",
+    "migrated_from": "claim.parked-unresolved.20260829.v1"
+  },
+  "function": "function:fn_800C1174",
+  "id": "attempt.parked.fn-800c1174.20260830.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-30T20:00:00Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

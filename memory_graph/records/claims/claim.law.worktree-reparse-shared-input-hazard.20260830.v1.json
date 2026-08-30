@@ -1,7 +1,10 @@
 {
   "attributes": {
     "provenance": "Verified 2026-08-30 during cleanup of W:/Repositories/GDL-Codex-PbObjRegsDefakeDeep: its orig/GUNE5D/sys junction targeted the shared checkout, and native Git worktree remove deleted shared orig/GUNE5D/sys/main.dol. The file was immediately restored from build/GUNE5D/main.retail.dol and verified SHA-1 7cba77aa496eb0fc5ffec60efd9680aa9635d679.",
-    "scope": "Windows Git worktrees sharing ignored GDL build inputs"
+    "scope": "Windows Git worktrees sharing ignored GDL build inputs",
+    "tags": [
+      "build-hygiene"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.worktree-reparse-shared-input-hazard.20260830.v1",

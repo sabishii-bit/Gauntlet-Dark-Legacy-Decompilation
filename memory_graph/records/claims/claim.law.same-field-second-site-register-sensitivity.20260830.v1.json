@@ -1,7 +1,11 @@
 {
   "attributes": {
     "provenance": "src/game/sfx/psfx.c::fn_80089350, the p+284/field_11C conversion (worktree GDL-Claude-PsfxDefake, work_claim.psfx-defake.20260830.v1); attempt.psfx-defakematch-tupass-w2.20260830.v1",
-    "scope": "MWCC GC 1.2.5 family; applies when the SAME field is dereferenced through a stationary base pointer (a function parameter or other already-resident register, not a walked/indexed address) at two or more WIDELY SEPARATED points in a large, already register-tuned function."
+    "scope": "MWCC GC 1.2.5 family; applies when the SAME field is dereferenced through a stationary base pointer (a function parameter or other already-resident register, not a walked/indexed address) at two or more WIDELY SEPARATED points in a large, already register-tuned function.",
+    "tags": [
+      "register-web",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.same-field-second-site-register-sensitivity.20260830.v1",

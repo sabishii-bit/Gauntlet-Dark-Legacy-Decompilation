@@ -1,0 +1,14 @@
+{
+  "attempted_axis": "Portable-source cap (2026-08-26): 161/158 fuzzy96.73913 real137 frame0x20. Explicit-increment goto, do/continue, and while/break source islands were byte-identical. Missing dead extsb/extsb/cmpw and dependent coloring remain; historical exact form used prohibited asm.",
+  "attributes": {
+    "law_screen": "legacy migration: screened at migration time; original pass predates the law_screen field",
+    "migrated_from": "claim.parked-unresolved.20260829.v1"
+  },
+  "function": "function:LinkItemTriggers",
+  "id": "attempt.parked.linkitemtriggers.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-30T20:00:00Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

@@ -1,0 +1,14 @@
+{
+  "attempted_axis": "HARD CAP for this pass (2026-08-25): 189/190 fuzzy92.74074 raw real93 frame32,",
+  "attributes": {
+    "law_screen": "legacy migration: screened at migration time; original pass predates the law_screen field",
+    "migrated_from": "claim.parked-unresolved.20260829.v1"
+  },
+  "function": "function:_AdsThread",
+  "id": "attempt.parked.adsthread.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-30T20:00:00Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

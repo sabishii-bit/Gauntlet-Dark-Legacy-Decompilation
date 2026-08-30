@@ -1,7 +1,12 @@
 {
   "attributes": {
     "provenance": "src/game/sys/memcard.c::check_prefs_loaded (worktree GDL-Claude-Memcard, commit 47c0428bc): `char* st = lbl_801131C0;` declared/initialized at fn entry (alongside another pointer local `opts`), but consumed only once, 9 statements later, right before the function's tail. Target computes BOTH pointers' HA halves early into scratch registers and defers BOTH LO resolutions to direct-to-final-callee-saved-register addi's issued right after the frame's stmw -- zero extra moves for either. Our reconstruction fully resolved st's address (HA+LO) into a scratch register before stmw (since it was a plain single-statement initializer with nothing deferring it), forcing an extra `mr r30,r0` after stmw to relocate it into its permanent home. Decl-order reshuffling (swapping opts/st declaration order) was tried FIRST and made zero difference -- confirms this is not a decl-order artifact. Fix: bare-declare the pointer, move its assignment to immediately before its sole use. Result: insns 58->57 (exact target match), real diff 37->26, lines 41->30.",
-    "scope": "MWCC GC 1.2.5 family, opt_lifetimes-off-style reconstructions; applies to a local pointer/constant computed from an SDA21/ADDR16-relocated global, declared and initialized at function entry, but read only ONCE, later in the function body, with no intervening dependency on the value"
+    "scope": "MWCC GC 1.2.5 family, opt_lifetimes-off-style reconstructions; applies to a local pointer/constant computed from an SDA21/ADDR16-relocated global, declared and initialized at function entry, but read only ONCE, later in the function body, with no intervening dependency on the value",
+    "tags": [
+      "store-placement",
+      "sda-global",
+      "matching"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.point-of-use-single-use-pointer-delay.20260830.v1",

@@ -1,7 +1,12 @@
 {
   "attributes": {
     "provenance": "src/game/world/items.c DeleteItem, RegisterItemWobj, ShowMilestones, ShowCameras (worktree GDL-Claude-ItemsDefake, work_claim.items-defake.20260830.v1); attempt.items-c-defakematch-tupass.20260830.v1; negative counterexample also recorded there for SetItem",
-    "scope": "MWCC GC 1.2.5 family; applies to raw-offset de-fakematch conversions where a field is dereferenced 2+ times off the same base pointer within one function scope, walked-loop or not; re-verify per function since SetItem-scale register pressure can still defeat it."
+    "scope": "MWCC GC 1.2.5 family; applies to raw-offset de-fakematch conversions where a field is dereferenced 2+ times off the same base pointer within one function scope, walked-loop or not; re-verify per function since SetItem-scale register pressure can still defeat it.",
+    "tags": [
+      "core-screen",
+      "alias-form",
+      "defake"
+    ]
   },
   "epistemic_state": "verified",
   "id": "claim.law.declared-alias-vs-repeated-cast.20260830.v1",
