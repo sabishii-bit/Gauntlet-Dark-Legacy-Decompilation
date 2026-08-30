@@ -941,7 +941,7 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
                 if (*(u32*)((u8*)lbl_80344730 + 0x10) & 0x38) {
                     wallResult = 0;
                 } else {
-                    if (!(*(u32*)(e + 0x330) & 1) &&
+                    if (!(*(u32*)(e + offsetof(Enemy, ai_flags)) & 1) &&
                         SlideAlongWall(slideRad, oldpos, tr,
                                        (f32*)(pool + 0x2F4),
                                        lbl_8023CA98[1]) < 0) {
@@ -974,7 +974,7 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
                 if (*(u32*)((u8*)lbl_80344730 + 0x10) & 0x38) {
                     wallResult = 0;
                 } else {
-                    if (!(*(u32*)(e + 0x330) & 1) &&
+                    if (!(*(u32*)(e + offsetof(Enemy, ai_flags)) & 1) &&
                         SlideAlongWall(slideRad, oldpos, tr,
                                        (f32*)(pool + 0x2F4),
                                        lbl_8023CA98[1]) < 0) {
@@ -1037,103 +1037,103 @@ reparent:
     }
 
     if (behavior == 0) {
-        if (ABS_REVERSED(*(s32*)(e + 0x354)) <= 2) {
-            (*(s16*)(e + 0x364))++;
+        if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
+            (*(s16*)(e + offsetof(Enemy, collided)))++;
             fn_8004D030(index, 5);
         } else {
-            (*(s16*)(e + 0x364))++;
+            (*(s16*)(e + offsetof(Enemy, collided)))++;
             fn_8004D030(index, 0x3C);
         }
-        if (*(s16*)(e + 0x364) >= 9) {
-            *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
-            *(s16*)(e + 0x364) = 0;
-            if (ABS_REVERSED(*(s32*)(e + 0x354)) > 2) {
-                *(f32*)(e + 0x24C) = lbl_80344720;
-                *(f32*)(e + 0x244) = lbl_80344720;
+        if (*(s16*)(e + offsetof(Enemy, collided)) >= 9) {
+            *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
+            *(s16*)(e + offsetof(Enemy, collided)) = 0;
+            if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) > 2) {
+                *(f32*)(e + offsetof(Enemy, ang)) = lbl_80344720;
+                *(f32*)(e + offsetof(Enemy, pyr[1])) = lbl_80344720;
             }
         }
     } else if (behavior == 7) {
-        if (ABS_REVERSED(*(s32*)(e + 0x354)) <= 2) {
-            (*(s16*)(e + 0x364))++;
+        if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
+            (*(s16*)(e + offsetof(Enemy, collided)))++;
             fn_8004D030(index, 0xA);
         } else {
             fn_8004D030(index, 0x3C);
-            *(f32*)(e + 0x24C) = lbl_80344720;
-            *(f32*)(e + 0x244) = lbl_80344720;
-            *(s16*)(e + 0x364) = 0;
-            *(s32*)(e + 0x354) = 0;
+            *(f32*)(e + offsetof(Enemy, ang)) = lbl_80344720;
+            *(f32*)(e + offsetof(Enemy, pyr[1])) = lbl_80344720;
+            *(s16*)(e + offsetof(Enemy, collided)) = 0;
+            *(s32*)(e + offsetof(Enemy, route)) = 0;
         }
-        if (*(s16*)(e + 0x364) >= 7) {
-            *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
-            *(s16*)(e + 0x364) = 0;
+        if (*(s16*)(e + offsetof(Enemy, collided)) >= 7) {
+            *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
+            *(s16*)(e + offsetof(Enemy, collided)) = 0;
         }
     } else if (behavior == 8) {
-        if (ABS_REVERSED(*(s32*)(e + 0x354)) <= 2) {
-            (*(s16*)(e + 0x364))++;
+        if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
+            (*(s16*)(e + offsetof(Enemy, collided)))++;
             fn_8004D030(index, 5);
         } else {
             fn_8004D030(index, 0x3C);
-            *(f32*)(e + 0x24C) = lbl_80344720;
-            *(f32*)(e + 0x244) = lbl_80344720;
-            *(s16*)(e + 0x364) = 0;
-            *(s32*)(e + 0x354) = 0;
+            *(f32*)(e + offsetof(Enemy, ang)) = lbl_80344720;
+            *(f32*)(e + offsetof(Enemy, pyr[1])) = lbl_80344720;
+            *(s16*)(e + offsetof(Enemy, collided)) = 0;
+            *(s32*)(e + offsetof(Enemy, route)) = 0;
         }
-        if (*(s16*)(e + 0x364) >= 7) {
-            *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
-            *(s16*)(e + 0x364) = 0;
+        if (*(s16*)(e + offsetof(Enemy, collided)) >= 7) {
+            *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
+            *(s16*)(e + offsetof(Enemy, collided)) = 0;
         }
     } else if (behavior == 0xA) {
-        if (ABS_REVERSED(*(s32*)(e + 0x354)) <= 2) {
-            (*(s16*)(e + 0x364))++;
+        if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
+            (*(s16*)(e + offsetof(Enemy, collided)))++;
             fn_8004D030(index, 0xA);
         } else {
             fn_8004D030(index, 0x3C);
-            *(f32*)(e + 0x24C) = lbl_80344720;
-            *(f32*)(e + 0x244) = lbl_80344720;
-            *(s16*)(e + 0x364) = 0;
-            *(s32*)(e + 0x354) = 0;
+            *(f32*)(e + offsetof(Enemy, ang)) = lbl_80344720;
+            *(f32*)(e + offsetof(Enemy, pyr[1])) = lbl_80344720;
+            *(s16*)(e + offsetof(Enemy, collided)) = 0;
+            *(s32*)(e + offsetof(Enemy, route)) = 0;
         }
-        if (*(s16*)(e + 0x364) >= 7) {
-            *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
-            *(s16*)(e + 0x364) = 0;
+        if (*(s16*)(e + offsetof(Enemy, collided)) >= 7) {
+            *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
+            *(s16*)(e + offsetof(Enemy, collided)) = 0;
         }
     } else if (behavior == 0x14) {
-        if (ABS_REVERSED(*(s32*)(e + 0x354)) <= 2) {
-            (*(s16*)(e + 0x364))++;
+        if (ABS_REVERSED(*(s32*)(e + offsetof(Enemy, route))) <= 2) {
+            (*(s16*)(e + offsetof(Enemy, collided)))++;
             fn_8004D030(index, 3);
         } else {
             f64 high;
 
             fn_8004D030(index, 0x1E);
             high = lbl_80346840;
-            *(f32*)(e + 0x24C) = (f32)(high + lbl_80344720);
+            *(f32*)(e + offsetof(Enemy, ang)) = (f32)(high + lbl_80344720);
             {
                 f64 a;
 
-                if ((a = *(f32*)(e + 0x24C)) > high) {
+                if ((a = *(f32*)(e + offsetof(Enemy, ang))) > high) {
                     a -= lbl_80346848;
                 } else if (a <= lbl_80346850) {
                     a = lbl_80346848 + a;
                 }
-                *(f32*)(e + 0x24C) = (f32)a;
-                *(f32*)(e + 0x244) = (f32)a;
+                *(f32*)(e + offsetof(Enemy, ang)) = (f32)a;
+                *(f32*)(e + offsetof(Enemy, pyr[1])) = (f32)a;
             }
-            *(s16*)(e + 0x364) = 0;
-            *(s32*)(e + 0x354) = 0;
+            *(s16*)(e + offsetof(Enemy, collided)) = 0;
+            *(s32*)(e + offsetof(Enemy, route)) = 0;
         }
-        if (*(s16*)(e + 0x364) >= 7) {
-            *(s32*)(e + 0x354) = -*(s32*)(e + 0x354) * 2;
-            *(s16*)(e + 0x364) = 0;
+        if (*(s16*)(e + offsetof(Enemy, collided)) >= 7) {
+            *(s32*)(e + offsetof(Enemy, route)) = -*(s32*)(e + offsetof(Enemy, route)) * 2;
+            *(s16*)(e + offsetof(Enemy, collided)) = 0;
         }
     } else {
-        if (*(s32*)(e + 0x358) <= 0) {
-            *(s32*)(e + 0x358) = 0x14;
+        if (*(s32*)(e + offsetof(Enemy, dead_end)) <= 0) {
+            *(s32*)(e + offsetof(Enemy, dead_end)) = 0x14;
         }
     }
-    *(s16*)(e + 0x1FE) = 1;
+    *(s16*)(e + offsetof(Enemy, area)) = 1;
 
 gravity:
-    dh = *(f32*)(e + 0x294) - *(f32*)(e + 0x38);
+    dh = *(f32*)(e + offsetof(Enemy, floory)) - *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][1]));
     if ((f64)dh < lbl_80346880) {
         damage_enemy(enemy, lbl_80346888, -1, 0, 0, 0, 0);
     }
@@ -1141,7 +1141,7 @@ gravity:
         dh = dt;
     }
     tr[1] += dh;
-    *(f32*)(e + 0x294) = *(f32*)(e + 0x38) + dh;
+    *(f32*)(e + offsetof(Enemy, floory)) = *(f32*)(e + offsetof(Enemy, objgrp.worldmat[3][1])) + dh;
     return result;
 }
 
