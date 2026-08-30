@@ -850,23 +850,38 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
     wi->locators = (struct locator*)(base + blob[0x17]);
 
     if (*(s32*)(wg + 228) == 0) {
-        /* world objects (stride 0x3C) */
+        /* world objects (stride 0x3C); field offsets are WorldObj's (raw
+         * walked pointer kept - a typed WorldObj* alias regressed the
+         * analogous coltri/wobjsp loops elsewhere in this TU, verified). */
         for (i = 0; i < blob[0]; i++) {
             p = (u8*)wi->wobjs + i * 0x3C;
-            *(u16*)(p + 0x14) = sSwapU16(*(u16*)(p + 0x14));
-            *(u16*)(p + 0x2C) = sSwapU16(*(u16*)(p + 0x2C));
-            *(u16*)(p + 0x2E) = sSwapU16(*(u16*)(p + 0x2E));
-            *(u16*)(p + 0x36) = sSwapU16(*(u16*)(p + 0x36));
-            *(u32*)(p + 0x10) = sSwapU32(*(u32*)(p + 0x10));
-            *(f32*)(p + 0x30) = sSwapF32(*(f32*)(p + 0x30));
-            *(u32*)(p + 0x38) = sSwapU32(*(u32*)(p + 0x38));
-            *(u32*)(p + 0x18) = sSwapU32(*(u32*)(p + 0x18));
-            *(u32*)(p + 0x28) = sSwapU32(*(u32*)(p + 0x28));
+            *(u16*)(p + offsetof(WorldObj, triggertype)) =
+                sSwapU16(*(u16*)(p + offsetof(WorldObj, triggertype)));
+            *(u16*)(p + offsetof(WorldObj, nextidx)) =
+                sSwapU16(*(u16*)(p + offsetof(WorldObj, nextidx)));
+            *(u16*)(p + offsetof(WorldObj, childidx)) =
+                sSwapU16(*(u16*)(p + offsetof(WorldObj, childidx)));
+            *(u16*)(p + offsetof(WorldObj, nctris)) =
+                sSwapU16(*(u16*)(p + offsetof(WorldObj, nctris)));
+            *(u32*)(p + offsetof(WorldObj, flags)) =
+                sSwapU32(*(u32*)(p + offsetof(WorldObj, flags)));
+            *(f32*)(p + offsetof(WorldObj, rad)) =
+                sSwapF32(*(f32*)(p + offsetof(WorldObj, rad)));
+            *(u32*)(p + offsetof(WorldObj, ctriidx)) =
+                sSwapU32(*(u32*)(p + offsetof(WorldObj, ctriidx)));
+            *(u32*)(p + offsetof(WorldObj, parent)) =
+                sSwapU32(*(u32*)(p + offsetof(WorldObj, parent)));
+            *(u32*)(p + offsetof(WorldObj, nodeptr)) =
+                sSwapU32(*(u32*)(p + offsetof(WorldObj, nodeptr)));
             for (k = 0; k < 3; k++) {
-                *(f32*)(p + 0x1C + k * 4) = sSwapF32(*(f32*)(p + 0x1C + k * 4));
+                *(f32*)(p + offsetof(WorldObj, pos) + k * 4) =
+                    sSwapF32(*(f32*)(p + offsetof(WorldObj, pos) + k * 4));
             }
         }
-        /* collision triangles (stride 0x28) */
+        /* collision triangles (stride 0x28); only coltri.pos (+0x08, this
+         * TU's own local struct) is a named field - the rest (+0x00/+0x02
+         * header, +0x04 unknown f32, +0x14 second vec3, +0x20.. tail) have
+         * no GC-verified names, left raw. */
         for (i = 0; i < blob[2]; i++) {
             p = (u8*)wi->ctris + i * 0x28;
             *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
@@ -877,7 +892,8 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
             *(u16*)(p + 0x26) = sSwapU16(*(u16*)(p + 0x26));
             *(f32*)(p + 0x04) = sSwapF32(*(f32*)(p + 0x04));
             for (k = 0; k < 3; k++) {
-                *(f32*)(p + 0x08 + k * 4) = sSwapF32(*(f32*)(p + 0x08 + k * 4));
+                *(f32*)(p + offsetof(struct coltri, pos) + k * 4) =
+                    sSwapF32(*(f32*)(p + offsetof(struct coltri, pos) + k * 4));
                 *(f32*)(p + 0x14 + k * 4) = sSwapF32(*(f32*)(p + 0x14 + k * 4));
             }
         }
