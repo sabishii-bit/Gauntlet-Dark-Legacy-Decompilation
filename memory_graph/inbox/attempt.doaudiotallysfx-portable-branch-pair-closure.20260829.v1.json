@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "history-backed portable-C exact closure of the tally selector conditional/unconditional branch pair using a one-case switch carrier, a dense 0-through-10 switch, and localized peephole control",
+  "attributes": {
+    "anchors": "src/game/sound/sounds_evt.c::DoAudioTallySFX; GUNE5D .text 0x8009FB84 size 0x50; python tools/gdl/fnasm.py game/sound/sounds_evt.c DoAudioTallySFX; python tools/gdl/fndiff.py game/sound/sounds_evt.c DoAudioTallySFX --count/--ops/--clean; build/GUNE5D/report.json; immutable commits 32da5c81dc92fd133d490203762e59d2bcae5049, 2c30684f5b368dbbda78c600b301bcf074326d95, fd1117adc125b79664bb850262b6a38e6a321590, and 866b8deb6c",
+    "axis_log": "historical exact commits are duplicate-lineage copies of one source change and require prohibited asm { b done }; portable explicit goto baseline is 20/19, fuzzy 94.5%, real 5; one-case switch reaches 20/20 and real 4 but regresses fuzzy to 89.5%, TU 98.762955%->98.73768%, project 97.776665%->97.77629%; dense 0-through-10 switch is 20/22 real 10; localized peephole-off is 20/20 real 6",
+    "baseline": "target/current 20/19 instructions, fuzzy 94.5%, count-real 5, 0x8-byte frame, saves LR only; STRUCTURAL residual",
+    "final_state": "best portable source restored unchanged at target/current 20/19 instructions, fuzzy 94.5%, count-real 5, 0x8-byte frame, saves LR only; target has cmpwi/ble valid followed by b done while MWCC folds the portable pair to inverse bgt done",
+    "policy": "Capped under portable-C-only and monotonic-fuzzy policy. Do not retry the recorded one-case switch, dense 0-through-10 switch, localized peephole-off, historical inline-asm branch device, or equivalent explicit goto-pair forms without genuinely new compiler evidence. Accepted attempt.findworldobj-portable-branch-pair-closure.20260829.v1 records the same P6 goto-pair wall.",
+    "semantic_audit": "For selector values 0 through 10, the retained function indexes lbl_801234B8 and calls sndFxPlayHandle(handle, 224, selector + 21); negative or greater-than-10 selectors return without a call. All rejected portable probes preserved these semantics.",
+    "verification": "Owning object rebuilt after restoration; complete target assembly reviewed; fndiff count/ops/clean inspected; AudioEnterNextStage remained 50/50 instructions and real 4 and was not edited; TU retained 115/118 exact functions and fuzzy 98.762955%; git diff --check clean; fresh full ninja passed build/GUNE5D/main.dol checksum OK; project restored to 97.776665% fuzzy and 58.121483% matched; no source, assembly, postprocessor, or data changes retained."
+  },
+  "function": "function:DoAudioTallySFX",
+  "id": "attempt.doaudiotallysfx-portable-branch-pair-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
