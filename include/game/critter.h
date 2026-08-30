@@ -78,7 +78,14 @@ typedef struct CritterMove {
     s32 unk08;            /* 0x08 (compared against 0xF00 in CritterAnimate)   */
     s16 anim;             /* 0x0C animation id to play                         */
     s16 node;             /* 0x0E attached animation-node index                */
-    u8  _blk10[0x44];     /* 0x10 .. 0x54                                      */
+    u8  _blk10[0x30];     /* 0x10 .. 0x40                                      */
+    s32 frameStart;       /* 0x40 primary event window start frame (CopyAnim)  */
+    s32 frameStart2;      /* 0x44 secondary event window start frame           */
+    s16 interruptAnim0;    /* 0x48 CritterAnimInterrupt anim index (event 1)    */
+    s16 interruptAnim1;    /* 0x4A CritterAnimInterrupt anim index (event 2)    */
+    f32 framePeriod;      /* 0x4C repeat period for the 0x85 (looped) move type */
+    s16 frameEnd;         /* 0x50 primary event window end frame               */
+    s16 frameEnd2;        /* 0x52 secondary event window end frame             */
     s16 link;             /* 0x54 chained/target move index                    */
     s16 unk56;            /* 0x56                                              */
     u8  _blk58[0x28];     /* 0x58 .. 0x80                                      */
@@ -120,7 +127,7 @@ typedef struct Critter {
     void *emitter;            /* 0x0D4 particle/emitter handle (MBRemoveNode)   */
     u32  emitterset;          /* 0x0D8 emitter-present flag                    */
     void *hitnode2;           /* 0x0DC hit/attach node (hdr->0x5A index)       */
-    u8  _blk0E0[0x30];        /* 0x0E0 .. 0x110                              */
+    f32 skinMatrix[12];       /* 0x0E0 ProcessSkinFX per-node transform (3x4) */
     f32 rateScale;            /* 0x110 move-rate scale (health-derived)       */
     f32 invRateScale;         /* 0x114 1.0 / rateScale                        */
     s16 curmove;              /* 0x118 current move index                     */
@@ -133,7 +140,12 @@ typedef struct Critter {
     s16 unk126;               /* 0x126 (init -1)                              */
     s16 unk128;               /* 0x128 (init -1)                              */
     s16 targetCount;          /* 0x12A active target count                     */
-    u8  _blk12C[0x90];        /* 0x12C .. 0x1BC                              */
+    s32 targetPlayer;         /* 0x12C targetInfo[0].player; also read alone as
+                                * the single-target player index (CritterGetTarget) */
+    u8  _blk130[4];           /* 0x130 .. 0x134 (targetInfo[0], +4)          */
+    f32 targetAngle;          /* 0x134 targetInfo[0].angle; base of a walked,
+                                * stride-0x24 per-target record array          */
+    u8  _blk138[0x84];        /* 0x138 .. 0x1BC                              */
     f32 unk1BC[4][4];         /* 0x1BC 4x4 floats (init 0; per-limb scratch)   */
     f32 targetPos[3];         /* 0x1FC resolved target position                */
     u8  _blk208[4];           /* 0x208 .. 0x20C                              */
@@ -145,9 +157,13 @@ typedef struct Critter {
     f32 patternTimes[0x20];   /* 0x318 per-pattern last-use timestamps         */
     f32 worldMoveMatrix[12];  /* 0x398 move-node world transform              */
     f32 moveOrigin[3];        /* 0x3C8 cached move origin                      */
-    u8  _blk3D4[0x54];        /* 0x3D4 .. 0x428                              */
+    u8  _blk3D4[0x44];        /* 0x3D4 .. 0x418                              */
+    f32 prevMovePathPos[3];   /* 0x418 prior-frame movePathPos snapshot        */
+    u8  _blk424[4];           /* 0x424 .. 0x428                              */
     f32 moveMatrix[3];        /* 0x428 current move-space position             */
-    u8  _blk434[0x18];        /* 0x434 .. 0x44C                              */
+    u8  _blk434[4];           /* 0x434 .. 0x438                              */
+    f32 floorContact[3];      /* 0x438 last FloorCollide contact point (CollideWorld) */
+    u8  _blk444[8];           /* 0x444 .. 0x44C                              */
     s16 healthmtr;            /* 0x44C health-meter handle (>=0 == present)     */
     s8  childcnt;             /* 0x44E spawned child count                    */
     s8  alivecnt;             /* 0x44F live child count (ProcessCritter)       */

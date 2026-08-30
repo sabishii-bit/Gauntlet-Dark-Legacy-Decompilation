@@ -1,0 +1,23 @@
+{
+  "attributes": {
+    "provenance": "src/game/enemy/critter.c::CritterCollidePlayers (worktree GDL-Claude-CritterDefake, work_claim.critter-defake.20260830.v1); attempt.critter-defakematch-tu-pass.20260830.v3"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.typed-member-access-escapes-to-call-cse.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T22:30:13Z",
+  "schema_version": 1,
+  "scope": "MWCC GC 1.2.5 family; applies to any struct pointer (regardless of whether it was JUST cast or was already correctly typed) whose address is passed by value into a function call within the same scope, when a scalar field of that pointer is read at 2+ syntactic sites straddling the call.",
+  "state": "proposed",
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "tags": [
+    "core-screen",
+    "alias-form",
+    "register-web",
+    "cse",
+    "defake"
+  ],
+  "valid_from": "2026-08-30",
+  "value": "De-fakematching a raw *(T*)((u8*)p+0xNN) read into ALREADY-TYPED struct member syntax (p->field, where p was already declared as the correct struct pointer type -- no new cast introduced) can regress a function even for a NON-walked, NON-indexed, plain scalar pointer, specifically when p's address is passed BY VALUE into one or more function calls in the same scope AND the same field is read at 2+ syntactic sites (including once as a scalar assignment and once as a call argument). Verified in critter.c CritterCollidePlayers: converting *(f32*)((u8*)player+0x850) and +0x854 (Player.col_radius/col_height, player already a Player* local) to player->col_radius/player->col_height -- read once into a scalar (combined = radiusX + player->col_radius) and again as a CritterMoveNodeColSub() argument two lines later, with the intervening statement being a struct-flags check, not even a call -- regressed real 148->208 (opcode multiset: +1 fmr +1 mr / -1 frsp -1 lfs; same insn count 150/150, pure schedule/CSE shift). The SAME reads spelled as *(f32*)((u8*)player+offsetof(Player,col_radius)) -- keeping the raw byte-pointer cast, never touching player's own type -- held real at exactly 148 (byte-identical to baseline). This is a different mechanism from claim.law.declared-alias-vs-repeated-cast (which is about introducing a NEW typed alias/cast) and from claim.law.scalar-field-cache-defeats-call-boundary-reload (which is about REMOVING a local scalar cache in favor of fresh p->field reads): here p was ALREADY correctly typed before the edit, no local cache was introduced or removed, and the field is read at exactly 2 sites with no loop involved -- yet MWCC's alias analysis apparently permits CSE'ing a named-member read across an intervening call in a way it does not permit for the semantically-identical byte-pointer-cast read. Consequence: the de-fakematch default should be offsetof()-on-the-original-pointer-type even when the pointer is already correctly typed and the conversion looks like pure noise removal (dropping a redundant (T*)((u8*)p+N) cast dance in favor of p->field) -- verify byte-identity before assuming a already-typed-pointer member-access cleanup is free, whenever that pointer's address reaches a function call and the field is read more than once."
+}
