@@ -189,7 +189,9 @@ typedef struct Player {
     /* 0x079C */ u8  pad_079C[4];
     /* 0x07A0 */ s16 field_7A0;      /* familiar anim gate counter [player.c] */
     /* 0x07A2 */ s16 field_7A2;      /* familiar transition lock [player.c] */
-    /* 0x07A4 */ u8  pad_07A4[0x58];
+    /* 0x07A4 */ u8  pad_07A4[0x50];
+    /* 0x07F4 */ s32 geo_handle;     /* loaded model/geo handle (load_player_model) [player.c] */
+    /* 0x07F8 */ s32 texmod_id;      /* AddSpecialTexmod result, -1 when none [player.c] */
     /* 0x07FC */ f32 pulse_7FC;      /* rune-near display pulse [player.c] */
     /* 0x0800 */ u8  pad_0800[0x28];
     /* 0x0828 */ f32 power_target;   /* power-meter target [player.c] */
