@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "bounded exact closure across player-scan GPR webs, distance FPR/load topology, cam3 scheduling, and final camera-loop induction/address lifetime forms",
+  "attributes": {
+    "anchors": "src/game/world/camera.c::camera_mode_level; GUNE5D .text 0x80026CF0 size 0x918; fnasm/fndiff game/world/camera.c camera_mode_level; build/GUNE5D/report.json",
+    "axis_log": [
+      "player scan: declaration reorder, named-member and subscript forms, for-init lifetime, byte-scaled pointer arithmetic, separate/reused pointer/state/index locals, role swaps, and register hints; neutral or worse",
+      "distance math: dx/dy declaration order, staged/split subtraction, in-place square, multi-statement accumulation, local reuse, and register hints; neutral or worse",
+      "cam3 scheduling: struct-array/member forms, cached versus direct previousMode loads, cameraOffset declaration order, comma dependency, and playerNumber split; neutral or worse",
+      "final ProcCamera loop: block/top pointer lifetimes, two-local and helper-shaped pointers, volatile cast, statement reorder, and stride/view forms; neutral or worse",
+      "combined final pointer: real residual improved 64->46 but fuzzy regressed 99.054985%->98.78694; restored and do not retain"
+    ],
+    "baseline": "target/current 582/582, fuzzy 99.054985%, normalized clean real 64 (count real 62), frame 0x198, saves r27-r31/f31, STRUCTURAL",
+    "best": "Baseline retained unchanged. A combined final-pointer expression reduced normalized clean real 64->46 (count real 62->44) but regressed objdiff fuzzy 99.054985%->98.78694%; rejected because the metrics conflict and fuzzy/project-level quality worsened.",
+    "conclusion": "CAPPED: do not retry these source-shape axes without genuinely new surrounding or compiler evidence. Preserve the two-step final pointer because it has the higher fuzzy score despite the larger normalized real residual.",
+    "history_screen": "No prior graph attempt or claim and no Xbox exact-name link; full Git history, source comments, target assembly, and current assembly screened before editing.",
+    "remaining_residual": "Four structural web/lifetime islands remain: player-scan index/base r4/r6 web; distance FPR/load topology; one lwz 1624(r31) versus addi r29 schedule swap; final three-iteration ProcCamera offset/entry r29/r28 versus r27/r29 web.",
+    "verification": "Source restored byte-for-byte; owning object and fresh full ninja passed with main.dol OK; target/current 582/582 and fuzzy 99.054985%; fndiff count/ops/clean inspected; matchtool siblings unchanged; datadiff showed only expected unclaimed NonMatching-TU .data/.sdata2; git diff --check passed; no assembly or postprocessor changes."
+  },
+  "function": "function:camera_mode_level",
+  "id": "attempt.camera-mode-level-bounded-hard-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
