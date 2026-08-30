@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "close the 191B/5.28% gap on the boss-follow-camera solve via a target-vs-ours r1-offset equivalence-class alignment table, then closing found fakematch gaps and probing decl order for GPR/stack color match",
+  "attributes": {
+    "anchors": "src/game/boss/bosscam.c::BossCamBossCalc; target 3620B (905 insns), frame -296(r1); fnasm.py game/boss/bosscam BossCamBossCalc; fndiff.py game/boss/bosscam.c BossCamBossCalc --count|--ops|--clean",
+    "axis_log": "METHOD: difflib-aligned (mnemonic,reloc-context) key sequences target-vs-ours (152/153 lines equal) recovers target's stack-slot equivalence classes reliably for a 900-insn fn. AX1(WON) attn[3]/bossmat[3] were separate locals but target disasm proves shared slot (identical r3 addr at both GetPlayerAvgPos sites, offset 200; attn's range ends before bossmat's starts) -- merged. AX1b(WON) single `volatile f32 rootslot` reused at 4 sqrt-cast sites gets 4 DISTINCT target offsets (92/88/60/56) -- moved decl inside each of the 4 existing blocks. Both neutral alone (real 590) until combined w/ AX4. AX2(FAILED x2) wholesale array-decl reorder by target's descending- then ascending-offset order: UNIFORMLY WORSE (624, 640); reverted -- array slot color not simple decl-order-driven. AX3(FAILED x2) block-scoped then top-level-separate `dvec` shadow at the bossrad site (899-907, target offset 64 there vs 176 for the other 3 dvec/dattn uses): BOTH broke insn-count exactness (905->897, real 718); reverted -- splitting an ARRAY loses fusion the shared identity enabled. AX4(WON) scalar decl-order DOES drive GPR color: moving `s32 transition` decl between `source`/`bossdir` made target's r29(bossdir)/r30(transition) land -- real 568 (transition-first-of-all alone only gave 584). Neutral sub-probes (reverted): effect/bossdir swap, selectMode/i order, moving stack-spilled `candidate` (proves lever is GPR-specific). Negative: focus/source vs transition adjacency -> 584, reverted. AX5(FAILED x2) fmul operand swap on dot/candidate products (real target 32(r29)/40(r29) load-order swap motivated it): both forms gave 572 (worse); reverted.",
+    "baseline": "insns 905/905 exact, real 590, fuzzy 94.72%; --ops opcode-cluster stream ALREADY IDENTICAL to target (28 fmr/fmuls/lfs clusters) -- entire residual is REGISTER_ONLY/STACK_LAYOUT before any edit",
+    "final_state": "insns 905/905, real 568, fuzzy 94.83757% (was 94.72%); --ops IDENTICAL to baseline (28 clusters) -- zero structural regression; remaining = pavg's stack-slot family (target 152 vs ours 236, constant delta, not decl-order-reachable) + scattered scratch-register choices (e.g. good_wiz_state cmp temp: target r4 vs ours r5)",
+    "law_candidate": "companion to claim.law.reload-vs-cache-liveness/whole-fn-address-cache: for scalar s32/pointer locals kept CALLEE-SAVED-register-resident all fn, GPR color IS decl-order-sensitive (move it adjacent to the other scalar it must swap roles with). Does NOT extend to stack-spilled scalars (decl-order-neutral, proven) or array locals (2 reorderings both regressed) -- array offset numbering is liveness/pressure-driven, largely decl-order-independent, even though decl SHAPE (merge vs block-scope-split) does control array slot SHARING/equivalence-class as rootslot/attn-bossmat show.",
+    "verification": "ninja build/GUNE5D/src/game/boss/bosscam.o green; full ninja green; main.dol: OK; report.json fuzzy 94.83757%; git diff --check clean; fndiff -l: all prior-OK siblings in bosscam.c still OK; commit 04cce2385"
+  },
+  "function": "function:BossCamBossCalc",
+  "id": "attempt.bosscambosscalc-slot-equivalence-and-decl-order.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "record_state": "proposed",
+  "residual_class": "REGISTER_ONLY/STACK_LAYOUT",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
