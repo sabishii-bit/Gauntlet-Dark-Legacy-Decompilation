@@ -230,7 +230,12 @@ as matching work:
    (`fndiff --clean` = MATCH, real 0) or be reverted. For a fuzzy function
    it must measure equal-or-better on `real` and `--ops` structure or be
    reverted — and a conversion that *improves* the score is a normal
-   matching win: commit it as one.
+   matching win: commit it as one. The mechanical form of this gate is
+   `python tools/gdl/defake_gate.py baseline <unit>` once at pass start,
+   then `check <unit>` after every region (exit 1 = revert before
+   committing; `--update-improved` banks a better score as the new
+   baseline). It scores from the real ninja object via fndiff — trust it
+   over matchtool presets, which have diverged from per-TU cflags.
 3. **Screen the recorded constraints before converting.** Member
    conversion changes address webs; the known hazard laws are
    `claim.law.lwzu-idiom-web-retention` (a `p += N` load-update idiom
@@ -249,9 +254,22 @@ as matching work:
    the failure causes understood and recorded.
 5. **Record one compact attempt record per TU pass** (sites converted,
    sites left raw and why, any score changes) — not one per function —
-   plus a law record only for a newly verified constraint. Commit style:
-   `De-fakematch <fn> (byte-identical)` or the normal improvement line
-   when the score moved.
+   plus a law record only for a newly verified constraint. Alongside the
+   required `attributes.law_screen` prose, list the laws that actually
+   governed your conversions in `attributes.laws_applied` (a JSON array of
+   record ids): the build materializes these into per-law application
+   counts, which is how the corpus learns which laws pay off. Commit
+   style: `De-fakematch <fn> (byte-identical)` or the normal improvement
+   line when the score moved.
+
+Wave planning: `python memory_graph/gdlmem.py debt` is the census —
+per-TU raw-cast + PF() counts, heaviest first, timestamped for
+wave-over-wave comparison. Its counts include legitimate raw forms
+(protected webs, structless pools), so read the TU's attempt records
+before claiming. `gdlmem.py stale` now also emits `reopen_candidates`:
+parks whose score moved since parking, and caps that never documented the
+failing form (re-try those with offsetof-on-raw-pointer per
+`claim.law.offsetof-overturns-typed-alias-caps`).
 
 Core tools, from the repository root:
 
@@ -392,6 +410,18 @@ Cross-fleet concurrency (multiple independent agent fleets sharing `main`):
 - The graph inbox is the cross-fleet mailbox: records land there
   fleet-by-fleet, and each fleet accepts only its own proposals into
   `records/`. Never move, edit, or delete another fleet's inbox files.
+- **Acceptance is atomic in the shared checkout**: perform the inbox→records
+  move, the claim deletion, and the commit as one uninterrupted step — never
+  leave memory_graph files moved or staged uncommitted, because every other
+  fleet's merges are blocked while your worktree state is dirty (three merge
+  collisions on 2026-08-30 came from exactly this). The supported path is
+  `python memory_graph/gdlmem.py accept <record-id...> --release <claim-id>`,
+  which moves the files, stages exactly the touched paths, rebuilds the
+  graph, and prints the pathspec-limited commit command — run that commit
+  immediately.
+- `gdlmem.py claims` lists every fleet's work claims with owner, scope, age,
+  and stale flags — check it before claiming instead of reading inbox
+  filenames.
 - **Commit with explicit pathspecs in the shared checkout**
   (`git commit <paths> -m ...`), never a bare `git commit` after `git add`:
   the index is shared, and a bare commit sweeps in whatever another fleet

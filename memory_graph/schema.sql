@@ -152,6 +152,18 @@ CREATE TABLE attempt (
     finished_at TEXT
 );
 
+-- One row per law an attempt declares it applied (attributes.laws_applied).
+-- law_record_id is unchecked text: the law may be accepted later or live in
+-- another fleet's inbox; consumers join against record_ingest when counting.
+CREATE TABLE attempt_law_application (
+    attempt_record_id TEXT NOT NULL REFERENCES attempt(record_id),
+    law_record_id TEXT NOT NULL,
+    UNIQUE(attempt_record_id, law_record_id)
+);
+
+CREATE INDEX attempt_law_application_law_idx
+    ON attempt_law_application(law_record_id);
+
 CREATE TABLE measurement (
     id INTEGER PRIMARY KEY,
     attempt_record_id TEXT NOT NULL REFERENCES attempt(record_id),

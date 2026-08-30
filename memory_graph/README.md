@@ -137,7 +137,9 @@ propose-record ──▶ full validation ──▶ inbox/ ──(integrator revi
   law records screened for the pass and whether each applied (an explicit
   `none applicable: <why>` is fine). This makes the "query the corpus before
   editing" rule mechanical instead of advisory; `gdlmem.py laws` lists the
-  current corpus.
+  current corpus. Optionally list the laws that actually governed the pass in
+  `attributes.laws_applied` (JSON array of record ids) — the build turns
+  these into per-law `applied_count` telemetry shown by `laws`.
 - Attempt records may grow to 16 KiB each, but every anchor function keeps at
   most **5** accepted attempt records. `build` reports `attempt_overflow` when
   a function exceeds the cap; the integrator runs
@@ -160,11 +162,14 @@ propose-record ──▶ full validation ──▶ inbox/ ──(integrator revi
 python memory_graph/gdlmem.py context <symbol>   # the briefing command
 python memory_graph/gdlmem.py search "<terms>"   # FTS over records/symbols/entities
 python memory_graph/gdlmem.py laws [--query X]   # the codegen-law corpus, newest first
+python memory_graph/gdlmem.py claims             # work claims w/ owner, age, stale flags
+python memory_graph/gdlmem.py debt [--tu X]      # raw-offset fakematch census per TU
 python memory_graph/gdlmem.py tool <name>        # reviewed tool policy
 python memory_graph/gdlmem.py xbox <query>       # Xbox symbols + module neighbors
-python memory_graph/gdlmem.py stats | validate | audit | proposals
+python memory_graph/gdlmem.py stats | validate | audit | proposals | stale
 python memory_graph/gdlmem.py build | ensure
 python memory_graph/gdlmem.py propose-record <file> | register-tool <name> ...
+python memory_graph/gdlmem.py accept <ids> --release <claim>  # integrator acceptance
 python memory_graph/gdlmem.py prune-attempts [--apply]   # integrator-only ejection
 ```
 

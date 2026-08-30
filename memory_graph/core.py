@@ -985,6 +985,20 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
                         record.get("finished_at"),
                     ),
                 )
+                attributes = record.get("attributes")
+                laws_applied = (
+                    attributes.get("laws_applied")
+                    if isinstance(attributes, dict) else None
+                )
+                if isinstance(laws_applied, list):
+                    for law_id in laws_applied:
+                        if isinstance(law_id, str) and law_id:
+                            connection.execute(
+                                "INSERT OR IGNORE INTO attempt_law_application"
+                                " (attempt_record_id, law_record_id)"
+                                " VALUES (?, ?)",
+                                (record["id"], law_id),
+                            )
                 for phase in ("before", "after"):
                     measurement = record.get(phase)
                     if not measurement:
@@ -2235,6 +2249,107 @@ def prune_attempts(
     return result
 
 
+_KIND_DIRS = {
+    "attempt": "attempts",
+    "claim": "claims",
+    "evidence": "evidence",
+    "entity": "entities",
+    "edge": "entities",
+    "tool": "tools",
+}
+
+
+def accept_records(
+    record_ids: Iterable[str],
+    *,
+    release: Iterable[str] = (),
+    root: Path = REPO_ROOT,
+) -> dict[str, Any]:
+    """Integrator acceptance: move inbox records into records/, delete released
+    claims, and stage everything with git (pathspec-limited by construction).
+
+    Moves each named record from memory_graph/inbox/ to the records/ directory
+    for its kind, deletes each released work_claim's inbox file, stages exactly
+    the touched paths when the root is a git checkout, rebuilds the graph, and
+    returns the paths plus a ready-made pathspec-limited commit command. Fails
+    closed: unknown ids, non-inbox records, and destination collisions abort
+    before anything is moved.
+    """
+    record_ids = list(record_ids)
+    release = list(release)
+    if not record_ids and not release:
+        raise MemoryGraphError("nothing to accept: pass record ids or --release")
+    inbox = root / "memory_graph" / "inbox"
+    index: dict[str, tuple[Path, dict[str, Any]]] = {}
+    if inbox.exists():
+        for path in sorted(inbox.glob("*.json")):
+            try:
+                record = json.loads(path.read_text(encoding="utf-8-sig"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if isinstance(record, dict) and isinstance(record.get("id"), str):
+                index[record["id"]] = (path, record)
+    moves: list[tuple[Path, Path]] = []
+    for record_id in record_ids:
+        if record_id not in index:
+            raise MemoryGraphError(
+                f"record {record_id!r} not found in memory_graph/inbox"
+            )
+        path, record = index[record_id]
+        kind = record.get("kind")
+        if kind == "work_claim":
+            raise MemoryGraphError(
+                f"{record_id!r} is a work_claim: release it with --release,"
+                " never accept it into records/"
+            )
+        subdir = _KIND_DIRS.get(kind)
+        if subdir is None:
+            raise MemoryGraphError(f"{record_id!r} has unsupported kind {kind!r}")
+        destination = root / "memory_graph" / "records" / subdir / path.name
+        if destination.exists():
+            raise MemoryGraphError(f"destination already exists: {destination}")
+        moves.append((path, destination))
+    releases: list[Path] = []
+    for claim_id in release:
+        if claim_id not in index:
+            raise MemoryGraphError(
+                f"claim {claim_id!r} not found in memory_graph/inbox"
+            )
+        path, record = index[claim_id]
+        if record.get("kind") != "work_claim":
+            raise MemoryGraphError(
+                f"{claim_id!r} is kind {record.get('kind')!r}, not a work_claim"
+            )
+        releases.append(path)
+    touched: list[str] = []
+    for source, destination in moves:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(source, destination)
+        touched.extend(
+            [str(source.relative_to(root)), str(destination.relative_to(root))]
+        )
+    for path in releases:
+        path.unlink()
+        touched.append(str(path.relative_to(root)))
+    staged = False
+    if (root / ".git").exists():
+        subprocess.run(
+            ["git", "-C", str(root), "add", "--"] + touched,
+            check=True, capture_output=True, text=True,
+        )
+        staged = True
+    build_database(root)
+    quoted = " ".join(f'"{path}"' for path in touched)
+    return {
+        "accepted": [record_id for record_id in record_ids],
+        "released": release,
+        "paths": touched,
+        "staged": staged,
+        "graph_rebuilt": True,
+        "commit_command": f'git commit -m "<message>" -- {quoted}',
+    }
+
+
 def register_tool_proposal(
     *,
     name: str,
@@ -2337,7 +2452,9 @@ def record_lookup(
 
 
 def _record_age_days(valid_from: str | None, recorded_at: str | None) -> int | None:
-    stamp = valid_from or (recorded_at or "")[:10]
+    # recorded_at (the machine-stamped staging moment) supersedes the
+    # author-claimed valid_from for freshness judgments.
+    stamp = (recorded_at or "")[:10] or valid_from
     if not stamp:
         return None
     try:
@@ -2365,7 +2482,9 @@ def law_corpus(
                    (SELECT newer.record_id FROM record_ingest newer
                     WHERE json_extract(newer.raw_json, '$.supersedes') = r.record_id
                     LIMIT 1)
-               ) AS superseded_by
+               ) AS superseded_by,
+               (SELECT COUNT(*) FROM attempt_law_application ala
+                WHERE ala.law_record_id = r.record_id) AS applied_count
         FROM claim c JOIN record_ingest r ON r.record_id = c.record_id
         WHERE (c.predicate = 'codegen_law' OR r.record_id LIKE '%law%')
     """
@@ -2398,6 +2517,7 @@ def law_corpus(
                 "valid_from": row["valid_from"],
                 "recorded_at": row["recorded_at"],
                 "age_days": _record_age_days(row["valid_from"], row["recorded_at"]),
+                "applied_count": row["applied_count"],
                 "superseded_by": row["superseded_by"],
                 "scope": row["scope"],
                 "head": value,
@@ -2410,6 +2530,126 @@ def law_corpus(
             "laws are compiler-scoped observations, not instructions:"
             " re-verify against your target bytes; a superseded_by entry means"
             " read the newer record instead"
+        ),
+    }
+
+
+def work_claims(
+    *,
+    root: Path = REPO_ROOT,
+    db_path: Path | None = None,
+    stale_after: int = 2,
+    include_released: int = 0,
+) -> dict[str, Any]:
+    """List work claims with owner, scope, age, and a stale flag.
+
+    Active claims older than ``stale_after`` days are flagged stale per the
+    AGENTS.md stale-claim rule; released/done claims are hidden unless
+    ``include_released`` is nonzero.
+    """
+    ensure_database(root, db_path)
+    with closing(open_database(root, db_path)) as connection:
+        rows = connection.execute(
+            """
+            SELECT w.record_id, w.owner, w.state, w.claimed_at, w.released_at,
+                   e.name AS function,
+                   r.valid_from, r.recorded_at,
+                   json_extract(r.raw_json, '$.attributes.scope') AS scope
+            FROM work_claim w
+            JOIN entity e ON e.id = w.function_entity_id
+            JOIN record_ingest r ON r.record_id = w.record_id
+            ORDER BY w.claimed_at, w.owner
+            """
+        ).fetchall()
+    claims = []
+    stale_count = 0
+    for row in rows:
+        released = row["released_at"] is not None or row["state"] in (
+            "released", "done"
+        )
+        if released and not include_released:
+            continue
+        age = _record_age_days(row["claimed_at"], row["recorded_at"])
+        stale = bool(not released and age is not None and age > stale_after)
+        stale_count += stale
+        claims.append(
+            {
+                "id": row["record_id"],
+                "function": row["function"],
+                "owner": row["owner"],
+                "state": row["state"],
+                "claimed_at": row["claimed_at"],
+                "age_days": age,
+                "stale": stale,
+                "scope": row["scope"],
+            }
+        )
+    return {
+        "claims": claims,
+        "count": len(claims),
+        "stale_count": stale_count,
+        "stale_after_days": stale_after,
+        "note": (
+            "a stale claim means the owner has gone quiet: per AGENTS.md,"
+            " confirm the owner is really gone (branch activity, inbox files)"
+            " before treating the scope as free"
+        ),
+    }
+
+
+_DEBT_CAST_RE = re.compile(
+    r"\*\s*\(\s*(?:[us](?:8|16|32|64)|f32|f64|int|char|short|long|float|double"
+    r"|void\s*\*|\w+\s*\*)\s*\*?\s*\)\s*\("
+)
+_DEBT_PF_RE = re.compile(r"\bPF\s*\(")
+
+
+def fakematch_debt(
+    tu: str | None = None,
+    *,
+    root: Path = REPO_ROOT,
+    db_path: Path | None = None,
+    limit: int = 40,
+) -> dict[str, Any]:
+    """Census raw-offset fakematch debt per TU, heaviest first.
+
+    Counts broad raw-cast sites (``*(T*)(...)``) and PF() macro sites in each
+    C/C++ file under src/. Pass ``tu`` to filter to paths containing it. The
+    scan runs against the working tree at query time, so the result is always
+    current; the generated_at stamp makes saved copies comparable over time.
+    """
+    src = root / "src"
+    if not src.exists():
+        raise MemoryGraphError(f"no src/ directory under {root}")
+    rows = []
+    for path in sorted(src.rglob("*.c*")):
+        if path.suffix.lower() not in (".c", ".cpp"):
+            continue
+        relative = str(path.relative_to(root)).replace("\\", "/")
+        if tu and tu.lower() not in relative.lower():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        casts = len(_DEBT_CAST_RE.findall(text))
+        pf_sites = len(_DEBT_PF_RE.findall(text))
+        if casts or pf_sites:
+            rows.append(
+                {"tu": relative, "cast_sites": casts, "pf_sites": pf_sites,
+                 "total": casts + pf_sites}
+            )
+    rows.sort(key=lambda row: (-row["total"], row["tu"]))
+    total = sum(row["total"] for row in rows)
+    return {
+        "tus": rows[:limit],
+        "tu_count": len(rows),
+        "site_total": total,
+        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "note": (
+            "broad census: includes legitimate raw forms (protected webs,"
+            " structless pools) — read the TU's attempt records before"
+            " claiming; counts are for wave planning, not a to-zero target"
         ),
     }
 
@@ -2436,13 +2676,39 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
         SurfaceOp(
             name="laws", mcp_name="memory_law_corpus",
             doc=("List the codegen-law corpus (newest first) with scope, "
-                 "age, and supersession flags."),
+                 "age, application counts, and supersession flags."),
             call=lambda root, db, **kw: law_corpus(
                 kw["query"], root=root, db_path=db, limit=kw["limit"]),
             params=(
                 SurfaceParam("query", str, default=None,
                              help="optional filter over id/scope/law text"),
                 SurfaceParam("limit", int, default=100, maximum=200),
+            ),
+        ),
+        SurfaceOp(
+            name="claims", mcp_name="memory_work_claims",
+            doc=("List work claims with owner, scope, age, and stale flags "
+                 "for cross-fleet coordination."),
+            call=lambda root, db, **kw: work_claims(
+                root=root, db_path=db, stale_after=kw["stale_after"],
+                include_released=kw["include_released"]),
+            params=(
+                SurfaceParam("stale_after", int, default=2, maximum=30,
+                             help="days before an active claim is stale"),
+                SurfaceParam("include_released", int, default=0, maximum=1,
+                             help="1 to include released/done claims"),
+            ),
+        ),
+        SurfaceOp(
+            name="debt", mcp_name="fakematch_debt_census",
+            doc=("Census raw-offset fakematch debt per TU (heaviest first) "
+                 "for wave planning."),
+            call=lambda root, db, **kw: fakematch_debt(
+                kw["tu"], root=root, db_path=db, limit=kw["limit"]),
+            params=(
+                SurfaceParam("tu", str, default=None,
+                             help="optional path substring filter"),
+                SurfaceParam("limit", int, default=40, maximum=200),
             ),
         ),
         SurfaceOp(
@@ -2578,8 +2844,14 @@ def attempt_staleness(
     ensure_database(root, db_path)
     with closing(open_database(root, db_path)) as connection:
         rows = connection.execute(
-            "SELECT a.record_id, e.name FROM attempt a"
+            "SELECT a.record_id, e.name, a.attempted_axis, r.raw_json,"
+            " (SELECT m.fuzzy_percent FROM measurement m"
+            "  WHERE m.attempt_record_id = a.record_id"
+            "  ORDER BY CASE m.phase WHEN 'after' THEN 0 ELSE 1 END"
+            "  LIMIT 1) AS recorded_fuzzy"
+            " FROM attempt a"
             " JOIN entity e ON e.id = a.function_entity_id"
+            " JOIN record_ingest r ON r.record_id = a.record_id"
             " WHERE a.outcome IN ('parked', 'capped')"
             " AND NOT EXISTS (SELECT 1 FROM record_ingest newer"
             " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id"
@@ -2630,7 +2902,10 @@ def attempt_staleness(
     walls: list[dict[str, Any]] = []
     suspect: list[dict[str, Any]] = []
     missing: list[dict[str, Any]] = []
+    reopen: list[dict[str, Any]] = []
     valid = 0
+    form_terms = ("offsetof", "typed alias", "repeated cast", "inline cast",
+                  "declared alias")
     for row in rows:
         name = row["name"]
         score = scores.get(name)
@@ -2644,7 +2919,29 @@ def attempt_staleness(
         if score >= 100.0:
             entry = {"function": name, "record": row["record_id"], "fuzzy": score}
             (walls if name in covered else stale).append(entry)
-        elif score < 70.0:
+            continue
+        # Re-open heuristics for parks that are neither moot nor walls:
+        # (a) the function's score moved since the park was measured — some
+        #     later change disturbed it, so the wall may have shifted;
+        # (b) the park's text never documents which source FORM failed —
+        #     per claim.law.offsetof-overturns-typed-alias-caps such caps
+        #     must be re-tried with offsetof-on-raw-pointer before trust.
+        recorded = row["recorded_fuzzy"]
+        if recorded is not None and abs(float(recorded) - score) > 0.05:
+            reopen.append(
+                {"function": name, "record": row["record_id"],
+                 "reason": "score_moved_since_park",
+                 "recorded_fuzzy": float(recorded), "current_fuzzy": score}
+            )
+        else:
+            body = ((row["attempted_axis"] or "") + (row["raw_json"] or "")).lower()
+            if not any(term in body for term in form_terms):
+                reopen.append(
+                    {"function": name, "record": row["record_id"],
+                     "reason": "failing_form_undocumented",
+                     "current_fuzzy": score}
+                )
+        if score < 70.0:
             suspect.append(
                 {"function": name, "record": row["record_id"], "fuzzy": score}
             )
@@ -2655,6 +2952,7 @@ def attempt_staleness(
         "postprocessor_walls": walls,
         "suspect_low_fuzzy": suspect,
         "missing_from_report": missing,
+        "reopen_candidates": reopen,
         "multi_record_functions": multi,
         "active_work_claims": claims,
         "valid_count": valid,
@@ -2665,6 +2963,11 @@ def attempt_staleness(
             " suspect_low_fuzzy and missing_from_report need re-triage."
             " multi_record_functions should be consolidated into one live"
             " attempt record per function (fold prior axes into axis_log)."
+            " reopen_candidates: score_moved_since_park means later work"
+            " disturbed the function (re-probe cheaply);"
+            " failing_form_undocumented means the cap predates form-recording"
+            " — per claim.law.offsetof-overturns-typed-alias-caps, re-try the"
+            " offsetof-on-raw-pointer form before trusting it."
             " active_work_claims presumed_abandoned entries are older than"
             " one day: verify via git log against the claimed scope, then"
             " remove the claim in a standalone cleanup commit (AGENTS.md"

@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from memory_graph.core import (
     MemoryGraphError,
     REPO_ROOT,
+    accept_records,
     build_database,
     build_surface_ops,
     ensure_database,
@@ -87,6 +88,16 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
     )
     propose_record.add_argument("json_file", type=Path)
 
+    accept = subparsers.add_parser(
+        "accept",
+        help="integrator: move inbox records into records/, release claims, "
+             "stage the exact paths, and rebuild the graph",
+    )
+    accept.add_argument("record_ids", nargs="*",
+                        help="inbox record ids to accept")
+    accept.add_argument("--release", action="append", default=[],
+                        help="work_claim id to release (repeatable)")
+
     prune = subparsers.add_parser(
         "prune-attempts",
         help="eject attempt records beyond the per-function cap (dry-run "
@@ -135,6 +146,10 @@ def main(argv: list[str] | None = None) -> int:
                 "review_state": "pending",
                 "next": "review the JSON, then move it from memory_graph/inbox to records",
             }
+        elif args.command == "accept":
+            result = accept_records(
+                args.record_ids, release=args.release, root=root
+            )
         elif args.command == "prune-attempts":
             kwargs = {"apply": args.apply}
             if args.limit is not None:
