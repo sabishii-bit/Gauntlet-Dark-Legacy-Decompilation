@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "TU-scoped de-fakematch pass over src/game/game/player.c: replace GC-verified raw Player offsets with existing named Player members while preserving exact MWCC codegen region by region",
+  "attributes": {
+    "anchors": "src/game/game/player.c::{get_display_mode,remove_player_geo,PlayerProcessMikeyPUP}; target .text 0x800760C8 size 0xE8, 0x800797C8 size 0x2A4, 0x8007E950 size 0x2D4; reproducible with ninja build/GUNE5D/src/game/game/player.o and tools/gdl/fndiff.py game/game/player <fn> --clean",
+    "axis_log": "GetPlayerColPos/GetPlayerPos: typed local Player* p=PT(i) and direct PT(i)->member both FAILED identically (11->12 insns, real 0->7, added +0xC40 addi and split absolute load displacements); restored raw. Do not retry those two forms without new pooled-base/compiler evidence.",
+    "baseline_and_best": "get_display_mode 58/58 insns fuzzy 100% real 0 frame 0; remove_player_geo 169/169 fuzzy 100% real 0 frame 24; PlayerProcessMikeyPUP 181/181 fuzzy 100% real 0 frame 48. All remain exact/MATCH after conversion; TU probe remains OK:50 OK~:14 bad:28 and full DOL SHA-1 gate passes.",
+    "converted": "37 raw access expressions across 16 verified Player fields: get_display_mode node; remove_player_geo hand_node, mbnode2, weapon_node, texmod_id, weaphold_node, atree, weaphold_atree, shield_object, pup_object, wand_object, marker_object, gem_object, field_A1C, mbnode; PlayerProcessMikeyPUP effectpos[0..2]. No semantic or control-flow change.",
+    "residual": "Raw accesses left where fields are not GC-named (Player gaps 0x748/0x73C/0x96C/0xA14, opaque MBNode/item/table layouts), where the ShowRuneStones base/update web is address-sensitive, and throughout the recorded do_players boolean/branch do-not-retry axis. GetPlayerColPos/GetPlayerPos retain six raw position loads due the measured folding constraint.",
+    "scope": "tu:game/game/player.c; source-only pass under work_claim.player-defake.20260830.v1",
+    "verification": "object build; per-function --count/--ops/--clean; restored GetPlayer leaves exact; matchtool TU sibling probe unchanged; git diff --check; portable C scan; fresh full ninja with build/GUNE5D/main.dol OK; progress 97.80% fuzzy, 58.15% matched, 26.09% linked"
+  },
+  "function": "function:remove_player_geo",
+  "id": "attempt.player-tu-defakematch.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

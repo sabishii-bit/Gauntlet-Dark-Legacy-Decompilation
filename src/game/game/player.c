@@ -1349,7 +1349,7 @@ s32 get_display_mode(s32 i) {
         if (gGameMode == 0x4012) {
             return 5;
         }
-        if (*(u32*)((u8*)p + 116) != 0) {
+        if (p->node != NULL) {
             return 1;
         }
         return 1;
@@ -3262,59 +3262,59 @@ void remove_player_geo(s32 i) {
     Player* p = P(i);
     u8* kid;
 
-    if (PF(p, 0x6D0, u32) != 0) {
-        MBPsysSetDebugNode(PF(p, 0x6D0, void*), 1);
+    if (p->hand_node != NULL) {
+        MBPsysSetDebugNode(p->hand_node, 1);
     }
-    if (PF(p, 0x6CC, u32) != 0) {
-        MBPsysSetDebugNode(PF(p, 0x6CC, void*), 1);
+    if (p->mbnode2 != NULL) {
+        MBPsysSetDebugNode(p->mbnode2, 1);
     }
-    if (PF(p, 0x6D4, u32) != 0) {
-        MBPsysSetDebugNode(PF(p, 0x6D4, void*), 1);
+    if (p->weapon_node != NULL) {
+        MBPsysSetDebugNode(p->weapon_node, 1);
     }
-    if (PF(p, 0x7F8, s32) >= 0) {
-        DelSpecialTexmod(PF(p, 0x7F8, s32));
+    if (p->texmod_id >= 0) {
+        DelSpecialTexmod(p->texmod_id);
     }
-    if (PF(p, 0x6E0, void*) != NULL) {
-        MBRemoveNode(PF(p, 0x6E0, void*), 0);
-        PF(p, 0x6E0, void*) = NULL;
+    if (p->weaphold_node != NULL) {
+        MBRemoveNode(p->weaphold_node, 0);
+        p->weaphold_node = NULL;
     }
     if (PF(p, 0x748, u32) != 0) {
         AtreeDelete((void**)((u8*)p + 0x748));
     }
-    if (PF(p, 0x790, u32) != 0) {
-        AtreeDelete((void**)((u8*)p + 0x790));
+    if (p->atree != NULL) {
+        AtreeDelete(&p->atree);
     }
-    if (PF(p, 0x6E4, u32) != 0) {
-        AtreeDelete((void**)((u8*)p + 0x6E4));
+    if (p->weaphold_atree != NULL) {
+        AtreeDelete(&p->weaphold_atree);
     }
-    if (PF(p, 0x730, void*) != NULL) {
-        MBRemoveNode(PF(p, 0x730, void*), 0);
-        PF(p, 0x730, void*) = NULL;
+    if (p->shield_object != NULL) {
+        MBRemoveNode(p->shield_object, 0);
+        p->shield_object = NULL;
     }
-    if (PF(p, 0x72C, void*) != NULL) {
-        MBRemoveNode(PF(p, 0x72C, void*), 0);
-        PF(p, 0x72C, void*) = NULL;
+    if (p->pup_object != NULL) {
+        MBRemoveNode(p->pup_object, 0);
+        p->pup_object = NULL;
     }
-    if (PF(p, 0x734, void*) != NULL) {
-        MBRemoveNode(PF(p, 0x734, void*), 0);
-        PF(p, 0x734, void*) = NULL;
+    if (p->wand_object != NULL) {
+        MBRemoveNode(p->wand_object, 0);
+        p->wand_object = NULL;
     }
     if (PF(p, 0x73C, void*) != NULL) {
         MBRemoveNode(PF(p, 0x73C, void*), 0);
         PF(p, 0x73C, void*) = NULL;
     }
-    if (PF(p, 0x740, void*) != NULL) {
-        MBRemoveNode(PF(p, 0x740, void*), 0);
-        PF(p, 0x740, void*) = NULL;
+    if (p->marker_object != NULL) {
+        MBRemoveNode(p->marker_object, 0);
+        p->marker_object = NULL;
     }
-    if (PF(p, 0x968, void*) != NULL) {
-        MBRemoveNode(PF(p, 0x968, void*), 0);
-        PF(p, 0x968, void*) = NULL;
+    if (p->gem_object != NULL) {
+        MBRemoveNode(p->gem_object, 0);
+        p->gem_object = NULL;
     }
     if (PF(p, 0x96C, u32) != 0) {
         AtreeDelete((void**)((u8*)p + 0x96C));
     }
-    PF(p, 0xA1C, s16) = 0;
+    p->field_A1C = 0;
     if (PF(p, 0x96C, u32) != 0) {
         AtreeDelete((void**)((u8*)p + 0x96C));
     }
@@ -3342,8 +3342,8 @@ void remove_player_geo(s32 i) {
         MBRemoveNode(p->node, 1);
         p->node = NULL;
     }
-    MBRemoveNode(PF(p, 0x6C8, void*), 0);
-    PF(p, 0x6C8, void*) = NULL;
+    MBRemoveNode(p->mbnode, 0);
+    p->mbnode = NULL;
     ClearPlyrData(i);
 }
 #pragma opt_common_subs reset
@@ -5703,9 +5703,9 @@ hatch:
     mp->field_A18 = 0;
     MBNodeSetParent(*(void**)mp->atree, mp->node);
     {
-        f32 x = *(f32*)((u8*)p + 0x64);
-        f32 y = *(f32*)((u8*)p + 0x68);
-        f32 z = *(f32*)((u8*)p + 0x6C);
+        f32 x = p->effectpos[0];
+        f32 y = p->effectpos[1];
+        f32 z = p->effectpos[2];
         *(f32*)((u8*)mp->node + 0x30) = x;
         *(f32*)((u8*)mp->node + 0x34) = y;
         *(f32*)((u8*)mp->node + 0x38) = z;
