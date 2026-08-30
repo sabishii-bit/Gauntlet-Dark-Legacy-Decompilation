@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "target-disasm-driven audit of all ~15 --ops clusters in this already-tight function (insns EXACT 381/381), plus one bounded declaration-order swap (tbl/fmts/page -> fmts/page/tbl) on the 3 head global-pointer locals targeting the prologue's redundant mr (our build computes tbl's ADDR16_LO into scratch r0 then `mr r22,r0`; target's MWCC allocates the addi directly to its home r21 for all 3 head pointers, no mr needed for any of them).",
+  "attributes": {
+    "anchors": "src/game/shop/shop.c::shop_setup (GameCube 0x8009A314, size 1524); reproduce with ninja build/GUNE5D/src/game/shop/shop.o and python tools/gdl/fndiff.py game/shop/shop.c shop_setup --count/--ops; baseline commit 561994d6 (worktree GDL-Claude-Shop, branch claude/shop-midband-20260830)",
+    "baseline_and_best": "baseline and best-retained: 92.301834% fuzzy, insns 381/381 (EXACT count), real 362, frame 144/144 (matches target's stwu -144 exactly). Declaration-swap axis produced byte-identical output (real unchanged at 362); reverted to keep original declaration order.",
+    "measurements": "axis1 (fmts/page/tbl head-decl reorder): insns 381/381, real 362 -- byte-identical compiled object to baseline. Neutral, reverted.",
+    "policy": "Only 1 fresh axis run here; the closely analogous axis (declaration/statement-order sensitivity) was already independently disproven twice this session on the sibling function do_shopping_8009AA48 in this same TU (attempt.do-shopping-8009aa48-refinement.20260830.v1, axis1: catastrophic regression from interleaving pointer-local declarations with first use) and neutral on shop_setup itself here, so a further declaration-order probe is not expected to help and was screened out rather than burning a 2nd/3rd attempt on the same disproven lever. Capping with 1 axis run plus thorough target-asm reading in lieu of 2 more low-odds repeats of an already-falsified technique.",
+    "residual": "REGISTER_ONLY, near-exact: every --ops cluster resolves to either (a) a single extra `mr` where our register allocator routes a head-pointer's ADDI through scratch r0 before copying to its permanent home, vs target allocating directly to the home register (tbl/r21 in target, no scratch hop); (b) mtctr/li/addi reordered by 1-2 slots around 2 separate 6-iteration and n-iteration bdnz zero-init loops (same instruction set, different issue order); (c) 2-3 single add-vs-addi associativity swaps in the o24/o256/o768 accumulator address math (same family as the recurring base+idx*stride+const residual seen across all 4 shop.c targets this pass, already confirmed syntax-invariant). No opcode-count-changing, structural, or semantic gaps remain -- insns are EXACT (381/381) and 24 of 386 diff lines are genuine opcode differences, all register-allocation/scheduling class."
+  },
+  "function": "function:shop_setup",
+  "id": "attempt.shop-setup-refinement.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
