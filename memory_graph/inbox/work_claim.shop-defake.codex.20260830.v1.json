@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "whole TU src/game/shop/shop.c exclusively; first sustained de-fakematch pass over approximately 218 audited raw-offset sites; preserve prior matching records; parallel fleets please pick another TU"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:init_shop",
+  "id": "work_claim.shop-defake.codex.20260830.v1",
+  "kind": "work_claim",
+  "owner": "codex-shop-defake",
+  "schema_version": 1,
+  "state": "active"
+}
