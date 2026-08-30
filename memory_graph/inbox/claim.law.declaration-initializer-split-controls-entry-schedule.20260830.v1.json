@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "src/game/enemy/enemy.c::init_enemy (worktree GDL-Claude-EnemyDeep, work_claim.enemy-deepscrutiny.20260830.v1); attempt.enemy-c-deepscrutiny.20260830.v1. init_enemy real 45 -> 37 from the split alone; a second, independent confirmation in the same pass came from move_logic15, where swapping the declaration order of two same-type locals (`s32 i` before `s32 best_idx`) moved their register homes to the target's and took real 108 -> 100.",
+    "scope": "MWCC GC 1.2.5 family; applies to C89 function bodies whose first statements are stores, where one or more declarations carry initializers that the target evaluates AFTER that first store."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "In C89 all declarations precede all statements, so a declaration's initializer is emitted before the block's first real statement. When the TARGET instead evaluates that initializer AFTER an opening store, the source cannot be expressing it as a declaration initializer: split the declaration from its assignment and place the assignment in the statement flow at the position the target uses. In init_enemy the target stores `e->type = type` immediately after materializing the table base, and only then computes `t4 = type*4` and loads the float constant `z`; our source declared `s32 t4 = type*4; f32 z = lbl_...;` as initializers, which hoisted both ahead of the store and rotated the whole entry web (a stray `mr r30,r3` for `addi r30,r3,0`, delayed parameter homes, and a shifted temp register). Rewriting to `s32 t4; f32 z; ... e->type = type; t4 = type*4; z = lbl_...;` reproduced the target's entry schedule exactly and took real 45 -> 37 with no other change. This is the ordering counterpart to the register-home lever: where declaration ORDER among same-type locals decides which register each gets, declaration-vs-statement PLACEMENT of the initializer decides when its computation is emitted. Diagnostic: read the target's first ~15 instructions and note which stores land before which initializer computations; any initializer the target defers past a store is a split candidate. Both levers are cheap to A/B and should be tried before any register-pressure or scheduling theory, since they are the only source-level control over MWCC's entry-block ordering."
+}
