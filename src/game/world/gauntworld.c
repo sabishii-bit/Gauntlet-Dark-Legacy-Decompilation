@@ -3211,7 +3211,7 @@ found_gen:
             if ((s8)item->data[7] == 0x1C || (s8)item->data[7] == 0x1D) {
                 item->data[7] = 0;
             }
-            if (item->data[7] == 0x1E) {
+            if ((s8)item->data[7] == 0x1E) {
                 item->data[7] = 0;
             }
             if (stricmp(buf, lbl_80346F70) != 0) {
