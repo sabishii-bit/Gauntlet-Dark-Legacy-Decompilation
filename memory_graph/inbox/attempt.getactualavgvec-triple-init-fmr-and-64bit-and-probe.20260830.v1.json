@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "close a 4-insn structural short-fall (297 vs target 301) via decl-order GPR-color probes (per the transition/bossdir lever validated on BossCamBossCalc) plus one semantic-verification probe on a 64-bit AND debug-gate idiom",
+  "attributes": {
+    "anchors": "src/game/boss/bosscam.c::GetActualAvgVec (body at line ~1537); fndiff.py game/boss/bosscam.c GetActualAvgVec --count|--ops|--clean",
+    "axis_log": "AX1(WON,kept) `f32 w;` declared BEFORE `f64 best; f64 second;` (both init from the same `w=lbl_80345BA0` value via `best=w; second=w;`) forced 3 fmr copies where target uses 2 -- moved `f32 w;` to AFTER `f64 second;`: real 348->336, fuzzy 93.83->94.00%, --ops unchanged (pure register effect). AX2(NEUTRAL, reverted) further sweeps found no more gains: w at the very end, v1x/v2x group swap, fmts/p swap -- all no-change. AX3(INCONCLUSIVE, reverted) and-vs-clrlwi+srawi clusters (2 debug-print gates, `if((((s64)(sFlags&1)^zero)|(((s64)sFlags&zero)^zero))!=0)`): target loads BOTH sFlags AND gControllerButtons (r5=gControllerButtons&0-with-r4, an always-0 term); swapped the 2nd OR-term's `sFlags`->`gControllerButtons` at both occurrences (~1627, ~1683) to match the loaded register: produced BYTE-IDENTICAL codegen (compiler treats `X&zero` the same regardless of X here) -- not the lever; reverted, unverified. True divergence: ours sign-extends `(s64)(sFlags&1)` via clrlwi+srawi(-31); target builds the s64 via two independent 32-bit ANDs on two pre-loaded registers -- root cause unidentified, needs real Xbox disasm or explicit high/low-temp source shape (untried).",
+    "baseline": "insns 301/297, real 348, fuzzy 93.83% (report.json); --ops shows 5 clusters: extra fmr near fn+0x34 (best/second/w triple-init), and-vs-clrlwi+srawi at two count==1/count>=2 debug-gate sites (fn+0x1c8, fn+0x3e8), an lfd reorder, and an fmr swap near the sin/cos epilogue (fn+0x478/0x494)",
+    "final_state": "insns 301/297 (still 4 short, unchanged), real 336, fuzzy 94.00% (was 93.83%); remaining residual = the and/clrlwi-srawi shape mismatch (STRUCTURAL, 2 sites) + one lfd reorder + one tail-epilogue fmr swap near the sin/cos return path, all untouched by decl-order",
+    "law_candidate": "extends the BossCamBossCalc transition/bossdir finding: when TWO+ locals are all initialized from the SAME loaded value in immediate succession (`x = C; a = x; b = x;`), and target keeps the shared-load count LOWER than ours (2 fmr copies vs our 3), reordering the third (odd-one-out) local's declaration to NOT sit adjacent to the other two in decl order can drop the extra fmr -- companion to the whole-fn-address-cache/rootslot family but for a value fanning OUT to multiple named locals rather than IN from multiple use sites.",
+    "verification": "ninja build/GUNE5D/src/game/boss/bosscam.o green; full ninja green; main.dol: OK; report.json fuzzy 94.00%; fndiff -l: all prior-OK siblings still OK; git diff --check clean; commit 13a198d89"
+  },
+  "function": "function:GetActualAvgVec",
+  "id": "attempt.getactualavgvec-triple-init-fmr-and-64bit-and-probe.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "record_state": "proposed",
+  "residual_class": "STRUCTURAL/REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

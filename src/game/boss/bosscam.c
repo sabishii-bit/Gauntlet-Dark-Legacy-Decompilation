@@ -670,14 +670,12 @@ static void BossCamBossCalc(void)
     f32 npavg[3];
     f32 pitch;
     f32 dvec[3];
-    f32 attn[3];
     f32 dattn[3];
     f32 tmax[3];
     f32 tmin[3];
     f32 tmax2[3];
     f32 tmin2[3];
     f32 maxdist;
-    volatile f32 rootslot;
     f32 length;
     f32 viewdist;
     f32 candidate;
@@ -686,11 +684,11 @@ static void BossCamBossCalc(void)
     f32 weight;
     f32* focus;
     f32* source;
+    s32 transition;
     u8* bossdir;
     u8* effect;
     u32 flags;
     s32 selectMode;
-    s32 transition;
     s32 i;
     u8 unusedFrame[88];
 
@@ -741,9 +739,9 @@ static void BossCamBossCalc(void)
             newattn[2] = *(f32*)((u8*)gGameCamera + 172);
         } else if (gBossObj != NULL && *(void**)(gBossObj + 4) != NULL) {
             if ((*(u32*)lbl_803443D0 & 0x10) != 0) {
-                weight = GetPlayerAvgPos(attn, tmax, tmin, 1);
-                GetBossAvgPos(attn, weight, tmax, tmin, 1);
-                source = attn;
+                weight = GetPlayerAvgPos(bossmat, tmax, tmin, 1);
+                GetBossAvgPos(bossmat, weight, tmax, tmin, 1);
+                source = bossmat;
             } else if ((*(u32*)lbl_803443D0 & 1) != 0) {
                 source = (f32*)(gBossObj + 76);
             } else {
@@ -769,6 +767,7 @@ static void BossCamBossCalc(void)
         length = dvec[1] * dvec[1] + length;
         length = dvec[2] * dvec[2] + length;
         if (length > lbl_80345BA0) {
+            volatile f32 rootslot;
             f64 estimate = __frsqrte(length);
             estimate = lbl_80345BA8 * estimate *
                        (lbl_80345BB0 - estimate * estimate * length);
@@ -906,6 +905,7 @@ static void BossCamBossCalc(void)
         bossrad = dvec[1] * dvec[1] + bossrad;
         bossrad = dvec[2] * dvec[2] + bossrad;
         if (bossrad > lbl_80345BA0) {
+            volatile f32 rootslot;
             f64 estimate = __frsqrte(bossrad);
             estimate = lbl_80345BA8 * estimate *
                        (lbl_80345BB0 - estimate * estimate * bossrad);
@@ -1013,6 +1013,7 @@ static void BossCamBossCalc(void)
         length = dattn[1] * dattn[1] + length;
         length = dattn[2] * dattn[2] + length;
         if (length > lbl_80345BA0) {
+            volatile f32 rootslot;
             f64 estimate = __frsqrte(length);
             estimate = lbl_80345BA8 * estimate *
                        (lbl_80345BB0 - estimate * estimate * length);
@@ -1040,6 +1041,7 @@ static void BossCamBossCalc(void)
         length = dvec[1] * dvec[1] + length;
         length = dvec[2] * dvec[2] + length;
         if (length > lbl_80345BA0) {
+            volatile f32 rootslot;
             f64 estimate = __frsqrte(length);
             estimate = lbl_80345BA8 * estimate *
                        (lbl_80345BB0 - estimate * estimate * length);
@@ -1128,10 +1130,10 @@ static void BossCamPlayerCalc(void)
     f32 pdist;
     u8* tr;
     u8* cam;
-    u8* p;
-    u32 fl;
     s32 i;
     s32 off;
+    u8* p;
+    u32 fl;
     f64 t;
 
     lbl_803444E0 = 0;
@@ -1537,9 +1539,9 @@ static f32 GetActualAvgVec(f32* out, f32* pos, s32 useBoss) {
     u8 unused[44];
     f32 v1x, v1y, v1z;
     f32 v2x, v2y, v2z;
-    f32 w;
     f64 best;
     f64 second;
+    f32 w;
     f64 dzero;
     f64 step;
     f64 len;
