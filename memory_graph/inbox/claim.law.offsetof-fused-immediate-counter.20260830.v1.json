@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "src/game/world/items.c::update_player_milestone (worktree GDL-Claude-ItemsDefake, work_claim.items-defake.20260830.v1); attempt.items-c-defakematch-tupass.20260830.v1",
+    "scope": "MWCC GC 1.2.5 family; applies whenever a walked-pointer loop's per-field raw offset is >1 struct level away from the walk's own base type and array-index conversion has already been shown to regress (see claim.law.pointer-walk-array-index-regression for the failure mode this counters)."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.offsetof-fused-immediate-counter.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "When a walked-loop pointer (`p = base; ...; p += stride`) reaches a field several struct-levels deep, MWCC folds the WHOLE remaining displacement into ONE immediate on the load/store off the walked base (`lfs f0,BIG_LITERAL(p)`) as long as the C source expresses the access as `p + BIG_LITERAL` (a single additive expression). Rewriting that to array-style struct indexing off the true aggregate (`((SomeArray*)base)[i].sub.field`) makes MWCC materialize the intermediate sub-struct address as a SEPARATE add before the small field-relative load, splitting one instruction into two and cascading a register-pressure regression through the whole function (companion symptom to claim.law.pointer-walk-array-index-regression, verified independently: game/world/items.c update_player_milestone, milestones[i].matrix[12/13/14], real 46->89 with the array-index form). Counter-form that keeps BOTH the fused-immediate codegen AND named-field self-documentation: replace the bare hex literal with a compile-time `offsetof(Outer,field) + N*sizeof(elem)` expression added to the SAME walked base pointer used raw (`*(f32*)(p + offsetof(ItemRuntime,milestones) + 13*sizeof(f32))`), never introducing a typed intermediate pointer. This constant-folds to the identical literal pre-codegen (verified byte-exact, real restored to 46) because the C front end never sees a struct-typed lvalue for the sub-object - only one integer addition on the walked pointer, exactly matching the raw form's shape."
+}

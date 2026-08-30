@@ -2,6 +2,13 @@
 #include "game/item.h"
 #include "game/enemy.h"
 #include "game/worldinfo.h"
+#include "game/worldobj.h"
+#include "game/player.h"
+#include "game/camera.h"
+
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 
 /*
  * dtk makes TU-local functions globally addressable in the extracted object
@@ -233,7 +240,6 @@ extern char  sUnableToAddItemFmt[];
 extern char  sTriggerCameraConflictFmt[];
 extern s32   sMusicTrackHi;
 extern int   strcmp(const char* a, const char* b);
-extern u8    gCameras[];
 extern f32   sCameraVisibilityRadius;
 extern f32   sNoNearbyPlayerDistance;
 extern f32   sItemSearchDistance;
@@ -788,34 +794,39 @@ void LinkItemTriggers(void)
 void DeleteItem(Item* item, s32 flag)
 {
     u8* e;
+    Item* ei;
     s32 idx;
 
     if (flag != 0) {
-        if (item->info->type == 1 && (e = *(u8**)((u8*)item + 0xE8)) != NULL) {
-            if (*(u32*)(e + 0x6C) != 0) {
-                AtreeDelete(e + 0x6C);
-                *(u32*)(e + 0x6C) = 0;
+        if (item->info->type == 1 &&
+            (ei = *(Item**)&item->data[0xC]) != NULL) {
+            e = (u8*)ei;
+            if (*(u32*)ei->atree != 0) {
+                AtreeDelete(ei->atree);
+                *(u32*)ei->atree = 0;
             }
-            if (*(u32*)(e + 0x64) != 0) {
-                MBRemoveNode(*(u32*)(e + 0x64), 0);
-                *(u32*)(e + 0x64) = 0;
+            if (*(u32*)&ei->objgrp.node != 0) {
+                MBRemoveNode(*(u32*)&ei->objgrp.node, 0);
+                *(u32*)&ei->objgrp.node = 0;
             }
-            *(s16*)(e + 0xC4) = -1;
+            ei->active = -1;
             idx = (s32)(e - (u8*)sItems) / 240;
             if (idx < gNextItemIdx) {
                 gNextItemIdx = idx;
             }
         }
-        if (item->info->type == 2 && (e = *(u8**)((u8*)item + 0xE8)) != NULL) {
-            if (*(u32*)(e + 0x6C) != 0) {
-                AtreeDelete(e + 0x6C);
-                *(u32*)(e + 0x6C) = 0;
+        if (item->info->type == 2 &&
+            (ei = *(Item**)&item->data[0xC]) != NULL) {
+            e = (u8*)ei;
+            if (*(u32*)ei->atree != 0) {
+                AtreeDelete(ei->atree);
+                *(u32*)ei->atree = 0;
             }
-            if (*(u32*)(e + 0x64) != 0) {
-                MBRemoveNode(*(u32*)(e + 0x64), 0);
-                *(u32*)(e + 0x64) = 0;
+            if (*(u32*)&ei->objgrp.node != 0) {
+                MBRemoveNode(*(u32*)&ei->objgrp.node, 0);
+                *(u32*)&ei->objgrp.node = 0;
             }
-            *(s16*)(e + 0xC4) = -1;
+            ei->active = -1;
             idx = (s32)(e - (u8*)sItems) / 240;
             if (idx < gNextItemIdx) {
                 gNextItemIdx = idx;
@@ -823,15 +834,15 @@ void DeleteItem(Item* item, s32 flag)
         }
     }
     e = (u8*)item;
-    if (*(u32*)(e + 0x6C) != 0) {
-        AtreeDelete(e + 0x6C);
-        *(u32*)(e + 0x6C) = 0;
+    if (*(u32*)item->atree != 0) {
+        AtreeDelete(item->atree);
+        *(u32*)item->atree = 0;
     }
-    if (*(u32*)(e + 0x64) != 0) {
-        MBRemoveNode(*(u32*)(e + 0x64), 0);
-        *(u32*)(e + 0x64) = 0;
+    if (*(u32*)&item->objgrp.node != 0) {
+        MBRemoveNode(*(u32*)&item->objgrp.node, 0);
+        *(u32*)&item->objgrp.node = 0;
     }
-    *(s16*)(e + 0xC4) = -1;
+    item->active = -1;
     idx = (s32)(e - (u8*)sItems) / 240;
     if (idx < gNextItemIdx) {
         gNextItemIdx = idx;
@@ -930,11 +941,11 @@ s32 CollectSafeRocks(s32* out, s32 max, s32 flag)
 
     while (i < sNumItems) {
         it = &sItems[i];
-        if (it->info->type == 10 && *(s16*)((u8*)it + 0xDC) == 0x29) {
+        if (it->info->type == 10 && *(s16*)&it->data[0] == 0x29) {
             out[count] = i;
             if (flag != 0) {
                 MBTreeSetFlags(it->objgrp.node, 1, 1);
-                *(s16*)((u8*)it + 0xDE) = -1;
+                *(s16*)&it->data[2] = -1;
             }
             count++;
             if (count >= max) {
@@ -949,7 +960,7 @@ s32 CollectSafeRocks(s32* out, s32 max, s32 flag)
 /* item proximity/timer gate; returns 1 when the item should trigger. */
 s32 generate_now(Item* it, f32* pos, s32 a3, s32 a4)
 {
-    u8* p = (u8*)it + 0xDC;
+    u8* p = it->data;
     s32 v;
 
     if ((gGameBusy | gScriptedCameraState) != 0) {
@@ -993,9 +1004,9 @@ double DistanceToClosestPlayer(f32* position)
         sphere[1] = position[1];
         sphere[2] = position[2];
         sphere[3] = sItemZero;
-        dy = *(f32*)(gCameras + 0x38) - sphere[1];
-        dx = *(f32*)(gCameras + 0x34) - sphere[0];
-        dz = *(f32*)(gCameras + 0x3C) - sphere[2];
+        dy = gCameras[0].mat[3][1] - sphere[1];
+        dx = gCameras[0].mat[3][0] - sphere[0];
+        dz = gCameras[0].mat[3][2] - sphere[2];
         distance = dx * dx + dy * dy;
         distance = dz * dz + distance;
         if (distance > sItemZero) {
@@ -1020,16 +1031,16 @@ double DistanceToClosestPlayer(f32* position)
         s32 i;
 
         for (i = 0; i < 4; i++, player += 0x335C) {
-            if (*(s32*)(player + 0xE8) == 1) {
+            if (((Player*)player)->state == 1) {
                 volatile f32 root;
                 f32 distance;
                 f32 dx;
                 f32 dy;
                 f32 dz;
 
-                dy = *(f32*)(player + 0x48) - position[1];
-                dx = *(f32*)(player + 0x44) - position[0];
-                dz = *(f32*)(player + 0x4C) - position[2];
+                dy = ((Player*)player)->pos[1] - position[1];
+                dx = ((Player*)player)->pos[0] - position[0];
+                dz = ((Player*)player)->pos[2] - position[2];
                 distance = dx * dx + dy * dy;
                 distance = dz * dz + distance;
 
@@ -1067,17 +1078,17 @@ s32 did_generate(void* owner, s32 checkEnemies)
     s32 i;
 
     for (i = 0; i < 4; i++, player += 13148) {
-        s32 state = *(s32*)(player + 0xE8);
+        s32 state = ((Player*)player)->state;
         if (state == 1 || state == 8 || PlayerSelecting(i) != 0) {
-            if (*(void**)(player + 0x8C4) == owner) {
+            if ((void*)((Player*)player)->floor_name2 == owner) {
                 return 2;
             }
         }
     }
     if (checkEnemies != 0) {
         for (i = 0; i < gNumEnemies; i++, enemy += 916) {
-            if (*(s32*)(enemy + 0xB4) == 1 &&
-                *(void**)(enemy + 0x298) == owner) {
+            if (((Enemy*)enemy)->state == 1 &&
+                ((Enemy*)enemy)->floor_wobj == owner) {
                 return 1;
             }
         }
@@ -1135,12 +1146,12 @@ void LinkTriggerToCam(s32 idx, s32 type)
     p = sItems;
     for (i = 0; i < sNumItems; i++, p = (Item*)((u8*)p + 240)) {
         if (p->active != -1 && p->info->type == 5 &&
-            *(s8*)((u8*)p + 0xE2) == type) {
-            s16 cur = *(s16*)((u8*)p + 0xEE);
+            *(s8*)&p->data[6] == type) {
+            s16 cur = *(s16*)&p->data[0x12];
             if (cur >= 0) {
                 ErrorPrintf(sTriggerCameraConflictFmt, i, cur, idx);
             }
-            *(s16*)((u8*)p + 0xEE) = sidx;
+            *(s16*)&p->data[0x12] = sidx;
         }
     }
 }
@@ -1211,7 +1222,7 @@ void SafeRockActivate(s32 idx)
 
     MBTreeClearFlags(it->objgrp.node, 1, 1);
     it->health = it->info->item.hitpoints * 3;
-    *(s16*)((u8*)it + 0xDE) = 0;
+    *(s16*)&it->data[2] = 0;
     it->armor = (s8)it->info->item.armor;
     AddItemWobj(it);
 }
@@ -1221,7 +1232,7 @@ s32 SafeRockActive(s32 idx)
 {
     Item* it = &sItems[idx];
 
-    if (it->health > 0 && *(s16*)((u8*)it + 0xDE) > 0) {
+    if (it->health > 0 && *(s16*)&it->data[2] > 0) {
         return 1;
     }
     return 0;
@@ -1693,7 +1704,7 @@ keyring_found:
             }
             DATA_S32(0) = (s32)wobj;
             if (wobj != NULL) {
-                if (*(u32*)(wobj + 0x10) & 0x800) {
+                if (((WorldObj*)wobj)->flags & 0x800) {
                     *(u32*)(wobj + 0x10) |= 0x10000000;
                 }
                 RegisterItemWobj(
@@ -1702,7 +1713,7 @@ keyring_found:
                     *(s8*)&params[5]);
                 wobj[0x17] = 0;
                 wobj[0x16] = 0;
-                *(u32*)(wobj + 0x10) |= 0x100000;
+                ((WorldObj*)wobj)->flags |= 0x100000;
             }
             trigger_flags |= *(s16*)&params[2] & ~0xFF;
             DATA_S16(4) = (s16)trigger_flags;
@@ -1735,11 +1746,11 @@ keyring_found:
             case 199:
                 for (player = 0; player < 4; player++) {
                     u8* q = gPlayers + player * 13148;
-                    if (*(s32*)(q + 0xE8) != 0) {
+                    if (((Player*)q)->state != 0) {
                         u8* p = q;
                         s32 player_index;
                         flags |= towerGetLevelFlag(p, 8);
-                        player_index = *(s32*)(p + 0x0C);
+                        player_index = ((Player*)p)->character;
                         player_flags |=
                             *(u16*)(p + player_index * 240 + 8738);
                     }
@@ -1754,7 +1765,7 @@ keyring_found:
                 s16* anim = FindWobjWanim(wobj);
                 wobj[0x17] = '/';
                 wobj[0x16] = '/';
-                *(u32*)(wobj + 0x10) |= 0xA00000;
+                ((WorldObj*)wobj)->flags |= 0xA00000;
                 if (anim != NULL) {
                     *((f32*)anim + 2) = (f32)(anim[1] - 1);
                 }
@@ -1890,19 +1901,18 @@ count_index_done:
         DATA_F32(0) = instance != NULL ?
                       (f32)*(s16*)&params[0] : 0.0f;
         if (DATA_F32(0) == 0.0f) {
-            DATA_F32(0) =
-                (f32)*(s16*)((u8*)item->info + 0x40);
+            DATA_F32(0) = (f32)item->info->item.value;
         }
         DATA_S16(4) = PARAM_S16(2, 0);
         scaled = DATA_S16(4);
         if ((s16)scaled != 0) {
             scaled = -scaled;
-            *(s16*)((u8*)item->info + 0x48) = (s16)(scaled * 3);
+            item->info->item.activeoff = (s16)(scaled * 3);
         }
         DATA_F32(0) *= *(f32*)(gCurLevel + 0xDC);
         item->health = (s16)(item->health *
                               *(f32*)(gCurLevel + 0xCC));
-        scaled = *(s16*)((u8*)info + 0x48) * 2;
+        scaled = info->item.activeoff * 2;
         if (scaled == 0) {
             scaled = 0;
         } else if (scaled < 0) {
@@ -1982,9 +1992,9 @@ count_index_done:
         break;
 
     case 1:
-        DATA_S32(0) = *(s32*)((u8*)item->info + 0x3C);
-        DATA_S32(4) = *(s16*)((u8*)item->info + 0x40);
-        DATA_F32(8) = (f32)*(s16*)((u8*)item->info + 0x4A);
+        DATA_S32(0) = (s32)item->info->item.properties;
+        DATA_S32(4) = item->info->item.value;
+        DATA_F32(8) = (f32)item->info->item.activeon;
         DATA_S32(12) = 0;
         DATA_S16(16) = 0;
         {
@@ -2119,7 +2129,7 @@ void SetItemGeo(Item* item, void* atree_header, char* name, u32 flags)
         item->action = 0;
         *(s32*)item->atree =
             AtreeInit(atree_header, item->atree, name, mbflags);
-        *(s16*)((u8*)item + 0xA4) = 1;
+        ((atree*)item->atree)->animinfo.repeat = 1;
         if (item->objgrp.node == NULL) {
             item->objgrp.node =
                 MBNewNode(sItemsRootNode, gIdentityMatrix, node_type);
@@ -2166,6 +2176,7 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
 {
     ItemRuntime* runtime = &sItemRuntime;
     u8* target = target_ptr;
+    WorldObj* wtarget = (WorldObj*)target_ptr;
     char* strings = (char*)&sObjectsFile;
     s32 trigger_type = (u8)type;
     f32 x = (f32)(sItemFloorYOffset * (f32)x_grid);
@@ -2180,17 +2191,17 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
 
     for (i = 0, offset = 0; i < sNumItemWobjs; i++, offset += 4) {
         if (*(void**)((u8*)runtime->wobjTarget + offset) == target) {
-            s16 flags = *(s16*)(target + 0x14);
+            s16 flags = wtarget->triggertype;
             s32 old_type = (u8)flags;
 
             if (old_type != trigger_type) {
                 if (old_type >= 27 && old_type <= 29 &&
                     trigger_type >= 27 && trigger_type <= 29) {
                     flags &= ~0xFF;
-                    *(s16*)(target + 0x14) = flags;
-                    flags = *(s16*)(target + 0x14);
+                    wtarget->triggertype = flags;
+                    flags = wtarget->triggertype;
                     flags |= 27;
-                    *(s16*)(target + 0x14) = flags;
+                    wtarget->triggertype = flags;
                 } else {
                     ErrorPrintf(strings + 0x480, target, old_type, trigger_type);
                 }
@@ -2221,7 +2232,7 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
     runtime->wobjX2[i] = x;
     runtime->wobjZ[i] = z;
     runtime->wobjValue[i] = (f32)value;
-    *(s16*)(target + 0x14) = (s16)type;
+    wtarget->triggertype = (s16)type;
     return i;
 }
 
@@ -2435,11 +2446,9 @@ void SetPlayerStartPos(s32 idx)
 
 void GetMilestonePos(s32 idx, f32* out)
 {
-    u8* milestone = (u8*)&sItemRuntime + idx * 0x68;
-
-    out[0] = *(f32*)(milestone + 0x3E44);
-    out[1] = *(f32*)(milestone + 0x3E48);
-    out[2] = *(f32*)(milestone + 0x3E4C);
+    out[0] = sItemRuntime.milestones[idx].matrix[12];
+    out[1] = sItemRuntime.milestones[idx].matrix[13];
+    out[2] = sItemRuntime.milestones[idx].matrix[14];
 }
 
 void update_player_milestone(struct Player* player_ptr)
@@ -2466,20 +2475,26 @@ void update_player_milestone(struct Player* player_ptr)
     distance_tolerance = sMilestoneDistanceTolerance;
     for (i = 0, offset = 0; i < sNumMilestones; i++, offset += 0x68) {
         u8* milestone = runtime + offset;
-        f32 dy = locals.position[1] - *(f32*)(milestone + 0x3E48);
-        f32 dz = locals.position[2] - *(f32*)(milestone + 0x3E4C);
-        f32 dx = locals.position[0] - *(f32*)(milestone + 0x3E44);
+        f32 dy = locals.position[1] -
+                 *(f32*)(milestone + offsetof(ItemRuntime, milestones) +
+                         13 * sizeof(f32));
+        f32 dz = locals.position[2] -
+                 *(f32*)(milestone + offsetof(ItemRuntime, milestones) +
+                         14 * sizeof(f32));
+        f32 dx = locals.position[0] -
+                 *(f32*)(milestone + offsetof(ItemRuntime, milestones) +
+                         12 * sizeof(f32));
 
         locals.absolute_y.value = dy;
         locals.absolute_y.bits &= 0x7FFFFFFF;
         if ((f64)locals.absolute_y.value < height_tolerance &&
             (f64)fqdist(dx, dz) < distance_tolerance &&
-            (*(s32*)(player + 0xA34) < 0 ||
-             (*(s32*)(player + 0xA34) >= 0 &&
-              *(s32*)(player + 0xA34) != i))) {
+            (player_ptr->milestone[0] < 0 ||
+             (player_ptr->milestone[0] >= 0 &&
+              player_ptr->milestone[0] != i))) {
             if (ShowMilestones(-1) != 0 && *(s32*)player == 0) {
                 for (j = 0; j < 5; j++) {
-                    s32 old = *(s32*)(player + 0xA34 + j * 4);
+                    s32 old = player_ptr->milestone[j];
 
                     if (old >= 0) {
                         u8* m = runtime + old * 0x68;
@@ -2491,15 +2506,14 @@ void update_player_milestone(struct Player* player_ptr)
                 }
             }
             for (j = 4; j > 0; j--) {
-                *(s32*)(player + 0xA34 + j * 4) =
-                    *(s32*)(player + 0xA30 + j * 4);
+                player_ptr->milestone[j] = player_ptr->milestone[j - 1];
             }
-            *(s32*)(player + 0xA34) = i;
+            player_ptr->milestone[0] = i;
         }
     }
     if (ShowMilestones(-1) != 0 && *(s32*)player == 0) {
         for (i = 0; i < 5; i++) {
-            s32 milestone_index = *(s32*)(player + 0xA34 + i * 4);
+            s32 milestone_index = player_ptr->milestone[i];
 
             if (milestone_index >= 0) {
                 u8* m = runtime + milestone_index * 0x68;
@@ -2758,17 +2772,17 @@ s32 ShowMilestones(s32 idx)
     if (idx != old) {
         base = sMilestones;
         for (i = 0; i < sNumMilestones; i++) {
-            u8* elem = base + i * 0x68;
+            MilestoneParam* melem = (MilestoneParam*)(base + i * 0x68);
             if (sShownMilestones != 0) {
-                if (*(u32*)(elem + 0x60) == 0) {
-                    *(s32*)(elem + 0x60) = add_arrow(1, 1, 1, NULL, NULL,
-                                                     (f32*)elem);
+                if ((u32)melem->handle == 0) {
+                    melem->handle = add_arrow(1, 1, 1, NULL, NULL,
+                                               melem->matrix);
                 }
-                MBTreeClearFlags((void*)*(s32*)(elem + 0x60), 2, 0);
+                MBTreeClearFlags((void*)melem->handle, 2, 0);
             } else {
-                if (*(u32*)(elem + 0x60) != 0) {
-                    MBRemoveNode(*(s32*)(elem + 0x60), 1);
-                    *(s32*)(elem + 0x60) = 0;
+                if ((u32)melem->handle != 0) {
+                    MBRemoveNode(melem->handle, 1);
+                    melem->handle = 0;
                 }
             }
         }
@@ -2791,27 +2805,25 @@ s32 ShowCameras(s32 idx)
     if (idx != old) {
         base = sTriggerCameras;
         for (i = 0; i < sNumTriggerCameras; i++) {
-            u8* elem = base + i * 0x28;
+            TriggerCamera* celem = (TriggerCamera*)(base + i * 0x28);
             s32 alt = 0;
             s32 kind = 1;
-            if (*(u8*)elem == 1) {
+            if (celem->type == 1) {
                 alt = 1;
                 kind = 3;
-            } else if (*(u8*)elem == 2) {
+            } else if (celem->type == 2) {
                 kind = 2;
             }
             if (sShownCameras != 0) {
-                if (*(u32*)(elem + 0x24) == 0) {
-                    *(s32*)(elem + 0x24) = add_arrow(kind, 1, alt,
-                                                     (f32*)(elem + 0x14),
-                                                     (f32*)(elem + 0x04),
-                                                     tmp);
+                if ((u32)celem->handle == 0) {
+                    celem->handle = add_arrow(kind, 1, alt, celem->target,
+                                               celem->eye, tmp);
                 }
-                MBTreeClearFlags((void*)*(s32*)(elem + 0x24), 2, 0);
+                MBTreeClearFlags((void*)celem->handle, 2, 0);
             } else {
-                if (*(u32*)(elem + 0x24) != 0) {
-                    MBRemoveNode(*(s32*)(elem + 0x24), 1);
-                    *(s32*)(elem + 0x24) = 0;
+                if ((u32)celem->handle != 0) {
+                    MBRemoveNode(celem->handle, 1);
+                    celem->handle = 0;
                 }
             }
         }

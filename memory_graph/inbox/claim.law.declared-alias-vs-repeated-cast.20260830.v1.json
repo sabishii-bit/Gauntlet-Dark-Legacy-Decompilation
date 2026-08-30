@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "src/game/world/items.c DeleteItem, RegisterItemWobj, ShowMilestones, ShowCameras (worktree GDL-Claude-ItemsDefake, work_claim.items-defake.20260830.v1); attempt.items-c-defakematch-tupass.20260830.v1; negative counterexample also recorded there for SetItem",
+    "scope": "MWCC GC 1.2.5 family; applies to raw-offset de-fakematch conversions where a field is dereferenced 2+ times off the same base pointer within one function scope, walked-loop or not; re-verify per function since SetItem-scale register pressure can still defeat it."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.declared-alias-vs-repeated-cast.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "De-fakematching a raw `u8*`/void* pointer's field accesses by inserting a FRESH inline cast at every use site (`((T*)p)->field` repeated 3+ times on the same p) can regress a small-to-medium function even when each individual read converts cleanly in isolation - the repeated cast expressions inflate MWCC's per-statement address-materialization choices and cascade a register-pressure/scheduling change through the whole function (verified in game/world/items.c DeleteItem: 3x repeated `(Item*)e` casts regressed an EXACT fn to STRUCTURAL both with all-writes-cast and with only-some-writes-cast; RegisterItemWobj: 3x repeated `(WorldObj*)target` casts in one block regressed real 74->95/103 even though the SAME cast used ONCE elsewhere in the function was neutral). Counter-form: declare ONE separate typed local (`Item* ei = (Item*)raw;` or `WorldObj* wtarget = (WorldObj*)target_ptr;`) at the point the raw pointer is obtained/stable, and use that named alias for every subsequent field access instead of re-casting the raw pointer inline each time - keep the ORIGINAL raw pointer alive too wherever it is still needed for non-field uses (array arithmetic, generic-pointer call args, comparisons against other void*) rather than replacing it outright. This fully resolved DeleteItem (all 18 raw sites converted, stayed byte-exact) and RegisterItemWobj (all 5 target+0x14 sites converted, stayed at baseline real) and also worked for a WALKED loop pointer (ShowMilestones/ShowCameras: `MilestoneParam* melem = (MilestoneParam*)(base+i*stride);` declared once per iteration, all field accesses through melem, byte-exact) - contradicts a naive reading of claim.law.pointer-walk-array-index-regression's 'cast at use site' phrasing when 'use site' is read as 'every syntactic occurrence' rather than 'the one place the typed view is introduced'. Boundary: this counter-form was tried and FAILED on SetItem, a 1306-insn function under much higher register pressure, for one specific write among several near-identical writes to the same field - the declared-alias fix is not universal at extreme function size/pressure."
+}
