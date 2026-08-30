@@ -644,9 +644,9 @@ s32 StartWorldLoad(s32 arg) {
         }
         break;
     case 4: {
-        s32 model = *(s32*)(name + 360);
+        s32 model = *(s32*)(name + 228 + offsetof(WorldInfo, model)); /* gWorldInfo.model */
 
-        *(s32*)(name + 364) =
+        *(s32*)(name + 228 + offsetof(WorldInfo, whitetex)) = /* gWorldInfo.whitetex */
             (s32)MBOX_FindTexture_Sub(&buf[48], 0, model, model, 1);
         world_load_state = 5;
     }
