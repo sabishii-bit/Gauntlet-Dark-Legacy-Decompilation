@@ -3330,16 +3330,16 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
     if (PF(p, 0x8E0, f32) > lbl_80347B08) {
         PF(p, 0x8E0, f32) = lbl_80347B30;
     }
-    prevFlags = PF(p, 0x8D8, u32);
-    PF(p, 0x8D8, u32) = PF(p, 0x8D4, u32);
-    initialFlags = PF(p, 0x8D4, u32);
+    prevFlags = p->act_flags;
+    p->act_flags = p->obj_flags;
+    initialFlags = p->obj_flags;
 
     if ((initialFlags & 0x4000) != 0) {
-        PF(p, 0x8D4, u32) = initialFlags & 0x4000;
+        p->obj_flags = initialFlags & 0x4000;
         return 300;
     }
     if ((initialFlags & 0x8000) != 0) {
-        PF(p, 0x8D4, u32) = initialFlags & 0x8000;
+        p->obj_flags = initialFlags & 0x8000;
         if ((prevFlags & 0x8000) == 0) {
             PF(p, 0x870, f32) = PF(p, 0x8DC, f32);
             PF(p, 0x874, f32) = PF(p, 0x8E0, f32);
@@ -3351,13 +3351,13 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
         damage_player(p->index, PF(p, 0x8D0, f32), 1, 0, NULL);
         PF(p, 0x8D0, f32) = lbl_80347B30;
     }
-    if ((PF(p, 0x120, u32) & 0x10000) != 0) {
+    if ((p->shield_flags & 0x10000) != 0) {
         PF(p, 0x8D0, f32) = lbl_80347B30;
-        PF(p, 0x8D4, u32) = 0;
+        p->obj_flags = 0;
         return 0;
     }
 
-    flags = PF(p, 0x8D4, u32);
+    flags = p->obj_flags;
     if ((flags & 0x4000000) != 0) {
         result = 200;
     }
@@ -3387,7 +3387,7 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
         } else if ((flags & 0x120) != 0) {
             f32 sc;
             result = 20;
-            sc = (f32)((PF(p, 0x124, u32) & 0x400) != 0 ? lbl_80347D38
+            sc = (f32)((p->flags & 0x400) != 0 ? lbl_80347D38
                                                        : lbl_80347D40);
             KNOCK_IMPULSE(sc);
         } else if ((flags & 0x10) != 0) {
@@ -3437,8 +3437,8 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
                 *out = (f32)d;
             }
         }
-        if ((PF(p, 0x8D4, u32) & 0x1000000) == 0) {
-            fn_80094164((u8*)p + 0x54, PF(p, 0x8D4, u32), 0);
+        if ((p->obj_flags & 0x1000000) == 0) {
+            fn_80094164((u8*)p->col_pos, p->obj_flags, 0);
         }
         SetSkinFX((u8*)p + 0x7DC, lbl_80344BF8, 1, 1, lbl_80347B40);
     } else if ((flags & 0x80) != 0) {
@@ -3452,7 +3452,7 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
         PF(p, 0x8E4, f32) = zero;
         PF(p, 0x8D0, f32) = zero;
     }
-    PF(p, 0x8D4, u32) = 0;
+    p->obj_flags = 0;
     return result;
 }
 #pragma opt_common_subs reset
@@ -3571,7 +3571,7 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
     if (lbl_80347B30 == dmg) {
         dmg = PF(p, 0x104, f32);
     }
-    if ((PF(p, 0x124, u32) & 0x100) != 0) {
+    if ((p->flags & 0x100) != 0) {
         dmg = (f32)(dmg * lbl_80347C28);
     }
     dir[0] = PF(p, 0x34, f32);
@@ -4080,6 +4080,16 @@ typedef struct PCollideEnemyLayout {
     f32 hht;                  /* 0x23C */
 } PCollideEnemyLayout;
 
+/* Same rationale as PCollideEnemyLayout, for the gCritterPool index-computed
+ * scan below (verified against include/game/critter.h's Critter struct:
+ * hdr@4, pos@0x05C).  Never cast a live pointer to this type. */
+typedef struct PCollideCritterLayout {
+    u8   _000[4];
+    void* hdr;                /* 0x004 */
+    u8   _008[0x54];
+    f32  pos[3];               /* 0x05C */
+} PCollideCritterLayout;
+
 s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
                        f32* hit) {
     f32 localHit[12];
@@ -4144,7 +4154,7 @@ item_test:
 
     if (closest >= 0) {
         u8* item = gEnemies + closest * 0x394;
-        if (FastWallCollide(from, (f32*)(item + 0x54), 0, 0) != 0) {
+        if (FastWallCollide(from, (f32*)(item + offsetof(PCollideEnemyLayout, coll_pos)), 0, 0) != 0) {
             closest = -1;
         }
     }
@@ -4155,7 +4165,7 @@ item_test:
                                     localHit, -1, 2);
         if (object != 0 &&
             *(s16*)(*(u8**)(*(u8**)(object + 4) + 0x120) + 0x20) == 4 &&
-            (PF(p, 0x8D4, u32) & 0x8000) != 0) {
+            (p->obj_flags & 0x8000) != 0) {
             object = 0;
         }
         if (object != 0) {
@@ -4185,15 +4195,15 @@ item_test:
             if (closest >= 0x10000) {
                 u8* critter = gCritterPool + (closest & 0xFFFF) * 0xAE0;
                 zero = lbl_80347B30;
-                dx = to[0] - *(f32*)(critter + 0x5C);
-                dz = to[2] - *(f32*)(critter + 0x64);
-                radius = (s32)*(f32*)(*(u8**)(critter + 4) + 0x7C);
+                dx = to[0] - *(f32*)(critter + offsetof(PCollideCritterLayout, pos[0]));
+                dz = to[2] - *(f32*)(critter + offsetof(PCollideCritterLayout, pos[2]));
+                radius = (s32)*(f32*)(*(u8**)(critter + offsetof(PCollideCritterLayout, hdr)) + 0x7C);
             } else {
                 u8* item = gEnemies + closest * 0x394;
                 zero = lbl_80347B30;
-                dx = to[0] - *(f32*)(item + 0x54);
-                dz = to[2] - *(f32*)(item + 0x5C);
-                radius = (s32)*(f32*)(item + 0x238);
+                dx = to[0] - *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[0]));
+                dz = to[2] - *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[2]));
+                radius = (s32)*(f32*)(item + offsetof(PCollideEnemyLayout, rad));
             }
             distance = fqdist(dx, dz);
             if (distance > lbl_80347D68) {
@@ -4587,7 +4597,7 @@ s32 fn_80088938(Player* p, f32 angle) {
         ctl->pad.levels &= ~0x900;
     }
 
-    if ((PF(p, 0x124, u32) & 0x400) != 0 &&
+    if ((p->flags & 0x400) != 0 &&
         (ctl->pad.levels & 0x400) != 0) {
         ctl->pad.levels &= ~0x400;
         ctl->pad.levels |= 0x200;
@@ -4771,7 +4781,7 @@ s32 fn_80088EF4(Player* p, f32 range, f32 minDot) {
         PF(p, 0x6DC, u32) == 0) {
         return -1;
     }
-    if ((PF(p, 0x124, u32) & 0x400) != 0) {
+    if ((p->flags & 0x400) != 0) {
         return -1;
     }
     if (p->state != 1) {
