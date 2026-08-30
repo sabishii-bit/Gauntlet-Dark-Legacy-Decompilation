@@ -1,3 +1,4 @@
+import sqlite3
 import subprocess
 import sys
 import unittest
@@ -8,6 +9,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lowmatch import missing_fuzzy_is_exact_zero, object_function_name_counts
+from nearmiss import load_parked
 
 
 class LowMatchMissingFuzzyTests(unittest.TestCase):
@@ -48,6 +50,36 @@ class LowMatchMissingFuzzyTests(unittest.TestCase):
         run.return_value = subprocess.CompletedProcess(
             args=[], returncode=1, stdout="", stderr="error")
         self.assertEqual(object_function_name_counts(Path("bad.o")), Counter())
+
+    @patch("memory_graph.core.ensure_database")
+    @patch("memory_graph.core.open_database")
+    def test_superseded_park_does_not_hide_retriaged_function(
+            self, open_database, ensure_database):
+        connection = sqlite3.connect(":memory:")
+        connection.row_factory = sqlite3.Row
+        connection.executescript("""
+            CREATE TABLE entity (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+            CREATE TABLE attempt (
+                record_id TEXT PRIMARY KEY,
+                function_entity_id INTEGER NOT NULL,
+                outcome TEXT NOT NULL
+            );
+            CREATE TABLE record_ingest (
+                record_id TEXT PRIMARY KEY,
+                record_state TEXT NOT NULL,
+                raw_json TEXT NOT NULL
+            );
+            INSERT INTO entity VALUES (1, 'fn_800DBA80');
+            INSERT INTO attempt VALUES ('attempt.old', 1, 'parked');
+            INSERT INTO record_ingest VALUES (
+                'attempt.new', 'accepted',
+                '{"supersedes":"attempt.old"}'
+            );
+        """)
+        open_database.return_value = connection
+
+        self.assertNotIn("fn_800DBA80", load_parked())
+        ensure_database.assert_called_once()
 
 
 if __name__ == "__main__":

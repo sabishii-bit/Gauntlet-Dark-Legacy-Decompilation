@@ -285,6 +285,17 @@ class MemoryGraphTests(unittest.TestCase):
         tool_path = self.root / "tools/gdl/fresh.py"
         tool_path.write_text('"""Initial discovered tool."""\n', encoding="utf-8")
         build_database(self.root, self.db)
+        # Reproduce a shared database last materialized by a sibling worktree.
+        # Its root label must not disable the normal fingerprint freshness gate.
+        connection = sqlite3.connect(self.db)
+        try:
+            connection.execute(
+                "UPDATE meta SET value=? WHERE key='build_root'",
+                (str(self.root / "sibling-worktree"),),
+            )
+            connection.commit()
+        finally:
+            connection.close()
         tool_path.write_text('"""Updated discovered tool."""\n# changed\n', encoding="utf-8")
         ensure_database(self.root, self.db)
         tool = tool_context("Fresh", root=self.root, db_path=self.db)
@@ -411,9 +422,14 @@ class MemoryGraphTests(unittest.TestCase):
         )
 
         result = attempt_staleness(root=self.root, db_path=self.db)
+        context = symbol_context("foo", root=self.root, db_path=self.db)
 
         self.assertEqual(result["stale_solved"], [])
         self.assertEqual(result["multi_record_functions"], [])
+        self.assertEqual(
+            [attempt["record_id"] for attempt in context["attempts"]],
+            ["attempt.foo.v2"],
+        )
 
     def test_markdown_cannot_anchor_a_structured_truth_record(self):
         record = {

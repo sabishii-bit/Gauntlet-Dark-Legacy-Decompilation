@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "report pairing and stale-cap re-triage against the current target symbol, compiled symbol table, and normalized object diff",
+  "attributes": {
+    "anchor": "src/game/movie/movieplayer.c:fn_800DBA80; target .text 0x800DBA80 size 0x114",
+    "conclusion": "Keep this function in the active low-match queue. The old imported allocator/scheduler park was factually wrong and must not suppress reporting.",
+    "measurements": "target/current 69/55 instructions; fuzzy 0.0%; fndiff --count real 66; --clean real 69; target frame 0x70 versus current frame 0x18",
+    "reporting_result": "objdiff omits the JSON fuzzy_match_percent field when it is exactly 0.0, but the compiled object has one exact-name function symbol, so lowmatch must treat the pair as scored 0.0 rather than unpaired",
+    "residual": "STRUCTURAL: target contains three C++ throw()/__unexpected exception landing-pad islands absent from the current portable C body",
+    "verification": "source body and call site inspected; target and current complete assembly measured; exact-name symbol pairing verified with objdump; lowmatch queue reproduced with parked mark and skip modes"
+  },
+  "function": "function:fn_800DBA80",
+  "id": "attempt.fn-800dba80-report-retriage.20260829.v2",
+  "kind": "attempt",
+  "outcome": "retriaged",
+  "residual_class": "STRUCTURAL/C++ exception landing pads",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.fn_800dba80.20260829.v1",
+  "valid_from": "2026-08-29"
+}

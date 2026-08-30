@@ -1307,9 +1307,11 @@ def ensure_database(root: Path = REPO_ROOT, db_path: Path | None = None) -> Path
             meta = dict(connection.execute("SELECT key, value FROM meta").fetchall())
         if meta.get("schema_version") != str(SCHEMA_VERSION):
             build_database(root, path)
-        elif Path(meta.get("build_root", "")).resolve() == root:
-            if meta.get("source_fingerprint") != source_fingerprint(root):
-                build_database(root, path)
+        elif meta.get("source_fingerprint") != source_fingerprint(root):
+            # Worktrees share the database under the Git common directory.
+            # A database materialized from a sibling worktree is safe to read
+            # only when its complete input fingerprint matches this checkout.
+            build_database(root, path)
     except (sqlite3.DatabaseError, MemoryGraphError):
         build_database(root, path)
     return path
@@ -1517,6 +1519,11 @@ def symbol_context(
                        a.residual_class, a.commit_hash, r.raw_json
                 FROM attempt a JOIN record_ingest r ON r.record_id=a.record_id
                 WHERE a.function_entity_id=?
+                  AND NOT EXISTS (
+                      SELECT 1 FROM record_ingest newer
+                      WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id
+                        AND newer.record_state = 'accepted'
+                  )
                 ORDER BY r.record_state='accepted' DESC, a.id DESC
                 """,
                 (entity["id"],),
@@ -2143,14 +2150,16 @@ def attempt_staleness(
             " JOIN entity e ON e.id = a.function_entity_id"
             " WHERE a.outcome IN ('parked', 'capped')"
             " AND NOT EXISTS (SELECT 1 FROM record_ingest newer"
-            " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id)"
+            " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id"
+            " AND newer.record_state = 'accepted')"
         ).fetchall()
     with closing(open_database(root, db_path)) as connection:
         multi_rows = connection.execute(
             "SELECT e.name, COUNT(*) AS n, GROUP_CONCAT(a.record_id) AS ids"
             " FROM attempt a JOIN entity e ON e.id = a.function_entity_id"
             " WHERE NOT EXISTS (SELECT 1 FROM record_ingest newer"
-            " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id)"
+            " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id"
+            " AND newer.record_state = 'accepted')"
             " GROUP BY a.function_entity_id HAVING COUNT(*) > 1"
         ).fetchall()
     multi = [

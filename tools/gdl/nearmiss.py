@@ -31,7 +31,12 @@ VERSION = "GUNE5D"
 REPO = Path(__file__).resolve().parent.parent.parent
 REPORT = REPO / "build" / VERSION / "report.json"
 def load_parked():
-    """Names of functions with a parked/capped attempt in the memory graph."""
+    """Names of functions with a current parked/capped graph attempt.
+
+    Attempt history is immutable, so a re-triage or successful revisit records
+    a new attempt that supersedes the old cap.  Only unsuperseded heads may
+    suppress queue entries.
+    """
     sys.path.insert(0, str(REPO))
     try:
         from memory_graph.core import ensure_database, open_database
@@ -47,6 +52,9 @@ def load_parked():
             "SELECT e.name FROM attempt a"
             " JOIN entity e ON e.id = a.function_entity_id"
             " WHERE a.outcome IN ('parked', 'capped')"
+            " AND NOT EXISTS (SELECT 1 FROM record_ingest newer"
+            " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id"
+            " AND newer.record_state = 'accepted')"
         ).fetchall()
         return {row[0] for row in rows}
     finally:

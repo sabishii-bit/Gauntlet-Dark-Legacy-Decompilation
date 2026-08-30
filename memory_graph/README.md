@@ -76,9 +76,9 @@ Every read command calls `ensure` first, which rebuilds when the database is
 missing, corrupt, schema-outdated, or when the **source fingerprint** — a
 SHA-256 over the path, size, and mtime of every input file — no longer
 matches. Editing a record, symbol table, or the Xbox index therefore refreshes
-the view automatically on the next query. A database built from a *different*
-checkout root is left in place (worktrees share honestly rather than fighting
-over whose sources win); force `build` if you need to repoint it.
+the view automatically on the next query. A database built from a sibling
+worktree is refreshed when that worktree's inputs differ; identical input
+fingerprints reuse the shared materialization without needless rebuilding.
 
 ## Record model
 
