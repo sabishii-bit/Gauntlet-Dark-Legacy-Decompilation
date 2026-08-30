@@ -196,6 +196,39 @@ is kept), but they are reconstruction debt, not an endpoint:
   function with a record instead of committing the trick (see Mandatory
   result policy for the hard prohibitions).
 
+### Cleaning pre-existing fakematches (de-fakematch campaigns)
+
+Raw-offset code already in the tree (~1,500 sites, census 2026-08-30) is
+cleaned in claimed, TU-scoped passes under the same monotonic-result rules
+as matching work:
+
+1. **Scope by name authority.** Convert only accesses resolvable through a
+   GC-verified struct (the `include/game/` headers, and
+   `gdlmem.py struct <T> --offset 0xNN` for the covering field). Never
+   adopt an Xbox PDB name whose offset is not GC-verified: leave the
+   access raw, or introduce a file-local view struct with the verifying
+   target-asm evidence noted. Never invent names.
+2. **Gate every region.** Take the fndiff baseline first. For a matched
+   function the conversion must stay byte-identical
+   (`fndiff --clean` = MATCH, real 0) or be reverted. For a fuzzy function
+   it must measure equal-or-better on `real` and `--ops` structure or be
+   reverted — and a conversion that *improves* the score is a normal
+   matching win: commit it as one.
+3. **Screen the recorded constraints before converting.** Member
+   conversion changes address webs; the known hazard laws are
+   `claim.law.lwzu-idiom-web-retention` (a `p += N` load-update idiom
+   needs its original-type web kept alive — convert around it, not
+   through it), the cast-transit no-CSE family, and the addr-CSE laws.
+   `context <function>` also surfaces per-function constraints (e.g. the
+   do_enemy_collide behavior chains are recorded off-limits).
+4. **Convert in small regions, rebuild the object, re-gate**; two failed
+   forms for the same region means leave that region raw and note it.
+5. **Record one compact attempt record per TU pass** (sites converted,
+   sites left raw and why, any score changes) — not one per function —
+   plus a law record only for a newly verified constraint. Commit style:
+   `De-fakematch <fn> (byte-identical)` or the normal improvement line
+   when the score moved.
+
 Core tools, from the repository root:
 
 ```text
