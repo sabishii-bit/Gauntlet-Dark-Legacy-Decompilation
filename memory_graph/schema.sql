@@ -57,6 +57,14 @@ CREATE VIRTUAL TABLE document_chunk_fts USING fts5(
     tokenize = 'unicode61 remove_diacritics 2'
 );
 
+CREATE VIRTUAL TABLE record_fts USING fts5(
+    record_id UNINDEXED,
+    record_kind UNINDEXED,
+    record_state UNINDEXED,
+    body,
+    tokenize = 'unicode61 remove_diacritics 2'
+);
+
 CREATE TABLE entity (
     id INTEGER PRIMARY KEY,
     entity_key TEXT NOT NULL UNIQUE,

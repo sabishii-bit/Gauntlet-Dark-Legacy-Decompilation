@@ -14,6 +14,7 @@ from memory_graph.core import (  # noqa: E402
     ensure_database,
     memory_audit,
     register_tool_proposal,
+    search_memory,
     stage_record_proposal,
     symbol_context,
     tool_context,
@@ -317,6 +318,34 @@ class MemoryGraphTests(unittest.TestCase):
         build_database(self.root, self.db)
         tool = tool_context("Debugger", root=self.root, db_path=self.db)
         self.assertEqual(tool["tools"][0]["source_kind"], "proposal")
+
+    def test_search_reaches_structured_record_bodies(self):
+        # Law text lives in claim record bodies; after the legacy corpus was
+        # retired, full-text search must reach it there or the graph cannot
+        # answer "is there a law about X".
+        (self.root / "memory_graph/records/claim-law.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "id": "claim.law.example-quokka-rule.20260829.v1",
+                    "kind": "claim",
+                    "subject": "project:test",
+                    "predicate": "codegen_law",
+                    "epistemic_state": "verified",
+                    "value": "A distinctive quokka marsupial phrase for search.",
+                }
+            ),
+            encoding="utf-8",
+        )
+        build_database(self.root, self.db)
+        hits = search_memory("quokka marsupial", root=self.root, db_path=self.db)
+        self.assertEqual(
+            hits["records"][0]["record_id"],
+            "claim.law.example-quokka-rule.20260829.v1",
+        )
+        self.assertEqual(hits["records"][0]["record_state"], "accepted")
+        # Inbox proposals stay searchable but rank behind accepted records.
+        self.assertIn("snippet", hits["records"][0])
 
     def test_generic_record_proposal_is_validated_and_duplicate_safe(self):
         record = {

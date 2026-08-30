@@ -20,7 +20,7 @@ from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any, Iterable, Iterator, Mapping
 
 
 SCHEMA_VERSION = 1
@@ -120,7 +120,7 @@ def _iter_input_paths(root: Path) -> Iterator[Path]:
     if pdb_index.exists():
         yield pdb_index
     for path in (
-        root / "tools" / "gdl" / "memory_graph" / "schema.sql",
+        root / "memory_graph" / "schema.sql",
         root / "memory_graph" / "schema" / "record.schema.json",
     ):
         if path.exists():
@@ -778,6 +778,29 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
             paths.extend(directory.rglob("*.json"))
     loaded: list[tuple[Path, dict[str, Any], str]] = []
     rejected: list[dict[str, str]] = []
+
+    def _record_fts_body(record: Mapping[str, object]) -> str:
+        # Flatten every authored key and scalar so any phrase an author wrote
+        # in a record (law text, attempt axes, residual notes, locators) is
+        # reachable through full-text search.
+        parts: list[str] = []
+
+        def walk(value: object) -> None:
+            if isinstance(value, Mapping):
+                for key, item in sorted(value.items()):
+                    if key == "schema_version":
+                        continue
+                    parts.append(str(key))
+                    walk(item)
+            elif isinstance(value, (list, tuple)):
+                for item in value:
+                    walk(item)
+            elif value is not None:
+                parts.append(str(value))
+
+        walk(record)
+        return " ".join(parts)
+
     for path in sorted(paths):
         is_inbox = "inbox" in path.parts
         try:
@@ -811,6 +834,10 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
                 _repo_relative(root, path),
                 json.dumps(record, sort_keys=True, separators=(",", ":")),
             ),
+        )
+        connection.execute(
+            "INSERT INTO record_fts VALUES (?, ?, ?, ?)",
+            (record["id"], record["kind"], state, _record_fts_body(record)),
         )
         loaded.append((path, record, state))
 
@@ -857,6 +884,9 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
                 raise
             connection.execute(
                 "DELETE FROM record_ingest WHERE record_id=?", (record["id"],)
+            )
+            connection.execute(
+                "DELETE FROM record_fts WHERE record_id=?", (record["id"],)
             )
             rejected.append(
                 {
@@ -1031,6 +1061,9 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
             connection.execute(
                 "DELETE FROM record_ingest WHERE record_id=?", (record["id"],)
             )
+            connection.execute(
+                "DELETE FROM record_fts WHERE record_id=?", (record["id"],)
+            )
             rejected.append(
                 {
                     "path": _repo_relative(root, path),
@@ -1070,6 +1103,9 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
                 raise
             connection.execute(
                 "DELETE FROM record_ingest WHERE record_id=?", (record["id"],)
+            )
+            connection.execute(
+                "DELETE FROM record_fts WHERE record_id=?", (record["id"],)
             )
             rejected.append(
                 {
@@ -1349,6 +1385,22 @@ def search_memory(
     fts = _fts_query(query)
     pattern = f"%{query}%"
     with closing(open_database(root, db_path)) as connection:
+        records = [
+            dict(row)
+            for row in connection.execute(
+                """
+                SELECT record_id, record_kind, record_state,
+                       snippet(record_fts, 3, '[', ']', ' … ', 36) AS snippet,
+                       bm25(record_fts) AS rank
+                FROM record_fts
+                WHERE record_fts MATCH ?
+                ORDER BY CASE record_state WHEN 'accepted' THEN 0 ELSE 1 END,
+                         rank
+                LIMIT ?
+                """,
+                (fts, limit),
+            )
+        ]
         documents = [
             dict(row)
             for row in connection.execute(
@@ -1393,7 +1445,12 @@ def search_memory(
                 (pattern, pattern, limit),
             )
         ]
-    return {"documents": documents, "symbols": symbols, "entities": entities}
+    return {
+        "records": records,
+        "documents": documents,
+        "symbols": symbols,
+        "entities": entities,
+    }
 
 
 def _symbol_row(connection: sqlite3.Connection, query: str, platform: str) -> sqlite3.Row | None:
