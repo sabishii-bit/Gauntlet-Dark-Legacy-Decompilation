@@ -971,10 +971,10 @@ void DoPlayerAction(void* player)
         break;
     case 0x3C:
         p[0x201] = 1;
-        if ((p[0x23E] & 0x400U) == 0 || p[0x242] == 0) {
-            act = 0x3D;
-        } else {
+        if ((p[0x23E] & 0x400U) != 0 && p[0x242] != 0) {
             act = 0x25;
+        } else {
+            act = 0x3D;
         }
         break;
     case 0x3D:
@@ -1046,13 +1046,13 @@ void DoPlayerAction(void* player)
     case 0x89:
     case 0x8F:
         didt = 1;
-        if (next == d) {
-            mode = 0;
-        } else {
+        if (next != d) {
             if (p[d * 2 + 0x86] >= 0) {
                 act = d + 1;
             }
             mode = 2;
+        } else {
+            mode = 0;
         }
         break;
     case 0x24:
@@ -1088,21 +1088,21 @@ void DoPlayerAction(void* player)
         }
         break;
     case 0x52:
-        if ((p[0x23E] & 0x400U) == 0 || p[0x242] == 0) {
-            act = 0x53;
-        } else {
+        if ((p[0x23E] & 0x400U) != 0 && p[0x242] != 0) {
             act = 0x54;
+        } else {
+            act = 0x53;
         }
         break;
     case 0x53:
-        if ((p[0x23E] & 0x400U) == 0 || p[0x242] == 0) {
+        if ((p[0x23E] & 0x400U) != 0 && p[0x242] != 0) {
+            act = 0x54;
+        } else {
             if (atkNext == 1) {
                 mode = 2;
             } else {
                 mode = 1;
             }
-        } else {
-            act = 0x54;
         }
         break;
     case 0x5D:
