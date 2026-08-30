@@ -5550,9 +5550,9 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
                     pp = &gPlayers[node];
                     PlayerSetParent(pp, c->obj_d0, (f32 *)(desc + 0x20));
                     c->unk128 = (s16)node;
-                    if (*(s16 *)(desc + 0x42) >= 0) {
+                    if (*(s16 *)(desc + offsetof(CritterDamageDef, sfx)) >= 0) {
                         SfxSetParent(
-                            CritterDoSfx(c, *(s16 *)(desc + 0x42), NULL, 0, -1),
+                            CritterDoSfx(c, *(s16 *)(desc + offsetof(CritterDamageDef, sfx)), NULL, 0, -1),
                             *(void **)((u8 *)pp + 0x74));
                     }
                 }
@@ -5643,7 +5643,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
     f32 yaw;
 
     container = *(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, file));
-    desc = *(u8 **)(container + 0x44) + action * 0x50;
+    desc = *(u8 **)(container + offsetof(CritterFileHeader, damage)) + action * 0x50;
     if ((*(s16 *)(desc + 2) & 0x4000) != 0 &&
         (f64)c->unkAC8 > lbl_80346488 && *(s16 *)desc != 1) {
         return -1;
@@ -5682,7 +5682,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
     }
 
     flags = 0x801;
-    sfxDesc = *(u8 **)(container + 0x4C) + *(s16 *)(desc + 0x40) * 0x50;
+    sfxDesc = *(u8 **)(container + offsetof(CritterFileHeader, sfx)) + *(s16 *)(desc + 0x40) * 0x50;
     radius = *(f32 *)(desc + 0x2C);
     if (*(s16 *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, descriptor)) + 0x20) != 4) {
         flags |= 8;
@@ -5728,7 +5728,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
     }
     Effects[result].flags |= flags;
 
-    if ((*(u32 *)sfxDesc & 0x10) != 0 && *(s16 *)(desc + 0x42) < 0) {
+    if ((*(u32 *)sfxDesc & 0x10) != 0 && *(s16 *)(desc + offsetof(CritterDamageDef, sfx)) < 0) {
         PlaceEffectOnFloor(result, (f32 *)Effects[result].node);
     }
     if (*(s16 *)desc != 1) {
@@ -5749,9 +5749,9 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         Effects[result].damageradius = damageRadius;
         Effects[result].damagetype = *(DMG_TYPE *)(desc + 4);
 
-        if (*(s16 *)(desc + 0x42) >= 0) {
-            hitDesc = *(u8 **)(container + 0x4C) +
-                      *(s16 *)(desc + 0x42) * 0x50;
+        if (*(s16 *)(desc + offsetof(CritterDamageDef, sfx)) >= 0) {
+            hitDesc = *(u8 **)(container + offsetof(CritterFileHeader, sfx)) +
+                      *(s16 *)(desc + offsetof(CritterDamageDef, sfx)) * 0x50;
             SfxSetHit(result, *(s32 *)(hitDesc + 8), *(s32 *)(hitDesc + 0xC),
                       *(s32 *)(hitDesc + 0xC));
             if ((*(u32 *)hitDesc & 0x10) != 0) {
@@ -5760,7 +5760,7 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
         }
 
         if (*(s16 *)(desc + 0x44) >= 0) {
-            morphDesc = *(u8 **)(container + 0x4C) + 8;
+            morphDesc = *(u8 **)(container + offsetof(CritterFileHeader, sfx)) + 8;
             morphTarget = *(s32 *)(morphDesc +
                                     *(s16 *)(desc + 0x44) * 0x50);
             morph = 0;
