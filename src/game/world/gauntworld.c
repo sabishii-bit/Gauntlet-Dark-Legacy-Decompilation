@@ -3211,7 +3211,7 @@ found_gen:
             if ((s8)item->data[7] == 0x1C || (s8)item->data[7] == 0x1D) {
                 item->data[7] = 0;
             }
-            if (item->data[7] == 0x1E) {
+            if ((s8)item->data[7] == 0x1E) {
                 item->data[7] = 0;
             }
             if (stricmp(buf, lbl_80346F70) != 0) {
@@ -4843,7 +4843,7 @@ void fn_800606FC(void)
             u8* tgt;
             s16 flags;
             s32 mask;
-            s8 pdact;
+            s32 pdact;
             s32 subtype;
             mask = 0;
             pdact = it->daction;
@@ -5045,8 +5045,8 @@ void fn_800606FC(void)
                 if (lbl_80344500 != 0 && (*(u32*)(tgt + 0x10) & 4)) {
                     break;
                 }
-                it->daction = 2;
                 ang = *(f32*)&it->data[4] * (f32)(u32)gFrameTicks;
+                it->daction = 2;
                 if (*(u8**)(tgt + 0x28) == NULL) {
                     break;
                 }
@@ -5218,12 +5218,11 @@ void fn_800606FC(void)
             d = DistanceToClosestPlayer(it->objgrp.worldmat[3]);
             sub = *(s16*)&it->data[0xC];
             if (sub > 0) {
-                if (d >= range) {
-                    break;
-                }
-                if (sub - 1 > musicIdx) {
-                    musicState = *(s16*)&it->data[0x10];
-                    musicIdx = sub - 1;
+                if (d < range) {
+                    if (sub - 1 > musicIdx) {
+                        musicState = *(s16*)&it->data[0x10];
+                        musicIdx = sub - 1;
+                    }
                 }
                 break;
             }

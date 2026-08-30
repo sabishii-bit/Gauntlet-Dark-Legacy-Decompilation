@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "src/game/world/gauntworld.c::fn_800606FC (worktree GDL-Claude-GauntworldMatch, work_claim.gauntworld-structural-match.20260830.v1): case-5 local `s8 pdact = it->daction;` (it->daction is itself `s8`), read once later in `if ((s8)it->daction != 0 && pdact == 0)`. Widening the local's declared type to `s32 pdact;` (assignment unchanged, `pdact = it->daction;`, an implicit sign-extending int-promotion at the single assignment) removed a redundant `extsb r0,r19` MWCC otherwise emitted immediately before the word-compare, matching target's `cmpwi r24,0` (no extsb) exactly. real 1384->1373, insns 2215->2216, no other change; fndiff --ops's T[1372:1450] cmpwi/extsb.-vs-li/stw DIFFERS cluster fully resolved.",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py; applies to a local variable declared with a narrow integer type (s8/u8/s16/u16) that is assigned once from a same-width struct field and then read later in a full-word context (a `!= 0`/`== 0` comparison, arithmetic, or a call argument) with no intervening write.",
+    "tags": [
+      "register-web",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.narrow-local-reextend-on-read.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T22:20:36Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "A local variable declared with a NARROW integer type (s8/u8/s16/u16) forces MWCC to re-sign/zero-extend it to a full word at EVERY later read used in a word-width context (comparison, arithmetic, call argument), even when the value never left a persistent register and even though the narrow type was only chosen to mirror the width of the struct field it was copied from. The tell in a fndiff --ops diff: target's disassembly does a plain `cmpwi`/word-op directly on the holding register with NO preceding extsb/extsh/rlwinm/clrlwi, while ours inserts one right before the same op. Fix: widen the local's DECLARED type to a full `s32`/`u32` (keep the assignment textually identical, e.g. `pdact = it->daction;` with an implicit promoting conversion) so the sign/zero-extension happens ONCE at the single assignment site instead of at every later read. This is a narrower, integer-width-only sibling of claim.law.declared-alias-vs-repeated-cast (which covers POINTER type/aliasing) and is safe to apply on sight wherever the narrow local is genuinely read only after a stable assignment (no loop-carried reassignment observed in this verification); re-verify against target bytes per function since register-pressure interactions are never fully guaranteed to transfer (see claim.law.same-field-second-site-register-sensitivity for a case where an adjacent, superficially similar cast change regressed badly in a different, higher-pressure function in the same TU)."
+}
