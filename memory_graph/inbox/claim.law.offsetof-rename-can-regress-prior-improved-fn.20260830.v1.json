@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "src/game/enemy/critter.c::CritterInitGeo (worktree GDL-Claude-CritterDefake, work_claim.critter-defake.20260830.v1); attempt.critter-defakematch-tu-pass.20260830.v3"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.offsetof-rename-can-regress-prior-improved-fn.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T22:30:17Z",
+  "schema_version": 1,
+  "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.offsetof-rename-preserves-protected-web -- applies specifically to functions carrying a prior recorded MATCHING-pass improvement (register/schedule-sensitive), as distinct from that law's general-population evidence.",
+  "state": "proposed",
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "tags": [
+    "core-screen",
+    "offsetof-form",
+    "workflow",
+    "defake"
+  ],
+  "valid_from": "2026-08-30",
+  "value": "claim.law.offsetof-rename-preserves-protected-web calls offsetof()-on-raw-pointer renaming 'near-guaranteed neutral' (applied_count 5 at time of writing, zero regressions across enemy.c and this same TU's own earlier sites). That guarantee has a boundary: a function that already carries a prior MATCHING-pass IMPROVED result (i.e. was itself hand-tuned to a specific register/schedule state under real register pressure, not merely compiled fresh) can regress from the identical offsetof-rename form even when every other site in the same TU converts cleanly. Verified in critter.c CritterInitGeo (prior record: attempt.critterinitgeo-atan-operand-stage.20260830.v1, real 63, STRUCTURAL residual, itself a delicate atan2-operand-staging result) during a TU-wide bulk sweep: two INDEPENDENT, otherwise-universally-safe offsetof conversions each regressed it on their own -- (1) *(f32*)((u8*)c+0xF8) and +0xFC (Critter.skinMatrix[6]/[7]) -> offsetof(Critter,skinMatrix)+0x18/+0x1C: real 63->113, even though the IDENTICAL skinMatrix offsetof form was neutral in CritterUpdateSkinfx elsewhere in the same TU; (2) a 6-site movePathPos/defaultPos/prevMovePathPos block (all newly-named Critter/CritterPackedType fields, same offsetof-on-raw-pointer form used successfully in ~400 other sites this session): real 63->86. Both reverted to bare hex specifically in CritterInitGeo; every other site using the exact same field names in other functions was retained. Consequence: before bulk-applying a TU-wide offsetof-rename sweep (the kind that safely converts 20-45 sites in one shot via search-and-replace), cross-check the target function list against the TU's recorded matching-pass IMPROVED/EXACT attempts (gdlmem.py context/brief) and gate that subset separately or excluded from the bulk batch -- a single already-optimized function's register allocation can be more sensitive to purely-cosmetic displacement respelling than an unoptimized one, for reasons not yet root-caused (working hypothesis: MWCC's own internal CSE/constant-pool heuristics interact with the LITERAL SPELLING of an offset expression, not just its folded value, under high register pressure -- unconfirmed)."
+}
