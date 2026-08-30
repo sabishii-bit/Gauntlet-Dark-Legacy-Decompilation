@@ -1,5 +1,9 @@
 #include "types.h"
 
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
 /* Boss subsystem (GCN BOSS.OBJ region, 0x8001A960-0x8001BC88). Names are the
  * real ones from the Xbox build's BOSS.OBJ (shell3D.pdb). The GameCube MWCC
  * build emits this TU's functions in the reverse of the Xbox link order, so
@@ -169,6 +173,55 @@ struct BossObjView {
     u8  _2c[4];
     f32 pos[3];   /* 0x30 */
 };
+
+/* Local view of the placed-item object pointed to by gSpewItems[i].obj
+ * (a `struct item` per research/xbox_symbols/misc.h Id=3252, GC-verified
+ * layout in include/game/item.h Item, sizeof 0xf0).  Kept as a file-local
+ * partial view (not #include "game/item.h") because item.h's PlaceItem
+ * prototype returns Item* while this TU's own extern declares it as void*;
+ * only the fields this TU touches are named.  `data` is the 0x14-byte
+ * anim/oanim/texmod/psys union (Item.data) whose runtime sub-layout is not
+ * individually verified -- offsets within it stay raw. */
+typedef struct SpewObjView {
+    u8  _0[0x4];           /* info ptr */
+    u8  objgrp[0x30];      /* 0x04 embedded OBJGRP (worldmat rows 0-2)   */
+    f32 worldPos[3];      /* 0x34 objgrp.worldmat[3][0..2] world position */
+    u8  _40[0xc4 - 0x40];
+    s16 active;            /* 0xc4 */
+    u8  _c6[0xdc - 0xc6];
+    u8  data[0x14];         /* 0xdc union: anim/oanim/texmod/psys + runtime */
+} SpewObjView;
+
+/* Local view of the tail of struct Enemy (include/game/enemy.h, sizeof
+ * 0x394) touched by BossGenerateEnemy.  Not #include "game/enemy.h" -
+ * this TU's own extern declares gEnemies as a raw u8[] (stride-only,
+ * comment-verified), and enemy.h's own `extern Enemy gEnemies[25];` would
+ * conflict with that declaration's type. */
+typedef struct EnemyTailView {
+    u8  _0[0x240];
+    f32 pyr[3];         /* 0x240 pitch/yaw/roll   */
+    f32 ang;            /* 0x24c facing angle     */
+    f32 angbak;         /* 0x250                  */
+    u8  _254[0x2ec - 0x254];
+    f32 birth_pos[3];   /* 0x2ec spawn position    */
+} EnemyTailView;
+
+/* Local view of struct Critter (include/game/critter.h, sizeof 0xae0)
+ * touched by BossDeath/HealthMeterUpdate via gBossObj.  Not #include
+ * "game/critter.h" for the same file-local-view uniformity as above;
+ * hdr's own target (CritterHeader) has no verified fields at +0xd0/+0xd4/
+ * +0xd8, so those stay raw offsets off the resolved hdr pointer. */
+typedef struct BossCritterView {
+    u8    _0[0x4];
+    void* hdr;                /* 0x004 CritterHeader* (see critter.h)     */
+    u8    _8[0xc - 0x8];
+    f32   mtx[3][4];          /* 0x00c world transform (3x4 Mtx)          */
+    u8    _3c[0x418 - 0x3c];
+    f32   prevMovePathPos[3]; /* 0x418 prior-frame movePathPos snapshot   */
+    u8    _424[0xac4 - 0x424];
+    s16   pausecnt;           /* 0xac4 anim pause counter                 */
+} BossCritterView;
+
 void BossGenerateEnemy(struct BossObjView* o);
 void AddBoss(void* obj);
 void BossInit(void);
@@ -252,10 +305,10 @@ void BossSpewCoins(f32 v, f32* pos, f32* dir) {
                         gSpewItems[gNumSpewItems].vx = vec[0];
                         gSpewItems[gNumSpewItems].vy = vec[1];
                         gSpewItems[gNumSpewItems].vz = vec[2];
-                        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + 0xe0) = 500;
-                        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + 0xdc) = 0;
-                        *(f32*)((char*)gSpewItems[gNumSpewItems].obj + 0xe4) = 0.0f;
-                        *(s16*)((char*)gSpewItems[gNumSpewItems].obj + 0xec) = 120;
+                        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data) + 4) = 500;
+                        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data)) = 0;
+                        *(f32*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data) + 8) = 0.0f;
+                        *(s16*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data) + 0x10) = 120;
                         gNumSpewItems++;
                     }
                 }
@@ -283,10 +336,10 @@ void BossSpewCoins(f32 v, f32* pos, f32* dir) {
                         gSpewItems[gNumSpewItems].vx = vec[0];
                         gSpewItems[gNumSpewItems].vy = vec[1];
                         gSpewItems[gNumSpewItems].vz = vec[2];
-                        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + 0xe0) = 1000;
-                        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + 0xdc) = 0;
-                        *(f32*)((char*)gSpewItems[gNumSpewItems].obj + 0xe4) = 0.0f;
-                        *(s16*)((char*)gSpewItems[gNumSpewItems].obj + 0xec) = 120;
+                        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data) + 4) = 1000;
+                        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data)) = 0;
+                        *(f32*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data) + 8) = 0.0f;
+                        *(s16*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data) + 0x10) = 120;
                         gNumSpewItems++;
                     }
                 }
@@ -314,10 +367,10 @@ void BossSpewCoins(f32 v, f32* pos, f32* dir) {
                         gSpewItems[gNumSpewItems].vx = vec[0];
                         gSpewItems[gNumSpewItems].vy = vec[1];
                         gSpewItems[gNumSpewItems].vz = vec[2];
-                        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + 0xe0) = 5000;
-                        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + 0xdc) = 0;
-                        *(f32*)((char*)gSpewItems[gNumSpewItems].obj + 0xe4) = 0.0f;
-                        *(s16*)((char*)gSpewItems[gNumSpewItems].obj + 0xec) = 120;
+                        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data) + 4) = 5000;
+                        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data)) = 0;
+                        *(f32*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data) + 8) = 0.0f;
+                        *(s16*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data) + 0x10) = 120;
                         gNumSpewItems++;
                     }
                 }
@@ -341,7 +394,6 @@ static void clampAxis(f32* p, f32 lim) {
 
 void ProcessSpewItems(void) {
     int i;
-    int off;
     void* obj;
     f32* pvx;
     f32* pvy;
@@ -349,34 +401,37 @@ void ProcessSpewItems(void) {
     f32 lim;
     f32 h;
 
-    for (i = 0, off = 0; i < gNumSpewItems; i++, off += 16) {
-        SpewItem* it = (SpewItem*)((char*)gSpewItems + off);
+    for (i = 0; i < gNumSpewItems; i++) {
+        SpewItem* it = &gSpewItems[i];
         obj = it->obj;
         if (obj == 0) {
             continue;
         }
-        if ((*(s16*)((char*)obj + 0xc4) & 0x100) != 0) {
+        if ((*(s16*)((char*)obj + offsetof(SpewObjView, active)) & 0x100) != 0) {
             it->obj = 0;
             continue;
         }
         pvx = &it->vx;
         pvy = &it->vy;
         pvz = &it->vz;
-        *(f32*)((char*)obj + 0x34) = gClockFrameStep * it->vx + *(f32*)((char*)obj + 0x34);
-        *(f32*)((char*)obj + 0x38) = gClockFrameStep * it->vy + *(f32*)((char*)obj + 0x38);
-        *(f32*)((char*)obj + 0x3c) = gClockFrameStep * it->vz + *(f32*)((char*)obj + 0x3c);
+        *(f32*)((char*)obj + offsetof(SpewObjView, worldPos[0])) =
+            gClockFrameStep * it->vx + *(f32*)((char*)obj + offsetof(SpewObjView, worldPos[0]));
+        *(f32*)((char*)obj + offsetof(SpewObjView, worldPos[1])) =
+            gClockFrameStep * it->vy + *(f32*)((char*)obj + offsetof(SpewObjView, worldPos[1]));
+        *(f32*)((char*)obj + offsetof(SpewObjView, worldPos[2])) =
+            gClockFrameStep * it->vz + *(f32*)((char*)obj + offsetof(SpewObjView, worldPos[2]));
 
         h = 10.0f;
         lim = 0.5 * gClockFrameStep;
         if (it->vy <= 0.0f) {
-            f64 g = FloorPos(lbl_80344880, 1.0f, (char*)obj + 0x34, 0);
-            h = *(f32*)((char*)obj + 0x38) - (f32)(1.0 + g);
+            f64 g = FloorPos(lbl_80344880, 1.0f, (char*)obj + offsetof(SpewObjView, worldPos[0]), 0);
+            h = *(f32*)((char*)obj + offsetof(SpewObjView, worldPos[1])) - (f32)(1.0 + g);
             if (h < 0.1) {
                 *pvy = (f32)(0.4 * -*pvy);
                 if (*pvy < 0.1f) {
                     *pvy = 0.0f;
                 }
-                *(f32*)((char*)obj + 0x38) = (f32)(1.0 + g);
+                *(f32*)((char*)obj + offsetof(SpewObjView, worldPos[1])) = (f32)(1.0 + g);
                 lim = 4.0 * gClockFrameStep;
             }
         }
@@ -385,7 +440,7 @@ void ProcessSpewItems(void) {
         }
         clampAxis(pvx, lim);
         clampAxis(pvz, lim);
-        UpdateObjWorldMat((char*)it->obj + 4);
+        UpdateObjWorldMat((char*)it->obj + offsetof(SpewObjView, objgrp));
     }
 }
 
@@ -407,10 +462,10 @@ int StartSpewItem(f32 a, int b, int c, char* name, int e, int f, void* pos, void
     gSpewItems[gNumSpewItems].vy = ((f32*)vel)[1];
     gSpewItems[gNumSpewItems].vz = ((f32*)vel)[2];
     if (b == 1) {
-        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + 0xe0) = e;
-        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + 0xdc) = f;
-        *(f32*)((char*)gSpewItems[gNumSpewItems].obj + 0xe4) = a;
-        *(s16*)((char*)gSpewItems[gNumSpewItems].obj + 0xec) = 120;
+        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data) + 4) = e;
+        *(s32*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data)) = f;
+        *(f32*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data) + 8) = a;
+        *(s16*)((char*)gSpewItems[gNumSpewItems].obj + offsetof(SpewObjView, data) + 0x10) = 120;
     }
     gNumSpewItems++;
     return gNumSpewItems - 1;
@@ -418,7 +473,6 @@ int StartSpewItem(f32 a, int b, int c, char* name, int e, int f, void* pos, void
 
 void HealthMeterUpdate(f32 v, int meter) {
     int i;
-    int off;
     int flags;
     int a1;
     int a2;
@@ -483,10 +537,10 @@ void HealthMeterUpdate(f32 v, int meter) {
         mbBlitSetupVerts(HealthMeterFG[meter][0], -1.0f,
                          (f32)(0.00390625 * (f32)(int)cv), -1.0f, -1.0f);
     }
-    for (i = 0, off = 0; i < HealthMeterNPieces[meter]; i++, off += 4) {
-        void* blit = *(void**)((char*)HealthMeterBG + off + meter * 8);
+    for (i = 0; i < HealthMeterNPieces[meter]; i++) {
+        void* blit = HealthMeterBG[meter][i];
         if (blit != 0) {
-            if (*(s16*)((char*)gBossObj + 0xac4) < 1) {
+            if (*(s16*)((char*)gBossObj + offsetof(BossCritterView, pausecnt)) < 1) {
                 MBBlitSetColor(blit, 0xffffffff);
             } else {
                 MBBlitSetColor(blit, 0xff8080ff);
@@ -550,12 +604,12 @@ void BossDeath(void) {
         }
     }
     obj = gBossObj;
-    pos[0] = *(f32*)((char*)obj + 0x418);
-    pos[1] = *(f32*)((char*)obj + 0x41c);
-    pos[2] = *(f32*)((char*)obj + 0x420);
-    pos[0] = *(f32*)((char*)*(void**)((char*)obj + 4) + 0xd0) + pos[0];
-    pos[1] = *(f32*)((char*)*(void**)((char*)obj + 4) + 0xd4) + pos[1];
-    pos[2] = *(f32*)((char*)*(void**)((char*)obj + 4) + 0xd8) + pos[2];
+    pos[0] = *(f32*)((char*)obj + offsetof(BossCritterView, prevMovePathPos[0]));
+    pos[1] = *(f32*)((char*)obj + offsetof(BossCritterView, prevMovePathPos[1]));
+    pos[2] = *(f32*)((char*)obj + offsetof(BossCritterView, prevMovePathPos[2]));
+    pos[0] = *(f32*)((char*)*(void**)((char*)obj + offsetof(BossCritterView, hdr)) + 0xd0) + pos[0];
+    pos[1] = *(f32*)((char*)*(void**)((char*)obj + offsetof(BossCritterView, hdr)) + 0xd4) + pos[1];
+    pos[2] = *(f32*)((char*)*(void**)((char*)obj + offsetof(BossCritterView, hdr)) + 0xd8) + pos[2];
     if (gBossType < 42) {
         e1 = InitCustomEffect(sItemFile1Buf, &str_BOSSKEY, 0, 0);
         e2 = InitCustomEffect(sItemFile1Buf, str_BOSSKEY2, 0, 0);
@@ -597,15 +651,15 @@ void BossGenerateEnemy(struct BossObjView* o) {
                 generate_enemy(pos, 27, 3, vec, -1, 0, 1, lbl_80345B10) * 916;
             {
                 f32 vz = vec[2];
-                *(f32*)(e + 588) = atan2(vec[0], vz);
+                *(f32*)(e + offsetof(EnemyTailView, ang)) = atan2(vec[0], vz);
             }
-            *(f32*)(e + 592) = *(f32*)(e + 588);
-            *(f32*)(e + 576) = speed;
-            *(f32*)(e + 580) = *(f32*)(e + 588);
-            *(f32*)(e + 584) = speed;
-            *(f32*)(e + 748) = o->pos[0];
-            *(f32*)(e + 752) = o->pos[1];
-            *(f32*)(e + 756) = o->pos[2];
+            *(f32*)(e + offsetof(EnemyTailView, angbak)) = *(f32*)(e + offsetof(EnemyTailView, ang));
+            *(f32*)(e + offsetof(EnemyTailView, pyr[0])) = speed;
+            *(f32*)(e + offsetof(EnemyTailView, pyr[1])) = *(f32*)(e + offsetof(EnemyTailView, ang));
+            *(f32*)(e + offsetof(EnemyTailView, pyr[2])) = speed;
+            *(f32*)(e + offsetof(EnemyTailView, birth_pos[0])) = o->pos[0];
+            *(f32*)(e + offsetof(EnemyTailView, birth_pos[1])) = o->pos[1];
+            *(f32*)(e + offsetof(EnemyTailView, birth_pos[2])) = o->pos[2];
         }
         break;
     }
@@ -614,9 +668,9 @@ void BossGenerateEnemy(struct BossObjView* o) {
 
 void AddBoss(void* obj) {
     gBossObj = 0;
-    gBossPos[0] = *(f32*)((int)obj + 0x30);
-    gBossPos[1] = *(f32*)((int)obj + 0x34);
-    gBossPos[2] = *(f32*)((int)obj + 0x38);
+    gBossPos[0] = *(f32*)((int)obj + offsetof(struct BossObjView, pos[0]));
+    gBossPos[1] = *(f32*)((int)obj + offsetof(struct BossObjView, pos[1]));
+    gBossPos[2] = *(f32*)((int)obj + offsetof(struct BossObjView, pos[2]));
     if (CritterTypeLoaded(4, 0)) {
         gBossObj = CritterNewInst(4, 0, obj);
     }
@@ -635,7 +689,7 @@ void BossActivate(void* obj, int flag) {
     gBossActive = 1;
     if (lbl_803444E0 == 0) {
         lbl_803444E0 = 1;
-        add_target((int)obj + 0xc);
+        add_target((int)obj + offsetof(BossCritterView, mtx));
     }
     if (flag != 0) {
         sMusicSubIndex = 1;
