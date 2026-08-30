@@ -70,6 +70,25 @@ struct CritterHeader;   /* loaded type template (CRITTER.OBJ CritterInitHeader);
                          *   0x130 ptr  child def table (->0x14 base, stride 0x140)
                          *   0x138 ptr  geometry/type data (non-null == loaded) */
 
+/* -- CritterTargetCriteria (0x20): the shared 8-float target-selection
+ *    constraint block embedded in both CritterMove (@0x60) and CritterPattern
+ *    (@0x30) and, at the type level, in CritterHeader (@0x80).  Verified
+ *    field-for-field against every consumer that walks the raw float array:
+ *    CritterCalcTarget/CritterReCalcTarget/CritterGetTargetSub read it as
+ *    moveTarget[0..7] (indices 0/1 distance, 2 yaw, 3 dot, 4/5 rateScale,
+ *    6 idle-time gate vs Critter.unk4AC, 7 max vertical delta); every index
+ *    is read by at least one of the three consumers. -- */
+typedef struct CritterTargetCriteria {
+    f32 minDistance;    /* 0x00 CritterCalcTarget: reject if closer          */
+    f32 maxDistance;    /* 0x04 CritterCalcTarget: reject if farther (<=0 == no cap) */
+    f32 yaw;            /* 0x08 facing-cone yaw offset (YawVec3 -yaw)        */
+    f32 minDot;         /* 0x0C facing-alignment dot-product threshold       */
+    f32 minRateScale;   /* 0x10 reject if Critter.rateScale is lower         */
+    f32 maxRateScale;   /* 0x14 reject if Critter.rateScale is >= (>0 == capped) */
+    f32 idleGate;       /* 0x18 reject if Critter.unk4AC exceeds this (>0 == gated) */
+    f32 maxVertical;    /* 0x1C CritterCalcTarget: reject if |vertical delta| exceeds */
+} CritterTargetCriteria;  /* size 0x20 */
+
 /* -- CritterMove (0x90): one scripted move/state in hdr->moves[].  Scanned by
  *    CritterGetNextMove (mulli *,0x90) and dispatched by CritterAnimate. -- */
 typedef struct CritterMove {
@@ -88,10 +107,16 @@ typedef struct CritterMove {
     s16 frameEnd2;        /* 0x52 secondary event window end frame             */
     s16 link;             /* 0x54 chained/target move index                    */
     s16 unk56;            /* 0x56                                              */
-    u8  _blk58[0x28];     /* 0x58 .. 0x80                                      */
+    u8  _blk58[0x08];     /* 0x58 .. 0x60 sfx/sfxFrame/sfx2/sfx2Frame (see the
+                            * CritterMoveFx overlay in critter.c: naming these
+                            * directly here hoists an address register in
+                            * CritterActivate, so they stay raw pad here) */
+    CritterTargetCriteria target; /* 0x60 CritterMoveSetup/CritterLookForReady/
+                                    * CritterChildGetPattern's moveTarget arg  */
     f32 cooldown;         /* 0x80 move reuse delay                             */
     f32 readyDistance;    /* 0x84 immediate-ready target threshold             */
-    u8  _blk88[0x08];     /* 0x88 .. 0x90                                      */
+    f32 turnRate;         /* 0x88 CritterRotate max turn rate (rad/tick, x frameStep) */
+    f32 holdDuration;     /* 0x8C CritterAnimate move-hold/fade duration        */
 } CritterMove;            /* size 0x90 */
 
 /* ==================================================================== *
