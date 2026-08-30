@@ -1213,7 +1213,7 @@ static s32 cam_blocked(Camera* cam)
 void get_cam_wpos_8002ABE0(s32 camIdx)
 {
     s32* camState = (s32*)gCameraState;
-    Camera* cam = &gCameras[camIdx];
+    Camera* cam = (Camera*)(gCameraState + camIdx * sizeof(Camera) + 0xC8);
     f32 mat[18];
     f32 in[3];
     f32 out[9];
