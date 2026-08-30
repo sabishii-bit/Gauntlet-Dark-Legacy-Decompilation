@@ -981,8 +981,8 @@ void fn_8008A678(s32* player, u32* rec, void* p11)
             }
         } else {
             rec[2] = (u32)InitCustomEffect(p11, (char*)(rec + 4),
-                                           *(s16*)((u8*)rec + 0x30),
-                                           *(s16*)((u8*)rec + 0x32));
+                                           ((PlayerSfxRecord*)rec)->skinLoops,
+                                           ((PlayerSfxRecord*)rec)->speed);
         }
     }
     if ((s32)rec[3] == -1) {
