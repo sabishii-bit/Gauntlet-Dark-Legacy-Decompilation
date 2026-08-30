@@ -1,5 +1,31 @@
 #include "types.h"
 #include "game/player.h"
+#include "game/leveldata.h"
+
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
+/* Xbox PDB audio_data (per-level audio-bank descriptor; level_data.audio
+ * points at one). GC offsets are not cross-TU verified the way level_data's
+ * are -- evidence is AudioSetupLevelStreams's own internal self-consistency
+ * (nareas used as both a >1 gate and a clamp bound, stereo read once as a
+ * channel count, nparts indexed by the stream-state selector, stream read
+ * as a name/prefix string all line up with the field order/strides below)
+ * plus sounds_evt.c's independent +18 (hitsnd) access off the same
+ * gCurLevel->audio base. offsetof-only usage on the raw audio pointer --
+ * never a typed intermediate (claim.law.multifield-alias-defeats-indexed-addressing:
+ * 3+ nearby fields off one index/walked base regress under a typed alias). */
+typedef struct AudioDataLayout {
+    u8  bank[16];   /* 0x00 */
+    s16 entersnd;   /* 0x10 */
+    s16 hitsnd;     /* 0x12 */
+    s32 namesnd;    /* 0x14 */
+    u8  stream[16]; /* 0x18 stream name/prefix */
+    s16 nareas;     /* 0x28 stream-area count */
+    s16 stereo;     /* 0x2A channel count */
+    s16 nparts[8];  /* 0x2C per-area part counts */
+} AudioDataLayout;
 
 /* Slice of the SOUNDS audio module (Xbox SOUNDS.OBJ) covering the
  * name/speech and music/stream helper functions in 0x800A00A0-0x800A18E8.
@@ -396,7 +422,8 @@ void AudioMusicVolUpdate(void)
     }
     AudioSetupLevelStreams();
     if (sMusicSubState == 1 && sMusicSubIndex != sSelectStreamState &&
-        *(s16*)(*(u8**)(gCurLevel + 100) + 40) > 1) {
+        *(s16*)(*(u8**)(gCurLevel + offsetof(level_data, audio)) +
+                offsetof(AudioDataLayout, nareas)) > 1) {
         target = sCurMusicVol;
         if (target > 3) {
             target -= 3;
@@ -419,7 +446,7 @@ void AudioMusicVolUpdate(void)
         target = current - 8;
     }
     sCurMusicVol = target;
-    AudioDeferSlot((void*)(s32)((f32)target * *(f32*)(gCurLevel + 148)), target);
+    AudioDeferSlot((void*)(s32)((f32)target * *(f32*)(gCurLevel + offsetof(level_data, musicvol))), target);
 }
 
 void AudioStopSelect(void)
@@ -440,7 +467,7 @@ void BGMusicStart(void)
     }
     sndFxResetVoices();
     sCurSelectTrack = 0;
-    AudioRegisterNameBanks(*(char**)(gCurLevel + 100), 0);
+    AudioRegisterNameBanks(*(char**)(gCurLevel + offsetof(level_data, audio)), 0);
     sSelectStreamHandle = v;
     sCurMusicVol = lbl_80343B4C;
     sSelectStreamState = 0;
@@ -466,7 +493,7 @@ void AudioRegisterNameBanks(char* name, int flag)
     }
     for (i = 0; i < 4; i++) {
         p = &gPlayers[i * 13148];
-        st = *(s32*)(p + 232);
+        st = *(s32*)(p + offsetof(Player, state));
         if (st == 0) {
             continue;
         }
@@ -474,7 +501,7 @@ void AudioRegisterNameBanks(char* name, int flag)
             continue;
         }
         sprintf(nbuf, "PLAYER%d", i + 1);
-        AudioBankLoadName(nbuf, lbl_801200B0[*(s32*)(p + 8)], mode);
+        AudioBankLoadName(nbuf, lbl_801200B0[*(s32*)(p + offsetof(Player, char_type))], mode);
     }
     AudioBankLoadName("LEVELS", name, mode);
     if (sMusicTrackHi == 13) {
@@ -531,13 +558,14 @@ void AudioSetupLevelStreams(void)
         if (sMusicSubState < 2 && sCurMusicVol > 3) {
             return;
         }
-        if (*(s16*)(*(u8**)(gCurLevel + 100) + 40) <= 1) {
+        if (*(s16*)(*(u8**)(gCurLevel + offsetof(level_data, audio)) +
+                    offsetof(AudioDataLayout, nareas)) <= 1) {
             sMusicSubIndex = 0;
             sMusicSubState = 0;
             return;
         }
     }
-    lvl = *(u8**)(gCurLevel + 100);
+    lvl = *(u8**)(gCurLevel + offsetof(level_data, audio));
     if (lvl == NULL) {
         return;
     }
@@ -548,8 +576,8 @@ void AudioSetupLevelStreams(void)
     if (idx < 0) {
         idx = 0;
     }
-    if (idx >= *(s16*)(lvl + 40)) {
-        idx = *(s16*)(lvl + 40) - 1;
+    if (idx >= *(s16*)(lvl + offsetof(AudioDataLayout, nareas))) {
+        idx = *(s16*)(lvl + offsetof(AudioDataLayout, nareas)) - 1;
     }
     if (idx != sSelectStreamState) {
         sMusicField2F4 = 0;
@@ -562,28 +590,28 @@ void AudioSetupLevelStreams(void)
     tmp = sMusicField2F4;
     sSelectStreamState = idx;
     lbl_803442F8 = tmp;
-    lvl2 = *(u8**)(gCurLevel + 100);
-    chans = *(s16*)(lvl2 + 42);
-    if (*(s16*)(lvl2 + 40) == 1) {
-        sprintf(buf, lbl_80348528, (char*)(lvl2 + 24));
+    lvl2 = *(u8**)(gCurLevel + offsetof(level_data, audio));
+    chans = *(s16*)(lvl2 + offsetof(AudioDataLayout, stereo));
+    if (*(s16*)(lvl2 + offsetof(AudioDataLayout, nareas)) == 1) {
+        sprintf(buf, lbl_80348528, (char*)(lvl2 + offsetof(AudioDataLayout, stream)));
     } else {
-        sprintf(buf, lbl_80348570, (char*)(lvl2 + 24),
+        sprintf(buf, lbl_80348570, (char*)(lvl2 + offsetof(AudioDataLayout, stream)),
                 (signed char)lbl_8012330C[sSelectStreamState]);
     }
-    lvl2 = *(u8**)(gCurLevel + 100);
+    lvl2 = *(u8**)(gCurLevel + offsetof(level_data, audio));
     lvl2 += sSelectStreamState * 2;
-    if (*(s16*)(lvl2 + 44) > 1) {
+    if (*(s16*)(lvl2 + offsetof(AudioDataLayout, nparts)) > 1) {
         sprintf(nb, lbl_80348578, buf, sMusicField2F4 + 1);
     } else {
         strcpy(nb, buf);
     }
     strcat(nb, lbl_8034852C);
-    lvl2 = *(u8**)(gCurLevel + 100);
+    lvl2 = *(u8**)(gCurLevel + offsetof(level_data, audio));
     if (sMusicField2F4 + 1 ==
-        *(s16*)(lvl2 + sSelectStreamState * 2 + 44)) {
+        *(s16*)(lvl2 + sSelectStreamState * 2 + offsetof(AudioDataLayout, nparts))) {
         mode = 1;
     }
-    if (mode != 0 && *(s16*)(lvl2 + 40) == 1) {
+    if (mode != 0 && *(s16*)(lvl2 + offsetof(AudioDataLayout, nareas)) == 1) {
         mode = 2;
     }
     if (FileExists(lbl_80348580, nb) == 0) {
@@ -594,7 +622,7 @@ void AudioSetupLevelStreams(void)
         tmp = 0;
         sMusicSubState = tmp;
         if (AudioStreamPlay((u16)(s32)((f32)sCurMusicVol *
-                                       *(f32*)(gCurLevel + 148)),
+                                       *(f32*)(gCurLevel + offsetof(level_data, musicvol))),
                             mode, chans, tmp) < 0) {
             ErrorPrintf(lbl_80114CE0, nb);
             err = -2;
@@ -633,7 +661,7 @@ void AudioBuildMusicName(void)
         material = (char*)lbl_801232DC + off;
         if (material[0] == '*') {
             sprintf(buf, strings + 692, material + 1);
-        } else if (*(s32*)(gCurLevel + 68) >= 0) {
+        } else if (*(s32*)(gCurLevel + offsetof(level_data, bosstype)) >= 0) {
             sprintf(buf, strings + 704, material, (s8)LevelLetter(0));
         } else {
             sprintf(buf, strings + 716, material, (s8)LevelLetter(0));
@@ -647,7 +675,7 @@ void AudioBuildMusicName(void)
 
         if (material[0] == '*') {
             sprintf(buf, strings + 728, material + 1);
-        } else if (*(s32*)(gCurLevel + 68) >= 0) {
+        } else if (*(s32*)(gCurLevel + offsetof(level_data, bosstype)) >= 0) {
             sprintf(buf, strings + 740, material, (s8)LevelLetter(0));
         } else {
             sprintf(buf, strings + 756, material, (s8)LevelLetter(0));
@@ -805,7 +833,8 @@ void AudioAmbientUpdate(void)
     poff = 0;
     for (pi = 0; pi < 4; pi++) {
         p = (u8*)gPlayers + poff;
-        if (*(s32*)(p + 232) == 1 && *(s16*)(p + 2400) != 0) {
+        if (*(s32*)(p + offsetof(Player, state)) == 1 &&
+            *(s16*)(p + offsetof(Player, pad_0960)) != 0) {
             j = 0;
             joff = 0;
             for (; j < 4; j++, joff += 4) {
@@ -815,9 +844,11 @@ void AudioAmbientUpdate(void)
             }
             t = 0;
             for (j = 0; j < 11; j++) {
-                if (*(u32*)(p + t + 316) & 8) {
+                if (*(u32*)(p + t + offsetof(Player, powerup) +
+                            offsetof(PlayerPowerup, specialflags)) & 8) {
                     fn_800552A4((u8*)((u32)gPlayers + poff + t), lbl_80344B20,
-                                *(f32*)((u32)gPlayers + poff + t + 304));
+                                *(f32*)((u32)gPlayers + poff + t +
+                                        offsetof(Player, powerup)));
                     break;
                 }
                 t += 16;
@@ -833,8 +864,9 @@ void AudioAmbientUpdate(void)
             if (mode == 1) {
                 sndFxPlay3DTracked(83, 0, 127, 113);
             } else {
-                sndFxPlay3DTracked(83, (s32)((u8*)gPlayers + idx * 13148 + 84),
-                                   127, 113);
+                sndFxPlay3DTracked(
+                    83, (s32)((u8*)gPlayers + idx * 13148 + offsetof(Player, col_pos)),
+                    127, 113);
             }
         }
         tr = AudioMaskByEvent(113);
@@ -842,7 +874,8 @@ void AudioAmbientUpdate(void)
             if (mode == 1) {
                 pan = AudioAng(0);
             } else {
-                pan = AudioAng((s32)((u8*)gPlayers + idx * 13148 + 84));
+                pan = AudioAng((s32)((u8*)gPlayers + idx * 13148 +
+                                      offsetof(Player, col_pos)));
             }
             AudioSetTrackPan(tr, pan);
         }
@@ -873,7 +906,7 @@ s32 AudioSecretProc(f32 scale, s32 sound, f32* position, u32 flags,
     }
 
     scaled = lbl_8034851C * scale;
-    volume = (s32)(scaled * *(f32*)(gCurLevel + 0x98));
+    volume = (s32)(scaled * *(f32*)(gCurLevel + offsetof(level_data, soundvol)));
     if (sumnerSpeechActive() != 0 || gTriggerCameraState != 0 ||
         lbl_803447DC != 0) {
         volume = 0x10;
