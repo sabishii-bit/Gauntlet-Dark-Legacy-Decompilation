@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "exact closure of the timer sampling window by moving the gClockStepTicks copy before the second pbLoad sample and making the first pbLoad sample volatile, after bounded volatility, signedness, temporary-lifetime, arithmetic-spelling, and statement-order probes",
+  "attributes": {
+    "alias_normalization": "target sFlags equals gControllerButtons+0x4 at 0x803445CC, and target lbl_803445D4 equals sPreviousFlags+0x4 at 0x803445D4; config/GUNE5D/symbols.txt verifies both identities and objdiff scores the function 100.0%",
+    "anchors": "src/game/game/combat.c::ClockOncePerFrame; target .text 0x8002F040 size 0x294; python tools/gdl/fnasm.py game/game/combat ClockOncePerFrame; python tools/gdl/fndiff.py game/game/combat ClockOncePerFrame --clean; ninja build/GUNE5D/src/game/game/combat.o; ninja build/GUNE5D/report.json; ninja (build/GUNE5D/main.dol: OK)",
+    "baseline": "target/current 165/165 instructions, objdiff fuzzy 99.72727%, fndiff real 14, 0x18-byte frame, saves r30-r31, one pbGetTime call; opcode streams and CFG were already identical",
+    "final_state": "target/current 165/165 instructions, objdiff fuzzy 100.0%, normalized real 0 (raw fndiff real 2 from symbol-name aliases only), 0x18-byte frame, saves r30-r31",
+    "negative_axes": "global volatile pbLoad worsened real 14 to 16; swapping only the volatile cast was identical at real 14; one or three explicit temporaries enlarged the frame to 0x20 and worsened real to 36; signed pbLoad and add-with-unsigned-negation were identical to their baselines",
+    "retained_source_shape": "evaluate the first pbLoad sample through a volatile u32 lvalue, assign gClockStepTicks from gFrameTicks before taking the second volatile pbLoad sample, then assign sLastTimerCount; MWCC emits the target load order and register routing",
+    "semantic_audit": "freeze/resume controller paths, timer sampling, elapsed-time update, pause/modal clamping, frame-step/reciprocal selection, long-frame clamp, music-time wrap, frame-number conversion, and InfFrame increment all retain the target call, branch, field, and store architecture"
+  },
+  "function": "function:ClockOncePerFrame",
+  "id": "attempt.clock-once-per-frame-exact-timer-order.20260829.v1",
+  "kind": "attempt",
+  "outcome": "exact",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

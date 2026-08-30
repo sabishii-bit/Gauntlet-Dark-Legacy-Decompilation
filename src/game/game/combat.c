@@ -3451,9 +3451,9 @@ void ClockOncePerFrame(void)
         freeze = 1;
     }
 
-    gFrameTicks = pbLoad - sLastTimerCount;
-    sLastTimerCount = *(volatile u32*)&pbLoad;
+    gFrameTicks = *(volatile u32*)&pbLoad - sLastTimerCount;
     gClockStepTicks = gFrameTicks;
+    sLastTimerCount = *(volatile u32*)&pbLoad;
     gClockCurrentTime = pbGetTime();
     gClockElapsedTime = gClockCurrentTime - sLastFrameTime;
     sLastFrameTime = gClockCurrentTime;
