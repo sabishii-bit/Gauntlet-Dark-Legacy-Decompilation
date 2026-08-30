@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "coordinate-temporary declaration, assignment, and squared-distance expression order, followed by bounded entry-schedule pointer and register-storage shapes",
+  "attributes": {
+    "anchors": "src/game/world/worldcol.c::CTriListCollide at GCN 0x8000E3B8; git:131a57f2c; python tools/gdl/fnasm.py game/world/worldcol CTriListCollide; python tools/gdl/fndiff.py game/world/worldcol.c CTriListCollide --clean",
+    "axis_log": "negative: reversed add order alone worsened to clean/count 44/38; swapped value-to-name association worsened to 40/34; explicit origin pointer worsened to 114/112; direct global result access worsened to 116/114; all reverted. no-effect at 20/14: register result pointer, f32 pointer indexing, register-qualified parameters; do not retry these entry-schedule axes without a genuinely new source-level idea.",
+    "baseline": "target/current 175/175 instructions, fuzzy 97.18285%, clean real 36 (--count real 30), 0xC8 frame, saves r18-r31 and f24-f31",
+    "best": "target/current 175/175 instructions, fuzzy 97.22857%, clean real 20 (--count real 14), 0xC8 frame; TU fuzzy 97.49391% -> 97.49878%; exact matched status remains non-exact",
+    "remaining": "Only entry initialization scheduling remains: target interleaves address-high loads, parameter homes, and FP constants while MWCC emits the same values/register topology in a different order. fndiff conservatively reports STRUCTURAL because four opcodes move across the prologue.",
+    "semantic_audit": "Loop, filtering, TriLineCol/BTriLineCol calls, hit writes, early break, dot test, and squared-distance value are unchanged. Declaring/assigning dx before dy and spelling dx*dx + dy*dy closed both repeated distance blocks exactly."
+  },
+  "function": "function:CTriListCollide",
+  "id": "attempt.ctri-list-collide-coordinate-order.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
