@@ -1126,7 +1126,7 @@ void PlayerMotion(Player* p) {
     to[0] = oldpos[0] + dpos[0];
     to[1] = oldpos[1] + dpos[1];
     to[2] = oldpos[2] + dpos[2];
-    PF(p, 0x8AC, s32) = 0;
+    p->special_collision_item = 0;
     specialCritter = 0;
     firstEnemyHits = PlayerCollideEnemies(
         p, (s32)oldpos, to, to, 0, (s32*)&firstEnemy, radius, height);
@@ -1572,7 +1572,7 @@ collision_done:
         targetDir[0] = sin(heading);
         targetDir[1] = 0.0f;
         targetDir[2] = cos(heading);
-        target = PF(p, 0x8A8, void*);
+        target = p->collision_item;
         targetDistance = PlayerGetTarget(p, to, targetDir, attackDir,
                                          &item, &target);
         if (item >= 0x10000) {
@@ -2113,8 +2113,8 @@ store_motion_state:
                               lbl_80344894 * 60),
                             0x1FF, 1);
                         SfxSetParent(lbl_80344894,
-                                     PF(p, 0x6D0, void*));
-                        PF(p, 0x730, void*) =
+                                     p->hand_node);
+                        p->shield_object =
                             *((void**)(Effects + 0x14) +
                               lbl_80344894 * 60);
                     }
@@ -2229,7 +2229,7 @@ store_motion_state:
                 case 41:
                     if (lbl_80344894 >= 0) {
                         lbl_80344894 = DeleteEffect(lbl_80344894, 1);
-                        PF(p, 0x730, s32) = 0;
+                        p->shield_object = 0;
                     }
                     break;
                 default:
@@ -2545,7 +2545,7 @@ store_motion_state:
                         strings + 84, sPowerupsHandle,
                         sPowerupsHandle, 1);
                     s32* found;
-                    if ((found = AtreeFindMbidxNode(PF(p, 0x790, void*),
+                    if ((found = AtreeFindMbidxNode(p->atree,
                                                     object)) != NULL) {
                         SfxSetParent(effect, (void*)*found);
                     }
@@ -2553,7 +2553,7 @@ store_motion_state:
                     p->coll_score = 0.0f;
                     AudioPlayerTurbo(p->index, 0, 0);
                 } else {
-                    SfxSetParent(effect, PF(p, 0x6D4, void*));
+                    SfxSetParent(effect, p->weapon_node);
                 }
                 PF(Effects + effect * 240, 0x9C, f32) =
                     lbl_80347CB8;
@@ -2916,11 +2916,11 @@ player_motion_phase_exit:
             }
 
             if ((p->flags & 1) != 0) {
-                u8* root = PF(p, 0x7C, u8*);
+                u8* root = (u8*)p->platform;
                 PF(PF(root, 0, void*), 0x34, f32) =
                     (f32)(lbl_80347B88 + PF(PF(root, 0x1C, u8*), 0x64, f32));
             } else {
-                u8* root = PF(p, 0x7C, u8*);
+                u8* root = (u8*)p->platform;
                 PF(PF(root, 0, void*), 0x34, f32) =
                     PF(PF(root, 0x1C, u8*), 0x64, f32);
             }
