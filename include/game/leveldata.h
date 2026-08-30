@@ -26,6 +26,23 @@
  *   +0xC0 ene_mrate  move_logic30 (MATCHED fn unchanged) dead-end timer -
  *                    lfs ...,192(rN)
  * See attempt.enemy-c-defakematch-tupass.20260830.v2.
+ * GC offset verification (2026-08-30 gauntworld-defake2 pass), two more:
+ *   +0xB4 ene_visrad fn_80060114 (game/world/gauntworld.c) - fnasm.py on the
+ *                    TARGET showed `lwz r3,0(0) @gCurLevel; lfs f0,180(r3)`
+ *                    at both call sites; the pre-existing source had
+ *                    `*(f32*)(gCurLevel + 180)` with NO `(u8*)` cast, so it
+ *                    scaled by sizeof(level_data) instead of by 1 - a real
+ *                    latent bug, not just an unnamed offset. Casting/naming
+ *                    it fixed the bug and improved fn_80060114's real diff
+ *                    (299 -> 293); see attempt.gauntworld-defake2-tupass.
+ *   +0xA8..0xDC (difficulty..trap_damage, all 14 consecutive f32 fields)
+ *                    ResolveWorldDataPointers's per-level float-normalise
+ *                    loop (byte-exact MATCHED, unchanged after conversion)
+ *                    touches offsets 168/172/.../220 in lockstep 4-byte
+ *                    steps with zero gaps - independently confirms this
+ *                    whole span's stride/order against the struct below
+ *                    (does not by itself confirm the Xbox NAMES for the
+ *                    still-unmarked fields in this span, only the layout).
  * Remaining fields carry the Xbox names unverified; verify a field's
  * displacement against GC target asm before relying on it in matching work.
  */
@@ -70,7 +87,7 @@ typedef struct level_data {
     f32   difficulty;         /* 0xA8 */
     f32   ene_health;         /* 0xAC GC-VERIFIED (enemy.c fight threshold/scale) */
     f32   ene_speed;          /* 0xB0 GC-VERIFIED (do_enemies speed-table refresh) */
-    f32   ene_visrad;         /* 0xB4 */
+    f32   ene_visrad;         /* 0xB4 GC-VERIFIED (fn_80060114 lfs 180(rN)) */
     f32   ene_attack;         /* 0xB8 */
     f32   ene_damage;         /* 0xBC GC-VERIFIED (enemy.c suicide-explosion scale) */
     f32   ene_mrate;          /* 0xC0 GC-VERIFIED (move_logic30 dead-end timer) */

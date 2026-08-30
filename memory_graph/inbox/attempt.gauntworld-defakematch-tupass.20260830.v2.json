@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Second-wave de-fakematch pass, game/world/gauntworld.c (work_claim.gauntworld-defake2.20260830.v1): reconcile local WorldLevel typedef with include/game/leveldata.h's level_data (claim.gcurlevel-is-level-data.20260830.v2); convert every raw-offset gCurLevel/WorldLevel-float-tail access to named level_data fields.",
+  "attributes": {
+    "anchors": "src/game/world/gauntworld.c; include/game/leveldata.h; fnasm.py+fndiff.py game/world/gauntworld.c <fn> --count/--ops/--clean",
+    "design_decision": "Skipped the literal `typedef level_data WorldLevel;` alias (task's suggested route): ResolveWorldDataPointers already uses local WorldLevel's own spellings (cameraIdx/flags2/resolved/bossType/...) and is byte-exact MATCHED; a full alias forces renaming flags2->enabled/resolved->setup, adopting Xbox names NOT GC-verified, for zero benefit on an exact fn. Instead only gCurLevel itself is retyped `extern level_data* gCurLevel;` (matches enemy.c/items.c convention), cast at its one assignment site (ResolveWorldData: `gCurLevel = (level_data*)&gWorldData->levels[level];`), plus cosmetic ->bossType to ->bosstype rename. WorldLevel struct/ResolveWorldDataPointers spellings otherwise untouched.",
+    "gcurlevel_conversion": "10 raw sites, 3 fns, all converted. fn_8005C1DC: 0x9C plevel x2, 0xCC gen_health x1, 0xDC trap_damage x2. fn_800606FC: 0xD8 trap_rate x2, 0xDC trap_damage x1. fn_80060114: `gCurLevel + 180` (no u8* cast, x2) -> ->ene_visrad - a LATENT BUG not just an unnamed offset: without the cast it scaled by sizeof(level_data)=0x10C instead of 1 byte. fnasm.py TARGET showed both sites do `lwz r3,0(0) @gCurLevel; lfs f0,180(r3)` (byte 0xB4 = ene_visrad, new GC anchor). Fix IMPROVED fn_80060114 real 299->293 (insns 378/377->378/375, lines 301->295; --ops shows the 2 stray-insn clusters at those call sites gone). fn_8005C1DC/fn_800606FC byte-identical before/after (real 428/1384 unchanged) - pure rename, zero codegen delta.",
+    "leveldata_h_updates": "Marked ene_visrad GC-VERIFIED (fn_80060114 anchor); added doc block for the ResolveWorldDataPointers 0xA8..0xDC stride confirmation. Comment-only, no offset/type changes.",
+    "resolveworlddatapointers_lvl_loop": "43 raw `lvl + N` bare-hex touches in the per-level float-normalise block -> `offsetof(level_data, field)` (added local offsetof macro matching items.c/enemy.c). NO typed intermediate pointer used: block touches 14 nearby fields off one walked base in a straight-line region, exactly claim.law.multifield-alias-defeats-indexed-addressing's regression pattern; used offsetof-fused-immediate-counter's raw-literal form instead. Verified safe even at 14-field density: fndiff --clean EXACT 0 real diff lines, before and after. Independently confirms level_data's whole 0xA8..0xDC span (difficulty..trap_damage, 14 consecutive f32, zero gaps) via this loop's literal offsets 168..220 in 4-byte lockstep.",
+    "score_changes": "fn_8005C1DC real428, fn_800606FC real1384 unchanged. fn_80060114 IMPROVED real299->293. ResolveWorldDataPointers OK before/after (MATCHED, EXACT). ResolveWorldData/LoadWorldData untouched (real1518/43). Full project: ninja -j2 green, main.dol OK, 97.82%/58.15%/26.09% unchanged at reported precision. git diff --check clean; portable C only.",
+    "sites_left_raw": "gWorldData's other section arrays (cameras/audio/section20/30/34/sounds - camera_data/audio_data/map_data/bosscam_data contents) in ResolveWorldData: out of scope, no GC-verified struct for those sub-records. WorldLevel's own pre-existing-named fields (cameraIdx/.../flags2/resolved) left as-is per design_decision - flags2/resolved not GC-verified against Xbox enabled/setup."
+  },
+  "function": "function:fn_800606FC",
+  "id": "attempt.gauntworld-defakematch-tupass.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.gauntworld-defakematch-tupass.20260830.v1",
+  "valid_from": "2026-08-30"
+}

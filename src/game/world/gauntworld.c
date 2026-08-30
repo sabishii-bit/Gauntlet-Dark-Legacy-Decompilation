@@ -1,9 +1,14 @@
 #include "types.h"
 #include "game/dyngrid.h"
 #include "game/item.h"
+#include "game/leveldata.h"
 #include "game/mbobject.h"
 #include "game/player.h"
 #include "game/worldobj.h"
+
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 
 /* ==========================================================================
  * game/world/gauntworld.c  (NonMatching documentation slice)
@@ -65,7 +70,20 @@ typedef struct WorldData {
     /* 0x34 */ u8*   section34;  /* array          (stride 0x54)             */
 } WorldData;
 
-/* --- One level record inside WorldData.levels (stride 0x10C) --------------- */
+/* --- One level record inside WorldData.levels (stride 0x10C) ---------------
+ * This is the SAME byte layout as struct level_data (game/leveldata.h,
+ * Xbox shell3D.pdb misc.h Id=3267): every field/offset/size below lines up
+ * exactly with level_data's (flags/name/bosstype/camidx../camera../
+ * bosscamidx, then the fog+float tail this local view leaves padded).
+ * ResolveWorldDataPointers is byte-exact MATCHED using these locally-named
+ * fields (some, e.g. flags2/resolved, predate and are not yet GC-verified
+ * against the Xbox enabled/setup spelling), so this view struct is kept
+ * as-is rather than replaced by a literal `typedef level_data WorldLevel`
+ * alias, to avoid adopting unverified names into a matched region for no
+ * matching benefit (see claim.gcurlevel-is-level-data). gCurLevel itself
+ * (the field this TU's de-fakematch pass actually needed named access to)
+ * is declared as level_data* directly below instead, matching the other
+ * TUs (enemy.c, items.c) that already reference the same global that way. */
 struct WorldLevel {
     /* 0x00 */ u32   flags;      /* bit0 cleared during resolve              */
     /* 0x04 */ s16   flags2;     /* bit0 => level owns cameras               */
@@ -83,7 +101,8 @@ struct WorldLevel {
     /* 0x6C */ u8*   sec34Ptr;
     /* 0x70 */ u8    _pad70[0x1C];
     /* 0x8C */ s16   sec34Idx;   /* -> sec34Ptr  (WorldData.section34[idx])  */
-    /* 0x8E */ u8    _pad8E[0x7E];
+    /* 0x8E */ u8    _pad8E[0x7E]; /* = level_data's 0x8E..0x10C float tail;
+                                      accessed via gCurLevel (level_data*)   */
     /* audio volume / range floats live at 0xA8..0xDC and are normalised     */
 };
 
@@ -155,7 +174,7 @@ extern s32   sMusicTrackHi;      /* 0x803448D8 current realm data type        */
 extern s32   sWorldDataConst;    /* 0x80344848 = 0xD00                        */
 extern s32   gBossType;          /* 0x8034439C boss id of the active level    */
 extern WorldData* gWorldData;    /* 0x80344838 active world-data header        */
-extern WorldLevel* gCurLevel;    /* 0x8034483C active level record            */
+extern level_data* gCurLevel;    /* 0x8034483C active level record            */
 
 /* forward decl of the static BE fix-up pass */
 static void ResolveWorldDataPointers(void);
@@ -506,12 +525,12 @@ void ResolveWorldData(int worldlevel)
         level = 0;
     }
     gWorldData->curLevel = (s16)level;
-    gCurLevel = &gWorldData->levels[level];
+    gCurLevel = (level_data*)&gWorldData->levels[level];
     sMusicTrackLo  = level;
     sMusicTrackHi  = realm;
     lbl_803448B8 = (realm == 12);
     sLastWorldLevel = worldlevel;
-    gBossType      = gCurLevel->bossType;
+    gBossType      = gCurLevel->bosstype;
 
     /* first level (from the current one) that owns cameras */
     count = gWorldData->numLevels;
@@ -630,68 +649,75 @@ static void ResolveWorldDataPointers(void)
         }
         level->resolved = 1;
         {
-            if (sent == *(f32*)(lvl + 168)) {
-                *(f32*)(lvl + 168) = one;
+            /* per-level float tuning block, level_data 0xA8..0xDC
+             * (difficulty..trap_damage) - stride/order confirmed by this
+             * loop's exact offsets against every field in that span. */
+            if (sent == *(f32*)(lvl + offsetof(level_data, difficulty))) {
+                *(f32*)(lvl + offsetof(level_data, difficulty)) = one;
             }
-            d = *(f32*)(lvl + 168);
-            if (sent == *(f32*)(lvl + 172)) {
-                *(f32*)(lvl + 172) = d;
+            d = *(f32*)(lvl + offsetof(level_data, difficulty));
+            if (sent == *(f32*)(lvl + offsetof(level_data, ene_health))) {
+                *(f32*)(lvl + offsetof(level_data, ene_health)) = d;
             }
-            if (sent == *(f32*)(lvl + 176)) {
-                *(f32*)(lvl + 176) = d;
+            if (sent == *(f32*)(lvl + offsetof(level_data, ene_speed))) {
+                *(f32*)(lvl + offsetof(level_data, ene_speed)) = d;
             }
-            if (sent == *(f32*)(lvl + 180)) {
-                *(f32*)(lvl + 180) = d;
+            if (sent == *(f32*)(lvl + offsetof(level_data, ene_visrad))) {
+                *(f32*)(lvl + offsetof(level_data, ene_visrad)) = d;
             }
-            if (sent == *(f32*)(lvl + 184)) {
-                *(f32*)(lvl + 184) = d;
+            if (sent == *(f32*)(lvl + offsetof(level_data, ene_attack))) {
+                *(f32*)(lvl + offsetof(level_data, ene_attack)) = d;
             }
-            if (sent == *(f32*)(lvl + 188)) {
-                *(f32*)(lvl + 188) = d;
+            if (sent == *(f32*)(lvl + offsetof(level_data, ene_damage))) {
+                *(f32*)(lvl + offsetof(level_data, ene_damage)) = d;
             }
-            if (sent == *(f32*)(lvl + 192)) {
-                *(f32*)(lvl + 192) = d;
+            if (sent == *(f32*)(lvl + offsetof(level_data, ene_mrate))) {
+                *(f32*)(lvl + offsetof(level_data, ene_mrate)) = d;
             }
-            if (sent == *(f32*)(lvl + 196)) {
-                *(f32*)(lvl + 196) = one;
+            if (sent == *(f32*)(lvl + offsetof(level_data, ene_mspeed))) {
+                *(f32*)(lvl + offsetof(level_data, ene_mspeed)) = one;
             }
-            if (sent == *(f32*)(lvl + 200)) {
-                *(f32*)(lvl + 200) = d;
+            if (sent == *(f32*)(lvl + offsetof(level_data, ene_macc))) {
+                *(f32*)(lvl + offsetof(level_data, ene_macc)) = d;
             }
-            if (sent == *(f32*)(lvl + 204)) {
-                *(f32*)(lvl + 204) = d;
+            if (sent == *(f32*)(lvl + offsetof(level_data, gen_health))) {
+                *(f32*)(lvl + offsetof(level_data, gen_health)) = d;
             }
-            if (sent == *(f32*)(lvl + 208)) {
-                *(f32*)(lvl + 208) = d;
+            if (sent == *(f32*)(lvl + offsetof(level_data, gen_rate))) {
+                *(f32*)(lvl + offsetof(level_data, gen_rate)) = d;
             }
-            if (sent == *(f32*)(lvl + 212)) {
-                *(f32*)(lvl + 212) = d;
+            if (sent == *(f32*)(lvl + offsetof(level_data, gen_max))) {
+                *(f32*)(lvl + offsetof(level_data, gen_max)) = d;
             }
-            if (sent == *(f32*)(lvl + 216)) {
-                *(f32*)(lvl + 216) = d;
+            if (sent == *(f32*)(lvl + offsetof(level_data, trap_rate))) {
+                *(f32*)(lvl + offsetof(level_data, trap_rate)) = d;
             }
-            if (sent == *(f32*)(lvl + 220)) {
-                *(f32*)(lvl + 220) = d;
+            if (sent == *(f32*)(lvl + offsetof(level_data, trap_damage))) {
+                *(f32*)(lvl + offsetof(level_data, trap_damage)) = d;
             }
             {
                 gp = (f32*)((u8*)lbl_8011C748 +
                             ((OptsView*)optionsAudioAndPrefs30)->vol * 4);
                 gain = *gp;
-                *(f32*)(lvl + 168) *= gain;
-                *(f32*)(lvl + 176) *= gain;
-                *(f32*)(lvl + 180) *= gain;
-                *(f32*)(lvl + 184) *= gain;
-                *(f32*)(lvl + 192) *= gain;
-                *(f32*)(lvl + 200) *= gain;
-                *(f32*)(lvl + 208) *= gain;
-                *(f32*)(lvl + 212) *= gain;
-                *(f32*)(lvl + 216) *= gain;
-                *(f32*)(lvl + 220) *= gain;
+                *(f32*)(lvl + offsetof(level_data, difficulty)) *= gain;
+                *(f32*)(lvl + offsetof(level_data, ene_speed)) *= gain;
+                *(f32*)(lvl + offsetof(level_data, ene_visrad)) *= gain;
+                *(f32*)(lvl + offsetof(level_data, ene_attack)) *= gain;
+                *(f32*)(lvl + offsetof(level_data, ene_mrate)) *= gain;
+                *(f32*)(lvl + offsetof(level_data, ene_macc)) *= gain;
+                *(f32*)(lvl + offsetof(level_data, gen_rate)) *= gain;
+                *(f32*)(lvl + offsetof(level_data, gen_max)) *= gain;
+                *(f32*)(lvl + offsetof(level_data, trap_rate)) *= gain;
+                *(f32*)(lvl + offsetof(level_data, trap_damage)) *= gain;
             }
-            *(f32*)(lvl + 184) = one / *(f32*)(lvl + 184);
-            *(f32*)(lvl + 200) = one / *(f32*)(lvl + 200);
-            *(f32*)(lvl + 192) = one / *(f32*)(lvl + 192);
-            *(f32*)(lvl + 216) = one / *(f32*)(lvl + 216);
+            *(f32*)(lvl + offsetof(level_data, ene_attack)) =
+                one / *(f32*)(lvl + offsetof(level_data, ene_attack));
+            *(f32*)(lvl + offsetof(level_data, ene_macc)) =
+                one / *(f32*)(lvl + offsetof(level_data, ene_macc));
+            *(f32*)(lvl + offsetof(level_data, ene_mrate)) =
+                one / *(f32*)(lvl + offsetof(level_data, ene_mrate));
+            *(f32*)(lvl + offsetof(level_data, trap_rate)) =
+                one / *(f32*)(lvl + offsetof(level_data, trap_rate));
         }
     }
 
@@ -2910,9 +2936,9 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
 
     /* scale generator hits by how far the player's gold exceeds the ramp */
     if (info->type == 3 && owner >= 0 &&
-        *(f32*)((u8*)gCurLevel + 0x9C) > sItemZero) {
+        gCurLevel->plevel > sItemZero) {
         f32 mult;
-        f32 ramp = *(f32*)((u8*)gCurLevel + 0x9C);
+        f32 ramp = gCurLevel->plevel;
         f32 gold = (f32)*(s32*)((u8*)gPlayers + owner * 0x335C + 0x3324);
 
         if (gold < ramp) {
@@ -3162,7 +3188,7 @@ found_gen:
         /* enemy generator damage-state machine */
         generator = (s16*)&item->data[0];
         thr = (s32)((f32)*(s16*)((u8*)info + 0x44) *
-                    *(f32*)((u8*)gCurLevel + 0xCC));
+                    gCurLevel->gen_health);
         if (ret < 0) {
             break;
         }
@@ -3280,7 +3306,7 @@ found_gen:
                 item->active |= 1;
                 StartExplosion(&item->objgrp, 0x18,
                                (f32)(lbl_80346F88 *
-                                     *(f32*)((u8*)gCurLevel + 0xDC)));
+                                     gCurLevel->trap_damage));
                 fn_8009D9D8(&v[1]);
                 MBOX_NewObject(lbl_80346F90, item->objgrp.node,
                                *(s32*)((u8*)item->objgrp.node + 0x74),
@@ -3297,7 +3323,7 @@ found_gen:
                 item->active |= 1;
                 StartExplosion(&item->objgrp, 0x19,
                                (f32)(lbl_80346F98 *
-                                     *(f32*)((u8*)gCurLevel + 0xDC)));
+                                     gCurLevel->trap_damage));
                 fn_8009DA28(&v[1]);
                 MBOX_NewObject(lbl_80346FA0, item->objgrp.node,
                                *(s32*)((u8*)item->objgrp.node + 0x74),
@@ -4448,7 +4474,7 @@ void fn_800606FC(void)
                     iteminfo* inf = it->info;
                     t = inf->item.activeoff << 1;
                     if (inf->type == 8) {
-                        t = (s32)((f32)t * *(f32*)((u8*)gCurLevel + 0xD8));
+                        t = (s32)((f32)t * gCurLevel->trap_rate);
                     }
                 }
                 w = (s32)(sArrowFloorYOffset +
@@ -4490,7 +4516,7 @@ void fn_800606FC(void)
                     iteminfo* inf = it->info;
                     t = inf->item.activeoff << 1;
                     if (inf->type == 8) {
-                        t = (s32)((f32)t * *(f32*)((u8*)gCurLevel + 0xD8));
+                        t = (s32)((f32)t * gCurLevel->trap_rate);
                     }
                 }
                 if (t < 0) {
@@ -4787,7 +4813,7 @@ void fn_800606FC(void)
                     gpos[2] = it->objgrp.coll_pos[2];
                     StartExplosion(&it->objgrp, 0x1D,
                                    (f32)(lbl_80347018 *
-                                         *(f32*)((u8*)gCurLevel + 0xDC)));
+                                         gCurLevel->trap_damage));
                     fn_8009D9D8(gpos);
                     KILL_ITEM(it);
                     msgPost(0x89, -1, 0);
@@ -6542,7 +6568,7 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
         }
         if (*(f32*)(sp + 12) > sZeroDouble) {
             *(f32*)(crit + 2768) =
-                *(f32*)(sp + 12) * *(f32*)(gCurLevel + 180);
+                *(f32*)(sp + 12) * gCurLevel->ene_visrad;
         }
         if (*(s16*)(sp + 18) >= 0) {
             *(u8**)(crit + 2764) =
@@ -6585,7 +6611,7 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
             *(f32*)(e + 768) = sNoNearbyPlayerDistance;
         } else if (*(f32*)(sp + 12) > sZeroDouble) {
             *(f32*)(e + 768) =
-                *(f32*)(sp + 12) * *(f32*)(gCurLevel + 180);
+                *(f32*)(sp + 12) * gCurLevel->ene_visrad;
         }
         if (*(s16*)(sp + 16) > 0) {
             if (*(s16*)(sp + 16) == 1) {
