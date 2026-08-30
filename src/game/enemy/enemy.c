@@ -1580,7 +1580,29 @@ void fn_8004E5F8(Enemy* enemy)
     }
 }
 
-/* Advance texture modifiers for each loaded enemy type while gameplay runs. */
+/* Advance texture modifiers for each loaded enemy type while gameplay runs.
+ *
+ * `resources` walks the lbl_80250E00 combined bss pool (see the TU .bss
+ * layout note above this file's declarations).  Identification attempt
+ * (2026-08-30, secondary de-fakematch pass):
+ *   +0x564  EXACT match for gWadAtreeHeaders (0x80251364 - 0x80250E00 =
+ *           0x564; verified by address arithmetic against the declared
+ *           bss layout) - this reads gWadAtreeHeaders[index] as a void*,
+ *           the per-type WAD/atree texmod-owner pointer DoTexMods() wants.
+ *           NOT rewritten to the `gWadAtreeHeaders` symbol: fnasm.py shows
+ *           this function's own base address relocates against
+ *           lbl_80250E00 directly, so switching to the sub-object's own
+ *           extern name would change the relocation target even though the
+ *           resolved address is identical (claim.law.walked-base-symbol-
+ *           identity.20260830.v1) - kept as the raw blob-base + literal
+ *           offset for that reason, now with the identity documented.
+ *   +0x20   first-level index table, inside lbl_80250E00's own declared
+ *           0x40-byte anchor.  No covering struct found: gdlmem.py struct
+ *           probes for gen_head/generator/enemy_gen/gen_record/gentable/
+ *           gen_table/texmod_owner/enemy_texmod all returned no PDB match,
+ *           and no other function in the TU references this slot range.
+ *           Left as a raw offset - no name to adopt without inventing one.
+ */
 void fn_8004E67C(void)
 {
     u8* resources;
@@ -6715,20 +6737,19 @@ void do_enemies(void)
 
         for (i = 0; i < 4; i++, pl += 0x335C) {
             if (((EnemyPlayerView*)pl)->state == 1) {
-                *(s32*)(pl + 0xA24) = 0;
-                *(f32*)(pl + 0xA28) = 0.0f;
+                *(s32*)(pl + offsetof(EnemyPlayerView, _A22) + 2) = 0;
+                *(f32*)(pl + offsetof(EnemyPlayerView, _A22) + 6) = 0.0f;
             }
         }
     }
 
     {
-        f32 rate = *(f32*)((u8*)gCurLevel + 0xB0) * (f32)(u32)gFrameTicks;
+        EnemyMovePage05* page = (EnemyMovePage05*)pool;
+        f32 rate = gCurLevel->ene_speed * (f32)(u32)gFrameTicks;
 
         lbl_80344718 = 0;
         for (i = 0; i < 45; i++) {
-            u8* dst = pool + i * 4;
-
-            *(f32*)(dst + 0x40) = rate * lbl_8011B878[i];
+            page->speed[i] = rate * lbl_8011B878[i];
         }
     }
 
