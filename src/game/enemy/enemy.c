@@ -7301,7 +7301,7 @@ extern f32 lbl_80344880;
 extern f32 lbl_80346A40;
 extern f64 lbl_80346A28;
 extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
-extern void SetEnemyObj(u8* e, s32 type, s32 level, s32 one);
+extern void SetEnemyObj(Enemy* e, s32 type, s32 level, s32 one);
 extern void init_enemy_vars(s32 slot, s32 spew, f32 scale);
 extern void fn_8005A338(f32* worldmat, f32* coll_offset, f32* attn_offset);
 extern u16 AnimateATree(void* tree, s32 sequence, s32 transition);
@@ -7309,25 +7309,27 @@ extern u16 AnimateATree(void* tree, s32 sequence, s32 transition);
 /* 0x8004FE34 - initialise a freshly claimed enemy slot's object state. */
 void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
 {
-    u8* e = (u8*)gEnemies + slot * 916;
+    Enemy* e = &gEnemies[slot];
     u8* tbl = (u8*)lbl_8011AF48;
-    s32 t4 = type * 4;
-    f32 z = lbl_80346820;
-    f32 scale;
+    s32 t4;
+    f32 z;
+    f32 health;
 
-    *(s32*)e = type;
-    *(f32*)(e + 544) = z;
-    *(f32*)(e + 548) = *(f32*)(tbl + t4 + 2080);
-    *(f32*)(e + 552) = z;
-    *(f32*)(e + 556) = z;
-    *(f32*)(e + 560) = *(f32*)(tbl + t4 + 2216);
-    *(f32*)(e + 564) = z;
-    *(f32*)(e + 576) = z;
-    *(f32*)(e + 580) = z;
-    *(f32*)(e + 584) = z;
-    *(s32*)(e + 180) = 1;
-    *(s16*)(e + 724) = 0;
-    SetEnemyObj(e, type, level, 1);
+    e->type = type;
+    t4 = type * 4;
+    z = lbl_80346820;
+    e->attn_offset[0] = z;
+    e->attn_offset[1] = *(f32*)(tbl + t4 + 2080);
+    e->attn_offset[2] = z;
+    e->coll_offset[0] = z;
+    e->coll_offset[1] = *(f32*)(tbl + t4 + 2216);
+    e->coll_offset[2] = z;
+    e->pyr[0] = z;
+    e->pyr[1] = z;
+    e->pyr[2] = z;
+    e->state = ACTIVE;
+    e->endurance = 0;
+    SetEnemyObj(e, type, level, e->state);
     if (level > 3) {
         level = 2;
     }
@@ -7337,37 +7339,37 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
     {
         u8* r = tbl;
         r += t4;
-        scale = *(f32*)(r + 2760);
+        health = *(f32*)(r + 2760);
     }
-    if (type != 30) {
-        scale = scale * gCurLevel->ene_health;
+    if (type != E_DEATH) {
+        health = health * gCurLevel->ene_health;
     }
-    if (type < 28) {
-        scale = (f32)(lbl_80346A28 * scale * level);
+    if (type < E_NTYPES) {
+        health = (f32)(lbl_80346A28 * health * level);
     }
-    fn_8005A338((f32*)(e + 4), (f32*)(e + 556), (f32*)(e + 544));
-    if (*(u32*)(e + 100) != 0) {
-        *(f32*)(e + 52) = pos[0];
-        *(f32*)(e + 56) = pos[1];
-        *(f32*)(e + 60) = pos[2];
-        *(f32*)(e + 56) = FloorPos(lbl_80344880, lbl_80346A40, pos, 2);
-        MBTreeClearFlags(*(struct mbnode**)(e + 100), 2, 0);
-        *(f32*)(e + 512) = scale;
-        init_enemy_vars(slot, spew, scale);
-        if (type == 30) {
-            *(s16*)(e + 518) = level;
+    fn_8005A338(&e->objgrp.worldmat[0][0], e->coll_offset, e->attn_offset);
+    if (e->objgrp.node != NULL) {
+        e->objgrp.worldmat[3][0] = pos[0];
+        e->objgrp.worldmat[3][1] = pos[1];
+        e->objgrp.worldmat[3][2] = pos[2];
+        e->objgrp.worldmat[3][1] = FloorPos(lbl_80344880, lbl_80346A40, pos, 2);
+        MBTreeClearFlags(e->objgrp.node, 2, 0);
+        e->health = health;
+        init_enemy_vars(slot, spew, health);
+        if (type == E_DEATH) {
+            e->org_lvl = level;
         }
-        *(f32*)(e + 56) = *(f32*)(e + 56) + *(f32*)(e + 540);
+        e->objgrp.worldmat[3][1] = e->objgrp.worldmat[3][1] + e->flooroffset;
     }
-    UpdateObjWorldMat((f32*)(e + 4));
-    fn_8005A404((f32*)(e + 4), (f32*)(e + 556), (f32*)(e + 544));
-    *(f32*)(e + 660) = *(f32*)(e + 56);
-    if (*(u32*)(e + 476) != 0) {
-        *(f32*)(*(u32*)(e + 476) + 48) = *(f32*)(*(u32*)(e + 100) + 48);
-        *(f32*)(*(u32*)(e + 476) + 52) = *(f32*)(*(u32*)(e + 100) + 52);
-        *(f32*)(*(u32*)(e + 476) + 56) = *(f32*)(*(u32*)(e + 100) + 56);
+    UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
+    fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset, e->attn_offset);
+    e->floory = e->objgrp.worldmat[3][1];
+    if (e->shadow != NULL) {
+        *(f32*)((u8*)e->shadow + 48) = *(f32*)((u8*)e->objgrp.node + 48);
+        *(f32*)((u8*)e->shadow + 52) = *(f32*)((u8*)e->objgrp.node + 52);
+        *(f32*)((u8*)e->shadow + 56) = *(f32*)((u8*)e->objgrp.node + 56);
     }
-    if (*(u32*)(e + 108) != 0) {
-        AnimateATree((void*)(e + 108), 0, 2);
+    if (e->atree.root != NULL) {
+        AnimateATree(&e->atree, 0, 2);
     }
 }
