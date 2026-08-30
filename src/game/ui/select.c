@@ -2628,8 +2628,8 @@ substate:
         }
         if (qfmt != 0) {
             setup_tex(player, 7, 0, 0, qfmt);
-            *(s32*)(blitBase + boff + 88) = 3;
-            *(s32*)(blitBase + boff + 92) = 0;
+            *(s32*)(blitBase + boff + 7 * sizeof(BlitEntry) + offsetof(BlitEntry, mode)) = 3;
+            *(s32*)(blitBase + boff + 7 * sizeof(BlitEntry) + offsetof(BlitEntry, timer)) = 0;
         } else {
             mbBlitInit3414(*(void**)eA, 1);
         }
