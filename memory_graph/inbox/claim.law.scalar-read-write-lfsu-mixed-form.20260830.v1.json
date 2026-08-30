@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "src/game/pb/pb_objregs.c::fn_800C5DA8 (worktree GDL-Claude-PbObjregsDefake, work_claim.pbobjregs-defake2.20260830.v1); attempt.pb-objregs-defakematch-tupass.20260830.v2",
+    "scope": "MWCC GC 1.2.5 family; applies to a scalar (non-loop) read-then-immediately-write pair on the SAME struct field, as distinct from claim.law.lwzu-idiom-web-retention's walked-loop-pointer case."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.scalar-read-write-lfsu-mixed-form.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "For a scalar field read immediately followed by a write to the SAME address (`yaw = X; obj->field = f(yaw);`, no loop), MWCC can fuse the pair into a load-with-update instruction (lfsu/lwzu: compute the address once, load, then store at the updated pointer's offset 0) ONLY when the read and write expressions are NOT both the identical named-field form. In fn_800C5DA8 (pb_objregs.c), the pre-existing byte-exact source used a MIXED form - `yaw = ((f32*)g->scr)[18]; g->scr->f48 = ...;` (raw indexed-cast read, named-field write) - and this produced the target's lfsu fusion. Converting the read to match the write's named-field form (`yaw = g->scr->f48; g->scr->f48 = ...;`) - semantically identical, and each half neutral in isolation elsewhere in the same function - broke the fusion (lfsu -> lfs+separate stfs at the original offset instead of offset 0), regressing an exact function. The 4 OTHER raw-index occurrences of the same two fields in the same function (2 standalone writes, 2 standalone debug-print reads with no adjacent same-address write) converted to named-field form with zero codegen change - only the read+write ADJACENT PAIR is fusion-sensitive. Consequence: when de-fakematching a raw indexed/cast read that sits immediately before a write to the same address, test the read and the write as an independent sub-decision from any other same-field accesses elsewhere in the function; if converting the read regresses, keep that ONE read in its original raw form even after every other occurrence of the field converts cleanly."
+}

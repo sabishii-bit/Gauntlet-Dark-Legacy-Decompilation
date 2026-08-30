@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "TU-scoped de-fakematch pass #2 over game/pb/pb_objregs.c (work_claim.pbobjregs-defake2.20260830.v1, anchor function:regFind is graph-routing only - no regFind/registry.c/P6Frank code touched): resolve remaining raw-offset sites to established GC-verified struct views; byte-identical on exact fns, equal-or-better real/--ops on fuzzy.",
+  "attributes": {
+    "anchors": "src/game/pb/pb_objregs.c; fndiff.py game/pb/pb_objregs <fn> --count/--clean; matchtool.py probe game/pb/pb_objregs --brief",
+    "axis_log": "fn_800C5DA8 g->scr[18]/[19]: both-sides-named FAIL (broke target lfsu update-fusion on read+write pair); read-raw/write-named mixed PASS exact - 4/6 sites named, 2 kept raw for fusion. pbSetDORegs node+0x68 s16: hoisted local FAIL frame+8; address-of-named-field FAIL real39 (same shape as pre-existing all-named FAIL) - 3rd/4th counter-form now tried total, hard park confirmed. fn_800C64A4 node+100 color x2 (pre-existing FAIL for repeated inline cast): declared-once PbNodeStateView* alias reused 3x PASS exact - resolves prior park via declared-alias-vs-repeated-cast's counter-form. sDrawGeom (parked REGISTER_ONLY/SCHEDULE, but --ops shows genuine ~130-insn STRUCTURAL gap - park label looks stale): 4 conversions, ALL neutral (1013/1017 real1176 bit-identical every time): st+0x128/0x168 m00 fields -> PbGfxEnv (type already used at same offsets nearby); per-iter dynamic-light ptr L: u8*->PbPosLight* (recomputed-index, safe per law); per-vertex out block: u8*->PbVtx* (recomputed-index, matches pbDrawVerts's own consumer type); flush-loop kick flag -> ->pad20 (same field written above). Left raw: tbl+0xF0..0x104 (no verified struct), st+0xF8/0x108/0x118/0x1F48/0x1F78/0x1F88/0x1FC8 (deep >8KB shadow past documented PbDrawState tail, no struct), all `s` geometry-stream fields (~15 offsets, PS2 GIF packet, no struct), colPtr/nrmPtr/uv2Ptr/posPtr (legitimate walked byte-decode idiom, not fakematch).",
+    "baseline_and_best": "fn_800C5DA8 362/362 real0 (unchanged; 4/6 sites converted). pbSetDORegs 353/353 real0 (unchanged; re-confirmed park). fn_800C64A4 81/81 real0 (unchanged; now fully clean, 3/3 converted). sDrawGeom 1013/1017 real1176 (unchanged score; 4 regions converted, zero codegen delta).",
+    "measurements": "matchtool probe unchanged OK:26 bad:3 (pbDrawVerts/sDrawGeom/pbSetDODrawRegs, same as pre-session). Full ninja green, main.dol checksum OK. git diff --check clean; only pb_objregs.c touched.",
+    "sites_left_raw": "pbSetDORegs node+0x68 (4 counter-forms across 2 sessions, all fail identically - hard park). sDrawGeom tbl/deep-st/s-param regions (~60 sites) - no verifiable struct; left raw per rule 1 rather than inventing layout on an already structurally-broken parked fn.",
+    "verification": "Each edit rebuilt+scored individually before keeping; failures reverted immediately. Final: ninja -j2 green, main.dol OK, probe bucket counts unchanged, git diff --check clean, portable C only, no asm/postprocessor/config changes, P6Frank/regFind/registry.c untouched."
+  },
+  "function": "function:regFind",
+  "id": "attempt.pb-objregs-defakematch-tupass.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.pb-objregs-defakematch-tupass.20260830.v1",
+  "valid_from": "2026-08-30"
+}
