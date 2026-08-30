@@ -1091,13 +1091,21 @@ WorldObj* InitWorldInfo(WorldInfo* wi, void* data) {
         wi->worldanims = (struct worldanim*)(base + blob[0x1B]);
         if (*(s32*)(wg + 228) == 0) {
             for (i = 0; i < blob[0x1A]; i++) {
+                /* fields are struct worldanim (this TU's own local struct,
+                 * also used by DoWorldAnimSub) */
                 p = (u8*)wi->worldanims + i * 0x10;
-                *(u16*)(p + 0x00) = sSwapU16(*(u16*)(p + 0x00));
-                *(u16*)(p + 0x02) = sSwapU16(*(u16*)(p + 0x02));
-                *(u16*)(p + 0x04) = sSwapU16(*(u16*)(p + 0x04));
-                *(u16*)(p + 0x06) = sSwapU16(*(u16*)(p + 0x06));
-                *(f32*)(p + 0x08) = sSwapF32(*(f32*)(p + 0x08));
-                *(u32*)(p + 0x0C) = sSwapU32(*(u32*)(p + 0x0C));
+                *(u16*)(p + offsetof(struct worldanim, objidx)) =
+                    sSwapU16(*(u16*)(p + offsetof(struct worldanim, objidx)));
+                *(u16*)(p + offsetof(struct worldanim, nframes)) =
+                    sSwapU16(*(u16*)(p + offsetof(struct worldanim, nframes)));
+                *(u16*)(p + offsetof(struct worldanim, fixed)) =
+                    sSwapU16(*(u16*)(p + offsetof(struct worldanim, fixed)));
+                *(u16*)(p + offsetof(struct worldanim, state)) =
+                    sSwapU16(*(u16*)(p + offsetof(struct worldanim, state)));
+                *(f32*)(p + offsetof(struct worldanim, curframe)) =
+                    sSwapF32(*(f32*)(p + offsetof(struct worldanim, curframe)));
+                *(u32*)(p + offsetof(struct worldanim, data)) =
+                    sSwapU32(*(u32*)(p + offsetof(struct worldanim, data)));
             }
         }
         wi->nworldanims = blob[0x1A];
