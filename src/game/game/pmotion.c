@@ -3831,7 +3831,7 @@ s32 DoTransporter(Player* p, f32* pos, f32* out, f32 a) {
             FloorCollide(a, 4.0f, -10.0f, local, NULL, 0, 1);
             out[0] = local[0] - pos[0];
             out[2] = local[2] - pos[2];
-            out[1] = gFloorCollisionResult[13] - PF(p, 0x48, f32);
+            out[1] = gFloorCollisionResult[13] - p->pos[1];
             tv->counter = 1;
             msgPost(9, p->index, (u32)&p->col_pos);
             return 2;
