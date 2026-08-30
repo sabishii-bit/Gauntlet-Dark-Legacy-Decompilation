@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "whole TU src/game/world/world.c exclusively; exact-oriented portable-C closure of WorldSaveInitState; parallel fleets must choose other TUs"
+  },
+  "claimed_at": "2026-08-29",
+  "function": "function:WorldSaveInitState",
+  "id": "work-claim.codex.world-save-init.20260829.v1",
+  "kind": "work_claim",
+  "owner": "codex-world-save-init-worker",
+  "schema_version": 1,
+  "state": "active"
+}
