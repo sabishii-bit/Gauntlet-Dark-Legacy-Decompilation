@@ -1,4 +1,11 @@
 #include "types.h"
+#include "game/leveldata.h"
+#include "game/mbobject.h"
+#include "game/player.h"
+
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 
 /*
  * game/ui/auxscreen.c -- the "aux screen" TU: the between-level map screen,
@@ -188,6 +195,39 @@ extern const f64 lbl_80345A28;
 extern const f64 lbl_80345A48;
 extern const f32 lbl_80345A30;
 
+/*
+ * AuxSceneView -- file-local reconstruction of the big aux-screen scene
+ * object at lbl_8023DFD0 ("base" below). No PDB source: this is an
+ * engine-internal scratch/state blob combining transient sprintf/caption
+ * text buffers with persistent per-player map-card blit slots and the
+ * good-wizard model's cached transform/atree state. Named purely from the
+ * access patterns in this TU (each field's owning call site is noted);
+ * unlabeled gaps are genuine unknowns never touched here, kept as explicit
+ * padding so offsetof() folds to the exact byte displacements the target
+ * uses (claim.law.offsetof-rename-preserves-protected-web). The [0,0x40)
+ * scratch region and the [0x80,0x480) caption region are reused for
+ * different transient strings at different times -- this is a raw byte
+ * blob, not evidence of two co-resident typed fields.
+ */
+typedef struct AuxSceneView {
+    /* 0x000 */ u8 path_scratch[0x40];        /* sprintf scratch: level/texture name strings (do_mapscreen, init_mapscreen) */
+    /* 0x040 */ void* player_card_blit[4];    /* per-player map-card blit (init_mapscreen/delete_map_blits) */
+    /* 0x050 */ void* player_card_fg_blit[4]; /* per-player map-card foreground overlay blit */
+    /* 0x060 */ void* map_route_icon_blit[8]; /* route waypoint icon blits (do_mapscreen) */
+    /* 0x080 */ u8 caption_scratch[0x400];    /* CaptionTextSub input scan buffer */
+    /* 0x480 */ u8 caption_line_buf[0x108];   /* CaptionTextSub measured output line */
+    /* 0x588 */ f32 wiz_mtx[4][4];            /* good-wizard model world matrix (CopyMat4/CreatePYRMatrix dst) */
+    /* 0x5C8 */ f32 wiz_pos[3];               /* cached wizard node position (copied from node->mat row 3) */
+    /* 0x5D4 */ u8 _pad5D4[4];
+    /* 0x5D8 */ f32 wiz_target_pos[3];        /* camera-target position (add_target) */
+    /* 0x5E4 */ u8 _pad5E4[4];
+    /* 0x5E8 */ void* wiz_node_ptr;           /* good-wizard MBObject node */
+    /* 0x5EC */ s32 field_5EC;                /* zeroed with the node; purpose unknown */
+    /* 0x5F0 */ void* wiz_atree;              /* good-wizard atree handle (AtreeInit result) */
+    /* 0x5F4 */ u8 _pad5F4[0x34];
+    /* 0x628 */ u16 wiz_atree_ready;          /* set 1 once the atree is built */
+} AuxSceneView;
+
 #pragma opt_lifetimes off
 void DoGoodWizard(void)
 {
@@ -207,14 +247,17 @@ void DoGoodWizard(void)
         s32 i;
         s32 off;
 
-        for (i = 0, off = 0; i < 4; i++, off += 0x335C) {
+        for (i = 0, off = 0; i < 4; i++, off += sizeof(Player)) {
             u8* p = gPlayers + off;
 
-            if (*(s32*)(p + 232) == 1) {
-                u8* slot = p + *(s32*)(p + 12) * 240;
+            if (*(s32*)(p + offsetof(Player, state)) == 1) {
+                u8* slot = p + *(s32*)(p + offsetof(Player, character)) *
+                                   sizeof(PlayerCharSave);
 
-                acc3542 |= *(u16*)(slot + 3542);
-                acc3540 |= *(u16*)(slot + 3540);
+                acc3542 |= *(u16*)(slot + offsetof(Player, char_save) +
+                                    offsetof(PlayerCharSave, rune_stones2));
+                acc3540 |= *(u16*)(slot + offsetof(Player, char_save) +
+                                    offsetof(PlayerCharSave, rune_stones));
             }
         }
     }
@@ -247,15 +290,16 @@ void DoGoodWizard(void)
     case 3: {
         void** pp;
 
-        *(void**)(base + 0x5f0) =
+        *(void**)(base + offsetof(AuxSceneView, wiz_atree)) =
             AtreeInit(AtreeMatch(sItemFile1Buf, lbl_80345A00, 1),
-                      base + 0x5f0, 0, 0x881880);
-        *(u16*)(base + 0x628) = 1;
+                      base + offsetof(AuxSceneView, wiz_atree), 0, 0x881880);
+        *(u16*)(base + offsetof(AuxSceneView, wiz_atree_ready)) = 1;
         node = MBNewNode(lbl_80344BD4, gIdentityMatrix, 1);
-        pp = (void**)(base + 0x5e8);
+        pp = (void**)(base + offsetof(AuxSceneView, wiz_node_ptr));
         *pp = node;
-        MBNodeSetParent(**(void***)(base + 0x5f0), *pp);
-        *(s32*)(base + 0x5ec) = 0;
+        MBNodeSetParent(**(void***)(base + offsetof(AuxSceneView, wiz_atree)),
+                         *pp);
+        *(s32*)(base + offsetof(AuxSceneView, field_5EC)) = 0;
         if ((u32)(gBossType - 0x2a) <= 1) {
             pos[0] = lbl_80345A08;
             pos[1] = lbl_80345A0C;
@@ -265,32 +309,41 @@ void DoGoodWizard(void)
             pos[1] = (f32)(pos[1] + lbl_80345A18);
         }
         node = *pp;
-        *(f32*)((u8*)node + 0x30) = pos[0];
+        *(f32*)((u8*)node + offsetof(MBObject, mat[3][0])) = pos[0];
         node = *pp;
-        *(f32*)((u8*)node + 0x34) = pos[1];
+        *(f32*)((u8*)node + offsetof(MBObject, mat[3][1])) = pos[1];
         node = *pp;
-        *(f32*)((u8*)node + 0x38) = pos[2];
+        *(f32*)((u8*)node + offsetof(MBObject, mat[3][2])) = pos[2];
         node = *pp;
-        CopyMat4(node, base + 0x588);
+        CopyMat4(node, base + offsetof(AuxSceneView, wiz_mtx));
         node = *pp;
-        *(f32*)(base + 0x5c8) = *(f32*)((u8*)node + 0x30);
+        *(f32*)(base + offsetof(AuxSceneView, wiz_pos[0])) =
+            *(f32*)((u8*)node + offsetof(MBObject, mat[3][0]));
         node = *pp;
-        *(f32*)(base + 0x5cc) = *(f32*)((u8*)node + 0x34);
+        *(f32*)(base + offsetof(AuxSceneView, wiz_pos[1])) =
+            *(f32*)((u8*)node + offsetof(MBObject, mat[3][1]));
         node = *pp;
-        *(f32*)(base + 0x5d0) = *(f32*)((u8*)node + 0x38);
-        *(f32*)(base + 0x5cc) = (f32)(*(f32*)(base + 0x5cc) + lbl_803459F0);
-        *(f32*)(base + 0x5d8) = *(f32*)(base + 0x5c8);
-        *(f32*)(base + 0x5dc) = *(f32*)(base + 0x5cc);
-        *(f32*)(base + 0x5e0) = *(f32*)(base + 0x5d0);
+        *(f32*)(base + offsetof(AuxSceneView, wiz_pos[2])) =
+            *(f32*)((u8*)node + offsetof(MBObject, mat[3][2]));
+        *(f32*)(base + offsetof(AuxSceneView, wiz_pos[1])) =
+            (f32)(*(f32*)(base + offsetof(AuxSceneView, wiz_pos[1])) +
+                  lbl_803459F0);
+        *(f32*)(base + offsetof(AuxSceneView, wiz_target_pos[0])) =
+            *(f32*)(base + offsetof(AuxSceneView, wiz_pos[0]));
+        *(f32*)(base + offsetof(AuxSceneView, wiz_target_pos[1])) =
+            *(f32*)(base + offsetof(AuxSceneView, wiz_pos[1]));
+        *(f32*)(base + offsetof(AuxSceneView, wiz_target_pos[2])) =
+            *(f32*)(base + offsetof(AuxSceneView, wiz_pos[2]));
         if (gBossType < 0x2a) {
-            add_target(base + 0x588);
+            add_target(base + offsetof(AuxSceneView, wiz_mtx));
         }
         good_wiz_yaw = lbl_80345A08;
         good_wiz_plyr_attn = (s32)sMusicTrackHi % 4;
         calc_good_wiz_attn(1, 1);
         all_rune_stones = 0;
         if (gBossType == 0x2a) {
-            all_rune_stones = hide_rune_stones(base + 0x4c0);
+            all_rune_stones = hide_rune_stones(
+                base + offsetof(AuxSceneView, caption_line_buf) + 0x40);
         }
         good_wiz_alpha = 255;
         good_wiz_state++;
@@ -302,8 +355,9 @@ void DoGoodWizard(void)
         if (good_wiz_alpha < 0) {
             good_wiz_alpha = 0;
         }
-        MBTreeSetAlpha(**(void***)(base + 0x5f0), good_wiz_alpha, 1);
-        AnimateATree(base + 0x5f0, 0, 0);
+        MBTreeSetAlpha(**(void***)(base + offsetof(AuxSceneView, wiz_atree)),
+                        good_wiz_alpha, 1);
+        AnimateATree(base + offsetof(AuxSceneView, wiz_atree), 0, 0);
         calc_good_wiz_attn(0, 0);
         if (good_wiz_alpha != 0) {
             break;
@@ -388,7 +442,7 @@ void DoGoodWizard(void)
                 fn_8009C710(gBossType, quality + 1);
             }
         }
-        AnimateATree(base + 0x5f0, 0, 0);
+        AnimateATree(base + offsetof(AuxSceneView, wiz_atree), 0, 0);
         calc_good_wiz_attn(0, 0);
         break;
     case 6:
@@ -464,7 +518,7 @@ void DoGoodWizard(void)
                 fn_8009C710(boss, sel);
             }
         }
-        AnimateATree(base + 0x5f0, 0, 0);
+        AnimateATree(base + offsetof(AuxSceneView, wiz_atree), 0, 0);
         calc_good_wiz_attn(0, 0);
         break;
     case 7:
@@ -478,7 +532,7 @@ void DoGoodWizard(void)
             good_wiz_speech_frame = 0;
             good_wiz_speech_pause = 0;
         }
-        AnimateATree(base + 0x5f0, 0, 0);
+        AnimateATree(base + offsetof(AuxSceneView, wiz_atree), 0, 0);
         calc_good_wiz_attn(0, 0);
         break;
     case 8:
@@ -489,23 +543,26 @@ void DoGoodWizard(void)
         }
         good_wiz_state++;
     case 9:
-        AnimateATree(base + 0x5f0, 0, 0);
+        AnimateATree(base + offsetof(AuxSceneView, wiz_atree), 0, 0);
         calc_good_wiz_attn(0, 0);
         if (sndFxUpdate(1) == 0) {
             good_wiz_state++;
         }
         break;
     case 10:
-        AnimateATree(base + 0x5f0, 0, 0);
+        AnimateATree(base + offsetof(AuxSceneView, wiz_atree), 0, 0);
         calc_good_wiz_attn(0, 0);
         if (good_wiz_exit_timer <= wiz_exit_min) {
             s32 off;
             s32 i;
 
-            for (i = 0, off = 0; i < 4; i++, off += 0x335C) {
+            for (i = 0, off = 0; i < 4; i++, off += sizeof(Player)) {
                 u8* p = gPlayers + off;
 
-                if (*(s32*)(p + 232) == 1) {
+                if (*(s32*)(p + offsetof(Player, state)) == 1) {
+                    /* +0x7dc falls inside Player's unmapped pad_07A4 gap
+                     * (delta 0x38); no GC-verified field covers it, left
+                     * raw per AGENTS.md. */
                     SetSkinFX(p + 0x7dc, lbl_80344BEC, lbl_80345A30, 10, 1);
                 }
             }
@@ -513,7 +570,7 @@ void DoGoodWizard(void)
         }
         break;
     case 11:
-        AnimateATree(base + 0x5f0, 0, 0);
+        AnimateATree(base + offsetof(AuxSceneView, wiz_atree), 0, 0);
         calc_good_wiz_attn(0, 0);
         break;
     case 0:
@@ -546,10 +603,12 @@ s32 hide_rune_stones(void* unused)
     s32 i;
 
     for (i = 0; i < 4; i++) {
-        u8* p = gPlayers + i * 0x335C;
-        if (*(s32*)(p + 232) == 1) {
-            u8* slot = p + *(s32*)(p + 12) * 240;
-            acc |= *(u16*)(slot + 3542);
+        u8* p = gPlayers + i * sizeof(Player);
+        if (*(s32*)(p + offsetof(Player, state)) == 1) {
+            u8* slot = p + *(s32*)(p + offsetof(Player, character)) *
+                               sizeof(PlayerCharSave);
+            acc |= *(u16*)(slot + offsetof(Player, char_save) +
+                            offsetof(PlayerCharSave, rune_stones2));
         }
     }
 
@@ -579,8 +638,8 @@ void calc_good_wiz_attn(s32 reset, s32 force)
 
     if (force == 0 && good_wiz_plyr_attn >= 0) {
         u8* p = gPlayers;
-        p += good_wiz_plyr_attn * 0x335C;
-        if (*(s32*)(p + 232) == 1) {
+        p += good_wiz_plyr_attn * sizeof(Player);
+        if (*(s32*)(p + offsetof(Player, state)) == 1) {
             goto have_target;
         }
     }
@@ -591,7 +650,8 @@ void calc_good_wiz_attn(s32 reset, s32 force)
             if ((good_wiz_plyr_attn = good_wiz_plyr_attn + 1) >= 4) {
                 good_wiz_plyr_attn = 0;
             }
-            if (*(s32*)(gPlayers + good_wiz_plyr_attn * 0x335C + 232) == 1) {
+            if (*(s32*)(gPlayers + good_wiz_plyr_attn * sizeof(Player) +
+                        offsetof(Player, state)) == 1) {
                 break;
             }
             found++;
@@ -606,9 +666,11 @@ have_target:
         u8* p = gPlayers;
         f32 dx;
         f32 dz;
-        p += good_wiz_plyr_attn * 0x335C;
-        dx = *(f32*)(p + 68) - *(f32*)(base + 1464);
-        dz = *(f32*)(p + 76) - *(f32*)(base + 1472);
+        p += good_wiz_plyr_attn * sizeof(Player);
+        dx = *(f32*)(p + offsetof(Player, pos[0])) -
+             *(f32*)(base + offsetof(AuxSceneView, wiz_mtx[3][0]));
+        dz = *(f32*)(p + offsetof(Player, pos[2])) -
+             *(f32*)(base + offsetof(AuxSceneView, wiz_mtx[3][2]));
         target = atan2(dx, dz);
     }
     delta = target - good_wiz_yaw;
@@ -625,8 +687,8 @@ have_target:
     mtxbuf[0] = 0.0f;
     mtxbuf[1] = good_wiz_yaw;
     mtxbuf[2] = 0.0f;
-    CreatePYRMatrix(base + 1416, mtxbuf);
-    UpdateObjWorldMat(base + 1416);
+    CreatePYRMatrix(base + offsetof(AuxSceneView, wiz_mtx), mtxbuf);
+    UpdateObjWorldMat(base + offsetof(AuxSceneView, wiz_mtx));
 }
 
 /* ================================================================== */
@@ -644,13 +706,13 @@ void calc_wizard_pos(f32* out)
 
     for (i = 0; i < 4; i++) {
         s32 st;
-        u8* p = arr + i * 0x335C;
-        st = *(s32*)(p + 232);
+        u8* p = arr + i * sizeof(Player);
+        st = *(s32*)(p + offsetof(Player, state));
         if (st == 1 || st == 8) {
-            f32* py = (f32*)(p + 72);
-            out[0] = out[0] + *(f32*)(p + 68);
-            out[1] = out[1] + *(f32*)(p + 72);
-            out[2] = out[2] + *(f32*)(p + 76);
+            f32* py = (f32*)(p + offsetof(Player, pos[1]));
+            out[0] = out[0] + *(f32*)(p + offsetof(Player, pos[0]));
+            out[1] = out[1] + *(f32*)(p + offsetof(Player, pos[1]));
+            out[2] = out[2] + *(f32*)(p + offsetof(Player, pos[2]));
             if (lbl_80345A48 == count) {
                 out[1] = (f32)(lbl_80345A28 * (f64)*py);
             }
@@ -708,8 +770,8 @@ s32 init_gamemovie(s32 type)
             PlayVQMovie("garm");
             movieactive = 0;
             movie_state = 2;
-        } else if (*((s8*)gCurLevel + 52) != 0) {
-            PlayVQMovie((char*)gCurLevel + 52);
+        } else if (*((s8*)gCurLevel + offsetof(level_data, movie)) != 0) {
+            PlayVQMovie((char*)gCurLevel + offsetof(level_data, movie));
             movieactive = 0;
         }
     }
@@ -735,7 +797,7 @@ void delete_map_blits(void)
 
     for (i = 0; i < 4; i++) {
         p = base + i * 4;
-        blit = *(void**)(p += 64);
+        blit = *(void**)(p += offsetof(AuxSceneView, player_card_blit));
         if (blit != 0) {
             MBRemoveBlit(blit);
             other = (void**)(base + i * 4);
@@ -751,7 +813,7 @@ void delete_map_blits(void)
     map_route_blit = 0;
     for (i = 0; i < 8; i++) {
         p = base + i * 4;
-        blit = *(void**)(p += 96);
+        blit = *(void**)(p += offsetof(AuxSceneView, map_route_icon_blit));
         if (blit != 0) {
             MBRemoveBlit(blit);
         }
@@ -845,8 +907,8 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
     line_height *= scale;
 
     base[1152] = 0;
-    strcpy((char*)(base + 128), text);
-    source = (char*)(base + 128);
+    strcpy((char*)(base + offsetof(AuxSceneView, caption_scratch)), text);
+    source = (char*)(base + offsetof(AuxSceneView, caption_scratch));
     line = source;
     FontSetShadowColor(0);
     draw_font = font | 0x100;
@@ -877,10 +939,10 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
                 if (output_len > 0) {
                     s32 width;
                     s32 x;
-                    width = DrawNormalText(scale, (char*)(base + 1152), font);
+                    width = DrawNormalText(scale, (char*)(base + offsetof(AuxSceneView, caption_line_buf)), font);
                     x = 256 - (width >> 1);
                     DrawTextKeepScale(scale, x, y, draw_font,
-                                      color_base - 1, (char*)(base + 1152));
+                                      color_base - 1, (char*)(base + offsetof(AuxSceneView, caption_line_buf)));
                 }
                 line = source;
                 output_len = 0;
@@ -922,7 +984,7 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
         width = DrawNormalText(scale, line, font);
         x = 256 - (width >> 1);
         DrawTextKeepScale(scale, x, y, draw_font,
-                          0xffffff, (char*)(base + 1152));
+                          0xffffff, (char*)(base + offsetof(AuxSceneView, caption_line_buf)));
     }
     return done;
 }
@@ -961,7 +1023,8 @@ s32 do_mapscreen(s32 skip)
         }
         break;
     case 3:
-        AudioRegisterNameBanks(*(void**)((u8*)gCurLevel + 100), 1);
+        AudioRegisterNameBanks(
+            *(void**)((u8*)gCurLevel + offsetof(level_data, audio)), 1);
         map_load_state++;
         break;
     case 4:
@@ -975,10 +1038,10 @@ s32 do_mapscreen(s32 skip)
     }
 
     map_load_progress += gFrameTicks;
-    if (skip == 0 && *(void**)((u8*)gCurLevel + 104) != 0) {
+    if (skip == 0 && *(void**)((u8*)gCurLevel + offsetof(level_data, mapdata)) != 0) {
         thresh = lbl_80345A08;
         for (i = 0; i < 8; i++) {
-            void* p104 = *(void**)((u8*)gCurLevel + 104);
+            void* p104 = *(void**)((u8*)gCurLevel + offsetof(level_data, mapdata));
             f32* ent = p104 ? (f32*)((u8*)p104 + i * 8 + 8) : (f32*)0;
             void** row;
             if (ent == 0 || *ent < thresh) {
@@ -991,7 +1054,7 @@ s32 do_mapscreen(s32 skip)
                 if (map_load_progress <= i * 30) {
                     break;
                 }
-                sprintf((char*)base, lbl_801116F0, (char*)gCurLevel + 8, i + 1);
+                sprintf((char*)base, lbl_801116F0, (char*)gCurLevel + offsetof(level_data, name), i + 1);
                 tex = MBOX_FindTexture_Sub((char*)base, 0, (s32)map_bg_blit,
                                            (s32)map_bg_blit, 1);
                 row[24] = MBCreateBlit(0, tex, (s32)ent[0], (s32)ent[1], -1, -1);
@@ -1099,31 +1162,35 @@ s32 init_mapscreen(s32 timer, s32 movie)
     }
     rv = init_next_level(lvl);
 
-    if (movie == 0 && *(void**)((u8*)gCurLevel + 104) != 0) {
-        sprintf((char*)base, fmt + 24, (char*)gCurLevel + 8);
+    if (movie == 0 && *(void**)((u8*)gCurLevel + offsetof(level_data, mapdata)) != 0) {
+        sprintf((char*)base, fmt + 24, (char*)gCurLevel + offsetof(level_data, name));
         map_bg_blit = LoadModel((char*)base, 0, 0, -1);
         for (i = 0; i < 4; i++) {
-            sprintf((char*)base, fmt + 40, (char*)gCurLevel + 8, i);
+            sprintf((char*)base, fmt + 40, (char*)gCurLevel + offsetof(level_data, name), i);
             ent = (s32*)(lbl_80118250 + i * 8);
             blit = MBNewBlit(base, ent[0], ent[1]);
-            *(void**)(base + i * 4 + 64) = blit;
-            mbBlitCvtCoord(*(void**)(base + i * 4 + 64), lbl_80345A9C);
-            sprintf((char*)base, fmt + 52, (char*)gCurLevel + 8, i);
+            *(void**)(base + i * 4 + offsetof(AuxSceneView, player_card_blit)) =
+                blit;
+            mbBlitCvtCoord(*(void**)(base + i * 4 +
+                                      offsetof(AuxSceneView, player_card_blit)),
+                            lbl_80345A9C);
+            sprintf((char*)base, fmt + 52, (char*)gCurLevel + offsetof(level_data, name), i);
             blit = MBNewBlit(base, ent[0], ent[1]);
             setupMapForeground((void**)(base + i * 4), blit);
         }
     } else {
         void* blit = MBCreateBlit(0, (s32)MBOX_FindTexture(fmt + 68, 0),
                                   0, 0, 512, 320);
-        *(void**)(base + 64) = blit;
-        mbBlitCvtCoord(*(void**)(base + 64), lbl_80345A9C);
-        *(s32*)(base + 76) = 0;
-        *(s32*)(base + 72) = 0;
-        *(s32*)(base + 68) = 0;
-        *(s32*)(base + 92) = 0;
-        *(s32*)(base + 88) = 0;
-        *(s32*)(base + 84) = 0;
-        *(s32*)(base + 80) = 0;
+        *(void**)(base + offsetof(AuxSceneView, player_card_blit)) = blit;
+        mbBlitCvtCoord(*(void**)(base + offsetof(AuxSceneView, player_card_blit)),
+                        lbl_80345A9C);
+        *(s32*)(base + offsetof(AuxSceneView, player_card_blit[3])) = 0;
+        *(s32*)(base + offsetof(AuxSceneView, player_card_blit[2])) = 0;
+        *(s32*)(base + offsetof(AuxSceneView, player_card_blit[1])) = 0;
+        *(s32*)(base + offsetof(AuxSceneView, player_card_fg_blit[3])) = 0;
+        *(s32*)(base + offsetof(AuxSceneView, player_card_fg_blit[2])) = 0;
+        *(s32*)(base + offsetof(AuxSceneView, player_card_fg_blit[1])) = 0;
+        *(s32*)(base + offsetof(AuxSceneView, player_card_fg_blit[0])) = 0;
     }
 
     map_load_timer = timer;
@@ -1134,15 +1201,20 @@ s32 init_mapscreen(s32 timer, s32 movie)
     map_fade_frame = 0;
     map_fade_alpha = 0;
 
-    route = *(void**)((u8*)gCurLevel + 104);
+    route = *(void**)((u8*)gCurLevel + offsetof(level_data, mapdata));
     if (route != 0) {
         route = route;
     } else {
         route = 0;
     }
     if (movie == 0 && route != 0 && *(f32*)route >= lbl_80345A08) {
-        sprintf((char*)base, lbl_80345AA4, (char*)gCurLevel + 8);
+        sprintf((char*)base, lbl_80345AA4, (char*)gCurLevel + offsetof(level_data, name));
         strcat((char*)base, lbl_80345AAC);
+        /* route points into level_data::mapdata's pointee (struct map_data),
+         * forward-declared only -- no header exists for its internal layout
+         * (do_mapscreen's parallel i*8+8-stride waypoint scan is the same
+         * unresolved struct). Left raw: no GC- or PDB-verified field name
+         * to adopt for this displacement. */
         map_route_blit = MBNewBlit(base, (s32)*(f32*)route,
                                    (s32)*(f32*)((u8*)route + 4));
         if (map_route_blit != 0) {
@@ -1153,7 +1225,7 @@ s32 init_mapscreen(s32 timer, s32 movie)
     }
 
     for (i = 0; i < 8; i++) {
-        *(s32*)(base + i * 4 + 96) = 0;
+        *(s32*)(base + i * 4 + offsetof(AuxSceneView, map_route_icon_blit)) = 0;
     }
     fn_80053C70();
     (void)movie;
