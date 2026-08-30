@@ -46,6 +46,7 @@
 
 #include "types.h"
 #include "__va_arg.h"
+#include "game/player.h"
 
 /* ---- boss-requirement table (this TU, .data 0x80121DD8, 12 x 0x24) ---- */
 typedef struct SelOptsView { u8 _pad[44]; u32 flags44; } SelOptsView;
@@ -1922,20 +1923,20 @@ void init_player_change(s32 idx, s32 arg1)
 
     p = gPlayers;
     pl = p + idx * 0x335C;
-    *(s32*)(pl + 0xE8) = 3;
+    ((Player*)pl)->state = 3;
 
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (i != idx) {
-            s32 st = *(s32*)(p + 0xE8);
+            s32 st = ((Player*)p)->state;
             if (st == 1 || (u32)(st - 4) <= 1) {
-                v = *(s32*)(p + 0x830);
+                v = ((Player*)p)->exit_dest;
                 goto gotv;
             }
         }
     }
     v = *(s32*)((u32)gPlayers + (u32)(idx * 0x335C) + 0x830);
 gotv:
-    *(s32*)(pl + 0x830) = v;
+    ((Player*)pl)->exit_dest = v;
 
     saved = *(s32*)(pl + 0xF0);
     change_player(idx, arg1);
@@ -1946,7 +1947,7 @@ gotv:
     mbBlitProject(*(void**)((u8*)lbl_80284878 + idx * 132 + 24), -1, 320);
 
     wflag = *(u32*)(pl + 0xF0) ? 0 : 1;
-    if (*(s32*)(pl + 0x1EC0) == 0) {
+    if (((Player*)pl)->exp == 0) {
         AudioWelcomeBack(idx, wflag);
     } else {
         AudioWelcome(idx, wflag);
@@ -2021,7 +2022,7 @@ int verify_vmu_file_ok(u8* pl, s32 v)
     s32 b = *(s32*)(pl + 0x3350);
     for (i = 0; i < 4; i++) {
         u8* p = gPlayers + i * 0x335C;
-        if (p != pl && *(s32*)(p + 0xE8) != 0 &&
+        if (p != pl && ((Player*)p)->state != 0 &&
             *(s32*)(p + 0x334C) == a && *(s32*)(p + 0x3350) == b &&
             *(s32*)(p + 0x3358) == v) {
             return 0;
@@ -2183,54 +2184,54 @@ static s32 sel_set_choice(s32 player, s32 mode)
         if (*(u32*)e == 0) {
             break;
         }
-        switch (*(s32*)(e + 4)) {
+        switch (((VmuMenuEntry*)e)->id) {
         case 1000:
-            *(s32*)(e + 32) = 0;
+            ((VmuMenuEntry*)e)->state = 0;
             break;
         case 1001:
             if (gDemoMode != 0) {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             } else if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             } else if (vmu_directory_exists() >= 1) {
-                *(s32*)(e + 32) = 0;
+                ((VmuMenuEntry*)e)->state = 0;
             } else {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             }
             break;
         case 1002:
             if (gDemoMode != 0) {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             } else if (vmu_directory_exists() >= 1) {
-                *(s32*)(e + 32) = 0;
+                ((VmuMenuEntry*)e)->state = 0;
             } else {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             }
             break;
         case 1004:
             if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             } else {
-                *(s32*)(e + 32) = 0;
+                ((VmuMenuEntry*)e)->state = 0;
             }
             break;
         case 1003:
             if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             } else {
                 owner = *(u32*)(pl + 240);
                 if (owner != 0 && owner != lbl_80343D6C) {
-                    *(s32*)(e + 32) = -1;
+                    ((VmuMenuEntry*)e)->state = -1;
                 } else {
-                    *(s32*)(e + 32) = 0;
+                    ((VmuMenuEntry*)e)->state = 0;
                 }
             }
             break;
         case 1005:
-            *(s32*)(e + 32) = 0;
+            ((VmuMenuEntry*)e)->state = 0;
             break;
         }
-        if (*(s32*)(e + 32) >= 0 && best < 0) {
+        if (((VmuMenuEntry*)e)->state >= 0 && best < 0) {
             best = i;
         }
         i++;
@@ -2249,15 +2250,15 @@ s32 other_players_next_level(s32 idx)
     p = gPlayers;
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (i != idx) {
-            st = *(s32*)(p + 0xE8);
+            st = ((Player*)p)->state;
             if (st == 1 || (u32)(st - 4) <= 1) {
-                return *(s32*)(p + 0x830);
+                return ((Player*)p)->exit_dest;
             }
         }
     }
     p = gPlayers;
     p += idx * 0x335C;
-    return *(s32*)(p + 0x830);
+    return ((Player*)p)->exit_dest;
 }
 
 int check_active_players(void)
@@ -2268,7 +2269,7 @@ int check_active_players(void)
     new_menu_accept(-1, 1);
     p = gPlayers;
     for (i = 0; i < 4; i++, p += 0x335C) {
-        if (*(s32*)(p + 0xE8) == 0 && (lbl_80344824 & (1 << i))) {
+        if (((Player*)p)->state == 0 && (lbl_80344824 & (1 << i))) {
             new_player(i);
             count++;
         }
@@ -2745,6 +2746,14 @@ void init_player_select(s32 mode)
 #pragma opt_propagation reset
 
 #pragma opt_propagation off
+/* file-local view: per-slot select blit entry, 12 bytes (handle, mode,
+ * timer) -- same layout documented above serve_blits(). */
+typedef struct BlitEntry {
+    void* handle;
+    s32 mode;
+    s32 timer;
+} BlitEntry;
+
 void hide_select_blits(s32 arg0, s32 flag)
 {
     u8* pagebase;
@@ -2770,7 +2779,7 @@ void hide_select_blits(s32 arg0, s32 flag)
                 } else {
                     mbBlitInit3414(handle, 0);
                 }
-                *(s32*)(entry + 4) = 0;
+                ((BlitEntry*)entry)->mode = 0;
             }
         }
     }
