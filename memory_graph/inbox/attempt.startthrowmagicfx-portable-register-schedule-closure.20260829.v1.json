@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "target/history audit plus one genuinely new portable-C multi-definition compound-mask A/B after the prior source cap",
+  "attributes": {
+    "anchors": "src/game/sfx/sfx.c::StartThrowMagicFX; GameCube target 0x80092B58 size 0x29C; python tools/gdl/fnasm.py game/sfx/sfx StartThrowMagicFX; python tools/gdl/fndiff.py game/sfx/sfx StartThrowMagicFX --count/--ops/--clean; immutable commits ead65cfb9b901498356ef561cb62d179b79e67f8 and 13ca3639f",
+    "axis_log": "historical cap exhausted t4 statement placement x4, cast-transit, assignment-in-index, size parameter copy, and e/ep association chains; 2026-08-29 new `t4 = type; t4 &= 0xF` multi-definition compound-mask shape compiled identically to baseline and was restored",
+    "baseline": "target/current 167/167 instructions, fuzzy 97.66467%, count real 52 (56 clean lines including four pool-name lines), frame 0x80, saves r20-r31 and f28-f31; --ops has two clrlwi schedule clusters",
+    "final_state": "source restored verbatim; target/current 167/167, fuzzy 97.66467%, real 52, frame 0x80; no retained source change",
+    "remaining_residual": "one clrlwi of type&0xF is scheduled three instructions early, plus consistent saved-FPR rad/size f30/f31 rotation and GPR e/fxh web rotations; no structural, ABI, relocation, or semantic gap observed",
+    "unpark_condition": "a genuinely new target-backed portable source-shape or compiler allocator/scheduler lever not among the recorded axes; two identical A/B results re-park an axis",
+    "verification": "owning object rebuilt after restore; complete target assembly and count/ops/clean inspected; matchtool demo@1.2.5 remains OK:45 bad:19 with StartThrowMagicFX real 52; datadiff reports only pre-existing unclaimed TU .rodata/.data/.sdata2; git diff --check passed; no assembly modified; fresh full ninja linked and build/GUNE5D/main.dol checksum is OK; project 97.78% fuzzy and 58.12% matched"
+  },
+  "function": "function:StartThrowMagicFX",
+  "id": "attempt.startthrowmagicfx-portable-register-schedule-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "REGISTER_ONLY/SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
