@@ -1237,7 +1237,7 @@ static inline s32 GetWorldPsysIdx(s8 id, char* base, u8* tbl) {
     i = 0;
 
     for (; i < *(s32*)(base + 228 + offsetof(WorldInfo, nworldpsys)); i++) {
-        if ((s8)tbl[i * 312 + 6] == id) {
+        if ((s8)tbl[i * 312 + offsetof(struct WORLDPSYS, id)] == id) {
             return i;
         }
     }
