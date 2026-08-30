@@ -29,6 +29,7 @@ from memory_graph.core import (
     build_surface_ops,
     ensure_database,
     memory_stats,
+    prune_attempts,
     register_tool_proposal,
     stage_record_proposal,
 )
@@ -86,6 +87,16 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
     )
     propose_record.add_argument("json_file", type=Path)
 
+    prune = subparsers.add_parser(
+        "prune-attempts",
+        help="eject attempt records beyond the per-function cap (dry-run "
+             "unless --apply); integrator-only, rebuild after applying",
+    )
+    prune.add_argument("--limit", type=int, default=None,
+                       help="override the per-function attempt cap")
+    prune.add_argument("--apply", action="store_true",
+                       help="delete the ejected files (default: report only)")
+
     return parser, ops
 
 
@@ -124,6 +135,11 @@ def main(argv: list[str] | None = None) -> int:
                 "review_state": "pending",
                 "next": "review the JSON, then move it from memory_graph/inbox to records",
             }
+        elif args.command == "prune-attempts":
+            kwargs = {"apply": args.apply}
+            if args.limit is not None:
+                kwargs["limit"] = args.limit
+            result = prune_attempts(root, **kwargs)
         else:
             parser.error(f"unknown command {args.command}")
             return 2

@@ -30,6 +30,12 @@ SCHEMA_PATH = PACKAGE_DIR / "schema.sql"
 RECORDS_DIR = REPO_ROOT / "memory_graph" / "records"
 INBOX_DIR = REPO_ROOT / "memory_graph" / "inbox"
 
+# Attempt records may grow to hold real forensics, but each function keeps at
+# most ATTEMPT_LIMIT_PER_FUNCTION accepted attempt records; older ones are
+# ejected by prune_attempts() (git history retains them).
+ATTEMPT_BYTE_CAP = 16384
+ATTEMPT_LIMIT_PER_FUNCTION = 5
+
 PDB_MODULE_RE = re.compile(r"^==\s+\.\\Release\\(.+?)\s+\((.*?)\)\s*$", re.I)
 PDB_SYMBOL_RE = re.compile(
     r"^\[(\d{4}):([0-9A-Fa-f]{8})\]\s+([0-9A-Fa-f]+)\s+([GLD])\s+(.*)$"
@@ -666,12 +672,12 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
         raise MemoryGraphError(f"{source}: evidence needs claim or edge")
     if kind == "attempt":
         encoded = json.dumps(record, sort_keys=True).encode("utf-8")
-        if len(encoded) > 4096:
+        if len(encoded) > ATTEMPT_BYTE_CAP:
             raise MemoryGraphError(
-                f"{source}: attempt record is {len(encoded)} bytes (cap 4096);"
-                " keep the do-not-retry head compact — fold history into"
-                " one-line axis_log entries and put deep forensics in an"
-                " evidence record or the commit itself"
+                f"{source}: attempt record is {len(encoded)} bytes (cap"
+                f" {ATTEMPT_BYTE_CAP}); keep the do-not-retry head compact —"
+                " fold history into one-line axis_log entries and put deep"
+                " forensics in an evidence record or the commit itself"
             )
     anchors: list[str] = []
     attributes = record.get("attributes", {})
@@ -824,8 +830,9 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
         state = "proposed" if is_inbox else record.get("record_state", "accepted")
         connection.execute(
             """
-            INSERT INTO record_ingest(record_id, record_kind, record_state, source_path, raw_json)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO record_ingest(record_id, record_kind, record_state,
+                                      source_path, raw_json, valid_from, recorded_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 record["id"],
@@ -833,6 +840,8 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
                 state,
                 _repo_relative(root, path),
                 json.dumps(record, sort_keys=True, separators=(",", ":")),
+                record.get("valid_from"),
+                record.get("recorded_at"),
             ),
         )
         connection.execute(
@@ -1328,6 +1337,17 @@ def build_database(
             "database": str(destination),
         }
     )
+    overflow = {
+        function: len(rows)
+        for function, rows in _accepted_attempts_by_function(root).items()
+        if len(rows) > ATTEMPT_LIMIT_PER_FUNCTION
+    }
+    if overflow:
+        stats["attempt_overflow"] = overflow
+        stats["attempt_overflow_hint"] = (
+            f"functions above the {ATTEMPT_LIMIT_PER_FUNCTION}-attempt cap;"
+            " run gdlmem.py prune-attempts (dry-run) then --apply"
+        )
     return stats
 
 
@@ -1386,15 +1406,22 @@ def search_memory(
     pattern = f"%{query}%"
     with closing(open_database(root, db_path)) as connection:
         records = [
-            dict(row)
+            {
+                **dict(row),
+                "age_days": _record_age_days(row["valid_from"], row["recorded_at"]),
+            }
             for row in connection.execute(
                 """
-                SELECT record_id, record_kind, record_state,
+                SELECT record_fts.record_id, record_fts.record_kind,
+                       record_fts.record_state,
+                       r.valid_from, r.recorded_at,
                        snippet(record_fts, 3, '[', ']', ' … ', 36) AS snippet,
                        bm25(record_fts) AS rank
                 FROM record_fts
+                JOIN record_ingest r ON r.record_id = record_fts.record_id
                 WHERE record_fts MATCH ?
-                ORDER BY CASE record_state WHEN 'accepted' THEN 0 ELSE 1 END,
+                ORDER BY CASE record_fts.record_state
+                         WHEN 'accepted' THEN 0 ELSE 1 END,
                          rank
                 LIMIT ?
                 """,
@@ -2060,6 +2087,23 @@ def stage_record_proposal(
     """Atomically stage one validated record in the review-required inbox."""
     if not isinstance(record, dict):
         raise MemoryGraphError("proposed record must be a JSON object")
+    now = datetime.now(timezone.utc)
+    # Freshness stamps: valid_from is the author's semantic date (defaulted to
+    # today), recorded_at is always the actual staging moment.
+    record.setdefault("valid_from", now.strftime("%Y-%m-%d"))
+    record["recorded_at"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    if record.get("kind") == "attempt":
+        attributes = record.get("attributes")
+        law_screen = (
+            attributes.get("law_screen") if isinstance(attributes, dict) else None
+        )
+        if not isinstance(law_screen, str) or not law_screen.strip():
+            raise MemoryGraphError(
+                "attempt proposals must carry attributes.law_screen: name the"
+                " law records screened for this pass and whether each applied"
+                " (run `gdlmem.py laws` for the current corpus); an explicit"
+                " 'none applicable: <why>' is acceptable"
+            )
     _validate_record(record, Path("<proposal>"))
     _probe_record_references(record, root)
     record_id = record["id"]
@@ -2090,6 +2134,105 @@ def stage_record_proposal(
         if temp.exists():
             temp.unlink()
     return destination
+
+
+def _accepted_attempts_by_function(root: Path) -> dict[str, list[dict[str, Any]]]:
+    """Group accepted attempt records (records/, not inbox/) by anchor function."""
+    attempts_dir = root / "memory_graph" / "records"
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    if not attempts_dir.exists():
+        return grouped
+    for path in sorted(attempts_dir.rglob("*.json")):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(record, dict) or record.get("kind") != "attempt":
+            continue
+        function = record.get("function")
+        if not isinstance(function, str):
+            continue
+        grouped.setdefault(function, []).append(
+            {
+                "id": record.get("id"),
+                "path": path,
+                "valid_from": record.get("valid_from") or "",
+                "outcome": record.get("outcome"),
+                "supersedes": record.get("supersedes"),
+            }
+        )
+    return grouped
+
+
+def prune_attempts(
+    root: Path = REPO_ROOT,
+    *,
+    limit: int = ATTEMPT_LIMIT_PER_FUNCTION,
+    apply: bool = False,
+) -> dict[str, Any]:
+    """Enforce the per-function attempt cap by ejecting the oldest records.
+
+    For every anchor function holding more than ``limit`` accepted attempt
+    records, keep the newest ``limit`` (superseded records are ejected before
+    live ones regardless of age) and eject the rest. Dry-run by default:
+    the report lists each ejection's id/outcome so the integrator can fold a
+    still-live do-not-retry cap into the surviving record before ``apply``.
+    Ejected files are deleted from the working tree only — git history keeps
+    them recoverable. Rebuild the graph after an applied prune.
+    """
+    if limit < 1:
+        raise MemoryGraphError(f"attempt limit must be >= 1, got {limit}")
+    grouped = _accepted_attempts_by_function(root)
+    superseded_ids = {
+        row["supersedes"]
+        for rows in grouped.values()
+        for row in rows
+        if row["supersedes"]
+    }
+    ejected: list[dict[str, Any]] = []
+    kept: dict[str, list[str]] = {}
+    for function, rows in sorted(grouped.items()):
+        if len(rows) <= limit:
+            continue
+        # Newest first; superseded records sort behind live ones.
+        rows.sort(
+            key=lambda row: (
+                row["id"] not in superseded_ids,
+                row["valid_from"],
+                row["id"] or "",
+            ),
+            reverse=True,
+        )
+        kept[function] = [row["id"] for row in rows[:limit]]
+        for row in rows[limit:]:
+            ejected.append(
+                {
+                    "function": function,
+                    "id": row["id"],
+                    "outcome": row["outcome"],
+                    "valid_from": row["valid_from"],
+                    "superseded": row["id"] in superseded_ids,
+                    "file": str(row["path"].relative_to(root)),
+                }
+            )
+            if apply:
+                row["path"].unlink()
+    result: dict[str, Any] = {
+        "limit": limit,
+        "functions_over_limit": len(kept),
+        "kept": kept,
+        "ejected": ejected,
+        "applied": apply,
+    }
+    if ejected and not apply:
+        result["next"] = (
+            "review each ejection (fold any still-live cap into the newest"
+            " record), then rerun with --apply, commit the deletions, and"
+            " rebuild the graph"
+        )
+    elif ejected and apply:
+        result["next"] = "commit the deletions and run gdlmem.py build"
+    return result
 
 
 def register_tool_proposal(
@@ -2193,6 +2336,84 @@ def record_lookup(
     }
 
 
+def _record_age_days(valid_from: str | None, recorded_at: str | None) -> int | None:
+    stamp = valid_from or (recorded_at or "")[:10]
+    if not stamp:
+        return None
+    try:
+        then = datetime.strptime(stamp, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+    return (datetime.now(timezone.utc).date() - then).days
+
+
+def law_corpus(
+    query: str | None = None,
+    *,
+    root: Path = REPO_ROOT,
+    db_path: Path | None = None,
+    limit: int = 100,
+) -> dict[str, Any]:
+    """List the codegen-law corpus, newest first, with freshness and supersession."""
+    ensure_database(root, db_path)
+    sql = """
+        SELECT r.record_id, r.record_state, r.valid_from, r.recorded_at,
+               c.epistemic_state, c.value_json,
+               json_extract(r.raw_json, '$.attributes.scope') AS scope,
+               COALESCE(
+                   c.superseded_by,
+                   (SELECT newer.record_id FROM record_ingest newer
+                    WHERE json_extract(newer.raw_json, '$.supersedes') = r.record_id
+                    LIMIT 1)
+               ) AS superseded_by
+        FROM claim c JOIN record_ingest r ON r.record_id = c.record_id
+        WHERE (c.predicate = 'codegen_law' OR r.record_id LIKE '%law%')
+    """
+    params: list[Any] = []
+    if query:
+        sql += (
+            " AND (r.record_id LIKE ? OR c.value_json LIKE ?"
+            " OR json_extract(r.raw_json, '$.attributes.scope') LIKE ?)"
+        )
+        pattern = f"%{query}%"
+        params.extend([pattern, pattern, pattern])
+    sql += " ORDER BY COALESCE(r.valid_from, '') DESC, r.record_id LIMIT ?"
+    params.append(limit)
+    with closing(open_database(root, db_path)) as connection:
+        rows = connection.execute(sql, params).fetchall()
+    laws = []
+    for row in rows:
+        value = row["value_json"] or ""
+        try:
+            value = json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            pass
+        if isinstance(value, str) and len(value) > 300:
+            value = value[:300] + " …[gdlmem.py record <id> for full text]"
+        laws.append(
+            {
+                "id": row["record_id"],
+                "state": row["record_state"],
+                "epistemic_state": row["epistemic_state"],
+                "valid_from": row["valid_from"],
+                "recorded_at": row["recorded_at"],
+                "age_days": _record_age_days(row["valid_from"], row["recorded_at"]),
+                "superseded_by": row["superseded_by"],
+                "scope": row["scope"],
+                "head": value,
+            }
+        )
+    return {
+        "laws": laws,
+        "count": len(laws),
+        "note": (
+            "laws are compiler-scoped observations, not instructions:"
+            " re-verify against your target bytes; a superseded_by entry means"
+            " read the newer record instead"
+        ),
+    }
+
+
 def build_surface_ops() -> tuple[SurfaceOp, ...]:
     """The registry every query consumer derives its surface from."""
     return (
@@ -2210,6 +2431,18 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                 SurfaceParam("query", str, required=True,
                              help="AND-combined search terms"),
                 SurfaceParam("limit", int, default=20, maximum=100),
+            ),
+        ),
+        SurfaceOp(
+            name="laws", mcp_name="memory_law_corpus",
+            doc=("List the codegen-law corpus (newest first) with scope, "
+                 "age, and supersession flags."),
+            call=lambda root, db, **kw: law_corpus(
+                kw["query"], root=root, db_path=db, limit=kw["limit"]),
+            params=(
+                SurfaceParam("query", str, default=None,
+                             help="optional filter over id/scope/law text"),
+                SurfaceParam("limit", int, default=100, maximum=200),
             ),
         ),
         SurfaceOp(

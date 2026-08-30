@@ -128,7 +128,23 @@ propose-record ──▶ full validation ──▶ inbox/ ──(integrator revi
 
 - `propose-record` runs the *same* validation the build applies — schema and
   reference resolution — before staging, so a proposal the build would reject
-  never reaches the inbox.
+  never reaches the inbox. Staging also stamps freshness onto every record:
+  `valid_from` (the author's semantic date, defaulted to today) and
+  `recorded_at` (the actual staging moment, UTC ISO 8601). Query surfaces
+  report both plus a derived `age_days`, so consumers can tell new truth from
+  old.
+- Attempt proposals must additionally carry `attributes.law_screen`: name the
+  law records screened for the pass and whether each applied (an explicit
+  `none applicable: <why>` is fine). This makes the "query the corpus before
+  editing" rule mechanical instead of advisory; `gdlmem.py laws` lists the
+  current corpus.
+- Attempt records may grow to 16 KiB each, but every anchor function keeps at
+  most **5** accepted attempt records. `build` reports `attempt_overflow` when
+  a function exceeds the cap; the integrator runs
+  `gdlmem.py prune-attempts` (dry-run) — folding any still-live do-not-retry
+  cap from an ejection into the surviving newest record — then `--apply`,
+  commits the deletions, and rebuilds. Superseded records eject before live
+  ones regardless of age, and git history keeps everything recoverable.
 - Defense in depth: if a malformed file lands in `inbox/` anyway, the build is
   **fail-soft** for inbox records only — the bad record is skipped inside a
   savepoint and reported as `inbox_rejected` in `build`/`stats`. Accepted
@@ -143,11 +159,13 @@ propose-record ──▶ full validation ──▶ inbox/ ──(integrator revi
 ```sh
 python memory_graph/gdlmem.py context <symbol>   # the briefing command
 python memory_graph/gdlmem.py search "<terms>"   # FTS over records/symbols/entities
+python memory_graph/gdlmem.py laws [--query X]   # the codegen-law corpus, newest first
 python memory_graph/gdlmem.py tool <name>        # reviewed tool policy
 python memory_graph/gdlmem.py xbox <query>       # Xbox symbols + module neighbors
 python memory_graph/gdlmem.py stats | validate | audit | proposals
 python memory_graph/gdlmem.py build | ensure
 python memory_graph/gdlmem.py propose-record <file> | register-tool <name> ...
+python memory_graph/gdlmem.py prune-attempts [--apply]   # integrator-only ejection
 ```
 
 `context` is the workhorse: for one symbol it joins the GameCube symbol row,

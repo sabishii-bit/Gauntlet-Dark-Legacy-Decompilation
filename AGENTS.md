@@ -28,6 +28,7 @@ documents as durable memory.
 python memory_graph/gdlmem.py ensure
 python memory_graph/gdlmem.py context <symbol>
 python memory_graph/gdlmem.py search "<terms>"
+python memory_graph/gdlmem.py laws [--query <term>]
 python memory_graph/gdlmem.py tool <tool-or-workflow>
 ```
 
@@ -44,10 +45,24 @@ python memory_graph/gdlmem.py tool <tool-or-workflow>
   `gdlmem.py propose-record` (attempts, claims, evidence, entities, edges) or
   `register-tool`. Proposals are fully validated before staging and require
   integrator review before acceptance into `records/`.
+- `laws` lists the whole codegen-law corpus newest-first (scope, age_days,
+  supersession); read it at the start of every pass instead of waiting to be
+  handed record ids. Every attempt proposal MUST carry
+  `attributes.law_screen` naming the laws screened and whether each applied
+  (`none applicable: <why>` is acceptable) — `propose-record` rejects the
+  proposal otherwise.
+- Records are freshness-stamped at staging (`valid_from` + `recorded_at`),
+  and query results carry `age_days`: prefer newer records when two disagree,
+  and check `superseded_by` before applying an old law.
 - Keep attempt records compact: one live record per function (revisits bump
   the version, set `supersedes`, and fold prior probes into one-line
-  `attributes.axis_log` entries), a hard 4 KB cap, and the do-not-retry
-  conclusion in the head fields. `context` returns only that head; fetch full
+  `attributes.axis_log` entries), a 16 KB cap, and the do-not-retry
+  conclusion in the head fields. Each function keeps at most **5** attempt
+  records: when acceptance pushes a function over, the integrator runs
+  `gdlmem.py prune-attempts` (dry-run first — fold any still-live
+  do-not-retry cap from an ejection into the surviving newest record), then
+  `--apply`, commits the deletions, and rebuilds; `build` flags offenders as
+  `attempt_overflow`. `context` returns only the record head; fetch full
   forensics with `gdlmem.py record <id>` when actually revisiting. References like
   `function:<symbol>` and `tu:<module>` resolve automatically against the
   symbol import; add an explicit entity record only for curated attributes or
@@ -67,8 +82,10 @@ Query at these moments, not only at claim time:
    planned axis is a VETO; an empty briefing is a green light, not an error.
 2. **At every classified residual** — before spending an A/B probe on a diff
    cluster, search the graph by its **codegen signature**, not the function
-   name: `search "lfsx"`, `search "assignment in condition"`,
+   name: `laws --query "lfsx"`, `search "assignment in condition"`,
    `search "chained assignment"`, `search "extra fmr"`, `search "cror"`.
+   `laws` (no filter) lists the entire current corpus with ages — cheaper
+   than guessing which ids to fetch.
    Law and attempt bodies are full-text indexed; most recurring MWCC residual
    shapes already have a recorded lever, and finding it costs one query
    against a multi-build rediscovery. Fetch the full text with

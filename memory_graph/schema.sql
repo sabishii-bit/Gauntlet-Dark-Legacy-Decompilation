@@ -10,7 +10,13 @@ CREATE TABLE record_ingest (
     record_kind TEXT NOT NULL,
     record_state TEXT NOT NULL,
     source_path TEXT NOT NULL,
-    raw_json TEXT NOT NULL
+    raw_json TEXT NOT NULL,
+    -- Freshness metadata: valid_from is the record's semantic date,
+    -- recorded_at the auto-stamped proposal timestamp (UTC ISO 8601).
+    -- Legacy records may carry NULLs; consumers fall back valid_from ->
+    -- recorded_at -> unknown.
+    valid_from TEXT,
+    recorded_at TEXT
 );
 
 CREATE TABLE source_artifact (
