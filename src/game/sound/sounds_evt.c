@@ -1331,15 +1331,22 @@ void AudioEnterNextStage(void)
     u8* level = *(u8**)(gCurLevel + 100);
     int idx = *(s16*)(level + 16);
     u8* entry;
+    int entry_id;
 
     if (idx < 0) {
         goto invalid_entry;
     }
     entry = *(u8**)(gWorldData + 44) + idx * 24;
-    if (*(int*)(entry + 16) < 0) {
-        goto invalid_entry;
+    entry_id = *(int*)(entry + 16);
+    switch (entry_id) {
+    case 0:
+        goto valid_entry;
+    default:
+        if (entry_id < 0) {
+            goto invalid_entry;
+        }
+        goto valid_entry;
     }
-    goto valid_entry;
 invalid_entry:
     entry = 0;
 valid_entry:
