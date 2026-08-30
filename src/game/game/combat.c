@@ -1794,7 +1794,7 @@ valid_boss_type:
         f32 absErrYMoving;
         f32 absErrYEase;
         f32 absPanY;
-        u8 unused[160];
+        u8 unused[136];
 
         *(u32*)&absErrXStart &= 0x7FFFFFFF;
         absErrXMoving = errX;
