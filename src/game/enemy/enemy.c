@@ -849,6 +849,17 @@ extern f32 lbl_80344880;
 extern u8* gCurLevel;
 extern void RequestEnemyAction(Enemy* enemy, s32 action);
 
+/* file-local view of world/worldcol.c's FloorCollisionResult; only the
+ * floorY field (0x34) is needed here. Layout verified against worldcol.c's
+ * FloorCollisionResult typedef (_pad00[0x34]; f32 floorY; ...). Used both
+ * for the scratch FloorCollide() output buffer below and (later in this
+ * file) for the shared gFloorCollisionResult global -- same shape, two
+ * different instances. */
+typedef struct FloorCollisionResultView {
+    u8 _pad00[0x34];
+    f32 floorY;
+} FloorCollisionResultView;
+
 s32 do_enemy_collide(s32 index, f32 retryThreshold)
 {
     u8* pool = (u8*)lbl_80250E00;
@@ -987,7 +998,8 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
                            (f32)(lbl_80346830 * rad), enemy->hht,
                            (f32)(-enemy->hht - lbl_80346870));
         if (hit != NULL) {
-            enemy->floory = *(f32*)(pool + 0x334) + enemy->flooroffset;
+            enemy->floory = ((FloorCollisionResultView*)(pool + 0x300))->floorY +
+                            enemy->flooroffset;
             if (enemy->shadow != NULL) {
                 CopyMat3((f32*)(pool + 0x300), (f32*)enemy->shadow);
             }
@@ -6036,7 +6048,8 @@ void uncouple_enemy(s32 index) {
  * enemies (unless the overlap is the enemy's own generator).  Returns 1 when
  * the position is usable, 0 when blocked by geometry/occupant, -1 on failure. */
 extern void* FloorCollide(f32* pos, s32 a, s32 b, s32 mode, f32 x, f32 y, f32 z);
-extern u8 gFloorCollisionResult[]; /* 0x8023CAE0, floor Y at +0x34 */
+/* FloorCollisionResultView is declared near do_enemy_collide above. */
+extern FloorCollisionResultView gFloorCollisionResult; /* 0x8023CAE0 */
 extern f32 lbl_80346A40;
 extern f32 lbl_80346A44;
 extern f32 lbl_80346A48;
@@ -6081,7 +6094,7 @@ s32 check_enemy_pos(f32* start, f32* out, s32 slot)
         return -1;
     }
     {
-        f32 floorY = *(f32*)(gFloorCollisionResult + 0x34);
+        f32 floorY = gFloorCollisionResult.floorY;
         f32 dy = floorY - start[1];
         u8 _dpad[8];
 
@@ -6654,9 +6667,7 @@ void do_enemies(void)
     ProcessCritterList();
 #pragma opt_propagation off
     if (gBoss398 >= 0) {
-        u8* boss = pool + gBoss398 * 0x394;
-
-        *(s32*)(boss + 0xECC) = 1;
+        gEnemies[gBoss398].state = ACTIVE;
     }
 #pragma reset
     if ((gGameBusy | gGameplayPauseTimer) != 0) {
@@ -6664,31 +6675,31 @@ void do_enemies(void)
     }
 
     if (gScriptedCameraState != 0) {
-        u8* e;
+        Enemy* e;
 
         if (lbl_803447B8 == 0) {
             return;
         }
-        e = pool + 0xE18;
-        for (i = 0; i < gNumEnemies; i++, e += 0x394) {
+        e = gEnemies;
+        for (i = 0; i < gNumEnemies; i++, e++) {
             s32 type;
 
-            if (*(s32*)(e + 0xB4) != 1) {
+            if (e->state != ACTIVE) {
                 continue;
             }
-            type = *(s32*)e;
+            type = e->type;
             if (type == gBossType) {
                 continue;
             }
             if (type == 0x1D) {
-                *(s32*)(e + 0xD0) = 1;
+                e->daction = 1;
             } else if (type == 0) {
-                *(s32*)(e + 0xD0) = 3;
+                e->daction = 3;
             } else {
-                *(s32*)(e + 0xD0) = 0;
+                e->daction = 0;
             }
-            if (*(u32*)(e + 0x6C) != 0) {
-                *(s32*)(e + 0xCC) = DoEnemyAction((Enemy*)e);
+            if (e->atree.root != 0) {
+                e->action = DoEnemyAction(e);
             }
         }
         return;
@@ -6698,7 +6709,7 @@ void do_enemies(void)
         u8* pl = (u8*)gPlayerWords;
 
         for (i = 0; i < 4; i++, pl += 0x335C) {
-            if (*(s32*)(pl + 0xE8) == 1) {
+            if (((EnemyPlayerView*)pl)->state == 1) {
                 *(s32*)(pl + 0xA24) = 0;
                 *(f32*)(pl + 0xA28) = 0.0f;
             }
@@ -6717,12 +6728,12 @@ void do_enemies(void)
     }
 
     {
-        u8* e = pool + 0xE18;
+        Enemy* e = gEnemies;
 
-        for (i = 0; i < gNumEnemies; i++, e += 0x394) {
-            if (*(s32*)(e + 0xB4) == 1 && *(s16*)(e + 0x310) == 0x12 &&
-                *(s16*)(e + 0x2DC) != 0) {
-                if (*(s32*)(e + 0xCC) == 4 || *(s32*)(e + 0xD0) == 4) {
+        for (i = 0; i < gNumEnemies; i++, e++) {
+            if (e->state == ACTIVE && e->algorithm == 0x12 &&
+                e->visactive != 0) {
+                if (e->action == 4 || e->daction == 4) {
                     lbl_80344748 = i;
                     break;
                 }
@@ -6731,31 +6742,31 @@ void do_enemies(void)
     }
 
     {
-        u8* e = pool + 0xE18;
+        Enemy* e = gEnemies;
         f32 visibilityScale = lbl_80346980;
         f64 visibilityAdd = lbl_80346928;
 
         lbl_80344740 = 0;
-        for (i = 0; i < gNumEnemies; i++, e += 0x394) {
+        for (i = 0; i < gNumEnemies; i++, e++) {
             f32 r;
 
-            if (*(s32*)(e + 0xB4) == 0) {
+            if (e->state == 0) {
                 continue;
             }
-            r = visibilityScale * *(f32*)(e + 0x238);
-            *(s16*)(e + 0x2DA) =
-                (s16)MBWorldSphereVisible3((f32*)(e + 0x44), r);
+            r = visibilityScale * e->rad;
+            e->visible =
+                (s16)MBWorldSphereVisible3(e->objgrp.attn_pos, r);
             r += visibilityAdd;
-            *(s16*)(e + 0x2DC) =
-                (s16)MBWorldSphereVisible3((f32*)(e + 0x44), r);
-            if (*(s16*)(e + 0x2DA) != 0) {
+            e->visactive =
+                (s16)MBWorldSphereVisible3(e->objgrp.attn_pos, r);
+            if (e->visible != 0) {
                 lbl_80344740++;
             }
         }
     }
 
     {
-        u8* e = pool + 0xE18;
+        Enemy* e = gEnemies;
         f32 skinOne = lbl_803468F0;
         f64 zero = lbl_80346810;
         f64 bossRise = lbl_80346818;
@@ -6764,114 +6775,112 @@ void do_enemies(void)
         f64 pushEpsilon = lbl_80346878;
         f32 verticalDamping = lbl_803469C0;
 
-        for (i = 0; i < gNumEnemies; i++, e += 0x394) {
+        for (i = 0; i < gNumEnemies; i++, e++) {
             s32 state;
 
-            *(s16*)(e + 0x312) = *(s16*)(e + 0x310);
-            *(s32*)(e + 0x36C) += gFrameTicks;
-            if (*(f32*)(e + 0x37C) > zeroFloat) {
-                *(f32*)(e + 0x37C) -= gClockFrameStep;
+            e->old_ai = e->algorithm;
+            e->operation_count += gFrameTicks;
+            if (e->idle_secs > zeroFloat) {
+                e->idle_secs -= gClockFrameStep;
             }
-            if (*(s32*)e == 0) {
-                *(s32*)(e + 0xD0) = 3;
+            if (e->type == 0) {
+                e->daction = 3;
             } else {
-                *(s32*)(e + 0xD0) = 0;
+                e->daction = 0;
             }
 
-            state = *(s32*)(e + 0xB4);
+            state = e->state;
             switch (state) {
             case 1:
             case 7:
                 shown++;
-                if (*(s32*)e == gBossType) {
+                if (e->type == gBossType) {
                     goto tail;
                 }
-                fn_8005A338((f32*)(e + 0x4), (f32*)(e + 0x22C),
-                            (f32*)(e + 0x220));
+                fn_8005A338(&e->objgrp.worldmat[0][0], e->coll_offset,
+                            e->attn_offset);
                 if (lbl_803447DC != 0) {
-                    *(f32*)(e + 0x90) += gClockFrameStep;
-                    fn_8004DC2C((Enemy*)e);
+                    e->atree.animinfo.starttime += gClockFrameStep;
+                    fn_8004DC2C(e);
                     do_enemy_collide(i, lbl_80346820);
                 } else if (gTriggerCameraState != 0) {
-                    *(s32*)(e + 0xD0) = 0;
-                    *(s32*)(e + 0xCC) = DoEnemyAction((Enemy*)e);
+                    e->daction = 0;
+                    e->action = DoEnemyAction(e);
                     do_enemy_collide(i, lbl_80346820);
-                    fn_8004DC2C((Enemy*)e);
+                    fn_8004DC2C(e);
                 } else {
                     fn_800516F8(i);
-                    fn_8004DF58((Enemy*)e);
-                    fn_8004DC2C((Enemy*)e);
+                    fn_8004DF58(e);
+                    fn_8004DC2C(e);
                     if (fn_8004D958(i) != 0) {
                         goto tail;
                     }
-                    if (*(u32*)(e + 0x6C) != 0) {
-                        *(s32*)(e + 0xCC) = DoEnemyAction((Enemy*)e);
+                    if (e->atree.root != 0) {
+                        e->action = DoEnemyAction(e);
                     }
-                    *(s32*)(e + 0x390) =
-                        (*(s32*)(e + 0xCC) == *(s32*)(e + 0xD0)) ? -1 : 0;
+                    e->anim_done = (e->action == e->daction) ? -1 : 0;
                 }
-                ProcessSkinFX((f32*)(e + 0x1E4), *(void**)(e + 0x64), 0);
-                UpdateObjWorldMat((f32*)(e + 0x4));
+                ProcessSkinFX((f32*)&e->skinfx, e->objgrp.node, 0);
+                UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
                 goto tail;
             case 6:
-                fn_8005A338((f32*)(e + 0x4), (f32*)(e + 0x22C),
-                            (f32*)(e + 0x220));
+                fn_8005A338(&e->objgrp.worldmat[0][0], e->coll_offset,
+                            e->attn_offset);
                 shown++;
                 goto tail;
             case 8:
-                fn_8005A338((f32*)(e + 0x4), (f32*)(e + 0x22C),
-                            (f32*)(e + 0x220));
+                fn_8005A338(&e->objgrp.worldmat[0][0], e->coll_offset,
+                            e->attn_offset);
                 shown++;
-                if (*(s32*)e == gBossType) {
+                if (e->type == gBossType) {
                     goto sync;
                 }
-                if (*(s32*)e == 0x1E) {
-                    s32 eff = *(s32*)(e + 0x1E0);
-                    s32 alpha = *(s32*)(e + 0x388);
+                if (e->type == 0x1E) {
+                    s32 eff = e->specialfx;
+                    s32 alpha = e->alpha;
 
                     if (eff >= 0) {
-                        *(s32*)(e + 0x1E0) = DeleteEffect(eff, 1);
+                        e->specialfx = DeleteEffect(eff, 1);
                     }
                     if (alpha >= 0xFF) {
-                        if (*(s32*)(e + 0x320) != 0) {
-                            if (*(s16*)(e + 0x206) == 2) {
-                                msgPost(0x81, *(s32*)(e + 0x284),
-                                        (f32*)(e + 0x44));
+                        if (e->flag2 != 0) {
+                            if (e->org_lvl == 2) {
+                                msgPost(0x81, e->coll_pnum,
+                                        &e->objgrp.attn_pos[0]);
                             } else {
-                                msgPost(0x83, *(s32*)(e + 0x284),
-                                        (f32*)(e + 0x44));
+                                msgPost(0x83, e->coll_pnum,
+                                        &e->objgrp.attn_pos[0]);
                             }
                         }
                         kill_enemy(i);
                         goto tail;
                     }
-                    MBTreeSetAlpha(*(struct mbnode**)(e + 0x64), alpha, 1);
-                    *(s32*)(e + 0x388) =
-                        *(s32*)(e + 0x388) + gFrameTicks * 4;
-                    *(f32*)(e + 0x38) = (f32)(bossRise * gClockFrameStep +
-                                              *(f32*)(e + 0x38));
-                    UpdateObjWorldMat((f32*)(e + 0x4));
+                    MBTreeSetAlpha(e->objgrp.node, alpha, 1);
+                    e->alpha = e->alpha + gFrameTicks * 4;
+                    e->objgrp.worldmat[3][1] =
+                        (f32)(bossRise * gClockFrameStep +
+                              e->objgrp.worldmat[3][1]);
+                    UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
                     goto sync;
                 } else {
                     s32 cc;
 
-                    fn_8004DC2C((Enemy*)e);
-                    *(s32*)(e + 0xD0) = 0x20;
-                    *(f32*)(e + 0x244) =
-                        turn_enemy_ang((Enemy*)e, *(f32*)(e + 0x24C));
+                    fn_8004DC2C(e);
+                    e->daction = 0x20;
+                    e->pyr[1] = turn_enemy_ang(e, e->ang);
                     do_enemy_move(i);
-                    if (*(u32*)(e + 0x6C) != 0) {
-                        if (*(s32*)e != gBossType) {
-                            *(s32*)(e + 0xCC) = DoEnemyAction((Enemy*)e);
+                    if (e->atree.root != 0) {
+                        if (e->type != gBossType) {
+                            e->action = DoEnemyAction(e);
                         }
-                        if (*(s32*)(e + 0xCC) == *(s32*)(e + 0xD0)) {
-                            *(s32*)(e + 0x390) = -1;
+                        if (e->action == e->daction) {
+                            e->anim_done = -1;
                         } else {
-                            *(s32*)(e + 0x390) = 0;
+                            e->anim_done = 0;
                         }
                     }
-                    ProcessSkinFX((f32*)(e + 0x1E4), *(void**)(e + 0x64), 0);
-                    cc = *(s32*)(e + 0xCC);
+                    ProcessSkinFX((f32*)&e->skinfx, e->objgrp.node, 0);
+                    cc = e->action;
                     if (cc == 0x1C) {
                         goto active_skin;
                     }
@@ -6882,29 +6891,29 @@ void do_enemies(void)
                         goto finished_skin;
                     }
                 active_skin:
-                    if (*(f32*)(e + 0x1E4) <= zeroFloat) {
+                    if (e->skinfx.nframes <= zeroFloat) {
                         goto finished_skin;
                     }
                     goto update_skin;
                 finished_skin:
-                    if (*(s32*)e == 0x1D) {
+                    if (e->type == 0x1D) {
                         if (RandInt(2) == 0) {
-                            fn_8009FEFC(*(s16*)(e + 0x1FE));
+                            fn_8009FEFC(e->area);
                         } else {
-                            fn_8009FEA0(*(s16*)(e + 0x1FE));
+                            fn_8009FEA0(e->area);
                         }
                     }
                     kill_enemy(i);
                     goto tail;
                 update_skin:
-                    UpdateObjWorldMat((f32*)(e + 0x4));
+                    UpdateObjWorldMat(&e->objgrp.worldmat[0][0]);
                     goto sync;
                 }
             sync:
-                if (*(u32*)(e + 0x1DC) != 0) {
-                    *(f32*)(*(u8**)(e + 0x1DC) + 0x30) = *(f32*)(e + 0x34);
-                    *(f32*)(*(u8**)(e + 0x1DC) + 0x34) = *(f32*)(e + 0x38);
-                    *(f32*)(*(u8**)(e + 0x1DC) + 0x38) = *(f32*)(e + 0x3C);
+                if (e->shadow != 0) {
+                    *(f32*)((u8*)e->shadow + 0x30) = e->objgrp.worldmat[3][0];
+                    *(f32*)((u8*)e->shadow + 0x34) = e->objgrp.worldmat[3][1];
+                    *(f32*)((u8*)e->shadow + 0x38) = e->objgrp.worldmat[3][2];
                 }
                 break;
             case 0:
@@ -6913,68 +6922,68 @@ void do_enemies(void)
             }
 
         tail:
-            *(s16*)(e + 0x314) = *(s16*)(e + 0x310);
-            *(s16*)(e + 0x310) = *(s16*)(e + 0x312);
-            if (*(s32*)(e + 0x36C) >= *(s32*)(e + 0x368)) {
-                *(s32*)(e + 0x36C) -= *(s32*)(e + 0x368);
+            e->prev_ai = e->algorithm;
+            e->algorithm = e->old_ai;
+            if (e->operation_count >= e->operation_speed) {
+                e->operation_count -= e->operation_speed;
             }
-            *(f32*)(e + 0x25C) = (f32)(pushDamping * *(f32*)(e + 0x25C));
-            *(f32*)(e + 0x260) = (f32)(pushDamping * *(f32*)(e + 0x260));
-            *(f32*)(e + 0x264) = (f32)(pushDamping * *(f32*)(e + 0x264));
+            e->pushed[0] = (f32)(pushDamping * e->pushed[0]);
+            e->pushed[1] = (f32)(pushDamping * e->pushed[1]);
+            e->pushed[2] = (f32)(pushDamping * e->pushed[2]);
             {
-                f32 v = *(f32*)(e + 0x25C);
+                f32 v = e->pushed[0];
                 *(u32*)&v &= 0x7FFFFFFF;
                 if (v < pushEpsilon) {
-                    *(f32*)(e + 0x25C) = zeroFloat;
+                    e->pushed[0] = zeroFloat;
                 }
             }
             {
-                f32 v = *(f32*)(e + 0x260);
+                f32 v = e->pushed[1];
                 *(u32*)&v &= 0x7FFFFFFF;
                 if (v < pushEpsilon) {
-                    *(f32*)(e + 0x260) = zeroFloat;
+                    e->pushed[1] = zeroFloat;
                 }
             }
             {
-                f32 v = *(f32*)(e + 0x264);
+                f32 v = e->pushed[2];
                 *(u32*)&v &= 0x7FFFFFFF;
                 if (v < pushEpsilon) {
-                    *(f32*)(e + 0x264) = zeroFloat;
+                    e->pushed[2] = zeroFloat;
                 }
             }
-            if (*(f32*)(e + 0x260) > zeroFloat) {
-                *(f32*)(e + 0x260) =
-                    *(f32*)(e + 0x260) - verticalDamping * gClockFrameStep;
-                if (*(f32*)(e + 0x260) < zeroFloat) {
-                    *(f32*)(e + 0x260) = zeroFloat;
+            if (e->pushed[1] > zeroFloat) {
+                e->pushed[1] =
+                    e->pushed[1] - verticalDamping * gClockFrameStep;
+                if (e->pushed[1] < zeroFloat) {
+                    e->pushed[1] = zeroFloat;
                 }
             }
             if (gBossType < 0) {
                 if ((f64)lbl_803447D8 != zero) {
-                    if (*(u32*)(e + 0x64) != 0) {
-                        MBTreeSetFlags(*(struct mbnode**)(e + 0x64), 8, 0);
-                        *(f32*)(*(u8**)(e + 0x64) + 0x40) = lbl_803447D8;
-                        *(f32*)(*(u8**)(e + 0x64) + 0x44) = lbl_803447D8;
-                        *(f32*)(*(u8**)(e + 0x64) + 0x48) = lbl_803447D8;
+                    if (e->objgrp.node != 0) {
+                        MBTreeSetFlags(e->objgrp.node, 8, 0);
+                        *(f32*)((u8*)e->objgrp.node + 0x40) = lbl_803447D8;
+                        *(f32*)((u8*)e->objgrp.node + 0x44) = lbl_803447D8;
+                        *(f32*)((u8*)e->objgrp.node + 0x48) = lbl_803447D8;
                     }
-                    if (*(u32*)(e + 0x1DC) != 0) {
-                        MBTreeSetFlags(*(struct mbnode**)(e + 0x1DC), 8, 0);
-                        *(f32*)(*(u8**)(e + 0x1DC) + 0x40) = lbl_803447D8;
-                        *(f32*)(*(u8**)(e + 0x1DC) + 0x44) = lbl_803447D8;
-                        *(f32*)(*(u8**)(e + 0x1DC) + 0x48) = lbl_803447D8;
+                    if (e->shadow != 0) {
+                        MBTreeSetFlags(e->shadow, 8, 0);
+                        *(f32*)((u8*)e->shadow + 0x40) = lbl_803447D8;
+                        *(f32*)((u8*)e->shadow + 0x44) = lbl_803447D8;
+                        *(f32*)((u8*)e->shadow + 0x48) = lbl_803447D8;
                     }
                 } else {
-                    if (*(u32*)(e + 0x64) != 0) {
-                        MBTreeClearFlags(*(struct mbnode**)(e + 0x64), 8, 0);
-                        *(f32*)(*(u8**)(e + 0x64) + 0x40) = skinOne;
-                        *(f32*)(*(u8**)(e + 0x64) + 0x44) = skinOne;
-                        *(f32*)(*(u8**)(e + 0x64) + 0x48) = skinOne;
+                    if (e->objgrp.node != 0) {
+                        MBTreeClearFlags(e->objgrp.node, 8, 0);
+                        *(f32*)((u8*)e->objgrp.node + 0x40) = skinOne;
+                        *(f32*)((u8*)e->objgrp.node + 0x44) = skinOne;
+                        *(f32*)((u8*)e->objgrp.node + 0x48) = skinOne;
                     }
-                    if (*(u32*)(e + 0x1DC) != 0) {
-                        MBTreeClearFlags(*(struct mbnode**)(e + 0x1DC), 8, 0);
-                        *(f32*)(*(u8**)(e + 0x1DC) + 0x40) = skinOne;
-                        *(f32*)(*(u8**)(e + 0x1DC) + 0x44) = skinOne;
-                        *(f32*)(*(u8**)(e + 0x1DC) + 0x48) = skinOne;
+                    if (e->shadow != 0) {
+                        MBTreeClearFlags(e->shadow, 8, 0);
+                        *(f32*)((u8*)e->shadow + 0x40) = skinOne;
+                        *(f32*)((u8*)e->shadow + 0x44) = skinOne;
+                        *(f32*)((u8*)e->shadow + 0x48) = skinOne;
                     }
                 }
             }
