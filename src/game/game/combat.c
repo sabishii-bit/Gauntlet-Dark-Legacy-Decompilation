@@ -260,8 +260,8 @@ extern s32 optionsAudioAndPrefs30[8];
 extern s32 WeaponStreakTex;
 extern u32 lbl_8011A178[], lbl_8011A188[];
 extern void* lbl_80282930[];
-void fn_80093E50();
-void fn_80093D98();
+void SfxSetPhysics();
+void SfxSetStreak();
 
 #define PF(base, off, type) (*(type*)((u8*)(base) + (off)))
 #define PLAYER_STRIDE 0x335C
@@ -3941,7 +3941,7 @@ s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
     if (big != 0) {
         radius = (f32)((f64)radius * lbl_803463C8);
     }
-    fn_80093E50(fx, vel, desc->angularVelocity, desc->weight, radius);
+    SfxSetPhysics(fx, vel, desc->angularVelocity, desc->weight, radius);
     SfxSetHit(fx, desc->hitEffect, desc->hitSound, wallSound);
     SfxSetDamage(fx, damageType | desc->damageType, owner, damageMag,
                  desc->hitRadius, lbl_80346328);
@@ -3966,7 +3966,7 @@ s32 StartMissile(s32 owner, f32* position, f32* velocity, u32 damageType,
                 }
             }
         }
-        fn_80093D98(fx, tex, vibColor, vibIntensity, lbl_80346328,
+        SfxSetStreak(fx, tex, vibColor, vibIntensity, lbl_80346328,
             *(f32*)((u8*)lbl_80282930[owner - 1] + 0x17C));
     }
     return fx;

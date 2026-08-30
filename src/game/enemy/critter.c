@@ -503,7 +503,7 @@ extern void  PlaceEffectOnFloor(s32 effect, f32 *matrix);
 extern void  SfxSetHit(s32 effect, s32 hitEffect, s32 hitAudio,
                        s32 wallSound);
 extern void  SfxSetMorph(f32 time, s32 effect, s32 morph1, s32 morph2);
-extern void  fn_80093E50(s32 effect, f32 *velocity, f32 *angularVelocity,
+extern void  SfxSetPhysics(s32 effect, f32 *velocity, f32 *angularVelocity,
                          f32 weight, f32 radius);
 extern void  DmgFxAdd(s32 effect);
 extern u16   AnimateATree(void *tree, s32 sequence, s32 transition);
@@ -524,7 +524,7 @@ extern void  MBPsysSetETime(f32 life, f32 variance, void *psys);
 extern void  MBPsysSetPSpeed(void *psys, f32 speed);
 extern void *PlaceItem(s32 type, s32 subtype, const char *name, f32 *position);
 extern void  AddItemSub(void *item);
-extern void  fn_800920E0(f32 *position, void *item, f32 scale);
+extern void  StartBagFX(f32 *position, void *item, f32 scale);
 extern char  lbl_803465EC;
 extern void  msgPost(s32 message, s32 target, s32 value);
 extern char *fn_80057ACC(s32 slot);
@@ -4235,7 +4235,7 @@ void CritterDropItem(Critter *c)
     }
     if (type != 0) {
         *(s8 *)((u8 *)item + offsetof(CritterItemView, minoff)) = 10;
-        fn_800920E0((f32 *)((u8 *)c + offsetof(Critter, floorContact)), item,
+        StartBagFX((f32 *)((u8 *)c + offsetof(Critter, floorContact)), item,
                     lbl_80346470);
         return;
     }
@@ -5930,14 +5930,14 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
                 angularVelocity[0] = Random(lbl_8034662C);
                 angularVelocity[1] = lbl_80346470;
                 angularVelocity[2] = Random(lbl_8034662C);
-                fn_80093E50(result, velocity, angularVelocity,
+                SfxSetPhysics(result, velocity, angularVelocity,
                             *(f32 *)(desc + 0x38), radius);
             } else {
-                fn_80093E50(result, velocity, NULL, *(f32 *)(desc + 0x38),
+                SfxSetPhysics(result, velocity, NULL, *(f32 *)(desc + 0x38),
                             radius);
             }
         } else {
-            fn_80093E50(result, NULL, NULL, *(f32 *)(desc + 0x38), radius);
+            SfxSetPhysics(result, NULL, NULL, *(f32 *)(desc + 0x38), radius);
         }
 
         if ((gControllerButtons & 0x10) != 0 && gGameOptions[8] != 0) {

@@ -73,10 +73,10 @@ extern void  SfxSetParent(s32 effect, void* parent);
 extern u8*   fn_8005B558(s32 id);
 extern void  MBTreeSetAlpha(void* tree, s32 alpha, s32 recurse);
 extern void  MBTreeSetFlags(void* tree, s32 flags, s32 recurse);
-extern void  fn_8009C460(s32 id);
+extern void  AudioTowerFX(s32 id);
 extern s32   fn_8009CD80(s32 player, s32 character, s32 level);
-extern void  fn_8009C4F0(s32 idx);
-extern void  fn_8009C688(s32 idx);
+extern void  AudioRuneSpeech(s32 idx);
+extern void  AudioShardSpeech(s32 idx);
 extern s32   StartLevelUpFX(f32* pos, s32 color);
 extern s32   StartGemFX(f32* pos, s32 color);
 void SumnerSpeechEnd(void);
@@ -1040,7 +1040,7 @@ void TowerCheckMessages(s32 mode) {
             break;
         case 10:
             if (lbl_803443C0 < 250) {
-                fn_8009C460(2);
+                AudioTowerFX(2);
                 lbl_80344C7C++;
                 break;
             }
@@ -1060,12 +1060,12 @@ void TowerCheckMessages(s32 mode) {
                 MBTreeSetAlpha((void*)lbl_80344C84, 255, 1);
                 lbl_80344C80 = 180;
                 lbl_80344C7C = 116;
-                fn_8009C460(11);
+                AudioTowerFX(11);
             }
             break;
         case 14:
             if (lbl_803443C0 < 250) {
-                fn_8009C460(2);
+                AudioTowerFX(2);
                 lbl_80344C7C++;
                 break;
             }
@@ -1094,14 +1094,14 @@ void TowerCheckMessages(s32 mode) {
         case 22:
         case 24:
             if (lbl_803443C0 < 250) {
-                fn_8009C460(1);
+                AudioTowerFX(1);
                 lbl_80344C7C++;
             }
             break;
         case 30:
         case 32:
             if (lbl_803443C0 < 220) {
-                fn_8009C460(1);
+                AudioTowerFX(1);
                 lbl_80344C7C++;
             }
             break;
@@ -1833,7 +1833,7 @@ void SumnerDoSpeech(void) {
             message = FindStringMessageListSub_8001FC4C(0, strings + 196);
             argument = 0;
             if (lbl_80343E58 < 1) {
-                fn_8009C4F0(0);
+                AudioRuneSpeech(0);
                 lbl_80343E58 = 1;
             }
         } else if (speech == 13) {
@@ -1850,7 +1850,7 @@ void SumnerDoSpeech(void) {
             argument = -1;
         }
         if (message >= 0 && argument == -1 && lbl_80343E58 < 2) {
-            fn_8009C4F0(speech);
+            AudioRuneSpeech(speech);
             lbl_80343E58 = 2;
         }
     } else if (lbl_80344C6C >= 0) {
@@ -1860,7 +1860,7 @@ void SumnerDoSpeech(void) {
         if (lbl_80344C6C < 9) {
             message = FindStringMessageListSub_8001FC4C(0, strings + 264);
             if (lbl_80343E58 < 1) {
-                fn_8009C688(argument);
+                AudioShardSpeech(argument);
                 lbl_80343E58 = 1;
             }
         } else if (lbl_80344C6C == 15) {
@@ -1871,7 +1871,7 @@ void SumnerDoSpeech(void) {
             argument = -1;
         }
         if (message >= 0 && argument == -1 && lbl_80343E58 < 2) {
-            fn_8009C688(speech);
+            AudioShardSpeech(speech);
             lbl_80343E58 = 2;
         }
     }
@@ -1945,7 +1945,7 @@ void SumnerSpeechEnd(void) {
                     SfxSetParent(effect, gSceneRoot);
                 }
                 RuneCamActivate(0);
-                fn_8009C460(21);
+                AudioTowerFX(21);
             }
             if (PlayerHasRune(-1, 0x3FE) != 0 &&
                 PlayerHasShard(-1, 0xFFF) != 0) {
@@ -1988,10 +1988,10 @@ void SumnerSpeechEnd(void) {
                 MBTreeSetAlpha(*(void**)(fn_8005B558(0x500) + 100),
                                0xFF, 1);
                 lbl_80344C7C = 10;
-                fn_8009C460(10);
+                AudioTowerFX(10);
             } else {
                 lbl_80344C7C = 14;
-                fn_8009C460(14);
+                AudioTowerFX(14);
             }
         } else if (speech < 9) {
             ErrorPrintf(strings + 104);

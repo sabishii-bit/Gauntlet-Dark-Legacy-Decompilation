@@ -168,7 +168,7 @@ extern f32 NormalVector(f32* vec);
 extern void CopyMat3(f32* src, f32* dst);
 extern f32 fqdist(f32 x, f32 y);
 extern f32 smallsqrt(f32 v);
-extern void fn_8009C850(void* p);
+extern void AudioWorldHitPlyr(void* p);
 extern s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir);
 extern f64 fn_8005C1DC(void* target, s32 arg, s32 pidx, f64 range); /* hit test -> priority */
 extern void PlayerDamagedItem(Player* p, void* target, s32 exact); /* apply melee hit */
@@ -338,7 +338,7 @@ extern s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4,
 extern s32 DoTransporter(Player* p, f32* pos, f32* out, f32 range);
 extern void DoExit(Player* p);
 extern s32 CameraLimitPlayerDpos(s32 player, f32* dpos, s32 arg);
-extern void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1);
+extern void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1);
 extern void fn_8009DCB4(s32 pos);
 extern u32 PlayerKnockback(f32 angle, Player* p, f32* out);
 extern f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out,
@@ -362,7 +362,7 @@ extern void MBTreeSetAltTex(void* node, s32 index, s32 texture, s32 recurse);
 extern s32 MBOX_FindTexture(const char* name, void** result);
 extern void SfxSetMorph(f32 time, s32 effect, s32 morph1, s32 morph2);
 extern void MBTreeSetColor(void* node, u32 color, s32 recurse);
-extern void fn_80093E50(s32 effect, f32* velocity, f32* pyrVelocity,
+extern void SfxSetPhysics(s32 effect, f32* velocity, f32* pyrVelocity,
                         f32 weight, f32 radius);
 extern void SfxSetHitTarget(f32 speed, s32 effect, void* target);
 extern void SfxSetDamage(f32 damage, f32 radius, f32 delay, s32 effect,
@@ -1148,7 +1148,7 @@ void PlayerMotion(Player* p) {
                 s32 sfxProbe = PlayerMotion_SfxIndex(p);
                 sfx = sfxProbe;
                 if (sfxProbe >= 0) {
-                    fn_80089350((u8*)p->grab_partner, sfx, (u8*)p,
+                    PlyrSfxDoDamage((u8*)p->grab_partner, sfx, (u8*)p,
                                 (u8*)to, lbl_80347B30, lbl_80347B40);
                 }
             }
@@ -1312,7 +1312,7 @@ void PlayerMotion(Player* p) {
                     s32 sfxProbe = PlayerMotion_SfxIndex(p);
                     sfx = sfxProbe;
                     if (sfxProbe >= 0) {
-                        fn_80089350((u8*)p->grab_partner, sfx, (u8*)p,
+                        PlyrSfxDoDamage((u8*)p->grab_partner, sfx, (u8*)p,
                                     (u8*)hit, lbl_80347B30, lbl_80347B40);
                     }
                 }
@@ -1405,7 +1405,7 @@ void PlayerMotion(Player* p) {
                         s32 sfxProbe = PlayerMotion_SfxIndex(p);
                         sfx = sfxProbe;
                         if (sfxProbe >= 0) {
-                            fn_80089350((u8*)p->grab_partner, sfx,
+                            PlyrSfxDoDamage((u8*)p->grab_partner, sfx,
                                         (u8*)p, (u8*)to,
                                         lbl_80347B30, lbl_80347B40);
                         }
@@ -2409,7 +2409,7 @@ store_motion_state:
                         effectVelocity[0] *= bossDamage;
                         effectVelocity[1] *= bossDamage;
                         effectVelocity[2] *= bossDamage;
-                        fn_80093E50(effect, effectVelocity, bossColor,
+                        SfxSetPhysics(effect, effectVelocity, bossColor,
                                     weight, effectRadius);
                     } else {
                         hit[0] = (f32)(p->mat[8] + (f64)p->col_pos[0]);
@@ -2418,7 +2418,7 @@ store_motion_state:
                         hit[1] = (f32)(hit[1] + lbl_80347C28);
                         effect = StartFXSub(93, hit, effectFlags | 8, 0,
                                             lbl_80347CA8);
-                        fn_80093E50(effect, NULL, bossColor, 0.0f,
+                        SfxSetPhysics(effect, NULL, bossColor, 0.0f,
                                     effectRadius);
                         SfxSetHitTarget(bossDamage, effect, hitNode);
                     }
@@ -3199,12 +3199,12 @@ player_motion_grab_done:
                 }
 
                 if (sfx1 >= 0) {
-                    fn_80089350((u8*)p, sfx1,
+                    PlyrSfxDoDamage((u8*)p, sfx1,
                                  (u8*)p->grab_partner, NULL,
                                  p->combo_cd, comboTime);
                 }
                 if (sfx2 >= 0) {
-                    fn_80089350((u8*)p, sfx2,
+                    PlyrSfxDoDamage((u8*)p, sfx2,
                                  (u8*)p->grab_partner, NULL,
                                  p->combo_cd, comboTime);
                 }
@@ -3329,7 +3329,7 @@ static inline void PlayerMotion_FloorFXDamage(Player* p, u32 flags, f32* dv)
     case 0x50000:
         p->floor_fx_time = 1.0 + sMusicFadeBase;
         damage_player(p->index, 15.0f, 1, 32, dv);
-        fn_8009C850((u8*)p + 0x64);
+        AudioWorldHitPlyr((u8*)p + 0x64);
         break;
     }
 }

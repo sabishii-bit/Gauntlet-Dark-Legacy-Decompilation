@@ -1,0 +1,52 @@
+{
+  "attributes": {
+    "scope": "symbol-adoption pass (work_claim.symbol-adoption.20260831.v1) resolving the 2026-08-30 symaudit exact-gap/spelling candidates for this TU; verified via fnasm+source read+caller context per AGENTS.md symbol-naming procedure, then adopted through the cross-TU rename law and gated with a full ninja build + fndiff spot-check"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-sfx-psfx.20260831.v2",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T23:49:44Z",
+  "schema_version": 1,
+  "subject": "tu:game/sfx/psfx.c",
+  "supersedes": "claim.symnames.game-sfx-psfx.20260830.v1",
+  "valid_from": "2026-08-30",
+  "value": {
+    "adopted": [
+      {
+        "adopted_name": "PlyrSfxDoDamage",
+        "evidence": "Per-frame animation-timeline effect dispatcher (row/t0/t1 window test) that, on entering a hit window, sets Effects[mode].damage/mindp/damageradius/damagetype/damagedelay via its sub-helper and dispatches SetSkinFX/hit-audio; called from pmotion.c during player grab/attack animation processing. Already carried a live attempt record (attempt.fn-80089350-portable-closure.20260829.v1, outcome improved) whose function anchor was repointed to the new name as part of this pass' graph repair (see the pass attempt record).",
+        "gc_old": "fn_80089350"
+      },
+      {
+        "adopted_name": "PlyrSfxDoDamageSub",
+        "evidence": "Called twice from PlyrSfxDoDamage (formerly fn_80089350) to spawn one player effect from a sequence row; body sets Effects[mode].damage/mindp/damageradius/damagetype/damagedelay directly (confirms the 'damage' concept) and is architecturally the Sub-helper of PlyrSfxDoDamage, matching the Do*/Do*Sub naming pair already used elsewhere in this TU (DoPlyrSfxSub/DoPlyrSfx).",
+        "gc_old": "fn_800898DC"
+      }
+    ],
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_8008A678"
+        ],
+        "status": "not attempted this pass",
+        "xbox_candidates": [
+          "PlayerSfxInit",
+          "InitPlyrData"
+        ]
+      }
+    ],
+    "deferred": [],
+    "naming_notes": "Both exact-gap candidates adopted; the one spelling-mismatch candidate was rejected on direct body-content evidence.",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "rejected": [
+      {
+        "gc_old": "DoPlyrSfxSub",
+        "reason": "The current name is not a placeholder: the function carries an existing verified provenance comment ('Xbox PDB: DoPlyrSfxSub') from a prior session, and its body (record dispatch: SetSkinFX/PsfxDoParticle/DoPlyrSfx/ShakeCamera/SafeRockSetup + recursion through record->_04) is a record-processing dispatcher, not a velocity calculation -- 'CalcPlayerSfxVel' does not match observed behavior. Treated as a stale positional collision with an already-correctly-named neighbor; current name retained.",
+        "rejected_candidate": "CalcPlayerSfxVel"
+      }
+    ],
+    "xbox_module": "PSFX.OBJ"
+  }
+}

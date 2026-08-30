@@ -196,7 +196,7 @@ extern void MBBlitSetColor(void* blit, u32 color);
 extern void mbBlitCvtCoord(void* blit, f64 depth);
 extern void mbBlitInit3414(void* blit, s32 enabled);
 extern void EnablePlayerControls(void);
-extern void fn_8006ECD4(void);
+extern void StdCamReturn(void);
 extern void do_camera(void);
 extern void chg_target_state(s32 mode);
 
@@ -314,7 +314,7 @@ s32 TriggerCamUpdate(void)
                 } while (i < 4);
             }
             if ((gControllerButtons & 2) != 0) {
-                fn_8006ECD4();
+                StdCamReturn();
             } else {
                 do_camera();
             }

@@ -97,7 +97,7 @@ extern void MulVecMat4(const f32* vector, f32* out, const f32* matrix);
 extern s32 StartFXSub(s32 type, f32* position, u32 flagsA, u32 flagsB, f32 time);
 extern void SfxSetMat(s32 effect, f32* matrix, f32* position);
 extern void SfxSetParent(s32 effect, void* parent);
-extern void fn_80093D98(s32 effect, s32 texture, u32 color, s32 alpha,
+extern void SfxSetStreak(s32 effect, s32 texture, u32 color, s32 alpha,
                         f32 scale, f32 forwardScale);
 extern void MBTreeSetAmbientAdd(void* node, s32 value, s32 recurse);
 extern void MBTreeSetColor(void* node, u32 color, s32 recurse);
@@ -252,12 +252,12 @@ extern s32 PlayerStartMissile(u8* p, f32* vec, u32 mask, s32 mode, f32 a,
                               f32 b);
 extern void MBRemovePolyInst(void* inst);
 extern void player_get_powerup_state(u8* p, s32 kind, u32 mask, f32 dt);
-s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other);
-void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1);
+s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other);
+void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1);
 
 /* 0x80089350 - run one player-sfx sequence row for the [t0,t1) frame window,
  * chaining to the linked row when done. */
-void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
+void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
 {
     f32 buf[3];
     f32 conv[2];
@@ -346,11 +346,11 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
         lbl_80344B40 = p2;
         switch (*(s16*)row) {
         case 2:
-            fn_800898DC(p, row, 0, other);
+            PlyrSfxDoDamageSub(p, row, 0, other);
             break;
         case 3:
         case 4:
-            fn_800898DC(p, row, 1, other);
+            PlyrSfxDoDamageSub(p, row, 1, other);
             break;
         case 10:
             n = 0;
@@ -449,12 +449,12 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
         case 5:
             break;
         default:
-            fn_800898DC(p, row, 1, other);
+            PlyrSfxDoDamageSub(p, row, 1, other);
             break;
         }
     }
     if (*(s16*)(row + 78) >= 0) {
-        fn_80089350(p, *(s16*)(row + 78), p2, other, t0, t1);
+        PlyrSfxDoDamage(p, *(s16*)(row + 78), p2, other, t0, t1);
     }
 }
 
@@ -468,7 +468,7 @@ extern void SfxSetMorph(s32 fx, u32 a, s32 b, f32 t);
 extern void SfxSetLight(s32 fx, void* color, f32 rad);
 extern void PitchVec3(f32* in, f32* out, f32 pitch);
 extern f32 Random(f32 range);
-extern void fn_80093E50(s32 fx, f32* vel, f32* rnd, f32 a, f32 b);
+extern void SfxSetPhysics(s32 fx, f32* vel, f32* rnd, f32 a, f32 b);
 extern void DmgFxAdd(s32 fx);
 extern f32 gClockTime;
 extern u32 gControllerButtons;
@@ -484,7 +484,7 @@ extern f32 lbl_80347E20;
 
 /* 0x800898DC - start one player effect from a sequence row: spawn through
  * DoPlyrSfxSub, then seed flags, lifetime, hit/morph links and velocity. */
-s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
+s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
 {
     u8 highPad[8];
     f32 pos[3];
@@ -637,13 +637,13 @@ s32 fn_800898DC(u8* p, u8* row, s32 mode, u8* other)
                 rnd[0] = Random(lbl_80347E20);
                 rnd[1] = 0.0f;
                 rnd[2] = Random(lbl_80347E20);
-                fn_80093E50(mode, vel, rnd, *(f32*)(row + 68),
+                SfxSetPhysics(mode, vel, rnd, *(f32*)(row + 68),
                             *(f32*)(row + 8));
             } else {
-                fn_80093E50(mode, vel, 0, *(f32*)(row + 68), *(f32*)(row + 8));
+                SfxSetPhysics(mode, vel, 0, *(f32*)(row + 68), *(f32*)(row + 8));
             }
         } else {
-            fn_80093E50(mode, 0, 0, *(f32*)(row + 68), *(f32*)(row + 8));
+            SfxSetPhysics(mode, 0, 0, *(f32*)(row + 68), *(f32*)(row + 8));
         }
         if ((*(u64*)&gControllerButtons & 16) != 0 &&
             (*(u64*)&gControllerButtons & 1) != 0) {
@@ -900,7 +900,7 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
     }
 
     if ((flags & 0x20000) != 0) {
-        fn_80093D98(effect, WeaponStreakTex,
+        SfxSetStreak(effect, WeaponStreakTex,
                     lbl_8011A178[((Player*)player)->class_id],
                     0x40, lbl_80347DAC, lbl_80347DB8);
     }

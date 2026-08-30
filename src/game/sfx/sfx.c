@@ -39,21 +39,21 @@
  *   0x800918AC SfxSetLight        (G) lightrad + lightcolor (default light_color)    [high] BODY
  *   0x8009190C fn_8009190C            typed spawn from matrix (attract caller)      [high] BODY (parked: sched tie 12)
  *   0x8009198C StartDeathFX       (G) FX_DEATH_HEALTH/EXP + reparent + minendtime   [high] BODY (parked: 1-insn fold)
- *   0x80091AC0 fn_80091AC0            per-enemy hit/death fx via page tables        [high] BODY (parked: assoc tie 6)
+ *   0x80091AC0 StartGenHitFx            per-enemy hit/death fx via page tables        [high] BODY (parked: assoc tie 6)
  *   0x80091B98 StartEnemyDeathFX  (G) FX_ENEDEATH1 + launch vel + morph->ENEDEATH2  [high]
  *   0x80091D50 StartEnemyAtkFX    (G) FX_ENEATK1+n                                  [high] BODY (parked: renum)
  *   0x80091E34 StartGenFX         (G) FX_GENFX1..3 (n=1..3)                         [high] BODY (parked: renum)
  *   0x80091F34 StartGemFX            Start* (gem family?)
- *   0x800920E0 fn_800920E0            Start* + Random + atan2 (firework-like)
+ *   0x800920E0 StartBagFX            Start* + Random + atan2 (firework-like)
  *   0x800922A0 StartEnterFX       (G) FX_ENTER, flb 0x80880                         [high] BODY (parked: renum)
  *   0x8009233C StartBlockFX       (G) FX_BLOCK + per-class frame + player reparent  [high] BODY (parked: 1-insn fold)
  *   0x80092464 StartComboFX       (G) combo sphere/color pair + class light color   [high]
  *   0x800926BC StartLevelUpFX     (G) FX_LEVELUP_* via color table 0x80122E60       [high] BODY (parked: renum)
- *   0x80092794 StartShieldFX            Start* via Sub + launch helper fn_80093E50
+ *   0x80092794 StartShieldFX            Start* via Sub + launch helper SfxSetPhysics
  *   0x800929C8 StartMagicHealFX   (G) FX_MAGICHEAL + scale/32 clamp                 [high] BODY (parked: renum)
  *   0x80092AC0 StartMagicPlayerFX (G) FX_START_MAGIC, flb 0x880                     [high] BODY (parked: renum)
  *   0x80092B58 StartThrowMagicFX            Start* + atan2
- *   0x80092DF4 StartMagicFX            Start* via Sub + fn_80093E50
+ *   0x80092DF4 StartMagicFX            Start* via Sub + SfxSetPhysics
  *   0x80092FC0 SuicideExplosion   (G) big multi-part explosion (enemy.c caller)      [med-high]
  *   0x800933BC StartExplosion     (G) largest Start*: MBPsysFlame + debris + Random  [high]
  *   0x80093918 fn_80093918            Start* + gPlayerRecords + atan2 (shield-like)
@@ -62,8 +62,8 @@
  *   0x80093D08 SfxSetHitTarget    (G) targetnode + speed, flags|=0x40000000          [high] BODY
  *   0x80093D38 SfxSetOwner        (G) owner s16                                      [high] BODY
  *   0x80093D5C SfxSetMorph        (G) fxmorph/fxmorph2 + morphtime, flags|=0x4000    [high] BODY
- *   0x80093D98 fn_80093D98            streak attach (MBNewPoly+SetColorAlpha) ~SfxSetStreak
- *   0x80093E50 fn_80093E50            launch-velocity helper (atan2 + node yaw)
+ *   0x80093D98 SfxSetStreak            streak attach (MBNewPoly+SetColorAlpha) ~SfxSetStreak
+ *   0x80093E50 SfxSetPhysics            launch-velocity helper (atan2 + node yaw)
  *   0x80093F30 SfxSetDamage       (G) damage/radius/delay/type/owner                 [high] BODY
  *   0x80093F74 SfxSetHit          (G) fxhit + hit_audio + wall_sound                 [high] BODY
  *   0x80093FA0 SfxSetMat          (G) CopyMat3 into node + pos                       [high] BODY
@@ -639,7 +639,7 @@ s32 StartDeathFX(struct mbnode* parent, s32 kind, u32 fla)
 }
 
 /* generic hit/death fx for an enemy kind, from the per-enemy type tables */
-s32 fn_80091AC0(f32* mat, s32 ene, s32 death)
+s32 StartGenHitFx(f32* mat, s32 ene, s32 death)
 {
     EnemyFxPage* page = (EnemyFxPage*)EffectInfo;
     s32 ret = -1;
@@ -779,7 +779,7 @@ extern f32 lbl_803480FC;
  * {pos=r26,hdr=r28,ret=r29,base=r27} vs ours {r28,r26,r27,r29} + f0/f2
  * const-home swap. Exhausted: f32 z zero-local (adds stack slot, still
  * f2), decl-order/param-alias homes (no effect). Do not re-run. */
-s32 fn_800920E0(f32* pos, struct item* item, f32 scale)
+s32 StartBagFX(f32* pos, struct item* item, f32 scale)
 {
     EffectPage* page = (EffectPage*)EffectInfo;
     s32 ret;
@@ -993,7 +993,7 @@ extern f32 lbl_80348068;
 extern f64 lbl_80348078;
 extern f32 lbl_803480A0;
 extern f64 lbl_80348110;
-void fn_80093E50(s32 idx, f32* a, f32* b, f32 x, f32 y);
+void SfxSetPhysics(s32 idx, f32* a, f32* b, f32 x, f32 y);
 extern f64 lbl_80348118;
 extern f64 lbl_80348120;
 
@@ -1022,7 +1022,7 @@ s32 StartShieldFX(f32* pos, s32 type, s32 player, f32 dmg, f32 size)
     if (ret < 0) {
         ret = -1;
     } else {
-        fn_80093E50(ret, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
+        SfxSetPhysics(ret, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
         page->fx[ret].fxhit = 0;
         page->fx[ret].hit_audio = 0;
         page->fx[ret].wall_sound = 0;
@@ -1363,7 +1363,7 @@ s32 SuicideExplosion(f32* pos, f32 dmg)
         if (a < 0) {
             a = -1;
         } else {
-            fn_80093E50(a, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
+            SfxSetPhysics(a, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
             page->fx[a].fxhit = 0;
             page->fx[a].hit_audio = 4;
             page->fx[a].wall_sound = 0;
@@ -1434,7 +1434,7 @@ s32 SuicideExplosion(f32* pos, f32 dmg)
         if (sm < 0) {
             sm = -1;
         } else {
-            fn_80093E50(sm, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
+            SfxSetPhysics(sm, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
             page->fx[sm].fxhit = 0;
             *(s32*)(ha + sm * 240) = 0;
             page->fx[sm].wall_sound = 0;
@@ -1470,7 +1470,7 @@ s32 SuicideExplosion(f32* pos, f32 dmg)
     if (a < 0) {
         a = -1;
     } else {
-        fn_80093E50(a, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
+        SfxSetPhysics(a, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
         page->fx[a].fxhit = 0;
         page->fx[a].hit_audio = 0;
         page->fx[a].wall_sound = 0;
@@ -1575,7 +1575,7 @@ extern f64 lbl_80348128;        /* magic scale factor */
 extern f64 lbl_80348118;        /* magic scale cap test */
 extern f32 lbl_803480A0;        /* magic scale cap */
 extern f64 lbl_80348120;        /* light radius factor */
-void fn_80093E50(s32 idx, f32* a, f32* b, f32 x, f32 y);
+void SfxSetPhysics(s32 idx, f32* a, f32* b, f32 x, f32 y);
 
 s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
 {
@@ -1596,7 +1596,7 @@ s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
     if (idx < 0) {
         idx = -1;
     } else {
-        fn_80093E50(idx, 0, 0, 0.0f, 0.0f);
+        SfxSetPhysics(idx, 0, 0, 0.0f, 0.0f);
         e = base + idx * 240;
         ((EffectPage*)e)->fx[0].fxhit = 0;
         ((EffectPage*)e)->fx[0].hit_audio = 0;
@@ -1684,7 +1684,7 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
     if (ret < 0) {
         ret = -1;
     } else {
-        fn_80093E50(ret, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
+        SfxSetPhysics(ret, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
         page->fx[ret].fxhit = 0;
         page->fx[ret].hit_audio = 4;
         page->fx[ret].wall_sound = 0;
@@ -1877,7 +1877,7 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
             if (d < 0) {
                 d = -1;
             } else {
-                fn_80093E50(d, v, (f32*)0, lbl_80348068, lbl_80348068);
+                SfxSetPhysics(d, v, (f32*)0, lbl_80348068, lbl_80348068);
                 page->fx[d].fxhit = -1;
                 page->fx[d].hit_audio = -1;
                 page->fx[d].wall_sound = -1;
@@ -2044,7 +2044,7 @@ void SfxSetMorph(f32 time, s32 idx, s32 morph1, s32 morph2)
 }
 
 /* attach a streak poly to an effect + set its color/alpha and streak params */
-void fn_80093D98(s32 idx, s32 tex, u32 color, s32 alpha, f32 scale, f32 fwdmul)
+void SfxSetStreak(s32 idx, s32 tex, u32 color, s32 alpha, f32 scale, f32 fwdmul)
 {
     Effect* e;
 
@@ -2066,7 +2066,7 @@ void fn_80093D98(s32 idx, s32 tex, u32 color, s32 alpha, f32 scale, f32 fwdmul)
 }
 
 /* launch-velocity helper: set vel (+ yaw the node), pyrvel, weight, colrad */
-void fn_80093E50(s32 idx, f32* vel, f32* pyrvel, f32 weight, f32 colrad)
+void SfxSetPhysics(s32 idx, f32* vel, f32* pyrvel, f32 weight, f32 colrad)
 {
     Effect* e;
 

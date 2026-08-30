@@ -389,7 +389,7 @@ extern f32 lbl_801283A0[4];
 
 /* --- strings --- */
 extern char str_txsh[];              /* "txsh: %6.2Lf %6.2Lf  %6.3Lf..." */
-extern char str_TexNotLoaded[];      /* "pbSetDODrawRegs: Texture not loaded" */
+extern char str_TexNotLoaded[];      /* "setTexInfo: Texture not loaded" */
 extern char lbl_80348F8C;            /* "\n" (sdata2) */
 extern char lbl_801168D8[];          /* pbSetDORegs vector-debug strings */
 
@@ -1073,11 +1073,11 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
     lbl_80345130 = lbl_80345130 + 1;
 }
 
-void pbSetDODrawRegs(PbDOObj* obj, u32 handle);
-void fn_800C5D44(u32* pkt, s32 xy);
-s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix);
-void fn_800C6350(PbDOObj* obj, s32 flags, u32 mask, u8* node);
-void fn_800C64A4(PbDOObj* obj, u32 flags, u8* node);
+void setTexInfo(PbDOObj* obj, u32 handle);
+void setupKeepA(u32* pkt, s32 xy);
+s32 setChrome(PbDOObj* obj, s32 arg, u8* node, f32* matrix);
+void setPrimAlpha(PbDOObj* obj, s32 flags, u32 mask, u8* node);
+void setPrimColor(PbDOObj* obj, u32 flags, u8* node);
 void setTexShift(PbDOObj* obj, f32* sh, f32* alt, s32 chrome);
 static void setLmapInfo(u32* pkt, s32 x, u32 y);
 
@@ -1108,7 +1108,7 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
     if (state->mc4 != texture || state->mc8 != textureMode) {
         state->mc4 = texture;
         state->mc8 = textureMode;
-        pbSetDODrawRegs((PbDOObj*)state, texture);
+        setTexInfo((PbDOObj*)state, texture);
     }
 
     if (node != 0) {
@@ -1147,7 +1147,7 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
             (changedFlags & 0x7100) != 0) {
             changedFlags &= ~0x7100;
             state->fdc = (f32)((PbNodeStateView*)node)->m6A;
-            fn_800C64A4((PbDOObj*)state, flags, node);
+            setPrimColor((PbDOObj*)state, flags, node);
         }
 
         if ((changedFlags & 0x100600) != 0) {
@@ -1179,7 +1179,7 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
             if ((flags & 0xA0000) != 0) {
                 state->me0 = 1;
                 state->m78 |= 0x20;
-                fn_800C5DA8((PbDOObj*)state, 0, node, matrix);
+                setChrome((PbDOObj*)state, 0, node, matrix);
                 state->mcc = -1;
                 state->md0 = -1;
             } else {
@@ -1192,7 +1192,7 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
             changedFlags &= ~0x08000000;
             if ((flags & 0x08000000) != 0) {
                 state->me4 = ((PbNodeStateView*)node)->m58;
-                fn_800C5D44((u32*)state, state->me4);
+                setupKeepA((u32*)state, state->me4);
                 state->mcc = -1;
                 drawFlags = 8;
                 state->m78 |= 0x80;
@@ -1209,10 +1209,10 @@ s32 pbSetDORegs(s32 unused, u32 texture, s32 textureMode, u32 material,
             state->mbc = 4;
         }
         if (changedFlags != 0) {
-            fn_800C6350((PbDOObj*)state, flags, changedFlags, node);
+            setPrimAlpha((PbDOObj*)state, flags, changedFlags, node);
         }
     } else if (state->me4 != 0) {
-        fn_800C5D44((u32*)state, state->me4);
+        setupKeepA((u32*)state, state->me4);
         drawFlags = 8;
     } else if (material != 0) {
         s32 value;
@@ -1375,7 +1375,7 @@ s32 pbSetupPosLights(f32 extra, s32 a, s32 b, f32* m)
 
 /* Emit a texture-address packet + reset the shared texture regs. */
 #pragma opt_propagation off
-void fn_800C5D44(u32* pkt, s32 xy)
+void setupKeepA(u32* pkt, s32 xy)
 {
     PbDrawState* st = &lbl_802C5430;
     pkt[0] = 0x5C000;
@@ -1393,7 +1393,7 @@ void fn_800C5D44(u32* pkt, s32 xy)
 #pragma opt_propagation reset
 
 /* Build the object-space texture basis and the draw-register packet. */
-s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
+s32 setChrome(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
 {
     PbORGlobals* g = gWinGlobals;
     f32 inverse[16];
@@ -1573,9 +1573,12 @@ s32 fn_800C5DA8(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
     return 0;
 }
 
-/* Apply z-test / blend-test register deltas for an object
- * (Xbox candidate: setTexInfo). */
-void fn_800C6350(PbDOObj* obj, s32 flags, u32 mask, u8* node)
+/* Apply z-test / blend-test register deltas for an object.
+ * Named setPrimAlpha per the 2026-08-30 symaudit positional pass
+ * (superseding an earlier, unconfirmed "setTexInfo" guess left on this
+ * comment -- that name belongs to the texture-bank/entry lookup function
+ * below, adopted separately as a verified spelling-mismatch). */
+void setPrimAlpha(PbDOObj* obj, s32 flags, u32 mask, u8* node)
 {
     PbORGlobals* g = gWinGlobals;
     PbDrawState* st = &lbl_802C5430;
@@ -1641,7 +1644,7 @@ void fn_800C6350(PbDOObj* obj, s32 flags, u32 mask, u8* node)
 
 /* Set an object's base color / intensity registers
  * (Xbox candidate: setPrimColor). */
-void fn_800C64A4(PbDOObj* obj, u32 flags, u8* node)
+void setPrimColor(PbDOObj* obj, u32 flags, u8* node)
 {
     PbORGlobals* g = gWinGlobals;
     f32 base = 1.0f;
@@ -1732,7 +1735,7 @@ void setTexShift(PbDOObj* obj, f32* sh, f32* alt, s32 chrome)
 
 /* Set the object draw registers; bails if the object's texture isn't
  * loaded. */
-void pbSetDODrawRegs(PbDOObj* obj, u32 handle)
+void setTexInfo(PbDOObj* obj, u32 handle)
 {
     u8 unused[8];
     u32 lo = handle & 0xFFFF;

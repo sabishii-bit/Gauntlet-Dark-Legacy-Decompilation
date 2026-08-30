@@ -190,7 +190,7 @@ void fn_8009C3EC(void)
     }
 }
 
-void fn_8009C460(int sel)
+void AudioTowerFX(int sel)
 {
     int id = -1;
 
@@ -206,7 +206,7 @@ void fn_8009C460(int sel)
     }
 }
 
-int fn_8009C4F0(int sel)
+int AudioRuneSpeech(int sel)
 {
     int id = -1;
 
@@ -243,7 +243,7 @@ int fn_8009C620(int idx)
     return id;
 }
 
-void fn_8009C688(int idx)
+void AudioShardSpeech(int idx)
 {
     int id = -1;
 
@@ -259,7 +259,7 @@ void fn_8009C688(int idx)
     }
 }
 
-void fn_8009C710(int a, int b)
+void AudioGoodWizard(int a, int b)
 {
     int row = a - 34;
     int id = lbl_8012417C[row][b];
@@ -269,7 +269,7 @@ void fn_8009C710(int a, int b)
     }
 }
 
-void fn_8009C774(int pos, int sel)
+void AudioGeneratorDamaged(int pos, int sel)
 {
     int mt = sMusicTrackHi;
     int id = lbl_80124148[mt];
@@ -280,7 +280,7 @@ void fn_8009C774(int pos, int sel)
     sndFxPlay3DAtten(id, pos, 180, 91);
 }
 
-void fn_8009C7D8(int pos, int sel)
+void AudioGeneratorDies(int pos, int sel)
 {
     int mt = sMusicTrackHi;
     int id = lbl_80124114[mt];
@@ -293,7 +293,7 @@ void fn_8009C7D8(int pos, int sel)
     }
 }
 
-void fn_8009C850(int pos)
+void AudioWorldHitPlyr(int pos)
 {
     int id = lbl_801240DC[sMusicTrackHi];
 
@@ -302,7 +302,7 @@ void fn_8009C850(int pos)
     }
 }
 
-void fn_8009C8A0(int pos)
+void AudioWorldExplosion(int pos)
 {
     int id = lbl_801240A4[sMusicTrackHi];
 
@@ -1317,7 +1317,7 @@ done:
     return;
 }
 
-void fn_8009FD38(void)
+void AudioMapDot(void)
 {
     int id = lbl_8012341C[sMusicTrackHi];
 
@@ -1413,7 +1413,7 @@ void fn_8009FFA4(int pos)
     }
 }
 
-void fn_8009F06C(int pos, int idx)
+void AudioDamageTile(int pos, int idx)
 {
     if (idx < 7) {
         int id = lbl_8012382C[sMusicTrackHi][idx];
