@@ -151,10 +151,10 @@ ticks_active:
                 index = 0;
                 offset = 0;
                 while (index <= lastIndex) {
-                    slot = (void**)((u8*)player + offset + 0x808);
+                    slot = (void**)&player->trails[index];
                     if ((node = *slot) != NULL) {
-                        if ((*(u32*)((u8*)node + 0x60) & 0x200) != 0) {
-                            alpha = 255 - *(u8*)((u8*)node + 0x53);
+                        if ((((MBObject*)node)->flags & 0x200) != 0) {
+                            alpha = 255 - ((MBObject*)node)->alpha;
                         } else {
                             alpha = 0;
                         }
@@ -181,7 +181,7 @@ ticks_active:
 
                 offset = lastIndex * 4;
                 while (lastIndex >= 0 &&
-                       *(void**)((u8*)player + offset + 0x808) == NULL) {
+                       player->trails[lastIndex] == NULL) {
                     lastIndex--;
                     offset -= 4;
                 }
@@ -197,9 +197,9 @@ ticks_active:
                     if (minimumIndex <= lastIndex) {
                         node = player->trails[minimumIndex];
                         if (node != NULL) {
-                            dx = *(f32*)((u8*)node + 0x30) - matrix[12];
-                            dy = *(f32*)((u8*)node + 0x34) - matrix[13];
-                            dz = *(f32*)((u8*)node + 0x38) - matrix[14];
+                            dx = ((MBObject*)node)->mat[3][0] - matrix[12];
+                            dy = ((MBObject*)node)->mat[3][1] - matrix[13];
+                            dz = ((MBObject*)node)->mat[3][2] - matrix[14];
                             if ((f64)(dx * dx + dy * dy + dz * dz) < 0.01) {
                                 return;
                             }
@@ -208,7 +208,7 @@ ticks_active:
 
                     node = player->worldNode;
                     slot = (void**)((u8*)player + chosenIndex * 4);
-                    object = (*(u32*)((u8*)node + 0x6C) & 0xFFFF) |
+                    object = (((MBObject*)node)->index & 0xFFFF) |
                              (player->objectGroup << 16);
                     if (*(slot += 0x202) != NULL) {
                         MBRemoveNode(*slot, 1);
@@ -1121,7 +1121,7 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
     if (cls < 0) {
         return;
     }
-    if (cls != pdata->cur[plr] || (*(s32*)(gPlayers + plr * 0x335C + 0xE8) != 0 && resolve != 0)) {
+    if (cls != pdata->cur[plr] || (((Player*)(gPlayers + plr * 0x335C))->state != 0 && resolve != 0)) {
         if ((*(u64*)&gControllerButtons & 0x10) != 0 && fn_80055F68(0, -1) != 0) {
             mode = 2;
         } else {
