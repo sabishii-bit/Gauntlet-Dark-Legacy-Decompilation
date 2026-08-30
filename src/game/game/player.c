@@ -1450,11 +1450,11 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
             msgPost(0x22, pnum, (u32)p->col_pos);
             fx = StartLevelUpFX(0, p->class_id);
             SfxSetParent(fx, p->node);
-            PF(p, 0x1EB4, f32) += 100.0;
+            p->health += 100.0;
         }
     }
-    if (mode >= 0 && PF(p, 0x6B8, s32*) != NULL) {
-        AddExp(*PF(p, 0x6B8, s32*), amount, -1);
+    if (mode >= 0 && p->grab_partner != NULL) {
+        AddExp(p->grab_partner->index, amount, -1);
     }
     return res;
 }
@@ -1836,9 +1836,9 @@ s32 do_players(void) {
                     if (!(p->hud_flags & 0x20)) {
                         UpdateObjWorldMat(p->mat);
                     }
-                    PF(PF(p, 0x6C8, u8*), 0x30, f32) = p->pos[0];
-                    PF(PF(p, 0x6C8, u8*), 0x34, f32) = p->pos[1];
-                    PF(PF(p, 0x6C8, u8*), 0x38, f32) = p->pos[2];
+                    PF(p->mbnode, 0x30, f32) = p->pos[0];
+                    PF(p->mbnode, 0x34, f32) = p->pos[1];
+                    PF(p->mbnode, 0x38, f32) = p->pos[2];
                 }
                 continue;
             }
@@ -1899,8 +1899,8 @@ s32 do_players(void) {
                 }
                 if (p->prev_state != 4) {
                     MBTreeClearFlags(p->node, 2, 0);
-                    if (PF(p, 0x6C8, void*) != NULL) {
-                        MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 0);
+                    if (p->mbnode != NULL) {
+                        MBTreeSetFlags(p->mbnode, 2, 0);
                     }
                 }
                 if (exit_level != 0 || lbl_803447B4 != 0) {
@@ -1985,11 +1985,11 @@ s32 do_players(void) {
                 }
                 if (p->prev_state != 1) {
                     MBTreeClearFlags(p->node, 2, 0);
-                    if (PF(p, 0x6C8, void*) != NULL) {
+                    if (p->mbnode != NULL) {
                         if (sMusicTrackHi == 0xC && sMusicTrackLo == 8) {
-                            MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 1);
+                            MBTreeSetFlags(p->mbnode, 2, 1);
                         } else {
-                            MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 0);
+                            MBTreeSetFlags(p->mbnode, 2, 0);
                         }
                     }
                 }
@@ -2021,9 +2021,9 @@ s32 do_players(void) {
                     if (p->node != NULL) {
                         MBTreeClearFlags(p->node, 2, 0);
                         DoPlayerAction(p);
-                        PF(PF(p, 0x6C8, u8*), 0x30, f32) = p->pos[0];
-                        PF(PF(p, 0x6C8, u8*), 0x34, f32) = p->pos[1];
-                        PF(PF(p, 0x6C8, u8*), 0x38, f32) = p->pos[2];
+                        PF(p->mbnode, 0x30, f32) = p->pos[0];
+                        PF(p->mbnode, 0x34, f32) = p->pos[1];
+                        PF(p->mbnode, 0x38, f32) = p->pos[2];
                         PlayerProcessSkinFX(p);
                         if (p->character == 0xC) {
                             MBTreeSetScale(1.6f, 1.6f, 1.6f, p->node);
@@ -2060,10 +2060,10 @@ s32 do_players(void) {
                 if (p->count_920 <= 0 && p->anim_208 == 0x7E) {
                     p->anim_20C = 0;
                 }
-                PF(PF(p, 0x6C8, u8*), 0x30, f32) = p->beacon_pos[0];
-                PF(PF(p, 0x6C8, u8*), 0x34, f32) = p->beacon_pos[1];
-                PF(PF(p, 0x6C8, u8*), 0x38, f32) = p->beacon_pos[2];
-                PF(PF(p, 0x6C8, u8*), 0x34, f32) = p->pos[1];
+                PF(p->mbnode, 0x30, f32) = p->beacon_pos[0];
+                PF(p->mbnode, 0x34, f32) = p->beacon_pos[1];
+                PF(p->mbnode, 0x38, f32) = p->beacon_pos[2];
+                PF(p->mbnode, 0x34, f32) = p->pos[1];
                 PlayerProcessScale(p);
                 PlayerDoWeapTrail(p);
                 if (p->count_920 <= 0 && p->anim_208 != 0x7E) {
@@ -2467,24 +2467,24 @@ extern void ClearPlyrData(s32 player);
 /* +0 keys(s16) +2 potions(s16) +4 runes(u16) +6 shards(u16) +0xA pottypes +0x30 gold */
 
 /* powerup slot view: p + 0x130 + i*0x10 (11 slots) */
-#define PUP_TIMELEFT(p, i)     PF(p, 0x130 + (i) * 0x10, f32)
-#define PUP_TYPE(p, i)         PF(p, 0x134 + (i) * 0x10, s32)
-#define PUP_ATTRIBUTEADD(p, i) PF(p, 0x138 + (i) * 0x10, f32)
-#define PUP_SPECIALFLAGS(p, i) PF(p, 0x13C + (i) * 0x10, u32)
-#define PUP_DIRTY(p, i)    PF(p, 0x1E0 + (i), u8)
+#define PUP_TIMELEFT(p, i)     (p)->powerup[i].timeleft
+#define PUP_TYPE(p, i)         (p)->powerup[i].type
+#define PUP_ATTRIBUTEADD(p, i) (p)->powerup[i].attributeadd
+#define PUP_SPECIALFLAGS(p, i) (p)->powerup[i].specialflags
+#define PUP_DIRTY(p, i)    (p)->powerup_state[i]
 
 /* attribute norms / derived stats */
-#define ATT_FIGHT(p)   PF(p, 0xF4, f32)
-#define ATT_ARMOR(p)   PF(p, 0xF8, f32)
-#define ATT_MAGIC(p)   PF(p, 0xFC, f32)
-#define ATT_SPEED(p)   PF(p, 0x100, f32)
-#define STAT_DMG(p)    PF(p, 0x104, f32)
-#define STAT_ARMOR(p)  PF(p, 0x108, f32)
-#define STAT_MAGIC(p)  PF(p, 0x10C, f32)
-#define STAT_SPEED(p)  PF(p, 0x110, f32)
-#define STAT_MDMG(p)   PF(p, 0x114, f32)
-#define STAT_MSPD(p)   PF(p, 0x118, f32)
-#define HIDDEN_CODE(p) PF(p, 0xF0, char*)
+#define ATT_FIGHT(p)   p->att_fight
+#define ATT_ARMOR(p)   p->att_armor
+#define ATT_MAGIC(p)   p->att_magic
+#define ATT_SPEED(p)   p->att_speed
+#define STAT_DMG(p)    p->stat_damage
+#define STAT_ARMOR(p)  p->stat_armor
+#define STAT_MAGIC(p)  p->magic_power
+#define STAT_SPEED(p)  p->light_range
+#define STAT_MDMG(p)   p->stat_missile_dmg
+#define STAT_MSPD(p)   p->stat_missile_spd
+#define HIDDEN_CODE(p) p->hidden_code
 
 /* ------------------------------------------------------------------ */
 /* per-frame processors                                                */
@@ -2508,16 +2508,16 @@ void PlayerProcessScale(void* vp) {
     f32 av;
     u8 unused[8];
 
-    s = PF(p, 0x7FC, f32);
+    s = p->pulse_7FC;
     if (s != 0.0) {
         ambientScale = s;
-        PF(p, 0x7FC, f32) = (f32)PlayerScaleMultiply(s, &lbl_803478E8);
-        av = PF(p, 0x7FC, f32);
+        p->pulse_7FC = (f32)PlayerScaleMultiply(s, &lbl_803478E8);
+        av = p->pulse_7FC;
         *(u32*)&av &= 0x7FFFFFFF;
         if (av < 0.01) {
             zero = 0.0f;
             ambientScale = zero;
-            PF(p, 0x7FC, f32) = zero;
+            p->pulse_7FC = zero;
         }
         MBTreeSetAmbientAdd(p->node, (s32)(100.0 * ambientScale), 1);
     }
@@ -2564,35 +2564,35 @@ static void do_exit(void* vp, s32 dest) {
             towerRuneNearAudio();
             lbl_803447B4 = 1;
         }
-        PF(p, 0x8B8, f32) = PF(p, 0x8B4, f32);
+        PF(p, 0x8B8, f32) = p->floor_base;
         if (lbl_8034481C >= 0x10000) {
-            PF(p, 0x830, s32) = lbl_8034481C - 0x10000;
+            p->exit_dest = lbl_8034481C - 0x10000;
         } else if (lbl_8034481C >= 0xD) {
-            PF(p, 0x830, s32) = lbl_80344B84;
+            p->exit_dest = lbl_80344B84;
         } else if (lbl_8034481C >= 0xC) {
-            PF(p, 0x830, s32) = sWorldDataConst;
+            p->exit_dest = sWorldDataConst;
         } else if (lbl_8034481C >= 3) {
-            PF(p, 0x830, s32) = ((lbl_8034481C - 3) & 0xFF) | 0xC00;
+            p->exit_dest = ((lbl_8034481C - 3) & 0xFF) | 0xC00;
         } else if (lbl_8034481C == 2) {
             if (dest < 0) {
-                PF(p, 0x830, s32) = sLastWorldLevel;
+                p->exit_dest = sLastWorldLevel;
             } else {
-                PF(p, 0x830, s32) = dest;
+                p->exit_dest = dest;
             }
         } else if (lbl_8034481C == 1) {
             if (dest < 0) {
-                PF(p, 0x830, s32) = (s32)NextWorldLevel(1);
+                p->exit_dest = (s32)NextWorldLevel(1);
             } else {
-                PF(p, 0x830, s32) = dest;
+                p->exit_dest = dest;
             }
         } else if (lbl_8034481C == -1) {
             if (dest < 0) {
-                PF(p, 0x830, s32) = (s32)PrevWorldLevel(1);
+                p->exit_dest = (s32)PrevWorldLevel(1);
             } else {
-                PF(p, 0x830, s32) = dest;
+                p->exit_dest = dest;
             }
         } else {
-            PF(p, 0x830, s32) = dest;
+            p->exit_dest = dest;
         }
         {
             s32 skin = lbl_80344BEC;
@@ -2608,7 +2608,7 @@ static void do_exit(void* vp, s32 dest) {
             p->state = 5;
             del_target(p->mat);
         }
-    } else if ((2.0 * PF(p, 0x854, f32) + p->pos[1]) + 1.0 > PF(p, 0x8B8, f32)) {
+    } else if ((2.0 * p->col_height + p->pos[1]) + 1.0 > PF(p, 0x8B8, f32)) {
         /* still above the hole floor: sink and spin */
         f32 move_x = 0.0f;
         f32 move_y = -0.12f;
@@ -2826,9 +2826,9 @@ f32 player_max_health(void* vp) {
 s32 player_can_be_damaged(void* vp) {
     Player* p = vp;
 
-    if ((PF(p, 0x208, s32) < 0x58 || PF(p, 0x208, s32) > 0x5A) &&
+    if ((p->anim_208 < 0x58 || p->anim_208 > 0x5A) &&
         p->action < 0xB && (p->hud_flags & 0x10) == 0) {
-        if (PF(p, 0x6B8, u32) == 0) {
+        if (p->grab_partner == NULL) {
             goto can_damage;
         }
     }
@@ -2901,8 +2901,8 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             dmg = dmg * PF(gCurLevel, 0xA4, f32);
         }
     }
-    ModifyDamage(STAT_ARMOR(p), &dmg, &flags, PF(p, 0x120, u32));
-    if ((flags & 0x40000000) && (PF(p, 0x124, u32) & 1)) {
+    ModifyDamage(STAT_ARMOR(p), &dmg, &flags, p->shield_flags);
+    if ((flags & 0x40000000) && (p->flags & 1)) {
         dmg = 0.0f;
     }
     if (dmg > 0.05f) {
@@ -2913,7 +2913,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             /* shielded/back arc */
             if (hf & 0x200) {
                 if (dir != NULL) {
-                    red = atan2(dir[0], dir[2]) - PF(p, 0x894, f32);
+                    red = atan2(dir[0], dir[2]) - p->move_yaw;
                     if (red > 3.141592653589793) {
                         red = red - 6.283185307179586;
                     } else if (red <= -3.141592653589793) {
@@ -2964,9 +2964,9 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         p->health = hp - dmg;
         if (flags & 0x8000) {
             if (flags & 0xF) {
-                PF(p, 0x8D4, u32) &= ~0xF;
+                p->obj_flags &= ~0xF;
             }
-            PF(p, 0x8D4, u32) |= flags;
+            p->obj_flags |= flags;
             if (dir != NULL) {
                 PF(p, 0x8DC, f32) = dir[0] + PF(p, 0x8DC, f32);
                 PF(p, 0x8E0, f32) = dir[1] + PF(p, 0x8E0, f32);
@@ -2980,12 +2980,12 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         PF(p, 0x8D0, f32) += dmg;
         if (invuln < 2) {
             if (flags & 0xF) {
-                PF(p, 0x8D4, u32) &= ~0xF;
+                p->obj_flags &= ~0xF;
             }
             if (dmg <= 0.5f) {
                 flags &= 0xFFFEFE8F;
             }
-            PF(p, 0x8D4, u32) |= flags;
+            p->obj_flags |= flags;
             if (dir != NULL) {
                 PF(p, 0x8DC, f32) = dir[0] + PF(p, 0x8DC, f32);  /* hit push vec */
                 PF(p, 0x8E0, f32) = dir[1] + PF(p, 0x8E0, f32);
@@ -3015,9 +3015,9 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         /* death */
         AudioPlayerDies(i);
         p->state = 8;
-        PF(p, 0x920, s32) = 4;
+        p->count_920 = 4;
         p->health = 0.0f;
-        PF(p, 0x828, f32) = 0.0f;
+        p->power_target = 0.0f;
         kill_got_it(i);
         if (lbl_80344B24 == i) {
             lbl_80344B24 = -1;
@@ -3151,7 +3151,7 @@ static inline void player_dies(s32 i) {
         memset((u8*)p + 0x130 + j * 0x10, 0, 0x10);
     }
     PF(p, 0x1EC, s32) = 0;
-    PF(p, 0x124, u32) = 0;
+    p->flags = 0;
 }
 
 /* Kill player i outright (health gone): teardown + dead-display.      */
@@ -3162,7 +3162,7 @@ void kill_player(s32 i) {
         if (p->node != NULL) {
             player_dies(i);
         }
-        PF(p, 0x834, s32) = 0;
+        p->quest_state = 0;
         p->health = 0.0f;
         p->state = 0xB;
         p->motion_state = 1;
@@ -3220,12 +3220,12 @@ void abort_player(s32 i) {
     Player* p = PT(i);
     s32 j;
 
-    PF(p, 0x3328, s32) = 0;
+    p->intower = 0;
     p->state = 0;
     p->motion_state = 0;
     PF(p, 0x333C, s32) = 0;
     controls_remove_active_player(i);
-    PF(p, 0x1F4, s16) = 0xB4;
+    p->respawn_timer = 0xB4;
     if (p->node != NULL) {
         player_dies(i);
     }
@@ -3398,7 +3398,7 @@ void clear_player(s32 i, s32 full) {
     s32 j;
     u8 unused[8];
 
-    PF(p, 0x1EBC, s32) = 0;
+    p->item_body_hi = 0;
     for (j = 0; j < 9; j++) {
         ((s32*)p)[0xCC0 + j] = j & 3;
     }
@@ -3409,8 +3409,8 @@ void clear_player(s32 i, s32 full) {
         p->gold = 0;
     }
     p->health = 100.0f;
-    PF(p, 0x1EC8, u16) = 0;
-    PF(p, 0x1ECA, u16) = 0;
+    p->runes = 0;
+    p->shards = 0;
     PF(p, 0x334C, s32) = 0;
     PF(p, 0x3350, s32) = 0;
     PF(p, 0x3354, s32) = 0;
@@ -3420,7 +3420,7 @@ void clear_player(s32 i, s32 full) {
         memset((u8*)p + 0x130 + j * 0x10, 0, 0x10);
     }
     PF(p, 0x1EC, s32) = 0;
-    PF(p, 0x124, u32) = 0;
+    p->flags = 0;
     p->level = 1;
     p->exp = 0;
     switch (cls) {
@@ -3440,11 +3440,11 @@ void clear_player(s32 i, s32 full) {
     }
     p->char_type = cls;
     p->character = p->char_type;
-    PF(p, 0x1EB8, s32) = 0;
-    PF(p, 0x828, f32) = 0.0f;
-    PF(p, 0x82C, f32) = 0.0f;
-    PF(p, 0x3330, s32) = 0;
-    PF(p, 0x3328, s32) = 0;
+    p->item_body_lo = 0;
+    p->power_target = 0.0f;
+    p->power_level = 0.0f;
+    p->world_name_len = 0;
+    p->intower = 0;
     if (full != 0) {
         memset((u8*)p + 0xA80, 0, 0x1434);
         memset((u8*)p + 0x1ECC, 0, 0x1434);
@@ -3560,19 +3560,19 @@ void load_player(s32 i) {
     for (j = 0; j < 8; j++) {
         ((s32*)((u8*)p + 0x808))[j] = zero;
     }
-    PF(p, 0x208, s32) = 0;
-    PF(p, 0x20C, s32) = 0;
-    PF(p, 0x204, s32) = 0;
-    PF(p, 0x910, f32) = 0.0f;
-    PF(p, 0x6B8, s32) = 0;
-    PF(p, 0x6BC, s32) = 0;
-    PF(p, 0x838, f32) = 0.0f;
+    p->anim_208 = 0;
+    p->anim_20C = 0;
+    p->vibe_on = 0;
+    p->coll_score = 0.0f;
+    p->grab_partner = NULL;
+    p->grab_pending = NULL;
+    p->anchor_pos[0] = 0.0f;
     PF(p, 0x83C, f32) = PF(lbl_80282930[i], 0x50, f32);
     PF(p, 0x840, f32) = 0.0f;
-    PF(p, 0x844, f32) = 0.0f;
+    p->anchor_fwd[0] = 0.0f;
     PF(p, 0x848, f32) = PF(lbl_80282930[i], 0x54, f32);
     PF(p, 0x84C, f32) = 0.0f;
-    PF(p, 0x858, f32) = 0.0f;
+    p->light_vec[0] = 0.0f;
     PF(p, 0x85C, f32) = 0.0f;
     PF(p, 0x860, f32) = 0.0f;
     PF(p, 0x870, f32) = 0.0f;
@@ -3582,77 +3582,77 @@ void load_player(s32 i) {
     PF(p, 0x88C, f32) = 0.0f;
     PF(p, 0x890, f32) = 0.0f;
     PF(p, 0x898, f32) = 0.0f;
-    PF(p, 0x89C, f32) = 0.0f;
+    p->timer_89C = 0.0f;
     PF(p, 0x8D0, f32) = 0.0f;
-    PF(p, 0x8D4, u32) = 0;
-    PF(p, 0x8D8, s32) = 0;
+    p->obj_flags = 0;
+    p->act_flags = 0;
     PF(p, 0x8DC, f32) = 0.0f;
     PF(p, 0x8E0, f32) = 0.0f;
     PF(p, 0x8E4, f32) = 0.0f;
-    PF(p, 0x8E8, f32) = 0.0f;
-    PF(p, 0x8EC, f32) = 0.0f;
-    PF(p, 0x8A0, f32) = 0.68f;
-    PF(p, 0x8A4, f32) = 0.36f;
+    p->fxhittime = 0.0f;
+    p->floor_fx_time = 0.0f;
+    p->floor_hi = 0.68f;
+    p->floor_lo = 0.36f;
     PF(p, 0x7DC, f32) = 0.0f;
     PF(p, 0x95A, s16) = 0;
-    PF(p, 0x850, f32) = PF(lbl_80282930[i], 0x4C, f32);
-    PF(p, 0x854, f32) = PF(lbl_80282930[i], 0x48, f32) * 0.01;
-    PF(p, 0x1F0, s16) = 0;
-    PF(p, 0x1FA, s16) = 0;
-    PF(p, 0x1FC, s16) = 0;
-    PF(p, 0x1FE, s16) = 0;
-    PF(p, 0x1F8, s16) = 0xF0;
-    PF(p, 0x200, s16) = 0;
-    PF(p, 0x202, s16) = 0;
+    p->col_radius = PF(lbl_80282930[i], 0x4C, f32);
+    p->col_height = PF(lbl_80282930[i], 0x48, f32) * 0.01;
+    p->timer_1F0 = 0;
+    p->timer_1FA = 0;
+    p->timer_1FC = 0;
+    p->timer_1FE = 0;
+    p->name_timer = 0xF0;
+    p->vibe_timer = 0;
+    p->vibe_timer2 = 0;
     PF(p, 0x8F4, s32) = 0;
     PF(p, 0x8F8, s32) = 0;
-    PF(p, 0x900, u32) = 0;
-    PF(p, 0x8FC, f32) = 0.0f;
-    PF(p, 0x904, f32) = 0.0f;
+    p->act_bits = 0;
+    p->combo_fade = 0.0f;
+    p->melee_yaw = 0.0f;
     PF(p, 0x908, s32) = 0;
-    PF(p, 0x90C, s32) = 0;
-    PF(p, 0x914, f32) = 0.0f;
+    p->coll_flags = 0;
+    p->bossdamage = 0.0f;
     PF(p, 0x918, s32) = 0;
     PF(p, 0xA48, f32) = 10000.0f;
     PF(p, 0xA4C, f32) = 10000.0f;
     PF(p, 0xA50, f32) = 10000.0f;
     PF(p, 0xA54, f32) = 10000.0f;
     PF(p, 0x956, s16) = 0x10;
-    PF(p, 0x958, s16) = 0;
-    PF(p, 0x954, s16) = 0;
-    PF(p, 0x95C, s16) = 0;
-    PF(p, 0x950, s16) = 0;
-    PF(p, 0xA2C, s32) = 0;
-    PF(p, 0xA30, u32) = lbl_801201C4[0];
+    p->throw_str = 0;
+    p->speak_timer = 0;
+    p->speak_kind = 0;
+    p->idle_timer = 0;
+    p->weakening_elapsed = 0;
+    p->weakening_period = lbl_801201C4[0];
     PF(p, 0x952, s16) = 0;
-    PF(p, 0x91C, s32) = PF(p, 0x920, s32);
-    PF(p, 0x8A8, s32) = 0;
+    p->count_91C = p->count_920;
+    p->collision_item = NULL;
     PF(p, 0xA24, s32) = 0;
     PF(p, 0xA28, f32) = 0.0f;
     PF(p, 0xA68, s32) = 0;
     PF(p, 0x93C, s32) = 0;
     PF(p, 0x940, s32) = 0;
-    PF(p, 0x8B0, s32) = 0;
-    PF(p, 0xA58, f32) = 0.0f;
-    PF(p, 0xA5C, s32) = 0;
-    PF(p, 0x95E, s16) = 0;
+    p->speech_req = NULL;
+    p->combo_cd = 0.0f;
+    p->camera_limit = 0;
+    p->speak_done = 0;
     PF(p, 0x960, s16) = 0;
-    PF(p, 0x962, s16) = 0;
-    PF(p, 0x964, s16) = 0;
-    PF(p, 0xA1C, s16) = 0;
-    PF(p, 0xA1E, s16) = 0;
-    PF(p, 0xA20, s16) = 0;
+    p->grab_flags = 0;
+    p->hud_flags = 0;
+    p->field_A1C = 0;
+    p->field_A1E = 0;
+    p->field_A20 = 0;
     PF(p, 0x924, f32) = 0.0f;
-    PF(p, 0x92C, f32) = 0.75f;
-    PF(p, 0x930, s32) = 0;
+    p->got_timer = 0.75f;
+    p->got_count = 0;
     for (j = 0; j < 5; j++) {
         ((s32*)((u8*)p + 0xA34))[j] = -1;
     }
-    PF(p, 0x11C, s32) = 0;
-    PF(p, 0x120, u32) = 0;
-    PF(p, 0x124, u32) = 0;
-    PF(p, 0x128, s32) = 0;
-    PF(p, 0x12C, s32) = 0;
+    p->field_11C = 0;
+    p->shield_flags = 0;
+    p->flags = 0;
+    p->field_128 = 0;
+    p->field_12C = 0;
     for (j = 0; j < 11; j++) {
         if (PUP_TYPE(p, j) == 9 && (PUP_SPECIALFLAGS(p, j) & 8)) {
             PUP_TIMELEFT(p, j) = 0.0f;
@@ -3666,8 +3666,8 @@ void load_player(s32 i) {
         get_player_pos(i, 1);
         CreateYPRMatrix(scratch.matrix, (f32*)((u8*)p + 0xC4));
         CopyMat3((f32*)((u8*)&scratch + sizeof(scratch.pad)), p->mat);
-        PF(p, 0x894, f32) = PF(p, 0xC8, f32);
-        PF(p, 0x8B4, f32) = p->pos[1];
+        p->move_yaw = PF(p, 0xC8, f32);
+        p->floor_base = p->pos[1];
         PF(p, 0x87C, f32) = p->pos[0];
         PF(p, 0x880, f32) = p->pos[1];
         PF(p, 0x884, f32) = p->pos[2];
@@ -3675,9 +3675,9 @@ void load_player(s32 i) {
             UpdateObjWorldMat(p->mat);
             fn_8005A404(p->mat, p->anchor_fwd, p->anchor_pos);
         }
-        *(f32*)(PF(p, 0x6C8, u8*) + 0x30) = *(f32*)(p->node + 0x30);
-        *(f32*)(PF(p, 0x6C8, u8*) + 0x34) = *(f32*)(p->node + 0x34);
-        *(f32*)(PF(p, 0x6C8, u8*) + 0x38) = *(f32*)(p->node + 0x38);
+        *(f32*)((u8*)p->mbnode + 0x30) = *(f32*)(p->node + 0x30);
+        *(f32*)((u8*)p->mbnode + 0x34) = *(f32*)(p->node + 0x34);
+        *(f32*)((u8*)p->mbnode + 0x38) = *(f32*)(p->node + 0x38);
     }
 }
 
@@ -3848,15 +3848,15 @@ void player_get_from_save(void* vp, s32 type) {
         }
         p->health = cap;
         p->gold = 5000;
-        PF(p, 0x1EBC, s32) = 9;
-        PF(p, 0x1EB8, s32) = 9;
-        PF(p, 0x1EC8, u16) = 0x7FE;
-        PF(p, 0x1ECA, u16) = 0x1FFF;
+        p->item_body_hi = 9;
+        p->item_body_lo = 9;
+        p->runes = 0x7FE;
+        p->shards = 0x1FFF;
         for (t = 0; t < 11; t++) {
             memset((u8*)p + 0x130 + t * 0x10, 0, 0x10);
         }
         PF(p, 0x1EC, s32) = 0;
-        PF(p, 0x124, u32) = 0;
+        p->flags = 0;
         return;
     }
 
@@ -3884,10 +3884,10 @@ void player_get_from_save(void* vp, s32 type) {
     p->health = PF(p, offset + 0xA94, f32);
     offset = type * 0xF0;
     p->gold = PF(p, offset + 0xE00, s32);
-    PF(p, 0x1EBC, s32) = PF(p, offset + 0xDD0, s16);
-    PF(p, 0x1EB8, s32) = PF(p, offset + 0xDD2, s16);
-    PF(p, 0x1EC8, u16) = PF(p, offset + 0xDD4, u16);
-    PF(p, 0x1ECA, u16) = PF(p, offset + 0xDD6, u16);
+    p->item_body_hi = PF(p, offset + 0xDD0, s16);
+    p->item_body_lo = PF(p, offset + 0xDD2, s16);
+    p->runes = PF(p, offset + 0xDD4, u16);
+    p->shards = PF(p, offset + 0xDD6, u16);
     if (*(f32*)&CHAR_STATS(p, type)[1] == 0.0f) {
         clear_player(p->index, 0);
     }
@@ -3899,9 +3899,9 @@ void player_get_from_save(void* vp, s32 type) {
     check_player_atts(p, type, NULL);
     memcpy((u8*)p + 0x130, (u8*)p + offset + 0xE04, 0xB0);
     PF(p, 0x1EC, s32) = PF(p, offset + 0xDDA, s16);
-    PF(p, 0x11C, s32) = 0;
-    PF(p, 0x120, u32) = 0;
-    PF(p, 0x124, u32) = 0;
+    p->field_11C = 0;
+    p->shield_flags = 0;
+    p->flags = 0;
     lbl_80240E30[player].scheme = PF(p, 0x1DB0, u8);
     lbl_80240E30[player].hasActuator = PF(p, 0x1DB1, u8);
     lbl_80240E30[player].unk38 = PF(p, 0x1DB2, u8);
@@ -3939,10 +3939,10 @@ void player_store_in_save(void* vp) {
     {
         u8* item = (u8*)p + chartype;
         *(s32*)(item + 0xE00) = p->gold;
-        *(s16*)(item + 0xDD0) = (s16)PF(p, 0x1EBC, s32);
-        *(s16*)(item + 0xDD2) = (s16)PF(p, 0x1EB8, s32);
-        *(u16*)(item + 0xDD4) |= PF(p, 0x1EC8, u16);
-        *(u16*)(item + 0xDD6) |= PF(p, 0x1ECA, u16);
+        *(s16*)(item + 0xDD0) = (s16)p->item_body_hi;
+        *(s16*)(item + 0xDD2) = (s16)p->item_body_lo;
+        *(u16*)(item + 0xDD4) |= p->runes;
+        *(u16*)(item + 0xDD6) |= p->shards;
     }
     PF(p, 0xA88, s16) = (s16)p->character;
     PF(p, 0xA8A, s8) = (s8)p->class_id;
@@ -4109,18 +4109,18 @@ model_ready:
     n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
-        PF(p, 0x6D0, s32) = *nd;
+        p->hand_node = (void*)(*nd);
     } else {
-        PF(p, 0x6D0, s32) = 0;
+        p->hand_node = NULL;
     }
     sprintf(tbuf, "%s%s", (char*)&p->pad_0210[0x4B0],
             ((char**)(tab + 1276))[cls]);
     n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
-        PF(p, 0x6CC, s32) = *nd;
+        p->mbnode2 = (void*)(*nd);
     } else {
-        PF(p, 0x6CC, s32) = 0;
+        p->mbnode2 = NULL;
     }
     sprintf(tbuf, "%sCFGLOW", (char*)&p->pad_0210[0x4B0]);
     n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, -1);
@@ -4139,9 +4139,9 @@ model_ready:
     n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
-        PF(p, 0x6D4, s32) = *nd;
+        p->weapon_node = (void*)(*nd);
     } else {
-        PF(p, 0x6D4, s32) = 0;
+        p->weapon_node = NULL;
     }
     sprintf(tbuf, "%sTORSO", (char*)&p->pad_0210[0x4B0]);
     n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
@@ -4171,35 +4171,35 @@ model_ready:
         }
     }
     /* live combat fields */
-    PF(p, 0x730, s32) = 0;
-    PF(p, 0x72C, s32) = 0;
-    PF(p, 0x734, s32) = 0;
+    p->shield_object = NULL;
+    p->pup_object = NULL;
+    p->wand_object = NULL;
     PF(p, 0x748, s32) = 0;
-    PF(p, 0x790, s32) = 0;
-    PF(p, 0x6E4, s32) = 0;
+    p->atree = NULL;
+    p->weaphold_atree = NULL;
     PF(p, 0x73C, s32) = 0;
-    PF(p, 0x738, s32) = -1;
-    PF(p, 0x740, s32) = 0;
-    PF(p, 0x968, s32) = 0;
-    PF(p, 0xA20, s16) = 0;
-    PF(p, 0xA1C, s16) = 0;
-    PF(p, 0xA1E, s16) = 0;
+    p->death_effect = -1;
+    p->marker_object = NULL;
+    p->gem_object = NULL;
+    p->field_A20 = 0;
+    p->field_A1C = 0;
+    p->field_A1E = 0;
     PF(p, 0x96C, s32) = 0;
     PF(p, 0xA14, s32) = 0;
     /* shadow */
     n = MBOX_ReallyFindObject("SHADOWL1", p->geo_handle, p->geo_handle, 1);
     p->mbnode = MBNewObject(n, gIdentityMatrix, NULL, 0x880);
     *(s16*)((u8*)p->mbnode + 0x68) = -0x24;
-    PF(p, 0x7FC, f32) = 0.0f;
-    nd = PF(p, 0x6D0, s32*);
+    p->pulse_7FC = 0.0f;
+    nd = (s32*)p->hand_node;
     if (nd != NULL) {
         MBPsysSetDebugNode(nd, 0);
     } else {
-        nd = PF(p, 0x6CC, s32*);
+        nd = (s32*)p->mbnode2;
         if (nd != NULL) {
             MBPsysSetDebugNode(nd, 0);
         } else {
-            nd = PF(p, 0x6D4, s32*);
+            nd = (s32*)p->weapon_node;
             if (nd != NULL) {
                 MBPsysSetDebugNode(nd, 0);
             }
@@ -4314,7 +4314,7 @@ s32 set_hidden_player(void* vp) {
                 prompt_ok = 0;
             }
             if (prompt_ok != 0) {
-                PF(p, 0x1EC8, u16) = 0xFFFF;
+                p->runes = 0xFFFF;
             }
             runes_options[0] = lbl_80347734;
             runes_options[1] = lbl_80347738;
@@ -4324,7 +4324,7 @@ s32 set_hidden_player(void* vp) {
                 prompt_ok = 0;
             }
             if (prompt_ok != 0) {
-                PF(p, 0x1ECA, u16) = 0xFFFF;
+                p->shards = 0xFFFF;
             }
             cheats_options[0] = lbl_80347734;
             cheats_options[1] = lbl_80347738;
@@ -4445,7 +4445,7 @@ s32 set_hidden_player(void* vp) {
                 prompt_ok = 0;
             }
             if (prompt_ok != 0) {
-                PF(p, 0x1EC8, u16) = 0xFFFF;
+                p->runes = 0xFFFF;
             }
             all_runes_options[0] = lbl_80347734;
             all_runes_options[1] = lbl_80347738;
@@ -4455,7 +4455,7 @@ s32 set_hidden_player(void* vp) {
                 prompt_ok = 0;
             }
             if (prompt_ok != 0) {
-                PF(p, 0x1ECA, u16) = 0xFFFF;
+                p->shards = 0xFFFF;
             }
             all_cheats_options[0] = lbl_80347734;
             all_cheats_options[1] = lbl_80347738;
@@ -4762,7 +4762,7 @@ static void create_player_blits(s32 i) {
                        (f32)*(s32*)(tab + j * 20 + 16));
     }
     player = PT(i);
-    PF(player, 0x3340, s32) = 0;
+    player->meter_flash = 0;
     rx = &lbl_80120240[i];
     tb_info[i].sel = -1;
     tb_info[i].slide = -1;
@@ -4782,7 +4782,7 @@ static void create_player_blits(s32 i) {
     if (lbl_803447C0 != 0) {
         mbBlitUpdateEntry(rune13_blit[i], -1, 0x100);
     }
-    PF(player, 0x954, s16) = 0;
+    player->speak_timer = 0;
     hod_blit[i] = MBCreateBlit(0, 0, *lx + 8, 0x154, 0x10, 0x10);
     tex = (u32)MBOX_FindTexture_Err("HODICON", NULL, 1);
     mbInitBlitEntry(hod_blit[i], tex, 0);
@@ -5474,7 +5474,7 @@ void PlayerProcessPowerups(void* vp) {
         }
     }
 
-    if (PF(p, 0x954, u16) != 0 && (PF(p, 0x964, s16) & 2) == 0) {
+    if (PF(p, 0x954, u16) != 0 && (p->hud_flags & 2) == 0) {
         if (p->marker_object == NULL) {
             p->marker_object = MBOX_NewObject(&lbl_80347A80, NULL, p->node, 0x10);
         }
@@ -5487,9 +5487,9 @@ void PlayerProcessPowerups(void* vp) {
     }
 
     if (p->flags & 0x400) {
-        MBTreeSetFlags(*(void**)PF(p, 0x7C, void*), 2, 0);
+        MBTreeSetFlags(*(void**)p->platform, 2, 0);
     } else {
-        MBTreeClearFlags(*(void**)PF(p, 0x7C, void*), 2, 0);
+        MBTreeClearFlags(*(void**)p->platform, 2, 0);
         if (old_flags & 0x400) {
             fn_8009D5A0(index);
         }
@@ -5528,7 +5528,7 @@ void PlayerProcessPowerups(void* vp) {
     p->field_12C = p->field_128;
     p->field_128 = 0;
     if ((p->shield_flags & 0x80000) == 0) {
-        PF(p, 0x95E, s16) = 0;
+        p->speak_done = 0;
     }
     if ((p->flags & 8) == 0) {
         PF(p, 0x960, s16) = 0;
@@ -5615,11 +5615,11 @@ static void PlayerProcessSkinFX(void* vp) {
         void* h = ps->atree;
         s32 a2 = 0;
         s32 a3 = 0;
-        if (gGameMode == 0x4010 && (PF(p, 0x124, u32) & 0x80)) {
+        if (gGameMode == 0x4010 && (p->flags & 0x80)) {
             MBTreeSetFlags(*(void**)h, 2, 0);
         } else {
             MBTreeClearFlags(*(void**)h, 2, 0);
-            if (PF(p, 0x900, u32) & 0x10000000) {
+            if (p->act_bits & 0x10000000) {
                 a2 = 1;
                 a3 = 2;
             }
