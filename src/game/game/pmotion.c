@@ -1203,7 +1203,7 @@ void PlayerMotion(Player* p) {
     oldpos[1] = (f32)((f64)oldpos[1] + lbl_80347BD0);
     wallResult = fn_80088714(radius, p, oldpos, dpos);
     if (wallResult != 0) {
-        PF(p, 0x8C8, WorldObj*) = (WorldObj*)lbl_80344B30;
+        p->floor_name = (char*)lbl_80344B30;
         PlayerMotion_FloorFX(p, (WorldObj*)lbl_80344B30, oldpos,
                              (f32*)ctxbase);
         if (anim == 137) {
@@ -1213,7 +1213,7 @@ void PlayerMotion(Player* p) {
             reflection[2] = *(f32*)(ctxbase + 20);
         }
     } else {
-        PF(p, 0x8C8, WorldObj*) = NULL;
+        p->floor_name = NULL;
     }
 
     oldpos[1] = (f32)((f64)oldpos[1] - lbl_80347BD0);
@@ -2707,9 +2707,9 @@ store_motion_state:
                             if (enemy == NULL ||
                                 (f64)PF(enemy, 0x23C, f32) >
                                     lbl_80347C28) {
-                                PF(p, 0x934, s32) +=
+                                p->fall_frames +=
                                     damaged != 0 ? 3 : 1;
-                                PF(p, 0x938, f32) = sMusicFadeBase;
+                                p->fall_time = sMusicFadeBase;
                             }
                         }
                     } else if (target != NULL) {
