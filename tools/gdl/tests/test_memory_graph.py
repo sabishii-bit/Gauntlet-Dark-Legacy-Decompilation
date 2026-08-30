@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from memory_graph.core import (  # noqa: E402
     MemoryGraphError,
+    attempt_staleness,
     build_database,
     ensure_database,
     memory_audit,
@@ -320,6 +321,45 @@ class MemoryGraphTests(unittest.TestCase):
         with self.assertRaisesRegex(Exception, "already exists"):
             stage_record_proposal(record, root=self.root)
         self.assertEqual(validate_records(self.root)["record_count"], 3)
+
+    def test_staleness_resolves_unique_address_suffixed_report_name(self):
+        (self.root / "memory_graph/records/attempt.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "id": "attempt.foo.v1",
+                    "kind": "attempt",
+                    "function": "function:foo",
+                    "attempted_axis": "test axis",
+                    "outcome": "parked",
+                }
+            ),
+            encoding="utf-8",
+        )
+        report_dir = self.root / "build/GUNE5D"
+        report_dir.mkdir(parents=True)
+        (report_dir / "report.json").write_text(
+            json.dumps(
+                {
+                    "units": [
+                        {
+                            "functions": [
+                                {
+                                    "name": "foo_80001000",
+                                    "fuzzy_match_percent": 95.0,
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = attempt_staleness(root=self.root, db_path=self.db)
+
+        self.assertEqual(result["missing_from_report"], [])
+        self.assertEqual(result["valid_count"], 1)
 
     def test_markdown_cannot_anchor_a_structured_truth_record(self):
         record = {

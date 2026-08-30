@@ -2116,11 +2116,17 @@ def attempt_staleness(
         )
     report = json.loads(report_path.read_text(encoding="utf-8"))
     scores: dict[str, float] = {}
+    address_suffixed_scores: dict[str, list[tuple[str, float]]] = {}
     for unit in report.get("units", []):
         for function in unit.get("functions", []):
-            scores[function["name"]] = float(
-                function.get("fuzzy_match_percent", 0.0)
-            )
+            report_name = function["name"]
+            score = float(function.get("fuzzy_match_percent", 0.0))
+            scores[report_name] = score
+            match = re.fullmatch(r"(.+)_([0-9A-Fa-f]{8})", report_name)
+            if match:
+                address_suffixed_scores.setdefault(match.group(1), []).append(
+                    (report_name, score)
+                )
     covered: set[str] = {"regFind"}  # P6Frank carrier
     webfrank = root / "config" / "GUNE5D" / "webfrank.json"
     if webfrank.exists():
@@ -2154,10 +2160,14 @@ def attempt_staleness(
     valid = 0
     for row in rows:
         name = row["name"]
-        if name not in scores:
+        score = scores.get(name)
+        if score is None:
+            aliases = address_suffixed_scores.get(name, [])
+            if len(aliases) == 1:
+                _, score = aliases[0]
+        if score is None:
             missing.append({"function": name, "record": row["record_id"]})
             continue
-        score = scores[name]
         if score >= 100.0:
             entry = {"function": name, "record": row["record_id"], "fuzzy": score}
             (walls if name in covered else stale).append(entry)
