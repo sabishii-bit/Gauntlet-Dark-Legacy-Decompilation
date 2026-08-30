@@ -301,6 +301,11 @@ extern u32 lbl_801201C8[];   /* class colors */
 extern u32 lbl_801201D8[];   /* class colors (in-game set) */
 extern u32 lbl_801201E8[];   /* class colors (dim set) */
 extern s32 lbl_8011FC48[];   /* +8 pm bar x/y/h, +0x1C pm frame x/y/h, +0x78 frames */
+extern s32 lbl_80126C68[];   /* action-init bank table (InitActions 3rd arg) */
+/* The HUD name/flag tables (0x801200B0..0x80120598) sit inside the
+ * lbl_8011FC48 .data blob; the original code addressed them off the blob
+ * base with folded byte offsets (target asm: 1128/1212/1276/1340/2384). */
+#define HUDTAB(off, T)  ((T*)((u8*)lbl_8011FC48 + (off)))
 extern f32 lbl_80127D00[];   /* zero vec */
 extern f32 gIdentityMatrix[];   /* identity matrix */
 
@@ -580,13 +585,6 @@ extern void PlayerDoWeapTrail(void* p);
 /* ------------------------------------------------------------------ */
 /* attachment ops                                                      */
 /* ------------------------------------------------------------------ */
-
-/* tiny vec helper; auto-inlined everywhere, standalone copy deadstripped */
-static void VecSub(f32* d, f32* a, f32* b) {
-    d[0] = a[0] - b[0];
-    d[1] = a[1] - b[1];
-    d[2] = a[2] - b[2];
-}
 
 /* Query whether player i is mid-attack; level widens the accepted set. */
 s32 PlayerAttacking(s32 i, s32 level) {
@@ -877,10 +875,8 @@ void ShowRuneStones(void) {
 
 /* Name/level/health/keys/potions writer for one player's HUD row. */
 static void write_health_and_items(s32 i) {
-    Player* p = P(i);
-    u16* left = lbl_80120238;
-    u16* right = lbl_80120240;
-    u32* colors = lbl_801201C8;
+    Player* p;
+    u8* tab = (u8*)lbl_8011FC48;
     s32 hidden;
     s32 show_gold;
     s32 j;
@@ -893,7 +889,8 @@ static void write_health_and_items(s32 i) {
 
     hidden = 0;
     show_gold = 1;
-    rgb = colors[p->class_id];
+    rgb = ((u32*)(tab + 1408))[PT(i)->class_id];
+    p = PT(i);
     mini_inventory_update(i);
     oldz = MBSetFontZ(63990.0f);
     if (lbl_80344A28 != 0 || gGameOptions[8] != 0) {
@@ -901,7 +898,7 @@ static void write_health_and_items(s32 i) {
     }
     if (gGameMode == 0x4010 && lbl_80344760 > 0 && p->state == 0xB &&
         p->motion_state == 1) {
-        u32 x = left[i] + 6;
+        u32 x = ((u16*)(tab + 1520))[i] + 6;
 
         hidden = 1;
         MBNewTempBlit((void*)lbl_80344E48, x, 0x14C, 0xE, 0xE);
@@ -915,7 +912,7 @@ static void write_health_and_items(s32 i) {
         hidden = 1;
         setup_player_display(i);
         if (p->state == 0xB) {
-            DrawTextKeepScale(1.2f, -right[i], 0x154, 1, rgb, "IN TOWER");
+            DrawTextKeepScale(1.2f, -((u16*)(tab + 1528))[i], 0x154, 1, rgb, "IN TOWER");
         } else {
             hidden = 0;
         }
@@ -930,7 +927,7 @@ static void write_health_and_items(s32 i) {
             }
             sprintf(buf, "%d", (s32)p->health);
             w = DrawNormalText(1.0f, buf, 4);
-            DrawText((left[i] + 0x74) - w, 0x167, 4, colors[p->class_id], buf);
+            DrawText((((u16*)(tab + 1520))[i] + 0x74) - w, 0x167, 4, ((u32*)(tab + 1408))[p->class_id], buf);
             mbBlitInit3414(frame_blit[i][5], 0);
         }
     } else {
@@ -945,7 +942,7 @@ static void write_health_and_items(s32 i) {
     switch (p->display_mode) {
     case 6:
         if (!hidden) {
-            DrawTextKeepScale(0.667f, -right[i], 0x153, 7, rgb, p->name);
+            DrawTextKeepScale(0.667f, -((u16*)(tab + 1528))[i], 0x153, 7, rgb, p->name);
         }
         break;
     case 1:
@@ -955,18 +952,18 @@ static void write_health_and_items(s32 i) {
             if (gGameOptions[8] == 1) {
                 debug_player_pos(i);
             } else {
-                DrawText(left[i] + 8, 0x154, 1, 0xFFFFFF, "XP: %d",
+                DrawText(((u16*)(tab + 1520))[i] + 8, 0x154, 1, 0xFFFFFF, "XP: %d",
                          p->exp);
             }
         }
         /* fall through */
     case 5:
         if (!hidden) {
-            DrawTextKeepScale(0.667f, -right[i], 0x153, 7, rgb, p->name);
+            DrawTextKeepScale(0.667f, -((u16*)(tab + 1528))[i], 0x153, 7, rgb, p->name);
         }
         if (lbl_80344A28 != 0 || !hidden) {
             sprintf(buf2, "LV %d", p->level);
-            DrawText(-right[i], 0x146, 1, 0xFFFFFF, buf2);
+            DrawText(-((u16*)(tab + 1528))[i], 0x146, 1, 0xFFFFFF, buf2);
         }
         break;
     case 10:
@@ -974,17 +971,17 @@ static void write_health_and_items(s32 i) {
     }
     if (p->state != 2 && p->display_mode != 0 && alpha == 0) {
         if (p->item_body_lo > 0) {
-            blit = MBNewTempBlit((void*)key_blit_idx, left[i] + 8, 0x143, -1, -1);
+            blit = MBNewTempBlit((void*)key_blit_idx, ((u16*)(tab + 1520))[i] + 8, 0x143, -1, -1);
             mbBlitCvtCoord(blit, 64000.0f);
             sprintf(buf2, "%d", p->item_body_lo);
-            DrawTextKeepScale(0.8f, left[i] + 0x1A, 0x147, 4, rgb, buf2);
+            DrawTextKeepScale(0.8f, ((u16*)(tab + 1520))[i] + 0x1A, 0x147, 4, rgb, buf2);
         }
         if (p->item_body_hi > 0) {
             blit = MBNewTempBlit(potionicon_tab[PF(p, 0x32FC + p->item_body_hi * 4, s32)],
-                                 left[i] + 0x66, 0x143, -1, -1);
+                                 ((u16*)(tab + 1520))[i] + 0x66, 0x143, -1, -1);
             mbBlitCvtCoord(blit, 64000.0f);
             sprintf(buf2, "%d", p->item_body_hi);
-            DrawTextKeepScale(0.8f, left[i] + 0x5C, 0x147, 4, rgb, buf2);
+            DrawTextKeepScale(0.8f, ((u16*)(tab + 1520))[i] + 0x5C, 0x147, 4, rgb, buf2);
         }
     }
     if (p->health > 0.0f && lbl_80344A44 == 0) {
@@ -1505,7 +1502,7 @@ s32 ExpToLevel(s32 exp) {
 
     lv = 99;
     rate = 2970;
-    for (; lv != 0; lv--) {
+    while (lv != 0) {
         if (lv <= 60) {
             need = (lv - 1) * (rate + 1000);
         } else {
@@ -1516,6 +1513,7 @@ s32 ExpToLevel(s32 exp) {
         if (exp >= need) {
             return lv;
         }
+        lv--;
         rate -= 30;
     }
     return 1;
@@ -2823,6 +2821,7 @@ f32 player_max_health(void* vp) {
     return cap;
 }
 
+
 /* Vulnerability gate shared with damage_player.                       */
 s32 player_can_be_damaged(void* vp) {
     Player* p = vp;
@@ -4040,7 +4039,8 @@ void set_player_default_atts(void* p) {
 void load_player_geo(s32 i, void* vp) {
     Player* p = vp;
     char name[20];
-    u8 unused[8];
+    u8 unused[12];
+    u8* tab = (u8*)lbl_8011FC48;
     char* c;
     s32* nd;
     s32 pad;
@@ -4055,8 +4055,8 @@ void load_player_geo(s32 i, void* vp) {
         set_hidden_player(p);
     }
     {
-        if (p->hidden_code != NULL) {
-            PF(p, 0x7F4, u32) = load_player_model(i, p, i, p->hidden_code);
+        if ((c = p->hidden_code) != NULL) {
+            p->geo_handle = load_player_model(i, p, i, c);
             goto model_ready;
         }
         if (p->character == player_multiple_models[i].cur_class &&
@@ -4065,10 +4065,10 @@ void load_player_geo(s32 i, void* vp) {
             p->level / 10 == player_multiple_models[i].cur_tier) {
             goto reuse_model;
         }
-        PF(p, 0x7F4, u32) = load_player_model(i, p, -1, NULL);
+        p->geo_handle = load_player_model(i, p, -1, NULL);
         goto model_ready;
 reuse_model:
-        PF(p, 0x7F4, void*) = player_multiple_models[i].arena;
+        p->geo_handle = (s32)player_multiple_models[i].arena;
     }
 model_ready:
     pad = p->class_id;
@@ -4084,20 +4084,20 @@ model_ready:
             *c = (char)toupper(*c);
         }
     } else {
-        strcpy(name, lbl_80120104[pad]);
+        strcpy(name, ((char**)(tab + 1212))[pad]);
     }
-    sprintf(tbuf, "%s%s%s", &lbl_801200B0[cls * 4], name, "");
+    sprintf(tbuf, "%s%s", (char*)(tab + 1128) + cls * 4, name);
     strncpy((char*)&p->pad_0210[0x4B0], tbuf, 8);
     p->node = MBNewNode(lbl_80344B2C, gIdentityMatrix, 1);
     PF(p, 0x78, s32) = 0;
     p->platform = fn_80011BBC(player_multiple_models[i].model_buf,
-                             &lbl_801200B0[p->char_type * 4],
+                             (char*)(tab + 1128) + p->char_type * 4,
                              &p->platform, tbuf, 0x800);
     if (p->platform == NULL) {
-        FatalErrorf("Player Atree %s not found", &lbl_801200B0[p->char_type * 4]);
+        FatalErrorf("Player Atree %s not found", (char*)(tab + 1128) + p->char_type * 4);
     }
     MBNodeSetParent(*p->platform, p->node);
-    InitActions(&p->platform, (u8*)p + 0x210, 0x80126C68);
+    InitActions(&p->platform, (u8*)p + 0x210, (s32)lbl_80126C68);
     if (gGameMode != 0x4012 && gGameMode != 0x400D &&
         gGameMode != 0x400F && gGameMode != 0x4016) {
         LoadPlyrData(i, p->character, (void*)1);
@@ -4105,8 +4105,8 @@ model_ready:
     PF(p, 0x744, s32) = 0;
     /* attachment nodes */
     sprintf(tbuf, "%s%s", (char*)&p->pad_0210[0x4B0],
-            lbl_80120184[cls]);
-    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+            ((char**)(tab + 1340))[cls]);
+    n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
         PF(p, 0x6D0, s32) = *nd;
@@ -4114,8 +4114,8 @@ model_ready:
         PF(p, 0x6D0, s32) = 0;
     }
     sprintf(tbuf, "%s%s", (char*)&p->pad_0210[0x4B0],
-            lbl_80120144[cls]);
-    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+            ((char**)(tab + 1276))[cls]);
+    n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
         PF(p, 0x6CC, s32) = *nd;
@@ -4123,7 +4123,7 @@ model_ready:
         PF(p, 0x6CC, s32) = 0;
     }
     sprintf(tbuf, "%sCFGLOW", (char*)&p->pad_0210[0x4B0]);
-    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), -1);
+    n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, -1);
     if (n < 0) {
         nd = NULL;
     } else {
@@ -4136,7 +4136,7 @@ model_ready:
         PF(p, 0x6D8, s32) = 0;
     }
     sprintf(tbuf, "%sHEAD", (char*)&p->pad_0210[0x4B0]);
-    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
         PF(p, 0x6D4, s32) = *nd;
@@ -4144,7 +4144,7 @@ model_ready:
         PF(p, 0x6D4, s32) = 0;
     }
     sprintf(tbuf, "%sTORSO", (char*)&p->pad_0210[0x4B0]);
-    n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
+    n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
         PF(p, 0x6DC, s32) = *nd;
@@ -4154,18 +4154,18 @@ model_ready:
     /* weapon */
     if (sWeaponsBuf != 0) {
         tier = (p->level >= 0x32) ? 2 : (p->level >= 10) ? 1 : 0;
-        if (lbl_80120598[p->character] != 0 ||
+        if (((s32*)(tab + 2384))[p->character] != 0 ||
             p->character >= 8 || p->hidden_code != NULL) {
             sprintf(tbuf, "WEAP_HOLD");
         } else {
-            sprintf(tbuf, "WEAP_%s_HD%d", lbl_80120104[pad], tier + 1);
+            sprintf(tbuf, "WEAP_%s_HD%d", ((char**)(tab + 1212))[pad], tier + 1);
         }
-        n = MBOX_ReallyFindObject(tbuf, PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-        PF(p, 0x6E0, void*) = MBNewObject(n, NULL, (void*)PF(p, 0x6D0, s32), 0x810);
-        PF(p, 0x7F8, s32) = -1;
+        n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
+        p->weaphold_node = MBNewObject(n, NULL, p->hand_node, 0x810);
+        p->texmod_id = -1;
         if (p->char_type == 7) {
-            *(u32*)(PF(p, 0x6E0, u8*) + 0x60) |= 0x4000000;
-            PF(p, 0x7F8, s32) = AddSpecialTexmod(PF(p, 0x7F4, s32), "%s%s",
+            *(u32*)((u8*)p->weaphold_node + 0x60) |= 0x4000000;
+            p->texmod_id = AddSpecialTexmod(p->geo_handle, "%s%s",
                                             (char*)player_multiple_models[i].sfx_arena,
                                             "", 5, 1);
         }
@@ -4187,9 +4187,9 @@ model_ready:
     PF(p, 0x96C, s32) = 0;
     PF(p, 0xA14, s32) = 0;
     /* shadow */
-    n = MBOX_ReallyFindObject("SHADOWL1", PF(p, 0x7F4, s32), PF(p, 0x7F4, s32), 1);
-    PF(p, 0x6C8, void*) = MBNewObject(n, gIdentityMatrix, NULL, 0x880);
-    *(s16*)(PF(p, 0x6C8, u8*) + 0x68) = -0x24;
+    n = MBOX_ReallyFindObject("SHADOWL1", p->geo_handle, p->geo_handle, 1);
+    p->mbnode = MBNewObject(n, gIdentityMatrix, NULL, 0x880);
+    *(s16*)((u8*)p->mbnode + 0x68) = -0x24;
     PF(p, 0x7FC, f32) = 0.0f;
     nd = PF(p, 0x6D0, s32*);
     if (nd != NULL) {
@@ -4206,7 +4206,7 @@ model_ready:
         }
     }
     MBTreeSetFlags(p->node, 2, 0);
-    nd = PF(p, 0x6C8, s32*);
+    nd = (s32*)p->mbnode;
     if (nd != NULL) {
         if (sMusicTrackHi == 0xC && sMusicTrackLo == 8) {
             MBTreeSetFlags(nd, 2, 1);
@@ -5563,7 +5563,7 @@ typedef struct PlayerSkinView {
 
 /* Rebuild a level-tier halo atree if its source changed; inlined per   */
 /* tier by PlayerProcessSkinFX.  Returns 1 when a fresh tree was built.  */
-static int PlayerSetupSkinTree(PlayerSkinView* p, void* atree, void* parent) {
+static inline int PlayerSetupSkinTree(PlayerSkinView* p, void* atree, void* parent) {
     if (p->atree != NULL) {
         if (atree == NULL || p->src_id != ((u32*)atree)[1]) {
             AtreeDelete(&p->atree);
