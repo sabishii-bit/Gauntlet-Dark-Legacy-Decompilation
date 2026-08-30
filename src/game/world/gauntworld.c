@@ -2023,6 +2023,9 @@ void fn_8005BA1C(Item* item, u8* player)
     u8* world;
     u8** records;
     u8* rec;
+    u8 unused[32];
+
+    (void)unused;
 
     switch (info->type) {
     case 1:
