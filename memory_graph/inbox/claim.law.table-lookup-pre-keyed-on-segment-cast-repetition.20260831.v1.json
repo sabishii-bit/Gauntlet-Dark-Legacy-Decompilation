@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "init_enemy_vars reconstruction pass, src/game/game/gamemain.c; see attempt.init-enemy-vars-reconstruction.20260831.v1",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement / negative result for claim.law.stride-array-table-view and claim.law.offsetof-fused-immediate-counter -- applies when their recommended single-additive/cast-once rewrite is tried against a per-index SoA table lookup and produces no change in the compiled opcode stream.",
+    "tags": [
+      "index-form",
+      "register-web",
+      "cse",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.table-lookup-pre-keyed-on-segment-cast-repetition.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T23:45:55Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "claim.law.stride-array-table-view and claim.law.offsetof-fused-immediate-counter both recommend a single-additive or cast-once form (`((T*)(base+TABLE_OFF))[index]` / `*(T*)(base+off+CONST)`) to recover a target's fused `add rD,base,mulli; lfs disp(rD)` addressing for a per-index table lookup, in place of a two-step `row = base + index*STRIDE; ((T*)row)[N]`. In game/game/gamemain.c's init_enemy_vars, a 9-site per-enemy-type SoA table lookup (`row = tbl + *(s32*)e*4; ((T*)row)[N]`, tbl = lbl_8011AF48, 9 fields at fixed byte offsets 1808..3848 into the blob) shows this recommended rewrite has NO EFFECT: converting the two-step form to the single raw additive expression at all 6 regressing sites produced byte-identical compiled output (same addi+lfsx/lwzx opcodes MWCC already chose) -- proving MWCC's front end normalizes both C spellings to the identical IR/value here, so the addressing-form choice is NOT source-shape-controllable at this call site. Empirical pattern instead correlates with CALL-BOUNDARY SEGMENTATION and ELEMENT CAST TYPE: split the function into segments at each function-call boundary (a call appears to reset MWCC's cross-statement value-numbering pool for this table-base expression); within a segment, if 2+ occurrences of the table lookup share the SAME element pointer cast type (`(f32*)row` vs `(s32*)row`), ALL such same-typed occurrences in that segment compile to the indexed addi+lfsx/lwzx form; an occurrence that is the ONLY one of its cast type in its segment (either the first use after a call, or the sole f32-cast site sandwiched between s32-cast neighbors) compiles to the target-matching add+lfs/lwz-displacement form. Verified via direct opcode-level fndiff --ops comparison against the byte-exact target disassembly at all 9 sites, both before and after the (ineffective) rewrite attempt. Root mechanism unconfirmed (value-numbering/PRE scope reset at call boundaries, keyed by IR node type identity rather than raw address value, is the working hypothesis) -- this is an empirical boundary/negative-result note, not a fix. Consequence: before spending a probe on the recommended single-additive rewrite for a SoA/per-index table lookup, first check whether the regressing sites are candidates for THIS pattern (2+ same-cast-type occurrences in one call-free segment); if so, the two parent laws' recommended forms are known-ineffective here and the residual should be logged as REGISTER_ONLY/SCHEDULE rather than re-probed with more source-shape variants."
+}
