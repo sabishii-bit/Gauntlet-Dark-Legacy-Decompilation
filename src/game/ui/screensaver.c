@@ -44,6 +44,10 @@
 #include "game/mbobject.h"
 #include "game/player.h"
 
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
 /* ---- text / message-box library (other TUs) ---- */
 int FixMLineText(char* src, char* dst, void* lines);
 int DrawNormalText(f32 scale, char* text, int font);
@@ -191,6 +195,28 @@ extern void* lbl_80344BF8;        /* full-screen fade texture */
 extern char gTextWorkBuf[];
 extern char gTextFormatBuf[];
 
+/* gWinGlobals+0x30 model-table root (mb_model.c's MboxWinGlobalsView names
+ * the same field modelTable). ScrollMessageBox only reads the current
+ * model's header record through it. */
+typedef struct WinGlobalsModelView {
+    u8 _pad00[0x30];
+    u8* modelTable;
+} WinGlobalsModelView;
+
+/* Header record at gWinGlobals->modelTable + 4 ("hdr"); only the flag
+ * checked before allocating the message-box blit texture is named. */
+typedef struct ModelHeaderView {
+    u8 _pad00[12];
+    s32 loadedFlag; /* zero => model not yet loaded/ready */
+} ModelHeaderView;
+
+/* lbl_802A4AA4 scroll-list context; only the font-select flag read here is
+ * named. */
+typedef struct ScrollListContextView {
+    u8 _pad00[24];
+    u32 altFontFlag; /* nonzero selects the alt font/size for scroll text */
+} ScrollListContextView;
+
 void ScrollMessageBox(char* msg)
 {
     char* lines[17];
@@ -230,20 +256,22 @@ void ScrollMessageBox(char* msg)
     MBLockMessages(gModalRenderDepth - 1);
     lbl_80344E04 = 0;
     if ((u32)gWinGlobals != 0) {
-        if (*(u8**)(g + 48) != 0) {
-            hdr = *(u8**)(g + 48) + 4;
+        if (*(u8**)(g + offsetof(WinGlobalsModelView, modelTable)) != 0) {
+            hdr = *(u8**)(g + offsetof(WinGlobalsModelView, modelTable)) + 4;
         }
     }
     {
         void* quad;
 
-        if (hdr != 0 && *(s32*)(hdr + 12) == 0 &&
+        if (hdr != 0 &&
+            *(s32*)(hdr + offsetof(ModelHeaderView, loadedFlag)) == 0 &&
             strcmp(lbl_802A5D1C, lbl_80347368) == 0) {
             blit = MBNewBlit(lbl_80343CC8, 0, 0);
         } else {
             quad = MBNewTempQuad();
         }
-        if (*(u32*)(lbl_802A4AA4 + 24) != 0) {
+        if (*(u32*)(lbl_802A4AA4 +
+                    offsetof(ScrollListContextView, altFontFlag)) != 0) {
             lbl_80344A4C = 6;
             lbl_80344A50 = lbl_80347370;
         } else {
@@ -329,6 +357,54 @@ typedef struct ScreenSaverWeapon {
     u8 atree[0x28];
 } ScreenSaverWeapon;
 
+/* Panel-piece config row: a 36-byte record repeated in three parallel
+ * arrays inside the lbl_8011D568 blob (see PanelConfigBlob below).
+ * Consumed positionally as a u32/s32 pointer "piece" by disp_piece and
+ * animate_panel_piece, and by name/x/y/width/height in
+ * draw_inventory_panel; the scale/d/e fields are only read through
+ * print_n_of_m's per-style table (arrH re-read from a -528-shifted base). */
+typedef struct PanelPieceRow {
+    /* 0x00 */ char* name;
+    /* 0x04 */ s32 x;
+    /* 0x08 */ s32 y;
+    /* 0x0C */ u8 _pad0C[4];
+    /* 0x10 */ f32 scale;
+    /* 0x14 */ s32 d;
+    /* 0x18 */ s32 e;
+    /* 0x1C */ s32 width;
+    /* 0x20 */ s32 height;
+} PanelPieceRow; /* size 0x24 */
+
+/* Per-weapon init sub-table (inside the same blob, see PanelConfigBlob):
+ * the atree-name pointer array (idx*4) followed by the position/velocity
+ * vec3 pairs (idx*0xC), read by ScreenSaverStartWeap/ScreenSaverUpdateWeap. */
+typedef struct WeaponInitTable {
+    char* atreeName[4];
+    f32 position[4][3];
+    f32 velocity[4][3];
+} WeaponInitTable; /* size 0x70 */
+
+/* lbl_8011D568: one shared config blob for the screensaver front-end.
+ * Layout recovered from every access in this TU:
+ *   0x000 pieceOffsetX[60]  animate_panel_piece's placement table (paired
+ *                           with the separate global lbl_8011D658 for Y)
+ *   0x210 arrH[12]          PanelPieceRow "window_empty" icon slots
+ *                           (draw_inventory_panel blits1; also reread as
+ *                           print_n_of_m's per-style scale/d/e table)
+ *   0x3C0 arrE[9]           PanelPieceRow rune-stone slots (blits3)
+ *   0x594 arrF[12]          PanelPieceRow rune-stat slots (blits2)
+ *   0x744 weaponInit        screensaver-weapon init names/pos/vel
+ * The 0xF0-0x210 and 0x504-0x594 gaps are unread by this TU. */
+typedef struct PanelConfigBlob {
+    f32 pieceOffsetX[60];
+    u8 _pad0F0[0x210 - 0xF0];
+    PanelPieceRow arrH[12];
+    PanelPieceRow arrE[9];
+    u8 _pad504[0x594 - 0x504];
+    PanelPieceRow arrF[12];
+    WeaponInitTable weaponInit;
+} PanelConfigBlob;
+
 /* Set up one screensaver weapon: scene node + weapon object parented to it,
  * then seed its position/velocity from the per-weapon init table. */
 #pragma opt_propagation off
@@ -351,35 +427,42 @@ void ScreenSaverStartWeap(int idx)
     nodeSlot += 0x5c;
     *(void**)nodeSlot = node;
     atree = initTable + idx * 4;
-    atree = AtreeMatch(sPowerupsBuf, *(char**)((u8*)atree + 0x744), 0);
+    atree = AtreeMatch(sPowerupsBuf,
+                        *(char**)((u8*)atree +
+                                  offsetof(PanelConfigBlob, weaponInit)),
+                        0);
     position = weaponTable + offset;
     position += 0x20;
     atree = AtreeInit(atree, position + 0x40, 0, 0);
     {
         u8* atreeDest = weaponTable + offset;
 
-        *(void**)(atreeDest + 0x60) = atree;
-        if (*(void**)(atreeDest + 0x60) != NULL &&
-            **(void***)(atreeDest + 0x60) != NULL) {
-            MBNodeSetParent(**(void***)(atreeDest + 0x60),
-                            *(void**)nodeSlot);
+        *(void**)(atreeDest + offsetof(ScreenSaverWeapon, atree)) = atree;
+        if (*(void**)(atreeDest + offsetof(ScreenSaverWeapon, atree)) !=
+                NULL &&
+            **(void***)(atreeDest + offsetof(ScreenSaverWeapon, atree)) !=
+                NULL) {
+            MBNodeSetParent(
+                **(void***)(atreeDest + offsetof(ScreenSaverWeapon, atree)),
+                *(void**)nodeSlot);
         }
     }
     atree = initTable + idx * 0x0c;
-    *(f32*)position = *(f32*)((u8*)atree + 0x754);
+    *(f32*)position =
+        *(f32*)((u8*)atree + offsetof(PanelConfigBlob, weaponInit.position));
     {
         u8* copyDest = weaponTable + offset;
 
-        ((ScreenSaverWeapon*)copyDest)->position[1] =
-            *(f32*)((u8*)atree + 0x758);
-        ((ScreenSaverWeapon*)copyDest)->position[2] =
-            *(f32*)((u8*)atree + 0x75c);
-        ((ScreenSaverWeapon*)copyDest)->velocity[0] =
-            *(f32*)((u8*)atree + 0x784);
-        ((ScreenSaverWeapon*)copyDest)->velocity[1] =
-            *(f32*)((u8*)atree + 0x788);
-        ((ScreenSaverWeapon*)copyDest)->velocity[2] =
-            *(f32*)((u8*)atree + 0x78c);
+        ((ScreenSaverWeapon*)copyDest)->position[1] = *(f32*)(
+            (u8*)atree + offsetof(PanelConfigBlob, weaponInit.position[0][1]));
+        ((ScreenSaverWeapon*)copyDest)->position[2] = *(f32*)(
+            (u8*)atree + offsetof(PanelConfigBlob, weaponInit.position[0][2]));
+        ((ScreenSaverWeapon*)copyDest)->velocity[0] = *(f32*)(
+            (u8*)atree + offsetof(PanelConfigBlob, weaponInit.velocity[0][0]));
+        ((ScreenSaverWeapon*)copyDest)->velocity[1] = *(f32*)(
+            (u8*)atree + offsetof(PanelConfigBlob, weaponInit.velocity[0][1]));
+        ((ScreenSaverWeapon*)copyDest)->velocity[2] = *(f32*)(
+            (u8*)atree + offsetof(PanelConfigBlob, weaponInit.velocity[0][2]));
         spin = lbl_80347398;
         ((ScreenSaverWeapon*)copyDest)->position[3] = spin;
         ((ScreenSaverWeapon*)copyDest)->velocity[3] = spin;
@@ -387,6 +470,14 @@ void ScreenSaverStartWeap(int idx)
 }
 #pragma opt_common_subs reset
 #pragma opt_lifetimes reset
+
+/* lbl_8011DCBC: initial per-weapon spawn position table (screensaver's
+ * bounce start spots), stride 0xC (3 floats), read only by ScreenSaverStart. */
+typedef struct WeaponSpawnPos {
+    f32 x;
+    f32 y;
+    f32 z;
+} WeaponSpawnPos;
 
 void ScreenSaverStart(void)
 {
@@ -422,24 +513,38 @@ void ScreenSaverStart(void)
     timeScale = lbl_80347380;
     for (i = 0; i < 4; i++) {
         ScreenSaverStartWeap(i);
-        *(f32*)(weaponPositions + i * 0x88) =
-            *(f32*)(initialPositions + i * 0x0c);
-        *(f32*)(weaponPositions + i * 0x88 + 4) =
-            *(f32*)(initialPositions + i * 0x0c + 4);
-        *(f32*)(weaponPositions + i * 0x88 + 8) =
-            *(f32*)(initialPositions + i * 0x0c + 8);
-        *(s32*)(weaponPositions + i * 0x88 + 0x28) = 0;
-        *(s32*)(weaponPositions + i * 0x88 + 0x2c) =
+        *(f32*)(weaponPositions + i * 0x88 +
+                offsetof(ScreenSaverWeapon, position[0]) - 0x20) =
+            *(f32*)(initialPositions + i * 0x0c +
+                    offsetof(WeaponSpawnPos, x));
+        *(f32*)(weaponPositions + i * 0x88 +
+                offsetof(ScreenSaverWeapon, position[1]) - 0x20) =
+            *(f32*)(initialPositions + i * 0x0c +
+                    offsetof(WeaponSpawnPos, y));
+        *(f32*)(weaponPositions + i * 0x88 +
+                offsetof(ScreenSaverWeapon, position[2]) - 0x20) =
+            *(f32*)(initialPositions + i * 0x0c +
+                    offsetof(WeaponSpawnPos, z));
+        *(s32*)(weaponPositions + i * 0x88 +
+                offsetof(ScreenSaverWeapon, elapsed) - 0x20) = 0;
+        *(s32*)(weaponPositions + i * 0x88 +
+                offsetof(ScreenSaverWeapon, duration) - 0x20) =
             (s32)((f64)lbl_80343CC0 *
                   (randomBase + (f64)Random(lbl_80347378)) * timeScale) + 1;
-        *(s32*)(weaponPositions + i * 0x88 + 0x30) =
+        *(s32*)(weaponPositions + i * 0x88 +
+                offsetof(ScreenSaverWeapon, resetAt) - 0x20) =
             (s32)((f64)lbl_80343CC4 *
                   (randomBase + (f64)Random(lbl_80347378)) * timeScale);
-        AtreeDelete(weaponPositions + i * 0x88 + 0x40);
-        *(s32*)(weaponPositions + i * 0x88 + 0x3c) = MBRemoveNode(
-            *(s32*)(weaponPositions + i * 0x88 + 0x3c), 1);
+        AtreeDelete(weaponPositions + i * 0x88 +
+                    offsetof(ScreenSaverWeapon, atree) - 0x20);
+        *(s32*)(weaponPositions + i * 0x88 +
+                offsetof(ScreenSaverWeapon, node) - 0x20) = MBRemoveNode(
+            *(s32*)(weaponPositions + i * 0x88 +
+                    offsetof(ScreenSaverWeapon, node) - 0x20),
+            1);
         randomDelay = i * 30 + RandInt(15);
-        *(s32*)(weaponPositions + i * 0x88 + 0x2c) = randomDelay + 1;
+        *(s32*)(weaponPositions + i * 0x88 +
+                offsetof(ScreenSaverWeapon, duration) - 0x20) = randomDelay + 1;
     }
 }
 
@@ -470,12 +575,18 @@ void ScreenSaverUpdateWeap(s32 idx)
         if (*node == NULL) {
             ScreenSaverStartWeap(weaponIndex);
         }
-        weapon->position[0] = *(f32*)(table + 0x754);
-        weapon->position[1] = *(f32*)(table + 0x758);
-        weapon->position[2] = *(f32*)(table + 0x75C);
-        weapon->velocity[0] = *(f32*)(table + 0x784);
-        weapon->velocity[1] = *(f32*)(table + 0x788);
-        weapon->velocity[2] = *(f32*)(table + 0x78C);
+        weapon->position[0] =
+            *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.position[0][0]));
+        weapon->position[1] =
+            *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.position[0][1]));
+        weapon->position[2] =
+            *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.position[0][2]));
+        weapon->velocity[0] =
+            *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.velocity[0][0]));
+        weapon->velocity[1] =
+            *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.velocity[0][1]));
+        weapon->velocity[2] =
+            *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.velocity[0][2]));
         NormalVector(weapon->velocity);
         weapon->angle = lbl_80347398;
         weapon->collisionState = 0;
@@ -568,9 +679,12 @@ void ScreenSaverUpdateWeap(s32 idx)
                 u8* table = initialTable + weaponIndex * 0xC;
                 s32 delay;
 
-                position[0] = *(f32*)(table + 0x754);
-                *positionY = *(f32*)(table + 0x758);
-                *positionZ = *(f32*)(table + 0x75C);
+                position[0] =
+                    *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.position[0][0]));
+                *positionY =
+                    *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.position[0][1]));
+                *positionZ =
+                    *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.position[0][2]));
                 weapon->elapsed = 0;
                 delay = (s32)(lbl_80347380 *
                               ((f64)lbl_80343CC0 *
@@ -602,9 +716,9 @@ void ScreenSaverUpdateWeap(s32 idx)
         *collisionState = 1;
     }
 
-    *(f32*)((u8*)*node + 0x30) = screenPosition[0];
-    *(f32*)((u8*)*node + 0x34) = screenPosition[1];
-    *(f32*)((u8*)*node + 0x38) = screenPosition[2];
+    *(f32*)((u8*)*node + offsetof(MBObject, mat[3][0])) = screenPosition[0];
+    *(f32*)((u8*)*node + offsetof(MBObject, mat[3][1])) = screenPosition[1];
+    *(f32*)((u8*)*node + offsetof(MBObject, mat[3][2])) = screenPosition[2];
     AnimateATree(weapon->atree, 0, 0);
     }
 }
@@ -619,9 +733,12 @@ void ScreenSaverEnd(void)
     base = lbl_80274620;
     for (i = 0; i < 4; i++) {
         off = i * 0x88;
-        AtreeDelete(base + 0x40 + off);
-        *(s32*)(base + 0x3c + off) =
-            MBRemoveNode(*(s32*)(base + 0x3c + off), 1);
+        AtreeDelete(base + (offsetof(ScreenSaverWeapon, atree) - 0x20) + off);
+        *(s32*)(base + (offsetof(ScreenSaverWeapon, node) - 0x20) + off) =
+            MBRemoveNode(
+                *(s32*)(base + (offsetof(ScreenSaverWeapon, node) - 0x20) +
+                        off),
+                1);
     }
     MBRemoveNode(lbl_80344A64, 1);
     for (node = (MBObject*)lbl_80344ECC; node != 0; node = node->next) {
@@ -644,6 +761,22 @@ void DoTexMods(void);
 void PlayerControls(void);
 extern u8 lbl_80240E30[];
 
+/* lbl_80274600+0x240 (576): last-seen owning MB node per weapon slot,
+ * immediately after the ScreenSaverWeapon[4] array; used only to detect a
+ * controller-focus change that exits the screensaver. */
+typedef struct ScreenSaverControlNodes {
+    u8 _pad00[0x240];
+    void* node[4];
+} ScreenSaverControlNodes;
+
+/* lbl_80240E30 per-player control state (see controls.c's CTL, stride
+ * 0x3C=60): only levels/edges are read in this TU. */
+typedef struct PadCtlView {
+    u8 _pad00[4];
+    u32 levels;
+    u32 edges;
+} PadCtlView;
+
 void ScreenSaver(void)
 {
     u8* weap = (u8*)lbl_80274600;
@@ -658,7 +791,8 @@ void ScreenSaver(void)
         for (i = 0; i < 4; i++) {
             u8* wr = weap + i * 4;
             u8* pr = lbl_80240E30 + i * 60;
-            if (*(void**)(wr + 576) != *(void**)(pr + 4)) {
+            if (*(void**)(wr + offsetof(ScreenSaverControlNodes, node)) !=
+                *(void**)(pr + offsetof(PadCtlView, levels))) {
                 lbl_80344A48 = 0;
             }
         }
@@ -669,7 +803,8 @@ void ScreenSaver(void)
             for (i = 0; i < 4; i++) {
                 u8* pr = lbl_80240E30 + i * 60;
                 u8* wr = weap + i * 4;
-                *(void**)(wr + 576) = *(void**)(pr + 4);
+                *(void**)(wr + offsetof(ScreenSaverControlNodes, node)) =
+                    *(void**)(pr + offsetof(PadCtlView, levels));
             }
         } else {
             ScreenSaverStart();
@@ -686,7 +821,9 @@ void ScreenSaver(void)
                 for (i = 0; i < 4; i++) {
                     u8* pr = lbl_80240E30 + i * 60;
                     u8* wr = weap + i * 4;
-                    if (*(void**)(pr + 4) != *(void**)(wr + 576)) {
+                    if (*(void**)(pr + offsetof(PadCtlView, levels)) !=
+                        *(void**)(wr +
+                                  offsetof(ScreenSaverControlNodes, node))) {
                         exit = 1;
                     }
                 }
@@ -720,6 +857,32 @@ int DrawTextKeepScale();
 void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
                          s32 phase);
 extern u8 gPlayers[];
+
+/* ROM texture descriptor returned by MBRomTexPtr; same layout/field names as
+ * mb_struct.c's MBRomTexture (fieldA/wordC hold the icon's cached
+ * width/height, read here as the top u16 of each). */
+typedef struct MBRomTexture {
+    u16 field0;
+    u16 field2;
+    u32 word4;
+    u16 field8;
+    u16 fieldA;
+    u32 wordC;
+} MBRomTexture;
+
+/* The per-player inventory-panel state/handle tables live in one .bss
+ * object anchored at lbl_80274600 (see the fuller offset map above
+ * init_panel_blits): state[4]/state2[4] at +0/+16, then a pad covering the
+ * arrE(+592)/arrF(+736) blit-handle tables (addressed separately by
+ * draw_inventory_panel/end_inventory_panel via their own per-player
+ * strides), then group4[4][4] at +928 and group12[4][12] at +992. */
+typedef struct PanelBlitOverlay {
+    int state[4];
+    int state2[4];
+    u8 _pad20[0x3A0 - 0x20];
+    int group4[4][4];
+    int group12[4][12];
+} PanelBlitOverlay;
 
 #pragma opt_lifetimes off
 int draw_inventory_panel(int player)
@@ -759,9 +922,11 @@ int draw_inventory_panel(int player)
     yshift = 0;
     mode = *(s32*)state;
     if (mode == 0) {
-        prog = (f32)*(s32*)(state + 16) / lbl_803473E4;
+        prog = (f32)*(s32*)(state + offsetof(PanelBlitOverlay, state2)) /
+               lbl_803473E4;
     } else {
-        prog = (f32)*(s32*)(state + 16) / lbl_803473E8;
+        prog = (f32)*(s32*)(state + offsetof(PanelBlitOverlay, state2)) /
+               lbl_803473E8;
     }
     if (((Player*)pl)->state == 0) {
         return 1;
@@ -772,7 +937,7 @@ int draw_inventory_panel(int player)
         for (i = 0, boff = 0, off = 0; i < 12;
              i++, boff += 4, off += 36) {
             row = cfg + off;
-            name = *(char**)(row = row + 528);
+            name = *(char**)(row = row + offsetof(PanelConfigBlob, arrH));
             if (name == NULL) {
                 b = 0;
             } else {
@@ -780,12 +945,19 @@ int draw_inventory_panel(int player)
                 t = MBOX_FindTexture_Err(bufA, 0, 1);
                 b = MBNewBlit(bufA, 0, 0);
                 tex = (u8*)MBRomTexPtr(t);
-                mbBlitCalcWidth(b, *(s32*)(row + 4) + xoff, *(s32*)(row + 8),
+                mbBlitCalcWidth(b,
+                                *(s32*)(row + offsetof(PanelPieceRow, x)) +
+                                    xoff,
+                                *(s32*)(row + offsetof(PanelPieceRow, y)),
                                 lbl_803473E0);
                 if (tex != NULL) {
-                    mbBlitProject(b, *(u16*)(tex + 10), *(u16*)(tex + 12));
-                    *(s32*)(row + 28) = *(u16*)(tex + 10);
-                    *(s32*)(row + 32) = *(u16*)(tex + 12);
+                    mbBlitProject(
+                        b, *(u16*)(tex + offsetof(MBRomTexture, fieldA)),
+                        *(u16*)(tex + offsetof(MBRomTexture, wordC)));
+                    *(s32*)(row + offsetof(PanelPieceRow, width)) =
+                        *(u16*)(tex + offsetof(MBRomTexture, fieldA));
+                    *(s32*)(row + offsetof(PanelPieceRow, height)) =
+                        *(u16*)(tex + offsetof(MBRomTexture, wordC));
                 }
             }
             ((void**)blits1)[i] = b;
@@ -795,7 +967,7 @@ int draw_inventory_panel(int player)
              j++, boff += 4, off += 36) {
             s32 r = towerGetRuneNearStat(player, j);
             row = cfg + off;
-            name = *(char**)(row = row + 1428);
+            name = *(char**)(row = row + offsetof(PanelConfigBlob, arrF));
             if (name == NULL) {
                 b = 0;
             } else {
@@ -808,12 +980,19 @@ int draw_inventory_panel(int player)
                 t = MBOX_FindTexture_Err(bufB, 0, 1);
                 b = MBNewBlit(bufB, 0, 0);
                 tex = (u8*)MBRomTexPtr(t);
-                mbBlitCalcWidth(b, *(s32*)(row + 4) + xoff, *(s32*)(row + 8),
+                mbBlitCalcWidth(b,
+                                *(s32*)(row + offsetof(PanelPieceRow, x)) +
+                                    xoff,
+                                *(s32*)(row + offsetof(PanelPieceRow, y)),
                                 lbl_803473E0);
                 if (tex != NULL) {
-                    mbBlitProject(b, *(u16*)(tex + 10), *(u16*)(tex + 12));
-                    *(s32*)(row + 28) = *(u16*)(tex + 10);
-                    *(s32*)(row + 32) = *(u16*)(tex + 12);
+                    mbBlitProject(
+                        b, *(u16*)(tex + offsetof(MBRomTexture, fieldA)),
+                        *(u16*)(tex + offsetof(MBRomTexture, wordC)));
+                    *(s32*)(row + offsetof(PanelPieceRow, width)) =
+                        *(u16*)(tex + offsetof(MBRomTexture, fieldA));
+                    *(s32*)(row + offsetof(PanelPieceRow, height)) =
+                        *(u16*)(tex + offsetof(MBRomTexture, wordC));
                 }
             }
             ((void**)blits2)[j] = b;
@@ -823,7 +1002,8 @@ int draw_inventory_panel(int player)
              j++, boff += 4, off += 36) {
             if (PlayerHasRune(player, j)) {
                 row = cfg + off;
-                name = *(char**)(row = row + 960);
+                name =
+                    *(char**)(row = row + offsetof(PanelConfigBlob, arrE));
                 if (name == NULL) {
                     b = 0;
                 } else {
@@ -831,13 +1011,18 @@ int draw_inventory_panel(int player)
                     t = MBOX_FindTexture_Err(bufC, 0, 1);
                     b = MBNewBlit(bufC, 0, 0);
                     tex = (u8*)MBRomTexPtr(t);
-                    mbBlitCalcWidth(b, *(s32*)(row + 4) + xoff,
-                                    *(s32*)(row + 8), lbl_803473E0);
+                    mbBlitCalcWidth(
+                        b, *(s32*)(row + offsetof(PanelPieceRow, x)) + xoff,
+                        *(s32*)(row + offsetof(PanelPieceRow, y)),
+                        lbl_803473E0);
                     if (tex != NULL) {
-                        mbBlitProject(b, *(u16*)(tex + 10),
-                                      *(u16*)(tex + 12));
-                        *(s32*)(row + 28) = *(u16*)(tex + 10);
-                        *(s32*)(row + 32) = *(u16*)(tex + 12);
+                        mbBlitProject(
+                            b, *(u16*)(tex + offsetof(MBRomTexture, fieldA)),
+                            *(u16*)(tex + offsetof(MBRomTexture, wordC)));
+                        *(s32*)(row + offsetof(PanelPieceRow, width)) =
+                            *(u16*)(tex + offsetof(MBRomTexture, fieldA));
+                        *(s32*)(row + offsetof(PanelPieceRow, height)) =
+                            *(u16*)(tex + offsetof(MBRomTexture, wordC));
                     }
                 }
                 ((void**)blits3)[j] = b;
@@ -874,29 +1059,48 @@ int draw_inventory_panel(int player)
         yshift = (s32)(lbl_803473F4 * prog);
         break;
     }
-    row = pl + *(s32*)(pl + 12) * 240;
-    print_n_of_m(1, *(s16*)(row + 3560), 12, xoff, yshift);
-    row = pl + *(s32*)(pl + 12) * 240;
-    print_n_of_m(2, *(s16*)(row + 3562), 20, xoff, yshift);
-    row = pl + *(s32*)(pl + 12) * 240;
-    print_n_of_m(3, *(s16*)(row + 3564), 28, xoff, yshift);
+    /* row = &pl->char_save[pl->character], addressed with a -0xDD4 shifted
+     * base (row+3560/3562/3564 land at char_save's completion1 field and
+     * the two bytes immediately after it, offsetof(Player,char_save) +
+     * offsetof(PlayerCharSave,completion1)/pad_16/pad_16+2). */
+    row = pl + *(s32*)(pl + offsetof(Player, character)) * 240;
+    print_n_of_m(1,
+                 *(s16*)(row + offsetof(Player, char_save) +
+                         offsetof(PlayerCharSave, completion1)),
+                 12, xoff, yshift);
+    row = pl + *(s32*)(pl + offsetof(Player, character)) * 240;
+    print_n_of_m(2,
+                 *(s16*)(row + offsetof(Player, char_save) +
+                         offsetof(PlayerCharSave, pad_16)),
+                 20, xoff, yshift);
+    row = pl + *(s32*)(pl + offsetof(Player, character)) * 240;
+    print_n_of_m(3,
+                 *(s16*)(row + offsetof(Player, char_save) +
+                         offsetof(PlayerCharSave, pad_16) + 2),
+                 28, xoff, yshift);
     for (i = 0, boff = 0, off = 0; i < 8; i++, boff += 4, off += 2) {
         print_n_of_m(i + 4,
-                     *(s16*)(pl + *(s32*)(pl + 12) * 240 + off + 3568),
-                     *(s32*)((u8*)lbl_80124C70 + boff + 4), xoff, yshift);
+                     *(s16*)(pl + *(s32*)(pl + offsetof(Player, character)) *
+                                      240 +
+                             off + offsetof(Player, char_save) +
+                             offsetof(PlayerCharSave, pad_1C)),
+                     *(s32*)((u8*)lbl_80124C70 + boff + sizeof(s32)), xoff,
+                     yshift);
     }
     switch (*(s32*)state) {
     case 0:
-        *(s32*)(base + player * 4 + 16) +=
+        *(s32*)(base + player * 4 + offsetof(PanelBlitOverlay, state2)) +=
             lbl_80343CA4 * (s32)gClockStepTicks;
-        if (*(s32*)(base + player * 4 + 16) >= 120) {
+        if (*(s32*)(base + player * 4 + offsetof(PanelBlitOverlay, state2)) >=
+            120) {
             *(s32*)state = 1;
         }
         break;
     case 2:
-        *(s32*)(base + player * 4 + 16) +=
+        *(s32*)(base + player * 4 + offsetof(PanelBlitOverlay, state2)) +=
             lbl_80343CA4 * (s32)gClockStepTicks;
-        if (*(s32*)(base + player * 4 + 16) >= 15) {
+        if (*(s32*)(base + player * 4 + offsetof(PanelBlitOverlay, state2)) >=
+            15) {
             result = 1;
         }
         break;
@@ -978,15 +1182,9 @@ void init_inventory_panel(int idx)
  *   +928 (0x3A0)  arrG[4][4]   handles   (stride 16)
  *   +992 (0x3E0)  arrH[4][12]  handles   (stride 48)
  * The two int arrays lbl_80274600[4]/lbl_80274610[4] sit at +0/+16.
+ * (PanelBlitOverlay is declared earlier, ahead of draw_inventory_panel,
+ * its first reader.)
  */
-typedef struct PanelBlitOverlay {
-    int state[4];
-    int state2[4];
-    u8 _pad20[0x3A0 - 0x20];
-    int group4[4][4];
-    int group12[4][12];
-} PanelBlitOverlay;
-
 void init_panel_blits(int idx)
 {
     PanelBlitOverlay* panels = (PanelBlitOverlay*)lbl_80274600;
@@ -1076,11 +1274,14 @@ void draw_panels(void)
         zero = 0;
         do {
             *(volatile s32*)(base + stateoff) = zero;
-            *(s32*)(base + stateoff + 16) = zero;
+            *(s32*)(base + stateoff + offsetof(PanelBlitOverlay, state2)) =
+                zero;
             group4Base = base + group4off;
-            *(s32*)(group4Base + 928) = zero;
-            *(s32*)(base + group12off + 992) = zero;
-            if (*(u32*)(group4Base += 928) == 0) {
+            *(s32*)(group4Base + offsetof(PanelBlitOverlay, group4)) = zero;
+            *(s32*)(base + group12off + offsetof(PanelBlitOverlay, group12)) =
+                zero;
+            if (*(u32*)(group4Base +=
+                        offsetof(PanelBlitOverlay, group4)) == 0) {
                 slot = zero;
                 pieceoff = zero;
                 playerChar = player + '1';
@@ -1225,9 +1426,10 @@ void* disp_piece(u32* piece, s32 xoff, u32 mode)
     info = MBRomTexPtr(tex);
     mbBlitCalcWidth(blit, piece[1] + xoff, piece[2], lbl_803473E0);
     if (info != 0) {
-        mbBlitProject(blit, *(u16*)(info + 10), *(u16*)(info + 0xC));
-        piece[7] = *(u16*)(info + 10);
-        piece[8] = *(u16*)(info + 0xC);
+        mbBlitProject(blit, *(u16*)(info + offsetof(MBRomTexture, fieldA)),
+                      *(u16*)(info + offsetof(MBRomTexture, wordC)));
+        piece[7] = *(u16*)(info + offsetof(MBRomTexture, fieldA));
+        piece[8] = *(u16*)(info + offsetof(MBRomTexture, wordC));
     }
     return blit;
 }
@@ -1257,12 +1459,15 @@ void print_n_of_m(s32 style, s32 n, s32 m, s32 x, u32 node)
     if (n < 0 || n > m) {
         n = m;
     }
+    /* cfg is arrH[style] read from a base shifted -0x210 (528): the row's
+     * name/width/height fields (arrH[style].name/width/height, +0x00/+0x1C/
+     * +0x20) are unused here, only x/y/scale/d/e are read. */
     cfg = base + style * 0x24;
-    scale = *(f32*)(cfg + 0x220);
-    yr = *(s32*)(cfg + 0x218);
-    d = *(s32*)(cfg + 0x224);
-    e = *(s32*)(cfg + 0x228);
-    xr = x + *(s32*)(cfg + 0x214);
+    scale = *(f32*)(cfg + offsetof(PanelConfigBlob, arrH[0].scale));
+    yr = *(s32*)(cfg + offsetof(PanelConfigBlob, arrH[0].y));
+    d = *(s32*)(cfg + offsetof(PanelConfigBlob, arrH[0].d));
+    e = *(s32*)(cfg + offsetof(PanelConfigBlob, arrH[0].e));
+    xr = x + *(s32*)(cfg + offsetof(PanelConfigBlob, arrH[0].x));
     if ((f64)scale <= lbl_80347418) {
         return;
     }
@@ -1584,10 +1789,10 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
                 for (i = 0; i < 4; i++) {
                     if ((maskSave & (1 << i)) != 0) {
                         u8* pp = players + i * 13148;
-                        if (*(s32*)(pp + 232) != 0) {
+                        if (*(s32*)(pp + offsetof(Player, state)) != 0) {
                             u8* pb = lbl_80240E30 + i * 60;
                             nbut++;
-                            buttons |= *(u32*)(pb + 8);
+                            buttons |= *(u32*)(pb + offsetof(PadCtlView, edges));
                         }
                     }
                 }
@@ -1631,7 +1836,7 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
     lbl_80344E04 = 0;
     gGameBusy = busySave;
     for (i = 0; i < 4; i++) {
-        *(s16*)(gPlayers + i * 13148 + 2406) = 0;
+        *(s16*)(gPlayers + i * 13148 + offsetof(Player, hud_flags2)) = 0;
     }
     ClearAllPlayerControls(4);
     LoadVU1GameLogic();
