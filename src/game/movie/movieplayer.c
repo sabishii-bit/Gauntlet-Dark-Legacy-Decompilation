@@ -908,51 +908,55 @@ void fn_800D967C(register int param_1, register int param_2) {
     dispatch(param_1, arg2, arg3);
 }
 
-/* Initialize a VQ frame buffer and its 16-bit component selectors. */
-u32 fn_800D96B0(u32* self, u32 unused, u8* header)
+/* Initialize a VQ frame buffer and its 16-bit component selectors.
+ * header's BI_BITFIELDS masks feed the shift/bit fields in reversed order
+ * (mask0->blueShift/Bits, mask1->greenShift/Bits, mask2->redShift/Bits) -
+ * preserved faithfully from the original raw-offset wiring, not asserted as
+ * a literal R/G/B channel identity. */
+u32 fn_800D96B0(MovieDecodeState* self, u32 unused, u8* header)
 {
     s32 height;
     s32 halfPixels;
     s32 size;
 
     (void)unused;
-    self[0] = *(u32*)(header + 4);
-    height = *(s32*)(header + 8);
-    self[1] = height < 0 ? (u32)-height : (u32)height;
-    self[2] = *(u16*)(header + 14);
-    self[10] = ((s32)self[0] + 31) / 32;
-    self[11] = ((s32)self[1] / 4) * self[10];
-    halfPixels = (((s32)self[0] / 2) * (s32)self[1]) / 2;
+    self->width = *(u32*)(header + offsetof(MovieBitmapHeader, width));
+    height = *(s32*)(header + offsetof(MovieBitmapHeader, height));
+    self->height = height < 0 ? (u32)-height : (u32)height;
+    self->_08[0] = *(u16*)(header + offsetof(MovieBitmapHeader, bitCount));
+    self->maskStride = ((s32)self->width + 31) / 32;
+    self->paletteOffset = ((s32)self->height / 4) * self->maskStride;
+    halfPixels = (((s32)self->width / 2) * (s32)self->height) / 2;
     size = halfPixels + 6146;
     size += halfPixels / 8;
-    size += self[11];
+    size += self->paletteOffset;
 
-    if (*(u16*)(header + 14) == 16) {
-        if (*(u32*)(header + 16) == 0) {
-            ((u8*)self)[52] = 0;
-            ((u8*)self)[55] = 5;
-            ((u8*)self)[53] = 5;
-            ((u8*)self)[57] = 5;
-            ((u8*)self)[54] = 10;
-            ((u8*)self)[56] = 5;
-        } else if (*(u32*)(header + 16) == 3) {
-            ((u8*)self)[52] = fn_800DBD00(self, *(s32*)(header + 40));
-            ((u8*)self)[55] = fn_800DBCCC(self, *(s32*)(header + 40));
-            ((u8*)self)[53] = fn_800DBD00(self, *(s32*)(header + 44));
-            ((u8*)self)[57] = fn_800DBCCC(self, *(s32*)(header + 44));
-            ((u8*)self)[54] = fn_800DBD00(self, *(s32*)(header + 48));
-            ((u8*)self)[56] = fn_800DBCCC(self, *(s32*)(header + 48));
+    if (*(u16*)(header + offsetof(MovieBitmapHeader, bitCount)) == 16) {
+        if (*(u32*)(header + offsetof(MovieBitmapHeader, compression)) == 0) {
+            self->blueShift = 0;
+            self->blueBits = 5;
+            self->greenShift = 5;
+            self->greenBits = 5;
+            self->redShift = 10;
+            self->redBits = 5;
+        } else if (*(u32*)(header + offsetof(MovieBitmapHeader, compression)) == 3) {
+            self->blueShift = fn_800DBD00(self, *(s32*)(header + offsetof(MovieBitmapHeader, redMask)));
+            self->blueBits = fn_800DBCCC(self, *(s32*)(header + offsetof(MovieBitmapHeader, redMask)));
+            self->greenShift = fn_800DBD00(self, *(s32*)(header + offsetof(MovieBitmapHeader, greenMask)));
+            self->greenBits = fn_800DBCCC(self, *(s32*)(header + offsetof(MovieBitmapHeader, greenMask)));
+            self->redShift = fn_800DBD00(self, *(s32*)(header + offsetof(MovieBitmapHeader, blueMask)));
+            self->redBits = fn_800DBCCC(self, *(s32*)(header + offsetof(MovieBitmapHeader, blueMask)));
         }
     }
 
-    if (self[6] != 0) {
+    if (self->chunk != 0) {
         gMovieAllocCount--;
         if (gMovieAllocCount == 0) {
             ResetAllocTot();
         }
     }
-    self[6] = (u32)AllocHiMem((u32)size + 308, (u32)gMovieAllocCount++);
-    self[7] = 0;
+    self->chunk = (u8*)AllocHiMem((u32)size + 308, (u32)gMovieAllocCount++);
+    self->frame = 0;
     return 0;
 }
 #ifdef __MWERKS__
