@@ -1,0 +1,23 @@
+{
+  "attempted_axis": "exact-closure audit of string-base initialization and sample-table pointer ownership/update-form generation, including declaration lifetimes, typed/raw DcsData access, assignment-in-use, alignment expression grouping, and pointer storage classes",
+  "attributes": {
+    "anchor": "src/game/audio/dcs.c:dcsReadVags; target 0x800D2A68; baseline git:2a77cf7d3",
+    "axis_log": [
+      "no effect: data/string declaration order and explicit assignments; register/const/volatile qualifiers; equivalent array/pointer expressions",
+      "negative: data->samples typed ownership 164 insns/73 real; assignment-in-first-use 98.26% fuzzy; combined alignment 164/71; block-scoped sample pointer 163/142",
+      "negative: raw/nested pre-base pointer representations reached 162-164 insns but caused 143-165 real diffs and register/frame cascades; all reverted",
+      "history preserved: prior 88.14->97.30 semantic/CFG reconstruction and volatile slot-cursor 97.30->98.60 gain remain intact"
+    ],
+    "conclusion": "Capped with no retained source change. Do not retry declaration/init order, register/const/volatile pointer qualifiers, direct typed DcsData member access, split or combined alignment expression, sample-pointer block lifetime, assignment-in-first-use, raw pre-base arithmetic, or nested-wrapper ownership without a genuinely new semantic source model.",
+    "measurements": "best retained baseline remains 161/163 insns, fuzzy 98.60%, exact 0%, fndiff real 70, frame 120 bytes, saves r20-r31",
+    "residual": "STRUCTURAL two-instruction wall: an extra string-base mr at the prologue and an extra sample-pointer addi after lwzu; remaining clean diff is branch displacement and register scheduling induced by those inserts",
+    "semantic_audit": "VAG count loop, 2048-slot cursor scan, overwrite diagnostics, VagParseHeader/BytesFree/AllocHiMem/FileBufGet/dcsSampleUpload flow, DcsData offsets, failure cleanup, high-water updates, and dcsBankCheckSamples ranges agree with the complete target CFG",
+    "verification": "source restored byte-for-byte; owning object and report rebuilt; fndiff --ops/--clean inspected; git diff --check passed"
+  },
+  "function": "function:dcsReadVags",
+  "id": "attempt.dcs-read-vags-pointer-owner-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
