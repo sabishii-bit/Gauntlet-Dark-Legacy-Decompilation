@@ -666,23 +666,28 @@ deactivate_previous:
  * radius, snap the look-at to camera 0's, then rebuild its world position. */
 void cam_orient_to_80029E8C(s32 camIdx)
 {
-    Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
+    u8* gcs = (u8*)gCameraState;
+    Camera* cam = (Camera*)(gcs + camIdx * 396);
+    f32 mat[16];
     f32 vec[3];
     f32 out[3];
-    f32 mat[16];
 
-    if (lbl_803447B8 != 0 || lbl_803447B4 != 0 || gNumTransmitters == 0 ||
-        camIdx != 3) {
+    cam = (Camera*)((u8*)cam + 0xC8);
+
+    if (lbl_803447B8 != 0 || lbl_803447B4 != 0 || gNumTransmitters == 0) {
+        return;
+    }
+    if (camIdx != 3) {
         return;
     }
 
     cam->pyr[1] = (f32)(cam->pyr[1] + lbl_80346128);
     {
-        f32 yaw = cam->pyr[1];
+        f64 yaw = cam->pyr[1];
         if (yaw > lbl_80345F58) {
-            yaw = (f32)(yaw - lbl_80345F60);
+            yaw = yaw - lbl_80345F60;
         } else if (yaw <= lbl_80345F68) {
-            yaw = (f32)(lbl_80345F60 + yaw);
+            yaw = lbl_80345F60 + yaw;
         }
         cam->pyr[1] = yaw;
     }
@@ -694,15 +699,18 @@ void cam_orient_to_80029E8C(s32 camIdx)
         cam->radius = lbl_80346020;
     }
 
-    cam->vel[0] = lbl_80345EC8;
-    cam->vel[1] = lbl_80345EC8;
-    cam->vel[2] = lbl_80345EC8;
-    cam->avel[0] = lbl_80345EC8;
-    cam->avel[1] = lbl_80345EC8;
-    cam->avel[2] = lbl_80345EC8;
-    cam->attn[0] = gCameras[0].attn[0];
-    cam->attn[1] = gCameras[0].attn[1];
-    cam->attn[2] = gCameras[0].attn[2];
+    {
+        f32 zero = lbl_80345EC8;
+        cam->vel[0] = zero;
+        cam->vel[1] = zero;
+        cam->vel[2] = zero;
+        cam->avel[0] = zero;
+        cam->avel[1] = zero;
+        cam->avel[2] = zero;
+    }
+    cam->attn[0] = *(f32*)(gcs + 0xC8 + 0x12C);
+    cam->attn[1] = *(f32*)(gcs + 0xC8 + 0x130);
+    cam->attn[2] = *(f32*)(gcs + 0xC8 + 0x134);
 
     CreateYPRMatrix(mat, cam->pyr);
     vec[0] = lbl_80345EC8;
