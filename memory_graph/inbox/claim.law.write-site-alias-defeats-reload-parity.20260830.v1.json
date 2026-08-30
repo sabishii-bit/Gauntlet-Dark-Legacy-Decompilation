@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/anim/atree.c de-fakematch pass (worktree GDL-Claude-AtreeDefake, work_claim.atree-defake.20260831.v1); attempt.atree-defakematch-tu-pass.20260830.v1. Two independent A/B pairs in the SAME TU, both on already-100%-matched functions.",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.declared-alias-vs-repeated-cast - narrows when its declared-alias counter-form should be preferred vs a repeated inline cast, specifically for multi-site field WRITES off a plain (non-walked, non-indexed) pointer.",
+    "tags": [
+      "core-screen",
+      "alias-form",
+      "register-web",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.write-site-alias-defeats-reload-parity.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T23:36:11Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "claim.law.declared-alias-vs-repeated-cast's counter-form (declare ONE typed alias, use it at every site) does NOT transfer to a plain (non-walked, non-indexed) struct-member pointer whose fields are being WRITTEN with already-computed values, when the raw-offset source expresses each site as an INDEPENDENT `*(T*)((u8*)ptr + N)` dereference with no shared variable (as opposed to the parent law's evidence, where the pre-existing fakematch source already used REPEATED NAMED-TYPE casts). Verified twice in game/anim/atree.c on already-100%-matched functions: (1) AtreeNodeInit's 3 sequential writes `*(f32*)((u8*)node->obj+0x30)=node->x; ...+0x34...=node->y; ...+0x38...=node->z;` regressed real 0->6 (target-only +2 lwz) when converted to `MBObject* nodeObj=(MBObject*)node->obj; nodeObj->mat[3][0]=node->x; ...` - reverting to a fresh `((MBObject*)node->obj)->mat[3][0]=node->x;` cast at each of the 3 sites restored real 0. (2) AnimFixPos (inlined into DoAnimateTree)'s 2 mat[3][0]/[2] writes off child->obj plus 4 animdata.ppos/xpos writes off child->anim (6 sites total, all storing the same constant sAtreeZero) regressed real 0->39 (target-only +5 lwz) with a declared `MBObject*`/`animdata*` alias per pointer, and again returned to real 0 with a fresh inline cast at every site. In both cases the declared alias let MWCC cache the loaded pointer value in a register across all field writes, eliminating reload instructions the TARGET binary actually contains - meaning the target's own original C source must have re-expressed the pointer at each site too (matching the repeated-cast form), not cached it in a local. This does not contradict the parent law: its DeleteItem/RegisterItemWobj/ShowMilestones evidence all started from source that ALREADY used repeated named-type casts (a developer-introduced regression the alias fixes); here the raw form had no shared variable to begin with, so a fresh inline cast is the FORM-PRESERVING conversion (identical reload count to the raw form) while a declared alias is the form-CHANGING one. Consequence: before introducing a declared alias for a multi-site field WRITE off a plain (non-walked/non-indexed) pointer, check whether the raw source already expresses every site as an independent dereference with no shared variable - if so, prefer a repeated inline cast (proven safe here up to 3-4 uses of one pointer, matching the parent law's own single-digit-site safety window) and A/B both forms regardless, exactly as the parent law already recommends doing per-function."
+}
