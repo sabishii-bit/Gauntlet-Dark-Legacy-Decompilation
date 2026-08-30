@@ -28,13 +28,13 @@
 
 struct mbnode; /* g3d/mb display node (opaque here) */
 
-typedef struct WorldObj {
+typedef struct worldobj {
     char           desc[16];       /* 0x00 name / strcmp key ("PSYS" etc.)    */
     s32            flags;          /* 0x10 object flag word                    */
     s16            triggertype;    /* 0x14                                     */
     s8             triggerstate;   /* 0x16                                     */
     s8             ptriggerstate;  /* 0x17 previous trigger state             */
-    struct WorldObj* parent;       /* 0x18 parent link (OR'd by GetAllFlags)  */
+    struct worldobj* parent;       /* 0x18 parent link (OR'd by GetAllFlags)  */
     f32            pos[3];         /* 0x1C x, y, z                            */
     struct mbnode* nodeptr;        /* 0x28 g3d display node                    */
     s16            nextidx;        /* 0x2C next-sibling index (-1 = none)      */
@@ -47,7 +47,7 @@ typedef struct WorldObj {
 } WorldObj;                        /* sizeof == 0x3C                          */
 
 #ifdef __MWERKS__
-/* offset-exact size guard (inert; header not yet included by any TU) */
+/* offset-exact size guard (included by world.c and enemy.c) */
 typedef char _worldobj_size_check[sizeof(WorldObj) == 0x3C ? 1 : -1];
 #endif
 

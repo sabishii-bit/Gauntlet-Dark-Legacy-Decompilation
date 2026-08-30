@@ -1228,7 +1228,7 @@ done:
 void* NewWorldObject(WorldObj* obj, WorldObj* parent) {
     G3DNode* node;
     void* p;
-    struct WorldObj* tmp;
+    WorldObj* tmp;
     if (parent == 0)
         p = lbl_80344D8C;
     else

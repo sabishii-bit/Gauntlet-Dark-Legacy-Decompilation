@@ -1,4 +1,5 @@
 #include "game/enemy.h"
+#include "game/worldobj.h"
 #include "game/dyngrid.h"
 
 /* Gauntlet Dark Legacy enemy module (Xbox ENEMY.OBJ / enemy.c).
@@ -861,7 +862,7 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
     s32 behavior;
     s32 result = 0;
     f32 slideRad;
-    void* hit = NULL;
+    WorldObj* hit = NULL;
     u8 framePad[4];
     f32 oldpos[3];
     f32 dh;
@@ -878,24 +879,24 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
     dt = (f32)(lbl_80346860 * gClockFrameStep);
     behavior = enemy->algorithm;
 
-    if (type == 0x1F || *(s32*)(e + 0x358) <= 0) {
-        *(s16*)(e + 0x1FE) = 0;
+    if (type == 0x1F || enemy->dead_end <= 0) {
+        enemy->area = 0;
     }
-    if (*(s16*)(e + 0x280) == 0) {
-        void* mp = *(void**)(e + 0x298);
-        if (mp != NULL && !(*(u32*)((u8*)mp + 0x10) & 0x1000)) {
+    if (enemy->moved == 0) {
+        WorldObj* mp = enemy->floor_wobj;
+        if (mp != NULL && !(mp->flags & 0x1000)) {
             goto gravity;
         }
     }
 
-    rad = *(f32*)(e + 0x238);
-    oldpos[0] = *(f32*)(e + 0x54);
-    oldpos[1] = *(f32*)(e + 0x58);
-    oldpos[2] = *(f32*)(e + 0x5C);
-    oldpos[1] = (f32)((lbl_80346868 - *(f32*)(e + 0x21C)) + oldpos[1]);
+    rad = enemy->rad;
+    oldpos[0] = enemy->objgrp.coll_pos[0];
+    oldpos[1] = enemy->objgrp.coll_pos[1];
+    oldpos[2] = enemy->objgrp.coll_pos[2];
+    oldpos[1] = (f32)((lbl_80346868 - enemy->flooroffset) + oldpos[1]);
 
-    if (*(s16*)(e + 0x280) != 0) {
-        if (*(s32*)e == 0x1D) {
+    if (enemy->moved != 0) {
+        if (enemy->type == 0x1D) {
             f32 np[3];
             u8 npPad[4];
             s32 wallResult;
@@ -967,28 +968,28 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
 
     hit = fn_80045C30(enemy, rad, retryThreshold, oldpos, tr, result);
     if (hit != NULL) {
-        *(void**)(e + 0x298) = hit;
-        if ((f64)*(f32*)(e + 0x23C) <= lbl_80346868) {
-            if (*(u32*)((u8*)hit + 0x10) & 0x38) {
+        enemy->floor_wobj = hit;
+        if ((f64)enemy->hht <= lbl_80346868) {
+            if (hit->flags & 0x38) {
                 result = 2;
                 tr[2] = 0.0f;
                 tr[0] = 0.0f;
             }
         }
     } else {
-        void* mp = *(void**)(e + 0x298);
-        if (mp != NULL && !(*(u32*)((u8*)mp + 0x10) & 0x1000)) {
+        WorldObj* mp = enemy->floor_wobj;
+        if (mp != NULL && !(mp->flags & 0x1000)) {
             goto reparent;
         }
         tr[2] = 0.0f;
         tr[0] = 0.0f;
-        hit = (void*)FloorCollide(oldpos, (s32)(pool + 0x300), 0, 2,
-                                  (f32)(lbl_80346830 * rad), *(f32*)(e + 0x23C),
-                                  (f32)(-*(f32*)(e + 0x23C) - lbl_80346870));
+        hit = FloorCollide(oldpos, (s32)(pool + 0x300), 0, 2,
+                           (f32)(lbl_80346830 * rad), enemy->hht,
+                           (f32)(-enemy->hht - lbl_80346870));
         if (hit != NULL) {
-            *(f32*)(e + 0x294) = *(f32*)(pool + 0x334) + *(f32*)(e + 0x21C);
-            if (*(void**)(e + 0x1DC) != NULL) {
-                CopyMat3((f32*)(pool + 0x300), *(f32**)(e + 0x1DC));
+            enemy->floory = *(f32*)(pool + 0x334) + enemy->flooroffset;
+            if (enemy->shadow != NULL) {
+                CopyMat3((f32*)(pool + 0x300), (f32*)enemy->shadow);
             }
         }
     }
@@ -996,14 +997,13 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
 reparent:
     if (hit != NULL) {
         void* parent;
-        if ((parent = *(void**)((u8*)hit + 0x28)) != NULL &&
-            (*(u32*)((u8*)hit + 0x10) & 0x1000)) {
-            MBNodeSetParent(*(void**)(e + 0x64), parent);
+        if ((parent = hit->nodeptr) != NULL && (hit->flags & 0x1000)) {
+            MBNodeSetParent(enemy->objgrp.node, parent);
         } else {
-            MBNodeSetParent(*(void**)(e + 0x64), (void*)lbl_8034473C);
+            MBNodeSetParent(enemy->objgrp.node, (void*)lbl_8034473C);
         }
     }
-    *(s32*)(e + 0x29C) = (hit != NULL) ? *(s32*)((u8*)hit + 0x10) : 0;
+    enemy->floor_surf = (hit != NULL) ? hit->flags : 0;
 
     if (!((f64)fqdist(tr[0], tr[2]) < lbl_80346878)) {
         goto gravity;

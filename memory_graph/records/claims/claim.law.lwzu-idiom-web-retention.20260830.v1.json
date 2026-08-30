@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "do_enemy_collide (enemy.c, 100% fuzzy, 490 insns): full member conversion regressed to 492 insns/real 160-164 twice; partial conversion (hit/floor/reparent + entry guards named, behavior chains left raw) holds byte-identical real 0. See attempt.do-enemy-collide-defakematch.20260830.v1.",
+    "scope": "MWCC GC 1.2.5 family, TUs compiled with peephole on (lwzu fusion present)"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.lwzu-idiom-web-retention.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "The load-with-update idiom `type = *(s32*)(p += CONST);` (u8* p) fuses to lwzu ONLY while p's own type-uniform web carries substantial downstream body uses. If the body's accesses are all moved to a second pointer of a DIFFERENT type initialized from p (`Enemy* e = (Enemy*)p;` - a cast transit), MWCC splits the value into a short-lived temp web plus a persistent copy (add; addi rT,rT,CONST; addi rHOME,rT,0; lwz) - the lwzu is lost and the function grows by 2 instructions. Consequence for de-fakematching 100%-matched functions written in raw-offset style: member-conversion must be PARTIAL - convert regions freely, but keep enough raw u8*-based accesses alive on the lwzu pointer's web (or keep the whole conversion out of the prologue-adjacent web) and gate every step on byte identity. Probes proven dead: deleting the dead u8* local after full conversion (web still splits), and moving the update into the typed pointer (`e = (Enemy*)(p += CONST); type = e->type;` - loses fusion entirely, worse)."
+}

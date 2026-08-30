@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "struct-layout field run: convert raw *(T*)(e + 0xNN) offset casts to named Enemy/WorldObj members under a byte-identical gate, using the new gdlmem struct op to resolve every offset",
+  "attributes": {
+    "anchors": "src/game/enemy/enemy.c::do_enemy_collide; target 490 insns, fndiff MATCH real 0 before AND after; commit pending on main",
+    "baseline_and_best": "100.0% fuzzy byte-identical preserved; ~35 raw-offset accesses converted to named fields (entry guards, position/radius block, entire hit/floor/reparent region incl. floor_wobj/hht/floory/shadow/floor_surf/objgrp.node); WorldObj typed via unified struct worldobj tag in include/game/worldobj.h",
+    "detail": "law banked as claim.law.lwzu-idiom-web-retention.20260830.v1",
+    "measurements": "full conversion of ALL ~100 accesses FAILED byte-identity twice (+2 insns, real 160/164): the prologue `type = *(s32*)(e0 += 3608)` lwzu fusion splits into add/addi/addi/lwz when the u8* web loses all body uses to the typed Enemy* pointer (cast-transit web split). Reverting the behavior-chain/gravity/ai_flags conversions (61 accesses) restored real 0.",
+    "policy": "do not attempt full-body member conversion here while the lwzu prologue idiom stands; the behavior chains and gravity block must keep the u8* e web alive. Probes tried and dead: (1) delete dead u8* e after full conversion, (2) enemy = (Enemy*)(e0 += 3608) with type = enemy->type.",
+    "residual": "none at byte level; remaining raw-offset accesses in the behavior chains (route/collided/ang/pyr[1]) and gravity block (floory/worldmat) are documented reconstruction debt held by the lwzu web constraint"
+  },
+  "function": "function:do_enemy_collide",
+  "id": "attempt.do-enemy-collide-defakematch.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
