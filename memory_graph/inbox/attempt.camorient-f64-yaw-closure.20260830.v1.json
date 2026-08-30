@@ -1,0 +1,16 @@
+{
+  "attempted_axis": "cam_orient_to structural convergence: f64 yaw temporary (no inner f32 casts), gCameraState+0xC8-derived camera-0 attn reads (flat f32* form off a kept-live gcs local), zero-constant local to CSE 6 vel/avel stores, reverse-declaration stack array packing (mat,vec,out declared -> out@12,vec@24,mat@36), guard-chain polarity split",
+  "attributes": {
+    "anchors": "src/game/game/combat.c::cam_orient_to_80029E8C; target .text 0x80029E8C size 0x198; commit 041d71cec on kimi/combat-20260830; reproduce: ninja build/GUNE5D/src/game/game/combat.o && python tools/gdl/fndiff.py game/game/combat cam_orient_to_80029E8C --clean",
+    "baseline_and_best": "baseline fuzzy 88.608 real 72 insns 102/110; final fuzzy 99.902 real 4 insns 102/102 REGISTER_ONLY",
+    "detail": "yaw math is f64 in the original (single frsp at the field store; lfd constants) -- f32 temp + inner (f32) casts was the big miss. Camera 0 inside cam_orient_to/InitCamera-style functions is gCameraState+0xC8, NOT gCameras[0] (gCameras[] is a separate symbol whose element 0 aliases it; codegen differs: reloc target and fold base). Reused external constant across 6 field stores needs a named local or MWCC reloads per store (aliasing). Negative axes: && positive-form guard wrap (real 66, worse than ||-guard 55); two-step cam assignment to steer add destination (CSE merged it back).",
+    "residual": "REGISTER_ONLY 4 lines: add r31,r5,r4 vs add r4,r5,r4+addi r31 (add-destination pick), guard polarity bne+b vs beq on 2 of 4 conditions."
+  },
+  "function": "function:cam_orient_to_80029E8C",
+  "id": "attempt.camorient-f64-yaw-closure.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "REGISTER",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

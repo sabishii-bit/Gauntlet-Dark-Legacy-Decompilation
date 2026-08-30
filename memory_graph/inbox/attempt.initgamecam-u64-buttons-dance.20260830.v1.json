@@ -1,0 +1,16 @@
+{
+  "attempted_axis": "init_game_cam convergence: u64 gControllerButtons.both & 4 test (the gcb-sflags law applied), cameras base = gCameraState+0xC8 local, volatile self-store for sPreviousFlags first word",
+  "attributes": {
+    "anchors": "src/game/game/combat.c::init_game_cam; target .text 0x8002C00C size 0x49C; commit on kimi/combat-20260830; reproduce: ninja build/GUNE5D/src/game/game/combat.o && python tools/gdl/fndiff.py game/game/combat init_game_cam --clean",
+    "baseline_and_best": "baseline fuzzy 94.573 real 207 insns 295/286; final fuzzy 97.780 real 132 insns 295/295, opcode streams identical",
+    "detail": "The and/and/xor/xor/or. 5-insn dance IS MWCC's u64-nonzero test for gControllerButtons.both & 4 (hi word &0, lo word &4); writing sFlags & 4 directly collapses it (rlwinm.) -- claim.law.gcb-sflags-relocation-alias confirmed and APPLIED as the fix (law originally said leave-as-is for aliased call sites; here the u64 spelling was the missing source truth). sPreviousFlags self-store in the if-arm needs a scoped volatile: *(volatile s32*)&sPreviousFlags.word.buttons = sPreviousFlags.word.buttons (plain self-assign dead-strips). cameras[0].x reads must be flat *(f32*)(gcs + 0x12C/0x130/...) off ONE kept-live gcs base or MWCC materializes per-use pointers; repeated ((Camera*)((u8*)gCameraState + 0xC8))-> casts do NOT CSE (real 283 regression, reverted).",
+    "residual": "REGISTER/SCHEDULE ~132 lines: prologue add-destination pick (add r29,r31,r0 vs add r4,...), reloc-order scheduling, FP f4/f5 colors. cmpwi r3,2 scheduled before stw in target."
+  },
+  "function": "function:init_game_cam",
+  "id": "attempt.initgamecam-u64-buttons-dance.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "REGISTER",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

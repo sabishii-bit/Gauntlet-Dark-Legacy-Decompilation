@@ -1,0 +1,16 @@
+{
+  "attempted_axis": "exact closure of ProcCamera: gCameraState-derived cam base, lwzu pre-increment idiom, (A|B)==0 or.-form, gcs-relative recorder position, frame pad sweep",
+  "attributes": {
+    "anchors": "src/game/game/combat.c::ProcCamera_8002E548; target .text 0x8002E548 size 0x154; commit a85d35dc8 on kimi/combat-20260830 (merged 66046d709-era); reproduce: ninja build/GUNE5D/src/game/game/combat.o && python tools/gdl/fndiff.py game/game/combat ProcCamera_8002E548 --clean",
+    "baseline_and_best": "baseline fuzzy 89.141 real 125 insns 85/88; final EXACT: fndiff --clean 0 real, --ops identical, objdiff fuzzy 100.0",
+    "detail": "cam = (Camera*)((u8*)gCameraState + camIdx*396) then *(s32*)(cp += 0xC8) pre-increment deref yields target's lwzu. gRecorderCameraPosition IS gCameraState+0x34: target folds it off the gcs base register (lfs 52(r31)) -- respell as *(f32*)(gcs+0x34+..) and gcs stays live (4 saved regs, stmw r28). (gGameBusy | gGameplayPauseTimer) == 0 emits or.; &&-form emits 2x cmpwi/bne. if/else with negated condition places wpos-copy block first. Frame recipe: u8 lo[16]; f32 offset[3]; u8 hi[12]; -> offset@sp+28 frame 72 (MWCC packs dead pads flanking referenced arrays; offset position = 12 + lo-pad size in this layout).",
+    "verification": "fndiff --clean/--ops exact; TU --count sweep clean (get_pitch/init_stage_info stayed exact after a self-inflicted pad-sweep regression was caught and reverted); full ninja green, main.dol OK"
+  },
+  "function": "function:ProcCamera_8002E548",
+  "id": "attempt.proccamera-exact-closure.20260830.v1",
+  "kind": "attempt",
+  "outcome": "exact",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
