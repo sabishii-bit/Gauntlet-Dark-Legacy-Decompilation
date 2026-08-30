@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "portable-C++ exact closure through original-style C++ cleanup/new-array hypotheses, local declaration and assignment association, SDK GX types, and GXColor by-value lifetime/stack-layout shaping",
+  "attributes": {
+    "anchor": "src/game/movie/movieplayer.c:PlayVQMovie; GameCube target .text 0x800D9FEC size 0x620; commit 75a9e8ac4",
+    "axis_log": "neutral: split construction assignment; register texture pointer; function-scope GXColor locals; standard SDK GX types; array-vs-object texture declaration; throw() annotations on cleanup calls. negative: remove 16-byte pad (frame -16); chained height/scan assignment (391 insns, real149); localized scalar declarations (real124); RAII cleanup (real112 and pad offset drift); inline struct-return color helper (frame +32, real136). retained: GXColor pass-through lifetime/pad redistribution (real72, fuzzy96.35).",
+    "measurements": "target/current 392/392 instructions; fuzzy 96.31% -> 96.35%; fndiff real 106 -> 72; normalized clean residual 112 -> 78; frame 232 -> 232",
+    "residual": "Prologue texture-address LO timing; canonical C++ new-array result copies through r24; dimensions/height/power-of-two register web and integer-to-float load order; three GXColor ABI-copy stack destinations; throw() unexpected-handler placement/catch-info offset.",
+    "retained_change": "A separate pass-through MovieGXColor local plus shrinking the preexisting unusedLow pad from 16 to 4 bytes redistributed 12 bytes across the three lexical draw-state scopes. All three source color locals now occupy target stack offsets 68, 60, and 52; compiled semantics and instruction count are unchanged.",
+    "verification": "owning object built; fndiff --count/--ops/--clean inspected; matchtool exact siblings remained OK:25; git diff --check passed; full ninja passed with build/GUNE5D/main.dol OK; post-link report confirmed fuzzy 96.35%; no assembly or postprocessor changes"
+  },
+  "commit_hash": "75a9e8ac4",
+  "function": "function:PlayVQMovie",
+  "id": "attempt.playvqmovie-gxcolor-layout.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
