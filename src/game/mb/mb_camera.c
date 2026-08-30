@@ -21,8 +21,30 @@
  * differences are compiler scheduling/register allocation.
  */
 #include "types.h"
+#include "game/pbwindow.h"
 
-extern u8* gWinGlobals;    /* 0x80344FC0 : window/model-mgr context */
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
+/* File-local mirror of pb_window.c's PBSCREEN (no Xbox PDB counterpart;
+ * layout re-verified against this TU's own MBWorldToScreen[3D] target asm,
+ * consistent with pb_window.c's reconstruction). pad2@0x28 is unresolved
+ * there too (never read in pb_window.c) - the two dwords inside it are left
+ * as raw offsets below since no field name is known. */
+typedef struct PBSCREEN {
+    /* 0x00 */ u32 flags;
+    /* 0x04 */ u8 pad[0x1C];
+    /* 0x20 */ s32 w;
+    /* 0x24 */ s32 h;
+    /* 0x28 */ u8 pad2[8];
+    /* 0x30 */ s32 w2;
+    /* 0x34 */ s32 h2;
+    /* 0x38 */ f32 xoff;
+    /* 0x3C */ f32 yoff;
+    /* 0x40 */ s32 dirty;
+} PBSCREEN;
+
 extern u8* lbl_80344EE8;
 extern s32 lbl_80344E08;
 extern s32 lbl_80344E0C;
@@ -46,9 +68,9 @@ int MBWorldSphereClip(f32* sphere, f32 radius);
 /* 0x800B53B4 - MBWorldToScreen3D : project a world point (with depth). */
 void MBWorldToScreen3D(f32* dst, f32* world)
 {
-    u8* globals = gWinGlobals;
-    u8* viewport;
-    u8* camera;
+    PBWINGLOBALS* globals = gWinGlobals;
+    PBSCREEN* viewport;
+    PBWINDOW* camera;
     f32 xScale;
     f32 yScale;
     f32 xNumerator;
@@ -61,44 +83,44 @@ void MBWorldToScreen3D(f32* dst, f32* world)
     u8 unused[16];
     f32 projected[3];
 
-    if ((*(u8**)(globals + 4))[3] != 0 ||
-        *(s32*)(*(u8**)(globals + 0x10) + 0x40) != 0) {
+    if (globals->current->proj_dirty != 0 ||
+        ((PBSCREEN*)globals->screen)->dirty != 0) {
         pbProjCalc();
     }
-    if ((*(u8**)(globals + 4))[2] != 0) {
+    if (globals->current->cam_dirty != 0) {
         pbCameraCalc();
     }
 
     projected[2] = world[2];
-    viewport = *(u8**)(globals + 0x10);
-    camera = *(u8**)(globals + 4);
-    xScale = (f32)*(s32*)(viewport + 0x20) /
-             (f32)*(s32*)(viewport + 0x28);
-    yScale = (f32)*(s32*)(viewport + 0x24) /
-             (f32)*(s32*)(viewport + 0x2C);
+    viewport = (PBSCREEN*)globals->screen;
+    camera = globals->current;
+    xScale = (f32)viewport->w /
+             (f32)*(s32*)((u8*)viewport + 0x28);
+    yScale = (f32)viewport->h /
+             (f32)*(s32*)((u8*)viewport + 0x2C);
     centeredX =
         (f64)(world[0] * xScale) -
-        lbl_80348B28 * (f64)*(s32*)(viewport + 0x20);
+        lbl_80348B28 * (f64)viewport->w;
     centeredY =
         (f64)(world[1] * yScale) -
-        lbl_80348B28 * (f64)*(s32*)(viewport + 0x24);
-    yDenomB = *(f32*)(camera + 0xD4);
-    yDenomA = *(f32*)(camera + 0x94);
-    yDepthScale = *(f32*)(camera + 0xF4);
+        lbl_80348B28 * (f64)viewport->h;
+    yDenomB = camera->viewport[1][1];
+    yDenomA = camera->projection[1][1];
+    yDepthScale = camera->viewport[3][1];
     xNumerator =
-        (f32)((f64)*(f32*)(viewport + 0x38) + centeredX);
+        (f32)((f64)viewport->xoff + centeredX);
     xNumerator *= projected[2];
-    xNumerator -= projected[2] * *(f32*)(camera + 0xF0);
+    xNumerator -= projected[2] * camera->viewport[3][0];
     projected[0] = xNumerator /
-        (*(f32*)(camera + 0x80) * *(f32*)(camera + 0xC0));
+        (camera->projection[0][0] * camera->viewport[0][0]);
     yNumerator =
-        (f32)((f64)*(f32*)(viewport + 0x3C) + centeredY);
+        (f32)((f64)viewport->yoff + centeredY);
     yNumerator *= projected[2];
     yNumerator -= projected[2] * yDepthScale;
     projected[1] = yNumerator / (yDenomA * yDenomB);
 
     vec4ApplyTrans__FR4vec4R4vec4R5mat44(
-        dst, projected, (f32*)(*(u8**)(globals + 4) + 0x240));
+        dst, projected, (f32*)globals->current->icamera);
 }
 
 /* 0x800B5554 - MBWorldToScreen : project a world point to screen space. */
@@ -107,27 +129,27 @@ void MBWorldToScreen(f32* dst, f32* world)
     f32 invW;
     f32 portWidth;
     f32 portHeight;
-    u8* globals = gWinGlobals;
+    PBWINGLOBALS* globals = gWinGlobals;
 
-    if ((*(u8**)(globals + 4))[3] != 0 ||
-        *(s32*)(*(u8**)(globals + 0x10) + 0x40) != 0) {
+    if (globals->current->proj_dirty != 0 ||
+        ((PBSCREEN*)globals->screen)->dirty != 0) {
         pbProjCalc();
     }
-    if ((*(u8**)(globals + 4))[2] != 0) {
+    if (globals->current->cam_dirty != 0) {
         pbCameraCalc();
     }
     vec4ApplyTrans__FR4vec4R4vec4R5mat44(
-        dst, world, (f32*)(*(u8**)(globals + 4) + 0x2C0));
+        dst, world, (f32*)globals->current->world_screen);
 
     invW = lbl_80348B20 / dst[3];
-    portWidth = (f32)*(s32*)(*(u8**)(globals + 0x10) + 0x20);
-    portHeight = (f32)*(s32*)(*(u8**)(globals + 0x10) + 0x24);
+    portWidth = (f32)((PBSCREEN*)globals->screen)->w;
+    portHeight = (f32)((PBSCREEN*)globals->screen)->h;
     dst[0] = (lbl_80348B38 * portWidth + dst[0] * invW) -
-             *(f32*)(*(u8**)(globals + 0x10) + 0x38);
+             ((PBSCREEN*)globals->screen)->xoff;
     dst[1] = (lbl_80348B38 * portHeight + dst[1] * invW) -
-             *(f32*)(*(u8**)(globals + 0x10) + 0x3C);
-    dst[0] *= (f32)*(s32*)(*(u8**)(globals + 0x10) + 0x28) / portWidth;
-    dst[1] *= (f32)*(s32*)(*(u8**)(globals + 0x10) + 0x2C) / portHeight;
+             ((PBSCREEN*)globals->screen)->yoff;
+    dst[0] *= (f32)*(s32*)((u8*)globals->screen + 0x28) / portWidth;
+    dst[1] *= (f32)*(s32*)((u8*)globals->screen + 0x2C) / portHeight;
     dst[2] = dst[3];
     dst[3] = lbl_80348B20;
 }
@@ -162,28 +184,28 @@ int MBWorldSphereClip(f32* sphere, f32 radius)
     f32 transformed[3];
     f32 bound;
     f32 scaled;
-    u8* globals = gWinGlobals;
-    u8* camera;
+    PBWINGLOBALS* globals = gWinGlobals;
+    PBWINDOW* camera;
 
     vec4ApplyTrans__FR4vec4R4vec4R5mat44(
-        transformed, sphere, (f32*)(*(u8**)(globals + 4) + 0x200));
-    camera = *(u8**)(globals + 4);
-    if (transformed[2] < *(f32*)(camera + 0x58) - radius) {
+        transformed, sphere, (f32*)globals->current->camera);
+    camera = globals->current;
+    if (transformed[2] < camera->near_z - radius) {
         return 6;
     }
-    if (transformed[2] > *(f32*)(camera + 0x5C) + radius) {
+    if (transformed[2] > camera->far_z + radius) {
         return 5;
     }
-    bound = transformed[2] * *(f32*)(camera + 0x60) + radius;
-    scaled = transformed[0] * *(f32*)(camera + 0x64);
+    bound = transformed[2] * camera->hva_sin_x + radius;
+    scaled = transformed[0] * camera->hva_cos_x;
     if (scaled > bound) {
         return 2;
     }
     if (scaled < -bound) {
         return 1;
     }
-    bound = transformed[2] * *(f32*)(camera + 0x68) + radius;
-    scaled = transformed[1] * *(f32*)(camera + 0x6C);
+    bound = transformed[2] * camera->hva_sin_y + radius;
+    scaled = transformed[1] * camera->hva_cos_y;
     if (scaled > bound) {
         return 3;
     }
