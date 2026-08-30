@@ -1467,29 +1467,29 @@ void fn_8004DB3C(Enemy* enemy, s32 delta)
     s32 alpha = MBTreeGetAlpha(enemy->objgrp.node);
     s32 value;
 
-    if (delta <= 0 || alpha < 255) {
-        if (delta < 0 && alpha == 0) {
-            goto fade_done;
-        }
-        value = alpha + delta * gFrameTicks;
-        if (value < 0) {
-            delta = 0;
-        } else if (value > 255) {
-            delta = 255;
-        } else {
-            delta = value;
-        }
-        if (delta == 255) {
-            MBTreeSetFlags(enemy->objgrp.node, 2, 0);
-            MBTreeSetFlags(enemy->shadow, 2, 0);
-        } else {
-            MBTreeSetAlpha(enemy->objgrp.node, delta, 1);
-            MBTreeSetAlpha(enemy->shadow, delta, 1);
-            MBTreeClearFlags(enemy->objgrp.node, 2, 0);
-            MBTreeClearFlags(enemy->shadow, 2, 0);
-        }
+    if (delta > 0 && alpha >= 255) {
+        return;
     }
-fade_done:;
+    if (delta < 0 && alpha == 0) {
+        return;
+    }
+    value = alpha + delta * gFrameTicks;
+    if (value < 0) {
+        delta = 0;
+    } else if (value > 255) {
+        delta = 255;
+    } else {
+        delta = value;
+    }
+    if (delta == 255) {
+        MBTreeSetFlags(enemy->objgrp.node, 2, 0);
+        MBTreeSetFlags(enemy->shadow, 2, 0);
+    } else {
+        MBTreeSetAlpha(enemy->objgrp.node, delta, 1);
+        MBTreeSetAlpha(enemy->shadow, delta, 1);
+        MBTreeClearFlags(enemy->objgrp.node, 2, 0);
+        MBTreeClearFlags(enemy->shadow, 2, 0);
+    }
 }
 
 /* Select and launch an enemy missile, then dispatch its positional sound. */
