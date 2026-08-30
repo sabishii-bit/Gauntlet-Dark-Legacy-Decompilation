@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "portable-C exact closure through entry-guard branch shaping, extrema/index declaration order and initializer timing, register qualifiers, and a bounded permutation sweep of the extrema/lastIndex/slot declaration web",
+  "attributes": {
+    "anchors": "src/game/sfx/psfx.c::PlayerDoWeapTrail; GameCube target 0x80089120 size 0x230; reproduce with ninja build/GUNE5D/src/game/sfx/psfx.o and python tools/gdl/fndiff.py game/sfx/psfx PlayerDoWeapTrail --count/--ops/--clean",
+    "axis_log": "Two portable nested/goto spellings of the gFrameTicks guard were byte-identical at 139 insns/real131 and could not reproduce target bne+b; original extrema order regressed to fuzzy97.14286/real135; register qualifiers were neutral at real131; 24 initialized-declaration permutations found real129; 24 staged-initializer permutations were uniformly real131; widening extrema+lastIndex+slot placement to 720 variants found 120 ties at real129 and no better result.",
+    "baseline_and_best": "baseline target/current 140/139, fuzzy 97.42857, real 131, frame 0x80; retained minimumIndex-before-maximumIndex declaration order gives target/current 140/139, fuzzy 97.53571, real 129, frame 0x80",
+    "residual": "STRUCTURAL at the entry guard only: target emits bne-to-body plus unconditional b-to-exit where portable forms fold to one beq. The remaining aligned body is a saved-register allocation rotation: target homes player/lastIndex/offset/slot in r26/r27/r25/r24 and extrema in r31-r28; retained source homes them in r28/r29/r24/r27 and r25/r30/r26/r31. Do not retry the recorded guard spellings, register qualifiers, staged initializer forms, or declaration-permutation axis without a new source-level dependency.",
+    "semantic_audit": "No behavioral change: only two independent scalar declarations moved. Calls/CFG/field offsets remain MBRemoveNode, MBTreeSetAlpha, GetWorldMat, MBNewObject and player offsets 0x74/0x6E0/0x7F4/0x800/0x804/0x808. A/B object audit kept all exact siblings unchanged and emitted .data/.sdata2 bytes identical."
+  },
+  "function": "function:PlayerDoWeapTrail",
+  "id": "attempt.playerdoweaptrail-declaration-web.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
