@@ -3127,17 +3127,22 @@ void CopyCam(u8* src, u8* dst)
 
 void ProcCamera_8002E548(s32 camIdx, s32 useRecorderPosition)
 {
-    Camera* cam = &gCameras[camIdx];
+    u8* gcs = (u8*)gCameraState;
+    u8* cp = gcs + camIdx * 396;
+    Camera* cam;
+    u8 lo[16];
     f32 offset[3];
+    u8 hi[12];
 
-    if (cam->state == 0) {
+    if (*(s32*)(cp += 0xC8) == 0) {
         return;
     }
+    cam = (Camera*)cp;
     if (cam->a_mode == ATN_FREE && cam->c_mode != CAM_OBJEYE &&
         cam->c_mode != CAM_VECDIST) {
         CreateYPRMatrix(&cam->mat[0][0], cam->pyr);
     }
-    if (gGameBusy == 0 && gGameplayPauseTimer == 0) {
+    if ((gGameBusy | gGameplayPauseTimer) == 0) {
         WorldVector(cam->vel, offset, &cam->mat[0][0]);
         cam->wpos[0] += offset[0];
         cam->wpos[1] += offset[1];
@@ -3147,14 +3152,14 @@ void ProcCamera_8002E548(s32 camIdx, s32 useRecorderPosition)
         cam->attn[1] += offset[1];
         cam->attn[2] += offset[2];
     }
-    if (useRecorderPosition != 0 && camIdx == 0 && cam->c_mode == CAM_GAME) {
-        cam->mat[3][0] = gRecorderCameraPosition[0];
-        cam->mat[3][1] = gRecorderCameraPosition[1];
-        cam->mat[3][2] = gRecorderCameraPosition[2];
-    } else {
+    if (useRecorderPosition == 0 || camIdx != 0 || cam->c_mode != CAM_GAME) {
         cam->mat[3][0] = cam->wpos[0];
         cam->mat[3][1] = cam->wpos[1];
         cam->mat[3][2] = cam->wpos[2];
+    } else {
+        cam->mat[3][0] = *(f32*)(gcs + 0x34);
+        cam->mat[3][1] = *(f32*)(gcs + 0x38);
+        cam->mat[3][2] = *(f32*)(gcs + 0x3C);
     }
 }
 
