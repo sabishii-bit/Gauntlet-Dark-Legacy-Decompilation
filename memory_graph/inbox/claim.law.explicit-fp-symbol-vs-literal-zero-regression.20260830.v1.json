@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/pmotion.c::PlayerMotion, act_bits/hud_flags early-exit arm (worktree GDL-Claude-PlayerMotionMatch, work_claim.pmotion-playermotion-match.20260830.v1, attempt.playermotion-entry-schedule-drive.20260830.v1): the two-statement `contactRadius = 0.0f; movingBias = 0.0f;` at target off ~0x13f0 compiles with the literal 0.0f pooled at an ANONYMOUS small-data offset (objdump shows `@@139(EMB_SDA21)`, distinct address from `lbl_80347B30` despite bit-identical value 0x00000000), matching target's own disassembly at that exact site (target ALSO uses an anonymous-looking constant there, confirmed by re-deriving via the paired --ops T[]/O[] instruction indices, not a naive same-offset read). Rewriting the two assignments to explicitly name the codebase's canonical `lbl_80347B30` extern (`/* 0.0f (sdata2) */`, used at 40+ other 0.0f sites in the same TU) regressed the WHOLE function: insns 4775->4776 (off-by-one), real 3782->4149 (~10% cascade). Reverted immediately; the literal-0.0f form was kept.",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py; applies whenever a codebase convention establishes a named extern global as the canonical spelling for a floating-point constant (commonly a 0.0f/1.0f sentinel placed in sdata2) that is ALSO reachable as a plain C literal at the same value.",
+    "tags": [
+      "cse",
+      "store-placement",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.explicit-fp-symbol-vs-literal-zero-regression.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T22:09:25Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "A plain C float literal (e.g. `0.0f`) and an `extern f32` global holding the identical bit pattern are NOT interchangeable source forms even when target's disassembly appears to relocate against the named extern at a given site: the extern reference is a genuine potentially-aliased MEMORY LOAD (subject to MWCC's alias analysis, like any other global read), while the literal is a compile-time constant the front end pools independently and may place at a DIFFERENT small-data address than the named extern, even though both decode to the same bytes. Substituting the named extern for a literal at one site can therefore change MWCC's aliasing/scheduling decisions across the WHOLE enclosing function (verified: +1 instruction, +367 real diff lines, in an otherwise-unrelated >4700-insn function), not just at the substitution site. Do not assume that because target's disassembly names a canonical extern symbol for what looks like a bare literal at some site, rewriting the literal to explicitly reference that symbol is a safe/neutral spelling fix; A/B it in isolation via fndiff --count exactly like any other source-shape change, and if it regresses, leave the plain literal in place and accept the resulting anonymous-pool-address mismatch as a residual (schedule/pool-identity class) rather than chase symbol-naming further at that site. Companion caution to claim.law.chained-init-constant-share (which DOES verify that two locals sharing one constant should chain through ONE initializer) - that law is about merging duplicate LITERAL initializers with each other, never about replacing a literal with a named extern reference to the same value."
+}

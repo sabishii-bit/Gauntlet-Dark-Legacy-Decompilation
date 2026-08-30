@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/pmotion.c::PlayerMotion, act_bits&0xF0 arm of the damage-scaling if/else-if chain (worktree GDL-Claude-PlayerMotionMatch, work_claim.pmotion-playermotion-match.20260830.v1, attempt.playermotion-entry-schedule-drive.20260830.v1): target off ~0x3954 interleaves `fmul f23,f23,f2` (the damage*=CONST statement) BETWEEN the `fsubs` and the two field stores of the neighboring `p->power_target -= p->coll_score; p->coll_score = 0.0f;` pair. Reordering the SOURCE statement `damage = (f32)(damage * lbl_80347B28);` to occupy the SAME relative position (moved from after to before the power_target/coll_score pair) closed the --ops cluster to byte-identical: real 3782->3780, lines 4064->4060, fuzzy 97.18346%->97.24377%, insns unchanged 4775/4775 exact.",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py; applies to a run of 2+ adjacent, data-independent statements (no shared variables, no control dependency) where target's disassembly shows one statement's load/compute instructions physically interleaved among the instructions of its neighbor rather than emitted as a separate contiguous block.",
+    "tags": [
+      "entry-schedule",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T22:09:19Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "MWCC's list scheduler interleaves independent statements' instructions for latency hiding, but which statement's instructions appear FIRST in the interleaved sequence is influenced by the statements' relative order in the SOURCE (AST/IR node order), not purely by data dependency (which permits either order). When target's disassembly shows an independent computation's load+op instructions threaded between an adjacent unrelated statement's own load/op/store instructions, and the current source has that computation positioned textually AFTER its neighbor instead of interleaved-as-if-first, physically moving the whole statement to before its neighbor (still same control-flow position, same block) can reproduce target's interleave exactly. Diagnostic: for a run of independent statements identified via an fndiff --ops cluster showing an opcode-multiset mismatch localized to that run (not a pure register-rename), check the FIRST instruction touching each source variable in target's disassembly against the SAME check in ours; a statement whose first-touch instruction appears earlier in target than in ours (relative to its neighbors) is a reorder-forward candidate. This is a plain statement-order change, distinct from claim.law.declaration-initializer-split-controls-entry-schedule (which is about a declaration's initializer vs. an EARLIER store) and claim.law.chained-init-constant-share (which is about merging two initializers of the SAME constant into one chained assignment) - no declaration or initializer is involved here, only the order of two already-declared statements within one block. Gate every reorder individually with fndiff --count (insn-count parity, real-line delta) before accepting, per claim.law.large-fn-batch-fuzzy-can-mask-subfield-regression - a reorder that looks locally plausible from the disassembly alone is not guaranteed neutral elsewhere in a >4000-insn function."
+}
