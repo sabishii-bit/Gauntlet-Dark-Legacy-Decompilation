@@ -282,13 +282,19 @@ void DrawGlowTextMLines(f32 scale, s32 x, s32 y, s32* str)
 void DrawGlowText(f32 scale, s32 x, s32 y, u8* str)
 {
     s32 span = glow_radius * 2;
-    s32 phase = (u32)pbLoad % (u32)(glow_period + span);
+    s32 phase;
+    u32 load;
+    u32 divisor;
     u32 prevFlags;
     u32 a;
     void* q;
     u8* text;
     u8 unused[8];
 
+    load = pbLoad;
+    divisor = (u32)(glow_period + span);
+    phase = load;
+    phase -= (load / divisor) * divisor;
     text = str;
 
     if (phase > span) {
