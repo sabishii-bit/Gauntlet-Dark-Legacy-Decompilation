@@ -1262,6 +1262,7 @@ typedef struct MovieAudioState {
 #define MOVIE_SETUP_DRAW_STATE()                                             \
     {                                                                        \
         MovieGXColor color;                                                  \
+        MovieGXColor passColor;                                              \
                                                                              \
         color.r = 0xff;                                                      \
         color.g = 0xff;                                                      \
@@ -1275,7 +1276,8 @@ typedef struct MovieAudioState {
         fn_800C6AB4(1);                                                      \
         GXInvalidateTexAll();                                                \
         GXLoadTexObj(textureObject, MOVIE_GX_TEXMAP0);                       \
-        GXSetChanMatColor(MOVIE_GX_COLOR0A0, color);                         \
+        passColor = color;                                                   \
+        GXSetChanMatColor(MOVIE_GX_COLOR0A0, passColor);                     \
         GXSetZMode(MOVIE_GX_TRUE, MOVIE_GX_GEQUAL, MOVIE_GX_TRUE);           \
     }
 
@@ -1309,7 +1311,7 @@ extern "C" void PlayVQMovie(const char* name) throw()
     PADStatus* pads;
     u8 unusedHigh[40];
     PADStatus previousPads[4];
-    u8 unusedLow[16];
+    u8 unusedLow[4];
 
     movie = (u8*)AllocHiMem(472, (u32)gMovieAllocCount++);
     gMovieStreamState = movie = (u8*)__construct_new_array(
