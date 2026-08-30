@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "TU-scoped de-fakematch pass over src/game/ui/select.c: resolve raw *(T*)(p+0xNN) casts to Player (include/game/player.h, GC-verified) and existing file-local VmuMenuEntry/new BlitEntry struct members, gated per function on fndiff --count (byte-identical for Matching, equal-or-better real/insns for fuzzy).",
+  "attributes": {
+    "anchors": "src/game/ui/select.c whole TU; python tools/gdl/fndiff.py game/ui/select.c <fn> --count; ninja build/GUNE5D/src/game/ui/select.o",
+    "converted": "init_player_change (state 0xE8, exit_dest 0x830, exp 0x1EC0 x5 sites, insns 78/79 real45 unchanged); other_players_next_level (state,exit_dest x3 sites, stayed OK/exact); check_active_players (state x1, stayed OK); verify_vmu_file_ok (state x1, stayed OK); sel_set_choice (VmuMenuEntry id/state, 15 decimal-offset sites, stayed OK/exact); hide_select_blits (new file-local BlitEntry.mode, 1 site, stayed OK/exact). 4 commits, all fndiff-gated, full ninja green + main.dol checksum OK after each batch.",
+    "left_raw_hazard": "do_player_select (1885 insns, baseline real1096): state(0xE8) alone -> real1449, motion_state(0x3338) alone -> real1807; both reverted, capped per two-failed-forms, ~150 raw sites left untouched. setup_sel_menu (baseline real82): full 18-site SelMenuBlock batch -> real100; scalar-only subset (no pointer 'entries') -> real96; both reverted, capped. update_class_attr (baseline real160): state/character/respawn_char/exp probe -> real195, reverted; one form only (time-boxed) -- screen before retrying.",
+    "left_raw_unresolvable": "Player 0x333C, 0x3348-0x3358, 0xA8B/0xA8C/0xA8E are inside player.h's documented pad regions (no GC-verified field); setup_file_entries's only offsets (0x334C/0x3350) are in that region, skipped entirely. serve_blits screened: prior attempt.serve-blits-kb-init-lifetime already reverted the blits-entry +8 timer field in modes 5-7 (not re-walked); that +8 field is also in an `e += 8` lwzu web in 2 switch cases; page-entry +0x20/+0x24/+0x28 (separate 'page' blob) has no struct authority. serve_blits untouched this pass.",
+    "new_hazard_observed": "Pointer-typed fields (char* hidden_code at Player+0xF0, void* entries in the new SelMenuBlock) regress via &((T*)p)->field cast-transit even where sibling scalar fields in the SAME function stay byte-identical -- distinct from/compounding cast-transit-no-CSE; treat pointer-typed member conversion as its own probe.",
+    "scoring": "select.c hex-offset census 263->253 (task's Select-String pattern). sel_set_choice/hide_select_blits additionally converted 16 decimal-offset sites (*(T*)(p+N), outside that hex-only pattern). No fuzzy%/matched% project delta -- touched fns were exact-stayed-exact or fuzzy-stayed-same-real; pure debt reduction, not a matching gain.",
+    "verification": "Each batch: fndiff --count before/after per touched function, full `ninja` (not just select.o) + `CHECK config/GUNE5D/build.sha1` = OK + PROGRESS unchanged (58.15% matched/97.80% fuzzy stable) before commit; git diff --check clean; no assembly; 4 commits on claude/select-defake-20260830."
+  },
+  "function": "function:serve_blits",
+  "id": "attempt.select-defake-tu.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
