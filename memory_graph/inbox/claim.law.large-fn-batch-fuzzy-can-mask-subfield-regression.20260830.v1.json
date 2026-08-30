@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/pmotion.c::PlayerMotion (worktree GDL-Claude-PmotionDefake, work_claim.pmotion-defake.20260830.v1); attempt.pmotion-c-defakematch-tupass.20260830.v1",
+    "scope": "MWCC GC 1.2.5 family; applies to functions above the project's ~4000-insn fuzzy-arbitration threshold when a batch of several de-fakematch field conversions is applied and gated in one shot."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.large-fn-batch-fuzzy-can-mask-subfield-regression.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "objdiff's fuzzy_match_percent, the mandated arbitration metric for functions over ~4000 instructions, is a coarser similarity measure than fndiff's real (raw diff-line) count and can move in the OPPOSITE direction from a genuine structural regression hidden inside a multi-field batch. Verified in PlayerMotion (4775 insns): a batch converting field_128(0x128) together with 3 known-safe fields (stat_damage/light_range/vibe_on/level) scored fuzzy 97.188065% - fractionally ABOVE the true-safe checkpoint's 97.18346% - while fndiff --count showed real jumped 3782->3963 and insn count went from an exact 4775/4775 match to an off-by-one 4775/4774; isolating field_128 alone reproduced the real regression standalone (3782->3963) with the other 3 fields confirmed neutral. Consequence: even when arbitrating a large function by fuzzy per project policy, ALSO check fndiff --count's insn-count-parity and real-line-count on every batch before accepting it - a fuzzy non-regression is not sufficient proof of no regression when several fields are converted together; bisect to single-field granularity (or small groups) whenever real disagrees with fuzzy's direction, and keep only the sub-changes that hold real steady or improve it alongside fuzzy."
+}
