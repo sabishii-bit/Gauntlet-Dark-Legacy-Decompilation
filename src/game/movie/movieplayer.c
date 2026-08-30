@@ -314,14 +314,14 @@ void fn_800D86C8(u32 param_1, u8* param_2, int param_3) {
 #pragma dont_inline off
 
 /* Release one movie allocation and clear the owning slot. */
-s32 fn_800D8784(u32* state) {
-    if (state[6] != 0) {
+s32 fn_800D8784(MovieDecodeState* state) {
+    if (state->chunk != 0) {
         gMovieAllocCount--;
         if (gMovieAllocCount == 0) {
             ResetAllocTot();
         }
     }
-    state[6] = 0;
+    state->chunk = 0;
     return 0;
 }
 
