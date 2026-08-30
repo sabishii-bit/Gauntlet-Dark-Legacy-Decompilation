@@ -380,7 +380,7 @@ typedef struct CombatCameraSupervisorScratch {
     volatile f32 projectedRoot;
     volatile f32 segmentRoot;
     volatile f32 candidateRoot;
-    u8 _pad40[4];
+    u8 _pad40[12];
     f32 closest[3];
 } CombatCameraSupervisorScratch;
 
