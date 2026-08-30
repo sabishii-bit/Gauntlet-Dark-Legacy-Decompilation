@@ -267,7 +267,7 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     if (idx < 0) {
         return;
     }
-    row = *(u8**)(lbl_80282930[*(s32*)p] + 8) + idx * 88;
+    row = *(u8**)(lbl_80282930[((Player*)p)->index] + 8) + idx * 88;
     sf = (f32)*(s16*)(row + 80);
     ef = (f32)*(s16*)(row + 82);
     if (t1 >= sf) {
@@ -277,27 +277,27 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                 fn_80067AE0(fl, lbl_80347DA4, lbl_80347DA8);
                 {
                     f32 v = lbl_80347DAC;
-                    *(f32*)(p + 2044) = v;
+                    ((Player*)p)->pulse_7FC = v;
                     if (p2 != NULL) {
-                        *(f32*)(p2 + 2044) = v;
+                        ((Player*)p2)->pulse_7FC = v;
                     }
                 }
             } else if (fl & 0x20) {
                 fn_80067AE0(fl, lbl_80347DA4, lbl_80347DB0);
                 {
                     f32 v = lbl_80347DAC;
-                    *(f32*)(p + 2044) = v;
+                    ((Player*)p)->pulse_7FC = v;
                     if (p2 != NULL) {
-                        *(f32*)(p2 + 2044) = v;
+                        ((Player*)p2)->pulse_7FC = v;
                     }
                 }
             } else if (fl & 0x10) {
                 fn_80067AE0(fl, lbl_80347DA4, lbl_80347DB4);
                 {
                     f32 v = lbl_80347DAC;
-                    *(f32*)(p + 2044) = v;
+                    ((Player*)p)->pulse_7FC = v;
                     if (p2 != NULL) {
-                        *(f32*)(p2 + 2044) = v;
+                        ((Player*)p2)->pulse_7FC = v;
                     }
                 }
             }
@@ -311,17 +311,17 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     {
         f32 one = lbl_80347DB8;
         if (t0 < one && t1 >= one && *(s16*)(row + 84) >= 0) {
-            msgPost(*(s16*)(row + 84), *(s32*)p, p + 84);
+            msgPost(*(s16*)(row + 84), ((Player*)p)->index, ((Player*)p)->col_pos);
         }
     }
     if (*(s16*)(row + 2) & 0x400) {
         if (t1 >= sf && t1 < ef) {
-            if (*(void**)(p + 1760) != NULL) {
-                MBTreeSetFlags(*(void**)(p + 1760), 2, 0);
+            if (((Player*)p)->weaphold_node != NULL) {
+                MBTreeSetFlags(((Player*)p)->weaphold_node, 2, 0);
             }
         } else {
-            if (*(void**)(p + 1760) != NULL) {
-                MBTreeClearFlags(*(void**)(p + 1760), 2, 0);
+            if (((Player*)p)->weaphold_node != NULL) {
+                MBTreeClearFlags(((Player*)p)->weaphold_node, 2, 0);
             }
         }
     }
@@ -331,8 +331,8 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     if (t1 >= sf && t0 < ef) {
         f32 zero = lbl_80347DA0;
         if (zero != *(f32*)(row + 56)) {
-            *(f32*)(p + 2088) = *(f32*)(p + 2088) - *(f32*)(p + 2320);
-            *(f32*)(p + 2320) = zero;
+            ((Player*)p)->power_target = ((Player*)p)->power_target - ((Player*)p)->coll_score;
+            ((Player*)p)->coll_score = zero;
         }
         lbl_80344B40 = p2;
         switch (*(s16*)row) {
@@ -348,10 +348,10 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
             if (t1 == t0) {
                 break;
             }
-            mask = *(u32*)(p + 284) & 0xFFB7FFFF;
+            mask = ((Player*)p)->field_11C & 0xFFB7FFFF;
             if (sf == ef) {
                 if (lbl_80347DC0 == (f64)*(f32*)(row + 20)) {
-                    YawVec3((f32*)(p + 52), buf, *(f32*)(row + 32));
+                    YawVec3(&((Player*)p)->mat[8], buf, *(f32*)(row + 32));
                     n = PlayerStartMissile(p, buf, mask, 0, lbl_80347DC8,
                                            lbl_80347DAC);
                 } else {
@@ -364,7 +364,7 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                     ky = lbl_80347DD8;
                     kone = lbl_80347DE8;
                     while (acc < kone) {
-                        YawVec3((f32*)(p + 52), buf,
+                        YawVec3(&((Player*)p)->mat[8], buf,
                                 *(f32*)(row + 32) * acc);
                         rate = lbl_80347DE0;
                         buf[0] = (f32)(buf[0] * kx);
@@ -400,7 +400,7 @@ void fn_80089350(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                     }
                     scale = scale * k;
                 }
-                YawVec3((f32*)(p + 52), buf, scale);
+                YawVec3(&((Player*)p)->mat[8], buf, scale);
                 buf[1] = lbl_80347DB8;
                 buf[0] = buf[0] * *(f32*)(row + 44);
                 buf[1] = buf[1] * *(f32*)(row + 48);
