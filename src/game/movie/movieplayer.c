@@ -34,6 +34,10 @@
 #include "dolphin/pad.h"
 #include "dolphin/gx/GXVert.h"
 
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
 typedef struct MovieGXColor {
     u8 r, g, b, a;
 } MovieGXColor;
@@ -42,6 +46,12 @@ typedef struct MovieGXTexObj {
     u32 data[8];
 } MovieGXTexObj;
 
+/* Fields at 0x30+ inferred solely from raw-offset usage in MovieDecodePalette
+ * and fn_800D8BCC's case-2 block (no Xbox PDB struct for this GC-specific
+ * VQ decode state was found; names are file-local, not authoritative). They
+ * describe a per-channel bit-count/shift pair used to pack a 3-byte palette
+ * RGB triple into a 16-bit pal[] entry: out = (p[0]>>(8-redBits))<<redShift
+ * | (p[1]>>(8-greenBits))<<greenShift | (p[2]>>(8-blueBits))<<blueShift. */
 typedef struct MovieDecodeState {
     /* 0x00 */ s32 width;
     /* 0x04 */ s32 height;
@@ -51,6 +61,13 @@ typedef struct MovieDecodeState {
     /* 0x20 */ u32 _20[2];
     /* 0x28 */ s32 maskStride;
     /* 0x2C */ s32 paletteOffset;
+    /* 0x30 */ u32 _30;
+    /* 0x34 */ u8 blueShift;
+    /* 0x35 */ u8 greenShift;
+    /* 0x36 */ u8 redShift;
+    /* 0x37 */ u8 blueBits;
+    /* 0x38 */ u8 redBits;
+    /* 0x39 */ u8 greenBits;
 } MovieDecodeState;
 
 typedef struct MovieDecodeCall {
@@ -60,6 +77,117 @@ typedef struct MovieDecodeCall {
     /* 0x0C */ s32 bitmap;
     /* 0x10 */ u8* destination;
 } MovieDecodeCall;
+
+/* Standard Windows BITMAPINFOHEADER (public AVI/BMP format, not a GDL/Xbox
+ * name) - the .avi container's per-stream video format record. MovieDecodeCall
+ * .context/.bitmap both point at one of these (target/source format);
+ * verified by offset against fn_800D93D4, fn_800D96B0, fn_800D87FC,
+ * fn_800D8BCC and MovieValidateFrameFormat, which all read the identical
+ * width/height/bitCount/compression displacements. When compression==3
+ * (BI_BITFIELDS) and size==40, three DWORD channel masks follow the header
+ * at 0x28/0x2C/0x30 (a common practical extension, not part of the official
+ * 40-byte struct) - used by fn_800D96B0 to derive the palette shift/bit
+ * fields. */
+typedef struct MovieBitmapHeader {
+    /* 0x00 */ u32 size;
+    /* 0x04 */ s32 width;
+    /* 0x08 */ s32 height;
+    /* 0x0C */ u16 planes;
+    /* 0x0E */ u16 bitCount;
+    /* 0x10 */ s32 compression;
+    /* 0x14 */ u32 sizeImage;
+    /* 0x18 */ u32 xPelsPerMeter;
+    /* 0x1C */ u32 yPelsPerMeter;
+    /* 0x20 */ u32 clrUsed;
+    /* 0x24 */ u32 clrImportant;
+    /* 0x28 */ u32 redMask;
+    /* 0x2C */ u32 greenMask;
+    /* 0x30 */ u32 blueMask;
+} MovieBitmapHeader;
+
+/* File-local circular byte-ring: fn_800D9C5C allocates buffer/size and zeros
+ * writePos/readPos, fn_800D9A14 consumes from readPos, fn_800D9B48 produces
+ * at writePos, fn_800D9DA4/fn_800D9CF4 release it. Not a GC-verified name -
+ * offsets verified purely from this TU's own usage. */
+typedef struct MovieRingBuffer {
+    u8* buffer;
+    u32 size;
+    u32 writePos;
+    u32 readPos;
+} MovieRingBuffer;
+
+/* File-local RIFF chunk-list node, 0x28 bytes (matches the 0x2800-byte pool
+ * of 256 nodes allocated by MovieDecoderInitBuffers). Filled by fn_800DB3D4
+ * while walking .avi '00db'/'00dc' (video) and '01wb' (audio) sub-chunks;
+ * consumed by fn_800DB36C/fn_800DB29C. Not a GC-verified name. */
+typedef struct MovieChunkNode {
+    /* 0x00 */ struct MovieChunkNode* next;
+    /* 0x04 */ u32 totalSize;       /* RIFF LIST payload size + 8, word-aligned */
+    /* 0x08 */ u32 dataOffset;      /* byte offset of this chunk's data in stream.buffer */
+    /* 0x0C */ u32 videoFrameIndex; /* stream.videoFrameCount snapshot at '00db'/'00dc' */
+    /* 0x10 */ u32 videoSize;       /* '00db'/'00dc' payload size */
+    /* 0x14 */ u32 audioSize;       /* '01wb' payload size */
+    /* 0x18 */ u32 junkSize;        /* 'JUNK' payload size */
+    /* 0x1C */ u32 audioByteOffset; /* stream.audioBytesProduced snapshot at '01wb' */
+    /* 0x20 */ u8* videoData;
+    /* 0x24 */ u8* audioData;
+} MovieChunkNode;
+
+/* File-local .avi RIFF read-ahead stream state, embedded at movie+0x20
+ * (verified via fn_800DA6A4's fn_800DB3D4((u32*)(movie+0x20), ...) call and
+ * PlayVQMovie's MovieDecoderInitBuffers((u32*)(movie+32), ...)). Owns a main
+ * double-buffered read window (buffer/rawBuffer + stagingBuffer/rawStaging),
+ * an embedded MovieRingBuffer at 0x3C for demuxed audio bytes, and a
+ * MovieChunkNode free-list/pool for demuxed RIFF chunks. Not a GC-verified
+ * name - offsets verified purely from this TU's own usage across
+ * MovieDecoderInitBuffers, fn_800DB82C, fn_800DB3D4, fn_800DB29C,
+ * fn_800DB36C, fn_800DB2F4 and the dtor cluster (fn_800DB008/fn_800DB0F8/
+ * dtor_800DB21C). self[8]/self[9] are always zeroed but never read in this
+ * TU - left as unknown padding. self+0x4C (word 19) is written once (a byte
+ * flag in fn_800DB2F4) with no corroborating read - left raw there. */
+typedef struct MovieChunkStream {
+    /* 0x00 */ u8* buffer;            /* aligned view of rawBuffer, main read window */
+    /* 0x04 */ u8* rawBuffer;         /* AllocHiMem'd block backing buffer */
+    /* 0x08 */ u8* stagingBuffer;     /* aligned view of rawStaging, read-ahead landing pad */
+    /* 0x0C */ u8* rawStaging;        /* AllocHiMem'd block (0x10020 bytes) backing stagingBuffer */
+    /* 0x10 */ u32 writePos;          /* bytes consumed into buffer so far */
+    /* 0x14 */ u32 highWater;         /* compared against writePos when reclaiming space */
+    /* 0x18 */ u32 bufferSize;        /* total allocated size of buffer */
+    /* 0x1C */ u32 pendingLength;     /* bytes just landed in stagingBuffer, awaiting copy-in */
+    /* 0x20 */ u32 _20;
+    /* 0x24 */ u32 _24;
+    /* 0x28 */ u32 filePos;           /* bytes consumed from the source file so far */
+    /* 0x2C */ u32 fileSize;          /* total source file size (sceLseek SEEK_END) */
+    /* 0x30 */ u32 videoFrameLimit;   /* total video frame count */
+    /* 0x34 */ u32 videoFrameCount;   /* video frames demuxed so far */
+    /* 0x38 */ u32 audioBytesProduced;/* cumulative demuxed audio byte offset */
+    /* 0x3C */ MovieRingBuffer audio; /* demuxed-audio ring buffer, fed by fn_800D9B48 */
+    /* 0x4C */ u8 _4C;                /* byte flag (fn_800DB2F4/fn_800DB82C); no read evidence */
+    /* 0x4D */ u8 _4D_pad[3];
+    /* 0x50 */ MovieChunkNode* activeNode;
+    /* 0x54 */ u8* nodePoolRaw;       /* AllocHiMem'd block (0x2800 bytes = 256 nodes) */
+    /* 0x58 */ MovieChunkNode* freeListHead;
+} MovieChunkStream;
+
+/* File-local "outer" DText debug-overlay sub-object embedded at movie+0x150
+ * (fn_800DB008 passes self+0x54 words = movie+0x150 to fn_800DBD30). Only
+ * the vtable and one allocation-owned flag are ever touched in this TU; the
+ * gap is genuinely unknown, not merely unused. Not a GC-verified name. */
+typedef struct MovieDTextOuter {
+    /* 0x00 */ u32 _00[8];
+    /* 0x20 */ u32* vtable;
+    /* 0x24 */ u32 _24[2];
+    /* 0x30 */ u32 ownsAlloc;
+} MovieDTextOuter;
+
+/* File-local "inner" DText debug-overlay sub-object (distinct vtable
+ * lbl_801296F0 vs MovieDTextOuter's lbl_801296CC). Not a GC-verified name. */
+typedef struct MovieDTextInner {
+    /* 0x00 */ u32 _00[6];
+    /* 0x18 */ u32 ownsAlloc;
+    /* 0x1C */ u32 _1C;
+    /* 0x20 */ u32* vtable;
+} MovieDTextInner;
 
 extern void GXInitTexObj(MovieGXTexObj* obj, void* data, u16 width, u16 height,
                          u32 format, u32 wrapS, u32 wrapT, u8 mipmap);
@@ -147,29 +275,29 @@ extern const f32 lbl_803493E8;
 extern const f32 lbl_803493EC;
 
 /* --- forward decls for intra-TU calls --- */
-u32* fn_800DBC64(u32* p);
-u32* fn_800DBE04(u32* p);
-u32* DTextInitColorRamp(u32* p);
+MovieChunkStream* fn_800DBC64(MovieChunkStream* p);
+MovieDTextOuter* fn_800DBE04(u32* p);
+MovieDTextInner* DTextInitColorRamp(MovieDTextInner* p);
 void fn_800D9DF0(char* src, int len, u8* dst, int* outlen);
 u32 fn_800D93D4(u32* p1, u32 p2, int p3, char* p4, int p5, u8* p6);
-u32 fn_800D87FC(u32* p1, int p3, char* p4, int mode, int p5, u8* p6);
-u32 fn_800D8BCC(u32* p1, int p3, char* p4, int mode, int p5, u8* p6);
+u32 fn_800D87FC(MovieDecodeState* p1, int p3, char* p4, int mode, int p5, u8* p6);
+u32 fn_800D8BCC(MovieDecodeState* p1, int p3, char* p4, int mode, int p5, u8* p6);
 u32 fn_800D8F28(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D91B4(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
-u32 fn_800D9A14(u32* p1, u8* p2, int p3, u8 p4);
+u32 fn_800D9A14(MovieRingBuffer* p1, u8* p2, int p3, u8 p4);
 void fn_800DBE98(void* param_1, u8* param_2);
-int fn_800DB2F4(u8* param_1, u8* param_2, u32 param_3, u32 param_4);
+int fn_800DB2F4(MovieChunkStream* param_1, u8* param_2, u32 param_3, u32 param_4);
 void fn_800DB3D4(u32* stream, s32 fd, u32 length);
-void fn_800DB29C(int stream);
-u32* fn_800DB36C(int stream);
-void fn_800DB82C(u32* stream, int fd, u32 offset);
+void fn_800DB29C(MovieChunkStream* stream);
+MovieChunkNode* fn_800DB36C(MovieChunkStream* stream);
+void fn_800DB82C(MovieChunkStream* stream, int fd, u32 offset);
 void fn_800DA60C(u8* movie);
 u32 fn_800DA6A4(u8* movie, u32 decodeFrame, f32 elapsed);
 s32 fn_800DA920(u8* movie, const char* name);
 u32 fn_800DACD8(int movie, u8* header);
-u8 MovieDecoderInitBuffers(u32* decoder, u32 size, u32 hasAudio);
+u8 MovieDecoderInitBuffers(MovieChunkStream* decoder, u32 size, u32 hasAudio);
 void fn_800D9F20(int audio);
-u32* fn_800DBF6C(u32* self, s16 deleting);
+MovieDTextInner* fn_800DBF6C(MovieDTextInner* self, s16 deleting);
 u32* fn_800DB008(u32* self, s16 deleting);
 u32* fn_800DB0F8(u32* self);
 u8 fn_800DBCCC(void* self, s32 x);
@@ -270,18 +398,18 @@ void fn_800D86C8(u32 param_1, u8* param_2, int param_3) {
 #pragma dont_inline off
 
 /* Release one movie allocation and clear the owning slot. */
-s32 fn_800D8784(u32* state) {
-    if (state[6] != 0) {
+s32 fn_800D8784(MovieDecodeState* state) {
+    if (state->chunk != 0) {
         gMovieAllocCount--;
         if (gMovieAllocCount == 0) {
             ResetAllocTot();
         }
     }
-    state[6] = 0;
+    state->chunk = 0;
     return 0;
 }
 
-static inline void MovieDecodePalette(u32* state, u8* pal, int count)
+static inline void MovieDecodePalette(MovieDecodeState* state, u8* pal, int count)
 {
     int i;
     u8* p;
@@ -290,44 +418,44 @@ static inline void MovieDecodePalette(u32* state, u8* pal, int count)
     u8 sh2;
     int n;
 
-    sh1 = 8 - *((u8*)state + 0x39);
-    sh0 = 8 - *((u8*)state + 0x38);
-    sh2 = 8 - *((u8*)state + 0x37);
+    sh1 = 8 - state->greenBits;
+    sh0 = 8 - state->redBits;
+    sh2 = 8 - state->blueBits;
     n = count * 4;
     i = 0;
     p = pal;
     for (; i < n; i++) {
         fn_800DBE98(state, p);
-        ((u16*)pal)[i] = (((p[0] >> sh0) << *((u8*)state + 0x36))
-                        | ((p[1] >> sh1) << *((u8*)state + 0x35)))
-                        | ((p[2] >> sh2) << *((u8*)state + 0x34));
+        ((u16*)pal)[i] = (((p[0] >> sh0) << state->redShift)
+                        | ((p[1] >> sh1) << state->greenShift))
+                        | ((p[2] >> sh2) << state->blueShift);
         p += 3;
     }
 }
 
 /* VQ texture/tile decode into a GX tex obj (ReadU16LE/ReadF32LE, DCFlush/Invalidate, GXInvalidateTexAll) */
-u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param_5, u8* param_6) {
+u32 fn_800D87FC(MovieDecodeState* state, int param_2, char* param_3, int param_4, int param_5, u8* param_6) {
     int count;
     int nbits;
     u8* hdr8;
     u8* pal;
     u8* ip;
 
-    count = ReadU16LE((u8*)param_1[6]);
-    nbits = ReadF32LE((u8*)param_1[6] + 4);
-    hdr8 = (u8*)(param_1[6] + 8);
-    pal = hdr8 + param_1[0xB];
+    count = ReadU16LE(state->chunk);
+    nbits = ReadF32LE(state->chunk + 4);
+    hdr8 = state->chunk + 8;
+    pal = hdr8 + state->paletteOffset;
     ip = pal + count * 12;
-    DCInvalidateRange((void*)param_6, param_1[0] * param_1[1] * 2);
+    DCInvalidateRange((void*)param_6, state->width * state->height * 2);
     switch (param_4) {
     case 0:
-        fn_800D86C8((u32)param_1, pal, count);
+        fn_800D86C8((u32)state, pal, count);
         break;
     case 1:
-        fn_800D860C((u32)param_1, pal, count);
+        fn_800D860C((u32)state, pal, count);
         break;
     case 2:
-        MovieDecodePalette(param_1, pal, count);
+        MovieDecodePalette(state, pal, count);
         break;
     default:
         return -1;
@@ -337,9 +465,9 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
         int dir;
         int row;
 
-        if (*(int*)(param_5 + 8) < 0) {
+        if (*(int*)(param_5 + offsetof(MovieBitmapHeader, height)) < 0) {
             dir = -1;
-            row = param_1[1] - 1;
+            row = state->height - 1;
         } else {
             row = 0;
             dir = 1;
@@ -353,22 +481,22 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
             int y;
 
             bits = *ip;
-            param_1[0] <<= 1;
+            state->width <<= 1;
             bp = ip + 1;
             ip += (nbits + 7) / 8;
             d8 = dir * 8;
             d2 = dir * 2;
             nb = 0;
-            for (y = 0; y < (int)param_1[1]; y += 2) {
+            for (y = 0; y < state->height; y += 2) {
                 u8* dst;
                 u8* dst2;
                 u8* brow;
                 int x;
 
-                dst = (u8*)param_6 + (row & ~3) * param_1[0];
+                dst = (u8*)param_6 + (row & ~3) * state->width;
                 dst += (row & 3) * 8;
                 dst2 = dst + d8;
-                brow = hdr8 + (y / 4) * param_1[10];
+                brow = hdr8 + (y / 4) * state->maskStride;
                 x = 0;
                 do {
                     int b;
@@ -398,10 +526,10 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
                     x += 4;
                     dst += adv;
                     dst2 += adv;
-                } while (x < (int)param_1[0]);
+                } while (x < state->width);
                 row += d2;
             }
-            param_1[0] = (int)param_1[0] / 2;
+            state->width = state->width / 2;
         } else {
             int d8;
             int d2;
@@ -409,17 +537,17 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
 
             d8 = dir * 8;
             d2 = dir * 2;
-            param_1[0] <<= 1;
-            for (y = 0; y < (int)param_1[1]; y += 2) {
+            state->width <<= 1;
+            for (y = 0; y < state->height; y += 2) {
                 u8* dst;
                 u8* dst2;
                 u8* brow;
                 int x;
 
-                dst = (u8*)param_6 + (row & ~3) * param_1[0];
+                dst = (u8*)param_6 + (row & ~3) * state->width;
                 dst += (row & 3) * 8;
                 dst2 = dst + d8;
-                brow = hdr8 + (y / 4) * param_1[10];
+                brow = hdr8 + (y / 4) * state->maskStride;
                 x = 0;
                 do {
                     int b;
@@ -440,34 +568,34 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
                     x += 4;
                     dst += adv;
                     dst2 += adv;
-                } while (x < (int)param_1[0]);
+                } while (x < state->width);
                 row += d2;
             }
-            param_1[0] = (int)param_1[0] / 2;
+            state->width = state->width / 2;
         }
     }
-    DCFlushRange((void*)param_6, param_1[0] * param_1[1] * 2);
+    DCFlushRange((void*)param_6, state->width * state->height * 2);
     GXInvalidateTexAll();
-    param_1[7] = param_1[7] + 1;
+    state->frame = state->frame + 1;
     return 0;
 }
 
 /* VQ tile decode variant (ReadU16LE, DCFlush/Invalidate, GXInvalidateTexAll) */
-u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param_5, u8* param_6) {
+u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4, int param_5, u8* param_6) {
     int count;
     u8* pal;
     u8* ip;
 
-    count = ReadU16LE((u8*)param_1[6]);
-    pal = (u8*)(param_1[6] + 4);
+    count = ReadU16LE(state->chunk);
+    pal = state->chunk + 4;
     ip = pal + count * 12;
-    DCInvalidateRange((void*)param_6, param_1[0] * param_1[1] * 2);
+    DCInvalidateRange((void*)param_6, state->width * state->height * 2);
     switch (param_4) {
     case 0:
-        fn_800D86C8((u32)param_1, pal, count);
+        fn_800D86C8((u32)state, pal, count);
         break;
     case 1:
-        fn_800D860C((u32)param_1, pal, count);
+        fn_800D860C((u32)state, pal, count);
         break;
     case 2: {
         int i;
@@ -477,19 +605,19 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
         u8 sh0;
         u8 sh2;
         int n;
-        sh1 = 8 - *((u8*)param_1 + 0x39);
+        sh1 = 8 - state->greenBits;
         i = 0;
-        sh0 = 8 - *((u8*)param_1 + 0x38);
+        sh0 = 8 - state->redBits;
         p = pal;
-        sh2 = 8 - *((u8*)param_1 + 0x37);
+        sh2 = 8 - state->blueBits;
         off = i;
         n = count * 4;
         for (; i < n; i++) {
-            fn_800DBE98(param_1, p);
+            fn_800DBE98(state, p);
             *(u16*)(pal + off) =
-                (((p[0] >> sh0) << *((u8*)param_1 + 0x36))
-                 | ((p[1] >> sh1) << *((u8*)param_1 + 0x35)))
-                | ((p[2] >> sh2) << *((u8*)param_1 + 0x34));
+                (((p[0] >> sh0) << state->redShift)
+                 | ((p[1] >> sh1) << state->greenShift))
+                | ((p[2] >> sh2) << state->blueShift);
             p += 3;
             off += 2;
         }
@@ -503,9 +631,9 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
         int dir;
         int row;
 
-        if (*(int*)(param_5 + 8) < 0) {
+        if (*(int*)(param_5 + offsetof(MovieBitmapHeader, height)) < 0) {
             dir = -1;
-            row = param_1[1] - 1;
+            row = state->height - 1;
         } else {
             row = 0;
             dir = 1;
@@ -519,20 +647,20 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
             int y;
             int w;
 
-            w = param_1[0];
+            w = state->width;
             bp = ip + 1;
             d8 = dir * 8;
             bits = *ip;
-            ip += ((w / 2) * (int)param_1[1]) / 2 / 8;
-            param_1[0] = w << 1;
+            ip += ((w / 2) * state->height) / 2 / 8;
+            state->width = w << 1;
             d2 = dir * 2;
             nb = 0;
-            for (y = 0; y < (int)param_1[1]; y += 2) {
+            for (y = 0; y < state->height; y += 2) {
                 u8* dst;
                 u8* dst2;
                 int x;
 
-                dst = (u8*)param_6 + (row & ~3) * param_1[0];
+                dst = (u8*)param_6 + (row & ~3) * state->width;
                 dst += (row & 3) * 8;
                 dst2 = dst + d8;
                 x = 0;
@@ -559,10 +687,10 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
                     x += 4;
                     dst += adv;
                     dst2 += adv;
-                } while (x < (int)param_1[0]);
+                } while (x < state->width);
                 row += d2;
             }
-            param_1[0] = (int)param_1[0] / 2;
+            state->width = state->width / 2;
         } else {
             int d8;
             int d2;
@@ -570,13 +698,13 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
 
             d8 = dir * 8;
             d2 = dir * 2;
-            param_1[0] <<= 1;
-            for (y = 0; y < (int)param_1[1]; y += 2) {
+            state->width <<= 1;
+            for (y = 0; y < state->height; y += 2) {
                 u8* dst;
                 u8* dst2;
                 int x;
 
-                dst = (u8*)param_6 + (row & ~3) * param_1[0];
+                dst = (u8*)param_6 + (row & ~3) * state->width;
                 dst += (row & 3) * 8;
                 dst2 = dst + d8;
                 x = 0;
@@ -594,15 +722,15 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
                     x += 4;
                     dst += adv;
                     dst2 += adv;
-                } while (x < (int)param_1[0]);
+                } while (x < state->width);
                 row += d2;
             }
-            param_1[0] = (int)param_1[0] / 2;
+            state->width = state->width / 2;
         }
     }
-    DCFlushRange((void*)param_6, param_1[0] * param_1[1] * 2);
+    DCFlushRange((void*)param_6, state->width * state->height * 2);
     GXInvalidateTexAll();
-    param_1[7] = param_1[7] + 1;
+    state->frame = state->frame + 1;
     return 0;
 }
 
@@ -788,7 +916,7 @@ u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param
     u8 hasAlpha;
     u8 auStack_20[8];
 
-    iVar4 = *(int*)(param_3 + 0x14);
+    iVar4 = *(int*)(param_3 + offsetof(MovieBitmapHeader, sizeImage));
     iVar1 = ReadF32LE((u8*)param_4);
     if (1 < iVar1) {
         iVar4 = ReadF32LE((u8*)param_4);
@@ -797,38 +925,38 @@ u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param
     fn_800D9DBC((u32)auStack_20, param_4, iVar4, (u8*)param_1[6]);
     hasAlpha = (u16)ReadU16LE((u8*)(param_1[6] + 2)) != 0;
     if (hasAlpha == 0) {
-        switch (*(int*)(param_5 + 0x10)) {
+        switch (*(int*)(param_5 + offsetof(MovieBitmapHeader, compression))) {
         case 0:
         case 3:
-            if (*(u16*)(param_5 + 0xe) == 0x18) {
+            if (*(u16*)(param_5 + offsetof(MovieBitmapHeader, bitCount)) == 0x18) {
                 return fn_800D8F28((MovieDecodeState*)param_1, param_3,
                                     param_4, param_5, param_6);
             }
-            if (*(u16*)(param_5 + 0xe) == 0x10) {
-                return fn_800D87FC(param_1, param_3, param_4, 2, param_5, param_6);
+            if (*(u16*)(param_5 + offsetof(MovieBitmapHeader, bitCount)) == 0x10) {
+                return fn_800D87FC((MovieDecodeState*)param_1, param_3, param_4, 2, param_5, param_6);
             }
             break;
         case 0x59565955:
-            return fn_800D87FC(param_1, param_3, param_4, 0, param_5, param_6);
+            return fn_800D87FC((MovieDecodeState*)param_1, param_3, param_4, 0, param_5, param_6);
         case 0x32595559:
-            return fn_800D87FC(param_1, param_3, param_4, 1, param_5, param_6);
+            return fn_800D87FC((MovieDecodeState*)param_1, param_3, param_4, 1, param_5, param_6);
         }
     } else {
-        switch (*(int*)(param_5 + 0x10)) {
+        switch (*(int*)(param_5 + offsetof(MovieBitmapHeader, compression))) {
         case 0:
         case 3:
-            if (*(u16*)(param_5 + 0xe) == 0x18) {
+            if (*(u16*)(param_5 + offsetof(MovieBitmapHeader, bitCount)) == 0x18) {
                 return fn_800D91B4((MovieDecodeState*)param_1, param_3,
                                     param_4, param_5, param_6);
             }
-            if (*(u16*)(param_5 + 0xe) == 0x10) {
-                return fn_800D8BCC(param_1, param_3, param_4, 2, param_5, param_6);
+            if (*(u16*)(param_5 + offsetof(MovieBitmapHeader, bitCount)) == 0x10) {
+                return fn_800D8BCC((MovieDecodeState*)param_1, param_3, param_4, 2, param_5, param_6);
             }
             break;
         case 0x59565955:
-            return fn_800D8BCC(param_1, param_3, param_4, 0, param_5, param_6);
+            return fn_800D8BCC((MovieDecodeState*)param_1, param_3, param_4, 0, param_5, param_6);
         case 0x32595559:
-            return fn_800D8BCC(param_1, param_3, param_4, 1, param_5, param_6);
+            return fn_800D8BCC((MovieDecodeState*)param_1, param_3, param_4, 1, param_5, param_6);
         }
     }
     return 0xffffffff;
@@ -864,51 +992,55 @@ void fn_800D967C(register int param_1, register int param_2) {
     dispatch(param_1, arg2, arg3);
 }
 
-/* Initialize a VQ frame buffer and its 16-bit component selectors. */
-u32 fn_800D96B0(u32* self, u32 unused, u8* header)
+/* Initialize a VQ frame buffer and its 16-bit component selectors.
+ * header's BI_BITFIELDS masks feed the shift/bit fields in reversed order
+ * (mask0->blueShift/Bits, mask1->greenShift/Bits, mask2->redShift/Bits) -
+ * preserved faithfully from the original raw-offset wiring, not asserted as
+ * a literal R/G/B channel identity. */
+u32 fn_800D96B0(MovieDecodeState* self, u32 unused, u8* header)
 {
     s32 height;
     s32 halfPixels;
     s32 size;
 
     (void)unused;
-    self[0] = *(u32*)(header + 4);
-    height = *(s32*)(header + 8);
-    self[1] = height < 0 ? (u32)-height : (u32)height;
-    self[2] = *(u16*)(header + 14);
-    self[10] = ((s32)self[0] + 31) / 32;
-    self[11] = ((s32)self[1] / 4) * self[10];
-    halfPixels = (((s32)self[0] / 2) * (s32)self[1]) / 2;
+    self->width = *(u32*)(header + offsetof(MovieBitmapHeader, width));
+    height = *(s32*)(header + offsetof(MovieBitmapHeader, height));
+    self->height = height < 0 ? (u32)-height : (u32)height;
+    self->_08[0] = *(u16*)(header + offsetof(MovieBitmapHeader, bitCount));
+    self->maskStride = ((s32)self->width + 31) / 32;
+    self->paletteOffset = ((s32)self->height / 4) * self->maskStride;
+    halfPixels = (((s32)self->width / 2) * (s32)self->height) / 2;
     size = halfPixels + 6146;
     size += halfPixels / 8;
-    size += self[11];
+    size += self->paletteOffset;
 
-    if (*(u16*)(header + 14) == 16) {
-        if (*(u32*)(header + 16) == 0) {
-            ((u8*)self)[52] = 0;
-            ((u8*)self)[55] = 5;
-            ((u8*)self)[53] = 5;
-            ((u8*)self)[57] = 5;
-            ((u8*)self)[54] = 10;
-            ((u8*)self)[56] = 5;
-        } else if (*(u32*)(header + 16) == 3) {
-            ((u8*)self)[52] = fn_800DBD00(self, *(s32*)(header + 40));
-            ((u8*)self)[55] = fn_800DBCCC(self, *(s32*)(header + 40));
-            ((u8*)self)[53] = fn_800DBD00(self, *(s32*)(header + 44));
-            ((u8*)self)[57] = fn_800DBCCC(self, *(s32*)(header + 44));
-            ((u8*)self)[54] = fn_800DBD00(self, *(s32*)(header + 48));
-            ((u8*)self)[56] = fn_800DBCCC(self, *(s32*)(header + 48));
+    if (*(u16*)(header + offsetof(MovieBitmapHeader, bitCount)) == 16) {
+        if (*(u32*)(header + offsetof(MovieBitmapHeader, compression)) == 0) {
+            self->blueShift = 0;
+            self->blueBits = 5;
+            self->greenShift = 5;
+            self->greenBits = 5;
+            self->redShift = 10;
+            self->redBits = 5;
+        } else if (*(u32*)(header + offsetof(MovieBitmapHeader, compression)) == 3) {
+            self->blueShift = fn_800DBD00(self, *(s32*)(header + offsetof(MovieBitmapHeader, redMask)));
+            self->blueBits = fn_800DBCCC(self, *(s32*)(header + offsetof(MovieBitmapHeader, redMask)));
+            self->greenShift = fn_800DBD00(self, *(s32*)(header + offsetof(MovieBitmapHeader, greenMask)));
+            self->greenBits = fn_800DBCCC(self, *(s32*)(header + offsetof(MovieBitmapHeader, greenMask)));
+            self->redShift = fn_800DBD00(self, *(s32*)(header + offsetof(MovieBitmapHeader, blueMask)));
+            self->redBits = fn_800DBCCC(self, *(s32*)(header + offsetof(MovieBitmapHeader, blueMask)));
         }
     }
 
-    if (self[6] != 0) {
+    if (self->chunk != 0) {
         gMovieAllocCount--;
         if (gMovieAllocCount == 0) {
             ResetAllocTot();
         }
     }
-    self[6] = (u32)AllocHiMem((u32)size + 308, (u32)gMovieAllocCount++);
-    self[7] = 0;
+    self->chunk = (u8*)AllocHiMem((u32)size + 308, (u32)gMovieAllocCount++);
+    self->frame = 0;
     return 0;
 }
 #ifdef __MWERKS__
@@ -925,39 +1057,41 @@ s32 MovieValidateFrameFormat(u32 param_1, int param_2, s32 unused) {
     int inputWidth;
     int inputHeight;
 
-    iVar3 = *(int*)(param_2 + 4);
-    iVar2 = *(u32*)(param_2 + 0xc);
-    uVar1 = *(int*)(iVar3 + 4);
-    uVar4 = *(int*)(iVar3 + 8);
+    iVar3 = *(int*)(param_2 + offsetof(MovieDecodeCall, context));
+    iVar2 = *(u32*)(param_2 + offsetof(MovieDecodeCall, bitmap));
+    uVar1 = *(s32*)(iVar3 + offsetof(MovieBitmapHeader, width));
+    uVar4 = *(s32*)(iVar3 + offsetof(MovieBitmapHeader, height));
     if (uVar1 % 4 != 0 || uVar4 % 4 != 0) {
         return 0xfffffffe;
     }
-    if (*(int*)(iVar3 + 0x10) != 0x5644564d || *(u16*)(iVar3 + 0xe) != 0x18) {
+    if (*(s32*)(iVar3 + offsetof(MovieBitmapHeader, compression)) != 0x5644564d ||
+        *(u16*)(iVar3 + offsetof(MovieBitmapHeader, bitCount)) != 0x18) {
         return 0xfffffffe;
     }
     if (iVar2 == 0) {
         return 0;
     }
-    inputWidth = *(int*)(iVar2 + 4);
-    inputHeight = *(int*)(iVar2 + 8);
+    inputWidth = *(s32*)(iVar2 + offsetof(MovieBitmapHeader, width));
+    inputHeight = *(s32*)(iVar2 + offsetof(MovieBitmapHeader, height));
     if (inputWidth != uVar1 ||
         (inputHeight != uVar4 && inputHeight != -uVar4)) {
         return 0xfffffffe;
     }
-    switch (*(int*)(iVar2 + 0x10)) {
+    switch (*(s32*)(iVar2 + offsetof(MovieBitmapHeader, compression))) {
     case 0:
-        if (*(u16*)(iVar2 + 0xe) != 0x18 && *(u16*)(iVar2 + 0xe) != 0x10) {
+        if (*(u16*)(iVar2 + offsetof(MovieBitmapHeader, bitCount)) != 0x18 &&
+            *(u16*)(iVar2 + offsetof(MovieBitmapHeader, bitCount)) != 0x10) {
             return 0xfffffffe;
         }
         break;
     case 3:
-        if (*(u16*)(iVar2 + 0xe) != 0x10) {
+        if (*(u16*)(iVar2 + offsetof(MovieBitmapHeader, bitCount)) != 0x10) {
             return 0xfffffffe;
         }
         break;
     case 0x32595559:
     case 0x59565955:
-        if (*(u16*)(iVar2 + 0xe) != 0x10) {
+        if (*(u16*)(iVar2 + offsetof(MovieBitmapHeader, bitCount)) != 0x10) {
             return 0xfffffffe;
         }
         break;
@@ -991,111 +1125,111 @@ u32 fn_800D99AC(u32 a, int* src, u8* dst) {
 }
 #pragma opt_propagation reset
 
-u32 fn_800D9A14(u32* param_1, u8* param_2, int param_3, u8 param_4) {
+u32 fn_800D9A14(MovieRingBuffer* param_1, u8* param_2, int param_3, u8 param_4) {
     u32 writeOffset;
     int used;
     u32 readOffset;
     int chunk;
 
-    writeOffset = param_1[2];
-    readOffset = param_1[3];
+    writeOffset = param_1->writePos;
+    readOffset = param_1->readPos;
     if ((int)writeOffset >= (int)readOffset) {
         used = writeOffset - readOffset;
     } else {
-        used = param_1[1] + (writeOffset - readOffset);
+        used = param_1->size + (writeOffset - readOffset);
     }
     if (param_3 > used) {
         return 0;
     }
     if (param_4 != 0) {
-        chunk = param_1[1] - readOffset;
+        chunk = param_1->size - readOffset;
         if (chunk > param_3) {
             chunk = param_3;
         }
-        memcpy(param_2, (u8*)(*param_1 + readOffset), chunk);
+        memcpy(param_2, param_1->buffer + readOffset, chunk);
         param_2 += chunk;
         param_3 -= chunk;
-        param_1[3] += chunk;
-        if ((int)param_1[3] == (int)param_1[1]) {
-            param_1[3] = 0;
+        param_1->readPos += chunk;
+        if ((int)param_1->readPos == (int)param_1->size) {
+            param_1->readPos = 0;
         }
         if (param_3 != 0) {
-            memcpy(param_2, (u8*)*param_1, param_3);
-            param_1[3] += param_3;
+            memcpy(param_2, param_1->buffer, param_3);
+            param_1->readPos += param_3;
         }
     } else {
-        chunk = param_1[1] - readOffset;
+        chunk = param_1->size - readOffset;
         if (chunk > param_3) {
             chunk = param_3;
         }
-        memcpy(param_2, (u8*)(*param_1 + readOffset), chunk);
+        memcpy(param_2, param_1->buffer + readOffset, chunk);
         param_3 -= chunk;
         param_2 += chunk;
         if (param_3 != 0) {
-            memcpy(param_2, (u8*)*param_1, param_3);
+            memcpy(param_2, param_1->buffer, param_3);
         }
     }
     return 1;
 }
 
-u32 fn_800D9B48(u32* param_1, u8* param_2, int param_3) {
+u32 fn_800D9B48(MovieRingBuffer* param_1, u8* param_2, int param_3) {
     u32 readOffset;
     int used;
     u32 writeOffset;
     int chunk;
 
-    writeOffset = param_1[2];
-    readOffset = param_1[3];
+    writeOffset = param_1->writePos;
+    readOffset = param_1->readPos;
     if ((int)writeOffset >= (int)readOffset) {
         used = writeOffset - readOffset;
     } else {
-        used = param_1[1] + (writeOffset - readOffset);
+        used = param_1->size + (writeOffset - readOffset);
     }
-    if (param_3 > (int)((param_1[1] - used) - 1)) {
+    if (param_3 > (int)((param_1->size - used) - 1)) {
         return 0;
     }
-    chunk = param_1[1] - writeOffset;
+    chunk = param_1->size - writeOffset;
     if (chunk > param_3) {
         chunk = param_3;
     }
-    memcpy((u8*)(*param_1 + writeOffset), param_2, chunk);
+    memcpy(param_1->buffer + writeOffset, param_2, chunk);
     param_2 += chunk;
     param_3 -= chunk;
-    param_1[2] += chunk;
-    if ((int)param_1[2] == (int)param_1[1]) {
-        param_1[2] = 0;
+    param_1->writePos += chunk;
+    if ((int)param_1->writePos == (int)param_1->size) {
+        param_1->writePos = 0;
     }
     if (param_3 != 0) {
-        memcpy((u8*)*param_1, param_2, param_3);
-        param_1[2] += param_3;
+        memcpy(param_1->buffer, param_2, param_3);
+        param_1->writePos += param_3;
     }
     return 1;
 }
 
 #pragma dont_inline on
-int fn_800D9C34(u8* p) {
-    int hi = *(int*)(p + 8);
-    int lo = *(int*)(p + 0xc);
+int fn_800D9C34(MovieRingBuffer* p) {
+    int hi = p->writePos;
+    int lo = p->readPos;
     if (hi >= lo) {
         return hi - lo;
     }
-    return *(int*)(p + 4) + (hi - lo);
+    return (int)p->size + (hi - lo);
 }
 #pragma dont_inline off
 
 #pragma dont_inline on
-void fn_800D9C5C(int* p, int n) {
-    if (*(u32*)p != 0) {
+void fn_800D9C5C(MovieRingBuffer* p, int n) {
+    if (p->buffer != 0) {
         gMovieAllocCount--;
         if (gMovieAllocCount == 0) {
             ResetAllocTot();
         }
     }
-    p[0] = 0;
-    p[1] = n;
-    p[0] = (int)AllocHiMem(p[1], (u32)gMovieAllocCount++);
-    p[3] = 0;
-    p[2] = 0;
+    p->buffer = 0;
+    p->size = n;
+    p->buffer = (u8*)AllocHiMem(p->size, (u32)gMovieAllocCount++);
+    p->readPos = 0;
+    p->writePos = 0;
 }
 #pragma dont_inline off
 
@@ -1124,11 +1258,11 @@ int* fn_800D9CF4(int* p, s16 releaseAgain) {
 #endif
 
 #pragma dont_inline on
-void fn_800D9DA4(u32* p) {
-    p[1] = 0;
-    p[0] = 0;
-    p[3] = 0;
-    p[2] = 0;
+void fn_800D9DA4(MovieRingBuffer* p) {
+    p->size = 0;
+    p->buffer = 0;
+    p->readPos = 0;
+    p->writePos = 0;
 }
 #pragma dont_inline off
 
@@ -1239,7 +1373,7 @@ void fn_800D9F20(int param_1) {
             requestSize = *(u32*)(param_1 + 0x10);
             requestOffset = *(u32*)(param_1 + 0xc);
             requestData = *(u8**)(param_1 + 4);
-            if ((u8)fn_800DB2F4(gMovieStreamState + 0x20, requestData,
+            if ((u8)fn_800DB2F4((MovieChunkStream*)(gMovieStreamState + 0x20), requestData,
                                 requestOffset, requestSize)) {
                 *(u32*)(param_1 + 8) = *(u32*)(param_1 + 0x10);
                 *(int*)(param_1 + 0xc) = *(int*)(param_1 + 0xc) + *(int*)(param_1 + 0x10);
@@ -1426,7 +1560,7 @@ extern "C" void PlayVQMovie(const char* name) throw()
                     requestSize = audio->requestSize;
                     requestOffset = audio->offset;
                     requestData = audio->buffer;
-                    if ((u8)fn_800DB2F4(gMovieStreamState + 32,
+                    if ((u8)fn_800DB2F4((MovieChunkStream*)(gMovieStreamState + 32),
                                         requestData,
                                         requestOffset,
                                         requestSize) != 0) {
@@ -1530,7 +1664,7 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
             }
             *(MovieAudioState**)(movie + 0x190) = audio;
             audio = *(MovieAudioState**)(movie + 0x190);
-            audio->active = (u8)fn_800DB2F4(gMovieStreamState + 0x20, audio->buffer, 0, 0xC000);
+            audio->active = (u8)fn_800DB2F4((MovieChunkStream*)(gMovieStreamState + 0x20), audio->buffer, 0, 0xC000);
             if (audio->active != 0) {
                 audio->offset = 0xC000;
                 audio->remaining = 0xC000;
@@ -1551,16 +1685,16 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
     }
     {
         ++*(u32*)(movie + 0x10);
-        chunk = fn_800DB36C((s32)(movie + 0x20));
+        chunk = (u32*)fn_800DB36C((MovieChunkStream*)(movie + 0x20));
         while (chunk != NULL && chunk[8] == 0) {
-            fn_800DB29C((s32)(movie + 0x20));
-            chunk = fn_800DB36C((s32)(movie + 0x20));
+            fn_800DB29C((MovieChunkStream*)(movie + 0x20));
+            chunk = (u32*)fn_800DB36C((MovieChunkStream*)(movie + 0x20));
         }
         if (chunk == NULL) {
             return *(u32*)(movie + 0x10) < *(u32*)(movie + 0xD4);
         }
         if (decodeFrame == 0) {
-            fn_800DB29C((s32)(movie + 0x20));
+            fn_800DB29C((MovieChunkStream*)(movie + 0x20));
             return TRUE;
         }
         *(u32*)(movie + 0x1A8) = chunk[4];
@@ -1571,7 +1705,7 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
                 *(void (**)(u8*, u8*, s32))(*(u32*)(movie + 0x170) + 0x18);
             decode(movie + 0x150, movie + 0x11C, 0);
         }
-        fn_800DB29C((s32)(movie + 0x20));
+        fn_800DB29C((MovieChunkStream*)(movie + 0x20));
     }
 done:
     return TRUE;
@@ -1710,8 +1844,8 @@ extern "C" s32 fn_800DA920(u8* movie, const char* name)
         };
         ((MovieConfigureObject*)(movie + 336))->configure(movie + 284, 0);
     }
-    MovieDecoderInitBuffers((u32*)(movie + 32), 0x80000, movie[24]);
-    fn_800DB82C((u32*)(movie + 32), *(s32*)(movie + 28),
+    MovieDecoderInitBuffers((MovieChunkStream*)(movie + 32), 0x80000, movie[24]);
+    fn_800DB82C((MovieChunkStream*)(movie + 32), *(s32*)(movie + 28),
                 *(u32*)(movie + 20));
     *(u32*)(movie + 80) = *(u32*)(movie + 212);
     movie[25] = 1;
@@ -1803,8 +1937,8 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
 }
 
 /* MoviePlayer teardown (AudioStreamStop, operator delete, dtor_800DBB94) */
-u32* dtor_800DBB94(u32* self, s16 deleting);
-u32* fn_800DBD30(u32* self, s16 deleting);
+MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting);
+MovieDTextOuter* fn_800DBD30(MovieDTextOuter* self, s16 deleting);
 
 u32* fn_800DB008(u32* self, s16 deleting) {
     u32* stream;
@@ -1824,8 +1958,8 @@ u32* fn_800DB008(u32* self, s16 deleting) {
                 __dl__FPv(stream);
             }
         }
-        fn_800DBD30(self + 0x54, -1);
-        dtor_800DBB94(self + 8, -1);
+        fn_800DBD30((MovieDTextOuter*)(self + 0x54), -1);
+        dtor_800DBB94((MovieChunkStream*)(self + 8), -1);
         if (self != NULL) {
             self[0] = (u32)lbl_801296A4;
         }
@@ -1844,7 +1978,7 @@ u32* fn_800DB0F8(u32* volatile p) {
 
     self[0] = (u32)lbl_801296A4;
     self[0] = (u32)lbl_8012968C;
-    fn_800DBC64(self + 8);
+    fn_800DBC64((MovieChunkStream*)(self + 8));
     fn_800DBE04(self + 0x54);
     self[7] = 0;
     self[100] = 0;
@@ -1900,18 +2034,17 @@ u32* dtor_800DB21C(u32* self, s16 deleting) {
     return self;
 }
 
-void fn_800DB29C(int stream) {
-    u32* self = (u32*)stream;
-    u32* node = (u32*)self[20];
-    u32* next;
+void fn_800DB29C(MovieChunkStream* self) {
+    MovieChunkNode* node = self->activeNode;
+    MovieChunkNode* next;
 
-    self[20] = node[0];
-    self[5] = node[2] + node[1];
-    node[0] = self[22];
-    self[22] = (u32)node;
-    next = (u32*)self[20];
-    if (next != NULL && self[5] + next[1] >= self[6]) {
-        self[5] = 0;
+    self->activeNode = node->next;
+    self->highWater = node->dataOffset + node->totalSize;
+    node->next = self->freeListHead;
+    self->freeListHead = node;
+    next = self->activeNode;
+    if (next != NULL && self->highWater + next->totalSize >= self->bufferSize) {
+        self->highWater = 0;
     }
 }
 
@@ -1921,45 +2054,44 @@ void fn_800DB29C(int stream) {
 #pragma scheduling on
 #endif
 
-int fn_800DB2F4(u8* param_1, u8* param_2, u32 param_3, u32 param_4) {
+int fn_800DB2F4(MovieChunkStream* param_1, u8* param_2, u32 param_3, u32 param_4) {
     int iVar1;
     int ret;
     u8 unused[8];
-    iVar1 = fn_800D9C34(param_1 + 0x3c);
+    iVar1 = fn_800D9C34(&param_1->audio);
     if (iVar1 < (int)param_4) {
         memset(param_2, 0, param_4);
         ret = 0;
     } else {
-        *(u8*)(param_1 + 0x4c) = 1;
-        fn_800D9A14((u32*)(param_1 + 0x3c), param_2, param_4, *(char*)(param_1 + 0x4c));
+        param_1->_4C = 1;
+        fn_800D9A14(&param_1->audio, param_2, param_4, param_1->_4C);
         ret = 1;
     }
     return ret;
 }
 
-u32* fn_800DB36C(int stream) {
-    u32* self = (u32*)stream;
-    u32* node = (u32*)self[20];
+MovieChunkNode* fn_800DB36C(MovieChunkStream* self) {
+    MovieChunkNode* node = self->activeNode;
 
     if (node == NULL) {
         goto none;
     }
-    if (node[8] != 0) {
+    if (node->videoData != 0) {
         goto ready;
     }
-    if (node[9] != 0) {
+    if (node->audioData != 0) {
         goto ready;
     }
-    if (node[6] != 0) {
+    if (node->junkSize != 0) {
         goto ready;
     }
 none:
     return NULL;
 ready:
-    if (node[0] != 0) {
+    if (node->next != 0) {
         goto ret;
     }
-    if (self[10] == self[11]) {
+    if (self->filePos == self->fileSize) {
         goto ret;
     }
     return NULL;
@@ -2053,7 +2185,7 @@ void fn_800DB3D4(u32* stream, s32 fd, volatile u32 length) {
                     node[5] = chunkSize;
                     node[7] = stream[14];
                     stream[14] += chunkSize;
-                    fn_800D9B48(stream + 15, chunk + 8, chunkSize);
+                    fn_800D9B48((MovieRingBuffer*)(stream + 15), chunk + 8, chunkSize);
                     break;
                 case 0x4b4e554a:
                     node[6] = chunkSize;
@@ -2144,70 +2276,69 @@ request_more:
     }
 }
 
-void fn_800DB82C(u32* param_1, int param_2, u32 param_3) {
+void fn_800DB82C(MovieChunkStream* param_1, int param_2, u32 param_3) {
     int iVar2;
 
-    param_1[0xb] = sceLseek(param_2, 0, 2);
+    param_1->fileSize = sceLseek(param_2, 0, 2);
     sceLseek(param_2, param_3, 0);
-    param_1[10] = param_3;
-    param_1[7] = (param_1[6] - 0x2000) & 0xfffff800;
-    sceRead(param_2, (void*)param_1[0], param_1[7]);
-    param_1[0x14] = param_1[0x16];
-    param_1[0x16] = *(u32*)param_1[0x16];
-    *(u32*)param_1[0x14] = 0;
-    *(u32*)(param_1[0x14] + 8) = 0;
-    iVar2 = ReadF32LE((u8*)(param_1[0] + 4));
-    *(int*)(param_1[0x14] + 4) = iVar2 + 8;
-    *(u32*)(param_1[0x14] + 4) =
-        *(u32*)(param_1[0x14] + 4) + (*(u32*)(param_1[0x14] + 4) & 1);
-    *(u32*)(param_1[0x14] + 0x20) = 0;
-    *(u32*)(param_1[0x14] + 0x24) = 0;
-    *(u32*)(param_1[0x14] + 0x18) = 0;
-    param_1[0xd] = 0;
-    *(u8*)(param_1 + 0x13) = 0;
+    param_1->filePos = param_3;
+    param_1->pendingLength = (param_1->bufferSize - 0x2000) & 0xfffff800;
+    sceRead(param_2, param_1->buffer, param_1->pendingLength);
+    param_1->activeNode = param_1->freeListHead;
+    param_1->freeListHead = (MovieChunkNode*)*(u32*)param_1->freeListHead;
+    param_1->activeNode->next = 0;
+    param_1->activeNode->dataOffset = 0;
+    iVar2 = ReadF32LE(param_1->buffer + 4);
+    param_1->activeNode->totalSize = iVar2 + 8;
+    param_1->activeNode->totalSize += param_1->activeNode->totalSize & 1;
+    param_1->activeNode->videoData = 0;
+    param_1->activeNode->audioData = 0;
+    param_1->activeNode->junkSize = 0;
+    param_1->videoFrameCount = 0;
+    param_1->_4C = 0;
 }
 
-u8 MovieDecoderInitBuffers(u32* param_1, u32 param_2, u32 param_3) {
+u8 MovieDecoderInitBuffers(MovieChunkStream* param_1, u32 param_2, u32 param_3) {
     int iVar3;
     int iVar4;
     u8 unused[24];
 
-    __dla__FPv((void*)param_1[1]);
-    param_1[1] = 0;
-    param_1[0] = 0;
-    __dla__FPv((void*)param_1[3]);
-    param_1[3] = 0;
-    param_1[2] = 0;
-    __dla__FPv((void*)param_1[0x15]);
-    param_1[6] = 0;
-    param_1[5] = 0;
-    param_1[4] = 0;
-    param_1[8] = 0;
-    param_1[9] = 0;
-    param_1[0x16] = 0;
-    param_1[0x14] = 0;
-    param_1[0x15] = 0;
+    __dla__FPv(param_1->rawBuffer);
+    param_1->rawBuffer = 0;
+    param_1->buffer = 0;
+    __dla__FPv(param_1->rawStaging);
+    param_1->rawStaging = 0;
+    param_1->stagingBuffer = 0;
+    __dla__FPv(param_1->nodePoolRaw);
+    param_1->bufferSize = 0;
+    param_1->highWater = 0;
+    param_1->writePos = 0;
+    param_1->_20 = 0;
+    param_1->_24 = 0;
+    param_1->freeListHead = 0;
+    param_1->activeNode = 0;
+    param_1->nodePoolRaw = 0;
     if ((param_3 & 0xff) != 0) {
-        fn_800D9C5C((int*)(param_1 + 0xf), 0x40000);
+        fn_800D9C5C(&param_1->audio, 0x40000);
     }
-    param_1[6] = param_2 & 0xfffff800;
-    iVar3 = param_1[6];
+    param_1->bufferSize = param_2 & 0xfffff800;
+    iVar3 = param_1->bufferSize;
     gMovieAllocCount++;
-    param_1[1] = (u32)AllocHiMem(iVar3 + 0x20, iVar3);
+    param_1->rawBuffer = (u8*)AllocHiMem(iVar3 + 0x20, iVar3);
     iVar3 = gMovieAllocCount;
     gMovieAllocCount++;
-    param_1[3] = (u32)AllocHiMem(0x10020, iVar3);
-    param_1[0] = param_1[1] + 0x20 & 0xffffffe0;
-    param_1[2] = param_1[3] + 0x20 & 0xffffffe0;
+    param_1->rawStaging = (u8*)AllocHiMem(0x10020, iVar3);
+    param_1->buffer = (u8*)((u32)param_1->rawBuffer + 0x20 & 0xffffffe0);
+    param_1->stagingBuffer = (u8*)((u32)param_1->rawStaging + 0x20 & 0xffffffe0);
     iVar3 = gMovieAllocCount;
     gMovieAllocCount++;
-    param_1[0x15] = (u32)AllocHiMem(0x2800, iVar3);
-    param_1[0x16] = param_1[0x15];
+    param_1->nodePoolRaw = (u8*)AllocHiMem(0x2800, iVar3);
+    param_1->freeListHead = (MovieChunkNode*)param_1->nodePoolRaw;
     for (iVar4 = 0; iVar4 < 255; iVar4++) {
-        *(u32*)(param_1[0x15] + iVar4 * 0x28) = param_1[0x15] + (iVar4 + 1) * 0x28;
+        *(u32*)(param_1->nodePoolRaw + iVar4 * 0x28) = (u32)param_1->nodePoolRaw + (iVar4 + 1) * 0x28;
     }
-    *(u32*)(param_1[0x15] + iVar4 * 0x28) = 0;
-    return param_1[0] != 0;
+    *(u32*)(param_1->nodePoolRaw + iVar4 * 0x28) = 0;
+    return param_1->buffer != 0;
 }
 
 void fn_800DBA80(u8* dec, s32 fd) {
@@ -2251,26 +2382,26 @@ void fn_800DBA80(u8* dec, s32 fd) {
 #pragma scheduling on
 #endif
 
-u32* dtor_800DBB94(u32* self, s16 deleting) {
+MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) {
     u8 unused[32];
 
     if (self != NULL) {
-        __dla__FPv((void*)self[1]);
-        self[1] = 0;
-        self[0] = 0;
-        __dla__FPv((void*)self[3]);
-        self[3] = 0;
-        self[2] = 0;
-        __dla__FPv((void*)self[0x15]);
-        self[6] = 0;
-        self[5] = 0;
-        self[4] = 0;
-        self[8] = 0;
-        self[9] = 0;
-        self[0x16] = 0;
-        self[0x14] = 0;
-        self[0x15] = 0;
-        fn_800D9CF4((int*)(self + 0xf), -1);
+        __dla__FPv(self->rawBuffer);
+        self->rawBuffer = 0;
+        self->buffer = 0;
+        __dla__FPv(self->rawStaging);
+        self->rawStaging = 0;
+        self->stagingBuffer = 0;
+        __dla__FPv(self->nodePoolRaw);
+        self->bufferSize = 0;
+        self->highWater = 0;
+        self->writePos = 0;
+        self->_20 = 0;
+        self->_24 = 0;
+        self->freeListHead = 0;
+        self->activeNode = 0;
+        self->nodePoolRaw = 0;
+        fn_800D9CF4((int*)&self->audio, -1);
         if (deleting > 0 && self != NULL) {
             gMovieAllocCount--;
             if (gMovieAllocCount == 0) {
@@ -2281,22 +2412,22 @@ u32* dtor_800DBB94(u32* self, s16 deleting) {
     return self;
 }
 
-u32* fn_800DBC64(register u32* p) {
-    register u32* self = p;
+MovieChunkStream* fn_800DBC64(register MovieChunkStream* p) {
+    register MovieChunkStream* self = p;
 
-    fn_800D9DA4(self + 0xf);
-    self[3] = 0;
-    self[2] = 0;
-    self[1] = 0;
-    self[0] = 0;
-    self[6] = 0;
-    self[5] = 0;
-    self[4] = 0;
-    self[8] = 0;
-    self[9] = 0;
-    self[0x16] = 0;
-    self[0x15] = 0;
-    self[0x14] = 0;
+    fn_800D9DA4(&self->audio);
+    self->rawStaging = 0;
+    self->stagingBuffer = 0;
+    self->rawBuffer = 0;
+    self->buffer = 0;
+    self->bufferSize = 0;
+    self->highWater = 0;
+    self->writePos = 0;
+    self->_20 = 0;
+    self->_24 = 0;
+    self->freeListHead = 0;
+    self->nodePoolRaw = 0;
+    self->activeNode = 0;
     return self;
 }
 
@@ -2323,17 +2454,17 @@ u8 fn_800DBD00(void* self, s32 x) {
 }
 
 /* Destroy an outer DText object (vtable lbl_801296CC) and optionally release it. */
-u32* fn_800DBD30(u32* self, s16 deleting) {
+MovieDTextOuter* fn_800DBD30(MovieDTextOuter* self, s16 deleting) {
     if (self != NULL) {
-        self[8] = (u32)lbl_801296CC;
-        if (self[12] != 0) {
+        self->vtable = lbl_801296CC;
+        if (self->ownsAlloc != 0) {
             gMovieAllocCount--;
             if (gMovieAllocCount == 0) {
                 ResetAllocTot();
             }
         }
         lbl_803452B8--;
-        fn_800DBF6C(self, 0);
+        fn_800DBF6C((MovieDTextInner*)self, 0);
         if (deleting > 0 && self != NULL) {
             gMovieAllocCount--;
             if (gMovieAllocCount == 0) {
@@ -2345,9 +2476,9 @@ u32* fn_800DBD30(u32* self, s16 deleting) {
 }
 
 /* Construct an outer DText object (base init + lbl_80321340 ramp, first time only). */
-u32* fn_800DBE04(u32* p) {
+MovieDTextOuter* fn_800DBE04(u32* p) {
     int i;
-    DTextInitColorRamp(p);
+    DTextInitColorRamp((MovieDTextInner*)p);
     p[8] = (u32)lbl_801296CC;
     if (lbl_803452B8 == 0) {
         for (i = 0; i < 256; i++) {
@@ -2356,7 +2487,7 @@ u32* fn_800DBE04(u32* p) {
     }
     lbl_803452B8++;
     p[12] = 0;
-    return p;
+    return (MovieDTextOuter*)p;
 }
 
 #ifdef __MWERKS__
@@ -2383,11 +2514,11 @@ void fn_800DBE98(void* param_1, u8* param_2) {
 }
 
 /* Destroy a DText renderer and optionally release the object itself. */
-u32* fn_800DBF6C(u32* self, s16 deleting) {
+MovieDTextInner* fn_800DBF6C(MovieDTextInner* self, s16 deleting) {
     if (self != NULL) {
-        self[8] = (u32)lbl_801296F0;
+        self->vtable = lbl_801296F0;
         gDTextInitCount--;
-        if (self[6] != 0) {
+        if (self->ownsAlloc != 0) {
             gMovieAllocCount--;
             if (gMovieAllocCount == 0) {
                 ResetAllocTot();
@@ -2409,10 +2540,10 @@ typedef struct DTextRampEntry {
     u8 value;
 } DTextRampEntry;
 
-u32* DTextInitColorRamp(u32* p) {
+MovieDTextInner* DTextInitColorRamp(MovieDTextInner* p) {
     int i;
     u8* ramp = gDTextColorRamp;
-    p[8] = (u32)lbl_801296F0;
+    p->vtable = lbl_801296F0;
     if (gDTextInitCount == 0) {
         memset(ramp, 0, 256);
         memset(ramp + 512, 255, 256);
@@ -2424,6 +2555,6 @@ u32* DTextInitColorRamp(u32* p) {
         }
     }
     gDTextInitCount++;
-    p[6] = 0;
+    p->ownsAlloc = 0;
     return p;
 }

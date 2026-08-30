@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "src/game/movie/movieplayer.c::fn_800DBE04 (worktree GDL-Claude-MovieDefake, work_claim.movieplayer-defake.20260830.v1); attempt.movieplayer-defakematch-tupass.20260830.v1",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.declared-alias-vs-repeated-cast and claim.law.multifield-alias-defeats-indexed-addressing - applies even to a LOW field-count (as few as 2), single-site-per-field direct function PARAMETER, not just walked/indexed/loaded/multifield bases."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.low-field-count-param-retype-can-regress-exact.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "claim.law.declared-alias-vs-repeated-cast established that a struct-typed direct function PARAMETER (not walked/indexed/loaded) is normally safe for de-fakematch conversion regardless of field count - verified repeatedly in this same TU (fn_800D87FC/fn_800D8BCC's MovieDecodeState* state, 6+ field touches, stayed at baseline). fn_800DBE04 is a counterexample: retyping its OWN parameter from u32* to a 2-field struct pointer (MovieDTextOuter*, each field touched exactly ONCE, no loop, no multifield-in-one-block density) regressed an EXACT function from real0 to real2 (opcode stream identical - register/reloc only) purely from the parameter type change, independent of whether the two field writes used `->` notation or offsetof() on an explicit (u8*) cast (both regressed identically). The single variable that fixed it was reverting the PARAMETER's own declared type back to u32* while still casting to the richer struct type at every callee-argument boundary that needed it (a sibling function call taking the struct pointer) and at the return statement. Consequence: field count and access pattern (walked/indexed/loaded vs plain) are NOT the only variables governing whether a struct-typed parameter retype is codegen-neutral - the specific function's register-pressure/scheduling state can make even a trivial 2-field, single-touch retype unsafe. Do not assume a low field count exempts a parameter retype from the A/B-both-forms requirement; test the retype in isolation (temporarily reverting ONLY the parameter's own declared type, keeping field-access style constant) before concluding which variable caused a regression, exactly as the counter-form search here did."
+}
