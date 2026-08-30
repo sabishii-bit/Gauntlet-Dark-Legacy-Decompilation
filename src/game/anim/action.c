@@ -1439,14 +1439,17 @@ void DoPlayerAction(void* player)
 
     /* resolve the sequence, falling back on 0x23/0x24 for missing dances */
     d = act;
-    if (act < 0x55) {
-        if (act >= 0x54 && defs[act].seq < 0) {
+    switch (act) {
+    case 0x54:
+        if (defs[act].seq < 0) {
             d = 0x23;
         }
-    } else if (act == 0x55) {
+        break;
+    case 0x55:
         if (defs[act].seq < 0) {
             d = 0x24;
         }
+        break;
     }
     *(s16*)((u8*)atree + 0x34) = (s16)didt;
     seq = defs[d].seq;
