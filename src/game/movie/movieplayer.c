@@ -169,6 +169,26 @@ typedef struct MovieChunkStream {
     /* 0x58 */ MovieChunkNode* freeListHead;
 } MovieChunkStream;
 
+/* File-local "outer" DText debug-overlay sub-object embedded at movie+0x150
+ * (fn_800DB008 passes self+0x54 words = movie+0x150 to fn_800DBD30). Only
+ * the vtable and one allocation-owned flag are ever touched in this TU; the
+ * gap is genuinely unknown, not merely unused. Not a GC-verified name. */
+typedef struct MovieDTextOuter {
+    /* 0x00 */ u32 _00[8];
+    /* 0x20 */ u32* vtable;
+    /* 0x24 */ u32 _24[2];
+    /* 0x30 */ u32 ownsAlloc;
+} MovieDTextOuter;
+
+/* File-local "inner" DText debug-overlay sub-object (distinct vtable
+ * lbl_801296F0 vs MovieDTextOuter's lbl_801296CC). Not a GC-verified name. */
+typedef struct MovieDTextInner {
+    /* 0x00 */ u32 _00[6];
+    /* 0x18 */ u32 ownsAlloc;
+    /* 0x1C */ u32 _1C;
+    /* 0x20 */ u32* vtable;
+} MovieDTextInner;
+
 extern void GXInitTexObj(MovieGXTexObj* obj, void* data, u16 width, u16 height,
                          u32 format, u32 wrapS, u32 wrapT, u8 mipmap);
 extern void GXLoadTexObj(MovieGXTexObj* obj, u8 map);
@@ -256,8 +276,8 @@ extern const f32 lbl_803493EC;
 
 /* --- forward decls for intra-TU calls --- */
 MovieChunkStream* fn_800DBC64(MovieChunkStream* p);
-u32* fn_800DBE04(u32* p);
-u32* DTextInitColorRamp(u32* p);
+MovieDTextOuter* fn_800DBE04(u32* p);
+MovieDTextInner* DTextInitColorRamp(MovieDTextInner* p);
 void fn_800D9DF0(char* src, int len, u8* dst, int* outlen);
 u32 fn_800D93D4(u32* p1, u32 p2, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D87FC(MovieDecodeState* p1, int p3, char* p4, int mode, int p5, u8* p6);
@@ -277,7 +297,7 @@ s32 fn_800DA920(u8* movie, const char* name);
 u32 fn_800DACD8(int movie, u8* header);
 u8 MovieDecoderInitBuffers(MovieChunkStream* decoder, u32 size, u32 hasAudio);
 void fn_800D9F20(int audio);
-u32* fn_800DBF6C(u32* self, s16 deleting);
+MovieDTextInner* fn_800DBF6C(MovieDTextInner* self, s16 deleting);
 u32* fn_800DB008(u32* self, s16 deleting);
 u32* fn_800DB0F8(u32* self);
 u8 fn_800DBCCC(void* self, s32 x);
@@ -1918,7 +1938,7 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
 
 /* MoviePlayer teardown (AudioStreamStop, operator delete, dtor_800DBB94) */
 MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting);
-u32* fn_800DBD30(u32* self, s16 deleting);
+MovieDTextOuter* fn_800DBD30(MovieDTextOuter* self, s16 deleting);
 
 u32* fn_800DB008(u32* self, s16 deleting) {
     u32* stream;
@@ -1938,7 +1958,7 @@ u32* fn_800DB008(u32* self, s16 deleting) {
                 __dl__FPv(stream);
             }
         }
-        fn_800DBD30(self + 0x54, -1);
+        fn_800DBD30((MovieDTextOuter*)(self + 0x54), -1);
         dtor_800DBB94((MovieChunkStream*)(self + 8), -1);
         if (self != NULL) {
             self[0] = (u32)lbl_801296A4;
@@ -2434,17 +2454,17 @@ u8 fn_800DBD00(void* self, s32 x) {
 }
 
 /* Destroy an outer DText object (vtable lbl_801296CC) and optionally release it. */
-u32* fn_800DBD30(u32* self, s16 deleting) {
+MovieDTextOuter* fn_800DBD30(MovieDTextOuter* self, s16 deleting) {
     if (self != NULL) {
-        self[8] = (u32)lbl_801296CC;
-        if (self[12] != 0) {
+        self->vtable = lbl_801296CC;
+        if (self->ownsAlloc != 0) {
             gMovieAllocCount--;
             if (gMovieAllocCount == 0) {
                 ResetAllocTot();
             }
         }
         lbl_803452B8--;
-        fn_800DBF6C(self, 0);
+        fn_800DBF6C((MovieDTextInner*)self, 0);
         if (deleting > 0 && self != NULL) {
             gMovieAllocCount--;
             if (gMovieAllocCount == 0) {
@@ -2456,9 +2476,9 @@ u32* fn_800DBD30(u32* self, s16 deleting) {
 }
 
 /* Construct an outer DText object (base init + lbl_80321340 ramp, first time only). */
-u32* fn_800DBE04(u32* p) {
+MovieDTextOuter* fn_800DBE04(u32* p) {
     int i;
-    DTextInitColorRamp(p);
+    DTextInitColorRamp((MovieDTextInner*)p);
     p[8] = (u32)lbl_801296CC;
     if (lbl_803452B8 == 0) {
         for (i = 0; i < 256; i++) {
@@ -2467,7 +2487,7 @@ u32* fn_800DBE04(u32* p) {
     }
     lbl_803452B8++;
     p[12] = 0;
-    return p;
+    return (MovieDTextOuter*)p;
 }
 
 #ifdef __MWERKS__
@@ -2494,11 +2514,11 @@ void fn_800DBE98(void* param_1, u8* param_2) {
 }
 
 /* Destroy a DText renderer and optionally release the object itself. */
-u32* fn_800DBF6C(u32* self, s16 deleting) {
+MovieDTextInner* fn_800DBF6C(MovieDTextInner* self, s16 deleting) {
     if (self != NULL) {
-        self[8] = (u32)lbl_801296F0;
+        self->vtable = lbl_801296F0;
         gDTextInitCount--;
-        if (self[6] != 0) {
+        if (self->ownsAlloc != 0) {
             gMovieAllocCount--;
             if (gMovieAllocCount == 0) {
                 ResetAllocTot();
@@ -2520,10 +2540,10 @@ typedef struct DTextRampEntry {
     u8 value;
 } DTextRampEntry;
 
-u32* DTextInitColorRamp(u32* p) {
+MovieDTextInner* DTextInitColorRamp(MovieDTextInner* p) {
     int i;
     u8* ramp = gDTextColorRamp;
-    p[8] = (u32)lbl_801296F0;
+    p->vtable = lbl_801296F0;
     if (gDTextInitCount == 0) {
         memset(ramp, 0, 256);
         memset(ramp + 512, 255, 256);
@@ -2535,6 +2555,6 @@ u32* DTextInitColorRamp(u32* p) {
         }
     }
     gDTextInitCount++;
-    p[6] = 0;
+    p->ownsAlloc = 0;
     return p;
 }
