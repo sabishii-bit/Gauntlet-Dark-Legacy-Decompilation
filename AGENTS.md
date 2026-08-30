@@ -269,6 +269,29 @@ Rules:
   tracked, so every worktree and clone carries it; the orchestrator verifies
   each worker actually read it.
 
+Cross-fleet concurrency (multiple independent agent fleets sharing `main`):
+
+- Ownership is advertised through `work_claim` records. Before a fleet's first
+  edit, its integrator proposes claims (`gdlmem.py propose-record`) naming the
+  owner and the full TU scope in `attributes.scope`, commits them, and
+  **pushes to `main` before spawning workers** — an unpushed claim protects
+  nothing. One claim per TU flagship function is sufficient.
+- Screening: `context <function>` surfaces claims from every fleet. A foreign
+  claim with `state: active` is a VETO on that entire TU scope, exactly like a
+  recorded cap.
+- Release claims in the same push that lands the merged result: delete the
+  fleet's own inbox claim files (bulk-imported lifecycle records are pruned,
+  not superseded). A claim whose owner has no commit touching the scope within
+  roughly a day is presumed abandoned: verify via `git log -- <paths>`, then
+  remove it in a standalone commit noting the cleanup.
+- Push races are expected: pull/rebase before push, and after any rebase that
+  pulled in another fleet's work, re-run the build gate before pushing. Never
+  force-push, and never resolve a conflict in another fleet's owned files by
+  taking your side — stop and coordinate through the integrator or user.
+- The graph inbox is the cross-fleet mailbox: records land there
+  fleet-by-fleet, and each fleet accepts only its own proposals into
+  `records/`. Never move, edit, or delete another fleet's inbox files.
+
 Worktrees: writing workers use separate worktrees/branches; the shared
 checkout is read-only to them. Reuse existing clean campaign worktrees before
 creating new ones; never create ad-hoc repository clones when a worktree
