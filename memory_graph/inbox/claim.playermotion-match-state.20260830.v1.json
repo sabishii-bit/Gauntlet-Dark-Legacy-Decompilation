@@ -1,0 +1,23 @@
+{
+  "attributes": {
+    "instructions": "4775 ours / 4775 target (exact count)",
+    "measured_at_commit": "git:cabd24684 (pre-session); measured post-session on worktree GDL-Claude-PlayerMotionMatch, work_claim.pmotion-playermotion-match.20260830.v1",
+    "measurement_source": "objdiff fuzzy_match_percent from build/GUNE5D/report.json after a fresh full `ninja`",
+    "residual_classes": [
+      "one extra saved GPR (stmw r16 vs r17; frame 648 vs 632) plus double p->index load in the function head - closed axis, do not retry (attempt.playermotion-decl-reorder.20260829.v1, negative)",
+      "wrap-band else-fmr family (caller-liveness driven, 3 sites, WrapAngle inline arms) - screened this session, register/schedule-only, not source-reachable",
+      "lfs/lwz argument-load scheduler order swaps (~4 pairs remaining, down from ~6): target evaluates FPR-class call args before GPR/pointer-class args regardless of source order (ModifyPlayerDpos gBossType-branch call, fn_80089350 sfx1/sfx2 calls) - downstream of the parked head-region drift, no source lever found this session",
+      "head-block init interleave (decl-reorder axis tested negative twice; closed)"
+    ]
+  },
+  "epistemic_state": "observed",
+  "id": "claim.playermotion-match-state.20260830.v1",
+  "kind": "claim",
+  "predicate": "fuzzy_match_percent",
+  "recorded_at": "2026-08-30T22:09:13Z",
+  "schema_version": 1,
+  "subject": "function:PlayerMotion",
+  "supersedes": "claim.playermotion-match-state.20260829.v1",
+  "valid_from": "2026-08-30",
+  "value": "97.24377"
+}

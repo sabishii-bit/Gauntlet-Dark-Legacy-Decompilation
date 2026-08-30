@@ -1465,7 +1465,7 @@ collision_done:
             contactRadius = 0.0f;
             movingBias = 0.0f;
             reaction = 0;
-            targetDistance = lbl_80347C20;
+            targetDistance = lbl_80347C10;
             forceState = 0;
             motionState = 0;
             goto store_motion_state;
@@ -1689,14 +1689,14 @@ collision_done:
                     }
                     effectRecord = Effects + effect * 240;
                     CreateDirMatrix(
-                        (f32*)*(void**)(effectRecord + 0x14),
+                        (f32*)*(void**)(effectRecord += 0x14),
                         hit, NULL);
                     GetWorldMat(p->mbnode2, effectMatrix, NULL);
-                    PF(*(void**)(effectRecord + 0x14), 0x30, f32) =
+                    PF(*(void**)effectRecord, 0x30, f32) =
                         effectMatrix[12];
-                    PF(*(void**)(effectRecord + 0x14), 0x34, f32) =
+                    PF(*(void**)effectRecord, 0x34, f32) =
                         effectMatrix[13];
-                    PF(*(void**)(effectRecord + 0x14), 0x38, f32) =
+                    PF(*(void**)effectRecord, 0x38, f32) =
                         effectMatrix[14];
                     goto state_selected;
                 }
@@ -2429,11 +2429,11 @@ store_motion_state:
                 if (effect >= 0) {
                     u8* fxRecord = Effects + effect * 240;
                     MBTreeSetAmbientAdd(
-                        *(void**)(fxRecord + 0x14), 0x1FF, 1);
+                        *(void**)(fxRecord += 0x14), 0x1FF, 1);
                     if (particleTexture >= 0) {
                         void* psys = MBNewPsysDefault(
                             (f32*)gIdentityMatrix,
-                            *(void**)(fxRecord + 0x14), 0, 1);
+                            *(void**)fxRecord, 0, 1);
                         if (psys != NULL) {
                             MBTreeSetFlags(psys, 0x880, 1);
                             MBPsysSetEVolume(1.0f, 1.0f, psys);
@@ -2661,10 +2661,10 @@ store_motion_state:
                 }
 
                 if ((p->act_bits & 0xF0) != 0) {
+                    damage = (f32)(damage * lbl_80347B28);
                     p->power_target -= p->coll_score;
                     p->coll_score = 0.0f;
                     damageFlags |= 0x20;
-                    damage = (f32)(damage * lbl_80347B28);
                 } else if ((p->act_bits & 4) != 0) {
                     damageFlags |= 0x10;
                     damage = (f32)(damage * lbl_80347C28);
