@@ -268,8 +268,8 @@ u32 fn_800D9A14(MovieRingBuffer* p1, u8* p2, int p3, u8 p4);
 void fn_800DBE98(void* param_1, u8* param_2);
 int fn_800DB2F4(MovieChunkStream* param_1, u8* param_2, u32 param_3, u32 param_4);
 void fn_800DB3D4(u32* stream, s32 fd, u32 length);
-void fn_800DB29C(int stream);
-u32* fn_800DB36C(int stream);
+void fn_800DB29C(MovieChunkStream* stream);
+MovieChunkNode* fn_800DB36C(MovieChunkStream* stream);
 void fn_800DB82C(MovieChunkStream* stream, int fd, u32 offset);
 void fn_800DA60C(u8* movie);
 u32 fn_800DA6A4(u8* movie, u32 decodeFrame, f32 elapsed);
@@ -1665,16 +1665,16 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
     }
     {
         ++*(u32*)(movie + 0x10);
-        chunk = fn_800DB36C((s32)(movie + 0x20));
+        chunk = (u32*)fn_800DB36C((MovieChunkStream*)(movie + 0x20));
         while (chunk != NULL && chunk[8] == 0) {
-            fn_800DB29C((s32)(movie + 0x20));
-            chunk = fn_800DB36C((s32)(movie + 0x20));
+            fn_800DB29C((MovieChunkStream*)(movie + 0x20));
+            chunk = (u32*)fn_800DB36C((MovieChunkStream*)(movie + 0x20));
         }
         if (chunk == NULL) {
             return *(u32*)(movie + 0x10) < *(u32*)(movie + 0xD4);
         }
         if (decodeFrame == 0) {
-            fn_800DB29C((s32)(movie + 0x20));
+            fn_800DB29C((MovieChunkStream*)(movie + 0x20));
             return TRUE;
         }
         *(u32*)(movie + 0x1A8) = chunk[4];
@@ -1685,7 +1685,7 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
                 *(void (**)(u8*, u8*, s32))(*(u32*)(movie + 0x170) + 0x18);
             decode(movie + 0x150, movie + 0x11C, 0);
         }
-        fn_800DB29C((s32)(movie + 0x20));
+        fn_800DB29C((MovieChunkStream*)(movie + 0x20));
     }
 done:
     return TRUE;
@@ -2014,18 +2014,17 @@ u32* dtor_800DB21C(u32* self, s16 deleting) {
     return self;
 }
 
-void fn_800DB29C(int stream) {
-    u32* self = (u32*)stream;
-    u32* node = (u32*)self[20];
-    u32* next;
+void fn_800DB29C(MovieChunkStream* self) {
+    MovieChunkNode* node = self->activeNode;
+    MovieChunkNode* next;
 
-    self[20] = node[0];
-    self[5] = node[2] + node[1];
-    node[0] = self[22];
-    self[22] = (u32)node;
-    next = (u32*)self[20];
-    if (next != NULL && self[5] + next[1] >= self[6]) {
-        self[5] = 0;
+    self->activeNode = node->next;
+    self->highWater = node->dataOffset + node->totalSize;
+    node->next = self->freeListHead;
+    self->freeListHead = node;
+    next = self->activeNode;
+    if (next != NULL && self->highWater + next->totalSize >= self->bufferSize) {
+        self->highWater = 0;
     }
 }
 
@@ -2051,29 +2050,28 @@ int fn_800DB2F4(MovieChunkStream* param_1, u8* param_2, u32 param_3, u32 param_4
     return ret;
 }
 
-u32* fn_800DB36C(int stream) {
-    u32* self = (u32*)stream;
-    u32* node = (u32*)self[20];
+MovieChunkNode* fn_800DB36C(MovieChunkStream* self) {
+    MovieChunkNode* node = self->activeNode;
 
     if (node == NULL) {
         goto none;
     }
-    if (node[8] != 0) {
+    if (node->videoData != 0) {
         goto ready;
     }
-    if (node[9] != 0) {
+    if (node->audioData != 0) {
         goto ready;
     }
-    if (node[6] != 0) {
+    if (node->junkSize != 0) {
         goto ready;
     }
 none:
     return NULL;
 ready:
-    if (node[0] != 0) {
+    if (node->next != 0) {
         goto ret;
     }
-    if (self[10] == self[11]) {
+    if (self->filePos == self->fileSize) {
         goto ret;
     }
     return NULL;
