@@ -2142,11 +2142,15 @@ def attempt_staleness(
             "SELECT a.record_id, e.name FROM attempt a"
             " JOIN entity e ON e.id = a.function_entity_id"
             " WHERE a.outcome IN ('parked', 'capped')"
+            " AND NOT EXISTS (SELECT 1 FROM record_ingest newer"
+            " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id)"
         ).fetchall()
     with closing(open_database(root, db_path)) as connection:
         multi_rows = connection.execute(
             "SELECT e.name, COUNT(*) AS n, GROUP_CONCAT(a.record_id) AS ids"
             " FROM attempt a JOIN entity e ON e.id = a.function_entity_id"
+            " WHERE NOT EXISTS (SELECT 1 FROM record_ingest newer"
+            " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id)"
             " GROUP BY a.function_entity_id HAVING COUNT(*) > 1"
         ).fetchall()
     multi = [

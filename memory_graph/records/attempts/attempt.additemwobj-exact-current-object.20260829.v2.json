@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "fresh object/report revalidation of the legacy parked allocator-schedule residual after canonical-to-address-suffixed report-name resolution",
+  "attributes": {
+    "anchors": "src/game/world/items.c::AddItemWobj (compiled as AddItemWobj_80063DB0); target .text 0x80063DB0 size 0x160; python tools/gdl/fndiff.py game/world/items.c AddItemWobj_80063DB0 --count/--ops/--clean; config/GUNE5D/webfrank.json",
+    "axis_log": "supersedes the terminal-import park whose 13-real one-instruction allocator/schedule residual is no longer present in the current object; no new source probe was required",
+    "final_state": "current report fuzzy 100.0%; fndiff count and ops both OK; clean diff EXACT with 0 real lines; no AddItemWobj WebFrank rule exists",
+    "report_alias": "objdiff reports AddItemWobj_80063DB0 while symbols.txt and the graph use AddItemWobj; stale-audit resolution is unique and address-suffix constrained"
+  },
+  "function": "function:AddItemWobj",
+  "id": "attempt.additemwobj-exact-current-object.20260829.v2",
+  "kind": "attempt",
+  "outcome": "exact",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.additemwobj.20260829.v1",
+  "valid_from": "2026-08-29"
+}

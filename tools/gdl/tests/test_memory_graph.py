@@ -361,6 +361,60 @@ class MemoryGraphTests(unittest.TestCase):
         self.assertEqual(result["missing_from_report"], [])
         self.assertEqual(result["valid_count"], 1)
 
+    def test_staleness_ignores_superseded_attempts(self):
+        records = self.root / "memory_graph/records"
+        (records / "attempt-old.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "id": "attempt.foo.v1",
+                    "kind": "attempt",
+                    "function": "function:foo",
+                    "attempted_axis": "old axis",
+                    "outcome": "parked",
+                }
+            ),
+            encoding="utf-8",
+        )
+        (records / "attempt-new.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "id": "attempt.foo.v2",
+                    "kind": "attempt",
+                    "function": "function:foo",
+                    "attempted_axis": "fresh exact revalidation",
+                    "outcome": "exact",
+                    "supersedes": "attempt.foo.v1",
+                }
+            ),
+            encoding="utf-8",
+        )
+        report_dir = self.root / "build/GUNE5D"
+        report_dir.mkdir(parents=True)
+        (report_dir / "report.json").write_text(
+            json.dumps(
+                {
+                    "units": [
+                        {
+                            "functions": [
+                                {
+                                    "name": "foo",
+                                    "fuzzy_match_percent": 100.0,
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = attempt_staleness(root=self.root, db_path=self.db)
+
+        self.assertEqual(result["stale_solved"], [])
+        self.assertEqual(result["multi_record_functions"], [])
+
     def test_markdown_cannot_anchor_a_structured_truth_record(self):
         record = {
             "schema_version": 1,
