@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "portable-C closure of the entry validity conditional/unconditional branch pair using historical labeled if/else, one-case switch carriers, structured loop, short-circuit condition trees, and local lifetime variants",
+  "attributes": {
+    "anchors": "src/game/sound/sounds_evt.c::AudioEnterNextStage; target .text 0x8009FD84 size 0xC8; python tools/gdl/fnasm.py game/sound/sounds_evt AudioEnterNextStage; python tools/gdl/fndiff.py game/sound/sounds_evt AudioEnterNextStage --count/--ops/--clean; immutable commit 5827f767a0ab5b9b723d63265b68302e846c5265",
+    "baseline": "target/current 50/49 instructions, fuzzy 97.80%, count-real 13, 8-byte frame with LR only; STRUCTURAL residual was target blt+b folded to one bge",
+    "final_state": "target/current 50/50 instructions, fuzzy 98.60%, count-real 4, 8-byte frame with LR only; remaining residual is target blt invalid_entry then b valid_entry versus portable one-case-switch beq valid_entry then bge valid_entry",
+    "measurements": "historical labeled if/else reached 50 instructions and real 8 but fuzzy fell to 91.70%; Boolean switch emitted 56/real 40; direct one-case switch improved to 50/real 4/fuzzy 98.60%; alternate switch layout and local entry_id compiled identically; do/while and direct >=0 short-circuit collapsed to baseline; negated Boolean short-circuit emitted 54/real 38",
+    "policy": "retain the local entry_id one-case switch improvement; do not retry the identical switch block-order/local-lifetime variants, loop carrier, short-circuit forms, historical if/else, or explicit goto pair without genuinely new compiler evidence. Historical 68f837f34 exactness depended on prohibited inline assembly",
+    "semantic_audit": "complete target CFG reviewed: signed level index selects a 24-byte world entry; negative index or negative entry sound id yields null; a valid entry plus nonnegative next-stage id queues the entry sound and next-stage sound when good_wiz_state <= 2. Xbox SOUNDS.OBJ exact-name/size evidence is candidate-only and supplies no body semantics",
+    "verification": "owning object rebuilt; fndiff count/ops/clean inspected; matchtool preserved 114 exact siblings and reduced AudioEnterNextStage D13 to D4; datadiff retained only pre-existing unclaimed .data 0x104 and .sdata2 0x8C; git diff --check passed; fresh full ninja linked main.dol with checksum OK; progress 97.73% fuzzy and 57.91% matched; no assembly or postprocessor changes"
+  },
+  "commit_hash": "5827f767a0ab5b9b723d63265b68302e846c5265",
+  "function": "function:AudioEnterNextStage",
+  "id": "attempt.audioenternextstage-portable-branch-pair-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
