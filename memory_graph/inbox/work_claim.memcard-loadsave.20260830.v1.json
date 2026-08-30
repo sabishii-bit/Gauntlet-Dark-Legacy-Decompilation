@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/sys/memcard.c exclusively; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:loadGauntletSave",
+  "id": "work_claim.memcard-loadsave.20260830.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-I",
+  "schema_version": 1,
+  "state": "active"
+}

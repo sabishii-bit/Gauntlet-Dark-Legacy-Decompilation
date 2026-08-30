@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/world/camera.c exclusively: camera_debug_supervisor, camera_collide_step; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:camera_debug_supervisor",
+  "id": "work_claim.worldcamera-supervisors.20260830.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-H",
+  "schema_version": 1,
+  "state": "active"
+}
