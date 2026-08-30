@@ -199,6 +199,9 @@ def main():
         path.write_text(json.dumps(snap, indent=2, sort_keys=True), encoding="utf-8")
         print(f"baseline updated with {len(improved)} improvement(s)")
     print("GATE OK" + (f" ({len(improved)} improved)" if improved else ""))
+    if improved and not update_improved:
+        print("(flags combine: re-run with --rebuild --update-improved to"
+              " bank these in ONE call — no separate second check needed)")
     return 0
 
 
