@@ -1,0 +1,11 @@
+{
+  "attributes": { "scope": "src/game/enemy/critter.c (entire translation unit)" },
+  "branch": "codex/critter-process-20260829",
+  "claimed_at": "2026-08-29T22:45:00-07:00",
+  "function": "function:ProcessCritter",
+  "id": "work-claim.codex.critter-process.20260829.v1",
+  "kind": "work_claim",
+  "owner": "Codex /root campaign",
+  "schema_version": 1,
+  "state": "active"
+}
