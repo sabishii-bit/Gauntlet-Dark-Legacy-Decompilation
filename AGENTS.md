@@ -223,10 +223,13 @@ as matching work:
    do_enemy_collide behavior chains are recorded off-limits).
 4. **Convert in small regions, rebuild the object, re-gate.** After a
    failed form, read the failure diff and name the cause before choosing
-   the next form; if the cause is nameable (web split, pressure cascade,
-   lost fusion) one further form targeting it is warranted. Two failed
-   forms *with an understood, recorded cause* means leave that region raw
-   and note it.
+   the next form; the retry budget is generous — try at least three
+   targeted counter-forms (the law corpus names one for every known
+   failure class) before leaving a region raw, and re-test earlier
+   left-raw regions after later conversions land: cleanup is
+   alignment-sensitive too, and regions that failed early in a pass have
+   repeatedly converted cleanly late in it. Leave a region raw only with
+   the failure causes understood and recorded.
 5. **Record one compact attempt record per TU pass** (sites converted,
    sites left raw and why, any score changes) — not one per function —
    plus a law record only for a newly verified constraint. Commit style:
@@ -312,10 +315,12 @@ Reconstruct <FunctionName> (<before> -> <after> real diffs)
 
 Default topology for a campaign: one integrator/root plus at most three
 concurrent workers (the ceiling excludes the root). The user may authorize
-expanded capacity (currently authorized: up to six concurrent workers,
+expanded capacity (currently authorized: up to nine concurrent workers,
 2026-08-30); at expanded capacity, workers should use reduced build
 parallelism (`ninja -j2`, falling back to `-j1` on "User break, cancelled"
-contention) since concurrent fleet builds share one machine. Use the strongest
+contention) since concurrent fleet builds share one machine. Prefer copying
+the few needed gitignored artifacts into a fresh worktree over junctioning
+`orig/` — copies remove the reparse-point removal hazard entirely. Use the strongest
 available coding model for the root and every writing worker; a faster model
 only for bounded read-only scouting. Platform-specific model names and
 subagent configuration live in platform config, not in this file. Do not

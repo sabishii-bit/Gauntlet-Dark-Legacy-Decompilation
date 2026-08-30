@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/ui/select.c exclusively; SECONDARY de-fakematch pass, 277 remaining sites (largest pile); parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:serve_blits",
+  "id": "work_claim.select-defake2.20260830.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-U",
+  "schema_version": 1,
+  "state": "active"
+}
