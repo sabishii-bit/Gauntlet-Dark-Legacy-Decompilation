@@ -130,13 +130,19 @@ extern SelectSlot lbl_80121950[];
 
 /* 36-byte option-list record used by the load/save sub-menus (VMU file
  * entries, memcard-slot entries, etc.); verified stride and field offsets
- * against target asm in setup_vmu_entries/sel_set_choice. */
+ * against target asm in setup_vmu_entries/sel_set_choice. This is the same
+ * 0x24-byte layout as OPTITEM (game/ui/options.c): text@0, code@4, dy@8,
+ * value@0x20 -- confirmed by shared semantics (code values 1000-1005 match
+ * the do_optmenu() return codes switched on throughout this file; value<0
+ * means disabled, matching OPTITEM.value's documented "< 0 = disabled"
+ * meaning). text2/rgb/draw_y/draw_xend/on (OPTITEM 0xC-0x1F) are never
+ * touched by this TU's dynamic list construction and stay as padding. */
 typedef struct VmuMenuEntry {
-    char* text;
-    s32 id;
-    s32 type;
-    u8 _pad0C[20];
-    s32 state;
+    char* text;    /* 0x00 == OPTITEM.text */
+    s32 code;      /* 0x04 == OPTITEM.code */
+    s32 dy;        /* 0x08 == OPTITEM.dy */
+    u8 _pad0C[20]; /* OPTITEM.text2/rgb/draw_y/draw_xend/on, unused here */
+    s32 value;     /* 0x20 == OPTITEM.value */
 } VmuMenuEntry;
 
 /* file-local view: per-slot select blit entry, 12 bytes (handle, mode,
@@ -146,6 +152,32 @@ typedef struct BlitEntry {
     s32 mode;
     s32 timer;
 } BlitEntry;
+
+/* file-local view of the fields of OPTMENU (game/ui/options.c, verified
+ * 0xE8-byte struct) actually touched by this TU's per-player menu blocks
+ * (do_player_select/setup_sel_menu/sel_set_choice all pass an OPTMENU* to
+ * show_optmenu/do_optmenu/remove_optmenu/start_optmenu_nostack). Never cast
+ * a live pointer to this type -- it exists only to feed offsetof() so the
+ * raw base pointer keeps its fused-immediate-displacement addressing (see
+ * claim.law.multifield-alias-defeats-indexed-addressing /
+ * offsetof-fused-immediate-counter). Only fields this TU reads/writes are
+ * named; the rest of OPTMENU's 0xE8 bytes are left as padding. */
+typedef struct OptMenuLayout {
+    s32 state;         /* 0x00 == OPTMENU.state */
+    u8 _pad04[8];
+    s32 x;             /* 0x0C == OPTMENU.x */
+    s32 y;             /* 0x10 == OPTMENU.y */
+    u8 _pad14[8];
+    void* items;       /* 0x1C == OPTMENU.items (OPTITEM*) */
+    u8 _pad20[20];
+    f32 scale;         /* 0x34 == OPTMENU.scale */
+    u8 _pad38[0x34];
+    s32 active;         /* 0x6C == OPTMENU.active */
+    u8 _pad70[4];
+    s32 sel;            /* 0x74 == OPTMENU.sel */
+    u8 _pad78[12];
+    s32 num_items;      /* 0x84 == OPTMENU.num_items */
+} OptMenuLayout;
 
 /* ---- audio / front-end (other TUs) ---- */
 extern void AudioWelcome(s32 pidx, s32 flag);
@@ -431,8 +463,8 @@ s32 do_player_select(void)
                                 if (*(u32*)en == 0) {
                                     break;
                                 }
-                                if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1001) {
-                                    if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
+                                if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1001) {
+                                    if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
                                         found = k;
                                         break;
                                     }
@@ -488,8 +520,8 @@ s32 do_player_select(void)
                             if (*(u32*)en == 0) {
                                 break;
                             }
-                            if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1005) {
-                                if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
+                            if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1005) {
+                                if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
                                     found = k;
                                     break;
                                 }
@@ -509,9 +541,9 @@ s32 do_player_select(void)
                             if (*(u32*)en == 0) {
                                 break;
                             }
-                            if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1003) {
-                                if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
-                                    *(s32*)(en + offsetof(VmuMenuEntry, state)) = -1;
+                            if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1003) {
+                                if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
+                                    *(s32*)(en + offsetof(VmuMenuEntry, value)) = -1;
                                 }
                             }
                             off2 += 36;
@@ -522,9 +554,9 @@ s32 do_player_select(void)
                             if (*(u32*)en == 0) {
                                 break;
                             }
-                            if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1001) {
-                                if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
-                                    *(s32*)(en + offsetof(VmuMenuEntry, state)) = -1;
+                            if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1001) {
+                                if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
+                                    *(s32*)(en + offsetof(VmuMenuEntry, value)) = -1;
                                 }
                             }
                             off2 += 36;
@@ -535,9 +567,9 @@ s32 do_player_select(void)
                             if (*(u32*)en == 0) {
                                 break;
                             }
-                            if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1004) {
-                                if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
-                                    *(s32*)(en + offsetof(VmuMenuEntry, state)) = -1;
+                            if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1004) {
+                                if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
+                                    *(s32*)(en + offsetof(VmuMenuEntry, value)) = -1;
                                 }
                             }
                             off2 += 36;
@@ -1130,8 +1162,8 @@ s32 do_player_select(void)
                                     if (*(u32*)en == 0) {
                                         break;
                                     }
-                                    if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1005) {
-                                        if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
+                                    if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1005) {
+                                        if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
                                             found = k;
                                             break;
                                         }
@@ -1303,8 +1335,8 @@ s32 do_player_select(void)
                                     if (*(u32*)en == 0) {
                                         break;
                                     }
-                                    if (*(s32*)(en + offsetof(VmuMenuEntry, id)) == 1005) {
-                                        if (*(s32*)(en + offsetof(VmuMenuEntry, state)) >= 0) {
+                                    if (*(s32*)(en + offsetof(VmuMenuEntry, code)) == 1005) {
+                                        if (*(s32*)(en + offsetof(VmuMenuEntry, value)) >= 0) {
                                             found = k;
                                             break;
                                         }
@@ -2020,20 +2052,20 @@ int setup_file_entries(u8* pl, s32 fromLoad)
             e = eb + *(s32*)pl * 324;
             e += entOff;
             *(u32*)e = (u32)(row + nameOff + 8);
-            *(s32*)(e + offsetof(VmuMenuEntry, id)) = k + 1000;
-            *(s32*)(e + offsetof(VmuMenuEntry, state)) = 0;
-            *(s32*)(e + offsetof(VmuMenuEntry, type)) = 4;
+            *(s32*)(e + offsetof(VmuMenuEntry, code)) = k + 1000;
+            *(s32*)(e + offsetof(VmuMenuEntry, value)) = 0;
+            *(s32*)(e + offsetof(VmuMenuEntry, dy)) = 4;
             if (fromLoad == 0) {
                 if (strncmp((char*)*(u32*)e, lbl_80348018, 5) == 0) {
-                    *(s32*)(e + offsetof(VmuMenuEntry, state)) = -1;
+                    *(s32*)(e + offsetof(VmuMenuEntry, value)) = -1;
                 } else {
                     ok = 0;
                 }
             }
             if (verify_vmu_file_ok(pl, k) == 0) {
-                *(s32*)(e + offsetof(VmuMenuEntry, state)) = -1;
+                *(s32*)(e + offsetof(VmuMenuEntry, value)) = -1;
             }
-            if (*(volatile s32*)(e + offsetof(VmuMenuEntry, state)) == 0) {
+            if (*(volatile s32*)(e + offsetof(VmuMenuEntry, value)) == 0) {
                 continue;
             }
         }
@@ -2083,13 +2115,13 @@ void setup_vmu_entries(void)
         }
         entry = (VmuMenuEntry*)(base + 0x720);
         entry->text = buf;
-        entry->id = 1000;
+        entry->code = 1000;
         if (*cardPresent == 1) {
-            entry->state = 0;
+            entry->value = 0;
         } else {
-            entry->state = -1;
+            entry->value = -1;
         }
-        entry->type = 4;
+        entry->dy = 4;
         idx = 1;
     }
 end:
@@ -2161,7 +2193,7 @@ void setup_sel_menu(s32 player, s32 mode)
             if (entry->text == NULL) {
                 break;
             }
-            if (sum == entry->id) {
+            if (sum == entry->code) {
                 *selected = i;
                 break;
             }
@@ -2207,54 +2239,54 @@ static s32 sel_set_choice(s32 player, s32 mode)
         if (*(u32*)e == 0) {
             break;
         }
-        switch (((VmuMenuEntry*)e)->id) {
+        switch (((VmuMenuEntry*)e)->code) {
         case 1000:
-            ((VmuMenuEntry*)e)->state = 0;
+            ((VmuMenuEntry*)e)->value = 0;
             break;
         case 1001:
             if (gDemoMode != 0) {
-                ((VmuMenuEntry*)e)->state = -1;
+                ((VmuMenuEntry*)e)->value = -1;
             } else if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
-                ((VmuMenuEntry*)e)->state = -1;
+                ((VmuMenuEntry*)e)->value = -1;
             } else if (vmu_directory_exists() >= 1) {
-                ((VmuMenuEntry*)e)->state = 0;
+                ((VmuMenuEntry*)e)->value = 0;
             } else {
-                ((VmuMenuEntry*)e)->state = -1;
+                ((VmuMenuEntry*)e)->value = -1;
             }
             break;
         case 1002:
             if (gDemoMode != 0) {
-                ((VmuMenuEntry*)e)->state = -1;
+                ((VmuMenuEntry*)e)->value = -1;
             } else if (vmu_directory_exists() >= 1) {
-                ((VmuMenuEntry*)e)->state = 0;
+                ((VmuMenuEntry*)e)->value = 0;
             } else {
-                ((VmuMenuEntry*)e)->state = -1;
+                ((VmuMenuEntry*)e)->value = -1;
             }
             break;
         case 1004:
             if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
-                ((VmuMenuEntry*)e)->state = -1;
+                ((VmuMenuEntry*)e)->value = -1;
             } else {
-                ((VmuMenuEntry*)e)->state = 0;
+                ((VmuMenuEntry*)e)->value = 0;
             }
             break;
         case 1003:
             if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
-                ((VmuMenuEntry*)e)->state = -1;
+                ((VmuMenuEntry*)e)->value = -1;
             } else {
                 owner = *(u32*)(pl + 240);
                 if (owner != 0 && owner != lbl_80343D6C) {
-                    ((VmuMenuEntry*)e)->state = -1;
+                    ((VmuMenuEntry*)e)->value = -1;
                 } else {
-                    ((VmuMenuEntry*)e)->state = 0;
+                    ((VmuMenuEntry*)e)->value = 0;
                 }
             }
             break;
         case 1005:
-            ((VmuMenuEntry*)e)->state = 0;
+            ((VmuMenuEntry*)e)->value = 0;
             break;
         }
-        if (((VmuMenuEntry*)e)->state >= 0 && best < 0) {
+        if (((VmuMenuEntry*)e)->value >= 0 && best < 0) {
             best = i;
         }
         i++;
