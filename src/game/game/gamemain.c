@@ -187,7 +187,7 @@ extern f32   lbl_80346A80;
 extern u8    sMilestones[];
 extern s32   sNumMilestones;
 extern f64   __frsqrte(f64 x);
-extern s32   gIdentityMatrix[];       /* node template (ADDR16) */
+extern f32   gIdentityMatrix[];       /* identity matrix */
 extern f32   lbl_80346A7C;
 extern u32   RandInt(u32 limit);
 extern void* sGoodWizObj;

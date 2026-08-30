@@ -137,7 +137,7 @@ extern const char lbl_80111294[];
 extern const char lbl_801112A0[];
 extern char lbl_80126A98[];
 extern char lbl_80110900[];
-extern char gIdentityMatrix[];
+extern f32 gIdentityMatrix[];
 extern char lbl_80118188[];
 extern char lbl_801111B8[];
 extern char lbl_80111278[];

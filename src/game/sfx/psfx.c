@@ -68,7 +68,7 @@ extern u32 gFrameTicks;
 extern s32 lbl_80343DB0;
 extern u8* lbl_80344B40;
 extern Effect Effects[64];
-extern u8 gIdentityMatrix[];
+extern f32 gIdentityMatrix[];
 extern f64 lbl_80347D98;
 extern f32 lbl_80347DA0;
 extern f64 lbl_80347DE8;

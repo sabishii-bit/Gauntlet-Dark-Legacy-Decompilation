@@ -129,7 +129,7 @@ extern void AudioTrackRegister(int a, int b, int c, int d, int e); /* per-channe
 extern u8 sAudioState[];
 extern QueSlot lbl_8023D398[2][16]; /* deferred-request slots (sAudioState+408) */
 extern u8 sAudioChanUpdate[]; /* 12 * 20 */
-extern u8 gCameras[]; /* camera array; listener transform lives at gCameras[0] */
+extern f32 gCameras[]; /* camera array; listener transform lives at gCameras[0] */
 extern s32 sAudioInitFlag;
 extern s32 sAudioOverride;
 extern s32 lbl_803442A8;

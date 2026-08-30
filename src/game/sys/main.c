@@ -120,8 +120,8 @@ void fn_800C1170(int a, void* b, int c);
 
 extern char sBootStrings[];    /* string table (soulsave.. boot strings) */
 extern char lbl_80126A98[];    /* version string */
-extern u8 lbl_80127D00[];
-extern u8 gIdentityMatrix[];
+extern f32 lbl_80127D00[];
+extern f32 gIdentityMatrix[];
 extern u32 gErrorCode;         /* boot clear color */
 extern s32 sBootPhase;       /* boot step */
 extern u8* mlmMemBase;

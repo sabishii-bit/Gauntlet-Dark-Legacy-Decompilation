@@ -104,7 +104,7 @@ void pbBlitSetDrawRegs(s32 a, s32 b, s32 c);
 void fn_800C7914(void* a, void* b);
 void GXBegin(s32 prim, s32 fmt, s32 count);
 
-extern u8 gIdentityMatrix[0x40];   /* hash config for MBNewNode */
+extern f32 gIdentityMatrix[16];   /* identity matrix (transform arg to MBNewNode) */
 extern PolyWinGlobals* gWinGlobals; /* window/projection globals */
 extern f32* lbl_80343F5C;       /* shared screen-vertex scratch (5 floats each) */
 extern const f32 lbl_801177B8[2][4][2]; /* per-type UV template (tri/quad) */
