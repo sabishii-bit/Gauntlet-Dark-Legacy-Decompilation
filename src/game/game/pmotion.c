@@ -1037,19 +1037,19 @@ void PlayerMotion(Player* p) {
                 speedScale = 0.0f;
             }
         }
-        dpos[0] += PF(p, 0x858, f32) * gClockFrameStep;
-        dpos[2] += PF(p, 0x860, f32) * gClockFrameStep;
+        dpos[0] += p->light_vec[0] * gClockFrameStep;
+        dpos[2] += p->light_vec[2] * gClockFrameStep;
     }
 
     if (PlayerMotion_FpClassify(dpos[0]) == 1 ||
         PlayerMotion_FpClassify(dpos[1]) == 1 ||
         PlayerMotion_FpClassify(dpos[2]) == 1) {
-        PF(p, 0x858, f32) = 0.0f;
-        PF(p, 0x85C, f32) = 0.0f;
-        PF(p, 0x860, f32) = 0.0f;
-        PF(p, 0x864, f32) = 0.0f;
-        PF(p, 0x868, f32) = 0.0f;
-        PF(p, 0x86C, f32) = 0.0f;
+        p->light_vec[0] = 0.0f;
+        p->light_vec[1] = 0.0f;
+        p->light_vec[2] = 0.0f;
+        p->light_vel[0] = 0.0f;
+        p->light_vel[1] = 0.0f;
+        p->light_vel[2] = 0.0f;
         dpos[0] = 0.0f;
         dpos[1] = 0.0f;
         dpos[2] = 0.0f;
@@ -3177,9 +3177,9 @@ player_motion_grab_done:
                     p->combo_cd < 0.0f) {
                     if (p->char_type == 4 || p->char_type == 7) {
                         f32 comboPos[3];
-                        comboPos[0] = PF(p, 0xD0, f32) + PF(p, 0x838, f32);
-                        comboPos[1] = PF(p, 0xD4, f32) + PF(p, 0x83C, f32);
-                        comboPos[2] = PF(p, 0xD8, f32) + PF(p, 0x840, f32);
+                        comboPos[0] = p->beacon_pos[0] + p->anchor_pos[0];
+                        comboPos[1] = p->beacon_pos[1] + p->anchor_pos[1];
+                        comboPos[2] = p->beacon_pos[2] + p->anchor_pos[2];
                         StartComboFX(comboPos, PF(p, 4, s32),
                                      PF(p->grab_partner, 4, s32));
                     } else {
