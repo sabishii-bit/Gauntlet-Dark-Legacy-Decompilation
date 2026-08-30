@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/boss/bosscam.c exclusively; matching pass on BossCamBossCalc; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:BossCamBossCalc",
+  "id": "work_claim.bosscam-match.20260830.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-T",
+  "schema_version": 1,
+  "state": "active"
+}

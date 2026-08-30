@@ -311,7 +311,11 @@ Reconstruct <FunctionName> (<before> -> <after> real diffs)
 ## Multi-agent coordination
 
 Default topology for a campaign: one integrator/root plus at most three
-concurrent workers (the ceiling excludes the root). Use the strongest
+concurrent workers (the ceiling excludes the root). The user may authorize
+expanded capacity (currently authorized: up to six concurrent workers,
+2026-08-30); at expanded capacity, workers should use reduced build
+parallelism (`ninja -j2`, falling back to `-j1` on "User break, cancelled"
+contention) since concurrent fleet builds share one machine. Use the strongest
 available coding model for the root and every writing worker; a faster model
 only for bounded read-only scouting. Platform-specific model names and
 subagent configuration live in platform config, not in this file. Do not
