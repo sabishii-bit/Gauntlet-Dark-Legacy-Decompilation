@@ -586,7 +586,7 @@ s32 saveGetFreeBytes(s32 port, s32 slot)
 /* check_prefs_loaded - load game options from the card once */
 void check_prefs_loaded(void)
 {
-    char* st = lbl_801131C0;
+    char* st;
     GameOpts* opts = &gameOpts;
     u8 pad[16]; /* unused, matches original frame */
 
@@ -606,6 +606,7 @@ void check_prefs_loaded(void)
     OSDestroyHeap(lbl_80344A0C);
     restoreSaveCache(0x310000);
     sysClearFlags(64);
+    st = lbl_801131C0;
     bulletproof_printf(st);
     lbl_803449EC = 0;
     opts->data[2] = (OSGetSoundMode() == 0) ? 0 : 1;
