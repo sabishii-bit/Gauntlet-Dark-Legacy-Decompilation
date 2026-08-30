@@ -738,9 +738,9 @@ void adsInitFromHeader(ADSTREAM* stream) {
     u16 adp[20];
 
     k48 = 48000;
+    aram = stream->spuReadBase;
     kscale = lbl_80349310;
     kdiv = lbl_80349308;
-    aram = stream->spuReadBase;
     vnum = 13;
     for (i = 0; i < stream->blocks; i++) {
         bits = stream->sampleBits;
