@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "TU-scoped de-fakematch pass over game/sfx/sfx.c: replace raw Effect and mbnode byte-offset accesses with GC-verified members or the existing target-verified EffectPage view under whole-object and per-function gates.",
+  "attributes": {
+    "anchors": "src/game/sfx/sfx.c; build/GUNE5D/src/game/sfx/sfx.o; build/GUNE5D/src/game/sfx/.postprocess/body/sfx.o; python tools/gdl/fndiff.py game/sfx/sfx <fn> --count/--ops/--clean",
+    "axis_log": "SfxSetLight direct Effects-rebased pointer FAIL 24->25/real27: emitted an extra addi and split the +0xBA0 high displacements; page-preserving EffectPage view PASS exact. All point-of-use EffectPage and direct mbnode member forms in retained regions preserved their baseline opcode streams and scores. Recorded StartExplosion address-web/cast-transit matching axes were not retried.",
+    "baseline_and_best": "TU fuzzy 93.676216%, 49/64 functions exact, unchanged. Flagship SuicideExplosion 255/255, fuzzy 100%, real 0, frame 0x50 unchanged. DmgFxAdd 107/107 real0; SfxSetLight 24/24 real0; StartEnemyDeathFX 110/110 real0; fn_800945D0 166/166 real0. Fuzzy siblings unchanged: StartShieldFX 141/141 real64, StartMagicFX 115/115 real50, StartExplosion 343/342 real191.",
+    "measurements": "Raw offset-access census 202->137 (65 converted). Raw compiler body SHA-256 1ACEDCDA1428FFDB374858B46205796185751308F8DC54E25967AE01A40AE6E7 and guarded object SHA-256 69A5731D3906EDA072B10283154497568C64F373FB1DB8910466A24A6E549927 both equal the untouched baseline, proving complete TU text/data and all sibling output byte-identical.",
+    "sites_converted": "65 sites: Effect flags/mindp/colrad/node; lightcolor/lightrad; vel/weight; fxhit/hit_audio/wall_sound; fxmorph/fxmorph2/flags/morphtime; mbnode pos/scale. Functions: DmgFxAdd 6, SfxSetLight 7, StartShieldFX 8, StartMagicFX 8, SuicideExplosion 3, StartExplosion 19, StartEnemyDeathFX 11, fn_800945D0 3. Names and offsets are GC-verified in include/game/effect.h and the file-local mbnode/EffectPage target views.",
+    "sites_left_raw": "137 raw sites remain: Player-record accesses without a safe TU type web; deliberate high-displacement/lwzu/cast-transit address webs in SuicideExplosion, StartShieldFX, and StartExplosion; and InitEffects/custom-definition regions lacking bounded GC-verified owner layouts. No parked matching axis was retried.",
+    "verification": "Object rebuilt after each region; --ops/--clean inspected; exact functions stayed real0 and fuzzy functions equal; guarded WebFrank hashes remained valid; final full ninja -j2 succeeded with build/GUNE5D/main.dol checksum OK; TU fuzzy/exact metrics unchanged; git diff --check clean; portable C only; no shared-header, assembly, postprocessor, configuration, symlink, or junction edits."
+  },
+  "function": "function:SuicideExplosion",
+  "id": "attempt.sfx-defakematch-tupass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

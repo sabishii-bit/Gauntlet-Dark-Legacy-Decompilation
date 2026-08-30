@@ -493,12 +493,12 @@ void DmgFxAdd(s32 idx)
     f64 step;
     u8 _spare[8];
 
-    if ((*(u32*)((u8*)e + 100) & 0x20) && *(f32*)((u8*)e + 156) > lbl_803480A8) {
-        arc = lbl_803480C0 * acosf(*(f32*)((u8*)e + 156));
+    if ((e->flags & 0x20) && e->mindp > lbl_803480A8) {
+        arc = lbl_803480C0 * acosf(e->mindp);
         arc = lbl_803480B8 * arc;
         arc /= lbl_803480C8;
         cnt = Round((f32)arc) << 1;
-        s = (f32)(lbl_80348098 * *(f32*)((u8*)e + 152));
+        s = (f32)(lbl_80348098 * e->colrad);
         if (cnt & 1) {
             yaw = lbl_803480D0;
             e->dmgdebug = MBOX_NewObject(lbl_803480D4, 0, (s32)e->node, flags);
@@ -523,13 +523,12 @@ void DmgFxAdd(s32 idx)
         }
     } else {
         struct mbnode* node;
-        if (*(u32*)((u8*)e + 100) & 0x20) {
+        if (e->flags & 0x20) {
             s = lbl_803480E8;
         } else {
-            s = (f32)(lbl_80348098 * *(f32*)((u8*)e + 152));
+            s = (f32)(lbl_80348098 * e->colrad);
         }
-        node = MBOX_NewObject(lbl_8034808C, 0,
-                                              *(s32*)((u8*)e + 20), flags);
+        node = MBOX_NewObject(lbl_8034808C, 0, (s32)e->node, flags);
         node->scale[0] = s;
         node->scale[1] = s;
         node->scale[2] = s;
@@ -541,23 +540,22 @@ void DmgFxAdd(s32 idx)
 
 void SfxSetLight(s32 idx, f32* color, f32 rad)
 {
-    u8* page = (u8*)EffectInfo;
-    u8* e;
+    EffectPage* page = (EffectPage*)EffectInfo;
 
     if (idx < 0) {
         return;
     }
     idx *= 240;
-    e = page + idx;
-    *(f32*)(e + 0xBB0) = rad;
+    page = (EffectPage*)((u8*)page + idx);
+    page->fx[0].lightrad = rad;
     if (color != NULL) {
-        *(f32*)(e + 0xBA0) = color[0];
-        *(f32*)(e + 0xBA4) = color[1];
-        *(f32*)(e + 0xBA8) = color[2];
+        page->fx[0].lightcolor[0] = color[0];
+        page->fx[0].lightcolor[1] = color[1];
+        page->fx[0].lightcolor[2] = color[2];
     } else {
-        *(f32*)(e + 0xBA0) = light_color[0];
-        *(f32*)(e + 0xBA4) = light_color[1];
-        *(f32*)(e + 0xBA8) = light_color[2];
+        page->fx[0].lightcolor[0] = light_color[0];
+        page->fx[0].lightcolor[1] = light_color[1];
+        page->fx[0].lightcolor[2] = light_color[2];
     }
 }
 
@@ -1048,24 +1046,24 @@ s32 StartShieldFX(f32* pos, s32 type, s32 player, f32 dmg, f32 size)
     e = (Effect*)(ep + 2976);
     if (nd != NULL) {
         MBTreeSetFlags(nd, 8, 0);
-        *(f32*)((u8*)e->node + 64) = rad;
-        *(f32*)((u8*)e->node + 68) = lbl_803480A0;
-        *(f32*)((u8*)e->node + 72) = rad;
+        e->node->scale[0] = rad;
+        e->node->scale[1] = lbl_803480A0;
+        e->node->scale[2] = rad;
     }
     MBTreeSetFlags(*(struct mbnode**)((u32)page + ret * 240 + 2996), 0x90800, 1);
     cp = tbl->coloridx[t4];
     cp3 = tbl->colors[cp];
     if (ret >= 0) {
         u8* e4 = (u8*)page + ro;
-        *(f32*)(e4 + 2992) = (f32)(lbl_80348120 * size);
+        ((EffectPage*)e4)->fx[0].lightrad = (f32)(lbl_80348120 * size);
         if (cp3 != NULL) {
             e->lightcolor[0] = cp3[0];
-            *(f32*)(e4 + 2980) = cp3[1];
-            *(f32*)(e4 + 2984) = cp3[2];
+            ((EffectPage*)e4)->fx[0].lightcolor[1] = cp3[1];
+            ((EffectPage*)e4)->fx[0].lightcolor[2] = cp3[2];
         } else {
             e->lightcolor[0] = light_color[0];
-            *(f32*)(e4 + 2980) = light_color[1];
-            *(f32*)(e4 + 2984) = light_color[2];
+            ((EffectPage*)e4)->fx[0].lightcolor[1] = light_color[1];
+            ((EffectPage*)e4)->fx[0].lightcolor[2] = light_color[2];
         }
     }
     return ret;
@@ -1379,9 +1377,9 @@ s32 SuicideExplosion(f32* pos, f32 dmg)
                 f32 k1;
                 MBTreeSetFlags(nd2, 8, 0);
                 k1 = lbl_80348140;
-                *(f32*)((u8*)e->node + 64) = k1;
-                *(f32*)((u8*)e->node + 68) = lbl_803480A0;
-                *(f32*)((u8*)e->node + 72) = k1;
+                e->node->scale[0] = k1;
+                e->node->scale[1] = lbl_803480A0;
+                e->node->scale[2] = k1;
             }
         }
     } else {
@@ -1530,26 +1528,28 @@ s32 StartEnemyDeathFX(u8* en)
     v[3] = (f32)(lbl_803480F0 * *(f32*)(ep + 36));
     v[4] = (f32)(lbl_803480F0 * *(f32*)(ep + 40));
     if (idx >= 0) {
+        Effect* e;
         q = base + idx * 240;
         q += 2976;
+        e = (Effect*)q;
         yaw = vp[2];
         yaw = atan2(vp[0], yaw);
-        *(f32*)(q + 128) = vp[0];
-        *(f32*)(q + 132) = vp[1];
-        *(f32*)(q + 136) = vp[2];
-        if (*(struct mbnode**)(q + 20) != 0) {
-            YawMat3(*(struct mbnode**)(q + 20), yaw);
+        e->vel[0] = vp[0];
+        e->vel[1] = vp[1];
+        e->vel[2] = vp[2];
+        if (e->node != 0) {
+            YawMat3(e->node, yaw);
         }
-        *(f32*)(q + 160) = 0.0f;
-        *(f32*)(q + 152) = lbl_803480F8;
+        e->weight = 0.0f;
+        e->colrad = lbl_803480F8;
     }
     SetEnemyDeathParams(base, idx, 0x100020);
     if (idx >= 0) {
         u8* r = base + idx * 240;
-        *(u16*)(r + 3168) = 89;
-        *(s16*)(r + 3170) = -1;
-        *(u32*)(r + 3076) = *(u32*)(r + 3076) | 0x4000;
-        *(f32*)(r + 3092) = lbl_803480F8;
+        ((EffectPage*)r)->fx[0].fxmorph = 89;
+        ((EffectPage*)r)->fx[0].fxmorph2 = -1;
+        ((EffectPage*)r)->fx[0].flags |= 0x4000;
+        ((EffectPage*)r)->fx[0].morphtime = lbl_803480F8;
     }
 done:
     return idx;
@@ -1584,9 +1584,9 @@ s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
     } else {
         fn_80093E50(idx, 0, 0, 0.0f, 0.0f);
         e = base + idx * 240;
-        *(u16*)(e + 3166) = 0;
-        *(u32*)(e + 3180) = 0;
-        *(u32*)(e + 3184) = 0;
+        ((EffectPage*)e)->fx[0].fxhit = 0;
+        ((EffectPage*)e)->fx[0].hit_audio = 0;
+        ((EffectPage*)e)->fx[0].wall_sound = 0;
     }
     SetMagicParams(base, idx, tf, power, scale, owner);
     if (s > lbl_80348118) {
@@ -1606,15 +1606,15 @@ s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
     col = (f32*)&(&tab[ci * 3])[6];
     if (idx >= 0) {
         e = base + owner;
-        *(f32*)(e + 2992) = (f32)(lbl_80348120 * scale);
+        ((EffectPage*)e)->fx[0].lightrad = (f32)(lbl_80348120 * scale);
         if (col != 0) {
-            *(f32*)ef = col[0];
-            *(f32*)(e + 2980) = col[1];
-            *(f32*)(e + 2984) = col[2];
+            ef->lightcolor[0] = col[0];
+            ((EffectPage*)e)->fx[0].lightcolor[1] = col[1];
+            ((EffectPage*)e)->fx[0].lightcolor[2] = col[2];
         } else {
-            *(f32*)ef = light_color[0];
-            *(f32*)(e + 2980) = light_color[1];
-            *(f32*)(e + 2984) = light_color[2];
+            ef->lightcolor[0] = light_color[0];
+            ((EffectPage*)e)->fx[0].lightcolor[1] = light_color[1];
+            ((EffectPage*)e)->fx[0].lightcolor[2] = light_color[2];
         }
     }
     return idx;
@@ -1733,11 +1733,11 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
                     f32* pv = (f32*)(en + 48);
                     f32 t0;
                     t0 = pv[0];
-                    *(f32*)((u8*)e->node + 48) = t0;
+                    e->node->pos[0] = t0;
                     t0 = pv[1];
-                    *(f32*)((u8*)e->node + 52) = t0;
+                    e->node->pos[1] = t0;
                     t0 = pv[2];
-                    *(f32*)((u8*)e->node + 56) = t0;
+                    e->node->pos[2] = t0;
                 }
             }
         }
@@ -1757,9 +1757,9 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
                 f32 k1;
                 MBTreeSetFlags(nd, 8, 0);
                 k1 = lbl_80348168;
-                *(f32*)((u8*)e->node + 64) = k1;
-                *(f32*)((u8*)e->node + 68) = lbl_803480A0;
-                *(f32*)((u8*)e->node + 72) = k1;
+                e->node->scale[0] = k1;
+                e->node->scale[1] = lbl_803480A0;
+                e->node->scale[2] = k1;
             }
         }
         {
@@ -1786,9 +1786,9 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
                 f32 k1;
                 MBTreeSetFlags(nd, 8, 0);
                 k1 = lbl_8034816C;
-                *(f32*)((u8*)e->node + 64) = k1;
-                *(f32*)((u8*)e->node + 68) = lbl_803480A0;
-                *(f32*)((u8*)e->node + 72) = k1;
+                e->node->scale[0] = k1;
+                e->node->scale[1] = lbl_803480A0;
+                e->node->scale[2] = k1;
             }
         }
         break;
@@ -1820,9 +1820,9 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
                 f32 k1;
                 MBTreeSetFlags(nd, 8, 0);
                 k1 = lbl_80348178;
-                *(f32*)((u8*)e->node + 64) = k1;
-                *(f32*)((u8*)e->node + 68) = lbl_803480A0;
-                *(f32*)((u8*)e->node + 72) = k1;
+                e->node->scale[0] = k1;
+                e->node->scale[1] = lbl_803480A0;
+                e->node->scale[2] = k1;
             }
         }
         break;
@@ -1830,15 +1830,15 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
     }
     if ((fl & 1) && ret >= 0) {
         u8* e4 = (u8*)page + ret * 240;
-        *(f32*)(e4 + 2992) = (f32)(lbl_80348150 * rad);
+        ((EffectPage*)e4)->fx[0].lightrad = (f32)(lbl_80348150 * rad);
         if (tbl->colors[0] != NULL) {
-            *(f32*)(e4 + 2976) = tbl->colors[0][0];
-            *(f32*)(e4 + 2980) = tbl->colors[0][1];
-            *(f32*)(e4 + 2984) = tbl->colors[0][2];
+            ((EffectPage*)e4)->fx[0].lightcolor[0] = tbl->colors[0][0];
+            ((EffectPage*)e4)->fx[0].lightcolor[1] = tbl->colors[0][1];
+            ((EffectPage*)e4)->fx[0].lightcolor[2] = tbl->colors[0][2];
         } else {
-            *(f32*)(e4 + 2976) = light_color[0];
-            *(f32*)(e4 + 2980) = light_color[1];
-            *(f32*)(e4 + 2984) = light_color[2];
+            ((EffectPage*)e4)->fx[0].lightcolor[0] = light_color[0];
+            ((EffectPage*)e4)->fx[0].lightcolor[1] = light_color[1];
+            ((EffectPage*)e4)->fx[0].lightcolor[2] = light_color[2];
         }
     }
     SetMagicParams((u8*)page, ret, fl, dmg, rad, -1);
@@ -2288,9 +2288,9 @@ s32 fn_800945D0(f32* pos, f32* mat, s32 idx, s32 alt, s32 kind, f32 scale)
         e = (Effect*)(ep += 2976);
         if ((nd = e->node) != NULL) {
             MBTreeSetFlags(nd, 8, 0);
-            *(f32*)((u8*)e->node + 64) = rad;
-            *(f32*)((u8*)e->node + 68) = rad;
-            *(f32*)((u8*)e->node + 72) = rad;
+            e->node->scale[0] = rad;
+            e->node->scale[1] = rad;
+            e->node->scale[2] = rad;
         }
         MBTreeSetZsortAdd(
             e->node,
