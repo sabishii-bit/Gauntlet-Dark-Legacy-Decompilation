@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "portable-C exact closure of packet-loop zero initialization, mode-arm conversion spills, smode bitfield edits, clamp lifetime, and 8-byte packet-copy scheduling",
+  "attributes": {
+    "anchors": "src/game/pb/pb_frame.c::pbFrameMode; GUNE5D .text 0x800C16F8 size 0xEF8; fnasm/fndiff/objdiff report commands",
+    "axis_log": "negative/reverted: per-case conv locals real499; direct mode-arm casts real561; direct/assignment-expression/clamp-lifetime aR forms real459-461; smode reuse/literals real483; named y-offset temp and explicit pair copy real473; P8-u64 collapsed copies to lfd/stfd and real650. neutral/reverted: declaration order/register hints, smode scope, add operand order, alternate aR copy placement",
+    "baseline_and_best": "baseline target/current 958/959, fndiff real 393, direct objdiff fuzzy 96.936325%, frame 0x360; best 958/959, real 391, direct fuzzy 96.95198%, report fuzzy 96.98852%, frame 0x360",
+    "residual": "four fctiwz/stfd stack-slot schedule seams; two rlwinm/add association seams; one extra mr in the smode<=5 clamp; two stw pair-order seams; remaining clean diff is dominated by register-color and schedule cascades. Do not retry the logged axes without a new source-level lever.",
+    "retained_change": "bufOff = envOff = k = 0 before the two-iteration packet loop; right-to-left chained assignment emits the target r23/r29/r28 zero-init order and improves both real and fuzzy metrics",
+    "semantic_audit": "calls, seven-arm mode switch, saved r14-r31 topology, 0x360 frame, two packet iterations, GS bitfield offsets, buffer strides, mode fields, flush/publish tail, and all 13 sibling functions remain aligned; Xbox PB_FRAME.OBJ exact-name/PBFRAMEMODE/PBGLOBAL_FRAME evidence used only for semantics",
+    "verification": "owning object and full ninja succeeded; main.dol SHA-1 gate OK; fndiff --ops/--clean inspected; git diff --check clean; no assembly; project progress 97.78% fuzzy, 58.12% matched, 26.09% linked"
+  },
+  "function": "function:pbFrameMode",
+  "id": "attempt.pb-frame-mode-structural-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

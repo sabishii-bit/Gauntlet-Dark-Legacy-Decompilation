@@ -385,9 +385,8 @@ void pbFrameMode(s32 mode, s32 flag)
     kAlpha1 = 0x10000 - 32743;
     kNop = 0x7000001A;
     kBig = 0x10000000;
-    envOff = 0;
-    bufOff = 0;
-    for (k = 0; k < 2; k++) {
+    bufOff = envOff = k = 0;
+    for (; k < 2; k++) {
         buf = g->screen->frames + bufOff;
         env = dispenv + envOff;
         tA = (k != 0) ? tplA2p : pA1;
