@@ -26,7 +26,53 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
 #define gPlayerRecords gPlayers
 #define PREC_STRIDE 0x335C
 #define PF(p, off, T) (*(T*)((u8*)(p) + (off)))
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 typedef struct PMotionCtx PMotionCtx;
+
+/* Offset-only layout of Enemy fields read off an index-computed base (grid
+ * scan, closest-target probes) throughout this TU (verified against
+ * include/game/enemy.h's Enemy struct: type@0, objgrp.coll_pos@0x54,
+ * state@0xB4, rad@0x238, hht@0x23C).  Never cast a live pointer to this type
+ * -- it exists only to feed offsetof() so the raw walked/indexed base pointer
+ * keeps its fused-immediate-displacement addressing (see
+ * claim.law.multifield-alias-defeats-indexed-addressing / offsetof-fused-
+ * immediate-counter): 3+ nearby fields are read off one index-computed base
+ * in these call sites, and a typed alias measured worse in the sibling TUs
+ * that hit this exact pattern. */
+typedef struct PCollideEnemyLayout {
+    s32 type;                /* 0x000 */
+    u8  _004[0x50];
+    f32 coll_pos[3];         /* 0x054 objgrp.coll_pos */
+    u8  _060[0x54];
+    s32 state;                /* 0x0B4 */
+    u8  _0B8[0x148];
+    f32 health;               /* 0x200 */
+    u8  _204[0x34];
+    f32 rad;                  /* 0x238 */
+    f32 hht;                  /* 0x23C */
+} PCollideEnemyLayout;
+
+/* Same rationale as PCollideEnemyLayout, for the gCritterPool index-computed
+ * scans in this TU (verified against include/game/critter.h's Critter
+ * struct: hdr@4, pos@0x05C).  Never cast a live pointer to this type. */
+typedef struct PCollideCritterLayout {
+    u8   _000[4];
+    void* hdr;                /* 0x004 */
+    u8   _008[0x54];
+    f32  pos[3];               /* 0x05C */
+} PCollideCritterLayout;
+
+/* Same rationale, for sItems index-computed scans in this TU (verified
+ * against include/game/item.h's Item struct: active@0xC4, action@0xC8).
+ * Never cast a live pointer to this type. */
+typedef struct PCollideItemLayout {
+    u8  _000[0xC4];
+    s16 active;                /* 0x0C4 */
+    s16 activetime;             /* 0x0C6 */
+    s8  action;                  /* 0x0C8 */
+} PCollideItemLayout;
 
 /* ------------------------------------------------------------------ */
 /* extern globals (.sbss/.sdata runtime state)                         */
@@ -510,7 +556,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
         }
         if (i != playerIdx && i < 4) {
             other = &gPlayers[i];
-            PF(other, 0x8B4, f32) = other->pos[1];
+            other->floor_base = other->pos[1];
             CopyMat4(other->mat, p->mat);
             SV(p)->rot[0] = SV(other)->rot[0];
             SV(p)->rot[1] = SV(other)->rot[1];
@@ -518,7 +564,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             pos[0] = other->col_pos[0];
             pos[1] = other->col_pos[1];
             pos[2] = other->col_pos[2];
-            r = 0.5 + PF(other, 0x850, f32);
+            r = 0.5 + other->col_radius;
             sx = r * (spread[8 + playerIdx * 2] - spread[8 + i * 2]);
             sz = r * (spread[9 + playerIdx * 2] - spread[9 + i * 2]);
             ang = CurTransmitter != NULL ? *(f32*)(CurTransmitter + 24) : 0.0;
@@ -564,11 +610,11 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             *(volatile u32*)&SV(other)->floor_obj = FloorCollide(lbl_80347B10, lbl_80347B14,
                 lbl_80347B18, pos2, (f32*)(ctx + 24), 1, 1);
             if (*(void**)(ctx + 92) != NULL) {
-                PF(other, 0x8C0, u32) = PF(*(void**)(ctx + 92), 0x10, u32);
+                SV(other)->floor_flags = ((WorldObj*)*(void**)(ctx + 92))->flags;
             } else {
-                PF(other, 0x8C0, u32) = 0;
+                SV(other)->floor_flags = 0;
             }
-            PF(other, 0x8B4, f32) = *(f32*)(ctx + 76);
+            other->floor_base = *(f32*)(ctx + 76);
             CopyMat3(other->mat, p->mat);
             p->pos[0] = pos2[0];
             p->pos[1] = pos2[1];
@@ -576,7 +622,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             SV(p)->rot[0] = SV(other)->rot[0];
             SV(p)->rot[1] = SV(other)->rot[1];
             SV(p)->rot[2] = SV(other)->rot[2];
-            r = half + PF(other, 0x850, f32);
+            r = half + other->col_radius;
             k = 0;
             do {
                 pos[0] = other->col_pos[0];
@@ -617,8 +663,8 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                                  -2, 0, 0, NULL, 1, lbl_80347B20);
                 }
             } else {
-                PF(p, 0x8B4, f32) = FloorPos(p->pos[1], lbl_80347B10, p->pos, 1);
-                p->pos[1] = PF(p, 0x8B4, f32);
+                p->floor_base = FloorPos(p->pos[1], lbl_80347B10, p->pos, 1);
+                p->pos[1] = p->floor_base;
                 MBNodeSetParent(p->node, *(void**)(other->node + 0x74));
                 *(volatile u32*)&SV(p)->floor_obj = *(volatile u32*)&SV(other)->floor_obj;
                 ErrorPrintf(lbl_80114220);
@@ -626,7 +672,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
         } else {
             CopyMat4((f32*)gIdentityMatrix, mat);
             YawMat3(mat, gPlayerStartYaw);
-            r = 0.5 + PF(p, 0x850, f32);
+            r = 0.5 + p->col_radius;
             pos[0] = gDefaultPlayerPosition[0];
             pos[1] = gDefaultPlayerPosition[1];
             pos[2] = gDefaultPlayerPosition[2];
@@ -681,7 +727,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             mat[14] = pos[2];
             y = FloorPos(pos[1], lbl_80347B10, &mat[12], 1);
             mat[13] = y;
-            PF(p, 0x8B4, f32) = y;
+            p->floor_base = y;
             CopyMat4(mat, p->mat);
             SV(p)->rot[0] = 0.0f;
             SV(p)->rot[1] = gPlayerStartYaw;
@@ -712,25 +758,26 @@ s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
     f32 hitPosition[3];
     f32 delta;
     u8 unusedTail[4];
+    Player* pm = (Player*)motion;
     f32 radius = p->col_radius;
     f32 height = p->col_height;
-    s32 floorFlags = (*(u32*)(motion + 0x8C0)) & 0x38;
+    s32 floorFlags = SV(motion)->floor_flags & 0x38;
 
-    collidePosition[0] = *(f32*)(motion + 0x64);
-    collidePosition[1] = *(f32*)(motion + 0x68);
-    collidePosition[2] = *(f32*)(motion + 0x6C);
+    collidePosition[0] = pm->effectpos[0];
+    collidePosition[1] = pm->effectpos[1];
+    collidePosition[2] = pm->effectpos[2];
 
     if (findFloor != 0) {
         screen[0] = FloorPos(lbl_80344880, (f32)(lbl_80347B00 * radius), position, 1);
         if (*(void**)((u8*)gFloorCollisionResult + 0x44) == NULL) {
             return 0;
         }
-        if (*(void**)(motion + 0x8C4) != NULL &&
-            ((*(u32*)(*(u8**)(motion + 0x8C4) + 0x10) & 0x1000) != 0) &&
-            *(void**)(motion + 0x8C4) != *(void**)((u8*)gFloorCollisionResult + 0x44)) {
+        if ((WorldObj*)SV(motion)->floor_obj != NULL &&
+            ((((WorldObj*)SV(motion)->floor_obj)->flags & 0x1000) != 0) &&
+            (WorldObj*)SV(motion)->floor_obj != *(void**)((u8*)gFloorCollisionResult + 0x44)) {
             return 0;
         }
-        delta = screen[0] - *(f32*)(motion + 0x8B4);
+        delta = screen[0] - SV(motion)->floor_y;
         *(u32*)&delta &= 0x7FFFFFFF;
         if (delta > lbl_80347B38 ||
             (delta > lbl_80347B28 && floorFlags == 0)) {
@@ -738,13 +785,13 @@ s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
         }
         position[1] = screen[0];
     } else {
-        position[1] = *(f32*)(motion + 0x8B4);
+        position[1] = SV(motion)->floor_y;
     }
 
     p->pos[0] = position[0];
     p->pos[1] = position[1];
     p->pos[2] = position[2];
-    fn_8005A404(&p->mat[0], (f32*)((u8*)p + 0x844), (f32*)((u8*)p + 0x838));
+    fn_8005A404(&p->mat[0], p->anchor_fwd, p->anchor_pos);
 
     if (gGameMode != 0x400C && lbl_80344500 == 0 && lbl_803443A8 == 0) {
         get_actual_screen_pos(0, (f32*)&screen[1], (f32*)&screen[0], p->col_pos);
@@ -756,7 +803,7 @@ s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
         }
     }
 
-    position[1] += PF(p, 0x848, f32);
+    position[1] += p->anchor_fwd[1];
     if (PlayerWallCollide(collidePosition, position, NULL, lbl_80347B40) != NULL) {
         return 0;
     }
@@ -783,13 +830,13 @@ void PlayerMotion_SetAnimState(Player* p) {
     u8 unused[32];
     if (lbl_803447B8 >= 2) {
         MBTreeClearFlags(p->node, 2, 0);
-        if (PF(p, 0x6C8, void*) != NULL) {
-            MBTreeClearFlags(PF(p, 0x6C8, void*), 2, 0);
+        if (p->mbnode != NULL) {
+            MBTreeClearFlags(p->mbnode, 2, 0);
         }
         if (p->anim_208 == 0x7C) {
-            PF(p, 0x964, s16) |= 0x1000;
+            p->hud_flags |= 0x1000;
         }
-        if ((PF(p, 0x964, s16) & 0x1000) == 0) {
+        if ((p->hud_flags & 0x1000) == 0) {
             p->anim_20C = 0x7C;
         } else {
             p->anim_20C = 0;
@@ -797,8 +844,8 @@ void PlayerMotion_SetAnimState(Player* p) {
     } else {
         p->anim_20C = 0;
         MBTreeSetFlags(p->node, 2, 0);
-        if (PF(p, 0x6C8, void*) != NULL) {
-            MBTreeSetFlags(PF(p, 0x6C8, void*), 2, 0);
+        if (p->mbnode != NULL) {
+            MBTreeSetFlags(p->mbnode, 2, 0);
         }
     }
     DoPlayerAction(p);
@@ -850,7 +897,7 @@ static s32 PlayerMotion_FpClassify(f32 value) {
 }
 
 static s32 PlayerMotion_SfxIndex(Player* p) {
-    Player* other = PF(p, 0x6B8, Player*);
+    Player* other = p->grab_partner;
     s32 sfx;
 
     if (other != NULL) {
@@ -923,10 +970,10 @@ void PlayerMotion(Player* p) {
     }
 
     controlYaw = atan2(*(f32*)(motion + 0x20), *(f32*)(motion + 0x28));
-    if (p->anim_208 == 143 && PF(p, 0x6B8, Player*) != NULL &&
-        lbl_80240E30[PF(p, 0x6B8, Player*)->index].values[8] > 0.0f) {
+    if (p->anim_208 == 143 && p->grab_partner != NULL &&
+        lbl_80240E30[p->grab_partner->index].values[8] > 0.0f) {
         ControlState* otherCtl =
-            &lbl_80240E30[PF(p, 0x6B8, Player*)->index];
+            &lbl_80240E30[p->grab_partner->index];
         movement = otherCtl->values[8];
         controlYaw = otherCtl->values[7];
     } else if (anim == 8) {
@@ -990,26 +1037,26 @@ void PlayerMotion(Player* p) {
                 speedScale = 0.0f;
             }
         }
-        dpos[0] += PF(p, 0x858, f32) * gClockFrameStep;
-        dpos[2] += PF(p, 0x860, f32) * gClockFrameStep;
+        dpos[0] += p->light_vec[0] * gClockFrameStep;
+        dpos[2] += p->light_vec[2] * gClockFrameStep;
     }
 
     if (PlayerMotion_FpClassify(dpos[0]) == 1 ||
         PlayerMotion_FpClassify(dpos[1]) == 1 ||
         PlayerMotion_FpClassify(dpos[2]) == 1) {
-        PF(p, 0x858, f32) = 0.0f;
-        PF(p, 0x85C, f32) = 0.0f;
-        PF(p, 0x860, f32) = 0.0f;
-        PF(p, 0x864, f32) = 0.0f;
-        PF(p, 0x868, f32) = 0.0f;
-        PF(p, 0x86C, f32) = 0.0f;
+        p->light_vec[0] = 0.0f;
+        p->light_vec[1] = 0.0f;
+        p->light_vec[2] = 0.0f;
+        p->light_vel[0] = 0.0f;
+        p->light_vel[1] = 0.0f;
+        p->light_vel[2] = 0.0f;
         dpos[0] = 0.0f;
         dpos[1] = 0.0f;
         dpos[2] = 0.0f;
     }
 
     moveLimit = (f32)(lbl_80347B88 *
-                      (PF(p, 0x110, f32) * gClockFrameStep));
+                      (p->light_range * gClockFrameStep));
     if ((p->act_flags & 0x18160) != 0) {
         moveLimit = (f32)(lbl_80347B90 * gClockFrameStep);
     }
@@ -1079,7 +1126,7 @@ void PlayerMotion(Player* p) {
     to[0] = oldpos[0] + dpos[0];
     to[1] = oldpos[1] + dpos[1];
     to[2] = oldpos[2] + dpos[2];
-    PF(p, 0x8AC, s32) = 0;
+    p->special_collision_item = 0;
     specialCritter = 0;
     firstEnemyHits = PlayerCollideEnemies(
         p, (s32)oldpos, to, to, 0, (s32*)&firstEnemy, radius, height);
@@ -1101,7 +1148,7 @@ void PlayerMotion(Player* p) {
                 s32 sfxProbe = PlayerMotion_SfxIndex(p);
                 sfx = sfxProbe;
                 if (sfxProbe >= 0) {
-                    fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx, (u8*)p,
+                    fn_80089350((u8*)p->grab_partner, sfx, (u8*)p,
                                 (u8*)to, lbl_80347B30, lbl_80347B40);
                 }
             }
@@ -1116,7 +1163,7 @@ void PlayerMotion(Player* p) {
         s32 otherIndex =
             PlayerCollidePlayers(p, radius, height, oldpos, to, to, 0);
         if (otherIndex >= 0 && anim == 137 &&
-            PF(p, 0x6B8, Player*) == &gPlayers[otherIndex] &&
+            p->grab_partner == &gPlayers[otherIndex] &&
             (f64)sMusicFadeBase <
                 lbl_80347B88 + p->combo_fade) {
             otherIndex = -1;
@@ -1156,7 +1203,7 @@ void PlayerMotion(Player* p) {
     oldpos[1] = (f32)((f64)oldpos[1] + lbl_80347BD0);
     wallResult = fn_80088714(radius, p, oldpos, dpos);
     if (wallResult != 0) {
-        PF(p, 0x8C8, WorldObj*) = (WorldObj*)lbl_80344B30;
+        p->floor_name = (char*)lbl_80344B30;
         PlayerMotion_FloorFX(p, (WorldObj*)lbl_80344B30, oldpos,
                              (f32*)ctxbase);
         if (anim == 137) {
@@ -1166,7 +1213,7 @@ void PlayerMotion(Player* p) {
             reflection[2] = *(f32*)(ctxbase + 20);
         }
     } else {
-        PF(p, 0x8C8, WorldObj*) = NULL;
+        p->floor_name = NULL;
     }
 
     oldpos[1] = (f32)((f64)oldpos[1] - lbl_80347BD0);
@@ -1204,8 +1251,8 @@ void PlayerMotion(Player* p) {
     if ((p->act_flags & 0x8000) == 0) {
         s32 cameraArg = wallResult != 0 ? 0 : 1;
         s32 camLimit;
-        PF(p, 0xA5C, s32) = CameraLimitPlayerDpos(index, dpos, cameraArg);
-        camLimit = PF(p, 0xA5C, s32);
+        p->camera_limit = CameraLimitPlayerDpos(index, dpos, cameraArg);
+        camLimit = p->camera_limit;
         if (!(camLimit < 5 || camLimit > 5) && anim == 137) {
             hitKind = 1;
         }
@@ -1213,7 +1260,7 @@ void PlayerMotion(Player* p) {
             p->camera_limit = -camLimit;
         }
     } else {
-        PF(p, 0xA5C, s32) = 0;
+        p->camera_limit = 0;
     }
 
     if ((f64)dpos[1] > lbl_80347BE0 * moveAmount) {
@@ -1251,7 +1298,7 @@ void PlayerMotion(Player* p) {
         }
         if (collision != 0) {
             if (directionKind == 0 && p->action == 0 &&
-                PF(p, 0xA5C, s32) == 0) {
+                p->camera_limit == 0) {
                 PlayerCollideWalls(p, (s32)oldpos, dpos, to, hit);
             } else {
                 dpos[0] = 0.0f;
@@ -1265,7 +1312,7 @@ void PlayerMotion(Player* p) {
                     s32 sfxProbe = PlayerMotion_SfxIndex(p);
                     sfx = sfxProbe;
                     if (sfxProbe >= 0) {
-                        fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx, (u8*)p,
+                        fn_80089350((u8*)p->grab_partner, sfx, (u8*)p,
                                     (u8*)hit, lbl_80347B30, lbl_80347B40);
                     }
                 }
@@ -1358,7 +1405,7 @@ void PlayerMotion(Player* p) {
                         s32 sfxProbe = PlayerMotion_SfxIndex(p);
                         sfx = sfxProbe;
                         if (sfxProbe >= 0) {
-                            fn_80089350((u8*)PF(p, 0x6B8, Player*), sfx,
+                            fn_80089350((u8*)p->grab_partner, sfx,
                                         (u8*)p, (u8*)to,
                                         lbl_80347B30, lbl_80347B40);
                         }
@@ -1391,7 +1438,7 @@ void PlayerMotion(Player* p) {
     goto collision_done;
 
 detach_floor:
-    PF(p, 0x8C4, WorldObj*) = NULL;
+    SV(p)->floor_obj = 0;
     MBNodeSetParent(p->node, lbl_80344B2C);
     p->hud_flags |= 1;
     p->floor_base = lbl_80344880;
@@ -1525,7 +1572,7 @@ collision_done:
         targetDir[0] = sin(heading);
         targetDir[1] = 0.0f;
         targetDir[2] = cos(heading);
-        target = PF(p, 0x8A8, void*);
+        target = p->collision_item;
         targetDistance = PlayerGetTarget(p, to, targetDir, attackDir,
                                          &item, &target);
         if (item >= 0x10000) {
@@ -1742,7 +1789,7 @@ state_selected:
         }
 
 store_motion_state:
-        PF(p, 0x204, s32) = motionState;
+        p->vibe_on = motionState;
 
         if (p->quest_state >= 2) {
             motionState = 1;
@@ -1870,10 +1917,10 @@ store_motion_state:
                 }
                 break;
             case 38:
-                if (PF(p, 0x6B8, Player*) == NULL) {
+                if (p->grab_partner == NULL) {
                     p->anim_20C = 0;
                 } else {
-                    switch (PF(p, 0x6B8, Player*)->char_type) {
+                    switch (p->grab_partner->char_type) {
                     case 0: p->anim_20C = 136; break;
                     case 1: p->anim_20C = 139; break;
                     case 2: p->anim_20C = 140; break;
@@ -1887,10 +1934,10 @@ store_motion_state:
                 }
                 break;
             case 39:
-                if (PF(p, 0x6B8, Player*) == NULL) {
+                if (p->grab_partner == NULL) {
                     p->anim_20C = 0;
                 } else {
-                    switch (PF(p, 0x6B8, Player*)->char_type) {
+                    switch (p->grab_partner->char_type) {
                     default: p->anim_20C = 0; break;
                     case 0: p->anim_20C = 137; break;
                     case 4: p->anim_20C = 143; break;
@@ -1976,7 +2023,7 @@ store_motion_state:
             case 24:
             case 25:
             case 26:
-                if (PF(p, 0x1EBC, s32) != 0 ||
+                if (p->item_body_hi != 0 ||
                     (gGameOptions[1] & 2) != 0) {
                     if (motionState == 25) {
                         p->anim_20C = 117;
@@ -2066,8 +2113,8 @@ store_motion_state:
                               lbl_80344894 * 60),
                             0x1FF, 1);
                         SfxSetParent(lbl_80344894,
-                                     PF(p, 0x6D0, void*));
-                        PF(p, 0x730, void*) =
+                                     p->hand_node);
+                        p->shield_object =
                             *((void**)(Effects + 0x14) +
                               lbl_80344894 * 60);
                     }
@@ -2182,7 +2229,7 @@ store_motion_state:
                 case 41:
                     if (lbl_80344894 >= 0) {
                         lbl_80344894 = DeleteEffect(lbl_80344894, 1);
-                        PF(p, 0x730, s32) = 0;
+                        p->shield_object = 0;
                     }
                     break;
                 default:
@@ -2365,9 +2412,9 @@ store_motion_state:
                         fn_80093E50(effect, effectVelocity, bossColor,
                                     weight, effectRadius);
                     } else {
-                        hit[0] = (f32)(PF(p, 0x34, f32) + (f64)p->col_pos[0]);
-                        hit[1] = (f32)(PF(p, 0x38, f32) + (f64)p->col_pos[1]);
-                        hit[2] = (f32)(PF(p, 0x3C, f32) + (f64)p->col_pos[2]);
+                        hit[0] = (f32)(p->mat[8] + (f64)p->col_pos[0]);
+                        hit[1] = (f32)(p->mat[9] + (f64)p->col_pos[1]);
+                        hit[2] = (f32)(p->mat[10] + (f64)p->col_pos[2]);
                         hit[1] = (f32)(hit[1] + lbl_80347C28);
                         effect = StartFXSub(93, hit, effectFlags | 8, 0,
                                             lbl_80347CA8);
@@ -2498,7 +2545,7 @@ store_motion_state:
                         strings + 84, sPowerupsHandle,
                         sPowerupsHandle, 1);
                     s32* found;
-                    if ((found = AtreeFindMbidxNode(PF(p, 0x790, void*),
+                    if ((found = AtreeFindMbidxNode(p->atree,
                                                     object)) != NULL) {
                         SfxSetParent(effect, (void*)*found);
                     }
@@ -2506,7 +2553,7 @@ store_motion_state:
                     p->coll_score = 0.0f;
                     AudioPlayerTurbo(p->index, 0, 0);
                 } else {
-                    SfxSetParent(effect, PF(p, 0x6D4, void*));
+                    SfxSetParent(effect, p->weapon_node);
                 }
                 PF(Effects + effect * 240, 0x9C, f32) =
                     lbl_80347CB8;
@@ -2525,11 +2572,11 @@ store_motion_state:
                 PF(p, 0x748, void*) != NULL) {
                 f32 projectileHeight;
                 f32 adjusted;
-                localVector[0] = PF(PF(p, 0x74, u8*), 0x40, f32) *
+                localVector[0] = PF(p->node, 0x40, f32) *
                                  PF(lbl_80282930[p->index], 0x170, f32);
-                localVector[1] = PF(PF(p, 0x74, u8*), 0x44, f32) *
+                localVector[1] = PF(p->node, 0x44, f32) *
                                  PF(lbl_80282930[p->index], 0x174, f32);
-                localVector[2] = PF(PF(p, 0x74, u8*), 0x48, f32) *
+                localVector[2] = PF(p->node, 0x48, f32) *
                                  PF(lbl_80282930[p->index], 0x178, f32);
                 MulVecMat4(localVector, hit, (f32*)motion);
                 localVector[0] = attackDir[0];
@@ -2569,7 +2616,7 @@ store_motion_state:
                 } else {
                     f32 shotSpeed =
                         (f32)(lbl_80347BE0 *
-                              (f32)(PF(p, 0x3324, s32) - 25) +
+                              (f32)(p->level - 25) +
                               lbl_80347CC8);
                     fn_80093918(index, index, hit,
                                 missileVelocity, lbl_80347CB0,
@@ -2582,19 +2629,19 @@ store_motion_state:
         /* Target +0x3824: low-byte melee/target resolution. */
         if ((p->act_bits & 0xFF) != 0) {
             if ((p->act_bits & 0xFE) != 0) {
-                f32 damage = PF(p, 0x104, f32);
+                f32 damage = p->stat_damage;
                 u32 damageFlags = p->field_11C;
                 f32 hitRange;
 
-                if (PF(p, 0x8A8, u8*) == NULL && ctl->values[8] == 0.0f) {
+                if (p->collision_item == NULL && ctl->values[8] == 0.0f) {
                     hit[0] = (f32)(targetDir[0] *
-                                   (lbl_80347C28 * PF(p, 0x850, f32)) +
+                                   (lbl_80347C28 * p->col_radius) +
                                    oldpos[0]);
                     hit[1] = (f32)(targetDir[1] *
-                                   (lbl_80347C28 * PF(p, 0x850, f32)) +
+                                   (lbl_80347C28 * p->col_radius) +
                                    oldpos[1]);
                     hit[2] = (f32)(targetDir[2] *
-                                   (lbl_80347C28 * PF(p, 0x850, f32)) +
+                                   (lbl_80347C28 * p->col_radius) +
                                    oldpos[2]);
                     PlayerCollideEnemies(p, (s32)oldpos, hit, NULL, 0,
                                          NULL, radius, height);
@@ -2660,9 +2707,9 @@ store_motion_state:
                             if (enemy == NULL ||
                                 (f64)PF(enemy, 0x23C, f32) >
                                     lbl_80347C28) {
-                                PF(p, 0x934, s32) +=
+                                p->fall_frames +=
                                     damaged != 0 ? 3 : 1;
-                                PF(p, 0x938, f32) = sMusicFadeBase;
+                                p->fall_time = sMusicFadeBase;
                             }
                         }
                     } else if (target != NULL) {
@@ -2772,11 +2819,11 @@ store_motion_state:
                     magicMode = 0;
                 }
 
-                if (PF(p, 0x1EBC, s32) > 0) {
-                    PF(p, 0x1EBC, s32)--;
+                if (p->item_body_hi > 0) {
+                    p->item_body_hi--;
                     start_magic(index, (f32*)(motion + 0x30),
                                 PF(p, 0x3300 +
-                                      PF(p, 0x1EBC, s32) * 4, u32),
+                                      p->item_body_hi * 4, u32),
                                 magicMode, 1.0f);
                 } else {
                     start_magic(index, (f32*)(motion + 0x30),
@@ -2869,11 +2916,11 @@ player_motion_phase_exit:
             }
 
             if ((p->flags & 1) != 0) {
-                u8* root = PF(p, 0x7C, u8*);
+                u8* root = (u8*)p->platform;
                 PF(PF(root, 0, void*), 0x34, f32) =
                     (f32)(lbl_80347B88 + PF(PF(root, 0x1C, u8*), 0x64, f32));
             } else {
-                u8* root = PF(p, 0x7C, u8*);
+                u8* root = (u8*)p->platform;
                 PF(PF(root, 0, void*), 0x34, f32) =
                     PF(PF(root, 0x1C, u8*), 0x64, f32);
             }
@@ -2885,7 +2932,7 @@ player_motion_phase_exit:
                     kind = 4;
                 } else if ((p->shield_flags & 0x10000) != 0) {
                     kind = 3;
-                } else if ((PF(p, 0x8C0, u32) & 8) != 0) {
+                } else if ((SV(p)->floor_flags & 8) != 0) {
                     kind = 2;
                 } else {
                     kind = 0;
@@ -2898,7 +2945,7 @@ player_motion_phase_exit:
             }
 
             if ((p->flags & 0x400) != 0 &&
-                PF(p, 0x6B8, Player*) == NULL) {
+                p->grab_partner == NULL) {
                 grabKind = -1;
             } else {
                 grabKind = p->char_type;
@@ -2964,9 +3011,9 @@ player_motion_phase_exit:
                         f32 grabDir[3];
                         f32 partnerYaw;
                         f32 partnerFacing;
-                        grabDir[0] = PF(p, 0x44, f32) - PF(partner, 0x44, f32);
-                        grabDir[1] = PF(p, 0x48, f32) - PF(partner, 0x48, f32);
-                        grabDir[2] = PF(p, 0x4C, f32) - PF(partner, 0x4C, f32);
+                        grabDir[0] = p->pos[0] - PF(partner, 0x44, f32);
+                        grabDir[1] = p->pos[1] - PF(partner, 0x48, f32);
+                        grabDir[2] = p->pos[2] - PF(partner, 0x4C, f32);
                         SlowNormalVector(grabDir);
                         partnerYaw = PlayerMotion_WrapAngle(
                             atan2(grabDir[0], grabDir[2]) + lbl_80347CF8);
@@ -3040,9 +3087,9 @@ player_motion_phase_exit:
                         f32 grabDir[3];
                         f32 partnerYaw;
                         f32 partnerFacing;
-                        grabDir[0] = PF(p, 0x44, f32) - PF(partner, 0x44, f32);
-                        grabDir[1] = PF(p, 0x48, f32) - PF(partner, 0x48, f32);
-                        grabDir[2] = PF(p, 0x4C, f32) - PF(partner, 0x4C, f32);
+                        grabDir[0] = p->pos[0] - PF(partner, 0x44, f32);
+                        grabDir[1] = p->pos[1] - PF(partner, 0x48, f32);
+                        grabDir[2] = p->pos[2] - PF(partner, 0x4C, f32);
                         SlowNormalVector(grabDir);
                         partnerYaw = PlayerMotion_WrapAngle(
                             atan2(grabDir[0], grabDir[2]) + lbl_80347CF8);
@@ -3130,14 +3177,14 @@ player_motion_grab_done:
                     p->combo_cd < 0.0f) {
                     if (p->char_type == 4 || p->char_type == 7) {
                         f32 comboPos[3];
-                        comboPos[0] = PF(p, 0xD0, f32) + PF(p, 0x838, f32);
-                        comboPos[1] = PF(p, 0xD4, f32) + PF(p, 0x83C, f32);
-                        comboPos[2] = PF(p, 0xD8, f32) + PF(p, 0x840, f32);
+                        comboPos[0] = p->beacon_pos[0] + p->anchor_pos[0];
+                        comboPos[1] = p->beacon_pos[1] + p->anchor_pos[1];
+                        comboPos[2] = p->beacon_pos[2] + p->anchor_pos[2];
                         StartComboFX(comboPos, PF(p, 4, s32),
-                                     PF(PF(p, 0x6B8, Player*), 4, s32));
+                                     PF(p->grab_partner, 4, s32));
                     } else {
                         StartComboFX(p->col_pos, PF(p, 4, s32),
-                                     PF(PF(p, 0x6B8, Player*), 4, s32));
+                                     PF(p->grab_partner, 4, s32));
                     }
                 } else if (comboMode >= 2 && comboTime >= 0.0f &&
                            p->combo_cd < 0.0f) {
@@ -3146,19 +3193,19 @@ player_motion_grab_done:
                     s32 effect = StartComboFX(p->col_pos, -1,
                                               PF(p, 4, s32));
                     PF(Effects + effect * 240, 0x64, u32) = 552;
-                    SfxSetDamage(PF(p, 0x104, f32) * scale,
+                    SfxSetDamage(p->stat_damage * scale,
                                  (f32)(lbl_80347C28 * scale), 0.0f,
                                  effect, 32, p->index + 1);
                 }
 
                 if (sfx1 >= 0) {
                     fn_80089350((u8*)p, sfx1,
-                                 (u8*)PF(p, 0x6B8, Player*), NULL,
+                                 (u8*)p->grab_partner, NULL,
                                  p->combo_cd, comboTime);
                 }
                 if (sfx2 >= 0) {
                     fn_80089350((u8*)p, sfx2,
-                                 (u8*)PF(p, 0x6B8, Player*), NULL,
+                                 (u8*)p->grab_partner, NULL,
                                  p->combo_cd, comboTime);
                 }
             }
@@ -3184,7 +3231,7 @@ f32 ModifyPlayerDpos(Player* p, f32* from, f32* dpos, u32 flags, s32 a5,
     if (slope > lbl_80347D00) {
         slope = lbl_80347D08;
     }
-    if ((PF(p, 0x8C0, u32) & 8) != 0 && slope > lbl_80347B30 &&
+    if ((SV(p)->floor_flags & 8) != 0 && slope > lbl_80347B30 &&
         slope < lbl_80347B00) {
         slope = lbl_80347B10;
     }
@@ -3240,7 +3287,7 @@ int PlayerCollideWalls(Player* p, s32 unused, f32* dpos, f32* from, f32* to) {
         }
         count = 1;
     } else {
-        PF(p, 0x864, f32) += gClockFrameReciprocal * dx;
+        p->light_vel[0] += gClockFrameReciprocal * dx;
         dpos[0] = 0.0f;
     }
 
@@ -3257,7 +3304,7 @@ int PlayerCollideWalls(Player* p, s32 unused, f32* dpos, f32* from, f32* to) {
         }
         count++;
     } else {
-        PF(p, 0x86C, f32) += gClockFrameReciprocal * (to[2] - from[2]);
+        p->light_vel[2] += gClockFrameReciprocal * (to[2] - from[2]);
         dpos[2] = 0.0f;
     }
 
@@ -3299,7 +3346,7 @@ void PlayerMotion_FloorFX(Player* p, WorldObj* obj, f32* v1, f32* v2) {
     if ((flags & 0x2000000) != 0 && (flags & 0x8000000) == 0) {
         return;
     }
-    if (PF(p, 0x204, s32) >= 31) {
+    if (p->vibe_on >= 31) {
         return;
     }
     if (sMusicFadeBase < p->floor_fx_time) {
@@ -3327,16 +3374,16 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
     if (PF(p, 0x8E0, f32) > lbl_80347B08) {
         PF(p, 0x8E0, f32) = lbl_80347B30;
     }
-    prevFlags = PF(p, 0x8D8, u32);
-    PF(p, 0x8D8, u32) = PF(p, 0x8D4, u32);
-    initialFlags = PF(p, 0x8D4, u32);
+    prevFlags = p->act_flags;
+    p->act_flags = p->obj_flags;
+    initialFlags = p->obj_flags;
 
     if ((initialFlags & 0x4000) != 0) {
-        PF(p, 0x8D4, u32) = initialFlags & 0x4000;
+        p->obj_flags = initialFlags & 0x4000;
         return 300;
     }
     if ((initialFlags & 0x8000) != 0) {
-        PF(p, 0x8D4, u32) = initialFlags & 0x8000;
+        p->obj_flags = initialFlags & 0x8000;
         if ((prevFlags & 0x8000) == 0) {
             PF(p, 0x870, f32) = PF(p, 0x8DC, f32);
             PF(p, 0x874, f32) = PF(p, 0x8E0, f32);
@@ -3348,13 +3395,13 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
         damage_player(p->index, PF(p, 0x8D0, f32), 1, 0, NULL);
         PF(p, 0x8D0, f32) = lbl_80347B30;
     }
-    if ((PF(p, 0x120, u32) & 0x10000) != 0) {
+    if ((p->shield_flags & 0x10000) != 0) {
         PF(p, 0x8D0, f32) = lbl_80347B30;
-        PF(p, 0x8D4, u32) = 0;
+        p->obj_flags = 0;
         return 0;
     }
 
-    flags = PF(p, 0x8D4, u32);
+    flags = p->obj_flags;
     if ((flags & 0x4000000) != 0) {
         result = 200;
     }
@@ -3384,7 +3431,7 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
         } else if ((flags & 0x120) != 0) {
             f32 sc;
             result = 20;
-            sc = (f32)((PF(p, 0x124, u32) & 0x400) != 0 ? lbl_80347D38
+            sc = (f32)((p->flags & 0x400) != 0 ? lbl_80347D38
                                                        : lbl_80347D40);
             KNOCK_IMPULSE(sc);
         } else if ((flags & 0x10) != 0) {
@@ -3434,8 +3481,8 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
                 *out = (f32)d;
             }
         }
-        if ((PF(p, 0x8D4, u32) & 0x1000000) == 0) {
-            fn_80094164((u8*)p + 0x54, PF(p, 0x8D4, u32), 0);
+        if ((p->obj_flags & 0x1000000) == 0) {
+            fn_80094164((u8*)p->col_pos, p->obj_flags, 0);
         }
         SetSkinFX((u8*)p + 0x7DC, lbl_80344BF8, 1, 1, lbl_80347B40);
     } else if ((flags & 0x80) != 0) {
@@ -3449,7 +3496,7 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
         PF(p, 0x8E4, f32) = zero;
         PF(p, 0x8D0, f32) = zero;
     }
-    PF(p, 0x8D4, u32) = 0;
+    p->obj_flags = 0;
     return result;
 }
 #pragma opt_common_subs reset
@@ -3457,7 +3504,7 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
 void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
     u8 unused[8];
     f32 dvec[3];
-    f32 best = 2.0 + (f64)PF(p, 0x850, f32);
+    f32 best = 2.0 + (f64)p->col_radius;
     s32 i;
     s32 closest = -1;
 
@@ -3477,7 +3524,7 @@ void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
         if (dot < 0.707) {
             continue;
         }
-        adj = len - PF(op, 0x850, f32);
+        adj = len - op->col_radius;
         if (adj >= best) {
             continue;
         }
@@ -3497,7 +3544,7 @@ void PlayerMotion_HitTarget(Player* p, void* target, s32 arg, f32 range) {
     f64 priority;
 
     if (lbl_80347B30 == range) {
-        range = PF(p, 0x104, f32);
+        range = p->stat_damage;
     }
     if (target == NULL) {
         return;
@@ -3566,23 +3613,23 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
     }
 
     if (lbl_80347B30 == dmg) {
-        dmg = PF(p, 0x104, f32);
+        dmg = p->stat_damage;
     }
-    if ((PF(p, 0x124, u32) & 0x100) != 0) {
+    if ((p->flags & 0x100) != 0) {
         dmg = (f32)(dmg * lbl_80347C28);
     }
-    dir[0] = PF(p, 0x34, f32);
-    dir[1] = PF(p, 0x38, f32);
-    dir[2] = PF(p, 0x3C, f32);
+    dir[0] = p->mat[8];
+    dir[1] = p->mat[9];
+    dir[2] = p->mat[10];
     dir[1] = (f32)(lbl_80347D50 * dmg);
     if (dir[1] > lbl_80347C28) {
         dir[1] = lbl_80347B98;
     }
 
     if (enemy != NULL) {
-        s32 estateRaw = PF(enemy, 0xB4, s32);
+        s32 estateRaw = PF(enemy, offsetof(PCollideEnemyLayout, state), s32);
         s32 estate = estateRaw;
-        if (PF(enemy, 0x200, f32) > lbl_80347B08 &&
+        if (PF(enemy, offsetof(PCollideEnemyLayout, health), f32) > lbl_80347B08 &&
             (estateRaw == 1 || estateRaw == 6)) {
             result = damage_enemy(enemy, p->index, a3, a4, dir, 1, dmg);
         }
@@ -3761,8 +3808,8 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
         } else {
             out[1] = dy / d;
         }
-        out[0] = sin(PF(p, 0xC8, f32));
-        out[2] = cos(PF(p, 0xC8, f32));
+        out[0] = sin(SV(p)->rot[1]);
+        out[2] = cos(SV(p)->rot[1]);
         NormalVector(out);
     }
 
@@ -3772,11 +3819,11 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
             vec[1] = ty - pos[1];
             vec[2] = tz - pos[2];
             NormalVector(vec);
-            vec[0] = vec[0] * (lbl_80347C28 * PF(p, 0x850, f32)) + pos[0];
-            vec[1] = vec[1] * (lbl_80347C28 * PF(p, 0x850, f32)) + pos[1];
-            vec[2] = vec[2] * (lbl_80347C28 * PF(p, 0x850, f32)) + pos[2];
+            vec[0] = vec[0] * (lbl_80347C28 * p->col_radius) + pos[0];
+            vec[1] = vec[1] * (lbl_80347C28 * p->col_radius) + pos[1];
+            vec[2] = vec[2] * (lbl_80347C28 * p->col_radius) + pos[2];
             dist = fn_8005F0F4((u8*)p->collision_item, (s32)pos, vec, 0,
-                               PF(p, 0x850, f32), PF(p, 0x854, f32));
+                               p->col_radius, p->col_height);
             if (dist >= lbl_80347B08) {
                 id = -1;
                 best = limit;
@@ -3827,7 +3874,7 @@ s32 DoTransporter(Player* p, f32* pos, f32* out, f32 a) {
             FloorCollide(a, 4.0f, -10.0f, local, NULL, 0, 1);
             out[0] = local[0] - pos[0];
             out[2] = local[2] - pos[2];
-            out[1] = gFloorCollisionResult[13] - PF(p, 0x48, f32);
+            out[1] = gFloorCollisionResult[13] - p->pos[1];
             tv->counter = 1;
             msgPost(9, p->index, (u32)&p->col_pos);
             return 2;
@@ -3935,9 +3982,9 @@ s32 PlayerCollideEnemies(Player* p, s32 a2, f32* pos, f32* out, s32 a5,
                 }
                 break;
             case 8: {
-                s8 sub = PF(item, 0xC8, s8);
+                s8 sub = *(s8*)(item + offsetof(PCollideItemLayout, action));
                 if ((sub != 2 && sub != 4) ||
-                    (PF(item, 0xC4, s16) & 1) == 0) {
+                    (*(s16*)(item + offsetof(PCollideItemLayout, active)) & 1) == 0) {
                     skip = 1;
                 }
                 break;
@@ -3984,7 +4031,7 @@ s32 PlayerCollideEnemies(Player* p, s32 a2, f32* pos, f32* out, s32 a5,
     }
 
     if (a5 == 0) {
-        PF(p, 0x8A8, u8*) = last;
+        p->collision_item = last;
     }
     if (out2 != NULL) {
         *out2 = (s32)last;
@@ -4015,7 +4062,7 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
         if (op->state != 1 && op->state != 4) {
             continue;
         }
-        if ((PF(op, 0x964, s16) & 0x20) != 0) {
+        if ((op->hud_flags & 0x20) != 0) {
             continue;
         }
         dot = (op->effectpos[0] - from[0]) * (to[0] - from[0]) +
@@ -4024,7 +4071,7 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
             continue;
         }
         if (LineCylinderCollide(op->effectpos,
-                                range + PF(op, 0x850, f32), p3,
+                                range + op->col_radius, p3,
                                 from, to, hit, 1) == 0) {
             continue;
         }
@@ -4045,7 +4092,7 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
         f32 dist = fqdist(ex, ez);
 
         if (dist > lbl_80347D68) {
-            f32 scale = (range + PF(cp, 0x850, f32) - dist) / dist;
+            f32 scale = (range + cp->col_radius - dist) / dist;
             out[0] = ex * scale + to[0];
             out[1] = lbl_80347B30 * scale + to[1];
             out[2] = ez * scale + to[2];
@@ -4083,23 +4130,23 @@ item_body:
         f32 distance;
 
         item = object + index * 0x394;
-        state = *(s32*)(item + 0xB4);
+        state = *(s32*)(item + offsetof(PCollideEnemyLayout, state));
         if (state != 1 && state != 6 &&
             (state != 8 || lbl_803447DC == 0)) {
             goto item_test;
         }
-        if (*(s32*)item == 0x1F) {
+        if (*(s32*)(item + offsetof(PCollideEnemyLayout, type)) == 0x1F) {
             goto item_test;
         }
 
-        collisionRange = range + *(f32*)(item + 0x238);
-        collisionHeight = height + *(f32*)(item + 0x23C);
-        dx = *(f32*)(item + 0x54) - to[0];
-        dy = *(f32*)(item + 0x58) - to[1];
-        dz = *(f32*)(item + 0x5C) - to[2];
+        collisionRange = range + *(f32*)(item + offsetof(PCollideEnemyLayout, rad));
+        collisionHeight = height + *(f32*)(item + offsetof(PCollideEnemyLayout, hht));
+        dx = *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[0])) - to[0];
+        dy = *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[1])) - to[1];
+        dz = *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[2])) - to[2];
         if (dx * dx + dz * dz < collisionRange * collisionRange &&
-            fabsf_(dy) < *(f32*)(item + 0x23C) &&
-            LineCylinderCollide((f32*)(item + 0x54), collisionRange,
+            fabsf_(dy) < *(f32*)(item + offsetof(PCollideEnemyLayout, hht)) &&
+            LineCylinderCollide((f32*)(item + offsetof(PCollideEnemyLayout, coll_pos)), collisionRange,
                                 collisionHeight, from, to,
                                 localHit, 1) != 0) {
                 distance = fqdist(localHit[0] - to[0], localHit[2] - to[2]);
@@ -4121,7 +4168,7 @@ item_test:
 
     if (closest >= 0) {
         u8* item = gEnemies + closest * 0x394;
-        if (FastWallCollide(from, (f32*)(item + 0x54), 0, 0) != 0) {
+        if (FastWallCollide(from, (f32*)(item + offsetof(PCollideEnemyLayout, coll_pos)), 0, 0) != 0) {
             closest = -1;
         }
     }
@@ -4132,7 +4179,7 @@ item_test:
                                     localHit, -1, 2);
         if (object != 0 &&
             *(s16*)(*(u8**)(*(u8**)(object + 4) + 0x120) + 0x20) == 4 &&
-            (PF(p, 0x8D4, u32) & 0x8000) != 0) {
+            (p->obj_flags & 0x8000) != 0) {
             object = 0;
         }
         if (object != 0) {
@@ -4162,15 +4209,15 @@ item_test:
             if (closest >= 0x10000) {
                 u8* critter = gCritterPool + (closest & 0xFFFF) * 0xAE0;
                 zero = lbl_80347B30;
-                dx = to[0] - *(f32*)(critter + 0x5C);
-                dz = to[2] - *(f32*)(critter + 0x64);
-                radius = (s32)*(f32*)(*(u8**)(critter + 4) + 0x7C);
+                dx = to[0] - *(f32*)(critter + offsetof(PCollideCritterLayout, pos[0]));
+                dz = to[2] - *(f32*)(critter + offsetof(PCollideCritterLayout, pos[2]));
+                radius = (s32)*(f32*)(*(u8**)(critter + offsetof(PCollideCritterLayout, hdr)) + 0x7C);
             } else {
                 u8* item = gEnemies + closest * 0x394;
                 zero = lbl_80347B30;
-                dx = to[0] - *(f32*)(item + 0x54);
-                dz = to[2] - *(f32*)(item + 0x5C);
-                radius = (s32)*(f32*)(item + 0x238);
+                dx = to[0] - *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[0]));
+                dz = to[2] - *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[2]));
+                radius = (s32)*(f32*)(item + offsetof(PCollideEnemyLayout, rad));
             }
             distance = fqdist(dx, dz);
             if (distance > lbl_80347D68) {
@@ -4195,7 +4242,7 @@ extern f32 lbl_80347B30; /* 0.0f (sdata2) */
 extern f64 lbl_80347BE8; /* 0.01 (sdata2) */
 
 int PlayerNewFloor(PMotionCtx* m, Player* p, f32* dpos) {
-    WorldObj* mf = (WorldObj*)PF(p, 0x8C4, u32);
+    WorldObj* mf = (WorldObj*)p->floor_name2;  /* floor-object cache; see PSpawnView.floor_obj */
     s32 result;
 
     if (mf != NULL && (mf->flags & 0xC000000) != 0 &&
@@ -4206,25 +4253,25 @@ int PlayerNewFloor(PMotionCtx* m, Player* p, f32* dpos) {
         return 0;
     }
 
-    CopyMat3((f32*)m, (f32*)PF(p, 0x6C8, u32));
+    CopyMat3((f32*)m, (f32*)p->mbnode);
     result = PlayerCheckFloor(p, m->floor, dpos);
 
     if (m->floor != NULL && (m->floor->flags & 8) != 0) {
         f32 d1 = fqdist(dpos[0], dpos[2]);
         f32 d2 = fqdist(d1, dpos[1]);
         if (d1 > 0.01 && d2 > 0.01 &&
-            ((PF(p, 0x8C0, u32) & 8) == 0 || fabsf_(dpos[1]) > 0.01)) {
+            ((SV(p)->floor_flags & 8) == 0 || fabsf_(dpos[1]) > 0.01)) {
             PF(p, 0x8BC, f32) = dpos[1] / d2;
         }
     } else {
         {
-            f32 t1 = m->fwd[0] * PF(p, 0x38, f32) - m->fwd[1] * PF(p, 0x34, f32);
-            f32 t2 = m->fwd[1] * PF(p, 0x3C, f32) - m->fwd[2] * PF(p, 0x38, f32);
+            f32 t1 = m->fwd[0] * p->mat[9] - m->fwd[1] * p->mat[8];
+            f32 t2 = m->fwd[1] * p->mat[10] - m->fwd[2] * p->mat[9];
             PF(p, 0x8BC, f32) = t1 * m->fwd[0] - t2 * m->fwd[2];
         }
     }
 
-    PF(p, 0x8C0, u32) = m->floor != NULL ? m->floor->flags : 0;
+    SV(p)->floor_flags = m->floor != NULL ? m->floor->flags : 0;
     return result;
 }
 int PlayerCheckFloor(Player* p, WorldObj* obj, f32* dpos) {
@@ -4249,7 +4296,7 @@ int PlayerCheckFloor(Player* p, WorldObj* obj, f32* dpos) {
     }
 
     if (obj != (WorldObj*)p->floor_name2) {
-        PF(p, 0x964, s16) |= 1;
+        p->hud_flags |= 1;
     }
     p->floor_name2 = (char*)obj;
 
@@ -4295,6 +4342,8 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     s32 fA;
     s32 fB;
     f32 zv;
+    Player* pd = (Player*)p;
+    PSpawnView* sv = SV(p);  /* floor_obj cache @0x8C4, same slot get_player_pos clears */
 
     ctx = lbl_80282850;
     end[0] = pos[0] + dpos[0];
@@ -4306,11 +4355,11 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     lbl_80344B34 = *(f32*)(lbl_8023CB28 + 52);
     dq = fqdist(dpos[0], dpos[2]);
     {
-        u32 fl = WorldObjGetAllFlags(*(WorldObj**)(p + 2244));
+        u32 fl = WorldObjGetAllFlags((WorldObj*)sv->floor_obj);
         fA = fl & 0x0C000000;
         fB = fl & 0x20000000;
     }
-    if (fA != 0 && fB != 0 && *(u32*)(p + 2244) != hit) {
+    if (fA != 0 && fB != 0 && sv->floor_obj != hit) {
         zv = lbl_80347B30;
         dpos[0] = zv;
         dpos[1] = zv;
@@ -4322,30 +4371,30 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     }
     if (hit == 0) {
         if ((f64)dq < lbl_80347D68) {
-            *(s32*)(p + 2244) = 0;
+            sv->floor_obj = 0;
         }
-        if (!(*(u32*)(p + 2260) & 0x8000)) {
+        if (!(pd->obj_flags & 0x8000)) {
             zv = lbl_80347B30;
             dpos[0] = zv;
             dpos[2] = zv;
         }
-        *(f32*)(p + 2228) = lbl_80344880;
+        pd->floor_base = lbl_80344880;
         return -2;
     }
     fhp = ctx + 76;
     fh = *(f32*)(ctx + 76);
-    ts = fh - *(f32*)(p + 2228);
+    ts = fh - pd->floor_base;
     *(u32*)&ts &= 0x7FFFFFFF;
-    if (*(u32*)(p + 2260) & 0x8000) {
-        if ((f64)(*(f32*)(p + 72) - fh) < lbl_80347D10) {
-            *(u32*)(p + 2260) &= ~0x8000;
+    if (pd->obj_flags & 0x8000) {
+        if ((f64)(pd->pos[1] - fh) < lbl_80347D10) {
+            pd->obj_flags &= ~0x8000;
         } else {
             return 0;
         }
     }
-    if ((f64)dq < lbl_80347D68 && *(s32*)(p + 236) == 1) {
+    if ((f64)dq < lbl_80347D68 && pd->prev_state == 1) {
         if ((f64)ts > lbl_80347B28 || (*(u32*)(hit + 16) & 0x1000)) {
-            *(f32*)(p + 2228) = fh;
+            pd->floor_base = fh;
         }
         if ((f64)ts > lbl_80347D68) {
             return 1;
@@ -4353,11 +4402,11 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         return 0;
     }
     lim = lbl_80347BF8;
-    if (*(u32*)(ctx + 92) == *(u32*)(p + 2244)) {
+    if (*(u32*)(ctx + 92) == sv->floor_obj) {
         lim = (f32)(lim + lbl_80347BD0);
     }
     if (ts > lim) {
-        *(f32*)(p + 2228) = *(f32*)(p + 72);
+        pd->floor_base = pd->pos[1];
         zv = lbl_80347B30;
         dpos[0] = zv;
         dpos[2] = zv;
@@ -4370,7 +4419,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         end[2] = pos[2] + dpos[2];
         hit = FloorCollide(rad, lbl_80347B30, zoff, end, (f32*)(ctx + 24), 0,
                            1);
-        if (fA != 0 && fB != 0 && *(u32*)(p + 2244) != hit) {
+        if (fA != 0 && fB != 0 && sv->floor_obj != hit) {
             zv = lbl_80347B30;
             dpos[0] = zv;
             dpos[1] = zv;
@@ -4378,7 +4427,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
             return -1;
         }
         if (hit != 0) {
-            *(f32*)(p + 2228) = *(f32*)fhp;
+            pd->floor_base = *(f32*)fhp;
             return 2;
         }
         zv = lbl_80347B30;
@@ -4402,7 +4451,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         end[1] = end[1] + nrm[1];
         end[2] = end[2] + nrm[2];
         hit = FloorCollide(rad, lbl_80347B30, zoff, end, 0, 1, 1);
-        if (fA != 0 && fB != 0 && *(u32*)(p + 2244) != hit) {
+        if (fA != 0 && fB != 0 && sv->floor_obj != hit) {
             zv = lbl_80347B30;
             dpos[0] = zv;
             dpos[1] = zv;
@@ -4410,7 +4459,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
             return -1;
         }
         if (hit != 0) {
-            ts2 = *(f32*)((u8*)gFloorCollisionResult + 52) - fh;
+            ts2 = gFloorCollisionResult[13] - fh;
             *(u32*)&ts2 &= 0x7FFFFFFF;
             if ((*(u32*)(*(u32*)((u8*)gFloorCollisionResult + 68) + 16) & 8)
                 && (f64)ts2 < lbl_80347BA8) {
@@ -4419,7 +4468,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
                 dx = end[0] - *(f32*)((u8*)gFloorCollisionResult + 48);
                 dz = end[2] - *(f32*)((u8*)gFloorCollisionResult + 56);
                 dq = dpos[1] *
-                         (end[1] - *(f32*)((u8*)gFloorCollisionResult + 52)) +
+                         (end[1] - gFloorCollisionResult[13]) +
                      dpos[0] * dx + dpos[2] * dz;
                 d = fqdist(dx, dz);
             }
@@ -4431,7 +4480,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         }
     }
     if ((f64)d < lbl_80347D68 || dq < lbl_80347B30) {
-        *(f32*)(p + 2228) = fh;
+        pd->floor_base = fh;
         if ((f64)d < lbl_80347D68 || (f64)dq < lbl_80347D70) {
             return 1;
         }
@@ -4443,7 +4492,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     end[1] = pos[1] + dpos[1];
     end[2] = pos[2] + dpos[2];
     hit = FloorCollide(rad, lbl_80347B30, zoff, end, (f32*)(ctx + 24), 0, 1);
-    if (fA != 0 && fB != 0 && *(u32*)(p + 2244) != hit) {
+    if (fA != 0 && fB != 0 && sv->floor_obj != hit) {
         zv = lbl_80347B30;
         dpos[0] = zv;
         dpos[1] = zv;
@@ -4451,7 +4500,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         return -1;
     }
     if (hit != 0) {
-        *(f32*)(p + 2228) = *(f32*)fhp;
+        pd->floor_base = *(f32*)fhp;
         return 2;
     }
     zv = lbl_80347B30;
@@ -4461,13 +4510,13 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
 }
 
 int PlayerCheckMovingFloor_80088688(Player* p) {
-    f32 drop = -(3.0 + (f64)PF(p, 0x854, f32));
+    f32 drop = -(3.0 + (f64)p->col_height);
     if (gGameMode == 0x4010) {
-        PF(p, 0x8C4, u32) = FloorCollide(PF(p, 0x850, f32), 0.0f, drop,
-            (f32*)((u8*)p + 0x44), NULL, 1, 0);
-        PF(p, 0x964, s16) |= 1;
+        p->floor_name2 = (char*)FloorCollide(p->col_radius, 0.0f, drop,
+            p->pos, NULL, 1, 0);
+        p->hud_flags |= 1;
     }
-    if (PF(p, 0x8C4, u32) != 0) {
+    if (p->floor_name2 != NULL) {
         return 1;
     }
     return 0;
@@ -4547,7 +4596,7 @@ s32 fn_80088938(Player* p, f32 angle) {
     f32 facing;
     s32 action;
 
-    angle = angle + ctl->pad.lx - PF(p, 0x894, f32);
+    angle = angle + ctl->pad.lx - p->move_yaw;
     if ((f64)angle > lbl_80347B50) {
         wrapped = (f64)angle - lbl_80347B60;
     } else if ((f64)angle <= lbl_80347B68) {
@@ -4557,12 +4606,12 @@ s32 fn_80088938(Player* p, f32 angle) {
     }
     facing = (f32)wrapped;
 
-    if (PF(p, 0x834, s32) != 0 && gBossType >= 0) {
+    if (p->quest_state != 0 && gBossType >= 0) {
         ctl->pad.edges &= ~0x900;
         ctl->pad.levels &= ~0x900;
     }
 
-    if ((PF(p, 0x124, u32) & 0x400) != 0 &&
+    if ((p->flags & 0x400) != 0 &&
         (ctl->pad.levels & 0x400) != 0) {
         ctl->pad.levels &= ~0x400;
         ctl->pad.levels |= 0x200;
@@ -4576,11 +4625,11 @@ s32 fn_80088938(Player* p, f32 angle) {
     }
 
     action = 0;
-    if ((PF(p, 0x964, s16) & 0x40) != 0) {
+    if ((p->hud_flags & 0x40) != 0) {
         action = 0x27;
-    } else if ((PF(p, 0x964, s16) & 0x10) != 0) {
+    } else if ((p->hud_flags & 0x10) != 0) {
         action = 0x26;
-    } else if ((PF(p, 0x964, s16) & 0x80) != 0) {
+    } else if ((p->hud_flags & 0x80) != 0) {
         action = 0x17;
     } else if (((gControllerButtons & 0x10) != 0 || gGameOptions[6] != 0) &&
                (ctl->pad.levels & 0x08000000) != 0) {
@@ -4609,10 +4658,10 @@ s32 fn_80088938(Player* p, f32 angle) {
         goto final_action;
     }
     if ((ctl->pad.levels & 0x20000) != 0 &&
-        (f64)PF(p, 0x828, f32) >= lbl_80347BB8) {
+        (f64)p->power_target >= lbl_80347BB8) {
         s32 target = fn_80088EF4(p, lbl_80347C6C, lbl_80347D08);
         if (target >= 0) {
-            PF(p, 0x6BC, Player*) = &gPlayerRecords[target];
+            p->grab_pending = &gPlayerRecords[target];
             action = 0x16;
             goto final_action;
         }
@@ -4620,7 +4669,7 @@ s32 fn_80088938(Player* p, f32 angle) {
 
     if ((ctl->pad.levels & 0x800) != 0 &&
         (ctl->pad.edges & 0x200) != 0 &&
-        (f64)PF(p, 0x828, f32) >= lbl_80347B08) {
+        (f64)p->power_target >= lbl_80347B08) {
         action = 0x15;
         goto final_action;
     }
@@ -4678,7 +4727,7 @@ s32 fn_80088938(Player* p, f32 angle) {
         }
         goto selected;
     } else if ((ctl->pad.edges & 0x2000) != 0 &&
-               (f64)PF(p, 0x828, f32) >= lbl_80347C78) {
+               (f64)p->power_target >= lbl_80347C78) {
         action = 7;
         goto selected;
     } else if ((ctl->pad.levels & 0x200) != 0) {
@@ -4742,27 +4791,27 @@ s32 fn_80088EF4(Player* p, f32 range, f32 minDot) {
     s32 closest = -1;
     WorldObj* floor;
 
-    if (PF(p, 0x6B8, u32) != 0 || PF(p, 0x6BC, u32) != 0 ||
+    if ((u32)p->grab_partner != 0 || (u32)p->grab_pending != 0 ||
         PF(p, 0x6DC, u32) == 0) {
         return -1;
     }
-    if ((PF(p, 0x124, u32) & 0x400) != 0) {
+    if ((p->flags & 0x400) != 0) {
         return -1;
     }
     if (p->state != 1) {
         return -1;
     }
-    if (PF(p, 0x828, f32) < lbl_80347BB8) {
+    if (p->power_target < lbl_80347BB8) {
         return -1;
     }
-    floor = (WorldObj*)PF(p, 0x8C4, u32);
+    floor = (WorldObj*)SV(p)->floor_obj;
     if (floor == NULL || (floor->flags & 0x1000) != 0) {
         return -1;
     }
 
-    face[0] = PF(p, 0x34, f32);
-    face[1] = PF(p, 0x38, f32);
-    face[2] = PF(p, 0x3C, f32);
+    face[0] = p->mat[8];
+    face[1] = p->mat[9];
+    face[2] = p->mat[10];
     NormalVector2D(face);
 
     for (i = 0; i < 4; i++) {
@@ -4776,23 +4825,23 @@ s32 fn_80088EF4(Player* p, f32 range, f32 minDot) {
         if (op->state != 1) {
             continue;
         }
-        if (PF(op, 0x6B8, u32) != 0) {
+        if ((u32)op->grab_partner != 0) {
             continue;
         }
-        if ((PF(op, 0x964, s16) & 0x50) != 0) {
+        if ((op->hud_flags & 0x50) != 0) {
             continue;
         }
         anim = op->anim_208;
         if ((anim >= 0x54 && anim < 0x5B) || anim >= 0x6B) {
             continue;
         }
-        if ((PF(op, 0x124, u32) & 0x400) != 0) {
+        if ((op->flags & 0x400) != 0) {
             continue;
         }
         if (p->quest_state != 0 && gBossType >= 0) {
             continue;
         }
-        floor = (WorldObj*)PF(op, 0x8C4, u32);
+        floor = (WorldObj*)SV(op)->floor_obj;
         if (floor == NULL || (floor->flags & 0x1000) != 0) {
             continue;
         }
