@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "Target-driven reconstruction of the rotated caption scan loop, loop-invariant constant placement, 0x480 member-plus-index store shape, character-local lifetime, and output-index postincrement forms",
+  "attributes": {
+    "anchors": "src/game/ui/auxscreen.c::CaptionTextSub; GameCube .text VA 0x80019FA8 size 0x2C4; python tools/gdl/fnasm.py game/ui/auxscreen CaptionTextSub; fndiff.py --count/--ops/--clean; build/GUNE5D/report.json",
+    "axis_log": "1) Replaced outer if+do/while with the target-shaped pre-tested while (and equivalent goto labels): 177/176, real 159, fuzzy 86.03955%, negative despite lower raw diff. 2) Body-scoped ch: real 163, fuzzy 85.9548%, negative. 3) Explicit auto/register FP constant locals: frame grew 0xB0->0xD8, real 185; negative. 4) Nested mode while plus remaining break: 177/177, real 176, fuzzy 83.0226%, negative. 5) Direct global-array ownership fixed add/stb member-displacement clusters but caused repeated address materialization: 177/181, real 188, fuzzy 81.745766%, negative. 6) Local typed workspace view was byte-identical to axis 1. 7) Postincrement output index with axis 1 reached 177/177 and real 148 but fuzzy 84.96045%; with baseline if+do it reached 177/182, real 173, fuzzy 87.169495%; both negative and reverted.",
+    "baseline_and_best": "baseline == best; target/current 177/181 insns, fuzzy 88.28%, real 172, frame 0xB0, saved r21-r31 and f22-f31; no source change retained",
+    "residual": "Target rotates a pre-tested loop and hoists seven loop-invariant literal/conversion loads before its entry branch while retaining a cached base in r29 and member-plus-index add/stb addressing. Portable source forms that corrected CFG/count/raw diff all worsened objdiff fuzzy through constant placement and GPR/FPR web rotation. Do not retry plain while/goto rotation, body-scoped ch, explicit constant locals/register qualifiers, nested guard, direct-global/anonymous-struct ownership, or postincrement unchanged; revisit only with a genuinely new source-level dependency that preserves target constant/register webs.",
+    "semantic_audit": "Target and current agree on null return -1, caption-page budget clamp, Japanese glyph cost, scratch copy at +0x80, output at +0x480, shadow-color call, CR/LF/TAB/punctuation handling, centered DrawNormalText/DrawTextKeepScale calls, y advance, mode/budget termination, and done return. Xbox auxscreen.obj exact-name link was treated as candidate evidence only."
+  },
+  "function": "function:CaptionTextSub",
+  "id": "attempt.captiontextsub-rotated-loop-structure.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
