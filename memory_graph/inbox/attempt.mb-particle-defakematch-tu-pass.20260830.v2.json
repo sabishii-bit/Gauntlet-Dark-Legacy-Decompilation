@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Second TU-scoped de-fakematch pass over psysInfo runtime/control storage and independently typed Psys/MBObject ownership fields, preserving the target address webs with fused offsetof constants",
+  "attributes": {
+    "anchors": "src/game/mb/mb_particle.c; flagship MBDrawPsys target 0x800C9088 size 0xca8; reproduce with ninja -j2 build/GUNE5D/src/game/mb/mb_particle.o, tools/gdl/fndiff.py game/mb/mb_particle, and ninja -j2",
+    "axis_log": "MBInitPsys all-typed locals changed the pi/pool address web (67/66 real 41); nested runtime typed alias promoted pi+0x40 into a saved base (67/67 real 86); u8 runtime alias plus typed point-casts still promoted the base and cached +0x48 (67/68 real 89). Clean/ops diffs classified these as address PRE/base-selection regressions. A materially distinct fused offsetof form retained the original pi/m/psize webs and recovered exact bytes. Previously capped MBDrawPsys register/schedule axes were not retried.",
+    "baseline_and_best": "TU fuzzy 96.065870%, 40/50 exact; audited raw-site census 142 -> 72. MBDrawPsys 810/813 fuzzy 92.111115% real 733 frame 0x130 unchanged; allocPsys 134/134 fuzzy 95.16418% real 70 frame 0x28 unchanged; MBInitPsys 67/67 fuzzy 100% real 0; MBPsysStartFrame 159/159 real 0; freePsys real 0.",
+    "retained": "Target-verified PsysInfoCoreView/PsysInfoRuntimeView names replace numeric psysInfo offsets in MBDrawPsys, allocPsys, MBPsysStartFrame, and exact MBInitPsys while offsetof expressions preserve original bases; freePsys now uses GC-verified Psys.node/worldname/p_lst and MBObject.data.psys. All 40 exact functions remained exact; fuzzy sentinels remained equal on count, fuzzy, real, and opcode structure.",
+    "semantic_audit": "No behavior changes: widths, signedness, initialization/call order, allocator accounting, active/retired list operations, deferred creation, frame accumulation, texture defaults, and ownership cleanup were preserved. Views are file-local and offsets are cross-verified from target displacements; no shared headers or postprocessor rules changed.",
+    "sites_left_raw": "72 census lines remain in independently address-web-sensitive texture/window globals, ambiguous polymorphic node traversals, MBNewPsysDescrip configuration storage, allocator/freePsysMem blocks, and other regions lacking a verified name or a monotonic typed form. node+0x24 in MBPsysStartFrame remains raw because its declared MBObject type actually traverses Psys.next."
+  },
+  "function": "function:setupParms",
+  "id": "attempt.mb-particle-defakematch-tu-pass.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.mb-particle-defakematch-tu-pass.20260830.v1",
+  "valid_from": "2026-08-30"
+}

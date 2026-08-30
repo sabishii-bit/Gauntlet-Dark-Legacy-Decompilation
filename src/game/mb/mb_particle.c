@@ -43,6 +43,10 @@
 #include "game/psys.h"
 #include "game/mbobject.h"
 
+#ifndef offsetof
+#define offsetof(type, member) ((u32)&(((type*)0)->member))
+#endif
+
 /* --- externs (other TUs) --- */
 void* memset(void* p, int c, u32 n);
 void  ErrorPrintf(const char* fmt, ...);
@@ -101,6 +105,37 @@ extern f32 lbl_803451F0;
 extern f32   psysInfo[];     /* per-parm scale/min/max config table */
 extern char  lbl_80116F30[]; /* "freePsysMem: bad free block..." */
 extern char  lbl_80116D70[]; /* TU string block base */
+
+/* The runtime/control tail of psysInfo.  Offsets 0x40..0x98 are verified by
+ * MBDrawPsys, allocPsys, MBPsysStartFrame, and exact MBInitPsys. */
+typedef struct PsysInfoRuntimeView {
+    s32 activeCount;            /* +0x00 */
+    Psys* activeList;           /* +0x04 */
+    s32 retiredCount;           /* +0x08 */
+    Psys* retiredList;          /* +0x0C */
+    s32 idCounter;              /* +0x10 */
+    u32 frame;                  /* +0x14 */
+    f32 frameFrac;              /* +0x18 */
+    struct ROMTEX* defaultTexA;  /* +0x1C */
+    struct ROMTEX* defaultTexXp; /* +0x20 */
+    PsysMemPool pool;           /* +0x24 */
+    s32 maxEntries;             /* +0x48 */
+    void* directionEntries;     /* +0x4C */
+    void* positionUsage;        /* +0x50 */
+    s16 directionSlot;          /* +0x54 */
+    s16 positionSlot;           /* +0x56 */
+} PsysInfoRuntimeView;
+
+typedef struct PsysInfoCoreView {
+    u8 _pad00[0x40];
+    PsysInfoRuntimeView runtime;
+    u8 _pad098[0x0C];
+    void* deferredConfig;       /* 0x0A4 */
+    u32 deferredDebugNode;      /* 0x0A8 */
+    MBObject* deferredNode;     /* 0x0AC */
+    u8 _pad0B0[0x6C];
+    f32 particleScale;          /* 0x11C */
+} PsysInfoCoreView;
 
 typedef struct PsysModuleGlobals {
     s32 active;
@@ -887,16 +922,16 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
     u16 dmask;
     u8* blk;
 
-    *(s16*)(pi + 148) = -1;
-    blk = pi + 64;
-    *(s16*)(pi + 150) = -1;
+    *(s16*)(pi + offsetof(PsysInfoCoreView, runtime.directionSlot)) = -1;
+    blk = pi + offsetof(PsysInfoCoreView, runtime);
+    *(s16*)(pi + offsetof(PsysInfoCoreView, runtime.positionSlot)) = -1;
     list = NULL;
-    dt = *(u32*)(pi + 84) - p->e_last_time;
+    dt = *(u32*)(pi + offsetof(PsysInfoCoreView, runtime.frame)) - p->e_last_time;
     if (dt > 15) {
         dt = 1;
     }
     ageTmp = p->e_age + dt;
-    p->e_last_time = *(u32*)(blk + 20);
+    p->e_last_time = *(u32*)(blk + offsetof(PsysInfoRuntimeView, frame));
     agef = (f32)ageTmp;
     age = ageTmp;
 
@@ -924,13 +959,16 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
         p->p_save_cnt = lbl_80349154;
         p->nearest_z = lbl_80349158;
         if (p->p_lst == NULL) {
-            s32* h = listFindHandle((s32)p, (s32)(pi + 64));
-            *(s32*)(pi + 64) = *(s32*)(pi + 64) - 1;
+            s32* h = listFindHandle((s32)p,
+                                    (s32)(pi + offsetof(PsysInfoCoreView, runtime)));
+            *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.activeCount)) =
+                *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.activeCount)) - 1;
             *h = (s32)p->next;
             p->next = NULL;
-            *(s32*)(pi + 72) = *(s32*)(pi + 72) + 1;
-            p->next = *(Psys**)(pi + 76);
-            *(Psys**)(pi + 76) = p;
+            *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.retiredCount)) =
+                *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.retiredCount)) + 1;
+            p->next = *(Psys**)(pi + offsetof(PsysInfoCoreView, runtime.retiredList));
+            *(Psys**)(pi + offsetof(PsysInfoCoreView, runtime.retiredList)) = p;
             p->flags |= 0x8000;
             p->e_phase = 8;
             p->e_phase = 8;
@@ -984,13 +1022,16 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
         if (p->p_oldest_ptr == NULL) {
     case 7:
         {
-            s32* h = listFindHandle((s32)p, (s32)(pi + 64));
-            *(s32*)(pi + 64) = *(s32*)(pi + 64) - 1;
+            s32* h = listFindHandle((s32)p,
+                                    (s32)(pi + offsetof(PsysInfoCoreView, runtime)));
+            *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.activeCount)) =
+                *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.activeCount)) - 1;
             *h = (s32)p->next;
             p->next = NULL;
-            *(s32*)(pi + 72) = *(s32*)(pi + 72) + 1;
-            p->next = *(Psys**)(pi + 76);
-            *(Psys**)(pi + 76) = p;
+            *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.retiredCount)) =
+                *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.retiredCount)) + 1;
+            p->next = *(Psys**)(pi + offsetof(PsysInfoCoreView, runtime.retiredList));
+            *(Psys**)(pi + offsetof(PsysInfoCoreView, runtime.retiredList)) = p;
             p->flags |= 0x8000;
             p->e_phase = 8;
             p->e_phase = 8;
@@ -1309,7 +1350,9 @@ phaseD:
                 }
                 p->p_nactive = p->p_nactive + 1;
                 DrawPsysSub(pos, color, p->p_texidx, texw, texh,
-                            slots[4].cur / *(f32*)(pi + 284) * node->scale[1]);
+                            slots[4].cur /
+                                *(f32*)(pi + offsetof(PsysInfoCoreView, particleScale)) *
+                                node->scale[1]);
                 cursor -= 1;
                 if (cursor == wrapStop) {
                     if (cursor == prevOld) {
@@ -3210,29 +3253,30 @@ static Psys* allocPsys(s32 fromArena) {
     u8 unused[8];
     u8* pi = (u8*)psysInfo;
     u8* gw = (u8*)gWinGlobals;
-    u8* g = pi + 64;
+    u8* g = pi + offsetof(PsysInfoCoreView, runtime);
     Psys* p;
     s32 off;
     s32 k;
     f32 one;
     f32 zero;
 
-    *(s32*)(pi + 80) += 1;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.idCounter)) += 1;
     if (fromArena != 0) {
         p = (Psys*)AllocMem(304);
-        *(s32*)(pi + 100) += 304;
+        *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.world_bytes)) += 304;
     } else {
-        p = (Psys*)allocPsysMem(304, *(s32*)(g + 16));
+        p = (Psys*)allocPsysMem(
+            304, *(s32*)(g + offsetof(PsysInfoRuntimeView, idCounter)));
     }
     if (p == NULL) {
         return NULL;
     }
     memset(p, 0, 304);
-    *(s32*)(pi + 64) += 1;
-    p->next = *(Psys**)(pi + 68);
-    *(Psys**)(pi + 68) = p;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.activeCount)) += 1;
+    p->next = *(Psys**)(pi + offsetof(PsysInfoCoreView, runtime.activeList));
+    *(Psys**)(pi + offsetof(PsysInfoCoreView, runtime.activeList)) = p;
     p->flags |= 0x4000;
-    p->id = *(s32*)(g + 16);
+    p->id = *(s32*)(g + offsetof(PsysInfoRuntimeView, idCounter));
     p->e_life = 300;
     p->e_fade = 300;
     one = lbl_8034915C;
@@ -3262,20 +3306,21 @@ static Psys* allocPsys(s32 fromArena) {
         dst[59] = src[58];
         off += 16;
     }
-    if (*(u32*)(g + 32) == 0 || *(u32*)(g + 28) == 0) {
+    if (*(u32*)(g + offsetof(PsysInfoRuntimeView, defaultTexXp)) == 0 ||
+        *(u32*)(g + offsetof(PsysInfoRuntimeView, defaultTexA)) == 0) {
         s32 texA = MBOX_FindTexture(lbl_80116ED8, 0);
         s32 texXp = MBOX_FindTexture(lbl_80116EE4, 0);
         if (texA != 0) {
-            *(u8**)(g + 28) =
+            *(u8**)(g + offsetof(PsysInfoRuntimeView, defaultTexA)) =
                 *(u8**)((*(struct TexPageEnt**)(gw + 48))[texA >> 16].obj + 88) +
                 (texA & 0xFFFF) * 16;
-            *(u8**)(g + 32) =
+            *(u8**)(g + offsetof(PsysInfoRuntimeView, defaultTexXp)) =
                 *(u8**)((*(struct TexPageEnt**)(gw + 48))[texXp >> 16].obj + 88) +
                 (texXp & 0xFFFF) * 16;
         } else {
-            *(u8**)(g + 28) =
+            *(u8**)(g + offsetof(PsysInfoRuntimeView, defaultTexA)) =
                 *(u8**)((*(struct TexPageEnt**)(gw + 48))[0].obj + 88);
-            *(s32*)(g + 32) = 0;
+            *(s32*)(g + offsetof(PsysInfoRuntimeView, defaultTexXp)) = 0;
         }
     }
     p->p_texidx = 0;
@@ -3474,7 +3519,7 @@ extern const f32 lbl_80343FF0;   /* 2.0f  */
 void MBPsysStartFrame(void) {
     u8 unused[8];
     u8* pi = (u8*)psysInfo;
-    u8* g = pi + 64;
+    u8* g = pi + offsetof(PsysInfoCoreView, runtime);
     u32 clock;
     MBObject* node;
     MBObject* next;
@@ -3493,40 +3538,49 @@ void MBPsysStartFrame(void) {
     clock = gClockElapsedTime + 5000000;
     lbl_80345188 = 0;
     if (clock > 150000000) {
-        *(s32*)(g + 20) += 1;
-        *(f32*)(g + 24) = lbl_80349154;
+        *(s32*)(g + offsetof(PsysInfoRuntimeView, frame)) += 1;
+        *(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac)) = lbl_80349154;
         if (lbl_803451AC <= 15) {
             lbl_803451AC = 15;
         }
     } else if (lbl_803451AC != 0) {
-        *(s32*)(g + 20) += 1;
-        *(f32*)(g + 24) = lbl_80349154;
+        *(s32*)(g + offsetof(PsysInfoRuntimeView, frame)) += 1;
+        *(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac)) = lbl_80349154;
         if (lbl_803451AC <= 15) {
             lbl_803451AC -= 1;
         }
     } else {
-        *(f32*)(g + 24) = (f32)(u32)clock / lbl_803492A8;
-        *(s32*)(g + 20) += (s32)*(f32*)(g + 24);
-        *(f32*)(g + 24) = *(f32*)(g + 24) - (f32)(s32)*(f32*)(g + 24);
+        *(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac)) =
+            (f32)(u32)clock / lbl_803492A8;
+        *(s32*)(g + offsetof(PsysInfoRuntimeView, frame)) +=
+            (s32)*(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac));
+        *(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac)) =
+            *(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac)) -
+            (f32)(s32)*(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac));
     }
 
-    node = *(MBObject**)(pi + 76);
-    g2 = pi + 64;
+    node = *(MBObject**)(pi + offsetof(PsysInfoCoreView, runtime.retiredList));
+    g2 = pi + offsetof(PsysInfoCoreView, runtime);
     while (node != NULL) {
         next = *(MBObject**)((u8*)node + 36);
         freePsys(node);
         node = next;
     }
-    *(s32*)(g2 + 12) = 0;
-    *(s32*)(g2 + 8) = 0;
+    *(s32*)(g2 + offsetof(PsysInfoRuntimeView, retiredList)) = 0;
+    *(s32*)(g2 + offsetof(PsysInfoRuntimeView, retiredCount)) = 0;
 
-    if ((next = *(MBObject**)(g + 100)) != NULL) {
-        g3 = pi + 64;
-        if ((dbg = *(u32*)(pi + 168)) == 0) {
+    if ((next = *(MBObject**)(g +
+                              offsetof(PsysInfoCoreView, deferredConfig) -
+                                  offsetof(PsysInfoCoreView, runtime))) != NULL) {
+        g3 = pi + offsetof(PsysInfoCoreView, runtime);
+        if ((dbg = *(u32*)(pi + offsetof(PsysInfoCoreView, deferredDebugNode))) == 0) {
             dbg = MBPsysSetDebugNode(0, 0);
         }
-        *(s32*)(g3 + 108) = (s32)MBNewPsysDescrip(0, dbg, 0, next);
-        *(s32*)(g + 100) = 0;
+        *(s32*)(g3 + offsetof(PsysInfoCoreView, deferredNode) -
+                         offsetof(PsysInfoCoreView, runtime)) =
+            (s32)MBNewPsysDescrip(0, dbg, 0, next);
+        *(s32*)(g + offsetof(PsysInfoCoreView, deferredConfig) -
+                         offsetof(PsysInfoCoreView, runtime)) = 0;
     }
 
     if (lbl_8034519C != 0) {
@@ -3586,15 +3640,15 @@ static s32* listFindHandle(s32 id, s32 base) {
  * Documented reconstruction (NonMatching). */
 #pragma opt_common_subs off
 static void freePsys(MBObject* node) {
-    if (*(MBObject**)((u8*)node + 40) != NULL) {
-        *(void**)((u8*)*(MBObject**)((u8*)node + 40) + 112) = NULL;
-        MBRemoveNode(*(MBObject**)((u8*)node + 40), 1);
-        *(MBObject**)((u8*)node + 40) = NULL;
+    if (((Psys*)node)->node != NULL) {
+        ((MBObject*)((Psys*)node)->node)->data.psys = NULL;
+        MBRemoveNode((MBObject*)((Psys*)node)->node, 1);
+        ((Psys*)node)->node = NULL;
     }
-    if (*((u32*)node + 1) == 0) {   /* not world-owned */
-        if (*(Psys**)((u8*)node + 8) != NULL) {
-            freePsysMem(*(Psys**)((u8*)node + 8));
-            *(Psys**)((u8*)node + 8) = NULL;
+    if (((Psys*)node)->worldname == NULL) {   /* not world-owned */
+        if (((Psys*)node)->p_lst != NULL) {
+            freePsysMem(((Psys*)node)->p_lst);
+            ((Psys*)node)->p_lst = NULL;
         }
         freePsysMem(node);
     }
@@ -3832,44 +3886,47 @@ extern u8 lbl_802C9D30[];
 #pragma dont_inline on
 void MBInitPsys(void) {
     u8* pi = (u8*)psysInfo;
-    s32* psize = (s32*)(pi + 108);
-    u8* m = pi + 64;
+    s32* psize = (s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.free_bytes));
+    u8* m = pi + offsetof(PsysInfoCoreView, runtime);
     s32 size;
     s32* q;
 
-    *(s32*)(pi + 68) = 0;
-    *(s32*)(pi + 64) = 0;
-    *(s32*)(pi + 76) = 0;
-    *(s32*)(pi + 72) = 0;
-    *(s32*)(pi + 80) = 0;
-    *(s32*)(pi + 92) = 0;
-    *(s32*)(pi + 96) = 0;
-    *(s32*)(pi + 84) = 0;
-    *(f32*)(pi + 88) = lbl_80349154;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.activeList)) = 0;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.activeCount)) = 0;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.retiredList)) = 0;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.retiredCount)) = 0;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.idCounter)) = 0;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.defaultTexA)) = 0;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.defaultTexXp)) = 0;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.frame)) = 0;
+    *(f32*)(pi + offsetof(PsysInfoCoreView, runtime.frameFrac)) = lbl_80349154;
     *(s32*)(lbl_802C9D30 + 20) = 0;
-    *(s32*)(pi + 100) = 0;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.world_bytes)) = 0;
     size = 120000;
-    *(s32*)(pi + 104) = size;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.pool_bytes)) = size;
     *psize = size;
-    *(s32*)(pi + 112) = 1;
-    *(s32*)(pi + 116) = 0;
-    *(s32*)(pi + 120) = (s32)AllocMem(size);
-    *(s32*)(pi + 132) = *(s32*)(pi + 120);
-    *(s32*)(pi + 124) = *(s32*)(pi + 120);
-    *(s32*)(pi + 128) = *(s32*)(pi + 120);
-    q = (s32*)(pi + 132);
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.free_cnt)) = 1;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.alloc_cnt)) = 0;
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.addr)) = (s32)AllocMem(size);
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.next)) =
+        *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.addr));
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.frst)) =
+        *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.addr));
+    *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.last)) =
+        *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.addr));
+    q = (s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.next));
     q = *(s32**)q;
     q[0] = *psize;
     q[1] = 0;
     q[2] = 0;
     q[3] = 0;
-    if (*(s32*)(m + 72) == 0) {
-        *(s32*)(m + 72) = 1023;
+    if (*(s32*)(m + offsetof(PsysInfoRuntimeView, maxEntries)) == 0) {
+        *(s32*)(m + offsetof(PsysInfoRuntimeView, maxEntries)) = 1023;
     }
-    size = *(s32*)(m + 72);
-    *(s32*)(m + 76) = (s32)AllocMem(size * 12);
-    *(s32*)(m + 80) = (s32)AllocMem(size);
-    memset(*(void**)(m + 80), 0, size);
+    size = *(s32*)(m + offsetof(PsysInfoRuntimeView, maxEntries));
+    *(s32*)(m + offsetof(PsysInfoRuntimeView, directionEntries)) = (s32)AllocMem(size * 12);
+    *(s32*)(m + offsetof(PsysInfoRuntimeView, positionUsage)) = (s32)AllocMem(size);
+    memset(*(void**)(m + offsetof(PsysInfoRuntimeView, positionUsage)), 0, size);
     initPresetList();
 }
 #pragma dont_inline off
