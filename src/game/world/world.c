@@ -397,24 +397,27 @@ s32 DoWorldAnimSub(struct worldanim* wa, void** panim, u8* animBase) {
  * distance via frsqrte+Newton; the squared-distance comparison used here
  * selects the identical object.) */
 struct mbnode* FindWorldAnimNode(f32* point, f32 maxdist) {
-    char* base = gWorldName;
+    u8* base = (u8*)gWorldName;
     WorldObj* obj;
     WorldObj* best = NULL;
     f32 bestd = maxdist;
     s32 i;
 
-    for (i = 0; i < *(s32*)(base + 372); i++) {
-        u8* wa = *(u8**)(base + 368) + i * 16;
+    /* base+228 is gWorldInfo; nworldanims/worldanims/wobjs are re-read from
+     * memory every iteration below, matching target - do not hoist them. */
+    for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nworldanims)); i++) {
+        struct worldanim* wa =
+            *(struct worldanim**)(base + 228 + offsetof(WorldInfo, worldanims)) + i;
         f32 m[16]; /* node world-state; translation at +0x30 (index 12..14) */
         u8 _pad[16];
         f32 dx, dy, dz;
         volatile f32 tmp;
         f32 d2;
 
-        if (*(u32*)(wa + 12) == 0) {
+        if (wa->data == 0) {
             continue;
         }
-        obj = (WorldObj*)(*(u8**)(base + 232) + *(s16*)wa * 60);
+        obj = *(WorldObj**)(base + 228 + offsetof(WorldInfo, wobjs)) + wa->objidx;
         GetWorldMat(obj->nodeptr, m, 0);
         dy = m[12] - point[0];
         dx = m[13] - point[1];
