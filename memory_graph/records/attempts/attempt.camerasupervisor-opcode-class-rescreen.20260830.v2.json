@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "opcode-class rescreen of the remaining --ops diff for the cross-TU-extern-type-mismatch tell (fctiwz/stfd/lwz/stw cluster) that fixed a real bug in this TU's InitCamera this same session; no instance found here",
+  "attributes": {
+    "anchors": "src/game/game/combat.c::CameraSupervisor; python tools/gdl/fndiff.py game/game/combat.c CameraSupervisor --ops",
+    "final_state": "insns 441/446, real 527, lines 620, fuzzy 89.77% -- UNCHANGED (no source edit made this pass; pure negative-result screening).",
+    "findings": "Full --ops diff (21 hunks) inspected. Prologue shows a 6-vs-7-insn reorder of the camera-array address computation (target `lis;mulli` order vs ours `mulli;lis`, plus a shifted fmr/cmpwi cluster) -- same address-materialization-order class already seen across this whole TU (InitCamera/get_cam_wpos), not an independently fixable local bug. Remaining mid/tail hunks are lfd/stfs pair-shift patterns matching the project-wide zero-constant eager-vs-lazy reload class. No new bug found.",
+    "law_screen": "claim.law.cross-tu-extern-type-mismatch-fctiwz-tell (this session's finding): screened via grep over the full --ops diff for fctiwz/stfd/crset/lwzu/stwu/lfdu/stfdu opcode-class tokens -- zero hits. Whole-tree extern float/int conflict census (run once for the whole TU this session) also came back clean for this function's globals.",
+    "verification": "no source change; --ops re-run against the already-green build; recorded so a future pass does not re-spend a full opcode-class scan on this function without a new theory"
+  },
+  "function": "function:CameraSupervisor",
+  "id": "attempt.camerasupervisor-opcode-class-rescreen.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-30T21:09:56Z",
+  "residual_class": "REGISTER_ONLY/SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.camerasupervisor-scratch-pad-widen.20260830.v1",
+  "valid_from": "2026-08-30"
+}

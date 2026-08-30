@@ -2432,9 +2432,10 @@ extern s32 gCameraTargetPositionCount, gCameraTargetMode, lbl_8034446C, lbl_8034
 extern s32 lbl_80344550, shake_type, shaking, shake_count, shake_delay;
 extern s32 shake_priority, lbl_803447B4, lbl_803444BC, gCameraWindowLeftLimit;
 extern s32 gCameraWindowRightLimit, gCameraWindowTopLimit, gCameraWindowBottomLimit, lbl_80344514, lbl_80344518;
-extern s32 lbl_80344520, gNumEnemies, lbl_803447F8, lbl_80344524;
+extern s32 lbl_80344520, gNumEnemies, lbl_803447F8;
 extern s32 lbl_80344288, lbl_8034441C, lbl_80344420, lbl_80344A28;
 extern u8* sSpecialTransmitter;
+extern f32 lbl_80344524;
 extern f32 lbl_80344460, lbl_80344464, shake_rad, lbl_803461F8, lbl_803461FC;
 extern f32 gCameraWindowScaleX, gCameraWindowScaleY, lbl_80345F80;
 extern f32 lbl_80344428, lbl_80344424, lbl_80344438, lbl_80344434;
