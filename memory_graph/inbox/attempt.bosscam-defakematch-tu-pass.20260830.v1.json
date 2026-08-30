@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "TU-scoped replacement of raw Player, game-camera, level, boss-camera-parameter, and boss-object offsets with GC-header members or target-verified narrow local views",
+  "attributes": {
+    "anchors": "src/game/boss/bosscam.c; flagship target 0x8001E210 size 0xd4; reproduce with ninja -j2 build/GUNE5D/src/game/boss/bosscam.o and tools/gdl/fndiff.py game/boss/bosscam GetPlayerViewDist",
+    "baseline_and_best": "audited numeric-offset/PF census 313 -> 249 lines; GetPlayerViewDist target/current 53/53, fuzzy 100%, real 0, frame 0x50; TU 95.801414% fuzzy and 8/17 real-0 exact functions unchanged",
+    "constraints": "Did not retry recorded BossCamBossCalc, BossCamPlayerCalc, or GetActualAvgVec declaration-order/register/stack axes. No failed member form was retained; inline casts preserve repeated external-pointer reload webs.",
+    "retained": "Typed all eight flagship Player loads using GC Player members plus field_888[3] in a target-verified local view; typed CameraLimitPlayerDpos index; converted BossCameraStart level/params/camera state, BossCameraUpdate camera state, and GetBossAvgPos position view. Every converted exact function stayed real 0.",
+    "separate_relocation_case": "BossCameraUpdate stayed 301/301 with identical opcode stream and its baseline two relocation-operand diff lines (target sFlags vs current gControllerButtons+4); it is 100% fuzzy but not counted among the eight real-0 exact functions.",
+    "sites_left_raw": "249 census lines remain, concentrated in fuzzy CamLimitPlayerDpos, the three capped large camera solvers, trigger-camera buffers, frustum scratch, effects/boss records, and camera fields outside the target-verified local views. No unverified semantic field names were invented."
+  },
+  "function": "function:GetPlayerViewDist",
+  "id": "attempt.bosscam-defakematch-tu-pass.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1
+}

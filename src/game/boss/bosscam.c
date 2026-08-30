@@ -1,5 +1,7 @@
 #include "types.h"
 #include "game/camera.h"
+#include "game/leveldata.h"
+#include "game/player.h"
 
 /*
  * game/boss/bosscam.c  --  BOSSCAM.OBJ (GameCube GUNE5D)
@@ -84,9 +86,44 @@ extern u8 gGameCameraData[0x1B4];     /* .bss  0x8023E92C */
 extern u8 gBossCamData[0x60];         /* .bss  0x8023E8CC */
 
 typedef struct BossGameCameraView {
-    u8 pad_000[220];
+    u8 pad_000[0x30];
+    f32 field_030[3];
+    u8 pad_03C[0x68];
+    f32 field_0A4[3];
+    f32 field_0B0[3];
+    f32 field_0BC[8];
     f32 view_scale;
+    f32 field_0E0[3];
+    f32 field_0EC;
+    f32 field_0F0;
+    f32 field_0F4;
+    f32 field_0F8;
+    f32 field_0FC;
+    f32 field_100;
+    f32 field_104;
+    f32 field_108;
 } BossGameCameraView;
+
+typedef struct BossCamPlayerView {
+    u8 pad_000[0x888];
+    f32 field_888[3];
+} BossCamPlayerView;
+
+typedef struct BossCameraParamsView {
+    u8 pad_000[4];
+    f32 field_004;
+    f32 field_008;
+    u8 pad_00C[8];
+    f32 field_014;
+    f32 field_018;
+    u8 pad_01C[8];
+    f32 field_024[6];
+} BossCameraParamsView;
+
+typedef struct BossObjectView {
+    u8 pad_000[0x4C];
+    f32 field_04C[3];
+} BossObjectView;
 
 /* bosscam-owned .sbss scratch (referenced externally, see split notes) */
 extern s32 lbl_803443AC;
@@ -296,7 +333,7 @@ void TriggerCameraActivate(s32 p1, f32* p2, f32* p3, s32 duration, s32 p5, s32 p
 }
 s32 CameraLimitPlayerDpos(s32 player, f32* dpos, s32 arg) {
     s32 ret = 1;
-    u8* ps = &gPlayers[player * 0x335C];
+    Player* ps = (Player*)&gPlayers[player * 0x335C];
     f32 savedY = dpos[1];
 
     if (lbl_803443A8 != 0) {
@@ -308,14 +345,14 @@ check_boss_camera:
         if (!fn_800629B0()) goto limit_player;
         if (lbl_803443B0 == 0) goto limit_done;
 limit_player:
-        CamLimitPlayerDpos(gGameCamera, ps, dpos, arg);
+        CamLimitPlayerDpos(gGameCamera, (u8*)ps, dpos, arg);
         dpos[1] = savedY;
 limit_done:
         ;
     } else if (lbl_80344A80 == 2) {
         ret = fn_8006DC2C(ps, dpos, arg);
     } else {
-        ret = camera_debug_supervisor(*(s32*)ps, dpos);
+        ret = camera_debug_supervisor(ps->index, dpos);
         dpos[1] = savedY;
     }
     return ret;
@@ -523,16 +560,16 @@ s32 BossCameraUpdate(void) {
                 d2 = tmp;
             }
             GetYawPitch(dir, &yaw, &pitch);
-            *(f32*)((u8*)gGameCamera + 164) = avg[0];
-            *(f32*)((u8*)gGameCamera + 168) = avg[1];
-            *(f32*)((u8*)gGameCamera + 172) = avg[2];
-            *(f32*)((u8*)gGameCamera + 176) = avg[0];
-            *(f32*)((u8*)gGameCamera + 180) = avg[1];
-            *(f32*)((u8*)gGameCamera + 184) = avg[2];
-            *(f32*)((u8*)gGameCamera + 236) = yaw;
-            *(f32*)((u8*)gGameCamera + 260) = pitch;
-            *(f32*)((u8*)gGameCamera + 244) = d2;
-        } else if (*(void**)((u8*)gCurLevel + 108) != 0) {
+            ((BossGameCameraView*)gGameCamera)->field_0A4[0] = avg[0];
+            ((BossGameCameraView*)gGameCamera)->field_0A4[1] = avg[1];
+            ((BossGameCameraView*)gGameCamera)->field_0A4[2] = avg[2];
+            ((BossGameCameraView*)gGameCamera)->field_0B0[0] = avg[0];
+            ((BossGameCameraView*)gGameCamera)->field_0B0[1] = avg[1];
+            ((BossGameCameraView*)gGameCamera)->field_0B0[2] = avg[2];
+            ((BossGameCameraView*)gGameCamera)->field_0EC = yaw;
+            ((BossGameCameraView*)gGameCamera)->field_104 = pitch;
+            ((BossGameCameraView*)gGameCamera)->field_0F4 = d2;
+        } else if (((level_data*)gCurLevel)->bosscam != 0) {
             if (gBossActive == 0) {
                 BossCamPlayerCalc();
             } else {
@@ -543,7 +580,7 @@ s32 BossCameraUpdate(void) {
 
     {
         f64 a;
-        wp = (f32*)((u8*)gGameCamera + 236);
+        wp = &((BossGameCameraView*)gGameCamera)->field_0EC;
         a = *wp;
         if (a > lbl_80345B88) {
             a = a - lbl_80345BB8;
@@ -554,7 +591,7 @@ s32 BossCameraUpdate(void) {
     }
     {
         f64 a;
-        wp = (f32*)((u8*)gGameCamera + 260);
+        wp = &((BossGameCameraView*)gGameCamera)->field_104;
         a = *wp;
         if (a > lbl_80345B88) {
             a = a - lbl_80345BB8;
@@ -564,29 +601,35 @@ s32 BossCameraUpdate(void) {
         *wp = a;
     }
 
-    YawVec3(lbl_80127D40, (f32*)((u8*)gGameCamera + 224),
-            -*(f32*)((u8*)gGameCamera + 236));
-    PitchVec3((f32*)((u8*)gGameCamera + 224), (f32*)((u8*)gGameCamera + 224),
-              -*(f32*)((u8*)gGameCamera + 260));
-    DoShake((f32*)((u8*)gGameCamera + 48), (f32*)((u8*)gGameCamera + 164));
-    *(f32*)((u8*)gGameCamera + 48) =
-        *(f32*)((u8*)gGameCamera + 224) * -*(f32*)((u8*)gGameCamera + 244) +
-        *(f32*)((u8*)gGameCamera + 164);
-    *(f32*)((u8*)gGameCamera + 52) =
-        *(f32*)((u8*)gGameCamera + 228) * -*(f32*)((u8*)gGameCamera + 244) +
-        *(f32*)((u8*)gGameCamera + 168);
-    *(f32*)((u8*)gGameCamera + 56) =
-        *(f32*)((u8*)gGameCamera + 232) * -*(f32*)((u8*)gGameCamera + 244) +
-        *(f32*)((u8*)gGameCamera + 172);
-    LookInDirection((f32*)((u8*)gGameCamera + 224), gGameCamera);
+    YawVec3(lbl_80127D40, ((BossGameCameraView*)gGameCamera)->field_0E0,
+            -((BossGameCameraView*)gGameCamera)->field_0EC);
+    PitchVec3(((BossGameCameraView*)gGameCamera)->field_0E0,
+              ((BossGameCameraView*)gGameCamera)->field_0E0,
+              -((BossGameCameraView*)gGameCamera)->field_104);
+    DoShake(((BossGameCameraView*)gGameCamera)->field_030,
+            ((BossGameCameraView*)gGameCamera)->field_0A4);
+    ((BossGameCameraView*)gGameCamera)->field_030[0] =
+        ((BossGameCameraView*)gGameCamera)->field_0E0[0] *
+            -((BossGameCameraView*)gGameCamera)->field_0F4 +
+        ((BossGameCameraView*)gGameCamera)->field_0A4[0];
+    ((BossGameCameraView*)gGameCamera)->field_030[1] =
+        ((BossGameCameraView*)gGameCamera)->field_0E0[1] *
+            -((BossGameCameraView*)gGameCamera)->field_0F4 +
+        ((BossGameCameraView*)gGameCamera)->field_0A4[1];
+    ((BossGameCameraView*)gGameCamera)->field_030[2] =
+        ((BossGameCameraView*)gGameCamera)->field_0E0[2] *
+            -((BossGameCameraView*)gGameCamera)->field_0F4 +
+        ((BossGameCameraView*)gGameCamera)->field_0A4[2];
+    LookInDirection(((BossGameCameraView*)gGameCamera)->field_0E0,
+                    gGameCamera);
 
     lbl_8034453C = 0;
-    gCameras[0].attn[0] = *(f32*)((u8*)gGameCamera + 164);
-    gCameras[0].attn[1] = *(f32*)((u8*)gGameCamera + 168);
-    gCameras[0].attn[2] = *(f32*)((u8*)gGameCamera + 172);
-    gCameras[0].wpos[0] = *(f32*)((u8*)gGameCamera + 48);
-    gCameras[0].wpos[1] = *(f32*)((u8*)gGameCamera + 52);
-    gCameras[0].wpos[2] = *(f32*)((u8*)gGameCamera + 56);
+    gCameras[0].attn[0] = ((BossGameCameraView*)gGameCamera)->field_0A4[0];
+    gCameras[0].attn[1] = ((BossGameCameraView*)gGameCamera)->field_0A4[1];
+    gCameras[0].attn[2] = ((BossGameCameraView*)gGameCamera)->field_0A4[2];
+    gCameras[0].wpos[0] = ((BossGameCameraView*)gGameCamera)->field_030[0];
+    gCameras[0].wpos[1] = ((BossGameCameraView*)gGameCamera)->field_030[1];
+    gCameras[0].wpos[2] = ((BossGameCameraView*)gGameCamera)->field_030[2];
     ExtractYPR(gGameCamera, gCameras[0].pyr);
     wp = &gCameras[0].pyr[1];
     gCameras[0].pyr[1] = gCameras[0].pyr[1] + lbl_80345B88;
@@ -600,20 +643,21 @@ s32 BossCameraUpdate(void) {
         }
         *wp = a;
     }
-    MBCameraUpdate((f32*)((u8*)gGameCamera + 48), (f32*)gGameCamera);
+    MBCameraUpdate(((BossGameCameraView*)gGameCamera)->field_030,
+                   (f32*)gGameCamera);
     lbl_803443A8 = 1;
     if ((gControllerButtons & 1) != 0 &&
         (gControllerButtons & 16) != 0) {
         dbgTextPrintfCell(0xFFFF00, 1, 0x20, lbl_801117E0,
                           lbl_80345BC8 * (lbl_80345BD0 *
-                              *(f32*)((u8*)gGameCamera + 236)),
+                              ((BossGameCameraView*)gGameCamera)->field_0EC),
                           lbl_80345BC8 * (lbl_80345BD0 *
-                              *(f32*)((u8*)gGameCamera + 260)),
-                          (f64)*(f32*)((u8*)gGameCamera + 244),
-                          (f64)*(f32*)((u8*)gGameCamera + 256),
-                          (f64)*(f32*)((u8*)gGameCamera + 164),
-                          (f64)*(f32*)((u8*)gGameCamera + 168),
-                          (f64)*(f32*)((u8*)gGameCamera + 172));
+                              ((BossGameCameraView*)gGameCamera)->field_104),
+                          (f64)((BossGameCameraView*)gGameCamera)->field_0F4,
+                          (f64)((BossGameCameraView*)gGameCamera)->field_100,
+                          (f64)((BossGameCameraView*)gGameCamera)->field_0A4[0],
+                          (f64)((BossGameCameraView*)gGameCamera)->field_0A4[1],
+                          (f64)((BossGameCameraView*)gGameCamera)->field_0A4[2]);
     }
     return 1;
 }
@@ -1403,35 +1447,41 @@ static void BossCamLimitAttn(f32* target) {
 }
 #pragma opt_propagation reset
 static void BossCameraStart(void) {
-    lbl_803443D0 = *(u8**)(gCurLevel + 0x6C);
+    lbl_803443D0 = (u8*)((level_data*)gCurLevel)->bosscam;
     if (lbl_803443D0 != 0) {
-        *(f32*)(lbl_803443D0 + 8) = cos(*(f32*)(lbl_803443D0 + 4));
-        if (lbl_80345BA0 == *(f32*)(lbl_803443D0 + 24)) {
-            *(f32*)(lbl_803443D0 + 24) = *(f32*)(lbl_803443D0 + 20);
+        ((BossCameraParamsView*)lbl_803443D0)->field_008 =
+            cos(((BossCameraParamsView*)lbl_803443D0)->field_004);
+        if (lbl_80345BA0 == ((BossCameraParamsView*)lbl_803443D0)->field_018) {
+            ((BossCameraParamsView*)lbl_803443D0)->field_018 =
+                ((BossCameraParamsView*)lbl_803443D0)->field_014;
         }
-        if (*(f32*)(lbl_803443D0 + 52) >= lbl_80345C50) {
-            *(f32*)(lbl_803443D0 + 48) = *(f32*)(lbl_803443D0 + 36);
-            *(f32*)(lbl_803443D0 + 52) = *(f32*)(lbl_803443D0 + 40);
-            *(f32*)(lbl_803443D0 + 56) = *(f32*)(lbl_803443D0 + 44);
+        if (((BossCameraParamsView*)lbl_803443D0)->field_024[4] >=
+            lbl_80345C50) {
+            ((BossCameraParamsView*)lbl_803443D0)->field_024[3] =
+                ((BossCameraParamsView*)lbl_803443D0)->field_024[0];
+            ((BossCameraParamsView*)lbl_803443D0)->field_024[4] =
+                ((BossCameraParamsView*)lbl_803443D0)->field_024[1];
+            ((BossCameraParamsView*)lbl_803443D0)->field_024[5] =
+                ((BossCameraParamsView*)lbl_803443D0)->field_024[2];
         }
         ((BossGameCameraView*)gGameCamera)->view_scale =
-            lbl_80345B90 * *(f32*)(lbl_803443D0 + 24);
+            lbl_80345B90 * ((BossCameraParamsView*)lbl_803443D0)->field_018;
         if (lbl_80343C5C != 0) {
             ((BossGameCameraView*)gGameCamera)->view_scale *= lbl_80343B84;
         }
     }
-    *(f32*)((u8*)gGameCamera + 240) = lbl_80345BA0;
-    *(f32*)((u8*)gGameCamera + 248) = lbl_80345BA0;
-    *(f32*)((u8*)gGameCamera + 264) = lbl_80345BA0;
-    *(f32*)((u8*)gGameCamera + 188) = lbl_80345BA0;
-    *(f32*)((u8*)gGameCamera + 192) = lbl_80345BA0;
-    *(f32*)((u8*)gGameCamera + 196) = lbl_80345BA0;
-    *(f32*)((u8*)gGameCamera + 200) = lbl_80345BA0;
-    *(f32*)((u8*)gGameCamera + 204) = lbl_80345BA0;
-    *(f32*)((u8*)gGameCamera + 208) = lbl_80345BA0;
-    *(f32*)((u8*)gGameCamera + 212) = lbl_80345BA0;
-    *(f32*)((u8*)gGameCamera + 216) = lbl_80345BA0;
-    *(f32*)((u8*)gGameCamera + 256) = lbl_80345BA0;
+    ((BossGameCameraView*)gGameCamera)->field_0F0 = lbl_80345BA0;
+    ((BossGameCameraView*)gGameCamera)->field_0F8 = lbl_80345BA0;
+    ((BossGameCameraView*)gGameCamera)->field_108 = lbl_80345BA0;
+    ((BossGameCameraView*)gGameCamera)->field_0BC[0] = lbl_80345BA0;
+    ((BossGameCameraView*)gGameCamera)->field_0BC[1] = lbl_80345BA0;
+    ((BossGameCameraView*)gGameCamera)->field_0BC[2] = lbl_80345BA0;
+    ((BossGameCameraView*)gGameCamera)->field_0BC[3] = lbl_80345BA0;
+    ((BossGameCameraView*)gGameCamera)->field_0BC[4] = lbl_80345BA0;
+    ((BossGameCameraView*)gGameCamera)->field_0BC[5] = lbl_80345BA0;
+    ((BossGameCameraView*)gGameCamera)->field_0BC[6] = lbl_80345BA0;
+    ((BossGameCameraView*)gGameCamera)->field_0BC[7] = lbl_80345BA0;
+    ((BossGameCameraView*)gGameCamera)->field_100 = lbl_80345BA0;
 }
 static f32 GetPlayerViewDist(void* mtx) {
     f32 d;
@@ -1441,12 +1491,12 @@ static f32 GetPlayerViewDist(void* mtx) {
     s32 i;
 
     for (i = 0; i < 4; i++) {
-        u8* ps = &gPlayers[i * 0x335C];
-        if (*(s32*)(ps + 0xE8) == 1) {
-            pt[0] = *(f32*)(ps + 0x54) + *(f32*)(ps + 0x888);
-            pt[1] = *(f32*)(ps + 0x58) + *(f32*)(ps + 0x88C);
-            pt[2] = *(f32*)(ps + 0x5C) + *(f32*)(ps + 0x890);
-            d = *(f32*)(ps + 0x854);
+        Player* ps = (Player*)&gPlayers[i * 0x335C];
+        if (ps->state == 1) {
+            pt[0] = ps->col_pos[0] + ((BossCamPlayerView*)ps)->field_888[0];
+            pt[1] = ps->col_pos[1] + ((BossCamPlayerView*)ps)->field_888[1];
+            pt[2] = ps->col_pos[2] + ((BossCamPlayerView*)ps)->field_888[2];
+            d = ps->col_height;
             MulBodyVecMat4(pt, lbl_8023E8C0, mtx);
             d = PointViewDist(lbl_8023E8C0, d);
             if (d < best) best = d;
@@ -1456,7 +1506,7 @@ static f32 GetPlayerViewDist(void* mtx) {
 }
 #pragma opt_propagation off
 static void GetBossAvgPos(f32* out, f32 t, f32* p4, f32* p5, s32 mode) {
-    f32* bpos = (f32*)(gBossObj + 76);
+    f32* bpos = ((BossObjectView*)gBossObj)->field_04C;
     s32 i;
 
     if (t <= lbl_80345B98) {
