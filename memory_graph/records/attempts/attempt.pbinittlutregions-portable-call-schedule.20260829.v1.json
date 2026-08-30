@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "portable-C exact closure of the GXInitTlutRegion call schedule via folded pointer arithmetic, staged TLUT-size local, typed global and typed-manager aggregate member addressing, SDK-accurate enum and region parameter types, explicit and compound-assignment pointer staging, and an inlined argument-order wrapper",
+  "attributes": {
+    "anchors": "src/game/pb/pb_texture.c::pbInitTlutRegions; GameCube target 0x800C6AD4 size 0xCC; reproduce with ninja build/GUNE5D/src/game/pb/pb_texture.o and python tools/gdl/fndiff.py game/pb/pb_texture.c pbInitTlutRegions --count/--ops/--clean",
+    "baseline_and_best": "target/current 51/51 instructions, fuzzy 95.29412%, real 4, frame 0x20, saves r27-r31; portable baseline restored unchanged",
+    "measurements": "folded raw-pointer and typed-manager member addressing produced 51/51 instructions and real 8; direct typed-global member addressing produced target/current 51/53 and real 46; staged size local, SDK enum type, strong region pointer type, explicit pointer staging, and inlined argument-order wrapper were identical to the real-4 baseline; compound-assignment pointer staging retained real 4 but moved the addi before both remaining argument loads and was not an improvement; all probes reverted",
+    "policy": "capped under the schedule/register iteration limit; do not retry these pointer-folding, size-staging, aggregate-member, SDK-type, pointer-assignment, or inline-wrapper axes unless a genuinely new portable source identity can schedule the constant r5 load before the final +0x30 region-address adjustment",
+    "residual": "SCHEDULE_CANDIDATE only: in each GXInitTlutRegion loop target emits add r3/base/index, mr r4/address, li r5/size, addi r3/r3/0x30; MWCC emits the same four instructions with the final addi immediately before li. Calls, branches, frame, saved registers, instruction count, and relocations otherwise align.",
+    "semantic_audit": "Both loops initialize the intended 16-entry and 256-entry TLUT region classes at the correct 0x200 and 0x2000 TMEM strides; callback registration and 47-handle reset align with target. No semantic or ABI delta was retained."
+  },
+  "function": "function:pbInitTlutRegions",
+  "id": "attempt.pbinittlutregions-portable-call-schedule.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
