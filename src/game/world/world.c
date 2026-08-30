@@ -531,18 +531,24 @@ void WorldRestoreInitState(void) {
         return;
     }
     {
-        u8** wobjsp = (u8**)(base + 232);
+        /* WorldObj array base (gWorldInfo.wobjs); strength-reduced i*60
+         * indexed addressing is load-bearing for target's lwzx/lfsx shape
+         * (see WorldSaveInitState) - field offsets stay raw (WorldObj
+         * .flags@0x10, .parent@0x18, .pos@0x1C). */
+        u8** wobjsp = (u8**)(base + 228 + offsetof(WorldInfo, wobjs));
         s32 i;
-        for (i = 0; i < *(s32*)(base + 324); i++) {
+        for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nwobjs)); i++) {
             *(u32*)(*wobjsp + i * 60 + 16) &= 0xC31FFFFF;
             *(u32*)(*wobjsp + i * 60 + 24) = ((u32*)lbl_80344D74)[i];
             *(f32*)(*wobjsp + i * 60 + 28) = lbl_80344D78[i * 3];
             *(f32*)(*wobjsp + i * 60 + 32) = lbl_80344D78[i * 3 + 1];
             *(f32*)(*wobjsp + i * 60 + 36) = lbl_80344D78[i * 3 + 2];
         }
-        for (i = 0; i < *(s32*)(base + 372); i++) {
-            if (*(u32*)(*(u8**)(base + 380) + i * 160) != 0) {
-                *(f32*)(*(u8**)(base + 368) + i * 16 + 8) = lbl_80348778;
+        for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nworldanims)); i++) {
+            if (*(u32*)(*(u8**)(base + 228 + offsetof(WorldInfo, animdata)) +
+                         i * 160) != 0) {
+                *(f32*)(*(u8**)(base + 228 + offsetof(WorldInfo, worldanims)) +
+                        i * 16 + 8) = lbl_80348778;
             }
         }
     }
