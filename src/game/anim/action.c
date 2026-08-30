@@ -1452,9 +1452,12 @@ void DoPlayerAction(void* player)
         break;
     }
     *(s16*)((u8*)atree + 0x34) = (s16)didt;
-    seq = defs[d].seq;
-    if (seq < 0) {
-        seq = 0;
+    {
+        s32 rawSeq = defs[d].seq;
+        if (rawSeq < 0) {
+            rawSeq = 0;
+        }
+        seq = rawSeq;
     }
 
     /* per-action animation speed */
