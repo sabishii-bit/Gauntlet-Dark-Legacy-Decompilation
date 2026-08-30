@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/boss/bosscam.c TriggerCamUpdate and BossCamBossCalc; see attempt.bosscam-defakematch-tu-pass.20260830.v2",
+    "scope": "MWCC GC 1.2.5 family; companion to claim.law.recomputed-index-array-form-safe - covers the specific case where a hand-rolled byte-offset shadow variable becomes fully dead once its sole use is converted to array/member indexing.",
+    "tags": [
+      "core-screen",
+      "index-form",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.dead-offset-shadow-removal-safe.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T22:05:46Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "A common raw-offset fakematch shape is a loop that carries BOTH a counter (`i`) AND a redundant byte-offset shadow (`off`/`offset`) purely to address `base + off` where `off` always equals `i * stride`: `i=0; off=0; do { f(*(T*)(base+off)); i++; off+=stride; } while(i<N);`. When `off` has NO other use in the function, converting the dereference to direct array/member indexing on the counter (`base[i]` or `((Struct*)base)->field[i]`, per claim.law.recomputed-index-array-form-safe's recomputed-index safe case) makes `off` a fully dead local; DELETING the now-unused declaration and its two assignments (not just leaving them as dead code) is itself neutral-or-improving, not merely cosmetic. Verified twice in the SAME TU: (1) TriggerCamUpdate's `void* lbl_80257630[4]` mbBlitInit3414 loop (two near-identical do-while loops sharing one `offset` local) - converting to `lbl_80257630[i]` and deleting `offset` entirely dropped fndiff real 63->44, a 30% reduction (verified INDEPENDENTLY of the array-index step: building with `offset` still dead-declared-but-unused already captured the full real 63->44 gain; deleting the declaration afterward was confirmed separately neutral, 44->44). (2) BossCamBossCalc's 3-element pavg loop reading two parallel BossCameraParamsView.field_024 sub-ranges via `loopcfg+48+i*4`/`loopcfg+36+i*4` - converting straight to `loopcfg->field_024[3+i]`/`loopcfg->field_024[i]` (no shadow variable existed here to begin with, i itself already the recomputed index) contributed to a real 568->556 drop in the same batch. Caveat: TriggerCamUpdate's fuzzy_match_percent moved slightly the WRONG way (96.86%->96.62%) in the same edit even as real improved 30% and insn-count parity got 1 worse (146/145->147/145, two inserted instructions per --ops); for a function this small (145 insns, far under the ~4000-insn fuzzy-arbitration threshold), fndiff real was treated as authoritative per AGENTS.md and the change was kept, but the small fuzzy/insn-count disagreement is unresolved and worth a follow-up probe before treating this as a fully closed residual."
+}
