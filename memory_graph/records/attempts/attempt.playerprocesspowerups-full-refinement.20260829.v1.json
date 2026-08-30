@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "full semantic and code-form refinement of the 0x18F8-byte powerup master from documented skeleton toward byte match: target-CFG decode of all regions, wrong-field fixes, guard restructuring, member-displacement forms, assignment-in-condition loads, chained constant inits, stride-array table view",
+  "attributes": {
+    "anchors": "src/game/game/player.c::PlayerProcessPowerups; GameCube target 0x8007CC48 size 0x18F8; reproduce with ninja build/GUNE5D/src/game/game/player.o and python tools/gdl/fndiff.py game/game/player.c PlayerProcessPowerups --count/--ops/--clean; commit 756da878e",
+    "baseline_and_best": "87.640 -> 98.598 fuzzy; real diff lines 1723 -> 392; instruction count EXACT 1598/1598; frame and saved-register sets align",
+    "detail": "working levers banked as claim.law.chained-init-constant-share and claim.law.stride-array-table-view; assignment-in-condition law reconfirmed at ~20 sites (kills load+early-mr and double loads)",
+    "measurements": "semantic fixes: char_type(+8) not state(+232) in pup-object node-flag arms; p->flags not shield_flags gates the 0xA1C latch; gem MBNewObject parent weapon_node(0x6D4) flags 0x810 not node/0x10; WeapHoldFxTree[index][kind] not [kind-1]; kind==0 arm deletes the tree; charge pickups (specialflags 0x80000) zero pup->timeleft when >= 0.0 (cror form) instead of zeroing power_target when < 0; DeleteEffect else runs the field_12C audio check outside the fx>=0 guard; flash SetSkinFX blocks are else-if on one shield_flags read; if(p->node) wraps everything through the level-99 scale block (to 0x178c) with an inner node recheck in the alpha else; switch case bodies emit in source order (timer loop 5,6,8,7,9; pojo anim 1,3,4,x2:126-last); loop zero compares are f64 0.0 except stores/single-compare sites 0.0f; lbl_803477AC IS the 0.0f pool entry",
+    "policy": "FP scratch-web rotation axis CAPPED after 3 A/Bs (zero/zerof pre-loop locals -48 regression; init statements after stats +640 regression; chain order swap +4). Do not retry those three probes.",
+    "residual": "REGISTER_ONLY rotation: volatile FPR webs shifted one slot (target att=f0/lfsu=f1/mul=f2/const=f3 vs ours const=f0..., timeleft f6 vs f4, charge_cap f4 vs f6) plus GPR r24/r25/r22 renames; 3 scheduler micro-clusters (preheader lfd order zeros-first-vs-locals-first, 2x case-9 lfs/addi alignment, SetSkinFX arg eval order lwz-first vs lfs-first). No opcode, branch, or operand differences remain."
+  },
+  "function": "function:PlayerProcessPowerups",
+  "id": "attempt.playerprocesspowerups-full-refinement.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "REGISTER",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}

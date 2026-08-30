@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "PlayerProcessPowerups weapon-hold tier colors, commit 756da878e: ((TierColor*)(lbl_80282930[p->index] + 0x68))[tier].rgb[k] with 12-byte TierColor replaced 7 lfsx + 6 hoisted addi with target's add+lfs 0x68/0xE0 displacement form. Extends the items.c induction-form law (base+i*stride beats named offset accumulator).",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.stride-array-table-view.20260829.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-29",
+  "value": "For a table addressed as base + TABLE_OFF + index*STRIDE + k*4 (base reloaded per statement because stores alias it), cast to a STRIDE-sized struct array: `((T*)(base + TABLE_OFF))[index].f[k]` where sizeof(T) == STRIDE. MWCC then keeps index*STRIDE as one mulli, re-derives base per statement, and folds TABLE_OFF + k*4 into the load displacement: add rD,base,mulli; lfs disp(rD) - matching retail. The offset-cast forms `((V*)(base + index*STRIDE))->field` or `*(f32*)(base + off + CONST)` instead let PRE group (off + CONST) into hoisted addi offset registers feeding lfsx - an indexed-address web that a plain padded view struct does NOT kill."
+}

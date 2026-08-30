@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "PlayerProcessPowerups 0x8007CC48 refinement, commit 756da878e: weapon_time = alpha_time = 0.0f; familiar_time = shield_time = lbl_80347920; reproduced target fmr f30,f31 / fmr f29,f0 exactly. Statement position matters: the chain must precede the first FP-heavy statements it originally preceded - moving it later re-rotated the webs.",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.chained-init-constant-share.20260829.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-29",
+  "value": "When two locals initialize from the SAME constant, write a chained assignment `a = b = CONST;` (one statement per constant pair). The inner variable b then OWNS the pool load (lfs/lfd lands directly in b's home register) and a receives a single fmr from b's home. Writing four separate `= CONST` initializers instead makes MWCC materialize the shared constant in a scratch register and copy it to BOTH homes - one extra fmr per pair, and the scratch web shifts every downstream volatile FPR assignment. In PlayerProcessPowerups this single change collapsed ~600 register-rename diff lines and made the instruction count exact."
+}
