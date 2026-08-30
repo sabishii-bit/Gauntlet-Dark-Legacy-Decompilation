@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "portable-C closure of constant reuse, missile-call FP load scheduling, saved-GPR coalescing, the modulus branch pair, and saved-FPR topology",
+  "attributes": {
+    "anchors": "src/game/sfx/psfx.c::fn_80089350; GUNE5D .text 0x80089350 size 0x58C; python tools/gdl/fnasm.py game/sfx/psfx fn_80089350; python tools/gdl/fndiff.py game/sfx/psfx fn_80089350 --count/--ops/--clean; build/GUNE5D/report.json",
+    "axis_log": [
+      "Explicit goto/<= reached 355 instructions and clean-real 38 but emitted cror+bne and regressed fuzzy to 97.71831%; rejected.",
+      "Nested/new/register scalar staging and alternative existing-local pairs were codegen-identical to the retained 99.056335% topology.",
+      "Volatile direct loads, comma-expression call shaping, parameter aliases, register annotations, declaration reorder, opt_lifetimes off, and opt_propagation off all regressed or were neutral; do not retry unchanged."
+    ],
+    "baseline": "target/current 355/355, fuzzy 97.68%, count-real 54, clean-real 59, frame 0xA8, saves r22-r31/f26-f31, STRUCTURAL",
+    "best": "target/current 355/354, fuzzy 99.056335%, count-real 127, clean-real 131 after pool suppression, frame 0xA8, saves r22-r31/f26-f31; fuzzy is authoritative for the register-color cascade",
+    "residual": "Opcode diff is only the target ble-plus-b pair versus P6's folded bgt. The remaining line diff is a consistent saved-FPR web rotation: target t0/t1 use f28/f29 and branch-local kx/ky/acc/kone use f26/f27/f30/f31, while the staged source rotates those homes.",
+    "retained_change": "A scoped zero local reuses one lfs for the compare and store; moving i before mask coalesces both target r23 webs; staging the two missile FP constants through dead rate/scale locals recovers the target's early f1/f2 load positions.",
+    "semantic_audit": "Complete 355-instruction target reviewed: row timing/flags, message and visibility gates, switch dispatch, missile fan loop, rate remainder gate, interpolation, effect mutation loop, powerup update, and recursive linked-row tail. Retained edits only change equivalent local lifetimes and evaluation shape.",
+    "verification": "Owning object and report rebuilt; fndiff count/ops/clean inspected; matchtool preserves seven exact siblings; datadiff remains only the pre-existing unclaimed .data 0x54 and .sdata2 0x14; fresh full ninja passed with main.dol checksum OK; progress 97.74% fuzzy and 57.91% matched; git diff --check passed; no assembly or postprocessor changes."
+  },
+  "commit_hash": "203d5050813237e7bf38d94a894a34643e174298",
+  "function": "function:fn_80089350",
+  "id": "attempt.fn-80089350-portable-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL/REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
