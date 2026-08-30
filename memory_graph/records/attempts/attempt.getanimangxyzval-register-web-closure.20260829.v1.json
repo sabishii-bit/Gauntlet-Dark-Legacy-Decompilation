@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "portable-C exact closure of the opcode-identical FPR recolor and four-byte stack-home displacement through swap-helper value topology, frame and constant live ranges, PDB-recovered pointer/local topology, explicit key-pointer home construction, and compiler/flag selection",
+  "attributes": {
+    "anchors": "src/game/anim/anim_play.c::GetAnimAngXYZVal; GameCube target 0x8000F7F4 size 0x105C; source best commit 434f877e6; ninja build/GUNE5D/src/game/anim/anim_play.o; python tools/gdl/fnasm.py game/anim/anim_play GetAnimAngXYZVal; python tools/gdl/fndiff.py game/anim/anim_play GetAnimAngXYZVal --count/--ops/--clean; Xbox shell3D.pdb SHA256 4D5D694A9B6275B9A521F77C9C26168C7B6586D052960F8AAAD14E10452C7B64",
+    "axis_log": "NEG helper dflt parameter real 212; NEG pointer-form SwapFloat real 372; NEG manual direct swap real 948/frame 0x350; NEG named swap temp real 268/frame 0x3B8; NEG frame alias fuzzy 98.72206%; NOOP register qualifiers, helper assignment/declaration spelling, bits declaration/assignment order, t/dang scope, constant qualifiers/order variants, and split padding; NEG direct globals 1048 instructions/real 309; NEG PDB tanimdata*/anim* alias reconstruction 1046 instructions/real 663; NEG explicit volatile keys home 1046 instructions/real 703; all probes reverted",
+    "baseline_and_best": "target/current 1047/1047 instructions, fuzzy 99.617004%, count-real 172, clean-real 176 including four suppressed pool-name lines, frame 0x398, saves r14-r31 and f28-f31; opcode streams, CFG, calls, branches, relocations, sibling text, and claimed data remain aligned; no source change retained",
+    "compiler_matrix": "Full 1.2.5 flag matrix bottomed at real 172 with eleven ties; 1.2.5n bottomed at real 174. Alternate compiler selection does not close this residual.",
+    "pdb_evidence": "Direct CodeView parsing of Xbox anim_play.obj at module stream 158 found GetAnimAngXYZVal parameters data:animdata*, tdata:tanimdata*, anim:anim*, type:int, count:int, frame:float, numframes:int and locals tpos:float*, keycount:int, keys:u32*, pidx:int, tscale:float*, nidx:int, dang:float. Type records resolve pointer indices 0x3DBE->animdata, 0x43DC->anim, 0x43EC->tanimdata; simple types 0x440=float* and 0x475=u32*. This is cross-platform source-shape evidence only; the PPC target remains authoritative.",
+    "policy": "Capped under the opcode-aligned exact-closure limit. Do not retry swap helper parameter/value/pointer forms, frame aliases, PDB pointer aliases, explicit or volatile key homes, local declaration/order/register/const axes, padding splits, direct constants, or 1.2.5/1.2.5n flag matrices without a genuinely new portable source dependency or a surrounding structural change. Re-A/B only after such a change because allocator signs are alignment-sensitive.",
+    "residual": "Early nine inlined uncompressed channel loops have a pure f0/f1 cycle. The long-lived frame/one/zero/int-conversion webs differ across f28-f31. The original keydata home and integer-to-double high word are each four bytes lower at 788/792 than target 792/796 despite an exact 0x398 frame. Final angle-wrap lfd scheduling loads cycle before mtctr instead of target lower-before-mtctr. No opcode, semantic, call, branch, or relocation mismatch remains.",
+    "verification": "Clean baseline restored; owning object rebuilt; fndiff count/ops/clean inspected; matchtool reports eight exact siblings and GetAnimAngXYZVal real 172; datadiff reports only the pre-existing unclaimed .sdata2 0x8; fresh full ninja linked main.dol with checksum OK; progress 97.74% fuzzy, 58.12% matched, 26.09% linked; git diff --check clean; no source or assembly changes retained."
+  },
+  "function": "function:GetAnimAngXYZVal",
+  "id": "attempt.getanimangxyzval-register-web-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
