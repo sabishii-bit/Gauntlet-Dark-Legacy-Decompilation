@@ -2833,7 +2833,7 @@ s32 CritterDamage(f32 damage, Critter *c, s32 player, u32 flags,
     }
 
     move = (CritterDamageMove *)&
-        (*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove];
+        (*(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)))[c->curmove];
     if (move->type == 35) {
         damage = (f32)((f64)damage * lbl_80346500);
         flags &= ~0x130;
@@ -2978,7 +2978,7 @@ credited_damage_done:
                                 *(s32 *)(anode + 0x20) = 0;
                                 *(void **)anode = NULL;
                                 for (j = 0;
-                                     j < *(s16 *)((u8 *)c->hdr + 0x110);
+                                     j < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount));
                                      j++) {
                                     if ((*(CritterMove **)((u8 *)c->hdr +
                                                           0x124))[j].node ==
@@ -3391,7 +3391,7 @@ animate_ai:
 
 ai_done:
 
-    move = *(CritterMove **)((u8 *)c->hdr + 0x124);
+    move = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
     move += c->curmove;
     if ((move->flags & 8) != 0) {
         if ((*(u32 *)((u8 *)c->anim + 0x60) & 0x40) == 0) {
@@ -3494,7 +3494,7 @@ void CritterUpdateCounters(Critter *c)
     f32 clear;
     f32 current;
 
-    moveType = *(s32 *)(*(u8 **)((u8 *)c->hdr + 0x124) + c->curmove * 0x90);
+    moveType = *(s32 *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)) + c->curmove * 0x90);
     if ((((f64)c->counterTime > 0.0) &&
          ((f64)(sMusicFadeBase - c->counterTime) > 3.0)) ||
         moveType == 0x22 || (moveType >= 0x40 && moveType < 0x7F)) {
@@ -3568,7 +3568,7 @@ s32 CritterGolemAI(Critter *c)
         }
     }
 
-    move0 = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[
+    move0 = &(*(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)))[
                 c->curmove < 0 ? 0 : c->curmove];
     mt = -1;
     c->nextmove = mt;
@@ -3612,7 +3612,7 @@ s32 CritterGolemAI(Critter *c)
         c->nextmove = c->curmove;
     }
 
-    nm = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->nextmove];
+    nm = &(*(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)))[c->nextmove];
     if (lbl_803447DC == 0 || c->curmove < 0 ||
         move0->type == 0x11 || nm->type == 0x11 ||
         move0->type == 0x10 || nm->type == 0x10) {
@@ -3623,7 +3623,7 @@ s32 CritterGolemAI(Critter *c)
         c->curmove = 0;
     }
     anim32 = (s32)*(f32 *)((u8 *)c + 0x90);
-    move = *(CritterMove **)((u8 *)c->hdr + 0x124);
+    move = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
     move += c->curmove;
     switch (move->type) {
     case 0x11:
@@ -3825,7 +3825,7 @@ s32 CritterBossAI(Critter *c)
                             linkedChildren++;
                         } else {
                             childMove = (CritterMove *)(
-                                *(u8 **)((u8 *)child->hdr + 0x124) +
+                                *(u8 **)((u8 *)child->hdr + offsetof(CritterPackedType, movesPtr)) +
                                 selected * 0x90);
                             if (childMove->type >= 0x7F) {
                                 linkedChildren++;
@@ -3857,7 +3857,7 @@ s32 CritterBossAI(Critter *c)
     if (c->curmove < 0) {
         c->curmove = 0;
     }
-    move = (CritterMove *)(*(u8 **)((u8 *)c->hdr + 0x124) +
+    move = (CritterMove *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)) +
                            c->curmove * 0x90);
     frameHalf = lbl_803464F8;
     for (child = c->next; child != NULL; child = child->next) {
@@ -3946,7 +3946,7 @@ s32 CritterBossAI(Critter *c)
         if (child->curmove >= 0) {
             childFrame = (s32)*(f32 *)((u8 *)child + 0x90);
             childMove = (CritterMove *)(
-                *(u8 **)((u8 *)child->hdr + 0x124) + child->curmove * 0x90);
+                *(u8 **)((u8 *)child->hdr + offsetof(CritterPackedType, movesPtr)) + child->curmove * 0x90);
             CritterMoveSetup(child, childMove);
             CritterActivate(child, childMove, childFrame);
             CritterTranslate(child, childMove);
@@ -4058,7 +4058,7 @@ s32 CritterBossAI(Critter *c)
             DrawText(8, y, 0, 0xFFFFFF, lbl_8011213C, i,
                      moveName,
                      c->curmove >= 0
-                         ? (char *)(*(u8 **)((u8 *)c->hdr + 0x124) +
+                         ? (char *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)) +
                                     c->curmove * 0x90 + 0x10)
                          : (char *)lbl_803465E8,
                      (s32)c->health,
@@ -4474,7 +4474,7 @@ s32 CritterMoveSetup(Critter *c, CritterMove *move)
     target = NULL;
     currentMove = c->curmove;
     if (currentMove >= 0) {
-        target = (f32 *)(*(u8 **)((u8 *)c->hdr + 0x124) +
+        target = (f32 *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)) +
                          currentMove * sizeof(CritterMove) + 0x60);
     }
 
@@ -4545,8 +4545,8 @@ void CritterActivate(Critter *c, CritterMove *move, s32 frame)
             if (move->type != 0x85) {
                 c->moveFlags = oldFlags | 1;
             }
-            if (*(s16 *)((u8 *)move + 0x48) >= 0) {
-                CritterAnimInterrupt(c, *(s16 *)((u8 *)move + 0x48), 1,
+            if (*(s16 *)((u8 *)move + offsetof(CritterMove, interruptAnim0)) >= 0) {
+                CritterAnimInterrupt(c, *(s16 *)((u8 *)move + offsetof(CritterMove, interruptAnim0)), 1,
                                      !(oldFlags & 1));
             }
         }
@@ -4554,15 +4554,16 @@ void CritterActivate(Critter *c, CritterMove *move, s32 frame)
             if (move->type != 0x85) {
                 c->moveFlags |= 2;
             }
-            if (*(s16 *)((u8 *)move + 0x4A) >= 0) {
-                CritterAnimInterrupt(c, *(s16 *)((u8 *)move + 0x4A), 2,
+            if (*(s16 *)((u8 *)move + offsetof(CritterMove, interruptAnim1)) >= 0) {
+                CritterAnimInterrupt(c, *(s16 *)((u8 *)move + offsetof(CritterMove, interruptAnim1)), 2,
                                      !(oldFlags & 2));
             }
         }
     }
-    if (*(s16 *)((u8 *)move + 0x48) >= 0) {
-        entry = *(u8 **)(*(u8 **)((u8 *)c->hdr + 0x130) + 0x44) +
-                *(s16 *)((u8 *)move + 0x48) * 0x50;
+    if (*(s16 *)((u8 *)move + offsetof(CritterMove, interruptAnim0)) >= 0) {
+        entry = *(u8 **)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType,
+                          file)) + offsetof(CritterFileHeader, damage)) +
+                *(s16 *)((u8 *)move + offsetof(CritterMove, interruptAnim0)) * 0x50;
         if ((*(s16 *)(entry + 2) & 0x4000) && c->unkAC8 > lbl_80346488 &&
             *(s16 *)(entry + 0) != 1) {
             return;
@@ -4589,8 +4590,8 @@ void CritterGetNextMove(Critter *c)
     s16 linked;
     s32 childrenDone;
 
-    moves = *(CritterMove **)((u8 *)c->hdr + 0x124);
-    count = *(s16 *)((u8 *)c->hdr + 0x110);
+    moves = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
+    count = *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount));
     move = &moves[c->curmove];
     if (c->curmove < 0) {
         c->nextmove = 0;
@@ -4607,7 +4608,7 @@ void CritterGetNextMove(Critter *c)
         for (child = c->next; child != NULL; child = child->next) {
             if (child->curmove >= 0 || child->nextmove >= 0) {
                 child->nextmove = child->curmove + 1;
-                if (child->nextmove < *(s16 *)((u8 *)child->hdr + 0x110)) {
+                if (child->nextmove < *(s16 *)((u8 *)child->hdr + offsetof(CritterPackedType, moveCount))) {
                     childrenDone = 0;
                 } else {
                     child->nextmove = -1;
@@ -4664,8 +4665,8 @@ void CritterLookForReady(Critter *c)
     f32 best;
     f32 distance;
 
-    moveCount = *(s16 *)((u8 *)c->hdr + 0x110);
-    moves = *(CritterMove **)((u8 *)c->hdr + 0x124);
+    moveCount = *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount));
+    moves = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
     result = -1;
     best = lbl_803464C0;
 
@@ -4795,12 +4796,12 @@ void CritterChildCriticalMove(Critter *c)
         recordOffset += sizeof(CritterPattern);
     }
 
-    moves = *(CritterMove **)((u8 *)c->hdr + 0x124);
+    moves = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
     i = 0;
     zero = lbl_80346488;
     timeOffset = 0;
     recordOffset = 0;
-    while (i < *(s16 *)((u8 *)c->hdr + 0x110)) {
+    while (i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount))) {
         if (i == c->curmove) {
             goto next_move;
         }
@@ -4891,10 +4892,10 @@ void CritterLookForCriticalMove(Critter *c)
     i = 0;
     timeOffset = 0;
     moveOffset = 0;
-    moves = *(CritterMove **)((u8 *)c->hdr + 0x124);
+    moves = *(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr));
     zero = lbl_80346488;
 
-    while (i < *(s16 *)((u8 *)c->hdr + 0x110)) {
+    while (i < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount))) {
         move = (CritterMove *)((u8 *)moves + moveOffset);
         if (move->type != 0x23) {
             goto next;
@@ -4937,7 +4938,7 @@ void CritterChildGetPattern(Critter *c)
 {
     CritterMove *move;
 
-    move = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove];
+    move = &(*(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)))[c->curmove];
     if (c->state == 1) {
         c->nextmove = (s16)CritterFindMoveType(c, 0x11, 1);
     } else if (lbl_8034489C >= 3 && lbl_8034489C <= 5 && gBossType == 35) {
@@ -4974,7 +4975,7 @@ void CritterGetDoAction(Critter *c)
     Critter *child;
     s32 aiType;
 
-    move = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove];
+    move = &(*(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)))[c->curmove];
     aiType = *(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20);
     if (c->curmove < 0 || c->state == 0) {
         c->nextmove = (s16)CritterFindMoveType(c, 0, 1);
@@ -5278,7 +5279,7 @@ void CritterMoveDone(Critter *c, s32 moveIndex)
     move = NULL;
     currentMove = c->curmove;
     if (currentMove >= 0) {
-        move = &(*(CritterMove **)((u8 *)c->hdr + 0x124))[currentMove];
+        move = &(*(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)))[currentMove];
     }
     if (move != NULL) {
         switch (move->type) {
@@ -5398,9 +5399,10 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
     result = -1;
     best = lbl_80346470;
 
-    for (; i < *(s16 *)(hdr + 0x110);
+    for (; i < *(s16 *)(hdr + offsetof(CritterPackedType, moveCount));
          i++, timeOffset += 4, moveOffset += sizeof(CritterMove)) {
-        move = (CritterMove *)(*(u8 **)(hdr + 0x124) + moveOffset);
+        move = (CritterMove *)(*(u8 **)(hdr + offsetof(CritterPackedType,
+                                movesPtr)) + moveOffset);
         if ((move->flags & 4) == 0 && move->type == type) {
             if ((f64)move->cooldown > lbl_80346488) {
                 remaining = c->moveTimes[i] + move->cooldown - sMusicFadeBase;
@@ -5969,7 +5971,7 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
     audio = *(s32 *)(entry + 0xC);
     if (audio >= 0) {
         if (c->curmove >= 0 &&
-            (*(CritterMove **)((u8 *)c->hdr + 0x124))[c->curmove].type == 17) {
+            (*(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)))[c->curmove].type == 17) {
             AudioPlay3DSel(audio, 224, c->vel, 0);
         } else {
             AudioPlay3DSel(audio, 224, c->vel, 1);
@@ -6685,10 +6687,10 @@ void CritterRemoveColnodeSub(Critter *c, CritterColnode *node, s32 mode)
                 *(void **)((u8 *)c->anodes + animOffset + 0x20) = NULL;
                 *(CritterColnode **)((u8 *)c->anodes + animOffset) = NULL;
                 moveOffset = j;
-                while (j < *(s16 *)((u8 *)c->hdr + 0x110)) {
-                    if (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x124) +
+                while (j < *(s16 *)((u8 *)c->hdr + offsetof(CritterPackedType, moveCount))) {
+                    if (*(s16 *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)) +
                                  moveOffset + 0x0E) == i) {
-                        *(s16 *)(*(u8 **)((u8 *)c->hdr + 0x124) +
+                        *(s16 *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)) +
                                  moveOffset + 0x0E) = -1;
                     }
                     j++;
