@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "whole TU src/game/boss/bosscam.c exclusively; sustained de-fakematch campaign pass (approximately 288 audited raw-offset sites); parallel fleets please pick another TU"
+  },
+  "claimed_at": "2026-08-30",
+  "function": "function:GetPlayerViewDist",
+  "id": "work_claim.bosscam-defake.codex.20260830.v1",
+  "kind": "work_claim",
+  "owner": "codex-bosscam-defake",
+  "schema_version": 1,
+  "state": "active"
+}
