@@ -487,7 +487,7 @@ f32 *delta;
     f32 center[3];
     f32 bestContact[3];
     u8 unusedLow[8];
-    u8 *enemy;
+    Enemy *enemy;
     s32 bestIndex;
     f32 *cpos;
     f32 best;
@@ -509,29 +509,29 @@ f32 *delta;
     center[2] = cpos[2] + delta[2];
     StartItemGrid(radius, center);
     while ((index = NextGridItem()) >= 0) {
-        enemy = (u8 *)&gEnemies[index];
-        if (*(s32 *)(enemy + 0xB4) != 1 &&
-            *(s32 *)(enemy + 0xB4) != 6 &&
-            (*(s32 *)(enemy + 0xB4) != 8 || lbl_803447DC == 0)) {
+        enemy = &gEnemies[index];
+        if (enemy->state != 1 &&
+            enemy->state != 6 &&
+            (enemy->state != 8 || lbl_803447DC == 0)) {
             continue;
         }
-        if (*(s32 *)enemy == 31) {
+        if (enemy->type == 31) {
             continue;
         }
-        combinedRadius = radius + *(f32 *)(enemy + 0x238);
-        combinedHeight = height + *(f32 *)(enemy + 0x23C);
+        combinedRadius = radius + enemy->rad;
+        combinedHeight = height + enemy->hht;
         if ((*(u32 *)((u8 *)c->hdr + 0x5C) & 0x100) != 0) {
             hit = CritterMoveNodeColSub(c, combinedRadius, combinedHeight, delta,
-                    (f32 *)(enemy + 0x54), contact, 1);
+                    enemy->objgrp.coll_pos, contact, 1);
         } else {
-            contact[0] = *(f32 *)(enemy + 0x54) - center[0];
-            contact[1] = *(f32 *)(enemy + 0x58) - center[1];
-            contact[2] = *(f32 *)(enemy + 0x5C) - center[2];
+            contact[0] = enemy->objgrp.coll_pos[0] - center[0];
+            contact[1] = enemy->objgrp.coll_pos[1] - center[1];
+            contact[2] = enemy->objgrp.coll_pos[2] - center[2];
             if (contact[0] * contact[0] + contact[2] * contact[2] >
                 combinedRadius * combinedRadius) {
                 continue;
             }
-            hit = LineCylinderCollide((f32 *)(enemy + 0x54), combinedRadius,
+            hit = LineCylinderCollide(enemy->objgrp.coll_pos, combinedRadius,
                     combinedHeight, cpos, center,
                     contact, 1);
         }
@@ -550,8 +550,8 @@ f32 *delta;
     }
     if (bestIndex >= 0) {
         if (*(s16 *)(*(u8 **)((u8 *)c->hdr + 0x120) + 0x20) == 3) {
-            enemy = (u8 *)&gEnemies[bestIndex];
-            if ((f64)*(f32 *)(enemy + 0x23C) <= lbl_80346478) {
+            enemy = &gEnemies[bestIndex];
+            if ((f64)enemy->hht <= lbl_80346478) {
                 damage_enemy(enemy, -1, 0,
                              *(f32 *)((u8 *)c->hdr + 0xB8) *
                              *(f32 *)((u8 *)gCurLevel + 0xBC),
@@ -992,7 +992,7 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
     f64 k;
     s32 count;
     s32 idx;
-    u8 *e;
+    Enemy *e;
 
     radius = *(f32 *)(dmg + 0x2C) * *(f32 *)((u8 *)gCurLevel + 0xBC);
     f26v = *(f32 *)(dmg + 0x0C);
@@ -1009,19 +1009,19 @@ s32 CritterNodeEnemyCollide(Critter *c, void *damageDef)
     zero = lbl_80346488;
     while ((idx = NextGridItem()) >= 0) {
         s32 state;
-        e = (u8 *)&gEnemies[idx];
-        state = *(s32 *)(e + 0xB4);
+        e = &gEnemies[idx];
+        state = e->state;
         if (state != 1 && state != 6 && (state != 8 || lbl_803447DC == 0)) {
             continue;
         }
-        if (*(s32 *)e == 31) {
+        if (e->type == 31) {
             continue;
         }
-        if (radius > zero && sMusicFadeBase < *(f32 *)(e + 0x2B4)) {
+        if (radius > zero && sMusicFadeBase < e->fxhittime[0]) {
             continue;
         }
-        if (LineCylinderCollide((f32 *)(e + 0x54), *(f32 *)(e + 0x238) + f26v,
-                                *(f32 *)(e + 0x23C) + f26v, pos, pos, out, 0)) {
+        if (LineCylinderCollide(e->objgrp.coll_pos, e->rad + f26v,
+                                e->hht + f26v, pos, pos, out, 0)) {
             delta[0] = pos[0] - bx;
             delta[1] = pos[1] - by;
             delta[2] = pos[2] - bz;
@@ -1065,8 +1065,8 @@ s32 SafeRockNearestTarget(s32 player)
         }
         return -1;
     }
-    playerX = *(f32 *)((u8 *)&gPlayers[player] + 0x44);
-    playerZ = *(f32 *)((u8 *)&gPlayers[player] + 0x4C);
+    playerX = gPlayers[player].pos[0];
+    playerZ = gPlayers[player].pos[2];
     for (i = 0; i < lbl_80344658; i++) {
         if (SafeRockActive(lbl_80241020[i]) != 0) {
             continue;
@@ -1112,9 +1112,9 @@ void CritterLookAtPlayer(Critter *c, CritterMove *move)
     }
     if (look == 0 && c->unk124 >= 0) {
         Player *p = &gPlayers[c->unk124];
-        target[0] = *(f32 *)((u8 *)p + 0x54);
-        target[1] = *(f32 *)((u8 *)p + 0x58);
-        target[2] = *(f32 *)((u8 *)p + 0x5C);
+        target[0] = p->col_pos[0];
+        target[1] = p->col_pos[1];
+        target[2] = p->col_pos[2];
         targetPtr = target;
     } else {
         targetPtr = NULL;
@@ -5229,9 +5229,7 @@ s32 CritterFindMoveType(Critter *c, s32 type, s32 mode)
         move = (CritterMove *)(*(u8 **)(hdr + 0x124) + moveOffset);
         if ((move->flags & 4) == 0 && move->type == type) {
             if ((f64)move->cooldown > lbl_80346488) {
-                remaining =
-                    *(f32 *)((u8 *)c + 0x218 + timeOffset) +
-                    move->cooldown - sMusicFadeBase;
+                remaining = c->moveTimes[i] + move->cooldown - sMusicFadeBase;
             } else {
                 remaining = *(volatile f32 *)&lbl_80346470;
             }
@@ -6371,7 +6369,7 @@ void CritterDelInst(Critter *c)
         MBRemoveNode(c->shadow, 0);
     }
     SfxDeleteParented(c->anim, 1, -1);
-    if (*(u32 *)((u8 *)c + 216) != 0) {
+    if ((u32)c->emitterset != 0) {
         MBRemoveNode(c->emitter, 2);
     }
     if (c->colhandle != NULL) {
@@ -6389,7 +6387,7 @@ void CritterDelInst(Critter *c)
             MBRemoveNode(node->mbnode, 1);
         }
         node->mbnode = NULL;
-        c->subnodes = *(void **)((u8 *)c->subnodes + 80);
+        c->subnodes = ((CritterSubnode *)c->subnodes)->next;
     }
     c->hdr = NULL;
     c->state = 0;
