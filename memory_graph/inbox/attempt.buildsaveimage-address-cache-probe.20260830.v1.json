@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "de-caching a shared derived-pointer local (fmtW/animW off the `hi` variable) back to raw base+offset expressions, on the theory that target recomputes a repeated `lis+addi`(addis) address six times across the function rather than caching once",
+  "attributes": {
+    "anchors": "src/game/sys/memcard.c::buildSaveImage; target .text size 0x3DC (247 insns); python tools/gdl/fnasm.py game/sys/memcard.c buildSaveImage; python tools/gdl/fndiff.py game/sys/memcard.c buildSaveImage --count/--ops/--clean; companion law claim.law.whole-fn-address-cache.20260829.v1",
+    "baseline": "target/current 247/247 instructions (exact count match), fuzzy unread this probe, real 212; pure REGISTER_ONLY/SCHEDULE except one opcode-class mismatch (T[121:122] `addis` vs O[121:122] `addi`)",
+    "final_state": "unchanged: 247/247 insns, real 212; probe reverted, nothing retained",
+    "measurements": "target recomputes `addis r3,r30,1` (r30=lbl_8025EE80, the HA half of pool+0x10000) SIX separate times across the function (offsets 0x1c,0x74,0xac,0x180,0x1e4,0x2c0), each time in a scratch register, even though r30 itself is a stable callee-saved base. Traced all 6 to source: memset(pool+0x10000-19388,...) [raw], sizePtr/*(s32*)(sizeHi-19356) [via cached `sizeHi` var, matches], strncpy(pool+0x10000-19388,...) [raw, matches], the -19342 format-byte test inside the banner if/else [raw, matches], fmtW/animW inside the icon-frame loop [via cached `hi` var -- the ONE mismatched site], and clearAnimW [raw, matches]. Changed fmtW/animW from `(u16*)(hi - 19336/19334)` to raw `(u16*)(pool + 0x10000 - 19336/19334)` to mimic target's apparent redundant-recompute style there -- result was WORSE, not better: insns 247->249, real 212->256, lines up too. Reverted immediately.",
+    "policy": "CAP. The theory (target recomputes rather than caches at this one site) was directionally plausible from the isolated addis/addi opcode-class mismatch, but the empirical result was a clear regression, most likely because `hi` has 7 total uses across the function (lines ~1665,1668,1672,1680,1683 banner section PLUS fmtW/animW) and target's single `addis r31,r30,1` at row c4 (0xc4) already covers the first 5 of those via ONE persistent r31 -- removing 2 of the 7 uses shifted `hi`'s hotness/register-pressure profile enough to cascade into worse allocation elsewhere, consistent with this TU's established whole-function-permutation sensitivity. Do NOT retry this specific de-cache without deeper understanding of why target's row 0x1e4 addis is a SEPARATE fresh computation from row 0xc4's despite both nominally serving the same `hi`-equivalent value with r31 still live and callee-saved at that point -- the true target source likely used a SECOND distinct local (not the same `hi`) for the icon-loop derivation, not a raw inline expression; this was not tried.",
+    "semantic_audit": "no semantic change; fmtW/animW compute the identical addresses either way",
+    "verification": "owning object rebuilt; fndiff --count inspected showing regression; probe reverted immediately (git diff clean, confirmed back to 247/247 real 212); full ninja green, build/GUNE5D/main.dol: OK"
+  },
+  "commit_hash": null,
+  "function": "function:buildSaveImage",
+  "id": "attempt.buildsaveimage-address-cache-probe.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL/REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

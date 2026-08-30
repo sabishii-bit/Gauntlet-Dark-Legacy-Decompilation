@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "point-of-use delay of a single-use SDA-relative local pointer initializer, to eliminate an extra register move caused by full HA+LO address resolution happening before the callee-saved frame (stmw) was ready",
+  "attributes": {
+    "anchors": "src/game/sys/memcard.c::check_prefs_loaded; target .text size 0xE4 (57 insns); fnasm.py/fndiff.py game/sys/memcard.c check_prefs_loaded",
+    "baseline": "target/current 57/58 instructions, fuzzy 89.211%, real 37, lines 41; STRUCTURAL",
+    "final_state": "57/57 insns (exact match), fuzzy 86.49123%, real 26, lines 30; residual now pure REGISTER_ONLY (opts homed r31 ours vs r30 target, single-var choice, no decl-order signal left to test)",
+    "measurements": "`char* st = lbl_801131C0;` was initialized at fn entry alongside `opts`, both before stmw makes r30/r31 safe to write. Target computes only HA of BOTH pointers early into scratch, defers BOTH LO's to direct-to-final-register addi's right after stmw (0 extra moves). Ours fully resolved st's HA+LO into r0 before stmw (single-statement initializer), forcing an extra `mr r30,r0` after stmw; opts's LO was naturally deferred, no extra move needed. Fix: bare-declared `st`, moved `st = lbl_801131C0;` to immediately before its only use (bulletproof_printf(st)), 9 statements later. Distinct mechanism from decl-order (tried first, tied byte-for-byte: swapping opts/st decl order alone did nothing) -- this changes control-flow POSITION not decl text position, freeing st from needing a persistent callee-saved home at all. Result: prologue mr eliminated; call site gained lis+addi+mr instead (fresh compute at point of use). insns 58->57 (exact match), real 37->26, lines 41->30. FUZZY DROPPED 89.211->86.491 despite this -- objdiff penalized the code-motion's local alignment shift even though insn count/real/lines/--ops opcode-class alignment all improved. Documented metric-conflict case (AGENTS.md precedent: get_cam_wpos_8002ABE0, show_optmenu); change verified isolated via --ops/--clean (2-line diff), semantics unchanged -- KEPT per policy.",
+    "policy": "KEEP. Reusable lever distinct from decl-order: applies to a single-use SDA-relative pointer/constant local declared at fn entry but consumed once, far later, where target computes it fresh near use rather than caching whole-fn. Does NOT apply to multi-use persistent locals (see failed inverse probe on buildSaveImage fmtW/animW, attempt.buildsaveimage-address-cache-probe.20260830.v1, where de-caching a shared multi-use local made real strictly worse).",
+    "semantic_audit": "st assigned the same global constant either way; nothing between old/new assignment points reads/writes st or the underlying global",
+    "verification": "object rebuilt; fndiff --count/--ops/--clean inspected; matchtool probe shows 20 exact siblings preserved; git diff --check clean; full ninja green, main.dol: OK; progress 97.75%/58.12% unchanged"
+  },
+  "commit_hash": "47c0428bcd2cc1ab17a724a55c57c827ebeaf4d6",
+  "function": "function:check_prefs_loaded",
+  "id": "attempt.check-prefs-loaded-point-of-use.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

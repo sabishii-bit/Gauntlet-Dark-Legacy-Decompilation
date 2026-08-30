@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "goto-vs-if/else restructuring of the cardMount-failure control flow (targeting a beq+b vs bne block-layout gap) plus for-loop-header relocation of a checksum trip-count computation (targeting an addic.-fused vs separate-cmplwi instruction-selection gap)",
+  "attributes": {
+    "anchors": "src/game/sys/memcard.c::writeGauntletSave; target .text size 0x2F8 (190 insns); python tools/gdl/fnasm.py game/sys/memcard.c writeGauntletSave; python tools/gdl/fndiff.py game/sys/memcard.c writeGauntletSave --count/--ops/--clean",
+    "baseline": "target/current 190/191 instructions, fuzzy 91.800%, real 159; STRUCTURAL (net +1 insn in ours, plus scattered whole-fn register permutation matching the loadGauntletSave/get_vmu_directory pattern in this TU)",
+    "final_state": "unchanged: 190/191 insns, real 159; both probes reverted, nothing retained",
+    "measurements": "axis1: rewrote `if(cardWaitResult()!=0) goto mount_fail; CARDGetSerialNo(...); goto mount_cont; mount_fail: return 0; mount_cont:` as `if(cardWaitResult()==0){CARDGetSerialNo(...); goto mount_cont;} return 0; mount_cont:` (inverted condition, if-body holds the continue path) -- byte-identical output; target's 2-instruction `beq <ec>; b <fc>` (mount_fail's return-0 code laid out immediately after this comparison, continue-code jumped to) vs ours' 1-instruction `bne` (continue-code laid out immediately after, mount_fail jumped to) is unaffected by which source form expresses the branch -- confirmed a pure MWCC block-layout choice, not a goto-vs-if/else source-shape lever. axis2: moved `count = big - 23992;` from a standalone statement before `sum=0;`/two pointer-writes/`p=q=lbl_80343C74;` into the for-loop's init-clause (`for(count = big-23992; count!=0; count--)`) to try to trigger target's fused `addic. r6,r31,-23992` (subtract+record combined with the loop test) instead of ours' separate `cmplwi`+`mtctr` -- byte-identical output, no change. For-loop init-clause is pure syntax sugar for MWCC in this mode; statement position (which was already textually adjacent/first in both the original and the moved form) doesn't affect whether the record-form fuses with the deferred test.",
+    "policy": "CAP. Both are genuinely distinct axes (block layout / instruction-fusion selection) from the already-exhausted decl-order theory, and both tied byte-for-byte. The remaining +1 net insn and 159 real diff lines are dominated by: (a) this block-layout choice (target's redundant `beq+b` pair vs our leaner `bne`, actually favorable to ours), (b) the addic./cmplwi fusion gap (target favorable), and (c) a batched-HA-then-batched-LO instruction scheduling pattern in the prologue (target groups 3 independent SDA/ADDR16 address computations' HA halves together then all 3 LO halves together, including aggressively hoisting `cardRemovedCallback`'s address above the whole retry: loop even though it's a loop-invariant cardMount argument used only inside; ours computes them in a different grouping) -- this last one is a global list-scheduler code-motion decision, not reachable via the statement reordering tried this session. Do not retry goto/if-else or for-header relocation here without new evidence.",
+    "semantic_audit": "no semantic change in either probe; both are pure control-flow-equivalent rewrites verified against the unchanged CFG",
+    "verification": "owning object rebuilt after each probe; fndiff --count/--clean inspected; both probes reverted (git diff clean); full ninja green, build/GUNE5D/main.dol: OK"
+  },
+  "commit_hash": null,
+  "function": "function:writeGauntletSave",
+  "id": "attempt.writegauntletsave-mount-fail-and-loop-header.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL/SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

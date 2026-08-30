@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "decl/statement-order retargeting of a 5-local do-while loop's register web (off/zero/fill/base/i) to match target's clean linear decl-order-to-register mapping",
+  "attributes": {
+    "anchors": "src/game/sys/memcard.c::init_all_dir_info; target .text size 0xA4 (41 insns); python tools/gdl/fnasm.py game/sys/memcard.c init_all_dir_info; python tools/gdl/fndiff.py game/sys/memcard.c init_all_dir_info --count/--ops/--clean",
+    "baseline": "target/current 41/41 instructions (exact count match), fuzzy 88.171%, real 20; pure REGISTER_ONLY, no opcode-class mismatches",
+    "final_state": "unchanged: 41/41 insns, real 20; probe reverted, nothing retained",
+    "measurements": "target maps its 5 locals to registers in a clean linear pattern matching THIS session's current decl order exactly (off=r31 1st-declared, zero=r30 2nd, fill=r29 3rd, base=r28 4th (a u8* pointer), i=r27 5th/last). Our compile instead produces base=r31 (pulled to the top out of decl-order sequence, looks pointer-type-prioritized), off=r30, zero=r29, fill=r28, i=r27 (i matches). Rewrote all 5 init statements as independent literal assigns in strict decl order (off=0;zero=0;fill=-1;base=ptr;i=0;) replacing the original zero=0;i=zero;off=zero;base=ptr;fill=-1; shared-source form -- byte-identical output, register mapping and real=20 unchanged.",
+    "policy": "CAP. Consistent with this session's other decl/statement-order negatives (loadGauntletSave x2, check_prefs_loaded's own decl-order sub-probe, DoOptions/show_optmenu precedent). `base`'s anomalous top-of-pool register placement looks type-class-driven (pointer vs s32 locals allocated from a different sub-pool/order) rather than position-driven; not fixable via portable-C reordering without changing the actual variable types, which would be semantically wrong. Do not retry plain reordering here without a genuinely new mechanism.",
+    "semantic_audit": "no semantic change; both statement forms produce identical runtime values",
+    "verification": "owning object rebuilt; fndiff --count/--clean inspected; probe reverted (git diff clean); full ninja green, build/GUNE5D/main.dol: OK"
+  },
+  "commit_hash": null,
+  "function": "function:init_all_dir_info",
+  "id": "attempt.init-all-dir-info-decl-order.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

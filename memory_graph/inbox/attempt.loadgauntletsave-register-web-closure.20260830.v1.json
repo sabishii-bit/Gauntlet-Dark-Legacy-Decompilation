@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "whole-function FPR/GPR register-web decl/statement-order retargeting plus switch-tree case-order restructuring, targeting the P6-class dead-branch and f30/f31 timeout-vs-uint2double-bias swap residuals",
+  "attributes": {
+    "anchors": "src/game/sys/memcard.c::loadGauntletSave; target .text 0x80159690 size 0xD64 (857 insns); python tools/gdl/fnasm.py game/sys/memcard.c loadGauntletSave; python tools/gdl/fndiff.py game/sys/memcard.c loadGauntletSave --count/--ops/--clean; CARD_RETRY_PROMPT/CARD_RETRY_PROMPT_Z macro sites (~15 in this fn)",
+    "baseline": "target/current 857/856 instructions, fuzzy 90.05834%, real 901, 288-byte frame, saves r14-r31+f29-f31; STRUCTURAL/whole-fn REGISTER_ONLY+SCHEDULE dominant",
+    "final_state": "unchanged from baseline: 857/856 insns, fuzzy 90.05834%, real 901; both probes reverted, nothing retained",
+    "measurements": "axis1 (switch case-order): CARDDelete switch case labels reordered -128,-10,-5,-4,-3,-1 -> -1,-3,-4,-5,-10,-128 (descending); byte-identical output, real unchanged at 901 -- MWCC sorts dense-switch case trees by VALUE not source order, confirmed via --clean showing the target-only 'b <fn+0x9dc>; b <fn+0x6c>' dead-branch pair at the CARDDelete default path is UNCHANGED regardless of case order (net -2 insn gap from target here is a pure block-layout choice, not a case-order lever). axis2 (decl-order): swapped `f32 timeout = lbl_803472F0;` / `f32 startSec;` declaration order (last two locals) to test the f30(bias-double)<->f31(timeout) register swap seen in the prologue (target: f30=uint-to-double magic-bias constant via lfd, f31=timeout via lfs; ours: reversed) -- byte-identical output both ways, real unchanged at 901. Confirms this session's cross-function finding (see attempt.dooptions.20260830.v1, attempt.init-all-dir-info-decl-order.20260830.v1, attempt.check-prefs-loaded-point-of-use.20260830.v1): MWCC's decl/statement-order-based register colorer in this codebase does not respond to trivial local reordering for whole-function saved-register/FPR web permutations.",
+    "policy": "CAP this session. Do not retry plain decl-order or switch-case-order reshuffling on this function without a genuinely new mechanism (artificial register-pressure shim, not reordering -- per attempt.dooptions.20260830.v1's unpark_condition). The ~15 repeated 'li' one-slot-reorder clusters throughout the CARD_RETRY_PROMPT/_Z macro expansions are downstream of the same whole-function permutation and were not probed individually (same expected-negative outcome). The CARDDelete dead-branch-pair (-2 insn) and the checksum-loop reload/mr clusters (net 0, verified equal-count by manual instruction tally against the LCS --ops alignment) are the only genuinely STRUCTURAL-looking residuals found; both are compiler block-layout/scheduling choices, not source-shape bugs.",
+    "semantic_audit": "full 857-instruction target re-read via fnasm.py; confirmed current C matches target CFG/semantics exactly (card probe/mount/check retry state machine, CARD_RETRY_PROMPT/_Z macro expansions, checksum verify + OKAY magic check, CARDDelete corrupt-file recovery switch, serial-pair gate, free-space prompt, write-then-verify tail) -- no semantic changes made or needed this session",
+    "verification": "owning object rebuilt after each probe; fndiff --count/--ops/--clean inspected; both probes reverted byte-for-byte (git diff clean before/after); full ninja green, build/GUNE5D/main.dol: OK; progress 97.75% fuzzy / 58.12% matched unchanged"
+  },
+  "commit_hash": null,
+  "function": "function:loadGauntletSave",
+  "id": "attempt.loadgauntletsave-register-web-closure.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL/REGISTER_ONLY/SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
