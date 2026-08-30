@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "exact-closure audit of state-value reuse, byte-pack operand order, high-mode switch range topology, dead player-mask condition, and compiler flags",
+  "attributes": {
+    "anchors": "src/game/game/gamemain.c::game_main; target .text 0x80054230 size 0xAAC; python tools/gdl/fnasm.py game/game/gamemain game_main; python tools/gdl/fndiff.py game/game/gamemain game_main --count/--ops/--clean; commits ddf55a9c47796bce2374fc101161643c170a9eb3 and d4ab765c0e09a2d5a3223c134c6ca0f84899ac73",
+    "axis_log": [
+      "single/flattened and explicit upper/lower switch forms recovered the three missing dispatch instructions (one reached 683/683 and real 146) but lowered fuzzy to 98.69%; unsigned-range form reached 678 instructions and 98.87%; all reverted",
+      "direct/local if-continue, register-volatile, and volatile-expression mask carriers either erased the loop or introduced stack/extra loads and lowered fuzzy to 98.56-98.81%; reverted",
+      "two-statement byte packing lowered fuzzy to 98.76%; reversed commutative OR operand order closed the byte-pack opcode cluster and improved fuzzy to 99.16691%; retained",
+      "named sWorldDataConst base local and broad flagsweep (optimization toggles plus 1.1p1/1.2.5n) produced no improvement; reverted"
+    ],
+    "baseline": "target/current 683/680 instructions, fuzzy 99.04978%, count-real 355, normalized-clean real 397, frame 0x28, saves r28-r31; STRUCTURAL",
+    "final_state": "target/current 683/680 instructions, fuzzy 99.16691%, count-real 325, normalized-clean real 361, frame 0x28, saves r28-r31",
+    "policy": "Do not retry the enumerated range-check, mask-carrier, two-statement pack, named-world, or compiler-flag axes unless nearby source changes alter allocation/alignment or new compiler evidence exists; other genuinely new portable source forms remain eligible.",
+    "remaining": "two opcode clusters: nested high-mode dispatch lacks the target upper-bound bge plus default branch, and the player-mask loop omits a dead slw/and. pair; downstream register-color cascades remain alignment-sensitive",
+    "retained": "cache lbl_8034481C in the existing c local at both range checks to reproduce one-load/reuse topology; order the byte pack as shifted-high OR masked-low to make MWCC emit the target clrlwi/rlwimi sequence",
+    "verification": "owning object rebuilt; fndiff count/ops/clean and complete target reviewed; matchtool remained OK:55 OK~:2 bad:17 with no exact sibling loss; no data-owning source or assembly changed; git diff --check clean; fresh full ninja produced main.dol checksum OK; progress 97.74% fuzzy, 58.12% matched, 26.09% linked"
+  },
+  "function": "function:game_main",
+  "id": "attempt.game-main-state-web-and-byte-pack.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
