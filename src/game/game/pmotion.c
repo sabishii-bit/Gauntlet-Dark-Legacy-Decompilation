@@ -510,7 +510,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
         }
         if (i != playerIdx && i < 4) {
             other = &gPlayers[i];
-            PF(other, 0x8B4, f32) = other->pos[1];
+            other->floor_base = other->pos[1];
             CopyMat4(other->mat, p->mat);
             SV(p)->rot[0] = SV(other)->rot[0];
             SV(p)->rot[1] = SV(other)->rot[1];
@@ -518,7 +518,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             pos[0] = other->col_pos[0];
             pos[1] = other->col_pos[1];
             pos[2] = other->col_pos[2];
-            r = 0.5 + PF(other, 0x850, f32);
+            r = 0.5 + other->col_radius;
             sx = r * (spread[8 + playerIdx * 2] - spread[8 + i * 2]);
             sz = r * (spread[9 + playerIdx * 2] - spread[9 + i * 2]);
             ang = CurTransmitter != NULL ? *(f32*)(CurTransmitter + 24) : 0.0;
@@ -564,11 +564,11 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             *(volatile u32*)&SV(other)->floor_obj = FloorCollide(lbl_80347B10, lbl_80347B14,
                 lbl_80347B18, pos2, (f32*)(ctx + 24), 1, 1);
             if (*(void**)(ctx + 92) != NULL) {
-                PF(other, 0x8C0, u32) = PF(*(void**)(ctx + 92), 0x10, u32);
+                SV(other)->floor_flags = ((WorldObj*)*(void**)(ctx + 92))->flags;
             } else {
-                PF(other, 0x8C0, u32) = 0;
+                SV(other)->floor_flags = 0;
             }
-            PF(other, 0x8B4, f32) = *(f32*)(ctx + 76);
+            other->floor_base = *(f32*)(ctx + 76);
             CopyMat3(other->mat, p->mat);
             p->pos[0] = pos2[0];
             p->pos[1] = pos2[1];
@@ -576,7 +576,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             SV(p)->rot[0] = SV(other)->rot[0];
             SV(p)->rot[1] = SV(other)->rot[1];
             SV(p)->rot[2] = SV(other)->rot[2];
-            r = half + PF(other, 0x850, f32);
+            r = half + other->col_radius;
             k = 0;
             do {
                 pos[0] = other->col_pos[0];
@@ -617,8 +617,8 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                                  -2, 0, 0, NULL, 1, lbl_80347B20);
                 }
             } else {
-                PF(p, 0x8B4, f32) = FloorPos(p->pos[1], lbl_80347B10, p->pos, 1);
-                p->pos[1] = PF(p, 0x8B4, f32);
+                p->floor_base = FloorPos(p->pos[1], lbl_80347B10, p->pos, 1);
+                p->pos[1] = p->floor_base;
                 MBNodeSetParent(p->node, *(void**)(other->node + 0x74));
                 *(volatile u32*)&SV(p)->floor_obj = *(volatile u32*)&SV(other)->floor_obj;
                 ErrorPrintf(lbl_80114220);
@@ -626,7 +626,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
         } else {
             CopyMat4((f32*)gIdentityMatrix, mat);
             YawMat3(mat, gPlayerStartYaw);
-            r = 0.5 + PF(p, 0x850, f32);
+            r = 0.5 + p->col_radius;
             pos[0] = gDefaultPlayerPosition[0];
             pos[1] = gDefaultPlayerPosition[1];
             pos[2] = gDefaultPlayerPosition[2];
@@ -681,7 +681,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             mat[14] = pos[2];
             y = FloorPos(pos[1], lbl_80347B10, &mat[12], 1);
             mat[13] = y;
-            PF(p, 0x8B4, f32) = y;
+            p->floor_base = y;
             CopyMat4(mat, p->mat);
             SV(p)->rot[0] = 0.0f;
             SV(p)->rot[1] = gPlayerStartYaw;
