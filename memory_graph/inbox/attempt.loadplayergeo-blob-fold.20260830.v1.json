@@ -1,0 +1,16 @@
+{
+  "attempted_axis": "blob-fold rewrite: HUDTAB/tab-relative forms for lbl_801200B0/104/144/184/598 tables, tab local off lbl_8011FC48, member-form for 0x7F4/0x7F8/0x6C8/0x6E0 webs (new player.h fields geo_handle/texmod_id), assignment-in-condition hidden_code hoist, InitActions bank as lbl_80126C68 symbol, \"%s%s\" not \"%s%s%s\", frame pad to land name[] at sp+28",
+  "attributes": {
+    "anchors": "src/game/game/player.c::load_player_geo; GameCube target 0x8007AEF0 size 0x668; commits 29829b5dc; reproduce: ninja build/GUNE5D/src/game/game/player.o; python tools/gdl/fndiff.py game/game/player load_player_geo --clean",
+    "baseline_and_best": "real 238 -> 34; insns 410/424 -> 410/410 exact count, opcode stream identical; fuzzy 91.885 -> 99.863",
+    "detail": "The whole HUD table family (0x801200B0 class tags +1128, 0x80120104 color names +1212, 0x80120144 L_WRIST +1276, 0x80120184 R_WRIST +1340, 0x80120238 left-x +1520, 0x80120240 right-x +1528, 0x801201C8 colors +1408, 0x80120598 weapon-variant +2384) folds off ONE lbl_8011FC48 base register in the target; respelling extern-array accesses as ((T*)(tab + OFF))[idx] removes every per-use lis/addi. show_crystals is the counterexample: its target references lbl_801200B0 with its own reloc, so keep plain-array spelling there. Player record access in write_health_and_items-style functions is PT(i) (potionicon_tab-relative), not P(i) (gPlayers reloc).",
+    "residual": "REGISTER_ONLY: r26/r27 (pad/cls) and global base color permutation; ~34 real lines. Frame matched (80, stmw r24) after unused[12]; the name[] stack offset is pad-sensitive (unused[8]->name@24, [12]->@28, [20]->@36)."
+  },
+  "function": "function:load_player_geo",
+  "id": "attempt.loadplayergeo-blob-fold.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "REGISTER",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
