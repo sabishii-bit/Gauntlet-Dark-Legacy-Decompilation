@@ -882,10 +882,8 @@ void ShowRuneStones(void) {
 
 /* Name/level/health/keys/potions writer for one player's HUD row. */
 static void write_health_and_items(s32 i) {
-    Player* p = P(i);
-    u16* left = lbl_80120238;
-    u16* right = lbl_80120240;
-    u32* colors = lbl_801201C8;
+    Player* p;
+    u8* tab = (u8*)lbl_8011FC48;
     s32 hidden;
     s32 show_gold;
     s32 j;
@@ -898,7 +896,8 @@ static void write_health_and_items(s32 i) {
 
     hidden = 0;
     show_gold = 1;
-    rgb = colors[p->class_id];
+    rgb = ((u32*)(tab + 1408))[PT(i)->class_id];
+    p = PT(i);
     mini_inventory_update(i);
     oldz = MBSetFontZ(63990.0f);
     if (lbl_80344A28 != 0 || gGameOptions[8] != 0) {
@@ -906,7 +905,7 @@ static void write_health_and_items(s32 i) {
     }
     if (gGameMode == 0x4010 && lbl_80344760 > 0 && p->state == 0xB &&
         p->motion_state == 1) {
-        u32 x = left[i] + 6;
+        u32 x = ((u16*)(tab + 1520))[i] + 6;
 
         hidden = 1;
         MBNewTempBlit((void*)lbl_80344E48, x, 0x14C, 0xE, 0xE);
@@ -920,7 +919,7 @@ static void write_health_and_items(s32 i) {
         hidden = 1;
         setup_player_display(i);
         if (p->state == 0xB) {
-            DrawTextKeepScale(1.2f, -right[i], 0x154, 1, rgb, "IN TOWER");
+            DrawTextKeepScale(1.2f, -((u16*)(tab + 1528))[i], 0x154, 1, rgb, "IN TOWER");
         } else {
             hidden = 0;
         }
@@ -935,7 +934,7 @@ static void write_health_and_items(s32 i) {
             }
             sprintf(buf, "%d", (s32)p->health);
             w = DrawNormalText(1.0f, buf, 4);
-            DrawText((left[i] + 0x74) - w, 0x167, 4, colors[p->class_id], buf);
+            DrawText((((u16*)(tab + 1520))[i] + 0x74) - w, 0x167, 4, ((u32*)(tab + 1408))[p->class_id], buf);
             mbBlitInit3414(frame_blit[i][5], 0);
         }
     } else {
@@ -950,7 +949,7 @@ static void write_health_and_items(s32 i) {
     switch (p->display_mode) {
     case 6:
         if (!hidden) {
-            DrawTextKeepScale(0.667f, -right[i], 0x153, 7, rgb, p->name);
+            DrawTextKeepScale(0.667f, -((u16*)(tab + 1528))[i], 0x153, 7, rgb, p->name);
         }
         break;
     case 1:
@@ -960,18 +959,18 @@ static void write_health_and_items(s32 i) {
             if (gGameOptions[8] == 1) {
                 debug_player_pos(i);
             } else {
-                DrawText(left[i] + 8, 0x154, 1, 0xFFFFFF, "XP: %d",
+                DrawText(((u16*)(tab + 1520))[i] + 8, 0x154, 1, 0xFFFFFF, "XP: %d",
                          p->exp);
             }
         }
         /* fall through */
     case 5:
         if (!hidden) {
-            DrawTextKeepScale(0.667f, -right[i], 0x153, 7, rgb, p->name);
+            DrawTextKeepScale(0.667f, -((u16*)(tab + 1528))[i], 0x153, 7, rgb, p->name);
         }
         if (lbl_80344A28 != 0 || !hidden) {
             sprintf(buf2, "LV %d", p->level);
-            DrawText(-right[i], 0x146, 1, 0xFFFFFF, buf2);
+            DrawText(-((u16*)(tab + 1528))[i], 0x146, 1, 0xFFFFFF, buf2);
         }
         break;
     case 10:
@@ -979,17 +978,17 @@ static void write_health_and_items(s32 i) {
     }
     if (p->state != 2 && p->display_mode != 0 && alpha == 0) {
         if (p->item_body_lo > 0) {
-            blit = MBNewTempBlit((void*)key_blit_idx, left[i] + 8, 0x143, -1, -1);
+            blit = MBNewTempBlit((void*)key_blit_idx, ((u16*)(tab + 1520))[i] + 8, 0x143, -1, -1);
             mbBlitCvtCoord(blit, 64000.0f);
             sprintf(buf2, "%d", p->item_body_lo);
-            DrawTextKeepScale(0.8f, left[i] + 0x1A, 0x147, 4, rgb, buf2);
+            DrawTextKeepScale(0.8f, ((u16*)(tab + 1520))[i] + 0x1A, 0x147, 4, rgb, buf2);
         }
         if (p->item_body_hi > 0) {
             blit = MBNewTempBlit(potionicon_tab[PF(p, 0x32FC + p->item_body_hi * 4, s32)],
-                                 left[i] + 0x66, 0x143, -1, -1);
+                                 ((u16*)(tab + 1520))[i] + 0x66, 0x143, -1, -1);
             mbBlitCvtCoord(blit, 64000.0f);
             sprintf(buf2, "%d", p->item_body_hi);
-            DrawTextKeepScale(0.8f, left[i] + 0x5C, 0x147, 4, rgb, buf2);
+            DrawTextKeepScale(0.8f, ((u16*)(tab + 1520))[i] + 0x5C, 0x147, 4, rgb, buf2);
         }
     }
     if (p->health > 0.0f && lbl_80344A44 == 0) {
