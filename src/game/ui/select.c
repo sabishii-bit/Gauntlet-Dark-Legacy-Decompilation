@@ -2184,54 +2184,54 @@ static s32 sel_set_choice(s32 player, s32 mode)
         if (*(u32*)e == 0) {
             break;
         }
-        switch (*(s32*)(e + 4)) {
+        switch (((VmuMenuEntry*)e)->id) {
         case 1000:
-            *(s32*)(e + 32) = 0;
+            ((VmuMenuEntry*)e)->state = 0;
             break;
         case 1001:
             if (gDemoMode != 0) {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             } else if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             } else if (vmu_directory_exists() >= 1) {
-                *(s32*)(e + 32) = 0;
+                ((VmuMenuEntry*)e)->state = 0;
             } else {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             }
             break;
         case 1002:
             if (gDemoMode != 0) {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             } else if (vmu_directory_exists() >= 1) {
-                *(s32*)(e + 32) = 0;
+                ((VmuMenuEntry*)e)->state = 0;
             } else {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             }
             break;
         case 1004:
             if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             } else {
-                *(s32*)(e + 32) = 0;
+                ((VmuMenuEntry*)e)->state = 0;
             }
             break;
         case 1003:
             if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
-                *(s32*)(e + 32) = -1;
+                ((VmuMenuEntry*)e)->state = -1;
             } else {
                 owner = *(u32*)(pl + 240);
                 if (owner != 0 && owner != lbl_80343D6C) {
-                    *(s32*)(e + 32) = -1;
+                    ((VmuMenuEntry*)e)->state = -1;
                 } else {
-                    *(s32*)(e + 32) = 0;
+                    ((VmuMenuEntry*)e)->state = 0;
                 }
             }
             break;
         case 1005:
-            *(s32*)(e + 32) = 0;
+            ((VmuMenuEntry*)e)->state = 0;
             break;
         }
-        if (*(s32*)(e + 32) >= 0 && best < 0) {
+        if (((VmuMenuEntry*)e)->state >= 0 && best < 0) {
             best = i;
         }
         i++;
