@@ -58,6 +58,32 @@ python memory_graph/gdlmem.py tool <tool-or-workflow>
 - The generated SQLite database is never committed. Reviewed record-authoring
   conventions live in `memory_graph/README.md`.
 
+### When to query
+
+Query at these moments, not only at claim time:
+
+1. **Before the first edit** — `context <function>` (plus `xbox <function>`
+   for real names and PDB source-order neighbors). A recorded cap on your
+   planned axis is a VETO; an empty briefing is a green light, not an error.
+2. **At every classified residual** — before spending an A/B probe on a diff
+   cluster, search the graph by its **codegen signature**, not the function
+   name: `search "lfsx"`, `search "assignment in condition"`,
+   `search "chained assignment"`, `search "extra fmr"`, `search "cror"`.
+   Law and attempt bodies are full-text indexed; most recurring MWCC residual
+   shapes already have a recorded lever, and finding it costs one query
+   against a multi-build rediscovery. Fetch the full text with
+   `gdlmem.py record <id>` before applying it.
+3. **Before naming anything** — search a struct offset, field, or symbol name
+   before inventing one; a header, PDB link, or prior record may already own
+   it, and cross-TU renames have their own recorded procedure.
+4. **Before parking** — search the residual class for known levers first;
+   then record the cap with the exact probes tried, so the next agent's
+   step 1 screen works.
+
+A search hit is evidence, not instruction: laws are compiler-scoped
+observations. Re-verify against your function's target bytes before applying
+one, and supersede the law if your target contradicts it.
+
 ## Mandatory result policy
 
 - Use portable C/C++ only. Never add inline assembly, function-level assembly,
