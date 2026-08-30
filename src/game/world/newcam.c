@@ -1016,6 +1016,18 @@ void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
 }
 #pragma opt_propagation reset
 
+static inline void NcCamMinMaxAvgPos(Vec3* vmin, Vec3* vmax, Vec3* point)
+{
+    s32 k;
+
+    for (k = 0; k < 3; k++) {
+        (&vmin->x)[k] = ((&vmin->x)[k] < (&point->x)[k]) ?
+            (&vmin->x)[k] : (&point->x)[k];
+        (&vmax->x)[k] = ((&vmax->x)[k] > (&point->x)[k]) ?
+            (&vmax->x)[k] : (&point->x)[k];
+    }
+}
+
 /*
  * CamGetPlayerAvgPos -- camera-space player-center used as the camera look-at
  * target.  Builds the bounding box of the valid players' points (pos 0x44 when
@@ -1033,7 +1045,6 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
     } NcVecSlot;
     Vec3 average;
     NcVecSlot vmin, vmax, worldPoint, followPoint;
-    s32 playerOffset;
     NcPlayer* pl;
     s32 i, k, count, valid;
 
@@ -1044,10 +1055,9 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
     vmax.v.z = -1.0e20f;
     vmin.v.z = 1.0e20f;
     count = 0;
-    playerOffset = 0;
 
     for (i = 0; i < 4; i++) {
-        pl = (NcPlayer*)((u8*)gPlayers + playerOffset);
+        pl = &gPlayers[i];
         valid = ((pl->ncflags & 0x20) == 0 &&
                  (pl->state == 1 || pl->state == 4));
         if (valid != 0) {
@@ -1060,12 +1070,7 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
                     worldPoint.v.y = pl->pos[1];
                     worldPoint.v.z = pl->pos[2];
                 }
-                for (k = 0; k < 3; k++) {
-                    (&vmin.v.x)[k] = ((&vmin.v.x)[k] < (&worldPoint.v.x)[k]) ?
-                        (&vmin.v.x)[k] : (&worldPoint.v.x)[k];
-                    (&vmax.v.x)[k] = ((&vmax.v.x)[k] > (&worldPoint.v.x)[k]) ?
-                        (&vmax.v.x)[k] : (&worldPoint.v.x)[k];
-                }
+                NcCamMinMaxAvgPos(&vmin.v, &vmax.v, &worldPoint.v);
             }
             if (flags & 0x4) {             /* include follow position (0x54) */
                 if (flags & 0x1) {
@@ -1075,15 +1080,9 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
                     followPoint.v.y = pl->campos[1];
                     followPoint.v.z = pl->campos[2];
                 }
-                for (k = 0; k < 3; k++) {
-                    (&vmin.v.x)[k] = ((&vmin.v.x)[k] < (&followPoint.v.x)[k]) ?
-                        (&vmin.v.x)[k] : (&followPoint.v.x)[k];
-                    (&vmax.v.x)[k] = ((&vmax.v.x)[k] > (&followPoint.v.x)[k]) ?
-                        (&vmax.v.x)[k] : (&followPoint.v.x)[k];
-                }
+                NcCamMinMaxAvgPos(&vmin.v, &vmax.v, &followPoint.v);
             }
         }
-        playerOffset += sizeof(NcPlayer);
     }
 
     /* midpoint of the box */

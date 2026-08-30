@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "exact closure of the saved-register web through original helper-boundary recovery, loop induction spelling, lifetime/scope, explicit aliases and flag carriers, and declaration/initialization order",
+  "attributes": {
+    "anchors": "src/game/world/newcam.c::CamGetPlayerAvgPos; target .text 0x8006F8F0 size 0x2BC; python tools/gdl/fnasm.py game/world/newcam CamGetPlayerAvgPos; python tools/gdl/fndiff.py game/world/newcam CamGetPlayerAvgPos --count|--ops|--clean; ninja build/GUNE5D/src/game/world/newcam.o; ninja build/GUNE5D/report.json; ninja (build/GUNE5D/main.dol: OK)",
+    "axis_log": "pl block scope, repeated address expressions, split validation lifetime, and register hint were neutral; joint i/offset initialization improved fuzzy to 99.28571%; explicit base aliases regressed to 95.44572%; explicit flag carriers regressed to 98.91428%; inline validity helper shifted vector stack slots; inline min/max alone improved to 99.457146%/real 28; restoring array indexing then reached exact; all inferior probes were reverted",
+    "baseline": "target/current 175/175 instructions, objdiff fuzzy 99.25714%, fndiff real 44, 0x90-byte frame, saves r21-r31; opcode stream and CFG identical; residual was one consistent saved-register renaming cycle",
+    "final_state": "target/current 175/175 instructions, objdiff fuzzy 100.0%, normalized real 0 (six raw relocation lines are compiler-private pool-label names only), 0x90-byte frame, saves r21-r31; MBWorldToScreen and MBWorldToScreen3D call sites and relocations align",
+    "retained_source_shape": "recover the original CamMinMaxAvgPos source boundary as a static inline three-axis min/max helper and use pl = &gPlayers[i]; in that inline context MWCC strength-reduces the player array index into the target r24 byte-offset induction web and all saved-register homes match",
+    "semantic_audit": "valid-player test, optional world/follow point selection, conditional transforms, per-axis min/max updates, midpoint, optional 3D transform, level-bound clamp, and found-player return are unchanged; full target assembly and branch/call architecture reviewed",
+    "tu_audit": "matchtool sibling residuals unchanged while OK count rose 15 to 16; emitted .rodata and .sdata2 hex are byte-identical to the untouched main-worktree baseline object; datadiff cannot score this NonMatching TU because these sections are intentionally unclaimed in splits.txt"
+  },
+  "function": "function:CamGetPlayerAvgPos",
+  "id": "attempt.cam-get-player-avg-pos-inline-minmax.20260829.v1",
+  "kind": "attempt",
+  "outcome": "exact",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
