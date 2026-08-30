@@ -1,4 +1,9 @@
 #include "types.h"
+#include "game/mbobject.h"
+
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 
 /* GDL diagnostic / debug HUD overlay (GCN PB_DIAG.OBJ region,
  * 0x800A573C-0x800A87C8). The Xbox shell3D PDB stubs this module out
@@ -218,11 +223,52 @@ extern void AudioKillMask(u32 mask);
 extern void sndFxResetVoices(void);
 void pbDiagDrawSoundRow(void);
 
-/* audio browser: bank/sound/voice playback console over the sound driver */
+/* audio browser: bank/sound/voice playback console over the sound driver.
+ * Layout cross-verified against game/audio/audio.c's independently
+ * reconstructed AudioRomRoot/AudioRomModeBankEntry/AudioRomBankEntry (same
+ * audatps2.rom data, loaded once via AudioLoadRom): this TU's
+ * `sAudioBankTable->banks` (stride 9364) is audio.c's `AudioRomRoot.modes`,
+ * an array of "mode" records (name[16] + bankCount + 32 SndSlots entries);
+ * `sAudioBankTable->subs` (stride 44) is audio.c's `AudioRomRoot.banks`
+ * (AudioRomBankEntry); the local field names below predate the
+ * cross-reference and are kept for source-diff stability. `numParts` and
+ * `soundCount` name two fields AudioLoadRom's byte-swap pass touches but
+ * never itself reads (its own comments leave them unnamed "_014/_018"
+ * style); the names here come from this TU's own loop-bound usage. */
 typedef struct SndSlots {
-    u8  _pad0[28];
-    s32 slots[64];  /* 0x1C */
-} SndSlots;
+    u8  _pad0[20];
+    s32 f014;        /* 0x14 (20): matches audio.c's own unnamed field at
+                       * this exact offset in AudioRomModeBankEntry (also
+                       * byte-swapped by AudioLoadRom but never itself
+                       * interpreted there); this TU's case-2 voice-row
+                       * cursor bound reads it (pbDiagDrawAudio) but the
+                       * value's real meaning is unconfirmed. */
+    s32 numParts;    /* 0x18 (24): valid slots[] entries (loop bound) */
+    s32 slots[64];   /* 0x1C (28): ROM sub-bank ids, one per part */
+    s32 loadedPart;  /* 0x11C (284): currently-loaded part index */
+    s32 loadedHandle;/* 0x120 (288) */
+} SndSlots;            /* 0x124 (292): one of AudioRomMode.banks[32] */
+
+/* sAudioBankTable->banks[] element (9364-byte stride: name + count + 32
+ * SndSlots entries, verified by AudioLoadRom's 9364-byte mode stride). */
+typedef struct AudioRomMode {
+    char     name[16];  /* 0x00 */
+    s32      bankCount; /* 0x10 (16): valid banks[] entries */
+    SndSlots banks[32]; /* 0x14 (20) */
+} AudioRomMode;          /* 0x2494 (9364) */
+
+/* sAudioBankTable->subs[] element (44-byte stride, audio.c's
+ * AudioRomBankEntry: firstSound@38/loadState@40/handle@42 verified there;
+ * soundCount@36 sits in what audio.c leaves as unread padding but this
+ * TU's D30-windowing loops (pbDiagDrawAudio/pbDiagDrawSoundRow) both read
+ * it as the voice[]-range count owned by this sub-bank entry). */
+typedef struct AudioSubEntry {
+    u8  _pad0[36];
+    s16 soundCount;  /* 0x24 (36): voice[] entries owned by this sub-bank */
+    s16 firstSound;  /* 0x26 (38): first voice[] index */
+    s16 loadState;   /* 0x28 (40) */
+    u16 handle;      /* 0x2A (42) */
+} AudioSubEntry;       /* 0x2C (44) */
 
 typedef struct VoiceRec {
     u8  _pad0[20];
@@ -275,7 +321,7 @@ s32 pbDiagDrawAudio(void)
     bank = sAudioBankTable->banks + gDiag_D28 * 9364;
     snd = bank + gDiag_D2C * 292 + 20;
     sub = sAudioBankTable->subs + ((SndSlots*)snd)->slots[gDiag_D34] * 44;
-    voice = sAudioBankTable->voices + *(s16*)(sub + 38) * 28;
+    voice = sAudioBankTable->voices + *(s16*)(sub + offsetof(AudioSubEntry, firstSound)) * 28;
     if (gDiag_D58 != 0 && sMusicFadeBase >= gDiag_D5C) {
         if (gDiag_D58 >= 2 && gDiag_D58 <= 4) {
             gDiag_D30 = gDiag_D30 + 1;
@@ -283,30 +329,33 @@ s32 pbDiagDrawAudio(void)
             v = RandInt() + gDiag_D30;
             gDiag_D30 = v + 1;
         }
-        while (gDiag_D30 >= *(s16*)(sub + 36)) {
-            gDiag_D30 = gDiag_D30 - *(s16*)(sub + 36);
-            if (gDiag_D34 < *(s32*)(snd + 24) - 1) {
+        while (gDiag_D30 >= *(s16*)(sub + offsetof(AudioSubEntry, soundCount))) {
+            gDiag_D30 = gDiag_D30 - *(s16*)(sub + offsetof(AudioSubEntry, soundCount));
+            if (gDiag_D34 < *(s32*)(snd + offsetof(SndSlots, numParts)) - 1) {
                 gDiag_D34 = gDiag_D34 + 1;
             } else {
-                v = (gDiag_D2C + 1) % *(s32*)(bank + 16);
+                v = (gDiag_D2C + 1) % *(s32*)(bank + offsetof(AudioRomMode, bankCount));
                 gDiag_D34 = 0;
                 gDiag_D2C = v;
             }
             snd = bank + gDiag_D2C * 292 + 20;
             q = bank + gDiag_D2C * 292;
-            sub = sAudioBankTable->subs + *(s32*)(q + gDiag_D34 * 4 + 48) * 44;
+            sub = sAudioBankTable->subs +
+                  *(s32*)(q + offsetof(AudioRomMode, banks) + offsetof(SndSlots, slots)
+                          + gDiag_D34 * 4) * 44;
         }
-        voice = sAudioBankTable->voices + *(s16*)(sub + 38) * 28;
+        voice = sAudioBankTable->voices + *(s16*)(sub + offsetof(AudioSubEntry, firstSound)) * 28;
         voiceRow = voice + gDiag_D30 * 28;
         if (((VoiceRec*)voiceRow)->dur > lbl_80348678) {
-            if (*(s32*)(snd + 284) != gDiag_D34) {
+            if (*(s32*)(snd + offsetof(SndSlots, loadedPart)) != gDiag_D34) {
                 AudioClearTracks();
                 gDiag_D60 = AudioBankQueueName(snd, sub + 16, 0);
             }
             q = sAudioBankTable->banks + gDiag_D28 * 9364;
             q += gDiag_D2C * 292;
             q += gDiag_D34 * 4;
-            id = gDiag_D30 | (*(s32*)(q + 48) << 16);
+            id = gDiag_D30 | (*(s32*)(q + offsetof(AudioRomMode, banks)
+                                       + offsetof(SndSlots, slots)) << 16);
             v = sndFxStartVoice(gDiag_D4C, id, gDiag_D40, 0, gDiag_D44, gDiag_D50);
             gDiag_D60 = v;
             gDiag_D54 = (v >> 8) & 0xFF;
@@ -352,15 +401,15 @@ s32 pbDiagDrawAudio(void)
         w = b[0];
         if (w & 0xC0) {
             gDiagRepeatDelay = gDiagRepeatRate;
-            if (gDiag_D34 < *(s32*)(snd + 24) - 1) {
+            if (gDiag_D34 < *(s32*)(snd + offsetof(SndSlots, numParts)) - 1) {
                 gDiag_D34 = gDiag_D34 + 1;
                 sub = sAudioBankTable->subs +
                       ((SndSlots*)snd)->slots[gDiag_D34] * 44;
             } else {
                 gDiag_D34 = 0;
-                gDiag_D2C = (gDiag_D2C + 1) % *(s32*)(bank + 16);
+                gDiag_D2C = (gDiag_D2C + 1) % *(s32*)(bank + offsetof(AudioRomMode, bankCount));
                 snd = bank + gDiag_D2C * 292 + 20;
-                sub = sAudioBankTable->subs + *(s32*)(snd + 28) * 44;
+                sub = sAudioBankTable->subs + *(s32*)(snd + offsetof(SndSlots, slots)) * 44;
             }
         } else if (w & 0x30) {
             gDiagRepeatDelay = gDiagRepeatRate;
@@ -371,10 +420,10 @@ s32 pbDiagDrawAudio(void)
             } else {
                 gDiag_D2C = gDiag_D2C - 1;
                 if (gDiag_D2C < 0) {
-                    gDiag_D2C = *(s32*)(bank + 16) - 1;
+                    gDiag_D2C = *(s32*)(bank + offsetof(AudioRomMode, bankCount)) - 1;
                 }
                 snd = bank + gDiag_D2C * 292 + 20;
-                gDiag_D34 = *(s32*)(snd + 24) - 1;
+                gDiag_D34 = *(s32*)(snd + offsetof(SndSlots, numParts)) - 1;
                 sub = sAudioBankTable->subs +
                       ((SndSlots*)snd)->slots[gDiag_D34] * 44;
             }
@@ -382,20 +431,21 @@ s32 pbDiagDrawAudio(void)
             break;
         }
         gDiag_D30 = 0;
-        if (*(s32*)(snd + 284) != gDiag_D34) {
+        if (*(s32*)(snd + offsetof(SndSlots, loadedPart)) != gDiag_D34) {
             AudioClearTracks();
             gDiag_D60 = AudioBankQueueName(snd, sub + 16, 0);
         }
         break;
     case 2:
-        v = pbDiagCtrlInt(1, 0, gDiag_D30, 1, 0, *(s32*)(snd + 20));
+        v = pbDiagCtrlInt(1, 0, gDiag_D30, 1, 0, *(s32*)(snd + offsetof(SndSlots, f014)));
         if (v != gDiag_D30) {
             gDiag_D30 = v;
             if (b[0] & 0x02000000) {
                 q = sAudioBankTable->banks + gDiag_D28 * 9364;
                 q += gDiag_D2C * 292;
                 q += gDiag_D34 * 4;
-                id = gDiag_D30 | (*(s32*)(q + 48) << 16);
+                id = gDiag_D30 | (*(s32*)(q + offsetof(AudioRomMode, banks)
+                                           + offsetof(SndSlots, slots)) << 16);
                 v = sndFxStartVoice(gDiag_D4C, id, gDiag_D40, 0, gDiag_D44, gDiag_D50);
                 gDiag_D60 = v;
                 gDiag_D54 = (v >> 8) & 0xFF;
@@ -416,7 +466,8 @@ s32 pbDiagDrawAudio(void)
         q = sAudioBankTable->banks + gDiag_D28 * 9364;
         q += gDiag_D2C * 292;
         q += gDiag_D34 * 4;
-        id = gDiag_D30 | (*(s32*)(q + 48) << 16);
+        id = gDiag_D30 | (*(s32*)(q + offsetof(AudioRomMode, banks)
+                                   + offsetof(SndSlots, slots)) << 16);
         v = sndFxStartVoice(gDiag_D4C, id, gDiag_D40, 0, gDiag_D44, gDiag_D50);
         gDiag_D60 = v;
         gDiag_D54 = (v >> 8) & 0xFF;
@@ -493,7 +544,8 @@ s32 pbDiagDrawAudio(void)
         q = sAudioBankTable->banks + gDiag_D28 * 9364;
         q += gDiag_D2C * 292;
         q += gDiag_D34 * 4;
-        id = gDiag_D30 | (*(s32*)(q + 48) << 16);
+        id = gDiag_D30 | (*(s32*)(q + offsetof(AudioRomMode, banks)
+                                   + offsetof(SndSlots, slots)) << 16);
         v = sndFxStartVoice(gDiag_D4C, id, gDiag_D40, 0, gDiag_D44, gDiag_D50);
         gDiag_D60 = v;
         gDiag_D54 = (v >> 8) & 0xFF;
@@ -589,8 +641,9 @@ void pbDiagDrawSoundRow(void)
     }
     sel = -1;
     flat = 0;
-    for (s = 0; s < *(s32*)(bank + 16); s++) {
-        int n = *(s32*)(bank + s * 292 + 44);
+    for (s = 0; s < *(s32*)(bank + offsetof(AudioRomMode, bankCount)); s++) {
+        int n = *(s32*)(bank + s * 292 + offsetof(AudioRomMode, banks)
+                         + offsetof(SndSlots, numParts));
         for (k = 0; k < n; k++) {
             if (s == gDiag_D2C && k == gDiag_D34) {
                 sel = flat;
@@ -609,7 +662,7 @@ void pbDiagDrawSoundRow(void)
     row = 0;
     s = row;
     soff = 0;
-    while (s < *(s32*)(bank + 16)) {
+    while (s < *(s32*)(bank + offsetof(AudioRomMode, bankCount))) {
         snd = bank + soff + 20;
         if (row >= top && row <= bot) {
             sprintf(buf, lbl_803486A0, snd);
@@ -618,8 +671,8 @@ void pbDiagDrawSoundRow(void)
         k = 0;
         koff = 0;
         row++;
-        while (k < *(s32*)(snd + 24)) {
-            id = *(s32*)(snd + koff + 28);
+        while (k < *(s32*)(snd + offsetof(SndSlots, numParts))) {
+            id = *(s32*)(snd + koff + offsetof(SndSlots, slots));
             sub = sAudioBankTable->subs + id * 44;
             if (row >= top && row <= bot) {
                 sprintf(buf, lbl_803486A8, sub + 16);
@@ -645,7 +698,8 @@ void pbDiagDrawSoundRow(void)
     snd2 = (SndSlots*)(sAudioBankTable->banks + off + soff + 20);
     id = snd2->slots[gDiag_D34];
     sub2 = sAudioBankTable->subs + id * 44;
-    voice = sAudioBankTable->voices + *(s16*)(sub2 + 38) * 28;
+    voice = sAudioBankTable->voices +
+            *(s16*)(sub2 + offsetof(AudioSubEntry, firstSound)) * 28;
     if (gDiag_D38 == 2) {
         col3 = 0x00FFFF00;
     } else {
@@ -654,18 +708,18 @@ void pbDiagDrawSoundRow(void)
     top = gDiag_D30 - 15;
     top = top > 0 ? top : 0;
     bot = top + 29;
-    if (bot >= *(s16*)(sub2 + 36)) {
-        bot = *(s16*)(sub2 + 36) - 1;
-        top = (*(s16*)(sub2 + 36) - 30 > 0) ? (bot - 29) : 0;
+    if (bot >= *(s16*)(sub2 + offsetof(AudioSubEntry, soundCount))) {
+        bot = *(s16*)(sub2 + offsetof(AudioSubEntry, soundCount)) - 1;
+        top = (*(s16*)(sub2 + offsetof(AudioSubEntry, soundCount)) - 30 > 0) ? (bot - 29) : 0;
     }
     row = 0;
     i = 0;
     soff = 0;
-    while (i < *(s16*)(sub2 + 36)) {
+    while (i < *(s16*)(sub2 + offsetof(AudioSubEntry, soundCount))) {
         if (row >= top && row <= bot) {
             u8* e = voice + soff;
             val = ((snd2->slots[gDiag_D34] & 0x7FFF) << 16) | i;
-            sprintf(buf, strs + 204, e, *(f32*)(e + 20), val);
+            sprintf(buf, strs + 204, e, *(f32*)(e + offsetof(VoiceRec, dur)), val);
             fn_800C008C((i == gDiag_D30) ? col3 : 0x00FFFFFF, 25, row + 5 - top, buf);
         }
         row++;
@@ -704,6 +758,113 @@ extern void MBTreeSetAmbientAdd(u32 node, s32 amount, int a);
 void pbDiagDrawMenuA(DiagList* list);
 void pbDiagDrawMenuB(DiagMenu* menu);
 
+/* wg->f30 object-view entry: 16-byte stride, view ptr at +4 (moved up from
+ * its original position before pbDiagDrawTexture so pbDiagDrawInfo's
+ * matching wg->f30 lookup can reuse the same GC-verified names/offsets). */
+typedef struct ObjEnt {
+    s32 a;
+    struct DiagObjView* obj;
+    s32 c;
+    s32 d;
+} ObjEnt;
+
+typedef struct DiagObjGlobals {
+    u8 _pad0[0x30];
+    ObjEnt* entries;
+} DiagObjGlobals;
+
+/* MBObject.data.romobj sub-record for an OBJECT_NODE preview (t10 in
+ * pbDiagDrawObject). No struct authority exists anywhere in the project for
+ * this record - mb_objects.c itself (the TU that actually resolves
+ * obj->data.romobj) only ever reads its own two fields via raw casts
+ * (`*(f32*)((u8*)obj->data.romobj + 4)`, `*(u32*)((u8*)obj->data.romobj +
+ * 8) & 1`, see mb_objects.c:186/198/240) rather than through a named type.
+ * Field names below are deliberately non-semantic placeholders (matching
+ * audio.c's own "_014"/"_018" convention for GC-verified-offset-but-
+ * unconfirmed-meaning fields) - offsetof-purpose only, t10 itself stays a
+ * raw u8* everywhere, never promoted to a typed pointer. */
+typedef struct DiagObjPreview {
+    u8  _pad0[4];
+    f32 f004;     /* 0x004 (4): matches mb_objects.c's scale/distance field */
+    u8  _pad008[24];
+    s32 f020;     /* 0x020 (32) */
+    s32 f024;     /* 0x024 (36) */
+    s32 f028;     /* 0x028 (40) */
+    u8* f02C;     /* 0x02C (44): pointer into obj->rows (selected-row cache) */
+} DiagObjPreview;
+
+/* buttons block view: color-bar HSV/RGB state at +368 (moved up from its
+ * original position before pbDiagDrawColorBars so pbDiagDrawInfo's/
+ * pbDiagDrawObject's matching f380/f384/f388 sites can reuse it). */
+/* buttons-block atree-preview scratch: handle@456/ptr@460 stay raw (the
+ * atree module that owns them is a separate, not-yet-decompiled TU with no
+ * struct authority here); frameCount/animT/dirty are named purely so their
+ * three already-duplicated raw offsets (476 used twice, 484, 512) can share
+ * one offsetof() spelling instead of four repeated magic numbers - this
+ * struct is never instantiated, only used for offsetof on the raw `b`
+ * pointer, so it carries none of the multi-field typed-alias risk. */
+/* one atree-preview node row (48-byte stride); spd@34 confirmed by two
+ * independent consumers sharing the identical (stride, offset) pair: the
+ * cached pointer at DiagAtreeInfo (unnamed@460) and entry->strs below. */
+/* buttons-block per-port latch: lbl_80240FB0/FA0 (4 words each) get copied
+ * in every pbDiagDrawMenu call into two 16-byte-aligned slots of the
+ * buttons blob. Offsetof-purpose only (never instantiated as a typed
+ * pointer) so the copy loop's pointer-arithmetic shape is untouched. */
+/* gDiagData background-color table: 3 s32 RGB components per gDiag_D8
+ * index, 12-byte stride. Offsetof-purpose only (never instantiated as a
+ * typed pointer) so every MBSetBGColor call site keeps its exact raw
+ * pointer-arithmetic shape - a typed alias/array-index form here regressed
+ * two sibling patterns in this same TU this session (pbDiagDrawMenu's
+ * per-port copy, pbDiagDrawObject's f380/384/388 write), so this stays a
+ * pure constant-spelling change like DiagPadLatch above. */
+/* buttons-block default-HSV backup (words 388-390) and the 256-slot
+ * per-list anim-clock scratch array (words 132-387, zeroed once per
+ * gDiag_FC == 0 init) that immediately precedes it. Offsetof-purpose only:
+ * same pure constant-spelling pattern as DiagPadLatch/DiagBgColor above. */
+typedef struct DiagListInitState {
+    u8  _pad0[528];
+    u32 animClocks[256]; /* 0x210 (528) */
+    f32 hueDefault;       /* 0x610 (1552) */
+    f32 satDefault;       /* 0x614 (1556) */
+    f32 valDefault;       /* 0x618 (1560) */
+} DiagListInitState;
+
+typedef struct DiagBgColor {
+    s32 r;
+    s32 g;   /* 0x04 */
+    s32 b;   /* 0x08 */
+} DiagBgColor;   /* 0x0C (12) */
+
+typedef struct DiagPadLatch {
+    u8  _pad0[16];
+    u32 tbl1[4];    /* 0x10 (16) */
+    u32 tbl2[4];    /* 0x20 (32) */
+} DiagPadLatch;
+
+typedef struct AtreeRow {
+    u8  _pad00[34];
+    s16 spd;   /* 0x22 (34) */
+} AtreeRow;
+
+typedef struct DiagAtreeInfo {
+    u8  _pad000[476];       /* 0..475 (includes handle@456/ptr@460) */
+    s16 frameCount;          /* 0x1DC (476) */
+    u8  _pad1DE[6];          /* 478..483 */
+    f32 animT;                /* 0x1E4 (484) */
+    u8  _pad1E8[24];          /* 488..511 */
+    u16 dirty;                 /* 0x200 (512) */
+} DiagAtreeInfo;
+
+typedef struct DiagPadView {
+    u32 words[92];          /* 0x000: raw pad words (word 5 = held buttons) */
+    f32 f368;               /* 0x170: hue A */
+    f32 f372;               /* 0x174: hue B */
+    f32 f376;               /* 0x178 */
+    f32 f380;               /* 0x17C: sat */
+    f32 f384;               /* 0x180: val A */
+    f32 f388;               /* 0x184: val B */
+} DiagPadView;
+
 /* info/animation browser: menu columns, atree preview + anim clock */
 s32 pbDiagDrawInfo(void)
 {
@@ -739,15 +900,18 @@ s32 pbDiagDrawInfo(void)
         gDiagListSel = 0;
         gDiag_D1C = 0;
         b[114] = 0;
-        *(f32*)((u8*)b + 1552) = gd[36];
-        *(f32*)((u8*)b + 1556) = gd[37];
-        *(f32*)((u8*)b + 1560) = gd[38];
-        *(f32*)((u8*)b + 380) = *(f32*)((u8*)b + 1552);
-        *(f32*)((u8*)b + 384) = *(f32*)((u8*)b + 1556);
-        *(f32*)((u8*)b + 388) = *(f32*)((u8*)b + 1560);
+        *(f32*)((u8*)b + offsetof(DiagListInitState, hueDefault)) = gd[36];
+        *(f32*)((u8*)b + offsetof(DiagListInitState, satDefault)) = gd[37];
+        *(f32*)((u8*)b + offsetof(DiagListInitState, valDefault)) = gd[38];
+        *(f32*)((u8*)b + offsetof(DiagPadView, f380)) =
+            *(f32*)((u8*)b + offsetof(DiagListInitState, hueDefault));
+        *(f32*)((u8*)b + offsetof(DiagPadView, f384)) =
+            *(f32*)((u8*)b + offsetof(DiagListInitState, satDefault));
+        *(f32*)((u8*)b + offsetof(DiagPadView, f388)) =
+            *(f32*)((u8*)b + offsetof(DiagListInitState, valDefault));
         gDiag_D24 = lbl_803486B8;
         for (i = 0; i < 256; i++) {
-            *(u32*)((u8*)b + i * 4 + 528) = 0;
+            *(u32*)((u8*)b + i * 4 + offsetof(DiagListInitState, animClocks)) = 0;
         }
     }
     if (gDiag_D00 == 0) {
@@ -758,8 +922,9 @@ s32 pbDiagDrawInfo(void)
     if (gDiag_D00 != 0) {
         MBBlitSetColor(gDiag_D00, (&((s32*)gd)[gDiag_D8])[27]);
     }
-    MBSetBGColor(*(s32*)((u32)gd + gDiag_D8 * 12), *(s32*)((u8*)gd + gDiag_D8 * 12 + 4),
-                 *(s32*)((u8*)gd + gDiag_D8 * 12 + 8));
+    MBSetBGColor(*(s32*)((u32)gd + gDiag_D8 * 12 + offsetof(DiagBgColor, r)),
+                 *(s32*)((u8*)gd + gDiag_D8 * 12 + offsetof(DiagBgColor, g)),
+                 *(s32*)((u8*)gd + gDiag_D8 * 12 + offsetof(DiagBgColor, b)));
     old = gDiagMenuIdx;
     v = pbDiagCtrlInt(0, 0, old, 1, 0, lbl_80344CF8);
     gDiagMenuIdx = v;
@@ -846,7 +1011,8 @@ s32 pbDiagDrawInfo(void)
     }
     if (entry != 0) {
         if (gGameBusy == 0) {
-            s16 spd = *(s16*)(*(u8**)((u8*)b + 460) + gDiagListSel * 48 + 34);
+            s16 spd = *(s16*)(*(u8**)((u8*)b + 460) + gDiagListSel * 48
+                              + offsetof(AtreeRow, spd));
             if (spd > 0) {
                 gDiag_D24 = (f32)(lbl_803486C0 / (f64)spd *
                                   (lbl_803486C0 * gClockFrameStep) + gDiag_D24);
@@ -857,8 +1023,8 @@ s32 pbDiagDrawInfo(void)
                 gDiag_D24 = lbl_80348670;
             }
         }
-        *(u16*)((u8*)b + 512) = 1;
-        if (gDiag_D24 >= (f32)(s32)*(s16*)((u8*)b + 476)) {
+        *(u16*)((u8*)b + offsetof(DiagAtreeInfo, dirty)) = 1;
+        if (gDiag_D24 >= (f32)(s32)*(s16*)((u8*)b + offsetof(DiagAtreeInfo, frameCount))) {
             gDiag_D24 = lbl_80348670;
         }
         if (gDiag_D24 >= lbl_80348678) {
@@ -876,9 +1042,9 @@ s32 pbDiagDrawInfo(void)
     CreatePYRMatrix(gDiag_FC, b + 92);
     px = (f32*)&b[96];
     py = (f32*)&b[97];
-    *(f32*)((u8*)gDiag_FC + 48) = ((f32*)b)[95];
-    *(f32*)((u8*)gDiag_FC + 52) = ((f32*)b)[96];
-    *(f32*)((u8*)gDiag_FC + 56) = ((f32*)b)[97];
+    *(f32*)((u8*)gDiag_FC + offsetof(MBObject, mat[3][0])) = ((f32*)b)[95];
+    *(f32*)((u8*)gDiag_FC + offsetof(MBObject, mat[3][1])) = ((f32*)b)[96];
+    *(f32*)((u8*)gDiag_FC + offsetof(MBObject, mat[3][2])) = ((f32*)b)[97];
     w2 = b[8];
     if (w2 & 0x00400000) {
         gDiag_D20 = (f32)(gDiag_D20 + lbl_803486D0);
@@ -900,14 +1066,16 @@ s32 pbDiagDrawInfo(void)
     }
     saved = fn_800C02F4(0x00FFFFFF);
     if (entry != 0) {
-        obj = *(DiagObjView**)((u8*)gWinGlobals->f30 + gDiag_F4 * 16 + 4);
+        obj = *(DiagObjView**)((u8*)gWinGlobals->f30 + gDiag_F4 * sizeof(ObjEnt)
+                               + offsetof(ObjEnt, obj));
         if (*(s8*)obj->name != 0) {
             fn_800C008C(0x00FFFF00, 61 - strlen(obj->name), 3, obj->name);
         }
     }
-    sprintf(buf16, strs + 304, *(f32*)((u8*)b + 484),
-            *(s16*)((u8*)b + 476) - 1,
-            (entry != 0) ? *(s16*)(*(u8**)entry + gDiagListSel * 48 + 34) : 0);
+    sprintf(buf16, strs + 304, *(f32*)((u8*)b + offsetof(DiagAtreeInfo, animT)),
+            *(s16*)((u8*)b + offsetof(DiagAtreeInfo, frameCount)) - 1,
+            (entry != 0) ? *(s16*)((u8*)entry->strs + gDiagListSel * 48
+                                    + offsetof(AtreeRow, spd)) : 0);
     fn_800C01C0(2, 43, buf16);
     sprintf(buf16, strs + 344, *(volatile f32*)&b[95], *px, *py,
             ((f32*)b)[92], ((f32*)b)[93], ((f32*)b)[94]);
@@ -1016,19 +1184,6 @@ typedef struct BtnView {
     u32 f424;               /* 0x1A8 */
 } BtnView;
 
-/* wg->f30 object-view entry: 16-byte stride, view ptr at +4 */
-typedef struct ObjEnt {
-    s32 a;
-    struct DiagObjView* obj;
-    s32 c;
-    s32 d;
-} ObjEnt;
-
-typedef struct DiagObjGlobals {
-    u8 _pad0[0x30];
-    ObjEnt* entries;
-} DiagObjGlobals;
-
 /* wg->f30 texture-bank entry: 16-byte stride, bank ptr at +4, lock flag read at +16 */
 typedef struct TexBankEnt {
     s32 a;                  /* 0x0 */
@@ -1036,6 +1191,16 @@ typedef struct TexBankEnt {
     s32 c;
     s32 d;
 } TexBankEnt;
+
+/* one 16-byte texdef record (DiagTexBank.defs[]); flags@2 confirmed by two
+ * consumers in pbDiagDrawTexture sharing the identical offset/size (a
+ * "locked" bit cleared on the outgoing highlight and set on the incoming
+ * one, both through this same field). */
+typedef struct DiagTexDef {
+    u8  _pad0[2];
+    u16 flags;      /* 0x02 */
+    u8  _pad4[12];
+} DiagTexDef;         /* 0x10 (16) */
 
 /* texture bank view: name at +0x20, slot count at +0x48, defs at +0x58 */
 typedef struct DiagTexBank {
@@ -1109,7 +1274,7 @@ s32 pbDiagDrawTexture(void)
         MBBlitSetColor(gDiag_D00, (&gdi[gDiag_D8])[27]);
     }
     if (gDiag_D14 != 0) {
-        *(u16*)(gDiag_D14 + 2) &= ~2;
+        *(u16*)(gDiag_D14 + offsetof(DiagTexDef, flags)) &= ~2;
     }
     if (gDiag_D10 >= 2) {
         if ((u32)(&b[0])[98] == 0) {
@@ -1144,8 +1309,9 @@ s32 pbDiagDrawTexture(void)
             (&b[0])[98] = 0;
         }
     }
-    MBSetBGColor(*(s32*)((u32)gd + gDiag_D8 * 12), *(s32*)((u8*)gd + gDiag_D8 * 12 + 4),
-                 *(s32*)((u8*)gd + gDiag_D8 * 12 + 8));
+    MBSetBGColor(*(s32*)((u32)gd + gDiag_D8 * 12 + offsetof(DiagBgColor, r)),
+                 *(s32*)((u8*)gd + gDiag_D8 * 12 + offsetof(DiagBgColor, g)),
+                 *(s32*)((u8*)gd + gDiag_D8 * 12 + offsetof(DiagBgColor, b)));
     old2 = gDiag_F0;
     v = pbDiagCtrlInt(0, 0, gDiag_F4, 1, 0, old2);
     gDiag_F4 = v;
@@ -1251,7 +1417,7 @@ s32 pbDiagDrawTexture(void)
     }
     if (gDiag_D14 != 0) {
         gDiag_D14 = texdef;
-        *(u16*)(texdef + 2) |= 2;
+        *(u16*)(texdef + offsetof(DiagTexDef, flags)) |= 2;
     }
     return 0;
 }
@@ -1344,8 +1510,9 @@ s32 pbDiagDrawObject(void)
         gDiag_D00 = MBCreateBlit(gDiag_DEC, tex, 0, 0, 512, 384);
         mbBlitCvtCoord(gDiag_D00, lbl_803486B8);
     }
-    MBSetBGColor(*(s32*)((u32)gd + gDiag_D8 * 12), *(s32*)((u8*)gd + gDiag_D8 * 12 + 4),
-                 *(s32*)((u8*)gd + gDiag_D8 * 12 + 8));
+    MBSetBGColor(*(s32*)((u32)gd + gDiag_D8 * 12 + offsetof(DiagBgColor, r)),
+                 *(s32*)((u8*)gd + gDiag_D8 * 12 + offsetof(DiagBgColor, g)),
+                 *(s32*)((u8*)gd + gDiag_D8 * 12 + offsetof(DiagBgColor, b)));
     if (gDiag_D00 != 0) {
         MBBlitSetColor(gDiag_D00, (&gdi[gDiag_D8])[27]);
     }
@@ -1390,9 +1557,9 @@ s32 pbDiagDrawObject(void)
     CreatePYRMatrix(gDiag_FC, (u8*)((u32)b + 368));
     px = (f32*)((u8*)b + 384);
     py = (f32*)((u8*)b + 388);
-    *(f32*)((u8*)gDiag_FC + 48) = *(f32*)((u8*)b + 380);
-    *(f32*)((u8*)gDiag_FC + 52) = *(f32*)((u8*)b + 384);
-    *(f32*)((u8*)gDiag_FC + 56) = *(f32*)((u8*)b + 388);
+    *(f32*)((u8*)gDiag_FC + offsetof(MBObject, mat[3][0])) = *(f32*)((u8*)b + offsetof(DiagPadView, f380));
+    *(f32*)((u8*)gDiag_FC + offsetof(MBObject, mat[3][1])) = *(f32*)((u8*)b + 384);
+    *(f32*)((u8*)gDiag_FC + offsetof(MBObject, mat[3][2])) = *(f32*)((u8*)b + 388);
     for (i = 0; i < gDiag_F0; i++) {
         sprintf(buf, lbl_803486F0, i);
         fn_800C008C((i == gDiag_F4) ? 0x00FFFF00 : 0x00FFFFFF, x, 2, buf);
@@ -1402,16 +1569,21 @@ s32 pbDiagDrawObject(void)
     if (*(s8*)obj->name != 0) {
         fn_800C008C(0x00FFFF00, 57 - strlen(obj->name), 3, lbl_80348708, obj->name, gDiag_F4);
     }
-    t10 = *(u8**)((u8*)gDiag_FC + 112);
-    if (*(u8**)(t10 + 44) != 0) {
-        idx = (s32)(*(u8**)(t10 + 44) - (u8*)obj->rows) / 24;
+    t10 = *(u8**)((u8*)gDiag_FC + offsetof(MBObject, data));
+    if (*(u8**)(t10 + offsetof(DiagObjPreview, f02C)) != 0) {
+        idx = (s32)(*(u8**)(t10 + offsetof(DiagObjPreview, f02C)) - (u8*)obj->rows) / 24;
     } else {
         idx = -1;
     }
-    fn_800C01C0(2, 43, strs + 656, *(f32*)(t10 + 4), *(s32*)(t10 + 32), *(s32*)(t10 + 36),
-                (u16)*(u32*)((u8*)gDiag_FC + 108), idx, *(s32*)(t10 + 40));
-    fn_800C01C0(2, 44, strs + 716, *(f32*)((u32)b + 380), *px, *py,
-                *(f32*)((u8*)b + 368), *(f32*)((u8*)b + 372), *(f32*)((u8*)b + 376));
+    fn_800C01C0(2, 43, strs + 656, *(f32*)(t10 + offsetof(DiagObjPreview, f004)),
+                *(s32*)(t10 + offsetof(DiagObjPreview, f020)),
+                *(s32*)(t10 + offsetof(DiagObjPreview, f024)),
+                (u16)*(u32*)((u8*)gDiag_FC + offsetof(MBObject, index)), idx,
+                *(s32*)(t10 + offsetof(DiagObjPreview, f028)));
+    fn_800C01C0(2, 44, strs + 716, *(f32*)((u32)b + offsetof(DiagPadView, f380)), *px, *py,
+                *(f32*)((u8*)b + offsetof(DiagPadView, f368)),
+                *(f32*)((u8*)b + offsetof(DiagPadView, f372)),
+                *(f32*)((u8*)b + offsetof(DiagPadView, f376)));
     fn_800C02F4(saved);
     pbDiagDrawStrRow((DiagStrRows*)obj);
     if (b[0] & 0x08000000) {
@@ -1424,17 +1596,6 @@ s32 pbDiagDrawObject(void)
 }
 #pragma opt_lifetimes reset
 
-
-/* buttons block view: color-bar HSV/RGB state at +368 */
-typedef struct DiagPadView {
-    u32 words[92];          /* 0x000: raw pad words (word 5 = held buttons) */
-    f32 f368;               /* 0x170: hue A */
-    f32 f372;               /* 0x174: hue B */
-    f32 f376;               /* 0x178 */
-    f32 f380;               /* 0x17C: sat */
-    f32 f384;               /* 0x180: val A */
-    f32 f388;               /* 0x184: val B */
-} DiagPadView;
 
 /* animate/adjust the diag color-bar HSV values from pad input */
 #pragma opt_propagation off
@@ -1580,8 +1741,8 @@ s32 pbDiagDrawMenu(void)
     }
     for (i = 0; i < 4; i++) {
         b[i] = lbl_80240FC0[i];
-        *(u32*)((u8*)b + i * 4 + 16) = *(u32*)((u8*)lbl_80240FB0 + i * 4);
-        *(u32*)((u8*)b + i * 4 + 32) = *(u32*)((u8*)lbl_80240FA0 + i * 4);
+        *(u32*)((u8*)b + i * 4 + offsetof(DiagPadLatch, tbl1)) = lbl_80240FB0[i];
+        *(u32*)((u8*)b + i * 4 + offsetof(DiagPadLatch, tbl2)) = lbl_80240FA0[i];
     }
     if (gDiag_E0 < 0) {
         MBSetBGColor(0, 0, 0);
