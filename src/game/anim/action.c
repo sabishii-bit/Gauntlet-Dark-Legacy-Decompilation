@@ -1125,11 +1125,9 @@ void DoPlayerAction(void* player)
         } else {
             if (cur != 0x5B && atree[6] >= 2.0f) {
                 mode = 2;
-            }
-            if (dance) {
-                act = 0x60;
+                act = dance ? 0x60 : 0x5F;
             } else {
-                act = 0x5F;
+                act = dance ? 0x60 : 0x5F;
             }
         }
         break;
