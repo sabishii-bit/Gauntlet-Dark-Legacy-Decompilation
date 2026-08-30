@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "target-driven initialization-prefix reconstruction: stage atan2's second object-field operand before the call while preserving the established identity-pointer, flags, and saved-home source shape",
+  "attributes": {
+    "axis_log": [
+      "Rejected metric-conflict shape: moving atreeFlags initialization after YawMat3 recovered 250/250 and cut clean real to 38, but fuzzy regressed 97.81 -> 95.86 because it dropped saved r26 and rotated object/subtype homes; do not retain or retry unchanged.",
+      "Neutral/negative variants: split/registered/const/void/pointer-to-array identity locals, header/flags ordering, explicit &gIdentityMatrix[0], and comma-expression flag initialization did not beat the retained high-fuzzy shape."
+    ],
+    "landed_commit": "git:4e5b2de3f42724453b4a863507c496536f053f9c",
+    "measurements": "target/current 250/251 unchanged; fuzzy 97.81 -> 97.856; fndiff --clean real 67 -> 65 (count real 65 -> 63); frame 0x38 and save set r26-r31 unchanged",
+    "residual": "STRUCTURAL initialization-prefix wall: one extra gIdentityMatrix ADDI before the frame shifts branch targets; target forms the low half directly in r29. Remaining body, calls, fields, and CFG are aligned.",
+    "semantic_result": "No behavior change: the same object+0x28 float is passed as atan2 argument two, now through a scalar local; target load order f2(object+0x28) then f1(object+0x20) is recovered.",
+    "validation": "owning object and fresh full ninja passed; build/GUNE5D/main.dol checksum OK; matchtool sibling summary unchanged at OK:56 OK~:2 bad:26 ties:1; git diff --check passed; no assembly or TU data changes"
+  },
+  "function": "function:CritterInitGeo",
+  "id": "attempt.critterinitgeo-atan-operand-stage.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
