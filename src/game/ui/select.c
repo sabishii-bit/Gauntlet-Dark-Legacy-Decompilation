@@ -139,6 +139,14 @@ typedef struct VmuMenuEntry {
     s32 state;
 } VmuMenuEntry;
 
+/* file-local view: per-slot select blit entry, 12 bytes (handle, mode,
+ * timer) -- same layout documented above serve_blits(). */
+typedef struct BlitEntry {
+    void* handle;
+    s32 mode;
+    s32 timer;
+} BlitEntry;
+
 /* ---- audio / front-end (other TUs) ---- */
 extern void AudioWelcome(s32 pidx, s32 flag);
 extern void AudioWelcomeBack(s32 pidx, s32 flag);
@@ -2761,14 +2769,6 @@ void init_player_select(s32 mode)
 #pragma opt_propagation reset
 
 #pragma opt_propagation off
-/* file-local view: per-slot select blit entry, 12 bytes (handle, mode,
- * timer) -- same layout documented above serve_blits(). */
-typedef struct BlitEntry {
-    void* handle;
-    s32 mode;
-    s32 timer;
-} BlitEntry;
-
 void hide_select_blits(s32 arg0, s32 flag)
 {
     u8* pagebase;
