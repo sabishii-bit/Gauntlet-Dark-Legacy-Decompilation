@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "identify and break a whole-function GPR/FPR register-permutation (insn counts exactly equal target 444/444, opcode multiset already matches; nearly every operand register differs from target in a mechanically consistent way) via prologue local-declaration-order probes",
+  "attributes": {
+    "anchor": "src/game/world/camera.c::camera_collide_step; target 0x80027CA4, size 1776B; work_claim.worldcamera-supervisors.20260830.v1",
+    "axis_log": "AXIS1 (neutral) swap decl order `s32 count=0; s32 rememberSelection=0;` -> rememberSelection first: no byte change; reverted. AXIS2 (neutral) hoist all initialized f32/f64 locals (bestPitch, nearestDistance, secondYaw, nearestYaw, bestYaw, effectiveThreshold) to occur before count/rememberSelection instead of after: no byte change; reverted. AXIS3 abandoned before build: moving `blendThreshold = nearestDistance;` up next to nearestDistance's declaration would interleave a statement among declarations, violating this TU's declare-before-statement K&R-passthrough style used everywhere else in the file; not attempted as a scored probe.",
+    "baseline_and_final": "insns 444/444 (exact match, unchanged throughout), real 266, lines 298, fuzzy 90.44% -- no net change; all probes reverted",
+    "diagnosis": "cross-referenced target fnasm.py against our own build/GUNE5D/src/game/world/camera.o via powerpc-eabi-objdump -dr (real symbol names, not the <local>-redacted --clean view). Root cause isolated to the prologue: after `add r31,r4,r5` (cam = &gCameras[camIdx]) both r4 (gCameras HA/LO) and r5 (mulli camIdx*396) go dead simultaneously; target reuses r4 for `count=0`, ours reuses r5. This single divergent register-reuse choice appears to cascade through the whole-function coloring (f28/f29/f30/f31 bestYaw/nearestYaw/secondYaw/bestPitch and r6/r7/r8 loop index/offset/remaining are likewise permuted vs target throughout the for-loop body and the post-PointLineColl tail, but always with the SAME opcodes/offsets, just swapped operand registers -- confirmed via spot checks, e.g. target `fcmpo f2,f1;ble` vs ours `fcmpo f1,f3;bge` at fn+0x2a8 is the algebraically-equivalent swapped-operand form of the same compare, not a semantic difference).",
+    "residual": "REGISTER_ONLY, whole-function GPR/FPR color permutation rooted in one ambiguous post-add dead-register reuse choice (r4 vs r5 for `count`); 2 clean decl-order axes tried, both neutral. Do not retry plain declaration reordering without a genuinely new theory (e.g. an intermediate temp/cast that changes which of the two dead registers the allocator prefers).",
+    "verification": "ninja build/GUNE5D/src/game/world/camera.o green after each probe; source restored byte-for-byte (git diff --stat clean before final full ninja); full ninja green, build/GUNE5D/main.dol: OK"
+  },
+  "function": "function:camera_collide_step",
+  "id": "attempt.camera-collide-step-permutation-screen.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "record_state": "proposed",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}

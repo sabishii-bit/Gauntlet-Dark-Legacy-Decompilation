@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "close prologue/early-block statement-order gaps against target scheduling (2 wins), then probe the large distance-computation cluster's cast-grouping and cross-branch integer-bias CSE (both non-improving)",
+  "attributes": {
+    "anchor": "src/game/world/camera.c::camera_debug_supervisor; target 0x80025CEC, size 4024B; work_claim.worldcamera-supervisors.20260830.v1",
+    "axis_log": "AXIS1 (WIN) swap decl order `u8* playerData = ...; u8* state = gCameraState;` -> `state` first, `playerData` second: matched target's LO-addi-before-playerData-add prologue order exactly. real 384->382, lines 437->435. commit 41dd085e2. AXIS2 (WIN) hoist `oldX = *(playerData+0x8A0); oldY = *(playerData+0x8A4);` to occur BEFORE all three `scratch.futurePosition[i] = ...` assignments instead of interleaved between them (source order already matched target's C statement order, but the compiler's list-scheduler was NOT reproducing the early oldX/oldY loads + early MBWindowProject arg setup until this hoist): closed the mr-vs-addi/oldX-oldY-interleave cluster completely. real 382->372, lines 435->425. commit 3980c7485. AXIS3 (negative) regroup the 4 int-to-double bias casts (`currentAbsY=oldY-(f32)bottomEdge; currentAbsX=oldX-(f32)halfWidth; oldAbsY=...; oldAbsX=...`) into bottomEdge-pair-then-halfWidth-pair order to match target's apparent scheduling grouping: real 382->386, worse; reverted. AXIS4 (neutral) interleave `cameraPositionX/Z` decls between movedX/Y/Z instead of after all three: real/lines unchanged; reverted for cleanliness.",
+    "baseline": "insns 1006/1008, real 384, lines 437, fuzzy 93.86%",
+    "best_state": "insns 1006/1008 (unchanged from baseline, no missing/extra statements), real 372, lines 425, fuzzy 94.93%; --ops shows only 3 residual clusters left, all REGISTER_ONLY/SCHEDULE: (a) ~6-insn lis/lfd reorder for a repeated `(f32)(lbl+CONST)` bias cast whose integer half is CSE'd across an if/else-if boundary (target keeps the biased-int in a live GPR across the branch, ours recomputes fresh -- deep whole-function value-numbering, not reproduced via 2 tried source reorderings), (b) the large currentDistance/currentScreenDistance/movedScreenDistance block's internal fsubs/fmadds scheduling (same opcode multiset, different interleave; f10 appears in ours but not target, extra temporary), (c) a small fsubs/fmuls register-choice swap near a boss-type comparison.",
+    "verification": "ninja build/GUNE5D/src/game/world/camera.o green each step; full ninja green, build/GUNE5D/main.dol: OK; git diff --check clean; commits 41dd085e2, 3980c7485"
+  },
+  "function": "function:camera_debug_supervisor",
+  "id": "attempt.camera-debug-supervisor-prologue-oldxy-closure.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "record_state": "proposed",
+  "residual_class": "REGISTER_ONLY/SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
