@@ -1,0 +1,124 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-enemy-enemy.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:56:56Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/enemy.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_80045C30",
+          "fn_80046140",
+          "fn_8004646C",
+          "fn_80046680"
+        ],
+        "xbox_candidates": [
+          "do_enemies",
+          "enemy_ai_control"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8004C8CC"
+        ],
+        "xbox_candidates": [
+          "check_vacancy",
+          "trans_enemy",
+          "generate_enemy",
+          "check_enemy_pos",
+          "find_enemy_slot",
+          "GetRightPath",
+          "closest_enemy",
+          "do_enemy_move",
+          "do_enemy_collide",
+          "EnemyCollideFloor",
+          "EnemyCollideWalls",
+          "EnemyWorldDamage",
+          "do_enemy_attack",
+          "EnemyCollideEnemy",
+          "is_tail",
+          "EnemyCollidePlayer",
+          "blocked00",
+          "blocked07",
+          "blocked08",
+          "blocked10"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8004CE38",
+          "fn_8004CFAC",
+          "fn_8004D030",
+          "fn_8004D958",
+          "fn_8004DB3C",
+          "fn_8004DC2C",
+          "fn_8004DF58",
+          "fn_8004E448"
+        ],
+        "xbox_candidates": [
+          "is_chest",
+          "get_chest_ang",
+          "get_milestone_ang",
+          "get_face_ang2",
+          "get_face_ang",
+          "get_target_ang",
+          "set_turn_to_ms",
+          "set_turn_dir",
+          "get_turn_dir",
+          "DeadEnd",
+          "FoundSuicideBomber",
+          "enemy_mod_alpha",
+          "enemy_knockback_control",
+          "enemy_attack_control",
+          "shoot_missile"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8004F1DC"
+        ],
+        "xbox_candidates": [
+          "enemy_death_fx",
+          "enemy_dies"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8004F87C"
+        ],
+        "xbox_candidates": [
+          "set_suicide_bomber_index",
+          "enemy_fix_ai"
+        ]
+      }
+    ],
+    "anchors": 35,
+    "exact_gap_candidates": [
+      {
+        "address": "0x8004e5f8",
+        "confidence": "exact-gap",
+        "gc": "fn_8004E5F8",
+        "xbox_candidate": "adjust_msidx"
+      },
+      {
+        "address": "0x8004e67c",
+        "confidence": "exact-gap",
+        "gc": "fn_8004E67C",
+        "xbox_candidate": "enemy_update"
+      }
+    ],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "spelling_mismatches": [],
+    "xbox_module": "ENEMY.OBJ"
+  }
+}

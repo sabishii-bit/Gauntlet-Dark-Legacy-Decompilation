@@ -1,0 +1,43 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-shop-shop.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:58:05Z",
+  "schema_version": 1,
+  "subject": "tu:game/shop/shop.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_8009A0AC"
+        ],
+        "xbox_candidates": [
+          "init_show_gold",
+          "show_piles",
+          "init_piles",
+          "draw_shop_screen",
+          "shop_ready"
+        ]
+      }
+    ],
+    "anchors": 11,
+    "exact_gap_candidates": [],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "spelling_mismatches": [
+      {
+        "address": "0x80099cc4",
+        "gc": "show_piles",
+        "xbox": "hide_piles"
+      }
+    ],
+    "xbox_module": "SHOP.OBJ"
+  }
+}

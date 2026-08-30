@@ -1,0 +1,49 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-anim-atree.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:56:50Z",
+  "schema_version": 1,
+  "subject": "tu:game/anim/atree.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_80011DCC",
+          "fn_8001267C"
+        ],
+        "xbox_candidates": [
+          "AtreeXlatPSys",
+          "SetupAtreeList",
+          "InitAtreeSeqs"
+        ]
+      }
+    ],
+    "anchors": 27,
+    "exact_gap_candidates": [
+      {
+        "address": "0x80011bbc",
+        "confidence": "exact-gap",
+        "gc": "fn_80011BBC",
+        "xbox_candidate": "AtreeListInit"
+      }
+    ],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "spelling_mismatches": [
+      {
+        "address": "0x80013390",
+        "gc": "AtreeNewNode",
+        "xbox": "AtreeCreateNodes"
+      }
+    ],
+    "xbox_module": "ATREE.OBJ"
+  }
+}

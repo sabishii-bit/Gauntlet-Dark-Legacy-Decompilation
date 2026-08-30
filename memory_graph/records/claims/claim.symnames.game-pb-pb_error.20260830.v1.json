@@ -1,0 +1,44 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-pb-pb_error.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:57:32Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_error.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_800C1174",
+          "fn_800C13CC",
+          "fn_800C1498",
+          "fn_800C14F0",
+          "fn_800C150C"
+        ],
+        "xbox_candidates": [
+          "pbInitError",
+          "pbResetError",
+          "pbCloseError",
+          "pbErrorf",
+          "pbErrorDie",
+          "fb_all_clear",
+          "bulletproof_printf",
+          "pbFatalErrorf"
+        ]
+      }
+    ],
+    "anchors": 0,
+    "exact_gap_candidates": [],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "",
+    "no_candidate": [],
+    "orientation": "forward",
+    "spelling_mismatches": [],
+    "xbox_module": "PB_ERROR.OBJ"
+  }
+}

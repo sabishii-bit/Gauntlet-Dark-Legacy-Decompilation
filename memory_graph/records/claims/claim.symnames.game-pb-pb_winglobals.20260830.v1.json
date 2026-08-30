@@ -1,0 +1,39 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-pb-pb_winglobals.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:57:51Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_winglobals.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [],
+    "anchors": 0,
+    "exact_gap_candidates": [],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "no xbox module with this stem",
+    "no_candidate": [
+      "fn_800C0ADC",
+      "fn_800C0BD4",
+      "fn_800C0E0C",
+      "fn_800C0F04",
+      "fn_800C0F40",
+      "fn_800C0F70",
+      "fn_800C0F90",
+      "fn_800C0FE4",
+      "fn_800C0FE8",
+      "fn_800C1004",
+      "fn_800C1120",
+      "fn_800C1148",
+      "fn_800C116C",
+      "fn_800C1170"
+    ],
+    "orientation": null,
+    "spelling_mismatches": [],
+    "xbox_module": null
+  }
+}

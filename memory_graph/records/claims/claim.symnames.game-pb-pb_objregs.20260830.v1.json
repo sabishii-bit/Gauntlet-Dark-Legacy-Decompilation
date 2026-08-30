@@ -1,0 +1,75 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-pb-pb_objregs.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:57:43Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_objregs.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_800C6960",
+          "fn_800C697C",
+          "fn_800C698C",
+          "fn_800C69A8",
+          "fn_800C69B8",
+          "fn_800C69D4",
+          "fn_800C69E4",
+          "fn_800C6A00",
+          "fn_800C6AB4"
+        ],
+        "xbox_candidates": [
+          "pbObjectSpAddr",
+          "f32Little2NativeEndian",
+          "_4ByteLittle2NativeEndian",
+          "_2ByteLittle2NativeEndian"
+        ]
+      }
+    ],
+    "anchors": 10,
+    "exact_gap_candidates": [
+      {
+        "address": "0x800c5d44",
+        "confidence": "exact-gap",
+        "gc": "fn_800C5D44",
+        "xbox_candidate": "setupKeepA"
+      },
+      {
+        "address": "0x800c5da8",
+        "confidence": "exact-gap",
+        "gc": "fn_800C5DA8",
+        "xbox_candidate": "setChrome"
+      },
+      {
+        "address": "0x800c6350",
+        "confidence": "exact-gap",
+        "gc": "fn_800C6350",
+        "xbox_candidate": "setPrimAlpha"
+      },
+      {
+        "address": "0x800c64a4",
+        "confidence": "exact-gap",
+        "gc": "fn_800C64A4",
+        "xbox_candidate": "setPrimColor"
+      }
+    ],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "spelling_mismatches": [
+      {
+        "address": "0x800c677c",
+        "gc": "pbSetDODrawRegs",
+        "xbox": "setTexInfo"
+      }
+    ],
+    "xbox_module": "pb_objregs.obj"
+  }
+}

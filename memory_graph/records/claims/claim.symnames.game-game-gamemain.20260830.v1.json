@@ -1,0 +1,125 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-game-gamemain.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:57:04Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/gamemain.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_800508A0",
+          "fn_80050910",
+          "fn_80050DD8",
+          "fn_800510A4",
+          "fn_80051164",
+          "fn_800511D0",
+          "fn_80051480",
+          "fn_80051568",
+          "fn_800516F8",
+          "fn_80051C78",
+          "fn_80051E1C",
+          "fn_8005207C",
+          "fn_800520C8",
+          "fn_80052134",
+          "fn_800521E8"
+        ],
+        "xbox_candidates": [
+          "game_main",
+          "init_stats_display",
+          "init_next_level",
+          "LoadTowerAndSelect"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_80053C70",
+          "fn_80053D08"
+        ],
+        "xbox_candidates": [
+          "LoadTowerDone",
+          "AllocMBMem"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_80054070"
+        ],
+        "xbox_candidates": [
+          "ShowLoading",
+          "GameDataInit",
+          "reset_game_data"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_80054CDC"
+        ],
+        "xbox_candidates": [
+          "CheckSoftReset"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_80055AFC",
+          "fn_80055F68",
+          "fn_8005636C",
+          "fn_80056698",
+          "fn_80057024",
+          "fn_80057ACC",
+          "fn_80057BC8",
+          "fn_80057F44"
+        ],
+        "xbox_candidates": [
+          "do_auto_exit",
+          "do_show_path"
+        ]
+      }
+    ],
+    "anchors": 11,
+    "exact_gap_candidates": [
+      {
+        "address": "0x8005351c",
+        "confidence": "exact-gap",
+        "gc": "fn_8005351C",
+        "xbox_candidate": "game_init_once"
+      },
+      {
+        "address": "0x80054e78",
+        "confidence": "exact-gap",
+        "gc": "fn_80054E78",
+        "xbox_candidate": "do_wave_timer"
+      },
+      {
+        "address": "0x800552a4",
+        "confidence": "exact-gap",
+        "gc": "fn_800552A4",
+        "xbox_candidate": "modify_sandglass"
+      },
+      {
+        "address": "0x800553b4",
+        "confidence": "exact-gap",
+        "gc": "fn_800553B4",
+        "xbox_candidate": "init_wave_timer"
+      },
+      {
+        "address": "0x80055678",
+        "confidence": "exact-gap",
+        "gc": "fn_80055678",
+        "xbox_candidate": "modify_thermometer"
+      }
+    ],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "spelling_mismatches": [],
+    "xbox_module": "GAMEMAIN.OBJ"
+  }
+}

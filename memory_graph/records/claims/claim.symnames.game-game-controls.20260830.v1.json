@@ -1,0 +1,55 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-game-controls.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:57:00Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/controls.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_80034C88"
+        ],
+        "xbox_candidates": [
+          "get_analog_dir",
+          "get_dir",
+          "mtap_open",
+          "joy_open",
+          "padHasStick",
+          "padIsAnalog",
+          "controls_monkey"
+        ]
+      }
+    ],
+    "anchors": 26,
+    "exact_gap_candidates": [],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "spelling_mismatches": [
+      {
+        "address": "0x80031854",
+        "gc": "vibrators_off",
+        "xbox": "joyEndShake"
+      },
+      {
+        "address": "0x800328b8",
+        "gc": "ClearControls",
+        "xbox": "ResetPlayerControls"
+      },
+      {
+        "address": "0x80032b84",
+        "gc": "PlayerControls",
+        "xbox": "print_edges"
+      }
+    ],
+    "xbox_module": "CONTROLS.OBJ"
+  }
+}

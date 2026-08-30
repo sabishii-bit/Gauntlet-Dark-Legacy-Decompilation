@@ -1,0 +1,333 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-sound-sounds_evt.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:58:08Z",
+  "schema_version": 1,
+  "subject": "tu:game/sound/sounds_evt.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_8009C98C",
+          "fn_8009C9DC"
+        ],
+        "xbox_candidates": [
+          "AudioTransport",
+          "AudioLegendItem",
+          "AudioGainedLevel",
+          "AudioHelp"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8009CB44",
+          "fn_8009CD80",
+          "fn_8009CDF8",
+          "fn_8009CE38",
+          "fn_8009CEE0",
+          "fn_8009CFA8",
+          "fn_8009D038",
+          "fn_8009D078",
+          "fn_8009D0A8"
+        ],
+        "xbox_candidates": [
+          "AudioKey",
+          "AudioPickupRune",
+          "AudioPickupSpecial",
+          "AudioPickupGold",
+          "AudioPickup",
+          "AudioOpenChest",
+          "AudioDoor"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8009D258",
+          "fn_8009D288",
+          "fn_8009D2B4",
+          "fn_8009D300",
+          "fn_8009D34C",
+          "fn_8009D350",
+          "fn_8009D37C"
+        ],
+        "xbox_candidates": [
+          "AudioBridgeOpen",
+          "AudioTrapSwitch",
+          "AudioFireLift",
+          "AudioPlayerExit",
+          "AudioPlayerEnter",
+          "AudioFindExit",
+          "AudioStunPlayers",
+          "AudioBuyPowerUps",
+          "AudioSelJourney",
+          "AudioSelChar",
+          "AudioEndGame",
+          "AudioPlayerStart",
+          "AudioTheme",
+          "AudioMenuBurn"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8009D4B0",
+          "fn_8009D4F0",
+          "fn_8009D530",
+          "fn_8009D560",
+          "fn_8009D5A0",
+          "fn_8009D5E0",
+          "fn_8009D610",
+          "fn_8009D694",
+          "fn_8009D7E4",
+          "fn_8009D8CC",
+          "fn_8009D91C",
+          "fn_8009D9A4",
+          "fn_8009D9D8",
+          "fn_8009DA28",
+          "fn_8009DA78",
+          "fn_8009DAC8",
+          "fn_8009DAF8",
+          "fn_8009DB24",
+          "fn_8009DCB4",
+          "fn_8009DCE4",
+          "fn_8009DD48",
+          "fn_8009DD6C",
+          "fn_8009DD9C",
+          "fn_8009DDCC",
+          "fn_8009DDFC",
+          "fn_8009DE2C",
+          "fn_8009DE5C",
+          "fn_8009DE88",
+          "fn_8009DF7C",
+          "fn_8009E03C",
+          "fn_8009E08C",
+          "fn_8009EE2C"
+        ],
+        "xbox_candidates": [
+          "AudioThunderHammer",
+          "AudioLightningShield",
+          "AudioFireShield",
+          "AudioLevitatedown",
+          "AudioUnshrink",
+          "AudioUngrow",
+          "AudioUnpojo",
+          "AudioSplash",
+          "AudioExitAnim",
+          "AudioHellDoor",
+          "AudioPlatform",
+          "AudioStoneGate2",
+          "AudioStoneGate",
+          "AudioElevator",
+          "AudioRotator",
+          "AudioLeafFall",
+          "AudioRockFall",
+          "AudioTentacle",
+          "AudioBarrelExplode",
+          "AudioPoisonBarrel"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8009EF4C",
+          "fn_8009EF7C",
+          "fn_8009EFCC"
+        ],
+        "xbox_candidates": [
+          "AudioClick",
+          "AudioWeaponHitBarrel",
+          "AudioWeaponReflect",
+          "AudioWalk"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8009F340",
+          "fn_8009F390",
+          "fn_8009F3D0",
+          "fn_8009F410",
+          "fn_8009F450",
+          "fn_8009F490"
+        ],
+        "xbox_candidates": [
+          "AudioBossKey"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8009FA84",
+          "fn_8009FAB4",
+          "fn_8009FB00",
+          "fn_8009FB30"
+        ],
+        "xbox_candidates": [
+          "AudioTimeRunsOut",
+          "AudioGrabGold",
+          "AudioEnterInitials",
+          "AudioGameOver",
+          "AudioSecretChar",
+          "AudioTreasureRoom",
+          "AudioCountDown"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_8009FEA0",
+          "fn_8009FEFC",
+          "fn_8009FF54",
+          "fn_8009FFA4",
+          "fn_8009FFF4"
+        ],
+        "xbox_candidates": [
+          "AudioEnterNewScene",
+          "AudioWaitToExit",
+          "AudioNowPojo",
+          "AudioHeroicEffort",
+          "AudioSuchBravery",
+          "AudioRuneGetCloser",
+          "AudioRuneIsNear",
+          "AudioNowIT",
+          "AudioNeedFood",
+          "AudioWelcomeBack",
+          "AudioWelcome",
+          "AudioHasItem",
+          "AudioWithName",
+          "InitNameAudio",
+          "is_chicken",
+          "AudioSecretTimer",
+          "DoTimestopSound",
+          "KillItemSound",
+          "DoItemSound",
+          "AudioDeathHurt"
+        ]
+      }
+    ],
+    "anchors": 22,
+    "exact_gap_candidates": [
+      {
+        "address": "0x8009c378",
+        "confidence": "exact-gap",
+        "gc": "fn_8009C378",
+        "xbox_candidate": "AudioMissedRune"
+      },
+      {
+        "address": "0x8009c3ec",
+        "confidence": "exact-gap",
+        "gc": "fn_8009C3EC",
+        "xbox_candidate": "AudioMissedLegend"
+      },
+      {
+        "address": "0x8009c460",
+        "confidence": "exact-gap",
+        "gc": "fn_8009C460",
+        "xbox_candidate": "AudioTowerFX"
+      },
+      {
+        "address": "0x8009c4f0",
+        "confidence": "exact-gap",
+        "gc": "fn_8009C4F0",
+        "xbox_candidate": "AudioRuneSpeech"
+      },
+      {
+        "address": "0x8009c5b8",
+        "confidence": "exact-gap",
+        "gc": "fn_8009C5B8",
+        "xbox_candidate": "AudioGargSpeech"
+      },
+      {
+        "address": "0x8009c620",
+        "confidence": "exact-gap",
+        "gc": "fn_8009C620",
+        "xbox_candidate": "AudioCrystalSpeech"
+      },
+      {
+        "address": "0x8009c688",
+        "confidence": "exact-gap",
+        "gc": "fn_8009C688",
+        "xbox_candidate": "AudioShardSpeech"
+      },
+      {
+        "address": "0x8009c710",
+        "confidence": "exact-gap",
+        "gc": "fn_8009C710",
+        "xbox_candidate": "AudioGoodWizard"
+      },
+      {
+        "address": "0x8009c774",
+        "confidence": "exact-gap",
+        "gc": "fn_8009C774",
+        "xbox_candidate": "AudioGeneratorDamaged"
+      },
+      {
+        "address": "0x8009c7d8",
+        "confidence": "exact-gap",
+        "gc": "fn_8009C7D8",
+        "xbox_candidate": "AudioGeneratorDies"
+      },
+      {
+        "address": "0x8009c850",
+        "confidence": "exact-gap",
+        "gc": "fn_8009C850",
+        "xbox_candidate": "AudioWorldHitPlyr"
+      },
+      {
+        "address": "0x8009c8a0",
+        "confidence": "exact-gap",
+        "gc": "fn_8009C8A0",
+        "xbox_candidate": "AudioWorldExplosion"
+      },
+      {
+        "address": "0x8009f06c",
+        "confidence": "exact-gap",
+        "gc": "fn_8009F06C",
+        "xbox_candidate": "AudioDamageTile"
+      },
+      {
+        "address": "0x8009f158",
+        "confidence": "exact-gap",
+        "gc": "fn_8009F158",
+        "xbox_candidate": "AudioPlayerHalo"
+      },
+      {
+        "address": "0x8009fca8",
+        "confidence": "exact-gap",
+        "gc": "fn_8009FCA8",
+        "xbox_candidate": "DoAudioTallySFX"
+      },
+      {
+        "address": "0x8009fd38",
+        "confidence": "exact-gap",
+        "gc": "fn_8009FD38",
+        "xbox_candidate": "AudioMapDot"
+      }
+    ],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "",
+    "no_candidate": [
+      "fn_8009F748"
+    ],
+    "orientation": "reversed",
+    "spelling_mismatches": [
+      {
+        "address": "0x8009c2cc",
+        "gc": "AudioFindPlayerSlot",
+        "xbox": "setup_audio"
+      },
+      {
+        "address": "0x8009c32c",
+        "gc": "AudioPlay3DSel",
+        "xbox": "AudioPlaySound"
+      },
+      {
+        "address": "0x8009f960",
+        "gc": "AudioPlayerPoison",
+        "xbox": "AudioPlayerSeverePain"
+      }
+    ],
+    "xbox_module": "SOUNDS.OBJ"
+  }
+}

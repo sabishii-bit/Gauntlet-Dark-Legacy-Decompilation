@@ -1,0 +1,53 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-sfx-psfx.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:57:58Z",
+  "schema_version": 1,
+  "subject": "tu:game/sfx/psfx.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_8008A678"
+        ],
+        "xbox_candidates": [
+          "PlayerSfxInit",
+          "InitPlyrData"
+        ]
+      }
+    ],
+    "anchors": 6,
+    "exact_gap_candidates": [
+      {
+        "address": "0x80089350",
+        "confidence": "exact-gap",
+        "gc": "fn_80089350",
+        "xbox_candidate": "PlyrSfxDoDamage"
+      },
+      {
+        "address": "0x800898dc",
+        "confidence": "exact-gap",
+        "gc": "fn_800898DC",
+        "xbox_candidate": "PlyrSfxDoDamageSub"
+      }
+    ],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "spelling_mismatches": [
+      {
+        "address": "0x80089ea8",
+        "gc": "DoPlyrSfxSub",
+        "xbox": "CalcPlayerSfxVel"
+      }
+    ],
+    "xbox_module": "PSFX.OBJ"
+  }
+}

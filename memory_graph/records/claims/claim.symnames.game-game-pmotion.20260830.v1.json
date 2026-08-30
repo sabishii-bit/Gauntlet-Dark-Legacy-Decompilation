@@ -1,0 +1,66 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-game-pmotion.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:57:07Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/pmotion.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_80088714",
+          "fn_80088938",
+          "fn_80088EF4"
+        ],
+        "xbox_candidates": [
+          "PlayerCollideFloor",
+          "PlayerCheckFloor",
+          "PlayerCollideWalls",
+          "GetPlayerDMotion",
+          "combo_player",
+          "PlayerFacePlayer"
+        ]
+      }
+    ],
+    "anchors": 10,
+    "exact_gap_candidates": [],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "spelling_mismatches": [
+      {
+        "address": "0x800867f0",
+        "gc": "PlayerMotion_FindClosestPlayer",
+        "xbox": "PlayerDamagePlayer"
+      },
+      {
+        "address": "0x80086924",
+        "gc": "PlayerMotion_HitTarget",
+        "xbox": "PlayerDamageItem"
+      },
+      {
+        "address": "0x80086a24",
+        "gc": "PlayerMotion_DamageTarget",
+        "xbox": "PlayerDamageEnemy"
+      },
+      {
+        "address": "0x8008760c",
+        "gc": "PlayerCollideEnemies",
+        "xbox": "DoAutoExit"
+      },
+      {
+        "address": "0x80087830",
+        "gc": "PlayerCollidePlayers",
+        "xbox": "VerifyItemCol"
+      }
+    ],
+    "xbox_module": "PMOTION.OBJ"
+  }
+}

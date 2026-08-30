@@ -1,0 +1,87 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-pb-pb_frame.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:57:36Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_frame.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_800C151C",
+          "fn_800C1624"
+        ],
+        "xbox_candidates": [
+          "pbSetupFrame",
+          "pbResetFrame",
+          "pbInitFrame",
+          "ipbSwapBuffer",
+          "ipbDebugShowBuffer",
+          "ishowZBuf",
+          "ishowDrawBuf",
+          "pbRedLineTest",
+          "pbFrameClearMasked",
+          "pbFrameClear"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_800C25F0",
+          "fn_800C2618",
+          "fn_800C2C74",
+          "fn_800C2F50",
+          "fn_800C2F88"
+        ],
+        "xbox_candidates": [
+          "pbScreenSetAdjust",
+          "pbFrameDebugSet",
+          "pbFrameDebugGrab",
+          "pbSetScreenSize",
+          "pbSetVirtualScreenSize",
+          "pbSetupFrameSize",
+          "MBIncFrameMode",
+          "MBSetFrameMode"
+        ]
+      }
+    ],
+    "anchors": 3,
+    "exact_gap_candidates": [
+      {
+        "address": "0x800c31c4",
+        "confidence": "exact-gap",
+        "gc": "fn_800C31C4",
+        "xbox_candidate": "MBOpenDisplay"
+      },
+      {
+        "address": "0x800c32d0",
+        "confidence": "exact-gap",
+        "gc": "fn_800C32D0",
+        "xbox_candidate": "MBCloseDisplay"
+      },
+      {
+        "address": "0x800c33d0",
+        "confidence": "exact-gap",
+        "gc": "fn_800C33D0",
+        "xbox_candidate": "MBInitFrameMode"
+      },
+      {
+        "address": "0x800c33ec",
+        "confidence": "exact-gap",
+        "gc": "fn_800C33EC",
+        "xbox_candidate": "pbCloseFrame"
+      }
+    ],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "",
+    "no_candidate": [],
+    "orientation": "reversed",
+    "spelling_mismatches": [],
+    "xbox_module": "PB_FRAME.OBJ"
+  }
+}

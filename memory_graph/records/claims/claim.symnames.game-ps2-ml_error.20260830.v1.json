@@ -1,0 +1,55 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-ps2-ml_error.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:57:54Z",
+  "schema_version": 1,
+  "subject": "tu:game/ps2/ml_error.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [
+      {
+        "gc_span": [
+          "fn_800BC418",
+          "fn_800BC4E4",
+          "fn_800BC52C"
+        ],
+        "xbox_candidates": [
+          "running_standalone",
+          "NextErrorStr",
+          "LogErrorf",
+          "FatalErrorC",
+          "ClearErrorsSub",
+          "ClearErrors",
+          "InitErrors",
+          "LogfileCreate",
+          "LogfileFlush",
+          "LogfilePrintf",
+          "breakpoint",
+          "PrintErrors",
+          "Errorf"
+        ]
+      },
+      {
+        "gc_span": [
+          "fn_800BC7FC"
+        ],
+        "xbox_candidates": [
+          "__matherror"
+        ]
+      }
+    ],
+    "anchors": 1,
+    "exact_gap_candidates": [],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "",
+    "no_candidate": [],
+    "orientation": "forward",
+    "spelling_mismatches": [],
+    "xbox_module": "ML_ERROR.OBJ"
+  }
+}

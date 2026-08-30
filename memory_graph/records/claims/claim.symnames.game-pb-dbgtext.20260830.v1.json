@@ -1,0 +1,33 @@
+{
+  "attributes": {
+    "scope": "symbol-naming revisit record from gdlmem.py symaudit 2026-08-30; candidates are positional PDB evidence, adopt only after per-function verification via the cross-TU rename procedure; supersede when named"
+  },
+  "epistemic_state": "observed",
+  "id": "claim.symnames.game-pb-dbgtext.20260830.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-30T22:57:29Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/dbgtext.c",
+  "valid_from": "2026-08-30",
+  "value": {
+    "ambiguous_spans": [],
+    "anchors": 0,
+    "exact_gap_candidates": [],
+    "lbl_data_symbols_unaligned": 0,
+    "naming_notes": "no xbox module with this stem",
+    "no_candidate": [
+      "fn_800C008C",
+      "fn_800C01C0",
+      "fn_800C02F4",
+      "fn_800C0310",
+      "fn_800C031C",
+      "fn_800C0394",
+      "fn_800C03E0",
+      "fn_800C0AA4"
+    ],
+    "orientation": null,
+    "spelling_mismatches": [],
+    "xbox_module": null
+  }
+}
