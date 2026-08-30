@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "apply the transition/bossdir decl-order-for-GPR-color lever (validated on BossCamBossCalc/GetActualAvgVec) to close residual on the player-follow camera solve",
+  "attributes": {
+    "anchors": "src/game/boss/bosscam.c::BossCamPlayerCalc (body ~line 1116, #pragma opt_propagation off); fndiff.py game/boss/bosscam.c BossCamPlayerCalc --count|--ops|--clean",
+    "axis_log": "AX1(WON,kept) locals `u8* p; u32 fl;` were declared BEFORE `s32 i; s32 off;` (the for-loop's own index/stride vars) -- swapped to `s32 i; s32 off;` before `u8* p; u32 fl;`: real 104->88, fuzzy 95.86->96.01%, --ops clusters UNCHANGED (pure register-color cascade, same as the BossCamBossCalc/GetActualAvgVec pattern). Sub-probe (NEUTRAL, reverted to the simpler form): moving `i,off` before `tr,cam` too (all 4 pointer/int scalars regrouped) gave the identical 88/96.01% result -- no further gain, kept the smaller single-swap diff. AX2(FAILED, reverted) for the fneg/lfs cluster, extracted the inline `-lbl_80343B88` LimitCamVal2 argument into a named `f32 negB88 = -lbl_80343B88;` statement immediately before the call (mirroring the point-of-use-delay family): produced BYTE-IDENTICAL codegen to baseline, --ops and real unchanged -- reverted, this is not the lever for the argument-evaluation-order tie.",
+    "baseline": "insns 368/368 exact, real 104, fuzzy 95.86%; --ops shows 2 small clusters: a li/lis+addi/li,li swap near the `for(i=0,off=0;...)` player-avg loop setup (T[68:74]), and an fneg/lfs reorder at the first LimitCamVal2 call's negated-bound argument (`-lbl_80343B88`, T[293:299])",
+    "final_state": "insns 368/368 (unchanged), real 88, fuzzy 96.01% (was 95.86%); remaining residual = the T[68:74] loop-setup register cluster (untouched by further decl-order sweeps) and the T[293:299] fneg/lfs argument-order tie (resistant to the named-temp extraction probe)",
+    "law_candidate": "reinforces the BossCamBossCalc transition/bossdir law: when a for-loop's own `i`/`off` index locals are declared textually AFTER other scalars that are only used inside the loop body (`p`, `fl` here), moving the index locals to be declared immediately before those body-scoped scalars can fix a GPR role-color mismatch that cascades through the whole loop and beyond -- cheap to try whenever a loop-index var's target register looks swapped with a loop-body scalar's.",
+    "verification": "ninja build/GUNE5D/src/game/boss/bosscam.o green; full ninja green; main.dol: OK; report.json fuzzy 96.01%; fndiff -l: all prior-OK siblings still OK; git diff --check clean; commit 4ee381330"
+  },
+  "function": "function:BossCamPlayerCalc",
+  "id": "attempt.bosscamplayercalc-loop-index-decl-order.20260830.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "record_state": "proposed",
+  "residual_class": "STRUCTURAL/REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
