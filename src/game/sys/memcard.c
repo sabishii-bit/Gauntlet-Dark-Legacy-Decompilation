@@ -329,21 +329,25 @@ int saveExists(void)
  * then normalize the 8 directory entry names.
  * PARKED 116/116 (opcodes match): DST address-expr scheduling differs.
  */
+#pragma opt_common_subs off
 int get_vmu_directory(int a, int b)
 {
     u8* base = lbl_8025EE80;
-    int i = 1; /* transaction flag, then reused as the dir-scan counter */
+    int success = 1;
     int bit = b + a * 4;
-    s32 off;
     u8 pad[16]; /* unused, matches original frame */
 
     if (lbl_80343C78 & (1 << bit)) {
         if ((u8) beginSaveCacheTransaction() != 1) {
-            i = 0;
+            success = 0;
         }
-        if (i) {
-            memcpy(base + 0x10000 + a * 132 + b * 132 + 22264,
-                   (u8*) lbl_80343C74 + 41416, 128);
+        if (success) {
+            u8* dst = base + 0x10000;
+
+            dst += a * 132;
+            dst += b * 132;
+            dst += 22264;
+            memcpy(dst, (u8*) lbl_80343C74 + 41416, 128);
         }
         cardExit();
         cardWaitResult();
@@ -353,18 +357,29 @@ int get_vmu_directory(int a, int b)
         sysClearFlags(64);
         bulletproof_printf(lbl_801131C0);
         lbl_803449EC = 0;
-        if (i) {
+        if (success) {
             lbl_80343C78 &= ~(1 << bit);
         }
     } else {
-        memcpy(base + 0x10000 + a * 132 + b * 132 + 22264,
-               (u8*) lbl_80343C74 + 41416, 128);
+        u8* dst = base + 0x10000;
+
+        dst += a * 132;
+        dst += b * 132;
+        dst += 22264;
+        memcpy(dst, (u8*) lbl_80343C74 + 41416, 128);
     }
-    if (i == 0) {
+    if (success == 0) {
         return -1;
     }
     {
-        u8* dir = base + 0x10000 + a * 132 + b * 132 + 22264;
+        s32 off;
+        u8* dir = base + 0x10000;
+        char* nm;
+        int i;
+
+        dir += a * 132;
+        dir += b * 132;
+        dir += 22264;
 
         for (i = 0, off = 0; i < 8; i++, off += 16) {
             u8* e = dir + off;
@@ -372,7 +387,7 @@ int get_vmu_directory(int a, int b)
             if (*(s32*) e == -1 || (s8) e[8] == 0) {
                 strcpy((char*) (e + 8), lbl_803472D8);
             } else {
-                char* nm = (char*) (e + 8);
+                nm = (char*) (e + 8);
 
                 if (strcmp(nm, lbl_803472D8) == 0 ||
                     strcmp(nm, lbl_803472E0) == 0) {
@@ -380,9 +395,10 @@ int get_vmu_directory(int a, int b)
                 }
             }
         }
+        return i;
     }
-    return i;
 }
+#pragma opt_common_subs reset
 
 /*
  * vmu_directory_exists - map the cached card state to a save result code
