@@ -3184,7 +3184,7 @@ f32 ModifyPlayerDpos(Player* p, f32* from, f32* dpos, u32 flags, s32 a5,
     if (slope > lbl_80347D00) {
         slope = lbl_80347D08;
     }
-    if ((PF(p, 0x8C0, u32) & 8) != 0 && slope > lbl_80347B30 &&
+    if ((SV(p)->floor_flags & 8) != 0 && slope > lbl_80347B30 &&
         slope < lbl_80347B00) {
         slope = lbl_80347B10;
     }
