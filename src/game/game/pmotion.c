@@ -3457,7 +3457,7 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
 void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
     u8 unused[8];
     f32 dvec[3];
-    f32 best = 2.0 + (f64)PF(p, 0x850, f32);
+    f32 best = 2.0 + (f64)p->col_radius;
     s32 i;
     s32 closest = -1;
 
@@ -3477,7 +3477,7 @@ void PlayerMotion_FindClosestPlayer(Player* p, f32* dir, u32 flags, f32 dmg) {
         if (dot < 0.707) {
             continue;
         }
-        adj = len - PF(op, 0x850, f32);
+        adj = len - op->col_radius;
         if (adj >= best) {
             continue;
         }
@@ -3761,8 +3761,8 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
         } else {
             out[1] = dy / d;
         }
-        out[0] = sin(PF(p, 0xC8, f32));
-        out[2] = cos(PF(p, 0xC8, f32));
+        out[0] = sin(SV(p)->rot[1]);
+        out[2] = cos(SV(p)->rot[1]);
         NormalVector(out);
     }
 
@@ -3772,11 +3772,11 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
             vec[1] = ty - pos[1];
             vec[2] = tz - pos[2];
             NormalVector(vec);
-            vec[0] = vec[0] * (lbl_80347C28 * PF(p, 0x850, f32)) + pos[0];
-            vec[1] = vec[1] * (lbl_80347C28 * PF(p, 0x850, f32)) + pos[1];
-            vec[2] = vec[2] * (lbl_80347C28 * PF(p, 0x850, f32)) + pos[2];
+            vec[0] = vec[0] * (lbl_80347C28 * p->col_radius) + pos[0];
+            vec[1] = vec[1] * (lbl_80347C28 * p->col_radius) + pos[1];
+            vec[2] = vec[2] * (lbl_80347C28 * p->col_radius) + pos[2];
             dist = fn_8005F0F4((u8*)p->collision_item, (s32)pos, vec, 0,
-                               PF(p, 0x850, f32), PF(p, 0x854, f32));
+                               p->col_radius, p->col_height);
             if (dist >= lbl_80347B08) {
                 id = -1;
                 best = limit;
@@ -4195,7 +4195,7 @@ extern f32 lbl_80347B30; /* 0.0f (sdata2) */
 extern f64 lbl_80347BE8; /* 0.01 (sdata2) */
 
 int PlayerNewFloor(PMotionCtx* m, Player* p, f32* dpos) {
-    WorldObj* mf = (WorldObj*)PF(p, 0x8C4, u32);
+    WorldObj* mf = (WorldObj*)p->floor_name2;  /* floor-object cache; see PSpawnView.floor_obj */
     s32 result;
 
     if (mf != NULL && (mf->flags & 0xC000000) != 0 &&
@@ -4206,25 +4206,25 @@ int PlayerNewFloor(PMotionCtx* m, Player* p, f32* dpos) {
         return 0;
     }
 
-    CopyMat3((f32*)m, (f32*)PF(p, 0x6C8, u32));
+    CopyMat3((f32*)m, (f32*)p->mbnode);
     result = PlayerCheckFloor(p, m->floor, dpos);
 
     if (m->floor != NULL && (m->floor->flags & 8) != 0) {
         f32 d1 = fqdist(dpos[0], dpos[2]);
         f32 d2 = fqdist(d1, dpos[1]);
         if (d1 > 0.01 && d2 > 0.01 &&
-            ((PF(p, 0x8C0, u32) & 8) == 0 || fabsf_(dpos[1]) > 0.01)) {
+            ((SV(p)->floor_flags & 8) == 0 || fabsf_(dpos[1]) > 0.01)) {
             PF(p, 0x8BC, f32) = dpos[1] / d2;
         }
     } else {
         {
-            f32 t1 = m->fwd[0] * PF(p, 0x38, f32) - m->fwd[1] * PF(p, 0x34, f32);
-            f32 t2 = m->fwd[1] * PF(p, 0x3C, f32) - m->fwd[2] * PF(p, 0x38, f32);
+            f32 t1 = m->fwd[0] * p->mat[9] - m->fwd[1] * p->mat[8];
+            f32 t2 = m->fwd[1] * p->mat[10] - m->fwd[2] * p->mat[9];
             PF(p, 0x8BC, f32) = t1 * m->fwd[0] - t2 * m->fwd[2];
         }
     }
 
-    PF(p, 0x8C0, u32) = m->floor != NULL ? m->floor->flags : 0;
+    SV(p)->floor_flags = m->floor != NULL ? m->floor->flags : 0;
     return result;
 }
 int PlayerCheckFloor(Player* p, WorldObj* obj, f32* dpos) {
@@ -4249,7 +4249,7 @@ int PlayerCheckFloor(Player* p, WorldObj* obj, f32* dpos) {
     }
 
     if (obj != (WorldObj*)p->floor_name2) {
-        PF(p, 0x964, s16) |= 1;
+        p->hud_flags |= 1;
     }
     p->floor_name2 = (char*)obj;
 
@@ -4463,13 +4463,13 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
 }
 
 int PlayerCheckMovingFloor_80088688(Player* p) {
-    f32 drop = -(3.0 + (f64)PF(p, 0x854, f32));
+    f32 drop = -(3.0 + (f64)p->col_height);
     if (gGameMode == 0x4010) {
-        PF(p, 0x8C4, u32) = FloorCollide(PF(p, 0x850, f32), 0.0f, drop,
-            (f32*)((u8*)p + 0x44), NULL, 1, 0);
-        PF(p, 0x964, s16) |= 1;
+        p->floor_name2 = (char*)FloorCollide(p->col_radius, 0.0f, drop,
+            p->pos, NULL, 1, 0);
+        p->hud_flags |= 1;
     }
-    if (PF(p, 0x8C4, u32) != 0) {
+    if (p->floor_name2 != NULL) {
         return 1;
     }
     return 0;
