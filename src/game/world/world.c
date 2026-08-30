@@ -2,6 +2,10 @@
 #include "game/worldinfo.h"
 #include "game/worldobj.h"
 
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
 /* Gauntlet world-object/scene module (Xbox WORLD.OBJ), region
  * 0x800A87C8 - 0x800AB8E0.  Wired NonMatching: the DOL bytes are substituted
  * for the linked image, but this TU is compiled for objdiff, so it just needs
@@ -447,10 +451,10 @@ void ResetWorlds(void) {
     world_root1 = (void*)zero;
     lbl_80344DA4 = (void*)zero;
     lbl_80344DA0 = (void*)zero;
-    world_blob[0x168 / 4] = -1;
-    world_blob[0xC4 / 4] = -1;
-    world_blob[0xE4 / 4] = zero;
-    world_blob[0x40 / 4] = zero;
+    world_blob[(228 + (s32)offsetof(WorldInfo, model)) / 4] = -1;    /* gWorldInfo.model   */
+    world_blob[(64 + (s32)offsetof(WorldInfo, model)) / 4] = -1;     /* gWorldInfo2.model  */
+    world_blob[(228 + (s32)offsetof(WorldInfo, inited)) / 4] = zero; /* gWorldInfo.inited  */
+    world_blob[(64 + (s32)offsetof(WorldInfo, inited)) / 4] = zero;  /* gWorldInfo2.inited */
     lbl_80344D74 = (s32*)zero;
     lbl_80344D78 = (float*)zero;
 }
