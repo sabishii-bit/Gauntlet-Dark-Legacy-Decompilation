@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "structural verification (insn count already EXACT 843/843; all 23 --ops clusters are a single repeated pattern occurring 5x, once per q->p_parms[0..4] RGBA/width clamp-and-scale block at lines ~2098-2340) + 3 source-shape probes on the repeated clamp pattern: (1) rewrite the 4th field (fade_end, currently a double-negated `if(!(t3<lo)){if(!(t3>hi))hi=t3;lo=hi;}` reconstruction) into the SAME plain `if(fv<lo)fv=lo;else if(fv>hi)fv=hi;` form used by the other 3 fields in each block -> WORSE (real 462->567, insns 843->844, lost the exact insn-count match) -- the double-negation form is the CORRECT reconstruction, closer to target despite its odd shape, reverted; (2) combine the block-local `f32 sc=..; f32 lo=..; f32 hi=..;` three separate declarations into one comma decl -> no-op (462->462), reverted; (3) mirror the ageTmp lever that won on MBDrawPsys: stage `t0` through a separate named temp before the multiply (`f32 t0s=t0; f32 fv=t0s*sc;`) on the FIRST repeat-block only, to try to force fv into a fresh register instead of reusing t0's -> WORSE (462->580), reverted -- the ageTmp technique does not generalize to this site",
+  "attributes": {
+    "anchors": "src/game/mb/mb_particle.c::setWorldParms lines 1977-2399; target .text 3372B (843 insns) == ours 843 insns EXACTLY; struct field map: q->p_parms[0..4] = blue/green/red/intensity/width (enum MB_PSYSPPARM_*), each PsysParm.i = {life_start,life_end,fade_start,fade_end} scaled by pif[global_table] and clamped to [pif[lo],pif[hi]] per-channel",
+    "baseline_and_best": "baseline 95.46% fuzzy / real 462 (insns 843, EXACT count) = BEST (unchanged, both probes reverted)",
+    "law_note": "the double-negated reconstruction for the 4th (fade_end) field in each clamp block is CONFIRMED closer-to-target than the naive uniform rewrite -- do not 'simplify' it away in future refinement passes without re-verifying against target bytes first",
+    "measurements": "axis1 fade_end standard-form: 462->567 (worse, insn count also regressed off-exact, reverted); axis2 combined decl: 462->462 (no-op, reverted); axis3 t0s staged temp: 462->580 (worse, reverted)",
+    "policy": "portable C only; all 3 probes reverted; function confirmed byte-identical to session start",
+    "residual": "ROOT CAUSE IDENTIFIED (not fixed): in each of the 5 repeat-blocks, the FIRST field's clamp (life_start) emits one extra `fmr` (target reuses the register holding 'lo' directly for both the fcmpo compare and the clamp-assignment; our compile allocates a SEPARATE register for the assignment, needing an extra copy from lo's home). This costs exactly 1 extra insn per block x5 = the function's entire 'insert T[349]-style' cluster family. The likely cause is register-web coalescing between the nested-block 'fv' local and the OUTER t0/t1/t2/t3 locals (fv appears to reuse tN's dying register directly in our compile, `fmuls f2,f2,f0`, whereas target keeps fv in a FRESH register `fmuls f6,f0,f4`, leaving lo/hi/sc's registers undisturbed). Neither decl-merging nor the ageTmp-style staged-temp lever (proven elsewhere in this TU) fixes it here -- axis exhausted at 3 attempts per iteration-limits policy. Do not retry these 3 specific probes; a genuinely new hypothesis (e.g. touching pif[] access shape, or the q=(Psys*)node->data.psys re-fetch before each block) is needed."
+  },
+  "function": "function:setWorldParms",
+  "id": "attempt.setworldparms-clamp-block-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
