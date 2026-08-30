@@ -1,0 +1,13 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU game/world/gauntworld.c exclusively: fn_800606FC, fn_8005C1DC, fn_8005F0F4, fn_8005BA1C; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-29",
+  "function": "function:fn_800606FC",
+  "id": "work_claim.gauntworld-midband.20260829.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-B",
+  "schema_version": 1,
+  "state": "active"
+}
