@@ -1170,10 +1170,10 @@ void DoPlayerAction(void* player)
         if (next == 0x6B) {
             didt = 1;
             act = 0x6C;
-        } else if (atkNext == 0) {
-            act = 0x6D;
-        } else {
+        } else if (atkNext != 0) {
             mode = 1;
+        } else {
+            act = 0x6D;
         }
         break;
     case 0x6E:
