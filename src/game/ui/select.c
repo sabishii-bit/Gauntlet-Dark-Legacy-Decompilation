@@ -1573,11 +1573,11 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         MBNewTempBlit(lbl_80344E34, bx, by, sz, sz2);
         DrawTextKeepScale(scale, bx + (sz + 8), by + 4, font,
                           0xFFFFFF, lbl_80347F1C);
-        if (*(s32*)(pl + 16) < 8) {
+        if (*(s32*)(pl + offsetof(Player, respawn_char)) < 8) {
             t = 1;
         } else {
             t = 1;
-            switch (*(u16*)(pl + 2700) & (t << (*(s32*)(pl + 16) - 8))) {
+            switch (*(u16*)(pl + 2700) & (t << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
             case 0:
                 t = 0;
                 break;
