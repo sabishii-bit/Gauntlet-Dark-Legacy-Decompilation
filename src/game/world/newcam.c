@@ -203,9 +203,29 @@ extern f32       lbl_80343CE8;      /* min-distance scale (0.8) */
 extern f32       lbl_80343CFC;      /* debug-camera speed ramp factor */
 extern void*     gCurLevel;         /* level record; +0x60 = active CAMERA* (bounds) */
 
-/* NEWCAM projection-parameter block: the live MB window pointer (mb_window.c
- * .sbss), half-FOV tangents at +0x1C / +0x20, view matrix at +0x64. */
-extern f32* lbl_80344EE8;
+/*
+ * NEWCAM projection-parameter block: the live MB window (mb_window.c's
+ * MBWINDOW, .sbss pointer lbl_80344EE8).  Partial LOCAL view carrying only
+ * the fields this TU touches; field names come from mb_window.c's own
+ * MBWINDOW/MBCamNode typedefs (the TU that owns and types the full struct),
+ * not invented: half-FOV angles ang/hang at 0x1C/0x20 (newcam takes tan() of
+ * them directly, not the struct's precomputed tanAng/tanHang), and the
+ * default camera node's basis matrix + position (cam.mat/cam.pos) at 0x64.
+ */
+typedef struct NcProjCamNode {
+    f32 mat[12];   /* 0x00 3x4 camera matrix */
+    f32 pos[3];    /* 0x30 camera position */
+} NcProjCamNode;    /* mb_window.c: MBCamNode */
+
+typedef struct NcProjWindow {
+    u8  pad_00[0x1C];
+    f32 ang;            /* 0x1C */
+    f32 hang;           /* 0x20 */
+    u8  pad_24[0x64 - 0x24];
+    NcProjCamNode cam;  /* 0x64 */
+} NcProjWindow;          /* partial view of mb_window.c: MBWINDOW (0x1A8) */
+
+extern NcProjWindow* lbl_80344EE8;
 /* seed vector for YawVec3 (a fixed unit direction). */
 extern const u8 lbl_80127D30[];
 
@@ -282,7 +302,6 @@ extern char lbl_801137D0[];
  * still interpolating, 0 when done.  [caller: fn_8006DF34]
  */
 s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam) {
-    u8* c = (u8*)cam;
     f32 step;
     f64 d;
 
@@ -296,47 +315,47 @@ s32 fn_80070144(f32 targetYaw, f32 targetPitch, NcCamera* cam) {
         step = 1.0f;
     }
 
-    if (lbl_80343CF8 != *(s32*)(c + 0x1A8)) {
-        *(s32*)(c + 0x1A8) = lbl_80343CF8;
+    if (lbl_80343CF8 != cam->field_1A8) {
+        cam->field_1A8 = lbl_80343CF8;
 
-        if ((d = (f32)(targetYaw - *(f32*)(c + 0xEC))) > 3.141592654) {
+        if ((d = (f32)(targetYaw - cam->yaw)) > 3.141592654) {
             d = d - 6.283185308;
         } else if (d <= -3.141592654) {
             d = 6.283185308 + d;
         }
-        *(f32*)(c + 0xF0) = d / (f64)lbl_80343CEC;
+        cam->yaw_rate = d / (f64)lbl_80343CEC;
 
-        d = (f32)(targetPitch - *(f32*)(c + 0x104));
+        d = (f32)(targetPitch - cam->pitch);
         if (d > 3.141592654) {
             d = d - 6.283185308;
         } else if (d <= -3.141592654) {
             d = 6.283185308 + d;
         }
-        *(f32*)(c + 0x108) = d / (f64)lbl_80343CEC;
+        cam->pitch_rate = d / (f64)lbl_80343CEC;
 
-        *(f32*)(c + 0x1AC) = 0.0f;
+        cam->field_1AC = 0.0f;
     }
 
-    if (*(f32*)(c + 0x1AC) < (f32)lbl_80343CEC) {
-        d = *(f32*)(c + 0xF0) * step + *(f32*)(c + 0xEC);
+    if (cam->field_1AC < (f32)lbl_80343CEC) {
+        d = cam->yaw_rate * step + cam->yaw;
         if (d > 3.141592654) {
             d = d - 6.283185308;
         } else if (d <= -3.141592654) {
             d = 6.283185308 + d;
         }
-        *(f32*)(c + 0xEC) = d;
+        cam->yaw = d;
 
-        d = *(f32*)(c + 0x108) * step + *(f32*)(c + 0x104);
+        d = cam->pitch_rate * step + cam->pitch;
         if (d > 3.141592654) {
             d = d - 6.283185308;
         } else if (d <= -3.141592654) {
             d = 6.283185308 + d;
         }
-        *(f32*)(c + 0x104) = d;
+        cam->pitch = d;
     } else {
         return 0;
     }
-    *(f32*)(c + 0x1AC) = *(f32*)(c + 0x1AC) + step;
+    cam->field_1AC = cam->field_1AC + step;
     return 1;
 }
 extern const f32 lbl_80127D20[3];  /* up ref: general */
@@ -441,12 +460,12 @@ s32 UpdateCam(void) {
     }
     if (lbl_80344A90 != 0) {
         lbl_80344A90 = 0;
-        MBCameraUpdate((f32*)((u8*)lbl_80344A6C + 0x30), (f32*)lbl_80344A6C);
-        MBWindowZoom(*(f32*)((u8*)lbl_80344A6C + 0x10C));
-        if (*(f32*)((u8*)lbl_80344A6C + 0x110) > 0.0) {
+        MBCameraUpdate((f32*)&lbl_80344A6C->position, (f32*)lbl_80344A6C);
+        MBWindowZoom(lbl_80344A6C->zoom);
+        if (lbl_80344A6C->aspect > 0.0) {
             MBWindowProjection(
-                0.31830988614222805 * (180.0 * *(f32*)((u8*)lbl_80344A6C + 0x10C)),
-                1.0 / *(f32*)((u8*)lbl_80344A6C + 0x110));
+                0.31830988614222805 * (180.0 * lbl_80344A6C->zoom),
+                1.0 / lbl_80344A6C->aspect);
         }
         return 1;
     }
@@ -471,6 +490,40 @@ typedef struct NcMarker {
     u8    _1C[0x24 - 0x1C];
     void* node;       /* 0x24 scene node handle */
 } NcMarker;           /* 0x28 */
+
+/*
+ * Level camera-bounds record (Xbox misc.h camera_data, Id=3269, size 0x6C;
+ * research/xbox_symbols/misc.h:28176).  Only the fields this TU reads are
+ * verified here; each field's byte offset was cross-checked against this
+ * unit's own target displacements via fnasm.py before adoption (see the
+ * de-fakematch attempt record for the per-field evidence):
+ *   minpitch @0x08 -- GetPlayerAvgPos/CamGetPlayerAvgPos never touch it, but
+ *                      fn_8006F16C/fn_8006F418/fn_8006DF34 read it at
+ *                      lwz+lfs 8(r3) off gCurLevel->camera (0x60/0x60).
+ *   min[3]   @0x0C, max[3] @0x18 -- GetPlayerAvgPos/CamGetPlayerAvgPos clamp
+ *                      loops read lfs 12(r6)/24(r6) off camera+k*4.
+ *   minrad   @0x2C, maxrad @0x30 -- fn_8006F16C/fn_8006F418 read
+ *                      lfs 44(r4)/48(r4) off gCurLevel->camera; CalcDist's
+ *                      already-matched body reads the same two fields.
+ * This is a partial view (verified fields only), not the full Xbox layout.
+ */
+typedef struct CameraData {
+    u8   pad_00[0x08];
+    f32  minpitch;   /* 0x08 */
+    f32  min[3];     /* 0x0C world-space camera bounds minimum */
+    f32  max[3];     /* 0x18 world-space camera bounds maximum */
+    u8   pad_24[0x2C - 0x24];
+    f32  minrad;     /* 0x2C minimum follow distance */
+    f32  maxrad;     /* 0x30 maximum follow distance */
+} CameraData;
+
+/* level_data (Xbox: level record); +0x60 = the active CameraData* (bounds).
+ * Field verified via fnasm.py: `lwz r0,96(r5)` off gCurLevel in every
+ * function below that dereferences it. */
+typedef struct NcLevelData {
+    u8 pad_00[0x60];
+    CameraData* camera;    /* 0x60 */
+} NcLevelData;
 
 extern NcMarker sTriggerCameras[];  /* marker records */
 extern s32 sNumTriggerCameras;         /* marker count */
@@ -580,19 +633,22 @@ void fn_8006FE30(void) {
         CamReset(lbl_80344A68);
         lbl_80344A7C = 1;
     }
-    CopyMat3((f32*)((u8*)lbl_80344EE8 + 100), (f32*)lbl_80344A68);
-    ((f32*)lbl_80344A68)[0xc] = *(f32*)((u8*)lbl_80344EE8 + 0x94);
-    ((f32*)lbl_80344A68)[0xd] = *(f32*)((u8*)lbl_80344EE8 + 0x98);
-    ((f32*)lbl_80344A68)[0xe] = *(f32*)((u8*)lbl_80344EE8 + 0x9c);
-    ((f32*)lbl_80344A68)[0x38] = ((f32*)lbl_80344A68)[8];
-    ((f32*)lbl_80344A68)[0x39] = ((f32*)lbl_80344A68)[9];
-    ((f32*)lbl_80344A68)[0x3a] = ((f32*)lbl_80344A68)[0xa];
-    ((f32*)lbl_80344A68)[0x29] = ((f32*)lbl_80344A68)[0xc];
-    ((f32*)lbl_80344A68)[0x2a] = ((f32*)lbl_80344A68)[0xd];
-    ((f32*)lbl_80344A68)[0x2b] = ((f32*)lbl_80344A68)[0xe];
-    ((f32*)lbl_80344A68)[0x3d] = 0.0f;
-    GetYawPitch((f32*)lbl_80344A68 + 0x38, (f32*)lbl_80344A68 + 0x3b,
-                (f32*)lbl_80344A68 + 0x41);
+    /* the leading 0x00-0x30 basis-matrix region (written whole by CopyMat3) has
+     * no recovered per-row field identity; indices 8/9/0xa (its forward row)
+     * stay raw index expressions. */
+    CopyMat3(lbl_80344EE8->cam.mat, (f32*)lbl_80344A68);
+    lbl_80344A68->position.x = lbl_80344EE8->cam.pos[0];
+    lbl_80344A68->position.y = lbl_80344EE8->cam.pos[1];
+    lbl_80344A68->position.z = lbl_80344EE8->cam.pos[2];
+    lbl_80344A68->direction.x = ((f32*)lbl_80344A68)[8];
+    lbl_80344A68->direction.y = ((f32*)lbl_80344A68)[9];
+    lbl_80344A68->direction.z = ((f32*)lbl_80344A68)[0xa];
+    lbl_80344A68->attention.x = lbl_80344A68->position.x;
+    lbl_80344A68->attention.y = lbl_80344A68->position.y;
+    lbl_80344A68->attention.z = lbl_80344A68->position.z;
+    lbl_80344A68->distance = 0.0f;
+    GetYawPitch((f32*)&lbl_80344A68->direction, &lbl_80344A68->yaw,
+                &lbl_80344A68->pitch);
 }
 
 /* Per-frame debug-camera update. */
@@ -606,7 +662,7 @@ static inline u32 NcApplyMask(u32 value, u32 mask) {
 
 #pragma opt_propagation off
 s32 fn_8006FF1C(void) {
-    f32* cam;
+    NcCamera* cam;
     f32 pitch;
     u32 controller;
     u32 zero;
@@ -622,30 +678,30 @@ s32 fn_8006FF1C(void) {
     lbl_80344A74 += 8;
     DebugCamControlInputs();
 
-    cam = (f32*)lbl_80344A68;
-    pitch = cam[0x41];
-    YawVec3(lbl_80127D40, (Vec3*)(cam + 0x38), -cam[0x3B]);
-    PitchVec3(cam + 0x38, cam + 0x38, -pitch);
-    DoShake((Vec3*)(cam + 0xC), (Vec3*)(cam + 0x29));
+    cam = lbl_80344A68;
+    pitch = cam->pitch;
+    YawVec3(lbl_80127D40, &cam->direction, -cam->yaw);
+    PitchVec3((f32*)&cam->direction, (f32*)&cam->direction, -pitch);
+    DoShake(&cam->position, &cam->attention);
 
-    cam[0xC] = cam[0x38] * -cam[0x3D] + cam[0x29];
-    cam[0xD] = cam[0x39] * -cam[0x3D] + cam[0x2A];
-    cam[0xE] = cam[0x3A] * -cam[0x3D] + cam[0x2B];
-    CamLookInDir(cam + 0x38, (u32)cam);
+    cam->position.x = cam->direction.x * -cam->distance + cam->attention.x;
+    cam->position.y = cam->direction.y * -cam->distance + cam->attention.y;
+    cam->position.z = cam->direction.z * -cam->distance + cam->attention.z;
+    CamLookInDir((f32*)&cam->direction, (u32)cam);
 
-    CopyMat4(cam, &gCameras[0].mat[0][0]);
-    gCameras[0].wpos[0] = cam[0xC];
-    gCameras[0].wpos[1] = cam[0xD];
-    gCameras[0].wpos[2] = cam[0xE];
-    gCameras[0].attn[0] = cam[0x29];
-    gCameras[0].attn[1] = cam[0x2A];
-    gCameras[0].attn[2] = cam[0x2B];
-    MBCameraUpdate(cam + 0xC, cam);
-    MBWindowZoom(cam[0x43]);
-    if (cam[0x44] > 0.0) {
+    CopyMat4((f32*)cam, &gCameras[0].mat[0][0]);
+    gCameras[0].wpos[0] = cam->position.x;
+    gCameras[0].wpos[1] = cam->position.y;
+    gCameras[0].wpos[2] = cam->position.z;
+    gCameras[0].attn[0] = cam->attention.x;
+    gCameras[0].attn[1] = cam->attention.y;
+    gCameras[0].attn[2] = cam->attention.z;
+    MBCameraUpdate((f32*)&cam->position, (f32*)cam);
+    MBWindowZoom(cam->zoom);
+    if (cam->aspect > 0.0) {
         MBWindowProjection(
-            0.31830988614222805 * (180.0 * cam[0x43]),
-            1.0 / cam[0x44]);
+            0.31830988614222805 * (180.0 * cam->zoom),
+            1.0 / cam->aspect);
     }
 
     controller = gControllerButtons;
@@ -656,9 +712,9 @@ s32 fn_8006FF1C(void) {
          NcMaskMismatch(controller & zero, zero)) != 0) {
         dbgTextPrintfCell(
             0xFFFF00, 1, 0x20, lbl_801137D0,
-            0.31830988614222805 * (180.0 * cam[0x3B]),
-            0.31830988614222805 * (180.0 * cam[0x41]),
-            cam[0x3D], cam[0x40], cam[0x29], cam[0x2A], cam[0x2B]);
+            0.31830988614222805 * (180.0 * cam->yaw),
+            0.31830988614222805 * (180.0 * cam->pitch),
+            cam->distance, cam->field_100, cam->attention.x, cam->attention.y, cam->attention.z);
     }
     return 1;
 }
@@ -694,12 +750,12 @@ void CurTransmitterBlink(s32 idx) {
  * projection to the FOV in degrees and the inverse distance.  [caller: bosscam]
  */
 void fn_8006ECD4(void) {
-    MBCameraUpdate((f32*)((u8*)lbl_80344A6C + 0x30), (f32*)lbl_80344A6C);
-    MBWindowZoom(*(f32*)((u8*)lbl_80344A6C + 0x10C));
-    if (*(f32*)((u8*)lbl_80344A6C + 0x110) > 0.0) {
+    MBCameraUpdate((f32*)&lbl_80344A6C->position, (f32*)lbl_80344A6C);
+    MBWindowZoom(lbl_80344A6C->zoom);
+    if (lbl_80344A6C->aspect > 0.0) {
         MBWindowProjection(
-            0.31830988614222805 * (180.0 * *(f32*)((u8*)lbl_80344A6C + 0x10C)),
-            1.0 / *(f32*)((u8*)lbl_80344A6C + 0x110));
+            0.31830988614222805 * (180.0 * lbl_80344A6C->zoom),
+            1.0 / lbl_80344A6C->aspect);
     }
 }
 
@@ -848,57 +904,59 @@ s32 fn_8006DC64(NcCamera* cam, NcPlayer* player, Vec3* pt, s32 mode) {
  */
 #pragma dont_inline on
 void CamReset(NcCamera* cam) {
+    /* p keeps the field_0C8..field_0D8 pad region raw: no field within it is
+     * ever read anywhere in this TU, so its identity is genuinely unrecovered. */
     u8* p = (u8*)cam;
     s32 i;
 
-    *(f32*)(p + 0xEC) = 3.1415927f;
-    *(f32*)(p + 0xF0) = 0.0f;
-    *(f32*)(p + 0x104) = 0.0f;
-    *(f32*)(p + 0x108) = 0.0f;
-    *(f32*)(p + 0xF4) = 0.0f;
-    *(f32*)(p + 0xF8) = 0.0f;
-    *(f32*)(p + 0xE0) = 0.0f;
-    *(f32*)(p + 0xE4) = 0.0f;
-    *(f32*)(p + 0xE8) = 0.0f;
-    *(f32*)(p + 0xA4) = 0.0f;
-    *(f32*)(p + 0xA8) = 0.0f;
-    *(f32*)(p + 0xAC) = 0.0f;
-    *(f32*)(p + 0xBC) = 0.0f;
-    *(f32*)(p + 0xC0) = 0.0f;
-    *(f32*)(p + 0xC4) = 0.0f;
+    cam->yaw = 3.1415927f;
+    cam->yaw_rate = 0.0f;
+    cam->pitch = 0.0f;
+    cam->pitch_rate = 0.0f;
+    cam->distance = 0.0f;
+    cam->dist_rate = 0.0f;
+    cam->direction.x = 0.0f;
+    cam->direction.y = 0.0f;
+    cam->direction.z = 0.0f;
+    cam->attention.x = 0.0f;
+    cam->attention.y = 0.0f;
+    cam->attention.z = 0.0f;
+    cam->velocity.x = 0.0f;
+    cam->velocity.y = 0.0f;
+    cam->velocity.z = 0.0f;
     *(f32*)(p + 0xC8) = 0.0f;
     *(f32*)(p + 0xCC) = 0.0f;
     *(f32*)(p + 0xD0) = 0.0f;
-    *(f32*)(p + 0x40) = 0.0f;
-    *(f32*)(p + 0x44) = 0.0f;
-    *(f32*)(p + 0x48) = 0.0f;
-    *(f32*)(p + 0x50) = 0.0f;
-    *(f32*)(p + 0x54) = 0.0f;
-    *(f32*)(p + 0x58) = 0.0f;
-    *(f32*)(p + 0x60) = 0.0f;
-    *(f32*)(p + 0x64) = 0.0f;
-    *(f32*)(p + 0x68) = 0.0f;
-    *(f32*)(p + 0x70) = 0.0f;
-    *(f32*)(p + 0x74) = 0.0f;
-    *(f32*)(p + 0x78) = 0.0f;
+    cam->planes[0].normal.x = 0.0f;
+    cam->planes[0].normal.y = 0.0f;
+    cam->planes[0].normal.z = 0.0f;
+    cam->planes[1].normal.x = 0.0f;
+    cam->planes[1].normal.y = 0.0f;
+    cam->planes[1].normal.z = 0.0f;
+    cam->planes[2].normal.x = 0.0f;
+    cam->planes[2].normal.y = 0.0f;
+    cam->planes[2].normal.z = 0.0f;
+    cam->planes[3].normal.x = 0.0f;
+    cam->planes[3].normal.y = 0.0f;
+    cam->planes[3].normal.z = 0.0f;
 
     for (i = 0; i < 9; i++) {
-        *(f32*)(p + i * 0xC + 0x114) = 0.0f;
-        *(f32*)(p + i * 0xC + 0x118) = 0.0f;
-        *(f32*)(p + i * 0xC + 0x11C) = 0.0f;
-        *(f32*)(p + i * 4 + 0x180) = 0.0f;
+        cam->ring_pos[i].x = 0.0f;
+        cam->ring_pos[i].y = 0.0f;
+        cam->ring_pos[i].z = 0.0f;
+        cam->ring_dist[i] = 0.0f;
     }
 
-    *(s32*)(p + 0x1A4) = 0;
+    cam->field_1A4 = 0;
     *(f32*)(p + 0xD4) = 0.0f;
     *(f32*)(p + 0xD8) = 0.0f;
-    *(f32*)(p + 0x100) = 0.0f;
-    *(f32*)(p + 0x10C) = 1.0471976f;
-    *(f32*)(p + 0x110) = 0.0f;
+    cam->field_100 = 0.0f;
+    cam->zoom = 1.0471976f;
+    cam->aspect = 0.0f;
     lbl_80344A90 = 0;
     lbl_80344A70 = lbl_80343CD4;
-    *(s32*)(p + 0x1A8) = -1;
-    *(f32*)(p + 0x1AC) = 0.0f;
+    cam->field_1A8 = -1;
+    cam->field_1AC = 0.0f;
     lbl_80344A78 = 0;
 }
 #pragma dont_inline off
@@ -999,17 +1057,15 @@ void GetPlayerAvgPos(f32* avg, f32* outMin, f32* outMax, s32 mode) {
         outMax[2] = boxMax[2];
     }
 
-    if (mode == 2 && gCurLevel != 0 && *(void**)((u8*)gCurLevel + 0x60) != 0) {
+    if (mode == 2 && gCurLevel != 0 && ((NcLevelData*)gCurLevel)->camera != 0) {
+        CameraData* camera;
         for (k = 0; k < 3; k++) {
-            f32* camera;
-            f32* axis;
             f32 v;
 
-            camera = *(f32**)((u8*)gCurLevel + 0x60);
-            axis = camera + k;
+            camera = ((NcLevelData*)gCurLevel)->camera;
             v = avg[k];
-            v = (v < axis[3]) ? axis[3] :
-                ((v > axis[6]) ? axis[6] : v);
+            v = (v < camera->min[k]) ? camera->min[k] :
+                ((v > camera->max[k]) ? camera->max[k] : v);
             avg[k] = v;
         }
     }
@@ -1098,10 +1154,17 @@ s32 CamGetPlayerAvgPos(Vec3* out, s32 flags) {
         out->z = average.z;
     }
 
-    {                                      /* clamp to level camera bounds */
+    {                                      /* clamp to level camera bounds
+                                              * (min[3]/max[3] indexed raw:
+                                              * array-style ->min[k]/->max[k]
+                                              * defeats the target's lfs-
+                                              * immediate addressing here --
+                                              * verified STRUCTURAL regression,
+                                              * see claim.law.multifield-alias-
+                                              * defeats-indexed-addressing) */
         f32* bounds;
         for (k = 0; k < 3; k++) {
-            bounds = *(f32**)((u8*)gCurLevel + 0x60) + k;
+            bounds = (f32*)((NcLevelData*)gCurLevel)->camera + k;
             (&out->x)[k] = ((&out->x)[k] < bounds[3]) ? bounds[3] :
                            ((&out->x)[k] > bounds[6]) ? bounds[6] :
                            (&out->x)[k];
@@ -1121,7 +1184,6 @@ void fn_8006F16C(s32 initialise)
     NcMarker* marker;
     f32* camera;
     f32* yawp;
-    u8* c;
     f32 yawv;
     f32* dir;
     f32* cbase;
@@ -1138,11 +1200,11 @@ void fn_8006F16C(s32 initialise)
         CamReset(lbl_80344A6C);
         CamGetPlayerAvgPos(&average, 2);
         marker = (NcMarker*)fn_8006FCDC((f32*)&average);
-        camera = (f32*)lbl_80344A6C + 0x41;
-        yawp = (f32*)((u8*)lbl_80344A6C + 236);
+        camera = &lbl_80344A6C->pitch;
+        yawp = &lbl_80344A6C->yaw;
 
         if (marker != 0) {
-            yaw = (f64)*(f32*)((u8*)marker + 0x18) - 3.141592654;
+            yaw = (f64)marker->yaw - 3.141592654;
             if (yaw > 3.141592654) {
                 yaw -= 6.283185308;
             } else if (yaw <= -3.141592654) {
@@ -1154,14 +1216,14 @@ void fn_8006F16C(s32 initialise)
         }
 
         if (marker != 0) {
-            *camera = -*(f32*)((u8*)marker + 0x14);
+            *camera = -marker->pitch;
         } else {
             *camera = 0.0f;
         }
 
         if (lbl_80344768 > 1) {
             pitchc = *camera;
-            bound = -(*(f32**)((u8*)gCurLevel + 0x60))[2];
+            bound = -((NcLevelData*)gCurLevel)->camera->minpitch;
             if (pitchc < bound) {
                 goto keep_pitch;
             }
@@ -1170,18 +1232,17 @@ void fn_8006F16C(s32 initialise)
             *camera = pitchc;
         }
 
-        c = (u8*)lbl_80344A6C;
-        yawv = *(f32*)(c + 236);
-        dir = (f32*)(c + 224);
-        pitch = *(f32*)(c + 260);
+        yawv = lbl_80344A6C->yaw;
+        dir = (f32*)&lbl_80344A6C->direction;
+        pitch = lbl_80344A6C->pitch;
         YawVec3(lbl_80127D40, (Vec3*)dir, -yawv);
         PitchVec3(dir, dir, -pitch);
 
         lbl_80344A6C->attention.x = average.x;
         lbl_80344A6C->attention.y = average.y;
         lbl_80344A6C->attention.z = average.z;
-        lbl_80344A6C->distance = (*(f32**)((u8*)gCurLevel + 0x60))[11];
-        lbl_80344A6C->dist_current = (*(f32**)((u8*)gCurLevel + 0x60))[12];
+        lbl_80344A6C->distance = ((NcLevelData*)gCurLevel)->camera->minrad;
+        lbl_80344A6C->dist_current = ((NcLevelData*)gCurLevel)->camera->maxrad;
         lbl_80344A6C->position.x =
             lbl_80344A6C->direction.x * -lbl_80344A6C->distance + lbl_80344A6C->attention.x;
         lbl_80344A6C->position.y =
@@ -1251,7 +1312,7 @@ void fn_8006F418(NcCamera* cbase, f32* target)
     }
 
     if (lbl_80344768 > 1) {
-        f32 limit = -(*(f32**)((u8*)gCurLevel + 0x60))[2];
+        f32 limit = -((NcLevelData*)gCurLevel)->camera->minpitch;
         if (pitch < limit) {
             limit = pitch;
         }
@@ -1269,7 +1330,7 @@ void fn_8006F418(NcCamera* cbase, f32* target)
         cbase->position.z = target[3];
     }
 
-    cbase->dist_current = (*(f32**)((u8*)gCurLevel + 0x60))[0x0C];
+    cbase->dist_current = ((NcLevelData*)gCurLevel)->camera->maxrad;
     CamLookInDir((f32*)&cbase->direction, (u32)cbase);
     MBCameraUpdate((f32*)&cbase->position, (f32*)cbase);
     MBWindowZoom(cbase->zoom);
@@ -1330,8 +1391,8 @@ void CalcFrustrumNormals(const Vec3* look, const Vec3* unused, Vec3* out, f32 fo
     cx = look->y * up[2] - look->z * up[1];
     cy = look->z * up[0] - look->x * up[2];
     cz = look->x * up[1] - look->y * up[0];
-    tx = (f32)tan(*(f32*)((u8*)lbl_80344EE8 + 28) * lbl_803474A0);
-    ty = (f32)tan(*(f32*)((u8*)lbl_80344EE8 + 32) * lbl_803474A0);
+    tx = (f32)tan(lbl_80344EE8->ang * lbl_803474A0);
+    ty = (f32)tan(lbl_80344EE8->hang * lbl_803474A0);
     up[0] = up[0] * tx;
     cx = cx * ty;
     cy = cy * ty;
@@ -1371,23 +1432,12 @@ void CalcFrustrumNormals(const Vec3* look, const Vec3* unused, Vec3* out, f32 fo
 }
 
 
-typedef struct NcLevelData {
-    u8 pad_00[0x60];
-    struct NcCameraBounds* camera;
-} NcLevelData;
-
-typedef struct NcCameraBounds {
-    u8 pad_00[0x2C];
-    f32 minimum_distance;
-    f32 maximum_distance;
-} NcCameraBounds;
-
 #define NC_DOT(a, b) \
     ((a)->x * (b)->x + (a)->y * (b)->y + (a)->z * (b)->z)
 
 f32 CalcDist(Vec3* look, Vec3* point, NcPlane* planes, f32 fov, f32 current)
 {
-    NcCameraBounds* camera;
+    CameraData* camera;
     NcLevelData* level_data;
     f32 distance;
     f32 required;
@@ -1404,8 +1454,8 @@ f32 CalcDist(Vec3* look, Vec3* point, NcPlane* planes, f32 fov, f32 current)
     CalcFrustrumNormals(look, point, (Vec3*)planes, fov);
 
     level_data = (NcLevelData*)gCurLevel;
-    if (level_data->camera->minimum_distance == level_data->camera->maximum_distance) {
-        return level_data->camera->minimum_distance;
+    if (level_data->camera->minrad == level_data->camera->maxrad) {
+        return level_data->camera->minrad;
     }
     camera = level_data->camera;
 
@@ -1413,7 +1463,7 @@ f32 CalcDist(Vec3* look, Vec3* point, NcPlane* planes, f32 fov, f32 current)
         if (lbl_80344A8C != 0) {
             return current + lbl_80343CDC;
         }
-        return camera->minimum_distance;
+        return camera->minrad;
     }
 
     required = 0.0f;
@@ -1448,8 +1498,8 @@ f32 CalcDist(Vec3* look, Vec3* point, NcPlane* planes, f32 fov, f32 current)
     }
 
     camera = ((NcLevelData*)gCurLevel)->camera;
-    if (required <= camera->minimum_distance - lbl_80343CD8 && camera->minimum_distance < current) {
-        return camera->minimum_distance;
+    if (required <= camera->minrad - lbl_80343CD8 && camera->minrad < current) {
+        return camera->minrad;
     }
     if (required <= current - lbl_80343CD8) {
         return required + lbl_80343CD8;
@@ -1479,7 +1529,7 @@ s32 fn_8006DF34(NcCamera* cam) {
     u8 unused1[16];
     u8 unused2[40];
     NcMarker* marker;
-    NcCameraBounds* bounds;
+    CameraData* bounds;
     f32 yawT;
     f32 yaw;
     f32 pitchT;
@@ -1553,7 +1603,7 @@ s32 fn_8006DF34(NcCamera* cam) {
     }
 
     if (lbl_80344768 > 1) {
-        f32 bound = -(*(f32**)((u8*)gCurLevel + 0x60))[2];
+        f32 bound = -((NcLevelData*)gCurLevel)->camera->minpitch;
         if (pitchT < bound) {
             bound = pitchT;
         }
@@ -1591,8 +1641,8 @@ s32 fn_8006DF34(NcCamera* cam) {
     }
 
     bounds = ((NcLevelData*)gCurLevel)->camera;
-    mn = bounds->minimum_distance;
-    mx = bounds->maximum_distance;
+    mn = bounds->minrad;
+    mx = bounds->maxrad;
     if (mn >= mx) {
         cam->dist_current = mn;
     } else if (lbl_80344768 == 1 && lbl_80344A8C == 0) {
