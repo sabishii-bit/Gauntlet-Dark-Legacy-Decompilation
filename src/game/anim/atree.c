@@ -9,8 +9,8 @@
  * player-model match wrapper at fn_80011BBC.  The core animation-evaluation
  * chain (DoAnimateTreeFrame, DoAnimateTree, and AnimateNode) is translated;
  * AtreeInitSub and AtreeNodeInit now cover the runtime construction path.
- * The two resource-fixup giants (fn_80011DCC and fn_8001267C) are translated
- * but still need dedicated code-generation passes.
+ * The WORLDPSYS fixup fn_80011DCC is byte-exact; the resource-header fixup
+ * fn_8001267C remains translated but still needs a code-generation pass.
  *
  * .text       0x80010A4C..0x800137BC
  * extab       0x80005590..0x80005678
@@ -1036,72 +1036,101 @@ static inline f32 AtreeNodeSwapF32(f32 value)
     return *(f32*)&result;
 }
 
-#define NODE_SWAP32(data, offset)                                             \
-    *(u32*)((data) + (offset)) =                                             \
-        AtreeNodeSwap32(*(u32*)((data) + (offset)))
-#define NODE_SWAPF32(data, offset)                                            \
-    *(f32*)((data) + (offset)) =                                             \
-        AtreeNodeSwapF32(*(f32*)((data) + (offset)))
+typedef struct AtreeWorldPsys {
+    u32 version;
+    u16 preset;
+    u8 id;
+    u8 dummy;
+    u32 flags;
+    u32 flagEnables;
+    u32 enables;
+    s32 maxParticles;
+    u32 maxDirections;
+    u32 maxPositions;
+    f32 emitterLifeFade[2];
+    f32 particleLifeFade[2];
+    u32 reserved1;
+    u32 reserved2;
+    f32 emitterAngle;
+    s32 particleTextureCount;
+    char particleTextureName[32];
+    f32 emitterDirection[3];
+    f32 emitterVolume[3];
+    f32 emitterRate[4];
+    f32 emitterRateRandom;
+    f32 particleGravity;
+    f32 particleDrag;
+    f32 particleSpeed;
+    u32 particleRgba[4];
+    f32 particleWidth[4];
+    f32 emitterDelay;
+    f32 particleReserved1b;
+    f32 particleReserved1c;
+    f32 particleReserved1d;
+    f32 particleReserved2[4];
+    f32 particleReserved3[4];
+    f32 particleReserved4[4];
+    f32 particleReserved5[4];
+    f32 particleReserved6[4];
+    f32 particleReserved7[4];
+    f32 particleReserved8a;
+    f32 particleReserved8b;
+    f32 particleReserved8c;
+    u32 checksum;
+} AtreeWorldPsys;
+
+#define WORLD_SWAP32(field) (field) = AtreeNodeSwap32(field)
+#define WORLD_SWAP16(field) (field) = AtreeNodeSwap16(field)
+#define WORLD_SWAPF32(field) (field) = AtreeNodeSwapF32(field)
 
 /* fn_80011DCC @0x80011DCC -- byte-swap one 0x138-byte atree node-definition
  * record (v8+ headers) from little-endian disk order. */
-void fn_80011DCC(u32* p)
+void fn_80011DCC(AtreeWorldPsys* psys)
 {
-    u8* b = (u8*)p;
-    u8* field;
     s32 i;
 
-    NODE_SWAP32(b, 0x00);
-    *(u16*)(b + 0x04) = AtreeNodeSwap16(*(u16*)(b + 0x04));
-    NODE_SWAP32(b, 0x08);
-    NODE_SWAP32(b, 0x0C);
-    NODE_SWAP32(b, 0x10);
-    NODE_SWAP32(b, 0x14);
-    NODE_SWAP32(b, 0x18);
-    NODE_SWAP32(b, 0x1C);
-    NODE_SWAP32(b, 0x30);
-    NODE_SWAP32(b, 0x34);
-    NODE_SWAPF32(b, 0x38);
-    NODE_SWAP32(b, 0x3C);
-    NODE_SWAPF32(b, 0x88);
-    NODE_SWAPF32(b, 0x8C);
-    NODE_SWAPF32(b, 0x90);
-    NODE_SWAPF32(b, 0x94);
-    NODE_SWAPF32(b, 0xB8);
-    NODE_SWAPF32(b, 0xBC);
-    NODE_SWAPF32(b, 0xC0);
-    NODE_SWAPF32(b, 0xC4);
-    NODE_SWAPF32(b, 0x128);
-    NODE_SWAPF32(b, 0x12C);
-    NODE_SWAPF32(b, 0x130);
-    NODE_SWAP32(b, 0x134);
+    WORLD_SWAP32(psys->version);
+    WORLD_SWAP16(psys->preset);
+    WORLD_SWAP32(psys->flags);
+    WORLD_SWAP32(psys->flagEnables);
+    WORLD_SWAP32(psys->enables);
+    WORLD_SWAP32(psys->maxParticles);
+    WORLD_SWAP32(psys->maxDirections);
+    WORLD_SWAP32(psys->maxPositions);
+    WORLD_SWAP32(psys->reserved1);
+    WORLD_SWAP32(psys->reserved2);
+    WORLD_SWAPF32(psys->emitterAngle);
+    WORLD_SWAP32(psys->particleTextureCount);
+    WORLD_SWAPF32(psys->emitterRateRandom);
+    WORLD_SWAPF32(psys->particleGravity);
+    WORLD_SWAPF32(psys->particleDrag);
+    WORLD_SWAPF32(psys->particleSpeed);
+    WORLD_SWAPF32(psys->emitterDelay);
+    WORLD_SWAPF32(psys->particleReserved1b);
+    WORLD_SWAPF32(psys->particleReserved1c);
+    WORLD_SWAPF32(psys->particleReserved1d);
+    WORLD_SWAPF32(psys->particleReserved8a);
+    WORLD_SWAPF32(psys->particleReserved8b);
+    WORLD_SWAPF32(psys->particleReserved8c);
+    WORLD_SWAP32(psys->checksum);
     for (i = 0; i < 2; i++) {
-        field = b + i * 4;
-        NODE_SWAPF32(field, 0x20);
-        field += 0x28;
-        NODE_SWAPF32(field, 0);
+        WORLD_SWAPF32(psys->emitterLifeFade[i]);
+        WORLD_SWAPF32(psys->particleLifeFade[i]);
     }
     for (i = 0; i < 3; i++) {
-        field = b + i * 4;
-        NODE_SWAPF32(field, 0x60);
-        field += 0x6C;
-        NODE_SWAPF32(field, 0);
+        WORLD_SWAPF32(psys->emitterDirection[i]);
+        WORLD_SWAPF32(psys->emitterVolume[i]);
     }
     for (i = 0; i < 4; i++) {
-        u8* updateField;
-
-        field = b + i * 4;
-        updateField = field + 0xE8;
-        NODE_SWAPF32(field, 0xA8);
-        NODE_SWAP32(field, 0x98);
-        NODE_SWAPF32(field, 0x78);
-        NODE_SWAPF32(field, 0xC8);
-        NODE_SWAPF32(field, 0xD8);
-        NODE_SWAPF32(updateField, 0);
-        NODE_SWAPF32(field, 0xF8);
-        NODE_SWAPF32(field, 0x108);
-        field += 0x118;
-        NODE_SWAPF32(field, 0);
+        WORLD_SWAPF32(psys->particleWidth[i]);
+        WORLD_SWAP32(psys->particleRgba[i]);
+        WORLD_SWAPF32(psys->emitterRate[i]);
+        WORLD_SWAPF32(psys->particleReserved2[i]);
+        WORLD_SWAPF32(psys->particleReserved3[i]);
+        WORLD_SWAPF32(psys->particleReserved4[i]);
+        WORLD_SWAPF32(psys->particleReserved5[i]);
+        WORLD_SWAPF32(psys->particleReserved6[i]);
+        WORLD_SWAPF32(psys->particleReserved7[i]);
     }
 }
 
@@ -1158,7 +1187,8 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             *(s32*)(hdr + 10) += (s32)base;
             off = 0;
             for (i = 0; i < *(s32*)(hdr + 8); i++) {
-                fn_80011DCC((u32*)(*(s32*)(hdr + 10) + off));
+                fn_80011DCC(
+                    (AtreeWorldPsys*)(*(s32*)(hdr + 10) + off));
                 off += 0x138;
             }
         }
