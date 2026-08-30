@@ -78,7 +78,13 @@ typedef struct CritterMove {
     s32 unk08;            /* 0x08 (compared against 0xF00 in CritterAnimate)   */
     s16 anim;             /* 0x0C animation id to play                         */
     s16 node;             /* 0x0E attached animation-node index                */
-    u8  _blk10[0x44];     /* 0x10 .. 0x54                                      */
+    u8  _blk10[0x30];     /* 0x10 .. 0x40                                      */
+    s32 frameStart;       /* 0x40 primary event window start frame (CopyAnim)  */
+    s32 frameStart2;      /* 0x44 secondary event window start frame           */
+    u8  _blk48[4];        /* 0x48 .. 0x4C                                      */
+    f32 framePeriod;      /* 0x4C repeat period for the 0x85 (looped) move type */
+    s16 frameEnd;         /* 0x50 primary event window end frame               */
+    s16 frameEnd2;        /* 0x52 secondary event window end frame             */
     s16 link;             /* 0x54 chained/target move index                    */
     s16 unk56;            /* 0x56                                              */
     u8  _blk58[0x28];     /* 0x58 .. 0x80                                      */

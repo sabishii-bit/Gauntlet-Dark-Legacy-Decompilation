@@ -3633,7 +3633,7 @@ s32 CritterGolemAI(Critter *c)
             return 0;
         }
         {
-            s32 dur = *(s32 *)((u8 *)move + 0x40);
+            s32 dur = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart));
             if (dur > 0) {
                 s32 elapsed = anim32 - dur;
                 s32 total = *(s16 *)((u8 *)c + 0x88) - dur;
@@ -4538,7 +4538,7 @@ void CritterActivate(Critter *c, CritterMove *move, s32 frame)
     if (c->emitter != NULL) {
         DmgFxNodeUpdate(c->emitter, 0, 0.0f, 0.0f, 0.0f, 0.0f);
     }
-    if (*(s32 *)((u8 *)move + 0x40) >= 0) {
+    if (*(s32 *)((u8 *)move + offsetof(CritterMove, frameStart)) >= 0) {
         events = CritterCopyAnim(c, move, frame);
         oldFlags = c->moveFlags;
         if ((events & 1) != 0) {
@@ -5050,24 +5050,24 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
     case 0x83:
     case 0x86: {
         s32 second;
-        if (frame >= *(s32 *)((u8 *)move + 0x40) &&
-            frame <= *(s16 *)((u8 *)move + 0x50)) {
+        if (frame >= *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart)) &&
+            frame <= *(s16 *)((u8 *)move + offsetof(CritterMove, frameEnd))) {
             result |= 1;
         }
-        second = *(s32 *)((u8 *)move + 0x44);
+        second = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart2));
         if (second >= 0 && frame >= second &&
-            frame <= *(s16 *)((u8 *)move + 0x52)) {
+            frame <= *(s16 *)((u8 *)move + offsetof(CritterMove, frameEnd2))) {
             result |= 2;
         }
         break;
     }
     case 0x81: {
         s32 second;
-        if (frame >= *(s32 *)((u8 *)move + 0x40) &&
-            frame <= *(s16 *)((u8 *)move + 0x50)) {
+        if (frame >= *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart)) &&
+            frame <= *(s16 *)((u8 *)move + offsetof(CritterMove, frameEnd))) {
             result |= 1;
         }
-        second = *(s32 *)((u8 *)move + 0x44);
+        second = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart2));
         if (second >= 0 && (c->moveFlags & 2) == 0 && frame >= second) {
             result |= 2;
         }
@@ -5076,30 +5076,30 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
     case 0x84: {
         s16 flags = c->moveFlags;
         s32 second;
-        if ((flags & 1) == 0 && frame >= *(s32 *)((u8 *)move + 0x40)) {
+        if ((flags & 1) == 0 && frame >= *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart))) {
             result |= 1;
         }
-        second = *(s32 *)((u8 *)move + 0x44);
+        second = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart2));
         if (second >= 0 && (flags & 2) == 0 && frame >= second) {
             result |= 2;
         }
         break;
     }
     case 0x85: {
-        s32 first = *(s32 *)((u8 *)move + 0x40);
+        s32 first = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart));
         s32 second;
         f32 period;
-        if (frame >= first && frame <= *(s16 *)((u8 *)move + 0x50)) {
-            period = *(f32 *)((u8 *)move + 0x4C);
+        if (frame >= first && frame <= *(s16 *)((u8 *)move + offsetof(CritterMove, frameEnd))) {
+            period = *(f32 *)((u8 *)move + offsetof(CritterMove, framePeriod));
             if (period <= lbl_80346488 ||
                 (s32)CritterAnimMod(frame - first, period) == 0) {
                 result |= 1;
             }
         }
-        second = *(s32 *)((u8 *)move + 0x44);
+        second = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart2));
         if (second >= 0 && frame >= second &&
-            frame <= *(s16 *)((u8 *)move + 0x52)) {
-            period = *(f32 *)((u8 *)move + 0x4C);
+            frame <= *(s16 *)((u8 *)move + offsetof(CritterMove, frameEnd2))) {
+            period = *(f32 *)((u8 *)move + offsetof(CritterMove, framePeriod));
             if (period <= lbl_80346488 ||
                 (s32)CritterAnimMod(frame - second, period) == 0) {
                 result |= 2;
@@ -5111,12 +5111,12 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
         s16 idx;
         s16 flags;
         s32 second;
-        if ((c->moveFlags & 1) == 0 && frame >= *(s32 *)((u8 *)move + 0x40) &&
+        if ((c->moveFlags & 1) == 0 && frame >= *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart)) &&
             (idx = c->unk124) >= 0) {
             GetPlayerColPos(idx, c->targetPos);
             result |= 1;
         }
-        second = *(s32 *)((u8 *)move + 0x44);
+        second = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart2));
         if (second >= 0 && ((flags = c->moveFlags) & 1) != 0 &&
             (flags & 2) == 0 && frame >= second) {
             result |= 2;
@@ -5126,10 +5126,10 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
     default: {
         s16 flags = c->moveFlags;
         s32 second;
-        if ((flags & 1) == 0 && frame >= *(s32 *)((u8 *)move + 0x40)) {
+        if ((flags & 1) == 0 && frame >= *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart))) {
             result |= 1;
         }
-        second = *(s32 *)((u8 *)move + 0x44);
+        second = *(s32 *)((u8 *)move + offsetof(CritterMove, frameStart2));
         if (second >= 0 && (flags & 2) == 0 && frame >= second) {
             result |= 2;
         }
