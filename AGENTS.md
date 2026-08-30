@@ -366,6 +366,12 @@ Cross-fleet concurrency (multiple independent agent fleets sharing `main`):
 - The graph inbox is the cross-fleet mailbox: records land there
   fleet-by-fleet, and each fleet accepts only its own proposals into
   `records/`. Never move, edit, or delete another fleet's inbox files.
+- **Never run `git clean` in the shared main checkout.** Every "mystery
+  deletion" incident of 2026-08-30 (downloaded compilers/binutils/objdiff
+  under `build/`, the retail `orig/GUNE5D/sys/main.dol`) matches `git
+  clean`'s signature: it destroys gitignored files that every fleet's
+  build depends on and that take real time to restore. Clean only your
+  own worktree, never the shared checkout, and never with `-x`.
 - **Never delete anything under `orig/`.** The README's note that "the disc
   image can be deleted" refers to the user's disc-image file (ISO/RVZ)
   only — `orig/GUNE5D/sys/main.dol` and the extracted files are shared,
