@@ -1056,7 +1056,7 @@ void PlayerMotion(Player* p) {
     }
 
     moveLimit = (f32)(lbl_80347B88 *
-                      (PF(p, 0x110, f32) * gClockFrameStep));
+                      (p->light_range * gClockFrameStep));
     if ((p->act_flags & 0x18160) != 0) {
         moveLimit = (f32)(lbl_80347B90 * gClockFrameStep);
     }
@@ -1789,7 +1789,7 @@ state_selected:
         }
 
 store_motion_state:
-        PF(p, 0x204, s32) = motionState;
+        p->vibe_on = motionState;
 
         if (p->quest_state >= 2) {
             motionState = 1;
@@ -2616,7 +2616,7 @@ store_motion_state:
                 } else {
                     f32 shotSpeed =
                         (f32)(lbl_80347BE0 *
-                              (f32)(PF(p, 0x3324, s32) - 25) +
+                              (f32)(p->level - 25) +
                               lbl_80347CC8);
                     fn_80093918(index, index, hit,
                                 missileVelocity, lbl_80347CB0,
@@ -3193,7 +3193,7 @@ player_motion_grab_done:
                     s32 effect = StartComboFX(p->col_pos, -1,
                                               PF(p, 4, s32));
                     PF(Effects + effect * 240, 0x64, u32) = 552;
-                    SfxSetDamage(PF(p, 0x104, f32) * scale,
+                    SfxSetDamage(p->stat_damage * scale,
                                  (f32)(lbl_80347C28 * scale), 0.0f,
                                  effect, 32, p->index + 1);
                 }
