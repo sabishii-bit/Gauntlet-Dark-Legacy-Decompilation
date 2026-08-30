@@ -2894,7 +2894,7 @@ def _strip_c_comments(text: str) -> str:
 
 
 _OFFSETOF_MACRO_RE = re.compile(
-    r"^\s*#\s*define\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^)]*\).*?"
+    r"^\s*#\s*define\s+([A-Za-z_][A-Za-z0-9_]*)\b.*?"
     r"\b(?:offsetof|sizeof)\b", re.M)
 _FN_START_RE = re.compile(
     r"^(?:static\s+)?\w[\w\s\*]*?\b(\w+)\s*\([^;{]*?\)\s*\{", re.M)
