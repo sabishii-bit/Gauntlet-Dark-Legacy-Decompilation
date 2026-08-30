@@ -1193,7 +1193,7 @@ static inline s32 GetWorldPsysIdx(s8 id, char* base, u8* tbl) {
 
     i = 0;
 
-    for (; i < *(s32*)(base + 388); i++) {
+    for (; i < *(s32*)(base + 228 + offsetof(WorldInfo, nworldpsys)); i++) {
         if ((s8)tbl[i * 312 + 6] == id) {
             return i;
         }
@@ -1221,27 +1221,32 @@ s32 WorldPsysActivate(WorldObj* obj) {
     }
 
     i = GetWorldPsysIdx((s8)tag[4], base,
-                        *(wpsp = (u8**)(base + 384)));
+                        *(wpsp = (u8**)(base + 228 + offsetof(WorldInfo, worldpsys))));
     if (i < 0) {
         goto done;
     }
 
     posp = NULL;
-    if (*(s16*)((u8*)obj + 54) > 0) {
-        u8* ct = *(u8**)(base + 236) + *(s32*)((u8*)obj + 56) * 40 + 8;
+    if (obj->nctris > 0) {
+        /* &coltri[ctriidx].pos[0] (coltri.pos @0x08); pre-folding the +8
+         * into ct itself (instead of a typed coltri* with ->pos[k]) is
+         * load-bearing for target's lfs 0/4/8(r3) shape - a typed alias
+         * regressed real 0->21 (verified). */
+        u8* ct = *(u8**)(base + 228 + offsetof(WorldInfo, ctris)) +
+                 obj->ctriidx * 40 + offsetof(struct coltri, pos);
         pos[0] = (f32)(-1.0 * *(f32*)ct);
         pos[1] = (f32)(-1.0 * *(f32*)(ct + 4));
         pos[2] = (f32)(-1.0 * *(f32*)(ct + 8));
         posp = pos;
     }
-    MBNewWorldPsys(0, *(void**)((u8*)obj + 40),
+    MBNewWorldPsys(0, obj->nodeptr,
                    *wpsp + i * 312,
                    obj->flags & 0x1000, obj, posp);
     obj->flags &= ~0x00400000;
     obj->flags |= 0x00800000;
 
 done:
-    *(s32*)(*(u8**)((u8*)obj + 40) + 96) &= ~2;
+    ((G3DNode*)obj->nodeptr)->dflags &= ~2;
     return 1;
 }
 
