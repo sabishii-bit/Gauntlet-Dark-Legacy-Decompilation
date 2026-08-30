@@ -1,0 +1,22 @@
+{
+  "attempted_axis": "Re-screen only (work_claim.gamemain-reconstruction.20260831.v1 secondary target): re-decoded the sole residual instruction-by-instruction against fresh target disassembly before touching source, looking for a lever transferable from the init_enemy_vars reconstruction done in the same session (frame-size gap, stale-vs-fresh reload). No edit made; VETO respected.",
+  "attributes": {
+    "axis_log": [
+      "P4 (2026-08-29, folded from superseded v1): bounded source-shape matrix to the project cap; explicit f32 staging/pad substitution could not recover the sole missing fmr; residual survived the recorded flag/pragma/compiler sweeps. post-reconstruction 352/351 insns, real151.",
+      "P5 (2026-08-31, this record): re-verified the residual is still exactly one missing fmr (`fndiff --ops`: target-only +1 fmr, ours-only none; delete T[266:267]@428-42c=['fmr']). Read the aligned target/ours disassembly at 0x3f0-0x460: target computes 'dist' via the DIST3 macro's Newton-iteration chain into a volatile stack temp, reloads it (stfs/lfs at stack offset 0x14, matching the source's existing `f32 dist` + `range = dist;` two-variable shape), then does TWO fmr hops (f27->f1->f26) before the `range > e+768` comparison; ours does the reload then ONE fmr straight to the comparison register, skipping the f1 intermediate. Checked whether the init_enemy_vars frame-size-gap lever transfers: it does not -- this function's frame is ALREADY byte-identical to target (stwu -168(r1), stmw r29,92(r1) match exactly in both streams), so there is no missing declared-locals footprint to pad here, unlike init_enemy_vars. The f1 hop briefly uses a low/volatile FPR (f1 is the PPC EABI first-FPR-argument/return register) sandwiched between two high/persistent-FPR (f26/f27) copies with NO function call between the two fmr's, ruling out an ABI-argument-passthrough explanation. 'dist' and 'range' are already distinct C-level locals with a genuine `range = dist;` copy between them (not a naming/aliasing shortcut), so no source-level lever was found: this looks like the same allocator/PRE-timing sensitivity documented for init_enemy_vars's table-access residual (claim.law.table-lookup-pre-keyed-on-segment-cast-repetition), not a body-shape gap. No edit attempted; two independent negative results now stand on this exact axis-space (P4's staging/pad sweep, P5's frame/call-boundary check) per the unpark_condition's 'two identical A/B results re-park it' clause."
+    ],
+    "law_screen": "claim.law.mwcc-codegen-tells (pad/stack-gap tell) and claim.law.point-of-use-single-use-pointer-delay screened as the frame-size-gap lever that worked on init_enemy_vars in the same session; does not transfer here -- see finding below. No other law in the current corpus (laws --tag matching --full 1, laws --tag core-screen --full 1) addresses a double-fmr high-reg/low-reg/high-reg copy chain outside a call boundary.",
+    "parked_note": "P5: post-reconstruction 352/351, real151 (unchanged from P4); frame already exact (168=168, unlike the sibling init_enemy_vars target which needed an 8-byte pad); the double-fmr copy chain for the DIST3 result ('dist'->'range') is not reproduced by any source-level lever found across two independent sessions.",
+    "provenance": "terminal import of the legacy parked cap list, 2026-08-29; re-screened 2026-08-31 during the init_enemy_vars reconstruction pass in the same TU (work_claim.gamemain-reconstruction.20260831.v1) -- init_enemy_vars is DONE this session (see attempt.init-enemy-vars-reconstruction.20260831.v1), this function remains untouched.",
+    "unpark_condition": "a genuinely new source-level axis, allocator lever, or compiler evidence beyond the two already-tried (explicit f32 staging/pad substitution; frame/call-boundary re-derivation); a third identical negative result should not be attempted without new evidence."
+  },
+  "function": "function:fn_800516F8",
+  "id": "attempt.parked.fn_800516f8.20260831.v2",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-30T23:46:49Z",
+  "residual_class": "REGISTER_ONLY/SCHEDULE (allocator or scheduler residual)",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.fn_800516f8.20260829.v1",
+  "valid_from": "2026-08-31"
+}
