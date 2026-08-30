@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "portable exact closure of the final pdata initialization loop, live-zero copy, and saved-register topology",
+  "attributes": {
+    "anchors": "src/game/sfx/psfx.c::LoadPdataFile at GCN 0x8008BAF0; git:58f9a4b2e; python tools/gdl/fnasm.py game/sfx/psfx LoadPdataFile; python tools/gdl/fndiff.py game/sfx/psfx LoadPdataFile --clean",
+    "axis_log": "improved: derive the final-loop +0x80 store from the main pdata record and initialize its s32 zero from the loop index; this removed the separate lbl_80282930 HA/LO and indexed store, making instruction count exact. negative: old offset/sizePtr form 89 instructions real97; explicit global-base locals 90/real86; typed headers[index] 91/real41; separate second offset 88/real36; pointer-zero spelling, chained initialization, and nested scope were invariant at 88/real32.",
+    "baseline": "target/current 88/90 instructions, fuzzy 96.31%, normalized real 26, frame 0x38, saves r22-r31",
+    "best": "target/current 88/88 instructions, fuzzy 98.295456%, normalized real 32, frame 0x38, saves r22-r31; TU fuzzy 97.87301%; source commit 58f9a4b2e. Fuzzy and exact opcode/count structure improved despite the normalized line metric increasing from a register-color cascade; actual diff was reviewed.",
+    "remaining": "one structural opcode in the second-loop initializer (target addi r28,r23,0 copies a live zero; MWCC rematerializes li r22,0), plus crossed saved-register web reuse across the two loops. Do not retry the listed zero-copy, scope, explicit-base, typed-header, or old offset/sizePtr axes without new target-backed evidence.",
+    "semantic_audit": "The function still clears and preflights all 16 file slots, tracks the maximum file size, initializes four class values to -1, allocates four reusable buffers, and clears four parsed-header slots. The +0x80 record store aliases the previously named lbl_80282930 array exactly. Seven exact siblings stayed exact; object, full ninja, report, progress, and fresh main.dol checksum gates passed."
+  },
+  "function": "function:LoadPdataFile",
+  "id": "attempt.loadpdatafile-record-alias-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
