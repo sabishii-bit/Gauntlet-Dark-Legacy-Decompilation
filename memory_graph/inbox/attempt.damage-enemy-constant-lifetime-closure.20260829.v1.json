@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "bounded exact closure of two f64 constant-lifetime/load clusters, the fight threshold branch pair, and the fight block GPR/FPR web",
+  "attributes": {
+    "anchors": "src/game/enemy/enemy.c::damage_enemy; target .text 0x8004E6F8 size 0x8EC; python tools/gdl/fnasm.py game/enemy/enemy damage_enemy; python tools/gdl/fndiff.py game/enemy/enemy damage_enemy --count/--ops/--clean; immutable commit 9eb2416fff7158fc330a3aa9bbee009d4bdd5681",
+    "axis_log": [
+      "simple initialized f64 local loaded before health and was inferior; an f32 health carrier grew the frame; both reverted",
+      "separately scoped f64 locals around the post-ModifyDamage checks were codegen-neutral; volatile second read closed the missing lfd cluster and was retained",
+      "structured condition, explicit if/else labels, and one-case switch/goto forms all folded to the same inverse beq and were reverted",
+      "block/function-scope threshold locals, embedded assignments, fight assignment reorder, and explicit/register type-level locals were neutral or worse and were reverted"
+    ],
+    "baseline": "target/current 571/570 instructions, fuzzy 98.93%, count-real 217, normalized-clean real 231, frame 0xB0, saves r26-r31/f31; classified STRUCTURAL after complete target-assembly review",
+    "best": "target/current 571/570 instructions, fuzzy 99.40%, count-real 151, normalized-clean real 157, frame and save set unchanged; 66 count-real lines removed with 42 exact siblings unchanged",
+    "conclusion": "Keep the verified 99.40% source. Do not retry these branch or fight-web axes without new compiler evidence or a surrounding structural change. The remaining opcode difference is target bne+b versus compiler-folded beq; the remaining clean diff is the fight threshold block's register/FPR web plus downstream branch-offset fallout.",
+    "retained_change": "an assignment-expression f64 local preserves the target constant web across the E_DEATH/player-flags branch; a volatile-qualified read of the same existing constant forces the target post-ModifyDamage reload without changing semantics or introducing a new pool value",
+    "semantic_audit": "complete target assembly, prologue, calls, branches, field offsets, threshold math, damage/experience paths, and tail were reviewed; the retained edits only control lifetime/reload shape of the same 1.0 constant",
+    "verification": "owning object and report rebuilt; fndiff count/ops/clean inspected; matchtool reports OK:42 OK~:1 bad:19 ties:2 with damage_enemy L-1/D151; datadiff reports only the TU's pre-existing unclaimed .data 0x190 and .sdata2 0x10C; git diff --check passed; no assembly/postprocessor changes; fresh full ninja passed with main.dol OK and progress 97.75% fuzzy, 58.12% matched"
+  },
+  "function": "function:damage_enemy",
+  "id": "attempt.damage-enemy-constant-lifetime-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
