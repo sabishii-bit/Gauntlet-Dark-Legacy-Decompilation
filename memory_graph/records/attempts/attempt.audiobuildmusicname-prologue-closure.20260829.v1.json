@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "exact closure of the speech-buffer/string-table prologue through pointer declaration versus assignment timing, function-local propagation mode, and pointer declaration order",
+  "attributes": {
+    "anchors": "src/game/sound/sounds.c::AudioBuildMusicName; target .text 0x800A1614 size 0x1C0; python tools/gdl/fnasm.py game/sound/sounds.c AudioBuildMusicName; python tools/gdl/fndiff.py game/sound/sounds.c AudioBuildMusicName --count/--ops/--clean; ninja",
+    "baseline": "target/current 112/113 instructions, fuzzy 97.23214%, count-real 31 (clean residual 37 plus 2 pool-name lines), 0x30-byte frame, saves r25-r31",
+    "final_state": "best source restored unchanged at target/current 112/113 instructions, fuzzy 97.23214%, count-real 31, 0x30-byte frame, saves r25-r31; residual is one extra prologue instruction plus speech-buffer/string-table address formation timing/register assignment and sdata2 symbol-name normalization",
+    "measurements": "with opt_propagation off, splitting pointer declarations from assignments worsened to 113 instructions/count-real 47; retaining declaration initializers but restoring normal propagation worsened to 115 instructions/count-real 43 and also lost the target lwzu/body shape; restoring opt_propagation off and swapping pointer declaration order worsened to 113 instructions/count-real 33. All three probes were reverted.",
+    "policy": "capped under the opcode-aligned three-axis iteration limit; do not retry declaration/assignment timing, propagation-mode removal, or pointer declaration ordering without a genuinely new source-level idea",
+    "semantic_audit": "complete target assembly confirms a six-iteration loop, three-way sprintf formatting for rotate and stop names, two AudioFindSound calls, negative-ID filtering, and first-valid-pair retention; call order, CFG, field offsets, frame, saved registers, and loop architecture remain aligned in the retained source",
+    "verification": "owning object rebuilt; fndiff count/ops/clean inspected; matchtool reports 26 exact siblings unchanged and AudioBuildMusicName L+1/D31; datadiff reports only pre-existing unclaimed .rodata 0x15 and .sdata2 0x78; fresh full ninja linked main.dol with checksum OK; progress 97.66% fuzzy and 57.85% matched; git diff --check clean; no assembly modified"
+  },
+  "function": "function:AudioBuildMusicName",
+  "id": "attempt.audiobuildmusicname-prologue-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
