@@ -457,6 +457,47 @@ class AcceptRecordsTests(unittest.TestCase):
         for path in result["paths"]:
             self.assertIn(path, result["commit_command"])
 
+    def test_accept_in_git_repo_with_untracked_inbox_source(self):
+        # MB's field bug: an accepted record whose inbox file was never
+        # git-tracked must not abort staging after the filesystem moves.
+        import subprocess
+        subprocess.run(["git", "-C", str(self.root), "init", "-q",
+                        "-b", "main"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "-c",
+                        "user.email=t@t", "-c", "user.name=t",
+                        "commit", "-q", "--allow-empty", "-m", "init"],
+                       check=True)
+        result = accept_records(
+            ["attempt.wave.v1"], release=["work_claim.w"], root=self.root
+        )
+        self.assertTrue(result["staged"])
+        status = subprocess.run(
+            ["git", "-C", str(self.root), "status", "--porcelain"],
+            capture_output=True, text=True, check=True).stdout
+        self.assertIn("attempt.wave.v1.json", status)
+        # the never-tracked, now-gone inbox paths are excluded from staging
+        for path in result["staged_paths"]:
+            self.assertTrue((self.root / path).exists())
+
+    def test_accept_branch_guard(self):
+        import subprocess
+        subprocess.run(["git", "-C", str(self.root), "init", "-q",
+                        "-b", "work"], check=True)
+        subprocess.run(["git", "-C", str(self.root), "-c",
+                        "user.email=t@t", "-c", "user.name=t",
+                        "commit", "-q", "--allow-empty", "-m", "init"],
+                       check=True)
+        with self.assertRaisesRegex(MemoryGraphError, "integrator-only"):
+            accept_records(["attempt.wave.v1"], root=self.root)
+        # still in inbox — the guard fired before any mutation
+        self.assertTrue(
+            (self.root / "memory_graph" / "inbox"
+             / "attempt.wave.v1.json").exists()
+        )
+        result = accept_records(["attempt.wave.v1"], root=self.root,
+                                allow_any_branch=True)
+        self.assertTrue(result["staged"])
+
     def test_accept_fails_closed(self):
         with self.assertRaisesRegex(MemoryGraphError, "not found"):
             accept_records(["attempt.missing"], root=self.root)

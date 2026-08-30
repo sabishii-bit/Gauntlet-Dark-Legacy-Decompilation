@@ -97,6 +97,8 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
                         help="inbox record ids to accept")
     accept.add_argument("--release", action="append", default=[],
                         help="work_claim id to release (repeatable)")
+    accept.add_argument("--any-branch", action="store_true",
+                        help="override the integrator-only main-branch guard")
 
     prune = subparsers.add_parser(
         "prune-attempts",
@@ -151,7 +153,8 @@ def main(argv: list[str] | None = None) -> int:
             }
         elif args.command == "accept":
             result = accept_records(
-                args.record_ids, release=args.release, root=root
+                args.record_ids, release=args.release, root=root,
+                allow_any_branch=args.any_branch,
             )
         elif args.command == "prune-attempts":
             kwargs = {"apply": args.apply}

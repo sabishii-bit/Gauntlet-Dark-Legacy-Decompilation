@@ -2324,6 +2324,7 @@ def accept_records(
     *,
     release: Iterable[str] = (),
     root: Path = REPO_ROOT,
+    allow_any_branch: bool = False,
 ) -> dict[str, Any]:
     """Integrator acceptance: move inbox records into records/, delete released
     claims, and stage everything with git (pathspec-limited by construction).
@@ -2339,6 +2340,19 @@ def accept_records(
     release = list(release)
     if not record_ids and not release:
         raise MemoryGraphError("nothing to accept: pass record ids or --release")
+    if (root / ".git").exists() and not allow_any_branch:
+        head = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True,
+        ).stdout.strip()
+        if head and head != "main":
+            raise MemoryGraphError(
+                f"accept is integrator-only and runs from the main checkout"
+                f" (current branch: {head}). Workers: commit your inbox"
+                " proposals on your branch and leave acceptance to the"
+                " integrator merge. Pass allow_any_branch/--any-branch only"
+                " for a deliberate exception."
+            )
     inbox = root / "memory_graph" / "inbox"
     index: dict[str, tuple[Path, dict[str, Any]]] = {}
     if inbox.exists():
@@ -2385,25 +2399,42 @@ def accept_records(
     for source, destination in moves:
         destination.parent.mkdir(parents=True, exist_ok=True)
         os.replace(source, destination)
-        touched.extend(
-            [str(source.relative_to(root)), str(destination.relative_to(root))]
-        )
+        touched.extend([
+            str(source.relative_to(root)).replace("\\", "/"),
+            str(destination.relative_to(root)).replace("\\", "/"),
+        ])
     for path in releases:
         path.unlink()
-        touched.append(str(path.relative_to(root)))
+        touched.append(str(path.relative_to(root)).replace("\\", "/"))
     staged = False
+    stageable = touched
     if (root / ".git").exists():
-        subprocess.run(
-            ["git", "-C", str(root), "add", "--"] + touched,
-            check=True, capture_output=True, text=True,
+        # A moved/deleted source that was never git-tracked matches no
+        # pathspec and would abort the whole `git add` AFTER the filesystem
+        # mutations — stage only paths that exist on disk or are tracked.
+        tracked = set(
+            subprocess.run(
+                ["git", "-C", str(root), "ls-files", "--"] + touched,
+                capture_output=True, text=True,
+            ).stdout.splitlines()
         )
+        stageable = [
+            path for path in touched
+            if (root / path).exists() or path in tracked
+        ]
+        if stageable:
+            subprocess.run(
+                ["git", "-C", str(root), "add", "--"] + stageable,
+                check=True, capture_output=True, text=True,
+            )
         staged = True
     build_database(root)
-    quoted = " ".join(f'"{path}"' for path in touched)
+    quoted = " ".join(f'"{path}"' for path in stageable)
     return {
         "accepted": [record_id for record_id in record_ids],
         "released": release,
         "paths": touched,
+        "staged_paths": stageable,
         "staged": staged,
         "graph_rebuilt": True,
         "commit_command": f'git commit -m "<message>" -- {quoted}',

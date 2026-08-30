@@ -51,7 +51,10 @@ vocabulary are rejected at staging.
 - Record durable results as structured records via
   `gdlmem.py propose-record` (attempts, claims, evidence, entities, edges) or
   `register-tool`. Proposals are fully validated before staging and require
-  integrator review before acceptance into `records/`.
+  integrator review before acceptance into `records/`. **Workers never run
+  `gdlmem.py accept`** — propose, commit the inbox files on your branch, and
+  stop; acceptance and claim release happen in the integrator's merge (the
+  command enforces this by refusing to run off the main branch).
 - `laws` lists the whole codegen-law corpus newest-first (scope, age_days,
   supersession); read it at the start of every pass instead of waiting to be
   handed record ids. Every attempt proposal MUST carry
