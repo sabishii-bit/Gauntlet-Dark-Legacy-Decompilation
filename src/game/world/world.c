@@ -486,8 +486,13 @@ void WorldSaveInitState(void) {
         memBase = mlmMemUsed;
         lbl_80344D74 = AllocMem(*(s32*)lbl_80344DA4 * 4);
         lbl_80344D78 = AllocMem(*(s32*)lbl_80344DA4 * 12);
-        wobjsp = (u8**)(base + 232);
-        for (i = 0; i < *(s32*)(base + 324); i++) {
+        /* WorldObj array base (gWorldInfo.wobjs); strength-reduced i*60
+         * indexed addressing below is load-bearing for target's lwzx/lfsx
+         * shape - a materialized WorldObj* alias regressed real 64->68
+         * (verified), so the field offsets stay raw here (WorldObj.parent
+         * @0x18, .pos @0x1C). */
+        wobjsp = (u8**)(base + 228 + offsetof(WorldInfo, wobjs));
+        for (i = 0; i < *(s32*)(base + 228 + offsetof(WorldInfo, nwobjs)); i++) {
             ((s32*)lbl_80344D74)[i] = *(s32*)(*wobjsp + i * 60 + 24);
             lbl_80344D78[i * 3] = *(f32*)(*wobjsp + i * 60 + 28);
             lbl_80344D78[i * 3 + 1] = *(f32*)(*wobjsp + i * 60 + 32);
@@ -506,7 +511,8 @@ void WorldSaveInitState(void) {
         lbl_80344D98 = InitWorldInfo((WorldInfo*)(base + 64), lbl_80344DA0);
         lbl_80344D8C = world_root1;
         CreateWorldNode(lbl_80344D98, lbl_80344D98, 0);
-        MBTreeSetAltTex(world_root1, -2, *(s32*)(base + 364), 1);
+        MBTreeSetAltTex(world_root1, -2,
+                        *(s32*)(base + 228 + offsetof(WorldInfo, whitetex)), 1);
         WorldDisplay = 2;
     } else {
         lbl_80344D98 = 0;
