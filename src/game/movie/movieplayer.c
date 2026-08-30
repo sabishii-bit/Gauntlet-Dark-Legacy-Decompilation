@@ -42,6 +42,12 @@ typedef struct MovieGXTexObj {
     u32 data[8];
 } MovieGXTexObj;
 
+/* Fields at 0x30+ inferred solely from raw-offset usage in MovieDecodePalette
+ * and fn_800D8BCC's case-2 block (no Xbox PDB struct for this GC-specific
+ * VQ decode state was found; names are file-local, not authoritative). They
+ * describe a per-channel bit-count/shift pair used to pack a 3-byte palette
+ * RGB triple into a 16-bit pal[] entry: out = (p[0]>>(8-redBits))<<redShift
+ * | (p[1]>>(8-greenBits))<<greenShift | (p[2]>>(8-blueBits))<<blueShift. */
 typedef struct MovieDecodeState {
     /* 0x00 */ s32 width;
     /* 0x04 */ s32 height;
@@ -51,6 +57,13 @@ typedef struct MovieDecodeState {
     /* 0x20 */ u32 _20[2];
     /* 0x28 */ s32 maskStride;
     /* 0x2C */ s32 paletteOffset;
+    /* 0x30 */ u32 _30;
+    /* 0x34 */ u8 blueShift;
+    /* 0x35 */ u8 greenShift;
+    /* 0x36 */ u8 redShift;
+    /* 0x37 */ u8 blueBits;
+    /* 0x38 */ u8 redBits;
+    /* 0x39 */ u8 greenBits;
 } MovieDecodeState;
 
 typedef struct MovieDecodeCall {
@@ -152,8 +165,8 @@ u32* fn_800DBE04(u32* p);
 u32* DTextInitColorRamp(u32* p);
 void fn_800D9DF0(char* src, int len, u8* dst, int* outlen);
 u32 fn_800D93D4(u32* p1, u32 p2, int p3, char* p4, int p5, u8* p6);
-u32 fn_800D87FC(u32* p1, int p3, char* p4, int mode, int p5, u8* p6);
-u32 fn_800D8BCC(u32* p1, int p3, char* p4, int mode, int p5, u8* p6);
+u32 fn_800D87FC(MovieDecodeState* p1, int p3, char* p4, int mode, int p5, u8* p6);
+u32 fn_800D8BCC(MovieDecodeState* p1, int p3, char* p4, int mode, int p5, u8* p6);
 u32 fn_800D8F28(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D91B4(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D9A14(u32* p1, u8* p2, int p3, u8 p4);
@@ -281,7 +294,7 @@ s32 fn_800D8784(u32* state) {
     return 0;
 }
 
-static inline void MovieDecodePalette(u32* state, u8* pal, int count)
+static inline void MovieDecodePalette(MovieDecodeState* state, u8* pal, int count)
 {
     int i;
     u8* p;
@@ -290,44 +303,44 @@ static inline void MovieDecodePalette(u32* state, u8* pal, int count)
     u8 sh2;
     int n;
 
-    sh1 = 8 - *((u8*)state + 0x39);
-    sh0 = 8 - *((u8*)state + 0x38);
-    sh2 = 8 - *((u8*)state + 0x37);
+    sh1 = 8 - state->greenBits;
+    sh0 = 8 - state->redBits;
+    sh2 = 8 - state->blueBits;
     n = count * 4;
     i = 0;
     p = pal;
     for (; i < n; i++) {
         fn_800DBE98(state, p);
-        ((u16*)pal)[i] = (((p[0] >> sh0) << *((u8*)state + 0x36))
-                        | ((p[1] >> sh1) << *((u8*)state + 0x35)))
-                        | ((p[2] >> sh2) << *((u8*)state + 0x34));
+        ((u16*)pal)[i] = (((p[0] >> sh0) << state->redShift)
+                        | ((p[1] >> sh1) << state->greenShift))
+                        | ((p[2] >> sh2) << state->blueShift);
         p += 3;
     }
 }
 
 /* VQ texture/tile decode into a GX tex obj (ReadU16LE/ReadF32LE, DCFlush/Invalidate, GXInvalidateTexAll) */
-u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param_5, u8* param_6) {
+u32 fn_800D87FC(MovieDecodeState* state, int param_2, char* param_3, int param_4, int param_5, u8* param_6) {
     int count;
     int nbits;
     u8* hdr8;
     u8* pal;
     u8* ip;
 
-    count = ReadU16LE((u8*)param_1[6]);
-    nbits = ReadF32LE((u8*)param_1[6] + 4);
-    hdr8 = (u8*)(param_1[6] + 8);
-    pal = hdr8 + param_1[0xB];
+    count = ReadU16LE(state->chunk);
+    nbits = ReadF32LE(state->chunk + 4);
+    hdr8 = state->chunk + 8;
+    pal = hdr8 + state->paletteOffset;
     ip = pal + count * 12;
-    DCInvalidateRange((void*)param_6, param_1[0] * param_1[1] * 2);
+    DCInvalidateRange((void*)param_6, state->width * state->height * 2);
     switch (param_4) {
     case 0:
-        fn_800D86C8((u32)param_1, pal, count);
+        fn_800D86C8((u32)state, pal, count);
         break;
     case 1:
-        fn_800D860C((u32)param_1, pal, count);
+        fn_800D860C((u32)state, pal, count);
         break;
     case 2:
-        MovieDecodePalette(param_1, pal, count);
+        MovieDecodePalette(state, pal, count);
         break;
     default:
         return -1;
@@ -339,7 +352,7 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
 
         if (*(int*)(param_5 + 8) < 0) {
             dir = -1;
-            row = param_1[1] - 1;
+            row = state->height - 1;
         } else {
             row = 0;
             dir = 1;
@@ -353,22 +366,22 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
             int y;
 
             bits = *ip;
-            param_1[0] <<= 1;
+            state->width <<= 1;
             bp = ip + 1;
             ip += (nbits + 7) / 8;
             d8 = dir * 8;
             d2 = dir * 2;
             nb = 0;
-            for (y = 0; y < (int)param_1[1]; y += 2) {
+            for (y = 0; y < state->height; y += 2) {
                 u8* dst;
                 u8* dst2;
                 u8* brow;
                 int x;
 
-                dst = (u8*)param_6 + (row & ~3) * param_1[0];
+                dst = (u8*)param_6 + (row & ~3) * state->width;
                 dst += (row & 3) * 8;
                 dst2 = dst + d8;
-                brow = hdr8 + (y / 4) * param_1[10];
+                brow = hdr8 + (y / 4) * state->maskStride;
                 x = 0;
                 do {
                     int b;
@@ -398,10 +411,10 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
                     x += 4;
                     dst += adv;
                     dst2 += adv;
-                } while (x < (int)param_1[0]);
+                } while (x < state->width);
                 row += d2;
             }
-            param_1[0] = (int)param_1[0] / 2;
+            state->width = state->width / 2;
         } else {
             int d8;
             int d2;
@@ -409,17 +422,17 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
 
             d8 = dir * 8;
             d2 = dir * 2;
-            param_1[0] <<= 1;
-            for (y = 0; y < (int)param_1[1]; y += 2) {
+            state->width <<= 1;
+            for (y = 0; y < state->height; y += 2) {
                 u8* dst;
                 u8* dst2;
                 u8* brow;
                 int x;
 
-                dst = (u8*)param_6 + (row & ~3) * param_1[0];
+                dst = (u8*)param_6 + (row & ~3) * state->width;
                 dst += (row & 3) * 8;
                 dst2 = dst + d8;
-                brow = hdr8 + (y / 4) * param_1[10];
+                brow = hdr8 + (y / 4) * state->maskStride;
                 x = 0;
                 do {
                     int b;
@@ -440,34 +453,34 @@ u32 fn_800D87FC(u32* param_1, int param_2, char* param_3, int param_4, int param
                     x += 4;
                     dst += adv;
                     dst2 += adv;
-                } while (x < (int)param_1[0]);
+                } while (x < state->width);
                 row += d2;
             }
-            param_1[0] = (int)param_1[0] / 2;
+            state->width = state->width / 2;
         }
     }
-    DCFlushRange((void*)param_6, param_1[0] * param_1[1] * 2);
+    DCFlushRange((void*)param_6, state->width * state->height * 2);
     GXInvalidateTexAll();
-    param_1[7] = param_1[7] + 1;
+    state->frame = state->frame + 1;
     return 0;
 }
 
 /* VQ tile decode variant (ReadU16LE, DCFlush/Invalidate, GXInvalidateTexAll) */
-u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param_5, u8* param_6) {
+u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4, int param_5, u8* param_6) {
     int count;
     u8* pal;
     u8* ip;
 
-    count = ReadU16LE((u8*)param_1[6]);
-    pal = (u8*)(param_1[6] + 4);
+    count = ReadU16LE(state->chunk);
+    pal = state->chunk + 4;
     ip = pal + count * 12;
-    DCInvalidateRange((void*)param_6, param_1[0] * param_1[1] * 2);
+    DCInvalidateRange((void*)param_6, state->width * state->height * 2);
     switch (param_4) {
     case 0:
-        fn_800D86C8((u32)param_1, pal, count);
+        fn_800D86C8((u32)state, pal, count);
         break;
     case 1:
-        fn_800D860C((u32)param_1, pal, count);
+        fn_800D860C((u32)state, pal, count);
         break;
     case 2: {
         int i;
@@ -477,19 +490,19 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
         u8 sh0;
         u8 sh2;
         int n;
-        sh1 = 8 - *((u8*)param_1 + 0x39);
+        sh1 = 8 - state->greenBits;
         i = 0;
-        sh0 = 8 - *((u8*)param_1 + 0x38);
+        sh0 = 8 - state->redBits;
         p = pal;
-        sh2 = 8 - *((u8*)param_1 + 0x37);
+        sh2 = 8 - state->blueBits;
         off = i;
         n = count * 4;
         for (; i < n; i++) {
-            fn_800DBE98(param_1, p);
+            fn_800DBE98(state, p);
             *(u16*)(pal + off) =
-                (((p[0] >> sh0) << *((u8*)param_1 + 0x36))
-                 | ((p[1] >> sh1) << *((u8*)param_1 + 0x35)))
-                | ((p[2] >> sh2) << *((u8*)param_1 + 0x34));
+                (((p[0] >> sh0) << state->redShift)
+                 | ((p[1] >> sh1) << state->greenShift))
+                | ((p[2] >> sh2) << state->blueShift);
             p += 3;
             off += 2;
         }
@@ -505,7 +518,7 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
 
         if (*(int*)(param_5 + 8) < 0) {
             dir = -1;
-            row = param_1[1] - 1;
+            row = state->height - 1;
         } else {
             row = 0;
             dir = 1;
@@ -519,20 +532,20 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
             int y;
             int w;
 
-            w = param_1[0];
+            w = state->width;
             bp = ip + 1;
             d8 = dir * 8;
             bits = *ip;
-            ip += ((w / 2) * (int)param_1[1]) / 2 / 8;
-            param_1[0] = w << 1;
+            ip += ((w / 2) * state->height) / 2 / 8;
+            state->width = w << 1;
             d2 = dir * 2;
             nb = 0;
-            for (y = 0; y < (int)param_1[1]; y += 2) {
+            for (y = 0; y < state->height; y += 2) {
                 u8* dst;
                 u8* dst2;
                 int x;
 
-                dst = (u8*)param_6 + (row & ~3) * param_1[0];
+                dst = (u8*)param_6 + (row & ~3) * state->width;
                 dst += (row & 3) * 8;
                 dst2 = dst + d8;
                 x = 0;
@@ -559,10 +572,10 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
                     x += 4;
                     dst += adv;
                     dst2 += adv;
-                } while (x < (int)param_1[0]);
+                } while (x < state->width);
                 row += d2;
             }
-            param_1[0] = (int)param_1[0] / 2;
+            state->width = state->width / 2;
         } else {
             int d8;
             int d2;
@@ -570,13 +583,13 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
 
             d8 = dir * 8;
             d2 = dir * 2;
-            param_1[0] <<= 1;
-            for (y = 0; y < (int)param_1[1]; y += 2) {
+            state->width <<= 1;
+            for (y = 0; y < state->height; y += 2) {
                 u8* dst;
                 u8* dst2;
                 int x;
 
-                dst = (u8*)param_6 + (row & ~3) * param_1[0];
+                dst = (u8*)param_6 + (row & ~3) * state->width;
                 dst += (row & 3) * 8;
                 dst2 = dst + d8;
                 x = 0;
@@ -594,15 +607,15 @@ u32 fn_800D8BCC(u32* param_1, int param_2, char* param_3, int param_4, int param
                     x += 4;
                     dst += adv;
                     dst2 += adv;
-                } while (x < (int)param_1[0]);
+                } while (x < state->width);
                 row += d2;
             }
-            param_1[0] = (int)param_1[0] / 2;
+            state->width = state->width / 2;
         }
     }
-    DCFlushRange((void*)param_6, param_1[0] * param_1[1] * 2);
+    DCFlushRange((void*)param_6, state->width * state->height * 2);
     GXInvalidateTexAll();
-    param_1[7] = param_1[7] + 1;
+    state->frame = state->frame + 1;
     return 0;
 }
 
@@ -805,13 +818,13 @@ u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param
                                     param_4, param_5, param_6);
             }
             if (*(u16*)(param_5 + 0xe) == 0x10) {
-                return fn_800D87FC(param_1, param_3, param_4, 2, param_5, param_6);
+                return fn_800D87FC((MovieDecodeState*)param_1, param_3, param_4, 2, param_5, param_6);
             }
             break;
         case 0x59565955:
-            return fn_800D87FC(param_1, param_3, param_4, 0, param_5, param_6);
+            return fn_800D87FC((MovieDecodeState*)param_1, param_3, param_4, 0, param_5, param_6);
         case 0x32595559:
-            return fn_800D87FC(param_1, param_3, param_4, 1, param_5, param_6);
+            return fn_800D87FC((MovieDecodeState*)param_1, param_3, param_4, 1, param_5, param_6);
         }
     } else {
         switch (*(int*)(param_5 + 0x10)) {
@@ -822,13 +835,13 @@ u32 fn_800D93D4(u32* param_1, u32 param_2, int param_3, char* param_4, int param
                                     param_4, param_5, param_6);
             }
             if (*(u16*)(param_5 + 0xe) == 0x10) {
-                return fn_800D8BCC(param_1, param_3, param_4, 2, param_5, param_6);
+                return fn_800D8BCC((MovieDecodeState*)param_1, param_3, param_4, 2, param_5, param_6);
             }
             break;
         case 0x59565955:
-            return fn_800D8BCC(param_1, param_3, param_4, 0, param_5, param_6);
+            return fn_800D8BCC((MovieDecodeState*)param_1, param_3, param_4, 0, param_5, param_6);
         case 0x32595559:
-            return fn_800D8BCC(param_1, param_3, param_4, 1, param_5, param_6);
+            return fn_800D8BCC((MovieDecodeState*)param_1, param_3, param_4, 1, param_5, param_6);
         }
     }
     return 0xffffffff;
