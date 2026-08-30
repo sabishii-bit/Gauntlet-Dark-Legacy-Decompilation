@@ -2333,7 +2333,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     f32 hitpt[3];
     f32 norm[3];
     f32 f1, f2, f3, f4;
-    f32 unused[10];
+    f32 unused[12];
 
     (void)unused;
 
