@@ -38,7 +38,7 @@ void ZeroAnimData(int* node);          /* 0x8000F628 */
 void CreateRYPMatrix(f32* matrix, const f32* angles); /* 0x800BD154 */
 void CreatePYRMatrix(f32* matrix, const f32* angles); /* 0x800BD254 */
 s32 CalcAnimation();                   /* 0x8000F534 */
-extern u8 gIdentityMatrix[];
+extern f32 gIdentityMatrix[];
 
 void AnimInit(void)
 {

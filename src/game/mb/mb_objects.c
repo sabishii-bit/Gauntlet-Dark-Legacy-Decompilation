@@ -65,7 +65,7 @@ extern void* lbl_80344EB4;
 extern void* lbl_80344EB0;
 extern void* lbl_80344EAC;
 extern void* lbl_80344EA8;
-extern u8 gIdentityMatrix[0x40];   /* tree ctor argument blob (.data) */
+extern f32 gIdentityMatrix[16];   /* identity matrix (transform arg to MBNewNode) */
 
 /* shared globals owned by other MB TUs */
 extern s32* gWinDebug;               /* 0x80343FB8 : ptr; [0]=hide-objs [1]=... */

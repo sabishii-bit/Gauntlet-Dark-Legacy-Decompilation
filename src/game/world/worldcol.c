@@ -151,7 +151,8 @@ extern f64 lbl_80345770;
 extern WObj* lbl_80344160;
 extern s32 lbl_80344180;
 extern WorldTri* lbl_80344184;
-extern u8 gIdentityMatrix[], lbl_80127DA0[];
+extern f32 gIdentityMatrix[];
+extern u8 lbl_80127DA0[];
 void CopyMat3(void* src, void* dst);   /* 0x800BE8C8 */
 f32 NormalVector(f32* v);               /* 0x800BDA98 */
 f32 fqdist();                           /* 0x800BCB44 */

@@ -2454,7 +2454,7 @@ extern f32 lbl_8023F838, lbl_802757D8, lbl_8028CAC8, lbl_8028CAD0, lbl_8028CAB4;
 extern f32 lbl_8028CAA8, lbl_8028CACC;
 extern f32 gDefaultPlayerPosition[], lbl_8023F8D4[], lbl_80258E08[];
 extern u8* lbl_80344EE8;
-extern u8 gIdentityMatrix[];
+extern f32 gIdentityMatrix[];
 extern u8 sMilestones[];
 extern char lbl_80111B3C[];
 void ChangeWindow(void);

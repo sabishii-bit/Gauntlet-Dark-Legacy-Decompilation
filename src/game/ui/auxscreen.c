@@ -26,7 +26,7 @@ extern u8 lbl_8023DFD0[];
 /* Base vec3 used to seed the averaged wizard position. */
 extern f32 gBossPos[3];
 /* .data tables referenced by the wizard/movie logic. */
-extern u8 gIdentityMatrix[];
+extern f32 gIdentityMatrix[];
 extern u8 lbl_80118250[];
 /* Pooled rodata format/name strings (map-screen blit builders). */
 extern char lbl_801116F0[];   /* "%s..." level-name format table base */
