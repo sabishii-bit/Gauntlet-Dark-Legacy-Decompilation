@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "2 source-shape axes plus 1 confirmatory structural check against the residual clusters in the 459-insn shop master state machine: (1) hoist the `pads + *(s32*)pl*60` sub-expression into a named u8* local before the +8 field deref in the case1/2/3 new_ctrl-buy-glow gate (mirrors the do_shopping DSItem cast-vs-raw-pointer test); (2) confirmed the 6 per-iteration stride accumulators (o60/o256/o12/o13148/o24/o4 alongside pl+=13148) already match target's actual codegen exactly (target's loop-bottom epilogue is addi r29,r29,1 / addi r16,r16,60 / addi r18,r18,256 / addi r26,r26,12 / addi r19,r19,13148 / addi r27,r27,24 / addi r20,r20,4 / addi r31,r31,13148 -- accumulator style, not i*CONST recompute), so the items.c induction-form law does NOT apply to this loop and no change was made there.",
+  "attributes": {
+    "anchors": "src/game/shop/shop.c::do_shop (GameCube 0x800988A4, size 1836); reproduce with ninja build/GUNE5D/src/game/shop/shop.o and python tools/gdl/fndiff.py game/shop/shop.c do_shop --count/--ops; baseline commit 561994d6 (worktree GDL-Claude-Shop, branch claude/shop-midband-20260830)",
+    "baseline_and_best": "baseline and best-retained: 90.98693% fuzzy, insns 459/453, real 628, frame 96/96. Neither axis beat baseline; both reverted, working tree clean.",
+    "measurements": "axis1 (named pdp = pads+*pl*60 local before the +8 deref): real 628->650, lines 662->684 -- regression, reverted. axis2 (accumulator-vs-induction check): read-only verification against target's loop epilogue, confirmed current accumulator source shape is already correct; no build change made.",
+    "policy": "2 of 3 allowed axes used and negative; a third genuinely distinct idea was not identified this session, so parking now rather than spending a low-odds third probe. Do not retry axis1 (intermediate-pointer hoist before a +8-class small-constant field deref) on this or sibling add/lwz-vs-addi/lwzx clusters -- same negative result already recorded independently in attempt.do-shopping-8009aa48-refinement.20260830.v1's axis2 (DSItem cast vs raw pointer, byte-identical output). Two independent functions now confirm this MWCC base+idx*stride+const addressing-mode choice (add+lwz/stw displacement vs addi+lwzx/stwx indexed) is invariant to surface pointer-expression syntax.",
+    "residual": "STRUCTURAL/SCHEDULE mix: 5 instances of the same add+lwz|stw -> addi+lwzx|stwx associativity flip (pads+idx*60+8, page+o12+... table lookups, gPlayers+o13148+7876, etc., same family as do_shopping_8009AA48's residual); one mtctr scheduled one slot earlier in target's case-5 countdown loop (bdnz loop correctly recognized in both builds, pure instruction-order swap among independent ops); one stwx-vs-stw where target itself mixes addressing modes across 3 sibling stores to the same base+o4 pointer (offset 0 via stwx, offset 16/32 via displacement) -- looks like scheduler-driven store interleaving, not a source-derivable choice. No opcode-count-changing semantic gaps found; loop/switch/case structure, accumulator strategy, and call sequencing all already match target."
+  },
+  "function": "function:do_shop",
+  "id": "attempt.do-shop-refinement.20260830.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-30"
+}
