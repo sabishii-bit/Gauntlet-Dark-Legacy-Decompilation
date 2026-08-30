@@ -4778,7 +4778,7 @@ s32 fn_80088EF4(Player* p, f32 range, f32 minDot) {
     s32 closest = -1;
     WorldObj* floor;
 
-    if (PF(p, 0x6B8, u32) != 0 || PF(p, 0x6BC, u32) != 0 ||
+    if ((u32)p->grab_partner != 0 || (u32)p->grab_pending != 0 ||
         PF(p, 0x6DC, u32) == 0) {
         return -1;
     }
@@ -4788,17 +4788,17 @@ s32 fn_80088EF4(Player* p, f32 range, f32 minDot) {
     if (p->state != 1) {
         return -1;
     }
-    if (PF(p, 0x828, f32) < lbl_80347BB8) {
+    if (p->power_target < lbl_80347BB8) {
         return -1;
     }
-    floor = (WorldObj*)PF(p, 0x8C4, u32);
+    floor = (WorldObj*)SV(p)->floor_obj;
     if (floor == NULL || (floor->flags & 0x1000) != 0) {
         return -1;
     }
 
-    face[0] = PF(p, 0x34, f32);
-    face[1] = PF(p, 0x38, f32);
-    face[2] = PF(p, 0x3C, f32);
+    face[0] = p->mat[8];
+    face[1] = p->mat[9];
+    face[2] = p->mat[10];
     NormalVector2D(face);
 
     for (i = 0; i < 4; i++) {
@@ -4812,23 +4812,23 @@ s32 fn_80088EF4(Player* p, f32 range, f32 minDot) {
         if (op->state != 1) {
             continue;
         }
-        if (PF(op, 0x6B8, u32) != 0) {
+        if ((u32)op->grab_partner != 0) {
             continue;
         }
-        if ((PF(op, 0x964, s16) & 0x50) != 0) {
+        if ((op->hud_flags & 0x50) != 0) {
             continue;
         }
         anim = op->anim_208;
         if ((anim >= 0x54 && anim < 0x5B) || anim >= 0x6B) {
             continue;
         }
-        if ((PF(op, 0x124, u32) & 0x400) != 0) {
+        if ((op->flags & 0x400) != 0) {
             continue;
         }
         if (p->quest_state != 0 && gBossType >= 0) {
             continue;
         }
-        floor = (WorldObj*)PF(op, 0x8C4, u32);
+        floor = (WorldObj*)SV(op)->floor_obj;
         if (floor == NULL || (floor->flags & 0x1000) != 0) {
             continue;
         }
