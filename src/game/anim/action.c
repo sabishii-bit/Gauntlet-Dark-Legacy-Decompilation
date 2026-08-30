@@ -30,13 +30,34 @@
  * DoAnimateTree, mb_tree node color pokes MBTreeClearFlags/MBTreeSetFlags).
  */
 #include "types.h"
+#include "game/enemy.h"
+#include "game/player.h"
+#include "game/leveldata.h"
+
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 
 /* atree (animation tree): +0x04 sequence table, 48-byte entries with the
- * frame count at +0x20 of each entry. */
+ * frame count at +0x20 of each entry (see ATREESEQ below).  DoEnemyAction's
+ * e70 and DoPlayerAction's atree locals both point at an embedded
+ * `animinfo` (include/game/enemy.h) - the enemy and player atree wrappers
+ * share that same playback-state layout at the byte level (animseq +0x0E,
+ * numframes +0x10, repeat +0x34, stage +0x36 all verified equal in both
+ * functions' target asm). */
 typedef struct ATREE {
     /* 0x00 */ s32 unk00;
     /* 0x04 */ char* seqs;
 } ATREE;
+
+/* one atreeseq sequence-table entry (48 bytes, InitActions' `seq * 48 + 32`).
+ * Only the frame-count field this TU reads is named; the rest of the entry
+ * is unresolved and kept as explicit padding. */
+typedef struct ATREESEQ {
+    /* 0x00 */ u8 _pad00[0x20];
+    /* 0x20 */ s16 frames;
+    /* 0x22 */ u8 _pad22[0x30 - 0x22];
+} ATREESEQ;
 
 /* per-action init record filled by InitActions */
 typedef struct ACTIONDEF {
@@ -44,7 +65,7 @@ typedef struct ACTIONDEF {
     /* 0x04 */ s32 frames; /* sequence frame count */
 } ACTIONDEF;
 
-/* minimal enemy view (full struct: include/game/Enemy.h, stride 0x394) */
+/* minimal enemy view (full struct: include/game/enemy.h, stride 0x394) */
 typedef struct ENEMYACT {
     /* 0x000 */ u8 _pad0[0xD0];
     /* 0x0D0 */ s32 action;    /* current action id (e_actpri index) */
@@ -89,7 +110,8 @@ s32 DoEnemyAction(void* enemy)
 {
     s32* e = (s32*)enemy;
     f32* ef = (f32*)enemy;
-    u8* e70 = (u8*)e + 0x70; /* interruptible flag at +0x34, walk rate at +0x10 */
+    u8* e70 = (u8*)e + 0x70; /* == &enemy->atree.animinfo: repeat (interruptible
+                                 flag) at +0x34, numframes at +0x10 */
     s32* defs = e + 0x35; /* ACTIONDEF[34] at +0xD4 */
     s32 next = e[0x34];   /* +0xD0 requested action */
     s32* node;            /* atree node at +0x6C */
@@ -430,7 +452,7 @@ s32 DoEnemyAction(void* enemy)
             mode = 2;
         }
     }
-    *(s16*)(e70 + 0x34) = interruptible;
+    *(s16*)(e70 + offsetof(animinfo, repeat)) = interruptible;
     result = AnimateATree(node, seq, mode);
 
     if (result != 0) {
@@ -493,7 +515,9 @@ s32 DoEnemyAction(void* enemy)
         f32 accum = 0.0f;
 
         if (act >= 0x18 && act <= 0x1A) {
-            dur = ef[0xDE] * *(f32*)(gCurLevel + 0xC0) + ef[0xE0];
+            dur = ef[0xDE] *
+                  *(f32*)(gCurLevel + offsetof(level_data, ene_mrate)) +
+                  ef[0xE0];
         }
         if (dur > 0.0) {
             while (dur > 1.0) {
@@ -503,7 +527,8 @@ s32 DoEnemyAction(void* enemy)
             ef[0xE0] = dur;
             ef[0xDF] = accum;
             if (ef[0xDF] >= 1.0) {
-                ef[0xDF] = (f32)(0.0333333333 * (s32)*(s16*)(e70 + 0x10) +
+                ef[0xDF] = (f32)(0.0333333333 *
+                                 (s32)*(s16*)(e70 + offsetof(animinfo, numframes)) +
                                  ef[0xDF]);
             }
         }
@@ -596,10 +621,10 @@ void DoPlayerAction(void* player)
             } else {
                 lo = 600;
             }
-            if (*(s16*)((u8*)p + 0x200) > hi) {
+            if (*(s16*)((u8*)p + offsetof(Player, vibe_timer)) > hi) {
                 mode = 1;
                 act = 1;
-            } else if (*(s16*)((u8*)p + 0x202) > lo) {
+            } else if (*(s16*)((u8*)p + offsetof(Player, vibe_timer2)) > lo) {
                 act = 2;
                 mode = 1;
             }
@@ -702,7 +727,7 @@ void DoPlayerAction(void* player)
         if (next == 0x49) {
             act = 0x4A;
         }
-        mbobj = *(void**)((u8*)p + 0x6E0);
+        mbobj = *(void**)((u8*)p + offsetof(Player, weaphold_node));
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree[6] < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
@@ -719,7 +744,7 @@ void DoPlayerAction(void* player)
         if (next == 0x49) {
             act = 0x49;
         }
-        mbobj = *(void**)((u8*)p + 0x6E0);
+        mbobj = *(void**)((u8*)p + offsetof(Player, weaphold_node));
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree[6] < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
@@ -736,7 +761,7 @@ void DoPlayerAction(void* player)
         if (next == 0x4D) {
             act = 0x4E;
         }
-        mbobj = *(void**)((u8*)p + 0x6E0);
+        mbobj = *(void**)((u8*)p + offsetof(Player, weaphold_node));
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree[6] < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
@@ -753,7 +778,7 @@ void DoPlayerAction(void* player)
         if (next == 0x4D) {
             act = 0x4D;
         }
-        mbobj = *(void**)((u8*)p + 0x6E0);
+        mbobj = *(void**)((u8*)p + offsetof(Player, weaphold_node));
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree[6] < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
@@ -1236,7 +1261,7 @@ void DoPlayerAction(void* player)
     case 0x7A:
         didt = 1;
         if (cur == 0 ||
-            (atree[6] < 10.0f && *(u16*)((u8*)atree + 0x36) == 0)) {
+            (atree[6] < 10.0f && *(u16*)((u8*)atree + offsetof(animinfo, stage)) == 0)) {
             mode = 0;
         } else {
             mode = 2;
@@ -1451,7 +1476,7 @@ void DoPlayerAction(void* player)
         }
         break;
     }
-    *(s16*)((u8*)atree + 0x34) = (s16)didt;
+    *(s16*)((u8*)atree + offsetof(animinfo, repeat)) = (s16)didt;
     {
         s32 rawSeq = defs[d].seq;
         if (rawSeq < 0) {
@@ -1461,7 +1486,7 @@ void DoPlayerAction(void* player)
     }
 
     /* per-action animation speed */
-    if ((*(s16*)((u8*)p + 0x964) & 0xD0) != 0 || atkNext >= 0xB ||
+    if ((*(s16*)((u8*)p + offsetof(Player, hud_flags)) & 0xD0) != 0 || atkNext >= 0xB ||
         atkNext == 1) {
         atree[10] = 1.0f;
     } else if ((act >= 0x58 && act <= 0x5A) ||
@@ -1494,13 +1519,13 @@ void DoPlayerAction(void* player)
         pf[0x296] = -1.0f;
         switch (cur) {
         case 1:
-            *(s16*)((u8*)p + 0x200) = 0;
-            *(s16*)((u8*)p + 0x202) = 1;
+            *(s16*)((u8*)p + offsetof(Player, vibe_timer)) = 0;
+            *(s16*)((u8*)p + offsetof(Player, vibe_timer2)) = 1;
             break;
         case 3:
             if (act != 3) {
-                *(s16*)((u8*)p + 0x200) = 0;
-                *(s16*)((u8*)p + 0x202) = 0;
+                *(s16*)((u8*)p + offsetof(Player, vibe_timer)) = 0;
+                *(s16*)((u8*)p + offsetof(Player, vibe_timer2)) = 0;
             }
             break;
         case 0x27:
@@ -1561,9 +1586,9 @@ void DoPlayerAction(void* player)
         case 0x61:
         case 0x62:
         case 0x64:
-            if (*(void**)((u8*)p + 0x6E0) != 0 &&
+            if (*(void**)((u8*)p + offsetof(Player, weaphold_node)) != 0 &&
                 (p[2] & 3) != 2 && p[2] != 3) {
-                MBTreeClearFlags(*(void**)((u8*)p + 0x6E0), 2, 0);
+                MBTreeClearFlags(*(void**)((u8*)p + offsetof(Player, weaphold_node)), 2, 0);
             }
             break;
         case 0x6B:
@@ -1586,15 +1611,15 @@ void DoPlayerAction(void* player)
         case 0x11:
         case 0x13:
         case 0x16:
-            *(s16*)((u8*)p + 0x962) |= 1;
+            *(s16*)((u8*)p + offsetof(Player, grab_flags)) |= 1;
             break;
         case 0x12:
         case 0x14:
-            *(s16*)((u8*)p + 0x962) |= 2;
+            *(s16*)((u8*)p + offsetof(Player, grab_flags)) |= 2;
             break;
         }
 
-        *(s16*)((u8*)p + 0x964) &= ~0xC702;
+        *(s16*)((u8*)p + offsetof(Player, hud_flags)) &= ~0xC702;
         switch (act) {
         case 0x20:
         case 0x21:
@@ -1637,9 +1662,9 @@ void DoPlayerAction(void* player)
             break;
         case 0x61:
         case 0x62:
-            if (*(void**)((u8*)p + 0x6E0) != 0 &&
+            if (*(void**)((u8*)p + offsetof(Player, weaphold_node)) != 0 &&
                 (p[2] & 3) != 2 && p[2] != 3) {
-                MBTreeSetFlags(*(void**)((u8*)p + 0x6E0), 2, 0);
+                MBTreeSetFlags(*(void**)((u8*)p + offsetof(Player, weaphold_node)), 2, 0);
             }
             break;
         case 0x6B:
@@ -1648,9 +1673,9 @@ void DoPlayerAction(void* player)
             p[0x23E] = 0;
             break;
         case 0x64:
-            if (*(void**)((u8*)p + 0x6E0) != 0 &&
+            if (*(void**)((u8*)p + offsetof(Player, weaphold_node)) != 0 &&
                 (p[2] & 3) != 2 && p[2] != 3) {
-                MBTreeSetFlags(*(void**)((u8*)p + 0x6E0), 2, 0);
+                MBTreeSetFlags(*(void**)((u8*)p + offsetof(Player, weaphold_node)), 2, 0);
             }
             break;
         case 0x73:
@@ -1664,7 +1689,7 @@ void DoPlayerAction(void* player)
         case 0x75:
             p[0x240] |= 0x10000;
             p[0x23E] = 0;
-            *(s16*)((u8*)p + 0x958) = 0;
+            *(s16*)((u8*)p + offsetof(Player, throw_str)) = 0;
             break;
         case 0x76:
             p[0x240] |= 0x40000;
@@ -1679,7 +1704,7 @@ void DoPlayerAction(void* player)
             p[0x23E] = 0;
             break;
         case 0x7B:
-            *(s16*)((u8*)p + 0x964) |= 0x800;
+            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 0x800;
             /* fallthrough */
         case 0x7E:
         case 0x83:
@@ -1687,17 +1712,17 @@ void DoPlayerAction(void* player)
         case 0x85:
         case 0x86:
         case 0x87:
-            *(s16*)((u8*)p + 0x964) |= 2;
+            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 2;
             break;
         case 0x77:
-            *(s16*)((u8*)p + 0x964) |= 0x100;
+            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 0x100;
             break;
         case 4:
         case 5:
         case 6:
         case 7:
         case 0x78:
-            *(s16*)((u8*)p + 0x964) |= 0x200;
+            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 0x200;
             break;
         case 9:
         case 10:
@@ -1707,7 +1732,7 @@ void DoPlayerAction(void* player)
         case 0xE:
         case 0xF:
         case 0x10:
-            *(s16*)((u8*)p + 0x964) |= 0x4000;
+            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 0x4000;
             break;
         case 0x47:
         case 0x48:
@@ -1717,12 +1742,12 @@ void DoPlayerAction(void* player)
         case 0x4C:
         case 0x4D:
         case 0x4E:
-            *(s16*)((u8*)p + 0x964) |= 0x8000;
+            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 0x8000;
             p[0x240] |= 1;
             p[0x23E] = 0;
             break;
         case 8:
-            *(s16*)((u8*)p + 0x964) |= 0x400;
+            *(s16*)((u8*)p + offsetof(Player, hud_flags)) |= 0x400;
             p[0x23E] = 0;
             break;
         case 0x22:
@@ -1879,8 +1904,8 @@ void DoPlayerAction(void* player)
                          action_names[cur], action_names[act],
                          action_names[next], mode, rpt, didt);
         dbgTextPrintfCol(1, 0x1D, "  SEQ:%s  frame:%.1f/%d",
-                         (char*)(*(s32*)atree + *(s16*)((u8*)atree + 0xE) * 0x30),
-                         atree[6], (s32)*(s16*)((u8*)atree + 0x10));
+                         (char*)(*(s32*)atree + *(s16*)((u8*)atree + offsetof(animinfo, animseq)) * 0x30),
+                         atree[6], (s32)*(s16*)((u8*)atree + offsetof(animinfo, numframes)));
     }
 
     if (adv != 0) {
@@ -1961,7 +1986,8 @@ void InitActions(ATREE* atree, ACTIONDEF* defs, char** names)
         }
         defs[i].seq = seq;
         if (seq >= 0) {
-            defs[i].frames = *(s16*)(atree->seqs + seq * 48 + 32);
+            defs[i].frames = *(s16*)(atree->seqs + seq * sizeof(ATREESEQ) +
+                                      offsetof(ATREESEQ, frames));
         } else {
             defs[i].frames = 0;
         }
