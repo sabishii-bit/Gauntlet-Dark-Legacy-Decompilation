@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "portable-C exact closure of prologue initialization scheduling, generated conversion-constant FPR allocation, and end/current address expression association",
+  "attributes": {
+    "anchors": "src/game/audio/adstream.c::adsInitFromHeader; target .text 0x800D6F30 size 0x26C; python tools/gdl/fnasm.py game/audio/adstream adsInitFromHeader; python tools/gdl/fndiff.py game/audio/adstream adsInitFromHeader --count/--ops/--clean; immutable commit fc2bba5e5ec55b403f81b21b637cec21294f942f",
+    "axis_log": "reordering aram before kscale/kdiv removed the complete prologue load-order cluster and improved fuzzy 97.08387->99.66451; aram/kdiv/kscale chronology regressed to 94.50323; manual conversion constants/arrays grew to 158 instructions and 0xE0 frame; kscale declaration/lifetime moves, direct lbl_80349310 use, register hint, direct ratio expression, cur/end declaration swap, staged and block-temp end/cur forms, and typed AX aggregates were invariant or worse and restored",
+    "baseline": "target/current 155/155 instructions, fuzzy 97.08387%, count-real 20 (26 clean-diff lines including 4 pool-name lines), 0xD8 frame, saves r19-r31 and f27-f31; SCHEDULE_CANDIDATE",
+    "final_state": "target/current 155/155 instructions, fuzzy 99.66451%, count-real 16 (20 clean-diff lines including 4 suppressed pool-name lines), 0xD8 frame, saves unchanged; opcode streams identical; retained aram=stream->spuReadBase before kscale/kdiv initialization",
+    "remaining_residual": "REGISTER_ONLY: target uses conversion biases/kscale in f28/f30/f31 versus retained f30/f31/f28, plus a four-instruction volatile association swap for (aram+sizeVoiceLoop)*2-1 and aram*2+2; do not repeat recorded declaration, direct-constant, manual-conversion, staged-expression, block-temp, register-hint, or typed-aggregate forms without a genuinely new target-backed lever",
+    "verification": "owning object rebuilt; full target assembly and count/ops/clean inspected; matchtool remains OK:22 OK~:0 bad:4 ties:2 with exact siblings unchanged; datadiff reports only pre-existing unclaimed .rodata 0x2D and .sdata2 0x10; git diff --check passed; no assembly modified; fresh full ninja linked main.dol with checksum OK; final project fuzzy 97.75321%, matched 58.121483%"
+  },
+  "function": "function:adsInitFromHeader",
+  "id": "attempt.adsinitfromheader-portable-schedule-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
