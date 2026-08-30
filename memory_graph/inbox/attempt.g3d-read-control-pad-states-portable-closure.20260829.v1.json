@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "portable-C exact/full-TU closure of literal manager addressing, shared-zero copies, loop web allocation, and relocation identity",
+  "attributes": {
+    "anchors": "src/game/g3d/gcontrolpads.c::G3DReadControlPadStates at GCN 0x800CB510 size 0xC0; config/GUNE5D/config.yml target block_relocations at 0x800CB514/0x800CB528; git:494a8542c; python tools/gdl/fnasm.py game/g3d/gcontrolpads G3DReadControlPadStates; python tools/gdl/fndiff.py game/g3d/gcontrolpads.c G3DReadControlPadStates --clean",
+    "axis_log": "literal manager pointer direct/high+low/register/volatile forms: identical 47-insn real39 regression; chained maskB=maskA=0 and explicit status-field address cache: identical to baseline; bit declaration before i/err: real24 regression; all probes reverted",
+    "baseline_best": "target/current 48/48 instructions, function fuzzy 93.229164%, fndiff --count real 20, 0x20 frame, saves r29-r31; TU fuzzy 99.09722%, six siblings exact, data/extab/extabindex 100%",
+    "policy": "Do not retry literal pointer spelling, high+low staging, register/volatile storage hints, chained zero initialization, status-field caching, or bit declaration order without genuinely new compiler/source evidence; exact closure requires portable C and complete raw object relocation/section equality.",
+    "postprocessor_audit": "commit 494a8542c only blocked two DTK-inferred target relocations; it did not postprocess compiled code. Historical exactness used forbidden inline asm/raw opword. Existing extraction rules are valid but cannot strip current relocations. WebFrank/Frank/P6Frank are ineligible for structural or relocation-payload differences, and no rule was added or weakened.",
+    "remaining": "target literal lis/addi has no relocation while current extern gPadManager emits HA/LO, plus target retains mr/addi copies from the live r29 zero where MWCC rematerializes li and rotates the status-address/bit webs; calls, CFG, fields, branches, frame, saved registers, instruction count, and sibling/data layout otherwise align"
+  },
+  "function": "function:G3DReadControlPadStates",
+  "id": "attempt.g3d-read-control-pad-states-portable-closure.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-29"
+}
