@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/pb/pb_frame.c::pbFrameMode (worktree GDL-Claude-PbFrameDefake, work_claim.pbframe-defake.20260830.v1); attempt.pb-frame-defakematch-tupass.20260830.v2",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.offsetof-rename-preserves-protected-web -- narrows the 'near-guaranteed neutral, needs only one gate' claim for a BATCH of structurally-identical sites on a plain pointer-variable base.",
+    "tags": [
+      "core-screen",
+      "offsetof-form",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.offsetof-rename-isolated-site-outlier.20260830.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T22:08:01Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-30",
+  "value": "claim.law.offsetof-rename-preserves-protected-web's parent evidence (pointer-VARIABLE base, single additive expression, no typed intermediate) held for every one of ~160 sites converted in one TU pass over pb_frame.c -- but one single site among a run of syntactically identical neighbors still regressed with no source-level distinguishing feature. pbFrameMode's packet-build loop copies 8-byte P8 template fields into buf at 15+ PBFRAMEBUF-offset sites via `*(P8*)(buf + N) = *(P8*)(tC + M);`, all converted to `buf + offsetof(PBFRAMEBUF, field)` / `tC + offsetof(PbTplC, mXX)` in one mechanical pass (tC a plain u8* local, never re-typed). 14 of 15 such conversions on tA/tB/tC held real steady or improved (real 391->389 net). The 15th, structurally identical to its immediate neighbors (`*(P8*)(buf + offsetof(PBFRAMEBUF, clr_xyz2b)) = *(P8*)(tC + offsetof(PbTplC, m28));`, tC's 5th and last field, same P8 copy shape as the other four), regressed real 389->393 in isolation -- reverting only that one site's tC operand back to the bare literal (`tC + 40`) restored 389. No difference in field size, array-vs-scalar shape, struct nesting depth, or position-in-function distinguishes the failing site from its 4 converted, neutral tC siblings; root cause unconfirmed. Consequence: a large batch of same-shape offsetof-rename sites converting cleanly is evidence the FORM is safe, not proof every site in the batch is safe -- after converting a uniform batch, re-run fndiff --count and bisect (binary-search by variable, then by individual site) whenever real moves at all, even fractionally, rather than trusting a spot-check of a few sites to clear the whole batch. This is a data point for, not a contradiction of, the parent law: the technique remains high-value (165/166 raw sites resolved this pass with a net improvement), but 'near-guaranteed neutral' still means gate every site, not just the form."
+}
