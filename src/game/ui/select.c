@@ -2155,17 +2155,17 @@ void setup_sel_menu(s32 player, s32 mode)
 
     switch (mode) {
     case 0:
-        *(void**)(data + playerOffset + 740) = data + 280;
-        *(s32*)(data + playerOffset + 828) = sel_set_choice(player, mode);
+        *(void**)(data + playerOffset + 712 + offsetof(OptMenuLayout, items)) = data + 280;
+        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = sel_set_choice(player, mode);
         break;
     case 1:
-        *(void**)(data + playerOffset + 740) = data + 388;
-        *(s32*)(data + playerOffset + 828) = sel_set_choice(player, mode);
+        *(void**)(data + playerOffset + 712 + offsetof(OptMenuLayout, items)) = data + 388;
+        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = sel_set_choice(player, mode);
         break;
     case 15:
-        *(void**)(data + playerOffset + 740) = data + 604;
-        *(s32*)(data + playerOffset + 828) = 1;
-        *(s32*)(data + playerOffset + 728) = lbl_80343DD8 + 64;
+        *(void**)(data + playerOffset + 712 + offsetof(OptMenuLayout, items)) = data + 604;
+        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = 1;
+        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, y)) = lbl_80343DD8 + 64;
         break;
     case 5:
     case 10: {
@@ -2176,12 +2176,12 @@ void setup_sel_menu(s32 player, s32 mode)
         s32 i;
         s32* selected;
 
-        *(void**)(data + playerOffset + 740) = entries;
+        *(void**)(data + playerOffset + 712 + offsetof(OptMenuLayout, items)) = entries;
         sum = player * 0x335C;
         *(s32*)field = baseChoice + 4;
-        *(s32*)(data + playerOffset + 728) = 70;
-        selected = (s32*)(data + playerOffset + 828);
-        *(f32*)(data + playerOffset + 764) = lbl_80348020;
+        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, y)) = 70;
+        selected = (s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel));
+        *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = lbl_80348020;
         off = 0;
         *selected = off;
         sum = *(s32*)(gPlayers + sum + 0x334C) +
@@ -2202,14 +2202,14 @@ void setup_sel_menu(s32 player, s32 mode)
     }
     case 8:
     case 13:
-        *(void**)(data + playerOffset + 740) =
+        *(void**)(data + playerOffset + 712 + offsetof(OptMenuLayout, items)) =
             (field = bss + player * 324) + 528;
         *(s32*)(data + playerOffset + 724) = baseChoice + 8;
-        *(s32*)(data + playerOffset + 728) = 70;
-        *(f32*)(data + playerOffset + 764) = lbl_80348020;
-        *(s32*)(data + playerOffset + 828) = *(s32*)(gPlayers + player * 0x335C + 0x3358);
-        if (*(s32*)(data + playerOffset + 828) < 0) {
-            *(s32*)(data + playerOffset + 828) = 0;
+        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, y)) = 70;
+        *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = lbl_80348020;
+        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = *(s32*)(gPlayers + player * 0x335C + 0x3358);
+        if (*(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) < 0) {
+            *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = 0;
         }
         break;
     }
