@@ -5154,11 +5154,13 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
             }
             return 0;
         } else if (player != NULL && (player->flags & 0x80000) != 0) {
-            e->health = (f32)(e->health - lbl_80346810);
+            f64 one;
+
+            e->health = (f32)(e->health - (one = lbl_80346810));
             if (e->org_lvl == 2) {
                 AddExp(player_index, 1, -2);
             } else {
-                player->health = (f32)(player->health + lbl_80346810);
+                player->health = (f32)(player->health + one);
             }
         } else {
             e->health = (f32)(e->health - lbl_80346810);
@@ -5220,7 +5222,8 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     if ((f64)lbl_803447D8 < lbl_80346810) {
         amount = (f32)(amount * lbl_80346868);
     }
-    if (player_index >= 0 && (f64)amount < lbl_80346810) {
+    if (player_index >= 0 &&
+        (f64)amount < *(volatile f64*)&lbl_80346810) {
         amount = lbl_80346820;
     }
 
