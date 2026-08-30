@@ -838,14 +838,16 @@ void DoPlayerAction(void* player)
             } else {
                 act = 0x3C;
             }
-        } else if (flags == 0 && p[0x23D] == 0) {
-            act = cur == 0x28 ? 0x2A : 0x2B;
-        } else if ((p[0x243] & 8U) != 0) {
-            act = cur == 0x28 ? 0x2A : 0x2B;
-        } else if ((p[0x243] & 4U) != 0) {
-            act = cur == 0x28 ? 0x40 : 0x3F;
+        } else if (flags != 0 || p[0x23D] != 0) {
+            if ((p[0x243] & 8U) != 0) {
+                act = cur == 0x28 ? 0x2A : 0x2B;
+            } else if ((p[0x243] & 4U) != 0) {
+                act = cur == 0x28 ? 0x40 : 0x3F;
+            } else {
+                act = cur == 0x28 ? 0x29 : 0x28;
+            }
         } else {
-            act = cur == 0x28 ? 0x29 : 0x28;
+            act = cur == 0x28 ? 0x2A : 0x2B;
         }
         break;
     case 0x2A:
@@ -861,11 +863,7 @@ void DoPlayerAction(void* player)
             }
         } else if (flags != 0 && atree[6] <= 2.0 &&
                    (p[0x243] & 1U) != 0) {
-            if (cur == 0x2A) {
-                act = 0x29;
-            } else {
-                act = 0x28;
-            }
+            act = cur == 0x2A ? 0x29 : 0x28;
             mode = 2;
         }
         if (atkNext == 1) {
@@ -884,7 +882,25 @@ void DoPlayerAction(void* player)
             } else {
                 act = 0x3C;
             }
-        } else if (flags == 0 && p[0x23D] == 0) {
+        } else if (flags != 0 || p[0x23D] != 0) {
+            if ((p[0x243] & 8U) != 0) {
+                if (cur == 0x3F) {
+                    act = 0x41;
+                } else {
+                    act = 0x42;
+                }
+            } else if ((p[0x243] & 4U) != 0) {
+                if (cur == 0x3F) {
+                    act = 0x40;
+                } else {
+                    act = 0x3F;
+                }
+            } else if (cur == 0x3F) {
+                act = 0x29;
+            } else {
+                act = 0x28;
+            }
+        } else {
             s32 paired_action;
 
             if (cur == 0x3F) {
@@ -893,22 +909,6 @@ void DoPlayerAction(void* player)
                 paired_action = 0x42;
             }
             act = paired_action;
-        } else if ((p[0x243] & 8U) != 0) {
-            if (cur == 0x3F) {
-                act = 0x41;
-            } else {
-                act = 0x42;
-            }
-        } else if ((p[0x243] & 4U) != 0) {
-            if (cur == 0x3F) {
-                act = 0x40;
-            } else {
-                act = 0x3F;
-            }
-        } else if (cur == 0x3F) {
-            act = 0x29;
-        } else {
-            act = 0x28;
         }
         break;
     case 0x41:
