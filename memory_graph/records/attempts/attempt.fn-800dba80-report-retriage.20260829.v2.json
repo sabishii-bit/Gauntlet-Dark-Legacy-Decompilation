@@ -12,6 +12,7 @@
   "id": "attempt.fn-800dba80-report-retriage.20260829.v2",
   "kind": "attempt",
   "outcome": "retriaged",
+  "recorded_at": "2026-08-30T02:46:44Z",
   "residual_class": "STRUCTURAL/C++ exception landing pads",
   "schema_version": 1,
   "supersedes": "attempt.parked.fn_800dba80.20260829.v1",

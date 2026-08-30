@@ -13,6 +13,7 @@
   "id": "attempt.cam-get-player-avg-pos-inline-minmax.20260829.v1",
   "kind": "attempt",
   "outcome": "exact",
+  "recorded_at": "2026-08-30T02:20:25Z",
   "residual_class": "REGISTER_ONLY",
   "schema_version": 1,
   "valid_from": "2026-08-29"

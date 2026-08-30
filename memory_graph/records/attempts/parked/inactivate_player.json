@@ -9,6 +9,7 @@
   "id": "attempt.parked.inactivate_player.20260829.v1",
   "kind": "attempt",
   "outcome": "parked",
+  "recorded_at": "2026-08-29T23:25:17Z",
   "residual_class": "REGISTER_ONLY/SCHEDULE (allocator or scheduler residual)",
   "schema_version": 1,
   "valid_from": "2026-08-29"

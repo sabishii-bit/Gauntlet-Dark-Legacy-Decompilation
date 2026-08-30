@@ -19,6 +19,7 @@
   "kind": "tool",
   "name": "GDL Memory Graph",
   "purpose": "Provide deterministic cross-session retrieval over project facts, tools, attempts, legacy memories, and Xbox/GameCube symbol evidence.",
+  "recorded_at": "2026-08-29T22:04:21Z",
   "schema_version": 1,
   "source_path": "memory_graph/gdlmem.py",
   "status": "active_migration",

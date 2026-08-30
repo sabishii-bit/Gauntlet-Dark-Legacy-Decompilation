@@ -14,6 +14,7 @@
   "kind": "attempt",
   "outcome": "capped",
   "record_state": "proposed",
+  "recorded_at": "2026-08-30T05:22:35Z",
   "residual_class": "STRUCTURAL (algebraic constant-fold, no known lever)",
   "schema_version": 1,
   "valid_from": "2026-08-30"

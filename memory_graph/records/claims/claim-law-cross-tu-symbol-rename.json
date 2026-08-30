@@ -7,6 +7,7 @@
   "id": "claim.law.cross-tu-symbol-rename.20260829.v1",
   "kind": "claim",
   "predicate": "workflow_law",
+  "recorded_at": "2026-08-29T23:25:17Z",
   "schema_version": 1,
   "subject": "project:gdl",
   "valid_from": "2026-08-29",

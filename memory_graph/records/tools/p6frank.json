@@ -22,6 +22,7 @@
   "kind": "tool",
   "name": "P6Frank",
   "purpose": "Fail-closed exact-build fallback for the proven regFind P6 branch-fold carrier in game/sys/registry.",
+  "recorded_at": "2026-08-29T22:04:21Z",
   "schema_version": 1,
   "source_path": "tools/gdl/p6frank.py",
   "status": "active_single_unit_fallback",

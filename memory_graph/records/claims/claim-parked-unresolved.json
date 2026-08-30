@@ -4,6 +4,7 @@
   "kind": "claim",
   "note": "Legacy parked entries whose names did not uniquely resolve against the GameCube symbol table at terminal import; re-triage before working any of them.",
   "predicate": "parked_functions_unresolved",
+  "recorded_at": "2026-08-29T23:25:17Z",
   "schema_version": 1,
   "subject": "project:gdl",
   "valid_from": "2026-08-29",

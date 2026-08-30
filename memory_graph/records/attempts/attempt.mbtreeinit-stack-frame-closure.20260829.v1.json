@@ -13,6 +13,7 @@
   "id": "attempt.mbtreeinit-stack-frame-closure.20260829.v1",
   "kind": "attempt",
   "outcome": "capped",
+  "recorded_at": "2026-08-29T23:50:25Z",
   "residual_class": "STACK_LAYOUT",
   "schema_version": 1,
   "valid_from": "2026-08-29"

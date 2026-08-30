@@ -22,6 +22,7 @@
   "kind": "tool",
   "name": "WebFrank",
   "purpose": "Fail-closed matching-build correction for individually proven register-allocation residuals and exceptional audited instruction permutations.",
+  "recorded_at": "2026-08-29T22:04:21Z",
   "schema_version": 1,
   "source_path": "tools/gdl/webfrank.py",
   "status": "active_guarded",

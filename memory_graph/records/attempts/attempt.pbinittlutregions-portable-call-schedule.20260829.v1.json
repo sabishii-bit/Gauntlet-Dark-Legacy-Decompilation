@@ -12,6 +12,7 @@
   "id": "attempt.pbinittlutregions-portable-call-schedule.20260829.v1",
   "kind": "attempt",
   "outcome": "capped",
+  "recorded_at": "2026-08-30T00:04:30Z",
   "residual_class": "SCHEDULE",
   "schema_version": 1,
   "valid_from": "2026-08-29"

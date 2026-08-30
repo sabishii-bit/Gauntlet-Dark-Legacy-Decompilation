@@ -12,6 +12,7 @@
   "kind": "attempt",
   "outcome": "capped",
   "record_state": "proposed",
+  "recorded_at": "2026-08-30T10:41:38Z",
   "residual_class": "SCHEDULE/STRUCTURAL",
   "schema_version": 1,
   "valid_from": "2026-08-30"

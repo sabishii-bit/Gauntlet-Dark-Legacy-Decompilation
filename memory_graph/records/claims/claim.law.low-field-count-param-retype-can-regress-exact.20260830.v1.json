@@ -7,6 +7,7 @@
   "id": "claim.law.low-field-count-param-retype-can-regress-exact.20260830.v1",
   "kind": "claim",
   "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T18:12:06Z",
   "schema_version": 1,
   "subject": "compiler:mwcc-gc-1.2.5",
   "valid_from": "2026-08-30",

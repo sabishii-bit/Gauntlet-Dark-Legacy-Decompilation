@@ -1,11 +1,11 @@
 {
   "attributes": {
+    "preserve_analysis": true,
     "reference_anchors": [
       "config/GUNE5D/symbols.txt",
       "config/GUNE5D/splits.txt",
       "research/xbox_symbols/xbox_structs.tsv"
-    ],
-    "preserve_analysis": true
+    ]
   },
   "constraints": [
     "Use Ghidra for semantics and broad control flow, not exact statement grouping, storage classes, evaluation order, or final bytes.",
@@ -16,6 +16,7 @@
   "kind": "tool",
   "name": "Ghidra",
   "purpose": "Inspect GameCube target semantics, control flow, data references, and recovered types, and preserve durable reverse-engineering annotations.",
+  "recorded_at": "2026-08-29T22:04:21Z",
   "schema_version": 1,
   "status": "active_reference",
   "tool_key": "tool:ghidra",

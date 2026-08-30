@@ -13,6 +13,7 @@
   "kind": "attempt",
   "outcome": "improved",
   "record_state": "proposed",
+  "recorded_at": "2026-08-30T10:29:50Z",
   "residual_class": "STRUCTURAL/REGISTER_CASCADE",
   "schema_version": 1,
   "valid_from": "2026-08-30"

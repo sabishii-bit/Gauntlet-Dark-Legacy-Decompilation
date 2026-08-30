@@ -7,6 +7,7 @@
   "id": "claim.law.pointer-walk-array-index-regression.20260830.v1",
   "kind": "claim",
   "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T07:45:16Z",
   "schema_version": 1,
   "subject": "compiler:mwcc-gc-1.2.5",
   "valid_from": "2026-08-30",

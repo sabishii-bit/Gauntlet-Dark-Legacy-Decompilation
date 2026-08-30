@@ -7,6 +7,7 @@
   "id": "claim.law.offsetof-fused-immediate-counter.20260830.v1",
   "kind": "claim",
   "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T08:34:57Z",
   "schema_version": 1,
   "subject": "compiler:mwcc-gc-1.2.5",
   "valid_from": "2026-08-30",

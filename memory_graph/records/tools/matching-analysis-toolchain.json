@@ -20,6 +20,7 @@
   "kind": "tool",
   "name": "GDL matching analysis toolchain",
   "purpose": "Provide the standard target-assembly, diffing, candidate, data, ownership, and final-link workflow for matching work.",
+  "recorded_at": "2026-08-29T22:04:21Z",
   "schema_version": 1,
   "status": "active",
   "tool_key": "tool:gdl-matching-analysis",

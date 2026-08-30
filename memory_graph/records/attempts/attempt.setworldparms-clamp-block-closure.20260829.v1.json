@@ -12,6 +12,7 @@
   "id": "attempt.setworldparms-clamp-block-closure.20260829.v1",
   "kind": "attempt",
   "outcome": "capped",
+  "recorded_at": "2026-08-30T03:49:35Z",
   "residual_class": "SCHEDULE",
   "schema_version": 1,
   "valid_from": "2026-08-29"

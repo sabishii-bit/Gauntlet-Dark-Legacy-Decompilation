@@ -14,6 +14,7 @@
   "id": "attempt.writegauntletsave-mount-fail-and-loop-header.20260830.v1",
   "kind": "attempt",
   "outcome": "capped",
+  "recorded_at": "2026-08-30T06:31:06Z",
   "residual_class": "STRUCTURAL/SCHEDULE",
   "schema_version": 1,
   "valid_from": "2026-08-30"

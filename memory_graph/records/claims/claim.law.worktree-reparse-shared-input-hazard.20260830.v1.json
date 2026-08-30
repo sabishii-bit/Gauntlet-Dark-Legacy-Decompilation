@@ -7,6 +7,7 @@
   "id": "claim.law.worktree-reparse-shared-input-hazard.20260830.v1",
   "kind": "claim",
   "predicate": "workflow_law",
+  "recorded_at": "2026-08-30T09:13:22Z",
   "schema_version": 1,
   "subject": "project:gdl",
   "valid_from": "2026-08-30",

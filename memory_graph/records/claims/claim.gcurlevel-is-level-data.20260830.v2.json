@@ -7,6 +7,7 @@
   "id": "claim.gcurlevel-is-level-data.20260830.v2",
   "kind": "claim",
   "predicate": "type_identification",
+  "recorded_at": "2026-08-30T10:15:56Z",
   "schema_version": 1,
   "subject": "compiler:mwcc-gc-1.2.5",
   "supersedes": "claim.gcurlevel-is-level-data.20260830.v1",

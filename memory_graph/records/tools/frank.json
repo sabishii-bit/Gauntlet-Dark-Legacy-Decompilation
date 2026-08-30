@@ -20,6 +20,7 @@
   "kind": "tool",
   "name": "Frank",
   "purpose": "Research and regression implementation of Melee-style profile-scheduled epilogue merging for MWCC 1.2.5-era objects.",
+  "recorded_at": "2026-08-29T22:04:21Z",
   "schema_version": 1,
   "source_path": "tools/gdl/frank.py",
   "status": "inactive_research",

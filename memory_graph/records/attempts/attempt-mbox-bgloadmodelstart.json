@@ -1,18 +1,19 @@
-﻿{
-    "schema_version":  1,
-    "id":  "attempt.mbox-bgloadmodelstart-owner-matrix.20260829.v1",
-    "kind":  "attempt",
-    "function":  "function:MBOX_BGLoadModelStart",
-    "attempted_axis":  "complete target/semantic audit plus a broad declaration, initializer, typed-owner, lifetime, pragma, and 1.2.5n compiler matrix against the string/table owner swap",
-    "outcome":  "capped",
-    "attributes":  {
-                       "final_state":  "71/71 insns, fuzzy 87.89, real 46, frame 0x30, saves r26-r31; residual is an invariant compiler owner/schedule wall",
-                       "policy":  "hard-capped under the iteration-limits policy; do not reopen without a genuinely new semantic identity spanning the target register-reuse boundary",
-                       "provenance":  "terminal legacy-ledger import, 2026-08-29 (mbpsys_debugnode worker row)",
-                       "axis_log":  [
-                                        "legacy parked-list entry (superseded by this record): bounded source-shape matrix; 71/71 fuzzy 87.89 real 46 frame 0x30, exact CFG/calls/offsets"
-                                    ]
-                   },
-    "valid_from":  "2026-08-29",
-    "supersedes":  "attempt.parked.mbox_bgloadmodelstart.20260829.v1"
+{
+  "attempted_axis": "complete target/semantic audit plus a broad declaration, initializer, typed-owner, lifetime, pragma, and 1.2.5n compiler matrix against the string/table owner swap",
+  "attributes": {
+    "axis_log": [
+      "legacy parked-list entry (superseded by this record): bounded source-shape matrix; 71/71 fuzzy 87.89 real 46 frame 0x30, exact CFG/calls/offsets"
+    ],
+    "final_state": "71/71 insns, fuzzy 87.89, real 46, frame 0x30, saves r26-r31; residual is an invariant compiler owner/schedule wall",
+    "policy": "hard-capped under the iteration-limits policy; do not reopen without a genuinely new semantic identity spanning the target register-reuse boundary",
+    "provenance": "terminal legacy-ledger import, 2026-08-29 (mbpsys_debugnode worker row)"
+  },
+  "function": "function:MBOX_BGLoadModelStart",
+  "id": "attempt.mbox-bgloadmodelstart-owner-matrix.20260829.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-29T22:38:55Z",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.mbox_bgloadmodelstart.20260829.v1",
+  "valid_from": "2026-08-29"
 }

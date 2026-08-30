@@ -1,15 +1,16 @@
 {
-  "schema_version": 1,
-  "id": "attempt.get-attn-pos-reconstruction.20260829.v1",
-  "kind": "attempt",
-  "function": "function:get_attn_pos_8002C9A8",
   "attempted_axis": "lowest-match reconstruction: unified camera-state aggregate ownership, assignment-in-load item access, pointer target iteration, block-scoped FP constants, balanced stack carriers",
-  "outcome": "merged_improved",
   "attributes": {
-    "measurements": "fuzzy 85.37 -> 95.37; exact instruction count 372/372 recovered along with frame 0xB0 and the target save set r29-r31/f27-f31",
-    "law": "recover shared aggregate ownership (one base for related tables) before tuning row loops; separate extern symbols create redundant HA/LO materializations and unrelated saved webs",
     "landed_commit": "git:78191470",
+    "law": "recover shared aggregate ownership (one base for related tables) before tuning row loops; separate extern symbols create redundant HA/LO materializations and unrelated saved webs",
+    "measurements": "fuzzy 85.37 -> 95.37; exact instruction count 372/372 recovered along with frame 0xB0 and the target save set r29-r31/f27-f31",
     "provenance": "terminal legacy-ledger import, 2026-08-29 (gcontrolpads_writer worker row)"
   },
+  "function": "function:get_attn_pos_8002C9A8",
+  "id": "attempt.get-attn-pos-reconstruction.20260829.v1",
+  "kind": "attempt",
+  "outcome": "merged_improved",
+  "recorded_at": "2026-08-29T22:38:55Z",
+  "schema_version": 1,
   "valid_from": "2026-08-29"
 }

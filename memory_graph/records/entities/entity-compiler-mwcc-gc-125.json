@@ -1,15 +1,19 @@
 {
-  "schema_version": 1,
-  "id": "entity.compiler.mwcc-gc-125.20260829.v1",
-  "kind": "entity",
-  "entity_type": "compiler",
-  "key": "compiler:mwcc-gc-1.2.5",
-  "name": "Metrowerks CodeWarrior GC 1.2.5 family",
-  "state": "active",
   "attributes": {
-    "variants": ["1.2.5", "1.2.5n"],
     "game_code_flags": "cflags_demo -O4, peephole off (per-lib exceptions recorded in tool/TU records)",
-    "note": "Codegen laws claimed against this entity apply to the flag set recorded on each claim, not to MWCC universally."
+    "note": "Codegen laws claimed against this entity apply to the flag set recorded on each claim, not to MWCC universally.",
+    "variants": [
+      "1.2.5",
+      "1.2.5n"
+    ]
   },
+  "entity_type": "compiler",
+  "id": "entity.compiler.mwcc-gc-125.20260829.v1",
+  "key": "compiler:mwcc-gc-1.2.5",
+  "kind": "entity",
+  "name": "Metrowerks CodeWarrior GC 1.2.5 family",
+  "recorded_at": "2026-08-29T22:15:53Z",
+  "schema_version": 1,
+  "state": "active",
   "valid_from": "2026-08-29"
 }

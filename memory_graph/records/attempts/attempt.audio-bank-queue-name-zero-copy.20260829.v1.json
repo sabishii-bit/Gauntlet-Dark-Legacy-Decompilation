@@ -11,6 +11,7 @@
   "id": "attempt.audio-bank-queue-name-zero-copy.20260829.v1",
   "kind": "attempt",
   "outcome": "capped",
+  "recorded_at": "2026-08-29T23:43:45Z",
   "residual_class": "STRUCTURAL",
   "schema_version": 1,
   "valid_from": "2026-08-29"

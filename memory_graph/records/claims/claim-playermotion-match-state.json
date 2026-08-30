@@ -1,11 +1,4 @@
 {
-  "schema_version": 1,
-  "id": "claim.playermotion-match-state.20260829.v1",
-  "kind": "claim",
-  "subject": "function:PlayerMotion",
-  "predicate": "fuzzy_match_percent",
-  "value": "97.13",
-  "epistemic_state": "observed",
   "attributes": {
     "instructions": "4776 ours / 4775 target (count was exactly 4775/4775 at git:9d260e0d)",
     "measured_at_commit": "git:40caf10d",
@@ -17,5 +10,13 @@
       "head-block init interleave (decl-reorder axis tested negative twice; closed)"
     ]
   },
-  "valid_from": "2026-08-29"
+  "epistemic_state": "observed",
+  "id": "claim.playermotion-match-state.20260829.v1",
+  "kind": "claim",
+  "predicate": "fuzzy_match_percent",
+  "recorded_at": "2026-08-29T22:15:53Z",
+  "schema_version": 1,
+  "subject": "function:PlayerMotion",
+  "valid_from": "2026-08-29",
+  "value": "97.13"
 }

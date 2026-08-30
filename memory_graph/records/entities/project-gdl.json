@@ -5,9 +5,11 @@
   },
   "entity_type": "project",
   "id": "entity.project.gdl",
-  "kind": "entity",
   "key": "project:gdl",
+  "kind": "entity",
   "name": "Gauntlet Dark Legacy Decompilation",
+  "recorded_at": "2026-08-29T22:04:21Z",
   "schema_version": 1,
-  "state": "active"
+  "state": "active",
+  "valid_from": "2026-08-29"
 }

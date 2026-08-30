@@ -11,6 +11,7 @@
   "id": "attempt.shop-setup-refinement.20260830.v1",
   "kind": "attempt",
   "outcome": "capped",
+  "recorded_at": "2026-08-30T05:03:06Z",
   "residual_class": "REGISTER_ONLY",
   "schema_version": 1,
   "valid_from": "2026-08-30"

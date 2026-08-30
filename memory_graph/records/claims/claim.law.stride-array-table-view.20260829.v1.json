@@ -7,6 +7,7 @@
   "id": "claim.law.stride-array-table-view.20260829.v1",
   "kind": "claim",
   "predicate": "codegen_law",
+  "recorded_at": "2026-08-30T02:55:08Z",
   "schema_version": 1,
   "subject": "compiler:mwcc-gc-1.2.5",
   "valid_from": "2026-08-29",

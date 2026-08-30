@@ -13,6 +13,7 @@
   "kind": "attempt",
   "outcome": "negative",
   "record_state": "proposed",
+  "recorded_at": "2026-08-30T10:43:18Z",
   "residual_class": "STRUCTURAL",
   "schema_version": 1,
   "valid_from": "2026-08-30"
