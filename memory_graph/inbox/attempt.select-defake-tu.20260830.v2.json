@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "SECONDARY TU-scoped de-fakematch pass over src/game/ui/select.c, retrying wave-1's capped regions (do_player_select, setup_sel_menu, update_class_attr) under the full law corpus, plus fresh functions, converting raw *(T*)(p+N) casts to offsetof()-computed displacements on the ORIGINAL raw pointer (never a typed struct alias), gated per function on fndiff --count.",
+  "attributes": {
+    "anchors": "src/game/ui/select.c whole TU; python tools/gdl/fndiff.py game/ui/select.c <fn> --count; ninja build/GUNE5D/src/game/ui/select.o; full ninja + CHECK config/GUNE5D/build.sha1 before every commit",
+    "converted": "do_player_select (baseline real1096, wave1-capped twice): 195 sites (113 Player fields incl all 57 motion_state + 5 hidden_code; 17 VmuMenuEntry/OPTITEM; 24 OptMenuLayout/OPTMENU via menu; 41 BlitEntry-array via b/blitbase+boff), real held at 1096 throughout. setup_sel_menu (baseline real82, wave1-capped twice via typed alias): 18 OptMenuLayout sites via additive '712+offsetof' on the raw data+playerOffset/field pointers, real held at 82. update_class_attr(160)/update_class_spec(24)/init_player_select(84)/init_player_change(45)/do_sel_menu(1540)/setup_file_entries(95): 8/10/10/3/2/6 sites, real unchanged in every case. 17 commits, all fndiff-gated, full ninja green + main.dol OK + PROGRESS unchanged (58.15%/97.82%) throughout.",
+    "left_raw_unresolvable": "Player pad regions (0x333C,0x3348-0x3358,0xA8B/C/E,0x1ECC, ~127 sites) - no GC-verified field. serve_blits re-screened, still capped: e+=8 lwzu-idiom-web sites (claim.law.lwzu-idiom-web-retention) and page-blob offsets lack struct authority; its own STRUCTURAL scheduling residual (attempt.serve-blits-kb-init-lifetime, 7 failed axes) not re-attempted. Same lwzu protection left init_player_select/update_class_spec's eWeap/eA-D+=N blit-handle sites raw. No struct authority yet: row/expslot/cls/tex/lbl_80240E30.",
+    "new_records": "claim.law.offsetof-overturns-typed-alias-caps.20260830.v1 (offsetof-on-raw-pointer overturned both prior caps at much larger scale than either had been tried); claim.optmenu-is-select-struct.20260830.v1 (menu/data+playerOffset+712 = OPTMENU, items list = OPTITEM, both game/ui/options.c - discovered via shared-callee cross-TU typing)."
+  },
+  "function": "function:serve_blits",
+  "id": "attempt.select-defake-tu.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.select-defake-tu.20260830.v1",
+  "valid_from": "2026-08-30"
+}
