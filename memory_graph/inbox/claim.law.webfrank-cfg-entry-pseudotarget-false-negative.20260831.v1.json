@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.webfrank-cfg-entry-pseudotarget-false-negative.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T15:43:48Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/critter",
+  "valid_from": "2026-08-31",
+  "value": "LAW (verified 2026-08-31 on CritterDoTexmodNode): when webfrank's renaming bisimulation fails at an offset FAR EARLIER than the first differing word - typically inside the prologue, on an identity-mapped register, with a message of the form 'use of gN does not correspond to gN under the running renaming' - the cause is almost never the recolor. It is a spurious computed-branch edge into the function ENTRY. webfrank._jumptable_targets derives switch targets by collecting every ADDR32 data-section relocation whose symbol lies in .text and whose value+addend resolves inside the function. That set correctly captures a jumptable's case labels, but it ALSO captures any function-POINTER reference to the function itself, which resolves to fn_start and enters the set as offset 0x0. _successors then gives every bctr an edge to index 0, so the prologue is re-entered on the worklist with a map already narrowed by the switch arms' call-clobbers, and the identity assumptions the prologue's stmw/mr chain requires are destroyed. DIAGNOSTIC (cheap, read-only): print the derived target set; if 0x0 is in it while the real case labels are all mid-function, re-run verify_consistent_recolor with the entry offset excluded. On CritterDoTexmodNode the set was {0x0, 0x20c, 0x24c, 0x254, 0x25c, 0x264, 0x26c}; as shipped the bisimulation FAILED at +0x2c, and with 0x0 alone excluded it PASSED over all 463 instructions with no audit escape. CONSEQUENCE: a computed branch to a function's own entry would re-execute stwu/stmw and cannot be a compiler-generated switch case, so excluding fn_start is a CORRECTNESS fix rather than a relaxation - but it is an edit to SHARED guard machinery that changes CFG derivation for every unit, so it must be made by the integrator with a test and a full-corpus rebuild (every shipped rule is hash-asserted on each build, which is the regression gate), never unilaterally by a lane mid-fleet. CRITICALLY: do NOT route around this failure with an unproven_recolor_audit entry. The residual in this class IS provable, and using the audit hatch to cover a tooling defect is precisely the guard-weakening the tool contract forbids - it would also silently mask genuine renaming violations in the same function. This law is a companion to claim.law.webfrank-permutation-is-audited-in-our-colouring, which establishes the bisimulation (not the masked byte scan) as the adjudicator: that only holds while the CFG the bisimulation walks is itself correct."
+}
