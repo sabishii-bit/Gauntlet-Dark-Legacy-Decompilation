@@ -198,6 +198,17 @@
           "instructions": 75
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "CritterLineCollide",
+        "before_sha256": "55e8457b86a0c856b9c3c281953f0cf5409fa0a83b6e7a7368b757221d1bd85c",
+        "after_sha256": "2c1698f67d83392d148dcb8148d6cb66fb1e3812b09c6ea5fa37425cf0dc532a",
+        "mechanism": "Symmetric two-web register crossing over 8 words: the loop-count web fed by the SDA21 global re-read is r4 in retail and r5 in ours, while the anonymous scaled-base temp for the pool element address is r5 in retail and r4 in ours. Both webs are volatile with disjoint live ranges, so the difference is a pure allocator recolor with an IDENTICAL opcode multiset (91/91). Not source-reachable: one web is a compiler-created temp with no declarable carrier, and the declaration-order lever measured byte-identical at both extremes (attempt.critterlinecollide-two-web-crossing.20260831.v1).",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 91
+        },
+        "copy_register_fields": true
       }
     ],
     "game/enemy/enemy": [

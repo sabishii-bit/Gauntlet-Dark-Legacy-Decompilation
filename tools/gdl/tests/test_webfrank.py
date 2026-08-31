@@ -308,6 +308,23 @@ class ShippedRuleMechanismTests(unittest.TestCase):
         target = bytes.fromhex("38800b9a 38c7ffff 380403e8 7cc601d6 4e800020")
         verify_consistent_recolor(current, target)
 
+    def test_critter_line_collide_scaled_base_temp_web(self):
+        # +0x80: the anonymous scaled-base temp for the pool element address
+        # is r4 in ours and r5 in retail, carrying through the element load
+        # and the mr into the walk register.
+        # attempt.webfrank-closure2.critterlinecollide.20260831.v1
+        current = bytes.fromhex("7c9f1a14 80040008 3bc40000 4e800020")
+        target = bytes.fromhex("7cbf1a14 80050008 3bc50000 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_critter_line_collide_sda_count_reread_web(self):
+        # +0xec: the loop-count web re-read from the SDA21 global is r5 in
+        # ours and r4 in retail — the other half of the symmetric crossing.
+        # The RA=0 SDA21 base must stay absent on both sides.
+        current = bytes.fromhex("80a00000 2c050000 4e800020")
+        target = bytes.fromhex("80800000 2c040000 4e800020")
+        verify_consistent_recolor(current, target)
+
     def test_load_player_geo_recycled_register_recolor(self):
         # The pad/cls crossing, including the mulli that RECYCLES r27 after
         # cls dies -- the define-kill step is what makes this provable.
