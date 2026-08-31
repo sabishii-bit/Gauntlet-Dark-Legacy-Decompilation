@@ -1,0 +1,23 @@
+{
+  "attempted_axis": "Harmonize screensaver.c:117's `extern int gGameMode` to the project-standard `extern s32 gGameMode`, byte-identically. Flagged as an unfixed genuine type divergence by claim.gamemode-raw-site-inventory.20260831.v2 (iii): types.h makes s32 `signed long`, not `int`, so this is a real declaration divergence rather than spelling noise, and the identical fix landed byte-identically in message.c during wave 3.",
+  "attributes": {
+    "law_screen": "claim.law.raw-offset-form-supplies-value-identity-not-addressing-shape.20260831.v1: SCREENED and found NOT to cover this change, which is the finding. That law's neutrality argument is about VALUE identity of a constant expression; an extern's DECLARED TYPE is not a value respelling, and `int` vs `signed long` are distinct front-end type nodes even at identical width and identical ABI. The wave-3 precedent (message.c harmonized byte-identically) was screened as evidence FOR safety and turned out not to transfer -- the hazard is per-site, not per-change-class. claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1: SCREENED, ADJACENT and the closest existing analogue -- it establishes that two spellings of the same global that resolve to the identical address are not interchangeable to MWCC. This result extends the same principle from the ACCESS spelling to the DECLARED TYPE. claim.law.noop-cast-on-array-decay-not-neutral.20260831.v1: SCREENED, ADJACENT -- same family of 'semantically-null change is not codegen-null', though that law concerns a cast NODE and this concerns a type node on a declaration. claim.law.embedded-struct-member-whole-tu-cascade family: SCREENED, NOT APPLICABLE -- scalar extern, no aggregate. PINNED-FUNCTION SCREEN: webfrank.json pins nothing in game/ui/screensaver.c.",
+    "laws_applied": "[\"claim.law.int-vs-signed-long-extern-reorders-schedule.20260831.v1\"]",
+    "residual": "SCHEDULE, fully named and reduced to a single mechanism. Target 116 insns, ours 116; opcode multiset IDENTICAL (116/116). The entire delta is a REORDER of one 4-instruction loop-preheader address-materialization group: target emits mtctr, add, lis, addi across 0x68-0x7c, while the s32 build emits lis, addi, add, mtctr across 0x64-0x74 -- same four opcodes, different order, nothing else in the function moves. Because the multiset is identical at equal insn counts, defake_gate classified it CONFLICT rather than REGRESSION. DO-NOT-RETRY: the plain `s32` harmonization is dead on this site (measured, real 52 -> 64). Any revisit needs a genuinely new idea about WHY the preheader order flips, not another spelling of the same declaration; note there is no alternative declaration form available, since include/game/gamemode.h deliberately holds no prototypes or extern declarations (claim.gamemode-enum-needs-a-header-owner.20260831.v1), so the local extern cannot simply be deleted in favour of a header one.",
+    "scope": "src/game/ui/screensaver.c line 117, one declaration. REVERTED to `extern int gGameMode` per the lane's revert-never-arbitrate rule (a gate CONFLICT in a semantic-cleanup lane means NOT byte-identical, and a cleanup is not worth 12 real lines on a fuzzy function). The divergence is now DOCUMENTED IN PLACE with a comment naming the measurement and this law, so the next reader does not re-attempt it blind; the comment change itself re-gated GATE OK. Commit 4403ab9ae. NOTE the correction this supplies to claim.gamemode-raw-site-inventory.20260831.v2(iii): it framed screensaver.c's divergence as simply 'outside wave 3's scope' and awaiting an owner, implying it was a pending chore. It is not -- it is a cap.",
+    "tags": [
+      "defake",
+      "symbol-identity",
+      "workflow"
+    ],
+    "verification": "defake_gate baseline for game/ui/screensaver.c taken pre-edit from the pre-edit object (22 functions, 14 at real 0). After the s32 change: `check --rebuild` = GATE FAILED, 1 CONFLICT, ScreenSaver real 52 -> 64. Mechanism read with `fndiff --ops` before deciding (opcode multiset IDENTICAL 116/116, three reorder hunks at 0x64-0x7c). After revert to `int` plus the explanatory comment: `check --rebuild` = GATE OK. Full ninja green, build/GUNE5D/main.dol: OK, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679."
+  },
+  "function": "function:ScreenSaver",
+  "id": "attempt.screensaver-ggamemode-extern-type.20260831.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T18:45:15Z",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
