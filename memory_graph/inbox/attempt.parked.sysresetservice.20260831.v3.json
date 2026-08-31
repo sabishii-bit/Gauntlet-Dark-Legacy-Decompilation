@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "WebFrank eligibility screen of the parked 4-insn schedule rotation at 0x424-0x440: model it as an instruction_permutation (opcode multiset IDENTICAL) plus copy_register_fields for the r3/r6 knock-on",
+  "attributes": {
+    "law_screen": "claim.law.gcb-sflags-relocation-alias.20260830.v1 APPLIED and DECISIVE against the only conceivable guard relaxation (see residual). claim.law.webfrank-hash-pinned-site.20260830.v1 screened - sysPollResetButton and sysClearFlags are already pinned in this TU and were NOT touched. claim.law.independent-statement-reorder-matches-target-schedule and claim.law.point-of-use-single-use-pointer-delay screened in v2 and already recorded dead; no source edit was attempted this pass. core-screen list fetched.",
+    "laws_applied": "[\"claim.law.gcb-sflags-relocation-alias.20260830.v1\"]",
+    "residual": "SCHEDULE, unchanged: real 18, 289/289, multiset identical. DO NOT RETRY THE WEBFRANK PATH. The exact permutation was derived from live bytes (region +0x424..+0x440, order [1,5,2,0,3,6,4]) and REJECTED by check_permutation_dependences with 'breaks def-use chains: [(4, (g,3)), (5, mem)]'. Two independent, irreducible reasons. (1) MEMORY: the target hoists lwz r5,gPadCur above stw r0,gSysFlags. Both are R_PPC_EMB_SDA21 base-zero accesses whose base the LINKER fills in, so the model can only class both as 'mem' and must assume they may alias. Disambiguating by relocation symbol would be UNSOUND here specifically: claim.law.gcb-sflags-relocation-alias proves this codebase has distinct symbol spellings (sFlags vs gControllerButtons+0x4) denoting ONE address, so 'different symbol' does not imply 'different location'. (2) COLOURING: our allocator homes the loop counter in r3, the same register as the gPadStartHoldTimer lis/addi base web, so moving addi r4,r3,@lo past li r3,0 genuinely changes which value it reads. The rotation is legal ONLY in the target's r6 colouring, but the harness audits a permutation on OUR colouring, and apply_patch fixes the order permutation-then-recolor. Closing this needs a combined permutation+recolor equivalence checker that does not exist and must not be faked.",
+    "scope": "No files changed for this function. Analysis only, in worktree W:/Repositories/GDL-Claude-WebfrankClose.",
+    "verification": "Rejection reproduced against the CURRENT raw object (build/GUNE5D/src/game/sys/.postprocess/body/sysservice.o) versus the extracted retail object, not from stale offsets. The rejection is now locked in as a regression test (RejectedResidualTests.test_sys_reset_service_load_may_not_hoist_over_a_global_store, commit 107cceabe) using the real instruction words, so a future guard change that would silently accept it fails the suite first. TU flip for game/sys/sysservice remains blocked by this function alone."
+  },
+  "function": "function:sysResetService",
+  "id": "attempt.parked.sysresetservice.20260831.v3",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T05:33:10Z",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.sysresetservice.20260831.v2",
+  "valid_from": "2026-08-31"
+}

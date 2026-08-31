@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "WebFrank eligibility screen of the parked r0<->r3 colour tie-break: model the 0x108-0x130 cluster as an instruction_permutation plus copy_register_fields",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-hash-pinned-site.20260830.v1 and claim.law.webfrank-pinned-function-source-freeze.20260831.v1 screened - MBNewFont is already pinned in game/mb/mb_font and was NOT touched. claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1, claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1, claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1 and claim.law.narrow-local-reextend-on-read.20260830.v1 were all screened and recorded inert for this function in v2; no source edit was attempted this pass. claim.law.gcb-sflags-relocation-alias.20260830.v1 screened, not applicable (no SDA21 pair in this cluster).",
+    "laws_applied": "[]",
+    "residual": "REGISTER_ONLY, unchanged: real 22, 347/347, multiset IDENTICAL, fuzzy 98.92. DO NOT RETRY THE WEBFRANK PATH. v2's WAR-anti-dependency analysis is CONFIRMED exactly, and it is precisely what makes the residual ineligible. The live diff is a 10-atom cluster at +0x108..+0x130 whose permutation is order [1,0,3,4,5,2,7,6,9,8] (t-load and baseY-load exchange, the baseY spill store sinks 3 slots, and two lfs/compare pairs exchange), plus a recolor. check_permutation_dependences REJECTS it with 'breaks def-use chains: [(2, (g,3))]': our colouring homes BOTH the baseY value being spilled by stw r3,72(r1) and the t*4 index chain in r3, so sinking that store past slwi r3,r0,2 would store the wrong value. The schedule is legal ONLY under the target's colouring (baseY in r0, index chain in r3/r4). apply_patch fixes the stage order as permutation-then-recolor and audits the permutation on OUR colouring, so the transform cannot be decomposed soundly; the intermediate permuted-but-not-recolored image is genuinely incorrect code. Closing it needs a combined permutation+recolor equivalence checker that does not exist. A source-level lever that changes which of the two 2-event webs the allocator colours first remains the only legitimate path, and v2 already killed statement order, decl order, x-position, alias spelling and block-scope decl-init on it.",
+    "scope": "No files changed for this function. Analysis only, in worktree W:/Repositories/GDL-Claude-WebfrankClose.",
+    "verification": "Rejection reproduced against the CURRENT raw object (build/GUNE5D/src/game/mb/.postprocess/body/mb_font.o) versus the extracted retail object. Locked in as a regression test (RejectedResidualTests.test_mb_render_text_spill_may_not_sink_past_a_reused_register, commit 107cceabe) using the real instruction words. TU flip for game/mb/mb_font remains blocked by this function alone (23 siblings exact)."
+  },
+  "function": "function:MBRenderText",
+  "id": "attempt.parked.mbrendertext-color-tiebreak.20260831.v3",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T05:33:15Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.mbrendertext-color-tiebreak.20260831.v2",
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "WebFrank closure of the parked REGISTER_ONLY web crossing: model the pad/cls swap and the recycled i*76 web as a position-preserving copy_register_fields recolor",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-hash-pinned-site.20260830.v1 and claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - game/game/player now carries three rules and all three functions are SOURCE-FROZEN; a later player.c edit that moves their raw bytes aborts ninja at the WEBFRANK step. claim.law.gcb-sflags-relocation-alias.20260830.v1 screened, not applicable. No source-shape law applies: no source edit was made.",
+    "laws_applied": "[\"claim.law.webfrank-hash-pinned-site.20260830.v1\", \"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "residual": "NONE. real 18 -> real 0, 410/410, fndiff --clean now reports MATCH (pool-name noise only). v3's analysis was exactly right: the target binds pad = p->class_id to r27 and cls = p->character to r26, then RECYCLES r26 for the i*76 geoBss element offset via mulli r26,r24,76, while ours assigns the pair oppositely and the recycled web follows cls's colour. The crossing shows at eight sites (the two binding lwz, slwi r0 twice, slwi r25, the mulli, and two add r*,r30). The register recycling is the interesting part and it is exactly what the bisimulation's define-kill step is built for: when the mulli redefines the register, _map_define retires the stale correspondence, so the later adds check against the new binding rather than the dead one. Opcode multiset identical, frame 80 and stmw r24-r31 unchanged.",
+    "scope": "config/GUNE5D/webfrank.json (game/game/player, patch 2 of 3) and tools/gdl/tests/test_webfrank.py. NO src/*.c edit; commit a147ba0e1.",
+    "verification": "Derived from the CURRENT raw compiler output diffed against the extracted retail object. Guards passed: form-aware register-slot masks, and verify_consistent_recolor over the whole function with NO unproven_recolor_audit escape; final after_sha256 asserts the retail bytes. Re-proved by re-running the patch through webfrank.apply_patch. Full ninja -j2 green, build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:load_player_geo",
+  "id": "attempt.webfrank-closure.loadplayergeo.20260831.v4",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:46:36Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.loadplayergeo-web-crossing-rescreen.20260831.v3",
+  "valid_from": "2026-08-31"
+}

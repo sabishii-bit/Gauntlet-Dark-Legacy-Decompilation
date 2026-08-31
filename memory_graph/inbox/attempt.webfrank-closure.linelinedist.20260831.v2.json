@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "WebFrank closure of the capped SCHEDULE residual: model the entry load transposition and the whole-function FPR renaming as a two-stage permutation+recolor patch chain",
+  "attributes": {
+    "generalization": "A masked byte scan is a NECESSARY but not SUFFICIENT screen for permutation regions. Where a scan reports an adjacent pair, widen the candidate region and let the bisimulation adjudicate, because same-opcode instructions transpose invisibly to the mask.",
+    "law_screen": "claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - PointLineDist2D was already pinned in this TU and was NOT touched; LineLineDist is now pinned too, so btricol.c has two frozen functions. claim.law.webfrank-hash-pinned-site.20260830.v1 APPLIED (same consequence). claim.law.gcb-sflags-relocation-alias.20260830.v1 screened, not applicable. The v1 source-side laws (declaration-initializer-split, independent-statement-reorder, chained-init-constant-share, repeated-fp-pool-literal-first-load-is-position-invariant, reload-vs-cache-liveness, store-placement-family, narrow-local-reextend-on-read) were all screened by v1 and are not re-run: this lane made NO source edit.",
+    "laws_applied": "[\"claim.law.webfrank-hash-pinned-site.20260830.v1\", \"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "residual": "NONE. real 272 -> real 0, 464/464; the largest single WebFrank closure to date. v1's analysis was correct but INCOMPLETE, and the correction is the reusable lesson. v1 named one transposition (the entry pair at +0x14, dirB->x before dirA->z) plus a bijective FPR renaming. A masked byte scan agrees: only indices 5, 6, 74, 75 carry differences that escape the form-aware register mask. But the renaming bisimulation REJECTED that decomposition at +0x130, and the reason is that the second site is wider than it looks: at +0x128 the two dirB loads 4(r4)/8(r4) AND the two fmuls that consume them all exchange, across an intervening independent lfs 0(r4) - order [1, 0, 4, 3, 2]. The two multiplies are byte-compatible at each other's positions, so the mask scan cannot see them; only the def-use bisimulation can. With both regions modelled the whole function is proven and reproduces retail bytes exactly.",
+    "scope": "config/GUNE5D/webfrank.json (2 patches appended to the existing game/world/btricol unit) and tools/gdl/tests/test_webfrank.py (3 tests). NO src/*.c edit; commit 0be9dbf86.",
+    "verification": "Derived from the CURRENT raw compiler output (build/GUNE5D/src/game/world/.postprocess/body/btricol.o) diffed against the extracted retail object. Both permutations passed check_permutation_dependences; the FPR renaming over the f24-f31 nonvolatile set passed verify_consistent_recolor with NO unproven_recolor_audit escape. Re-proved by re-running the finished 2-stage chain through webfrank.apply_patch and asserting output == retail bytes. Full ninja -j2 green, build/GUNE5D/main.dol: OK. Project matched 58.51% -> 58.69%."
+  },
+  "function": "function:LineLineDist",
+  "id": "attempt.webfrank-closure.linelinedist.20260831.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:46:23Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.linelinedist-entry-load-permutation.20260831.v1",
+  "valid_from": "2026-08-31"
+}

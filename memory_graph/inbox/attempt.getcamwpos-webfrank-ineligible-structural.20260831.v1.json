@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "WebFrank eligibility screen after get_cam_wpos was queued as sharing cam_orient_to's recolor shape",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-hash-pinned-site.20260830.v1 and claim.law.webfrank-pinned-function-source-freeze.20260831.v1 screened: four combat.c functions are now WebFrank-pinned (adjust_radius_8002B2D4, MissileCollideEnemy, cam_orient_to, init_game_cam), so any future get_cam_wpos source work must not disturb their raw bytes or ninja aborts at the WEBFRANK step. No codegen-shape law was applied because no source edit was attempted and the screen terminated at the instruction count.",
+    "laws_applied": "[]",
+    "residual": "STRUCTURAL, and therefore NOT WebFrank-eligible - do not queue it for the closure lane again. get_cam_wpos was handed to the closure lane as sharing cam_orient_to's 2-instruction temp-register recolor shape. It does not. fndiff reports insns 445/453: we emit EIGHT MORE INSTRUCTIONS than the target, so there is no bijection between the two streams and neither the recolor path (equal word-aligned sizes required) nor the permutation path (complete bijection over existing atoms required) can apply even in principle; the size mismatch aborts the diff tooling before any register analysis runs. real 454 at the time of screening, the largest residual seen in this TU. This is semantic reconstruction work - eight instructions of ours to eliminate - not postprocessor work.",
+    "scope": "No files changed. Read-only screen.",
+    "verification": "Screened against the CURRENT raw compiler output (build/GUNE5D/src/game/game/.postprocess/body/combat.o) versus the extracted retail object; instruction counts read from fndiff --count."
+  },
+  "function": "function:get_cam_wpos_8002ABE0",
+  "id": "attempt.getcamwpos-webfrank-ineligible-structural.20260831.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-08-31T05:52:19Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

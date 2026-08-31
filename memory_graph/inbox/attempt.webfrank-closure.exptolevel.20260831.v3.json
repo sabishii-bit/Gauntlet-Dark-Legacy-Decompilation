@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "WebFrank closure of the parked REGISTER_ONLY 3-cycle: model the whole residual as a position-preserving copy_register_fields recolor",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-hash-pinned-site.20260830.v1 and claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED and IMPORTANT for this TU: game/game/player carried NO webfrank rules before this pass and now carries three (ExpToLevel, load_player_geo, do_heal_players), so all three are SOURCE-FROZEN and any later player.c edit that moves their raw bytes aborts ninja at the WEBFRANK step rather than showing a gate regression. claim.law.gcb-sflags-relocation-alias.20260830.v1 screened, not applicable (no SDA21 pair). No source-shape law applies: no source edit was made, and v2 already established that source levers cannot reach this residual at all.",
+    "laws_applied": "[\"claim.law.webfrank-hash-pinned-site.20260830.v1\", \"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "residual": "NONE. real 18 -> real 0, 24/24, fndiff now reports OK. v2's analysis was exactly right and needed no correction: a clean 3-cycle r4->r6->r5->r4 binding rate (li 2970, addi -30 at the loop tail), the hoisted high half of the 0x28550 constant (lis 3), and need. The masked byte scan found zero non-register-expressible words, and the renaming bisimulation certified the cycle directly. v2's note that one of the three registers is a compiler-materialized constant half with no source variable behind it is precisely why this belonged in the WebFrank lane rather than a source lane.",
+    "scope": "config/GUNE5D/webfrank.json (new unit game/game/player, patch 1 of 3) and tools/gdl/tests/test_webfrank.py. NO src/*.c edit; commit a147ba0e1.",
+    "verification": "Derived from the CURRENT raw compiler output (build/GUNE5D/src/game/game/player.o) diffed against the extracted retail object. Guards passed: form-aware register-slot masks on every recolored word, and verify_consistent_recolor over the whole function with NO unproven_recolor_audit escape; the final after_sha256 asserts the retail bytes. Re-proved by re-running the patch through webfrank.apply_patch. Full ninja -j2 green, build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:ExpToLevel",
+  "id": "attempt.webfrank-closure.exptolevel.20260831.v3",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:46:30Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.exptolevel-register-cycle-rescreen.20260831.v2",
+  "valid_from": "2026-08-31"
+}

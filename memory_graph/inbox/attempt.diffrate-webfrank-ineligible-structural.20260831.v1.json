@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "WebFrank eligibility screen after DiffRate was queued as sharing cam_orient_to's recolor shape",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-hash-pinned-site.20260830.v1 and claim.law.webfrank-pinned-function-source-freeze.20260831.v1 screened: four combat.c functions are now WebFrank-pinned (adjust_radius_8002B2D4, MissileCollideEnemy, cam_orient_to, init_game_cam), so any future DiffRate source work must not disturb their raw bytes or ninja aborts at the WEBFRANK step. No codegen-shape law was applied because no source edit was attempted and the screen terminated at the instruction count.",
+    "laws_applied": "[]",
+    "residual": "STRUCTURAL, and therefore NOT WebFrank-eligible - do not queue it for the closure lane again. DiffRate was handed to the closure lane as sharing cam_orient_to's 2-instruction temp-register recolor shape. It does not. fndiff reports insns 163/157: the target has SIX MORE INSTRUCTIONS than we emit, so there is no bijection between the two instruction streams and neither the recolor path (which requires equal, word-aligned sizes) nor the permutation path (which requires a complete bijection over existing atoms) can apply even in principle. A masked byte scan confirms the scale of the gap: 126 of 157 words carry differences that escape the form-aware register mask, and the first one at +0x24 (ours addi r30,r4,200 versus target addi r30,r31,20) has no adjacent-swap resolution. real 126 at the time of screening. The missing six instructions are recoverable source work - a semantic reconstruction lane, not a postprocessor lane.",
+    "scope": "No files changed. Read-only screen.",
+    "verification": "Screened against the CURRENT raw compiler output (build/GUNE5D/src/game/game/.postprocess/body/combat.o) versus the extracted retail object; instruction counts read from fndiff --count and the word scan from the form-aware register_slot_mask."
+  },
+  "function": "function:DiffRate_8002951C",
+  "id": "attempt.diffrate-webfrank-ineligible-structural.20260831.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-08-31T05:52:15Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

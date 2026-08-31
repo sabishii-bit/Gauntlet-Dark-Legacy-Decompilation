@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "WebFrank closure of the parked REGISTER_ONLY temp-destination colouring: model the 2-instruction difference as a position-preserving copy_register_fields recolor",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-hash-pinned-site.20260830.v1 and claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - game/game/combat already pinned adjust_radius_8002B2D4 and MissileCollideEnemy, and this pass ADDS cam_orient_to and init_game_cam, so four functions in combat.c are now SOURCE-FROZEN; the existing rules were extended, never collided with. claim.law.gcb-sflags-relocation-alias.20260830.v1 screened, not applicable to this function. No source-shape law applies: no source edit was made, and v1 already established that no source spelling reaches the colouring choice.",
+    "laws_applied": "[\"claim.law.webfrank-hash-pinned-site.20260830.v1\", \"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "residual": "NONE. real 4 -> real 0, 102/102, fndiff --clean reports EXACT. v1's analysis was exactly right and needed no correction: at +0x1c the target colours the one-instruction temporary gCameraState + camIdx*396 into cam's callee-saved home (add r31,r5,r4 then addi r31,r31,200) while ours coalesces it with the dying mulli operand (add r4,r5,r4 then addi r31,r4,200). The masked byte scan found zero non-register-expressible words and the bisimulation certified it directly: the add's define retires r4's stale correspondence so the following addi checks against the new binding. Both are legal colourings of one interference graph.",
+    "scope": "config/GUNE5D/webfrank.json (appended to the existing game/game/combat unit) and tools/gdl/tests/test_webfrank.py. NO src/*.c edit; commit 39cf3f73c. Rule keyed on the dtk-suffixed symbol cam_orient_to_80029E8C, matching the unit's existing adjust_radius_8002B2D4 convention.",
+    "verification": "Derived from the CURRENT raw compiler output (build/GUNE5D/src/game/game/.postprocess/body/combat.o) diffed against the extracted retail object. Guards passed: form-aware register-slot masks and verify_consistent_recolor with NO unproven_recolor_audit escape; final after_sha256 asserts the retail bytes. Full ninja -j2 green, build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:cam_orient_to_80029E8C",
+  "id": "attempt.webfrank-closure.camorientto.20260831.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:52:14Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.camorient-add-destination-recolor-park.20260831.v1",
+  "valid_from": "2026-08-31"
+}

@@ -239,5 +239,161 @@ class PermutationDependenceTests(unittest.TestCase):
         check_permutation_dependences(region, [1, 0], lambda resource: True)
 
 
+class ShippedRuleMechanismTests(unittest.TestCase):
+    """One case per rule in config/GUNE5D/webfrank.json authored 2026-08-31.
+
+    Each uses the real instruction words taken from the raw compiler output and
+    the extracted retail object, so a guard regression that would silently
+    accept or reject a shipped rule fails here first.
+    """
+
+    def test_camera_init_for_gamemode_exchanges_independent_loads(self):
+        # +0xf8: lwz r0,832(r7); lwz r3,844(r7) -> exchanged.
+        # attempt.parked.camera_init_for_gamemode.20260829.v1
+        region = bytes.fromhex("80070340 8067034c")
+        check_permutation_dependences(region, [1, 0])
+
+    def test_msg_post_entry_exchange_is_dependence_free(self):
+        # +0x30: addi r25,r25,64; addi r28,r3,0(@gMsgBoxes) -> exchanged.
+        # attempt.parked.msgpost.20260831.v2
+        region = bytes.fromhex("3b390040 3b830000")
+        check_permutation_dependences(region, [1, 0])
+
+    def test_msg_draw_argument_rotation_sinks_the_addi(self):
+        # +0x1c8: addi r3,r3,20; li r5,-1; li r7,24; li r8,0 -> addi last.
+        # attempt.parked.msgdraw.20260831.v2 stage 1
+        region = bytes.fromhex("38630014 38a0ffff 38e00018 39000000")
+        check_permutation_dependences(region, [1, 2, 3, 0])
+
+    def test_msg_draw_fpr_gpr_load_exchange(self):
+        # +0x3b8: lfs f1,0(0)(SDA21); lwz r3,16(r31) -> exchanged.
+        # attempt.parked.msgdraw.20260831.v2 stage 2
+        region = bytes.fromhex("c0200000 807f0010")
+        check_permutation_dependences(region, [1, 0])
+
+    def test_msg_draw_line_height_web_is_a_consistent_recolor(self):
+        # The r25 -> r29 lineHeight web: addi/srawi/subf, then blr.
+        current = bytes.fromhex("3b230002 7f390e70 7c99f050 4e800020")
+        target = bytes.fromhex("3ba30002 7fbd0e70 7c9df050 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_line_line_dist_entry_load_transposition(self):
+        # +0x14: lfs f28,0(r4)(dirB->x); lfs f11,8(r7)(dirA->z) -> exchanged.
+        # attempt.linelinedist-entry-load-permutation.20260831.v1 stage 1
+        region = bytes.fromhex("c3840000 c1670008")
+        check_permutation_dependences(region, [1, 0])
+
+    def test_line_line_dist_paired_load_and_multiply_transposition(self):
+        # +0x128: the two dirB loads 4(r4)/8(r4) AND the two fmuls consuming
+        # them exchange across an independent lfs 0(r4).  The masked byte scan
+        # sees only the loads; this ordering is what the bisimulation forced.
+        # attempt.linelinedist-entry-load-permutation.20260831.v1 stage 2
+        region = bytes.fromhex(
+            "c3640004 c3840008 eda606f2 c3a40000 ed870732"
+        )
+        check_permutation_dependences(region, [1, 0, 4, 3, 2])
+
+    def test_line_line_dist_fpr_renaming_is_consistent(self):
+        # After the entry transposition: lfs f11,8(r7); lfs f28,0(r4);
+        # fmuls f0,f28,f11 recolours to f12/f9 with the product following.
+        current = bytes.fromhex("c1670008 c3840000 ec1c02f2 4e800020")
+        target = bytes.fromhex("c1870008 c1240000 ec090332 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_exp_to_level_three_cycle_recolor(self):
+        # li r6,2970 / addi r5,r7,-1 / addi r0,r6,1000 / mullw r5,r5,r0 under
+        # the r4->r6->r5->r4 cycle.
+        # attempt.exptolevel-register-cycle-rescreen.20260831.v2
+        current = bytes.fromhex("38c00b9a 38a7ffff 380603e8 7ca501d6 4e800020")
+        target = bytes.fromhex("38800b9a 38c7ffff 380403e8 7cc601d6 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_load_player_geo_recycled_register_recolor(self):
+        # The pad/cls crossing, including the mulli that RECYCLES r27 after
+        # cls dies -- the define-kill step is what makes this provable.
+        # attempt.loadplayergeo-web-crossing-rescreen.20260831.v3
+        current = bytes.fromhex(
+            "835f0004 837f000c 5740103a 5779103a 1f78004c 7c7eda14 4e800020"
+        )
+        target = bytes.fromhex(
+            "837f0004 835f000c 5760103a 5759103a 1f58004c 7c7ed214 4e800020"
+        )
+        verify_consistent_recolor(current, target)
+
+    def test_do_heal_players_fpr_crossing_recolor(self):
+        # fmul into f31 vs the volatile f0, the self-coalesced frsp, and the
+        # f30/f31 swap of giveq against the loop-hoisted zero constant.
+        # attempt.do-heal-players-fpr-crossing-rescreen.20260831.v2
+        # The excerpt stops at the fcmpo on purpose: the fmul's define maps
+        # f31 onto f0 and so retires f0's identity entry, which the real
+        # function re-establishes before its later fadds but a shorter slice
+        # would not -- the full-function proof runs in the build itself.
+        current = bytes.fromhex("ffe00072 ffe0f818 c3c00000 fc1ff040 4e800020")
+        target = bytes.fromhex("fc000072 ffc00018 c3e00000 fc1ef840 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_cam_orient_to_temporary_destination_recolor(self):
+        # +0x1c: add r4,r5,r4 / addi r31,r4,200 vs the target's
+        # add r31,r5,r4 / addi r31,r31,200 -- the one-instruction temporary
+        # is coloured into cam's saved home instead of the dying operand.
+        # attempt.camorient-add-destination-recolor-park.20260831.v1
+        current = bytes.fromhex("7c852214 3be400c8 4e800020")
+        target = bytes.fromhex("7fe52214 3bff00c8 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_init_game_cam_address_materialization_rotation(self):
+        # +0x8c: addi r7,r4,@lo / addi r6,r3,255 / addi r8,r5,@lo rotates so
+        # the gPlayers address leads.  Distinct bases and distinct
+        # destinations, so nothing in the region depends on the order.
+        # attempt.initgamecam-u64-buttons-dance.20260830.v1
+        region = bytes.fromhex("38e40000 38c300ff 39050000")
+        check_permutation_dependences(region, [2, 0, 1])
+
+    def test_msg_post_desc_offset_web_is_a_consistent_recolor(self):
+        # The r29 -> r26 descOffset web: mulli, add, lwzx, then blr.
+        current = bytes.fromhex("1fbe001c 7f3bea14 7c04e82e 4e800020")
+        target = bytes.fromhex("1f5e001c 7f3bd214 7c04d02e 4e800020")
+        verify_consistent_recolor(current, target)
+
+
+class RejectedResidualTests(unittest.TestCase):
+    """Residuals deliberately NOT shipped: the guards must keep rejecting them.
+
+    Both are legal only in the target's register colouring, while the harness
+    audits a permutation on our own colouring, where the def-use chain really
+    does break.  Recorded so a later pass does not retry them blindly.
+    """
+
+    def test_sys_reset_service_load_may_not_hoist_over_a_global_store(self):
+        # stw r0,gSysFlags(SDA21); lwz r5,gPadCur(SDA21).  Both are linker-
+        # resolved base-zero accesses, so they may alias as far as the model
+        # can prove -- and this project has distinct symbol spellings for one
+        # address (sFlags vs gControllerButtons+0x4), so symbol-based
+        # disambiguation would be unsound.
+        region = bytes.fromhex("90000000 80a00000")
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [1, 0])
+
+    def test_mb_render_text_spill_may_not_sink_past_a_reused_register(self):
+        # lwz r3,8(r31); stw r3,72(r1); slwi r3,r0,2.  Our colouring homes the
+        # baseY spill and the t-chain both in r3, so sinking the store past the
+        # slwi changes which value it stores.
+        region = bytes.fromhex("807f0008 90610048 5403103a")
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [0, 2, 1])
+
+    def test_btrilinecol_copy_provenance_is_not_a_renaming(self):
+        # lfs f2,lbl_80345D50; fmr f26,f2; fmuls f1,f0,f26.  The target keeps
+        # the constant in f26 and copies it to f25, while we load into f2 and
+        # copy to f26, so the later use reads an equal VALUE from a different
+        # register.  Value equality via copies is not a renaming, and proving
+        # it would need fmr copy-propagation the bisimulation deliberately
+        # does not model.
+        current = bytes.fromhex("c0400000 ff401090 ec2006b2 4e800020")
+        target = bytes.fromhex("c3400000 ff20d090 ec2006b2 4e800020")
+        with self.assertRaisesRegex(ValueError, "does not correspond"):
+            verify_consistent_recolor(current, target)
+
+
 if __name__ == "__main__":
     unittest.main()

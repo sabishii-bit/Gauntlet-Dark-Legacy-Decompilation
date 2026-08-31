@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.opportunity.message-tu-flip-blocked-by-rodata-block.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T05:33:26Z",
+  "schema_version": 1,
+  "subject": "tu:game/ui/message",
+  "valid_from": "2026-08-31",
+  "value": "game/ui/message.c is now TEXT-COMPLETE but its Matching flip is blocked by a DATA-layout deficit, not by any code residual. As of 2026-08-31 all seven functions are byte-exact: msgUpdate, msgInit, msgWorldFlags and fn_800A5734 were already EXACT; msgPost and msgDraw were closed by new webfrank rules (attempt.webfrank-closure.msgpost.20260831.v3, attempt.webfrank-closure.msgdraw.20260831.v3); msgWidth reports MATCH (pool-name noise only). The one fndiff --clean line remaining in msgPost is the sFlags vs gControllerButtons+0x4 relocation alias, which claim.law.gcb-sflags-relocation-alias.20260830.v1 already establishes is one address under two spellings and must not be chased in C. THE ACTUAL BLOCKER, measured by a controlled trial flip that was fully reverted: with Object(Matching, 'game/ui/message.c') the link produces a DOL of 2351200 bytes against retail 2351264, i.e. 64 bytes (0x40) short, so tools/gdl/retaildol.py fails with 'built and retail DOL sizes differ' before any checksum comparison. doldiff attributes the whole loss to DOL section 12, which ends 0x40 early. claimcheck --matching PASSES the unit. Object-level comparison shows .text 0xecc, .data 0x1c40, .sdata2 0x8, extab 0x20 and extabindex 0x30 all IDENTICAL in size to the extracted retail object, and .data internal offsets agree exactly (our lbl_80124E58 0x18 + gMsgFonts 0x14 + gMsgCfg 0x14 exactly tile the retail object's single 0x40-byte lbl_80124E58 blob, and gMsgDescTable sits at +0x40 in both). The ONLY object-level size difference is .rodata: we emit 9 bytes ('SCROLL_A' plus NUL) where splits.txt claims 0x80114E80..0x80114E90 = 16 bytes and the extracted object carries 16 with 7 trailing zeros; both sides are 8-byte aligned. In the trial link everything in .rodata from 0x80114E90 onward shifted -0x10, and lbl_80114E80 plus gap_06_80114E89_rodata exist only in the unflipped link. NEXT ACTION for a lane that owns src/game/ui/message.c (the WebFrank closure lane deliberately does not, and made no source edit): recover the missing read-only tail of that block - most likely a second string or an explicitly sized/padded array that the current source drops - then re-run tools/gdl/finish_tu.py game/ui/message.c. CAUTION: msgPost and msgDraw are now webfrank-pinned, so per claim.law.webfrank-hash-pinned-site.20260830.v1 any source edit that moves their raw compiled bytes aborts ninja at the WEBFRANK step; confine the fix to the read-only data definition."
+}

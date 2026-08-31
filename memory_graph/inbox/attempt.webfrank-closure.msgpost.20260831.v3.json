@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "WebFrank closure of the parked REGISTER_ONLY residual: one instruction_permutation for the entry exchange plus copy_register_fields for the descOffset web and the gPlayers r3/r4/r5 rotation",
+  "attributes": {
+    "law_screen": "claim.law.gcb-sflags-relocation-alias.20260830.v1 APPLIED and DECISIVE - it establishes that the surviving fndiff line (target 'sFlags' vs our 'gControllerButtons+0x4') is one address under two symbol spellings, is scored a MATCH by objdiff's relocation-address-aware scoring, and must NOT be rewritten in C; this is why msgPost is treated as closed at real 0 despite fndiff --clean showing 2 text lines. claim.law.webfrank-hash-pinned-site.20260830.v1 and claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED (msgPost and msgDraw are now source-frozen; any later message.c edit that moves their raw bytes aborts ninja at the WEBFRANK step). claim.law.pointer-walk-array-index-regression.20260830.v1 and claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 screened, not applicable - both are source-shape levers and this lane made no source edit; v2 already recorded them as dead here.",
+    "laws_applied": "[\"claim.law.gcb-sflags-relocation-alias.20260830.v1\", \"claim.law.webfrank-hash-pinned-site.20260830.v1\", \"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "residual": "NONE in bytes: fndiff real 50 -> real 0, 387/387. The v2 residual decomposed exactly as recorded: (a) the 2-instruction entry swap at +0x30 (addi r25,r25,64 vs addi r28,r3,0 @gMsgBoxes) is a dependence-free exchange - disjoint reads and writes - handled by instruction_permutation; (b) everything else is one consistent allocator recolor (mulli/add/lwzx descOffset web r29->r26, plus the r3/r4/r5 rotation across both gPlayers case-loops) handled by copy_register_fields. The only remaining fndiff text line is the sFlags relocation alias above, which is not a byte difference.",
+    "scope": "config/GUNE5D/webfrank.json (new unit game/ui/message, 1 patch for msgPost) and tools/gdl/tests/test_webfrank.py. NO src/*.c edit; commit 107cceabe.",
+    "verification": "Derived from the CURRENT raw compiler output diffed against the extracted retail object. Guards that ran and passed: permutation dependence audit on the +0x30 pair, relocation payload preservation (the gMsgBoxes ADDR16_LO reloc moved with its atom), form-aware register-slot masks on every recolored word, and the position-lockstep renaming bisimulation verify_consistent_recolor over the whole function - no unproven_recolor_audit escape was used. Final whole-function after_sha256 asserts the retail bytes. Re-proved by re-running the finished patch through webfrank.apply_patch. Full ninja -j2 green, build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:msgPost",
+  "id": "attempt.webfrank-closure.msgpost.20260831.v3",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:32:59Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.msgpost.20260831.v2",
+  "valid_from": "2026-08-31"
+}
