@@ -470,12 +470,10 @@ void fn_800C70C8(s32 id) {
         s32 loadedRegion = (s8)tex[i * 0x30 + 0x2d];
         region = loadedRegion;
         if (loadedRegion != -1) {
-            u8* handle;
             u64 bit = __shl2i(0, 1, region);
             lbl_803450D8 &= ~bit;
             lbl_803450E0 &= ~bit;
-            handle = mgr + region * 4;
-            *(s32*)(handle + 0x320) = -1;
+            lbl_802C7438.handles[region] = -1;
         }
     }
     for (i = 0, zero = 0; i < 0x15; i++) {
