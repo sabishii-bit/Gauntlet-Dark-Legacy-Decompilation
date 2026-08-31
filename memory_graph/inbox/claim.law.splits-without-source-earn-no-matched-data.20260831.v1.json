@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.splits-without-source-earn-no-matched-data.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T19:41:33Z",
+  "schema_version": 1,
+  "subject": "tu:game/mb/mb_model",
+  "valid_from": "2026-08-31",
+  "value": "LAW (project measurement mechanics): adding a splits.txt entry for an unsplit data range CANNOT raise the reported Data%. Data% is matched_data/total_data from build/GUNE5D/report.json, and matched_data only exists for a unit objdiff can COMPARE -- which requires a base (built) object alongside the target (extracted) object. tools/project.py sets `src_exists = obj.src_path is not None and obj.src_path.exists()` (~L1746) and emits `\"complete\": obj.completed if src_exists else None` (~L1799); with no source it falls to the `# Use the original (extracted) object` path (~L1240) and the objdiff.json unit gets ONLY `target_path`, never `base_path`. Such a unit reports `total_data` with NO `matched_data` key at all -- pure denominator. MEASURED PROOF (2026-08-31, worktree GDL-Claude-DataSplit): baseline All 98.07% fuzzy / 61.70% matched / 27.16% linked (198/324), Data 175848/2361760 = 7.45%. Added `game/data/staticassets.c: .data start:0x80129734 end:0x80238290` (the whole 1,108,828-byte embedded-payload gap), configure.py + full ninja. Result: `build/GUNE5D/main.dol: OK` (sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679) and progress BYTE-IDENTICAL to baseline -- Data still 175848/2361760 (7.45%), still 324 units, still 198 linked. The new unit appeared as `main/game/data/staticassets` with metadata auto_generated:false, measures `total_data: 1108828` and NO matched_data key, objdiff.json entry carrying target_path only. configure.py additionally warns `Missing configuration for <unit>` on every run. Probe REVERTED (no retained change) per the monotonic-result policy. COROLLARIES: (a) the only way a data range earns Data% credit is a real source file the build compiles -- for an opaque binary payload that would mean authoring the bytes as a C array, i.e. the 'binary inclusion / percentage-gaming mechanism' AGENTS.md's Mandatory result policy explicitly forbids; so opaque asset payloads are PERMANENTLY unavailable as Data% work, not merely unfinished. (b) Do not spend a long splits-regenerating ninja re-testing this. (c) Denominator safety confirmed: total_data stayed 2361760, so splitting does not shrink the denominator either (no accidental inflation) -- the change is a true no-op in both directions. (d) dtk also REJECTS cuts at its own heuristic symbol boundaries inside a payload ('Invalid alignment for split: auto_07_80168417_data'), since those addresses are unaligned false-positive artifacts."
+}
