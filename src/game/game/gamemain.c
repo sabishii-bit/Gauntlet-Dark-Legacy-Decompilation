@@ -414,7 +414,7 @@ extern void  SetDrawStringScale(f32 s);
 extern void* DrawStringText(s32 a, s32 b, s32 c, s32 d, s32 e, ...);
 extern void  RestoreDrawStringScale(void);
 extern void  init_attract_mode(s32 mode);
-extern u8    gPlayers[];       /* world descriptor array, stride 13148 */
+extern Player gPlayers[];      /* gPlayerRecords[4], stride 13148 (0x335C) */
 extern f32   lbl_803447D4;
 extern f32   lbl_803447D8;
 extern s32   lbl_803447DC;
@@ -1872,7 +1872,7 @@ s32 next_world(void)
 
         world = -1;
         for (i = 0, transitioning = 0; i < 4; i++, transitioning += 13148) {
-            Player* player = (Player*)(gPlayers + transitioning);
+            Player* player = (Player*)((u8*)gPlayers + transitioning);
             state = player->state;
             if (state != 0 && state != 2) {
                 state = player->exit_dest;
@@ -2125,7 +2125,7 @@ void fn_800521E8(void)
 #pragma opt_propagation off
 void SetPlayerVars(void)
 {
-    u8* base = gPlayers;
+    u8* base = (u8*)gPlayers;
     s32 offset = 0;
     s32 bossType = gBossType;
     s32 count1 = 0;
@@ -3222,7 +3222,7 @@ void fn_800516F8(s32 slot)
     e = (u8*)gEnemies + slot * 916;
     bestSpecial = lbl_803468B0;
 
-    for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
+    for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
         if (*(s32*)(p + 232) == 1) {
             break;
         }
@@ -3232,13 +3232,13 @@ void fn_800516F8(s32 slot)
     }
 
     t = lbl_80344B24;
-    if (t >= 0 && *(s32*)(gPlayers + t * 13148 + 232) == 1 &&
-        !(*(u32*)(gPlayers + t * 13148 + 292) & 4) &&
-        !(*(s32*)e == 30 && (*(u32*)(gPlayers + t * 13148 + 288) & 0x80000))) {
+    if (t >= 0 && gPlayers[t].state == 1 &&
+        !(gPlayers[t].flags & 4) &&
+        !(*(s32*)e == 30 && (gPlayers[t].shield_flags & 0x80000))) {
         u8* q;
         *(s16*)(e + 630) = *(s16*)(e + 628);
         *(s16*)(e + 628) = (s16)lbl_80344B24;
-        q = gPlayers + lbl_80344B24 * 13148;
+        q = (u8*)gPlayers + lbl_80344B24 * 13148;
         {
             f32 fd;
             if (*(s16*)(q + 2588) > 2) {
@@ -3251,7 +3251,7 @@ void fn_800516F8(s32 slot)
             *(f32*)(e + 636) = fd;
         }
         *(f32*)(e + 632) = *(f32*)(e + 636) +
-                           *(f32*)(gPlayers + lbl_80344B24 * 13148 + 2600);
+                           *(f32*)((u8*)gPlayers + lbl_80344B24 * 13148 + 2600);
     } else {
         s32 go = 1;
         s32 cur;
@@ -3260,7 +3260,7 @@ void fn_800516F8(s32 slot)
         }
         cur = *(s16*)(e + 628);
         if ((s16)cur >= 0 &&
-            *(s32*)(gPlayers + cur * 13148 + 232) != 1) {
+            gPlayers[cur].state != 1) {
             go = -1;
         }
         if (go != 0) {
@@ -3328,12 +3328,12 @@ void fn_800516F8(s32 slot)
 
     if (*(s16*)(e + 628) >= 0) {
         if (*(f32*)(e + 636) <= *(f32*)(e + 768)) {
-            u8* base;
+            Player* base;
             *(s16*)(e + 734) = 1;
             base = gPlayers;
-            (*(s32*)(base + *(s16*)(e + 628) * 13148 + 2596))++;
+            (*(s32*)((u8*)base + *(s16*)(e + 628) * 13148 + 2596))++;
             {
-                u8* r = base + *(s16*)(e + 628) * 13148;
+                u8* r = (u8*)base + *(s16*)(e + 628) * 13148;
                 *(f32*)(r + 2600) = (f32)(*(f32*)(r + 2600) + lbl_80346868);
             }
         }
@@ -3376,7 +3376,7 @@ void fn_80055AFC(void)
     }
     n = 0;
     for (i = 0; i < 4; i++) {
-        if (((Player*)((u8*)gPlayers + i * 13148))->state == 1) {
+        if (gPlayers[i].state == 1) {
             break;
         }
         n++;
@@ -3540,7 +3540,7 @@ void init_thermometer(void)
     playerOffset = 0;
     lbl_80344790 = lbl_8034478C = playerOffset;
     if ((gGameMode & 0x4000) != 0 && sSpecialItem10 != 0) {
-        players = gPlayers;
+        players = (u8*)gPlayers;
         player = 0;
         do {
             playerData = players + playerOffset;
@@ -3712,7 +3712,7 @@ void fn_8005351C(void)
 
     if (sMusicTrackHi == 13) {
         s32 one = 1;
-        for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
+        for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
             Player* player = (Player*)p;
             s32 st = player->state;
             if (st == 1) {
@@ -3733,7 +3733,7 @@ void fn_8005351C(void)
     {
         idmat = (f32*)gIdentityMatrix;
         tbl = (u8*)lbl_80257650;
-        for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 12, p += 13148) {
+        for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 12, p += 13148) {
             ((Player*)p)->exit_dest = sLastWorldLevel;
             ((Player*)p)->node = 0;
             ((Player*)p)->platform = 0;
@@ -3759,7 +3759,7 @@ void fn_8005351C(void)
 
     if (inTower == 0) {
         s32 off2;
-        u8* base = gPlayers;
+        u8* base = (u8*)gPlayers;
         for (i = 0, off2 = 0; i < 4; i++, off2 += 13148) {
             u8* q = base + off2;
             Player* player = (Player*)q;
@@ -3797,7 +3797,7 @@ void fn_8005351C(void)
             welcome_timer = 300;
         }
         if (mt == 13) {
-            for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
+            for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
                 if (((Player*)p)->state == 1) {
                     *(PlayerSaveBlk*)(p + 7884) = *(PlayerSaveBlk*)(p + 2688);
                 }
@@ -4200,7 +4200,7 @@ void game_main(void)
             flag2 = cond ? 1 : 0;
             all = 1;
             for (i = 0; i < 4; i++) {
-                v = ((Player*)(gPlayers + i * 13148))->state;
+                v = gPlayers[i].state;
                 if (v != 0 && v != 11) {
                     all = 0;
                 }
@@ -4344,7 +4344,7 @@ void fn_80054E78(void)
                 u8* p;
 
                 lbl_8034481C = 2;
-                p = gPlayers;
+                p = (u8*)gPlayers;
                 for (player_off = 0; player_off < 48;
                      player_off += 12, p += 13148) {
                     Player* player = (Player*)p;
@@ -4809,7 +4809,7 @@ void fn_80057024(void)
 
     if (gBossType >= 0 && gBossType < 43) {
         lbl_8034489C = 0;
-        for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 13148) {
+        for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 13148) {
             u8* q = p + off;
             s32 st = *(s32*)(q + 232);
             if (st == 1 || st == 5 || st == 3) {
@@ -5169,7 +5169,7 @@ s32 do_stats_display(void)
     col3 = (s32*)((u8*)layout + 108);
     colT = (s32*)((u8*)layout + 116);
 
-    for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 4, p += 13148) {
+    for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 4, p += 13148) {
         s32 st = *(s32*)(p + 232);
         char nbuf[12];
 
