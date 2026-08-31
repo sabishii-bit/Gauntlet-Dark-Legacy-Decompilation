@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/combat.c::StandardCamera_8002B828 (worktree GDL-Claude-Occupancy, work_claim.occupancy-slot-drive.20260831.v1, commit eaedb84eb) and src/game/boss/bosscam.c::BossCamBossCalc (commit 507654e58). Three measured forms on one otherwise unchanged 601-instruction function, each read from the r1-displacement slot map, NOT from real. With padTop=36 at function scope and padBottom=100 in the last inner block, the 17-slot local run landed at 124..188 while target wanted 128..192 - off by exactly one 4-byte slot. Form A, padTop 36->40 AND padBottom 100->96 (byte-conserving, frame held at 336): the run moved DOWN to 120..184, i.e. AWAY from target, real 701->707. Form B, the mirror split padTop 36->32 AND padBottom 100->104: the run moved UP to 128..192, every slot and every access count identical to target, real 695->625. The two forms are exact mirrors, so the direction is attributable to the padBottom change alone.",
+    "tags": [
+      "matching",
+      "decl-order",
+      "store-placement",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T20:47:15Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "THE LOCAL BLOCK IS ANCHORED AT ITS BOTTOM, SO THE LOWEST-DECLARED PAD IS THE SHIFT LEVER AND A TOP PAD IS INERT FOR PLACEMENT. This is the operational sharpening of corollary (1) of claim.law.stack-slots-descend-in-declaration-order.20260831.v1, which states the anchoring but leaves the sign of a two-pad split unstated - and the sign is the thing that costs probes. When a function's slot run is correct in SHAPE but uniformly displaced from target, do NOT reach for the pad nearest the displaced slots. GROW THE BOTTOM-MOST PAD TO MOVE THE WHOLE RUN UP; SHRINK IT TO MOVE THE RUN DOWN. Growing a pad declared at the TOP of function scope does not lift anything above it, because there is nothing above it that is not already fixed; its only effect is to consume frame, and in a byte-conserving split it is the passive half of the pair. THE CONSERVING TWO-PAD SPLIT IS THEREFORE ASYMMETRIC IN MEANING even though it is symmetric in bytes: in `padTop[A]` + `padBottom[B]` with A+B held constant, B alone chooses the placement and A merely absorbs the remainder to hold the frame size. Read the split as 'B is the dial, A is the ballast'. MEASUREMENT DISCIPLINE, and the reason this record exists as a separate law: BOTH halves of the decisive A/B read as REGRESSED or NEUTRAL on `real` at the moment the layout was still wrong, and the winning form's own intermediate state (padTop 36/padBottom 100) scored real 701 - WORSE than the 695 baseline - while being one 4-byte step from exact. An agent arbitrating on `real` reverts the winning design one probe before it lands. Arbitrate slot placement on the r1 displacement map (dump every N(r1) from both sides and diff the slot SETS and per-slot access counts); `real` is only meaningful once the slot sets are equal. Corollary already banked by claim.law.stack-slots-descend-in-declaration-order: never EXTEND a pad to move scalars, SPLIT it - this law says which half of the split to turn."
+}

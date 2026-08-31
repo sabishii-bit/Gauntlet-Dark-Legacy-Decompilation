@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "SLOT OCCUPANCY ONLY (work_claim.occupancy-slot-drive.20260831.v1): frame size already matched at 184/184 with a 12-byte occupancy delta; close the slot map by splitting the existing u8 padend[28] around the compiler temps. The one extra `mr` (insns 392/393) was explicitly NOT this lane's axis.",
+  "attributes": {
+    "law_screen": "claim.law.stack-slots-descend-in-declaration-order.20260831.v1 APPLIED - derived the target declaration order from descending addresses and split rather than extended the pad. claim.law.inner-block-pad-reaches-below-the-compiler-temps.20260831.v1 APPLIED - the 12 bytes target holds below the two fabs temps were unreachable from outer scope and needed an inner-block pad. claim.law.frame-deltas-must-be-probed-with-an-eight-byte-ruler.20260831.v1 SCREENED, not needed - frame size already matched, so the ruler's calibrate step was moot and the residual was pure occupancy. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 APPLIED as a screen - insns 392/393 is a hard postprocessor-ineligibility verdict, so no webfrank rule was authored or attempted.",
+    "laws_applied": "[\"claim.law.stack-slots-descend-in-declaration-order.20260831.v1\", \"claim.law.inner-block-pad-reaches-below-the-compiler-temps.20260831.v1\", \"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\"]",
+    "residual": "SLOT AXIS FULLY CLOSED - the r1 slot map is now byte-identical to target: every slot (44, 48, 68, 72, 76, 80, 84, 88, stmw 100) present on both sides with identical per-slot access counts, target-ONLY and ours-ONLY both empty. Model derivation: target end[3] at 80..91 unchanged, nrm[3] +28 to 68..79, the two fabs temps +12 to 44/48, so the 28-byte pad had to SPLIT 16 above the temps / 12 below them. Remaining residual is NOT occupancy: regnorm --map reports STRUCTURAL-PRESENT (432 paired, 54 renaming, 68 structural, 27 unpaired) on top of the pre-existing count-asymmetric ADDR16_LO one-extra-mr cap. Postprocessor ineligible by count delta. Next axis for a future lane is the 68 structural rows, not the stack.",
+    "scope": "src/game/game/pmotion.c, declaration-order only; no semantic change. `f32 end[3]; u8 padend[28]; f32 nrm[3];` became `f32 end[3]; f32 nrm[3]; u8 padend[16];` plus `u8 padend2[12];` declared at the top of the inner `if (hit != 0)` block that carries the second bit-trick temp.",
+    "verification": "probe.py BASELINE real 319 -> IMPROVED 275 on the FIRST designed layout (model-first, no search). defake_gate check --rebuild GATE OK, 1 improved, 29 functions, no sibling regression; baseline banked with --update-improved. Full ninja green, main.dol checksum OK. git diff --check clean. Commit 39b8cdc18."
+  },
+  "function": "function:PlayerCollideFloor",
+  "id": "attempt.playercollidefloor-occupancy-pad-split.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T20:46:47Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

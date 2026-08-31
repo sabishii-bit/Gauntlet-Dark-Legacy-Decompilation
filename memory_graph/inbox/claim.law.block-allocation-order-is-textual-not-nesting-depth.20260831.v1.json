@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/combat.c::StandardCamera_8002B828, worktree GDL-Claude-Occupancy, work_claim.occupancy-slot-drive.20260831.v1. NEGATIVE CONTROL: the else-branch block at the `if (gCameraTargetCount < 1 || ...)` site holds 8 address-taken f32 abs-idiom locals; target places six of them ABOVE the `dir[3]` array of a LATER sibling block, ours placed all eight below it. Wrapping that block's declarations and body in one extra brace level - `} else { { ...decls...; ...body... } }`, changing nesting depth and nothing else - produced a slot correspondence map byte-for-byte IDENTICAL to the un-nested form: all 17 target->ours pairs and all access counts unchanged, real flat at 695. POSITIVE CONTROL on the same function, same session: hoisting the six absErr* temps plus dir[3] to FUNCTION scope reproduced the target's order exactly (six temps above dir, the eight absPan*/*Scale temps below), taking the slot map from a 17-slot scattered permutation to a contiguous run one 4-byte step from exact, and then to fully exact (commit eaedb84eb, real 695->625).",
+    "tags": [
+      "matching",
+      "decl-order",
+      "store-placement"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.block-allocation-order-is-textual-not-nesting-depth.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T20:47:21Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "BLOCK ALLOCATION ORDER IS TEXTUAL DECLARATION ORDER; NESTING DEPTH IS NOT A LEVER. THE ONLY SCOPE LEVER IS FUNCTION SCOPE VERSUS INNER SCOPE. claim.law.inner-block-pad-reaches-below-the-compiler-temps.20260831.v1 correctly says 'THE LEVER IS SCOPE, NOT ORDER, ALIGNMENT, OR LIVENESS', and that phrasing invites a wrong reading this session paid a probe to falsify: that making a block DEEPER pushes its locals lower. It does not. Adding a redundant brace level around an entire block's declarations and body changed the slot map by EXACTLY ZERO - not a shifted slot, not a changed access count. MWCC walks declarations in textual order and assigns descending addresses; a block nested three levels deep and its sibling at depth one are visited in source order, and depth carries no weight of its own. What the parent law actually establishes is a BINARY distinction: function-scope locals are all assigned before any inner-block local, so moving a declaration ACROSS that boundary relocates it, in either direction. TO LIFT a local above inner-block locals, hoist it to function scope (this reproduced a target ordering that no amount of within-block reordering could reach). TO LOWER one below the compiler temps, sink it into the inner block where the temp arises - which is the parent law's own get_player_pos case. PRACTICAL CONSEQUENCE for slot-placement lanes: when the target's order interleaves one block's locals with another's, the fix is never a brace, it is a hoist or a sink. Screen the two candidate moves and probe the hoist first; a deeper-nesting probe is a guaranteed null and should not be spent."
+}
