@@ -4284,7 +4284,7 @@ void InitEffects(void)
         }
         if (i == 11 || i == 21) {
             if (*hp == NULL || lbl_803482A8 == 0) {
-                *p1008 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTHIT, atree)) = 0;
             } else {
                 *p1008 = (s32)AtreeMatch(*hp, (char*)&lbl_803482A8, 0);
                 if (*p1008 == 0) {
@@ -4294,7 +4294,7 @@ void InitEffects(void)
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTHIT, zmod)) = -512;
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTHIT, alpha)) = 0;
             if (*hp == NULL || lbl_803482B0 == 0) {
-                *p1020 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTDIE, atree)) = 0;
             } else {
                 *p1020 = (s32)AtreeMatch(*hp, (char*)&lbl_803482B0, 0);
                 if (*p1020 == 0) {
@@ -4306,7 +4306,7 @@ void InitEffects(void)
         }
         if (i == 27) {
             if (*hp == NULL || lbl_803482B8 == 0) {
-                *p1032 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK1, atree)) = 0;
             } else {
                 *p1032 = (s32)AtreeMatch(*hp, (char*)&lbl_803482B8, 0);
                 if (*p1032 == 0) {
@@ -4316,7 +4316,7 @@ void InitEffects(void)
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK1, zmod)) = -512;
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK1, alpha)) = 0;
             if (*hp == NULL || lbl_803482C0 == 0) {
-                *p1044 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK2, atree)) = 0;
             } else {
                 *p1044 = (s32)AtreeMatch(*hp, (char*)&lbl_803482C0, 0);
                 if (*p1044 == 0) {
@@ -4326,7 +4326,7 @@ void InitEffects(void)
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK2, zmod)) = -512;
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK2, alpha)) = 0;
             if (*hp == NULL || *(s8*)(strs + 80) == 0) {
-                *p1056 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEDEATH1, atree)) = 0;
             } else {
                 *p1056 = (s32)AtreeMatch(*hp, strs + 80, 0);
                 if (*p1056 == 0) {
