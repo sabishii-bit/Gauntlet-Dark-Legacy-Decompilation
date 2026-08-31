@@ -106,6 +106,121 @@ struct WorldLevel {
     /* audio volume / range floats live at 0xA8..0xDC and are normalised     */
 };
 
+/* --- camera_data / audio_data / map_data / bosscam_data --------------------
+ * level_data (game/leveldata.h) forward-declares these four as opaque
+ * pointee types for its camera/audio/mapdata/bosscam fields (0x60/0x64/0x68/
+ * 0x6C); this TU is where the bodies are needed, to name ResolveWorldData's
+ * big-endian fix-up loops over the WAD's CAMS/AUDS/MAPS/BCAM section arrays
+ * (WorldData.cameras/audio/section30/section34).
+ *
+ * GC OFFSET VERIFICATION: every field below is independently confirmed by
+ * ResolveWorldData's own pre-existing byte-swap loop, which swaps EXACTLY
+ * the byte ranges the Xbox layout marks numeric (s16/s32/f32) and skips
+ * exactly the ranges it marks char - a complete field-by-field match for
+ * all 26 camera_data fields, all 8 audio_data fields, both map_data fields
+ * and all 13 bosscam_data fields (claim.law.swap-loop-is-record-layout-
+ * ground-truth). camera_data extends newcam.c's prior 5-field verification
+ * (minpitch/min/max/minrad/maxrad, Xbox misc.h Id=3269) to the full struct;
+ * audio_data is Xbox audio.h Id=3270; map_data (misc.h Id=3272) resolves
+ * auxscreen.c's previously-blocked init_mapscreen residual (init_mapscreen's
+ * `route + 4` maps onto offsetof(map_data, offset) + 4 = offset[1]) - the
+ * struct body was missing from the tsv struct index but present via a
+ * direct grep, same class of miss as PBFRAMEBUF's; bosscam_data is misc.h
+ * Id=3273. Xbox field spelling/order kept verbatim (matches leveldata.h's
+ * own convention for level_data's fields). */
+struct camera_data {
+    /* 0x00 */ s16 dir;
+    /* 0x02 */ s16 pitch_dir;
+    /* 0x04 */ f32 dp;
+    /* 0x08 */ f32 minpitch;
+    /* 0x0C */ f32 min[3];
+    /* 0x18 */ f32 max[3];
+    /* 0x24 */ char limits;
+    /* 0x25 */ char start_event;
+    /* 0x26 */ s16 attcam;
+    /* 0x28 */ f32 att_data;
+    /* 0x2C */ f32 minrad;
+    /* 0x30 */ f32 maxrad;
+    /* 0x34 */ s16 enemax;
+    /* 0x36 */ s16 special_radius;
+    /* 0x38 */ f32 maxpitch;
+    /* 0x3C */ f32 pitchsub;
+    /* 0x40 */ f32 pitchmul;
+    /* 0x44 */ f32 pitchadd;
+    /* 0x48 */ f32 distmuladd;
+    /* 0x4C */ f32 distmulfac;
+    /* 0x50 */ f32 distmulmin;
+    /* 0x54 */ f32 distmulmax;
+    /* 0x58 */ f32 smooth;
+    /* 0x5C */ f32 minyaw;
+    /* 0x60 */ f32 maxyaw;
+    /* 0x64 */ f32 bossminrad;
+    /* 0x68 */ f32 bossmaxrad;
+};                                          /* size 0x6C == WorldData.cameras stride */
+
+struct audio_data {
+    /* 0x00 */ char bank[16];
+    /* 0x10 */ s16  entersnd;
+    /* 0x12 */ s16  hitsnd;
+    /* 0x14 */ s32  namesnd;
+    /* 0x18 */ char stream[16];
+    /* 0x28 */ s16  nareas;
+    /* 0x2A */ s16  stereo;
+    /* 0x2C */ s16  nparts[8];
+};                                          /* size 0x3C == WorldData.audio stride */
+
+struct map_data {
+    /* 0x00 */ f32 offset[2];
+    /* 0x08 */ f32 dash[8][2];
+};                                          /* size 0x48 == WorldData.section30 stride */
+
+struct bosscam_data {
+    /* 0x00 */ s32 flags;
+    /* 0x04 */ f32 maxyaw;
+    /* 0x08 */ f32 cosmaxyaw;
+    /* 0x0C */ f32 mindist;
+    /* 0x10 */ f32 minpdist;
+    /* 0x14 */ f32 maxdist;
+    /* 0x18 */ f32 maxpdist;
+    /* 0x1C */ f32 minpitch;
+    /* 0x20 */ f32 maxpitch;
+    /* 0x24 */ f32 minattn[3];
+    /* 0x30 */ f32 maxattn[3];
+    /* 0x3C */ f32 keyattn[3];
+    /* 0x48 */ f32 wizattn[3];
+};                                          /* size 0x54 == WorldData.section34 stride */
+
+/* level_data.fog is declared as a raw u8[0x1C] blob (game/leveldata.h); the
+ * Xbox layout underneath it is misc.h fog_data (Id=3297, size 0x1C), whose
+ * fields are GC-verified below by the SAME levels-array swap loop this
+ * struct is used to name (type/color[3] unswapped, 6 floats swapped at the
+ * exact relative offsets fog_data lists). */
+struct fog_data {
+    /* 0x00 */ u8  type;
+    /* 0x01 */ u8  color[3];
+    /* 0x04 */ f32 intensity;
+    /* 0x08 */ f32 density;
+    /* 0x0C */ f32 min;
+    /* 0x10 */ f32 max;
+    /* 0x14 */ f32 nearw;
+    /* 0x18 */ f32 farw;
+};                                          /* size 0x1C == level_data.fog size */
+
+/* WorldData.sounds (WAD tag "SNDS") is Xbox sound_data (audio.h Id=3271,
+ * size 0x18 == the 24-byte sounds stride): desc[16]/idx/vol/pri. This
+ * file-local view predates that identification and names the idx field
+ * soundHandle (still accurate - AudioFindSound's return value IS a sound
+ * index/handle); the sounds swap loop originally left vol/pri as a
+ * `_pad14[4]` guess, but both are independently GC-verified real fields
+ * (both individually byte-swapped) per
+ * claim.law.swap-loop-is-record-layout-ground-truth. */
+typedef struct WorldSoundView {
+    char name[16];
+    s32  soundHandle;
+    s16  vol;
+    s16  pri;
+} WorldSoundView;
+
 /* ---- real callees (names already resolved in config/GUNE5D/symbols.txt) --- */
 extern s32   MBSetupWad(void* ctx, void* wadData);
 extern void* MBGetFromWad(void* ctx, s32 tag, s32* outLen);
@@ -321,77 +436,77 @@ void ResolveWorldData(int worldlevel)
                     off = 0;
                     while (n < gWorldData->numLevels) {
                         p = (u8*)gWorldData->levels + off;
-                        WSWAP32(p, 96);
-                        WSWAP32(p, 100);
-                        WSWAP32(p, 104);
-                        WSWAP32(p, 108);
-                        WSWAP32(p, 0);
-                        WSWAP16(p, 4);
-                        WSWAP16(p, 6);
-                        WSWAP16(p, 12);
-                        WSWAP16(p, 14);
-                        WSWAP32(p, 68);
-                        WSWAP32(p, 72);
-                        WSWAP16(p, 88);
-                        WSWAP16(p, 90);
-                        WSWAP16(p, 140);
-                        WSWAP16(p, 142);
-                        WSWAP16(p, 144);
-                        WSWAP16(p, 146);
-                        WSWAPF(p, 148);
-                        WSWAPF(p, 152);
-                        WSWAPF(p, 156);
-                        WSWAPF(p, 160);
-                        WSWAPF(p, 164);
-                        WSWAPF(p, 168);
-                        WSWAPF(p, 172);
-                        WSWAPF(p, 176);
-                        WSWAPF(p, 180);
-                        WSWAPF(p, 184);
-                        WSWAPF(p, 188);
-                        WSWAPF(p, 192);
-                        WSWAPF(p, 196);
-                        WSWAPF(p, 200);
-                        WSWAPF(p, 204);
-                        WSWAPF(p, 208);
-                        WSWAPF(p, 212);
-                        WSWAPF(p, 216);
-                        WSWAPF(p, 220);
-                        WSWAP32(p, 224);
-                        WSWAP32(p, 228);
-                        WSWAP32(p, 232);
-                        WSWAPF(p, 236);
-                        WSWAPF(p, 264);
-                        WSWAP16(p, 92);
+                        WSWAP32(p, offsetof(level_data, camera));
+                        WSWAP32(p, offsetof(level_data, audio));
+                        WSWAP32(p, offsetof(level_data, mapdata));
+                        WSWAP32(p, offsetof(level_data, bosscam));
+                        WSWAP32(p, offsetof(level_data, flags));
+                        WSWAP16(p, offsetof(level_data, enabled));
+                        WSWAP16(p, offsetof(level_data, setup));
+                        WSWAP16(p, offsetof(level_data, wavetime));
+                        WSWAP16(p, offsetof(level_data, dummy));
+                        WSWAP32(p, offsetof(level_data, bosstype));
+                        WSWAP32(p, offsetof(level_data, earlyenemies));
+                        WSWAP16(p, offsetof(level_data, camidx));
+                        WSWAP16(p, offsetof(level_data, audidx));
+                        WSWAP16(p, offsetof(level_data, bosscamidx));
+                        WSWAP16(p, offsetof(level_data, maxenemies));
+                        WSWAP16(p, offsetof(level_data, rune));
+                        WSWAP16(p, offsetof(level_data, legend));
+                        WSWAPF(p, offsetof(level_data, musicvol));
+                        WSWAPF(p, offsetof(level_data, soundvol));
+                        WSWAPF(p, offsetof(level_data, plevel));
+                        WSWAPF(p, offsetof(level_data, xpmul));
+                        WSWAPF(p, offsetof(level_data, damagemul));
+                        WSWAPF(p, offsetof(level_data, difficulty));
+                        WSWAPF(p, offsetof(level_data, ene_health));
+                        WSWAPF(p, offsetof(level_data, ene_speed));
+                        WSWAPF(p, offsetof(level_data, ene_visrad));
+                        WSWAPF(p, offsetof(level_data, ene_attack));
+                        WSWAPF(p, offsetof(level_data, ene_damage));
+                        WSWAPF(p, offsetof(level_data, ene_mrate));
+                        WSWAPF(p, offsetof(level_data, ene_mspeed));
+                        WSWAPF(p, offsetof(level_data, ene_macc));
+                        WSWAPF(p, offsetof(level_data, gen_health));
+                        WSWAPF(p, offsetof(level_data, gen_rate));
+                        WSWAPF(p, offsetof(level_data, gen_max));
+                        WSWAPF(p, offsetof(level_data, trap_rate));
+                        WSWAPF(p, offsetof(level_data, trap_damage));
+                        WSWAP32(p, offsetof(level_data, shop_maxgold));
+                        WSWAP32(p, offsetof(level_data, shop_maxkills));
+                        WSWAP32(p, offsetof(level_data, shop_maxexp));
+                        WSWAPF(p, offsetof(level_data, ambient));
+                        WSWAPF(p, offsetof(level_data, lightinten));
+                        WSWAP16(p, offsetof(level_data, mapidx));
                         for (j = 0; j < 3; j++) {
                             q = p + j * 4;
-                            WSWAPF(q, 252);
-                            q += 240;
+                            WSWAPF(q, offsetof(level_data, lightcolor_fp));
+                            q += offsetof(level_data, lightdir);
                             *(f32*)q = WorldSwapF(*(f32*)q);
                         }
                         for (j = 0; j < 6; j++) {
                             q = p + j * 2;
-                            q2 = q + 76;
+                            q2 = q + offsetof(level_data, enemytype);
                             WSWAP16(q2, 0);
                         }
-                        WSWAPF(p, 116);
-                        WSWAPF(p, 120);
-                        WSWAPF(p, 124);
-                        WSWAPF(p, 128);
-                        WSWAPF(p, 132);
-                        WSWAPF(p, 136);
+                        WSWAPF(p, offsetof(level_data, fog) + offsetof(struct fog_data, intensity));
+                        WSWAPF(p, offsetof(level_data, fog) + offsetof(struct fog_data, density));
+                        WSWAPF(p, offsetof(level_data, fog) + offsetof(struct fog_data, min));
+                        WSWAPF(p, offsetof(level_data, fog) + offsetof(struct fog_data, max));
+                        WSWAPF(p, offsetof(level_data, fog) + offsetof(struct fog_data, nearw));
+                        WSWAPF(p, offsetof(level_data, fog) + offsetof(struct fog_data, farw));
                         n++;
-                        off += 268;
+                        off += sizeof(level_data);
                     }
                     n = 0;
                     off = 0;
                     while (n < gWorldData->numSounds) {
                         p = (u8*)gWorldData->sounds + off;
-                        WSWAP32(p, 16);
-                        WSWAP16(p, 20);
-                        WSWAP16(p, 22);
+                        WSWAP32(p, offsetof(WorldSoundView, soundHandle));
+                        WSWAP16(p, offsetof(WorldSoundView, vol));
+                        WSWAP16(p, offsetof(WorldSoundView, pri));
                         n++;
-                        off += 24;
+                        off += sizeof(WorldSoundView);
                     }
                     count = (u32)((u8*)gWorldData->section34 -
                                   (u8*)gWorldData->section20) / 24;
@@ -404,106 +519,106 @@ void ResolveWorldData(int worldlevel)
                         count--;
                     }
                     count = (u32)((u8*)gWorldData->sounds -
-                                  (u8*)gWorldData->cameras) / 108;
+                                  (u8*)gWorldData->cameras) / sizeof(struct camera_data);
                     n = 0;
                     off = 0;
                     while (n < count) {
                         p = (u8*)gWorldData->cameras + off;
-                        WSWAP16(p, 0);
-                        WSWAP16(p, 2);
-                        WSWAPF(p, 4);
-                        WSWAPF(p, 8);
-                        WSWAP16(p, 38);
-                        WSWAPF(p, 40);
-                        WSWAPF(p, 44);
-                        WSWAPF(p, 48);
-                        WSWAP16(p, 52);
-                        WSWAP16(p, 54);
-                        WSWAPF(p, 56);
-                        WSWAPF(p, 60);
-                        WSWAPF(p, 64);
-                        WSWAPF(p, 68);
-                        WSWAPF(p, 72);
-                        WSWAPF(p, 76);
-                        WSWAPF(p, 80);
-                        WSWAPF(p, 84);
-                        WSWAPF(p, 88);
-                        WSWAPF(p, 92);
-                        WSWAPF(p, 96);
-                        WSWAPF(p, 100);
-                        WSWAPF(p, 104);
+                        WSWAP16(p, offsetof(struct camera_data, dir));
+                        WSWAP16(p, offsetof(struct camera_data, pitch_dir));
+                        WSWAPF(p, offsetof(struct camera_data, dp));
+                        WSWAPF(p, offsetof(struct camera_data, minpitch));
+                        WSWAP16(p, offsetof(struct camera_data, attcam));
+                        WSWAPF(p, offsetof(struct camera_data, att_data));
+                        WSWAPF(p, offsetof(struct camera_data, minrad));
+                        WSWAPF(p, offsetof(struct camera_data, maxrad));
+                        WSWAP16(p, offsetof(struct camera_data, enemax));
+                        WSWAP16(p, offsetof(struct camera_data, special_radius));
+                        WSWAPF(p, offsetof(struct camera_data, maxpitch));
+                        WSWAPF(p, offsetof(struct camera_data, pitchsub));
+                        WSWAPF(p, offsetof(struct camera_data, pitchmul));
+                        WSWAPF(p, offsetof(struct camera_data, pitchadd));
+                        WSWAPF(p, offsetof(struct camera_data, distmuladd));
+                        WSWAPF(p, offsetof(struct camera_data, distmulfac));
+                        WSWAPF(p, offsetof(struct camera_data, distmulmin));
+                        WSWAPF(p, offsetof(struct camera_data, distmulmax));
+                        WSWAPF(p, offsetof(struct camera_data, smooth));
+                        WSWAPF(p, offsetof(struct camera_data, minyaw));
+                        WSWAPF(p, offsetof(struct camera_data, maxyaw));
+                        WSWAPF(p, offsetof(struct camera_data, bossminrad));
+                        WSWAPF(p, offsetof(struct camera_data, bossmaxrad));
                         for (j = 0; j < 3; j++) {
                             q = p + j * 4;
-                            q2 = q + 12;
-                            q3 = q + 24;
+                            q2 = q + offsetof(struct camera_data, min);
+                            q3 = q + offsetof(struct camera_data, max);
                             WSWAPF(q2, 0);
                             WSWAPF(q3, 0);
                         }
                         n++;
-                        off += 108;
+                        off += sizeof(struct camera_data);
                     }
                     count = (u32)((u8*)gWorldData->section30 -
-                                  (u8*)gWorldData->audio) / 60;
+                                  (u8*)gWorldData->audio) / sizeof(struct audio_data);
                     n = 0;
                     off = 0;
                     while (n < count) {
                         p = (u8*)gWorldData->audio + off;
-                        WSWAP16(p, 16);
-                        WSWAP16(p, 18);
-                        WSWAP32(p, 20);
-                        WSWAP16(p, 40);
-                        WSWAP16(p, 42);
+                        WSWAP16(p, offsetof(struct audio_data, entersnd));
+                        WSWAP16(p, offsetof(struct audio_data, hitsnd));
+                        WSWAP32(p, offsetof(struct audio_data, namesnd));
+                        WSWAP16(p, offsetof(struct audio_data, nareas));
+                        WSWAP16(p, offsetof(struct audio_data, stereo));
                         for (j = 0; j < 8; j++) {
                             q = p + j * 2;
-                            q2 = q + 44;
+                            q2 = q + offsetof(struct audio_data, nparts);
                             WSWAP16(q2, 0);
                         }
                         n++;
-                        off += 60;
+                        off += sizeof(struct audio_data);
                     }
                     count = (u32)((u8*)gWorldData->levels -
-                                  (u8*)gWorldData->section30) / 72;
+                                  (u8*)gWorldData->section30) / sizeof(struct map_data);
                     n = 0;
                     off = 0;
                     while (n < count) {
                         p = (u8*)gWorldData->section30 + off;
                         for (j = 0; j < 2; j++) {
-                            WSWAPF(p, j * 4);
+                            WSWAPF(p, offsetof(struct map_data, offset) + j * 4);
                         }
                         for (k = 0; k < 8; k++) {
                             q = p + k * 8;
                             for (j = 0; j < 2; j++) {
-                                WSWAPF(q, 8 + j * 4);
+                                WSWAPF(q, offsetof(struct map_data, dash) + j * 4);
                             }
                         }
                         n++;
-                        off += 72;
+                        off += sizeof(struct map_data);
                     }
                     count = (u32)((u8*)gWorldData->cameras -
-                                  (u8*)gWorldData->section34) / 84;
+                                  (u8*)gWorldData->section34) / sizeof(struct bosscam_data);
                     n = 0;
                     off = 0;
                     while (n < count) {
                         p = (u8*)gWorldData->section34 + off;
-                        WSWAP32(p, 0);
-                        WSWAPF(p, 4);
-                        WSWAPF(p, 8);
-                        WSWAPF(p, 12);
-                        WSWAPF(p, 16);
-                        WSWAPF(p, 20);
-                        WSWAPF(p, 24);
-                        WSWAPF(p, 28);
-                        WSWAPF(p, 32);
+                        WSWAP32(p, offsetof(struct bosscam_data, flags));
+                        WSWAPF(p, offsetof(struct bosscam_data, maxyaw));
+                        WSWAPF(p, offsetof(struct bosscam_data, cosmaxyaw));
+                        WSWAPF(p, offsetof(struct bosscam_data, mindist));
+                        WSWAPF(p, offsetof(struct bosscam_data, minpdist));
+                        WSWAPF(p, offsetof(struct bosscam_data, maxdist));
+                        WSWAPF(p, offsetof(struct bosscam_data, maxpdist));
+                        WSWAPF(p, offsetof(struct bosscam_data, minpitch));
+                        WSWAPF(p, offsetof(struct bosscam_data, maxpitch));
                         for (j = 0; j < 3; j++) {
                             q = p + j * 4;
-                            WSWAPF(q, 36);
-                            WSWAPF(q, 48);
-                            WSWAPF(q, 60);
-                            q += 72;
+                            WSWAPF(q, offsetof(struct bosscam_data, minattn));
+                            WSWAPF(q, offsetof(struct bosscam_data, maxattn));
+                            WSWAPF(q, offsetof(struct bosscam_data, keyattn));
+                            q += offsetof(struct bosscam_data, wizattn);
                             *(f32*)q = WorldSwapF(*(f32*)q);
                         }
                         n++;
-                        off += 84;
+                        off += sizeof(struct bosscam_data);
                     }
                 }
                 p = wt + off;
@@ -535,14 +650,14 @@ void ResolveWorldData(int worldlevel)
     /* first level (from the current one) that owns cameras */
     count = gWorldData->numLevels;
     level++;
-    n = level * 268;
+    n = level * sizeof(level_data);
     goto camera_check;
 camera_next:
     level++;
-    n += 268;
+    n += sizeof(level_data);
 camera_check:
     if (level < count &&
-        !(*(s16*)((u8*)gWorldData->levels + n + 4) & 1)) {
+        !(*(s16*)((u8*)gWorldData->levels + n + offsetof(level_data, enabled)) & 1)) {
         goto camera_next;
     }
     if (level < count) {
@@ -568,11 +683,6 @@ typedef struct WorldAudioView {
     s32 soundHandle;
     u8 _pad18[36];
 } WorldAudioView;
-typedef struct WorldSoundView {
-    char name[16];
-    s32 soundHandle;
-    u8 _pad14[4];
-} WorldSoundView;
 extern f32  lbl_8011C748[3];           /* volume gain table                 */
 extern f64  lbl_80346C70;              /* -1.0 sentinel                     */
 extern f32  lbl_80346BE0;              /* 1.0                                */
