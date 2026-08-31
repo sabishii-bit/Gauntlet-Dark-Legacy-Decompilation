@@ -76,6 +76,31 @@ def pool_symbols():
         _POOL_SYMBOLS = frozenset(symbols)
     return _POOL_SYMBOLS
 
+
+_SYMBOL_ADDRESSES = None
+
+
+def symbol_addresses():
+    """name -> absolute address for every symbols.txt entry (data identity)."""
+    global _SYMBOL_ADDRESSES
+    if _SYMBOL_ADDRESSES is None:
+        table = {}
+        if SYMBOLS_TXT.exists():
+            pattern = re.compile(r"^(\S+)\s*=\s*\.\w+:0x([0-9A-Fa-f]+);")
+            for line in SYMBOLS_TXT.read_text(
+                    encoding="utf-8", errors="replace").splitlines():
+                match = pattern.match(line.strip())
+                if match:
+                    name, addr = match.group(1), int(match.group(2), 16)
+                    table[name] = addr
+                    # parse() strips dtk address suffixes upstream; register
+                    # the stripped alias so lookups still resolve.
+                    stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+                    if stripped != name:
+                        table.setdefault(stripped, addr)
+        _SYMBOL_ADDRESSES = table
+    return _SYMBOL_ADDRESSES
+
 BRANCH_RE = re.compile(
     r"\b(b|bl|ba|bla|beq|bne|bgt|blt|bge|ble|bso|bns|bdnz|bdz)"
     r"([+-]?)\s+(cr\d,)?([0-9a-f]+)\s*$"
@@ -163,6 +188,44 @@ def parse(objfile: Path):
     return funcs
 
 
+def raw_signature(objfile: Path):
+    """Per-function sha1 of raw instruction words + raw relocation lines.
+
+    The soundness backstop the score stack lacks: a change passed NEUTRAL
+    real, IDENTICAL multiset, unchanged lines/counts/clusters AND
+    defake_gate — while regressing fuzzy (operand-encoding change,
+    2026-08-31). Nothing derived from normalized text can prove byte
+    identity; this hash can. Compare ours-vs-ours across an edit.
+    """
+    import hashlib
+    out = subprocess.run(
+        [str(OBJDUMP), "-dr", str(objfile)], capture_output=True, text=True
+    ).stdout
+    hashes = {}
+    cur = None
+    hasher = None
+    for line in out.splitlines():
+        m = re.match(r"^([0-9a-f]+) <(.+)>:$", line)
+        if m:
+            if cur is not None:
+                hashes[cur] = hasher.hexdigest()[:12]
+            cur = m.group(2)
+            if not cur.startswith("fn_"):
+                cur = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
+            hasher = hashlib.sha1()
+            continue
+        if cur is None:
+            continue
+        m = re.match(r"^\s+[0-9a-f]+:\s+((?:[0-9a-f]{2} ){4})", line)
+        if m:
+            hasher.update(m.group(1).encode())
+        elif "R_PPC" in line:
+            hasher.update(line.strip().encode())
+    if cur is not None:
+        hashes[cur] = hasher.hexdigest()[:12]
+    return hashes
+
+
 def opcodes(lines):
     """Instruction lines only (no relocs), reduced to the mnemonic."""
     return [ln.split()[0] for ln in lines if ln and not ln.startswith("    ")]
@@ -183,10 +246,24 @@ def relocation_signature(line):
     if local:
         symbol = "<local>" + (local.group(1) or "")
     else:
-        # Splitter-named pool constants normalize exactly like lbl_ ones.
-        head = re.match(r"([A-Za-z_@]\w*)([+-].+)?$", symbol)
-        if head and head.group(1) in pool_symbols():
-            symbol = "<local>" + (head.group(2) or "")
+        head = re.match(r"([A-Za-z_@]\w*)([+-]0x[0-9a-fA-F]+|[+-]\d+)?$",
+                        symbol)
+        if head:
+            name, addend = head.group(1), head.group(2)
+            if name in pool_symbols():
+                # Splitter-named pool constants normalize like lbl_ ones
+                # (our side emits pool entries anonymously — address
+                # resolution here would score every literal as a diff).
+                symbol = "<local>" + (addend or "")
+            else:
+                # Two spellings of ONE address are the same relocation:
+                # critter's `gControllerButtons+0x4` vs the target's
+                # `sFlags` both resolve to 0x803445CC and link to identical
+                # bytes — two functions sat mis-scored at real 2 over
+                # exactly this (2026-08-31). Compare addresses, not names.
+                base_addr = symbol_addresses().get(name)
+                if base_addr is not None:
+                    symbol = f"@0x{base_addr + int(addend or '0', 0):08X}"
     return reloc_type, symbol
 
 

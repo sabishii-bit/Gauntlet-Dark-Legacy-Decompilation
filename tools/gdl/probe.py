@@ -248,6 +248,24 @@ def main():
                        "  [revert advised]")
     else:
         verdict = f"NEUTRAL   real {real} (insns {insns}{tok})"
+        # NEUTRAL scores do NOT prove byte identity (a fuzzy-visible
+        # encoding change once passed every score in this tool). Hash the
+        # function's raw bytes and say so when they moved.
+        try:
+            sys.path.insert(0, str(TOOLS))
+            import fndiff as _fndiff
+            objfile = Path(f"build/{VERSION}/src/{unit}.o")
+            digest = _fndiff.raw_signature(objfile).get(
+                fn) or _fndiff.raw_signature(objfile).get(fn_stripped)
+            prev_digest = state.get("last_bytes")
+            if digest is not None:
+                state["last_bytes"] = digest
+                if prev_digest is not None and digest != prev_digest:
+                    verdict += ("  [BYTES CHANGED — neutral scores do not"
+                                " prove identity; verify with objdiff"
+                                " fuzzy or revert]")
+        except Exception:
+            pass
     state["last_real"] = real
     if multiset_tokens is not None:
         state["last_multiset"] = multiset_tokens

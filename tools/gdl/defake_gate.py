@@ -33,6 +33,9 @@ from pathlib import Path
 VERSION = "GUNE5D"
 FNDIFF = Path(__file__).resolve().parent / "fndiff.py"
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import fndiff  # noqa: E402  (raw_signature: the byte-identity backstop)
+
 COUNT_RE = re.compile(
     r"^DIFF\s+(\S+)\s+insns\s+(\d+)/(\d+)\s+lines\s+(\d+)\s+real\s+(\d+)\s*$"
 )
@@ -95,6 +98,22 @@ def compare(baseline, current):
         cur = current.get(name)
         if cur is None:
             verdicts.append((name, "REGRESSION", "function vanished from object"))
+            continue
+        # Byte-identity backstop: every score in this gate derives from
+        # normalized text, and a change once passed NEUTRAL real, IDENTICAL
+        # multiset, unchanged clusters AND this gate while regressing fuzzy
+        # (claim.law.neutral-real-and-identical-multiset-do-not-prove-byte-
+        # identity). The raw hash cannot be fooled: any byte or reloc-line
+        # change in a previously-neutral-scored function fails here.
+        if (base.get("bytes") and cur.get("bytes")
+                and base["bytes"] != cur["bytes"]
+                and base.get("real", 1) == 0 and cur.get("real", 1) == 0):
+            verdicts.append(
+                (name, "REGRESSION",
+                 "raw bytes/relocs changed although every score reads"
+                 " neutral — encoding or reloc-payload drift; revert or"
+                 " verify with objdiff fuzzy before keeping")
+            )
             continue
         # A byte-exact function must STAY byte-exact: real normalizes
         # relocation payloads, so EXACT -> RELOCATION_ONLY demotions kept
@@ -176,6 +195,12 @@ def main():
             print((build.stdout + build.stderr).strip()[-1500:])
             return 1
     snap = snapshot(run_fndiff(unit, "--classify"), run_fndiff(unit, "--count"))
+    objfile = Path(
+        f"build/{VERSION}/src/{re.sub(r'[.](c|cpp)$', '', unit)}.o")
+    if objfile.exists():
+        for name, digest in fndiff.raw_signature(objfile).items():
+            if name in snap:
+                snap[name]["bytes"] = digest
     path = gate_path(unit)
     if mode == "baseline":
         path.parent.mkdir(parents=True, exist_ok=True)
