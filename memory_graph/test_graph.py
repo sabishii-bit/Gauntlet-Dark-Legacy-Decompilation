@@ -353,7 +353,9 @@ class GraphSurfaceTests(unittest.TestCase):
         self.assertIsNone(laws["claim.law.test-law.v2"]["superseded_by"])
         self.assertEqual(laws["claim.law.test-law.v2"]["applied_count"], 1)
         self.assertEqual(laws["claim.law.test-law.v1"]["applied_count"], 0)
-        self.assertEqual(laws["claim.law.test-law.v2"]["age_days"], 0)
+        # Fixture stamps a local date; age is computed against UTC now, so
+        # allow the one-day skew a date boundary introduces.
+        self.assertLessEqual(laws["claim.law.test-law.v2"]["age_days"], 1)
         filtered = law_corpus("scope v1", root=self.root)
         self.assertEqual([row["id"] for row in filtered["laws"]],
                          ["claim.law.test-law.v1"])
@@ -389,6 +391,50 @@ class GraphSurfaceTests(unittest.TestCase):
         owners = [entry.rsplit("(", 1)[1].rstrip(")")
                   for entry in lined["bare_site_lines"]]
         self.assertEqual(owners, ["f", "f", "f", "f", "g"])
+
+    def test_fakematch_debt_by_function(self):
+        result = fakematch_debt("game/test/foo", root=self.root,
+                                by_function=1)
+        self.assertEqual(result["functions"],
+                         [{"function": "f", "bare_sites": 4},
+                          {"function": "g", "bare_sites": 1}])
+        # No tu filter -> no per-function aggregation.
+        self.assertNotIn("functions", fakematch_debt(root=self.root,
+                                                     by_function=1))
+
+    def test_record_template_shape_and_guard(self):
+        from memory_graph.core import record_template, stage_record_proposal
+        template = record_template("attempt")
+        self.assertEqual(template["kind"], "attempt")
+        self.assertEqual(template["schema_version"], 1)
+        self.assertIn("law_screen", template["attributes"])
+        self.assertIn("<REQUIRED", template["id"])
+        with self.assertRaises(MemoryGraphError):
+            record_template("nonsense")
+        # A template with placeholders still present must never stage.
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(dict(template), root=self.root,
+                                  dry_run=True)
+        self.assertIn("placeholder", str(caught.exception))
+
+    def test_cli_large_output_spills_to_file(self):
+        import contextlib
+        import io
+        from memory_graph import gdlmem
+        original = gdlmem.SPILL_THRESHOLD
+        gdlmem.SPILL_THRESHOLD = 10
+        try:
+            buffer = io.StringIO()
+            with contextlib.redirect_stdout(buffer):
+                code = gdlmem.main(["--root", str(self.root), "laws"])
+            self.assertEqual(code, 0)
+            pointer = json.loads(buffer.getvalue())
+            self.assertIn("large_output", pointer)
+            spilled = json.loads(
+                Path(pointer["large_output"]).read_text(encoding="utf-8"))
+            self.assertIn("laws", spilled)
+        finally:
+            gdlmem.SPILL_THRESHOLD = original
 
     def test_struct_local_header_authority(self):
         from memory_graph.core import xbox_struct_layout

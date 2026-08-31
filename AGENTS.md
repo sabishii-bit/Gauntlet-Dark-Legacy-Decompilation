@@ -1,5 +1,15 @@
 # Gauntlet Dark Legacy Decompilation — Agent Workflow Contract
 
+> **FIRST-FIVE-MINUTES TRAPS (read before anything else):**
+> 1. In a linked worktree, `git` through the Bash/MSYS tool fails with
+>    `fatal: not a git repository` — it cannot resolve `W:/`-form gitdir
+>    links. Run **ALL git commands through PowerShell**. Do not diagnose
+>    the git failure; switch shells.
+> 2. `gdlmem.py` global flags (`--out`, `--root`, `--compact`) go
+>    **BEFORE** the subcommand: `gdlmem.py --out r.json brief <tu>`.
+> 3. Large `gdlmem.py` results auto-spill to `build/gdlmem_out/` and print
+>    the path — Read that file; don't re-run the query.
+
 This file is the authoritative workflow contract for every LLM or agent
 working in this checkout, on any platform. Read it completely before
 inspecting candidates, editing source, running a build, or delegating work.

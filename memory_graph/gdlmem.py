@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -31,14 +32,13 @@ from memory_graph.core import (
     ensure_database,
     memory_stats,
     prune_attempts,
+    record_template,
     register_tool_proposal,
     rename_symbol,
     stage_record_proposal,
 )
 
-
-def _print(value: object, compact: bool) -> None:
-    print(json.dumps(value, indent=None if compact else 2, sort_keys=True, default=str))
+SPILL_THRESHOLD = 24000
 
 
 def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
@@ -91,9 +91,15 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
         "propose-record",
         help="validate and stage a structured JSON record for review",
     )
-    propose_record.add_argument("json_file", type=Path)
+    propose_record.add_argument("json_file", type=Path, nargs="?")
     propose_record.add_argument("--dry-run", action="store_true",
                                 help="validate fully but write nothing")
+    propose_record.add_argument(
+        "--template",
+        choices=("attempt", "claim", "evidence", "entity", "edge",
+                 "work_claim", "tool"),
+        help="print a correctly-shaped skeleton for this kind and exit"
+             " (fill <REQUIRED:...>, delete unused <OPTIONAL:...> keys)")
 
     accept = subparsers.add_parser(
         "accept",
@@ -158,7 +164,11 @@ def main(argv: list[str] | None = None) -> int:
                 "review_state": "pending",
                 "next": "review the JSON, then move it from memory_graph/inbox to records",
             }
+        elif args.command == "propose-record" and args.template:
+            result = record_template(args.template)
         elif args.command == "propose-record":
+            if args.json_file is None:
+                parser.error("propose-record needs a json_file or --template")
             record = json.loads(args.json_file.read_text(encoding="utf-8-sig"))
             source = args.json_file.resolve()
             inbox_dir = (root / "memory_graph" / "inbox").resolve()
@@ -201,7 +211,24 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(f"wrote {args.out}")
         return 0
-    _print(result, args.compact)
+    payload = json.dumps(result, indent=None if args.compact else 2,
+                         sort_keys=True, default=str)
+    # Shell pipes (Bash tool, PowerShell tail) silently truncate large
+    # stdout; spill big results to a file and print the pointer instead.
+    if len(payload) > SPILL_THRESHOLD:
+        spill_dir = root / "build" / "gdlmem_out"
+        spill_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        spill = spill_dir / f"{args.command}-{stamp}.json"
+        spill.write_text(payload, encoding="utf-8")
+        print(json.dumps({
+            "large_output": str(spill),
+            "bytes": len(payload),
+            "hint": "result exceeds safe stdout size; Read the file"
+                    " (do not re-run the query)",
+        }, indent=2))
+        return 0
+    print(payload)
     return 0
 
 

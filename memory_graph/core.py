@@ -714,6 +714,12 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
             raise MemoryGraphError(
                 f"{source}: structured knowledge cannot use Markdown as a truth anchor: {anchor}"
             )
+    flat = json.dumps(record)
+    if "<REQUIRED" in flat or "<OPTIONAL" in flat:
+        raise MemoryGraphError(
+            f"{source}: template placeholders remain — fill every <REQUIRED:...>"
+            " field and delete unused <OPTIONAL:...> keys before proposing"
+        )
 
 
 def _entity_id(connection: sqlite3.Connection, key: str) -> int:
@@ -2238,6 +2244,86 @@ def _probe_record_references(
                 )
 
 
+def record_template(kind: str) -> dict[str, Any]:
+    """Emit a correctly-shaped skeleton for a proposable record kind.
+
+    Placeholders are self-describing; staging rejects any record still
+    carrying a ``<REQUIRED:...>`` or ``<OPTIONAL:...>`` marker, so a
+    half-filled template cannot slip into the inbox. ``valid_from`` and
+    ``recorded_at`` are stamped automatically at staging — never author them.
+    """
+    templates: dict[str, dict[str, Any]] = {
+        "attempt": {
+            "function": "<REQUIRED: function:symbol_name>",
+            "attempted_axis": "<REQUIRED: one-line description of the axis tried>",
+            "outcome": "<REQUIRED: improved|neutral|negative|parked|capped>",
+            "residual_class": "<OPTIONAL: NONE|REGISTER_ONLY|SCHEDULE|STRUCTURAL|MIXED>",
+            "supersedes": "<OPTIONAL: id of the prior attempt record this replaces>",
+            "attributes": {
+                "law_screen": "<REQUIRED: laws screened and whether each applied;"
+                              " 'none applicable: <why>' is acceptable>",
+                "laws_applied": "<OPTIONAL: JSON array string of applied law claim ids>",
+                "scope": "<OPTIONAL: files touched and change class>",
+                "verification": "<OPTIONAL: gates run and their verdicts>",
+                "residual": "<OPTIONAL: what remains and why it was left>",
+            },
+        },
+        "claim": {
+            "subject": "<REQUIRED: entity key, e.g. function:name or tu:module>",
+            "predicate": "<REQUIRED: e.g. law|symbol_naming|opportunity>",
+            "epistemic_state": "<REQUIRED: e.g. verified|proposed>",
+            "value": "<REQUIRED unless 'object' is used: the claim statement>",
+            "attributes": {
+                "tags": ["<OPTIONAL: controlled-vocabulary tags; see laws"
+                         " tags_available — delete this key if unused>"],
+            },
+        },
+        "evidence": {
+            "evidence_kind": "<REQUIRED: e.g. disasm|build|source-trace>",
+            "locator": "<REQUIRED: src path:line or tool invocation — never .md>",
+            "detail": "<REQUIRED: what the evidence shows>",
+            "claim": "<REQUIRED unless 'edge' is used: the claim record id>",
+        },
+        "entity": {
+            "entity_type": "<REQUIRED: e.g. function|tu|struct>",
+            "key": "<REQUIRED: e.g. function:name>",
+            "name": "<REQUIRED: display name>",
+        },
+        "edge": {
+            "source": "<REQUIRED: entity key>",
+            "relation": "<REQUIRED: relation verb>",
+            "target": "<REQUIRED: entity key>",
+        },
+        "work_claim": {
+            "function": "<REQUIRED: function:symbol_name anchor>",
+            "owner": "<REQUIRED: worker identity>",
+            "state": "active",
+            "claimed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+            "attributes": {"scope": "<REQUIRED: exclusive file/TU scope>"},
+        },
+        "tool": {
+            "tool_key": "<REQUIRED: stable key>",
+            "name": "<REQUIRED: display name>",
+            "tool_kind": "<REQUIRED: e.g. external|analysis>",
+            "status": "active",
+            "purpose": "<REQUIRED: one-line purpose>",
+        },
+    }
+    if kind not in templates:
+        raise MemoryGraphError(
+            f"no template for kind {kind!r}; choose from "
+            + ", ".join(sorted(templates))
+        )
+    skeleton: dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
+        "id": f"<REQUIRED: {kind}.short-slug."
+              f"{datetime.now(timezone.utc).strftime('%Y%m%d')}.v1>",
+        "kind": kind,
+    }
+    skeleton.update(templates[kind])
+    return skeleton
+
+
 def stage_record_proposal(
     record: dict[str, Any],
     *,
@@ -2646,7 +2732,10 @@ class SurfaceOp:
         for param in self.params:
             value = values.get(param.name, param.default)
             if param.maximum is not None and isinstance(value, int):
-                value = max(1, min(value, param.maximum))
+                # maximum==1 marks a 0/1 flag; 0 must stay off. Larger
+                # maxima are result limits, floored at 1.
+                floor = 0 if param.maximum == 1 else 1
+                value = max(floor, min(value, param.maximum))
             out[param.name] = value
         return out
 
@@ -2949,6 +3038,7 @@ def fakematch_debt(
     db_path: Path | None = None,
     limit: int = 40,
     show_lines: int = 0,
+    by_function: int = 0,
 ) -> dict[str, Any]:
     """Census raw-offset fakematch debt per TU, heaviest first.
 
@@ -2957,13 +3047,16 @@ def fakematch_debt(
     ``bare_sites`` (numeric displacement — the actual remaining debt) and
     ``named_sites`` (already offsetof/sizeof-spelled — converted, kept for
     the total so old censuses stay comparable). Pass ``tu`` to filter;
-    ``show_lines=1`` (with a tu filter) lists each bare site as file:line.
+    ``show_lines=1`` (with a tu filter) lists each bare site as file:line;
+    ``by_function=1`` (with a tu filter) aggregates bare sites per enclosing
+    function so a pass can be prioritized without an ad-hoc script.
     """
     src = root / "src"
     if not src.exists():
         raise MemoryGraphError(f"no src/ directory under {root}")
     rows = []
     sites: list[str] = []
+    owner_counts: dict[str, int] = {}
     for path in sorted(src.rglob("*.c*")):
         if path.suffix.lower() not in (".c", ".cpp"):
             continue
@@ -2976,18 +3069,22 @@ def fakematch_debt(
         except OSError:
             continue
         named_macros = frozenset(_OFFSETOF_MACRO_RE.findall(text))
+        want_owners = bool((show_lines or by_function) and tu)
         marks = ([(m.start(), m.group(1)) for m in _FN_START_RE.finditer(text)]
-                 if show_lines and tu else [])
+                 if want_owners else [])
         bare = named = 0
         for match in _DEBT_CAST_RE.finditer(text):
             if _cast_site_is_named(text, match.start(), named_macros):
                 named += 1
             else:
                 bare += 1
-                if show_lines and tu:
-                    line = text.count("\n", 0, match.start()) + 1
+                if want_owners:
                     owner = _enclosing_function(marks, match.start())
-                    sites.append(f"{relative}:{line} ({owner})")
+                    if by_function:
+                        owner_counts[owner] = owner_counts.get(owner, 0) + 1
+                    if show_lines:
+                        line = text.count("\n", 0, match.start()) + 1
+                        sites.append(f"{relative}:{line} ({owner})")
         pf_sites = len(_DEBT_PF_RE.findall(text))
         if bare or named or pf_sites:
             rows.append(
@@ -3015,6 +3112,12 @@ def fakematch_debt(
         result["bare_site_lines"] = sites[:1500]
         if len(sites) > 1500:
             result["bare_site_lines_truncated"] = len(sites) - 1500
+    if by_function and tu:
+        result["functions"] = [
+            {"function": name, "bare_sites": count}
+            for name, count in sorted(
+                owner_counts.items(), key=lambda item: (-item[1], item[0]))
+        ]
     return result
 
 
@@ -3755,7 +3858,7 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                  "for wave planning."),
             call=lambda root, db, **kw: fakematch_debt(
                 kw["tu"], root=root, db_path=db, limit=kw["limit"],
-                show_lines=kw["show_lines"]),
+                show_lines=kw["show_lines"], by_function=kw["by_function"]),
             params=(
                 SurfaceParam("tu", str, default=None,
                              help="optional path substring filter"),
@@ -3763,6 +3866,9 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                 SurfaceParam("show_lines", int, default=0, maximum=1,
                              help="1 = list bare sites as file:line"
                                   " (requires --tu)"),
+                SurfaceParam("by_function", int, default=0, maximum=1,
+                             help="1 = aggregate bare sites per enclosing"
+                                  " function (requires --tu)"),
             ),
         ),
         SurfaceOp(
