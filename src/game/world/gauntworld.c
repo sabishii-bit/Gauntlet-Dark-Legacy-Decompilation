@@ -2808,9 +2808,9 @@ los_done:
             nv[0] = hitpt[0] - pos[0];
             nv[1] = hitpt[1] - pos[1];
             nv[2] = hitpt[2] - pos[2];
+            f1 = (f32)((nv[0] * norm[0] + nv[2] * norm[2]) + a);
             out[0] = pos[0];
             out[1] = pos[1];
-            f1 = (f32)((nv[0] * norm[0] + nv[2] * norm[2]) + a);
             out[2] = pos[2];
             if (f1 > 0.0f) {
                 out[0] = norm[0] * f1 + out[0];
