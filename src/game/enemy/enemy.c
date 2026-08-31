@@ -2,6 +2,7 @@
 #include "game/worldobj.h"
 #include "game/dyngrid.h"
 #include "game/leveldata.h"
+#include "game/mbobject.h"
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -6946,9 +6947,9 @@ void do_enemies(void)
                 }
             sync:
                 if (e->shadow != 0) {
-                    *(f32*)((u8*)e->shadow + 0x30) = e->objgrp.worldmat[3][0];
-                    *(f32*)((u8*)e->shadow + 0x34) = e->objgrp.worldmat[3][1];
-                    *(f32*)((u8*)e->shadow + 0x38) = e->objgrp.worldmat[3][2];
+                    *(f32*)((u8*)e->shadow + offsetof(MBObject, mat[3][0])) = e->objgrp.worldmat[3][0];
+                    *(f32*)((u8*)e->shadow + offsetof(MBObject, mat[3][1])) = e->objgrp.worldmat[3][1];
+                    *(f32*)((u8*)e->shadow + offsetof(MBObject, mat[3][2])) = e->objgrp.worldmat[3][2];
                 }
                 break;
             case 0:
@@ -6997,28 +6998,28 @@ void do_enemies(void)
                 if ((f64)lbl_803447D8 != zero) {
                     if (e->objgrp.node != 0) {
                         MBTreeSetFlags(e->objgrp.node, 8, 0);
-                        *(f32*)((u8*)e->objgrp.node + 0x40) = lbl_803447D8;
-                        *(f32*)((u8*)e->objgrp.node + 0x44) = lbl_803447D8;
-                        *(f32*)((u8*)e->objgrp.node + 0x48) = lbl_803447D8;
+                        *(f32*)((u8*)e->objgrp.node + offsetof(MBObject, scale[0])) = lbl_803447D8;
+                        *(f32*)((u8*)e->objgrp.node + offsetof(MBObject, scale[1])) = lbl_803447D8;
+                        *(f32*)((u8*)e->objgrp.node + offsetof(MBObject, scale[2])) = lbl_803447D8;
                     }
                     if (e->shadow != 0) {
                         MBTreeSetFlags(e->shadow, 8, 0);
-                        *(f32*)((u8*)e->shadow + 0x40) = lbl_803447D8;
-                        *(f32*)((u8*)e->shadow + 0x44) = lbl_803447D8;
-                        *(f32*)((u8*)e->shadow + 0x48) = lbl_803447D8;
+                        *(f32*)((u8*)e->shadow + offsetof(MBObject, scale[0])) = lbl_803447D8;
+                        *(f32*)((u8*)e->shadow + offsetof(MBObject, scale[1])) = lbl_803447D8;
+                        *(f32*)((u8*)e->shadow + offsetof(MBObject, scale[2])) = lbl_803447D8;
                     }
                 } else {
                     if (e->objgrp.node != 0) {
                         MBTreeClearFlags(e->objgrp.node, 8, 0);
-                        *(f32*)((u8*)e->objgrp.node + 0x40) = skinOne;
-                        *(f32*)((u8*)e->objgrp.node + 0x44) = skinOne;
-                        *(f32*)((u8*)e->objgrp.node + 0x48) = skinOne;
+                        *(f32*)((u8*)e->objgrp.node + offsetof(MBObject, scale[0])) = skinOne;
+                        *(f32*)((u8*)e->objgrp.node + offsetof(MBObject, scale[1])) = skinOne;
+                        *(f32*)((u8*)e->objgrp.node + offsetof(MBObject, scale[2])) = skinOne;
                     }
                     if (e->shadow != 0) {
                         MBTreeClearFlags(e->shadow, 8, 0);
-                        *(f32*)((u8*)e->shadow + 0x40) = skinOne;
-                        *(f32*)((u8*)e->shadow + 0x44) = skinOne;
-                        *(f32*)((u8*)e->shadow + 0x48) = skinOne;
+                        *(f32*)((u8*)e->shadow + offsetof(MBObject, scale[0])) = skinOne;
+                        *(f32*)((u8*)e->shadow + offsetof(MBObject, scale[1])) = skinOne;
+                        *(f32*)((u8*)e->shadow + offsetof(MBObject, scale[2])) = skinOne;
                     }
                 }
             }
