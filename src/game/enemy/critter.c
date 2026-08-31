@@ -6459,11 +6459,11 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         node = MBOX_ReallyFindObject(lbl_8011AEA0[shadowIdx], shadowType,
                                      shadowType, 1);
         c->shadow = MBNewObject(node, gIdentityMatrix, NULL, 0x880);
-        *(f32 *)((u8 *)c->shadow + 0x30) = c->vel[0];
-        *(f32 *)((u8 *)c->shadow + 0x34) = c->vel[1];
-        *(f32 *)((u8 *)c->shadow + 0x38) = c->vel[2];
-        *(f32 *)((u8 *)c->shadow + 0x54) = lbl_80346640;
-        *(s16 *)((u8 *)c->shadow + 0x68) = -32;
+        *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][0])) = c->vel[0];
+        *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) = c->vel[1];
+        *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][2])) = c->vel[2];
+        *(f32 *)((u8 *)c->shadow + offsetof(MBObject, zsort_add)) = lbl_80346640;
+        *(s16 *)((u8 *)c->shadow + offsetof(MBObject, zmod)) = -32;
     }
 
     idx = *(s16 *)(header + 0x56);
@@ -6513,10 +6513,10 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
                     *(f32 *)(header + 0xB0);
         if (c->shadow != NULL) {
             CopyMat3((f32 *)gFloorCollisionResult, c->shadow);
-            *(f32 *)((u8 *)c->shadow + 0x30) = c->vel[0];
-            *(f32 *)((u8 *)c->shadow + 0x34) = c->vel[1];
-            *(f32 *)((u8 *)c->shadow + 0x38) = c->vel[2];
-            *(f32 *)((u8 *)c->shadow + 0x34) =
+            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][0])) = c->vel[0];
+            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) = c->vel[1];
+            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][2])) = c->vel[2];
+            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) =
                 *(f32 *)(gFloorCollisionResult + 0x34);
         }
     } else {
