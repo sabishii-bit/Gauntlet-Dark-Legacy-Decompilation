@@ -9,9 +9,14 @@
  * extab       0x80006BE8..0x80006C50
  * extabindex  0x8000AA2C..0x8000AAC8
  *
- * Player-data model (lbl_80282930[4], one header per player):
- *   header: s16 count @0, SfxRecord* records @4, s32 slot @0x24.
- *   SfxRecord: 0x50 bytes; u32 flags @0, s32 handle @8 (word[2]).
+ * Player-data model (lbl_80282930[4], one header per player). All three
+ * record types are the real Midway ones recovered from the Xbox PDB and
+ * proved against LoadPlyrData's own byte-swap loops -- see each typedef:
+ *   plyr_data   0x180 - the header chunk (numsfx/numdamage + the two chunk
+ *                       pointers + the turbo/combo table + tuning floats).
+ *   plyr_sfx    0x50  - the "record" chunk rows (effect/sound descriptors
+ *                       and their resolved handles).
+ *   plyr_damage 0x58  - the "move" chunk rows (per-frame damage windows).
  */
 
 #include "types.h"
@@ -35,15 +40,61 @@ typedef struct PsfxFileTable {
     u8    pad[0x60];
     void* files[16];
 } PsfxFileTable;
-/* player-data header (first chunk of the pdata wad) */
-typedef struct PsfxHeader {
-    /* 0x00 */ s16 count;    /* number of SfxRecords            */
-    /* 0x02 */ s16 _02;
-    /* 0x04 */ u8* records;  /* SfxRecord[count], 0x50 each     */
-    /* 0x08 */ u8* moves;    /* third chunk rows, 0x58 each     */
-    /* 0x0C */ u8 _0c[0x18];
-    /* 0x24 */ s32 resolved; /* handles resolved this level     */
-} PsfxHeader;
+/* Player-data header, the first chunk of the pdata wad; stride 0x180.
+ *
+ * Name + field names are the real Midway ones, from the Xbox PDB `plyr_data`
+ * (research/xbox_symbols/misc.h Id=3433, Size=0x180; the neighbouring Ids
+ * 3432/3434 are plyr_damage/plyr_sfx, this file's other two record types).
+ * The GC layout is proved by LoadPlyrData's own byte-swap loop for the 0x180
+ * chunk (claim.law.swap-loop-is-record-layout-ground-truth): it swaps the 14
+ * shorts at 0x00/0x02 and 0x0C..0x22, the u32 at 0x24, the 13 floats at
+ * 0x28..0x58, the [3] vectors at 0x5C/0x158/0x164/0x170, the two [10][3]
+ * float tables at 0x68/0xE0, and the lone float at 0x17C -- and skips
+ * exactly 0x04 and 0x08, the two pointer fields that get resolved after the
+ * load rather than swapped.
+ *
+ * sfx and damage keep their reconstructed u8* type (the PDB spells them
+ * plyr_sfx and plyr_damage pointers) so the existing byte-stride pointer
+ * arithmetic on them is unchanged. */
+typedef struct plyr_data {
+    /* 0x000 */ s16 numsfx;    /* number of plyr_sfx records     */
+    /* 0x002 */ s16 numdamage; /* number of plyr_damage rows     */
+    /* 0x004 */ u8* sfx;       /* plyr_sfx[numsfx], 0x50 each    */
+    /* 0x008 */ u8* damage;    /* plyr_damage[numdamage], 0x58   */
+    /* 0x00C */ s16 turboAclose;
+    /* 0x00E */ s16 turboAlow;
+    /* 0x010 */ s16 turboAstep;
+    /* 0x012 */ s16 turboA360;
+    /* 0x014 */ s16 turboAthrow;
+    /* 0x016 */ s16 turboB;
+    /* 0x018 */ s16 turboC1;
+    /* 0x01A */ s16 turboC2;
+    /* 0x01C */ s16 combo1;
+    /* 0x01E */ s16 combo2;
+    /* 0x020 */ s16 combohit;
+    /* 0x022 */ s16 victory;
+    /* 0x024 */ s32 initflag;  /* handles resolved this level    */
+    /* 0x028 */ f32 fight_min;
+    /* 0x02C */ f32 fight_max;
+    /* 0x030 */ f32 speed_min;
+    /* 0x034 */ f32 speed_max;
+    /* 0x038 */ f32 armor_min;
+    /* 0x03C */ f32 armor_max;
+    /* 0x040 */ f32 magic_min;
+    /* 0x044 */ f32 magic_max;
+    /* 0x048 */ f32 height;
+    /* 0x04C */ f32 width;
+    /* 0x050 */ f32 attny;
+    /* 0x054 */ f32 coly;
+    /* 0x058 */ f32 powerup_time;
+    /* 0x05C */ f32 weapon_offset[3];
+    /* 0x068 */ f32 weapon_fx_offset[10][3];
+    /* 0x0E0 */ f32 weapon_fx_scale[10][3];
+    /* 0x158 */ f32 turboa_offset[3];
+    /* 0x164 */ f32 familiar_offset[3];
+    /* 0x170 */ f32 fam_proj_offset[3];
+    /* 0x17C */ f32 streakfwdmul;
+} plyr_data; /* size 0x180 = 384 */
 extern PsfxPdataBuf lbl_802828B0;
 extern u8 lbl_8012006C[];
 extern void* lbl_80120E00[16];
@@ -578,7 +629,7 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
         goto done;
     }
     hdrp = &lbl_80282930[pidx];
-    seq = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + offsetof(plyr_damage, fxidx)) * 80;
+    seq = ((plyr_data*)*hdrp)->sfx + *(s16*)(row + offsetof(plyr_damage, fxidx)) * 80;
     fl = 0;
     switch (*(s16*)row) {
     case 2:
@@ -634,7 +685,7 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
         }
         Effects[mode].owner = pidx + 1;
         if (*(s16*)(row + offsetof(plyr_damage, hitfxidx)) >= 0) {
-            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + offsetof(plyr_damage, hitfxidx)) * 80;
+            sub = ((plyr_data*)*hdrp)->sfx + *(s16*)(row + offsetof(plyr_damage, hitfxidx)) * 80;
             SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
                       *(u32*)(sub + 12));
             if (*(u32*)sub & 0x10) {
@@ -642,7 +693,7 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
             }
         }
         if (*(s16*)(row + offsetof(plyr_damage, loopfxidx)) >= 0) {
-            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + offsetof(plyr_damage, loopfxidx)) * 80;
+            sub = ((plyr_data*)*hdrp)->sfx + *(s16*)(row + offsetof(plyr_damage, loopfxidx)) * 80;
             SfxSetMorph(mode, *(u32*)(sub + 8), 0, *(f32*)(row + offsetof(plyr_damage, maxtime)));
             if (*(s16*)(row + offsetof(plyr_damage, flags)) & 0x800) {
                 *(u32*)flp |= 0x8000;
@@ -704,7 +755,7 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
         }
     } else {
         if (*(s16*)(row + offsetof(plyr_damage, hitfxidx)) >= 0) {
-            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + offsetof(plyr_damage, hitfxidx)) * 80;
+            sub = ((plyr_data*)*hdrp)->sfx + *(s16*)(row + offsetof(plyr_damage, hitfxidx)) * 80;
             SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
                       *(u32*)(sub + 12));
         }
@@ -713,29 +764,50 @@ done:
     return mode;
 }
 
-typedef struct PlayerSfxRecord {
-    u32 flags;          /* 0x00 */
-    u32 _04;
-    s32 texture;        /* 0x08 */
-    s32 parent;         /* 0x0C: parent selector / positional sound */
-    u8 _10[0x20];
-    s16 skinLoops;      /* 0x30 */
-    s16 speed;          /* 0x32 */
-    f32 position[3];    /* 0x34 */
-    f32 duration;       /* 0x40 */
-    f32 rate;           /* 0x44 */
-    f32 parameterScale; /* 0x48 */
-    u32 color;          /* 0x4C */
-} PlayerSfxRecord;
+/* One row of the pdata wad's second ("record") chunk, stride 0x50.
+ *
+ * Name + field names are the real Midway ones, from the Xbox PDB `plyr_sfx`
+ * (research/xbox_symbols/misc.h Id=3434, Size=0x50). Confirmed twice over:
+ *
+ *  1. LoadPlyrData's byte-swap loop for the 0x50 chunk (claim.law.
+ *     swap-loop-is-record-layout-ground-truth) swaps the u32s at
+ *     0x00/0x04/0x08/0x0C, the shorts at 0x30/0x32, the [3] vector at 0x34
+ *     and the floats/u32 at 0x40/0x44/0x48/0x4C, and skips exactly
+ *     0x10..0x2F -- the two 16-byte text fields, which never need swapping.
+ *  2. fn_8008A678 resolves this record: it reads rec+0x10 and rec+0x20 as
+ *     C strings (fxdesc/snddesc) and writes the looked-up handles back into
+ *     0x08/0x0C, which PlayerSfxInitData pre-clears to -1 -- i.e. sfxidx and
+ *     sndidx, not the "texture"/"parent" this reconstruction had guessed
+ *     (0x0C is passed to AudioPlay3DSel as the sound id, 0x08 to StartFXSub/
+ *     SetSkinFX as the effect id). nextfxidx@0x04 is the chained record index
+ *     DoPlyrSfxSub recurses on.
+ *
+ * Declared widths are left exactly as the pre-existing reconstruction had
+ * them; the PDB spells flags/nextfxidx/sfxidx/sndidx int and color unsigned. */
+typedef struct plyr_sfx {
+    /* 0x00 */ u32 flags;
+    /* 0x04 */ u32 nextfxidx; /* chained record index, -1 = none */
+    /* 0x08 */ s32 sfxidx;    /* resolved effect/texture handle  */
+    /* 0x0C */ s32 sndidx;    /* resolved sound/mbox handle      */
+    /* 0x10 */ char fxdesc[16];
+    /* 0x20 */ char snddesc[16];
+    /* 0x30 */ s16 zmod;
+    /* 0x32 */ s16 alphamod;
+    /* 0x34 */ f32 offset[3];
+    /* 0x40 */ f32 maxlen;
+    /* 0x44 */ f32 radius;
+    /* 0x48 */ f32 scale;
+    /* 0x4C */ u32 color;
+} plyr_sfx; /* size 0x50 = 80 */
 
 s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
                  s32 absolute, s32 effectIndex);
-s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
+s32 DoPlyrSfx(u8* player, plyr_sfx* record, f32* position,
               s32 absolute, u32 flags, s32 effectIndex);
 
 /* Build and configure the particle node for one player-SFX record.
  * Xbox PDB: PSFX.OBJ local PsfxDoParticle. */
-void PsfxDoParticle(u8* player, PlayerSfxRecord* record, s32 effectIndex)
+void PsfxDoParticle(u8* player, plyr_sfx* record, s32 effectIndex)
 {
     void* psys;
     void* parent;
@@ -751,12 +823,12 @@ void PsfxDoParticle(u8* player, PlayerSfxRecord* record, s32 effectIndex)
 
     flags = record->flags;
     particleKind = flags & 0x0F000000;
-    rate = (f32)(lbl_80347E28 * (f64)record->rate);
-    texture = record->texture;
-    parentHandle = record->parent;
-    duration = record->duration;
-    parameterScale = record->parameterScale;
-    speed = (f32)(lbl_80347D98 * (f64)record->speed);
+    rate = (f32)(lbl_80347E28 * (f64)record->radius);
+    texture = record->sfxidx;
+    parentHandle = record->sndidx;
+    duration = record->maxlen;
+    parameterScale = record->scale;
+    speed = (f32)(lbl_80347D98 * (f64)record->alphamod);
 
     if ((flags & 0x40000) != 0 && effectIndex >= 0) {
         parent = Effects[effectIndex].node;
@@ -796,9 +868,9 @@ void PsfxDoParticle(u8* player, PlayerSfxRecord* record, s32 effectIndex)
     if (psys == NULL) {
         ErrorPrintf(lbl_80114288);
     } else {
-        ((MBObject*)psys)->mat[3][0] = record->position[0];
-        ((MBObject*)psys)->mat[3][1] = record->position[1];
-        ((MBObject*)psys)->mat[3][2] = record->position[2];
+        ((MBObject*)psys)->mat[3][0] = record->offset[0];
+        ((MBObject*)psys)->mat[3][1] = record->offset[1];
+        ((MBObject*)psys)->mat[3][2] = record->offset[2];
         MBPsysSetPSpeed(speed, psys);
         MBPsysSetPTex(psys, texture);
     }
@@ -809,7 +881,7 @@ void PsfxDoParticle(u8* player, PlayerSfxRecord* record, s32 effectIndex)
 s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
                  s32 absolute, s32 effectIndex)
 {
-    PlayerSfxRecord* record;
+    plyr_sfx* record;
     u32 flags;
     s32 result = -1;
     f32 finalPosition[3];
@@ -820,8 +892,8 @@ s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
         return -1;
     }
 
-    record = (PlayerSfxRecord*)(((PsfxHeader*)lbl_80282930[playerIndex])->records +
-                                      recordIndex * sizeof(PlayerSfxRecord));
+    record = (plyr_sfx*)(((plyr_data*)lbl_80282930[playerIndex])->sfx +
+                                      recordIndex * sizeof(plyr_sfx));
     flags = record->flags;
 
     if ((flags & 0x400) != 0) {
@@ -830,21 +902,21 @@ s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
     }
 
     if ((flags & 0x100) != 0) {
-        f32 rate = record->rate;
-        s32 loops = record->skinLoops;
+        f32 rate = record->radius;
+        s32 loops = record->zmod;
 
-        SetSkinFX(player + 0x7DC, record->texture, (s32)record->duration,
+        SetSkinFX(player + 0x7DC, record->sfxidx, (s32)record->maxlen,
                   loops, rate);
     } else if ((flags & 0x0F000000) != 0) {
         PsfxDoParticle(player, record, effectIndex);
     } else if ((flags & 0x200) == 0) {
         if (absolute == 0) {
-            MulVecMat3(record->position, localPosition,
+            MulVecMat3(record->offset, localPosition,
                        ((Player*)player)->mat);
         } else {
-            localPosition[0] = record->position[0];
-            localPosition[1] = record->position[1];
-            localPosition[2] = record->position[2];
+            localPosition[0] = record->offset[0];
+            localPosition[1] = record->offset[1];
+            localPosition[2] = record->offset[2];
         }
 
         if ((flags & 1) != 0) {
@@ -865,8 +937,8 @@ s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
                            effectIndex);
     }
 
-    if (record->parent >= 0 && (flags & 0x0F000000) == 0) {
-        AudioPlay3DSel(record->parent, 0xE0, ((Player*)player)->pos, 1);
+    if (record->sndidx >= 0 && (flags & 0x0F000000) == 0) {
+        AudioPlay3DSel(record->sndidx, 0xE0, ((Player*)player)->pos, 1);
     }
     if ((flags & 2) != 0) {
         ShakeCamera(0, 0, 90, lbl_80347E24, 100);
@@ -874,13 +946,13 @@ s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
     if ((flags & 0x20) != 0) {
         SafeRockSetup();
     }
-    if ((s32)record->_04 >= 0) {
-        DoPlyrSfxSub(player, (s32)record->_04, offset, absolute, result);
+    if ((s32)record->nextfxidx >= 0) {
+        DoPlyrSfxSub(player, (s32)record->nextfxidx, offset, absolute, result);
     }
     return result;
 }
 
-s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
+s32 DoPlyrSfx(u8* player, plyr_sfx* record, f32* position,
               s32 absolute, u32 flags, s32 effectIndex)
 {
     u32 effectFlags;
@@ -891,7 +963,7 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
     u8* effectData;
     void* rootNode;
 
-    type = record->texture;
+    type = record->sfxidx;
     if (type < 0) {
         goto invalid;
     }
@@ -918,7 +990,7 @@ s32 DoPlyrSfx(u8* player, PlayerSfxRecord* record, f32* position,
         spawnFlags |= 0x400000;
     }
 
-    effect = StartFXSub(type, position, spawnFlags, effectFlags, record->duration);
+    effect = StartFXSub(type, position, spawnFlags, effectFlags, record->maxlen);
     if (effect < 0) {
         return effect;
     }
@@ -1034,8 +1106,8 @@ void fn_8008A678(s32* player, u32* rec, void* p11)
             }
         } else {
             rec[2] = (u32)InitCustomEffect(p11, (char*)(rec + 4),
-                                           ((PlayerSfxRecord*)rec)->skinLoops,
-                                           ((PlayerSfxRecord*)rec)->speed);
+                                           ((plyr_sfx*)rec)->zmod,
+                                           ((plyr_sfx*)rec)->alphamod);
         }
     }
     if ((s32)rec[3] == -1) {
@@ -1071,8 +1143,8 @@ void ClearAllPlyrData(void)
     for (i = 0; i < 4; i++) {
         u8* hdr = lbl_80282930[i];
         if (hdr != 0) {
-            PlayerSfxClearData((u32*)((PsfxHeader*)hdr)->records, ((PsfxHeader*)hdr)->count);
-            ((PsfxHeader*)lbl_80282930[i])->resolved = 0;
+            PlayerSfxClearData((u32*)((plyr_data*)hdr)->sfx, ((plyr_data*)hdr)->numsfx);
+            ((plyr_data*)lbl_80282930[i])->initflag = 0;
         }
     }
 }
@@ -1094,8 +1166,8 @@ void ClearPlyrData(s32 player)
 {
     u8* hdr = lbl_80282930[player];
 
-    ClearPlyrRecords((u32*)((PsfxHeader*)hdr)->records, ((PsfxHeader*)hdr)->count);
-    ((PsfxHeader*)lbl_80282930[player])->resolved = 0;
+    ClearPlyrRecords((u32*)((plyr_data*)hdr)->sfx, ((plyr_data*)hdr)->numsfx);
+    ((plyr_data*)lbl_80282930[player])->initflag = 0;
 }
 
 /* --- LoadPlyrData support ------------------------------------------------ */
@@ -1158,7 +1230,7 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
     s32 n1;
     s32 n2;
     s32 n3;
-    PsfxHeader* hdr;
+    plyr_data* hdr;
     u8* p;
     s32 mode = 0;
     s32 i;
@@ -1204,9 +1276,9 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
             swapped = MBSetupWad(wad, pdata->bufs[plr]);
 
             pdata->headers[plr] = MBGetFromWad(wad, WADTAG(lbl_80347E54), &n1);
-            ((PsfxHeader*)pdata->headers[plr])->records = MBGetFromWad(wad, WADTAG(lbl_80347E5C), &n2);
-            ((PsfxHeader*)pdata->headers[plr])->moves = MBGetFromWad(wad, WADTAG(lbl_80347E64), &n3);
-            ((PsfxHeader*)pdata->headers[plr])->resolved = 0;
+            ((plyr_data*)pdata->headers[plr])->sfx = MBGetFromWad(wad, WADTAG(lbl_80347E5C), &n2);
+            ((plyr_data*)pdata->headers[plr])->damage = MBGetFromWad(wad, WADTAG(lbl_80347E64), &n3);
+            ((plyr_data*)pdata->headers[plr])->initflag = 0;
             pdata->cur[plr] = cls;
 
             if (swapped) {
@@ -1264,7 +1336,7 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
                     s32 recordIndex = 0;
                     s32 recordOffset = 0;
                     for (; recordIndex < n2; recordIndex++, recordOffset += 0x50) {
-                        p = ((PsfxHeader*)pdata->headers[plr])->records + recordOffset;
+                        p = ((plyr_data*)pdata->headers[plr])->sfx + recordOffset;
                         SWAP16(*(u16*)(p + 0x30));
                         SWAP16(*(u16*)(p + 0x32));
                         SWAP32(*(u32*)(p + 0x00));
@@ -1286,7 +1358,7 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
                     s32 moveIndex = 0;
                     s32 moveOffset = 0;
                     for (; moveIndex < n3; moveIndex++, moveOffset += 0x58) {
-                        p = ((PsfxHeader*)pdata->headers[plr])->moves + moveOffset;
+                        p = ((plyr_data*)pdata->headers[plr])->damage + moveOffset;
                         SWAP16(*(u16*)(p + 0x00));
                         SWAP16(*(u16*)(p + 0x02));
                         SWAP16(*(u16*)(p + 0x48));
@@ -1319,20 +1391,20 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
             }
 
             if (resolve != 0) {
-                hdr = (PsfxHeader*)pdata->headers[plr];
-                PlayerSfxInitData((s32*)&gPlayers[plr], (u32*)hdr->records, hdr->count,
+                hdr = (plyr_data*)pdata->headers[plr];
+                PlayerSfxInitData((s32*)&gPlayers[plr], (u32*)hdr->sfx, hdr->numsfx,
                                   ((void**)player_multiple_models)[plr * 0x13 + 18]);
-                ((PsfxHeader*)pdata->headers[plr])->resolved = 1;
+                ((plyr_data*)pdata->headers[plr])->initflag = 1;
             }
         } else {
             FatalErrorf(errorStrings + 76, pdata->name);
         }
     } else if (resolve != 0) {
-        hdr = (PsfxHeader*)pdata->headers[plr];
-        if (hdr->resolved == 0) {
-            PlayerSfxInitData((s32*)&gPlayers[plr], (u32*)hdr->records, hdr->count,
+        hdr = (plyr_data*)pdata->headers[plr];
+        if (hdr->initflag == 0) {
+            PlayerSfxInitData((s32*)&gPlayers[plr], (u32*)hdr->sfx, hdr->numsfx,
                               ((void**)player_multiple_models)[plr * 0x13 + 18]);
-            ((PsfxHeader*)pdata->headers[plr])->resolved = 1;
+            ((plyr_data*)pdata->headers[plr])->initflag = 1;
         }
     }
 }
