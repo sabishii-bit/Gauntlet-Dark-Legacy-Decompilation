@@ -4,6 +4,13 @@
 #include "game/leveldata.h"
 #include "game/mbobject.h"
 #include "game/player.h"
+/* game/item.h is deliberately NOT included: it declares `extern Item* sItems;`
+ * while this TU declares its own `extern u8* sItems;` (line ~1434), so pulling
+ * the header in forces a whole-TU retype of every sItems walk.  That retype is
+ * governed by claim.law.noop-cast-on-array-decay-not-neutral (the neutralising
+ * `(u8*)` cast is not free) and is not worth the risk here for six sites, so
+ * the item / lookout / milestone record offsets below are spelled as named
+ * constants that quote item.h's layout instead. */
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -1444,6 +1451,28 @@ extern u8 sLookoutParams[];     /* 0x802584A8 prowl-node table (stride 0x6C) */
 extern s32 sNumLookoutParams;      /* 0x80344900 prowl-node count */
 extern u8 sMilestones[];     /* 0x8025B604 milestone-node table (stride 0x68) */
 extern s32 sNumMilestones;      /* 0x8034491C milestone-node count */
+
+/* Field displacements into the two world-node tables above.  Both records are
+ * owned by items.c, so this TU quotes their layouts rather than redefining the
+ * structs (a second, divergent copy of a record is the failure mode
+ * claim.law.swap-loop-is-record-layout-ground-truth was written about):
+ *   LookoutParam  include/game/item.h, 0x6C  - pos[3] @0x30, next @0x68
+ *   MilestoneParam src/game/world/items.c, 0x68 - matrix[16] @0x00, so the
+ *                  world translation row matrix[12..14] lands at 0x30..0x38.
+ * The walked pointers keep their `base + LITERAL` shape on purpose:
+ * claim.law.offsetof-fused-immediate-counter records that rewriting exactly
+ * these milestone matrix[12/13/14] reads into array-of-struct indexing costs
+ * the fused displacement (items.c update_player_milestone, real 46 -> 89). */
+#define LOOKOUT_POS_X    0x30
+#define LOOKOUT_POS_Y    0x34
+#define LOOKOUT_POS_Z    0x38
+#define LOOKOUT_NEXT     0x68
+#define MILESTONE_POS_X  0x30
+#define MILESTONE_POS_Y  0x34
+#define MILESTONE_POS_Z  0x38
+/* Item record (include/game/item.h, 0xF0): active @0xC4, minoff @0xCD. */
+#define ITEM_ACTIVE      0xC4
+#define ITEM_MINOFF      0xCD
 extern void GetMilestonePos(s32 idx, f32* out);  /* 0x80066054 */
 extern s32 fn_800511D0(s32 idx, f32 turn);        /* 0x800511D0 next-node picker */
 
@@ -2805,8 +2834,8 @@ void move_logic08(s32 index)
             s32 valid;
             if (ip == 0) {
                 valid = 0;
-            } else if (*(s16*)(ip + 196) == -1 || **(s32**)ip != 2
-                       || *(s8*)(ip + 205) != 0) {
+            } else if (*(s16*)(ip + ITEM_ACTIVE) == -1 || **(s32**)ip != 2
+                       || *(s8*)(ip + ITEM_MINOFF) != 0) {
                 valid = 0;
             } else {
                 valid = -1;
@@ -3978,10 +4007,10 @@ void move_logic15(s32 index)
         f32 ez = e->objgrp.worldmat[3][2];
 
         for (i = 0; i < sNumLookoutParams; i++, n += 108) {
-            if (*(s16*)(n + 104) >= 0) {
-                f32 dx = *(f32*)(n + 48) - ex;
-                f32 dy = *(f32*)(n + 52) - ey;
-                f32 dz = *(f32*)(n + 56) - ez;
+            if (*(s16*)(n + LOOKOUT_NEXT) >= 0) {
+                f32 dx = *(f32*)(n + LOOKOUT_POS_X) - ex;
+                f32 dy = *(f32*)(n + LOOKOUT_POS_Y) - ey;
+                f32 dz = *(f32*)(n + LOOKOUT_POS_Z) - ez;
                 if ((d = dx * dx + dy * dy + dz * dz) > thresh) {
                     volatile f32 tmp;
                     f64 y = __frsqrte(d);
@@ -4006,14 +4035,14 @@ void move_logic15(s32 index)
         f32 dx;
         f32 dz;
 
-        e->ang = get_yaw((f32*)(n + 48), &e->objgrp.worldmat[3][0]);
-        dy = *(f32*)(n + 52) - e->objgrp.worldmat[3][1];
-        dx = *(f32*)(n + 48) - e->objgrp.worldmat[3][0];
-        dz = *(f32*)(n + 56) - e->objgrp.worldmat[3][2];
+        e->ang = get_yaw((f32*)(n + LOOKOUT_POS_X), &e->objgrp.worldmat[3][0]);
+        dy = *(f32*)(n + LOOKOUT_POS_Y) - e->objgrp.worldmat[3][1];
+        dx = *(f32*)(n + LOOKOUT_POS_X) - e->objgrp.worldmat[3][0];
+        dz = *(f32*)(n + LOOKOUT_POS_Z) - e->objgrp.worldmat[3][2];
         ady = dy;
         *(u32*)&ady &= 0x7FFFFFFF;
         if (ady < lbl_80346948 && fqdist(dx, dz) < lbl_80346810) {
-            e->flag1 = *(s16*)(n + 104);
+            e->flag1 = *(s16*)(n + LOOKOUT_NEXT);
         }
         break;
     }
@@ -4613,9 +4642,9 @@ void move_logic22(s32 index)
 
         for (node = sMilestones, i = 0; i < sNumMilestones;
              i++, node += 104) {
-            f32 dx = e->objgrp.worldmat[3][0] - *(f32*)(node + 48);
-            f32 dy = e->objgrp.worldmat[3][1] - *(f32*)(node + 52);
-            f32 dz = e->objgrp.worldmat[3][2] - *(f32*)(node + 56);
+            f32 dx = e->objgrp.worldmat[3][0] - *(f32*)(node + MILESTONE_POS_X);
+            f32 dy = e->objgrp.worldmat[3][1] - *(f32*)(node + MILESTONE_POS_Y);
+            f32 dz = e->objgrp.worldmat[3][2] - *(f32*)(node + MILESTONE_POS_Z);
             f32 d;
             if ((d = dx * dx + dy * dy + dz * dz) > lbl_80346820) {
                 f64 y = __frsqrte(d);
@@ -4637,8 +4666,8 @@ void move_logic22(s32 index)
     }
     default: {
         u8* node = sMilestones + e->flag1 * 104;
-        f32 dist = fqdist(*(f32*)(node + 48) - e->objgrp.worldmat[3][0],
-                          *(f32*)(node + 56) - e->objgrp.worldmat[3][2]);
+        f32 dist = fqdist(*(f32*)(node + MILESTONE_POS_X) - e->objgrp.worldmat[3][0],
+                          *(f32*)(node + MILESTONE_POS_Z) - e->objgrp.worldmat[3][2]);
         if (dist <= lbl_80346838) {
             s32 old = e->flag1;
             e->flag1 = fn_800511D0(old, lbl_80346984);
