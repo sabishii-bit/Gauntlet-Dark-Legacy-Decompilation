@@ -1093,30 +1093,32 @@ void PlayerSfxInitData(s32* player, u32* records, s32 count, void* param4)
  * and audio/mbox handle (rec[3]) if not already set. */
 void fn_8008A678(s32* player, u32* rec, void* p11)
 {
+    plyr_sfx* r = (plyr_sfx*)rec;
+
     if ((s32)rec[2] == -1) {
         if ((rec[0] & 0xF000100) != 0) {
             s32 alt = ((s32*)player_multiple_models)[*player * 0x13 + 4];
-            rec[2] = MBOX_FindTexture_Sub((char*)(rec + 4), 0, alt, alt, 0);
+            rec[2] = MBOX_FindTexture_Sub(r->fxdesc, 0, alt, alt, 0);
             alt = ((s32*)player_multiple_models)[*player * 0x13 + 13];
             if ((s32)rec[2] == 0) {
-                rec[2] = MBOX_FindTexture_Sub((char*)(rec + 4), 0, alt, alt, 0);
+                rec[2] = MBOX_FindTexture_Sub(r->fxdesc, 0, alt, alt, 0);
             }
             if ((s32)rec[2] == 0) {
-                rec[2] = MBOX_FindTexture_Sub((char*)(rec + 4), 0, -1, -1, 0);
+                rec[2] = MBOX_FindTexture_Sub(r->fxdesc, 0, -1, -1, 0);
             }
         } else {
-            rec[2] = (u32)InitCustomEffect(p11, (char*)(rec + 4),
-                                           ((plyr_sfx*)rec)->zmod,
-                                           ((plyr_sfx*)rec)->alphamod);
+            rec[2] = (u32)InitCustomEffect(p11, r->fxdesc,
+                                           r->zmod,
+                                           r->alphamod);
         }
     }
     if ((s32)rec[3] == -1) {
         if ((rec[0] & 0xF000000) != 0) {
-            if (*(char*)(rec + 8) != 0) {
+            if (*r->snddesc != 0) {
                 u32* node;
                 void* obj;
                 sprintf((char*)&lbl_802828B0, lbl_80347E3C,
-                        (char*)(player + 0x1B0), (char*)(rec + 8));
+                        (char*)(player + 0x1B0), r->snddesc);
                 obj = MBOX_ReallyFindObject((char*)&lbl_802828B0, player[0x1FD],
                                             player[0x1FD], 1);
                 node = (u32*)AtreeFindMbidxNode((s32*)player[0x1F], obj);
@@ -1128,8 +1130,8 @@ void fn_8008A678(s32* player, u32* rec, void* p11)
             } else {
                 rec[3] = 0xFFFFFFFF;
             }
-        } else if (*(char*)(rec + 8) != 0) {
-            rec[3] = AudioFindSound((char*)(rec + 8), 0, 1);
+        } else if (*r->snddesc != 0) {
+            rec[3] = AudioFindSound(r->snddesc, 0, 1);
         } else {
             rec[3] = 0xFFFFFFFF;
         }
