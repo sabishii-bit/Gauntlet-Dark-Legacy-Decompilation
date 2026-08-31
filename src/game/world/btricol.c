@@ -217,12 +217,11 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
     f32 d;
     s32 cross;
 
-    zero = lbl_80345D50;
+    pz = px = lbl_80345D50;
     cx = tri->center.x;
     cy = tri->center.y;
     cz = tri->center.z;
-    px = zero;
-    pz = zero;
+    dist = px;
     norm.x = tri->norm.x;
     norm.y = tri->norm.y;
     norm.z = tri->norm.z;
