@@ -3054,17 +3054,17 @@ credited_damage_done:
 
     if ((flags & 0x00100320) == 0 && c->unkAB8 >= 0) {
         hitNode = (u8 *)c + offsetof(Critter, hitnodes) + c->unkAB8 * 0x5C;
-        if (*(f32 *)(hitNode + 0x58) >= *(f32 *)(hitNode + 0x54)) {
+        if (*(f32 *)(hitNode + offsetof(CritterHitNode, activeFrom)) >= *(f32 *)(hitNode + offsetof(CritterHitNode, activeUntil))) {
             damage = lbl_80346470;
         } else {
             u8 *hitDescriptor;
 
             hitDescriptor = *(u8 **)hitNode;
             damage *= *(f32 *)(hitDescriptor + 0x40);
-            if (*(f32 *)(hitNode + 0x58) + damage >
-                *(f32 *)(hitNode + 0x54)) {
-                damage = *(f32 *)(hitNode + 0x54) -
-                         *(f32 *)(hitNode + 0x58);
+            if (*(f32 *)(hitNode + offsetof(CritterHitNode, activeFrom)) + damage >
+                *(f32 *)(hitNode + offsetof(CritterHitNode, activeUntil))) {
+                damage = *(f32 *)(hitNode + offsetof(CritterHitNode, activeUntil)) -
+                         *(f32 *)(hitNode + offsetof(CritterHitNode, activeFrom));
                 if (*(s16 *)(hitDescriptor + 0x10) & 2) {
                     char objectName[40];
                     s32 object;
@@ -3080,15 +3080,15 @@ credited_damage_done:
                     object = (s32)MBOX_ReallyFindObject(objectName,
                             *(s16 *)(descriptor + 0x22),
                             *(s16 *)(descriptor + 0x22), 1);
-                    if (*(void **)(hitNode + 4) != NULL) {
+                    if (*(void **)(hitNode + offsetof(CritterHitNode, active)) != NULL) {
                         if (object >= 0) {
-                            MBSetObject(*(void **)(hitNode + 4), object);
+                            MBSetObject(*(void **)(hitNode + offsetof(CritterHitNode, active)), object);
                         }
                         for (i = 0; i < *(s32 *)((u8 *)c + 0xB0); i++) {
                             u8 *anode;
 
                             anode = *(u8 **)((u8 *)c + 0xB4) + i * 0x28;
-                            if (*(void **)anode == *(void **)(hitNode + 4)) {
+                            if (*(void **)anode == *(void **)(hitNode + offsetof(CritterHitNode, active))) {
                                 s32 j;
 
                                 *(s32 *)(anode + 0x20) = 0;
@@ -3107,19 +3107,19 @@ credited_damage_done:
                             }
                         }
                         if ((*(s16 *)(hitDescriptor + 0x10) & 4) &&
-                            *(void **)((u8 *)*(void **)(hitNode + 4) + 0x78) != NULL) {
+                            *(void **)((u8 *)*(void **)(hitNode + offsetof(CritterHitNode, active)) + 0x78) != NULL) {
                             CritterRemoveColnodeSub(c,
                                 *(struct CritterColnode **)
-                                    ((u8 *)*(void **)(hitNode + 4) + 0x78), 2);
+                                    ((u8 *)*(void **)(hitNode + offsetof(CritterHitNode, active)) + 0x78), 2);
                         }
                     }
-                    if (*(void **)(hitNode + 0x4C) != NULL) {
-                        MBRemoveNode(*(void **)(hitNode + 0x4C), 1);
-                        *(void **)(hitNode + 0x4C) = NULL;
+                    if (*(void **)(hitNode + offsetof(CritterHitNode, dmgfx)) != NULL) {
+                        MBRemoveNode(*(void **)(hitNode + offsetof(CritterHitNode, dmgfx)), 1);
+                        *(void **)(hitNode + offsetof(CritterHitNode, dmgfx)) = NULL;
                     }
                 }
             }
-            *(f32 *)(hitNode + 0x58) += damage;
+            *(f32 *)(hitNode + offsetof(CritterHitNode, activeFrom)) += damage;
         }
     }
 
