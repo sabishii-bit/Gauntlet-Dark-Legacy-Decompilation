@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "v1 recovered via gdlmem struct lookout against the full 1958-record PDB index (worktree GDL-Claude-StructPastEnd); v2 = application, worktree GDL-Claude-DefakeCritter, branch claude/defake-critter-item-20260831, attempt.item-h-lookout-application.20260831.v1.",
+    "scope": "GC GUNE5D; include/game/item.h LookoutParam == Xbox shell3D.pdb LOOKOUT; includer TUs boss/critter/enemy/gamemain/pmotion/recorder/gauntworld/items/tower/world.",
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "walked-pointer"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.lookoutparam-is-objgrp-prefixed-lookout.20260831.v2",
+  "kind": "claim",
+  "predicate": "struct_layout",
+  "recorded_at": "2026-08-31T05:53:23Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/items",
+  "supersedes": "claim.lookoutparam-is-objgrp-prefixed-lookout.20260831.v1",
+  "valid_from": "2026-08-31",
+  "value": "include/game/item.h's LookoutParam (0x6C) IS the Xbox PDB record LOOKOUT (misc.h, Size=0x6C): { OBJGRP-shaped prefix; s16 next; s16 param } -- worldmat[4][4]@0x00 (the former data[0x30]+pos[3]+_pad3C; pos was worldmat[3][0..2], the translation row), attn_pos[4]@0x40 (was saved_pos+_pad4C), coll_pos[4]@0x50 (was saved_pos2+_pad5C), node@0x60 (was handle; kept s32), flags@0x64 (was active), next@0x68, param@0x6A (was id). STATUS CHANGE vs v1: APPLIED to item.h itself on 2026-08-31 (F2 lane, commit e2088a39b) in the v1-prescribed cascade-law-safe arrays-of-scalars form -- no embedded OBJGRP member -- with mechanical renames in items.c/gauntworld.c; ALL TEN item.h includer TUs defake-gated byte-identical, size unchanged 0x6C, full DOL OK. New corroboration found at application time: add_arrow's matrix-out argument is (f32*)lookout->worldmat, and the adjacent milestone case reads its own matrix[12..14] as position -- the world-matrix identification is what AddLocatorInstList was already doing. Consumers still on other spellings: tower.c's file-local SumnerLookoutParam view and enemy.c's raw sLookoutParams stride-0x6C walks (both outside the applying lane's scope; enemy.c's walk needs protected-web screening before adoption)."
+}

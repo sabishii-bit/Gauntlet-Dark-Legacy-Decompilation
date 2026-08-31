@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "Resolve the structdraft 'multi-record c cluster' flag and retry the vetoed c-base sites on a genuinely new source-level axis (view-member form instead of the recorded offsetof respell). FINDING 1 -- the multi-record theory is FALSE: base c is ONE Critter (0xAE0) throughout CritterInitGeo; the 'span 0x3AC vs stride 0x50' warning is a structdraft stride-detection artifact (there is no 0x50 walk on c in this function), and every offset maps onto known Critter fields (0xF8/0xFC = the yaw pair inside the skinMatrix over-claim, 0x418 = prevMovePathPos, 0x49C = movePathPos) with c->hdr+0xA0 = CritterPackedType.defaultPos. FINDING 2 -- the c-base hazard is FORM-INDEPENDENT: extending the existing in-function CritterInitGeoView and spelling the sites as typed view members regressed exactly like the recorded offsetof form, with the SAME signature both times (yaw pair alone: real 63->106; movePath block alone: real 63->86 -- the identical magnitude the parent law recorded for the offsetof form). Signature: ours-only addi (x3/x5) at function ENTRY (insn 3-4 @0xc-0x10) replacing the target's single mr -- adding typed accesses on base c beyond the two view members already present tips MWCC from the mr-copy address web into materializing a dedicated c-derived base register at entry. Both probes reverted via probe.py --revert; final state real 63 with the c->hdr/descriptor/mbnode/hitnode0 bases converted byte-identical (probes 1a/1b NEUTRAL).",
+  "attributes": {
+    "law_screen": "claim.law.offsetof-rename-can-regress-prior-improved-fn: the parent veto -- honoured for the direct respell; this record extends it (see claim.law.hazard-base-respell-regression-is-form-independent.20260831.v1). claim.law.offsetof-hazard-is-per-base-not-per-function: APPLIED -- non-c bases inside the same function (c->hdr, header, c->mbnode, c->hitnode0, the loaded descriptor) all converted byte-identical in their own gates, confirming the per-base boundary again. claim.law.typed-global-member-vs-view-cast-diverges: screened -- predicted the view form MIGHT diverge from offsetof; it diverged in the same direction (both regress). claim.law.embedded-struct-member-whole-tu-cascade: not triggered (function-local typedef extension only, reverted).",
+    "laws_applied": "[\"claim.law.offsetof-rename-can-regress-prior-improved-fn.20260830.v1\", \"claim.law.offsetof-hazard-is-per-base-not-per-function.20260831.v1\"]",
+    "residual": "DO-NOT-RETRY on base c in CritterInitGeo for BOTH known typed forms (offsetof respell AND view-member); the raw int-literal spelling is the only form that reproduces the target's entry web. A future retry needs a third mechanism class (e.g. a WebFrank REGISTER_ONLY rule for the addi/mr entry seam, or landing after the function's own 63-real residual is closed). The 12 vetoed sites: c+0xF8/0xFC writes, c+0x418/41C/420 reads, c+0x49C/4A0/4A4 writes x2 branches, c+0x3D8.",
+    "verification": "probe.py A/B per sub-group with --revert restoring the banked NEUTRAL each time; retained result: CritterInitGeo real 63 (identical to the recorded prior-improved state) with non-c conversions in; defake_gate GATE OK; commit ed70aa32e."
+  },
+  "function": "function:CritterInitGeo",
+  "id": "attempt.critterinitgeo-c-base-form-independent-cap.20260831.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T05:53:09Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
