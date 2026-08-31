@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Flip-readiness screen only, under the lane's explicit condition 'work pbFrameMode ONLY if a new law measurably applies'. No new law from this run applies, so NO EDIT was made. Records what the screen measured, including a correction to the lane's framing.",
+  "attributes": {
+    "law_screen": "claim.law.own-pool-partition-separate-objects-fold-the-reloc-member-access-costs-an-addi.20260901.v1 (new this run) SCREENED and NOT APPLICABLE -- pb_frame has no own-pool UND ghosts, so there is no ghost to fix and no partition to reproduce. claim.law.objdiff-excludes-the-trailing-gap-symbol-so-filling-the-splits-claim-zeroes-matched-data.20260901.v1 (new this run) SCREENED and NOT APPLICABLE -- both of pb_frame's claimed data sections already measure 100% in BOTH datadiff modes, and its data gap is not a .rodata/.data extent problem at all. claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1 SCREENED via nm -u per object: all 29 lbl_ UNDs resolve outside pb_frame's claimed ranges (.data 0x80128158..0x80128174, .sdata2 0x80348F18..0x80348F38), so every one is a legitimate cross-TU reference. No other law in the current corpus addresses a MIXED real-389 residual on a 3832-byte function.",
+    "laws_applied": "[]",
+    "residual": "UNCHANGED, no edit attempted. Two corrections to the lane's framing, both measured. (1) pbFrameMode is NOT a one-function-from-flip straggler in the same sense as sysResetService (real 18) and MBRenderText (real 22): its live cap attempt.pb-frame-mode-structural-closure.20260831.v3 records residual_class MIXED at real 389, with the prior fresh-lever pass REGRESSING it to 459 -- this is sustained structural reconstruction work, not exact-closure work, and it does not belong in a flip-straggler lane. (2) The lane's note that 'its extabindex word closes automatically with the function size' is CONFIRMED and is in fact the whole data story: pb_frame reports matched_data 108/180 = 60.0%, and the 72-byte shortfall is exactly its extabindex section (0x8000C238..0x8000C280 = 0x48 = 72), while .data (28) and .sdata2 (32) are both fully credited. extab (48) is also credited. So pb_frame has NO data work available to it -- the entire remaining data gap is a function of pbFrameMode's code, and datadiff is structurally silent on it because extab/extabindex are AUTO_SECTIONS it deliberately skips.",
+    "scope": "No files changed. Read-only screen: datadiff (both modes), nm -u against splits ranges, report.json measures, and the live cap record.",
+    "verification": "datadiff --sections game/pb/pb_frame.c: .data size 0x1C 100.0%, .sdata2 size 0x20 100.0%. datadiff plain: both OK. report.json: fuzzy 98.52783, matched_code 51.51822, matched_functions 13/14 (92.85714), matched_data 108/180. nm -u cross-checked against config/GUNE5D/splits.txt lines 421-426."
+  },
+  "function": "function:pbFrameMode",
+  "id": "attempt.pbframemode-flip-readiness-screen-no-new-law-applies.20260901.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-08-31T23:55:18Z",
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
