@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "WebFrank closure of the 132-line REGISTER_ONLY/SCHEDULE residual: model the @lo address-materialization rotation as an instruction_permutation plus copy_register_fields for the rest",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-hash-pinned-site.20260830.v1 and claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - four combat.c functions are now SOURCE-FROZEN (adjust_radius_8002B2D4, MissileCollideEnemy, cam_orient_to, init_game_cam); the existing unit was extended, not collided with. claim.law.gcb-sflags-relocation-alias.20260830.v1 APPLIED and DECISIVE for reading the result: the two fndiff --clean lines that survive are target 'sFlags' versus our 'gControllerButtons+0x4', one address under two spellings, scored a MATCH by objdiff and explicitly not to be chased in C - exactly the same alias this lane already hit on msgPost. The bytes are retail-asserted by after_sha256, and configure.py progress confirms the function counts as matched.",
+    "laws_applied": "[\"claim.law.gcb-sflags-relocation-alias.20260830.v1\", \"claim.law.webfrank-hash-pinned-site.20260830.v1\", \"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "residual": "NONE in bytes. real 132 -> real 0, 295/295; the second largest closure in this lane after LineLineDist. QUEUE CORRECTION worth carrying forward: the site was handed over as a 2-instruction swap, and a masked byte scan does flag exactly two words (indices 36, 37), but the correct region is THREE atoms. At +0x8c we emit addi r7,r4,lbl_80240E30@lo, then addi r6,r3,255, then addi r8,r5,gPlayers@lo; the target leads with gPlayers, i.e. order [2, 0, 1]. The pair-only reading was rejected by the bisimulation at +0x8c ('use of g4 does not correspond to g5'), which is what named the third atom. All three read distinct bases (r4/r3/r5) and write distinct destinations (r7/r6/r8), so no def-use chain or final write moves and the two ADDR16_LO relocations ride their own atoms. Everything else is a consistent recolor.",
+    "scope": "config/GUNE5D/webfrank.json (appended to the existing game/game/combat unit) and tools/gdl/tests/test_webfrank.py. NO src/*.c edit; commit 39cf3f73c.",
+    "verification": "Derived from the CURRENT raw compiler output diffed against the extracted retail object. Guards passed: check_permutation_dependences on the 3-atom region, relocation payload preservation, form-aware register-slot masks, and verify_consistent_recolor with NO unproven_recolor_audit escape; final after_sha256 asserts the retail bytes. Full ninja -j2 green, build/GUNE5D/main.dol: OK. Project matched 58.90% -> 59.05%."
+  },
+  "function": "function:init_game_cam",
+  "id": "attempt.webfrank-closure.initgamecam.20260831.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:51:34Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.initgamecam-u64-buttons-dance.20260830.v1",
+  "valid_from": "2026-08-31"
+}
