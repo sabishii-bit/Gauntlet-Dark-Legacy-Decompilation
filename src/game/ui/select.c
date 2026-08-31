@@ -46,6 +46,7 @@
 
 #include "types.h"
 #include "__va_arg.h"
+#include "game/mbobject.h"
 #include "game/player.h"
 
 /* Never cast a live u8* player-record pointer to Player* at these call
@@ -2057,7 +2058,9 @@ gotv:
 
     setup_tex(idx, 2, 0, 0, lbl_801144A0, lbl_801200B0[arg1 & 7]);
 
-    mbBlitProject(*(void**)((u8*)lbl_80284878 + idx * 132 + 24), -1, 320);
+    mbBlitProject(*(void**)((u8*)lbl_80284878 + idx * 132 +
+                            2 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)),
+                  -1, 320);
 
     wflag = *(u32*)(pl + offsetof(Player, hidden_code)) ? 0 : 1;
     if (((Player*)pl)->exp == 0) {
@@ -2830,17 +2833,19 @@ void init_player_select(s32 mode)
             }
             /* placement entries 9 and 10, whose BlitEntry handles sit at the
              * matching blits+108 / blits+120 slots */
-            mbBlitCalcWidth(*(void**)(blits + 108),
+            mbBlitCalcWidth(*(void**)(blits + 9 * sizeof(BlitEntry) +
+                                      offsetof(BlitEntry, handle)),
                             *(s32*)(page + 140 + offsetof(BlitPlacement, x)) + *xp,
                             *(s32*)(page + 140 + offsetof(BlitPlacement, y)),
                             (f32)*(s32*)(page + 140 + offsetof(BlitPlacement, scale)));
-            mbBlitCalcWidth(*(void**)(blits + 120),
+            mbBlitCalcWidth(*(void**)(blits + 10 * sizeof(BlitEntry) +
+                                      offsetof(BlitEntry, handle)),
                             *(s32*)(page + 152 + offsetof(BlitPlacement, x)) + *xp,
                             *(s32*)(page + 152 + offsetof(BlitPlacement, y)),
                             (f32)*(s32*)(page + 152 + offsetof(BlitPlacement, scale)));
         }
     }
-    if (!(*(u32*)((u32)gGameOptions + 44) & 1)) {
+    if (!(*(u32*)((u32)gGameOptions + offsetof(SelOptsView, flags44)) & 1)) {
         lbl_80344B90 = 0;
         lbl_80344B98 = 0;
         lbl_80344B94 = 0;
@@ -2947,7 +2952,7 @@ s32 serve_blits(s32 player)
             break;
 
         case 3: { /* looping pulse */
-            u8* tex = MBRomTexPtr(*(u32*)(h + 4));
+            u8* tex = MBRomTexPtr(*(u32*)(h + offsetof(MBBlit, tex_idx)));
             s32 w = *(u16*)(tex + offsetof(MBTextureDef, width));
             s32 ht = *(u16*)(tex + offsetof(MBTextureDef, height));
             s32 amp;
@@ -3041,7 +3046,7 @@ s32 serve_blits(s32 player)
             tp4 = (s32*)(e + offsetof(BlitEntry, timer));
             *(s32*)(e + offsetof(BlitEntry, timer)) += gFrameTicks;
             half = *(s32*)(e + offsetof(BlitEntry, timer)) >> 1;
-            tex = MBRomTexPtr(*(u32*)(h + 4));
+            tex = MBRomTexPtr(*(u32*)(h + offsetof(MBBlit, tex_idx)));
             a = half * half;
             w = *(u16*)(tex + offsetof(MBTextureDef, width));
             ht = *(u16*)(tex + offsetof(MBTextureDef, height));
