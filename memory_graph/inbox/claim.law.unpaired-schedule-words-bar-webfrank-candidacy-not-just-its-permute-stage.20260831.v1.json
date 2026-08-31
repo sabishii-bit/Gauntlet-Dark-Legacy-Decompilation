@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/pmotion.c::get_player_pos, worktree GDL-Claude-PmotionDr5, commits af5b5dc1c (source) + 4710b0646 (rule). attempt.get-player-pos-frame-closure-and-web-colour-table.20260831.v3 classified the function's 4 unpaired words as 'schedule-class, permutation-eligible' and directed the next lane at the register packing instead. Measured live: with those 4 words present, webfrank_audit.py --grep pmotion reported '0 register-only; 0 eligible; 0 rejected' -- the function was not a CANDIDATE, so it never reached any permutation or recolor reasoning and produced no rejection line to read. Paying the 4 words in source (real 242 -> 238) flipped the same command to '1 register-only; 1 eligible; 0 rejected', and the emitted whole-function copy_register_fields rule closed all 116 remaining renaming words to real 0 / fuzzy 100.0000%.",
+    "tags": [
+      "matching",
+      "postprocessor",
+      "entry-schedule",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.unpaired-schedule-words-bar-webfrank-candidacy-not-just-its-permute-stage.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T18:52:31Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A RESIDUAL'S UNPAIRED (SCHEDULE-DISPLACED) WORDS DISQUALIFY THE WHOLE FUNCTION FROM webfrank_audit BEFORE ANY RECOLOR OR PERMUTATION ANALYSIS RUNS -- they are not 'permutation-eligible' work the harness will pick up later. This extends claim.law.closing-the-last-non-register-word-unlocks-a-full-recolor-rule.20260831.v1, which is written for a few IMMEDIATE/displacement words, to the SCHEDULE case, and it corrects a natural misreading of WebFrank's two sanctioned mechanisms: the existence of a dependency-audited PERMUTATION stage does NOT mean a function carrying displaced words is a permutation candidate. webfrank_audit first requires identical instruction/relocation SHAPE position-for-position; a single instruction sitting two slots earlier than target breaks that shape, so the function is never counted as register-only at all. THE TELL IS A SILENT ZERO, WHICH IS THE REASON THIS RECORD EXISTS: the audit reports '0 register-only; 0 eligible; 0 rejected' rather than emitting a rejection reason, so a lane that reads only the rejected[] list sees nothing and concludes the tool has no opinion, when in fact it has excluded the function outright. Always read the register_only COUNT, not just rejected[]. PROCEDURE, and it is cheap: when regnorm.py reports 0 STRUCTURAL but N>0 unpaired, close the unpaired words in source FIRST and re-run the audit before spending any probe on the register colouring -- on get_player_pos this was 4 words out of 242 and it bought the other 238 via the rule, after five distinct source probes across two sessions had failed to move the colouring at all. THE LEVER THAT CLOSED THEM, worth reusing: both sites were a call of the form f(ptr_arg, GLOBAL_FLOAT) -- YawMat3(mat, gPlayerStartYaw) -- where target emitted the float's lfs BEFORE the pointer's addi and ours emitted them swapped. Argument order inside one call is not source-reachable, but hoisting the float read into its OWN preceding statement assigning an already-declared, currently-DEAD f32 local (`ang = gPlayerStartYaw; YawMat3(mat, ang);`) reproduced target's order exactly at both sites, cost zero new locals and zero instructions (506/506 held), and -- verified on the register-normalised map -- left the entire register allocation bit-identical. Using a dead EXISTING local rather than a fresh one is what keeps the fix allocation-neutral, per claim.law.dead-local-identity-reuse-flips-callee-saved-coloring; a fresh local would have risked the FPR colouring the fix was trying not to disturb."
+}
