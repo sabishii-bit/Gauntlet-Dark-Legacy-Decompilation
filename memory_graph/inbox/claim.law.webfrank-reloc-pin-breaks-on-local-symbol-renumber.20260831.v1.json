@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker MSG, 2026-08-31. Measured on config/GUNE5D/webfrank.json rules for game/ui/message (msgPost 0x30-0x38, msgDraw 0x3b8-0x3c0) after a data-only source edit.",
+    "tags": [
+      "postprocessor",
+      "relocation",
+      "symbol-identity",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.webfrank-reloc-pin-breaks-on-local-symbol-renumber.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T14:54:55Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A WEBFRANK INSTRUCTION-PERMUTATION RULE IS PINNED TO SYMBOL-TABLE INDICES, SO ANY CHANGE TO A TU'S STATIC DATA ROSTER BREAKS IT EVEN WHEN NOT ONE INSTRUCTION BYTE MOVES. `_relocation_sha256` hashes `struct.pack('>IIi', offset, info, addend)` and `info` carries the symbol index in its high 24 bits. Deleting or adding a local (static) data definition anywhere in the TU renumbers the local symbol block, so every relocation in every pinned region gets a new `info` and the build aborts with `ValueError: instruction permutation relocation input hash changed`. This is NOT body drift and must not be diagnosed as one. TELL THEM APART: the region's `before_sha256` (raw instruction bytes) is checked FIRST inside permute_instruction_atoms; if the run gets as far as the RELOCATION hash error, the instruction bytes are already proven identical. RE-PIN PROCEDURE, sound only under these checks, all four of which must hold per relocation: same within-region offset, same relocation TYPE (`info & 0xff`), same addend, and same resolved symbol NAME. Only the index may differ. Recompute `before_relocations_sha256` from the new object's region records and `after_relocations_sha256` by replaying the rule's own permutation (`dest_by_src[off//4]*4 + off%4`, then sort). Verified on game/ui/message: msgPost @+0x6 gMsgBoxes index 24->22, msgDraw @+0x2 @188 index 16->14, both bodies hash-identical; after re-pinning the two rules the TU gated GATE OK at 7/7 real 0 and flipped to Matching with main.dol: OK. This weakens nothing -- the body hash, the bijection check, the dependence audit and the payload-invariance check all still run unchanged; only the identity of the symbol-table slot is re-learned."
+}

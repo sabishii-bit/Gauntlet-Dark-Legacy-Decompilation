@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "supersedes": "claim.opportunity.message-tu-flip-blocked-by-rodata-block.20260831.v1",
+    "tags": [
+      "matching",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.opportunity.message-tu-flip-blocked-by-rodata-block.20260831.v2",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T14:55:21Z",
+  "schema_version": 1,
+  "subject": "tu:game/ui/message",
+  "valid_from": "2026-08-31",
+  "value": "RESOLVED 2026-08-31 (commits 2ef5e38b8 + 8a0c684cc, worker MSG). game/ui/message.c is now Object(Matching) and links green: build/GUNE5D/main.dol: OK, project linked 26.29% -> 26.65% (196 -> 197 files). v1's diagnosis was CORRECT in every measurement and WRONG in its conclusion, which is the useful part to carry forward. The .rodata block was never short: our object emits 9 bytes where splits claims 0x10, datadiff scores that as 'claim slack(zero)', the linker supplies the 7 pad bytes, and that is still true in the green build - nothing about .rodata was changed. The real defect was DEAD-STRIPPING. message.c declared the retail 0x40-byte lbl_80124E58 blob as THREE separate statics (int levels[6], char* gMsgFonts[5], u32 gMsgCfg[5]) but reached all three through one `(MsgData*)lbl_80124E58` base cast, so gMsgFonts and gMsgCfg carried no relocation, mwld dropped them (0x28 bytes) and dropped the 'SCROLL_A' literal they were the only referrers of. v1 saw the string's absence and read it as a short .rodata block; the .data loss upstream of it was the cause. FIX: the three statics were merged into one `MsgCfgBlock` struct object and msgPost's base cast became `(MsgData*)&lbl_80124E58` - a data-definition change only, with msgPost's and msgDraw's compiled bodies hash-identical (both WebFrank region before_sha256 values still match). The merge required re-pinning two WebFrank relocation-input hashes because deleting two local symbols renumbered the symbol table; see claim.law.webfrank-reloc-pin-breaks-on-local-symbol-renumber.20260831.v1 for the sound re-pin procedure, and claim.law.base-cast-reconstruction-deadstrips-sibling-statics.20260831.v1 for the general shape and its diagnostic tells."
+}
