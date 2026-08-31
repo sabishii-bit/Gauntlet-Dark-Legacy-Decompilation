@@ -2798,14 +2798,16 @@ void init_player_select(s32 mode)
                 setup_tex(i3, 10, 16384, 0, pool + 904);
                 update_class_spec(i3);
             }
+            /* placement entries 9 and 10, whose BlitEntry handles sit at the
+             * matching blits+108 / blits+120 slots */
             mbBlitCalcWidth(*(void**)(blits + 108),
-                            *(s32*)(page + 140) + *xp,
-                            *(s32*)(page + 144),
-                            (f32)*(s32*)(page + 148));
+                            *(s32*)(page + 140 + offsetof(BlitPlacement, x)) + *xp,
+                            *(s32*)(page + 140 + offsetof(BlitPlacement, y)),
+                            (f32)*(s32*)(page + 140 + offsetof(BlitPlacement, scale)));
             mbBlitCalcWidth(*(void**)(blits + 120),
-                            *(s32*)(page + 152) + *xp,
-                            *(s32*)(page + 156),
-                            (f32)*(s32*)(page + 160));
+                            *(s32*)(page + 152 + offsetof(BlitPlacement, x)) + *xp,
+                            *(s32*)(page + 152 + offsetof(BlitPlacement, y)),
+                            (f32)*(s32*)(page + 152 + offsetof(BlitPlacement, scale)));
         }
     }
     if (!(*(u32*)((u32)gGameOptions + 44) & 1)) {
