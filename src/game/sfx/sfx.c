@@ -3374,6 +3374,8 @@ void ProcessEffects(void)
                 }
                 if (itemRadius > 0.0) {
                     StartEnemyGrid(pos, itemRadius);
+                    ownerPlayer =
+                        (struct fxplayer*)(gPlayers + (owner - 1) * 13148);
                     while ((itemIndex = NextGridEnemy()) >= 0) {
                         f32 itemDist;
                         f32 itemHit;
