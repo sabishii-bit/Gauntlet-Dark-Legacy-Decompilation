@@ -219,6 +219,36 @@ typedef struct P_SAVE_ATTS {
     f32 speed_add;   /* +0x14 -> stats[1] */
 } P_SAVE_ATTS;       /* size 0x18 */
 
+/* file-local view of the HEAD of the persistent per-player save block, which
+ * begins at include/game/player.h's `name[8]` (Player + 0x0A80) and whose
+ * body continues into the pad_0A88 run this pass may not split.  Names are
+ * the Xbox PDB record `P_SAVE` (xbox_structs.tsv); only the head is modelled
+ * here, because the GC block is NOT layout-identical to Xbox's further in --
+ * Xbox P_SAVE_STUFF is 596 bytes where GC's PlayerCharSave is 240, so the
+ * `stuff[]` region and everything after it diverges and is deliberately
+ * excluded from this view.
+ *
+ * The head mapping rests on four GC-verified anchors, not on the PDB alone:
+ *   +0x00 name[8]     == player.h's already-verified `name` member;
+ *   +0x08 last_alttype - game/player.c writes `(s16)p->character` to
+ *                        Player+0x0A88, exactly a "last alt(ernate) type";
+ *   +0x0C class_unlock - the three sites converted below test it as
+ *                        `1 << (class - 8)`, i.e. a per-class unlock bitmask,
+ *                        which is precisely what the PDB name asserts;
+ *   +0x10 atts[]       - Player+0x0A90 stride 24, matched offset-and-stride
+ *                        by P_SAVE_ATTS above (itself size-exact).
+ * last_color/saved/leveltot are carried to keep the offsets honest; this TU
+ * never dereferences them, so those three names are PDB-only. */
+typedef struct P_SAVE_HEAD {
+    char name[8];        /* +0x00 == offsetof(Player, name) */
+    s16  last_alttype;   /* +0x08 -> Player + 0x0A88 */
+    u8   last_color;     /* +0x0A PDB name only -- not read in this TU */
+    u8   saved;          /* +0x0B PDB name only -- not read in this TU */
+    u16  class_unlock;   /* +0x0C -> Player + 0x0A8C */
+    u16  leveltot;       /* +0x0E PDB name only -- not read in this TU */
+    /* +0x10 P_SAVE_ATTS atts[]; -> Player + 0x0A90, see above */
+} P_SAVE_HEAD;
+
 /* file-local view of the fields of OPTMENU (game/ui/options.c, verified
  * 0xE8-byte struct) actually touched by this TU's per-player menu blocks
  * (do_player_select/setup_sel_menu/sel_set_choice all pass an OPTMENU* to
@@ -1676,7 +1706,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
             t = 1;
         } else {
             t = 1;
-            switch (*(u16*)(pl + 2700) & (t << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
+            switch (*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (t << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
             case 0:
                 t = 0;
                 break;
@@ -2484,7 +2514,7 @@ void update_class_attr(s32 player)
         f32 kScale;
         if (sel < 8) {
             avail = 1;
-        } else if (*(u16*)(pl + 2700) & (1 << (sel - 8))) {
+        } else if (*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (1 << (sel - 8))) {
             avail = 1;
         } else {
             avail = 0;
@@ -2500,7 +2530,8 @@ void update_class_attr(s32 player)
             lvl = 99;
             best = -1;
         } else {
-            expslot = pl + sel * 24 + 2704;
+            expslot = pl + offsetof(Player, name) + sizeof(P_SAVE_HEAD) +
+                      sel * sizeof(P_SAVE_ATTS);
             lvl = ExpToLevel(*(s32*)expslot);
             LoadPlyrData(player, *(s32*)(pl + offsetof(Player, respawn_char)), 0);
             {
@@ -2667,7 +2698,7 @@ substate:
             known = 1;
         } else {
             known = 1;
-            if ((*(u16*)(pl + 2700) & (known << (spec - 8))) == 0) {
+            if ((*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (known << (spec - 8))) == 0) {
                 known = 0;
             }
         }
