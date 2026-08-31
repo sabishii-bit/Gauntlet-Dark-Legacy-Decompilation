@@ -302,7 +302,6 @@ extern f64 lbl_80347B90;
 extern f64 lbl_80347BA0;
 extern f64 lbl_80347BA8;
 extern f64 lbl_80347BC0;
-extern f32 lbl_80347BC8;
 extern f64 lbl_80347BD0;
 extern f64 lbl_80347BD8;
 extern f64 lbl_80347BE0;
@@ -421,7 +420,6 @@ extern f32 lbl_80347C90;
 extern f32 lbl_80347C94;
 extern f64 lbl_80347C98;
 extern f32 lbl_80347CA0;
-extern f32 lbl_80347CA4;
 extern f32 lbl_80347CA8;
 extern f32 lbl_80347CAC;
 extern f32 lbl_80347CB0;
@@ -525,6 +523,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     s32 j;
     s32 idx;
     s32 k;
+    f32* spreadz;
     u8* ctx = lbl_80282850;
     f32* spread = lbl_80120BF0;
 
@@ -561,12 +560,13 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             SV(p)->rot[0] = SV(other)->rot[0];
             SV(p)->rot[1] = SV(other)->rot[1];
             SV(p)->rot[2] = SV(other)->rot[2];
+            r = 0.5 + other->col_radius;
             pos[0] = other->col_pos[0];
             pos[1] = other->col_pos[1];
             pos[2] = other->col_pos[2];
-            r = 0.5 + other->col_radius;
+            spreadz = spread + 9;
             sx = r * (spread[8 + playerIdx * 2] - spread[8 + i * 2]);
-            sz = r * (spread[9 + playerIdx * 2] - spread[9 + i * 2]);
+            sz = r * (spreadz[playerIdx * 2] - spreadz[i * 2]);
             ang = CurTransmitter != NULL ? *(f32*)(CurTransmitter + 24) : 0.0;
             s = sin(ang);
             c = cos(ang);
@@ -609,11 +609,9 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             }
             *(volatile u32*)&SV(other)->floor_obj = FloorCollide(lbl_80347B10, lbl_80347B14,
                 lbl_80347B18, pos2, (f32*)(ctx + 24), 1, 1);
-            if (*(void**)(ctx + 92) != NULL) {
-                SV(other)->floor_flags = ((WorldObj*)*(void**)(ctx + 92))->flags;
-            } else {
-                SV(other)->floor_flags = 0;
-            }
+            SV(other)->floor_flags = (*(void**)(ctx + 92) != NULL)
+                                         ? ((WorldObj*)*(void**)(ctx + 92))->flags
+                                         : 0;
             other->floor_base = *(f32*)(ctx + 76);
             CopyMat3(other->mat, p->mat);
             p->pos[0] = pos2[0];
@@ -874,12 +872,10 @@ void PlayerMotion_SetAnimState(Player* p) {
  */
 static f32 PlayerMotion_WrapAngle(f32 angle) {
     f64 a = (f64)angle;
-    if (a > lbl_80347B50) {
-        a = a - lbl_80347B60;
-    } else if (a <= lbl_80347B68) {
-        a = lbl_80347B60 + a;
-    }
-    return (f32)a;
+    f64 wrapped = (a > lbl_80347B50)  ? a - lbl_80347B60
+                  : (a <= lbl_80347B68) ? lbl_80347B60 + a
+                                        : a;
+    return (f32)wrapped;
 }
 
 static s32 PlayerMotion_FpClassify(f32 value) {
@@ -2282,7 +2278,7 @@ store_motion_state:
                         MBOX_FindTexture(strings + 72, NULL);
                     break;
                 case 36:
-                    weight = lbl_80347C6C;
+                    weight = 5.0f;
                     hit[0] = PF(gBossObj, 0x4C, f32);
                     effectRadius = weight;
                     hit[1] = PF(gBossObj, 0x50, f32);
@@ -2295,9 +2291,9 @@ store_motion_state:
                     hit[1] = PF(gBossObj, 0x41C, f32);
                     hit[2] = PF(gBossObj, 0x420, f32);
                     effect = StartFXSub(93, hit, 0, 0x1000000,
-                                        lbl_80347C6C);
+                                        0.0f);
                     if (effect >= 0) {
-                        SfxSetMorph(lbl_80347C6C, effect, 90, 0);
+                        SfxSetMorph(5.0f, effect, 90, 0);
                     }
                     damageScale =
                         (f32)(lbl_80347B58 * PF(gBossObj, 0x4B0, f32));
@@ -2312,7 +2308,7 @@ store_motion_state:
                     hit[1] = (f32)(hit[1] - lbl_80347C78);
                     hit[0] = (f32)(hit[0] - lbl_80347C80);
                     effect = StartFXSub(90, hit, 0, 0x80000,
-                                        lbl_80347C6C);
+                                        0.0f);
                     if (effect >= 0) {
                         SfxSetMorph(lbl_80347C88, effect, 91, 0);
                         MBTreeSetAmbientAdd(
@@ -2339,7 +2335,7 @@ store_motion_state:
                     hit[2] = (f32)(hit[2] + lbl_80347BC0);
                     hit[1] = (f32)(hit[1] - lbl_80347C78);
                     effect = StartFXSub(93, hit, 0, 0x880,
-                                        lbl_80347C6C);
+                                        0.0f);
                     if (effect >= 0) {
                         SfxSetMorph(lbl_80347C88, effect, 90, 0);
                         lbl_80344890 = effect;
@@ -2357,7 +2353,7 @@ store_motion_state:
                     hit[2] = (f32)(hit[2] + lbl_80347B28);
                     hit[1] = (f32)(hit[1] + lbl_80347C98);
                     effect = StartFXSub(93, hit, 0, 0x880,
-                                        lbl_80347C6C);
+                                        0.0f);
                     if (effect >= 0) {
                         SfxSetMorph(lbl_80347C88, effect, 90, 0);
                         lbl_80344890 = effect;
@@ -2371,9 +2367,9 @@ store_motion_state:
                 case 37:
                     hit[0] = 0.0f;
                     hit[1] = 0.0f;
-                    hit[2] = lbl_80347C6C;
+                    hit[2] = 5.0f;
                     effect = StartFXSub(93, hit, 0, 0x8000880,
-                                        lbl_80347C6C);
+                                        0.0f);
                     if (effect >= 0) {
                         SfxSetParent(effect, p->node);
                         SfxSetMorph(lbl_80347BF8, effect, 90, 0);
@@ -2381,11 +2377,11 @@ store_motion_state:
                     MBTreeSetColor(PF(gBossObj, 0x6C, void*), 0xFF40FF40, 1);
                     MBTreeSetFlags(PF(gBossObj, 0x6C, void*), 8, 1);
                     PF(PF(gBossObj, 0x6C, void*), 0x40, f32) =
-                        lbl_80347CA4;
+                        0.800000011920929f;
                     PF(PF(gBossObj, 0x6C, void*), 0x44, f32) =
-                        lbl_80347CA4;
+                        0.800000011920929f;
                     PF(PF(gBossObj, 0x6C, void*), 0x48, f32) =
-                        lbl_80347CA4;
+                        0.800000011920929f;
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
                     CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
@@ -4329,6 +4325,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     f32 nrm[3];
     f32 ts;
     f32 ts2;
+    f32 tsa;
     u8* ctx;
     u8* fhp;
     f32 zoff;
@@ -4385,6 +4382,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     fh = *(f32*)(ctx + 76);
     ts = fh - pd->floor_base;
     *(u32*)&ts &= 0x7FFFFFFF;
+    tsa = ts;
     if (pd->obj_flags & 0x8000) {
         if ((f64)(pd->pos[1] - fh) < lbl_80347D10) {
             pd->obj_flags &= ~0x8000;
@@ -4393,10 +4391,10 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
         }
     }
     if ((f64)dq < lbl_80347D68 && pd->prev_state == 1) {
-        if ((f64)ts > lbl_80347B28 || (*(u32*)(hit + 16) & 0x1000)) {
+        if ((f64)tsa > lbl_80347B28 || (*(u32*)(hit + 16) & 0x1000)) {
             pd->floor_base = fh;
         }
-        if ((f64)ts > lbl_80347D68) {
+        if ((f64)tsa > lbl_80347D68) {
             return 1;
         }
         return 0;
@@ -4405,7 +4403,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     if (*(u32*)(ctx + 92) == sv->floor_obj) {
         lim = (f32)(lim + lbl_80347BD0);
     }
-    if (ts > lim) {
+    if (tsa > lim) {
         pd->floor_base = pd->pos[1];
         zv = lbl_80347B30;
         dpos[0] = zv;
@@ -4479,7 +4477,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
             dq = lbl_80347B30;
         }
     }
-    if ((f64)d < lbl_80347D68 || dq < lbl_80347B30) {
+    if ((f64)d < lbl_80347D68 || dq < (zv = lbl_80347B30)) {
         pd->floor_base = fh;
         if ((f64)d < lbl_80347D68 || (f64)dq < lbl_80347D70) {
             return 1;
@@ -4491,7 +4489,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     end[0] = pos[0] + dpos[0];
     end[1] = pos[1] + dpos[1];
     end[2] = pos[2] + dpos[2];
-    hit = FloorCollide(rad, lbl_80347B30, zoff, end, (f32*)(ctx + 24), 0, 1);
+    hit = FloorCollide(rad, zv, zoff, end, (f32*)(ctx + 24), 0, 1);
     if (fA != 0 && fB != 0 && sv->floor_obj != hit) {
         zv = lbl_80347B30;
         dpos[0] = zv;

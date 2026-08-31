@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/pmotion.c::PlayerMotion boss-effect switch (work_claim.pmotion-literal.20260831.v1, commit c7fbc92f4). Target evidence: pre-dispatch lfs f1,lbl_80347B30 (0.0f, the bossColor[0..2] zeroing web) at target off 0x29d8, jump-table bctr at 0x2a0c, StartFXSub calls at 0x2b60/0x2c1c/0x2d2c/0x2de4/0x2e6c with r3-r6 argument setup but NO f1 write anywhere in their case bodies; case 37 additionally reuses the same f1 for hit[0]/hit[1] stores (stfs f1 at 0x2e48/0x2e58). Our reconstruction passed 5.0f at all five calls: five ours-only lfs in --ops, and fixing the value to 0.0f closed the entire ours-only lfs surplus (fuzzy 97.2689->97.5529 on a 4775-insn function).",
+    "scope": "MWCC GC 1.2.5 family, -O4 game code; any function where a switch lowers to a jump table and multiple case bodies each begin with (or reach before any other call) a call taking a floating constant argument.",
+    "tags": [
+      "matching",
+      "cse",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.pre-dispatch-literal-web-feeds-case-call-args.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:43:29Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "When code just before a jump-table dispatch evaluates a floating LITERAL (here a vector-zeroing statement leaving 0.0f in f1), and several case bodies each pass the same constant as the first float argument of the first call on their path, MWCC CSEs all of it into the ONE pre-dispatch load: the constant rides the volatile argument FPR across the bctr and every such call site emits NO load for that argument. Legal because a volatile register survives from the dispatch to the first call of any case. Diagnostic tells: (1) target case bodies set up r3-r6 before their bl but never write f1; (2) your build shows one ours-only lfs per call site in --ops while insn totals may still accidentally balance against unrelated target-only opcodes; (3) the last pre-dispatch write of the argument register is a literal load. Reconstruction implications: (a) the argument's true VALUE is the pre-dispatch literal - a decompiler that guessed a nearby pool constant instead (ours had 5.0f where the target passes 0.0f) is semantically wrong, and only this register-dataflow reading catches it; (b) spell the argument as the same literal at every call site and let CSE unify - do NOT spell it as an extern lbl_* read (extern reads reload per-use and cannot join the web). Companion negative, verified same session on the same function: an insn-count-EXACT reconstruction built on extern lbl_* pool spellings is DESTROYED by wholesale literalization (real 3778->4356, insns 4775->4771, fuzzy down) because extern reload-per-use is load-bearing wherever the target's per-label load count equals the source read count. The sound screen is per-label: count target lfs/lfd relocations against source reads; literalize ONLY labels where the target count is LOWER (CSE evidence); treat our own anonymous @@N literal relocs as count parity, not as divergence."
+}
