@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "law_screen": "Screened claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1 (its STALE-SOLVED deletion list is the subject under test \u2014 REFUTED) and claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1 (not applicable to this measurement). No other law governs postprocessor-vs-source measurement scope; this record establishes one.",
+    "laws_applied": [
+      "claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1"
+    ],
+    "tags": [
+      "postprocessor",
+      "metrics",
+      "workflow",
+      "matching"
+    ],
+    "verification": "fndiff --count on all 32 (32/32 OK-or-real-0); config/GUNE5D/webfrank.json crawl (32/32 pinned, before_sha256+after_sha256 present); gdlmem.py stale (stale_solved=0, all 32 in postprocessor_walls=41)."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.fndiff-measures-the-postprocessed-object-so-webfrank-pins-fake-stale-solved.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T21:43:16Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "MEASUREMENT-SCOPE LAW, and a REFUTATION of a standing deletion list. fndiff/regnorm/objdiff all score the FINAL, WEBFRANK-POSTPROCESSED object, not the compiler's output. Therefore ANY function carrying a WebFrank pin measures `real 0` by construction, and a 'has this park become stale?' screen built on fndiff --count is circular: it cannot distinguish a genuinely solved function from one whose residual is merely being rewritten by a sanctioned postprocessor rule. CONCRETE REFUTATION: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1 published a 32-id STALE-SOLVED deletion list (attempt.parked.{allocmem32,atreeinitsub,audioang,audioplayereatsfx,critterlinenodecolsub,critterlookforcriticalmove,dmgfxadd,g3dupdatepadstatus,initanim,initlighting,mbnewfont,missilecollideenemy,pointlinedist2d,fn_800920e0,adjust_radius_8002b2d4,closest_enemy,dbgtextinit,fn_800511d0,fn_800b27c4,fn_800c031c,fn_800c1004,fn_800d967c,fn_800da6a4,gendir_8004fbc8,getsincos,joyreadpad,move_logic00,move_logic02,move_logic04,move_logic30,sndvoiceupdateall,vsprintf}.20260829.v1) and stated that only 'several' were WebFrank-pinned, naming 7. MEASURED TRUTH: ALL 32 ARE PINNED (32/32 present in config/GUNE5D/webfrank.json with before_sha256/after_sha256 and 'Pure allocator recolor' mechanisms). 28 of the 32 park records ALREADY CARRY the explicit attribute postprocessor_covered = 'function reaches 100% only via the guarded postprocessor rule; the source-level allocator wall this park describes still exists' \u2014 i.e. the records stated in plain language that they were not stale, and the census listed them for deletion anyway. INDEPENDENT CONFIRMATION: `gdlmem.py stale` reports stale_solved = 0 and places all 32 in postprocessor_walls (41 entries), whose own note reads 'postprocessor_walls are valid source-level walls'. CONSEQUENCE: ZERO of the 32 were deleted; deleting them would have destroyed the only record of 32 live source-level walls while leaving their frozen pinned sources in place (AGENTS.md trap 4: a pinned function's source is hash-asserted and FROZEN, so the wall can never be rediscovered by editing). STANDING RULE: a park is stale-solved ONLY if the function measures real 0 AND carries no WebFrank/P6Frank pin. The correct screen is `gdlmem.py stale`'s stale_solved bucket (which already applies this test), never a raw fndiff sweep. Corollary for the whole project: fndiff `real 0` answers 'does the shipped object match?', not 'is the source solved?' \u2014 for any question about SOURCE progress, subtract the pinned set first. The census's own headline metric (blanket labels correct 1-in-156) is unaffected and stands; only its deletion list is withdrawn."
+}

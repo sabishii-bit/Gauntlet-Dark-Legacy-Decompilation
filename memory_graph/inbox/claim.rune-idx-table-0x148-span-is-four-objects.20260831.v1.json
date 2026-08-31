@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "law_screen": "Screened claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1 (own-pool symbol identity \u2014 governs; the split makes options.c's own .data objects nameable rather than absorbed) and the AGENTS.md name-authority order (a0: the project source already carried GC-verified names for two of the three sub-objects, so no name was invented). No offsetof/alias law applies: this is a data-symbol span correction, not a member conversion.",
+    "laws_applied": [
+      "claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1"
+    ],
+    "tags": [
+      "symbol-identity",
+      "build-hygiene",
+      "defake",
+      "workflow"
+    ],
+    "verification": "Target bytes read directly from orig/GUNE5D/sys/main.dol at VA 0x8011F9F8 (file offset 0x11C9F8) via DOL header VA->offset mapping; struct sizes cross-checked against options.c typedefs (CTLLABEL 0x0C, CTLBLIT 0x18); exact byte accounting 0x34+0x0C+0xC0+0x48 = 0x148. Gate: python configure.py + full ninja -j2, build/GUNE5D/main.dol: OK, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679, progress unchanged at 98.09% fuzzy / 61.70% matched / 198-of-324 linked. Commit 68374ea36."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.rune-idx-table-0x148-span-is-four-objects.20260831.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-31T21:44:36Z",
+  "schema_version": 1,
+  "subject": "tu:game/ui/options",
+  "valid_from": "2026-08-31",
+  "value": "RESOLUTION of the RS flag that rune_idx_table's split object is 0x148 bytes while options.c declares `extern s32 rune_idx_table[13]` (0x34). VERDICT: THE C DECLARATION IS CORRECT AND MUST NOT BE CHANGED. The defect was in config/GUNE5D/symbols.txt, which glued FOUR distinct .data objects into one 0x148 symbol because only the first had an xref anchor. Read from the retail DOL at VA 0x8011F9F8, the span decomposes with EXACT byte accounting: (1) 0x8011F9F8 rune_idx_table, 13 x s32 = 0x34, values {8,9,4,1,2,3,10,7,5,6,11,12,13} \u2014 a permutation table of rune ids 1..13, exactly the declared shape; (2) 0x8011FA2C, 0x0C, three consecutive f32 all 0x3F800000 = 1.0f \u2014 THE ONLY GENUINELY UNDECLARED OBJECT IN THE SPAN, named lbl_8011FA2C pending evidence (it is NOT the OPTCTL_FONT/SCALE/DY triple, which was the natural guess and is REFUTED: those live in .sdata at 0x80343D5C-0x80343D68 and are already correctly declared); (3) 0x8011FA38 ctl_label_pos, CTLLABEL[16] at 0x0C each = 0xC0, records of {mode,dx,dy} with mode in {0,1,2} matching the typedef comment '1=left justify 2=center'; (4) 0x8011FAF8 ctl_blits, CTLBLIT[3] at 0x18 each = 0x48, records {char* name, s32 x, s32 y, s32 w, s32 h, void* blit} = {0x801139E8,96,104,-1,-1,0}, {0x801139F4,352,104,-1,-1,0}, {0x80113A00,128,232,-1,-1,0} \u2014 the three name pointers are 12 bytes apart in .rodata and symbols.txt types each as data:string, confirming the char* first member and the 0x18 stride. 0x34+0x0C+0xC0+0x48 = 0x148 and the span ends exactly at the next symbol jumptable_8011FB40. NAME AUTHORITY: ctl_label_pos and ctl_blits were NOT invented \u2014 options.c already declared both at these exact addresses (lines 257-258) with a header comment documenting the layout, and the byte evidence independently reproduces both the offsets and the struct strides; they were simply missing from symbols.txt, so the names existed in source while the linker knew only one fat symbol. ACTION TAKEN: symbols.txt line split into four entries (rune_idx_table 0x34 data:4byte / lbl_8011FA2C 0xC align:4 data:float / ctl_label_pos 0xC0 / ctl_blits 0x48); byte-identical, full build green, DOL sha1 unchanged. NOTE FOR THE OPTIONS.C OWNER: ctl_label_pos and ctl_blits are declared-but-unreferenced in the current source (they do not appear in options.o's undefined table), so the split is currently descriptive; when those tables are actually consumed the symbols now resolve correctly instead of colliding with rune_idx_table's span."
+}
