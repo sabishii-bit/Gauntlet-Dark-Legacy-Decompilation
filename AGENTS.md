@@ -9,6 +9,10 @@
 >    **BEFORE** the subcommand: `gdlmem.py --out r.json brief <tu>`.
 > 3. Large `gdlmem.py` results auto-spill to `build/gdlmem_out/` and print
 >    the path — Read that file; don't re-run the query.
+> 4. Before editing ANY function, check `config/GUNE5D/webfrank.json` for
+>    your TUs — a pinned function's source is FROZEN (the postprocessor
+>    hash-asserts its body and the build aborts on drift). Screen the
+>    pinned list first; do not discover it via a failed ninja.
 
 This file is the authoritative workflow contract for every LLM or agent
 working in this checkout, on any platform. Read it completely before

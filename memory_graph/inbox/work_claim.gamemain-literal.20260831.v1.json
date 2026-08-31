@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXTERN-LITERAL sweep, whole TUs src/game/game/gamemain.c + src/game/ui/screensaver.c exclusively (239+76 pool reads, 15 sub-95% fns incl. fn_80057024 92.7%, init_enemy_vars 91.9%, ScreenSaverUpdateWeap 86.1%): poolval.py --sweep + probe.py loop; gamemain has fresh extern-retype work merged \u2014 build on it; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:fn_80057024",
+  "id": "work_claim.gamemain-literal.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-L5",
+  "recorded_at": "2026-08-31T02:50:04Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

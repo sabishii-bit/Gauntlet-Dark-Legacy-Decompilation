@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXTERN-LITERAL sweep, whole TUs src/game/enemy/critter.c + src/game/enemy/enemy.c exclusively (322+345 pool reads): poolval.py --sweep + probe.py loop on the 8 sub-95% critter fns (CritterDamage 92.3%, CritterBossAI 94.4%...); enemy.c is 100%-fn-free of sub-95 but literalization is still byte-gated debt removal; critter hazard roster from its records applies; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:CritterDamage",
+  "id": "work_claim.enemy-literal.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-L4",
+  "recorded_at": "2026-08-31T02:50:00Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
