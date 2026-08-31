@@ -184,7 +184,8 @@ def main():
         if match and match.group(1) in (fn, fn_stripped):
             _, ti, bi, lines, real_text = match.groups()
             real = int(real_text)
-            insns = f"{ti}/{bi}"
+            insns = f"T{ti}/O{bi}"  # target/ours — labeled after a worker
+            # mis-read which side was longer reconciling probe vs fndiff
             break
     else:
         if re.search(rf"^OK\s+({re.escape(fn)}|{re.escape(fn_stripped)})\s*$",

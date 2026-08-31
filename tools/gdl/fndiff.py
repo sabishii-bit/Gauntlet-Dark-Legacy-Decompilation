@@ -174,9 +174,20 @@ def parse(objfile: Path):
             funcs[cur].append(ins.strip())
         elif "R_PPC" in line:
             rel = line.strip().split(maxsplit=1)[1]
+
             # dtk suffixes local symbol names with their address; strip so
-            # target "changed_80345368" pairs with our "changed"
-            rel = re.sub(r"_80[0-9A-Fa-f]{6}(?=$|\+)", "", rel)
+            # target "changed_80345368" pairs with our "changed". But for
+            # anonymous lbl_/jumptable_ symbols the suffix IS the identity:
+            # stripping it collapsed every such target to bare "lbl" and
+            # destroyed the address before any comparison — 111 of 405
+            # sweep rows were this artifact and a real wrong-symbol defect
+            # hid among them (claim.law.parse-strips-the-lbl-address-so-
+            # signature-alone-cannot-clear-a-reloc-row).
+            def strip_dtk_suffix(m):
+                return m.group(0) if m.group(1) in ("lbl", "jumptable") \
+                    else m.group(1)
+            rel = re.sub(r"(\w+?)_80[0-9A-Fa-f]{6}(?=$|\+)",
+                         strip_dtk_suffix, rel)
             for private, named in aliases.items():
                 rel = re.sub(
                     rf"(?<=\s){re.escape(private)}(?=$|[+-])", named, rel

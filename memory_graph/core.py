@@ -2269,10 +2269,21 @@ def _probe_record_references(
                 "SELECT 1 FROM record_ingest WHERE record_id=?", (cited_id,)
             ).fetchone()
             if row is None:
+                # Same-batch proposals cite each other before any rebuild
+                # ingests them — resolve against the inbox files too, so a
+                # correct citation is never reported as a typo (a worker
+                # burned a round trip hunting a misspelling that wasn't
+                # there).
+                inbox = root / "memory_graph" / "inbox"
+                in_inbox = inbox.exists() and any(
+                    p.stem == cited_id for p in inbox.glob("*.json")
+                )
+                if in_inbox:
+                    continue
                 raise MemoryGraphError(
                     f"cited record id {cited_id!r} does not resolve (check"
-                    " supersedes / attributes.laws_applied for typos, or"
-                    " rebuild the graph if the record is new)"
+                    " supersedes / attributes.laws_applied for typos; if the"
+                    " record was accepted moments ago, rebuild the graph)"
                 )
         if kind == "evidence":
             table = "claim" if record.get("claim") else "edge"
