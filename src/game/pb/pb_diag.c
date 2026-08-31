@@ -1480,15 +1480,15 @@ s32 pbDiagDrawObject(void)
     s32* b = (s32*)buttons;
     char* strs = lbl_80114E90;
     DiagObjGlobals* wg;
-    DiagObjView* obj;
     int x;
+    DiagObjView* obj;
     int i;
     s32 old;
     s32 ret;
     DiagObjRow* rows;
     u32 saved;
-    f32* px;
     f32* py;
+    f32* px;
     s32 v;
     s32 idx;
     u8* t10;
