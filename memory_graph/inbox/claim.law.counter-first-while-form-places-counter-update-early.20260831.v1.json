@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/anim/atree.c::fn_8001267C, EXACT-DRIVE lane 2026-08-31 (work_claim.atree-final-92.20260831.v1), commits 5c4f15a0d (node-info loop) and 1a1bda2a6 (per-match loop). Measured from the real ninja object, instruction parity 575/575 throughout. Node-info loop: target emits `li r3,0` at +0x5d0 then `li r5,0` at +0x5d4, and updates the counter with `addi r3,r3,1` at +0x5e0 - between the `lwz r0,12(r25)` base load and the `add r4,r0,r5` that forms the induced pointer - while ours initialised the offset first and updated the counter at +0x740, at the very bottom of a 350-byte body. The while form moved it: regnorm unpaired words 12 -> 10, paired 580 -> 581, real flat at 80. Per-match loop: target emits `addi r26,r26,1` at +0x864 BEFORE `addi r27,r27,36` at +0x868; ours emitted them in the opposite order. The same rewrite closed that pair and took real 80 -> 78.",
+    "tags": [
+      "matching",
+      "index-form",
+      "entry-schedule",
+      "store-placement",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.counter-first-while-form-places-counter-update-early.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T19:59:13Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MWCC GC 1.2.5. ANSWERS THE OPEN QUESTION LEFT BY claim.law.explicit-offset-accumulator-places-induction-updates-early.20260831.v1, which moved a loop's STRIDE update to the target's early position via an explicit accumulator but recorded that `the addi rJ,rJ,1 loop-counter update did NOT move, and remains one unpaired word`. The counter obeys the same principle as the stride, but a `for` header cannot express it: whatever the body does, `for (j = 0; j < n; j++)` pins the increment to the bottom of the body, immediately before the compare. To move it, DEMOTE THE FOR TO A WHILE and write the increment as an ordinary statement at the position the target uses: `j = 0; off = 0; while (j < n) { p = base + off; j++; off += STRIDE; ... }`. This is safe whenever the counter is not itself used to index inside the body - the common case once an explicit offset accumulator is already carrying the addressing, which is exactly the state the parent law leaves the loop in. TWO SEPARATE ORDER FACTS FALL OUT OF THE SAME REWRITE, and both are readable off the target before editing. (1) INITIALISATION ORDER: the two `li rX,0` words in the loop preheader appear in source-statement order, so if the target initialises the counter register first, write `j = 0;` before `off = 0;` - a `for` header forces the opposite because the accumulator assignment must precede the loop. (2) UPDATE ORDER: the counter and stride `addi` words also appear in source-statement order, so read which of `addi rJ,rJ,1` and `addi rOFF,rOFF,STRIDE` the target emits first and write them that way. On fn_8001267C the per-match loop needed counter-then-stride and had been written stride-then-counter, costing one unpaired pair. METRIC CAVEAT worth knowing before you judge the probe: closing a counter-placement word can leave `real` FLAT while genuinely improving the object, because the newly paired instruction is immediately re-counted as a register-renaming row. Arbitrate this class on regnorm's paired/unpaired counts, not on `real` alone; the node-info rewrite scored real 80 -> 80 but paired 580 -> 581, and it is a prerequisite for WebFrank candidacy under claim.law.unpaired-schedule-words-bar-webfrank-candidacy-not-just-its-permute-stage.20260831.v1."
+}

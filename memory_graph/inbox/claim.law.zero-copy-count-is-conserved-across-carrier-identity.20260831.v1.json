@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/anim/atree.c::fn_8001267C, EXACT-DRIVE lane 2026-08-31 (work_claim.atree-final-92.20260831.v1), three probes against a real ninja object at 575/575 instructions from a retained best of real 72. The function runs three zero-initialised carrier loops: a match-list loop on a fresh first-use accumulator `off`, a texmod loop on a compiler-generated strength-reduction temp, and a per-match loop that REASSIGNS `off`. The target rematerialises both zeros in all three preheaders; ours matched only the first, emitting `li` plus a copy in the other two. Probe A, reuse the dead local `j` as the texmod carrier: real 80 -> 118, signature +2 li / -2 mr, the texmod cluster unchanged and a second cluster opened at +0x348. Probe B, a dedicated fresh `s32 toff` declaration: real 72 -> 110, the texmod cluster CLOSED outright and two new clusters opened at +0x348 and +0x378. Probe C, reuse `off` in its genuinely dead window between the first and third loops, adding no declaration and no new live range: real 72 -> 116, three clusters broken. Prior sessions had already measured the per-loop carrier split at real 96 -> 98 and 92 -> 94.",
+    "tags": [
+      "matching",
+      "register-web",
+      "cse",
+      "decl-order",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.zero-copy-count-is-conserved-across-carrier-identity.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T19:59:21Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MWCC GC 1.2.5. QUANTITATIVE STRENGTHENING of claim.law.zero-remat-choice-differs-between-identical-sibling-loops.20260831.v1, and a BOUND on clause (B) of claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1. When a function contains several zero-initialised induction carriers, the number of `li`-plus-copy preheaders is CONSERVED under source-level changes to carrier identity: giving one loop its own symbol does not create a rematerialised zero, it merely MOVES the copy to another loop, and usually to more than one. Five independent probes on fn_8001267C - dead-local reuse, a fresh declaration, dead-window reuse, and two earlier per-loop splits - never once reduced the total, and the three tried in this pass each made it worse by 38 to 44 real. The variable-identity law is right that a carrier split can close a NAMED cluster (probe B closed the texmod cluster completely) and wrong only if that is read as a route to closing the FUNCTION; the allocator relocates the cost rather than paying it. PRACTICAL RULE, which supersedes spending probes on this shape: on the `li` + `mr`/`addi rD,rS,0` preheader signature, count the affected preheaders first. If more than one loop in the function shows it, treat the set as a single conserved allocator decision and cap immediately - the parent sibling-loop law already proves the choice is made downstream of the source, and this law adds that no redistribution of source symbols can reduce the count. Spend probes here ONLY when exactly one preheader is affected and the function has no sibling carrier loop for the allocator to move the copy into. The class remains WebFrank territory: the substitution is an opcode change with a constant-value side condition, so it needs the dataflow-equivalence audit described in claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 and cannot reuse copy_register_fields."
+}

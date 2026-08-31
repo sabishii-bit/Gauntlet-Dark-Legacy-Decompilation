@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/anim/atree.c::fn_8001267C, EXACT-DRIVE lane 2026-08-31 (work_claim.atree-final-92.20260831.v1), commit b785e184b, measured from the real ninja object at 575/575 instructions. regnorm.py --map classified six rows as RENAMING with an INCONSISTENT register map (ours r0 -> target r31 x3 and r0 -> target r25 x3, with the mirror entries r31 -> r0 and r25 -> r0). Reading the rows instead of trusting the label showed they were not renamings at all: target `add r0,r31,r0` versus ours `add r0,r0,r31` at +0x170/+0x1dc/+0x344, and target `add r0,r25,r0` versus ours `add r0,r0,r25` at +0x4dc/+0x4e8/+0x7a0. The six sites are exactly the function's six offset-to-pointer rebases. Rewriting each `x += base` as `x = base + x` took real 92 -> 80 in one probe with instruction counts, frame and saved-register set unchanged.",
+    "tags": [
+      "matching",
+      "index-form",
+      "defake",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T19:59:10Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MWCC GC 1.2.5 emits a register-register `add rD,rA,rB` with rA bound to the LEFT operand of the source expression and rB to the right, and it does NOT canonicalise the order of a commutative add. A compound assignment `x += y` is therefore lowered as `x = x + y`, i.e. `add rD,<x>,<y>`, and the transposed source `x = y + x` yields `add rD,<y>,<x>` - a different instruction word for identical semantics. CONSEQUENCE FOR THE COMMON REBASE IDIOM: deserialisation code that converts a stored file-relative offset into an absolute pointer is naturally written either as `field += (u32)base` or as `field = (u32)base + field`, and the two spellings are byte-distinguishable. Read the target's operand order and match it; on fn_8001267C all six rebase sites wanted base-first, so every one of them had been written the other way and each cost one word. DETECTION, and this is the important part: regnorm.py reports these rows as RENAMING, not STRUCTURAL, because the two operands really are the same two registers in swapped positions - the tool cannot tell a commuted operand pair from a recolouring. The tell is the register MAP rather than the row: a bidirectional pair of entries (ours rX -> target rY together with ours rY -> target rX) whose counts match, flagged INCONSISTENT, means commuted operands and not a colouring cascade. ALWAYS read the RENAMING rows themselves before accepting a REGISTER_ONLY-flavoured classification; six source-reachable words hid behind that label here, on a function that four prior passes had already worked. GENERAL SCREEN: on any `add`, `or`, `and`, `xor`, `mullw`, `fadds` or `fmuls` row where the two sides differ only by operand position, the lever is the source expression's operand order, not the allocator."
+}

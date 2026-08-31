@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/anim/atree.c::fn_8001267C, EXACT-DRIVE lane 2026-08-31 (work_claim.atree-final-92.20260831.v1). Four reloc rows were flagged STRUCTURAL by regnorm as `[reloc target differs]`. TWO of them - `R_PPC_EMB_SDA21 lbl` versus ours `natreelists` at +0x884/+0x894, an .sbss SCALAR - closed completely by claiming the address in symbols.txt (`lbl_803441E8` -> `natreelists`, commit 70b4fd013), because MWCC gives a scalar static its own named symbol and the two names then agree. The other TWO - `R_PPC_ADDR16_HA/LO lbl_8023CFA0` versus ours `...bss.0` at +0x24/+0x28, a .bss ARRAY - did NOT: renaming the target symbol to `atree_handles` left our side still reading `...bss.0`, and the linkage hypothesis was falsified directly by removing `static` from the array, which changed our reloc not at all while regressing real 80 -> 93 and breaking instruction parity to 575/574. Both addresses were independently confirmed: 0x803441E8 follows AnimDataPeak exactly as `natreelists` follows it in source and is read by pb_diag.c, and 0x8023CFA0 is size 0x60 = s32[24] sitting immediately below atree_scroll at 0x8023D000.",
+    "tags": [
+      "matching",
+      "relocation",
+      "symbol-identity",
+      "sda-global",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.bss-array-reloc-names-its-section-not-the-object.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T19:59:27Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MWCC GC 1.2.5. A `[reloc target differs]` row where the TARGET names a symbol and OURS names a section (`...bss.0`, `...data.1`) splits into two cases with opposite verdicts, and they must not be treated alike. CASE 1, SCALAR in .sbss/.sdata: MWCC emits a named symbol for the object, so the row is a pure NAMING gap - the target's `lbl_<ADDR>` placeholder is simply an unclaimed address in config/GUNE5D/symbols.txt. Claim it with the reconstructed name via `gdlmem.py rename-symbol lbl_<ADDR> <name> --apply` and the row closes for free, with no source edit at all. CASE 2, ARRAY in .bss: MWCC references the aggregate through its SECTION symbol plus an addend regardless of linkage, so our side can never produce a named-symbol reloc and the row is a dtk-split artifact rather than a codegen difference - the split reconstructs relocations against symbols.txt names, manufacturing a named symbol the original object never had. It is NOT source-reachable. Do not spend probes on it, and specifically do not try removing `static`: that hypothesis was tested and falsified, leaving the reloc form untouched while perturbing frame layout and register pressure enough to cost 13 real and break instruction parity. Claiming the array's address is still worth doing for the project's symbol map, but score it as naming work and expect zero movement in `real`. DIAGNOSTIC ORDER: read the section and the object's SHAPE before theorising - scalar means claimable, aggregate means artifact. A useful side effect of the lookup is cross-TU name reconciliation: the atree.c arrays here were carried in pb_diag.c as independently invented `lbl_8023CFA0[]`, `lbl_8023D000[]` and `lbl_8023D180[]` placeholders, so claiming the addresses also collapsed a duplicate-naming conflict between two translation units."
+}
