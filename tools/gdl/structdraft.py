@@ -192,12 +192,25 @@ def as_int(tok):
     return int(tok, 0) if NUM_RE.match(tok) else None
 
 
+NAMED_TERM_RE = re.compile(r"\b(?:offsetof|sizeof)\s*\(")
+
+
 def decompose(inner):
-    """inner -> {base, const, terms:[{index,stride}], update}"""
+    """inner -> {base, const, terms:[{index,stride}], update, named}
+
+    A term spelled with offsetof()/sizeof() marks an ALREADY-CONVERTED site:
+    it must never be parsed as a numeric displacement (the naive parse read
+    `base + offsetof(T, f)` as offset 0x0 and fabricated a one-field record
+    from a fully-converted TU — observed on movieplayer, 2026-08-31).
+    """
     const, terms, bases, residual = 0, [], [], []
+    named = False
     for part in split_top_plus(inner):
         neg = part.startswith("-")
         body = (part[1:] if neg else part).strip()
+        if NAMED_TERM_RE.search(body):
+            named = True
+            continue
         val = as_int(body)
         if val is not None:
             const += -val if neg else val
@@ -232,7 +245,7 @@ def decompose(inner):
             residual.append(part)
     base = bases[0] if bases else (residual[0] if residual else "")
     return {"base": base, "const": const, "terms": terms,
-            "update": bool(UPDATE_RE.search(inner))}
+            "update": bool(UPDATE_RE.search(inner)), "named": named}
 
 
 def scan_tu(path):
@@ -264,6 +277,7 @@ def scan_tu(path):
             "is_ptr": ty.replace(" ", "").endswith("*"),
             "base": dec["base"], "const": dec["const"],
             "terms": dec["terms"], "update": dec["update"],
+            "named": dec["named"],
             "src": lines[lineno - 1].strip() if lineno - 1 < len(lines) else "",
         })
     return sites, text
@@ -561,7 +575,9 @@ def cluster(sites, text, by_function=False):
             key = f"{s['base']} @{s['fn']}" if by_function else s["base"]
             groups[key].append(s)
     out = {}
-    for base, ss in groups.items():
+    for base, all_ss in groups.items():
+        converted = sum(1 for s in all_ss if s["named"])
+        ss = [s for s in all_ss if not s["named"]]
         observed = {}
         for s in ss:
             o = observed.setdefault(s["const"], {
@@ -596,7 +612,8 @@ def cluster(sites, text, by_function=False):
                     strides[val] += 3
             for mm in re.finditer(r"<<\s*(\d+)", rhs):
                 strides[1 << int(mm.group(1))] += 3
-        out[base] = {"sites": len(ss), "observed": observed,
+        out[base] = {"sites": len(ss), "converted": converted,
+                     "observed": observed,
                      "strides": strides,
                      "update": any(s["update"] for s in ss),
                      "fns": Counter(s["fn"] for s in ss)}
@@ -727,7 +744,10 @@ def main():
     local = load_local_structs(path, root)
     rel = relpath(path, root)
 
+    converted_total = sum(1 for s in sites if s["named"])
     result = {"tu": rel, "total_sites": len(sites),
+              "raw_sites": len(sites) - converted_total,
+              "converted_sites": converted_total,
               "clusters_total": len(clusters), "clusters": []}
 
     for base, info in ranked:
@@ -773,10 +793,33 @@ def main():
         top_stride = max((s for s, _n in stride_top if s >= 0x10),
                          default=0) if stride_top else 0
         eff = rec_size or top_stride
+        # Second multi-record tell: one base NAME used by two functions whose
+        # touched offset sets are fully disjoint. The movieplayer `param_1`
+        # cluster silently merged the movie record with the decoder object
+        # this way (2026-08-31) — the span check alone never fired. Advisory:
+        # verify identity via call sites; disjoint parts of one real record
+        # (init-half vs draw-half) can also look like this.
+        fn_offsets = {}
+        for off, o in observed.items():
+            for fname in o["fns"]:
+                fn_offsets.setdefault(fname, set()).add(off)
+        disjoint_pair = None
+        fn_items = [(f, offs) for f, offs in fn_offsets.items()
+                    if len(offs) >= 3]
+        for i in range(len(fn_items)):
+            for j in range(i + 1, len(fn_items)):
+                if not (fn_items[i][1] & fn_items[j][1]):
+                    disjoint_pair = (fn_items[i][0], fn_items[j][0])
+                    break
+            if disjoint_pair:
+                break
         entry = {
-            "base": base, "sites": info["sites"], "record_size": rec_size,
+            "base": base, "sites": info["sites"],
+            "converted_sites": info.get("converted", 0),
+            "record_size": rec_size,
             "span": span, "stride_hint": top_stride,
-            "multi_record": bool(eff and span >= 2 * eff),
+            "multi_record": bool(eff and span >= 2 * eff) or bool(disjoint_pair),
+            "disjoint_fn_pair": disjoint_pair,
             "strides": stride_top[:5], "update_web": info["update"],
             "functions": info["fns"].most_common(6),
             "offsets": {hexoff(o): {
@@ -828,13 +871,16 @@ def main():
         return 0
 
     print(f"structdraft: {rel}")
-    print(f"  {result['total_sites']} raw-offset sites in"
-          f" {result['clusters_total']} base clusters"
+    print(f"  {result['raw_sites']} raw-offset sites"
+          f" (+{result['converted_sites']} already offsetof/sizeof-converted)"
+          f" in {result['clusters_total']} base clusters"
           f" (showing {len(result['clusters'])} with >= {args.min_sites}"
           f" sites)\n")
     for e in result["clusters"]:
         print("=" * 72)
-        print(f"BASE {e['base']!r}   {e['sites']} sites"
+        print(f"BASE {e['base']!r}   {e['sites']} raw sites"
+              + (f" (+{e['converted_sites']} converted)"
+                 if e.get("converted_sites") else "")
               + (f"   record size 0x{e['record_size']:X}"
                  if e["record_size"] else "   record size UNKNOWN"))
         if e["update_web"]:
@@ -842,13 +888,22 @@ def main():
                   " claim.law.lwzu-idiom-web-retention applies;"
                   " convert AROUND it")
         if e.get("multi_record"):
-            st = e["record_size"] or e["stride_hint"]
-            print(f"  !! MULTI-RECORD CLUSTER: offsets span 0x{e['span']:X}"
-                  f" but the record stride is 0x{st:X} -- this base almost"
-                  f" certainly covers TWO different records (a reused"
-                  f" variable name, or a walk over an outer array)."
-                  f" Re-run with --by-function and split the offsets before"
-                  f" trusting this draft.")
+            if e.get("disjoint_fn_pair"):
+                a, b = e["disjoint_fn_pair"]
+                print(f"  !! MULTI-RECORD CLUSTER (advisory): functions"
+                      f" {a} and {b} touch fully DISJOINT offset sets under"
+                      f" this base name -- verify record identity via call"
+                      f" sites before folding them into one draft (a reused"
+                      f" parameter name for two records looks exactly like"
+                      f" this; so can init-half vs draw-half of one record).")
+            else:
+                st = e["record_size"] or e["stride_hint"]
+                print(f"  !! MULTI-RECORD CLUSTER: offsets span 0x{e['span']:X}"
+                      f" but the record stride is 0x{st:X} -- this base almost"
+                      f" certainly covers TWO different records (a reused"
+                      f" variable name, or a walk over an outer array)."
+                      f" Re-run with --by-function and split the offsets before"
+                      f" trusting this draft.")
         if e["strides"]:
             print("  strides seen: " + ", ".join(
                 f"0x{s:X}(x{n})" for s, n in e["strides"]))
