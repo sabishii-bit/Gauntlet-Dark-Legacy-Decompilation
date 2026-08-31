@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "decl-order",
+      "metrics",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.frame-bottom-region-is-outgoing-args-not-a-dead-local.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T17:12:28Z",
+  "schema_version": 1,
+  "subject": "tu:game/anim/atree",
+  "valid_from": "2026-08-31",
+  "value": "MWCC GC 1.2.5 family. A `u8 unused[N]` frame pad can close a frame-SIZE delta but can NEVER reproduce a target's dead region at the BOTTOM of the frame, because MWCC lays the frame out low-to-high as [linkage 8][outgoing-argument area][inner-block/compiler temps][outer-block named locals][saved GPRs], and an outer-block named array is always placed ABOVE the inner-block temps. MEASURED on fn_8001267C in src/game/anim/atree.c, three independent probes, all byte-NEUTRAL: (1) moving `u8 unused[248]` from first to last among the outer locals; (2) retyping it `f64 unused[31]` to give it the highest alignment class; (3) making it genuinely USED via `*(volatile u8*)unused = 0` - the pad simply gained a slot at r1+304 and stayed above the live temps at r1+20..301. So neither declaration order, nor alignment, nor liveness moves an outer-block local below the temps. POSITIVE CONTROL for the real mechanism: adding one call with 30 stack arguments grew the outgoing-argument area, pushed EVERY live local up, and grew the frame 592 -> 692 - the bottom region is the outgoing-argument area, and only a call's argument footprint sizes it. DIAGNOSTIC METHOD worth reusing: dump every `N(r1)` displacement from both sides (`fnasm.py <unit> <fn>` and `--ours`, collect the distinct N) and compare the OCCUPIED RANGES, not individual slots. On fn_8001267C both sides use exactly 240 distinct slots, but the target occupies 304..560 with 296 dead bytes below, while ours occupies 20..301 with ~254 dead bytes above - an entire-frame inversion that no per-slot or per-instruction reading reveals. CONSEQUENCE: when a target reserves an untouched low region, do NOT model it as an unrecovered local; look for a call passing a large aggregate BY VALUE (296 bytes here implies roughly 288 bytes of stack arguments), or an unrecovered call site with a large argument footprint. A pad that merely equalizes frame SIZE leaves the whole local area shifted and every stack displacement reading as a diff line, which is worth ~237 of 240 slots on this function."
+}
