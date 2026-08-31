@@ -525,6 +525,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     s32 j;
     s32 idx;
     s32 k;
+    f32* spreadz;
     u8* ctx = lbl_80282850;
     f32* spread = lbl_80120BF0;
 
@@ -561,12 +562,13 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             SV(p)->rot[0] = SV(other)->rot[0];
             SV(p)->rot[1] = SV(other)->rot[1];
             SV(p)->rot[2] = SV(other)->rot[2];
+            r = 0.5 + other->col_radius;
             pos[0] = other->col_pos[0];
             pos[1] = other->col_pos[1];
             pos[2] = other->col_pos[2];
-            r = 0.5 + other->col_radius;
+            spreadz = spread + 9;
             sx = r * (spread[8 + playerIdx * 2] - spread[8 + i * 2]);
-            sz = r * (spread[9 + playerIdx * 2] - spread[9 + i * 2]);
+            sz = r * (spreadz[playerIdx * 2] - spreadz[i * 2]);
             ang = CurTransmitter != NULL ? *(f32*)(CurTransmitter + 24) : 0.0;
             s = sin(ang);
             c = cos(ang);
@@ -609,11 +611,9 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             }
             *(volatile u32*)&SV(other)->floor_obj = FloorCollide(lbl_80347B10, lbl_80347B14,
                 lbl_80347B18, pos2, (f32*)(ctx + 24), 1, 1);
-            if (*(void**)(ctx + 92) != NULL) {
-                SV(other)->floor_flags = ((WorldObj*)*(void**)(ctx + 92))->flags;
-            } else {
-                SV(other)->floor_flags = 0;
-            }
+            SV(other)->floor_flags = (*(void**)(ctx + 92) != NULL)
+                                         ? ((WorldObj*)*(void**)(ctx + 92))->flags
+                                         : 0;
             other->floor_base = *(f32*)(ctx + 76);
             CopyMat3(other->mat, p->mat);
             p->pos[0] = pos2[0];
