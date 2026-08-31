@@ -1,5 +1,8 @@
 #include "types.h"
+#include "game/camera.h"
 #include "game/dyngrid.h"
+#include "game/effect.h"
+#include "game/enemy.h"
 #include "game/item.h"
 #include "game/leveldata.h"
 #include "game/mbobject.h"
@@ -2165,7 +2168,7 @@ extern char  lbl_802583A8[];     /* scratch name buffer          */
 extern char  sObjectsFile[];     /* +0x130 "TREAS_GOLD", +0x13C "TREAS_SILVER" */
 
 f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner);
-extern u8 gEnemies[];
+extern Enemy gEnemies[25]; /* game/enemy.h; stride 0x394 */
 
 /* 0x8005BA1C - apply a gold/silver-wizard reward to one item (swap the item's
  * atree to a treasure/food model, retarget generators, pop doors/walls). */
@@ -3004,7 +3007,7 @@ extern void  AddItemWobj(Item* item);
 extern s32   Round(f32 value);
 extern s32   stricmp(const char* a, const char* b);
 extern char* strcat(char* dst, const char* src);
-extern u8    Effects[];
+extern Effect Effects[];   /* game/effect.h; stride 0xF0 */
 extern s32   gNumEnemies;
 extern f64   lbl_80346ED8;       /* 2^52 int-conv constant */
 extern f64   lbl_80346EE8;
@@ -3384,8 +3387,8 @@ found_gen:
             AudioGeneratorDies(&v[1], *generator);
             enemy_count = gNumEnemies;
             for (k = 0; k < enemy_count; k++) {
-                if (*(Item**)(gEnemies + k * 0x394 + 0x290) == item) {
-                    *(Item**)(gEnemies + k * 0x394 + 0x290) = 0;
+                if (*(Item**)((u8*)gEnemies + k * 0x394 + offsetof(Enemy, generator)) == item) {
+                    *(Item**)((u8*)gEnemies + k * 0x394 + offsetof(Enemy, generator)) = 0;
                 }
             }
         } else {
@@ -3490,7 +3493,7 @@ found_gen:
     if (alive != 0) {
         k = fn_80094440(&v[1], flags, destroyed);
         if (k >= 0) {
-            MBTreeSetZsortAdd(*(void**)(Effects + k * 0xF0 + 0x14),
+            MBTreeSetZsortAdd(*(void**)((u8*)Effects + k * 0xF0 + offsetof(Effect, node)),
                               (s32)(lbl_80346FA8 * info->item.radius), 1);
         }
     }
@@ -4259,8 +4262,8 @@ extern void  fn_8009D9A4(f32* pos);
 extern void  fn_8009D7E4(s32 mode, f32* pos);
 extern void  YawMat3(f32* matrix, f32 angle);
 extern f64   __frsqrte(f64 x);
-extern u8    gEnemies[];
-extern u8    gCameras[];
+extern Enemy gEnemies[25]; /* game/enemy.h; stride 0x394 */
+extern Camera gCameras[6]; /* game/camera.h; stride 0x18C */
 extern s32   gFrameTicks;
 extern f32   gClockFrameStep;
 extern s32   gNextItemIdx;
@@ -4761,7 +4764,7 @@ void fn_800606FC(void)
                     break;
                 }
                 {
-                    u8* e = gEnemies + slot * 0x394;
+                    u8* e = (u8*)gEnemies + slot * 0x394;
                     s16 wob;
                     f32 fa = sItemFloorRadius + *(f32*)&it->data[0xC];
                     f32 rate = sItemFloorRadius /
@@ -4792,7 +4795,7 @@ void fn_800606FC(void)
                         if ((s8)gen[5] < 0) {
                             *(s32*)(e + 0x334) = -1;
                         } else {
-                            u8* prev = gEnemies + (s8)gen[5] * 0x394;
+                            u8* prev = (u8*)gEnemies + (s8)gen[5] * 0x394;
                             *(s32*)(prev + 0x338) = slot;
                             *(s32*)(e + 0x334) = (s8)gen[5];
                         }
@@ -4832,9 +4835,9 @@ void fn_800606FC(void)
                 it->activetime = 0x1E;
             } else if ((s8)it->paction == 0 && (s8)it->action == 1 &&
                        it->info->item.subtype == 4) {
-                f32 dy = ((f32*)gCameras)[76] - it->objgrp.worldmat[3][1];
-                f32 dx = ((f32*)gCameras)[75] - it->objgrp.worldmat[3][0];
-                f32 dz = ((f32*)gCameras)[77] - it->objgrp.worldmat[3][2];
+                f32 dy = gCameras[0].attn[1] - it->objgrp.worldmat[3][1];
+                f32 dx = gCameras[0].attn[0] - it->objgrp.worldmat[3][0];
+                f32 dz = gCameras[0].attn[2] - it->objgrp.worldmat[3][2];
                 f32 d2 = dy * dy;
                 f32 root;
                 d2 = dx * dx + d2;
@@ -4934,7 +4937,7 @@ void fn_800606FC(void)
                 {
                     s32 n;
                     for (n = 0; n < 25; n++) {
-                        u8* e = gEnemies + n * 0x394;
+                        u8* e = (u8*)gEnemies + n * 0x394;
                         s32* genid = (s32*)(e + 0x340);
                         if (n == *genid) {
                             *(s32*)(e + 0x33C) = 0;
@@ -5882,7 +5885,7 @@ s32 fn_8005A868(s32 player)
 }
 
 /* 0x8005D3D8 - can this world object block/affect the given enemy? */
-extern u8 gEnemies[];
+extern Enemy gEnemies[25]; /* game/enemy.h; stride 0x394 */
 extern f64 sNewtonThree;
 extern s32 damage_enemy(u8* e, f32 amount, s32 dtype, s32 knock, s32 srcflags,
                         s32 arg6, s32 arg7);
@@ -5897,7 +5900,7 @@ s32 fn_8005D3D8(s32 index, u8* wobj)
     s32 bval;
 
     if (index >= 0) {
-        e = gEnemies + index * 916;
+        e = (u8*)gEnemies + index * 916;
     } else {
         e = 0;
     }
@@ -6280,7 +6283,7 @@ void ActivateSpecialTrigger(s32 type, s32 flag)
 extern s32 lbl_8034488C;
 extern f32 lbl_80347014;
 extern s32 gNumPlayers;
-extern u8 gCameras[];
+extern Camera gCameras[6]; /* game/camera.h; stride 0x18C */
 extern f64 sArrowFloorYOffset;
 extern f64 lbl_80347018;
 extern f32 lbl_803447D8;
@@ -6603,9 +6606,9 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
         return;
     }
     {
-        f32 dy = *(f32*)(gCameras + 304) - *(f32*)(it + 56);
-        f32 dx = *(f32*)(gCameras + 300) - *(f32*)(it + 52);
-        f32 dz = *(f32*)(gCameras + 308) - *(f32*)(it + 60);
+        f32 dy = *(f32*)((u8*)gCameras + offsetof(Camera, attn) + 4) - *(f32*)(it + 56);
+        f32 dx = *(f32*)((u8*)gCameras + offsetof(Camera, attn)) - *(f32*)(it + 52);
+        f32 dz = *(f32*)((u8*)gCameras + offsetof(Camera, attn) + 8) - *(f32*)(it + 60);
         d2 = dy * dy;
         d2 = dx * dx + d2;
         d2 = dz * dz + d2;
@@ -6689,7 +6692,7 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
                        0, 1, sItemFloorRadius);
     if (g >= 0) {
         f64 yaw;
-        e = gEnemies + g * 916;
+        e = (u8*)gEnemies + g * 916;
         *(s16*)(e + 728) = 1;
         *(s16*)(e + 724) = 1;
         *(f32*)(e + 588) = atan2(dir[0], *(f32*)((u8*)dir + 32));
