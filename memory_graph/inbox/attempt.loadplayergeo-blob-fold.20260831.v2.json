@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Five bounded exact-closure probes on the accepted blob-fold shape: declaration-order swap (neutral/reverted); explicit literal symbols (negative 34->174 real, 410->420 insns/reverted); target-displacement-verified PLAYER .bss view for scratch/models (improved 34->30); one cached rodata base for six target-shared literals (improved 30->18); pad signedness/register-web split (neutral/reverted)",
+  "attributes": {
+    "baseline_and_best": "target/current 410/410 both; real 34->18; objdiff fuzzy 99.8634%->99.902435%; frame 80 and stmw r24-r31 unchanged; TU exact functions stayed 64/92 and TU fuzzy is 97.52252% after full report",
+    "law_screen": "claim.law.whole-fn-address-cache applied: target has one persistent r28 lbl_80113AE0 base and one r30 potionicon_tab base, so one source local per address web reduced real 34->18 without opcode/count change. claim.law.table-lookup-pre-keyed-on-segment-cast-repetition screened/applied in spirit to the target-verified PlayerGeoBssView, preserving indexed field addressing. claim.law.declaration-initializer-split-controls-entry-schedule, claim.law.independent-statement-reorder-matches-target-schedule, claim.law.point-of-use-single-use-pointer-delay, claim.law.scalar-field-cache-defeats-call-boundary-reload, claim.law.same-field-second-site-register-sensitivity, claim.law.reload-vs-cache-liveness, claim.law.store-placement-family, and claim.law.chained-init-constant-share screened; none supplied a source-faithful lever for the remaining pad/cls register-color swap. claim.law.narrow-local-reextend-on-read screened for the final signedness probe; narrow types would add absent extension opcodes, while u32 was byte-neutral and therefore reverted.",
+    "laws_applied": "[\"claim.law.whole-fn-address-cache.20260829.v1\", \"claim.law.table-lookup-pre-keyed-on-segment-cast-repetition.20260831.v1\"]",
+    "residual": "REGISTER_ONLY: target assigns class_id/pad to r27 and character/cls plus the later i*76 model offset to r26; current assigns the two webs oppositely. --ops opcode multiset is IDENTICAL 410/410; --clean reports 16 visible register lines plus 18 suppressed pool-name normalization lines. Declaration order and signedness were identical A/B outputs, so those axes are capped; explicit per-literal symbols kill shared-base folding and are negative.",
+    "scope": "src/game/game/player.c::load_player_geo only. PlayerGeoBssView maps potionicon_tab+0x4F4 scratch[0x20] and +0x514 PlayerModelSlot[4], verified by target r30 displacements and the TU's established .bss layout; rodata offsets 1236,1280,1308,1320,1332,1348 are target r28 displacements into lbl_80113AE0.",
+    "verification": "python tools/gdl/probe.py game/game/player load_player_geo for baseline and every probe; fndiff --count/--ops/--clean; matchtool TU probe OK:50 OK~:14 (64 exact); git diff --check; ninja -j2 full link/report with main.dol SHA-1 gate OK."
+  },
+  "function": "function:load_player_geo",
+  "id": "attempt.loadplayergeo-blob-fold.20260831.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T03:14:49Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.loadplayergeo-blob-fold.20260830.v1",
+  "valid_from": "2026-08-31"
+}

@@ -236,6 +236,12 @@ typedef struct PlayerModelSlot {
 } PlayerModelSlot;
 static PlayerModelSlot player_multiple_models[4]; /* 0x514 (0x802753B4) */
 
+typedef struct PlayerGeoBssView {
+    u8 _pad000[0x4F4];
+    char scratch[0x20];
+    PlayerModelSlot models[4];
+} PlayerGeoBssView;
+
 /* AppendItemToLevel template (0x802754E4, 0x50 bytes incl. name buf) */
 typedef struct AppendedItemTemplate {
     s32 type;
@@ -4058,7 +4064,9 @@ void load_player_geo(s32 i, void* vp) {
     Player* p = vp;
     char name[20];
     u8 unused[12];
+    u8* rodata = lbl_80113AE0;
     u8* tab = (u8*)lbl_8011FC48;
+    PlayerGeoBssView* geoBss = (PlayerGeoBssView*)potionicon_tab;
     char* c;
     s32* nd;
     s32 pad;
@@ -4067,7 +4075,7 @@ void load_player_geo(s32 i, void* vp) {
     s32 n;
 
     if (p->node != NULL) {
-        FatalError("PLAYER OBJ NODE EXISTS BEFORE LOAD_PLAYER", 0x800000);
+        FatalError((char*)rodata + 1236, 0x800000);
     }
     if (lbl_80344828 > 0) {
         set_hidden_player(p);
@@ -4077,16 +4085,16 @@ void load_player_geo(s32 i, void* vp) {
             p->geo_handle = load_player_model(i, p, i, c);
             goto model_ready;
         }
-        if (p->character == player_multiple_models[i].cur_class &&
-            p->class_id == player_multiple_models[i].cur_pad &&
-            (void*)player_multiple_models[i].cur_override == NULL &&
-            p->level / 10 == player_multiple_models[i].cur_tier) {
+        if (p->character == geoBss->models[i].cur_class &&
+            p->class_id == geoBss->models[i].cur_pad &&
+            (void*)geoBss->models[i].cur_override == NULL &&
+            p->level / 10 == geoBss->models[i].cur_tier) {
             goto reuse_model;
         }
         p->geo_handle = load_player_model(i, p, -1, NULL);
         goto model_ready;
 reuse_model:
-        p->geo_handle = (s32)player_multiple_models[i].arena;
+        p->geo_handle = (s32)geoBss->models[i].arena;
     }
 model_ready:
     pad = p->class_id;
@@ -4104,15 +4112,16 @@ model_ready:
     } else {
         strcpy(name, ((char**)(tab + 1212))[pad]);
     }
-    sprintf(tbuf, "%s%s", (char*)(tab + 1128) + cls * 4, name);
-    strncpy((char*)&p->pad_0210[0x4B0], tbuf, 8);
+    sprintf(geoBss->scratch, "%s%s", (char*)(tab + 1128) + cls * 4, name);
+    strncpy((char*)&p->pad_0210[0x4B0], geoBss->scratch, 8);
     p->node = MBNewNode(lbl_80344B2C, gIdentityMatrix, 1);
     PF(p, 0x78, s32) = 0;
-    p->platform = fn_80011BBC(player_multiple_models[i].model_buf,
+    p->platform = fn_80011BBC(geoBss->models[i].model_buf,
                              (char*)(tab + 1128) + p->char_type * 4,
-                             &p->platform, tbuf, 0x800);
+                             &p->platform, geoBss->scratch, 0x800);
     if (p->platform == NULL) {
-        FatalErrorf("Player Atree %s not found", (char*)(tab + 1128) + p->char_type * 4);
+        FatalErrorf((char*)rodata + 1280,
+                    (char*)(tab + 1128) + p->char_type * 4);
     }
     MBNodeSetParent(*p->platform, p->node);
     InitActions(&p->platform, (u8*)p + 0x210, (s32)lbl_80126C68);
@@ -4122,26 +4131,27 @@ model_ready:
     }
     PF(p, 0x744, s32) = 0;
     /* attachment nodes */
-    sprintf(tbuf, "%s%s", (char*)&p->pad_0210[0x4B0],
+    sprintf(geoBss->scratch, "%s%s", (char*)&p->pad_0210[0x4B0],
             ((char**)(tab + 1340))[cls]);
-    n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
+    n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
         p->hand_node = (void*)(*nd);
     } else {
         p->hand_node = NULL;
     }
-    sprintf(tbuf, "%s%s", (char*)&p->pad_0210[0x4B0],
+    sprintf(geoBss->scratch, "%s%s", (char*)&p->pad_0210[0x4B0],
             ((char**)(tab + 1276))[cls]);
-    n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
+    n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
         p->mbnode2 = (void*)(*nd);
     } else {
         p->mbnode2 = NULL;
     }
-    sprintf(tbuf, "%sCFGLOW", (char*)&p->pad_0210[0x4B0]);
-    n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, -1);
+    sprintf(geoBss->scratch, (char*)rodata + 1308,
+            (char*)&p->pad_0210[0x4B0]);
+    n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, -1);
     if (n < 0) {
         nd = NULL;
     } else {
@@ -4153,16 +4163,16 @@ model_ready:
     } else {
         PF(p, 0x6D8, s32) = 0;
     }
-    sprintf(tbuf, "%sHEAD", (char*)&p->pad_0210[0x4B0]);
-    n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
+    sprintf(geoBss->scratch, "%sHEAD", (char*)&p->pad_0210[0x4B0]);
+    n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
         p->weapon_node = (void*)(*nd);
     } else {
         p->weapon_node = NULL;
     }
-    sprintf(tbuf, "%sTORSO", (char*)&p->pad_0210[0x4B0]);
-    n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
+    sprintf(geoBss->scratch, "%sTORSO", (char*)&p->pad_0210[0x4B0]);
+    n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
         PF(p, 0x6DC, s32) = *nd;
@@ -4174,17 +4184,18 @@ model_ready:
         tier = (p->level >= 0x32) ? 2 : (p->level >= 10) ? 1 : 0;
         if (((s32*)(tab + 2384))[p->character] != 0 ||
             p->character >= 8 || p->hidden_code != NULL) {
-            sprintf(tbuf, "WEAP_HOLD");
+            sprintf(geoBss->scratch, (char*)rodata + 1320);
         } else {
-            sprintf(tbuf, "WEAP_%s_HD%d", ((char**)(tab + 1212))[pad], tier + 1);
+            sprintf(geoBss->scratch, (char*)rodata + 1332,
+                    ((char**)(tab + 1212))[pad], tier + 1);
         }
-        n = MBOX_ReallyFindObject(tbuf, p->geo_handle, p->geo_handle, 1);
+        n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
         p->weaphold_node = MBNewObject(n, NULL, p->hand_node, 0x810);
         p->texmod_id = -1;
         if (p->char_type == 7) {
             *(u32*)((u8*)p->weaphold_node + 0x60) |= 0x4000000;
             p->texmod_id = AddSpecialTexmod(p->geo_handle, "%s%s",
-                                            (char*)player_multiple_models[i].sfx_arena,
+                                            (char*)geoBss->models[i].sfx_arena,
                                             "", 5, 1);
         }
     }
@@ -4205,7 +4216,8 @@ model_ready:
     p->field_96C = NULL;
     p->field_A14 = NULL;
     /* shadow */
-    n = MBOX_ReallyFindObject("SHADOWL1", p->geo_handle, p->geo_handle, 1);
+    n = MBOX_ReallyFindObject((char*)rodata + 1348,
+                              p->geo_handle, p->geo_handle, 1);
     p->mbnode = MBNewObject(n, gIdentityMatrix, NULL, 0x880);
     *(s16*)((u8*)p->mbnode + 0x68) = -0x24;
     p->pulse_7FC = 0.0f;
