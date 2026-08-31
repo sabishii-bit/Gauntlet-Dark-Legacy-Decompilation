@@ -1207,7 +1207,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             SWAP32(blob[3]);
             SWAP32(blob[4]);
             SWAP32(blob[5]);
-            SWAP16(*(u16*)((u8*)blob + offsetof(AtreeDefinition, objectIndex)));
+            SWAP16(*(u16*)&((AtreeDefinition*)blob)->objectIndex);
             blob[0] += (s32)blob;
             blob[3] += (s32)blob;
 
@@ -1262,7 +1262,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
                     *ptexmods = texbase + *ptexmods * sizeof(TEXMOD);
                 }
             }
-            *(s16*)((u8*)blob + offsetof(AtreeDefinition, objectIndex)) = (s16)model;
+            ((AtreeDefinition*)blob)->objectIndex = (s16)model;
             off += sizeof(atreematch);
         }
 
