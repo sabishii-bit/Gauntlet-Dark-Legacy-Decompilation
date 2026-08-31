@@ -793,8 +793,8 @@ static s32 shop_show_lv(u8* pl, s32 final)
     kScale = lbl_80348330;
     exps = pl + *(s32*)(pl + offsetof(Player, character)) * 24 + PCLASS_EXP_CKPT_OFF;
     fmts = lbl_80114918;
-    x1 = *(s32*)((u8*)lbl_80122F30 + (*(s32*)pl << 2)) + 8;
-    x2 = *(s32*)((u8*)lbl_80122F30 + (*(s32*)pl << 2)) + 88;
+    x1 = lbl_80122F30[*(s32*)pl] + 8;
+    x2 = lbl_80122F30[*(s32*)pl] + 88;
     xcol = lbl_80122F40[*(s32*)pl];
     tick = *(s32*)(pl + offsetof(Player, field_A6C)) & 0xFFFF;
     done = 0;
