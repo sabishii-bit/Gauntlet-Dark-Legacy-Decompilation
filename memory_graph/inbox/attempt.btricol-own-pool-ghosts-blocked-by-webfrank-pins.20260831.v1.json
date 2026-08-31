@@ -1,0 +1,22 @@
+{
+  "attempted_axis": "Remove game/world/btricol's two own-pool UND ghosts (lbl_80345D40 = f64 0.0, lbl_80345D50 = f32 0.0f) by spelling the literals, so the TU stops importing pool entries it already emits and becomes link-clean for a flip.",
+  "attributes": {
+    "consequence": "game/world/btricol must be REMOVED from the flip-ready shortlist until its pins are retired. claim.flip-ranking-table-and-corrected-own-pool-screen.20260831.v1 ranks it among the ten TUs at exactly one non-exact function (BTriLineCol, 1800B, data 100%) and therefore near the front of the flip queue; that ranking is misleading because a successful flip would fail at link on two undefined symbols regardless of BTriLineCol's score. GENERAL RULE THIS ESTABLISHES: flip-readiness has a THIRD gate beyond 'one straggler' and 'data clean' - the TU must be free of own-pool UND ghosts AND any ghost it does carry must be reachable from an UNPINNED function, because a pinned body cannot be edited to fix it.",
+    "law_screen": "claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1 APPLIED - the ghosts are exactly its class and its fix recipe was attempted verbatim. claim.flip-ranking-table-and-corrected-own-pool-screen.20260831.v1 APPLIED for the nm -u screen and REFUTED on two counts for this TU: its claim that 'btricol.o defines lbl_80345D40/D48/D50/D58 as R at pool offsets 0/8/0x10/0x18' is FALSE in the current tree (nm shows all of them UND, nothing defined), and its image-wide 'zero own-pool ghosts' result does not hold here. claim.law.inline-and-deadstrip-rules.20260829.v1 (never-symbolify) APPLIED as the naming authority. AGENTS.md trap 4 (webfrank-pinned sources are hash-FROZEN) is the blocker and was, to my cost, screened only AFTER the first failed ninja - see verification.",
+    "laws_applied": [
+      "claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1",
+      "claim.law.inline-and-deadstrip-rules.20260829.v1"
+    ],
+    "residual": "BLOCKED, not capped on a codegen axis: the fix is known, correct and one edit wide, but it cannot be applied while the two consuming functions are WebFrank-pinned. config/GUNE5D/webfrank.json carries THREE pins for game/world/btricol across TWO functions: PointLineDist2D (1 rule) and LineLineDist (2 rules). lbl_80345D40 is read at btricol.c:899, inside PointLineDist2D (lines 870-932). lbl_80345D50 is read at lines 657/676/699/716/744/788/796/828, all inside LineLineDist (lines 614-860). A partial conversion that skips the pinned bodies is possible but POINTLESS: the extern stays referenced from the frozen function, so it stays UND, the link blocker remains, and the only effect is to churn five already-exact functions for no gain. Unblocking requires retiring those pins first, which re-exposes the allocator walls they cover.",
+    "scope": "src/game/world/btricol.c - both probes fully REVERTED, file is byte-identical to HEAD, no commit. Nothing in this TU was changed.",
+    "verification": "Probe 1, convert both ghosts: `ninja build/GUNE5D/src/game/world/btricol.o` aborted in the WEBFRANK step. Probe 2, convert only lbl_80345D50 (the one outside PointLineDist2D): also aborted, with the decisive message `ValueError: LineLineDist: input hash 313f3882983cf4d231a74f9bbe16360091749064b49ea85908a062fa5b2f638b != expected 49596e08342174450623a347ea14704af6233f5d39a6a210bd13599ec499498e` - i.e. LineLineDist is pinned too, which is what converted this from 'try harder' into 'structurally blocked'. Reverted from `git show HEAD:src/game/world/btricol.c`; object rebuilt green (WEBFRANK LineLineDist: adjusted 140 atoms, unit total 205); full ninja -j2 green afterwards, main.dol: OK. SECONDARY MEASUREMENT, worth keeping: btricol's .sdata2 is ALREADY byte-identical to the target (0x30, six entries 0.0/0.01/0.0f/1000.0/0.015625/int-to-double-magic, emitted by MWCC as @46/@47/@48/@49/@50/@52). So unlike auxanim there is NO data gain hiding behind these ghosts - they are pure duplicate spellings of entries the compiler already owns, and the entire prize is the link-blocker removal."
+  },
+  "function": "function:BTriLineCol",
+  "id": "attempt.btricol-own-pool-ghosts-blocked-by-webfrank-pins.20260831.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-08-31T23:51:53Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

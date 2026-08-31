@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Measured in game/g3d/auxanim during work_claim.ghost-resweep-hygiene.20260831.v1 (worker GH, branch claude/ghost-hygiene-20260901, commit efa6d56df). Baseline and fixed objects were built and read with tools/gdl/fnasm.py --diff and tools/gdl/fndiff.py --count; the baseline body was recovered with `git show HEAD:<file>` and swapped in and out, NOT via git stash (the shared checkout carries 31 foreign stashes).",
+    "tags": [
+      "metrics",
+      "build-hygiene",
+      "symbol-identity",
+      "relocation",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.own-pool-ghost-extern-flatters-fndiff-reloc-rows.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T23:52:05Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "MEASUREMENT-SCOPE LAW, and the explanation for why the own-pool ghost class keeps surviving cleanup sweeps: AN OWN-POOL GHOST EXTERN FLATTERS THE SCORE, SO A SCORE-GATED PASS REJECTS THE CORRECT FIX. Mechanism. When a NonMatching TU imports its own pool entry as `extern <T> lbl_<ADDR>`, our object emits a relocation naming the symbol `lbl_<ADDR>` -- which is the very placeholder name dtk gave the TARGET object's local pool symbol. The two reloc rows therefore compare EQUAL. Delete the ghost and spell the literal (the prescribed fix, claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1) and MWCC emits its own local pool object named `@N`; the address, the encoding and the linked bytes are IDENTICAL, but the row now reads `lbl_803459D0` on the target side against `@168` on ours and counts as a DIFFERENCE. MEASURED INSTANCE. auxanim DoTexModSeqSub, five converted pool loads (lbl_803459D0 x2, lbl_803459D8 x1, lbl_803459E0 x2): fndiff real went 112 -> 118, i.e. +6, and every one of those lines is a pool-symbol NAME row. Proof it is not codegen: the aligned view row `1a8: lfd f0,0(0) @lbl_803459D0(EMB_SDA21)` read `=` (equal) against our UND-extern build and `~` (opcode-only) against our literal build, same instruction, same register, same SDA21 displacement; and the one genuine codegen difference in the region (target `fsubs f3,f1,f2` vs ours `fsubs f1,f1,f2`, an FPR colour) was verified PRESENT AT BASELINE by rebuilding the baseline body, so it is not attributable to the fix. CONSEQUENCES. (1) NEVER gate an own-pool ghost fix on fndiff `real` alone: `real` is defined to get worse when you stop borrowing the target's symbol name. Gate it on the OBJECT'S POOL SECTION (objdump -s -j .sdata2 target vs ours) and on the unit's objdiff data score, and cross-check the unit's fuzzy from a fresh report -- in the measured instance unit fuzzy went UP (98.5366 -> 98.5491) and unit data went 69.07% -> 83.51% while `real` went down by 6. (2) defake_gate/probe will report REGRESSION on a correct ghost fix. That verdict is an artifact here; read the aligned rows and confirm each new difference is a `<local>`-vs-`lbl_` naming row before overriding, and say so explicitly in the attempt record. (3) The flattery is self-perpetuating: the worse the ghost's data damage (auxanim was MISSING a whole pool entry and 8 bytes of .sdata2), the better the reloc rows look, because every borrowed name is a free match. This is the same family as claim.law.fndiff-measures-the-postprocessed-object-so-webfrank-pins-fake-stale-solved.20260831.v1 -- fndiff answers 'does the shipped object match?', not 'is the source correct?'. (4) Corollary for flip-readiness ranking: a TU's score cannot see this defect class at all, so own-pool ghost screening must remain a SEPARATE nm -u pass and can never be inferred from percentages."
+}

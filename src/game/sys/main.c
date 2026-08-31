@@ -140,7 +140,7 @@ extern s32 lbl_80343B00;
 extern s32 gGameMode;       /* game state id */
 extern s32 lbl_80344A80;
 extern s32 sSpecialCamInit;
-extern u32 gBossObj;
+extern u8* gBossObj;
 extern s32 lbl_80343C5C;
 extern s32 lbl_803444E0;
 extern s32 lbl_8034475C;
