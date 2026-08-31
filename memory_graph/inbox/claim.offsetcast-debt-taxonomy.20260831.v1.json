@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "work_claim.offsetcast-investigation.20260831.v1, worktree GDL-Claude-OffsetInvest. Classifier cross-validated by hand-adjudicating a stratified sample across 7 TU families; three systematic mis-resolutions found and fixed before publishing these numbers (greedy first-match assignment resolution crediting psfx.c's Player `p` to Effect; unbounded 'interior field' credit across unmapped gaps; member-expression bases such as `p->node` resolving to the OUTER struct's layout). Fixing them moved HEADER-COVERED 35.3% -> 21.4% while leaving the 'authority obtainable' total at ~91%.",
+    "scope": "Whole src/ tree at git:561994d6 + this branch; population = bare (non-offsetof) raw-offset casts, binary multiplies excluded. Percentages are of 3578 true deref sites, not the 3685 the debt census reports (see claim.law.debt-census-counts-binary-multiplies).",
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.offsetcast-debt-taxonomy.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T00:59:59Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "The project's raw-offset cast debt is overwhelmingly UNCONVERTED BACKLOG, not intrinsically structless code. Full-population classification of every bare `*(T*)(base+CONST)` site in src/ (2026-08-31, tools/gdl/structdraft.py scanner + cluster-first authority resolution) gives: HEADER-COVERED 767 sites (21.4%) -- a GC-verified named field already exists in include/game/*.h at that exact offset and width; RECOVERABLE 2480 (69.3%) -- no header field yet but authority is obtainable (stride+PDB-size candidate 505, no-stride-yet cluster 497, pad-gap inside a header the project already owns 472, record known but layout incomplete/'past end' 353, cross-TU name carry-over ~180); STRUCTLESS 298 (8.3%) -- scratch/swap buffers, on-disk cursors, opaque singletons; LOAD-BEARING 33 (0.9%) -- statically detectable load-update (`p += N`) webs protected by claim.law.lwzu-idiom-web-retention. So 90.7% of the debt has obtainable struct authority and only ~9% is genuinely raw-by-nature. This is independently corroborated by the completed de-fakematch TU passes: every TU that received a THOROUGH pass converted 92-99% of its sites (screensaver 104->1, pb_diag 84->2, auxscreen 58->1, action 37->1, bosscam 253->21, boss 53->4), while TUs still showing large residuals (critter 510, gauntworld 301, shop 278, player 235, combat 213, select 207, gamemain 203) are ones whose passes were early or partial. The correct unit of work is the (TU, base) CLUSTER, not the site: 3578 sites collapse to 660 clusters, and 208 sites sit in clusters of 50+ -- one struct decision converts a whole cluster."
+}

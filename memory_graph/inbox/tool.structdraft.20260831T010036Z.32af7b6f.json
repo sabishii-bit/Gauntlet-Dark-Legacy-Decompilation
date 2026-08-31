@@ -1,0 +1,27 @@
+{
+  "constraints": [
+    "This tool is EVIDENCE, not authority: it reports what the code does, which supports a layout but does not prove one. Verify every offset against the GC target asm before adopting.",
+    "Field names are adopted ONLY from a candidate that matches the record size exactly and conflicts on no observed width; every other field stays unkNN. Never hand-edit a name in from a weaker candidate -- that is the invented-name failure AGENTS.md prohibits.",
+    "A MULTI-RECORD CLUSTER warning means the base covers two different records; split with --by-function before trusting the draft.",
+    "Always gate an actual conversion with: python tools/gdl/defake_gate.py check <unit> --rebuild. The draft proves nothing about codegen neutrality.",
+    "Clusters flagged with a load-update web (base += N) are protected by claim.law.lwzu-idiom-web-retention -- convert around them, not through them."
+  ],
+  "entrypoint": "python tools/gdl/structdraft.py <unit>",
+  "id": "tool.structdraft.20260831T010036Z.32af7b6f",
+  "kind": "tool",
+  "name": "structdraft",
+  "purpose": "Draft a struct skeleton from the raw-offset accesses a TU already performs: clusters every observed base+CONST access by base expression, records the access WIDTH from each cast type, detects base+i*S+K striding to propose array-of-records, ranks candidate layouts from the TU's own file-local view structs, then include/game/*.h, then the Xbox PDB dump, and emits a padded C skeleton with unkNN fields and per-offset evidence comments ready for defake_rewrite.py.",
+  "recorded_at": "2026-08-31T01:00:36Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/structdraft.py",
+  "status": "active",
+  "tool_key": "tool:structdraft",
+  "tool_kind": "analysis",
+  "usage": [
+    "python tools/gdl/structdraft.py game/sfx/psfx.c --base row  # one cluster",
+    "python tools/gdl/structdraft.py game/ui/select.c --min-sites 8  # whole TU",
+    "python tools/gdl/structdraft.py --file old.c --root .  # draft from a historical revision (git show REV:path > old.c)",
+    "python tools/gdl/structdraft.py <unit> --verify <TypeName>  # score the draft against an already-recovered struct"
+  ],
+  "valid_from": "2026-08-31T01:00:36+00:00"
+}

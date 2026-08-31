@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "work_claim.offsetcast-investigation.20260831.v1. Every one of the 133 flagged sites was eyeballed in source context; all are arithmetic. Reproduce: python tools/gdl/structdraft.py <tu> reports the filtered count, versus `python memory_graph/gdlmem.py debt --tu <tu>`.",
+    "scope": "memory_graph/core.py::_DEBT_CAST_RE and every consumer of `gdlmem.py debt` / `brief`'s raw_offset_debt, including wave planning and per-TU claim sizing.",
+    "tags": [
+      "defake",
+      "metrics",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.debt-census-counts-binary-multiplies.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T01:00:01Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "`gdlmem.py debt`'s _DEBT_CAST_RE anchors on `*(` with no check that the `*` is a DEREFERENCE, so it counts binary multiplication followed by a value cast as raw-offset debt. `rate * (f32)(u32)gFrameTicks`, `time * (f32)(hi - lo)`, `pct * (f32)(256 - flags)` are all scored as cast sites. Measured 2026-08-31: 133 of the 3685 reported bare sites (3.6%) are binary multiplies, concentrated in float-heavy TUs -- mb_particle.c 51, camera.c 25, combat.c 20, gauntworld.c 8, boss.c 4, critter.c 4, enemy.c 4, pmotion.c 4. The discriminator is the token immediately left of the `*`: an identifier that is not a C keyword, a numeric literal, `]`, or a `)` closing a NON-cast paren means multiply; a `)` closing a type cast, a keyword like `return`, an operator, or statement start means dereference. Naive 'previous char is alphanumeric' over-fires badly (it flags `return *(s32*)(p+4)` and every `(f64)*(f32*)(p+8)` cast-then-deref): 231 false hits vs the correct 133. Consequence: a TU's real convertible debt is up to ~40% lower than the census line for float-heavy TUs (mb_particle 133 -> 83 after this filter plus already-named sites), and wave-over-wave census comparisons drift whenever float arithmetic is edited. tools/gdl/structdraft.py::is_binary_multiply implements the correct test and can be lifted into memory_graph/core.py."
+}
