@@ -2163,7 +2163,6 @@ extern const char lbl_80346F10[8];     /* "CHICKEN"  */
 extern const char lbl_80346F18[6];     /* "APPLE"    */
 extern char  lbl_80346F20[];     /* "TREAS_GOLD" (sdata2 copy)   */
 extern char  lbl_80346F28[];     /* "TREAS_SILVER" (sdata2 copy) */
-extern f32   lbl_80346F30;
 extern char  lbl_80346F34[];     /* "%s_D"     */
 extern char  lbl_802583A8[];     /* scratch name buffer          */
 extern char  sObjectsFile[];     /* +0x130 "TREAS_GOLD", +0x13C "TREAS_SILVER" */
@@ -2397,7 +2396,7 @@ found_silver:
             break;
         }
         if (rank >= 0x32) {
-            fn_8005C1DC(item, lbl_80346F30, 0, *(s32*)player);
+            fn_8005C1DC(item, 9999.0f, 0, *(s32*)player);
             msg = 0x92;
         } else {
             *(s16*)&item->data[4] = 4;
@@ -2505,27 +2504,27 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     (void)unused;
 
     if (item->active == -1) {
-        return sNoDistance;
+        return -1.0f;
     }
     if ((item->active & 0x8100) != 0) {
-        return sNoDistance;
+        return -1.0f;
     }
     info = item->info;
     if (info->type == -1) {
-        return sNoDistance;
+        return -1.0f;
     }
     if (item->minoff != 0) {
-        return sNoDistance;
+        return -1.0f;
     }
     data = &info->item;
     sub = &data->subtype;
     coltype = data->coltype;
     R = data->radius;
     if (coltype == 0) {
-        return sNoDistance;
+        return -1.0f;
     }
     if ((item->active & 0x40) == 0 && (item->active & 0x4000) == 0) {
-        return sNoDistance;
+        return -1.0f;
     }
 
     keep = 1;
@@ -2556,7 +2555,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
         }
         break;
     case 4:
-        if (*(f32*)&item->data[0xC] >= sZeroDouble) {
+        if (*(f32*)&item->data[0xC] >= 0.0) {
             R = *(f32*)&item->data[0xC];
             coltype = 1;
         } else {
@@ -2583,7 +2582,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
             keep = 0;
             break;
         }
-        if (*(f32*)&item->data[0xC] > sZeroDouble) {
+        if (*(f32*)&item->data[0xC] > 0.0) {
             coltype = 1;
             R = *(f32*)&item->data[0xC];
         } else if (*sub == 0x1B) {
@@ -2600,7 +2599,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
         break;
     }
     if (keep == 0) {
-        return sNoDistance;
+        return -1.0f;
     }
 
     R = (f32)(a + R);
@@ -2609,7 +2608,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     f1 = (f32)(cx - pos[0]);
     f2 = (f32)(cz - pos[2]);
     if (f1 * f1 + f2 * f2 > R * R) {
-        return sNoDistance;
+        return -1.0f;
     }
 
     nv[0] = (f32)(pos[0] - cx);
@@ -2617,12 +2616,12 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     nv[2] = (f32)(pos[2] - cz);
     if (coltype != 2) {
         if (wfabsf_(nv[1]) > (f32)(data->height + b)) {
-            return sNoDistance;
+            return -1.0f;
         }
     }
     dist = fqdist(nv[0], nv[2]);
     if (dist > R) {
-        return sNoDistance;
+        return -1.0f;
     }
 
     switch (coltype) {
@@ -2647,7 +2646,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
         break;
     case 4:
         /* tri-list collision sweep */
-        if (fn_8005FDA8((u8*)item, from, pos, hitpt, norm, a) < sZeroDouble) {
+        if (fn_8005FDA8((u8*)item, from, pos, hitpt, norm, a) < 0.0) {
             keep = 0;
         }
         break;
@@ -2656,12 +2655,12 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
         break;
     }
     if (keep == 0) {
-        return sNoDistance;
+        return -1.0f;
     }
 
     dist -= R;
-    if (dist < sZeroDouble) {
-        dist = sItemZero;
+    if (dist < 0.0) {
+        dist = 0.0f;
     }
 
     /* soft types accept immediately at the probe point */
@@ -2692,7 +2691,7 @@ los_check:
     /* line-of-sight check from the probe origin */
     keep = 0;
     nv[0] = (f32)(from[0] - cx);
-    nv[1] = sItemZero;
+    nv[1] = 0.0f;
     nv[2] = (f32)(from[2] - cz);
     switch (coltype) {
     case 3:
@@ -2707,24 +2706,24 @@ los_check:
             goto los_done;
         }
         nv[0] = (f32)(pos[0] - cx);
-        nv[1] = sItemZero;
+        nv[1] = 0.0f;
         nv[2] = (f32)(pos[2] - cz);
         f3 = nv[0] * item->objgrp.worldmat[0][0] +
              nv[2] * item->objgrp.worldmat[0][2];
-        if (f1 < sItemZero) {
+        if (f1 < 0.0f) {
             if (f3 > f1) {
                 goto los_done;
             }
-        } else if (f1 > sItemZero && f3 < f1) {
+        } else if (f1 > 0.0f && f3 < f1) {
             goto los_done;
         }
         f4 = nv[0] * item->objgrp.worldmat[2][0] +
              nv[2] * item->objgrp.worldmat[2][2];
-        if (f2 < sItemZero) {
+        if (f2 < 0.0f) {
             if (f4 > f2) {
                 goto los_done;
             }
-        } else if (f2 > sItemZero && f4 < f2) {
+        } else if (f2 > 0.0f && f4 < f2) {
             goto los_done;
         }
         keep = 1;
@@ -2745,15 +2744,15 @@ los_check:
 los_done:
     if (keep != 0) {
         nv[0] = pos[0] - from[0];
-        nv[1] = sItemZero;
+        nv[1] = 0.0f;
         nv[2] = pos[2] - from[2];
         mv[0] = (f32)(cx - from[0]);
-        mv[1] = sItemZero;
+        mv[1] = 0.0f;
         mv[2] = (f32)(cz - from[2]);
         NormalVector2D(nv);
         NormalVector2D(mv);
-        if (nv[0] * mv[0] + nv[2] * mv[2] < sItemZero) {
-            return sNoDistance;
+        if (nv[0] * mv[0] + nv[2] * mv[2] < 0.0f) {
+            return -1.0f;
         }
     }
 
@@ -2761,7 +2760,7 @@ los_done:
         switch (coltype) {
         case 3: {
             nv[0] = (f32)(pos[0] - cx);
-            nv[1] = sItemZero;
+            nv[1] = 0.0f;
             nv[2] = (f32)(pos[2] - cz);
             f3 = nv[0] * item->objgrp.worldmat[0][0] +
                  nv[2] * item->objgrp.worldmat[0][2];
@@ -2769,9 +2768,9 @@ los_done:
                  nv[2] * item->objgrp.worldmat[2][2];
             f2 = (f32)(data->xdim + a) - wfabsf_(f3);
             f1 = (f32)(data->zdim + a) - wfabsf_(f4);
-            if (f2 > sItemZero || f1 > sItemZero) {
-                if (f2 < f1 && f2 > sItemZero) {
-                    if (f3 > sItemZero) {
+            if (f2 > 0.0f || f1 > 0.0f) {
+                if (f2 < f1 && f2 > 0.0f) {
+                    if (f3 > 0.0f) {
                         out[0] = item->objgrp.worldmat[0][0] * f2 + pos[0];
                         out[1] = item->objgrp.worldmat[0][1] * f2 + pos[1];
                         out[2] = item->objgrp.worldmat[0][2] * f2 + pos[2];
@@ -2781,8 +2780,8 @@ los_done:
                         out[1] = item->objgrp.worldmat[0][1] * f2 + pos[1];
                         out[2] = item->objgrp.worldmat[0][2] * f2 + pos[2];
                     }
-                } else if (f1 < f2 && f1 > sItemZero) {
-                    if (f4 > sItemZero) {
+                } else if (f1 < f2 && f1 > 0.0f) {
+                    if (f4 > 0.0f) {
                         out[0] = item->objgrp.worldmat[2][0] * f1 + pos[0];
                         out[1] = item->objgrp.worldmat[2][1] * f1 + pos[1];
                         out[2] = item->objgrp.worldmat[2][2] * f1 + pos[2];
@@ -2809,11 +2808,11 @@ los_done:
             nv[0] = hitpt[0] - pos[0];
             nv[1] = hitpt[1] - pos[1];
             nv[2] = hitpt[2] - pos[2];
+            f1 = (f32)((nv[0] * norm[0] + nv[2] * norm[2]) + a);
             out[0] = pos[0];
             out[1] = pos[1];
-            f1 = (f32)((nv[0] * norm[0] + nv[2] * norm[2]) + a);
             out[2] = pos[2];
-            if (f1 > sItemZero) {
+            if (f1 > 0.0f) {
                 out[0] = norm[0] * f1 + out[0];
                 out[2] = norm[2] * f1 + out[2];
             }
@@ -2824,13 +2823,13 @@ los_done:
         tangent_output:
             if (keep == 0) {
                 nv[0] = pos[0] - from[0];
-                nv[1] = sItemZero;
+                nv[1] = 0.0f;
                 nv[2] = pos[2] - from[2];
                 mv[0] = (f32)(cx - from[0]);
-                mv[1] = sItemZero;
+                mv[1] = 0.0f;
                 mv[2] = (f32)(cz - from[2]);
             }
-            if (nv[2] * mv[0] - nv[0] * mv[2] > sItemZero) {
+            if (nv[2] * mv[0] - nv[0] * mv[2] > 0.0f) {
                 f1 = -mv[2];
                 mv[2] = mv[0];
                 mv[0] = f1;
@@ -3519,9 +3518,7 @@ extern s32 damage_player(s32 player, f32 damage, s32 type, u32 flags,
                          f32* direction);
 extern s32 SumnerAnimate(s32 player);
 extern s32 lbl_8034476C;
-extern f64 lbl_80346FD0;
 extern const char lbl_80346FD8[7];
-extern f64 lbl_80346FE0;
 extern f32 sMusicFadeBase;
 
 s32 fn_8005D730(Player* player, Item* item)
@@ -3627,7 +3624,7 @@ s32 fn_8005D730(Player* player, Item* item)
         break;
 
     case 4:
-        if (*(f32*)&item->data[0xC] >= sZeroDouble) {
+        if (*(f32*)&item->data[0xC] >= 0.0) {
             *(u32*)&item->data[8] |= 1;
         }
         if (fqdist(itemPos[0] - playerPos[0],
@@ -3646,7 +3643,7 @@ s32 fn_8005D730(Player* player, Item* item)
                       (itemPos[0] - playerPos[0]) +
                   (playerPos[2] - *(f32*)((u8*)player + 0x884)) *
                       (itemPos[2] - playerPos[2]);
-            if (dot < sItemZero) {
+            if (dot < 0.0f) {
                 result = 1;
             } else {
                 s32 allow;
@@ -3691,11 +3688,11 @@ s32 fn_8005D730(Player* player, Item* item)
                 u8 directionPad[24];
 
                 direction[0] =
-                    (f32)(lbl_80346FD0 * item->objgrp.worldmat[2][0]);
+                    (f32)(-1.0 * item->objgrp.worldmat[2][0]);
                 direction[1] =
-                    (f32)(lbl_80346FD0 * item->objgrp.worldmat[2][1]);
+                    (f32)(-1.0 * item->objgrp.worldmat[2][1]);
                 direction[2] =
-                    (f32)(lbl_80346FD0 * item->objgrp.worldmat[2][2]);
+                    (f32)(-1.0 * item->objgrp.worldmat[2][2]);
                 damage_player(player->index, damage, damageType, flags,
                               direction);
             } else {
@@ -3708,7 +3705,7 @@ s32 fn_8005D730(Player* player, Item* item)
             }
             AudioDamageTile(playerPos, subtype);
             player->fxhittime =
-                (f32)(lbl_80346FE0 * (f64)(item->activetime + 1) +
+                (f32)(0.0333333333 * (f64)(item->activetime + 1) +
                       sMusicFadeBase);
             msgPost(21, player->index, (char*)player->col_pos);
         }
@@ -4324,7 +4321,6 @@ extern f64   lbl_803470C0;
 extern f64   lbl_803470C8;
 extern f64   lbl_803470D0;
 extern f64   lbl_803470D8;
-extern f64   lbl_803470E0;
 extern f32   lbl_80127D00[4];
 extern f32   lbl_8011C904[8];
 extern char  sMissingLookoutParamFmt[];
@@ -6137,8 +6133,6 @@ extern s32 lbl_80344188;
 extern char lbl_8034418C;
 extern f32 lbl_80344190;
 extern f32 lbl_80344194;
-extern f64 lbl_80347008;
-extern f32 lbl_80347010;
 void FatalError(const char* msg, int code);
 f32 CTriListCollide(f32 radius, s32 base, s32 count, u8** outTri,
                     s16* idxList, f32* outPt, s32 layerLo, s32 layerHi,
@@ -6181,13 +6175,13 @@ f32 fn_8005FDA8(u8* e, f32* a, f32* b, f32* outPos, f32* outNorm, f32 margin)
     MulBodyVecMat4(a, lbl_8023F7F8, m);
     MulBodyVecMat4(b, lbl_8023F7E8, m);
     k = m[5];
-    d1 = lbl_80347008 * (k * (lo - m[13]));
-    d2 = lbl_80347008 * (k * (hi - m[13]));
-    lbl_80344194 = lbl_80347010;
-    lbl_80344190 = sCameraVisibilityRadius;
+    d1 = 64.0 * (k * (lo - m[13]));
+    d2 = 64.0 * (k * (hi - m[13]));
+    lbl_80344194 = -0.5f;
+    lbl_80344190 = 2.0f;
     hit = CTriListCollide(margin, *(s16*)(e + 192), *(s16*)(e + 194), &triOut,
                           (s16*)0, pt, (s16)(s32)d1, (s16)(s32)d2, 0);
-    if (hit >= sZeroDouble) {
+    if (hit >= 0.0) {
         if (outNorm != 0) {
             WorldVector((f32*)(triOut + 8), outNorm, m);
         }

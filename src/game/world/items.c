@@ -1590,7 +1590,7 @@ keyring_found:
         DATA_F32(4) = atan2(matrix[8], matrix[10]);
         DATA_S32(8) = 0;
         DATA_F32(12) =
-            instance != NULL ? *(f32*)&params[4] : sZeroDouble;
+            instance != NULL ? *(f32*)&params[4] : 0.0;
         DATA_S16(16) = PARAM_S16(8, 0);
         if (gGameOptions[10] != 0 || DATA_S8(3) < 0) {
             DATA_S8(3) = (s8)sEnemyDefaultAlgorithm[DATA_S16(0)];
@@ -1789,7 +1789,7 @@ keyring_found:
             DATA_F32(4) = 0.0f;
         }
         DATA_F32(8) =
-            instance != NULL ? *(f32*)&params[8] : sZeroDouble;
+            instance != NULL ? *(f32*)&params[8] : 0.0;
         DATA_F32(12) = 0.0f;
         if (item->info->item.subtype != 2) {
             attach_geometry = 0;
@@ -1963,7 +1963,7 @@ count_index_done:
         DATA_S16(16) = PARAM_S16(8, 0);
         DATA_S16(18) = PARAM_S16(10, 0);
         strncpy(item->info->item.desc, instance->desc, 16);
-        DATA_S32(8) = FindWorldAnimNode(&matrix[12], sItemSearchDistance);
+        DATA_S32(8) = FindWorldAnimNode(&matrix[12], 10.0f);
         attach_geometry = 0;
         item->active |= 0x40;
         break;
@@ -2183,8 +2183,8 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
     WorldObj* wtarget = (WorldObj*)target_ptr;
     char* strings = (char*)&sObjectsFile;
     s32 trigger_type = (u8)type;
-    f32 x = (f32)(sItemFloorYOffset * (f32)x_grid);
-    f32 z = (f32)(sItemFloorYOffset * (f32)z_grid);
+    f32 x = (f32)(0.1 * (f32)x_grid);
+    f32 z = (f32)(0.1 * (f32)z_grid);
     s32 i;
     s32 offset;
 
@@ -2210,16 +2210,16 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
                     ErrorPrintf(strings + 0x480, target, old_type, trigger_type);
                 }
             }
-            if (sZeroDouble ==
+            if (0.0 ==
                 (f64)*(f32*)((u8*)runtime->wobjX2 + offset)) {
                 *(f32*)((u8*)runtime->wobjX2 + offset) = x;
                 *(f32*)((u8*)runtime->wobjX + offset) = x;
             }
-            if (sZeroDouble ==
+            if (0.0 ==
                 (f64)*(f32*)((u8*)runtime->wobjZ + offset)) {
                 *(f32*)((u8*)runtime->wobjZ + offset) = z;
             }
-            if (*(f32*)((u8*)runtime->wobjValue + offset) <= sItemZero) {
+            if (*(f32*)((u8*)runtime->wobjValue + offset) <= 0.0f) {
                 *(f32*)((u8*)runtime->wobjValue + offset) = (f32)value;
             }
             return -1;
@@ -2432,7 +2432,7 @@ void SetPlayerStartPos(s32 idx)
         idx = 0;
     }
     posY = (f32*)((u32)base + 3092);
-    if ((double)*(f32*)((u8*)posY + idx * 12) <= sInvalidPlayerStartY) {
+    if ((double)*(f32*)((u8*)posY + idx * 12) <= -100000.0) {
         idx = 0;
     }
     if (WorldOpen(crystal_order[idx]) == 0) {
@@ -2900,12 +2900,12 @@ LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all)
             dz = w->pos[2] - pos[2];
             d2 = dx * dx + dy * dy;
             d2 = dz * dz + d2;
-            if (d2 > sItemZero) {
+            if (d2 > 0.0f) {
                 f64 guess = __frsqrte(d2);
-                guess = sArrowFloorYOffset * guess * (3.0 - guess * guess * d2);
-                guess = sArrowFloorYOffset * guess * (3.0 - guess * guess * d2);
-                guess = sArrowFloorYOffset * guess * (3.0 - guess * guess * d2);
-                root = (f32)(d2 * (sArrowFloorYOffset * guess *
+                guess = 0.5 * guess * (3.0 - guess * guess * d2);
+                guess = 0.5 * guess * (3.0 - guess * guess * d2);
+                guess = 0.5 * guess * (3.0 - guess * guess * d2);
+                root = (f32)(d2 * (0.5 * guess *
                                    (3.0 - guess * guess * d2)));
                 d2 = root;
             }

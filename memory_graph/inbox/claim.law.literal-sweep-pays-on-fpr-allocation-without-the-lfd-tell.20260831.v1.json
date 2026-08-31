@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "src/game/world/items.c::FindClosestWaypoint and src/game/world/gauntworld.c (worktree GDL-Claude-WorldLit, work_claim.gauntworld-literal.20260831.v1, commits a397450fc / cfba57e7b / 99b6006b0). 15 function-scoped extern-literal probes across two NonMatching TUs: 2 improved, 6 neutral, 7 negative-and-reverted. The decisive measurement: FindClosestWaypoint's PRE-literalization `fndiff --ops` read `opcode multiset: IDENTICAL (65/65) -- pure reorder, schedule-class residual` - zero target-only lfd/stfd/lfs, i.e. the literal-sweep tell was completely ABSENT - and literalizing its 5 pool reads (sArrowFloorYOffset->0.5, sItemZero->0.0f in an __frsqrte Newton loop) still moved real 50 -> 16 and objdiff fuzzy 97.97% -> 99.51%, leaving an IDENTICAL multiset with only 3 relocation-name lines, one 4-byte scratch slot and a few FPR colors. Re-verified by reverting exactly those 5 sites, rebuilding the object and re-reading --ops. Conversely fn_8005F0F4 DID show the tell (target-only +3 lfs) and improved 593 -> 546; fn_8005C1DC showed no tell and regressed 424 -> 555; fn_8005FB48 and update_player_milestone had IDENTICAL multisets and regressed 42 -> 78 and 46 -> 70.",
+    "scope": "MWCC GC 1.2.5 family, NonMatching TUs whose split .sdata2 pool entries carry splitter-assigned GLOBAL names (`.obj sItemZero, global` in build/GUNE5D/asm/auto_*_sdata2.s). Refines, does not overturn, claim.law.literal-sweep-needs-lfd-stfd-tell-first: read them together.",
+    "tags": [
+      "matching",
+      "sda-global",
+      "relocation",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:42:24Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "The extern-literal sweep has TWO distinct win classes, and the target-only lfd/stfd prologue-hoist tell detects only the first. (1) OPCODE-STRUCTURAL: target hoists constants into a prologue block, our extern reads reload per use, --ops shows target-only lfd/stfd/lfs - the classic tell. (2) ALLOCATION-ONLY: the opcode multiset is already IDENTICAL, yet an extern read forces MWCC to keep the value LIVE in an FPR across the region (a global load is one value-number the allocator must color), while the same value spelled as a literal is REMATERIALIZED at each use and never enters the interference graph. That changes FPR colors, spill slots and the whole downstream register assignment WITHOUT changing one opcode, so the tell is invisible - but the payoff can be larger than a structural win (FindClosestWaypoint: real 50 -> 16, fuzzy 97.97 -> 99.51, multiset IDENTICAL before AND after). Screening rule that survives both classes: run the tell screen to PRIORITIZE, never to EXCLUDE. Cheap decision procedure, one probe per function: (a) if --ops shows the lfd/stfd/lfs tell, literalize - high prior; (b) if the multiset is IDENTICAL but `real` is high relative to insn count (FindClosestWaypoint: real 50 on 65 insns = 0.77 diffs/insn) the residual IS register coloring, which is exactly what class (2) moves - probe it; (c) if the multiset is IDENTICAL and `real` is already low, or DIFFERS on non-FP opcodes (add/addi, lwzx/lfsx, stfsx - the indexed-addressing family), skip: literalization can only cost relocation names there. COST MODEL, always: each literalized read trades a matching `R_PPC_EMB_SDA21 <named lbl_*>` relocation for an anonymous `<local>` pool entry = +1 real per site, because the splitter emits every .sdata2 entry as a GLOBAL object that our extern spelling matches by name. So the substitution must BUY more than one diff per site or it loses arithmetically - which is why the neutral and negative outcomes cluster on functions with few sites and no register pressure. Corollary on scoping (independently confirms claim.law.tu-wide-literalization-breaks-matched-sibling-pool-relocs): substituting inside ONE function's line range while leaving the shared file-scope `extern` declaration and every sibling's reads untouched kept all 32 gauntworld and all 40 items real-0 functions byte-identical across 15 probes - per-function line-range scoping is the mechanism that makes the sweep safe, and a shared label is never a reason to skip a function, only a reason not to sweep the TU."
+}
