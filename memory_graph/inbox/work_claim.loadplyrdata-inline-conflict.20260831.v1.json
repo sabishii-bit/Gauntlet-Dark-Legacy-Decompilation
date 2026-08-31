@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXACT-DRIVE lane, src/game/sfx/psfx.c: LoadPlyrData at real 465 (from 1635; frame closed EXACT at 776 both sides \u2014 attempt.loadplyrdata-inline-frame-macro-conversion.20260831.v1). The named residual: the TU needs ONE real `bl PlayerSfxInitData` while the swap helpers inline, and claim.law.dont-inline-pragma-is-function-granular-and-unoverridable.20260831.v1 proves pragma forms cannot deliver both. THE UNTRIED LEVER (screen it first): MWCC's defined-before-use inline rule (search laws for mwcc-inline / defined-before) \u2014 a callee defined AFTER its caller in the TU cannot be inlined, no pragma involved. If PlayerSfxInitData's definition moves below LoadPlyrData (or becomes a forward-declared fn defined later), the bl should appear while the helpers (defined above) still inline. Check the TARGET's TU function order (address order in the split object = source order) to see where retail actually placed it \u2014 order is evidence, not a free choice. Watch sdata2/pool-order side effects (stripped fns still order the pool). After the bl lands, re-run regnorm + webfrank_audit as diagnostics (CheckSpecials precedent). psfx.c siblings hold: defake_gate baseline first. Exact or named park; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:LoadPlyrData",
+  "id": "work_claim.loadplyrdata-inline-conflict.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-LP",
+  "recorded_at": "2026-08-31T20:13:25Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

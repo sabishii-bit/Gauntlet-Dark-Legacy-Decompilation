@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOUNDNESS SWEEP lane from claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1 (BT found a ghost extern \u2014 a symbol defined NOWHERE, latent undefined: at link \u2014 hiding under real 0). Sweep the image: run regnorm on every NonMatching-TU function scoring real 0 or RELOCATION_ONLY with nonzero diff lines (fndiff --classify per TU builds the roster); flag every STRUCTURAL row that is a reloc-symbol mismatch. Classify each: (a) GHOST EXTERN (our symbol defined nowhere in tree + absent from symbols.txt) \u2014 fix to the target's symbol, byte-gate (the gate will flag reloc drift moving TOWARD target: that is the documented arbitration case, record it); (b) DUPLICATE lbl_ (two TUs invented different names for one datum \u2014 pb_diag/atree precedent) \u2014 collapse to one real name via the cross-TU rename protocol (grep src/ AND build/**/*.s, scope global, remove stale .s/.o, reconfigure); (c) dtk artifact (.bss section-addend class \u2014 claim.law.bss-array-reloc-names-its-section-not-the-object.20260831.v1) \u2014 record, do not chase; (d) alias spelling already handled by fndiff normalization \u2014 skip. SKIP TUs owned this run: psfx, bosscam, camera, pmotion, pb_window, plus the DC roster TUs. Deliverable: the image-wide defect table + fixes, each gated + full ninja sha1 green. NAMESPACE scratch 'RS_'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:TriLineCol",
+  "id": "work_claim.reloc-symbol-sweep.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-RS",
+  "recorded_at": "2026-08-31T20:13:39Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

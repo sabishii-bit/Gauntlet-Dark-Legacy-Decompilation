@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "DELTA-DRIVE lane from claim.law.inline-frame-candidates-need-a-target-minus-ours-delta-census.20260831.v1 (lane-B census, 19 real candidates; the worked ones are done). YOUR ROSTER, by |delta|: StartExplosion delta -64 (WE over-reserve \u2014 the REVERSE signature: check whether OUR code declares inline helpers/locals retail didn't have, or an oversized pad), StringTextHeightSub +32, StringTextWidthSub +12, ProcessEffects -16, AudioWithName -16, SetItem -12; PLUS sndFxQueAddEx (game/audio/sndfx.c, real 30: residual = 8-byte frame over-reservation w/ every slot shifted +8 + 3 pointer-reassociation rows \u2014 attempt.sndfxqueaddex-named-queue-slot-array-and-frame-floor.20260831.v2 has the map; the association axis is closed at 3 forms, the FRAME axis is the open one). Method per function: gdlmem context screen; CALIBRATED frame measurement (the alias-aware recipe \u2014 claim.law.frame-pointer-alias-fakes-a-dead-low-region.20260831.v1: reproduce the law's 5 published values with your script BEFORE trusting any number); 8-byte-ruler probes (claim.law.frame-deltas-must-be-probed-with-an-eight-byte-ruler.20260831.v1); slot-order law for placement; regnorm + audit after every frame close. Verify a pad is LOAD-BEARING before probing it (someone_will_be_off_screen's inert-pad finding). Commit per function; gate per TU; skip psfx.c (LP lane). Exact or named park w/ measurement resolution; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:StartExplosion",
+  "id": "work_claim.delta-census-remainder.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-DC",
+  "recorded_at": "2026-08-31T20:13:30Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

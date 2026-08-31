@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "LABEL-CORRECTION lane, industrializing PK's finding (claim.park-law-age-revisit-census.20260831.v1: of 26 REGISTER_ONLY parks screened, the label was right LESS THAN HALF the time; 3 had structure hiding under it \u2014 one shipped semantic bug was found under exactly this label). Roster: every parked/capped attempt whose residual_class contains REGISTER_ONLY or SCHEDULE that PK did NOT already screen (its census record lists the 26 \u2014 do not re-screen those; parse records/attempts/**.json for the rest). Per function: run regnorm --map. STRUCTURAL-PRESENT => read every structural row against target bytes: wrong displacement = possible SEMANTIC BUG (fix from target authority \u2014 the get_player_pos col_pos/effectpos precedent); commuted operands (bidirectional INCONSISTENT map pair) = source-reachable per claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1 \u2014 fix the expression order; wrong reloc symbol = RS lane's class, hand off unless trivial. Correct each park's record (supersede w/ the true label + measurement). Drive to exact only where a fix reveals a short path; otherwise the corrected label IS the deliverable. SKIP TUs owned this run (psfx, bosscam, camera, pmotion, pb_window, DC roster TUs) and PK's 26. Commit per function; gate per TU. NAMESPACE scratch 'MP_'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:AddLocatorInstList",
+  "id": "work_claim.regnorm-park-correction.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-MP",
+  "recorded_at": "2026-08-31T20:13:48Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

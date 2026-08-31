@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "RESUMPTION lane, src/game/pb/pb_window.c: an old endgame note records 4 functions at 95-99%% with listed residuals, never resumed since the modern law corpus landed. Method: gdlmem brief game/pb/pb_window + context per candidate (parks there predate EVERY 2026-08-31 law \u2014 park-age-vs-law-age applies, but use MEASUREMENT-FIRST triage per claim.park-law-age-revisit-census.20260831.v1: run each law's prescribed measurement to falsify the park's LABEL before probing its axis; REGISTER_ONLY labels are wrong <50%% in this corpus). Known TU mechanics from the old note: scratch-array v[50]+vp mechanism, inlined-helper laws (inliner runs post-gcse), cast-transit no-CSE \u2014 verify each against current records (they may be superseded). Tools: regnorm first on everything; 8-byte ruler for frames; aligned fnasm reads; webfrank pin screen FIRST (pb TUs have pins; pinned source frozen; first-rule-needs-configure trap #6). Commit per function; gate; exact or resolution-stamped park; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:MBWindowProject",
+  "id": "work_claim.pb-window-endgame.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PB",
+  "recorded_at": "2026-08-31T20:13:43Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
