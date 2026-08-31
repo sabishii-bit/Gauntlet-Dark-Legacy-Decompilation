@@ -278,11 +278,10 @@ f32 sndFxQueAddEx(int mode, int soundId, f32 vol, f32 param, int pri, int track,
     }
     if (soundId >= 0) {
         SndBankHdr* bt = (SndBankHdr*)sAudioBankTable;
-        SndDesc44* dt;
         SndDescRec* rt;
         int di;
-        dt = (SndDesc44*)bt->tbl16;
-        di = (soundId & 0xFFF) + dt[soundId >> 16].base;
+        di = (soundId & 0xFFF)
+             + ((SndDesc44*)bt->tbl16)[soundId >> 16].base;
         if (vol <= 0.0) {
             rt = (SndDescRec*)bt->tbl20;
             vol = 60.0f * rt[di].vol;
