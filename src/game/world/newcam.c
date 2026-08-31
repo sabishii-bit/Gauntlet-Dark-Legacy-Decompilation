@@ -423,7 +423,7 @@ extern void write_stage_info(s32 mode);
 
 extern s32       gGameBusy;   /* master camera-disable flag */
 extern void*     gFrameTicks;   /* camera-enable gate (nonzero to run) */
-extern s32       gGameMode;   /* camera-path mode selector (0x4010 = scripted) */
+extern s32       gGameMode;   /* game mode; see enum e_mode (MG_PLAY = scripted) */
 extern s32       gScriptedCameraState;   /* scripted-path sub-state */
 extern f32*      CurTransmitter;  /* active transmitter marker record (f32 view) */
 extern s32       lbl_803447B8;    /* scripted-path done flag (cleared on finish) */

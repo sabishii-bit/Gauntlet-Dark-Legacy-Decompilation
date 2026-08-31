@@ -54,7 +54,7 @@ extern short lbl_80120240[];          /* lbl_80120240 */
 /* small-data (sda/sbss) globals */
 extern int gCurWorld;
 extern int gLanguageId;
-extern int gGameMode;
+extern s32 gGameMode;   /* game mode; see enum e_mode */
 extern int gGameBusy;
 extern int gFrameTicks;
 extern int gGameplayPauseTimer;

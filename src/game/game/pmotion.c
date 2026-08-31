@@ -79,7 +79,7 @@ typedef struct PCollideItemLayout {
 /* extern globals (.sbss/.sdata runtime state)                         */
 /* ------------------------------------------------------------------ */
 
-extern s32 gGameMode;   /* game state (0x4010 = in-game) */
+extern s32 gGameMode;   /* game state; see enum e_mode (MG_PLAY = in-game) */
 extern f32 gClockFrameReciprocal; /* inverse frame delta */
 extern s32 gFrameTicks;   /* frame delta (int) */
 extern s32 lbl_803447B8;   /* pause/menu depth */

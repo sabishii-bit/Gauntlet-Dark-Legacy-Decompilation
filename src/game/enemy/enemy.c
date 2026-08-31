@@ -5742,7 +5742,7 @@ extern s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active);
 extern void StartGenFX(f32* pos, s32 level);
 extern s32 gBossType;
 extern s32 gBossDying;
-extern s32 gGameMode;      /* current map/world id */
+extern s32 gGameMode;      /* current game mode; see enum e_mode */
 extern s32 lbl_803447DC;      /* generators-disabled flag */
 extern s32 lbl_8034472C;      /* random-type rotation counter */
 extern u8 lbl_8011AF48[];     /* enemy.c .data anchor (type tables at +4284..) */
