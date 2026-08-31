@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "src/game/sound/sounds_evt.c, worktree GDL-Claude-SoundsEvt, work_claim.sounds-evt-drive.20260831.v1, 2026-08-31. Full-TU census: `python tools/gdl/fndiff.py game/sound/sounds_evt.c --classify` returns 118 rows = 86 EXACT + 27 RELOCATION_ONLY + 3 STRUCTURAL + 2 OPERAND_DIFF, i.e. 32 rows that read as outstanding work. `python tools/gdl/defake_gate.py baseline game/sound/sounds_evt.c` on the same object reports '118 functions (115 at real 0)'. Per-function probe.py confirms the reconciliation: all 27 RELOCATION_ONLY rows are `MATCH (pool-name noise only), 0 real diff lines` (spot-checked fn_8009EF7C), and BOTH OPERAND_DIFF rows are real 0 \u2014 AudioTowerFX (T36/O36) and fn_8009DB24 (T100/O100). Only 3 rows carry a real residual: DoAudioTallySFX real 5, AudioEnterNextStage real 4, AudioSetupBossStreams real 1308.",
+    "scope": "tools/gdl/fndiff.py --classify on any NonMatching TU compiled for objdiff comparison; the OPERAND_DIFF half is specific to functions containing a `switch` that MWCC lowers to a jumptable.",
+    "tags": [
+      "matching",
+      "metrics",
+      "workflow",
+      "relocation",
+      "symbol-identity"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.classify-labels-overcount-work-by-an-order-of-magnitude.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T21:42:11Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "A `fndiff --classify` roster is a LABEL census, not a work queue, and on a mature TU it can overstate the remaining work by an order of magnitude: in game/sound/sounds_evt.c, 32 of 118 rows classify as non-EXACT but only 3 carry a non-zero `real`. The 29 false positives come in exactly two flavours, and BOTH are cheap to recognise before any source is read. (1) RELOCATION_ONLY (27 rows here) is the .sdata2/constant-pool NAME noise that `fndiff --clean` already suppresses and reports as `MATCH (pool-name noise only), 0 real diff lines`; it is not a residual at all. (2) OPERAND_DIFF can be produced ENTIRELY by compiler-generated switch jumptables, with an identical instruction stream on both sides: the split object relocates the table load against a named local symbol (`jumptable_801243DC`, `scope:local` in config/GUNE5D/symbols.txt) while our freshly-compiled object emits an anonymous section-relative reloc, which the differ renders as `@0x801243A8` versus `<local>` and scores as an operand difference. Both AudioTowerFX and fn_8009DB24 sit at real 0 purely for this reason, and no source change can or should close it \u2014 it is the 'verified symbol-name normalization issue' AGENTS.md already exempts from the EXACT bar. THE OPERATIONAL RULE, which costs one command: take the `defake_gate.py baseline` line ('N functions (M at real 0)') as the authoritative count of outstanding work in a TU and let it arbitrate the classify roster, or equivalently run probe.py per candidate before reading any diff \u2014 do NOT size a lane, build a queue, or estimate a session from classify labels alone. THE SAME ARTIFACT ALSO CONTAMINATES regnorm: the STRUCTURAL rows reported at 0x7c-0x80 of AudioSetupBossStreams are `jumptable_801243DC` vs `@656` reloc-annotation rows, so a jumptable in the function inflates the STRUCTURAL row count on that tool too. Diagnostic tell for the jumptable flavour, distinguishing it from a real operand gap in one glance: the differing operand is a relocation ANNOTATION line rather than an instruction line, the instruction counts are equal, and the symbol on the target side matches `jumptable_[0-9a-f]{8}`."
+}
