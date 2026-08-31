@@ -566,13 +566,13 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                         }
                         fx = (u8*)Effects + ei * 240;
                         if (*(f32*)(row + offsetof(plyr_damage, weight)) > zero) {
-                            *(f32*)(fx + 160) =
-                                *(f32*)(fx + 160) * *(f32*)(row + offsetof(plyr_damage, weight));
+                            *(f32*)(fx + offsetof(Effect, weight)) =
+                                *(f32*)(fx + offsetof(Effect, weight)) * *(f32*)(row + offsetof(plyr_damage, weight));
                         }
                         if (*(s16*)(row + offsetof(plyr_damage, flags)) & 0x1000) {
-                            if (*(void**)(fx + 212) != NULL) {
-                                MBRemovePolyInst(*(void**)(fx + 212));
-                                *(s32*)(fx + 212) = 0;
+                            if (*(void**)(fx + offsetof(Effect, streak)) != NULL) {
+                                MBRemovePolyInst(*(void**)(fx + offsetof(Effect, streak)));
+                                *(s32*)(fx + offsetof(Effect, streak)) = 0;
                             }
                         }
                     }
@@ -647,15 +647,15 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
         if (other != NULL) {
             MulBodyVecMat4((f32*)other, (f32*)other, ((Player*)p)->mat);
             pos[0] = *(f32*)other + pos[0];
-            pos[1] = *(f32*)(other + 4) + pos[1];
-            pos[2] = *(f32*)(other + 8) + pos[2];
+            pos[1] = ((f32*)other)[1] + pos[1];
+            pos[2] = ((f32*)other)[2] + pos[2];
         }
     } else {
         if (other != NULL) {
             MulVecMat3((f32*)(row + offsetof(plyr_damage, offset[0])), pos, ((Player*)p)->mat);
             pos[0] = *(f32*)other + pos[0];
-            pos[1] = *(f32*)(other + 4) + pos[1];
-            pos[2] = *(f32*)(other + 8) + pos[2];
+            pos[1] = ((f32*)other)[1] + pos[1];
+            pos[2] = ((f32*)other)[2] + pos[2];
         } else {
             MulVecMat4((f32*)(row + offsetof(plyr_damage, offset[0])), pos, ((Player*)p)->mat);
         }
@@ -1450,9 +1450,9 @@ void LoadPdataFile(void)
     zero2 = index;
     do {
         record = temp + index * 4;
-        *(s32*)(record + 0x20) = -1;
-        *(void**)(record + 0x30) = AllocMem(maxSize);
-        *(s32*)(record + 0x80) = zero2;
+        *(s32*)(record + offsetof(PsfxPdataBuf, cur)) = -1;
+        *(void**)(record + offsetof(PsfxPdataBuf, bufs)) = AllocMem(maxSize);
+        *(s32*)(record + offsetof(PsfxPdataBuf, headers)) = zero2;
         index++;
     } while (index < 4);
 }
