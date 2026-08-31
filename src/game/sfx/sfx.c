@@ -708,13 +708,14 @@ static s32 StartFXSubGutsP(EffectPage* page, s32 type, f32* pos, u32 fla, u32 fl
 {
     s32 idx = -1;
     EffectHeader* h;
+    struct atreeheader* at;
 
     if (type < 0 || type >= MAXEFFECTTYPES) {
         ErrorPrintf("Bad Effect type: %d", type);
         return -1;
     }
     h = &page->info[type];
-    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, fla, flb, time)) >= 0) {
+    if ((at = h->atree) != NULL && (idx = StartFXTree(at, pos, fla, flb, time)) >= 0) {
         MBTreeSetZsortAdd(page->fx[idx].node, h->zmod, 1);
         MBTreeSetAlpha(page->fx[idx].node, h->alpha, 1);
         page->fx[idx].type = (fx_type)type;
@@ -751,14 +752,16 @@ s32 StartGenFX(f32* pos, s32 n)
 /* gem/rune/garg pickup fx: special-cased constant types + generic default */
 s32 StartGemFX(f32* pos, s32 sel)
 {
+    EffectPage* page = (EffectPage*)EffectInfo;
     s32 ret;
+    u32 fla = 0x80880;
 
     if (sel == 0x400) {
-        ret = StartFXSubGuts(FX_GET_RUNE, pos, 0, 0x80880, 0.0f);
+        ret = StartFXSubGutsP(page, FX_GET_RUNE, pos, 0, fla, lbl_80348068);
     } else if (sel == 0x100) {
-        ret = StartFXSubGuts(FX_GET_GARG, pos, 0, 0x80880, 0.0f);
+        ret = StartFXSubGutsP(page, FX_GET_GARG, pos, 0, fla, lbl_80348068);
     } else {
-        ret = StartFXSubGuts(sel + 69, pos, 0, 0x80880, 0.0f);
+        ret = StartFXSubGutsP(page, sel + 69, pos, 0, fla, lbl_80348068);
     }
     return ret;
 }
