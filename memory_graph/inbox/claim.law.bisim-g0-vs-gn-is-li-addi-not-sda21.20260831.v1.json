@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "Lane claude-fleet-worker-SD, work_claim.sda21-class-drive.20260831.v1, worktree GDL-Claude-Sda21 @ main 561994d6. Method: ran `fndiff --clean` against all nine functions the frontier record named as sharing the 'base register presence differs (g0 vs gN)' signature, and read the relocation annotations on every divergent line. Evidence per function recorded in the value field.",
+    "scope": "WebFrank bisimulation (webfrank.verify_consistent_recolor) reject triage, MWCC GC 1.2.5 family; applies to any future eligibility sweep reading base-register-field mismatches out of the position-lockstep renaming bisimulation.",
+    "tags": [
+      "postprocessor",
+      "relocation",
+      "sda-global",
+      "register-web",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.bisim-g0-vs-gn-is-li-addi-not-sda21.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T17:46:23Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A 'base register presence differs (g0 vs gN)' reject from the WebFrank renaming bisimulation is NOT evidence of an SDA21-vs-absolute addressing-mode difference. It is the `li`/`addi` extended-mnemonic artifact: `li rD,K` IS `addi rD,0,K`, so its RA field is literally 0, while a register copy `addi rD,rS,0` has RA=rS. A positional bisimulation comparing the two therefore reports a base-register field of g0 against gN even though no relocation and no addressing mode is involved. The inference 'RA=0 means the linker supplies the base' is sound ONLY for an instruction actually carrying an R_PPC_EMB_SDA21 relocation; it is invalid when applied to the RA field of an arbitrary D-form instruction. DIRECT REFUTATION of the SDA21 framing in claim.webfrank-eligibility-frontier-closed.20260831.v1: all nine functions it grouped under that signature were re-diffed with `fndiff --clean` and ZERO of them show any SDA21-vs-absolute divergence. In every case the genuinely SDA21-relocated instructions appear as UNCHANGED CONTEXT lines in both streams (e.g. AudioUnloadPart's `lwz r4,0(0) @gAudioBankTbl(EMB_SDA21)`, fn_80054E78's `lfd f2,0(0) EMB_SDA21`, scroll_credits' `lwz ...,0(0) EMB_SDA21`), and every ADDR16_HA/ADDR16_LO absolute pair is likewise present and identical on both sides. The nine decompose into THREE already-known mechanisms, none of them addressing-mode and none of them a new class: (1) CONSTANT-COPY-VS-REMATERIALIZE, five members -- AudioBankLoadName (+0x34 target `addi r25,r30,0` vs ours `li r25,0`), AudioBankQueueName (+0x34 `addi r29,r28,0`), AudioUnloadPart (+0x24 `addi r29,r31,0`), fn_8006E654 (+0x3c `addi r30,r29,0`), and one cluster of gamemain fn_80054E78 (`addi r30,r29,0`); this is exactly claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1, already parked with an exhaustive do-not-retry list. (2) PREHEADER SCHEDULE, two members -- CritterLoadDone and CritterLoadStartNext, whose only divergence is that target emits the loop's `li r5,0` index init BEFORE the hoisted base-address `addi r4,r3,LO` while ours emits it after; opcode multiset IDENTICAL (0t), a pure reorder. (3) REGISTER PERMUTATION, two members -- LoadPdataFile (r24/r25/r26/r28 rotation, all ADDR16_LO forms identical on both sides) and scroll_credits (r26/r27/r28/r29/r30/r31 rotation). scroll_credits carries one genuinely non-register difference that is also NOT addressing-mode: its `lis`/`addi` pair relocates against `<local>` in target but against the named symbol `credit_text` in ours -- a relocation-symbol-granularity/data-layout question, not a choice between small-data and absolute addressing. CONSEQUENCE FOR PLANNING: there is no 'SDA21 addressing-mode class' to drive and no declaration-shape lever to find; -sdata/-sdata2 thresholds, extern sizedness, and splits.txt section placement are all irrelevant to these nine. Any future sweep must triage a base-register-field reject by reading the instruction's RELOCATION annotation before naming a mechanism."
+}
