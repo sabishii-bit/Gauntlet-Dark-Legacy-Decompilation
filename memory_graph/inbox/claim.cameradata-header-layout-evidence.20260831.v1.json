@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "work_claim.cameradata-sweep.20260831.v1, worktree GDL-Claude-CamData, branch claude/cameradata-sweep-20260831. Addresses from config/GUNE5D/symbols.txt; relocations from tools/gdl/fnasm.py on 19 functions across combat.c and camera.c; field semantics cross-read from src/game/sys/recorder.c and from the clamp direction in combat.c get_attn_pos_8002C9A8. Every conversion built on this layout gated byte-identical (tools/gdl/defake_gate.py check --rebuild).",
+    "tags": [
+      "symbol-identity",
+      "walked-pointer",
+      "defake",
+      "offsetof-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.cameradata-header-layout-evidence.20260831.v1",
+  "kind": "claim",
+  "predicate": "struct_layout",
+  "recorded_at": "2026-08-31T03:38:29Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/combat",
+  "valid_from": "2026-08-31",
+  "value": "include/game/cameradata.h documents the camera-supervisor .bss run that combat.c and camera.c walk off the `gCameraState` base. gCameraState is NOT one object: its linked symbol is 0x34 bytes, but the walk reaches +0x97C, crossing SIX consecutive gap-free symbols whose end addresses each equal the next start -- 0x8023F808 gCameraState (0x34), 0x8023F83C gRecorderCameraPosition (0x0C), 0x8023F848 lbl_8023F848 (0x1C), 0x8023F864 gCameraTargetPositions (0x6C), 0x8023F8D0 gCameras (0x948), 0x80240218 gCameraTargets (0x348). Hence CAMERA_STATE_CAMERAS_OFF = 0xC8 and CAMERA_STATE_TARGETS_OFF = 0xA10 (the latter recovered by resolving the previously unexplained `cs + 2576` in InitCamera). The header's CameraStateData covers only the 0xC8 prefix and is SCALARS/arrays-of-scalars ONLY, per claim.law.embedded-struct-member-whole-tu-cascade: +0x00 _pad00[0x10] (untouched by either TU), +0x10 unk10[3] (zeroed as a 3-run by InitCamera; camera_orbit_update uses [0] as a 'previous' slot and [1] as its history successor -- named neutrally because the purpose is unconfirmed), +0x1C start_wpos[3] and +0x28 start_attn[3] (InitCamera seeds cameras[0].wpos/attn from these, x scaled by sin, z by cos, y copied), +0x34 recorder_wpos[3] (IS gRecorderCameraPosition; recorder.c round-trips its saved camera position through it), +0x40 reticle_depth[7] (IS lbl_8023F848; recorder.c mirrors it to sReticleDepth), +0x5C reticle_pos[21] (IS gCameraTargetPositions[0..20]; recorder.c mirrors it to sReticlePos[7][3]), +0xB0 attn_max[3] and +0xBC attn_min[3] (get_attn_pos_8002C9A8 clamps a candidate attention point DOWN to attn_max and UP to attn_min per component; the comparison direction in that loop is what fixes which vector is which, and camera_mode_level writes the same two triples from the level camera record). WIDTH RECONCILIATION, recorded rather than guessed: gCameraTargetPositions is declared `[27]` in combat.c but `[7][3]` (21) in camera.c and recorder.c; symbols.txt size 0x6C == 27 f32 makes `[27]` the true extent, `[7][3]` a partial under-declaration, and the 6 f32 it omits are exactly attn_max/attn_min -- which is why those read as 'past the end' of the target-position array. The two declarations disagree about no shared byte and neither was changed. Fields at +0xC8 and beyond are spelled with game/camera.h's Camera type instead of entering this header; independently recovered offsets from BOTH TUs land on that already-verified layout with zero deltas (cs+200 state, +300 wpos, +364 pyr, +396 radius, +424..436 num1/num2/num3/c_mode, +500 attn, row+252 mat[3] translation row, state+0x1C8 pn, state+0x97C cameras[5].a_mode), which is a second-TU confirmation of camera.h. camera.c additionally keeps a FILE-LOCAL aggregate companion `CameraStateView` (Camera cameras[6] + CameraTarget targets[15]) for the two functions that genuinely use member access; it now draws its prefix size from CAMERA_STATE_CAMERAS_OFF so the two descriptions cannot drift."
+}

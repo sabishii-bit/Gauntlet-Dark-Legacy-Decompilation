@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "work_claim.cameradata-sweep.20260831.v1 (worktree GDL-Claude-CamData). Census run with `tools/gdl/fnasm.py <unit> <fn>` on 19 functions, reading the relocation name on the lis/addi pair: combat.c DiffRate_8002951C, cam_orient_to_80029E8C, init_game_cam, get_cam_wpos_8002ABE0, someone_will_be_off_screen, StandardCamera_8002B828, add_target, get_attn_pos_8002C9A8, InitCamera, ProcCamera_8002E548; camera.c do_camera, camera_init_for_gamemode, camera_mode_follow, camera_orbit_update, camera_mode_level, camera_mode_spin, debug_camera_pos, camera_debug_supervisor, camera_collide_step. Result verified by converting 143 sites to offsetof addends on the unchanged base with GATE OK (byte-identical) at every step.",
+    "tags": [
+      "symbol-identity",
+      "walked-pointer",
+      "defake",
+      "relocation",
+      "offsetof-form",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.walked-blob-is-one-base-with-per-function-exceptions.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:38:35Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "When MWCC compiles a function that touches a run of adjacent .bss globals through one walked base, it materialises the base symbol ONCE (a single lis/addi relocation pair into one register) and reaches EVERY field in the run by displacement -- including fields that lie inside later, separately-named, first-class global symbols. The practical consequence for de-fakematch work is stronger than claim.law.walked-base-symbol-identity states on its own: the correct conversion is not merely 'check which symbol the offset belongs to', it is 'the base symbol is a per-FUNCTION fact, and within a function it is a single fact covering the whole run'. Verified on the GDL camera-supervisor block, six gap-free .bss symbols spanning 0x8023F808..0x80240560 (gCameraState 0x34, gRecorderCameraPosition, lbl_8023F848, gCameraTargetPositions, gCameras 0x948, gCameraTargets): 18 of 19 functions across TWO TUs relocate @gCameraState and reach gCameras' fields at +0xC8.. and gCameraTargets at +0xA10 as plain displacements, never emitting a @gCameras relocation at all -- even though gCameras is a fully typed, independently declared `Camera gCameras[6]` that a reconstructor would naturally reach for. The nineteenth, camera.c's camera_collide_step, relocates @gCameras instead, in the SAME TU as eight @gCameraState functions. So the exception is real, is not predictable from the source's shape or the field's identity, and must be measured per function. Method that makes this cheap and safe: (1) run fnasm.py on the target and read the relocation name on the lis/addi pair -- one command per function, and a whole TU's census is one loop; (2) convert ONLY by replacing the numeric addend with an offsetof() expression of identical value on the ORIGINAL base expression, never by re-basing onto the semantically 'better' symbol and never by casting the base to a view pointer; (3) express the cross-symbol jump as a named constant (CAMERA_STATE_CAMERAS_OFF 0xC8, CAMERA_STATE_TARGETS_OFF 0xA10) rather than re-deriving it per site. Under that method all 143 conversions across the two TUs gated byte-identical on the first attempt, including one unbisected 83-site batch, because the emitted relocation cannot change by construction. Corollary for planning: a whole-blob shared header is worth building for such a run, but it must hold scalars only (claim.law.embedded-struct-member-whole-tu-cascade) and it must be documented as a VIEW that never re-bases, or it will invite exactly the re-basing this law forbids."
+}

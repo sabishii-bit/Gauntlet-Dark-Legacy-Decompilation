@@ -15,6 +15,7 @@
 
 #include "types.h"
 #include "game/camera.h"
+#include "game/cameradata.h"
 #include "game/enemy.h"
 #include "game/player.h"
 #include "game/worldinfo.h"
@@ -347,10 +348,10 @@ void DiffRate_8002951C(s32 camIdx)
             lbl_80344400 = 0;
         }
     }
-    if ((cam->pyr[1] > lbl_80345EC8 && *state5 > lbl_80345EC8 &&
-         camState[4] < lbl_80345EC8) ||
-        (cam->pyr[1] < lbl_80345EC8 && *state5 < lbl_80345EC8 &&
-         camState[4] > lbl_80345EC8)) {
+    if ((cam->pyr[1] > 0.0f && *state5 > 0.0f &&
+         camState[4] < 0.0f) ||
+        (cam->pyr[1] < 0.0f && *state5 < 0.0f &&
+         camState[4] > 0.0f)) {
         cam->pyr[1] = lbl_80344534;
         lbl_80344400 = 0;
     }
@@ -433,7 +434,7 @@ void CameraSupervisor(s32 camIdx)
     u8* secondTrigger;
     f32 nearestDistance = lbl_80346030;
     f32 secondDistance = nearestDistance;
-    f32 nearestYaw = lbl_80345EC8;
+    f32 nearestYaw = 0.0f;
     f32 secondYaw = nearestYaw;
     f32 nearestPitch = nearestYaw;
     f32 secondPitch = nearestYaw;
@@ -460,17 +461,17 @@ void CameraSupervisor(s32 camIdx)
                 distance = dy * dy;
                 distance = dx * dx + distance;
                 distance = dz * dz + distance;
-                if ((f64)distance > (f64)lbl_80345EC8) {
+                if ((f64)distance > (f64)0.0f) {
                     root = __frsqrte(distance);
-                    root = lbl_80345F18 * root *
-                           -(root * root * distance - lbl_80345F20);
-                    root = lbl_80345F18 * root *
-                           -(root * root * distance - lbl_80345F20);
-                    root = lbl_80345F18 * root *
-                           -(root * root * distance - lbl_80345F20);
+                    root = 0.5 * root *
+                           -(root * root * distance - 3.0);
+                    root = 0.5 * root *
+                           -(root * root * distance - 3.0);
+                    root = 0.5 * root *
+                           -(root * root * distance - 3.0);
                     scratch.candidateRoot =
-                        (f32)(distance * (lbl_80345F18 * root *
-                        -(root * root * distance - lbl_80345F20)));
+                        (f32)(distance * (0.5 * root *
+                        -(root * root * distance - 3.0)));
                     distance = scratch.candidateRoot;
                 }
 
@@ -531,17 +532,17 @@ void CameraSupervisor(s32 camIdx)
         segmentLength = sy * sy;
         segmentLength = sx * sx + segmentLength;
         segmentLength = sz * sz + segmentLength;
-        if ((f64)segmentLength > (f64)lbl_80345EC8) {
+        if ((f64)segmentLength > (f64)0.0f) {
             root = __frsqrte(segmentLength);
-            root = lbl_80345F18 * root *
-                   -(root * root * segmentLength - lbl_80345F20);
-            root = lbl_80345F18 * root *
-                   -(root * root * segmentLength - lbl_80345F20);
-            root = lbl_80345F18 * root *
-                   -(root * root * segmentLength - lbl_80345F20);
+            root = 0.5 * root *
+                   -(root * root * segmentLength - 3.0);
+            root = 0.5 * root *
+                   -(root * root * segmentLength - 3.0);
+            root = 0.5 * root *
+                   -(root * root * segmentLength - 3.0);
             scratch.segmentRoot =
-                (f32)(segmentLength * (lbl_80345F18 * root *
-                -(root * root * segmentLength - lbl_80345F20)));
+                (f32)(segmentLength * (0.5 * root *
+                -(root * root * segmentLength - 3.0)));
             segmentLength = scratch.segmentRoot;
         }
 
@@ -551,17 +552,17 @@ void CameraSupervisor(s32 camIdx)
         projectedDistance = sy * sy;
         projectedDistance = sx * sx + projectedDistance;
         projectedDistance = sz * sz + projectedDistance;
-        if ((f64)projectedDistance > (f64)lbl_80345EC8) {
+        if ((f64)projectedDistance > (f64)0.0f) {
             root = __frsqrte(projectedDistance);
-            root = lbl_80345F18 * root *
-                   -(root * root * projectedDistance - lbl_80345F20);
-            root = lbl_80345F18 * root *
-                   -(root * root * projectedDistance - lbl_80345F20);
-            root = lbl_80345F18 * root *
-                   -(root * root * projectedDistance - lbl_80345F20);
+            root = 0.5 * root *
+                   -(root * root * projectedDistance - 3.0);
+            root = 0.5 * root *
+                   -(root * root * projectedDistance - 3.0);
+            root = 0.5 * root *
+                   -(root * root * projectedDistance - 3.0);
             scratch.projectedRoot =
-                (f32)(projectedDistance * (lbl_80345F18 * root *
-                -(root * root * projectedDistance - lbl_80345F20)));
+                (f32)(projectedDistance * (0.5 * root *
+                -(root * root * projectedDistance - 3.0)));
             projectedDistance = scratch.projectedRoot;
         }
 
@@ -575,7 +576,7 @@ void CameraSupervisor(s32 camIdx)
                 (distance - lbl_80345F28) - lbl_80345FE0);
         }
 
-        if ((f64)projectedRatio <= lbl_80345F18) {
+        if ((f64)projectedRatio <= 0.5) {
             lbl_80344534 = nearestYaw;
             lbl_80344530 = nearestPitch;
             lbl_80344508 = lbl_80344510;
@@ -584,7 +585,7 @@ void CameraSupervisor(s32 camIdx)
             } else {
                 lbl_80344404 = -1;
             }
-        } else if ((f64)projectedRatio > lbl_80345F18) {
+        } else if ((f64)projectedRatio > 0.5) {
             lbl_80344534 = secondYaw;
             lbl_80344530 = secondPitch;
             lbl_80344508 = lbl_8034450C;
@@ -614,17 +615,17 @@ void CameraSupervisor(s32 camIdx)
             selectedDistance = dy * dy;
             selectedDistance = dx * dx + selectedDistance;
             selectedDistance = dz * dz + selectedDistance;
-            if ((f64)selectedDistance > (f64)lbl_80345EC8) {
+            if ((f64)selectedDistance > (f64)0.0f) {
                 root = __frsqrte(selectedDistance);
-                root = lbl_80345F18 * root *
-                       -(root * root * selectedDistance - lbl_80345F20);
-                root = lbl_80345F18 * root *
-                       -(root * root * selectedDistance - lbl_80345F20);
-                root = lbl_80345F18 * root *
-                       -(root * root * selectedDistance - lbl_80345F20);
+                root = 0.5 * root *
+                       -(root * root * selectedDistance - 3.0);
+                root = 0.5 * root *
+                       -(root * root * selectedDistance - 3.0);
+                root = 0.5 * root *
+                       -(root * root * selectedDistance - 3.0);
                 scratch.selectedRoot =
-                    (f32)(selectedDistance * (lbl_80345F18 * root *
-                    -(root * root * selectedDistance - lbl_80345F20)));
+                    (f32)(selectedDistance * (0.5 * root *
+                    -(root * root * selectedDistance - 3.0)));
                 selectedDistance = scratch.selectedRoot;
             }
 
@@ -678,10 +679,10 @@ void CameraSupervisor(s32 camIdx)
                 lbl_80344454 = lbl_8034444C;
                 lbl_80344458 = lbl_80344450;
             } else {
-                lbl_8034444C = lbl_80345EC8;
-                lbl_80344454 = lbl_80345EC8;
-                lbl_80344450 = lbl_80345EC8;
-                lbl_80344458 = lbl_80345EC8;
+                lbl_8034444C = 0.0f;
+                lbl_80344454 = 0.0f;
+                lbl_80344450 = 0.0f;
+                lbl_80344458 = 0.0f;
             }
         }
     }
@@ -740,9 +741,9 @@ void cam_orient_to_80029E8C(s32 camIdx)
         cam->avel[1] = zero;
         cam->avel[2] = zero;
     }
-    cam->attn[0] = *(f32*)(gcs + 0xC8 + 0x12C);
-    cam->attn[1] = *(f32*)(gcs + 0xC8 + 0x130);
-    cam->attn[2] = *(f32*)(gcs + 0xC8 + 0x134);
+    cam->attn[0] = *(f32*)(gcs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0]));
+    cam->attn[1] = *(f32*)(gcs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1]));
+    cam->attn[2] = *(f32*)(gcs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2]));
 
     CreateYPRMatrix(mat, cam->pyr);
     vec[0] = lbl_80345EC8;
@@ -865,9 +866,9 @@ s32 init_game_cam(s32 camIdx)
     }
 
     if (gScriptedCameraState == 1) {
-        dy = *(f32*)(gcs + 0x130) - cam[0].wpos[1];
-        dx = *(f32*)(gcs + 0x12C) - cam[0].wpos[0];
-        dz = *(f32*)(gcs + 0x134) - cam[0].wpos[2];
+        dy = *(f32*)(gcs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1])) - cam[0].wpos[1];
+        dx = *(f32*)(gcs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0])) - cam[0].wpos[0];
+        dz = *(f32*)(gcs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2])) - cam[0].wpos[2];
         len = dy * dy;
         len = dx * dx + len;
         len = dz * dz + len;
@@ -899,9 +900,9 @@ s32 init_game_cam(s32 camIdx)
         cam[0].wpos[1] = cam[0].wpos[1] + dy;
         cam[0].wpos[2] = cam[0].wpos[2] + dz;
 
-        dy = *(f32*)(gcs + 0x1F8) - cam[0].attn[1];
-        dx = *(f32*)(gcs + 0x1F4) - cam[0].attn[0];
-        dz = *(f32*)(gcs + 0x1FC) - cam[0].attn[2];
+        dy = *(f32*)(gcs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1])) - cam[0].attn[1];
+        dx = *(f32*)(gcs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0])) - cam[0].attn[0];
+        dz = *(f32*)(gcs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2])) - cam[0].attn[2];
         len = dy * dy;
         len = dx * dx + len;
         len = dz * dz + len;
@@ -1266,10 +1267,10 @@ void get_cam_wpos_8002ABE0(s32 camIdx)
 
     if (gNumTransmitters == 0 && lbl_803443F8 <= 0) {
         s32 mode = lbl_80344538;
-        f64 yawMin = lbl_80345F68;
-        f64 yawRange = lbl_80345F60;
-        f64 yawStep = lbl_80346180;
-        f64 yawMax = lbl_80345F58;
+        f64 yawMin = -3.141592654;
+        f64 yawRange = 6.283185308;
+        f64 yawStep = 1.570796327;
+        f64 yawMax = 3.141592654;
         for (i = 0; i < 4; i++) {
             camState[i] = 0;
         }
@@ -1327,12 +1328,12 @@ void get_cam_wpos_8002ABE0(s32 camIdx)
             }
             if (cam->timer < 0) {
                 if (lbl_80344404 > 0) {
-                    if ((f64)cam->pyr_delta[0] > lbl_80345F78) {
-                        cam->pyr_delta[0] = cam->pyr_delta[0] - lbl_80346188;
-                        if ((f64)cam->pyr_delta[0] < lbl_80345F78) {
+                    if ((f64)cam->pyr_delta[0] > 0.0) {
+                        cam->pyr_delta[0] = cam->pyr_delta[0] - 0.019999999552965164f;
+                        if ((f64)cam->pyr_delta[0] < 0.0) {
                             cam->pyr_delta[0] = lbl_80345EC8;
                         }
-                        cam->pyr[0] = cam->pyr[0] - lbl_80346188;
+                        cam->pyr[0] = cam->pyr[0] - 0.019999999552965164f;
                         place_cam(cam, mat, in, out);
                         if (cam_blocked(cam)) {
                             cam->pyr_delta[0] = savedD;
@@ -1344,12 +1345,12 @@ void get_cam_wpos_8002ABE0(s32 camIdx)
                         cam->pyr_delta[0] = lbl_80345EC8;
                     }
                 } else {
-                    if ((f64)cam->pyr_delta[0] < lbl_80345F78) {
-                        cam->pyr_delta[0] = cam->pyr_delta[0] + lbl_80346188;
-                        if ((f64)cam->pyr_delta[0] > lbl_80345F78) {
+                    if ((f64)cam->pyr_delta[0] < 0.0) {
+                        cam->pyr_delta[0] = cam->pyr_delta[0] + 0.019999999552965164f;
+                        if ((f64)cam->pyr_delta[0] > 0.0) {
                             cam->pyr_delta[0] = lbl_80345EC8;
                         }
-                        cam->pyr[0] = cam->pyr[0] + lbl_80346188;
+                        cam->pyr[0] = cam->pyr[0] + 0.019999999552965164f;
                         place_cam(cam, mat, in, out);
                         if (cam_blocked(cam)) {
                             cam->pyr_delta[0] = savedD;
@@ -1368,15 +1369,15 @@ void get_cam_wpos_8002ABE0(s32 camIdx)
                 cam->timer = 0xB4;
             }
             if (lbl_80344404 > 0) {
-                if ((f64)cam->pyr[0] <= lbl_80346178 - lbl_80346188) {
-                    cam->pyr_delta[0] = cam->pyr_delta[0] + lbl_80346188;
-                    cam->pyr[0] = cam->pyr[0] + lbl_80346188;
+                if ((f64)cam->pyr[0] <= lbl_80346178 - 0.019999999552965164f) {
+                    cam->pyr_delta[0] = cam->pyr_delta[0] + 0.019999999552965164f;
+                    cam->pyr[0] = cam->pyr[0] + 0.019999999552965164f;
                     place_cam(cam, mat, in, out);
                 }
             } else {
-                if (cam->pyr[0] >= lbl_80346188) {
-                    cam->pyr_delta[0] = cam->pyr_delta[0] - lbl_80346188;
-                    cam->pyr[0] = cam->pyr[0] - lbl_80346188;
+                if (cam->pyr[0] >= 0.019999999552965164f) {
+                    cam->pyr_delta[0] = cam->pyr_delta[0] - 0.019999999552965164f;
+                    cam->pyr[0] = cam->pyr[0] - 0.019999999552965164f;
                     place_cam(cam, mat, in, out);
                 }
             }
@@ -1922,14 +1923,14 @@ valid_boss_type:
         f32 cosValue;
 
         if ((f64)lbl_803444D8 > lbl_80345F78) {
-            yaw = (f32)((f64)cam->pyr[1] - lbl_80346180);
+            yaw = (f32)((f64)cam->pyr[1] - 1.570796327);
         } else {
-            yaw = (f32)((f64)cam->pyr[1] + lbl_80346180);
+            yaw = (f32)((f64)cam->pyr[1] + 1.570796327);
         }
-        if ((f64)yaw > lbl_80345F58) {
-            yaw = (f32)((f64)yaw - lbl_80345F60);
-        } else if ((f64)yaw <= lbl_80345F68) {
-            yaw = (f32)(lbl_80345F60 + (f64)yaw);
+        if ((f64)yaw > 3.141592654) {
+            yaw = (f32)((f64)yaw - 6.283185308);
+        } else if ((f64)yaw <= -3.141592654) {
+            yaw = (f32)(6.283185308 + (f64)yaw);
         }
         sinValue = sin(yaw);
         sinScale = lbl_803444D8;
@@ -1949,12 +1950,12 @@ valid_boss_type:
         f64 y = (f64)cam->pyr[1];
         if ((f64)lbl_803444D4 > lbl_80345F78) {
         } else {
-            y = (f32)(y + lbl_80345F58);
+            y = (f32)(y + 3.141592654);
         }
-        if (y > lbl_80345F58) {
-            y = y - lbl_80345F60;
-        } else if (y <= lbl_80345F68) {
-            y = lbl_80345F60 + y;
+        if (y > 3.141592654) {
+            y = y - 6.283185308;
+        } else if (y <= -3.141592654) {
+            y = 6.283185308 + y;
         }
         yaw = (f32)y;
         sinValue = sin(yaw);
@@ -2233,7 +2234,7 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
 
     if (sMusicTrackHi < 0) {
         if (aMode != 1) {
-            f32 zero = lbl_80345EC8;
+            f32 zero = 0.0f;
             cam->attn[0] = zero;
             cam->attn[1] = zero;
             cam->attn[2] = zero;
@@ -2380,11 +2381,11 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
             lbl_80344418 = 0;
             if (lbl_803447B8 == 0 && lbl_80344414 < 2) {
                 for (i = 0; i < 3; i++) {
-                    if (out[i] < *(f32*)(cameraState + i * 4 + 188)) {
-                        out[i] = *(f32*)(cameraState + i * 4 + 188);
+                    if (out[i] < *(f32*)(cameraState + i * 4 + offsetof(CameraStateData, attn_min[0]))) {
+                        out[i] = *(f32*)(cameraState + i * 4 + offsetof(CameraStateData, attn_min[0]));
                         lbl_80344418 = 1;
-                    } else if (out[i] > *(f32*)(cameraState + i * 4 + 176)) {
-                        out[i] = *(f32*)(cameraState + i * 4 + 176);
+                    } else if (out[i] > *(f32*)(cameraState + i * 4 + offsetof(CameraStateData, attn_max[0]))) {
+                        out[i] = *(f32*)(cameraState + i * 4 + offsetof(CameraStateData, attn_max[0]));
                         lbl_80344418 = 1;
                     }
                 }
@@ -2393,8 +2394,8 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
                 f32 d0 = sv0 - out[0];
                 f32 d1 = sv1 - out[1];
                 f32 d2 = sv2 - out[2];
-                if (d0 == lbl_80345EC8 && d1 == lbl_80345EC8 &&
-                    d2 == lbl_80345EC8) {
+                if (d0 == 0.0f && d1 == 0.0f &&
+                    d2 == 0.0f) {
                     lbl_80344414 = 0;
                 } else {
                     out[0] = sv0;
@@ -2494,7 +2495,7 @@ s32 fn_80051480(f32* pos);
 f32 SlowNormalVector(f32* v);
 
 #define CAM_SET_CMODE(camp, m)                                                \
-    if (*(s32*)(cs + 436) != (m)) {                                           \
+    if (*(s32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, c_mode)) != (m)) {                                           \
         (camp)->pc_mode = (camp)->c_mode;                                     \
         (camp)->c_mode = (m);                                                 \
     }
@@ -2507,7 +2508,7 @@ f32 SlowNormalVector(f32* v);
 void InitCamera(s32 resetAll)
 {
     u8* cs = (u8*)gCameraState;
-    Camera* c0 = (Camera*)(cs + 200);
+    Camera* c0 = (Camera*)(cs + CAMERA_STATE_CAMERAS_OFF);
     s32 scrH = MBScreenHeight();
     s32 scrW = MBScreenWidth();
     s32 uiFov = 0;
@@ -2564,7 +2565,7 @@ void InitCamera(s32 resetAll)
         shake_rad = zero;
         shake_priority = 0;
 
-        cam = (Camera*)(cs + 200);
+        cam = (Camera*)(cs + CAMERA_STATE_CAMERAS_OFF);
         for (i = 0; i < 6; i++, cam++) {
             cam->state = 0;
             CopyMat4(idmat, &cam->mat[0][0]);
@@ -2674,34 +2675,34 @@ void InitCamera(s32 resetAll)
             f32* py2;
             f32* pz2;
             Camera* k;
-            CAM_SET_CMODE((Camera*)(cs + 200), 2);
-            CAM_SET_AMODE((Camera*)(cs + 200), 1);
-            py1 = (f32*)(cs + 32);
-            pz1 = (f32*)(cs + 36);
-            py2 = (f32*)(cs + 44);
-            pz2 = (f32*)(cs + 48);
-            k = (Camera*)((void*)(cs + 200));
+            CAM_SET_CMODE((Camera*)(cs + CAMERA_STATE_CAMERAS_OFF), 2);
+            CAM_SET_AMODE((Camera*)(cs + CAMERA_STATE_CAMERAS_OFF), 1);
+            py1 = (f32*)(cs + offsetof(CameraStateData, start_wpos[1]));
+            pz1 = (f32*)(cs + offsetof(CameraStateData, start_wpos[2]));
+            py2 = (f32*)(cs + offsetof(CameraStateData, start_attn[1]));
+            pz2 = (f32*)(cs + offsetof(CameraStateData, start_attn[2]));
+            k = (Camera*)((void*)(cs + CAMERA_STATE_CAMERAS_OFF));
             c0->num1 = lbl_80345F48;
             c0->pyr[1] = c0->num1;
             c0->num2 = lbl_80345EC8;
-            *(f32*)(cs + 28) = lbl_8034620C;
-            *(f32*)(cs + 32) = lbl_80346210;
-            *(f32*)(cs + 36) = lbl_8034620C;
-            *(f32*)(cs + 40) = lbl_80346214;
-            *(f32*)(cs + 44) = lbl_80346218;
-            *(f32*)(cs + 48) = lbl_80346214;
-            ang = *(f32*)(cs + 368);
+            *(f32*)(cs + offsetof(CameraStateData, start_wpos[0])) = lbl_8034620C;
+            *(f32*)(cs + offsetof(CameraStateData, start_wpos[1])) = lbl_80346210;
+            *(f32*)(cs + offsetof(CameraStateData, start_wpos[2])) = lbl_8034620C;
+            *(f32*)(cs + offsetof(CameraStateData, start_attn[0])) = lbl_80346214;
+            *(f32*)(cs + offsetof(CameraStateData, start_attn[1])) = lbl_80346218;
+            *(f32*)(cs + offsetof(CameraStateData, start_attn[2])) = lbl_80346214;
+            ang = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[1]));
             s = sin(ang);
             c = cos(ang);
-            *(f32*)(cs + 300) = s * *(f32*)(cs + 28);
-            *(f32*)(cs + 304) = *py1;
-            *(f32*)(cs + 308) = c * *pz1;
-            *(f32*)(cs + 500) = s * *(f32*)(cs + 40);
-            *(f32*)(cs + 504) = *py2;
-            *(f32*)(cs + 508) = c * *pz2;
-            dy = *(f32*)(cs + 304) - *(f32*)(cs + 504);
-            dx = *(f32*)(cs + 300) - *(f32*)(cs + 500);
-            dz = *(f32*)(cs + 308) - *(f32*)(cs + 508);
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0])) = s * *(f32*)(cs + offsetof(CameraStateData, start_wpos[0]));
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1])) = *py1;
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2])) = c * *pz1;
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0])) = s * *(f32*)(cs + offsetof(CameraStateData, start_attn[0]));
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1])) = *py2;
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2])) = c * *pz2;
+            dy = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1])) - *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1]));
+            dx = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0])) - *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0]));
+            dz = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2])) - *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2]));
             len = dz * dz + (dx * dx + dy * dy);
             if (len > lbl_80345EC8) {
                 f64 g = __frsqrte((f64)len);
@@ -2775,13 +2776,13 @@ void InitCamera(s32 resetAll)
                 d[1] = c0->attn[1] - c0->wpos[1];
                 d[2] = c0->attn[2] - c0->wpos[2];
                 SlowNormalVector(d);
-                k = (Camera*)((void*)(cs + 200));
+                k = (Camera*)((void*)(cs + CAMERA_STATE_CAMERAS_OFF));
                 c0->attn[0] = d[0] * r + c0->wpos[0];
                 c0->attn[1] = d[1] * r + c0->wpos[1];
                 c0->attn[2] = d[2] * r + c0->wpos[2];
-                saveW[0] = *(f32*)(cs + 300);
-                saveW[1] = *(f32*)(cs + 304);
-                saveW[2] = *(f32*)(cs + 308);
+                saveW[0] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0]));
+                saveW[1] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1]));
+                saveW[2] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2]));
                 saveA[0] = c0->attn[0];
                 saveA[1] = c0->attn[1];
                 saveA[2] = c0->attn[2];
@@ -2815,17 +2816,17 @@ void InitCamera(s32 resetAll)
                     f32* pw2;
                     f32 g;
                     f32 r;
-                    CAM_SET_CMODE((Camera*)(cs + 200), 5);
-                    CAM_SET_AMODE((Camera*)(cs + 200), 1);
+                    CAM_SET_CMODE((Camera*)(cs + CAMERA_STATE_CAMERAS_OFF), 5);
+                    CAM_SET_AMODE((Camera*)(cs + CAMERA_STATE_CAMERAS_OFF), 1);
                     wi = &gWorldInfo;
-                    pa0 = (f32*)(cs + 500);
-                    pa1 = (f32*)(cs + 504);
-                    pa2 = (f32*)(cs + 508);
+                    pa0 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0]));
+                    pa1 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1]));
+                    pa2 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2]));
                     wcy = &gWorldInfo.worldcenter[1];
-                    *(f32*)(cs + 500) = wi->worldcenter[0];
-                    *(f32*)(cs + 504) = wi->worldcenter[1];
-                    *(f32*)(cs + 508) = wi->worldcenter[2];
-                    *(f32*)(cs + 504) = wi->worldmax[1];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0])) = wi->worldcenter[0];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1])) = wi->worldcenter[1];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2])) = wi->worldcenter[2];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1])) = wi->worldmax[1];
                     {
                         f64 step = lbl_80345EF0;
                         do {
@@ -2847,34 +2848,34 @@ void InitCamera(s32 resetAll)
                     if (*pa1 < gDefaultPlayerPosition[1]) {
                         *pa1 = gDefaultPlayerPosition[1];
                     }
-                    *(f32*)(cs + 396) = *(f32*)((u8*)hdr + 40);
-                    prad = (f32*)(cs + 396);
-                    *(f32*)(cs + 424) = (f32)(lbl_80346240 * *(f32*)(cs + 396));
-                    *(f32*)(cs + 428) = (f32)(lbl_80345EF0 + *wcy);
-                    *(f32*)(cs + 432) = (f32)(lbl_80345FE0 + *(f32*)(cs + 428));
-                    *(f32*)(cs + 364) = lbl_80346248;
-                    *(f32*)(cs + 368) = lbl_80345EC8;
-                    *(f32*)(cs + 372) = lbl_80345EC8;
-                    CreateYPRMatrix(mat, (f32*)(cs + 364));
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius)) = *(f32*)((u8*)hdr + 40);
+                    prad = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius));
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, num1)) = (f32)(lbl_80346240 * *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius)));
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, num2)) = (f32)(lbl_80345EF0 + *wcy);
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, num3)) = (f32)(lbl_80345FE0 + *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, num2)));
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[0])) = lbl_80346248;
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[1])) = lbl_80345EC8;
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[2])) = lbl_80345EC8;
+                    CreateYPRMatrix(mat, (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[0])));
                     in[0] = lbl_80345EC8;
                     in[1] = lbl_80345EC8;
                     in[2] = *prad;
                     WorldVector(in, out, mat);
-                    pw0 = (f32*)(cs + 300);
-                    pw1 = (f32*)(cs + 304);
-                    pw2 = (f32*)(cs + 308);
-                    *(f32*)(cs + 300) = *pa0 + out[0];
-                    *(f32*)(cs + 304) = *pa1 + out[1];
-                    *(f32*)(cs + 308) = *pa2 + out[2];
+                    pw0 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0]));
+                    pw1 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1]));
+                    pw2 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2]));
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0])) = *pa0 + out[0];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1])) = *pa1 + out[1];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2])) = *pa2 + out[2];
                     r = *prad;
-                    d[0] = *(f32*)(cs + 300) - *pa0;
-                    d[1] = *(f32*)(cs + 304) - *pa1;
-                    d[2] = *(f32*)(cs + 308) - *pa2;
+                    d[0] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0])) - *pa0;
+                    d[1] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1])) - *pa1;
+                    d[2] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2])) - *pa2;
                     SlowNormalVector(d);
                     *pw0 = d[0] * r + *pa0;
                     *pw1 = d[1] * r + *pa1;
                     *pw2 = d[2] * r + *pa2;
-                    *(s32*)(cs + 200) = 1;
+                    *(s32*)(cs + CAMERA_STATE_CAMERAS_OFF) = 1;
                     lbl_80344420 = 1800;
                     break;
                 }
@@ -2890,42 +2891,42 @@ void InitCamera(s32 resetAll)
                     f32* pa1;
                     f32* pa2;
                     f32 r;
-                    CAM_SET_CMODE((Camera*)(cs + 200), 2);
-                    CAM_SET_AMODE((Camera*)(cs + 200), 1);
+                    CAM_SET_CMODE((Camera*)(cs + CAMERA_STATE_CAMERAS_OFF), 2);
+                    CAM_SET_AMODE((Camera*)(cs + CAMERA_STATE_CAMERAS_OFF), 1);
                     wi = &gWorldInfo;
                     dpp = gDefaultPlayerPosition;
-                    p0 = (f32*)(cs + 300);
-                    p1 = (f32*)(cs + 304);
-                    p2 = (f32*)(cs + 308);
-                    prad = (f32*)(cs + 396);
-                    *(f32*)(cs + 300) = wi->worldcenter[0];
-                    *(f32*)(cs + 304) = wi->worldcenter[1];
-                    *(f32*)(cs + 308) = wi->worldcenter[2];
-                    *(f32*)(cs + 304) = (f32)(lbl_80346250 + dpp[1]);
-                    *(f32*)(cs + 396) = lbl_80346258;
-                    *(f32*)(cs + 364) = *(f32*)((u8*)hdr + 40);
-                    *(f32*)(cs + 368) = lbl_80345EC8;
-                    *(f32*)(cs + 372) = lbl_80345EC8;
-                    CreateYPRMatrix(mat, (f32*)(cs + 364));
+                    p0 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0]));
+                    p1 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1]));
+                    p2 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2]));
+                    prad = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius));
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0])) = wi->worldcenter[0];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1])) = wi->worldcenter[1];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2])) = wi->worldcenter[2];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1])) = (f32)(lbl_80346250 + dpp[1]);
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius)) = lbl_80346258;
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[0])) = *(f32*)((u8*)hdr + 40);
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[1])) = lbl_80345EC8;
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[2])) = lbl_80345EC8;
+                    CreateYPRMatrix(mat, (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[0])));
                     in[0] = lbl_80345EC8;
                     in[1] = lbl_80345EC8;
                     in[2] = *prad;
                     WorldVector(in, out, mat);
-                    pa0 = (f32*)(cs + 500);
-                    pa1 = (f32*)(cs + 504);
-                    pa2 = (f32*)(cs + 508);
-                    *(f32*)(cs + 500) = *p0 + out[0];
-                    *(f32*)(cs + 504) = *p1 + out[1];
-                    *(f32*)(cs + 508) = *p2 + out[2];
+                    pa0 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0]));
+                    pa1 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1]));
+                    pa2 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2]));
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0])) = *p0 + out[0];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1])) = *p1 + out[1];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2])) = *p2 + out[2];
                     r = *prad;
-                    d[0] = *(f32*)(cs + 500) - *p0;
-                    d[1] = *(f32*)(cs + 504) - *p1;
-                    d[2] = *(f32*)(cs + 508) - *p2;
+                    d[0] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0])) - *p0;
+                    d[1] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1])) - *p1;
+                    d[2] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2])) - *p2;
                     SlowNormalVector(d);
                     *pa0 = d[0] * r + *p0;
                     *pa1 = d[1] * r + *p1;
                     *pa2 = d[2] * r + *p2;
-                    *(s32*)(cs + 200) = 1;
+                    *(s32*)(cs + CAMERA_STATE_CAMERAS_OFF) = 1;
                     lbl_80344420 = 1500;
                     break;
                 }
@@ -2936,32 +2937,32 @@ void InitCamera(s32 resetAll)
                     f32 saveA[3];
                     f32 d2[3];
                     u8* st = sSpecialTransmitter;
-                    f32* p0 = (f32*)(cs + 300);
-                    f32* p1 = (f32*)(cs + 304);
-                    f32* p2 = (f32*)(cs + 308);
+                    f32* p0 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0]));
+                    f32* p1 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1]));
+                    f32* p2 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2]));
                     Camera* k;
-                    *(f32*)(cs + 300) = *(f32*)(st + 4);
-                    *(f32*)(cs + 304) = *(f32*)(st + 8);
-                    *(f32*)(cs + 308) = *(f32*)(st + 12);
-                    *(f32*)(cs + 364) = *(f32*)(st + 20);
-                    *(f32*)(cs + 368) = *(f32*)(st + 24);
-                    *(f32*)(cs + 372) = *(f32*)(st + 28);
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0])) = *(f32*)(st + 4);
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1])) = *(f32*)(st + 8);
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2])) = *(f32*)(st + 12);
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[0])) = *(f32*)(st + 20);
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[1])) = *(f32*)(st + 24);
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[2])) = *(f32*)(st + 28);
                     CreateYPRMatrix(m2, c0->pyr);
-                    *(f32*)(cs + 396) = lbl_80346148;
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius)) = lbl_80346148;
                     in[0] = lbl_80345EC8;
                     in[1] = lbl_80345EC8;
-                    in[2] = *(f32*)(cs + 396);
+                    in[2] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius));
                     WorldVector(in, out, m2);
-                    *(f32*)(cs + 500) = *p0 + out[0];
-                    *(f32*)(cs + 504) = *p1 + out[1];
-                    *(f32*)(cs + 508) = *p2 + out[2];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0])) = *p0 + out[0];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1])) = *p1 + out[1];
+                    *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2])) = *p2 + out[2];
                     CAM_SET_CMODE(c0, 2);
                     CAM_SET_AMODE(c0, 1);
                     c0->trans_mode = 0;
-                    k = (Camera*)((void*)(cs + 200));
-                    saveW[0] = *(f32*)(cs + 300);
-                    saveW[1] = *(f32*)(cs + 304);
-                    saveW[2] = *(f32*)(cs + 308);
+                    k = (Camera*)((void*)(cs + CAMERA_STATE_CAMERAS_OFF));
+                    saveW[0] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0]));
+                    saveW[1] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1]));
+                    saveW[2] = *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2]));
                     saveA[0] = c0->attn[0];
                     saveA[1] = c0->attn[1];
                     saveA[2] = c0->attn[2];
@@ -3026,13 +3027,13 @@ void InitCamera(s32 resetAll)
             s16* hdr = (s16*)gCurLevel->camera;
             CAM_SET_CMODE(c0, 1);
             CAM_SET_AMODE(c0, 0);
-            *(f32*)(cs + 500) = lbl_80345EC8;
-            *(f32*)(cs + 504) = lbl_80345EC8;
-            *(f32*)(cs + 508) = lbl_80345EC8;
-            *(f32*)(cs + 396) = lbl_8034625C;
-            *(f32*)(cs + 300) = lbl_80345EC8;
-            *(f32*)(cs + 304) = lbl_80345EC8;
-            *(f32*)(cs + 308) = lbl_80345EC8;
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0])) = lbl_80345EC8;
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1])) = lbl_80345EC8;
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2])) = lbl_80345EC8;
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius)) = lbl_8034625C;
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0])) = lbl_80345EC8;
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1])) = lbl_80345EC8;
+            *(f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2])) = lbl_80345EC8;
             lbl_80344538 = hdr[0];
             {
                 f32 t = *(f32*)((u8*)hdr + 4);
@@ -3046,19 +3047,19 @@ void InitCamera(s32 resetAll)
             lbl_803447F8 = 18000;
             gNumEnemies = hdr[26];
             uiFov = scrH == 256 ? 42 : 64;
-            *(s32*)(cs + 200) = 1;
+            *(s32*)(cs + CAMERA_STATE_CAMERAS_OFF) = 1;
         }
     }
 
     lbl_80344534 = lbl_80118B60[lbl_80344538];
     for (i = 0; i < 6; i++) {
         u8* row = cs + i * 396;
-        *(f32*)(row + 252) = *(f32*)(row + 300);
-        *(f32*)(row + 256) = *(f32*)(row + 304);
-        *(f32*)(row + 260) = *(f32*)(row + 308);
+        *(f32*)(row + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, mat[3][0])) = *(f32*)(row + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0]));
+        *(f32*)(row + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, mat[3][1])) = *(f32*)(row + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[1]));
+        *(f32*)(row + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, mat[3][2])) = *(f32*)(row + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[2]));
     }
     for (i = 0; i < 3; i++) {
-        *(f32*)(cs + 16 + i * 4) = lbl_80345EC8;
+        *(f32*)(cs + offsetof(CameraStateData, unk10[0]) + i * 4) = lbl_80345EC8;
     }
     {
         s32 zi = 0;
@@ -3078,7 +3079,7 @@ void InitCamera(s32 resetAll)
         lbl_8034451C = (s32)(*(f32*)(q + 20) * lbl_8034601C + *(f32*)(q + 8));
         lbl_80344518 = (s32)(*(f32*)(q + 24) * lbl_8034601C + *(f32*)(q + 12));
         lbl_80344514 = (s32)(*(f32*)(q + 12) - *(f32*)(q + 24) * lbl_8034601C);
-        t = (CameraTarget*)(cs + 2576);
+        t = (CameraTarget*)(cs + CAMERA_STATE_TARGETS_OFF);
         for (i = 0; i < 15; i++, t++) {
             t->active = zi;
             t->object = zi;
@@ -3089,7 +3090,7 @@ void InitCamera(s32 resetAll)
     }
     gCameraTargetCount = 0;
     ProcCamera_8002E548(0, 0);
-    cam = (Camera*)(cs + 200);
+    cam = (Camera*)(cs + CAMERA_STATE_CAMERAS_OFF);
     for (i = 0; i < 6; i++, cam++) {
         cam->limit_pos[0] = cam->mat[3][0];
         cam->limit_pos[1] = cam->mat[3][1];
@@ -3207,9 +3208,9 @@ void ProcCamera_8002E548(s32 camIdx, s32 useRecorderPosition)
         cam->mat[3][1] = cam->wpos[1];
         cam->mat[3][2] = cam->wpos[2];
     } else {
-        cam->mat[3][0] = *(f32*)(gcs + 0x34);
-        cam->mat[3][1] = *(f32*)(gcs + 0x38);
-        cam->mat[3][2] = *(f32*)(gcs + 0x3C);
+        cam->mat[3][0] = *(f32*)(gcs + offsetof(CameraStateData, recorder_wpos[0]));
+        cam->mat[3][1] = *(f32*)(gcs + offsetof(CameraStateData, recorder_wpos[1]));
+        cam->mat[3][2] = *(f32*)(gcs + offsetof(CameraStateData, recorder_wpos[2]));
     }
 }
 

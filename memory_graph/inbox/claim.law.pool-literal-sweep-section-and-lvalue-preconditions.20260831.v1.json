@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "work_claim.cameradata-sweep.20260831.v1 (worktree GDL-Claude-CamData): 21 isolated probes via tools/gdl/probe.py across combat.c (14 functions), camera.c (5) and bosscam.c (2), each reverted unless IMPROVED. Section facts read from tools/gdl/poolval.py against the retail DOL; literal values recomputed from the raw bytes and struct.pack-verified to re-encode bit-identically before any use.",
+    "tags": [
+      "matching",
+      "sda-global",
+      "build-hygiene",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.pool-literal-sweep-section-and-lvalue-preconditions.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:48:32Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "Three MECHANICAL preconditions that must be checked before an extern-literal sweep selects a candidate at all. They sit upstream of the screening/arbitration rules in claim.law.literal-sweep-needs-lfd-stfd-tell-first and claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell (defer to those for WHICH functions to probe and how to arbitrate; this record is only about which SITES are legal candidates). (1) SECTION DISCIPLINE is a semantic-correctness gate, not a scoring one. Only `.sdata2`/`.rodata` labels are the read-only literal pool. `.sdata` labels are indistinguishable in source -- both spell as `extern f32 lbl_80343B88;` -- but `.sdata` is WRITABLE small data holding genuinely mutable globals, and literalizing one substitutes a constant for a variable: a real behavioural bug that no match metric would flag as such. Measured: bosscam.c declares 13 `extern f32/f64 lbl_*` of which 11 resolve to .sdata (0x80343Bxx) and only 2 to .sdata2, so a name-shape-driven sweep there would have been almost entirely wrong. Filter candidates by DOL section, never by the lbl_ name shape. (2) LVALUE / ADDRESS-TAKEN EXCLUSION. A pool label read through the `*(volatile f32*)&lbl_x` idiom (an existing deliberate matching form, e.g. combat.c screen_limitation +0x... yaw clamp) cannot be literalized at all: `&0.0f` is not valid C, so the substitution BREAKS THE BUILD rather than scoring badly, and an automated sweep that only guards assignment targets will hit it. Any sweep tool must skip occurrences preceded by `&` and occurrences in lvalue position. (3) VERIFY THE LITERAL ROUND-TRIPS. tools/gdl/poolval.py prints ROUNDED f32/f64 lines; recompute the shortest-roundtrip decimal from the raw bytes it also prints and assert it re-encodes to the identical bit pattern before substituting. This is not pedantry: in this corpus the PI-family pool entries really are 10-significant-digit decimals (3.141592654, 6.283185308, 1.570796327, and -3.141592654), NOT M_PI, so substituting a full-precision constant would have silently changed both the stored bits and the computed result. The round-trip assertion also cheaply catches a truncated/misparsed byte dump, which is how the first version of this sweep's tooling failed."
+}
