@@ -508,6 +508,8 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     s32 found = -1;
     Player* p;
     Player* other;
+    PSpawnView* sv;
+    PSpawnView* osv;
     f32 r;
     f32 sx;
     f32 sz;
@@ -531,7 +533,8 @@ void get_player_pos(s32 playerIdx, s32 mode) {
         return;
     }
     p = &gPlayers[playerIdx];
-    SV(p)->floor_obj = 0;
+    sv = SV(p);
+    sv->floor_obj = 0;
     if (p->state != 1 && p->state != 4) {
         return;
     }
@@ -591,6 +594,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 continue;
             }
             other = &gPlayers[idx];
+            osv = SV(other);
             if (other->state != 1 && other->state != 4 && other->state != 8) {
                 continue;
             }
@@ -607,7 +611,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 pos2[1] = other->pos[1];
                 pos2[2] = other->pos[2];
             }
-            SV(other)->floor_obj = FloorCollide(lbl_80347B10, lbl_80347B14,
+            osv->floor_obj = FloorCollide(lbl_80347B10, lbl_80347B14,
                 lbl_80347B18, pos2, (f32*)(ctx + 24), 1, 1);
             SV(other)->floor_flags = (*(void**)(ctx + 92) != NULL)
                                          ? ((WorldObj*)*(void**)(ctx + 92))->flags
@@ -636,7 +640,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             } while (k < 16);
             if (found >= 0) {
                 MBNodeSetParent(p->node, *(void**)(other->node + 0x74));
-                SV(p)->floor_obj = SV(other)->floor_obj;
+                sv->floor_obj = osv->floor_obj;
                 break;
             }
         }
@@ -645,6 +649,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     if (found < 0) {
         if (partner >= 0) {
             other = &gPlayers[partner];
+            osv = SV(other);
             CopyMat4(other->mat, p->mat);
             SV(p)->rot[0] = SV(other)->rot[0];
             SV(p)->rot[1] = SV(other)->rot[1];
@@ -664,7 +669,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 p->floor_base = FloorPos(p->pos[1], lbl_80347B10, p->pos, 1);
                 p->pos[1] = p->floor_base;
                 MBNodeSetParent(p->node, *(void**)(other->node + 0x74));
-                SV(p)->floor_obj = SV(other)->floor_obj;
+                sv->floor_obj = osv->floor_obj;
                 ErrorPrintf(lbl_80114220);
             }
         } else {
