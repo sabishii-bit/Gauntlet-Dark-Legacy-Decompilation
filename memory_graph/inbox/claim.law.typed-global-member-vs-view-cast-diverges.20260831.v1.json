@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "work_claim.extern-world.20260831.v1, src/game/world/gauntworld.c, gWorldInfo (WorldInfo, 0x8028CA8C). Batch G3b applied direct member form to 10 sites of 3 fields at once; defake_gate.py check --rebuild bisected by mapping each site's line number to its enclosing function.",
+    "scope": "MWCC GC 1.2.5 family; applies once an untyped extern has been retyped to a real header struct (see claim.law.untyped-extern-retype-is-neutral-and-unblocking) and the pass must choose between direct member access `g.field`, a file-local view cast `((View*)&g)->field`, and offsetof on the raw base `*(T*)((u8*)&g + offsetof(G, field))` -- three spellings of one address.",
+    "tags": [
+      "defake",
+      "alias-form",
+      "offsetof-form",
+      "cse",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.typed-global-member-vs-view-cast-diverges.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:16:54Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "After retyping a global to its real header struct, DIRECT MEMBER ACCESS (`g.field`) is a form-CHANGING conversion whose sign varies per FUNCTION for the SAME field, while offsetof-on-the-raw-base and a file-local view cast are both form-PRESERVING. Verified in one batch on gauntworld.c's newly-typed `WorldInfo gWorldInfo`: converting three fields to direct member form simultaneously gave three different outcomes in three functions. `niteminfos` (+0x74) as `gWorldInfo.niteminfos` IMPROVED fn_8005BA1C (real 529 -> 527, fuzzy 93.50605% -> 94.1794%) at its two sites, but the SAME spelling of the SAME field at a third site REGRESSED fn_8005C1DC hard (real 424 -> 605, opcode multiset DIFFERS, target-only +10 addi / ours-only -11 mr -- an address-materialization cascade, the target re-forming the base address per use where the member form let MWCC cache it). `checknum` (+0x58) regressed fn_8005FDA8 (real 16 -> 62) as `gWorldInfo.checknum`, even though the pre-existing spelling it replaced was itself a member access -- through the file-local `((GauntWorldInfoView*)&gWorldInfo)->checknum` cast, at the identical offset. That is the sharpest result here: a cast-transit through a view struct and a direct member access on the real type are NOT interchangeable, and the view cast was the form the target wanted. Reverting only the two regressing regions to `*(T*)((u8*)&gWorldInfo + offsetof(WorldInfo, field))` restored GATE OK on the first try while KEEPING fn_8005BA1C's improvement -- so the offsetof form is a safe universal fallback that costs nothing in documentation value. In the same TU, six gWorldInfo POINTER-field sites (`wobjs` +0x04, `iteminfo` +0x68) converted all the way to direct member form with no regression at all, confirming this is per-site sensitivity in the sense of claim.law.offsetof-rename-isolated-site-outlier rather than a property of the field or the global. Consequence for extern-retype passes: never convert a retyped global's sites straight to member form in one batch. Land offsetof-on-raw-base first (near-guaranteed neutral, captures nearly all the naming value, one gate), commit it, and only then probe member form as a separate batch on top of that committed baseline -- keeping whichever sites gate equal-or-better and reverting the rest to offsetof. Bisect a failed member batch by mapping site LINE NUMBERS to enclosing function boundaries against the gate's per-function report, which localises the cause in one pass without any rebuild-per-site search. Corollary: a pre-existing file-local view cast is evidence about the ORIGINAL source's shape, not merely debt to be cleaned -- deleting the view in favour of the real member type can regress, so gate that specific substitution rather than assuming the 'better' type is free."
+}
