@@ -1138,7 +1138,7 @@ void fn_8005ACE0(f32* position)
     get_screen_pos(0, &x, &y, &item->objgrp.worldmat[3][0]);
 
     if (type == 2 && *(s16*)&item->data[0] >= 0) {
-        fn_8005AF98(*(u8**)((u8*)&gWorldInfo + offsetof(WorldInfo, iteminfo)) +
+        fn_8005AF98((u8*)gWorldInfo.iteminfo +
                         *(s16*)&item->data[0] * 80,
                     &type, &value, &field, &state, &name);
     }
@@ -1219,7 +1219,7 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
     u8 unusedLow[8];
 
     if (view->type == -1) {
-        worldRecords = (u8**)((u8*)&gWorldInfo + offsetof(WorldInfo, iteminfo));
+        worldRecords = (u8**)&gWorldInfo.iteminfo;
         count = view->valueOrCount;
         fn_8005AF98(world_record_at(worldRecords, view->links[0]),
                     &type, &value, &field, &state, &name);
@@ -1750,7 +1750,7 @@ void fn_8005E90C(Item* item, s32* inst)
     idx = *(s16*)&item->data[0];
     info = item->info;
     if ((s16)idx >= 0) {
-        tblp = (iteminfo**)((u8*)&gWorldInfo + offsetof(WorldInfo, iteminfo));
+        tblp = (iteminfo**)&gWorldInfo.iteminfo;
         row = *tblp + idx;
     } else {
         return;
@@ -3224,13 +3224,13 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
     case 2:
         rec = 0;
         if (*(s16*)&item->data[0] >= 0) {
-            rec = *(u8**)((u8*)&gWorldInfo + offsetof(WorldInfo, iteminfo)) + *(s16*)&item->data[0] * 0x50;
+            rec = (u8*)gWorldInfo.iteminfo + *(s16*)&item->data[0] * 0x50;
         }
         if (rec != 0 && (flags & 0x200) != 0 &&
             EnemyDescType((char*)(rec + 0x28)) == 0x1E && *sub != 0x2B) {
             /* enemy chest converts to an apple generator */
             *sub = 1;
-            rec = *(u8**)((u8*)&gWorldInfo + offsetof(WorldInfo, iteminfo));
+            rec = (u8*)gWorldInfo.iteminfo;
             for (k = 0; k < *(s32*)((u8*)&gWorldInfo + offsetof(WorldInfo, niteminfos)); k++) {
                 s32* rec_sub = (s32*)(rec + 4);
 
@@ -3765,7 +3765,7 @@ s32 fn_8005D730(Player* player, Item* item)
             u8* record = *(u8**)&item->data[0];
 
             if (record != NULL && (u8*)player->floor_name2 != record) {
-                u8* worldRecords = *(u8**)((u8*)&gWorldInfo + offsetof(WorldInfo, wobjs));
+                u8* worldRecords = (u8*)gWorldInfo.wobjs;
                 u8* wanted = (u8*)player->floor_name2;
                 s32 index = *(s16*)(record + 0x2E);
                 s32 found = 0;
