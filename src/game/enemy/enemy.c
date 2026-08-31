@@ -928,7 +928,7 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
     (void)unused;
 
     e0 = pool + index * 916;
-    type = *(s32*)(e0 += 3608);
+    type = *(s32*)(e0 += ENEMY_POOL_OFF);
     e = e0;
     enemy = (Enemy*)e0;
     tr = enemy->trans;
@@ -2311,7 +2311,7 @@ void move_logic05(s32 index)
     u8 _pad05[56];
 
     e0 = (u8*)page + index * 916;
-    type = *(s32*)(e0 += 3608);
+    type = *(s32*)(e0 += ENEMY_POOL_OFF);
     e = (Enemy*)e0;
     dist = e->rad;
     speed = page->speed[type];
@@ -2434,7 +2434,7 @@ void move_logic06(s32 index)
     u8 _pad06[56];
 
     e0 = (u8*)page + index * 916;
-    type = *(s32*)(e0 += 3608);
+    type = *(s32*)(e0 += ENEMY_POOL_OFF);
     e = (Enemy*)e0;
     dist = e->rad;
     speed = page->speed[type];
@@ -2562,8 +2562,8 @@ void move_logic07(s32 index)
     u8 unusedB[16];
 
     e0 = (u8*)page + index * 916;
-    type = *(s32*)(e0 + 3608);
-    e0 += 3608;
+    type = *(s32*)(e0 + OFF_E(type));
+    e0 += ENEMY_POOL_OFF;
     e = (Enemy*)(u8*)e0;
     speed = page->speed[type];
     if (it < 0) {
@@ -2725,8 +2725,8 @@ void move_logic08(s32 index)
     u8 unusedB[16];
 
     e0 = (u8*)page + index * 916;
-    type = *(s32*)(e0 + 3608);
-    e0 += 3608;
+    type = *(s32*)(e0 + OFF_E(type));
+    e0 += ENEMY_POOL_OFF;
     e = (Enemy*)(u8*)e0;
     speed = page->speed[type];
     if (it < 0) {
@@ -2929,12 +2929,12 @@ void move_logic10(s32 index)
     u8* t;
     u8* other;
 
-    type = *(s32*)(e0 + 3608);
-    e = (Enemy*)(e0 + 3608);
-    e0 += 3608;
+    type = *(s32*)(e0 + OFF_E(type));
+    e = (Enemy*)(e0 + ENEMY_POOL_OFF);
+    e0 += ENEMY_POOL_OFF;
     t = base;
     t += type * 4;
-    speed = *(f32*)(t + 64);
+    speed = *(f32*)(t + offsetof(EnemyMovePage05, speed));
     if (it < 0) {
         flee = 0;
     } else {
