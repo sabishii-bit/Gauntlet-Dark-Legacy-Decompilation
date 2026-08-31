@@ -19,6 +19,8 @@
 #include "game/player.h"
 #include "game/mbobject.h"
 
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+
 extern u8* lbl_80282930[4];
 extern void ClearCustomEffect(s32 index);
 extern void* player_multiple_models[];
@@ -252,6 +254,57 @@ extern s32 PlayerStartMissile(u8* p, f32* vec, u32 mask, s32 mode, f32 a,
                               f32 b);
 extern void MBRemovePolyInst(void* inst);
 extern void player_get_powerup_state(u8* p, s32 kind, u32 mask, f32 dt);
+/* One row of the pdata wad's third ("move") chunk, stride 0x58.
+ *
+ * Name + field names are the real Midway ones, from the Xbox PDB
+ * `plyr_damage` (research/xbox_symbols/misc.h Id=3432, Size=0x58 -- the
+ * neighbouring Ids 3433/3434 are plyr_data/plyr_sfx, i.e. this file's other
+ * two record types). The GC layout is confirmed twice over:
+ *
+ *  1. LoadPlyrData's own byte-swap loop for the 0x58 chunk (claim.law.
+ *     swap-loop-is-record-layout-ground-truth) swaps exactly the shorts at
+ *     0x00/0x02/0x48/0x4A/0x4C/0x4E/0x50/0x52/0x54, the u32 at 0x04, and the
+ *     floats at 0x08..0x44 -- matching this layout field for field, including
+ *     dmgtype being the one 4-byte non-float in the float run.
+ *  2. Consumer behaviour here and in PlyrSfxDoDamageSub: dmgtype@0x04 ->
+ *     Effects[].damagetype, radius@0x0C -> Effects[].damageradius,
+ *     delay@0x14 -> Effects[].damagedelay, mintime@0x18 -> minendtime,
+ *     angle@0x20 -> YawMat3, pitch@0x28 -> PitchMat3, offset@0x2C -> the
+ *     MulVecMat3/4 position vector, next@0x4E -> the PlyrSfxDoDamage chain
+ *     argument, startframe/endframe@0x50/0x52 -> the [t0,t1) window test,
+ *     helpidx@0x54 -> msgPost.
+ *
+ * Used only for offsetof() displacements on the raw walked row pointer,
+ * never as a typed alias (claim.law.multifield-alias-defeats-indexed-
+ * addressing: 3+ nearby fields off one index-computed base regress). */
+typedef struct plyr_damage {
+    /* 0x00 */ s16 type;
+    /* 0x02 */ s16 flags;
+    /* 0x04 */ u32 dmgtype;   /* PDB: enum DMG_TYPE */
+    /* 0x08 */ f32 hitrad;
+    /* 0x0C */ f32 radius;
+    /* 0x10 */ f32 minrad;
+    /* 0x14 */ f32 delay;
+    /* 0x18 */ f32 mintime;
+    /* 0x1C */ f32 maxtime;
+    /* 0x20 */ f32 angle;
+    /* 0x24 */ f32 arc;
+    /* 0x28 */ f32 pitch;
+    /* 0x2C */ f32 offset[3];
+    /* 0x38 */ f32 amount;
+    /* 0x3C */ f32 speed_min;
+    /* 0x40 */ f32 speed_max;
+    /* 0x44 */ f32 weight;
+    /* 0x48 */ s16 fxidx;
+    /* 0x4A */ s16 hitfxidx;
+    /* 0x4C */ s16 loopfxidx;
+    /* 0x4E */ s16 next;
+    /* 0x50 */ s16 startframe;
+    /* 0x52 */ s16 endframe;
+    /* 0x54 */ s16 helpidx;
+    /* 0x56 */ s16 dummy;
+} plyr_damage; /* size 0x58 = 88 */
+
 s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other);
 void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1);
 
@@ -277,11 +330,11 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
         return;
     }
     row = *(u8**)(lbl_80282930[((Player*)p)->index] + 8) + idx * 88;
-    sf = (f32)*(s16*)(row + 80);
-    ef = (f32)*(s16*)(row + 82);
+    sf = (f32)*(s16*)(row + offsetof(plyr_damage, startframe));
+    ef = (f32)*(s16*)(row + offsetof(plyr_damage, endframe));
     if (t1 >= sf) {
         if (ef < lbl_80347DA0 || t0 < ef) {
-            fl = *(s16*)(row + 2);
+            fl = *(s16*)(row + offsetof(plyr_damage, flags));
             if (fl & 0x2000) {
                 fn_80067AE0(fl, lbl_80347DA4, lbl_80347DA8);
                 {
@@ -319,11 +372,11 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     }
     {
         f32 one = lbl_80347DB8;
-        if (t0 < one && t1 >= one && *(s16*)(row + 84) >= 0) {
-            msgPost(*(s16*)(row + 84), ((Player*)p)->index, ((Player*)p)->col_pos);
+        if (t0 < one && t1 >= one && *(s16*)(row + offsetof(plyr_damage, helpidx)) >= 0) {
+            msgPost(*(s16*)(row + offsetof(plyr_damage, helpidx)), ((Player*)p)->index, ((Player*)p)->col_pos);
         }
     }
-    if (*(s16*)(row + 2) & 0x400) {
+    if (*(s16*)(row + offsetof(plyr_damage, flags)) & 0x400) {
         if (t1 >= sf && t1 < ef) {
             if (((Player*)p)->weaphold_node != NULL) {
                 MBTreeSetFlags(((Player*)p)->weaphold_node, 2, 0);
@@ -334,12 +387,12 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
             }
         }
     }
-    if (*(s16*)(row + 2) & 0x80) {
+    if (*(s16*)(row + offsetof(plyr_damage, flags)) & 0x80) {
         ef = sf;
     }
     if (t1 >= sf && t0 < ef) {
         f32 zero = lbl_80347DA0;
-        if (zero != *(f32*)(row + 56)) {
+        if (zero != *(f32*)(row + offsetof(plyr_damage, amount))) {
             ((Player*)p)->power_target = ((Player*)p)->power_target - ((Player*)p)->coll_score;
             ((Player*)p)->coll_score = zero;
         }
@@ -359,8 +412,8 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
             }
             mask = ((Player*)p)->field_11C & 0xFFB7FFFF;
             if (sf == ef) {
-                if (lbl_80347DC0 == (f64)*(f32*)(row + 20)) {
-                    YawVec3(&((Player*)p)->mat[8], buf, *(f32*)(row + 32));
+                if (lbl_80347DC0 == (f64)*(f32*)(row + offsetof(plyr_damage, delay))) {
+                    YawVec3(&((Player*)p)->mat[8], buf, *(f32*)(row + offsetof(plyr_damage, angle)));
                     n = PlayerStartMissile(p, buf, mask, 0, lbl_80347DC8,
                                            lbl_80347DAC);
                 } else {
@@ -374,7 +427,7 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                     kone = lbl_80347DE8;
                     while (acc < kone) {
                         YawVec3(&((Player*)p)->mat[8], buf,
-                                *(f32*)(row + 32) * acc);
+                                *(f32*)(row + offsetof(plyr_damage, angle)) * acc);
                         rate = lbl_80347DE0;
                         buf[0] = (f32)(buf[0] * kx);
                         scale = lbl_80347DAC;
@@ -382,11 +435,11 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                         buf[2] = (f32)(buf[2] * kx);
                         n += PlayerStartMissile(p, buf, mask, 0,
                                                 rate, scale);
-                        acc = (f32)(acc + kone / *(f32*)(row + 20));
+                        acc = (f32)(acc + kone / *(f32*)(row + offsetof(plyr_damage, delay)));
                     }
                 }
             } else {
-                rate = *(f32*)(row + 20);
+                rate = *(f32*)(row + offsetof(plyr_damage, delay));
                 if ((f64)rate > lbl_80347DC0) {
                     frac = t1 - sf;
                     if (!(__fabs(rate) > __fabs(frac))) {
@@ -396,8 +449,8 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                         break;
                     }
                 }
-                fl = *(s16*)(row + 2);
-                scale = *(f32*)(row + 32);
+                fl = *(s16*)(row + offsetof(plyr_damage, flags));
+                scale = *(f32*)(row + offsetof(plyr_damage, angle));
                 if (fl & 0x300) {
                     if (ef > sf) {
                         k = (t1 - sf) / (ef - sf);
@@ -411,9 +464,9 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                 }
                 YawVec3(&((Player*)p)->mat[8], buf, scale);
                 buf[1] = lbl_80347DB8;
-                buf[0] = buf[0] * *(f32*)(row + 44);
-                buf[1] = buf[1] * *(f32*)(row + 48);
-                buf[2] = buf[2] * *(f32*)(row + 52);
+                buf[0] = buf[0] * *(f32*)(row + offsetof(plyr_damage, offset[0]));
+                buf[1] = buf[1] * *(f32*)(row + offsetof(plyr_damage, offset[1]));
+                buf[2] = buf[2] * *(f32*)(row + offsetof(plyr_damage, offset[2]));
                 n = PlayerStartMissile(p, buf, mask, 0, lbl_80347DC8,
                                        lbl_80347DAC);
                 {
@@ -425,11 +478,11 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
                             continue;
                         }
                         fx = (u8*)Effects + ei * 240;
-                        if (*(f32*)(row + 68) > zero) {
+                        if (*(f32*)(row + offsetof(plyr_damage, weight)) > zero) {
                             *(f32*)(fx + 160) =
-                                *(f32*)(fx + 160) * *(f32*)(row + 68);
+                                *(f32*)(fx + 160) * *(f32*)(row + offsetof(plyr_damage, weight));
                         }
-                        if (*(s16*)(row + 2) & 0x1000) {
+                        if (*(s16*)(row + offsetof(plyr_damage, flags)) & 0x1000) {
                             if (*(void**)(fx + 212) != NULL) {
                                 MBRemovePolyInst(*(void**)(fx + 212));
                                 *(s32*)(fx + 212) = 0;
@@ -453,8 +506,8 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
             break;
         }
     }
-    if (*(s16*)(row + 78) >= 0) {
-        PlyrSfxDoDamage(p, *(s16*)(row + 78), p2, other, t0, t1);
+    if (*(s16*)(row + offsetof(plyr_damage, next)) >= 0) {
+        PlyrSfxDoDamage(p, *(s16*)(row + offsetof(plyr_damage, next)), p2, other, t0, t1);
     }
 }
 
@@ -501,9 +554,9 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
 
     pidx = ((Player*)p)->index;
     if (mode != 0) {
-        pos[0] = *(f32*)(row + 44);
-        pos[1] = *(f32*)(row + 48);
-        pos[2] = *(f32*)(row + 52);
+        pos[0] = *(f32*)(row + offsetof(plyr_damage, offset[0]));
+        pos[1] = *(f32*)(row + offsetof(plyr_damage, offset[1]));
+        pos[2] = *(f32*)(row + offsetof(plyr_damage, offset[2]));
         if (other != NULL) {
             MulBodyVecMat4((f32*)other, (f32*)other, ((Player*)p)->mat);
             pos[0] = *(f32*)other + pos[0];
@@ -512,20 +565,20 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
         }
     } else {
         if (other != NULL) {
-            MulVecMat3((f32*)(row + 44), pos, ((Player*)p)->mat);
+            MulVecMat3((f32*)(row + offsetof(plyr_damage, offset[0])), pos, ((Player*)p)->mat);
             pos[0] = *(f32*)other + pos[0];
             pos[1] = *(f32*)(other + 4) + pos[1];
             pos[2] = *(f32*)(other + 8) + pos[2];
         } else {
-            MulVecMat4((f32*)(row + 44), pos, ((Player*)p)->mat);
+            MulVecMat4((f32*)(row + offsetof(plyr_damage, offset[0])), pos, ((Player*)p)->mat);
         }
     }
-    mode = DoPlyrSfxSub(p, *(s16*)(row + 72), pos, mode, -1);
+    mode = DoPlyrSfxSub(p, *(s16*)(row + offsetof(plyr_damage, fxidx)), pos, mode, -1);
     if (mode < 0) {
         goto done;
     }
     hdrp = &lbl_80282930[pidx];
-    seq = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + 72) * 80;
+    seq = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + offsetof(plyr_damage, fxidx)) * 80;
     fl = 0;
     switch (*(s16*)row) {
     case 2:
@@ -549,64 +602,64 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
     } else {
         fl |= 512;
     }
-    if (*(s16*)(row + 2) & 0x40) {
+    if (*(s16*)(row + offsetof(plyr_damage, flags)) & 0x40) {
         fl &= ~4;
     }
-    if (*(u32*)(row + 4) & 0x00020000) {
+    if (*(u32*)(row + offsetof(plyr_damage, dmgtype)) & 0x00020000) {
         fl |= 0x20000;
     }
     flp = (u8*)&Effects[mode];
     *(u32*)(flp += 100) |= fl;
-    if ((*(u32*)seq & 0x10) && *(s16*)(row + 74) < 0) {
+    if ((*(u32*)seq & 0x10) && *(s16*)(row + offsetof(plyr_damage, hitfxidx)) < 0) {
         PlaceEffectOnFloor(mode, Effects[mode].node);
     }
-    if (0.0f != *(f32*)(row + 32)) {
-        YawMat3(Effects[mode].node, *(f32*)(row + 32));
+    if (0.0f != *(f32*)(row + offsetof(plyr_damage, angle))) {
+        YawMat3(Effects[mode].node, *(f32*)(row + offsetof(plyr_damage, angle)));
     }
-    if (0.0f != *(f32*)(row + 40)) {
-        PitchMat3(Effects[mode].node, *(f32*)(row + 40));
+    if (0.0f != *(f32*)(row + offsetof(plyr_damage, pitch))) {
+        PitchMat3(Effects[mode].node, *(f32*)(row + offsetof(plyr_damage, pitch)));
     }
-    health = *(f32*)(row + 56);
+    health = *(f32*)(row + offsetof(plyr_damage, amount));
     if (health < 0.0f) {
         health = ((Player*)p)->stat_damage * -health;
     }
     if (health > 0.0f) {
         Effects[mode].damage = health;
-        Effects[mode].mindp = *(f32*)(row + 36);
-        Effects[mode].damageradius = *(f32*)(row + 12);
-        Effects[mode].damagetype = *(u32*)(row + 4);
-        Effects[mode].damagedelay = *(f32*)(row + 20);
-        if (*(f32*)(row + 24) > lbl_80347DC0) {
-            Effects[mode].minendtime = gClockTime + *(f32*)(row + 24);
+        Effects[mode].mindp = *(f32*)(row + offsetof(plyr_damage, arc));
+        Effects[mode].damageradius = *(f32*)(row + offsetof(plyr_damage, radius));
+        Effects[mode].damagetype = *(u32*)(row + offsetof(plyr_damage, dmgtype));
+        Effects[mode].damagedelay = *(f32*)(row + offsetof(plyr_damage, delay));
+        if (*(f32*)(row + offsetof(plyr_damage, mintime)) > lbl_80347DC0) {
+            Effects[mode].minendtime = gClockTime + *(f32*)(row + offsetof(plyr_damage, mintime));
         }
         Effects[mode].owner = pidx + 1;
-        if (*(s16*)(row + 74) >= 0) {
-            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + 74) * 80;
+        if (*(s16*)(row + offsetof(plyr_damage, hitfxidx)) >= 0) {
+            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + offsetof(plyr_damage, hitfxidx)) * 80;
             SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
                       *(u32*)(sub + 12));
             if (*(u32*)sub & 0x10) {
                 *(u32*)flp |= 0x200000;
             }
         }
-        if (*(s16*)(row + 76) >= 0) {
-            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + 76) * 80;
-            SfxSetMorph(mode, *(u32*)(sub + 8), 0, *(f32*)(row + 28));
-            if (*(s16*)(row + 2) & 0x800) {
+        if (*(s16*)(row + offsetof(plyr_damage, loopfxidx)) >= 0) {
+            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + offsetof(plyr_damage, loopfxidx)) * 80;
+            SfxSetMorph(mode, *(u32*)(sub + 8), 0, *(f32*)(row + offsetof(plyr_damage, maxtime)));
+            if (*(s16*)(row + offsetof(plyr_damage, flags)) & 0x800) {
                 *(u32*)flp |= 0x8000;
             }
         }
-        if (*(f32*)(row + 12) != 0.0f) {
+        if (*(f32*)(row + offsetof(plyr_damage, radius)) != 0.0f) {
             SfxSetLight(mode, lbl_80120DA0 + ((Player*)p)->char_type * 12,
-                        (f32)(lbl_80347DF8 * *(f32*)(row + 12)));
-        } else if (*(f32*)(row + 8) != 0.0f) {
+                        (f32)(lbl_80347DF8 * *(f32*)(row + offsetof(plyr_damage, radius))));
+        } else if (*(f32*)(row + offsetof(plyr_damage, hitrad)) != 0.0f) {
             SfxSetLight(mode, lbl_80120DA0 + ((Player*)p)->char_type * 12,
-                        (f32)(lbl_80347DF8 * *(f32*)(row + 8)));
+                        (f32)(lbl_80347DF8 * *(f32*)(row + offsetof(plyr_damage, hitrad))));
         }
-        if (*(f32*)(row + 60) > 0.0f) {
+        if (*(f32*)(row + offsetof(plyr_damage, speed_min)) > 0.0f) {
             f32 vy;
-            f32 spd = lbl_80347E00 * (*(f32*)(row + 64) - *(f32*)(row + 60)) +
-                      *(f32*)(row + 60);
-            if (*(s16*)(row + 2) & 4) {
+            f32 spd = lbl_80347E00 * (*(f32*)(row + offsetof(plyr_damage, speed_max)) - *(f32*)(row + offsetof(plyr_damage, speed_min))) +
+                      *(f32*)(row + offsetof(plyr_damage, speed_min));
+            if (*(s16*)(row + offsetof(plyr_damage, flags)) & 4) {
                 vel[0] = ((Player*)p)->mat[8];
                 vel[1] = ((Player*)p)->mat[9];
                 vel[2] = ((Player*)p)->mat[10];
@@ -625,33 +678,33 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
                 vel[2] = ((Player*)p)->mat[10] * spd;
             }
             if (*(s16*)row == 2) {
-                if (0.0f != *(f32*)(row + 32)) {
-                    YawVec3(vel, vel, *(f32*)(row + 32));
+                if (0.0f != *(f32*)(row + offsetof(plyr_damage, angle))) {
+                    YawVec3(vel, vel, *(f32*)(row + offsetof(plyr_damage, angle)));
                 }
-                if ((*(s16*)(row + 2) & 8) &&
-                    0.0f != *(f32*)(row + 40)) {
-                    PitchVec3(vel, vel, *(f32*)(row + 40));
+                if ((*(s16*)(row + offsetof(plyr_damage, flags)) & 8) &&
+                    0.0f != *(f32*)(row + offsetof(plyr_damage, pitch))) {
+                    PitchVec3(vel, vel, *(f32*)(row + offsetof(plyr_damage, pitch)));
                 }
             }
             if (*(u32*)seq & 8) {
                 rnd[0] = Random(lbl_80347E20);
                 rnd[1] = 0.0f;
                 rnd[2] = Random(lbl_80347E20);
-                SfxSetPhysics(mode, vel, rnd, *(f32*)(row + 68),
-                            *(f32*)(row + 8));
+                SfxSetPhysics(mode, vel, rnd, *(f32*)(row + offsetof(plyr_damage, weight)),
+                            *(f32*)(row + offsetof(plyr_damage, hitrad)));
             } else {
-                SfxSetPhysics(mode, vel, 0, *(f32*)(row + 68), *(f32*)(row + 8));
+                SfxSetPhysics(mode, vel, 0, *(f32*)(row + offsetof(plyr_damage, weight)), *(f32*)(row + offsetof(plyr_damage, hitrad)));
             }
         } else {
-            SfxSetPhysics(mode, 0, 0, *(f32*)(row + 68), *(f32*)(row + 8));
+            SfxSetPhysics(mode, 0, 0, *(f32*)(row + offsetof(plyr_damage, weight)), *(f32*)(row + offsetof(plyr_damage, hitrad)));
         }
         if ((*(u64*)&gControllerButtons & 16) != 0 &&
             (*(u64*)&gControllerButtons & 1) != 0) {
             DmgFxAdd(mode);
         }
     } else {
-        if (*(s16*)(row + 74) >= 0) {
-            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + 74) * 80;
+        if (*(s16*)(row + offsetof(plyr_damage, hitfxidx)) >= 0) {
+            sub = ((PsfxHeader*)*hdrp)->records + *(s16*)(row + offsetof(plyr_damage, hitfxidx)) * 80;
             SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
                       *(u32*)(sub + 12));
         }
