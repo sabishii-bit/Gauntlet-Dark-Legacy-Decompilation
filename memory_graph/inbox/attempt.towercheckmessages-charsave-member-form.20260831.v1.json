@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Re-derive the REVERIFY-flagged TowerCheckMessages baseline and convert its char_save/char_save_ckpt rune and shard clusters from raw byte-offset form to true member form.",
+  "attributes": {
+    "law_screen": "claim.law.cached-base-alias-defeats-rematerialized-index-base: APPLIED in its forward direction -- the hand-rolled `u8* rec = (u8*)p + p->character * CHAR_SAVE_STRIDE` alias was DELETED and MWCC re-formed the shared `p + character*240` base by CSE, folding each field into its own displacement exactly as the target does. claim.law.local-alias-vs-direct-global-spelling-diverges: APPLIED and decisive -- the fourth site in each cluster re-derives from p in the target (lhzx/sthx off p after reloading character) and was deliberately left in raw form while its three neighbours converted. claim.law.offsetof-rename-preserves-protected-web: APPLIED for the checkpoint-shadow literals in the preceding batch. claim.law.multifield-alias-defeats-indexed-addressing: SCREENED, not applicable -- no typed intermediate pointer was introduced; the conversion REMOVED one. claim.law.offsetof-rename-safe-on-capped-and-parked-functions: APPLIED as the reason to attempt this function at all despite its live park. claim.law.large-fn-batch-fuzzy-can-mask-subfield-regression: SCREENED -- at 697 insns this is far below the ~4000-insn fuzzy-arbitration threshold, so fndiff real and insn parity were used directly and checked after each of the two clusters separately.",
+    "laws_applied": "[\"claim.law.cached-base-alias-defeats-rematerialized-index-base.20260831.v1\", \"claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1\", \"claim.law.offsetof-rename-safe-on-capped-and-parked-functions.20260831.v1\"]",
+    "note": "Fuzzy 99.268295% at baseline; the function is NonMatching-TU code so the linked DOL is unaffected either way.",
+    "residual": "real 158 at insns 697/697 with opcode multiset IDENTICAL -- a pure register/relocation residual, unchanged in class by this pass. The structural work in this function is done; what remains is coloring across a 697-instruction body and is not addressable by further raw-to-member conversion. The completion1/completion2 loops inside this same function remain raw and are BLOCKED on the header, per claim.player-charsave-completion-fields-are-arrays.20260831.v1 -- re-attempt them once that header work order lands, since they are the largest remaining named-field gap in the function.",
+    "scope": "src/game/world/tower.c::TowerCheckMessages, rune loop and shard loop. Commit 88a5a519f.",
+    "verification": "probe.py clean BASELINE re-derived before the first edit (the prior park carried a REVERIFY banner and no recorded measurement): real 164, insns 697/697, multiset IDENTICAL. Rune cluster: IMPROVED real 164 -> 158. Shard cluster: NEUTRAL at 158, banking the naming win at zero cost. defake_gate.py check --rebuild: GATE OK (1 improved), no sibling regression across the other 35 functions; banked with --update-improved. Full ninja -j2 green, build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:TowerCheckMessages",
+  "id": "attempt.towercheckmessages-charsave-member-form.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T06:35:14Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.towercheckmessages.20260829.v1",
+  "valid_from": "2026-08-31"
+}

@@ -253,18 +253,29 @@ extern char lbl_803485D8;
  * trailing padding (game/player.h pad_1C) rather than any GC-verified named
  * field, so it stays a plain constant rather than an offsetof(). */
 #define LEVEL_STATUS_BYTES_OFF 0x1CD0
-/* Fields below have NO game/player.h coverage (they land in the still-raw
- * pad_0A88/pad_223A spans) - named here from this TU's own read/write usage
- * only, not GC-asm-verified, so they stay plain constants rather than
- * offsetof(). Left as a single source of truth instead of repeating the
- * bare hex at every site. */
+/* The 0x2220 block is char_save_ckpt[16], the checkpoint SHADOW of
+ * char_save[16] (game/player.h; same PlayerCharSave element type, so each
+ * shadow field is reachable by the same offsetof pair as its live twin).
+ * Every offset below therefore resolves through named fields rather than
+ * bare hex.  Spelled as a displacement respelling on the ORIGINAL raw base
+ * per claim.law.offsetof-rename-preserves-protected-web - no typed
+ * intermediate is introduced. */
+#define CKPT_OFF(memb) \
+    (offsetof(Player, char_save_ckpt) + offsetof(PlayerCharSave, memb))
+#define CHAR_BANKED_RUNES_OFF    CKPT_OFF(rune_stones)   /* 8736: last-seen rune bitmask (TowerCheckMessages/EnterTower) */
+#define CHAR_BANKED_SHARDS_OFF   CKPT_OFF(rune_stones2)  /* 8738: last-seen shard bitmask */
+#define CHAR_LEVEL_EXTRA_OFF     CKPT_OFF(completion1)   /* 8756: record-A overflow counter (towerAdvanceLevelRecord) */
+#define CHAR_BOSS_EXTRA_OFF      CKPT_OFF(completion2)   /* 8762: record-B overflow counter (towerAdvanceBossRecord) */
+/* 0x2230/0x2232 = char_save_ckpt[c].boss_attempt1/2 by LAYOUT.  The field
+ * names come from options.c's next_boss_hint reading the live char_save
+ * twin; this TU reads the shadow copy as garg/legend-item bits.  The two
+ * semantic readings disagree, but the offsets do not - only the layout is
+ * load-bearing here. */
+#define CHAR_GARG_BIT_LO_OFF     CKPT_OFF(boss_attempt1) /* 0x2230: garg-item bit test (playerGiveGargItem) */
+#define CHAR_GARG_BIT_HI_OFF     CKPT_OFF(boss_attempt2) /* 0x2232: garg-item bit set-if-already-had */
+/* Fields below still have NO game/player.h coverage - named here from this
+ * TU's own read/write usage only, so they stay plain constants. */
 #define PLAYER_WORLD_RUNES_OFF   0xA8C  /* PLAYER_AT: world-rune bit accumulator (TU header note) */
-#define CHAR_BANKED_RUNES_OFF    8736   /* char*CHAR_SAVE_STRIDE base: last-seen rune bitmask (TowerCheckMessages/EnterTower) */
-#define CHAR_BANKED_SHARDS_OFF   8738   /* char*CHAR_SAVE_STRIDE base: last-seen shard bitmask */
-#define CHAR_LEVEL_EXTRA_OFF     8756   /* char*CHAR_SAVE_STRIDE base: record-A overflow counter (towerAdvanceLevelRecord) */
-#define CHAR_BOSS_EXTRA_OFF      8762   /* char*CHAR_SAVE_STRIDE base: record-B overflow counter (towerAdvanceBossRecord) */
-#define CHAR_GARG_BIT_LO_OFF     0x2230 /* char*sizeof(PlayerCharSave) base: garg-item bit test (playerGiveGargItem) */
-#define CHAR_GARG_BIT_HI_OFF     0x2232 /* char*sizeof(PlayerCharSave) base: garg-item bit set-if-already-had */
 #define CHAR_EXP_SHADOW_OFF      0x1EDC /* char*24 base: last-recorded exp, level-up edge detect (sumnerCheckLevelUp) */
 #define CHAR_EXP_PRESENCE_OFF    0xA90  /* char*24 (or k*24) base: same shape, read by sumnerUpdatePresence */
 
@@ -1178,11 +1189,13 @@ void TowerCheckMessages(s32 mode) {
 
                 if (p->state != 0 &&
                     *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)lbl_80343D6C) {
-                    u8* rec = (u8*)p + p->character * CHAR_SAVE_STRIDE;
-
                     runeGot |= p->runes;
-                    runeBanked |= *(u16*)(rec + CHAR_BANKED_RUNES_OFF);
-                    *(u16*)(rec + offsetof(Player, char_save) + offsetof(PlayerCharSave, rune_stones)) |= p->runes;
+                    runeBanked |= p->char_save_ckpt[p->character].rune_stones;
+                    p->char_save[p->character].rune_stones |= p->runes;
+                    /* Re-derived from p, NOT shared with the reads above: the
+                     * target reloads character and recomputes the stride here
+                     * (lhzx/sthx off p), per
+                     * claim.law.local-alias-vs-direct-global-spelling-diverges. */
                     *(u16*)((u8*)p + p->character * 240 + CHAR_BANKED_RUNES_OFF) |= p->runes;
                 }
             }
@@ -1204,11 +1217,11 @@ void TowerCheckMessages(s32 mode) {
 
                 if (p->state != 0 &&
                     *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)lbl_80343D6C) {
-                    u8* rec = (u8*)p + p->character * CHAR_SAVE_STRIDE;
-
                     shardGot |= p->shards;
-                    shardBanked |= *(u16*)(rec + CHAR_BANKED_SHARDS_OFF);
-                    *(u16*)(rec + offsetof(Player, char_save) + offsetof(PlayerCharSave, rune_stones2)) |= p->shards;
+                    shardBanked |= p->char_save_ckpt[p->character].rune_stones2;
+                    p->char_save[p->character].rune_stones2 |= p->shards;
+                    /* Re-derived from p, NOT shared with the reads above (see
+                     * the rune loop above for the same target shape). */
                     *(u16*)((u8*)p + p->character * 240 + CHAR_BANKED_SHARDS_OFF) |= p->shards;
                 }
             }
@@ -1292,7 +1305,7 @@ void TowerCheckMessages(s32 mode) {
                         if (*val == lbl_80124CDC[j]) {
                             *val = -1;
                             *(s16*)((u8*)(j * 2) + (s32)p +
-                                    p->character * 240 + 8756) = -1;
+                                    p->character * 240 + CHAR_LEVEL_EXTRA_OFF) = -1;
                         }
                     }
                     lbl_80344C48 = sMusicFadeBase;
@@ -1330,7 +1343,7 @@ void TowerCheckMessages(s32 mode) {
                             if (*val == lbl_80124C70[j]) {
                                 *val = -1;
                                 *(s16*)((u8*)(j * 2) + (s32)p +
-                                        p->character * 240 + 8762) = -1;
+                                        p->character * 240 + CHAR_BOSS_EXTRA_OFF) = -1;
                             }
                         }
                         lbl_80344C48 = sMusicFadeBase;

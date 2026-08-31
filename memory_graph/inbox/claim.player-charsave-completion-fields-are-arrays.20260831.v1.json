@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker W1, work_claim.offsetof-deprecation.20260831.v1. Evidence from src/game/world/tower.c consumers and the target disassembly of towerAdvanceLevelRecord (tools/gdl/fnasm.py game/world/tower.c towerAdvanceLevelRecord). NOT acted on: this lane does not own include/game/player.h.",
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.player-charsave-completion-fields-are-arrays.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T06:34:59Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/tower",
+  "valid_from": "2026-08-31",
+  "value": "include/game/player.h declares PlayerCharSave.completion1 (0x14) and .completion2 (0x1A) as scalar u16 with `u8 pad_16[4]` between them. Both are really ARRAYS indexed by level, and the scalar declaration is what blocks true member form at every tower.c consumer -- the reconstruction is forced to write `((s16*)&TOWER_SAVE(player)->completion1)[level]`, a cast-and-index that is itself a fakematch, or to fall back to raw byte arithmetic. EVIDENCE. (1) Byte fit: completion1 at 0x14 with pad_16[4] running 0x16-0x19 is EXACTLY three u16 slots, 0x14-0x19, terminating precisely where completion2 begins at 0x1A -- the pad is the size of the missing elements and nothing else. (2) Index bounds in consumers: towerAllPlayersMetLevelReq clamps `if (level > 2) level = 2;` before indexing completion1, and TowerCheckMessages walks `for (j = 0; j < 3; j++)` over `COMPLETION1_OFF + j*2` against the 3-entry table lbl_80124D94[3] = {12,20,28} -- completion1[3]. The completion2 loops run `for (j = 0; j < 8; j++)` against lbl_80124C70[9], so completion2 is at least 8 wide (0x1A-0x29, extending into the current pad_1C[0xD4]). (3) Target codegen: towerAdvanceLevelRecord hoists `slwi r8,r4,1` (level*2) OUT of the player loop and forms `add r11,r8,r9` once per iteration, then reaches BOTH the live record (`lha 0(r10)` after `addi r10,r4,3560`) and the checkpoint shadow (`lhax r4,r11,r5` after `addi r5,r4,8756`) off that one level-scaled base -- the signature of a level-indexed array member, not of a scalar plus hand-rolled arithmetic. (4) The same pair repeats in the checkpoint shadow at char_save_ckpt+0x14/+0x1A (tower.c literals 8756/8762), which must stay layout-identical to the live twin. MEASURED COST OF THE CURRENT DECLARATION: converting towerAdvanceLevelRecord to the best member form the scalar declaration permits regressed real 0 -> 24 with an opcode multiset DIFFERS (ours-only lhax + add, target-only the shared `add`), because the cast-and-index form cannot express the level-scaled shared base the target computes. WORK ORDER for whichever lane owns include/game/player.h: re-declare as `u16 completion1[3];` at 0x14 (absorbing pad_16) and `u16 completion2[8];` at 0x1A (absorbing the leading 14 bytes of pad_1C), keeping PlayerCharSave's total size 0xF0 unchanged. Both are arrays of a SCALAR type, so claim.law.embedded-struct-member-whole-tu-cascade does not fire (that law's hazard is a new AGGREGATE member type; a scalar-array split gated clean in its own boundary refinement). Gate the header edit ALONE across the heavy includers first per the isolation protocol, then re-run this TU's conversions -- towerAdvanceLevelRecord, towerAdvanceBossRecord, towerLevelStatusA/B, towerAllPlayersMetLevelReq/BossReq, towerGetLevelRecord, towerBossStatus and the two TowerCheckMessages loops all become expressible as `p->char_save[c].completion1[level]` with no cast."
+}
