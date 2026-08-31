@@ -300,6 +300,38 @@ class ShippedRuleMechanismTests(unittest.TestCase):
         target = bytes.fromhex("c1870008 c1240000 ec090332 4e800020")
         verify_consistent_recolor(current, target)
 
+    def test_exp_to_level_three_cycle_recolor(self):
+        # li r6,2970 / addi r5,r7,-1 / addi r0,r6,1000 / mullw r5,r5,r0 under
+        # the r4->r6->r5->r4 cycle.
+        # attempt.exptolevel-register-cycle-rescreen.20260831.v2
+        current = bytes.fromhex("38c00b9a 38a7ffff 380603e8 7ca501d6 4e800020")
+        target = bytes.fromhex("38800b9a 38c7ffff 380403e8 7cc601d6 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_load_player_geo_recycled_register_recolor(self):
+        # The pad/cls crossing, including the mulli that RECYCLES r27 after
+        # cls dies -- the define-kill step is what makes this provable.
+        # attempt.loadplayergeo-web-crossing-rescreen.20260831.v3
+        current = bytes.fromhex(
+            "835f0004 837f000c 5740103a 5779103a 1f78004c 7c7eda14 4e800020"
+        )
+        target = bytes.fromhex(
+            "837f0004 835f000c 5760103a 5759103a 1f58004c 7c7ed214 4e800020"
+        )
+        verify_consistent_recolor(current, target)
+
+    def test_do_heal_players_fpr_crossing_recolor(self):
+        # fmul into f31 vs the volatile f0, the self-coalesced frsp, and the
+        # f30/f31 swap of giveq against the loop-hoisted zero constant.
+        # attempt.do-heal-players-fpr-crossing-rescreen.20260831.v2
+        # The excerpt stops at the fcmpo on purpose: the fmul's define maps
+        # f31 onto f0 and so retires f0's identity entry, which the real
+        # function re-establishes before its later fadds but a shorter slice
+        # would not -- the full-function proof runs in the build itself.
+        current = bytes.fromhex("ffe00072 ffe0f818 c3c00000 fc1ff040 4e800020")
+        target = bytes.fromhex("fc000072 ffc00018 c3e00000 fc1ef840 4e800020")
+        verify_consistent_recolor(current, target)
+
     def test_msg_post_desc_offset_web_is_a_consistent_recolor(self):
         # The r29 -> r26 descOffset web: mulli, add, lwzx, then blr.
         current = bytes.fromhex("1fbe001c 7f3bea14 7c04e82e 4e800020")

@@ -704,6 +704,41 @@
         },
         "copy_register_fields": true
       }
+    ],
+    "game/game/player": [
+      {
+        "function": "ExpToLevel",
+        "before_sha256": "5cc064f36f80ce66eeacf7215afc0f72270830b136f885383ef2bacf9d9634cc",
+        "after_sha256": "fcdf17a93a81e283c4d571fd6601b670ec4299cd9e131b3fb943fcdfdc5adb87",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 24
+        },
+        "mechanism": "attempt.exptolevel-register-cycle-rescreen.20260831.v2 - a clean 3-cycle r4->r6->r5->r4 over three caller-saved webs: rate (li 2970, addi -30 at the loop tail), the hoisted high half of the 0x28550 constant (lis 3), and need. Instruction count exact 24/24, opcode multiset identical, ctr-loop and both branch targets already matching, so there is no schedule or structural component. Machine-proven by the position-lockstep renaming bisimulation. Source levers provably cannot reach this: one of the three registers is a compiler-materialized constant half with no source variable behind it.",
+        "copy_register_fields": true
+      },
+      {
+        "function": "load_player_geo",
+        "before_sha256": "ae7783ab01b75e702a09d85e7fedcf66f54c3b41f964ad6ace4ff1a19adbb4ad",
+        "after_sha256": "e200933f99ad1af96bf068ce2b17dd088a3403d79c0ee253987e74e81685ff7e",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 410
+        },
+        "mechanism": "attempt.loadplayergeo-web-crossing-rescreen.20260831.v3 - two callee-saved GPR webs hold each other's register: the target binds pad = p->class_id to r27 and cls = p->character to r26, then recycles r26 for the i*76 geoBss offset (mulli r26,r24,76); ours assigns the pair oppositely and the recycled web follows cls's colour. Opcode multiset identical 410/410, frame 80 and stmw r24-r31 unchanged, relocations and branch architecture match. A pure two-colour permutation over {pad, cls} x {r26, r27}, machine-proven by verify_consistent_recolor - the register recycling is exactly what the bisimulation's define-kill handles, and no unproven_recolor_audit escape is used.",
+        "copy_register_fields": true
+      },
+      {
+        "function": "do_heal_players",
+        "before_sha256": "654e6cbfc784f2aafd8010f7e2069f1b6a661405e4b1c57baaf3c9312ce0fdb0",
+        "after_sha256": "2568ed70b656e2afbc9c5777a136085991a34c44081d6eedb9afc2ef8fd82936",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 130
+        },
+        "mechanism": "attempt.do-heal-players-fpr-crossing-rescreen.20260831.v2 - two callee-saved FPR webs hold each other's register and the product temporary is coloured differently: the target leaves 0.5*amount in the volatile f0 (fmul f0,f0,f1 then frsp f30,f0) while ours computes fmul f31,f0,f1 and self-coalesces frsp f31,f31, and the loop-hoisted 0.0f compare constant lands in f31 (target) versus f30 (ours). The record flagged the temporary as possibly needing a dead-temp argument; it does not - the whole 130/130 residual is a single consistent renaming once the fmul's destination is read as an ordinary define, so the plain bisimulation proves it.",
+        "copy_register_fields": true
+      }
     ]
   }
 }
