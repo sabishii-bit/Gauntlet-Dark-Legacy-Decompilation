@@ -4173,9 +4173,9 @@ void InitEffects(void)
     u32* p1032;
     u32* p1044;
     u32* p1056;
-    u32* p960;
-    u32* p1140;
     u32* p1152;
+    u32* p1140;
+    u32* p960;
     u32* p972;
     u32* p1068;
     u32* p984;
@@ -4347,7 +4347,7 @@ void InitEffects(void)
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEDEATH1, zmod)) = -512;
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEDEATH1, alpha)) = 0;
             if (*hp == NULL || *(s8*)(strs + 92) == 0) {
-                *p1068 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEDEATH2, atree)) = 0;
             } else {
                 *p1068 = (s32)AtreeMatch(*hp, strs + 92, 0);
                 if (*p1068 == 0) {
@@ -4359,7 +4359,7 @@ void InitEffects(void)
         }
         if (i == 30) {
             if (*hp == NULL || *(s8*)(strs + 104) == 0) {
-                *p1140 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_DEATH_HEALTH, atree)) = 0;
             } else {
                 *p1140 = (s32)AtreeMatch(*hp, strs + 104, 0);
                 if (*p1140 == 0) {
@@ -4369,7 +4369,7 @@ void InitEffects(void)
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_DEATH_HEALTH, zmod)) = -512;
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_DEATH_HEALTH, alpha)) = 0;
             if (*hp == NULL || *(s8*)(strs + 116) == 0) {
-                *p1152 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_DEATH_EXP, atree)) = 0;
             } else {
                 *p1152 = (s32)AtreeMatch(*hp, strs + 116, 0);
                 if (*p1152 == 0) {
