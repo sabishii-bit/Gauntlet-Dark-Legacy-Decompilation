@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/gamemode.h"
 
 /* GDL in-game message / notification queue (GCN MESSAGE.OBJ region,
  * 0x800A4870-0x800A573C). Names are provisional (no clean PDB anchor on GCN).
@@ -535,7 +536,7 @@ int msgPost(int idx, int param, char* position)
     }
     if ((idx <= 0x1C || (idx >= 0x2C && idx <= 0x2D) ||
          idx == 0x37 || idx == 0x50) &&
-        gGameMode != 0x8006 && gGameMode != 0x8003 && gMessageDelay > 0) {
+        gGameMode != MA_DEMO && gGameMode != MA_INSTRUCT && gMessageDelay > 0) {
         return 0;
     }
 
@@ -647,7 +648,7 @@ int msgPost(int idx, int param, char* position)
     }
 
     category = desc->f4;
-    if (gGameMode == 0x8003 || gMessageState != 0) {
+    if (gGameMode == MA_INSTRUCT || gMessageState != 0) {
         category = -1;
     }
     switch (category) {
@@ -673,7 +674,7 @@ int msgPost(int idx, int param, char* position)
             fn_8009CB44(param, desc->flags, -1);
         }
         if ((gControllerButtons & 0x10) == 0) {
-            if (gGameMode == 0x8003 || gGameMode == 0x8006) {
+            if (gGameMode == MA_INSTRUCT || gGameMode == MA_DEMO) {
                 gMessageDelay = 0x3C;
             } else {
                 int delayIndex = gMessageDelayIndex++;
