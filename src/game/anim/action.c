@@ -110,7 +110,7 @@ s32 DoEnemyAction(void* enemy)
 {
     s32* e = (s32*)enemy;
     f32* ef = (f32*)enemy;
-    u8* e70 = (u8*)e + 0x70; /* == &enemy->atree.animinfo: repeat (interruptible
+    animinfo* e70 = (animinfo*)((u8*)e + 0x70); /* == &enemy->atree.animinfo: repeat (interruptible
                                  flag) at +0x34, numframes at +0x10 */
     s32* defs = e + 0x35; /* ACTIONDEF[34] at +0xD4 */
     s32 next = e[0x34];   /* +0xD0 requested action */
@@ -452,7 +452,7 @@ s32 DoEnemyAction(void* enemy)
             mode = 2;
         }
     }
-    *(s16*)(e70 + offsetof(animinfo, repeat)) = interruptible;
+    e70->repeat = interruptible;
     result = AnimateATree(node, seq, mode);
 
     if (result != 0) {
@@ -526,7 +526,7 @@ s32 DoEnemyAction(void* enemy)
             ef[0xDF] = accum;
             if (ef[0xDF] >= 1.0) {
                 ef[0xDF] = (f32)(0.0333333333 *
-                                 (s32)*(s16*)(e70 + offsetof(animinfo, numframes)) +
+                                 (s32)e70->numframes +
                                  ef[0xDF]);
             }
         }
