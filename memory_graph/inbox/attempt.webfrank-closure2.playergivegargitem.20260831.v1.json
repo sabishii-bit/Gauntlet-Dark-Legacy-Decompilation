@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Screen the queued '5-register permutation, structurally exact' candidate and author a recolor rule for it",
+  "attributes": {
+    "harness": "build/scratch/wfharness.py, self-validated against the shipped ExpToLevel rule before use.",
+    "law_screen": "claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1 APPLIED as the screen, and its 'derive from CURRENT raw output, never from a record's recorded offsets' clause is precisely what settled this item at zero cost. claim.law.raw-offset-form-supplies-value-identity-not-addressing-shape.20260831.v1 SCREENED as the source of the candidate: that law's decisive experiment used this very function and measured the member-form rewrite at REGISTER_ONLY real 0 -> 22, then real 22 -> 18 after one named index local was restored. Its residual has since been closed at source. claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED as the reason NOT to ship a rule: pinning an already-exact function would freeze its source and every helper inlined into it for no gain, and tower.c is now pinned in this same lane for SumnerDoSpeech, so the file's freeze surface should not be widened gratuitously. NO src/*.c edit was made.",
+    "laws_applied": "[\"claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1\", \"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "residual": "NONE - the function is ALREADY byte-exact and the queue item is STALE. The raw compiler body and the extracted retail body hash identically (2cff127d62f17fa59af195aac125d1c32151407ad011b38bcd03f86888f558a3 both sides, 35/35 instructions); a derived copy_register_fields patch replayed with before_sha256 == after_sha256 and changed ZERO fields. The five-register permutation the queue describes was real when recorded but was closed at source afterwards, most likely by the named-index-local move that law raw-offset-form-supplies-value-identity documents as moving it monotonically toward the target. NO RULE SHIPPED, deliberately: a rule here would buy nothing and would cost a source freeze. Also note the queue mislabelled the unit as game/game/player; playerGiveGargItem is DEFINED in game/world/tower.c and merely declared extern and called in player.c. GENERALIZABLE LESSON: an equal-hash check is the cheapest possible first screen for any postprocessor queue item and should run before the byte scan - a stale queue entry costs one command to retire.",
+    "scope": "No shipped rule, no test (there is no residual to pin an assertion to). NO src/*.c edit.",
+    "verification": "Screened from the CURRENT raw compiler output (build/GUNE5D/src/game/world/.postprocess/body/tower.o) against build/GUNE5D/obj/game/world/tower.o. GUARD CHECK CITED: replay through the real webfrank.apply_patch reported 0 atoms/fields adjusted and the harness assertion that the patched function equals the retail bytes PASSED trivially, confirming exactness rather than a rule. Full ninja -j2 green, build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:playerGiveGargItem",
+  "id": "attempt.webfrank-closure2.playergivegargitem.20260831.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-08-31T14:40:07Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Screen the queued 'two-web callee-saved transposition' candidate: decide whether a pure recolor, or a recolor plus a local permutation, covers the residual",
+  "attributes": {
+    "harness": "build/scratch/wfharness.py, self-validated against the shipped ExpToLevel rule before use.",
+    "law_screen": "claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1 APPLIED as the screen and it disqualifies this candidate twice over. Its rule (1) does NOT disqualify it - the instruction counts are equal at 254/254 - but the masked byte scan reports 206 offenders out of 220 differing words, i.e. the streams genuinely differ in opcodes and operands rather than in colour, and its permutation path additionally rejects any region containing a control instruction, which the candidate region does (a bl at +0x35c in our stream, at +0x358 in retail's). claim.law.two-use-preoffset-pointer-keeps-add-then-addi.20260831.v1 SCREENED and consistent: forms differing in real instructions and operands are not WebFrank-eligible on either stage. claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 and claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 both SCREENED and NOT applicable - neither one-token family describes a 206-offender divergence. NO src/*.c edit was made.",
+    "laws_applied": "[\"claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1\"]",
+    "residual": "STRUCTURAL and large, so NOT WebFrank-eligible on any stage. The queue asked whether a pure recolor covers the placement, noting the placement is 'a consequence of the fold'. It does not, and the fold is far wider than one transposition: the streams diverge from the PROLOGUE onward. At +0x00c our body still carries an addi r6,r6,0 where retail has already reached stwu r1,-72(r1), so the two functions are offset by an atom through the whole early region, and the divergence persists across +0x328-0x374 where the loads, stores, adds and the call itself sit at different positions in the two streams. Modelling this would require a permutation spanning a bl, which permute_instruction_atoms rejects outright and must keep rejecting. DO-NOT-RETRY as a postprocessor candidate. The two callee-saved webs at +0x37c-0x388 (a cmpwi r29/r30 pair whose operands transpose) are real but are downstream noise of the structural gap, not an independently shippable recolor - they must be re-measured only after the structural divergence is closed at source. NEXT ACTION belongs to a source lane working game/audio/adstream.c.",
+    "scope": "No shipped rule. tools/gdl/tests/test_webfrank.py gains one REJECTION case asserting permute_instruction_atoms keeps refusing a candidate region that spans the call, so the control-instruction guard cannot silently regress. NO src/*.c edit; commit 748613f45.",
+    "verification": "Screened from the CURRENT raw compiler output (build/GUNE5D/src/game/audio/adstream.o) word-diffed against build/GUNE5D/obj/game/audio/adstream.o: 254/254 instructions, 220 differing words, 206 escaping the form-aware register mask. GUARD CHECK CITED: the new test replays a representative region through the real permute_instruction_atoms and it is REJECTED with 'instruction permutation region contains a control op'. Test suite 44 -> 51 green including this rejection case. Full ninja -j2 green, build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:AdsPutBuffer",
+  "id": "attempt.webfrank-closure2.adsputbuffer.20260831.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-08-31T14:40:13Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
