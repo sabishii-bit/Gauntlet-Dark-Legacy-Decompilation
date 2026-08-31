@@ -1005,7 +1005,8 @@ void fn_8009A0AC(s32 col)
     cls = *(s32*)(pl + offsetof(Player, character));
     lvl = gCurLevel;
     goldRaw = *(s32*)(pl + offsetof(Player, gold)) -
-              *(s32*)((b240 = pl + cls * 240) + offsetof(Player, field_224C));
+              *(s32*)((b240 = pl + cls * 240) +
+                      (offsetof(Player, char_save_ckpt) + 0x2C));
     t = goldRaw * range / (lvl->shop_maxgold + 1);
     b28 = pl + cls * 28;
     raw2 = (*(s32*)(b28 + PSHOP_STAT_NOW_OFF + offsetof(PlayerShopStat, field_00)) +
