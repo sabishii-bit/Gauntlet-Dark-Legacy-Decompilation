@@ -384,44 +384,10 @@ s32 StringTextHeight(f32 scale, s32 msg, s32 idx, s32 spacing)
     return StringTextHeightSub(scale, &gStringMsgList, msg, idx, spacing);
 }
 
-/* ==== 0x8001EE04 StringTextHeightSub ==== */
-s32 StringTextHeightSub(f32 scale, StrList* p, s32 msg, s32 idx, s32 spacing)
+static inline s32 TextLineHeight(char* s, s32 fh, s32 spacing)
 {
-    MsgEnt* e = &p->msgs[msg];
-    s32 fh;
-    f32 lh;
-    s32 total;
-    s32 line;
-    s32 n;
-    char* s;
+    s32 n = 0;
 
-    if (spacing < 0) {
-        spacing = gLineSpacing;
-    }
-    lh = (f32)(scale * (f32)e->scale);
-    fh = (s32)((f32)MBFontHeight(p->fontDesc[e->font].color) * lh);
-    if (idx < 0) {
-        total = 0;
-        for (line = 0; line < e->count; line++) {
-            s = (char*)(p->textData + p->textOff[e->first + line]);
-            n = 0;
-            for (;;) {
-                s = find_newline(s);
-                if (s == 0 || n >= 0xF) {
-                    break;
-                }
-                s++;
-                n++;
-            }
-            total += (n + 1) * (fh + spacing);
-        }
-        return total;
-    }
-    if (idx >= e->count) {
-        return 0;
-    }
-    s = (char*)(p->textData + p->textOff[e->first + idx]);
-    n = 0;
     for (;;) {
         s = find_newline(s);
         if (s == 0 || n >= 0xF) {
@@ -431,6 +397,39 @@ s32 StringTextHeightSub(f32 scale, StrList* p, s32 msg, s32 idx, s32 spacing)
         n++;
     }
     return (n + 1) * (fh + spacing);
+}
+
+/* ==== 0x8001EE04 StringTextHeightSub ==== */
+s32 StringTextHeightSub(f32 scale, StrList* p, s32 msg, s32 idx, s32 spacing)
+{
+    MsgEnt* e = &p->msgs[msg];
+    FontDesc* fd = p->fontDesc;
+    s32 fh;
+    f32 lh;
+    s32 total;
+    s32 line;
+    u32 color;
+    u8 unused[24];
+
+    color = fd[e->font].color;
+    if (spacing < 0) {
+        spacing = gLineSpacing;
+    }
+    lh = (f32)(scale * (f32)e->scale);
+    fh = (s32)((f32)MBFontHeight(color) * lh);
+    total = 0;
+    if (idx >= 0) {
+        if (idx >= e->count) {
+            return 0;
+        }
+        return TextLineHeight(
+            (char*)(p->textData + p->textOff[e->first + idx]), fh, spacing);
+    }
+    for (line = 0; line < e->count; line++) {
+        total += TextLineHeight(
+            (char*)(p->textData + p->textOff[e->first + line]), fh, spacing);
+    }
+    return total;
 }
 
 /* ==== 0x8001EFC0 ScrollTextWidth ==== */
