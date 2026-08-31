@@ -148,7 +148,12 @@ NAMED mechanism (the exact instructions, registers, and the MWCC-internal
 choice behind them) with the complete current law corpus screened and the
 screen recorded — "regalloc-ish, 3 tries, park" no longer clears the bar,
 and a session whose only result is a fuzzy improvement is an INCOMPLETE
-session, not a win. Machine-proven REGISTER_ONLY / SCHEDULE mechanisms
+session, not a win. The 3-attempt cap is a PER-AXIS dead-end detector
+(two identical A/Bs kill an axis; three probes on ONE cluster with no
+movement end THAT cluster) — it is NOT a per-function stopping rule:
+PlayerCollidePlayers went exact on axis ten after a first-probe
+REGISTER_ONLY classification, so exhaust distinct axes before parking.
+Machine-proven REGISTER_ONLY / SCHEDULE mechanisms
 are eligible for the WebFrank postprocessor path (hardened guards:
 form-aware masks, renaming bisimulation, permutation dependence audit) —
 authoring a sound rule that closes such a residual IS full matching.
