@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/pmotion.c::PlayerCollidePlayers (0x80087830, 124 instructions), worktree GDL-Claude-ExactPmotion, work_claim.exact-pmotion-btext.20260831.v1, commit 796970325. real 32 -> 0 (byte-exact, project matched 2602 -> 2603 functions). Ten isolated tools/gdl/probe.py A/Bs; every negative form reverted.",
+    "scope": "MWCC GC 1.2.5 family; any function that holds a loop-invariant FP constant in a callee-saved FPR across a loop containing calls, where the reconstruction spells the constant as a read of an `extern f32/f64 lbl_*` split pool label. Companion and sharpening of claim.law.extern-scalar-read-defeats-fp-literal-hoist.20260831.v1, which describes the RELOAD-COUNT symptom; this record describes the REGISTER-CLASS symptom, which survives after reload counts are already at parity.",
+    "tags": [
+      "matching",
+      "sda-global",
+      "register-web",
+      "cse",
+      "entry-schedule"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.hoisted-literal-temp-colors-below-parameter-homes.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T05:52:40Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A floating-point constant written as a LITERAL and used loop-invariantly inside a loop that contains calls is hoisted by MWCC into a COMPILER-CREATED temp web, and that web is coloured BEFORE the function's parameter homes - it takes the LOWEST callee-saved FPR (f28 in a _savefpr_28 frame), pushing the float parameters up one register each. The same value spelled as a read of a mutable `extern f32 lbl_*` pool label CANNOT be hoisted at all (a callee could store to it), so the reconstruction is forced to carry it in an explicit source LOCAL, and a source local is always coloured ABOVE the parameter homes. The result is a whole-function callee-saved FPR PERMUTATION with identical opcodes, identical instruction count and an identical schedule - the exact shape that reads as unfixable allocator noise. DIAGNOSTIC TELL: the target's entry block holds a pool load plus a single `fmr` copy (lfs fHIGH,pool ; fmr fLOW,fHIGH), the copy's destination is NUMERICALLY BELOW every float parameter's home, and the copied value is never rewritten inside the loop. When you see that, the source wrote a literal, not an extern. FIX: substitute the literal at the loop-invariant site AND at the site that initialises the companion variable, so MWCC CSEs one pool entry into the load-plus-copy pair. TWO PRECONDITIONS, both measured on this function. (1) Verify the label is .sdata2/.rodata and round-trips (claim.law.pool-literal-sweep-section-and-lvalue-preconditions). (2) LEAVE THE EXTERN SPELLING at any site where the constant feeds an arithmetic operation MWCC can constant-fold: substituting 0.0f into `lbl * scale + to[1]` let MWCC fold the multiply-add away entirely (124 -> 122 instructions, target-only +1 lfs +1 fmadds), because an extern read is opaque to folding while a literal is not. That asymmetry is the reason a single .sdata2 slot legitimately appears as BOTH a literal and an extern in one reconstructed function. NEGATIVE CONTROL, measured: writing the loop guard as a direct extern read (`if (dot < lbl_80347B30)`) instead of a local regressed real 20 -> 54 and inserted an extra in-loop lfs, confirming no hoist happens for externs. SCREENING COROLLARY: a per-label READ-COUNT parity screen - the standard extern-literal sweep - is blind to this law and will wrongly retire the axis. In this TU an earlier whole-TU refcount sweep (attempt.pmotion-literal-tu-pass.20260831.v1) declared the extern-literal axis retired because every label's target refcount already equalled its source read count; it was right about counts and wrong about colours. Re-screen any function whose residual is a pure callee-saved FP permutation, regardless of refcount parity. COROLLARY FOR THE DEAD AXES: on this function chained-init ownership moved one web correctly (real 32 -> 28) but same-type declaration order, cross-type declaration position, f64 retyping and a full C89 declaration hoist were all byte-NEUTRAL or negative - MWCC's web ordering does not see block scope or declaration placement, so the declaration-shuffling family is not a lever for this residual class and should not be spent on it."
+}

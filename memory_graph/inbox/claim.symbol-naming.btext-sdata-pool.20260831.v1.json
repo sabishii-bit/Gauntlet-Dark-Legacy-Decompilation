@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "work_claim.exact-pmotion-btext.20260831.v1, worktree GDL-Claude-ExactPmotion, commit 096cfc4ee. Names adopted with gdlmem.py rename-symbol --apply; values read from build/GUNE5D/asm/auto_09_80343B18_sdata.s; consumers found with Select-String over build/GUNE5D/asm/*.s and a tree-wide grep.",
+    "scope": "The .sdata block 0x80343BB0..0x80343BD4 and the .sbss block 0x803443D8..0x803443E4, i.e. btext.c's own small-data pool plus the shared slot immediately after it.",
+    "tags": [
+      "symbol-identity",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.symbol-naming.btext-sdata-pool.20260831.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-31T05:54:38Z",
+  "schema_version": 1,
+  "subject": "tu:game/ui/btext",
+  "valid_from": "2026-08-31",
+  "value": "ADOPTED (4 renames, verified single-consumer and behaviour-consistent, all in btext.c's own .sdata pool between symbols the TU already defines): lbl_80343BC4 -> glow_color (initialiser 0x008200EA, passed straight to MBSetFontColor); lbl_80343BCC -> glow_radius (initialiser 40; doubled to form the glow span and used as the divisor of the alpha ramp); lbl_80343BD0 -> glow_period (initialiser 5; added to the span to form the modulo divisor); lbl_80343BD4 -> glow_font (initialiser 6; passed to MBSetFont and MBFontHeight). Each already had that spelling asserted by src/game/ui/btext.c as a dangling `extern` that was defined nowhere in the tree, so the rename removes a real inconsistency rather than inventing a name. REJECTED, and this is the important half: lbl_803443E4 must NOT be renamed to glow_text_extra, the name btext.c currently uses for it. The rename was applied and then reverted when the tool's cross-file patch exposed two other consumers that contradict the name - src/game/game/gamemain.c stores a TEXTURE HANDLE into it (`lbl_803443E4 = MBOX_FindTexture(strings + 376, 0);`, declared there as `void*`) and src/game/ui/options.c reads it as an auxscreen FONT OVERRIDE (`if (lbl_803443E4 > 0) hi2 = lbl_803443E4;`, declared there as `s32`), while btext.c only writes it as an s16 into the drawn message's seq field. It is a shared cross-TU global with three different typings and no glow-specific meaning; btext.c's `extern s32 glow_text_extra` spelling was renamed back to lbl_803443E4 so all three TUs agree, and a comment there now records the sharing. SIDE FINDINGS. (a) There is a live cross-TU extern TYPE CONFLICT on this symbol (void* in gamemain.c vs s32 in options.c and btext.c) - worth a tools/gdl/externcheck.py pass and a deliberate typing decision, since claim.law-class evidence in this project shows such conflicts announce themselves as opcode-multiset divergence. (b) lbl_80343BC8 (.sdata float 0.33) sits INSIDE btext's pool but is consumed by options.c as `f32 lbl_80343BC8; /* highlight pulse amplitude */`; it was deliberately left unnamed for the same reason. (c) MEASUREMENT, useful for planning any future naming pass: objdiff does NOT score data-relocation symbol names. Renaming took DrawGlowText's fndiff --clean from 34 to 20 lines while its objdiff fuzzy stayed at exactly 99.4186%. Symbol naming is a reconstruction-quality and diff-legibility action, never a scoring one - do not schedule it as match work, and arbitrate matching probes with objdiff, not with fndiff line counts, whenever relocation names are in play."
+}
