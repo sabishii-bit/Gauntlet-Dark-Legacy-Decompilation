@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "PAIRED-FIX lane: execute the corrections recorded in claim.sndfxinit-first-param-is-a-mode-not-a-pointer.20260831.v1. You own src/game/sfx/sndfx.c + the callers it names (attract.c's extern and call sites) for THIS fix only. The three coupled defects: (1) sndFxInit's first parameter is declared void* but every caller passes an e_mode constant (attract.c: 0x8009/0x8000/0x8004/0x8008) \u2014 fix the signature and the nonsense (s32) cast; (2) lbl_80344290 is a mode global with a pointer-vs-int extern conflict; (3) attract.c's K&R `extern void sndFxInit();` hides an arity mismatch (:1110 passes one argument). The record warns these MUST move together or fixing one breaks compilation. ALL byte-identical under defake_gate (baseline BOTH TUs first). Then convert sndfx.c's gGameMode sites from the inventory (claim.gamemode-raw-site-inventory.20260831.v1) \u2014 this lane owns sndfx.c, wave-3 lane has the rest. Then optional: sfx TU sub-100 roster cheapest-first under the exact mandate (fn_80093918 is CAPPED with a named mechanism, attempt.fn80093918-preoffset-association-memberform.20260831.v1 \u2014 do not re-probe it); parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:sndFxInit",
+  "id": "work_claim.sndfx-signature-fix.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SX",
+  "recorded_at": "2026-08-31T17:31:31Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

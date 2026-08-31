@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CLASS-DRIVE lane: C4's corpus sweep (claim.webfrank-eligibility-frontier-closed.20260831.v1) found 12 bisim-rejected functions of which EIGHT share one signature: SDA21 addressing-mode divergence (r13/r2-relative vs absolute addressing of small data) \u2014 SOURCE work, not colouring. Read that claim record FIRST for the roster (get_cam_dist and DrawBlit are known members). Your job: drive the class with ONE mechanism investigation instead of 8 isolated probes \u2014 determine what makes MWCC choose lis/addi over SDA21-relative (extern declaration form? symbol size? section placement in splits.txt? -sdata thresholds?), find the lever on ONE function, then apply it across the class. Census-before-probe: shapegrep/poolval the image for functions that DO match with SDA21 forms to identify the discriminating declaration shape. Laws: winglobals sdata2 pool ordering (search laws for sdata/sdata2); NEVER symbolify literal-address forms in Matching TUs. Byte-gate every touched TU (defake_gate baseline first). Exact flips or ONE named class mechanism record that unlocks the other seven; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:get_cam_dist",
+  "id": "work_claim.sda21-class-drive.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SD",
+  "recorded_at": "2026-08-31T17:31:41Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

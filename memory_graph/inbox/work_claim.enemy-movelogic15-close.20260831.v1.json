@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXACT-DRIVE lane, src/game/enemy/enemy.c, single target: move_logic15 real 104, 215/215, multiset IDENTICAL. Two stack slots block it (attempt.move-logic15-pad-resplit-stack-slots.20260831.v1): volatile f32 tmp at ours 0x40(r1) vs target 0x14(r1) (4 words) + an f64 scratch at 0x0c vs 0x18 (2 words). The pad axis is DEAD (four axes, do not re-probe pad order/size/type). THE NAMED NEXT STEP, explicitly handed to this lane: `volatile f32 tmp` is itself suspected fakematch scaffolding \u2014 the original source likely let MWCC allocate its own truncation temp. Remove/respell the volatile temp (direct assignment, (f32) cast at use, non-volatile temp in inner scope) and let the compiler place both slots; the pad may then need resizing to compensate (frame must stay 0x?? \u2014 measure). The preheader load schedule already matches target exactly (attempt.move-logic15-preheader-load-schedule.20260831.v1) \u2014 do not disturb it; gate CONFLICT arbitration is available if real churns while structure holds. If the slots close, the function becomes a pure renaming bisimulation: webfrank_audit will verdict it \u2014 record pin-readiness for the closure queue or land the rule yourself IF the audit derives it cleanly (you own webfrank.json for THIS function only). 50+ real-0 siblings MUST hold; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:move_logic15",
+  "id": "work_claim.enemy-movelogic15-close.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-EN5",
+  "recorded_at": "2026-08-31T17:31:22Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
