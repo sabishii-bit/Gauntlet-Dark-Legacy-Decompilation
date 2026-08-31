@@ -189,19 +189,35 @@ typedef struct MBTextureDef {
  * a 24-byte record array based at the player record + 0x0A90 and indexed by
  * the selected class (`expslot = pl + sel * 24 + 2704`).  Stride, base and
  * every field offset are verified in-TU from that expression and the four
- * stat reads; the four f32s are only known by which stats[] row they feed
- * (drawn against GetStringText(167, row)), so they keep the project's
- * generic field_NN convention rather than a guessed semantic name.  These
- * bytes fall inside include/game/player.h's pad_0A88 run, which this pass is
- * not permitted to split -- hence a file-local view.  offsetof() use only. */
-typedef struct ClassStatSlot {
+ * stat reads.  These bytes fall inside include/game/player.h's pad_0A88 run,
+ * which this pass is not permitted to split -- hence a file-local view.
+ * offsetof() use only.
+ *
+ * Names are the Xbox PDB record `P_SAVE_ATTS` (research/xbox_symbols
+ * xbox_structs.tsv, Size=24 == this record's GC stride).  The identification
+ * is corroborated four ways and does not rest on the size alone:
+ *   - +0x00 `exp` was already recovered in-TU before this pass, from
+ *     ExpToLevel(*(s32*)expslot) and the `*(s32*)expslot > 0` guard;
+ *   - the record is size-exact at 0x18 against the GC stride of 24;
+ *   - the PDB's four `*_add` stat-bonus fields land exactly on this TU's
+ *     four f32 reads at +0x08/+0x0C/+0x10/+0x14;
+ *   - the PDB declaration order (fight/armor/magic/speed) EXPLAINS the
+ *     otherwise-arbitrary permutation this TU applies when filling stats[]
+ *     (0,2,3,1): the display order is fight/speed/armor/magic, so the
+ *     mapping below is forced rather than chosen.  A wrong record would
+ *     not reproduce that permutation.
+ * `health` at +0x04 is the one field this TU never dereferences: its offset
+ * is fixed by the size-exact layout but the name is PDB-only, unverified
+ * against GC behaviour.  Widths stay as the pre-existing reconstruction had
+ * them (every access goes through its own cast). */
+typedef struct P_SAVE_ATTS {
     s32 exp;         /* +0x00 experience, fed to ExpToLevel() */
-    u8 _pad04[4];
-    f32 field_08;    /* +0x08 -> stats[0] */
-    f32 field_0C;    /* +0x0C -> stats[2] */
-    f32 field_10;    /* +0x10 -> stats[3] */
-    f32 field_14;    /* +0x14 -> stats[1] */
-} ClassStatSlot;     /* size 0x18 */
+    s32 health;      /* +0x04 PDB name only -- not read in this TU */
+    f32 fight_add;   /* +0x08 -> stats[0] */
+    f32 armor_add;   /* +0x0C -> stats[2] */
+    f32 magic_add;   /* +0x10 -> stats[3] */
+    f32 speed_add;   /* +0x14 -> stats[1] */
+} P_SAVE_ATTS;       /* size 0x18 */
 
 /* file-local view of the fields of OPTMENU (game/ui/options.c, verified
  * 0xE8-byte struct) actually touched by this TU's per-player menu blocks
@@ -2489,16 +2505,16 @@ void update_class_attr(s32 player)
             LoadPlyrData(player, *(s32*)(pl + offsetof(Player, respawn_char)), 0);
             {
                 u8* cls = lbl_80282930[player];
-                stats[0] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_08)) +
+                stats[0] = (s32)(*(f32*)(expslot + offsetof(P_SAVE_ATTS, fight_add)) +
                                  (*(f32*)(cls + 40) +
                                   (f32)((lvl - 1) * 5)));
-                stats[1] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_14)) +
+                stats[1] = (s32)(*(f32*)(expslot + offsetof(P_SAVE_ATTS, speed_add)) +
                                  (*(f32*)(cls + 48) +
                                   (f32)((lvl - 1) * 5)));
-                stats[2] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_0C)) +
+                stats[2] = (s32)(*(f32*)(expslot + offsetof(P_SAVE_ATTS, armor_add)) +
                                  (*(f32*)(cls + 56) +
                                   (f32)((lvl - 1) * 5)));
-                stats[3] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_10)) +
+                stats[3] = (s32)(*(f32*)(expslot + offsetof(P_SAVE_ATTS, magic_add)) +
                                  (*(f32*)(cls + 64) +
                                   (f32)((lvl - 1) * 5)));
             }
