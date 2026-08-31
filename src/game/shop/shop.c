@@ -113,7 +113,7 @@ enum {
     PCLASS_EXP_CKPT_OFF = 7900  /* pl + character*24 + this -> class_exp_ckpt[character] */
 };
 
-extern u8 gPlayers[];
+extern Player gPlayers[4]; /* gPlayerRecords[4], stride 0x335C */
 extern s32 lbl_8028A520[];
 extern void* lbl_8028B120[];
 extern s32 lbl_803448A0;
@@ -220,7 +220,7 @@ s32 do_shop(void)
             result = 0;
         } else {
             u8* pads = (u8*)lbl_80240E30;
-            u8* pl = gPlayers;
+            u8* pl = (u8*)gPlayers;
             f32 kHalf = lbl_8034832C;
             s32 i;
             s32 o60 = 0;
@@ -275,7 +275,7 @@ s32 do_shop(void)
                         slot = page + o12 + cnt * 4;
                         *(s32*)(slot + 128) = *(s32*)(slot + 80);
                         *(s32*)(slot + 80) =
-                            *(s32*)(gPlayers + o13148 + offsetof(Player, gold));
+                            *(s32*)((u8*)gPlayers + o13148 + offsetof(Player, gold));
                         *(s32*)(pl + offsetof(Player, field_A64)) = 6;
                     } else {
                         *(s32*)(pl + offsetof(Player, field_A64)) += 1;
@@ -328,7 +328,7 @@ s32 do_shop(void)
                     }
                     slot = page + o12 + cnt * 4;
                     *(s32*)(slot + 128) = *(s32*)(slot + 80);
-                    *(s32*)(slot + 80) = *(s32*)(gPlayers + o13148 + offsetof(Player, gold));
+                    *(s32*)(slot + 80) = *(s32*)((u8*)gPlayers + o13148 + offsetof(Player, gold));
                     *(s32*)(pl + offsetof(Player, field_A64)) += 1;
                     break;
                 }
@@ -483,7 +483,7 @@ s32 show_piles(s32 col)
     u8* tbl = lbl_802897D0;
     u8* counts = tbl + col * 12 + 224;
     u8* blit;
-    u8* pl = gPlayers + col * 13148;
+    u8* pl = (u8*)gPlayers + col * 13148;
     s32 adj = gFrameTicks + (gFrameTicks >> 1);
     s32 result = 1;
     s32 range = lbl_80343E10 - lbl_80343E0C - lbl_80343E14;
@@ -622,7 +622,7 @@ s32 show_gold(s32 col)
     return done;
 }
 
-extern u8* gCurLevel;
+extern level_data* gCurLevel; /* 0x8034483C active level record */
 extern char lbl_80114918[];  /* final-stats string pool                */
 extern s32 lbl_80122F30[];   /* per-player stats x column              */
 extern s32 lbl_80122F40[];   /* per-player stats y column              */
@@ -970,9 +970,9 @@ static s32 shop_show_lv(u8* pl, s32 final)
 void fn_8009A0AC(s32 col)
 {
     u8* tbl = lbl_802897D0;
-    u8* pl = gPlayers + col * 13148;
+    u8* pl = (u8*)gPlayers + col * 13148;
     s32 range = lbl_80343E10 - lbl_80343E0C;
-    u8* lvl;
+    level_data* lvl;
     s32 cls;
     s32 goldRaw;
     s32 raw2;
@@ -998,7 +998,7 @@ void fn_8009A0AC(s32 col)
     lvl = gCurLevel;
     goldRaw = *(s32*)(pl + offsetof(Player, gold)) -
               *(s32*)((b240 = pl + cls * 240) + offsetof(Player, field_224C));
-    t = goldRaw * range / (*(s32*)(lvl + offsetof(level_data, shop_maxgold)) + 1);
+    t = goldRaw * range / (lvl->shop_maxgold + 1);
     b28 = pl + cls * 28;
     raw2 = (*(s32*)(b28 + PSHOP_STAT_NOW_OFF + offsetof(PlayerShopStat, field_00)) +
             *(s32*)(b28 + PSHOP_STAT_NOW_OFF + offsetof(PlayerShopStat, field_10))) -
@@ -1017,7 +1017,7 @@ void fn_8009A0AC(s32 col)
             statG = clampG;
         }
     }
-    t2 = raw2 * range / (*(s32*)(lvl + offsetof(level_data, shop_maxkills)) + 1);
+    t2 = raw2 * range / (lvl->shop_maxkills + 1);
     if (t2 < 64) {
         stat2 = 64;
     } else if (t2 > range) {
@@ -1025,7 +1025,7 @@ void fn_8009A0AC(s32 col)
     } else {
         stat2 = t2;
     }
-    t3 = raw3 * range / (*(s32*)(lvl + offsetof(level_data, shop_maxexp)) + 1);
+    t3 = raw3 * range / (lvl->shop_maxexp + 1);
     if (t3 < 64) {
         stat3 = 64;
     } else if (t3 > range) {
@@ -1138,7 +1138,7 @@ static void shop_setup(void)
         s32 toff = 0;
         s32 poff = 0;
         for (i = 0; i < 4; i++, boff += 20, toff += 4, poff += 13148) {
-            u8* pl = gPlayers + poff;
+            u8* pl = (u8*)gPlayers + poff;
             s32 cls = *(s32*)(pl + offsetof(Player, class_id));
             sprintf(buf, fmts + 232, i + 1);
             {
@@ -1182,7 +1182,7 @@ static void shop_setup(void)
         }
     }
     {
-        u8* pl = gPlayers;
+        u8* pl = (u8*)gPlayers;
         s32 o24 = 0;
         s32 o4 = 0;
         s32 o256 = 0;
@@ -1347,7 +1347,7 @@ void init_shop(s32 fromMenu)
         return;
     }
 
-    player = (Player*)gPlayers;
+    player = gPlayers;
     for (i = 0; i < 4; i++, player++) {
         if (player->state == 5 || player->state == 1) {
             break;
@@ -1417,7 +1417,7 @@ static s32 write_shop_menu(s32 player, s32 scroll);
 
 static s32 do_shopping_8009AA48(s32 player)
 {
-    u8* pl = gPlayers + player * 13148;
+    u8* pl = (u8*)gPlayers + player * 13148;
     u8* page = lbl_802897D0;
     u8* tbl = lbl_80122ED0;
     volatile s32 exit = 0;
@@ -1951,7 +1951,7 @@ void calc_shop_ypos(s32 player);
 static s32 write_shop_menu(s32 player, s32 scroll)
 {
     u8* page = lbl_802897D0;
-    u8* pl = gPlayers + player * 13148;
+    u8* pl = (u8*)gPlayers + player * 13148;
     s32 didScroll = 0;
     s32 needUp = 0;
     s32 needDn = 0;
@@ -2187,7 +2187,7 @@ void calc_shop_ypos(s32 player)
     s32 y;
     f64 scale = lbl_80348428;
 
-    p = &gPlayers[player * 13148];
+    p = (u8*)gPlayers + player * 13148;
     ypos = &lbl_8028A520[player << 6];
     blits = &lbl_8028B120[player << 6];
     y = 0;
@@ -2288,7 +2288,7 @@ void ShopLoadData(void)
 /* Return whether a player can buy the selected shop entry. */
 static s32 calculate_player_shopping_parameters_8009C0F0(s32 player, u8* entry)
 {
-    u8* p = &gPlayers[player * 13148];
+    u8* p = (u8*)gPlayers + player * 13148;
 
     if (*(s32*)(p + offsetof(Player, gold)) < *(s32*)(entry + offsetof(DSItem, price))) {
         return 0;
