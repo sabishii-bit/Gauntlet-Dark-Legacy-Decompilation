@@ -1344,6 +1344,11 @@ void fn_800D9C5C(MovieRingBuffer* p, int n) {
 }
 #pragma dont_inline off
 
+/* Kept out-of-line: the target calls this from dtor_800DBB94 (`addi r3,r28,60`
+ * / `li r4,-1` / `bl`), and it is that destructor's only call site, so
+ * suppressing the auto-inline here reproduces the call without affecting any
+ * other function. */
+#pragma dont_inline on
 int* fn_800D9CF4(int* p, s16 releaseAgain) {
     if (p != 0) {
         if (*(u32*)p != 0) {
@@ -1361,6 +1366,7 @@ int* fn_800D9CF4(int* p, s16 releaseAgain) {
     }
     return p;
 }
+#pragma dont_inline off
 
 #ifdef __MWERKS__
 #pragma optimization_level 4
@@ -2040,7 +2046,10 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
 }
 
 /* MoviePlayer teardown (AudioStreamStop, operator delete, dtor_800DBB94) */
-MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting);
+/* C++ region: the exception specification must match the definition's. */
+#pragma cplusplus on
+MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) throw();
+#pragma cplusplus off
 MovieDTextOuter* fn_800DBD30(MovieDTextOuter* self, s16 deleting);
 
 u32* fn_800DB008(u32* self, s16 deleting) {
@@ -2490,9 +2499,11 @@ void fn_800DBA80(u8* dec, s32 fd) {
 #pragma scheduling on
 #endif
 
-MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) {
-    u8 unused[32];
-
+/* Same C++ EH shape as dtor_800DB21C: parsed as C++ for the empty exception
+ * specification, which is what emits the __unexpected edge and the r31
+ * frame-pointer prologue. */
+#pragma cplusplus on
+MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) throw() {
     if (self != NULL) {
         __dla__FPv(self->rawBuffer);
         self->rawBuffer = 0;
@@ -2519,6 +2530,7 @@ MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) {
     }
     return self;
 }
+#pragma cplusplus off
 
 MovieChunkStream* fn_800DBC64(register MovieChunkStream* p) {
     register MovieChunkStream* self = p;
