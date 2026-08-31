@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "MATCHING mixed closure/reconstruction lane, whole TU src/game/world/newcam.c exclusively: primary untouched fn_8006DC64 87.77%, secondary fn_8006E654 99.84% only on a genuinely new axis beyond its retained hard-closure attempt; use probe.py, portable C/C++ only, preserve exact siblings and TU data; no shared-header edits without integrator approval; parallel fleets pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:fn_8006DC64",
+  "id": "work_claim.codex-newcam-matching.20260831.v1",
+  "kind": "work_claim",
+  "owner": "codex-newcam-worker",
+  "recorded_at": "2026-08-31T02:59:24Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

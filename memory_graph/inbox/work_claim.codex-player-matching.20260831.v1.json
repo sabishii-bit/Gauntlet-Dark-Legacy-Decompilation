@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "MATCHING exact-closure lane, whole TU src/game/game/player.c exclusively: primary load_player_geo 99.86%; screen retained blob-fold attempt and current laws, use probe.py, portable C/C++ only, preserve exact siblings and TU data; no shared-header edits without integrator approval; parallel fleets pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:load_player_geo",
+  "id": "work_claim.codex-player-matching.20260831.v1",
+  "kind": "work_claim",
+  "owner": "codex-player-worker",
+  "recorded_at": "2026-08-31T02:59:22Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

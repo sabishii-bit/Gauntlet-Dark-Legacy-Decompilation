@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "MATCHING high-impact lane, whole TU src/game/game/controls.c exclusively: primary ReadControls 93.89% with no graph attempt record; use Xbox context plus target asm and probe.py, portable C/C++ only, preserve exact/parked siblings and TU data; do not retry recorded sibling caps; no shared-header edits without integrator approval; parallel fleets pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:ReadControls",
+  "id": "work_claim.codex-controls-matching.20260831.v1",
+  "kind": "work_claim",
+  "owner": "codex-controls-worker",
+  "recorded_at": "2026-08-31T02:59:30Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
