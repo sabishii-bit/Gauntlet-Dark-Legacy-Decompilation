@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "law_screen": "claim.law.splits-claim-can-swallow-link-alignment-padding.20260901.v1 APPLIED - this TU is that law's originating measurement. claim.law.bss-reverse-declaration-order.20260829.v1 SCREENED, no BSS moved. winglobals sdata2 pool-ORDER law SCREENED - order already matched, extent did not.",
+    "laws_applied": [
+      "claim.law.splits-claim-can-swallow-link-alignment-padding.20260901.v1"
+    ],
+    "tags": [
+      "build-hygiene",
+      "symbol-identity",
+      "metrics",
+      "matching"
+    ],
+    "verification": "Full ninja -j2, build/GUNE5D/main.dol: OK, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679; defake_gate check GATE OK (23 matched functions held); datadiff claim-slack lines gone. matched_data 255/415 -> 407/407. Commit cf166b548."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.mb-font-data-gap-closed.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T23:04:03Z",
+  "schema_version": 1,
+  "subject": "tu:game/mb/mb_font",
+  "valid_from": "2026-08-31",
+  "value": "DATA GATE CLOSED for game/mb/mb_font (61.4% -> 100.0%). CAUSE: two splits.txt over-claims of 4 bytes each, both swallowing link-time alignment padding - .data claimed 0x80127BA8..0x80127C00 (0x58) against an object that emits 0x54, and .sdata2 claimed 0x80348B48..0x80348B90 (0x48) against 0x44. Because objdiff credits matched_data only for FULLY matched sections, those 8 bytes zeroed BOTH sections' contribution: extab(48)+extabindex(72)+.rodata(135) = 255 matched of 415, i.e. the TU's entire 160-byte data gap was two sections that were already byte-correct everywhere they overlapped. FIX: splits.txt ends -> 0x80127BFC and 0x80348B8C, plus the owning symbols.txt sizes lbl_80127BA8 0x58->0x54 and lbl_80348B88 0x8->0x4 (the splitter hard-fails 'ends within symbol' otherwise). EVIDENCE the 8 bytes were padding, not missing objects: the DOL bytes at both tails are zero; .data is entirely a switch jump table and BOTH sides carry exactly 21 relocated words (.rela.data 0xFC each), so the target's 22nd word is unrelocated and cannot be a table entry; .sdata2's last literal is a 4-byte float whose symbols.txt entry was self-contradictory ('size:0x8 align:4 data:float'); and the SAME TU's .rodata claim already ends on the odd address 0x80115D6F, excluding the pad before mb_lights at 0x80115D70, proving the splits author excluded inter-TU padding elsewhere in this very entry. The retail sha1 stayed green after shrinking, which is the empirical proof that the linker regenerates those bytes from the following TU's section alignment. REMAINING FOR A FLIP: the TU is one straggler from flipping - MBRenderText, real 22, insns T347/O347 with an IDENTICAL opcode multiset, residual confined to the 0x108-0x130 cluster. That cluster is already parked as attempt.parked.mbrendertext-color-tiebreak.20260831.v3 (REGISTER_ONLY r0<->r3 colour tie-break, routed to the WebFrank instruction_permutation + copy_register_fields path); it was re-measured but NOT re-probed this run, since no new source-level idea was available and the park is a do-not-retry on that axis."
+}
