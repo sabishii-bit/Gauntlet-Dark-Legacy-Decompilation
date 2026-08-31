@@ -43,6 +43,7 @@
 #include "types.h"
 #include "game/camera.h"
 #include "game/cameradata.h"
+#include "game/gamemode.h"
 #include "game/leveldata.h"
 #include "game/player.h"
 #include "game/worldinfo.h"
@@ -681,7 +682,7 @@ void do_camera(void)
             (cam_)->a_mode = ATN_TARGET;                                      \
         }                                                                     \
         if (changed == 0) return;                                             \
-        if (gGameMode == 0x400C) (cam_)->trans_mode = 3;                      \
+        if (gGameMode == MG_ROUND_START) (cam_)->trans_mode = 3;              \
         else if ((cam_)->pc_mode == CAM_OBJEYE) (cam_)->trans_mode = 0;       \
         else (cam_)->trans_mode = 1;                                          \
         gCameraTargetPositionCount = 0;                                       \
@@ -703,23 +704,23 @@ void camera_init_for_gamemode(s32 camIndex)
     s32 bossIndex;
 
     switch (gGameMode) {
-    case 0x400B:
-    case 0x400D:
-    case 0x4012:
-    case 0x4013:
-    case 0x4015:
-    case 0x4016:
-    case 0x4017:
-    case 0x8003:
-    case 0x8006:
-    case 0x8007:
-    case 0x800A:
+    case MG_PLAYER_SELECT:
+    case MG_WORLD_SELECT:
+    case MG_SHOP:
+    case MG_LEVEL_ADVANCE:
+    case MG_ENDING:
+    case MG_STATS:
+    case MG_GWIZ_SPEECH:
+    case MA_INSTRUCT:
+    case MA_DEMO:
+    case MA_HSTABLE:
+    case MA_VIEWMENU:
         return;
-    case 0x400C:
-    case 0x4010:
-    case 0x4014:
+    case MG_ROUND_START:
+    case MG_PLAY:
+    case MG_OVER:
         goto gameplay_mode;
-    case 0x8008:
+    case MA_FLYBY:
         if (camIndex == 0) {
             switch (cam->mode) {
             case 0:
@@ -944,9 +945,9 @@ void camera_run_mode(s32 camIdx)
             cam->attn[1] = destination[1];
             cam->attn[2] = destination[2];
         }
-        if (gGameMode == 0x8008) {
+        if (gGameMode == MA_FLYBY) {
             camera_mode_dest(camIdx);
-        } else if (gGameMode == 0x4010) {
+        } else if (gGameMode == MG_PLAY) {
             cam_orient_to(camIdx);
         }
         if (lbl_803443F4 != 0) {
@@ -982,9 +983,9 @@ void camera_run_mode(s32 camIdx)
         if (cam->trans_mode == 0) {
             cam->trans_mode = -1;
         }
-        if (gGameMode == 0x8008) {
+        if (gGameMode == MA_FLYBY) {
             camera_mode_dest(camIdx);
-        } else if (gGameMode == 0x8007) {
+        } else if (gGameMode == MA_HSTABLE) {
             if (camIdx == 0) {
                 dx = cam->wpos[0] - cam->attn[0];
                 dy = cam->wpos[1] - cam->attn[1];
@@ -1011,8 +1012,8 @@ void camera_run_mode(s32 camIdx)
                 cameraPosition[1] = cameraAttention[1] + normalizeGameMode[1] * cameraRadius;
                 cameraPosition[2] = cameraAttention[2] + normalizeGameMode[2] * cameraRadius;
             }
-        } else if (gGameMode == 0x400D || gGameMode == 0x4013 ||
-                   gGameMode == 0x4017) {
+        } else if (gGameMode == MG_WORLD_SELECT || gGameMode == MG_LEVEL_ADVANCE ||
+                   gGameMode == MG_GWIZ_SPEECH) {
             camera_mode_spin(camIdx);
         }
 
@@ -1030,8 +1031,8 @@ void camera_run_mode(s32 camIdx)
             get_attn_pos(camIdx, cam->attn);
         }
 
-        if (((gGameMode != 0x8008 && gGameMode != 0x400D &&
-              gGameMode != 0x4013 && gGameMode != 0x4017)) ||
+        if (((gGameMode != MA_FLYBY && gGameMode != MG_WORLD_SELECT &&
+              gGameMode != MG_LEVEL_ADVANCE && gGameMode != MG_GWIZ_SPEECH)) ||
             cam->c_mode != CAM_LOCK) {
             dx = cam->wpos[0] - cam->attn[0];
             dy = cam->wpos[1] - cam->attn[1];
@@ -1176,7 +1177,7 @@ free_attention:
             cam->pyr[1] = AddAngle(cam->pyr[1], (f32)CAM_PI);
             cam->trans_mode = -1;
         }
-        if (gGameMode == 0x8008 && lbl_80344288 != 0) {
+        if (gGameMode == MA_FLYBY && lbl_80344288 != 0) {
             camera_mode_orbit(camIdx);
         }
         break;
@@ -1191,7 +1192,7 @@ free_attention:
         cam->attn[0] += (dx = dx);
         cam->attn[1] += (dy = dy);
         cam->attn[2] += (dz = dz);
-        if (gGameMode == 0x8008) {
+        if (gGameMode == MA_FLYBY) {
             camera_mode_dest(camIdx);
         }
         if (lbl_803443F4 != 0) {
@@ -2735,7 +2736,7 @@ level_player_found:
     cam1->camobj = playerObject;
     cam1->state = 1;
     cam2 = (Camera*)(state + CAMERA_STATE_CAMERAS_OFF + 2 * CAMERA_STATE_CAMERA_STRIDE);
-    if (gGameMode == 0x8006 || gGameMode == 0x8003 || reset != 0 ||
+    if (gGameMode == MA_DEMO || gGameMode == MA_INSTRUCT || reset != 0 ||
         CurTransmitter == 0) {
         cam2->state = 0;
         lbl_8034453C = 0;
@@ -2921,8 +2922,8 @@ void camera_mode_spin(s32 camIdx)
     settings = (f32*)state;
     cam = &((Camera*)(state + CAMERA_STATE_CAMERAS_OFF))[camIdx];
     if (camIdx == 0 &&
-        (gGameMode == 0x400D || gGameMode == 0x4013 ||
-         gGameMode == 0x4017)) {
+        (gGameMode == MG_WORLD_SELECT || gGameMode == MG_LEVEL_ADVANCE ||
+         gGameMode == MG_GWIZ_SPEECH)) {
         cam->pyr[1] = camera_approach_yaw(cam, cam->num1);
         cam = (Camera*)(state + CAMERA_STATE_CAMERAS_OFF);
         yaw = cam->pyr[1];
