@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Three independent instances, three functions, two TUs, all measured with probe.py/fndiff --ops against clean banked baselines: world/newcam.c::fn_8006E654 (+0x3C, target `li r29,0` + `addi r30,r29,0` vs ours `li r29,0` + `li r30,0`; source already reads `iter = 0; ok = iter;`), world/newcam.c::fn_8006DF34 (+0x240, target `li r29,1` + `mr r0,r29` vs ours two `li`; source already reads `moved = 1; ... move2d = moved;`), and audio/audio.c::AudioBankQueueName (+0x800170FC, target `addi r29,r28,0` vs ours `li r29,0`, recorded independently at attempt.audio-bank-queue-name-zero-copy.20260829.v1). Both newcam instances sit INSIDE regions already covered by scoped `#pragma opt_propagation off`.",
+    "scope": "MWCC GC 1.2.5 family; applies wherever `fndiff --ops` reports a one-token multiset difference of the form `target-only +1 mr` or `+1 addi` against `ours-only -1 li`, at a site where two locals take the same small integer constant and the second is written as a copy of the first.",
+    "tags": [
+      "matching",
+      "register-web",
+      "cse",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T05:41:48Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "When two locals receive the same small integer constant and the target copies the second from the first (`mr rD,rS` or `addi rD,rS,0`) while your build rematerialises it (`li rD,K`), the residual is NOT reachable from the source and should be classified and parked on FIRST diagnosis rather than iterated. Writing the copy explicitly (`a = K; b = a;`) is not sufficient -- all three recorded instances ALREADY spell the copy that way and MWCC still folds it. The decisive negative, new in 2026-08-31, is that the fold SURVIVES a scoped `#pragma opt_propagation off` that is verifiably active over the function (two instances measured byte-identical with the pragma present), so this is not copy propagation and no propagation-class lever will reach it. Also measured negative across the three instances: chained assignment (`b = a = K;`), combined `for` initialisation, an intermediate staging local, `register` storage class, moving the initialisation across a guard, nested-scope declaration initialisation, inline identity operations (`a + 0`, `a & a`), `#pragma opt_common_subs off`, and `#pragma peephole off`. The last two are actively HARMFUL and must not be left in: on a 369-instruction function each cost 6+ new clusters -- lost `lfsu` fusion at three sites, `mr`/`addi` move-form flips, reappearing branch-to-next stubs, and an `or.` split into `or`+`cmplwi`. PROCEDURE: on seeing the `+1 mr|addi / -1 li` one-token signature, confirm the source already spells the copy, confirm the frame and save-set are already exact, record the cap, and move to the function's other residuals; do not spend the 3-axis budget re-deriving the above. The class is a legitimate WebFrank CANDIDATE but not a pure recolor -- substituting `li rD,K` for `mr rD,rS` is an opcode change whose soundness rests on a constant-value side condition (rS provably holds K at that point, in every instance discharged by the immediately preceding `li rS,K` with no intervening write), so it is only eligible if the guard family can carry that side condition."
+}

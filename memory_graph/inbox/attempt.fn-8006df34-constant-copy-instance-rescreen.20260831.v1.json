@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "modern-corpus rescreen of a legacy bulk-imported park: identified the residual as a second in-TU instance of the constant-copy-vs-rematerialize class and tested the chained-assignment lever against it",
+  "attributes": {
+    "law_screen": "claim.law.chained-init-constant-share.20260829.v1 APPLIED (`move2d = moved = 1;` in place of the separated `moved = 1; ... move2d = moved;`) -- measured NEUTRAL, byte-identical, reverted. claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 (authored this session from the sibling fn_8006E654) APPLIED as the diagnosis and CONFIRMED: this function likewise sits inside an active scoped `#pragma opt_propagation off` region (newcam.c lines 1531-1721) and the fold survives it. claim.law.float-clamp-ternary-diamond-vs-negated-guard.20260831.v1 SCREENED, not applicable (no compare in the cluster). claim.law.uniform-stack-displacement-delta-is-a-pad-applied-last.20260831.v1 NOT APPLICABLE (insns already 378/378, frame exact). Core-screen defake laws screened, none applicable: the TU's raw-offset pass already converted this function.",
+    "measurements": "baseline and best both real 24, insns 378/378, multiset 2t (target-only +1 mr, ours-only -1 li). Two clusters only: an `lfd` pool-load scheduled one slot earlier in ours (@0x230), and `replace T[144:145]@240-244=[mr] O=[li]`. Chained-assignment probe: NEUTRAL, both clusters unchanged, reverted.",
+    "residual": "STRUCTURAL by classifier, one instruction plus one pool-load schedule slot. target `li r29,1` (moved) then `mr r0,r29` (move2d = moved); ours emits two independent `li`. Source at newcam.c already reads `moved = 1;` ... `move2d = moved;` -- the copy is spelled and folded anyway. The second cluster is a single `lfd` (the 1.0/count reciprocal pool literal) hoisted one instruction earlier in our stream, inside the int-to-double magic-constant idiom.",
+    "scope": "src/game/world/newcam.c::fn_8006DF34; probe reverted, tree restored to HEAD; no code change retained.",
+    "unpark_condition": "same as the class record -- a WebFrank rule able to carry the two-instruction constant-value side condition, or new compiler evidence. The `lfd` schedule slot is a separate, untried sub-residual worth one statement-reorder probe (claim.law.independent-statement-reorder-matches-target-schedule) by a future pass.",
+    "verification": "probe.py against a clean banked BASELINE; final `git diff` empty; newcam defake_gate baseline (23 functions, now 18 at real 0 after this session's DebugCamControlInputs match) shows no regression; full ninja green, main.dol OK."
+  },
+  "function": "function:fn_8006DF34",
+  "id": "attempt.fn-8006df34-constant-copy-instance-rescreen.20260831.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T05:43:29Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.fn_8006df34.20260829.v1",
+  "valid_from": "2026-08-31"
+}

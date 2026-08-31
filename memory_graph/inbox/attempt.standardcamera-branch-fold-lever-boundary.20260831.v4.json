@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "applied this session's new float-clamp branch-fold lever to the gBossType guard head (the recorded 'project-wide P6-branch-fold class, target-only blt+b vs ours-only bge') by restating the goto/label guard as an if / else-if chain -- byte-identical, and the boundary of the new law is now established",
+  "attributes": {
+    "law_screen": "claim.law.float-clamp-ternary-diamond-vs-negated-guard.20260831.v1 (authored this session from newcam.c::DebugCamControlInputs, where the identical --ops signature went to EXACT) APPLIED and MEASURED NEUTRAL here -- this is the negative control that fixes the new law's boundary at compares whose negation costs an extra instruction. claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1 APPLIED via the else-if restatement, no effect. claim.law.absent-target-guard-means-tautological-reconstruction.20260831.v1 SCREENED, not applicable (the gBossType == 0x22 arm is present in both streams). claim.law.guard-polarity-restructure-fixes-count-parity-not-form.20260831.v1 SCREENED, its insn-count-parity payoff does not apply (the 3-instruction gap here is fmr/frsp, not the branch). Core-screen defake laws screened, none applicable: no raw-offset conversion attempted.",
+    "measurements": "baseline and best both real 695, insns 598/601, multiset 9t (target-only +1 b +1 blt +1 lfd; ours-only -1 bge -4 fmr -1 frsp). The else-if form measured byte-identical (NEUTRAL, multiset unchanged at 9t, branch cluster `replace T[36:38]@90-98=[blt,b] O[42:43]@a8-ac=[bge]` intact) and was reverted; the pre-existing `goto valid_boss_type` form is therefore not the cause and was restored.",
+    "residual": "unchanged and dominated by the FP clusters, not the branch: 4 surplus `fmr` and 1 surplus `frsp` in the entry region (@0x44-0x74, where target defers the f25/f28 initialisations that we materialise eagerly) plus one deferred `lfd`. The branch cluster itself is a SEPARATE, now-characterised sub-residual: for an INTEGER guard MWCC's complement is a single free `bge`, so it always folds `blt L; b X; L:` into `bge X`, and no source restatement (goto+label, else-if) prevents it -- unlike the float case where the complement costs a cror and the fold is impossible.",
+    "scope": "src/game/game/combat.c::StandardCamera_8002B828; probe reverted, tree restored to HEAD; no code change retained.",
+    "unpark_condition": "the FP entry-region residual (4 fmr / 1 frsp / 1 lfd) is the real target here and is untouched by this pass; the branch sub-residual should NOT be re-probed by source restatement -- it needs the same WebFrank treatment as the other integer branch-fold instances (combat.c::PlayerStartMissile carries the identical `+1 b +1 ble / -1 bge` signature).",
+    "verification": "probe.py against a clean banked BASELINE; final `git diff` empty; combat.c defake_gate baseline (46 functions, 29 at real 0) unchanged."
+  },
+  "function": "function:StandardCamera_8002B828",
+  "id": "attempt.standardcamera-branch-fold-lever-boundary.20260831.v4",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-08-31T05:42:22Z",
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
