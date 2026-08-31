@@ -639,12 +639,16 @@ def cluster(sites, text, by_function=False):
 
 
 def infer_record_size(info):
-    """Best stride > max observed offset -> the record size."""
+    """Best stride > max observed offset -> the record size.
+
+    A stride seen ONCE is not evidence — single-hit strides produced two
+    false multi-record alarms that reshaped a whole work order (field
+    report, 2026-08-31). Require corroboration (count >= 2)."""
     if not info["strides"]:
         return None, []
     top = info["strides"].most_common()
     maxoff = max(info["observed"]) if info["observed"] else 0
-    good = [(st, n) for st, n in top if st > maxoff and st >= 8]
+    good = [(st, n) for st, n in top if st > maxoff and st >= 8 and n >= 2]
     return (good[0][0] if good else None), top
 
 
@@ -808,7 +812,8 @@ def main():
         # Only a plausible RECORD stride can contradict the span. A bare
         # `i*4` element step is not a record size and must not trip the
         # warning (combat.c's `cs` did exactly that).
-        top_stride = max((s for s, _n in stride_top if s >= 0x10),
+        top_stride = max((s for s, n in stride_top
+                          if s >= 0x10 and n >= 2),
                          default=0) if stride_top else 0
         eff = rec_size or top_stride
         # Second multi-record tell: one base NAME used by two functions whose

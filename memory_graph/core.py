@@ -3372,7 +3372,11 @@ def tu_briefing(
             attempt_rows = connection.execute(
                 f"""
                 SELECT r.record_id, r.valid_from, r.recorded_at, r.raw_json,
-                       a.outcome, e.entity_key
+                       a.outcome, e.entity_key,
+                       (SELECT m.fuzzy_percent FROM measurement m
+                        WHERE m.attempt_record_id = a.record_id
+                        ORDER BY CASE m.phase WHEN 'after' THEN 0 ELSE 1 END
+                        LIMIT 1) AS recorded_fuzzy
                 FROM attempt a
                 JOIN entity e ON e.id = a.function_entity_id
                 JOIN record_ingest r ON r.record_id = a.record_id
@@ -3401,6 +3405,7 @@ def tu_briefing(
                         "age_days": _record_age_days(
                             row["valid_from"], row["recorded_at"]),
                         "head": _record_head(record),
+                        "recorded_fuzzy": row["recorded_fuzzy"],
                     }
                 )
             claim_rows = connection.execute(
@@ -3445,6 +3450,25 @@ def tu_briefing(
         }
         for row in functions
     ]
+    # RE-VERIFY banner: a parked/capped attempt whose recorded score no
+    # longer matches the live report is stale evidence — four workers
+    # burned probes trusting such parks before this was surfaced here.
+    for attempt in attempts:
+        if attempt["outcome"] not in ("parked", "capped"):
+            continue
+        current = scores.get(attempt["function"])
+        recorded = attempt.get("recorded_fuzzy")
+        if current is not None and recorded is not None \
+                and abs(float(recorded) - current) > 0.01:
+            attempt["REVERIFY"] = (
+                f"score moved since park: recorded {recorded} vs current"
+                f" {round(current, 4)} — re-measure before trusting this"
+                " cap's classification or axis list")
+        elif recorded is None:
+            attempt["REVERIFY"] = (
+                "no measurement recorded (likely a bulk-import park):"
+                " forensics may be thin or polarity-incomplete —"
+                " re-derive the baseline before spending probes")
     core_laws = law_corpus(root=root, db_path=db_path, tag="core-screen",
                            limit=50)["laws"]
     # Matching sessions need the schedule/register/entry levers too —
@@ -3775,7 +3799,10 @@ def rename_symbol(
             if not path.is_file() or path.suffix.lower() not in (
                     ".c", ".cpp", ".h"):
                 continue
-            text = path.read_text(encoding="utf-8", errors="replace")
+            # Bytes round-trip: read_text/write_text translate newlines and
+            # rewrote whole files CRLF, which reads as cross-TU damage in
+            # diffs (field report, 2026-08-31). Preserve endings exactly.
+            text = path.read_bytes().decode("utf-8", errors="replace")
             if word_re.search(text):
                 edits.append((path, word_re.sub(new, text)))
                 touched["source"].append(
@@ -3786,7 +3813,7 @@ def rename_symbol(
         if not directory.exists():
             continue
         for path in sorted(directory.rglob("*.json")):
-            text = path.read_text(encoding="utf-8-sig", errors="replace")
+            text = path.read_bytes().decode("utf-8-sig", errors="replace")
             if f'"{marker}"' in text:
                 edits.append(
                     (path, text.replace(f'"{marker}"', f'"function:{new}"')))
@@ -3804,7 +3831,7 @@ def rename_symbol(
                 continue
     if apply:
         for path, text in edits:
-            path.write_text(text, encoding="utf-8")
+            path.write_bytes(text.encode("utf-8"))
         for relative in touched["stale_objects"]:
             stale = root / relative
             stale.unlink(missing_ok=True)

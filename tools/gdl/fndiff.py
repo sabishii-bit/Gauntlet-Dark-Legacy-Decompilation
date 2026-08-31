@@ -48,6 +48,33 @@ from pathlib import Path
 
 VERSION = "GUNE5D"
 OBJDUMP = Path("build/binutils/powerpc-eabi-objdump.exe")
+SYMBOLS_TXT = Path(f"config/{VERSION}/symbols.txt")
+
+_POOL_SYMBOLS = None
+
+
+def pool_symbols():
+    """Names of .sdata2/.rodata data objects from symbols.txt.
+
+    The lbl_* -> <local> normalizer was asymmetric: a splitter-NAMED pool
+    constant (sBTextIntBias) scored as a real reloc diff against the
+    target's anonymous entry purely because someone named it, inflating
+    `real` in every TU with named pool entries (field report, 2026-08-31).
+    Naming a pool constant must never change a score.
+    """
+    global _POOL_SYMBOLS
+    if _POOL_SYMBOLS is None:
+        symbols = set()
+        if SYMBOLS_TXT.exists():
+            pattern = re.compile(
+                r"^(\S+)\s*=\s*\.(?:sdata2|rodata):.*type:object")
+            for line in SYMBOLS_TXT.read_text(
+                    encoding="utf-8", errors="replace").splitlines():
+                match = pattern.match(line.strip())
+                if match:
+                    symbols.add(match.group(1))
+        _POOL_SYMBOLS = frozenset(symbols)
+    return _POOL_SYMBOLS
 
 BRANCH_RE = re.compile(
     r"\b(b|bl|ba|bla|beq|bne|bgt|blt|bge|ble|bso|bns|bdnz|bdz)"
@@ -155,6 +182,11 @@ def relocation_signature(line):
     local = re.fullmatch(r"(?:lbl|jumptable|@\d+)([+-].+)?", symbol)
     if local:
         symbol = "<local>" + (local.group(1) or "")
+    else:
+        # Splitter-named pool constants normalize exactly like lbl_ ones.
+        head = re.match(r"([A-Za-z_@]\w*)([+-].+)?$", symbol)
+        if head and head.group(1) in pool_symbols():
+            symbol = "<local>" + (head.group(2) or "")
     return reloc_type, symbol
 
 
