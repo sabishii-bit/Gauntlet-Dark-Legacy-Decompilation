@@ -3,6 +3,7 @@
 #include "game/dyngrid.h"
 #include "game/leveldata.h"
 #include "game/mbobject.h"
+#include "game/player.h"
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -3554,8 +3555,8 @@ void move_logic12(s32 index)
 
     p = base + index * 916;
     it = lbl_80344748;
-    gen = *(struct item**)(p + 4264);
-    p += 3608;
+    gen = *(struct item**)(p + OFF_E(generator));
+    p += ENEMY_POOL_OFF;
     e = (Enemy*)(u8*)p;
     if (it < 0) {
         flee = 0;
@@ -3563,14 +3564,19 @@ void move_logic12(s32 index)
         u8* other = base + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(p + 768)) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) >
+                   *(f32*)(p + offsetof(Enemy, sight))) {
             flee = 0;
-        } else if (index == it || *(s16*)(p + 728) != 0 || *(s32*)(p + 856) > 0) {
+        } else if (index == it || *(s16*)(p + offsetof(Enemy, birth_style)) != 0 ||
+                   *(s32*)(p + offsetof(Enemy, dead_end)) > 0) {
             goto flee_zero;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(p + 52);
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(p + 56);
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(p + 60);
+            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) -
+                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][0]));
+            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) -
+                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][1]));
+            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) -
+                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][2]));
             if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
@@ -3649,8 +3655,8 @@ void move_logic13(s32 index)
 
     p = base + index * 916;
     it = lbl_80344748;
-    gen = *(struct item**)(p + 4264);
-    p += 3608;
+    gen = *(struct item**)(p + OFF_E(generator));
+    p += ENEMY_POOL_OFF;
     e = (Enemy*)(u8*)p;
     if (it < 0) {
         flee = 0;
@@ -3658,14 +3664,19 @@ void move_logic13(s32 index)
         u8* other = base + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(p + 768)) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) >
+                   *(f32*)(p + offsetof(Enemy, sight))) {
             flee = 0;
-        } else if (index == it || *(s16*)(p + 728) != 0 || *(s32*)(p + 856) > 0) {
+        } else if (index == it || *(s16*)(p + offsetof(Enemy, birth_style)) != 0 ||
+                   *(s32*)(p + offsetof(Enemy, dead_end)) > 0) {
             goto flee_zero13;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(p + 52);
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(p + 56);
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(p + 60);
+            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) -
+                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][0]));
+            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) -
+                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][1]));
+            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) -
+                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][2]));
             if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
