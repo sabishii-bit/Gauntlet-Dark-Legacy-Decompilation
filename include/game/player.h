@@ -137,8 +137,13 @@ typedef struct Player {
                                       * &angles); angles[1] is the heading/yaw written
                                       * beside p->move_yaw (VERIFIED: pmotion.c passes
                                       * (f32*)(p+0xC4) as the second CreateYPRMatrix
-                                      * argument, and stores `heading` at +0xC8)
-                                      * [pmotion.c/player.c] */
+                                      * argument, and stores `heading` at +0xC8).
+                                      * pmotion.c's own sites stay raw on purpose: the
+                                      * target shares one p+0xC4 base between the store
+                                      * and the call argument, and any member form
+                                      * splits that web (+45 insns in PlayerMotion --
+                                      * identical delta for array-index, scalar-index
+                                      * and three-scalar forms) [pmotion.c/player.c] */
     /* 0x00D0 */ f32 beacon_pos[3];  /* platform-relative display pos [player.c] */
     /* 0x00DC */ f32 saved_pos[3];   /* pos saved across parent/grab [player.c] */
     /* 0x00E8 */ s32 state;          /* player state: 0=none 1=active 2=... (VERIFIED @232) */
