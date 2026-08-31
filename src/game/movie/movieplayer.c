@@ -2144,13 +2144,13 @@ void fn_800DB3D4(MovieChunkStream* stream, s32 fd, volatile u32 length) {
                 if (stream->highWater > stream->writePos) {
                     return;
                 }
-                if (!(stream->highWater > available)) {
-                    return;
+                if (stream->highWater > available) {
+                    memcpy((void*)stream->buffer, stream->buffer + chunkOffset, available);
+                    stream->writePos = available;
+                    node->dataOffset = 0;
+                    goto request_more;
                 }
-                memcpy((void*)stream->buffer, stream->buffer + chunkOffset, available);
-                stream->writePos = available;
-                node->dataOffset = 0;
-                goto request_more;
+                return;
             }
         }
 
