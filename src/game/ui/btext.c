@@ -407,6 +407,7 @@ s32 StringTextHeightSub(f32 scale, StrList* p, s32 msg, s32 idx, s32 spacing)
     f32 lh;
     s32 total;
     s32 line;
+    u8 unused[32];
 
     if (spacing < 0) {
         spacing = gLineSpacing;
