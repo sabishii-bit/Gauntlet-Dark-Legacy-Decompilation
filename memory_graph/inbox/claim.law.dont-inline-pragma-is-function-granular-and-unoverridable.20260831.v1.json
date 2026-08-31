@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "inline",
+      "matching",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.dont-inline-pragma-is-function-granular-and-unoverridable.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T20:00:24Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MWCC GC 1.2.5, cflags_demo game code. BOUNDARY on claim.law.inline-and-deadstrip-rules.20260829.v1 (which states calls are forced with `#pragma dont_inline on/off` but does not say at what granularity) and a DIRECT CONSTRAINT on every inline-frame conversion under claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1. THREE MEASURED FACTS. (1) `#pragma dont_inline on` is FUNCTION-GRANULAR, not positional: placing it INSIDE a function body, part-way through, does not switch inlining off from that point forward - it governs the ENTIRE enclosing function. Measured in game/sfx/psfx.c LoadPlyrData: with the pragma inserted immediately before the function's `if (resolve != 0)` tail (after all 70 byte-swap sites), the result was byte-identical to bracketing the whole function - all 70 static-inline swap expansions reverted to `bl` (fndiff `ours-only -70 bl`, ours 516 insns vs target 1138), and the three helpers were additionally emitted as standalone out-of-line functions sSwapU16/sSwapU32/sSwapF32. (2) `#pragma always_inline on` around the helper DEFINITIONS does NOT override an active `dont_inline` at the call site: the combination (always_inline on the three helpers, dont_inline around the caller) produced a result byte-identical to dont_inline alone, same 70 bl, same 516 insns. dont_inline wins. (3) Wrapping a CALLEE's own definition in `dont_inline on/off` to force calls to it changes THAT CALLEE'S OWN emitted bytes: PlayerSfxInitData, byte-exact at frame 48, grew to frame 56 (+8, `stwu r1,-56` / `stmw r26,32`) purely from being bracketed, with its opcode stream otherwise untouched - so the pragma is not a free annotation and must be gated on the callee, not just the caller. CONSEQUENCE, the important one: within a single function, forcing one callee to stay a real call and letting other helpers inline are MUTUALLY EXCLUSIVE. Any function whose target shows BOTH an inline-frame reservation (needing helpers inlined) AND a `bl` to a small local function that MWCC would otherwise inline (needing dont_inline) cannot be closed by pragma placement at all. The remaining levers are the defined-before-call-site ordering rule from claim.law.inline-and-deadstrip-rules.20260829.v1 - which is itself barred whenever .text order must match the target - or a source form the inliner declines on its own merits. DIAGNOSTIC TELL that you are in this trap: after a macro-to-inline conversion, `fndiff --ops` reports a large `ours-only -N bl` against a target that open-codes the same work, and our instruction count is roughly half the target's; that is the pragma, not a failed conversion, and no amount of reshaping the helper bodies will move it."
+}
