@@ -3078,8 +3078,9 @@ s32 serve_blits(s32 player)
             s32 half;
             s32 a;
             s32 x;
-            x = *(s32*)(e += 8) + gFrameTicks;
-            *(s32*)e = x;
+            s32* tp = (s32*)(e + offsetof(BlitEntry, timer));
+            x = *tp + gFrameTicks;
+            *tp = x;
             half = x >> 1;
             if (*sp == 7) {
                 half -= 0x10;
@@ -3091,7 +3092,7 @@ s32 serve_blits(s32 player)
             MBBlitSetAlpha(h, a);
             if (a >= 0x100) {
                 *sp = 0;
-                *(s32*)e = 0;
+                *tp = 0;
                 mbBlitInit3414(h, 1);
             }
             count++;
@@ -3141,9 +3142,11 @@ s32 serve_blits(s32 player)
         case 5: { /* fade in */
             s32 a;
             s32 x;
-            x = *(s32*)(e += 8) + gFrameTicks;
+            s32* tp;
+            tp = (s32*)(e + offsetof(BlitEntry, timer));
+            x = *tp + gFrameTicks;
             a = x >> 1;
-            *(s32*)e = x;
+            *tp = x;
             a = a * a;
             if (a > 0x100) {
                 a = 0x100;
@@ -3151,7 +3154,7 @@ s32 serve_blits(s32 player)
             MBBlitSetAlpha(h, 0x100 - a);
             if (a >= 0x100) {
                 *sp = 0;
-                *(s32*)e = 0;
+                *tp = 0;
             }
             count++;
             break;
