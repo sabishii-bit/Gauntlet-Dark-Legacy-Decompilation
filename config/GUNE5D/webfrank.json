@@ -57,6 +57,17 @@
           "instructions": 180
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "fn_80011BBC",
+        "before_sha256": "f7ee2404e35555e6c217b2942e0f912678b6aaa2073575d76494b6c3127519ce",
+        "after_sha256": "0899ef28335c072a64d73829acd09a155a8710a127156c472fa807e0c92f065f",
+        "mechanism": "Single callee-saved web recolor of the match-index counter, 3 words in an 88-instruction function, opcode multiset identical. Retail colours the counter r24 and ours colours it r22, across exactly its three defining/using sites: li rN,0 at +0xa4, addi rN,rN,1 at +0xd4, and cmpw cr0,rN,r0 at +0xe0. The web is created by the prologue stmw and dies before the epilogue lmw, so both builds save and restore the identical caller values and the counter's colour is free; the bisimulation confirms identity mapping still holds at the stmw (which fails closed on any non-identity saved register) and re-establishes identity at the lmw. Not source-reachable: this is the r22-vs-r24 coalescing choice recorded in attempt.fn80011bbc-matchindex-coalesce, and it survived the source drive that took the function from 98.73% to 99.77% (commit 561994d6), which closed every structural and reload residual and left only the colour.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 88
+        },
+        "copy_register_fields": true
       }
     ],
     "game/world/btricol": [
@@ -207,6 +218,17 @@
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 91
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "CritterDoTexmodNode",
+        "before_sha256": "f03274ec58de261458fe1163f8bd8a25844ea8d063da0c6e00af67f5275e75c6",
+        "after_sha256": "26ac9937e71d5a0174e4aedccfa99538d980730f5a699847030358c777c9528b",
+        "mechanism": "Two independent, symmetric volatile-register web crossings over 11 words of a 463-instruction function, with a byte-identical opcode multiset. (a) FPR crossing f0<->f1 at +0x35c..+0x374 in the texmod UV scale computation: retail loads the node scale with lfs f0,188(r4) and the animated delta with lfs f1,8(r30), feeding fmuls/fmadds and storing with stfs f0,172(r3); ours colours the same two webs the other way round. (b) GPR crossing r6<->r7 at +0x3e4..+0x400 in the texmod-index lookup: retail holds the sign-extended lha r6,70(r30) index in r6 and the addi r7,r4,8 list base in r7 across extsh./lwzx/mulli/lwzx; ours swaps them. Every one of the four registers is volatile with disjoint live ranges inside the region, so the difference is a pure allocator recolor and not source-reachable. Machine-proven: verify_consistent_recolor passes over all 463 instructions with zero masked-scan offenders. Deriving this rule required the CFG fix in claim.law.webfrank-cfg-entry-pseudotarget-false-negative -- before it, the function's own address-taken data reference entered _jumptable_targets as offset 0x0, gave every bctr a spurious back-edge into the prologue, and failed the bisimulation at +0x2c, 0x330 bytes before the first real difference.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 463
         },
         "copy_register_fields": true
       }

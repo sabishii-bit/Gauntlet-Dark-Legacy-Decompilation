@@ -293,6 +293,62 @@ class ShippedRuleMechanismTests(unittest.TestCase):
         )
         check_permutation_dependences(region, [1, 0, 4, 3, 2])
 
+    def test_critter_do_texmod_node_index_web_crossing(self):
+        # +0x3e4: the texmod-index lookup, verbatim from both objects.  The
+        # sign-extended index web (lha/extsh./mulli) and the list-base web
+        # (addi r,r4,8) cross r6<->r7 across an untouched li/bc pair.
+        # claim.law.webfrank-cfg-entry-pseudotarget-false-negative
+        current = bytes.fromhex(
+            "a8fe0046 38c40008 7ce00735 7c86182e"
+            "38a00000 4180000c 1c070050 7ca6002e"
+        )
+        target = bytes.fromhex(
+            "a8de0046 38e40008 7cc00735 7c87182e"
+            "38a00000 4180000c 1c060050 7ca7002e"
+        )
+        verify_consistent_recolor(current, target)
+
+    def test_critter_do_texmod_node_scale_fpr_crossing(self):
+        # +0x35c: the UV scale computation, verbatim from both objects.  The
+        # node-scale and animated-delta FPR webs cross f0<->f1 through
+        # fmuls/fmadds while the intervening integer word is untouched.
+        current = bytes.fromhex(
+            "c02400bc c01e0008 7c60ea14 ec3e0072 ec4207f2 efc007f2 d02300ac"
+        )
+        target = bytes.fromhex(
+            "c00400bc c03e0008 7c60ea14 ec1e0032 ec4207f2 efc107f2 d00300ac"
+        )
+        verify_consistent_recolor(current, target)
+
+    def test_fn_80011bbc_match_index_counter_recolor(self):
+        # The r22 -> r24 match-index counter web: li, addi, cmpw, then blr.
+        # The three real sites are +0xa4/+0xd4/+0xe0; they are gathered here
+        # because the intervening code branches over the excerpt boundary.
+        # attempt.fn80011bbc-matchindex-coalesce
+        current = bytes.fromhex("3ac00000 3ad60001 7c160000 4e800020")
+        target = bytes.fromhex("3b000000 3b180001 7c180000 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_home_copy_coalescing_class_is_not_recolor_eligible(self):
+        # claim.law.callee-saved-home-copy-coalescing-is-source-unreachable
+        # names three gauntworld functions whose residual is a target-only
+        # `mr rHome,rScratch`.  That is an EXTRA instruction, so the target is
+        # strictly larger and BOTH webfrank paths must refuse the shape: the
+        # recolor path needs equal sizes, and the permutation path needs a
+        # bijection over the atoms that already exist.
+        current = bytes.fromhex("83e400e0 2c1f0019")
+        target = bytes.fromhex("801400e0 2c000019 7c1f0378")
+        with self.assertRaisesRegex(ValueError, "equal word-aligned sizes"):
+            verify_consistent_recolor(current, target)
+        with self.assertRaisesRegex(ValueError, "not a bijection"):
+            permute_instruction_atoms(
+                current, [0, 1, 2], [],
+                before_sha256=_sha256(current),
+                after_sha256=_sha256(target),
+                before_relocations_sha256=_relocation_sha256([]),
+                after_relocations_sha256=_relocation_sha256([]),
+            )
+
     def test_line_line_dist_fpr_renaming_is_consistent(self):
         # After the entry transposition: lfs f11,8(r7); lfs f28,0(r4);
         # fmuls f0,f28,f11 recolours to f12/f9 with the product following.
