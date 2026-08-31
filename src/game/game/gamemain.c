@@ -4810,16 +4810,16 @@ void fn_80057024(void)
         lbl_8034489C = 0;
         for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 13148) {
             u8* q = p + off;
-            s32 st = *(s32*)(q + 232);
+            s32 st = *(s32*)(q + offsetof(Player, state));
             if (st == 1 || st == 5 || st == 3) {
                 if (lbl_8034489C != 0) {
-                    *(s32*)(q + 2100) = 0;
+                    *(s32*)(q + offsetof(Player, quest_state)) = 0;
                 } else if (towerGetRuneNearStat(i, sMusicTrackHi) != 0) {
-                    *(s32*)(q + 2100) = 1;
+                    *(s32*)(q + offsetof(Player, quest_state)) = 1;
                     lbl_8034489C = 1;
                     lbl_80344898 = z;
                 } else {
-                    *(s32*)(q + 2100) = 0;
+                    *(s32*)(q + offsetof(Player, quest_state)) = 0;
                 }
             }
         }
@@ -5142,7 +5142,7 @@ extern s32  strcmp(const char* a, const char* b);
                           *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, buf_); \
     }
 
-#define STAT_TALLY(accOff, tgtOff, ok)                                          {                                                                               s32 c_ = *(s32*)p;                                                          u8* b_ = state + c_ * 4;                                                    s32 amt_ = *(s32*)(b_ + 96);                                                if (gGameBusy != 0) {                                                           ok = 0;                                                                 } else {                                                                        u8* a_;                                                                     if (*(s32*)(lbl_80240E30 + c_ * 60 + 4) & 0x0F000000) {                         amt_ *= 6;                                                              }                                                                           *(s32*)(b_ + (accOff)) = *(s32*)(b_ + (accOff)) + amt_;                     a_ = state + *(s32*)p * 4;                                                  if (*(s32*)(a_ += (accOff)) <                                                   *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + (tgtOff))) {                        ok = 0;                                                                 } else {                                                                        *(s32*)a_ =                                                                     *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + (tgtOff));                      ok = 1;                                                                 }                                                                       }                                                                       }
+#define STAT_TALLY(accOff, tgtOff, ok)                                          {                                                                               s32 c_ = *(s32*)p;                                                          u8* b_ = state + c_ * 4;                                                    s32 amt_ = *(s32*)(b_ + 96);                                                if (gGameBusy != 0) {                                                           ok = 0;                                                                 } else {                                                                        u8* a_;                                                                     if (*(s32*)(lbl_80240E30 + c_ * 60 + 4) & 0x0F000000) {                         amt_ *= 6;                                                              }                                                                           *(s32*)(b_ + (accOff)) = *(s32*)(b_ + (accOff)) + amt_;                     a_ = state + *(s32*)p * 4;                                                  if (*(s32*)(a_ += (accOff)) <                                                   *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + (tgtOff))) {                        ok = 0;                                                                 } else {                                                                        *(s32*)a_ =                                                                     *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + (tgtOff));                      ok = 1;                                                                 }                                                                       }                                                                       }
 
 s32 do_stats_display(void)
 {
