@@ -1524,8 +1524,7 @@ static void do_controlsmenu(OPTMENU* m, s32 player)
             u8* p = base + off;
             CTLBLIT* b = (CTLBLIT*)(p + 7640);
 
-            mbBlitCalcWidth(*(void**)(p + 7660), *(s32*)(p + 7644),
-                            *(s32*)(p + 7648), -1.0f);
+            mbBlitCalcWidth(*(void**)(p + 7660), b->x, b->y, -1.0f);
             mbBlitProject(b->blit, b->w, b->h);
         }
         SetDrawStringScale(OPTCTL_SCALE);
