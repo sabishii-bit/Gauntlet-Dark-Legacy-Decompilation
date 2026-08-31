@@ -1267,10 +1267,10 @@ void get_cam_wpos_8002ABE0(s32 camIdx)
 
     if (gNumTransmitters == 0 && lbl_803443F8 <= 0) {
         s32 mode = lbl_80344538;
-        f64 yawMin = lbl_80345F68;
-        f64 yawRange = lbl_80345F60;
-        f64 yawStep = lbl_80346180;
-        f64 yawMax = lbl_80345F58;
+        f64 yawMin = -3.141592654;
+        f64 yawRange = 6.283185308;
+        f64 yawStep = 1.570796327;
+        f64 yawMax = 3.141592654;
         for (i = 0; i < 4; i++) {
             camState[i] = 0;
         }
@@ -1328,12 +1328,12 @@ void get_cam_wpos_8002ABE0(s32 camIdx)
             }
             if (cam->timer < 0) {
                 if (lbl_80344404 > 0) {
-                    if ((f64)cam->pyr_delta[0] > lbl_80345F78) {
-                        cam->pyr_delta[0] = cam->pyr_delta[0] - lbl_80346188;
-                        if ((f64)cam->pyr_delta[0] < lbl_80345F78) {
+                    if ((f64)cam->pyr_delta[0] > 0.0) {
+                        cam->pyr_delta[0] = cam->pyr_delta[0] - 0.019999999552965164f;
+                        if ((f64)cam->pyr_delta[0] < 0.0) {
                             cam->pyr_delta[0] = lbl_80345EC8;
                         }
-                        cam->pyr[0] = cam->pyr[0] - lbl_80346188;
+                        cam->pyr[0] = cam->pyr[0] - 0.019999999552965164f;
                         place_cam(cam, mat, in, out);
                         if (cam_blocked(cam)) {
                             cam->pyr_delta[0] = savedD;
@@ -1345,12 +1345,12 @@ void get_cam_wpos_8002ABE0(s32 camIdx)
                         cam->pyr_delta[0] = lbl_80345EC8;
                     }
                 } else {
-                    if ((f64)cam->pyr_delta[0] < lbl_80345F78) {
-                        cam->pyr_delta[0] = cam->pyr_delta[0] + lbl_80346188;
-                        if ((f64)cam->pyr_delta[0] > lbl_80345F78) {
+                    if ((f64)cam->pyr_delta[0] < 0.0) {
+                        cam->pyr_delta[0] = cam->pyr_delta[0] + 0.019999999552965164f;
+                        if ((f64)cam->pyr_delta[0] > 0.0) {
                             cam->pyr_delta[0] = lbl_80345EC8;
                         }
-                        cam->pyr[0] = cam->pyr[0] + lbl_80346188;
+                        cam->pyr[0] = cam->pyr[0] + 0.019999999552965164f;
                         place_cam(cam, mat, in, out);
                         if (cam_blocked(cam)) {
                             cam->pyr_delta[0] = savedD;
@@ -1369,15 +1369,15 @@ void get_cam_wpos_8002ABE0(s32 camIdx)
                 cam->timer = 0xB4;
             }
             if (lbl_80344404 > 0) {
-                if ((f64)cam->pyr[0] <= lbl_80346178 - lbl_80346188) {
-                    cam->pyr_delta[0] = cam->pyr_delta[0] + lbl_80346188;
-                    cam->pyr[0] = cam->pyr[0] + lbl_80346188;
+                if ((f64)cam->pyr[0] <= lbl_80346178 - 0.019999999552965164f) {
+                    cam->pyr_delta[0] = cam->pyr_delta[0] + 0.019999999552965164f;
+                    cam->pyr[0] = cam->pyr[0] + 0.019999999552965164f;
                     place_cam(cam, mat, in, out);
                 }
             } else {
-                if (cam->pyr[0] >= lbl_80346188) {
-                    cam->pyr_delta[0] = cam->pyr_delta[0] - lbl_80346188;
-                    cam->pyr[0] = cam->pyr[0] - lbl_80346188;
+                if (cam->pyr[0] >= 0.019999999552965164f) {
+                    cam->pyr_delta[0] = cam->pyr_delta[0] - 0.019999999552965164f;
+                    cam->pyr[0] = cam->pyr[0] - 0.019999999552965164f;
                     place_cam(cam, mat, in, out);
                 }
             }
