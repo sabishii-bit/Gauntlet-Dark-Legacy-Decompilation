@@ -2088,9 +2088,9 @@ io_done:
 
 void init_player_change(s32 idx, s32 arg1)
 {
-    u8* pl;
-    int i;
     u8* p;
+    int i;
+    u8* pl;
     s32 v;
     s32 saved;
     s32 wflag;
