@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "kill the case-17 zero-CSE copy (target li r28,0/stw/li r31,0 vs our li+copy) and the r28/r29/r30 nonvolatile rotation via block-scope decl-inits and the inline-wrapper identity-passthrough matrix",
+  "attributes": {
+    "axis_log": "NEG block-scoped case-17 { s32 resultOffset = 0; u32 index = 0; output[0] = resultOffset; }: decl-init order DOES flip emission to target's resultOffset-first (li,stw,mr) but the CSE copy survives as mr and the kept-form coloring is lost, real 144->200; NEG direct body (impl body promoted to dcsHandleRequest, wrapper+identity removed): 412 insns, +1 mr, prologue lis moves to slot 1, real 389 - the identity-on-output construct is LOAD-BEARING for the addi-copy forms; NEG identity passthrough on all three args: real 271, input's web through the identity kills the lwz->lwzu form at 0x338; NEG identity on request+output: real 154, same cluster, rotation persists; NEG identity on input instead of output: real 265, lwzu break again; NEUTRAL register qualifier on the request formal (MWCC -O4 ignores it).",
+    "law_screen": "claim.law.chained-init-constant-share.20260829.v1 applied (explains the copy; no probed form reverses it); claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 applied -> block-scope decl-init probe (controls order, not CSE); claim.law.extern-zero-init-blocks-constant-propagation.20260831.v1 screened n/a (both zeros must remain literal source zeros; an extern read would change the load form); run-6 pool-literal family screened n/a (no FP pool reads in the function); claim.law.probe-revert-snapshot-goes-stale-across-commits.20260831.v1 honored (no commits between baseline and reverts).",
+    "laws_applied": "[\"claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1\"]",
+    "residual": "best retained real 144 (411/411, fuzzy 98.66) unchanged from v2's kept commit. Two coupled parts: (1) STRUCTURAL 1 op - every C form still lets MWCC CSE the second zero into a copy (mr or addi); 5 v2 forms + 2 fresh forms dead. (2) CORRECTION to v2's residual note: the r28/r29/r30 'recolor noise' is NOT downstream of the case-17 cluster - it is seeded in the PROLOGUE at 0x10-0x20: ours assigns nonvolatile homes in priority order input=r28/output=r29/request=r30, target in formal order request=r28/input=r29/output=r30; the case-17 colors are knock-ons of that. The wrapper passthrough matrix (direct/all/request+output/input-only) cannot flip the seed: identity-on-output-only is the measured optimum and any other combination regresses structurally (lwzu/lis breaks). A genuinely new axis must re-rank the three formal webs' allocation priority without perturbing the addi-copy or lwzu forms.",
+    "scope": "src/game/audio/dcsdrv.c probes only, all reverted via probe.py --revert; tree clean at HEAD",
+    "verification": "probe.py baseline real 144 banked pre-edit; 6 probes measured; every revert re-scored NEUTRAL real 144; git status clean; dcsInit/dcsMain siblings untouched. TU flip remains blocked by this function alone."
+  },
+  "function": "function:dcsHandleRequest",
+  "id": "attempt.parked.dcshandlerequest-wrapper-web-order.20260831.v3",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T04:30:59Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.dcshandlerequest-index-li.20260831.v2",
+  "valid_from": "2026-08-31"
+}
