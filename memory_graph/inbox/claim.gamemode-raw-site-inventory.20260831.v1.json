@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "GM header-owner lane, worktree GDL-Claude-GamemodeHdr, branch claude/gamemode-header-20260831. Counts produced by an AST-free but switch-aware scan (build/scratch/inv.py) that counts both `gGameMode <op> <literal>` comparisons/assignments AND the raw-hex `case` arms of every `switch (gGameMode)` block, which a naive `gGameMode ==` grep misses entirely.",
+    "scope": "Site inventory for the next de-fakematch wave; supersedes the site estimate in claim.gamemode-enum-needs-a-header-owner.20260831.v1 now that include/game/gamemode.h exists.",
+    "tags": [
+      "symbol-identity",
+      "defake",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.gamemode-raw-site-inventory.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T16:25:03Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/gamemain",
+  "valid_from": "2026-08-31",
+  "value": "include/game/gamemode.h now exists (commit b8da782f7) and carries the full PDB-verbatim e_mode vocabulary, so every consumer TU can respell its raw gGameMode hex literals as named constants under the ordinary byte-gate. The GM lane converted only its own two TUs (gamemain.c adopted the header; screensaver.c's 4 literals converted, both GATE OK byte-identical). REMAINING INVENTORY: 135 raw-literal sites across 16 TUs, heaviest first -- game/game/player.c 59, game/world/camera.c 36, game/ui/options.c 6, game/ui/message.c 5, game/world/gauntworld.c 5, game/game/pmotion.c 4, game/ui/auxscreen.c 4, game/boss/bosscam.c 3, game/ui/select.c 3, game/world/items.c 3, game/sound/sounds.c 2, game/enemy/enemy.c 1, game/game/combat.c 1, game/shop/shop.c 1, game/world/newcam.c 1, game/world/tower.c 1. THREE CORRECTIONS to the original opportunity record's scoping: (1) it named 'player/combat/shop/main' as the consumer set, but game/world/camera.c is the SECOND-heaviest consumer at 36 sites and was never listed, while game/sys/main.c has ZERO literal sites (its only use, `s32 state = gGameMode;` at main.c:397, needs no conversion); (2) the bulk of camera.c's and player.c's debt is in `switch (gGameMode)` CASE ARMS (camera.c:705 alone has 15 raw arms, player.c:775 has more), not in `==` comparisons -- a converting lane must scan switch bodies or it will under-count by roughly half; (3) game/world/tower.c:1020 spells its literal in DECIMAL (`gGameMode == 16400`, = 0x4010 = MG_PLAY), so a hex-only grep misses it. TWO SEMANTIC ANOMALIES found during the inventory, NOT fixed (outside this lane's TU scope) and worth a look by whoever owns those TUs: (a) src/game/audio/sndfx.c declares `extern s32 gGameMode` and its sndFxInit assigns a POINTER into it (`gGameMode = (s32)a;` where `a` is the function's `void*` parameter, sndfx.c:217) while the same file's sndFxPaused() macro reads it as a game mode (`gGameMode & 0x8000`) -- the two uses are mutually inconsistent, so one of them is very likely a misattributed symbol name rather than the real gGameMode; (b) src/game/world/items.c:171 declares it `extern u32 gGameMode` where every other TU uses `s32`, forcing the `(s32)gGameMode` casts at items.c:985/1000/2678 -- same storage class so tools/gdl/externcheck.py does NOT flag it (that tool reports only float/int-class conflicts), but it is a real cross-TU declaration divergence."
+}

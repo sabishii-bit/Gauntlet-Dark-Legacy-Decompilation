@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "GM header-owner lane, worktree GDL-Claude-GamemodeHdr, branch claude/gamemode-header-20260831, commit d83694bdb (header edit alone, zero .c changes). Reproduce the CLEAN side by adding `typedef struct {s32 a,b,c,d,e,f; f32 g;} PlayerCharStats; PlayerCharStats char_stats[16];` into include/game/player.h's pad_0A88 run at 0xC10 and running `python tools/gdl/defake_gate.py check game/shop/shop --rebuild`; the REGRESSING side is the parent law's own recorded repro, `typedef struct {s32 a; u8 pad[24];} T; T arr[16];` at the same region.",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.embedded-struct-member-whole-tu-cascade.20260831.v1. Applies whenever a header pass adds a new struct-typed member to a widely-included project header and needs to predict whether the whole-TU cascade will fire.",
+    "tags": [
+      "core-screen",
+      "register-web",
+      "workflow",
+      "build-hygiene",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.aggregate-cascade-tracks-nested-array-not-new-type.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T16:24:58Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "claim.law.embedded-struct-member-whole-tu-cascade.20260831.v1 concluded that adding any NEW aggregate-typed member to the shared Player struct triggers a whole-TU regression cascade, and prescribed keeping new aggregate types out of shared headers entirely (file-local typedef in the consuming TU instead). Its refinement claim.law.embedded-struct-reuse-of-member-type-is-cascade-safe.20260831.v1 carved out only the case where the element type is ALREADY a member type of the same struct, and explicitly left 'a NEW type merely layout-identical to an existing member type' untested and presumed parent-law-governed. THIS RECORD NARROWS THE PARENT LAW FURTHER, on a near-perfect controlled A/B against the parent law's OWN proving ground: adding `PlayerCharStats char_stats[16]` (a genuinely NEW type, NOT an existing member type, and NOT layout-identical to any -- 0x1C vs PlayerCharSave's 0xF0) into the SAME pad_0A88 region, at the SAME 28-byte element size, with the SAME 16 elements, and the SAME zero .c-site changes, gated BYTE-IDENTICAL across 12 TUs -- including game/shop/shop's full 14 functions, and specifically the exact 6 (calculate_player_shopping_parameters_8009C0F0, do_shopping, fn_8009A0AC, init_shop, shop_setup, shop_show_lv) that the parent law's PlayerShopStat experiment regressed. The ONE structural difference between the regressing member and the clean one is the new type's INTERNAL composition: the regressing PlayerShopStat was `{s32 a; u8 pad[24];}` -- a struct CONTAINING A NESTED ARRAY member -- whereas PlayerCharStats is `{s32 x6; f32}`, seven flat scalar members and no nested aggregate. REFINED RULE: the cascade tracks NESTED AGGREGATE DEPTH (a struct member that itself contains an array/struct), not the mere novelty of the type name. A new struct type whose members are ALL flat scalars appears cascade-safe and may be modelled directly in the shared header under the ordinary isolated gate; a new struct type containing a nested array or struct member remains parent-law-governed and should still be kept file-local. This also sharpens the parent law's working hypothesis: if the leak were per-TYPE front-end bookkeeping, a new all-scalar type would have shifted the ordinal too and regressed -- it did not, which points instead at per-NESTED-AGGREGATE bookkeeping (the inner array's own type record) as the thing whose ordinal leaks into downstream register allocation and scheduling. IMPORTANT CONSEQUENCE FOR PLANNING: the parent law's blanket prescription has been used at least twice to DEFER real header work as impossible (attempt.gamemain-char-stat-block-header-decision.20260831.v1 cited it as one of two blockers for exactly this member); header lanes should now TEST the isolated gate rather than assuming the cascade, since the gate is cheap and the assumption has now been wrong once. Boundary of THIS refinement: one verified instance (all-scalar array-of-struct in Player); it does not license skipping the isolated gate, which remains mandatory for every new header member."
+}

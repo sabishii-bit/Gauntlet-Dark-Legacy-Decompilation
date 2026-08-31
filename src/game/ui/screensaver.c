@@ -41,6 +41,7 @@
  */
 
 #include "types.h"
+#include "game/gamemode.h"
 #include "game/mbobject.h"
 #include "game/player.h"
 
@@ -736,10 +737,10 @@ void ScreenSaverEnd(void)
     ClearAllPlayerControls(-2);
     options_state = lbl_80344A60;
     switch (gGameMode) {
-    case 0x4012:
+    case MG_SHOP:
         ShopMusicStart();
         break;
-    case 0x400B:
+    case MG_PLAYER_SELECT:
         AudioSelect(1);
         break;
     }
@@ -772,7 +773,7 @@ void ScreenSaver(void)
     s32 exit = 0;
     s32 i;
 
-    if ((gGameMode & 0x8000) != 0 || gGameMode == 0x400E || gGameMode == 0x4015 ||
+    if ((gGameMode & 0x8000) != 0 || gGameMode == MG_GAMEMOVIE || gGameMode == MG_ENDING ||
         fn_80055F68(0, 0) == 0) {
         lbl_80344A48 = 0;
     } else {

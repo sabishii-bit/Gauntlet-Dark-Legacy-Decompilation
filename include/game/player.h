@@ -118,6 +118,42 @@ typedef struct PlayerCharSave {
 } PlayerCharSave;                    /* size 0xF0 */
 
 /*
+ * Per-character run/session stat tally.  Player.char_stats is an array of 16 of
+ * these (one per enum PlayerCharType); Player.character selects the active one,
+ * exactly like char_save[].
+ *
+ * Xbox analogue: struct P_SAVE_STATS (Id=3351), size 0x1c -- IDENTICAL size
+ * here, unlike its sibling P_SAVE_STUFF/PlayerCharSave which GC compacted from
+ * 0x254 to 0xF0.  The pairing is structural, not just nominal: the Xbox `player`
+ * record carries `P_SAVE_STATS stats[16]` at 0x190 immediately followed by
+ * `P_SAVE_STUFF stuff[16]` at 0x350, and GC reproduces exactly that adjacency --
+ * this block[16] spans 0xC10..0xDD0 (0x1C0, the same array size Xbox reports)
+ * and terminates 4 bytes before char_save[16] at 0xDD4.
+ *
+ * GC offset verification (gamemain.c do_stats_display, the stats-screen tally):
+ *   +0x00 enemies_killed        VERIFIED  read as s32, animated /60 per frame
+ *   +0x10 generators_destroyed  VERIFIED  read as s32, animated /60 per frame
+ *   +0x14 gold_found            VERIFIED  read as s32, animated /60 per frame
+ *   +0x18 total_playtime        VERIFIED  read as f32 and divided by 60.0f --
+ *         the FLOAT at exactly +0x18 is what fixes this struct's identity: it
+ *         is the only 28-byte game record in the PDB with an f32 there, and
+ *         frames/60.0f -> seconds is precisely a playtime conversion.
+ * The three fields at +0x04/+0x08/+0x0C are NOT GC-attested (the GC stats
+ * screen tallies only the four rows above); their names are carried over from
+ * the size-identical Xbox record and should be re-verified before a consumer
+ * relies on them.
+ */
+typedef struct PlayerCharStats {
+    /* 0x00 */ s32 enemies_killed;       /* VERIFIED gamemain do_stats_display */
+    /* 0x04 */ s32 generals_killed;      /* Xbox P_SAVE_STATS, not GC-attested */
+    /* 0x08 */ s32 golems_killed;        /* Xbox P_SAVE_STATS, not GC-attested */
+    /* 0x0C */ s32 bosses_killed;        /* Xbox P_SAVE_STATS, not GC-attested */
+    /* 0x10 */ s32 generators_destroyed; /* VERIFIED gamemain do_stats_display */
+    /* 0x14 */ s32 gold_found;           /* VERIFIED gamemain do_stats_display */
+    /* 0x18 */ f32 total_playtime;       /* VERIFIED f32, /60.0f -> seconds */
+} PlayerCharStats;                       /* size 0x1C */
+
+/*
  * Active powerup slot (11 per player at +0x130).  GC-proven by
  * player_get_powerup_state / PlayerAddPowerup / PlayerProcessMikeyPUP
  * (type 9 mask 0x100000 = mikey, mask 8 = x-ray range feed).
@@ -417,7 +453,20 @@ typedef struct Player {
     /* 0x0A78 */ f32 field_A78;      /* shop displayed-att-magic snapshot [shop.c] */
     /* 0x0A7C */ f32 field_A7C;      /* shop displayed-att-speed snapshot [shop.c] */
     /* 0x0A80 */ char name[8];       /* player name, underscore shown as space [player.c] */
-    /* 0x0A88 */ u8  pad_0A88[0x34C];
+    /*
+     * pad_0A88's original 0x34C run splits with exact byte accounting:
+     *   0x0A88 + 0x188 = 0x0C10   leading pad (still unmodelled; it contains
+     *                             the s16 char-type at 0x0A88 and player.c's
+     *                             CHAR_STATS block, base 0x0A90 stride 0x18,
+     *                             whose 16 entries end exactly at 0x0C10)
+     *   0x0C10 + 0x1C0 = 0x0DD0   char_stats[16], 16 * 0x1C
+     *   0x0DD0 +   0x4 = 0x0DD4   trailing pad, up to char_save[]
+     * 0x188 + 0x1C0 + 0x4 = 0x34C, so Player stays 0x335C.
+     */
+    /* 0x0A88 */ u8  pad_0A88[0x188];
+    /* 0x0C10 */ PlayerCharStats char_stats[16]; /* per-character stat tally
+                                        * (VERIFIED base 3088 + character*28) */
+    /* 0x0DD0 */ u8  pad_0DD0[4];
     /* 0x0DD4 */ PlayerCharSave char_save[16]; /* per-character progression (VERIFIED base+stride) */
     /* 0x1CD4 */ u8  pad_1CD4[0x1E0];
     /* 0x1EB4 */ f32 health;         /* hit points, 9999 display cap [player.c] */
