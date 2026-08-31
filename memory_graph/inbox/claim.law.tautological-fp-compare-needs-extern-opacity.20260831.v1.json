@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "defake",
+      "sda-global",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.tautological-fp-compare-needs-extern-opacity.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:38:48Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A guard whose BOTH operands are floating-point constants (the residue of an inlined helper called with constant arguments, e.g. `if (weight >= 0.0)` inlined at a `SfxSetPhysics(..., 50.0f, 1.0f)` call site) survives in the target instruction stream, but MWCC's front end folds it away the moment the operands are spelled as C LITERALS. A read of an `extern f32/f64 lbl_*` is a memory load and therefore OPAQUE to the constant folder, so the extern spelling is what preserves the compare. Verified in src/game/sfx/sfx.c::StartBagFX: literalizing the four reads in `if (lbl_803480FC >= lbl_80348078) { e->weight = lbl_803480FC; } if (lbl_803480A0 >= lbl_80348078) { e->colrad = lbl_803480A0; }` to `50.0f`/`1.0f`/`0.0` collapsed insns 112 -> 104 with --ops target-only +2 lfd +2 fcmpo +2 cror +2 bne, real 58 -> 72; restoring the extern spelling restored 112/112 and real 58. Consequence for extern-literal (de-fakematch) sweeps: partition a function's pool reads into VALUE uses (assignments, call arguments, compares against a variable) and CONSTANT-VS-CONSTANT COMPARE operands. Sweep the first class; leave the second raw and record it as a protected web. Diagnostic tell that a region is in the second class: the --ops multiset gains target-only compare/branch groups (fcmpo+cror+bne or fcmpo+b*) that our stream lacks, with the instruction count dropping BELOW target. Reconstruction note: such a site is positive evidence that the original source called a helper with constant arguments and MWCC inlined it AFTER folding, so the honest de-fakematch endpoint is to restore the call, not the literal - until that is possible the extern spelling is the correct staged form."
+}

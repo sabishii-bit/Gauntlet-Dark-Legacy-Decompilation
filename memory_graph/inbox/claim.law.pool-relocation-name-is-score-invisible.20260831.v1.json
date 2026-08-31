@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow",
+      "sda-global",
+      "defake",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.pool-relocation-name-is-score-invisible.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:38:54Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "In a NonMatching TU, whether a floating-point constant load relocates against the splitter's named `lbl_80xxxxxx` (because the source declares `extern f32 lbl_*` and reads it) or against MWCC's own anonymous pool entry `@@N` (because the source spells a literal) is INVISIBLE to every metric the project gates on. fndiff `real` and `--ops` normalize the relocation payload, and objdiff scores such functions at fuzzy 100 / gate status RELOCATION_ONLY with real 0. Measured in src/game/sfx/sfx.c: 174 instruction sites across the TU have target `@lbl_*` where our object has `@@N`, and 32 of the TU's 72 functions sit at gate status RELOCATION_ONLY real 0 (SuicideExplosion, StartComboFX, fn_80094164, DeleteEffect, ...) while the brief reports them at fuzzy 100.0. RETRACTED INFERENCE (this cost probes before it was disproved - do not repeat it): the target disassembly ALWAYS prints the named label, because the splitter labels every relocated .sdata2 address; that is a property of the split, NOT evidence about the original source, so 'the target names lbl_X here, therefore our source must name it too' is invalid. A/B confirmation: rewriting three `0.0f` literals in StartMagicFX to `lbl_80348068` reads reduced the aligned-diff FP divergent rows 7 -> 5 (two `@@13` rows became `@lbl_80348068`) at real NEUTRAL 50 - a pure no-op on every gate. Consequences: (1) gate the extern-literal sweep exclusively on real/--ops register and schedule effects, never on relocation-name parity; (2) do not spend probes converting literal -> extern to 'fix' a pool name; (3) the LITERAL spelling is nevertheless the strictly correct long-term form, because a TU promoted to Matching must generate its own .sdata2 pool from source literals and can never do so from extern references - so a score-neutral extern -> literal conversion is a real de-fakematch win worth committing even at real NEUTRAL."
+}
