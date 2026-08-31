@@ -23,6 +23,15 @@ typedef struct MsgData {
     MsgDesc desc[256];
 } MsgData;
 
+/* Header block of MsgData: the message-delay ladder, the blit font names and
+ * the per-font colour words live in one 0x40-byte read/write object, ahead of
+ * the descriptor table. */
+typedef struct MsgCfgBlock {
+    int levels[6];
+    char* fonts[5];
+    u32 cfg[5];
+} MsgCfgBlock;
+
 typedef struct World {
     /* 0x0000 */ char _pad0[4];
     /* 0x0004 */ int class_id;
@@ -104,9 +113,11 @@ int  msgWorldFlags(int who, int worldMask);
 int  fn_800A5734(void);
 
 /* --- data --- */
-static int lbl_80124E58[6] = {0, 0x78, 0xF0, 0x1A4, 0x258, -1};
-static char* gMsgFonts[5] = {"SCROLL_A", "SCROLL_A", "SCROLL_A", "SCROLL_A", "SCROLL_A"};
-static u32 gMsgCfg[5] = {0x001F1F00, 0x0000001F, 0x001F0000, 0x00001F00, 0x00160C03};
+static MsgCfgBlock lbl_80124E58 = {
+    {0, 0x78, 0xF0, 0x1A4, 0x258, -1},
+    {"SCROLL_A", "SCROLL_A", "SCROLL_A", "SCROLL_A", "SCROLL_A"},
+    {0x001F1F00, 0x0000001F, 0x001F0000, 0x00001F00, 0x00160C03},
+};
 static MsgDesc gMsgDescTable[256] = {
     {0, 0, 0x32, 3, 0x22, -1, 0x10007},
     {0, 0, 0x32, 3, 0x23, -1, 0x1000F},
@@ -467,7 +478,7 @@ int msgPost(int idx, int param, char* position)
     int playerOffset;
     u8 unused[4];
 
-    msgData = (MsgData*)lbl_80124E58;
+    msgData = (MsgData*)&lbl_80124E58;
     descOffset = idx * sizeof(MsgDesc);
     desc = (MsgDesc*)((u8*)&msgData->desc[0] + descOffset);
     boxes = gMsgBoxes;
