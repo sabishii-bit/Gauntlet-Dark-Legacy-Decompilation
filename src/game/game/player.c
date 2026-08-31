@@ -172,6 +172,7 @@
  */
 
 #include "types.h"
+#include "game/gamemode.h"
 #include "game/player.h"
 #include "game/effect.h"
 #include "game/leveldata.h"
@@ -773,7 +774,7 @@ static void show_crystals(Player* p) {
         return;
     }
     switch (gGameMode) {
-    case 0x4010:
+    case MG_PLAY:
         break;
     default:
         return;
@@ -907,7 +908,7 @@ static void write_health_and_items(s32 i) {
     if (lbl_80344A28 != 0 || gGameOptions[8] != 0) {
         hidden = 1;
     }
-    if (gGameMode == 0x4010 && lbl_80344760 > 0 && p->state == 0xB &&
+    if (gGameMode == MG_PLAY && lbl_80344760 > 0 && p->state == 0xB &&
         p->motion_state == 1) {
         u32 x = ((u16*)(tab + 1520))[i] + 6;
 
@@ -918,8 +919,8 @@ static void write_health_and_items(s32 i) {
         DrawTextKeepScale(1.2f, x + 0xE, 0x164, 1, 0xFFFFFF, "Quit Game");
         show_gold = 0;
     }
-    if ((p->state == 5 || p->state == 0xB) && gGameMode != 0x400D &&
-        gGameMode != 0x4013 && gGameMode != 0x4017 && !hidden) {
+    if ((p->state == 5 || p->state == 0xB) && gGameMode != MG_WORLD_SELECT &&
+        gGameMode != MG_LEVEL_ADVANCE && gGameMode != MG_GWIZ_SPEECH && !hidden) {
         hidden = 1;
         setup_player_display(i);
         if (p->state == 0xB) {
@@ -996,17 +997,17 @@ static void write_health_and_items(s32 i) {
         }
     }
     if (p->health > 0.0f && lbl_80344A44 == 0) {
-        if (gGameMode == 0x4010 && p->quest_state != 0 && sMusicTrackHi != 0xD) {
+        if (gGameMode == MG_PLAY && p->quest_state != 0 && sMusicTrackHi != 0xD) {
             mbBlitInit3414(quest_blit[i], 0);
         } else {
             mbBlitInit3414(quest_blit[i], 1);
         }
-        if ((u32)(gGameMode - 0x400F) <= 1 && (p->shards & 0x1000)) {
+        if ((u32)(gGameMode - MG_MAPSCREEN) <= 1 && (p->shards & 0x1000)) {
             mbBlitInit3414(hod_blit[i], 0);
         } else {
             mbBlitInit3414(hod_blit[i], 1);
         }
-        if (gGameMode == 0x4010) {
+        if (gGameMode == MG_PLAY) {
             draw_power_meter(i);
         }
     } else {
@@ -1061,7 +1062,7 @@ static void debug_player_pos(s32 i) {
     base = (u8*)potionicon_tab;
     p = (Player*)((u8*)(p = (Player*)(base + i * 0x335C)) + 0xC40);
     name = fmt + 908;
-    if (gGameMode == 0x4010) {
+    if (gGameMode == MG_PLAY) {
         fn_800C02F4(0x80FF80);
         get_actual_screen_pos(0, &work.actualX, (f32*)&work.y, p->col_pos);
         dbgTextFlagA = 1;
@@ -1340,7 +1341,7 @@ void setup_player_display(s32 i) {
         goto done;
     }
 done:
-    if (gGameMode == 0x400B || gGameMode == 0x4012) {
+    if (gGameMode == MG_PLAYER_SELECT || gGameMode == MG_SHOP) {
         mbBlitUpdateEntry(frame_blit[i][0], 0xFFFFFFFF, 0x4010);
         mbBlitUpdateEntry(frame_blit[i][2], 0xFFFFFFFF, 0x4010);
     } else {
@@ -1357,7 +1358,7 @@ s32 get_display_mode(s32 i) {
     case 1:
     case 4:
     case 5:
-        if (gGameMode == 0x4012) {
+        if (gGameMode == MG_SHOP) {
             return 5;
         }
         if (p->node != NULL) {
@@ -1665,7 +1666,7 @@ s32 do_players(void) {
     if (gControllerButtons & 0x10) {
         opt_force_player = 0xFFFFFFFF;
     }
-    if (gGameMode == 0x4010 && (s32)opt_force_player >= 0) {
+    if (gGameMode == MG_PLAY && (s32)opt_force_player >= 0) {
         if (gScriptedCameraState != 0 || lbl_803447B8 != 0) {
             lbl_80344B10 = 0;
         } else {
@@ -1699,8 +1700,8 @@ s32 do_players(void) {
             }
         }
     }
-    if (gGameMode != 0x4012 && gGameMode != 0x400D && gGameMode != 0x400F &&
-        gGameMode != 0x4016) {
+    if (gGameMode != MG_SHOP && gGameMode != MG_WORLD_SELECT && gGameMode != MG_MAPSCREEN &&
+        gGameMode != MG_STATS) {
         msgUpdate();
         for (i = 0, p = PT(0); i < 4; i++, p++) {
             if (p->state != 0) {
@@ -1736,7 +1737,7 @@ s32 do_players(void) {
             }
             return 0;
         }
-        if (gGameMode == 0x4010) {
+        if (gGameMode == MG_PLAY) {
             TowerCheckMessages(0);
         }
         if (gScriptedCameraState != 0) {
@@ -1746,7 +1747,7 @@ s32 do_players(void) {
                         p->count_91C = p->count_91C - 1;
                     }
                     if (p->state == 1 && p->platform != NULL) {
-                        if (gGameMode == 0x4010) {
+                        if (gGameMode == MG_PLAY) {
                             p->intower = 1;
                         }
                         DoPlayerAction(p);
@@ -1824,7 +1825,7 @@ s32 do_players(void) {
     for (i = 0, p = PT(0); i < 4; i++, p++) {
         s32 selected;
 
-        if (gGameMode == 0x400B || gGameMode == 0x400F) {
+        if (gGameMode == MG_PLAYER_SELECT || gGameMode == MG_MAPSCREEN) {
             continue;
         }
         state = p->state;
@@ -1834,8 +1835,8 @@ s32 do_players(void) {
             selected = 0;
         }
         if (selected == 0) {
-            if (gGameMode == 0x4012 || gGameMode == 0x400D || gGameMode == 0x400F ||
-                gGameMode == 0x4016) {
+            if (gGameMode == MG_SHOP || gGameMode == MG_WORLD_SELECT || gGameMode == MG_MAPSCREEN ||
+                gGameMode == MG_STATS) {
                 continue;
             }
             if (lbl_803447B8 != 0 && lbl_8034481C == 0 && opt_restart_request == 0) {
@@ -1908,7 +1909,7 @@ s32 do_players(void) {
                 break;
             }
             case 0xB:
-                if (gGameMode == 0x4010 && p->motion_state == 1) {
+                if (gGameMode == MG_PLAY && p->motion_state == 1) {
                     if (lbl_80240E38[i * 0xF] & 0x8000000) {
                         abort_player(i);
                     }
@@ -1953,7 +1954,7 @@ s32 do_players(void) {
                 }
                 /* fallthrough */
             case 1:
-                if (gGameMode == 0x4010) {
+                if (gGameMode == MG_PLAY) {
                     f32 light_pos[3];
 
                     p->intower = 1;
@@ -2041,7 +2042,7 @@ s32 do_players(void) {
                 }
                 break;
             case 5:
-                if (gGameMode == 0x4013 || gGameMode == 0x4017) {
+                if (gGameMode == MG_LEVEL_ADVANCE || gGameMode == MG_GWIZ_SPEECH) {
                     if (p->node != NULL) {
                         MBTreeClearFlags(p->node, 2, 0);
                         DoPlayerAction(p);
@@ -2122,12 +2123,12 @@ s32 do_players(void) {
                 s32 peer_found;
 
                 PlayerCheckMovingFloor_80088688(p);
-                if (MBBackgroundLoading() == 0 && gGameMode != 0x4013 &&
-                    gGameMode != 0x4017) {
+                if (MBBackgroundLoading() == 0 && gGameMode != MG_LEVEL_ADVANCE &&
+                    gGameMode != MG_GWIZ_SPEECH) {
                     activate_player(i);
                 } else if (gGameOptions[11] == 0 ||
-                           (gGameMode != 0x400B && gGameMode != 0x400D &&
-                            gGameMode != 0x400F && gGameMode != 0x4016)) {
+                           (gGameMode != MG_PLAYER_SELECT && gGameMode != MG_WORLD_SELECT &&
+                            gGameMode != MG_MAPSCREEN && gGameMode != MG_STATS)) {
                     update_class_spec(i);
                     WritePlayerInfo(i);
                 }
@@ -2151,8 +2152,8 @@ s32 do_players(void) {
             }
             p->prev_state = state;
     }
-    if (gGameMode != 0x400B && gGameMode != 0x400D && gGameMode != 0x4012 &&
-        gGameMode != 0x400F && gGameMode != 0x4016) {
+    if (gGameMode != MG_PLAYER_SELECT && gGameMode != MG_WORLD_SELECT && gGameMode != MG_SHOP &&
+        gGameMode != MG_MAPSCREEN && gGameMode != MG_STATS) {
         for (i = 0, p = PT(0); i < 4; i++, p++) {
             if (p->state != 0 && (p->hud_flags & 1) &&
                 !(p->hud_flags & 0x20)) {
@@ -2167,7 +2168,7 @@ s32 do_players(void) {
         Player* speaker = PT(k);
 
         if (speaker->speech_req != NULL) {
-            if (speaker->state == 1 && gGameMode == 0x4010) {
+            if (speaker->state == 1 && gGameMode == MG_PLAY) {
                 fn_8005DE50(speaker, speaker->speech_req);
                 for (j = 0; j < 4; j++) {
                     if (j != k && PT(j)->speech_req == speaker->speech_req) {
@@ -2183,12 +2184,12 @@ s32 do_players(void) {
             break;
         }
     }
-    if (i < 4 && gGameMode != 0x4012) {
+    if (i < 4 && gGameMode != MG_SHOP) {
         fn_8009D610(0, PT(i)->col_pos);
     } else {
         fn_8009D610(2, NULL);
     }
-    if (gGameMode != 0x400D && gGameMode != 0x4012 && gGameMode != 0x4016 &&
+    if (gGameMode != MG_WORLD_SELECT && gGameMode != MG_SHOP && gGameMode != MG_STATS &&
         lbl_803447B8 == 0) {
         if (lbl_803444FC == 0 && lbl_803444F8 <= 0) {
             lbl_80344500 = 0;
@@ -2718,7 +2719,7 @@ s32 PlayerOnMovingObject(void) {
     u32 flags;
     s32 i;
 
-    if (gGameMode != 0x4010) {
+    if (gGameMode != MG_PLAY) {
         return 0;
     }
     for (i = 0; i < 4; i++) {
@@ -3395,7 +3396,7 @@ void change_player(s32 i, s32 type) {
     }
     LoadPlyrData(i, type, NULL);
     player_get_from_save(p, type);
-    if ((gGameMode == 0x4010 || gGameMode == 0x400B) && p->node != NULL) {
+    if ((gGameMode == MG_PLAY || gGameMode == MG_PLAYER_SELECT) && p->node != NULL) {
         remove_player_geo(i);
         load_player(i);
     }
@@ -3507,7 +3508,7 @@ s32 activate_player(s32 i) {
     PF(p, offsetof(Player, exit_dest), s32) = other_players_next_level(i);
     del_player_blits(i);
     LoadPlyrData(i, p->character, (void*)1);
-    if (gGameMode != 0x4010) {
+    if (gGameMode != MG_PLAY) {
         return 1;
     }
     load_player(i);
@@ -3517,7 +3518,7 @@ s32 activate_player(s32 i) {
     for (j = 0; j < gNumEnemies; j++) {
         gEnemies[j].skip_itemcol = 0;
     }
-    if (lbl_803447B4 != 0 || lbl_803447D0 >= 10 || gGameMode == 0x4016) {
+    if (lbl_803447B4 != 0 || lbl_803447D0 >= 10 || gGameMode == MG_STATS) {
         for (j = 0; j < 4; j++) {
             Player* other = &players[j];
             s32 state = other->state;
@@ -3530,7 +3531,7 @@ s32 activate_player(s32 i) {
             }
         }
     }
-    if (lbl_803447D0 < 10 && gGameMode != 0x400B && gGameMode != 0x400D) {
+    if (lbl_803447D0 < 10 && gGameMode != MG_PLAYER_SELECT && gGameMode != MG_WORLD_SELECT) {
         add_target(p->mat);
     } else {
         MBTreeSetFlags(p->node, 2, 0);
@@ -3684,7 +3685,7 @@ void load_player(s32 i) {
         }
     }
     PF(p, offsetof(Player, floor_name2), s32) = 0;
-    if ((gGameOptions[11] & 1) == 0 || gGameMode != 0x400B) {
+    if ((gGameOptions[11] & 1) == 0 || gGameMode != MG_PLAYER_SELECT) {
         setup_player_display(i);
     }
     if (lbl_80344DA4 != 0) {
@@ -4126,8 +4127,8 @@ model_ready:
     }
     MBNodeSetParent(*p->platform, p->node);
     InitActions(&p->platform, (u8*)p + 0x210, (s32)lbl_80126C68);
-    if (gGameMode != 0x4012 && gGameMode != 0x400D &&
-        gGameMode != 0x400F && gGameMode != 0x4016) {
+    if (gGameMode != MG_SHOP && gGameMode != MG_WORLD_SELECT &&
+        gGameMode != MG_MAPSCREEN && gGameMode != MG_STATS) {
         LoadPlyrData(i, p->character, (void*)1);
     }
     PF(p, 0x744, s32) = 0;
@@ -5646,7 +5647,7 @@ static void PlayerProcessSkinFX(void* vp) {
         void* h = ps->atree;
         s32 a2 = 0;
         s32 a3 = 0;
-        if (gGameMode == 0x4010 && (p->flags & 0x80)) {
+        if (gGameMode == MG_PLAY && (p->flags & 0x80)) {
             MBTreeSetFlags(*(void**)h, 2, 0);
         } else {
             MBTreeClearFlags(*(void**)h, 2, 0);
@@ -6520,7 +6521,7 @@ void mini_inventory_update(s32 i) {
     u8 unused[32];
 
     label_table = lbl_8011FC48;
-    if (gGameMode != 0x4010 || gGameBusy != 0) {
+    if (gGameMode != MG_PLAY || gGameBusy != 0) {
         return;
     }
     tb_offset = i * sizeof(TbInfo);
