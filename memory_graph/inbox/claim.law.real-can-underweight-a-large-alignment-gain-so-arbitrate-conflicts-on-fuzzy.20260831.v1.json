@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/ui/btext.c::StringTextHeightSub, worktree GDL-Claude-DeltaCensus, commits d92583547 (real 42 state) and 1c0da1db7 (real 44 state, retained). Both fuzzy figures measured directly from build/GUNE5D/report.json after a fresh report build in each state, with the working file swapped binary-safe. Cross-checked against the same function's own history: real 152 <-> fuzzy 69.6216%, real 171 <-> fuzzy 72.1892%, real 42 <-> fuzzy 85.9009%, real 44 <-> fuzzy 96.2162% - i.e. real is NOT monotone in fuzzy on this function at all.",
+    "tags": [
+      "metrics",
+      "matching",
+      "workflow",
+      "batch-gating",
+      "entry-schedule"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.real-can-underweight-a-large-alignment-gain-so-arbitrate-conflicts-on-fuzzy.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T21:09:31Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A `real` DELTA OF +2 CONCEALED A +10.3 POINT FUZZY GAIN, AND THE PROJECT'S DEFAULT GATE WOULD HAVE THROWN THE BETTER RESULT AWAY. On StringTextHeightSub, an edit that introduced two declared locals (a FontDesc* base and a u32 color held live across the spacing check) via a conserving pad split measured real 42 -> 44 - a REGRESSION by the arbiter AGENTS.md prescribes for functions under ~4000 instructions, and defake_gate.py check duly reported 'GATE FAILED: 1 regression'. Measured directly, that same edit moved fuzzy 85.9009% -> 96.2162% and the opcode multiset 10t -> 8t, and it made the ENTIRE entry region byte-identical from offset 0 through the MBFontHeight call. The structurally-correct state was kept (probe --rebase-best, then a re-taken defake_gate baseline) and it is unambiguously the better result. WHY THE METRICS DISAGREE, which is what makes this predictable rather than a curiosity: `real` counts differing rows in a sequence alignment, so an edit that ALIGNS a long run while displacing a couple of rows elsewhere can add rows faster than it removes them, whereas objdiff's fuzzy score weights how much of the function's byte-length actually corresponds. Alignment-restoring edits - closing a frame, matching a fallthrough arm, pulling a hoisted address chain into the target's order - are exactly the class that can move the two metrics in opposite directions. OPERATIONAL RULE. (1) The existing arbitration advice ('use fuzzy only above ~4000 instructions') is TOO NARROW: this function is 111 instructions. Whenever `real` and the opcode multiset disagree in direction, or probe.py prints CONFLICT, measure fuzzy in BOTH states before deciding - it costs one report build per state and it settled this case decisively. (2) defake_gate.py check arbitrates on `real` ALONE and will fail an arbitrated keep; that is a gate limitation, not a verdict. When you override it, re-run `defake_gate.py baseline <unit>` to re-anchor, and only after confirming from the failing report that no SIBLING regressed (here exactly one function moved). (3) Do NOT chain `real`-only improvements without a fuzzy check: this same function was walked 171 -> 152 -> 100 -> 76 -> 42 on real across four commits, and the real-42 endpoint scored only 85.90% fuzzy - the single 'regressing' fifth edit was worth more than the previous four combined. (4) MEASUREMENT TRAP that invalidated one reading here before it was caught: on Windows, `git show <rev>:<path> > file` in PowerShell re-encodes the file (BOM), the compile then fails, and `ninja build/GUNE5D/report.json` leaves the PREVIOUS report in place - so fuzzy.py happily prints a stale score that looks like a valid measurement. Swap file versions with a binary-safe writer (python Path.write_bytes) and treat any fuzzy reading whose build did not succeed as void. Also note `^` is eaten as an escape in some shell paths, so `<rev>^` silently measures <rev> itself; prefer `<rev>~1`."
+}
