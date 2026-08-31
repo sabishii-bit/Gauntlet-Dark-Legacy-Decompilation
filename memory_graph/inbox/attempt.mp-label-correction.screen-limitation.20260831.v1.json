@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Label correction only: run the regnorm measurement the REGISTER_ONLY/SCHEDULE label requires, and re-class the park from the result. No source probe, no edit.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED (this record's own measurement; rows after the first UNPAIRED offset are treated as unreliable and displacement rows are split by base register). claim.park-law-age-revisit-census.20260831.v1 APPLIED (standing rule i: screen the LABEL before the axis). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED (regnorm is the prescribed measurement for a REGISTER_ONLY label). claim.law.regnorm-counts-reloc-annotation-rows-as-structural.20260831.v1 SCREENED (reloc-annotation rows are reported separately as RELOC-SYMBOL and are NOT counted as evidence of a source-reachable structural gap). claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1 SCREENED (no COMMUTED-OPERANDS row was found anywhere in this 156-function census). No source probe was run for this function, so no codegen law was exercised.",
+    "laws_applied": "[\"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.park-law-age-revisit-census.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "residual": "STRUCTURAL-PRESENT: 100 STRUCTURAL rows and 37 unpaired over 689 paired instructions. Row classes: 20 CFG-BRANCH-TARGET, 16 IMMEDIATE, 2 OPCODE-DIFFERS. SAMPLE ROWS (verbatim from regnorm --map): 0x05e0 CFG-BRANCH-TARGET: T beq <fn+0x628> / O beq <fn+0x60c> | 0x05e4 CFG-BRANCH-TARGET: T b <fn+0x65c> / O b <fn+0x640> | 0x0600 OPCODE-DIFFERS: T lwz     r6,16(r5) / O crclr   4*cr1+eq | 0x0618 IMMEDIATE: T addi    r5,r31,684 / O addi    r5,r30,344 | 0x0624 CFG-BRANCH-TARGET: T b <fn+0x914> / O b <fn+0x8f8> | 0x064c IMMEDIATE: T addi    r5,r31,684 / O addi    r5,r30,344 READING: branch-target (if/else vs goto SHAPE, source-reachable); different opcode (a real codegen-form gap, not a colouring); differing immediate/constant.",
+    "scope": "src/game/game/combat.c::screen_limitation - NO source change; read-only measurement from the ninja object. Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/regnorm.py game/game/combat screen_limitation --map (2026-08-31, build green at 98.06% fuzzy / 61.70% matched). The superseded record's label was applied in bulk by the 2026-08-29 legacy import and carried no per-function measurement."
+  },
+  "function": "function:screen_limitation",
+  "id": "attempt.mp-label-correction.screen-limitation.20260831.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T20:49:25Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.screen-limitation-alias-lever-rescreen.20260831.v2",
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Label correction only: run the regnorm measurement the REGISTER_ONLY/SCHEDULE label requires, and re-class the park from the result. No source probe, no edit.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED (this record's own measurement; rows after the first UNPAIRED offset are treated as unreliable and displacement rows are split by base register). claim.park-law-age-revisit-census.20260831.v1 APPLIED (standing rule i: screen the LABEL before the axis). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED (regnorm is the prescribed measurement for a REGISTER_ONLY label). claim.law.regnorm-counts-reloc-annotation-rows-as-structural.20260831.v1 SCREENED (reloc-annotation rows are reported separately as RELOC-SYMBOL and are NOT counted as evidence of a source-reachable structural gap). claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1 SCREENED (no COMMUTED-OPERANDS row was found anywhere in this 156-function census). No source probe was run for this function, so no codegen law was exercised.",
+    "laws_applied": "[\"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.park-law-age-revisit-census.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "residual": "STRUCTURAL-PRESENT: 15 STRUCTURAL rows and 11 unpaired over 246 paired instructions. Row classes: 10 CFG-BRANCH-TARGET, 2 IMMEDIATE, 1 DISPLACEMENT-FRAME, 1 OPCODE-DIFFERS, 1 CFG-BRANCH-SENSE. SAMPLE ROWS (verbatim from regnorm --map): 0x0028 DISPLACEMENT-FRAME: T stw     r3,20(r1) / O stw     r3,16(r1) | 0x009c OPCODE-DIFFERS: T lis     r31,1 / O addi    r25,r6,-23992 | 0x00c8 CFG-BRANCH-TARGET: T blt <fn+0xa4> / O blt <fn+0xa8> | 0x00e4 CFG-BRANCH-SENSE: T beq <fn+0xec> / O bne <fn+0xfc> | 0x0100 CFG-BRANCH-TARGET: T b <fn+0x2e4> / O b <fn+0x2e8> | 0x016c IMMEDIATE: T li      r0,-1 / O li      r27,0 READING: (r1) frame-slot placement -> STACK_LAYOUT, slot-order laws; branch-target (if/else vs goto SHAPE, source-reachable); different opcode (a real codegen-form gap, not a colouring); differing immediate/constant; inverted branch condition (guard polarity, source-reachable).",
+    "scope": "src/game/sys/memcard.c::writeGauntletSave - NO source change; read-only measurement from the ninja object. Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/regnorm.py game/sys/memcard writeGauntletSave --map (2026-08-31, build green at 98.06% fuzzy / 61.70% matched). The superseded record's label was applied in bulk by the 2026-08-29 legacy import and carried no per-function measurement."
+  },
+  "function": "function:writeGauntletSave",
+  "id": "attempt.mp-label-correction.writegauntletsave.20260831.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T20:51:18Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.writegauntletsave-mount-fail-and-loop-header.20260830.v1",
+  "valid_from": "2026-08-31"
+}

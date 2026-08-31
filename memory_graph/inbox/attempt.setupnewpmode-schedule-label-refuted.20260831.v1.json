@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Label correction: screen the SCHEDULE label with the measurement it requires. regnorm cannot resolve this symbol, so fndiff supplied the classification.",
+  "attributes": {
+    "law_screen": "claim.park-law-age-revisit-census.20260831.v1 APPLIED (screen the label before the axis). claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED - its THIRD clause is what covers this function: regnorm exits 'missing: setupNewPMode_800CDCE4 (target: False, ours: False)' because of the trailing _<ADDR> suffix, and fndiff resolves the same symbol by stripping it. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED - not reachable, since the streams are far apart enough that the multiset question is moot at 675 real. No source probe was run.",
+    "laws_applied": "[\"claim.park-law-age-revisit-census.20260831.v1\", \"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\"]",
+    "residual": "THE SCHEDULE LABEL IS REFUTED BY A LARGE MARGIN. The superseded record classified this function's residual as SCHEDULE, which implies an aligned instruction stream differing only in emission order. fndiff measures STRUCTURAL with 675 real diff lines (+28 pool-name lines suppressed). A residual of that size is a reconstruction gap, not a scheduler tie-break, and the function should be re-entered as structural/semantic work - read the target assembly and rebuild the body - rather than probed for emission-order levers. This is the largest single label error found in the 156-function census. Also note the record was never re-measured after the 2026-08-29 pass, and the SCHEDULE label survived two days of it vetoing the correct kind of work.",
+    "scope": "src/game/mb/mb_particle.c::setupNewPMode_800CDCE4. NO source change - read-only measurement. game/mb/mb_particle is not claimed by any lane this run (gdlmem claims checked: DC, LP, MP, OC, PB, RS). Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/regnorm.py game/mb/mb_particle setupNewPMode_800CDCE4 --map (exits 1, symbol unresolvable) then python tools/gdl/fndiff.py game/mb/mb_particle setupNewPMode_800CDCE4 --clean -> 'setupNewPMode: STRUCTURAL, 675 real diff lines' (2026-08-31, build green at 98.06% fuzzy / 61.70% matched)."
+  },
+  "function": "function:setupNewPMode_800CDCE4",
+  "id": "attempt.setupnewpmode-schedule-label-refuted.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T20:54:57Z",
+  "refutes": "attempt.setupnewpmode-800cdce4-schedule-closure.20260829.v1",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.setupnewpmode-800cdce4-schedule-closure.20260829.v1",
+  "valid_from": "2026-08-31"
+}

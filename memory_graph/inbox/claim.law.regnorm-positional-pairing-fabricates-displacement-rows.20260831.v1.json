@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/player.c::kill_player, MP label-correction lane 2026-08-31 (work_claim.regnorm-park-correction.20260831.v1), measured from the real ninja object. regnorm --map reported STRUCTURAL @0x01d0 'T lfs f0,2360(r31) O lfs f0,2364(r31)' - a same-register, adjacent-f32 displacement difference, i.e. the exact signature of the get_player_pos col_pos/effectpos semantic bug. The aligned view (fnasm game/game/player kill_player 0x190:0x210 --diff) shows BOTH sides emit lfs f0,2360(r31) at 0x1d0, and the whole 2356/2360/2364 triple agrees; the real residual there is a 4-byte scratch-slot shift (r1+16 vs r1+12) plus reloc-symbol differences. regnorm's own UNPAIRED-T @0x0238 / UNPAIRED-O @0x0230 lines show the cause: a transposed lfs/stfs pair one instruction earlier.",
+    "tags": [
+      "workflow",
+      "metrics",
+      "matching",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T20:40:31Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "tools/gdl/regnorm.py PAIRS INSTRUCTIONS POSITIONALLY, SO ANY UNPAIRED INSTRUCTION SHIFTS EVERY SUBSEQUENT ROW AND CAN FABRICATE A STRUCTURAL ROW THAT DOES NOT EXIST. When one side emits an extra instruction, or two adjacent instructions are transposed, regnorm's alignment slips by one and it compares instruction i of the target against instruction i+1 of ours. Two same-opcode memory accesses that happen to sit adjacent then produce a row like 'T lfs f0,2360(r31) O lfs f0,2364(r31)' - identical opcode, identical base register, differing displacement - which is INDISTINGUISHABLE IN THE ROW TEXT from a genuine wrong-field access, and is precisely the signature the col_pos/effectpos precedent teaches us to treat as a shipped semantic bug. On kill_player that row is a phantom: both sides really emit lfs f0,2360(r31) at +0x1d0. CONSEQUENCE, and this is the operational point: a regnorm DISPLACEMENT row is a CANDIDATE, never a finding. Confirm every one in the aligned view (`fnasm.py <unit> <fn> 0xA:0xB --diff`) before calling it a semantic bug, and treat any regnorm report with a nonzero `unpaired` count as having UNRELIABLE row content from the first unpaired offset onward - the summary counts stay useful, the individual rows after that point do not. The corollary for triage at scale: split displacement rows by base register first. An (r1)-based displacement difference is frame-slot placement (STACK_LAYOUT, the slot-order laws) and is never a field-selection bug; only a NON-r1 base can carry the col_pos/effectpos class, and in a 156-function census exactly 5 such rows existed, of which zero survived aligned-view confirmation as bugs. SECOND, INDEPENDENT LIMIT CONFIRMED ON THE SAME PASS: regnorm reports CLEAN-RENAMING for fn_800DBE98 while fndiff measures REGISTER_ONLY with 18 real diff lines, because a transposition of two adjacent independent instructions presents as a consistent-looking register renaming. regnorm cannot see an instruction SWAP, exactly as it cannot see through an instruction INSERTION. Both failure modes are the same root cause - positional alignment - and both are invisible in the summary line, so regnorm's verdict must be cross-checked against fndiff's real count before a label is trusted in either direction. THIRD, A PLAIN SYMBOL-RESOLUTION GAP: regnorm exits 'missing: <fn> (target: False, ours: False)' for symbols carrying a trailing _<ADDR> suffix that fndiff resolves by stripping it (setupNewPMode_800CDCE4, adjust_radius_8002B2D4, dtor_800DB21C, dtor_800DBB94, gendir_8004FBC8). Screen those with fndiff; do not read the miss as a dead or unanchored record."
+}

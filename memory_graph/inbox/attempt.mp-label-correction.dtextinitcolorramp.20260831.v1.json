@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Label correction only: run the regnorm measurement the REGISTER_ONLY/SCHEDULE label requires, and re-class the park from the result. No source probe, no edit.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED (this record's own measurement; rows after the first UNPAIRED offset are treated as unreliable and displacement rows are split by base register). claim.park-law-age-revisit-census.20260831.v1 APPLIED (standing rule i: screen the LABEL before the axis). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED (regnorm is the prescribed measurement for a REGISTER_ONLY label). claim.law.regnorm-counts-reloc-annotation-rows-as-structural.20260831.v1 SCREENED (reloc-annotation rows are reported separately as RELOC-SYMBOL and are NOT counted as evidence of a source-reachable structural gap). claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1 SCREENED (no COMMUTED-OPERANDS row was found anywhere in this 156-function census). No source probe was run for this function, so no codegen law was exercised.",
+    "laws_applied": "[\"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.park-law-age-revisit-census.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "residual": "STRUCTURAL-PRESENT: 5 STRUCTURAL rows and 1 unpaired over 61 paired instructions. Row classes: 3 CFG-BRANCH-TARGET, 2 OPCODE-DIFFERS. SAMPLE ROWS (verbatim from regnorm --map): 0x0030 CFG-BRANCH-TARGET: T bne <fn+0xa0> / O bne <fn+0xa4> | 0x006c CFG-BRANCH-TARGET: T bdnz <fn+0x60> / O bdnz <fn+0x64> | 0x008c OPCODE-DIFFERS: T add     r4,r30,r6 / O addi    r0,r6,768 | 0x0090 OPCODE-DIFFERS: T stb     r0,768(r4) / O stbx    r4,r30,r0 | 0x009c CFG-BRANCH-TARGET: T bdnz <fn+0x84> / O bdnz <fn+0x88> READING: branch-target (if/else vs goto SHAPE, source-reachable); different opcode (a real codegen-form gap, not a colouring).",
+    "scope": "src/game/movie/movieplayer.c::DTextInitColorRamp - NO source change; read-only measurement from the ninja object. Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/regnorm.py game/movie/movieplayer DTextInitColorRamp --map (2026-08-31, build green at 98.06% fuzzy / 61.70% matched). The superseded record's label was applied in bulk by the 2026-08-29 legacy import and carried no per-function measurement."
+  },
+  "function": "function:DTextInitColorRamp",
+  "id": "attempt.mp-label-correction.dtextinitcolorramp.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T20:44:08Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.dtextinitcolorramp.20260829.v1",
+  "valid_from": "2026-08-31"
+}

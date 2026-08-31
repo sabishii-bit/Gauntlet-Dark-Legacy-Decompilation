@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Label correction: regnorm screen, then aligned-view confirmation of the two non-r1 displacement rows that the census flagged as semantic-bug candidates.",
+  "attributes": {
+    "law_screen": "claim.park-law-age-revisit-census.20260831.v1 APPLIED (screen the label first). claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED and DECISIVE: regnorm reports 3 unpaired here, so its displacement rows required aligned-view confirmation before any semantic-bug reading; the confirmation held for this function (unlike kill_player). claim.law.lwzu-idiom-web-retention SCREENED and FOUND TO GOVERN - see residual. claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1 SCREENED, not applicable (no commuted pair). No source probe was run, so no codegen law was exercised by measurement.",
+    "laws_applied": "[\"claim.park-law-age-revisit-census.20260831.v1\", \"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\"]",
+    "residual": "RELABELLED FROM THE BULK LEGACY LABEL TO STRUCTURAL, WITH ONE CLUSTER NAMED. regnorm: 55 STRUCTURAL rows, 3 unpaired. Two of those rows are the only non-r1 displacement rows in this TU and were the census's semantic-bug candidates: at +0x0214/+0x0218 the target emits `stw r3,0(r24)` / `lwz r3,0(r24)` where we emit `stw r3,96(r24)` / `lwz r3,96(r24)`. The aligned view (fnasm 0x1f0:0x230 --diff) confirms the rows are genuinely paired, so this one is real, not a pairing artifact. IT IS NOT A WRONG FIELD. The cause is visible at +0x0198, where the target emits `lwzu r0,96(r24)` - a load-with-update that advances r24 by 96 as a side effect, so from that point the target addresses the element at 0(r24) while our non-updating form still addresses it at 96(r24). Both compute the same effective address; the difference is the load-update idiom, i.e. the recorded lwzu-idiom class, and the source lever is a `p += 96` compound assignment feeding the load rather than an indexed read. NOT A SHORT PATH: this is one cluster of 55 structural rows plus 3 unpaired, so closing it will not approach exact on its own. Recorded so the next agent starts from the mechanism rather than from an allocator theory.",
+    "scope": "src/game/ui/auxscreen.c::do_mapscreen. NO source change - read-only measurement. Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/regnorm.py game/ui/auxscreen do_mapscreen --map and python tools/gdl/fnasm.py game/ui/auxscreen do_mapscreen 0x1f0:0x230 --diff plus a full-function r24 reference listing that located the `lwzu r0,96(r24)` at +0x198 (2026-08-31, build green at 98.06% fuzzy / 61.70% matched)."
+  },
+  "function": "function:do_mapscreen",
+  "id": "attempt.do-mapscreen-lwzu-idiom-relabel.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T20:54:29Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.do_mapscreen.20260829.v1",
+  "valid_from": "2026-08-31"
+}
