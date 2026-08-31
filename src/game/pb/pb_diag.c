@@ -1280,6 +1280,7 @@ s32 pbDiagDrawTexture(void)
         if ((u32)(&b[0])[98] == 0) {
             fn_800C7864(0);
             for (i = 0; i < 6; i++) {
+                u32* bp;
                 tw = ((s16*)&gd[i])[164];
                 th = ((s16*)&gd[i])[165];
                 blit = MBCreateBlit(gDiag_DE8, 0,
