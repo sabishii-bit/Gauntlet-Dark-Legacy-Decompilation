@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "OPUS EXACT-DRIVE lane, whole TUs src/game/world/btricol.c + src/game/audio/adstream.c + src/game/audio/audio.c: BTriLineCol 99.77 (450i REGISTER_ONLY \u2014 note btricol carries a WebFrank rule on PointLineDist2D, screen webfrank.json), adsInitFromHeader 99.67 (155i REGISTER_ONLY), AudioBankLoadName 99.48, AudioUnloadPart 99.37 (both WALL \u2014 re-screen against the modern corpus). Exact or named-mechanism park only; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:BTriLineCol",
+  "id": "work_claim.exact-collision-audio.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-O3",
+  "recorded_at": "2026-08-31T05:01:20Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

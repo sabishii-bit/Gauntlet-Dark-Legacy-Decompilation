@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "OPUS EXACT-DRIVE lane, whole TU src/game/game/player.c: the mandate is byte-exact, not fuzzy gains. Targets: load_player_geo 99.90 (410i, REGISTER_ONLY head \u2014 screen the fresh Codex record), check_player_atts 99.90 (WALL \u2014 re-screen against the 20+ laws newer than its park), clear_player 99.76, do_heal_players 99.73. Per-function: fresh --ops, aligned reads, corpus screen, exact or single-named-mechanism park w/ full screen recorded; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:load_player_geo",
+  "id": "work_claim.exact-player-family.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-O1",
+  "recorded_at": "2026-08-31T05:01:12Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

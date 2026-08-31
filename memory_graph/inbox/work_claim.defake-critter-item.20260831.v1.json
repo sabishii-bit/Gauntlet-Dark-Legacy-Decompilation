@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "FABLE DEFAKE lane: whole TUs src/game/enemy/critter.c + src/game/world/items.c + SOLE OWNER of include/game/item.h. critter.c 219 bare: reconcile CritterInitMoves' TWO conflicting in-tree reconstructions (recorded), resolve CritterInitGeo's multi-record `c` cluster (structdraft flags span 0x3AC vs stride 0x50 \u2014 likely two records under one name; --by-function + call-site identity), convert the rest with per-base hazard discipline. item.h: apply the banked LookoutParam=OBJGRP-prefixed-LOOKOUT improvement (claim.lookoutparam-is-objgrp-prefixed-lookout, evidence recorded run 5) as an isolated gated step across its 6 consumer TUs \u2014 full isolation protocol, revert on any movement. PDB cross-checks throughout; header edits allowed per the new AGENTS rule. Exact-match mandate applies to any matching work; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:CritterInitMoves",
+  "id": "work_claim.defake-critter-item.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-F2",
+  "recorded_at": "2026-08-31T05:01:08Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

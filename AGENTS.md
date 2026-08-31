@@ -139,9 +139,34 @@ Query at these moments, not only at claim time:
    then record the cap with the exact probes tried, so the next agent's
    step 1 screen works.
 
+## Exact-match mandate (USER DIRECTIVE, 2026-08-31)
+
+At ~98% project fuzzy, marginal fuzzy gains are no longer the product.
+**A matching session's required outcome is EXACT (real 0, byte-identical).**
+A park is acceptable ONLY when the residual has been reduced to a single
+NAMED mechanism (the exact instructions, registers, and the MWCC-internal
+choice behind them) with the complete current law corpus screened and the
+screen recorded — "regalloc-ish, 3 tries, park" no longer clears the bar,
+and a session whose only result is a fuzzy improvement is an INCOMPLETE
+session, not a win. Machine-proven REGISTER_ONLY / SCHEDULE mechanisms
+are eligible for the WebFrank postprocessor path (hardened guards:
+form-aware masks, renaming bisimulation, permutation dependence audit) —
+authoring a sound rule that closes such a residual IS full matching.
+This supersedes the older timebox-and-accept-regalloc-residuals policy.
+
 A search hit is evidence, not instruction: laws are compiler-scoped
 observations. Re-verify against your function's target bytes before applying
 one, and supersede the law if your target contradicts it.
+
+Header edits (include/game/*.h): allowed ONLY to the lane whose work_claim
+names it as that header's owner this run — one owner per header per run.
+The owner follows the isolation protocol without exception: exact byte
+accounting for every pad split, scalars/arrays-of-scalars by default
+(array-of-STRUCT members need their own dedicated isolation pass per the
+embedded-cascade law), gate the header edit ALONE across the heavy
+includers before any consumer edit, and finish with a full ninja
+main.dol: OK. Evidence bar is unchanged: PDB + GC access patterns +
+sibling consumers; never invent names.
 
 ## Mandatory result policy
 

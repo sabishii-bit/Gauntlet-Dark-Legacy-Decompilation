@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "OPUS EXACT-DRIVE lane, whole TUs src/game/game/combat.c + src/game/world/newcam.c: cam_orient_to_80029E8C 99.90 (102i, REGISTER residual), fn_8006E654 99.84 (369i, STRUCTURAL history), DebugCamControlInputs 99.23 (WALL, re-screen), combat's StandardCamera residue if the corpus reaches it. Exact or named-mechanism park only; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:cam_orient_to_80029E8C",
+  "id": "work_claim.exact-camera-family.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-O2",
+  "recorded_at": "2026-08-31T05:01:16Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
