@@ -1315,7 +1315,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
         whichatree[slot] = hdr;
         atree_scroll[slot][0] = 0;
         atree_handles[slot] = model;
-        hdr[1] = (u16)slot | 0x8000;
+        hdr[1] = (u16)(slot | 0x8000);
     }
     return slot;
 }
