@@ -1,0 +1,23 @@
+{
+  "attempted_axis": "do_enemy_move exact drive: close the two STRUCTURAL-looking clusters (target-only +1 addi at 0x324, target-only +1 lwz at 0x9c4) that the residual-class survey flagged as the source-reachable half, via the block-scope cursor lever.",
+  "attributes": {
+    "axis_log": [
+      "AXIS 1 (NEUTRAL, discarded): block-scope cursor at the enemy-hit site (enemy.c:547-550) - `u8* orow = (u8*)lbl_80250E00 + n * 916;` then the named store `gEnemies[n].coll_enenum = index;` then `orow += 3608; other = (Enemy*)orow;`. real 292 unchanged, 905/905, multiset 4t, cluster list identical. MWCC folded the mutation straight back into one addi because the cursor is dead after the assignment.",
+      "AXIS 2 (NEUTRAL scores, BYTES CHANGED, discarded): route the STORE through the cursor too so it has a genuine use before the mutation - `*(s32*)(orow + 3608 + offsetof(Enemy, coll_enenum)) = index;`. real 292, 905/905, multiset 4t, and the fndiff --ops cluster list came back byte-identical including the 0x324 addi cluster. Two distinct cursor forms, same cluster list, so the cursor axis is dead; this form also added raw-offset debt for zero gain and was reverted."
+    ],
+    "law_screen": "claim.law.block-scope-cursor-restores-lwzu-where-mutation-sinks.20260831.v1 SCREENED and APPLIED as the rationale for both axes; it did not reproduce here because the cursor's mutation does not SINK past a use - `other` is assigned immediately, so the coalescer folds `+= 3608` into the assignment. claim.law.callee-saved-home-copy-coalescing-is-source-unreachable.20260831.v1 SCREENED and its 'fix the companion RELOAD first' prescription deliberately NOT followed - see residual, the reload here is not source-driven and following that prescription would have burned the budget. claim.law.sizeof-defeats-loop-stride-induction.20260831.v1 screened: the 916 stride is correctly left a bare literal and was not touched. claim.law.pointer-walk-array-index-regression.20260830.v1 screened: contraindicated, this is an accumulator walk. claim.law.lwzu-idiom-web-retention.20260830.v1 screened: no load-update idiom at either site.",
+    "laws_applied": "[\"claim.law.block-scope-cursor-restores-lwzu-where-mutation-sinks.20260831.v1\"]",
+    "residual": "Unchanged: real 292, insns 905/905, opcode multiset DIFFERS target-only +1 addi +1 lwz / ours-only -2 fmr, six clusters. Each is now individually named. (1) @0x28 addi reorder - net-zero schedule pair. (2) @0x324 - target computes the pool cursor then mutates it (`add r3,r31,r0`; `stw r26,4256(r3)`; `addi r3,r3,3608`; `addi r27,r3,0`) while ours fuses to `addi r27,r3,3608`; cursor axis dead across two forms. (3) @0x9c4 - CORRECTION TO THE SURVEY'S FRAMING, which called this a cached-vs-re-read source defect and routed it as the reachable half. It is NOT source-reachable: reading 0x994 shows target loads e->coll_ip for the `+100` test into r3 (`lwz r3,652(r30)`) and ours into r4 (`lwz r4,652(r30)`). Target's r3 is then destroyed by the FIRST ARGUMENT setup `addi r3,r30,52`, which FORCES the reload at 0x9c4; our r4 is already the register the second argument needs, so no reload can exist. Both builds read the field exactly twice in source (enemy.c:729 and :732) - the source forms are identical and correct. The +1 lwz and the register choice are ONE allocator mechanism, not two, and no source spelling can make the test-load prefer r3. (4,5) @0x830 and @0xbe4 - 2 ours-only fmr, the SAME f64-normalization-temp FPR coalescing documented for move_logic10 in attempt.move-logic10-fpr-temp-coalesce.20260831.v2, including that record's REFUTATION of the banked whole-function f64-`cand` retype, which the survey had routed to this function as well. Do not spend a pass on that retype here.",
+    "scope": "src/game/enemy/enemy.c, do_enemy_move enemy-hit site only; both probes discarded with `git checkout --`. NOTHING RETAINED, no files changed by this attempt.",
+    "verification": "probe.py clean BASELINE re-derived live this session (real 292, insns 905/905, multiset 4t), matching the survey figures per REVERIFY discipline. Both axes probed and their fndiff --ops cluster lists compared against baseline; identical in both cases. Aligned target/ours reads taken at 0x300-0x348, 0x960-0x9a8 and 0x9a0-0x9e8 via fnasm --diff rather than by eyeballing equal absolute offsets. Working tree clean against HEAD afterwards."
+  },
+  "function": "function:do_enemy_move",
+  "id": "attempt.do-enemy-move-cursor-and-arg-register.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T16:32:53Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.do_enemy_move.20260829.v1",
+  "valid_from": "2026-08-31"
+}

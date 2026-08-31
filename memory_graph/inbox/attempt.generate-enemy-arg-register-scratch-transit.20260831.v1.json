@@ -1,0 +1,24 @@
+{
+  "attempted_axis": "generate_enemy exact drive: close the target-only +1 mr at 0x358 with the dead-local-identity carrier lever, which the home-copy coalescing law names as the ONLY remaining source lever for this shape.",
+  "attributes": {
+    "axis_log": [
+      "PRIOR (legacy cap 20260829, folded): 241/242, 'imp/mask/otype 3-cycle (r24/r25/r26) + tbl/anchor lis order'. That cap names the register PERMUTATION cluster; it never addressed the +1 mr cluster, which is what this pass attacked.",
+      "AXIS 1 (NEUTRAL, discarded): carry e->actionlist[1].animidx in the already-declared, provably dead local `r` - `r = e->actionlist[1].animidx; if (r >= 0) InitAnim(lbl_80346820, &e->atree.animinfo, r, 0, 1);` at enemy.c:6103. real 151 unchanged, insns 242/241, multiset 1t.",
+      "AXIS 2 (NEUTRAL, discarded): the same substitution using the other dead carrier `d`. Identical result. Two identical A/Bs kill the carrier lever here."
+    ],
+    "law_screen": "claim.law.callee-saved-home-copy-coalescing-is-source-unreachable.20260831.v1 SCREENED and found to be an EXACT shape match - its instance 1 (fn_8005D730) is verbatim this pattern: target `lwz r0,<off>(rBase); cmpwi r0,<k>; mr rHome,r0` versus ours `lwz rHome,<off>(rBase); cmpwi rHome,<k>` with no copy, leaving us exactly one instruction short. That law measured five source spellings dead (split assignment, assignment-in-condition, declaration-initializer, doubled read to force a CSE temp, declaration-scope hoist), so per do-not-retry discipline NONE of those five was re-spent here. Its companion-RELOAD half does not apply: there is no ours-only lwz anywhere in this function. claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1 SCREENED and APPLIED as the single remaining lever - both axes above are that law's prescription. claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 screened: not applicable, the copied value is a loaded field, not a constant.",
+    "laws_applied": "[\"claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1\", \"claim.law.callee-saved-home-copy-coalescing-is-source-unreachable.20260831.v1\"]",
+    "residual": "Unchanged: real 151, insns 242/241, opcode multiset DIFFERS target-only +1 mr, two clusters. (1) @0x1b0 a net-zero cmplwi reorder pair. (2) @0x358 the named mechanism: at enemy.c:6103-6105 the guard and the third argument both read e->actionlist[1].animidx (Enemy offset 220) and MWCC CSEs them to one load in both builds; target loads via the scratch r0 and then copies into the argument register with `mr r4,r0`, while ours loads straight into r4 and compares there. NEW EVIDENCE THAT REFINES THE GOVERNING LAW, and the reason this record is worth reading: claim.law.dead-local-identity-reuse-flips-callee-saved-coloring states its lever should be tried whenever a dead already-declared carrier EXISTS, and claim.law.callee-saved-home-copy-coalescing concludes the axis is 'genuinely unavailable' only when NO such carrier exists. generate_enemy HAS carriers - `d` and `r` are both declared at function scope and provably dead after the placement loop closes at enemy.c:6091, with no read between there and the epilogue - and BOTH measured byte-identical. So carrier availability is NOT sufficient for the lever to fire. A further boundary distinguishes this site from the law's provenance: there rHome was CALLEE-SAVED, whereas here the copy's destination r4 is a VOLATILE argument register, so the coalescer is choosing between scratch-transit and direct-load for an outgoing argument rather than for a variable's home. Recommend the law be narrowed to callee-saved destinations on its next revision. WEBFRANK: not eligible - ours is one instruction SHORT of target, and no recolouring rule may insert an instruction.",
+    "scope": "src/game/enemy/enemy.c, generate_enemy InitAnim guard site only; both probes discarded with `git checkout --`. NOTHING RETAINED, no files changed by this attempt.",
+    "verification": "probe.py clean BASELINE banked before the first edit (real 151, insns 242/241, multiset 1t). Both carriers probed NEUTRAL. Liveness of `d` and `r` verified by reading enemy.c:6060-6110 rather than assumed. Aligned target/ours read taken at 0x340-0x380 via fnasm --diff. Working tree clean against HEAD afterwards; the TU's 50 real-0 functions re-confirmed by a defake_gate baseline re-take after the move_logic15 commit."
+  },
+  "function": "function:generate_enemy",
+  "id": "attempt.generate-enemy-arg-register-scratch-transit.20260831.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-08-31T16:33:03Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.generate_enemy.20260829.v1",
+  "valid_from": "2026-08-31"
+}
