@@ -997,18 +997,33 @@ void* AtreeMatch(atreeheader* hdr, char* name, s32 report)
 }
 
 /* byte-order fixup helpers: the atree resource is little-endian on disk. */
-#define SWAP32(x)                                                             \
+#define SWAP32TO(d, s)                                                        \
     do {                                                                      \
         union {                                                               \
             u32 w;                                                            \
             u8 b[4];                                                          \
-        } _s, _d;                                                             \
-        _s.w = (x);                                                           \
+        } _d, _s;                                                             \
+        _s.w = (s);                                                           \
         _d.b[0] = _s.b[3];                                                    \
         _d.b[1] = _s.b[2];                                                    \
         _d.b[2] = _s.b[1];                                                    \
         _d.b[3] = _s.b[0];                                                    \
-        (x) = _d.w;                                                           \
+        (d) = _d.w;                                                           \
+    } while (0)
+
+#define SWAP32(x) SWAP32TO(x, x)
+
+/* byte-swap a float in place: the word view is taken through a union so the
+ * value travels as a float at both ends. */
+#define SWAPF32(x)                                                            \
+    do {                                                                      \
+        union {                                                               \
+            f32 f;                                                            \
+            u32 w;                                                            \
+        } _fs, _fd;                                                           \
+        _fs.f = (x);                                                          \
+        SWAP32TO(_fd.w, _fs.w);                                               \
+        (x) = _fd.f;                                                          \
     } while (0)
 
 #define SWAP16(x)                                                             \
@@ -1169,27 +1184,29 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
     SWAP32(*(u32*)(hdr + 2));
     SWAP32(*(u32*)(hdr + 4));
     SWAP32(*(u32*)(hdr + 6));
-    if ((s16)hdr[1] > 7) {
+    if ((s16)hdr[1] >= 8) {
         SWAP32(*(u32*)(hdr + 8));
         SWAP32(*(u32*)(hdr + 10));
     }
 
-    if (((s16)hdr[1] & 0x8000U) == 0) {
+    if (((s16)hdr[1] & 0x8000U) != 0) {
+        slot = (s16)hdr[1] & 0x7FFF;
+    } else {
         /* match list: name[0x20] + offset, stride 0x24 */
-        if (*(s32*)(hdr + 2) != 0) {
-            *(s32*)(hdr + 2) += (s32)base;
+        if (*(u32*)(hdr + 2) != 0) {
+            *(u32*)(hdr + 2) += (u32)base;
             off = 0;
             for (i = 0; i < (s16)hdr[0]; i++) {
-                SWAP32(
-                    *(u32*)(*(s32*)(hdr + 2) + off + offsetof(atreematch, offset)));
+                atreematch* m = (atreematch*)(*(u32*)(hdr + 2) + off);
+                SWAP32(*(u32*)&m->offset);
                 off += sizeof(atreematch);
             }
         }
         /* texmod table, stride 0x58 */
-        if (*(s32*)(hdr + 6) != 0) {
-            *(s32*)(hdr + 6) += (s32)base;
+        if (*(u32*)(hdr + 6) != 0) {
+            *(u32*)(hdr + 6) += (u32)base;
             for (i = 0; i < *(s32*)(hdr + 4); i++) {
-                u16* tm = (u16*)(*(s32*)(hdr + 6) + i * sizeof(TEXMOD));
+                u16* tm = (u16*)(*(u32*)(hdr + 6) + i * sizeof(TEXMOD));
                 SWAP16(tm[0]);
                 SWAP16(tm[1]);
                 SWAP32(*(u32*)(tm + offsetof(TEXMOD, tex) / sizeof(u16)));
@@ -1201,10 +1218,10 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             }
         }
         /* node-definition records, stride 0x138 (v8+ headers only) */
-        if ((s16)hdr[1] > 7 && *(s32*)(hdr + 10) != 0) {
-            *(s32*)(hdr + 10) += (s32)base;
+        if ((s16)hdr[1] >= 8 && *(u32*)(hdr + 10) != 0) {
+            *(u32*)(hdr + 10) += (u32)base;
             for (i = 0; i < *(s32*)(hdr + 8); i++) {
-                fn_80011DCC((AtreeWorldPsys*)(*(s32*)(hdr + 10) +
+                fn_80011DCC((AtreeWorldPsys*)(*(u32*)(hdr + 10) +
                                               i * sizeof(AtreeWorldPsys)));
             }
         }
@@ -1213,7 +1230,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
         off = 0;
         for (i = 0; i < (s16)hdr[0]; i++) {
             s32* blob =
-                (s32*)(base + *(s32*)(*(s32*)(hdr + 2) + off +
+                (s32*)(base + *(s32*)(*(u32*)(hdr + 2) + off +
                                        offsetof(atreematch, offset)));
             s32 seqoff;
             s32 texbase;
@@ -1246,12 +1263,9 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             /* node-info table, stride sizeof(AtreeNodeDef) */
             for (j = 0; j < blob[4]; j++) {
                 u8* ni = (u8*)(blob[3] + j * sizeof(AtreeNodeDef));
-                SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, position) +
-                                0 * sizeof(f32)));
-                SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, position) +
-                                1 * sizeof(f32)));
-                SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, position) +
-                                2 * sizeof(f32)));
+                SWAPF32(((AtreeNodeDef*)ni)->position[0]);
+                SWAPF32(((AtreeNodeDef*)ni)->position[1]);
+                SWAPF32(((AtreeNodeDef*)ni)->position[2]);
                 SWAP16(*(u16*)(ni + offsetof(AtreeNodeDef, type)));
                 SWAP16(*(u16*)(ni + offsetof(AtreeNodeDef, flags)));
                 SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, treeFlags)));
@@ -1259,11 +1273,11 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
                 SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, parent)));
             }
 
-            if (blob[1] != 0) {
+            if (((AtreeDefinition*)blob)->animheader != NULL) {
                 blob[1] = (s32)SetupAnimHeader(
                     (int*)((u8*)blob + blob[1]), (int*)0);
             }
-            if (blob[2] != 0) {
+            if (((AtreeDefinition*)blob)->oanimheader != NULL) {
                 blob[2] += (s32)blob;
                 SWAP32(*(u32*)blob[2]);
                 SWAP32(*(u32*)(blob[2] + 4));
@@ -1274,15 +1288,14 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             nseqs = blob[5];
             seqoff = 0;
             texbase = *(s32*)(hdr + 6);
-            if (nseqs > 0) {
+            {
                 s32 sbase = blob[0];
-                do {
+                for (j = 0; j < nseqs; j++) {
                     s32* ptexmods =
                         (s32*)(sbase + seqoff + offsetof(animseqdesc, texmods));
                     seqoff += sizeof(animseqdesc);
                     *ptexmods = texbase + *ptexmods * sizeof(TEXMOD);
-                    nseqs--;
-                } while (nseqs != 0);
+                }
             }
             *(s16*)((u8*)blob + offsetof(AtreeDefinition, objectIndex)) = (s16)model;
             off += sizeof(atreematch);
@@ -1301,8 +1314,6 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
         atree_scroll[slot][0] = 0;
         atree_handles[slot] = model;
         hdr[1] = (u16)slot | 0x8000;
-    } else {
-        slot = (s16)hdr[1] & 0x7FFF;
     }
     return slot;
 }
