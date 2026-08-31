@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "laws_applied": "[\"claim.law.target-asm-hex-immediates-bias-any-hand-rolled-census.20260901.v1\"]",
+    "provenance": "Both hazards were hit and fixed while building tools/gdl/addrlo_inplace_census.py in worktree GDL-Claude-DeclSweep, 2026-08-31, commit c5750b227. Each was caught by a sanity check, not by inspection of the roster.",
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics",
+      "symbol-identity"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.symbol-boundary-and-count-pairing-bias-census-rosters.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T23:43:15Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "TWO FURTHER HAZARDS IN HAND-ROLLED TARGET-VS-OURS CENSUSES, both companions to claim.law.target-asm-hex-immediates-bias-any-hand-rolled-census.20260901.v1 and both directional in the same way: they manufacture the divergence the census is looking for.\n\nHAZARD 1 - FUNCTION-SYMBOL BOUNDARY ASYMMETRY. Censuses pair target `.fn` regions against objdump `<name>:` regions BY NAME. Our object can split one target function into several symbols, and every instruction under the extra symbols then vanishes from our side of the pairing while remaining on the target's -- producing a phantom 'the target does X and we do not' row. Measured instance: dolphin/os/OS::OSExceptionVector is one `.fn` in the target split but FOUR symbols in our object (OSExceptionVector, __DBVECTOR, __OSEVSetNumber, __OSEVEnd); the `lis r5,OSDefaultExceptionHandler@ha ; addi r5,r5,@lo` pair sits under __OSEVSetNumber, so a name-paired census scored the target as having an address form we lacked -- in a byte-exact SDK unit, where divergence is impossible by construction. THE CHEAP TELL IS THE ONE THE HEX-IMMEDIATE LAW ALREADY PRESCRIBES: any function from a fully matched unit appearing in a divergence population is a tool bug. THE FIX: exclude byte-exact units (report.json .text fuzzy_match_percent >= 100) from the populations outright, and keep the check as an assertion afterwards. In the measured run this removed 1222 functions across 189 fully-matched units and took the false-positive count to zero.\n\nHAZARD 2 - PAIRING PER FUNCTION ON AN INSTANCE COUNT MASKS PER-SYMBOL SWAPS. A census that compares a COUNT of some shape per function silently misses the case where both sides have the same count but on DIFFERENT symbols. Measured instance, and it is the worst possible one: ui/select::init_player_change -- the very function the decl-order lever was derived from -- has target IN_PLACE/VOL = 1 (on lbl_80284878) and ours = 1 (on gPlayers). A count-based pairing files it under 'equal, no divergence' and it never reaches the roster, even though the gPlayers site is the textbook instance of the shape being censused. Re-pairing per (function, SYMBOL) put it back in the roster and changed the population from 20 functions to 9, i.e. the count-based roster was BOTH over- and under-inclusive at once. RULE: pair on the (function, symbol) key, not on a per-function tally; and validate any new census with a POSITIVE CONTROL -- reconstruct a known instance of the shape (here, reverting init_player_change to its pre-fix declaration order) and confirm the census names it -- before trusting a null or a small population. A census that cannot find the instance it was built from is not measuring what its author thinks."
+}
