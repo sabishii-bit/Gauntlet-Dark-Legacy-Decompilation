@@ -2576,7 +2576,7 @@ void AddLocatorInstList(void)
 
     for (i = 0; i < 20; i++) {
         runtime->lookoutParams[i].next = -1;
-        runtime->lookoutParams[i].id = -1;
+        runtime->lookoutParams[i].param = -1;
     }
     invalid_start = sInvalidPlayerStartYFloat;
     sLastPlayerStart = 0;
@@ -2699,18 +2699,18 @@ void AddLocatorInstList(void)
             }
             sNumLookoutParams++;
             lookout = &runtime->lookoutParams[sNumLookoutParams - 1];
-            lookout->handle =
+            lookout->node =
                 add_arrow(2, 0, 1, loc->pyr, loc->pos,
-                          (f32*)lookout->data);
-            lookout->saved_pos[0] = lookout->pos[0];
-            lookout->saved_pos[1] = lookout->pos[1];
-            lookout->saved_pos[2] = lookout->pos[2];
-            lookout->saved_pos2[0] = lookout->pos[0];
-            lookout->saved_pos2[1] = lookout->pos[1];
-            lookout->saved_pos2[2] = lookout->pos[2];
-            lookout->active = 1;
+                          (f32*)lookout->worldmat);
+            lookout->attn_pos[0] = lookout->worldmat[3][0];
+            lookout->attn_pos[1] = lookout->worldmat[3][1];
+            lookout->attn_pos[2] = lookout->worldmat[3][2];
+            lookout->coll_pos[0] = lookout->worldmat[3][0];
+            lookout->coll_pos[1] = lookout->worldmat[3][1];
+            lookout->coll_pos[2] = lookout->worldmat[3][2];
+            lookout->flags = 1;
             lookout->next = loc->index;
-            lookout->id = loc->subtype;
+            lookout->param = loc->subtype;
             break;
         default:
             ErrorPrintf(strings + 1276, loc->type);
@@ -2752,7 +2752,7 @@ LookoutParam* FindLookoutParam(s32 id)
     s32 i;
 
     for (i = 0; i < count; i++) {
-        if (param->id == id) {
+        if (param->param == id) {
             return param;
         }
         param++;
@@ -2895,9 +2895,9 @@ LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all)
 
     for (i = 0; i < sNumLookoutParams; i++, w++) {
         if (all != 0 || (w->next >= 0 && w->next != i)) {
-            dy = w->pos[1] - pos[1];
-            dx = w->pos[0] - pos[0];
-            dz = w->pos[2] - pos[2];
+            dy = w->worldmat[3][1] - pos[1];
+            dx = w->worldmat[3][0] - pos[0];
+            dz = w->worldmat[3][2] - pos[2];
             d2 = dx * dx + dy * dy;
             d2 = dz * dz + d2;
             if (d2 > 0.0f) {
