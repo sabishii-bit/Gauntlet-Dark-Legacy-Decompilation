@@ -1,4 +1,26 @@
 #include "types.h"
+#include "game/leveldata.h"
+
+/* struct audio_data -- the per-level audio descriptor level_data.audio points
+ * at.  leveldata.h only forward-declares it, so the body is completed here as
+ * a file-local view rather than in the shared header.
+ * Layout from the Xbox PDB (audio_data); the three fields this TU actually
+ * touches are corroborated on GC by BOTH their access width and their use
+ * site: entersnd@0x10 is the s16 read by AudioEnterNextStage, hitsnd@0x12 the
+ * s16 read by AudioExplodeWall, namesnd@0x14 the s32 feeding
+ * AudioEnterNextStage's announcer queue -- each matching the PDB field's
+ * declared size (2/2/4).  The remaining fields carry PDB names unverified on
+ * GC; verify a displacement against target asm before relying on one. */
+struct audio_data {
+    /* 0x00 */ char bank[16];
+    /* 0x10 */ s16  entersnd;
+    /* 0x12 */ s16  hitsnd;
+    /* 0x14 */ s32  namesnd;
+    /* 0x18 */ char stream[16];
+    /* 0x28 */ s16  nareas;
+    /* 0x2A */ s16  stereo;
+    /* 0x2C */ s16  nparts[8];
+};
 
 /* ------------------------------------------------------------------------
  * Front slice of the SOUNDS audio module (Xbox SOUNDS.OBJ), covering the
@@ -118,7 +140,7 @@ extern f32 sMusicVolPrev;
 extern f32 lbl_8034832C; /* player-slot empty threshold */
 extern f32 sMusicVolScale;
 extern s32 gBossType;
-extern u8* gCurLevel;
+extern level_data* gCurLevel;
 extern u8* gWorldData;
 extern f32 lbl_80348480;
 extern f32 lbl_80348484;
@@ -314,7 +336,7 @@ void AudioWorldExplosion(int pos)
 void AudioExplodeWall(int pos, int flag)
 {
     if (flag > 0) {
-        int idx = *(s16*)(*(u8**)(gCurLevel + 100) + 18);
+        int idx = gCurLevel->audio->hitsnd;
         if (idx >= 0) {
             u8* e = *(u8**)(gWorldData + 44) + idx * 24;
             if (*(s32*)(e + 16) >= 0) {
@@ -796,7 +818,7 @@ void fn_8009DB24(int sel, int arg)
         flags = 14;
         break;
     case 5: {
-        int idx = *(s16*)(*(u8**)(gCurLevel + 100) + 18);
+        int idx = gCurLevel->audio->hitsnd;
 
         if (idx >= 0) {
             u8* e = *(u8**)(gWorldData + 44) + idx * 24;
@@ -1328,8 +1350,8 @@ void AudioMapDot(void)
 
 void AudioEnterNextStage(void)
 {
-    u8* level = *(u8**)(gCurLevel + 100);
-    int idx = *(s16*)(level + 16);
+    struct audio_data* level = gCurLevel->audio;
+    int idx = level->entersnd;
     u8* entry;
     int entry_id;
 
@@ -1351,7 +1373,7 @@ invalid_entry:
     entry = 0;
 valid_entry:
     if (entry != 0) {
-        if (*(int*)(level + 20) >= 0) {
+        if (level->namesnd >= 0) {
             int sound_id = *(int*)(entry + 16);
 
             if (good_wiz_state <= 2) {
@@ -1359,7 +1381,7 @@ valid_entry:
                               127, 2);
             }
             {
-                int next_id = *(int*)(*(u8**)(gCurLevel + 100) + 20);
+                int next_id = gCurLevel->audio->namesnd;
 
                 if (good_wiz_state <= 2) {
                     sndFxQueAddEx(1, next_id, lbl_80348480, lbl_80348480, 224,
