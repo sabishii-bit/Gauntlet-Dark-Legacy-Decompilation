@@ -327,8 +327,8 @@ game/mb/mb_font.c:
 	extabindex  start:0x8000BBB4 end:0x8000BBFC
 	.text       start:0x800B5AA8 end:0x800B6CDC
 	.rodata     start:0x80115CE8 end:0x80115D6F
-	.data       start:0x80127BA8 end:0x80127C00
-	.sdata2     start:0x80348B48 end:0x80348B90
+	.data       start:0x80127BA8 end:0x80127BFC
+	.sdata2     start:0x80348B48 end:0x80348B8C
 
 game/mb/mb_lights.c:
 	extab       start:0x800077C8 end:0x800077D0
