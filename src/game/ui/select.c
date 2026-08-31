@@ -389,11 +389,15 @@ s32 serve_blits(s32 player);
 void update_class_attr(s32 player);
 void update_class_spec(s32 player);
 
-/* select-time snapshot of the persistent player block (0xA80..0x1EB4),
- * struct-assigned into the save shadow at +0x1ECC */
-typedef struct SaveSnap {
-    s32 w[0x50D];
-} SaveSnap;
+/* Select-time snapshot of the persistent player block (0xA80..0x1EB4),
+ * struct-assigned into the save shadow at +0x1ECC.  Same 5172-byte record
+ * game/game/gamemain.c already spells PlayerSaveBlk (identical struct
+ * assignment p+7884 = p+2688) and game/game/player.c clears with
+ * memset(p + 0x1ECC, 0, 0x1434) -- one name for one record, per AGENTS.md's
+ * "grep for an existing view before inventing a second spelling". */
+typedef struct PlayerSaveBlk {
+    s32 w[0x50D];                    /* 5172 bytes */
+} PlayerSaveBlk;
 
 #pragma dont_inline on
 /* Top-level select state machine (invoked from gamemain / attract).
@@ -1266,7 +1270,8 @@ s32 do_player_select(void)
                             LimitSeltype(pl, *(s32*)(pl + offsetof(Player, character)), 0);
                         *(s32*)(pl + offsetof(Player, motion_state)) = 4;
                     }
-                    *(SaveSnap*)(pl + 0x1ECC) = *(SaveSnap*)(pl + offsetof(Player, name));
+                    *(PlayerSaveBlk*)(pl + 0x1ECC) =
+                        *(PlayerSaveBlk*)(pl + offsetof(Player, name));
                 }
                 choice = do_optmenu(menu, 0);
                 do_sel_menu_8008E4F4(i, 2);
