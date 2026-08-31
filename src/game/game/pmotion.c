@@ -523,7 +523,6 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     s32 rand4;
     s32 i;
     s32 j;
-    s32 idx;
     s32 k;
     f32* spreadz;
     u8* ctx = lbl_80282850;
@@ -589,11 +588,11 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     if (found == -1) {
         f64 half = lbl_80347B00;
         for (j = 0; j < 4; j++) {
-            idx = (rand4 + j) % 4;
-            if (idx == playerIdx) {
+            i = (rand4 + j) % 4;
+            if (i == playerIdx) {
                 continue;
             }
-            other = &gPlayers[idx];
+            other = &gPlayers[i];
             osv = SV(other);
             if (other->state != 1 && other->state != 4 && other->state != 8) {
                 continue;
@@ -601,7 +600,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             if (other->node == NULL) {
                 continue;
             }
-            partner = idx;
+            partner = i;
             if ((other->hud_flags & 0x20) != 0) {
                 pos2[0] = other->saved_pos[0];
                 pos2[1] = other->saved_pos[1];
@@ -633,7 +632,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 pos[0] += r * spread[16 + k * 2];
                 pos[2] += r * spread[17 + k * 2];
                 if (try_location((u8*)other, p, pos, resultPos, &resultItem, 1) != 0) {
-                    found = idx;
+                    found = i;
                     break;
                 }
                 k++;
