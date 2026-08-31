@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/world/tower.c::TowerCheckMessages (worktree GDL-Claude-TowerDrive, work_claim.tower-drive.20260831.v1, commit d5b9ebe1b). The function declares four u32 accumulators all `= 0`: runeGot, runeBanked, shardGot, shardBanked. Target colours them runeBanked=r10, runeGot=r11, shardGot=r30, shardBanked=r27; our reconstruction had runeGot=r10, runeBanked=r11, shardGot=r27, shardBanked=r29 -- i.e. the RUNE pair inverted and the SHARD pair not. Swapping BOTH pairs' declaration order regressed real 158 -> 166; swapping only the rune pair IMPROVED 158 -> 150 and made the rune cluster byte-identical (`or r11,r11,r5` and `or r10,r10,r4` both aligned, plus the two following clrlwi); re-swapping only the shard pair in the now-rune-correct context regressed 150 -> 166 again, the same number as the double swap.",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py; applies where a block declares two or more locals of the SAME type, each with the SAME constant initialiser, that stay live together and are read at distinguishable sites (typically parallel `x |= ...` accumulators over one loop). Boundary companion to claim.law.chained-init-constant-share, which covers two locals sharing ONE constant materialisation; this law covers which REGISTER each of a same-constant pair receives.",
+    "tags": [
+      "matching",
+      "register-web",
+      "decl-order",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.initialised-accumulator-pair-order-selects-register-per-pair.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T16:34:00Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "For two same-typed locals initialised to the SAME constant in one block, their relative DECLARATION order selects which one receives the lower register, and the choice must be read off the target PER PAIR -- it does not generalise across sibling pairs in the same function, even when those pairs are structurally identical. FIRST, THE ANTI-TELL, which is what makes this law worth recording: MWCC emits the zero-initialisers sorted by ASCENDING REGISTER NUMBER, not in declaration order (measured: `li r10,0; li r11,0; li r27,0; li r30,0`). The initialiser run therefore carries NO information about declaration order, and reading source order off it -- the natural first instinct -- is a dead end. The only way to recover the order is to identify each accumulator at its USE site (which `or` merges which operand) and work backwards. SECOND, THE PER-PAIR RULE. In the origin function two structurally identical accumulator pairs, written in the same idiom over back-to-back loops, wanted OPPOSITE declaration orders: the rune pair needed banked-before-got, the shard pair needed got-before-banked. Swapping both together looks like the obvious symmetric fix and measures WORSE than swapping neither (158 -> 166 vs 158 baseline); swapping only the correct one is the whole win. So probe the pairs INDEPENDENTLY and never infer the second pair's order from the first. THIRD, THE SCOPE LIMIT, also measured: only the relative order of the INITIALISED locals matters. Moving the block's uninitialised declarations (the loop counters and the derived-value temporaries) ahead of the initialised accumulators measured exactly NEUTRAL, as did hoisting an unrelated block-scope local to function scope and moving a long-lived pointer local to last among the function-scope declarations. Declaration order is a real lever here, but a narrow one: spend it on same-constant same-type pairs and do not burn probes reordering anything else. FOURTH, WHAT IT DOES NOT REACH. Getting a pair's order right fixes that pair's two registers and nothing else; in the origin function the remaining callee-saved 3-cycle over {r27,r29,r30} and the r24/r25/r26 packing survived every declaration-order form, and the identity lever of claim.law.dead-local-identity-reuse-flips-callee-saved-coloring had no candidate carrier. Treat this as one cheap lever to try early on any residual whose --ops multiset is IDENTICAL, not as a general recolouring tool."
+}
