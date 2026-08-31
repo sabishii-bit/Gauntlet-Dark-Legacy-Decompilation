@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "Observed while enumerating the corpus for work_claim.law-directional-audit.20260831.v1: a script read every record file under memory_graph/records and printed each law's head fields. Zero of the 31 directional law records carried a populated `function` field.",
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law-records-anchor-origin-only-in-prose.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T15:41:07Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "EVERY LAW RECORD ANCHORS ITS ORIGIN FUNCTION ONLY IN PROSE, SO `context <function>` NEVER SURFACES THE LAW THAT WAS DERIVED FROM THAT FUNCTION. Measured across all 31 directional law records in the corpus: the `function` head field is null in 100% of them, and the origin function appears only inside `attributes.provenance` free text (e.g. 'src/game/enemy/critter.c::ProcessCritter, exact-drive lane...'). CONSEQUENCES, both of which cost real budget. (1) AGENTS.md's step-1 screen tells an agent to run `context <function>` before the first edit; that screen returns the function's attempt records but NOT the law that a previous session derived from this very function, so an agent can walk straight into a residual whose mechanism is already recorded and re-derive it. The laws are still reachable by `laws --query <opcode>` at step 2, but only if the agent guesses the right codegen signature - the cheapest and most reliable link, the function name, is the one that is missing. (2) It makes exactly the kind of audit this record came from far more expensive than it should be: recovering the 31 origin functions required parsing prose provenance with a script rather than reading a structured field. REMEDY, cheap and incremental: when superseding or authoring any law derived from a specific function, populate the `function` head field with `function:<symbol>` in addition to the prose provenance. Where a law has several origin functions (single-base-relocation-refutes-symbol-separation has write_shop_menu and show_optmenu; live-zero-copy names a dozen), set the field to the PRIMARY verifying function and keep the rest in provenance - one resolvable anchor beats none. SECOND, INDEPENDENT ENUMERATION TRAP found in the same pass and worth the same fix-on-touch treatment: `gdlmem.py laws` defaults to a limit of 100 while the corpus holds 136 law records, so any 'read the whole corpus' step that omits `--limit` silently drops 36 laws - including, at the time of this audit, whole directional laws. Always pass `--limit 1000` when enumerating rather than reading."
+}
