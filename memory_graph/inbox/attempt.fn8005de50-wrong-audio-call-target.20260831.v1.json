@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Wrong REL24 call target found by the image-wide reloc-symbol sweep: our source called AudioPlayerPoison where the target calls AudioPlayerSeverePain. Fix the call to the target's symbol and re-verify with regnorm + aligned fnasm.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1 APPLIED and reproduced exactly: tools/gdl/probe.py reported BASELINE real 0 both before and after the fix, because fndiff normalises reloc-name differences into the non-real remainder -- the defect was invisible to every score-based screen and only regnorm saw it. claim.law.bss-array-reloc-names-its-section-not-the-object.20260831.v1 SCREENED, not applicable: this is an R_PPC_REL24 call to a named function, neither the .sbss scalar CASE 1 nor the .bss aggregate CASE 2. claim.law.parse-strips-the-lbl-address-so-signature-alone-cannot-clear-a-reloc-row.20260831.v1 APPLIED: both sides resolved to KNOWN addresses (0x8009f7d8 vs 0x8009f960), which is what qualified the row as ADDRESS-DIFFERS rather than a naming gap.",
+    "laws_applied": "[\"claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1\", \"claim.law.parse-strips-the-lbl-address-so-signature-alone-cannot-clear-a-reloc-row.20260831.v1\"]",
+    "residual": "None. regnorm reports 781 paired, 0 renaming, 0 STRUCTURAL, 0 unpaired -> EXACT. The function does not raise project 'matched' because game/world/gauntworld.c is a NonMatching TU and is not flipped by this lane.",
+    "scope": "src/game/world/gauntworld.c only: the extern declaration at the AudioPlayer* block and the single call site in the amt<0 branch. Commit af70272cf.",
+    "verification": "probe BASELINE real 0 -> NEUTRAL real 0 (insns 687/687, multiset identical). regnorm STRUCTURAL-PRESENT (1 reloc row) -> EXACT. Aligned `fnasm 0x490:0x4b0 --diff` confirms 0x49c reads @AudioPlayerSeverePain(REL24) on BOTH sides marked '='. defake_gate check reported the DOCUMENTED ARBITRATION CASE -- 'raw bytes/relocs changed although every score reads neutral' -- which the governing law says must be arbitrated, not obeyed; arbitrated via the aligned fnasm read, then rebaselined (--update-improved does NOT apply here because it only banks score improvements and the scores are neutral by construction; the correct move is a fresh `defake_gate baseline` over the verified state). Re-baseline reproduced 46 functions / 32 at real 0, IDENTICAL to the pre-edit baseline captured via git stash, proving no sibling moved. Full ninja green, build/GUNE5D/main.dol: OK, project progress unchanged at 98.06% fuzzy / 61.70% matched."
+  },
+  "function": "function:fn_8005DE50",
+  "id": "attempt.fn8005de50-wrong-audio-call-target.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T20:43:50Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Derived while executing work_claim.reloc-symbol-sweep.20260831.v1 over the whole image (257 units, 405 reloc rows). Screens implemented as scratch RS_resolve.py (address resolution) and RS_undef.py (undefined-symbol screen).",
+    "tags": [
+      "matching",
+      "relocation",
+      "symbol-identity",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.parse-strips-the-lbl-address-so-signature-alone-cannot-clear-a-reloc-row.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T20:43:33Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/btricol",
+  "valid_from": "2026-08-31",
+  "value": "TWO SCREENING LAWS FOR RELOC-SYMBOL WORK, both measured image-wide 2026-08-31. LAW 1, THE NORMALISATION BLIND SPOT. fndiff.parse() strips dtk's `_80XXXXXX` suffix from local symbol names (fndiff.py line 179, so target `lbl_8023F7E8` arrives as bare `lbl`), and relocation_signature() then collapses `lbl`/`jumptable`/`@N`/pool names to the token `<local>`. The ADDRESS IS DESTROYED BEFORE ANY COMPARISON HAPPENS. Consequence: a target `<local>` row can NEVER compare equal to our named-symbol row even when both name the SAME address, so regnorm prints `[reloc target differs]` for benign naming gaps and genuine wrong-symbol defects ALIKE, and the signature alone cannot tell them apart. Measured cost of not knowing this: of 405 rows image-wide, 35 were pure naming gaps (identical addresses) and 76 were our-side file-local statics -- 111 rows that LOOK exactly like the btricol ghost-extern defect under regnorm's own output. THE FIX is to re-parse with the suffix preserved and resolve BOTH sides to absolute addresses (target `lbl_<ADDR>` yields its address literally; our name resolves through fndiff.symbol_addresses()), then compare addresses, not names. Only then do the buckets separate: SAME-ADDRESS = naming gap, ADDRESS-DIFFERS = candidate defect, ours-is-a-section = the bss artifact class, ours-unknown-to-symbols.txt = ghost CANDIDATE. LAW 2, THE DEFINITIVE GHOST SCREEN IS THE UNDEFINED SYMBOL TABLE, NOT A GREP. The law that motivated this lane recommends grepping a TU for every `extern` whose name is neither in symbols.txt nor defined in the tree. Run image-wide that grep yields 118 hits of which nearly all are FALSE POSITIVES: linker-script symbols (__ArenaLo, __ArenaHi, _stack_end, _heap_addr, _eti_init_info, _SDA_BASE_, _SDA2_BASE_), unreferenced SDK header declarations (the whole GXNtsc*/GXPal*/GXMpal* GXRenderModeObj block), and uses miscounted as definitions by any regex-based definedness test. The sound screen instead reads the *UND* symbol table of every object WE compile (objdump -t over build/GUNE5D/src/**/*.o) and asks whether each undefined symbol can resolve against symbols.txt, against a global defined by any of our own objects, or against a linker-script symbol -- i.e. it asks precisely the question the linker asks. AN UNREFERENCED EXTERN DECLARATION IS NOT A GHOST: it emits no relocation and cannot fail a link; only a REFERENCED one can. Run against the tree after this lane's five fixes, that screen returns 9 residual names and all 9 are provably benign: _SDA_BASE_/_SDA2_BASE_ are linker-generated small-data bases, and the 7 GX/VI names (GXAbortFrame, GXGetCPUFifo, GXGetFifoBase, GXGetFifoSize, GXReadDrawSync, GXSetDrawSync, VISetPreRetraceCallback) are referenced only from dolphin/demo/DEMOInit, which is configured Matching and LINKS GREEN -- proof the referencing code is dead-stripped by mwld, since those symbols exist nowhere in the retail DOL. So the image currently holds ZERO remaining latent `undefined:` link failures. USE BOTH LAWS TOGETHER: address resolution tells you WHICH rows could be defects; the undefined-symbol screen tells you which are actually LINK-FATAL; and a row is only DIAGNOSTIC at all in a function whose instruction stream already agrees, because regnorm pairs positionally and a divergent function manufactures spurious pairs."
+}
