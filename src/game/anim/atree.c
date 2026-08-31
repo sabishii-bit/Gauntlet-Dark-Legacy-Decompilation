@@ -1155,8 +1155,9 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
     }
 
     if (((s16)hdr[1] & 0x8000U) != 0) {
-        slot = (s16)hdr[1] & 0x7FFF;
-    } else {
+        return (s16)hdr[1] & 0x7FFF;
+    }
+    {
         /* match list: name[0x20] + offset, stride 0x24 */
         if (*(u32*)(hdr + 2) != 0) {
             *(u32*)(hdr + 2) = (u32)base + *(u32*)(hdr + 2);
