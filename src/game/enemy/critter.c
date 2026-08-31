@@ -6445,15 +6445,15 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     c->vel[2] = *(f32 *)((u8 *)object + 0x38);
     YawMat3(((CritterInitGeoView *)c)->yaw, &c->mtx[0][0]);
 
-    if ((*(u32 *)(header + 0x5C) & 0x1000) == 0) {
+    if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x1000) == 0) {
         atreeFlags |= 0x800;
     }
-    c->colhandle = AtreeInit(*(void **)(header + 0x138), &c->colhandle, 0,
+    c->colhandle = AtreeInit(*(void **)(header + offsetof(CritterPackedType, atree)), &c->colhandle, 0,
                              atreeFlags);
     c->anim = *(void **)c->colhandle;
     MBNodeSetParent(*(void **)c->colhandle, c->mbnode);
 
-    if ((*(u32 *)(header + 0x5C) & 1) != 0) {
+    if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 1) != 0) {
         s16 shadowType = *(s16 *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, descriptor)) + 0x22);
         s32 shadowIdx = subtype > 2 ? 1 : subtype;
         node = MBOX_ReallyFindObject(lbl_8011AEA0[shadowIdx], shadowType,
@@ -6466,7 +6466,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         *(s16 *)((u8 *)c->shadow + offsetof(MBObject, zmod)) = -32;
     }
 
-    idx = *(s16 *)(header + 0x56);
+    idx = *(s16 *)(header + offsetof(CritterPackedType, node0Index));
     if (idx < 0) {
         node = NULL;
     } else {
@@ -6477,11 +6477,11 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         }
     }
     c->hitnode0 = node;
-    if ((*(u32 *)(header + 0x5C) & 0x10) != 0 && c->hitnode0 != NULL &&
+    if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x10) != 0 && c->hitnode0 != NULL &&
         *(void **)((u8 *)c->hitnode0 + 0x74) != NULL) {
         c->hitnode0 = *(void **)((u8 *)c->hitnode0 + 0x74);
     }
-    idx = *(s16 *)(header + 0x58);
+    idx = *(s16 *)(header + offsetof(CritterPackedType, node1Index));
     if (idx < 0) {
         node = NULL;
     } else {
@@ -6492,7 +6492,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
         }
     }
     c->hitnode1 = node;
-    idx = *(s16 *)(header + 0x5A);
+    idx = *(s16 *)(header + offsetof(CritterPackedType, node2Index));
     if (idx < 0) {
         node = NULL;
     } else {
@@ -6510,7 +6510,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
                    : 0;
     if (floorHit != 0) {
         c->vel[1] = *(f32 *)(gFloorCollisionResult + 0x34) +
-                    *(f32 *)(header + 0xB0);
+                    *(f32 *)(header + offsetof(CritterPackedType, floorOffset));
         if (c->shadow != NULL) {
             CopyMat3((f32 *)gFloorCollisionResult, c->shadow);
             *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][0])) = c->vel[0];
@@ -6520,7 +6520,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
                 *(f32 *)(gFloorCollisionResult + 0x34);
         }
     } else {
-        c->vel[1] = c->vel[1] + *(f32 *)(header + 0xB0);
+        c->vel[1] = c->vel[1] + *(f32 *)(header + offsetof(CritterPackedType, floorOffset));
     }
 
     CopyMat4(&c->mtx[0][0], c->mbnode);
@@ -6534,7 +6534,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     c->pos[1] = c->vel[1] + c->pos[1];
     c->pos[2] = c->vel[2] + c->pos[2];
     c->movevec[0] = c->vel[0];
-    c->movevec[1] = c->vel[1] + *(f32 *)(header + 0xB4);
+    c->movevec[1] = c->vel[1] + *(f32 *)(header + offsetof(CritterPackedType, vertDrift));
     c->movevec[2] = c->vel[2];
     c->obj_d0 = c->anim;
     GetWorldMat(c->obj_d0, c->worldMoveMatrix, NULL);
