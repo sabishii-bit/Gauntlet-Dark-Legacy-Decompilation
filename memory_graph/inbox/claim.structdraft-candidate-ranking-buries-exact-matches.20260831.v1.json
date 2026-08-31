@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "about_tool": "tool:structdraft (tools/gdl/structdraft.py)",
+    "tags": [
+      "defake",
+      "workflow",
+      "offsetof-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.structdraft-candidate-ranking-buries-exact-matches.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:16:52Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "structdraft's candidate ranking can hide a PERFECT, adoptable match behind mediocre ones, so a 'no candidate met the naming bar' line is NOT evidence that no named record exists. Two independent mechanisms, both hit in one pass on sounds_evt.c's 12-site 'e' cluster (`*(u8**)(gWorldData + 44) + idx * 24`). (1) RANKING: candidates are sorted by ORIGIN_RANK (local < project < pdb) BEFORE score, then truncated to --candidates (default 4). The correct answer, PDB `sound_data` (research/xbox_symbols/audio.h Id=3271), scored 1.50 with hit=3/3, wrongw=0 and an exact record-size match (0x18 == the observed stride) -- the highest score by a wide margin -- yet the default run showed only four score-0.17..0.33 PROJECT candidates (skinfx, AXPBMIX, AXSPB, MBBlit) and cut sound_data entirely. Re-running with --candidates 40 surfaced it instantly at the top. Because origin outranks score unconditionally, ANY cluster with four weak project-header ties will bury a perfect PDB match at the default setting. (2) NAMING BAR: score_candidate sets nameable only when hit >= max(4, 0.75*total), so a record with three or fewer observed offsets can NEVER be auto-named no matter how perfect -- sound_data's flawless 3/3 with exact size match was still reported as 'no candidate met the naming bar'. Small records are exactly the ones a single decision converts cleanly, so this floor is inverted relative to its purpose. sound_data was confirmed by four independent signals beyond the score: exact size 0x18 == the observed stride; idx/vol/pri offsets AND widths (4/2/2 @0x10/0x14/0x16) matching every access; the owning world record declaring `struct sound_data * sounds` at Offset=0x2c -- literally the 44 in the base expression; and this file's own prior reconstruction having already named the two s16 reads `atten` and `priority`. CONSEQUENCE: always re-run a cluster with --candidates raised (20+) before concluding a record is unknown, and read the printed score/hit/wrongw/size columns yourself rather than trusting the nameable verdict -- an exact-size, zero-width-conflict candidate is adoptable evidence at any hit count once its semantics corroborate, subject as always to GC verification and a defake_gate byte check. Suggested fixes if the tool is revised: sort candidates by score first and use origin only to break ties, and drop the absolute 4-hit floor in favour of the proportional term plus the existing size/width requirements."
+}

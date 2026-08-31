@@ -1,0 +1,11 @@
+{
+  "claim": "claim.structdraft-candidate-ranking-buries-exact-matches.20260831.v1",
+  "detail": "Two audio records recovered for sounds_evt.c, both from the Xbox PDB dump and both corroborated on GC by access width plus use-site semantics; both were completed as FILE-LOCAL struct definitions in the .c (never added to a shared header) and both reconcile with, rather than duplicate, an existing declaration. (1) struct sound_data (research/xbox_symbols/audio.h Id=3271, size 0x18): desc[16]@0x00, idx@0x10 size 4, vol@0x14 size 2, pri@0x16 size 2. Confirmed four ways -- the size equals the observed 24-byte stride of `*(u8**)(gWorldData + 44) + idx * 24`; every access offset and width matches (s32 read at +16 passed as the soundId, s16 at +20 defaulting to 224, s16 at +22 defaulting to 126); research/xbox_symbols/misc.h:28115 declares `struct sound_data * sounds` at Offset=0x2c, i.e. the literal 44 in the base expression; and this file's own earlier reconstruction had independently named the two s16 reads `atten` and `priority`, matching vol/pri. Converted in AudioExplodeWall, fn_8009DB24 and AudioEnterNextStage via offsetof on the raw index-computed pointer (no typed alias, per claim.law.multifield-alias-defeats-indexed-addressing); GATE OK byte-identical. (2) struct audio_data (level_data.audio, forward-declared but never defined in include/game/leveldata.h): bank[16]@0x00, entersnd@0x10 size 2, hitsnd@0x12 size 2, namesnd@0x14 size 4, stream[16]@0x18, nareas@0x28, stereo@0x2A, nparts@0x2C. The three fields this TU touches are corroborated by use site as well as width: AudioEnterNextStage reads the s16 at +0x10 (entersnd -- the function's own name), AudioExplodeWall reads the s16 at +0x12 (hitsnd), and AudioEnterNextStage's announcer queue reads the s32 at +0x14 (namesnd). Reached through gCurLevel->audio after retyping gCurLevel from u8* to level_data*; GATE OK byte-identical.",
+  "evidence_kind": "source-trace",
+  "id": "evidence.sounds-evt-sound-data-and-audio-data.20260831.v1",
+  "kind": "evidence",
+  "locator": "python memory_graph/gdlmem.py struct sound_data; research/xbox_symbols/misc.h:28115; src/game/sound/sounds_evt.c:339-360,1375-1405",
+  "recorded_at": "2026-08-31T02:17:19Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
