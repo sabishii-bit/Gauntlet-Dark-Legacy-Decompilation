@@ -1909,9 +1909,12 @@ waypoint_body:
         f32 dz;
         f32 distance;
 
-        dy = *(f32 *)((u8 *)waypoint + 0x34) - c->vel[1];
-        dx = (x = *(f32 *)((u8 *)waypoint + 0x30)) - c->vel[0];
-        dz = *(f32 *)((u8 *)waypoint + 0x38) - c->vel[2];
+        dy = *(f32 *)((u8 *)waypoint + offsetof(OBJGRP, worldmat[3][1])) -
+             c->vel[1];
+        dx = (x = *(f32 *)((u8 *)waypoint +
+                           offsetof(OBJGRP, worldmat[3][0]))) - c->vel[0];
+        dz = *(f32 *)((u8 *)waypoint + offsetof(OBJGRP, worldmat[3][2])) -
+             c->vel[2];
         distance = dx * dx + dy * dy;
         distance = dz * dz + distance;
 
@@ -1920,8 +1923,10 @@ waypoint_body:
             goto waypoint_test;
         } else {
             out[0] = x;
-            out[1] = *(f32 *)((u8 *)c->particle + 0x34);
-            out[2] = *(f32 *)((u8 *)c->particle + 0x38);
+            out[1] = *(f32 *)((u8 *)c->particle +
+                              offsetof(OBJGRP, worldmat[3][1]));
+            out[2] = *(f32 *)((u8 *)c->particle +
+                              offsetof(OBJGRP, worldmat[3][2]));
             result = 1;
             goto done;
         }
@@ -4533,9 +4538,12 @@ void CritterRotate(Critter *c, CritterMove *move)
                         *(f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x1C);
             }
         } else if (c->particle != NULL && c->targetCount == 0) {
-            target[0] = *(f32 *)((u8 *)c->particle + 0x30) - c->vel[0];
-            target[1] = *(f32 *)((u8 *)c->particle + 0x34) - c->vel[1];
-            target[2] = *(f32 *)((u8 *)c->particle + 0x38) - c->vel[2];
+            target[0] = *(f32 *)((u8 *)c->particle +
+                                 offsetof(OBJGRP, worldmat[3][0])) - c->vel[0];
+            target[1] = *(f32 *)((u8 *)c->particle +
+                                 offsetof(OBJGRP, worldmat[3][1])) - c->vel[1];
+            target[2] = *(f32 *)((u8 *)c->particle +
+                                 offsetof(OBJGRP, worldmat[3][2])) - c->vel[2];
             {
                 register f32 z = target[2];
                 delta = atan2(target[0], z) - *(f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x1C);
