@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Two-stage exact closure: shrink the function's EXISTING dead pad by exactly the frame surplus (source-level STACK_LAYOUT fix), which converted the residual from STRUCTURAL-PRESENT into a consistent-bijection CLEAN-RENAMING, then close the remaining pure recolor with an audited webfrank copy_register_fields rule.",
+  "attributes": {
+    "law_screen": "claim.law.stack-slots-descend-in-declaration-order.20260831.v1 APPLIED and is the whole first stage: its 'pads are SPLIT/CONSERVED, never extended' framing generalises to shrinking, and this function already carried a u8 unused[16] pad while sitting exactly +8 over target, so the pad itself was the surplus. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED via regnorm before and after every probe - it is what showed the frame words were the ONLY structural content and, after the pad fix, that the register tally had become a clean bijection. claim.law.opt-lifetimes-off-slots-only-unregisterized-locals.20260831.v1 screened for the 8-byte rounding corollary (the needed delta was exactly 8, so rounding could not mask it). claim.law.dead-local-identity-reuse-* screened but NOT applicable: no carrier substitution was needed once the pad closed the frame. The 2026-08-29 park on this function is a bulk-import 'bounded source-shape matrix' cap that predates the entire slot-law family and named no mechanism, so it was reopened rather than honoured as a veto.",
+    "laws_applied": "[\"claim.law.stack-slots-descend-in-declaration-order.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\", \"claim.law.opt-lifetimes-off-slots-only-unregisterized-locals.20260831.v1\"]",
+    "residual": "NONE. fndiff --clean reports MATCH (pool-name noise only), 0 real diff lines.",
+    "scope": "src/game/game/controls.c::CheckSpecials (u8 unused[16] -> u8 unused[8], one line) plus one surgical text insert into config/GUNE5D/webfrank.json. The TU's pre-existing assign_controller / do_vibe / joyReadPad pins were screened first and are untouched; the postprocessor is fail-closed on their hashes and the build stayed green. Commits 548784b09 (source) and 1bbae483c (rule).",
+    "verification": "BASELINE real 114 (insns 127/127, multiset 0t, frame target 96 / ours 104). After the pad shrink: real 114 -> 104, frame 96 == target 96, and regnorm went from STRUCTURAL-PRESENT to CLEAN-RENAMING with 134 paired, 53 renaming, 0 STRUCTURAL, 0 unpaired and a fully consistent ours->target bijection (no register mapped to two targets). webfrank_audit then accepted it with 0 rejections. defake_gate check game/game/controls = GATE OK (1 improved, 0 regressed). configure.py re-run before ninja so the rule's build edge was live; the build printed 'WEBFRANK CheckSpecials: adjusted 53 instruction atoms/fields'. Full ninja green, build/GUNE5D/main.dol: OK. Project matched 61.46% -> 61.51%, functions 2642 -> 2643."
+  },
+  "function": "function:CheckSpecials",
+  "id": "attempt.checkspecials-frame-then-webfrank-exact.20260831.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T19:16:16Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.checkspecials.20260829.v1",
+  "valid_from": "2026-08-31"
+}

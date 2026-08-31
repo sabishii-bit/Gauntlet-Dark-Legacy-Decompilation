@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "Image-wide near-miss census, worktree GDL-Claude-NearMiss, work_claim.nearmiss-regnorm-harvest.20260831.v1. 56 candidates (real<=60, EQUAL instruction counts, opcode multiset <=1 token, excluding pmotion/atree/enemy). Scored twice: once with regnorm.py as shipped, once with relocation lines collapsed through fndiff.normalized_reloc_lines. The integrator independently fixed the same defect on main at d1ee8eada mid-pass, and the fixed tool reproduced the reloc-normalised census verdict for verdict on the two functions spot-checked (fn_800DBE98 CLEAN-RENAMING, sDvdReadSync 5 frame-only STRUCTURAL).",
+    "tags": [
+      "workflow",
+      "metrics",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.regnorm-structural-count-was-inflated-by-pool-name-relocs.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T19:16:37Z",
+  "schema_version": 1,
+  "subject": "function:fn_800DBE98",
+  "valid_from": "2026-08-31",
+  "value": "THE PRE-FIX regnorm.py COUNTED BENIGN RELOCATION-ANNOTATION LINES AS 'STRUCTURAL', AND AT CENSUS SCALE THIS INVERTED THE CLASSIFICATION OF A LARGE FRACTION OF THE IMAGE. regnorm compared RAW disassembly lines and erased only REGISTER tokens; a relocation row spelled `@509` on our side and `lbl_803493F0` on the target's is the SAME relocation to the same address (fndiff.relocation_signature normalises both to <local>, and fndiff --clean reports them as 'pool-name lines suppressed'), but register erasure does not touch symbol names, so every such row was reported as a structural difference. MEASURED IMPACT on a 56-function census: re-scoring with fndiff.normalized_reloc_lines moved the verdict split from 1 CLEAN-RENAMING / 37 STRUCTURAL-PRESENT / 18 COUNT-MISMATCH to 2 / 28 / 26. Whole functions changed class - DoEnemyAction went from '13 STRUCTURAL' to zero, camera_mode_target from 22 to zero, and fn_800DBE98 from STRUCTURAL-PRESENT to CLEAN-RENAMING, which is the difference between 'a semantic bug is hiding here' and 'this is webfrank-eligible'. THE ASYMMETRY THAT MAKES THIS DANGEROUS: the tool's docstring correctly warns that an IDENTICAL multiset cannot see a wrong displacement, so a STRUCTURAL banner is exactly the signal an agent is told to trust and act on; a false one sends a lane hunting a nonexistent field-selection bug, and it does so most often on functions that are ACTUALLY closest to done, because pool-heavy leaf functions are the ones whose residual is otherwise pure colouring. OPERATIONAL RULES, which outlive the specific fix. (1) Never act on a STRUCTURAL count without reading the flagged rows; a row whose two sides differ only in a symbol SPELLING (`@N` vs `lbl_`, or two names resolving to one address) is noise, and fndiff --clean's trailing '(+N pool-name lines suppressed)' is the cross-check. (2) The unpaired count was always trustworthy and is the better first-glance signal. (3) When a residual-classification tool disagrees with fndiff --clean's own verdict line, fndiff --clean is the authority - it is the view that already normalises relocations. (4) Any bulk census built on a classifier should be re-run after a classifier fix before its ranking is used to allocate work."
+}

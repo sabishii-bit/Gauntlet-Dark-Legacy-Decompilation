@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "Three functions in one pass, worktree GDL-Claude-NearMiss, work_claim.nearmiss-regnorm-harvest.20260831.v1. MBTreeInit (game/mb/mb_tree, commit 6e0f84e98): frame 48 vs target 40; an added u8[8] moved it 48 -> 56, proving responsiveness; collapsing node2/node3 onto node1 removed exactly 8 bytes and took it EXACT (real 10 -> 0), overturning attempt.mbtreeinit-stack-frame-closure.20260831.v2 which had capped it hours earlier. CheckSpecials (game/game/controls, commit 548784b09): frame 104 vs target 96; the function already carried u8 unused[16], shrinking it to [8] closed the frame and took real 114 -> 104. sDvdReadSync (game/ps2/fakelib): an added u8[8] moved the frame 56 -> 64, refuting attempt.sdvdreadsync.20260830.v2's conclusion that the frame was insensitive to declaration count - that park's two probes were single-4-byte deltas that rounding had made unreadable.",
+    "tags": [
+      "matching",
+      "decl-order",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.frame-deltas-must-be-probed-with-an-eight-byte-ruler.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T19:16:32Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A FRAME-SIZE PROBE SMALLER THAN 8 BYTES IS UNREADABLE, AND READING ITS NULL RESULT AS 'THE FRAME IS INSENSITIVE TO DECLARATIONS' IS THE SINGLE MOST REPRODUCIBLE WAY THIS PROJECT HAS MIS-PARKED A STACK_LAYOUT RESIDUAL. MWCC rounds the frame UP to 8 bytes, so a 4-byte declaration delta changes the frame only when it happens to straddle a rounding boundary; two independent caps (sDvdReadSync 2026-08-30, MBTreeInit 2026-08-31) both concluded from single-4-byte probes that their frame did not track declared locals, and both conclusions were false. THE METHOD, which is cheap and decisive and should be the FIRST action on any frame delta. (1) CALIBRATE: add a `u8 _probe8[8]` local and rebuild. If the frame moves by 8, the frame IS source-responsive and the residual is reachable by editing declarations; if it does not move, the reservation is allocator/pressure-driven and no amount of declaration editing will reach it. This one probe replaces entire sessions of scope, alignment and ordering guesswork. (2) BRACKET: with an N-byte ruler you can pin the true requirement to a 4-byte band - if the bare frame is F and adding 4 still reads F, the requirement lies in (F-8, F-4]; this tells you EXACTLY how many bytes you must shed, which converts an open-ended search into a counting problem. (3) SHED: prefer eliminating a declaration over adding a pad. The reliable eliminator is dead-local identity reuse (claim.law.dead-local-identity-reuse-*): sequentially-used locals that are each dead after their last read can collapse onto ONE declared local, and each one removed is 4 bytes. On MBTreeInit three node pointers became one and the 8-byte surplus vanished exactly. Where the function ALREADY carries a `u8 unused[N]` pad, the surplus is almost always the pad itself - shrink it by the measured delta rather than hunting elsewhere (CheckSpecials, one line). (4) ARBITRATE ON THE FRAME CONSTANT, NEVER ON `real`. Every step above reads NEUTRAL on real while the layout is still wrong, because the same 4-5 frame words differ whatever the magnitude of the delta; grep the stwu/stmw pair directly. COROLLARY WORTH THE WHOLE LAW: closing a frame delta can convert the REST of the residual from structural into a pure consistent recolor. CheckSpecials went from STRUCTURAL-PRESENT to a CLEAN-RENAMING with a fully consistent 14-register bijection the instant its frame matched, and was then closed EXACT by an audited webfrank rule. So a frame delta sitting on top of a large register permutation is not two problems - fix the frame FIRST and re-measure before forming any register theory."
+}

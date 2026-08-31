@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Frame-size calibration then dead-local identity reuse: measure whether the frame responds to declared local size AT 8-BYTE GRANULARITY (the prior caps only ever tested +/-4, which MWCC's 8-byte frame rounding hides), then remove exactly the surplus by collapsing three sequentially-dead node pointers onto one already-declared carrier.",
+  "attributes": {
+    "law_screen": "claim.law.stack-slots-descend-in-declaration-order.20260831.v1 APPLIED (recorded 17:49Z, POST-DATES this function's cap at 03:39Z, which is why the cap was legitimately reopened rather than treated as a veto; its 'local block is anchored at its bottom, pads conserve rather than extend' framing is what motivated measuring the block size directly instead of probing scopes). claim.law.opt-lifetimes-off-slots-only-unregisterized-locals.20260831.v1 APPLIED for its rounding corollary ('the frame is rounded UP to 8 bytes, so removing a single 4-byte slot is often invisible - always test declaration deltas in pairs or better'), which is precisely the trap both prior MBTreeInit caps fell into. claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1 and its -also-closes-ours-only-home-copies successor APPLIED as the elimination lever and for the carrier eligibility test (already declared, dead at the definition point, never live simultaneously). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED via tools/gdl/regnorm.py run before the first probe: it showed 0 renaming and 0 unpaired with all 5 STRUCTURAL words being frame plumbing, which is what proved the entire residual was frame size and nothing else.",
+    "laws_applied": "[\"claim.law.stack-slots-descend-in-declaration-order.20260831.v1\", \"claim.law.opt-lifetimes-off-slots-only-unregisterized-locals.20260831.v1\", \"claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1\", \"claim.law.dead-local-identity-reuse-also-closes-ours-only-home-copies.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "residual": "NONE. fndiff --clean reports EXACT, 0 real diff lines; regnorm reports 377 paired, 0 renaming, 0 STRUCTURAL, 0 unpaired -> EXACT.",
+    "scope": "src/game/mb/mb_tree.c::MBTreeInit only. Removed the node2 and node3 declarations and reused node1 for all three sequential creations (each node pointer is dead immediately after its global store plus flags write, so the substitution is value-preserving). MBNewNode's webfrank pin in this TU was screened first and is untouched. Commit 6e0f84e98.",
+    "verification": "BASELINE real 10 (insns 310/310, multiset 0t, frame target 40 / ours 48). Calibration probe (u8 _probe8[8] added) moved the frame 48 -> 56, establishing that this function's frame IS source-responsive and refuting the premise behind both prior caps. Final: real 10 -> 0, frame 40 == target 40, insns exact. defake_gate check game/mb/mb_tree = GATE OK (1 improved, 0 regressed). Full ninja -j2 green, build/GUNE5D/main.dol: OK. Project matched 61.35% -> 61.46%, functions 2641 -> 2642."
+  },
+  "function": "function:MBTreeInit",
+  "id": "attempt.mbtreeinit-frame-calibration-exact.20260831.v3",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T19:16:14Z",
+  "refutes": "attempt.mbtreeinit-stack-frame-closure.20260831.v2",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.mbtreeinit-stack-frame-closure.20260831.v2",
+  "valid_from": "2026-08-31"
+}
