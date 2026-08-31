@@ -174,6 +174,7 @@
 #include "types.h"
 #include "game/player.h"
 #include "game/effect.h"
+#include "game/leveldata.h"
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -354,7 +355,7 @@ extern s32 sMusicTrackLo;
 extern s32 lbl_803448AC;
 extern s32 lbl_803448A8;
 extern s32 lbl_8034489C;
-extern u8* gCurLevel;   /* gCurLevel */
+extern level_data* gCurLevel;   /* 0x8034483C active level record */
 extern s32 lbl_8034481C;
 extern s32 lbl_80344804;   /* any player needs pad */
 extern s32 lbl_80344808;
@@ -1422,8 +1423,8 @@ s32 AddExp(s32 pnum, s32 amount, s32 mode) {
         }
         amount = amount * (s32)(0.01 * (f32)delta);
     } else {
-        f32 dist = PF(gCurLevel, 0x9C, f32);
-        f32 fac = PF(gCurLevel, 0xA0, f32);
+        f32 dist = PF(gCurLevel, offsetof(level_data, plevel), f32);
+        f32 fac = PF(gCurLevel, offsetof(level_data, xpmul), f32);
 
         if (dist > 0.0f) {
             if ((f32)p->level > dist) {
@@ -1952,7 +1953,7 @@ s32 do_players(void) {
                     p->intower = 1;
                     PF(p, 0xC28 + p->character * 0x1C, f32) =
                         PF(p, 0xC28 + p->character * 0x1C, f32) + (f32)(u32)gFrameTicks;
-                    if (PF(gCurLevel, 0, u32) & 8) {
+                    if (PF(gCurLevel, offsetof(level_data, flags), u32) & 8) {
                         light_pos[0] = p->col_pos[0];
                         light_pos[1] = p->col_pos[1];
                         light_pos[2] = p->col_pos[2];
@@ -2915,7 +2916,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
             return 0;
         }
         if (dmg > 1.0) {
-            dmg = dmg * PF(gCurLevel, 0xA4, f32);
+            dmg = dmg * PF(gCurLevel, offsetof(level_data, damagemul), f32);
         }
     }
     ModifyDamage(STAT_ARMOR(p), &dmg, &flags, p->shield_flags);
@@ -3550,11 +3551,11 @@ void load_player(s32 i) {
 
     if (gDemoMode != 0 && sMusicTrackHi != 0xD) {
         /* cheat build: force the level stamped on the current level */
-        if ((f32)p->level != PF(gCurLevel, 0x9C, f32)) {
+        if ((f32)p->level != PF(gCurLevel, offsetof(level_data, plevel), f32)) {
             opt_force_player |= 2;
         }
-        lvl = (s32)PF(gCurLevel, 0x9C, f32);
-        if ((s32)PF(gCurLevel, 0x9C, f32) <= 60) {
+        lvl = (s32)PF(gCurLevel, offsetof(level_data, plevel), f32);
+        if ((s32)PF(gCurLevel, offsetof(level_data, plevel), f32) <= 60) {
             exp = (lvl - 1) * (lvl * 30 + 1000);
         } else {
             product = (lvl - 60) * 4600;
