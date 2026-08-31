@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/player.c defake sweep (worktree GDL-Claude-PlayerMatch2, work_claim.player-doplayers-2.20260831.v1); attempt.player-tu-defakematch.20260831.v3. 4 fields recovered from mis-classified padding in include/game/player.h (field_73C, field_748, field_96C, field_A14), all void*, evidenced by remove_player_geo's teardown idiom; whole-TU fndiff gate held real unchanged across all 92 functions.",
+    "scope": "Any GC TU with a teardown/cleanup function (remove_all, destroy_all, clear_all shaped code) walking a struct that also has unresolved pad_XXX[N] spans in its header; companion/generalization of claim.law.swap-loop-is-record-layout-ground-truth for a non-swap-loop evidencing mechanism.",
+    "tags": [
+      "core-screen",
+      "offsetof-form",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.teardown-call-pattern-is-padding-evidence.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T00:49:42Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "claim.law.swap-loop-is-record-layout-ground-truth established that a byte-swap loop's own statements are stronger evidence of a record's real field boundaries than an earlier reconstruction's pad_XXX[N] claim for the same bytes. The SAME principle generalizes to any other strong in-code USAGE evidence, not only swap loops: a raw-offset access that is (a) NULL/zero-checked, then (b) passed to a typed cleanup/teardown API (MBRemoveNode, AtreeDelete, a destructor-shaped call) exactly like its immediately adjacent NAMED sibling fields in the SAME straight-line block, and then (c) zeroed afterward in a matching 'clear all fields' block elsewhere in the file, is proof the bytes hold a real pointer field, not padding -- independent of whether any swap/serialization loop touches the same bytes. Verified in game/game/player.c's remove_player_geo (a full-teardown function): Player+0x73C, +0x748, +0x96C, and +0xA14 were all declared as generic pad_XXX[N] spans in include/game/player.h, yet each is null-checked and torn down via MBRemoveNode(...,type)/AtreeDelete(&field) in the identical idiom as its neighboring ALREADY-NAMED fields (shield_object, wand_object, marker_object, gem_object, atree, weaphold_atree) within the same ~45-line block, and each is separately zeroed in a sibling 'zero all combat fields' block. Splitting each pad span into a named void* field_NNN (project's established generic-name convention for a real-but-semantically-undocumented field) at exactly the evidenced offset, and updating every use site to member-access form, gated byte-identical (fndiff --count real unchanged) across the whole 92-function TU. Two of the four recovered fields (field_748, field_96C) additionally cross-verify against PRE-EXISTING, ALREADY-NAMED file-local view structs elsewhere in the SAME file (PlayerSkinView.atree @0x748, PlayerMikeyState.atree @0x96C / .node @0xA14) that the original reconstruction author(s) had already introduced for a DIFFERENT call site needing address-CSE-safe named access -- meaning this class of teardown-pattern evidence had already been independently discovered and encoded via the file-local-view-struct idiom in two of four cases, but never propagated back to the canonical header's own pad claim. Consequence: before accepting an existing pad_XXX[N] claim in ANY struct with a teardown/cleanup function (destroy-all, remove_all, clear_all, free_all shaped code), scan that function for raw-offset sites sitting in the SAME idiomatic position (checked, torn down via the same API as named neighbors, zeroed in the same later block) as already-named fields -- and check the file for an EXISTING local view struct at that offset before assuming a name must be invented from scratch."
+}
