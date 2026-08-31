@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Exact-drive re-screen of the stale bulk-import park (recorded fuzzy 98.905 was already out of date at 99.744). Residual was the inlined mbFindFreeBlitSlot preheader: the byte-offset accumulator and the blitPool base held each other's register (target offset=r3/base=r5 via `lis r4` + `addi r5,r4,lo`; ours base=r3 for both HA and LO, offset=r5). Closed by DELETING the explicit `offset` accumulator and letting MWCC build the derived induction variable from a plain `blitPool[slot].flags` array walk.",
+  "attributes": {
+    "law_screen": "claim.law.sizeof-defeats-loop-stride-induction SCREENED and directly motivated axis 3 (our loop used `offset += sizeof(MBBLIT)`); replacing it with the bare stride 0x38 measured NEUTRAL, so the stride-form axis is dead for this loop even though the law establishes the substitution is not neutral in general. claim.law.pointer-reassociation-controls-add-operand-order screened, NOT applicable: both streams already emit base-first, only the register mapping differed; respelling `offset + (u8*)blitPool` as `(u8*)blitPool + offset` measured NEUTRAL, confirming it. claim.law.live-zero-copy-vs-remat-is-allocator-not-source screened: the preheader does contain the `li r6,0` + `addi rD,r6,0` copy pattern the law names, but in BOTH streams (the copy is present on both sides), so the law's park-on-first-diagnosis advice did not apply to the actual divergence. claim.law.constant-copy-vs-rematerialize-is-source-unreachable screened, same reason. claim.law.point-of-use-single-use-pointer-delay screened; the explicit-base-local variant (axis 1) measured NEUTRAL. claim.law.recomputed-index-array-form-safe APPLIED: the array-index form `blitPool[slot]` was safe and strictly better here.",
+    "laws_applied": "[\"claim.law.sizeof-defeats-loop-stride-induction.20260831.v1\", \"claim.law.recomputed-index-array-form-safe.20260830.v1\"]",
+    "residual": "None. fndiff --clean reports MATCH (pool-name noise only), 0 real diff lines; opcode multiset IDENTICAL 156/156.",
+    "scope": "src/game/mb/mb_blit.c, static inline mbFindFreeBlitSlot (single call site, MBCreateBlit). Net -5 source lines and removes a raw `(MBBLIT*)(offset + (u8*)blitPool)` cast, so it doubles as a de-fakematch conversion.",
+    "verification": "probe.py real 10 -> 0; fndiff --clean MATCH 0 real diff lines; defake_gate.py check game/mb/mb_blit.c GATE OK (1 improved, none of the 38 already-exact siblings regressed, webfrank pin fn_800B27C4 hash-assert passed); full `ninja -j2` -> build/GUNE5D/main.dol: OK; project matched 2616 -> 2617 functions. Commit aa4bde8f2. Axis log: A1 explicit base local NEUTRAL; A2 bare stride 0x38 NEUTRAL; A3 reassociated address spelling NEUTRAL; A4 strength-reduced IV EXACT."
+  },
+  "function": "function:MBCreateBlit",
+  "id": "attempt.mbcreateblit-strength-reduced-iv-exact.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T06:47:50Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.mbcreateblit.20260829.v1",
+  "valid_from": "2026-08-31"
+}

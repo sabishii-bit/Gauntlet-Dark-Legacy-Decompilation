@@ -1280,6 +1280,7 @@ s32 pbDiagDrawTexture(void)
         if ((u32)(&b[0])[98] == 0) {
             fn_800C7864(0);
             for (i = 0; i < 6; i++) {
+                u32* bp;
                 tw = ((s16*)&gd[i])[164];
                 th = ((s16*)&gd[i])[165];
                 blit = MBCreateBlit(gDiag_DE8, 0,
@@ -1479,15 +1480,15 @@ s32 pbDiagDrawObject(void)
     s32* b = (s32*)buttons;
     char* strs = lbl_80114E90;
     DiagObjGlobals* wg;
-    DiagObjView* obj;
     int x;
+    DiagObjView* obj;
     int i;
     s32 old;
     s32 ret;
     DiagObjRow* rows;
     u32 saved;
-    f32* px;
     f32* py;
+    f32* px;
     s32 v;
     s32 idx;
     u8* t10;
