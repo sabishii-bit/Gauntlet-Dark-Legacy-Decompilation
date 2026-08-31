@@ -1067,6 +1067,7 @@ void PlayerSfxClearData(u32* rec, s32 count)
 
 /* PlayerSfxInitData @0x8008A5F4 -- clear every record's two handles to -1,
  * then run fn_8008A678 to resolve the effect/sound for each. */
+#pragma auto_inline off
 void PlayerSfxInitData(s32* player, u32* records, s32 count, void* param4)
 {
     s32 off;
@@ -1088,6 +1089,7 @@ void PlayerSfxInitData(s32* player, u32* records, s32 count, void* param4)
         secondOff += 0x50;
     }
 }
+#pragma auto_inline on
 
 /* fn_8008A678 @0x8008A678 -- resolve one record's custom-effect handle (rec[2])
  * and audio/mbox handle (rec[3]) if not already set. */
