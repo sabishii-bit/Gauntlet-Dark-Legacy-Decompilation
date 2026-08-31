@@ -438,7 +438,7 @@ typedef struct CritterPackedType {
     s16 parentIndex;        /* 0x11E parent type index (container->types[]); < 0 == none */
     CritterDescriptor *descriptor;
     CritterMove *movesPtr;      /* 0x124 resolved move table base (stride 0x90)     */
-    u8 *patternsPtr;            /* 0x128 resolved pattern table base (stride 0x50)  */
+    struct CritterPattern *patternsPtr; /* 0x128 resolved pattern table base (stride 0x50) */
     u8 *colnodesPtr;            /* 0x12C resolved colnode table base (stride 0x50)  */
     struct CritterFileHeader *file;
     void *attachments;
@@ -5251,19 +5251,13 @@ u32 CritterCopyAnim(Critter *c, CritterMove *move, s32 frame)
 }
 
 /* 0x8003C40C -- select/blend the active sequence, animate auxiliary trees,
- * and hand completed moves to CritterMoveDone. */
-typedef struct CritterAnimPatternRow {
-    u8 _pad00[0x22];
-    s16 sequence[8];
-    u8 _pad32[0x1E];
-} CritterAnimPatternRow;
-
-typedef struct CritterAnimateHeader {
-    u8 _pad000[0x124];
-    CritterMove *moves;
-    CritterAnimPatternRow *patterns;
-} CritterAnimateHeader;
-
+ * and hand completed moves to CritterMoveDone.
+ * (A second pattern-row reconstruction that lived here -- CritterAnimPatternRow,
+ *  s16 sequence[8] @0x22 -- was reconciled into CritterPattern: the Xbox PDB
+ *  crit_pattern record (0x50, exact) puts one s16 moveidx[8] array at 0x20
+ *  followed by vis@0x30, so a 0x22-based 8-slot read crosses the field
+ *  boundary; CritterPattern.move@0x20 + sequence[7]@0x22 is the same bytes and
+ *  the sequence[c->unk120] read below is the same address arithmetic.) */
 #pragma opt_propagation off
 void CritterAnimate(Critter *c)
 {
@@ -5286,8 +5280,8 @@ void CritterAnimate(Critter *c)
     if (c->unk11E < 0 || c->unk120 < 0 || c->unk120 >= 8) {
         goto requested_move;
     }
-    candidate = ((CritterAnimateHeader *)c->hdr)
-                    ->patterns[c->unk11E]
+    candidate = ((CritterPackedType *)c->hdr)
+                    ->patternsPtr[c->unk11E]
                     .sequence[c->unk120];
     if (candidate < 0) {
 requested_move:
@@ -5295,10 +5289,10 @@ requested_move:
     }
     nextIndex = candidate;
     if (currentIndex >= 0) {
-        current = &((CritterAnimateHeader *)c->hdr)->moves[currentIndex];
+        current = &((CritterPackedType *)c->hdr)->movesPtr[currentIndex];
     }
     if (candidate >= 0) {
-        next = &((CritterAnimateHeader *)c->hdr)->moves[candidate];
+        next = &((CritterPackedType *)c->hdr)->movesPtr[candidate];
     }
 
     if (next == NULL) {
