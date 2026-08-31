@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/gamemode.h"
 #include "game/player.h"
 #include "game/tower.h"
 #include "game/leveldata.h"
@@ -1021,7 +1022,7 @@ void TowerCheckMessages(s32 mode) {
     s32 arg;
 
     if (sMusicTrackHi == 13) {
-        if (gGameMode == 16400) {
+        if (gGameMode == MG_PLAY) {
             SumnerDoSpeech();
             if (sSumnerObj != 0) {
                 if (AnimateATree(&state->gwizAtree, lbl_80344C90,
