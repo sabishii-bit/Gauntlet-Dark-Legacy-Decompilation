@@ -3078,9 +3078,10 @@ void ProcessEffects(void)
             }
         }
 
-        if ((e->flags & 8) && hit == 0) {
+        if (hit == 0 && (e->flags & 8)) {
             s32 enemyIndex;
-            if (mode != 0 && radius > 0.0 && !(e->flags & 0x400)) {
+            if (mode != 0) {
+                if (radius > 0.0 && !(e->flags & 0x400)) {
                 StartItemGrid(radius, pos);
                 while ((enemyIndex = NextGridItem()) >= 0) {
                     struct fxenemy* enemy =
@@ -3142,7 +3143,8 @@ void ProcessEffects(void)
                         }
                     }
                 }
-            } else if (mode == 0) {
+                }
+            } else {
                 s32 start = 0;
                 do {
                     s32 damage;
@@ -3201,9 +3203,10 @@ void ProcessEffects(void)
             }
         }
 
-        if ((e->flags & 8) && hit == 0 && lbl_8034466C != 0) {
+        if (hit == 0 && (e->flags & 8) && lbl_8034466C != 0) {
             struct fxcritter* critter;
-            if (mode != 0 && radius > 0.0 && !(e->flags & 0x400)) {
+            if (mode != 0) {
+                if (radius > 0.0 && !(e->flags & 0x400)) {
                 CritterCollideStart(radius, pos, 0);
                 for (;;) {
                     s32 damage;
@@ -3228,7 +3231,8 @@ void ProcessEffects(void)
                                    0.0f);
                     }
                 }
-            } else if (mode == 0) {
+                }
+            } else {
                 CritterCollideStart(radius, pos, 0);
                 critter = CritterMoveNodeCol(radius, fade, oldpos, pos,
                                              hitpos, e->id, 0);
@@ -3338,7 +3342,7 @@ void ProcessEffects(void)
             }
         }
 
-        if ((e->flags & 2) && hit == 0) {
+        if (hit == 0 && (e->flags & 2)) {
             struct fxitem* item;
             if (mode != 0) {
                 f32 itemRadius = radius;
@@ -3488,7 +3492,7 @@ void ProcessEffects(void)
             }
         }
 
-        if ((e->flags & 4) && hit == 0) {
+        if (hit == 0 && (e->flags & 4)) {
             void* wall = WeaponWallCollide(0.5 * radius, oldpos, pos,
                                            hitpos);
             if (wall != NULL) {
