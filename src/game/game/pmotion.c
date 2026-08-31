@@ -4479,7 +4479,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
             dq = lbl_80347B30;
         }
     }
-    if ((f64)d < lbl_80347D68 || dq < lbl_80347B30) {
+    if ((f64)d < lbl_80347D68 || dq < (zv = lbl_80347B30)) {
         pd->floor_base = fh;
         if ((f64)d < lbl_80347D68 || (f64)dq < lbl_80347D70) {
             return 1;
@@ -4491,7 +4491,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
     end[0] = pos[0] + dpos[0];
     end[1] = pos[1] + dpos[1];
     end[2] = pos[2] + dpos[2];
-    hit = FloorCollide(rad, lbl_80347B30, zoff, end, (f32*)(ctx + 24), 0, 1);
+    hit = FloorCollide(rad, zv, zoff, end, (f32*)(ctx + 24), 0, 1);
     if (fA != 0 && fB != 0 && sv->floor_obj != hit) {
         zv = lbl_80347B30;
         dpos[0] = zv;
