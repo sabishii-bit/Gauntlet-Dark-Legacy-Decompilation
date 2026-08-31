@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "gGameMode conversion lane (worker GC), worktree GDL-Claude-GameModeConv, branch claude/ggamemode-conversion-20260831. Resolved by edit + byte gate, not by inspection alone; commit eaecef504.",
+    "scope": "src/game/world/items.c:171 (the declaration), :985, :1000, :2678 (the casts), :1255 (the group-bit test, deliberately untouched).",
+    "tags": [
+      "symbol-identity",
+      "defake",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.items-ggamemode-extern-divergence-resolved.20260831.v1",
+  "kind": "claim",
+  "predicate": "resolved",
+  "recorded_at": "2026-08-31T17:11:39Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/items",
+  "valid_from": "2026-08-31",
+  "value": "Item (b) of claim.gamemode-raw-site-inventory.20260831.v1 -- items.c declaring `extern u32 gGameMode` where every other TU uses `s32` -- is CONFIRMED as a real cross-TU declaration divergence and is now FIXED and byte-gated. s32 is the correct spelling: the PDB type is `enum e_mode` (int-ranked), 15 of the 16 consumer TUs already declare s32, and items.c's own code betrayed the mismatch by casting the value back with `(s32)gGameMode` at three sites in order to compare it. Changing the declaration to s32 and dropping all three now-redundant casts is BYTE-IDENTICAL (defake_gate check --rebuild = GATE OK against a 52-function / 41-at-real-0 baseline), so the divergence was cosmetic in codegen terms but was actively generating fakematch casts -- a defake win with no matching risk. Verified further by a full green ninja with build/GUNE5D/main.dol: OK and project progress unmoved at 98.05% fuzzy / 60.99% matched. ONE u32-flavoured use was deliberately KEPT unchanged: `gGameMode & 0x8000` at items.c:1255 is the MA_/MG_ group-bit classification idiom documented in include/game/gamemode.h, not a mode comparison, so it needs no enum constant and no cast either way. TOOLING GAP worth closing: tools/gdl/externcheck.py did not flag this, because it reports only float/int-class conflicts and u32-vs-s32 share a storage class; the same blind spot hides the pointer-vs-int divergence on lbl_80344290 recorded in claim.sndfxinit-first-param-is-a-mode-not-a-pointer.20260831.v1. Extending externcheck to same-size signedness and pointer-vs-integer divergence would surface both classes automatically instead of relying on a per-wave manual sweep."
+}
