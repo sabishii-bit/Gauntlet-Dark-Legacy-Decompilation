@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/ui/screensaver.c::ControllerMessageBox (worktree GDL-Claude-SelScreen2, work_claim.select-screensaver-2.20260831.v1, attempt.controller-message-box-backedge-park.20260831.v2). Whole-image census script banked at build/scratch/emptyblock.py, run over build/GUNE5D/asm: 563 empty-block conditional-over-unconditional pairs image-wide; 65 share the exact `cmpwi rX,0x0` + beq/bne micro-shape; exactly ONE of those 65 is the backedge variant, ControllerMessageBox itself at 0x8006DAF4 (function base 0x8006D7EC + 0x308).",
+    "scope": "MWCC GC 1.2.5 family. Refines claim.law.loop-exit-goto-pair-is-not-source-reachable by splitting its subject shape into a reproducible and a non-reproducible half; read alongside that law rather than instead of it.",
+    "tags": [
+      "matching",
+      "entry-schedule",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.empty-block-branch-pair-splits-forward-vs-backedge.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T15:47:22Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "The unfused conditional-over-unconditional branch pair (`bCOND <next insn>` immediately followed by `b <far label>`, with an EMPTY block between) is NOT one phenomenon: it splits by the direction of the unconditional branch, and only the FORWARD half is source-reachable. FORWARD variant (the `b` targets an epilogue, a merged return, or a loop-increment block ahead of it): common and reproducible - 64 of the 65 exact-micro-shape instances in this image, many inside byte-exact functions whose C we hold. Two positive controls to read the spelling off: dolphin/os/OSRtc.c::ReadSram compiles `if (!EXILock(0, 1, NULL)) { return 0; }` to `bl EXILock; cmpwi r3,0; bne <next>; b <epilogue>`, and game/anim/atree.c::AtreeFindNodeIdx compiles `for (i = 0; i < n; i++) { if (strncmp(...) == 0) { return i; } }` to `bl strncmp; cmpwi r3,0; bne <increment>; b <epilogue>`. The reproducible spelling is a guard whose body is a SINGLE control transfer to a block that is genuinely reached from elsewhere too, so the front end must materialise it as its own basic block. BACKEDGE variant (the `b` is the loop's back branch): MWCC always folds it to one inverted conditional, and no counter-example exists anywhere in this image. That is the operative finding, and it is what makes the census decisive rather than merely suggestive: a shape search that returns ONLY your own non-exact function is the stop signal, and here the search was run over every split TU rather than over one function, so the absence is image-wide rather than local. PRACTICAL CONSEQUENCE, and the reason this is worth a record of its own: the parent law's blanket reading would have closed this axis on first diagnosis, and a blanket reading is now WRONG for the forward case - a residual showing the forward variant should be worked, with the two controls above supplying the exact C shape, while the backedge variant should be classified SCHEDULE / front-end basic-block layout and parked immediately. METHOD NOTE: shapegrep alone cannot make this distinction, because it matches opcode runs and is blind to branch TARGETS; deciding forward-vs-backedge needs a scan that compares the conditional's target against the following instruction's address and the unconditional's target against its own. The banked script does both and is cheap to re-run; prefer re-deriving it over trusting a prose count, since the numbers move as more TUs are matched."
+}

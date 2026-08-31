@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/ui/screensaver.c line 738 `switch (gGameMode) { case 0x4012: ... case 0x400B: ... }`, screened during work_claim.select-screensaver-2.20260831.v1 task 4 (enum/name polish). Authority located at src/game/game/gamemain.c lines 241-266.",
+    "scope": "src/game/ui/screensaver.c and every other TU that compares gGameMode against a bare hex literal; the blocker is header ownership, not evidence.",
+    "tags": [
+      "symbol-identity",
+      "defake",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.gamemode-enum-needs-a-header-owner.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T15:47:53Z",
+  "schema_version": 1,
+  "subject": "tu:game/ui/screensaver",
+  "valid_from": "2026-08-31",
+  "value": "screensaver.c's `switch (gGameMode)` arms 0x4012 and 0x400B are fully NAMED already, but in the wrong place to use: src/game/game/gamemain.c carries an ANONYMOUS file-local enum (lines 241-266) giving the complete MA_*/MG_* game-mode vocabulary, including MG_PLAYER_SELECT = 0x400B and MG_SHOP = 0x4012. There is no include/game/gamemain.h and no include/game/*.h defines any MA_*/MG_* constant, so no consumer TU can reference the names. This is a large and cheap unclaimed win rather than a screensaver-local nit: a grep for these literals finds raw hex comparisons in at least player.c (roughly fifteen sites), combat.c, shop.c, main.c and screensaver.c, all of which would convert to named constants by a value-identity respelling that constant-folds and should therefore be byte-neutral (claim.law.raw-offset-form-supplies-value-identity-not-addressing-shape). DO NOT resolve it by copying the enum into a consumer TU: that is exactly the duplicate-partial-reconstruction failure recorded for critter.c, and a 30-constant enum duplicated per TU will drift. The correct move belongs to whichever lane owns headers in a future run - promote gamemain.c's enum to a new include/game/gamemain.h, gate the header edit ALONE across its includers per claim.law.embedded-struct-member-whole-tu-cascade (it is pure enum text with no prototypes, so no aggregate-cascade class applies and the gate should be clean), then convert consumers TU by TU under the ordinary defake byte-gate. This lane was scoped no-header-edit and therefore left every site raw."
+}
