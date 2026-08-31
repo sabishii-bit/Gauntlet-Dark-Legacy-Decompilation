@@ -1,0 +1,17 @@
+{
+  "attributes": {
+    "law_screen": "none applicable: TU-identity pointer record, not a codegen-matching attempt"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.tuscout.audiotrack-cluster-owner.20260831.v1",
+  "kind": "claim",
+  "predicate": "xbox_module_identity",
+  "recorded_at": "2026-08-31T00:24:05Z",
+  "schema_version": 1,
+  "subject": "tu:game/audio/audio.c",
+  "valid_from": "2026-08-31",
+  "value": {
+    "full_detail": "See claim.tuscout.audiomixer-premise-resolved.20260831.v1 (subject tu:game/g3d/sndvoice.c) for the full scouting record, address-range cross-check, and coverage census.",
+    "summary": "The Xbox PDB 'AudioTrack*' function cluster (AudioTrackInit/Kill/Vol/Pan/MusicVol/Set/Update/VolSub/AudioTrack4) is not its own PDB module. It is a positional subset of AUDIO.OBJ (68 functions, per tools/gdl/xbmod.py --module AUDIO), which is the Xbox counterpart of the already-written GC TU game/audio/audio.c (39 real-named functions, NonMatching, active matching/de-fakematch work, no fn_ stubs). There is no separate unwritten 'audio-mixer' TU for this cluster to land in."
+  }
+}
