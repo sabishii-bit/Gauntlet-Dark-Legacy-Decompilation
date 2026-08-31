@@ -557,7 +557,6 @@ void playerGiveGargItem(int player, int item, int count) {
 static inline int towerLevelStatusA(int player, int level) {
     s32 value;
     u32 world;
-    u8* levelRecord;
     Player* record;
 
     if (gPlayers[player].state == 0) {
@@ -567,10 +566,8 @@ static inline int towerLevelStatusA(int player, int level) {
     if (world == (u32)lbl_80343D6C) {
         return 2;
     }
-    levelRecord = (u8*)(level * 2);
     record = &gPlayers[player];
-    value = *(s16*)(levelRecord + (s32)record +
-                   record->character * CHAR_SAVE_STRIDE + COMPLETION1_OFF);
+    value = record->char_save[record->character].completion1[level];
     if (value < 0) {
         return 2;
     }
@@ -592,16 +589,13 @@ int towerAllPlayersMetLevelReq(int level) {
     for (player = 0; player < 4; player++) {
         if (gPlayers[player].state != 0) {
             s32 value = towerLevelStatusA(player, level);
-            u8* levelRecord;
             Player* record;
 
             if (value != 0) {
                 return 1;
             }
-            levelRecord = (u8*)(level * 2);
             record = &gPlayers[player];
-            value = *(s16*)(levelRecord + (s32)record +
-                           record->character * CHAR_SAVE_STRIDE + COMPLETION1_OFF);
+            value = record->char_save[record->character].completion1[level];
             if (best > value) {
                 value = best;
             }
@@ -616,7 +610,7 @@ int towerAllPlayersMetLevelReq(int level) {
 
 /* Get a per-level record-A value (field 0xDE8). */
 int towerGetLevelRecord(int player, int level) {
-    return ((s16*)&TOWER_SAVE(player)->completion1)[level];
+    return TOWER_SAVE(player)->completion1[level];
 }
 
 /* Advance the per-level record-A counter toward its cap (field 0xDE8, 0x2234). */
@@ -639,6 +633,13 @@ void towerAdvanceLevelRecord(int player, int level) {
             s16* value;
             u8* levelRecord;
 
+            /* The level-scaled base is formed FIRST and shared by the live
+             * record and the checkpoint shadow (target: `add r11,r8,r9` =
+             * record + level*2, then `add r10,r11,r10`, one address reused by
+             * the lha and the sth).  Member form associates the other way
+             * (record + char_save + c*240 + completion1 + level*2) and costs an
+             * indexed lhax plus a recomputed store address -- see the R2/STEP-3
+             * verdict in this pass's attempt record.  Keep the raw base. */
             levelRecord = (u8*)(level * 2);
             levelRecord += (s32)record;
             value = (s16*)(levelRecord + record->character * CHAR_SAVE_STRIDE + COMPLETION1_OFF);
@@ -659,7 +660,6 @@ void towerAdvanceLevelRecord(int player, int level) {
 static inline int towerLevelStatusB(int player, int level) {
     s32 value;
     u32 world;
-    u8* levelRecord;
     Player* record;
 
     if (gPlayers[player].state == 0) {
@@ -669,10 +669,8 @@ static inline int towerLevelStatusB(int player, int level) {
     if (world == (u32)lbl_80343D6C) {
         return 2;
     }
-    levelRecord = (u8*)(level * 2);
     record = &gPlayers[player];
-    value = *(s16*)(levelRecord + (s32)record +
-                   record->character * CHAR_SAVE_STRIDE + COMPLETION2_OFF);
+    value = record->char_save[record->character].completion2[level];
     if (value < 0) {
         return 2;
     }
@@ -690,16 +688,13 @@ int towerAllPlayersMetBossReq(int level) {
     for (player = 0; player < 4; player++) {
         if (gPlayers[player].state != 0) {
             s32 value = towerLevelStatusB(player, level);
-            u8* levelRecord;
             Player* record;
 
             if (value != 0) {
                 return 1;
             }
-            levelRecord = (u8*)(level * 2);
             record = &gPlayers[player];
-            value = *(s16*)(levelRecord + (s32)record +
-                           record->character * CHAR_SAVE_STRIDE + COMPLETION2_OFF);
+            value = record->char_save[record->character].completion2[level];
             if (best > value) {
                 value = best;
             }
@@ -716,7 +711,6 @@ int towerAllPlayersMetBossReq(int level) {
 int towerLevelStatus(int player, int level) {
     s32 value;
     u32 world;
-    u8* save;
 
     if (gPlayers[player].state == 0) {
         return 0;
@@ -725,9 +719,7 @@ int towerLevelStatus(int player, int level) {
     if (world == (u32)lbl_80343D6C) {
         return 2;
     }
-    save = (u8*)&gPlayers[player] + gPlayers[player].character * CHAR_SAVE_STRIDE;
-    save += level * 2;
-    value = *(s16*)(save + COMPLETION2_OFF);
+    value = gPlayers[player].char_save[gPlayers[player].character].completion2[level];
     if (value < 0) {
         return 2;
     }
@@ -739,7 +731,7 @@ int towerLevelStatus(int player, int level) {
 
 /* Get a per-level record-B value (field 0xDEE). */
 int towerBossStatus(int player, int level) {
-    s32 value = ((s16*)&TOWER_SAVE(player)->completion2)[level];
+    s32 value = TOWER_SAVE(player)->completion2[level];
     s32 result = value;
 
     if (value < 0) {
