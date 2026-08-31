@@ -749,17 +749,17 @@ extern char lbl_80111838[];
 
 static void BossCamBossCalc(void)
 {
-    f32 pavg[3];
-    f32 bossmat[3];
-    f32 newattn[3];
-    f32 range;
-    f32 dist;
+    u8 padTopA[24];
     f32 bossrad;
-    f32 yaw;
-    f32 npavg[3];
+    u8 padB[8];
     f32 pitch;
+    f32 bossmat[3];
+    f32 npavg[3];
     f32 dvec[3];
-    f32 dattn[3];
+    f32 newattn[3];
+    f32 pavg[3];
+    f32 range;
+    f32 yaw;
     f32 tmax[3];
     f32 tmin[3];
     f32 tmax2[3];
@@ -779,7 +779,6 @@ static void BossCamBossCalc(void)
     u32 flags;
     s32 selectMode;
     s32 i;
-    u8 unusedFrame[88];
 
     lbl_803447B8 = 0;
     transition = 0;
@@ -1011,6 +1010,7 @@ static void BossCamBossCalc(void)
     } else {
         f64 selectedRadius;
         u8* viewcam;
+        u8 unusedRadius[8];
 
         flags = ((BossCameraParamsView*)lbl_803443D0)->flags;
         flags &= ~0x300;
@@ -1073,6 +1073,8 @@ static void BossCamBossCalc(void)
     } else if ((f64)((BossGameCameraView*)gGameCamera)->field_0FC > lbl_80345BE0) {
         ((BossGameCameraView*)gGameCamera)->field_0FC = (f32)lbl_80345BE0;
     }
+    {
+    f32 dist;
     dist = candidate;
     *(u32*)&dist &= 0x7FFFFFFF;
     if ((f64)dist < lbl_80345C00) {
@@ -1084,8 +1086,10 @@ static void BossCamBossCalc(void)
     } else {
         pitch = ((BossGameCameraView*)gGameCamera)->field_104;
     }
+    }
 
     if (lbl_803443A8 == 0) {
+        f32 dattn[3];
         ((BossGameCameraView*)gGameCamera)->field_0A4[0] = newattn[0];
         ((BossGameCameraView*)gGameCamera)->field_0A4[1] = newattn[1];
         ((BossGameCameraView*)gGameCamera)->field_0A4[2] = newattn[2];
@@ -1131,6 +1135,7 @@ static void BossCamBossCalc(void)
         length = dvec[2] * dvec[2] + length;
         if (length > lbl_80345BA0) {
             volatile f32 rootslot;
+            u8 unusedFrame[48];
             f64 estimate = __frsqrte(length);
             estimate = lbl_80345BA8 * estimate *
                        (lbl_80345BB0 - estimate * estimate * length);
