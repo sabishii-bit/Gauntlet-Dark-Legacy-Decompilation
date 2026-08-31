@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "postprocessor",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.value-identity-split-completes-a-broken-recolor-bijection.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T15:43:36Z",
+  "schema_version": 1,
+  "subject": "function:InitEffects",
+  "valid_from": "2026-08-31",
+  "value": "When a local is assigned twice - an initial read and a later RELOAD through a pointer taken to the same field - MWCC may coalesce the reload's destination in place into the pointer's register (emitting lwz rP,0(rP), reusing the register of a pointer that dies at that instruction) instead of into the register already holding that variable. This SPLITS one source variable across two registers and is the reason a residual that otherwise looks like a clean callee-saved permutation is not one: the reload-block words fail the bijection while the surrounding words satisfy it. DIAGNOSTIC: take the candidate permutation sigma from the words that DO agree, then apply sigma to every remaining differing word; if the failures are exactly the reload block and its dependent stores, this is the mechanism. FIX: give the reload its own named local (value-identity split) instead of reassigning the original variable. Verified 2026-08-31 in game/sfx/sfx.c InitEffects: the 80-row loop's residual had only 5 of 9 words fitting sigma = (r20 r22 r21 r23); ours emitted lwz r21,0(r21) where the target emitted lwz r20,0(r22). Replacing `v36 = *q36` with `w36 = *q36` (one added local, the alpha store reading w36) made ALL NINE words fit sigma exactly, converting the cluster from 'permutation plus web-split anomaly' into a single consistent renaming - i.e. into the form that IS eligible for the WebFrank register stage. A single local sufficed; splitting both reloaded variables was not necessary. IMPORTANT SCORING CAVEAT: this transformation is invisible to `real` (26 -> 26 here) because the same NUMBER of words still differ - only their STRUCTURE changes. It surfaces solely as probe.py's [BYTES CHANGED] tag on a NEUTRAL verdict, which is precisely the case claim.law.neutral-real-and-identical-multiset-do-not-prove-byte-identity warns about; inspect every tagged NEUTRAL. COROLLARY: declaration-order rotation applied on top of the split DESTROYS the bijection (the reload reverts to the in-place form) while also reading NEUTRAL on real, so decl-order and value-identity are antagonistic on this residual class, and decl-order must be screened by diff inspection rather than by score."
+}

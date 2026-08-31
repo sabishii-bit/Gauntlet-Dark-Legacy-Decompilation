@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "batch-gating",
+      "postprocessor",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.adding-a-local-renumbers-the-anonymous-pool-and-drifts-siblings.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T15:43:41Z",
+  "schema_version": 1,
+  "subject": "tu:game/sfx/sfx",
+  "valid_from": "2026-08-31",
+  "value": "Adding even ONE local variable to a function shifts MWCC's internal anonymous-symbol counter for the whole translation unit, which renumbers the anonymous constant-pool entries (@@NNNN) referenced by OTHER functions in the same TU. The consequence is that a function you did not touch, and which remains byte-exact against its target, will still report changed raw bytes/relocations against a stored gate baseline. defake_gate.py flags this fail-closed as 'REGRESSION <fn> raw bytes/relocs changed although every score reads neutral'. DISAMBIGUATION PROCEDURE before treating it as a real regression: run fndiff --clean on the flagged sibling. 'MATCH (pool-name noise only), 0 real diff lines (+N pool-name lines suppressed)' means the sibling is still exact and the drift is the symbol-name-normalization class that AGENTS.md's EXACT definition explicitly permits; a nonzero real count means it is a genuine regression. Verified 2026-08-31 in game/sfx/sfx.c: adding s32 w36 to InitEffects drifted InitCustomEffectSub, which fndiff confirmed still MATCH / 0 real diff lines / 12 suppressed pool-name lines. TWO CONSEQUENCES. (1) Gate arithmetic: a locals-only edit cannot be gated by score alone, and a gate failure of this shape is not by itself grounds to discard the edit - but it IS grounds to discard one that buys no score, since overriding a fail-closed gate needs a gain to justify it. (2) PIN HAZARD, the serious one: per claim.law.webfrank-pin-freezes-its-inlined-helpers-too the WebFrank harness hash-asserts the RAW BODY of every pinned function, and that assertion is on bytes including relocation payloads. Pool renumbering therefore reaches pinned bodies that neither call nor inline the function you edited, and surfaces as 'ValueError: <pinned fn>: input hash X != expected Y' aborting the WEBFRANK ninja step. In a TU carrying pins (sfx.c pins four), treat ADDING OR REMOVING A LOCAL ANYWHERE IN THE TU as a pin-risk edit and run a full ninja, not just the object build, before believing it."
+}
