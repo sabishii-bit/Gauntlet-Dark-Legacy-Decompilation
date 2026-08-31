@@ -871,15 +871,19 @@ s32 StartBlockFX(f32 time, s32 pnum)
         page->fx[idx].type = FX_BLOCK;
     }
     if (idx >= 0) {
+        struct mbnode* parent;
+
         MBTreeSetColor(page->fx[idx].node,
                     lbl_8011A178[((Player*)gPlayers)[pnum].class_id], 1);
         MBTreeSetAlpha(page->fx[idx].node, 0x40, 1);
+        parent = (struct mbnode*)((Player*)gPlayers)[pnum].node;
         if (idx >= 0) {
-            Effect* e = &page->fx[idx];
+            Effect* e = (Effect*)&page->info[idx * 20];
+            struct mbnode* n = ((EffectPage*)e)->fx[0].node;
             struct anode* root;
 
-            MBNodeSetParent(e->node,
-                        (struct mbnode*)((Player*)gPlayers)[pnum].node);
+            e = (Effect*)((u8*)e + 2976);
+            MBNodeSetParent(n, parent);
             root = ATREE_ROOT(e);
             if (root != NULL) {
                 MBTreeSetFlags(root->node, 0x10, 0);
