@@ -2717,7 +2717,7 @@ s32 PlayerOnMovingObject(void) {
     }
     for (i = 0; i < 4; i++) {
         Player* p = P(i);
-        if (p->state == 1 && (obj = PF(p, 0x8C4, u8*)) != NULL &&
+        if (p->state == 1 && (obj = PF(p, offsetof(Player, floor_name2), u8*)) != NULL &&
             *(u32*)(obj + 0x28) != 0) {
             mo = *(u8**)(obj + 0x18);
             flags = *(u32*)(obj + 0x10);
@@ -2740,7 +2740,7 @@ s32 OtherPlayerOnOtherMovingObject(s32 i, u8* obj) {
 
     for (j = 0; j < 4; j++) {
         Player* p = P(j);
-        if (j != i && p->state == 1 && (o = PF(p, 0x8C4, u8*)) != NULL && o != obj) {
+        if (j != i && p->state == 1 && (o = PF(p, offsetof(Player, floor_name2), u8*)) != NULL && o != obj) {
             if (*(u32*)(o + 0x28) != 0 && (*(u32*)(o + 0x10) & 0x4000)) {
                 return 1;
             }
@@ -3497,7 +3497,7 @@ s32 activate_player(s32 i) {
 
     players[i].state = 1;
     p = &players[i];
-    PF(p, 0x830, s32) = other_players_next_level(i);
+    PF(p, offsetof(Player, exit_dest), s32) = other_players_next_level(i);
     del_player_blits(i);
     LoadPlyrData(i, p->character, (void*)1);
     if (gGameMode != 0x4010) {
@@ -3517,7 +3517,7 @@ s32 activate_player(s32 i) {
 
             if (lbl_803447B4 != 0 || state == 5) {
                 if (state - 4U <= 1) {
-                    PF(p, 0x830, s32) = PF(other, 0x830, s32);
+                    PF(p, offsetof(Player, exit_dest), s32) = PF(other, offsetof(Player, exit_dest), s32);
                 }
                 p->state = 5;
             }
@@ -3585,14 +3585,14 @@ void load_player(s32 i) {
     p->grab_partner = NULL;
     p->grab_pending = NULL;
     p->anchor_pos[0] = 0.0f;
-    PF(p, 0x83C, f32) = PF(lbl_80282930[i], 0x50, f32);
-    PF(p, 0x840, f32) = 0.0f;
+    PF(p, offsetof(Player, anchor_pos) + 4, f32) = PF(lbl_80282930[i], 0x50, f32);
+    PF(p, offsetof(Player, anchor_pos) + 8, f32) = 0.0f;
     p->anchor_fwd[0] = 0.0f;
-    PF(p, 0x848, f32) = PF(lbl_80282930[i], 0x54, f32);
-    PF(p, 0x84C, f32) = 0.0f;
+    PF(p, offsetof(Player, anchor_fwd) + 4, f32) = PF(lbl_80282930[i], 0x54, f32);
+    PF(p, offsetof(Player, anchor_fwd) + 8, f32) = 0.0f;
     p->light_vec[0] = 0.0f;
-    PF(p, 0x85C, f32) = 0.0f;
-    PF(p, 0x860, f32) = 0.0f;
+    PF(p, offsetof(Player, light_vec) + 4, f32) = 0.0f;
+    PF(p, offsetof(Player, light_vec) + 8, f32) = 0.0f;
     PF(p, 0x870, f32) = 0.0f;
     PF(p, 0x874, f32) = 0.0f;
     PF(p, 0x878, f32) = 0.0f;
@@ -3630,7 +3630,7 @@ void load_player(s32 i) {
     PF(p, 0x908, s32) = 0;
     p->coll_flags = 0;
     p->bossdamage = 0.0f;
-    PF(p, 0x918, s32) = 0;
+    PF(p, offsetof(Player, hit_streak), s32) = 0;
     PF(p, 0xA48, f32) = 10000.0f;
     PF(p, 0xA4C, f32) = 10000.0f;
     PF(p, 0xA50, f32) = 10000.0f;
@@ -3647,7 +3647,7 @@ void load_player(s32 i) {
     p->collision_item = NULL;
     PF(p, 0xA24, s32) = 0;
     PF(p, 0xA28, f32) = 0.0f;
-    PF(p, 0xA68, s32) = 0;
+    PF(p, offsetof(Player, field_A68), s32) = 0;
     PF(p, 0x93C, s32) = 0;
     PF(p, 0x940, s32) = 0;
     p->speech_req = NULL;
@@ -3676,7 +3676,7 @@ void load_player(s32 i) {
             PUP_TIMELEFT(p, j) = 0.0f;
         }
     }
-    PF(p, 0x8C4, s32) = 0;
+    PF(p, offsetof(Player, floor_name2), s32) = 0;
     if ((gGameOptions[11] & 1) == 0 || gGameMode != 0x400B) {
         setup_player_display(i);
     }
@@ -4532,16 +4532,16 @@ s32 set_hidden_player(void* vp) {
                 p->gold = (s32)cheat->value;
                 break;
             case 2:
-                PF(p, 0x1EB8, s32) = (s32)cheat->value;
+                PF(p, offsetof(Player, item_body_lo), s32) = (s32)cheat->value;
                 break;
             case 4:
-                PF(p, 0x1EBC, s32) = (s32)cheat->value;
+                PF(p, offsetof(Player, item_body_hi), s32) = (s32)cheat->value;
                 break;
             default:
                 PlayerAddPowerup(cheat->value, 1.0f, p,
                                  cheat->type, cheat->mask);
                 if (cheat->type == 9) {
-                    PF(p, 0x124, u32) |= cheat->mask;
+                    PF(p, offsetof(Player, flags), u32) |= cheat->mask;
                 }
                 break;
             }
@@ -5492,7 +5492,7 @@ void PlayerProcessPowerups(void* vp) {
         }
     }
 
-    if (PF(p, 0x954, u16) != 0 && (p->hud_flags & 2) == 0) {
+    if (PF(p, offsetof(Player, speak_timer), u16) != 0 && (p->hud_flags & 2) == 0) {
         if (p->marker_object == NULL) {
             p->marker_object = MBOX_NewObject(&lbl_80347A80, NULL, p->node, 0x10);
         }
