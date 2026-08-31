@@ -1359,7 +1359,6 @@ s32 OptionsStart(s32 player)
 #pragma push
 #pragma opt_propagation off
 extern char lbl_80113A1C[9];  /* "AAAWHITE" */
-extern f32 lbl_803475A0;      /* 1.0f */
 
 static void do_screenmenu(void)
 {
@@ -1382,7 +1381,7 @@ static void do_screenmenu(void)
      * blit z (melee precedent for shipped scoped pragmas). */
     w = 0x10;
     h = 2;
-    one = lbl_803475A0;
+    one = 1.0f;
     tex = (s32)MBOX_FindTexture(lbl_80113A1C, NULL);
 
     blit = MBNewTempBlit(tex, 1, 1, w, h);
@@ -1760,8 +1759,6 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
 /* 0x80072AA4 show_optmenu                                             */
 /* ================================================================== */
 
-extern f64 lbl_803475C0;
-extern f64 lbl_803475C8;
 
 void show_optmenu(OPTMENU* m)
 {
@@ -2040,9 +2037,9 @@ void show_optmenu(OPTMENU* m)
         s32 ty;
 
         if ((m->sel & 1) != 0) {
-            dangle = lbl_803475C0;
+            dangle = 3.141592654;
         } else {
-            dangle = lbl_803475C8;
+            dangle = 0.0;
         }
         tx = m->x;
         angle = (f32)dangle;
@@ -2060,7 +2057,7 @@ void show_optmenu(OPTMENU* m)
             m->icon_t = t + vb_elapsed_menu;
             ty = m->icon_y + ((ty - m->icon_y) * m->icon_t) / OPTMENU_ICON_TIME;
             angle = (f32)((f64)angle +
-                          lbl_803475C0 * (f64)m->icon_t /
+                          3.141592654 * (f64)m->icon_t /
                               (f64)OPTMENU_ICON_TIME);
         } else {
             m->icon_y = ty;
