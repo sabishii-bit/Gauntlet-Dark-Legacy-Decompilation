@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "TU-DRIVE lane, whole TU src/game/world/btricol.c (NonMatching, collision math): drive the sub-100 roster to exact under the mandate. NOTE: PointLineDist2D ships as a webfrank rule with a DOCUMENTED REORDER annotation (research/mwcc_webfrank_allocator_patterns.md discusses it; the rule predates the hardened guards) \u2014 screen config/GUNE5D/webfrank.json for ALL pins in this TU first; pinned functions' source is FROZEN unless you re-derive their rules after your change (and re-run configure.py if you touch rules \u2014 trap #6). Method: fndiff --classify roster, gdlmem context per candidate (park-age-vs-law-age applies \u2014 frame and slot parks predating 2026-08-31 laws are re-openable), regnorm first on REGISTER_ONLY-labelled functions, aligned fnasm --diff reads before probing, census-before-probe for shape questions (shapegrep). FP-heavy TU: watch second-term-fmuls, bit-trick-abs, dual-abs and fp-temp laws in the corpus (search laws for fmuls/abs/fp). Commit per function; defake_gate baseline first; exact or named-mechanism park per function; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:PointLineDist2D",
+  "id": "work_claim.btricol-drive.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-BT",
+  "recorded_at": "2026-08-31T19:23:55Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

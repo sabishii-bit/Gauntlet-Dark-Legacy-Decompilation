@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "REVISIT lane: both run-15 unpark-exacts came from caps that PREDATED same-day laws. Systematize it: enumerate all parked/capped attempts (parse memory_graph/records/attempts/**.json directly, or find with --limit 2000 \u2014 truncation is loud now), extract each park's date and mechanism class, and rank by (newest applicable law date - park date). The high-yield law classes from the last 48h: stack-slots-descend-in-declaration-order (frame/slot parks), inlined-callee-frames (frame-reservation parks \u2014 but leave candidates in a-m/n-z sweep lanes' hands if the mechanism IS inline-frame: check first, skip those), inverted-guard-defeats-equality-chain-range-fold (branch-shape parks), variable-identity-reopens-address-pre-and-zero-copy, identical-multiset-is-blind-to-displacements (any REGISTER_ONLY park never regnorm-screened). EXCLUDE TUs owned this run: atree, btricol, mb_tree, pmotion. Per re-open: state the park date, the post-dating law, run the law's prescribed measurement (regnorm / 8-byte ruler / aligned diff) BEFORE any probe; two identical A/Bs re-parks with the resolution recorded. Known teed candidates: sDvdReadSync (4-byte band, attempt.sdvdreadsync-frame-band-calibration.20260831.v3), fn_800DBE98 (transposed fsubs pair), pb_texture fn_800C6BB4 (unparked-clean, reconstruction-class \u2014 only if the diff reading supports it). Exact or resolution-stamped re-park per function; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:sDvdReadSync",
+  "id": "work_claim.park-law-age-revisit.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PK",
+  "recorded_at": "2026-08-31T19:23:50Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

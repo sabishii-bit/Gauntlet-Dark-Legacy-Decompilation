@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SWEEP lane A of the run-15 headline discovery (claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1): static-inline FUNCTION expansions reserve a dead per-site frame block at the caller's frame bottom; MACROS reserve nothing. AT5's census found 216 target functions with an untouched low region >=32B. YOUR HALF: units whose path sorts BEFORE game/n (a-m), EXCLUDING game/anim/atree (another lane) and Matching TUs. Method, proven: (1) re-derive the census from the dtk-split TARGET objects (disassemble, find lowest-touched r1 offset vs frame; a 60-line script \u2014 NAMESPACE your scratch files with 'IFA_' prefix, the shared scratchpad collided twice last run); (2) for each candidate where OUR build lacks the reservation (our frame smaller or padded by hand), check whether our source uses MACROS where retail used inline helpers \u2014 the diagnosable signature; predict the reservation arithmetically from expansion counts BEFORE editing (AT5 predicted 284 exactly); (3) screen parks by PARK-AGE-VS-LAW-AGE (the inline-frame law is from TODAY 2026-08-31 late \u2014 every frame-mechanism park predates it and is legitimately re-openable; say so per unpark); (4) convert macros to static inline helpers, verify the frame, then drive the remainder (8-byte-ruler law, slot-order law, regnorm arbiter, audit-first-as-diagnostic per claim.law.unpaired-schedule-words-bar-webfrank-candidacy-not-just-its-permute-stage.20260831.v1). Caps you write must record MEASUREMENT RESOLUTION (a 4-byte probe cannot see an 8-aligned frame). Commit per function; defake_gate baseline per TU; hands off other lanes' TUs (atree, btricol, and units >= game/n); parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:StartShieldFX",
+  "id": "work_claim.inline-frame-sweep-a.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-IFA",
+  "recorded_at": "2026-08-31T19:23:34Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

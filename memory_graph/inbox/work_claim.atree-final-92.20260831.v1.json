@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXACT-DRIVE lane, whole TU src/game/anim/atree.c: fn_8001267C at real 92 (from 869) after the inline-frame solve (attempt.fn8001267c-inlined-callee-frame-solved.20260831.v4 \u2014 read it first; frame/counts/saves now ALL match). Named residual: (a) two zero-constant clusters (li+li vs li+copy) \u2014 the carrier split is proven net-negative twice at different alignments, do NOT re-try that form; find a THIRD spelling (zero from a different dying web? u8/u16 typed zero? claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 is the relevant law); (b) three schedule/placement words incl. the node-info loop counter updating late (claim.law.explicit-offset-accumulator-places-induction-updates-early.20260831.v1 \u2014 the stride update moved when given an explicit accumulator; try the same form for the counter); (c) four reloc rows = lbl_ vs natreelists naming artifacts of an unclaimed data region \u2014 investigate claiming/naming that region (symbols.txt cross-TU rename protocol if needed) so the rows score clean. Run regnorm + webfrank_audit FIRST as diagnostics: at 92 with equal counts the function may be one frame-true edit from bijection like CheckSpecials was. Six objectIndex spellings are inert \u2014 closed. fn_80011BBC + AtreeInitSub pinned: byte-gate, never touch. Exact or named park; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:fn_8001267C",
+  "id": "work_claim.atree-final-92.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-AT6",
+  "recorded_at": "2026-08-31T19:23:45Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
