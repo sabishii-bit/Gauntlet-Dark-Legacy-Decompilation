@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "structdraft-first de-fakematch pass over mb_particle.c's flagged 'pi' cluster (33 bare sites): draft the particle-instance record, verify against GC access widths and the full PDB index, then convert",
+  "attributes": {
+    "law_screen": "claim.law.offsetof-rename-preserves-protected-web APPLIED -- every conversion is a displacement respelling on the unchanged raw `pi` (u8*) pointer, one additive expression, no typed intermediate; both regions gated byte-identical first try. claim.law.walked-base-symbol-identity APPLIED and DECISIVE -- symbols.txt records psysInfo at size 0x40 while these accesses run to +3452, so the base symbol was verified by reading the TARGET relocations (fnasm.py showed @psysInfo(ADDR16_HA/LO) feeding r9 in MBPsysFirework and r31 in MBPsysFlame); psysInfo is therefore correct and was kept. claim.law.multifield-alias-defeats-indexed-addressing SCREENED, avoided by construction -- 12 nearby fields hang off one base in MBPsysFirework, exactly its hazard shape, so no typed PsysDescrip* alias was introduced. claim.law.sizeof-defeats-loop-stride-induction SCREENED -- the 0xE8 spacing between the two descriptor blocks is documented in a comment only, never written as sizeof(PsysDescrip) in code. claim.law.write-site-alias-defeats-reload-parity SCREENED -- the raw source expresses every site as an independent dereference with no shared variable, so the form-preserving conversion is the raw pointer, which is what was used. claim.law.embedded-struct-member-whole-tu-cascade SCREENED -- no shared header was touched; PsysDescrip already exists in include/game/psys.h and no member was added to it. claim.law.declared-alias-vs-repeated-cast SCREENED, not applicable (no alias introduced). Parked/capped VETOes honoured: MBDrawPsys, setupNewPMode_800CDCE4, setWorldParms, MBNewPsysDescrip, getNewDirConeUnique, getNewPosRectShare, getSinCos, MBPsysSetDebugNode were not edited on any axis.",
+    "laws_applied": "[\"claim.law.offsetof-rename-preserves-protected-web.20260830.v1\", \"claim.law.walked-base-symbol-identity.20260830.v1\"]",
+    "residual": "49 bare sites remain (down from 82). The 'g'/'win'/'m'/'*(u8**)(g+56)'/'src' clusters were left raw: each has only 1-3 distinct observed offsets, no stride evidence, and structdraft's candidate list for them is a wall of score-1.00 ties across unrelated dolphin/game headers -- offset-only agreement on 1-3 slots is not name authority, so no view was drafted for them. No field name was invented anywhere in this pass.",
+    "scope": "src/game/mb/mb_particle.c only. Change class: displacement respelling (offsetof on unchanged raw pointer) plus two named base constants; no type, storage-class, or control-flow change. 33 sites converted across MBPsysFirework (13) and MBPsysFlame (20), plus the two MBNewPsysDescrip call arguments.",
+    "verification": "python tools/gdl/defake_gate.py baseline game/mb/mb_particle.c (51 functions, 40 at real 0) then check --rebuild after each of the two regions: GATE OK both times, first attempt, no regression in any of the 51 functions. Full ninja green, build/GUNE5D/main.dol: OK, project progress byte-for-byte unchanged at 97.85% fuzzy / 58.15% matched / 2602 functions. git diff --check clean."
+  },
+  "function": "function:MBPsysFirework",
+  "id": "attempt.mb-particle-structdraft-pass.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T02:16:34Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

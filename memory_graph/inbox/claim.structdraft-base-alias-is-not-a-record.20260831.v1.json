@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "about_tool": "tool:structdraft (tools/gdl/structdraft.py)",
+    "tags": [
+      "defake",
+      "symbol-identity",
+      "walked-pointer",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.structdraft-base-alias-is-not-a-record.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:16:46Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "structdraft clusters raw-offset sites by BASE EXPRESSION, which silently conflates two structurally opposite situations: (A) a genuine record, where base+K is field K of one object, and (B) a base symbol that is merely the nearest named anchor, where base+K walks OUT of the symbol into whatever the linker placed next. The tool cannot tell them apart and emits an equally confident padded struct draft for both -- so a draft must never be adopted before the base symbol's DECLARED SIZE is checked against the cluster's maximum observed offset. Two independent case-B instances in one pass, both of which structdraft drafted as records: (1) sounds_evt.c AudioSetupBossStreams's 'speech' cluster, flagged by claim.offsetcast-debt-taxonomy as a 21-site record to draft -- structdraft emitted a 0x6C8-byte 'SpeechView' with 13 unkNN fields, but `speech` is `(char*)sSpeechNameBuf`, a 0x40-byte sprintf scratch buffer (symbols.txt .bss 0x8028B5D0 size 0x40) that the same function passes to sprintf() and AudioFindSound() as a STRING; 0x8028B5D0 + 0x4B0 is exactly sActiveTrackId's base (.bss 0x8028BA80 size 0x238 = 142 s32), so the whole 0x4B0..0x6C4 range is sActiveTrackId -- 45 active-track ids then a [12][8] boss-speech id table at element 45 with 0x20 rows, and the file's own pre-existing comment ('aliases id tables at offsets') had already said so. (2) mb_particle.c's 'pi' cluster, flagged as a 33-site particle-instance record -- structdraft emitted a 0xD80-byte 'PiView' with 23 unkNN fields and ranked an NVIDIA graphics primitive (Nv12CelsiusPrimitive) as its best candidate, but the sites are two instances of PsysDescrip, a type the project ALREADY has fully named at include/game/psys.h:160 with the exact declared size 0xE8; MBPsysFirework passes `pi + 3108` and MBPsysFlame passes `pi + 3340` (= 3108 + 0xE8) straight to MBNewPsysDescrip as its PsysDescrip* argument, and all 22 field offsets AND widths match PsysDescrip (stb for the two char flags, stw for the u32 rgba quad, stfs for the f32 width/speed fields), with the semantics corroborating independently (m0/m1/m1/m2 into p_rgba[4], a normalized unit vector into e_dir[3]). CONSEQUENCE, two rules. First: a `base + K` expression PASSED TO A FUNCTION as a typed parameter identifies a sub-record at K, and that call is stronger layout evidence than any offset-clustering heuristic -- the same class of usage evidence as claim.law.teardown-call-pattern-is-padding-evidence. Grep the cluster's own function for calls taking `base + K` before drafting anything. Second: once case B is identified, resist re-basing to the symbol that truly owns the bytes -- claim.law.walked-base-symbol-identity still governs, and here it FORBADE the rewrite: the target relocates every one of those stores @sSpeechNameBuf(ADDR16_HA/LO) and keeps that pointer in r30 for the whole function, so sSpeechNameBuf remained the base and only the displacement constants were named. Case B is therefore usually a DOCUMENTATION outcome (name the displacements, record which symbol owns them), not a conversion outcome."
+}

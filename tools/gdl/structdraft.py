@@ -188,8 +188,24 @@ UPDATE_RE = re.compile(r"(\+\+|--|\+=|-=)")
 
 
 def as_int(tok):
+    """Parse a C integer literal. Never use int(tok, 0): Python's base-0
+    rejects a leading-zero decimal ("05"), which C sources do produce."""
     tok = tok.strip()
-    return int(tok, 0) if NUM_RE.match(tok) else None
+    if not NUM_RE.match(tok):
+        return None
+    neg = tok.startswith("-")
+    body = tok[1:] if neg else tok
+    val = (int(body, 16) if body[:2].lower() == "0x" else int(body, 10))
+    return -val if neg else val
+
+
+# A float literal is never a record stride, and its exponent digits
+# ("3.05e-05 * x") otherwise read as a multiplicand -- blank them out
+# before scanning an expression for stride evidence.
+FLOAT_LIT_RE = re.compile(
+    r"\b\d+\.\d*(?:[eE][+-]?\d+)?[fF]?"
+    r"|\b\d+[eE][+-]?\d+[fF]?"
+    r"|\.\d+(?:[eE][+-]?\d+)?[fF]?")
 
 
 NAMED_TERM_RE = re.compile(r"\b(?:offsetof|sizeof)\s*\(")
@@ -600,15 +616,17 @@ def cluster(sites, text, by_function=False):
         esc = re.escape(base.split(" @")[0])
         # `base += N` -- a walked record pointer; strongest stride evidence.
         for m in re.finditer(esc + r"\s*\+=\s*(0x[0-9A-Fa-f]+|\d+)", text):
-            strides[int(m.group(1), 0)] += 4
+            val = as_int(m.group(1))
+            if val is not None:
+                strides[val] += 4
         # `base = <expr> + i * N` / `+ N * i` -- indexed record selection.
         for m in re.finditer(esc + r"\s*=\s*([^;]{0,160});", text):
-            rhs = m.group(1)
+            rhs = FLOAT_LIT_RE.sub(" ", m.group(1))
             for mm in re.finditer(
                     r"\*\s*(0x[0-9A-Fa-f]+|\d+)\b|\b(0x[0-9A-Fa-f]+|\d+)\s*\*",
                     rhs):
-                val = int(mm.group(1) or mm.group(2), 0)
-                if val >= 8:
+                val = as_int(mm.group(1) or mm.group(2))
+                if val is not None and val >= 8:
                     strides[val] += 3
             for mm in re.finditer(r"<<\s*(\d+)", rhs):
                 strides[1 << int(mm.group(1))] += 3

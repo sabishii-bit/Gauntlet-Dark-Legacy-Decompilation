@@ -1,4 +1,47 @@
 #include "types.h"
+#include "game/leveldata.h"
+#include "game/player.h"
+
+#define offsetof(type, member) ((u32)&(((type*)0)->member))
+
+/* struct audio_data -- the per-level audio descriptor level_data.audio points
+ * at.  leveldata.h only forward-declares it, so the body is completed here as
+ * a file-local view rather than in the shared header.
+ * Layout from the Xbox PDB (audio_data); the three fields this TU actually
+ * touches are corroborated on GC by BOTH their access width and their use
+ * site: entersnd@0x10 is the s16 read by AudioEnterNextStage, hitsnd@0x12 the
+ * s16 read by AudioExplodeWall, namesnd@0x14 the s32 feeding
+ * AudioEnterNextStage's announcer queue -- each matching the PDB field's
+ * declared size (2/2/4).  The remaining fields carry PDB names unverified on
+ * GC; verify a displacement against target asm before relying on one. */
+struct audio_data {
+    /* 0x00 */ char bank[16];
+    /* 0x10 */ s16  entersnd;
+    /* 0x12 */ s16  hitsnd;
+    /* 0x14 */ s32  namesnd;
+    /* 0x18 */ char stream[16];
+    /* 0x28 */ s16  nareas;
+    /* 0x2A */ s16  stereo;
+    /* 0x2C */ s16  nparts[8];
+};
+
+/* struct sound_data -- the 24-byte per-event sound record this TU indexes as
+ * `*(u8**)(gWorldData + 44) + idx * 24`.  Four independent confirmations:
+ * the Xbox PDB record `sound_data` (audio.h Id=3271) is exactly 0x18, its
+ * idx/vol/pri offsets and widths (4/2/2 @0x10/0x14/0x16) match every access
+ * here, the owning world record declares `struct sound_data* sounds` at
+ * Offset=0x2c -- i.e. the 44 in the base expression -- and this file's own
+ * reconstruction had already named the two s16s `atten` and `priority`.
+ * Accesses stay on the raw pointer with offsetof-spelled displacements: `e`
+ * is an index-computed base touching three nearby fields, the exact shape
+ * claim.law.multifield-alias-defeats-indexed-addressing warns a typed alias
+ * regresses. */
+struct sound_data {
+    /* 0x00 */ char desc[16];
+    /* 0x10 */ s32  idx;
+    /* 0x14 */ s16  vol;
+    /* 0x16 */ s16  pri;
+};
 
 /* ------------------------------------------------------------------------
  * Front slice of the SOUNDS audio module (Xbox SOUNDS.OBJ), covering the
@@ -94,7 +137,7 @@ extern s32 lbl_80124324[]; /* sound-id lookup table */
 extern s32 lbl_80124330[]; /* announcer-voice id rotation table B */
 extern s32 lbl_80124340[]; /* announcer-voice id rotation table A */
 extern s32 lbl_8028B610[][2]; /* [idx] -> {id1, id2} event-follow pairs */
-extern u8 gPlayers[];  /* player array, stride 0x335C (13148); pos at +84 */
+extern Player gPlayers[4]; /* 0x80275AE0 player records, stride 0x335C */
 extern s32 sVoiceRotIdxA;  /* 0..3 announcer-voice rotation counter */
 extern s32 sVoiceRotIdxB;  /* 0..3 announcer-voice rotation counter */
 extern s32 good_wiz_state; /* <=2 => attract/menu path (announcer allowed) */
@@ -118,7 +161,7 @@ extern f32 sMusicVolPrev;
 extern f32 lbl_8034832C; /* player-slot empty threshold */
 extern f32 sMusicVolScale;
 extern s32 gBossType;
-extern u8* gCurLevel;
+extern level_data* gCurLevel;
 extern u8* gWorldData;
 extern f32 lbl_80348480;
 extern f32 lbl_80348484;
@@ -131,7 +174,7 @@ extern f32 lbl_80348498;
 #pragma opt_propagation off
 int AudioFindPlayerSlot(int pidx, int class_, int type)
 {
-    u8* slot = &gPlayers[pidx * 13148] + 304;
+    u8* slot = (u8*)gPlayers[pidx].powerup;
     f32 value;
     f32 threshold;
     int i;
@@ -314,14 +357,19 @@ void AudioWorldExplosion(int pos)
 void AudioExplodeWall(int pos, int flag)
 {
     if (flag > 0) {
-        int idx = *(s16*)(*(u8**)(gCurLevel + 100) + 18);
+        int idx = gCurLevel->audio->hitsnd;
         if (idx >= 0) {
             u8* e = *(u8**)(gWorldData + 44) + idx * 24;
-            if (*(s32*)(e + 16) >= 0) {
-                int atten = *(s16*)(e + 20) != 0 ? *(s16*)(e + 20) : 224;
-                int priority = *(s16*)(e + 22) != 0 ? *(s16*)(e + 22) : 126;
+            if (*(s32*)(e + offsetof(struct sound_data, idx)) >= 0) {
+                int atten = *(s16*)(e + offsetof(struct sound_data, vol)) != 0
+                                ? *(s16*)(e + offsetof(struct sound_data, vol))
+                                : 224;
+                int priority = *(s16*)(e + offsetof(struct sound_data, pri)) != 0
+                                ? *(s16*)(e + offsetof(struct sound_data, pri))
+                                : 126;
 
-                sndFxPlay3DAtten(*(s32*)(e + 16), pos, atten, priority);
+                sndFxPlay3DAtten(*(s32*)(e + offsetof(struct sound_data, idx)),
+                                 pos, atten, priority);
             }
         }
     } else {
@@ -543,12 +591,12 @@ void AudioBuzzer(void)
 
 void fn_8009D4B0(int pidx)
 {
-    sndFxPlay3D(80, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(80, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009D4F0(int pidx)
 {
-    sndFxPlay3D(89, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(89, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009D530(void)
@@ -558,12 +606,12 @@ void fn_8009D530(void)
 
 void fn_8009D560(int pidx)
 {
-    sndFxPlay3D(87, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(87, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009D5A0(int pidx)
 {
-    sndFxPlay3D(99, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(99, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009D5E0(int pos)
@@ -796,16 +844,18 @@ void fn_8009DB24(int sel, int arg)
         flags = 14;
         break;
     case 5: {
-        int idx = *(s16*)(*(u8**)(gCurLevel + 100) + 18);
+        int idx = gCurLevel->audio->hitsnd;
 
         if (idx >= 0) {
             u8* e = *(u8**)(gWorldData + 44) + idx * 24;
 
-            if (*(s32*)(e + 16) >= 0) {
+            if (*(s32*)(e + offsetof(struct sound_data, idx)) >= 0) {
                 sndFxPlay3DAttenOrdered(
-                    *(s32*)(e + 16), arg,
-                    *(s16*)(e + 22) != 0 ? *(s16*)(e + 22) : 126,
-                    *(s16*)(e + 20) != 0 ? *(s16*)(e + 20) : 224);
+                    *(s32*)(e + offsetof(struct sound_data, idx)), arg,
+                    *(s16*)(e + offsetof(struct sound_data, pri)) != 0
+                        ? *(s16*)(e + offsetof(struct sound_data, pri)) : 126,
+                    *(s16*)(e + offsetof(struct sound_data, vol)) != 0
+                        ? *(s16*)(e + offsetof(struct sound_data, vol)) : 224);
             }
         }
         break;
@@ -958,6 +1008,24 @@ extern char lbl_80114A48[]; /* boss-stream format string pool */
     }
 
 #pragma opt_propagation off
+/* sSpeechNameBuf is only a 0x40-byte sprintf scratch buffer (symbols.txt:
+ * .bss 0x8028B5D0 size 0x40).  Every `speech + 0x4B0..0x6C4` store below
+ * therefore lands OUTSIDE it, in the symbol the linker places next:
+ * sActiveTrackId (.bss 0x8028BA80, size 0x238 = 142 s32) -- 0x8028B5D0 +
+ * 0x4B0 is exactly sActiveTrackId's base.  Layout implied by the accesses:
+ * 45 active-track ids (0x4B0..0x563, matching this file's own "45 entries"
+ * note), then a [12][8] boss-speech id table from element 45 (0x564) with
+ * 0x20-byte rows, indexed `[row][idx]`.
+ *
+ * The base symbol is NOT rewritten to sActiveTrackId: the TARGET relocates
+ * every one of these stores @sSpeechNameBuf(ADDR16_HA/LO) and keeps that
+ * pointer in r30 for the whole function, so per
+ * claim.law.walked-base-symbol-identity sSpeechNameBuf is the correct base
+ * and re-basing would emit a different relocation.  Only the displacement
+ * constants are named. */
+#define SPEECH_ACTIVETRACK 0x4B0            /* sActiveTrackId - sSpeechNameBuf */
+#define SPEECH_BOSSROW(n)  (0x564 + (n) * 0x20) /* sActiveTrackId[45] + row n */
+
 void AudioSetupBossStreams(register int idx, register char* name)
 {
     char bufA[32]; /* close-variant stream name */
@@ -976,7 +1044,7 @@ void AudioSetupBossStreams(register int idx, register char* name)
     if (name == NULL || *name == 0) {
         idx = -1;
     }
-    *(s32*)(speech + 0x4B0 + sel * 4) = idx;
+    *(s32*)(speech + SPEECH_ACTIVETRACK + sel * 4) = idx;
     mode = 0;
 
     switch (sel) {
@@ -1042,74 +1110,74 @@ void AudioSetupBossStreams(register int idx, register char* name)
 
     sprintf(speech, formats + 392, bufA, suffix);
     BossNameFixup(speech);
-    *(s32*)(speech + 0x564 + idx * 4) = AudioFindSound(speech, -1, 1);
+    *(s32*)(speech + SPEECH_BOSSROW(0) + idx * 4) = AudioFindSound(speech, -1, 1);
 
     sprintf(speech, formats + 392, bufB, suffix);
     BossNameFixup(speech);
-    *(s32*)(speech + 0x584 + idx * 4) = AudioFindSound(speech, -1, 1);
+    *(s32*)(speech + SPEECH_BOSSROW(1) + idx * 4) = AudioFindSound(speech, -1, 1);
 
     sprintf(speech, formats + 404, bufA, suffix);
     BossNameFixup(speech);
-    *(s32*)(speech + 0x5A4 + idx * 4) = AudioFindSound(speech, -1, 1);
+    *(s32*)(speech + SPEECH_BOSSROW(2) + idx * 4) = AudioFindSound(speech, -1, 1);
 
     sprintf(speech, formats + 404, bufB, suffix);
     BossNameFixup(speech);
-    *(s32*)(speech + 0x5C4 + idx * 4) = AudioFindSound(speech, -1, 1);
+    *(s32*)(speech + SPEECH_BOSSROW(3) + idx * 4) = AudioFindSound(speech, -1, 1);
 
     if (nvar < 2) {
         sprintf(speech, formats + 416, bufA);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x5E4 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(4) + idx * 4) = AudioFindSound(speech, -1, 1);
 
         sprintf(speech, formats + 432, bufA);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x604 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(5) + idx * 4) = AudioFindSound(speech, -1, 1);
     }
 
     if (nvar != 0) {
         sprintf(speech, formats + 444, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x624 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(6) + idx * 4) = AudioFindSound(speech, -1, 1);
 
         sprintf(speech, formats + 460, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x644 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(7) + idx * 4) = AudioFindSound(speech, -1, 1);
 
         sprintf(speech, formats + 476, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x664 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(8) + idx * 4) = AudioFindSound(speech, -1, 1);
 
         sprintf(speech, formats + 488, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x684 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(9) + idx * 4) = AudioFindSound(speech, -1, 1);
     } else {
         sprintf(speech, formats + 416, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x624 + idx * 4) = AudioFindSound(speech, -1, 1);
-        *(s32*)(speech + 0x644 + idx * 4) = *(s32*)(speech + 0x624 + idx * 4);
+        *(s32*)(speech + SPEECH_BOSSROW(6) + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(7) + idx * 4) = *(s32*)(speech + SPEECH_BOSSROW(6) + idx * 4);
 
         sprintf(speech, formats + 432, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x664 + idx * 4) = AudioFindSound(speech, -1, 1);
-        *(s32*)(speech + 0x684 + idx * 4) = *(s32*)(speech + 0x664 + idx * 4);
+        *(s32*)(speech + SPEECH_BOSSROW(8) + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(9) + idx * 4) = *(s32*)(speech + SPEECH_BOSSROW(8) + idx * 4);
     }
 
     if (mode == 2) {
         sprintf(speech, formats + 500, bufA);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x6A4 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(10) + idx * 4) = AudioFindSound(speech, -1, 1);
 
         sprintf(speech, formats + 500, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x6C4 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(11) + idx * 4) = AudioFindSound(speech, -1, 1);
     } else if (mode == 1) {
         sprintf(speech, formats + 512, bufA);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x6A4 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(10) + idx * 4) = AudioFindSound(speech, -1, 1);
 
         sprintf(speech, formats + 512, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x6C4 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(11) + idx * 4) = AudioFindSound(speech, -1, 1);
     }
 }
 #pragma opt_propagation reset
@@ -1186,37 +1254,37 @@ void fn_8009EF4C(int pos)
 
 void AudioPlayerXray(int pidx)
 {
-    sndFxPlay3D(81, (int)(&gPlayers[pidx * 13148] + 84), 127, 60);
+    sndFxPlay3D(81, (int)gPlayers[pidx].col_pos, 127, 60);
 }
 
 void fn_8009F158(int pidx)
 {
-    sndFxPlay3D(82, (int)(&gPlayers[pidx * 13148] + 84), 224, 60);
+    sndFxPlay3D(82, (int)gPlayers[pidx].col_pos, 224, 60);
 }
 
 void fn_8009F390(int pidx)
 {
-    sndFxPlay3D(5, (int)(&gPlayers[pidx * 13148] + 100), 127, 19);
+    sndFxPlay3D(5, (int)gPlayers[pidx].effectpos, 127, 19);
 }
 
 void fn_8009F3D0(int pidx)
 {
-    sndFxPlay3D(93, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(93, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009F410(int pidx)
 {
-    sndFxPlay3D(92, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(92, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009F450(int pidx)
 {
-    sndFxPlay3D(91, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(91, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009F490(int pidx)
 {
-    sndFxPlay3D(90, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(90, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009EF7C(int a, int pos)
@@ -1231,7 +1299,7 @@ void fn_8009EFCC(int pidx, int a, int b)
 {
     int id = lbl_801239DC[a][b];
 
-    sndFxPlay3DAtten(id, (int)(&gPlayers[pidx * 13148] + 68), 127, 125);
+    sndFxPlay3DAtten(id, (int)gPlayers[pidx].pos, 127, 125);
 }
 
 void AudioPotion(int a, int pos, int c)
@@ -1250,26 +1318,26 @@ void fn_8009F340(int pos)
 
 void AudioPlayerDies(int pidx)
 {
-    u8* player = &gPlayers[pidx * 13148];
+    Player* player = &gPlayers[pidx];
 
-    if (*(int*)(player + 232) == 1) {
+    if (player->state == 1) {
         int id;
 
-        sndFxPlay3D(1, (int)(player + 68), 127, 8);
-        id = lbl_8012380C[*(int*)(player + 8)];
-        if (*(int*)(player + 292) & 0x400) {
+        sndFxPlay3D(1, (int)player->pos, 127, 8);
+        id = lbl_8012380C[player->char_type];
+        if (player->flags & 0x400) {
             id = 98;
         }
-        sndFxPlay3D(id, (int)(player + 68), 224, 7);
+        sndFxPlay3D(id, (int)player->pos, 224, 7);
     }
 }
 
 void AudioPlayerHit(int pidx, int a)
 {
-    u8* player = &gPlayers[pidx * 13148];
+    Player* player = &gPlayers[pidx];
 
-    if (*(int*)(player + 232) == 1) {
-        sndFxPlay3D(lbl_801237BC[a][pidx], (int)(player + 68), 127, 74);
+    if (player->state == 1) {
+        sndFxPlay3D(lbl_801237BC[a][pidx], (int)player->pos, 127, 74);
     }
 }
 
@@ -1328,8 +1396,8 @@ void AudioMapDot(void)
 
 void AudioEnterNextStage(void)
 {
-    u8* level = *(u8**)(gCurLevel + 100);
-    int idx = *(s16*)(level + 16);
+    struct audio_data* level = gCurLevel->audio;
+    int idx = level->entersnd;
     u8* entry;
     int entry_id;
 
@@ -1337,7 +1405,7 @@ void AudioEnterNextStage(void)
         goto invalid_entry;
     }
     entry = *(u8**)(gWorldData + 44) + idx * 24;
-    entry_id = *(int*)(entry + 16);
+    entry_id = *(int*)(entry + offsetof(struct sound_data, idx));
     switch (entry_id) {
     case 0:
         goto valid_entry;
@@ -1351,15 +1419,15 @@ invalid_entry:
     entry = 0;
 valid_entry:
     if (entry != 0) {
-        if (*(int*)(level + 20) >= 0) {
-            int sound_id = *(int*)(entry + 16);
+        if (level->namesnd >= 0) {
+            int sound_id = *(int*)(entry + offsetof(struct sound_data, idx));
 
             if (good_wiz_state <= 2) {
                 sndFxQueAddEx(1, sound_id, lbl_80348480, lbl_80348480, 224,
                               127, 2);
             }
             {
-                int next_id = *(int*)(*(u8**)(gCurLevel + 100) + 20);
+                int next_id = gCurLevel->audio->namesnd;
 
                 if (good_wiz_state <= 2) {
                     sndFxQueAddEx(1, next_id, lbl_80348480, lbl_80348480, 224,
@@ -1445,9 +1513,14 @@ void AudioPlayerTurbo(int pidx, int sel, int arg3)
     int slot;
     int flags;
 
-    flags = *(int*)(gPlayers + pidx * 13148 + 292);
-    f8 = *(int*)(gPlayers + pidx * 13148 + 8);
-    slot = (int)(gPlayers + pidx * 13148 + 68);
+    /* Three nearby fields off one index-computed base: a typed
+     * `gPlayers[pidx].field` form regressed this function (real 0 -> 14,
+     * schedule-class) per claim.law.multifield-alias-defeats-indexed-
+     * addressing.  The law's verified counter-form is kept here -- the raw
+     * single additive expression with offsetof()-spelled displacements. */
+    flags = *(int*)((u8*)gPlayers + pidx * 13148 + offsetof(Player, flags));
+    f8 = *(int*)((u8*)gPlayers + pidx * 13148 + offsetof(Player, char_type));
+    slot = (int)((u8*)gPlayers + pidx * 13148 + offsetof(Player, pos));
 
     if (flags & 0x400) {
         sndFxPlay3D(95, slot, 224, 16);
@@ -1474,26 +1547,26 @@ void AudioPlayerEatFood(int pidx, int foodType)
         s32 snd_eat[8][4];
         s32 snd_eat_default[1];
     } AudioFoodSoundIds;
-    u8* player = &gPlayers[pidx * 13148];
-    u8* p = player;
+    Player* player = &gPlayers[pidx];
+    Player* p = player;
     AudioFoodSoundIds* t = (AudioFoodSoundIds*)lbl_801232C8;
 
     if (RandInt(4) == 0) {
-        if (!(*(int*)(p + 292) & 0x400)) {
-            if (t->snd_eat[*(int*)(p + 8)][foodType] >= 0) {
-                int pan = AudioAng((int)(p + 68));
+        if (!(p->flags & 0x400)) {
+            if (t->snd_eat[p->char_type][foodType] >= 0) {
+                int pan = AudioAng((int)p->pos);
 
-                sndFxQueAdd(t->snd_eat[*(int*)(p + 8)][foodType],
+                sndFxQueAdd(t->snd_eat[p->char_type][foodType],
                             -1.0f, 1.0f, 192, pan, 66);
             }
         }
     } else {
         int id;
 
-        if ((id = t->snd_eat_default[*(int*)(p + 8)]) >= 0) {
-            int pan = AudioAng((int)(p + 68));
+        if ((id = t->snd_eat_default[p->char_type]) >= 0) {
+            int pan = AudioAng((int)p->pos);
 
-            if (*(int*)(p + 292) & 0x400) {
+            if (p->flags & 0x400) {
                 id = 97;
             }
             sndFxQueAdd(id, -1.0f, 1.0f, 192, pan, 66);
@@ -1503,11 +1576,18 @@ void AudioPlayerEatFood(int pidx, int foodType)
 
 void AudioPlayerEatSFX(int pidx)
 {
-    int f284;
+    /* NOTE: this function's compiled body is pinned by a WebFrank rule
+     * (config/GUNE5D/webfrank.json), so its source SHAPE must not change --
+     * the byte-offset walk below is deliberately left in its original form
+     * rather than converted to Player member access.  Only the base
+     * derivation is respelled for the retyped gPlayers declaration;
+     * `(u8*)gPlayers + playerOffset` is the same arithmetic the previous
+     * `&gPlayers[playerOffset]` performed when gPlayers was `u8[]`. */
     int playerOffset = pidx * 13148;
+    int f284;
     u8* player;
 
-    player = &gPlayers[playerOffset];
+    player = (u8*)gPlayers + playerOffset;
     f284 = *(int*)(player + 284);
 
     if (f284 & 0x580000) {
@@ -1527,7 +1607,7 @@ void AudioPlayerEatSFX(int pidx)
             sndFxPlay3DAtten(67, (int)(player + 68), 127, 40);
             break;
         default:
-            player = &gPlayers[playerOffset];
+            player = (u8*)gPlayers + playerOffset;
             sndFxPlay3DAtten(lbl_801236A4[*(int*)(player + 8)],
                             (int)(player + 68), 127, 42);
             break;
@@ -1543,26 +1623,26 @@ void AudioPlayerEatSFX(int pidx)
 
 void fn_8009F748(int pidx, int sourcePlayer)
 {
-    u8* player = &gPlayers[pidx * 13148];
+    Player* player = &gPlayers[pidx];
 
-    if (!(*(int*)(player + 292) & 0x400)) {
-        if (lbl_80123644[*(int*)(player + 8)] >= 0) {
-            int pan = AudioAng((int)(player + 68));
+    if (!(player->flags & 0x400)) {
+        if (lbl_80123644[player->char_type] >= 0) {
+            int pan = AudioAng((int)player->pos);
 
-            sndFxQueAdd(lbl_80123644[*(int*)(player + 8)], -1.0f, 1.0f, 192, pan, 110);
+            sndFxQueAdd(lbl_80123644[player->char_type], -1.0f, 1.0f, 192, pan, 110);
         }
     }
 }
 
 void AudioPlayerSeverePain(int pidx)
 {
-    u8* player = &gPlayers[pidx * 13148];
+    Player* player = &gPlayers[pidx];
     int id;
 
-    if ((id = lbl_80123624[*(int*)(player + 8)]) >= 0) {
-        int pan = AudioAng((int)(player + 68));
+    if ((id = lbl_80123624[player->char_type]) >= 0) {
+        int pan = AudioAng((int)player->pos);
 
-        if (*(int*)(player + 292) & 0x400) {
+        if (player->flags & 0x400) {
             id = 98;
         }
         sndFxQueAdd(id, -1.0f, 1.0f, 192, pan, 66);
@@ -1571,17 +1651,17 @@ void AudioPlayerSeverePain(int pidx)
 
 void AudioPlayerPoison(int pidx)
 {
-    u8* player = &gPlayers[pidx * 13148];
+    Player* player = &gPlayers[pidx];
 
-    if (*(int*)(player + 232) == 1) {
-        if (!(*(int*)(player + 288) & 0x10000)) {
-            int id = lbl_80123564[*(int*)(player + 8)];
+    if (player->state == 1) {
+        if (!(player->shield_flags & 0x10000)) {
+            int id = lbl_80123564[player->char_type];
 
             if (id >= 0) {
-                if (*(int*)(player + 292) & 0x400) {
+                if (player->flags & 0x400) {
                     id = 96;
                 }
-                sndFxPlay3D(id, (int)(player + 68), 224, 62);
+                sndFxPlay3D(id, (int)player->pos, 224, 62);
             }
         }
     }
@@ -1593,12 +1673,12 @@ typedef struct AudioPlayerRecord {
 
 void AudioHeartBeat(int pidx)
 {
-    u8* player = gPlayers;
+    Player* player = gPlayers;
     f32 v;
     int track = lbl_801232C8[pidx];
 
-    player += pidx * 13148;
-    v = *(f32*)(player + 7860);
+    player += pidx;
+    v = player->health;
 
     if (v <= 10.0) {
         sndFxPlayEx(0, track, 202, 9);
@@ -1613,16 +1693,16 @@ void AudioHeartBeat(int pidx)
 #pragma opt_propagation off
 void AudioPlayerPain(int pidx)
 {
-    u8* player = &gPlayers[pidx * 13148];
+    Player* player = &gPlayers[pidx];
 
-    if (*(int*)(player + 232) == 1) {
-        int pan = AudioAng((int)(player + 68));
+    if (player->state == 1) {
+        int pan = AudioAng((int)player->pos);
         int r = RandInt(4);
         u32 randomOffset = (u32)r << 2;
         int id = *(int*)((u8*)lbl_801234E4 +
-                         (*(int*)(player + 8) << 4) + randomOffset);
+                         (player->char_type << 4) + randomOffset);
 
-        if (*(int*)(player + 292) & 0x400) {
+        if (player->flags & 0x400) {
             id = 96;
         }
         sndFxQueAdd(id, -1.0f, 1.0f, 224, pan, 100);
@@ -1672,8 +1752,7 @@ void fn_8009FFF4(int sel, int pidx)
 
 void AudioTurboDefense(int pidx)
 {
-    int offset = pidx * 13148;
-    int f292 = *(int*)((u32)gPlayers + offset + 292);
+    int f292 = gPlayers[pidx].flags;
     int id;
     int pos;
 
@@ -1686,7 +1765,7 @@ void AudioTurboDefense(int pidx)
     } else {
         return;
     }
-    pos = (u32)gPlayers + offset + 84;
+    pos = (u32)gPlayers[pidx].col_pos;
     sndFxPlay3D(id, pos, 224, 40);
 }
 

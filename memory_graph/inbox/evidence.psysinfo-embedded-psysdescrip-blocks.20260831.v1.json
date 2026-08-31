@@ -1,0 +1,11 @@
+{
+  "claim": "claim.structdraft-base-alias-is-not-a-record.20260831.v1",
+  "detail": "Two PsysDescrip (include/game/psys.h:160, declared size 0xE8) scratch descriptors live inside the psysInfo block at +3108 and +3340, exactly 0xE8 apart, and are filled in place then handed to MBNewPsysDescrip. Base proof: fnasm.py on the TARGET shows MBPsysFirework materializing r9 from @psysInfo(ADDR16_HA)/@psysInfo(ADDR16_LO) and passing `addi r6,r9,3108` as the 4th argument, and MBPsysFlame doing the same into r31 with 3340 -- so psysInfo is the correct base symbol despite symbols.txt recording its size as only 0x40. Field proof, all 22 sites matching PsysDescrip offset AND access width: firework writes stb@3117/3118 = notex_rgb@0x09/notex_a@0x0A, stw@3148 = max_particles@0x28, stfs@3252 = p_speed@0x90, stw@3308/3312/3316/3320 = p_rgba[0..3]@0xC8..0xD4, stfs@3324/3328/3332/3336 = p_width[0..3]@0xD8..0xE4; flame writes stfs@3400/3404 = e_lifefade[0..1]@0x3C/0x40, 3408/3412 = p_lifefade[0..1]@0x44/0x48, 3428/3432/3436 = e_dir[0..2]@0x58..0x60, 3444/3448/3452 = e_vol[0..2]@0x68..0x70. Semantics corroborate independently: the firework's m0/m1/m1/m2 arguments land in the RGBA quad and sc0/sc1/sc1/sc2 in the width quad, and the flame normalizes a vector via mbInvSqrtLookup before storing it into e_dir[3]. All 33 raw sites converted to offsetof(PsysDescrip, field) on the unchanged raw pi pointer; defake_gate.py GATE OK byte-identical on the first attempt for both functions.",
+  "evidence_kind": "disasm",
+  "id": "evidence.psysinfo-embedded-psysdescrip-blocks.20260831.v1",
+  "kind": "evidence",
+  "locator": "python tools/gdl/fnasm.py game/mb/mb_particle.c MBPsysFirework; src/game/mb/mb_particle.c:3075-3200",
+  "recorded_at": "2026-08-31T02:17:17Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

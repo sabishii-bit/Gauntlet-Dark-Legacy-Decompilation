@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "about_tool": "tool:structdraft (tools/gdl/structdraft.py)",
+    "tags": [
+      "defake",
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.structdraft-scanner-defects-float-literals-and-silent-multirecord.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:16:58Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "Two scanner defects found field-testing structdraft on game/mb/mb_particle.c, one fatal and one silent. (1) FATAL CRASH on any TU containing a scientific-notation float literal next to a multiply. The stride scanner's multiplicand regex `\\b(0x[0-9A-Fa-f]+|\\d+)\\s*\\*` has no float guard, so `3.051850947599719e-05 * (f64)(f32)(pbRand() & 0x7fff)` -- the standard 2^-15 rand normalization, used 16 times in this TU -- matched the EXPONENT digits '05', which were then handed to `int(tok, 0)`. Python's base-0 rejects a leading-zero decimal, so the tool died with `ValueError: invalid literal for int() with base 0: '05'` before producing any output, making it unusable on the whole TU. Two independent bugs on one line: the regex should not match inside a float literal, and `int(x, 0)` must never be used on a C integer literal because C permits leading zeros where Python's base-0 does not (the shared `as_int` helper had the same latent flaw). Fixed at tools/gdl/structdraft.py by blanking float literals out of the expression before the stride scan (new FLOAT_LIT_RE) and making `as_int` parse base-16/base-10 explicitly; committed separately as 'Fix structdraft crash on float-exponent literals in stride scan' so it can be taken or dropped independently of the TU work. (2) SILENT MULTI-RECORD MISS. The tool's own registered constraint says a MULTI-RECORD CLUSTER warning means the base covers two different records and must be split with --by-function before the draft is trusted -- but the warning is computed as `span >= 2 * eff` where `eff = rec_size or top_stride`, so when there is NO stride evidence at all `eff` is 0 and the warning can never fire. That is precisely the case for the widest, least trustworthy clusters: mb_particle's 'pi' cluster spans 0xD80 bytes with zero stride evidence, genuinely contains TWO adjacent PsysDescrip records, and was drafted as one struct with no warning whatsoever. The guard is inverted -- absent stride evidence should RAISE suspicion, not suppress it. Recommended: warn whenever rec_size is None and the observed span exceeds a plausible single-record threshold, and always warn when disjoint offset ranges are touched by disjoint function sets (in 'pi', offset 0x0 is touched 43x by MBInitPsys/MBDrawPsys while 0xC2D..0xD7C is touched only by MBPsysFirework/MBPsysFlame -- a clean partition that was visible in the tool's own output and is the signature of the two-record case)."
+}
