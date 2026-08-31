@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "sda-global",
+      "relocation",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.pbwindow-flip-sdata2-pool-order-blocker.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T04:39:06Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_window",
+  "valid_from": "2026-08-31",
+  "value": "Flipping game/pb/pb_window.c to Matching is blocked on DATA, independently of the two remaining text residuals, and the blocker is now fully characterized. (1) SPLIT COVERAGE: config/GUNE5D/splits.txt gives game/pb/pb_window.c only extab, extabindex and .text (0x800C8294-0x800C9B08). Its read-only data is unassigned and still comes from generated asm: the constant pool is build/GUNE5D/asm/auto_11_80349018_sdata2.s, .sdata2 0x80349018-0x80349088 (0x70, 20 entries), and the two ErrorPrintf/bulletproof_printf format strings live in an unassigned .rodata block. A flip must first hand both ranges to the unit, or the object's own pool and strings duplicate the asm blocks and shift every downstream address. (2) POOL ORDER: our object already emits EXACTLY the right 20 constants - value-for-value identical to the target block (f0, f1, f90, f2047, d0, f4095, f65536, d0.5, d1, d4503601774854144, f2, f0.5, d0.008726646261111111, f-2, f448, f-1, f128, d3, d0.31830988614222805, d0.15915494307111402) - so nothing is missing or extra and no dead-stripped function is contributing entries. But MWCC lays the pool out in creation order, and our creation order differs: ours is f0, d0.5, d1, d0, f1, dmagic, f0.5, f2, d0.0087, f-2, f448, f-1, f128, d3, d0.3183, d0.1591, f4095, f90, f2047, f65536. That costs two 4-byte alignment pads (at pool 0x04 and 0x24) and makes our .sdata2 0x78 instead of 0x70 - the target's order happens to pack with ZERO padding. (3) WHERE THE ORDER COMES FROM: in our build the first five entries are created by debugScissor, whose literals in source order are 0.0f (the `if (gWinDebug->zoom)` truth test), then 0.5, 1.0, 0.0 as doubles, then 1.0f - exactly matching pool slots @37-@41 in the object symbol table, which confirms creation order = first-use order in source-then-function order. The target's first seven (f0, f1, f90, f2047, d0, f4095, f65536) are instead the literal set and order of the MBSetCurrentWindow / pbInitWindow window-reset body plus MBWindowClip's `if (w == 0.0) w = 4095.0f` guard, with MBWindowClip's own two constants interleaved BETWEEN the 2047 and the 65536 of the `MBWindowClip(2047.0f, 2047.0f, 1.0f, 65536.0f)` call. So in the original TU those functions are compiled before debugScissor while .text still links in our current order. NEXT ACTION for whoever resumes the flip: treat the pool order as the ground truth for the file's function/definition order (it is a stronger constraint than the .text order, which is already satisfied), work out the arrangement that reproduces f0, f1, f90, f2047, d0, f4095, f65536, d0.5, ... and only then extend splits.txt and run tools/gdl/finish_tu.py. Verified 2026-08-31 with powerpc-eabi-objdump -t/-s on build/GUNE5D/src/game/pb/pb_window.o against build/GUNE5D/asm/auto_11_80349018_sdata2.s."
+}
