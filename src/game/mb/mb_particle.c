@@ -85,16 +85,8 @@ extern f32   lbl_803451DC;   /* screen cull min y */
 extern f32   lbl_803451E0;   /* screen cull max y */
 extern f32   lbl_803451E4;   /* min quad width */
 extern f32   lbl_803451E8;   /* min quad height */
-extern f32 lbl_80349150;
 extern const f32 lbl_8034915C;
-extern f32 lbl_80349158;
-extern f32 lbl_80349160;
-extern const f64 lbl_80349170;
-extern f32 lbl_80349178;
-extern f32 lbl_8034917C;
-extern f32 lbl_80349180;
 extern const f32 lbl_80349184;
-extern f32 lbl_80349188;
 extern s32 lbl_803451C4;
 extern s32 lbl_803451C8;
 extern s32 lbl_803451CC;
@@ -198,15 +190,8 @@ static s32  getNewDirSingle2(void);
 static s32  getNewDirSingle1(Psys* p, MBObject* node);
 static void getOrthoVecs(f32* a, f32* b, f32* dir);
 static void getCurrentDir(Psys* p, MBObject* node, f32* out);
-extern const f64 lbl_803491C8;
-extern const f64 lbl_803491D0;
-extern const f32 lbl_803491D8;
-extern const f32 lbl_803491DC;
-extern const f32 lbl_803491E0;
 extern f32 lbl_80349154;
-extern const f64 lbl_80349168;
 extern const f64 lbl_803491A0;
-extern const f64 lbl_803491F8;
 static f32  getSinCos(f32 ang, f32* sinOut);
 static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size);
 static void setupNewPMode_800CDCE4(Psys* p);
@@ -894,7 +879,7 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
     } PSlot;
     u8* pi = (u8*)psysInfo;
     Psys* p = (Psys*)node->data.psys;
-    f32 rate = lbl_80349150;
+    f32 rate = 1000.0f;
     u32 dt;
     u32 age;
     u32 ageTmp;
@@ -956,8 +941,8 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
         p->p_oldest_age = 0;
         p->p_newest_age = 0;
         p->p_newest_ptr = (u16*)((u8*)p->p_lst + p->p_max * 2 - 2);
-        p->p_save_cnt = lbl_80349154;
-        p->nearest_z = lbl_80349158;
+        p->p_save_cnt = 0.0f;
+        p->nearest_z = 30.0f;
         if (p->p_lst == NULL) {
             s32* h = listFindHandle((s32)p,
                                     (s32)(pi + offsetof(PsysInfoCoreView, runtime)));
@@ -977,11 +962,11 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
         if (dt == 0) {
             dt = 1;
             age += 1;
-            agef = agef + lbl_8034915C;
+            agef = agef + 1.0f;
         }
         p->e_phase = 2;
         if (p->flags & 1) {
-            rate = lbl_80349160;
+            rate = 100000.0f;
             dt = 1;
             p->e_phase = 6;
             age = 1;
@@ -1018,7 +1003,7 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
         }
         p->e_phase = 6;
     case 6:
-        p->p_save_cnt = rate = lbl_80349154;
+        p->p_save_cnt = rate = 0.0f;
         if (p->p_oldest_ptr == NULL) {
     case 7:
         {
@@ -1043,16 +1028,16 @@ s32 MBDrawPsys(MBObject* node, void* arg) {
     }
 phaseD:
     if (p->e_isvis == 0 || (node->flags & 0x200000)) {
-        rate = lbl_80349154;
+        rate = 0.0f;
     }
     p->e_age = age;
     ringbase = p->p_lst;
     ringend = ringbase + p->p_max;
-    if (rate > lbl_80349154) {
+    if (rate > 0.0f) {
         f32 rr = p->e_rate_rand;
-        if (rr > lbl_80349154) {
+        if (rr > 0.0f) {
             u32 r = pbRand() & 0x7FFF;
-            rate = (f32)(rate * (rr * (lbl_80349170 * (f32)r - 1.0) + 1.0));
+            rate = (f32)(rate * (rr * (6.103701895199438e-05 * (f32)r - 1.0) + 1.0));
         }
     }
     {
@@ -1120,12 +1105,12 @@ phaseD:
     emitStart = (newest == ringend - 1) ? ringbase : newest + 1;
     cursor = emitStart;
     if (cursor == oldest) {
-        p->p_save_cnt = lbl_80349154;
+        p->p_save_cnt = 0.0f;
         p->p_newest_age = p->p_newest_age + dt;
     } else {
         f32 startBudget = budget;
         u8 unused[8];
-        f32 zero = lbl_80349154;
+        f32 zero = 0.0f;
         while (budget > zero) {
             s32 posIdx;
             s32 dirIdx;
@@ -1156,7 +1141,7 @@ phaseD:
                 stop = oldest;
             }
         }
-        p->p_save_cnt = (budget > lbl_80349154) ? lbl_80349154 : budget;
+        p->p_save_cnt = (budget > 0.0f) ? 0.0f : budget;
         if (budget == startBudget) {
             p->p_newest_age = p->p_newest_age + dt;
         } else {
@@ -1175,7 +1160,7 @@ phaseD:
             am16 = agemask & 0xFFFF;
             while (1) {
                 scan -= 1;
-                acc = acc - lbl_8034915C;
+                acc = acc - 1.0f;
                 if (scan == limit) {
                     if (scan == emitStart) {
                         break;
@@ -1186,13 +1171,13 @@ phaseD:
                         break;
                     }
                 }
-                if (acc <= lbl_80349154) {
+                if (acc <= 0.0f) {
                     s32 n = 0;
                     do {
                         acc = acc + rate;
                         n += 1;
                         filled += 1;
-                    } while (acc <= lbl_80349154 && n != (s32)am16);
+                    } while (acc <= 0.0f && n != (s32)am16);
                     *scan = *scan | n;
                 }
             }
@@ -1282,18 +1267,18 @@ phaseD:
             lbl_803451CC = *(s32*)(*(u8**)(g + 56) + 12) - 256;
             lbl_803451D0 = *(s32*)(*(u8**)(g + 56) + 12) +
                            *(s32*)(*(u8**)(g + 56) + 20) - 256;
-            lbl_803451EC = lbl_80349178 /
-                           ((f32)(*(s32*)(*(u8**)(g + 56) + 16)) * lbl_8034917C *
-                            lbl_80349180);
-            lbl_803451E4 = lbl_803451EC * lbl_8034917C;
-            lbl_803451D4 = lbl_80349184 - lbl_803451EC;
-            lbl_803451D8 = lbl_8034915C + lbl_803451EC;
-            lbl_803451F0 = lbl_80349178 /
-                           ((f32)(*(s32*)(*(u8**)(g + 56) + 20)) * lbl_8034917C *
-                            lbl_80349180);
-            lbl_803451E8 = lbl_803451F0 * lbl_8034917C;
-            lbl_803451DC = lbl_80349184 - lbl_803451F0;
-            lbl_803451E0 = lbl_8034915C + lbl_803451F0;
+            lbl_803451EC = 16.0f /
+                           ((f32)(*(s32*)(*(u8**)(g + 56) + 16)) * 0.0625f *
+                            0.5f);
+            lbl_803451E4 = lbl_803451EC * 0.0625f;
+            lbl_803451D4 = -1.0f - lbl_803451EC;
+            lbl_803451D8 = 1.0f + lbl_803451EC;
+            lbl_803451F0 = 16.0f /
+                           ((f32)(*(s32*)(*(u8**)(g + 56) + 20)) * 0.0625f *
+                            0.5f);
+            lbl_803451E8 = lbl_803451F0 * 0.0625f;
+            lbl_803451DC = -1.0f - lbl_803451F0;
+            lbl_803451E0 = 1.0f + lbl_803451F0;
         }
         p->p_nactive = 0;
         if (oldest != NULL) {
@@ -1305,7 +1290,7 @@ phaseD:
                 if (page >= plf) {
                     PSlot* sl = &slots[4];
                     s32* src = (s32*)&p->p_parms[4];
-                    plf = lbl_80349188;
+                    plf = 65536.0f;
                     cmask = 0;
                     list = NULL;
                     do {
@@ -1328,7 +1313,7 @@ phaseD:
                             ((s32)(p->p_parms[3].k.fade_value) << 24);
                 }
                 ppfn(p, pos, p->init_dir_lst[di], p->init_pos_lst[pIdx], page);
-                pos[3] = lbl_8034915C;
+                pos[3] = 1.0f;
                 SetMultiPassTextureParams(0);
                 SetVertexFormat(2);
                 SetCullMode(0);
@@ -1432,9 +1417,9 @@ static void setupParms(Psys* p) {
     }
 
     if (p->e_fade == 0) {
-        fadeRate = lbl_80349154;
+        fadeRate = 0.0f;
     } else {
-        fadeRate = (f32)(lbl_80349168 / (f64)p->e_fade);
+        fadeRate = (f32)(1.0 / (f64)p->e_fade);
     }
     emitterFadeRate = fadeRate;
 
@@ -1442,12 +1427,12 @@ static void setupParms(Psys* p) {
     lifeEnd = p->e_rate.i.life_end;
     fadeStart = p->e_rate.i.fade_start;
     fadeEnd = p->e_rate.i.fade_end;
-    emitterLifeRate = (f32)(lbl_80349168 / (f64)p->e_life);
+    emitterLifeRate = (f32)(1.0 / (f64)p->e_life);
     fadeProduct = (f32)p->e_life * emitterFadeRate;
     p->e_rate.o.life_start = lifeStart;
     p->e_rate.o.life_slope = emitterLifeRate * (lifeEnd - lifeStart);
 
-    if (lbl_803491F8 == emitterFadeRate) {
+    if (0.0 == emitterFadeRate) {
         p->e_rate.o.fade_start = fadeStart;
         p->e_rate.o.fade_slope = 0.0f;
     } else {
@@ -1462,7 +1447,7 @@ static void setupParms(Psys* p) {
     fadeStart = fadeStart > maxWidth ? fadeStart : maxWidth;
     fadeEnd = p->p_parms[4].i.fade_end;
     fadeEnd = fadeEnd > fadeStart ? fadeEnd : fadeStart;
-    p->max_width = (f32)(lbl_803491A0 * fadeEnd);
+    p->max_width = (f32)(0.5 * fadeEnd);
 
     {
         f32 pLifeStart;
@@ -1478,11 +1463,11 @@ static void setupParms(Psys* p) {
         }
 
         if (p->p_fade == 0) {
-            pFadeRate = lbl_80349154;
+            pFadeRate = 0.0f;
         } else {
-            pFadeRate = (f32)(lbl_80349168 / (f64)p->p_fade);
+            pFadeRate = (f32)(1.0 / (f64)p->p_fade);
         }
-        pLifeRate = (f32)(lbl_80349168 / (f64)p->p_life);
+        pLifeRate = (f32)(1.0 / (f64)p->p_life);
         pFadeProduct = (f32)p->p_life * pFadeRate;
 
         parm = &p->p_parms[5];
@@ -1492,7 +1477,7 @@ static void setupParms(Psys* p) {
             pFadeStart = parm->i.fade_start;
             pFadeEnd = parm->i.fade_end;
 
-            if (lbl_803491F8 == pLifeRate || pLifeStart == pLifeEnd) {
+            if (0.0 == pLifeRate || pLifeStart == pLifeEnd) {
                 parm->o.life_start = pLifeStart;
                 parm->k.life_anim = 0;
             } else {
@@ -1500,7 +1485,7 @@ static void setupParms(Psys* p) {
                 parm->o.life_slope = pLifeRate * (pLifeEnd - pLifeStart);
             }
 
-            if (lbl_803491F8 == pFadeRate || pFadeStart == pFadeEnd) {
+            if (0.0 == pFadeRate || pFadeStart == pFadeEnd) {
                 parm->o.fade_start = pFadeStart;
                 parm->k.fade_anim = 0;
             } else {
@@ -2026,7 +2011,6 @@ typedef struct WorldPsys {
     /* 0xB8 */ f32 e_delay;
 } WorldPsys;
 
-extern const f64 lbl_80349260;   /* 1/255 double */
 
 static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) {
     WorldPsys* wp = (WorldPsys*)wpd;
@@ -2146,10 +2130,10 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         Psys* q;
         /* red (lane 16) */
         q = (Psys*)node->data.psys;
-        t3 = (f32)(lbl_80349260 * (f32)(wp->rgba[3] >> 16 & 0xff));
-        t2 = (f32)(lbl_80349260 * (f32)(wp->rgba[2] >> 16 & 0xff));
-        t1 = (f32)(lbl_80349260 * (f32)(wp->rgba[1] >> 16 & 0xff));
-        t0 = (f32)(lbl_80349260 * (f32)(wp->rgba[0] >> 16 & 0xff));
+        t3 = (f32)(0.00392156862745098 * (f32)(wp->rgba[3] >> 16 & 0xff));
+        t2 = (f32)(0.00392156862745098 * (f32)(wp->rgba[2] >> 16 & 0xff));
+        t1 = (f32)(0.00392156862745098 * (f32)(wp->rgba[1] >> 16 & 0xff));
+        t0 = (f32)(0.00392156862745098 * (f32)(wp->rgba[0] >> 16 & 0xff));
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
@@ -2194,10 +2178,10 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         }
         /* green (lane 8) */
         q = (Psys*)node->data.psys;
-        t3 = (f32)(lbl_80349260 * (f32)(wp->rgba[3] >> 8 & 0xff));
-        t2 = (f32)(lbl_80349260 * (f32)(wp->rgba[2] >> 8 & 0xff));
-        t1 = (f32)(lbl_80349260 * (f32)(wp->rgba[1] >> 8 & 0xff));
-        t0 = (f32)(lbl_80349260 * (f32)(wp->rgba[0] >> 8 & 0xff));
+        t3 = (f32)(0.00392156862745098 * (f32)(wp->rgba[3] >> 8 & 0xff));
+        t2 = (f32)(0.00392156862745098 * (f32)(wp->rgba[2] >> 8 & 0xff));
+        t1 = (f32)(0.00392156862745098 * (f32)(wp->rgba[1] >> 8 & 0xff));
+        t0 = (f32)(0.00392156862745098 * (f32)(wp->rgba[0] >> 8 & 0xff));
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
@@ -2242,10 +2226,10 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         }
         /* blue (lane 0) */
         q = (Psys*)node->data.psys;
-        t3 = (f32)(lbl_80349260 * (f32)(wp->rgba[3] & 0xff));
-        t2 = (f32)(lbl_80349260 * (f32)(wp->rgba[2] & 0xff));
-        t1 = (f32)(lbl_80349260 * (f32)(wp->rgba[1] & 0xff));
-        t0 = (f32)(lbl_80349260 * (f32)(wp->rgba[0] & 0xff));
+        t3 = (f32)(0.00392156862745098 * (f32)(wp->rgba[3] & 0xff));
+        t2 = (f32)(0.00392156862745098 * (f32)(wp->rgba[2] & 0xff));
+        t1 = (f32)(0.00392156862745098 * (f32)(wp->rgba[1] & 0xff));
+        t0 = (f32)(0.00392156862745098 * (f32)(wp->rgba[0] & 0xff));
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
@@ -2292,10 +2276,10 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
     if (wp->used & 0x20000) {  /* alpha / intensity envelope (lane 24) */
         Psys* q;
         q = (Psys*)node->data.psys;
-        t3 = (f32)(lbl_80349260 * (f32)(wp->rgba[3] >> 24));
-        t2 = (f32)(lbl_80349260 * (f32)(wp->rgba[2] >> 24));
-        t1 = (f32)(lbl_80349260 * (f32)(wp->rgba[1] >> 24));
-        t0 = (f32)(lbl_80349260 * (f32)(wp->rgba[0] >> 24));
+        t3 = (f32)(0.00392156862745098 * (f32)(wp->rgba[3] >> 24));
+        t2 = (f32)(0.00392156862745098 * (f32)(wp->rgba[2] >> 24));
+        t1 = (f32)(0.00392156862745098 * (f32)(wp->rgba[1] >> 24));
+        t0 = (f32)(0.00392156862745098 * (f32)(wp->rgba[0] >> 24));
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
@@ -2556,11 +2540,6 @@ MBObject* MBNewWorldPsys(s32 a, s32 b, PsysDescrip* wp, s32 d, char* name,
 }
 
 /* 0x800CFB38 - build a psys node from a preset descriptor */
-extern const f64 lbl_80349218;   /* -1.0 */
-extern const f64 lbl_80349248;   /* 1/30 */
-extern const f64 lbl_80349258;   /* -0.0355555... gravity scale */
-extern const f64 lbl_80349260;   /* 1/255 double */
-extern const f32 lbl_803492A0;   /* 1/255 */
 
 MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
     PsysDescrip* wp = (PsysDescrip*)cfg;
@@ -2607,10 +2586,10 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
             v = 30.0 * lf1;
             q->e_fade = (u16)(s32)((v < 0.0) ? 0.0 : (v > 65535.0) ? 65535.0 : v);
             q->flags &= ~1;
-            if (lf0 < lbl_80349154) {
+            if (lf0 < 0.0f) {
                 q->e_life = 0xFFFF;
                 q->flags |= 2;
-            } else if (lf1 < lbl_80349154) {
+            } else if (lf1 < 0.0f) {
                 q->e_fade = 0xFFFF;
                 q->flags |= 2;
             }
@@ -2687,17 +2666,17 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            q->e_rate.o.life_start = (f32)(lbl_80349248 * r0v);
-            q->e_rate.o.life_slope = (f32)(lbl_80349248 * r1v);
-            q->e_rate.o.fade_start = (f32)(lbl_80349248 * r2v);
-            q->e_rate.o.fade_slope = (f32)(lbl_80349248 * r3v);
+            q->e_rate.o.life_start = (f32)(0.03333333333333333 * r0v);
+            q->e_rate.o.life_slope = (f32)(0.03333333333333333 * r1v);
+            q->e_rate.o.fade_start = (f32)(0.03333333333333333 * r2v);
+            q->e_rate.o.fade_slope = (f32)(0.03333333333333333 * r3v);
         }
     }
     if (wp->fields_used & 0x1000) {
-        p->p_gravity = (f32)(lbl_80349258 * wp->p_gravity);
+        p->p_gravity = (f32)(-0.035555555555555556 * wp->p_gravity);
     }
     if (wp->fields_used & 0x2000) {
-        p->p_drag = (f32)(lbl_80349218 * wp->p_drag);
+        p->p_drag = (f32)(-1.0 * wp->p_drag);
     }
     if (wp->fields_used & 0x4000) {
         f32 sp;
@@ -2706,7 +2685,7 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            q->p_speed = (f32)(lbl_80349248 * sp);
+            q->p_speed = (f32)(0.03333333333333333 * sp);
         }
     }
     if (wp->fields_used & 0x8000) {
@@ -2755,10 +2734,10 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
         f32 x3, x2, x1, x0;
         {
             q = (Psys*)node->data.psys;
-            x3 = lbl_803492A0 * (f32)(wp->p_rgba[3] >> 24);
-            x2 = lbl_803492A0 * (f32)(wp->p_rgba[2] >> 24);
-            x1 = lbl_803492A0 * (f32)(wp->p_rgba[1] >> 24);
-            x0 = lbl_803492A0 * (f32)(wp->p_rgba[0] >> 24);
+            x3 = 0.003921568859368563f * (f32)(wp->p_rgba[3] >> 24);
+            x2 = 0.003921568859368563f * (f32)(wp->p_rgba[2] >> 24);
+            x1 = 0.003921568859368563f * (f32)(wp->p_rgba[1] >> 24);
+            x0 = 0.003921568859368563f * (f32)(wp->p_rgba[0] >> 24);
             if (q->e_phase > 1) {
                 ErrorPrintf(strs + 316);
             } else {
@@ -2804,10 +2783,10 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
         }
         {
             q = (Psys*)node->data.psys;
-            x3 = lbl_803492A0 * (f32)(wp->p_rgba[3] >> 16 & 0xFF);
-            x2 = lbl_803492A0 * (f32)(wp->p_rgba[2] >> 16 & 0xFF);
-            x1 = lbl_803492A0 * (f32)(wp->p_rgba[1] >> 16 & 0xFF);
-            x0 = lbl_803492A0 * (f32)(wp->p_rgba[0] >> 16 & 0xFF);
+            x3 = 0.003921568859368563f * (f32)(wp->p_rgba[3] >> 16 & 0xFF);
+            x2 = 0.003921568859368563f * (f32)(wp->p_rgba[2] >> 16 & 0xFF);
+            x1 = 0.003921568859368563f * (f32)(wp->p_rgba[1] >> 16 & 0xFF);
+            x0 = 0.003921568859368563f * (f32)(wp->p_rgba[0] >> 16 & 0xFF);
             if (q->e_phase > 1) {
                 ErrorPrintf(strs + 316);
             } else {
@@ -2853,10 +2832,10 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
         }
         {
             q = (Psys*)node->data.psys;
-            x3 = lbl_803492A0 * (f32)(wp->p_rgba[3] >> 8 & 0xFF);
-            x2 = lbl_803492A0 * (f32)(wp->p_rgba[2] >> 8 & 0xFF);
-            x1 = lbl_803492A0 * (f32)(wp->p_rgba[1] >> 8 & 0xFF);
-            x0 = lbl_803492A0 * (f32)(wp->p_rgba[0] >> 8 & 0xFF);
+            x3 = 0.003921568859368563f * (f32)(wp->p_rgba[3] >> 8 & 0xFF);
+            x2 = 0.003921568859368563f * (f32)(wp->p_rgba[2] >> 8 & 0xFF);
+            x1 = 0.003921568859368563f * (f32)(wp->p_rgba[1] >> 8 & 0xFF);
+            x0 = 0.003921568859368563f * (f32)(wp->p_rgba[0] >> 8 & 0xFF);
             if (q->e_phase > 1) {
                 ErrorPrintf(strs + 316);
             } else {
@@ -2902,10 +2881,10 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
         }
         {
             q = (Psys*)node->data.psys;
-            x3 = lbl_803492A0 * (f32)(wp->p_rgba[3] & 0xFF);
-            x2 = lbl_803492A0 * (f32)(wp->p_rgba[2] & 0xFF);
-            x1 = lbl_803492A0 * (f32)(wp->p_rgba[1] & 0xFF);
-            x0 = lbl_803492A0 * (f32)(wp->p_rgba[0] & 0xFF);
+            x3 = 0.003921568859368563f * (f32)(wp->p_rgba[3] & 0xFF);
+            x2 = 0.003921568859368563f * (f32)(wp->p_rgba[2] & 0xFF);
+            x1 = 0.003921568859368563f * (f32)(wp->p_rgba[1] & 0xFF);
+            x0 = 0.003921568859368563f * (f32)(wp->p_rgba[0] & 0xFF);
             if (q->e_phase > 1) {
                 ErrorPrintf(strs + 316);
             } else {
@@ -3063,12 +3042,6 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
     return node;
 }
 
-extern const f64 lbl_80349248;   /* 1/30 */
-extern const f64 lbl_80349258;   /* -0.0355555... gravity scale */
-extern const f64 lbl_80349260;   /* 1/255 double */
-extern const f32 lbl_803492A0;   /* 1/255 */
-extern f64 lbl_80349298;        /* firework rate divisor */
-extern f64 lbl_80349210;        /* firework power scale */
 extern MBObject* lbl_80344EBC;
 extern MBObject* gSceneRoot;
 
@@ -3102,7 +3075,7 @@ MBObject* MBPsysFirework(s32 a, s32 b, s32 count, s32 m0, s32 m1, s32 m2,
     *(s32*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, p_rgba[2])) = m1;
     *(s32*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, p_rgba[3])) = m2;
     *(f32*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, p_speed)) =
-        (f32)(rate / lbl_80349298);
+        (f32)(rate / 1.25);
     *(u8*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, notex_rgb)) = 0;
     *(u8*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, notex_a)) = 0;
     if (count == 0) {
@@ -3114,23 +3087,19 @@ MBObject* MBPsysFirework(s32 a, s32 b, s32 count, s32 m0, s32 m1, s32 m2,
     }
     node = MBNewPsysDescrip(a, b, 0, pi + PSYSINFO_DESCRIP_FIREWORK);
     if (node != NULL) {
-        *(u16*)(*(u8**)((u8*)node + 112) + 56) = (s32)(lbl_80349210 * power);
+        *(u16*)(*(u8**)((u8*)node + 112) + 56) = (s32)(30.0 * power);
     }
     return node;
 }
 #pragma dont_inline off
 
 /* 0x800CF8EC - flame preset */
-extern f32 lbl_80349154;         /* 0.0f  */
 extern f32 lbl_80349220;         /* 10.0f */
-extern const f32 lbl_8034915C;   /* 1.0f  */
-extern const f32 lbl_80349184;   /* -1.0f */
 extern const f32 lbl_8034926C;   /* 0.3f  */
 extern const f32 lbl_80349270;   /* 0.15f */
 extern const f32 lbl_80349280;   /* 0.13f */
-extern const f64 lbl_803491A0;   /* 0.5   */
-extern const f64 lbl_803491F0;   /* 0.1   */
 extern const f64 lbl_80349278;   /* 0.2   */
+extern const f64 lbl_803491F0;   /* 0.1   */
 extern const f64 lbl_80349288;   /* 0.94  */
 extern const f64 lbl_80349290;   /* 1.06  */
 
@@ -3229,8 +3198,6 @@ MBObject* MBNewPsysDefault(void* matrix, MBObject* parent, s32 flags,
 }
 
 /* 0x800D07FC - create a scene node + attach a fresh psys descriptor */
-extern f32 lbl_80349220;        /* psys default rate */
-
 MBObject* createPsysNode(s32 a, s32 b, s32 c, s32 d) {
     PsysModuleGlobals* globals = &lbl_80128710;
     MBObject* node;
@@ -3262,12 +3229,11 @@ MBObject* createPsysNode(s32 a, s32 b, s32 c, s32 d) {
     }
     p->e_last_time = globals->frame;
     p->e_phase = 0;
-    p->max_dist = lbl_80349220;
+    p->max_dist = 10.0f;
     return node;
 }
 
 /* 0x800D08FC - allocate + default-init a psys descriptor (0x130 bytes) */
-extern const f32 lbl_803492A4;   /* 0.06f */
 extern char lbl_80116ED8[];      /* "particle2_a"  */
 extern char lbl_80116EE4[];      /* "particle2_xp" */
 
@@ -3308,12 +3274,12 @@ static Psys* allocPsys(s32 fromArena) {
     p->id = *(s32*)(g + offsetof(PsysInfoRuntimeView, idCounter));
     p->e_life = 300;
     p->e_fade = 300;
-    one = lbl_8034915C;
-    zero = lbl_80349154;
+    one = 1.0f;
+    zero = 0.0f;
     p->e_dir[0] = zero;
     p->e_dir[1] = one;
     p->e_dir[2] = zero;
-    p->e_angle = lbl_80349184;
+    p->e_angle = -1.0f;
     p->e_vol[0] = zero;
     p->e_vol[1] = zero;
     p->e_vol[2] = zero;
@@ -3324,7 +3290,7 @@ static Psys* allocPsys(s32 fromArena) {
     p->e_rate.i.fade_end = one;
     p->p_life = 20;
     p->p_fade = 10;
-    p->p_speed = lbl_803492A4;
+    p->p_speed = 0.05999999865889549f;
     off = 0;
     for (k = 0; k < 5; k++) {
         f32* src = (f32*)(pi + off);
@@ -3531,7 +3497,6 @@ extern s32 lbl_80345188;
 extern s32 lbl_8034519C;
 extern s32 lbl_803451A0;
 extern s32 lbl_8034518C;
-extern const f32 lbl_803492A8;   /* 10000000.0f */
 extern const f32 lbl_80343FC8;   /* 2.0f  */
 extern const f32 lbl_80343FCC;   /* 3.0f  */
 extern s32 lbl_80343FD0;         /* 255   */
@@ -3568,19 +3533,19 @@ void MBPsysStartFrame(void) {
     lbl_80345188 = 0;
     if (clock > 150000000) {
         *(s32*)(g + offsetof(PsysInfoRuntimeView, frame)) += 1;
-        *(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac)) = lbl_80349154;
+        *(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac)) = 0.0f;
         if (lbl_803451AC <= 15) {
             lbl_803451AC = 15;
         }
     } else if (lbl_803451AC != 0) {
         *(s32*)(g + offsetof(PsysInfoRuntimeView, frame)) += 1;
-        *(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac)) = lbl_80349154;
+        *(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac)) = 0.0f;
         if (lbl_803451AC <= 15) {
             lbl_803451AC -= 1;
         }
     } else {
         *(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac)) =
-            (f32)(u32)clock / lbl_803492A8;
+            (f32)(u32)clock / 10000000.0f;
         *(s32*)(g + offsetof(PsysInfoRuntimeView, frame)) +=
             (s32)*(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac));
         *(f32*)(g + offsetof(PsysInfoRuntimeView, frameFrac)) =
@@ -3928,7 +3893,7 @@ void MBInitPsys(void) {
     *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.defaultTexA)) = 0;
     *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.defaultTexXp)) = 0;
     *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.frame)) = 0;
-    *(f32*)(pi + offsetof(PsysInfoCoreView, runtime.frameFrac)) = lbl_80349154;
+    *(f32*)(pi + offsetof(PsysInfoCoreView, runtime.frameFrac)) = 0.0f;
     *(s32*)(lbl_802C9D30 + 20) = 0;
     *(s32*)(pi + offsetof(PsysInfoCoreView, runtime.pool.world_bytes)) = 0;
     size = 120000;
