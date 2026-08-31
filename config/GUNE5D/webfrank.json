@@ -771,6 +771,55 @@
         "mechanism": "attempt.do-heal-players-fpr-crossing-rescreen.20260831.v2 - two callee-saved FPR webs hold each other's register and the product temporary is coloured differently: the target leaves 0.5*amount in the volatile f0 (fmul f0,f0,f1 then frsp f30,f0) while ours computes fmul f31,f0,f1 and self-coalesces frsp f31,f31, and the loop-hoisted 0.0f compare constant lands in f31 (target) versus f30 (ours). The record flagged the temporary as possibly needing a dead-temp argument; it does not - the whole 130/130 residual is a single consistent renaming once the fmul's destination is read as an ordinary define, so the plain bisimulation proves it.",
         "copy_register_fields": true
       }
+    ],
+    "game/pb/pb_diag": [
+      {
+        "function": "pbDiagDrawTexture",
+        "before_sha256": "d3e4b4aab2f0d44d3323e9af6d7639877afa4f6e9c57ece5d59966e5f43aef07",
+        "after_sha256": "1d35d4abe1fca43ed0eaef5a649cf33db980f09b1d4b68bcf94a4d43a221cb8f",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 385
+        },
+        "mechanism": "attempt.pbdiagdrawtexture-saved-register-set-closure.20260831.v1 - the park's HARD BLOCKER (a mismatched ten-register stmw r22 save set) no longer holds: the current raw compile agrees with retail on size, save set, schedule and every opcode, and the whole 385-instruction residual is fifteen register fields forming ONE consistent renaming. Three independent crossings compose it: a clean r28<->r29 transposition of the two callee-saved list webs (+0x20/+0x2c, and the walk's addi r28,r28,4 step at +0x380), a paired r4<->r5 argument-scratch transposition across the texture-record fetch (+0x20c-0x21c), and a r23->r24 shift of the record pointer (+0x218/+0x234/+0x28c). Two further rows are the dead-after-compare scratch the record named: ours homes an SDA load in the volatile r0 and feeds slwi/cmplwi from it (+0x3c4/+0x3cc, +0x558/+0x55c) where retail uses r4 and r3. Zero mask offenders and machine-proven end to end by verify_consistent_recolor - no unproven_recolor_audit escape. Source levers cannot reach it: the r0 rows have no source variable behind them, and the transpositions are pure allocator colour.",
+        "copy_register_fields": true
+      }
+    ],
+    "game/ui/btext": [
+      {
+        "function": "DrawGlowText",
+        "before_sha256": "51b948eeb1f3dc0f44bea47cd0472c62f402a53c2d68c7bc05b79ceea1cb0c2f",
+        "after_sha256": "c851e589ced56e0d4041512d6b27d4fb8ce637bf6f541ad62b554d0fd40c4408",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 86
+        },
+        "mechanism": "attempt.drawglowtext-scratch-alloc-direction.20260831.v2 - the record's OPERAND_DIFF residual is a three-register scratch renaming over nine instructions (+0x24-0x54), not an operand-order fault reachable from source. The two glow-global webs exchange homes (r6<->r8: ours loads the first into r6 and shifts it, retail into r8, and the roles swap again at the second load and at the surviving cmpw r29 at +0x54), and the divisor/product temporary moves r9->r3. The record's own top axis - multiply operand order - is the tell that closes it rather than a defect: the mullw at +0x3c genuinely exchanges its two commuting factors (ours mullw r0,r9,r0 vs retail mullw r0,r0,r3), and the bisimulation's commutative-operand path accepts exactly that pairing under the running renaming, so the swap is a consequence of the recolor and not an independent difference. Zero mask offenders, machine-proven by verify_consistent_recolor with no audit escape.",
+        "copy_register_fields": true
+      }
+    ],
+    "game/world/tower": [
+      {
+        "function": "SumnerDoSpeech",
+        "before_sha256": "84775fdda0cab9527991a042d0992e91fe1ed90e580675667c6a5f5b51b205bf",
+        "after_sha256": "8bc55d8a28101aa7a8af4939075b6d548ebb8989a8fd09e43683e7999c462816",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 384,
+          "permuted_instructions": 4
+        },
+        "mechanism": "attempt.sumnerdospeech-emission-order-coloring-coupling.20260831.v1 - the record named an emission-order pair coupled to a colouring and warned it might be the rejected sysResetService shape. It is not: the coupling separates cleanly because the permutation is legal in OUR colouring (claim.law.webfrank-permutation-is-audited-in-our-colouring). The two @ha/@lo address materializations at +0x1f0 are emitted in opposite order - ours builds gPlayers before lbl_80124D84, retail builds lbl_80124D84 first - and because the lfs f31 SDA load at +0x1f4 sits between the two lis atoms, the correct region is FIVE atoms with order [2, 1, 0, 4, 3], not the adjacent pair the byte scan suggests. The four moved atoms are literally identical words that merely change position, so all four ADDR16_HA/ADDR16_LO relocations ride their own atoms with payloads preserved; the intervening lfs touches none of r3/r4/r29/r30, so every def-use chain and final write survives. The residual after the permutation is a single r26->r24 recolor of the speech-record web (+0x144 mr., +0x150 addi, +0x190 lha), machine-proven by verify_consistent_recolor in the same patch entry.",
+        "instruction_permutation": {
+          "start": "0x1f0",
+          "end": "0x204",
+          "order": [2, 1, 0, 4, 3],
+          "before_sha256": "4de09ec6fbac3d84a76863a67fa59a9c8148d5e3e0f24e256e64caad41d1c6c7",
+          "after_sha256": "814d67a5aff71f8bb25fe20b0e41e21c890674f6d982c78952a4518d3245646f",
+          "before_relocations_sha256": "355ed5d6ae70a0aec4a77219001091d8b9aca15c01c28d2c3216dbc7d9be07fa",
+          "after_relocations_sha256": "a630ae11894c3a39c96f6f1a62377c74a431fdc3e53bcc317989c3a18f2ed12a"
+        },
+        "copy_register_fields": true
+      }
     ]
   }
 }

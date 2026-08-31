@@ -355,6 +355,59 @@ class ShippedRuleMechanismTests(unittest.TestCase):
         target = bytes.fromhex("1f5e001c 7f3bd214 7c04d02e 4e800020")
         verify_consistent_recolor(current, target)
 
+    def test_pb_diag_draw_texture_saved_pair_transposition(self):
+        # +0x20: li r28,0 / li r30,0 / lwz r0,SDA / lwz r29,SDA.  The two
+        # callee-saved list webs are established into each other's home
+        # (r28 <-> r29); every later use in the function follows this binding.
+        # attempt.pbdiagdrawtexture-saved-register-set-closure.20260831.v1
+        current = bytes.fromhex("3b800000 3bc00000 80000000 83a00000 4e800020")
+        target = bytes.fromhex("3ba00000 3bc00000 80000000 83800000 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_pb_diag_draw_texture_dead_scratch_compare_row(self):
+        # +0x558: lwz r0,SDA / cmplwi r0,0.  Ours homes the loaded flag in the
+        # volatile r0 and compares it there; retail uses r3.  The value dies at
+        # the compare, so no source spelling reaches the choice.  The other
+        # thirteen fields need bindings established earlier in the function --
+        # the whole-function proof runs in the build's WEBFRANK step.
+        current = bytes.fromhex("80000000 28000000 4e800020")
+        target = bytes.fromhex("80600000 28030000 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_draw_glow_text_scratch_renaming_with_commuted_multiply(self):
+        # +0x24: the two glow-global loads exchange homes (r6 <-> r8), the
+        # quotient/product temporary moves r9 -> r3, and the mullw additionally
+        # exchanges its two commuting factors (mullw r0,r9,r0 vs mullw r0,r0,r3)
+        # -- accepted through the bisimulation's commutative-operand pairing,
+        # which is what makes the record's "operand order" axis a consequence of
+        # the recolor rather than a separate difference.
+        # attempt.drawglowtext-scratch-alloc-direction.20260831.v2
+        current = bytes.fromhex(
+            "80c00000 80000000 54c7083c 81000000 7d203a14 7c084b96 7c0901d6"
+            " 7fa04050 4e800020"
+        )
+        target = bytes.fromhex(
+            "81000000 80000000 5507083c 80c00000 7c603a14 7c061b96 7c0019d6"
+            " 7fa03050 4e800020"
+        )
+        verify_consistent_recolor(current, target)
+
+    def test_sumner_do_speech_address_pair_emission_order(self):
+        # +0x1f0: lis r4,gPlayers@ha / lfs f31,SDA / lis r3,lbl@ha /
+        # addi r29,r4,@lo / addi r30,r3,@lo.  Retail emits the lbl pair first.
+        # The intervening lfs is why the region is five atoms and not the
+        # adjacent pair the masked byte scan reports.
+        # attempt.sumnerdospeech-emission-order-coloring-coupling.20260831.v1
+        region = bytes.fromhex("3c800000 c3e00000 3c600000 3ba40000 3bc30000")
+        check_permutation_dependences(region, [2, 1, 0, 4, 3])
+
+    def test_sumner_do_speech_record_web_recolor(self):
+        # +0x144: mr. r26,r3 / beq / lwz r4,SDA / addi r3,r26,0 under the
+        # r26 -> r24 renaming that remains once the emission order is fixed.
+        current = bytes.fromhex("7c7a1b79 41820050 80800000 387a0000 4e800020")
+        target = bytes.fromhex("7c781b79 41820050 80800000 38780000 4e800020")
+        verify_consistent_recolor(current, target)
+
 
 class RejectedResidualTests(unittest.TestCase):
     """Residuals deliberately NOT shipped: the guards must keep rejecting them.
@@ -393,6 +446,34 @@ class RejectedResidualTests(unittest.TestCase):
         target = bytes.fromhex("c3400000 ff20d090 ec2006b2 4e800020")
         with self.assertRaisesRegex(ValueError, "does not correspond"):
             verify_consistent_recolor(current, target)
+
+    def test_init_effects_displacement_fold_is_not_a_register_difference(self):
+        # sfx.c InitEffects was queued as a clean four-cycle callee-saved
+        # permutation, but the current raw compile disagrees with retail at
+        # three stores: retail folds the field displacement onto the frame base
+        # (stw r0,1068(r31)) where we materialize a dedicated pointer and store
+        # at zero (stw r0,0(r23)).  The immediate is a real instruction bit, so
+        # this is a source-reachable addressing difference, not an allocator
+        # colour -- WebFrank must never copy it.
+        current = bytes.fromhex("90170000 4e800020")
+        target = bytes.fromhex("901f042c 4e800020")
+        with self.assertRaisesRegex(ValueError, "non-register instruction bits"):
+            copy_register_fields(current, target)
+
+    def test_ads_put_buffer_region_with_a_call_is_not_permutable(self):
+        # adstream.c AdsPutBuffer was queued as a two-web callee-saved
+        # transposition.  Its streams diverge from the prologue onward (206 of
+        # 220 differing words escape the register mask) and the candidate region
+        # spans a bl, which the permutation path rejects outright.
+        region = bytes.fromhex("801a0078 48000001 901a0020")
+        with self.assertRaisesRegex(ValueError, "contains a control op"):
+            permute_instruction_atoms(
+                region, [0, 2, 1], [],
+                before_sha256=_sha256(region),
+                after_sha256="",
+                before_relocations_sha256=_relocation_sha256([]),
+                after_relocations_sha256="",
+            )
 
 
 if __name__ == "__main__":
