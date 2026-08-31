@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow",
+      "sda-global",
+      "defake",
+      "build-hygiene",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.never-literalize-inside-a-real-zero-function.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:49:15Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "The extern-literal sweep must NEVER convert a pool read inside a function that currently measures real 0 (gate status EXACT or RELOCATION_ONLY), and the project's normal gate cannot detect the violation. Mechanism: replacing `extern f32 lbl_*` with a literal makes MWCC emit its own anonymous pool entry, so the instruction's RELOCATION PAYLOAD changes from `@lbl_80xxxxxx(EMB_SDA21)` to `@@N(EMB_SDA21)` while the instruction text is unchanged. For a function whose only remaining defect is relocation payload, that payload IS the entire gap to byte-exactness, so the conversion enlarges the gap for zero gain. MEASUREMENT BLIND SPOT (this is the important part): fndiff `real` and objdiff fuzzy both NORMALIZE the pool relocation name, so `defake_gate check` reports GATE OK and probe.py reports NEUTRAL while byte-exact functions silently demote. Verified: converting inside 4 byte-exact functions moved game/mb/mb_particle EXACT 22 -> 19 (MBInitPsys, MBPsysFirework, createPsysNode) and game/shop/shop EXACT 2 -> 1 (calc_shop_ypos) with real 0 unchanged on every one of them and both TU gates green; all four were reverted and both censuses returned to 22 and 2. The damage IS visible in defake_gate's per-function `lines` field at roughly 2 lines per converted site (StartEnemyDeathFX 6 sites: lines 6 -> 14; fn_800945D0 5 sites: 2 -> 12; setupParms 10 sites: 10 -> 28; MBPsysStartFrame 3 sites: 4 -> 10; shop_show_lv 7 sites: 2 -> 16 - all reverted, all restored to baseline). COST-MODEL CORRECTION for the fleet advisory's 'each literalized site costs +1 real': the measured cost in fndiff `real` is ZERO, not +1 - four batches converted at exactly real NEUTRAL (StartShieldFX 13 sites real 64, StartThrowMagicFX 8 sites real 52, setWorldParms 16 sites real 462, MBNewPsysDescrip 25 sites real 496). The relocation cost lands in `lines` (~2/site), never in `real`; a sweep budgeted against `real` will therefore mis-price conversions in both directions. Operational rule: (1) take a STATUS CENSUS of the TU (count of EXACT / RELOCATION_ONLY per defake_gate baseline) before and after every sweep and require it unchanged or improved - GATE OK alone is insufficient evidence; (2) restrict conversions to functions with real > 0; (3) inside those, gate normally on real/--ops. Companion to claim.law.literal-sweep-needs-lfd-stfd-tell-first and claim.law.tu-wide-literalization-breaks-matched-sibling-pool-relocs (this record supplies the mechanism and the detection procedure those two lack), and to claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell (corroborated here: MBDrawPsys had NO lfd/stfd tell - multiset target-only (none), ours-only -1 clrlwi -1 lfs -1 li - yet literalizing its 31 pool reads moved real 733 -> 658 and insns 813 -> 812 against target 810, so the tell prioritizes and must never exclude)."
+}
