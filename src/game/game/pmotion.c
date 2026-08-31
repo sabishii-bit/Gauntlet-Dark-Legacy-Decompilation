@@ -674,7 +674,8 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             }
         } else {
             CopyMat4((f32*)gIdentityMatrix, mat);
-            YawMat3(mat, gPlayerStartYaw);
+            ang = gPlayerStartYaw;
+            YawMat3(mat, ang);
             r = 0.5 + p->col_radius;
             pos[0] = gDefaultPlayerPosition[0];
             pos[1] = gDefaultPlayerPosition[1];
@@ -740,7 +741,8 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     } else {
         if (gGameMode == MG_ROUND_START) {
             CopyMat4((f32*)gIdentityMatrix, mat);
-            YawMat3(mat, gPlayerStartYaw);
+            ang = gPlayerStartYaw;
+            YawMat3(mat, ang);
             CopyMat3(mat, p->mat);
             SV(p)->rot[0] = 0.0f;
             SV(p)->rot[1] = gPlayerStartYaw;
