@@ -83,10 +83,18 @@ typedef struct CameraTarget {
     /* 0x30 */ f32 limitedBottom[2];
 } CameraTarget; /* 0x38 */
 
-/* GC camera-supervisor prefix: six 0x18C cameras begin at +0xC8, followed
- * immediately by the projection targets at +0xA10. */
+/* Aggregate companion to game/cameradata.h's CameraStateData.  It stays
+ * FILE-LOCAL on purpose: it carries struct-typed members, which must never
+ * enter a shared header (claim.law.embedded-struct-member-whole-tu-cascade).
+ * Only do_camera and camera_init_for_gamemode still use it, and only through
+ * genuine member access (state->cameras[i], state->targets) -- per
+ * claim.law.typed-global-member-vs-view-cast-diverges that cast form is
+ * evidence about the original source shape, not debt to remove.  Every other
+ * site in this TU now spells the same addresses as offsetof() addends on the
+ * raw base.  The layout constants come from the header so there is one
+ * authority for them. */
 typedef struct CameraStateView {
-    u8 _pad00[0xC8];
+    u8 _pad00[CAMERA_STATE_CAMERAS_OFF];
     Camera cameras[6];
     CameraTarget targets[15];
 } CameraStateView;
@@ -1265,8 +1273,8 @@ free_attention:
         (cam_)->wpos[2] = (cam_)->attn[2] + (vector_)[2] * (radius_);         \
     } while (0)
 
-#define backup                   ((Camera*)(state + 0x884))
-#define followPositions          ((f32 (*)[3])(state + 0x5C))
+#define backup                   ((Camera*)(state + CAMERA_STATE_CAMERAS_OFF + 5 * CAMERA_STATE_CAMERA_STRIDE))
+#define followPositions          ((f32 (*)[3])(state + offsetof(CameraStateData, reticle_pos[0])))
 
 /* Main gameplay camera.  This is the retail transition supervisor: it keeps
  * a short focus history, blends scripted camera changes, controls camera
@@ -1276,7 +1284,7 @@ void camera_mode_follow(s32 camIdx)
 {
     u8* state = gCameraState;
     f32* projectionMatrix;
-    Camera* cam = (Camera*)(state + 0xC8 + camIdx * sizeof(Camera));
+    Camera* cam = (Camera*)(state + CAMERA_STATE_CAMERAS_OFF + camIdx * sizeof(Camera));
     f32 focus[3];
     u8 followPad[0x38];
     Vec3 requestAttention;
@@ -1708,7 +1716,7 @@ void camera_mode_follow(s32 camIdx)
         Camera* backupCamera;
         s32 backupAttentionMode;
         playerData = gPlayers;
-        projectionMatrix = (f32*)(state + offsetof(CameraStateView, cameras[0].mat[0][0]));
+        projectionMatrix = (f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, mat[0][0]));
         for (viewportPlayer = 0; viewportPlayer < 4;
              viewportPlayer++, playerData++) {
             if (playerData->state == 1) {
@@ -2136,10 +2144,10 @@ void camera_orbit_update(s32 camIdx)
     }
     switch (lbl_803444E4) {
     case 0:
-            middleHistory = (f32*)(state + 0x14);
+            middleHistory = (f32*)(state + offsetof(CameraStateData, unk10[1]));
             middleHistory[1] = middleHistory[0];
-            middleHistory[0] = *(f32*)(state + 0x10);
-            *(f32*)(state + 0x10) = previous;
+            middleHistory[0] = *(f32*)(state + offsetof(CameraStateData, unk10[0]));
+            *(f32*)(state + offsetof(CameraStateData, unk10[0])) = previous;
             camera_collide_step(camIdx, lbl_80346040);
 
             scratch.difference = lbl_80344534 - cam->pyr[1];
@@ -2216,13 +2224,13 @@ orbit_nonpositive:
 orbit_direction_done:
             if (cam->pyr[1] > lbl_80345EC8 &&
                 middleHistory[0] > lbl_80345EC8 &&
-                *(f32*)(state + 0x10) < lbl_80345EC8) {
+                *(f32*)(state + offsetof(CameraStateData, unk10[0])) < lbl_80345EC8) {
                 goto orbit_crossed_zero;
             }
             zeroValue = *(volatile f32*)&lbl_80345EC8;
             if (cam->pyr[1] < zeroValue) {
                 if (middleHistory[0] < zeroValue) {
-                    if (*(f32*)(state + 0x10) > zeroValue) {
+                    if (*(f32*)(state + offsetof(CameraStateData, unk10[0])) > zeroValue) {
                         goto orbit_crossed_zero;
                     }
                 }
@@ -2603,15 +2611,15 @@ void camera_mode_level(s32 reset)
         *(f32*)(levelCamera + 0x20) =
             gWorldInfo.worldmax[2] + levelOffset;
     }
-    *(f32*)(state + 0xBC) = *(f32*)(levelCamera + 0x0C);
-    *(f32*)(state + 0xC0) = *(f32*)(levelCamera + 0x10);
-    *(f32*)(state + 0xC4) = *(f32*)(levelCamera + 0x14);
-    *(f32*)(state + 0xB0) = *(f32*)(levelCamera + 0x18);
-    *(f32*)(state + 0xB4) = *(f32*)(levelCamera + 0x1C);
-    *(f32*)(state + 0xB8) = *(f32*)(levelCamera + 0x20);
+    *(f32*)(state + offsetof(CameraStateData, attn_min[0])) = *(f32*)(levelCamera + 0x0C);
+    *(f32*)(state + offsetof(CameraStateData, attn_min[1])) = *(f32*)(levelCamera + 0x10);
+    *(f32*)(state + offsetof(CameraStateData, attn_min[2])) = *(f32*)(levelCamera + 0x14);
+    *(f32*)(state + offsetof(CameraStateData, attn_max[0])) = *(f32*)(levelCamera + 0x18);
+    *(f32*)(state + offsetof(CameraStateData, attn_max[1])) = *(f32*)(levelCamera + 0x1C);
+    *(f32*)(state + offsetof(CameraStateData, attn_max[2])) = *(f32*)(levelCamera + 0x20);
     lbl_80344414 = 2;
 
-    cam0 = (Camera*)(state + 0xC8);
+    cam0 = (Camera*)(state + CAMERA_STATE_CAMERAS_OFF);
     {
         CAM_MODE previousMode = cam0->c_mode;
         if (previousMode != CAM_GAME) {
@@ -2695,7 +2703,7 @@ void camera_mode_level(s32 reset)
     LookInDirection(&scratch.levelDirection.x, (u32)&cam0->mat[0][0]);
     cam0->state = 1;
 
-    cam1 = (Camera*)(state + 0x254);
+    cam1 = (Camera*)(state + CAMERA_STATE_CAMERAS_OFF + CAMERA_STATE_CAMERA_STRIDE);
     {
         CAM_MODE previousMode = cam1->c_mode;
         if (previousMode != CAM_OBJEYE) {
@@ -2708,7 +2716,7 @@ void camera_mode_level(s32 reset)
         cam1->a_mode = ATN_FREE;
     }
     cam1->trans_mode = 0;
-    playerIndex = *(playerNumber = (s32*)(state + 0x1C8));
+    playerIndex = *(playerNumber = (s32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pn)));
     for (tries = 0; tries < 4; tries++) {
         player = gPlayers + playerIndex;
         if (player->state == 1 || player->state == 4) {
@@ -2726,7 +2734,7 @@ void camera_mode_level(s32 reset)
 level_player_found:
     cam1->camobj = playerObject;
     cam1->state = 1;
-    cam2 = (Camera*)(state + 0x3E0);
+    cam2 = (Camera*)(state + CAMERA_STATE_CAMERAS_OFF + 2 * CAMERA_STATE_CAMERA_STRIDE);
     if (gGameMode == 0x8006 || gGameMode == 0x8003 || reset != 0 ||
         CurTransmitter == 0) {
         cam2->state = 0;
@@ -2819,7 +2827,7 @@ level_player_found:
         cam2->state = 1;
     }
 
-    cam3 = (Camera*)(state + 0x56C);
+    cam3 = (Camera*)(state + CAMERA_STATE_CAMERAS_OFF + 3 * CAMERA_STATE_CAMERA_STRIDE);
     {
         CAM_MODE previousMode = cam3->c_mode;
         if (previousMode != CAM_VECDIST) {
@@ -2840,9 +2848,9 @@ level_player_found:
     cam3->avel[0] = cam3Zero;
     cam3->avel[1] = cam3Zero;
     cam3->avel[2] = cam3Zero;
-    cam3->attn[0] = *(f32*)(state + offsetof(CameraStateView, cameras[0].attn[0]));
-    cam3->attn[1] = *(f32*)(state + offsetof(CameraStateView, cameras[0].attn[1]));
-    cam3->attn[2] = *(f32*)(state + offsetof(CameraStateView, cameras[0].attn[2]));
+    cam3->attn[0] = *(f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0]));
+    cam3->attn[1] = *(f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1]));
+    cam3->attn[2] = *(f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2]));
     cam3->radius = lbl_80346020;
     cam3->pyr[0] = lbl_80346024;
     cam3->pyr[1] = cam3Zero;
@@ -2911,12 +2919,12 @@ void camera_mode_spin(s32 camIdx)
 
     state = gCameraState;
     settings = (f32*)state;
-    cam = &((Camera*)(state + 0xC8))[camIdx];
+    cam = &((Camera*)(state + CAMERA_STATE_CAMERAS_OFF))[camIdx];
     if (camIdx == 0 &&
         (gGameMode == 0x400D || gGameMode == 0x4013 ||
          gGameMode == 0x4017)) {
         cam->pyr[1] = camera_approach_yaw(cam, cam->num1);
-        cam = (Camera*)(state + 0xC8);
+        cam = (Camera*)(state + CAMERA_STATE_CAMERAS_OFF);
         yaw = cam->pyr[1];
         sine = sin(yaw);
         cosine = cos(yaw);
@@ -3508,7 +3516,7 @@ s32 debug_camera_pos(s32 lastPlayer)
 {
     char* debugText = lbl_80111A08;
     u8* state = gCameraState;
-    Camera* cam = (Camera*)(state + 0x884);
+    Camera* cam = (Camera*)(state + CAMERA_STATE_CAMERAS_OFF + 5 * CAMERA_STATE_CAMERA_STRIDE);
     Camera* sourceCamera;
     CameraDebugScratch scratch;
     s16 projected[2];
@@ -3531,7 +3539,7 @@ s32 debug_camera_pos(s32 lastPlayer)
 
     cameraIndex = 5;
     offscreen = 0;
-    sourceCamera = (Camera*)(state + 0xC8);
+    sourceCamera = (Camera*)(state + CAMERA_STATE_CAMERAS_OFF);
     CopyCam((u8*)sourceCamera, (u8*)cam);
     get_attn_pos(cameraIndex, scratch.desiredAttention);
     lbl_803443F4 = 0;
@@ -3645,7 +3653,7 @@ s32 debug_camera_pos(s32 lastPlayer)
         Player* pd = (Player*)playerData;
         if (pd->state == 1) {
             MBWindowProject(pd->col_pos,
-                            &((Camera*)(state + 0xC8))[cameraIndex].mat[0][0],
+                            &((Camera*)(state + CAMERA_STATE_CAMERAS_OFF))[cameraIndex].mat[0][0],
                             0, projected);
             screenX = (f32)projected[0];
             screenY = (f32)projected[1];
@@ -3669,7 +3677,7 @@ s32 debug_camera_pos(s32 lastPlayer)
         }
     }
 
-    previousAttention = *(s32*)(state + 0x97C);
+    previousAttention = *(s32*)(state + CAMERA_STATE_CAMERAS_OFF + 5 * CAMERA_STATE_CAMERA_STRIDE + offsetof(Camera, a_mode));
     if (cam->c_mode != CAM_OFF) {
         cam->pc_mode = cam->c_mode;
         cam->c_mode = CAM_OFF;
@@ -3755,7 +3763,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         return 0;
     }
 
-    cameraMatrix = (f32*)(state + 0xCC);
+    cameraMatrix = (f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, mat[0][0]));
     oldX = pd->floor_hi;
     oldY = pd->floor_lo;
     scratch.futurePosition[0] =
@@ -3769,7 +3777,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
     currentX = (f32)scratch.projected[0];
     currentY = (f32)scratch.projected[1];
 
-    target = (CameraTarget*)(state + 0xA10);
+    target = (CameraTarget*)(state + CAMERA_STATE_TARGETS_OFF);
     for (targetIndex = 0; targetIndex < 15; targetIndex++, target++) {
         if (target->object == playerData + 0x14) {
             break;
@@ -3805,7 +3813,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
              oldX >= (f32)(lbl_8034451C - 30) ||
              oldY <= (f32)(lbl_80344514 + 40) ||
              oldY >= (f32)(lbl_80344518 - 20)) &&
-            ((f64)*(f32*)(state + offsetof(CameraStateView, cameras[0].radius)) >= lbl_80345FF0 ||
+            ((f64)*(f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius)) >= lbl_80345FF0 ||
              lbl_80344960 < 0) &&
             lbl_80343BD8 != 0) {
             CAMERA_LATCH_CHANGE();
@@ -3823,7 +3831,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         if (gCameraTargetCount > 1 &&
             (oldY <= (f32)(lbl_80344514 + 40) ||
              oldY >= (f32)(lbl_80344518 - 20)) &&
-            ((f64)*(f32*)(state + offsetof(CameraStateView, cameras[0].radius)) >= lbl_80345FF0 ||
+            ((f64)*(f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius)) >= lbl_80345FF0 ||
              lbl_80344960 < 0) &&
             lbl_80343BD8 != 0) {
             CAMERA_LATCH_CHANGE();
@@ -3841,7 +3849,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         if (gCameraTargetCount > 1 &&
             (oldX <= (f32)(lbl_80344520 + 30) ||
              oldX >= (f32)(lbl_8034451C - 30)) &&
-            ((f64)*(f32*)(state + offsetof(CameraStateView, cameras[0].radius)) >= lbl_80345FF0 ||
+            ((f64)*(f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius)) >= lbl_80345FF0 ||
              lbl_80344960 < 0) &&
             lbl_80343BD8 != 0) {
             CAMERA_LATCH_CHANGE();
@@ -3862,7 +3870,7 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
              oldX >= (f32)(lbl_8034451C - 30) ||
              oldY <= (f32)(lbl_80344514 + 40) ||
              oldY >= (f32)(lbl_80344518 - 20)) &&
-            ((f64)*(f32*)(state + offsetof(CameraStateView, cameras[0].radius)) >= lbl_80345FF0 ||
+            ((f64)*(f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius)) >= lbl_80345FF0 ||
              lbl_80344960 < 0) &&
             lbl_80343BD8 != 0) {
             CAMERA_LATCH_CHANGE();
@@ -3877,19 +3885,19 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         s32 bottomEdge;
         s32 halfWidth;
         dy = (pd->pos[1] +
-              pd->anchor_pos[1]) - *(f32*)(state + offsetof(CameraStateView, cameras[0].attn[1]));
+              pd->anchor_pos[1]) - *(f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[1]));
         bottomEdge = screenHeight - 64;
         dx = (pd->pos[0] +
-              pd->anchor_pos[0]) - *(f32*)(state + offsetof(CameraStateView, cameras[0].attn[0]));
+              pd->anchor_pos[0]) - *(f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0]));
         halfWidth = screenWidth / 2;
         dz = (pd->pos[2] +
-              pd->anchor_pos[2]) - *(f32*)(state + offsetof(CameraStateView, cameras[0].attn[2]));
+              pd->anchor_pos[2]) - *(f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2]));
         currentDistance = dy * dy + dx * dx + dz * dz;
         movedX = dx + movementDelta[0];
         movedY = dy + movementDelta[1];
         movedZ = dz + movementDelta[2];
-        cameraPositionX = (f32*)(state + offsetof(CameraStateView, cameras[0].attn[0]));
-        cameraPositionZ = (f32*)(state + offsetof(CameraStateView, cameras[0].attn[2]));
+        cameraPositionX = (f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[0]));
+        cameraPositionZ = (f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, attn[2]));
 
         currentAbsY = oldY - (f32)bottomEdge;
         currentAbsX = oldX - (f32)halfWidth;
@@ -3977,9 +3985,9 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
             s32 cameraTarget = lbl_80344960;
 
             if (((cameraTarget < 0 &&
-                  *(f32*)(state + offsetof(CameraStateView, cameras[0].radius)) >= lbl_80344528) ||
+                  *(f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius)) >= lbl_80344528) ||
                  (cameraTarget >= 0 &&
-                  (f64)*(f32*)(state + offsetof(CameraStateView, cameras[0].radius)) >= lbl_80345FF0)) &&
+                  (f64)*(f32*)(state + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, radius)) >= lbl_80345FF0)) &&
                 (f64)(latchValue = lbl_803444E8) >= lbl_80346008) {
                 if (gBossType >= 0) {
                     if (gCameraTargetCount > 1) {

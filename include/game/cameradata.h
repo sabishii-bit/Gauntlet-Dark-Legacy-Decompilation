@@ -71,6 +71,12 @@
  * a struct-typed member to a shared header can regress unrelated functions
  * across the whole including TU.  Everything below is a scalar or an array of
  * scalars for exactly that reason.
+ *
+ * camera.c keeps a FILE-LOCAL aggregate companion, `CameraStateView`, for the
+ * two functions (do_camera, camera_init_for_gamemode) that really do use
+ * member access on a cast pointer.  It draws its prefix size from
+ * CAMERA_STATE_CAMERAS_OFF below, so these two descriptions cannot drift.
+ * Keep any future aggregate view file-local for the same reason.
  */
 
 /* gCameras - gCameraState.  Verified from symbols.txt addresses above. */
