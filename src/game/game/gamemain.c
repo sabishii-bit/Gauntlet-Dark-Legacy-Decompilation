@@ -1,6 +1,7 @@
 #include "types.h"
 #include "game/critter.h"
 #include "game/enemy.h"
+#include "game/gamemode.h"
 #include "game/item.h"
 #include "game/leveldata.h"
 #include "game/mbobject.h"
@@ -207,63 +208,8 @@ extern s32   lbl_80344734;
 extern void* lbl_803447B0;
 extern s32   gBossType;            /* 0x8034439C */
 
-/* Game-mode ids held in gGameMode (research/xbox_symbols/misc.h : enum e_mode).
- * The mode id carries its group in the high bits: 0x8000 marks the attract-loop
- * modes (MA_*) and 0x4000 the in-game modes (MG_*), which is why the code tests
- * `gGameMode & 0x8000` / `& 0x4000` to classify a mode without listing it. */
-enum e_mode {
-    M_CREDITS         = 0,
-    M_TITLEMOVIE      = 1,
-    M_MOVIE           = 2,
-    M_INSTRUCT        = 3,
-    M_SCREEN2D        = 4,
-    M_CONTEST         = 5,
-    M_DEMO            = 6,
-    M_HSTABLE         = 7,
-    M_FLYBY           = 8,
-    M_TITLESCREEN     = 9,
-    M_VIEWMENU        = 10,
-    M_PLAYER_SELECT   = 11,
-    M_ROUND_START     = 12,
-    M_WORLD_SELECT    = 13,
-    M_GAMEMOVIE       = 14,
-    M_MAPSCREEN       = 15,
-    M_PLAY            = 16,
-    M_VICTORY         = 17,
-    M_SHOP            = 18,
-    M_LEVEL_ADVANCE   = 19,
-    M_OVER            = 20,
-    M_ENDING          = 21,
-    M_STATS           = 22,
-    M_GWIZ_SPEECH     = 23,
-    M_CHAR_MANAGEMENT = 24,
-
-    MA_CREDITS        = 0x8000,
-    MA_TITLEMOVIE     = 0x8001,
-    MA_MOVIE          = 0x8002,
-    MA_INSTRUCT       = 0x8003,
-    MA_SCREEN2D       = 0x8004,
-    MA_CONTEST        = 0x8005,
-    MA_DEMO           = 0x8006,
-    MA_HSTABLE        = 0x8007,
-    MA_FLYBY          = 0x8008,
-    MA_TITLESCREEN    = 0x8009,
-    MA_VIEWMENU       = 0x800A,
-
-    MG_PLAYER_SELECT  = 0x400B,
-    MG_ROUND_START    = 0x400C,
-    MG_WORLD_SELECT   = 0x400D,
-    MG_GAMEMOVIE      = 0x400E,
-    MG_MAPSCREEN      = 0x400F,
-    MG_PLAY           = 0x4010,
-    MG_VICTORY        = 0x4011,
-    MG_SHOP           = 0x4012,
-    MG_LEVEL_ADVANCE  = 0x4013,
-    MG_OVER           = 0x4014,
-    MG_ENDING         = 0x4015,
-    MG_STATS          = 0x4016,
-    MG_GWIZ_SPEECH    = 0x4017
-};
+/* Game-mode ids held in gGameMode: enum e_mode, now in game/gamemode.h
+ * (included above) so consumer TUs can reference the names too. */
 
 extern s32   gGameMode;
 extern s32   lbl_80344740;
