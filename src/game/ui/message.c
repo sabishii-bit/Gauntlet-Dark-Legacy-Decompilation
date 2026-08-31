@@ -721,7 +721,7 @@ void msgDraw(void)
     playerClass = gPlayers[gCurWorld].character;
     playerWorld = gPlayers[gCurWorld].class_id;
 
-    if (((gGameMode & 0x8000) == 0 || lbl_80344298 == 0) && desc->type >= 0) {
+    if (((gGameMode & MODE_GROUP_ATTRACT) == 0 || lbl_80344298 == 0) && desc->type >= 0) {
         oldFlags = MBSetFontFlags(0x02000000);
         if (gCurrentMessage == 0x65 && gMessageValue >= 10) {
         tens = gMessageValue / 10;

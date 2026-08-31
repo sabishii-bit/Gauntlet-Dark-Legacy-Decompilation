@@ -114,7 +114,13 @@ extern int gGameBusy;
 extern int gModalRenderDepth;
 extern int lbl_80344E04;
 extern int lbl_80344A48;        /* screensaver idle timer */
-extern int gGameMode;        /* game-mode flag */
+/* NOTE: `int`, not the project's usual `s32`.  types.h makes s32 `signed
+ * long`, a distinct front-end type from `int` at the same width, and
+ * harmonizing this one declaration reorders ScreenSaver's loop-preheader
+ * address materialization (real 52 -> 64, opcode multiset IDENTICAL) --
+ * so the divergence is load-bearing here and is kept deliberately.
+ * See claim.law.int-vs-signed-long-extern-reorders-schedule.20260831.v1. */
+extern int gGameMode;        /* current e_mode id (see game/gamemode.h) */
 
 /* ---- screen-transition blit handles + wipe state (green-circle wipe) ---- */
 extern MBBlit* gFireScrollImageBlit;
@@ -773,7 +779,7 @@ void ScreenSaver(void)
     s32 exit = 0;
     s32 i;
 
-    if ((gGameMode & 0x8000) != 0 || gGameMode == MG_GAMEMOVIE || gGameMode == MG_ENDING ||
+    if ((gGameMode & MODE_GROUP_ATTRACT) != 0 || gGameMode == MG_GAMEMOVIE || gGameMode == MG_ENDING ||
         fn_80055F68(0, 0) == 0) {
         lbl_80344A48 = 0;
     } else {

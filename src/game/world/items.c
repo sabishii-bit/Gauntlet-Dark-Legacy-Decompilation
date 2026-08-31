@@ -1253,7 +1253,7 @@ s32 ItemVisible(Item* it)
     s32 useEq = 0;
     s32 visible;
 
-    if (gGameMode & 0x8000) {
+    if (gGameMode & MODE_GROUP_ATTRACT) {
         val = 2;
     }
     if (raw_minp > 10) {

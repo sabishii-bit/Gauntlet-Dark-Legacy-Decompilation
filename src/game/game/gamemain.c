@@ -1277,7 +1277,7 @@ void DoWorldAnimation(void)
     if ((void*)gWorldInfo.atreelist != NULL) {
         DoTexMods((void*)gWorldInfo.atreelist);
     }
-    if ((lbl_80344768 > 0 || (gGameMode & 0x8000) != 0) &&
+    if ((lbl_80344768 > 0 || (gGameMode & MODE_GROUP_ATTRACT) != 0) &&
         (lbl_803443BC <= 10 || lbl_803443BC >= 100000) &&
         gWorldInfo.nworldanims != 0 && (void*)gWorldInfo.animheader != NULL) {
         count = &gWorldInfo.nworldanims;
@@ -1831,7 +1831,7 @@ s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult)
         }
 
         fn_800BC418(2, -1);
-        if (wave == sWorldDataConst && (gGameMode & 0x8000) == 0) {
+        if (wave == sWorldDataConst && (gGameMode & MODE_GROUP_ATTRACT) == 0) {
             MBOX_ResetUnlockedModels(2);
             AtreeInitLists(2);
         } else {
@@ -3574,7 +3574,7 @@ void init_thermometer(void)
     enabled = 1;
     playerOffset = 0;
     lbl_80344790 = lbl_8034478C = playerOffset;
-    if ((gGameMode & 0x4000) != 0 && sSpecialItem10 != 0) {
+    if ((gGameMode & MODE_GROUP_GAME) != 0 && sSpecialItem10 != 0) {
         players = (u8*)gPlayers;
         player = 0;
         do {
@@ -3941,7 +3941,7 @@ void game_main(void)
     char* strs = lbl_80112538;
 
     lbl_80344800++;
-    if (gGameMode & 0x4000) {
+    if (gGameMode & MODE_GROUP_GAME) {
         for (i = 0; i < 4; i++) {
             if (lbl_80257640[i] > 120) {
                 lbl_80344A2C = 1;
@@ -3975,7 +3975,7 @@ void game_main(void)
             opt_restart_request = 0;
         }
     }
-    if (gGameMode & 0x8000) {
+    if (gGameMode & MODE_GROUP_ATTRACT) {
         if (gControllerButtons & 4) {
             if (!assigned_controller(0)) {
                 assign_controller(0);
@@ -4076,7 +4076,7 @@ void game_main(void)
             attract_tail:
         if (gGameMode != MA_TITLESCREEN && gGameMode != MG_PLAYER_SELECT && lbl_803441FC > 1) {
             v = new_start(-1);
-            if (gGameMode & 0x8000) {
+            if (gGameMode & MODE_GROUP_ATTRACT) {
                 if (gControllerButtons & 4) {
                     if (assigned_controller(0)) {
                         v = 1;
@@ -4897,7 +4897,7 @@ chk:
 
     {
         s32 free0 = BytesFree();
-        if (!(gGameMode & 0x8000)) {
+        if (!(gGameMode & MODE_GROUP_ATTRACT)) {
             LoadWeapons();
         }
         LoadPowerups((char*)lbl_80344888);
@@ -4973,7 +4973,7 @@ chk:
                              lbl_80346BF0, lbl_80346BF0);
         sLevelAmbientScale = lbl_80346BE0;
     }
-    if (!(gGameMode & 0x8000)) {
+    if (!(gGameMode & MODE_GROUP_ATTRACT)) {
         lbl_80344850 = 1;
     }
     mini_inventory_setup();

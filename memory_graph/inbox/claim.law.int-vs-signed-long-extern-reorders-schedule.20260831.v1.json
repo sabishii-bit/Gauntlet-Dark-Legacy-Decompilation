@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "src/game/ui/screensaver.c::ScreenSaver, gamemode group-mask lane, worker claude-fleet-worker-GG, work_claim.gamemode-group-masks.20260831.v1, worktree GDL-Claude-GroupMasks, branch claude/gamemode-groups-20260831, commit 4403ab9ae. Derived while executing the type-harmonization step of that claim; the counter-example (message.c) comes from attempt.gamemode-conversion-wave3.20260831.v1.",
+    "tags": [
+      "symbol-identity",
+      "workflow",
+      "defake",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "function": "function:ScreenSaver",
+  "id": "claim.law.int-vs-signed-long-extern-reorders-schedule.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T18:44:50Z",
+  "schema_version": 1,
+  "scope": "MWCC GC 1.2.5 family; applies whenever a cleanup pass harmonizes a TU-local `extern int X` to the project-standard `extern s32 X` (or vice versa) for a 32-bit scalar global. types.h defines s32 as `signed long`, so this is a change of front-end type node, NOT a no-op even though `int` and `signed long` have identical width, signedness, and ABI on this target.",
+  "subject": "function:ScreenSaver",
+  "valid_from": "2026-08-31",
+  "value": "Harmonizing a TU-local extern's declared type between `int` and `s32` (= `signed long` per include/types.h) is NOT codegen-neutral, even though the two types have identical width, signedness, representation, and ABI on PowerPC EABI, and even though the change cannot alter a single value, address, or aliasing relationship. VERIFIED, with a same-symbol counter-example that makes it a genuine per-site hazard rather than a blanket rule. POSITIVE INSTANCE: screensaver.c:117's `extern int gGameMode` changed to `extern s32 gGameMode` (the ONLY edit in the build) regressed ScreenSaver from fndiff real 52 to 64. The residual is pure SCHEDULE and fully localized: target 116 insns, ours 116, opcode multiset IDENTICAL (116/116), and the whole delta is a REORDER of one 4-instruction loop-preheader address-materialization group -- target issues `mtctr, add, lis, addi` across 0x68-0x7c, the s32 build issues `lis, addi, add, mtctr` across 0x64-0x74. Same four opcodes, different order, nothing else in the 116-instruction function moves. Because the multiset is identical at equal insn counts, defake_gate reports this as CONFLICT, not REGRESSION -- so a pass that treats CONFLICT as acceptable will silently bank 12 extra real lines here. NEGATIVE INSTANCE, same symbol, same change, different TU: wave 3 harmonized message.c's `extern int gGameMode` to s32 and it gated BYTE-IDENTICAL (attempt.gamemode-conversion-wave3.20260831.v1). So the hazard does not track the symbol or the change class; it tracks the individual consuming function's schedule sensitivity. WORKING HYPOTHESIS (not mechanistically proven): MWCC carries `int` and `long` as distinct type records even where they are layout-identical, and some downstream ordering heuristic -- instruction scheduling or the order in which the preheader's address materialization is emitted relative to the counted-loop setup -- is keyed off that record rather than off the resolved width. Consistent with the corpus's other 'semantically-null change is not codegen-null' findings (claim.law.noop-cast-on-array-decay-not-neutral, claim.law.sizeof-defeats-loop-stride-induction, claim.law.local-alias-vs-direct-global-spelling-diverges), all of which show a front-end node's IDENTITY outliving its value. CONSEQUENCES. (1) Never batch extern-type harmonizations across a TU set as a 'cosmetic' cleanup; gate each TU, and expect a minority to refuse. (2) A refusing site is a legitimate place to KEEP the divergence: leave the original `int` and record why in a source comment, because the next reader will otherwise see an obvious inconsistency and re-attempt it. Do not let a tidiness goal cost real lines on a fuzzy function. (3) When a project-wide type-divergence inventory is compiled, do not describe unfixed entries as pending chores -- some are caps, and the inventory should say which have actually been measured. (4) The reverse direction (`s32` -> `int`) is untested here and should not be assumed symmetric."
+}

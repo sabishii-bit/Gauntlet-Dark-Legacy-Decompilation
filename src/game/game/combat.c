@@ -2250,7 +2250,7 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
         cam->attn_dest_no_offset[1] = out[1];
         cam->attn_dest_no_offset[2] = out[2];
     } else if (aMode == 1 ||
-               ((gGameMode & 0x4000) != 0 && (u32)lbl_80344824 == 0)) {
+               ((gGameMode & MODE_GROUP_GAME) != 0 && (u32)lbl_80344824 == 0)) {
         out[0] = cam->attn[0];
         out[1] = cam->attn[1];
         out[2] = cam->attn[2];

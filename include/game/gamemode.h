@@ -79,4 +79,39 @@ enum e_mode {
     MG_GWIZ_SPEECH    = 0x4017
 };
 
+/*
+ * Family-bit masks for the groups described above.
+ *
+ * DERIVATION (from the enum values alone, then corroborated at every use
+ * site).  Partitioning all 49 e_mode constants by their high bits gives a
+ * clean, disjoint three-way split with no exceptions:
+ *
+ *   bit 0x8000 set : exactly the 11 MA_* ids, MA_CREDITS(0x8000) through
+ *                    MA_VIEWMENU(0x800A) -- i.e. base ids 0..10.
+ *   bit 0x4000 set : exactly the 13 MG_* ids, MG_PLAYER_SELECT(0x400B)
+ *                    through MG_GWIZ_SPEECH(0x4017) -- i.e. base ids 11..23.
+ *   neither set    : exactly the 25 bare M_* ids, 0..24.
+ *   both set       : NO constant.  The two groups are disjoint, and no
+ *                    grouped id's low bits collide with the other group's
+ *                    (MA_* covers base 0..10, MG_* covers base 11..23), so
+ *                    `& 0x8000` and `& 0x4000` each select one whole family
+ *                    and nothing else.
+ *
+ * The names come from the enum's own prefixes -- MA_ = attract, MG_ = game --
+ * not from an interpretation of behaviour; the use sites merely agree.  They
+ * do: gamemain.c tests `& 0x8000` inside the attract-loop dispatch itself
+ * (the MA_FLYBY arm's `attract_tail`) and to let a start press assign a
+ * controller, and gauntworld.c writes `(gGameMode & 0x8000) && gGameMode !=
+ * MA_DEMO && gGameMode != MA_INSTRUCT`, excluding two MA_* ids from the very
+ * set the mask selects.  The `& 0x4000` sites are in-game-session work --
+ * per-player display setup, shard checks, per-player timers.
+ *
+ * Spelled as macros rather than enumerators deliberately: an e_mode
+ * enumerator would assert these masks are themselves modes (they are not),
+ * and a macro expanding to the identical literal token keeps every converted
+ * site byte-identical by construction rather than by constant folding.
+ */
+#define MODE_GROUP_ATTRACT 0x8000
+#define MODE_GROUP_GAME    0x4000
+
 #endif /* GAME_GAMEMODE_H */
