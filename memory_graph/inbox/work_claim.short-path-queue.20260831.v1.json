@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SHORT-PATH lane: MP's screen re-typed these with real measurements (each has its mp-label-correction.* record \u2014 READ IT per function for the measured mechanism): FindClosestWaypoint (2 rows, ONE 4-byte slot \u2014 slotdiff.py it first, likely a single-declaration fix), MBDrawBlits (lfs-vs-lfd type diff \u2014 an f32/f64 declaration or literal-width question; screen the fmuls/second-term laws), fn_80051164 + sndFxInitVoices (ONE shared indexed-store form \u2014 solve once apply twice; attempt.sndfxinitvoices-indexed-store-form-relabel.20260831.v1), fn_800D87FC (slwi vs rlwinm \u2014 usually a shift-vs-mask spelling; check the andi/mask laws), the dtor_800DB21C/dtor_800DBB94 pair (identical -8 frame delta \u2014 8-byte ruler once, apply twice; C++ dtors so watch the EH-frame r31 aliasing from claim.law.frame-pointer-alias-fakes-a-dead-low-region.20260831.v1). NEW TOOLS: tools/gdl/slotdiff.py is the slot arbiter (real LIES on slot work \u2014 claim.law.real-can-underweight-a-large-alignment-gain-so-arbitrate-conflicts-on-fuzzy.20260831.v1); regnorm for everything else. Cheapest-first; commit per function; gate per TU. Exact or resolution-stamped park per function; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:FindClosestWaypoint",
+  "id": "work_claim.short-path-queue.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SP",
+  "recorded_at": "2026-08-31T21:17:10Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

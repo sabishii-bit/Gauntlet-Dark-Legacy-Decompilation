@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "HYGIENE + FLIP lane: (1) MP found 32 STALE-SOLVED parks (fn at real 0 with a live park record \u2014 the census claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1 lists them via its mp-label-correction records marked STALE-SOLVED): verify each with fndiff --count (real 0) and DELETE the superseded legacy park files (git rm, one commit; the correction records preserve history); rebuild the graph after. (2) Then re-run the flip-closest ranking \u2014 MUCH has changed since the last flip scan (InitEffects/move_logic15/get_player_pos/MBTreeInit/CheckSpecials exact, 32 stale-solved, ghost externs fixed): enumerate NonMatching TUs by non-EXACT count via fndiff --classify, check data gates on any TU at 0-2 stragglers, screen stragglers with context + regnorm (labels lie), drive only what measurement supports (park-age-vs-law-age + the modern kit), flip via finish_tu.py with the symbolified-own-pool check (claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1) and a doldiff-class data verification. Also verify rune_idx_table's 0x148-vs-s32[13] span gap (RS flagged it \u2014 determine what else lives in the object, fix the declaration byte-identically). SKIP TUs owned this run. Deliverable: deletions + flips + corrected declarations, all gated; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:init_player_select",
+  "id": "work_claim.stale-cleanup-flipscan.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-FS",
+  "recorded_at": "2026-08-31T21:17:37Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
