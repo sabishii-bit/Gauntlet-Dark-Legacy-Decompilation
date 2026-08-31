@@ -2691,11 +2691,7 @@ void ProcessEffects(void)
             pos[1] = oldpos[1] + e->vel[1] * gClockFrameStep;
             pos[2] = oldpos[2] + e->vel[2] * gClockFrameStep;
             moved = 1;
-        } else if ((e->flags & 0x4000) && (e->flags & 0x8000)) {
-            pos[0] = oldpos[0];
-            pos[1] = oldpos[1];
-            pos[2] = oldpos[2];
-        } else {
+        } else if (!((e->flags & 0x4000) && (e->flags & 0x8000))) {
             if (fne(e->vel[0], 0.0f) || fne(e->vel[1], 0.0f) || fne(e->vel[2], 0.0f)) {
                 pos[0] = oldpos[0] + e->vel[0] * gClockFrameStep;
                 pos[1] = oldpos[1] + e->vel[1] * gClockFrameStep;
@@ -2709,6 +2705,10 @@ void ProcessEffects(void)
             e->vel[0] -= e->dragx * gClockFrameStep;
             e->vel[1] -= e->weight * gClockFrameStep;
             e->vel[2] -= e->dragz * gClockFrameStep;
+        } else {
+            pos[0] = oldpos[0];
+            pos[1] = oldpos[1];
+            pos[2] = oldpos[2];
         }
 
         if (moved && pos[1] + 2.0 * e->colrad < lbl_80344880 - 25.0) {
@@ -3156,11 +3156,7 @@ void ProcessEffects(void)
                         break;
                     }
                     enemy = (struct fxenemy*)(gEnemies + enemyIndex * 916);
-                    if (e->flags & 0x400) {
-                        if (e->maxtime - remaining > 0.0667) {
-                            hit = -1;
-                        }
-                    } else {
+                    if (!(e->flags & 0x400)) {
                         dir[0] = e->vel[0];
                         dir[1] = e->vel[1];
                         dir[2] = e->vel[2];
@@ -3191,6 +3187,10 @@ void ProcessEffects(void)
                             }
                         } else {
                             hit = 2;
+                        }
+                    } else {
+                        if (e->maxtime - remaining > 0.0667) {
+                            hit = -1;
                         }
                     }
                     start = enemyIndex + 1;
@@ -3248,12 +3248,14 @@ void ProcessEffects(void)
                         hit = CritterDamage(
                             critter, owner - 1, e->damagetype, hitpos,
                             dir, collisionDamage, 2);
-                        if (hit < 0) {
-                            hit = 2;
-                        } else if (hit == 0) {
-                            hit = 2;
+                        if (hit >= 0) {
+                            if (hit != 0) {
+                                hit = 3;
+                            } else {
+                                hit = 2;
+                            }
                         } else {
-                            hit = 3;
+                            hit = 2;
                         }
                         if (passThrough == 0) {
                             pos[0] = hitpos[0];
