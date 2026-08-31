@@ -141,8 +141,10 @@ def main():
                           " or use git to inspect history.")
                     return 1
         if snap.read_bytes() == source.read_bytes():
-            print("nothing to revert: source already matches the banked"
-                  " snapshot; re-scoring:")
+            print("nothing to revert: the banked snapshot IS the current"
+                  " working tree (NEUTRAL probes bank too). If you want to"
+                  " discard an uncommitted neutral edit, use git"
+                  " (`git status` / `git checkout -- <file>`); re-scoring:")
         else:
             shutil.copyfile(snap, source)
             print(f"reverted {source} to the last banked good state;"
@@ -162,16 +164,20 @@ def main():
          "--count", "--no-build"],
         capture_output=True, text=True,
     ).stdout
+    # fndiff strips a trailing _80XXXXXX address suffix from user-supplied
+    # names; accept either spelling here so one name works everywhere.
+    fn_stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn)
     real = None
     for line in count.splitlines():
         match = COUNT_RE.match(line.strip())
-        if match and match.group(1) == fn:
+        if match and match.group(1) in (fn, fn_stripped):
             _, ti, bi, lines, real_text = match.groups()
             real = int(real_text)
             insns = f"{ti}/{bi}"
             break
     else:
-        if re.search(rf"^OK\s+{re.escape(fn)}\s*$", count, re.M) or not count.strip():
+        if re.search(rf"^OK\s+({re.escape(fn)}|{re.escape(fn_stripped)})\s*$",
+                     count, re.M) or not count.strip():
             # fndiff --count prints nothing for byte-identical functions
             real, insns = 0, "exact"
 
