@@ -67,6 +67,26 @@ typedef struct CritterItemView {
     u8 _padCE[0x22];
 } CritterItemView;             /* size 0xF0 */
 
+/* -- atreeheader (misc.h, 0x38): the per-model animation-tree header that
+ *    CritterPackedType.atree points at.  game/effect.h already forward-
+ *    declares `struct atreeheader` (it types EffectHeader.atree) but never
+ *    completes it, so the body is completed here, in the only TU that reaches
+ *    into it.  GC-VERIFIED: CritterInitColnodes calls
+ *    AtreeFindNodeIdx(atc+0xC, atc+0x10, name, 0x10) -- a find-node-by-name
+ *    over a nodeinfo array of numnodes entries -- which pins nodeinfo@0x0C
+ *    (pointer, lwz) and numnodes@0x10 (s32, lwz).  The remaining fields are
+ *    Xbox-PDB reference only and are unreferenced by this TU. -- */
+struct atreeheader {
+    void *seq;               /* 0x00 atreeseq* sequence table  (PDB ref)   */
+    void *animheader;        /* 0x04                           (PDB ref)   */
+    void *oanimheader;       /* 0x08                           (PDB ref)   */
+    void *nodeinfo;          /* 0x0C GC-verified: AtreeFindNodeIdx arg 0   */
+    s32 numnodes;            /* 0x10 GC-verified: AtreeFindNodeIdx arg 1   */
+    s32 numseqs;             /* 0x14                           (PDB ref)   */
+    char prefix[30];         /* 0x18                           (PDB ref)   */
+    s16 model;               /* 0x36                           (PDB ref)   */
+};                           /* size 0x38 */
+
 /* -- CritterDamageDef (0x50): the file->damage[] action-descriptor record,
  *    a type-tagged union read by CritterFirePlayerCollide/
  *    CritterNodePlayerCollide/CritterDamagePlayer (ray and melee damage
@@ -6149,7 +6169,8 @@ s32 CritterDoSfxSub(Critter *c, u8 *sfx, f32 *position,
     if (color != 0xFFFFFFFF) {
         effectData = (u8 *)Effects;
         effectData += result * sizeof(Effect);
-        MBTreeSetColor(**(void ***)(effectData += 0x18), color, 1);
+        MBTreeSetColor(**(void ***)(effectData += offsetof(Effect, atree)),
+                       color, 1);
     }
     scale = *(f32 *)(sfx + offsetof(CritterSfxRecord, scale));
     if (c->mbnode != NULL &&
@@ -6891,7 +6912,7 @@ void CritterInitColnodes(Critter *c)
                     while (n > 0) {
                         *(void **)(record + offsetof(CritterHitNode, boundNode)) =
                             *(void **)(*(u8 **)(record + offsetof(CritterHitNode,
-                                        boundNode)) + 0x78);
+                                        boundNode)) + offsetof(MBObject, child));
                         n--;
                     }
                 } else {
@@ -6900,9 +6921,12 @@ void CritterInitColnodes(Critter *c)
                                 offsetof(CritterPackedType, atree));
                     if (atc != NULL && name != NULL && ch != 0 &&
                         name[1] != 0) {
-                        idx = AtreeFindNodeIdx(*(void **)((u8 *)atc + 0xC),
-                                               *(s32 *)((u8 *)atc + 0x10),
-                                               name, 0x10);
+                        idx = AtreeFindNodeIdx(
+                            *(void **)((u8 *)atc +
+                                       offsetof(struct atreeheader, nodeinfo)),
+                            *(s32 *)((u8 *)atc +
+                                     offsetof(struct atreeheader, numnodes)),
+                            name, 0x10);
                     }
                     *(void **)(record + offsetof(CritterHitNode, boundNode)) =
                         CritterColnodeAnimNode(c, idx);
