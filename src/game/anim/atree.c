@@ -1192,8 +1192,9 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
         }
 
         /* per-match-entry tree blobs */
+        i = 0;
         off = 0;
-        for (i = 0; i < (s16)hdr[0]; i++) {
+        while (i < (s16)hdr[0]) {
             s32* blob =
                 (s32*)(base + *(s32*)(*(u32*)(hdr + 2) + off +
                                        offsetof(atreematch, offset)));
@@ -1268,6 +1269,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
                 }
             }
             def->objectIndex = (s16)model;
+            i++;
             off += sizeof(atreematch);
         }
 
