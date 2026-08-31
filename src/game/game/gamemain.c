@@ -5178,27 +5178,15 @@ extern s32  strcmp(const char* a, const char* b);
                           *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, buf_); \
     }
 
-/* Per-character stat block: 16 records of 28 bytes based at Player+3088,
- * indexed by Player.character.  The extent is exact -- 0xC10 + 16*28 = 0xDD0,
- * ending just before char_save[] at 0xDD4.  Only the BASE and STRIDE are named
- * here: `gdlmem struct Player --offset 0xC10` resolves solely to the unnamed
- * pad_0A88, and the Xbox PDB's 0x6140 `player` record is not authority at this
- * offset, so the four members have NO GC-verified names and keep purely
- * POSITIONAL labels rather than invented semantic ones.  Observed use: the
- * three s32 members are frame counts (displayed /60) and the last is an f32
- * (displayed /k60).  Modelling this as a player.h member is blocked twice over
- * -- by the naming bar, and by claim.law.embedded-struct-member-whole-tu-cascade
- * (a 28-byte record is a NEW aggregate type, so the reuse refinement in
- * claim.law.embedded-struct-reuse-of-member-type-is-cascade-safe does not
- * apply). */
-#define CHAR_STAT_BLOCK_OFF 3088
-#define CHAR_STAT_STRIDE    28
-#define CHAR_STAT_OFF_00    (CHAR_STAT_BLOCK_OFF + 0)  /* s32 frame count */
-#define CHAR_STAT_OFF_10    (CHAR_STAT_BLOCK_OFF + 16) /* s32 frame count */
-#define CHAR_STAT_OFF_14    (CHAR_STAT_BLOCK_OFF + 20) /* s32 frame count */
-#define CHAR_STAT_OFF_18    (CHAR_STAT_BLOCK_OFF + 24) /* f32 */
+/* The active character's per-character stat record.  This is the block that
+ * used to be addressed here as raw `Player + 3088 + character*28` with purely
+ * positional labels; it is now modelled as Player.char_stats[16] in
+ * include/game/player.h (the Xbox P_SAVE_STATS analogue -- see that header for
+ * the identification evidence).  `p` walks gPlayers as a u8*, so the cast is
+ * what the loop shape requires, not an invented one. */
+#define CHAR_STAT(p) (((Player*)(p))->char_stats[((Player*)(p))->character])
 
-#define STAT_TALLY(accOff, tgtOff, ok)                                        {                                                                               s32 c_ = *(s32*)p;                                                          u8* b_ = state + c_ * 4;                                                    s32 amt_ = *(s32*)(b_ + 96);                                                if (gGameBusy != 0) {                                                           ok = 0;                                                                 } else {                                                                        u8* a_;                                                                     if (*(s32*)(lbl_80240E30 + c_ * 60 + 4) & 0x0F000000) {                         amt_ *= 6;                                                              }                                                                           *(s32*)(b_ + (accOff)) = *(s32*)(b_ + (accOff)) + amt_;                     a_ = state + *(s32*)p * 4;                                                  if (*(s32*)(a_ += (accOff)) <                                                   *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * CHAR_STAT_STRIDE + (tgtOff))) {                        ok = 0;                                                                 } else {                                                                        *(s32*)a_ =                                                                     *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * CHAR_STAT_STRIDE + (tgtOff));                      ok = 1;                                                                 }                                                                       }                                                                       }
+#define STAT_TALLY(accOff, tgtField, ok)                                        {                                                                               s32 c_ = *(s32*)p;                                                          u8* b_ = state + c_ * 4;                                                    s32 amt_ = *(s32*)(b_ + 96);                                                if (gGameBusy != 0) {                                                           ok = 0;                                                                 } else {                                                                        u8* a_;                                                                     if (*(s32*)(lbl_80240E30 + c_ * 60 + 4) & 0x0F000000) {                         amt_ *= 6;                                                              }                                                                           *(s32*)(b_ + (accOff)) = *(s32*)(b_ + (accOff)) + amt_;                     a_ = state + *(s32*)p * 4;                                                  if (*(s32*)(a_ += (accOff)) <                                                   CHAR_STAT(p).tgtField) {                        ok = 0;                                                                 } else {                                                                        *(s32*)a_ =                                                                     CHAR_STAT(p).tgtField;                      ok = 1;                                                                 }                                                                       }                                                                       }
 
 s32 do_stats_display(void)
 {
@@ -5254,8 +5242,7 @@ s32 do_stats_display(void)
             *(s32*)(sp + 32) = on;
             *(s32*)(sp + 80) = 480;
             (*(s32*)(p + offsetof(Player, field_A64)))++;
-            *t96 = *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) *
-                                        CHAR_STAT_STRIDE + CHAR_STAT_OFF_00) / 60;
+            *t96 = CHAR_STAT(p).enemies_killed / 60;
             if (*t96 < 1) {
                 *t96 = 1;
             }
@@ -5263,13 +5250,11 @@ s32 do_stats_display(void)
         case 1: {
             s32 ok;
             done = 0;
-            STAT_TALLY(32, CHAR_STAT_OFF_00, ok);
+            STAT_TALLY(32, enemies_killed, ok);
             if (ok != 0) {
                 u8* sp2 = state + off;
                 (*(s32*)(p + offsetof(Player, field_A64)))++;
-                *(s32*)(sp2 + 96) =
-                    *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) *
-                                CHAR_STAT_STRIDE + CHAR_STAT_OFF_10) / 60;
+                *(s32*)(sp2 + 96) = CHAR_STAT(p).generators_destroyed / 60;
                 if (*(s32*)(sp2 += 96) < 1) {
                     *(s32*)sp2 = 1;
                 }
@@ -5283,13 +5268,11 @@ s32 do_stats_display(void)
             s32 ok;
             done = 0;
             STAT_ROW(col1, lbl_80346AD8, 32);
-            STAT_TALLY(48, CHAR_STAT_OFF_10, ok);
+            STAT_TALLY(48, generators_destroyed, ok);
             if (ok != 0) {
                 u8* sp2 = state + off;
                 (*(s32*)(p + offsetof(Player, field_A64)))++;
-                *(s32*)(sp2 + 96) =
-                    *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) *
-                                CHAR_STAT_STRIDE + CHAR_STAT_OFF_14) / 60;
+                *(s32*)(sp2 + 96) = CHAR_STAT(p).gold_found / 60;
                 if (*(s32*)(sp2 += 96) < 1) {
                     *(s32*)sp2 = 1;
                 }
@@ -5304,14 +5287,11 @@ s32 do_stats_display(void)
             done = 0;
             STAT_ROW(col1, lbl_80346AD8, 32);
             STAT_ROW(col2, msgs + 12, 48);
-            STAT_TALLY(16, CHAR_STAT_OFF_14, ok);
+            STAT_TALLY(16, gold_found, ok);
             if (ok != 0) {
                 u8* sp2 = state + off;
                 (*(s32*)(p + offsetof(Player, field_A64)))++;
-                *(s32*)(sp2 + 96) =
-                    (s32)(*(f32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) *
-                                      CHAR_STAT_STRIDE + CHAR_STAT_OFF_18) /
-                          k60);
+                *(s32*)(sp2 + 96) = (s32)(CHAR_STAT(p).total_playtime / k60);
                 if (*(s32*)(sp2 += 96) < 60) {
                     *(s32*)sp2 = 60;
                 }
@@ -5346,8 +5326,7 @@ s32 do_stats_display(void)
                     }
                     *(s32*)(b + 64) += amt;
                     a = state + *(s32*)p * 4;
-                    tgt = *(f32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) *
-                                      CHAR_STAT_STRIDE + CHAR_STAT_OFF_18);
+                    tgt = CHAR_STAT(p).total_playtime;
                     if ((f32)*(s32*)(a += 64) < tgt) {
                         ok = 0;
                     } else {
