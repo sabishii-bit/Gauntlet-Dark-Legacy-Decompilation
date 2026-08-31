@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/anim/anim_play.c::GetAnimAngXYZVal, worktree GDL-Claude-AnimAlign, commits bfe06a226 and 851101ffc, 2026-09-01. Baseline: frame 920/920, 222 slots each side, exactly one exclusive slot per side (TARGET-ONLY 788, OURS-ONLY 796). Two measured forms of one added first-in-list declaration, arbitrated on slotdiff. u8 unusedTop[8]: frame 920 -> 928, temp base 788 -> 796, bits 788 -> 796, magic 792 -> 800, d2 800 -> 808, d1 808 -> 816, stmw 816 -> 824, real 172 -> 230. u8 unusedTop[4]: SLOT MAP IDENTICAL, frame held at 920, real 172 -> 160. The function then went to 0 STRUCTURAL under regnorm and became webfrank-eligible.",
+    "tags": [
+      "matching",
+      "decl-order",
+      "store-placement",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.a-lone-dead-stack-word-is-usually-the-alignment-pad-of-the-first-8-byte-temp.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T23:41:41Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "WHEN SLOTDIFF REPORTS EXACTLY ONE EXCLUSIVE SLOT PER SIDE AT EQUAL FRAME SIZE, DO NOT READ IT AS A MISPLACED OR MISSING TEMP UNTIL YOU HAVE DECOMPOSED THE HIGH REGION BY MEMBER WIDTH: the commonest cause is that ONE side's compiler-temp block starts on a non-8-aligned address, so MWCC inserts a 4-byte pad in front of the first 8-byte temp, and that pad is the 'dead word'. Read the whole region between the top named local and the stmw/lmw save base, tag every member by its access width (stw/lwz = 4, lfd/stfd or a stw-pair feeding an lfd = 8), and check the address of the FIRST 8-byte member. On GetAnimAngXYZVal the region [784,816) held keynum-spill(4), bits-spill(4), the hoisted 0x43300000 int-to-double magic(4) and two doubles at 800 and 808. The target's 4-byte run began at the 8-aligned 792 and needed no pad, leaving its dead word at 788 as ordinary named storage; ours began at 788 and paid a 4-byte pad at 796. The two layouts look like a permutation of the same objects and invite an 'the dead word is on the wrong side of the pair, so 8-align the pair' reading. THAT READING IS BACKWARDS: nothing about the pair is misaligned, the BLOCK BASE is, and the pair's placement is a consequence, not a cause. THE LEVER IS 4 BYTES OF NAMED STORAGE ABOVE THE FIRST SPILLED LOCAL - i.e. a pad declared FIRST in the function's declaration list, which under claim.law.stack-slots-descend-in-declaration-order lands at the top of the named block and lifts the temp block base by exactly its size, deleting the internal pad. RULER DISCIPLINE, and the reason this record exists: run the pad at 8 BYTES FIRST. A 4-byte step can be invisible or ambiguous (it can be swallowed by the very alignment pad you are trying to move), whereas an 8-byte step moves the frame, the save base and every temp together and shows the whole mechanism in one build; only then spend the 4-byte form. COROLLARY that overturns a specific prior reading: a top-of-list dead pad is NOT inert for placement here. claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever calls the top pad 'the passive ballast half', which is true for moving a RUN as a unit but false for this residual, where the run must move while its lowest member stays put. When the bottom member of the run must NOT move, the top pad is the only lever and the bottom pad is the wrong one. Arbitrate on slotdiff throughout: the winning 8-byte ruler read REGRESSED on real (172 -> 230) while being the measurement that proved the mechanism."
+}
