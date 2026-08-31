@@ -290,7 +290,7 @@ extern s32 lbl_80344824;    /* active-player mask */
 extern s32 sWorldDataConst;
 extern s32 sMusicTrackHi;
 extern s32 lbl_80344A44;    /* fullscreen-inventory mode */
-extern u32 sPowerupsBuf;    /* icon tint */
+extern void* sPowerupsBuf;    /* icon tint */
 extern s32 gDrawTextY;    /* hint text line dy (auxscreen) */
 extern s32 gLineSpacing;    /* auxscreen text dy override */
 extern s32 lbl_803443E4;    /* auxscreen font override */
