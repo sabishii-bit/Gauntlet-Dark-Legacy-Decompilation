@@ -3241,11 +3241,11 @@ void fn_800516F8(s32 slot)
         q = (u8*)gPlayers + lbl_80344B24 * 13148;
         {
             f32 fd;
-            if (*(s16*)(q + 2588) > 2) {
+            if (*(s16*)(q + offsetof(Player, field_A1C)) > 2) {
                 DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + 2564),
                       lbl_80346820, lbl_80346830, lbl_803468B8);
             } else {
-                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + 100),
+                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, effectpos)),
                       lbl_80346820, lbl_80346830, lbl_803468B8);
             }
             *(f32*)(e + offsetof(Enemy, actual_dist)) = fd;
@@ -3290,7 +3290,7 @@ void fn_800516F8(s32 slot)
                         DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + 2564),
                               kZero, kHalf, kThree);
                     } else {
-                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + 100),
+                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, effectpos)),
                               kZero, kHalf, kThree);
                     }
                     range = dist;
@@ -3311,7 +3311,7 @@ void fn_800516F8(s32 slot)
                         continue;
                     }
                     if (*(f32*)(e + offsetof(Enemy, view)) < kPi) {
-                        ad = get_yaw((f32*)(p + 100), (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos))) -
+                        ad = get_yaw((f32*)(p + offsetof(Player, effectpos)), (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos))) -
                              *(f32*)(e + offsetof(Enemy, pyr) + 4);
                         *(u32*)&ad &= 0x7FFFFFFF;
                         if (ad > *(f32*)(e + offsetof(Enemy, view))) {
