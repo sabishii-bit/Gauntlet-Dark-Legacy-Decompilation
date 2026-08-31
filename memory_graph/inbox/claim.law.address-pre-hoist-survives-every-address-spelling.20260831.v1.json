@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "cse",
+      "register-web",
+      "offsetof-form",
+      "alias-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.address-pre-hoist-survives-every-address-spelling.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T17:12:30Z",
+  "schema_version": 1,
+  "subject": "tu:game/anim/atree",
+  "valid_from": "2026-08-31",
+  "value": "CORRECTION AND BOUNDARY on claim.law.address-cse-over-calls-outranks-member-displacement-form.20260831.v1. That law states the surplus `addi r27,r24,54` web on fn_8001267C arises because the SAME member offset is touched TWICE in one loop body, once early and once late, and that MWCC therefore CSEs the two sites' shared address. RE-MEASURED FROM THE OBJECT, that mechanism is WRONG in its key detail: the EARLY site (the SWAP16 of objectIndex) emits the FUSED displacement on BOTH sides - target `lhz r0,54(r25)` / `sth r4,54(r25)` at 0x4c0/0x4d4, ours `lhz r0,54(r24)` / `sth r0,54(r24)` at 0x4c4/0x4d8 - and the hoisted register has EXACTLY TWO uses, `addi r27,r24,54` at 0x3a4 and `sth r23,0(r27)` at 0x864. The early site never reads r27. So the web is not a shared-address CSE between two sites; it is a one-sided PRE that materializes the LATE store's address at the top of the loop body and parks it in a callee-saved across ~1200 bytes of body including several calls, where the target forms nothing and stores `sth r24,54(r25)` at the same position (0x860). WHAT THIS RULES OUT: because MWCC canonicalizes every address to base+constant BEFORE PRE runs, no ADDRESS SPELLING can dislodge the hoist. FOUR structurally distinct spellings have now been measured and every one is byte-identical: the three typed-member forms recorded by the prior pass, plus a scaled-index form `((s16*)blob)[offsetof(AtreeDefinition, objectIndex) / sizeof(s16)]` chosen specifically because it builds a different computation tree and because the same idiom is already byte-exact elsewhere in this TU (the `tm[offsetof(TEXMOD, frames) / sizeof(u16)]` sites). The address-spelling axis is CLOSED - do not spend further probes on any respelling of either site. WHAT REMAINS OPEN: levers that change LIVENESS or CALL STRUCTURE rather than spelling, since the hoist is a placement decision over a live range, not a spelling artifact. NOTE the register-rotation consequence is confirmed exactly as the superseded law described it (ours needs a 6th callee-saved, so `lmw r23,556(r1)` instead of the target's `lmw r24,560(r1)`), but that accounts for only 4 bytes of skew; it does NOT explain fn_8001267C's large `real`, which is dominated by an INDEPENDENT whole-frame inversion recorded in claim.law.frame-bottom-region-is-outgoing-args-not-a-dead-local.20260831.v1."
+}
