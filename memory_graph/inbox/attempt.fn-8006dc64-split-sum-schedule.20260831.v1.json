@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "Split component sums from camera subtraction to expose the target's delayed fsubs schedule; four counter-axes were neutral and restored",
+  "attributes": {
+    "axis_log": "1 broad independent-statement reorder: neutral real102, restored; 2 plane-pointer declaration order: neutral real102, restored; 3 explicit negated-distance temporary: neutral real102, restored; 4 two-phase component sums then delayed camera subtraction: improved real102->100, retained; 5 reversed fused-expression additive operands: identical real100, restored to banked best",
+    "baseline": "target/current 180/180, fuzzy 87.772224%, real 102, frame 0xE8",
+    "best": "target/current 180/180, fuzzy 87.772224%, real 100, frame 0xE8",
+    "law_screen": "claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1: APPLIED to the statement-order and split-expression probes; only the split-sum form improved real 102->100 while preserving the identical 180-opcode multiset. claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1: screened; no declaration initializer participates in the residual, so not applied. claim.law.whole-fn-address-cache.20260829.v1, claim.law.reload-vs-cache-liveness.20260829.v1, claim.law.point-of-use-single-use-pointer-delay.20260830.v1, claim.law.scalar-field-cache-defeats-call-boundary-reload.20260830.v1, claim.law.chained-init-constant-share.20260829.v1, and claim.law.store-placement-family.20260829.v1: screened in full and not applicable because the residual has no global-address cache, call-boundary field reload, paired constant initialization, or store-placement mismatch.",
+    "laws_applied": "[\"claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1\"]",
+    "residual": "SCHEDULE: opcode multiset remains identical; remaining mismatches are the entry basic block's GPR/FPR load, home, and arithmetic scheduling/register web through fn+0xC0. Secondary fn_8006E654 was untouched because no genuinely new portable axis was found beyond its accepted hard-closure cap.",
+    "scope": "src/game/world/newcam.c::fn_8006DC64 only; CalcFrustrumNormals WebFrank-pinned source and all siblings/data untouched",
+    "verification": "probe.py baseline and every probe; final probe --clean real100 180/180; matchtool TU probe 17/23 exact and no exact-sibling regression; full ninja -j2 main.dol OK; git diff --check clean"
+  },
+  "function": "function:fn_8006DC64",
+  "id": "attempt.fn-8006dc64-split-sum-schedule.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T03:12:56Z",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
