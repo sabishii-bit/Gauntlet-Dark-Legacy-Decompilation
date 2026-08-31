@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "Close the sole entry parameter-home/schedule residual after the accepted coordinate-order improvement by testing five target-backed, portable source forms without revisiting its vetoed coordinate-order or entry-storage probes.",
+  "attributes": {
+    "axis_log": "Prior record: reversed coordinate add order 20->44 clean, swapped value association 20->40, origin pointer 20->114, direct result global 20->116; register result pointer/f32 pointer/register params neutral (not retried). Current A1 idxList alias real14->56 (register-pressure/schedule cascade); A2 result declaration initializer neutral14; A3 cached WorldGridInfo alias 14->16 (address-web schedule); A4 array parameter spelling neutral14; A5 const s16* parameter neutral14. All current probes restored.",
+    "law_screen": "Full `gdlmem.py laws` corpus screened: 100 current records (2026-08-31). Directly applicable and tested: claim.law.declaration-initializer-split-controls-entry-schedule (A2 neutral); claim.law.point-of-use-single-use-pointer-delay and claim.law.single-use-field-pointer-alias-is-folded-away (A1 regressed); claim.law.typed-global-member-vs-view-cast-diverges plus claim.law.local-alias-vs-direct-global-spelling-diverges (A3 regressed); claim.law.independent-statement-reorder-matches-target-schedule screened but not applied because the target/current constant-use order is already identical and prior coordinate reorders are vetoed; claim.law.insn-count-parity-outranks-local-opcode-fidelity confirmed at 175/175. Signature searches `parameter home`, `addi mr parameter`, `address`, `global address low entry schedule`, and `point of use` returned no untried lever. WebFrank pin screen found no CTriListCollide/worldcol pin. Remaining corpus concerns unrelated literals, fields, loops, casts, guards, data, or postprocessing and is not applicable to this entry copy-form residual.",
+    "laws_applied": [
+      "claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1",
+      "claim.law.point-of-use-single-use-pointer-delay.20260830.v1",
+      "claim.law.single-use-field-pointer-alias-is-folded-away.20260831.v1",
+      "claim.law.typed-global-member-vs-view-cast-diverges.20260831.v1",
+      "claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1",
+      "claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1"
+    ],
+    "residual": "One named MWCC parameter-home copy-form mechanism: target 0x8000E404 emits `mr r23,r6` (raw `or r23,r6,r6`) at function +0x4c, while current emits semantically equivalent `addi r23,r6,0` at +0x54. The same r23 web begins at the loop and all code from +0x70 onward is byte-identical; only independent entry global/constant loads move around that selector choice. Final 175/175, fuzzy 97.22857%, count real14, clean 20 lines, frame 0xc8, saves r18-r31/f24-f31. Portable source forms could not select target `mr`; config/postprocessor are out of scope.",
+    "scope": "src/game/world/worldcol.c::CTriListCollide only plus this proposal; five compact probes, no source retained.",
+    "verification": "Final probe.py --ops NEUTRAL real14, 175/175, target-only +1 mr/current-only +1 addi; fndiff --count real14 and --clean 20 lines; matchtool TU brief OK:11 bad:4 ties:2 with CTriListCollide=14; git diff --check clean; full ninja -j2 passed and build/GUNE5D/main.dol: OK (retail SHA-1 7cba77aa496eb0fc5ffec60efd9680aa9635d679)."
+  },
+  "function": "function:CTriListCollide",
+  "id": "attempt.ctri-list-collide-entry-home-closure.20260831.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T05:44:04Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.ctri-list-collide-coordinate-order.20260829.v1",
+  "valid_from": "2026-08-31"
+}
