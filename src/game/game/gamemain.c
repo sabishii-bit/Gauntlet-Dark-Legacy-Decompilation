@@ -3321,7 +3321,7 @@ void fn_800516F8(s32 slot)
     }
 
     t = lbl_80344B24;
-    if (t >= 0 && gPlayers[t].state == 1 &&
+    if (t >= 0 && gPlayers[t].state == ACTIVE &&
         !(gPlayers[t].flags & 4) &&
         !(*(s32*)e == 30 && (gPlayers[t].shield_flags & 0x80000))) {
         u8* q;
@@ -3349,7 +3349,7 @@ void fn_800516F8(s32 slot)
         }
         cur = *(s16*)(e + offsetof(Enemy, closest));
         if ((s16)cur >= 0 &&
-            gPlayers[cur].state != 1) {
+            gPlayers[cur].state != ACTIVE) {
             go = -1;
         }
         if (go != 0) {
@@ -3465,7 +3465,7 @@ void fn_80055AFC(void)
     }
     n = 0;
     for (i = 0; i < 4; i++) {
-        if (gPlayers[i].state == 1) {
+        if (gPlayers[i].state == ACTIVE) {
             break;
         }
         n++;
@@ -3826,9 +3826,9 @@ void fn_8005351C(void)
             ((Player*)p)->exit_dest = sLastWorldLevel;
             ((Player*)p)->node = 0;
             ((Player*)p)->platform = 0;
-            if ((lbl_80344824 & (1 << i)) && ((Player*)p)->state != 11) {
+            if ((lbl_80344824 & (1 << i)) && ((Player*)p)->state != INTOWER) {
                 Player* player = (Player*)p;
-                player->state = 1;
+                player->state = ACTIVE;
                 load_player(i);
                 add_target(player->mat);
                 LoadPlyrData(i, player->character, 1);
@@ -3852,7 +3852,7 @@ void fn_8005351C(void)
         for (i = 0, off2 = 0; i < 4; i++, off2 += 13148) {
             u8* q = base + off2;
             Player* player = (Player*)q;
-            if (player->state != 0) {
+            if (player->state != INACTIVE) {
                 if (sMusicTrackHi == 13) {
                     PlayerSaveState(i, 0);
                 } else if (sMusicTrackHi != 12) {
@@ -3887,7 +3887,7 @@ void fn_8005351C(void)
         }
         if (mt == 13) {
             for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
-                if (((Player*)p)->state == 1) {
+                if (((Player*)p)->state == ACTIVE) {
                     *(PlayerSaveBlk*)(p + 7884) = *(PlayerSaveBlk*)(p + 2688);
                 }
             }
@@ -4437,7 +4437,7 @@ void fn_80054E78(void)
                 for (player_off = 0; player_off < 48;
                      player_off += 12, p += 13148) {
                     Player* player = (Player*)p;
-                    if (player->state != 0) {
+                    if (player->state != INACTIVE) {
                         row = state + player_off;
                         *(f32*)(row + 144) = player->pos[0];
                         *(f32*)(row + 148) = player->pos[1];
