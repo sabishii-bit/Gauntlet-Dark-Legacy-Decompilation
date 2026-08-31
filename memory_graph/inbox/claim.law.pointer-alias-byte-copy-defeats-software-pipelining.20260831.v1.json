@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "cse",
+      "register-web",
+      "alias-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.pointer-alias-byte-copy-defeats-software-pipelining.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T16:21:10Z",
+  "schema_version": 1,
+  "subject": "tu:game/anim/atree",
+  "valid_from": "2026-08-31",
+  "value": "A byte-order swap written as a UNION byte copy lets MWCC software-pipeline the chain across two scratch registers; the same swap written as a POINTER-ALIAS byte copy forces the target's strict single-register r0 lbz/stb alternation. Mechanism: with `union {u32 w; u8 b[4];} _d, _s;` the compiler sees two distinct local objects and can prove _d and _s never alias, so it is free to hoist each `lbz` above the preceding `stb`, emitting `lbz r0 / lbz r3 / stb r0 / stb r3 ...` across a second scratch register. Routing both ends through `u8*` variables instead (`u32 _dw, _sw; u8 *_dp = (u8*)&_dw, *_sp = (u8*)&_sw;` then `_dp[0] = _sp[3]; ...`) makes every store a potentially-aliasing store through a character pointer, which blocks the reordering and yields strict `lbz r0,N / stb r0,M` alternation with no second register. VERIFIED on fn_8001267C in src/game/anim/atree.c: the union spelling of the SWAP32TO macro produced a two-register pipelined chain in all ~40 expansions; switching only the macro body to the pointer-alias spelling made every expansion instruction-for-instruction identical to the target, taking the function from 85.5461% to 95.4087% fuzzy in a single edit, with the opcode multiset falling 9t -> 6t. HOW IT WAS FOUND, and the reusable method: `python tools/gdl/shapegrep.py lbz,stb,lbz,stb,lbz,stb --exact-only` returned fn_80011DCC in the SAME TU as a byte-exact positive control, and its helper AtreeNodeSwap32 was already written in the pointer-alias form - the answer was sitting in the same file. Screen shapegrep for a byte-exact positive control BEFORE theorising about scheduling, and prefer the proven spelling verbatim. COROLLARY, measured not assumed: converting SWAPF32 from its union round-trip to the matching pointer-cast form (AtreeNodeSwapF32's `*(u32*)&value`) measured NEUTRAL and did not shrink the frame - the aliasing effect is carried by the u8* byte-copy chain itself, not by removing unions generally, so do not churn other union punning on this law's authority."
+}

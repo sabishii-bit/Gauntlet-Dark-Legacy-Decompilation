@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "cse",
+      "register-web",
+      "offsetof-form",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.address-cse-over-calls-outranks-member-displacement-form.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T16:21:15Z",
+  "schema_version": 1,
+  "subject": "tu:game/anim/atree",
+  "valid_from": "2026-08-31",
+  "value": "BOUNDARY on claim.law.offsetof-fused-immediate-counter.20260830.v1. That law says replacing `offsetof` address arithmetic with a typed member access restores the target's fused load/store displacement. It holds only when the member's address is used ONCE in its region. When the SAME member offset is touched twice in one loop body - once early and once late, with calls in between - MWCC hoists the address to the top of the body (`addi r27,r24,54`) and keeps it live in a CALLEE-SAVED register across the whole body, and no member-access spelling dislodges it. THREE distinct source forms were measured on fn_8001267C's per-match-entry loop and all three produced BYTE-IDENTICAL output: (1) typed member write `((AtreeDefinition*)blob)->objectIndex = (s16)model` alone; (2) that plus the earlier swap site as `*(u16*)&((AtreeDefinition*)blob)->objectIndex`; (3) that plus the earlier site with the address-of removed entirely, `SWAP16(((AtreeDefinition*)blob)->objectIndex)`. The target emits no such address and stores with the fused `sth r24,54(r25)`. WHY IT MATTERS FAR BEYOND ONE INSTRUCTION, and the diagnostic worth reusing: one surplus long-lived web rotates the WHOLE callee-saved assignment down by one register, and because `stmw`/`lmw` save a CONTIGUOUS range, the save area then starts 4 bytes lower - shifting EVERY stack slot in the function by 4 and making every stack access read as a diff line despite correct opcode and register. On fn_8001267C that single web is worth essentially all of `real 869` across 239 slots. DIAGNOSTIC: when `real` is large but the opcode multiset is nearly identical, count per-register occurrences on both sides (target vs ours) before theorising. If the count profile is identical but shifted by one register (here ours r23=7 r24=42 r25=3 r26=4 r27=2 r28=4 against target r24=7 r25=42 r26=3 r27=3 r28=4), the residual is ONE surplus web, not diffuse allocator noise, and the extra count identifies exactly which web to hunt. COROLLARY for WebFrank: such a rotation is NOT a pure register renaming - a sound rule must also rewrite the stmw/lmw base and every r1 displacement, so it needs its own guard audit and does not qualify under the existing renaming-bisimulation guards."
+}
