@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "cse",
+      "register-web",
+      "sda-global"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.bb-plain-read-never-cse-binds-to-a-volatile-load.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T22:53:52Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A PLAIN READ NEVER CSE-BINDS TO A VOLATILE LOAD'S RESULT, SO THE `*(volatile const T*)&K` POOL-CONSTANT SCAFFOLD CAN BUY AN INSTRUCTION COUNT BUT CAN NEVER BUY A DEF-USE BINDING. This project routinely forces MWCC to re-emit a floating-point pool constant that it would otherwise CSE by spelling one of the reads `*(volatile const f64*)&lbl_XXXX`. That scaffold is sound for COUNT parity and is load-bearing in several matched bodies, but it has a hard limit that must be screened before anyone spends probes trying to steer which load a later use reads.\n\nTHE RULE. Within one function, MWCC/GC 1.2.5 keeps volatile and non-volatile accesses to the same lvalue in DISJOINT value-numbering worlds. A volatile read always emits its own load and its result is never entered into the CSE table for plain reads; symmetrically, a plain read never binds to a volatile load's result and will emit or reuse a PLAIN load instead. Adding a volatile cast therefore only ever ADDS loads - it cannot redirect an existing plain use onto the volatile load.\n\nMEASUREMENT. src/game/world/btricol.c::BTriLineCol, lines 243-245, K = lbl_80345D40 = 0.0, baseline real 24 with insns 450/450 and an IDENTICAL opcode multiset. Baseline source: `if ((tpB.y > K && tpA.y > K) || (tpB.y < *(volatile const f64*)&K && tpA.y < K))`, which emits exactly two loads of K (0xfc plain, 0x114 volatile-forced). The target binds the plain read on line 245 to the LATER (0x114) load; ours binds it to the EARLIER (0xfc) load. Probe: add a volatile cast to the first clause as well, on the hypothesis that a volatile access would UPDATE the CSE entry so the later plain read would bind to the most recent load. Result REGRESSED real 24 -> 126, insns T450/O452, `ours-only: -2 lfd`, with new loads inserted at 0x10c and 0x124 - each volatile read emitted its own load AND the adjacent plain reads still emitted theirs. Two extra loads, zero binding change.\n\nCOROLLARY, AND THE REASON THIS MATTERS BEYOND ONE PROBE. The rule runs backwards as target evidence. If a TARGET stream binds a plain use to a particular load of a pool constant, that load was NOT volatile in the original source - so the original did not contain a volatile scaffold there at all, and the two loads are ordinary rematerialization of the constant at each use site (per claim.law.repeated-fp-pool-literal-first-load-is-position-invariant). Where our build CSEs a constant that retail rematerializes, a volatile cast can restore the missing load but LOCKS IN the wrong def-use binding for every neighbouring plain read, converting a count residual into a binding residual that no further volatile placement can remove. Treat such a scaffold as reconstruction debt whose residual is structural to the scaffold, and screen this law before proposing any 'move/add/remove the volatile cast' axis. It also constrains the postprocessor: a body whose only remaining difference is a scaffold-induced binding cannot be closed by a WebFrank recolor, because the running renaming would have to be non-injective (two of our registers hold the same constant and map to one target register), which the value-equivalence guard deliberately does not model."
+}
