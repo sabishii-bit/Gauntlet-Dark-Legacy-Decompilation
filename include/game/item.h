@@ -154,7 +154,7 @@ void  SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix);
 void  MatchTransporters(void);
 void  AddLocatorInstList(void);
 LookoutParam* FindLookoutParam(s32 id);
-LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all);
+LookoutParam* FindClosestWaypoint(f32 maxDist, f32* pos, s32 all);
 LookoutParam* NextWaypoint(LookoutParam* waypoint);
 s32   ClosestStartPos(f32* pos);
 s32   ShowCameras(s32 idx);

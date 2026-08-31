@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/gamemain.c::fn_80051164 and src/game/audio/sndfx.c::sndFxInitVoices, worktree GDL-Claude-ShortPath, 2026-09-01, both read from the aligned `fnasm <unit> <fn> --diff` view against the ninja objects. Three source-form probes across the two functions (index operand order p[8+i] -> p[i+8]; explicit per-iteration element base `s32* q = &p[i]; q[8] = -1;`; explicit hoisted constant locals for the stored values) all measured NEUTRAL at real 18 and real 22 with the opcode multiset unmoved. No source change retained.",
+    "tags": [
+      "matching",
+      "register-web",
+      "store-placement",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.r0-homed-address-temp-forces-the-indexed-store-form.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T21:56:58Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "`addi r0,rIDX,DISP` + `stwx rVAL,rBASE,r0` VERSUS `add rTMP,rBASE,rIDX` + `stw rVAL,DISP(rTMP)` IS A REGISTER-ROLE SWAP WITH AN ARCHITECTURAL CONSEQUENCE, NOT AN ADDRESSING-STYLE CHOICE THE SOURCE CAN EXPRESS. In a counted loop that stores a loop-invariant value into one member of an array element, MWCC has two encodings available and picks between them as a side effect of which live value it parks in r0. If it homes the STORED VALUE in r0 (`li r0,-1`, or `addi r0,rIV,0` copying a live zero) it is free to compute the element address into a general register and use a displacement store. If it homes the ADDRESS TEMP in r0, the displacement form becomes ARCHITECTURALLY ILLEGAL - r0 in the base position of `stw rS,D(rA)` reads as literal zero, not as the register - so MWCC is forced into the indexed store and must fold the member displacement into the index. Both sides carry the SAME number of live GPRs (base, byte-stepped induction variable, stored value, address temp); it is a colouring permutation whose second-order effect looks like a structural addressing difference, which is why it is repeatedly misfiled as one. THIS CORRECTS A PRESCRIPTION IN THE CORPUS. attempt.sndfxinitvoices-indexed-store-form-relabel.20260831.v1 read the same rows as a de-fakematch signature - target shape = `base[i].member` on a properly typed array, our shape = raw pointer arithmetic over a byte cursor - and predicted that one typed-array conversion recipe would close both functions. Two independent counter-examples refute it. (1) sndFxInitVoices ALREADY indexes fully typed struct arrays (st->que[i].f0, st->voice[i].flags, st->trk[i].f0, strides 20/48/36 that are genuine sizeof values) and still emits stwx at all three sites. (2) fn_80051164's FIRST loop and the target agree on the displacement form from the SAME spelling (p[345+i]) that its second loop uses (p[8+i]) and disagrees on - the difference between those two loops is that the first has three stores sharing one base, which makes the address temp worth a general register, and the second has one. DIAGNOSTIC: when a store-form row differs, read which side holds r0 before theorising about the source. If the target's stored value is in r0 and ours is not, it is this law and no index spelling will move it; stop after one confirming probe. LEVERS THAT ARE DEAD (measured): index operand order, an explicit per-iteration element-base local written in exactly the target's address shape, and hoisting the stored constant into a named local. WEBFRANK CANDIDACY: strong by volume but it needs its own audit class. The substitution rewrites TWO instructions and changes the addressing mode, so it is a dataflow-equivalence obligation like the live-zero remat family (claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1), not a renaming or permutation one, and cannot reuse copy_register_fields guards. A sound rule must prove rBASE+rIDX+DISP and rBASE+(rIDX+DISP) address the same byte with no signed-overflow or aliasing difference, and that r0's old contents are dead at the site."
+}

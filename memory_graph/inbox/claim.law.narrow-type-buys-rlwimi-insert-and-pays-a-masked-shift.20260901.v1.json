@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/movie/movieplayer.c::fn_800D87FC, worktree GDL-Claude-ShortPath, 2026-09-01. Baseline real 232, insns 244/244, multiset 2t; regnorm's prior screen isolated exactly 1 STRUCTURAL row over 252 paired instructions. Four probes: u16 -> u32 and u16 -> int both REGRESSED identically (real 234, multiset 4t, `addi`+`rlwimi` degrading to `rlwinm`+`or`); a 32-bit temp routing the shift and respelling `val * 8` as `(val << 3)` both measured NEUTRAL. No source change retained.",
+    "tags": [
+      "matching",
+      "cse",
+      "register-web",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.narrow-type-buys-rlwimi-insert-and-pays-a-masked-shift.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T21:57:04Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "A NARROW INTEGER DECLARATION BUYS THE rlwimi BIT-INSERT IDIOM AND PAYS FOR IT WITH A MASKED SHIFT, AND THE TWO EFFECTS CANNOT BE SEPARATED BY ANY DECLARED WIDTH. For a variable built by a read-modify-write bit insert and then used as a scaled index - the shape `u16 v = byteRead; v |= ((bits >> n) & 1) << 8; p = base + v * 8;` - the declared width of v controls TWO codegen decisions at once, in opposite directions. Declared NARROW (u16): MWCC emits the target-shaped insert `addi rD,rSRC,0` + `rlwimi rD,rBIT,8,23,23`, where the single-bit mask 23,23 also absorbs the source's `& 1` so no separate AND is emitted; but its narrow-range analysis then attaches a 16-bit mask to the scaled-index shift, emitting `rlwinm rD,rS,3,13,28` where the target has a bare `slwi rD,rS,3`. Declared WIDE (u32 or int - measured identical, so signedness is not the variable): the shift comes out as the unmasked `slwi`, but the insert degrades to `rlwinm`+`or`. A retail function can exhibit BOTH halves at once - fn_800D87FC has the narrow-type insert and the wide-type shift in consecutive instructions - and when it does, no single declared width for that variable reproduces it. RECOGNITION: `rlwinm rD,rS,K,13,28` is exactly `(rS & 0xFFFF) << K` for K=3; read any rlwinm whose mask brackets a 16-bit window as a compiler-INFERRED narrowness fact about the source variable, not as an explicit mask the source wrote. This is distinct from every existing andi/mask observation in the corpus, which cover masks the source asked for. LEVERS THAT ARE DEAD, measured: routing the shift through a separate 32-bit temp (`idx = val; base + idx * 8`) - the narrow range propagates straight through the copy, NEUTRAL; and respelling `v * 8` as `(v << 3)` - the strength-reduction path is shared, NEUTRAL. So neither a widening cast at the use site nor the multiply/shift spelling can decouple the pair; only the variable's own declaration moves it, and it moves both halves together. CONSEQUENCE: when a diff reduces to this pair, do not open a declaration matrix - one probe in each direction is enough to prove the two-sidedness, and then the residual belongs to a front-end change rather than a source edit. For fn_800D87FC specifically the credible resolution is the queued movieplayer .cpp conversion (the TU is genuinely C++ in the original - its own header cites MoviePlayer.cpp and the assert string at 0x80117684 - but is built as .c), because the C++ front end's promotion rules are the one thing that can change which of the two decisions the narrow declaration drives."
+}
