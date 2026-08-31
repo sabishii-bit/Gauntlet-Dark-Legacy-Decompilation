@@ -1247,7 +1247,7 @@ void DoPlayerAction(void* player)
         if (next == 0x75) {
             mode = 2;
             act = 0x75;
-        } else if ((*(s16*)((u8*)p + 0x956) & 4) == 0) {
+        } else if ((pl->field_956 & 4) == 0) {
             mode = 0;
             act = 0x75;
         } else {
