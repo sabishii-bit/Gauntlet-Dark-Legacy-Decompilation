@@ -388,6 +388,7 @@ extern f64 lbl_80346850;        /* -pi wrap low */
 extern f64 lbl_80346858;        /* 0.1 */
 extern f64 lbl_80346830;        /* 0.5 */
 extern u8 lbl_8011AF48[];       /* enemy.c .data anchor (turn tables at +4444/+4412...) */
+extern f64 lbl_80346948;        /* 4.0 */
 
 void do_enemy_move(s32 index)
 {
@@ -848,6 +849,7 @@ extern s32 lbl_80344718;
 extern s32 lbl_803447E4;
 extern s32 lbl_80344B24;
 extern f64 lbl_80346898;
+extern f64 lbl_803468A8;
 extern f64 lbl_80346858;
 extern f64 lbl_80346890;
 extern f32 lbl_80344880;
@@ -5115,6 +5117,13 @@ extern s32 lbl_80344BE4;
 extern s32 lbl_802897B8[];
 extern f32 lbl_8011B900[];
 extern f32 lbl_8011BA10[];
+extern f64 lbl_80346948;
+extern f32 lbl_803469B0;
+extern f64 lbl_80346A08;
+extern f64 lbl_80346A10;
+extern f64 lbl_80346A18;
+extern f64 lbl_80346A28;
+extern f64 lbl_80346A30;
 
 /* Apply damage and accumulated hit direction, then run the enemy-specific
  * heal, reaction, death, sound, skin and burst-effect cascades. */
@@ -5154,11 +5163,11 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     if (e->type == E_DEATH) {
         if ((damage_type & 0x200) != 0) {
             if (player != NULL && player->level > 75) {
-                f32 heal_scale = (f32)(0.032 *
-                    (f64)(player->level - 75) + 0.2);
+                f32 heal_scale = (f32)(lbl_80346A10 *
+                    (f64)(player->level - 75) + lbl_80346A08);
                 heal_player(player, e->health * heal_scale);
             }
-            e->health = 0.0f;
+            e->health = lbl_80346820;
         } else if (e->state == SLEEP) {
             if (play_effects != 0) {
                 fn_8009DE5C(e->type, &e->objgrp.worldmat[3][0]);
@@ -5184,30 +5193,30 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         } else if (player != NULL && (player->flags & 0x80000) != 0) {
             f64 one;
 
-            e->health = (f32)(e->health - (one = 1.0));
+            e->health = (f32)(e->health - (one = lbl_80346810));
             if (e->org_lvl == 2) {
                 AddExp(player_index, 1, -2);
             } else {
                 player->health = (f32)(player->health + one);
             }
         } else {
-            e->health = (f32)(e->health - 1.0);
+            e->health = (f32)(e->health - lbl_80346810);
             if (player != NULL) {
                 msgPost(0, player_index, player->position);
             }
         }
 
-        if ((f64)e->health <= (f64)0.0f) {
+        if ((f64)e->health <= (f64)lbl_80346820) {
             if (play_effects != 0) {
                 AudioPlayEvt101(&e->objgrp.worldmat[3][0]);
             }
-            e->health = 0.0f;
+            e->health = lbl_80346820;
             enemy_index = (s32)(e - gEnemies);
             e->state = DYING;
             e->area = (s16)player_index;
             if (e->algorithm == 18) {
                 SuicideExplosion(e->objgrp.coll_pos,
-                    (f32)(50.0 * gCurLevel->ene_damage));
+                    (f32)(lbl_803468A8 * gCurLevel->ene_damage));
                 fn_8009DAC8(e->objgrp.coll_pos);
             }
             uncouple_enemy(enemy_index);
@@ -5228,17 +5237,17 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         do_heal_players(player, &e->objgrp.worldmat[0][0], healed);
     }
 
-    if (player_index >= 0 && gCurLevel->plevel > 0.0f) {
+    if (player_index >= 0 && gCurLevel->plevel > lbl_80346820) {
         f32 level = (f32)player->level;
         f32 target_level = gCurLevel->plevel;
-        f32 scale = 1.0f;
+        f32 scale = lbl_803468F0;
 
         if (level < target_level) {
-            scale = (f32)(1.0 -
-                          0.01 * (target_level - level));
+            scale = (f32)(lbl_80346810 -
+                          lbl_80346878 * (target_level - level));
         } else if (level > target_level) {
-            scale = (f32)(1.0 +
-                          0.1 * (level - target_level));
+            scale = (f32)(lbl_80346810 +
+                          lbl_80346858 * (level - target_level));
         }
         amount *= scale;
     }
@@ -5247,12 +5256,12 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         u32 shield = e->atts.armortype;
         ModifyDamage(e->atts.armor, &amount, (u32*)&damage_type, shield);
     }
-    if ((f64)lbl_803447D8 < 1.0) {
-        amount = (f32)(amount * 2.0);
+    if ((f64)lbl_803447D8 < lbl_80346810) {
+        amount = (f32)(amount * lbl_80346868);
     }
     if (player_index >= 0 &&
         (f64)amount < *(volatile f64*)&lbl_80346810) {
-        amount = 0.0f;
+        amount = lbl_80346820;
     }
 
     e->damage += amount;
@@ -5272,12 +5281,12 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
 
     if (e->type == E_GOLEM) {
         if (lbl_80344768 >= 3) {
-            amount = (f32)(amount * 0.75);
+            amount = (f32)(amount * lbl_80346A18);
         } else if (lbl_80344768 >= 2) {
-            amount = (f32)(amount * 0.5);
+            amount = (f32)(amount * lbl_80346830);
         }
     }
-    if (amount <= 0.0f) {
+    if (amount <= lbl_80346820) {
         play_effects = 0;
     } else {
         e->damage_count++;
@@ -5287,7 +5296,7 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         f64 applied;
 
         if (gGameOptions[0] == 3) {
-            applied = 10000.0;
+            applied = lbl_80346A20;
         } else {
             applied = amount;
         }
@@ -5297,8 +5306,8 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
     fight = gCurLevel->ene_damage * lbl_8011B900[e->type];
     {
         f32 threshold = gCurLevel->ene_health * lbl_8011BA10[e->type];
-        f32 upper = (f32)(0.667 * threshold);
-        f32 lower = (f32)(0.333 * threshold);
+        f32 upper = (f32)(lbl_80346A30 * threshold);
+        f32 lower = (f32)(lbl_80346A28 * threshold);
 
         if (e->health > upper) {
             goto store_fight;
@@ -5307,9 +5316,9 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
             goto store_fight;
         }
         if (e->health > lower) {
-            fight = (f32)(0.667 * fight);
+            fight = (f32)(lbl_80346A30 * fight);
         } else {
-            fight = (f32)(0.333 * fight);
+            fight = (f32)(lbl_80346A28 * fight);
         }
     }
 store_fight:
@@ -5322,9 +5331,9 @@ store_fight:
         ((u8*)e->generator)[0xE3] = 0;
     }
 
-    if ((f64)e->health <= 0.0) {
+    if ((f64)e->health <= lbl_80346898) {
         if (e->type == gBossType) {
-            if ((f64)old_health > 0.0 && player != NULL) {
+            if ((f64)old_health > lbl_80346898 && player != NULL) {
                 player->character_stats[player->character].kills++;
             }
             return 1;
@@ -5336,13 +5345,13 @@ store_fight:
             }
             fn_8009DF7C(e, play_effects);
         }
-        e->health = 0.0f;
+        e->health = lbl_80346820;
         enemy_index = (s32)(e - gEnemies);
         e->state = DYING;
         e->area = (s16)player_index;
         if (e->algorithm == 18) {
             SuicideExplosion(e->objgrp.coll_pos,
-                (f32)(50.0 * gCurLevel->ene_damage));
+                (f32)(lbl_803468A8 * gCurLevel->ene_damage));
             fn_8009DAC8(e->objgrp.coll_pos);
         }
         uncouple_enemy(enemy_index);
@@ -5354,19 +5363,19 @@ store_fight:
             if (e->objgrp.node != NULL) {
                 if (e->type == E_GOLEM && (damage_type & 0xF) == 0) {
                     SetSkinFX(&e->skinfx, lbl_80344BE4, 15, 0,
-                              0.5f);
+                              lbl_803469B0);
                 } else if (e->type == E_TREEFOLK &&
                            (damage_type & 0xF) == 0) {
                     SetSkinFX(&e->skinfx, lbl_80344BE0, 10, 0,
-                              0.5f);
+                              lbl_803469B0);
                 } else if (e->type == E_KNIGHT &&
                            (damage_type & 0xF) == 0) {
                     SetSkinFX(&e->skinfx, lbl_80344BE0, 10, 0,
-                              0.5f);
-                } else if ((f64)e->hht > 2.0) {
+                              lbl_803469B0);
+                } else if ((f64)e->hht > lbl_80346868) {
                     SetSkinFX(&e->skinfx,
                               lbl_802897B8[damage_type & 0xF], 10, 0,
-                              0.5f);
+                              lbl_803469B0);
                 }
                 MBTreeSetAmbientAdd(e->objgrp.node, 999, 1);
             }
@@ -5382,7 +5391,7 @@ store_fight:
         fn_8009DE88(e, play_effects);
     }
     if ((damage_type & 0x1000000) == 0 && e->type != gBossType) {
-        if (effect_position != NULL && (f64)e->hht >= 4.0) {
+        if (effect_position != NULL && (f64)e->hht >= lbl_80346948) {
             effect_pos[0] = *(f32*)((u8*)effect_position + 0);
             effect_pos[1] = *(f32*)((u8*)effect_position + 4);
             effect_pos[2] = *(f32*)((u8*)effect_position + 8);
@@ -7278,6 +7287,7 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
 
 extern u8 lbl_8011AF48[];
 extern f32 lbl_80344880;
+extern f64 lbl_80346A28;
 extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
 extern void SetEnemyObj(Enemy* e, s32 type, s32 level, s32 one);
 extern void init_enemy_vars(s32 slot, s32 spew, f32 scale);
