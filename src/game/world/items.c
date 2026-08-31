@@ -651,9 +651,10 @@ void InitLighting(s32 flag)
 {
     MBInitLights();
     if (flag != 0) {
-        sLevelAmbient = *(f32*)(gCurLevel + 236);
-        MBAddLight(*(f32*)(gCurLevel + 264), gCurLevel + 240,
-                   (f32*)(gCurLevel + 252));
+        sLevelAmbient = *(f32*)(gCurLevel + offsetof(level_data, ambient));
+        MBAddLight(*(f32*)(gCurLevel + offsetof(level_data, lightinten)),
+                   gCurLevel + offsetof(level_data, lightdir),
+                   (f32*)(gCurLevel + offsetof(level_data, lightcolor_fp)));
     } else {
         sLevelAmbient = sOne;
     }
@@ -1605,6 +1606,10 @@ keyring_found:
                 item->active &= ~1;
                 attach_geometry = 1;
                 loaded = CritterTypeLoaded(7, 0);
+                /* +0x120 = the critter type header's descriptor pointer and
+                 * +0x28 below its model/atreelist handle (crit_type/crit_desc;
+                 * the records are file-local to critter.c, so the offsets
+                 * stay literal here) */
                 header = *(void**)((u8*)loaded + 0x120);
                 atree_header = (void*)AtreeMatch(
                     *(void**)((u8*)header + 0x28),
@@ -2188,7 +2193,7 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
     s32 i;
     s32 offset;
 
-    if (*(void**)(target + 0x28) == NULL) {
+    if (*(void**)(target + offsetof(WorldObj, nodeptr)) == NULL) {
         ErrorPrintf(strings + 0x464, target);
         return -1;
     }
@@ -2576,7 +2581,7 @@ void AddLocatorInstList(void)
 
     for (i = 0; i < 20; i++) {
         runtime->lookoutParams[i].next = -1;
-        runtime->lookoutParams[i].id = -1;
+        runtime->lookoutParams[i].param = -1;
     }
     invalid_start = sInvalidPlayerStartYFloat;
     sLastPlayerStart = 0;
@@ -2699,18 +2704,18 @@ void AddLocatorInstList(void)
             }
             sNumLookoutParams++;
             lookout = &runtime->lookoutParams[sNumLookoutParams - 1];
-            lookout->handle =
+            lookout->node =
                 add_arrow(2, 0, 1, loc->pyr, loc->pos,
-                          (f32*)lookout->data);
-            lookout->saved_pos[0] = lookout->pos[0];
-            lookout->saved_pos[1] = lookout->pos[1];
-            lookout->saved_pos[2] = lookout->pos[2];
-            lookout->saved_pos2[0] = lookout->pos[0];
-            lookout->saved_pos2[1] = lookout->pos[1];
-            lookout->saved_pos2[2] = lookout->pos[2];
-            lookout->active = 1;
+                          (f32*)lookout->worldmat);
+            lookout->attn_pos[0] = lookout->worldmat[3][0];
+            lookout->attn_pos[1] = lookout->worldmat[3][1];
+            lookout->attn_pos[2] = lookout->worldmat[3][2];
+            lookout->coll_pos[0] = lookout->worldmat[3][0];
+            lookout->coll_pos[1] = lookout->worldmat[3][1];
+            lookout->coll_pos[2] = lookout->worldmat[3][2];
+            lookout->flags = 1;
             lookout->next = loc->index;
-            lookout->id = loc->subtype;
+            lookout->param = loc->subtype;
             break;
         default:
             ErrorPrintf(strings + 1276, loc->type);
@@ -2752,7 +2757,7 @@ LookoutParam* FindLookoutParam(s32 id)
     s32 i;
 
     for (i = 0; i < count; i++) {
-        if (param->id == id) {
+        if (param->param == id) {
             return param;
         }
         param++;
@@ -2895,9 +2900,9 @@ LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all)
 
     for (i = 0; i < sNumLookoutParams; i++, w++) {
         if (all != 0 || (w->next >= 0 && w->next != i)) {
-            dy = w->pos[1] - pos[1];
-            dx = w->pos[0] - pos[0];
-            dz = w->pos[2] - pos[2];
+            dy = w->worldmat[3][1] - pos[1];
+            dx = w->worldmat[3][0] - pos[0];
+            dz = w->worldmat[3][2] - pos[2];
             d2 = dx * dx + dy * dy;
             d2 = dz * dz + d2;
             if (d2 > 0.0f) {

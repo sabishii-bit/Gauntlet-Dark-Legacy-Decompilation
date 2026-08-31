@@ -14,20 +14,22 @@ struct iteminfo;
 struct mbnode;
 struct Player;
 
-/* Camera/lookout waypoint record.  Only the two link fields at the tail have
- * been identified so far; the preceding camera parameters remain opaque. */
+/* Camera/lookout waypoint record == the Xbox PDB record LOOKOUT (misc.h,
+ * 0x6C): an OBJGRP-shaped prefix {worldmat/attn_pos/coll_pos/node/flags}
+ * followed by {s16 next; s16 param}.  The former opaque data[0x30]/pos/pad
+ * run is the world matrix -- add_arrow writes it via its matrix-out arg, and
+ * the old pos[3]@0x30 was worldmat[3][0..2], its translation row.  The
+ * OBJGRP correspondence is spelled with plain scalar arrays rather than an
+ * embedded OBJGRP member: an aggregate-typed member in a widely-included
+ * header regresses unrelated functions TU-wide (embedded-cascade law). */
 typedef struct LookoutParam {
-    /* 0x00 */ u8  data[0x30];
-    /* 0x30 */ f32 pos[3];
-    /* 0x3C */ u8  _pad3C[4];
-    /* 0x40 */ f32 saved_pos[3];
-    /* 0x4C */ u8  _pad4C[4];
-    /* 0x50 */ f32 saved_pos2[3];
-    /* 0x5C */ u8  _pad5C[4];
-    /* 0x60 */ s32 handle;
-    /* 0x64 */ s32 active;
+    /* 0x00 */ f32 worldmat[4][4]; /* == OBJGRP.worldmat; [3][0..2] = position */
+    /* 0x40 */ f32 attn_pos[4];    /* == OBJGRP.attn_pos */
+    /* 0x50 */ f32 coll_pos[4];    /* == OBJGRP.coll_pos */
+    /* 0x60 */ s32 node;           /* == OBJGRP.node (mbnode handle) */
+    /* 0x64 */ s32 flags;          /* == OBJGRP.flags */
     /* 0x68 */ s16 next;
-    /* 0x6A */ s16 id;
+    /* 0x6A */ s16 param;
 } LookoutParam; /* 0x6C */
 
 /* An OBJGRP is the transform / node handle shared by every placed object.   */

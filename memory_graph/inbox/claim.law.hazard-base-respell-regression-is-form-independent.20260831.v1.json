@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "critter.c CritterInitGeo, worktree GDL-Claude-DefakeCritter, branch claude/defake-critter-item-20260831 (F2 lane); probes reverted, evidence in attempt.critterinitgeo-c-base-form-independent-cap.20260831.v1; reproduce by extending the function-local CritterInitGeoView to cover 0xF8 or 0x49C and re-probing.",
+    "scope": "MWCC GC 1.2.5 family; applies when claim.law.offsetof-rename-can-regress-prior-improved-fn already flags a (function, base) pair; silent on unflagged bases, where the two forms follow their own laws.",
+    "tags": [
+      "offsetof-form",
+      "alias-form",
+      "register-web",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.hazard-base-respell-regression-is-form-independent.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T05:53:14Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "Boundary refinement of claim.law.offsetof-rename-can-regress-prior-improved-fn: when that law's hazard fires (a hand-tuned prior-IMPROVED function regressing from a constant respell on one pressure-critical base), switching the respell to the OTHER known typed form does not evade it. Verified on the law's own origin function, critter.c CritterInitGeo (real 63, atan2-operand-staged): the parent law recorded offsetof-on-raw regressions on base c (63->113 and 63->86); this session's retry through the function's own pre-existing file-local view struct (typed member access, no offsetof, no cast-on-load -- the form that elsewhere DIVERGES from offsetof per claim.law.typed-global-member-vs-view-cast-diverges) regressed with the SAME signature and, for the movePath block, the SAME magnitude (yaw pair: 63->106; movePath block: 63->86). Signature both times: ours-only addi chain at function ENTRY (insn 3-4) replacing the target's single mr -- i.e. MWCC stops copying the incoming base with mr and instead materializes a dedicated derived-address register as soon as the count of typed accesses on that base crosses the level the hand-tuned state was balanced at (the function already carries two byte-stable view-member uses; adding more tips it). CONSEQUENCE: a per-base veto from the parent law covers ALL typed spellings, not just offsetof -- do not spend probes cycling offsetof/view/member forms on a vetoed base; the raw int-literal addend is load-bearing there. The remaining escape routes are a WebFrank REGISTER_ONLY rule for the entry seam or revisiting after the function's own residual is closed. Distinct from claim.law.typed-global-member-vs-view-cast-diverges: that law says the two forms differ from EACH OTHER in general; this one says that under the parent law's hazard both land on the same wrong side."
+}

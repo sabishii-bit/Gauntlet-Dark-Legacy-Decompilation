@@ -4680,7 +4680,7 @@ void fn_800606FC(void)
                         s32 n = sNumLookoutParams;
                         s32 i;
                         for (i = 0; i < n; i++) {
-                            if (lp->id == 0) {
+                            if (lp->param == 0) {
                                 goto lookout_found;
                             }
                             lp++;
