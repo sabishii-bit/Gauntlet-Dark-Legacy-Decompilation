@@ -638,6 +638,8 @@ s32 StartDeathFX(struct mbnode* parent, s32 kind, u32 fla)
     return idx;
 }
 
+extern f32 lbl_80348068;        /* 0.0f fx start-time preset */
+
 /* generic hit/death fx for an enemy kind, from the per-enemy type tables */
 s32 StartGenHitFx(f32* mat, s32 ene, s32 death)
 {
@@ -660,7 +662,7 @@ s32 StartGenHitFx(f32* mat, s32 ene, s32 death)
         type = page->hitfx[ene];
     }
     if (type >= 0) {
-        idx = StartFXSub(type, mat + 12, 0, 0x800, 0.0f);
+        idx = StartFXSub(type, mat + 12, 0, 0x800, lbl_80348068);
         ret = idx;
         if (idx >= 0) {
             Effect* e = &page->fx[idx];
