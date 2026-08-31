@@ -96,6 +96,18 @@ def compare(baseline, current):
         if cur is None:
             verdicts.append((name, "REGRESSION", "function vanished from object"))
             continue
+        # A byte-exact function must STAY byte-exact: real normalizes
+        # relocation payloads, so EXACT -> RELOCATION_ONLY demotions kept
+        # real at 0 and slipped through this gate (4 shipped before the
+        # census caught them — claim.law.never-literalize-inside-a-real-
+        # zero-function). Status is checked unconditionally now.
+        if base["status"] == "EXACT" and cur["status"] != "EXACT":
+            verdicts.append(
+                (name, "REGRESSION",
+                 f"status EXACT -> {cur['status']} (byte-exact demoted;"
+                 " real can stay 0 for relocation-payload changes)")
+            )
+            continue
         base_real, cur_real = base.get("real"), cur.get("real")
         if base_real is None or cur_real is None:
             if base["status"] != cur["status"]:
@@ -196,8 +208,14 @@ def main():
         return 1
     improved = [v for v in verdicts if v[1] == "IMPROVED"]
     if improved and update_improved:
+        # Archive the outgoing baseline so the session-start census stays
+        # reconstructable (a worker had to rebuild it from transcripts).
+        archive = path.with_suffix(".prev.json")
+        archive.write_text(path.read_text(encoding="utf-8"),
+                           encoding="utf-8")
         path.write_text(json.dumps(snap, indent=2, sort_keys=True), encoding="utf-8")
-        print(f"baseline updated with {len(improved)} improvement(s)")
+        print(f"baseline updated with {len(improved)} improvement(s)"
+              f" (previous archived at {archive.name})")
     print("GATE OK" + (f" ({len(improved)} improved)" if improved else ""))
     if improved and not update_improved:
         print("(flags combine: re-run with --rebuild --update-improved to"
