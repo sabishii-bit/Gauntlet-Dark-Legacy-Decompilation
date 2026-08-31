@@ -3846,7 +3846,7 @@ extern void fn_8009D038(s32 player);
 extern s32  heal_player(Player* p, f32 amount);
 extern s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags,
                          f32* direction);
-extern void AudioPlayerPoison(s32 player);
+extern void AudioPlayerSeverePain(s32 player);
 extern void AudioPlayerEatFood(s32 player, s32 kind);
 extern void PlayerAddPowerup(f32 duration, f32 strength, void* p, s32 type,
                              u32 mask);
@@ -4010,7 +4010,7 @@ process_item:
         add_got_it(a->index, it->subtype, (s32)amt);
         if (amt < sZeroDouble) {
             *(s16*)((u8*)a + 0x95C) = 3;
-            AudioPlayerPoison(a->index);
+            AudioPlayerSeverePain(a->index);
         } else {
             s32 kind = 0;
             *(s16*)((u8*)a + 0x95C) = 1;
