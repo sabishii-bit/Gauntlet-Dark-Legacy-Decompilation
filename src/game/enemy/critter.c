@@ -20,6 +20,7 @@
 #include "game/effect.h"
 #include "game/enemy.h"
 #include "game/leveldata.h"
+#include "game/mbobject.h"
 #include "game/player.h"
 
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -1171,10 +1172,10 @@ f32 *delta;
         }
         if (c->shadow != NULL) {
             CopyMat3(floorResult, (f32 *)c->shadow);
-            *(f32 *)((u8 *)c->shadow + 0x30) = c->vel[0];
-            *(f32 *)((u8 *)c->shadow + 0x34) = c->vel[1];
-            *(f32 *)((u8 *)c->shadow + 0x38) = c->vel[2];
-            *(f32 *)((u8 *)c->shadow + 0x34) =
+            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][0])) = c->vel[0];
+            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) = c->vel[1];
+            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][2])) = c->vel[2];
+            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) =
                 (f32)(lbl_803464B0 + (f64)floorResult[13]);
         }
     }
@@ -5987,8 +5988,9 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
         MBTreeSetFlags(*(void **)((u8 *)c->anim + 0x78), 2, 2);
     }
 
-    if (c->mbnode != NULL && (*(u32 *)((u8 *)c->mbnode + 0x60) & 8) != 0) {
-        scale = *(f32 *)((u8 *)c->mbnode + 0x44);
+    if (c->mbnode != NULL &&
+        (*(u32 *)((u8 *)c->mbnode + offsetof(MBObject, flags)) & 8) != 0) {
+        scale = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, scale[1]));
     } else {
         scale = lbl_803464A8;
     }
@@ -6151,8 +6153,8 @@ s32 CritterDoSfxSub(Critter *c, u8 *sfx, f32 *position,
     }
     scale = *(f32 *)(sfx + offsetof(CritterSfxRecord, scale));
     if (c->mbnode != NULL &&
-        (*(u32 *)((u8 *)c->mbnode + 0x60) & 8) != 0) {
-        scale *= *(f32 *)((u8 *)c->mbnode + 0x44);
+        (*(u32 *)((u8 *)c->mbnode + offsetof(MBObject, flags)) & 8) != 0) {
+        scale *= *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, scale[1]));
     }
     if (scale != 1.0) {
         MBTreeSetScale(scale, scale, scale, Effects[result].node);
@@ -6557,14 +6559,16 @@ void CritterAddHealthMeter(Critter *c)
             MBTreeSetFlags(**(void ***)&c->healthbar[0], 0x02000000, 0);
 
             root = **(void ***)&c->healthbar[0];
-            *(f32 *)((u8 *)root + 0x30) =
-                *(f32 *)((u8 *)root + 0x30) +
+            *(f32 *)((u8 *)root + offsetof(MBObject, mat[3][0])) =
+                *(f32 *)((u8 *)root + offsetof(MBObject, mat[3][0])) +
                 *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType,
                           healthbarOffset));
-            *(f32 *)((u8 *)**(void ***)&c->healthbar[0] + 0x34) +=
+            *(f32 *)((u8 *)**(void ***)&c->healthbar[0] +
+                     offsetof(MBObject, mat[3][1])) +=
                 *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType,
                           healthbarOffset) + 4);
-            *(f32 *)((u8 *)**(void ***)&c->healthbar[0] + 0x38) +=
+            *(f32 *)((u8 *)**(void ***)&c->healthbar[0] +
+                     offsetof(MBObject, mat[3][2])) +=
                 *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType,
                           healthbarOffset) + 8);
 
@@ -7005,9 +7009,9 @@ void CritterAddAnimInsts(Critter *c, f32 *matrix)
                     }
                 }
                 record->mbnode = MBNewNode(parent, matrix, 1);
-                *(f32 *)((u8 *)record->mbnode + 0x30) = *(f32 *)(node + offsetof(CritterAddAnim, offset));
-                *(f32 *)((u8 *)record->mbnode + 0x34) = *(f32 *)(node + (offsetof(CritterAddAnim, offset) + 4));
-                *(f32 *)((u8 *)record->mbnode + 0x38) = *(f32 *)(node + (offsetof(CritterAddAnim, offset) + 8));
+                *(f32 *)((u8 *)record->mbnode + offsetof(MBObject, mat[3][0])) = *(f32 *)(node + offsetof(CritterAddAnim, offset));
+                *(f32 *)((u8 *)record->mbnode + offsetof(MBObject, mat[3][1])) = *(f32 *)(node + (offsetof(CritterAddAnim, offset) + 4));
+                *(f32 *)((u8 *)record->mbnode + offsetof(MBObject, mat[3][2])) = *(f32 *)(node + (offsetof(CritterAddAnim, offset) + 8));
                 record->atree =
                     AtreeInit(*(void **)(node + offsetof(CritterAddAnim, atree)), record, 0, 0x800);
                 MBNodeSetParent(*(void **)record->atree, record->mbnode);
