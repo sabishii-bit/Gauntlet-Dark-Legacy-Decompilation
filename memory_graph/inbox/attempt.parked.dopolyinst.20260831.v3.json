@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "third form of the goto-pair family, previously untried: bare `if (inst->type >= 3) goto draw;` followed by a SEPARATE `goto done;` statement (no else, no switch). REGRESSED real 4 -> 15 (32/31, ours -1 blt vs target +1 bge +1 b): MWCC's front end merges an if-goto with an immediately following unconditional goto into one inverted branch even as two independent statements at cflags_demo/peephole-off.",
+  "attributes": {
+    "axis_log": "v1: asm-device-exact note. v2: if-goto/else-goto NEG (blt collapse); empty-then/else-goto NEG identical. v3: no-else statement pair NEG (same blt collapse) - front-end inversion is unconditional for adjacent targets.",
+    "law_screen": "claim.law.guard-polarity-restructure-fixes-count-parity-not-form.20260831.v1: applied as motivating compiler evidence (front end can add/drop incidental branches) - did not transfer, the incidental-branch mechanism there needs a goto-terminated true-BLOCK with trailing return, not reproducible at this 2-insn guard; claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1: screened n/a (both blocks branch-reached); no-peephole goto-pair-survives tell: does not hold for if-goto+goto ADJACENT pairs - the collapse is front-end, not peephole.",
+    "laws_applied": "[\"claim.law.guard-polarity-restructure-fixes-count-parity-not-form.20260831.v1\"]",
+    "residual": "unchanged: 2 opcodes, target [bge->0x28, b->0x70] vs ours [beq->0x28, ble->0x70] from the retained case-3+default switch; 32/32 real 4. Three distinct portable-C forms now collapse identically; bge-over-b at an adjacent target remains unreached from C. TU flip blocked by this function alone.",
+    "scope": "src/game/mb/mb_poly.c DoPolyInst probe only, reverted via probe.py --revert; tree clean",
+    "verification": "probe baseline real 4 banked pre-edit; probe REGRESSED 4->15 and reverted; revert re-scored NEUTRAL real 4"
+  },
+  "function": "function:DoPolyInst",
+  "id": "attempt.parked.dopolyinst.20260831.v3",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T04:31:21Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.dopolyinst.20260831.v2",
+  "valid_from": "2026-08-31"
+}
