@@ -3496,10 +3496,10 @@ animate_ai:
             *(f32 *)((u8 *)c->hdr + 0xB0);
         if (c->shadow != NULL) {
             CopyMat3((f32 *)gFloorCollisionResult, (f32 *)c->shadow);
-            *(f32 *)((u8 *)c->shadow + 0x30) = c->vel[0];
-            *(f32 *)((u8 *)c->shadow + 0x34) = c->vel[1];
-            *(f32 *)((u8 *)c->shadow + 0x38) = c->vel[2];
-            *(f32 *)((u8 *)c->shadow + 0x34) =
+            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][0])) = c->vel[0];
+            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) = c->vel[1];
+            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][2])) = c->vel[2];
+            *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) =
                 (f32)(lbl_803464B0 +
                       (f64)*(f32 *)(gFloorCollisionResult + 0x34));
         }
