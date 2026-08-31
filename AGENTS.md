@@ -3,8 +3,11 @@
 > **FIRST-FIVE-MINUTES TRAPS (read before anything else):**
 > 1. In a linked worktree, `git` through the Bash/MSYS tool fails with
 >    `fatal: not a git repository` — it cannot resolve `W:/`-form gitdir
->    links. Run **ALL git commands through PowerShell**. Do not diagnose
->    the git failure; switch shells.
+>    links. Run **ALL git commands through PowerShell**. If PowerShell git
+>    ALSO fails, the worktree's `.git` file carries an MSYS-form gitdir
+>    (`/w/...`) that native git can't resolve either — run
+>    `python tools/gdl/provision_worktree.py` FIRST (it repairs the gitdir
+>    before anything else); do not hand-diagnose.
 > 2. `gdlmem.py` global flags (`--out`, `--root`, `--compact`) go
 >    **BEFORE** the subcommand: `gdlmem.py --out r.json brief <tu>`.
 > 3. Large `gdlmem.py` results auto-spill to `build/gdlmem_out/` and print
