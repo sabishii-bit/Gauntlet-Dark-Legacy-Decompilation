@@ -131,6 +131,22 @@ typedef struct WorldDataNav {
     WorldLevelNav* levels;
 } WorldDataNav;
 
+/* Fog block embedded in level_data at +0x70. include/game/leveldata.h
+ * reserves exactly `u8 fog[0x1C]` there, and the Xbox PDB's fog_data
+ * (misc.h) is exactly 0x1C with no pad gaps; every offset this TU reads
+ * raw is a field start of the matching width. Kept file-local rather than
+ * widening the shared header. */
+typedef struct FogData {
+    u8  type;         /* 0x00 fog mode                     */
+    u8  color[3];     /* 0x01 packed RGB                   */
+    f32 intensity;    /* 0x04                              */
+    f32 density;      /* 0x08                              */
+    f32 min;          /* 0x0C                              */
+    f32 max;          /* 0x10 (also reached as gCurLevel+0x80) */
+    f32 nearw;        /* 0x14                              */
+    f32 farw;         /* 0x18                              */
+} FogData;            /* 0x1C */
+
 /* Active level / world-data records (SDA-relative pointers). */
 extern level_data* gCurLevel;      /* 0x8034483C */
 extern WorldDataNav* gWorldData;   /* 0x80344838 */
@@ -4557,10 +4573,10 @@ void world_update(void)
                         col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
                     }
                     MBCompVertScaleAddUV(
-                        col, hdr[0], *(f32*)(hdr + 0xc), *(f32*)(hdr + 0x10),
-                        (f32)(lbl_80346C10 * *(f32*)(hdr + 0x14)),
-                        (f32)(lbl_80346C10 * *(f32*)(hdr + 0x18)),
-                        (f32)(lbl_80346C38 * *(f32*)(hdr + 8)));
+                        col, hdr[0], *(f32*)(hdr + offsetof(FogData, min)), *(f32*)(hdr + offsetof(FogData, max)),
+                        (f32)(lbl_80346C10 * *(f32*)(hdr + offsetof(FogData, nearw))),
+                        (f32)(lbl_80346C10 * *(f32*)(hdr + offsetof(FogData, farw))),
+                        (f32)(lbl_80346C38 * *(f32*)(hdr + offsetof(FogData, density))));
                     lbl_80344868 = 1;
                 }
                 if (lbl_803447B8 == 1) {
@@ -4587,10 +4603,10 @@ void world_update(void)
                     col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
                 }
                 MBCompVertScaleAddUV(
-                    col, hdr[0], *(f32*)(hdr + 0xc), *(f32*)(hdr + 0x10),
-                    (f32)(lbl_80346C10 * *(f32*)(hdr + 0x14)),
-                    (f32)(lbl_80346C10 * *(f32*)(hdr + 0x18)),
-                    (f32)(lbl_80346C38 * *(f32*)(hdr + 8)));
+                    col, hdr[0], *(f32*)(hdr + offsetof(FogData, min)), *(f32*)(hdr + offsetof(FogData, max)),
+                    (f32)(lbl_80346C10 * *(f32*)(hdr + offsetof(FogData, nearw))),
+                    (f32)(lbl_80346C10 * *(f32*)(hdr + offsetof(FogData, farw))),
+                    (f32)(lbl_80346C38 * *(f32*)(hdr + offsetof(FogData, density))));
                 lbl_80344868 = 1;
             }
         }
