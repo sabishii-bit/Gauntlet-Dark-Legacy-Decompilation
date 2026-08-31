@@ -21,12 +21,12 @@ extern Player gPlayers[4]; /* gPlayerRecords[4], stride 0x335C */
  * whose price@0x48 shop.c had already recovered under the same name. Only the
  * fields this TU dereferences are named. */
 typedef struct {
-    /* 0x00 */ s8 blit[32];
+    /* 0x00 */ u8 blit[32];
     /* 0x20 */ s8 desc[32];
     /* 0x40 */ f32 scale;
-    /* 0x44 */ s32 type;
+    /* 0x44 */ u32 type;
     /* 0x48 */ s32 price;
-    /* 0x4C */ s32 amount;
+    /* 0x4C */ u32 amount;
 } DSItem; /* size 0x50 = 80 */
 
 s32 ItemDefValid(u8* p)
