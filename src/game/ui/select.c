@@ -1627,7 +1627,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     case 5:
         if (*(s32*)(pl + 13128) == 0) {
             u8* row = tbl + player * 232;
-            s32 y = lbl_80343DE8 + *(s32*)(row + 728) - lh * 6;
+            s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 6;
             s32 nx = -(x + 64);
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347F98);
             y += lh;
@@ -1645,7 +1645,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         /* fall through */
     case 10: {
         u8* row = tbl + player * 232;
-        s32 y = lbl_80343DE8 + *(s32*)(row + 728) - lh * 3;
+        s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 3;
         s32 nx = -(x + 64);
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FA8);
         y += lh;
@@ -1685,7 +1685,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     }
     case 8: {
         u8* row = tbl + player * 232;
-        s32 y = lbl_80343DE8 + *(s32*)(row + 728) - lh * 2;
+        s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 2;
         s32 nx = -(x + 64);
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 376);
         y += lh;
@@ -1695,7 +1695,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     }
     case 13: {
         u8* row = tbl + player * 232;
-        s32 y = lbl_80343DE8 + *(s32*)(row + 728) - lh * 3;
+        s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 3;
         s32 nx = -(x + 64);
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 376);
         y += lh;
@@ -1997,7 +1997,7 @@ void init_player_change(s32 idx, s32 arg1)
             }
         }
     }
-    v = *(s32*)((u32)gPlayers + (u32)(idx * 0x335C) + 0x830);
+    v = *(s32*)((u32)gPlayers + (u32)(idx * 0x335C) + offsetof(Player, exit_dest));
 gotv:
     ((Player*)pl)->exit_dest = v;
 
@@ -2204,7 +2204,7 @@ void setup_sel_menu(s32 player, s32 mode)
     case 13:
         *(void**)(data + playerOffset + 712 + offsetof(OptMenuLayout, items)) =
             (field = bss + player * 324) + 528;
-        *(s32*)(data + playerOffset + 724) = baseChoice + 8;
+        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, x)) = baseChoice + 8;
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, y)) = 70;
         *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = lbl_80348020;
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = *(s32*)(gPlayers + player * 0x335C + 0x3358);
@@ -2235,7 +2235,7 @@ static s32 sel_set_choice(s32 player, s32 mode)
     u32 owner;
 
     for (;;) {
-        e = *(u8**)(menu + 28) + off;
+        e = *(u8**)(menu + offsetof(OptMenuLayout, items)) + off;
         if (*(u32*)e == 0) {
             break;
         }
@@ -2274,7 +2274,7 @@ static s32 sel_set_choice(s32 player, s32 mode)
             if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
                 ((VmuMenuEntry*)e)->value = -1;
             } else {
-                owner = *(u32*)(pl + 240);
+                owner = *(u32*)(pl + offsetof(Player, hidden_code));
                 if (owner != 0 && owner != lbl_80343D6C) {
                     ((VmuMenuEntry*)e)->value = -1;
                 } else {
@@ -2881,16 +2881,16 @@ s32 serve_blits(s32 player)
     kb = lbl_80348040;
     for (j = 0, off = 0; j < 11; j++, off += 12) {
         e = blits + off;
-        sp = (s32*)(e + 4);
+        sp = (s32*)(e + offsetof(BlitEntry, mode));
         h = *(u8**)e;
 
-        switch (*(u32*)(e + 4)) {
+        switch (*(u32*)(e + offsetof(BlitEntry, mode))) {
         case 0:
             break;
 
         case 1: /* hide */
             *sp = 0;
-            *(s32*)(e + 8) = 0;
+            *(s32*)(e + offsetof(BlitEntry, timer)) = 0;
             mbBlitInit3414(h, 1);
             break;
 
@@ -2902,8 +2902,9 @@ s32 serve_blits(s32 player)
             f32 f;
             s32 du;
             s32 dv;
-            *(s32*)(e + 8) = (*(s32*)(e + 8) + 1) & 0x3F;
-            amp = *(s32*)(e + 8);
+            *(s32*)(e + offsetof(BlitEntry, timer)) =
+                (*(s32*)(e + offsetof(BlitEntry, timer)) + 1) & 0x3F;
+            amp = *(s32*)(e + offsetof(BlitEntry, timer));
             if (amp >= 0x20) {
                 amp = 0x20 - (amp & 0x1F);
             }
@@ -2923,7 +2924,7 @@ s32 serve_blits(s32 player)
         case 2: { /* fly out right while fading */
             s32 t;
             s32 u;
-            tp2 = (s32*)(e + 8);
+            tp2 = (s32*)(e + offsetof(BlitEntry, timer));
             *tp2 += gFrameTicks;
             t = *tp2;
             u = t * t;
@@ -2979,9 +2980,9 @@ s32 serve_blits(s32 player)
             f32 f;
             s32 du;
             s32 dv;
-            tp4 = (s32*)(e + 8);
-            *(s32*)(e + 8) += gFrameTicks;
-            half = *(s32*)(e + 8) >> 1;
+            tp4 = (s32*)(e + offsetof(BlitEntry, timer));
+            *(s32*)(e + offsetof(BlitEntry, timer)) += gFrameTicks;
+            half = *(s32*)(e + offsetof(BlitEntry, timer)) >> 1;
             tex = MBRomTexPtr(*(u32*)(h + 4));
             a = half * half;
             w = *(u16*)(tex + 10);
