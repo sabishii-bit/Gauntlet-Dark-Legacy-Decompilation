@@ -91,10 +91,30 @@ typedef struct PlayerCharSave {
      */
     /* 0x10 */ u16 boss_attempt1;    /* pass-1 tier [options.c next_boss_hint] */
     /* 0x12 */ u16 boss_attempt2;    /* pass-2 tier [options.c next_boss_hint] */
-    /* 0x14 */ u16 completion1;      /* completion record, documented (abs 0xDE8) */
-    /* 0x16 */ u8  pad_16[4];
-    /* 0x1A */ u16 completion2;      /* completion record, documented (abs 0xDEE) */
-    /* 0x1C */ u8  pad_1C[0xD4];     /* remainder of slot (unmapped) */
+    /*
+     * Per-level completion records, indexed by level.  SIGNED: every consumer
+     * tests `< 0` for "not yet attempted", and the target loads them with lha /
+     * lhax (load halfword ALGEBRAIC), never lhz -- see towerGetLevelRecord
+     * `lha r3,3560(r3)` and towerBossStatus `lha r0,3566(r3)`.
+     *
+     * Widths are proven by byte fit plus consumer index bounds:
+     *   completion1[3] fills 0x14-0x19 exactly, terminating where completion2
+     *   begins; tower.c clamps `if (level > 2)` (towerAllPlayersMetLevelReq)
+     *   and walks `for (j = 0; j < 3; j++)` against the 3-entry requirement
+     *   tables lbl_80124D94[3] / lbl_80124CDC[3].
+     *   completion2[9] fills 0x1A-0x2B, pairing one-for-one with the 9-entry
+     *   requirement table lbl_80124C70[9].  The upper bound is proven by
+     *   screensaver.c, which walks `for (i = 0; i < 8; i++)` with `off += 2`
+     *   from 0x1C (= completion2[1]) -- last access 0x2A = completion2[8] --
+     *   reading lbl_80124C70[i+1] each iteration.  tower.c's own `j < 8` loops
+     *   reach only [0..7] and guard `lbl_80124C70[j] != 0`, skipping the
+     *   table's index-0 sentinel; screensaver.c is what fixes the width at 9.
+     * Both are arrays of a SCALAR type, so the aggregate-member cascade law
+     * (claim.law.embedded-struct-member-whole-tu-cascade) does not apply.
+     */
+    /* 0x14 */ s16 completion1[3];   /* per-level record A (abs 0xDE8) */
+    /* 0x1A */ s16 completion2[9];   /* per-level record B (abs 0xDEE) */
+    /* 0x2C */ u8  pad_2C[0xC4];     /* remainder of slot (unmapped) */
 } PlayerCharSave;                    /* size 0xF0 */
 
 /*
