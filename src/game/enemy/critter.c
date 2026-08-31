@@ -4616,16 +4616,14 @@ s32 CritterMoveSetup(Critter *c, CritterMove *move)
 
         nodeIndex = move->node;
         node = c->anim;
-        if (nodeIndex < 0) {
-            goto store_move_node;
+        if (nodeIndex >= 0) {
+            candidate = ((void **)((u8 *)c->anodes +
+                                   nodeIndex * 0x28))[0];
+            if (candidate == NULL) {
+                candidate = node;
+            }
+            node = candidate;
         }
-        candidate = ((void **)((u8 *)c->anodes +
-                               nodeIndex * 0x28))[0];
-        if (candidate == NULL) {
-            candidate = node;
-        }
-        node = candidate;
-store_move_node:
         c->obj_d0 = node;
     }
 
