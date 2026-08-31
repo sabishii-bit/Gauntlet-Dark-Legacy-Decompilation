@@ -1,0 +1,18 @@
+{
+  "epistemic_state": "verified",
+  "id": "claim.law.compound-offsetof-sizeof-arithmetic-folds-safely.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T00:47:41Z",
+  "schema_version": 1,
+  "scope": "MWCC GC 1.2.5 family; extends claim.law.offsetof-rename-preserves-protected-web to bare-literal displacements that are themselves a DERIVED constant across two overlapping structs reached from the same base pointer (e.g. a stride-indexed sub-object whose apparent literal encodes `outerOffset + innerOffset - stride` from an off-by-one indexing convention), not just a single struct's own field offset.",
+  "state": "proposed",
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "tags": [
+    "core-screen",
+    "offsetof-form",
+    "defake"
+  ],
+  "valid_from": "2026-08-31",
+  "value": "A raw bare-literal displacement does not have to be a single struct's own field offset for the offsetof-rename technique to apply cleanly -- it is safe to respell a DERIVED literal as a compile-time-constant SUM/DIFFERENCE of multiple offsetof()/sizeof() terms, provided the whole expression remains ONE additive chain added to the original raw pointer (no typed intermediate, no struct-member `->` decay). Verified in critter.c CritterCollidePlayers (baseline: real 148, STRUCTURAL, pre-existing residual, no prior recorded regression risk on this exact site): `*(f32 *)((u8 *)c + result * 92 + 1240)` (and +1244/+1248) is `hitnodes[result-1].position[k]` under a `result = index+1` biased convention (CritterMoveNodeColSub returns a 1-biased index) -- decoded as `offsetof(Critter, hitnodes) + offsetof(CritterHitNode, position) - sizeof(CritterHitNode)` (0x4F8 + 0x3C - 0x5C = 0x4D8 = 1240 decimal). Respelling the bare literal `1240` as `(offsetof(Critter, hitnodes) + offsetof(CritterHitNode, position) - sizeof(CritterHitNode))` -- keeping `result * sizeof(CritterHitNode)` and the raw `(u8 *)c +` base exactly as before -- held real steady at 148 (gated, zero regression), confirming MWCC's front end constant-folds a THREE-TERM offsetof/sizeof expression (including a subtraction) identically to the bare decimal literal it replaces, exactly as the simpler one-or-two-term forms in the parent law already do. Consequence: do not limit offsetof-rename to displacements that map directly onto one field of one struct -- when a bare literal is algebraically justified as `A + B - C` (or any compile-time-constant combination) of offsetof/sizeof terms reached from the SAME base pointer and stride already in the expression, verify the arithmetic by hand (or by decoding the access pattern against known consumers, as done here via CritterMoveNodeColSub's 1-biased return convention) and respell it; gate exactly as any other offsetof-rename site."
+}
