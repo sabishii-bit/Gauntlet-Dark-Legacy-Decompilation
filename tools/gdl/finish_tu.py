@@ -5,9 +5,11 @@ Steps:
   1. claimcheck the unit (object sections vs splits claims)
   2. flip Object(NonMatching, ...) -> Matching in configure.py (idempotent)
   3. python configure.py
-  4. ninja  -- exit code checked directly, never through a pipe; the stale
-     build/GUNE5D/ok file is deleted first so it can't mask a failure
-  5. only if green and -m given: git add -A && git commit
+  4. ninja -j2  -- exit code checked directly, never through a pipe; the
+     stale build/GUNE5D/ok file is deleted first so it can't mask a failure
+  5. only if green and -m given: git add <configure.py + the flipped TU
+     sources only> && git commit -- never `add -A`, which swept sibling
+     workers' uncommitted files and inbox records (fleet report, 2026-08-31)
 
 Usage (from repo root):
   python tools/gdl/finish_tu.py zlib/inflate.c -m "Match zlib/inflate.c"
@@ -75,12 +77,12 @@ def main():
         argv = argv[:i] + argv[i + 2:]
     args = [a for a in argv if not a.startswith("-")]
     verify_only = "--verify" in sys.argv
+    units = []
 
     if not verify_only:
         if not args:
             print(__doc__)
             return 1
-        units = []
         for a in args:
             u = a.replace("\\", "/")
             if not u.endswith((".c", ".cpp")):
@@ -120,7 +122,7 @@ def main():
         return 1
 
     OK_FILE.unlink(missing_ok=True)  # never trust a stale ok
-    r = run(["ninja"], capture_output=True, text=True)
+    r = run(["ninja", "-j2"], capture_output=True, text=True)
     tail = "\n".join((r.stdout or "").splitlines()[-6:])
     print(tail)
     if r.returncode != 0:
@@ -136,7 +138,17 @@ def main():
 
     print("\nGREEN: sha1 verified.")
     if msg:
-        run(["git", "add", "-A"])
+        # Explicit pathspec only: `add -A` swept sibling workers' dirty
+        # files and uncommitted inbox records in shared checkouts.
+        paths = ["configure.py"]
+        for u in units:
+            src = REPO / "src" / u
+            if src.exists():
+                paths.append(str(src.relative_to(REPO)))
+            else:
+                print(f"warning: src/{u} not found; committing"
+                      " configure.py flip only for it")
+        run(["git", "add", "--"] + paths)
         r = run(["git", "commit", "-q", "-m", msg])
         if r.returncode:
             print("git commit failed")
