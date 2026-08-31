@@ -46,6 +46,7 @@
 
 #include "types.h"
 #include "__va_arg.h"
+#include "game/mbobject.h"
 #include "game/player.h"
 
 /* Never cast a live u8* player-record pointer to Player* at these call
@@ -114,7 +115,6 @@ extern u8  gPlayers[]; /* 4-player array, stride 0x335C */
 extern u8  lbl_80284878[]; /* 4 pages x 11 entries x 0xC blit table */
 extern u8  lbl_80121688[]; /* select-menu data page */
 extern s32 lbl_80343DD8;
-extern f32 lbl_80348020;
 
 extern s32  new_menu_accept(s32 plyr, s32 allow_start);
 extern void new_player(s32 i);
@@ -353,8 +353,6 @@ extern s32 sFlags;         /* demo / cpu-select flags */
 extern s64 gControllerButtons; /* 64-bit; low half aliases sFlags */
 extern s32 gClockStepTicks;
 extern s32 gFrameTicks;
-extern f32 lbl_80347F3C;   /* "Loading..." text scale */
-extern f32 lbl_80347F54;   /* "Press START" text scale */
 extern char lbl_80347F40[4]; /* auto-select save name */
 extern u8 lbl_80240E30[];  /* pad states, 4 x 0x3C, buttons at +8 */
 extern void show_optmenu();
@@ -391,11 +389,15 @@ s32 serve_blits(s32 player);
 void update_class_attr(s32 player);
 void update_class_spec(s32 player);
 
-/* select-time snapshot of the persistent player block (0xA80..0x1EB4),
- * struct-assigned into the save shadow at +0x1ECC */
-typedef struct SaveSnap {
-    s32 w[0x50D];
-} SaveSnap;
+/* Select-time snapshot of the persistent player block (0xA80..0x1EB4),
+ * struct-assigned into the save shadow at +0x1ECC.  Same 5172-byte record
+ * game/game/gamemain.c already spells PlayerSaveBlk (identical struct
+ * assignment p+7884 = p+2688) and game/game/player.c clears with
+ * memset(p + 0x1ECC, 0, 0x1434) -- one name for one record, per AGENTS.md's
+ * "grep for an existing view before inventing a second spelling". */
+typedef struct PlayerSaveBlk {
+    s32 w[0x50D];                    /* 5172 bytes */
+} PlayerSaveBlk;
 
 #pragma dont_inline on
 /* Top-level select state machine (invoked from gamemain / attract).
@@ -423,7 +425,7 @@ s32 do_player_select(void)
         if (lbl_80344BB0 == 0) {
             AudioSelect(1);
         } else {
-            DrawGlowText(lbl_80347F3C, 0x154, 0x104, pool + 144);
+            DrawGlowText(1.0f, 0x154, 0x104, pool + 144);
         }
     }
     lbl_803445DC = 1;
@@ -1268,7 +1270,8 @@ s32 do_player_select(void)
                             LimitSeltype(pl, *(s32*)(pl + offsetof(Player, character)), 0);
                         *(s32*)(pl + offsetof(Player, motion_state)) = 4;
                     }
-                    *(SaveSnap*)(pl + 0x1ECC) = *(SaveSnap*)(pl + offsetof(Player, name));
+                    *(PlayerSaveBlk*)(pl + 0x1ECC) =
+                        *(PlayerSaveBlk*)(pl + offsetof(Player, name));
                 }
                 choice = do_optmenu(menu, 0);
                 do_sel_menu_8008E4F4(i, 2);
@@ -1462,13 +1465,13 @@ s32 do_player_select(void)
         case 3: /* character locked in */
             if (allIdle == 0 && !(servedMask & (1 << i))) {
                 s32 nx = -(*(s32*)(page + xoff) + 64);
-                DrawTextKeepScale(lbl_80347F54, nx, 0x8E, 0, 0xFFFFFF,
+                DrawTextKeepScale(1.2f, nx, 0x8E, 0, 0xFFFFFF,
                                   pool + 180);
-                DrawTextKeepScale(lbl_80347F54, nx, 0x9A, 0, 0xFFFFFF,
+                DrawTextKeepScale(1.2f, nx, 0x9A, 0, 0xFFFFFF,
                                   pool + 192);
-                DrawTextKeepScale(lbl_80347F54, nx, 0xA6, 0, 0xFFFFFF,
+                DrawTextKeepScale(1.2f, nx, 0xA6, 0, 0xFFFFFF,
                                   pool + 208);
-                DrawTextKeepScale(lbl_80347F54, nx, 0xB2, 0, 0xFFFFFF,
+                DrawTextKeepScale(1.2f, nx, 0xB2, 0, 0xFFFFFF,
                                   pool + 220);
                 if (*(u32*)(lbl_80240E30 + padoff + 8) & 0x40000) {
                     *(s32*)(pl + offsetof(Player, state)) = 2;
@@ -1497,7 +1500,7 @@ s32 do_player_select(void)
         s32 r = ShowLoading();
         if (r == 0) {
             if (allIdle != 0 || lbl_80344BA8 != 0) {
-                DrawGlowText(lbl_80347F3C, -0x100, 0xEA, pool + 144);
+                DrawGlowText(1.0f, -0x100, 0xEA, pool + 144);
                 WritePlayerInfo(-1);
             }
             allIdle = 0;
@@ -1536,8 +1539,6 @@ extern s32 lbl_80343DE8;
 extern s32 lbl_80344BC4;
 extern s32 lbl_80344BB8;
 extern s32 gDemoMode;
-extern f32 lbl_80347F60;
-extern f32 lbl_80347F64;
 extern char lbl_80347F0C[8];
 extern char lbl_80347F14[8];
 extern char lbl_80347F1C[8];
@@ -1602,8 +1603,8 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     showSel = 1;
     showBack = 0;
     x = *xp;
-    sz = (s32)(lbl_80347F60 * scale0);
-    sz2 = (s32)(lbl_80347F60 * scale0);
+    sz = (s32)(16.0f * scale0);
+    sz2 = (s32)(16.0f * scale0);
 
     switch (mode) {
     case 0:
@@ -1618,9 +1619,9 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         s32 x2;
         s32 tx;
         s32 y2;
-        DrawTextKeepScale(lbl_80347F64, nx, 64, 6, 0xFFFFFF, lbl_80347F68);
-        DrawTextKeepScale(lbl_80347F64, nx, 90, 6, 0xFFFFFF, lbl_80347F70);
-        DrawTextKeepScale(lbl_80347F64, nx, 116, 6, 0xFFFFFF,
+        DrawTextKeepScale(0.8f, nx, 64, 6, 0xFFFFFF, lbl_80347F68);
+        DrawTextKeepScale(0.8f, nx, 90, 6, 0xFFFFFF, lbl_80347F70);
+        DrawTextKeepScale(0.8f, nx, 116, 6, 0xFFFFFF,
                           lbl_80347F78);
         bx = *xp + sz;
         bx += 10;
@@ -2057,7 +2058,9 @@ gotv:
 
     setup_tex(idx, 2, 0, 0, lbl_801144A0, lbl_801200B0[arg1 & 7]);
 
-    mbBlitProject(*(void**)((u8*)lbl_80284878 + idx * 132 + 24), -1, 320);
+    mbBlitProject(*(void**)((u8*)lbl_80284878 + idx * 132 +
+                            2 * sizeof(BlitEntry) + offsetof(BlitEntry, handle)),
+                  -1, 320);
 
     wflag = *(u32*)(pl + offsetof(Player, hidden_code)) ? 0 : 1;
     if (((Player*)pl)->exp == 0) {
@@ -2231,7 +2234,7 @@ void setup_sel_menu(s32 player, s32 mode)
         *(s32*)field = baseChoice + 4;
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, y)) = 70;
         selected = (s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel));
-        *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = lbl_80348020;
+        *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = 0.6f;
         off = 0;
         *selected = off;
         sum = *(s32*)(gPlayers + sum + 0x334C) +
@@ -2256,7 +2259,7 @@ void setup_sel_menu(s32 player, s32 mode)
             (field = bss + player * 324) + 528;
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, x)) = baseChoice + 8;
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, y)) = 70;
-        *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = lbl_80348020;
+        *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = 0.6f;
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = *(s32*)(gPlayers + player * 0x335C + 0x3358);
         if (*(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) < 0) {
             *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = 0;
@@ -2830,17 +2833,19 @@ void init_player_select(s32 mode)
             }
             /* placement entries 9 and 10, whose BlitEntry handles sit at the
              * matching blits+108 / blits+120 slots */
-            mbBlitCalcWidth(*(void**)(blits + 108),
+            mbBlitCalcWidth(*(void**)(blits + 9 * sizeof(BlitEntry) +
+                                      offsetof(BlitEntry, handle)),
                             *(s32*)(page + 140 + offsetof(BlitPlacement, x)) + *xp,
                             *(s32*)(page + 140 + offsetof(BlitPlacement, y)),
                             (f32)*(s32*)(page + 140 + offsetof(BlitPlacement, scale)));
-            mbBlitCalcWidth(*(void**)(blits + 120),
+            mbBlitCalcWidth(*(void**)(blits + 10 * sizeof(BlitEntry) +
+                                      offsetof(BlitEntry, handle)),
                             *(s32*)(page + 152 + offsetof(BlitPlacement, x)) + *xp,
                             *(s32*)(page + 152 + offsetof(BlitPlacement, y)),
                             (f32)*(s32*)(page + 152 + offsetof(BlitPlacement, scale)));
         }
     }
-    if (!(*(u32*)((u32)gGameOptions + 44) & 1)) {
+    if (!(*(u32*)((u32)gGameOptions + offsetof(SelOptsView, flags44)) & 1)) {
         lbl_80344B90 = 0;
         lbl_80344B98 = 0;
         lbl_80344B94 = 0;
@@ -2947,7 +2952,7 @@ s32 serve_blits(s32 player)
             break;
 
         case 3: { /* looping pulse */
-            u8* tex = MBRomTexPtr(*(u32*)(h + 4));
+            u8* tex = MBRomTexPtr(*(u32*)(h + offsetof(MBBlit, tex_idx)));
             s32 w = *(u16*)(tex + offsetof(MBTextureDef, width));
             s32 ht = *(u16*)(tex + offsetof(MBTextureDef, height));
             s32 amp;
@@ -3041,7 +3046,7 @@ s32 serve_blits(s32 player)
             tp4 = (s32*)(e + offsetof(BlitEntry, timer));
             *(s32*)(e + offsetof(BlitEntry, timer)) += gFrameTicks;
             half = *(s32*)(e + offsetof(BlitEntry, timer)) >> 1;
-            tex = MBRomTexPtr(*(u32*)(h + 4));
+            tex = MBRomTexPtr(*(u32*)(h + offsetof(MBBlit, tex_idx)));
             a = half * half;
             w = *(u16*)(tex + offsetof(MBTextureDef, width));
             ht = *(u16*)(tex + offsetof(MBTextureDef, height));
