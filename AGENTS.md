@@ -382,7 +382,12 @@ Loop discipline: the edit loop is ONE command now — `probe.py` (matching:
 prints BASELINE/IMPROVED/REGRESSED/NEUTRAL against a remembered best;
 every BASELINE/IMPROVED banks a TU-source snapshot and `--revert`
 restores it AND re-scores in the same call — never hand-retype a revert;
-probe a BASELINE before your first edit so the revert point exists) or
+probe a BASELINE before your first edit so the revert point exists.
+FIRST-BASELINE TRAP: probe banks whatever state it FIRST sees per
+function — an edit made before a function's first probe gets banked as
+its "baseline" and --revert then restores the BAD state; run a
+clean-state probe on every function you touch, including secondaries,
+BEFORE its first edit) or
 `defake_gate.py check --rebuild` (defake: builds first, prints each
 regressing fn's --ops summary inline). Never hand-pair ninja+fndiff or
 ninja+gate again. To read a residual: take `--ops`'s `@0xA-0xB` offsets

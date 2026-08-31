@@ -19,12 +19,21 @@ Usage:
 Interpretations printed per label: raw bytes, f32/f64 where the width fits,
 u32/s32, and a printable-string preview. The literal to write into C is the
 f32/f64 line for float-class labels (check the symbols.txt data: annotation).
+
+`--json` (combinable with --sweep) emits machine-readable rows instead, each
+carrying a `disposition`: POOL (.sdata2/.rodata — literalization candidate),
+DATA (writable section — a real global, never literalize), or BSS (not in
+the DOL — a runtime variable, never literalize). Feed this to a rewriter
+instead of re-typing values by hand.
 """
 
+import json
 import re
 import struct
 import sys
 from pathlib import Path
+
+POOL_SECTIONS = {".sdata2", ".rodata"}
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DOL_PATH = REPO_ROOT / "orig" / "GUNE5D" / "sys" / "main.dol"
@@ -105,19 +114,42 @@ def render(name, info, blob, sections):
     print("\n".join(parts))
 
 
+def json_row(name, info, blob, sections):
+    addr = info["addr"]
+    size = info["size"] or 4
+    data = read_va(blob, sections, addr, max(size, 8))
+    row = {"name": name, "addr": f"0x{addr:08X}", "section": info["section"],
+           "size": size, "data": info["data"]}
+    if data is None:
+        row["disposition"] = "BSS"
+        return row
+    row["disposition"] = ("POOL" if info["section"] in POOL_SECTIONS
+                          else "DATA")
+    if size >= 4:
+        row["f32"] = struct.unpack_from(">f", data)[0]
+        row["u32"] = struct.unpack_from(">I", data)[0]
+    if size >= 8 or info["data"] == "double":
+        row["f64"] = struct.unpack_from(">d", data)[0]
+    return row
+
+
 def main():
     args = sys.argv[1:]
     if not args or args[0] in ("--help", "-h"):
         print(__doc__)
         return 2
+    as_json = "--json" in args
+    args = [a for a in args if a != "--json"]
     table = load_symbols()
     blob, sections = load_dol()
     names = []
-    if args[0] == "--sweep":
+    if args and args[0] == "--sweep":
         source = Path(args[1])
         text = source.read_text(encoding="utf-8", errors="replace")
         names = sorted({m.group("name") for m in EXTERN_RE.finditer(text)})
-        print(f"{source}: {len(names)} float-class extern label(s) declared\n")
+        if not as_json:
+            print(f"{source}: {len(names)} float-class extern label(s)"
+                  " declared\n")
     else:
         for arg in args:
             if arg.startswith("0x"):
@@ -127,13 +159,20 @@ def main():
             else:
                 names.append(arg)
     missing = []
+    rows = []
     for name in names:
         info = table.get(name)
         if info is None:
             missing.append(name)
             continue
-        render(name, info, blob, sections)
-        print()
+        if as_json:
+            rows.append(json_row(name, info, blob, sections))
+        else:
+            render(name, info, blob, sections)
+            print()
+    if as_json:
+        print(json.dumps({"labels": rows, "missing": missing}, indent=1))
+        return 0
     if missing:
         print("NOT IN symbols.txt: " + ", ".join(missing))
     return 0
