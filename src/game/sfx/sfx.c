@@ -224,6 +224,7 @@ extern f32 gFloorCollisionResult[16];                   /* floor-probe result ma
 extern u32 gFrameTicks;                       /* frame delta */
 extern s32 lbl_80344BF0;                       /* skinfx frame base A */
 extern s32 lbl_80344BF4;                       /* skinfx frame base B */
+extern char lbl_80114790[];                    /* 0x80114790 fx message pool */
 
 /* --- MB / engine externs (fn_ names = symbols.txt identities) --- */
 extern void ErrorPrintf(const char* fmt, ...);
@@ -614,7 +615,7 @@ s32 StartDeathFX(struct mbnode* parent, s32 kind, u32 fla)
     }
     idx = -1;
     if (t < 0 || (type = t) >= MAXEFFECTTYPES) {
-        ErrorPrintf("Bad Effect type: %d", type);
+        ErrorPrintf(lbl_80114790, type);
         idx = -1;
     } else {
         h = &page->info[type];
