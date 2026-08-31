@@ -1019,12 +1019,12 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
             sep[0] = sep[0] * scale;
             sep[1] = sep[1] * scale;
             sep[2] = sep[2] * scale;
-            *(f32 *)((u8 *)player + 0x870) =
-                (f32)(pushScale * sep[0] + *(f32 *)((u8 *)player + 0x870));
-            *(f32 *)((u8 *)player + 0x874) =
-                (f32)(pushScale * sep[1] + *(f32 *)((u8 *)player + 0x874));
-            *(f32 *)((u8 *)player + 0x878) =
-                (f32)(pushScale * sep[2] + *(f32 *)((u8 *)player + 0x878));
+            *(f32 *)((u8 *)player + offsetof(Player, vel[0])) =
+                (f32)(pushScale * sep[0] + *(f32 *)((u8 *)player + offsetof(Player, vel[0])));
+            *(f32 *)((u8 *)player + offsetof(Player, vel[1])) =
+                (f32)(pushScale * sep[1] + *(f32 *)((u8 *)player + offsetof(Player, vel[1])));
+            *(f32 *)((u8 *)player + offsetof(Player, vel[2])) =
+                (f32)(pushScale * sep[2] + *(f32 *)((u8 *)player + offsetof(Player, vel[2])));
         }
     }
     if (result != 0) {
