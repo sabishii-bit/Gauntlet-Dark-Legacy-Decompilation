@@ -996,48 +996,6 @@ void* AtreeMatch(atreeheader* hdr, char* name, s32 report)
     return NULL;
 }
 
-/* byte-order fixup helpers: the atree resource is little-endian on disk. */
-#define SWAP32TO(d, s)                                                        \
-    do {                                                                      \
-        u32 _dw;                                                              \
-        u32 _sw;                                                              \
-        u8* _dp;                                                              \
-        u8* _sp;                                                              \
-        _sw = (s);                                                            \
-        _sp = (u8*)&_sw;                                                       \
-        _dp = (u8*)&_dw;                                                       \
-        _dp[0] = _sp[3];                                                      \
-        _dp[1] = _sp[2];                                                      \
-        _dp[2] = _sp[1];                                                      \
-        _dp[3] = _sp[0];                                                      \
-        (d) = _dw;                                                            \
-    } while (0)
-
-#define SWAP32(x) SWAP32TO(x, x)
-
-/* byte-swap a float in place: the word view is taken through a union so the
- * value travels as a float at both ends. */
-#define SWAPF32(x)                                                            \
-    do {                                                                      \
-        union {                                                               \
-            f32 f;                                                            \
-            u32 w;                                                            \
-        } _fs, _fd;                                                           \
-        _fs.f = (x);                                                          \
-        SWAP32TO(_fd.w, _fs.w);                                               \
-        (x) = _fd.f;                                                          \
-    } while (0)
-
-#define SWAP16(x)                                                             \
-    do {                                                                      \
-        union {                                                               \
-            u16 h;                                                            \
-            u8 b[2];                                                          \
-        } _s;                                                                 \
-        _s.h = (x);                                                           \
-        (x) = (u16)((_s.b[1] << 8) | _s.b[0]);                                \
-    } while (0)
-
 extern int* SetupAnimHeader(int* hdr, int* dst);
 extern void InitOAnimList(void* hdr, int arg);
 
@@ -1071,6 +1029,11 @@ static inline f32 AtreeNodeSwapF32(f32 value)
     result = AtreeNodeSwap32(*(u32*)&value);
     return *(f32*)&result;
 }
+
+/* byte-order fixup helpers: the atree resource is little-endian on disk. */
+#define SWAP32(x) (x) = AtreeNodeSwap32(x)
+#define SWAPF32(x) (x) = AtreeNodeSwapF32(x)
+#define SWAP16(x) (x) = AtreeNodeSwap16(x)
 
 typedef struct AtreeWorldPsys {
     u32 version;
@@ -1176,10 +1139,6 @@ void fn_80011DCC(AtreeWorldPsys* psys)
  * InitOAnimList over each match entry, then claim an atree-list slot. */
 u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
 {
-    /* stands in for an unrecovered local: the target reserves 296 bytes at the
-     * bottom of the frame that this function never reads or writes and whose
-     * address is never taken. */
-    u8 unused[248];
     u8* base = (u8*)hdr;
     s32 i;
     s32 j;
@@ -1238,6 +1197,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             s32* blob =
                 (s32*)(base + *(s32*)(*(u32*)(hdr + 2) + off +
                                        offsetof(atreematch, offset)));
+            AtreeDefinition* def = (AtreeDefinition*)blob;
             s32 seqoff;
             s32 texbase;
             s32 nseqs;
@@ -1248,14 +1208,14 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             SWAP32(blob[3]);
             SWAP32(blob[4]);
             SWAP32(blob[5]);
-            SWAP16(*(u16*)((u8*)blob + offsetof(AtreeDefinition, objectIndex)));
+            SWAP16(*(u16*)&def->objectIndex);
             blob[0] += (s32)blob;
             blob[3] += (s32)blob;
 
             /* sequence table, stride sizeof(animseqdesc). +0x20/+0x22/+0x26
              * are real fields absorbed into animseqdesc's _pad00/_pad26 -
              * left as bare offsets, no GC-verified name for them yet. */
-            for (j = 0; j < blob[5]; j++) {
+            for (j = 0; j < def->sequenceCount; j++) {
                 u8* seq = (u8*)(blob[0] + j * sizeof(animseqdesc));
                 SWAP16(*(u16*)(seq + 0x20));
                 SWAP16(*(u16*)(seq + 0x22));
@@ -1267,8 +1227,10 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             }
 
             /* node-info table, stride sizeof(AtreeNodeDef) */
-            for (j = 0; j < blob[4]; j++) {
-                u8* ni = (u8*)(blob[3] + j * sizeof(AtreeNodeDef));
+            seqoff = 0;
+            for (j = 0; j < def->nodeCount; j++) {
+                u8* ni = (u8*)(blob[3] + seqoff);
+                seqoff += sizeof(AtreeNodeDef);
                 SWAPF32(((AtreeNodeDef*)ni)->position[0]);
                 SWAPF32(((AtreeNodeDef*)ni)->position[1]);
                 SWAPF32(((AtreeNodeDef*)ni)->position[2]);
@@ -1279,11 +1241,11 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
                 SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, parent)));
             }
 
-            if (((AtreeDefinition*)blob)->animheader != NULL) {
+            if (def->animheader != NULL) {
                 blob[1] = (s32)SetupAnimHeader(
                     (int*)((u8*)blob + blob[1]), (int*)0);
             }
-            if (((AtreeDefinition*)blob)->oanimheader != NULL) {
+            if (def->oanimheader != NULL) {
                 blob[2] += (s32)blob;
                 SWAP32(*(u32*)blob[2]);
                 SWAP32(*(u32*)(blob[2] + 4));
@@ -1303,7 +1265,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
                     *ptexmods = texbase + *ptexmods * sizeof(TEXMOD);
                 }
             }
-            *(s16*)((u8*)blob + offsetof(AtreeDefinition, objectIndex)) = (s16)model;
+            def->objectIndex = (s16)model;
             off += sizeof(atreematch);
         }
 
