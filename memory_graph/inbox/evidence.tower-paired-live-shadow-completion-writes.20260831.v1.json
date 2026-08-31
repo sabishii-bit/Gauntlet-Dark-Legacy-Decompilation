@@ -1,0 +1,11 @@
+{
+  "claim": "claim.player-0x2220-is-char-save-checkpoint-shadow.20260831.v1",
+  "detail": "Paired live/shadow completion writes, the decisive proof. tower.c:1289-1290 forms the LIVE pointer as (u8*)(j*2) + (s32)p + p->character * CHAR_SAVE_STRIDE + COMPLETION1_OFF, where COMPLETION1_OFF is defined at tower.c:248 as offsetof(Player, char_save) + offsetof(PlayerCharSave, completion1) = 0xDD4 + 0x14 = 0xDE8. Line 1293 sets that to -1, and the IMMEDIATELY FOLLOWING statement at lines 1294-1295 writes the same -1 through the same (u8*)(j*2) + (s32)p + p->character * 240 expression but with the bare literal displacement 8756 = 0x2234. The two differ ONLY in the displacement, and 0x2234 - 0xDE8 = 0x144C, exactly the shadow delta 0x1ECC - 0xA80. The identical construct repeats at tower.c:1327-1333 for completion2: COMPLETION2_OFF = 0xDD4 + 0x1A = 0xDEE against literal 8762 = 0x223A, and 0x223A - 0xDEE = 0x144C. Same 240 stride, same j*2 per-level index, same -1 value, adjacent statements -- the game clears a completion record in both the live slot and its level-entry checkpoint. Note that 0x2234 falls inside what include/game/player.h currently declares as gargoyle_items[3] (0x2230..0x2235), so the header actively mislabels a byte range that live code writes as a completion record.",
+  "evidence_kind": "source-trace",
+  "id": "evidence.tower-paired-live-shadow-completion-writes.20260831.v1",
+  "kind": "evidence",
+  "locator": "src/game/world/tower.c:1289-1295 and 1327-1333; macro definitions at src/game/world/tower.c:248-249",
+  "recorded_at": "2026-08-31T04:27:21Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

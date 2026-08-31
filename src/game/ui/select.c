@@ -497,7 +497,7 @@ s32 do_player_select(void)
         case 2:
             switch (*(u32*)(pl + offsetof(Player, motion_state))) {
             case 0: /* top select menu */
-                *(s32*)(pl + 0x333C) = *(s32*)(pl + offsetof(Player, motion_state));
+                *(s32*)(pl + offsetof(Player, motion_state_save)) = *(s32*)(pl + offsetof(Player, motion_state));
                 menu = page + moff + 712;
                 if (gControllerButtons & 4) {
                     *(s32*)(pl + offsetof(Player, state)) = 3;
@@ -544,13 +544,13 @@ s32 do_player_select(void)
                         break;
                     case 1000:
                         remove_optmenu(menu);
-                        *(s32*)(pl + 0x3348) = 1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                         *(s32*)(pl + offsetof(Player, motion_state)) = 3;
                         AudioCursorSelect();
                         break;
                     case 1001:
                         remove_optmenu(menu);
-                        *(s32*)(pl + 0x3348) = 1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                         *(s32*)(pl + offsetof(Player, motion_state)) = 5;
                         AudioCursorSelect();
                         break;
@@ -558,7 +558,7 @@ s32 do_player_select(void)
                 }
                 break;
             case 1: { /* load/save menu */
-                *(s32*)(pl + 0x333C) = *(s32*)(pl + offsetof(Player, motion_state));
+                *(s32*)(pl + offsetof(Player, motion_state_save)) = *(s32*)(pl + offsetof(Player, motion_state));
                 menu = page + moff + 712;
                 if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
                     setup_sel_menu(i, 1);
@@ -644,9 +644,9 @@ s32 do_player_select(void)
                 case 1001:
                     remove_optmenu(menu);
                     if (*(s8*)(pl + 0xA8B) != 0) {
-                        *(s32*)(pl + 0x3348) = 1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                     } else {
-                        *(s32*)(pl + 0x3348) = 0;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                     }
                     *(s32*)(pl + offsetof(Player, motion_state)) = 5;
                     break;
@@ -678,9 +678,9 @@ s32 do_player_select(void)
                 case 1004: /* change character */
                     remove_optmenu(menu);
                     if (*(s8*)(pl + 0xA8B) != 0) {
-                        *(s32*)(pl + 0x3348) = 1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                     } else {
-                        *(s32*)(pl + 0x3348) = 0;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                     }
                     *(s32*)(pl + offsetof(Player, motion_state)) = 2;
                     break;
@@ -691,7 +691,7 @@ s32 do_player_select(void)
             }
             case 2: /* change-character confirm */
                 menu = page + moff + 712;
-                switch (*(s32*)(pl + 0x3348)) {
+                switch (*(s32*)(pl + offsetof(Player, sel_step))) {
                 case 0:
                     if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
                         setup_sel_menu(i, 15);
@@ -707,7 +707,7 @@ s32 do_player_select(void)
                         break;
                     case 1006:
                         remove_optmenu(menu);
-                        *(s32*)(pl + 0x3348) = 1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                         break;
                     }
                     break;
@@ -724,7 +724,7 @@ s32 do_player_select(void)
                 break;
             case 5: /* pick a memory card (load) */
                 menu = page + moff + 712;
-                switch (*(s32*)(pl + 0x3348)) {
+                switch (*(s32*)(pl + offsetof(Player, sel_step))) {
                 case 0:
                     if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
                         setup_sel_menu(i, 15);
@@ -734,17 +734,17 @@ s32 do_player_select(void)
                     case -1:
                     case 1007:
                         remove_optmenu(menu);
-                        *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + 0x333C);
+                        *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                         break;
                     case 1006:
                         remove_optmenu(menu);
-                        *(s32*)(pl + 0x3348) = 1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                         break;
                     }
                     do_sel_menu_8008E4F4(i, 5);
                     break;
                 }
-                if (*(s32*)(pl + 0x3348) != 0) {
+                if (*(s32*)(pl + offsetof(Player, sel_step)) != 0) {
                     if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
                         setup_sel_menu(i, 5);
                     }
@@ -758,15 +758,15 @@ s32 do_player_select(void)
                     switch (choice) {
                     case -1:
                         remove_optmenu(menu);
-                        *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + 0x333C);
+                        *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                         break;
                     default:
                     if (choice >= 1000) {
                         s32 r;
                         set_directory_refresh_flags(-1);
                         remove_optmenu(menu);
-                        *(s32*)(pl + 0x334C) = choice - 1000;
-                        *(s32*)(pl + 0x3350) = 0;
+                        *(s32*)(pl + offsetof(Player, sel_card_chan)) = choice - 1000;
+                        *(s32*)(pl + offsetof(Player, sel_card_slot)) = 0;
                         r = setup_file_entries(pl, 1);
                         if (r == -1) {
                             s32 busy;
@@ -775,8 +775,8 @@ s32 do_player_select(void)
                             for (n = 4; n != 0; n--, qoff += 13148) {
                                 u8* q = gPlayers + qoff;
                                 if (*(s32*)(q + offsetof(Player, state)) == 2 && pl != q &&
-                                    *(s32*)(q + 0x334C) == *(s32*)(pl + 0x334C) &&
-                                    *(s32*)(q + 0x3350) == *(s32*)(pl + 0x3350)) {
+                                    *(s32*)(q + offsetof(Player, sel_card_chan)) == *(s32*)(pl + offsetof(Player, sel_card_chan)) &&
+                                    *(s32*)(q + offsetof(Player, sel_card_slot)) == *(s32*)(pl + offsetof(Player, sel_card_slot))) {
                                     switch (*(s32*)(q + offsetof(Player, motion_state))) {
                                     case 6:
                                     case 11:
@@ -793,10 +793,10 @@ s32 do_player_select(void)
                             } else {
                                 *(s32*)(pl + offsetof(Player, motion_state)) = 6;
                             }
-                            *(s32*)(pl + 0x3348) = 0;
+                            *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                         } else if (r <= 0) {
                             *(s32*)(pl + offsetof(Player, motion_state)) = 7;
-                            *(s32*)(pl + 0x3348) = 1;
+                            *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                         } else {
                             *(s32*)(pl + offsetof(Player, motion_state)) = 8;
                         }
@@ -807,10 +807,10 @@ s32 do_player_select(void)
                 break;
             case 7: /* "no files" notice */
                 do_sel_menu_8008E4F4(i, 7);
-                *(s32*)(pl + 0x3348) += gFrameTicks;
-                if (*(s32*)(pl + 0x3348) >= 0x78) {
-                    *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + 0x333C);
-                    *(s32*)(pl + 0x3348) = 0;
+                *(s32*)(pl + offsetof(Player, sel_step)) += gFrameTicks;
+                if (*(s32*)(pl + offsetof(Player, sel_step)) >= 0x78) {
+                    *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
+                    *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                 }
                 break;
             case 8: /* pick a save file (load) */
@@ -821,10 +821,10 @@ s32 do_player_select(void)
                 *(s32*)(menu + offsetof(OptMenuLayout, num_items)) = 0;
                 show_optmenu(menu);
                 choice = do_optmenu(menu, 1);
-                if (*(s32*)((u8*)&lbl_80344A14 + *(s32*)(pl + 0x334C) * 4 +
-                            *(s32*)(pl + 0x3350) * 4) != 1 ||
-                    *(s32*)((u8*)&lbl_80344A18 + *(s32*)(pl + 0x334C) * 4 +
-                            *(s32*)(pl + 0x3350) * 4) != 3) {
+                if (*(s32*)((u8*)&lbl_80344A14 + *(s32*)(pl + offsetof(Player, sel_card_chan)) * 4 +
+                            *(s32*)(pl + offsetof(Player, sel_card_slot)) * 4) != 1 ||
+                    *(s32*)((u8*)&lbl_80344A18 + *(s32*)(pl + offsetof(Player, sel_card_chan)) * 4 +
+                            *(s32*)(pl + offsetof(Player, sel_card_slot)) * 4) != 3) {
                     choice = -1;
                 }
                 setup_file_entries(pl, 0);
@@ -839,34 +839,34 @@ s32 do_player_select(void)
                         verify_vmu_file_ok(pl, choice - 1000) != 0) {
                         remove_optmenu(menu);
                         *(s32*)(pl + offsetof(Player, motion_state)) = 9;
-                        *(s32*)(pl + 0x3354) = choice - 1000;
-                        *(s32*)(pl + 0x3358) = choice - 1000;
-                        *(s32*)(pl + 0x3348) = 0;
+                        *(s32*)(pl + offsetof(Player, sel_save_file)) = choice - 1000;
+                        *(s32*)(pl + offsetof(Player, sel_file_cursor)) = choice - 1000;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                     }
                     break;
                 }
                 break;
             case 9: { /* load-file progress */
-                s32 t = *(s32*)(pl + 0x3348);
+                s32 t = *(s32*)(pl + offsetof(Player, sel_step));
                 switch (t) {
                 case 0:
                 case 1:
                 case 2:
                     if (fn_80055F68(0, 0) != 0) {
-                        *(s32*)(pl + 0x3348) += 1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) += 1;
                     }
                     break;
                 case 3:
-                    if (PlayerLoadSaveFile(i, *(s32*)(pl + 0x3354)) != 0) {
-                        *(s32*)(pl + 0x3348) += 1;
+                    if (PlayerLoadSaveFile(i, *(s32*)(pl + offsetof(Player, sel_save_file))) != 0) {
+                        *(s32*)(pl + offsetof(Player, sel_step)) += 1;
                     } else {
-                        *(s32*)(pl + 0x3348) = -1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = -1;
                     }
                     break;
                 default:
                 if (t >= 0) {
-                    *(s32*)(pl + 0x3348) += gFrameTicks;
-                    if (*(s32*)(pl + 0x3348) >= 0x78) {
+                    *(s32*)(pl + offsetof(Player, sel_step)) += gFrameTicks;
+                    if (*(s32*)(pl + offsetof(Player, sel_step)) >= 0x78) {
                         if (set_hidden_player(pl) != 0) {
                             s32 pi = *(s32*)pl;
                             u8* b;
@@ -890,13 +890,13 @@ s32 do_player_select(void)
                             *(s32*)(pl + offsetof(Player, motion_state)) = 4;
                         }
                         *(s32*)(pl + offsetof(Player, intower)) = 1;
-                        *(s32*)(pl + 0x3348) = -1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = -1;
                     }
                 } else {
-                    *(s32*)(pl + 0x3348) -= gFrameTicks;
-                    if (*(s32*)(pl + 0x3348) <= -0x78) {
-                        *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + 0x333C);
-                        *(s32*)(pl + 0x3348) = -1;
+                    *(s32*)(pl + offsetof(Player, sel_step)) -= gFrameTicks;
+                    if (*(s32*)(pl + offsetof(Player, sel_step)) <= -0x78) {
+                        *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
+                        *(s32*)(pl + offsetof(Player, sel_step)) = -1;
                     }
                 }
                     break;
@@ -919,15 +919,15 @@ s32 do_player_select(void)
                 switch (choice) {
                 case -1:
                     remove_optmenu(menu);
-                    *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + 0x333C);
+                    *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                     break;
                 default:
                 if (choice >= 1000) {
                     s32 r;
                     set_directory_refresh_flags(-1);
                     remove_optmenu(menu);
-                    *(s32*)(pl + 0x334C) = choice - 1000;
-                    *(s32*)(pl + 0x3350) = 0;
+                    *(s32*)(pl + offsetof(Player, sel_card_chan)) = choice - 1000;
+                    *(s32*)(pl + offsetof(Player, sel_card_slot)) = 0;
                     r = setup_file_entries(pl, 1);
                     if (r == -2) {
                         remove_optmenu(menu);
@@ -939,8 +939,8 @@ s32 do_player_select(void)
                         for (n = 4; n != 0; n--, qoff += 13148) {
                             u8* q = gPlayers + qoff;
                             if (*(s32*)(q + offsetof(Player, state)) == 2 && pl != q &&
-                                *(s32*)(q + 0x334C) == *(s32*)(pl + 0x334C) &&
-                                *(s32*)(q + 0x3350) == *(s32*)(pl + 0x3350)) {
+                                *(s32*)(q + offsetof(Player, sel_card_chan)) == *(s32*)(pl + offsetof(Player, sel_card_chan)) &&
+                                *(s32*)(q + offsetof(Player, sel_card_slot)) == *(s32*)(pl + offsetof(Player, sel_card_slot))) {
                                 switch (*(s32*)(q + offsetof(Player, motion_state))) {
                                 case 6:
                                 case 11:
@@ -957,7 +957,7 @@ s32 do_player_select(void)
                         } else {
                             *(s32*)(pl + offsetof(Player, motion_state)) = 11;
                         }
-                        *(s32*)(pl + 0x3348) = 0;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                     } else if (r == 0) {
                         s32 busy;
                         s32 qoff = 0;
@@ -965,8 +965,8 @@ s32 do_player_select(void)
                         for (n = 4; n != 0; n--, qoff += 13148) {
                             u8* q = gPlayers + qoff;
                             if (*(s32*)(q + offsetof(Player, state)) == 2 && pl != q &&
-                                *(s32*)(q + 0x334C) == *(s32*)(pl + 0x334C) &&
-                                *(s32*)(q + 0x3350) == *(s32*)(pl + 0x3350)) {
+                                *(s32*)(q + offsetof(Player, sel_card_chan)) == *(s32*)(pl + offsetof(Player, sel_card_chan)) &&
+                                *(s32*)(q + offsetof(Player, sel_card_slot)) == *(s32*)(pl + offsetof(Player, sel_card_slot))) {
                                 switch (*(s32*)(q + offsetof(Player, motion_state))) {
                                 case 6:
                                 case 11:
@@ -983,7 +983,7 @@ s32 do_player_select(void)
                         } else {
                             *(s32*)(pl + offsetof(Player, motion_state)) = 12;
                         }
-                        *(s32*)(pl + 0x3348) = 0;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                     } else {
                         *(s32*)(pl + offsetof(Player, motion_state)) = 13;
                     }
@@ -994,7 +994,7 @@ s32 do_player_select(void)
             case 6:  /* mount / create-file confirm + progress */
             case 11:
             case 12: {
-                s32 t = *(s32*)(pl + 0x3348);
+                s32 t = *(s32*)(pl + offsetof(Player, sel_step));
                 menu = page + moff + 712;
                 switch (t) {
                 case 0:
@@ -1004,8 +1004,8 @@ s32 do_player_select(void)
                     show_optmenu(menu);
                     choice = do_optmenu(menu, 1);
                     if (*(s32*)((u8*)&lbl_80344A14 +
-                                *(s32*)(pl + 0x334C) * 4 +
-                                *(s32*)(pl + 0x3350) * 4) != 1) {
+                                *(s32*)(pl + offsetof(Player, sel_card_chan)) * 4 +
+                                *(s32*)(pl + offsetof(Player, sel_card_slot)) * 4) != 1) {
                         choice = -1;
                     }
                     if (setup_file_entries(pl, 1) > 0) {
@@ -1018,8 +1018,8 @@ s32 do_player_select(void)
                         for (n = 4; n != 0; n--, qoff += 13148) {
                             u8* q = gPlayers + qoff;
                             if (*(s32*)(q + offsetof(Player, state)) == 2 && pl != q &&
-                                *(s32*)(q + 0x334C) == *(s32*)(pl + 0x334C) &&
-                                *(s32*)(q + 0x3350) == *(s32*)(pl + 0x3350)) {
+                                *(s32*)(q + offsetof(Player, sel_card_chan)) == *(s32*)(pl + offsetof(Player, sel_card_chan)) &&
+                                *(s32*)(q + offsetof(Player, sel_card_slot)) == *(s32*)(pl + offsetof(Player, sel_card_slot))) {
                                 switch (*(s32*)(q + offsetof(Player, motion_state))) {
                                 case 6:
                                 case 11:
@@ -1041,73 +1041,73 @@ s32 do_player_select(void)
                         remove_optmenu(menu);
                         if (*(s32*)(pl + offsetof(Player, motion_state)) == 6) {
                             *(s32*)(pl + offsetof(Player, motion_state)) = 5;
-                            *(s32*)(pl + 0x3348) = 1;
+                            *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                         } else {
                             *(s32*)(pl + offsetof(Player, motion_state)) = 10;
                         }
                         break;
                     case 1006:
                         remove_optmenu(menu);
-                        *(s32*)(pl + 0x3348) = 1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                         break;
                     }
                     break;
                 case 1:
                 case 2:
                     if (fn_80055F68(0, 0) != 0) {
-                        *(s32*)(pl + 0x3348) += 1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) += 1;
                     }
                     break;
                 case 3: {
                     s32 ok;
                     if (*(s32*)(pl + offsetof(Player, motion_state)) == 6) {
-                        ok = saveMount(*(s32*)(pl + 0x334C),
-                                       *(s32*)(pl + 0x3350), 1);
+                        ok = saveMount(*(s32*)(pl + offsetof(Player, sel_card_chan)),
+                                       *(s32*)(pl + offsetof(Player, sel_card_slot)), 1);
                         if (ok < 0) {
                             ok = 0;
                         }
                     } else {
                         if (*(s32*)(pl + offsetof(Player, motion_state)) == 12 &&
-                            saveGetFreeBytes(*(s32*)(pl + 0x334C),
-                                             *(s32*)(pl + 0x3350)) <
+                            saveGetFreeBytes(*(s32*)(pl + offsetof(Player, sel_card_chan)),
+                                             *(s32*)(pl + offsetof(Player, sel_card_slot))) <
                                 lbl_80344BB8) {
-                            *(s32*)(pl + 0x3348) = 1000;
+                            *(s32*)(pl + offsetof(Player, sel_step)) = 1000;
                             goto serve6;
                         }
-                        ok = MemCardCreateGaunt(*(s32*)(pl + 0x334C),
-                                                *(s32*)(pl + 0x3350));
+                        ok = MemCardCreateGaunt(*(s32*)(pl + offsetof(Player, sel_card_chan)),
+                                                *(s32*)(pl + offsetof(Player, sel_card_slot)));
                     }
                     if (ok != 0) {
-                        *(s32*)(pl + 0x3348) += 1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) += 1;
                     } else {
-                        *(s32*)(pl + 0x3348) = -1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = -1;
                     }
                     break;
                 }
                 default:
                     if (t >= 1000) {
-                        *(s32*)(pl + 0x3348) += gFrameTicks;
-                        if (*(s32*)(pl + 0x3348) >= 0x460) {
-                            *(s32*)(pl + 0x3348) = 0;
-                            *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + 0x333C);
+                        *(s32*)(pl + offsetof(Player, sel_step)) += gFrameTicks;
+                        if (*(s32*)(pl + offsetof(Player, sel_step)) >= 0x460) {
+                            *(s32*)(pl + offsetof(Player, sel_step)) = 0;
+                            *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                         }
                     } else if (t >= 0) {
-                        *(s32*)(pl + 0x3348) += gFrameTicks;
-                        if (*(s32*)(pl + 0x3348) >= 0x78) {
+                        *(s32*)(pl + offsetof(Player, sel_step)) += gFrameTicks;
+                        if (*(s32*)(pl + offsetof(Player, sel_step)) >= 0x78) {
                             if (*(s32*)(pl + offsetof(Player, motion_state)) == 6) {
                                 *(s32*)(pl + offsetof(Player, motion_state)) = 5;
-                                *(s32*)(pl + 0x3348) = 1;
+                                *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                             } else {
                                 *(s32*)(pl + offsetof(Player, motion_state)) = 13;
                                 setup_file_entries(pl, 1);
-                                *(s32*)(pl + 0x3348) = 0;
+                                *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                             }
                         }
                     } else {
-                        *(s32*)(pl + 0x3348) -= gFrameTicks;
-                        if (*(s32*)(pl + 0x3348) <= -0x78) {
-                            *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + 0x333C);
-                            *(s32*)(pl + 0x3348) = 0;
+                        *(s32*)(pl + offsetof(Player, sel_step)) -= gFrameTicks;
+                        if (*(s32*)(pl + offsetof(Player, sel_step)) <= -0x78) {
+                            *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
+                            *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                         }
                     }
                     break;
@@ -1143,23 +1143,23 @@ s32 do_player_select(void)
                     if (choice >= 1000 && lbl_80344BB4 == 0) {
                         remove_optmenu(menu);
                         *(s32*)(pl + offsetof(Player, motion_state)) = 14;
-                        *(s32*)(pl + 0x3354) = choice - 1000;
-                        *(s32*)(pl + 0x3358) = choice - 1000;
-                        *(s32*)(pl + 0x3348) = 0;
+                        *(s32*)(pl + offsetof(Player, sel_save_file)) = choice - 1000;
+                        *(s32*)(pl + offsetof(Player, sel_file_cursor)) = choice - 1000;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                         lbl_80344BB4 = 0x1E;
                     }
                     break;
                 }
                 break;
             case 14: { /* write-file progress */
-                s32 t = *(s32*)(pl + 0x3348);
+                s32 t = *(s32*)(pl + offsetof(Player, sel_step));
                 menu = page + moff + 712;
                 switch (t) {
                 case 0:
-                    if (*(s32*)(lbl_80274578 + *(s32*)(pl + 0x334C) * 132 +
-                                *(s32*)(pl + 0x3350) * 132 +
-                                *(s32*)(pl + 0x3354) * 16) < 0) {
-                        *(s32*)(pl + 0x3348) = 1;
+                    if (*(s32*)(lbl_80274578 + *(s32*)(pl + offsetof(Player, sel_card_chan)) * 132 +
+                                *(s32*)(pl + offsetof(Player, sel_card_slot)) * 132 +
+                                *(s32*)(pl + offsetof(Player, sel_save_file)) * 16) < 0) {
+                        *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                     } else {
                         if (*(s32*)(menu + offsetof(OptMenuLayout, active)) == 0) {
                             setup_sel_menu(i, 15);
@@ -1170,11 +1170,11 @@ s32 do_player_select(void)
                         case 1007:
                             remove_optmenu(menu);
                             *(s32*)(pl + offsetof(Player, motion_state)) = 13;
-                            *(s32*)(pl + 0x3358) = -1;
+                            *(s32*)(pl + offsetof(Player, sel_file_cursor)) = -1;
                             break;
                         case 1006:
                             remove_optmenu(menu);
-                            *(s32*)(pl + 0x3348) = 1;
+                            *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                             break;
                         }
                     }
@@ -1182,27 +1182,27 @@ s32 do_player_select(void)
                 case 1:
                 case 2:
                     if (fn_80055F68(0, 0) != 0) {
-                        *(s32*)(pl + 0x3348) += 1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) += 1;
                     }
                     break;
                 case 3:
-                    if (PlayerWriteSaveFile(i, *(s32*)(pl + 0x3354)) != 0) {
-                        *(s32*)(pl + 0x3348) += 1;
-                        add_vmu_file(*(s32*)(pl + 0x334C),
-                                     *(s32*)(pl + 0x3350),
-                                     *(s32*)(pl + 0x3354),
+                    if (PlayerWriteSaveFile(i, *(s32*)(pl + offsetof(Player, sel_save_file))) != 0) {
+                        *(s32*)(pl + offsetof(Player, sel_step)) += 1;
+                        add_vmu_file(*(s32*)(pl + offsetof(Player, sel_card_chan)),
+                                     *(s32*)(pl + offsetof(Player, sel_card_slot)),
+                                     *(s32*)(pl + offsetof(Player, sel_save_file)),
                                      (char*)(pl + offsetof(Player, name)),
                                      *(u16*)(pl + 0xA8E), *(s32*)(pl + offsetof(Player, character)));
                     } else {
-                        *(s32*)(pl + 0x3348) = -1;
+                        *(s32*)(pl + offsetof(Player, sel_step)) = -1;
                     }
                     break;
                 default:
                     if (t >= 0) {
-                        *(s32*)(pl + 0x3348) += gFrameTicks;
-                        if (*(s32*)(pl + 0x3348) >= 0x78) {
-                            *(s32*)(pl + 0x3348) = 0;
-                            *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + 0x333C);
+                        *(s32*)(pl + offsetof(Player, sel_step)) += gFrameTicks;
+                        if (*(s32*)(pl + offsetof(Player, sel_step)) >= 0x78) {
+                            *(s32*)(pl + offsetof(Player, sel_step)) = 0;
+                            *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                             setup_sel_menu(i, *(s32*)(pl + offsetof(Player, motion_state)));
                             {
                                 u8* base = *(u8**)(menu + offsetof(OptMenuLayout, items));
@@ -1229,10 +1229,10 @@ s32 do_player_select(void)
                             }
                         }
                     } else {
-                        *(s32*)(pl + 0x3348) -= gFrameTicks;
-                        if (*(s32*)(pl + 0x3348) <= -0x78) {
-                            *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + 0x333C);
-                            *(s32*)(pl + 0x3348) = 0;
+                        *(s32*)(pl + offsetof(Player, sel_step)) -= gFrameTicks;
+                        if (*(s32*)(pl + offsetof(Player, sel_step)) <= -0x78) {
+                            *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
+                            *(s32*)(pl + offsetof(Player, sel_step)) = 0;
                         }
                     }
                     break;
@@ -1243,9 +1243,9 @@ s32 do_player_select(void)
             }
             case 3: /* name entry */
                 menu = page + moff + 712;
-                if (*(s32*)(pl + 0x3348) < 2 && *(s32*)(pl + 0x3348) >= 0) {
+                if (*(s32*)(pl + offsetof(Player, sel_step)) < 2 && *(s32*)(pl + offsetof(Player, sel_step)) >= 0) {
                     fn_8005AC10(i);
-                    *(s32*)(pl + 0x3348) = 2;
+                    *(s32*)(pl + offsetof(Player, sel_step)) = 2;
                 }
                 if (fn_8005A738(i) != 0) {
                     if (set_hidden_player(pl) != 0) {
@@ -1277,7 +1277,7 @@ s32 do_player_select(void)
                 do_sel_menu_8008E4F4(i, 2);
                 switch (choice) {
                 case -1:
-                    *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + 0x333C);
+                    *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                     break;
                 }
                 break;
@@ -1315,7 +1315,7 @@ s32 do_player_select(void)
                     moved = 1;
                     break;
                 case -1:
-                    *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + 0x333C);
+                    *(s32*)(pl + offsetof(Player, motion_state)) = *(s32*)(pl + offsetof(Player, motion_state_save));
                     if (*(s32*)(pl + offsetof(Player, motion_state)) == 0) {
                         new_player(i);
                     }
@@ -1476,7 +1476,7 @@ s32 do_player_select(void)
                 if (*(u32*)(lbl_80240E30 + padoff + 8) & 0x40000) {
                     *(s32*)(pl + offsetof(Player, state)) = 2;
                     *(s32*)(pl + offsetof(Player, motion_state)) = 1;
-                    *(s32*)(pl + 0x333C) = 1;
+                    *(s32*)(pl + offsetof(Player, motion_state_save)) = 1;
                 }
             }
             if (*(s32*)(pl + offsetof(Player, character)) == 2 &&
@@ -1676,7 +1676,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         break;
     }
     case 5:
-        if (*(s32*)(pl + 13128) == 0) {
+        if (*(s32*)(pl + offsetof(Player, sel_step)) == 0) {
             u8* row = tbl + player * 232;
             s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 6;
             s32 nx = -(x + 64);
@@ -1757,7 +1757,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         break;
     }
     case 6: {
-        s32 st = *(s32*)(pl + 13128);
+        s32 st = *(s32*)(pl + offsetof(Player, sel_step));
         s32 y = lbl_80343DD8 - lh * 5;
         s32 nx;
         if (st == 0) goto fmt_none;
@@ -1815,7 +1815,7 @@ fmt_result:
     }
     case 11:
     case 12: {
-        s32 st = *(s32*)(pl + 13128);
+        s32 st = *(s32*)(pl + offsetof(Player, sel_step));
         s32 y = lbl_80343DD8 - lh * 5;
         s32 nx;
         s32 fr;
@@ -1862,8 +1862,8 @@ cr_none:
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 560);
             y += lh;
             y += lh;
-            fr = saveGetFreeBytes(*(s32*)(pl + 13132),
-                                  *(s32*)(pl + 13136));
+            fr = saveGetFreeBytes(*(s32*)(pl + offsetof(Player, sel_card_chan)),
+                                  *(s32*)(pl + offsetof(Player, sel_card_slot)));
             sprintf(buf, pool + 572, fr / 8192);
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, buf);
         }
@@ -1919,7 +1919,7 @@ cr_done:
     }
     case 9:
     case 14: {
-        s32 st = *(s32*)(pl + 13128);
+        s32 st = *(s32*)(pl + offsetof(Player, sel_step));
         s32 w = (mode == 14);
         s32 nx;
         s32 yy;
@@ -2084,8 +2084,8 @@ int setup_file_entries(u8* pl, s32 fromLoad)
     s32 nameOff;
     s32 entOff;
 
-    a = *(s32*)(pl + 0x334C);
-    b = *(s32*)(pl + 0x3350);
+    a = *(s32*)(pl + offsetof(Player, sel_card_chan));
+    b = *(s32*)(pl + offsetof(Player, sel_card_slot));
     state = *(s32*)((u8*)&lbl_80344A18 + a * 4 + b * 4);
     if (state == 1) {
         return -1;
@@ -2134,13 +2134,13 @@ int setup_file_entries(u8* pl, s32 fromLoad)
 int verify_vmu_file_ok(u8* pl, s32 v)
 {
     int i;
-    s32 a = *(s32*)(pl + 0x334C);
-    s32 b = *(s32*)(pl + 0x3350);
+    s32 a = *(s32*)(pl + offsetof(Player, sel_card_chan));
+    s32 b = *(s32*)(pl + offsetof(Player, sel_card_slot));
     for (i = 0; i < 4; i++) {
         u8* p = gPlayers + i * 0x335C;
         if (p != pl && ((Player*)p)->state != 0 &&
-            *(s32*)(p + 0x334C) == a && *(s32*)(p + 0x3350) == b &&
-            *(s32*)(p + 0x3358) == v) {
+            *(s32*)(p + offsetof(Player, sel_card_chan)) == a && *(s32*)(p + offsetof(Player, sel_card_slot)) == b &&
+            *(s32*)(p + offsetof(Player, sel_file_cursor)) == v) {
             return 0;
         }
     }
@@ -2237,8 +2237,8 @@ void setup_sel_menu(s32 player, s32 mode)
         *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = 0.6f;
         off = 0;
         *selected = off;
-        sum = *(s32*)(gPlayers + sum + 0x334C) +
-              *(s32*)(gPlayers + sum + 0x3350);
+        sum = *(s32*)(gPlayers + sum + offsetof(Player, sel_card_chan)) +
+              *(s32*)(gPlayers + sum + offsetof(Player, sel_card_slot));
         sum += 1000;
         i = 0;
         for (;; i++, off += 36) {
@@ -2260,7 +2260,7 @@ void setup_sel_menu(s32 player, s32 mode)
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, x)) = baseChoice + 8;
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, y)) = 70;
         *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = 0.6f;
-        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = *(s32*)(gPlayers + player * 0x335C + 0x3358);
+        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = *(s32*)(gPlayers + player * 0x335C + offsetof(Player, sel_file_cursor));
         if (*(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) < 0) {
             *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = 0;
         }

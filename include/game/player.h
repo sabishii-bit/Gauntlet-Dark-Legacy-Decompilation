@@ -81,7 +81,16 @@ typedef struct PlayerCharSave {
     /* 0x04 */ u16 rune_near;        /* documented (abs 0xDD8) */
     /* 0x06 */ u8  pad_06[2];
     /* 0x08 */ u16 level_masks[4];   /* level/boss-beaten bitmasks, documented (abs 0xDDC-0xDE2) */
-    /* 0x10 */ u8  pad_10[4];
+    /*
+     * Boss pass-1/pass-2 attempt bitmasks, tested as 1 << crystal_order[i]
+     * (abs 0xDE4/0xDE6) by options.c next_boss_hint -- the third member of the
+     * hint-tier family whose rune and legend pairs sit in level_masks[0..3].
+     * Names are Midway's own from the Xbox P_SAVE_STUFF analogue, adopted on
+     * ROLE evidence (next_boss_hint), not on position: the GC slot is compacted
+     * relative to Xbox, so this pair sits at 0x10/0x12 here vs 0x14/0x16 there.
+     */
+    /* 0x10 */ u16 boss_attempt1;    /* pass-1 tier [options.c next_boss_hint] */
+    /* 0x12 */ u16 boss_attempt2;    /* pass-2 tier [options.c next_boss_hint] */
     /* 0x14 */ u16 completion1;      /* completion record, documented (abs 0xDE8) */
     /* 0x16 */ u8  pad_16[4];
     /* 0x1A */ u16 completion2;      /* completion record, documented (abs 0xDEE) */
@@ -371,10 +380,37 @@ typedef struct Player {
     /* 0x3330 */ s32 world_name_len;    /* capped display-name length [gauntworld] */
     /* 0x3334 */ s32 world_name_tail;   /* displaced sixth char or '@' [gauntworld] */
     /* 0x3338 */ s32 motion_state;   /* motion/tower-exit state [player.c] */
-    /* 0x333C */ u8  pad_333C[4];
+    /* 0x333C */ s32 motion_state_save; /* motion_state stashed across a select
+                                        * sub-menu; restored at every exit
+                                        * [select.c], cleared beside
+                                        * motion_state [player.c] */
     /* 0x3340 */ s32 meter_flash;    /* power-meter flash state [player.c] */
     /* 0x3344 */ s32 meter_timer;    /* power-meter flash timer [player.c] */
-    /* 0x3348 */ u8  pad_3348[0x14];
+    /*
+     * Select-screen memory-card sub-menu state (0x3348..0x335B).  Names are
+     * behaviour-derived from src/game/ui/select.c; the four-word teardown block
+     * in src/game/game/player.c (0x334C/0x3350/0x3354 = 0, 0x3358 = -1) is the
+     * padding evidence that fixes the run as exactly five s32 words.
+     */
+    /* 0x3348 */ s32 sel_step;       /* sub-menu step selector AND tick timer:
+                                      * switched on, stepped += 1, accumulated
+                                      * += gFrameTicks vs 0x78/0x460, driven
+                                      * negative vs -0x78, -1 = failed,
+                                      * 1000 = card full [select.c] */
+    /* 0x334C */ s32 sel_card_chan;  /* memory-card channel: 1st arg of
+                                      * saveMount/saveGetFreeBytes/
+                                      * MemCardCreateGaunt/add_vmu_file
+                                      * [select.c] */
+    /* 0x3350 */ s32 sel_card_slot;  /* memory-card slot: 2nd arg of the same
+                                      * four calls, always paired with
+                                      * sel_card_chan [select.c] */
+    /* 0x3354 */ s32 sel_save_file;  /* save-file index: 3rd arg of
+                                      * add_vmu_file, sole file arg of
+                                      * PlayerLoadSaveFile/PlayerWriteSaveFile
+                                      * [select.c] */
+    /* 0x3358 */ s32 sel_file_cursor;/* file-list menu cursor, copied into
+                                      * OPTMENU.sel by setup_sel_menu; -1 when
+                                      * no entry is selected [select.c] */
 } Player;                            /* size 0x335C */
 
 #endif /* GAME_PLAYER_H */

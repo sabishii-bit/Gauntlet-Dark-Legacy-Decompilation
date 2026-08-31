@@ -2639,16 +2639,15 @@ have_index:
     bit = 1 << id;
     for (p = 0; p < 4; p++) {
         u8* rec = &gPlayers[p * PREC_STRIDE];
-        /* +0x10/+0x12 inside the slot fall in PlayerCharSave's pad_10 run;
-         * this pass may not split include/game/player.h, so the two addends
-         * stay bare while the character index itself is named */
         if (pass == 0 &&
             (bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
-                           0xDE4)) != 0) {
+                           offsetof(Player, char_save) +
+                           offsetof(PlayerCharSave, boss_attempt1))) != 0) {
             pass = 1;
         }
         if ((bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
-                           0xDE6)) != 0) {
+                           offsetof(Player, char_save) +
+                           offsetof(PlayerCharSave, boss_attempt2))) != 0) {
             pass = 2;
         }
     }
