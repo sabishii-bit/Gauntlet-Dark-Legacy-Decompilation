@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "branch-form closure of the frame-step min-clamp head: replaced the negated `if (step <= K) step = K;` guard with the ternary `step = gClockFrameStep > K ? gClockFrameStep : K;` (target's full diamond), then closed the resulting 8-byte frame delta with the pad law -- EXACT",
+  "attributes": {
+    "law_screen": "claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1 APPLIED (diagnosis: target's smaller arm sits at the far branch target, ours at fallthrough; its stated ternary boundary is about TWO-CONSTANT ternaries and does NOT cover this constant-vs-memory pair). claim.law.load-then-conditional-overwrite-vs-ternary.20260831.v1 APPLIED IN REVERSE (that law prefers load-then-overwrite for the SHORTER form; here target wants the LONGER ternary diamond, so the law's direction is target-dependent -- see the new companion law). claim.law.uniform-stack-displacement-delta-is-a-pad-applied-last.20260831.v1 APPLIED (frame delta -8, save-set already identical, so the pad was safe). claim.law.guard-polarity-restructure-fixes-count-parity-not-form.20260831.v1 SCREENED, superseded here by the ternary (the guard flip alone left 272/273 insns). claim.law.absent-target-guard-means-tautological-reconstruction.20260831.v1 SCREENED, not applicable (no surplus test). Core-screen defake laws screened, none applicable: no raw-offset conversion in this change.",
+    "laws_applied": "[\"claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1\", \"claim.law.uniform-stack-displacement-delta-is-a-pad-applied-last.20260831.v1\"]",
+    "measurements": "baseline real 6, insns 273/273, --ops multiset DIFFERS (target-only +1 b +1 ble, ours-only -1 bne -1 cror), frame 88 vs target 80. Step 1 (if/else arm swap, then-arm elided): CONFLICT real 6->83, insns 272/273, multiset 4t->1t (cror eliminated, one b short). Step 2 (ternary): CONFLICT real 83->10, insns 273/273, multiset 1t->0t IDENTICAL, residual reduced to a pure uniform -8 frame delta. Step 3 (u8 unused[32] -> unused[24]): IMPROVED real 10->0. FINAL real 0, insns 273/273, multiset IDENTICAL.",
+    "scope": "src/game/world/newcam.c::DebugCamControlInputs only; 2 insertions / 5 deletions; portable C, no header edits, no pragmas retained.",
+    "semantic_audit": "The two forms differ ONLY on NaN, and the target's bytes settle it in favour of the new form: PPC `ble` is branch-if-not-greater, which IS taken for an unordered compare, so the target clamps a NaN frame step to the 0.0333 minimum -- exactly the ternary's C semantics. The old `<= K` guard (cror eq,lt,eq + bne) propagated the NaN instead. The change is therefore a semantic correction toward the target, not merely a respelling. All other behaviour (trig precompute, per-bit input dispatch, yaw/pitch wrap) untouched.",
+    "unpark": "supersedes the 2026-08-23 P6 goto-pair min-clamp park (attempt.parked.debugcamcontrolinputs.20260829.v1): that park's tried axes were ternary/goto/L48 in the ORIGINAL comparison polarity (`<= K`), all of which still require MWCC to negate an ordered float compare and so keep the cror. Flipping the comparison to `>` first is what makes the positive-branch diamond reachable.",
+    "verification": "probe.py IMPROVED real 6->0; fndiff --clean MATCH (pool-name noise only), 0 real diff lines; fndiff --ops multiset IDENTICAL 273/273; defake_gate.py check game/world/newcam = GATE OK (1 improved, 0 regressed, 17 sibling real-0 functions held); full `ninja -j2` green with `build/GUNE5D/main.dol: OK`; project matched 58.15% -> 58.26% (2602 -> 2603 functions). Commit 9f35cf2b7 on claude/exact-camera-20260831."
+  },
+  "function": "function:DebugCamControlInputs",
+  "id": "attempt.debugcamcontrolinputs-ternary-diamond-exact.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:39:06Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.debugcamcontrolinputs.20260829.v1",
+  "valid_from": "2026-08-31"
+}

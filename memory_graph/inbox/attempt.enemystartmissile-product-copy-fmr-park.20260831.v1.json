@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "exact closure of the one surplus target `fmr` at +0xB4: two forms that make the speed product a temporary copied into the variable (repeat the product expression at the divide site so MWCC CSEs it; explicit `prod` staging local then `speed = prod`) -- both worse, MWCC coalesces or duplicates instead of copying",
+  "attributes": {
+    "law_screen": "claim.law.chained-init-constant-share.20260829.v1 SCREENED in its stated inverse direction (its 'separate initializers cost one extra fmr per pair' is exactly this shape read backwards); the two forms it suggests were tried and are recorded negative below. claim.law.reload-vs-cache-liveness.20260829.v1 APPLIED to motivate the staging-local form, negative. claim.law.single-use-field-pointer-alias-is-folded-away.20260831.v1 SCREENED and confirms the coalescing outcome: a staging local with one use is folded into that use, which is precisely why `prod` vanished. claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 (authored this session) SCREENED, related but distinct -- that class is a CONSTANT copy, this is a computed-value copy. Core-screen defake laws screened, none applicable: no raw-offset conversion attempted.",
+    "measurements": "baseline and best both real 153, insns 291/290, multiset 1t (target-only +1 fmr, ours-only none), single cluster `delete T[45:46]@b4-b8=[fmr]`. Probe A (spell `desc->speed * ene_mspeed` a second time inside the invSpeed divide, expecting a CSE temp): REGRESSED real 153 -> 158, insns 293, multiset 1t -> 4t -- MWCC did not CSE across the possible alias between `desc->speed` and the gCurLevel load, it DUPLICATED both loads. Probe B (declare `f32 prod`, compute once, `invSpeed` from prod, then `speed = prod`): REGRESSED real 153 -> 165 with the fmr cluster COMPLETELY UNCHANGED -- MWCC coalesced prod into speed's home f31, i.e. the exact fold this axis was meant to defeat. Two probes, cluster unchanged in both: axis dead per the iteration-limit rule.",
+    "residual": "STRUCTURAL, one instruction. target computes `fmuls f3,f1,f0` into a scratch FPR, divides with it (`fdiv f30,f2,f3`), and only then copies it into the callee-saved home (`fmr f31,f3`); ours computes `fmuls f31,f2,f1` straight into f31 and divides off f31. MECHANISM NAMED: the surplus fmr means target's product reached `speed` as a COPY from a short-lived temporary rather than as the direct destination of the multiply, and MWCC's coalescer removes any source-level temporary that would create that copy.",
+    "scope": "src/game/game/combat.c::EnemyStartMissile; both probes reverted, tree restored to HEAD; no code change retained.",
+    "unpark_condition": "a source form in which the product genuinely has two live consumers with overlapping ranges (so coalescing is illegal), or WebFrank treatment. Do NOT re-probe expression repetition or staging locals.",
+    "verification": "probe.py against a clean banked BASELINE for both probes; final `git diff` empty; combat.c defake_gate baseline (46 functions, 29 at real 0) unchanged."
+  },
+  "function": "function:EnemyStartMissile",
+  "id": "attempt.enemystartmissile-product-copy-fmr-park.20260831.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T05:42:57Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.enemystartmissile.20260829.v1",
+  "valid_from": "2026-08-31"
+}
