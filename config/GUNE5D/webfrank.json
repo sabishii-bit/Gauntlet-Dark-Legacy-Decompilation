@@ -577,6 +577,92 @@
         },
         "copy_register_fields": true
       }
+    ],
+    "game/world/camera": [
+      {
+        "function": "camera_init_for_gamemode",
+        "before_sha256": "e50243de29fcbd3d8153ca8e40c356cf2173eaf9699c28da6e4239959acb43ad",
+        "after_sha256": "f85aa571f1a82a811664518fe4307ecd5529d5b073231bd0614f9c80d4f99087",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 266,
+          "permuted_instructions": 2
+        },
+        "mechanism": "attempt.parked.camera_init_for_gamemode.20260829.v1 - the whole 266-instruction residual is one exchange of two independent base-relative loads at +0xf8 (lwz r0,832(r7) / lwz r3,844(r7)). Distinct destinations, shared base, no store between them, so the permutation dependence audit proves both def-use chains and every final write are preserved (load/load reorder). No register field changes: the permutation alone reproduces the retail bytes.",
+        "instruction_permutation": {
+          "start": "0xf8",
+          "end": "0x100",
+          "order": [1, 0],
+          "before_sha256": "204973cd74f3a2d0dbd5a931b030778591efd2ae7df31bf56e8df118f2c781be",
+          "after_sha256": "7a2293df0e7bf2ccc118578470799366cc02d3925b37f1199c4b6132df61a7d8",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    ],
+    "game/ui/message": [
+      {
+        "function": "msgPost",
+        "before_sha256": "4bdaf36d2d0f55dccb5c1ab1d7a8e6e2cd523e0d988a9cd4adc810f12a742df4",
+        "after_sha256": "20c3ed914011c9dad89da14e74cb54a1e0780b06b0f38b6fb039bb73b3bf35ce",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 387,
+          "permuted_instructions": 2
+        },
+        "mechanism": "attempt.parked.msgpost.20260831.v2 - the parked residual is (a) a 2-instruction entry exchange at +0x30 (addi r25,r25,64 vs addi r28,r3,0 @gMsgBoxes; disjoint reads and writes, so the dependence audit passes) and (b) a pure allocator recolor: the mulli/add/lwzx descOffset web r29->r26 plus the r3/r4/r5 rotation across both gPlayers case-loops. The recolor is machine-proven by the position-lockstep renaming bisimulation (verify_consistent_recolor) after the exchange is applied.",
+        "instruction_permutation": {
+          "start": "0x30",
+          "end": "0x38",
+          "order": [1, 0],
+          "before_sha256": "3543e7e0922ba5835ddefac4d208a44a94979101376e3025e0df4a84c2bb88fe",
+          "after_sha256": "5bbce066839492aa866d610a73d0f6a39911304eef885bc975ca6b421d3ef889",
+          "before_relocations_sha256": "95a2830a63ef762d6905050d2b674ab44385c1baf1a0cb6499e3500fa38ae644",
+          "after_relocations_sha256": "fb29ca9f010ceb2e05748d32b91b24a5a52b438c34ef54e72407bc7d327a1da2"
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "msgDraw",
+        "before_sha256": "050c27a9396072c0cf9c7b5079c32e2de90f22338e16383b39dbdaf0b98842f8",
+        "after_sha256": "6376539dfd9e8dfdc5d95e06ab178d920df608f9c1aec8e124dd569f90988559",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 314,
+          "permuted_instructions": 4
+        },
+        "mechanism": "attempt.parked.msgdraw.20260831.v2 (stage 1 of 2) - the DrawStringText argument set-up at +0x1c8 rotates: our addi r3,r3,20 leads the three li constants, the target sinks it to last before the call. The three li writes are disjoint from the addi's r3 read-modify, so every def-use chain and final write survives the rotation. No register field changes in this stage.",
+        "instruction_permutation": {
+          "start": "0x1c8",
+          "end": "0x1d8",
+          "order": [1, 2, 3, 0],
+          "before_sha256": "77e3815bc6dca4ec00061e818a78e3e0f6b457f499f7a546ab2739336a34de00",
+          "after_sha256": "609ce1425abcc8d4da90536417377ead3f8126d84a2f765df8ee15c60ea3d8ab",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "function": "msgDraw",
+        "before_sha256": "6376539dfd9e8dfdc5d95e06ab178d920df608f9c1aec8e124dd569f90988559",
+        "after_sha256": "6d7c3fd1fd69a4b8fa784aa804cbf1aaabe18bfe671d1b889ffb59a8175e978a",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 314,
+          "permuted_instructions": 2
+        },
+        "mechanism": "attempt.parked.msgdraw.20260831.v2 (stage 2 of 2) - the StringTextHeight argument exchange at +0x3b8 (lfs f1,scale vs lwz r3,16(r31)): two independent loads, one FPR-defining and one GPR-defining, so the dependence audit passes and the SDA21 relocation moves with its own atom. The remaining difference is the lineHeight web r25->r29 over five sites (addi/srawi/subf/subf/add), machine-proven as a consistent recolor. The reloc symbol spelling (@188 vs lbl_80348618) is pool-name noise: identical bytes after link, per the record's two NEUTRAL extern probes.",
+        "instruction_permutation": {
+          "start": "0x3b8",
+          "end": "0x3c0",
+          "order": [1, 0],
+          "before_sha256": "d047b20dc0b439030da316b7e8b74bb1ae6ea3ca0d24087f0cf9a7eb5a255e4a",
+          "after_sha256": "f5c1e0f96e54c6da2235605eb3c39f668e15db2d0862ef1a8ca996c88d3dcb15",
+          "before_relocations_sha256": "0f8304257028faadc255b451bfc013f3f311a246dce755963818cd1dfd3bd31a",
+          "after_relocations_sha256": "248f1b2dbf228e21715fe819937e708365d2b05a7e00939a25ec4cda24c872ba"
+        },
+        "copy_register_fields": true
+      }
     ]
   }
 }

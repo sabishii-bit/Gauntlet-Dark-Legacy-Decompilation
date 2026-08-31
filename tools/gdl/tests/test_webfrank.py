@@ -239,5 +239,77 @@ class PermutationDependenceTests(unittest.TestCase):
         check_permutation_dependences(region, [1, 0], lambda resource: True)
 
 
+class ShippedRuleMechanismTests(unittest.TestCase):
+    """One case per rule in config/GUNE5D/webfrank.json authored 2026-08-31.
+
+    Each uses the real instruction words taken from the raw compiler output and
+    the extracted retail object, so a guard regression that would silently
+    accept or reject a shipped rule fails here first.
+    """
+
+    def test_camera_init_for_gamemode_exchanges_independent_loads(self):
+        # +0xf8: lwz r0,832(r7); lwz r3,844(r7) -> exchanged.
+        # attempt.parked.camera_init_for_gamemode.20260829.v1
+        region = bytes.fromhex("80070340 8067034c")
+        check_permutation_dependences(region, [1, 0])
+
+    def test_msg_post_entry_exchange_is_dependence_free(self):
+        # +0x30: addi r25,r25,64; addi r28,r3,0(@gMsgBoxes) -> exchanged.
+        # attempt.parked.msgpost.20260831.v2
+        region = bytes.fromhex("3b390040 3b830000")
+        check_permutation_dependences(region, [1, 0])
+
+    def test_msg_draw_argument_rotation_sinks_the_addi(self):
+        # +0x1c8: addi r3,r3,20; li r5,-1; li r7,24; li r8,0 -> addi last.
+        # attempt.parked.msgdraw.20260831.v2 stage 1
+        region = bytes.fromhex("38630014 38a0ffff 38e00018 39000000")
+        check_permutation_dependences(region, [1, 2, 3, 0])
+
+    def test_msg_draw_fpr_gpr_load_exchange(self):
+        # +0x3b8: lfs f1,0(0)(SDA21); lwz r3,16(r31) -> exchanged.
+        # attempt.parked.msgdraw.20260831.v2 stage 2
+        region = bytes.fromhex("c0200000 807f0010")
+        check_permutation_dependences(region, [1, 0])
+
+    def test_msg_draw_line_height_web_is_a_consistent_recolor(self):
+        # The r25 -> r29 lineHeight web: addi/srawi/subf, then blr.
+        current = bytes.fromhex("3b230002 7f390e70 7c99f050 4e800020")
+        target = bytes.fromhex("3ba30002 7fbd0e70 7c9df050 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_msg_post_desc_offset_web_is_a_consistent_recolor(self):
+        # The r29 -> r26 descOffset web: mulli, add, lwzx, then blr.
+        current = bytes.fromhex("1fbe001c 7f3bea14 7c04e82e 4e800020")
+        target = bytes.fromhex("1f5e001c 7f3bd214 7c04d02e 4e800020")
+        verify_consistent_recolor(current, target)
+
+
+class RejectedResidualTests(unittest.TestCase):
+    """Residuals deliberately NOT shipped: the guards must keep rejecting them.
+
+    Both are legal only in the target's register colouring, while the harness
+    audits a permutation on our own colouring, where the def-use chain really
+    does break.  Recorded so a later pass does not retry them blindly.
+    """
+
+    def test_sys_reset_service_load_may_not_hoist_over_a_global_store(self):
+        # stw r0,gSysFlags(SDA21); lwz r5,gPadCur(SDA21).  Both are linker-
+        # resolved base-zero accesses, so they may alias as far as the model
+        # can prove -- and this project has distinct symbol spellings for one
+        # address (sFlags vs gControllerButtons+0x4), so symbol-based
+        # disambiguation would be unsound.
+        region = bytes.fromhex("90000000 80a00000")
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [1, 0])
+
+    def test_mb_render_text_spill_may_not_sink_past_a_reused_register(self):
+        # lwz r3,8(r31); stw r3,72(r1); slwi r3,r0,2.  Our colouring homes the
+        # baseY spill and the t-chain both in r3, so sinking the store past the
+        # slwi changes which value it stores.
+        region = bytes.fromhex("807f0008 90610048 5403103a")
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [0, 2, 1])
+
+
 if __name__ == "__main__":
     unittest.main()
