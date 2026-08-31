@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "relocation",
+      "matching",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T17:11:21Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "WEBFRANK CANNOT CLOSE ANY RESIDUAL WHOSE INSTRUCTION COUNT DIFFERS FROM TARGET, IN EITHER DIRECTION. This is a structural property of the harness, verified by reading tools/gdl/webfrank.py rather than inferred: BOTH stages fail closed on a length mismatch. copy_register_fields raises 'register-field functions must have equal aligned sizes' on `len(current) != len(target)` (webfrank.py:1060); verify_consistent_recolor applies the same equality test (:637); and permute_instruction_atoms requires `order` to be a BIJECTION over the region's atoms (:1004), which conserves count by construction. There is no delete path and no insert path anywhere in the tool. The registered tool constraints say the same thing in prose - the only two sanctioned mechanisms are a consistent RENAMING and a dependency-audited PERMUTATION, and both are count-preserving. CONSEQUENCE, AND THE REASON THIS RECORD EXISTS: the DISPOSITION clause of claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v1 is WRONG and must not be acted on. That law correctly diagnoses its mechanism (a file-scope address routed through r0 and then copied into its callee-saved home, `lis;addi r0,..;mr rHome,r0` where target emits `lis;addi rHome,..`), but it then recommends 'authoring that rule over any further source probing'. No such rule can exist: the residual's own signature - 'ours-only: -1 mr ... one instruction LONG' - is precisely the condition webfrank rejects. Measured live this session at HEAD 7b6e560b0: PlayerCollideFloor target 392 / ours 393, fn_80088714 target 137 / ours 138, both `ours-only -1 mr`. THE SYMMETRIC CASE WAS ALREADY RECORDED CORRECTLY and should have generalised: attempt.generate-enemy-arg-register-scratch-transit.20260831.v1 concluded 'not eligible - ours is one instruction SHORT of target, and no recolouring rule may insert an instruction'. Deletion is barred by exactly the same code path as insertion; the two directions are one law. SCREENING RULE for closure lanes, cheap and decisive, to be run BEFORE any eligibility reasoning: compare instruction counts first (fndiff reports them in its header line). A count delta is a HARD ineligibility verdict, ranking above any 'REGISTER_ONLY' classification a residual may carry - REGISTER_ONLY describes the KIND of difference, never its eligibility, and a one-instruction copy is still a count delta no matter how register-flavoured it looks. Such residuals are source-work or parks, never postprocessor work. A CLOSURE LANE MUST NOT HAND-AUTHOR AROUND THIS by, for example, pinning a wider byte range to absorb the extra instruction: that would hide a structural difference, which the tool constraints forbid outright, and it is the same class of error as authoring around a webfrank_audit rejection verdict."
+}

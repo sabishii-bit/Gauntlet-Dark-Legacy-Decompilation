@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.webfrank-eligibility-frontier-closed.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T17:11:33Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/enemy",
+  "valid_from": "2026-08-31",
+  "value": "CORPUS-WIDE WEBFRANK ELIGIBILITY RE-SWEEP AT HEAD 7b6e560b0, 2026-08-31 (closure lane 4). RESULT: ZERO eligible candidates remain project-wide. The WebFrank frontier is CLOSED; further matched% must come from source work, not from new pins. This supersedes the queue in claim.webfrank-eligibility-sweep.20260831.v1, whose twelve hand-off candidates have ALL since been ruled by their owning lanes and now carry shipped rules in config/GUNE5D/webfrank.json. HARNESS SELF-VALIDATION FIRST, which is what makes the zero trustworthy: all 78 shipped rules were replayed from the raw .postprocess/body objects and every one reproduced the extracted retail body BYTE-FOR-BYTE (78/78, 0 failures), with each patch's before/after sha256 chaining as recorded. Two self-validation artifacts are worth passing on, because both produced false failures on the first run and would mislead the next sweep author. (1) Rules must be replayed SEQUENTIALLY into ONE buffer per unit: a function with multiple patches (LineLineDist, msgDraw) has patch N+1's before_sha256 equal to patch N's output, so replaying each patch against a fresh copy of the raw object reports a spurious 'input hash != expected' drift. (2) An intermediate patch of a multi-stage function is NOT expected to equal target; only the last patch for that function is. SWEEP METHOD, in screen order: equal-hash, then instruction-count parity, then the form-aware masked scan (webfrank.copy_register_fields), then the position-lockstep renaming bisimulation (webfrank.verify_consistent_recolor) as adjudicator - i.e. the tool's own primitives, not a reimplementation, so the verdicts are the ones the build itself would reach. Shipped rules were applied before scoring so the sweep measures the POST-rule state. CENSUS: 2615 functions already byte-equal, 150 rejected on instruction-count/size mismatch, 194 rejected by the mask, 12 rejected by the bisimulation, 0 READY. COVERAGE TRAP THAT MUST NOT BE REPEATED, and the reason this record supersedes rather than confirms: the first run of this sweep resolved 'our' object only as build/GUNE5D/src/<dir>/.postprocess/body/<name>.o, which EXISTS ONLY FOR UNITS THAT ALREADY HAVE A WEBFRANK RULE. That silently restricted the sweep to already-ruled units and reported just 1109 byte-equal functions. Units with no rule keep their built object at build/GUNE5D/src/<unit>.o with no .postprocess/body sibling, and must be resolved with that fallback; doing so more than doubled the census to 2615 and surfaced an additional bisimulation reject (attract scroll_credits). Any sweep reporting a byte-equal count near 1100 rather than near 2600 has this bug. THE TWELVE BISIMULATION REJECTS, all with named mechanisms, none of them eligible: EIGHT share the 'base register presence differs (g0 vs gN)' signature, which is an SDA21-vs-explicit-base ADDRESSING-MODE difference (RA=0 means the linker supplies the base), not a register colour, and must be closed at the source - audio AudioBankLoadName/AudioBankQueueName/AudioUnloadPart, critter CritterLoadDone/CritterLoadStartNext, gamemain fn_80054E78, psfx LoadPdataFile, newcam fn_8006E654, plus attract scroll_credits (52 fields, newly surfaced by the coverage fix). The remaining three are genuine renaming violations: movieplayer fn_800DBE98 (+0x3c f0/f2), btricol BTriLineCol (+0x2d0 f26), tower TowerCheckMessages (+0x5ac g27/g30 - the machine-REJECTED function, whose verdict reproduces independently here and must never be hand-authored around)."
+}
