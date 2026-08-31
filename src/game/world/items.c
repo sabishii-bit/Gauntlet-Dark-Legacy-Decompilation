@@ -651,9 +651,10 @@ void InitLighting(s32 flag)
 {
     MBInitLights();
     if (flag != 0) {
-        sLevelAmbient = *(f32*)(gCurLevel + 236);
-        MBAddLight(*(f32*)(gCurLevel + 264), gCurLevel + 240,
-                   (f32*)(gCurLevel + 252));
+        sLevelAmbient = *(f32*)(gCurLevel + offsetof(level_data, ambient));
+        MBAddLight(*(f32*)(gCurLevel + offsetof(level_data, lightinten)),
+                   gCurLevel + offsetof(level_data, lightdir),
+                   (f32*)(gCurLevel + offsetof(level_data, lightcolor_fp)));
     } else {
         sLevelAmbient = sOne;
     }
@@ -1605,6 +1606,10 @@ keyring_found:
                 item->active &= ~1;
                 attach_geometry = 1;
                 loaded = CritterTypeLoaded(7, 0);
+                /* +0x120 = the critter type header's descriptor pointer and
+                 * +0x28 below its model/atreelist handle (crit_type/crit_desc;
+                 * the records are file-local to critter.c, so the offsets
+                 * stay literal here) */
                 header = *(void**)((u8*)loaded + 0x120);
                 atree_header = (void*)AtreeMatch(
                     *(void**)((u8*)header + 0x28),
@@ -2188,7 +2193,7 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
     s32 i;
     s32 offset;
 
-    if (*(void**)(target + 0x28) == NULL) {
+    if (*(void**)(target + offsetof(WorldObj, nodeptr)) == NULL) {
         ErrorPrintf(strings + 0x464, target);
         return -1;
     }
