@@ -40,7 +40,7 @@ typedef struct WorldTri {
 } WorldTri;
 
 /* Read-only collision-query line, owned elsewhere (.bss 0x8023F7E8). */
-extern f32 gColQueryLine[8]; /* [0..2] = p0, [4..6] = p1 */
+extern f32 lbl_8023F7E8[8]; /* [0..2] = p0, [4..6] = p1 (0x8023F7F8) */
 extern const f64 lbl_80345D40;
 extern const f32 lbl_80345D70;
 extern const f32 lbl_80345D50;
@@ -75,7 +75,7 @@ static inline f32 btri_fabsf(f32 x) {
 }
 
 /* ------------------------------------------------------------------ */
-/* TriLineCol -- collide the query line (gColQueryLine) against a       */
+/* TriLineCol -- collide the query line (lbl_8023F7E8) against a       */
 /* single triangle, returning the hit fraction (-1 when no hit).       */
 /* ------------------------------------------------------------------ */
 s32 TriLineCol(WorldTri* tri, Vec* out) {
@@ -110,17 +110,17 @@ s32 TriLineCol(WorldTri* tri, Vec* out) {
     norm.x = tri->norm.x;
     norm.y = tri->norm.y;
     norm.z = tri->norm.z;
-    v1.x = gColQueryLine[4] - cx;
-    v1.y = gColQueryLine[5] - cy;
-    v1.z = gColQueryLine[6] - cz;
+    v1.x = lbl_8023F7E8[4] - cx;
+    v1.y = lbl_8023F7E8[5] - cy;
+    v1.z = lbl_8023F7E8[6] - cz;
     BodyVectorNorm(&v1, &tpB, (ColFrame*)&norm, tri->scale);
     if ((f64)tpB.y < 0.0) {
         return 0;
     }
 
-    v1.x = gColQueryLine[0] - cx;
-    v1.y = gColQueryLine[1] - cy;
-    v1.z = gColQueryLine[2] - cz;
+    v1.x = lbl_8023F7E8[0] - cx;
+    v1.y = lbl_8023F7E8[1] - cy;
+    v1.z = lbl_8023F7E8[2] - cz;
     BodyVectorNorm(&v1, &tpA, (ColFrame*)&norm, tri->scale);
     if (tpB.y < tpA.y) {
         return 0;
@@ -217,25 +217,24 @@ f32 BTriLineCol(WorldTri* tri, Vec* out, f32 radius) {
     f32 d;
     s32 cross;
 
-    zero = lbl_80345D50;
+    pz = px = lbl_80345D50;
     cx = tri->center.x;
     cy = tri->center.y;
     cz = tri->center.z;
-    px = zero;
-    pz = zero;
+    dist = px;
     norm.x = tri->norm.x;
     norm.y = tri->norm.y;
     norm.z = tri->norm.z;
-    v1.x = gColQueryLine[4] - cx;
-    v1.y = gColQueryLine[5] - cy;
-    v1.z = gColQueryLine[6] - cz;
+    v1.x = lbl_8023F7E8[4] - cx;
+    v1.y = lbl_8023F7E8[5] - cy;
+    v1.z = lbl_8023F7E8[6] - cz;
     BodyVectorNorm(&v1, &tpB, (ColFrame*)&norm, tri->scale);
     if ((f64)tpB.y < lbl_80345D40) {
         return lbl_80345D70;
     }
-    v1.x = gColQueryLine[0] - cx;
-    v1.y = gColQueryLine[1] - cy;
-    v1.z = gColQueryLine[2] - cz;
+    v1.x = lbl_8023F7E8[0] - cx;
+    v1.y = lbl_8023F7E8[1] - cy;
+    v1.z = lbl_8023F7E8[2] - cz;
     BodyVectorNorm(&v1, &tpA, (ColFrame*)&norm, tri->scale);
     if (tpB.y < tpA.y) {
         return lbl_80345D70;

@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "cse",
+      "entry-schedule",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.split-chain-coalesces-constant-load-without-moving-entry-schedule.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T20:01:49Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "REFINEMENT of claim.law.chained-init-constant-share.20260829.v1, measured on src/game/world/btricol.c::BTriLineCol. The parent law is right that `a = b = CONST;` makes the inner variable OWN the pool load while separate `= CONST` initializers strand the constant in a scratch register that must be copied to every home. What it does not say is that the chain also COLLAPSES N statements into one, and that collapse re-orders the entry basic block, because MWCC's scheduler interleaves the surviving independent entry statements differently. On a function whose entry block is already schedule-exact, paying the chain's coalescing benefit with its scheduling cost is a net LOSS: the full three-way chain `dist = pz = px = CONST;` measured real 42 with a DIFFERING opcode multiset (target-only +1 mr, ours-only -1 addi at +0x38) and, decisively, measured the SAME 42 at both the top-of-function position and the original assignment position - the collapse, not the placement, is what moved the schedule. THE FIX IS TO SPLIT THE CHAIN AT THE STATEMENT BOUNDARY THE SOURCE ALREADY HAD: keep a SHORT chain (`pz = px = CONST;`) at the position where the load belongs, and re-spell the remaining initialisations as ordinary separate assignments FROM the chain's owner (`dist = px;`) at their original positions. That buys the coalescing - the load lands directly in px's callee-saved home and the extra copies are copies OF that home, exactly as the target emits - while leaving one statement per original statement so the entry scheduler sees the same worklist. On BTriLineCol this took real 30 -> 24 at insns 450/450 with an IDENTICAL opcode multiset, and, more importantly, converted the residual from a copy-provenance rejection (an INCONSISTENT positional register map, machine-UNPROVABLE as a renaming) into a clean consistent bijection. DIAGNOSTIC that tells you the chain is worth trying at all: the target's entry emits `lfs fNV,pool` into a CALLEE-SAVED register followed by fmr copies out of it, while ours emits `lfs fVOL,pool` into a volatile that is dead immediately after its copies - i.e. we spend an instruction on a scratch the target does not have, at equal instruction count, because the target coalesced the load into a real variable's home. COROLLARY, and the reason the split matters more than it looks: when the full chain regresses, do NOT retire the axis on the score. Run regnorm on the regressed build first - on BTriLineCol the losing full-chain build had already acquired the target's own `fmr f25,f26`, proving the FP coloring had flipped correctly and that the loss was entirely entry-schedule. That single reading is what identified the split as the next form instead of parking the axis. SECOND COROLLARY: the variable that receives the extra assignment may be one the reconstruction never initialised at all. Here it was `dist`, a running-minimum accumulator our source left uninitialised on the paths that read it; the target initialises it to the same 0.0f at entry, so the edit is a semantic CORRECTION as well as a matching lever. When the target's entry copies one constant into MORE homes than your source has variables, look for an uninitialised accumulator before inventing a temporary."
+}
