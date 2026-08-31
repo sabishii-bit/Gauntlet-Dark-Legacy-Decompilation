@@ -68,6 +68,7 @@
  */
 
 #include "types.h"
+#include "game/gamemode.h"
 #include "game/player.h"
 #include "game/leveldata.h"
 
@@ -1337,7 +1338,7 @@ void init_shop(s32 fromMenu)
     s32 i;
 
     lbl_80344C0C = fromMenu;
-    gGameMode = 0x4012;
+    gGameMode = MG_SHOP;
     gGameBusy = 0;
     good_wiz_exit_timer = 0;
     lbl_80344808 = 0;
