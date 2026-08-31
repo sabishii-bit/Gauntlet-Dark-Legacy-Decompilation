@@ -1,0 +1,24 @@
+{
+  "attempted_axis": "Use the compound-assignment form on the Z slide correction so MWCC reloads vel[2] at the store and releases the earlier absolute-value web",
+  "attributes": {
+    "axis_log": "1 compound X+Z: target reloads appeared but one extra head fmr remained, 108 insns/real157, reverted; 2 compound Z only: improved real110->106 and fuzzy86.3364->88.252335, retained; 3 split vx declaration initializer: identical real106, restored; 4 direct vel[0] in pen plus later vx cache: same opcode residual but register cascade real120, reverted; 5 compound X plus inline absolute-X ternary: extra fmr persisted, 108 insns/real157, reverted",
+    "baseline": "target/current 107/107, fuzzy 86.3364%, real 110, frame 0",
+    "best": "target/current 107/107, fuzzy 88.252335%, real 106, frame 0",
+    "law_screen": "claim.law.store-placement-family.20260829.v1 and claim.law.reload-vs-cache-liveness.20260829.v1: APPLIED to the target's late lfs/store tell; `vel[2] -= dotz` adds the target reload and removes the prior fmr while preserving 107 instructions, improving real 110->106 and fuzzy 86.3364%->88.252335%. claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1: screened and tested on vx; split declaration/assignment compiled identically, so restored. claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1: screened; the residual is a linked lvalue/cache web rather than independent statements, so no reorder was retained. claim.law.explicit-fp-symbol-vs-literal-zero-regression.20260830.v1: screened; existing WZERO32/WZERO64 pool spellings were preserved. claim.law.compare-form-dictionary.20260829.v1: screened; compare/branch topology already matches the target and was not altered.",
+    "laws_applied": [
+      "claim.law.store-placement-family.20260829.v1",
+      "claim.law.reload-vs-cache-liveness.20260829.v1"
+    ],
+    "residual": "STRUCTURAL/SCHEDULE localized to the entry and X correction web: target has one late vel[0] lfs while ours retains one entry fmr; all later Z correction opcodes now have parity. Prior history's generic head-schedule knot was not retried as a pure reorder.",
+    "scope": "src/game/world/worldcol.c::SlideAlongWall only; no shared headers, data, exact siblings, or WebFrank configuration touched",
+    "verification": "probe.py baseline and every probe; final probe --clean real106 107/107; final fuzzy 88.252335%; matchtool and report preserve 11/15 exact TU functions; full ninja -j2 passed with main.dol OK; git diff --check passed"
+  },
+  "function": "function:SlideAlongWall",
+  "id": "attempt.slidealongwall-compound-z-reload.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T03:29:49Z",
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

@@ -283,7 +283,7 @@ u32 SlideAlongWall(f32 radius, f32* pos, f32* vel, f32* wallpt, f32* normal)
         adotz = dotz;
     }
     if (adotz < lbl_80345738 * radius + avz) {
-        vel[2] = vel[2] - dotz;
+        vel[2] -= dotz;
         return result;
     }
     result = 0xFFFFFFFF;
