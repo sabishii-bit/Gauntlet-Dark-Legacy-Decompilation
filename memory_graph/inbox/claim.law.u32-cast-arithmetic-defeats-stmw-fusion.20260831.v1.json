@@ -1,0 +1,18 @@
+{
+  "epistemic_state": "verified",
+  "id": "claim.law.u32-cast-arithmetic-defeats-stmw-fusion.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T00:47:29Z",
+  "schema_version": 1,
+  "scope": "MWCC GC 1.2.5 family; applies to a raw byte-offset dereference whose base pointer is cast to an INTEGER type (u32/s32) rather than a byte-pointer type (u8*/void*) before the additive offset, when the SAME address is also computed elsewhere in the function via a u8*-cast additive expression.",
+  "state": "proposed",
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "tags": [
+    "core-screen",
+    "register-web",
+    "defake"
+  ],
+  "valid_from": "2026-08-31",
+  "value": "A raw-offset dereference of the exact shape `*(f32 *)((u32)p + CONST)` is NOT interchangeable with the equivalent u8*-cast form `*(f32 *)((u8 *)p + offsetof(...) + N)` even when both fold to the identical target address and neither introduces a typed intermediate or an alias -- the CAST TYPE used for the pointer-to-integer step is itself register-allocation-sensitive, independent of the claim.law.offsetof-rename-preserves-protected-web family (which only concerns the SPELLING of the additive constant, not the base cast's type). Verified in critter.c CritterRotate (baseline: real 0, RELOCATION_ONLY, byte-identical): the function already used `*(f32 *)((u8 *)c + offsetof(Critter, skinMatrix) + 0x18/0x1C)` (u8*-cast form) twice earlier in the body for the SAME skinMatrix[7] field, but its final read used the differently-cast `*(f32 *)((u32)c + 0xFC)` (u32-cast form, same resolved address: skinMatrix+0x1C == 0xFC). Respelling ONLY that one site to match the u8*-cast form used elsewhere in the function (`(u8 *)c + offsetof(Critter, skinMatrix) + 0x1C`) regressed real 0->11: the target's prologue/epilogue `stmw`/`lmw` (multi-register save/restore) fusion was lost, replaced by a separate `stw`+`addi`+`lwz` sequence (opcode multiset DIFFERS: +1 lwz +1 stw, -1 addi -1 lmw -1 stmw) -- a whole-function register-pressure/allocation cascade from changing one cast's TYPE, not its value or its additive spelling. Reverting only that one site back to the `(u32)c + 0xFC` form restored real 0 exactly; the OTHER two u8*-form sites in the same function remained neutral throughout. Consequence: when a raw-offset site already uses `(u32)` (or another integer-typed) pointer-to-integer cast, preserve that exact cast type when respelling its additive constant via offsetof -- do NOT normalize it to the more common `(u8 *)` form seen elsewhere in the same function, even though both forms are semantically and numerically identical. A/B any cast-TYPE unification explicitly and treat a mismatch between two casts of the identical resolved address within one function as a signal to investigate before unifying, not evidence of a copy-paste inconsistency to clean up."
+}
