@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "close the final 22-real REGISTER_ONLY residual (t/baseY/u r0<->r3 color swap + stw-sink schedule at 0x108-0x130) via emission-order levers: x-statement position, fonts[] alias spelling, block-scoped decl-init for t",
+  "attributes": {
+    "law_screen": "core-screen list fetched via brief. claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1 screened -> alias probe (st->fonts[t] vs mbfont_space.fonts[t]: byte-identical here, both address off the cached r19 st web, so the law's divergence precondition - a separate lis/addi web - is absent); claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 screened -> block-scope decl-init probe; claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1 screened -> x-position probe; claim.law.narrow-local-reextend-on-read.20260830.v1 screened (kept t as s32 - s16 t would add extsh, u32 t has no mechanism); run-6 pool-literal family n/a (no FP pool involvement in the cluster); claim.law.cached-base-alias-defeats-rematerialized-index-base.20260831.v1 screened n/a (single element, no repeated add-rebase in the cluster).",
+    "laws_applied": "[]",
+    "residual": "REGISTER_ONLY, one allocator tie-break: t=r3/baseY=r0 (target) vs baseY=r3/t=r0 (ours), chain r4-vs-r3 and doClip-u r0-vs-r3 as knock-ons; 347/347 insns, multiset IDENTICAL, real 22, fuzzy 98.92. NEW MECHANISM (decoded this pass, aligned fnasm 0xF0:0x150): the schedule difference is NOT an independent scheduler choice - ours colors baseY=r3, so slwi r3,r0,2 acquires a WAR anti-dependency on stw r3,72(r1) and cannot hoist, forcing the lwzY-above-lha hoist instead; with target's colors the slwi is free and the stw sinks 3 slots. Everything downstream is one r3-assignment tie-break between two 2-event webs (t: lha def + 2 index uses; baseY register-web: lwz def + spill stw to slot 72, while-loop reads reload from the slot). Statement order, decl order, x-position, alias spelling and block-scope decl-init are all inert on it (5 recorded + 3 fresh neutral probes). Do not retry source-order/scoping levers; a genuinely new axis must change which of the two webs the allocator colors first (no known portable lever).",
+    "scope": "src/game/mb/mb_font.c MBRenderText probes only, all reverted via probe.py --revert; tree clean at HEAD",
+    "verification": "probe.py baseline real 22 banked pre-edit; 3 probes measured NEUTRAL (real 22, 347/347 each); final revert re-scored NEUTRAL; git status clean; MBNewFont (webfrank-pinned) untouched. TU flip remains blocked by this function alone (23 siblings 100%)."
+  },
+  "function": "function:MBRenderText",
+  "id": "attempt.parked.mbrendertext-color-tiebreak.20260831.v2",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T04:30:56Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.mbrendertext-structural-closure.20260831.v1",
+  "valid_from": "2026-08-31"
+}
