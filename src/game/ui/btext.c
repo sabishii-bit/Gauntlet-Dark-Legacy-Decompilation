@@ -502,7 +502,10 @@ s32 StringTextWidthSub(f32 scale, StrList* p, s32 msg, s32 idx)
         maxw = TextLinesWidth((u8**)buf2, nlines, color, lh);
     } else {
         color &= 0xff;
-        for (line = 0; line < e->count; line++) {
+        for (line = 0;; line++) {
+            if (line >= e->count) {
+                break;
+            }
             nlines = FixMLineText((s32*)(p->textData + p->textOff[e->first + line]),
                                   (s32*)gTextWorkBuf, (s32*)buf1);
             lineMax = TextLinesWidth((u8**)buf1, nlines, color, lh);
