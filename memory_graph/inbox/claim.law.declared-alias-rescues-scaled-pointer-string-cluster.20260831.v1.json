@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "alias-form",
+      "defake",
+      "register-web",
+      "offsetof-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.declared-alias-rescues-scaled-pointer-string-cluster.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:37:51Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "New boundary for the claim.law.declared-alias-vs-repeated-cast family, and the first recorded case where the offsetof-on-raw form and the repeated-inline-cast form fail IDENTICALLY while the declared alias succeeds. Setting: game/sfx/psfx.c fn_8008A678 (byte-exact, 109 insns) reaches two 16-byte string fields of a plyr_sfx record through a `u32* rec` parameter with SCALED pointer arithmetic -- `(char*)(rec + 4)` and `(char*)(rec + 8)`, i.e. byte 0x10 (fxdesc) and byte 0x20 (snddesc) -- at 8 sites feeding MBOX_FindTexture_Sub/InitCustomEffect/sprintf/AudioFindSound. Form A, repeated inline cast `((plyr_sfx*)rec)->fxdesc` at each site: regressed real 0 -> 43, ours 110 insns vs target 109, opcode multiset DIFFERS with ours-only -1 addi, and the addi PLACEMENT moved at 5 clusters (@54, @f8-fc, @10c, @174-178, @180). Form B, offsetof on a byte-cast base `(char*)((u8*)rec + offsetof(plyr_sfx, fxdesc))` -- the form claim.law.offsetof-rename-preserves-protected-web calls near-guaranteed neutral: produced a BIT-IDENTICAL failure to Form A, same real 43, same 5 clusters, same single ours-only addi. Two identical A/Bs would normally kill the axis. Form C, ONE declared alias at the top of the function (`plyr_sfx* r = (plyr_sfx*)rec;`) used at all 8 string sites plus the 2 pre-existing `((plyr_sfx*)rec)->zmod/->alphamod` casts: GATE OK, byte-identical, real 0 preserved. Two consequences. (1) The offsetof form's neutrality guarantee does NOT extend to a base whose original arithmetic is SCALED by a non-1 element size: rewriting `rec + 4` (u32*, scale 4) as `(u8*)rec + 16` changes what the front end sees even though both fold to the same address, which is a distinct hazard from claim.law.offsetof-rename-array-member-boundary's array-decay case and from claim.law.sizeof-defeats-loop-stride-induction's stride case -- the parent law's evidence is entirely u8*/char* bases where the scale is already 1. (2) Do not treat two matching A/B failures as an axis kill when both forms share a structural property; here Forms A and B both re-expressed the ADDRESS while leaving the base a raw pointer, so they were really one axis tried twice, and the genuinely different third axis (bind the typed view once, let one register carry it) was the one that worked. Screen the candidate forms for what they actually vary before counting them as independent."
+}

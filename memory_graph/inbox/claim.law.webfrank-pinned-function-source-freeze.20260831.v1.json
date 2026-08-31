@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "postprocessor",
+      "workflow",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.webfrank-pinned-function-source-freeze.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:37:43Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "A function that carries a WebFrank rule in config/GUNE5D/webfrank.json is SOURCE-FROZEN: because the harness is fail-closed on a `before_sha256` of the raw compiler body, ANY source edit that changes that function's compiled bytes -- including an edit that would have been a codegen IMPROVEMENT -- aborts the ninja WEBFRANK step with `ValueError: <fn>: input hash X != expected Y` before fndiff or defake_gate ever run. The failure surfaces as a BUILD FAILURE, not as a gate regression, so it is easy to misread as a broken edit. Verified 2026-08-31 in game/sound/sounds.c: AudioAmbientUpdate's two `lbl_80257630[j]` blit-handle loops are textbook claim.law.dead-offset-shadow-removal-safe candidates (dead byte shadows joff/koff over an already-typed `u32 lbl_80257630[4]`, each its loop's only extra stepped variable), and the conversion could not be MEASURED at all -- only reverted. The same class was hit and recorded independently a day earlier in psfx.c (attempt.psfx-defakematch-tupass.20260830.v1: DoPlyrSfxSub's second node->child site), so this is a recurring, cross-TU tax, not a one-off. Consequence, and the cheap fix: BEFORE planning a de-fakematch or matching pass, read config/GUNE5D/webfrank.json and list the pinned function names for your units -- it is one small JSON with a `units` array of {unit, rules:[{function, before_sha256, after_sha256, audit}]}. Treat every pinned function exactly like a recorded park: convert AROUND it, and if a conversion inside it looks valuable, record it as postprocessor-blocked rather than codegen-capped, because it needs no new source idea -- only a regenerated or retired rule. Pinned functions found this session: game/sfx/psfx DoPlyrSfxSub, game/sound/sounds AudioAmbientUpdate, game/sound/sounds_evt AudioPlayerEatSFX (all classified REGISTER_ONLY with copy_register_fields). Note the asymmetry that makes this worth screening early: a pure IDENTIFIER rename (struct field or typedef name) through a pinned function is completely safe, since the compiled body is unchanged -- 21 PsfxHeader->plyr_data and 10 PlayerSfxRecord->plyr_sfx renames passed straight through DoPlyrSfxSub this session. It is only body-changing edits that are frozen."
+}
