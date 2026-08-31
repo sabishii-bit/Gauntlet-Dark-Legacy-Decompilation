@@ -81,11 +81,16 @@ typedef struct PlayerCharSave {
     /* 0x04 */ u16 rune_near;        /* documented (abs 0xDD8) */
     /* 0x06 */ u8  pad_06[2];
     /* 0x08 */ u16 level_masks[4];   /* level/boss-beaten bitmasks, documented (abs 0xDDC-0xDE2) */
-    /* 0x10 */ u16 boss_crystals;    /* boss-crystal bitmask, pass-1 hint tier;
-                                      * tested 1 << crystal_order[i] (abs 0xDE4)
-                                      * [options.c next_boss_hint] */
-    /* 0x12 */ u16 boss_crystals2;   /* second boss-crystal bitmask, pass-2 hint
-                                      * tier (abs 0xDE6) [options.c] */
+    /*
+     * Boss pass-1/pass-2 attempt bitmasks, tested as 1 << crystal_order[i]
+     * (abs 0xDE4/0xDE6) by options.c next_boss_hint -- the third member of the
+     * hint-tier family whose rune and legend pairs sit in level_masks[0..3].
+     * Names are Midway's own from the Xbox P_SAVE_STUFF analogue, adopted on
+     * ROLE evidence (next_boss_hint), not on position: the GC slot is compacted
+     * relative to Xbox, so this pair sits at 0x10/0x12 here vs 0x14/0x16 there.
+     */
+    /* 0x10 */ u16 boss_attempt1;    /* pass-1 tier [options.c next_boss_hint] */
+    /* 0x12 */ u16 boss_attempt2;    /* pass-2 tier [options.c next_boss_hint] */
     /* 0x14 */ u16 completion1;      /* completion record, documented (abs 0xDE8) */
     /* 0x16 */ u8  pad_16[4];
     /* 0x1A */ u16 completion2;      /* completion record, documented (abs 0xDEE) */

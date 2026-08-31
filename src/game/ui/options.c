@@ -2642,12 +2642,12 @@ have_index:
         if (pass == 0 &&
             (bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
                            offsetof(Player, char_save) +
-                           offsetof(PlayerCharSave, boss_crystals))) != 0) {
+                           offsetof(PlayerCharSave, boss_attempt1))) != 0) {
             pass = 1;
         }
         if ((bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
                            offsetof(Player, char_save) +
-                           offsetof(PlayerCharSave, boss_crystals2))) != 0) {
+                           offsetof(PlayerCharSave, boss_attempt2))) != 0) {
             pass = 2;
         }
     }
