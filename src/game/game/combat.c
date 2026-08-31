@@ -348,10 +348,10 @@ void DiffRate_8002951C(s32 camIdx)
             lbl_80344400 = 0;
         }
     }
-    if ((cam->pyr[1] > lbl_80345EC8 && *state5 > lbl_80345EC8 &&
-         camState[4] < lbl_80345EC8) ||
-        (cam->pyr[1] < lbl_80345EC8 && *state5 < lbl_80345EC8 &&
-         camState[4] > lbl_80345EC8)) {
+    if ((cam->pyr[1] > 0.0f && *state5 > 0.0f &&
+         camState[4] < 0.0f) ||
+        (cam->pyr[1] < 0.0f && *state5 < 0.0f &&
+         camState[4] > 0.0f)) {
         cam->pyr[1] = lbl_80344534;
         lbl_80344400 = 0;
     }
@@ -2234,7 +2234,7 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
 
     if (sMusicTrackHi < 0) {
         if (aMode != 1) {
-            f32 zero = lbl_80345EC8;
+            f32 zero = 0.0f;
             cam->attn[0] = zero;
             cam->attn[1] = zero;
             cam->attn[2] = zero;
@@ -2394,8 +2394,8 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
                 f32 d0 = sv0 - out[0];
                 f32 d1 = sv1 - out[1];
                 f32 d2 = sv2 - out[2];
-                if (d0 == lbl_80345EC8 && d1 == lbl_80345EC8 &&
-                    d2 == lbl_80345EC8) {
+                if (d0 == 0.0f && d1 == 0.0f &&
+                    d2 == 0.0f) {
                     lbl_80344414 = 0;
                 } else {
                     out[0] = sv0;
