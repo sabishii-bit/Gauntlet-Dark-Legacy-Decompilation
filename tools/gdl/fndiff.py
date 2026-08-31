@@ -220,7 +220,13 @@ def raw_signature(objfile: Path):
         if m:
             hasher.update(m.group(1).encode())
         elif "R_PPC" in line:
-            hasher.update(line.strip().encode())
+            # Compiler-private pool labels (@N) renumber whenever ANY
+            # sibling's pool changes — that churn is benign (fndiff --clean
+            # suppresses it) and made the gate cry wolf on five untouched
+            # functions. Hash the reloc with the private index normalized;
+            # named symbols and addends still count.
+            reloc = re.sub(r"@\d+\b", "@pool", line.strip())
+            hasher.update(reloc.encode())
     if cur is not None:
         hashes[cur] = hasher.hexdigest()[:12]
     return hashes
