@@ -248,9 +248,15 @@ def main():
     state_file.write_text(json.dumps(state), encoding="utf-8")
     print(verdict)
 
-    # Bank a revert point whenever this source state is the high-water mark.
+    # Bank a revert point whenever this source state scores at the
+    # high-water mark. NEUTRAL banks too: a verified-neutral state (the
+    # normal product of de-fakematch batches) is as good as best, and NOT
+    # banking it made --revert silently discard gated neutral work twice
+    # in the field. To discard a neutral edit you dislike, use git — the
+    # snapshot always points at the last state that scored best.
     if source is not None and (verdict.startswith("BASELINE")
                                or verdict.startswith("IMPROVED")
+                               or verdict.startswith("NEUTRAL")
                                or verdict.startswith("REBASED")):
         bank_snapshot(unit, source)
         print(f"[revert point banked: probe.py {unit} {fn} --revert"

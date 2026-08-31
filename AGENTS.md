@@ -379,10 +379,14 @@ python configure.py progress
 ```
 
 Loop discipline: the edit loop is ONE command now — `probe.py` (matching:
-prints BASELINE/IMPROVED/REGRESSED/NEUTRAL against a remembered best;
-every BASELINE/IMPROVED banks a TU-source snapshot and `--revert`
+prints BASELINE/IMPROVED/REGRESSED/NEUTRAL/CONFLICT against a remembered
+best, with the opcode-multiset token count on every verdict; CONFLICT =
+real regressed but structure improved — arbitrate, never auto-revert.
+Every BASELINE/IMPROVED/NEUTRAL banks a TU-source snapshot and `--revert`
 restores it AND re-scores in the same call — never hand-retype a revert;
-probe a BASELINE before your first edit so the revert point exists.
+to DISCARD a neutral edit you dislike, use git, since neutral states
+bank too; probe a BASELINE before your first edit so the revert point
+exists.
 FIRST-BASELINE TRAP: probe banks whatever state it FIRST sees per
 function — an edit made before a function's first probe gets banked as
 its "baseline" and --revert then restores the BAD state; run a
