@@ -264,9 +264,11 @@ def main():
 
     # A failed probe almost always needs the ops view next — print it
     # unasked (the multiset pass above already fetched it).
+    printed_ops = False
     if (verdict.startswith(("REGRESSED", "CONFLICT"))
             and "--ops" not in sys.argv and ops_output):
         print("\n".join(ops_output.strip().splitlines()[:16]))
+        printed_ops = True
 
     if "--ops" in sys.argv:
         if ops_output is None:
@@ -276,6 +278,12 @@ def main():
                 capture_output=True, text=True,
             ).stdout
         print(ops_output.strip())
+        printed_ops = True
+
+    # Repeat the verdict LAST: shells routinely tail long output, and two
+    # workers misread results when the verdict scrolled above the ops dump.
+    if printed_ops:
+        print(f"VERDICT (repeated): {verdict}")
     return 0
 
 
