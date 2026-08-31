@@ -2886,7 +2886,7 @@ s32 add_arrow(s32 kind, s32 refresh, s32 useAngles, f32* angles, f32* look, f32*
 
 /* 0x80067248 - closest waypoint to pos within maxDist (all != 0 scans every
  * node; otherwise only chained ones). */
-LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all)
+LookoutParam* FindClosestWaypoint(f32 maxDist, f32* pos, s32 all)
 {
     s32 i;
     LookoutParam* w = sLookoutParams;
@@ -2901,12 +2901,10 @@ LookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all)
 
     for (i = 0; i < sNumLookoutParams; i++, w++) {
         if (all != 0 || (w->next >= 0 && w->next != i)) {
-            dy = w->worldmat[3][1] - pos[1];
             dx = w->worldmat[3][0] - pos[0];
+            dy = w->worldmat[3][1] - pos[1];
             dz = w->worldmat[3][2] - pos[2];
-            d2 = dx * dx + dy * dy;
-            d2 = dz * dz + d2;
-            if (d2 > 0.0f) {
+            if ((d2 = dz * dz + (dx * dx + dy * dy)) > 0.0f) {
                 f64 guess = __frsqrte(d2);
                 guess = 0.5 * guess * (3.0 - guess * guess * d2);
                 guess = 0.5 * guess * (3.0 - guess * guess * d2);
