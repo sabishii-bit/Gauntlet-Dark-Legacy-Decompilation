@@ -1,6 +1,18 @@
 {
   "version": 1,
   "units": {
+    "game/anim/anim_play": [
+      {
+        "function": "GetAnimAngXYZVal",
+        "before_sha256": "3bf60238746b936cbe80d303fcd1b7b55e1920d21abf359a738902aaa494c3ba",
+        "after_sha256": "4fde6bcbe37916e72cafa15652953b0f27f6df67bc47c7a0e226830b0e451306",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 1047
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/game/pmotion": [
       {
         "function": "get_player_pos",
