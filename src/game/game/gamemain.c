@@ -5252,11 +5252,11 @@ s32 do_stats_display(void)
             done = 0;
             STAT_TALLY(32, enemies_killed, ok);
             if (ok != 0) {
-                u8* sp2 = state + off;
+                s32* sp2 = (s32*)(state + off);
                 (*(s32*)(p + offsetof(Player, field_A64)))++;
-                *(s32*)(sp2 + 96) = CHAR_STAT(p).generators_destroyed / 60;
-                if (*(s32*)(sp2 += 96) < 1) {
-                    *(s32*)sp2 = 1;
+                sp2[24] = CHAR_STAT(p).generators_destroyed / 60;
+                if (*(sp2 += 24) < 1) {
+                    *sp2 = 1;
                 }
             } else {
                 stalled = 1;
@@ -5270,11 +5270,11 @@ s32 do_stats_display(void)
             STAT_ROW(col1, lbl_80346AD8, 32);
             STAT_TALLY(48, generators_destroyed, ok);
             if (ok != 0) {
-                u8* sp2 = state + off;
+                s32* sp2 = (s32*)(state + off);
                 (*(s32*)(p + offsetof(Player, field_A64)))++;
-                *(s32*)(sp2 + 96) = CHAR_STAT(p).gold_found / 60;
-                if (*(s32*)(sp2 += 96) < 1) {
-                    *(s32*)sp2 = 1;
+                sp2[24] = CHAR_STAT(p).gold_found / 60;
+                if (*(sp2 += 24) < 1) {
+                    *sp2 = 1;
                 }
             } else {
                 stalled = 1;
@@ -5289,14 +5289,14 @@ s32 do_stats_display(void)
             STAT_ROW(col2, msgs + 12, 48);
             STAT_TALLY(16, gold_found, ok);
             if (ok != 0) {
-                u8* sp2 = state + off;
+                s32* sp2 = (s32*)(state + off);
                 (*(s32*)(p + offsetof(Player, field_A64)))++;
-                *(s32*)(sp2 + 96) = (s32)(CHAR_STAT(p).total_playtime / k60);
-                if (*(s32*)(sp2 += 96) < 60) {
-                    *(s32*)sp2 = 60;
+                sp2[24] = (s32)(CHAR_STAT(p).total_playtime / k60);
+                if (*(sp2 += 24) < 60) {
+                    *sp2 = 60;
                 }
-                if (*(s32*)sp2 < 1) {
-                    *(s32*)sp2 = 1;
+                if (*sp2 < 1) {
+                    *sp2 = 1;
                 }
             } else {
                 stalled = 1;
