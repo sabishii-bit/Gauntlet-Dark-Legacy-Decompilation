@@ -2760,9 +2760,10 @@ void ProcessEffects(void)
                 !(e->flags & 0x20) && !passThrough) {
                 struct fxatreeheader* hdr =
                     (struct fxatreeheader*)EffectInfo[e->fxhit].atree;
-                if (hdr->seq->numframes > 0.0) {
-                    ageRadius = (f32)(lbl_803481D0 *
-                                      hdr->seq->numframes);
+                f32 fframes = hdr->seq->numframes;
+                f32 mframes = hdr->seq->numframes;
+                if (fframes > 0.0f) {
+                    ageRadius = (f32)(lbl_803481D0 * mframes);
                 }
             }
 
