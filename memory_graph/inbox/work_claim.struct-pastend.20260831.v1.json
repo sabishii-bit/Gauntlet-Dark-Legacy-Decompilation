@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "STRUCT-EXTENSION lane: owns include/game/enemy.h, include/game/item.h, and TUs src/game/enemy/enemy.c, src/game/world/items.c, src/game/enemy/critter.c. Extend recorded layouts past their current end where reads overrun (Enemy 43 sites, Item 37 per taxonomy); extend critter.c's FILE-LOCAL descriptors (CritterDescriptor 47 pad sites); chase critter's recurring MBNode/'Atree header'/Effect blockers against the NOW-FULL PDB struct index (1958 records \u2014 re-run struct queries that missed before). Same scalar-only rule for shared headers; defake_gate every touched TU; parked fns byte-gated; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:CritterDamage",
+  "id": "work_claim.struct-pastend.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-P2",
+  "recorded_at": "2026-08-31T01:41:46Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXTERN-RETYPE lane, whole TUs exclusively: src/game/sfx/psfx.c, src/game/sound/sounds.c, src/game/shop/shop.c (59 bare left, mostly the deferred draw-layout buffer \u2014 only convert what has authority), src/game/shop/shopquery.c. Same recipe as E1; NEVER edit include/game/*.h; sounds_evt.c is NOT yours (S2 owns it); parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:do_shopping_8009AA48",
+  "id": "work_claim.extern-audio.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-E4",
+  "recorded_at": "2026-08-31T01:41:37Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

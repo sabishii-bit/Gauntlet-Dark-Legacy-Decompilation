@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "STRUCT-EXTENSION lane: SOLE OWNER of include/game/player.h this run. Recover real fields from Player pad gaps (295 sites land in pads per claim.offsetcast-debt-taxonomy) using evidence only: teardown-call pattern (claim.law.teardown-call-pattern-is-padding-evidence), swap loops, sibling named views, full PDB struct op (now 1958 records). SCALARS/arrays-of-scalars only \u2014 claim.law.embedded-struct-member-whole-tu-cascade forbids struct-typed members in this shared header. Convert sites in src/game/game/pmotion.c ONLY (your one TU); other TUs pick the fields up next wave. Exact byte accounting before every pad split; defake_gate player+pmotion+critter (player.h includers); parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:PlayerMotion",
+  "id": "work_claim.player-pads.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-P1",
+  "recorded_at": "2026-08-31T01:41:41Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

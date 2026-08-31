@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "STRUCTDRAFT-FIRST lane, whole TUs src/game/mb/mb_particle.c + src/game/sound/sounds_evt.c exclusively: draft the 'pi' particle record (33-site cluster) and sounds_evt 'speech' record (21 sites) via structdraft.py + full PDB index; ALSO do these TUs' extern retypes (sounds_evt shadows gPlayers/gCurLevel); MBDrawPsys/setupNewPMode_800CDCE4/AudioSetupBossStreams have matching history \u2014 screen records, byte-gate; report structdraft friction; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:MBDrawPsys",
+  "id": "work_claim.psys-draft.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-S2",
+  "recorded_at": "2026-08-31T01:41:54Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

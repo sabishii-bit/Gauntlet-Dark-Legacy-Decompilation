@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXTERN-RETYPE lane, whole TUs exclusively: src/game/ui/select.c (179 recoverable sites, the biggest), src/game/ui/options.c, src/game/ui/screensaver.c, src/game/ui/auxscreen.c. Same recipe as E1; NEVER edit include/game/*.h; select.c has 7 load-bearing sites per the taxonomy \u2014 screen lwzu-idiom law before touching walked pointers; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:do_player_select",
+  "id": "work_claim.extern-ui.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-E3",
+  "recorded_at": "2026-08-31T01:41:33Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
