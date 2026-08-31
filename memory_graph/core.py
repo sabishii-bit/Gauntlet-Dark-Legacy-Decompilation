@@ -763,10 +763,21 @@ def _autoresolve_entity(connection: sqlite3.Connection, key: str) -> int | None:
         return None
     if key.startswith("tu:"):
         name = key.split(":", 1)[1]
+        # Match with OR without the source extension, in both directions: a TU
+        # that is renamed between .c and .cpp (movieplayer.c -> movieplayer.cpp,
+        # 2026-08-31) must not strand records anchored to its former spelling.
+        base = name
+        for suffix in (".cpp", ".c"):
+            if base.endswith(suffix):
+                base = base[: -len(suffix)]
+                break
+        candidates = [name, name + ".c", name + ".cpp", base, base + ".c", base + ".cpp"]
+        candidates = list(dict.fromkeys(candidates))
+        placeholders = ",".join("?" for _ in candidates)
         rows = connection.execute(
             "SELECT object_name FROM binary_module"
-            " WHERE platform='gamecube' AND (object_name=? OR object_name=? OR object_name=?)",
-            (name, name + ".c", name + ".cpp"),
+            f" WHERE platform='gamecube' AND object_name IN ({placeholders})",
+            candidates,
         ).fetchall()
         if rows:
             attributes = {
