@@ -115,7 +115,7 @@
 /* ------------------------------------------------------------------ */
 
 /* Active level / world-data records (SDA-relative pointers). */
-extern u8*  gCurLevel;             /* 0x8034483C */
+extern level_data* gCurLevel;      /* 0x8034483C */
 extern u8*  gWorldData;            /* 0x80344838 */
 
 /* 44-byte per-realm world-data descriptor table (0x8011... via ADDR16). */
@@ -542,7 +542,7 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     enemy->stun_timer = 0;
     enemy->prev_closest = -1;
     enemy->closest = -1;
-    enemy->sight = (f32)(lbl_80346A70 * *(f32*)(gCurLevel + 180));
+    enemy->sight = (f32)(lbl_80346A70 * gCurLevel->ene_visrad);
     fv = lbl_803468F0;
     enemy->close_dist = fv;
     enemy->actual_dist = fv;
@@ -582,7 +582,7 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     enemy->idle_frac = z2;
     enemy->damage_count = 0;
     row = tbl + *(s32*)e * 4;
-    t = *(f32*)(gCurLevel + 172) * ((f32*)row)[690];
+    t = gCurLevel->ene_health * ((f32*)row)[690];
     hi = (f32)(lbl_80346A30 * t);
     lo = (f32)(lbl_80346A28 * t);
     tier = 0;
@@ -631,11 +631,11 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     enemy->atts.invspeed = (f32)(lbl_80346810 / ((f32*)row)[588]);
     ty = *(s32*)e;
     row = tbl + ty * 4;
-    t2 = *(f32*)(gCurLevel + 172) * ((f32*)row)[690];
+    t2 = gCurLevel->ene_health * ((f32*)row)[690];
     ht = enemy->health;
     hi2 = (f32)(lbl_80346A30 * t2);
     lo2 = (f32)(lbl_80346A28 * t2);
-    spd = *(f32*)(gCurLevel + 188) * ((f32*)row)[622];
+    spd = gCurLevel->ene_damage * ((f32*)row)[622];
     if (!(ht > hi2)) {
         if (ty != 30) {
             if (ht > lo2) {
@@ -1360,7 +1360,7 @@ void* fn_80057ACC(s32 key)
 /* 0x80057AB4 -- accessor: current-level record + 8. */
 void* LevelItemDesc(void)
 {
-    return gCurLevel + 8;
+    return gCurLevel->name;
 }
 
 /* 0x80057AC0 -- accessor: world-data record + 4. */
@@ -1442,7 +1442,7 @@ void GetEnemyTypes(void)
         u8* typeWords;
 
         if (i < 6) {
-            type = *(s16*)(gCurLevel + levelOff + offsetof(level_data, enemytype));
+            type = *(s16*)((u8*)gCurLevel + levelOff + offsetof(level_data, enemytype));
         } else {
             type = -1;
         }
@@ -1463,7 +1463,7 @@ void GetEnemyTypes(void)
                 slot = (EnemyTypeRow*)((u8*)slot + off);
                 slot->ent = ent;
             }
-        } else if (((level_data*)gCurLevel)->bosstype < 0 && *(s32*)gWorldData != 0xD &&
+        } else if (gCurLevel->bosstype < 0 && *(s32*)gWorldData != 0xD &&
                    seen1e == 0) {
             *(s32*)(tbl + off + offsetof(EnemyTypeRow, type)) = 0x1E;
             *(s32*)(tbl + off + offsetof(EnemyTypeRow, subtype)) = 0;
@@ -1889,7 +1889,7 @@ s32 next_world(void)
         }
     }
     ResolveWorldData(world);
-    if (!forced && ((((level_data*)gCurLevel)->enabled & 1) == 0)) {
+    if (!forced && ((gCurLevel->enabled & 1) == 0)) {
         world = NextWorldLevel(1);
         ResolveWorldData(world);
     }
@@ -1935,12 +1935,12 @@ void fn_800553B4(void)
     s32 hide;
     s32 texture;
 
-    if ((((level_data*)gCurLevel)->flags & 4) != 0) {
+    if ((gCurLevel->flags & 4) != 0) {
         if ((gControllerButtons & 0x10) != 0) {
             lbl_80344814 = lbl_80346B60;
         } else {
             lbl_80344814 =
-                (f32)(lbl_80346B68 + (f64)((level_data*)gCurLevel)->wavetime);
+                (f32)(lbl_80346B68 + (f64)gCurLevel->wavetime);
         }
         lbl_80344818 = lbl_80344814;
     }
@@ -1957,7 +1957,7 @@ void fn_800553B4(void)
     mbBlitCvtCoord(*blit3, lbl_80346B78);
 
     if ((gControllerButtons & 0x10) == 0) {
-        if ((((level_data*)gCurLevel)->flags & 4) != 0) {
+        if ((gCurLevel->flags & 4) != 0) {
             hide = 0;
         } else {
             hide = 1;
@@ -2481,7 +2481,7 @@ void fn_800510A4(void)
         e++;
     }
     lbl_8034473C = (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
-    gNumEnemies = ((level_data*)gCurLevel)->maxenemies;
+    gNumEnemies = gCurLevel->maxenemies;
     lbl_80344740 = 0;
     lbl_80344748 = -1;
     lbl_80344750 = -1;
@@ -2839,7 +2839,7 @@ s32 fn_80057F44(s32 code, s32 mask)
         if (mask == 0) {
             break;
         }
-        if (((level_data*)gCurLevel)->enabled & mask) {
+        if (gCurLevel->enabled & mask) {
             break;
         }
         code = NextWorldLevel(mask);
@@ -3697,7 +3697,7 @@ void fn_8005351C(void)
     lbl_803448B4 = sMusicTrackHi;
     lbl_803448B0 = sMusicTrackLo;
     lbl_80343C00 = -1;
-    SetScrollLevelMsgList(0, ((level_data*)gCurLevel)->name);
+    SetScrollLevelMsgList(0, gCurLevel->name);
     {
         Enemy* e = gEnemies;
         for (i = 0; i < 25; i++, e++) {
@@ -4302,18 +4302,18 @@ void fn_80054E78(void)
     }
 
     if ((gControllerButtons & 0x10) == 0) {
-        if (active != 0 && (((level_data*)gCurLevel)->flags & 4) &&
+        if (active != 0 && (gCurLevel->flags & 4) &&
             *(void**)(state + 124) != 0) {
             mbBlitInit3414(*(void**)(state + 124), 0);
         }
         if (lbl_80344818 >
-            lbl_80346AF0 + (f32)((level_data*)gCurLevel)->wavetime) {
+            lbl_80346AF0 + (f32)gCurLevel->wavetime) {
             lbl_80344814 = lbl_80346B08;
             lbl_80344818 = lbl_80346B08;
         }
     }
 
-    if ((((level_data*)gCurLevel)->flags & 4) &&
+    if ((gCurLevel->flags & 4) &&
         (gGameBusy | gGameplayPauseTimer) == 0 &&
         (gControllerButtons & 4) == 0 && active != 0) {
         f32 t;
@@ -4509,7 +4509,7 @@ void world_update(void)
     f32 a;
 
     cond = 1;
-    if (lbl_803447B8 != 0 && *(s32*)(gCurLevel + 0x48) == 0) {
+    if (lbl_803447B8 != 0 && gCurLevel->earlyenemies == 0) {
         cond = 0;
     }
     lbl_8034488C = cond ? 1 : 0;
@@ -4535,7 +4535,7 @@ void world_update(void)
                                      lbl_80346BF0, lbl_80346BF0);
             } else {
                 if (!lbl_80344868) {
-                    u8* lv = gCurLevel;
+                    u8* lv = (u8*)gCurLevel;
                     u8* hdr = lv + 0x70;
                     s32 col = 0;
 
@@ -4565,7 +4565,7 @@ void world_update(void)
             }
         } else {
             if (!lbl_80344868) {
-                u8* lv = gCurLevel;
+                u8* lv = (u8*)gCurLevel;
                 u8* hdr = lv + 0x70;
                 s32 col = 0;
 
@@ -4582,7 +4582,7 @@ void world_update(void)
         }
     }
     {
-        u8* lv = gCurLevel;
+        u8* lv = (u8*)gCurLevel;
 
         if ((s8)lv[8] == (s8)lbl_80346C48[0] &&
             ((s8)lv[9] == 0 || (s8)lv[9] == (s8)lbl_80346C48[1]) &&
@@ -4982,7 +4982,7 @@ static s32 init_next_level_8005638C(s32 arg0)
             lbl_803448C4 = lo;
         }
     }
-    sprintf((char*)(tbl + 172), fmt, gCurLevel + 8);
+    sprintf((char*)(tbl + 172), fmt, gCurLevel->name);
     lbl_80344854 = mlmMemUsed;
     lbl_80343C30 = 0;
     result = LoadWorldDone(tbl + 172);
