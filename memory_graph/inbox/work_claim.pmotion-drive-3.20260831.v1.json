@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXACT-DRIVE lane, whole TU src/game/game/pmotion.c: get_player_pos is at real 264, INSN-EXACT 506/506, IDENTICAL multiset, frame+save-set matching (attempt.get-player-pos-view-pointer-identity). The named next lever, left unattempted by the prior worker and self-flagged as the mistake of their session: the whole-function colour permutation fails bijection at FIVE split sources \u2014 drive a VALUE-IDENTITY SPLIT at those sources (claim.law.dead-local-identity-reuse-also-closes-ours-only-home-copies applies, but note EN3's refinement: the destination must be CALLEE-SAVED for the lever to fire \u2014 attempt.generate-enemy-arg-register-scratch-transit). If the split lands, the residual becomes a clean renaming bisimulation: hand to closure via a record, or exact if it collapses. Do NOT touch PlayerCollideFloor/fn_80088714 (closure lane's ADDR16_LO rule closes them). PlayerMotion only if get_player_pos closes. Free-falsification discipline: any recorded residual label gets its cheap disproof test FIRST; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:get_player_pos",
+  "id": "work_claim.pmotion-drive-3.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PM3",
+  "recorded_at": "2026-08-31T16:53:20Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

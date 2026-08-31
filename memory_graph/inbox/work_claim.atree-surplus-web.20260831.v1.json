@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "RESUMPTION lane, whole TU src/game/anim/atree.c: fn_8001267C at 95.61 (pipelining axis CLOSED via in-file positive control). The mapped residual is ONE surplus address web: ours hoists addi r27,r24,54 into a callee-saved across calls where target fuses the address into sth r24,54(r25) \u2014 killing that web kills BOTH the 4-byte frame skew and the register rotation. Levers: spell the store through the member/base form directly at each site (no named address-carrying local), block-scope the pointer, or the (proven) struct-disp view. fn_80011BBC is rule-closed \u2014 byte-gate it. Exact or named-mechanism park; the shapegrep positive-control method (find the shape ALREADY MATCHED in-file/in-image before probing) is proven here \u2014 keep using it; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:fn_8001267C",
+  "id": "work_claim.atree-surplus-web.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-AT3",
+  "recorded_at": "2026-08-31T16:53:25Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

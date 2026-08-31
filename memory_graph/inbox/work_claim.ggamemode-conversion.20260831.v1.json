@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "DEFAKE lane, byte-gated: convert raw gGameMode magic numbers to the new e_mode enum from include/game/gamemode.h (landed, PDB-order-verbatim). Authority: claim.gamemode-raw-site-inventory (135 sites, 16 TUs). THIS LANE OWNS: src/game/world/camera.c (36 sites, the heaviest un-listed consumer \u2014 case arms are undercounted by == greps, sweep switch statements too) and src/game/ui/options.c (including the banked CTLBLIT one-liner: b->x/b->y/blit at p+7644/7648/7660 per claim.pad1cd4-7644-is-ctlblit-not-a-player-field). Also INVESTIGATE (report, do not force): sndfx.c's void*-assignment-into-gGameMode anomaly and items.c's u32-vs-s32 extern conflict \u2014 likely misattributed symbol / wrong extern; fix only if the evidence is conclusive. Every conversion must be byte-identical under defake_gate (baseline each TU first); enum promotion is codegen-identical by construction but the gate hashes bytes \u2014 trust the gate, not the construction; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:fn_800511D0",
+  "id": "work_claim.ggamemode-conversion.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-GC",
+  "recorded_at": "2026-08-31T16:54:33Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
