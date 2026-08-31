@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker HV, work_claim.count-delta-harvest.20260831.v1, worktree GDL-Claude-CountDelta. Discovered when `gdlmem.py context LoadItems` returned a parked attempt that a prior bulk `find --kind attempt --outcome parked --limit 1000` screen of the same 77-function census had reported as clean.",
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.find-subcommand-caps-at-100-and-silently-falsifies-park-screens.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T18:59:09Z",
+  "schema_version": 1,
+  "subject": "function:LoadItems",
+  "valid_from": "2026-08-31",
+  "value": "`gdlmem.py find` CAPS ITS RESULT SET AT 100 EVEN WHEN `--limit 1000` IS PASSED, and because a park screen is a NEGATIVE test -- absence of a record is read as a green light -- the cap does not merely truncate a listing, it manufactures false clearances. MEASURED: `find --kind attempt --outcome parked --limit 1000` and the same query for `--outcome capped` each returned a JSON body whose own `count` field read exactly 100, with `results` of length 100; `--limit` is an accepted flag on the subcommand (it appears in `find --help`) yet the returned count did not move. Cross-checking the resulting screen of a 77-function census against `context <function>` found the screen had cleared LoadItems, which in fact carries attempt.parked.loaditems.20260829.v1 (REGISTER_ONLY/SCHEDULE). Re-screening the SAME census authoritatively -- by globbing and parsing all 887 record files under memory_graph/records/ and matching on the `function` head field -- moved the verdict from 25 vetoed / 52 clean to 47 vetoed / 30 clean. The bulk query had therefore missed 22 of 47 live vetoes, a 47% false-clearance rate, and it cleared them silently: nothing in the output distinguishes a truncated result set from an exhaustive one. THIS IS THE SAME ENUMERATION TRAP the corpus already documents for a sibling subcommand -- claim.law-directional-audit-corpus-verdict.20260831.v1 records that `laws` defaults to a limit of 100 and silently drops 36 of 136 records unless `--limit 1000` is passed -- except that on `find` the documented remedy DOES NOT WORK, and the consequence is worse: a missed law costs a rediscovery, a missed park costs a violated veto. REMEDY, and it is cheap: never screen ownership or parks with a bulk `find`. Either call `context <function>` (or `find --function <name>`) per candidate, which is exact, or read the record files directly -- `glob memory_graph/records/**/*.json`, take each record's `function` field, and treat outcome in {parked, capped, negative} as the veto set. The filesystem pass is one process for the whole corpus and is strictly more reliable than the query API for this purpose. AGENTS.md's step-1 screen should be read as prescribing the per-function form for exactly this reason; a fleet lane that bulk-screens its whole census in one `find` call is not protected by it."
+}
