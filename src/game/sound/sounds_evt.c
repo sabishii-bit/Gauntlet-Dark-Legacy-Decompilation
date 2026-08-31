@@ -25,6 +25,24 @@ struct audio_data {
     /* 0x2C */ s16  nparts[8];
 };
 
+/* struct sound_data -- the 24-byte per-event sound record this TU indexes as
+ * `*(u8**)(gWorldData + 44) + idx * 24`.  Four independent confirmations:
+ * the Xbox PDB record `sound_data` (audio.h Id=3271) is exactly 0x18, its
+ * idx/vol/pri offsets and widths (4/2/2 @0x10/0x14/0x16) match every access
+ * here, the owning world record declares `struct sound_data* sounds` at
+ * Offset=0x2c -- i.e. the 44 in the base expression -- and this file's own
+ * reconstruction had already named the two s16s `atten` and `priority`.
+ * Accesses stay on the raw pointer with offsetof-spelled displacements: `e`
+ * is an index-computed base touching three nearby fields, the exact shape
+ * claim.law.multifield-alias-defeats-indexed-addressing warns a typed alias
+ * regresses. */
+struct sound_data {
+    /* 0x00 */ char desc[16];
+    /* 0x10 */ s32  idx;
+    /* 0x14 */ s16  vol;
+    /* 0x16 */ s16  pri;
+};
+
 /* ------------------------------------------------------------------------
  * Front slice of the SOUNDS audio module (Xbox SOUNDS.OBJ), covering the
  * game-event sound-trigger helpers in 0x8009C2CC-0x800A00A0 (~118 fns).
@@ -342,11 +360,16 @@ void AudioExplodeWall(int pos, int flag)
         int idx = gCurLevel->audio->hitsnd;
         if (idx >= 0) {
             u8* e = *(u8**)(gWorldData + 44) + idx * 24;
-            if (*(s32*)(e + 16) >= 0) {
-                int atten = *(s16*)(e + 20) != 0 ? *(s16*)(e + 20) : 224;
-                int priority = *(s16*)(e + 22) != 0 ? *(s16*)(e + 22) : 126;
+            if (*(s32*)(e + offsetof(struct sound_data, idx)) >= 0) {
+                int atten = *(s16*)(e + offsetof(struct sound_data, vol)) != 0
+                                ? *(s16*)(e + offsetof(struct sound_data, vol))
+                                : 224;
+                int priority = *(s16*)(e + offsetof(struct sound_data, pri)) != 0
+                                ? *(s16*)(e + offsetof(struct sound_data, pri))
+                                : 126;
 
-                sndFxPlay3DAtten(*(s32*)(e + 16), pos, atten, priority);
+                sndFxPlay3DAtten(*(s32*)(e + offsetof(struct sound_data, idx)),
+                                 pos, atten, priority);
             }
         }
     } else {
@@ -826,11 +849,13 @@ void fn_8009DB24(int sel, int arg)
         if (idx >= 0) {
             u8* e = *(u8**)(gWorldData + 44) + idx * 24;
 
-            if (*(s32*)(e + 16) >= 0) {
+            if (*(s32*)(e + offsetof(struct sound_data, idx)) >= 0) {
                 sndFxPlay3DAttenOrdered(
-                    *(s32*)(e + 16), arg,
-                    *(s16*)(e + 22) != 0 ? *(s16*)(e + 22) : 126,
-                    *(s16*)(e + 20) != 0 ? *(s16*)(e + 20) : 224);
+                    *(s32*)(e + offsetof(struct sound_data, idx)), arg,
+                    *(s16*)(e + offsetof(struct sound_data, pri)) != 0
+                        ? *(s16*)(e + offsetof(struct sound_data, pri)) : 126,
+                    *(s16*)(e + offsetof(struct sound_data, vol)) != 0
+                        ? *(s16*)(e + offsetof(struct sound_data, vol)) : 224);
             }
         }
         break;
@@ -1380,7 +1405,7 @@ void AudioEnterNextStage(void)
         goto invalid_entry;
     }
     entry = *(u8**)(gWorldData + 44) + idx * 24;
-    entry_id = *(int*)(entry + 16);
+    entry_id = *(int*)(entry + offsetof(struct sound_data, idx));
     switch (entry_id) {
     case 0:
         goto valid_entry;
@@ -1395,7 +1420,7 @@ invalid_entry:
 valid_entry:
     if (entry != 0) {
         if (level->namesnd >= 0) {
-            int sound_id = *(int*)(entry + 16);
+            int sound_id = *(int*)(entry + offsetof(struct sound_data, idx));
 
             if (good_wiz_state <= 2) {
                 sndFxQueAddEx(1, sound_id, lbl_80348480, lbl_80348480, 224,
