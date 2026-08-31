@@ -983,6 +983,24 @@ extern char lbl_80114A48[]; /* boss-stream format string pool */
     }
 
 #pragma opt_propagation off
+/* sSpeechNameBuf is only a 0x40-byte sprintf scratch buffer (symbols.txt:
+ * .bss 0x8028B5D0 size 0x40).  Every `speech + 0x4B0..0x6C4` store below
+ * therefore lands OUTSIDE it, in the symbol the linker places next:
+ * sActiveTrackId (.bss 0x8028BA80, size 0x238 = 142 s32) -- 0x8028B5D0 +
+ * 0x4B0 is exactly sActiveTrackId's base.  Layout implied by the accesses:
+ * 45 active-track ids (0x4B0..0x563, matching this file's own "45 entries"
+ * note), then a [12][8] boss-speech id table from element 45 (0x564) with
+ * 0x20-byte rows, indexed `[row][idx]`.
+ *
+ * The base symbol is NOT rewritten to sActiveTrackId: the TARGET relocates
+ * every one of these stores @sSpeechNameBuf(ADDR16_HA/LO) and keeps that
+ * pointer in r30 for the whole function, so per
+ * claim.law.walked-base-symbol-identity sSpeechNameBuf is the correct base
+ * and re-basing would emit a different relocation.  Only the displacement
+ * constants are named. */
+#define SPEECH_ACTIVETRACK 0x4B0            /* sActiveTrackId - sSpeechNameBuf */
+#define SPEECH_BOSSROW(n)  (0x564 + (n) * 0x20) /* sActiveTrackId[45] + row n */
+
 void AudioSetupBossStreams(register int idx, register char* name)
 {
     char bufA[32]; /* close-variant stream name */
@@ -1001,7 +1019,7 @@ void AudioSetupBossStreams(register int idx, register char* name)
     if (name == NULL || *name == 0) {
         idx = -1;
     }
-    *(s32*)(speech + 0x4B0 + sel * 4) = idx;
+    *(s32*)(speech + SPEECH_ACTIVETRACK + sel * 4) = idx;
     mode = 0;
 
     switch (sel) {
@@ -1067,74 +1085,74 @@ void AudioSetupBossStreams(register int idx, register char* name)
 
     sprintf(speech, formats + 392, bufA, suffix);
     BossNameFixup(speech);
-    *(s32*)(speech + 0x564 + idx * 4) = AudioFindSound(speech, -1, 1);
+    *(s32*)(speech + SPEECH_BOSSROW(0) + idx * 4) = AudioFindSound(speech, -1, 1);
 
     sprintf(speech, formats + 392, bufB, suffix);
     BossNameFixup(speech);
-    *(s32*)(speech + 0x584 + idx * 4) = AudioFindSound(speech, -1, 1);
+    *(s32*)(speech + SPEECH_BOSSROW(1) + idx * 4) = AudioFindSound(speech, -1, 1);
 
     sprintf(speech, formats + 404, bufA, suffix);
     BossNameFixup(speech);
-    *(s32*)(speech + 0x5A4 + idx * 4) = AudioFindSound(speech, -1, 1);
+    *(s32*)(speech + SPEECH_BOSSROW(2) + idx * 4) = AudioFindSound(speech, -1, 1);
 
     sprintf(speech, formats + 404, bufB, suffix);
     BossNameFixup(speech);
-    *(s32*)(speech + 0x5C4 + idx * 4) = AudioFindSound(speech, -1, 1);
+    *(s32*)(speech + SPEECH_BOSSROW(3) + idx * 4) = AudioFindSound(speech, -1, 1);
 
     if (nvar < 2) {
         sprintf(speech, formats + 416, bufA);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x5E4 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(4) + idx * 4) = AudioFindSound(speech, -1, 1);
 
         sprintf(speech, formats + 432, bufA);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x604 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(5) + idx * 4) = AudioFindSound(speech, -1, 1);
     }
 
     if (nvar != 0) {
         sprintf(speech, formats + 444, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x624 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(6) + idx * 4) = AudioFindSound(speech, -1, 1);
 
         sprintf(speech, formats + 460, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x644 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(7) + idx * 4) = AudioFindSound(speech, -1, 1);
 
         sprintf(speech, formats + 476, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x664 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(8) + idx * 4) = AudioFindSound(speech, -1, 1);
 
         sprintf(speech, formats + 488, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x684 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(9) + idx * 4) = AudioFindSound(speech, -1, 1);
     } else {
         sprintf(speech, formats + 416, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x624 + idx * 4) = AudioFindSound(speech, -1, 1);
-        *(s32*)(speech + 0x644 + idx * 4) = *(s32*)(speech + 0x624 + idx * 4);
+        *(s32*)(speech + SPEECH_BOSSROW(6) + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(7) + idx * 4) = *(s32*)(speech + SPEECH_BOSSROW(6) + idx * 4);
 
         sprintf(speech, formats + 432, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x664 + idx * 4) = AudioFindSound(speech, -1, 1);
-        *(s32*)(speech + 0x684 + idx * 4) = *(s32*)(speech + 0x664 + idx * 4);
+        *(s32*)(speech + SPEECH_BOSSROW(8) + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(9) + idx * 4) = *(s32*)(speech + SPEECH_BOSSROW(8) + idx * 4);
     }
 
     if (mode == 2) {
         sprintf(speech, formats + 500, bufA);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x6A4 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(10) + idx * 4) = AudioFindSound(speech, -1, 1);
 
         sprintf(speech, formats + 500, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x6C4 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(11) + idx * 4) = AudioFindSound(speech, -1, 1);
     } else if (mode == 1) {
         sprintf(speech, formats + 512, bufA);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x6A4 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(10) + idx * 4) = AudioFindSound(speech, -1, 1);
 
         sprintf(speech, formats + 512, bufB);
         BossNameFixup(speech);
-        *(s32*)(speech + 0x6C4 + idx * 4) = AudioFindSound(speech, -1, 1);
+        *(s32*)(speech + SPEECH_BOSSROW(11) + idx * 4) = AudioFindSound(speech, -1, 1);
     }
 }
 #pragma opt_propagation reset
