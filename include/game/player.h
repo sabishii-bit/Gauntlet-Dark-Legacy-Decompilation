@@ -277,7 +277,13 @@ typedef struct Player {
     /* 0x0A58 */ f32 combo_cd;       /* combo effect cooldown timestamp [pmotion.c] */
     /* 0x0A5C */ s32 camera_limit;   /* camera dpos-limit result [pmotion.c] */
     /* 0x0A60 */ s32 display_mode;   /* HUD display mode (get_display_mode) [player.c] */
-    /* 0x0A64 */ u8  pad_0A64[0x1C];
+    /* 0x0A64 */ s32 field_A64;      /* shop-screen state machine mode (do_shop switch) [shop.c] */
+    /* 0x0A68 */ s32 field_A68;      /* shop item-list cursor index (see shop.c DSPlayerView) [shop.c] */
+    /* 0x0A6C */ s32 field_A6C;      /* shop staged-reveal UI timer (level-up/final-stats panels) [shop.c] */
+    /* 0x0A70 */ f32 field_A70;      /* shop displayed-att-fight snapshot (pre-reveal animation) [shop.c] */
+    /* 0x0A74 */ f32 field_A74;      /* shop displayed-att-armor snapshot [shop.c] */
+    /* 0x0A78 */ f32 field_A78;      /* shop displayed-att-magic snapshot [shop.c] */
+    /* 0x0A7C */ f32 field_A7C;      /* shop displayed-att-speed snapshot [shop.c] */
     /* 0x0A80 */ char name[8];       /* player name, underscore shown as space [player.c] */
     /* 0x0A88 */ u8  pad_0A88[0x34C];
     /* 0x0DD4 */ PlayerCharSave char_save[16]; /* per-character progression (VERIFIED base+stride) */
@@ -293,7 +299,9 @@ typedef struct Player {
     /* 0x2220 */ s16 crystals[8];    /* crystal counters (documented 0x2220..) */
     /* 0x2230 */ s16 gargoyle_items[3]; /* gargoyle-item counters (documented) */
     /* 0x2236 */ s16 legend_items[2];   /* legend-item counters (documented ..0x223A) */
-    /* 0x223A */ u8  pad_223A[0x10EA];
+    /* 0x223A */ u8  pad_223A[0x12];
+    /* 0x224C */ s32 field_224C;     /* per-character(*240) gold checkpoint [shop.c fn_8009A0AC] */
+    /* 0x2250 */ u8  pad_2250[0x10D4];
     /* 0x3324 */ s32 level;          /* character level 1..99 [player.c] */
     /* 0x3328 */ s32 intower;        /* set while active in tower [player.c] */
     /* 0x332C */ s32 world_text_active; /* overhead text state [gauntworld] */
