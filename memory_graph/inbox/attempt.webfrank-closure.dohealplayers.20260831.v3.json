@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "WebFrank closure of the parked REGISTER_ONLY FPR crossing: model the giveq/loop-zero swap and the differently-coloured product temporary as a position-preserving copy_register_fields recolor",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-hash-pinned-site.20260830.v1 and claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - game/game/player now carries three rules and all three functions are SOURCE-FROZEN. claim.law.literal-sweep-needs-lfd-stfd-tell-first.20260831.v1 and claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell.20260831.v1 SCREENED because the residual involves a loop-hoisted 0.0f pool constant (@310 ours vs lbl_803477AC target): neither applies, since the opcode multiset is already IDENTICAL at 130/130 and the spelling difference is pool-name noise that leaves the bytes equal - no literal sweep is needed or wanted. claim.law.gcb-sflags-relocation-alias.20260830.v1 screened, not applicable.",
+    "laws_applied": "[\"claim.law.webfrank-hash-pinned-site.20260830.v1\", \"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "residual": "NONE. real 10 -> real 0, 130/130, fndiff --clean now reports MATCH (pool-name noise only). v2's analysis was right about the mechanism and slightly over-cautious about the proof obligation, which is the useful correction. v2 predicted this would need 'permutation plus dead-temp renaming'. It does NOT: there is no permutation and no dead-temp argument. The masked byte scan found zero non-register-expressible words, and the whole 130-instruction residual is ONE consistent renaming once the fmul's destination is read as an ordinary define - target fmul f0,f0,f1 then frsp f30,f0 versus our fmul f31,f0,f1 then the self-coalesced frsp f31,f31, with the loop-hoisted 0.0f compare constant in f31 (target) against f30 (ours). Because a define retires the previous correspondence, the bisimulation follows the temporary from f31 onto the volatile f0 without any special handling, and the later fcmpo/fadds check out against the swapped homes.",
+    "scope": "config/GUNE5D/webfrank.json (game/game/player, patch 3 of 3) and tools/gdl/tests/test_webfrank.py. NO src/*.c edit; commit a147ba0e1.",
+    "verification": "Derived from the CURRENT raw compiler output diffed against the extracted retail object. Guards passed: form-aware register-slot masks (including the A-form FP operand model for fmul/fadds and the X-form model for frsp/fcmpo), and verify_consistent_recolor over the whole function with NO unproven_recolor_audit escape; final after_sha256 asserts the retail bytes. Full ninja -j2 green, build/GUNE5D/main.dol: OK. NOTE for whoever writes the test excerpt: a short slice of this function does NOT verify standalone, because the fmul's define maps f31 onto f0 and thereby retires f0's identity entry, which the real function re-establishes before its later fadds; the shipped test stops at the fcmpo for that reason."
+  },
+  "function": "function:do_heal_players",
+  "id": "attempt.webfrank-closure.dohealplayers.20260831.v3",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:46:41Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.do-heal-players-fpr-crossing-rescreen.20260831.v2",
+  "valid_from": "2026-08-31"
+}

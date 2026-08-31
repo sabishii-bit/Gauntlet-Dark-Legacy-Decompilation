@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "WebFrank eligibility screen of the REGISTER_ONLY residual: model the whole 450-instruction difference as a position-preserving copy_register_fields recolor",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-pinned-function-source-freeze.20260831.v1 and claim.law.webfrank-hash-pinned-site.20260830.v1 APPLIED - PointLineDist2D and now LineLineDist are pinned in this TU, so any future BTriLineCol source work must avoid disturbing them. claim.law.gcb-sflags-relocation-alias.20260830.v1 screened, not applicable. No source-shape law was re-run: this lane made no source edit, and v1's source-side closure work is unchanged.",
+    "laws_applied": "[\"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "residual": "REGISTER_ONLY, unchanged at real 30, 450/450, 15 differing words in indices 7..81. DO NOT RETRY THE WEBFRANK PATH as the guards stand. The masked byte scan reports ZERO non-register-expressible words, so this looks like a textbook pure recolor - but verify_consistent_recolor REJECTS it at +0x2d0 with 'use of f26 does not correspond to f26 under the running renaming', and the rejection is CORRECT. The mechanism is COPY PROVENANCE, not renaming: the target loads the lbl_80345D50 constant straight into the nonvolatile f26 (index 7) and then copies it to f25 and f30 (fmr at 18 and 21), while we load it into the volatile f2 and copy it to f26 and f25. So our f2 corresponds to target f26, our f26 to target f25, and our f25 to target f30. At +0x2d0 both sides emit the byte-identical fmuls f1,f0,f26, but ours reads the COPY where the target reads the ORIGINAL. The two registers hold an equal VALUE, yet no position-consistent register renaming maps one stream to the other. Certifying it would require modelling fmr copy-propagation - tracking value-equivalence classes across copies plus their invalidation - which the bisimulation deliberately does not do. That is a well-defined future guard extension, NOT something to fake with unproven_recolor_audit. Consequence: game/world/btricol is NOT flip-eligible even though LineLineDist is now closed; TriLineCol, PointLineDist2D and LineLineDist are exact and BTriLineCol alone blocks the TU. A source-side lever that makes our code read the constant's original home rather than a copy would close it.",
+    "scope": "No files changed for this function. Analysis only.",
+    "verification": "Rejection reproduced against the CURRENT raw object (build/GUNE5D/src/game/world/.postprocess/body/btricol.o) versus the extracted retail object, and locked in as a regression test (RejectedResidualTests.test_btrilinecol_copy_provenance_is_not_a_renaming, commit 0be9dbf86) using the real instruction words, so a future guard change that would silently accept it fails the suite first."
+  },
+  "function": "function:BTriLineCol",
+  "id": "attempt.parked.btrilinecol-copy-provenance.20260831.v2",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T05:46:25Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.btrilinecol-operand-layout-and-fpr-closure.20260829.v1",
+  "valid_from": "2026-08-31"
+}
