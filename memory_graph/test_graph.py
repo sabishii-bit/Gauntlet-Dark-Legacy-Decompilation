@@ -310,6 +310,8 @@ class GraphSurfaceTests(unittest.TestCase):
             "}\n"
             "void g(u8* p) {\n"
             "  *(s32*)(p + 20) = 8;\n"
+            "  rate = rate * (f32)(ticks);      /* multiply, not a deref */\n"
+            "  scale = lut[i] * (f32)(u32)(v);  /* multiply, not a deref */\n"
             "}\n",
             encoding="utf-8",
         )
@@ -375,6 +377,7 @@ class GraphSurfaceTests(unittest.TestCase):
         self.assertEqual(result["tu_count"], 1)
         row = result["tus"][0]
         self.assertEqual(row["tu"], "src/game/test/foo.c")
+        # The two binary-multiply lookalikes in g() must not be counted.
         # 5 bare + 3 named: explicit offsetof, the IOFF macro (object- or
         # function-like #define whose body contains offsetof), and the
         # SECOND cast of the multi-cast call — while its bare sibling in

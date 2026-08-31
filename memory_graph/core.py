@@ -2973,6 +2973,62 @@ _DEBT_CAST_RE = re.compile(
 )
 _DEBT_PF_RE = re.compile(r"\bPF\s*\(")
 _C_COMMENT_RE = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
+_DEBT_KEYWORDS = frozenset((
+    "return", "case", "else", "do", "if", "while", "for", "switch",
+    "sizeof", "offsetof", "goto", "default", "break", "continue",
+))
+_TYPEISH_RE = re.compile(
+    r"^\s*(?:const\s+|volatile\s+|unsigned\s+|signed\s+|struct\s+|union\s+)*"
+    r"[A-Za-z_]\w*\s*\**\s*$")
+
+
+def _match_open_paren(text: str, close_idx: int) -> int:
+    depth = 0
+    for i in range(close_idx, -1, -1):
+        if text[i] == ")":
+            depth += 1
+        elif text[i] == "(":
+            depth -= 1
+            if depth == 0:
+                return i
+    return -1
+
+
+def _is_binary_multiply(text: str, star_idx: int) -> bool:
+    """True when this `*` is arithmetic, not a dereference.
+
+    `rate * (f32)(u32)gFrameTicks` matches the census regex but is a
+    multiply; counting it inflated the census ~3.6% repo-wide (133/3685,
+    2026-08-31) and drifted wave-over-wave comparisons on float-heavy TUs.
+    Ported from tools/gdl/structdraft.py (the validated authority).
+    """
+    j = star_idx - 1
+    while j >= 0 and text[j] in " \t\r\n":
+        j -= 1
+    if j < 0:
+        return False
+    ch = text[j]
+    if ch == "]" or ch.isdigit():
+        return True
+    if ch.isalpha() or ch == "_":
+        k = j
+        while k >= 0 and (text[k].isalnum() or text[k] == "_"):
+            k -= 1
+        return text[k + 1:j + 1] not in _DEBT_KEYWORDS
+    if ch == ")":
+        open_idx = _match_open_paren(text, j)
+        if open_idx < 0:
+            return False
+        if _TYPEISH_RE.match(text[open_idx + 1:j]):
+            return False  # a cast -> the `*` is a deref
+        k = open_idx - 1
+        while k >= 0 and text[k] in " \t\r\n":
+            k -= 1
+        m = k
+        while m >= 0 and (text[m].isalnum() or text[m] == "_"):
+            m -= 1
+        return text[m + 1:k + 1] not in _DEBT_KEYWORDS
+    return False
 
 
 def _strip_c_comments(text: str) -> str:
@@ -3074,6 +3130,8 @@ def fakematch_debt(
                  if want_owners else [])
         bare = named = 0
         for match in _DEBT_CAST_RE.finditer(text):
+            if _is_binary_multiply(text, match.start()):
+                continue  # arithmetic `x * (f32)(...)`, not a dereference
             if _cast_site_is_named(text, match.start(), named_macros):
                 named += 1
             else:
@@ -3103,9 +3161,11 @@ def fakematch_debt(
         "note": (
             "bare_sites (+pf_sites) is the remaining debt; named_sites are"
             " already offsetof/sizeof-converted. The census is a floor —"
-            " cast-then-index and cast-assign shapes escape the regex — and"
-            " includes legitimate raw forms (protected webs, structless"
-            " pools): read the TU's attempt records before claiming."
+            " cast-then-index, cast-assign, and macro-bodied access shapes"
+            " (WSWAP-style swap macros) escape the regex — and includes"
+            " legitimate raw forms (protected webs, structless pools): read"
+            " the TU's attempt records before claiming. Binary-multiply"
+            " lookalikes are excluded since 2026-08-31."
         ),
     }
     if show_lines and tu:
