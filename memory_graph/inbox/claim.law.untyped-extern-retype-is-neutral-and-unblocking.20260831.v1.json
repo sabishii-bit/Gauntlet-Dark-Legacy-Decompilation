@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "work_claim.extern-world.20260831.v1, worktree GDL-Claude-ExternWorld, branch claude/extern-world-20260831. Six globals across four TUs: gPlayers (bosscam.c, camera.c), gCurLevel (bosscam.c, camera.c, action.c), gEnemies + gCameras + Effects + gWorldInfo (gauntworld.c). Every batch gated with tools/gdl/defake_gate.py check --rebuild over the whole TU (18 / 22 / 5 / 46 functions respectively).",
+    "scope": "MWCC GC 1.2.5 family; the RECOVERABLE blocker (1) of claim.offsetcast-recoverable-blockers-ranked.20260831.v1 -- a TU that re-declares an already-typed global as `extern u8 X[]` / `extern u8* X` while a project header carries a GC-verified layout for that exact record.",
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "symbol-identity",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.untyped-extern-retype-is-neutral-and-unblocking.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:16:48Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "Replacing a TU-local untyped extern with the typed project-header declaration of the SAME symbol is byte-neutral in itself, and is a prerequisite move rather than a conversion: it changes no expression, only what the compiler knows. Verified on 6 globals across 4 TUs (gPlayers -> Player[4], gCurLevel -> level_data*, gEnemies -> Enemy[25], gCameras -> Camera[6], Effects -> Effect[], gWorldInfo -> WorldInfo) with every affected function staying byte-identical, including TUs that are almost entirely parked/capped (camera.c: 3 capped + 5 parked functions, all unmoved). Four operational rules make it neutral. (1) FORM-PRESERVE AT EVERY SITE FIRST. Retyping an array from u8[] to T[N] silently re-scales all pointer arithmetic on it, so every surviving `X + expr` must become `(u8*)X + expr` in the SAME batch. `(u8*)X + N` is the same single additive expression on the same symbol address that `X + N` was, so it compiles identically -- this is claim.law.offsetof-rename-preserves-protected-web's shape, reached by casting the base rather than respelling the addend. Do the retype and these casts as ONE batch, then convert sites in later gated batches; conflating the two loses the ability to attribute a regression. (2) THE COMPILER FINDS THE SITES FOR YOU. If the header declares the global (camera.h's `Camera gCameras[6]`, enemy.h's `Enemy gEnemies[25]`, worldinfo.h's `WorldInfo gWorldInfo`), merely adding the #include is a hard redeclaration error against the local `extern u8 X[]`. This means an include-only probe batch CANNOT be gated separately for these globals -- a real constraint on claim.law.embedded-struct-member-whole-tu-cascade's 'gate the header edit alone' advice -- but it also means the compiler enumerates every decl to fix, and after the retypes land the remaining type errors enumerate every arithmetic site needing a `(u8*)` cast. There is no need to grep for sites. (3) STRIDES STAY BARE. The retype makes the TU's magic strides (0x335C, 0x394, 0xF0, 0x18C) definitionally equal to sizeof(T), which is exactly the substitution claim.law.sizeof-defeats-loop-stride-induction proves is NOT neutral. Leave them as literals with a comment. (4) SCREEN SYMBOL IDENTITY BEFORE ADOPTING A HEADER'S GLOBAL, per claim.law.walked-base-symbol-identity: confirm in config/GUNE5D/symbols.txt that the header's symbol is the bounded object the TU actually walks. gWorldInfo passed (its own 0xA4 object at 0x8028CA8C, distinct from the preceding 0xE4 blob lbl_8028C9A8, and world.c already links member-form accesses to it); gCameraState FAILED the same screen (52-byte symbol walked to +0x97C in camera.c) and was correctly left untyped. The payoff is not the retype but what it exposes. Retyping made three separate file-local view structs provably redundant -- camera.c's CameraLevelRecordView (`activeCamera` @0x60 == level_data.camera @0x60) and gauntworld.c's GauntWorldInfoView (`checknum` @0x58 == WorldInfo.checknum @0x58) were deleted outright, and bosscam.c's missing transmitter view was recovered from camera.c's already-verified one. Consequence: treat an untyped extern shadowing a typed header as a MARKER for duplicated reconstruction downstream in that TU, and grep the TU for file-local views of the same record immediately after retyping -- this is the cheap half of AGENTS.md's 'grep the TU for an existing typedef' rule, running in the opposite direction."
+}

@@ -160,6 +160,16 @@ typedef struct GoodWizStateView {
     void* field_060;   /* +0x60 (96): non-NULL gates the focus-pos branch */
 } GoodWizStateView;
 
+/* Local view of the "transmitter" record (extern CurTransmitter).  This is
+ * the SAME record game/world/camera.c maps as CameraTransmitterView (see the
+ * comment there: no shared project header owns it yet, so each TU carries a
+ * file-local view); field names are kept identical so the two views stay
+ * reconcilable.  Only the pitch/yaw pair this TU dereferences is named. */
+typedef struct BossCamTransmitterView {
+    u8  pad_000[0x14];
+    f32 pyr[3];    /* 0x14 pitch/yaw/roll (camera.c CameraTransmitterView) */
+} BossCamTransmitterView;
+
 /* bosscam-owned .sbss scratch (referenced externally, see split notes) */
 extern s32 lbl_803443AC;
 extern s32 gTriggerCameraState;
@@ -214,7 +224,7 @@ extern f32 gClockFrameStep;
 extern void CamReset(void* camera);
 
 /* Player array (stride 0x335C) and boss gating state used by the dpos clamps */
-extern u8 gPlayers[];             /* base of the 4 player structs */
+extern Player gPlayers[4];        /* game/player.h; stride 0x335C verified */
 extern s32 lbl_803443A8;
 extern s32 gBossDead;
 extern s32 gBossDying;
@@ -232,7 +242,7 @@ extern void CalcFrustrumNormals(f32* a, f32* b, f32* c, f32 fov);
 extern void fn_8006DC64(void* camera, u8* ps, f32* dpos, s32 arg);
 
 /* level / camera-pose state and math libs */
-extern u8* gCurLevel;
+extern level_data* gCurLevel;          /* game/leveldata.h; 0x8034483C */
 extern u8* lbl_803443D0;               /* the active scripted / boss camera */
 extern u8* gBossObj;                   /* boss actor (pos vec at +0x4C) */
 extern s32 lbl_80343C5C;               /* widescreen aspect-scale flag */
@@ -363,7 +373,7 @@ void TriggerCameraActivate(s32 p1, f32* p2, f32* p3, s32 duration, s32 p5, s32 p
 }
 s32 CameraLimitPlayerDpos(s32 player, f32* dpos, s32 arg) {
     s32 ret = 1;
-    Player* ps = (Player*)&gPlayers[player * 0x335C];
+    Player* ps = &gPlayers[player];
     f32 savedY = dpos[1];
 
     if (lbl_803443A8 != 0) {
@@ -603,7 +613,7 @@ s32 BossCameraUpdate(void) {
             ((BossGameCameraView*)gGameCamera)->field_0EC = yaw;
             ((BossGameCameraView*)gGameCamera)->field_104 = pitch;
             ((BossGameCameraView*)gGameCamera)->field_0F4 = d2;
-        } else if (((level_data*)gCurLevel)->bosscam != 0) {
+        } else if (gCurLevel->bosscam != 0) {
             if (gBossActive == 0) {
                 BossCamPlayerCalc();
             } else {
@@ -1227,7 +1237,8 @@ static void BossCamPlayerCalc(void)
         tr = fn_8006FBAC(avg);
     }
     if (tr != NULL) {
-        f32 y = (f32)(*(f32*)(tr + 24) - lbl_80345B88);
+        f32 y = (f32)(*(f32*)(tr + offsetof(BossCamTransmitterView, pyr) + 4) -
+                      lbl_80345B88);
         if (y > lbl_80345B88) {
             t = y - lbl_80345BB8;
         } else if (y <= lbl_80345BC0) {
@@ -1240,7 +1251,7 @@ static void BossCamPlayerCalc(void)
         tyaw = lbl_80345BA0;
     }
     if (tr != NULL) {
-        tpitch = -*(f32*)(tr + 20);
+        tpitch = -*(f32*)(tr + offsetof(BossCamTransmitterView, pyr));
     } else {
         tpitch = lbl_80345BA0;
     }
@@ -1248,7 +1259,7 @@ static void BossCamPlayerCalc(void)
     cam = gGameCamera;
     minview = lbl_80345BA4;
     for (i = 0, off = 0; i < 4; i++, off += 13148) {
-        p = gPlayers + off;
+        p = (u8*)gPlayers + off;
         if (*(s32*)(p + offsetof(Player, state)) != 1) {
             continue;
         }
@@ -1484,7 +1495,7 @@ static void BossCamLimitAttn(f32* target) {
 }
 #pragma opt_propagation reset
 static void BossCameraStart(void) {
-    lbl_803443D0 = (u8*)((level_data*)gCurLevel)->bosscam;
+    lbl_803443D0 = (u8*)gCurLevel->bosscam;
     if (lbl_803443D0 != 0) {
         ((BossCameraParamsView*)lbl_803443D0)->field_008 =
             cos(((BossCameraParamsView*)lbl_803443D0)->field_004);
@@ -1528,7 +1539,7 @@ static f32 GetPlayerViewDist(void* mtx) {
     s32 i;
 
     for (i = 0; i < 4; i++) {
-        Player* ps = (Player*)&gPlayers[i * 0x335C];
+        Player* ps = &gPlayers[i];
         if (ps->state == 1) {
             pt[0] = ps->col_pos[0] + ((BossCamPlayerView*)ps)->field_888[0];
             pt[1] = ps->col_pos[1] + ((BossCamPlayerView*)ps)->field_888[1];
@@ -1662,7 +1673,7 @@ static f32 GetActualAvgVec(f32* out, f32* pos, s32 useBoss) {
                 goto measure;
             }
         } else {
-            p = gPlayers + off;
+            p = (u8*)gPlayers + off;
             if (*(s32*)(p + offsetof(Player, state)) == 1) {
                 if ((*(s16*)(p + offsetof(Player, hud_flags)) & 0x20) != 0) {
                     v[0] = pos[0] - *(f32*)(p + offsetof(Player, saved_pos));

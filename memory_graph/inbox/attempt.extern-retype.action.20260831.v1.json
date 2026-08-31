@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "EXTERN-RETYPE lane (work_claim.extern-world.20260831.v1) over src/game/anim/action.c: retype `extern u8* gCurLevel` to level_data* and convert its one site to member form.",
+  "attributes": {
+    "law_screen": "claim.law.offsetof-rename-preserves-protected-web SCREENED: the site was ALREADY in offsetof form from a prior pass (`*(f32*)(gCurLevel + offsetof(level_data, ene_mrate))`), so this pass tested the NEXT step -- the member form `gCurLevel->ene_mrate`, which that law explicitly does NOT cover because it changes the base pointer's declared TYPE rather than just respelling a displacement. It gated byte-identical, so the type change was neutral here. claim.law.scalar-read-write-lfsu-mixed-form SCREENED and cleared: the site is a pure READ inside a multiply, with no adjacent write to the same address, so the fusion-sensitive read/write-pair case does not arise. claim.law.declared-alias-vs-repeated-cast / claim.law.write-site-alias-defeats-reload-parity: NOT APPLICABLE -- single site, no alias introduced, no repeated cast. claim.law.multifield-alias-defeats-indexed-addressing: NOT APPLICABLE -- one field, not 2+ near fields off one base. claim.law.large-fn-batch-fuzzy-can-mask-subfield-regression APPLIED as method despite the batch being a single site: DoPlayerAction is 7060 bytes / above the fuzzy-arbitration threshold, so the verdict was taken from defake_gate's per-function fndiff real, not from fuzzy.",
+    "laws_applied": "[\"claim.law.offsetof-rename-preserves-protected-web.20260830.v1\", \"claim.law.large-fn-batch-fuzzy-can-mask-subfield-regression.20260830.v1\"]",
+    "residual": "This TU is now effectively debt-free for the extern lane. ONE bare site remains in the whole file: `*(s16*)((u8*)p + 0x956)` in DoPlayerAction. It is NOT an extern-lane blocker -- p is already a typed Player* -- it is taxonomy blocker class (2), INCOMPLETE RECORD THE PROJECT ALREADY OWNS: `gdlmem struct Player --offset 0x956` resolves it into the explicit pad run `u8 pad_0956[2]` in include/game/player.h. Converting it requires splitting that pad into a named field, i.e. a header edit, which this run is forbidden from making (P1/P2 own include/game). Handing it to the header lane: one 2-byte field, read as s16 and tested against mask 0x4.",
+    "scope": "src/game/anim/action.c only (5 functions). gCurLevel u8* -> level_data* (game/leveldata.h was ALREADY included). One site converted from offsetof form to member form. No header edited; no config/asm change.",
+    "verification": "defake_gate.py baseline game/anim/action.c at pass start (5 functions, 3 at real 0), then check --rebuild: GATE OK, all 5 functions byte-identical. DoEnemyAction carries a PARKED record so it was byte-gate-only and did not move. Full ninja green, main.dol OK."
+  },
+  "function": "function:DoPlayerAction",
+  "id": "attempt.extern-retype.action.20260831.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-08-31T02:16:42Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
