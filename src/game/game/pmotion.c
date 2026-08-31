@@ -503,7 +503,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     u8 unused_74[12];
     f32 mat[16];
     s32 resultItem = -1;
-    u8 unused_8[24];
+    u8 unused_8[8];
     s32 partner = -1;
     s32 found = -1;
     Player* p;
@@ -696,6 +696,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             thresh = lbl_80347B28;
             do {
                 f32 d;
+                u8 unused_i[16];
                 if (ok != 0) {
                     break;
                 }
