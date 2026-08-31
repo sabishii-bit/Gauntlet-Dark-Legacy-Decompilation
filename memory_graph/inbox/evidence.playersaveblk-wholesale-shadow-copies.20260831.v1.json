@@ -1,0 +1,11 @@
+{
+  "claim": "claim.player-0x2220-is-char-save-checkpoint-shadow.20260831.v1",
+  "detail": "The wholesale copies that create the shadow, plus the memset that clears it, fixing both the block bounds and the delta. gamemain.c:3798 executes *(PlayerSaveBlk*)(p + 7884) = *(PlayerSaveBlk*)(p + 2688) inside a per-player loop (p += 13148 == 0x335C) guarded by ((Player*)p)->state == 1 and sMusicTrackHi == 13, i.e. on level entry; PlayerSaveBlk is declared at gamemain.c:3633-3635 as s32 w[1293] = 5172 bytes = 0x1434. So the destination is 7884 = 0x1ECC and the source 2688 = 0xA80, giving delta 0x144C and destination end 0x1ECC + 0x1434 = 0x3300. select.c:1273-1274 performs the identical assignment and spells its SOURCE as offsetof(Player, name), independently pinning the live block's start at 0xA80 rather than leaving it a bare literal. player.c:3473-3474 clears both blocks back to back with matching sizes, memset((u8*)p + 0xA80, 0, 0x1434) followed by memset((u8*)p + 0x1ECC, 0, 0x1434). The source block's end, 0xA80 + 0x1434 = 0x1EB4, lands exactly on the next declared field (health), and the mapped size of name[8] + pad_0A88[0x34C] is exactly 0x354, the declared size of pad_1ECC[0x354] -- so the shadow's leading pad matches the live block's leading region byte for byte, and char_save@0xDD4 maps to 0xDD4 + 0x144C = 0x2220.",
+  "evidence_kind": "source-trace",
+  "id": "evidence.playersaveblk-wholesale-shadow-copies.20260831.v1",
+  "kind": "evidence",
+  "locator": "src/game/game/gamemain.c:3633-3635 and 3795-3801; src/game/ui/select.c:1273-1274; src/game/game/player.c:3473-3474",
+  "recorded_at": "2026-08-31T04:27:27Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

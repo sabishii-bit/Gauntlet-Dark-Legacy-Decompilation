@@ -1,0 +1,11 @@
+{
+  "claim": "claim.player-0x2220-is-char-save-checkpoint-shadow.20260831.v1",
+  "detail": "Exhaustiveness plus the name-authority disproof. An exhaustive scan of every src/game/**/*.c file for integer literals in [0x1ECC, 0x3300) used as a pointer displacement off a player base returned exactly THREE hits and no others: player.c:3474 (the memset that clears the shadow), tower.c:1295 (literal 8756 = 0x2234), and tower.c:1333 (literal 8762 = 0x223A). Both tower.c hits carry the p->character * 240 stride, i.e. sizeof(PlayerCharSave) -- a stride that is meaningless for a flat s16 counter array and inevitable for a char_save shadow. Separately, shop.c:1008 reaches the same region through the NAMED field with the same stride, *(s32*)((b240 = pl + cls * 240) + offsetof(Player, field_224C)) with cls = pl->character, computing gold earned this level as pl->gold minus the level-entry snapshot; 0x224C - 0x144C = 0xE00 = char_save + 0x2C, and Xbox P_SAVE_STUFF carries an int gold at 0x30, the same role at the compaction-shifted offset. Conversely a name-level grep for crystals, gargoyle_items and legend_items across all .c and .h files finds them ONLY in include/game/player.h itself: they have zero consumers anywhere in the project and are unverified documentation. Their origin is research/xbox_symbols/misc.h:28884 struct P_SAVE_STUFF (legend_items@0x8, garg_items[3]@0x18, crystals[8]@0x1e), which include/game/player.h's own PlayerCharSave comment already names as the Xbox analogue of PLAYERCHARSAVE rather than of Player -- so they are save-slot field names, and the only save slot at 0x2220 is the shadow of char_save[0]. The header's declared order (crystals, gargoyle, legend) does not match P_SAVE_STUFF's order either, confirming the placement was guesswork rather than a derived mapping.",
+  "evidence_kind": "source-trace",
+  "id": "evidence.shadow-range-exhaustive-scan-and-name-disproof.20260831.v1",
+  "kind": "evidence",
+  "locator": "build/scratch/scan_shadow.py over src/game/**/*.c (3 hits: src/game/game/player.c:3474, src/game/world/tower.c:1295, src/game/world/tower.c:1333); src/game/shop/shop.c:1008; research/xbox_symbols/misc.h:28884-28904; include/game/player.h:366-370",
+  "recorded_at": "2026-08-31T04:27:32Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
