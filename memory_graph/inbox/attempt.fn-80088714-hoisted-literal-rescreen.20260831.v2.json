@@ -1,0 +1,22 @@
+{
+  "attempted_axis": "Read-only re-screen of pmotion's three remaining non-exact non-PlayerMotion functions against the new hoisted-literal colouring law, which the TU's earlier per-label refcount sweep was structurally blind to. Negative on all three; no edits made.",
+  "attributes": {
+    "axis_log": "The new law's diagnostic tell is a pool lfs/lfd in the entry block immediately followed by an `fmr` into a callee-saved FPR whose NUMBER is below every float parameter's home, with the copied value never rewritten inside the loop. Read the first 0x60 of each target with tools/gdl/fnasm.py and the tell is ABSENT in all three. fn_80088714: no pool FP load at all in the entry; its only entry `fmr f31,f1` is the ordinary first-float-parameter home, and the FP constants it does use come from lbl_80282850 as an ADDR16_HA/LO table base, not an SDA21 scalar. PlayerCollideFloor: has an entry `lfd f4,lbl_80347B28(EMB_SDA21)` but it is CONSUMED IMMEDIATELY by the next-but-one `fadd f2,f4,f2` - a one-shot operand, not a loop-invariant held through a copy - and its `fmr f26,f1` is again a parameter home. get_player_pos: no FP pool load in the entry block at all; its prologue is integer (sMusicTrackHi test plus two ADDR16 table bases). So none of the three carries a hoisted-literal web, the lever that took PlayerCollidePlayers to byte-exact cannot apply, and the earlier pass's retirement of the extern-literal axis for these functions stands for a second, independent reason.",
+    "baseline": "No change to any function. fn_80088714 real 65 / fuzzy 97.59854%; PlayerCollideFloor real 319 / fuzzy 92.619896%; get_player_pos real 497 / fuzzy 96.68577%. All carried forward from attempt.pmotion-literal-tu-pass.20260831.v1 and attempt.parked.fn_80088714.20260829.v1.",
+    "best": "Unchanged; this was a diagnostic screen with no source edits, so nothing to gate beyond the TU-wide green already recorded for the PlayerCollidePlayers commit.",
+    "law_screen": "claim.law.hoisted-literal-temp-colors-below-parameter-homes.20260831.v1 (proposed this session) SCREENED against all three and NOT APPLICABLE - the tell is absent, as detailed in the axis log. claim.law.extern-scalar-read-defeats-fp-literal-hoist.20260831.v1 SCREENED - already retired for this TU by attempt.pmotion-literal-tu-pass.20260831.v1's refcount parity sweep; this screen re-tests it on the colouring criterion the refcount sweep could not see, and it is still negative. claim.law.f64-pool-literal-substitution-diverges-from-f32.20260831.v1 SCREENED and relevant to PlayerCollideFloor's lbl_80347B28: it is an f64, which is the law's regression-prone width, and the value is single-use rather than loop-invariant, so it is a poor literal-sweep candidate on two counts. attempt.parked.fn_80088714.20260829.v1 park HONOURED - revisited with a genuinely new idea as AGENTS requires, found not applicable, recorded, and the function left untouched. config/GUNE5D/webfrank.json has no pins for game/game/pmotion.",
+    "laws_applied": "[]",
+    "residual": "Unchanged and unattributed by this screen: fn_80088714 stays parked REGISTER_ONLY at real 65; PlayerCollideFloor keeps the -1 mr head-knot allocator cascade around rad/f1 at real 319; get_player_pos keeps the -3 addi volatile &floor_obj address webs plus paired schedule strays at real 497. These are multi-session reconstruction work, not exact-closure work, and nothing in this session's findings shortens them.",
+    "scope": "Read-only. No file in src/ was modified by this screen.",
+    "unpark_condition": "attempt.parked.fn_80088714.20260829.v1 REMAINS IN FORCE and is deliberately not superseded by this record - this is an additive revisit note, not a replacement, and the original park's do-not-retry axes still hold. This screen adds one further do-not-retry: do not re-run the extern-to-literal substitution on fn_80088714, PlayerCollideFloor or get_player_pos hoping for a register-colouring effect - the entry-block tell has been read and is absent in all three.",
+    "verification": "tools/gdl/fnasm.py entry-block reads only; the TU's defake_gate baseline and full ninja green (build/GUNE5D/main.dol: OK) were established by the PlayerCollidePlayers commit in the same session and are unaffected."
+  },
+  "function": "function:fn_80088714",
+  "id": "attempt.fn-80088714-hoisted-literal-rescreen.20260831.v2",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-08-31T05:56:16Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
