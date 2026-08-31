@@ -481,16 +481,11 @@ u32 mbBlitUpdateEntry(MBBLIT* b, u32 keepMask, u32 setBits) {
  * ===================================================================== */
 
 static inline int mbFindFreeBlitSlot(int count, int slot) {
-    int offset;
-    MBBLIT* entry;
-
-    offset = slot;
     for (; count > 0; count--) {
-        if (((entry = (MBBLIT*)(offset + (u8*)blitPool))->flags & 0x2) != 0) {
+        if ((blitPool[slot].flags & 0x2) != 0) {
             break;
         }
         slot++;
-        offset += sizeof(MBBLIT);
     }
     return slot;
 }
