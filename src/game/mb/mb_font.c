@@ -315,12 +315,8 @@ void MBRenderText(void)
     s32 extra;
     s32 doClip;
     s32 t;
-    f64 half;
-    f64 zsc;
-    f32 zsp;
     f32 clipX;
     f32 clipY;
-    f64 kdepth;
     f32* wp;
     char* text;
     s32 hb;
@@ -328,29 +324,27 @@ void MBRenderText(void)
     s32 glyph;
     s32 glyphValue;
     MBTextMsg* msg;
+    u32 ch;
 
     if (lbl_80344E28) {
         lbl_80344E28 = 0;
         return;
     }
     wp = *(f32**)(wg + 0x38);
-    sx = (s32)(lbl_80348B50 + lbl_80343EB4 * wp[0]);
-    sy = (s32)(lbl_80348B50 + lbl_80343EB4 * wp[1]);
+    sx = (s32)(0.5 + lbl_80343EB4 * wp[0]);
+    sy = (s32)(0.5 + lbl_80343EB4 * wp[1]);
     mbBlitGetPage();
-    half = lbl_80348B50;
-    kdepth = lbl_80348B70;
-    zsp = lbl_80348B58;
-    zsc = lbl_80348B60;
     pRec = e.rec;
     sx2 = sx << 1;
     sy2 = sy << 1;
     white = 0x80808080;
     do {
         for (i = 0; i < lbl_80344E20; i++) {
-            msg = &st->msgs[i];
-            if (msg->flags & 1) {
+            u8* p = (u8*)st + i * 44;
+            if (*(u32*)(p += 4300) & 1) {
                 continue;
             }
+            msg = (MBTextMsg*)p;
             if (msg->flags & 8) {
                 if (layer != 0) {
                     layer = 1;
@@ -374,18 +368,19 @@ void MBRenderText(void)
             ent->flags = msg->flags;
             {
                 s32 u = 1;
-                if (zsp == msg->xspace && zsc == msg->yspace) {
+                if (1.0f == msg->xspace && 1.0 == msg->yspace) {
                     u = 0;
                 }
                 doClip = u ? 1 : 0;
             }
             spaceW = (s32)(msg->xscale * (f32)st->space[t]);
             text = msg->text;
-            while ((c = *(u8*)text) != 0) {
+            while ((ch = *(u8*)text) != 0) {
                 y = baseY;
+                c = ch;
                 hb = -1;
                 extra = 0;
-                if (c == 0x2a) {
+                if ((s32)ch == 0x2a) {
                     switch ((u8)text[1]) {
                     case 'X':
                         hb = lbl_80344E48;
@@ -464,8 +459,7 @@ void MBRenderText(void)
                     y -= 2;
                     mbInitBlitEntry(ent, hb, 0);
                     mbBlitProject(ent, glyph, glyph);
-                    mbBlitSetupVerts(ent, lbl_80348B68, lbl_80348B58,
-                                     lbl_80348B68, lbl_80348B58);
+                    mbBlitSetupVerts(ent, 0.0f, 1.0f, 0.0f, 1.0f);
                     ent->color = white;
                     glyph -= 2;
                 } else {
@@ -477,11 +471,11 @@ void MBRenderText(void)
                 }
                 wp = *(f32**)(wg + 0x38);
                 *(s16*)(ent->rec + 4) =
-                    (s16)(s32)(half + (f32)x * wp[0]);
+                    (s16)(s32)(0.5 + (f32)x * wp[0]);
                 wp = *(f32**)(wg + 0x38);
                 *(s16*)(ent->rec + 6) =
-                    (s16)(s32)(half + (f32)y * wp[1]);
-                *(s32*)(ent->rec + 8) = (s32)(kdepth * msg->z);
+                    (s16)(s32)(0.5 + (f32)y * wp[1]);
+                *(s32*)(ent->rec + 8) = (s32)(32.0 * msg->z);
                 if (doClip) {
                     mbBlitCalcClip(ent, clipX, clipY);
                 }

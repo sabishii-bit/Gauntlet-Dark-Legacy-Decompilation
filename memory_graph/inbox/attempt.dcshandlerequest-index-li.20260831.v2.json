@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "case-17 entry li-vs-mr closure (target li r28,0/stw/li r31,0 vs ours zero-CSE mr): break the constant-0 CSE between output[0]=resultOffset=0 and index=0",
+  "attributes": {
+    "axis_log": "NEG u32 index = 0 declaration initializer: hoists ONE zero web to fn entry and CSEs 8 target lis away fn-wide, 405/411 real 364; NEG scoped #pragma opt_propagation off around impl+wrapper: mr survives, prologue lis moves, real 150; NEUTRAL for-loop init clause (index=0 in for-init): identical to while form; IMPROVED statement order swap (index=0 BEFORE output[0]=resultOffset=0): index owns li r31,0 matching target's li r31 exactly, chain zero becomes addi r30,r31,0 copy, real 146->144 KEPT (commit 3b73d91c9); NEG explicit-variable store (resultOffset=0; output[0]=resultOffset; index=0): back to mr form, real 146.",
+    "law_screen": "claim.law.chained-init-constant-share.20260829.v1 applied (explains the sharing; reverse direction needed here); claim.law.declaration-initializer-split-controls-entry-schedule screened -> decl-init probe; claim.law.fuzzy-can-underweight-a-real-improvement applied to arbitrate the kept result (see residual); core-screen list fetched.",
+    "laws_applied": "[\"claim.law.chained-init-constant-share.20260829.v1\", \"claim.law.fuzzy-can-underweight-a-real-improvement\"]",
+    "residual": "1 structural op: target materializes BOTH zeros (li r28 for the stored chain zero, li r31 for index) in one basic block; every probed C form lets MWCC CSE the second zero into a copy (mr or addi rX,rY,0). METRIC CONFLICT on the kept result, stated per policy: real 146->144 (better), objdiff fuzzy 99.0024->98.6618 (worse, the addi insertion displaces the stw one slot); kept per the recorded fuzzy-can-underweight law (fn is 411 insns, real arbitrates; integrator may re-arbitrate). Remaining recolor noise r28/r29/r30 rotation downstream of the cluster. TU flip blocked by this function alone (dcsInit/dcsMain 100%).",
+    "scope": "src/game/audio/dcsdrv.c case-17 entry statement order only (semantics identical)",
+    "verification": "probe.py loop, 5 probes measured, best banked and committed; full ninja green, main.dol OK post-commit; siblings unchanged"
+  },
+  "function": "function:dcsHandleRequest",
+  "id": "attempt.dcshandlerequest-index-li.20260831.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T03:39:40Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.dcshandlerequest.20260829.v1",
+  "valid_from": "2026-08-31"
+}

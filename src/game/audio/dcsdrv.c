@@ -263,8 +263,8 @@ static inline void dcsHandleRequestImpl(u32 request, s32* input, s32* output)
         break;
 
     case 17:
-        output[0] = resultOffset = 0;
         index = 0;
+        output[0] = resultOffset = 0;
         while (index < 32 && (opcode = input[index]) != 0) {
             switch (opcode) {
             case 0x55AA:
