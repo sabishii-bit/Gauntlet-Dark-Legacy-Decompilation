@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "defake",
+      "cse",
+      "register-web",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.arg-constant-switch-arms-defeat-literal-sweep.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:38:59Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A wide switch/if-else ladder whose arms each call the SAME function with floating-point CONSTANT arguments is the worst shape for the extern-literal sweep, and it regresses whichever half is converted. Target emits an independent pool load per arm (each arm's argument setup is local); once the values are literals MWCC pools them TU-wide and shares/hoists the loads across arms, re-coloring every arm. Verified in src/game/shop/shop.c::do_shopping_8009AA48 (870-insn buy/sell driver, ~40 `PlayerAddPowerup(pl, kind, mask, <fp>, <fp>)` arms): all 70 pool reads literalized -> real 831 -> 1039; the 43 NON-ZERO reads alone -> 1039 (identical); the 27 shared-zero `lbl_8034832C` reads alone -> 883. Every partition costs, so the whole cluster is a protected web and stays raw. The same shape at smaller scale cost real 372 -> 380 in write_shop_menu (5 DrawGlowText/DrawTextKeepScale scale arguments) and 628 -> 642 / 64 -> 74 / 125 -> 141 in do_shop / show_piles / show_gold. Screen: before sweeping a function, count its pool reads that appear as CALL ARGUMENTS in sibling arms of one control structure; if that is most of them, expect a regression and gate the function as a single unit rather than bisecting. The sweep's profitable shapes are instead (a) a large call-containing loop whose FP web the target hoists (claim.law.extern-scalar-read-defeats-fp-literal-hoist, ProcessEffects and MBDrawPsys) and (b) straight-line value assignments and compares-against-a-variable, which measure NEUTRAL and are kept as free de-fakematch debt reduction."
+}

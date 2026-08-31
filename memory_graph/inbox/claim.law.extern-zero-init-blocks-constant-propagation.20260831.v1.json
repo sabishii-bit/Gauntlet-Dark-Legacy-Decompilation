@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "defake",
+      "register-web",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.extern-zero-init-blocks-constant-propagation.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:38:49Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A local initialized from an `extern f32 lbl_*` pool read (`f32 est = lbl_80349154;`) is NOT a constant to MWCC: the value arrives from memory, so copy/constant propagation cannot fold it into the local's downstream uses and the local keeps a real register/stack home. Spelling the same initializer as a literal (`f32 est = 0.0f;`) hands MWCC a compile-time constant that it propagates into every use and then deletes the stores - which is a REGRESSION whenever the target kept the loads. Verified in src/game/mb/mb_particle.c::setupNewPMode_800CDCE4 (a park revisited on the new extern-literal axis): converting the two function-head initializers `f32 est = lbl_80349154; f32 pl = lbl_80349154;` to `0.0f` moved insns 663 -> 661 AWAY from target's 669 and real 650 -> 706; the extern spelling was restored and re-measured at 650/663. This is the mirror of claim.law.extern-scalar-read-defeats-fp-literal-hoist: that law says an extern read wrongly BLOCKS a hoist the target performed; this one says an extern read correctly BLOCKS a propagation the target did not perform. Both are the same mechanism (extern read = opaque memory load) with opposite sign, so neither direction is a safe default - the sweep must be A/B'd per region, and a function-head zero-initialized local is the highest-risk shape to convert."
+}

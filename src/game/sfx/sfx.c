@@ -765,10 +765,7 @@ extern f64 Random(f32 range);
 extern f32 lbl_80127D20[3];     /* bag launch direction */
 extern f64 lbl_80348078;
 extern f32 lbl_80348068;
-extern f32 lbl_803480F8;
 extern f32 lbl_803480A0;
-extern f32 lbl_80348100;
-extern f32 lbl_80348104;
 extern f64 lbl_803480E0;
 extern f32 lbl_803480FC;
 
@@ -789,21 +786,21 @@ s32 StartBagFX(f32* pos, struct item* item, f32 scale)
     volatile f32 pyr[3];
     u8 _lo[24];
 
-    if (scale <= lbl_80348078) {
-        scale = lbl_80348100;
+    if (scale <= 0.0) {
+        scale = 20.0f;
     }
     v[0] = lbl_80127D20[0] * scale;
     v[1] = lbl_80127D20[1] * scale;
     v[2] = lbl_80127D20[2] * scale;
-    pyr[0] = (f32)(lbl_803480E0 + Random(lbl_80348104));
-    pyr[1] = lbl_80348068;
-    pyr[2] = lbl_80348068;
+    pyr[0] = (f32)(0.26179938783333334 + Random(1.0471975803375244f));
+    pyr[1] = 0.0f;
+    pyr[2] = 0.0f;
     ret = -1;
     {
         EffectHeader* hdr = &page->info[68];
         struct atreeheader* at;
         if ((at = hdr->atree) != NULL) {
-            ret = StartFXTree(at, pos, 0x200004, 0, lbl_803480F8);
+            ret = StartFXTree(at, pos, 0x200004, 0, 3.0f);
         if (ret >= 0) {
             ro = ret * 240;
             MBTreeSetZsortAdd(page->fx[ret].node, hdr->zmod, 1);
@@ -953,7 +950,6 @@ s32 StartLevelUpFX(f32* pos, s32 color)
     return StartFXSubGuts(lbl_80122E60[color], pos, 0, 0x880800, 0.0f);
 }
 
-extern f64 lbl_80348108;
 /* typed view of the magic FX def table at lbl_80122088: MWCC emits the
  * member-array accesses as add(base,scaled-index) + member-offset
  * displacement, which raw byte math refuses to produce */
@@ -988,14 +984,10 @@ typedef struct MagicView {
     u8 _p5[16];
     f32 pyr[3];         /* +3600 throw pyr velocity        */
 } MagicView;
-extern f32 lbl_803480F8;
 extern f32 lbl_80348068;
 extern f64 lbl_80348078;
 extern f32 lbl_803480A0;
-extern f64 lbl_80348110;
 void SfxSetPhysics(s32 idx, f32* a, f32* b, f32 x, f32 y);
-extern f64 lbl_80348118;
-extern f64 lbl_80348120;
 
 /* 0x80092794 StartShieldFX -- spawn the shield magic fx for a player and
  * scale its size/damage/light from the cast size. */
@@ -1016,21 +1008,21 @@ s32 StartShieldFX(f32* pos, s32 type, s32 player, f32 dmg, f32 size)
     Effect* e;
     u8 _spare[24];
 
-    rad = (f32)(lbl_80348108 * size);
+    rad = (f32)(0.08333333333333333 * size);
     ret = StartFXSub(tbl->shieldid[type & 0xF], pos, 314, 0x800,
-                     lbl_803480F8);
+                     3.0f);
     if (ret < 0) {
         ret = -1;
     } else {
-        SfxSetPhysics(ret, (f32*)0, (f32*)0, lbl_80348068, lbl_80348068);
+        SfxSetPhysics(ret, (f32*)0, (f32*)0, 0.0f, 0.0f);
         page->fx[ret].fxhit = 0;
         page->fx[ret].hit_audio = 0;
         page->fx[ret].wall_sound = 0;
     }
     if (ret >= 0) {
         Effect* e = &page->fx[ret];
-        e->weight = lbl_80348068;
-        if (size >= lbl_80348078) {
+        e->weight = 0.0f;
+        if (size >= 0.0) {
             e->colrad = size;
         }
     }
@@ -1043,13 +1035,13 @@ s32 StartShieldFX(f32* pos, s32 type, s32 player, f32 dmg, f32 size)
         e->damage = dmg;
         e->damagetype = (DMG_TYPE)fl;
         e->damageradius = size;
-        e->damagedelay = lbl_80348068;
+        e->damagedelay = 0.0f;
         e->owner = player + 1;
     }
-    if (rad < lbl_80348110) {
-        t = lbl_80348110;
-    } else if (rad > lbl_80348118) {
-        t = lbl_80348118;
+    if (rad < 0.33) {
+        t = 0.33;
+    } else if (rad > 1.0) {
+        t = 1.0;
     } else {
         t = rad;
     }
@@ -1061,7 +1053,7 @@ s32 StartShieldFX(f32* pos, s32 type, s32 player, f32 dmg, f32 size)
     if (nd != NULL) {
         MBTreeSetFlags(nd, 8, 0);
         e->node->scale[0] = rad;
-        e->node->scale[1] = lbl_803480A0;
+        e->node->scale[1] = 1.0f;
         e->node->scale[2] = rad;
     }
     MBTreeSetFlags(*(struct mbnode**)((u32)page + ret * 240 + 2996), 0x90800, 1);
@@ -1069,7 +1061,7 @@ s32 StartShieldFX(f32* pos, s32 type, s32 player, f32 dmg, f32 size)
     cp3 = tbl->colors[cp];
     if (ret >= 0) {
         u8* e4 = (u8*)page + ro;
-        ((EffectPage*)e4)->fx[0].lightrad = (f32)(lbl_80348120 * size);
+        ((EffectPage*)e4)->fx[0].lightrad = (f32)(1.5 * size);
         if (cp3 != NULL) {
             e->lightcolor[0] = cp3[0];
             ((EffectPage*)e4)->fx[0].lightcolor[1] = cp3[1];
@@ -1123,10 +1115,6 @@ s32 StartMagicPlayerFX(f32* pos)
 
 
 extern char lbl_80114790[];     /* "Bad throw effect" fmt */
-extern f64 lbl_80348128;
-extern f64 lbl_80348118;
-extern f64 lbl_80348120;
-extern f32 lbl_80348130;
 extern f32 lbl_80348134;
 
 /* throw-specialized guts clone: time constant lives inside the body so its
@@ -1142,7 +1130,7 @@ static s32 StartThrowGutsX(EffectPage* page, s32 type, f32* pos)
         return -1;
     }
     h = &page->info[type];
-    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0x20010E, 0x800, lbl_80348130)) >= 0) {
+    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, 0x20010E, 0x800, 0.667f)) >= 0) {
         MBTreeSetZsortAdd(page->fx[idx].node, h->zmod, 1);
         MBTreeSetAlpha(page->fx[idx].node, h->alpha, 1);
         page->fx[idx].type = (fx_type)type;
@@ -1178,9 +1166,9 @@ s32 StartThrowMagicFX(f32* pos, f32* vel, s32 type, s32 player, s32 snd,
     u8* ep;
     u8* e4;
 
-    rad = (f32)(lbl_80348128 * sz);
-    if (rad > lbl_80348118) {
-        rad = lbl_803480A0;
+    rad = (f32)(0.03125 * sz);
+    if (rad > 1.0) {
+        rad = 1.0f;
     }
     t4 = type & 0xF;
     ret = StartThrowGutsX(page, tbl->throwid[type & 0xF], pos);
@@ -1204,10 +1192,10 @@ s32 StartThrowMagicFX(f32* pos, f32* vel, s32 type, s32 player, s32 snd,
             e->pyrvel[1] = tbl->pyr[1];
             e->pyrvel[2] = tbl->pyr[2];
         }
-        if (weight >= lbl_80348078) {
+        if (weight >= 0.0) {
             e->weight = weight;
         }
-        e->colrad = lbl_80348134;
+        e->colrad = 0.5f;
     }
     fxh = tbl->magicid[t4];
     if (ret >= 0) {
@@ -1228,7 +1216,7 @@ s32 StartThrowMagicFX(f32* pos, f32* vel, s32 type, s32 player, s32 snd,
         e->damage = dmg;
         e->damagetype = (DMG_TYPE)fl;
         e->damageradius = sz;
-        e->damagedelay = lbl_80348068;
+        e->damagedelay = 0.0f;
         e->owner = player + 1;
     }
     page->fx[ret].hitscale = rad;
@@ -1238,7 +1226,7 @@ s32 StartThrowMagicFX(f32* pos, f32* vel, s32 type, s32 player, s32 snd,
     cp3 = (f32*)(e4 + 24);
     if (ret >= 0) {
         e4 = (u8*)page + ret * 240;
-        *(f32*)(e4 + 2992) = (f32)(lbl_80348120 * sz);
+        *(f32*)(e4 + 2992) = (f32)(1.5 * sz);
         if (cp3 != NULL) {
             *(f32*)(e4 + 2976) = cp3[0];
             *(f32*)(e4 + 2980) = cp3[1];
@@ -1482,9 +1470,9 @@ s32 SuicideExplosion(f32* pos, f32 dmg)
 }
 #pragma opt_propagation reset
 
+extern f32 lbl_803480FC;        /* death power preset */
 extern f64 lbl_803480F0;        /* death launch velocity factor */
 extern f32 lbl_803480F8;        /* death timer preset */
-extern f32 lbl_803480FC;        /* death power preset */
 extern void MBTreeSetZsortAdd(struct mbnode* node, s32 v, s32 a);
 extern void MBTreeSetAlpha(struct mbnode* node, s32 v, s32 a);
 
@@ -1571,10 +1559,7 @@ done:
 #pragma opt_propagation reset
 
 
-extern f64 lbl_80348128;        /* magic scale factor */
-extern f64 lbl_80348118;        /* magic scale cap test */
 extern f32 lbl_803480A0;        /* magic scale cap */
-extern f64 lbl_80348120;        /* light radius factor */
 void SfxSetPhysics(s32 idx, f32* a, f32* b, f32 x, f32 y);
 
 s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
@@ -1591,7 +1576,7 @@ s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
     s32 ci;
 
     low = tf & 15;
-    s = (f32)(lbl_80348128 * scale);
+    s = (f32)(0.03125 * scale);
     idx = StartFXSub((&tab[tf & 15])[871], pos, 298, 2048, 0.0f);
     if (idx < 0) {
         idx = -1;
@@ -1603,8 +1588,8 @@ s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
         ((EffectPage*)e)->fx[0].wall_sound = 0;
     }
     SetMagicParams(base, idx, tf, power, scale, owner);
-    if (s > lbl_80348118) {
-        s = lbl_803480A0;
+    if (s > 1.0) {
+        s = 1.0f;
     }
     owner = idx * 240;
     ef = (Effect*)(base + owner);
@@ -1620,7 +1605,7 @@ s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
     col = (f32*)&(&tab[ci * 3])[6];
     if (idx >= 0) {
         e = base + owner;
-        ((EffectPage*)e)->fx[0].lightrad = (f32)(lbl_80348120 * scale);
+        ((EffectPage*)e)->fx[0].lightrad = (f32)(1.5 * scale);
         if (col != 0) {
             ef->lightcolor[0] = col[0];
             ((EffectPage*)e)->fx[0].lightcolor[1] = col[1];
@@ -1638,15 +1623,6 @@ extern f32 lbl_80348158;
 extern f64 lbl_80348160;
 extern f32 lbl_80348168;
 extern f32 lbl_8034816C;
-extern f32 lbl_80348170;
-extern f32 lbl_80348174;
-extern f32 lbl_80348178;
-extern f64 lbl_80348180;
-extern f64 lbl_80348188;
-extern f64 lbl_80348190;
-extern f32 lbl_80348198;
-extern f64 lbl_803481A0;
-extern f32 lbl_803481A8;
 extern f32 lbl_80127D40[3];
 extern f32 lbl_80127D50[3];
 extern void YawVec3(void* axis, f32* out, f32 angle);
@@ -1808,12 +1784,12 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
         break;
     }
     case 23:
-        rad = lbl_80348170;
+        rad = 4.0f;
         fl = 17;
         break;
     case 25: {
         ro = ret * 240;
-        rad = lbl_80348174;
+        rad = 6.5f;
         fl = 2048;
         if (ret >= 0) {
             u8* mp = (u8*)page;
@@ -1823,7 +1799,7 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
             e->fxmorph = 26;
             e->fxmorph2 = 27;
             e->flags |= 0x4000;
-            e->morphtime = lbl_80348170;
+            e->morphtime = 4.0f;
         }
         {
             u8* ep = (u8*)page;
@@ -1833,7 +1809,7 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
             if ((nd = *(struct mbnode**)(ep + 2996)) != NULL) {
                 f32 k1;
                 MBTreeSetFlags(nd, 8, 0);
-                k1 = lbl_80348178;
+                k1 = 3.5f;
                 e->node->scale[0] = k1;
                 e->node->scale[1] = lbl_803480A0;
                 e->node->scale[2] = k1;
@@ -1844,7 +1820,7 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
     }
     if ((fl & 1) && ret >= 0) {
         u8* e4 = (u8*)page + ret * 240;
-        ((EffectPage*)e4)->fx[0].lightrad = (f32)(lbl_80348150 * rad);
+        ((EffectPage*)e4)->fx[0].lightrad = (f32)(2.0 * rad);
         if (tbl->colors[0] != NULL) {
             ((EffectPage*)e4)->fx[0].lightcolor[0] = tbl->colors[0][0];
             ((EffectPage*)e4)->fx[0].lightcolor[1] = tbl->colors[0][1];
@@ -1857,16 +1833,16 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
     }
     SetMagicParams((u8*)page, ret, fl, dmg, rad, -1);
     if (sMusicTrackHi == 10 && type == 24) {
-        f32 dr = lbl_80348144;
-        f64 kA = lbl_80348180;
-        f64 kB = lbl_80348188;
-        f64 kC = lbl_80348190;
-        f64 kD = lbl_803481A0;
+        f32 dr = 6.0f;
+        f64 kA = 0.6;
+        f64 kB = 6.0;
+        f64 kC = -3.141592654;
+        f64 kD = 1.0471975513333334;
         for (i = 0; i < 3; i++) {
-            f32 ft = (f32)(kA + Random(lbl_80348134));
-            f32 fs = (f32)(kB + Random(lbl_803480F8));
-            f32 fy = (f32)(kC + Random(lbl_80348198));
-            f32 fp = (f32)(kD + Random(lbl_803481A8));
+            f32 ft = (f32)(kA + Random(0.5f));
+            f32 fs = (f32)(kB + Random(3.0f));
+            f32 fy = (f32)(kC + Random(6.2831854820251465f));
+            f32 fp = (f32)(kD + Random(0.5235987901687622f));
             s32 d;
             YawVec3(lbl_80127D40, v, fy);
             PitchVec3(v, v, -fp);
@@ -1877,7 +1853,7 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
             if (d < 0) {
                 d = -1;
             } else {
-                SfxSetPhysics(d, v, (f32*)0, lbl_80348068, lbl_80348068);
+                SfxSetPhysics(d, v, (f32*)0, 0.0f, 0.0f);
                 page->fx[d].fxhit = -1;
                 page->fx[d].hit_audio = -1;
                 page->fx[d].wall_sound = -1;
@@ -1886,7 +1862,7 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
                 page->fx[d].damageradius = dr;
                 page->fx[d].hitcount = 180;
                 MBPsysFlame(0, page->fx[d].node, lbl_80127D50, ft,
-                            lbl_80348134, lbl_8034813C);
+                            0.5f, 2.0f);
             }
         }
     }
@@ -1915,7 +1891,7 @@ s32 fn_80093918(s32 idx, s32 player, f32* pos, f32* vec, f32 scale, f32 spd,
     f32* cp3;
     volatile f32 v[3];
 
-    ret = StartFXTree(FamiliarSpit[idx], pos, 0x101000E, 0x880, lbl_803480F8);
+    ret = StartFXTree(FamiliarSpit[idx], pos, 0x101000E, 0x880, 3.0f);
     if (ret < 0) {
         return -1;
     }
@@ -1931,10 +1907,10 @@ s32 fn_80093918(s32 idx, s32 player, f32* pos, f32* vec, f32 scale, f32 spd,
         if (e->node != NULL) {
             YawMat3(e->node, yaw);
         }
-        if (h >= lbl_80348078) {
+        if (h >= 0.0) {
             e->weight = h;
         }
-        e->colrad = lbl_803480A0;
+        e->colrad = 1.0f;
     }
     flags = tbl->fxflags[idx];
     if (ret >= 0) {
@@ -1943,7 +1919,7 @@ s32 fn_80093918(s32 idx, s32 player, f32* pos, f32* vec, f32 scale, f32 spd,
         if ((s32)(flags & 0xF) >= 5) {
             flags &= ~0xC;
         }
-        k = lbl_80348068;
+        k = 0.0f;
         e->damage = spd;
         e->damagetype = (DMG_TYPE)flags;
         e->damageradius = k;
@@ -1955,7 +1931,7 @@ s32 fn_80093918(s32 idx, s32 player, f32* pos, f32* vec, f32 scale, f32 spd,
     cp3 = tbl->colors[cp];
     if (idx >= 0) {
         u8* e3 = fx + idx * 240;
-        *(f32*)(e3 + 2992) = lbl_803480F8;
+        *(f32*)(e3 + 2992) = 3.0f;
         if (cp3 != NULL) {
             *(f32*)(e3 + 2976) = cp3[0];
             *(f32*)(e3 + 2980) = cp3[1];
@@ -2217,7 +2193,6 @@ s32 fn_80094440(f32* pos, u32 idx, s32 which)
     return ret;
 }
 
-extern f64 lbl_80348060;
 extern f64 lbl_803480B0;
 extern s32 lbl_8034482C;
 extern s32 lbl_80344BD0;
@@ -2484,26 +2459,14 @@ extern void fn_8009C9DC(s32 mode, f32* position);
 extern u8 gEnemies[];
 extern s32 lbl_8034466C;
 extern f32 sMusicFadeBase;
-extern f32 lbl_80348100;
-extern f32 lbl_80348250;
 extern f32 lbl_80343DF4;
 extern f32 lbl_80343DF8;
 extern f64 lbl_80348098;
 extern f64 lbl_803480A8;
 extern f64 lbl_803480B0;
-extern f64 lbl_80348110;
-extern f64 lbl_80348120;
 extern f32 lbl_8034813C;
 extern f64 lbl_80348150;
 extern f64 lbl_80348160;
-extern f64 lbl_803481C0;
-extern f32 lbl_803481C8;
-extern f64 lbl_803481D0;
-extern f64 lbl_803481D8;
-extern f32 lbl_803481E0;
-extern f32 lbl_80348210;
-extern f32 lbl_80348240;
-extern f32 lbl_80348244;
 extern u8 lbl_8023CA98[];
 extern u8 lbl_8023CB28[];
 
