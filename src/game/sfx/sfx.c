@@ -2838,11 +2838,9 @@ void ProcessEffects(void)
         }
         if (e->dmgdebug != NULL && (e->flags & 0x20)) {
             f32 scale = (f32)(0.01 * radius);
+            f32 mid = e->mindp <= -1.0 ? scale : (f32)(0.5 * scale);
             e->dmgdebug->scale[0] = scale;
-            e->dmgdebug->scale[1] =
-                e->mindp <= -1.0
-                    ? scale
-                    : (f32)(0.5 * scale);
+            e->dmgdebug->scale[1] = mid;
             e->dmgdebug->scale[2] = scale;
         }
         if (e->fxfade > 0.0 && e->fxhit <= 0 && remaining < e->fxfade) {
