@@ -3,6 +3,14 @@
 #include "game/dyngrid.h"
 #include "game/leveldata.h"
 #include "game/mbobject.h"
+#include "game/player.h"
+/* game/item.h is deliberately NOT included: it declares `extern Item* sItems;`
+ * while this TU declares its own `extern u8* sItems;` (line ~1434), so pulling
+ * the header in forces a whole-TU retype of every sItems walk.  That retype is
+ * governed by claim.law.noop-cast-on-array-decay-not-neutral (the neutralising
+ * `(u8*)` cast is not free) and is not worth the risk here for six sites, so
+ * the item / lookout / milestone record offsets below are spelled as named
+ * constants that quote item.h's layout instead. */
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -398,6 +406,34 @@ extern f64 lbl_803468B8;        /* 3.0 */
 extern f32 lbl_80346984;        /* 0.1745329f milestone turn */
 extern u8 lbl_8011AF48[];       /* enemy.c .data anchor (turn tables at +4444/+4412...) */
 extern f64 lbl_80346948;        /* 4.0 */
+
+/* ----------------------------------------------------------------------------
+ * Per-enemy-type attribute tables inside the lbl_8011AF48 .data blob.
+ *
+ * The blob holds a structure-of-arrays block: a run of parallel 34-entry f32
+ * arrays, each indexed by the enemy's e_e_tpye, so a lookup is always
+ * `*(f32*)(lbl_8011AF48 + type * 4 + <array base>)`.  The array bases below are
+ * named from what each value is stored into at its consumers; the raw
+ * displacements stay inside a single additive expression per
+ * claim.law.offsetof-rename-preserves-protected-web (respelling the constant is
+ * neutral, restructuring the expression is not - see init_enemy).
+ *
+ * Evidence:
+ *   +1808 (elem 452) -> Enemy.hht     via gamemain.c init_enemy_vars
+ *   +1944 (elem 486) -> Enemy.rad     via gamemain.c init_enemy_vars
+ *   +2080 (elem 520) -> Enemy.attn_offset[1]  (init_enemy, `lfs f0,2080(r8)`)
+ *   +2216 (elem 554) -> Enemy.coll_offset[1]  (init_enemy, `lfs f0,2216(r8)`)
+ *   +2760 (elem 690) -> base health, scaled by gCurLevel->ene_health in BOTH
+ *                       init_enemy (`lfs f31,2760(r3)`) and init_enemy_vars,
+ *                       which reads the identical element as ((f32*)row)[690].
+ * The 136-byte (34-element) spacing between consecutive bases is what makes the
+ * SoA reading concrete; see
+ * claim.law.table-lookup-pre-keyed-on-segment-cast-repetition for why the
+ * addressing form here is not source-shape-controllable at every site.
+ * -------------------------------------------------------------------------- */
+#define ETYPE_ATTN_Y      2080 /* f32[34] attention-point height per type */
+#define ETYPE_COLL_Y      2216 /* f32[34] collision-point height per type */
+#define ETYPE_BASE_HEALTH 2760 /* f32[34] unscaled hit points per type    */
 
 void do_enemy_move(s32 index)
 {
@@ -899,7 +935,7 @@ s32 do_enemy_collide(s32 index, f32 retryThreshold)
     (void)unused;
 
     e0 = pool + index * 916;
-    type = *(s32*)(e0 += 3608);
+    type = *(s32*)(e0 += ENEMY_POOL_OFF);
     e = e0;
     enemy = (Enemy*)e0;
     tr = enemy->trans;
@@ -1415,6 +1451,28 @@ extern u8 sLookoutParams[];     /* 0x802584A8 prowl-node table (stride 0x6C) */
 extern s32 sNumLookoutParams;      /* 0x80344900 prowl-node count */
 extern u8 sMilestones[];     /* 0x8025B604 milestone-node table (stride 0x68) */
 extern s32 sNumMilestones;      /* 0x8034491C milestone-node count */
+
+/* Field displacements into the two world-node tables above.  Both records are
+ * owned by items.c, so this TU quotes their layouts rather than redefining the
+ * structs (a second, divergent copy of a record is the failure mode
+ * claim.law.swap-loop-is-record-layout-ground-truth was written about):
+ *   LookoutParam  include/game/item.h, 0x6C  - pos[3] @0x30, next @0x68
+ *   MilestoneParam src/game/world/items.c, 0x68 - matrix[16] @0x00, so the
+ *                  world translation row matrix[12..14] lands at 0x30..0x38.
+ * The walked pointers keep their `base + LITERAL` shape on purpose:
+ * claim.law.offsetof-fused-immediate-counter records that rewriting exactly
+ * these milestone matrix[12/13/14] reads into array-of-struct indexing costs
+ * the fused displacement (items.c update_player_milestone, real 46 -> 89). */
+#define LOOKOUT_POS_X    0x30
+#define LOOKOUT_POS_Y    0x34
+#define LOOKOUT_POS_Z    0x38
+#define LOOKOUT_NEXT     0x68
+#define MILESTONE_POS_X  0x30
+#define MILESTONE_POS_Y  0x34
+#define MILESTONE_POS_Z  0x38
+/* Item record (include/game/item.h, 0xF0): active @0xC4, minoff @0xCD. */
+#define ITEM_ACTIVE      0xC4
+#define ITEM_MINOFF      0xCD
 extern void GetMilestonePos(s32 idx, f32* out);  /* 0x80066054 */
 extern s32 fn_800511D0(s32 idx, f32 turn);        /* 0x800511D0 next-node picker */
 
@@ -2282,7 +2340,7 @@ void move_logic05(s32 index)
     u8 _pad05[56];
 
     e0 = (u8*)page + index * 916;
-    type = *(s32*)(e0 += 3608);
+    type = *(s32*)(e0 += ENEMY_POOL_OFF);
     e = (Enemy*)e0;
     dist = e->rad;
     speed = page->speed[type];
@@ -2405,7 +2463,7 @@ void move_logic06(s32 index)
     u8 _pad06[56];
 
     e0 = (u8*)page + index * 916;
-    type = *(s32*)(e0 += 3608);
+    type = *(s32*)(e0 += ENEMY_POOL_OFF);
     e = (Enemy*)e0;
     dist = e->rad;
     speed = page->speed[type];
@@ -2533,8 +2591,8 @@ void move_logic07(s32 index)
     u8 unusedB[16];
 
     e0 = (u8*)page + index * 916;
-    type = *(s32*)(e0 + 3608);
-    e0 += 3608;
+    type = *(s32*)(e0 + OFF_E(type));
+    e0 += ENEMY_POOL_OFF;
     e = (Enemy*)(u8*)e0;
     speed = page->speed[type];
     if (it < 0) {
@@ -2696,8 +2754,8 @@ void move_logic08(s32 index)
     u8 unusedB[16];
 
     e0 = (u8*)page + index * 916;
-    type = *(s32*)(e0 + 3608);
-    e0 += 3608;
+    type = *(s32*)(e0 + OFF_E(type));
+    e0 += ENEMY_POOL_OFF;
     e = (Enemy*)(u8*)e0;
     speed = page->speed[type];
     if (it < 0) {
@@ -2776,8 +2834,8 @@ void move_logic08(s32 index)
             s32 valid;
             if (ip == 0) {
                 valid = 0;
-            } else if (*(s16*)(ip + 196) == -1 || **(s32**)ip != 2
-                       || *(s8*)(ip + 205) != 0) {
+            } else if (*(s16*)(ip + ITEM_ACTIVE) == -1 || **(s32**)ip != 2
+                       || *(s8*)(ip + ITEM_MINOFF) != 0) {
                 valid = 0;
             } else {
                 valid = -1;
@@ -2900,12 +2958,12 @@ void move_logic10(s32 index)
     u8* t;
     u8* other;
 
-    type = *(s32*)(e0 + 3608);
-    e = (Enemy*)(e0 + 3608);
-    e0 += 3608;
+    type = *(s32*)(e0 + OFF_E(type));
+    e = (Enemy*)(e0 + ENEMY_POOL_OFF);
+    e0 += ENEMY_POOL_OFF;
     t = base;
     t += type * 4;
-    speed = *(f32*)(t + 64);
+    speed = *(f32*)(t + offsetof(EnemyMovePage05, speed));
     if (it < 0) {
         flee = 0;
     } else {
@@ -3526,8 +3584,8 @@ void move_logic12(s32 index)
 
     p = base + index * 916;
     it = lbl_80344748;
-    gen = *(struct item**)(p + 4264);
-    p += 3608;
+    gen = *(struct item**)(p + OFF_E(generator));
+    p += ENEMY_POOL_OFF;
     e = (Enemy*)(u8*)p;
     if (it < 0) {
         flee = 0;
@@ -3535,14 +3593,19 @@ void move_logic12(s32 index)
         u8* other = base + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(p + 768)) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) >
+                   *(f32*)(p + offsetof(Enemy, sight))) {
             flee = 0;
-        } else if (index == it || *(s16*)(p + 728) != 0 || *(s32*)(p + 856) > 0) {
+        } else if (index == it || *(s16*)(p + offsetof(Enemy, birth_style)) != 0 ||
+                   *(s32*)(p + offsetof(Enemy, dead_end)) > 0) {
             goto flee_zero;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(p + 52);
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(p + 56);
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(p + 60);
+            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) -
+                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][0]));
+            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) -
+                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][1]));
+            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) -
+                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][2]));
             if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
@@ -3621,8 +3684,8 @@ void move_logic13(s32 index)
 
     p = base + index * 916;
     it = lbl_80344748;
-    gen = *(struct item**)(p + 4264);
-    p += 3608;
+    gen = *(struct item**)(p + OFF_E(generator));
+    p += ENEMY_POOL_OFF;
     e = (Enemy*)(u8*)p;
     if (it < 0) {
         flee = 0;
@@ -3630,14 +3693,19 @@ void move_logic13(s32 index)
         u8* other = base + it * 916;
         if (*(s32*)(other + OFF_E(state)) != ACTIVE) {
             flee = 0;
-        } else if (*(f32*)(other + OFF_E(actual_dist)) > *(f32*)(p + 768)) {
+        } else if (*(f32*)(other + OFF_E(actual_dist)) >
+                   *(f32*)(p + offsetof(Enemy, sight))) {
             flee = 0;
-        } else if (index == it || *(s16*)(p + 728) != 0 || *(s32*)(p + 856) > 0) {
+        } else if (index == it || *(s16*)(p + offsetof(Enemy, birth_style)) != 0 ||
+                   *(s32*)(p + offsetof(Enemy, dead_end)) > 0) {
             goto flee_zero13;
         } else {
-            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) - *(f32*)(p + 52);
-            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) - *(f32*)(p + 56);
-            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) - *(f32*)(p + 60);
+            f32 dx = *(f32*)(other + OFF_E(objgrp.worldmat[3][0])) -
+                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][0]));
+            f32 dy = *(f32*)(other + OFF_E(objgrp.worldmat[3][1])) -
+                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][1]));
+            f32 dz = *(f32*)(other + OFF_E(objgrp.worldmat[3][2])) -
+                     *(f32*)(p + offsetof(Enemy, objgrp.worldmat[3][2]));
             if (dx * dx + dy * dy + dz * dz < lbl_803468D8) {
                 flee = -1;
             } else {
@@ -3939,10 +4007,10 @@ void move_logic15(s32 index)
         f32 ez = e->objgrp.worldmat[3][2];
 
         for (i = 0; i < sNumLookoutParams; i++, n += 108) {
-            if (*(s16*)(n + 104) >= 0) {
-                f32 dx = *(f32*)(n + 48) - ex;
-                f32 dy = *(f32*)(n + 52) - ey;
-                f32 dz = *(f32*)(n + 56) - ez;
+            if (*(s16*)(n + LOOKOUT_NEXT) >= 0) {
+                f32 dx = *(f32*)(n + LOOKOUT_POS_X) - ex;
+                f32 dy = *(f32*)(n + LOOKOUT_POS_Y) - ey;
+                f32 dz = *(f32*)(n + LOOKOUT_POS_Z) - ez;
                 if ((d = dx * dx + dy * dy + dz * dz) > thresh) {
                     volatile f32 tmp;
                     f64 y = __frsqrte(d);
@@ -3967,14 +4035,14 @@ void move_logic15(s32 index)
         f32 dx;
         f32 dz;
 
-        e->ang = get_yaw((f32*)(n + 48), &e->objgrp.worldmat[3][0]);
-        dy = *(f32*)(n + 52) - e->objgrp.worldmat[3][1];
-        dx = *(f32*)(n + 48) - e->objgrp.worldmat[3][0];
-        dz = *(f32*)(n + 56) - e->objgrp.worldmat[3][2];
+        e->ang = get_yaw((f32*)(n + LOOKOUT_POS_X), &e->objgrp.worldmat[3][0]);
+        dy = *(f32*)(n + LOOKOUT_POS_Y) - e->objgrp.worldmat[3][1];
+        dx = *(f32*)(n + LOOKOUT_POS_X) - e->objgrp.worldmat[3][0];
+        dz = *(f32*)(n + LOOKOUT_POS_Z) - e->objgrp.worldmat[3][2];
         ady = dy;
         *(u32*)&ady &= 0x7FFFFFFF;
         if (ady < lbl_80346948 && fqdist(dx, dz) < lbl_80346810) {
-            e->flag1 = *(s16*)(n + 104);
+            e->flag1 = *(s16*)(n + LOOKOUT_NEXT);
         }
         break;
     }
@@ -4063,7 +4131,8 @@ void move_logic16(s32 index)
     s16 c16 = e->closest;
     if (c16 >= 0) {
         u8* gp = (u8*)&gPlayers + c16 * 13148;
-        f32 dvert = e->objgrp.worldmat[3][1] - *(f32*)(gp + 72);
+        f32 dvert = e->objgrp.worldmat[3][1] -
+                    *(f32*)(gp + offsetof(Player, pos[1]));
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 0.6 * e->sight) {
@@ -4573,9 +4642,9 @@ void move_logic22(s32 index)
 
         for (node = sMilestones, i = 0; i < sNumMilestones;
              i++, node += 104) {
-            f32 dx = e->objgrp.worldmat[3][0] - *(f32*)(node + 48);
-            f32 dy = e->objgrp.worldmat[3][1] - *(f32*)(node + 52);
-            f32 dz = e->objgrp.worldmat[3][2] - *(f32*)(node + 56);
+            f32 dx = e->objgrp.worldmat[3][0] - *(f32*)(node + MILESTONE_POS_X);
+            f32 dy = e->objgrp.worldmat[3][1] - *(f32*)(node + MILESTONE_POS_Y);
+            f32 dz = e->objgrp.worldmat[3][2] - *(f32*)(node + MILESTONE_POS_Z);
             f32 d;
             if ((d = dx * dx + dy * dy + dz * dz) > lbl_80346820) {
                 f64 y = __frsqrte(d);
@@ -4597,8 +4666,8 @@ void move_logic22(s32 index)
     }
     default: {
         u8* node = sMilestones + e->flag1 * 104;
-        f32 dist = fqdist(*(f32*)(node + 48) - e->objgrp.worldmat[3][0],
-                          *(f32*)(node + 56) - e->objgrp.worldmat[3][2]);
+        f32 dist = fqdist(*(f32*)(node + MILESTONE_POS_X) - e->objgrp.worldmat[3][0],
+                          *(f32*)(node + MILESTONE_POS_Z) - e->objgrp.worldmat[3][2]);
         if (dist <= lbl_80346838) {
             s32 old = e->flag1;
             e->flag1 = fn_800511D0(old, lbl_80346984);
@@ -4853,7 +4922,8 @@ void move_logic29(s32 index)
     s16 c29 = e->closest;
     if (c29 >= 0) {
         u8* gp = (u8*)&gPlayers + c29 * 13148;
-        f32 dvert = e->objgrp.worldmat[3][1] - *(f32*)(gp + 72);
+        f32 dvert = e->objgrp.worldmat[3][1] -
+                    *(f32*)(gp + offsetof(Player, pos[1]));
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 8.0) {
@@ -5321,19 +5391,24 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         f32 upper = (f32)(lbl_80346A30 * threshold);
         f32 lower = (f32)(lbl_80346A28 * threshold);
 
-        if (e->health > upper) {
-            goto store_fight;
-        }
-        if (e->type == E_DEATH) {
-            goto store_fight;
-        }
-        if (e->health > lower) {
-            fight = (f32)(lbl_80346A30 * fight);
-        } else {
-            fight = (f32)(lbl_80346A28 * fight);
+        /* Goto-free guard form, kept for readability AND score.  It replaced a
+         * pair of `if (...) goto store_fight;` guards plus a label, and fixed
+         * this function's instruction-count parity (570 -> 571), which realigned
+         * every downstream branch displacement and dropped fndiff real 151 -> 66
+         * - the effect claim.law.guard-polarity-restructure-fixes-count-parity-
+         * not-form predicts.  Two forms measured identical to this one and are
+         * dead axes: splitting the `&&` into two nested ifs (MWCC re-merges it
+         * through the same cror), and an empty-true-block `if (t != D) {} else
+         * goto;`.  Keeping the first guard as a goto restores the target's
+         * matching `bgt` but loses parity again (back to real 151). */
+        if (e->health <= upper && e->type != E_DEATH) {
+            if (e->health > lower) {
+                fight = (f32)(lbl_80346A30 * fight);
+            } else {
+                fight = (f32)(lbl_80346A28 * fight);
+            }
         }
     }
-store_fight:
     e->atts.fight = fight;
 
     if (e->algorithm == 12 && e->mode1 < 2 && e->generator != NULL) {
@@ -6338,12 +6413,19 @@ s32 fn_8004CE38(Enemy* e)
     f32 z2;
 
     p = (u8*)&gPlayerWords[*(s16*)((u8*)e + offsetof(Enemy, closest))];
-    if (*(s16*)(p + 2588) > 2) {
+    /* When the closest player is riding/attached (field_A1C > 2) the chase
+     * bearing is taken from the alternate position at Player+0x9E4/+0x9EC
+     * rather than from pos[].  Those two offsets fall inside player.h's
+     * pad_0970[0xA4] and stay raw: naming them means extending Player, which
+     * is the player.h owner's call, not this TU's. */
+    if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
         dx = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][0])) - *(f32*)(p + 2532);
         dz = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][2])) - *(f32*)(p + 2540);
     } else {
-        dx = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][0])) - *(f32*)(p + 68);
-        dz = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][2])) - *(f32*)(p + 76);
+        dx = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][0])) -
+             *(f32*)(p + offsetof(Player, pos[0]));
+        dz = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][2])) -
+             *(f32*)(p + offsetof(Player, pos[2]));
     }
     a = (f32)(lbl_80346920 + *(f32*)((u32)e + offsetof(Enemy, pyr[1])));
     if (a > lbl_80346840) {
@@ -7264,23 +7346,32 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
         start = 0;
         last = 3;
     } else {
-        if (*(s16*)(e + 628) < 0) {
+        if (*(s16*)(e + offsetof(Enemy, closest)) < 0) {
             return -1;
         }
         best1 = best;
         p = (u8*)gPlayerWords;
         last = -1;
+        /* The 13148 stride stays a literal: claim.law.sizeof-defeats-loop-stride
+         * -induction records that respelling a walked stride as sizeof(Player)
+         * costs the loop's induction form, unlike a displacement rename. */
         for (i = 0; i < 4; i++, p += 13148) {
-            if (*(s32*)(p + 232) == 1) {
-                if (*(s16*)(p + 2588) > 2) {
-                    dx = *(f32*)(e + 84) - *(f32*)(p + 2564);
-                    dy = *(f32*)(e + 88) - *(f32*)(p + 2568);
-                    dz = *(f32*)(e + 92) - *(f32*)(p + 2572);
+            if (*(s32*)(p + offsetof(Player, state)) == 1) {
+                /* Riding/attached players (field_A1C > 2) are ranged against
+                 * the alternate position at Player+0xA04..0xA0C, which sits in
+                 * player.h's pad_0970[0xA4] and so has no field name yet. */
+                if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
+                    dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) - *(f32*)(p + 2564);
+                    dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) - *(f32*)(p + 2568);
+                    dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) - *(f32*)(p + 2572);
                     d = fn_80034C88(dx * dx + dy * dy + dz * dz);
                 } else {
-                    dx = *(f32*)(e + 84) - *(f32*)(p + 100);
-                    dy = *(f32*)(e + 88) - *(f32*)(p + 104);
-                    dz = *(f32*)(e + 92) - *(f32*)(p + 108);
+                    dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
+                         *(f32*)(p + offsetof(Player, effectpos[0]));
+                    dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
+                         *(f32*)(p + offsetof(Player, effectpos[1]));
+                    dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
+                         *(f32*)(p + offsetof(Player, effectpos[2]));
                     d = fn_80034C88(dx * dx + dy * dy + dz * dz);
                 }
                 if (d < best1) {
@@ -7293,10 +7384,11 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
     }
     q = (u8*)gPlayerWords + start * 13148;
     for (j = start; j <= last; j++, q += 13148) {
-        if (*(s32*)(q + 232) == 1) {
-            if (LineCylinderCollide((f32*)(q + 100), rad + *(f32*)(q + 2128),
-                                    hht + *(f32*)(q + 2132), oldc, newc, hit,
-                                    1) != 0) {
+        if (*(s32*)(q + offsetof(Player, state)) == 1) {
+            if (LineCylinderCollide((f32*)(q + offsetof(Player, effectpos[0])),
+                                    rad + *(f32*)(q + offsetof(Player, col_radius)),
+                                    hht + *(f32*)(q + offsetof(Player, col_height)),
+                                    oldc, newc, hit, 1) != 0) {
                 d = fqdist(hit[0] - newc[0], hit[2] - newc[2]);
                 if (d < best) {
                     ret = j;
@@ -7313,34 +7405,50 @@ extern f32 lbl_80344880;
 extern f32 lbl_80346A40;
 extern f64 lbl_80346A28;
 extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
-extern void SetEnemyObj(Enemy* e, s32 type, s32 level, s32 one);
+extern void SetEnemyObj(Enemy* e, s32 type, s32 level, s32 state);
 extern void init_enemy_vars(s32 slot, s32 spew, f32 scale);
 extern void fn_8005A338(f32* worldmat, f32* coll_offset, f32* attn_offset);
 extern u16 AnimateATree(void* tree, s32 sequence, s32 transition);
 
-/* 0x8004FE34 - initialise a freshly claimed enemy slot's object state. */
+/* 0x8004FE34 - initialise a freshly claimed enemy slot's object state.
+ *
+ * Zeroes the attention/collision offsets and orientation, takes the type's
+ * attention and collision heights from the per-type tables, hands the slot to
+ * SetEnemyObj to build the model and animation tree, then derives the starting
+ * hit points: the type's base health, scaled by the level's ene_health rate for
+ * everything but Death, and by 0.333 * difficulty for the ordinary (non-boss)
+ * types.  If SetEnemyObj produced a scene node the enemy is dropped onto the
+ * floor at `pos`, its per-type variables are initialised, and its shadow node
+ * is parked underneath it.
+ */
 void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
 {
     Enemy* e = &gEnemies[slot];
     u8* tbl = (u8*)lbl_8011AF48;
-    s32 t4;
-    f32 z;
+    s32 toff;
+    f32 zero;
     f32 health;
 
     e->type = type;
-    t4 = type * 4;
-    z = lbl_80346820;
-    e->attn_offset[0] = z;
-    e->attn_offset[1] = *(f32*)(tbl + t4 + 2080);
-    e->attn_offset[2] = z;
-    e->coll_offset[0] = z;
-    e->coll_offset[1] = *(f32*)(tbl + t4 + 2216);
-    e->coll_offset[2] = z;
-    e->pyr[0] = z;
-    e->pyr[1] = z;
-    e->pyr[2] = z;
+    toff = type * 4;
+    zero = lbl_80346820;
+    e->attn_offset[0] = zero;
+    e->attn_offset[1] = *(f32*)(tbl + toff + ETYPE_ATTN_Y);
+    e->attn_offset[2] = zero;
+    e->coll_offset[0] = zero;
+    e->coll_offset[1] = *(f32*)(tbl + toff + ETYPE_COLL_Y);
+    e->coll_offset[2] = zero;
+    e->pyr[0] = zero;
+    e->pyr[1] = zero;
+    e->pyr[2] = zero;
     e->state = ACTIVE;
     e->endurance = 0;
+    /* The state argument is re-read from the field rather than passed as a
+     * literal 1: the target keeps one register live across the store and the
+     * call (`li r6,1` / `stw r6,180(r31)` / arg4 = r6).  Re-reading costs the
+     * single `lwz` that is this function's whole remaining diff, and every
+     * literal/shared-temporary spelling measured worse (attempt
+     * .enemy-c-deepscrutiny.20260830.v1: 43/43/35/51 real vs 27 here). */
     SetEnemyObj(e, type, level, e->state);
     if (level > 3) {
         level = 2;
@@ -7348,10 +7456,16 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
     if (spew == 18) {
         level = 1;
     }
+    /* Kept as a two-step walk instead of the obvious
+     * `health = *(f32*)(tbl + toff + ETYPE_BASE_HEALTH);`: the target
+     * re-materialises the table row after the SetEnemyObj call (`add r3,r29,r28`
+     * at 0xb4), and the flat single-expression form lets MWCC reuse the entry
+     * region's row register instead, deleting that `add` and cascading an
+     * entry-schedule rewrite - measured real 27 -> 76, opcode multiset DIFFERS. */
     {
         u8* r = tbl;
-        r += t4;
-        health = *(f32*)(r + 2760);
+        r += toff;
+        health = *(f32*)(r + ETYPE_BASE_HEALTH);
     }
     if (type != E_DEATH) {
         health = health * gCurLevel->ene_health;
@@ -7377,9 +7491,15 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
     fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset, e->attn_offset);
     e->floory = e->objgrp.worldmat[3][1];
     if (e->shadow != NULL) {
-        *(f32*)((u8*)e->shadow + 48) = *(f32*)((u8*)e->objgrp.node + 48);
-        *(f32*)((u8*)e->shadow + 52) = *(f32*)((u8*)e->objgrp.node + 52);
-        *(f32*)((u8*)e->shadow + 56) = *(f32*)((u8*)e->objgrp.node + 56);
+        /* Park the shadow node on the body node's world translation.  Each row
+         * element re-casts both node pointers rather than caching one typed
+         * alias: the target reloads them per statement (lwz 100/476 before
+         * every lfs/stfs pair), exactly as
+         * claim.law.write-site-alias-defeats-reload-parity prescribes for this
+         * shape - the same three-write mat[3][*] block it was recorded on. */
+        ((MBObject*)e->shadow)->mat[3][0] = ((MBObject*)e->objgrp.node)->mat[3][0];
+        ((MBObject*)e->shadow)->mat[3][1] = ((MBObject*)e->objgrp.node)->mat[3][1];
+        ((MBObject*)e->shadow)->mat[3][2] = ((MBObject*)e->objgrp.node)->mat[3][2];
     }
     if (e->atree.root != NULL) {
         AnimateATree(&e->atree, 0, 2);

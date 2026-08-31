@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/enemy/enemy.c damage_enemy (target 0x8004E6F8, 571 insns), worktree GDL-Claude-EnemyClean, work_claim.enemy-cleanup.20260831.v1, commit 4486e7003; see attempt.damage-enemy-guard-parity.20260831.v1. Counter-case reference: attempt.enemy-extern-literal-sweep.20260831.v1, which resolved the SAME metric conflict in the SAME function the opposite way.",
+    "scope": "MWCC GC 1.2.5 family; arbitration rule for the case where fndiff real and objdiff fuzzy disagree on a mid-size function and the source change moved raw INSTRUCTION COUNT toward or away from target.",
+    "tags": [
+      "metrics",
+      "matching",
+      "entry-schedule",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T04:45:48Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "When fndiff `real` and objdiff `fuzzy` disagree about a source-shape change, the deciding question is whether the change moved the object's raw INSTRUCTION COUNT toward target parity - and if it did, real is normally right and fuzzy is normally wrong, for a mechanical reason: an off-by-one instruction count displaces every subsequent instruction, so every downstream branch carries a wrong DISPLACEMENT and renders as an opcode-only near-match, while fuzzy's offset-tolerant similarity measure barely notices. Verified in game/enemy/enemy.c's damage_enemy. Replacing two `if (...) goto store_fight;` guards plus their label with one goto-free `if (health <= upper && type != E_DEATH) { ... }` took the object from 570/571 instructions to an EXACT 571/571 and dropped real 151 -> 66, while fuzzy REGRESSED 99.4046% -> 99.2207%. Reading the aligned fnasm --diff settles it: before the change, everything past 0x5b0 sat 4 bytes low and downstream branches like `ble ->5c8`, `b ->5d0` and `bne ->610` were opcode-only matches with wrong targets; after it, addresses realign and those same instructions become EXACT including their branch targets, across roughly 180 instructions. Fuzzy's dip is paid for by a genuinely LOCAL loss - the `&&` makes MWCC merge the two compares through a `cror` plus `bne` where the target had a single matching `bgt`, so one previously-correct instruction was traded for correct displacements everywhere after it. That trade is unambiguously closer to byte-exact. This does NOT contradict the counter-case in the same function: attempt.enemy-extern-literal-sweep.20260831.v1 rejected a change that improved real 151 -> 143 while fuzzy fell 99.4046 -> 98.4588, and it was right to, because that change did NOT restore count parity - it introduced a load-WIDTH divergence (target lfs vs our lfd) plus three lfd reorderings, i.e. real gained from noise while genuine structure got worse. The two cases together give the usable test, which is cheaper than a general appeal to either metric: read `fndiff --count`'s insn parity FIRST. If the change restored parity, prefer real and expect fuzzy to lag. If the change left parity unchanged or broke it, prefer fuzzy and go read the --ops multiset for the structural divergence real is hiding. Either way the diff read remains the operative step, per claim.law.fuzzy-can-underweight-a-real-improvement's own caveat - this law just says which side to look at first, and supplies the mechanism (branch-displacement realignment) that explains why the two metrics diverge in exactly this shape."
+}

@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/enemy/enemy.c fn_80046680 (capped by attempt.parked.fn-80046680.20260830.v1) and move_logic10/do_enemies/do_enemy_collide/damage_enemy (prior-improved), worktree GDL-Claude-EnemyClean, work_claim.enemy-cleanup.20260831.v1, commits 07d4287e6 / f4c19857b; the exclusion policy being narrowed was applied in attempt.struct-pastend-enemy-family.20260831.v1.",
+    "scope": "MWCC GC 1.2.5 family; narrows how claim.law.offsetof-rename-can-regress-prior-improved-fn should be used as a batch-planning exclusion during de-fakematch passes. Applies to pure displacement respellings only, never to retypes or alias introductions.",
+    "tags": [
+      "offsetof-form",
+      "defake",
+      "workflow",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.offsetof-rename-safe-on-capped-and-parked-functions.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T04:45:52Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "De-fakematch passes in this project have been excluding parked, capped and prior-improved functions from offsetof-rename batches as a blanket precaution, citing claim.law.offsetof-rename-can-regress-prior-improved-fn. That exclusion is too broad and is costing real debt reduction: a park or a cap records that a function's MATCHING axes are exhausted, which says nothing about whether respelling a displacement constant is neutral. Verified in game/enemy/enemy.c, where the immediately preceding pass excluded by name every parked/capped/prior-improved function and left 106 bare sites standing because of it. Re-attempting them under the same byte-identical gate converted 49 of 61 remaining bare-literal sites with GATE OK on every batch and zero reverts, including all 18 sites in fn_80046680 - a CAPPED function (attempt.parked.fn-80046680.20260830.v1) and the single largest bare-site cluster in the TU - and further sites inside do_enemy_collide (which additionally carries an AGENTS.md off-limits note on its behaviour chains), move_logic10, move_logic12/13 and damage_enemy. Nothing regressed, and all 50 of the TU's real-0 functions held. The distinction that matters is the one claim.law.offsetof-rename-preserves-protected-web already draws and which the exclusion policy blurs: a pure displacement respelling on the ORIGINAL base pointer, keeping its declared type and one additive expression, is near-guaranteed neutral REGARDLESS of the function's matching status; what genuinely regresses parked and prior-improved functions is retyping the base, introducing a typed alias, or switching a walk to array indexing. Consequence for wave planning: do not exclude a function from an offsetof-rename batch merely because it is parked, capped or prior-improved. Gate it like any other region - the cost of being wrong is one revert, and defake_gate.py already fails closed on any EXACT-status demotion. Do keep the genuine exclusions: webfrank-pinned functions, whose source is hash-asserted and whose drift ABORTS the build (in this TU closest_enemy, move_logic00/02/04/14/30 and gendir_8004FBC8), and any site whose conversion would require a retype rather than a respelling."
+}
