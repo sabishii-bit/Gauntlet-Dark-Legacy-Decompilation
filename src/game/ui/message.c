@@ -39,7 +39,7 @@ typedef struct World {
 /* --- shared externs (owned by other TUs) --- */
 extern World gPlayers[];                /* stride 0x335C */
 extern void* gMsgBoxes[4];
-extern short gJumpTab120240[];          /* lbl_80120240 */
+extern short lbl_80120240[];          /* lbl_80120240 */
 
 /* small-data (sda/sbss) globals */
 extern int gCurWorld;
@@ -50,7 +50,7 @@ extern int gFrameTicks;
 extern int gGameplayPauseTimer;
 extern int gMsgIndex;
 extern int gTriggerCameraState;
-extern int g7C0;                        /* lbl_803447C0 */
+extern int lbl_803447C0;                        /* lbl_803447C0 */
 extern int gModalRenderDepth;
 extern int options_state;
 extern int gMessageState;
@@ -104,7 +104,7 @@ int  msgWorldFlags(int who, int worldMask);
 int  fn_800A5734(void);
 
 /* --- data --- */
-static int gMsgLevels[6] = {0, 0x78, 0xF0, 0x1A4, 0x258, -1};
+static int lbl_80124E58[6] = {0, 0x78, 0xF0, 0x1A4, 0x258, -1};
 static char* gMsgFonts[5] = {"SCROLL_A", "SCROLL_A", "SCROLL_A", "SCROLL_A", "SCROLL_A"};
 static u32 gMsgCfg[5] = {0x001F1F00, 0x0000001F, 0x001F0000, 0x00001F00, 0x00160C03};
 static MsgDesc gMsgDescTable[256] = {
@@ -467,7 +467,7 @@ int msgPost(int idx, int param, char* position)
     int playerOffset;
     u8 unused[4];
 
-    msgData = (MsgData*)gMsgLevels;
+    msgData = (MsgData*)lbl_80124E58;
     descOffset = idx * sizeof(MsgDesc);
     desc = (MsgDesc*)((u8*)&msgData->desc[0] + descOffset);
     boxes = gMsgBoxes;
@@ -482,7 +482,7 @@ int msgPost(int idx, int param, char* position)
         return 0;
     }
 
-    if (g7C0 != 0) {
+    if (lbl_803447C0 != 0) {
         initialLineCount = 12;
     } else {
         initialLineCount = 8;
@@ -542,7 +542,7 @@ int msgPost(int idx, int param, char* position)
         centerY -= 0x3E;
     } else {
         if (param >= 0) {
-            centerX = (u16)gJumpTab120240[param];
+            centerX = (u16)lbl_80120240[param];
             centerY = 0xFA;
         } else {
             centerX = 0x100;

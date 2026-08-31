@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "claim.law.recomputed-base-update-load-fuses-lwzu angle (law postdates the v2 park by 29s, genuinely unscreened): rewrote the loop base as u8* p = (u8*)matrix + row * 16 with cast-transit reads a=*(f32*)(p+4), aPtr=(f32*)(p+4), b=*(f32*)(p+=8), stores *(f32*)p / *aPtr - the MBRenderText fused shape minus the guard context. NEUTRAL: byte-identical object to baseline (4th identical A/B on the fusion axis across v2+v3).",
+  "attributes": {
+    "axis_log": "v1: source-shape matrix park. v2: mixed-form read/write pairs + lifetime pragmas, 3 identical NEUTRALs. v3: u8 recomputed-base cast-transit form NEUTRAL - the displacement fold beats every recorded update-form spelling when the update-load is not the defining use.",
+    "law_screen": "claim.law.recomputed-base-update-load-fuses-lwzu.20260831.v1: APPLIED - did not transfer; boundary refinement: in its verified fused case the update-load is the pointer web's DEFINING use inside a guard condition; here two prior uses (lfs 4(r4), addi r5,r4,4) already exist and MWCC rewrites the post-update uses as twin +8 displacements regardless of f32-typed or u8-cast-transit spelling. claim.law.scalar-read-write-lfsu-mixed-form + claim.law.lwzu-idiom-web-retention: screened in v2, still vetoed. claim.law.sizeof-defeats-loop-stride-induction: honored (literal 16).",
+    "laws_applied": "[\"claim.law.recomputed-base-update-load-fuses-lwzu.20260831.v1\"]",
+    "residual": "unchanged: 1 opcode, target lfsu f4,8(r4)+stfs f0,0(r4) vs ours lfs f4,8(r4)+stfs f0,8(r4); 43/43 insns real 4. TU flip still blocked by this single fold.",
+    "scope": "src/game/ps2/ml_fmath.c WPitchMat3 probe only, reverted via probe.py --revert; tree clean",
+    "verification": "probe baseline real 4 banked pre-edit; probe NEUTRAL; revert re-scored NEUTRAL real 4"
+  },
+  "function": "function:WPitchMat3",
+  "id": "attempt.parked.wpitchmat3.20260831.v3",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T04:28:29Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.wpitchmat3.20260831.v2",
+  "valid_from": "2026-08-31"
+}
