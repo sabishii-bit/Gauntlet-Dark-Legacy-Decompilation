@@ -85,7 +85,7 @@ void MBTreeClearFlags(void* obj, u32 flags, s32 recurse);
 
 extern u32 sFlags;      /* 0x803445CC anim debug flags */
 extern u64 gControllerButtons; /* 0x803445C8 config-word pair */
-extern u8* gCurLevel;   /* 0x8034483C current level record */
+extern level_data* gCurLevel;   /* game/leveldata.h; 0x8034483C */
 extern char* lbl_80126C68[]; /* action-name table (owned by an earlier TU) */
 
 s32 DoEnemyAction(void* enemy);
@@ -515,9 +515,7 @@ s32 DoEnemyAction(void* enemy)
         f32 accum = 0.0f;
 
         if (act >= 0x18 && act <= 0x1A) {
-            dur = ef[0xDE] *
-                  *(f32*)(gCurLevel + offsetof(level_data, ene_mrate)) +
-                  ef[0xE0];
+            dur = ef[0xDE] * gCurLevel->ene_mrate + ef[0xE0];
         }
         if (dur > 0.0) {
             while (dur > 1.0) {
