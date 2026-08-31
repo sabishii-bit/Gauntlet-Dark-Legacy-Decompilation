@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/enemy/critter.c::ProcessCritter, exact-drive lane 2026-08-31 (work_claim.exact-critter-2.20260831.v1), measured against a freshly built object at 420/420 instructions, real 6. The function's two hit-node scan loops are the same source text: lines 3331-3340 walk base `c` and lines 3378-3387 walk base `current`, with identical `for (i = 0; i < <s16 count>; i++)` headers, identical `nodeBase = base + i * 0x5C` bodies, and identical volatile-active branches. Target: loop 1 preheader at +0xac emits `li r29,0` then `mr r30,r29`; loop 2 preheader at +0x238 emits `li r29,0` then `li r30,0`. Ours emits the rematerialised pair in both, matching loop 2 and missing loop 1 - the whole of the function's one-token multiset difference (target-only +1 mr, ours-only -1 li).",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py; strengthens claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 and claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 without changing their prescriptions.",
+    "tags": [
+      "matching",
+      "register-web",
+      "cse",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.zero-remat-choice-differs-between-identical-sibling-loops.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T14:52:24Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "The live-zero copy-vs-rematerialise choice can differ between TWO TEXTUALLY IDENTICAL LOOPS IN THE SAME FUNCTION, compiled in the same TU by the same invocation. Verified in ProcessCritter, whose two hit-node scan loops share their source shape exactly while the target emits the COPY form (`mr r30,r29`) in the first preheader and the REMAT form (`li r30,0`) in the second. This upgrades the family's status from empirical to PROVEN unreachable: the prior two laws killed roughly twenty source forms by measurement and argued unreachability from cross-function bidirectionality, but sibling loops inside ONE function make it a proof rather than an induction. Any source-level edit to the loop-initialisation shape necessarily applies to both sibling loops identically, so no source form can reproduce a target that uses different forms for them; the choice is therefore made strictly downstream of the source by the register allocator. PROCEDURE (unchanged, now with a cheaper confirmation): on the `+1 mr / -1 li` one-token signature, look for a sibling loop of the same shape elsewhere in the same function. If one exists and the target treats the two differently, you have an immediate local proof and should record the cap and move on WITHOUT spending any probe - not even the 'confirm the source already spells the copy' step the parent laws prescribe, which this evidence makes moot. The family remains the corpus's best WebFrank candidate by volume, and still needs the dataflow-equivalence audit class described in claim.law.live-zero-copy-vs-remat-is-allocator-not-source: the substitution is an opcode change with a constant-value side condition, not a renaming or a permutation, so it cannot reuse the copy_register_fields guards."
+}

@@ -1,0 +1,22 @@
+{
+  "attempted_axis": "Unpark CritterLineCollide (bulk-import park, REVERIFY banner) and close its r4/r5 two-web crossing using the declaration-order lever, on the strength of the dead-local identity law recorded 2026-08-31 (evidence that post-dates the park).",
+  "attributes": {
+    "axis_log": "AXIS1 declaration order, probe A: moved `s32 count` from 4th position to FIRST in the declaration block (ahead of `Critter *pool`), intending to bias the count web to the lower register the target uses. NEUTRAL, byte-identical. Probe B: moved the same declaration to LAST (after `f32 d`), the opposite extreme. NEUTRAL, byte-identical. Two identical A/B results at opposite extremes KILL the declaration-order axis for this function per the AGENTS.md rule; do not re-run it.",
+    "baseline": "target/current 91/91 instructions, real 16, fuzzy 99.56044, frame 152. Opcode multiset IDENTICAL (91/91) - pure register/relocation residual, confirming the retained stack-layout result recorded in attempt.parked.critterlinecollide.20260829.v1.",
+    "best": "unchanged at real 16; neither probe moved a byte. Declaration order restored to the committed original.",
+    "law_screen": "claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1 SCREENED and partially applicable - it is the governing law for a two-web crossing, but its lever (substituting an already-declared dead local) has no candidate here: both crossing values are already named source locals, so only its prerequisite levers (declaration order/scope/read order) were available; declaration order measured neutral in both directions. claim.law.opt-lifetimes-off-slots-only-unregisterized-locals.20260831.v1 APPLIED as the safety argument that moving a used scalar's declaration cannot disturb the already-exact 152-byte frame (both webs registerize). claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 screened, NOT applicable (no li/mr token difference; the opcode multiset is IDENTICAL). claim.law.reload-vs-cache-liveness.20260829.v1 screened, not applicable (no reload disagreement).",
+    "laws_applied": "[\"claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1\", \"claim.law.opt-lifetimes-off-slots-only-unregisterized-locals.20260831.v1\"]",
+    "residual": "real 16 = ONE named mechanism: a symmetric two-web register crossing in which the two values hold each other's register. The web fed by the global read `count = lbl_8034466C` (source line 2761, an assignment-in-condition re-read each iteration) is r4 in the target and r5 in ours; the anonymous scaled-base temp for `cur = &pool[i]` (`add rD,r31,r3`, stride 2784, immediately moved to r30) is r5 in the target and r4 in ours. All 16 lines are that one swap and its three downstream mention sites (the loop-limit `cmpw r28,rX`, the post-loop `cmpw r28,rX`, and the SDA21 re-read `lwz rX,0(0)` / `cmpwi rX,0`). Both registers are volatile and the two live ranges are disjoint from each other's, so this is a sound pure recolor and is WEBFRANK-READY under the existing copy_register_fields class. Not source-reachable by identity substitution because one of the two webs is a compiler-created temp with no declarable carrier.",
+    "scope": "src/game/enemy/critter.c, CritterLineCollide declaration block only; both probes fully reverted; no net source change committed.",
+    "verification": "probe.py clean BASELINE taken before the first edit; defake_gate.py check --rebuild GATE OK (61 real-0 functions held); full ninja green, build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:CritterLineCollide",
+  "id": "attempt.critterlinecollide-two-web-crossing.20260831.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T14:52:02Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.critterlinecollide.20260829.v1",
+  "valid_from": "2026-08-31"
+}

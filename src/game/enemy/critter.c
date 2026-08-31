@@ -3077,14 +3077,17 @@ credited_damage_done:
                             *(s16 *)(descriptor + offsetof(CritterDescriptor, modelIndex)),
                             *(s16 *)(descriptor + offsetof(CritterDescriptor, modelIndex)), 1);
                     if (*(void **)(hitNode + offsetof(CritterHitNode, active)) != NULL) {
+                        void *activeNode;
+
                         if (object >= 0) {
                             MBSetObject(*(void **)(hitNode + offsetof(CritterHitNode, active)), object);
                         }
+                        activeNode = *(void **)(hitNode + offsetof(CritterHitNode, active));
                         for (i = 0; i < *(s32 *)((u8 *)c + offsetof(Critter, anodeCount)); i++) {
                             u8 *anode;
 
                             anode = *(u8 **)((u8 *)c + offsetof(Critter, anodes)) + i * 0x28;
-                            if (*(void **)anode == *(void **)(hitNode + offsetof(CritterHitNode, active))) {
+                            if (*(void **)anode == activeNode) {
                                 s32 j;
 
                                 *(s32 *)(anode + 0x20) = 0;
