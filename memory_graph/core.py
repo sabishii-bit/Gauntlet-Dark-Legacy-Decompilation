@@ -3365,9 +3365,16 @@ def find_records(
                  r.record_id
         LIMIT ?
     """
-    params.append(limit)
+    # Fetch one past the limit so truncation is DETECTED, never silent: a
+    # park screen is a negative test, and a silently-capped result set
+    # manufactured false clearances (22 of 47 live vetoes missed in one
+    # session — claim.find-subcommand-caps-at-100-and-silently-falsifies-
+    # park-screens).
+    params.append(limit + 1)
     with closing(open_database(root, db_path)) as connection:
         rows = connection.execute(sql, params).fetchall()
+    truncated = len(rows) > limit
+    rows = rows[:limit]
     results = []
     for row in rows:
         try:
@@ -3387,11 +3394,20 @@ def find_records(
                 "head": _record_head(record),
             }
         )
-    return {
+    out = {
         "results": results,
         "count": len(results),
+        "truncated": truncated,
         "note": "heads only; fetch full detail with gdlmem.py record <id>",
     }
+    if truncated:
+        out["warning"] = (
+            f"RESULT SET TRUNCATED at limit={limit}: more records match."
+            " NEVER use a truncated result as a negative screen (park/veto"
+            " checks) — raise --limit or narrow the facets until"
+            " truncated=false."
+        )
+    return out
 
 
 def tu_briefing(
@@ -3985,7 +4001,7 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                              help="residual class fragment, e.g. SCHEDULE"),
                 SurfaceParam("law", str, default=None,
                              help="law id fragment (structured links + prose)"),
-                SurfaceParam("limit", int, default=25, maximum=100),
+                SurfaceParam("limit", int, default=25, maximum=2000),
             ),
         ),
         SurfaceOp(

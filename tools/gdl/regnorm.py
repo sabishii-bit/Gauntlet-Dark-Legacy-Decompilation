@@ -80,10 +80,35 @@ def main():
     pairs, t_only, b_only = aligned_pairs(t, b)
     renaming, structural = [], []
     mapping = {}
+    # Instruction-relative byte offset per line index (reloc annotation
+    # lines share their instruction's offset instead of inflating it).
+    t_off, running = [], 0
+    for ln in t:
+        t_off.append(running)
+        if not ln.startswith("    "):
+            running += 4
     for ti, bi in pairs:
         if t[ti] == b[bi]:
             if show_all:
                 print(f"SAME       {b[bi]}")
+            continue
+        t_is_reloc = t[ti].startswith("    ")
+        b_is_reloc = b[bi].startswith("    ")
+        if t_is_reloc and b_is_reloc:
+            # A relocation annotation differing only in spelling (pool @N
+            # vs lbl_, alias vs resolved address) rides on a register-only
+            # change and is NOT structural — the first regnorm banner
+            # falsely failed an actually-clean function on exactly this
+            # (claim.law.regnorm-counts-reloc-annotation-rows-as-
+            # structural). Compare signatures, which normalize all of it.
+            if (fndiff.relocation_signature(t[ti].strip())
+                    == fndiff.relocation_signature(b[bi].strip())):
+                if show_all:
+                    print(f"RELOC-SAME {b[bi].strip()}")
+                continue
+            structural.append((ti, t[ti], b[bi]))
+            print(f"STRUCTURAL @{t_off[ti]:#06x}  T {t[ti].strip()}"
+                  f"   O {b[bi].strip()}  [reloc target differs]")
             continue
         if fndiff.erase_registers(t[ti]) == fndiff.erase_registers(b[bi]):
             renaming.append((ti, t[ti], b[bi]))
@@ -91,10 +116,10 @@ def main():
                                          register_tokens(t[ti])):
                 mapping.setdefault(ours_reg, {}).setdefault(tgt_reg, 0)
                 mapping[ours_reg][tgt_reg] += 1
-            print(f"RENAMING   @{ti*4:#06x}  T {t[ti]}   O {b[bi]}")
+            print(f"RENAMING   @{t_off[ti]:#06x}  T {t[ti]}   O {b[bi]}")
         else:
             structural.append((ti, t[ti], b[bi]))
-            print(f"STRUCTURAL @{ti*4:#06x}  T {t[ti]}   O {b[bi]}")
+            print(f"STRUCTURAL @{t_off[ti]:#06x}  T {t[ti]}   O {b[bi]}")
     for ti in t_only:
         print(f"UNPAIRED-T @{ti*4:#06x}  {t[ti]}")
     for bi in b_only:
@@ -108,9 +133,12 @@ def main():
             body = " ".join(f"{tr}x{n}" for tr, n in
                             sorted(targets.items(), key=lambda kv: -kv[1]))
             print(f"  {ours_reg} -> {body}{flag}")
-    verdict = ("CLEAN-RENAMING" if not structural and not t_only and not b_only
-               else "STRUCTURAL-PRESENT" if structural
-               else "COUNT-MISMATCH")
+    if not structural and not t_only and not b_only:
+        verdict = "EXACT" if not renaming else "CLEAN-RENAMING"
+    elif structural:
+        verdict = "STRUCTURAL-PRESENT"
+    else:
+        verdict = "COUNT-MISMATCH"
     print(f"== {fn}: {len(pairs)} paired, {len(renaming)} renaming,"
           f" {len(structural)} STRUCTURAL, {len(t_only)+len(b_only)} unpaired"
           f" -> {verdict}")
