@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Screen the callee-saved home-copy-coalescing class for WebFrank eligibility, as the class's own law routes it to the postprocessor path",
+  "attributes": {
+    "law_screen": "claim.law.callee-saved-home-copy-coalescing-is-source-unreachable APPLIED and PARTLY OVERTURNED. That law correctly establishes the residual is not source-reachable, but its closing sentence routes the class to 'the WebFrank REGISTER_ONLY postprocessor path'; this screen shows that routing is wrong, and the class is ineligible for BOTH WebFrank paths. claim.law.webfrank-permutation-is-audited-in-our-colouring APPLIED, and its screening rule 1 is decisive on its own: instruction count first, because unequal counts mean STRUCTURAL and ineligible in principle. claim.law.webfrank-pinned-function-source-freeze NOT reached: no rule was authored. claim.law.dead-local-identity-reuse-flips-callee-saved-coloring noted as the class's only documented source lever, unchanged by this screen.",
+    "laws_applied": "[\"claim.law.callee-saved-home-copy-coalescing-is-source-unreachable.20260831.v1\", \"claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1\"]",
+    "residual": "Unchanged and now known to be outside WebFrank's reach entirely. Measured target-vs-ours function sizes in game/world/gauntworld: fn_8005D730 1820 vs 1824 bytes, fn_8005F0F4 2640 vs 2644, fn_80062A00 1496 vs 1520. In every case the target is LARGER, confirming the target-only mr is a genuine extra instruction rather than a recolor of an existing one. The serve_blits +2 mr clamp mentioned in the queue is the same shape.",
+    "scope": "No config or source change. Read-only screen plus one guard test in tools/gdl/tests/test_webfrank.py asserting the class is refused by both paths.",
+    "verification": "Measured directly from build/GUNE5D/src/game/world/gauntworld.o against build/GUNE5D/obj/game/world/gauntworld.o. VERDICT: INELIGIBLE, and the reason is structural rather than a guard being conservative. The recolor path (copy_register_fields / verify_consistent_recolor) fails its first precondition, which demands equal word-aligned sizes. The permutation path (permute_instruction_atoms) fails its bijection check, because a permutation reorders the atoms that already exist and can never introduce the missing instruction. No audit hatch is appropriate: unproven_recolor_audit only bypasses the bisimulation, never the size and bijection preconditions, and using it here would be exactly the guard-weakening the tool contract forbids. The class therefore has no postprocessor route and remains closed pending the dead-local identity lever. Locked in by test_home_copy_coalescing_class_is_not_recolor_eligible, which asserts both refusals."
+  },
+  "function": "function:fn_8005D730",
+  "id": "attempt.home-copy-coalescing-webfrank-ineligible.20260831.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-08-31T16:23:37Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

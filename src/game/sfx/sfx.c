@@ -4165,6 +4165,7 @@ void InitEffects(void)
     s32 got;
     s32 v32;
     s32 v36;
+    s32 w36;
     s32* q32;
     s32* q36;
     u32* p1008;
@@ -4215,7 +4216,7 @@ void InitEffects(void)
         ((EffectHeader*)ei)[i].alpha = v36;
         got = (((EffectHeader*)ei)[i].atree != NULL) ? 1 : 0;
         if (got == 0) {
-            v36 = *q36;
+            w36 = *q36;
             v32 = *q32;
             if (sPowerupsBuf == NULL || row == NULL || *(s8*)row == 0) {
                 ((EffectHeader*)ei)[i].atree = NULL;
@@ -4227,7 +4228,7 @@ void InitEffects(void)
                 }
             }
             ((EffectHeader*)ei)[i].zmod = v32;
-            ((EffectHeader*)ei)[i].alpha = v36;
+            ((EffectHeader*)ei)[i].alpha = w36;
         }
     }
     for (; i < 218; i++) {

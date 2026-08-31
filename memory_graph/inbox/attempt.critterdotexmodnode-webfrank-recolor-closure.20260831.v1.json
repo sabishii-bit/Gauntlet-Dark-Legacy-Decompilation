@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "WebFrank copy_register_fields closure of the proven 11-word register-only residual, re-derived from current raw output now that the CFG entry-pseudotarget defect is fixed",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-cfg-entry-pseudotarget-false-negative APPLIED and is the enabling law: the shipped _jumptable_targets fix (fn_start excluded via a strict lower bound) removes the spurious entry back-edge, and the derived target set is now {0x20c,0x24c,0x254,0x25c,0x264,0x26c} with 0x0 absent; the bisimulation consequently passes over all 463 instructions where it previously failed at +0x2c. claim.law.webfrank-permutation-is-audited-in-our-colouring APPLIED as the adjudication rule: instruction count is equal (463/463) so the function is not structural, the masked byte scan reports zero offenders, and per that law's screening rule 3 a clean scan is NOT itself proof, so the bisimulation was used as the oracle. claim.law.webfrank-pin-freezes-its-inlined-helpers-too APPLIED to the pinning decision: critter.c retains many non-exact functions, but this residual is closed and not source-reachable, so freezing its body and inlined helpers costs no live matching axis. claim.law.webfrank-pinned-function-source-freeze APPLIED (same). NOT applicable: claim.law.callee-saved-home-copy-coalescing-is-source-unreachable (no extra instruction; sizes equal), claim.law.constant-copy-vs-rematerialize-is-source-unreachable and claim.law.live-zero-copy-vs-remat-is-allocator-not-source (no li-vs-mr token asymmetry; opcode multiset identical), claim.law.adding-a-local-renumbers-the-anonymous-pool-and-drifts-siblings (no source edit was made in critter.c).",
+    "laws_applied": "[\"claim.law.webfrank-cfg-entry-pseudotarget-false-negative.20260831.v1\", \"claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1\", \"claim.law.webfrank-pin-freezes-its-inlined-helpers-too.20260831.v1\"]",
+    "residual": "NONE. The function is byte-exact after the rule. Mechanism was two independent symmetric volatile web crossings with an identical opcode multiset: an FPR crossing f0<->f1 at +0x35c..+0x374 over the texmod UV scale computation (lfs 188(r4) node scale and lfs 8(r30) animated delta feeding fmuls/fmadds, stored with stfs 172(r3)), and a GPR crossing r6<->r7 at +0x3e4..+0x400 over the texmod index lookup (the sign-extended lha 70(r30) index web against the addi r,r4,8 list-base web across extsh./lwzx/mulli/lwzx). All four registers are volatile with disjoint live ranges, so there is no declarable carrier.",
+    "scope": "config/GUNE5D/webfrank.json (one copy_register_fields rule, unit game/enemy/critter) and tools/gdl/tests/test_webfrank.py (two mechanism tests using bytes taken verbatim from both objects). No source edit.",
+    "verification": "Derived from build/GUNE5D/src/game/enemy/critter/.postprocess/body/critter.o against build/GUNE5D/obj/game/enemy/critter.o. Proven by replaying the finished patch list through the real webfrank.apply_patch on a copy of the object and asserting the patched function equals the retail bytes (11 atoms/fields -> EQUALS-RETAIL), which exercises every guard exactly as ninja does. Full ninja green with build/GUNE5D/main.dol: OK; project matched 59.74% -> 59.94% and 2621 -> 2623 exact functions together with fn_80011BBC. Test suite 54 -> 58 tests, all passing."
+  },
+  "function": "function:CritterDoTexmodNode",
+  "id": "attempt.critterdotexmodnode-webfrank-recolor-closure.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T16:23:18Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
