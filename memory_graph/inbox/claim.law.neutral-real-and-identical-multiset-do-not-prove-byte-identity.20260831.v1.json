@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "metrics",
+      "batch-gating",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.neutral-real-and-identical-multiset-do-not-prove-byte-identity.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T14:51:05Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/camera",
+  "valid_from": "2026-08-31",
+  "value": "A probe.py NEUTRAL verdict does NOT mean the object is byte-identical, and neither does an IDENTICAL opcode multiset, an unchanged `real`, an unchanged `lines` count, equal instruction counts, and a bit-for-bit identical `fndiff --ops` cluster list -- ALL SIX can hold simultaneously while the emitted bytes differ and objdiff's fuzzy score moves. Measured 2026-08-31 in debug_camera_pos: splitting the nested-assignment square-sum `distance = extent + (distance = scale + distance);` into two plain statements held real at 12, insns at 427/427, multiset IDENTICAL and the --ops cluster list unchanged, yet fuzzy fell 99.4450% -> 99.3513%. Reverting only that hunk and rebuilding restored 99.4450% exactly, so the causation is established by A/B/A. The reason is that `real` and `--ops` compare opcodes and alignment, not operand encodings: a change that permutes which registers or displacements fill already-aligned, already-correct-opcode instructions is invisible to every cheap metric while objdiff still scores the differing bytes. CONSEQUENCES. (1) Never record a probe as 'byte-identical' on the strength of a NEUTRAL verdict -- say 'score-neutral', and reserve 'byte-identical' for a comparison that actually inspected bytes. (2) This directly undercuts the standard de-fakematch gate for a NonMatching TU: AGENTS.md's rule that a conversion must stay byte-identical or measure equal-or-better on real and --ops is NOT sufficient on its own, because defake_gate.py scores through fndiff and inherits the same blindness -- it returned GATE OK for the regressing change. Any cleanup that looks free on real/--ops but touches expression SHAPE (as opposed to pure renaming) needs a full ninja and a per-function objdiff fuzzy read before it is committed. (3) Corollary for park hygiene: axes previously recorded as 'neutral, byte-identical' on the strength of real alone may in fact have moved fuzzy in EITHER direction and are worth one cheap re-measurement with the finer instrument when a function is revisited -- in this same session the debug_camera_pos declaration-order axis was re-measured this way and confirmed genuinely inert at 99.4450%, so the re-check is fast and sometimes exonerates the old note. (4) The reverse of claim.law.fuzzy-can-underweight-a-real-improvement: there, real is the finer instrument once the diff is read; here, real is BLIND and fuzzy is the only instrument that sees the change. When the two disagree, neither wins automatically -- dump the full aligned diff and identify which of opcode, alignment, or operand encoding actually moved."
+}
