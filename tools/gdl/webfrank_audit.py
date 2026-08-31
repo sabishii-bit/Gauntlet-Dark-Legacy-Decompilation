@@ -226,7 +226,11 @@ def main() -> int:
             f"  REJECT {item['unit']}::{item['function']} "
             f"({item['instructions']} insns): {item['reason']}"
         )
-    print(f"report: {output_path.relative_to(REPO)}")
+    try:
+        printable = output_path.relative_to(REPO)
+    except ValueError:
+        printable = output_path
+    print(f"report: {printable}")
     return 0
 
 

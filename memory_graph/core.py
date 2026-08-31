@@ -2231,8 +2231,9 @@ def _probe_record_references(
     # `attributes.laws_applied` list are both checked; free-text mentions
     # in law_screen stay advisory.
     cited: list[str] = []
-    if isinstance(record.get("supersedes"), str):
-        cited.append(record["supersedes"])
+    for citing_key in ("supersedes", "refutes"):
+        if isinstance(record.get(citing_key), str):
+            cited.append(record[citing_key])
     laws_applied = (
         record.get("attributes", {}).get("laws_applied")
         if isinstance(record.get("attributes"), dict) else None
@@ -2300,6 +2301,10 @@ def record_template(kind: str) -> dict[str, Any]:
             "outcome": "<REQUIRED: improved|neutral|negative|parked|capped>",
             "residual_class": "<OPTIONAL: NONE|REGISTER_ONLY|SCHEDULE|STRUCTURAL|MIXED>",
             "supersedes": "<OPTIONAL: id of the prior attempt record this replaces>",
+            "refutes": "<OPTIONAL: id of a record whose mechanism/framing this"
+                       " attempt DISPROVED by measurement — distinct from"
+                       " supersedes: the refuted record may belong to another"
+                       " function or be a law>",
             "attributes": {
                 "law_screen": "<REQUIRED: laws screened and whether each applied;"
                               " 'none applicable: <why>' is acceptable>",
@@ -2803,27 +2808,51 @@ def record_lookup(
     with closing(open_database(root, db_path)) as connection:
         for one_id in ids:
             row = connection.execute(
-                "SELECT record_state, source_path, raw_json FROM record_ingest"
-                " WHERE record_id=?",
+                "SELECT record_id, record_state, source_path, raw_json"
+                " FROM record_ingest WHERE record_id=?",
                 (one_id,),
             ).fetchone()
+            resolved_from = None
+            if row is None:
+                # Citations frequently arrive without the .<date>.vN version
+                # suffix (four fleet lanes hit this in one run). Resolve a
+                # base id to its NEWEST version — explicitly, never silently:
+                # the result carries resolved_from so the caller can see the
+                # id it asked for was not the id it got. Anything looser
+                # (relevance ranking, fuzzy match) is forbidden here: a
+                # detail fetch must never substitute unrelated records.
+                row = connection.execute(
+                    "SELECT record_id, record_state, source_path, raw_json"
+                    " FROM record_ingest WHERE record_id LIKE ? ESCAPE '\\'"
+                    " ORDER BY COALESCE(recorded_at, valid_from, record_id)"
+                    " DESC, record_id DESC LIMIT 1",
+                    (one_id.replace("\\", "\\\\").replace("%", "\\%")
+                        .replace("_", "\\_") + ".%",),
+                ).fetchone()
+                if row is not None:
+                    resolved_from = one_id
             if row is None:
                 missing.append(one_id)
                 continue
-            results.append(
-                {
-                    "record_state": row["record_state"],
-                    "source_path": row["source_path"],
-                    "record": json.loads(row["raw_json"]),
-                }
-            )
+            entry = {
+                "record_id": row["record_id"],
+                "record_state": row["record_state"],
+                "source_path": row["source_path"],
+                "record": json.loads(row["raw_json"]),
+            }
+            if resolved_from is not None:
+                entry["resolved_from"] = resolved_from
+                entry["note"] = ("cited without version suffix; resolved to"
+                                 " the newest version — cite the full id")
+            results.append(entry)
     if not results:
         raise MemoryGraphError(f"no record with id {ids[0]!r}"
                                if len(ids) == 1 else
                                f"none of the {len(ids)} ids matched a record")
     if len(ids) == 1:
         return results[0]
-    return {"records": results, "missing": missing, "count": len(results)}
+    return {"records": results, "missing": missing, "count": len(results),
+            "requested": len(ids)}
 
 
 def _record_age_days(valid_from: str | None, recorded_at: str | None) -> int | None:

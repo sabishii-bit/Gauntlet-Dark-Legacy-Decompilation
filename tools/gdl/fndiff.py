@@ -203,6 +203,7 @@ def raw_signature(objfile: Path):
     ).stdout
     hashes = {}
     cur = None
+    cur_start = 0
     hasher = None
     for line in out.splitlines():
         m = re.match(r"^([0-9a-f]+) <(.+)>:$", line)
@@ -210,6 +211,7 @@ def raw_signature(objfile: Path):
             if cur is not None:
                 hashes[cur] = hasher.hexdigest()[:12]
             cur = m.group(2)
+            cur_start = int(m.group(1), 16)
             if not cur.startswith("fn_"):
                 cur = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
             hasher = hashlib.sha1()
@@ -226,6 +228,20 @@ def raw_signature(objfile: Path):
             # functions. Hash the reloc with the private index normalized;
             # named symbols and addends still count.
             reloc = re.sub(r"@\d+\b", "@pool", line.strip())
+            # A reloc line's leading offset is SECTION-relative, and
+            # section-anchored targets (.text+0x…, .sdata+0x…) carry
+            # layout-dependent addends — both shift for every downstream
+            # sibling whenever any earlier function or datum grows, which
+            # made the gate flag 27 untouched functions after a one-insn
+            # win. Hash the offset function-relative and the anchored
+            # addend as position-blind; a genuinely retargeted reloc still
+            # differs through fndiff's real score (resolved symbol names).
+            m = re.match(r"^([0-9a-f]+):\s*(.*)$", reloc)
+            if m:
+                rel = int(m.group(1), 16) - cur_start
+                reloc = f"+{rel:#x}: {m.group(2)}"
+            reloc = re.sub(r"(\.[A-Za-z][\w.]*)\+0x[0-9a-f]+", r"\1+off",
+                           reloc)
             hasher.update(reloc.encode())
     if cur is not None:
         hashes[cur] = hasher.hexdigest()[:12]
