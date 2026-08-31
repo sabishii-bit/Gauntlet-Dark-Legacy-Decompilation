@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/enemy/critter.c hazard-tier struct-debt pass (worktree GDL-Claude-StructDraft2, branch claude/structdraft2-20260831, work_claim.structdraft-2.20260831.v1); attempt.critter-structdebt-hazardtier.20260831.v1. Commits 4e5a8ba1c, be51e0e4b, 9b72ae90e, 4c1ee334c, ca3fa7f23, 97bd22f1e, a68c9f476.",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.offsetof-rename-can-regress-prior-improved-fn -- applies whenever that law's exclusion rule is about to be used to skip a whole FUNCTION because it carries a live matching-pass IMPROVED record.",
+    "tags": [
+      "core-screen",
+      "offsetof-form",
+      "workflow",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.offsetof-hazard-is-per-base-not-per-function.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T04:44:29Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "claim.law.offsetof-rename-can-regress-prior-improved-fn establishes that a function carrying a prior matching-pass IMPROVED result can regress from an otherwise-universally-safe offsetof rename, and its recorded consequence was read by the following pass (attempt.struct-pastend-critter-blockers.20260831.v1) as a FUNCTION-level exclusion: 209 of critter.c's 304 remaining sites were skipped wholesale because they sat inside such functions, 'including individually safe-looking sites inside them'. That reading is too broad. The hazard tracks the BASE EXPRESSION, not the function. Verified in the same TU and on the very function the parent law was derived from: CritterInitGeo's regressions were both on base `c` (the Critter itself, under peak register pressure from the atan2-operand staging the function was hand-tuned around) -- c+0xF8/0xFC skinMatrix and the 6-site movePathPos/defaultPos block. In this pass, with those `c`-based sites still treated as a hard veto and left raw, SIXTEEN sites on OTHER bases inside the same CritterInitGeo converted byte-identical in two gates: 6 on `c->shadow` (MBObject mat[3][0..2], zsort_add, zmod) and 10 on `header` (= (u8*)c->hdr, CritterPackedType node0Index/node1Index/node2Index/typeFlags/floorOffset/vertDrift/atree). The same pattern held across the whole hazard tier, all byte-identical: ProcessCritter (4 sites on c->shadow) and CritterBossAI (4 on c->shadow, 3 on header) -- CritterBossAI re-measured at exactly 96.9584% fuzzy before and after both of its conversions, holding a delicate prior matching result; CritterDamage (15 sites on `hitNode`); CritterCollidePlayers (6 on `player`); CritterInitInst (7 on `h`); CritterDoTexmodNode (3 on `Effects[result].node`). 60 sites total across 7 functions that a function-level exclusion would have skipped, zero regressions, zero reverts. MECHANISM (consistent with the parent law's register-pressure hypothesis, still not mechanistically proven): the parent law's regressions are a register-allocation/CSE effect on the address web of ONE heavily-pressured base; a different base inside the same function has its own web and is not implicated. CONSEQUENCE for de-fakematch planning: when the parent law flags a function, exclude only the SPECIFIC BASE (ideally the specific site group) that is recorded as having regressed, then convert the function's other bases in their own individual gates. Do not skip whole functions -- in this TU that misreading was hiding roughly a fifth of the TU's total debt behind a veto that did not actually apply to it. The parent law's real cost is that these conversions need one gate per function instead of one gate per TU, which is a scheduling cost, not a prohibition. Corollary for gating: because the hazard is per-base, the correct batch unit for a hazard-tier pass is (function x base), and defake_gate.py check --rebuild after each such batch localises any failure without bisection."
+}

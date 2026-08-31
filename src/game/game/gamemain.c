@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/critter.h"
 #include "game/enemy.h"
 #include "game/item.h"
 #include "game/leveldata.h"
@@ -114,9 +115,41 @@
 /* Cross-TU externs (types chosen to reproduce the emitted access form) */
 /* ------------------------------------------------------------------ */
 
+/* Per-level navigation record reached through gWorldData->levels. */
+typedef struct WorldLevelNav {
+    u32 flags;
+    s16 flags2;
+    u8 _06[0x106];
+} WorldLevelNav;
+
+/* Head of the loaded world-data blob: level cursor plus the level array. */
+typedef struct WorldDataNav {
+    u8 _00[0x16];
+    s16 curLevel;
+    s16 numLevels;
+    u8 _1A[2];
+    WorldLevelNav* levels;
+} WorldDataNav;
+
+/* Fog block embedded in level_data at +0x70. include/game/leveldata.h
+ * reserves exactly `u8 fog[0x1C]` there, and the Xbox PDB's fog_data
+ * (misc.h) is exactly 0x1C with no pad gaps; every offset this TU reads
+ * raw is a field start of the matching width. Kept file-local rather than
+ * widening the shared header. */
+typedef struct FogData {
+    u8  type;         /* 0x00 fog mode                     */
+    u8  color[3];     /* 0x01 packed RGB                   */
+    f32 intensity;    /* 0x04                              */
+    f32 density;      /* 0x08                              */
+    f32 min;          /* 0x0C                              */
+    f32 max;          /* 0x10 (also reached as gCurLevel+0x80) */
+    f32 nearw;        /* 0x14                              */
+    f32 farw;         /* 0x18                              */
+} FogData;            /* 0x1C */
+
 /* Active level / world-data records (SDA-relative pointers). */
 extern level_data* gCurLevel;      /* 0x8034483C */
-extern u8*  gWorldData;            /* 0x80344838 */
+extern WorldDataNav* gWorldData;   /* 0x80344838 */
 
 /* 44-byte per-realm world-data descriptor table (0x8011... via ADDR16). */
 typedef struct WorldDataType {
@@ -184,6 +217,21 @@ extern s32   gNumEnemies;          /* 0x80344744 */
 extern f32   lbl_80346820;
 extern f32   lbl_803468B0;
 extern f32   lbl_80346A80;
+/* Milestone table record (stride 0x68). Layout adopted from the recovered
+ * MilestoneParam in src/game/world/items.c, which walks the same table:
+ * items.c's GetMilestonePos reads matrix[12..14] as the world position,
+ * exactly the m+48/52/56 triple this TU reads raw. Declared file-locally
+ * (never added to a shared header) per the whole-TU cascade law. */
+typedef struct MilestoneParam {
+    f32 matrix[16];   /* 0x00 node transform; [8]/[10] give facing, [12..14] position */
+    f32 pos[3];       /* 0x40 */
+    u8  _pad4C[4];
+    f32 saved_pos[3]; /* 0x50 */
+    u8  _pad5C[4];
+    s32 handle;       /* 0x60 */
+    s32 active;       /* 0x64 */
+} MilestoneParam;     /* 0x68 */
+
 extern u8    sMilestones[];
 extern s32   sNumMilestones;
 extern f64   __frsqrte(f64 x);
@@ -1354,7 +1402,7 @@ void* fn_80057ACC(s32 key)
             }
         }
     }
-    return gWorldData + 4;
+    return (u8*)gWorldData + 4;
 }
 
 /* 0x80057AB4 -- accessor: current-level record + 8. */
@@ -1366,7 +1414,7 @@ void* LevelItemDesc(void)
 /* 0x80057AC0 -- accessor: world-data record + 4. */
 void* WorldItemDesc(void)
 {
-    return gWorldData + 4;
+    return (u8*)gWorldData + 4;
 }
 
 /* 0x80057BC8 -- realm-type descriptor's f20 for a given type id. */
@@ -1426,7 +1474,7 @@ void GetEnemyTypes(void)
     u8* tbl = (u8*)lbl_80257680;
     s32 i;
     s32 seen1e = 0;
-    u8* etab = *(u8**)(gWorldData + 0x20);
+    u8* etab = *(u8**)((u8*)gWorldData + 0x20);
     s32 off;
     s32 levelOff;
 
@@ -2507,9 +2555,9 @@ s32 fn_80051480(f32* pos)
         f32 dy;
         f32 dz;
 
-        dy = pos[1] - *(f32*)(node + 0x34);
-        dx = pos[0] - *(f32*)(node + 0x30);
-        dz = pos[2] - *(f32*)(node + 0x38);
+        dy = pos[1] - *(f32*)(node + offsetof(MilestoneParam, matrix[13]));
+        dx = pos[0] - *(f32*)(node + offsetof(MilestoneParam, matrix[12]));
+        dz = pos[2] - *(f32*)(node + offsetof(MilestoneParam, matrix[14]));
         d = dx * dx + dy * dy;
         d = dz * dz + d;
 
@@ -2588,20 +2636,6 @@ u32 FindWave(const s8* s)
     return (realm << 8) | ((u32)((s32)(s8)s[1] - '1') & 0xFF);
 }
 
-typedef struct WorldLevelNav {
-    u32 flags;
-    s16 flags2;
-    u8 _06[0x106];
-} WorldLevelNav;
-
-typedef struct WorldDataNav {
-    u8 _00[0x16];
-    s16 curLevel;
-    s16 numLevels;
-    u8 _1A[2];
-    WorldLevelNav* levels;
-} WorldDataNav;
-
 typedef struct WorldTypeNav {
     s32 worldId;
     u8 _04[12];
@@ -2663,7 +2697,7 @@ s32 NextAttractWave(s32 worldLevel)
 
             originalLevel = level;
             numLevels = worldTable->worlds[worldIndex].numLevels;
-            levels = ((WorldDataNav*)gWorldData)->levels;
+            levels = gWorldData->levels;
 
             while ((levels[level].flags2 & 2) == 0) {
                 level++;
@@ -2713,10 +2747,10 @@ s32 PrevWorldLevel(s32 waveMask)
     if (waveMask == -1) {
         level = -1;
     } else {
-        level = ((WorldDataNav*)gWorldData)->curLevel - 1;
+        level = gWorldData->curLevel - 1;
         if (waveMask != 0) {
             while (level >= 0 &&
-                   (waveMask & ((WorldDataNav*)gWorldData)->levels[level].flags2) == 0) {
+                   (waveMask & gWorldData->levels[level].flags2) == 0) {
                 level--;
             }
         }
@@ -2764,16 +2798,16 @@ s32 NextWorldLevel(s32 waveMask)
     if (waveMask == -1) {
         level = 99;
     } else {
-        level = ((WorldDataNav*)gWorldData)->curLevel + 1;
+        level = gWorldData->curLevel + 1;
         if (waveMask != 0) {
-            while (level < ((WorldDataNav*)gWorldData)->numLevels &&
-                   (waveMask & ((WorldDataNav*)gWorldData)->levels[level].flags2) == 0) {
+            while (level < gWorldData->numLevels &&
+                   (waveMask & gWorldData->levels[level].flags2) == 0) {
                 level++;
             }
         }
     }
 
-    if (level >= ((WorldDataNav*)gWorldData)->numLevels) {
+    if (level >= gWorldData->numLevels) {
         level = 0;
         do {
             worldIndex++;
@@ -2822,7 +2856,7 @@ s32 fn_80057F44(s32 code, s32 mask)
             }
         } else {
             if (gWorldData != 0) {
-                if (sub >= ((WorldDataNav*)gWorldData)->numLevels) {
+                if (sub >= gWorldData->numLevels) {
                     sub = 0;
                 }
             } else {
@@ -2878,9 +2912,9 @@ void fn_80051C78(void)
         u8* m = sMilestones;
 
         for (i = 0; i < sNumMilestones; i++, m += 0x68) {
-            f32 dx = gDefaultPlayerPosition[0] - *(f32*)(m + 0x30);
-            f32 dy = gDefaultPlayerPosition[1] - *(f32*)(m + 0x34);
-            f32 dz = gDefaultPlayerPosition[2] - *(f32*)(m + 0x38);
+            f32 dx = gDefaultPlayerPosition[0] - *(f32*)(m + offsetof(MilestoneParam, matrix[12]));
+            f32 dy = gDefaultPlayerPosition[1] - *(f32*)(m + offsetof(MilestoneParam, matrix[13]));
+            f32 dz = gDefaultPlayerPosition[2] - *(f32*)(m + offsetof(MilestoneParam, matrix[14]));
             f32 d2 = dx * dx + dy * dy;
 
             d2 = dz * dz + d2;
@@ -2977,12 +3011,12 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
     }
 
     m = sMilestones + milestone * 104;
-    pos[0] = *(f32*)(m + 48);
-    pos[1] = *(f32*)(m + 52);
-    pos[2] = *(f32*)(m + 56);
+    pos[0] = *(f32*)(m + offsetof(MilestoneParam, matrix[12]));
+    pos[1] = *(f32*)(m + offsetof(MilestoneParam, matrix[13]));
+    pos[2] = *(f32*)(m + offsetof(MilestoneParam, matrix[14]));
     {
-        f32 x = *(f32*)(m + 40);
-        f32 r = atan2(*(f32*)(m + 32), x);
+        f32 x = *(f32*)(m + offsetof(MilestoneParam, matrix[10]));
+        f32 r = atan2(*(f32*)(m + offsetof(MilestoneParam, matrix[8])), x);
         f64 p = lbl_80346840;
         f32 a = (f32)(p + r);
         f64 t;
@@ -3028,9 +3062,9 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
         ad = (f32)nd;
         *(u32*)&ad &= 0x7FFFFFFF;
         if (ad <= tolerance) {
-            dy = *(f32*)(m + 52) - pos[1];
-            dx = *(f32*)(m + 48) - pos[0];
-            dz = *(f32*)(m + 56) - pos[2];
+            dy = *(f32*)(m + offsetof(MilestoneParam, matrix[13])) - pos[1];
+            dx = *(f32*)(m + offsetof(MilestoneParam, matrix[12])) - pos[0];
+            dz = *(f32*)(m + offsetof(MilestoneParam, matrix[14])) - pos[2];
             dist = dx * dx + dy * dy;
             dist = dz * dz + dist;
             if (dist > kZero) {
@@ -4539,10 +4573,10 @@ void world_update(void)
                         col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
                     }
                     MBCompVertScaleAddUV(
-                        col, hdr[0], *(f32*)(hdr + 0xc), *(f32*)(hdr + 0x10),
-                        (f32)(lbl_80346C10 * *(f32*)(hdr + 0x14)),
-                        (f32)(lbl_80346C10 * *(f32*)(hdr + 0x18)),
-                        (f32)(lbl_80346C38 * *(f32*)(hdr + 8)));
+                        col, hdr[0], *(f32*)(hdr + offsetof(FogData, min)), *(f32*)(hdr + offsetof(FogData, max)),
+                        (f32)(lbl_80346C10 * *(f32*)(hdr + offsetof(FogData, nearw))),
+                        (f32)(lbl_80346C10 * *(f32*)(hdr + offsetof(FogData, farw))),
+                        (f32)(lbl_80346C38 * *(f32*)(hdr + offsetof(FogData, density))));
                     lbl_80344868 = 1;
                 }
                 if (lbl_803447B8 == 1) {
@@ -4569,10 +4603,10 @@ void world_update(void)
                     col = (hdr[1] << 16) | (hdr[2] << 8) | hdr[3];
                 }
                 MBCompVertScaleAddUV(
-                    col, hdr[0], *(f32*)(hdr + 0xc), *(f32*)(hdr + 0x10),
-                    (f32)(lbl_80346C10 * *(f32*)(hdr + 0x14)),
-                    (f32)(lbl_80346C10 * *(f32*)(hdr + 0x18)),
-                    (f32)(lbl_80346C38 * *(f32*)(hdr + 8)));
+                    col, hdr[0], *(f32*)(hdr + offsetof(FogData, min)), *(f32*)(hdr + offsetof(FogData, max)),
+                    (f32)(lbl_80346C10 * *(f32*)(hdr + offsetof(FogData, nearw))),
+                    (f32)(lbl_80346C10 * *(f32*)(hdr + offsetof(FogData, farw))),
+                    (f32)(lbl_80346C38 * *(f32*)(hdr + offsetof(FogData, density))));
                 lbl_80344868 = 1;
             }
         }
@@ -4590,7 +4624,7 @@ void world_update(void)
         }
     }
     if (cond && gGameMode == 0x4010 && gBossObj != NULL &&
-        *(s32*)(gBossObj + 8) != 0) {
+        *(s32*)(gBossObj + offsetof(Critter, state)) != 0) {
         {
             u32 w = (u32)FindWORLDOBJ(strs + 0xd0);
 
@@ -4715,13 +4749,13 @@ void world_update(void)
         case 0x28:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 kill = 1;
-                *(f32*)(gBossObj + 0xac8) = lbl_80346BF0;
+                *(f32*)(gBossObj + offsetof(Critter, unkAC8)) = lbl_80346BF0;
             }
             break;
         case 0x2a:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 kill = 1;
-                *(f32*)(gBossObj + 0xac8) = lbl_80346BF0;
+                *(f32*)(gBossObj + offsetof(Critter, unkAC8)) = lbl_80346BF0;
             }
             break;
         case 0x24:
@@ -4732,12 +4766,12 @@ void world_update(void)
         case 0x26:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 void* found = MBOX_FindObject(strs + 0x128);
-                u32 o = *(u32*)(gBossObj + 0xcc);
+                u32 o = *(u32*)(gBossObj + offsetof(Critter, hitnode1));
 
                 if (o != 0 && *(u32*)(o + 0x78) != 0) {
                     MBSetObject((void*)*(s32*)(o + 0x78), found);
                 }
-                *(u16*)(gBossObj + 0xac6) = 0;
+                *(u16*)(gBossObj + offsetof(Critter, unkAC6)) = 0;
                 lbl_8034489C = 6;
             }
             break;
@@ -4745,8 +4779,8 @@ void world_update(void)
         if (kill) {
             if (lbl_80344894 >= 0) {
                 lbl_80344894 = DeleteEffect(lbl_80344894, 1);
-                fn_8009C9DC(3, gBossObj + 0x4c);
-                fn_8009C9DC(4, gBossObj + 0x4c);
+                fn_8009C9DC(3, gBossObj + offsetof(Critter, movevec));
+                fn_8009C9DC(4, gBossObj + offsetof(Critter, movevec));
             }
             lbl_8034489C = 6;
         }
@@ -4807,16 +4841,16 @@ void fn_80057024(void)
         lbl_8034489C = 0;
         for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 13148) {
             u8* q = p + off;
-            s32 st = *(s32*)(q + 232);
+            s32 st = *(s32*)(q + offsetof(Player, state));
             if (st == 1 || st == 5 || st == 3) {
                 if (lbl_8034489C != 0) {
-                    *(s32*)(q + 2100) = 0;
+                    *(s32*)(q + offsetof(Player, quest_state)) = 0;
                 } else if (towerGetRuneNearStat(i, sMusicTrackHi) != 0) {
-                    *(s32*)(q + 2100) = 1;
+                    *(s32*)(q + offsetof(Player, quest_state)) = 1;
                     lbl_8034489C = 1;
                     lbl_80344898 = z;
                 } else {
-                    *(s32*)(q + 2100) = 0;
+                    *(s32*)(q + offsetof(Player, quest_state)) = 0;
                 }
             }
         }
@@ -5139,7 +5173,7 @@ extern s32  strcmp(const char* a, const char* b);
                           *(colp) + *(s32*)(row_ + 80), 7, 0xFFFFFF, buf_); \
     }
 
-#define STAT_TALLY(accOff, tgtOff, ok)                                          {                                                                               s32 c_ = *(s32*)p;                                                          u8* b_ = state + c_ * 4;                                                    s32 amt_ = *(s32*)(b_ + 96);                                                if (gGameBusy != 0) {                                                           ok = 0;                                                                 } else {                                                                        u8* a_;                                                                     if (*(s32*)(lbl_80240E30 + c_ * 60 + 4) & 0x0F000000) {                         amt_ *= 6;                                                              }                                                                           *(s32*)(b_ + (accOff)) = *(s32*)(b_ + (accOff)) + amt_;                     a_ = state + *(s32*)p * 4;                                                  if (*(s32*)(a_ += (accOff)) <                                                   *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + (tgtOff))) {                        ok = 0;                                                                 } else {                                                                        *(s32*)a_ =                                                                     *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + (tgtOff));                      ok = 1;                                                                 }                                                                       }                                                                       }
+#define STAT_TALLY(accOff, tgtOff, ok)                                          {                                                                               s32 c_ = *(s32*)p;                                                          u8* b_ = state + c_ * 4;                                                    s32 amt_ = *(s32*)(b_ + 96);                                                if (gGameBusy != 0) {                                                           ok = 0;                                                                 } else {                                                                        u8* a_;                                                                     if (*(s32*)(lbl_80240E30 + c_ * 60 + 4) & 0x0F000000) {                         amt_ *= 6;                                                              }                                                                           *(s32*)(b_ + (accOff)) = *(s32*)(b_ + (accOff)) + amt_;                     a_ = state + *(s32*)p * 4;                                                  if (*(s32*)(a_ += (accOff)) <                                                   *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + (tgtOff))) {                        ok = 0;                                                                 } else {                                                                        *(s32*)a_ =                                                                     *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + (tgtOff));                      ok = 1;                                                                 }                                                                       }                                                                       }
 
 s32 do_stats_display(void)
 {

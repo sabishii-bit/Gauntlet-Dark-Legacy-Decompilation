@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/gamemain.c struct-debt pass (worktree GDL-Claude-StructDraft2, branch claude/structdraft2-20260831, work_claim.structdraft-2.20260831.v1); attempt.gamemain-structdebt-tupass.20260831.v1. Adopted at commits 483458e87 (gBossObj), 25d1e56fa (MilestoneParam), ad371fbfa (FogData).",
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "symbol-identity"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.gamemain-record-identities.20260831.v1",
+  "kind": "claim",
+  "predicate": "struct_layout",
+  "recorded_at": "2026-08-31T04:46:00Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/gamemain",
+  "valid_from": "2026-08-31",
+  "value": "Three previously-unnamed base clusters in src/game/game/gamemain.c are identified, each with GC-side authority rather than a bare Xbox PDB name. (1) `gBossObj` (declared `extern u8* gBossObj;`) is a Critter*. All five raw offsets resolve to field STARTS in the GC project header include/game/critter.h with matching widths: 0x08 state (s32), 0x4C movevec[3] (used as an address argument to fn_8009C9DC), 0xCC hitnode1, 0xAC6 unkAC6 (s16, read u16), 0xAC8 unkAC8 (f32). structdraft ranked Critter 4/4 with zero width conflicts. (2) world_update's `hdr = (u8*)gCurLevel + 0x70` is a fog_data record. The GC anchor is independent of the PDB: include/game/leveldata.h already reserves exactly `u8 fog[0x1C]` at level_data+0x70, fixing the record size at 28 bytes; the Xbox PDB's fog_data (misc.h) is also exactly 0x1C with zero pad gaps, and every offset the TU reads is a field start of the matching width -- 0x00 type and 0x01 color[3] feed the byte reads hdr[0] and hdr[1..3] that pack the fog colour, and 0x08/0x0C/0x10/0x14/0x18 are density/min/max/nearw/farw, consumed in that order by the MBCompVertScaleAddUV fog-setup call. Declared file-locally as FogData rather than widening the shared header. (3) The 0x68-stride record reached through `sMilestones` in five gamemain functions is items.c's MilestoneParam (src/game/world/items.c:84-92), which walks the same table. The decisive cross-TU corroboration is that items.c's own GetMilestonePos returns matrix[12..14] as the world position -- exactly the `m + 48/52/56` triple gamemain read raw -- and gamemain's atan2(m+32, m+40) is the matrix[8]/matrix[10] facing extraction from the same 4x4 transform. Declared file-locally as MilestoneParam. Layouts (2) and (3) were each confirmed by a host-gcc offsetof replica compiled and RUN before adoption; layout (1) needed none because the GC project header is itself the authority. All three adoptions gated byte-identical."
+}
