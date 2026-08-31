@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.webfrank-eligibility-sweep.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T15:43:47Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/critter",
+  "valid_from": "2026-08-31",
+  "value": "CORPUS-WIDE WEBFRANK ELIGIBILITY SWEEP, 2026-08-31 (screens only; harness build/scratch/sweep.py, run against the CURRENT raw .postprocess/body objects word-diffed against the extracted retail objects). Method = the closure-lane screens in order: equal-hash, instruction-count parity, form-aware masked byte scan (copy_register_fields), then the position-lockstep renaming bisimulation (verify_consistent_recolor) as adjudicator. Functions already carrying a shipped rule were excluded. RESULT: 21 functions survived the masked scan; 13 are BISIMULATION-PROVEN pure recolors, i.e. WEBFRANK-READY with no unproven_recolor_audit escape. TWELVE of them are outside this lane's TU and are queued here for whichever lane owns them (rules must be authored only by the owning lane): game/mb/mb_blit DrawBlit (375 insns, 86 fields); game/game/combat get_cam_dist (246, 72); game/world/newcam GetPlayerAvgPos (158, 49); game/game/gamemain fn_800511D0 (172, 41); game/game/gamemain fn_80051480 (58, 40); game/sfx/sfx StartBagFX (112, 29); game/world/items InitItemInfoData (106, 25); game/enemy/enemy find_neighbor_milestone (119, 24); game/sfx/sfx StartBlockFX (74, 24); game/pb/pb_diag pbDiagDrawObject (301, 13); game/mb/mb_particle MBPsysSetDebugNode (54, 8); game/anim/atree fn_80011BBC (88, 3). The thirteenth, game/enemy/critter CritterDoTexmodNode (463, 11), is proven ONLY once a tooling defect is fixed - see attempt.critterdotexmodnode-postnormalization-remeasure.20260831.v1. NOTE that several of these (InitItemInfoData, MBPsysSetDebugNode, fn_80011BBC, pbDiagDrawObject) carry existing parks or recent partial-improvement records: this sweep OVERTURNS those parks' premises, exactly as the pbDiagDrawTexture closure overturned its own stale blocker; re-derive from current output before trusting any of them. EIGHT candidates passed the masked scan but were correctly REJECTED by the bisimulation, and five share ONE signature worth knowing: 'base register presence differs (g0 vs gN)' - critter.c CritterLoadDone +0x98 and CritterLoadStartNext +0xe0, gamemain fn_80054E78 +0x154, psfx LoadPdataFile +0x118, newcam fn_8006E654 +0x3c. That is an SDA21-vs-explicit-base ADDRESSING-MODE difference (RA=0 means the linker supplies the base), not a register colour, and the zero_none guard catches it; such functions are NOT webfrank-eligible and must be closed at the source. The other three rejections are genuine renaming violations: movieplayer fn_800DBE98 +0x3c (f0/f2), btricol BTriLineCol +0x2d0 (f26), tower TowerCheckMessages +0x46c (g10/g11). METHOD NOTE for future sweeps: run the equal-hash screen FIRST - five critter.c functions (CritterDoSfx, CritterInitColnodes, CritterDoParticle, CritterGetDoAction, CritterDoSfxSub) are byte-identical to retail already and only their relocation SPELLING differs, and most raw-vs-retail relocation 'differences' project-wide are a 2-byte EMB_SDA21 offset convention affecting identically-named symbols, not aliases."
+}
