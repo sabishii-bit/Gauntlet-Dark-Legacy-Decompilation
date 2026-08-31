@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/combat.c CameraSupervisor; work_claim.combat-defake.20260831.v1 de-fakematch pass",
+    "scope": "MWCC GC 1.2.5 family; applies whenever a de-fakematch pass wants to replace a bare stride/multiplicand constant (feeding array-index or pointer-walk address arithmetic, e.g. `base + i * N` or `p += N`) with `sizeof(Type)` -- distinct from every existing offsetof-form law, which all cover an ADDEND (displacement added to an already-formed pointer), not a MULTIPLICAND/stride term.",
+    "tags": [
+      "core-screen",
+      "index-form",
+      "walked-pointer",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.sizeof-defeats-loop-stride-induction.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T00:41:41Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "Every offsetof-rename law in this corpus (offsetof-rename-preserves-protected-web and its refinements) covers replacing a bare hex/decimal ADDEND with offsetof(Type,field) on the SAME additive expression, and is verified near-guaranteed neutral because the front end sees one unchanged additive expression either way. This is a DIFFERENT, previously untested substitution: replacing a bare stride/multiplicand constant with sizeof(Type) in address arithmetic (`offset += 0x28` loop accumulator, and one-shot `nearest * 0x28` index multiplies). Verified NOT neutral: in CameraSupervisor's sTriggerCameras walk (stride 0x28, a `struct CombatTriggerCamera` sized exactly 0x28), changing only `offset += 0x28` to `offset += sizeof(CombatTriggerCamera)` (plus the same substitution at two one-shot `nearest/second * 0x28` sites and one `oldNearest * 0x28`) regressed fndiff real 527->531 with an opcode-multiset DIFFERS classification (ours-only -5 lfs; target's `mulli` loop-entry multiply replaced by a `lis/addi/fmr/lis/add/fmr/cmpwi` burst at the loop prologue, @0x1c-0x64) even though sizeof(CombatTriggerCamera) constant-folds to the numerically identical 0x28. In the SAME edit, every offsetof(CombatTriggerCamera, field) substitution on the ADDEND side of the identical expressions (`sTriggerCameras + offset + offsetof(...)`) stayed fully neutral; reverting ONLY the three sizeof() stride substitutions back to bare `0x28` (keeping every offsetof() addend substitution) restored GATE OK (real 527, byte-identical to baseline) on the first try -- isolating sizeof-as-stride, not offsetof-as-addend, as the exact cause. Working hypothesis (not mechanistically proven): MWCC's front end routes a sizeof(Type) operand through a different constant-folding or induction-variable-recognition path than a literal integer, even post-fold, changing whether the loop is compiled as a counted/strength-reduced multiply (target's mulli) or an address-recomputation sequence. Consequence: when de-fakematching a stride constant that happens to equal sizeof(some newly-named struct), do NOT substitute sizeof(Type) for the bare literal even though it is definitionally identical and reads better -- leave the stride as a bare hex/decimal constant (optionally with a comment naming the struct) and confine offsetof()-renaming to addend positions only. A/B any sizeof()-for-stride substitution explicitly before trusting it; do not assume neutrality transfers from the addend case."
+}

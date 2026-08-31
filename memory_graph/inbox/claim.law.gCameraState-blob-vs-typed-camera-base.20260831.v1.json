@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/combat.c whole-TU de-fakematch second pass; work_claim.combat-defake.20260831.v1",
+    "scope": "MWCC GC 1.2.5 family; game/game/combat.c's camera-family functions specifically -- boundary refinement of claim.law.walked-base-symbol-identity for this TU's two DIFFERENT camera bases.",
+    "tags": [
+      "core-screen",
+      "symbol-identity",
+      "walked-pointer",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.gCameraState-blob-vs-typed-camera-base.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T00:41:42Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "combat.c's camera functions reach camera state through TWO structurally different bases that look similar at the source level but carry opposite de-fakematch risk. (1) `gCameraState` (extern u8[]; the linked symbol is only 52 (0x34) bytes per config/GUNE5D/symbols.txt) is walked with raw arithmetic like `(u8*)gCameraState + N` for N well past 600 in InitCamera/CameraSupervisor/DiffRate/init_game_cam/cam_orient_to/get_cam_wpos/get_attn_pos/StandardCamera -- the walk silently crosses into WHATEVER ADJACENT GLOBAL FOLLOWS in .bss (gRecorderCameraPosition confirmed to sit at gCameraState+0x34 by a same-day matching session; the embedded Camera[0] struct at +0xC8 is itself a separate, independently-verified sub-object). This is exactly claim.law.walked-base-symbol-identity's hazard: which symbol a given offset TRULY belongs to is a per-function fact about the target's own relocations, not something inferable from the source-level offset arithmetic alone, and EVERY one of these functions is simultaneously flagged in this TU's own attempt history as recently matched/improved with a delicate register-or-schedule-only residual -- meaning a wrong attribution risks silently regressing hard-won work with no local signal until the gate runs. (2) By contrast, `Camera* cam` locals initialized directly from `&gCameras[idx]` (the OTHER, independently-declared, fully-typed 6-element `Camera gCameras[6]` array documented in camera.h) carry NONE of this ambiguity -- gCameras is its own complete, bounded symbol, and every field of the already-known Camera struct is safe to name via ordinary `cam->field` member access with no per-site relocation check required. Verified in this session: screen_limitation (a NonMatching, capped-elsewhere function in the same camera-function neighborhood) has `cam = &gCameras[lbl_8034453C];` and 8 raw `*(TYPE*)((u8*)cam+N)` sites that all converted cleanly to plain `cam->field` (pyr[1], pn, en, mn, ln, cn, gn, mode) with GATE OK (byte-identical, real unchanged) on the first attempt -- and CameraSupervisor (an IMPROVED, register/schedule-delicate function) has its OWN `cam = &gCameras[camIdx];` used via clean named fields throughout already, confirming the SAME gCameras-based pointer is safe even inside a fragile function, while that same function's OTHER raw pointers (sTriggerCameras-relative, a third, separately-bounded extern array) needed the addend-only offsetof() form instead (see claim.law.sizeof-defeats-loop-stride-induction for the one hazard found there). Consequence: before converting ANY raw camera-adjacent offset in this TU, identify which of the two bases the pointer traces back to (gCameraState-walk vs `&gCameras[idx]`-or-derived) -- gCameras-derived pointers convert to ordinary named-member access with the same low risk as any other typed struct pointer in the project; gCameraState-walk pointers past the true 52-byte symbol boundary require the per-function fnasm.py relocation check claim.law.walked-base-symbol-identity mandates before any rename, and were left raw and undocumented-as-safe by this pass for exactly that reason."
+}

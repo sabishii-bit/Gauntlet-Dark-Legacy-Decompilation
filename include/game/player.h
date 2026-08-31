@@ -233,7 +233,11 @@ typedef struct Player {
     /* 0x090C */ u32 coll_flags;     /* collision state bits [pmotion.c] */
     /* 0x0910 */ f32 coll_score;     /* collision score/severity [pmotion.c] */
     /* 0x0914 */ f32 bossdamage;     /* accumulated boss damage [critter.c] */
-    /* 0x0918 */ u8  pad_0918[4];
+    /* 0x0918 */ s32 hit_streak;     /* consecutive-hit counter vs. a non-birthing
+                                      * enemy; reset on pickup/respawn, drives the
+                                      * msgPost(22,...) taunt at streak>=10 while a
+                                      * boss is active [combat.c PlayerDamagedEnemy/
+                                      * PlayerDamagedItem; also reset in player.c] */
     /* 0x091C */ s32 count_91C;      /* per-frame countdown [player.c do_players] */
     /* 0x0920 */ s32 count_920;      /* exit-anim countdown [player.c do_players] */
     /* 0x0924 */ u8  pad_0924[4];

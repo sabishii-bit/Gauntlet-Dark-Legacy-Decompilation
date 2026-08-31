@@ -18,6 +18,11 @@
 #include "game/enemy.h"
 #include "game/player.h"
 #include "game/worldinfo.h"
+#include "game/leveldata.h"
+
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 
 typedef struct CameraTarget {
     s32 active;   /* +0x00 */
@@ -365,9 +370,32 @@ extern f32 lbl_80346100, lbl_80346110, lbl_80344530, lbl_80344408;
 extern f64 lbl_80345FE0;
 extern s32 lbl_80344510, lbl_8034450C, sNumTriggerCameras, lbl_8034429C, lbl_80344404;
 
-#define TC_X(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 4))
-#define TC_Y(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 8))
-#define TC_Z(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + 0xC))
+/* Trigger-camera (rail) marker record, stride 0x28.  Field boundaries are
+ * confirmed by this TU's own accesses (active flag @0, an "armed this frame"
+ * s16 test @2, world pos @4/8/0xC, pitch @0x14, yaw @0x18).  Same array as
+ * game/world/newcam.c's NcMarker (node handle @0x24, confirmed there); the
+ * +2 field is unnamed padding in NcMarker because that TU's own selectors
+ * never test it, so it is named only here where CameraSupervisor reads it.
+ * A view-only type: sTriggerCameras itself stays u8* and every access below
+ * keeps its original raw-pointer-walk shape (offsetof spelling only) per
+ * claim.law.pointer-walk-array-index-regression -- this loop accumulates
+ * `offset` across iterations, so array-style [i] indexing is not attempted. */
+typedef struct CombatTriggerCamera {
+    s8  active;      /* 0x00 */
+    u8  _pad01;      /* 0x01 */
+    s16 armed;       /* 0x02 */
+    f32 x;           /* 0x04 */
+    f32 y;           /* 0x08 */
+    f32 z;           /* 0x0C */
+    u8  _pad10[8];   /* 0x10 */
+    f32 pitch;       /* 0x14 */
+    f32 yaw;         /* 0x18 */
+    u8  _pad1C[0xC]; /* 0x1C */
+} CombatTriggerCamera; /* 0x28 */
+
+#define TC_X(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + offsetof(CombatTriggerCamera, x)))
+#define TC_Y(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + offsetof(CombatTriggerCamera, y)))
+#define TC_Z(i) (*(f32*)(sTriggerCameras + (i) * 0x28 + offsetof(CombatTriggerCamera, z)))
 
 /* Address-taken roots, absolute-value temporaries, and closest-point output.
  * Their order is fixed by CameraSupervisor's target stack accesses. */
@@ -421,13 +449,13 @@ void CameraSupervisor(s32 camIdx)
 
     for (; index < remaining; index++, offset += 0x28) {
         if (sTriggerCameras[offset] == 1 &&
-            *(s16*)(sTriggerCameras + offset + 2) != 0) {
+            *(s16*)(sTriggerCameras + offset + offsetof(CombatTriggerCamera, armed)) != 0) {
                 f32 dy = cam->wpos[1] -
-                    *(f32*)(sTriggerCameras + offset + 8);
+                    *(f32*)(sTriggerCameras + offset + offsetof(CombatTriggerCamera, y));
                 f32 dx = cam->wpos[0] -
-                    *(f32*)(sTriggerCameras + offset + 4);
+                    *(f32*)(sTriggerCameras + offset + offsetof(CombatTriggerCamera, x));
                 f32 dz = cam->wpos[2] -
-                    *(f32*)(sTriggerCameras + offset + 0xC);
+                    *(f32*)(sTriggerCameras + offset + offsetof(CombatTriggerCamera, z));
 
                 distance = dy * dy;
                 distance = dx * dx + distance;
@@ -454,14 +482,14 @@ void CameraSupervisor(s32 camIdx)
                     secondPitch = nearestPitch;
                     lbl_80344510 = index;
                     nearestDistance = distance;
-                    nearestYaw = *(f32*)(sTriggerCameras + offset + 0x18);
-                    nearestPitch = *(f32*)(sTriggerCameras + offset + 0x14);
+                    nearestYaw = *(f32*)(sTriggerCameras + offset + offsetof(CombatTriggerCamera, yaw));
+                    nearestPitch = *(f32*)(sTriggerCameras + offset + offsetof(CombatTriggerCamera, pitch));
                 } else if (distance < secondDistance) {
                     lbl_8034450C = index;
                     secondDistance = distance;
                     count++;
-                    secondYaw = *(f32*)(sTriggerCameras + offset + 0x18);
-                    secondPitch = *(f32*)(sTriggerCameras + offset + 0x14);
+                    secondYaw = *(f32*)(sTriggerCameras + offset + offsetof(CombatTriggerCamera, yaw));
+                    secondPitch = *(f32*)(sTriggerCameras + offset + offsetof(CombatTriggerCamera, pitch));
                 }
             }
         }
@@ -491,13 +519,15 @@ void CameraSupervisor(s32 camIdx)
         f32 sy;
         f32 sz;
 
-        PointLineColl(&cam->wpos[0], (f32*)(nearestTrigger + 4),
-            (f32*)(secondTrigger + 4), scratch.closest);
+        PointLineColl(&cam->wpos[0], (f32*)(nearestTrigger + offsetof(CombatTriggerCamera, x)),
+            (f32*)(secondTrigger + offsetof(CombatTriggerCamera, x)), scratch.closest);
 
-        sy = *(f32*)(nearestTrigger + 8) - *(f32*)(secondTrigger + 8);
-        sx = *(f32*)(nearestTrigger + 4) - *(f32*)(secondTrigger + 4);
-        sz = *(f32*)(nearestTrigger + 0xC) -
-             *(f32*)(secondTrigger + 0xC);
+        sy = *(f32*)(nearestTrigger + offsetof(CombatTriggerCamera, y)) -
+             *(f32*)(secondTrigger + offsetof(CombatTriggerCamera, y));
+        sx = *(f32*)(nearestTrigger + offsetof(CombatTriggerCamera, x)) -
+             *(f32*)(secondTrigger + offsetof(CombatTriggerCamera, x));
+        sz = *(f32*)(nearestTrigger + offsetof(CombatTriggerCamera, z)) -
+             *(f32*)(secondTrigger + offsetof(CombatTriggerCamera, z));
         segmentLength = sy * sy;
         segmentLength = sx * sx + segmentLength;
         segmentLength = sz * sz + segmentLength;
@@ -515,9 +545,9 @@ void CameraSupervisor(s32 camIdx)
             segmentLength = scratch.segmentRoot;
         }
 
-        sy = *(f32*)(nearestTrigger + 8) - scratch.closest[1];
-        sx = *(f32*)(nearestTrigger + 4) - scratch.closest[0];
-        sz = *(f32*)(nearestTrigger + 0xC) - scratch.closest[2];
+        sy = *(f32*)(nearestTrigger + offsetof(CombatTriggerCamera, y)) - scratch.closest[1];
+        sx = *(f32*)(nearestTrigger + offsetof(CombatTriggerCamera, x)) - scratch.closest[0];
+        sz = *(f32*)(nearestTrigger + offsetof(CombatTriggerCamera, z)) - scratch.closest[2];
         projectedDistance = sy * sy;
         projectedDistance = sx * sx + projectedDistance;
         projectedDistance = sz * sz + projectedDistance;
@@ -658,7 +688,8 @@ void CameraSupervisor(s32 camIdx)
 
 deactivate_previous:
     if (oldNearest >= 0 && oldNearest == lbl_8034450C) {
-        *(s16*)(sTriggerCameras + oldNearest * 0x28 + 2) = 0;
+        *(s16*)(sTriggerCameras + oldNearest * 0x28 +
+                offsetof(CombatTriggerCamera, armed)) = 0;
     }
 }
 
@@ -814,7 +845,7 @@ s32 init_game_cam(s32 camIdx)
         if (gScriptedCameraState < 45) {
             for (i = 0; i < 4; i++) {
                 u8* player = (u8*)gPlayers + i * PLAYER_STRIDE;
-                if (PF(player, 0xE8, s32) == 1 &&
+                if (PF(player, offsetof(Player, state), s32) == 1 &&
                     (*(u32*)(lbl_80240E30 + i * 0x3C + 8) & 0x20000FF) != 0) {
                     gScriptedCameraState = 2;
                 }
@@ -827,8 +858,8 @@ s32 init_game_cam(s32 camIdx)
     if (prevTimer > 1 && gScriptedCameraState == 1) {
         for (i = 0; i < 4; i++) {
             u8* player = (u8*)gPlayers + i * PLAYER_STRIDE;
-            if (PF(player, 0xE8, s32) == 1) {
-                PF(player, 0x91C, s32) = 4;
+            if (PF(player, offsetof(Player, state), s32) == 1) {
+                PF(player, offsetof(Player, count_91C), s32) = 4;
             }
         }
     }
@@ -3224,7 +3255,7 @@ void screen_limitation(s32 camIdx)
     if (row != 0x20) {
         row -= 2;
     }
-    yaw = FixAngle((f32)(lbl_80345F60 - (f64)*(f32*)((u8*)cam + 0xA8)));
+    yaw = FixAngle((f32)(lbl_80345F60 - (f64)cam->pyr[1]));
     yawDeg = (f32)(lbl_803460B0 * (lbl_803460B8 * (f64)yaw));
     if (yawDeg < lbl_80345EC8) {
         yawDeg = (f32)(yawDeg + lbl_803460C0);
@@ -3285,12 +3316,11 @@ void screen_limitation(s32 camIdx)
         dbgTextPrintfCol(0xE, row - 6, "                               ");
         break;
     case 5:
-        dbgTextPrintfCol(0x12, row - 7, "PLAYER %02X   ",
-                         *(s32*)((u8*)cam + 0x100));
+        dbgTextPrintfCol(0x12, row - 7, "PLAYER %02X   ", cam->pn);
         dbgTextPrintfCol(0xE, row - 6, "                               ");
         break;
     case 6: {
-        s32 enemy = *(s32*)((u8*)cam + 0x104);
+        s32 enemy = cam->en;
         u8* e = (u8*)gEnemies + enemy * ENEMY_STRIDE;
 
         dbgTextPrintfCol(0x12, row - 7, "ENEMY %02X    ", enemy);
@@ -3299,22 +3329,19 @@ void screen_limitation(s32 camIdx)
         break;
     }
     case 8:
-        dbgTextPrintfCol(0x12, row - 7, "MILESTONE %02X",
-                         *(s32*)((u8*)cam + 0x10C));
+        dbgTextPrintfCol(0x12, row - 7, "MILESTONE %02X", cam->mn);
         dbgTextPrintfCol(0xE, row - 6, "                               ");
         break;
     case 9:
-        dbgTextPrintfCol(0x12, row - 7, "LOOKOUT %02X  ",
-                         *(s32*)((u8*)cam + 0x110));
+        dbgTextPrintfCol(0x12, row - 7, "LOOKOUT %02X  ", cam->ln);
         dbgTextPrintfCol(0xE, row - 6, "                               ");
         break;
     case 10:
-        dbgTextPrintfCol(0x12, row - 7, "CAMERA %02X   ",
-                         *(s32*)((u8*)cam + 0x114));
+        dbgTextPrintfCol(0x12, row - 7, "CAMERA %02X   ", cam->cn);
         dbgTextPrintfCol(0xE, row - 6, "                               ");
         break;
     case 7: {
-        s32 index = *(s32*)((u8*)cam + 0x108);
+        s32 index = cam->gn;
         u8* item = (u8*)&sItems[index];
         u8* info;
         s32 type;
@@ -3429,7 +3456,7 @@ void screen_limitation(s32 camIdx)
         dbgTextPrintfCol(0xE, row - 6, "                               ");
         break;
     }
-    dbgTextPrintfCol(1, row - 6, "MODE=%d ", *(s32*)((u8*)cam + 0xD0));
+    dbgTextPrintfCol(1, row - 6, "MODE=%d ", cam->mode);
     fn_800C02F4(-1);
 }
 
@@ -3534,8 +3561,8 @@ void PlayerDamagedEnemy(void* player, void* enemy, s32 state, s32 damage,
         return;
     }
     if (damage > 0 && ((Enemy*)enemy)->birth_style == 0) {
-        s32 c = *(s32*)((u8*)player + 2328) + 1;
-        *(s32*)((u8*)player + 2328) = c;
+        s32 c = *(s32*)((u8*)player + offsetof(Player, hit_streak)) + 1;
+        *(s32*)((u8*)player + offsetof(Player, hit_streak)) = c;
         if (c >= 10 && gBossType < 0) {
             msgPost(22, ((Player*)player)->index,
                     (u32)((Player*)player)->col_pos);
@@ -3585,14 +3612,14 @@ big:
         goto out;
     }
     if (flag != 0) {
-        PF(player, 0x918, s32) = 0;
+        PF(player, offsetof(Player, hit_streak), s32) = 0;
     }
     if (flag != 0) {
         s32* count = (s32*)((u8*)player +
                            ((Player*)player)->character * 0x1C);
         count[0xC20 / sizeof(s32)] = count[0xC20 / sizeof(s32)] + 1;
     }
-    t = PF(item, 0xDC, s16);
+    t = PF(item, offsetof(CombatItem, data), s16);
     if (t == -2) {
         t = 1;
     } else if (t == -3) {
@@ -3616,9 +3643,9 @@ small:
         f32 pos[3];
         f32 vec[3];
         s32 magic = info[0xF];
-        pos[0] = *(f32*)((u8*)item + 0x44);
-        pos[1] = *(f32*)((u8*)item + 0x48);
-        pos[2] = *(f32*)((u8*)item + 0x4C);
+        pos[0] = *(f32*)((u8*)item + offsetof(CombatItem, attn_pos[0]));
+        pos[1] = *(f32*)((u8*)item + offsetof(CombatItem, attn_pos[1]));
+        pos[2] = *(f32*)((u8*)item + offsetof(CombatItem, attn_pos[2]));
         vec[0] = ((Player*)player)->col_pos[0];
         vec[1] = ((Player*)player)->col_pos[1];
         vec[2] = ((Player*)player)->col_pos[2];
@@ -3832,24 +3859,24 @@ s32 MissileCollideEnemy(f32 radius, f32* from, f32* to, f32* hit,
 
     for (i = firstEnemy; i < 25; i++) {
         u8* enemy = (u8*)gEnemies + i * ENEMY_STRIDE;
-        s32 state = PF(enemy, 0xB4, s32);
+        s32 state = PF(enemy, offsetof(Enemy, state), s32);
         f32* cool;
         if ((state == 1 || state == 6) &&
             (!respectCooldown ||
-             !(sMusicFadeBase < (cool = (f32*)(enemy + 0x2B4))[cooldownSlot]))) {
+             !(sMusicFadeBase < (cool = (f32*)(enemy + offsetof(Enemy, fxhittime)))[cooldownSlot]))) {
             u8 _pad[8];
             f32 dx;
             f32 enemyRadius;
-            f32 dz = PF(enemy, 0x5C, f32) - to[2];
+            f32 dz = PF(enemy, offsetof(Enemy, objgrp.coll_pos[2]), f32) - to[2];
             f32 enemyHeight;
             f32 eh2;
-            enemyRadius = radius + PF(enemy, 0x238, f32);
-            dx = PF(enemy, 0x54, f32) - to[0];
-            enemyHeight = radius + PF(enemy, 0x23C, f32);
+            enemyRadius = radius + PF(enemy, offsetof(Enemy, rad), f32);
+            dx = PF(enemy, offsetof(Enemy, objgrp.coll_pos[0]), f32) - to[0];
+            enemyHeight = radius + PF(enemy, offsetof(Enemy, hht), f32);
             eh2 = enemyHeight;
             if (!(dx * dx + dz * dz > enemyRadius * enemyRadius + horizontalLen2) &&
-                !(PF(enemy, 0x58, f32) - to[1] > verticalLen2 + enemyHeight) &&
-                LineCylinderCollide((f32*)(enemy + 0x54), enemyRadius,
+                !(PF(enemy, offsetof(Enemy, objgrp.coll_pos[1]), f32) - to[1] > verticalLen2 + enemyHeight) &&
+                LineCylinderCollide((f32*)(enemy + offsetof(Enemy, objgrp.coll_pos[0])), enemyRadius,
                                     eh2, from, to, hit, 0)) {
                 return i;
             }
@@ -4011,7 +4038,7 @@ void SfxSetLight();
 
 s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
 {
-    s32 enemyType = PF(enemy, 0x00, s32);
+    s32 enemyType = PF(enemy, offsetof(Enemy, type), s32);
     MissileInfo* desc = &EnemyMissileInfo[enemyType][slot];
     void* tree = EnemyMissileTree[enemyType][slot];
     f32 dir[3];
@@ -4030,7 +4057,7 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
         ErrorPrintf("ENEMY %d HAS NO MISSILE TYPE %d", enemyType, slot);
         return 0;
     }
-    speed = desc->speed * PF(gCurLevel, 0xC4, f32);
+    speed = desc->speed * PF(gCurLevel, offsetof(level_data, ene_mspeed), f32);
     dir[0] = launchPos[0] - target[0];
     invSpeed = (f32)(lbl_80346318 / (f64)speed);
     dir[1] = launchPos[1] - target[1];
@@ -4041,7 +4068,7 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
         f32 spread = slot == 1 ? lbl_80346358 : lbl_8034635C;
         f64 rnd = Random(lbl_80346368);
         f32 weight = desc->weight;
-        f32 lead = (f32)((f64)PF(gCurLevel, 0xC8, f32) *
+        f32 lead = (f32)((f64)PF(gCurLevel, offsetof(level_data, ene_macc), f32) *
                          (lbl_80346360 + rnd) + (f64)spread);
         f32 horiz = fqdist(dir[0], dir[2]);
         f32 hn = (f32)(horiz > lbl_80346348 ?
@@ -4059,12 +4086,13 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
     flat[1] = dir[1];
     flat[2] = dir[2];
     NormalVector2D(flat);
-    if (flat[0] * PF(enemy, 0x24, f32) + flat[2] * PF(enemy, 0x2C, f32) <
+    if (flat[0] * PF(enemy, offsetof(Enemy, objgrp.worldmat[2][0]), f32) +
+        flat[2] * PF(enemy, offsetof(Enemy, objgrp.worldmat[2][2]), f32) <
         lbl_80346378) {
         return 0;
     }
     {
-        flags = PF(enemy, 0xC4, u32);
+        flags = PF(enemy, offsetof(Enemy, atts.damagetype), u32);
         aim[0] = target[0];
         aim[1] = target[1];
         aim[2] = target[2];
@@ -4073,7 +4101,7 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
         } else {
             height = lbl_80346380;
         }
-        switch (PF(enemy, 0x00, s32)) {
+        switch (PF(enemy, offsetof(Enemy, type), s32)) {
         case 4:
             if (slot == 0) height = lbl_80346334;
             break;
@@ -4184,10 +4212,10 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
                        f32 speedArg, f32 scaleArg)
 {
     Player* playerView = (Player*)player;
-    s32 idx = player[0];
+    s32 idx = playerView->index;
     s32* missileFx = pmissile_sfxidx;
     MissileTreeInfo* treeInfo = &PlayerMissileTreeInfo[idx];
-    s32 pflags = player[0x49];
+    s32 pflags = playerView->flags;
     s32 trailFx = (s32)treeInfo->throwFlags;
     s32 special = pflags & 0x8000;
     s32 dmgLow = damageType & 0xF;
@@ -4218,19 +4246,19 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
         desc = &BallistaMissileInfo;
         useSpecial = 1;
     } else {
-        desc = &PlayerMissileInfo[player[2]];
+        desc = &PlayerMissileInfo[playerView->char_type];
     }
     scale = playerView->stat_missile_dmg * scaleArg;
 
     if ((pflags & 0x400) != 0) {
-        MulVecMat3((f32*)lbl_8011A1A8, aim, (f32*)(player + 5));
+        MulVecMat3((f32*)lbl_8011A1A8, aim, playerView->mat);
     } else {
         if (mode == 1) {
             MulVecMat3((f32*)((u8*)lbl_80282930[idx] + 0x5C), aim,
-                       (f32*)(player + 5));
+                       playerView->mat);
         } else if (mode == 2) {
             MulVecMat3((f32*)((u8*)lbl_80282930[idx] + 0x158), aim,
-                       (f32*)(player + 5));
+                       playerView->mat);
         } else {
             aim[0] = lbl_80346328;
             aim[1] = lbl_80346328;
@@ -4262,9 +4290,9 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
     }
     {
         s32* hit = (s32*)fn_8005ED44(desc->collisionRadius, pt0, pt1, wallHit,
-                                     0, player[0]);
+                                     0, playerView->index);
         if (hit != 0) {
-            f32 dmg = fn_8005C1DC(hit, scale, damageType, player[0]);
+            f32 dmg = fn_8005C1DC(hit, scale, damageType, playerView->index);
             if (dmg >= lbl_80346340) {
                 u32 killed;
                 if (lbl_80346340 == dmg) {
@@ -4316,7 +4344,7 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
         }
 
         {
-            s32 f = player[0x49];
+            s32 f = playerView->flags;
             if ((f & 0x8000) != 0) {
                 extraFlags |= 0x10000;
                 tree = BossElecTree;
@@ -4351,23 +4379,23 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
                            direction[2] * spreadA.value[i];
             launchDir[2] = -direction[0] * spreadA.value[i] +
                            direction[2] * spreadB.value[i];
-            if ((player[2] == 2 || player[2] == 6) &&
-                WeapThrowFx[player[0]][dmgLow] >= 0 &&
+            if ((playerView->char_type == 2 || playerView->char_type == 6) &&
+                WeapThrowFx[playerView->index][dmgLow] >= 0 &&
                 !useSpecial) {
                 tree = EffectInfo[0];
             }
-            fx = StartMissile(player[0] + 1, pt1, launchDir, damageType, desc,
+            fx = StartMissile(playerView->index + 1, pt1, launchDir, damageType, desc,
                               tree, i, extraFlags, clamped, scale);
             if (fx >= 0) {
                 if (!useSpecial) {
-                    s32 tw = WeapThrowFx[player[0]][dmgLow];
+                    s32 tw = WeapThrowFx[playerView->index][dmgLow];
                     if (tw >= 0) {
                         u32 fxFlags = 0x81880;
                         s32 sub;
                         if (dmgLow == 1) {
                             fxFlags |= 0x800000;
                         }
-                        if ((player[2] == 2 || player[2] == 6) &&
+                        if ((playerView->char_type == 2 || playerView->char_type == 6) &&
                             !useSpecial && dmgLow == 0) {
                             fxFlags |= 0x3000000;
                         }
@@ -4398,7 +4426,7 @@ s32 PlayerStartMissile(s32* player, f32* direction, s32 damageType, s32 mode,
                     if ((f64)scaleArg > c318) {
                         scaleFx *= scaleArg;
                     }
-                    if (player[0xCC9] >= 99) {
+                    if (playerView->level >= 99) {
                         scaleFx = (f32)((f64)scaleFx * c3B8);
                     }
                     if (c318 != (f64)scaleFx) {
@@ -4452,9 +4480,9 @@ extern CombatPlayerModelSlot player_multiple_models[4];
 
 void InitPlayerMissiles(void* player)
 {
-    s32 idx = PF(player, 0x00, s32);
-    s32 charType = PF(player, 0x0C, s32);
-    s32 throwLevel = PF(player, 0x3324, s32) / 10;
+    s32 idx = PF(player, offsetof(Player, index), s32);
+    s32 charType = PF(player, offsetof(Player, character), s32);
+    s32 throwLevel = PF(player, offsetof(Player, level), s32) / 10;
     char* charName = PlayerMissileDesc[charType].throwDescription;
     s32 throwByte = (u8)PlayerMissileDesc[charType].throwLevel[throwLevel];
     void* weaponWad = player_multiple_models[idx].weaponWad;
