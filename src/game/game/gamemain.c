@@ -3228,7 +3228,7 @@ void fn_800516F8(s32 slot)
         }
     }
     if (i >= 4) {
-        *(s16*)(e + 734) = 0;
+        *(s16*)(e + offsetof(Enemy, recognized)) = 0;
     }
 
     t = lbl_80344B24;
@@ -3236,42 +3236,42 @@ void fn_800516F8(s32 slot)
         !(gPlayers[t].flags & 4) &&
         !(*(s32*)e == 30 && (gPlayers[t].shield_flags & 0x80000))) {
         u8* q;
-        *(s16*)(e + 630) = *(s16*)(e + 628);
-        *(s16*)(e + 628) = (s16)lbl_80344B24;
+        *(s16*)(e + offsetof(Enemy, prev_closest)) = *(s16*)(e + offsetof(Enemy, closest));
+        *(s16*)(e + offsetof(Enemy, closest)) = (s16)lbl_80344B24;
         q = (u8*)gPlayers + lbl_80344B24 * 13148;
         {
             f32 fd;
             if (*(s16*)(q + 2588) > 2) {
-                DIST3(fd, (f32*)(e + 84), (f32*)(q + 2564),
+                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + 2564),
                       lbl_80346820, lbl_80346830, lbl_803468B8);
             } else {
-                DIST3(fd, (f32*)(e + 84), (f32*)(q + 100),
+                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + 100),
                       lbl_80346820, lbl_80346830, lbl_803468B8);
             }
-            *(f32*)(e + 636) = fd;
+            *(f32*)(e + offsetof(Enemy, actual_dist)) = fd;
         }
-        *(f32*)(e + 632) = *(f32*)(e + 636) +
+        *(f32*)(e + offsetof(Enemy, close_dist)) = *(f32*)(e + offsetof(Enemy, actual_dist)) +
                            *(f32*)((u8*)gPlayers + lbl_80344B24 * 13148 + 2600);
     } else {
         s32 go = 1;
         s32 cur;
-        if ((lbl_80344800 & 7) != (slot & 7) && *(s16*)(e + 628) >= 0) {
+        if ((lbl_80344800 & 7) != (slot & 7) && *(s16*)(e + offsetof(Enemy, closest)) >= 0) {
             go = 0;
         }
-        cur = *(s16*)(e + 628);
+        cur = *(s16*)(e + offsetof(Enemy, closest));
         if ((s16)cur >= 0 &&
             gPlayers[cur].state != 1) {
             go = -1;
         }
         if (go != 0) {
             f32 big;
-            *(s16*)(e + 630) = (s16)cur;
-            *(s16*)(e + 628) = -1;
+            *(s16*)(e + offsetof(Enemy, prev_closest)) = (s16)cur;
+            *(s16*)(e + offsetof(Enemy, closest)) = -1;
             big = lbl_803468B0;
-            *(f32*)(e + 632) = big;
-            *(f32*)(e + 636) = big;
+            *(f32*)(e + offsetof(Enemy, close_dist)) = big;
+            *(f32*)(e + offsetof(Enemy, actual_dist)) = big;
             if (*(s32*)e == 30) {
-                *(s32*)(e + 808) = -1;
+                *(s32*)(e + offsetof(Enemy, counter2)) = -1;
             }
             kPi = lbl_80346840;
             kK = lbl_80346870;
@@ -3287,60 +3287,60 @@ void fn_800516F8(s32 slot)
                         continue;
                     }
                     if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
-                        DIST3(dist, (f32*)(e + 84), (f32*)(p + 2564),
+                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + 2564),
                               kZero, kHalf, kThree);
                     } else {
-                        DIST3(dist, (f32*)(e + 84), (f32*)(p + 100),
+                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + 100),
                               kZero, kHalf, kThree);
                     }
                     range = dist;
-                    if (range > *(f32*)(e + 768)) {
+                    if (range > *(f32*)(e + offsetof(Enemy, sight))) {
                         continue;
                     }
                     if (*(s32*)e == 30 && (*(u32*)(p + offsetof(Player, shield_flags)) & 0x80000)) {
                         if (range < bestSpecial) {
                             bestSpecial = range;
-                            *(s32*)(e + 808) = i;
+                            *(s32*)(e + offsetof(Enemy, counter2)) = i;
                         }
                         continue;
                     }
-                    if (range > kK * *(f32*)(e + 568)) {
+                    if (range > kK * *(f32*)(e + offsetof(Enemy, rad))) {
                         range += *(f32*)(p + 2600);
                     }
-                    if (!(range < *(f32*)(e + 632))) {
+                    if (!(range < *(f32*)(e + offsetof(Enemy, close_dist)))) {
                         continue;
                     }
-                    if (*(f32*)(e + 764) < kPi) {
-                        ad = get_yaw((f32*)(p + 100), (f32*)(e + 84)) -
-                             *(f32*)(e + 580);
+                    if (*(f32*)(e + offsetof(Enemy, view)) < kPi) {
+                        ad = get_yaw((f32*)(p + 100), (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos))) -
+                             *(f32*)(e + offsetof(Enemy, pyr) + 4);
                         *(u32*)&ad &= 0x7FFFFFFF;
-                        if (ad > *(f32*)(e + 764)) {
+                        if (ad > *(f32*)(e + offsetof(Enemy, view))) {
                             continue;
                         }
                     }
-                    *(f32*)(e + 632) = range;
-                    *(f32*)(e + 636) = dist;
-                    *(s16*)(e + 628) = (s16)i;
+                    *(f32*)(e + offsetof(Enemy, close_dist)) = range;
+                    *(f32*)(e + offsetof(Enemy, actual_dist)) = dist;
+                    *(s16*)(e + offsetof(Enemy, closest)) = (s16)i;
                 }
             }
         }
     }
 
-    if (*(s16*)(e + 628) >= 0) {
-        if (*(f32*)(e + 636) <= *(f32*)(e + 768)) {
+    if (*(s16*)(e + offsetof(Enemy, closest)) >= 0) {
+        if (*(f32*)(e + offsetof(Enemy, actual_dist)) <= *(f32*)(e + offsetof(Enemy, sight))) {
             Player* base;
-            *(s16*)(e + 734) = 1;
+            *(s16*)(e + offsetof(Enemy, recognized)) = 1;
             base = gPlayers;
-            (*(s32*)((u8*)base + *(s16*)(e + 628) * 13148 + 2596))++;
+            (*(s32*)((u8*)base + *(s16*)(e + offsetof(Enemy, closest)) * 13148 + 2596))++;
             {
-                u8* r = (u8*)base + *(s16*)(e + 628) * 13148;
+                u8* r = (u8*)base + *(s16*)(e + offsetof(Enemy, closest)) * 13148;
                 *(f32*)(r + 2600) = (f32)(*(f32*)(r + 2600) + lbl_80346868);
             }
         }
     } else {
         f32 big = lbl_803468B0;
-        *(f32*)(e + 636) = big;
-        *(f32*)(e + 632) = big;
+        *(f32*)(e + offsetof(Enemy, actual_dist)) = big;
+        *(f32*)(e + offsetof(Enemy, close_dist)) = big;
     }
 }
 
