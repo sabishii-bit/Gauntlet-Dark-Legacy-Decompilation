@@ -305,6 +305,42 @@ extern s32 PlayerStartMissile(u8* p, f32* vec, u32 mask, s32 mode, f32 a,
                               f32 b);
 extern void MBRemovePolyInst(void* inst);
 extern void player_get_powerup_state(u8* p, s32 kind, u32 mask, f32 dt);
+/* One row of the pdata wad's second ("record") chunk, stride 0x50.
+ *
+ * Name + field names are the real Midway ones, from the Xbox PDB `plyr_sfx`
+ * (research/xbox_symbols/misc.h Id=3434, Size=0x50). Confirmed twice over:
+ *
+ *  1. LoadPlyrData's byte-swap loop for the 0x50 chunk (claim.law.
+ *     swap-loop-is-record-layout-ground-truth) swaps the u32s at
+ *     0x00/0x04/0x08/0x0C, the shorts at 0x30/0x32, the [3] vector at 0x34
+ *     and the floats/u32 at 0x40/0x44/0x48/0x4C, and skips exactly
+ *     0x10..0x2F -- the two 16-byte text fields, which never need swapping.
+ *  2. fn_8008A678 resolves this record: it reads rec+0x10 and rec+0x20 as
+ *     C strings (fxdesc/snddesc) and writes the looked-up handles back into
+ *     0x08/0x0C, which PlayerSfxInitData pre-clears to -1 -- i.e. sfxidx and
+ *     sndidx, not the "texture"/"parent" this reconstruction had guessed
+ *     (0x0C is passed to AudioPlay3DSel as the sound id, 0x08 to StartFXSub/
+ *     SetSkinFX as the effect id). nextfxidx@0x04 is the chained record index
+ *     DoPlyrSfxSub recurses on.
+ *
+ * Declared widths are left exactly as the pre-existing reconstruction had
+ * them; the PDB spells flags/nextfxidx/sfxidx/sndidx int and color unsigned. */
+typedef struct plyr_sfx {
+    /* 0x00 */ u32 flags;
+    /* 0x04 */ u32 nextfxidx; /* chained record index, -1 = none */
+    /* 0x08 */ s32 sfxidx;    /* resolved effect/texture handle  */
+    /* 0x0C */ s32 sndidx;    /* resolved sound/mbox handle      */
+    /* 0x10 */ char fxdesc[16];
+    /* 0x20 */ char snddesc[16];
+    /* 0x30 */ s16 zmod;
+    /* 0x32 */ s16 alphamod;
+    /* 0x34 */ f32 offset[3];
+    /* 0x40 */ f32 maxlen;
+    /* 0x44 */ f32 radius;
+    /* 0x48 */ f32 scale;
+    /* 0x4C */ u32 color;
+} plyr_sfx; /* size 0x50 = 80 */
+
 /* One row of the pdata wad's third ("move") chunk, stride 0x58.
  *
  * Name + field names are the real Midway ones, from the Xbox PDB
@@ -380,7 +416,7 @@ void PlyrSfxDoDamage(u8* p, s32 idx, u8* p2, u8* other, f32 t0, f32 t1)
     if (idx < 0) {
         return;
     }
-    row = *(u8**)(lbl_80282930[((Player*)p)->index] + 8) + idx * 88;
+    row = *(u8**)(lbl_80282930[((Player*)p)->index] + offsetof(plyr_data, damage)) + idx * 88;
     sf = (f32)*(s16*)(row + offsetof(plyr_damage, startframe));
     ef = (f32)*(s16*)(row + offsetof(plyr_damage, endframe));
     if (t1 >= sf) {
@@ -686,15 +722,15 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
         Effects[mode].owner = pidx + 1;
         if (*(s16*)(row + offsetof(plyr_damage, hitfxidx)) >= 0) {
             sub = ((plyr_data*)*hdrp)->sfx + *(s16*)(row + offsetof(plyr_damage, hitfxidx)) * 80;
-            SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
-                      *(u32*)(sub + 12));
+            SfxSetHit(mode, *(u32*)(sub + offsetof(plyr_sfx, sfxidx)), *(u32*)(sub + offsetof(plyr_sfx, sndidx)),
+                      *(u32*)(sub + offsetof(plyr_sfx, sndidx)));
             if (*(u32*)sub & 0x10) {
                 *(u32*)flp |= 0x200000;
             }
         }
         if (*(s16*)(row + offsetof(plyr_damage, loopfxidx)) >= 0) {
             sub = ((plyr_data*)*hdrp)->sfx + *(s16*)(row + offsetof(plyr_damage, loopfxidx)) * 80;
-            SfxSetMorph(mode, *(u32*)(sub + 8), 0, *(f32*)(row + offsetof(plyr_damage, maxtime)));
+            SfxSetMorph(mode, *(u32*)(sub + offsetof(plyr_sfx, sfxidx)), 0, *(f32*)(row + offsetof(plyr_damage, maxtime)));
             if (*(s16*)(row + offsetof(plyr_damage, flags)) & 0x800) {
                 *(u32*)flp |= 0x8000;
             }
@@ -756,49 +792,13 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
     } else {
         if (*(s16*)(row + offsetof(plyr_damage, hitfxidx)) >= 0) {
             sub = ((plyr_data*)*hdrp)->sfx + *(s16*)(row + offsetof(plyr_damage, hitfxidx)) * 80;
-            SfxSetHit(mode, *(u32*)(sub + 8), *(u32*)(sub + 12),
-                      *(u32*)(sub + 12));
+            SfxSetHit(mode, *(u32*)(sub + offsetof(plyr_sfx, sfxidx)), *(u32*)(sub + offsetof(plyr_sfx, sndidx)),
+                      *(u32*)(sub + offsetof(plyr_sfx, sndidx)));
         }
     }
 done:
     return mode;
 }
-
-/* One row of the pdata wad's second ("record") chunk, stride 0x50.
- *
- * Name + field names are the real Midway ones, from the Xbox PDB `plyr_sfx`
- * (research/xbox_symbols/misc.h Id=3434, Size=0x50). Confirmed twice over:
- *
- *  1. LoadPlyrData's byte-swap loop for the 0x50 chunk (claim.law.
- *     swap-loop-is-record-layout-ground-truth) swaps the u32s at
- *     0x00/0x04/0x08/0x0C, the shorts at 0x30/0x32, the [3] vector at 0x34
- *     and the floats/u32 at 0x40/0x44/0x48/0x4C, and skips exactly
- *     0x10..0x2F -- the two 16-byte text fields, which never need swapping.
- *  2. fn_8008A678 resolves this record: it reads rec+0x10 and rec+0x20 as
- *     C strings (fxdesc/snddesc) and writes the looked-up handles back into
- *     0x08/0x0C, which PlayerSfxInitData pre-clears to -1 -- i.e. sfxidx and
- *     sndidx, not the "texture"/"parent" this reconstruction had guessed
- *     (0x0C is passed to AudioPlay3DSel as the sound id, 0x08 to StartFXSub/
- *     SetSkinFX as the effect id). nextfxidx@0x04 is the chained record index
- *     DoPlyrSfxSub recurses on.
- *
- * Declared widths are left exactly as the pre-existing reconstruction had
- * them; the PDB spells flags/nextfxidx/sfxidx/sndidx int and color unsigned. */
-typedef struct plyr_sfx {
-    /* 0x00 */ u32 flags;
-    /* 0x04 */ u32 nextfxidx; /* chained record index, -1 = none */
-    /* 0x08 */ s32 sfxidx;    /* resolved effect/texture handle  */
-    /* 0x0C */ s32 sndidx;    /* resolved sound/mbox handle      */
-    /* 0x10 */ char fxdesc[16];
-    /* 0x20 */ char snddesc[16];
-    /* 0x30 */ s16 zmod;
-    /* 0x32 */ s16 alphamod;
-    /* 0x34 */ f32 offset[3];
-    /* 0x40 */ f32 maxlen;
-    /* 0x44 */ f32 radius;
-    /* 0x48 */ f32 scale;
-    /* 0x4C */ u32 color;
-} plyr_sfx; /* size 0x50 = 80 */
 
 s32 DoPlyrSfxSub(u8* player, s32 recordIndex, f32* offset,
                  s32 absolute, s32 effectIndex);
