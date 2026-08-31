@@ -2122,9 +2122,13 @@ void __dl__FPv(void* p) {
 #pragma scheduling on
 #endif
 
-u32* dtor_800DB21C(u32* self, s16 deleting) {
-    u8 unused[24];
-
+/* Parsed as C++ so the empty exception specification is accepted: with
+ * -Cpp_exceptions on it is what makes MWCC emit the __unexpected cleanup
+ * edge and the r31 frame-pointer prologue this destructor has in the
+ * target. The surrounding TU stays in its original per-region parse mode
+ * (a uniform C++ parse changes fn_800DA6A4 and trips its WebFrank pin). */
+#pragma cplusplus on
+u32* dtor_800DB21C(u32* self, s16 deleting) throw() {
     if (self != NULL) {
         self[0] = (u32)lbl_801296A4;
         if (deleting > 0 && self != NULL) {
@@ -2136,6 +2140,7 @@ u32* dtor_800DB21C(u32* self, s16 deleting) {
     }
     return self;
 }
+#pragma cplusplus off
 
 void fn_800DB29C(MovieChunkStream* self) {
     MovieChunkNode* node = self->activeNode;
