@@ -1923,14 +1923,14 @@ valid_boss_type:
         f32 cosValue;
 
         if ((f64)lbl_803444D8 > lbl_80345F78) {
-            yaw = (f32)((f64)cam->pyr[1] - lbl_80346180);
+            yaw = (f32)((f64)cam->pyr[1] - 1.570796327);
         } else {
-            yaw = (f32)((f64)cam->pyr[1] + lbl_80346180);
+            yaw = (f32)((f64)cam->pyr[1] + 1.570796327);
         }
-        if ((f64)yaw > lbl_80345F58) {
-            yaw = (f32)((f64)yaw - lbl_80345F60);
-        } else if ((f64)yaw <= lbl_80345F68) {
-            yaw = (f32)(lbl_80345F60 + (f64)yaw);
+        if ((f64)yaw > 3.141592654) {
+            yaw = (f32)((f64)yaw - 6.283185308);
+        } else if ((f64)yaw <= -3.141592654) {
+            yaw = (f32)(6.283185308 + (f64)yaw);
         }
         sinValue = sin(yaw);
         sinScale = lbl_803444D8;
@@ -1950,12 +1950,12 @@ valid_boss_type:
         f64 y = (f64)cam->pyr[1];
         if ((f64)lbl_803444D4 > lbl_80345F78) {
         } else {
-            y = (f32)(y + lbl_80345F58);
+            y = (f32)(y + 3.141592654);
         }
-        if (y > lbl_80345F58) {
-            y = y - lbl_80345F60;
-        } else if (y <= lbl_80345F68) {
-            y = lbl_80345F60 + y;
+        if (y > 3.141592654) {
+            y = y - 6.283185308;
+        } else if (y <= -3.141592654) {
+            y = 6.283185308 + y;
         }
         yaw = (f32)y;
         sinValue = sin(yaw);
