@@ -1905,12 +1905,9 @@ void DebugCamControlInputs(void) {
     f64 spitch;
     f64 d;
     f64 step;
-    u8 unused[32];
+    u8 unused[24];
 
-    step = gClockFrameStep;
-    if (step <= 0.0333) {
-        step = 0.0333;
-    }
+    step = gClockFrameStep > 0.0333 ? gClockFrameStep : 0.0333;
     speed = step;
     cyaw = cos(lbl_80344A68->yaw);
     syaw = sin(lbl_80344A68->yaw);
