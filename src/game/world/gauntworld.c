@@ -2510,7 +2510,8 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
         return -1.0f;
     }
     info = item->info;
-    if (info->type == -1) {
+    type = info->type;
+    if (type == -1) {
         return -1.0f;
     }
     if (item->minoff != 0) {
@@ -2528,7 +2529,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     }
 
     keep = 1;
-    switch (info->type) {
+    switch (type) {
     case 7:
         if (item->action >= 2 ||
             (item->action == 1 && item->activetime > 0x1E)) {
@@ -2714,7 +2715,8 @@ los_check:
             if (f3 > f1) {
                 goto los_done;
             }
-        } else if (f1 > 0.0f && f3 < f1) {
+        }
+        if (f1 > 0.0f && f3 < f1) {
             goto los_done;
         }
         f4 = nv[0] * item->objgrp.worldmat[2][0] +
@@ -2723,7 +2725,8 @@ los_check:
             if (f4 > f2) {
                 goto los_done;
             }
-        } else if (f2 > 0.0f && f4 < f2) {
+        }
+        if (f2 > 0.0f && f4 < f2) {
             goto los_done;
         }
         keep = 1;
