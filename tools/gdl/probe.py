@@ -147,8 +147,11 @@ def main():
                   " (`git status` / `git checkout -- <file>`); re-scoring:")
         else:
             shutil.copyfile(snap, source)
-            print(f"reverted {source} to the last banked good state;"
-                  " re-scoring:")
+            print(f"reverted {source} to {fn}'s banked snapshot —"
+                  " NOTE this restores the WHOLE FILE: uncommitted work on"
+                  " OTHER functions in this TU since that bank is gone"
+                  " (three workers hit this; commit per function, or use"
+                  " git for surgical reverts); re-scoring:")
 
     build = subprocess.run(
         ["ninja", f"build/{VERSION}/src/{unit}.o"],
