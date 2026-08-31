@@ -1,6 +1,18 @@
 {
   "version": 1,
   "units": {
+    "game/game/pmotion": [
+      {
+        "function": "get_player_pos",
+        "before_sha256": "a00f2c9f592db7e058986b768caf82b2348107fddfac8d7b1ce661a8142798a8",
+        "after_sha256": "4d62a45f42208e84d8e7f2784ff5bcd4ab2cbd5d10caa5bb60b1b225ae13347c",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 506
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/g3d/sndvoice": [
       {
         "function": "sndVoiceUpdateAll",
