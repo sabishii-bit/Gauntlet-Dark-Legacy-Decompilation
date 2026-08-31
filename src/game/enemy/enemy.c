@@ -5391,19 +5391,24 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
         f32 upper = (f32)(lbl_80346A30 * threshold);
         f32 lower = (f32)(lbl_80346A28 * threshold);
 
-        if (e->health > upper) {
-            goto store_fight;
-        }
-        if (e->type == E_DEATH) {
-            goto store_fight;
-        }
-        if (e->health > lower) {
-            fight = (f32)(lbl_80346A30 * fight);
-        } else {
-            fight = (f32)(lbl_80346A28 * fight);
+        /* Goto-free guard form, kept for readability AND score.  It replaced a
+         * pair of `if (...) goto store_fight;` guards plus a label, and fixed
+         * this function's instruction-count parity (570 -> 571), which realigned
+         * every downstream branch displacement and dropped fndiff real 151 -> 66
+         * - the effect claim.law.guard-polarity-restructure-fixes-count-parity-
+         * not-form predicts.  Two forms measured identical to this one and are
+         * dead axes: splitting the `&&` into two nested ifs (MWCC re-merges it
+         * through the same cror), and an empty-true-block `if (t != D) {} else
+         * goto;`.  Keeping the first guard as a goto restores the target's
+         * matching `bgt` but loses parity again (back to real 151). */
+        if (e->health <= upper && e->type != E_DEATH) {
+            if (e->health > lower) {
+                fight = (f32)(lbl_80346A30 * fight);
+            } else {
+                fight = (f32)(lbl_80346A28 * fight);
+            }
         }
     }
-store_fight:
     e->atts.fight = fight;
 
     if (e->algorithm == 12 && e->mode1 < 2 && e->generator != NULL) {
