@@ -180,29 +180,71 @@ def main():
         print(count.strip()[:800])
         return 1
 
+    # The opcode-multiset token count is the STRUCTURE metric: `real` is a
+    # linear diff that reads catastrophically worse mid-way through any
+    # all-or-nothing conversion (three workers independently reported
+    # near-reverting correct multi-step wins on `real` alone). Track it and
+    # never advise a revert while structure is improving.
+    ops_output = None
+    multiset_tokens = None
+    if real > 0:
+        ops_output = subprocess.run(
+            [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
+             "--ops", "--no-build"],
+            capture_output=True, text=True,
+        ).stdout
+        for line in ops_output.splitlines():
+            if "opcode multiset: IDENTICAL" in line:
+                multiset_tokens = 0
+                break
+            if "opcode multiset: DIFFERS" in line:
+                multiset_tokens = sum(
+                    int(n) for n in re.findall(r"[+-](\d+) ", line))
+                break
+    elif real == 0:
+        multiset_tokens = 0
+
     state = {}
     if state_file.exists():
         state = json.loads(state_file.read_text(encoding="utf-8"))
     best = state.get("best_real")
+    prev_tokens = state.get("last_multiset")
+    tok = (f", multiset {multiset_tokens}t"
+           if multiset_tokens is not None else "")
     if "--rebase-best" in sys.argv:
         # After fuzzy/--ops arbitration keeps a real-regressed state, the old
         # banked best is dead and every later probe misreports REGRESSED.
         # Accept the current state as the new best and revert point.
-        verdict = (f"REBASED   best {best} -> {real} (insns {insns})"
+        verdict = (f"REBASED   best {best} -> {real} (insns {insns}{tok})"
                    f"  [arbitrated keep]")
         state["best_real"] = real
     elif best is None:
-        verdict = f"BASELINE  real {real} (insns {insns})"
+        verdict = f"BASELINE  real {real} (insns {insns}{tok})"
         state["best_real"] = real
     elif real < best:
-        verdict = f"IMPROVED  real {best} -> {real} (insns {insns})  [best updated]"
+        verdict = (f"IMPROVED  real {best} -> {real} (insns {insns}{tok})"
+                   "  [best updated]")
         state["best_real"] = real
     elif real > best:
-        verdict = (f"REGRESSED real {state.get('last_real', best)} -> {real}"
-                   f" (best {best}, insns {insns})  [revert advised]")
+        structure_improved = (multiset_tokens is not None
+                              and prev_tokens is not None
+                              and multiset_tokens < prev_tokens)
+        if structure_improved:
+            verdict = (f"CONFLICT  real {state.get('last_real', best)} ->"
+                       f" {real} (best {best}, insns {insns}) but multiset"
+                       f" {prev_tokens}t -> {multiset_tokens}t IMPROVED —"
+                       " structure is converging; read the diff and"
+                       " arbitrate, do NOT auto-revert"
+                       " (--rebase-best banks an arbitrated keep)")
+        else:
+            verdict = (f"REGRESSED real {state.get('last_real', best)} ->"
+                       f" {real} (best {best}, insns {insns}{tok})"
+                       "  [revert advised]")
     else:
-        verdict = f"NEUTRAL   real {real} (insns {insns})"
+        verdict = f"NEUTRAL   real {real} (insns {insns}{tok})"
     state["last_real"] = real
+    if multiset_tokens is not None:
+        state["last_multiset"] = multiset_tokens
     state_file.write_text(json.dumps(state), encoding="utf-8")
     print(verdict)
 
@@ -215,22 +257,19 @@ def main():
               " restores it]")
 
     # A failed probe almost always needs the ops view next — print it
-    # unasked on regression so the diagnosis is zero extra calls.
-    if verdict.startswith("REGRESSED") and "--ops" not in sys.argv:
-        ops = subprocess.run(
-            [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
-             "--ops", "--no-build"],
-            capture_output=True, text=True,
-        ).stdout
-        print("\n".join(ops.strip().splitlines()[:16]))
+    # unasked (the multiset pass above already fetched it).
+    if (verdict.startswith(("REGRESSED", "CONFLICT"))
+            and "--ops" not in sys.argv and ops_output):
+        print("\n".join(ops_output.strip().splitlines()[:16]))
 
     if "--ops" in sys.argv:
-        ops = subprocess.run(
-            [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
-             "--ops", "--no-build"],
-            capture_output=True, text=True,
-        ).stdout
-        print(ops.strip())
+        if ops_output is None:
+            ops_output = subprocess.run(
+                [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
+                 "--ops", "--no-build"],
+                capture_output=True, text=True,
+            ).stdout
+        print(ops_output.strip())
     return 0
 
 
