@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CLOSURE + ALIAS lane: owns src/game/enemy/critter.c + config/GUNE5D/webfrank.json. (1) CritterLineCollide r4<->r5 two-web crossing is WEBFRANK-READY and reaching exact (its whole real 16 is the crossing; attempt.critterlinecollide-two-web-crossing) \u2014 author the rule per the closure-lane method (replay harness first, equal-hash screen first, our-colouring discriminant, hardened guards, test, retail assert); note the pin freezes inlined helpers. (2) CritterDamage's sprintf cluster: its record proves the format literal is CORRECT but costs one insn needing a compensating +1 site \u2014 the two candidates are NAMED in attempt.critterdamage-active-hoist-and-sprintf-cluster; execute the pairing (source). (3) The u64-span respelling experiment: CritterDoSfx/CritterInitColnodes are provably exact (fndiff now scores real 0 via address-resolved relocs) but objdiff still penalizes the gControllerButtons+0x4-vs-sFlags spelling; PROBE whether a two-u32-read source form compiles byte-identically (a u64 read IS two lwz on PPC32 \u2014 each could relocate against its own symbol); byte-hash + fuzzy verify; if identical, the alias vanishes and both fns hit objdiff 100. (4) Re-measure CritterDoTexmodNode post-normalization (its 24-line residual included reloc spellings \u2014 the REVERIFY re-derive rule applies). Corpus-wide secondary: sweep all capped REGISTER_ONLY records for rule eligibility with the equal-hash + discriminant screens; queue eligible ones as WEBFRANK-READY records (author rules only in YOUR TU); parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:CritterLineCollide",
+  "id": "work_claim.critter-closure-alias.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-L1",
+  "recorded_at": "2026-08-31T15:21:07Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

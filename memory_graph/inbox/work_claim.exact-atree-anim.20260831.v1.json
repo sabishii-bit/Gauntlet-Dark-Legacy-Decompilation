@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXACT-DRIVE lane, whole TUs src/game/anim/atree.c + src/game/anim/anim_play.c: fn_80011BBC 99.77 (88i, WALL re-screen \u2014 REVERIFY expected, post-normalization re-measure first), fn_8001267C 81.74 (575i \u2014 the TU's big one, STRUCTURAL history w/ write-site-alias law from it), GetAnimAngXYZVal 99.62 (1047i, deep 11-axis cap BUT its record notes an unclaimed .sdata2 0x8 DATADIFF blocker \u2014 re-examine that data question with the dead-strip lens from claim.law.base-cast-reconstruction-deadstrips-sibling-statics before touching code; if the data blocker resolves, anim_play is a near-flip). Exact or named-mechanism park; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:fn_8001267C",
+  "id": "work_claim.exact-atree-anim.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-L4",
+  "recorded_at": "2026-08-31T15:21:16Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
