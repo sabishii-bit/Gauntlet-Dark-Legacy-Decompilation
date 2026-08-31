@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/shop/shop.c de-fakematch TU pass (work_claim.shop-defake.20260831.v1, worktree GDL-Claude-ShopDefake, branch claude/shop-defake-20260831); bisected via python tools/gdl/defake_gate.py check game/shop/shop.c --rebuild after isolated player.h edits with zero shop.c site changes -- reproduce by re-adding a `typedef struct {s32 a; u8 pad[24];} T; T arr[16];` member to Player.h's pad_0A88 region and re-gating with no other change.",
+    "scope": "MWCC GC 1.2.5 family; applies whenever a de-fakematch or matching pass considers adding a new struct-typed (nested-aggregate or array-of-struct) MEMBER to a header struct (game/player.h Player, or any similarly widely-included project struct) that is included by multiple TUs -- a plain scalar (s32/f32/u8/u16/etc.) field addition of the same byte size does NOT trigger this and remains governed by the ordinary offsetof-rename-preserves-protected-web law.",
+    "tags": [
+      "core-screen",
+      "register-web",
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.embedded-struct-member-whole-tu-cascade.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T00:55:41Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "Adding a NEW aggregate-typed member (an array-of-struct or embedded-struct field, e.g. `PlayerShopStat shop_stat_now[16];`) into a SHARED header struct (game/player.h's Player, included by many TUs) can regress fndiff real/opcode-multiset for MULTIPLE functions across the entire including TU that never reference the new field at all -- verified in game/shop/shop.c: splitting Player's pad_0A88[0x34C] into a leading pad + `PlayerShopStat shop_stat_now[16]` + trailing pad (identical total size, 4-byte-aligned members, no size/offset change to any pre-existing field) regressed 6 shop.c functions simultaneously (calculate_player_shopping_parameters_8009C0F0 real 0->8, do_shopping real 831->861, fn_8009A0AC real 187->189, init_shop real 0->2, shop_setup real 362->364, shop_show_lv real 0->22) even though NONE of their source text referenced shop_stat_now, and even though init_shop/calculate_player_shopping_parameters/shop_setup/do_shopping were not edited in that session at all. Bisection isolated the cause precisely: adding a lone SCALAR field to the same struct (`s32 field_224C;`, splitting pad_223A) produced zero regressions (GATE OK) with the exact same rebuild; re-adding the struct-array field alone (nothing else changed) reproduced all 6 regressions exactly. Fix: keep new aggregate/nested-struct types OUT of the shared header entirely -- declare them as file-LOCAL typedefs in the consuming .c file (matching the project's existing DSItem/DSFlag4/DSPot4/DSTim4/DSPlayerView convention) and reference the shared struct's raw pointer with the local type's offsetof() only for the field's OWN sub-offset, keeping any additional base-offset arithmetic (e.g. the per-character stride multiply reaching the sub-record) as a plain integer/enum constant outside the shared header. This is a genuinely different failure class from every other de-fakematch hazard law in the corpus (lwzu-idiom-web-retention, multifield-alias-defeats-indexed-addressing, etc.): those all concern a SPECIFIC conversion SITE's own codegen; this one concerns the mere PRESENCE of an unused aggregate-typed struct MEMBER declaration inside a widely-included header, with a whole-TU blast radius. Root cause unconfirmed (working hypothesis: MWCC's front end allocates some internal per-aggregate-type bookkeeping, e.g. debug-info or RTTI-adjacent structure records, whose ordinal/index leaks into register-allocation or scheduling heuristics for unrelated functions compiled later in the same translation unit) -- this is an empirical finding, not a mechanistic proof. Consequence: before adding ANY new struct-typed (not scalar) field to a widely-shared project header during a de-fakematch or matching pass, gate the WHOLE including TU immediately after the header edit alone (before touching any .c site), with no site conversions applied yet, to catch this class before it gets bundled into a larger batch and mis-attributed to the site edits themselves."
+}
