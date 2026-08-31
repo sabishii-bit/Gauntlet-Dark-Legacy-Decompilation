@@ -90,6 +90,22 @@ typedef struct { s32 field_00; u8 _g1[0x0C]; s32 field_10; s32 field_14;
  * ExpToLevel / the this-level exp-delta calc); the remaining bytes are
  * passed opaquely to the extern check_player_atts(). */
 typedef struct { s32 field_00; } PlayerClassExpCkpt;
+
+/* Per-item shop entry record, stride 80, held in the lbl_80344C14 table
+ * (shop.wad "ITEM" chunk). */
+typedef struct {
+    u8 _pad[32];
+    s8 field_20[32];
+    f32 field_40;
+    u32 field_44;
+    s32 price;
+    u32 field_4C;
+} DSItem;
+typedef struct { u8 _pad[336]; u32 v; } DSFlag4;
+typedef struct { u8 _pad[13056]; s32 v; } DSPot4;
+typedef struct { u8 _pad[5456]; s32 v; } DSTim4;
+typedef struct { u8 _pad[0xA68]; s32 field_A68; } DSPlayerView;
+
 enum {
     PSHOP_STAT_NOW_OFF  = 3088, /* pl + character*28 + this -> shop_stat_now[character] */
     PSHOP_STAT_PREV_OFF = 8284, /* pl + character*28 + this -> shop_stat_prev[character] */
@@ -1221,7 +1237,7 @@ static void shop_setup(void)
                     {
                         u8* item = lbl_80344C14;
                         for (j = 0; j < lbl_80344C10; j++, item += 80) {
-                            if (*(s32*)(pl + offsetof(Player, gold)) >= *(s32*)(item + 72)) {
+                            if (*(s32*)(pl + offsetof(Player, gold)) >= *(s32*)(item + offsetof(DSItem, price))) {
                                 *count += 1;
                             }
                             ((void**)itemBlits)[j] = MBNewBlit(item, name20, 0);
@@ -1241,8 +1257,8 @@ static void shop_setup(void)
                         if (ItemDefValid(item) != 0) {
                             r = AudioFindPlayerSlot(
                                 i,
-                                *(s32*)(tbl + *(s32*)(item + 68) * 8 + 188),
-                                *(s32*)(tbl + *(s32*)(item + 68) * 8 + 192));
+                                *(s32*)(tbl + *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 188),
+                                *(s32*)(tbl + *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 192));
                         } else {
                             r = -1;
                         }
@@ -1277,9 +1293,9 @@ static void shop_setup(void)
                                 r = AudioFindPlayerSlot(
                                     i,
                                     *(s32*)(tbl +
-                                            *(s32*)(item + 68) * 8 + 188),
+                                            *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 188),
                                     *(s32*)(tbl +
-                                            *(s32*)(item + 68) * 8 + 192));
+                                            *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 192));
                             } else {
                                 r = -1;
                             }
@@ -1397,18 +1413,6 @@ static s32 write_shop_menu(s32 player, s32 scroll);
 
 /* Buy/sell driver for one shop player: cursor movement over available
  * items, sell-back, and the per-item purchase effects. */
-typedef struct {
-    u8 _pad[32];
-    s8 field_20[32];
-    f32 field_40;
-    u32 field_44;
-    s32 price;
-    u32 field_4C;
-} DSItem;
-typedef struct { u8 _pad[336]; u32 v; } DSFlag4;
-typedef struct { u8 _pad[13056]; s32 v; } DSPot4;
-typedef struct { u8 _pad[5456]; s32 v; } DSTim4;
-typedef struct { u8 _pad[0xA68]; s32 field_A68; } DSPlayerView;
 
 static s32 do_shopping_8009AA48(s32 player)
 {
@@ -1472,7 +1476,7 @@ static s32 do_shopping_8009AA48(s32 player)
                 *cntp = 0;
                 item = lbl_80344C14;
                 for (j = 0; j < lbl_80344C10; j++, item += 80) {
-                    if (*(s32*)(pl + offsetof(Player, gold)) >= *(s32*)(item + 72)) {
+                    if (*(s32*)(pl + offsetof(Player, gold)) >= *(s32*)(item + offsetof(DSItem, price))) {
                         goto set_back_count;
                     } else {
                         s32 r;
@@ -1481,9 +1485,9 @@ static s32 do_shopping_8009AA48(s32 player)
                             r = AudioFindPlayerSlot(
                                 player,
                                 *(s32*)(tbl +
-                                        *(s32*)(item + 68) * 8 + 188),
+                                        *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 188),
                                 *(s32*)(tbl +
-                                        *(s32*)(item + 68) * 8 + 192));
+                                        *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 192));
                         } else {
                             r = -1;
                         }
@@ -1528,7 +1532,7 @@ next_back_item:
         (((DSFlag4*)(page + player * 768 + *(s32*)(pl + offsetof(Player, field_A68)) * 4))->v & 4)) {
         u8* item =
             lbl_80344C14 + *(s32*)(pl + offsetof(Player, field_A68)) * 80;
-        switch (*(s32*)(item + 68)) {
+        switch (*(s32*)(item + offsetof(DSItem, field_44))) {
         case 1:
             if (*(s32*)(pl + offsetof(Player, item_body_lo)) > 0) {
                 *(s32*)(pl + offsetof(Player, item_body_lo)) -= 1;
@@ -1544,16 +1548,16 @@ next_back_item:
         default: {
             s32 have;
             s32 r;
-            if (*(s32*)(tbl + *(s32*)(item + 68) * 8 + 188) != 0 &&
-                *(s32*)(tbl + *(s32*)(item + 68) * 8 + 192) != 0) {
+            if (*(s32*)(tbl + *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 188) != 0 &&
+                *(s32*)(tbl + *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 192) != 0) {
                 have = 1;
             } else {
                 have = 0;
             }
             if (have != 0) {
                 s32 t;
-                if (*(s32*)(tbl + *(s32*)(item + 68) * 8 + 188) != 0 &&
-                    *(s32*)(tbl + *(s32*)(item + 68) * 8 + 192) != 0) {
+                if (*(s32*)(tbl + *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 188) != 0 &&
+                    *(s32*)(tbl + *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 192) != 0) {
                     t = 1;
                 } else {
                     t = 0;
@@ -1561,8 +1565,8 @@ next_back_item:
                 if (t != 0) {
                     r = AudioFindPlayerSlot(
                         player,
-                        *(s32*)(tbl + *(s32*)(item + 68) * 8 + 188),
-                        *(s32*)(tbl + *(s32*)(item + 68) * 8 + 192));
+                        *(s32*)(tbl + *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 188),
+                        *(s32*)(tbl + *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 192));
                 } else {
                     r = -1;
                 }
@@ -1591,7 +1595,7 @@ next_back_item:
             *(s32*)(lbl_80344C14 + *(s32*)(pl + offsetof(Player, field_A68)) * 80 + 72)) {
             u8* item = lbl_80344C14 + *(s32*)(pl + offsetof(Player, field_A68)) * 80;
             paid = 1;
-            switch (*(s32*)(item + 68)) {
+            switch (*(s32*)(item + offsetof(DSItem, field_44))) {
             default:
                 exit = 1;
                 break;
@@ -1671,7 +1675,7 @@ next_back_item:
                                  lbl_803483F0);
                 break;
             case 17:
-                heal_player(pl, (f32)*(s32*)(item + 76));
+                heal_player(pl, (f32)*(s32*)(item + offsetof(DSItem, field_4C)));
                 break;
             case 18:
                 PlayerAddPowerup(pl, 9, 1, lbl_8034832C, lbl_803483F4);
@@ -1777,8 +1781,8 @@ next_back_item:
             *fli = 0;
             if (ItemDefValid(item) != 0) {
                 r = AudioFindPlayerSlot(
-                    player, *(s32*)(tbl + *(s32*)(item + 68) * 8 + 188),
-                    *(s32*)(tbl + *(s32*)(item + 68) * 8 + 192));
+                    player, *(s32*)(tbl + *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 188),
+                    *(s32*)(tbl + *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 192));
             } else {
                 r = -1;
             }
@@ -1812,8 +1816,8 @@ next_back_item:
                     if (ItemDefValid(it2) != 0) {
                         r = AudioFindPlayerSlot(
                             player,
-                            *(s32*)(tbl + *(s32*)(it2 + 68) * 8 + 188),
-                            *(s32*)(tbl + *(s32*)(it2 + 68) * 8 + 192));
+                            *(s32*)(tbl + *(s32*)(it2 + offsetof(DSItem, field_44)) * 8 + 188),
+                            *(s32*)(tbl + *(s32*)(it2 + offsetof(DSItem, field_44)) * 8 + 192));
                     } else {
                         r = -1;
                     }
@@ -1851,7 +1855,7 @@ available:
             *cntp = 0;
             item = lbl_80344C14;
             for (j = 0; j < lbl_80344C10; j++, item += 80) {
-                if (*(s32*)(pl + offsetof(Player, gold)) >= *(s32*)(item + 72)) {
+                if (*(s32*)(pl + offsetof(Player, gold)) >= *(s32*)(item + offsetof(DSItem, price))) {
                     goto set_forward_count;
                 } else {
                     s32 r;
@@ -1859,8 +1863,8 @@ available:
                     if (ItemDefValid(item) != 0) {
                         r = AudioFindPlayerSlot(
                             player,
-                            *(s32*)(tbl + *(s32*)(item + 68) * 8 + 188),
-                            *(s32*)(tbl + *(s32*)(item + 68) * 8 + 192));
+                            *(s32*)(tbl + *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 188),
+                            *(s32*)(tbl + *(s32*)(item + offsetof(DSItem, field_44)) * 8 + 192));
                     } else {
                         r = -1;
                     }
@@ -2098,7 +2102,7 @@ static s32 write_shop_menu(s32 player, s32 scroll)
             MBBlitSetAlpha(blit, a);
         }
         {
-            s32 rawPrice = *(s32*)(item + 72);
+            s32 rawPrice = *(s32*)(item + offsetof(DSItem, price));
             if (rawPrice > 0) {
                 s32 x;
                 s32 ytxt;
@@ -2140,17 +2144,17 @@ static s32 write_shop_menu(s32 player, s32 scroll)
         } else {
             y = y + 12;
         }
-        if (*(s8*)(item + 32) != 0) {
+        if (*(s8*)(item + offsetof(DSItem, field_20)) != 0) {
             s32 x2;
             s32 y0 = y;
             s32 h;
             x2 = -*xcol;
             if (sel != 0) {
-                h = DrawGlowTextMLines((f32)(kGold * *(f32*)(item + 64)),
+                h = DrawGlowTextMLines((f32)(kGold * *(f32*)(item + offsetof(DSItem, field_40))),
                                        x2, y0, (char*)(item + 32));
             } else {
                 s32 old = MBSetFontAlpha(a);
-                h = DrawTextMLines((f32)(kGold * *(f32*)(item + 64)), x2, y0,
+                h = DrawTextMLines((f32)(kGold * *(f32*)(item + offsetof(DSItem, field_40))), x2, y0,
                                    6, hl, (char*)(item + 32));
                 MBSetFontAlpha(old);
             }
@@ -2285,10 +2289,10 @@ static s32 calculate_player_shopping_parameters_8009C0F0(s32 player, u8* entry)
 {
     u8* p = &gPlayers[player * 13148];
 
-    if (*(s32*)(p + offsetof(Player, gold)) < *(s32*)(entry + 72)) {
+    if (*(s32*)(p + offsetof(Player, gold)) < *(s32*)(entry + offsetof(DSItem, price))) {
         return 0;
     }
-    switch (*(u32*)(entry + 68)) {
+    switch (*(u32*)(entry + offsetof(DSItem, field_44))) {
     case 1:
         if (*(s32*)(p + offsetof(Player, item_body_lo)) >= lbl_803448A4) {
             return 0;
