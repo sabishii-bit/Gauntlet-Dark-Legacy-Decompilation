@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "decl-order",
+      "metrics",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.reserved-param-area-without-argument-stores.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T17:53:44Z",
+  "schema_version": 1,
+  "subject": "tu:game/anim/atree",
+  "valid_from": "2026-08-31",
+  "value": "CORRECTION AND BOUNDARY on claim.law.frame-bottom-region-is-outgoing-args-not-a-dead-local.20260831.v1. WHAT THAT LAW GOT RIGHT AND IS CONFIRMED HERE: MWCC GC 1.2.5 lays the frame low-to-high as [linkage 8][outgoing-argument area][temps][named locals][saved GPRs]; a u8 unused[N] pad can close a frame-SIZE delta but never reproduces a dead region at the BOTTOM; and no property of a named local moves it below the temps. THAT LAW'S FORWARD RECOMMENDATION IS REFUTED. It concluded 'when a target reserves an untouched low region, look for a call passing a large aggregate BY VALUE' and sent a lane to hunt one in fn_8001267C. MEASURED, NO SUCH CALL EXISTS, on five independent lines: (1) the target has EXACTLY FOUR bl instructions - fn_80011DCC, SetupAnimHeader, InitOAnimList, FatalError - and our reconstruction already has the SAME four callees in the SAME order, so no call is missing; (2) neither side has any indirect call (no bctrl/blrl); (3) the target never references a single byte of the reserved region, and its ONLY non-memory r1 use in the entire function is the epilogue addi r1,r1,592 - no addi rX,r1,N and no mr rX,r1, so the region's address is never even formed; (4) target 575 insns vs ours 576 with the opcode multiset differing by only +2 li / -1 addi -2 mr, whereas a by-value aggregate of this size demonstrably costs a visible copy - POSITIVE CONTROL: passing a 296-byte struct by value emits li r0,37 + mtctr + an 8-byte-per-iteration copy loop and grows the frame 592 -> 640, and no copy loop, mtctr, or memcpy call appears anywhere in the target; (5) the Xbox PDB rules the callees out on size alone - SetupAnimHeader is 41 bytes of code and InitOAnimList is 72 bytes - and xbox_structs.tsv holds no record of the required size at all. GENERAL RULE TO CARRY FORWARD: a reserved outgoing-argument area proves only that the frame was SIZED for arguments; it does NOT prove a live call passes them. Before hunting a by-value aggregate, first test whether ANY instruction writes the region - if nothing does, the by-value hypothesis is already dead and the cause lies in frame SIZING, not in a source-level call. Argument stores are never optimized away while their reservation survives; the reverse (reservation surviving without stores) is what actually happens. CALIBRATION METHOD, reusable and better than inferring the size from the dead range: the temp region's base obeys temps_base = 8 + P + 12 for parameter area P, i.e. a CONSTANT 12-byte gap separates the parameter area from the temps in this compiler. Measure P by fitting that line with a known by-value argument rather than by reading the dead span - on fn_8001267C the dead span reads as 296 bytes but the true parameter area is 284 (temps at r1+304), and our own natural frame is 344 with P = 0 and temps at r1+20. Also confirmed here on a NEW axis the prior law did not test: INNER-BLOCK SCOPE DEPTH does not move a named local below the temps either - u8 unused[248] declared inside an inner loop block still landed above the temps and regressed real 869 -> 879 - so declaration order, alignment, liveness AND scope depth are now all closed. WHAT REMAINS OPEN for a 284-byte reservation with zero argument stores: a call eliminated AFTER frame layout, an inlined callee whose parameter area merged in while its call folded away, or a per-TU codegen option artifact."
+}
