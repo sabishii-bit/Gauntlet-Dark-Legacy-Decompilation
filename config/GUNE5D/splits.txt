@@ -28,6 +28,7 @@ game/anim/anim_play.c:
 	extab       start:0x80005580 end:0x80005590
 	extabindex  start:0x80008890 end:0x800088A8
 	.text       start:0x8000F628 end:0x80010A4C
+	.sdata2     start:0x80345838 end:0x80345840
 
 game/anim/atree.c:
 	extab       start:0x80005590 end:0x80005678
