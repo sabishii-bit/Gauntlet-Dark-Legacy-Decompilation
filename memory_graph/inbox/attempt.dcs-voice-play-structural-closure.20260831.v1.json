@@ -1,0 +1,22 @@
+{
+  "attempted_axis": "Five bounded portable-C probes: bind dcsBankData and a per-row DcsChannelInfo view plus prefix cursor update (123->87 real); declared channels alias (87->84 but 103/101); byte-offset row traversal (84->72 and 103/103, retained); independent duck access (regressed 72->103 and 104 insns, reverted); loop-zero derivation (neutral, reverted)",
+  "attributes": {
+    "baseline_and_best": "target/current 103/104 -> 103/103; real 123->72; objdiff fuzzy 82.4272%->93.4272%; frame 0x28 and stmw r27-r31 unchanged",
+    "law_screen": "Read the complete current matching-law set before editing. claim.law.declared-alias-rescues-scaled-pointer-string-cluster applied to the scaled DcsChannelInfo row cluster; claim.law.stride-array-table-view applied to retain one stride-derived row and folded member displacements; claim.law.declaration-initializer-split-controls-entry-schedule and claim.law.independent-statement-reorder-matches-target-schedule were screened for the remaining entry/update schedule; claim.law.whole-fn-address-cache was screened but its 1000+-insn scope does not apply; guard/if-arm/FP/narrow-local/store-placement laws had no trigger shape.",
+    "laws_applied": [
+      "claim.law.declared-alias-rescues-scaled-pointer-string-cluster.20260831.v1",
+      "claim.law.stride-array-table-view.20260829.v1"
+    ],
+    "residual": "STRUCTURAL/SCHEDULE: target-only add+mr versus current addi+li, plus register-color/schedule differences. The direct duck-row counter-form created addis/addi/lhzx and a 104th instruction; loop initialization position was byte-neutral. Do not retry those forms without a new source-level axis.",
+    "scope": "src/game/audio/dcs.c::dcsVoicePlay only; no header, postprocessor, asm, or raw-encoding changes",
+    "verification": "probe.py baseline and every iteration; fndiff count/ops/clean inspection; final target/current 103/103 and opcode delta +add,+mr/-addi,-li; sibling TU probe unchanged outside the two owned fuzzy functions; full ninja -j2 and DOL checksum gate."
+  },
+  "function": "function:dcsVoicePlay",
+  "id": "attempt.dcs-voice-play-structural-closure.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T03:34:08Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

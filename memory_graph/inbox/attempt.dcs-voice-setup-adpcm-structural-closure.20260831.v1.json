@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "Five bounded portable-C probes: broad typed channel/sample view (real 132->138, fuzzy 86.9797%->82.6419%, reverted); isolated byte-offset active-channel loop (real 132->133 but opcode discrepancy 15->7 and fuzzy 86.9797%->88.6689%, retained by explicit arbitration); inline typed sample-slot view (133->139, reverted); record pointer for duck (neutral, reverted); loop-zero derivation (neutral, reverted)",
+  "attributes": {
+    "baseline_and_best": "target/current 148/150 -> 148/149; real 132->133 (metric conflict); objdiff fuzzy 86.9797%->88.6689%; opcode-class disagreement reduced from 15 to 7 instructions; frame 0x80 and stmw r23-r31 unchanged",
+    "law_screen": "Read the complete current matching-law set before editing. claim.law.stride-array-table-view applied to the retained active-channel byte-offset accumulator and folded volume displacement. claim.law.declared-alias-rescues-scaled-pointer-string-cluster was screened and tested at the sample/duck cluster; the broad alias shared too much address state and regressed. claim.law.declaration-initializer-split-controls-entry-schedule and claim.law.independent-statement-reorder-matches-target-schedule were screened/tested by loop-zero placement but compiled identically. load/guard/if-arm/FP/narrow-local/store-placement laws had no trigger shape.",
+    "laws_applied": [
+      "claim.law.stride-array-table-view.20260829.v1"
+    ],
+    "residual": "STRUCTURAL: target-only 2 add+lhzu versus current 2 addis+lhz+li, plus schedule clusters at entry, ADPCM setup, and call-list walk. Typed sample/duck aliases either worsened fuzzy/real or were invariant; do not retry those forms without a new axis.",
+    "scope": "src/game/audio/dcs.c::dcsVoiceSetupAdpcm only; no header, postprocessor, asm, or raw-encoding changes",
+    "verification": "probe.py baseline and every iteration; full-report arbitration because real and fuzzy conflict; fndiff count/ops/clean inspection; target/current 148/149, fuzzy objectively improved to 88.6689%, opcode composition improved; sibling TU probe unchanged outside the two owned fuzzy functions; full ninja -j2 and DOL checksum gate."
+  },
+  "function": "function:dcsVoiceSetupAdpcm",
+  "id": "attempt.dcs-voice-setup-adpcm-structural-closure.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T03:34:09Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

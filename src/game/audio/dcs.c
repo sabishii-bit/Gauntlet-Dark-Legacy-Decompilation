@@ -991,6 +991,7 @@ void dcsServiceQueue(void) {
 
 /* 0x800D321C  assign+start a voice for a sample */
 s32 dcsVoicePlay(s32 priority) {
+    DcsData* d = &dcsBankData;
     s32 first = lbl_80345220;
     s32 bestPriority = -1;
     s32 replace = 1;
@@ -998,11 +999,15 @@ s32 dcsVoicePlay(s32 priority) {
     s32 channel;
     s32 adjustment;
     s32 inUse;
+    s32 channelOffset;
+    DcsChannelInfo* info;
 
     do {
         channel = lbl_80345220;
+        channelOffset = channel * sizeof(DcsChannelInfo);
+        info = (DcsChannelInfo*)((u8*)d->channels + channelOffset);
         inUse = 0;
-        if (ch_info[channel].sample >= 0 || ch_info[channel].duck != 0) {
+        if (info->sample >= 0 || info->duck != 0) {
             inUse = 1;
         } else if (sVoice[channel]->pb.state != 0) {
             inUse = 1;
@@ -1013,15 +1018,14 @@ s32 dcsVoicePlay(s32 priority) {
             break;
         }
 
-        if (bestPriority < ch_info[channel].priority) {
-            bestPriority = ch_info[channel].priority;
+        if (bestPriority < info->priority) {
+            bestPriority = info->priority;
             if (bestPriority <= priority) {
                 selected = channel;
             }
         }
 
-        lbl_80345220++;
-        if (lbl_80345220 >= 12) {
+        if (++lbl_80345220 >= 12) {
             lbl_80345220 = 0;
         }
     } while (lbl_80345220 != first);
@@ -1029,13 +1033,17 @@ s32 dcsVoicePlay(s32 priority) {
     if (selected >= 0 && replace) {
         dcsMemUnlock(selected);
         lbl_80345234 &= ~(1 << lbl_80345220);
-        if (ch_info[selected].duck != 0) {
-            adjustment = -(s32)ch_info[selected].duck * lbl_80343FF8;
+        channelOffset = selected * sizeof(DcsChannelInfo);
+        info = (DcsChannelInfo*)((u8*)d->channels + channelOffset);
+        if (info->duck != 0) {
+            adjustment = -(s32)info->duck * lbl_80343FF8;
             adjustment >>= 8;
             lbl_8034520C += adjustment;
-            for (channel = 0; channel < 12; channel++) {
+            for (channel = 0, channelOffset = 0; channel < 12;
+                 channel++, channelOffset += sizeof(DcsChannelInfo)) {
                 if (dcsVoiceInUse(channel)) {
-                    ch_info[channel].volume -= adjustment;
+                    info = (DcsChannelInfo*)((u8*)d->channels + channelOffset);
+                    info->volume -= adjustment;
                     dcsVoiceUpdate(channel);
                 }
             }
@@ -1062,9 +1070,11 @@ s32 dcsVoiceSetupAdpcm(s32 channel) {
             adjustment = -(s32)*duck_slot * lbl_80343FF8;
             adjustment >>= 8;
             lbl_8034520C += adjustment;
-            for (i = 0; i < 12; i++) {
+            for (i = 0, channel_offset = 0; i < 12;
+                 i++, channel_offset += sizeof(DcsChannelInfo)) {
                 if (dcsVoiceInUse(i)) {
-                    DcsChannelInfo* active_info = &d->channels[i];
+                    DcsChannelInfo* active_info = (DcsChannelInfo*)(
+                        (u8*)d->channels + channel_offset);
 
                     active_info->volume -= adjustment;
                     dcsVoiceUpdate(i);
