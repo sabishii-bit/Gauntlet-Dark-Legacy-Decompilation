@@ -199,21 +199,12 @@ typedef struct CritterPattern {
                                     * arg -- same block as CritterMove.target */
 } CritterPattern;
 
-/* -- CritterWorldHeader: the CritterHeader view CritterCollideWorld and
- *    CritterCollidePlayers use for world/player collision radii. -- */
-typedef struct CritterWorldHeader {
-    u8 _pad000[0x5C];
-    u32 flags;
-    u8 _pad060[0x18];
-    f32 radius;
-    f32 wallRadius;
-    u8 _pad080[0x30];
-    f32 floorOffset;
-    u8 _pad0B4[4];
-    f32 damageScale;      /* 0xB8 per-type damage multiplier (x gCurLevel dmg scale) */
-    u8 _pad0BC[0x5C];
-    s16 hitNodeCount;
-} CritterWorldHeader;
+/* (A second, partial reconstruction of the type header -- CritterWorldHeader,
+ *  used by the collide family -- was reconciled into CritterPackedType below:
+ *  flags->typeFlags@0x5C, radius@0x78, wallRadius@0x7C, floorOffset@0xB0,
+ *  damageScale@0xB8, hitNodeCount->colCount@0x118 all agreed byte-for-byte,
+ *  and CritterPackedType is the GC-evidence winner: self-consistent to 0x140,
+ *  the container->types[] stride, and equal to the Xbox PDB crit_type size.) */
 
 extern CritterBigState gBig;
 extern void *lbl_80241060[4];         /* 0x80241060 loaded-file handle table    */
@@ -408,16 +399,16 @@ typedef struct CritterPackedType {
     f32 lookPitchRate1;        /* 0x6C hitnode1 max pitch turn/tick                  */
     f32 lookPitchBias0;         /* 0x70 hitnode0 static pitch offset                 */
     f32 lookPitchBias1;          /* 0x74 hitnode1 static pitch offset                */
-    f32 radius;                    /* 0x78 world/player collide radius (== CritterWorldHeader.radius) */
-    f32 wallRadius;                  /* 0x7C wall collide radius (== CritterWorldHeader.wallRadius) */
+    f32 radius;                    /* 0x78 world/player collide radius (collide family) */
+    f32 wallRadius;                  /* 0x7C wall collide radius (collide family) */
     CritterTargetCriteria target;      /* 0x80 CritterLookForReady/CritterGetSingleTargetPlayer's
                                          * default CritterCalcTarget(c, hdr+0x80, ...) constraints */
     f32 defaultPos[3];        /* 0xA0 default movePathPos seed (CritterInitInst) */
     f32 speed;               /* 0xAC CritterTranslate move speed                    */
-    f32 floorOffset;          /* 0xB0 == CritterWorldHeader.floorOffset               */
+    f32 floorOffset;          /* 0xB0 floor-contact Y offset (CritterCollideWorld)     */
     f32 vertDrift;             /* 0xB4 constant Y addend folded into c->movevec before
                                  * MulVec4Mat3(hdr+0xC0, c->pos, ...) (ProcessCritter-family) */
-    f32 damageScale;             /* 0xB8 == CritterWorldHeader.damageScale                */
+    f32 damageScale;             /* 0xB8 per-type damage multiplier (x gCurLevel dmg scale) */
     f32 armor;                     /* 0xBC flat damage-reduction constant                 */
     f32 originOffset[3];             /* 0xC0 MulVec4Mat3 local-space body offset input     */
     f32 turnLimit;                     /* 0xCC CritterRotate max facing-correction angle    */
@@ -774,8 +765,8 @@ f32 *delta;
 
     cpos = c->pos;
     best = lbl_80346470;
-    radius = *(f32 *)((u8 *)c->hdr + offsetof(CritterWorldHeader, wallRadius));
-    height = *(f32 *)((u8 *)c->hdr + offsetof(CritterWorldHeader, radius));
+    radius = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
+    height = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, radius));
     center[0] = cpos[0] + delta[0];
     bestIndex = -1;
     center[1] = cpos[1] + delta[1];
@@ -828,7 +819,7 @@ f32 *delta;
             enemy = &gEnemies[bestIndex];
             if ((f64)enemy->hht <= lbl_80346478) {
                 damage_enemy(enemy, -1, 0,
-                             ((CritterWorldHeader *)c->hdr)->damageScale *
+                             ((CritterPackedType *)c->hdr)->damageScale *
                              *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage)),
                              bestContact, NULL, 1);
                 return 0;
@@ -866,8 +857,8 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
     f32 *cpos;
 
     cpos = c->pos;
-    radius = ((CritterWorldHeader *)c->hdr)->wallRadius;
-    height = ((CritterWorldHeader *)c->hdr)->radius;
+    radius = ((CritterPackedType *)c->hdr)->wallRadius;
+    height = ((CritterPackedType *)c->hdr)->radius;
     result = lbl_80346480;
     center[0] = c->pos[0] + delta[0];
     center[1] = c->pos[1] + delta[1];
@@ -881,8 +872,8 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
         if (type == 0) {
             continue;
         }
-        if ((((CritterWorldHeader *)c->hdr)->flags & 0x100) != 0) {
-            for (j = 0; j < ((CritterWorldHeader *)c->hdr)->hitNodeCount; j++) {
+        if ((((CritterPackedType *)c->hdr)->typeFlags & 0x100) != 0) {
+            for (j = 0; j < ((CritterPackedType *)c->hdr)->colCount; j++) {
                 node = (u8 *)c + offsetof(Critter, hitnodes) +
                        j * sizeof(CritterHitNode);
                 if (*(void **)(node + offsetof(CritterHitNode, active)) == NULL) {
@@ -920,7 +911,7 @@ s32 CritterCollideItems(Critter *c, f32 *delta, s32 hits)
         if (result >= dzero) {
             if (type != 2) {
                 if (type == 3) {
-                    damage = ((CritterWorldHeader *)c->hdr)->damageScale *
+                    damage = ((CritterPackedType *)c->hdr)->damageScale *
                              *(f32 *)((u8 *)gCurLevel + offsetof(level_data, ene_damage));
                     if (fn_8005C1DC(item, 0, -1, c->hdr, damage) != zerof) {
                         hit = 1;
@@ -960,8 +951,8 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
     s32 count;
     s32 i;
 
-    radiusX = ((CritterWorldHeader *)c->hdr)->wallRadius;
-    radiusZ = ((CritterWorldHeader *)c->hdr)->radius;
+    radiusX = ((CritterPackedType *)c->hdr)->wallRadius;
+    radiusZ = ((CritterPackedType *)c->hdr)->radius;
     dest[0] = c->pos[0] + delta[0];
     dest[1] = c->pos[1] + delta[1];
     dest[2] = c->pos[2] + delta[2];
@@ -980,7 +971,7 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
         }
         combined = radiusX + *(f32 *)((u8 *)player + offsetof(Player, col_radius));
         combinedZ = radiusZ + *(f32 *)((u8 *)player + offsetof(Player, col_height));
-        if ((((CritterWorldHeader *)c->hdr)->flags & 0x100) != 0) {
+        if ((((CritterPackedType *)c->hdr)->typeFlags & 0x100) != 0) {
             result = CritterMoveNodeColSub(
                 c, *(f32 *)((u8 *)player + offsetof(Player, col_radius)),
                 *(f32 *)((u8 *)player + offsetof(Player, col_height)), delta,
@@ -1066,11 +1057,11 @@ f32 *delta;
     from = c->pos;
     surface = NULL;
     minRise = (f32)(-16.0 * (f64)gClockFrameStep);
-    wallRadius = ((CritterWorldHeader *)c->hdr)->wallRadius;
-    radius = ((CritterWorldHeader *)c->hdr)->radius;
-    if ((((CritterWorldHeader *)c->hdr)->flags & 0x100) != 0) {
+    wallRadius = ((CritterPackedType *)c->hdr)->wallRadius;
+    radius = ((CritterPackedType *)c->hdr)->radius;
+    if ((((CritterPackedType *)c->hdr)->typeFlags & 0x100) != 0) {
         offset = 0;
-        for (i = 0; i < ((CritterWorldHeader *)c->hdr)->hitNodeCount;
+        for (i = 0; i < ((CritterPackedType *)c->hdr)->colCount;
              i++, offset += sizeof(CritterHitNode)) {
             CritterHitNode *hitNode =
                 (CritterHitNode *)((u8 *)c->hitnodes + offset);
@@ -1128,7 +1119,7 @@ f32 *delta;
                                 1.0f, radius, bottom)) != NULL) {
         CritterWorldDamage(c, surface, c->pos, floorResult + 12);
         grounded = 1;
-        baseY = c->vel[1] - ((CritterWorldHeader *)c->hdr)->floorOffset;
+        baseY = c->vel[1] - ((CritterPackedType *)c->hdr)->floorOffset;
         *(f32 *)((u8 *)c + offsetof(Critter, floorContact)) = floorResult[12];
         *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 4) = floorResult[13];
         *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 8) = floorResult[14];
@@ -2401,9 +2392,9 @@ void *CritterMoveNodeCol(f32 radius, f32 height, f32 *origin,
             f32 horizontalRadius;
             s32 collided;
 
-            horizontalRadius = radius + *(f32 *)((u8 *)c->hdr + offsetof(CritterWorldHeader, wallRadius));
+            horizontalRadius = radius + *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
             dz = c->pos[2] - destination[2];
-            verticalRadius = radius + *(f32 *)((u8 *)c->hdr + offsetof(CritterWorldHeader, radius));
+            verticalRadius = radius + *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, radius));
             dx = c->pos[0] - destination[0];
             if (dx * dx + dz * dz >
                 horizontalRadius * horizontalRadius + horizontalSquared) {
@@ -2581,7 +2572,7 @@ Critter *CritterExpCollide(f32 *origin, f32 *forward, f32 radius,
             contact[1] = c->pos[1] - origin[1];
             contact[2] = c->pos[2] - origin[2];
             distance = NormalVector2D(contact);
-            bodyRadius = radius + *(f32 *)((u8 *)c->hdr + offsetof(CritterWorldHeader, wallRadius));
+            bodyRadius = radius + *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
             if (distance > bodyRadius) {
                 collided = 0;
             } else if (dot > 0.0 &&
@@ -4471,7 +4462,7 @@ s32 CritterTranslate(Critter *c, CritterMove *move)
         hits = hits + tmpr;
         pr = tmpr;
         CritterCollideEnemies(c, delta, hits);
-        rad = *(f32 *)((u8 *)c->hdr + offsetof(CritterWorldHeader, wallRadius));
+        rad = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
         dest[0] = c->pos[0] + delta[0];
         dest[1] = c->pos[1] + delta[1];
         dest[2] = c->pos[2] + delta[2];
