@@ -6631,7 +6631,7 @@ void CritterInitInst(Critter *c, struct CritterHeader *hdr)
     c->unkAC6 = 0;
     c->unkAC8 = 0.0f;
     c->unk4AC = 0.0f;
-    c->health = *(f32 *)(h + 228) * *(f32 *)((u8 *)gCurLevel + 172);
+    c->health = *(f32 *)(h + offsetof(CritterPackedType, maxHealth)) * *(f32 *)((u8 *)gCurLevel + 172);
     for (i = 0; i < 4; i++) {
         c->unk1BC[i][0] = 0.0f;
         c->unk1BC[i][1] = 0.0f;
@@ -6641,14 +6641,14 @@ void CritterInitInst(Critter *c, struct CritterHeader *hdr)
     for (i = 0; i < 4; i++) {
         c->unk4E0[i] = -1;
     }
-    if ((s16)*(s16 *)(h + 272) > 0) {
-        memset(c->moveTimes, 0, *(s16 *)(h + 272) * 4);
+    if ((s16)*(s16 *)(h + offsetof(CritterPackedType, moveCount)) > 0) {
+        memset(c->moveTimes, 0, *(s16 *)(h + offsetof(CritterPackedType, moveCount)) * 4);
     }
-    if ((s16)*(s16 *)(h + 276) > 0) {
-        memset(c->patternTimes, 0, *(s16 *)(h + 276) * 4);
+    if ((s16)*(s16 *)(h + offsetof(CritterPackedType, auxMoveCount)) > 0) {
+        memset(c->patternTimes, 0, *(s16 *)(h + offsetof(CritterPackedType, auxMoveCount)) * 4);
     }
-    if ((s16)*(s16 *)(h + 280) > 0) {
-        memset(c->hitnodes, 0, *(s16 *)(h + 280) * 92);
+    if ((s16)*(s16 *)(h + offsetof(CritterPackedType, colCount)) > 0) {
+        memset(c->hitnodes, 0, *(s16 *)(h + offsetof(CritterPackedType, colCount)) * 92);
     }
 }
 /* 0x8003EA4C -- tear down a critter instance: detach scene nodes, kill sfx,
