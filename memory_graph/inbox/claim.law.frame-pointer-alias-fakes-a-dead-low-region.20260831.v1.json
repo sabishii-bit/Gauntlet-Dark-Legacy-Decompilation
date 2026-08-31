@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "inline",
+      "matching",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.frame-pointer-alias-fakes-a-dead-low-region.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T20:05:44Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MEASUREMENT CORRECTION to the reusable low-region recipe published in claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1. That recipe says: take the frame from `stwu r1,-N(r1)`, collect every N(r1) displacement plus every `addi rX,r1,N` and `mr rX,r1`, and report min(referenced) - 8. Applied literally it produces LARGE FALSE dead low regions, for two independent reasons measured on the GUNE5D image this session. (1) PROLOGUE/EPILOGUE LEAKAGE: MWCC stores the return address with `mflr r0; stw r0,4(r1)` BEFORE the stwu, i.e. against the CALLER's r1, and reloads it after the frame is torn down. A scan that does not gate on 'frame currently established' picks up that displacement 4 and reports min(referenced)=4, so EVERY non-leaf function reads as low_gap=-4. Before gating, lane A's census found 7 functions with low_gap>=32; after gating, 98 -- the bug had hidden 91 of 98 candidates, including CritterInitHeader, which the parent law itself names as the image's largest at 1620 and which the ungated scan scored -4. (2) FRAME-POINTER ALIAS, the subtler half and the reason this record exists: MWCC frequently establishes a frame pointer with `addi r31,r1,0` and then addresses the whole frame through it (`addi r3,r31,76`, `lwz r0,48(r31)`). Those references are invisible to an r1-only displacement scan, so a function whose frame is fully used reads as a large reserved dead block. The parent recipe does list `addi rX,r1,N`, but only as an ADDRESS-FORMING site to fold into the reference set; it does not say to treat the destination as an ALIAS and follow displacements through it, and N=0 is additionally dropped by any `0 < d` filter. THE FIX, and it is cheap: maintain alias[rX] = N for `addi rX,r1,N` and `mr rX,r1`, propagate alias[dst] = alias[src] + N through further addi/mr, kill an alias when its register is redefined by any other instruction, and fold `D(rX)` for aliased rX into N+D. MEASURED CONSEQUENCE: with alias tracking, lane A's >=32 candidate set drops 98 -> 86, and -- the finding that actually mattered -- an apparent cluster of NINE functions in src/game/movie/movieplayer.c that looked like the lane's headline signature (target reserves a block, our build does not, our frame short by exactly d_gap+4: fn_800DBA80 84/88, fn_800D9CF4 60/64, fn_800DBD30 60/64, fn_800DBF6C 60/64, fn_800D9C5C 36/40, __dl__FPv and __dla__FPv 36/40, fn_800D96B0 28/32, fn_800D8784 20/24) EVAPORATED ENTIRELY. Every one of them is a C++ exception-handling function that sets `addi r31,r1,0` and addresses its frame through r31 while calling __unexpected with `addi r3,r31,<N>`; their frames are fully used and there is no missing reservation to reproduce. Chasing that cluster would have burned a whole lane on an artifact of the measuring instrument. CALIBRATION GATE TO RUN BEFORE TRUSTING ANY LOW-REGION CENSUS: the alias-aware scan reproduces all five low_gap values the parent law published -- CritterInitHeader 1620, GetAnimAngXYZVal 364 (which itself uses a frame pointer), SetupModel 332, fn_80011DCC 488, fn_8001267C 296 -- so any re-derivation that does not hit those five numbers exactly is measuring something else. Report a per-function frame-pointer flag alongside low_gap; fp=1 with a large low_gap is the signature of this artifact, not of an inline reservation."
+}

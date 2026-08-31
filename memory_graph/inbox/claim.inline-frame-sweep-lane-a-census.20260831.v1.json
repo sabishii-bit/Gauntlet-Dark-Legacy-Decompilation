@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "inline",
+      "matching",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.inline-frame-sweep-lane-a-census.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T20:08:32Z",
+  "schema_version": 1,
+  "subject": "tu:game/audio/sndfx",
+  "valid_from": "2026-08-31",
+  "value": "LANE-A CENSUS RESULT for the inline-frame sweep (work_claim.inline-frame-sweep-a.20260831.v1): units sorting before game/n, excluding game/anim/atree and Matching TUs. 25 units, 637 target functions with frames. Measured ALIAS-AWARE per claim.law.frame-pointer-alias-fakes-a-dead-low-region.20260831.v1; the naive r1-only recipe gives 98 and is wrong. HEADLINE: 86 functions have a target low_gap >= 32, but only FOUR show our build reserving materially less, and ALL FOUR have d_frame = 0 - StandardCamera_8002B828 (d_gap 116), BossCamBossCalc (48), someone_will_be_off_screen (40), PlayerCollideFloor (12). d_frame = 0 means the frame SIZE already matches and only the occupancy differs, so NONE of them is a missing inline reservation in the sense of the parent law (whose positive case, fn_8001267C, was short by 248 bytes of frame). They are occupancy/slot-placement work for the inner-block-pad and slot-order laws, not macro-to-inline conversions. SECOND FINDING: the seven ZERO-CALL candidates - the purest form of the tell, since a leaf can have no outgoing-argument area - ALREADY reproduce their target reservation exactly in our build (AudioTrackRegister 56, LimitCamVal2 40, CalcTexScroll 40, G3DGetControlPadAnalog 40, mbBlitCalcClip 32, movieplayer fn_800DBE98 32 all match target frame AND low_gap). The single exception is sndFxQueAddEx, where ours OVER-reserves (40 vs 32, frame 64 vs 56) - the opposite direction from the lane's thesis. CONSEQUENCE FOR THE CAMPAIGN: lane A found NO function whose residual is explained by a macro standing where retail used a static inline helper, and no macro-to-inline conversion was warranted anywhere in these 25 units. The lane's diagnosable signature did not occur in this half. sndFxQueAddEx was nonetheless driven 76 -> 30 real by typing its queue-slot array (see attempt.sndfxqueaddex-named-queue-slot-array-and-frame-floor.20260831.v2), and its remaining 8-byte over-reservation is a compiler-internal floor that no declaration edit reduces. RECOMMENDATION for the next lane: treat d_frame > 0 (a genuinely SHORT frame), not low_gap alone, as the entry filter for inline-reservation work - low_gap by itself is dominated by ordinary reserved regions that both sides already agree on, and 602 image functions sit at low_gap 0 with a smooth continuum upward per the parent law's own distribution."
+}
