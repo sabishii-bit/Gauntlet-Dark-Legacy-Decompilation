@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "run-6 fresh-lever revisit of the recorded scheduler/register residual: (1) single-web aR clamp form (aR direct, aG = 256 - aR before clamp; kills the extra mr@824 locally) REGRESSED 389->459 - the conversion-spill cascade the 08-29 log measured at 459-461 reproduces exactly even after the 08-30 de-fakematch restructure, so the aRWork two-web temp is load-bearing; (2) block-scoped u32 dispOfs = lbl_80344FA4 + lbl_80344FAC temp at the o1_display seam REGRESSED 389->471 with the local cluster byte-unchanged (pure global ripple); (3) term-order swap of the two shifted env fields at the o2_display sum REGRESSED 389->391. All reverted; best stays 389.",
+  "attributes": {
+    "axis_log": "08-29 matching axes (negative, do not retry): conv locals/mode-arm casts/aR forms/smode/y-offset/P8-u64/decl-order/reg hints. 08-30 v2: offsetof-rename defake pass IMPROVED 391->389 (retained; see v2 text for the tC+40 outlier). 08-31 v3: single-web aR NEG 459 (post-defake re-probe, sign unchanged); dispOfs temp NEG 471; o2_display term swap NEG 391.",
+    "law_screen": "claim.law.load-then-conditional-overwrite-vs-ternary.20260831.v1: motivated probe 1 - did not transfer (single-web form regresses the surrounding conversion spills); claim.law.guard-polarity-restructure-fixes-count-parity-not-form.20260831.v1: screened - count gap is an mr not a branch, lever n/a; claim.law.literal-sweep family: screened - lbl_80348F18 is a dead declaration, zero FP-pool read sites, no lfd/stfd tell; claim.law.declared-alias family: motivated probe 2 - regressed; claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1: motivated probe 3 - regressed.",
+    "laws_applied": "[\"claim.law.load-then-conditional-overwrite-vs-ternary.20260831.v1\"]",
+    "residual": "unchanged from v2: 958/959 (+1 mr @824 from the aRWork/aR two-web clamp - removing it costs 70 real elsewhere), 4x stfd conversion-scratch slot/placement swaps (ours 760/776 vs target 768/760 slot coloring), rlwinm/add association seam @6a4 (MWCC re-associates the parenthesized (FA4+FAC) group away; temp-hoist and term-order both regress), lwz/add/addi seam @76c, 2x stw pair-order seams. All scheduler/stack-slot-coloring level; no remaining source-reachable lever found in the run-6 family.",
+    "scope": "src/game/pb/pb_frame.c pbFrameMode probes only, all reverted via probe.py --revert; tree clean at real 389",
+    "verification": "probe.py A/B per axis, three REGRESSED all reverted; final re-score NEUTRAL real 389 insns 958/959"
+  },
+  "function": "function:pbFrameMode",
+  "id": "attempt.pb-frame-mode-structural-closure.20260831.v3",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T04:37:01Z",
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.pb-frame-mode-structural-closure.20260830.v2",
+  "valid_from": "2026-08-31"
+}
