@@ -89,7 +89,7 @@ typedef struct SysServiceStringPool {
     char pressReset[0x1C];
     char assertFailedPress[0x3C];
     char assertFile[0x20];
-    char assertMessage[0x28];
+    char assertMessage[0x25];
 } SysServiceStringPool;
 
 static const SysServiceStringPool lbl_801176B0 = {

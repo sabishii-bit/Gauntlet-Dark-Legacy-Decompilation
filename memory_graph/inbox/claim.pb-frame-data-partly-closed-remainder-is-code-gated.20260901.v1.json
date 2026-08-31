@@ -1,0 +1,26 @@
+{
+  "attributes": {
+    "law_screen": "claim.law.splits-claim-can-swallow-link-alignment-padding.20260901.v1 SCREENED - opposite polarity: pb_frame's claim was not too LONG but entirely ABSENT. claim.law.bss-reverse-declaration-order.20260829.v1 SCREENED - no BSS involved. claim.rune-idx-table-0x148-span-is-four-objects.20260831.v1 APPLIED as method precedent (DOL bytes are the authority; symbols.txt already held the right sizes). claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1 APPLIED - nm -u re-screened AFTER adding the claims: lbl_80348F18 is NOT undefined (it is a dead declaration at pb_frame.c:226), so the new .sdata2 claim introduces no own-pool ghost.",
+    "laws_applied": [
+      "claim.rune-idx-table-0x148-span-is-four-objects.20260831.v1",
+      "claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1"
+    ],
+    "tags": [
+      "build-hygiene",
+      "symbol-identity",
+      "metrics",
+      "matching",
+      "relocation"
+    ],
+    "verification": "DOL pattern search located both objects. Jump table: 7 consecutive big-endian words at VA 0x80128158 all inside pb_frame's own .text range, matching our .rela.data addends pbFrameMode+0x414/+0x3f4/+0x414/+0x54/+0x144/+0x224/+0x314 exactly given pbFrameMode = 0x800C16F8. FP pool: the exact 32 bytes 4330000080000000/4030000000000000/4500000000000000/40a0000000000000 at VA 0x80348F18, ending where lbl_80348F38 (data:string) begins. symbols.txt ALREADY carried jumptable_80128158 size 0x1C and lbl_80348F18/F20/F28/F30, so no symbol edit was needed. Fix: two lines added to splits.txt. Gate: configure.py + full ninja -j2, main.dol: OK, retail sha1 unchanged, defake_gate check GATE OK, datadiff now reports .data OK 0x1C / .sdata2 OK 0x20. matched_data_percent 40.0 -> 60.0 (matched_data 48 -> 108, total_data 120 -> 180). Commit 576acbc9d."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.pb-frame-data-partly-closed-remainder-is-code-gated.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T23:03:42Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_frame",
+  "valid_from": "2026-08-31",
+  "value": "DATA GATE PARTLY CLOSED for game/pb/pb_frame (40.0% -> 60.0%); the REMAINDER IS NOT INDEPENDENTLY FIXABLE and is gated on the code straggler. CAUSE 1, FIXED: pb_frame's splits.txt entry claimed only extab/extabindex/.text, so the extracted target object had NO .data and NO .sdata2 at all while our object emitted .data 0x1C and .sdata2 0x20 - datadiff reported these as 'object emits 0x1C but nothing claimed'. That phrasing is the tell: the data was UNCLAIMED, not absent. Both objects were then located in the retail DOL by direct byte search and are genuinely pb_frame's: a 7-entry switch jump table at 0x80128158..0x80128174 whose seven words are all addresses inside pb_frame's own .text, and a 4-literal FP pool at 0x80348F18..0x80348F38 byte-identical to the pool our object emits. Adding the two splits.txt lines took both sections to 100%. NOTE the prior capped record attempt.pb-frame-mode-structural-closure.20260831.v3 screened 'lbl_80348F18 is a dead declaration, zero FP-pool read sites' and moved on; the declaration at pb_frame.c:226 IS dead, but the ADDRESS is not - it is the head of pb_frame's real .sdata2 pool, which the TU emits through compiler-generated @NNN literals rather than through that extern. A dead source declaration is not evidence that the address is unowned. CAUSE 2, THE REMAINING BLOCKER: extabindex, 72 of the TU's now-180 data bytes, sits at 98.61111% and contributes zero. The diff is exactly ONE WORD - at extabindex+0x1C the target holds 00000ef8 and ours 00000efc. That field is pbFrameMode's function SIZE (3832 vs 3836): our .text is 0x1EE4 against the target's 0x1EE0 because pbFrameMode compiles one instruction long (959 vs 958). extabindex is generated from function extents, so it is a pure DOWNSTREAM CONSEQUENCE of the code residual and no data-side edit can close it. CONSEQUENCE FOR PLANNING: pb_frame cannot reach 100% data, and therefore cannot flip, until pbFrameMode goes exact; conversely closing pbFrameMode closes extabindex automatically and takes the TU to 100% data in the same step. pbFrameMode remains under its same-day cap (attempt.pb-frame-mode-structural-closure.20260831.v3, MIXED, best real 389) and was NOT re-probed this run."
+}

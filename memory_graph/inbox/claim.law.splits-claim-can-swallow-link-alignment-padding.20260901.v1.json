@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "law_screen": "claim.law.bss-reverse-declaration-order.20260829.v1 SCREENED - not applicable, no BSS declaration was added or moved. winglobals sdata2-pool ordering law SCREENED - the pools' literal ORDER already matched byte-for-byte on both sides; the defect was pool EXTENT, not order. claim.rune-idx-table-0x148-span-is-four-objects.20260831.v1 APPLIED as the method precedent (read the DOL bytes, account for every byte, correct config rather than source). claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1 SCREENED via nm -u per object.",
+    "laws_applied": [
+      "claim.rune-idx-table-0x148-span-is-four-objects.20260831.v1"
+    ],
+    "tags": [
+      "build-hygiene",
+      "symbol-identity",
+      "metrics",
+      "workflow"
+    ],
+    "verification": "mb_font: objdiff-cli one-shot JSON (left=target obj, right=ours) showed .data 88 vs 84 and .sdata2 72 vs 68, both DIFF_DELETE of exactly 4 trailing bytes, target-side bytes zero. DOL bytes read directly at 0x80127BFC and 0x80348B8C (zero). Fix: splits.txt .data end 0x80127C00->0x80127BFC, .sdata2 end 0x80348B90->0x80348B8C, plus symbols.txt lbl_80127BA8 size 0x58->0x54 and lbl_80348B88 size 0x8->0x4. Gate: python configure.py + full ninja -j2, build/GUNE5D/main.dol: OK, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679 unchanged, defake_gate check GATE OK, datadiff claim-slack lines gone. mb_font matched_data_percent 61.445786 -> 100.0. Commit cf166b548."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.splits-claim-can-swallow-link-alignment-padding.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T23:03:35Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "A splits.txt data-section claim whose END is a round 8-byte boundary while the compiled object's natural section end is 4 bytes short is an OVER-CLAIM that has swallowed LINK-TIME ALIGNMENT PADDING, not evidence of a missing source object. objdiff scores a data section as contributing to matched_data ONLY when it is 100% matched, so a single such 4-byte over-claim zeroes the whole section's contribution: mb_font's .data (0x58 claimed vs 0x54 emitted) and .sdata2 (0x48 vs 0x44) between them cost 152 of 415 data bytes and held the TU at 61.4% data while every byte it emitted was already correct. THREE INDEPENDENT TELLS, all cheap: (1) datadiff.py prints `0xN claim slack(zero)` for exactly this shape - the trailing bytes are present in the DOL and are ZERO; (2) the SAME TU's .rodata claim ends on an odd address (mb_font .rodata 0x80115CE8..0x80115D6F, with mb_lights starting at 0x80115D70) proving the splits author DID exclude inter-TU padding elsewhere, so a neighbouring round-boundary end in the same entry is anomalous; (3) symbols.txt's own size field contradicts its type annotation - `lbl_80348B88 ... size:0x8 align:4 data:float` is self-inconsistent because a float is 4 bytes, and the sibling `lbl_80348B80 ... size:0x8 align:8 data:double` shows the consistent form. DISCRIMINATOR against a genuine missing object: count the relocations. mb_font's .data is entirely a switch jump table; both target and ours carry exactly 21 relocated words (.rela.data 0xFC = 21 Elf32_Rela on BOTH sides), so the target's 22nd word is unrelocated zero and cannot be a table entry - it is padding. A real missing entry would show a relocation count difference. FIX PROCEDURE: shrink the splits.txt end AND the owning symbols.txt size in the same edit - the splitter hard-fails with `Split ... ends within symbol '<name>'` if only splits.txt is changed, which is a useful guard, not an obstacle. The empirical proof that the bytes were link padding is the retail sha1 gate: after shrinking, the linker regenerates the identical DOL because the following TU's section alignment re-creates the pad. NEVER apply this by inference - read the DOL bytes and confirm they are zero first."
+}
