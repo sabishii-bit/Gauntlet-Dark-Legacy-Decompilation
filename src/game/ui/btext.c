@@ -457,6 +457,29 @@ s32 StringTextWidth(f32 scale, s32 msg, s32 idx)
 }
 
 /* ==== 0x8001F050 StringTextWidthSub ==== */
+static inline s32 TextLinesWidth(u8** buf, s32 nlines, s32 color, f32 lh)
+{
+    s32 j;
+    s32 w;
+    s32 prev;
+    u8* ls;
+    s32 max = 0;
+
+    for (j = 0; j < nlines; j++) {
+        ls = buf[j];
+        prev = MBSetFont(color);
+        MBSetFontScaleSpace(lh, 0.0f);
+        w = MBFontStringWidth(ls);
+        if (prev != color) {
+            MBSetFont(prev);
+        }
+        if (w > max) {
+            max = w;
+        }
+    }
+    return max;
+}
+
 s32 StringTextWidthSub(f32 scale, StrList* p, s32 msg, s32 idx)
 {
     MsgEnt* e = &p->msgs[msg];
@@ -464,61 +487,29 @@ s32 StringTextWidthSub(f32 scale, StrList* p, s32 msg, s32 idx)
     u32 color = p->fontDesc[e->font].color;
     s32 maxw = 0;
     s32 line;
-    s32 j;
     s32 nlines;
-    s32 w;
     s32 lineMax;
-    u32 prev;
-    u8* ls;
-    s32 off;
-    void* buf1[18];
     void* buf2[20];
+    void* buf1[18];
 
-    if (idx < 0) {
-        color &= 0xff;
-        for (line = 0; line < e->count; line++) {
-            lineMax = 0;
-            nlines = FixMLineText((s32*)(p->textData + p->textOff[e->first + line]),
-                                  (s32*)gTextWorkBuf, (s32*)buf1);
-            off = 0;
-            for (j = 0; j < nlines; j++) {
-                ls = *(u8**)((u8*)buf1 + off);
-                prev = MBSetFont(color);
-                MBSetFontScaleSpace(lh, 0.0f);
-                w = MBFontStringWidth(ls);
-                if (prev != color) {
-                    MBSetFont(prev);
-                }
-                if (lineMax < w) {
-                    lineMax = w;
-                }
-                off += 4;
-            }
-            if (maxw < lineMax) {
-                maxw = lineMax;
-            }
+    if (idx >= 0) {
+        if (idx >= e->count) {
+            return 0;
         }
-    } else if (idx < e->count) {
-        maxw = 0;
         nlines = FixMLineText((s32*)(p->textData + p->textOff[e->first + idx]),
                               (s32*)gTextWorkBuf, (s32*)buf2);
         color &= 0xff;
-        off = 0;
-        for (j = 0; j < nlines; j++) {
-            ls = *(u8**)((u8*)buf2 + off);
-            prev = MBSetFont(color);
-            MBSetFontScaleSpace(lh, 0.0f);
-            w = MBFontStringWidth(ls);
-            if (prev != color) {
-                MBSetFont(prev);
-            }
-            if (maxw < w) {
-                maxw = w;
-            }
-            off += 4;
-        }
+        maxw = TextLinesWidth((u8**)buf2, nlines, color, lh);
     } else {
-        maxw = 0;
+        color &= 0xff;
+        for (line = 0; line < e->count; line++) {
+            nlines = FixMLineText((s32*)(p->textData + p->textOff[e->first + line]),
+                                  (s32*)gTextWorkBuf, (s32*)buf1);
+            lineMax = TextLinesWidth((u8**)buf1, nlines, color, lh);
+            if (lineMax > maxw) {
+                maxw = lineMax;
+            }
+        }
     }
     return maxw;
 }
