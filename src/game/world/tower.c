@@ -509,7 +509,8 @@ void towerRecordLevelBeaten(int level, int world) {
             s16 lvl = *(s16*)(gCurLevel + offsetof(level_data, rune));
 
             if (lvl > 0) {
-                int mask = 1 << (lvl - 1);
+                int bit = lvl - 1;
+                int mask = 1 << bit;
 
                 if ((rec->char_save[rec->character].level_masks[0] & mask) != 0) {
                     rec->char_save[rec->character].level_masks[1] |= mask;
