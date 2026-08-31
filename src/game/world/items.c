@@ -370,9 +370,11 @@ void AddItemSub(Item* item)
                     position[0], position[1], position[2]);
     }
 
-    if (*current != 0 && *(void**)((u8*)*current + 0x28) != 0 &&
-        (*(u32*)((u8*)*current + 0x10) & 0x1000) != 0) {
-        MBNodeSetParent(item->objgrp.node, *(void**)((u8*)*current + 0x28));
+    if (*current != 0 &&
+        *(void**)((u8*)*current + offsetof(WorldObj, nodeptr)) != 0 &&
+        (*(u32*)((u8*)*current + offsetof(WorldObj, flags)) & 0x1000) != 0) {
+        MBNodeSetParent(item->objgrp.node,
+                        *(void**)((u8*)*current + offsetof(WorldObj, nodeptr)));
     }
 
     UpdateObjWorldMat(&item->objgrp);
@@ -397,7 +399,8 @@ void AddItemSub(Item* item)
         if (scene == 0) {
             goto done;
         }
-        if (linked != scene && linked != *(void**)((u8*)scene + 0x18)) {
+        if (linked != scene &&
+            linked != *(void**)((u8*)scene + offsetof(WorldObj, parent))) {
             goto done;
         }
         *(s16*)&item->data[4] |= 0x100;
