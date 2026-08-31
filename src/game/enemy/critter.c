@@ -137,7 +137,8 @@ typedef struct CritterDamageDef {
     s16 morphTargetIndex;                            /* 0x44 index into file->sfx[]+8 (morph target) */
     s16 morphIndex;                                    /* 0x46 index into file->sfx[]+8 (morph shape) */
     f32 yawSpread;                                       /* 0x48 random yaw jitter range (Random()) */
-} CritterDamageDef;                  /* size 0x50 */
+    f32 unk4C;                                             /* 0x4C crit_damage.dummy2 -- no GC consumer */
+} CritterDamageDef;                  /* size 0x50 (== Xbox PDB crit_damage) */
 
 /* -- CritterColDescriptor (0x50): the type-table record CritterHitNode's
  *    descriptor points at once resolved by CritterInitColnodes.  Verified
@@ -371,8 +372,11 @@ extern s32   FileSize(char *name, const char *wad);
 extern s32  *StartFileRead(char *name, const char *wad, s32 mode, s32 size,
                            s32 arg, void *callback);
 
+/* 0x30 == Xbox PDB crit_desc (name/prefix/etype/model/loaded/didcount/
+ * atreelist/dummy1); GC behavioral names kept for the already-adopted tail. */
 typedef struct CritterDescriptor {
-    u8 _pad00[0x20];
+    char name[0x10];    /* 0x00 crit_desc.name                                */
+    char prefix[0x10];  /* 0x10 crit_desc.prefix -- ErrorPrintf id string     */
     s16 type;
     s16 modelIndex;
     s16 loadState;
@@ -4637,6 +4641,16 @@ typedef struct CritterMoveFx {
     s16 sfx2Frame;  /* 0x5E */
 } CritterMoveFx;
 
+/* -- CritterMoveNames: overlay of crit_move's three name strings (Xbox PDB
+ *    crit_move 0x90 exact: name@0x10, anim@0x20, colnode@0x30, each char[16];
+ *    the project header's CritterMove keeps the block as _blk10 padding). -- */
+typedef struct CritterMoveNames {
+    u8   _pad00[0x10];
+    char name[0x10];     /* 0x10 crit_move.name -- editor/debug move name     */
+    char anim[0x10];     /* 0x20 crit_move.anim -- animation sequence name    */
+    char colnode[0x10];  /* 0x30 crit_move.colnode -- attach-node name        */
+} CritterMoveNames;
+
 /* 0x8003B300 -- activate frame-gated move actions, sounds and particles. */
 void CritterActivate(Critter *c, CritterMove *move, s32 frame)
 {
@@ -7411,34 +7425,34 @@ void CritterInitMoves(u8 *header)
         if (*(s32 *)entry >= 0x30 && *(s32 *)entry <= 0x39) {
             *(u32 *)(header + offsetof(CritterPackedType, typeFlags)) |= 0x10000;
         }
-        if (*(s16 *)(entry + 0x0C) >= 0) {
+        if (*(s16 *)(entry + offsetof(CritterMove, anim)) >= 0) {
             goto next_move;
         }
-        if (*(char *)(entry + 0x20) != '\0') {
-            index = AtreeHeaderFindSeq(atree, (char *)(entry + 0x20));
-            *(s16 *)(entry + 0x0C) = (s16)index;
-            if (*(s16 *)(entry + 0x0C) < 0) {
+        if (*(char *)(entry + offsetof(CritterMoveNames, anim)) != '\0') {
+            index = AtreeHeaderFindSeq(atree, (char *)(entry + offsetof(CritterMoveNames, anim)));
+            *(s16 *)(entry + offsetof(CritterMove, anim)) = (s16)index;
+            if (*(s16 *)(entry + offsetof(CritterMove, anim)) < 0) {
                 ErrorPrintf(lbl_801122F0,
                             (char *)(*(u8 **)(header + offsetof(CritterPackedType,
-                                       descriptor)) + 0x10),
-                            (char *)(entry + 0x20));
-                *(s16 *)(entry + 0x0C) = 0;
+                                       descriptor)) + offsetof(CritterDescriptor, prefix)),
+                            (char *)(entry + offsetof(CritterMoveNames, anim)));
+                *(s16 *)(entry + offsetof(CritterMove, anim)) = 0;
             }
         }
         index = -1;
         {
             void *lookupAtree = *(void **)(header + offsetof(CritterPackedType, atree));
-        if (lookupAtree != NULL && (entry + 0x30) != NULL &&
-            *(char *)(entry + 0x30) != '\0' &&
-            *(char *)(entry + 0x31) != '\0') {
-            index = AtreeFindNodeIdx(*(void **)((u8 *)lookupAtree + 0x0C),
-                                     *(s32 *)((u8 *)lookupAtree + 0x10),
-                                     (char *)(entry + 0x30), 0x10);
+        if (lookupAtree != NULL && (entry + offsetof(CritterMoveNames, colnode)) != NULL &&
+            *(char *)(entry + offsetof(CritterMoveNames, colnode)) != '\0' &&
+            *(char *)(entry + offsetof(CritterMoveNames, colnode) + 1) != '\0') {
+            index = AtreeFindNodeIdx(*(void **)((u8 *)lookupAtree + offsetof(struct atreeheader, nodeinfo)),
+                                     *(s32 *)((u8 *)lookupAtree + offsetof(struct atreeheader, numnodes)),
+                                     (char *)(entry + offsetof(CritterMoveNames, colnode)), 0x10);
         }
         }
-        *(s16 *)(entry + 0x0E) = (s16)index;
+        *(s16 *)(entry + offsetof(CritterMove, node)) = (s16)index;
 
-        index = *(s16 *)(entry + 0x48);
+        index = *(s16 *)(entry + offsetof(CritterMove, interruptAnim0));
         {
             u8 *sfx;
             void *sfxHeader;
@@ -7447,10 +7461,10 @@ void CritterInitMoves(u8 *header)
         if (index >= 0) {
             sfx = *(u8 **)(container + offsetof(CritterFileHeader, damage)) +
                   index * 0x50;
-            CritterInitSfx(container, *(s16 *)(sfx + 0x40), sfxHeader);
-            CritterInitSfx(container, *(s16 *)(sfx + 0x44), sfxHeader);
-            CritterInitSfx(container, *(s16 *)(sfx + 0x46), sfxHeader);
-            CritterInitSfx(container, *(s16 *)(sfx + 0x42), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + offsetof(CritterDamageDef, sfxIndex)), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + offsetof(CritterDamageDef, morphTargetIndex)), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + offsetof(CritterDamageDef, morphIndex)), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + offsetof(CritterDamageDef, sfx)), sfxHeader);
             if (*(s16 *)sfx == 6) {
                 lbl_80344650 = 1;
             }
@@ -7459,25 +7473,25 @@ void CritterInitMoves(u8 *header)
         {
             u8 *sfx;
             void *sfxHeader;
-            index = *(s16 *)(entry + 0x4A);
+            index = *(s16 *)(entry + offsetof(CritterMove, interruptAnim1));
             sfxHeader = *(void **)(*(u8 **)(header + offsetof(CritterPackedType,
                                     descriptor)) + offsetof(CritterDescriptor, model));
         if (index >= 0) {
             sfx = *(u8 **)(container + offsetof(CritterFileHeader, damage)) +
                   index * 0x50;
-            CritterInitSfx(container, *(s16 *)(sfx + 0x40), sfxHeader);
-            CritterInitSfx(container, *(s16 *)(sfx + 0x44), sfxHeader);
-            CritterInitSfx(container, *(s16 *)(sfx + 0x46), sfxHeader);
-            CritterInitSfx(container, *(s16 *)(sfx + 0x42), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + offsetof(CritterDamageDef, sfxIndex)), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + offsetof(CritterDamageDef, morphTargetIndex)), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + offsetof(CritterDamageDef, morphIndex)), sfxHeader);
+            CritterInitSfx(container, *(s16 *)(sfx + offsetof(CritterDamageDef, sfx)), sfxHeader);
             if (*(s16 *)sfx == 6) {
                 lbl_80344650 = 1;
             }
         }
         }
-        CritterInitSfx(container, *(s16 *)(entry + 0x58),
+        CritterInitSfx(container, *(s16 *)(entry + offsetof(CritterMoveFx, sfx)),
                        *(void **)(*(u8 **)(header + offsetof(CritterPackedType,
                                    descriptor)) + offsetof(CritterDescriptor, model)));
-        CritterInitSfx(container, *(s16 *)(entry + 0x5C),
+        CritterInitSfx(container, *(s16 *)(entry + offsetof(CritterMoveFx, sfx2)),
                        *(void **)(*(u8 **)(header + offsetof(CritterPackedType,
                                    descriptor)) + offsetof(CritterDescriptor, model)));
 next_move:
@@ -7494,11 +7508,11 @@ next_move:
         lookupAtree = *(void **)(header + offsetof(CritterPackedType, atree));
         if (lookupAtree != NULL && colnode != NULL &&
             *(char *)colnode != '\0' && *(char *)(colnode + 1) != '\0') {
-            index = AtreeFindNodeIdx(*(void **)((u8 *)lookupAtree + 0x0C),
-                                     *(s32 *)((u8 *)lookupAtree + 0x10),
+            index = AtreeFindNodeIdx(*(void **)((u8 *)lookupAtree + offsetof(struct atreeheader, nodeinfo)),
+                                     *(s32 *)((u8 *)lookupAtree + offsetof(struct atreeheader, numnodes)),
                                      (char *)colnode, 0x10);
         }
-        *(s16 *)(colnode + 0x14) = (s16)index;
+        *(s16 *)(colnode + offsetof(CritterColDescriptor, nodeIndex)) = (s16)index;
         colIndex++;
     }
     }
