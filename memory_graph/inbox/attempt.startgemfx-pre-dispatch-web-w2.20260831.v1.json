@@ -1,0 +1,24 @@
+{
+  "attempted_axis": "EXACT-drive revisit of the 2026-08-29 bulk-import park: eliminated eight redundant per-arm materializations in the three-arm dispatch by giving the shared flag constant and the shared page base pre-dispatch webs, then removed a double field read in the shared inline helper",
+  "attributes": {
+    "axis_log": "AXIS 1 hoist the flag constant into a pre-dispatch local (u32 fla = 0x80880) and pass the named pool symbol lbl_80348068 instead of the 0.0f literal: IMPROVED real 50 -> 48, insns 115 -> 111, multiset 8t -> 4t. AXIS 2 additionally route all three arms through the existing page-explicit clone StartFXSubGutsP with `EffectPage* page` computed once before the ladder: CONFLICT (real 48 -> 70 but insns 111 -> 109 and multiset 4t -> 2t). Arbitrated KEEP per the AGENTS.md CONFLICT rule - structure converging, and the newly exposed residual was a clean ours-only -2 lwz naming the next fix rather than noise. AXIS 3 cache the double-read field in the helper (`if ((at = h->atree) != NULL && (idx = StartFXTree(at, ...)) >= 0)`, the idiom StartBagFX already uses in this TU): IMPROVED real 48 -> 40 with insns 107/107 EXACT and opcode multiset IDENTICAL - the CONFLICT arbitration paid off exactly as the verdict text predicted.",
+    "law_screen": "REVERIFY of attempt.parked.startgemfx.20260829.v1 (bulk import, no measurement): its residual_class 'REGISTER_ONLY/SCHEDULE' was WRONG - the baseline carried EIGHT surplus instructions (ours 115 vs target 107, --ops ours-only -4 addi -4 lis), a structural gap the register cap never covered. claim.law.pre-dispatch-literal-web-feeds-case-call-args.20260831.v1: APPLIED and it is the primary lever - target materializes both EffectInfo (into r30) and the 0x80880 flag word (lis r5,8 / addi r6,r5,2176 into r6) BEFORE the `bne` that dispatches to the arms, so every arm shares them; ours rebuilt both inside each arm. claim.law.arg-constant-switch-arms-defeat-literal-sweep.20260831.v1: SCREENED as the closest recorded relative - it warns that a ladder whose arms pass the same constants is the WORST shape for turning pool reads into literals; the reverse move made here (turn per-arm literals into one pre-dispatch local) is the corrective and measured IMPROVED, so the law's mechanism is confirmed with its sign flipped. claim.law.scalar-field-cache-defeats-call-boundary-reload.20260830.v1: APPLIED to the third probe - once `page` became a PARAMETER of the inline helper, MWCC could no longer CSE the two source reads of h->atree and emitted two lwz; caching it in a local restored one. claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1: APPLIED - the page-explicit helper clone StartFXSubGutsP already existed in this TU for exactly this purpose. claim.law.declared-alias-vs-repeated-cast.20260830.v1: SCREENED, not applicable (one declared alias, no repeated casts). claim.law.webfrank-pinned-function-source-freeze.20260831.v1: SCREENED - StartFXSubGutsP is inlined into the PINNED fn_80094164, so the helper edit was gated whole-TU and the build's WebFrank hash assertion was treated as the real gate; it passed.",
+    "laws_applied": [
+      "claim.law.pre-dispatch-literal-web-feeds-case-call-args.20260831.v1",
+      "claim.law.scalar-field-cache-defeats-call-boundary-reload.20260830.v1",
+      "claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1"
+    ],
+    "residual": "40 lines, opcode multiset IDENTICAL at 107/107 - reduced to callee-saved renaming plus one entry-block schedule difference: target sinks the EffectInfo/0x80880 materialization pair above the dispatch `bne` while ours emits the same pair a few slots later, rotating the r27/r29/r31 assignments through both arms. No structural or operand difference remains.",
+    "scope": "src/game/sfx/sfx.c StartGemFX plus the shared static helper StartFXSubGutsP (the `at` cache); portable C; no header edits. The helper is inlined into 7 other call sites including the WebFrank-pinned fn_80094164, so the change was gated whole-TU.",
+    "verification": "probe.py BASELINE real 50 (insns 107/115, multiset 8t) banked before the first edit; defake_gate.py check game/sfx/sfx.c --rebuild over all 72 functions reported 'IMPROVED StartGemFX real 50 -> 40, GATE OK (1 improved)' with ZERO regressions - critically, the shared-helper edit regressed none of the other 7 inline sites and did not disturb any WebFrank pin hash; then --update-improved banked it; full ninja -j2 green, build/GUNE5D/main.dol: OK; git diff --check clean; commit 3f60465ae"
+  },
+  "function": "function:StartGemFX",
+  "id": "attempt.startgemfx-pre-dispatch-web-w2.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T07:05:53Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.startgemfx.20260829.v1",
+  "valid_from": "2026-08-31"
+}
