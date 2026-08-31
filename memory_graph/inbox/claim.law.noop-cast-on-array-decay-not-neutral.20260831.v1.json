@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "work_claim.extern-core.20260831.v1, worktree GDL-Claude-ExternCore, branch claude/extern-core-20260831. Discovered while retyping gamemain.c's `extern u8 gPlayers[]` to `extern Player gPlayers[]` and neutralizing every byte-arithmetic site with `(u8*)`. Bisected with defake_gate.py check --rebuild against a baseline banked before the first edit.",
+    "scope": "MWCC GC 1.2.5 family; applies to the EXTERN-RETYPE recipe (swap a TU's untyped shadowing extern for the project header's typed one, then add `(u8*)` casts so existing byte arithmetic keeps its meaning). Boundary refinement of claim.law.local-alias-vs-direct-global-spelling-diverges and companion to claim.law.declared-alias-vs-repeated-cast / claim.law.write-site-alias-defeats-reload-parity.",
+    "tags": [
+      "core-screen",
+      "alias-form",
+      "symbol-identity",
+      "build-hygiene",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.noop-cast-on-array-decay-not-neutral.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:14:37Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "The extern-retype recipe's neutralizing `(u8*)` cast is NOT free. When a TU's untyped `extern u8 gArray[]` is swapped for the header's typed `extern T gArray[]`, every existing byte-arithmetic site must be respelled `(u8*)gArray + ...` to keep the arithmetic identical. That cast is semantically a no-op (the expression's type and value are unchanged), but MWCC's front end does NOT always compile it identically to the bare array-to-pointer decay: in gamemain.c's fn_800516F8 the single site `u8* base = (u8*)gPlayers;` (a plain local-alias assignment, later used for two indexed field accesses) regressed fndiff real 151 -> 181 with an opcode-multiset DIFFERS classification -- target's `add`+`lwz`/`stw` displacement form replaced by ours' `lwzx`/`addi`/`stwx` indexed form -- while the SEVEN other cast sites added to the SAME function in the SAME edit (`p = (u8*)gPlayers` walk init, and five `*(T*)((u8*)gPlayers + idx * 13148 + K)` one-shot derefs) were all fully neutral. DISCRIMINATOR THAT ISOLATES THE CAUSE (cheap, do this first): revert ONLY the extern back to its original untyped `u8[]` spelling while KEEPING every `(u8*)` cast. Because a `(u8*)` cast on a `u8[]` decay is doubly a no-op, an identical regression under that variant proves the CAST NODE is responsible and the retype is innocent; a clean gate proves the opposite. Here the regression reproduced byte-for-byte (real 151 -> 181, same three diff hunks), so the retype was exonerated in one build. VERIFIED COUNTER-FORM: move the cast off the assignment and onto the use sites -- declare the alias with the array's OWN element type (`Player* base; base = gPlayers;` with no cast at all) and write `(u8*)base + ...` at each of the two dereferences. That gated OK (byte-identical to baseline) on the first try with the retype fully in place, and the same function then IMPROVED to real 131 once its one-shot index sites were taken further to `gPlayers[i].field` member form. This is the mirror image of claim.law.declared-alias-vs-repeated-cast: that law moves a repeated cast onto a declared alias, this one moves a cast OFF the alias and onto the uses -- what both share is that the number and position of cast nodes is load-bearing, not the resulting type. Two further boundaries measured the same session: (a) the failure is SITE-specific, not shape-specific -- combat.c's structurally identical `u8* p = (u8*)gPlayers;` (also a local-alias assignment feeding a walked loop) gated byte-identical, so the regressing shape cannot be screened out by pattern alone and must be gated per site; (b) a TU whose sites ALL already route through an explicit cast or a casting macro (combat.c and player.c both define `PF(base, off, T) (*(T*)((u8*)(base) + (off)))`) needs ZERO site edits for the retype and is therefore free of this hazard entirely -- check for such a macro before planning a retype's edit list, since it converts the whole job to a one-line declaration change. Consequence for extern-retype passes: budget one gate per retype, expect a small number of alias-assignment sites to regress, and reach for the typed-alias/cast-at-use counter-form rather than abandoning the retype."
+}

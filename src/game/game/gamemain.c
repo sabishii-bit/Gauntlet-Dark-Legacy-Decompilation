@@ -115,7 +115,7 @@
 /* ------------------------------------------------------------------ */
 
 /* Active level / world-data records (SDA-relative pointers). */
-extern u8*  gCurLevel;             /* 0x8034483C */
+extern level_data* gCurLevel;      /* 0x8034483C */
 extern u8*  gWorldData;            /* 0x80344838 */
 
 /* 44-byte per-realm world-data descriptor table (0x8011... via ADDR16). */
@@ -414,7 +414,7 @@ extern void  SetDrawStringScale(f32 s);
 extern void* DrawStringText(s32 a, s32 b, s32 c, s32 d, s32 e, ...);
 extern void  RestoreDrawStringScale(void);
 extern void  init_attract_mode(s32 mode);
-extern u8    gPlayers[];       /* world descriptor array, stride 13148 */
+extern Player gPlayers[];      /* gPlayerRecords[4], stride 13148 (0x335C) */
 extern f32   lbl_803447D4;
 extern f32   lbl_803447D8;
 extern s32   lbl_803447DC;
@@ -542,7 +542,7 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     enemy->stun_timer = 0;
     enemy->prev_closest = -1;
     enemy->closest = -1;
-    enemy->sight = (f32)(lbl_80346A70 * *(f32*)(gCurLevel + 180));
+    enemy->sight = (f32)(lbl_80346A70 * gCurLevel->ene_visrad);
     fv = lbl_803468F0;
     enemy->close_dist = fv;
     enemy->actual_dist = fv;
@@ -582,7 +582,7 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     enemy->idle_frac = z2;
     enemy->damage_count = 0;
     row = tbl + *(s32*)e * 4;
-    t = *(f32*)(gCurLevel + 172) * ((f32*)row)[690];
+    t = gCurLevel->ene_health * ((f32*)row)[690];
     hi = (f32)(lbl_80346A30 * t);
     lo = (f32)(lbl_80346A28 * t);
     tier = 0;
@@ -631,11 +631,11 @@ void init_enemy_vars(s32 slot, s32 spew, f32 scale)
     enemy->atts.invspeed = (f32)(lbl_80346810 / ((f32*)row)[588]);
     ty = *(s32*)e;
     row = tbl + ty * 4;
-    t2 = *(f32*)(gCurLevel + 172) * ((f32*)row)[690];
+    t2 = gCurLevel->ene_health * ((f32*)row)[690];
     ht = enemy->health;
     hi2 = (f32)(lbl_80346A30 * t2);
     lo2 = (f32)(lbl_80346A28 * t2);
-    spd = *(f32*)(gCurLevel + 188) * ((f32*)row)[622];
+    spd = gCurLevel->ene_damage * ((f32*)row)[622];
     if (!(ht > hi2)) {
         if (ty != 30) {
             if (ht > lo2) {
@@ -1360,7 +1360,7 @@ void* fn_80057ACC(s32 key)
 /* 0x80057AB4 -- accessor: current-level record + 8. */
 void* LevelItemDesc(void)
 {
-    return gCurLevel + 8;
+    return gCurLevel->name;
 }
 
 /* 0x80057AC0 -- accessor: world-data record + 4. */
@@ -1442,7 +1442,7 @@ void GetEnemyTypes(void)
         u8* typeWords;
 
         if (i < 6) {
-            type = *(s16*)(gCurLevel + levelOff + offsetof(level_data, enemytype));
+            type = *(s16*)((u8*)gCurLevel + levelOff + offsetof(level_data, enemytype));
         } else {
             type = -1;
         }
@@ -1463,7 +1463,7 @@ void GetEnemyTypes(void)
                 slot = (EnemyTypeRow*)((u8*)slot + off);
                 slot->ent = ent;
             }
-        } else if (((level_data*)gCurLevel)->bosstype < 0 && *(s32*)gWorldData != 0xD &&
+        } else if (gCurLevel->bosstype < 0 && *(s32*)gWorldData != 0xD &&
                    seen1e == 0) {
             *(s32*)(tbl + off + offsetof(EnemyTypeRow, type)) = 0x1E;
             *(s32*)(tbl + off + offsetof(EnemyTypeRow, subtype)) = 0;
@@ -1872,7 +1872,7 @@ s32 next_world(void)
 
         world = -1;
         for (i = 0, transitioning = 0; i < 4; i++, transitioning += 13148) {
-            Player* player = (Player*)(gPlayers + transitioning);
+            Player* player = (Player*)((u8*)gPlayers + transitioning);
             state = player->state;
             if (state != 0 && state != 2) {
                 state = player->exit_dest;
@@ -1889,7 +1889,7 @@ s32 next_world(void)
         }
     }
     ResolveWorldData(world);
-    if (!forced && ((((level_data*)gCurLevel)->enabled & 1) == 0)) {
+    if (!forced && ((gCurLevel->enabled & 1) == 0)) {
         world = NextWorldLevel(1);
         ResolveWorldData(world);
     }
@@ -1935,12 +1935,12 @@ void fn_800553B4(void)
     s32 hide;
     s32 texture;
 
-    if ((((level_data*)gCurLevel)->flags & 4) != 0) {
+    if ((gCurLevel->flags & 4) != 0) {
         if ((gControllerButtons & 0x10) != 0) {
             lbl_80344814 = lbl_80346B60;
         } else {
             lbl_80344814 =
-                (f32)(lbl_80346B68 + (f64)((level_data*)gCurLevel)->wavetime);
+                (f32)(lbl_80346B68 + (f64)gCurLevel->wavetime);
         }
         lbl_80344818 = lbl_80344814;
     }
@@ -1957,7 +1957,7 @@ void fn_800553B4(void)
     mbBlitCvtCoord(*blit3, lbl_80346B78);
 
     if ((gControllerButtons & 0x10) == 0) {
-        if ((((level_data*)gCurLevel)->flags & 4) != 0) {
+        if ((gCurLevel->flags & 4) != 0) {
             hide = 0;
         } else {
             hide = 1;
@@ -2125,7 +2125,7 @@ void fn_800521E8(void)
 #pragma opt_propagation off
 void SetPlayerVars(void)
 {
-    u8* base = gPlayers;
+    u8* base = (u8*)gPlayers;
     s32 offset = 0;
     s32 bossType = gBossType;
     s32 count1 = 0;
@@ -2481,7 +2481,7 @@ void fn_800510A4(void)
         e++;
     }
     lbl_8034473C = (s32)MBNewNode(gSceneRoot, gIdentityMatrix, 1);
-    gNumEnemies = ((level_data*)gCurLevel)->maxenemies;
+    gNumEnemies = gCurLevel->maxenemies;
     lbl_80344740 = 0;
     lbl_80344748 = -1;
     lbl_80344750 = -1;
@@ -2839,7 +2839,7 @@ s32 fn_80057F44(s32 code, s32 mask)
         if (mask == 0) {
             break;
         }
-        if (((level_data*)gCurLevel)->enabled & mask) {
+        if (gCurLevel->enabled & mask) {
             break;
         }
         code = NextWorldLevel(mask);
@@ -3222,56 +3222,56 @@ void fn_800516F8(s32 slot)
     e = (u8*)gEnemies + slot * 916;
     bestSpecial = lbl_803468B0;
 
-    for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
-        if (*(s32*)(p + 232) == 1) {
+    for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
+        if (*(s32*)(p + offsetof(Player, state)) == 1) {
             break;
         }
     }
     if (i >= 4) {
-        *(s16*)(e + 734) = 0;
+        *(s16*)(e + offsetof(Enemy, recognized)) = 0;
     }
 
     t = lbl_80344B24;
-    if (t >= 0 && *(s32*)(gPlayers + t * 13148 + 232) == 1 &&
-        !(*(u32*)(gPlayers + t * 13148 + 292) & 4) &&
-        !(*(s32*)e == 30 && (*(u32*)(gPlayers + t * 13148 + 288) & 0x80000))) {
+    if (t >= 0 && gPlayers[t].state == 1 &&
+        !(gPlayers[t].flags & 4) &&
+        !(*(s32*)e == 30 && (gPlayers[t].shield_flags & 0x80000))) {
         u8* q;
-        *(s16*)(e + 630) = *(s16*)(e + 628);
-        *(s16*)(e + 628) = (s16)lbl_80344B24;
-        q = gPlayers + lbl_80344B24 * 13148;
+        *(s16*)(e + offsetof(Enemy, prev_closest)) = *(s16*)(e + offsetof(Enemy, closest));
+        *(s16*)(e + offsetof(Enemy, closest)) = (s16)lbl_80344B24;
+        q = (u8*)gPlayers + lbl_80344B24 * 13148;
         {
             f32 fd;
-            if (*(s16*)(q + 2588) > 2) {
-                DIST3(fd, (f32*)(e + 84), (f32*)(q + 2564),
+            if (*(s16*)(q + offsetof(Player, field_A1C)) > 2) {
+                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + 2564),
                       lbl_80346820, lbl_80346830, lbl_803468B8);
             } else {
-                DIST3(fd, (f32*)(e + 84), (f32*)(q + 100),
+                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, effectpos)),
                       lbl_80346820, lbl_80346830, lbl_803468B8);
             }
-            *(f32*)(e + 636) = fd;
+            *(f32*)(e + offsetof(Enemy, actual_dist)) = fd;
         }
-        *(f32*)(e + 632) = *(f32*)(e + 636) +
-                           *(f32*)(gPlayers + lbl_80344B24 * 13148 + 2600);
+        *(f32*)(e + offsetof(Enemy, close_dist)) = *(f32*)(e + offsetof(Enemy, actual_dist)) +
+                           *(f32*)((u8*)gPlayers + lbl_80344B24 * 13148 + 2600);
     } else {
         s32 go = 1;
         s32 cur;
-        if ((lbl_80344800 & 7) != (slot & 7) && *(s16*)(e + 628) >= 0) {
+        if ((lbl_80344800 & 7) != (slot & 7) && *(s16*)(e + offsetof(Enemy, closest)) >= 0) {
             go = 0;
         }
-        cur = *(s16*)(e + 628);
+        cur = *(s16*)(e + offsetof(Enemy, closest));
         if ((s16)cur >= 0 &&
-            *(s32*)(gPlayers + cur * 13148 + 232) != 1) {
+            gPlayers[cur].state != 1) {
             go = -1;
         }
         if (go != 0) {
             f32 big;
-            *(s16*)(e + 630) = (s16)cur;
-            *(s16*)(e + 628) = -1;
+            *(s16*)(e + offsetof(Enemy, prev_closest)) = (s16)cur;
+            *(s16*)(e + offsetof(Enemy, closest)) = -1;
             big = lbl_803468B0;
-            *(f32*)(e + 632) = big;
-            *(f32*)(e + 636) = big;
+            *(f32*)(e + offsetof(Enemy, close_dist)) = big;
+            *(f32*)(e + offsetof(Enemy, actual_dist)) = big;
             if (*(s32*)e == 30) {
-                *(s32*)(e + 808) = -1;
+                *(s32*)(e + offsetof(Enemy, counter2)) = -1;
             }
             kPi = lbl_80346840;
             kK = lbl_80346870;
@@ -3280,67 +3280,67 @@ void fn_800516F8(s32 slot)
             kThree = lbl_803468B8;
             {
                 for (; i < 4; i++, p += 13148) {
-                    if (*(s32*)(p + 232) != 1) {
+                    if (*(s32*)(p + offsetof(Player, state)) != 1) {
                         continue;
                     }
-                    if (*(u32*)(p + 292) & 4) {
+                    if (*(u32*)(p + offsetof(Player, flags)) & 4) {
                         continue;
                     }
-                    if (*(s16*)(p + 2588) > 2) {
-                        DIST3(dist, (f32*)(e + 84), (f32*)(p + 2564),
+                    if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
+                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + 2564),
                               kZero, kHalf, kThree);
                     } else {
-                        DIST3(dist, (f32*)(e + 84), (f32*)(p + 100),
+                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, effectpos)),
                               kZero, kHalf, kThree);
                     }
                     range = dist;
-                    if (range > *(f32*)(e + 768)) {
+                    if (range > *(f32*)(e + offsetof(Enemy, sight))) {
                         continue;
                     }
-                    if (*(s32*)e == 30 && (*(u32*)(p + 288) & 0x80000)) {
+                    if (*(s32*)e == 30 && (*(u32*)(p + offsetof(Player, shield_flags)) & 0x80000)) {
                         if (range < bestSpecial) {
                             bestSpecial = range;
-                            *(s32*)(e + 808) = i;
+                            *(s32*)(e + offsetof(Enemy, counter2)) = i;
                         }
                         continue;
                     }
-                    if (range > kK * *(f32*)(e + 568)) {
+                    if (range > kK * *(f32*)(e + offsetof(Enemy, rad))) {
                         range += *(f32*)(p + 2600);
                     }
-                    if (!(range < *(f32*)(e + 632))) {
+                    if (!(range < *(f32*)(e + offsetof(Enemy, close_dist)))) {
                         continue;
                     }
-                    if (*(f32*)(e + 764) < kPi) {
-                        ad = get_yaw((f32*)(p + 100), (f32*)(e + 84)) -
-                             *(f32*)(e + 580);
+                    if (*(f32*)(e + offsetof(Enemy, view)) < kPi) {
+                        ad = get_yaw((f32*)(p + offsetof(Player, effectpos)), (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos))) -
+                             *(f32*)(e + offsetof(Enemy, pyr) + 4);
                         *(u32*)&ad &= 0x7FFFFFFF;
-                        if (ad > *(f32*)(e + 764)) {
+                        if (ad > *(f32*)(e + offsetof(Enemy, view))) {
                             continue;
                         }
                     }
-                    *(f32*)(e + 632) = range;
-                    *(f32*)(e + 636) = dist;
-                    *(s16*)(e + 628) = (s16)i;
+                    *(f32*)(e + offsetof(Enemy, close_dist)) = range;
+                    *(f32*)(e + offsetof(Enemy, actual_dist)) = dist;
+                    *(s16*)(e + offsetof(Enemy, closest)) = (s16)i;
                 }
             }
         }
     }
 
-    if (*(s16*)(e + 628) >= 0) {
-        if (*(f32*)(e + 636) <= *(f32*)(e + 768)) {
-            u8* base;
-            *(s16*)(e + 734) = 1;
+    if (*(s16*)(e + offsetof(Enemy, closest)) >= 0) {
+        if (*(f32*)(e + offsetof(Enemy, actual_dist)) <= *(f32*)(e + offsetof(Enemy, sight))) {
+            Player* base;
+            *(s16*)(e + offsetof(Enemy, recognized)) = 1;
             base = gPlayers;
-            (*(s32*)(base + *(s16*)(e + 628) * 13148 + 2596))++;
+            (*(s32*)((u8*)base + *(s16*)(e + offsetof(Enemy, closest)) * 13148 + 2596))++;
             {
-                u8* r = base + *(s16*)(e + 628) * 13148;
+                u8* r = (u8*)base + *(s16*)(e + offsetof(Enemy, closest)) * 13148;
                 *(f32*)(r + 2600) = (f32)(*(f32*)(r + 2600) + lbl_80346868);
             }
         }
     } else {
         f32 big = lbl_803468B0;
-        *(f32*)(e + 636) = big;
-        *(f32*)(e + 632) = big;
+        *(f32*)(e + offsetof(Enemy, actual_dist)) = big;
+        *(f32*)(e + offsetof(Enemy, close_dist)) = big;
     }
 }
 
@@ -3376,7 +3376,7 @@ void fn_80055AFC(void)
     }
     n = 0;
     for (i = 0; i < 4; i++) {
-        if (((Player*)((u8*)gPlayers + i * 13148))->state == 1) {
+        if (gPlayers[i].state == 1) {
             break;
         }
         n++;
@@ -3540,7 +3540,7 @@ void init_thermometer(void)
     playerOffset = 0;
     lbl_80344790 = lbl_8034478C = playerOffset;
     if ((gGameMode & 0x4000) != 0 && sSpecialItem10 != 0) {
-        players = gPlayers;
+        players = (u8*)gPlayers;
         player = 0;
         do {
             playerData = players + playerOffset;
@@ -3697,7 +3697,7 @@ void fn_8005351C(void)
     lbl_803448B4 = sMusicTrackHi;
     lbl_803448B0 = sMusicTrackLo;
     lbl_80343C00 = -1;
-    SetScrollLevelMsgList(0, ((level_data*)gCurLevel)->name);
+    SetScrollLevelMsgList(0, gCurLevel->name);
     {
         Enemy* e = gEnemies;
         for (i = 0; i < 25; i++, e++) {
@@ -3712,7 +3712,7 @@ void fn_8005351C(void)
 
     if (sMusicTrackHi == 13) {
         s32 one = 1;
-        for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
+        for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
             Player* player = (Player*)p;
             s32 st = player->state;
             if (st == 1) {
@@ -3733,7 +3733,7 @@ void fn_8005351C(void)
     {
         idmat = (f32*)gIdentityMatrix;
         tbl = (u8*)lbl_80257650;
-        for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 12, p += 13148) {
+        for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 12, p += 13148) {
             ((Player*)p)->exit_dest = sLastWorldLevel;
             ((Player*)p)->node = 0;
             ((Player*)p)->platform = 0;
@@ -3759,7 +3759,7 @@ void fn_8005351C(void)
 
     if (inTower == 0) {
         s32 off2;
-        u8* base = gPlayers;
+        u8* base = (u8*)gPlayers;
         for (i = 0, off2 = 0; i < 4; i++, off2 += 13148) {
             u8* q = base + off2;
             Player* player = (Player*)q;
@@ -3797,7 +3797,7 @@ void fn_8005351C(void)
             welcome_timer = 300;
         }
         if (mt == 13) {
-            for (i = 0, p = gPlayers; i < 4; i++, p += 13148) {
+            for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
                 if (((Player*)p)->state == 1) {
                     *(PlayerSaveBlk*)(p + 7884) = *(PlayerSaveBlk*)(p + 2688);
                 }
@@ -4200,7 +4200,7 @@ void game_main(void)
             flag2 = cond ? 1 : 0;
             all = 1;
             for (i = 0; i < 4; i++) {
-                v = ((Player*)(gPlayers + i * 13148))->state;
+                v = gPlayers[i].state;
                 if (v != 0 && v != 11) {
                     all = 0;
                 }
@@ -4302,18 +4302,18 @@ void fn_80054E78(void)
     }
 
     if ((gControllerButtons & 0x10) == 0) {
-        if (active != 0 && (((level_data*)gCurLevel)->flags & 4) &&
+        if (active != 0 && (gCurLevel->flags & 4) &&
             *(void**)(state + 124) != 0) {
             mbBlitInit3414(*(void**)(state + 124), 0);
         }
         if (lbl_80344818 >
-            lbl_80346AF0 + (f32)((level_data*)gCurLevel)->wavetime) {
+            lbl_80346AF0 + (f32)gCurLevel->wavetime) {
             lbl_80344814 = lbl_80346B08;
             lbl_80344818 = lbl_80346B08;
         }
     }
 
-    if ((((level_data*)gCurLevel)->flags & 4) &&
+    if ((gCurLevel->flags & 4) &&
         (gGameBusy | gGameplayPauseTimer) == 0 &&
         (gControllerButtons & 4) == 0 && active != 0) {
         f32 t;
@@ -4344,7 +4344,7 @@ void fn_80054E78(void)
                 u8* p;
 
                 lbl_8034481C = 2;
-                p = gPlayers;
+                p = (u8*)gPlayers;
                 for (player_off = 0; player_off < 48;
                      player_off += 12, p += 13148) {
                     Player* player = (Player*)p;
@@ -4509,7 +4509,7 @@ void world_update(void)
     f32 a;
 
     cond = 1;
-    if (lbl_803447B8 != 0 && *(s32*)(gCurLevel + 0x48) == 0) {
+    if (lbl_803447B8 != 0 && gCurLevel->earlyenemies == 0) {
         cond = 0;
     }
     lbl_8034488C = cond ? 1 : 0;
@@ -4535,7 +4535,7 @@ void world_update(void)
                                      lbl_80346BF0, lbl_80346BF0);
             } else {
                 if (!lbl_80344868) {
-                    u8* lv = gCurLevel;
+                    u8* lv = (u8*)gCurLevel;
                     u8* hdr = lv + 0x70;
                     s32 col = 0;
 
@@ -4565,7 +4565,7 @@ void world_update(void)
             }
         } else {
             if (!lbl_80344868) {
-                u8* lv = gCurLevel;
+                u8* lv = (u8*)gCurLevel;
                 u8* hdr = lv + 0x70;
                 s32 col = 0;
 
@@ -4582,7 +4582,7 @@ void world_update(void)
         }
     }
     {
-        u8* lv = gCurLevel;
+        u8* lv = (u8*)gCurLevel;
 
         if ((s8)lv[8] == (s8)lbl_80346C48[0] &&
             ((s8)lv[9] == 0 || (s8)lv[9] == (s8)lbl_80346C48[1]) &&
@@ -4809,7 +4809,7 @@ void fn_80057024(void)
 
     if (gBossType >= 0 && gBossType < 43) {
         lbl_8034489C = 0;
-        for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 13148) {
+        for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 13148) {
             u8* q = p + off;
             s32 st = *(s32*)(q + 232);
             if (st == 1 || st == 5 || st == 3) {
@@ -4982,7 +4982,7 @@ static s32 init_next_level_8005638C(s32 arg0)
             lbl_803448C4 = lo;
         }
     }
-    sprintf((char*)(tbl + 172), fmt, gCurLevel + 8);
+    sprintf((char*)(tbl + 172), fmt, gCurLevel->name);
     lbl_80344854 = mlmMemUsed;
     lbl_80343C30 = 0;
     result = LoadWorldDone(tbl + 172);
@@ -5169,8 +5169,8 @@ s32 do_stats_display(void)
     col3 = (s32*)((u8*)layout + 108);
     colT = (s32*)((u8*)layout + 116);
 
-    for (i = 0, off = 0, p = gPlayers; i < 4; i++, off += 4, p += 13148) {
-        s32 st = *(s32*)(p + 232);
+    for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 4, p += 13148) {
+        s32 st = *(s32*)(p + offsetof(Player, state));
         char nbuf[12];
 
         if (st != 1 && st != 5 && st != 4) {
@@ -5188,7 +5188,7 @@ s32 do_stats_display(void)
                               7, 0xFFFFFF, nbuf);
         }
 
-        switch (*(u32*)(p + 2660)) {
+        switch (*(u32*)(p + offsetof(Player, field_A64))) {
         case 0: {
             u8* sp = state + off;
             s32 on = (*(s32*)(sp + 64) == 0);
@@ -5198,8 +5198,8 @@ s32 do_stats_display(void)
             *(s32*)(sp + 48) = on;
             *(s32*)(sp + 32) = on;
             *(s32*)(sp + 80) = 480;
-            (*(s32*)(p + 2660))++;
-            *t96 = *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + 3088) / 60;
+            (*(s32*)(p + offsetof(Player, field_A64)))++;
+            *t96 = *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + 3088) / 60;
             if (*t96 < 1) {
                 *t96 = 1;
             }
@@ -5210,9 +5210,9 @@ s32 do_stats_display(void)
             STAT_TALLY(32, 3088, ok);
             if (ok != 0) {
                 u8* sp2 = state + off;
-                (*(s32*)(p + 2660))++;
+                (*(s32*)(p + offsetof(Player, field_A64)))++;
                 *(s32*)(sp2 + 96) =
-                    *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + 3104) / 60;
+                    *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + 3104) / 60;
                 if (*(s32*)(sp2 += 96) < 1) {
                     *(s32*)sp2 = 1;
                 }
@@ -5229,9 +5229,9 @@ s32 do_stats_display(void)
             STAT_TALLY(48, 3104, ok);
             if (ok != 0) {
                 u8* sp2 = state + off;
-                (*(s32*)(p + 2660))++;
+                (*(s32*)(p + offsetof(Player, field_A64)))++;
                 *(s32*)(sp2 + 96) =
-                    *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + 3108) / 60;
+                    *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + 3108) / 60;
                 if (*(s32*)(sp2 += 96) < 1) {
                     *(s32*)sp2 = 1;
                 }
@@ -5249,9 +5249,9 @@ s32 do_stats_display(void)
             STAT_TALLY(16, 3108, ok);
             if (ok != 0) {
                 u8* sp2 = state + off;
-                (*(s32*)(p + 2660))++;
+                (*(s32*)(p + offsetof(Player, field_A64)))++;
                 *(s32*)(sp2 + 96) =
-                    (s32)(*(f32*)((u8*)p + *(s32*)(p + 12) * 28 + 3112) /
+                    (s32)(*(f32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + 3112) /
                           k60);
                 if (*(s32*)(sp2 += 96) < 60) {
                     *(s32*)sp2 = 60;
@@ -5266,7 +5266,7 @@ s32 do_stats_display(void)
             break;
         }
         case 4:
-            (*(s32*)(p + 2660))++;
+            (*(s32*)(p + offsetof(Player, field_A64)))++;
         case 5: {
             done = 0;
             STAT_ROW(col1, lbl_80346AD8, 32);
@@ -5287,7 +5287,7 @@ s32 do_stats_display(void)
                     }
                     *(s32*)(b + 64) += amt;
                     a = state + *(s32*)p * 4;
-                    tgt = *(f32*)((u8*)p + *(s32*)(p + 12) * 28 + 3112);
+                    tgt = *(f32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + 3112);
                     if ((f32)*(s32*)(a += 64) < tgt) {
                         ok = 0;
                     } else {
@@ -5296,7 +5296,7 @@ s32 do_stats_display(void)
                     }
                 }
                 if (ok != 0) {
-                    (*(s32*)(p + 2660))++;
+                    (*(s32*)(p + offsetof(Player, field_A64)))++;
                 } else {
                     stalled = 1;
                 }
@@ -5315,7 +5315,7 @@ s32 do_stats_display(void)
             st = *(s32*)(sp + 80) - gFrameTicks;
             *(s32*)(sp + 80) = st;
             if (st <= 0) {
-                (*(s32*)(p + 2660))++;
+                (*(s32*)(p + offsetof(Player, field_A64)))++;
             }
             break;
         }

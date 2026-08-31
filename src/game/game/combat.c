@@ -80,7 +80,7 @@ extern ClockInputPair gControllerButtons;
 extern ClockInputPair sPreviousFlags;
 extern s32 sFlags;
 extern s32 lbl_803445D4;
-extern u8 gPlayers[];
+extern Player gPlayers[];
 
 typedef struct MissileInfo {
     u32 damageType;
@@ -151,7 +151,7 @@ void DeleteItem(void* item, s32 immediate);
 extern void* memset(void* dst, int value, size_t size);
 
 /* stage-info banner (combat.c title-card display) */
-extern u8* gCurLevel;
+extern level_data* gCurLevel;
 extern s32 sMusicTrackLo;
 extern s32 lbl_80344490;
 extern s32 lbl_80344498;
@@ -764,11 +764,11 @@ s32 MoveCam_walk_8002A024(s32 camIdx)
 
     switch (lbl_803444F0) {
     case 1: {
-        u8* p = gPlayers;
+        u8* p = (u8*)gPlayers;
         s32 i;
         done = 1;
         for (i = 0; i < 4; i++, p += 13148) {
-            if (*(s32*)(p + 232) == 1 && *(s32*)(p + 516) != 1) {
+            if (PF(p, offsetof(Player, state), s32) == 1 && PF(p, offsetof(Player, vibe_on), s32) != 1) {
                 done = 0;
             }
         }
@@ -820,7 +820,7 @@ s32 init_game_cam(s32 camIdx)
     u8* gcs = (u8*)gCameraState;
     Camera* cam = (Camera*)(gcs + camIdx * 396 + 0xC8);
     s32 prevTimer;
-    u8* level = *(u8**)((u8*)gCurLevel + 0x60);
+    u8* level = (u8*)gCurLevel->camera;
     s32 reached = 2;
     f32 dx, dy, dz;
     f32 len;
@@ -1004,9 +1004,9 @@ void write_stage_info(s32 mode)
         scale = lbl_80346160;
 
         DrawTextKeepScale(-256, 48 - (s32)(scale * slide), 6,
-                          0xFFFFFF, (char*)gCurLevel + 20);
+                          0xFFFFFF, gCurLevel->title);
     }
-    level = *(u32*)gCurLevel;
+    level = gCurLevel->flags;
     if ((level & 1) != 0) {
         DrawStringText(-256, 4204, -1, 0x160C03, 175, 0);
         if (prev != lbl_80344410 && lbl_80345F40 == lbl_80344410) {
@@ -1036,7 +1036,7 @@ void init_stage_info(void)
 
     lbl_80344490 = 91;
     lbl_80344410 = lbl_80346168;
-    level = *(u32*)gCurLevel;
+    level = gCurLevel->flags;
     if ((level & 1) != 0) {
         width = StringTextWidth(175, -1, lbl_80345F80);
         height = StringTextHeight(175, -1, 0, lbl_80345F80);
@@ -1527,7 +1527,7 @@ s32 adjust_radius_8002B2D4(s32 camIdx)
     Camera* cam = &gCameras[camIdx];
     f32 r;
     f32 desired = get_cam_dist(camIdx);
-    void* levelData = *(void**)((u8*)gCurLevel + 96);
+    void* levelData = gCurLevel->camera;
     u8 _pad[8];
     f32 ad;
     u8 _pad2[4];
@@ -1726,7 +1726,7 @@ void StandardCamera_8002B828(s32 camIdx)
     if (gCurLevel == 0) {
         return;
     }
-    levelData = *(u8**)((u8*)gCurLevel + 0x60);
+    levelData = (u8*)gCurLevel->camera;
     if (camIdx != 0) {
         return;
     }
@@ -2794,7 +2794,7 @@ void InitCamera(s32 resetAll)
                 c0->trans_mode = -1;
                 c0->state = 1;
             } else {
-                s16* hdr = *(s16**)((u8*)gCurLevel + 96);
+                s16* hdr = (s16*)gCurLevel->camera;
                 gNumEnemies = hdr[26];
                 lbl_8034441C = hdr[19];
                 if (lbl_8034441C < 0 && sSpecialTransmitter == 0) {
@@ -3023,7 +3023,7 @@ void InitCamera(s32 resetAll)
                 }
             }
         } else if (gCurLevel != 0) {
-            s16* hdr = *(s16**)((u8*)gCurLevel + 96);
+            s16* hdr = (s16*)gCurLevel->camera;
             CAM_SET_CMODE(c0, 1);
             CAM_SET_AMODE(c0, 0);
             *(f32*)(cs + 500) = lbl_80345EC8;
@@ -3891,7 +3891,7 @@ void* MissileCollidePlayer(f32 radius, f32* from, f32* to, f32* hit)
     s32 i;
 
     for (i = 0; i < 4; i++) {
-        Player* player = (Player*)(gPlayers + i * PLAYER_STRIDE);
+        Player* player = &gPlayers[i];
         if (player->state == 1) {
             f32 halfHeight = radius + player->col_height;
             f32 cylinderRadius = radius + player->col_radius;
