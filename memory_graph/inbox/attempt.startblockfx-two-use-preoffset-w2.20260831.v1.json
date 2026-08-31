@@ -1,0 +1,23 @@
+{
+  "attempted_axis": "EXACT-drive revisit of the 2026-08-29 bulk-import park: transplanted the same-TU byte-exact two-use pre-offset pointer idiom to close the address-association gap, then hoisted the inlined call's argument above the guard",
+  "attributes": {
+    "axis_log": "AXIS 1 two-use pre-offset pointer (`Effect* e = (Effect*)&page->info[idx * 20]; struct mbnode* n = ((EffectPage*)e)->fx[0].node; e = (Effect*)((u8*)e + 2976);`, the idiom copied from the byte-exact StartMagicHealFX): real NEUTRAL at 48, but the aligned diff shows the address computation ORDER flipped to target's - ours went from `addi 2976; add; lwz 20(x)` to `add; lwz 2996(x); addi 2976`, matching target instruction for instruction. AXIS 2 split the parent argument into its own statement before the inner guard: real NEUTRAL at 48, and the last one-side-only line disappeared - target's `lwz r4,116(r31)` sits above the `blt` and ours now does too. NET EFFECT: fndiff's own classification moved STRUCTURAL -> REGISTER_ONLY, and the aligned diff over 0xd8-0xf8 now shows only '=' and '~' rows (same opcodes, same order, different register numbers) with zero '<'/'>' rows. Both axes KEPT on that evidence even though `real` did not move.",
+    "law_screen": "REVERIFY of attempt.parked.startblockfx.20260829.v1 (bulk import, no measurement): re-derived baseline real 48, insns 74/74, multiset IDENTICAL, but fndiff classified it STRUCTURAL - the residual contained a genuine address-form difference plus a load-placement difference, neither of which the recorded 'REGISTER_ONLY/SCHEDULE' class covers. claim.law.single-use-field-pointer-alias-is-folded-away.20260831.v1: APPLIED and it is exactly the lever - it says a pointer local survives into a register ONLY with two or more uses, which is why target's pre-offset pointer survives here (it is read once at lwz 2996 and once as the base of addi 2976) and why the same spelling folds in sibling functions that lack the intermediate read. claim.law.pointer-reassociation-controls-add-operand-order.20260831.v1: SCREENED, not the mechanism (operand order already matched). claim.law.point-of-use-single-use-pointer-delay.20260830.v1 and claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1: APPLIED to the second axis (argument evaluation position). claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1: APPLIED - the parent argument was split out of the call expression into its own statement placed before the guard, which is what moved the load above the blt. claim.law.mwcc-inline-defined-before rule (recorded in the corpus as the defined-before inline constraint): APPLIED to REJECT the cleanest reconstruction - the natural source here is a call to this TU's own SfxSetParent, whose body is exactly the inlined shape, but SfxSetParent is defined at line 2135, AFTER StartBlockFX at line 860, so MWCC would emit a real bl rather than inline it; the open-coded form is therefore the correct reconstruction for this position.",
+    "laws_applied": [
+      "claim.law.single-use-field-pointer-alias-is-folded-away.20260831.v1",
+      "claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1"
+    ],
+    "residual": "48 lines, now REGISTER_ONLY: a callee-saved renaming across the function (target r28/r29/r31 vs ours r31/r29/r27-r28 in the tail region). No structural, operand, schedule or relocation difference remains in the converged region. This is the honest position: `real` is unchanged from the park's value, so this is NOT a scoring improvement - it is a residual-class reduction that removes the last source-reachable work and leaves one named mechanism.",
+    "scope": "src/game/sfx/sfx.c StartBlockFX only; portable C; no header edits; introduces the documented same-TU pre-offset idiom plus one argument-hoist local",
+    "verification": "probe.py BASELINE real 48 (74/74, multiset 0t) banked before the first edit; both axes probed (NEUTRAL each); fndiff --clean classification re-read before and after (STRUCTURAL -> REGISTER_ONLY); fnasm.py 0xd8:0xf8 --diff confirms full schedule convergence; defake_gate.py check game/sfx/sfx.c --rebuild GATE OK with zero regressions across all 72 functions; full ninja -j2 green, build/GUNE5D/main.dol: OK; git diff --check clean; commit d840c476d"
+  },
+  "function": "function:StartBlockFX",
+  "id": "attempt.startblockfx-two-use-preoffset-w2.20260831.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-08-31T07:07:11Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.startblockfx.20260829.v1",
+  "valid_from": "2026-08-31"
+}

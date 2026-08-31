@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "postprocessor",
+      "workflow",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.webfrank-pin-freezes-its-inlined-helpers-too.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T07:09:04Z",
+  "schema_version": 1,
+  "subject": "tu:game/sfx/sfx",
+  "valid_from": "2026-08-31",
+  "value": "Boundary refinement of claim.law.webfrank-pinned-function-source-freeze. That law says a function carrying a rule in config/GUNE5D/webfrank.json is SOURCE-FROZEN because the harness fail-closes on a before_sha256 of its raw compiler body. The frozen set is larger than the pinned list: it is the pinned bodies PLUS the transitive closure of every static/global helper that MWCC inlines into them. Screening only the four names in webfrank.json is therefore insufficient, and the failure surfaces as `ValueError: <pinned fn>: input hash X != expected Y` aborting the WEBFRANK ninja step - never as a gate regression - so it is easy to misattribute to the function you were actually editing. Verified 2026-08-31 in game/sfx/sfx.c: replacing the anonymous string literal \"Bad Effect type: %d\" with a read of the named .rodata symbol lbl_80114790 at five sites aborted the build on fn_80094164 (pinned). Bisection showed the offending sites were NOT in fn_80094164's own body but in two shared helpers it inlines - StartFXSub and the page-explicit clone StartFXSubGutsP, which fn_80094164 calls four times. Restoring the literal at just those two helper sites cleared the hash and the build proceeded. Second-order finding from the same bisection: not every edit to an inlined helper trips the pin. An earlier edit in the same session added an `at = h->atree` cache inside that same StartFXSubGutsP and the pin held, because MWCC had already CSE-ed the double read and the emitted bytes were unchanged - the assertion is on BYTES, not on source text, so a semantically-neutral helper edit can be free while a relocation-payload change in the same helper is fatal. PROCEDURE: before editing any static helper in a TU that has webfrank pins, grep the pinned functions for calls to it (`gdlmem.py brief <tu>` lists the pins; the callers are a plain grep) and treat the helper as frozen for anything that changes emitted bytes or relocations. Where a helper edit is wanted for one caller only, either scope the change to the caller's own open-coded copy - the shape this TU already uses, with StartFXSubGuts / StartFXSubGutsP / StartThrowGutsX as separate clones - or accept that the pinned callers keep the old spelling."
+}

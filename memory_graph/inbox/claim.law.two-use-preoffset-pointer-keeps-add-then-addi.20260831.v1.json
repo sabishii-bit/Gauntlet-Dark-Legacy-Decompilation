@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "alias-form",
+      "index-form",
+      "register-web",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.two-use-preoffset-pointer-keeps-add-then-addi.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T07:08:59Z",
+  "schema_version": 1,
+  "subject": "tu:game/sfx/sfx",
+  "valid_from": "2026-08-31",
+  "value": "MWCC's front end reassociates an address of the form `p + i*K + C` to `p + (i*K + C)` and DISCARDS the source's written associativity whenever the intermediate `p + i*K` pointer is SINGLE-USE - it emits `mulli; addi(offset+C); add(base)`. The target's opposite form, `mulli; add(base,offset); addi(+C)`, is reachable from source ONLY when the intermediate pointer is READ at a second site before the constant is added; then MWCC must materialise it and the `+C` becomes a separate addi on the already-built pointer. This refines claim.law.single-use-field-pointer-alias-is-folded-away (which states the two-use rule for a CONSTANT-offset alias) to the scaled-index case, and it supplies the missing mechanism for the whole claim.law.pointer-reassociation-controls-add-operand-order family: that law governs the add's OPERAND ORDER only, and is silent about WHICH addend the constant joins - which is the part that actually costs diff lines. EVIDENCE, all in game/sfx/sfx.c against the 0xBA0 (2976) effect-pool displacement with stride 240. POSITIVE CONTROL (byte-exact, pre-existing): StartMagicHealFX writes `e = (Effect*)&page->info[idx * 20]; node = ((EffectPage*)e)->fx[0].node; e = (Effect*)((u8*)e + 2976);` - the middle statement reads lwz 2996(pre-offset pointer), giving the intermediate its second use, and the function compiles to target's `mulli r0,r30,240; add r27,r31,r0; lwz r3,2996(r27); addi r27,r27,2976` exactly. TRANSPLANT (this session): StartBlockFX had the reassociated form; inserting the identical intermediate read flipped its address computation to target's instruction-for-instruction and moved fndiff's classification STRUCTURAL -> REGISTER_ONLY. NEGATIVE CONTROLS, both lacking any second use of the intermediate and therefore unreachable: StartGenHitFx (five distinct spellings all NEUTRAL - member `&page->fx[idx]`, flat additive with sizeof/offsetof, two-statement split through a u8* temp, an EnemyFxPage-view cast on the row pointer, and the StartMagicHealFX `info[idx*20]` idiom itself) and fn_80093BC0 (the same idiom NEUTRAL, and still NEUTRAL under a scoped `#pragma opt_lifetimes off`/`reset` pair - the very pragma StartMagicHealFX is wrapped in, which is therefore NOT the operative difference). CONSEQUENCE: before spending probes on an add-vs-addi association cluster, check the TARGET for a field read through the pre-offset pointer. If target has one, reproduce it and the form follows; if target has none, the cluster is source-unreachable - classify and park it rather than iterating spellings. It is also NOT WebFrank-eligible either way: the two forms differ in real instructions and operands, not in schedule or register colour, so neither the permutation stage nor the register stage applies."
+}

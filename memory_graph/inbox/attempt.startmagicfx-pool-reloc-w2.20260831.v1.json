@@ -1,0 +1,22 @@
+{
+  "attempted_axis": "EXACT-drive screen: restored the named .sdata2 pool relocation on the StartFXSub time argument, and classified the surviving one-opcode difference",
+  "attributes": {
+    "axis_log": "RELOC FIX (kept): `StartFXSub((&tab[tf & 15])[871], pos, 298, 2048, 0.0f)` -> `..., lbl_80348068)`. fnasm now reports that line '=' (instruction and relocation byte-identical, previously '~'); fndiff `real` unchanged at 50 because it cannot score the .sdata2 payload. Banked on the aligned-diff evidence plus a clean whole-TU gate. NO further axis run on this function: the surviving --ops delta is target-only +1 mr / ours-only -1 addi, i.e. MWCC choosing `mr rD,rS` where we get `addi rD,rS,0` for the same register copy - a peephole-level encoding choice (this project's recorded no-peephole signature list names 'mr-vs-addi moves' as its primary tell), which is a per-TU compiler-flag property, and sfx.c's 71 other functions match under the current flags. Spending source-shape probes on it would repeat the recorded copy-vs-rematerialize dead end.",
+    "law_screen": "claim.law.never-literalize-inside-a-real-zero-function.20260831.v1: APPLIED in MIRROR - target loads the StartFXSub time argument as `lfs f1,@lbl_80348068(EMB_SDA21)` while ours emitted an anonymous @@13 pool entry; lbl_80348068 verified 0.0f with tools/gdl/poolval.py against orig main.dol, so the substitution is bit-identical. claim.law.tu-wide-literalization-breaks-matched-sibling-pool-relocs.20260831.v1: APPLIED as the gating hazard for deleting an anonymous pool entry; whole-TU gate confirmed no sibling moved. claim.law.explicit-fp-symbol-vs-literal-zero-regression.20260830.v1: APPLIED as the governing caution (a literal and a same-bit-pattern extern are NOT interchangeable) - here the extern is what target has, so the substitution is the corrective direction. claim.law.pre-dispatch-literal-web-feeds-case-call-args.20260831.v1: SCREENED, not applicable (no dispatch ladder in this function). claim.law.single-use-field-pointer-alias-is-folded-away.20260831.v1: SCREENED - this function ALREADY carries the two-use pre-offset idiom (`ef = (Effect*)(base + owner); node = ((EffectPage*)ef)->fx[0].node; ef = (Effect*)((u8*)ef + 2976);`) and its address form already matches target, so no association work was needed. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 and claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1: APPLIED to classify the survivor - both record that the copy-vs-rematerialize choice is made by the allocator and is not source-reachable; this is the mr-vs-addi variant of that family.",
+    "laws_applied": [
+      "claim.law.never-literalize-inside-a-real-zero-function.20260831.v1",
+      "claim.law.tu-wide-literalization-breaks-matched-sibling-pool-relocs.20260831.v1"
+    ],
+    "residual": "50 lines: one mr-vs-addi register-copy encoding difference (allocator/peephole class, source-unreachable per the copy-vs-rematerialize law family), one entry-block schedule difference where target sinks the lbl_80122088 lis/addi pair below the clrlwi and the fmul while ours hoists it above them, and the callee-saved renaming downstream of that. Address form, frame, call sequence and all 115 instruction opcodes already match.",
+    "scope": "src/game/sfx/sfx.c StartMagicFX only; portable C; one literal replaced by its named pool extern; no header edits",
+    "verification": "probe.py BASELINE real 50 (insns 115/115, multiset 2t) banked before the edit; probe after: NEUTRAL real 50; fnasm.py 0x34:0x40 --diff confirms the pool line '='; defake_gate.py check game/sfx/sfx.c --rebuild GATE OK with zero regressions across all 72 functions; full ninja -j2 green, build/GUNE5D/main.dol: OK; git diff --check clean; commit 0da94d738"
+  },
+  "function": "function:StartMagicFX",
+  "id": "attempt.startmagicfx-pool-reloc-w2.20260831.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-08-31T07:08:36Z",
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

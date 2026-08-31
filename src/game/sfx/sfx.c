@@ -224,6 +224,7 @@ extern f32 gFloorCollisionResult[16];                   /* floor-probe result ma
 extern u32 gFrameTicks;                       /* frame delta */
 extern s32 lbl_80344BF0;                       /* skinfx frame base A */
 extern s32 lbl_80344BF4;                       /* skinfx frame base B */
+extern char lbl_80114790[];                    /* 0x80114790 fx message pool */
 
 /* --- MB / engine externs (fn_ names = symbols.txt identities) --- */
 extern void ErrorPrintf(const char* fmt, ...);
@@ -614,7 +615,7 @@ s32 StartDeathFX(struct mbnode* parent, s32 kind, u32 fla)
     }
     idx = -1;
     if (t < 0 || (type = t) >= MAXEFFECTTYPES) {
-        ErrorPrintf("Bad Effect type: %d", type);
+        ErrorPrintf(lbl_80114790, type);
         idx = -1;
     } else {
         h = &page->info[type];
@@ -638,6 +639,8 @@ s32 StartDeathFX(struct mbnode* parent, s32 kind, u32 fla)
     return idx;
 }
 
+extern f32 lbl_80348068;        /* 0.0f fx start-time preset */
+
 /* generic hit/death fx for an enemy kind, from the per-enemy type tables */
 s32 StartGenHitFx(f32* mat, s32 ene, s32 death)
 {
@@ -660,7 +663,7 @@ s32 StartGenHitFx(f32* mat, s32 ene, s32 death)
         type = page->hitfx[ene];
     }
     if (type >= 0) {
-        idx = StartFXSub(type, mat + 12, 0, 0x800, 0.0f);
+        idx = StartFXSub(type, mat + 12, 0, 0x800, lbl_80348068);
         ret = idx;
         if (idx >= 0) {
             Effect* e = &page->fx[idx];
@@ -706,13 +709,14 @@ static s32 StartFXSubGutsP(EffectPage* page, s32 type, f32* pos, u32 fla, u32 fl
 {
     s32 idx = -1;
     EffectHeader* h;
+    struct atreeheader* at;
 
     if (type < 0 || type >= MAXEFFECTTYPES) {
         ErrorPrintf("Bad Effect type: %d", type);
         return -1;
     }
     h = &page->info[type];
-    if (h->atree != NULL && (idx = StartFXTree(h->atree, pos, fla, flb, time)) >= 0) {
+    if ((at = h->atree) != NULL && (idx = StartFXTree(at, pos, fla, flb, time)) >= 0) {
         MBTreeSetZsortAdd(page->fx[idx].node, h->zmod, 1);
         MBTreeSetAlpha(page->fx[idx].node, h->alpha, 1);
         page->fx[idx].type = (fx_type)type;
@@ -749,14 +753,16 @@ s32 StartGenFX(f32* pos, s32 n)
 /* gem/rune/garg pickup fx: special-cased constant types + generic default */
 s32 StartGemFX(f32* pos, s32 sel)
 {
+    EffectPage* page = (EffectPage*)EffectInfo;
     s32 ret;
+    u32 fla = 0x80880;
 
     if (sel == 0x400) {
-        ret = StartFXSubGuts(FX_GET_RUNE, pos, 0, 0x80880, 0.0f);
+        ret = StartFXSubGutsP(page, FX_GET_RUNE, pos, 0, fla, lbl_80348068);
     } else if (sel == 0x100) {
-        ret = StartFXSubGuts(FX_GET_GARG, pos, 0, 0x80880, 0.0f);
+        ret = StartFXSubGutsP(page, FX_GET_GARG, pos, 0, fla, lbl_80348068);
     } else {
-        ret = StartFXSubGuts(sel + 69, pos, 0, 0x80880, 0.0f);
+        ret = StartFXSubGutsP(page, sel + 69, pos, 0, fla, lbl_80348068);
     }
     return ret;
 }
@@ -865,15 +871,19 @@ s32 StartBlockFX(f32 time, s32 pnum)
         page->fx[idx].type = FX_BLOCK;
     }
     if (idx >= 0) {
+        struct mbnode* parent;
+
         MBTreeSetColor(page->fx[idx].node,
                     lbl_8011A178[((Player*)gPlayers)[pnum].class_id], 1);
         MBTreeSetAlpha(page->fx[idx].node, 0x40, 1);
+        parent = (struct mbnode*)((Player*)gPlayers)[pnum].node;
         if (idx >= 0) {
-            Effect* e = &page->fx[idx];
+            Effect* e = (Effect*)&page->info[idx * 20];
+            struct mbnode* n = ((EffectPage*)e)->fx[0].node;
             struct anode* root;
 
-            MBNodeSetParent(e->node,
-                        (struct mbnode*)((Player*)gPlayers)[pnum].node);
+            e = (Effect*)((u8*)e + 2976);
+            MBNodeSetParent(n, parent);
             root = ATREE_ROOT(e);
             if (root != NULL) {
                 MBTreeSetFlags(root->node, 0x10, 0);
@@ -1577,7 +1587,7 @@ s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
 
     low = tf & 15;
     s = (f32)(0.03125 * scale);
-    idx = StartFXSub((&tab[tf & 15])[871], pos, 298, 2048, 0.0f);
+    idx = StartFXSub((&tab[tf & 15])[871], pos, 298, 2048, lbl_80348068);
     if (idx < 0) {
         idx = -1;
     } else {
@@ -1962,19 +1972,21 @@ s32 fn_80093BC0(s32 type, f32* pos, f32* vel, u32 fla, s32 fxhit, s32 hit_audio,
     if (idx < 0) {
         return -1;
     }
-    e = &page->fx[idx];
-    if (vel != NULL) {
-        f32 vz = vel[2];
-        f32 ang = atan2(vel[0], vz);
-        e->vel[0] = vel[0];
-        e->vel[1] = vel[1];
-        e->vel[2] = vel[2];
-        if (e->node != NULL) {
-            YawMat3(e->node, ang);
+    if (idx >= 0) {
+        e = &page->fx[idx];
+        if (vel != NULL) {
+            f32 vz = vel[2];
+            f32 ang = atan2(vel[0], vz);
+            e->vel[0] = vel[0];
+            e->vel[1] = vel[1];
+            e->vel[2] = vel[2];
+            if (e->node != NULL) {
+                YawMat3(e->node, ang);
+            }
         }
+        e->weight = 0.0f;
+        e->colrad = 0.0f;
     }
-    e->weight = 0.0f;
-    e->colrad = 0.0f;
     page->fx[idx].fxhit = fxhit;
     page->fx[idx].hit_audio = hit_audio;
     page->fx[idx].wall_sound = wall_sound;
@@ -4282,7 +4294,7 @@ void InitEffects(void)
         }
         if (i == 11 || i == 21) {
             if (*hp == NULL || lbl_803482A8 == 0) {
-                *p1008 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTHIT, atree)) = 0;
             } else {
                 *p1008 = (s32)AtreeMatch(*hp, (char*)&lbl_803482A8, 0);
                 if (*p1008 == 0) {
@@ -4292,7 +4304,7 @@ void InitEffects(void)
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTHIT, zmod)) = -512;
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTHIT, alpha)) = 0;
             if (*hp == NULL || lbl_803482B0 == 0) {
-                *p1020 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_ALTDIE, atree)) = 0;
             } else {
                 *p1020 = (s32)AtreeMatch(*hp, (char*)&lbl_803482B0, 0);
                 if (*p1020 == 0) {
@@ -4304,7 +4316,7 @@ void InitEffects(void)
         }
         if (i == 27) {
             if (*hp == NULL || lbl_803482B8 == 0) {
-                *p1032 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK1, atree)) = 0;
             } else {
                 *p1032 = (s32)AtreeMatch(*hp, (char*)&lbl_803482B8, 0);
                 if (*p1032 == 0) {
@@ -4314,7 +4326,7 @@ void InitEffects(void)
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK1, zmod)) = -512;
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK1, alpha)) = 0;
             if (*hp == NULL || lbl_803482C0 == 0) {
-                *p1044 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK2, atree)) = 0;
             } else {
                 *p1044 = (s32)AtreeMatch(*hp, (char*)&lbl_803482C0, 0);
                 if (*p1044 == 0) {
@@ -4324,7 +4336,7 @@ void InitEffects(void)
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK2, zmod)) = -512;
             *(s32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEATK2, alpha)) = 0;
             if (*hp == NULL || *(s8*)(strs + 80) == 0) {
-                *p1056 = 0;
+                *(u32*)(ei + EFFECT_HEADER_OFFSET(FX_ENEDEATH1, atree)) = 0;
             } else {
                 *p1056 = (s32)AtreeMatch(*hp, strs + 80, 0);
                 if (*p1056 == 0) {
