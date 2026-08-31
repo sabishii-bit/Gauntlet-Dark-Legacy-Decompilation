@@ -1287,46 +1287,46 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
                 off = 0;
                 for (; i < n1; i++, off += 0x180) {
                     p = (u8*)pdata->headers[plr] + off;
-                    SWAP16(*(u16*)(p + 0x00));
-                    SWAP16(*(u16*)(p + 0x02));
-                    SWAP16(*(u16*)(p + 0x0C));
-                    SWAP16(*(u16*)(p + 0x0E));
-                    SWAP16(*(u16*)(p + 0x10));
-                    SWAP16(*(u16*)(p + 0x12));
-                    SWAP16(*(u16*)(p + 0x14));
-                    SWAP16(*(u16*)(p + 0x16));
-                    SWAP16(*(u16*)(p + 0x18));
-                    SWAP16(*(u16*)(p + 0x1A));
-                    SWAP16(*(u16*)(p + 0x1C));
-                    SWAP16(*(u16*)(p + 0x1E));
-                    SWAP16(*(u16*)(p + 0x20));
-                    SWAP16(*(u16*)(p + 0x22));
-                    SWAP32(*(u32*)(p + 0x24));
-                    SWAPF(*(f32*)(p + 0x28));
-                    SWAPF(*(f32*)(p + 0x2C));
-                    SWAPF(*(f32*)(p + 0x30));
-                    SWAPF(*(f32*)(p + 0x34));
-                    SWAPF(*(f32*)(p + 0x38));
-                    SWAPF(*(f32*)(p + 0x3C));
-                    SWAPF(*(f32*)(p + 0x40));
-                    SWAPF(*(f32*)(p + 0x44));
-                    SWAPF(*(f32*)(p + 0x48));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, numsfx)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, numdamage)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, turboAclose)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, turboAlow)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, turboAstep)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, turboA360)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, turboAthrow)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, turboB)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, turboC1)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, turboC2)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, combo1)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, combo2)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, combohit)));
+                    SWAP16(*(u16*)(p + offsetof(plyr_data, victory)));
+                    SWAP32(*(u32*)(p + offsetof(plyr_data, initflag)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, fight_min)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, fight_max)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, speed_min)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, speed_max)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, armor_min)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, armor_max)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, magic_min)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, magic_max)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, height)));
                     k = 0;
-                    SWAPF(*(f32*)(p + 0x4C));
-                    SWAPF(*(f32*)(p + 0x50));
-                    SWAPF(*(f32*)(p + 0x54));
-                    SWAPF(*(f32*)(p + 0x58));
-                    SWAPF(*(f32*)(p + 0x17C));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, width)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, attny)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, coly)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, powerup_time)));
+                    SWAPF(*(f32*)(p + offsetof(plyr_data, streakfwdmul)));
                     for (; k < 3; k++) {
-                        SWAPF(*(f32*)(p + 0x5C + k * 4));
-                        SWAPF(*(f32*)(p + 0x158 + k * 4));
-                        SWAPF(*(f32*)(p + 0x164 + k * 4));
-                        SWAPF(*(f32*)(p + 0x170 + k * 4));
+                        SWAPF(*(f32*)(p + offsetof(plyr_data, weapon_offset) + k * 4));
+                        SWAPF(*(f32*)(p + offsetof(plyr_data, turboa_offset) + k * 4));
+                        SWAPF(*(f32*)(p + offsetof(plyr_data, familiar_offset) + k * 4));
+                        SWAPF(*(f32*)(p + offsetof(plyr_data, fam_proj_offset) + k * 4));
                     }
                     for (j = 0; j < 10; j++) {
                         for (k = 0; k < 3; k++) {
-                            SWAPF(*(f32*)(p + 0x68 + j * 0xC + k * 4));
-                            SWAPF(*(f32*)(p + 0xE0 + j * 0xC + k * 4));
+                            SWAPF(*(f32*)(p + offsetof(plyr_data, weapon_fx_offset) + j * 0xC + k * 4));
+                            SWAPF(*(f32*)(p + offsetof(plyr_data, weapon_fx_scale) + j * 0xC + k * 4));
                         }
                     }
                 }
@@ -1337,18 +1337,18 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
                     s32 recordOffset = 0;
                     for (; recordIndex < n2; recordIndex++, recordOffset += 0x50) {
                         p = ((plyr_data*)pdata->headers[plr])->sfx + recordOffset;
-                        SWAP16(*(u16*)(p + 0x30));
-                        SWAP16(*(u16*)(p + 0x32));
-                        SWAP32(*(u32*)(p + 0x00));
-                        SWAP32(*(u32*)(p + 0x04));
-                        SWAP32(*(u32*)(p + 0x08));
-                        SWAP32(*(u32*)(p + 0x0C));
-                        SWAPF(*(f32*)(p + 0x40));
-                        SWAPF(*(f32*)(p + 0x44));
-                        SWAPF(*(f32*)(p + 0x48));
-                        SWAP32(*(u32*)(p + 0x4C));
+                        SWAP16(*(u16*)(p + offsetof(plyr_sfx, zmod)));
+                        SWAP16(*(u16*)(p + offsetof(plyr_sfx, alphamod)));
+                        SWAP32(*(u32*)(p + offsetof(plyr_sfx, flags)));
+                        SWAP32(*(u32*)(p + offsetof(plyr_sfx, nextfxidx)));
+                        SWAP32(*(u32*)(p + offsetof(plyr_sfx, sfxidx)));
+                        SWAP32(*(u32*)(p + offsetof(plyr_sfx, sndidx)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_sfx, maxlen)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_sfx, radius)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_sfx, scale)));
+                        SWAP32(*(u32*)(p + offsetof(plyr_sfx, color)));
                         for (k = 0; k < 3; k++) {
-                            SWAPF(*(f32*)(p + 0x34 + k * 4));
+                            SWAPF(*(f32*)(p + offsetof(plyr_sfx, offset) + k * 4));
                         }
                     }
                 }
@@ -1359,31 +1359,31 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
                     s32 moveOffset = 0;
                     for (; moveIndex < n3; moveIndex++, moveOffset += 0x58) {
                         p = ((plyr_data*)pdata->headers[plr])->damage + moveOffset;
-                        SWAP16(*(u16*)(p + 0x00));
-                        SWAP16(*(u16*)(p + 0x02));
-                        SWAP16(*(u16*)(p + 0x48));
-                        SWAP16(*(u16*)(p + 0x4A));
-                        SWAP16(*(u16*)(p + 0x4C));
-                        SWAP16(*(u16*)(p + 0x4E));
-                        SWAP16(*(u16*)(p + 0x50));
-                        SWAP16(*(u16*)(p + 0x52));
-                        SWAP16(*(u16*)(p + 0x54));
-                        SWAPF(*(f32*)(p + 0x08));
-                        SWAPF(*(f32*)(p + 0x0C));
-                        SWAPF(*(f32*)(p + 0x10));
-                        SWAPF(*(f32*)(p + 0x14));
-                        SWAPF(*(f32*)(p + 0x18));
-                        SWAPF(*(f32*)(p + 0x1C));
-                        SWAPF(*(f32*)(p + 0x20));
-                        SWAPF(*(f32*)(p + 0x24));
-                        SWAPF(*(f32*)(p + 0x28));
-                        SWAPF(*(f32*)(p + 0x38));
-                        SWAPF(*(f32*)(p + 0x3C));
-                        SWAPF(*(f32*)(p + 0x40));
-                        SWAPF(*(f32*)(p + 0x44));
-                        SWAP32(*(u32*)(p + 0x04));
+                        SWAP16(*(u16*)(p + offsetof(plyr_damage, type)));
+                        SWAP16(*(u16*)(p + offsetof(plyr_damage, flags)));
+                        SWAP16(*(u16*)(p + offsetof(plyr_damage, fxidx)));
+                        SWAP16(*(u16*)(p + offsetof(plyr_damage, hitfxidx)));
+                        SWAP16(*(u16*)(p + offsetof(plyr_damage, loopfxidx)));
+                        SWAP16(*(u16*)(p + offsetof(plyr_damage, next)));
+                        SWAP16(*(u16*)(p + offsetof(plyr_damage, startframe)));
+                        SWAP16(*(u16*)(p + offsetof(plyr_damage, endframe)));
+                        SWAP16(*(u16*)(p + offsetof(plyr_damage, helpidx)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, hitrad)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, radius)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, minrad)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, delay)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, mintime)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, maxtime)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, angle)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, arc)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, pitch)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, amount)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, speed_min)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, speed_max)));
+                        SWAPF(*(f32*)(p + offsetof(plyr_damage, weight)));
+                        SWAP32(*(u32*)(p + offsetof(plyr_damage, dmgtype)));
                         for (k = 0; k < 3; k++) {
-                            SWAPF(*(f32*)(p + 0x2C + k * 4));
+                            SWAPF(*(f32*)(p + offsetof(plyr_damage, offset) + k * 4));
                         }
                     }
                 }
