@@ -221,9 +221,6 @@ extern unsigned char lbl_803441F0;
 extern int sAudioOverride;
 
 extern ScreenListEntry screen_list[16];
-extern char* credit_text[];
-extern char* credit_text2[];
-extern char* credit_text3[];
 extern float creditsTextScale;
 
 /* ================================================================== */
@@ -464,7 +461,7 @@ int scroll_credits(void) {
     int offset;
     void* line;
 
-    text = credit_text;
+    text = (char**)lbl_80118188;
     result = 0;
     alive = 1;
     offBottom = 0;
