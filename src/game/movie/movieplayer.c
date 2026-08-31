@@ -204,6 +204,92 @@ typedef struct MovieAudioState {
     u8 _pad[3];
 } MovieAudioState;
 
+/* File-local top-level VQ movie-player record, 0x1D0 bytes - the size is not
+ * inferred, it is PlayVQMovie's own __construct_new_array(movie, ctor, dtor,
+ * 464, 1) element-size argument (and its AllocHiMem(472) = 464 + the 8-byte
+ * array cookie).
+ *
+ * One record, four base spellings: gMovieStreamState holds the single
+ * instance, and fn_800DA6A4's `movie`, fn_800DA60C's `self` and fn_800DACD8's
+ * `param_1` are all that same pointer - proven directly by fn_800DA920's
+ * `fn_800DACD8((s32)movie, header)` call, and independently by the bases
+ * agreeing on every shared displacement (0x1C fd, 0x20 stream, 0x150 decoder,
+ * 0x170 decoder vtable, 0x190 audio, 0x198/0x19C source width/height).
+ *
+ * Each embedded sub-record is separately cross-verified:
+ *   0x020 stream      `(MovieChunkStream*)(movie + 0x20)` is already cast at
+ *                     six sites; fn_800DA920 copies videoStreamHeader+0x20
+ *                     into stream.videoFrameLimit (movie+80 <- movie+212).
+ *   0x07C outFormat   fn_800D99AC's `dst` (= movie+124) reads +4 width and
+ *                     +8 height and writes +0xE bitCount, +0x10 compression,
+ *                     +0x14 sizeImage; fn_800DA920 then overwrites bitCount
+ *                     = 16, compression = 3 (BI_BITFIELDS) and the three
+ *                     masks at +0x28/+0x2C/+0x30 with 0xF800/0x07E0/0x001F.
+ *   0x0B4/0x0E8       two 0x34-byte offset-preserving copies of the .avi
+ *                     'strh' stream-header blocks (video, then audio) made by
+ *                     fn_800DACD8. +0x20 is the stream length - video frame
+ *                     count (copied into stream.videoFrameLimit) and audio
+ *                     byte count (read by fn_800D9F20 and PlayVQMovie). The
+ *                     u16 pair at +0x10/+0x12 does NOT agree with the public
+ *                     AVISTREAMHEADER layout, which puts wPriority/wLanguage
+ *                     at +0x0C/+0x0E, so NO field names are adopted for these
+ *                     two blocks - they stay untyped word arrays.
+ *   0x11C decodeCall  the MovieDecodeCall passed to the decoder's virtual
+ *                     decode()/configure() and to MovieValidateFrameFormat;
+ *                     fn_800DA920 wires its .context/.bitmap to &fileFormat
+ *                     and &outFormat (movie+288 <- movie+404, movie+296 <-
+ *                     movie+124).
+ *   0x150 decoder     the MovieDTextOuter decoder object - fn_800DB008 tears
+ *                     it down as `(MovieDTextOuter*)(self + 0x54)` on a u32*
+ *                     self, i.e. byte 0x150. Its vtable member sits at +0x20
+ *                     (fn_800DBE04's `p[8] = lbl_801296CC`), so decoderVtable
+ *                     at 0x170 is that same word - exactly the MovieCloseVTable
+ *                     pointer at `self + 368` that the teardown path
+ *                     calls close() through, and the same word fn_800DA6A4
+ *                     fetches its decode() entry from. The region is kept as
+ *                     opaque words rather than an embedded MovieDTextOuter on
+ *                     purpose: that struct's declared extent is unsettled (its
+ *                     `_24[2]` puts ownsAlloc at 0x2C while its comment claims
+ *                     0x30), and MovieState must not inherit that uncertainty.
+ *   0x194 fileFormat  MovieBitmapHeader; all 14 fields line up with
+ *                     fn_800DACD8's 'strf' parse, including the u16 pair at
+ *                     +0x0C/+0x0E (0x1A0/0x1A2) whose widths the raw code
+ *                     itself confirms.
+ *
+ * Offset 0x000 is the vtable, per fn_800DB008's `self[0] = lbl_8012968C` and
+ * PlayVQMovie's MovieStreamInterface view. No Xbox PDB authority exists for
+ * this record - the Xbox build's MOVIE.OBJ is an unrelated cutscene subsystem
+ * (InitMovie/ServeMovie/KillMovie) and the PDB type stream carries nothing for
+ * the VQ .avi player - so every name below is file-local and derived from this
+ * TU's own dataflow, not GC-verified. Bytes with no observed access stay
+ * unkNNN. */
+typedef struct MovieState {
+    /* 0x000 */ u32 vtable;
+    /* 0x004 */ f32 playTime;         /* += elapsed each update */
+    /* 0x008 */ f32 frameInterval;    /* playTime / frameInterval = frame */
+    /* 0x00C */ f32 frameRate;        /* videoStreamHeader rate / scale */
+    /* 0x010 */ u32 frameIndex;
+    /* 0x014 */ u32 dataOffset;       /* 'movi' payload offset, sceLseek target */
+    /* 0x018 */ u8 hasAudio;          /* set by fn_800DACD8 on an 'auds' list */
+    /* 0x019 */ u8 needsPrime;
+    /* 0x01A */ u8 stopped;
+    /* 0x01B */ u8 unk01B;
+    /* 0x01C */ s32 fd;               /* sceOpen/sceRead/sceLseek/sceClose */
+    /* 0x020 */ MovieChunkStream stream;
+    /* 0x07C */ MovieBitmapHeader outFormat;
+    /* 0x0B0 */ u32 unk0B0;
+    /* 0x0B4 */ u8 videoStreamHeader[0x34];
+    /* 0x0E8 */ u8 audioStreamHeader[0x34];
+    /* 0x11C */ MovieDecodeCall decodeCall;
+    /* 0x130 */ u32 unk130[8];
+    /* 0x150 */ u32 decoder[8];       /* MovieDTextOuter base; opaque here */
+    /* 0x170 */ u32 decoderVtable;    /* == MovieDTextOuter.vtable (+0x20) */
+    /* 0x174 */ u32 unk174[7];
+    /* 0x190 */ MovieAudioState* audio;
+    /* 0x194 */ MovieBitmapHeader fileFormat;
+    /* 0x1C8 */ u32 unk1C8[2];
+} MovieState;
+
 extern void GXInitTexObj(MovieGXTexObj* obj, void* data, u16 width, u16 height,
                          u32 format, u32 wrapS, u32 wrapT, u8 mipmap);
 extern void GXLoadTexObj(MovieGXTexObj* obj, u8 map);
@@ -1380,7 +1466,7 @@ void fn_800D9F20(MovieAudioState* audio) {
             audio->remaining = audio->remaining - uVar1;
         }
         if (audio->remaining == 0) {
-            uVar2 = *(int*)(gMovieStreamState + 0x108) - audio->offset;
+            uVar2 = *(int*)(gMovieStreamState + offsetof(MovieState, audioStreamHeader[0x20])) - audio->offset;
             if (0xc000 < uVar2) {
                 uVar2 = 0xc000;
             }
@@ -1465,7 +1551,7 @@ extern "C" void PlayVQMovie(const char* name) throw()
         return;
     }
 
-    height = *(s32*)(gMovieStreamState + 412);
+    height = *(s32*)(gMovieStreamState + offsetof(MovieState, fileFormat.height));
     oneBits = 0;
     shifts = 0;
     scan = height;
@@ -1487,7 +1573,7 @@ extern "C" void PlayVQMovie(const char* name) throw()
     texture = (u8*)AllocHiMem((u32)textureBytes, (u32)gMovieAllocCount++);
     memset(texture, 0, (u32)textureBytes);
     GXInitTexObj(textureObject, texture,
-                 (u16)*(s32*)(gMovieStreamState + 408),
+                 (u16)*(s32*)(gMovieStreamState + offsetof(MovieState, fileFormat.width)),
                  (u16)paddedHeight, MOVIE_GX_TF_RGB565, MOVIE_GX_CLAMP,
                  MOVIE_GX_CLAMP, 0);
     MOVIE_SETUP_DRAW_STATE();
@@ -1541,7 +1627,7 @@ extern "C" void PlayVQMovie(const char* name) throw()
 
         {
             MovieAudioState* audio =
-                *(MovieAudioState**)(gMovieStreamState + 400);
+                *(MovieAudioState**)(gMovieStreamState + offsetof(MovieState, audio));
 
             if (audio->active != 0) {
                 adsPoll();
@@ -1553,7 +1639,7 @@ extern "C" void PlayVQMovie(const char* name) throw()
                 }
                 if (audio->remaining == 0) {
                     u32 request =
-                        *(u32*)(gMovieStreamState + 264) - audio->offset;
+                        *(u32*)(gMovieStreamState + offsetof(MovieState, audioStreamHeader[0x20])) - audio->offset;
                     u8* requestData;
                     u32 requestOffset;
                     u32 requestSize;
@@ -1615,22 +1701,22 @@ void fn_800DA60C(register u8* m)
     register u8* self = m;
     register u32 active;
 
-    active = *(u32*)(self + 400);
+    active = *(u32*)(self + offsetof(MovieState, audio));
     if (active != 0) {
         AudioStreamStop();
-        if ((strm = *(u8**)(self + 400)) != 0) {
+        if ((strm = *(u8**)(self + offsetof(MovieState, audio))) != 0) {
             AudioStreamStop();
             __dla__FPv(*(void**)(strm + 4));
             __dl__FPv(strm);
         }
-        *(u32*)(self + 400) = 0;
+        *(u32*)(self + offsetof(MovieState, audio)) = 0;
     }
-    (*(MovieCloseVTable**)(self + 368))->close(self + 336);
-    fn_800DBA80(self + 32, *(s32*)(self + 28));
-    if (*(s32*)(self + 28) != 0) {
-        sceClose(*(s32*)(self + 28));
+    (*(MovieCloseVTable**)(self + offsetof(MovieState, decoderVtable)))->close(self + 336);
+    fn_800DBA80(self + 32, *(s32*)(self + offsetof(MovieState, fd)));
+    if (*(s32*)(self + offsetof(MovieState, fd)) != 0) {
+        sceClose(*(s32*)(self + offsetof(MovieState, fd)));
     }
-    *(s32*)(self + 28) = 0;
+    *(s32*)(self + offsetof(MovieState, fd)) = 0;
 }
 #pragma dont_inline off
 
@@ -1642,7 +1728,7 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
     u32 frame;
     register u32* chunk;
 
-    if (*(s32*)(movie + 0x1C) == 0 || movie[0x1A] != 0) {
+    if (*(s32*)(movie + offsetof(MovieState, fd)) == 0 || movie[0x1A] != 0) {
         return FALSE;
     }
     if (gMovieFrameTimeReset != 0) {
@@ -1653,7 +1739,7 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
         elapsed = lbl_803493BC;
     }
 
-    fn_800DB3D4((MovieChunkStream*)(movie + 0x20), *(s32*)(movie + 0x1C), 0xA000);
+    fn_800DB3D4((MovieChunkStream*)(movie + 0x20), *(s32*)(movie + offsetof(MovieState, fd)), 0xA000);
     if (movie[0x19] != 0) {
         if (movie[0x18] != 0) {
             s32 tag = gMovieAllocCount++;
@@ -1667,8 +1753,8 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
                 audio->remaining = 0;
                 audio->active = 0;
             }
-            *(MovieAudioState**)(movie + 0x190) = audio;
-            audio = *(MovieAudioState**)(movie + 0x190);
+            *(MovieAudioState**)(movie + offsetof(MovieState, audio)) = audio;
+            audio = *(MovieAudioState**)(movie + offsetof(MovieState, audio));
             audio->active = (u8)fn_800DB2F4((MovieChunkStream*)(gMovieStreamState + 0x20), audio->buffer, 0, 0xC000);
             if (audio->active != 0) {
                 audio->offset = 0xC000;
@@ -1681,33 +1767,33 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
         }
         movie[0x19] = 0;
     } else {
-        *(f32*)(movie + 4) += elapsed;
+        *(f32*)(movie + offsetof(MovieState, playTime)) += elapsed;
     }
 
-    frame = __cvt_fp2unsigned(*(f32*)(movie + 4) / *(f32*)(movie + 8));
-    if (frame <= *(u32*)(movie + 0x10)) {
+    frame = __cvt_fp2unsigned(*(f32*)(movie + offsetof(MovieState, playTime)) / *(f32*)(movie + offsetof(MovieState, frameInterval)));
+    if (frame <= *(u32*)(movie + offsetof(MovieState, frameIndex))) {
         goto done;
     }
     {
-        ++*(u32*)(movie + 0x10);
+        ++*(u32*)(movie + offsetof(MovieState, frameIndex));
         chunk = (u32*)fn_800DB36C((MovieChunkStream*)(movie + 0x20));
         while (chunk != NULL && chunk[8] == 0) {
             fn_800DB29C((MovieChunkStream*)(movie + 0x20));
             chunk = (u32*)fn_800DB36C((MovieChunkStream*)(movie + 0x20));
         }
         if (chunk == NULL) {
-            return *(u32*)(movie + 0x10) < *(u32*)(movie + 0xD4);
+            return *(u32*)(movie + offsetof(MovieState, frameIndex)) < *(u32*)(movie + offsetof(MovieState, videoStreamHeader[0x20]));
         }
         if (decodeFrame == 0) {
             fn_800DB29C((MovieChunkStream*)(movie + 0x20));
             return TRUE;
         }
-        *(u32*)(movie + 0x1A8) = chunk[4];
-        *(u32*)(movie + 0x124) = chunk[8];
-        *(s32*)(movie + 0x12C) = decodeFrame;
+        *(u32*)(movie + offsetof(MovieState, fileFormat.sizeImage)) = chunk[4];
+        *(u32*)(movie + offsetof(MovieState, decodeCall.chunk)) = chunk[8];
+        *(s32*)(movie + offsetof(MovieState, decodeCall.destination)) = decodeFrame;
         {
             register void (*decode)(u8*, u8*, s32) =
-                *(void (**)(u8*, u8*, s32))(*(u32*)(movie + 0x170) + 0x18);
+                *(void (**)(u8*, u8*, s32))(*(u32*)(movie + offsetof(MovieState, decoderVtable)) + 0x18);
             decode(movie + 0x150, movie + 0x11C, 0);
         }
         fn_800DB29C((MovieChunkStream*)(movie + 0x20));
@@ -1728,22 +1814,22 @@ extern "C" s32 fn_800DA920(u8* movie, const char* name)
 
     header = headerStorage;
     header += (32 - ((u32)header & 31)) & 31;
-    *(f32*)(movie + 4) = lbl_80349390;
-    *(u32*)(movie + 16) = 0;
-    if (*(s32*)(movie + 28) != 0) {
-        sceClose(*(s32*)(movie + 28));
-        *(s32*)(movie + 28) = 0;
+    *(f32*)(movie + offsetof(MovieState, playTime)) = lbl_80349390;
+    *(u32*)(movie + offsetof(MovieState, frameIndex)) = 0;
+    if (*(s32*)(movie + offsetof(MovieState, fd)) != 0) {
+        sceClose(*(s32*)(movie + offsetof(MovieState, fd)));
+        *(s32*)(movie + offsetof(MovieState, fd)) = 0;
     }
-    if (*(u8**)(movie + 400) != NULL) {
+    if (*(u8**)(movie + offsetof(MovieState, audio)) != NULL) {
         u8* stream;
 
         AudioStreamStop();
-        if ((stream = *(u8**)(movie + 400)) != NULL) {
+        if ((stream = *(u8**)(movie + offsetof(MovieState, audio))) != NULL) {
             AudioStreamStop();
             __dla__FPv(*(void**)(stream + 4));
             __dl__FPv(stream);
         }
-        *(u32*)(movie + 400) = 0;
+        *(u32*)(movie + offsetof(MovieState, audio)) = 0;
     }
 
     selected = name;
@@ -1789,48 +1875,48 @@ extern "C" s32 fn_800DA920(u8* movie, const char* name)
         }
     }
 
-    *(s32*)(movie + 28) = sceOpen(selected, 1);
-    sceRead(*(s32*)(movie + 28), header, 4096);
+    *(s32*)(movie + offsetof(MovieState, fd)) = sceOpen(selected, 1);
+    sceRead(*(s32*)(movie + offsetof(MovieState, fd)), header, 4096);
     if (!(u8)fn_800DACD8((s32)movie, header)) {
         return 0;
     }
 
-    *(f32*)(movie + 12) =
-        (f32)((f64)*(u32*)(movie + 204) / (f64)*(u32*)(movie + 200));
-    *(f32*)(movie + 8) = lbl_80349394 / *(f32*)(movie + 12);
+    *(f32*)(movie + offsetof(MovieState, frameRate)) =
+        (f32)((f64)*(u32*)(movie + offsetof(MovieState, videoStreamHeader[0x18])) / (f64)*(u32*)(movie + offsetof(MovieState, videoStreamHeader[0x14])));
+    *(f32*)(movie + offsetof(MovieState, frameInterval)) = lbl_80349394 / *(f32*)(movie + offsetof(MovieState, frameRate));
 
-    *(u32*)(movie + 20) = 0;
+    *(u32*)(movie + offsetof(MovieState, dataOffset)) = 0;
     for (offset = 0; offset < 4096; offset += 4) {
         if (ReadF32LE(header + offset) == 0x4B4E554A) {
-            *(u32*)(movie + 20) = offset + 4;
+            *(u32*)(movie + offsetof(MovieState, dataOffset)) = offset + 4;
             break;
         }
     }
-    if (*(u32*)(movie + 20) != 0) {
-        *(u32*)(movie + 20) = 0;
+    if (*(u32*)(movie + offsetof(MovieState, dataOffset)) != 0) {
+        *(u32*)(movie + offsetof(MovieState, dataOffset)) = 0;
         for (; offset < 4096; offset += 4) {
             if (ReadF32LE(header + offset) == 0x69766F6D) {
-                *(u32*)(movie + 20) = offset + 4;
+                *(u32*)(movie + offsetof(MovieState, dataOffset)) = offset + 4;
                 break;
             }
         }
     }
-    if (*(u32*)(movie + 20) == 0) {
-        *(u32*)(movie + 20) = 2048;
+    if (*(u32*)(movie + offsetof(MovieState, dataOffset)) == 0) {
+        *(u32*)(movie + offsetof(MovieState, dataOffset)) = 2048;
     }
 
-    sceLseek(*(s32*)(movie + 28), *(s32*)(movie + 20), 0);
+    sceLseek(*(s32*)(movie + offsetof(MovieState, fd)), *(s32*)(movie + offsetof(MovieState, dataOffset)), 0);
     fn_800D99AC((u32)(movie + 336), (int*)(movie + 404), movie + 124);
-    *(u16*)(movie + 138) = 16;
-    *(u32*)(movie + 140) = 3;
-    *(u32*)(movie + 164) = 0xF800;
-    *(u32*)(movie + 168) = 2016;
-    *(u32*)(movie + 172) = 31;
-    *(u32*)(movie + 144) = *(u32*)(movie + 128) *
-                           *(u32*)(movie + 132) * 2;
-    *(s32*)(movie + 132) = -*(s32*)(movie + 132);
-    *(u8**)(movie + 288) = movie + 404;
-    *(u8**)(movie + 296) = movie + 124;
+    *(u16*)(movie + offsetof(MovieState, outFormat.bitCount)) = 16;
+    *(u32*)(movie + offsetof(MovieState, outFormat.compression)) = 3;
+    *(u32*)(movie + offsetof(MovieState, outFormat.redMask)) = 0xF800;
+    *(u32*)(movie + offsetof(MovieState, outFormat.greenMask)) = 2016;
+    *(u32*)(movie + offsetof(MovieState, outFormat.blueMask)) = 31;
+    *(u32*)(movie + offsetof(MovieState, outFormat.sizeImage)) = *(u32*)(movie + offsetof(MovieState, outFormat.width)) *
+                           *(u32*)(movie + offsetof(MovieState, outFormat.height)) * 2;
+    *(s32*)(movie + offsetof(MovieState, outFormat.height)) = -*(s32*)(movie + offsetof(MovieState, outFormat.height));
+    *(u8**)(movie + offsetof(MovieState, decodeCall.context)) = movie + 404;
+    *(u8**)(movie + offsetof(MovieState, decodeCall.bitmap)) = movie + 124;
 
     if (MovieValidateFrameFormat((u32)(movie + 336),
                                  (s32)(movie + 284), 0) != 0) {
@@ -1850,9 +1936,9 @@ extern "C" s32 fn_800DA920(u8* movie, const char* name)
         ((MovieConfigureObject*)(movie + 336))->configure(movie + 284, 0);
     }
     MovieDecoderInitBuffers((MovieChunkStream*)(movie + 32), 0x80000, movie[24]);
-    fn_800DB82C((MovieChunkStream*)(movie + 32), *(s32*)(movie + 28),
-                *(u32*)(movie + 20));
-    *(u32*)(movie + 80) = *(u32*)(movie + 212);
+    fn_800DB82C((MovieChunkStream*)(movie + 32), *(s32*)(movie + offsetof(MovieState, fd)),
+                *(u32*)(movie + offsetof(MovieState, dataOffset)));
+    *(u32*)(movie + offsetof(MovieState, stream.videoFrameLimit)) = *(u32*)(movie + offsetof(MovieState, videoStreamHeader[0x20]));
     movie[25] = 1;
     movie[26] = 0;
     gMovieFrameTimeReset = 0;
@@ -1868,6 +1954,10 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
     int strl;
     u8* p;
 
+    /* hasAudio. Left as a bare literal deliberately: this is the function's
+     * FIRST statement, and the offsetof form regresses it (+1 addi, real
+     * 76 -> 119) while the identical conversion of the very same field at
+     * line 2009 is byte-neutral. Operand-order swap A/B'd identically. */
     *(u8*)(param_1 + 0x18) = 0;
     if (ReadF32LE(param_2) != 0x46464952 || ReadF32LE(param_2 + 8) != 0x20495641) {
         return 0;
@@ -1884,57 +1974,57 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
     if (ReadF32LE(p) != 0x73646976) {
         return 0;
     }
-    *(u32*)(param_1 + 0xB4) = ReadF32LE(p);
-    *(u32*)(param_1 + 0xB8) = ReadF32LE(p + 4);
-    *(u32*)(param_1 + 0xBC) = ReadF32LE(p + 8);
-    *(u32*)(param_1 + 0xC0) = ReadF32LE(p + 0xC);
-    *(u16*)(param_1 + 0xC4) = ReadU16LE(p + 0x10);
-    *(u16*)(param_1 + 0xC6) = ReadU16LE(p + 0x12);
-    *(u32*)(param_1 + 0xC8) = ReadF32LE(p + 0x14);
-    *(u32*)(param_1 + 0xCC) = ReadF32LE(p + 0x18);
-    *(u32*)(param_1 + 0xD0) = ReadF32LE(p + 0x1C);
-    *(u32*)(param_1 + 0xD4) = ReadF32LE(p + 0x20);
-    *(u32*)(param_1 + 0xD8) = ReadF32LE(p + 0x24);
-    *(u32*)(param_1 + 0xDC) = ReadF32LE(p + 0x28);
-    *(u32*)(param_1 + 0xE0) = ReadF32LE(p + 0x2C);
-    *(u32*)(param_1 + 0xE4) = ReadF32LE(p + 0x30);
+    *(u32*)(param_1 + offsetof(MovieState, videoStreamHeader[0x00])) = ReadF32LE(p);
+    *(u32*)(param_1 + offsetof(MovieState, videoStreamHeader[0x04])) = ReadF32LE(p + 4);
+    *(u32*)(param_1 + offsetof(MovieState, videoStreamHeader[0x08])) = ReadF32LE(p + 8);
+    *(u32*)(param_1 + offsetof(MovieState, videoStreamHeader[0x0C])) = ReadF32LE(p + 0xC);
+    *(u16*)(param_1 + offsetof(MovieState, videoStreamHeader[0x10])) = ReadU16LE(p + 0x10);
+    *(u16*)(param_1 + offsetof(MovieState, videoStreamHeader[0x12])) = ReadU16LE(p + 0x12);
+    *(u32*)(param_1 + offsetof(MovieState, videoStreamHeader[0x14])) = ReadF32LE(p + 0x14);
+    *(u32*)(param_1 + offsetof(MovieState, videoStreamHeader[0x18])) = ReadF32LE(p + 0x18);
+    *(u32*)(param_1 + offsetof(MovieState, videoStreamHeader[0x1C])) = ReadF32LE(p + 0x1C);
+    *(u32*)(param_1 + offsetof(MovieState, videoStreamHeader[0x20])) = ReadF32LE(p + 0x20);
+    *(u32*)(param_1 + offsetof(MovieState, videoStreamHeader[0x24])) = ReadF32LE(p + 0x24);
+    *(u32*)(param_1 + offsetof(MovieState, videoStreamHeader[0x28])) = ReadF32LE(p + 0x28);
+    *(u32*)(param_1 + offsetof(MovieState, videoStreamHeader[0x2C])) = ReadF32LE(p + 0x2C);
+    *(u32*)(param_1 + offsetof(MovieState, videoStreamHeader[0x30])) = ReadF32LE(p + 0x30);
     ofs += ReadF32LE(q);
     if (ReadF32LE(param_2 + ofs + 4) != 0x66727473) {
         return 0;
     }
     q = param_2 + (u32)ofs + 0xC;
-    *(u32*)(param_1 + 0x194) = ReadF32LE(q);
-    *(u32*)(param_1 + 0x198) = ReadU32LE(q + 4);
-    *(u32*)(param_1 + 0x19C) = ReadU32LE(q + 8);
-    *(u16*)(param_1 + 0x1A0) = ReadU16LE(q + 0xC);
-    *(u16*)(param_1 + 0x1A2) = ReadU16LE(q + 0xE);
-    *(u32*)(param_1 + 0x1A4) = ReadF32LE(q + 0x10);
-    *(u32*)(param_1 + 0x1A8) = ReadF32LE(q + 0x14);
-    *(u32*)(param_1 + 0x1AC) = ReadU32LE(q + 0x18);
-    *(u32*)(param_1 + 0x1B0) = ReadU32LE(q + 0x1C);
-    *(u32*)(param_1 + 0x1B4) = ReadF32LE(q + 0x20);
-    *(u32*)(param_1 + 0x1B8) = ReadF32LE(q + 0x24);
-    *(u32*)(param_1 + 0x1BC) = ReadF32LE(q + 0x28);
-    *(u32*)(param_1 + 0x1C0) = ReadF32LE(q + 0x2C);
-    *(u32*)(param_1 + 0x1C4) = ReadF32LE(q + 0x30);
+    *(u32*)(param_1 + offsetof(MovieState, fileFormat.size)) = ReadF32LE(q);
+    *(u32*)(param_1 + offsetof(MovieState, fileFormat.width)) = ReadU32LE(q + 4);
+    *(u32*)(param_1 + offsetof(MovieState, fileFormat.height)) = ReadU32LE(q + 8);
+    *(u16*)(param_1 + offsetof(MovieState, fileFormat.planes)) = ReadU16LE(q + 0xC);
+    *(u16*)(param_1 + offsetof(MovieState, fileFormat.bitCount)) = ReadU16LE(q + 0xE);
+    *(u32*)(param_1 + offsetof(MovieState, fileFormat.compression)) = ReadF32LE(q + 0x10);
+    *(u32*)(param_1 + offsetof(MovieState, fileFormat.sizeImage)) = ReadF32LE(q + 0x14);
+    *(u32*)(param_1 + offsetof(MovieState, fileFormat.xPelsPerMeter)) = ReadU32LE(q + 0x18);
+    *(u32*)(param_1 + offsetof(MovieState, fileFormat.yPelsPerMeter)) = ReadU32LE(q + 0x1C);
+    *(u32*)(param_1 + offsetof(MovieState, fileFormat.clrUsed)) = ReadF32LE(q + 0x20);
+    *(u32*)(param_1 + offsetof(MovieState, fileFormat.clrImportant)) = ReadF32LE(q + 0x24);
+    *(u32*)(param_1 + offsetof(MovieState, fileFormat.redMask)) = ReadF32LE(q + 0x28);
+    *(u32*)(param_1 + offsetof(MovieState, fileFormat.greenMask)) = ReadF32LE(q + 0x2C);
+    *(u32*)(param_1 + offsetof(MovieState, fileFormat.blueMask)) = ReadF32LE(q + 0x30);
     q = param_2 + strl;
     if (ReadF32LE(q) == 0x5453494C && ReadF32LE(q + 0x14) == 0x73647561) {
         q = (u8*)((u32)q + 0x14);
-        *(u8*)(param_1 + 0x18) = 1;
-        *(u32*)(param_1 + 0xE8) = ReadF32LE(q);
-        *(u32*)(param_1 + 0xEC) = ReadF32LE(q + 4);
-        *(u32*)(param_1 + 0xF0) = ReadF32LE(q + 8);
-        *(u32*)(param_1 + 0xF4) = ReadF32LE(q + 0xC);
-        *(u16*)(param_1 + 0xF8) = ReadU16LE(q + 0x10);
-        *(u16*)(param_1 + 0xFA) = ReadU16LE(q + 0x12);
-        *(u32*)(param_1 + 0xFC) = ReadF32LE(q + 0x14);
-        *(u32*)(param_1 + 0x100) = ReadF32LE(q + 0x18);
-        *(u32*)(param_1 + 0x104) = ReadF32LE(q + 0x1C);
-        *(u32*)(param_1 + 0x108) = ReadF32LE(q + 0x20);
-        *(u32*)(param_1 + 0x10C) = ReadF32LE(q + 0x24);
-        *(u32*)(param_1 + 0x110) = ReadF32LE(q + 0x28);
-        *(u32*)(param_1 + 0x114) = ReadF32LE(q + 0x2C);
-        *(u32*)(param_1 + 0x118) = ReadF32LE(q + 0x30);
+        *(u8*)(param_1 + offsetof(MovieState, hasAudio)) = 1;
+        *(u32*)(param_1 + offsetof(MovieState, audioStreamHeader[0x00])) = ReadF32LE(q);
+        *(u32*)(param_1 + offsetof(MovieState, audioStreamHeader[0x04])) = ReadF32LE(q + 4);
+        *(u32*)(param_1 + offsetof(MovieState, audioStreamHeader[0x08])) = ReadF32LE(q + 8);
+        *(u32*)(param_1 + offsetof(MovieState, audioStreamHeader[0x0C])) = ReadF32LE(q + 0xC);
+        *(u16*)(param_1 + offsetof(MovieState, audioStreamHeader[0x10])) = ReadU16LE(q + 0x10);
+        *(u16*)(param_1 + offsetof(MovieState, audioStreamHeader[0x12])) = ReadU16LE(q + 0x12);
+        *(u32*)(param_1 + offsetof(MovieState, audioStreamHeader[0x14])) = ReadF32LE(q + 0x14);
+        *(u32*)(param_1 + offsetof(MovieState, audioStreamHeader[0x18])) = ReadF32LE(q + 0x18);
+        *(u32*)(param_1 + offsetof(MovieState, audioStreamHeader[0x1C])) = ReadF32LE(q + 0x1C);
+        *(u32*)(param_1 + offsetof(MovieState, audioStreamHeader[0x20])) = ReadF32LE(q + 0x20);
+        *(u32*)(param_1 + offsetof(MovieState, audioStreamHeader[0x24])) = ReadF32LE(q + 0x24);
+        *(u32*)(param_1 + offsetof(MovieState, audioStreamHeader[0x28])) = ReadF32LE(q + 0x28);
+        *(u32*)(param_1 + offsetof(MovieState, audioStreamHeader[0x2C])) = ReadF32LE(q + 0x2C);
+        *(u32*)(param_1 + offsetof(MovieState, audioStreamHeader[0x30])) = ReadF32LE(q + 0x30);
     }
     return 1;
 }

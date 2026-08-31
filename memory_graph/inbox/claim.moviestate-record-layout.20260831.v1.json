@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "scope": "src/game/movie/movieplayer.c only; file-local typedef MovieState, committed at 7e4c81c55 on claude/movie-draft-20260831.",
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "symbol-identity"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.moviestate-record-layout.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:14:04Z",
+  "schema_version": 1,
+  "subject": "tu:game/movie/movieplayer",
+  "valid_from": "2026-08-31",
+  "value": "movieplayer.c's four largest raw-offset base clusters -- fn_800DA6A4's `movie` (55 sites), fn_800DACD8's `param_1` (44 sites), fn_800DA60C's `self` (8) and fn_800D9F20/PlayVQMovie's `gMovieStreamState` (5) -- are ONE record, not four, and that record is exactly 0x1D0 (464) bytes. The size is not inferred: it is PlayVQMovie's own `__construct_new_array(movie, ctor, dtor, 464, 1)` element-size argument, backed by its `AllocHiMem(472)` = 464 + the 8-byte array cookie. Base identity is proven directly by fn_800DA920's `fn_800DACD8((s32)movie, header)` call (so param_1 IS movie), by `gMovieStreamState = movie = __construct_new_array(...)`, and independently by all four bases agreeing on every shared displacement (0x1C fd, 0x20 stream, 0x150 decoder, 0x170 decoder vtable, 0x190 audio, 0x198/0x19C source width/height). Recovered layout, every sub-record cross-verified against the TU's OWN already-accepted file-local types rather than any invented name: 0x000 vtable (fn_800DB008's `self[0] = lbl_8012968C`; PlayVQMovie's MovieStreamInterface view); 0x004/0x008/0x00C f32 playTime/frameInterval/frameRate; 0x010 frameIndex; 0x014 dataOffset ('movi' payload, the sceLseek target); 0x018 hasAudio; 0x019/0x01A byte flags; 0x01C fd (sceOpen/sceRead/sceLseek/sceClose); 0x020 MovieChunkStream stream (0x5C, already cast at six sites); 0x07C MovieBitmapHeader outFormat; 0x0B4 and 0x0E8 two 0x34-byte offset-preserving copies of the .avi 'strh' stream headers (video then audio); 0x11C MovieDecodeCall decodeCall (0x14); 0x150 the MovieDTextOuter decoder object, whose vtable member at +0x20 IS the 0x170 word; 0x190 MovieAudioState* audio; 0x194 MovieBitmapHeader fileFormat; ending at 0x1C8 with two unobserved words to 0x1D0. The two MovieBitmapHeader placements are the strongest single result: fn_800DACD8's 'strf' parse writes all 14 BITMAPINFOHEADER fields at 0x194..0x1C4 with the u16 pair landing exactly at +0x0C/+0x0E (0x1A0/0x1A2), and fn_800DA920 independently writes bitCount=16 at 0x8A, compression=3 (BI_BITFIELDS) at 0x8C and the three channel masks 0xF800/0x07E0/0x001F at 0xA4/0xA8/0xAC off 0x7C -- the raw code's own cast widths confirm both. NO Xbox PDB authority exists for this record and none was invented: the Xbox build's MOVIE.OBJ is an unrelated cutscene subsystem (InitMovie/ServeMovie/KillMovie/PlayMovie) and the PDB type stream carries nothing for the VQ .avi player, so `gdlmem.py struct` misses on Movie/MoviePlayer/VQMovie/AviStream/MovieStream/CMovie are true absences, not naming misses. The two 'strh' blocks are deliberately left as untyped u8[0x34] arrays: their u16 pair sits at +0x10/+0x12, which does NOT agree with the public AVISTREAMHEADER layout (wPriority/wLanguage at +0x0C/+0x0E), so adopting those names would have been an invented-name failure -- only the +0x20 length word is corroborated, by fn_800DA920 copying videoStreamHeader+0x20 into stream.videoFrameLimit and by fn_800D9F20 reading audioStreamHeader+0x20. Two further findings for whoever extends this: the pre-existing MovieDTextOuter typedef's `_24[2]` puts ownsAlloc at 0x2C while its own comment claims 0x30 (so its true size is unsettled and MovieState deliberately does NOT embed it), and fn_800D967C's `param_1` is the DECODER object, not this record -- its `param_1 + 32` is MovieDTextOuter.vtable and must never be folded into a MovieState conversion."
+}
