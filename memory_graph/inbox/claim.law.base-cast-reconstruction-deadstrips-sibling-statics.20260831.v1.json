@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker MSG, work_claim.message-flip.20260831.v1. Derived from the fully instrumented game/ui/message.c flip failure of 2026-08-31: byte-level DOL comparison of the failing Matching link against main.retail.dol, plus symbol/relocation diffs of the pre-WebFrank objects.",
+    "tags": [
+      "build-hygiene",
+      "symbol-identity",
+      "defake",
+      "relocation",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.base-cast-reconstruction-deadstrips-sibling-statics.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T14:54:07Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MWLD DEAD-STRIPS UNREFERENCED LOCAL DATA, SO A ONE-SYMBOL BASE-CAST RECONSTRUCTION SILENTLY DELETES ITS SIBLING STATICS FROM THE LINK. Shape: the target has a single N-byte data blob that several logically distinct arrays tile; the reconstruction spells them as SEPARATE `static` definitions and then reaches all of them through ONE of the symbols, e.g. `MsgData* d = (MsgData*)base_array;` with the other arrays modelled only as struct members at fixed offsets. That compiles and links, every function measures byte-exact, claimcheck passes, and datadiff passes -- because ALL of those instruments read the OBJECT, where the siblings are still present. But no relocation anywhere points at the sibling symbols, so mwld strips them from the final image, together with any string literal only they referenced. Measured on game/ui/message.c: `static int lbl_80124E58[6]` + `static char* gMsgFonts[5]` + `static u32 gMsgCfg[5]` (0x18+0x14+0x14 = 0x40, exactly the retail lbl_80124E58 blob) linked as 0x18 only; the 0x28 bytes of fonts+colours vanished, gMsgDescTable slid up 0x28, and the 'SCROLL_A' literal disappeared from .rodata with them. DIAGNOSTIC TELL, and the reason this is worth a law: the whole-DOL size gate reports the loss in a DIFFERENT DOL SECTION from the one that shrank in the object -- doldiff blamed section 12 for -0x40 while the .rodata section it also cost bytes in showed no size change at all, because section padding absorbed it. Do not chase the section doldiff names. FIND IT by aligning the built and retail DOLs at the FAILING TU's own data address and reading both hex dumps: the shift origin is inside your own object's data, and the delta at the origin (here 0x28) will not equal the header's reported section delta (here 0x40). CONFIRM by searching both DOL images for a literal byte pattern from the suspect initializer -- present in retail, absent in the build, is proof. FIX: merge the tiled statics into ONE aggregate object so a single live reference keeps the whole blob (a struct whose members are the former arrays), which is also what the retail evidence says the original source held -- the retail DOL has NO relocation targeting the interior offsets, so the original addressed the whole block off one base too. COROLLARY: retail relocation targets are a reconstruction constraint on DECLARATION GRANULARITY, not just on names. If nothing in the target points at an interior offset, the original did not have a separate object there."
+}

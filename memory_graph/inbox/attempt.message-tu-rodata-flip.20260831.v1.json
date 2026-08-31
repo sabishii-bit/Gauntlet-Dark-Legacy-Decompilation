@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "DATA-FIX + FLIP: diagnose the -64 byte DOL size deficit blocking the game/ui/message.c Matching flip, fix it in data definitions only (no function-body drift), and flip the TU.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-hash-pinned-site.20260830.v1 - APPLIED and it fired: msgPost/msgDraw are webfrank-pinned and the build aborted at the WEBFRANK step after the data edit. Screened and DISPROVED as body drift: both pinned functions' region before_sha256 still matched (msgPost 4bdaf36d..., msgDraw 050c27a9...), so no instruction byte moved; only the .rela.text symbol INDEX shifted (-2, exactly the two deleted local data symbols). claim.law.gcb-sflags-relocation-alias.20260830.v1 - screened, not applicable (the remaining msgPost --clean line is that known alias and was not touched). winglobals sdata2-pool ordering law and the BSS-reverse-declaration-order law - screened as the diagnosis toolkit; NEITHER applied: the block was not a pool-ordering or BSS-order artifact. claim.law.noop-cast-on-array-decay-not-neutral.20260831.v1 - screened before changing `(MsgData*)lbl_80124E58` to `(MsgData*)&lbl_80124E58`; measured neutral here (identical body hash) because the operand changed from array decay to a struct address, not a cast added on an unchanged decay.",
+    "residual": "None for the flip. The object still emits .rodata 0x9 where splits claims 0x10; datadiff reports that as 'claim slack(zero)' and the linker supplies the 7 pad bytes, so the claim is satisfied at link time. That was never the defect.",
+    "scope": "src/game/ui/message.c (data definitions + one address-of operand), config/GUNE5D/webfrank.json (two relocation-input/output hashes re-pinned), configure.py (NonMatching -> Matching via finish_tu.py).",
+    "verification": "defake_gate baseline 7 functions (7 at real 0) -> GATE OK after the change. claimcheck ok. datadiff .rodata/.data/.sdata2 OK. finish_tu.py green: build/GUNE5D/main.dol: OK, sha1 verified. Project linked 26.29% -> 26.65% (196 -> 197 files); Game Code linked 8.89% -> 9.32% (41 -> 42 files). Full ninja re-run after all session commits: main.dol: OK."
+  },
+  "function": "function:msgPost",
+  "id": "attempt.message-tu-rodata-flip.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T14:54:05Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
