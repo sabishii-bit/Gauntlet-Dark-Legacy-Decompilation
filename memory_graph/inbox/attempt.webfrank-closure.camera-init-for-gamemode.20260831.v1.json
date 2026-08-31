@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "WebFrank closure of the parked REGISTER_ONLY/SCHEDULE residual: model it as a machine-proven instruction_permutation rule instead of another source-shape probe",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-hash-pinned-site.20260830.v1 APPLIED (the new rule pins the raw before_sha256, so camera_init_for_gamemode's source is now frozen - noted for the next camera.c editor); claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED (same consequence, and screened to confirm no OTHER camera.c function is already pinned - game/world/camera had no webfrank rules before this one); claim.law.gcb-sflags-relocation-alias.20260830.v1 screened, not applicable (no SDA21 alias in this cluster; the two loads are r7-based with distinct displacements); core-screen law list fetched via laws --tag core-screen. No source-shape law applies because this lane made NO source edit.",
+    "laws_applied": "[\"claim.law.webfrank-hash-pinned-site.20260830.v1\", \"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "residual": "NONE. fndiff now reports OK (exact). The entire 266-instruction residual was one exchange of two independent base-relative loads at +0xf8: ours lwz r0,832(r7) then lwz r3,844(r7); target the reverse. Distinct destination registers, shared non-r1 base, no intervening store, so it is a load/load reorder.",
+    "scope": "config/GUNE5D/webfrank.json (new unit game/world/camera, 1 patch) and tools/gdl/tests/test_webfrank.py (1 test). NO src/*.c edit; commit 107cceabe.",
+    "verification": "Rule derived from the CURRENT raw compiler output (build/GUNE5D/src/game/world/camera.o) diffed against the extracted retail object, not from the stale record's offsets. Guards that ran and passed: permutation bijection check, control-instruction rejection, check_permutation_dependences (every def-use chain and every final write preserved), relocation payload preservation, region before/after SHA-256, and the whole-function after_sha256 assert against retail bytes. Re-proved end-to-end by re-running the finished patch through webfrank.apply_patch and asserting output == retail bytes. Full ninja -j2 green, build/GUNE5D/main.dol: OK. Project matched 58.15% -> 58.51%."
+  },
+  "function": "function:camera_init_for_gamemode",
+  "id": "attempt.webfrank-closure.camera-init-for-gamemode.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:32:57Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.camera_init_for_gamemode.20260829.v1",
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "WebFrank closure of the parked SCHEDULE residual: a two-stage patch chain - one instruction_permutation for the DrawStringText argument rotation, a second for the StringTextHeight load exchange plus copy_register_fields for the lineHeight web",
+  "attributes": {
+    "law_screen": "claim.law.tu-wide-literalization-breaks-matched-sibling-pool-relocs.20260831.v1 APPLIED in the negative sense - v2's two NEUTRAL extern-f32 probes established that the @188 vs lbl_80348618 spelling is pool-name noise with identical bytes after link, which is why the SDA21 relocation may ride its own atom through the permutation without any source change. claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell.20260831.v1 screened, already recorded dead for this function in v2. claim.law.webfrank-hash-pinned-site.20260830.v1 and claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED (msgDraw is now source-frozen, and it carries TWO stages, so an edit breaks the FIRST stage's before_sha256). claim.law.gcb-sflags-relocation-alias.20260830.v1 screened, applies to the sibling msgPost not to msgDraw.",
+    "laws_applied": "[\"claim.law.webfrank-hash-pinned-site.20260830.v1\", \"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\", \"claim.law.tu-wide-literalization-breaks-matched-sibling-pool-relocs.20260831.v1\"]",
+    "residual": "NONE. fndiff real 14 -> real 0, 314/314, --clean now reports MATCH (pool-name noise only). The v2 residual decomposed exactly as recorded: (a) the addi r3,r3,20 that v2 saw 'scheduled 3 slots early' is a 4-atom rotation at +0x1c8 - our addi leads three li constants, the target sinks it to last before the call, and the three li writes are disjoint from the addi's r3 read-modify; (b) the lfs f1(scale)/lwz r3(desc->type) order swap at +0x3b8 is an independent FPR/GPR load exchange; (c) the r29(T)/r25(O) lineHeight web over five sites is a consistent recolor.",
+    "scope": "config/GUNE5D/webfrank.json (2 patches for msgDraw under game/ui/message) and tools/gdl/tests/test_webfrank.py. NO src/*.c edit; commit 107cceabe.",
+    "verification": "Derived from the CURRENT raw compiler output diffed against the extracted retail object. Both permutations passed check_permutation_dependences; the SDA21 relocation payload was preserved and re-offset with its atom; the recolor passed verify_consistent_recolor with no unproven_recolor_audit escape. NEW STRUCTURAL FINDING, generalizable: apply_patch allows SEVERAL patch entries naming the SAME function, applied in order, so N disjoint permutation regions separated by control flow are expressible as an N-stage chain whose intermediate images are each hash-pinned (stage 1 after_sha256 == stage 2 before_sha256). Full ninja -j2 green, build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:msgDraw",
+  "id": "attempt.webfrank-closure.msgdraw.20260831.v3",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:33:04Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.msgdraw.20260831.v2",
+  "valid_from": "2026-08-31"
+}
