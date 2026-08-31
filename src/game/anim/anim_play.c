@@ -338,6 +338,7 @@ static inline s32 GetScaleComp(f32* dst, u8* src, s32 flags, s32 n, u32* mask)
 s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 flags, s32 keysize,
                      s32 numframes)
 {
+    u8 unused0[4];
     s32 curkey = data->curkey;
     s32 prevkey = data->prevkey;
     s32 keynum = data->keynum;
@@ -532,9 +533,13 @@ s32 GetAnimAngXYZVal(f32 frame, AnimData* data, f32* pose, u32* keydata, s32 fla
         oscale[2] = pscale[2];
     }
     {
-        f64 cycle = lbl_80345800;
-        f64 lower = lbl_80345808;
-        f64 upper = lbl_803457F8;
+        f64 cycle;
+        f64 lower;
+        f64 upper;
+
+        lower = lbl_80345808;
+        cycle = lbl_80345800;
+        upper = lbl_803457F8;
 
         for (i = 0; i < 3; i++) {
         f64 v = pose[i];

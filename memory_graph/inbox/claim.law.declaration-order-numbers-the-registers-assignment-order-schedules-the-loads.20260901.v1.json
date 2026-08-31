@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/anim/anim_play.c::GetAnimAngXYZVal final angle-wrap block, worktree GDL-Claude-AnimAlign, commit 514d5d605, 2026-09-01. Target preheader: lfd f2,lbl_80345808 / mtctr / lfd f1,lbl_80345800 / lfd f3,lbl_803457F8 - register numbers ascend in the order cycle(800)=f1, lower(808)=f2, upper(7F8)=f3, but the EMISSION order is lower, cycle, upper. Form A (baseline), `f64 cycle = A; f64 lower = B; f64 upper = C;`: registers f1,f2,f3 correct, emission order A,B,C wrong, 2 rows differing, real 172/160. Form B, swap the two declarations: emission order correct, register numbers swapped with it, real 160 -> 166, 3 more rows differing (the uses at 0xff4/0xffc/0x1008 flipped too). Form C, split declaration from assignment - declare cycle,lower,upper then assign lower,cycle,upper: both rows byte-identical, real 160 -> 156, and the function's webfrank_audit verdict went from REJECTED ('+0xff4: use of f1 does not correspond to f1 under the running renaming') to ELIGIBLE, then to real 0 under the audited rule.",
+    "tags": [
+      "matching",
+      "decl-order",
+      "entry-schedule",
+      "register-web",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T23:41:46Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "FOR A GROUP OF CONSTANT-INITIALISED LOCALS HOISTED INTO A LOOP PREHEADER, DECLARATION ORDER FIXES THE REGISTER NUMBERS AND ASSIGNMENT ORDER FIXES THE EMISSION ORDER - AND THE TWO CAN BE SET INDEPENDENTLY BY SPLITTING THE DECLARATION FROM THE INITIALISER. With combined declarators (`f64 a = A; f64 b = B;`) the two orders are welded together, so a target whose register numbering and load order DISAGREE is unreachable by reordering declarations: swapping them moves both at once and simply trades one set of differing rows for another. The reachable form is C89-plain - declare the group in the order that produces the target's register numbering, then assign them in the order that produces the target's emission sequence. DIAGNOSTIC that tells you this is the residual rather than a recolor: the differing rows are loads of DIFFERENT symbols into swapped registers while every USE downstream already agrees. That pattern is a permutation, not a renaming, and it is worth separating carefully because the two look identical to a positional register-field diff. TWO CONSEQUENCES WORTH THE RECORD. (1) regnorm will label such rows RENAMING even though their RELOCATION PAYLOADS differ, and can therefore report CLEAN-RENAMING for a function that still carries genuinely non-register words; webfrank_audit is the honest arbiter here and fails closed on exactly this (it rejected with a consistent-renaming violation at the first downstream USE, not at the swapped loads themselves). When regnorm says CLEAN-RENAMING, still read the aligned view for differing relocations before believing the label. (2) Because these rows can never be WebFrank-rulable (a relocation-payload difference is outside the tool's mandate), closing them in source is the entire admission price for the recolor path - a direct instance of claim.law.closing-the-last-non-register-word-unlocks-a-full-recolor-rule, here costing two words to convert a 1047-instruction REJECTED function into an ELIGIBLE one that went to real 0."
+}

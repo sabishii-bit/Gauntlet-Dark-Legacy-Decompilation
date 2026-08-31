@@ -423,7 +423,7 @@ config.libs = [
         "objects": [
             Object(NonMatching, "game/world/worldcol.c", cflags=cflags_demo),
             Object(Matching, "game/anim/anim.c", cflags=cflags_demo),
-            Object(NonMatching, "game/anim/anim_play.c", cflags=cflags_demo),
+            Object(Matching, "game/anim/anim_play.c", cflags=cflags_demo),
             Object(NonMatching, "game/anim/atree.c", cflags=cflags_demo),
             Object(NonMatching, "game/g3d/auxanim.c", cflags=cflags_demo),
             Object(NonMatching, "game/anim/action.c", cflags=cflags_demo),
