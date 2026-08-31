@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "CODEX EXACT-DRIVE lane, whole TU src/game/world/worldcol.c exclusively: CTriListCollide is 175 instructions, 97.23%, real 20 STRUCTURAL after a prior coordinate/order pass. Exact real-0 required; screen accepted history and current full law corpus, then pursue only genuinely new target-backed axes. No headers/config/postprocessor edits; portable C/C++ only; parallel fleets pick other TUs."
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:CTriListCollide",
+  "id": "work_claim.codex-exact-ctrilist.20260831.v1",
+  "kind": "work_claim",
+  "owner": "codex-ctrilist-exact-worker",
+  "recorded_at": "2026-08-31T05:29:04Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

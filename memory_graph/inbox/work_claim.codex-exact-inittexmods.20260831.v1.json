@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "CODEX EXACT-DRIVE lane, whole TU src/game/anim/atree.c exclusively: InitTexMods is 27 instructions, 97.78%, real 2 STRUCTURAL after a prior portable branch-closure pass. Exact real-0 required; screen the accepted attempt and current full law corpus, then revisit only with genuinely new target-backed axes. No headers/config/postprocessor edits; portable C/C++ only; parallel fleets pick other TUs."
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:InitTexMods",
+  "id": "work_claim.codex-exact-inittexmods.20260831.v1",
+  "kind": "work_claim",
+  "owner": "codex-inittexmods-exact-worker",
+  "recorded_at": "2026-08-31T05:28:54Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
