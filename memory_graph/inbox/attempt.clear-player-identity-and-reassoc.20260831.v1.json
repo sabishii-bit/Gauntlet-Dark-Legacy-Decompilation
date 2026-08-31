@@ -1,0 +1,23 @@
+{
+  "attempted_axis": "Exact closure of the 10-diff residual in the trailing stat-clear loop: (A) add operand order (target add r3,r31,r30 = p+stat_offset, ours add r3,r30,r31) fixed by pointer re-association, then (B) the crossed callee-saved GPR webs (target player_index=r29 / character=r28, ours reversed) fixed by substituting the function's already-declared dead cls local for the freshly-declared inner-block character local",
+  "attributes": {
+    "axis_log": "1 pointer re-association of the four PF writes: IMPROVED 10->8, both add sites fixed. 2 player_index declaration moved from function scope into the inner block, declared first: REGRESSED 8->16 - inner-block scope raises a variable's colour, which is the wrong direction here. 3 character hoisted to function scope with the read left as a statement inside the block: NEUTRAL 8. 4 read-order swap (character read before player_index): NEUTRAL 8. 5 register storage class on all three block locals: NEUTRAL 8. Axes 3/4/5 are three independent neutral results, so declaration order, scope alone, and storage class are dead for this crossing. 6 substituting the existing dead cls local for the fresh character local: EXACT real 0. The distinguishing factor versus axis 3 is the SUBSTITUTION of an already-declared local, not the scope change.",
+    "law_screen": "claim.law.direct-global-member-flips-index-base-association.20260831.v1 screened and APPLIED in refined form: it governs base+index+K canonicalization, and the same choice here controls the ADD OPERAND ORDER - respelling PF(p, 0xA98 + stat_offset, f32) as PF((u8*)p + stat_offset, 0xA98, f32) moved real 10->8 by flipping add r3,r30,r31 to add r3,r31,r30 at both sites, with the 2712/2716/2720/2724 displacements and the instruction count unchanged. Recorded as claim.law.pointer-reassociation-controls-add-operand-order.20260831.v1. claim.law.cached-base-alias-defeats-rematerialized-index-base.20260831.v1 screened - target recomputes the add per iteration off one base, which the applied form preserves; no cached element alias was introduced. claim.law.sizeof-defeats-loop-stride-induction.20260831.v1 screened: the 0x18 stride was left as a bare constant, NOT respelled as sizeof, per that law. claim.law.multifield-alias-defeats-indexed-addressing.20260830.v2 screened - four nearby fields are written off one base, so no per-iteration typed alias was introduced. claim.law.narrow-local-reextend-on-read.20260830.v1 screened, no narrow types involved. claim.law.point-of-use-single-use-pointer-delay.20260830.v1 screened, not applicable. New coloring mechanism recorded separately as claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1.",
+    "laws_applied": [
+      "claim.law.pointer-reassociation-controls-add-operand-order.20260831.v1",
+      "claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1"
+    ],
+    "residual": "NONE - byte-exact. fndiff --clean reports MATCH, 0 real diff lines (6 pool-name normalization lines suppressed).",
+    "scope": "src/game/game/player.c::clear_player, trailing block only (lines ~3479-3496). Two changes: the four PF stat-clear writes re-associated onto (u8*)p + stat_offset with 0xA98/0xA9C/0xAA0/0xAA4 as displacements; and the inner-block s32 character local deleted in favour of reusing the outer cls local (dead since p->character = p->char_type = cls a few lines earlier), so check_player_atts(p, cls, NULL). No header edits. Semantics identical: cls is reassigned from p->character at the same point character was, and the read must stay because the loop's LoadPlyrData calls may modify the field.",
+    "verification": "python tools/gdl/probe.py game/game/player clear_player: BASELINE real 10 -> IMPROVED 8 (re-association) -> IMPROVED 0 (cls reuse), insns 125/125 throughout, frame 0x38 unchanged. fndiff --clean = MATCH. defake_gate.py check game/game/player = GATE OK (1 improved, 0 regressed). Full ninja -j2: build/GUNE5D/main.dol: OK. Project matched functions 2603 -> 2604 in the same step. git diff --check clean. Commit b4d28b63d."
+  },
+  "function": "function:clear_player",
+  "id": "attempt.clear-player-identity-and-reassoc.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:33:16Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.clear_player.20260829.v1",
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/player.c::check_player_atts (worktree GDL-Claude-ExactPlayer, work_claim.exact-player-family.20260831.v1, attempt.check-player-atts-volatile-second-read.20260831.v1). The function's first attribute stanza reads two f32 fields off one class record, v's base at +0x28 then cap at +0x2C, and target emits lfs f2,40(r3) at 0xa8 and lfs f3,44(r3) at 0xb0, separated by an fsubs. Full four-cell measurement on one unchanged function: volatile on BOTH reads = real 2 (the two loads are correctly ordered but the entry lis pair inverts: ours emits lis r4,lbl_80282930@ha before lis r0,17200 where target emits the int-to-double magic first); volatile on NEITHER = real 12 (lis pair CORRECT, but the +0x2C load hoists above the +0x28 load); volatile on the FIRST read only = real 12, identical to neither; volatile on the SECOND read only = real 0, BYTE-EXACT. Commit 31c649eef, ninja main.dol: OK, project matched 2602->2603.",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py; applies wherever a reconstruction needs to pin the relative order of two nearby non-aliasing loads (typically two fields of one record, or one record field and one global) that MWCC's list scheduler is free to swap, and a volatile qualifier is being considered as the pin. Companion to claim.law.independent-statement-reorder-matches-target-schedule (which covers reordering whole statements); this law covers the case where statement order is already correct and only the scheduler's freedom needs constraining.",
+    "tags": [
+      "matching",
+      "entry-schedule",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.volatile-pins-the-later-of-two-adjacent-reads.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T05:34:56Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "When target loads two nearby values in source order A then B but the reconstruction hoists B above A, the volatile qualifier belongs on B (the LATER read), never on A. Qualifying A is doubly wrong: it does not stop B hoisting above it (measured identical to no volatile at all), and it additionally acts as a scheduling barrier that reorders UNRELATED constant and address materializations across A - in the measured case inverting an entry lis pair that was otherwise already correct. Qualifying B alone is sufficient and strictly cheaper, because MWCC will not hoist a volatile load above a preceding ordinary load of the same region, while leaving every non-memory instruction around A free to schedule as target does. Practical consequence for reading a residual: a volatile that is currently 'working' on the earlier read is a trap worth re-measuring, because it can be simultaneously buying the correct load order and paying for it with a schedule inversion somewhere else in the same block - the two costs net out to a small nonzero real that looks like an irreducible allocator tie. The diagnostic that exposes this is to REMOVE the volatile entirely and read the resulting --clean diff: if the diff moves to a different, disjoint set of instructions rather than growing around the same ones, the volatile is masking rather than fixing, and the correct placement is on the other read. Do not generalize this to a pair where the earlier access is a STORE; only load/load pairs were measured."
+}

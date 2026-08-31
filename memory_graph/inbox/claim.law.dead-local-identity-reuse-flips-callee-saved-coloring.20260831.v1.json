@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/player.c::clear_player (worktree GDL-Claude-ExactPlayer, work_claim.exact-player-family.20260831.v1, attempt.clear-player-identity-and-reassoc.20260831.v1). Two symmetric callee-saved webs were crossed: target loads p->index into r29 and p->character into r28, the reconstruction did the reverse, costing 8 real lines across three sites (addi r3,rX,0 feeding LoadPlyrData in the loop and addi r4,rX,0 feeding check_player_atts after it). Both values had near-identical live ranges and both inherited a just-freed r29 that had held a zero web. Three independent neutral results killed the ordinary levers: character hoisted to function scope (NEUTRAL), read-order swap so character is read first (NEUTRAL), register storage class on all three block locals (NEUTRAL); and moving player_index INTO the inner block REGRESSED 8->16. Deleting the freshly-declared inner-block `s32 character` and reusing the function's outer `cls` local - already declared, already dead since p->character = p->char_type = cls a few lines earlier - closed the function byte-exact at real 0. Commit b4d28b63d, ninja main.dol: OK, project matched 2603->2604.",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py; applies to a REGISTER_ONLY residual that has been reduced to two callee-saved webs holding each other's register, where the two values have comparable live ranges and the ordinary levers (declaration order, declaration scope, storage class, read order) have each measured neutral. Boundary cases are recorded below - this is not a universal lever.",
+    "tags": [
+      "matching",
+      "register-web",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T05:35:01Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "When two callee-saved webs hold each other's register and declaration order, scope, storage class and read order have all measured neutral, the remaining lever is VARIABLE IDENTITY: substituting an existing, already-declared, currently-dead local for the freshly-declared one flips the coloring even though the value, the live range, the statement position and the emitted instruction sequence are all unchanged. This is not the same as scope: moving the fresh local out of its inner block to function scope measured NEUTRAL, and moving the OTHER variable into the inner block measured a REGRESSION - only the substitution of an already-declared local closed it. Two boundary cases were measured in the same session and both were NEUTRAL, so the lever must be tried, not assumed. (1) Giving a variable a prior dead live range without changing its identity does NOT reproduce the effect: in load_player_geo, assigning cls from p->character in an earlier block so that it carried a dead range before its real definition left the r26/r27 crossing untouched. (2) Splitting one shared local into two per-inline-site locals - the shape true inlining would actually produce - also did not move do_heal_players' f30/f31 FPR crossing. Read the two results together as: MWCC's allocator is sensitive to WHICH declared symbol carries a value, not to how many dead ranges that symbol has nor to how many symbols the source spends on one role. When a residual is a two-web swap, enumerate the function's already-declared locals that are dead at the definition point and try each as the carrier before parking; when none exists, the axis is genuinely unavailable and the residual is a candidate for the postprocessor path rather than a source fix."
+}
