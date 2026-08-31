@@ -208,26 +208,18 @@ void G3DReadControlPadStates(void)
         bit = PAD_CHAN0_BIT >> i;
         err = gPadManager.status[i].err;
 
-        if (err == PAD_ERR_NO_CONTROLLER) {
-            goto add_maskA;
-        } else if (err < PAD_ERR_NO_CONTROLLER) {
-            if (err >= PAD_ERR_TRANSFER) {
-                goto add;
-            }
-            goto skip;
-        } else {
-            if (err >= 1) {
-                goto skip;
-            }
-            goto add;
+        switch (err) {
+        case PAD_ERR_NO_CONTROLLER:
+            maskA |= bit;
+            /* fallthrough */
+        case PAD_ERR_TRANSFER:
+        case PAD_ERR_NOT_READY:
+        case PAD_ERR_NONE:
+            maskB |= bit;
+            gPadManager.map[gPadManager.count] = i;
+            gPadManager.count++;
+            break;
         }
-    add_maskA:
-        maskA |= bit;
-    add:
-        maskB |= bit;
-        gPadManager.map[gPadManager.count] = i;
-        gPadManager.count++;
-    skip:;
     }
 }
 #pragma opt_propagation reset
