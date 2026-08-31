@@ -2282,7 +2282,7 @@ store_motion_state:
                         MBOX_FindTexture(strings + 72, NULL);
                     break;
                 case 36:
-                    weight = lbl_80347C6C;
+                    weight = 5.0f;
                     hit[0] = PF(gBossObj, 0x4C, f32);
                     effectRadius = weight;
                     hit[1] = PF(gBossObj, 0x50, f32);
@@ -2295,9 +2295,9 @@ store_motion_state:
                     hit[1] = PF(gBossObj, 0x41C, f32);
                     hit[2] = PF(gBossObj, 0x420, f32);
                     effect = StartFXSub(93, hit, 0, 0x1000000,
-                                        lbl_80347C6C);
+                                        0.0f);
                     if (effect >= 0) {
-                        SfxSetMorph(lbl_80347C6C, effect, 90, 0);
+                        SfxSetMorph(5.0f, effect, 90, 0);
                     }
                     damageScale =
                         (f32)(lbl_80347B58 * PF(gBossObj, 0x4B0, f32));
@@ -2312,7 +2312,7 @@ store_motion_state:
                     hit[1] = (f32)(hit[1] - lbl_80347C78);
                     hit[0] = (f32)(hit[0] - lbl_80347C80);
                     effect = StartFXSub(90, hit, 0, 0x80000,
-                                        lbl_80347C6C);
+                                        0.0f);
                     if (effect >= 0) {
                         SfxSetMorph(lbl_80347C88, effect, 91, 0);
                         MBTreeSetAmbientAdd(
@@ -2339,7 +2339,7 @@ store_motion_state:
                     hit[2] = (f32)(hit[2] + lbl_80347BC0);
                     hit[1] = (f32)(hit[1] - lbl_80347C78);
                     effect = StartFXSub(93, hit, 0, 0x880,
-                                        lbl_80347C6C);
+                                        0.0f);
                     if (effect >= 0) {
                         SfxSetMorph(lbl_80347C88, effect, 90, 0);
                         lbl_80344890 = effect;
@@ -2357,7 +2357,7 @@ store_motion_state:
                     hit[2] = (f32)(hit[2] + lbl_80347B28);
                     hit[1] = (f32)(hit[1] + lbl_80347C98);
                     effect = StartFXSub(93, hit, 0, 0x880,
-                                        lbl_80347C6C);
+                                        0.0f);
                     if (effect >= 0) {
                         SfxSetMorph(lbl_80347C88, effect, 90, 0);
                         lbl_80344890 = effect;
@@ -2371,9 +2371,9 @@ store_motion_state:
                 case 37:
                     hit[0] = 0.0f;
                     hit[1] = 0.0f;
-                    hit[2] = lbl_80347C6C;
+                    hit[2] = 5.0f;
                     effect = StartFXSub(93, hit, 0, 0x8000880,
-                                        lbl_80347C6C);
+                                        0.0f);
                     if (effect >= 0) {
                         SfxSetParent(effect, p->node);
                         SfxSetMorph(lbl_80347BF8, effect, 90, 0);
@@ -2381,11 +2381,11 @@ store_motion_state:
                     MBTreeSetColor(PF(gBossObj, 0x6C, void*), 0xFF40FF40, 1);
                     MBTreeSetFlags(PF(gBossObj, 0x6C, void*), 8, 1);
                     PF(PF(gBossObj, 0x6C, void*), 0x40, f32) =
-                        lbl_80347CA4;
+                        0.800000011920929f;
                     PF(PF(gBossObj, 0x6C, void*), 0x44, f32) =
-                        lbl_80347CA4;
+                        0.800000011920929f;
                     PF(PF(gBossObj, 0x6C, void*), 0x48, f32) =
-                        lbl_80347CA4;
+                        0.800000011920929f;
                     damageScale =
                         (f32)(lbl_80347BE0 * PF(gBossObj, 0x4B0, f32));
                     CritterDamage(gBossObj, p->index, 0, 0, NULL, 0,
