@@ -145,6 +145,18 @@ def parse(objfile: Path):
     out = subprocess.run(
         [str(OBJDUMP), "-dr", str(objfile)], capture_output=True, text=True
     ).stdout
+    # First pass: which stripped names are UNIQUE? dtk-suffixed names strip
+    # to their base for pairing, but two functions whose bases collide
+    # (dtor_800DB21C / dtor_800DBB94 -> "dtor") must KEEP their suffixes —
+    # collapsing them silently returned one function's rows for the other,
+    # and a worker's first baseline was the wrong function's.
+    raw_names = re.findall(r"^[0-9a-f]+ <(.+)>:$", out, re.M)
+    strip_counts: dict[str, int] = {}
+    for name in raw_names:
+        if not name.startswith("fn_"):
+            stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+            strip_counts[stripped] = strip_counts.get(stripped, 0) + 1
+
     funcs = {}
     cur = None
     cur_start = 0
@@ -154,7 +166,9 @@ def parse(objfile: Path):
             cur_start = int(m.group(1), 16)
             cur = m.group(2)
             if not cur.startswith("fn_"):
-                cur = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
+                stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
+                if strip_counts.get(stripped, 0) <= 1:
+                    cur = stripped
             funcs[cur] = []
             continue
         if cur is None:
@@ -212,6 +226,12 @@ def raw_signature(objfile: Path):
     out = subprocess.run(
         [str(OBJDUMP), "-dr", str(objfile)], capture_output=True, text=True
     ).stdout
+    raw_names = re.findall(r"^[0-9a-f]+ <(.+)>:$", out, re.M)
+    strip_counts: dict[str, int] = {}
+    for name in raw_names:
+        if not name.startswith("fn_"):
+            stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+            strip_counts[stripped] = strip_counts.get(stripped, 0) + 1
     hashes = {}
     cur = None
     cur_start = 0
@@ -224,7 +244,9 @@ def raw_signature(objfile: Path):
             cur = m.group(2)
             cur_start = int(m.group(1), 16)
             if not cur.startswith("fn_"):
-                cur = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
+                stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
+                if strip_counts.get(stripped, 0) <= 1:
+                    cur = stripped
             hasher = hashlib.sha1()
             continue
         if cur is None:

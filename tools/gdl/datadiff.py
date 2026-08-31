@@ -311,11 +311,86 @@ def check_unit(unit, claims, run_deadstrip=True):
         tailpad = all(c == 0 for c in tail)
         if not tailpad:
             secbad += 1
+        elif tail:
+            # Zero claim slack is a FAILURE, not an advisory: objdiff credits
+            # matched_data only for sections at 100%, so a claim that swallows
+            # even 4 bytes of link alignment padding zeroes the whole
+            # section's credit while every byte "compares OK" (two TUs sat
+            # flip-blocked on exactly this — claim.law.splits-claim-can-
+            # swallow-link-alignment-padding). Shrink the claim to the
+            # object's true extent.
+            secbad += 1
         status = "OK" if not secbad else "MISMATCH"
         extra = f", {skipped} reloc words skipped" if skipped else ""
-        slack = f", 0x{len(orig)-n:X} claim slack{'(zero)' if tailpad else '(NONZERO!)'}" if len(orig) > n else ""
+        slack = (f", 0x{len(orig)-n:X} claim slack"
+                 f"{'(zero — SHRINK THE CLAIM, this zeroes matched_data)' if tailpad else '(NONZERO!)'}"
+                 if len(orig) > n else "")
         print(f"[{unit}] {sec}: {status} 0x{n:X} bytes compared{extra}{slack}")
         bad += secbad
+    return bad
+
+
+def section_table(unit_key):
+    """--sections: ours-vs-target per-section size + match table.
+
+    Compares our built object's data-class sections directly against the
+    TARGET split object — the comparison the flip gate actually runs.
+    Catches what the DOL-range byte check is structurally blind to: our
+    object emitting MORE bytes than the target object (the DOL range
+    compares fine; the objects differ), and surfaces the per-section
+    match state that objdiff's all-or-nothing matched_data hides.
+    """
+    base = unit_key.rsplit(".", 1)[0]
+    ours_o = REPO / "build" / VERSION / "src" / f"{base}.o"
+    tgt_o = REPO / "build" / VERSION / "obj" / f"{base}.o"
+    missing = [str(p) for p in (ours_o, tgt_o) if not p.exists()]
+    if missing:
+        print(f"[{unit_key}] SKIP --sections: missing {missing}")
+        return 1
+
+    def sections(obj):
+        out = subprocess.run([str(OBJDUMP), "-h", str(obj)],
+                             capture_output=True, text=True).stdout
+        table = {}
+        for m in re.finditer(
+                r"^\s*\d+\s+(\.\w[\w.]*)\s+([0-9a-f]{8})", out, re.M):
+            table[m.group(1)] = int(m.group(2), 16)
+        return table
+
+    def content(obj, sec):
+        out = subprocess.run([str(OBJDUMP), "-s", "-j", sec, str(obj)],
+                             capture_output=True, text=True).stdout
+        data = bytearray()
+        for line in out.splitlines():
+            m = re.match(r"^ [0-9a-f]+ ((?:[0-9a-f]{2,8} ?){1,4}) ", line)
+            if m:
+                data += bytes.fromhex(m.group(1).replace(" ", ""))
+        return bytes(data)
+
+    ts, os_ = sections(tgt_o), sections(ours_o)
+    bad = 0
+    for sec in DATA_SECTIONS + ("extab", "extabindex",
+                                ".bss", ".sbss", ".sbss2"):
+        tlen, olen = ts.get(sec), os_.get(sec)
+        if tlen is None and olen is None:
+            continue
+        if tlen != olen:
+            print(f"[{unit_key}] {sec}: SIZE target 0x{tlen or 0:X} vs"
+                  f" ours 0x{olen or 0:X}  <- FLIP BLOCKER")
+            bad += 1
+            continue
+        if sec.startswith((".bss", ".sbss")):
+            print(f"[{unit_key}] {sec}: size 0x{tlen:X} equal (bss)")
+            continue
+        tb, ob = content(tgt_o, sec), content(ours_o, sec)
+        same = sum(1 for a, b in zip(tb, ob) if a == b)
+        pct = 100.0 * same / len(tb) if tb else 100.0
+        mark = "" if pct == 100.0 else "  <- FLIP BLOCKER (reloc words may"\
+            " account for some — cross-check the byte mode)"
+        print(f"[{unit_key}] {sec}: size 0x{tlen:X}, {pct:.1f}% bytes"
+              f" equal{mark}")
+        if pct != 100.0:
+            bad += 1
     return bad
 
 
@@ -323,7 +398,9 @@ def main():
     args = sys.argv[1:]
     only_deadstrip = "--deadstrip" in args
     run_deadstrip = "--no-deadstrip" not in args
-    args = [a for a in args if a not in ("--deadstrip", "--no-deadstrip")]
+    only_sections = "--sections" in args
+    args = [a for a in args
+            if a not in ("--deadstrip", "--no-deadstrip", "--sections")]
     if not args:
         print(__doc__)
         return 1
@@ -361,6 +438,9 @@ def main():
                 print(f"[{key}] SKIP: object not built ({obj})")
                 continue
             deadstrip_check(key, obj, quiet_ok=False)
+            continue
+        if only_sections:
+            bad += section_table(key)
             continue
         bad += check_unit(key, units[key], run_deadstrip=run_deadstrip)
     return 1 if bad else 0
