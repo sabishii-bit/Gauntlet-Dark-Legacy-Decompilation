@@ -2899,7 +2899,7 @@ void ProcessEffects(void)
 
         /* Direct player hits.  Expanding effects scan every active player;
          * point effects use the separate swept-missile state machine. */
-        if ((e->flags & 1) && hit == 0) {
+        if (e->flags & 1) {
             if (mode != 0) {
                 if (radius > 0.0 && !(e->flags & 0x200)) {
                     s32 damagetype = e->damagetype;
