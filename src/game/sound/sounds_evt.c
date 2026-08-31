@@ -1,5 +1,8 @@
 #include "types.h"
 #include "game/leveldata.h"
+#include "game/player.h"
+
+#define offsetof(type, member) ((u32)&(((type*)0)->member))
 
 /* struct audio_data -- the per-level audio descriptor level_data.audio points
  * at.  leveldata.h only forward-declares it, so the body is completed here as
@@ -116,7 +119,7 @@ extern s32 lbl_80124324[]; /* sound-id lookup table */
 extern s32 lbl_80124330[]; /* announcer-voice id rotation table B */
 extern s32 lbl_80124340[]; /* announcer-voice id rotation table A */
 extern s32 lbl_8028B610[][2]; /* [idx] -> {id1, id2} event-follow pairs */
-extern u8 gPlayers[];  /* player array, stride 0x335C (13148); pos at +84 */
+extern Player gPlayers[4]; /* 0x80275AE0 player records, stride 0x335C */
 extern s32 sVoiceRotIdxA;  /* 0..3 announcer-voice rotation counter */
 extern s32 sVoiceRotIdxB;  /* 0..3 announcer-voice rotation counter */
 extern s32 good_wiz_state; /* <=2 => attract/menu path (announcer allowed) */
@@ -153,7 +156,7 @@ extern f32 lbl_80348498;
 #pragma opt_propagation off
 int AudioFindPlayerSlot(int pidx, int class_, int type)
 {
-    u8* slot = &gPlayers[pidx * 13148] + 304;
+    u8* slot = (u8*)gPlayers[pidx].powerup;
     f32 value;
     f32 threshold;
     int i;
@@ -565,12 +568,12 @@ void AudioBuzzer(void)
 
 void fn_8009D4B0(int pidx)
 {
-    sndFxPlay3D(80, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(80, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009D4F0(int pidx)
 {
-    sndFxPlay3D(89, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(89, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009D530(void)
@@ -580,12 +583,12 @@ void fn_8009D530(void)
 
 void fn_8009D560(int pidx)
 {
-    sndFxPlay3D(87, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(87, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009D5A0(int pidx)
 {
-    sndFxPlay3D(99, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(99, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009D5E0(int pos)
@@ -1208,37 +1211,37 @@ void fn_8009EF4C(int pos)
 
 void AudioPlayerXray(int pidx)
 {
-    sndFxPlay3D(81, (int)(&gPlayers[pidx * 13148] + 84), 127, 60);
+    sndFxPlay3D(81, (int)gPlayers[pidx].col_pos, 127, 60);
 }
 
 void fn_8009F158(int pidx)
 {
-    sndFxPlay3D(82, (int)(&gPlayers[pidx * 13148] + 84), 224, 60);
+    sndFxPlay3D(82, (int)gPlayers[pidx].col_pos, 224, 60);
 }
 
 void fn_8009F390(int pidx)
 {
-    sndFxPlay3D(5, (int)(&gPlayers[pidx * 13148] + 100), 127, 19);
+    sndFxPlay3D(5, (int)gPlayers[pidx].effectpos, 127, 19);
 }
 
 void fn_8009F3D0(int pidx)
 {
-    sndFxPlay3D(93, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(93, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009F410(int pidx)
 {
-    sndFxPlay3D(92, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(92, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009F450(int pidx)
 {
-    sndFxPlay3D(91, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(91, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009F490(int pidx)
 {
-    sndFxPlay3D(90, (int)(&gPlayers[pidx * 13148] + 84), 224, 40);
+    sndFxPlay3D(90, (int)gPlayers[pidx].col_pos, 224, 40);
 }
 
 void fn_8009EF7C(int a, int pos)
@@ -1253,7 +1256,7 @@ void fn_8009EFCC(int pidx, int a, int b)
 {
     int id = lbl_801239DC[a][b];
 
-    sndFxPlay3DAtten(id, (int)(&gPlayers[pidx * 13148] + 68), 127, 125);
+    sndFxPlay3DAtten(id, (int)gPlayers[pidx].pos, 127, 125);
 }
 
 void AudioPotion(int a, int pos, int c)
@@ -1272,26 +1275,26 @@ void fn_8009F340(int pos)
 
 void AudioPlayerDies(int pidx)
 {
-    u8* player = &gPlayers[pidx * 13148];
+    Player* player = &gPlayers[pidx];
 
-    if (*(int*)(player + 232) == 1) {
+    if (player->state == 1) {
         int id;
 
-        sndFxPlay3D(1, (int)(player + 68), 127, 8);
-        id = lbl_8012380C[*(int*)(player + 8)];
-        if (*(int*)(player + 292) & 0x400) {
+        sndFxPlay3D(1, (int)player->pos, 127, 8);
+        id = lbl_8012380C[player->char_type];
+        if (player->flags & 0x400) {
             id = 98;
         }
-        sndFxPlay3D(id, (int)(player + 68), 224, 7);
+        sndFxPlay3D(id, (int)player->pos, 224, 7);
     }
 }
 
 void AudioPlayerHit(int pidx, int a)
 {
-    u8* player = &gPlayers[pidx * 13148];
+    Player* player = &gPlayers[pidx];
 
-    if (*(int*)(player + 232) == 1) {
-        sndFxPlay3D(lbl_801237BC[a][pidx], (int)(player + 68), 127, 74);
+    if (player->state == 1) {
+        sndFxPlay3D(lbl_801237BC[a][pidx], (int)player->pos, 127, 74);
     }
 }
 
@@ -1467,9 +1470,14 @@ void AudioPlayerTurbo(int pidx, int sel, int arg3)
     int slot;
     int flags;
 
-    flags = *(int*)(gPlayers + pidx * 13148 + 292);
-    f8 = *(int*)(gPlayers + pidx * 13148 + 8);
-    slot = (int)(gPlayers + pidx * 13148 + 68);
+    /* Three nearby fields off one index-computed base: a typed
+     * `gPlayers[pidx].field` form regressed this function (real 0 -> 14,
+     * schedule-class) per claim.law.multifield-alias-defeats-indexed-
+     * addressing.  The law's verified counter-form is kept here -- the raw
+     * single additive expression with offsetof()-spelled displacements. */
+    flags = *(int*)((u8*)gPlayers + pidx * 13148 + offsetof(Player, flags));
+    f8 = *(int*)((u8*)gPlayers + pidx * 13148 + offsetof(Player, char_type));
+    slot = (int)((u8*)gPlayers + pidx * 13148 + offsetof(Player, pos));
 
     if (flags & 0x400) {
         sndFxPlay3D(95, slot, 224, 16);
@@ -1496,26 +1504,26 @@ void AudioPlayerEatFood(int pidx, int foodType)
         s32 snd_eat[8][4];
         s32 snd_eat_default[1];
     } AudioFoodSoundIds;
-    u8* player = &gPlayers[pidx * 13148];
-    u8* p = player;
+    Player* player = &gPlayers[pidx];
+    Player* p = player;
     AudioFoodSoundIds* t = (AudioFoodSoundIds*)lbl_801232C8;
 
     if (RandInt(4) == 0) {
-        if (!(*(int*)(p + 292) & 0x400)) {
-            if (t->snd_eat[*(int*)(p + 8)][foodType] >= 0) {
-                int pan = AudioAng((int)(p + 68));
+        if (!(p->flags & 0x400)) {
+            if (t->snd_eat[p->char_type][foodType] >= 0) {
+                int pan = AudioAng((int)p->pos);
 
-                sndFxQueAdd(t->snd_eat[*(int*)(p + 8)][foodType],
+                sndFxQueAdd(t->snd_eat[p->char_type][foodType],
                             -1.0f, 1.0f, 192, pan, 66);
             }
         }
     } else {
         int id;
 
-        if ((id = t->snd_eat_default[*(int*)(p + 8)]) >= 0) {
-            int pan = AudioAng((int)(p + 68));
+        if ((id = t->snd_eat_default[p->char_type]) >= 0) {
+            int pan = AudioAng((int)p->pos);
 
-            if (*(int*)(p + 292) & 0x400) {
+            if (p->flags & 0x400) {
                 id = 97;
             }
             sndFxQueAdd(id, -1.0f, 1.0f, 192, pan, 66);
@@ -1525,11 +1533,18 @@ void AudioPlayerEatFood(int pidx, int foodType)
 
 void AudioPlayerEatSFX(int pidx)
 {
-    int f284;
+    /* NOTE: this function's compiled body is pinned by a WebFrank rule
+     * (config/GUNE5D/webfrank.json), so its source SHAPE must not change --
+     * the byte-offset walk below is deliberately left in its original form
+     * rather than converted to Player member access.  Only the base
+     * derivation is respelled for the retyped gPlayers declaration;
+     * `(u8*)gPlayers + playerOffset` is the same arithmetic the previous
+     * `&gPlayers[playerOffset]` performed when gPlayers was `u8[]`. */
     int playerOffset = pidx * 13148;
+    int f284;
     u8* player;
 
-    player = &gPlayers[playerOffset];
+    player = (u8*)gPlayers + playerOffset;
     f284 = *(int*)(player + 284);
 
     if (f284 & 0x580000) {
@@ -1549,7 +1564,7 @@ void AudioPlayerEatSFX(int pidx)
             sndFxPlay3DAtten(67, (int)(player + 68), 127, 40);
             break;
         default:
-            player = &gPlayers[playerOffset];
+            player = (u8*)gPlayers + playerOffset;
             sndFxPlay3DAtten(lbl_801236A4[*(int*)(player + 8)],
                             (int)(player + 68), 127, 42);
             break;
@@ -1565,26 +1580,26 @@ void AudioPlayerEatSFX(int pidx)
 
 void fn_8009F748(int pidx, int sourcePlayer)
 {
-    u8* player = &gPlayers[pidx * 13148];
+    Player* player = &gPlayers[pidx];
 
-    if (!(*(int*)(player + 292) & 0x400)) {
-        if (lbl_80123644[*(int*)(player + 8)] >= 0) {
-            int pan = AudioAng((int)(player + 68));
+    if (!(player->flags & 0x400)) {
+        if (lbl_80123644[player->char_type] >= 0) {
+            int pan = AudioAng((int)player->pos);
 
-            sndFxQueAdd(lbl_80123644[*(int*)(player + 8)], -1.0f, 1.0f, 192, pan, 110);
+            sndFxQueAdd(lbl_80123644[player->char_type], -1.0f, 1.0f, 192, pan, 110);
         }
     }
 }
 
 void AudioPlayerSeverePain(int pidx)
 {
-    u8* player = &gPlayers[pidx * 13148];
+    Player* player = &gPlayers[pidx];
     int id;
 
-    if ((id = lbl_80123624[*(int*)(player + 8)]) >= 0) {
-        int pan = AudioAng((int)(player + 68));
+    if ((id = lbl_80123624[player->char_type]) >= 0) {
+        int pan = AudioAng((int)player->pos);
 
-        if (*(int*)(player + 292) & 0x400) {
+        if (player->flags & 0x400) {
             id = 98;
         }
         sndFxQueAdd(id, -1.0f, 1.0f, 192, pan, 66);
@@ -1593,17 +1608,17 @@ void AudioPlayerSeverePain(int pidx)
 
 void AudioPlayerPoison(int pidx)
 {
-    u8* player = &gPlayers[pidx * 13148];
+    Player* player = &gPlayers[pidx];
 
-    if (*(int*)(player + 232) == 1) {
-        if (!(*(int*)(player + 288) & 0x10000)) {
-            int id = lbl_80123564[*(int*)(player + 8)];
+    if (player->state == 1) {
+        if (!(player->shield_flags & 0x10000)) {
+            int id = lbl_80123564[player->char_type];
 
             if (id >= 0) {
-                if (*(int*)(player + 292) & 0x400) {
+                if (player->flags & 0x400) {
                     id = 96;
                 }
-                sndFxPlay3D(id, (int)(player + 68), 224, 62);
+                sndFxPlay3D(id, (int)player->pos, 224, 62);
             }
         }
     }
@@ -1615,12 +1630,12 @@ typedef struct AudioPlayerRecord {
 
 void AudioHeartBeat(int pidx)
 {
-    u8* player = gPlayers;
+    Player* player = gPlayers;
     f32 v;
     int track = lbl_801232C8[pidx];
 
-    player += pidx * 13148;
-    v = *(f32*)(player + 7860);
+    player += pidx;
+    v = player->health;
 
     if (v <= 10.0) {
         sndFxPlayEx(0, track, 202, 9);
@@ -1635,16 +1650,16 @@ void AudioHeartBeat(int pidx)
 #pragma opt_propagation off
 void AudioPlayerPain(int pidx)
 {
-    u8* player = &gPlayers[pidx * 13148];
+    Player* player = &gPlayers[pidx];
 
-    if (*(int*)(player + 232) == 1) {
-        int pan = AudioAng((int)(player + 68));
+    if (player->state == 1) {
+        int pan = AudioAng((int)player->pos);
         int r = RandInt(4);
         u32 randomOffset = (u32)r << 2;
         int id = *(int*)((u8*)lbl_801234E4 +
-                         (*(int*)(player + 8) << 4) + randomOffset);
+                         (player->char_type << 4) + randomOffset);
 
-        if (*(int*)(player + 292) & 0x400) {
+        if (player->flags & 0x400) {
             id = 96;
         }
         sndFxQueAdd(id, -1.0f, 1.0f, 224, pan, 100);
@@ -1694,8 +1709,7 @@ void fn_8009FFF4(int sel, int pidx)
 
 void AudioTurboDefense(int pidx)
 {
-    int offset = pidx * 13148;
-    int f292 = *(int*)((u32)gPlayers + offset + 292);
+    int f292 = gPlayers[pidx].flags;
     int id;
     int pos;
 
@@ -1708,7 +1722,7 @@ void AudioTurboDefense(int pidx)
     } else {
         return;
     }
-    pos = (u32)gPlayers + offset + 84;
+    pos = (u32)gPlayers[pidx].col_pos;
     sndFxPlay3D(id, pos, 224, 40);
 }
 
