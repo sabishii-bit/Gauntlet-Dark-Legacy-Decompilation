@@ -486,13 +486,11 @@ s32 StringTextWidthSub(f32 scale, StrList* p, s32 msg, s32 idx)
     f32 lh = (f32)(scale * (f32)e->scale);
     u32 color = p->fontDesc[e->font].color;
     s32 maxw = 0;
-    s32 line;
-    s32 nlines;
-    s32 lineMax;
     void* buf2[20];
     void* buf1[18];
 
     if (idx >= 0) {
+        s32 nlines;
         if (idx >= e->count) {
             return 0;
         }
@@ -501,6 +499,9 @@ s32 StringTextWidthSub(f32 scale, StrList* p, s32 msg, s32 idx)
         color &= 0xff;
         maxw = TextLinesWidth((u8**)buf2, nlines, color, lh);
     } else {
+        s32 line;
+        s32 nlines;
+        s32 lineMax;
         color &= 0xff;
         for (line = 0;; line++) {
             if (line >= e->count) {
