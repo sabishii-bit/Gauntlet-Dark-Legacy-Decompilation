@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker L5, src/game/game/gamemain.c (work_claim.gamemain-literal.20260831.v1). fn_80051C78's aligned fnasm --diff showed target relocating against the NAMED labels lbl_80346820/lbl_80346830/lbl_803468B8 at 0x5c/0x64/0x6c while our object emitted ANONYMOUS pool entries @@1059/@@1060/@@1061 at the same three sites -- the 0.0f/0.5/3.0 constants of MWCC's inlined frsqrte Newton-Raphson sqrt expansion. Hypothesis: because the reconstruction spells those values as `extern` global reads, the TU never creates a pooled literal for the inline to share. TU-wide literalization of exactly those three labels (22 sites) was gated with defake_gate.py check --rebuild and FAILED: fn_800510A4 byte-identical -> real 10, fn_80051568 byte-identical -> real 36, fn_800511D0 real 78 -> 82, fn_800516F8 real 131 -> 221, init_enemy_vars real 231 -> 241. Reverted via git checkout; gate re-verified OK.",
+    "scope": "MWCC GC 1.2.5 family; applies whenever a shared .sdata2 constant is read by BOTH already-matched and still-diverging functions in one NonMatching TU, and a worker is tempted to literalize it TU-wide to make a compiler-generated inline (sqrt, division, float<->int) share the TU's own pool entry.",
+    "tags": [
+      "matching",
+      "sda-global",
+      "build-hygiene",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.tu-wide-literalization-breaks-matched-sibling-pool-relocs.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:34:16Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A .sdata2 constant read by both matched and unmatched functions in one TU must KEEP its `extern lbl_*` spelling: the matched functions' target bytes genuinely relocate against that named small-data symbol, and replacing it with a source literal moves them onto a fresh anonymous pool entry, breaking functions that were byte-identical (measured: two functions went from real 0 to real 10 and real 36 in a single 22-site edit). This is the hard, gate-enforced form of the parent law's advisory clause 'sibling functions already matching with the extern spelling must keep it'. Second, more subtle finding: when a compiler-generated INLINE (here MWCC's frsqrte-based sqrt, which needs 0.0/0.5/3.0) emits `@@NNNN` anonymous pool references where target names the TU's own lbl_* entries, that mismatch is NOT source-reachable. It is a downstream consequence of the reconstruction's extern spelling, and the only source-level fix -- literalizing TU-wide so the constants become poolable and shareable -- costs more in broken matched siblings than it recovers. Classify such sites as a pool-identity (NON_TEXT/RELOCATION-class) residual on the consuming function and leave them; do not chase them with literalization, and do not read a same-value/different-symbol operand diff as evidence that the source spelling at that site is wrong."
+}

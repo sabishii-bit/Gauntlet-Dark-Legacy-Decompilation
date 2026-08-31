@@ -552,7 +552,6 @@ void ScreenSaverUpdateWeap(s32 idx)
 {
     register s32 weaponIndex = idx;
     ScreenSaverWeapon* weapons = (ScreenSaverWeapon*)lbl_80274600;
-    ScreenSaverWeapon* weapon = &weapons[weaponIndex];
     u8* initialTable = lbl_8011D568;
     f32 matrix[12];
     volatile f32 unused[5];
@@ -563,163 +562,153 @@ void ScreenSaverUpdateWeap(s32 idx)
 
     frameStep = (f32)gClockStepTicks / lbl_80347390;
     movementStep = frameStep * lbl_80343CB8;
-    weapon->elapsed += gClockStepTicks;
-    if (weapon->elapsed < weapon->duration) {
+    weapons[weaponIndex].elapsed += gClockStepTicks;
+    if (weapons[weaponIndex].elapsed < weapons[weaponIndex].duration) {
         return;
     }
 
-    if (weapon->duration > 0) {
-        u8* table = initialTable + weaponIndex * 0xC;
-        void** node = &weapon->node;
+    if (weapons[weaponIndex].duration > 0) {
+        void** node = &weapons[weaponIndex].node;
+        u8* table;
 
         if (*node == NULL) {
             ScreenSaverStartWeap(weaponIndex);
         }
-        weapon->position[0] =
+        table = initialTable + weaponIndex * 0xC;
+        weapons[weaponIndex].position[0] =
             *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.position[0][0]));
-        weapon->position[1] =
+        weapons[weaponIndex].position[1] =
             *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.position[0][1]));
-        weapon->position[2] =
+        weapons[weaponIndex].position[2] =
             *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.position[0][2]));
-        weapon->velocity[0] =
+        weapons[weaponIndex].velocity[0] =
             *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.velocity[0][0]));
-        weapon->velocity[1] =
+        weapons[weaponIndex].velocity[1] =
             *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.velocity[0][1]));
-        weapon->velocity[2] =
+        weapons[weaponIndex].velocity[2] =
             *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.velocity[0][2]));
-        NormalVector(weapon->velocity);
-        weapon->angle = lbl_80347398;
-        weapon->collisionState = 0;
-        weapon->jitterX = (f32)((f64)lbl_80343CB8 *
+        NormalVector(weapons[weaponIndex].velocity);
+        weapons[weaponIndex].angle = lbl_80347398;
+        weapons[weaponIndex].collisionState = 0;
+        weapons[weaponIndex].jitterX = (f32)((f64)lbl_80343CB8 *
                               (lbl_803473A0 + (f64)Random(lbl_803473A8)));
-        weapon->jitterY = (f32)((f64)lbl_80343CB4 *
+        weapons[weaponIndex].jitterY = (f32)((f64)lbl_80343CB4 *
                               (lbl_803473A0 + (f64)Random(lbl_803473A8)));
-        weapon->duration = 0;
+        weapons[weaponIndex].duration = 0;
         MBTreeClearFlags((s32)*node, 2, 0);
     }
 
     {
-    f32* position = weapon->position;
-    f32* velocity = weapon->velocity;
-    f32* positionY = &weapon->position[1];
-    f32* velocityY = &weapon->velocity[1];
-    f32* positionZ = &weapon->position[2];
-    f32* velocityZ = &weapon->velocity[2];
-    f32* angleValue = &weapon->angle;
-    s32* collisionState;
-    void** node;
 
-    position[0] += movementStep * velocity[0];
-    *positionY += movementStep * *velocityY;
-    *positionZ += movementStep * *velocityZ;
-    *angleValue += -lbl_80343CB4 * frameStep;
+    weapons[weaponIndex].position[0] += movementStep * weapons[weaponIndex].velocity[0];
+    weapons[weaponIndex].position[1] += movementStep * weapons[weaponIndex].velocity[1];
+    weapons[weaponIndex].position[2] += movementStep * weapons[weaponIndex].velocity[2];
+    weapons[weaponIndex].angle += -lbl_80343CB4 * frameStep;
     {
-        f64 angle = (f64)*angleValue;
+        f64 angle = (f64)weapons[weaponIndex].angle;
 
         if (angle > lbl_803473B0) {
             angle -= lbl_803473B8;
         } else if (angle <= lbl_803473C0) {
             angle = lbl_803473B8 + angle;
         }
-        *angleValue = (f32)angle;
+        weapons[weaponIndex].angle = (f32)angle;
     }
 
-    CreateDirMatrix(matrix, velocity, NULL);
-    PitchMat3(matrix, *angleValue);
-    node = &weapon->node;
-    MulMat3(matrix, (f32*)lbl_80344EE8 + 25, (f32*)*node);
-    MulVec4Mat4(position, screenPosition,
+    CreateDirMatrix(matrix, weapons[weaponIndex].velocity, NULL);
+    PitchMat3(matrix, weapons[weaponIndex].angle);
+    MulMat3(matrix, (f32*)lbl_80344EE8 + 25, (f32*)weapons[weaponIndex].node);
+    MulVec4Mat4(weapons[weaponIndex].position, screenPosition,
                 (f32*)lbl_80344EE8 + 25);
 
-    if (*positionZ > lbl_80343CAC) {
+    if (weapons[weaponIndex].position[2] > lbl_80343CAC) {
         collision = 5;
-    } else if (*positionZ < lbl_80343CB0) {
+    } else if (weapons[weaponIndex].position[2] < lbl_80343CB0) {
         collision = 6;
     } else {
         collision = MBWorldSphereClip(screenPosition, lbl_803473C8);
     }
 
-    collisionState = &weapon->collisionState;
-    if (*collisionState > 0) {
+    if (weapons[weaponIndex].collisionState > 0) {
         f32 spread;
 
         switch (collision) {
         case 1:
-            velocity[0] =
+            weapons[weaponIndex].velocity[0] =
                 (f32)(lbl_80347388 + (f64)Random(lbl_80347370));
-            spread = lbl_80343CBC * Random(lbl_803473CC) -
-                     lbl_80343CBC;
-            *velocityY += spread;
+            spread = -lbl_80343CBC +
+                     lbl_80343CBC * Random(lbl_803473CC);
+            weapons[weaponIndex].velocity[1] += spread;
             break;
         case 2:
-            velocity[0] =
+            weapons[weaponIndex].velocity[0] =
                 -(f32)(lbl_80347388 + (f64)Random(lbl_80347370));
-            spread = lbl_80343CBC * Random(lbl_803473CC) -
-                     lbl_80343CBC;
-            *velocityY += spread;
+            spread = -lbl_80343CBC +
+                     lbl_80343CBC * Random(lbl_803473CC);
+            weapons[weaponIndex].velocity[1] += spread;
             break;
         case 3:
-            *velocityY =
+            weapons[weaponIndex].velocity[1] =
                 -(f32)(lbl_80347388 + (f64)Random(lbl_80347370));
-            spread = lbl_80343CBC * Random(lbl_803473CC) -
-                     lbl_80343CBC;
-            velocity[0] += spread;
+            spread = -lbl_80343CBC +
+                     lbl_80343CBC * Random(lbl_803473CC);
+            weapons[weaponIndex].velocity[0] += spread;
             break;
         case 4:
-            *velocityY =
+            weapons[weaponIndex].velocity[1] =
                 (f32)(lbl_80347388 + (f64)Random(lbl_80347370));
-            spread = lbl_80343CBC * Random(lbl_803473CC) -
-                     lbl_80343CBC;
-            velocity[0] += spread;
+            spread = -lbl_80343CBC +
+                     lbl_80343CBC * Random(lbl_803473CC);
+            weapons[weaponIndex].velocity[0] += spread;
             break;
         case 5:
-            *velocityZ =
+            weapons[weaponIndex].velocity[2] =
                 -(f32)(lbl_80347388 + (f64)Random(lbl_80347370));
-            if (weapon->elapsed > weapon->resetAt) {
+            if (weapons[weaponIndex].elapsed > weapons[weaponIndex].resetAt) {
                 u8* table = initialTable + weaponIndex * 0xC;
                 s32 delay;
 
-                position[0] =
+                weapons[weaponIndex].position[0] =
                     *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.position[0][0]));
-                *positionY =
+                weapons[weaponIndex].position[1] =
                     *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.position[0][1]));
-                *positionZ =
+                weapons[weaponIndex].position[2] =
                     *(f32*)(table + offsetof(PanelConfigBlob, weaponInit.position[0][2]));
-                weapon->elapsed = 0;
+                weapons[weaponIndex].elapsed = 0;
                 delay = (s32)(lbl_80347380 *
                               ((f64)lbl_80343CC0 *
                                (lbl_80347388 +
                                 (f64)Random(lbl_80347378))));
-                weapon->duration = delay + 1;
-                weapon->resetAt =
+                weapons[weaponIndex].duration = delay + 1;
+                weapons[weaponIndex].resetAt =
                     (s32)(lbl_80347380 *
                           ((f64)lbl_80343CC4 *
                            (lbl_80347388 +
                             (f64)Random(lbl_80347378))));
-                AtreeDelete(weapon->atree);
-                *node = (void*)MBRemoveNode((s32)*node, 1);
+                AtreeDelete(weapons[weaponIndex].atree);
+                weapons[weaponIndex].node = (void*)MBRemoveNode((s32)weapons[weaponIndex].node, 1);
                 return;
             }
             break;
         case 6:
-            *velocityZ =
+            weapons[weaponIndex].velocity[2] =
                 (f32)(lbl_80347388 + (f64)Random(lbl_80347370));
             break;
         }
         if (collision != 0) {
-            NormalVector(velocity);
-            *collisionState = -10;
+            NormalVector(weapons[weaponIndex].velocity);
+            weapons[weaponIndex].collisionState = -10;
         }
-    } else if (*collisionState < 0) {
-        *collisionState = gClockStepTicks;
+    } else if (weapons[weaponIndex].collisionState < 0) {
+        weapons[weaponIndex].collisionState = gClockStepTicks;
     } else if (collision == 0) {
-        *collisionState = 1;
+        weapons[weaponIndex].collisionState = 1;
     }
 
-    *(f32*)((u8*)*node + offsetof(MBObject, mat[3][0])) = screenPosition[0];
-    *(f32*)((u8*)*node + offsetof(MBObject, mat[3][1])) = screenPosition[1];
-    *(f32*)((u8*)*node + offsetof(MBObject, mat[3][2])) = screenPosition[2];
-    AnimateATree(weapon->atree, 0, 0);
+    *(f32*)((u8*)weapons[weaponIndex].node + offsetof(MBObject, mat[3][0])) = screenPosition[0];
+    *(f32*)((u8*)weapons[weaponIndex].node + offsetof(MBObject, mat[3][1])) = screenPosition[1];
+    *(f32*)((u8*)weapons[weaponIndex].node + offsetof(MBObject, mat[3][2])) = screenPosition[2];
+    AnimateATree(weapons[weaponIndex].atree, 0, 0);
     }
 }
 

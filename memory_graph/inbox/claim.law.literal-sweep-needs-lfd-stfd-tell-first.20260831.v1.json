@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker L5 extern-literal sweep over src/game/game/gamemain.c + src/game/ui/screensaver.c (work_claim.gamemain-literal.20260831.v1, worktree GDL-Claude-GamemainLit). All 22 sub-100% functions across both TUs were screened with fndiff --ops before any edit; the parent law's diagnostic tell (target-only lfd/stfd) was ABSENT everywhere except world_update (+1 lfd). Two literalizations were measured anyway: ScreenSaverUpdateWeap (13 labels, 33 sites) real 363 -> 409 with the opcode multiset BYTE-FOR-BYTE UNCHANGED before and after; world_update (12 f64 labels, 32 sites) real 168 -> 255, and bisected subsets of 6 and 3 labels reproduced an identical +1 lfs @0x13c and real 241..255. Both reverted.",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement / screening precondition for claim.law.extern-scalar-read-defeats-fp-literal-hoist.20260831.v1. Applies to any NonMatching TU whose reconstruction declares split .sdata2 pool entries as `extern f32/f64 lbl_*` and is being considered for an extern-literal sweep.",
+    "tags": [
+      "matching",
+      "sda-global",
+      "cse",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.literal-sweep-needs-lfd-stfd-tell-first.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:34:14Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "Do NOT run an extern-literal sweep on a TU without first screening each candidate function with `fndiff --ops` for the parent law's diagnostic tell: a target-only run of lfd/stfd in the opcode multiset (target hoists FP constants into a prologue block / NV FPRs / one r1 spill slot that your build lacks). The tell is what makes literalization pay; it is NOT a property of the TU declaring `extern f32/f64 lbl_*`, which is merely the precondition. Measured counter-evidence: in two whole TUs (gamemain.c 15 sub-100% fns, screensaver.c 7) the tell appeared in exactly ONE function. Where the tell is absent the extern spelling is already producing the correct load form, and literalizing changes only which pool ADDRESS the operand relocates against -- MWCC pools a source literal at its own anonymous small-data offset (@@NNNN) rather than the splitter-named lbl_* entry. The opcode multiset is then provably unchanged while `real` rises sharply (363 -> 409 on a 333-insn function; 168 -> 255 on a 566-insn one), because every touched operand becomes a diff line. Corollary for arbitration: an unchanged --ops multiset combined with a large `real` jump is the signature of a pure pool-identity (operand-only) change, not a structural one -- read the multiset before believing a literalization helped or hurt structurally. Corollary for effort: screening all functions in a TU with one --ops sweep costs one batch of fndiff calls and can retire the entire axis for that TU before a single edit."
+}

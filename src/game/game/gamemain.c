@@ -2627,7 +2627,6 @@ s32 NextAttractWave(s32 worldLevel)
     s32 worldBits;
     s32 loaded;
     WorldLevelTableNav* worldTable = (WorldLevelTableNav*)sWorldLevelTable;
-    WorldTypeNav* world;
 
     for (worldIndex = 0; worldIndex < 14; worldIndex++) {
         if (worldType == worldTable->worlds[worldIndex].worldId) {
@@ -2646,18 +2645,15 @@ s32 NextAttractWave(s32 worldLevel)
                 worldIndex = 0;
             }
             tableOffset = worldIndex * 44;
-            world = (WorldTypeNav*)((u8*)worldTable + tableOffset);
-            loaded = *(s32*)((u8*)world + 248);
-            world = (WorldTypeNav*)((u8*)world + 232);
+            loaded = worldTable->worlds[worldIndex].loaded;
         } while (loaded == 0 && worldIndex != startIndex);
 
-        level = world->nextLevel;
-        worldId = world->worldId;
-        if (level >= world->numLevels) {
+        level = worldTable->worlds[worldIndex].nextLevel;
+        worldId = worldTable->worlds[worldIndex].worldId;
+        if (level >= worldTable->worlds[worldIndex].numLevels) {
             level = 0;
         }
         worldBits = worldId << 8;
-        world = (WorldTypeNav*)&world->numLevels;
         ResolveWorldData((level & 0xFF) | worldBits);
 
         if ((gControllerButtons & 0x10) == 0) {
@@ -2666,7 +2662,7 @@ s32 NextAttractWave(s32 worldLevel)
             s32 originalLevel;
 
             originalLevel = level;
-            numLevels = *(s32*)world;
+            numLevels = worldTable->worlds[worldIndex].numLevels;
             levels = ((WorldDataNav*)gWorldData)->levels;
 
             while ((levels[level].flags2 & 2) == 0) {
@@ -2685,7 +2681,7 @@ s32 NextAttractWave(s32 worldLevel)
         worldIndex = (level & 0xFF) | worldBits;
         ResolveWorldData(worldIndex);
         level++;
-        if (level >= *(s32*)world) {
+        if (level >= *(s32*)((u8*)worldTable + tableOffset + 252)) {
             level = 0;
         }
         *(s32*)((u8*)worldTable + tableOffset + 272) = level;

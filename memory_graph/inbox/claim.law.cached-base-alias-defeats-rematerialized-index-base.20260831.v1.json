@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker L5, src/game/ui/screensaver.c::ScreenSaverUpdateWeap (work_claim.gamemain-literal.20260831.v1, commit ab424e8e5) and src/game/game/gamemain.c::NextAttractWave (commit af5d9f20d). Target ScreenSaverUpdateWeap holds r30=weapons base and r28=idx*136 live and recomputes `add rX,r30,r28` before EVERY field access, folding the field displacement into the load/store and using the update forms (lfsu/stfsu/lwzu) wherever the freshly computed address register is dead afterwards.",
+    "scope": "MWCC GC 1.2.5 family; applies to any function that accesses several fields of ONE element of an array of structs (or one record inside a table) whose target disassembly shows a repeated `add rX,rBase,rIdx` before each access. Companion / opposite-direction case to claim.law.pointer-walk-array-index-regression and claim.law.recomputed-index-array-form-safe: those govern LOOP pointers, this one governs a single element's field cluster.",
+    "tags": [
+      "matching",
+      "alias-form",
+      "index-form",
+      "register-web",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.cached-base-alias-defeats-rematerialized-index-base.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:34:22Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "When target repeats `add rX,rBase,rIdx` before each field access of one array-of-structs element, the source spells every access as the full re-indexed expression (`arr[i].field`) and holds NO cached alias. MWCC then CSEs only the index MULTIPLY (mulli, computed once) while REMATERIALIZING the add per access, and opportunistically upgrades the last access through each dead address register to an update form (lfsu/stfsu/lwzu) -- which is why target shows target-only `add`+`lfsu`/`stfsu`/`lwzu` against your `addi`+`lfs`/`stfs`/`lwz`. Any cached alias defeats this WHOLE-FUNCTION, not just at its own use sites: a single retained `T* p = &arr[i];`, a derived field pointer (`f32* velY = &p->velocity[1];`), or a byte-offset pointer chain (`w = base+off; w = w+232; w = &w->numLevels;`) gives MWCC one live combined base register that every later access then addresses off with `addi`+displacement. CRITICAL PROCEDURE: the conversion is all-or-nothing. Converting only the statements in the visible diff cluster while leaving the sibling aliases declared REGRESSES (measured: 4 accumulate statements converted alone, real 351 -> 408); removing every competing alias in the function converged it (real 363 -> 270 with instruction count going 322 -> 333 = EXACT, opcode multiset shrinking from `+14 add +4 lfsu +4 lwzu +4 stfsu` to `+2 add +2 lwzu +1 stfsu`). Convert in this order, re-probing after each: (1) the primary `T* p = &arr[i]` alias, (2) every derived field/deref alias off it, (3) retained `void**`/`s32*` handle aliases (each removal paid separately here: 304 -> 276 for the node handle, 276 -> 270 for the collisionState handle). Beware the intermediate metric conflict: after step (1) the --ops multiset improves dramatically while `real` still reads worse -- trust the multiset and finish the conversion rather than reverting. Related independent win found in the same function: `x = a*b - c` compiles to fmsubs, but target's `fneg`+`fmadds` pair comes from writing the negated term first (`x = -c + a*b`), worth 12 real diff lines over 4 sites."
+}
