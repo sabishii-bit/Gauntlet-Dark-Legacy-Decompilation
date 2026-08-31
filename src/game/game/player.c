@@ -1058,12 +1058,12 @@ static void debug_player_pos(s32 i) {
         fn_800C02F4(0x80FF80);
         get_actual_screen_pos(0, &work.actualX, (f32*)&work.y, p->col_pos);
         dbgTextFlagA = 1;
-        floor = p->floor_name;
+        floor = (char*)p->floor_name;  /* WorldObj.desc at +0 doubles as the debug string */
         if (floor != NULL &&
             (magnitude = lbl_80240E30[i].leftMagnitude)) {
             name = floor;
         } else if (p->floor_name2 != NULL) {
-            name = p->floor_name2;
+            name = (char*)p->floor_name2;
         }
         oldflags = MBSetFontFlags(0x40000);
         work.y = 330.0f;

@@ -1203,7 +1203,7 @@ void PlayerMotion(Player* p) {
     oldpos[1] = (f32)((f64)oldpos[1] + lbl_80347BD0);
     wallResult = fn_80088714(radius, p, oldpos, dpos);
     if (wallResult != 0) {
-        p->floor_name = (char*)lbl_80344B30;
+        p->floor_name = (WorldObj*)lbl_80344B30;
         PlayerMotion_FloorFX(p, (WorldObj*)lbl_80344B30, oldpos,
                              (f32*)ctxbase);
         if (anim == 137) {
@@ -4242,7 +4242,7 @@ extern f32 lbl_80347B30; /* 0.0f (sdata2) */
 extern f64 lbl_80347BE8; /* 0.01 (sdata2) */
 
 int PlayerNewFloor(PMotionCtx* m, Player* p, f32* dpos) {
-    WorldObj* mf = (WorldObj*)p->floor_name2;  /* floor-object cache; see PSpawnView.floor_obj */
+    WorldObj* mf = p->floor_name2;  /* floor-object cache; see PSpawnView.floor_obj */
     s32 result;
 
     if (mf != NULL && (mf->flags & 0xC000000) != 0 &&
@@ -4287,7 +4287,7 @@ int PlayerCheckFloor(Player* p, WorldObj* obj, f32* dpos) {
     }
 
     if (result != 0) {
-        cur = (WorldObj*)p->floor_name2;
+        cur = p->floor_name2;
     } else {
         cur = obj;
     }
@@ -4295,10 +4295,10 @@ int PlayerCheckFloor(Player* p, WorldObj* obj, f32* dpos) {
         MBNodeSetParent(p->node, lbl_80344B2C);
     }
 
-    if (obj != (WorldObj*)p->floor_name2) {
+    if (obj != p->floor_name2) {
         p->hud_flags |= 1;
     }
-    p->floor_name2 = (char*)obj;
+    p->floor_name2 = obj;
 
     if (result != 0) {
         dpos[0] = 0.0f;
@@ -4512,7 +4512,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
 int PlayerCheckMovingFloor_80088688(Player* p) {
     f32 drop = -(3.0 + (f64)p->col_height);
     if (gGameMode == 0x4010) {
-        p->floor_name2 = (char*)FloorCollide(p->col_radius, 0.0f, drop,
+        p->floor_name2 = (WorldObj*)FloorCollide(p->col_radius, 0.0f, drop,
             p->pos, NULL, 1, 0);
         p->hud_flags |= 1;
     }

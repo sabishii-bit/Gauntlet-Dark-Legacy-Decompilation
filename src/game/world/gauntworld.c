@@ -4997,9 +4997,9 @@ void fn_800606FC(void)
                     for (b = 0; b < 4; b++) {
                         Player* p = &gPlayers[b];
                         if (p->state == 1 &&
-                            (p->floor_name2 == (char*)tgt ||
+                            (p->floor_name2 == (WorldObj*)tgt ||
                              (p->floor_name2 != NULL &&
-                              *(u8**)(p->floor_name2 + 0x18) == tgt))) {
+                              *(u8**)((u8*)p->floor_name2 + 0x18) == tgt))) {
                             m |= 1 << b;
                         }
                     }
