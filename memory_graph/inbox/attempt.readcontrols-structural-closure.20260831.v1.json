@@ -1,0 +1,23 @@
+{
+  "attempted_axis": "bounded five-form structural closure of ReadControls FP result spills and analog/button register-web allocation",
+  "attributes": {
+    "anchors": "src/game/game/controls.c::ReadControls target 0x80033C5C size 0xB44; reproduce with python tools/gdl/probe.py game/game/controls ReadControls --ops",
+    "axis_log": "1 volatile function-scope mag: 726 insns/real547, whole-frame spill cascade; 2 block-local volatile result at both Newton paths: restored target's 2 stfs+2 lfs but 722 insns/real595; 3 register analog: byte-neutral atop axis2; 4 move analog declaration ahead: byte-neutral atop axis2; 5 volatile raw d1 plus separate normalized nd1: 722/real597. Every unsuccessful form restored with probe.py --revert.",
+    "baseline_and_best": "target/current 721/718, fuzzy 93.8918%, real 351, frame 0x180; no probe beat baseline",
+    "conclusion": "Park the current structural/register-web axis. Target still has two extra branches while current has one extra fmr, mr, and stw; the long-lived analog flag spills where target holds it in r14, and current holds a get_button result in r14 where target stacks it. Revisit only with a genuinely new whole-source lifetime/control-flow reconstruction, not volatile/register/declaration-order variants.",
+    "law_screen": "Screened full records: absent-target-guard (not implicated: no redundant test cluster); guard-polarity and if-else-arm-swap (branch residual spans duplicate switch assignment, not a terminal guard or unequal statement arms); load-then-conditional-overwrite (normalization diamonds already match); declaration-initializer-split (tested declaration/lifetime positioning, neutral); independent-statement-reorder (no independent contiguous statement cluster identified); narrow-local-reextend (no narrow-local tell); point-of-use delay (no single-use pointer tell); scalar-field-cache and reload-vs-cache (no escaped mutable field); compare-form dictionary (switch tree already target-shaped); store-placement family (applied to target stfs/lfs tell, locally correct but globally worse). Final signature searches for `switch spill saved register branch` and `fmul frsp fmr` returned no law.",
+    "laws_applied": [
+      "claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1",
+      "claim.law.store-placement-family.20260829.v1"
+    ],
+    "sibling_policy": "No sibling source was edited; existing caps for assign_controller, CheckSpecials, ControlsUpdate, Disable/EnablePlayerControls, do_vibe, init_controls, InitControls, joyReadPad, and MtapOpenPort were not retried. WebFrank has no controls.c/ReadControls pin."
+  },
+  "function": "function:ReadControls",
+  "id": "attempt.readcontrols-structural-closure.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T03:09:38Z",
+  "residual_class": "STRUCTURAL/REGISTER_WEB",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
