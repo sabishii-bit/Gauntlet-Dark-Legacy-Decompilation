@@ -24,6 +24,15 @@ import re
 import sys
 from pathlib import Path
 
+_COMMENT_RE = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
+
+
+def comment_spans(text):
+    """Spans the rewriter must never touch — a conversion documented in a
+    comment using the very pattern being converted was getting rewritten
+    (observed on movieplayer, 2026-08-31)."""
+    return [m.span() for m in _COMMENT_RE.finditer(text)]
+
 
 def build_pattern(base):
     base_re = re.escape(base).replace(r"\ ", r"\s*")
@@ -56,10 +65,13 @@ def main():
 
     text = path.read_text(encoding="utf-8", errors="replace")
     pattern = build_pattern(base)
+    spans = comment_spans(text)
     unmapped = {}
     planned = []
 
     def substitute(match):
+        if any(start <= match.start() < end for start, end in spans):
+            return match.group(0)  # inside a comment — never rewrite
         offset = int(match.group("off"), 0)
         field = mapping.get(offset)
         if field is None:
