@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "sda-global",
+      "cse",
+      "register-web",
+      "entry-schedule"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.repeated-fp-pool-literal-first-load-is-position-invariant.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T04:39:01Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "When one FP literal is read many times across a function, MWCC rematerializes it per use, but the position and FPR of the FIRST rematerialization inside the entry basic block are chosen by the allocate-then-schedule pipeline and are NOT controlled by the source position of the statement that first needs the value. Verified in src/game/pb/pb_window.c::pbProjCalc (0x800C84CC), where the entire 126-line residual on an otherwise 608/608 IDENTICAL-multiset function is one lfs of the shared 0.0f pool entry: target issues it at 0x68 into f1 (reusing f1 after the int-to-float magic double dies at 0x5c), we issue it at 0x28 into f2 (inside the magic's live range, which is exactly why it cannot be f1). Moving the `f = 0.0f;` statement from its natural position to the very TOP of the function produced a BYTE-IDENTICAL object with the lfs still at 0x28 - the load did not follow its statement, in either direction. So the usual entry-schedule levers are dead on this shape, and reaching for them is wasted budget: claim.law.independent-statement-reorder-matches-target-schedule and claim.law.declaration-initializer-split-controls-entry-schedule both govern where a statement's OWN computation lands, not where a CSE'd pool constant's first materialization lands. Declaration order of the receiving locals and spelling the compare against the variable instead of a second copy of the literal (`x < f` vs `x < 0.0f`, which CSE unifies anyway) are byte-neutral for the same reason. DIAGNOSTIC that identifies this class before spending probes: --ops reports `opcode multiset: IDENTICAL -- pure reorder` with exactly one insert/delete pair naming a single lfs/lfd, the constant is loaded the SAME number of times at the SAME offsets in both streams except that one, and the target's copy sits in a load-use stall slot LATER than ours. RULING OUT the cheap alternative explanation is mandatory and cheap: grep every branch target in the target disassembly for one landing between the two positions - if none does, both compilers scheduled the same single basic block and no control-flow reconstruction gap is hiding. Do NOT reach for the extern-literal sweep here either: when the pool entries belong to the TU's OWN compiler-generated .sdata2 block, symbolifying them is a fakematch and destroys the pool a later Matching flip needs (see claim.pbwindow-flip-sdata2-pool-order-blocker.20260831.v1)."
+}
