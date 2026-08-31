@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "FLIP-WALL lane 2: three more one-straggler data-clean TUs (same ranking claim): G3DReadControlPadStates (game/g3d/gcontrolpads, 192B \u2014 capped as a near-match acceptance long ago; the modern kit never touched it), dcsHandleRequest (game/audio/dcsdrv, 1644B, v3 park), fn_800C03E0 (game/pb/dbgtext, 1732B). Same method as lane 1: aligned-view re-derivation first, 09-01 law screen (param-floor check on every function with FP params!), slotdiff/regnorm arbiters, census-on-repeat, free evidence first (TU header comments, target fn order, callee prototypes). Each solve = a file flip via finish_tu.py w/ doldiff-class data checks. Exact or a wall record naming why each new law fails; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:dcsHandleRequest",
+  "id": "work_claim.flip-walls-2.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-W2",
+  "recorded_at": "2026-08-31T22:25:07Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

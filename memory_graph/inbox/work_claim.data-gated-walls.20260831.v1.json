@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "DATA-GATE lane: three one-straggler TUs are flip-blocked by DATA, not code (ranking claim: mb_font 61.4% data, sysservice 68.1%, pb_frame 40.0%). For each: (1) diagnose the data gap \u2014 objdiff data sections vs target, claimcheck/datadiff, splits.txt claims; typical causes: unclaimed/misclaimed .data or .rodata objects, BSS declaration order (reverse-order law \u2014 doldiff catches what objdiff hides), literal pools (sdata2 ordering law: literals then const objects; stripped fns still order the pool), wrong initializers; (2) fix byte-identically where the cause is nameable; (3) the code stragglers (MBRenderText real?,  sysResetService \u2014 its mp-label-correction record has the measured mechanism, fn_800C0B94/pbFrameMode 3832B) get the standard kit IF the data closes \u2014 data first, it is the cheaper gate. Each TU fully closed = a file flip. SKIP dbgtext (lane W2). Exact/flip or a data-gap record per TU naming the blocker; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:sysResetService",
+  "id": "work_claim.data-gated-walls.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-DG",
+  "recorded_at": "2026-08-31T22:25:28Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

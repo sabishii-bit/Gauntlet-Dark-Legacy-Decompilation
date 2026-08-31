@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SHARED-SIGNATURE lane: LoadItems + StartWorldLoad carry byte-identical residual signatures (one lever closes both \u2014 CF's finding, claim.control-flow-roster-is-mostly-not-control-flow.20260831.v1); the extra-address-copy family (init_player_change, pbDrawVerts, ProcessCritterList) shares the shape. AD's census CLEARED all five as NOT the dead ADDR16_LO class (no r0->CS homing; different mechanism, work is OPEN \u2014 claim.law.addr16-lo-home-copy-census-no-source-discriminant.20260831.v1 answers the advisory explicitly). Method: characterize the copy (`addi rX,rY,0`) with AD's committed tools (tools/gdl/addr16_census.py shows the census pattern; adapt for plain-copy classes) \u2014 count the family image-wide FIRST (census-before-probe: any shape seen twice); find contrast instances where retail emits the copy too; tabulate the discriminant; then ONE census-derived probe on LoadItems (its decl/init split is a dead axis \u2014 CF measured it). Solve once, sweep the family. Exact(s) or the mechanism record; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:LoadItems",
+  "id": "work_claim.loaditems-copy-family.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-LC",
+  "recorded_at": "2026-08-31T22:25:18Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

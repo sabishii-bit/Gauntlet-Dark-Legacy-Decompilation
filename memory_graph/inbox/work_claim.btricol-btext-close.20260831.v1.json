@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CLOSE-OUT lane, two TUs near flip: (1) game/world/btricol \u2014 BTriLineCol real 24, residual = a rematerialization REGISTER choice (target reloads 0.0 into the dying f0; ours picks fresh f2 \u2014 attempt.btrilinecol-zero-web-coalesce.20260831.v3). The zero-remat and Q-class-interference laws (claim.law.addr16-lo-home-copy-census-no-source-discriminant.20260831.v1's positive control) say when this IS reachable: the discriminant is home-register interference \u2014 measure f0/f2's def counts and try shortening the fresh register's web (block scope, reuse a dying fp local). TU flips if closed. (2) game/ui/btext \u2014 StringTextWidthSub real 86 (count/multiset/frame/save-set ALL exact; residual = ONE 4-byte quantum: arrays at +32/+104 vs +36/+108 \u2014 the 8-byte rounding wall; try the bottom-pad-dial law with a 4-byte object BELOW both arrays, or a param-floor check) and StringTextHeightSub real 55 (one mr; regnorm map + audit \u2014 may be one dead-local identity from rule-eligible). Read both SX attempt records first (attempt.stringtextwidthsub-bisect-refutes-buffer-merge-and-closes-structure.20260831.v1 + the heightsub ctr-loop record). Exact or resolution-stamped parks; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:BTriLineCol",
+  "id": "work_claim.btricol-btext-close.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-BB",
+  "recorded_at": "2026-08-31T22:25:12Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
