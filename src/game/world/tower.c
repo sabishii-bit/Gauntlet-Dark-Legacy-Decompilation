@@ -1377,12 +1377,12 @@ void EnterTower(void) {
     } else {
         for (k = 0; k < 14; k++) {
             if (lbl_803448C8 == crystal_order[k]) {
+                pos = k;
                 goto found;
             }
         }
-        k = 0;
-    found:
-        pos = k;
+        pos = 0;
+    found:;
     }
     SetPlayerStartPos(pos);
     lbl_80343E48 = -1;
@@ -1390,8 +1390,12 @@ void EnterTower(void) {
     for (i = 0; i < 8; i++) {
         state->cooldown[i] = lbl_80348588;
     }
-    for (i = 0; i < 3; i++) {
-        state->gargCooldown[i] = lbl_80348588;
+    {
+        f32 zero = lbl_80348588;
+
+        for (i = 0; i < 3; i++) {
+            ((f32*)((u8*)state + i * 4))[8] = zero;
+        }
     }
     /* The requirement tables and per-character records have different strides. */
     {

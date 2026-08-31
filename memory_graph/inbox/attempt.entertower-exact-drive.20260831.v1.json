@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "five-form exact drive: recover target search-loop branch layout, then isolate the final cooldown-store address association and zero-value web",
+  "attributes": {
+    "anchors": "src/game/world/tower.c::EnterTower target 0x800A3378 size 0x718; reproduce with `python tools/gdl/probe.py game/world/tower EnterTower --ops`; target/current 454/454 at retained best",
+    "axis_log": "1 break plus post-loop fallback: real319, 455 current insns, extra cmpwi/bne; 2 explicit hit-path `pos=k; goto found`, miss-path `pos=0`: real198, 454/454 and branch-count parity restored; 3 paired `*(&state->cooldown[i]+8)` store: byte-identical neutral real198; 4 raw base+index spelling: byte-identical neutral real198; 5 block-local `f32 zero=lbl_80348588` feeding second loop: real190, 454/454, retained. Maximum five forms reached.",
+    "baseline_and_best": "baseline fuzzy 95.0396%, target/current 454/453, real321, frame0x98, saved f30-f31/r22-r31; retained best fuzzy 95.4229%, target/current 454/454, real190, same frame/saves",
+    "conclusion": "Exact closure incomplete. Do not retry member-vs-raw associativity or a second zero-cache spelling: two address forms were byte-identical and the zero cache improved only schedule. Revisit only with a genuinely new way to make lbl_8028C288 a direct-symbol member reference without losing the one cached r29 base, or a newly verified compiler law that overrides local base+(index+K) canonicalization.",
+    "history_screen": "No prior EnterTower attempt record existed. Older commits 49ab382bc/809c03038/eaa57e690 and attempt.tower-c-defakematch-tupass.20260830.v1 were read. The known three-variable reqOffset/recordOffset loop negative from claim.law.dead-offset-shadow-removal-needs-isolated-accumulator was not retried; the separate 14-entry crystal-order search had current target-backed branch evidence and was safely restructured.",
+    "law_screen": "Complete current `gdlmem.py laws --full 1` corpus screened (40 current entries). Applied: guard-polarity/count-parity principle to the search CFG and extern-zero-init liveness to the second store loop. Governing residual: direct-global-member-flips-index-base-association, cached-base-alias-defeats-rematerialized-index-base, recomputed-index-array-form-safe. Veto/history: dead-offset-shadow-removal-needs-isolated-accumulator and dead-offset-shadow-removal-safe. Screened but not triggered: if-else-arm-swap, declaration-initializer-split, independent-statement-reorder, reload-vs-cache-liveness, point-of-use pointer delay, chained-init share, pointer-walk/lwzu/multifield/offsetof families, literal/FPR families, compare/narrow-local/extern-type/relocation/switch/inline laws. Signature searches `stfsx`, `addi stfsx add stfs`, `schedule addi load`, and `break mr loop exit` found the direct-global/recomputed-index family and no newer schedule or loop-exit lever.",
+    "laws_applied": [
+      "claim.law.guard-polarity-restructure-fixes-count-parity-not-form.20260831.v1",
+      "claim.law.extern-zero-init-blocks-constant-propagation.20260831.v1"
+    ],
+    "mechanism": "MWCC local-base index/constant association. Retail emits `add r4,r29,r3` then `stfs f0,32(r4)` at target +0xE0/+0xE4; current emits `addi r0,r3,32` then `stfsx f0,r29,r0`. MWCC canonicalizes local `state + i*4 + 32` as base+(index+K), selecting indexed stfsx; member, paired-member, and raw spellings compiled identically. claim.law.direct-global-member-flips-index-base-association documents that only a direct GLOBAL member can flip this choice, but r29 is a required local address of lbl_8028C288 and config/header changes are out of scope. Remaining opcode-identical clusters are scheduler/register consequences: target mtctr at +0x64 and exit mr at +0x90 versus current mtctr +0x60/hit mr +0x7C; target addi-before-lha at +0x3FC/+0x400 and +0x698/+0x69C versus current lha-before-addi. Structural multiset difference makes WebFrank ineligible.",
+    "sibling_policy": "Only EnterTower source changed; no headers, config, WebFrank pins, sibling functions, or TU data were edited. Final TU/full gates are recorded in the session report."
+  },
+  "function": "function:EnterTower",
+  "id": "attempt.entertower-exact-drive.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T05:18:10Z",
+  "residual_class": "STRUCTURAL/LOCAL_BASE_INDEX_ASSOCIATION",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
