@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/world/camera.c exclusively; matching pass on camera_debug_supervisor (94.93%, 1006i, hist REGISTER_ONLY/SCHEDULE \u2014 screen its record first; abort to defake if capped axes cover everything) + camera.c 96 bare sites secondary; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:camera_debug_supervisor",
+  "id": "work_claim.camera-debug-supervisor.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-M5",
+  "recorded_at": "2026-08-31T00:06:52Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

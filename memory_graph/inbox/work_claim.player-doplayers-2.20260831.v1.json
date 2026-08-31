@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/game/player.c exclusively; do_players residual follow-up (93.72%, 1174i \u2014 2 unexamined clusters + parked 3-term addressing class documented in attempt.doplayers-sel-idiom.20260830.v2) primary; player.c 236 bare + 189 PF() sites defake secondary; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:do_players",
+  "id": "work_claim.player-doplayers-2.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-M2",
+  "recorded_at": "2026-08-31T00:06:40Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

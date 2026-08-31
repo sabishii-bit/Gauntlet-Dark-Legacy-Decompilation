@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/world/gauntworld.c exclusively; de-fakematch pass \u2014 309 bare sites (prior passes covered gCurLevel; the remainder is ResolveWorldData section arrays and world-data walkers; ResolveWorldData itself is PARKED matching - byte-gate it); parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:ResolveWorldData",
+  "id": "work_claim.gauntworld-defake3.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-D2",
+  "recorded_at": "2026-08-31T00:06:59Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

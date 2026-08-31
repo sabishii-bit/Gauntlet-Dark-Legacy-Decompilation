@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CROSS-TU READ-MOSTLY INVESTIGATION (high-level agent): taxonomy of the remaining ~3685 bare raw-offset sites \u2014 for each class, why does a struct not fill in (header-covered-but-unconverted / recoverable-but-unrecovered / genuinely structless / codegen-load-bearing)? May add tools/gdl/structdraft.py + graph records; NO src/ TU edits (sibling claims own those); parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:do_enemies",
+  "id": "work_claim.offsetcast-investigation.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-HL",
+  "recorded_at": "2026-08-31T00:06:36Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

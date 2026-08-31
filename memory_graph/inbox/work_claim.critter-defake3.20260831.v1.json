@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "whole TU src/game/enemy/critter.c exclusively; de-fakematch pass 3 \u2014 504 bare sites, headlined by CritterDoTexmodNode (~65 sites, UNBLOCKED: the CritterDamageDef conflict was resolved 20260831, see attempt.critterinitheader-record-reconstruction) plus the long tail; parallel CodeX/Kimi fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:CritterDoTexmodNode",
+  "id": "work_claim.critter-defake3.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-D1",
+  "recorded_at": "2026-08-31T00:06:56Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
