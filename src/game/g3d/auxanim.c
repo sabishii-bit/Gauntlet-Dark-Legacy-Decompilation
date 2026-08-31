@@ -283,18 +283,13 @@ exit:
     return;
 }
 
-extern f64 lbl_803459C8;
-extern f64 lbl_803459D0;
-extern f64 lbl_803459D8;
-extern f64 lbl_803459E0;
-extern f32 lbl_803459B8;
-extern f32 lbl_803459BC;
 
 void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
 {
     f32 out;
     f32 r;
     f32 k;
+    f32 kf;
     s32 f;
 
     if (tm == NULL) {
@@ -306,7 +301,7 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
         f32 de = (f32)(frame - tm->unk4e);
         f32 fr2 = (f32)tm->frames;
         r = CalcTexScroll(de, ra, fr2, frame, &out);
-        MBTreeSetUVScaleAdd(out, r, lbl_803459BC, lbl_803459B8, ctx, 1);
+        MBTreeSetUVScaleAdd(out, r, 1.0f, 0.0f, ctx, 1);
         break;
     }
     case -3: {
@@ -314,36 +309,36 @@ void DoTexModSeqSub(int ctx, TEXMOD* tm, int frame)
         f32 de = (f32)(frame - tm->unk4e);
         f32 fr2 = (f32)tm->frames;
         r = CalcTexScroll(de, ra, fr2, frame, &out);
-        MBTreeSetUVScaleAdd(lbl_803459BC, lbl_803459B8, out, r, ctx, 1);
+        MBTreeSetUVScaleAdd(1.0f, 0.0f, out, r, ctx, 1);
         break;
     }
     case -4: {
         f32 d1 = (f32)(frame - tm->unk4e);
         f32 fr = (f32)tm->frames;
         f32 d2 = (f32)(frame - tm->unk4e);
-        if (d1 <= lbl_803459B8 || fr <= lbl_803459D0) {
-            k = *(volatile f32*)&lbl_803459B8;
+        if (d1 <= 0.0f || fr <= 0.0) {
+            k = 0.0f;
         } else if (d2 >= fr) {
-            k = lbl_803459BC;
+            k = 1.0f;
         } else {
             k = d2 / fr;
         }
-        MBTreeSetAlpha(ctx,
-                       (s32)(f32)((f32)(lbl_803459D8 - k) * lbl_803459E0), 1);
+        kf = (f32)(1.0 - k);
+        MBTreeSetAlpha(ctx, (s32)(f32)(kf * 255.0), 1);
         break;
     }
     case -5: {
         f32 d1 = (f32)(frame - tm->unk4e);
         f32 fr = (f32)tm->frames;
         f32 d2 = (f32)(frame - tm->unk4e);
-        if (d1 <= lbl_803459B8 || fr <= lbl_803459D0) {
-            k = *(volatile f32*)&lbl_803459B8;
+        if (d1 <= 0.0f || fr <= 0.0) {
+            k = 0.0f;
         } else if (d2 >= fr) {
-            k = lbl_803459BC;
+            k = 1.0f;
         } else {
             k = d2 / fr;
         }
-        MBTreeSetAlpha(ctx, (s32)(f32)(k * lbl_803459E0), 1);
+        MBTreeSetAlpha(ctx, (s32)(f32)(k * 255.0), 1);
         break;
     }
     case -6:
