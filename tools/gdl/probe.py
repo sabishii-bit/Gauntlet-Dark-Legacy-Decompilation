@@ -75,6 +75,21 @@ def snapshot_path(unit, source):
     return path
 
 
+def git_head():
+    result = subprocess.run(["git", "rev-parse", "HEAD"],
+                            capture_output=True, text=True)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def bank_snapshot(unit, source):
+    snap = snapshot_path(unit, source)
+    shutil.copyfile(source, snap)
+    head = git_head()
+    if head:
+        snap.with_suffix(snap.suffix + ".meta").write_text(
+            json.dumps({"head": head}), encoding="utf-8")
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) < 2 or args[0] in ("--help", "-h"):
@@ -90,6 +105,9 @@ def main():
             snap = snapshot_path(unit, source)
             if snap.exists():
                 snap.unlink()
+            meta = snap.with_suffix(snap.suffix + ".meta")
+            if meta.exists():
+                meta.unlink()
         print("probe state reset")
         return 0
     if "--revert" in sys.argv:
@@ -101,8 +119,34 @@ def main():
             print("cannot revert: no banked snapshot for this unit yet"
                   " (a BASELINE or IMPROVED probe banks one)")
             return 1
-        shutil.copyfile(snap, source)
-        print(f"reverted {source} to the last banked good state; re-scoring:")
+        # A snapshot banked before a commit is STALE: restoring it would
+        # silently destroy the committed state (observed in the field —
+        # claim.law.probe-revert-snapshot-goes-stale-across-commits).
+        meta_file = snap.with_suffix(snap.suffix + ".meta")
+        if meta_file.exists():
+            banked_head = json.loads(
+                meta_file.read_text(encoding="utf-8")).get("head")
+            head = git_head()
+            if banked_head and head and banked_head != head:
+                committed = subprocess.run(
+                    ["git", "show",
+                     f"HEAD:{source.as_posix()}"],
+                    capture_output=True)
+                if committed.returncode == 0 and \
+                        committed.stdout != snap.read_bytes():
+                    print("REFUSED: commits landed since this snapshot was"
+                          " banked and the committed source differs from it"
+                          " — reverting would destroy committed work. Run a"
+                          " fresh probe on the current state to re-bank,"
+                          " or use git to inspect history.")
+                    return 1
+        if snap.read_bytes() == source.read_bytes():
+            print("nothing to revert: source already matches the banked"
+                  " snapshot; re-scoring:")
+        else:
+            shutil.copyfile(snap, source)
+            print(f"reverted {source} to the last banked good state;"
+                  " re-scoring:")
 
     build = subprocess.run(
         ["ninja", f"build/{VERSION}/src/{unit}.o"],
@@ -166,7 +210,7 @@ def main():
     if source is not None and (verdict.startswith("BASELINE")
                                or verdict.startswith("IMPROVED")
                                or verdict.startswith("REBASED")):
-        shutil.copyfile(source, snapshot_path(unit, source))
+        bank_snapshot(unit, source)
         print(f"[revert point banked: probe.py {unit} {fn} --revert"
               " restores it]")
 
