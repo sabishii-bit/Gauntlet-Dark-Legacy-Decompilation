@@ -3,6 +3,7 @@
 #include "game/dyngrid.h"
 #include "game/effect.h"
 #include "game/enemy.h"
+#include "game/gamemode.h"
 #include "game/worldinfo.h"
 #include "game/item.h"
 #include "game/leveldata.h"
@@ -1091,7 +1092,7 @@ void fn_8005AC10(s32 player)
         record->world_name_tail = 0x40;
     }
 
-    if (gGameMode == 0x400B && (gControllerButtons & 4) != 0) {
+    if (gGameMode == MG_PLAYER_SELECT && (gControllerButtons & 4) != 0) {
         record->state = 1;
     }
 }
@@ -4419,9 +4420,9 @@ void fn_800606FC(void)
     u8* rt = sItemRuntime;
     u8 unused[120];
 
-    if (gGameMode == 0x8008) {
+    if (gGameMode == MA_FLYBY) {
         paused = 0;
-    } else if (gGameMode == 0x4010) {
+    } else if (gGameMode == MG_PLAY) {
         paused = lbl_803447B8;
     } else {
         paused = 1;
@@ -6581,8 +6582,8 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
     if (kind < 0) {
         return;
     }
-    if ((gGameMode & 0x8000) && (u32)gGameMode != 0x8006 &&
-        (u32)gGameMode != 0x8003) {
+    if ((gGameMode & 0x8000) && (u32)gGameMode != MA_DEMO &&
+        (u32)gGameMode != MA_INSTRUCT) {
         return;
     }
     if (lbl_8034488C == 0) {
