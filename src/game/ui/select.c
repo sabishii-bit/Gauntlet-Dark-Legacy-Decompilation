@@ -153,6 +153,56 @@ typedef struct BlitEntry {
     s32 timer;
 } BlitEntry;
 
+/* file-local view: the static placement table inside the select-menu data
+ * page (lbl_80121688), 11 entries of 12 bytes starting at page+0x20 -- one
+ * entry per BlitEntry slot, same index and same stride.  Verified entirely
+ * in-TU: init_player_select's build loop and serve_blits' animate loop both
+ * step j<11 with a 12-byte stride and read exactly +0x20/+0x24/+0x28 off the
+ * entry; the first field is summed with the per-player x shift (*xp) before
+ * MBCreateBlit/mbBlitCalcWidth's x argument, the second feeds the y
+ * argument, and the third is float-converted into mbBlitCvtCoord/
+ * mbBlitCalcWidth's scale argument.  Entries 9 and 10 are additionally
+ * addressed directly (page+140.. / page+152..) alongside their matching
+ * BlitEntry handles at blits+108 / blits+120.  Never cast a live pointer to
+ * this type -- it exists only to feed offsetof() so the raw page/pe pointer
+ * keeps its fused-immediate displacement addressing (see claim.law.
+ * multifield-alias-defeats-indexed-addressing). */
+typedef struct BlitPlacement {
+    s32 x;      /* +0x00 (page+0x20) blit x, before the per-player *xp shift */
+    s32 y;      /* +0x04 (page+0x24) blit y                                  */
+    s32 scale;  /* +0x08 (page+0x28) blit scale, converted to f32 at use     */
+} BlitPlacement;
+
+/* file-local view of the ROM texture header MBRomTexPtr() returns; only the
+ * two fields this TU reads are named.  Same offsets and field names as the
+ * MBTextureDef reconstruction already verified in game/mb/mb_blit.c (width
+ * 0x0A, height 0x0C) -- reused verbatim rather than introducing a third
+ * spelling for one record (mb_struct.c calls it MBRomTexture, mb_poly.c
+ * TexInfo).  Only used to feed offsetof(); never cast a live pointer. */
+typedef struct MBTextureDef {
+    u8 _pad00[0x0A];
+    u16 width;   /* +0x0A */
+    u16 height;  /* +0x0C */
+} MBTextureDef;
+
+/* file-local view of the per-class progression slot update_class_attr reads:
+ * a 24-byte record array based at the player record + 0x0A90 and indexed by
+ * the selected class (`expslot = pl + sel * 24 + 2704`).  Stride, base and
+ * every field offset are verified in-TU from that expression and the four
+ * stat reads; the four f32s are only known by which stats[] row they feed
+ * (drawn against GetStringText(167, row)), so they keep the project's
+ * generic field_NN convention rather than a guessed semantic name.  These
+ * bytes fall inside include/game/player.h's pad_0A88 run, which this pass is
+ * not permitted to split -- hence a file-local view.  offsetof() use only. */
+typedef struct ClassStatSlot {
+    s32 exp;         /* +0x00 experience, fed to ExpToLevel() */
+    u8 _pad04[4];
+    f32 field_08;    /* +0x08 -> stats[0] */
+    f32 field_0C;    /* +0x0C -> stats[2] */
+    f32 field_10;    /* +0x10 -> stats[3] */
+    f32 field_14;    /* +0x14 -> stats[1] */
+} ClassStatSlot;     /* size 0x18 */
+
 /* file-local view of the fields of OPTMENU (game/ui/options.c, verified
  * 0xE8-byte struct) actually touched by this TU's per-player menu blocks
  * (do_player_select/setup_sel_menu/sel_set_choice all pass an OPTMENU* to
@@ -1627,7 +1677,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     case 5:
         if (*(s32*)(pl + 13128) == 0) {
             u8* row = tbl + player * 232;
-            s32 y = lbl_80343DE8 + *(s32*)(row + 728) - lh * 6;
+            s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 6;
             s32 nx = -(x + 64);
             DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347F98);
             y += lh;
@@ -1645,7 +1695,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
         /* fall through */
     case 10: {
         u8* row = tbl + player * 232;
-        s32 y = lbl_80343DE8 + *(s32*)(row + 728) - lh * 3;
+        s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 3;
         s32 nx = -(x + 64);
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, lbl_80347FA8);
         y += lh;
@@ -1685,7 +1735,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     }
     case 8: {
         u8* row = tbl + player * 232;
-        s32 y = lbl_80343DE8 + *(s32*)(row + 728) - lh * 2;
+        s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 2;
         s32 nx = -(x + 64);
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 376);
         y += lh;
@@ -1695,7 +1745,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     }
     case 13: {
         u8* row = tbl + player * 232;
-        s32 y = lbl_80343DE8 + *(s32*)(row + 728) - lh * 3;
+        s32 y = lbl_80343DE8 + *(s32*)(row + 712 + offsetof(OptMenuLayout, y)) - lh * 3;
         s32 nx = -(x + 64);
         DrawTextKeepScale(scale, nx, y, font, 0xFFFFFF, pool + 376);
         y += lh;
@@ -1997,7 +2047,7 @@ void init_player_change(s32 idx, s32 arg1)
             }
         }
     }
-    v = *(s32*)((u32)gPlayers + (u32)(idx * 0x335C) + 0x830);
+    v = *(s32*)((u32)gPlayers + (u32)(idx * 0x335C) + offsetof(Player, exit_dest));
 gotv:
     ((Player*)pl)->exit_dest = v;
 
@@ -2204,7 +2254,7 @@ void setup_sel_menu(s32 player, s32 mode)
     case 13:
         *(void**)(data + playerOffset + 712 + offsetof(OptMenuLayout, items)) =
             (field = bss + player * 324) + 528;
-        *(s32*)(data + playerOffset + 724) = baseChoice + 8;
+        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, x)) = baseChoice + 8;
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, y)) = 70;
         *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = lbl_80348020;
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = *(s32*)(gPlayers + player * 0x335C + 0x3358);
@@ -2235,7 +2285,7 @@ static s32 sel_set_choice(s32 player, s32 mode)
     u32 owner;
 
     for (;;) {
-        e = *(u8**)(menu + 28) + off;
+        e = *(u8**)(menu + offsetof(OptMenuLayout, items)) + off;
         if (*(u32*)e == 0) {
             break;
         }
@@ -2274,7 +2324,7 @@ static s32 sel_set_choice(s32 player, s32 mode)
             if (lbl_803448AC == 8 && lbl_803448A8 == 3) {
                 ((VmuMenuEntry*)e)->value = -1;
             } else {
-                owner = *(u32*)(pl + 240);
+                owner = *(u32*)(pl + offsetof(Player, hidden_code));
                 if (owner != 0 && owner != lbl_80343D6C) {
                     ((VmuMenuEntry*)e)->value = -1;
                 } else {
@@ -2436,16 +2486,16 @@ void update_class_attr(s32 player)
             LoadPlyrData(player, *(s32*)(pl + offsetof(Player, respawn_char)), 0);
             {
                 u8* cls = lbl_80282930[player];
-                stats[0] = (s32)(*(f32*)(expslot + 8) +
+                stats[0] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_08)) +
                                  (*(f32*)(cls + 40) +
                                   (f32)((lvl - 1) * 5)));
-                stats[1] = (s32)(*(f32*)(expslot + 20) +
+                stats[1] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_14)) +
                                  (*(f32*)(cls + 48) +
                                   (f32)((lvl - 1) * 5)));
-                stats[2] = (s32)(*(f32*)(expslot + 12) +
+                stats[2] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_0C)) +
                                  (*(f32*)(cls + 56) +
                                   (f32)((lvl - 1) * 5)));
-                stats[3] = (s32)(*(f32*)(expslot + 16) +
+                stats[3] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_10)) +
                                  (*(f32*)(cls + 64) +
                                   (f32)((lvl - 1) * 5)));
             }
@@ -2759,15 +2809,15 @@ void init_player_select(s32 mode)
             for (j = 0, joff = 0; j < 11; j++, joff += 12) {
                 u8* e = page + joff;
                 void* b;
-                s32 w = *(s32*)(e + 32);
-                s32 h = *(s32*)(e + 36);
+                s32 w = *(s32*)(e + 0x20 + offsetof(BlitPlacement, x));
+                s32 h = *(s32*)(e + 0x20 + offsetof(BlitPlacement, y));
                 w += *xp;
                 e += 32;
                 b = (void*)MBCreateBlit(0, 0, w, h, -1, -1);
                 *(void**)(blits + joff) = b;
                 mbBlitInit3414(*(void**)(blits + joff), 1);
                 mbBlitCvtCoord(*(void**)(blits + joff),
-                               (f32)*(s32*)(e + 8));
+                               (f32)*(s32*)(e + offsetof(BlitPlacement, scale)));
                 *(s32*)(blits + joff + offsetof(BlitEntry, mode)) = 0;
             }
             *(s32*)(pl + offsetof(Player, exit_dest)) = sLastWorldLevel;
@@ -2778,14 +2828,16 @@ void init_player_select(s32 mode)
                 setup_tex(i3, 10, 16384, 0, pool + 904);
                 update_class_spec(i3);
             }
+            /* placement entries 9 and 10, whose BlitEntry handles sit at the
+             * matching blits+108 / blits+120 slots */
             mbBlitCalcWidth(*(void**)(blits + 108),
-                            *(s32*)(page + 140) + *xp,
-                            *(s32*)(page + 144),
-                            (f32)*(s32*)(page + 148));
+                            *(s32*)(page + 140 + offsetof(BlitPlacement, x)) + *xp,
+                            *(s32*)(page + 140 + offsetof(BlitPlacement, y)),
+                            (f32)*(s32*)(page + 140 + offsetof(BlitPlacement, scale)));
             mbBlitCalcWidth(*(void**)(blits + 120),
-                            *(s32*)(page + 152) + *xp,
-                            *(s32*)(page + 156),
-                            (f32)*(s32*)(page + 160));
+                            *(s32*)(page + 152 + offsetof(BlitPlacement, x)) + *xp,
+                            *(s32*)(page + 152 + offsetof(BlitPlacement, y)),
+                            (f32)*(s32*)(page + 152 + offsetof(BlitPlacement, scale)));
         }
     }
     if (!(*(u32*)((u32)gGameOptions + 44) & 1)) {
@@ -2881,29 +2933,30 @@ s32 serve_blits(s32 player)
     kb = lbl_80348040;
     for (j = 0, off = 0; j < 11; j++, off += 12) {
         e = blits + off;
-        sp = (s32*)(e + 4);
+        sp = (s32*)(e + offsetof(BlitEntry, mode));
         h = *(u8**)e;
 
-        switch (*(u32*)(e + 4)) {
+        switch (*(u32*)(e + offsetof(BlitEntry, mode))) {
         case 0:
             break;
 
         case 1: /* hide */
             *sp = 0;
-            *(s32*)(e + 8) = 0;
+            *(s32*)(e + offsetof(BlitEntry, timer)) = 0;
             mbBlitInit3414(h, 1);
             break;
 
         case 3: { /* looping pulse */
             u8* tex = MBRomTexPtr(*(u32*)(h + 4));
-            s32 w = *(u16*)(tex + 10);
-            s32 ht = *(u16*)(tex + 12);
+            s32 w = *(u16*)(tex + offsetof(MBTextureDef, width));
+            s32 ht = *(u16*)(tex + offsetof(MBTextureDef, height));
             s32 amp;
             f32 f;
             s32 du;
             s32 dv;
-            *(s32*)(e + 8) = (*(s32*)(e + 8) + 1) & 0x3F;
-            amp = *(s32*)(e + 8);
+            *(s32*)(e + offsetof(BlitEntry, timer)) =
+                (*(s32*)(e + offsetof(BlitEntry, timer)) + 1) & 0x3F;
+            amp = *(s32*)(e + offsetof(BlitEntry, timer));
             if (amp >= 0x20) {
                 amp = 0x20 - (amp & 0x1F);
             }
@@ -2912,9 +2965,12 @@ s32 serve_blits(s32 player)
             dv = (s32)((f32)ht * f);
             {
                 u8* pe = page + off;
-                mbBlitCalcWidth(h, *(s32*)(pe + 0x20) - du / 2 + *xp,
-                                *(s32*)(pe + 0x24) - dv / 2,
-                                (f32)*(s32*)(pe + 0x28));
+                mbBlitCalcWidth(h,
+                                *(s32*)(pe + 0x20 + offsetof(BlitPlacement, x)) -
+                                    du / 2 + *xp,
+                                *(s32*)(pe + 0x20 + offsetof(BlitPlacement, y)) -
+                                    dv / 2,
+                                (f32)*(s32*)(pe + 0x20 + offsetof(BlitPlacement, scale)));
             }
             mbBlitProject(h, du, dv);
             break;
@@ -2923,14 +2979,17 @@ s32 serve_blits(s32 player)
         case 2: { /* fly out right while fading */
             s32 t;
             s32 u;
-            tp2 = (s32*)(e + 8);
+            tp2 = (s32*)(e + offsetof(BlitEntry, timer));
             *tp2 += gFrameTicks;
             t = *tp2;
             u = t * t;
             {
                 u8* pe = page + off;
-                mbBlitCalcWidth(h, *(s32*)(pe + 0x20) + (*xp + u / 8),
-                                u + t * 3, (f32)*(s32*)(pe + 0x28));
+                mbBlitCalcWidth(h,
+                                *(s32*)(pe + 0x20 + offsetof(BlitPlacement, x)) +
+                                    (*xp + u / 8),
+                                u + t * 3,
+                                (f32)*(s32*)(pe + 0x20 + offsetof(BlitPlacement, scale)));
             }
             MBBlitSetAlpha(h, u);
             mbBlitProject(h, 0x80, 0x100 - u);
@@ -2979,21 +3038,26 @@ s32 serve_blits(s32 player)
             f32 f;
             s32 du;
             s32 dv;
-            tp4 = (s32*)(e + 8);
-            *(s32*)(e + 8) += gFrameTicks;
-            half = *(s32*)(e + 8) >> 1;
+            tp4 = (s32*)(e + offsetof(BlitEntry, timer));
+            *(s32*)(e + offsetof(BlitEntry, timer)) += gFrameTicks;
+            half = *(s32*)(e + offsetof(BlitEntry, timer)) >> 1;
             tex = MBRomTexPtr(*(u32*)(h + 4));
             a = half * half;
-            w = *(u16*)(tex + 10);
-            ht = *(u16*)(tex + 12);
+            w = *(u16*)(tex + offsetof(MBTextureDef, width));
+            ht = *(u16*)(tex + offsetof(MBTextureDef, height));
             f = (f32)(0x100 - a) * kf;
             du = (s32)((f32)w * f);
             dv = (s32)((f32)ht * f);
             {
                 u8* pe = page + off;
-                mbBlitCalcWidth(h, w / 2 + *(s32*)(pe + 0x20) - du / 2 + *xp,
-                                ht / 2 + *(s32*)(pe + 0x24) - dv / 2,
-                                (f32)*(s32*)(pe + 0x28));
+                mbBlitCalcWidth(h,
+                                w / 2 +
+                                    *(s32*)(pe + 0x20 + offsetof(BlitPlacement, x)) -
+                                    du / 2 + *xp,
+                                ht / 2 +
+                                    *(s32*)(pe + 0x20 + offsetof(BlitPlacement, y)) -
+                                    dv / 2,
+                                (f32)*(s32*)(pe + 0x20 + offsetof(BlitPlacement, scale)));
             }
             mbBlitProject(h, du, dv);
             if (a >= 0x100) {

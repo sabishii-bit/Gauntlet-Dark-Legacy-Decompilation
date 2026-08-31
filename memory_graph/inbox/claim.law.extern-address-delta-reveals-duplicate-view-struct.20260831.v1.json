@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "defake",
+      "symbol-identity",
+      "offsetof-form",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.extern-address-delta-reveals-duplicate-view-struct.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:10:38Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "AGENTS.md already warns (from critter.c) to grep a TU for an existing typedef of the same purpose before inventing a file-local view struct. That grep is NOT sufficient, because two view structs for ONE record can be reached through two DIFFERENT extern symbols and therefore never look like duplicates by name, purpose or usage -- they only coincide once you subtract the symbols' ADDRESSES. Verified in src/game/ui/select.c: the TU declares `extern u8 lbl_80121688[]` (commented 'select-menu data page', walked as `data + player * 232 + 712 + offsetof(OptMenuLayout, ...)') and, 60 lines apart, `extern SelectSlot lbl_80121950[]` with its own independent 232-byte `typedef struct SelectSlot { u8 _pad[108]; s32 state; u8 _tail[120]; }`. 0x80121950 - 0x80121688 = 0x2C8 = 712 exactly, and both are indexed by player at stride 232 -- so `lbl_80121950[player]` IS `lbl_80121688 + player*232 + 712`, i.e. SelectSlot and OptMenuLayout describe the SAME record, and SelectSlot.state@108 is OptMenuLayout.active@0x6C under a second name. The duplication was invisible to a name/purpose grep (different symbol, different typedef name, different accessor style: one a typed array subscript, the other raw pointer arithmetic) and became obvious only from the address arithmetic. Practical consequence, cheap enough to make routine: when a de-fakematch pass is about to invent a view struct for `someExtern + N`, first list the TU's OWN extern symbol addresses (they are in the lbl_ABCDEF12 names themselves, or in config/GUNE5D/symbols.txt) and subtract them pairwise -- if another extern in the same TU sits exactly N bytes away with a matching index stride, the record already has a reconstruction and the correct move is to reuse it rather than add a rival. Applied in this pass: sel_set_choice's `*(u8**)(menu + 28)` (menu = `(u8*)&lbl_80121950[player]`) converted to `offsetof(OptMenuLayout, items)` -- the OTHER symbol's view struct -- gating byte-identical, where inventing a SelectSlot field for offset 28 would have deepened the split. Corollary for a related trap seen in the same session: the same reuse test should be run ACROSS TUs before naming a shared record, since one record can carry three names in three files (MBRomTexPtr's return is MBRomTexture in mb_struct.c, MBTextureDef in mb_blit.c, TexInfo in mb_poly.c); when a TU needs a file-local view of such a record, copy the spelling of an existing verified reconstruction instead of coining a fourth."
+}

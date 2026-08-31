@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "defake",
+      "workflow",
+      "metrics",
+      "offsetof-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.extern-retype-lane-ceiling-is-pad-run-blockage.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:10:48Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "claim.offsetcast-debt-taxonomy's RECOVERABLE class (2480 sites) merges two blockers with wildly different costs, and wave planning that treats the class as one number badly mis-sizes an extern-retype lane. Blocker (1) 'untyped extern shadowing a typed header' is CHEAP: add the #include, respell the addends, done. Blocker (2) 'pad-gap inside a header the project already owns' is EXPENSIVE and is gated behind editing a widely-shared header, which most fleet lanes are explicitly forbidden to do. Measured on the two TUs of this pass. src/game/ui/select.c was scoped as '179 recoverable sites, the single biggest TU win available'; in reality it ALREADY included game/player.h (a prior wave had done blocker (1)), and of the 199 bare sites present at pass start, only 44 were convertible without a header edit. Every one of the 128 remaining sites in do_player_select, plus the Player-based residue in do_sel_menu/verify_vmu_file_ok/setup_sel_menu/setup_file_entries, resolves to Player offsets 0x333C, 0x3348-0x3358, 0xA8B-0xA8E or 0x1ECC -- all four of which sit inside explicit pad runs in include/game/player.h (pad_333C[4], pad_3348[0x14], pad_0A88[0x34C], pad_1ECC[0x354]). They are blocker (2), not blocker (1), so no amount of extern-retype work reaches them. src/game/ui/options.c was the genuine blocker (1) case in this pair (it included only types.h) and converted 17 of 45 sites once game/player.h and game/mbobject.h were added; its residue is again partly pad runs (Player pad_1CD4, PlayerCharSave pad_10). Note also that two of the four assigned TUs (screensaver.c, auxscreen.c) had 0 and 1 bare sites respectively -- already thoroughly passed, exactly as the taxonomy's own '92-99% converted' note predicted, so a lane sized from the raw debt census will over-allocate to finished TUs. Consequences for wave planning: (a) split the RECOVERABLE census into 'needs an include' vs 'needs a header layout extension' before sizing any lane -- the fields are already distinguishable, since a pad-run hit is detectable by resolving each offset against the covering header struct; (b) a no-header-edit lane should be sized ONLY from the needs-an-include bucket; (c) the pad-run bucket is real, high-value, and concentrated (one Player pad_3348[0x14] split would unblock ~130 sites in select.c alone), but it belongs to a deliberately-scoped header-extension pass that can gate the whole including TU set per claim.law.embedded-struct-member-whole-tu-cascade -- and per that law such a pass must add SCALAR fields (which bisected clean) rather than aggregate members (which cascaded across 6 unrelated functions)."
+}

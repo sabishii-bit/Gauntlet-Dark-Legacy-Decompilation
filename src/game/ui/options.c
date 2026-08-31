@@ -84,6 +84,20 @@
  */
 
 #include "types.h"
+#include "game/mbobject.h"
+#include "game/player.h"
+
+/* Player / PlayerCharSave are pulled in only to name the raw displacements
+ * this TU already used against the gPlayers records (state, motion_state,
+ * character, char_save[].level_masks).  The gPlayers extern below stays a
+ * raw u8[] on purpose: every access here is a single additive expression on
+ * that raw pointer, and re-typing it to Player[] would introduce the typed
+ * lvalue the de-fakematch hazard laws warn about (see claim.law.
+ * multifield-alias-defeats-indexed-addressing / offsetof-fused-immediate-
+ * counter).  offsetof() names the field; the pointer keeps its shape. */
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
 
 /* ------------------------------------------------------------------ */
 /* menu structures                                                     */
@@ -613,7 +627,8 @@ int DoOptions(void)
     if (options_state == 0 && good_wiz_enabled == 0 && opt_force_player < 0 &&
         (gGameMode != 0x4010 || lbl_803447B8 == 0)) {
         for (i = 0; i < 4; i++) {
-            if (PREC(i, 0xE8, s32) == 1 && (PADREC(i, 8, u32) & 0x40000) != 0 &&
+            if (PREC(i, offsetof(Player, state), s32) == 1 &&
+                (PADREC(i, 8, u32) & 0x40000) != 0 &&
                 OptionsStart(i) != 0) {
                 break;
             }
@@ -733,8 +748,8 @@ int DoOptions(void)
         }
         init_player_select(1);
         if (player >= 0) {
-            PREC(player, 0xE8, s32) = 2;
-            PREC(player, 0x3338, s32) = 1;
+            PREC(player, offsetof(Player, state), s32) = 2;
+            PREC(player, offsetof(Player, motion_state), s32) = 1;
         }
         break;
 
@@ -2061,9 +2076,9 @@ void show_optmenu(OPTMENU* m)
         }
         {
             f32 icon_scale = m->icon_scale;
-            *(f32*)((u8*)m->icon_node + 0x40) = icon_scale;
-            *(f32*)((u8*)m->icon_node + 0x44) = icon_scale;
-            *(f32*)((u8*)m->icon_node + 0x48) = icon_scale;
+            *(f32*)((u8*)m->icon_node + offsetof(MBObject, scale[0])) = icon_scale;
+            *(f32*)((u8*)m->icon_node + offsetof(MBObject, scale[1])) = icon_scale;
+            *(f32*)((u8*)m->icon_node + offsetof(MBObject, scale[2])) = icon_scale;
         }
         CopyMat3((f32*)(*((u8**)winset + 1) + 0x240), (f32*)m->icon_node);
         PitchMat3((f32*)m->icon_node, angle);
@@ -2369,9 +2384,9 @@ void start_optmenu_nostack(OPTMENU* m, s32 sel)
         m->icon_node = NULL;
     }
     if (m->icon_node != NULL) {
-        *(f32*)((u8*)m->icon_node + 0x40) = 1.0f;
-        *(f32*)((u8*)m->icon_node + 0x44) = 1.0f;
-        *(f32*)((u8*)m->icon_node + 0x48) = 1.0f;
+        *(f32*)((u8*)m->icon_node + offsetof(MBObject, scale[0])) = 1.0f;
+        *(f32*)((u8*)m->icon_node + offsetof(MBObject, scale[1])) = 1.0f;
+        *(f32*)((u8*)m->icon_node + offsetof(MBObject, scale[2])) = 1.0f;
     }
 
     m->icon_y = 0;
@@ -2481,15 +2496,21 @@ static void next_rune_hint(s32 advance)
         }
         rune_hint_index = i;
 have_index:
-        /* per-player: mask lives in the current-level record (stride 0xF0,
-         * level index at record+0xC) */
+        /* per-player: mask lives in the active character's save slot
+         * (Player.char_save[Player.character], stride 0xF0 kept as a bare
+         * literal per claim.law.sizeof-defeats-loop-stride-induction) */
         bit = 1 << (rune_idx_table[rune_hint_index] - 1);
         for (p = 0; p < 4; p++) {
             u8* rec = &gPlayers[p * PREC_STRIDE];
-            if (pass == 0 && (bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDDC)) != 0) {
+            if (pass == 0 &&
+                (bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
+                               offsetof(Player, char_save) +
+                               offsetof(PlayerCharSave, level_masks[0]))) != 0) {
                 pass = 1;
             }
-            if ((bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDDE)) != 0) {
+            if ((bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
+                               offsetof(Player, char_save) +
+                               offsetof(PlayerCharSave, level_masks[1]))) != 0) {
                 pass = 2;
             }
         }
@@ -2551,10 +2572,15 @@ have_index:
     bit = 1 << id;
     for (p = 0; p < 4; p++) {
         u8* rec = &gPlayers[p * PREC_STRIDE];
-        if (pass == 0 && (bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE0)) != 0) {
+        if (pass == 0 &&
+            (bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
+                           offsetof(Player, char_save) +
+                           offsetof(PlayerCharSave, level_masks[2]))) != 0) {
             pass = 1;
         }
-        if ((bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE2)) != 0) {
+        if ((bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
+                           offsetof(Player, char_save) +
+                           offsetof(PlayerCharSave, level_masks[3]))) != 0) {
             pass = 2;
         }
     }
@@ -2615,10 +2641,16 @@ have_index:
     bit = 1 << id;
     for (p = 0; p < 4; p++) {
         u8* rec = &gPlayers[p * PREC_STRIDE];
-        if (pass == 0 && (bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE4)) != 0) {
+        /* +0x10/+0x12 inside the slot fall in PlayerCharSave's pad_10 run;
+         * this pass may not split include/game/player.h, so the two addends
+         * stay bare while the character index itself is named */
+        if (pass == 0 &&
+            (bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
+                           0xDE4)) != 0) {
             pass = 1;
         }
-        if ((bit & *(u16*)(rec + *(s32*)(rec + 0xC) * 0xF0 + 0xDE6)) != 0) {
+        if ((bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
+                           0xDE6)) != 0) {
             pass = 2;
         }
     }
