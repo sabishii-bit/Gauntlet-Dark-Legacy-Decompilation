@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/world/items.c::FindClosestWaypoint, worktree GDL-Claude-ShortPath, commit 0d1b47c1d, 2026-09-01. Baseline real 16 with slotdiff reporting 'frame: target 48 ours 48 / TARGET-ONLY slot 20 / OURS-ONLY slot 24'. Changing the declared first parameter f64 -> f32 (definition + include/game/item.h prototype) took slotdiff to SLOT MAP IDENTICAL and real 16 -> 12 in one probe; the function then went byte-exact after two further source-shape fixes.",
+    "tags": [
+      "matching",
+      "decl-order",
+      "store-placement",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.parameter-save-area-width-sets-the-local-block-floor.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T21:52:38Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "A UNIFORM SLOT DISPLACEMENT WITH AN UNCHANGED FRAME SIZE IS A PARAMETER-LIST WIDTH BUG, NOT A PAD BUG - AND IT IS THE ONLY EVIDENCE THAT CAN FIX A FLOAT PARAMETER'S DECLARED WIDTH. MWCC reserves an incoming-parameter save area immediately above the 8-byte linkage words, sized from the DECLARED parameter list, and the local block's FLOOR sits directly on top of it. So the floor is at 8 + sum(declared parameter sizes), and every memory-resident local shifts with it. FindClosestWaypoint declared (f64, f32*, s32) = 16 bytes of parameter area, putting its single volatile f32 scratch at 20(r1) in the target and 24(r1) in ours; the retail signature is (f32, f32*, s32) = 12 bytes, and correcting the declared width moved the slot down by exactly 4 and produced SLOT MAP IDENTICAL. WHY THIS MATTERS BEYOND ONE FUNCTION: an f32 and an f64 parameter are INDISTINGUISHABLE in the instruction stream of a function that never spills them. Both arrive in f1; an f32 value already sits exactly in an FPR, so `fcmpo cr0,f6,f1` against an f32 local, and `fmr f1,f6` to assign one, are byte-identical under either declaration. The frame is the ONLY channel that carries the width. Any float-parameter function whose slots are uniformly displaced by 4 (or 8 for a pointer/int miscount) should have its parameter list audited BEFORE any pad or declaration-order work. DIAGNOSTIC, and the discriminator against the pad laws: run slotdiff first. If frame size AGREES between target and ours while a slot set is displaced, the local block moved as a unit and the floor is wrong - go to the parameter list. If the frame size DIFFERS, it is the ordinary pad/declaration-count problem that claim.law.stack-slots-descend-in-declaration-order.20260831.v1 and claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 govern. CONFIRMED NEGATIVE that pins the distinction down: with the local of interest already sitting AT the block floor, the pad lever is inert in both directions. Growing the pad above it (u8 unused2[8] -> [12]) grew the frame 48 -> 56 and left the slot at 24 - the added bytes went to the block's free TOP, not under the floor - and declaring the scratch inside an inner block (which claim.law.stack-slots-descend-in-declaration-order says sits BELOW every function-scope local) also left it at 24, because nothing can be placed below the parameter area. Corollary: 'lowest pad is the shift lever' has no lever to pull once the variable is already on the floor; only the floor itself can move it."
+}

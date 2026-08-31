@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Confirm the twin dtor shares the measured mechanism before spending the paired 8-byte ruler the prior record prescribed.",
+  "attributes": {
+    "law_screen": "claim.law.frame-pointer-alias-fakes-a-dead-low-region.20260831.v1 APPLIED and DECISIVE (same as the twin - this law already names movieplayer.c's C++ EH cluster as the false-positive family). claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED and NOT exercised (no slot residual). claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 SCREENED; its (r1)-row diagnostic is what shows the frame is not the variable.",
+    "laws_applied": "[\"claim.law.frame-pointer-alias-fakes-a-dead-low-region.20260831.v1\", \"claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1\"]",
+    "residual": "SAME MECHANISM AS dtor_800DB21C - MISSING C++ EXCEPTION-HANDLING CODEGEN, NOT AN 8-BYTE PAD. Full reasoning and the refutation of the frame-delta framing are in attempt.dtor800db21c-missing-cpp-eh-not-frame-pad.20260901.v1; this record exists so the twin's own park carries the correction. Measured here: target 52 instructions vs our 55. Target-only rows are `addi r31,r1,0` at +0x14 (the frame-pointer alias that makes an r1-only displacement scan misreport a dead low region) and `bl __unexpected` at +0xac (the exception cleanup edge); the epilogue restores with `lmw r28,40(r12)` through that alias where ours uses `lmw r29,52(r1)`, and the prologues disagree on the save set (`stmw r28,40(r1)` vs `stmw r29,52(r1)`). The prior record's inference that the two dtors are 'the same C++ destructor shape emitted from one source pattern and that a single fix closes both' is CORRECT; only its proposed fix is wrong. The `u8 unused[32]` pad in this body stands in for the EH frame area. Do not shrink it. Re-measure only after the queued movieplayer .cpp conversion turns exceptions on for the TU, which is the only change that can emit an __unexpected edge and a frame-pointer prologue.",
+    "scope": "src/game/movie/movieplayer.c::dtor_800DBB94. NO source change - read-only measurement; working tree clean. Not webfrank-pinned. regnorm and slotdiff cannot resolve the symbol (trailing _<ADDR> suffix); fnasm --diff and fndiff do.",
+    "verification": "python tools/gdl/fnasm.py game/movie/movieplayer dtor_800DBB94 --diff -> target 52 insns / ours 55, with addi r31,r1,0 and bl __unexpected present only on the target side and lmw r28,40(r12) vs lmw r29,52(r1); python tools/gdl/fndiff.py game/movie/movieplayer dtor_800DBB94 --clean -> STRUCTURAL, 85 real diff lines, HINT frame delta -8 (the artifact). 2026-09-01, build green, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679."
+  },
+  "function": "function:dtor_800DBB94",
+  "id": "attempt.dtor800dbb94-missing-cpp-eh-not-frame-pad.20260901.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T21:56:53Z",
+  "refutes": "attempt.dtor-800dbb94-frame-delta-relabel.20260831.v1",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.dtor-800dbb94-frame-delta-relabel.20260831.v1",
+  "valid_from": "2026-08-31"
+}
