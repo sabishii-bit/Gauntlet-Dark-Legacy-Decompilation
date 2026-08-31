@@ -1008,23 +1008,26 @@ extern char lbl_80114A48[]; /* boss-stream format string pool */
     }
 
 #pragma opt_propagation off
-/* sSpeechNameBuf is only a 0x40-byte sprintf scratch buffer (symbols.txt:
- * .bss 0x8028B5D0 size 0x40).  Every `speech + 0x4B0..0x6C4` store below
- * therefore lands OUTSIDE it, in the symbol the linker places next:
- * sActiveTrackId (.bss 0x8028BA80, size 0x238 = 142 s32) -- 0x8028B5D0 +
- * 0x4B0 is exactly sActiveTrackId's base.  Layout implied by the accesses:
- * 45 active-track ids (0x4B0..0x563, matching this file's own "45 entries"
- * note), then a [12][8] boss-speech id table from element 45 (0x564) with
- * 0x20-byte rows, indexed `[row][idx]`.
+/* One .bss object, split into two symbols by the extractor: its head is
+ * named sSpeechNameBuf (.bss 0x8028B5D0, size 0x40 -- the sprintf scratch
+ * buffer) and the id table 0x4B0 bytes later is named sActiveTrackId (.bss
+ * 0x8028BA80, size 0x238).  0x8028B5D0 + 0x4B0 is exactly sActiveTrackId's
+ * base, and the TARGET reaches every id store through the HEAD symbol with
+ * the table offset FOLDED INTO THE STORE DISPLACEMENT (r30 = @sSpeechNameBuf
+ * for the whole function, `stw r3,1412(r4)`), which a compiler can only do
+ * when the two live in one declared object.  So the block is declared as one
+ * record here, per claim.law.walked-base-symbol-identity keeping
+ * sSpeechNameBuf as the relocated base symbol.
  *
- * The base symbol is NOT rewritten to sActiveTrackId: the TARGET relocates
- * every one of these stores @sSpeechNameBuf(ADDR16_HA/LO) and keeps that
- * pointer in r30 for the whole function, so per
- * claim.law.walked-base-symbol-identity sSpeechNameBuf is the correct base
- * and re-basing would emit a different relocation.  Only the displacement
- * constants are named. */
-#define SPEECH_ACTIVETRACK 0x4B0            /* sActiveTrackId - sSpeechNameBuf */
-#define SPEECH_BOSSROW(n)  (0x564 + (n) * 0x20) /* sActiveTrackId[45] + row n */
+ * Layout implied by the accesses: 45 active-track ids at 0x4B0 (matching
+ * this file's own "45 entries" note), then a [12][8] boss-speech id table at
+ * 0x564 with 0x20-byte rows, indexed [row][idx]. */
+typedef struct {
+    char name[0x40];     /* 0x000 sprintf scratch buffer (sSpeechNameBuf) */
+    u8 pad_40[0x470];    /* 0x040 fields not reached by this TU */
+    s32 activeTrack[45]; /* 0x4B0 sActiveTrackId */
+    s32 boss[12][8];     /* 0x564 boss-speech ids, [row][idx] */
+} SpeechBlock;
 
 void AudioSetupBossStreams(register int idx, register char* name)
 {
@@ -1033,7 +1036,7 @@ void AudioSetupBossStreams(register int idx, register char* name)
     register int mode;
     register char* suffix = "DIE";
     register int sel;
-    register char* speech = (char*)sSpeechNameBuf;
+    register SpeechBlock* speech = (SpeechBlock*)sSpeechNameBuf;
     register char* formats = lbl_80114A48;
     int nvar;
 
@@ -1044,7 +1047,7 @@ void AudioSetupBossStreams(register int idx, register char* name)
     if (name == NULL || *name == 0) {
         idx = -1;
     }
-    *(s32*)(speech + SPEECH_ACTIVETRACK + sel * 4) = idx;
+    speech->activeTrack[sel] = idx;
     mode = 0;
 
     switch (sel) {
@@ -1052,12 +1055,12 @@ void AudioSetupBossStreams(register int idx, register char* name)
         sprintf(bufA, "GOL%c", (signed char)LevelLetter(0));
         sprintf(bufB, "GOL%c", (signed char)LevelLetter(0));
         nvar = 0;
-        sprintf(speech, formats + 348, (signed char)LevelLetter(0));
-        sMusicSlot0 = AudioFindSound(speech, -1, 1);
-        sprintf(speech, formats + 364, (signed char)LevelLetter(0));
-        sMusicSlot1 = AudioFindSound(speech, -1, 1);
-        sprintf(speech, formats + 376, (signed char)LevelLetter(0));
-        sMusicSlot2 = AudioFindSound(speech, -1, 1);
+        sprintf(speech->name, formats + 348, (signed char)LevelLetter(0));
+        sMusicSlot0 = AudioFindSound(speech->name, -1, 1);
+        sprintf(speech->name, formats + 364, (signed char)LevelLetter(0));
+        sMusicSlot1 = AudioFindSound(speech->name, -1, 1);
+        sprintf(speech->name, formats + 376, (signed char)LevelLetter(0));
+        sMusicSlot2 = AudioFindSound(speech->name, -1, 1);
         suffix = "KILL";
         break;
     default:
@@ -1108,76 +1111,76 @@ void AudioSetupBossStreams(register int idx, register char* name)
         break;
     }
 
-    sprintf(speech, formats + 392, bufA, suffix);
-    BossNameFixup(speech);
-    *(s32*)(speech + SPEECH_BOSSROW(0) + idx * 4) = AudioFindSound(speech, -1, 1);
+    sprintf(speech->name, formats + 392, bufA, suffix);
+    BossNameFixup(speech->name);
+    speech->boss[0][idx] = AudioFindSound(speech->name, -1, 1);
 
-    sprintf(speech, formats + 392, bufB, suffix);
-    BossNameFixup(speech);
-    *(s32*)(speech + SPEECH_BOSSROW(1) + idx * 4) = AudioFindSound(speech, -1, 1);
+    sprintf(speech->name, formats + 392, bufB, suffix);
+    BossNameFixup(speech->name);
+    speech->boss[1][idx] = AudioFindSound(speech->name, -1, 1);
 
-    sprintf(speech, formats + 404, bufA, suffix);
-    BossNameFixup(speech);
-    *(s32*)(speech + SPEECH_BOSSROW(2) + idx * 4) = AudioFindSound(speech, -1, 1);
+    sprintf(speech->name, formats + 404, bufA, suffix);
+    BossNameFixup(speech->name);
+    speech->boss[2][idx] = AudioFindSound(speech->name, -1, 1);
 
-    sprintf(speech, formats + 404, bufB, suffix);
-    BossNameFixup(speech);
-    *(s32*)(speech + SPEECH_BOSSROW(3) + idx * 4) = AudioFindSound(speech, -1, 1);
+    sprintf(speech->name, formats + 404, bufB, suffix);
+    BossNameFixup(speech->name);
+    speech->boss[3][idx] = AudioFindSound(speech->name, -1, 1);
 
     if (nvar < 2) {
-        sprintf(speech, formats + 416, bufA);
-        BossNameFixup(speech);
-        *(s32*)(speech + SPEECH_BOSSROW(4) + idx * 4) = AudioFindSound(speech, -1, 1);
+        sprintf(speech->name, formats + 416, bufA);
+        BossNameFixup(speech->name);
+        speech->boss[4][idx] = AudioFindSound(speech->name, -1, 1);
 
-        sprintf(speech, formats + 432, bufA);
-        BossNameFixup(speech);
-        *(s32*)(speech + SPEECH_BOSSROW(5) + idx * 4) = AudioFindSound(speech, -1, 1);
+        sprintf(speech->name, formats + 432, bufA);
+        BossNameFixup(speech->name);
+        speech->boss[5][idx] = AudioFindSound(speech->name, -1, 1);
     }
 
     if (nvar != 0) {
-        sprintf(speech, formats + 444, bufB);
-        BossNameFixup(speech);
-        *(s32*)(speech + SPEECH_BOSSROW(6) + idx * 4) = AudioFindSound(speech, -1, 1);
+        sprintf(speech->name, formats + 444, bufB);
+        BossNameFixup(speech->name);
+        speech->boss[6][idx] = AudioFindSound(speech->name, -1, 1);
 
-        sprintf(speech, formats + 460, bufB);
-        BossNameFixup(speech);
-        *(s32*)(speech + SPEECH_BOSSROW(7) + idx * 4) = AudioFindSound(speech, -1, 1);
+        sprintf(speech->name, formats + 460, bufB);
+        BossNameFixup(speech->name);
+        speech->boss[7][idx] = AudioFindSound(speech->name, -1, 1);
 
-        sprintf(speech, formats + 476, bufB);
-        BossNameFixup(speech);
-        *(s32*)(speech + SPEECH_BOSSROW(8) + idx * 4) = AudioFindSound(speech, -1, 1);
+        sprintf(speech->name, formats + 476, bufB);
+        BossNameFixup(speech->name);
+        speech->boss[8][idx] = AudioFindSound(speech->name, -1, 1);
 
-        sprintf(speech, formats + 488, bufB);
-        BossNameFixup(speech);
-        *(s32*)(speech + SPEECH_BOSSROW(9) + idx * 4) = AudioFindSound(speech, -1, 1);
+        sprintf(speech->name, formats + 488, bufB);
+        BossNameFixup(speech->name);
+        speech->boss[9][idx] = AudioFindSound(speech->name, -1, 1);
     } else {
-        sprintf(speech, formats + 416, bufB);
-        BossNameFixup(speech);
-        *(s32*)(speech + SPEECH_BOSSROW(6) + idx * 4) = AudioFindSound(speech, -1, 1);
-        *(s32*)(speech + SPEECH_BOSSROW(7) + idx * 4) = *(s32*)(speech + SPEECH_BOSSROW(6) + idx * 4);
+        sprintf(speech->name, formats + 416, bufB);
+        BossNameFixup(speech->name);
+        speech->boss[6][idx] = AudioFindSound(speech->name, -1, 1);
+        speech->boss[7][idx] = speech->boss[6][idx];
 
-        sprintf(speech, formats + 432, bufB);
-        BossNameFixup(speech);
-        *(s32*)(speech + SPEECH_BOSSROW(8) + idx * 4) = AudioFindSound(speech, -1, 1);
-        *(s32*)(speech + SPEECH_BOSSROW(9) + idx * 4) = *(s32*)(speech + SPEECH_BOSSROW(8) + idx * 4);
+        sprintf(speech->name, formats + 432, bufB);
+        BossNameFixup(speech->name);
+        speech->boss[8][idx] = AudioFindSound(speech->name, -1, 1);
+        speech->boss[9][idx] = speech->boss[8][idx];
     }
 
     if (mode == 2) {
-        sprintf(speech, formats + 500, bufA);
-        BossNameFixup(speech);
-        *(s32*)(speech + SPEECH_BOSSROW(10) + idx * 4) = AudioFindSound(speech, -1, 1);
+        sprintf(speech->name, formats + 500, bufA);
+        BossNameFixup(speech->name);
+        speech->boss[10][idx] = AudioFindSound(speech->name, -1, 1);
 
-        sprintf(speech, formats + 500, bufB);
-        BossNameFixup(speech);
-        *(s32*)(speech + SPEECH_BOSSROW(11) + idx * 4) = AudioFindSound(speech, -1, 1);
+        sprintf(speech->name, formats + 500, bufB);
+        BossNameFixup(speech->name);
+        speech->boss[11][idx] = AudioFindSound(speech->name, -1, 1);
     } else if (mode == 1) {
-        sprintf(speech, formats + 512, bufA);
-        BossNameFixup(speech);
-        *(s32*)(speech + SPEECH_BOSSROW(10) + idx * 4) = AudioFindSound(speech, -1, 1);
+        sprintf(speech->name, formats + 512, bufA);
+        BossNameFixup(speech->name);
+        speech->boss[10][idx] = AudioFindSound(speech->name, -1, 1);
 
-        sprintf(speech, formats + 512, bufB);
-        BossNameFixup(speech);
-        *(s32*)(speech + SPEECH_BOSSROW(11) + idx * 4) = AudioFindSound(speech, -1, 1);
+        sprintf(speech->name, formats + 512, bufB);
+        BossNameFixup(speech->name);
+        speech->boss[11][idx] = AudioFindSound(speech->name, -1, 1);
     }
 }
 #pragma opt_propagation reset
