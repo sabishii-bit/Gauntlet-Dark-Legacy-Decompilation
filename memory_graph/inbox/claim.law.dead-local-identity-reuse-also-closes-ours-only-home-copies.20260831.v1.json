@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/pmotion.c::get_player_pos, worktree GDL-Claude-PmotionDr2, commit aadd676fc. Residual before: target `subfc r27,r27,r0; cmpw r27,r21` computing `(rand4 + j) % 4` in place in a callee-saved register, versus ours `subfc r3,r3,r0; cmpw r3,r19; addi r23,r3,0` computing the whole strength-reduced modulo chain (srawi/addze/slwi/subfc) in scratch r3 and then homing it. Deleting the dedicated `s32 idx;` and reusing the function's already-declared `s32 i` - dead at that point because its only other use is as the counter of a later loop that assigns `i = 0` before any read - removed the copy and, far beyond that, realigned the entire function.",
+    "tags": [
+      "matching",
+      "register-web",
+      "decl-order",
+      "cse",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.dead-local-identity-reuse-also-closes-ours-only-home-copies.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T16:29:16Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1 is scoped to a residual 'reduced to two callee-saved webs holding each other's register'. Its true reach is wider on two axes, both measured. FIRST, IT ALSO CLOSES THE OURS-ONLY HOME COPY. The mirror image of claim.law.callee-saved-home-copy-coalescing-is-source-unreachable (which documents a TARGET-only `mr` as unreachable) is an OURS-only `addi rHome,rScratch,0`: our build computes a value through a scratch register and then homes it, where the target computes it directly into the callee-saved home. That shape IS source-reachable, and identity substitution is the lever - which also means the parent law's 'source-unreachable' verdict must be read as applying only to the target-only direction, after its dead-local enumeration comes up empty. SECOND, THE CARRIER MAY BE A DERIVED VALUE, NOT ONLY A CROSSED WEB. Here the substituted variable was a derived loop index (`idx = (rand4 + j) % 4`), not one of two swapped webs; replacing the dedicated local with an already-declared local that is dead at the definition point (its later use being a loop that initialises it before reading) removed the copy. ELIGIBILITY TEST for the carrier, which is what makes this safe to apply mechanically: the candidate must be already declared, must be dead at the definition point, and must not be live SIMULTANEOUSLY with the value anywhere in the substituted range - a candidate that is merely 'assigned later' still qualifies, because an assignment before any read kills the incoming value. THE PAYOFF IS NON-LOCAL AND IS THE REASON TO TRY THIS EARLY RATHER THAN LAST. The substitution was expected to remove one instruction; it removed the instruction AND collapsed a whole-function colour cascade, taking get_player_pos from real 451 to 264 in a single edit and moving it from insns 506/507 with a DIFFERING multiset to 506/506 with an IDENTICAL multiset - i.e. from a structural residual to a pure register permutation, with frame size and stmw save-set already matching. Treat a single stray home copy as a possible keystone of the function's entire allocation order, not as a one-instruction rounding error, and enumerate dead carriers BEFORE spending probes on schedule or branch-shape theories. NEGATIVE CONTROLS from the same TU, which bound the lever: in both PlayerCollideFloor and fn_80088714 the identical ours-only home copy exists on a `u8* ctx` pointer and NO carrier is available (every other pointer local is live simultaneously with ctx), and in both cases moving the declaration instead of substituting identity REGRESSED (319->331 and 65->83). Declaration relocation is NOT a substitute for identity substitution; when the enumeration is empty the axis really is unavailable."
+}
