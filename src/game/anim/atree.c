@@ -1176,6 +1176,10 @@ void fn_80011DCC(AtreeWorldPsys* psys)
  * InitOAnimList over each match entry, then claim an atree-list slot. */
 u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
 {
+    /* stands in for an unrecovered local: the target reserves 296 bytes at the
+     * bottom of the frame that this function never reads or writes and whose
+     * address is never taken. */
+    u8 unused[248];
     u8* base = (u8*)hdr;
     s32 i;
     s32 j;
