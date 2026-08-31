@@ -1269,14 +1269,12 @@ void TowerCheckMessages(s32 mode) {
         }
         {
             for (j = 0; j < 3; j++) {
-                u32 curWorld;
-
                 levels[j] = 0;
-                curWorld = lbl_80343D6C;
                 for (i = 0; i < 4; i++) {
                     Player* p = &gPlayers[i];
 
-                    if (p->state != 0 && (u32)p->hidden_code != curWorld) {
+                    if (p->state != 0 &&
+                        (u32)p->hidden_code != (u32)lbl_80343D6C) {
                         s32 val = p->char_save[p->character].completion1[j];
 
                         if (levels[j] >= 0 && (val < 0 || val > levels[j])) {
@@ -1304,23 +1302,20 @@ void TowerCheckMessages(s32 mode) {
             }
             for (j = 0; j < 8; j++) {
                 if (lbl_80124C70[j] != 0) {
-                    s32* best = &bosses[j];
-                    u32 curWorld;
-
-                    *best = 0;
-                    curWorld = lbl_80343D6C;
+                    bosses[j] = 0;
                     for (i = 0; i < 4; i++) {
                         Player* p = &gPlayers[i];
 
-                        if (p->state != 0 && (u32)p->hidden_code != curWorld) {
+                        if (p->state != 0 &&
+                            (u32)p->hidden_code != (u32)lbl_80343D6C) {
                             s32 val = p->char_save[p->character].completion2[j];
 
-                            if (*best >= 0 && (val < 0 || val > *best)) {
-                                *best = val;
+                            if (bosses[j] >= 0 && (val < 0 || val > bosses[j])) {
+                                bosses[j] = val;
                             }
                         }
                     }
-                    if (*best == lbl_80124C70[j]) {
+                    if (bosses[j] == lbl_80124C70[j]) {
                         msg = FindStringMessageListSub_8001FC4C(0, strings + 76);
                         arg = fn_8009C620(j);
                         ControllerMessageBox(-1, msg, j, arg);
