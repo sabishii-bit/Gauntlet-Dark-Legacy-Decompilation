@@ -3143,12 +3143,27 @@ def fakematch_debt(
                     if show_lines:
                         line = text.count("\n", 0, match.start()) + 1
                         sites.append(f"{relative}:{line} ({owner})")
-        pf_sites = len(_DEBT_PF_RE.findall(text))
-        if bare or named or pf_sites:
+        pf_sites = pf_named = 0
+        for pf in _DEBT_PF_RE.finditer(text):
+            depth = 0
+            for i in range(pf.end() - 1, min(pf.end() + 400, len(text))):
+                if text[i] == "(":
+                    depth += 1
+                elif text[i] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        break
+            args = text[pf.end():i]
+            if "offsetof" in args or "sizeof" in args:
+                pf_named += 1  # already converted in place, not debt
+            else:
+                pf_sites += 1
+        if bare or named or pf_sites or pf_named:
             rows.append(
                 {"tu": relative, "cast_sites": bare + named,
                  "bare_sites": bare, "named_sites": named,
-                 "pf_sites": pf_sites, "total": bare + named + pf_sites}
+                 "pf_sites": pf_sites, "pf_named": pf_named,
+                 "total": bare + named + pf_sites + pf_named}
             )
     rows.sort(key=lambda row: (-(row["bare_sites"] + row["pf_sites"]),
                                row["tu"]))
@@ -3159,13 +3174,15 @@ def fakematch_debt(
         "bare_total": sum(row["bare_sites"] for row in rows),
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "note": (
-            "bare_sites (+pf_sites) is the remaining debt; named_sites are"
-            " already offsetof/sizeof-converted. The census is a floor —"
-            " cast-then-index, cast-assign, and macro-bodied access shapes"
-            " (WSWAP-style swap macros) escape the regex — and includes"
-            " legitimate raw forms (protected webs, structless pools): read"
-            " the TU's attempt records before claiming. Binary-multiply"
-            " lookalikes are excluded since 2026-08-31."
+            "bare_sites (+pf_sites) is the remaining debt; named_sites and"
+            " pf_named are already offsetof/sizeof-converted. The census is"
+            " a floor — cast-then-index, cast-assign, and macro-bodied"
+            " access shapes (WSWAP-style swap macros) escape the regex —"
+            " and includes legitimate raw forms (protected webs, structless"
+            " pools): read the TU's attempt records before claiming."
+            " Binary-multiply lookalikes are excluded since 2026-08-31."
+            " A site converted to FULL member form leaves the census"
+            " entirely — a shrinking total is progress, not loss."
         ),
     }
     if show_lines and tu:

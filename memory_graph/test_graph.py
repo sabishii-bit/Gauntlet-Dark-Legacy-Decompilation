@@ -307,6 +307,7 @@ class GraphSurfaceTests(unittest.TestCase):
             "  /* commented out: *(s32*)(p + 12) = 9; */\n"
             "  PF(p, 0x10, s32) = 4;\n"
             "  PF(x,1,u8) = 5;\n"
+            "  PF(p, offsetof(Player, gold), s16) = 6;  /* converted PF */\n"
             "}\n"
             "void g(u8* p) {\n"
             "  *(s32*)(p + 20) = 8;\n"
@@ -387,6 +388,7 @@ class GraphSurfaceTests(unittest.TestCase):
         self.assertEqual(row["named_sites"], 3)
         self.assertEqual(row["cast_sites"], 8)
         self.assertEqual(row["pf_sites"], 2)
+        self.assertEqual(row["pf_named"], 1)
         self.assertEqual(result["bare_total"], 5)
         self.assertEqual(fakematch_debt("nomatch", root=self.root)["tu_count"], 0)
         lined = fakematch_debt("game/test/foo", root=self.root, show_lines=1)
@@ -594,7 +596,7 @@ class GraphSurfaceTests(unittest.TestCase):
             [row["id"] for row in brief["core_screen_laws"]],
             ["claim.law.test-law.v2"],
         )
-        self.assertEqual(brief["raw_offset_debt"][0]["total"], 10)
+        self.assertEqual(brief["raw_offset_debt"][0]["total"], 11)
         self.assertEqual(brief["raw_offset_debt"][0]["bare_sites"], 5)
         with self.assertRaisesRegex(MemoryGraphError, "no GameCube module"):
             tu_briefing("does/not/exist", root=self.root)
