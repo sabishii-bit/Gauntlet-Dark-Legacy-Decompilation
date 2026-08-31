@@ -1,5 +1,7 @@
 #include "types.h"
 
+#include "game/gamemode.h"
+
 /* Low-level sound-effect / voice engine (GC snd* driver family), first slice
  * 0x800150CC-0x800160F0.
  *
@@ -176,7 +178,7 @@ f32 sndFxQueAddEx(int mode, int soundId, f32 vol, f32 param, int pri, int track,
 int sndFxQueUpdate(void);
 
 /* Is audio currently silenced (paused and not overridden)? */
-#define sndFxPaused() ((gGameMode & 0x8000) && sAudioOverride == 0)
+#define sndFxPaused() ((gGameMode & MODE_GROUP_ATTRACT) && sAudioOverride == 0)
 
 /* Horizontal stereo pan (-256..255) for a world position, relative to the
  * listener transform. */

@@ -713,7 +713,7 @@ void WritePlayerInfo(s32 pnum) {
     s32 end;
     u8 unused[8];
 
-    if ((!(gGameMode & 0x8000) || lbl_80344298 == 0) &&
+    if ((!(gGameMode & MODE_GROUP_ATTRACT) || lbl_80344298 == 0) &&
         (pnum < 0 || (lbl_80344824 & (1 << pnum)))) {
         if (pnum >= 0) {
             first = pnum;
@@ -858,7 +858,7 @@ void ShowRuneStones(void) {
                         }
                     }
                 }
-                if (!(gGameMode & 0x8000) && (state == 1 || state == 5)) {
+                if (!(gGameMode & MODE_GROUP_ATTRACT) && (state == 1 || state == 5)) {
                     for (j = 0; j < 12; j++) {
                         if ((blit = rune_blit[i][j]) != NULL) {
                             if ((((Player*)p)->shards & (1 << j)) != 0) {
@@ -1316,7 +1316,7 @@ void setup_player_display(s32 i) {
         sprintf(buf, "S4_%s", &lbl_801200B0[chr * 4]);
         frames = (u32)MBOX_FindTexture_Err(buf, NULL, 1);
         mbInitBlitEntry(frame_blit[i][1], frames, 0);
-        if (!(gGameMode & 0x8000)) {
+        if (!(gGameMode & MODE_GROUP_ATTRACT)) {
             s32 j;
 
             for (j = 0; j < 12; j++) {
@@ -3254,7 +3254,7 @@ void abort_player(s32 i) {
     if (p->node != NULL) {
         player_dies(i);
     }
-    if (gGameMode & 0x4000) {
+    if (gGameMode & MODE_GROUP_GAME) {
         setup_player_display(i);
         for (j = 0; j < 7; j++) {
             mbBlitInit3414(pm_blit[i][j], 1);

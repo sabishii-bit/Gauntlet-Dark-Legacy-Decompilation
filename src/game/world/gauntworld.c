@@ -1607,7 +1607,7 @@ s32 fn_8005B8FC(void* owner)
         result = *(s16*)&item->data[0];
     }
 
-    if ((gGameMode & 0x8000) != 0 && result != 0) {
+    if ((gGameMode & MODE_GROUP_ATTRACT) != 0 && result != 0) {
         msgPost(0x61, *(s32*)owner, (char*)owner + 0x54);
     }
     return result;
@@ -5056,7 +5056,7 @@ void fn_800606FC(void)
                         }
                         it->daction = d;
                     }
-                    if (subtype == 0x17 && !(gGameMode & 0x8000)) {
+                    if (subtype == 0x17 && !(gGameMode & MODE_GROUP_ATTRACT)) {
                         msgPost(5, -1, (char*)it->objgrp.attn_pos);
                     }
                 } else if (flags & 4) {
@@ -6582,7 +6582,7 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
     if (kind < 0) {
         return;
     }
-    if ((gGameMode & 0x8000) && (u32)gGameMode != MA_DEMO &&
+    if ((gGameMode & MODE_GROUP_ATTRACT) && (u32)gGameMode != MA_DEMO &&
         (u32)gGameMode != MA_INSTRUCT) {
         return;
     }

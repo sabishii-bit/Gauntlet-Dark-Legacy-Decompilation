@@ -773,7 +773,7 @@ void ScreenSaver(void)
     s32 exit = 0;
     s32 i;
 
-    if ((gGameMode & 0x8000) != 0 || gGameMode == MG_GAMEMOVIE || gGameMode == MG_ENDING ||
+    if ((gGameMode & MODE_GROUP_ATTRACT) != 0 || gGameMode == MG_GAMEMOVIE || gGameMode == MG_ENDING ||
         fn_80055F68(0, 0) == 0) {
         lbl_80344A48 = 0;
     } else {
