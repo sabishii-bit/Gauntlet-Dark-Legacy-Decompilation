@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/pmotion.c::get_player_pos, worktree GDL-Claude-PmotionDr2, work_claim.pmotion-drive-2.20260831.v1, commits 78138f813 and 7c848cc7a. The field is PSpawnView.floor_obj (u32 @0x8C4 = 2244), a file-local view struct reached through the macro `#define SV(p) ((PSpawnView*)(p))`. Target spells every access as base+displacement (`stw r0,2244(r24)`, `lwz r0,2244(r26)`); ours emitted `addi r26,r22,2244` / `addi r27,r25,2244` into saved GPRs and then `stw r0,0(r26)` / `lwz r0,0(r27)`. Introducing `PSpawnView* sv = SV(p);` removed the first web (real 497 -> 460, insns 509 -> 508); adding `osv = SV(other);` at each point where `other` is assigned removed the second (real 460 -> 451, insns -> 507, multiset 1t).",
+    "tags": [
+      "matching",
+      "alias-form",
+      "cse",
+      "register-web",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.cast-view-macro-reopens-addr-pre-that-member-form-closed.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T16:29:11Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "claim.law.member-form-kills-addr-pre.20260829.v1 states that respelling repeated `*(T*)((u8*)p + OFF)` accesses as a named struct member removes MWCC's address-PRE web. That cure is INCOMPLETE, and the gap is the single most common way the web survives a de-fakematch pass: what matters is not member SYNTAX but whether the BASE POINTER is a named local. Accesses written as `MACRO(p)->field` - a cast-to-view-struct macro such as `#define SV(p) ((PSpawnView*)(p))` - are already in member form and still build the web, because each occurrence re-derives an anonymous cast temporary, and two or more such accesses whose span crosses a call let address-PRE hoist `p + OFF` into a saved GPR. The cure is to name the CAST RESULT once (`PSpawnView* sv = SV(p);`) and access `sv->field`; the accesses then lower to plain base+displacement exactly as the member-form law promises. THRESHOLD CORRECTION: the parent law says three or more accesses; TWO sufficed here (the `SV(other)->floor_obj` web was built from one write and one read spanning a FloorCollide call), so treat two-crossing-a-call as the trigger. SECOND, INDEPENDENT CORRECTION - do not blame `volatile`: these same sites had been recorded by a prior session as 'volatile &-address webs', on the theory that the `*(volatile u32*)&SV(p)->floor_obj` pun pinned the address. Removing every volatile pun measured BYTE-IDENTICAL (probe NEUTRAL, no [BYTES CHANGED] tag), proving the qualifier was wholly inert and the cast, not the volatile, built the web. A residual attributed to volatile should be re-tested by simply deleting the qualifier before any theory is built on it, since that test is free and settles the question. PRACTICAL COROLLARY: when a TU defines a view-struct cast macro, every function using it is a candidate site, and the named-view-pointer conversion is simultaneously a de-fakematch improvement and a matching win - so gate it as a normal matching commit. Note that introducing the local renumbers the TU's anonymous pool, so expect claim.law.adding-a-local-renumbers-the-anonymous-pool-and-drifts-siblings to fire on the sibling gate and adjudicate it with fndiff --clean rather than reverting."
+}

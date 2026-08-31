@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/pmotion.c, worktree GDL-Claude-PmotionDr2, work_claim.pmotion-drive-2.20260831.v1. Two independent instances against the same global `lbl_80282850`, both read-only diagnoses (no code retained). PlayerCollideFloor @0x38: target `lis r4,@ha; addi r30,r4,@lo` vs ours `lis r4,@ha; addi r0,r4,@lo; mr r30,r0`. fn_80088714 @0x38: target `lis r4,@ha; addi r31,r4,@lo` vs ours `lis r4,@ha; addi r0,r4,@lo; mr r31,r0`. In both the surrounding block is an identical instruction set differing only in schedule, the frame size and stmw save-set already match target, and the copy is the sole opcode-multiset difference (ours-only -1 mr).",
+    "tags": [
+      "matching",
+      "register-web",
+      "relocation",
+      "postprocessor",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.addr16-lo-address-homed-via-r0-is-source-unreachable.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T16:29:20Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A distinct and recognisable REGISTER_ONLY residual: a file-scope address taken into a long-lived local pointer (`u8* ctx = lbl_80282850;`) is lowered by the target as `lis rT,SYM@ha; addi rHome,rT,SYM@lo`, forming the pointer DIRECTLY into its callee-saved home, while our build lowers it as `lis rT,@ha; addi r0,rT,@lo; mr rHome,r0`, routing the ADDR16_LO result through r0 and paying a home copy. SIGNATURE: fndiff --ops reports `ours-only: -1 mr` with the opcode streams otherwise aligned, one instruction LONG, and fnasm shows the extra copy sourced from r0 immediately after an ADDR16_LO addi. DIAGNOSTIC VALUE: r0 is the tell. MWCC uses r0 as its scratch for address materialisation, so an addi whose destination is r0 followed by a copy into a saved register means the allocator declined to fuse the address formation with the home assignment; this is an allocator decision downstream of relocation lowering, not a spelling choice. MEASURED SOURCE-UNREACHABLE across four distinct axes over two sessions and two functions: declaration-initializer form (REGRESSED on PlayerCollideFloor, run 6), statement reorder (NEUTRAL, run 6), declaration ORDER relocation (REGRESSED on both - 319->331 and 65->83, this session), and dead-local identity substitution (NO CANDIDATE CARRIER in either function - every other pointer local is provably live simultaneously with ctx, which is the boundary at which claim.law.dead-local-identity-reuse-flips-callee-saved-coloring declares its own axis unavailable). CRITICAL NEGATIVE CONTROL that kills the most tempting hypothesis: the decl-initializer form is NOT the discriminator. fn_80088714 already spells ctx as `u8* ctx = lbl_80282850;` - the exact form used by the byte-matched site in get_player_pos - and still pays the copy. Do not spend probes trying to make the source 'look like' the matched site; the two sites differ in allocator pressure, not in spelling. DISPOSITION: this is a well-formed WebFrank REGISTER_ONLY candidate. The two instances share one mechanism and one rule closes both; the copy is a pure register move with no operand, schedule, relocation-payload or semantic content, so the register stage's guards apply cleanly. Prefer authoring that rule over any further source probing, and add no new source axis to these two functions without a positive control demonstrating the direct-form lowering elsewhere."
+}
