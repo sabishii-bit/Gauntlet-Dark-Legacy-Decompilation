@@ -104,21 +104,21 @@ def _repo_relative(root: Path, path: Path) -> str:
 
 
 def default_database_path(root: Path = REPO_ROOT) -> Path:
-    """Return a worktree-shared, Git-local database path when possible."""
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--git-common-dir"],
-            cwd=root,
-            check=True,
-            capture_output=True,
-            text=True,
-        )
-        common = Path(result.stdout.strip())
-        if not common.is_absolute():
-            common = (root / common).resolve()
-        return common / "gdl-memory" / "memory.sqlite"
-    except (OSError, subprocess.CalledProcessError):
-        return root / ".gdl-memory" / "memory.sqlite"
+    """Return a per-checkout database path.
+
+    The DB is a derived cache of records/ (the source of truth), so a linked
+    worktree gets its OWN copy under build/ — the old worktree-shared path
+    caused sqlite rename collisions between parallel fleet workers, and the
+    `git rev-parse --git-common-dir` it relied on returns a POSIX-form path
+    under MSYS git that Windows Path arithmetic mangles into a bogus
+    location (both failure modes observed in the field, 2026-08-31).
+    """
+    git_marker = root / ".git"
+    if git_marker.is_file():  # linked worktree: isolated derived cache
+        return root / "build" / "gdlmem" / "memory.sqlite"
+    if git_marker.is_dir():  # main checkout: same location as before
+        return git_marker / "gdl-memory" / "memory.sqlite"
+    return root / ".gdl-memory" / "memory.sqlite"
 
 
 def _iter_input_paths(root: Path) -> Iterator[Path]:
