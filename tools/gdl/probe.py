@@ -13,6 +13,9 @@ Usage:
                                                                  # source, then
                                                                  # build+score
   python tools/gdl/probe.py game/game/player do_players --reset  # forget best
+  python tools/gdl/probe.py game/game/player do_players --rebase-best
+      # after a fuzzy/--ops-arbitrated keep of a real-regressed state:
+      # accept the CURRENT state as the new best and revert point
 
 Output: one line per probe —
   IMPROVED  real 1109 -> 1070 (best was 1109)     [best updated]
@@ -137,7 +140,14 @@ def main():
     if state_file.exists():
         state = json.loads(state_file.read_text(encoding="utf-8"))
     best = state.get("best_real")
-    if best is None:
+    if "--rebase-best" in sys.argv:
+        # After fuzzy/--ops arbitration keeps a real-regressed state, the old
+        # banked best is dead and every later probe misreports REGRESSED.
+        # Accept the current state as the new best and revert point.
+        verdict = (f"REBASED   best {best} -> {real} (insns {insns})"
+                   f"  [arbitrated keep]")
+        state["best_real"] = real
+    elif best is None:
         verdict = f"BASELINE  real {real} (insns {insns})"
         state["best_real"] = real
     elif real < best:
@@ -154,7 +164,8 @@ def main():
 
     # Bank a revert point whenever this source state is the high-water mark.
     if source is not None and (verdict.startswith("BASELINE")
-                               or verdict.startswith("IMPROVED")):
+                               or verdict.startswith("IMPROVED")
+                               or verdict.startswith("REBASED")):
         shutil.copyfile(source, snapshot_path(unit, source))
         print(f"[revert point banked: probe.py {unit} {fn} --revert"
               " restores it]")
