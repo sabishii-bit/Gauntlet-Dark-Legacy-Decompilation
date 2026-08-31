@@ -399,6 +399,34 @@ extern f32 lbl_80346984;        /* 0.1745329f milestone turn */
 extern u8 lbl_8011AF48[];       /* enemy.c .data anchor (turn tables at +4444/+4412...) */
 extern f64 lbl_80346948;        /* 4.0 */
 
+/* ----------------------------------------------------------------------------
+ * Per-enemy-type attribute tables inside the lbl_8011AF48 .data blob.
+ *
+ * The blob holds a structure-of-arrays block: a run of parallel 34-entry f32
+ * arrays, each indexed by the enemy's e_e_tpye, so a lookup is always
+ * `*(f32*)(lbl_8011AF48 + type * 4 + <array base>)`.  The array bases below are
+ * named from what each value is stored into at its consumers; the raw
+ * displacements stay inside a single additive expression per
+ * claim.law.offsetof-rename-preserves-protected-web (respelling the constant is
+ * neutral, restructuring the expression is not - see init_enemy).
+ *
+ * Evidence:
+ *   +1808 (elem 452) -> Enemy.hht     via gamemain.c init_enemy_vars
+ *   +1944 (elem 486) -> Enemy.rad     via gamemain.c init_enemy_vars
+ *   +2080 (elem 520) -> Enemy.attn_offset[1]  (init_enemy, `lfs f0,2080(r8)`)
+ *   +2216 (elem 554) -> Enemy.coll_offset[1]  (init_enemy, `lfs f0,2216(r8)`)
+ *   +2760 (elem 690) -> base health, scaled by gCurLevel->ene_health in BOTH
+ *                       init_enemy (`lfs f31,2760(r3)`) and init_enemy_vars,
+ *                       which reads the identical element as ((f32*)row)[690].
+ * The 136-byte (34-element) spacing between consecutive bases is what makes the
+ * SoA reading concrete; see
+ * claim.law.table-lookup-pre-keyed-on-segment-cast-repetition for why the
+ * addressing form here is not source-shape-controllable at every site.
+ * -------------------------------------------------------------------------- */
+#define ETYPE_ATTN_Y      2080 /* f32[34] attention-point height per type */
+#define ETYPE_COLL_Y      2216 /* f32[34] collision-point height per type */
+#define ETYPE_BASE_HEALTH 2760 /* f32[34] unscaled hit points per type    */
+
 void do_enemy_move(s32 index)
 {
     u8* row = (u8*)lbl_80250E00 + index * 916;
@@ -7313,34 +7341,50 @@ extern f32 lbl_80344880;
 extern f32 lbl_80346A40;
 extern f64 lbl_80346A28;
 extern f32 FloorPos(f32 fallback, f32 radius, f32* position, s32 mode);
-extern void SetEnemyObj(Enemy* e, s32 type, s32 level, s32 one);
+extern void SetEnemyObj(Enemy* e, s32 type, s32 level, s32 state);
 extern void init_enemy_vars(s32 slot, s32 spew, f32 scale);
 extern void fn_8005A338(f32* worldmat, f32* coll_offset, f32* attn_offset);
 extern u16 AnimateATree(void* tree, s32 sequence, s32 transition);
 
-/* 0x8004FE34 - initialise a freshly claimed enemy slot's object state. */
+/* 0x8004FE34 - initialise a freshly claimed enemy slot's object state.
+ *
+ * Zeroes the attention/collision offsets and orientation, takes the type's
+ * attention and collision heights from the per-type tables, hands the slot to
+ * SetEnemyObj to build the model and animation tree, then derives the starting
+ * hit points: the type's base health, scaled by the level's ene_health rate for
+ * everything but Death, and by 0.333 * difficulty for the ordinary (non-boss)
+ * types.  If SetEnemyObj produced a scene node the enemy is dropped onto the
+ * floor at `pos`, its per-type variables are initialised, and its shadow node
+ * is parked underneath it.
+ */
 void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
 {
     Enemy* e = &gEnemies[slot];
     u8* tbl = (u8*)lbl_8011AF48;
-    s32 t4;
-    f32 z;
+    s32 toff;
+    f32 zero;
     f32 health;
 
     e->type = type;
-    t4 = type * 4;
-    z = lbl_80346820;
-    e->attn_offset[0] = z;
-    e->attn_offset[1] = *(f32*)(tbl + t4 + 2080);
-    e->attn_offset[2] = z;
-    e->coll_offset[0] = z;
-    e->coll_offset[1] = *(f32*)(tbl + t4 + 2216);
-    e->coll_offset[2] = z;
-    e->pyr[0] = z;
-    e->pyr[1] = z;
-    e->pyr[2] = z;
+    toff = type * 4;
+    zero = lbl_80346820;
+    e->attn_offset[0] = zero;
+    e->attn_offset[1] = *(f32*)(tbl + toff + ETYPE_ATTN_Y);
+    e->attn_offset[2] = zero;
+    e->coll_offset[0] = zero;
+    e->coll_offset[1] = *(f32*)(tbl + toff + ETYPE_COLL_Y);
+    e->coll_offset[2] = zero;
+    e->pyr[0] = zero;
+    e->pyr[1] = zero;
+    e->pyr[2] = zero;
     e->state = ACTIVE;
     e->endurance = 0;
+    /* The state argument is re-read from the field rather than passed as a
+     * literal 1: the target keeps one register live across the store and the
+     * call (`li r6,1` / `stw r6,180(r31)` / arg4 = r6).  Re-reading costs the
+     * single `lwz` that is this function's whole remaining diff, and every
+     * literal/shared-temporary spelling measured worse (attempt
+     * .enemy-c-deepscrutiny.20260830.v1: 43/43/35/51 real vs 27 here). */
     SetEnemyObj(e, type, level, e->state);
     if (level > 3) {
         level = 2;
@@ -7348,10 +7392,16 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
     if (spew == 18) {
         level = 1;
     }
+    /* Kept as a two-step walk instead of the obvious
+     * `health = *(f32*)(tbl + toff + ETYPE_BASE_HEALTH);`: the target
+     * re-materialises the table row after the SetEnemyObj call (`add r3,r29,r28`
+     * at 0xb4), and the flat single-expression form lets MWCC reuse the entry
+     * region's row register instead, deleting that `add` and cascading an
+     * entry-schedule rewrite - measured real 27 -> 76, opcode multiset DIFFERS. */
     {
         u8* r = tbl;
-        r += t4;
-        health = *(f32*)(r + 2760);
+        r += toff;
+        health = *(f32*)(r + ETYPE_BASE_HEALTH);
     }
     if (type != E_DEATH) {
         health = health * gCurLevel->ene_health;
@@ -7377,9 +7427,15 @@ void init_enemy(s32 slot, f32* pos, s32 type, s32 level, s32 spew)
     fn_8005A404(&e->objgrp.worldmat[0][0], e->coll_offset, e->attn_offset);
     e->floory = e->objgrp.worldmat[3][1];
     if (e->shadow != NULL) {
-        *(f32*)((u8*)e->shadow + 48) = *(f32*)((u8*)e->objgrp.node + 48);
-        *(f32*)((u8*)e->shadow + 52) = *(f32*)((u8*)e->objgrp.node + 52);
-        *(f32*)((u8*)e->shadow + 56) = *(f32*)((u8*)e->objgrp.node + 56);
+        /* Park the shadow node on the body node's world translation.  Each row
+         * element re-casts both node pointers rather than caching one typed
+         * alias: the target reloads them per statement (lwz 100/476 before
+         * every lfs/stfs pair), exactly as
+         * claim.law.write-site-alias-defeats-reload-parity prescribes for this
+         * shape - the same three-write mat[3][*] block it was recorded on. */
+        ((MBObject*)e->shadow)->mat[3][0] = ((MBObject*)e->objgrp.node)->mat[3][0];
+        ((MBObject*)e->shadow)->mat[3][1] = ((MBObject*)e->objgrp.node)->mat[3][1];
+        ((MBObject*)e->shadow)->mat[3][2] = ((MBObject*)e->objgrp.node)->mat[3][2];
     }
     if (e->atree.root != NULL) {
         AnimateATree(&e->atree, 0, 2);
