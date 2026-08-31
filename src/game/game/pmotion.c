@@ -563,9 +563,9 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             SV(p)->rot[1] = SV(other)->rot[1];
             SV(p)->rot[2] = SV(other)->rot[2];
             r = 0.5 + other->col_radius;
-            pos[0] = other->col_pos[0];
-            pos[1] = other->col_pos[1];
-            pos[2] = other->col_pos[2];
+            pos[0] = other->effectpos[0];
+            pos[1] = other->effectpos[1];
+            pos[2] = other->effectpos[2];
             spreadz = spread + 9;
             sx = r * (spread[8 + playerIdx * 2] - spread[8 + i * 2]);
             sz = r * (spreadz[playerIdx * 2] - spreadz[i * 2]);
@@ -626,9 +626,9 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             r = half + other->col_radius;
             k = 0;
             do {
-                pos[0] = other->col_pos[0];
-                pos[1] = other->col_pos[1];
-                pos[2] = other->col_pos[2];
+                pos[0] = other->effectpos[0];
+                pos[1] = other->effectpos[1];
+                pos[2] = other->effectpos[2];
                 pos[0] += r * spread[16 + k * 2];
                 pos[2] += r * spread[17 + k * 2];
                 if (try_location((u8*)other, p, pos, resultPos, &resultItem, 1) != 0) {
