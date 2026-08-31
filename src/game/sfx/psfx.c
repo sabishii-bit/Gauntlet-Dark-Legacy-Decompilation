@@ -684,7 +684,7 @@ s32 PlyrSfxDoDamageSub(u8* p, u8* row, s32 mode, u8* other)
         break;
     }
     fl |= 256;
-    if (*(s32*)((u8*)optionsAudioAndPrefs30 + 28) == 2) {
+    if (optionsAudioAndPrefs30[7] == 2) {
         fl |= 1;
     } else {
         fl |= 512;
