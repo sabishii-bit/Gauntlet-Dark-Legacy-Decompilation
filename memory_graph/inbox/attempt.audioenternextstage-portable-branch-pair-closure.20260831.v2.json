@@ -1,0 +1,24 @@
+{
+  "attempted_axis": "superseding exact-drive of the final branch pair using assignment-in-condition grouping and positive-polarity switch-default control, followed by full-law and WebFrank eligibility closure",
+  "attributes": {
+    "axis_log": "v1 exhausted historical labeled if/else, direct/alternate one-case switch, loop carrier, short-circuit trees, local-lifetime variants, and explicit goto pairs; retained one-case switch improved 49->50 insns, real 13->4, fuzzy 97.80%->98.60%. v2 A1 assignment-in-condition plus explicit goto converged opcode multiset 4t->3t but collapsed to one bge, 49/50 and real 13; reverted. v2 A2 positive-polarity default (`entry_id>=0` -> valid, else invalid) compiled byte-identically at 50/50 real 4; discarded to the more natural retained source.",
+    "baseline_and_final": "target/current 50/50, fuzzy 98.6000%, real 4, frame 0x8, LR only; unchanged after all v2 probes",
+    "law_screen": "Fetched the complete current corpus (100 records) before editing. claim.law.compare-form-dictionary.20260829.v1 APPLIED: the retained one-case switch is the only portable carrier that preserves count parity, but MWCC coalesces its beq/blt/b family to beq+bge here. claim.law.guard-polarity-restructure-fixes-count-parity-not-form.20260831.v1 SCREENED: not applicable because count is already exact and the law explicitly does not reproduce the target pair. claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1 SCREENED: not applicable because both adjacent blocks are label targets, not unequal statement-body arms. claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 SCREENED: supports retaining the 50-insn switch over the 49-insn A1 form. claim.law.webfrank-pinned-function-source-freeze.20260831.v1 SCREENED: only AudioPlayerEatSFX is pinned; this function was editable. tool.webfrank.20260829.v1 SCREENED: structural branch/opcode differences are expressly ineligible; audit listed only AudioPlayerEatSFX and omitted AudioEnterNextStage. All remaining current laws are not applicable because the other 48 instructions, registers, frame, loads/stores, calls, relocations, and data are byte-identical; no alias, pool, register, schedule, stack, type, or field residual exists.",
+    "laws_applied": [
+      "claim.law.compare-form-dictionary.20260829.v1",
+      "claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1"
+    ],
+    "residual": "CAPPED at one named mechanism: MWCC GC 1.2.5 front-end adjacent-target goto inversion/collapse. At function +0x38/+0x3C target emits `blt invalid_entry(+0x40); b valid_entry(+0x44)`, while the best portable one-case-switch form emits `beq valid_entry(+0x44); bge valid_entry(+0x44)`; no registers differ. Direct/assignment-in-condition goto forms are canonicalized further to a single `bge`, proving the compiler removes the unconditional edge before backend scheduling. Historical exact commit 6f8cd226a required prohibited `asm { b valid_entry }`. The current two-opcode residual is structural and WebFrank-ineligible by policy.",
+    "scope": "src/game/sound/sounds_evt.c::AudioEnterNextStage probes only; all source probes reverted, proposal only",
+    "verification": "clean probe.py baseline and every iteration; full target asm and aligned residual read; owning object green; fndiff count/ops/clean 50/50 real 4; matchtool preserved 114 exact siblings; WebFrank audit omitted this structural function; git diff --check green; full ninja -j2 and main.dol OK; no source/config/header/postprocessor changes retained"
+  },
+  "function": "function:AudioEnterNextStage",
+  "id": "attempt.audioenternextstage-portable-branch-pair-closure.20260831.v2",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T05:40:22Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.audioenternextstage-portable-branch-pair-closure.20260829.v1",
+  "valid_from": "2026-08-31"
+}
