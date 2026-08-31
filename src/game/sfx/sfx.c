@@ -1678,7 +1678,6 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
     switch (type) {
     case 29: {
         u8* nb;
-        u8* hdr2;
         s32 r2;
         ro = ret * 240;
         rad = lbl_80348158;

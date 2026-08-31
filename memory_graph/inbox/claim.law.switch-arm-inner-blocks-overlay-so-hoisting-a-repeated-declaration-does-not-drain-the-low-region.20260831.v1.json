@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "src/game/sfx/sfx.c::StartExplosion, worktree GDL-Claude-BtextSfx, branch claude/btext-sfx-20260901. Calibration commit 53fae5ed5 (dead declaration removed: frame 216 -> 208, low region 88 -> 84, real flat at 191). Hoist probe measured and reverted: low region 84 -> 80 only, frame unmoved at 208, real 191 -> 209 with a new target-only +1 add. Low-region figures read with tools/gdl/slotdiff.py, which reports the lowest referenced r1 displacement on each side.",
+    "tags": [
+      "matching",
+      "decl-order",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.switch-arm-inner-blocks-overlay-so-hoisting-a-repeated-declaration-does-not-drain-the-low-region.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T21:57:02Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "BOUNDARY ON claim.law.inner-block-pad-reaches-below-the-compiler-temps.20260831.v1. That law is correct that inner-block declarations occupy the region below the compiler temps, and it is routinely used to plan a lane that drains an over-reserved low region by HOISTING inner-block declarations to function scope. THAT PLAN IS INVALID WHEN THE INNER BLOCKS ARE THE ARMS OF A SWITCH OR AN IF/ELSE CHAIN, because mutually exclusive arms OVERLAY in the low region: MWCC sizes that region by the LARGEST ARM, not by the sum over arms. The practical consequences are both counter-intuitive and expensive to rediscover. (1) BUDGETING FROM A DECLARATION CENSUS OVERSTATES THE AVAILABLE DRAIN, often by a large factor. On StartExplosion a park had counted the function's inner-block declarations across all four switch arms plus the trailing loop (~40 declarations, nominally 160 bytes) and budgeted 'roughly 14 four-byte declarations' of drain against a 64-byte over-reservation; the measured low region was only 76 bytes, consistent with max(case-29's ~14 declarations = 56, the trailing block's 11 = 44) rather than with any sum. (2) HOISTING A DECLARATION THAT REPEATS ACROSS ARMS IS NEAR-NULL ON THE FRAME AND POSITIVELY HARMFUL. Hoisting the `u8* ep; Effect* e; f32 k1;` trio that recurs identically in all four arms - 3 declarations x 4 arms, the most attractive-looking target in the function - drained the low region by FOUR BYTES (84 -> 80), left the frame unchanged at 208, and regressed real 191 -> 209 while introducing a target-only `+1 add`, because the hoist removes only ONE arm's contribution from the overlay while adding a permanently-live slot to the named-local area above AND collapsing the per-arm address webs into one, which defeats the multi-def block form those webs depend on. (3) THE CORRECT MOVE IS TO REDUCE THE LARGEST ARM'S OWN DECLARATION COUNT - by dead-declaration removal or dead-local identity reuse within that arm - not to hoist anything shared. SCREEN THE ARM SIZES FIRST: count declarations per arm and compare the maximum against the measured low region before committing a lane to a hoist. CALIBRATION TIP, better than the standard `u8 _probe8[8]` ruler when a dead declaration is available: deleting a genuinely unused inner-block declaration is a ZERO-SEMANTICS calibrator that reads the low region's 4-byte response directly (here 88 -> 84 with the frame rounding 216 -> 208 and `real` flat), and unlike a pad it is a keepable cleanup rather than a probe to revert."
+}
