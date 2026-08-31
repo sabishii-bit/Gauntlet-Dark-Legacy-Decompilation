@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/critter.h"
 #include "game/enemy.h"
 #include "game/item.h"
 #include "game/leveldata.h"
@@ -4592,7 +4593,7 @@ void world_update(void)
         }
     }
     if (cond && gGameMode == 0x4010 && gBossObj != NULL &&
-        *(s32*)(gBossObj + 8) != 0) {
+        *(s32*)(gBossObj + offsetof(Critter, state)) != 0) {
         {
             u32 w = (u32)FindWORLDOBJ(strs + 0xd0);
 
@@ -4717,13 +4718,13 @@ void world_update(void)
         case 0x28:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 kill = 1;
-                *(f32*)(gBossObj + 0xac8) = lbl_80346BF0;
+                *(f32*)(gBossObj + offsetof(Critter, unkAC8)) = lbl_80346BF0;
             }
             break;
         case 0x2a:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 kill = 1;
-                *(f32*)(gBossObj + 0xac8) = lbl_80346BF0;
+                *(f32*)(gBossObj + offsetof(Critter, unkAC8)) = lbl_80346BF0;
             }
             break;
         case 0x24:
@@ -4734,12 +4735,12 @@ void world_update(void)
         case 0x26:
             if ((f32)(lbl_80346C88 - d) <= lbl_80346C70) {
                 void* found = MBOX_FindObject(strs + 0x128);
-                u32 o = *(u32*)(gBossObj + 0xcc);
+                u32 o = *(u32*)(gBossObj + offsetof(Critter, hitnode1));
 
                 if (o != 0 && *(u32*)(o + 0x78) != 0) {
                     MBSetObject((void*)*(s32*)(o + 0x78), found);
                 }
-                *(u16*)(gBossObj + 0xac6) = 0;
+                *(u16*)(gBossObj + offsetof(Critter, unkAC6)) = 0;
                 lbl_8034489C = 6;
             }
             break;
@@ -4747,8 +4748,8 @@ void world_update(void)
         if (kill) {
             if (lbl_80344894 >= 0) {
                 lbl_80344894 = DeleteEffect(lbl_80344894, 1);
-                fn_8009C9DC(3, gBossObj + 0x4c);
-                fn_8009C9DC(4, gBossObj + 0x4c);
+                fn_8009C9DC(3, gBossObj + offsetof(Critter, movevec));
+                fn_8009C9DC(4, gBossObj + offsetof(Critter, movevec));
             }
             lbl_8034489C = 6;
         }
