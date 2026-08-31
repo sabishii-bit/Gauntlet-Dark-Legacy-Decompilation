@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "TU-FLIP lane B (Fable): drive to full match and flip via finish_tu.py. Owns game/ps2/ml_fmath (WPitchMat3 98.58, lfsu loop-induction park v2), game/mb/mb_poly (DoPolyInst goto-pair park v2), game/ui/message (NEW near-flip: msgPost 99.51 + msgDraw 98.85, ~6 insns total, no fresh caps), game/pb/pb_frame (pbFrameMode 96.96, 958i, ~29 insns). STRETCH if rungs finish: MSL parked quartet e_rem_pio2/bsearch/qsort/strstr (regalloc parks, sources in repo). Screen all records first; new-law angles only on parked axes; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:WPitchMat3",
+  "id": "work_claim.flip-b.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-FB2",
+  "recorded_at": "2026-08-31T04:03:57Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

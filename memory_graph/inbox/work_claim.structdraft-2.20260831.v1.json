@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "STRUCT-DEBT lane, whole TUs src/game/game/gamemain.c + src/game/enemy/critter.c exclusively (debt/reconstruction ONLY \u2014 no matching drives): gamemain 133 bare sites incl. the WorldDataNav consolidation E2 flagged (typedef sits 2478 lines below its extern \u2014 reorder + retype safely, gated); critter 282 bare residual = the hazard-function tier: with MBObject/WorldObj/atreeheader now resolved, CritterInitGeo/ProcessCritter/CritterBossAI shadow-block sites are convertible IF byte-gated individually (offsetof-on-raw only), plus the 19 volatile-cast label sites as a separate documented axis. defake_gate fails on EXACT demotions now \u2014 that is your safety net, lean on it; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:fn_80057024",
+  "id": "work_claim.structdraft-2.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SD",
+  "recorded_at": "2026-08-31T04:04:15Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

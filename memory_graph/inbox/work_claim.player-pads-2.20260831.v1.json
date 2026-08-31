@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "PAD-SPLIT lane: SOLE OWNER of include/game/player.h this run, plus TUs src/game/ui/select.c + src/game/ui/options.c. Execute claim.select-options-pad-run-shopping-list: split pad_3348[0x14] into its five PROVEN s32 fields (sub-menu step/timer, memcard channel, slot, file index, list cursor \u2014 player.c reset-block corroboration cited in the record) and pad_333C[4] into the saved motion_state s32; exact byte accounting; scalars only (embedded-cascade law); gate header ALONE first, then convert select.c's ~109 unblocked sites + options' blocker. ALSO resolve the 0x2220 char_save-shadow hypothesis READ-ONLY (evidence record, no header change in that range this run). defake_gate player.h includers after header edits + full ninja; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:do_player_select",
+  "id": "work_claim.player-pads-2.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PS",
+  "recorded_at": "2026-08-31T04:04:12Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "ALIAS-LEVER lane, whole TU src/game/game/combat.c exclusively: apply claim.law.cached-base-alias-defeats-rematerialized-index-base to the flagged clusters \u2014 InitCamera (91.6, 1105i, real 995), screen_limitation (real 875), StandardCamera residue (695). The signature: TU-wide add-vs-addi + lwzx/lfsx/stfsx multiset diff = remove cached field-pointer aliases, re-index base+idx*stride per access. Screen each fn's records first (InitCamera has deep history); probe.py loop; cameradata.h is LANDED \u2014 use it, never edit it (no header edits); parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:InitCamera",
+  "id": "work_claim.alias-combat.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-AL1",
+  "recorded_at": "2026-08-31T04:04:04Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

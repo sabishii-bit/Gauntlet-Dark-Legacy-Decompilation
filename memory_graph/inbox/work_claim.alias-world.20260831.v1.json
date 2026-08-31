@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "ALIAS-LEVER lane, whole TUs src/game/world/items.c, src/game/world/gauntworld.c, src/game/ui/screensaver.c exclusively: apply the cached-base-alias law to the run-6-flagged clusters \u2014 AddLocatorInstList (+7 add +5 stfs vs -7 addi -5 stfsx), fn_80062A00 (+4 add +5 lfsx +1 stfsx), draw_inventory_panel (real 547; target stores a zero to 108(r1) we never emit = missing local), LinkTriggerToCam 75.3. Screen records; probe.py loop; parked fns byte-gate; no header edits; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:AddLocatorInstList",
+  "id": "work_claim.alias-world.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-AL2",
+  "recorded_at": "2026-08-31T04:04:08Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
