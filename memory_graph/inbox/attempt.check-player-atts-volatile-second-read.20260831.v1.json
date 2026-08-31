@@ -1,0 +1,22 @@
+{
+  "attempted_axis": "Exact closure of the 2-instruction lis-pair order residual (target lis r0,17200 int-to-double magic BEFORE lis r4,lbl_80282930@ha; ours after) via five distinct source-shape axes, resolved by moving the volatile qualifier from the FIRST record read to the SECOND",
+  "attributes": {
+    "axis_log": "1 conversion hoisted to its own preceding statement: REGRESSED 2->68 (conversion completes before the load, interleave destroyed). 2 operand swap of the + (conv + table instead of table + conv): REGRESSED 2->40 - diagnostic read showed it DOES fix the lis pair but recolors the entire expression web (magic moves r0->r5, GPRs r3/r0/r4/r5 and FPRs f0/f1/f2/f3 all permute), so operand order is not a usable lever. 3 volatile removed from both reads (uniform PF form like stanzas 2-4): REGRESSED 2->12 - diagnostic read showed this FIXES the lis pair completely and leaves a DIFFERENT residual, the two record loads (+0x28 before +0x2C) swapping order. That diagnostic is what produced the fix. 4 multiply-operand swap 5*(level-1): NEUTRAL, invariant, reverted. 5 volatile on the FIRST read only: REGRESSED 2->12, identical to no-volatile. 6 volatile on the SECOND read only: EXACT real 0.",
+    "law_screen": "claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1 screened and APPLIED as the initial hypothesis (hoist the (f32)((level-1)*5) conversion into its own preceding statement) - it REGRESSED real 2->68 because the split forces the conversion to complete before the record load instead of interleaving with it, so the law does not extend to a subexpression of a single assignment. claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 screened, same statement-split family, same negative. claim.law.cached-base-alias-defeats-rematerialized-index-base.20260831.v1 screened and CONFIRMS the existing form: target re-emits lwz r3,0(r4) per stanza off one CSEd element address, so lbl_80282930[index] must stay spelled fresh at every site and no cached alias may be introduced. claim.law.direct-global-member-flips-index-base-association.20260831.v1 screened, not applicable (no displacement/indexed-form delta here). claim.law.point-of-use-single-use-pointer-delay.20260830.v1 and claim.law.single-use-field-pointer-alias-is-folded-away.20260831.v1 screened, not applicable (no pointer local involved). claim.law.narrow-local-reextend-on-read.20260830.v1 screened, not applicable (no narrow types). claim.law.explicit-fp-symbol-vs-literal-zero-regression.20260830.v1 screened, not applicable (the 999.0 and 0.9f constants already match). New mechanism recorded separately as claim.law.volatile-pins-the-later-of-two-adjacent-reads.20260831.v1.",
+    "laws_applied": [
+      "claim.law.volatile-pins-the-later-of-two-adjacent-reads.20260831.v1"
+    ],
+    "residual": "NONE - byte-exact. fndiff --clean reports MATCH, 0 real diff lines (18 pool-name normalization lines suppressed).",
+    "scope": "src/game/game/player.c::check_player_atts, first attribute stanza only (lines ~6188-6190). One-token change: the volatile qualifier moved from the +0x28 (v base) read to the +0x2C (cap) read. Stanzas 2-4 unchanged (plain PF). No header edits, no semantic change - both spellings read the same two f32 fields in the same order.",
+    "verification": "python tools/gdl/probe.py game/game/player check_player_atts: BASELINE real 2 -> IMPROVED real 0, insns 144/144. fndiff --clean = MATCH. defake_gate.py check game/game/player = GATE OK (1 improved, 0 regressed, 63 byte-exact siblings held). Full ninja -j2: build/GUNE5D/main.dol: OK. Project matched functions 2602 -> 2603 in the same step. git diff --check clean. Commit 31c649eef."
+  },
+  "function": "function:check_player_atts",
+  "id": "attempt.check-player-atts-volatile-second-read.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:32:41Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.check_player_atts.20260829.v1",
+  "valid_from": "2026-08-31"
+}

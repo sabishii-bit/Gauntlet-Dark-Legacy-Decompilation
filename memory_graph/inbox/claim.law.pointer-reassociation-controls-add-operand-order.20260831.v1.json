@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/player.c::clear_player (worktree GDL-Claude-ExactPlayer, work_claim.exact-player-family.20260831.v1, attempt.clear-player-identity-and-reassoc.20260831.v1). The trailing stat-clear loop writes four f32 fields at 0xA98/0xA9C/0xAA0/0xAA4 off p plus a per-iteration stat_offset. Target emits `add r3,r31,r30` (r31 = p, r30 = stat_offset) once per iteration and reaches all four fields by displacement 2712/2716/2720/2724. The reconstruction spelled the writes PF(p, 0xA98 + stat_offset, f32) and emitted `add r3,r30,r31` - identical instruction, identical displacements, operands transposed - at both the loop site and the later reuse site, costing 2 real lines. Respelling as PF((u8*)p + stat_offset, 0xA98, f32) moved real 10 -> 8 with insns unchanged at 125/125 and the frame unchanged at 0x38.",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py; applies wherever a residual is an `add rD,rA,rB` whose operands are transposed relative to target, and the address is a struct/blob base plus a variable byte offset plus a constant field displacement. Refinement of claim.law.direct-global-member-flips-index-base-association, which governs whether the constant folds into the displacement at all; this law governs the operand ORDER of the add once it does.",
+    "tags": [
+      "matching",
+      "index-form",
+      "offsetof-form",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.pointer-reassociation-controls-add-operand-order.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T05:35:07Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "For an address of the form base + variable_offset + constant_field, MWCC preserves the source's association in the emitted add's OPERAND ORDER even though it folds the constant into the memory displacement either way. Writing the constant and the variable offset together as one addend - PF(p, K + off, T), i.e. (u8*)p + (K + off) - emits `add rD,rOff,rBase`; writing the variable offset onto the pointer and leaving the constant as the field displacement - PF((u8*)p + off, K, T), i.e. ((u8*)p + off) + K - emits `add rD,rBase,rOff`. Instruction count, displacement value and register assignment are otherwise identical, so this shows up as a pure operand-transposition residual that is easy to misread as an allocator tie. Rule: when target shows `add rD,rBase,rOff` (base register first), spell the variable offset onto the pointer and leave the constant as the accessor's displacement; when it shows `add rD,rOff,rBase`, fold the constant in with the offset. This is a free, count-neutral fix and should be applied BEFORE any register-coloring theory is entertained, because transposed-add lines inflate the apparent size of a register residual and can hide how close a function actually is. Note it is orthogonal to the offsetof-rename family: the addend may be a bare constant or offsetof(T,field) in either spelling without changing this effect."
+}
