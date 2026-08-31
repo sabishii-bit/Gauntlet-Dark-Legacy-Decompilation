@@ -542,6 +542,7 @@ s32 DoEnemyAction(void* enemy)
 void DoPlayerAction(void* player)
 {
     s32* p = (s32*)player;
+    Player* pl = (Player*)player;
     f32* pf = (f32*)player;
     f32* atree = (f32*)((u8*)player + 0x80);
     void* node = (u8*)player + 0x7C;
@@ -619,10 +620,10 @@ void DoPlayerAction(void* player)
             } else {
                 lo = 600;
             }
-            if (*(s16*)((u8*)p + offsetof(Player, vibe_timer)) > hi) {
+            if (pl->vibe_timer > hi) {
                 mode = 1;
                 act = 1;
-            } else if (*(s16*)((u8*)p + offsetof(Player, vibe_timer2)) > lo) {
+            } else if (pl->vibe_timer2 > lo) {
                 act = 2;
                 mode = 1;
             }
@@ -725,7 +726,7 @@ void DoPlayerAction(void* player)
         if (next == 0x49) {
             act = 0x4A;
         }
-        mbobj = *(void**)((u8*)p + offsetof(Player, weaphold_node));
+        mbobj = pl->weaphold_node;
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree[6] < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
@@ -742,7 +743,7 @@ void DoPlayerAction(void* player)
         if (next == 0x49) {
             act = 0x49;
         }
-        mbobj = *(void**)((u8*)p + offsetof(Player, weaphold_node));
+        mbobj = pl->weaphold_node;
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree[6] < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
@@ -759,7 +760,7 @@ void DoPlayerAction(void* player)
         if (next == 0x4D) {
             act = 0x4E;
         }
-        mbobj = *(void**)((u8*)p + offsetof(Player, weaphold_node));
+        mbobj = pl->weaphold_node;
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree[6] < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
@@ -776,7 +777,7 @@ void DoPlayerAction(void* player)
         if (next == 0x4D) {
             act = 0x4D;
         }
-        mbobj = *(void**)((u8*)p + offsetof(Player, weaphold_node));
+        mbobj = pl->weaphold_node;
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
             if (atree[6] < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
@@ -1517,13 +1518,13 @@ void DoPlayerAction(void* player)
         pf[0x296] = -1.0f;
         switch (cur) {
         case 1:
-            *(s16*)((u8*)p + offsetof(Player, vibe_timer)) = 0;
-            *(s16*)((u8*)p + offsetof(Player, vibe_timer2)) = 1;
+            pl->vibe_timer = 0;
+            pl->vibe_timer2 = 1;
             break;
         case 3:
             if (act != 3) {
-                *(s16*)((u8*)p + offsetof(Player, vibe_timer)) = 0;
-                *(s16*)((u8*)p + offsetof(Player, vibe_timer2)) = 0;
+                pl->vibe_timer = 0;
+                pl->vibe_timer2 = 0;
             }
             break;
         case 0x27:
@@ -1584,9 +1585,9 @@ void DoPlayerAction(void* player)
         case 0x61:
         case 0x62:
         case 0x64:
-            if (*(void**)((u8*)p + offsetof(Player, weaphold_node)) != 0 &&
+            if (pl->weaphold_node != 0 &&
                 (p[2] & 3) != 2 && p[2] != 3) {
-                MBTreeClearFlags(*(void**)((u8*)p + offsetof(Player, weaphold_node)), 2, 0);
+                MBTreeClearFlags(pl->weaphold_node, 2, 0);
             }
             break;
         case 0x6B:
@@ -1609,11 +1610,11 @@ void DoPlayerAction(void* player)
         case 0x11:
         case 0x13:
         case 0x16:
-            *(s16*)((u8*)p + offsetof(Player, grab_flags)) |= 1;
+            pl->grab_flags |= 1;
             break;
         case 0x12:
         case 0x14:
-            *(s16*)((u8*)p + offsetof(Player, grab_flags)) |= 2;
+            pl->grab_flags |= 2;
             break;
         }
 
@@ -1660,9 +1661,9 @@ void DoPlayerAction(void* player)
             break;
         case 0x61:
         case 0x62:
-            if (*(void**)((u8*)p + offsetof(Player, weaphold_node)) != 0 &&
+            if (pl->weaphold_node != 0 &&
                 (p[2] & 3) != 2 && p[2] != 3) {
-                MBTreeSetFlags(*(void**)((u8*)p + offsetof(Player, weaphold_node)), 2, 0);
+                MBTreeSetFlags(pl->weaphold_node, 2, 0);
             }
             break;
         case 0x6B:
@@ -1671,9 +1672,9 @@ void DoPlayerAction(void* player)
             p[0x23E] = 0;
             break;
         case 0x64:
-            if (*(void**)((u8*)p + offsetof(Player, weaphold_node)) != 0 &&
+            if (pl->weaphold_node != 0 &&
                 (p[2] & 3) != 2 && p[2] != 3) {
-                MBTreeSetFlags(*(void**)((u8*)p + offsetof(Player, weaphold_node)), 2, 0);
+                MBTreeSetFlags(pl->weaphold_node, 2, 0);
             }
             break;
         case 0x73:
@@ -1687,7 +1688,7 @@ void DoPlayerAction(void* player)
         case 0x75:
             p[0x240] |= 0x10000;
             p[0x23E] = 0;
-            *(s16*)((u8*)p + offsetof(Player, throw_str)) = 0;
+            pl->throw_str = 0;
             break;
         case 0x76:
             p[0x240] |= 0x40000;
