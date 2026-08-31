@@ -175,6 +175,10 @@
 #include "game/player.h"
 #include "game/effect.h"
 
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
 /* ------------------------------------------------------------------ */
 /* player records                                                      */
 /* ------------------------------------------------------------------ */
@@ -3197,8 +3201,8 @@ static inline void restore_inactive_player(s32 i) {
         }
         p->health = cap;
     } else {
-        *(InactiveSaveImage*)((u8*)p + 0xA80) =
-            *(InactiveSaveImage*)((u8*)p + 0x1ECC);
+        *(InactiveSaveImage*)((u8*)p + offsetof(Player, name)) =
+            *(InactiveSaveImage*)((u8*)p + offsetof(Player, pad_1ECC));
         player_get_from_save(p, -1);
     }
 }
@@ -3291,8 +3295,8 @@ void remove_player_geo(s32 i) {
         MBRemoveNode(p->weaphold_node, 0);
         p->weaphold_node = NULL;
     }
-    if (PF(p, 0x748, u32) != 0) {
-        AtreeDelete((void**)((u8*)p + 0x748));
+    if (p->field_748 != NULL) {
+        AtreeDelete(&p->field_748);
     }
     if (p->atree != NULL) {
         AtreeDelete(&p->atree);
@@ -3312,9 +3316,9 @@ void remove_player_geo(s32 i) {
         MBRemoveNode(p->wand_object, 0);
         p->wand_object = NULL;
     }
-    if (PF(p, 0x73C, void*) != NULL) {
-        MBRemoveNode(PF(p, 0x73C, void*), 0);
-        PF(p, 0x73C, void*) = NULL;
+    if (p->field_73C != NULL) {
+        MBRemoveNode(p->field_73C, 0);
+        p->field_73C = NULL;
     }
     if (p->marker_object != NULL) {
         MBRemoveNode(p->marker_object, 0);
@@ -3324,18 +3328,18 @@ void remove_player_geo(s32 i) {
         MBRemoveNode(p->gem_object, 0);
         p->gem_object = NULL;
     }
-    if (PF(p, 0x96C, u32) != 0) {
-        AtreeDelete((void**)((u8*)p + 0x96C));
+    if (p->field_96C != NULL) {
+        AtreeDelete(&p->field_96C);
     }
     p->field_A1C = 0;
-    if (PF(p, 0x96C, u32) != 0) {
-        AtreeDelete((void**)((u8*)p + 0x96C));
+    if (p->field_96C != NULL) {
+        AtreeDelete(&p->field_96C);
     }
-    if (PF(p, 0xA14, void*) != NULL) {
-        MBRemoveNode(PF(p, 0xA14, void*), 1);
-        PF(p, 0xA14, void*) = NULL;
+    if (p->field_A14 != NULL) {
+        MBRemoveNode(p->field_A14, 1);
+        p->field_A14 = NULL;
     }
-    if (PF(p, 0xA14, u8*) != NULL && *(u32*)(PF(p, 0xA14, u8*) + 0x78) != 0) {
+    if (p->field_A14 != NULL && *(u32*)((u8*)p->field_A14 + 0x78) != 0) {
         ErrorPrintf("mikey objgrp OBJ NODE HAS KIDS AFTER ALL REMOVED\n");
     }
     /* orphan any remaining children back onto the world */
@@ -3803,8 +3807,8 @@ void PlayerRestoreState(s32 player) {
         }
         p->health = cap;
     } else {
-        *(PlayerSaveImage*)((u8*)p + 0xA80) =
-            *(PlayerSaveImage*)((u8*)p + 0x1ECC);
+        *(PlayerSaveImage*)((u8*)p + offsetof(Player, name)) =
+            *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC));
         player_get_from_save(p, -1);
     }
 }
@@ -3819,8 +3823,8 @@ void PlayerSaveState(s32 player, s32 full) {
     player_store_in_save(p);
     if (full != 0 && !(sMusicTrackHi == 5 && sMusicTrackLo == 1) &&
         !(sMusicTrackHi == 6 && sMusicTrackLo == 1)) {
-        *(PlayerSaveImage*)((u8*)p + 0x1ECC) =
-            *(PlayerSaveImage*)((u8*)p + 0xA80);
+        *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC)) =
+            *(PlayerSaveImage*)((u8*)p + offsetof(Player, name));
     }
     PF(p, 0xA8B, u8) = 0;
 }
@@ -3845,8 +3849,8 @@ void player_get_from_save(void* vp, s32 type) {
 
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         /* hidden character: fixed loadout */
-        *(PlayerSaveImage*)((u8*)p + 0x1ECC) =
-            *(PlayerSaveImage*)((u8*)p + 0xA80);
+        *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC)) =
+            *(PlayerSaveImage*)((u8*)p + offsetof(Player, name));
         p->class_id = 0;
         ATT_FIGHT(p) = 0.9f;
         ATT_ARMOR(p) = 0.9f;
@@ -3939,8 +3943,8 @@ void player_store_in_save(void* vp) {
 
     if (chartype == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
         /* hidden char: park it, restore the base character, re-flag */
-        *(PlayerSaveImage*)((u8*)p + 0xA80) =
-            *(PlayerSaveImage*)((u8*)p + 0x1ECC);
+        *(PlayerSaveImage*)((u8*)p + offsetof(Player, name)) =
+            *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC));
         HIDDEN_CODE(p) = NULL;
         player_get_from_save(p, -1);
         HIDDEN_CODE(p) = lbl_80343D6C;
@@ -4187,18 +4191,18 @@ model_ready:
     p->shield_object = NULL;
     p->pup_object = NULL;
     p->wand_object = NULL;
-    PF(p, 0x748, s32) = 0;
+    p->field_748 = NULL;
     p->atree = NULL;
     p->weaphold_atree = NULL;
-    PF(p, 0x73C, s32) = 0;
+    p->field_73C = NULL;
     p->death_effect = -1;
     p->marker_object = NULL;
     p->gem_object = NULL;
     p->field_A20 = 0;
     p->field_A1C = 0;
     p->field_A1E = 0;
-    PF(p, 0x96C, s32) = 0;
-    PF(p, 0xA14, s32) = 0;
+    p->field_96C = NULL;
+    p->field_A14 = NULL;
     /* shadow */
     n = MBOX_ReallyFindObject("SHADOWL1", p->geo_handle, p->geo_handle, 1);
     p->mbnode = MBNewObject(n, gIdentityMatrix, NULL, 0x880);
@@ -4565,7 +4569,7 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     record = PT(i);
     cls = record->class_id;
     ret = load_player_model_sub(i, vp, cls, name, pot + prod + 1300);
-    raw = *(s32*) ((u8*) p + 12);
+    raw = p->character;
     t = raw;
     if (raw >= 8) {
         t -= 8;
@@ -4608,7 +4612,7 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
 
     q = (u8*) vp;
     tier = ((Player*) vp)->level / 10;
-    ct = *(s32*) (q + 12);
+    ct = ((Player*) vp)->character;
     q = pot + i * 13148;
     cls = *(s32*) (q + 3140);
     ct8 = ct;

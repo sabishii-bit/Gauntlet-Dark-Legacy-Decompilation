@@ -180,9 +180,11 @@ typedef struct Player {
     /* 0x0730 */ void* shield_object;   /* reflect/x-ray shield model (parent hand_node) [player.c] */
     /* 0x0734 */ void* wand_object;     /* levitate/anti-death wand model (parent weapon_node) [player.c] */
     /* 0x0738 */ s32 death_effect;      /* StartDeathFX effect id, < 0 when off [player.c] */
-    /* 0x073C */ u8  pad_073C[4];
+    /* 0x073C */ void* field_73C;    /* node handle, MBRemoveNode-cleaned (VERIFIED: not padding -- remove_player_geo teardown) [player.c] */
     /* 0x0740 */ void* marker_object;   /* overhead marker model [player.c] */
-    /* 0x0744 */ u8  pad_0744[0x4C];
+    /* 0x0744 */ u8  pad_0744[4];
+    /* 0x0748 */ void* field_748;    /* atree handle, AtreeDelete-cleaned (VERIFIED: not padding -- remove_player_geo teardown) [player.c] */
+    /* 0x074C */ u8  pad_074C[0x44];
     /* 0x0790 */ void* atree;        /* familiar/overlay atree handle [pmotion.c/player.c] */
     /* 0x0794 */ u8  pad_0794[4];
     /* 0x0798 */ u32 atree_src_id;   /* familiar source id, stale-tree check [player.c] */
@@ -260,7 +262,10 @@ typedef struct Player {
     /* 0x0964 */ s16 hud_flags;      /* 0x20 = attached (lha in target) [player.c] */
     /* 0x0966 */ s16 hud_flags2;     /* 1 = info written, 2 = runes written [player.c] */
     /* 0x0968 */ void* gem_object;   /* thunder/lightning gem model [player.c] */
-    /* 0x096C */ u8  pad_096C[0xB0];
+    /* 0x096C */ void* field_96C;    /* atree handle, AtreeDelete-cleaned (VERIFIED: not padding -- remove_player_geo teardown, dup call site) [player.c] */
+    /* 0x0970 */ u8  pad_0970[0xA4];
+    /* 0x0A14 */ void* field_A14;    /* "mikey objgrp" node, MBRemoveNode(type=1)-cleaned (VERIFIED: not padding -- remove_player_geo teardown) [player.c] */
+    /* 0x0A18 */ u8  pad_0A18[4];
     /* 0x0A1C */ s16 field_A1C;      /* weapon-flash one-shot latch [player.c] */
     /* 0x0A1E */ s16 field_A1E;      /* gem-object latch, flags 0x200000 [player.c] */
     /* 0x0A20 */ s16 field_A20;      /* gem-object latch, flags 0x400000 [player.c] */
