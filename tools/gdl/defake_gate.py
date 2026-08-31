@@ -12,6 +12,11 @@ Usage:
   python tools/gdl/defake_gate.py baseline game/enemy/enemy.c
   python tools/gdl/defake_gate.py check game/enemy/enemy.c --rebuild
   python tools/gdl/defake_gate.py check game/enemy/enemy.c --update-improved
+  python tools/gdl/defake_gate.py check game/audio/sndfx.c,game/ui/attract.c --rebuild
+
+A comma-separated unit list gates every named TU in one call (exit code =
+worst) — use it for paired fixes (a signature change plus its callers) so
+the second TU can never be forgotten.
 
 --rebuild runs the unit's ninja object target first, so rebuild+gate is one
 call and a stale object can never be gated. On any REGRESSION the check
@@ -224,6 +229,23 @@ def main():
         print(__doc__)
         return 2
     mode, unit = args
+    # Paired-fix lanes touch coupled TUs (a signature change and its
+    # callers); accept a comma-separated unit list so both sides are gated
+    # in one call instead of relying on worker judgment to gate the second.
+    if "," in unit:
+        worst = 0
+        for one in unit.split(","):
+            one = one.strip()
+            if not one:
+                continue
+            print(f"==== {one} ====")
+            code = run_single(mode, one, rebuild, update_improved, arbitrate)
+            worst = max(worst, code)
+        return worst
+    return run_single(mode, unit, rebuild, update_improved, arbitrate)
+
+
+def run_single(mode, unit, rebuild, update_improved, arbitrate):
     unit = normalize_unit(unit)
     if rebuild:
         obj = re.sub(r"\.(c|cpp)$", "", unit)

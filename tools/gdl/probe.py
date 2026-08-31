@@ -29,6 +29,14 @@ Every BASELINE or IMPROVED probe banks a snapshot of the TU source; a later
 edit -> probe -> hand-retype-revert -> probe cycle. The snapshot covers the
 TU's own .c/.cpp only — header edits are yours to manage — and the banked
 state is per-unit, so probe a BASELINE before your first edit of a session.
+
+Two semantics every worker must know before trusting --revert as an undo:
+(1) NEUTRAL probes BANK TOO (they may be verified-neutral work worth
+keeping), so after a neutral probe --revert restores that neutral edit,
+not the pre-edit state — use git to discard a neutral edit you don't
+want. (2) The snapshot is the WHOLE TU file: in a multi-function session
+a revert takes every function back with it — commit each function's
+retained state before probing the next.
 """
 
 import json
