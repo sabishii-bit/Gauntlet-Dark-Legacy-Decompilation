@@ -323,7 +323,7 @@ extern u32   RandInt(u32 limit);
 extern s32   NextGridEnemy(void);
 extern void  StartEnemyGrid(f32 *position, f32 radius);
 extern s32   fn_8005D5C8(Critter *c, u8 *item);
-extern void *FindClosestWaypoint(f64 maxDist, f32 *pos, s32 all);
+extern void *FindClosestWaypoint(f32 maxDist, f32 *pos, s32 all);
 extern f32   fn_8005F0F4(void *item, f32 *nodepos, f32 *center, f32 *out,
                          f32 radius, f32 height);
 extern f32   fn_8005C1DC(u8 *item, s32 a, s32 b, void *hdr, f32 damage);

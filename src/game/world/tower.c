@@ -55,7 +55,7 @@ typedef struct SumnerLookoutParam {
     u8 _pad00[0x6A];
     s16 id;
 } SumnerLookoutParam;
-extern SumnerLookoutParam* FindClosestWaypoint(f64 maxDist, f32* pos, s32 all);
+extern SumnerLookoutParam* FindClosestWaypoint(f32 maxDist, f32* pos, s32 all);
 extern void SumnerCamActivate(s32 idx, s32 sub);
 extern int   AudioSoundPlaying(int a);
 extern int   fn_80057BC8(int item);
@@ -1735,7 +1735,7 @@ void SumnerDoSpeech(void) {
             }
         }
         GetPlayerAvgPos(avg, 0, 0, 0);
-        waypoint = FindClosestWaypoint((f64)lbl_803485EC, avg, 1);
+        waypoint = FindClosestWaypoint(lbl_803485EC, avg, 1);
 
         if (waypoint != 0) {
             s32 camera = 0;
