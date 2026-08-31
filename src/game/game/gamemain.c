@@ -3331,7 +3331,7 @@ void fn_800516F8(s32 slot)
         {
             f32 fd;
             if (*(s16*)(q + offsetof(Player, field_A1C)) > 2) {
-                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + 2564),
+                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, mikey_coll_pos)),
                       lbl_80346820, lbl_80346830, lbl_803468B8);
             } else {
                 DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, effectpos)),
@@ -3376,7 +3376,7 @@ void fn_800516F8(s32 slot)
                         continue;
                     }
                     if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
-                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + 2564),
+                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, mikey_coll_pos)),
                               kZero, kHalf, kThree);
                     } else {
                         DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, effectpos)),
