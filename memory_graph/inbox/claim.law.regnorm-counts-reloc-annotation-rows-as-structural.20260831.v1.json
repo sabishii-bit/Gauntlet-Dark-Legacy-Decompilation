@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/pmotion.c::get_player_pos, worktree GDL-Claude-PmotionDr5, 2026-08-31. regnorm.py --map reported '116 renaming, 5 STRUCTURAL' and the banner 'STRUCTURAL-PRESENT -- REGISTER_ONLY label is only honest at 0 STRUCTURAL', while attempt.get-player-pos-frame-closure-and-web-colour-table.20260831.v3 recorded STRUCTURAL = 0 for the same function. Both were right about the code and the apparent contradiction was a tool artifact. Resolved by reading the flagged offsets: fnasm.py <unit> <fn> 0x1b0:0x1c0 --diff showed 0x1b8 (`beq ->1c4`) IDENTICAL on both sides, i.e. no instruction difference existed at the offset regnorm blamed. fndiff.py --clean with context showed the true content: the flagged rows are the R_PPC_EMB_SDA21 annotation lines that ride along with a register-only instruction change (`-lfd f29,0(0)` / `+lfd f30,0(0)`), and both sides read `<local>` -- the same relocation KIND against an anonymous literal-pool entry. The function subsequently went EXACT via a pure register recolor, which independently confirms there was never any structural difference.",
+    "tags": [
+      "workflow",
+      "metrics",
+      "relocation",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.regnorm-counts-reloc-annotation-rows-as-structural.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T18:52:36Z",
+  "schema_version": 1,
+  "subject": "function:get_player_pos",
+  "valid_from": "2026-08-31",
+  "value": "tools/gdl/regnorm.py COUNTS A RELOCATION ANNOTATION ROW AS ITS OWN 'WORD' AND CAN REPORT IT AS STRUCTURAL WHEN THE UNDERLYING INSTRUCTION DIFFERS ONLY BY A REGISTER. When a relocated instruction is part of a register-only change, the diff carries its `R_PPC_EMB_SDA21 ...` line on BOTH the minus and plus sides; regnorm pairs those two annotation lines, cannot compare two anonymous `<local>` pool references by identity, and emits `STRUCTURAL @0xNNNN  T R_PPC_EMB_SDA21 lbl  O R_PPC_EMB_SDA21 @137`. This is a FALSE POSITIVE for the tool's own headline question, and it is doubly misleading because the offset printed on such a row does not belong to the differing instruction at all -- on get_player_pos the row was stamped @0x01b8, where both sides emit an identical `beq`. Since regnorm's verdict banner is hard-gated at '0 STRUCTURAL', a function whose residual is genuinely a pure recolor can sit permanently at 'STRUCTURAL-PRESENT' and be wrongly excluded from the postprocessor path. DISCRIMINATOR, two commands and no build: take each flagged offset into `fnasm.py <unit> <fn> 0xA:0xB --diff` -- if the instructions there are `=` or `~`, the row is an annotation artifact, not a residual -- and confirm with `fndiff.py <unit> <fn> --clean`, where a genuine structural relocation difference shows DIFFERENT symbol targets while the artifact shows `<local>` against `<local>`. RULE FOR READING THE SCAN: subtract reloc-annotation rows before applying the 0-STRUCTURAL gate, and treat regnorm's UNPAIRED count -- which has no such artifact -- as the reliable half of the verdict. The two halves also differ in what they license: unpaired words are a hard bar on webfrank candidacy (claim.law.unpaired-schedule-words-bar-webfrank-candidacy-not-just-its-permute-stage), whereas these annotation rows bar nothing and webfrank_audit correctly ignores them -- get_player_pos audited ELIGIBLE and went to real 0 with five of them still being reported."
+}
