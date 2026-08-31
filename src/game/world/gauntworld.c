@@ -2163,7 +2163,6 @@ extern const char lbl_80346F10[8];     /* "CHICKEN"  */
 extern const char lbl_80346F18[6];     /* "APPLE"    */
 extern char  lbl_80346F20[];     /* "TREAS_GOLD" (sdata2 copy)   */
 extern char  lbl_80346F28[];     /* "TREAS_SILVER" (sdata2 copy) */
-extern f32   lbl_80346F30;
 extern char  lbl_80346F34[];     /* "%s_D"     */
 extern char  lbl_802583A8[];     /* scratch name buffer          */
 extern char  sObjectsFile[];     /* +0x130 "TREAS_GOLD", +0x13C "TREAS_SILVER" */
@@ -3519,9 +3518,7 @@ extern s32 damage_player(s32 player, f32 damage, s32 type, u32 flags,
                          f32* direction);
 extern s32 SumnerAnimate(s32 player);
 extern s32 lbl_8034476C;
-extern f64 lbl_80346FD0;
 extern const char lbl_80346FD8[7];
-extern f64 lbl_80346FE0;
 extern f32 sMusicFadeBase;
 
 s32 fn_8005D730(Player* player, Item* item)
@@ -4324,7 +4321,6 @@ extern f64   lbl_803470C0;
 extern f64   lbl_803470C8;
 extern f64   lbl_803470D0;
 extern f64   lbl_803470D8;
-extern f64   lbl_803470E0;
 extern f32   lbl_80127D00[4];
 extern f32   lbl_8011C904[8];
 extern char  sMissingLookoutParamFmt[];
@@ -6137,8 +6133,6 @@ extern s32 lbl_80344188;
 extern char lbl_8034418C;
 extern f32 lbl_80344190;
 extern f32 lbl_80344194;
-extern f64 lbl_80347008;
-extern f32 lbl_80347010;
 void FatalError(const char* msg, int code);
 f32 CTriListCollide(f32 radius, s32 base, s32 count, u8** outTri,
                     s16* idxList, f32* outPt, s32 layerLo, s32 layerHi,
