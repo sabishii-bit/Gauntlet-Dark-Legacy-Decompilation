@@ -20,9 +20,11 @@
  *   0x8023F848  lbl_8023F848             size 0x1C    -> view +0x40 .. +0x5C
  *   0x8023F864  gCameraTargetPositions   size 0x6C    -> view +0x5C .. +0xC8
  *   0x8023F8D0  gCameras                 size 0x948   -> view +0xC8 .. +0xA10
+ *   0x80240218  gCameraTargets           size 0x348   -> view +0xA10 .. +0xD58
  *
  * (Each symbol's end address equals the next symbol's start, so the run is
- * gap-free; 0x8023F8D0 - 0x8023F808 == 0xC8 is where gCameras begins.)
+ * gap-free; 0x8023F8D0 - 0x8023F808 == 0xC8 is where gCameras begins, and
+ * 0x80240218 - 0x8023F808 == 0xA10 is where the target array begins.)
  *
  * Therefore this header does NOT retype gCameraState and MUST NOT be used to
  * re-base any access.  Per claim.law.walked-base-symbol-identity the symbol a
@@ -73,6 +75,12 @@
 
 /* gCameras - gCameraState.  Verified from symbols.txt addresses above. */
 #define CAMERA_STATE_CAMERAS_OFF 0xC8
+
+/* gCameraTargets - gCameraState (0xA10 == 2576), i.e. one element past the
+ * end of the six-camera array.  Both TUs reconstruct the element type as a
+ * 0x38-byte file-local `CameraTarget`; that type stays file-local here too,
+ * because it is an aggregate (embedded-struct-member-whole-tu-cascade). */
+#define CAMERA_STATE_TARGETS_OFF 0xA10
 
 /* sizeof(Camera) == 0x18C.  Keep this spelled as the literal 396 in loop
  * strides: claim.law.sizeof-defeats-loop-stride-induction says a sizeof()
