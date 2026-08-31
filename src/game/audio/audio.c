@@ -936,17 +936,18 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
     s32 mapSz1;
     s32 mapSz2;
     s32 slot;
-    s32 off;
     s32 result;
     s32 savedBusy;
     s32 expected;
     s32 retry;
     s32 resp;
+    s32 cur;
     const char* messages = sAudioTimeoutMsg;
     u8* state = sAudioState;
     u8* bankEntry;
     u8* romBank;
     u8* queueSlot;
+    u8* cmdSlot;
     u16 handle;
 
     if (sAudioSuspend != 0) {
@@ -955,22 +956,20 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
     if (lbl_803442A4 == 0) {
         AudioStreamStop();
     }
-    slot = 0;
-    for (off = 0; off < 4 * 36; off += 36, slot++) {
-        if (*(s32*)(state + off + 1176) < 0) {
-            break;
+    for (slot = 0; slot < 4; slot++) {
+        if (*(s32*)(state + slot * 36 + 1176) < 0) {
+            goto gotSlot;
         }
     }
-    if (slot >= 4) {
-        slot = -1;
-    }
+    slot = -1;
+gotSlot:
     if (slot < 0) {
         return 0;
     }
+    result = 1;
     if (partIdx < 0) {
         partIdx = 0;
     }
-    result = 1;
     bankEntry = (u8*)gAudioBankTbl + bankIdx * 292 + 20;
     romBank = *(u8**)(sAudioBankTable + 16)
               + *(s32*)(bankEntry + partIdx * 4 + 28) * 44;
@@ -995,36 +994,41 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
         *(s32*)(queueSlot + 1184) = flag;
         *(void**)(queueSlot + 1200) = (void*)AudioLoadComplete;
         *(void**)(queueSlot + 1204) = queueSlot + 1176;
+        cmdSlot = queueSlot + 1188;
         retry = 0;
+        expected = sAudioMute + 1;
+        sAudioMute = expected;
         for (;;) {
-            expected = sAudioMute + 1;
-            sAudioMute = expected;
-            resp = sndCmd4(&mapPtr, mapSz1, mapSz2, queueSlot + 1188, waitLevel);
+            resp = sndCmd4(&mapPtr, mapSz1, mapSz2, cmdSlot, waitLevel);
             if (resp >= 0) {
                 break;
             }
-            ErrorPrintf(messages + 168, resp);
+            if (resp < 0) {
+                ErrorPrintf(messages + 168, resp);
+            }
             retry++;
             if (retry > 10000) {
                 FatalError(messages + 196, 0x8000);
             }
         }
         if (waitLevel < 2) {
-            while (expected == sAudioMute) {
+            for (;;) {
                 if (sAudioSuspend != 0) {
-                    break;
-                }
-                lbl_803442A8 = 0;
-                sndSysUpdate(lbl_80345950);
-                if (sAudioMute != 0) {
-                    s32 j;
-                    lbl_803442B4++;
-                    for (j = 10000; j != 0; j--) {
-                    }
+                    cur = 0;
                 } else {
-                    lbl_803442B4 = 0;
+                    lbl_803442A8 = 0;
+                    sndSysUpdate(lbl_80345950);
+                    if (sAudioMute != 0) {
+                        s32 j;
+                        lbl_803442B4++;
+                        for (j = 10000; j != 0; j--) {
+                        }
+                    } else {
+                        lbl_803442B4 = 0;
+                    }
+                    cur = sAudioMute;
                 }
-                if (expected != sAudioMute) {
+                if (expected != cur) {
                     break;
                 }
                 lbl_803442A8 = 0;
