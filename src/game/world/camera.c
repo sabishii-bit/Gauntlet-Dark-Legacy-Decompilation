@@ -3551,7 +3551,8 @@ s32 debug_camera_pos(s32 lastPlayer)
     scale = cam->delta[0] * cam->delta[0];
     distance = cam->delta[1] * cam->delta[1];
     extent = cam->delta[2] * cam->delta[2];
-    distance = extent + (distance = scale + distance);
+    distance = scale + distance;
+    distance = extent + distance;
     if (distance > lbl_80345EC8) {
         root = __frsqrte(distance);
         root = lbl_80345F18 * root *
