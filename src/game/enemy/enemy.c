@@ -7312,23 +7312,32 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
         start = 0;
         last = 3;
     } else {
-        if (*(s16*)(e + 628) < 0) {
+        if (*(s16*)(e + offsetof(Enemy, closest)) < 0) {
             return -1;
         }
         best1 = best;
         p = (u8*)gPlayerWords;
         last = -1;
+        /* The 13148 stride stays a literal: claim.law.sizeof-defeats-loop-stride
+         * -induction records that respelling a walked stride as sizeof(Player)
+         * costs the loop's induction form, unlike a displacement rename. */
         for (i = 0; i < 4; i++, p += 13148) {
-            if (*(s32*)(p + 232) == 1) {
-                if (*(s16*)(p + 2588) > 2) {
-                    dx = *(f32*)(e + 84) - *(f32*)(p + 2564);
-                    dy = *(f32*)(e + 88) - *(f32*)(p + 2568);
-                    dz = *(f32*)(e + 92) - *(f32*)(p + 2572);
+            if (*(s32*)(p + offsetof(Player, state)) == 1) {
+                /* Riding/attached players (field_A1C > 2) are ranged against
+                 * the alternate position at Player+0xA04..0xA0C, which sits in
+                 * player.h's pad_0970[0xA4] and so has no field name yet. */
+                if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
+                    dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) - *(f32*)(p + 2564);
+                    dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) - *(f32*)(p + 2568);
+                    dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) - *(f32*)(p + 2572);
                     d = fn_80034C88(dx * dx + dy * dy + dz * dz);
                 } else {
-                    dx = *(f32*)(e + 84) - *(f32*)(p + 100);
-                    dy = *(f32*)(e + 88) - *(f32*)(p + 104);
-                    dz = *(f32*)(e + 92) - *(f32*)(p + 108);
+                    dx = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[0])) -
+                         *(f32*)(p + offsetof(Player, effectpos[0]));
+                    dy = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[1])) -
+                         *(f32*)(p + offsetof(Player, effectpos[1]));
+                    dz = *(f32*)(e + offsetof(Enemy, objgrp.coll_pos[2])) -
+                         *(f32*)(p + offsetof(Player, effectpos[2]));
                     d = fn_80034C88(dx * dx + dy * dy + dz * dz);
                 }
                 if (d < best1) {
@@ -7341,10 +7350,11 @@ s32 fn_80046680(f32 rad, f32 hht, s32 index, s32 b, f32* oldc, f32* newc)
     }
     q = (u8*)gPlayerWords + start * 13148;
     for (j = start; j <= last; j++, q += 13148) {
-        if (*(s32*)(q + 232) == 1) {
-            if (LineCylinderCollide((f32*)(q + 100), rad + *(f32*)(q + 2128),
-                                    hht + *(f32*)(q + 2132), oldc, newc, hit,
-                                    1) != 0) {
+        if (*(s32*)(q + offsetof(Player, state)) == 1) {
+            if (LineCylinderCollide((f32*)(q + offsetof(Player, effectpos[0])),
+                                    rad + *(f32*)(q + offsetof(Player, col_radius)),
+                                    hht + *(f32*)(q + offsetof(Player, col_height)),
+                                    oldc, newc, hit, 1) != 0) {
                 d = fqdist(hit[0] - newc[0], hit[2] - newc[2]);
                 if (d < best) {
                     ret = j;
