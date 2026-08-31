@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/world/tower.c::towerRecordLevelBeaten (worktree GDL-Claude-TowerDrive2, work_claim.tower-drive-2.20260831.v1, commit 3249ba597). Target at +0x50..+0x64 emits the literal chain `cmpwi r6,1; beq BODY; cmpwi r6,4; beq BODY; cmpwi r6,5; bne SKIP`. Our source `if (state == 1 || state == 4 || state == 5) { ... }` compiled instead to `cmpwi r6,1; beq; addi r6,r6,-4; cmplwi r6,1; bgt SKIP` -- MWCC range-folded the ADJACENT constant pair {4,5} into a biased unsigned range test, costing 1 instruction and a 7-token opcode-multiset difference (target-only +1 beq +1 bne +2 cmpwi; ours-only -1 addi -1 bgt -1 cmplwi). Rewriting the guard as the inverted early-exit form `if (state != 1 && state != 4 && state != 5) { continue; }` with the body promoted out of the if reproduced the target chain EXACTLY: real 77 -> 56, insns 78 -> 79/79 (exact parity), opcode multiset DIFFERS(7t) -> IDENTICAL(0t) in ONE probe.",
+    "tags": [
+      "matching",
+      "entry-schedule",
+      "switch-form",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.inverted-guard-defeats-equality-chain-range-fold.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T17:16:59Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A positive `||` chain of equality tests against constants is RANGE-FOLDED by MWCC whenever two or more of the constants are numerically ADJACENT: `x == 1 || x == 4 || x == 5` compiles to `cmpwi 1; beq; addi x,x,-4; cmplwi x,1; bgt`, replacing two cmpwi/branch pairs with a biased unsigned range test and emitting one FEWER instruction than the literal chain. The fold is not defeated by spelling: probing the same condition with direct member reads (`rec->state == 1 || ...`) instead of a cached local measured EXACTLY NEUTRAL, because CSE collapses the loads before the fold runs. THE COUNTER-FORM is the inverted early-exit guard: write `if (x != C1 && x != C2 && x != C3) { continue; }` (or `return`/`goto`) and promote the body out of the conditional. The `&&`-of-inequalities chain is emitted literally as `cmpwi C1; beq BODY; cmpwi C2; beq BODY; cmpwi C3; bne SKIP`, which is byte-for-byte the shape a non-folded positive chain would have had, and it restores instruction-count parity. Diagnostic tell, so this is recognisable without reading source: a `--ops` multiset carrying `ours-only -1 addi -1 cmplwi -1 bgt` against `target-only +N cmpwi +N beq/bne` IS this law; the `addi`/`cmplwi` pair is the bias-and-compare signature and its absence in the target proves the target's source used the inverted form. DO NOT REACH FOR A SWITCH. A `switch` with the same labels is the natural second instinct and it is WRONG whenever any two labels are consecutive: per claim.law.switch-run-collapse-and-arm-layout.20260829.v1 a consecutive case run collapses to an exclusive-high-bound range test, and the measured result here was `cmpwi 4; bge; cmpwi 1; beq; b; cmpwi 6; bge` -- real 77 -> 79 with insns 79/80, i.e. it traded the missing instruction for a SURPLUS one and introduced the bge-enter/b-skip pair that the target does not contain. The switch probe did improve the multiset (7t -> 5t) while regressing `real`, so it reads as a gate CONFLICT: arbitrate it by checking for bge/b pairs against the target rather than by the token count, and reject it when the target's branch chain is pure cmpwi/beq/bne."
+}
