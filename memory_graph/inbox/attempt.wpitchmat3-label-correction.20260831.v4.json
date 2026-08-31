@@ -1,0 +1,23 @@
+{
+  "attempted_axis": "Label-correction only, no probe. Park-law-age screen of a park recorded 2026-08-31T04:28:29Z against claim.law.identical-multiset-is-blind-to-displacements (2026-08-31T17:13:14Z), which post-dates it: ran the law's prescribed regnorm measurement to test the record's REGISTER_ONLY residual_class.",
+  "attributes": {
+    "decisive_finding": "The residual_class was WRONG and the mechanism prose was RIGHT. regnorm reports 48 paired, 0 renaming, 2 STRUCTURAL, 0 unpaired: there is no register renaming in this function AT ALL, so REGISTER_ONLY was never an honest label. The two structural words are the two halves of one mechanism, exactly as v3's prose already described: at +0x006c target `lfsu f4,8(r4)` against our `lfs f4,8(r4)`, and at +0x0084 target `stfs f0,0(r4)` against our `stfs f0,8(r4)` - the target's load-with-update advances r4 by 8 so the following store addresses 0(r4), while ours leaves r4 unchanged and stores at 8(r4). One missing lfsu fusion explains both words.",
+    "do_not_retry": "Everything in v3's do_not_retry stands unchanged - the update-form spelling axis is closed at FOUR identical A/Bs across v2 and v3, and this pass added no new probe. The only correction is the label. Note also that this residual is NOT webfrank-eligible: it is an opcode substitution (lfs -> lfsu) plus a displacement change, not a permutation or recolour, so claim.law.webfrank-cannot-close-instruction-count-deltas and the permutation guard family both exclude it. A future reopen needs a source form that makes the update-load the pointer web's DEFINING use, per the boundary refinement v3 recorded.",
+    "law_screen": "claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED and DECISIVE for the classification: it post-dates the v3 park by ~12.7 hours and its prescribed regnorm run shows 0 renaming / 2 STRUCTURAL, refuting the REGISTER_ONLY class. claim.law.recomputed-base-update-load-fuses-lwzu.20260831.v1 already screened in v3 and its boundary refinement carried forward unchanged. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 screened, not applicable: no differing (r1) displacement rows. claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1 screened, not applicable: no frame delta, so this is not a sweep-lane candidate. claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 screened, not applicable: no register web exists to re-identify.",
+    "laws_applied": "[\"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "measurement_resolution": "regnorm at one-instruction-word resolution over all 48 paired words; no build edit was made, so no probe resolution applies.",
+    "residual": "UNCHANGED from v3 at real 4, insns 43/43: one missing lfsu fusion showing as two structural words (+0x006c, +0x0084). Only the residual_class changes, from REGISTER_ONLY to STRUCTURAL. The game/ps2/ml_fmath TU flip remains blocked by this single fold.",
+    "scope": "src/game/ps2/ml_fmath.c::WPitchMat3. NO source edit of any kind this pass; measurement and record correction only. Tree untouched.",
+    "verification": "python tools/gdl/regnorm.py game/ps2/ml_fmath WPitchMat3 against the current green build (full ninja green at pass start, build/GUNE5D/main.dol: OK)."
+  },
+  "function": "function:WPitchMat3",
+  "id": "attempt.wpitchmat3-label-correction.20260831.v4",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T19:56:33Z",
+  "refutes": "attempt.parked.wpitchmat3.20260831.v3",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.wpitchmat3.20260831.v3",
+  "valid_from": "2026-08-31"
+}
