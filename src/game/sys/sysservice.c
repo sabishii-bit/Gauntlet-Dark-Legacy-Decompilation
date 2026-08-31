@@ -81,31 +81,34 @@ int  sprintf();
  * compares. Reproduced here as the byte-cast ternary the inliner emitted. */
 #define SYS_FLAG(f) ((u8)((gSysFlags & (f)) ? TRUE : FALSE))
 
-typedef struct SysServiceStringPool {
+typedef struct SysServiceCardStrings {
     char cardCorruptPrompt[0x20];
     char cardCorruptUnusable[0x24];
     char resetReleased[0x14];
+} SysServiceCardStrings;
+
+typedef struct SysServiceResetStrings {
     char resetInvoked[0x10];
     char pressReset[0x1C];
     char assertFailedPress[0x3C];
-    char assertFile[0x20];
-    char assertMessage[0x25];
-} SysServiceStringPool;
+} SysServiceResetStrings;
 
-static const SysServiceStringPool lbl_801176B0 = {
+const SysServiceCardStrings lbl_801176B0 = {
     "Card is corrupted, format it?",
     "The card is corrupted and unusable.",
-    "RESET RELEASED..",
-    "RESET INVOKED..",
-    "%s Press RESET to continue.",
-    "Assert Failed. File:%s Line:%d Press RESET to continue...",
-    "Assert Failed: File:%s Line:%d",
-    "Message: %s Press RESET to continue."
+    "RESET RELEASED.."
 };
 
-extern const char lbl_80117708[];
-extern const char lbl_80117770[];
-extern const char lbl_80117790[];
+const SysServiceResetStrings lbl_80117708 = {
+    "RESET INVOKED..",
+    "%s Press RESET to continue.",
+    "Assert Failed. File:%s Line:%d Press RESET to continue..."
+};
+
+const char lbl_80117770[0x1F] = "Assert Failed: File:%s Line:%d";
+/* 0x25 is the object's true extent; the 3 bytes to the splits claim's
+ * 0x801177B8 end are link-time alignment padding the linker re-creates. */
+const char lbl_80117790[0x25] = "Message: %s Press RESET to continue.";
 
 /* --- forward declarations (DOL call order) --- */
 BOOL       sysPollResetButton(void);
@@ -196,7 +199,7 @@ void sysResetService(void) {
             sysPollResetButton();
             if (SYS_FLAG(SF_RESET_TRIGGER) || SYS_FLAG(SF_RESET_HELD)) {
                 if (gMsgCallback) {
-                    gMsgCallback(lbl_801176B0.resetInvoked);
+                    gMsgCallback(lbl_80117708.resetInvoked);
                 }
                 sysFadeToBlack();
                 if (DVDCheckDisk() != 0) {
@@ -241,7 +244,7 @@ void sysResetService(void) {
             sysPollResetButton();
             if (SYS_FLAG(SF_RESET_TRIGGER) || SYS_FLAG(SF_RESET_HELD)) {
                 if (gMsgCallback) {
-                    gMsgCallback(lbl_801176B0.resetInvoked);
+                    gMsgCallback(lbl_80117708.resetInvoked);
                 }
                 sysFadeToBlack();
                 if (DVDCheckDisk() != 0) {
@@ -287,7 +290,7 @@ void sysHandleReset(void) {
     sysPollResetButton();
     if (SYS_FLAG(SF_RESET_TRIGGER) || SYS_FLAG(SF_RESET_HELD)) {
         if (gMsgCallback) {
-            gMsgCallback(lbl_80117708);
+            gMsgCallback(lbl_80117708.resetInvoked);
         }
         sndTestStopAll();
         vibrators_off();
