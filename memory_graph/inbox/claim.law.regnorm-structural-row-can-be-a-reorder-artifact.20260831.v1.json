@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/pb/pb_window.c, pb-window-endgame lane 2026-08-31 (work_claim.pb-window-endgame.20260831.v1). Both of the TU's two sub-100 functions were screened with regnorm --map in the same pass and returned OPPOSITE verdicts on inherited labels, which is what isolates the rule. pbWinSetup (inherited label REGISTER_ONLY) returned STRUCTURAL-PRESENT with 1 STRUCTURAL row and 4 unpaired; pbProjCalc (inherited label SCHEDULE) returned COUNT-MISMATCH with 0 STRUCTURAL and 8 unpaired. The aligned read that decides the first case is `fnasm.py game/pb/pb_window pbWinSetup 0x2a0:0x310 --diff`.",
+    "tags": [
+      "matching",
+      "workflow",
+      "metrics",
+      "entry-schedule",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.regnorm-structural-row-can-be-a-reorder-artifact.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T20:31:41Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_window",
+  "valid_from": "2026-08-31",
+  "value": "REFINES claim.park-law-age-revisit-census.20260831.v1 rule (i) with the step that must follow it. regnorm.py aligns the two instruction streams POSITIONALLY (on register-erased text), so when target and ours contain the SAME set of words in a DIFFERENT local order, the alignment charges the mismatch to whichever rows happen to collide and reports STRUCTURAL. A STRUCTURAL-PRESENT verdict is therefore necessary-but-not-sufficient evidence of a source-reachable gap: it must be confirmed by an aligned `fnasm.py <unit> <fn> 0xA:0xB --diff` read over the flagged offsets BEFORE it is treated as one. MEASURED INSTANCE: on pbWinSetup regnorm printed `STRUCTURAL @0x02d0 T addi r5,r1,8 / O li r3,0` alongside `UNPAIRED-T @0x2fc addi r4,r6,0` and `UNPAIRED-O @0x2f8 addi r5,r1,8`, which reads as a missing stack-address materialisation. The aligned read shows BOTH streams contain `addi r5,r1,8` and BOTH contain `li r3,0`; the target orders the loop preheader [lwz g][li r6,0][addi r4,r6,0][lwz lights][addi r5,r1,8][li r3,0] and ours orders it [lwz g][addi r5,r1,8][li r6,0][lwz lights][li r3,0][li r4,0]. The stack address is merely scheduled ten instructions earlier in ours. Not one word is structurally wrong; the true residual is a local reorder plus exactly ONE genuine opcode difference (the `addi rD,rS,0` versus `li rD,K` induction-variable seed, which claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 already rules source-unreachable). Acting on the raw verdict would have sent an agent hunting a phantom missing-address bug. THE SYMMETRIC HALF OF THE RULE, and the reason this is not merely a caveat: the census establishes that an inherited REGISTER_ONLY label is right less than half the time, but it should NOT be read as blanket distrust of every inherited label, because the screen CONFIRMS labels as readily as it refutes them. In the same TU, in the same pass, pbProjCalc's inherited SCHEDULE label came back with ZERO STRUCTURAL rows, upholding a park whose prose had named its mechanism precisely; its 8 unpaired words resolved to two first-loads of a repeatedly-used .sdata2 pool literal placed one stall-slot apart, exactly the mechanism the park claimed. PRACTICAL PROCEDURE, three steps and cheap: (1) run regnorm before trusting any inherited classification; (2) if the verdict is STRUCTURAL-PRESENT, read the flagged offsets with an aligned fnasm --diff and ask specifically whether each flagged word EXISTS ON BOTH SIDES at a different offset - if it does, reclassify the row as SCHEDULE and count the residual as a reorder, not a gap; (3) treat the OPCODE MULTISET line as the arbiter of whether any genuine word-level difference remains at all, since a pure reorder leaves it IDENTICAL while a real structural gap names the surplus opcodes. Corollary for balanced unpaired sets: when UNPAIRED-T and UNPAIRED-O counts are equal and the paired-off words are the same instruction at different offsets, the residual is scheduling, whatever the headline verdict says."
+}

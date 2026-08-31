@@ -119,7 +119,6 @@ typedef struct PBSCREEN {
  * / gDefaultWinList / gWindows / gCameraMtx externs now live in
  * include/game/pbwindow.h */
 extern u32 gWinDefault;             /* DAT_80345154 (SDA-addressed) */
-extern f32 gUpVector[];             /* DAT_802c9b88's up? placeholder */
 
 void pbCloseWindow(void);
 void pbSetDefaultWindow(void);
