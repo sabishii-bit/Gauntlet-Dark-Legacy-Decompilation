@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXACT-DRIVE lane, whole TU src/game/world/tower.c: TowerCheckMessages real 158 \u2014 PH's completion-array header work landed and its member-form conversion is done, but the R4 register-permutation residual was never driven; the corpus now holds value-identity, home-copy, dead-local-reuse, uniform-frame-pad, saved-set-first discipline. Then the TU's remaining sub-100 roster (SumnerDoSpeech is rule-exact \u2014 byte-gate it and respect its pin + inlined helpers; playerGiveGargItem is exact \u2014 hold). Exact or named-mechanism park; census-before-probe where a shape question arises (the image-wide survey method); parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:TowerCheckMessages",
+  "id": "work_claim.tower-drive.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-TW",
+  "recorded_at": "2026-08-31T16:02:38Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

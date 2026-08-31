@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXACT-DRIVE lane, whole TU src/game/game/pmotion.c: get_player_pos (real 497) and PlayerCollideFloor (real 319) carry MAPPED residuals from the run-6 literal drive (attempt.pmotion-literal-tu-pass + attempt.playermotion-extern-literal-drive name the clusters: volatile &-address webs in saved regs, -1 mr head knot, -3 addi web-split copies); the corpus since adds value-identity/named-locals, alias-inversion single-use-folding, home-copy class, two-use-preoffset, hoisted-literal-colors \u2014 all genuinely new ground here. Then fn_80088714 (its hoisted-literal rescreen v2 records the tell status). PlayerMotion itself (97.57, deep multi-session) only if everything else closes. The byte-exact collision family MUST hold (gate hashes bytes); webfrank pin screen + inlined helpers first. Exact or named-mechanism park; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:get_player_pos",
+  "id": "work_claim.pmotion-drive-2.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PM",
+  "recorded_at": "2026-08-31T16:02:34Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
