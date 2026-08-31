@@ -42,6 +42,7 @@
 
 #include "types.h"
 #include "game/camera.h"
+#include "game/cameradata.h"
 #include "game/leveldata.h"
 #include "game/player.h"
 #include "game/worldinfo.h"

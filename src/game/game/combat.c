@@ -15,6 +15,7 @@
 
 #include "types.h"
 #include "game/camera.h"
+#include "game/cameradata.h"
 #include "game/enemy.h"
 #include "game/player.h"
 #include "game/worldinfo.h"
