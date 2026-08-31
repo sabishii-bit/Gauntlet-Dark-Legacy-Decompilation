@@ -1,0 +1,35 @@
+{
+  "attributes": {
+    "law_screen": "none applicable: TU-identity/premise scouting record, not a codegen-matching attempt; screened gdlmem laws --tag core-screen for de-fakematch guidance in case audio.c work followed, none applied since no source edits were made in this pass"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.tuscout.audiomixer-premise-resolved.20260831.v1",
+  "kind": "claim",
+  "predicate": "xbox_module_identity",
+  "recorded_at": "2026-08-31T00:23:57Z",
+  "schema_version": 1,
+  "subject": "tu:game/g3d/sndvoice.c",
+  "valid_from": "2026-08-31",
+  "value": {
+    "address_range": "0x80102198-0x80103BE4 (.text, 0x1A4C = 6732 bytes) per config/GUNE5D/splits.txt line 1061",
+    "coverage_check": "Cross-referenced all 256 splits.txt TU-name entries against configure.py's 257 Object() entries (the one extra is a hand-authored asm exception, TRK_MINNOW_DOLPHIN/ppc/Generic/exception.s, Matching, no splits.txt line needed). Zero TUs listed in splits.txt lack a configure.py source entry - there is no genuinely unwritten/unclaimed .text region left to carve a new TU out of anywhere in the currently-split game+SDK address space.",
+    "gc_functions": [
+      "sndVoiceInit",
+      "sndVoiceSetParams",
+      "sndVoiceSetVolume",
+      "sndVoiceSetPan",
+      "sndVoiceStop",
+      "sndVoiceStart",
+      "sndVoiceSetMaster",
+      "sndVoiceUpdateAll",
+      "sndDbToMix (static helper)"
+    ],
+    "gc_status": "Object(Matching, \"game/g3d/sndvoice.c\", mw_version=\"GC/1.2.5n\") in configure.py; fully matched 2026-08-26 (commit 49b239599 'Match game/g3d/sndvoice.c', preceded by 902dc19f9 'Finish matching sound voice TU'). include/game/sndvoice.h (added in b20fd1d58) documents the SndVoice struct as GC's native '0x58 mixer struct' - i.e. this TU IS the GC audio mixer, just not under an 'AudioTrack' name.",
+    "gc_tu": "game/g3d/sndvoice.c",
+    "other_audio_pdb_modules": "Only 3 Xbox PDB modules match /audio|sound|mix|track|voice/i (per xbmod.py --modules): AUDIODEC.OBJ (12 fns, audioDec*/Ads* naming) has no matching GC source anywhere in src/ - most likely Xbox-only hardware codec glue with no GC equivalent (GC drives audio natively through the already-matched AX/DSP/AI SDK stack, no software decode wrapper needed); SOUNDS.OBJ (172 fns, BGMusicStart/MapMusicStart/AudioDeathLaugh/etc.) = game/audio/soundmgr.c, already Matching; AUDIO.OBJ (68 fns) = game/audio/audio.c, see above.",
+    "recommendation": "Release work_claim.audiomixer-scout.20260831.v1 (memory_graph/inbox/) at the next integration pass - no TU to create, no configure.py/splits.txt edit is warranted or was made. Future audio scouting should start from: 'AudioTrack*' -> game/audio/audio.c (NonMatching, has an active raw-offset debt of 59 sites per gdlmem brief - real remaining work), '0x80102198 mixer' -> game/g3d/sndvoice.c (done), 'AUDIODEC.OBJ' -> unexplored platform-divergence question, not a GC decomp target until proven otherwise.",
+    "scout_conclusion": "No unwritten 'audio-mixer' TU exists anywhere in the current splits.txt/configure.py. The scouting premise behind work_claim.audiomixer-scout.20260831.v1 (an unwritten GCN audio-mixer TU starting around 0x80102198, hypothesized to be the Xbox PDB 'AudioTrack*' module) is stale: both halves of the hypothesis are already fully resolved by prior, unrelated work.",
+    "stale_source": "The scouting premise traces to a personal cross-session memory note ('GX block scouting') that listed 'audio-mixer @0x80102198 (game code, Ghidra-driven)' as remaining work at the time it was written. That note predates the 2026-08-26 sndvoice.c match, was never captured as a project graph record (search for 'GX block scouting'/'AudioTrack'/'sndvoice mixer' in records/ and inbox/ returns nothing prior to this record), and so the graph itself had no accepted fact for a later worker to supersede - the personal memory note simply went stale silently.",
+    "xbox_audiotrack_cluster": "AudioTrackInit/AudioTrackKill/AudioTrackVol/AudioTrackPan/AudioTrackMusicVol/AudioTrackSet/AudioTrackUpdate/AudioTrackVolSub/AudioTrack4 (9 functions, per tools/gdl/xbmod.py --module AUDIO) are NOT a separate PDB module - they are positionally embedded inside AUDIO.OBJ (68 functions total). AUDIO.OBJ is the Xbox counterpart of the ALREADY-WRITTEN GC TU game/audio/audio.c (NonMatching; 39 real-named functions incl. AudioTrackRegister; zero fn_ placeholder stubs; active de-fakematch/matching work as of 2026-08-30, commit 4e32a99af). See companion record claim.tuscout.audiotrack-cluster-owner.20260831.v1 anchored to that TU."
+  }
+}
