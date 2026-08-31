@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "Measured by worker claude-fleet-worker-SX in worktree GDL-Claude-SndfxSig while executing work_claim.sndfx-signature-fix.20260831.v1. The falsification was a deliberate free-falsification probe of the prescription in claim.sndfxinit-first-param-is-a-mode-not-a-pointer.20260831.v1, run under defake_gate on game/ui/attract with the baseline banked beforehand, then reverted.",
+    "tags": [
+      "matching",
+      "defake",
+      "symbol-identity",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.knr-extern-arity-can-be-faithful-not-a-defect.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T17:59:52Z",
+  "schema_version": 1,
+  "subject": "tu:game/ui/attract",
+  "valid_from": "2026-08-31",
+  "value": "A K&R unprototyped `extern f();` declaration in a caller TU, combined with a call site passing FEWER arguments than the callee's definition takes, is NOT automatically a reconstruction defect to be fixed - it is frequently a FAITHFUL reconstruction of the original 2001 source, and prototyping it REGRESSES the caller. TEST BEFORE FIXING, and the test is cheap: read the target disassembly at the call site and look for setup of the argument register the extra parameter would occupy. If the target sets it, the source really passed the argument and the missing prototype is hiding a genuine arity bug. If the target does NOT set it - the register holds an unrelated leftover value from earlier in the function - then the original source itself called the function with the short argument list, the unprototyped declaration is what allowed MWCC to compile it, and adding a prototype plus an argument will make MWCC MATERIALIZE that argument and emit an instruction the target does not have. MEASURED EVIDENCE. attract.c:68 declares `extern void sndFxInit();` while sndfx.c defines sndFxInit with two parameters; five of the six attract.c call sites pass two arguments and attract.c:1110 passes ONE (0x8008 = MA_FLYBY). claim.sndfxinit-first-param-is-a-mode-not-a-pointer.20260831.v1 recorded this as defect (iii), 'the missing prototype is silently hiding an arity mismatch', and prescribed fixing it TOGETHER with the signature retype on the stated grounds that 'fixing the signature without first fixing that declaration would turn a silent bug into a compile error, so the two must move together'. BOTH halves of that are wrong. (1) There is no coupling at all: sndFxInit has no shared header (grep of include/ finds none), so attract.c never sees sndfx.c's definition and the two TUs compile independently - the signature retype landed alone, byte-identical, GATE OK on both TUs, with attract.c untouched. (2) The prototype 'fix' is a REGRESSION. Target init_attract_mode at 0x3b4-0x3c0 reads `lis r3,1; stw r28,@lbl_80344288; addi r3,r3,-32760; bl @sndFxInit` - r3 is built to 0x8008 (0x10000-0x7FF8) and r4 is NEVER written; the last write to r4 before the call is an unrelated `lwz r4,@lbl_80343B00` at 0x378 feeding a compare at 0x380, and the next is `li r4,368` at 0x3d8 for the following MBNewBlit call. Adding `extern void sndFxInit(s32 mode, s32 wave);` plus a second argument at :1110 produced exactly the predicted extra instruction - defake_gate REGRESSION init_attract_mode real 210 -> 211, with the --ops diff naming it precisely as `insert T[240:240]@3c0-3c0=[] O[246:247]@3d8-3dc=['li']`, an inserted `li` at the call site offset where the target emits nothing. Reverted. GENERAL RULE: treat an unprototyped extern in this codebase as load-bearing evidence about the original source until the target asm says otherwise. The same reasoning applies to K&R declarations generally - MWCC's pre-ANSI permissiveness is part of what the original build relied on, so 'modernizing' a declaration is a codegen change, not a cleanup. COROLLARY for tooling: tools/gdl/externcheck.py would not have caught the underlying pointer-vs-int conflict here either (it reports only float/int-class divergence), so pointer-vs-integer extern conflicts remain invisible to it and must be found by grep."
+}

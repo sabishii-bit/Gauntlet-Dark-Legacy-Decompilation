@@ -116,7 +116,7 @@ extern int sndRegisterPair(s32* rec, int chans, void* out);
 extern void ErrorPrintf(const char* fmt, ...);
 extern void fn_800C0310(void);
 extern int fn_800BC418(int a, int b);
-extern void fn_80053D08(void* a, int b, int c);
+extern s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult);
 extern void bulletproof_printf(const char* fmt, ...);
 extern void init_moving_objects(int a);
 extern f32 DistanceToClosestPlayer(Vec3* a);     /* distance from listener */
@@ -152,8 +152,8 @@ extern const char sAudioTimeoutMsg[];
 extern const char sAudioBankNotLoadedMsg[];
 
 /* raw driver-side globals kept as lbl_ (shared broadly, unnamed) */
-extern s32 gGameMode; /* audio enable/pause flags (bit 0x8000 = paused) */
-extern void* lbl_80344290;
+extern s32 gGameMode; /* current e_mode id; bit 0x8000 = attract-loop group */
+extern s32 lbl_80344290; /* mode id latched at init (see attract.c) */
 extern s32 gGameBusy;
 extern s32 lbl_8034481C;
 extern s32 lbl_803447D0;
@@ -211,10 +211,10 @@ static inline int sndFxComputePan(Vec3* pos)
 }
 
 /* sndFxInit: one-time audio-core init (resets state, starts driver). */
-void sndFxInit(void* a, void* b)
+void sndFxInit(s32 mode, s32 wave)
 {
-    lbl_80344290 = a;
-    gGameMode = (s32)a;
+    lbl_80344290 = mode;
+    gGameMode = mode;
     gGameBusy = 0;
     lbl_8034481C = 0;
     lbl_803447D0 = 0;
@@ -225,7 +225,7 @@ void sndFxInit(void* a, void* b)
     lbl_8034420C = 0;
     fn_800C0310();
     fn_800BC418(2, -1);
-    fn_80053D08(b, 0, lbl_80343B08);
+    fn_80053D08(wave, 0, lbl_80343B08);
     lbl_80343B04 = -1;
     lbl_80343B0C = -1;
     lbl_80343B10 = -1;
