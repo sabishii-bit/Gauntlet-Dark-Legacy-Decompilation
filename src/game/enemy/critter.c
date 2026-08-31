@@ -2171,14 +2171,14 @@ void CritterGetTargetPlayers(Critter *c)
             continue;
         }
         if ((player->flags & 4) && c->state != 0) {
-            if (*(s16 *)((u8 *)*(void **)((u8 *)c->hdr + offsetof(CritterPackedType, descriptor)) + 0x20) != 4) {
+            if (*(s16 *)((u8 *)*(void **)((u8 *)c->hdr + offsetof(CritterPackedType, descriptor)) + offsetof(CritterDescriptor, type)) != 4) {
                 continue;
             }
         }
-        targetpos[0] = *(f32 *)((u8 *)player + 0x64);
-        targetpos[1] = *(f32 *)((u8 *)player + 0x68);
-        targetpos[2] = *(f32 *)((u8 *)player + 0x6C);
-        score = CritterCalcTarget(c, (f32 *)((u8 *)c->hdr + 0x80), targetpos,
+        targetpos[0] = *(f32 *)((u8 *)player + offsetof(Player, effectpos[0]));
+        targetpos[1] = *(f32 *)((u8 *)player + offsetof(Player, effectpos[1]));
+        targetpos[2] = *(f32 *)((u8 *)player + offsetof(Player, effectpos[2]));
+        score = CritterCalcTarget(c, (f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, target)), targetpos,
                                   &record);
         if (c->particle != NULL) {
             thr = c->unkAD0;
@@ -3237,16 +3237,16 @@ credited_damage_done:
 
         damageHeader = (u8 *)c->hdr;
         if ((flags & 0xF) == 0) {
-            if (source == 2 && *(s16 *)(damageHeader + 0xF6) >= 0) {
-                CritterDoSfx(c, *(s16 *)(damageHeader + 0xF6), hitPosition, 0,
+            if (source == 2 && *(s16 *)(damageHeader + offsetof(CritterPackedType, sfxIndex1)) >= 0) {
+                CritterDoSfx(c, *(s16 *)(damageHeader + offsetof(CritterPackedType, sfxIndex1)), hitPosition, 0,
                             -1);
             } else {
-                CritterDoSfx(c, *(s16 *)(damageHeader + 0xF4), hitPosition, 0,
+                CritterDoSfx(c, *(s16 *)(damageHeader + offsetof(CritterPackedType, sfxIndex0)), hitPosition, 0,
                             -1);
             }
         } else {
             fn_800945D0(hitPosition, &c->mtx[0][0], flags, 0,
-                        critterClass, *(f32 *)(damageHeader + 0x78));
+                        critterClass, *(f32 *)(damageHeader + offsetof(CritterPackedType, radius)));
         }
 
         if (flags & 0x00100320) {
@@ -5689,9 +5689,9 @@ void CritterAnimInterrupt(Critter *c, s32 action, s32 phase, s32 active)
             if (c->unk128 >= 0) {
                 pp = &gPlayers[c->unk128];
                 PlayerUnsetParent(pp);
-                dir[0] = *(f32 *)((u8 *)c->mbnode + 0x20);
-                dir[1] = *(f32 *)((u8 *)c->mbnode + 0x24);
-                dir[2] = *(f32 *)((u8 *)c->mbnode + 0x28);
+                dir[0] = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, mat[2][0]));
+                dir[1] = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, mat[2][1]));
+                dir[2] = *(f32 *)((u8 *)c->mbnode + offsetof(MBObject, mat[2][2]));
                 dir[1] = lbl_803464F0;
                 NormalVector(dir);
                 dir[0] = dir[0] * *(f32 *)(desc + offsetof(CritterDamageDef, minSpeed));
@@ -6058,9 +6058,9 @@ s32 CritterDoSfx(Critter *c, s32 sfx, void *parent, s32 arg3, s32 arg4)
             world[2] = color[2];
         } else if ((flags & 0x80) != 0) {
             arg3 = 0;
-            world[0] = *(f32 *)((u8 *)c + 0x418) + color[0];
-            world[1] = *(f32 *)((u8 *)c + 0x41C) + color[1];
-            world[2] = *(f32 *)((u8 *)c + 0x420) + color[2];
+            world[0] = *(f32 *)((u8 *)c + offsetof(Critter, prevMovePathPos[0])) + color[0];
+            world[1] = *(f32 *)((u8 *)c + offsetof(Critter, prevMovePathPos[1])) + color[1];
+            world[2] = *(f32 *)((u8 *)c + offsetof(Critter, prevMovePathPos[2])) + color[2];
         } else if ((flags & 0x40) != 0) {
             if (c->obj_d0 != NULL) {
                 GetWorldMat(c->obj_d0, mtxTmp, color);
