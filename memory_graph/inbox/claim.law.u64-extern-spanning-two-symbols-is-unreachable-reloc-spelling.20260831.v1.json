@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "Discovered 2026-08-31 in the exact-drive lane (work_claim.exact-critter-2.20260831.v1) while re-screening CritterDoTexmodNode's parked residual, which fndiff had classified as 'register/reloc only'. Measured in src/game/enemy/critter.c against a freshly built object: CritterDoSfx real 2 and CritterInitColnodes real 2, where in BOTH functions the entire residual is the single line pair `- R_PPC_EMB_SDA21 sFlags` / `+ R_PPC_EMB_SDA21 gControllerButtons+0x4`. CritterAnimInterrupt carries three instances of the same pair (inside a much larger real 143 residual) and CritterDoTexmodNode one. Ground truth from config/GUNE5D/symbols.txt lines 8305-8306: `gControllerButtons = .sbss:0x803445C8; size:0x4` and `sFlags = .sbss:0x803445CC; size:0x4` - two distinct 4-byte objects, and sFlags is independently read as a plain u32/s32 by roughly twelve other TUs (newcam.c, gamemain.c, combat.c, player.c, options.c, select.c, screensaver.c, auxscreen.c, message.c, attract.c, pmotion.c, action.c). Five TUs independently declared the 8-byte spelling and left comments describing the aliasing: critter.c line 585, enemy.c line 1453, pb_diag.c line 115, select.c line 399, attract.c line 121.",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py; applies wherever a TU declares a single extern object that SPANS two or more addresses which config/GUNE5D/symbols.txt gives separate symbols, and the target disassembly is symbolised per-address while our side is scored from real object relocations.",
+    "tags": [
+      "matching",
+      "symbol-identity",
+      "sda-global",
+      "relocation",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.u64-extern-spanning-two-symbols-is-unreachable-reloc-spelling.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T14:52:19Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "When a TU declares one extern object that spans two separately-symbolised addresses, every access to the object's upper half emits a relocation of the form `<object>+<N>`, while the target disassembly symbolises that same address as the OTHER symbol's name. fndiff scores the pair as two real diff lines even though the address, the instruction encoding and the linked bytes are identical. This is a SPELLING difference, not a codegen difference, and it is NOT reachable from the consuming TU: a single C lvalue can only relocate against ONE base symbol, so no declaration or expression can make MWCC name the low half `sFlags` and the high half `gControllerButtons` in the same 64-bit access. Substituting the low symbol as the base merely moves the mismatch to the high half. CONSEQUENCE 1 (scoring): functions whose ONLY residual is this pair are byte-exact in the sense AGENTS.md already recognises ('real 0 with only a verified symbol-name normalization issue' counts as EXACT), and are currently mis-scored. In critter.c alone this is CritterDoSfx and CritterInitColnodes, both sitting at real 2 with nothing else wrong, plus contributions to CritterAnimInterrupt and CritterDoTexmodNode. CONSEQUENCE 2 (procedure): do NOT spend matching probes on a residual that reduces to a lone `R_PPC_EMB_SDA21 <symA>` vs `R_PPC_EMB_SDA21 <symB>+<N>` pair - first check symbols.txt for whether symA and symB+N denote the SAME address; if they do, classify it as this family and stop. CONSEQUENCE 3 (the actual fix, an integrator/tooling decision rather than a worker edit): extend fndiff's existing relocation-name normalisation - the mechanism that already suppresses constant-pool name differences - to treat `<symbol>+<offset>` as equal to whatever symbol symbols.txt places at that resolved address. That is a scoring-truth repair, not metric gaming: it makes the tool compare addresses instead of spellings. Until that lands, the affected functions should be reported as EXACT-modulo-symbolisation rather than parked as register residuals. CAUTION: this law is about the CONSUMING TU only. It says nothing about which of the two declarations is semantically right, and it is NOT a licence to delete or rename symbols in symbols.txt to make a diff go green - sFlags is a genuine, independently-referenced global and removing it would break the ~12 TUs that read it directly."
+}

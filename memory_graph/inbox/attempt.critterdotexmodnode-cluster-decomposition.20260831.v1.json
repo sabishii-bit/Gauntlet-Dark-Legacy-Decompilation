@@ -1,0 +1,23 @@
+{
+  "attempted_axis": "WALL re-screen of CritterDoTexmodNode's parked residual: classify all three remaining clusters rather than treating the whole function as one allocator park.",
+  "attributes": {
+    "axis_log": "No probe was spent. The prior park (attempt.parked.critterdotexmodnode.20260829.v1) recorded the whole residual as one REGISTER_ONLY/SCHEDULE allocator cap. The re-screen shows it is actually THREE distinct clusters, one of which is not a register residual at all - see decisive_finding. Recording the decomposition is the deliverable; spending the axis budget on a residual that a sibling-function measurement can settle far more cheaply would have been wasteful.",
+    "baseline": "target/current 463/463 instructions, real 22 direct (24 via --clean), fuzzy 99.87041, frame 0x90. Opcode multiset IDENTICAL (463/463).",
+    "best": "unchanged; this pass was a re-screen and classification, no source edit was made to this function.",
+    "decisive_finding": "The third cluster is a SYMBOL-ATTRIBUTION difference, not register noise, and it is TU-wide rather than local to this function. Our critter.c declares `extern u64 gControllerButtons` (line 585) as one 8-byte object, so a 64-bit AND emits its low half as the relocation `gControllerButtons+0x4`. config/GUNE5D/symbols.txt however defines TWO adjacent 4-byte objects - gControllerButtons at 0x803445C8 and sFlags at 0x803445CC - so the target's disassembly symbolises the identical address as `sFlags`. Same address, same linked bytes, different spelling. See the accompanying law record for the project-level consequence.",
+    "law_screen": "claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 screened, NOT applicable (opcode multiset is IDENTICAL; no li/mr token difference). claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1 screened - it governs the two crossings, but both crossing pairs are compiler-created temps inside a single expression with no declarable dead carrier, so its lever has no candidate. claim.law.offsetof-hazard-is-per-base-not-per-function.20260831.v1 screened: the record already notes 3 sites converted on the `Effects[result].node` base in this function; no further base retype attempted. claim.law.f64-pool-literal-substitution-diverges-from-f32.20260831.v1 and the extern-literal sweep screened, not applicable to these clusters.",
+    "laws_applied": "[\"claim.law.offsetof-hazard-is-per-base-not-per-function.20260831.v1\"]",
+    "residual": "real 22-24 = three named mechanisms. (1) An f0/f1 FPR crossing in the Effects scale block: target loads the 188(r4) operand into f0 and 8(r30) into f1, ours does the reverse, carrying through the two following fmuls and the stfs. (2) An r6/r7 GPR crossing in the node-index block: target puts the `lha 70(r30)` result in r6 and the `r4+8` base in r7, ours reverses both, carrying through extsh./lwzx/mulli. Both are pure disjoint recolors with IDENTICAL opcode streams and are WEBFRANK-READY under copy_register_fields. (3) The gControllerButtons/sFlags relocation spelling, 2 lines, NOT source-reachable from this TU - see the law record.",
+    "scope": "src/game/enemy/critter.c, CritterDoTexmodNode; read-only re-screen, no edit, no commit.",
+    "verification": "fndiff --ops and --clean read against a freshly built object; defake_gate.py check --rebuild GATE OK; full ninja green, build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:CritterDoTexmodNode",
+  "id": "attempt.critterdotexmodnode-cluster-decomposition.20260831.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T14:52:13Z",
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.critterdotexmodnode.20260829.v1",
+  "valid_from": "2026-08-31"
+}
