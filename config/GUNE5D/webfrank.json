@@ -133,6 +133,38 @@
           "instructions": 86
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "cam_orient_to_80029E8C",
+        "before_sha256": "3b2003b09b31aceb953f93b0ea6fabccd616013121944e4b7085ad398343a5a1",
+        "after_sha256": "63fd924bd9b52978a7fab4d9623848e43f76b10615cda92a998c006981c49246",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 102
+        },
+        "mechanism": "attempt.camorient-add-destination-recolor-park.20260831.v1 - two instructions at +0x1c: the target colours the one-instruction temporary gCameraState + camIdx*396 straight into cam's callee-saved home (add r31,r5,r4 then addi r31,r31,200) while we coalesce it with the dying mulli operand (add r4,r5,r4 then addi r31,r4,200). Same opcodes, same order, same operand pair, same final value in r31; only the intermediate's colour differs. Machine-proven by verify_consistent_recolor - the add's define retires r4's stale correspondence, so the following addi checks against the new binding. No source spelling reaches this choice because every spelling folds to the same IR.",
+        "copy_register_fields": true
+      },
+      {
+        "function": "init_game_cam",
+        "before_sha256": "8bee9c19700b3f87df8afe167c0dd7f94fe9cc5fab374046aa70bf6ce7d59cbf",
+        "after_sha256": "83dc11e62bff33026cf915f4c5cdc9f5ec269dd3985b5bbfc3615dd9a0de9b59",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 295,
+          "permuted_instructions": 3
+        },
+        "mechanism": "attempt.initgamecam-u64-buttons-dance.20260830.v1 - worth 132 real diff lines, the second largest closure in this lane. Three @lo address materializations at +0x8c rotate: ours emits lbl_80240E30, then the 255 constant, then gPlayers; the target emits gPlayers first, order [2, 0, 1]. All three read distinct base registers (r4/r3/r5) and write distinct destinations (r7/r6/r8), so no def-use chain or final write moves and the two ADDR16_LO relocations ride their own atoms. NOTE the queue described this site as a 2-instruction swap; the byte scan does flag exactly two words, but the correct region is three atoms - the bisimulation rejected the pair and named the third. The rest of the residual is a consistent recolor.",
+        "instruction_permutation": {
+          "start": "0x8c",
+          "end": "0x98",
+          "order": [2, 0, 1],
+          "before_sha256": "5ce2ad5f8980da69820097979251e6f853c965b4e997c38e84ce10e75d372bce",
+          "after_sha256": "95d4902e3fd4c42965bebedb420d0891f7969f88753658a231bc4f8cd9b0ebbb",
+          "before_relocations_sha256": "947a5b07e003e1f3cf1055216c29d235a9eea0133c7d8cc05d5d096a12ec2fad",
+          "after_relocations_sha256": "503efc2e515c8fc8a0b9cd10cc1b30e95216d9e5bbe7c940c5093ba59dba0b7c"
+        },
+        "copy_register_fields": true
       }
     ],
     "game/enemy/critter": [

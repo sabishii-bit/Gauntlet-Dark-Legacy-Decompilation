@@ -332,6 +332,23 @@ class ShippedRuleMechanismTests(unittest.TestCase):
         target = bytes.fromhex("fc000072 ffc00018 c3e00000 fc1ef840 4e800020")
         verify_consistent_recolor(current, target)
 
+    def test_cam_orient_to_temporary_destination_recolor(self):
+        # +0x1c: add r4,r5,r4 / addi r31,r4,200 vs the target's
+        # add r31,r5,r4 / addi r31,r31,200 -- the one-instruction temporary
+        # is coloured into cam's saved home instead of the dying operand.
+        # attempt.camorient-add-destination-recolor-park.20260831.v1
+        current = bytes.fromhex("7c852214 3be400c8 4e800020")
+        target = bytes.fromhex("7fe52214 3bff00c8 4e800020")
+        verify_consistent_recolor(current, target)
+
+    def test_init_game_cam_address_materialization_rotation(self):
+        # +0x8c: addi r7,r4,@lo / addi r6,r3,255 / addi r8,r5,@lo rotates so
+        # the gPlayers address leads.  Distinct bases and distinct
+        # destinations, so nothing in the region depends on the order.
+        # attempt.initgamecam-u64-buttons-dance.20260830.v1
+        region = bytes.fromhex("38e40000 38c300ff 39050000")
+        check_permutation_dependences(region, [2, 0, 1])
+
     def test_msg_post_desc_offset_web_is_a_consistent_recolor(self):
         # The r29 -> r26 descOffset web: mulli, add, lwzx, then blr.
         current = bytes.fromhex("1fbe001c 7f3bea14 7c04e82e 4e800020")
