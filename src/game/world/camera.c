@@ -42,6 +42,7 @@
 
 #include "types.h"
 #include "game/camera.h"
+#include "game/leveldata.h"
 #include "game/player.h"
 #include "game/worldinfo.h"
 
@@ -175,14 +176,9 @@ typedef struct CameraTransmitterView {
     f32 pyr[3];    /* 0x14 pitch/yaw/roll */
 } CameraTransmitterView;
 
-/* Local view of the "level record" (extern gCurLevel).  Only the field
- * this TU reads: the active bounds camera pointer at +0x60, per
- * game/world/newcam.c's own gCurLevel comment ("level record; +0x60 =
- * active CAMERA* (bounds)"). */
-typedef struct CameraLevelRecordView {
-    u8  _pad00[0x60];
-    u8* activeCamera;  /* 0x60 */
-} CameraLevelRecordView;
+/* (The former CameraLevelRecordView local view is gone: gCurLevel is now
+ * declared with its real game/leveldata.h type, whose GC-verified `camera`
+ * member sits at exactly the +0x60 the view reconstructed.) */
 
 /* Address-taken roots and closest-point output used by camera_collide_step.
  * The gaps reproduce CAMERA.OBJ's 0x90-byte frame. */
@@ -315,8 +311,8 @@ extern f64 lbl_80346068;
 extern f32 lbl_80346058;
 extern s32 gGameOptions[];
 extern u8 sTriggerCameras[];
-extern u8 gPlayers[];
-extern u8* gCurLevel;
+extern Player gPlayers[4];   /* game/player.h; stride 0x335C verified */
+extern level_data* gCurLevel;
 extern u8* CurTransmitter;
 /* gWorldInfo: see game/worldinfo.h (GC-verified WorldInfo, worldmin/worldmax
  * at +0x18/+0x24 confirmed against this TU's own target disassembly). */
@@ -1073,7 +1069,7 @@ void camera_run_mode(s32 camIdx)
         if (cam->trans_mode == 0) {
             cam->trans_mode = -1;
         }
-        players = (Player*)gPlayers;
+        players = gPlayers;
         playerCursor = &gCameras[0].pn;
         playerIndex = *playerCursor;
         for (tries = 0; tries < 4; tries++) {
@@ -1522,8 +1518,7 @@ void camera_mode_follow(s32 camIdx)
                 if (gScriptedCameraState < 45) {
                     for (scriptedPlayer = 0; scriptedPlayer < 4;
                          scriptedPlayer++) {
-                        if (*(s32*)(gPlayers + scriptedPlayer * 0x335C +
-                                    0xE8) == 1 &&
+                        if (gPlayers[scriptedPlayer].state == 1 &&
                             (*(u32*)(lbl_80240E30 + scriptedPlayer * 0x3C + 8) &
                              0x020000FF) != 0) {
                             gScriptedCameraState = 1;
@@ -1541,10 +1536,8 @@ void camera_mode_follow(s32 camIdx)
                     lbl_803447B8 = 0;
                     gScriptedCameraState = 0;
                     for (resetPlayer = 0; resetPlayer < 4; resetPlayer++) {
-                        if (*(s32*)(gPlayers + resetPlayer * 0x335C +
-                                    0xE8) == 1) {
-                            *(s32*)(gPlayers + resetPlayer * 0x335C +
-                                    0x91C) = 4;
+                        if (gPlayers[resetPlayer].state == 1) {
+                            gPlayers[resetPlayer].count_91C = 4;
                         }
                     }
                 }
@@ -1713,7 +1706,7 @@ void camera_mode_follow(s32 camIdx)
         (lbl_803444F4 == 0 || lbl_80344534 != savedYaw)) {
         Camera* backupCamera;
         s32 backupAttentionMode;
-        playerData = (Player*)gPlayers;
+        playerData = gPlayers;
         projectionMatrix = (f32*)(state + offsetof(CameraStateView, cameras[0].mat[0][0]));
         for (viewportPlayer = 0; viewportPlayer < 4;
              viewportPlayer++, playerData++) {
@@ -1798,7 +1791,7 @@ void camera_mode_target(s32 camIdx)
     playerNumber = &gCameras[0].pn;
     playerIndex = *playerNumber;
     for (tries = 0; tries < 4; tries++) {
-        player = (Player*)gPlayers + playerIndex;
+        player = gPlayers + playerIndex;
         if (player->state == 1 || player->state == 4) {
             playerObject = (CameraObjectView*)player->mat;
             *playerNumber = playerIndex;
@@ -2567,7 +2560,7 @@ void camera_mode_level(s32 reset)
     Player* player;
     s32 tries;
     s32 playerIndex;
-    u8* levelCamera = *(u8**)(gCurLevel + offsetof(CameraLevelRecordView, activeCamera));
+    u8* levelCamera = (u8*)gCurLevel->camera;
     s32 cameraOffset;
     s32* playerNumber;
     struct OBJGRP* playerObject;
@@ -2585,7 +2578,7 @@ void camera_mode_level(s32 reset)
     lbl_803444F0 = -1;
     lbl_803444EC = -1;
     lbl_80344960 = -1;
-    player = (Player*)gPlayers;
+    player = gPlayers;
     for (tries = 0; tries < 4;
          tries++, player++) {
         if (player->state == 1) {
@@ -2716,7 +2709,7 @@ void camera_mode_level(s32 reset)
     cam1->trans_mode = 0;
     playerIndex = *(playerNumber = (s32*)(state + 0x1C8));
     for (tries = 0; tries < 4; tries++) {
-        player = (Player*)gPlayers + playerIndex;
+        player = gPlayers + playerIndex;
         if (player->state == 1 || player->state == 4) {
             *playerNumber = playerIndex;
             playerObject = (struct OBJGRP*)&player->mat[0];
@@ -3645,7 +3638,7 @@ s32 debug_camera_pos(s32 lastPlayer)
                          (s32)cam->attn[2]);
     }
 
-    playerData = gPlayers;
+    playerData = (u8*)gPlayers;
     for (player = 0; player <= lastPlayer;
          player++, playerData += 0x335C) {
         Player* pd = (Player*)playerData;
@@ -3718,7 +3711,7 @@ s32 debug_camera_pos(s32 lastPlayer)
 s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
 {
     u8* state = gCameraState;
-    u8* playerData = gPlayers + playerIndex * 0x335C;
+    u8* playerData = (u8*)gPlayers + playerIndex * 0x335C;
     Player* pd = (Player*)playerData;
     f32* cameraMatrix;
     f32* cameraPositionX;
