@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "src/game/sfx/sfx.c::ProcessEffects (attempt.processeffects-frame-pad-fix.20260829.v4, commit 7eed9c600): two sites of `enemyState = enemy->health <= 0.0 ? 0 : enemy->state;` compiled as fcmpo + branch + li-0 arm + b + lwz arm + merge mr (ours), while target showed `lwz r20,state; fcmpo; cror; bne skip; li r20,0` - an unconditional load with a guarded overwrite and NO else-jump or merge copy. Rewriting as `enemyState = enemy->state; if (enemy->health <= 0.0) { enemyState = 0; }` made both windows register-exact (target's own r20). Aggregate real REGRESSED 2388 -> 2406 purely from linear-diff realignment (ours lost 4 insns, widening the count deficit) while --ops resolved two clusters and added none; objdiff fuzzy arbitrated 87.53% -> 89.01% and the change was kept per the fuzzy-can-underweight rule.",
+    "scope": "MWCC GC 1.2.5 family; scalar conditional assignments where one arm is a constant and the other a memory load.",
+    "tags": [
+      "matching",
+      "entry-schedule"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.load-then-conditional-overwrite-vs-ternary.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:36:26Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "For `x = cond ? K : mem;` (constant one arm, memory load the other) MWCC emits the full diamond: compare, branch, li-K arm, unconditional b, load arm, merge copy. The original-source alternative `x = mem; if (cond) { x = K; }` emits the strictly shorter straight-line form: unconditional load into x's home register, compare, one forward branch skipping a single li - no else-jump, no merge mr, and the load schedules up into the compare latency. The two forms are NOT canonicalized to each other (unlike pure two-constant ternaries, which claim.law.if-else-arm-swap records as polarity-canonicalized). Tell in fndiff --ops: ours-only [b, lwz] + [mr] inserts around a compare cluster where target has a lone deleted [lwz] ahead of the compare. Companion warning for the linear real metric: fixing this SHRINKS your instruction count by ~2 per site, so real (line-diff) can temporarily regress from downstream realignment even as the local windows go register-exact - arbitrate with --ops composition and objdiff fuzzy before judging (claim.law.fuzzy-can-underweight-a-real-improvement)."
+}
