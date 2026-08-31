@@ -67,7 +67,6 @@ extern MBTreeNode* gPolyCtx;
 extern MBTreeNode* lbl_80344ED4;
 extern MBTreeNode* lbl_80344ED8;
 extern u8 lbl_802C2A28[];
-extern const f32 lbl_80348CA0;
 extern f32 gIdentityMatrix[16];
 extern f32 light_color[4];
 extern void* gWinGlobals;
@@ -191,7 +190,7 @@ void MBTreeSetUVScaleAdd(f32 uScale, f32 uAdd, f32 vScale, f32 vAdd,
     if (1.0 == uScale && 0.0 == uAdd && 1.0 == vScale && 0.0 == vAdd) {
         if (node->flags & 0x10000000) {
             if (node->flags & 0x10000000) {
-                entries[node->uvScaleAddIndex].uScale = lbl_80348CA0;
+                entries[node->uvScaleAddIndex].uScale = 1e37f;
                 MBTreeClearUVScaleAdd(node, -1, recurse);
             }
         }
@@ -199,7 +198,7 @@ void MBTreeSetUVScaleAdd(f32 uScale, f32 uAdd, f32 vScale, f32 vAdd,
     }
 
     if (node->flags & 0x10000000)
-        entries[node->uvScaleAddIndex].uScale = lbl_80348CA0;
+        entries[node->uvScaleAddIndex].uScale = 1e37f;
 
     entry = &entries[63];
     while (entry-- != entries) {
@@ -541,7 +540,6 @@ static inline MBTreeNode* MBTreeCreateInitializedNode(s32 type)
 void MBTreeInit(void)
 {
     MBTreeNode* node;
-    f32 default_scale;
     s32 i;
 
     lbl_80344EC8 = 0;
@@ -575,9 +573,8 @@ void MBTreeInit(void)
     MBTreeMoveAfter(gDiag_DE8, lbl_80344ED4);
     MBTreeMoveAfter(lbl_80344EA8, gDiag_DE8);
 
-    default_scale = lbl_80348CA0;
     for (i = 0; i < 64; i++)
-        ((MBUVScaleAdd*)lbl_802C2A28)[i].uScale = default_scale;
+        ((MBUVScaleAdd*)lbl_802C2A28)[i].uScale = 1e37f;
 
     fn_800C0AA4(3);
 }
@@ -710,7 +707,7 @@ MBTreeNode* MBRemoveNode(MBTreeNode* node, s32 remove_children)
 
     if (node->flags & 0x10000000) {
         if (node->flags & 0x10000000) {
-            *(f32*)(lbl_802C2A28 + (u32)node->uvScaleAddIndex * 16) = lbl_80348CA0;
+            *(f32*)(lbl_802C2A28 + (u32)node->uvScaleAddIndex * 16) = 1e37f;
             MBTreeClearUVScaleAdd(node, -1, 0);
         }
     }
@@ -802,7 +799,7 @@ void MBRemoveNodeChild(MBTreeNode* node)
     MBTreeNode* current = node;
     u8* entries = lbl_802C2A28;
     u8* entry;
-    f32 default_scale = lbl_80348CA0;
+    f32 default_scale = 1e37f;
 
     while (current != 0) {
         node = current;
