@@ -6185,7 +6185,7 @@ void check_player_atts(void* vp, s32 chartype, f32* stats) {
     }
     LoadPlyrData(index, chartype, NULL);
 
-    v = *(volatile f32*)(lbl_80282930[index] + 0x28) +
+    v = PF(lbl_80282930[index], 0x28, f32) +
         (f32)((p->level - 1) * 5);
     cap = *(volatile f32*)(lbl_80282930[index] + 0x2C);
     if (v < cap) {
