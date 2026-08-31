@@ -4102,7 +4102,8 @@ void move_logic16(s32 index)
     s16 c16 = e->closest;
     if (c16 >= 0) {
         u8* gp = (u8*)&gPlayers + c16 * 13148;
-        f32 dvert = e->objgrp.worldmat[3][1] - *(f32*)(gp + 72);
+        f32 dvert = e->objgrp.worldmat[3][1] -
+                    *(f32*)(gp + offsetof(Player, pos[1]));
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 0.6 * e->sight) {
@@ -4892,7 +4893,8 @@ void move_logic29(s32 index)
     s16 c29 = e->closest;
     if (c29 >= 0) {
         u8* gp = (u8*)&gPlayers + c29 * 13148;
-        f32 dvert = e->objgrp.worldmat[3][1] - *(f32*)(gp + 72);
+        f32 dvert = e->objgrp.worldmat[3][1] -
+                    *(f32*)(gp + offsetof(Player, pos[1]));
         if (e->visactive != 0 && dvert >= -10.0 && dvert <= 10.0) {
             if (e->flag1 == 0) {
                 if (e->actual_dist <= 8.0) {
@@ -6377,12 +6379,19 @@ s32 fn_8004CE38(Enemy* e)
     f32 z2;
 
     p = (u8*)&gPlayerWords[*(s16*)((u8*)e + offsetof(Enemy, closest))];
-    if (*(s16*)(p + 2588) > 2) {
+    /* When the closest player is riding/attached (field_A1C > 2) the chase
+     * bearing is taken from the alternate position at Player+0x9E4/+0x9EC
+     * rather than from pos[].  Those two offsets fall inside player.h's
+     * pad_0970[0xA4] and stay raw: naming them means extending Player, which
+     * is the player.h owner's call, not this TU's. */
+    if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
         dx = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][0])) - *(f32*)(p + 2532);
         dz = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][2])) - *(f32*)(p + 2540);
     } else {
-        dx = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][0])) - *(f32*)(p + 68);
-        dz = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][2])) - *(f32*)(p + 76);
+        dx = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][0])) -
+             *(f32*)(p + offsetof(Player, pos[0]));
+        dz = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][2])) -
+             *(f32*)(p + offsetof(Player, pos[2]));
     }
     a = (f32)(lbl_80346920 + *(f32*)((u32)e + offsetof(Enemy, pyr[1])));
     if (a > lbl_80346840) {
