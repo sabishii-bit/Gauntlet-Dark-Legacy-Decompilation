@@ -69,6 +69,7 @@
 
 #include "types.h"
 #include "game/player.h"
+#include "game/leveldata.h"
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -997,7 +998,7 @@ void fn_8009A0AC(s32 col)
     lvl = gCurLevel;
     goldRaw = *(s32*)(pl + offsetof(Player, gold)) -
               *(s32*)((b240 = pl + cls * 240) + offsetof(Player, field_224C));
-    t = goldRaw * range / (*(s32*)(lvl + 224) + 1);
+    t = goldRaw * range / (*(s32*)(lvl + offsetof(level_data, shop_maxgold)) + 1);
     b28 = pl + cls * 28;
     raw2 = (*(s32*)(b28 + PSHOP_STAT_NOW_OFF + offsetof(PlayerShopStat, field_00)) +
             *(s32*)(b28 + PSHOP_STAT_NOW_OFF + offsetof(PlayerShopStat, field_10))) -
@@ -1016,7 +1017,7 @@ void fn_8009A0AC(s32 col)
             statG = clampG;
         }
     }
-    t2 = raw2 * range / (*(s32*)(lvl + 228) + 1);
+    t2 = raw2 * range / (*(s32*)(lvl + offsetof(level_data, shop_maxkills)) + 1);
     if (t2 < 64) {
         stat2 = 64;
     } else if (t2 > range) {
@@ -1024,7 +1025,7 @@ void fn_8009A0AC(s32 col)
     } else {
         stat2 = t2;
     }
-    t3 = raw3 * range / (*(s32*)(lvl + 232) + 1);
+    t3 = raw3 * range / (*(s32*)(lvl + offsetof(level_data, shop_maxexp)) + 1);
     if (t3 < 64) {
         stat3 = 64;
     } else if (t3 > range) {
@@ -1570,10 +1571,10 @@ next_back_item:
                 } else {
                     r = -1;
                 }
-                *(f32*)(pl + r * 16 + 304) = lbl_8034832C;
-                *(f32*)(pl + r * 16 + 312) =
-                    *(s32*)(pl + r * 16 + 316) =
-                        *(s32*)(pl + r * 16 + 308) = 0;
+                *(f32*)(pl + r * 16 + offsetof(Player, powerup[0].timeleft)) = lbl_8034832C;
+                *(f32*)(pl + r * 16 + offsetof(Player, powerup[0].attributeadd)) =
+                    *(s32*)(pl + r * 16 + offsetof(Player, powerup[0].specialflags)) =
+                        *(s32*)(pl + r * 16 + offsetof(Player, powerup[0].type)) = 0;
                 bought = 1;
             }
             break;
