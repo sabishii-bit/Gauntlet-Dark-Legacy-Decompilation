@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Second instance of the same wrong-call-target defect class: damage_player calls AudioPlayerPoison at BOTH of its two sites, but the target calls Poison at +0x71c and AudioPlayerSeverePain at +0x7cc. Correct the later site and the duplicated extern declaration that caused it.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1 APPLIED: `real` stayed pinned at 301 across the fix (reloc-name differences never enter `real`), so once again no score-based screen could see the defect; regnorm's STRUCTURAL row count moved 85 -> 84. claim.law.parse-strips-the-lbl-address-so-signature-alone-cannot-clear-a-reloc-row.20260831.v1 APPLIED for the address resolution that classified the row ADDRESS-DIFFERS. claim.law.bss-array-reloc-names-its-section-not-the-object.20260831.v1 SCREENED, not applicable (REL24 call, not an sbss/bss data reference).",
+    "laws_applied": "[\"claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1\", \"claim.law.parse-strips-the-lbl-address-so-signature-alone-cannot-clear-a-reloc-row.20260831.v1\"]",
+    "residual": "damage_player remains heavily divergent -- 84 STRUCTURAL rows, 19 unpaired, real 301, insns 528/527 -- but that is PRE-EXISTING reconstruction debt untouched by this lane. IMPORTANT METHOD NOTE for whoever reconstructs this function: because the function is structurally divergent, regnorm's positional pairing makes most of its reloc rows SPURIOUS. This row was NOT accepted on the pairing alone; it was confirmed independently, and that independent confirmation is the reusable technique.",
+    "scope": "src/game/game/player.c only: the duplicated extern declaration (two consecutive identical `extern void AudioPlayerPoison(s32 player);` lines, the second of which should always have been AudioPlayerSeverePain) and the single call site under `mode == 1 && (flags & 0x800) && dmg > 0.0f`. The earlier `mode == 3` poison call is CORRECT and was left alone. Commit 9c721b11b.",
+    "verification": "Confirmed independently of the positional pairing by reading ALL SEVEN AudioPlayer* calls in an aligned `fnasm --diff`: before the fix six aligned and one differed; after the fix all seven read identically (Dies/Pain/Poison/Pain/Pain/SeverePain/Hit), which also proves the target genuinely calls BOTH Poison and SeverePain and that only the second of our two Poison calls was wrong. probe BASELINE real 301 -> NEUTRAL real 301, insns unchanged 528/527. defake_gate check game/game/player --rebuild = GATE OK (92 functions, 68 at real 0, no sibling regression). Full ninja green, build/GUNE5D/main.dol: OK, progress unchanged 98.06% fuzzy / 61.70% matched."
+  },
+  "function": "function:damage_player",
+  "id": "attempt.damageplayer-wrong-audio-call-target.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T20:43:52Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
