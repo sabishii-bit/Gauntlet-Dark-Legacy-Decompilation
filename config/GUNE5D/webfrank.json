@@ -1042,6 +1042,17 @@
           "instructions": 577
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "CheckSpecials",
+        "before_sha256": "997da474f5af2f06b325953a51061047d668763860d3c7f833cd298b204f483b",
+        "after_sha256": "dadccafde3f38f1e130eac9737cfa91942a4225e250192cdd727f617f93ec80e",
+        "mechanism": "Pure allocator recolor over 53 of 127 instructions, opcode multiset identical and every non-register bit already equal. Reached only after the source-level frame closure: the residual previously carried a STACK_LAYOUT component (frame 104 vs target 96) which was closed in source by shrinking the function's existing dead pad from u8 unused[16] to u8 unused[8] per claim.law.stack-slots-descend-in-declaration-order.20260831.v1 (conserving the pad, not extending it). With the frame equal, tools/gdl/regnorm.py reports 0 STRUCTURAL and 0 unpaired words and the ours->target register tally is a fully consistent bijection with no register mapped to two targets: GPR g16->g17, g17->g18, g18->g16, g19->g23, g20->g19, g21->g20, g22->g21, g23->g29, g24->g26, g25->g28, g26->g25, g27->g24, g28->g22, g29->g27. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 127
+        },
+        "copy_register_fields": true
       }
     ],
     "game/ui/select": [
