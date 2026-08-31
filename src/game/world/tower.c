@@ -1183,8 +1183,7 @@ void TowerCheckMessages(s32 mode) {
             for (i = 0; i < 4; i++) {
                 Player* p = &gPlayers[i];
 
-                if (p->state != 0 &&
-                    *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)lbl_80343D6C) {
+                if (p->state != 0 && (u32)p->hidden_code != (u32)lbl_80343D6C) {
                     runeGot |= p->runes;
                     runeBanked |= p->char_save_ckpt[p->character].rune_stones;
                     p->char_save[p->character].rune_stones |= p->runes;
@@ -1211,8 +1210,7 @@ void TowerCheckMessages(s32 mode) {
             for (i = 0; i < 4; i++) {
                 Player* p = &gPlayers[i];
 
-                if (p->state != 0 &&
-                    *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)lbl_80343D6C) {
+                if (p->state != 0 && (u32)p->hidden_code != (u32)lbl_80343D6C) {
                     shardGot |= p->shards;
                     shardBanked |= p->char_save_ckpt[p->character].rune_stones2;
                     p->char_save[p->character].rune_stones2 |= p->shards;
@@ -1278,8 +1276,7 @@ void TowerCheckMessages(s32 mode) {
                 for (i = 0; i < 4; i++) {
                     Player* p = &gPlayers[i];
 
-                    if (p->state != 0 &&
-                        *(u32*)((u8*)p + offsetof(Player, hidden_code)) != curWorld) {
+                    if (p->state != 0 && (u32)p->hidden_code != curWorld) {
                         s32 val = p->char_save[p->character].completion1[j];
 
                         if (levels[j] >= 0 && (val < 0 || val > levels[j])) {
@@ -1315,8 +1312,7 @@ void TowerCheckMessages(s32 mode) {
                     for (i = 0; i < 4; i++) {
                         Player* p = &gPlayers[i];
 
-                        if (p->state != 0 &&
-                            *(u32*)((u8*)p + offsetof(Player, hidden_code)) != curWorld) {
+                        if (p->state != 0 && (u32)p->hidden_code != curWorld) {
                             s32 val = p->char_save[p->character].completion2[j];
 
                             if (*best >= 0 && (val < 0 || val > *best)) {
