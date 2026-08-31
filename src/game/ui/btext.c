@@ -111,7 +111,9 @@ s32 gDrawTextY;                 /* 0x803443DC */
 s32 gLineSpacing;               /* 0x803443E0 */
 
 /* Glow/font config + embedded font tables live in other pools; extern here. */
-extern s32 glow_text_extra;     /* 0x803443E4 */
+extern s32 lbl_803443E4;        /* 0x803443E4 - shared: also written as a
+                                 * texture handle by gamemain.c and read as a
+                                 * font override by options.c; NOT glow-only */
 extern s32 gScrollModes[2];     /* 0x80343BB0 */
 extern u32 glow_color;          /* 0x80343BC4 */
 extern s32 glow_radius;         /* 0x80343BCC */
@@ -330,7 +332,7 @@ void DrawGlowText(f32 scale, s32 x, s32 y, u8* str)
     a = (glow_radius + phase * 0xFF - 1) / glow_radius;
     MBSetFontAlpha(0x7F - (s32)a / 2);
     q = MBDrawText(x, y, text);
-    *(s16*)((u8*)q + offsetof(MBTextMsgView, seq)) = (s16)glow_text_extra;
+    *(s16*)((u8*)q + offsetof(MBTextMsgView, seq)) = (s16)lbl_803443E4;
     MBSetFontFlags(prevFlags);
     MBSetFontColor(0xFFFFFF);
     MBSetFontAlpha(0);

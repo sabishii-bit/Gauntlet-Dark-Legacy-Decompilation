@@ -4044,14 +4044,17 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
     u8 unusedB[52];
     s32 i;
     s32 closest = -1;
-    f32 best = lbl_80347B30;
-    f32 dotFloor = lbl_80347B30;
+    f32 best = 0.0f;
+    Player* op;
+    f32 dot;
+    f32 d;
+    f32 ex;
+    f32 ez;
+    f32 dist;
+    f32 scale;
 
     for (i = 0; i < 4; i++) {
-        Player* op = &gPlayerRecords[i];
-        f32 dot;
-        f32 d;
-
+        op = &gPlayerRecords[i];
         if (i == p->index) {
             continue;
         }
@@ -4063,7 +4066,7 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
         }
         dot = (op->effectpos[0] - from[0]) * (to[0] - from[0]) +
               (op->effectpos[2] - from[2]) * (to[2] - from[2]);
-        if (dot < dotFloor) {
+        if (dot < 0.0f) {
             continue;
         }
         if (LineCylinderCollide(op->effectpos,
@@ -4082,13 +4085,13 @@ s32 PlayerCollidePlayers(Player* p, f32 range, f32 p3, f32* from, f32* to,
     }
 
     if (closest >= 0) {
-        Player* cp = &gPlayerRecords[closest];
-        f32 ex = to[0] - cp->effectpos[0];
-        f32 ez = to[2] - cp->effectpos[2];
-        f32 dist = fqdist(ex, ez);
+        op = &gPlayerRecords[closest];
+        ex = to[0] - op->effectpos[0];
+        ez = to[2] - op->effectpos[2];
+        dist = fqdist(ex, ez);
 
         if (dist > lbl_80347D68) {
-            f32 scale = (range + cp->col_radius - dist) / dist;
+            scale = (range + op->col_radius - dist) / dist;
             out[0] = ex * scale + to[0];
             out[1] = lbl_80347B30 * scale + to[1];
             out[2] = ez * scale + to[2];
