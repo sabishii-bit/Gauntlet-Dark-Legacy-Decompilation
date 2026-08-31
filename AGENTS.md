@@ -356,7 +356,7 @@ Core tools, from the repository root:
 ```text
 python configure.py
 ninja build/GUNE5D/<object-path>.o
-python tools/gdl/probe.py <unit> <fn> [--ops]  # MATCHING loop: build+score+verdict, one call
+python tools/gdl/probe.py <unit> <fn> [--ops | --revert]  # MATCHING loop: build+score+verdict, one call
 python tools/gdl/defake_gate.py check <unit> --rebuild  # DEFAKE loop: build+gate, one call
 python tools/gdl/fnasm.py <unit> <fn> [0xA:0xB | i:j] [--ours | --diff]
 python tools/gdl/fndiff.py <unit> <function> --count | --ops | --clean
@@ -370,7 +370,10 @@ python configure.py progress
 ```
 
 Loop discipline: the edit loop is ONE command now — `probe.py` (matching:
-prints BASELINE/IMPROVED/REGRESSED/NEUTRAL against a remembered best) or
+prints BASELINE/IMPROVED/REGRESSED/NEUTRAL against a remembered best;
+every BASELINE/IMPROVED banks a TU-source snapshot and `--revert`
+restores it AND re-scores in the same call — never hand-retype a revert;
+probe a BASELINE before your first edit so the revert point exists) or
 `defake_gate.py check --rebuild` (defake: builds first, prints each
 regressing fn's --ops summary inline). Never hand-pair ninja+fndiff or
 ninja+gate again. To read a residual: take `--ops`'s `@0xA-0xB` offsets

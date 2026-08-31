@@ -8,6 +8,10 @@ scrollback by eye. Tracks best/last per function in build/GUNE5D/gate/.
 Usage:
   python tools/gdl/probe.py game/game/player do_players          # build+score
   python tools/gdl/probe.py game/game/player do_players --ops    # + ops scan
+  python tools/gdl/probe.py game/game/player do_players --revert # restore last
+                                                                 # banked good
+                                                                 # source, then
+                                                                 # build+score
   python tools/gdl/probe.py game/game/player do_players --reset  # forget best
 
 Output: one line per probe —
@@ -16,10 +20,17 @@ Output: one line per probe —
   NEUTRAL   real 1070 (insns 1174/1160)
 The verdict compares against the BEST recorded real, so a probe sequence
 never loses track of the high-water mark even across reverts.
+
+Every BASELINE or IMPROVED probe banks a snapshot of the TU source; a later
+`--revert` copies it back and re-scores in the same call, replacing the
+edit -> probe -> hand-retype-revert -> probe cycle. The snapshot covers the
+TU's own .c/.cpp only — header edits are yours to manage — and the banked
+state is per-unit, so probe a BASELINE before your first edit of a session.
 """
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -46,6 +57,21 @@ def state_path(unit, fn):
     return path
 
 
+def source_path(unit):
+    for suffix in (".c", ".cpp"):
+        candidate = Path("src") / (unit + suffix)
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def snapshot_path(unit, source):
+    slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", unit)
+    path = Path(f"build/{VERSION}/gate/snap_{slug}{source.suffix}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) < 2 or args[0] in ("--help", "-h"):
@@ -53,10 +79,27 @@ def main():
         return 2
     unit, fn = normalize_unit(args[0]), args[1]
     state_file = state_path(unit, fn)
-    if "--reset" in sys.argv and state_file.exists():
-        state_file.unlink()
+    source = source_path(unit)
+    if "--reset" in sys.argv:
+        if state_file.exists():
+            state_file.unlink()
+        if source is not None:
+            snap = snapshot_path(unit, source)
+            if snap.exists():
+                snap.unlink()
         print("probe state reset")
         return 0
+    if "--revert" in sys.argv:
+        if source is None:
+            print(f"cannot revert: no src source found for {unit}")
+            return 1
+        snap = snapshot_path(unit, source)
+        if not snap.exists():
+            print("cannot revert: no banked snapshot for this unit yet"
+                  " (a BASELINE or IMPROVED probe banks one)")
+            return 1
+        shutil.copyfile(snap, source)
+        print(f"reverted {source} to the last banked good state; re-scoring:")
 
     build = subprocess.run(
         ["ninja", f"build/{VERSION}/src/{unit}.o"],
@@ -108,6 +151,13 @@ def main():
     state["last_real"] = real
     state_file.write_text(json.dumps(state), encoding="utf-8")
     print(verdict)
+
+    # Bank a revert point whenever this source state is the high-water mark.
+    if source is not None and (verdict.startswith("BASELINE")
+                               or verdict.startswith("IMPROVED")):
+        shutil.copyfile(source, snapshot_path(unit, source))
+        print(f"[revert point banked: probe.py {unit} {fn} --revert"
+              " restores it]")
 
     # A failed probe almost always needs the ops view next — print it
     # unasked on regression so the diagnosis is zero extra calls.
