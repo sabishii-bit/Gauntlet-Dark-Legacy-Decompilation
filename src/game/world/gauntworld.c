@@ -3549,12 +3549,11 @@ s32 fn_8005D730(Player* player, Item* item)
         result = 1;
         if (item->action == 2) {
             if (info->item.subtype == 47) {
-                s32 amount;
+                s32 amount = *(s32*)&item->data[4];
 
-                if (*(s32*)&item->data[4] >= 25) {
+                if (amount >= 25) {
                     msgPost(17, player->index, (char*)player->col_pos);
                 }
-                amount = *(s32*)&item->data[4];
                 PlayerGiveGold(player->index, amount);
                 fn_8009D038(player->index);
                 add_got_it(player->index, 1, amount);
