@@ -973,9 +973,9 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
     dest[2] = c->pos[2] + delta[2];
     result = 0;
     count = 0;
-    maxPen = lbl_80346498;
-    minPen = lbl_80346490;
-    pushScale = lbl_80346478;
+    maxPen = 3.0;
+    minPen = 1.0;
+    pushScale = 2.0;
     for (i = 0; i < 4; i++) {
         player = &gPlayers[i];
         if (player->state != 1 && player->state != 4) {
@@ -1034,8 +1034,8 @@ s32 CritterCollidePlayers(Critter *c, f32 *delta, s32 hits)
         }
     }
     if (result != 0) {
-        delta[2] = lbl_80346470;
-        delta[0] = lbl_80346470;
+        delta[2] = 0.0f;
+        delta[0] = 0.0f;
     }
     return count;
 }
@@ -1071,7 +1071,7 @@ f32 *delta;
 
     from = c->pos;
     surface = NULL;
-    minRise = (f32)(lbl_803464A0 * (f64)gClockFrameStep);
+    minRise = (f32)(-16.0 * (f64)gClockFrameStep);
     wallRadius = ((CritterWorldHeader *)c->hdr)->wallRadius;
     radius = ((CritterWorldHeader *)c->hdr)->radius;
     if ((((CritterWorldHeader *)c->hdr)->flags & 0x100) != 0) {
@@ -1113,7 +1113,7 @@ f32 *delta;
         if ((*(u32 *)((u8 *)surface + offsetof(WorldObj, flags)) & 0x38) == 0) {
             if (SlideAlongWall(wallRadius, from, delta, contact,
                                lbl_8023CA98 + 4) < 0) {
-                delta[2] = delta[0] = lbl_80346470;
+                delta[2] = delta[0] = 0.0f;
                 result = 2;
             }
         }
@@ -1127,11 +1127,11 @@ f32 *delta;
     probe[0] = c->pos[0] + direction[0] * reach;
     probe[1] = c->pos[1] + direction[1] * reach;
     probe[2] = c->pos[2] + direction[2] * reach;
-    reachLimit = (f32)(lbl_80346478 * (f64)reach);
-    bottom = -(f64)radius - lbl_80346498;
+    reachLimit = (f32)(2.0 * (f64)reach);
+    bottom = -(f64)radius - 3.0;
     grounded = 0;
     if ((surface = FloorCollide(probe, (s32)floorResult, 0, 2,
-                                lbl_803464A8, radius, bottom)) != NULL) {
+                                1.0f, radius, bottom)) != NULL) {
         CritterWorldDamage(c, surface, c->pos, floorResult + 12);
         grounded = 1;
         baseY = c->vel[1] - ((CritterWorldHeader *)c->hdr)->floorOffset;
@@ -1140,18 +1140,18 @@ f32 *delta;
         *(f32 *)((u8 *)c + offsetof(Critter, floorContact) + 8) = floorResult[14];
         floorY = floorResult[13];
         difference = floorY - baseY;
-        if (difference < lbl_80346470) {
+        if (difference < 0.0f) {
             difference = -difference;
         }
         if (difference > reachLimit) {
             grounded = 0;
-        } else if ((f64)length > lbl_80346488 &&
-                   (f64)difference > lbl_803464B0 * (f64)length) {
+        } else if ((f64)length > 0.0 &&
+                   (f64)difference > 0.1 * (f64)length) {
             probe[0] = c->pos[0] + delta[0];
             probe[1] = c->pos[1] + delta[1];
             probe[2] = c->pos[2] + delta[2];
             surface = FloorCollide(probe, (s32)floorResult, 0, 2,
-                                   lbl_803464A8, radius, bottom);
+                                   1.0f, radius, bottom);
             if (surface == NULL) {
                 grounded = 0;
             } else {
@@ -1163,7 +1163,7 @@ f32 *delta;
         }
         if (grounded == 0) {
             surface = FloorCollide(c->pos, (s32)floorResult, 0, 2,
-                                   lbl_803464A8, radius, bottom);
+                                   1.0f, radius, bottom);
             if (surface == NULL) {
                 floorY = baseY;
             } else {
@@ -1181,7 +1181,7 @@ f32 *delta;
     }
     if (grounded == 0) {
         result |= 0x10;
-        delta[2] = delta[0] = lbl_80346470;
+        delta[2] = delta[0] = 0.0f;
     }
     *(u32 *)((u8 *)c + 0x448) = result;
     if (surface != NULL) {
@@ -1200,7 +1200,7 @@ f32 *delta;
             *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) = c->vel[1];
             *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][2])) = c->vel[2];
             *(f32 *)((u8 *)c->shadow + offsetof(MBObject, mat[3][1])) =
-                (f32)(lbl_803464B0 + (f64)floorResult[13]);
+                (f32)(0.1 + (f64)floorResult[13]);
         }
     }
     return result;
