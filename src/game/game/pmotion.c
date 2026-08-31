@@ -531,7 +531,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
         return;
     }
     p = &gPlayers[playerIdx];
-    *(volatile u32*)&SV(p)->floor_obj = 0;
+    SV(p)->floor_obj = 0;
     if (p->state != 1 && p->state != 4) {
         return;
     }
@@ -607,7 +607,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 pos2[1] = other->pos[1];
                 pos2[2] = other->pos[2];
             }
-            *(volatile u32*)&SV(other)->floor_obj = FloorCollide(lbl_80347B10, lbl_80347B14,
+            SV(other)->floor_obj = FloorCollide(lbl_80347B10, lbl_80347B14,
                 lbl_80347B18, pos2, (f32*)(ctx + 24), 1, 1);
             SV(other)->floor_flags = (*(void**)(ctx + 92) != NULL)
                                          ? ((WorldObj*)*(void**)(ctx + 92))->flags
@@ -636,7 +636,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             } while (k < 16);
             if (found >= 0) {
                 MBNodeSetParent(p->node, *(void**)(other->node + 0x74));
-                *(volatile u32*)&SV(p)->floor_obj = *(volatile u32*)&SV(other)->floor_obj;
+                SV(p)->floor_obj = SV(other)->floor_obj;
                 break;
             }
         }
@@ -664,7 +664,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 p->floor_base = FloorPos(p->pos[1], lbl_80347B10, p->pos, 1);
                 p->pos[1] = p->floor_base;
                 MBNodeSetParent(p->node, *(void**)(other->node + 0x74));
-                *(volatile u32*)&SV(p)->floor_obj = *(volatile u32*)&SV(other)->floor_obj;
+                SV(p)->floor_obj = SV(other)->floor_obj;
                 ErrorPrintf(lbl_80114220);
             }
         } else {
