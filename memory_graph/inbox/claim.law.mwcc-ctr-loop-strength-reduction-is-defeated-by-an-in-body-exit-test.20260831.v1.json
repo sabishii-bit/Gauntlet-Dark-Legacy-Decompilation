@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "src/game/ui/btext.c, worktree GDL-Claude-BtextSfx, branch claude/btext-sfx-20260901. StringTextHeightSub commit c294417d2 (multiset 8t -> 1t, fuzzy 96.2162% -> 98.3333%); StringTextWidthSub commit 5131e9c1b (multiset 2t -> 0t, real 116 -> 100, fuzzy 87.81% -> 91.60%). Both fuzzy figures measured from build/GUNE5D/report.json after a fresh successful report build in each state. The StringTextHeightSub instance was found by tools/gdl/regnorm.py, which named the defect directly in its STRUCTURAL rows.",
+    "tags": [
+      "matching",
+      "entry-schedule",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.mwcc-ctr-loop-strength-reduction-is-defeated-by-an-in-body-exit-test.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T21:56:27Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A `mtctr`/`bdnz` COUNTED LOOP IN YOUR BUILD WHERE THE TARGET HAS `cmpw`/`bge` AT THE TOP AND AN UNCONDITIONAL `b` AT THE BOTTOM IS NOT A SCHEDULE OR REGISTER RESIDUAL - IT IS A LOOP STRENGTH-REDUCTION YOUR SOURCE INVITED AND THE TARGET'S SOURCE DID NOT, AND IT IS CLOSED BY MOVING THE EXIT TEST INTO THE LOOP BODY. MECHANISM: given `for (i = 0; i < n; i++)` where the trip count `n` is loop-invariant and materialisable at the loop header, MWCC computes the count once, emits `mtctr` and closes the loop with `bdnz`. When the original source instead wrote the loop so that the bound is re-read and compared INSIDE the body, the compiler cannot form a trip count at the header and emits the plain diamond: load the bound, `cmpw` the induction variable against it, conditional branch out, and an unconditional `b` back to the test. THE REWRITE, which is source-faithful and not a trick: `for (i = 0;; i++) { if (i >= n) break; ... }`. Semantics and branch topology are unchanged; only the compiler's ability to prove the trip count at entry is removed. SCREEN FOR IT CHEAPLY: `fndiff --ops` showing `ours-only: -1 mtctr -1 bdnz` against `target-only: +1 b +1 cmpw +1 bge` is the whole signature, and regnorm reports it as a STRUCTURAL cluster rather than a renaming - which is how it was found here, on a function whose frame, save-set and FULL SLOT MAP were already exact and which three prior sessions had treated as a register/schedule park. MEASURED TWICE IN ONE TU IN ONE SESSION: StringTextHeightSub 8t -> 1t multiset and fuzzy 96.2162% -> 98.3333%; StringTextWidthSub 2t -> 0t multiset (opcode multiset IDENTICAL) and real 116 -> 100. ARBITRATION WARNING, load-bearing both times: the rewrite REGRESSES `real` while improving everything else - StringTextHeightSub went real 44 -> 55 and defake_gate.py duly reported GATE FAILED - because converting a 2-instruction loop tail into a 3-instruction top test displaces rows in the alignment even as it makes the loop structurally correct. Arbitrate on the opcode multiset and on fuzzy per claim.law.real-can-underweight-a-large-alignment-gain, never on `real`; an agent gating on `real` alone reverts this fix every time. COROLLARY ON WHERE TO LOOK: a ctr loop is only available to the compiler when the bound is loop-invariant, so this residual class concentrates in count-driven `for` loops over a struct field (`e->count`, `n->num`) that the target re-loads each iteration - if the target reloads the bound inside the loop, that reload IS the evidence that the original's exit test lived in the body."
+}
