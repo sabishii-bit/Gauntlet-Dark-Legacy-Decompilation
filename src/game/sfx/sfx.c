@@ -3384,9 +3384,12 @@ void ProcessEffects(void)
 
                         item = &sItems[itemIndex];
                         special = 0;
-                        if (item->def->type == 2 && item->data_type >= 0 &&
-                            gWorldInfo.itemdefs[item->data_type].type == 4) {
-                            special = 1;
+                        if (item->def->type == 2) {
+                            s32 dt = item->data_type;
+                            if (dt >= 0 &&
+                                gWorldInfo.itemdefs[dt].type == 4) {
+                                special = 1;
+                            }
                         }
                         if (special == 0) {
                             skip = SfxSkipItem_80096FF4(
@@ -3698,9 +3701,10 @@ void ProcessEffects(void)
 
         if (gClockTime >= e->endtime - 0.03332 &&
             !(e->flags & 0x80000)) {
-            if ((e->flags & 0x4000) && e->fxmorph > 0 &&
-                e->fxmorph < MAXEFFECTTYPES) {
-                ChangeEffect(i, e->fxmorph, 0);
+            s32 morph = e->fxmorph;
+            if ((e->flags & 0x4000) && morph > 0 &&
+                morph < MAXEFFECTTYPES) {
+                ChangeEffect(i, morph, 0);
                 if (e->morphtime > 0.0) {
                     e->endtime = gClockTime + e->morphtime;
                 } else {
