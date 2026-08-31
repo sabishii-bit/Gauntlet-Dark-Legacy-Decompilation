@@ -862,9 +862,9 @@ void DrawBlit(MBBLIT* b) {
     s32 light;
     s32 color;
     s32 red;
+    s32 alpha;
     s32 green;
     s32 blue;
-    s32 alpha;
     f32 x0;
     f32 x1;
     f32 v0;

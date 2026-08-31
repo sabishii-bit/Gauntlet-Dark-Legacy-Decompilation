@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "bounded exact-drive of the opcode-identical DrawBlit register web via integer-local declaration order, independent color-statement order, FP constant caching, then fail-closed WebFrank eligibility audit",
+  "attributes": {
+    "axis_log": "AXIS1 retained: move alpha before green in the function-scope integer declarations, real 210->160, fuzzy 98.2267%->98.30666%, 375/375 and opcode-identical. AXIS2 negative: reorder the later independent green/alpha/red computations, real 160->182 and introduced one stb schedule displacement; reverted. AXIS3 negative: cache lbl_80348AE0/lbl_80348AD4 in uvScale/one locals, real 160->232 with the opcode stream still identical; reverted.",
+    "baseline_and_best": "baseline target/current 375/375, fuzzy 98.2267%, real 210, frame 0x1E8; retained best target/current 375/375, fuzzy 98.30666%, real 160, frame 0x1E8",
+    "law_screen": "Full matching-law corpus (48 records) fetched before editing. claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 applied as the declaration-order register-home lever (retained). claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1 screened/probed but negative because this residual had no opcode-order gap. claim.law.repeated-extern-read-needs-local-for-target-cse.20260831.v1 screened/probed but negative because loads were already CSE'd and only FPR colors differed. claim.law.repeated-fp-pool-literal-first-load-is-position-invariant.20260831.v1 explains why source position cannot steer the volatile pool-load homes. claim.law.pool-name-churn-is-invisible-to-real-and-fuzzy.20260831.v1 and claim.law.tu-wide-literalization-breaks-matched-sibling-pool-relocs.20260831.v1 veto literalization because two same-value named/anonymous relocation identities remain and exact siblings must be preserved. claim.law.chained-init-constant-share.20260829.v1 not applicable: no paired same-constant local initialization. attempt.camera-collide-step-permutation-screen.20260830.v1 corroborates the whole-function allocator permutation class. WebFrank constraints from tool.webfrank.20260829.v1 applied and decisive.",
+    "laws_applied": [
+      "claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1",
+      "claim.law.repeated-fp-pool-literal-first-load-is-position-invariant.20260831.v1",
+      "claim.law.pool-name-churn-is-invisible-to-real-and-fuzzy.20260831.v1",
+      "claim.law.tu-wide-literalization-breaks-matched-sibling-pool-relocs.20260831.v1",
+      "tool.webfrank.20260829.v1"
+    ],
+    "residual": "REGISTER_ONLY: exact instruction/opcode/CFG/frame/call shape; transient entry r4/r5/r6 rotation, volatile FPR permutation whose saved FPR homes converge, four r5/r6 color-channel swaps, and four suppressed lines for two same-value pool-symbol identities. Named exact mechanism is target-backed copy_register_fields under WebFrank: audit accepted all 375 instructions with zero rejection; before_sha256 1d718218c8bf7dd63b671fcaba5d7748273a753f32277b48801f61797a4e80e9 -> target after_sha256 beb700e1c376531f3bde3604c82d13805d71304448185da09198301e55e8d27f. Foreign-owned config was not edited.",
+    "scope": "src/game/mb/mb_blit.c::DrawBlit only; one declaration-order source change retained",
+    "verification": "probe.py used for clean baseline and every iteration; owning object and fndiff --count/--ops green; TU brief preserved 37 raw exact siblings and sentinels fn_800B27C4=16, MBCreateBlit=10, MBDrawBlits=8, DrawBlitFlatQuad=92; WebFrank audit 3/3 eligible in TU with zero rejection; git diff --check green; full ninja -j2 green; build/GUNE5D/main.dol OK"
+  },
+  "function": "function:DrawBlit",
+  "id": "attempt.drawblit-exact-register-closure.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T05:22:22Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
