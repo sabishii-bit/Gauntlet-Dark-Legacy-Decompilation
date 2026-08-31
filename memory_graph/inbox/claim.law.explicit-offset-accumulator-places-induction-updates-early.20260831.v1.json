@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "index-form",
+      "walked-pointer",
+      "store-placement",
+      "entry-schedule"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.explicit-offset-accumulator-places-induction-updates-early.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T19:01:38Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MWCC GC 1.2.5. BOUNDARY on the recorded induction-form guidance that `base + i * stride` beats a named offset accumulator. Direction is per-loop and must be read off the TARGET's induction-update PLACEMENT, not assumed. TELL: dump the loop body on both sides and locate the `addi rN,rN,<stride>` and `addi rJ,rJ,1` words. If the target updates them EARLY - immediately after the induced pointer is formed and used, near the top of the body - the source used an EXPLICIT accumulator incremented right after use, `p = base + acc; acc += STRIDE;`. If the target updates them at the BOTTOM, just before the loop compare, the source used `base + i * STRIDE` and let MWCC build the induction web itself. MEASURED on fn_8001267C in src/game/anim/atree.c, whose two adjacent inner loops disagree, which is what makes this a boundary rather than a preference. Its sequence-table loop matches byte-for-byte with `u8* seq = (u8*)(blob[0] + j * sizeof(animseqdesc));` and its texmod-patch loop already matched with an explicit `seqoff` accumulator. Its node-info loop was written in the `j * sizeof(AtreeNodeDef)` form and left two unpaired induction words: the target emits `addi r3,r3,1` and `addi r5,r5,60` at 0x5e0/0x5ec, high in the body between `lwz r0,12(r25)` and the first `stfs`, while ours emitted `addi r4,r4,1` and `addi r6,r6,60` at 0x73c/0x740 at the very bottom. Rewriting only that loop to the accumulator form - `u8* ni = (u8*)(blob[3] + seqoff); seqoff += sizeof(AtreeNodeDef);` - moved the stride update to the target's position and took real 96 -> 92 with instruction counts already equal at 575/575. COROLLARY worth reusing: the accumulator variable does NOT have to be a fresh declaration. Here the loop reused `seqoff`, an already-declared local that is dead at that point and is reassigned for its own purpose later in the same body, which avoids perturbing declaration order and frame layout while still supplying the accumulator shape - the cheapest possible form of this fix, and consistent with claim.law.dead-local-identity-reuse-flips-callee-saved-coloring. The stride update moved; the `addi rJ,rJ,1` loop-counter update did NOT, and remains one unpaired word."
+}

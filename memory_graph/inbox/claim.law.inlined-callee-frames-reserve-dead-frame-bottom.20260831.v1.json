@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "inline",
+      "matching",
+      "decl-order",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T19:01:29Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MWCC GC 1.2.5. ANSWERS AND CORRECTS claim.law.reserved-param-area-without-argument-stores.20260831.v1 and claim.law.frame-bottom-region-is-outgoing-args-not-a-dead-local.20260831.v1. THE MECHANISM: when MWCC expands a `static inline` FUNCTION, it reserves that expansion's own frame (its parameters and locals whose address is taken) as a block at the BOTTOM of the caller's frame, ONE BLOCK PER EXPANSION SITE - and then emits the expanded code against SEPARATELY allocated temps higher up, so the reserved blocks are never read, never written, and their address is never formed. The result looks exactly like an outgoing-parameter area that no argument store ever touches, which is why two prior laws misidentified it. A block-scope MACRO doing the identical byte shuffling reserves NOTHING, because macro locals are ordinary caller locals. So the low dead region is a TELL FOR INLINE FUNCTION CALLS IN THE ORIGINAL SOURCE, not for a by-value argument. QUANTITATIVE RULE, exact on two independent functions in src/game/anim/atree.c: dead_low_bytes = 8-aligned sum over expansion sites of the inlinee's own frame, where an inline helper taking one 4-byte param and holding one 4-byte address-taken local costs 8, a u16 helper holding only its param costs 4, and a helper that itself calls another inline helper costs the sum of both (nesting is NOT shared). fn_80011DCC (already byte-exact, 0 calls) expands AtreeNodeSwap16 x1 + AtreeNodeSwap32 x12 + AtreeNodeSwapF32 x24, where SwapF32 nests Swap32: 1*4 + 12*8 + 24*(8+8) = 484, measured dead region 488 (8-aligned). fn_8001267C expands the same helpers 15/22/3 times: 15*4 + 22*8 + 3*16 = 284, measured dead region EXACTLY 284. Converting fn_8001267C's byte-swap MACROS to the identical inline-helper form its exact sibling already used reproduced the reservation and the whole temp block on the first probe: real 869 -> 215, and the `u8 unused[248]` pad that a prior pass had added to close the frame SIZE became surplus and was deleted for free. CALIBRATION NOTE: the prior law's temps_base = 8 + P + 12 fit is CONFIRMED and still usable, but P is not necessarily a parameter area - an inline-expansion block occupies the same layout slot, so a by-value argument and an inline-frame block are indistinguishable by frame arithmetic alone. DIAGNOSTIC ORDER when a target reserves an untouched low region: (1) check whether ANY instruction writes it - if not, the by-value hypothesis is dead; (2) count the function's plausible inline-helper expansion sites and see whether their summed frames hit the region size exactly; (3) only then look for an eliminated call. IMAGE CENSUS (method + result, whole GUNE5D target, 2157 functions with frames, disassembled from the dtk-split objects under build/GUNE5D/obj): a reserved-and-untouched low region is COMMON, not exotic - 216 functions have low_gap >= 32 bytes, and the distribution is a smooth continuum from 0 upward (602 at 0, 320 at 8, 306 at 12, tapering). Largest: CritterInitHeader 1620, ResolveWorldData 1252, InitWorldInfo 836, LoadPlyrData 776, fn_80011DCC 488, GetAnimAngXYZVal 364, InitEffects 356, SetupModel 332, exponent 320, fn_8001267C 296(raw)/284(true). Most of the big ones are byte-swap / header-fixup functions with ZERO calls, which is itself the signature: no calls means no parameter area is possible, so the region CANNOT be outgoing arguments. Reusable measurement: per function take frame from `stwu r1,-N(r1)`, collect every N(r1) memory displacement plus every `addi rX,r1,N` and `mr rX,r1`, and report min(referenced) - 8."
+}

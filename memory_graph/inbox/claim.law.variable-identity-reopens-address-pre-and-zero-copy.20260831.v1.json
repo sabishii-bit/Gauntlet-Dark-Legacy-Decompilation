@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "cse",
+      "decl-order",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T19:01:33Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MWCC GC 1.2.5. Two residual classes previously recorded as source-unreachable are reachable through VARIABLE IDENTITY - which declared symbol carries a value - extending claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1 from callee-saved coloring to (a) address-PRE hoists and (b) constant-copy-vs-rematerialize. Both measured on fn_8001267C in src/game/anim/atree.c after its frame was corrected. (A) ADDRESS-PRE, CLOSED, RETAINED. claim.law.address-pre-hoist-survives-every-address-spelling.20260831.v1 correctly closed the SPELLING axis - six spellings of the `blob+54` objectIndex address are now measured byte-identical (its four, plus a typed-member store form and a u16-view-of-named-member form probed here) - and correctly predicted the remaining lever is liveness, not spelling. The lever that worked is neither: declaring a SEPARATE TYPED BASE local, `AtreeDefinition* def = (AtreeDefinition*)blob;`, at the top of the loop body and routing the member accesses through `def` instead of through casts on `blob`, killed the surplus `addi r27,r24,54` PRE web outright. The two pointers hold the identical value and the semantics are unchanged, but giving the AtreeDefinition view its OWN symbol stopped MWCC materializing the late store's address at the top of the body. Effect: the extra callee-saved GPR went away (ours had r23-r31, target has r24-r31), the frame fell 600 -> 592 matching the target, instruction counts became EQUAL at 575/575, and real fell 215 -> 96. ORDERING DEPENDENCY, important: this lever was INERT until the frame was already correct - the same conversion measured NEUTRAL twice while the frame was still 8 bytes long. That is a concrete instance of the alignment-sensitivity AGENTS.md warns about, and a standing reason to re-probe identity levers after any frame fix rather than trusting an earlier neutral. (B) ZERO-COPY, SOURCE-REACHABLE BUT NET-NEGATIVE HERE. claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 and claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 hold that a target's two independent `li rX,0` versus our `li` plus a register copy is an allocator choice with no source lever. REFUTED IN ITS GENERALITY: fn_8001267C shares one `off` variable across two sibling loops, and splitting it into a per-loop symbol (`moff` for the second loop) CLOSED that loop's cluster completely - `li r26,0` + `addi r25,r26,0` became the target's `li r26,0` + `li r27,0`, and the cluster pair vanished from the --ops list. So a shared induction/offset carrier IS a real source lever on the zero-copy shape and must be tried before citing those laws. It was not retained on this function only because it costs more than it buys, measured TWICE at two different alignments with the identical sign and magnitude: real 96 -> 98 before the node-info accumulator fix and real 92 -> 94 after it, each time trading two closed cluster words for two opened ones elsewhere. Arbitrated on `real` because the function is 575 instructions, far under the ~4000 threshold at which AGENTS.md hands arbitration to objdiff fuzzy. Declaration ORDER between the two carriers is separately inert (two identical A/Bs at real 98). PRACTICAL RULE: when a residual is a register web, a PRE hoist, or a constant copy, enumerate the source's SHARED carriers - one variable serving two loops, one pointer serving two views - and try splitting each into its own symbol; the value, live range and statement positions stay identical while the allocator's decision changes."
+}
