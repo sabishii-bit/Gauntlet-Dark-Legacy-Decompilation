@@ -1587,7 +1587,7 @@ s32 StartMagicFX(f32* pos, s32 tf, s32 owner, f32 power, f32 scale)
 
     low = tf & 15;
     s = (f32)(0.03125 * scale);
-    idx = StartFXSub((&tab[tf & 15])[871], pos, 298, 2048, 0.0f);
+    idx = StartFXSub((&tab[tf & 15])[871], pos, 298, 2048, lbl_80348068);
     if (idx < 0) {
         idx = -1;
     } else {
