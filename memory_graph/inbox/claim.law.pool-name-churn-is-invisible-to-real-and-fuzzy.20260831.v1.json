@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "kind": "claim",
+  "id": "claim.law.pool-name-churn-is-invisible-to-real-and-fuzzy.20260831.v1",
+  "predicate": "codegen_law",
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "epistemic_state": "verified",
+  "attributes": {
+    "tags": [
+      "matching",
+      "sda-global",
+      "defake",
+      "metrics",
+      "batch-gating",
+      "build-hygiene"
+    ],
+    "scope": "Any extern-literal / constant-pool sweep in a NonMatching TU whose sibling functions are byte-identical and relocate against named lbl_* pool symbols. Applies to the acceptance gate, not to the codegen decision.",
+    "provenance": "src/game/enemy/critter.c + enemy.c extern-literal sweep (worktree GDL-Claude-EnemyLit, work_claim.enemy-literal.20260831.v1). A 23-function critter.c batch and a 23-function enemy.c batch both passed tools/gdl/defake_gate.py (per-function `real` from the real ninja object) with GATE OK, and both passed a whole-TU per-function objdiff FUZZY diff against the true pre-sweep revision 3d6881622 with zero regressions. Re-checking the same functions with fndiff --clean against base exposed what both gates had missed: in critter.c six functions that were EXACT at base (CritterCalcTarget, CritterReCalcTarget, CritterWorldDamage, NodeLookAtPos, CritterNodePlayerCollide, CritterFindMoveType) had become 'MATCH (pool-name noise only)' carrying 4-38 suppressed pool-name lines each, and four already-noisy ones grew (CritterActivate 2->4, CritterCopyAnim 8->12, CritterDoParticle 2->16, CritterRotate 22->26, CritterDoSfx 0->8). Restricting the sweep to the two functions that actually improved returned every one of those six to EXACT with zero suppressed lines, at no cost to the retained gain."
+  },
+  "value": "A pool-literal conversion that is byte-identical on text can still REGRESS a sibling function's relocations, and neither of the project's two standard gates will report it. Mechanism: literalizing a constant inside function A makes MWCC emit a fresh ANONYMOUS .sdata2 pool entry, which reorders the object's small-data pool; every other function that still references a NAMED lbl_* pool symbol then relocates at a different sda21 offset. The instruction bytes are unchanged, so fndiff `real` is unchanged and objdiff fuzzy is unchanged -- fndiff explicitly SUPPRESSES these as 'pool-name lines' and reports the function as MATCH rather than EXACT. The damage is real for promotion: AGENTS.md requires a Matching flip to be exact in relocations as well as text, so converting a sibling from EXACT to 'pool-name noise only' silently adds flip-blocking debt to a function nobody touched. Gate accordingly: for any pool/constant sweep, the acceptance check is `fndiff --clean` against the PRE-SWEEP revision for every function in the TU, comparing BOTH the real-diff count AND the suppressed pool-name line count; a rise in suppressed lines on a previously-EXACT function is a regression even though `real` and fuzzy both read flat. Practical consequence, and the reason this matters: a score-NEUTRAL conversion is NOT free. Neutral conversions were the bulk of the yield in this sweep (46 functions across two TUs) and every one was discarded once measured this way, because they bought zero score and paid in relocation churn. Only conversions that actually move fuzzy/real earn the churn they cause. This is the measured mechanism behind the integrator advisory's rule 'never touch labels a byte-identical sibling reads' -- and it also bounds it: the hazard comes from the pool REORDERING, not from the shared label per se, so a conversion confined to functions that pay for themselves can leave siblings EXACT even while sharing labels with them (verified: the retained CritterBossAI/CritterCollidePlayers conversion shares 17 labels with byte-identical readers and left all of them EXACT)."
+}
