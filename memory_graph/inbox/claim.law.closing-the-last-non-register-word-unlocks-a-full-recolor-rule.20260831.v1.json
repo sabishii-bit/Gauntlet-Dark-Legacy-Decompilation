@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "postprocessor",
+      "register-web",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.closing-the-last-non-register-word-unlocks-a-full-recolor-rule.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T17:22:44Z",
+  "schema_version": 1,
+  "subject": "tu:game/sfx/sfx",
+  "valid_from": "2026-08-31",
+  "value": "A function rejected for the WebFrank register path because a SMALL number of differing words carry non-register bits (an immediate, a displacement fold, a relocation payload) is not permanently ineligible: eligibility is a property of the CURRENT source, and closing just those few words in source converts the entire remaining residual into a machine-provable pure recolor. Verified on sfx.c InitEffects, 2988 bytes / 747 instructions. attempt.webfrank-closure2.initeffects rejected it because three NULL-arm stores differed by an IMMEDIATE (retail stw r0,1068(r31)/1140/1152 against our stw r0,0(rN)), and copy_register_fields' form-aware mask correctly refused the +0x5d4 displacement; the conclusion recorded downstream was that the cluster was 'webfrank-INELIGIBLE forever'. Respelling exactly those three NULL arms base-relative left 24 differing words that are ALL register fields, webfrank_audit flipped the function from rejected to ELIGIBLE, and the resulting rule took it to real 0 (matched 60.99% -> 61.27%). PROCEDURE: when a residual is 'register-only EXCEPT for N words', do not park on the N words as a blocker - price them as the whole cost of exactness, because paying them buys the other 100% via the rule. Note the two costs before spending: the source fix may REGRESS the raw score (26 -> 48 here) and is only admissible together with the rule that closes it, so land both in one commit and never commit the regression alone; and the rule freezes the function's source and its inlined helpers thereafter (claim.law.webfrank-pin-freezes-its-inlined-helpers-too), which is only sound once the source-reachable work is genuinely finished. The earlier lane's refusal to pin was CORRECT at the time for exactly that reason - it would have frozen the source that still had to change."
+}

@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "alias-form",
+      "index-form",
+      "offsetof-form",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.member-form-does-not-restore-preoffset-association.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T17:22:49Z",
+  "schema_version": 1,
+  "subject": "tu:game/sfx/sfx",
+  "valid_from": "2026-08-31",
+  "value": "The member-form spelling on a CAST ROW POINTER does not restore the target's add-then-addi pointer association, because MWCC normalises a member displacement taken on a computed base into the same additive expression and then reassociates it exactly as it does a written pointer addition. Measured on sfx.c fn_80093918: writing Effect* e = &((EffectPage*)&fx[ret*240])->fx[0] in place of (Effect*)(&fx[ret*240] + 2976) scores NEUTRAL, real 62 -> 62, at both ret-indexed sites, even though the member-form is this TU's own established idiom (lines 882, 1074-1082) and EffectPage.fx sits at exactly the 2976 the addi carries. This closes the last plausible source-side counter-form for the pre-offset association cluster class. THE CLASS: MWCC reassociates base + i*K + C to base + (i*K + C) whenever the pre-offset intermediate has exactly one use, discarding the source's written associativity - our source at fn_80093918 clusters 1 and 2 ALREADY writes the target's associativity and MWCC still discards it, so writing it correctly is not sufficient. The only known carrier is a genuine READ through the pre-offset pointer before the offset step; the byte-exact positive control is StartMagicHealFX in this same TU, which reads ((EffectPage*)e)->fx[0].node between its two steps. NINE distinct forms have now been measured against this class across three functions and three sessions (StartGenHitFx: flat additive with named constants, two-statement u8* split, EFFECTS_POOL_AT global-base macro, direct-global-member at all sites, and the StartMagicHealFX idiom transplant; fn_80093BC0: the same transplant and that transplant under #pragma opt_lifetimes off; fn_80093918: member-form on a cast row pointer), producing five NEUTRALs and three clean negatives and no positive. SCREENING RULE: when instruction counts are exactly equal and the opcode multiset is IDENTICAL, there is no unrecovered load available to supply the second use, so the carrier is provably unavailable and the axis is dead on arrival - check the counts before spending a probe. Such a residual is also NOT WebFrank-eligible in either stage: the streams differ in real instructions rather than colour, and the add/addi pair is data-dependent in the target, so the permutation stage's independent-atom requirement fails too."
+}

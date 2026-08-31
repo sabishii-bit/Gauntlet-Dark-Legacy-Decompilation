@@ -504,6 +504,17 @@
           "instructions": 74
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "InitEffects",
+        "before_sha256": "a8fa59d6d4aca721223f97b7bd6f0050748dcedbebea06d15b04d3506ebc9347",
+        "after_sha256": "fe7172a2cc22a60df5801defbf0515b5f92906cb2cf9557edbb693702b729201",
+        "mechanism": "Pure allocator recolor over 24 of 747 instructions, opcode multiset identical (747/747) and every non-register bit already equal. Two disjoint callee-saved 4-cycles over r19-r23, one per live region: in the 80-row authoring loop g20->g22, g22->g21, g21->g23, g23->g20; in the twelve-pointer region and its uses g19->g21, g21->g22, g22->g23, g23->g19 (g20 identity there). Eligibility became possible only after the cluster-B source fix in this same commit: previously the three NULL-arm stores at +0x5d4/+0x63c/+0x69c carried IMMEDIATE differences (retail stw r0,1068(r31)/1140/1152 vs our stw r0,0(rN)), which copy_register_fields correctly rejected, and spelling those three NULL arms base-relative removes the last non-register bit. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. The source-side allocator rank of p1068 was probed across five distinct cells (single-site, two-site, all-three, and two declaration-order permutations) and is not reachable from C: retail reaches its colouring with the SAME two-use counts we emit.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 747
+        },
+        "copy_register_fields": true
       }
     ],
     "game/sound/sounds_evt": [
