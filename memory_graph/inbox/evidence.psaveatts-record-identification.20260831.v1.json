@@ -1,0 +1,11 @@
+{
+  "claim": "claim.shop-draw-layout-buffer-map.20260831.v1",
+  "detail": "Recorded here because it is the naming standard the shop buffer FAILED to meet, and shows what clearing the bar looks like. select.c's per-class progression slot was a file-local view carrying generic field_08/0C/10/14 names. The Xbox PDB record P_SAVE_ATTS (size 24) matches the GC record on four independent counts: the GC stride is 24, taken straight from the in-TU expression `expslot = pl + sel * 24 + 2704`; the +0x00 field was already recovered as `exp` before this pass from ExpToLevel(*(s32*)expslot) plus the `*(s32*)expslot > 0` guard, and P_SAVE_ATTS names +0 exp; the PDB's four *_add stat-bonus fields land exactly on the TU's four f32 reads at +8/+0xC/+0x10/+0x14; and the PDB declaration order fight/armor/magic/speed EXPLAINS the otherwise arbitrary permutation the TU applies when filling stats[] (field_08->stats[0], field_0C->stats[2], field_10->stats[3], field_14->stats[1]), because the display order is fight/speed/armor/magic. A wrong record would not reproduce that permutation. The enclosing Xbox record P_SAVE then corroborates the surrounding GC layout at three further anchors: P_SAVE+0 name[8] == player.h's already-verified Player.name at 0x0A80; P_SAVE+8 last_alttype == Player+0x0A88, where game/player.c writes `(s16)p->character`; P_SAVE+0xC class_unlock == Player+0x0A8C, the u16 this TU tests as `1 << (class - 8)`; and P_SAVE+0x10 atts[] == Player+0x0A90, matching the stride-24 base above. The GC block is NOT layout-identical to Xbox further in -- Xbox P_SAVE_STUFF is 596 bytes where GC PlayerCharSave is 240 -- so only the head was modelled. Both conversions gated byte-identical (defake_gate.py check game/ui/select.c --rebuild: GATE OK).",
+  "evidence_kind": "source-trace",
+  "id": "evidence.psaveatts-record-identification.20260831.v1",
+  "kind": "evidence",
+  "locator": "src/game/ui/select.c:197 (P_SAVE_ATTS view) and :2487 (expslot base); research/xbox_symbols/xbox_structs.tsv records P_SAVE, P_SAVE_ATTS",
+  "recorded_at": "2026-08-31T06:34:22Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

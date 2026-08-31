@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "defake",
+      "symbol-identity",
+      "relocation",
+      "sda-global",
+      "walked-pointer"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.single-base-relocation-refutes-symbol-separation.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T06:33:50Z",
+  "schema_version": 1,
+  "subject": "tu:game/shop/shop",
+  "valid_from": "2026-08-31",
+  "value": "A boundary in config/GUNE5D/symbols.txt is NOT evidence that the address it names is a separate C object, and 'cleaning up' a raw base+offset access by respelling it against the neighbouring lbl_ symbol is a REGRESSION whenever the target reaches that address from a single relocated base plus immediate adds. Discriminator, readable in one fnasm.py call and costing no build: if the target function shows exactly ONE ADDR16_HA/ADDR16_LO pair for the base symbol and then plain `addi rX,rX,<const>` for each region it touches, the original C reached all those regions from one object; MWCC never reassociates addresses across distinct symbols, so a source form naming N symbols emits N HA/LO pairs and cannot match. The symbol-map boundary in that situation was manufactured by a DIFFERENT function in the same TU that reached the interior address once, as a compile-time-constant offset, letting MWCC fold the constant into the relocation addend -- the splitter then materialises a label there. Both spellings therefore coexist legitimately in one TU and are NOT interchangeable per site: the function with the pooled base must keep base+offset, the function with the folded addend must keep the interior symbol. Measured twice: game/shop/shop.c write_shop_menu (target has one @lbl_802897D0 pair then addi 336/4432/5456/6480; respelling the 3408/4432/5456 reaches as &lbl_8028A520[...] and 6480 as &lbl_8028B120[...] moved real 372 -> 417, inserting exactly the predicted extra lis/addi pairs and deleting the target's four addi) and game/ui/options.c show_optmenu (target has one @lbl_8011DD20 pair and reaches +216/+228 by immediate add, although symbols.txt ends lbl_8011DD20 at size 0x90=144 and names lbl_8011DDEC over those bytes -- refuted on the disasm without spending a build). Corollary for de-fakematch passes: when a raw offset over-runs its base symbol's recorded size, screen the target's relocation shape BEFORE treating the over-run as the defect to fix."
+}
