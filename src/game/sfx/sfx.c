@@ -2745,14 +2745,14 @@ void ProcessEffects(void)
                     ageRadius = (f32)(remaining > 1.0 ? 1.0 : (f64)remaining);
                 } else {
                     mode = 1;
-                    ageRadius = (f32)(remaining + lbl_803481C0);
+                    ageRadius = (f32)(remaining + 0.066667);
                 }
             } else if (e->webtime > 0.0) {
                 mode = 4;
                 ageRadius = 0.0f;
             } else {
                 mode = 0;
-                ageRadius = lbl_803481C8;
+                ageRadius = 0.25f;
             }
 
             passThrough = e->damagetype & DMG_SUPER;
@@ -2763,18 +2763,18 @@ void ProcessEffects(void)
                 f32 fframes = hdr->seq->numframes;
                 f32 mframes = hdr->seq->numframes;
                 if (fframes > 0.0f) {
-                    ageRadius = (f32)(lbl_803481D0 * mframes);
+                    ageRadius = (f32)(0.0333333333 * mframes);
                 }
             }
 
             if (e->flags & 0x800000) {
                 fade = 0.0f;
             } else if (passThrough) {
-                fade = (f32)(lbl_80348160 + ageRadius);
+                fade = (f32)(3.0 + ageRadius);
             } else if ((e->flags & 0x20) && ageRadius < 1.0) {
                 fade = 1.0f;
-            } else if (ageRadius < lbl_803481D8) {
-                fade = lbl_803481E0;
+            } else if (ageRadius < 0.2) {
+                fade = 0.2f;
             } else {
                 fade = ageRadius;
             }
@@ -2789,14 +2789,14 @@ void ProcessEffects(void)
 
                 if (remaining > damageTime) {
                     phase = 0.0f;
-                } else if (damageTime <= lbl_803481D0) {
+                } else if (damageTime <= 0.0333333333) {
                     phase = 1.0f;
                 } else {
                     phase = remaining / damageTime;
                 }
                 if (phase > 0.33) {
                     damageScale =
-                        (f32)(lbl_80348120 * (phase - 0.33));
+                        (f32)(1.5 * (phase - 0.33));
                     radius =
                         (f32)(e->damageradius *
                               (0.33 + (1.0 - phase)));
@@ -2805,15 +2805,15 @@ void ProcessEffects(void)
                     damageScale = 0.0f;
                 }
 
-                if (damageTime <= lbl_803481D0) {
+                if (damageTime <= 0.0333333333) {
                     lightScale = 1.0f;
                 } else if (remaining < damageTime) {
                     f32 phaseIn = (f32)(1.0 - remaining / damageTime);
-                    if (phaseIn < lbl_803480B0) {
-                        lightScale = lbl_8034813C * phaseIn;
+                    if (phaseIn < 0.5) {
+                        lightScale = 2.0f * phaseIn;
                     } else {
                         lightScale =
-                            (f32)(lbl_80348150 * (1.0 - phaseIn));
+                            (f32)(2.0 * (1.0 - phaseIn));
                     }
                 } else {
                     lightScale = 0.0f;
@@ -2837,12 +2837,12 @@ void ProcessEffects(void)
             }
         }
         if (e->dmgdebug != NULL && (e->flags & 0x20)) {
-            f32 scale = (f32)(lbl_80348098 * radius);
+            f32 scale = (f32)(0.01 * radius);
             e->dmgdebug->scale[0] = scale;
             e->dmgdebug->scale[1] =
-                e->mindp <= lbl_803480A8
+                e->mindp <= -1.0
                     ? scale
-                    : (f32)(lbl_803480B0 * scale);
+                    : (f32)(0.5 * scale);
             e->dmgdebug->scale[2] = scale;
         }
         if (e->fxfade > 0.0 && e->fxhit <= 0 && remaining < e->fxfade) {
@@ -2872,7 +2872,7 @@ void ProcessEffects(void)
                 e->node->scale[2] = scale;
             }
         }
-        if ((e->flags & 0x400000) && e->fxhit == 0 && remaining < lbl_803481D8) {
+        if ((e->flags & 0x400000) && e->fxhit == 0 && remaining < 0.2) {
             f32 scale = 5.0 * remaining + 0.001;
             MBTreeSetFlags(e->node, 8, 0);
             e->node->scale[0] = scale;
@@ -2904,7 +2904,7 @@ void ProcessEffects(void)
                 if (radius > 0.0 && !(e->flags & 0x200)) {
                     s32 damagetype = e->damagetype;
 
-                    if (collisionDamage < lbl_80348210) {
+                    if (collisionDamage < 5.0f) {
                         damagetype = (damagetype & ~0x170) | DMG_NOHITFX;
                     }
                     for (j = 0; j < 4; j++) {
@@ -2961,7 +2961,7 @@ void ProcessEffects(void)
                         }
                         if (e->damagetype & 0x800) {
                             player->fxhittime = sMusicFadeBase + 0.5;
-                        } else if (collisionDamage > lbl_8034813C) {
+                        } else if (collisionDamage > 2.0f) {
                             player->fxhittime = sMusicFadeBase + ageRadius;
                         }
                     }
@@ -2993,8 +2993,8 @@ void ProcessEffects(void)
                             } else {
                                 e->endtime -= 1.0;
                             }
-                            if (e->damage > (f64)lbl_80348240) {
-                                e->damage = (f32)(f64)lbl_80348240;
+                            if (e->damage > (f64)15.0f) {
+                                e->damage = (f32)(f64)15.0f;
                             }
                         } else {
                             s32 playerHit;
@@ -3018,7 +3018,7 @@ void ProcessEffects(void)
                                         collisionDamage, player->index,
                                         e->owner & 0xfff);
                                 }
-                                if (collisionDamage > lbl_8034813C) {
+                                if (collisionDamage > 2.0f) {
                                     if (ownerPlayer != NULL &&
                                         passThrough != 0 &&
                                         ageRadius < 1.0) {
@@ -3033,7 +3033,7 @@ void ProcessEffects(void)
                             if (passThrough != 0) {
                                 if ((e->damagetype & DMG_REFLECT) &&
                                     e->fxhit >= 0 &&
-                                    collisionDamage > lbl_8034813C) {
+                                    collisionDamage > 2.0f) {
                                     s32 impact = StartFXSubGuts(
                                         e->fxhit, player->col_pos, 0,
                                         0x880, 0.0f);
@@ -3047,7 +3047,7 @@ void ProcessEffects(void)
                                         if (FloorCollide(
                                                 1.0 + impactEffect->colrad,
                                                 5.0 + impactEffect->colrad,
-                                                lbl_80348244, impactMat + 12,
+                                                -10.0f, impactMat + 12,
                                                 NULL, 1, 0)) {
                                             CopyMat4(gFloorCollisionResult,
                                                      impactMat);
@@ -3134,7 +3134,7 @@ void ProcessEffects(void)
                         enemy, owner - 1, e->damagetype, 0, enemyDelta,
                         collisionDamage, 2);
                     if (damage >= 0) {
-                        if (collisionDamage > lbl_8034813C &&
+                        if (collisionDamage > 2.0f &&
                             !(e->flags & 0x00800000)) {
                             enemy->fxhittime[owner] =
                                 sMusicFadeBase + fade;
@@ -3180,7 +3180,7 @@ void ProcessEffects(void)
                             enemy, owner - 1, e->damagetype, hitpos, dir,
                             collisionDamage, 2);
                         if (damage >= 0) {
-                            if (collisionDamage > lbl_8034813C &&
+                            if (collisionDamage > 2.0f &&
                                 !(e->flags & 0x00800000)) {
                                 enemy->fxhittime[owner] =
                                     sMusicFadeBase + fade;
@@ -3303,12 +3303,12 @@ void ProcessEffects(void)
 
                                 critter->boss_timer_b = 1800;
                                 bosspos[0] = 0.0f;
-                                bosspos[1] = lbl_80348144;
+                                bosspos[1] = 6.0f;
                                 bosspos[2] = 0.0f;
                                 if (h->atree != NULL) {
                                     effect = StartFXTree(h->atree, bosspos, 0,
                                                          0x400880,
-                                                         lbl_80348250);
+                                                         28.0f);
                                     if (effect >= 0) {
                                         Effect* spawned =
                                             EFFECTS_POOL_AT(effect);
@@ -3446,7 +3446,7 @@ void ProcessEffects(void)
                         if (itemHit >= 0.0f && owner > 0) {
                             PlayerDamagedItem(ownerPlayer, item, noDmg);
                         }
-                        if (collisionDamage > lbl_8034813C &&
+                        if (collisionDamage > 2.0f &&
                             !(e->flags & 0x00800000)) {
                             item->fxhittime =
                                 sMusicFadeBase + ageRadius;
@@ -3486,7 +3486,7 @@ void ProcessEffects(void)
                                 gPlayers + (owner - 1) * 13148, item,
                                 noDmg);
                         }
-                        if (collisionDamage > lbl_8034813C &&
+                        if (collisionDamage > 2.0f &&
                             !(e->flags & 0x00800000)) {
                             item->fxhittime =
                                 sMusicFadeBase + ageRadius;
@@ -3577,7 +3577,7 @@ void ProcessEffects(void)
                 s32 count = e->hitcount - (e->hitcount >> 2) +
                             RandInt(e->hitcount >> 1);
                 struct mbnode* fireNode;
-                (void)Random(lbl_80348134);
+                (void)Random(0.5f);
                 fireNode = MBNewNode(lbl_80344BD4, mat, 1);
                 MBPsysFirework(0, fireNode, count, lbl_80122088[c0],
                                lbl_80122088[c1], 0xff000000, e->damageradius,
@@ -3636,7 +3636,7 @@ void ProcessEffects(void)
                     e->node->scale[2] = e->hitscale;
                 }
                 if ((e->damagetype & DMG_STICKY) && e->webtime == 0.0) {
-                    e->webtime = lbl_80348100;
+                    e->webtime = 20.0f;
                 }
                 if (e->webtime > 0.0) {
                     e->endtime = gClockTime + e->webtime;
@@ -3676,7 +3676,7 @@ void ProcessEffects(void)
                     mat[13] = pos[1];
                     mat[14] = pos[2];
                     if (FloorCollide(1.0 + e->colrad,
-                                     5.0 + e->colrad, lbl_80348244,
+                                     5.0 + e->colrad, -10.0f,
                                      mat + 12, NULL, 1, 0)) {
                         CopyMat4(gFloorCollisionResult, mat);
                         mat[13] += 0.1;
