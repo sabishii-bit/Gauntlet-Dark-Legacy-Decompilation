@@ -5919,9 +5919,9 @@ s32 CritterDoTexmodNode(Critter *c, s32 action, s32 local, f32 *position)
                 velocity[2] = *(f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x28);
             } else if ((*(s16 *)(desc + offsetof(CritterDamageDef, behaviorFlags)) & 1) != 0 && c->unk124 >= 0) {
                 GetPlayerColPos(c->unk124, velocity);
-                velocity[0] -= *(f32 *)((u8 *)Effects[result].node + 0x30);
-                velocity[1] -= *(f32 *)((u8 *)Effects[result].node + 0x34);
-                velocity[2] -= *(f32 *)((u8 *)Effects[result].node + 0x38);
+                velocity[0] -= *(f32 *)((u8 *)Effects[result].node + offsetof(MBObject, mat[3][0]));
+                velocity[1] -= *(f32 *)((u8 *)Effects[result].node + offsetof(MBObject, mat[3][1]));
+                velocity[2] -= *(f32 *)((u8 *)Effects[result].node + offsetof(MBObject, mat[3][2]));
             } else {
                 velocity[0] = *(f32 *)((u8 *)c + offsetof(Critter, mtx) + 0x20);
                 velocity[1] = *(f32 *)((u8 *)c + 0x30);
