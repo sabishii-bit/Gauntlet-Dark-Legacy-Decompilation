@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CLEANUP lane, whole TUs src/game/shop/shop.c + src/game/ui/select.c + src/game/ui/options.c: the long-deferred shop draw-layout scratch buffer (56+70 sites across do_shopping/do_shop/show_piles/show_gold/write_shop_menu \u2014 structdraft it with the evidence bar: the TU comment defers it, so REAL layout proof or leave raw with the draft banked); select.c pad_0A88 sites + ClassStatSlot generic field_NN names -> real names via PDB/consumer evidence; options.c leftovers; PDB-dump enums where proven. All matched/parked fns byte-gated (many parks in these TUs \u2014 the gate fails on EXACT demotions); parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:do_shopping_8009AA48",
+  "id": "work_claim.cleanup-shop-select.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-W6",
+  "recorded_at": "2026-08-31T06:09:55Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

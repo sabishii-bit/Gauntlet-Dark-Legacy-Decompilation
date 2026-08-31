@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "OPUS EXACT-DRIVE lane, whole TUs src/game/audio/audio.c + src/game/audio/adstream.c: execute AudioLoadPart's banked work order (attempt.audioloadpart-structural-reclassification.20260831.v2: recover the ~2-insn sndCmd4 queue-slot deficit FIRST, then re-apply the proven loop shape, then the two lwzx sites with a MULTI-use alias); AdsPutBuffer real 198 (254i) fresh drive. The real-2 trio (AudioBankLoadName/AudioUnloadPart/AudioBankQueueName) is CLOSED corpus-wide as li-vs-addi allocator remat \u2014 do NOT retry it. Exact or named-mechanism park; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:AudioLoadPart",
+  "id": "work_claim.exact-audio.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-W4",
+  "recorded_at": "2026-08-31T06:09:46Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

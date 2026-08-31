@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "OPUS EXACT-DRIVE lane, whole TUs src/game/pb/pb_diag.c + src/game/pb/pb_texture.c + src/game/mb/mb_blit.c: pbDiagDrawTexture 99.77 (385i), pbDiagDrawObject 99.54 (301i), fn_800C70C8 99.76 (83i), MBCreateBlit 99.74 (156i) \u2014 all WALL re-screens; their parks predate most of the modern corpus and brief now stamps REVERIFY banners on stale ones. Exact or named-mechanism park; our-colouring check before any WEBFRANK-READY flag; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:pbDiagDrawTexture",
+  "id": "work_claim.exact-pb-mb.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-W3",
+  "recorded_at": "2026-08-31T06:09:42Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
