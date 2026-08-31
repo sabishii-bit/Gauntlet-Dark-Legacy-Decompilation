@@ -4003,13 +4003,13 @@ void move_logic15(s32 index)
     case 0: {
         u8* n = sLookoutParams;
         s32 i;
+        f32 ex = e->objgrp.worldmat[3][0];
+        f32 ey = e->objgrp.worldmat[3][1];
+        f32 ez = e->objgrp.worldmat[3][2];
         s32 best_idx = -1;
         f32 best_dist = lbl_803468B0;
         f32 thresh = lbl_80346820;
         f32 d;
-        f32 ex = e->objgrp.worldmat[3][0];
-        f32 ey = e->objgrp.worldmat[3][1];
-        f32 ez = e->objgrp.worldmat[3][2];
 
         for (i = 0; i < sNumLookoutParams; i++, n += 108) {
             if (*(s16*)(n + LOOKOUT_NEXT) >= 0) {
