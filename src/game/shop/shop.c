@@ -640,12 +640,7 @@ extern level_data* gCurLevel; /* 0x8034483C active level record */
 extern char lbl_80114918[];  /* final-stats string pool                */
 extern s32 lbl_80122F30[];   /* per-player stats x column              */
 extern s32 lbl_80122F40[];   /* per-player stats y column              */
-extern f32 lbl_80348330;     /* stats line text scale                  */
-extern f32 lbl_80348334;     /* stats title text scale                 */
 extern char lbl_80348338[8];  /* "%d" fmt (sdata)                       */
-extern f64 lbl_80348340;     /* seconds per day                        */
-extern f64 lbl_80348348;     /* seconds per hour                       */
-extern f64 lbl_80348350;     /* seconds per minute                     */
 extern char lbl_80348358[8]; /* "%d Days" fmt (sdata2)                 */
 typedef struct PadStateView { u8 _0[8]; u32 buttons; u8 _c[48]; } PadStateView;
 extern PadStateView lbl_80240E30[]; /* pad states, stride 60, buttons @+8 (CTL in controls.c) */
@@ -679,7 +674,7 @@ static s32 shop_show_final_stats(u8* pl)
     done = 0;
     stats = pl + *(s32*)(pl + offsetof(Player, character)) * 28 + PSHOP_STAT_NOW_OFF;
     timer = *(s32*)(pl + offsetof(Player, field_A6C));
-    scale = lbl_80348330;
+    scale = 0.48f;
     xbase = lbl_80122F30[*(s32*)pl];
     ypos = lbl_80122F40[*(s32*)pl];
     x8 = xbase + 8;
@@ -689,7 +684,7 @@ static s32 shop_show_final_stats(u8* pl)
         *(s32*)(pl + offsetof(Player, field_A6C)) = timer + gFrameTicks;
     }
     nx = -ypos;
-    DrawGlowText(lbl_80348334, nx, 32, pool + 80);
+    DrawGlowText(0.56f, nx, 32, pool + 80);
     if (t > 90 && t < 150) {
         DrawGlowText(scale, nx, 60, pool + 92);
     } else {
@@ -727,11 +722,11 @@ static s32 shop_show_final_stats(u8* pl)
         DrawTextKeepScale(scale, nx, y2 + 76, 6, 0xFFFFFF, pool + 144);
     }
     secs = *(f32*)(stats + offsetof(PlayerShopStat, field_18));
-    days = (s32)(secs / lbl_80348340);
-    secs = (f32)-(lbl_80348340 * (f32)(s32)(secs / lbl_80348340) - secs);
-    hours = (s32)(secs / lbl_80348348);
-    secs = (f32)-(lbl_80348348 * (f32)(s32)(secs / lbl_80348348) - secs);
-    mins = (s32)(secs / lbl_80348350);
+    days = (s32)(secs / 5184000.0);
+    secs = (f32)-(5184000.0 * (f32)(s32)(secs / 5184000.0) - secs);
+    hours = (s32)(secs / 216000.0);
+    secs = (f32)-(216000.0 * (f32)(s32)(secs / 216000.0) - secs);
+    mins = (s32)(secs / 3600.0);
     if (t > 270) {
         sprintf(buf, lbl_80348358, days);
         DrawGlowText(scale, nx, y2 + 94, buf);
@@ -750,9 +745,9 @@ static s32 shop_show_final_stats(u8* pl)
             return 1;
         }
         MBNewTempBlit(lbl_80344E48, x8 + 8, 280, 16, 16);
-        DrawGlowText(lbl_80348360, x8 + 32, 280, pool + 184);
+        DrawGlowText(0.5f, x8 + 32, 280, pool + 184);
     }
-    DrawTextKeepScale(lbl_80348364, nx, 8, 6, 0, lbl_80348368);
+    DrawTextKeepScale(0.45f, nx, 8, 6, 0, lbl_80348368);
     return 0;
 }
 #pragma opt_lifetimes reset
@@ -768,16 +763,11 @@ extern void check_player_atts(u8* pl, s32 cls, u8* expslot);
 extern char* GetStringText(s32 id, s32 sub, s32 mode);
 extern char* GetStringListText(s32 id, s32 sub, s32 line, s32 mode);
 extern void DrawStringText(s32 x, s32 y, s32 font, u32 rgb, s32 msg, ...);
-extern f32 lbl_80348330;    /* stat row text scale   */
-extern f32 lbl_80348378;    /* level number scale    */
-extern f32 lbl_8034837C;    /* level name scale      */
 extern char lbl_80348380[8]; /* stat row 2 label      */
 extern char lbl_80348388[8]; /* stat row 3 label      */
 extern char lbl_80348390[8]; /* stat row 4 label      */
 extern char lbl_80348398[4]; /* health label line 1   */
 extern char lbl_8034839C[8]; /* health label line 2   */
-extern f64 lbl_803483A8;    /* health-per-level      */
-extern f64 lbl_80348370;    /* int-conv magic        */
 extern s32 lbl_80122F30[];  /* per-player panel base x */
 
 /* Level-up / level-intro panel for one shop player; returns 1 when the
@@ -804,7 +794,7 @@ static s32 shop_show_lv(u8* pl, s32 final)
     f32 d4;
     char buf[20];
 
-    kScale = lbl_80348330;
+    kScale = 0.48f;
     exps = pl + *(s32*)(pl + offsetof(Player, character)) * 24 + PCLASS_EXP_CKPT_OFF;
     fmts = lbl_80114918;
     x1 = lbl_80122F30[*(s32*)pl] + 8;
@@ -835,9 +825,9 @@ static s32 shop_show_lv(u8* pl, s32 final)
     }
     sprintf(buf, fmts + 196, *(s32*)(pl + offsetof(Player, level)));
     if (anim != 0) {
-        DrawGlowText(lbl_80348378, -xcol, 32, buf);
+        DrawGlowText(0.75f, -xcol, 32, buf);
     } else {
-        DrawTextKeepScale(lbl_80348378, -xcol, 32, 6, 0xFFFFFF, buf);
+        DrawTextKeepScale(0.75f, -xcol, 32, 6, 0xFFFFFF, buf);
     }
     {
         s32 lv = *(s32*)(pl + offsetof(Player, level));
@@ -851,7 +841,7 @@ static s32 shop_show_lv(u8* pl, s32 final)
             name = GetStringListText(0, *(s32*)(pl + offsetof(Player, character)), tens >> 1, 0);
         }
         xcol = -xcol;
-        DrawTextKeepScale(lbl_8034837C, xcol, 64, 6, 0xFFFFFF, name);
+        DrawTextKeepScale(0.6f, xcol, 64, 6, 0xFFFFFF, name);
     }
     {
         s32 old = *(s32*)(pl + offsetof(Player, level));
@@ -947,7 +937,7 @@ static s32 shop_show_lv(u8* pl, s32 final)
     } else {
         s32 v = (s32)player_max_health(pl);
         if (final == 0) {
-            v = (s32)(v - lbl_803483A8 * (*(s32*)(pl + offsetof(Player, level)) - lvl));
+            v = (s32)(v - 100.0 * (*(s32*)(pl + offsetof(Player, level)) - lvl));
         }
         sprintf(buf, lbl_80348338, v);
         DrawTextKeepScale(kScale, x2, 196, 6, 0xFFFFFF, buf);
@@ -973,9 +963,9 @@ static s32 shop_show_lv(u8* pl, s32 final)
             return 1;
         }
         MBNewTempBlit(lbl_80344E48, x1 + 8, 280, 16, 16);
-        DrawGlowText(lbl_80348360, x1 + 32, 280, fmts + 184);
+        DrawGlowText(0.5f, x1 + 32, 280, fmts + 184);
     }
-    DrawTextKeepScale(lbl_80348364, xcol, 8, 6, 0, lbl_80348368);
+    DrawTextKeepScale(0.45f, xcol, 8, 6, 0, lbl_80348368);
     return 0;
 }
 
@@ -1124,10 +1114,6 @@ extern s32 PlayerItemState(s32 player, u8* entry);
 extern s32 AudioFindPlayerSlot(s32 player, s32 a, s32 b);
 extern void WritePlayerInfo(s32 player);
 extern s32 lbl_80344C00;
-extern f64 lbl_80348370;
-extern f32 lbl_803483C0;
-extern f32 lbl_803483C4;
-extern f32 lbl_803483C8;
 static s32 calculate_player_shopping_parameters_8009C0F0(s32 player,
                                                          u8* entry);
 
@@ -1181,11 +1167,11 @@ static void shop_setup(void)
                 if (*(s32*)(pl + offsetof(Player, state)) == 0) {
                     mbBlitInit3414(*b4, 1);
                 }
-                mbBlitCvtCoord(*b, lbl_803483C0);
-                mbBlitCvtCoord(*b1, lbl_803483C0);
-                mbBlitCvtCoord(*b2, lbl_803483C4);
-                mbBlitCvtCoord(*b3, lbl_803483C4);
-                mbBlitCvtCoord(*b4, lbl_803483C8);
+                mbBlitCvtCoord(*b, 64000.0f);
+                mbBlitCvtCoord(*b1, 64000.0f);
+                mbBlitCvtCoord(*b2, 63900.0f);
+                mbBlitCvtCoord(*b3, 63900.0f);
+                mbBlitCvtCoord(*b4, 63800.0f);
                 mbBlitUpdateEntry(*b2, -1, 0x4000);
                 MBBlitSetColor4(*b2, 0x80808080, 0x80808080, 0x80808080,
                                 0x80808080);
@@ -2199,7 +2185,7 @@ void calc_shop_ypos(s32 player)
     u8* entry;
     s32 i;
     s32 y;
-    f64 scale = lbl_80348428;
+    f64 scale = 0.5;
 
     p = (u8*)gPlayers + player * 13148;
     ypos = &lbl_8028A520[player << 6];
