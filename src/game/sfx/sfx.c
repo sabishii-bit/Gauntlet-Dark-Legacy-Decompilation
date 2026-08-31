@@ -2782,11 +2782,7 @@ void ProcessEffects(void)
                 lightScale = 1.0f;
                 radius = e->damageradius;
                 damageScale = 1.0f;
-            } else if (mode == 0) {
-                lightScale = 1.0f;
-                radius = e->colrad;
-                damageScale = 1.0f;
-            } else {
+            } else if (mode != 0) {
                 f32 damageTime = e->maxtime - e->damagedelay;
                 f32 phase;
 
@@ -2821,6 +2817,10 @@ void ProcessEffects(void)
                 } else {
                     lightScale = 0.0f;
                 }
+            } else {
+                lightScale = 1.0f;
+                radius = e->colrad;
+                damageScale = 1.0f;
             }
             collisionDamage = e->damage * damageScale;
 
@@ -3357,18 +3357,23 @@ void ProcessEffects(void)
                         f32 itemHit;
                         f32 itemMindp;
                         s32 skip;
+                        s32 special;
                         s32 noDmg;
 
                         item = &sItems[itemIndex];
+                        special = 0;
                         if (item->def->type == 2 && item->data_type >= 0 &&
                             gWorldInfo.itemdefs[item->data_type].type == 4) {
-                            skip = 0;
-                        } else {
+                            special = 1;
+                        }
+                        if (special == 0) {
                             skip = SfxSkipItem_80096FF4(
                                 item, e->flags, (u32)e->damagetype);
-                        }
-                        if (skip == 1) {
-                            continue;
+                            if (skip == 1) {
+                                continue;
+                            }
+                        } else {
+                            skip = 0;
                         }
                         if (!(e->flags & DMG_NOHITFX) &&
                             sMusicFadeBase < item->fxhittime) {
@@ -3394,8 +3399,8 @@ void ProcessEffects(void)
                                 continue;
                             }
                         }
-                        if (fn_8005F0F4(item, oldpos, pos, hitpos,
-                                       itemRadius, itemRadius) < 0.0) {
+                        if (!(fn_8005F0F4(item, oldpos, pos, hitpos,
+                                          itemRadius, itemRadius) >= 0.0)) {
                             continue;
                         }
                         if ((e->damagetype & DMG_HEAL) && owner > 0) {
