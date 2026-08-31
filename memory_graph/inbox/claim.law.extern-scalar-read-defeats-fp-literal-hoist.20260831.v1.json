@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/sfx/sfx.c::ProcessEffects (worktree GDL-Claude-SfxMatch, work_claim.sfx-processeffects-3.20260831.v1, attempt.processeffects-frame-pad-fix.20260829.v4, commit 8742bd312): the function's dominant residual since v1 - a function-wide FP-constant materialization divergence where target hoists ~20 double/float constants into one prologue block (11 kept in NV FPRs f14-f30, ~9 spilled to stack slots via a solid lfd/stfd run) while our build reloaded them from the constant pool at every use site - was fully explained and largely closed by replacing 32 reads of `extern f64/f32 lbl_80348xxx;` pseudo-globals with their literal values (0.0333333333, 0.2, 1.5, 2.0f, 15.0f, ...; values read from the splitter's build/GUNE5D/asm/auto_11_*_sdata2.s data). One batch edit moved real 2404 -> 2277 and fuzzy 89.91% -> 91.98%, and flipped a previously-REGRESSED parked axis (ownerPlayer recompute) to IMPROVED on re-probe.",
+    "scope": "MWCC GC 1.2.5 family, any NonMatching TU whose reconstruction declares split .sdata2/.rodata literal-pool entries as `extern f64 lbl_*` / `extern f32 lbl_*` variables and reads them inside a loop that contains calls; applies to the whole-function FP register web, not just the read sites.",
+    "tags": [
+      "matching",
+      "sda-global",
+      "cse",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.extern-scalar-read-defeats-fp-literal-hoist.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:36:14Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A floating-point constant spelled as a LITERAL in source is loop-invariant to MWCC: inside a large loop it gets PRE-hoisted into the pre-loop block, assigned a non-volatile FPR, or - when FPR pressure is exhausted - spilled once to a stack slot and reloaded from that slot at each use (the lfd-from-r1-slot pattern). The SAME value spelled as a read of a mutable `extern f64/f32 lbl_*` GLOBAL is NOT hoistable across calls (a callee could store to it), so MWCC reloads it from the pool at every use site and it never participates in the prologue hoist. A reconstruction that declares the original TU's own literal-pool entries (typically named lbl_80xxxxxx by the splitter in .sdata2) as extern variables therefore diverges from target across the ENTIRE function's FP web - wrong residents, wrong spill slots, cascading register colors - even though every individual load looks locally plausible. Diagnostic tells: (1) target has a solid prologue run of lfd-from-pool + stfd-to-r1-slot pairs your build lacks (--ops multiset heavy in target-only lfd/stfd); (2) target reloads constants from r1 slots or NV FPRs mid-body where you emit lfs/lfd from the SDA pool; (3) your own source literals DO hoist correctly, so the divergence correlates exactly with which values are spelled as externs. Fix: read the values out of the splitter's generated data .s (build/GUNE5D/asm/auto_*_sdata2.s gives .float/.double directives per label) and substitute literals at the read sites INSIDE the target function only - sibling functions already matching with the extern spelling must keep it. f32 externs take an f-suffixed literal, f64 externs a plain one; the shortest-roundtrip decimal printed by the splitter reproduces the exact bits. Corollary (verified same session): after such a batch fix, RE-PROBE any axis previously parked as a register-cascade regression - the whole web reshapes and parked probes can flip sign (claim.law/AGENTS alignment-sensitivity rule)."
+}

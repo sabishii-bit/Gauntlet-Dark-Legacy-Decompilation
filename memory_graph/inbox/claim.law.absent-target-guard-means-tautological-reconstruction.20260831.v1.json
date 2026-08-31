@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "provenance": "src/game/sfx/sfx.c::ProcessEffects (attempt.processeffects-frame-pad-fix.20260829.v4, commit 6e2397bb1): our source guarded the first collide block with `if ((e->flags & 1) && hit == 0)` while target's disassembly tests ONLY flags&1 - hit had just been unconditionally assigned 0 a few statements earlier (li r30,0 visible in both streams) and no path between the assignment and the test writes it. Removing the tautological `&& hit == 0` moved real 2257 -> 2219 (the extra cmpwi/bne plus knock-on layout). Same session, same mechanism inverted: two sibling blocks whose flat `if (A && B && C) {X} else if (mode == 0) {Y}` re-tested mode at the else-if even though the taken path proved it - target's shape was the nested `if (mode != 0) { if (B && C) {X} } else {Y}`, which needs no re-test (commit 8135dd765, real 2458 -> 2388 together with the &&-order fixes).",
+    "scope": "MWCC GC 1.2.5 family; applies when reconstructing guard conditions for any function - the compiler's (non-)folding of provably-constant subconditions is a reliable witness for what the original source actually wrote.",
+    "tags": [
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.absent-target-guard-means-tautological-reconstruction.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:36:18Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MWCC at this project's optimization level does NOT constant-fold a redundant condition you write: if your source tests `hit == 0` right after `hit = 0;` (no intervening write), the compiler still emits the cmpwi/bne. Therefore, when target's disassembly LACKS a test your reconstruction emits, and the tested variable is provably constant on every path reaching it, the original source simply never wrote that test - delete it rather than hunting for a folding lever. The same witness works for chain shapes: a flat `if (A && B && C) {X} else if (!A') {Y}` re-evaluates the A-class condition at the else-if arm; if target's stream shows the B/C-failure paths branching STRAIGHT past Y with no re-test, the original was the nested form `if (A) { if (B && C) {X} } else {Y}` (semantically identical, no re-test emitted). Related orientation fix verified 4x in one session: MWCC evaluates && operands strictly in source order, so a target stream that tests a cheap register compare (cmpwi hit,0) BEFORE the flags load+rlwinm means the original spelled `hit == 0 && (e->flags & N)`, not the reverse. Diagnostic: --ops clusters of the shape `delete T=[cmpwi,bne] ... insert O=[cmpwi,bne]` a few instructions apart flag &&-order mismatches; ours-only cmpwi/bne with NO target counterpart flags a tautological test."
+}

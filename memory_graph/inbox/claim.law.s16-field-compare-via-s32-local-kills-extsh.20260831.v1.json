@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "provenance": "src/game/sfx/sfx.c::ProcessEffects (attempt.processeffects-frame-pad-fix.20260829.v4, commit f48ca0e99): two extsh.-vs-cmpwi residuals recorded as 'unexplained MWCC codegen choice' in the v2 record both fell to the same source-level lever. Site 1: `e->fxmorph > 0 && e->fxmorph < MAXEFFECTTYPES` (s16 field) emitted lha + extsh. + ble for the zero compare; introducing `s32 morph = e->fxmorph;` and testing/passing the local produced target's lha + cmpwi 0 + cmpwi 218 exactly (register-exact window). Site 2: `item->data_type >= 0` inside a 3-term && chain - a mid-chain local is impossible, but nesting the chain (`if (type == 2) { s32 dt = item->data_type; if (dt >= 0 && itemdefs[dt].type == 4) ... }`) placed the promotion without changing short-circuit shape; whole chain went register-exact including the mulli index derived from dt. real 2408 -> 2404 for the pair.",
+    "scope": "MWCC GC 1.2.5 family; s16/s8 struct-field compares against constants, especially compare-vs-zero.",
+    "tags": [
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.s16-field-compare-via-s32-local-kills-extsh.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:36:22Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "Comparing an s16 lvalue against ZERO makes MWCC re-normalize the (already sign-extended) lha result with a record-form extsh. rX,rY instead of a cmpwi, even though the extension is redundant; comparing the SAME field against a nonzero constant in the same expression uses cmpwi. Target streams that show `lha; cmpwi rX,0` for a zero compare therefore indicate the original routed the field through an int-typed context first - typically `s32 v = e->s16field;` with the comparisons (and any later array-index or argument use) reading the local. The local also carries the value to reuse sites (index mulli, call argument) exactly as target does. When the compare sits mid-&&-chain where a declaration cannot go, split the chain into nested ifs at the term boundary before the s16 read - short-circuit semantics and branch topology are unchanged, and the block gives the s32 local a legal home. Do NOT try `(s32)field >= 0` casts: the cast is the default promotion and folds to the same extsh. form. Extends claim.law.compare-form-dictionary; supersedes the 'unexplained extsh./cmpwi variants' residual note in attempt.processeffects-frame-pad-fix.20260829.v2."
+}
