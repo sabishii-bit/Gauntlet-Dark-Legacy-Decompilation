@@ -825,7 +825,7 @@ void ScreenSaver(void)
 }
 
 #pragma dont_inline on
-int MBOX_FindTexture_Err();
+int MBOX_FindTexture_Err(char* name, s32* out, s32 err);
 u32 MBRomTexPtr(int texid);
 int sprintf(char* dst, const char* fmt, ...);
 extern char lbl_803473EC[2];    /* rune-name suffix */
@@ -842,7 +842,7 @@ int towerGetRuneNearStat(s32 player, s32 stat);
 int PlayerHasRune(s32 player, s32 rune);
 void print_n_of_m(s32 style, s32 n, s32 m, s32 x, u32 node);
 void DrawGlowText(s32 color, s32 y, void* text, f32 scale);
-int DrawTextKeepScale();
+int DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, s32 color, void* str);
 void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
                          s32 phase);
 extern u8 gPlayers[];
@@ -1388,7 +1388,7 @@ void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
  * Panel text/blit helper: lays out one label string into a temp blit,
  * positions it, and returns the blit handle (or NULL). Skeleton.
  */
-int MBOX_FindTexture_Err();            /* 0x800B8B34 */
+int MBOX_FindTexture_Err(char* name, s32* out, s32 err); /* 0x800B8B34 */
 u32 MBRomTexPtr(int texid);            /* 0x800BA024 */
 int sprintf(char* dst, const char* fmt, ...); /* 0x800C9BD0 */
 extern char lbl_803473D8;              /* piece-name format */
@@ -1423,7 +1423,8 @@ void* disp_piece(u32* piece, s32 xoff, u32 mode)
     return blit;
 }
 
-int DrawTextKeepScale();               /* 0x800209BC */
+int DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, s32 color,
+                      void* str);          /* 0x800209BC */
 void MBFontMsgSetAlpha(int handle, u32 node); /* 0x800B5AA8 */
 extern u8 lbl_8011D568[];              /* n-of-m style config, stride 0x24 */
 extern f64 lbl_80347418;               /* min scale to draw */
