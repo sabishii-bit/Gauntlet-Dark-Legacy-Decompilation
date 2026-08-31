@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "matching",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T16:23:45Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "CLASS VERDICT, and a correction to the routing advice at the end of claim.law.callee-saved-home-copy-coalescing-is-source-unreachable. A residual in which the target contains an instruction our build does not emit at all -- canonically the callee-saved home copy, a target-only `mr rHome,rScratch` after the defining instruction -- is INELIGIBLE for the WebFrank postprocessor on BOTH of its paths, and calling it REGISTER_ONLY is a misclassification. It is count-asymmetric, hence STRUCTURAL in WebFrank's terms, regardless of how register-flavoured the surrounding diff looks. The two refusals are independent and both are preconditions, not heuristics. (1) The recolor path (copy_register_fields, adjudicated by verify_consistent_recolor) begins by requiring equal word-aligned sizes, because a position-lockstep renaming bisimulation is only defined when the two instruction streams correspond one-to-one by position; with one stream longer there is no position correspondence to check. (2) The permutation path (permute_instruction_atoms) requires `order` to be a complete bijection over the atoms of the region: a permutation rearranges existing atoms and can never introduce, delete, or synthesise one. VERIFIED 2026-08-31 by direct size measurement on the three functions the parent law names, comparing the raw compiler objects against the extracted retail objects: fn_8005D730 target 1820 vs ours 1824 bytes, fn_8005F0F4 2640 vs 2644, fn_80062A00 1496 vs 1520 -- the target is larger in every case, which is the signature of a genuine extra instruction rather than a differently-coloured existing one. CHEAPEST SCREEN, and it should be run FIRST on any candidate: compare function sizes, or equivalently run `fndiff --count`. This is free, needs no disassembly, and disqualifies a whole class before any register theory is formed; it is the same instruction-count-first rule that claim.law.webfrank-permutation-is-audited-in-our-colouring lists as its screening rule 1, applied to the opposite sign of asymmetry. DO NOT attempt to route around this with `unproven_recolor_audit`. That hatch suppresses only the bisimulation's verdict; it does not and must not bypass the size or bijection preconditions, and reaching for it here would be precisely the guard-weakening the tool contract forbids -- it would also be futile, since the output-hash assertion would still fail because the patched function cannot equal a retail function of a different length. CONSEQUENCE FOR TRIAGE: when a residual is diagnosed as this class, it is NOT postprocessor work waiting for a rule author. It stays a source problem, and the only documented lever remains claim.law.dead-local-identity-reuse-flips-callee-saved-coloring; when a function offers no dead already-declared local to carry it, the honest outcome is a park, not a WebFrank referral. Locked in by tools/gdl/tests/test_webfrank.py::test_home_copy_coalescing_class_is_not_recolor_eligible, which asserts both refusals fire."
+}

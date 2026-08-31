@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "WebFrank copy_register_fields closure of the matchIndex r22-vs-r24 coalescing residual left by the source drive that reached 99.77%",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-permutation-is-audited-in-our-colouring APPLIED as the adjudicator: instruction counts are equal (88/88), the masked byte scan reports zero offenders, and per that law's screening rule 3 the scan alone is not proof, so verify_consistent_recolor was run as the oracle and passes. claim.law.webfrank-pinned-function-source-freeze and claim.law.webfrank-pin-freezes-its-inlined-helpers-too APPLIED to the pinning decision: the source drive at commit 561994d6 already closed every structural and reload residual in this function, so freezing it forfeits no live axis. claim.law.callee-saved-home-copy-coalescing-is-source-unreachable SCREENED and NOT applicable: that law's signature is a target-only mr leaving us one instruction short, whereas here sizes are equal and no copy is involved. claim.law.constant-copy-vs-rematerialize-is-source-unreachable SCREENED and NOT applicable: both builds emit li rN,0, differing only in N, with no copy-vs-remat asymmetry. claim.law.adding-a-local-renumbers-the-anonymous-pool-and-drifts-siblings NOT applicable (no source edit in atree.c).",
+    "laws_applied": "[\"claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1\", \"claim.law.webfrank-pinned-function-source-freeze.20260831.v1\"]",
+    "residual": "NONE. The function is byte-exact after the rule. Mechanism was a single callee-saved web recolor of the match-index counter: retail colours it r24 and ours r22, across exactly its three sites (li rN,0 at +0xa4, addi rN,rN,1 at +0xd4, cmpw cr0,rN,r0 at +0xe0). The web is created after the prologue stmw and dies before the epilogue lmw, so both builds save and restore identical caller values; the bisimulation confirms identity mapping still holds at the stmw (which fails closed on any non-identity saved register) and is re-established at the lmw.",
+    "scope": "config/GUNE5D/webfrank.json (one copy_register_fields rule, unit game/anim/atree) and tools/gdl/tests/test_webfrank.py (one mechanism test). No source edit.",
+    "verification": "Derived from build/GUNE5D/src/game/anim/.postprocess/body/atree.o against build/GUNE5D/obj/game/anim/atree.o. Proven by replaying the finished patch through the real webfrank.apply_patch and asserting equality with the retail bytes (3 atoms/fields -> EQUALS-RETAIL). Full ninja green, build/GUNE5D/main.dol: OK. NOTE for future sessions: a self-contained bisimulation on the excerpt +0xa4..+0xe4 FAILS with 'differing word is unreachable from the function entry' because that range contains a forward branch leaving the excerpt; this is an artifact of excerpting, not of the rule, and the whole-function bisimulation passes. The shipped test therefore gathers the three real web words plus a blr, the same style already used for the msgDraw lineHeight web."
+  },
+  "function": "function:fn_80011BBC",
+  "id": "attempt.fn80011bbc-webfrank-matchindex-recolor.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T16:23:20Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
