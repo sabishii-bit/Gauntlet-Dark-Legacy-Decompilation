@@ -34,6 +34,15 @@
 #include "dolphin/pad.h"
 #include "dolphin/gx/GXVert.h"
 
+/* Built as C++ so the -Cpp_exceptions on in cflags_demo actually reaches the
+ * front end (the .c extension selected the C compiler, where the flag is
+ * inert). Everything keeps C linkage: the target names every function in this
+ * TU unmangled (PlayVQMovie, MovieDecoderInitBuffers, DTextInitColorRamp,
+ * and the operator-delete pair __dl__FPv/__dla__FPv, which mb_blit.c
+ * references with a C declaration), so mangling any of them would break both
+ * the cross-TU link and the name-keyed diff pairing. */
+extern "C" {
+
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
 #endif
@@ -386,6 +395,7 @@ u32 fn_800D8BCC(MovieDecodeState* p1, int p3, char* p4, int mode, int p5, u8* p6
 u32 fn_800D8F28(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D91B4(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D9A14(MovieRingBuffer* p1, u8* p2, int p3, u8 p4);
+int fn_800D9DBC(u32 param_1, char* param_2, int param_3, u8* param_4);
 void fn_800DBE98(void* param_1, u8* param_2);
 int fn_800DB2F4(MovieChunkStream* param_1, u8* param_2, u32 param_3, u32 param_4);
 void fn_800DB3D4(MovieChunkStream* stream, s32 fd, u32 length);
@@ -2651,3 +2661,5 @@ MovieDTextInner* DTextInitColorRamp(MovieDTextInner* p) {
     p->ownsAlloc = 0;
     return p;
 }
+
+} /* extern "C" */
