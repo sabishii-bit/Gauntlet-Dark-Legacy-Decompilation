@@ -2365,7 +2365,7 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
     }
 
     best = lbl_80344510;
-    if (lbl_80344508 >= 0 && blendThreshold < nearestDistance) {
+    if (lbl_80344508 >= 0 && nearestDistance > blendThreshold) {
         lbl_80344510 = lbl_8034450C;
         lbl_8034450C = best;
         swapAngle = bestYaw;
