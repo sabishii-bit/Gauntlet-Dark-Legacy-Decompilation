@@ -3887,7 +3887,9 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                              help="filter by structured applicability tag"),
                 SurfaceParam("full", int, default=0, maximum=1,
                              help="1 = inline complete law text"),
-                SurfaceParam("limit", int, default=100, maximum=200),
+                # Default must exceed the corpus: at 100, 36 of 136 laws
+                # were silently invisible to enumeration (audit, 2026-08-31).
+                SurfaceParam("limit", int, default=400, maximum=500),
             ),
         ),
         SurfaceOp(
