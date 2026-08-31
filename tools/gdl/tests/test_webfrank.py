@@ -493,5 +493,33 @@ class RejectedResidualTests(unittest.TestCase):
             )
 
 
+class JumptableTargetTests(unittest.TestCase):
+    def test_function_entry_pointer_is_not_a_jumptable_slot(self):
+        # A data-section ADDR32 reloc resolving to the function's own START
+        # is a function pointer; collecting it as offset 0x0 gave every
+        # bctr a spurious back-edge to the prologue and failed the
+        # dependence audit before the first real difference.
+        import struct as _struct
+        from tools.gdl.webfrank import Section, _jumptable_targets
+        data = bytearray(4096)
+        fn_start, fn_end, text_index = 0x100, 0x200, 1
+        symtab_off, rela_off = 0x400, 0x600
+        # one symbol: value=0 (section base), section index = text
+        _struct.pack_into(">I", data, symtab_off + 16 + 4, 0)
+        _struct.pack_into(">H", data, symtab_off + 16 + 14, text_index)
+        # two ADDR32 relocs against symbol #1: addends fn_start (entry
+        # pointer) and fn_start+8 (a genuine jumptable slot)
+        _struct.pack_into(">IIi", data, rela_off, 0, (1 << 8) | 1, fn_start)
+        _struct.pack_into(">IIi", data, rela_off + 12, 4, (1 << 8) | 1,
+                          fn_start + 8)
+        sections = [
+            Section(0, ".symtab", 2, symtab_off, 32, 0, 0, 16),
+            Section(2, ".rela.data", 4, rela_off, 24, 0, 5, 12),
+        ]
+        targets = _jumptable_targets(data, sections, text_index,
+                                     fn_start, fn_end)
+        self.assertEqual(targets, {8})
+
+
 if __name__ == "__main__":
     unittest.main()

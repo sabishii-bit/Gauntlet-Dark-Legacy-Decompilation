@@ -165,7 +165,12 @@ def _jumptable_targets(
             if section_index != text_index:
                 continue
             resolved = value + r_addend
-            if fn_start <= resolved < fn_end:
+            # A data reference to the function's own ENTRY is a function
+            # pointer, not a jumptable slot: collecting offset 0x0 gave
+            # every bctr a spurious back-edge to the prologue, failing the
+            # dependence audit 0x330 bytes before the first real difference
+            # (claim.law.webfrank-cfg-entry-pseudotarget-false-negative).
+            if fn_start < resolved < fn_end:
                 targets.add(resolved - fn_start)
     return targets
 
