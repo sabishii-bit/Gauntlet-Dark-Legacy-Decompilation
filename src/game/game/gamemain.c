@@ -114,6 +114,22 @@
 /* Cross-TU externs (types chosen to reproduce the emitted access form) */
 /* ------------------------------------------------------------------ */
 
+/* Per-level navigation record reached through gWorldData->levels. */
+typedef struct WorldLevelNav {
+    u32 flags;
+    s16 flags2;
+    u8 _06[0x106];
+} WorldLevelNav;
+
+/* Head of the loaded world-data blob: level cursor plus the level array. */
+typedef struct WorldDataNav {
+    u8 _00[0x16];
+    s16 curLevel;
+    s16 numLevels;
+    u8 _1A[2];
+    WorldLevelNav* levels;
+} WorldDataNav;
+
 /* Active level / world-data records (SDA-relative pointers). */
 extern level_data* gCurLevel;      /* 0x8034483C */
 extern u8*  gWorldData;            /* 0x80344838 */
@@ -2587,20 +2603,6 @@ u32 FindWave(const s8* s)
     }
     return (realm << 8) | ((u32)((s32)(s8)s[1] - '1') & 0xFF);
 }
-
-typedef struct WorldLevelNav {
-    u32 flags;
-    s16 flags2;
-    u8 _06[0x106];
-} WorldLevelNav;
-
-typedef struct WorldDataNav {
-    u8 _00[0x16];
-    s16 curLevel;
-    s16 numLevels;
-    u8 _1A[2];
-    WorldLevelNav* levels;
-} WorldDataNav;
 
 typedef struct WorldTypeNav {
     s32 worldId;
