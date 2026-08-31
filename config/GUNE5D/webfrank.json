@@ -70,6 +70,47 @@
           "instructions": 107
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "LineLineDist",
+        "before_sha256": "49596e08342174450623a347ea14704af6233f5d39a6a210bd13599ec499498e",
+        "after_sha256": "cb0b03c8b9fc6998e6e8f89faf8b07e556938f04ec78ff749c90dc4b9e687764",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 464,
+          "permuted_instructions": 2
+        },
+        "mechanism": "attempt.linelinedist-entry-load-permutation.20260831.v1 (stage 1 of 2) - the entry cross-product load pair at +0x14 is transposed: ours loads dirB->x 0(r4) then dirA->z 8(r7), the target loads dirA->z first. Two independent lfs with different base registers, distinct FPR destinations and no store between them, so the dependence audit passes as a load/load reorder. This single transposition seeds the whole-function FPR renaming closed by stage 2.",
+        "instruction_permutation": {
+          "start": "0x14",
+          "end": "0x1c",
+          "order": [1, 0],
+          "before_sha256": "284bc8ef936d9d9e68d4199c67b36b953de004773d3b08cb5310fc50857da4be",
+          "after_sha256": "6ef4b46d4417bb5728ca60a56904e1faf3163a23c101c8b23f5f61ece2d3f2ae",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "function": "LineLineDist",
+        "before_sha256": "cb0b03c8b9fc6998e6e8f89faf8b07e556938f04ec78ff749c90dc4b9e687764",
+        "after_sha256": "06e7f0aae954c968aa8a3eaf793bb7c7451cdbb904bf5d1da604f14b5ec4a159",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 464,
+          "permuted_instructions": 5
+        },
+        "mechanism": "attempt.linelinedist-entry-load-permutation.20260831.v1 (stage 2 of 2) - a second, wider transposition at +0x128 that the record did not name: the two dirB loads 4(r4)/8(r4) AND the two fmuls that consume them exchange, over the intervening independent lfs 0(r4), giving order [1, 0, 4, 3, 2]. The masked byte scan alone sees only the two loads; the renaming bisimulation is what exposed the paired multiplies, because ours computes f6*[4(r4)] where the target computes the same product one slot later. Every def-use chain and final write survives. The remainder is the bijective FPR renaming over the f24-f31 nonvolatile set (both sides save f24-f31 via _savefpr_24), machine-proven by verify_consistent_recolor. Worth 272 real diff lines - the largest single webfrank closure to date.",
+        "instruction_permutation": {
+          "start": "0x128",
+          "end": "0x13c",
+          "order": [1, 0, 4, 3, 2],
+          "before_sha256": "21df7f8e4fa39f83861d91a1d8820751f8a24e40c9a3227f1d5349abfbce182b",
+          "after_sha256": "3485aafe5805698c9fa30277ccfcba723ef18feddcc808ad3493a9ba8f0f9f11",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "copy_register_fields": true
       }
     ],
     "game/game/combat": [

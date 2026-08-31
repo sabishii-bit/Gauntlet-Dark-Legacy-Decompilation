@@ -277,6 +277,29 @@ class ShippedRuleMechanismTests(unittest.TestCase):
         target = bytes.fromhex("3ba30002 7fbd0e70 7c9df050 4e800020")
         verify_consistent_recolor(current, target)
 
+    def test_line_line_dist_entry_load_transposition(self):
+        # +0x14: lfs f28,0(r4)(dirB->x); lfs f11,8(r7)(dirA->z) -> exchanged.
+        # attempt.linelinedist-entry-load-permutation.20260831.v1 stage 1
+        region = bytes.fromhex("c3840000 c1670008")
+        check_permutation_dependences(region, [1, 0])
+
+    def test_line_line_dist_paired_load_and_multiply_transposition(self):
+        # +0x128: the two dirB loads 4(r4)/8(r4) AND the two fmuls consuming
+        # them exchange across an independent lfs 0(r4).  The masked byte scan
+        # sees only the loads; this ordering is what the bisimulation forced.
+        # attempt.linelinedist-entry-load-permutation.20260831.v1 stage 2
+        region = bytes.fromhex(
+            "c3640004 c3840008 eda606f2 c3a40000 ed870732"
+        )
+        check_permutation_dependences(region, [1, 0, 4, 3, 2])
+
+    def test_line_line_dist_fpr_renaming_is_consistent(self):
+        # After the entry transposition: lfs f11,8(r7); lfs f28,0(r4);
+        # fmuls f0,f28,f11 recolours to f12/f9 with the product following.
+        current = bytes.fromhex("c1670008 c3840000 ec1c02f2 4e800020")
+        target = bytes.fromhex("c1870008 c1240000 ec090332 4e800020")
+        verify_consistent_recolor(current, target)
+
     def test_msg_post_desc_offset_web_is_a_consistent_recolor(self):
         # The r29 -> r26 descOffset web: mulli, add, lwzx, then blr.
         current = bytes.fromhex("1fbe001c 7f3bea14 7c04e82e 4e800020")
@@ -309,6 +332,18 @@ class RejectedResidualTests(unittest.TestCase):
         region = bytes.fromhex("807f0008 90610048 5403103a")
         with self.assertRaisesRegex(ValueError, "def-use chains"):
             check_permutation_dependences(region, [0, 2, 1])
+
+    def test_btrilinecol_copy_provenance_is_not_a_renaming(self):
+        # lfs f2,lbl_80345D50; fmr f26,f2; fmuls f1,f0,f26.  The target keeps
+        # the constant in f26 and copies it to f25, while we load into f2 and
+        # copy to f26, so the later use reads an equal VALUE from a different
+        # register.  Value equality via copies is not a renaming, and proving
+        # it would need fmr copy-propagation the bisimulation deliberately
+        # does not model.
+        current = bytes.fromhex("c0400000 ff401090 ec2006b2 4e800020")
+        target = bytes.fromhex("c3400000 ff20d090 ec2006b2 4e800020")
+        with self.assertRaisesRegex(ValueError, "does not correspond"):
+            verify_consistent_recolor(current, target)
 
 
 if __name__ == "__main__":
