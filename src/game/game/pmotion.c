@@ -874,12 +874,10 @@ void PlayerMotion_SetAnimState(Player* p) {
  */
 static f32 PlayerMotion_WrapAngle(f32 angle) {
     f64 a = (f64)angle;
-    if (a > lbl_80347B50) {
-        a = a - lbl_80347B60;
-    } else if (a <= lbl_80347B68) {
-        a = lbl_80347B60 + a;
-    }
-    return (f32)a;
+    f64 wrapped = (a > lbl_80347B50)  ? a - lbl_80347B60
+                  : (a <= lbl_80347B68) ? lbl_80347B60 + a
+                                        : a;
+    return (f32)wrapped;
 }
 
 static s32 PlayerMotion_FpClassify(f32 value) {
