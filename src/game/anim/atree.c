@@ -1002,7 +1002,7 @@ void* AtreeMatch(atreeheader* hdr, char* name, s32 report)
         union {                                                               \
             u32 w;                                                            \
             u8 b[4];                                                          \
-        } _s, _d;                                                             \
+        } _d, _s;                                                             \
         _s.w = (s);                                                           \
         _d.b[0] = _s.b[3];                                                    \
         _d.b[1] = _s.b[2];                                                    \
