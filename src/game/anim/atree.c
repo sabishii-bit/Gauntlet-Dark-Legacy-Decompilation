@@ -1215,7 +1215,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             /* sequence table, stride sizeof(animseqdesc). +0x20/+0x22/+0x26
              * are real fields absorbed into animseqdesc's _pad00/_pad26 -
              * left as bare offsets, no GC-verified name for them yet. */
-            for (j = 0; j < blob[5]; j++) {
+            for (j = 0; j < def->sequenceCount; j++) {
                 u8* seq = (u8*)(blob[0] + j * sizeof(animseqdesc));
                 SWAP16(*(u16*)(seq + 0x20));
                 SWAP16(*(u16*)(seq + 0x22));
@@ -1227,7 +1227,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             }
 
             /* node-info table, stride sizeof(AtreeNodeDef) */
-            for (j = 0; j < blob[4]; j++) {
+            for (j = 0; j < def->nodeCount; j++) {
                 u8* ni = (u8*)(blob[3] + j * sizeof(AtreeNodeDef));
                 SWAPF32(((AtreeNodeDef*)ni)->position[0]);
                 SWAPF32(((AtreeNodeDef*)ni)->position[1]);
@@ -1239,11 +1239,11 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
                 SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, parent)));
             }
 
-            if (((AtreeDefinition*)blob)->animheader != NULL) {
+            if (def->animheader != NULL) {
                 blob[1] = (s32)SetupAnimHeader(
                     (int*)((u8*)blob + blob[1]), (int*)0);
             }
-            if (((AtreeDefinition*)blob)->oanimheader != NULL) {
+            if (def->oanimheader != NULL) {
                 blob[2] += (s32)blob;
                 SWAP32(*(u32*)blob[2]);
                 SWAP32(*(u32*)(blob[2] + 4));
