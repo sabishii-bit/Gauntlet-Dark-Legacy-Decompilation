@@ -996,48 +996,6 @@ void* AtreeMatch(atreeheader* hdr, char* name, s32 report)
     return NULL;
 }
 
-/* byte-order fixup helpers: the atree resource is little-endian on disk. */
-#define SWAP32TO(d, s)                                                        \
-    do {                                                                      \
-        u32 _dw;                                                              \
-        u32 _sw;                                                              \
-        u8* _dp;                                                              \
-        u8* _sp;                                                              \
-        _sw = (s);                                                            \
-        _sp = (u8*)&_sw;                                                       \
-        _dp = (u8*)&_dw;                                                       \
-        _dp[0] = _sp[3];                                                      \
-        _dp[1] = _sp[2];                                                      \
-        _dp[2] = _sp[1];                                                      \
-        _dp[3] = _sp[0];                                                      \
-        (d) = _dw;                                                            \
-    } while (0)
-
-#define SWAP32(x) SWAP32TO(x, x)
-
-/* byte-swap a float in place: the word view is taken through a union so the
- * value travels as a float at both ends. */
-#define SWAPF32(x)                                                            \
-    do {                                                                      \
-        union {                                                               \
-            f32 f;                                                            \
-            u32 w;                                                            \
-        } _fs, _fd;                                                           \
-        _fs.f = (x);                                                          \
-        SWAP32TO(_fd.w, _fs.w);                                               \
-        (x) = _fd.f;                                                          \
-    } while (0)
-
-#define SWAP16(x)                                                             \
-    do {                                                                      \
-        union {                                                               \
-            u16 h;                                                            \
-            u8 b[2];                                                          \
-        } _s;                                                                 \
-        _s.h = (x);                                                           \
-        (x) = (u16)((_s.b[1] << 8) | _s.b[0]);                                \
-    } while (0)
-
 extern int* SetupAnimHeader(int* hdr, int* dst);
 extern void InitOAnimList(void* hdr, int arg);
 
@@ -1071,6 +1029,11 @@ static inline f32 AtreeNodeSwapF32(f32 value)
     result = AtreeNodeSwap32(*(u32*)&value);
     return *(f32*)&result;
 }
+
+/* byte-order fixup helpers: the atree resource is little-endian on disk. */
+#define SWAP32(x) (x) = AtreeNodeSwap32(x)
+#define SWAPF32(x) (x) = AtreeNodeSwapF32(x)
+#define SWAP16(x) (x) = AtreeNodeSwap16(x)
 
 typedef struct AtreeWorldPsys {
     u32 version;
@@ -1176,10 +1139,6 @@ void fn_80011DCC(AtreeWorldPsys* psys)
  * InitOAnimList over each match entry, then claim an atree-list slot. */
 u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
 {
-    /* stands in for an unrecovered local: the target reserves 296 bytes at the
-     * bottom of the frame that this function never reads or writes and whose
-     * address is never taken. */
-    u8 unused[248];
     u8* base = (u8*)hdr;
     s32 i;
     s32 j;
