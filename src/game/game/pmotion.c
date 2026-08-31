@@ -991,7 +991,7 @@ void PlayerMotion(Player* p) {
         movement = ctl->values[8];
         controlYaw = ctl->values[7];
     }
-    speedScale = movement * PF(p, 0xA50, f32);
+    speedScale = movement * p->field_A50;
 
     if (lbl_8034489C == 2) {
         dpos[0] = *(f32*)(gBossObj + 0x3C) - *(f32*)(motion + 0x30);
@@ -1026,9 +1026,9 @@ void PlayerMotion(Player* p) {
         dpos[2] = 0.0f;
     } else {
         f32 angle;
-        dpos[0] = PF(p, 0x870, f32) * gClockFrameStep;
-        dpos[1] = PF(p, 0x874, f32) * gClockFrameStep;
-        dpos[2] = PF(p, 0x878, f32) * gClockFrameStep;
+        dpos[0] = p->vel[0] * gClockFrameStep;
+        dpos[1] = p->vel[1] * gClockFrameStep;
+        dpos[2] = p->vel[2] * gClockFrameStep;
         if (dpos[0] * dpos[0] + dpos[1] * dpos[1] +
                 dpos[2] * dpos[2] >= lbl_80347B70) {
             angle = PlayerMotion_WrapAngle(atan2(dpos[0], dpos[2]) - facing);
@@ -1082,7 +1082,7 @@ void PlayerMotion(Player* p) {
                       : (f32)(lbl_80347BB0 * gClockFrameStep);
         dpos[2] = moveAmount * cos(facing);
     } else {
-        moveAmount = PF(p, 0xA48, f32) *
+        moveAmount = p->field_A48 *
                      (gClockFrameStep * (p->light_range * speedScale));
         dpos[0] += moveAmount * sin(facing);
         dpos[2] += moveAmount * cos(facing);
@@ -1102,9 +1102,9 @@ void PlayerMotion(Player* p) {
         get_player_pos(index, 0);
     }
 
-    PF(p, 0x888, f32) = dpos[0];
-    PF(p, 0x88C, f32) = dpos[1];
-    PF(p, 0x890, f32) = dpos[2];
+    p->dpos[0] = dpos[0];
+    p->dpos[1] = dpos[1];
+    p->dpos[2] = dpos[2];
     oldpos[0] = p->effectpos[0];
     oldpos[1] = p->effectpos[1];
     oldpos[2] = p->effectpos[2];
@@ -1115,7 +1115,7 @@ void PlayerMotion(Player* p) {
         if (lbl_8034481C != 0 &&
             (lbl_80344804 != 0 || lbl_80344808 != 0)) {
             p->state = 4;
-            PF(p, 0x1F2, s16) = 0;
+            p->field_1F2 = 0;
         }
         goto collision_done;
     }
@@ -1476,9 +1476,9 @@ collision_done:
         savedHeading = heading;
         {
             f64 decay = lbl_80347C18;
-            PF(p, 0x870, f32) = (f32)(decay * PF(p, 0x870, f32));
-            PF(p, 0x874, f32) = (f32)(decay * PF(p, 0x874, f32));
-            PF(p, 0x878, f32) = (f32)(decay * PF(p, 0x878, f32));
+            p->vel[0] = (f32)(decay * p->vel[0]);
+            p->vel[1] = (f32)(decay * p->vel[1]);
+            p->vel[2] = (f32)(decay * p->vel[2]);
         }
         reaction = PlayerKnockback(controlYaw, p, &savedHeading);
 
@@ -1489,7 +1489,7 @@ collision_done:
                 reaction = 11;
             } else if (reaction < 10 && anim == 130) {
                 reaction = 10;
-            } else if (sMusicFadeBase < PF(p, 0x898, f32) &&
+            } else if (sMusicFadeBase < p->field_898 &&
                        motionType == 1) {
                 reaction = 100;
             } else if (reaction < 1 && anim == 129) {
@@ -1710,7 +1710,7 @@ collision_done:
             }
 
             if ((motionState == 8 || motionState == 13) &&
-                PF(p, 0x8F8, s32) == 0 &&
+                p->field_8F8 == 0 &&
                 (anim < 39 || anim > 114) && ctl->control.flag != 0) {
                 if ((item >= 0 &&
                      (specialCritter == 0 || gBossType == 37 ||
@@ -1970,7 +1970,7 @@ store_motion_state:
                 } else if (forceState == 0 &&
                            (p->field_11C & 0x480000) != 0) {
                     p->anim_20C = 92;
-                } else if (PF(p, 0x908, s32) != 0 && movement != 0.0f &&
+                } else if (p->field_908 != 0 && movement != 0.0f &&
                            (p->coll_flags & 5) != 0) {
                     p->anim_20C = 32;
                 } else if ((p->coll_flags & 4) != 0 &&
@@ -2029,7 +2029,7 @@ store_motion_state:
                         p->anim_20C = 117;
                     } else if (motionState == 26) {
                         p->anim_20C = 115;
-                        PF(p, 0x956, s16) |= 2;
+                        p->field_956 |= 2;
                     } else {
                         p->anim_20C = 115;
                     }
@@ -2812,7 +2812,7 @@ store_motion_state:
                 s32 magicMode;
                 if ((p->act_bits & 0x40000) != 0) {
                     magicMode = (ctl->pad.levels & 0x10000) != 0 ? 3 : 2;
-                } else if ((PF(p, 0x956, s16) & 2) != 0) {
+                } else if ((p->field_956 & 2) != 0) {
                     magicMode = 1;
                     fn_8009F390(p->index);
                 } else {
@@ -2829,7 +2829,7 @@ store_motion_state:
                     start_magic(index, (f32*)(motion + 0x30),
                                 0, magicMode, 1.0f);
                 }
-                PF(p, 0x956, s16) = 128;
+                p->field_956 = 128;
             }
             SV(p)->act_bits = p->act_bits & ~0x60000U;
         }
@@ -2842,9 +2842,9 @@ player_motion_phase_exit:
             f32 comboTime;
             s32 grabKind;
 
-            PF(p, 0x87C, f32) = *(f32*)(motion + 0x30);
-            PF(p, 0x880, f32) = *(f32*)(motion + 0x34);
-            PF(p, 0x884, f32) = *(f32*)(motion + 0x38);
+            p->prev_pos[0] = *(f32*)(motion + 0x30);
+            p->prev_pos[1] = *(f32*)(motion + 0x34);
+            p->prev_pos[2] = *(f32*)(motion + 0x38);
             *(f32*)(motion + 0x30) += dpos[0];
             *(f32*)(motion + 0x34) += dpos[1];
             *(f32*)(motion + 0x38) += dpos[2];
@@ -2867,7 +2867,7 @@ player_motion_phase_exit:
                 p->timer_1FC = 10;
             } else {
                 turnStep = (f32)(lbl_80347CF0 * gClockFrameStep *
-                                 PF(p, 0xA4C, f32));
+                                 p->field_A4C);
                 deltaYaw = PlayerMotion_WrapAngle(heading - controlYaw);
                 if (deltaYaw > turnStep) {
                     newYaw = controlYaw + turnStep;
@@ -2950,7 +2950,7 @@ player_motion_phase_exit:
             } else {
                 grabKind = p->char_type;
             }
-            comboTime = PF(p, 0x98, f32);
+            comboTime = p->combo_time;
 
             switch (p->anim_208) {
             case 88:
@@ -2980,7 +2980,7 @@ player_motion_phase_exit:
                     if (p->grab_partner != NULL &&
                         (PF(p->grab_partner, 0x964, s16) & 0x20) == 0) {
                         PlayerSetGrabbed(p->grab_partner,
-                                         PF(p, 0x6DC, void*), NULL);
+                                         p->grab_node, NULL);
                         goto player_motion_grab_done;
                     }
                     if (grabKind != 7) {
@@ -3024,7 +3024,7 @@ player_motion_phase_exit:
                                 PlayerMotion_WrapAngle(partnerYaw -
                                                        partnerFacing));
                         PF(partner, 0x894, f32) = partnerYaw;
-                        PlayerSetGrabbed(p, PF(p->grab_partner, 0x6DC, void*),
+                        PlayerSetGrabbed(p, p->grab_partner->grab_node,
                                          NULL);
                     }
                     break;
@@ -3050,7 +3050,7 @@ player_motion_phase_exit:
                         if (p->grab_partner != NULL &&
                             (PF(p->grab_partner, 0x964, s16) & 0x20) == 0) {
                             PlayerSetGrabbed(p->grab_partner,
-                                             PF(p, 0x6DC, void*), NULL);
+                                             p->grab_node, NULL);
                             PF(p->grab_partner, 0x8FC, f32) = sMusicFadeBase;
                         }
                         break;
@@ -3100,7 +3100,7 @@ player_motion_phase_exit:
                                 PlayerMotion_WrapAngle(partnerYaw -
                                                        partnerFacing));
                         PF(partner, 0x894, f32) = partnerYaw;
-                        PlayerSetGrabbed(p, PF(p->grab_partner, 0x6DC, void*),
+                        PlayerSetGrabbed(p, p->grab_partner->grab_node,
                                          NULL);
                         p->hud_flags |= 0x80;
                         PF(p->grab_partner, 0x8FC, f32) = sMusicFadeBase;
@@ -3227,7 +3227,7 @@ f32 ModifyPlayerDpos(Player* p, f32* from, f32* dpos, u32 flags, s32 a5,
     dot = from[0] * dpos[0] + from[2] * dpos[2];
     mag = fqdist(dpos[0], dpos[2]);
 
-    slope = PF(p, 0x8BC, f32);
+    slope = p->field_8BC;
     if (slope > lbl_80347D00) {
         slope = lbl_80347D08;
     }
@@ -3371,8 +3371,8 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
     u32 initialFlags;
     u32 flags;
 
-    if (PF(p, 0x8E0, f32) > lbl_80347B08) {
-        PF(p, 0x8E0, f32) = lbl_80347B30;
+    if (p->hit_force[1] > lbl_80347B08) {
+        p->hit_force[1] = lbl_80347B30;
     }
     prevFlags = p->act_flags;
     p->act_flags = p->obj_flags;
@@ -3385,18 +3385,18 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
     if ((initialFlags & 0x8000) != 0) {
         p->obj_flags = initialFlags & 0x8000;
         if ((prevFlags & 0x8000) == 0) {
-            PF(p, 0x870, f32) = PF(p, 0x8DC, f32);
-            PF(p, 0x874, f32) = PF(p, 0x8E0, f32);
-            PF(p, 0x878, f32) = PF(p, 0x8E4, f32);
+            p->vel[0] = p->hit_force[0];
+            p->vel[1] = p->hit_force[1];
+            p->vel[2] = p->hit_force[2];
         }
         return 301;
     }
     if ((prevFlags & 0x8000) != 0) {
-        damage_player(p->index, PF(p, 0x8D0, f32), 1, 0, NULL);
-        PF(p, 0x8D0, f32) = lbl_80347B30;
+        damage_player(p->index, p->hit_damage, 1, 0, NULL);
+        p->hit_damage = lbl_80347B30;
     }
     if ((p->shield_flags & 0x10000) != 0) {
-        PF(p, 0x8D0, f32) = lbl_80347B30;
+        p->hit_damage = lbl_80347B30;
         p->obj_flags = 0;
         return 0;
     }
@@ -3405,26 +3405,26 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
     if ((flags & 0x4000000) != 0) {
         result = 200;
     }
-    if (PF(p, 0x8D0, f32) > lbl_80347B40) {
+    if (p->hit_damage > lbl_80347B40) {
 #define KNOCK_IMPULSE(sc)                                              \
-        PF(p, 0x870, f32) = PF(p, 0x8DC, f32) * (sc) + PF(p, 0x870, f32); \
-        PF(p, 0x874, f32) = PF(p, 0x8E0, f32) * (sc) + PF(p, 0x874, f32); \
-        PF(p, 0x878, f32) = PF(p, 0x8E4, f32) * (sc) + PF(p, 0x878, f32)
+        p->vel[0] = p->hit_force[0] * (sc) + p->vel[0]; \
+        p->vel[1] = p->hit_force[1] * (sc) + p->vel[1]; \
+        p->vel[2] = p->hit_force[2] * (sc) + p->vel[2]
 #define KNOCK_IMPULSE_X(sc, x)                                        \
-        PF(p, 0x870, f32) = (x) * (sc) + PF(p, 0x870, f32);            \
-        PF(p, 0x874, f32) = PF(p, 0x8E0, f32) * (sc) + PF(p, 0x874, f32); \
-        PF(p, 0x878, f32) = PF(p, 0x8E4, f32) * (sc) + PF(p, 0x878, f32)
+        p->vel[0] = (x) * (sc) + p->vel[0];            \
+        p->vel[1] = p->hit_force[1] * (sc) + p->vel[1]; \
+        p->vel[2] = p->hit_force[2] * (sc) + p->vel[2]
         if ((flags & 0x10000) != 0) {
             f32 forceX;
             f32 sc;
-            forceX = PF(p, 0x8DC, f32);
+            forceX = p->hit_force[0];
             result = 30;
             sc = lbl_80347C50;
             KNOCK_IMPULSE_X(sc, forceX);
         } else if ((flags & 0x40) != 0) {
             f32 forceX;
             f32 sc;
-            forceX = PF(p, 0x8DC, f32);
+            forceX = p->hit_force[0];
             result = 20;
             sc = lbl_80347C50;
             KNOCK_IMPULSE_X(sc, forceX);
@@ -3437,7 +3437,7 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
         } else if ((flags & 0x10) != 0) {
             f32 forceX;
             f32 sc;
-            forceX = PF(p, 0x8DC, f32);
+            forceX = p->hit_force[0];
             result = 10;
             sc = lbl_80347D48;
             KNOCK_IMPULSE_X(sc, forceX);
@@ -3457,8 +3457,8 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
                 f32 a;
                 f64 d;
                 f64 wrappedDelta;
-                atanZ = PF(p, 0x8E4, f32);
-                atanX = PF(p, 0x8DC, f32);
+                atanZ = p->hit_force[2];
+                atanX = p->hit_force[0];
                 a = atan2(atanX, atanZ);
                 d = a - angle;
                 if (d > lbl_80347B50) {
@@ -3491,10 +3491,10 @@ u32 PlayerKnockback(f32 angle, Player* p, f32* out) {
 
     {
         f32 zero = lbl_80347B30;
-        PF(p, 0x8DC, f32) = zero;
-        PF(p, 0x8E0, f32) = zero;
-        PF(p, 0x8E4, f32) = zero;
-        PF(p, 0x8D0, f32) = zero;
+        p->hit_force[0] = zero;
+        p->hit_force[1] = zero;
+        p->hit_force[2] = zero;
+        p->hit_damage = zero;
     }
     p->obj_flags = 0;
     return result;
@@ -3868,9 +3868,9 @@ s32 DoTransporter(Player* p, f32* pos, f32* out, f32 a) {
             MBTreeSetAlpha(p->node, t * 255 / 29, 1);
         }
         if (timer >= 30 && tv->timer < 30) {
-            local[0] = PF(p, 0x944, f32);
-            local[1] = PF(p, 0x948, f32);
-            local[2] = PF(p, 0x94C, f32);
+            local[0] = p->transport_pos[0];
+            local[1] = p->transport_pos[1];
+            local[2] = p->transport_pos[2];
             FloorCollide(a, 4.0f, -10.0f, local, NULL, 0, 1);
             out[0] = local[0] - pos[0];
             out[2] = local[2] - pos[2];
@@ -3887,9 +3887,9 @@ s32 DoTransporter(Player* p, f32* pos, f32* out, f32 a) {
                 local[0] = PF(tp, 0x34, f32);
                 local[1] = PF(tp, 0x38, f32);
                 local[2] = PF(tp, 0x3C, f32);
-                PF(p, 0x944, f32) = local[0];
-                PF(p, 0x948, f32) = local[1];
-                PF(p, 0x94C, f32) = local[2];
+                p->transport_pos[0] = local[0];
+                p->transport_pos[1] = local[1];
+                p->transport_pos[2] = local[2];
                 if (PointVisible(-a, local) != 0) {
                     if (FloorCollide(a, 4.0f, -10.0f, local, NULL, 0, 1) != 0) {
                         fn_8009C98C(local);
@@ -3911,7 +3911,7 @@ void DoExit(Player* p) {
 
     if (lbl_8034481C != 0 && (lbl_80344804 != 0 || lbl_80344808 != 0)) {
         p->state = 4;
-        PF(p, 0x1F2, s16) = 0;
+        p->field_1F2 = 0;
         exiting = 1;
     } else {
         exiting = 0;
@@ -3937,7 +3937,7 @@ void DoExit(Player* p) {
 
         if (p->idle_timer >= 6) {
             p->state = 4;
-            PF(p, 0x1F2, s16) = 0;
+            p->field_1F2 = 0;
             if (gBossType < 0 && lbl_80344768 > 1 && lbl_803447B4 == 0 &&
                 lbl_8034481C < 3) {
                 msgPost(11, p->index, (u32)&p->col_pos);
@@ -4261,13 +4261,13 @@ int PlayerNewFloor(PMotionCtx* m, Player* p, f32* dpos) {
         f32 d2 = fqdist(d1, dpos[1]);
         if (d1 > 0.01 && d2 > 0.01 &&
             ((SV(p)->floor_flags & 8) == 0 || fabsf_(dpos[1]) > 0.01)) {
-            PF(p, 0x8BC, f32) = dpos[1] / d2;
+            p->field_8BC = dpos[1] / d2;
         }
     } else {
         {
             f32 t1 = m->fwd[0] * p->mat[9] - m->fwd[1] * p->mat[8];
             f32 t2 = m->fwd[1] * p->mat[10] - m->fwd[2] * p->mat[9];
-            PF(p, 0x8BC, f32) = t1 * m->fwd[0] - t2 * m->fwd[2];
+            p->field_8BC = t1 * m->fwd[0] - t2 * m->fwd[2];
         }
     }
 
@@ -4792,7 +4792,7 @@ s32 fn_80088EF4(Player* p, f32 range, f32 minDot) {
     WorldObj* floor;
 
     if ((u32)p->grab_partner != 0 || (u32)p->grab_pending != 0 ||
-        PF(p, 0x6DC, u32) == 0) {
+        (u32)p->grab_node == 0) {
         return -1;
     }
     if ((p->flags & 0x400) != 0) {
