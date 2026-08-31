@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.offsetof-rename-isolated-site-outlier -- narrows WHICH site in a uniform offsetof-rename batch is the likely outlier, for the case where the base is a plain integer/pointer parameter and one of the sites is the function's opening statement.",
+    "tags": [
+      "offsetof-form",
+      "entry-schedule",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.offsetof-rename-first-statement-outlier.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:14:19Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "claim.law.offsetof-rename-isolated-site-outlier established that one site among structurally identical offsetof-rename neighbors can regress with 'no source-level distinguishing feature', and prescribed bisecting whenever real moves. This record supplies a distinguishing feature that held here and is worth checking first: the outlier was the function's FIRST STATEMENT. In game/movie/movieplayer.c's fn_800DACD8 (204 insns, `u32 fn_800DACD8(int param_1, u8* param_2)`), a single batch converted 16 sites on the `param_1` base to offsetof(MovieState, ...) form. Fifteen were byte-neutral. The sixteenth -- `*(u8*)(param_1 + 0x18) = 0;`, the very first statement of the function body -- regressed fndiff real 76 -> 119 with an opcode-multiset DIFFERS classification, ours 205 insns vs target 204, the extra instruction being a single `addi` inserted at index 5 (@0x14, i.e. immediately after the prologue) plus a downstream addi displaced from @0x18c to @0x190. Bisection was decisive and cheap: reverting ONLY that one site to the bare literal restored GATE OK with all fifteen others still converted. The controlling variable is position, not the field, the width, or the base type -- the SAME field at the SAME offset via the SAME macro converts byte-neutrally at line 2009, deeper inside the same function (verified as an isolated A/B: converting only the deep site gated OK). A second counter-form, swapping the operand order to `offsetof(MovieState, hasAudio) + param_1`, reproduced the regression identically (real 76 -> 119, same +1 addi at the same index), which per AGENTS.md's two-identical-A/Bs rule kills the operand-order axis; the site was left as a bare literal with the cause commented in-source. Working hypothesis, NOT mechanistically proven: at the opening statement the incoming parameter is still in its ABI-arrival register and has no established home, so the displacement's syntactic form can tip MWCC between folding it into the store's immediate field and materializing it with a separate addi -- a choice that is already settled by the time later statements execute against a stabilized register web. This is the same family as claim.law.declaration-initializer-split-controls-entry-schedule and claim.law.independent-statement-reorder-matches-target-schedule (both entry-schedule laws) rather than a new mechanism. Consequence: when an otherwise-uniform offsetof-rename batch regresses, do NOT start a blind binary search -- test the site sitting at or adjacent to the function's opening statement FIRST; it is disproportionately likely to be the single offender, and the recorded remedy (leave that one site's displacement as a bare literal with a comment naming the field, keep every other conversion) recovers the batch in one step. This costs one gate instead of log2(n)."
+}
