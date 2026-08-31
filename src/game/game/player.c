@@ -2411,7 +2411,7 @@ extern void StartBlockFX(f32 dmg, s32 player);
 extern void fn_8009FFF4(s32 kind, s32 player);
 extern void AudioPlayerPain(s32 player);
 extern void AudioPlayerPoison(s32 player);
-extern void AudioPlayerPoison(s32 player);
+extern void AudioPlayerSeverePain(s32 player);
 extern void AudioPlayerDies(s32 player);
 extern void AudioPlayerHit(f32 dmg, s32 player, s32 kind);
 extern s32 do_vibe(s32 player, s32 lvl, s32 n);
@@ -3097,7 +3097,7 @@ s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir) {
         if (mode == 1) {
             if (flags & 0x800) {
                 if (dmg > 0.0f) {
-                    AudioPlayerPoison(i);
+                    AudioPlayerSeverePain(i);
                 }
             } else if (p->timer_1F0 <= 0) {
                 s32 kind2 = 0;
