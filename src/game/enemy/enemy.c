@@ -1,4 +1,5 @@
 #include "game/enemy.h"
+#include "game/gamemode.h"
 #include "game/worldobj.h"
 #include "game/dyngrid.h"
 #include "game/leveldata.h"
@@ -5973,7 +5974,7 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
     f32 out[3];
     f32 startv[3];
 
-    if (gGameMode == 0x8007) {
+    if (gGameMode == MA_HSTABLE) {
         return -1;
     }
     if (lbl_803447DC != 0 && gen != 0) {
