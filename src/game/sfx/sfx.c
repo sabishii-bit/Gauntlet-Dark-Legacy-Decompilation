@@ -3121,7 +3121,10 @@ void ProcessEffects(void)
                         }
                     }
                     e->hitcount++;
-                    enemyState = enemy->health <= 0.0 ? 0 : enemy->state;
+                    enemyState = enemy->state;
+                    if (enemy->health <= 0.0) {
+                        enemyState = 0;
+                    }
                     damage = damage_enemy(
                         enemy, owner - 1, e->damagetype, 0, enemyDelta,
                         collisionDamage, 2);
@@ -3164,7 +3167,10 @@ void ProcessEffects(void)
                         dir[2] = e->vel[2];
                         e->hitcount++;
                         NormalVector(dir);
-                        enemyState = enemy->health <= 0.0 ? 0 : enemy->state;
+                        enemyState = enemy->state;
+                        if (enemy->health <= 0.0) {
+                            enemyState = 0;
+                        }
                         damage = damage_enemy(
                             enemy, owner - 1, e->damagetype, hitpos, dir,
                             collisionDamage, 2);
