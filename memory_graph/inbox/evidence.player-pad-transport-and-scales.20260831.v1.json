@@ -1,0 +1,11 @@
+{
+  "claim": "claim.player-pad-recovered-fields.20260831.v1",
+  "detail": "Two smaller pads are proven by single-purpose usage rather than by a teardown block alone. pad_093C[0x14]: DoTransporter copies the transporter object's position into Player+0x944/0x948/0x94C (pmotion.c:3890-3892, source tp+0x34/0x38/0x3C), and on the later frame reads the same three back into a local, floor-collides it and uses it as the warp destination (pmotion.c:3871-3877) -- a stored world position, not padding; the pad's first 8 bytes (0x93C, 0x940) are separately evidenced as two s32 by player.c's per-frame block, so the split is lead 4+4 then f32[3], totalling 0x14 exactly. pad_0A48[0x10]: player.c's reset block writes 10000.0f to Player+0xA48, +0xA4C, +0xA50 and +0xA54 as FOUR SEPARATE consecutive stores (player.c:3633-3636) -- four stores of an identical constant is what distinguishes four scalar fields from one array the compiler would have looped, and it fills the 0x10 pad exactly. Two of the four have live consumers in pmotion: +0xA50 scales the control movement (`speedScale = movement * PF(p, 0xA50, f32)`, pmotion.c:994) and +0xA48 scales the forward move amount (pmotion.c:1085-1086). Following claim.law.swap-loop-is-record-layout-ground-truth's naming clause, the two without an in-TU consumer are still named field_A4C/field_A54 rather than left in a pad, because the field boundary itself is proven.",
+  "evidence_kind": "source-trace",
+  "id": "evidence.player-pad-transport-and-scales.20260831.v1",
+  "kind": "evidence",
+  "locator": "src/game/game/pmotion.c:994,1085-1086,3871-3877,3890-3892; src/game/game/player.c:3633-3636",
+  "recorded_at": "2026-08-31T02:08:29Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

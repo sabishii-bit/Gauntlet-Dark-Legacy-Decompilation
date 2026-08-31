@@ -1,0 +1,11 @@
+{
+  "claim": "claim.player-pad-recovered-fields.20260831.v1",
+  "detail": "The queued-hit pair proves pad_08D0[4] and pad_08DC[0xC] are real fields. damage_player accumulates into both on every hit: `PF(p, 0x8D0, f32) += dmg` (player.c:2997) and the three-component `PF(p, 0x8DC/0x8E0/0x8E4, f32) = dir[i] + PF(...)` from the caller-supplied direction vector, at two separate call sites for the heal and damage paths (player.c:2988-2990 and 3007-3009, the latter already carrying a hand-written `/* hit push vec */` comment from an earlier pass). PlayerKnockback is the consumer and closes the accumulate/consume/clear triad: it clamps +0x8E0 (pmotion.c:3374-3375), re-dispatches the accumulated damage via `damage_player(p->index, PF(p, 0x8D0, f32), 1, 0, NULL)` for the deferred 0x8000 case (pmotion.c:3395), gates the whole reaction block on `PF(p, 0x8D0, f32) > eps` (pmotion.c:3408), uses the force triple both as the velocity impulse and as the atan2 retarget source (pmotion.c:3460-3461), and finally clears all four together in one block (pmotion.c:3494-3497). player.c's reset block zeroes the same four (player.c:3603, 3606-3608). Byte accounting: 0x8D0 is 4 bytes = the whole pad; 0x8DC is 3*4 = 0xC = the whole pad.",
+  "evidence_kind": "source-trace",
+  "id": "evidence.player-pad-queued-hit-pair.20260831.v1",
+  "kind": "evidence",
+  "locator": "src/game/game/player.c:2988-2990,2997,3007-3009,3603,3606-3608; src/game/game/pmotion.c:3374-3375,3395-3399,3408,3460-3461,3494-3497",
+  "recorded_at": "2026-08-31T02:08:23Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

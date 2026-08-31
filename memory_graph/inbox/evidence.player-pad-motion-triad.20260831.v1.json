@@ -1,0 +1,11 @@
+{
+  "claim": "claim.player-pad-recovered-fields.20260831.v1",
+  "detail": "The motion integration triad proves pad_0870[0x24] holds three real vec3 fields and no padding. PlayerMotion reads Player+0x870/0x874/0x878 scaled by gClockFrameStep into the local dpos[3] (pmotion.c:1029-1031), decays the same three by a per-frame factor (pmotion.c:1479-1481), and PlayerKnockback loads them from the queued hit force (pmotion.c:3388-3390) and accumulates scaled impulses into them (the KNOCK_IMPULSE macros, pmotion.c:3410-3416) -- that is a velocity. At the motion phase exit Player+0x87C/0x880/0x884 are stored from the live position vector motion+0x30/0x34/0x38 on the three lines IMMEDIATELY BEFORE that same position is advanced by dpos (pmotion.c:2845-2850) -- that is a previous-position snapshot. Player+0x888/0x88C/0x890 receive the finished dpos after the move-limit clamps (pmotion.c:1105-1107). All nine offsets are additionally zeroed as nine consecutive stores in player.c's load_player_geo reset block (player.c:3595-3600), interleaved with the already-named p->light_vec and p->timer_89C, which is the teardown-zero-block idiom of claim.law.teardown-call-pattern-is-padding-evidence. Byte accounting: 12+12+12 = 0x24, exactly the original pad, no lead or trail remainder.",
+  "evidence_kind": "source-trace",
+  "id": "evidence.player-pad-motion-triad.20260831.v1",
+  "kind": "evidence",
+  "locator": "src/game/game/pmotion.c:1029-1031,1105-1107,1479-1481,2845-2850,3388-3390,3410-3416; src/game/game/player.c:3595-3600",
+  "recorded_at": "2026-08-31T02:08:16Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "work_claim.player-pads.20260831.v1, worktree GDL-Claude-PlayerPads, branch claude/player-pads-20260831, commits 6d13d8b77 (header) and caf1923fc (pmotion sites). Every offset was resolved by base-filtered scan of PF()/raw-cast sites (non-Player bases gBossObj/enemy/critter/p->mbnode/hitNode excluded -- an unfiltered scan over-counted pmotion's in-pad sites 126 vs the true 85) and cross-checked against the load_player_geo/remove_player_geo teardown zero-block in player.c.",
+    "scope": "include/game/player.h Player (0x335C, base gPlayers stride 0x335C); GC target asm is the offset authority, Xbox PDB is NOT usable for this record (Xbox struct player is 0x6140 with a different layout).",
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.player-pad-recovered-fields.20260831.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-08-31T02:07:53Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/player",
+  "valid_from": "2026-08-31",
+  "value": "Fifteen pad_XXX[N] runs in include/game/player.h's Player were mis-classified padding and hold 25 real fields, each evidenced by in-code usage rather than by any PDB record. Recovered (offset, type, evidence class): 0x078 s32 field_078 (teardown zero-block, cleared beside p->node); 0x098 f32 combo_time (read at the motion phase exit); 0x0C4 f32 angles[3] (passed as the second CreateYPRMatrix argument, angles[1] stores `heading` beside p->move_yaw); 0x1F2 s16 field_1F2 (cleared on forced state 4 and at both DoExit resets); 0x6D8 s32 field_6D8 + 0x6DC void* grab_node (grab_node is the carry parent handed to PlayerSetGrabbed, stored from the model node in load_player_geo and zeroed beside it); 0x870 f32 vel[3] + 0x87C f32 prev_pos[3] + 0x888 f32 dpos[3] (the motion integration triad: vel*gClockFrameStep -> dpos, prev_pos saved immediately before the live position is advanced by dpos, all nine zeroed in the teardown block); 0x898 f32 field_898 (reaction deadline on the sMusicFadeBase time base, set to base+1.0 for hit flag 0x800 and base+4.0 for 0x1000, tested `base < field` to force reaction 100); 0x8B8 f32 field_8B8 (floor_base snapshot) + 0x8BC f32 field_8BC (floor slope term); 0x8D0 f32 hit_damage and 0x8DC f32 hit_force[3] (the queued-hit pair: both accumulated by damage_player -- hit_damage via `+= dmg`, hit_force from the `dir` argument -- then consumed as the knockback impulse and cleared together at the end of PlayerKnockback); 0x8F4/0x8F8 s32 field_8F4/field_8F8 (8F8 is the zero-gate on the melee branch); 0x908 s32 field_908 (selects the moving-hit anim 32); 0x93C/0x940 s32 + 0x944 f32 transport_pos[3] (transporter destination, copied from the transporter object's position then floor-collided by DoTransporter); 0x956 s16 field_956 (magic/throw request bitmask: reset 0x10, OR 2, tested 2, set 128 after start_magic); 0xA48/0xA4C/0xA50/0xA54 four f32 motion tuning scales, all reset to 10000.0f as four separate stores. Byte accounting is exact for every split (lead_pad + fields + trail_pad == the original pad; sizeof(Player) stays 0x335C and no pre-existing field offset moves), and the header edit ALONE gated GATE OK on game/game/player, game/game/pmotion and game/enemy/critter before any site was touched, per claim.law.embedded-struct-member-whole-tu-cascade's isolation requirement -- all 25 additions are scalars or arrays-of-scalars, so the aggregate-member cascade class does not apply."
+}
