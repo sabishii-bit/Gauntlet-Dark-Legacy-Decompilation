@@ -2342,30 +2342,30 @@ s32 camera_collide_step(s32 camIdx, f32 blendThreshold)
                         nearestDistance = candidateDistance;
                         lbl_80344510 = index;
                     } else if (candidateDistance < blendThreshold) {
+                        lbl_8034450C = index;
+                        blendThreshold = candidateDistance;
                         count++;
                         secondYaw = *(f32*)(sTriggerCameras + offset + 0x18);
                         bestYaw = *(f32*)(sTriggerCameras + offset + 0x14);
-                        blendThreshold = candidateDistance;
-                        lbl_8034450C = index;
                     }
                 } else if (index == loopSelection) {
+                    lbl_8034450C = index;
+                    blendThreshold = candidateDistance;
                     count++;
                     secondYaw = *(f32*)(sTriggerCameras + offset + 0x18);
                     bestYaw = *(f32*)(sTriggerCameras + offset + 0x14);
-                    blendThreshold = candidateDistance;
-                    lbl_8034450C = index;
                 } else if (candidateDistance < nearestDistance) {
+                    lbl_80344510 = index;
+                    nearestDistance = candidateDistance;
                     count++;
                     bestPitch = *(f32*)(sTriggerCameras + offset + 0x18);
                     nearestYaw = *(f32*)(sTriggerCameras + offset + 0x14);
-                    nearestDistance = candidateDistance;
-                    lbl_80344510 = index;
                 }
             }
     }
 
     best = lbl_80344510;
-    if (lbl_80344508 >= 0 && blendThreshold < nearestDistance) {
+    if (lbl_80344508 >= 0 && nearestDistance > blendThreshold) {
         lbl_80344510 = lbl_8034450C;
         lbl_8034450C = best;
         swapAngle = bestYaw;
