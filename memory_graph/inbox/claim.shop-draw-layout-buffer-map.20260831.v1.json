@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "defake",
+      "symbol-identity",
+      "offsetof-form",
+      "index-form",
+      "walked-pointer"
+    ]
+  },
+  "epistemic_state": "proposed",
+  "id": "claim.shop-draw-layout-buffer-map.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T06:33:52Z",
+  "schema_version": 1,
+  "subject": "tu:game/shop/shop",
+  "valid_from": "2026-08-31",
+  "value": "THE SHOP DRAW-LAYOUT BUFFER (lbl_802897D0, deferred across five runs) -- VERDICT: it IS one contiguous object spanning at least [0, 7680), NOT the three objects the symbol map implies, but its FIELD NAMES are NOT recoverable from present evidence, so all ~56 sites stay raw and NOTHING was renamed. Two halves, tracked separately. (A) STRUCTURE, proven: every player-strided region derived from the six consumer functions tiles the space exactly, with no slack anywhere, which is why the map is trustworthy even though the names are not. Regions, as offset/stride/shape off lbl_802897D0: +0 stride 4 s32[4]; +16 stride 4 s32[4]; +32 stride 4 s32[4]; (gap 48..80, 32 bytes, unread by this TU); +80, +128, +176, +224 each stride 12 s32[4][3]; (gap 272..336, 64 bytes, unread); +336 stride 768 [4][192], ending at 3408 == 0xD50 == the recorded size of lbl_802897D0 exactly; +3408, +4432, +5456, +6480 each stride 256 [4][64] (3408+1024=4432, +1024=5456, +1024=6480, +1024=7504 -- four abutting 1KB tables); +7504 stride 24 void*[4][6]. Cross-checks that make this more than arithmetic: show_gold and do_shop independently spell the +224 stride-12 array and the +7504 stride-24 blit array; calc_shop_ypos spells the +3408 and +6480 tables as &lbl_8028A520[player<<6] / &lbl_8028B120[player<<6], i.e. stride 64 s32 == 256 bytes, agreeing with the stride-256 reads in do_shop/do_shopping/write_shop_menu/shop_setup. Behavioural anchors for three regions: +3408 is the per-item Y-offset table calc_shop_ypos fills and write_shop_menu reads as `cursp`; +5456 is a per-item timer array (the file-local DSTim4 pad view exists only to reach it); +336 is a per-item flag word tested with &4 (the DSFlag4 pad view). (B) NAMES, NOT proven -- the reason nothing was renamed. The Xbox SHOP.OBJ data roster (research/xbox_symbols/functions_by_module.txt) lists ~26 separate small globals for this state -- scroll_flag, pile_val, pile_maxy, pile_cury, pile_type, buyvoice, curfreeze, shop_did_setup, last_available, shop_from_menu, top_y, cursor_y, shop_minprice, timer -- and their consecutive-address deltas give sizes of 4, 16 and 48 bytes only. Those shapes DO match the GC small arrays at +0/+16/+32 (16 = s32[4]) and +80/+128/+176/+224 (48 = s32[4][3]), but the Xbox ORDER differs from the GC order and, decisively, NO Xbox symbol in the roster is large enough to be any of the five big GC tables (four 1KB and one 3KB). Xbox cursor_y for instance sits 16 bytes from its neighbour where the GC per-item Y table is 1024. So the small arrays cannot be assigned one-to-one without a tiebreak, and the big tables have no Xbox counterpart at all. No PDB struct record covers the region either (gdlmem struct finds none). Adopting names here would be invention, which the work order forbids. NEXT AGENT, the two things that would close this: (1) read the Xbox SHOP.OBJ disassembly for calc_shop_ypos/write_shop_menu and see which named global each of the five big tables corresponds to -- the Xbox functions exist (calc_shop_ypos @0x00073F80, write_shop_menu @0x00074090) and are small; (2) failing that, the four abutting 1KB tables at 3408/4432/5456/6480 are per-item-per-player and their consumers are narrow (Y offsets, availability, timers, blit pointers), so behavioural naming from the GC side alone may reach the bar for those four without any Xbox input. Do NOT attempt symbol separation as the cleanup -- see claim.law.single-base-relocation-refutes-symbol-separation.20260831.v1, which was discovered and measured on exactly this buffer."
+}

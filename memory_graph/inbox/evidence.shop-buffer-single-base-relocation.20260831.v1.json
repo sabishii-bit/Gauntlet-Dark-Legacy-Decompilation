@@ -1,0 +1,11 @@
+{
+  "claim": "claim.law.single-base-relocation-refutes-symbol-separation.20260831.v1",
+  "detail": "write_shop_menu's target carries exactly one relocation pair for the buffer -- `lis r5,0 @lbl_802897D0(ADDR16_HA)` at 0x4 and `addi r30,r5,0 @lbl_802897D0(ADDR16_LO)` at 0x38 -- and then reaches its four regions with plain immediate adds at 0x128-0x134: addi r14,r14,6480 / addi r15,r15,5456 / addi r27,r27,4432 / addi r16,r16,336. No relocation against lbl_8028A520 or lbl_8028B120 appears anywhere in the function, although both addresses are inside the range it touches. That MWCC will emit a separate pair per distinct symbol when it has one is visible in the same function 60 bytes earlier, where lbl_80122F50 and lbl_80122F40 -- 16 bytes apart in .data -- each get their own HA/LO pair at 0xec-0xf8. calc_shop_ypos shows the complementary form: two independent pairs (@lbl_8028B120 at 0xc/0x30, @lbl_8028A520 at 0x1c/0x2c), zero offset adds, and no mention of lbl_802897D0 -- the folded-addend spelling that manufactured those two symbol-map labels in the first place. The A/B settles it: respelling write_shop_menu's four regions against the neighbour symbols (cursp -> &lbl_8028A520[player<<6], avail/timers -> &lbl_8028A520[256|512 + (player<<6)], blits -> &lbl_8028B120[player<<6]) measured REGRESSED real 372 -> 417, insns 401/393 -> 401/406, opcode multiset 16t -> 17t; the printed clusters are precisely the predicted shape, inserting lis/addi pairs at O@cc-d4, O@104-11c and O@60-6c while deleting the target's four addi at T@128-138. Reverted via probe.py --revert back to real 372 (NEUTRAL, confirming a clean restore).",
+  "evidence_kind": "disasm",
+  "id": "evidence.shop-buffer-single-base-relocation.20260831.v1",
+  "kind": "evidence",
+  "locator": "python tools/gdl/fnasm.py game/shop/shop.c write_shop_menu  |  python tools/gdl/fnasm.py game/shop/shop.c calc_shop_ypos  |  python tools/gdl/probe.py game/shop/shop.c write_shop_menu",
+  "recorded_at": "2026-08-31T06:34:17Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

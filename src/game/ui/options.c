@@ -115,8 +115,49 @@ typedef struct OPTITEM {
     s32 value;    /* 0x20 item value; < 0 = disabled (greyed) */
 } OPTITEM; /* 0x24 */
 
+/* Menu-type ids carried in OPTMENU.state and mirrored into the global
+ * options_state.  Body is the Xbox PDB enum `OPTMENU_TYPE`
+ * (research/xbox_symbols/misc.h); only the members this TU actually
+ * compares against are respelled below, the rest are carried for
+ * completeness and to keep the numbering self-checking.
+ *
+ * Three members are corroborated on the GC side independently of the PDB,
+ * by reconstruction notes that predate this pass:
+ *   0 - options_state's own comment reads "0=closed", i.e. INACTIVE, and
+ *       every `options_state != OPTMENU_INACTIVE` guard means "a menu is up";
+ *   1 - the same comment reads "1=finishing"; finish_optmenu() is the only
+ *       function that clears it, and start_optmenu sets it exactly when the
+ *       menu stack has emptied -- FINISH;
+ *   2 - the do_screenmenu dispatch arm was already annotated
+ *       "case 2: /* title menu *\/", and TitleMenu()/TitleMenuEnd() are the
+ *       functions that test it -- TITLE.
+ * DELIBERATELY TRUNCATED AT 2.  The Xbox enum continues
+ * TOWER=3, GAME=4, TITLE_OPTS=5, TOWER_OPTS=6, GAME_OPTS=7, AUDIO=8,
+ * GAMEOPTIONS=9, DIFFICULTY=10, MULTIPLAYER=11, COMPASS=12, CONTROLS=13,
+ * CONTROLSTYLE=14, CONTROL_RUMBLE=15, CONTROL_AUTOAIM=16,
+ * CONTROL_AUTOATTACK=17, SCREEN=18, QUITGAME=19, QUITLEVEL=20, SUBMENU=21,
+ * HINT=22, HINT_GENERAL=23, HINT_BOSS=24, HINT_LEGEND=25, HINT_RUNE=26,
+ * LAST=27 -- but those members are NOT adopted here, because the GC
+ * numbering demonstrably diverges from Xbox's past 2.  The do_screenmenu
+ * dispatch below carries in-tree behavioural annotations that predate this
+ * pass and CONFLICT with the Xbox values: GC `case 4` is the quit-confirm
+ * menu where Xbox has GAME=4, and GC `case 10` is a radio menu driven by
+ * optglobals.style where Xbox has DIFFICULTY=10.  Some arms do agree
+ * (GC `case 8` is the audio-slider menu == Xbox AUDIO=8; 19/20 line up with
+ * the QUITGAME/QUITLEVEL pair), so the two enums are related but not
+ * identical, and adopting the Xbox spelling wholesale would import wrong
+ * names.  Resolving 3..27 needs the state field read out of each
+ * `optmenu_*` OPTMENU initializer in .data (0x8011DEBC..0x8011FA38); until
+ * someone does that, the numeric arms stay numeric on purpose. */
+enum OPTMENU_TYPE {
+    OPTMENU_INACTIVE = 0,
+    OPTMENU_FINISH = 1,
+    OPTMENU_TITLE = 2
+};
+
 typedef struct OPTMENU {
-    s32 state;       /* 0x00 menu state id (copied to options_state) */
+    s32 state;       /* 0x00 menu state id (OPTMENU_TYPE, copied to
+                      * options_state) */
     f32 title_scale; /* 0x04 title text scale */
     char* title;     /* 0x08 title string (NULL = passive menu) */
     s32 x;           /* 0x0C text x (<0: centered variants) */
@@ -396,8 +437,10 @@ extern s32 OPTCTL_DY;              /* 0x80343D64 = 2 */
 /* this TU's .sbss 0x80344A98.. (extern until claimed)                  */
 /* ------------------------------------------------------------------ */
 
-extern s32 options_state;          /* 0x80344A98 current menu state (0=closed,
-                                      1=finishing, else cur menu->state) */
+extern s32 options_state;          /* 0x80344A98 current menu state, an
+                                      OPTMENU_TYPE: OPTMENU_INACTIVE=closed,
+                                      OPTMENU_FINISH=finishing, else the
+                                      current menu's own ->state */
 extern s32 good_wiz_enabled;       /* 0x80344A9C blocks auto-open */
 extern s32 optmenu_nochoice;       /* 0x80344AA0 input blocked latch */
 extern s32 vb_elapsed_menu;        /* 0x80344AA4 */
@@ -502,7 +545,7 @@ s32 HintMenu(s32 type)
         hints_inited = 0;
         return 0;
     }
-    if (options_state != 0) {
+    if (options_state != OPTMENU_INACTIVE) {
         return 0;
     }
     if (hints_inited == 0) {
@@ -523,7 +566,7 @@ s32 HintMenu(s32 type)
 
 void TitleMenuEnd(void)
 {
-    if (options_state != 0) {
+    if (options_state != OPTMENU_INACTIVE) {
         end_optmenu(-1, 1);
     }
     optmenu_abortall = 0;
@@ -538,14 +581,14 @@ s32 TitleMenu(s32 y)
     s32 ret = 0;
 
     titlemenu_menu.y = y;
-    if (optmenu_abortall != 0 && options_state == 0) {
+    if (optmenu_abortall != 0 && options_state == OPTMENU_INACTIVE) {
         ret = 2;
-    } else if (options_state == 2) {
+    } else if (options_state == OPTMENU_TITLE) {
         if (title_choice != 0) {
             title_choice = 0;
             ret = 1;
         }
-    } else if (options_state != 0) {
+    } else if (options_state != OPTMENU_INACTIVE) {
         ret = 1;
     }
     return ret;
@@ -578,7 +621,7 @@ s32 OptionsDone(void)
     if (FireScrollActive() != 0) {
         return 0;
     }
-    if (options_state != 0) {
+    if (options_state != OPTMENU_INACTIVE) {
         return 0;
     }
     return 1;
@@ -624,7 +667,7 @@ int DoOptions(void)
     saver = ServeFireScroll();
 
     /* auto-open: any active player pressing START */
-    if (options_state == 0 && good_wiz_enabled == 0 && opt_force_player < 0 &&
+    if (options_state == OPTMENU_INACTIVE && good_wiz_enabled == 0 && opt_force_player < 0 &&
         (gGameMode != 0x4010 || lbl_803447B8 == 0)) {
         for (i = 0; i < 4; i++) {
             if (PREC(i, offsetof(Player, state), s32) == 1 &&
@@ -636,14 +679,14 @@ int DoOptions(void)
     }
 
     if (lbl_803445D8 != 0 &&
-        ((gGameMode != 0x4010 && gGameMode != 0x400C) || options_state != 0)) {
+        ((gGameMode != 0x4010 && gGameMode != 0x400C) || options_state != OPTMENU_INACTIVE)) {
         ticks_for_firescroll();
     }
 
-    if (options_state == 0) {
+    if (options_state == OPTMENU_INACTIVE) {
         return saver;
     }
-    if (options_state == 1) {
+    if (options_state == OPTMENU_FINISH) {
         return finish_optmenu(optglobals.stack[0], 0);
     }
 
@@ -677,7 +720,7 @@ int DoOptions(void)
         return 1;
     }
 
-    if (options_state != 2 || saver == 0) {
+    if (options_state != OPTMENU_TITLE || saver == 0) {
         show_optmenu(m);
         choice = do_optmenu(m, 1);
     }
@@ -686,7 +729,7 @@ int DoOptions(void)
     AudioClampMusicVol(0.1f, -1.0f);
 
     switch (options_state) {
-    case 2: /* title menu */
+    case OPTMENU_TITLE:
         if ((gControllerButtons & 4) != 0) {
             choice = 0xB;
         }
@@ -1314,7 +1357,7 @@ s32 OptionsStart(s32 player)
     OPTITEM* it;
     u8* data = lbl_8011DD20;
 
-    if (options_state != 0) {
+    if (options_state != OPTMENU_INACTIVE) {
         return options_state;
     }
     optmenu_nochoice = 0;
@@ -1346,7 +1389,7 @@ s32 OptionsStart(s32 player)
         AudioSelectReset();
         break;
     }
-    if (options_state != 0) {
+    if (options_state != OPTMENU_INACTIVE) {
         AudioCursorSelect();
     }
     return options_state;
@@ -1659,7 +1702,7 @@ s32 do_optmenu(OPTMENU* m, s32 allowNav)
     if (m->player >= 0 && (lbl_80344824 & (1 << m->player)) == 0) {
         optmenu_nochoice = 1;
     } else {
-        if (m->state == 2) {
+        if (m->state == OPTMENU_TITLE) {
             if ((pressed & 0x40000) != 0) {
                 pressed |= 0x2000000;
             }
@@ -2226,7 +2269,7 @@ static void end_optmenu(s32 dir, s32 mode)
         if (options_level >= 0) {
             options_state = m2->state;
         } else {
-            options_state = 1;
+            options_state = OPTMENU_FINISH;
         }
         /* hand the backdrop blit off to a self-fading scroll when the new
          * top menu has no backdrop of its own */
@@ -2253,8 +2296,8 @@ static s32 finish_optmenu(OPTMENU* m, s32 force)
     u8 unused[8];
 
     if (m->active == 0 || m->finish_timer == 0) {
-        if (options_state == 1) {
-            options_state = 0;
+        if (options_state == OPTMENU_FINISH) {
+            options_state = OPTMENU_INACTIVE;
             for (i = 0; i < 4; i++) {
                 optionsStack[i] = NULL;
             }
@@ -2265,8 +2308,8 @@ static s32 finish_optmenu(OPTMENU* m, s32 force)
     m->finish_timer += vb_elapsed_menu;
     if (m->finish_timer > OPTMENU_FINISH_FRAMES || force != 0) {
         REMOVE_OPTMENU(m);
-        if (options_state == 1) {
-            options_state = 0;
+        if (options_state == OPTMENU_FINISH) {
+            options_state = OPTMENU_INACTIVE;
             for (i = 0; i < 4; i++) {
                 optionsStack[i] = NULL;
             }

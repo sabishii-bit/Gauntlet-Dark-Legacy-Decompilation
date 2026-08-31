@@ -189,19 +189,65 @@ typedef struct MBTextureDef {
  * a 24-byte record array based at the player record + 0x0A90 and indexed by
  * the selected class (`expslot = pl + sel * 24 + 2704`).  Stride, base and
  * every field offset are verified in-TU from that expression and the four
- * stat reads; the four f32s are only known by which stats[] row they feed
- * (drawn against GetStringText(167, row)), so they keep the project's
- * generic field_NN convention rather than a guessed semantic name.  These
- * bytes fall inside include/game/player.h's pad_0A88 run, which this pass is
- * not permitted to split -- hence a file-local view.  offsetof() use only. */
-typedef struct ClassStatSlot {
+ * stat reads.  These bytes fall inside include/game/player.h's pad_0A88 run,
+ * which this pass is not permitted to split -- hence a file-local view.
+ * offsetof() use only.
+ *
+ * Names are the Xbox PDB record `P_SAVE_ATTS` (research/xbox_symbols
+ * xbox_structs.tsv, Size=24 == this record's GC stride).  The identification
+ * is corroborated four ways and does not rest on the size alone:
+ *   - +0x00 `exp` was already recovered in-TU before this pass, from
+ *     ExpToLevel(*(s32*)expslot) and the `*(s32*)expslot > 0` guard;
+ *   - the record is size-exact at 0x18 against the GC stride of 24;
+ *   - the PDB's four `*_add` stat-bonus fields land exactly on this TU's
+ *     four f32 reads at +0x08/+0x0C/+0x10/+0x14;
+ *   - the PDB declaration order (fight/armor/magic/speed) EXPLAINS the
+ *     otherwise-arbitrary permutation this TU applies when filling stats[]
+ *     (0,2,3,1): the display order is fight/speed/armor/magic, so the
+ *     mapping below is forced rather than chosen.  A wrong record would
+ *     not reproduce that permutation.
+ * `health` at +0x04 is the one field this TU never dereferences: its offset
+ * is fixed by the size-exact layout but the name is PDB-only, unverified
+ * against GC behaviour.  Widths stay as the pre-existing reconstruction had
+ * them (every access goes through its own cast). */
+typedef struct P_SAVE_ATTS {
     s32 exp;         /* +0x00 experience, fed to ExpToLevel() */
-    u8 _pad04[4];
-    f32 field_08;    /* +0x08 -> stats[0] */
-    f32 field_0C;    /* +0x0C -> stats[2] */
-    f32 field_10;    /* +0x10 -> stats[3] */
-    f32 field_14;    /* +0x14 -> stats[1] */
-} ClassStatSlot;     /* size 0x18 */
+    s32 health;      /* +0x04 PDB name only -- not read in this TU */
+    f32 fight_add;   /* +0x08 -> stats[0] */
+    f32 armor_add;   /* +0x0C -> stats[2] */
+    f32 magic_add;   /* +0x10 -> stats[3] */
+    f32 speed_add;   /* +0x14 -> stats[1] */
+} P_SAVE_ATTS;       /* size 0x18 */
+
+/* file-local view of the HEAD of the persistent per-player save block, which
+ * begins at include/game/player.h's `name[8]` (Player + 0x0A80) and whose
+ * body continues into the pad_0A88 run this pass may not split.  Names are
+ * the Xbox PDB record `P_SAVE` (xbox_structs.tsv); only the head is modelled
+ * here, because the GC block is NOT layout-identical to Xbox's further in --
+ * Xbox P_SAVE_STUFF is 596 bytes where GC's PlayerCharSave is 240, so the
+ * `stuff[]` region and everything after it diverges and is deliberately
+ * excluded from this view.
+ *
+ * The head mapping rests on four GC-verified anchors, not on the PDB alone:
+ *   +0x00 name[8]     == player.h's already-verified `name` member;
+ *   +0x08 last_alttype - game/player.c writes `(s16)p->character` to
+ *                        Player+0x0A88, exactly a "last alt(ernate) type";
+ *   +0x0C class_unlock - the three sites converted below test it as
+ *                        `1 << (class - 8)`, i.e. a per-class unlock bitmask,
+ *                        which is precisely what the PDB name asserts;
+ *   +0x10 atts[]       - Player+0x0A90 stride 24, matched offset-and-stride
+ *                        by P_SAVE_ATTS above (itself size-exact).
+ * last_color/saved/leveltot are carried to keep the offsets honest; this TU
+ * never dereferences them, so those three names are PDB-only. */
+typedef struct P_SAVE_HEAD {
+    char name[8];        /* +0x00 == offsetof(Player, name) */
+    s16  last_alttype;   /* +0x08 -> Player + 0x0A88 */
+    u8   last_color;     /* +0x0A PDB name only -- not read in this TU */
+    u8   saved;          /* +0x0B PDB name only -- not read in this TU */
+    u16  class_unlock;   /* +0x0C -> Player + 0x0A8C */
+    u16  leveltot;       /* +0x0E PDB name only -- not read in this TU */
+    /* +0x10 P_SAVE_ATTS atts[]; -> Player + 0x0A90, see above */
+} P_SAVE_HEAD;
 
 /* file-local view of the fields of OPTMENU (game/ui/options.c, verified
  * 0xE8-byte struct) actually touched by this TU's per-player menu blocks
@@ -1660,7 +1706,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
             t = 1;
         } else {
             t = 1;
-            switch (*(u16*)(pl + 2700) & (t << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
+            switch (*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (t << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
             case 0:
                 t = 0;
                 break;
@@ -2468,7 +2514,7 @@ void update_class_attr(s32 player)
         f32 kScale;
         if (sel < 8) {
             avail = 1;
-        } else if (*(u16*)(pl + 2700) & (1 << (sel - 8))) {
+        } else if (*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (1 << (sel - 8))) {
             avail = 1;
         } else {
             avail = 0;
@@ -2484,21 +2530,22 @@ void update_class_attr(s32 player)
             lvl = 99;
             best = -1;
         } else {
-            expslot = pl + sel * 24 + 2704;
+            expslot = pl + offsetof(Player, name) + sizeof(P_SAVE_HEAD) +
+                      sel * sizeof(P_SAVE_ATTS);
             lvl = ExpToLevel(*(s32*)expslot);
             LoadPlyrData(player, *(s32*)(pl + offsetof(Player, respawn_char)), 0);
             {
                 u8* cls = lbl_80282930[player];
-                stats[0] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_08)) +
+                stats[0] = (s32)(*(f32*)(expslot + offsetof(P_SAVE_ATTS, fight_add)) +
                                  (*(f32*)(cls + 40) +
                                   (f32)((lvl - 1) * 5)));
-                stats[1] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_14)) +
+                stats[1] = (s32)(*(f32*)(expslot + offsetof(P_SAVE_ATTS, speed_add)) +
                                  (*(f32*)(cls + 48) +
                                   (f32)((lvl - 1) * 5)));
-                stats[2] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_0C)) +
+                stats[2] = (s32)(*(f32*)(expslot + offsetof(P_SAVE_ATTS, armor_add)) +
                                  (*(f32*)(cls + 56) +
                                   (f32)((lvl - 1) * 5)));
-                stats[3] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_10)) +
+                stats[3] = (s32)(*(f32*)(expslot + offsetof(P_SAVE_ATTS, magic_add)) +
                                  (*(f32*)(cls + 64) +
                                   (f32)((lvl - 1) * 5)));
             }
@@ -2651,7 +2698,7 @@ substate:
             known = 1;
         } else {
             known = 1;
-            if ((*(u16*)(pl + 2700) & (known << (spec - 8))) == 0) {
+            if ((*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (known << (spec - 8))) == 0) {
                 known = 0;
             }
         }
