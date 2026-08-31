@@ -6453,7 +6453,7 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     MBNodeSetParent(*(void **)c->colhandle, c->mbnode);
 
     if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 1) != 0) {
-        s16 shadowType = *(s16 *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, descriptor)) + 0x22);
+        s16 shadowType = *(s16 *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, descriptor)) + offsetof(CritterDescriptor, modelIndex));
         s32 shadowIdx = subtype > 2 ? 1 : subtype;
         node = MBOX_ReallyFindObject(lbl_8011AEA0[shadowIdx], shadowType,
                                      shadowType, 1);
@@ -6477,8 +6477,8 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     }
     c->hitnode0 = node;
     if ((*(u32 *)(header + offsetof(CritterPackedType, typeFlags)) & 0x10) != 0 && c->hitnode0 != NULL &&
-        *(void **)((u8 *)c->hitnode0 + 0x74) != NULL) {
-        c->hitnode0 = *(void **)((u8 *)c->hitnode0 + 0x74);
+        *(void **)((u8 *)c->hitnode0 + offsetof(MBObject, parent)) != NULL) {
+        c->hitnode0 = *(void **)((u8 *)c->hitnode0 + offsetof(MBObject, parent));
     }
     idx = *(s16 *)(header + offsetof(CritterPackedType, node1Index));
     if (idx < 0) {
@@ -6523,12 +6523,12 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     }
 
     CopyMat4(&c->mtx[0][0], c->mbnode);
-    UnparentMatrix(c->mbnode, *(f32 **)((u8 *)c->mbnode + 0x74));
+    UnparentMatrix(c->mbnode, *(f32 **)((u8 *)c->mbnode + offsetof(MBObject, parent)));
     CopyMat3(&c->mtx[0][0], (f32 *)((u8 *)c + 0x3D8));
     ((CritterInitGeoView *)c)->cachedVelocity[0] = c->vel[0];
     ((CritterInitGeoView *)c)->cachedVelocity[1] = c->vel[1];
     ((CritterInitGeoView *)c)->cachedVelocity[2] = c->vel[2];
-    MulVec4Mat3((f32 *)(header + 0xC0), c->pos, &c->mtx[0][0]);
+    MulVec4Mat3((f32 *)(header + offsetof(CritterPackedType, originOffset)), c->pos, &c->mtx[0][0]);
     c->pos[0] = c->vel[0] + c->pos[0];
     c->pos[1] = c->vel[1] + c->pos[1];
     c->pos[2] = c->vel[2] + c->pos[2];
@@ -6538,10 +6538,10 @@ void CritterInitGeo(Critter *c, void *object, s32 subtype)
     c->obj_d0 = c->anim;
     GetWorldMat(c->obj_d0, c->worldMoveMatrix, NULL);
 
-    if (*(f32 *)((u8 *)c->hdr + 0xA4) < lbl_80346618) {
-        *(f32 *)((u8 *)c + 0x49C) = *(f32 *)((u8 *)c->hdr + 0xA0);
-        *(f32 *)((u8 *)c + 0x4A0) = *(f32 *)((u8 *)c->hdr + 0xA4);
-        *(f32 *)((u8 *)c + 0x4A4) = *(f32 *)((u8 *)c->hdr + 0xA8);
+    if (*(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, defaultPos[1])) < lbl_80346618) {
+        *(f32 *)((u8 *)c + 0x49C) = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, defaultPos[0]));
+        *(f32 *)((u8 *)c + 0x4A0) = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, defaultPos[1]));
+        *(f32 *)((u8 *)c + 0x4A4) = *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, defaultPos[2]));
     } else {
         *(f32 *)((u8 *)c + 0x49C) = *(f32 *)((u8 *)c + 0x418);
         *(f32 *)((u8 *)c + 0x4A0) = *(f32 *)((u8 *)c + 0x41C);
