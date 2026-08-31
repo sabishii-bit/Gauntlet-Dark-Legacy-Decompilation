@@ -148,6 +148,42 @@ typedef struct CameraSupervisorScratch {
     f32 futurePosition[3];           /* stack +0xB8 */
 } CameraSupervisorScratch; /* 0x94; allocated at r1+0x30 */
 
+/* Partial view of mb_window.c's MBWINDOW (the live projection window; this
+ * TU's .sbss pointer lbl_80344EE8 shares that global with game/world/newcam.c
+ * (NcProjWindow: cam.mat/cam.pos at +0x64) and game/boss/bosscam.c (cam.pos
+ * at +0x94/+0x98/+0x9C) -- only xcenter/ycenter (+0x008/+0x00C), the fields
+ * this TU touches, per mb_window.c's own MBWINDOW typedef (the TU that owns
+ * and types the full 0x1A8 struct); not invented. */
+typedef struct CameraProjWindowView {
+    u8  _pad00[0x008];
+    f32 xcenter;   /* 0x008 */
+    f32 ycenter;   /* 0x00C */
+} CameraProjWindowView;
+
+/* Local view of the "transmitter" record (extern CurTransmitter; also
+ * touched raw by game/boss/bosscam.c and game/anim/action.c, no shared
+ * struct recovered project-wide yet).  Only the fields this TU reads/
+ * writes: a s16 at +0x02 cleared before camera_collide_step (semantics
+ * unconfirmed, left unk to avoid inventing a name), world position at
+ * +0x04, and pitch/yaw/roll at +0x14 -- the 4-byte gap at +0x10 and the
+ * leading 2 bytes are untouched by this TU. */
+typedef struct CameraTransmitterView {
+    u8  _pad00[2];
+    s16 unk02;     /* 0x02; cleared before camera_collide_step */
+    f32 wpos[3];   /* 0x04 world position */
+    u8  _pad10[4];
+    f32 pyr[3];    /* 0x14 pitch/yaw/roll */
+} CameraTransmitterView;
+
+/* Local view of the "level record" (extern gCurLevel).  Only the field
+ * this TU reads: the active bounds camera pointer at +0x60, per
+ * game/world/newcam.c's own gCurLevel comment ("level record; +0x60 =
+ * active CAMERA* (bounds)"). */
+typedef struct CameraLevelRecordView {
+    u8  _pad00[0x60];
+    u8* activeCamera;  /* 0x60 */
+} CameraLevelRecordView;
+
 /* Address-taken roots and closest-point output used by camera_collide_step.
  * The gaps reproduce CAMERA.OBJ's 0x90-byte frame. */
 typedef struct CameraCollideScratch {
@@ -2531,7 +2567,7 @@ void camera_mode_level(s32 reset)
     Player* player;
     s32 tries;
     s32 playerIndex;
-    u8* levelCamera = *(u8**)(gCurLevel + 0x60);
+    u8* levelCamera = *(u8**)(gCurLevel + offsetof(CameraLevelRecordView, activeCamera));
     s32 cameraOffset;
     s32* playerNumber;
     struct OBJGRP* playerObject;
@@ -2623,7 +2659,7 @@ void camera_mode_level(s32 reset)
     }
     lbl_80344534 = lbl_80118B60[lbl_80344538];
     if (gNumTransmitters != 0) {
-        *(s16*)(CurTransmitter + 2) = 0;
+        *(s16*)(CurTransmitter + offsetof(CameraTransmitterView, unk02)) = 0;
         camera_collide_step(0, lbl_8034601C);
         *(volatile f32*)&lbl_80344408 =
             *(volatile f32*)&lbl_80344530;
@@ -2702,12 +2738,12 @@ level_player_found:
         cam2->state = 0;
         lbl_8034453C = 0;
     } else {
-        cam2->wpos[0] = *(f32*)(CurTransmitter + 4);
-        cam2->wpos[1] = *(f32*)(CurTransmitter + 8);
-        cam2->wpos[2] = *(f32*)(CurTransmitter + 0x0C);
-        cam2->pyr[0] = *(f32*)(CurTransmitter + 0x14);
-        cam2->pyr[1] = *(f32*)(CurTransmitter + 0x18);
-        cam2->pyr[2] = *(f32*)(CurTransmitter + 0x1C);
+        cam2->wpos[0] = *(f32*)(CurTransmitter + offsetof(CameraTransmitterView, wpos[0]));
+        cam2->wpos[1] = *(f32*)(CurTransmitter + offsetof(CameraTransmitterView, wpos[1]));
+        cam2->wpos[2] = *(f32*)(CurTransmitter + offsetof(CameraTransmitterView, wpos[2]));
+        cam2->pyr[0] = *(f32*)(CurTransmitter + offsetof(CameraTransmitterView, pyr[0]));
+        cam2->pyr[1] = *(f32*)(CurTransmitter + offsetof(CameraTransmitterView, pyr[1]));
+        cam2->pyr[2] = *(f32*)(CurTransmitter + offsetof(CameraTransmitterView, pyr[2]));
         cam2->pyr[0] = -cam2->pyr[0];
         wrappedAngle = cam2->pyr[1];
         wrappedAngle += CAM_PI;
@@ -3786,10 +3822,10 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
                currentX > (f32)(lbl_80344520 + 30) &&
                currentX < (f32)(lbl_8034451C - 30) &&
                (CAMERA_SUPERVISOR_ABS(return2CurrentY,
-                    currentY - *(f32*)(lbl_80344EE8 + 0xC)),
+                    currentY - *(f32*)(lbl_80344EE8 + offsetof(CameraProjWindowView, ycenter))),
                 currentAbsX = scratch.return2CurrentY,
                 CAMERA_SUPERVISOR_ABS(return2OldY,
-                    oldY - *(f32*)(lbl_80344EE8 + 0xC)) > currentAbsX)) {
+                    oldY - *(f32*)(lbl_80344EE8 + offsetof(CameraProjWindowView, ycenter))) > currentAbsX)) {
         if (gCameraTargetCount > 1 &&
             (oldY <= (f32)(lbl_80344514 + 40) ||
              oldY >= (f32)(lbl_80344518 - 20)) &&
@@ -3804,10 +3840,10 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
                currentY > (f32)(lbl_80344514 + 40) &&
                currentY < (f32)(lbl_80344518 - 20) &&
                (CAMERA_SUPERVISOR_ABS(return3CurrentX,
-                    currentX - *(f32*)(lbl_80344EE8 + 8)),
+                    currentX - *(f32*)(lbl_80344EE8 + offsetof(CameraProjWindowView, xcenter))),
                 currentAbsX = scratch.return3CurrentX,
                 CAMERA_SUPERVISOR_ABS(return3OldX,
-                    oldX - *(f32*)(lbl_80344EE8 + 8)) > currentAbsX)) {
+                    oldX - *(f32*)(lbl_80344EE8 + offsetof(CameraProjWindowView, xcenter))) > currentAbsX)) {
         if (gCameraTargetCount > 1 &&
             (oldX <= (f32)(lbl_80344520 + 30) ||
              oldX >= (f32)(lbl_8034451C - 30)) &&
@@ -3818,15 +3854,15 @@ s32 camera_debug_supervisor(s32 playerIndex, f32* movementDelta)
         }
         return 3;
     } else if ((CAMERA_SUPERVISOR_ABS(return4CurrentY,
-                    currentY - *(f32*)(lbl_80344EE8 + 0xC)),
+                    currentY - *(f32*)(lbl_80344EE8 + offsetof(CameraProjWindowView, ycenter))),
                 currentAbsY = scratch.return4CurrentY,
                 CAMERA_SUPERVISOR_ABS(return4OldY,
-                    oldY - *(f32*)(lbl_80344EE8 + 0xC)) > currentAbsY) &&
+                    oldY - *(f32*)(lbl_80344EE8 + offsetof(CameraProjWindowView, ycenter))) > currentAbsY) &&
                (CAMERA_SUPERVISOR_ABS(return4CurrentX,
-                    currentX - *(f32*)(lbl_80344EE8 + 8)),
+                    currentX - *(f32*)(lbl_80344EE8 + offsetof(CameraProjWindowView, xcenter))),
                 currentAbsX = scratch.return4CurrentX,
                 CAMERA_SUPERVISOR_ABS(return4OldX,
-                    oldX - *(f32*)(lbl_80344EE8 + 8)) > currentAbsX)) {
+                    oldX - *(f32*)(lbl_80344EE8 + offsetof(CameraProjWindowView, xcenter))) > currentAbsX)) {
         if (gCameraTargetCount > 1 &&
             (oldX <= (f32)(lbl_80344520 + 30) ||
              oldX >= (f32)(lbl_8034451C - 30) ||
