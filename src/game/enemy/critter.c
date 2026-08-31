@@ -3834,7 +3834,7 @@ s32 CritterBossAI(Critter *c)
     speedBase = 0.5f;
     speedScale = 4.5f;
     ratio = c->health /
-            (one + *(f32 *)(header + 0xE4) *
+            (one + *(f32 *)(header + offsetof(CritterPackedType, maxHealth)) *
                        *(f32 *)((u8 *)gCurLevel + 0xAC));
     speed = one - ratio;
     speed = speedBase + speed * speedScale;
@@ -3845,7 +3845,7 @@ s32 CritterBossAI(Critter *c)
         CritterGetTargetPlayers(child);
         header = (u8 *)child->hdr;
         ratio = child->health /
-                (one + *(f32 *)(header + 0xE4) *
+                (one + *(f32 *)(header + offsetof(CritterPackedType, maxHealth)) *
                            *(f32 *)((u8 *)gCurLevel + 0xAC));
         speed = one - ratio;
         speed = speedBase + speed * speedScale;
@@ -3891,7 +3891,7 @@ s32 CritterBossAI(Critter *c)
 
     moveIndex = c->curmove >= 0 ? c->curmove : 0;
     header = (u8 *)c->hdr;
-    move = (CritterMove *)(*(u8 **)(header + 0x124) + moveIndex * 0x90);
+    move = (CritterMove *)(*(u8 **)(header + offsetof(CritterPackedType, movesPtr)) + moveIndex * 0x90);
 
     if ((gControllerButtons & 0x80) != 0) {
         CritterGetNextMove(c);
