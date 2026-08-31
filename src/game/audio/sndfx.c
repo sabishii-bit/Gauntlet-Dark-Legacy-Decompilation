@@ -72,16 +72,6 @@ typedef struct SndFxChan { s32 f0, f4, f8, fC, f10, f14, f18, f1C; } SndFxChan;
 typedef struct SndFxTrack { s32 f0; u8 _p[32]; } SndFxTrack;
 typedef struct SndFxQue20 { s32 f0; u8 _p[16]; } SndFxQue20;
 
-typedef struct SndFxState {
-    u8 _pad0[24];
-    SndFxChan chan[12];   /* +24   */
-    u8 _pad1[768];        /* +408  */
-    SndFxTrack trk[4];    /* +1176 */
-    AudioVoice voice[32]; /* +1320 */
-    u8 _pad2[4];          /* +2856 */
-    SndFxQue20 que[12];   /* +2860 */
-} SndFxState;
-
 /* One deferred-request slot; 16 per mode, at lbl_8023D398[mode][slot]. */
 typedef struct {
     s32 soundId; /* +0  */
@@ -90,6 +80,17 @@ typedef struct {
     s32 fC;      /* +12 */
     f32 f10;     /* +16 */
 } QueSlot;
+
+typedef struct SndFxState {
+    u8 _pad0[24];
+    SndFxChan chan[12];   /* +24   */
+    QueSlot que_slot[2][16]; /* +408  (2 modes * 16 slots * 20 bytes = 640) */
+    u8 _pad1[128];        /* +1048 */
+    SndFxTrack trk[4];    /* +1176 */
+    AudioVoice voice[32]; /* +1320 */
+    u8 _pad2[4];          /* +2856 */
+    SndFxQue20 que[12];   /* +2860 */
+} SndFxState;
 
 /* Mode-relative view of the request queue (slots ride at st+mode*320+408). */
 typedef struct QueSlotView {
@@ -246,13 +247,12 @@ f32 sndFxQueAdd(int soundId, f32 vol, f32 param, int pri, int track, int flags)
  * effective volume (0.0 = rejected). */
 f32 sndFxQueAddEx(int mode, int soundId, f32 vol, f32 param, int pri, int track, int flags)
 {
-    u8* st = sAudioState;
+    SndFxState* st = (SndFxState*)sAudioState;
     int busy = sAudioQueBusy;
     int n;
     int i;
     f32 acc;
     QueSlot* q;
-    QueSlotView* sl;
 
     if (sndFxPaused()) {
         return 0.0f;
@@ -264,11 +264,9 @@ f32 sndFxQueAddEx(int mode, int soundId, f32 vol, f32 param, int pri, int track,
     if (n > 0) {
         acc = sAudioQueFade[mode];
         if (sAudioQueFade[mode] == 0.0) {
-            sl = (QueSlotView*)&((SndFxMode*)st)[mode];
-            acc = (f32)pbLoad + sl->f10;
+            acc = (f32)pbLoad + st->que_slot[mode][0].f10;
         }
-        sl = (QueSlotView*)&((SndFxMode*)st)[mode];
-        q = (QueSlot*)&sl->soundId;
+        q = st->que_slot[mode];
         for (i = 1; i < n; i++) {
             acc += q[i].f10;
         }
@@ -293,14 +291,11 @@ f32 sndFxQueAddEx(int mode, int soundId, f32 vol, f32 param, int pri, int track,
         rt[di].fade = acc;
     }
     sAudioQueBusy = 1;
-    st += mode * 320;
-    q = (QueSlot*)st;
-    sl = (QueSlotView*)&q[n];
-    sl->soundId = soundId;
-    sl->f4 = pri;
-    sl->f8 = track;
-    sl->fC = flags;
-    sl->f10 = vol;
+    st->que_slot[mode][n].soundId = soundId;
+    st->que_slot[mode][n].f4 = pri;
+    st->que_slot[mode][n].f8 = track;
+    st->que_slot[mode][n].fC = flags;
+    st->que_slot[mode][n].f10 = vol;
     sAudioQueCount[mode]++;
     if (busy == 0) {
         sAudioQueBusy = 0;
