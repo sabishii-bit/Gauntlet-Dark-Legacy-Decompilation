@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/combat.c::InitCamera (worktree GDL-Claude-AliasCombat, attempt.initcamera-alias-lever-and-frame-pad.20260831.v1, commit 7e8ae17d9). Four independent sites in one function: the start_wpos/start_attn seeding pair (lbl_8034620C and lbl_80346214 each stored twice), the CameraTarget zero loop, the trailing limit_vel loop, and the gCurLevel branch where one lbl_80345EC8 feeds six stores. Cumulative: ours-only lfs 9 -> 0.",
+    "scope": "MWCC GC 1.2.5 family; applies to any reconstruction that reads the same `extern f32/f64 lbl_*` pool pseudo-global at 2+ nearby sites, especially where the intervening stores go through f32*/u8*-derived pointers. Sibling of claim.law.extern-scalar-read-defeats-fp-literal-hoist, which governs the literal-vs-extern SPELLING choice; this law governs the number of READS of a correctly-spelled extern.",
+    "tags": [
+      "matching",
+      "sda-global",
+      "cse",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.repeated-extern-read-needs-local-for-target-cse.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T04:42:43Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "Repeating a read of the same `extern f32/f64 lbl_*` pool global at N nearby sites compiles to N separate lfs/lfd loads, because a store through any f32*/u8*-derived pointer may alias the global and kills the CSE. The target frequently loads such a value ONCE and holds it in an FPR across the whole run of stores. The fix is a LOCAL initialised from the extern (`f32 z = lbl_80345EC8;`) used at every site: the local is not memory, so no store can invalidate it and MWCC keeps it in one register -- and when the uses sit in a loop, assigning the local just before the loop is what puts the load in target's pre-loop block instead of the loop body. Diagnostic tell: --ops shows ours-only lfs/lfd with NO target counterpart, and the aligned diff shows a repeated `lfs fX,0(0) @lbl_*(EMB_SDA21)` between otherwise matching stores. This is the exact inverse of claim.law.extern-zero-init-blocks-constant-propagation, and the two must not be confused: that law forbids replacing the extern READ with a C literal (which would let MWCC constant-propagate and delete stores the target kept); this law says keep the extern read, just perform it ONCE into a local. Both are satisfied simultaneously by `f32 z = lbl_*;` -- the initializer stays an opaque memory load while the uses become register reads. Caution measured in the same pass: over-applying it is possible -- collapsing six reads to one at a site where target kept two left our stream 2 lfs SHORT of target, so A/B each run rather than sweeping a whole function, and check the sign of the lfs delta in the multiset after every batch."
+}
