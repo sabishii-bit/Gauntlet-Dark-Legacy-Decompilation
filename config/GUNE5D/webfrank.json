@@ -176,6 +176,17 @@
           "after_relocations_sha256": "503efc2e515c8fc8a0b9cd10cc1b30e95216d9e5bbe7c940c5093ba59dba0b7c"
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "get_cam_dist",
+        "before_sha256": "4fd3a031f9bfb451536a2dd0843324c8f17a227d626b13189165b712b6d04eb3",
+        "after_sha256": "3e45066c46cef41ba51051d4c89b6f1d848e9c336afefe1f399b1fc32833fd47",
+        "mechanism": "Pure allocator recolor over 72 of 246 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: FPR f1->f2, f1->f3, f1->f4, f2->f5, f2->f7, f3->f4, f3->f6, f3->f8, f4->f5, f4->f7, f5->f6, f5->f8, f6->f9, f7->f2, f7->f3, f8->f1, f9->f2. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 246
+        },
+        "copy_register_fields": true
       }
     ],
     "game/enemy/critter": [
@@ -304,6 +315,17 @@
           "instructions": 78
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "find_neighbor_milestone",
+        "before_sha256": "e2244e8356736486c2056ff497f595ea846fe1cb1f2a3674dc2f500a76283e7a",
+        "after_sha256": "7d3ed420030e35405962b4c4feb25daa3daf1c4860b0bca8ae60e4e60098ab66",
+        "mechanism": "Pure allocator recolor over 24 of 119 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g0->g4, g0->g9, g4->g0, g5->g6, g6->g7, g7->g5, g7->g6, g9->g0; FPR f2->f4, f5->f2. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 119
+        },
+        "copy_register_fields": true
       }
     ],
     "game/game/gamemain": [
@@ -314,6 +336,28 @@
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 63
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "fn_80051480",
+        "before_sha256": "40a5fe27b46c6b21170b836c6a8c14e959ab02d9642d0bd8745b78e9071fae42",
+        "after_sha256": "79c7c3b5eaac4d5a8fcd56049b26a84fb57819d973aaabadeeac137953931153",
+        "mechanism": "Pure allocator recolor over 40 of 58 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: FPR f0->f1, f1->f2, f1->f7, f2->f3, f3->f4, f4->f5, f5->f1, f5->f2, f5->f6, f6->f0. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 58
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "fn_800511D0",
+        "before_sha256": "5f3eab6f547878f7f2feb5ef5572370032b1705b3a4694e4f5779020bb38958d",
+        "after_sha256": "d6dcce3f62422ef8aec5e7dd1c8bef0f8b50aed3ecde9d405e04bf5764227374",
+        "mechanism": "Pure allocator recolor over 41 of 172 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g29->g31, g30->g29, g31->g30; FPR f3->f1, f20->f27, f21->f20, f22->f21, f23->f22, f24->f23, f25->f24, f26->f25, f27->f26. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 172
         },
         "copy_register_fields": true
       }
@@ -338,6 +382,17 @@
           "instructions": 38
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "InitItemInfoData",
+        "before_sha256": "0fa9ea8753aae2a63a525457b212d1ee66838e576de8a6a1124f8de8892f0ec5",
+        "after_sha256": "e12ebe4361c4008294e7f5b39f1ebad6860220f73e09e886e291f81dcf58c1c4",
+        "mechanism": "Pure allocator recolor over 25 of 106 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g25->g26, g26->g30, g27->g29, g28->g25, g29->g25, g30->g31, g31->g27, g31->g28. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 106
+        },
+        "copy_register_fields": true
       }
     ],
     "game/sys/memcard": [
@@ -360,6 +415,17 @@
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 117
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "GetPlayerAvgPos",
+        "before_sha256": "f109a5b50fc1c73d495e4b180c6d79b78b21c78bcecf19457c6cfa826ca4bbeb",
+        "after_sha256": "653b29fb74dbe3763aa75da3fb723e223fc6e3ef9f242497ab14adc1c7a061d7",
+        "mechanism": "Pure allocator recolor over 49 of 158 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g10->g31, g11->g10, g12->g11, g31->g12; FPR f0->f2, f1->f0, f1->f2, f2->f3, f3->f1. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 158
         },
         "copy_register_fields": true
       }
@@ -416,6 +482,28 @@
           "instructions": 183
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "StartBagFX",
+        "before_sha256": "3b553ca4fa2c425c16358395d5ea048906635ed77e9758ef648630de7514ba34",
+        "after_sha256": "555500633321244bf2ea31197d154f13d25d5ddab7c83b650dcfb34d4b785a01",
+        "mechanism": "Pure allocator recolor over 29 of 112 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g3->g28, g26->g28, g27->g29, g28->g26, g29->g27. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 112
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "StartBlockFX",
+        "before_sha256": "1f1a96c11d37e9adb331b7c3f6f17f125d59395115790f20c8481b07ced5db63",
+        "after_sha256": "d69d4bc85821d224017a87276f7798ff54e24a5c3a3bde80576faab2e696172a",
+        "mechanism": "Pure allocator recolor over 24 of 74 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g5->g29, g27->g29, g28->g31, g29->g30, g30->g29, g31->g28. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 74
+        },
+        "copy_register_fields": true
       }
     ],
     "game/sound/sounds_evt": [
@@ -463,6 +551,17 @@
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 74
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "DrawBlit",
+        "before_sha256": "1d718218c8bf7dd63b671fcaba5d7748273a753f32277b48801f61797a4e80e9",
+        "after_sha256": "beb700e1c376531f3bde3604c82d13805d71304448185da09198301e55e8d27f",
+        "mechanism": "Pure allocator recolor over 86 of 375 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g4->g6, g5->g4, g5->g6, g6->g5; FPR f1->f5, f1->f7, f1->f10, f1->f11, f1->f12, f2->f8, f3->f1, f3->f2, f4->f2, f4->f3, f5->f3, f5->f4, f6->f4, f6->f5, f7->f5, f7->f6, f7->f11, f8->f6, f8->f7, f9->f7, f9->f11, f10->f9, f11->f10, f12->f11. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 375
         },
         "copy_register_fields": true
       }
@@ -566,6 +665,17 @@
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 27
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "MBPsysSetDebugNode",
+        "before_sha256": "05cc7af76c82afb11c1a8806055426972362dbf6a4c5225cbd464c8577df6620",
+        "after_sha256": "98d0a058171bf2f7d967de3bcb8d5867a805c6e0d4e020ab764e1bfda72f0301",
+        "mechanism": "Pure allocator recolor over 8 of 54 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g6->g7, g7->g6. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 54
         },
         "copy_register_fields": true
       }
@@ -816,6 +926,17 @@
         },
         "mechanism": "attempt.pbdiagdrawtexture-saved-register-set-closure.20260831.v1 - the park's HARD BLOCKER (a mismatched ten-register stmw r22 save set) no longer holds: the current raw compile agrees with retail on size, save set, schedule and every opcode, and the whole 385-instruction residual is fifteen register fields forming ONE consistent renaming. Three independent crossings compose it: a clean r28<->r29 transposition of the two callee-saved list webs (+0x20/+0x2c, and the walk's addi r28,r28,4 step at +0x380), a paired r4<->r5 argument-scratch transposition across the texture-record fetch (+0x20c-0x21c), and a r23->r24 shift of the record pointer (+0x218/+0x234/+0x28c). Two further rows are the dead-after-compare scratch the record named: ours homes an SDA load in the volatile r0 and feeds slwi/cmplwi from it (+0x3c4/+0x3cc, +0x558/+0x55c) where retail uses r4 and r3. Zero mask offenders and machine-proven end to end by verify_consistent_recolor - no unproven_recolor_audit escape. Source levers cannot reach it: the r0 rows have no source variable behind them, and the transpositions are pure allocator colour.",
         "copy_register_fields": true
+      },
+      {
+        "function": "pbDiagDrawObject",
+        "before_sha256": "4a6b8570c3b5a8628b2468b877972f104b176ff77ae965b4cad9243d9f490d07",
+        "after_sha256": "b82ea69d01d3bc25ec33f4d4eb32480ec94749e444d5f8168a39c17e9b65f615",
+        "mechanism": "Pure allocator recolor over 13 of 301 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g25->g27, g25->g29, g27->g24, g28->g29, g29->g28. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 301
+        },
+        "copy_register_fields": true
       }
     ],
     "game/ui/btext": [
@@ -850,6 +971,67 @@
           "after_sha256": "814d67a5aff71f8bb25fe20b0e41e21c890674f6d982c78952a4518d3245646f",
           "before_relocations_sha256": "355ed5d6ae70a0aec4a77219001091d8b9aca15c01c28d2c3216dbc7d9be07fa",
           "after_relocations_sha256": "a630ae11894c3a39c96f6f1a62377c74a431fdc3e53bcc317989c3a18f2ed12a"
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/audio/audio": [
+      {
+        "function": "AudioAng",
+        "before_sha256": "5be889aa5ef5f09b0d4a00d2b2efd13156069cdad833bc4c672bf2df0622ba99",
+        "after_sha256": "b1c15152a07a0e5246587cbb2b1cde4f51fdefa0c3bab6afe02c5ffd121c3086",
+        "mechanism": "Pure allocator recolor over 9 of 70 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: FPR f1->f6, f3->f1, f6->f7, f7->f8. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 70
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/game/controls": [
+      {
+        "function": "assign_controller",
+        "before_sha256": "1b7c24991f45d99607c021c8ce9d80fbf27b43502edaf649788487567ae6a392",
+        "after_sha256": "45f134c06ae4de1eefe0a3f6d6847bcdf05d8760fb4782c7952ab3ab44158835",
+        "mechanism": "Pure allocator recolor over 20 of 82 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g6->g7, g7->g6. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 82
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "do_vibe",
+        "before_sha256": "4346b50f0fdfd6cb991e0ce062e40ac120d5d758f9770886845cb7206b5491e7",
+        "after_sha256": "87ecd05145d54bcb318d9b68c14edd5abce982c7f8155312c362d0664292d501",
+        "mechanism": "Pure allocator recolor over 14 of 66 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g27->g28, g28->g27, g29->g31, g30->g29, g31->g30. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 66
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "joyReadPad",
+        "before_sha256": "9b1d4b8a2001517d2c8d164942b5fd296be67c296b6742a0eb4253ccd3dfb7d8",
+        "after_sha256": "c1743dffc4a7febe04001aa9524dbae1124768950076c059ac05ef41c3772a5c",
+        "mechanism": "Pure allocator recolor over 102 of 577 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g30->g31, g31->g30. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 577
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/ui/select": [
+      {
+        "function": "init_player_select",
+        "before_sha256": "059f693fe0f8465548ef86c85084f25d319ed74540d6e0efda790d7067a2fac8",
+        "after_sha256": "0e4266eea8b0d0316a0bde25bfee229768ce25ff2bbc99f4796c98d1729dde91",
+        "mechanism": "Pure allocator recolor over 41 of 238 instructions, opcode multiset identical and every non-register bit already equal. Observed renaming: GPR g17->g19, g17->g21, g19->g17, g19->g20, g22->g23, g23->g24, g24->g25, g25->g22. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so no immediate, opcode, branch encoding or relocation payload differs and the residual is a register-colouring choice with no source carrier. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 238
         },
         "copy_register_fields": true
       }
