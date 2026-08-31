@@ -201,6 +201,21 @@ extern s32   gNumEnemies;          /* 0x80344744 */
 extern f32   lbl_80346820;
 extern f32   lbl_803468B0;
 extern f32   lbl_80346A80;
+/* Milestone table record (stride 0x68). Layout adopted from the recovered
+ * MilestoneParam in src/game/world/items.c, which walks the same table:
+ * items.c's GetMilestonePos reads matrix[12..14] as the world position,
+ * exactly the m+48/52/56 triple this TU reads raw. Declared file-locally
+ * (never added to a shared header) per the whole-TU cascade law. */
+typedef struct MilestoneParam {
+    f32 matrix[16];   /* 0x00 node transform; [8]/[10] give facing, [12..14] position */
+    f32 pos[3];       /* 0x40 */
+    u8  _pad4C[4];
+    f32 saved_pos[3]; /* 0x50 */
+    u8  _pad5C[4];
+    s32 handle;       /* 0x60 */
+    s32 active;       /* 0x64 */
+} MilestoneParam;     /* 0x68 */
+
 extern u8    sMilestones[];
 extern s32   sNumMilestones;
 extern f64   __frsqrte(f64 x);
@@ -2524,9 +2539,9 @@ s32 fn_80051480(f32* pos)
         f32 dy;
         f32 dz;
 
-        dy = pos[1] - *(f32*)(node + 0x34);
-        dx = pos[0] - *(f32*)(node + 0x30);
-        dz = pos[2] - *(f32*)(node + 0x38);
+        dy = pos[1] - *(f32*)(node + offsetof(MilestoneParam, matrix[13]));
+        dx = pos[0] - *(f32*)(node + offsetof(MilestoneParam, matrix[12]));
+        dz = pos[2] - *(f32*)(node + offsetof(MilestoneParam, matrix[14]));
         d = dx * dx + dy * dy;
         d = dz * dz + d;
 
@@ -2881,9 +2896,9 @@ void fn_80051C78(void)
         u8* m = sMilestones;
 
         for (i = 0; i < sNumMilestones; i++, m += 0x68) {
-            f32 dx = gDefaultPlayerPosition[0] - *(f32*)(m + 0x30);
-            f32 dy = gDefaultPlayerPosition[1] - *(f32*)(m + 0x34);
-            f32 dz = gDefaultPlayerPosition[2] - *(f32*)(m + 0x38);
+            f32 dx = gDefaultPlayerPosition[0] - *(f32*)(m + offsetof(MilestoneParam, matrix[12]));
+            f32 dy = gDefaultPlayerPosition[1] - *(f32*)(m + offsetof(MilestoneParam, matrix[13]));
+            f32 dz = gDefaultPlayerPosition[2] - *(f32*)(m + offsetof(MilestoneParam, matrix[14]));
             f32 d2 = dx * dx + dy * dy;
 
             d2 = dz * dz + d2;
@@ -2980,12 +2995,12 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
     }
 
     m = sMilestones + milestone * 104;
-    pos[0] = *(f32*)(m + 48);
-    pos[1] = *(f32*)(m + 52);
-    pos[2] = *(f32*)(m + 56);
+    pos[0] = *(f32*)(m + offsetof(MilestoneParam, matrix[12]));
+    pos[1] = *(f32*)(m + offsetof(MilestoneParam, matrix[13]));
+    pos[2] = *(f32*)(m + offsetof(MilestoneParam, matrix[14]));
     {
-        f32 x = *(f32*)(m + 40);
-        f32 r = atan2(*(f32*)(m + 32), x);
+        f32 x = *(f32*)(m + offsetof(MilestoneParam, matrix[10]));
+        f32 r = atan2(*(f32*)(m + offsetof(MilestoneParam, matrix[8])), x);
         f64 p = lbl_80346840;
         f32 a = (f32)(p + r);
         f64 t;
@@ -3031,9 +3046,9 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
         ad = (f32)nd;
         *(u32*)&ad &= 0x7FFFFFFF;
         if (ad <= tolerance) {
-            dy = *(f32*)(m + 52) - pos[1];
-            dx = *(f32*)(m + 48) - pos[0];
-            dz = *(f32*)(m + 56) - pos[2];
+            dy = *(f32*)(m + offsetof(MilestoneParam, matrix[13])) - pos[1];
+            dx = *(f32*)(m + offsetof(MilestoneParam, matrix[12])) - pos[0];
+            dz = *(f32*)(m + offsetof(MilestoneParam, matrix[14])) - pos[2];
             dist = dx * dx + dy * dy;
             dist = dz * dz + dist;
             if (dist > kZero) {
