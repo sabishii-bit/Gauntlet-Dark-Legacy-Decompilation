@@ -738,8 +738,8 @@ extern void* gDiag_D1C;         /* last attached list */
 extern s32 gDiag_F00;
 extern s32 gGameBusy;
 extern f32 gClockFrameStep;
-extern s32 lbl_80344CF8;        /* menu count (latched from lbl_803441E8) */
-extern s32 lbl_803441E8;
+extern s32 lbl_80344CF8;        /* menu count (latched from natreelists) */
+extern s32 natreelists;
 extern DiagMenu* lbl_8023D180[]; /* per-menu DiagMenu ptr table */
 extern s32 lbl_8023CFA0[];      /* per-menu texmod arg table */
 extern u8 lbl_8023D000[];       /* per-menu atree params, stride 16 */
@@ -895,7 +895,7 @@ s32 pbDiagDrawInfo(void)
         gDiag_D20 = lbl_80348670;
         gDiag_FC = MBOX_NewObject(strs + 268, gIdentityMatrix, 0, 0);
         gDiag_D8 = 1;
-        lbl_80344CF8 = lbl_803441E8;
+        lbl_80344CF8 = natreelists;
         gDiagMenuIdx = 1;
         gDiagListSel = 0;
         gDiag_D1C = 0;
