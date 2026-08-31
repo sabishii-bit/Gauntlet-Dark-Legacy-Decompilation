@@ -1189,11 +1189,13 @@ void TowerCheckMessages(s32 mode) {
 
                 if (p->state != 0 &&
                     *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)lbl_80343D6C) {
-                    u8* rec = (u8*)p + p->character * CHAR_SAVE_STRIDE;
-
                     runeGot |= p->runes;
-                    runeBanked |= *(u16*)(rec + CHAR_BANKED_RUNES_OFF);
-                    *(u16*)(rec + offsetof(Player, char_save) + offsetof(PlayerCharSave, rune_stones)) |= p->runes;
+                    runeBanked |= p->char_save_ckpt[p->character].rune_stones;
+                    p->char_save[p->character].rune_stones |= p->runes;
+                    /* Re-derived from p, NOT shared with the reads above: the
+                     * target reloads character and recomputes the stride here
+                     * (lhzx/sthx off p), per
+                     * claim.law.local-alias-vs-direct-global-spelling-diverges. */
                     *(u16*)((u8*)p + p->character * 240 + CHAR_BANKED_RUNES_OFF) |= p->runes;
                 }
             }
@@ -1215,11 +1217,11 @@ void TowerCheckMessages(s32 mode) {
 
                 if (p->state != 0 &&
                     *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)lbl_80343D6C) {
-                    u8* rec = (u8*)p + p->character * CHAR_SAVE_STRIDE;
-
                     shardGot |= p->shards;
-                    shardBanked |= *(u16*)(rec + CHAR_BANKED_SHARDS_OFF);
-                    *(u16*)(rec + offsetof(Player, char_save) + offsetof(PlayerCharSave, rune_stones2)) |= p->shards;
+                    shardBanked |= p->char_save_ckpt[p->character].rune_stones2;
+                    p->char_save[p->character].rune_stones2 |= p->shards;
+                    /* Re-derived from p, NOT shared with the reads above (see
+                     * the rune loop above for the same target shape). */
                     *(u16*)((u8*)p + p->character * 240 + CHAR_BANKED_SHARDS_OFF) |= p->shards;
                 }
             }
