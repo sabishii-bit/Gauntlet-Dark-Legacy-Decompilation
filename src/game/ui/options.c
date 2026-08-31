@@ -84,6 +84,7 @@
  */
 
 #include "types.h"
+#include "game/mbobject.h"
 #include "game/player.h"
 
 /* Player / PlayerCharSave are pulled in only to name the raw displacements
@@ -2075,9 +2076,9 @@ void show_optmenu(OPTMENU* m)
         }
         {
             f32 icon_scale = m->icon_scale;
-            *(f32*)((u8*)m->icon_node + 0x40) = icon_scale;
-            *(f32*)((u8*)m->icon_node + 0x44) = icon_scale;
-            *(f32*)((u8*)m->icon_node + 0x48) = icon_scale;
+            *(f32*)((u8*)m->icon_node + offsetof(MBObject, scale[0])) = icon_scale;
+            *(f32*)((u8*)m->icon_node + offsetof(MBObject, scale[1])) = icon_scale;
+            *(f32*)((u8*)m->icon_node + offsetof(MBObject, scale[2])) = icon_scale;
         }
         CopyMat3((f32*)(*((u8**)winset + 1) + 0x240), (f32*)m->icon_node);
         PitchMat3((f32*)m->icon_node, angle);
@@ -2383,9 +2384,9 @@ void start_optmenu_nostack(OPTMENU* m, s32 sel)
         m->icon_node = NULL;
     }
     if (m->icon_node != NULL) {
-        *(f32*)((u8*)m->icon_node + 0x40) = 1.0f;
-        *(f32*)((u8*)m->icon_node + 0x44) = 1.0f;
-        *(f32*)((u8*)m->icon_node + 0x48) = 1.0f;
+        *(f32*)((u8*)m->icon_node + offsetof(MBObject, scale[0])) = 1.0f;
+        *(f32*)((u8*)m->icon_node + offsetof(MBObject, scale[1])) = 1.0f;
+        *(f32*)((u8*)m->icon_node + offsetof(MBObject, scale[2])) = 1.0f;
     }
 
     m->icon_y = 0;
