@@ -250,8 +250,9 @@ extern char lbl_803485D8;
 /* Per-level status byte array, index = character * 14 + level (see the
  * "0x1CD0" note in the field-offset comment above). Not part of PlayerCharSave
  * proper - char_save[16] runs 0xDD4-0x1CD4 so this falls in char_save[15]'s
- * trailing padding (game/player.h pad_1C) rather than any GC-verified named
- * field, so it stays a plain constant rather than an offsetof(). */
+ * trailing padding (game/player.h pad_2C, slot offset 0xEC) rather than any
+ * GC-verified named field, so it stays a plain constant rather than an
+ * offsetof(). */
 #define LEVEL_STATUS_BYTES_OFF 0x1CD0
 /* The 0x2220 block is char_save_ckpt[16], the checkpoint SHADOW of
  * char_save[16] (game/player.h; same PlayerCharSave element type, so each
@@ -760,6 +761,9 @@ void towerAdvanceBossRecord(int player, int level) {
             u8* levelRecord;
             s16* value;
 
+            /* Same shared-level-base shape as towerAdvanceLevelRecord, and it
+             * refuses member form for the same reason (measured: identical
+             * -1 add / -1 addi / -1 lhax residual).  Keep the raw base. */
             levelRecord = (u8*)(level * 2);
             levelRecord += (s32)record;
             value = (s16*)(levelRecord + record->character * CHAR_SAVE_STRIDE + COMPLETION2_OFF);
@@ -1277,8 +1281,7 @@ void TowerCheckMessages(s32 mode) {
 
                     if (p->state != 0 &&
                         *(u32*)((u8*)p + offsetof(Player, hidden_code)) != curWorld) {
-                        s32 val = *(s16*)((u8*)p + p->character * CHAR_SAVE_STRIDE +
-                                          COMPLETION1_OFF + j * 2);
+                        s32 val = p->char_save[p->character].completion1[j];
 
                         if (*best >= 0 && (val < 0 || val > *best)) {
                             *best = val;
@@ -1315,8 +1318,7 @@ void TowerCheckMessages(s32 mode) {
 
                         if (p->state != 0 &&
                             *(u32*)((u8*)p + offsetof(Player, hidden_code)) != curWorld) {
-                            s32 val = *(s16*)((u8*)p + p->character * CHAR_SAVE_STRIDE +
-                                              COMPLETION2_OFF + j * 2);
+                            s32 val = p->char_save[p->character].completion2[j];
 
                             if (*best >= 0 && (val < 0 || val > *best)) {
                                 *best = val;
