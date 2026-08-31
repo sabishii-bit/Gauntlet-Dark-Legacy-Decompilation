@@ -1227,9 +1227,11 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             }
 
             /* node-info table, stride sizeof(AtreeNodeDef) */
+            j = 0;
             seqoff = 0;
-            for (j = 0; j < def->nodeCount; j++) {
+            while (j < def->nodeCount) {
                 u8* ni = (u8*)(blob[3] + seqoff);
+                j++;
                 seqoff += sizeof(AtreeNodeDef);
                 SWAPF32(((AtreeNodeDef*)ni)->position[0]);
                 SWAPF32(((AtreeNodeDef*)ni)->position[1]);
