@@ -19,6 +19,19 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
+# Foreign-CWD guard: configure writes build.ninja into the CURRENT directory,
+# and running THIS checkout's configure from another checkout's CWD (or vice
+# versa) has twice broken a checkout's build graph when the referenced
+# worktree was later deleted. Refuse the mismatch instead of writing.
+if Path.cwd().resolve() != Path(__file__).resolve().parent:
+    sys.exit(
+        "configure.py: refusing to run — the working directory is\n"
+        f"  {Path.cwd().resolve()}\n"
+        "but this script belongs to\n"
+        f"  {Path(__file__).resolve().parent}\n"
+        "cd (Set-Location) into the checkout you intend to configure first."
+    )
+
 from tools.project import (
     Object,
     ProgressCategory,
