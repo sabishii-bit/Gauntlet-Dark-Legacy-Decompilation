@@ -1,0 +1,23 @@
+{
+  "attributes": {
+    "provenance": "Re-derived on the SAME loop the v1 record was written from: the 45-entry speed-table refresh in src/game/enemy/enemy.c::do_enemies (fleet worker EN2, work_claim.exact-enemy-2.20260831.v1, commit e82ea4e83). v1 was recorded from attempt.enemy-c-defakematch-tupass.20260830.v2 during a de-fakematch pass that gated on `real` alone and never read the target's own opcodes at the cluster.",
+    "scope": "MWCC GC 1.2.5 family; supersedes claim.law.recomputed-index-array-form-safe.20260830.v1. Applies when a loop recomputes base + i*stride fresh from the counter each iteration (no += accumulator carried across iterations) and a de-fakematch pass wants to convert it to typed array-member form. Read together with claim.law.direct-global-member-flips-index-base-association.20260831.v1, whose base-kind x access-kind matrix supplies the mechanism.",
+    "tags": [
+      "core-screen",
+      "index-form",
+      "defake",
+      "matching",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.recomputed-index-array-form-safe.20260831.v2",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T14:44:34Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "supersedes": "claim.law.recomputed-index-array-form-safe.20260830.v1",
+  "valid_from": "2026-08-31",
+  "value": "CORRECTION of v1's direction claim, verified on the identical loop. v1 observed that converting do_enemies' recomputed-index store `u8* dst = pool + i*4; *(f32*)(dst+0x40) = ...` into typed array form `((EnemyMovePage05*)pool)->speed[i] = ...` improved fndiff real 394->392 at unchanged 568/568 insns, and reported the accompanying `add`->`addi` / `stfs`->`stfsx` shift as movement 'toward the target's own indexed-store shape'. That reading is WRONG: the target emits `add r3,r31,r5` + `stfs f0,64(r3)`, NOT the indexed x-form. The array conversion therefore moved the addressing form AWAY from target on both opcodes and was the sole cause of do_enemies' 4-token opcode-multiset divergence (target-only +1 add +1 stfs, ours-only -1 addi -1 stfsx); it bought 2 `real` lines while opening a STRUCTURAL gap. Reverting to the recomputed raw-pointer form (with the displacement respelled as offsetof(EnemyMovePage05, speed), an addend position, and the 4-byte stride left a bare literal) closed the multiset to IDENTICAL and moved objdiff fuzzy 96.698944 -> 97.0264 while `real` went 392 -> 394. So the CORRECTED rule is: for a recomputed-index store the array form is SAFE to compile but is NOT automatically closer to target, and which form is right is decided by the target's own opcodes at the cluster, per claim.law.direct-global-member-flips-index-base-association's matrix - a pointer LOCAL plus member access `p->arr[i]` yields addi + x-form, while target's `add rBase,rIdx` + displacement demands either the raw recomputed-pointer spelling or a direct global-symbol member access. TWO PROCEDURAL LESSONS, both cheap and both skipped when v1 was written. (1) NEVER infer the direction of an addressing-form shift from the sign of `real`: read the target opcodes at the cluster (`fndiff --ops` names them explicitly as target-only/ours-only) before describing any conversion as convergent. A conversion that improves `real` while turning an IDENTICAL opcode multiset into a DIFFERS one is a REGRESSION in structure, and AGENTS.md's classifier says so directly. (2) A de-fakematch pass that gates only on `real` can silently install a structural gap that a later exact drive must pay to remove; gate conversions on the --ops multiset as well as `real`, and treat multiset DIFFERS as a veto even when `real` improves. The wider generalization is that `real` and the opcode multiset can disagree in BOTH directions, and on a function whose streams are already instruction-count-exact the multiset is the finer structural instrument."
+}

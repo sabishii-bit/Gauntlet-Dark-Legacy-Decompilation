@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Read-only residual-class survey of the remaining enemy.c exact-drive targets (fndiff --ops against the freshly built object), taken to route the next pass's budget rather than to change code. No edits made under this record.",
+  "attributes": {
+    "axis_log": [
+      "Survey only, one fndiff --ops per function against the object built at commit e82ea4e83. No probes, no edits, nothing retained."
+    ],
+    "law_screen": "none applicable: this is a measurement/triage record, not a source-shape attempt - no law was applied to any edit. The laws that WILL govern the routed work are named per function in the survey below so the next agent screens them before, not after, spending builds.",
+    "residual": "SURVEY, target 568-insn-class functions first. do_enemy_move: 905/905 insns, multiset DIFFERS target-only +1 addi +1 lwz / ours-only -2 fmr, 6 clusters - carries the SAME 2-fmr normalization-temp-coalesce mechanism documented in attempt.move-logic10-normalization-temp-coalesce.20260831.v1, so the f64-retype axis proposed there should be tried on BOTH functions together. move_logic10: 1085/1087, ours-only -2 fmr (see its own record; note its recorded park predates this and its explicit-else block is now PROVEN correct, do not re-unify the two normalization spellings). move_logic15: 215/215 with opcode streams IDENTICAL - pure register/reloc residual, no structural gap left. find_neighbor_milestone: 119/119 IDENTICAL, same class. fn_8004646C: 133/133 IDENTICAL, single fmr insert/delete reorder pair at 0xa8-0xb0 - the cheapest remaining structural-free target in the TU. generate_enemy: 242 target vs 241 ours, target-only +1 mr (we are MISSING a copy target has - the inverse of the move_logic22/fn_80046680 class) plus a cmplwi reorder at 0x1b0; its existing park cites an imp/mask/otype 3-cycle over r24/r25/r26. fn_80046680: 117 vs 118, ours-only -1 mr - CONFIRMED same mechanism as move_logic22, see that record's cross-function finding. init_enemy: 136 vs 137, ours-only -1 lwz - this is the ALREADY-DOCUMENTED cost recorded in attempt.enemy-c-deepscrutiny.20260830.v1 (passing the just-stored e->state as an argument buys the store-register share at the price of one lwz); not a fresh defect. fn_8004DB3C: 60 target vs 59 ours, target-only +1 b +1 bne / ours-only -1 beq - VETO, this is the identical goto-pair mechanism as damage_enemy's P6 wall, which attempt.enemy-c-deepscrutiny.20260830.v1 already corroborated on THIS function ('flat &&, nested if and goto all fold to beq here too'); attempt.parked.damage-enemy-p6-goto-pair.20260831.v1 is a do-not-retry on the axis and it covers fn_8004DB3C by mechanism. ROUTING RECOMMENDATION for the next pass, cheapest-first: (1) fn_8004646C's single fmr reorder; (2) the shared f64-`cand`-retype axis across move_logic10 + do_enemy_move; (3) the shared LO-into-scratch-plus-mr class across move_logic22 + fn_80046680, most likely a WebFrank REGISTER_ONLY candidate rather than a source fix.",
+    "scope": "No files changed. Measurement taken in worktree GDL-Claude-ExactEnemy2 at commit e82ea4e83.",
+    "verification": "Each figure is a direct fndiff --ops reading against build/GUNE5D objects from a full green ninja (main.dol: OK) at that commit; no numbers are carried over from earlier sessions."
+  },
+  "function": "function:do_enemy_move",
+  "id": "attempt.enemy-c-residual-class-survey.20260831.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-08-31T14:44:48Z",
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
