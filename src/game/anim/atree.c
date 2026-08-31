@@ -1197,6 +1197,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             s32* blob =
                 (s32*)(base + *(s32*)(*(u32*)(hdr + 2) + off +
                                        offsetof(atreematch, offset)));
+            AtreeDefinition* def = (AtreeDefinition*)blob;
             s32 seqoff;
             s32 texbase;
             s32 nseqs;
@@ -1207,7 +1208,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             SWAP32(blob[3]);
             SWAP32(blob[4]);
             SWAP32(blob[5]);
-            SWAP16(*(u16*)&((AtreeDefinition*)blob)->objectIndex);
+            SWAP16(*(u16*)&def->objectIndex);
             blob[0] += (s32)blob;
             blob[3] += (s32)blob;
 
@@ -1262,7 +1263,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
                     *ptexmods = texbase + *ptexmods * sizeof(TEXMOD);
                 }
             }
-            ((AtreeDefinition*)blob)->objectIndex = (s16)model;
+            def->objectIndex = (s16)model;
             off += sizeof(atreematch);
         }
 
