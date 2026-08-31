@@ -83,7 +83,7 @@ extern void* AllocMem(s32 size);
 extern void* memset(void* p, s32 c, s32 n);
 extern void GetWorldMat(void* a, void* b, s32 c);
 extern void FatalError(const char* msg, s32 code);
-extern const char aGridError[]; /* lbl_80112360 == "GRID ERROR" */
+extern const char aGridError[]; /* 0x80112360 == "GRID ERROR" */
 extern s32 WorldObjCollide();
 extern s32 ExitCollisionEarly();
 
