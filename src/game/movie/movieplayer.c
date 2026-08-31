@@ -189,6 +189,21 @@ typedef struct MovieDTextInner {
     /* 0x20 */ u32* vtable;
 } MovieDTextInner;
 
+/* File-local streaming-audio pump state, AllocHiMem'd by PlayVQMovie and
+ * stashed at movie+0x190; fn_800D9F20 (per-frame adsPoll/sndCmd17 pump) and
+ * PlayVQMovie's own audio setup/teardown are its only readers/writers.
+ * Not a GC-verified name - offsets verified purely from this TU's own
+ * usage. */
+typedef struct MovieAudioState {
+    s32 command;
+    u8* buffer;
+    u32 remaining;
+    u32 offset;
+    u32 requestSize;
+    u8 active;
+    u8 _pad[3];
+} MovieAudioState;
+
 extern void GXInitTexObj(MovieGXTexObj* obj, void* data, u16 width, u16 height,
                          u32 format, u32 wrapS, u32 wrapT, u8 mipmap);
 extern void GXLoadTexObj(MovieGXTexObj* obj, u8 map);
@@ -296,7 +311,7 @@ u32 fn_800DA6A4(u8* movie, u32 decodeFrame, f32 elapsed);
 s32 fn_800DA920(u8* movie, const char* name);
 u32 fn_800DACD8(int movie, u8* header);
 u8 MovieDecoderInitBuffers(MovieChunkStream* decoder, u32 size, u32 hasAudio);
-void fn_800D9F20(int audio);
+void fn_800D9F20(MovieAudioState* audio);
 MovieDTextInner* fn_800DBF6C(MovieDTextInner* self, s16 deleting);
 u32* fn_800DB008(u32* self, s16 deleting);
 u32* fn_800DB0F8(u32* self);
@@ -981,14 +996,14 @@ void fn_800D9648(u32* param_1, MovieDecodeCall* param_2) {
     fn_800D93D4(param_1, param_2->flags, arg1, arg2, arg3, arg4);
 }
 
-void fn_800D967C(register int param_1, register int param_2) {
+void fn_800D967C(register int param_1, register MovieDecodeCall* param_2) {
     register u32 arg3;
     register u32 arg2;
     register void (*dispatch)(int, u32, u32);
 
     dispatch = *(void (**)(int, u32, u32))(*(u32*)(param_1 + 32) + 12);
-    arg3 = *(u32*)(param_2 + 12);
-    arg2 = *(u32*)(param_2 + 4);
+    arg3 = param_2->bitmap;
+    arg2 = param_2->context;
     dispatch(param_1, arg2, arg3);
 }
 
@@ -1348,51 +1363,41 @@ void fn_800D9DF0(char* param_1, int param_2, u8* param_3, int* param_4) {
 }
 
 /* per-frame audio pump during playback (adsPoll, sndCmd17) */
-void fn_800D9F20(int param_1) {
+void fn_800D9F20(MovieAudioState* audio) {
     u32 uVar1;
     u32 uVar2;
     u32 requestSize;
     u32 requestOffset;
     u8* requestData;
 
-    if (*(u8*)(param_1 + 0x14) != 0) {
+    if (audio->active != 0) {
         adsPoll();
-        if (*(u32*)(param_1 + 8) != 0) {
+        if (audio->remaining != 0) {
             uVar1 = sndCmd17(
-                (*(int*)(param_1 + 4) + *(int*)(param_1 + 0x10)) -
-                    *(u32*)(param_1 + 8),
-                *(u32*)(param_1 + 8));
-            *(u32*)(param_1 + 8) = *(u32*)(param_1 + 8) - uVar1;
+                ((int)audio->buffer + audio->requestSize) -
+                    audio->remaining,
+                audio->remaining);
+            audio->remaining = audio->remaining - uVar1;
         }
-        if (*(u32*)(param_1 + 8) == 0) {
-            uVar2 = *(int*)(gMovieStreamState + 0x108) - *(int*)(param_1 + 0xc);
+        if (audio->remaining == 0) {
+            uVar2 = *(int*)(gMovieStreamState + 0x108) - audio->offset;
             if (0xc000 < uVar2) {
                 uVar2 = 0xc000;
             }
-            *(u32*)(param_1 + 0x10) = uVar2;
-            requestSize = *(u32*)(param_1 + 0x10);
-            requestOffset = *(u32*)(param_1 + 0xc);
-            requestData = *(u8**)(param_1 + 4);
+            audio->requestSize = uVar2;
+            requestSize = audio->requestSize;
+            requestOffset = audio->offset;
+            requestData = audio->buffer;
             if ((u8)fn_800DB2F4((MovieChunkStream*)(gMovieStreamState + 0x20), requestData,
                                 requestOffset, requestSize)) {
-                *(u32*)(param_1 + 8) = *(u32*)(param_1 + 0x10);
-                *(int*)(param_1 + 0xc) = *(int*)(param_1 + 0xc) + *(int*)(param_1 + 0x10);
+                audio->remaining = audio->requestSize;
+                audio->offset = audio->offset + audio->requestSize;
             }
         }
     }
 }
 
 /* 0x800D9FEC top-level VQ movie playback loop: sets up GX/TEV, decodes+presents each frame (DEMODoneRender/DEMOSwapBuffers), polls pads (G3DGetPadStatusBuffer) to allow skipping, pumps audio (adsPoll/sndCmd17). Xbox: PlayVQMovie. Called by test_movies. */
-typedef struct MovieAudioState {
-    s32 command;
-    u8* buffer;
-    u32 remaining;
-    u32 offset;
-    u32 requestSize;
-    u8 active;
-    u8 _pad[3];
-} MovieAudioState;
-
 #define MOVIE_SETUP_DRAW_STATE()                                             \
     {                                                                        \
         MovieGXColor color;                                                  \
@@ -1670,7 +1675,7 @@ u32 fn_800DA6A4(register u8* movie, register u32 decodeFrame, f32 elapsed)
                 audio->remaining = 0xC000;
                 audio->remaining -= sndCmd17((s32)audio->buffer, 0x6000);
                 audio->remaining -= sndCmd17((s32)(audio->buffer + 0x6000), 0x6000);
-                fn_800D9F20((s32)audio);
+                fn_800D9F20(audio);
                 sndCmdA(lbl_80343B4C, 0, 1, gMovieAudioCallback);
             }
         }
@@ -2144,13 +2149,13 @@ void fn_800DB3D4(MovieChunkStream* stream, s32 fd, volatile u32 length) {
                 if (stream->highWater > stream->writePos) {
                     return;
                 }
-                if (!(stream->highWater > available)) {
-                    return;
+                if (stream->highWater > available) {
+                    memcpy((void*)stream->buffer, stream->buffer + chunkOffset, available);
+                    stream->writePos = available;
+                    node->dataOffset = 0;
+                    goto request_more;
                 }
-                memcpy((void*)stream->buffer, stream->buffer + chunkOffset, available);
-                stream->writePos = available;
-                node->dataOffset = 0;
-                goto request_more;
+                return;
             }
         }
 
