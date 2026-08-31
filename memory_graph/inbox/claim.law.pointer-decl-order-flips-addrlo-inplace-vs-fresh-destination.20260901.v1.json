@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/ui/select.c::init_player_change, worktree GDL-Claude-CopyFamily, commit 8935f7f89. Residual before: target `addi r5,r3,gPlayers@lo ; add r31,r5,r6` forming the gPlayers base FRESH into r5, versus ours `addi r3,r3,gPlayers@lo ; add r31,r3,r5 ; addi r4,r3,0` folding the low half onto the @ha temp r3 and then copying it out because r3 is needed for the loop counter `li r3,0`. The only edit was moving the declaration `u8* p;` from third position (after `u8* pl;` and `int i;`) to first. real 45 -> 32, insns 79 -> 78, opcode multiset DIFFERS -> IDENTICAL.",
+    "tags": [
+      "matching",
+      "register-web",
+      "decl-order",
+      "entry-schedule",
+      "relocation"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.pointer-decl-order-flips-addrlo-inplace-vs-fresh-destination.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T22:59:35Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "WHEN THE ADDRESS COPY IS VOLATILE-TO-VOLATILE, DECLARATION ORDER IS A LIVE LEVER - unlike the callee-saved home-copy class, which is not. Distinguish the two by the copy's DESTINATION before choosing a disposition. (a) Destination callee-saved (`addi rCS,rX,0` / `mr rCS,rX` homing a file-scope address): that is the P class of claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1, S=0 image-wide, source-unreachable, do not probe. (b) Destination VOLATILE: our build folds the low half onto the @ha temp in place (`addi rT,rT,SYM@lo`, the IN_PLACE shape) where the target writes a FRESH register (`addi rD,rT,SYM@lo`, rD != rT), and pays a copy later when the temp's register is wanted for something else - canonically a loop counter that the target puts in the freed @ha temp. That shape IS source-reachable and the lever is the DECLARATION ORDER of the pointer local that receives the address: moving it to the FRONT of the function's declaration list made MWCC form the address into a fresh register, removed the copy, and collapsed the surrounding colouring. MEASURED SENSITIVITY, all four orders on the same function, same statements: `u8* p; u8* pl; int i;` real 32 (copy gone, multiset identical); `u8* p; int i; u8* pl;` real 32 (same); `u8* pl; int i; u8* p;` real 45 (the original, copy present); `int i; u8* p; u8* pl;` real 45 (copy back). The discriminant is not the pointer's position relative to the other POINTER, it is its position relative to the INT counter that competes for the @ha temp's register: p before i wins, i before p loses. CONTEXT THAT DOES NOT MATTER, measured neutral on the same function: splitting `p = gPlayers; pl = p + idx*STRIDE;` into `pl = gPlayers + idx*STRIDE; ... p = gPlayers;` scored real 45 before the decl fix and real 32 after it, i.e. the statement form is orthogonal to the lever - keep whichever spelling reads better. NEGATIVE CONTROLS, so this is not a universal lever: on world/items::LoadItems (a class-(a) instance) swapping the two pointer declarations REGRESSED 13 -> 15, and on world/world::StartWorldLoad (byte-identical residual signature to LoadItems) the same swap measured NEUTRAL. Two functions with byte-identical residual signatures therefore responded DIFFERENTLY to the identical probe, which retires the 'one lever closes both' framing for that pair."
+}

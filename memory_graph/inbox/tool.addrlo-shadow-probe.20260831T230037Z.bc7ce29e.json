@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Use the CONDITIONAL statistic, not the aggregate histogram: the aggregate is the statistic that falsified this axis once already and the conditional one reverses it. Carries the same hex-immediate normaliser as the other two census tools and requires it for the copy detector to be two-sided."
+  ],
+  "entrypoint": "python tools/gdl/addrlo_shadow_probe.py",
+  "id": "tool.addrlo-shadow-probe.20260831T230037Z.bc7ce29e",
+  "kind": "tool",
+  "name": "addrlo_shadow_probe",
+  "purpose": "Cross-tabulates prologue-shadow fill size against the ADDR16_LO home-copy surplus, per function, on both sides. It is the tool that showed the shadow axis is NOT dead: the aggregate shadow histogram is near-identical between builds, but 21 of the image's 28 ours-larger shadow disagreements are exactly the shadow-coupled P functions.",
+  "recorded_at": "2026-08-31T23:00:37Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/addrlo_shadow_probe.py",
+  "status": "active",
+  "tool_key": "tool:addrlo-shadow-probe",
+  "tool_kind": "analysis",
+  "usage": [
+    "Run from the repo root after a green ninja. Prints the shadow-size disagreement count, the 2x2 of (ours-hoists-MORE x shape-B surplus), the shadow-subgroup roster with both sides' literal shadow contents, the non-shadow subgroup, and a control list of functions that hoist more without paying a copy."
+  ],
+  "valid_from": "2026-08-31T23:00:37+00:00"
+}

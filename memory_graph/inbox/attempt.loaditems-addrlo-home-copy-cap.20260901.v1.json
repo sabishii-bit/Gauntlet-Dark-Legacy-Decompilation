@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Ours-only `addi r30,r3,0` homing sObjectsFile: probed (1) removing the two pointer locals entirely so MWCC's address-PRE forms the callee-saved webs, (2) swapping the two pointer declarations. Both derived from the image-wide census, not from guesswork.",
+  "attributes": {
+    "law_screen": "claim.law.addr16-lo-home-copy-census-no-source-discriminant.20260831.v1 SCREENED and now APPLIES - its FINDING 6 excluded LoadItems from the class on an r0-only census; my general-temp census (tools/gdl/addrlo_home_general_census.py) shows LoadItems IS shape B, via r3 with an `addi r30,r3,0` copy, inside a corrected P population of 40 with S=0 over 953 opportunities. The class's twelve falsified discriminants therefore cover this function and its do-not-probe disposition applies. claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 SCREENED: ours is exactly one instruction longer, so the postprocessor path is closed on both the recolor-size and permutation-bijection preconditions. claim.law.pointer-decl-order-flips-addrlo-inplace-vs-fresh-destination.20260901.v1 SCREENED and does NOT apply - that lever is scoped to a VOLATILE copy destination; here the destination is callee-saved r30, and the decl-order probe it suggested regressed, which is the recorded negative control for that law. claim.law.dead-local-identity-reuse-also-closes-ours-only-home-copies.20260831.v1 SCREENED: carrier enumeration empty, the function has exactly two locals and both are live simultaneously across the whole body. Decl/init split not retried - CF measured it dead (work_claim scope note).",
+    "laws_applied": "[\"claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1\", \"claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1\"]",
+    "residual": "One instruction. Target: `lis r3,sObjectsFile@ha` hoisted alone into the prologue shadow, then `addi r30,r3,sObjectsFile@lo` after the stmw, then r3 REUSED as `lis r3,sItemRuntime@ha` / `addi r31,r3,@lo`. Ours hoists three instructions into the shadow (`lis r3,@ha`, `addi r3,r3,@lo`, `lis r4,@ha`), so the low half cannot write r30 (not yet saved by `stmw r30,8(r1)`) and a copy `addi r30,r3,0` is paid; our SECOND address gets it right (`addi r31,r4,@lo` lands after the stmw). Named mechanism: the joint over-hoist/no-coalesce decision of claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1, of which this is one of the 21 shadow-coupled instances.",
+    "scope": "src/game/world/items.c, LoadItems only. Both probes reverted; the TU is byte-identical to its pre-session state.",
+    "verification": "probe.py BASELINE real 13 (T51/O52). Probe 1 (address-PRE, both pointer locals deleted, direct sItemRuntime./sObjectsFile. member access) REGRESSED 13 -> 42, insns O57, ours-only -4 addi -2 lis: MWCC 1.2.5 does NOT address-PRE a file-scope struct base into a callee-saved web across calls - it rematerialises the full lis+addi pair at every use site, so the explicit pointer locals are REQUIRED and are the correct reconstruction. Probe 2 (declaration swap) REGRESSED 13 -> 15. Both reverted, re-scored NEUTRAL real 13. Full `ninja -j2` green, main.dol: OK."
+  },
+  "function": "function:LoadItems",
+  "id": "attempt.loaditems-addrlo-home-copy-cap.20260901.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T22:59:46Z",
+  "refutes": "claim.law.addr16-lo-home-copy-census-no-source-discriminant.20260831.v1",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

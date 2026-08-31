@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Pairs per function on COUNTS, not on symbol names, because the target split and our objects spell the same object differently (sObjectsFile_80112AB8 vs sObjectsFile) and a name join silently drops the instances under study. Read the P/S rosters sorted by |instruction delta|: rows from heavily diverged bodies are noise, only small-delta rows are diagnostic. Skips .postprocess directories."
+  ],
+  "entrypoint": "python tools/gdl/addrlo_dest_census.py",
+  "id": "tool.addrlo-dest-census.20260831T230031Z.ef864ac7",
+  "kind": "tool",
+  "name": "addrlo_dest_census",
+  "purpose": "Image-wide census of where the LOW-HALF addi of an address materialisation writes: IN_PLACE (rD == the @ha temp), R0, or FRESH. IN_PLACE is the shape that forces a later register copy when the completed address must live elsewhere; it is the mechanism behind the volatile-destination address copies (init_player_change class) as distinct from the callee-saved home copies.",
+  "recorded_at": "2026-08-31T23:00:31Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/addrlo_dest_census.py",
+  "status": "active",
+  "tool_key": "tool:addrlo-dest-census",
+  "tool_kind": "analysis",
+  "usage": [
+    "Run from the repo root after a green ninja. Writes build/LC_addrlo.json. Prints image-wide IN_PLACE/FRESH/R0 instruction totals for both sides, per-function P/Q/R/S populations paired on IN_PLACE count, and a discriminant battery over shadow membership, destination class, formation index and source register."
+  ],
+  "valid_from": "2026-08-31T23:00:31+00:00"
+}

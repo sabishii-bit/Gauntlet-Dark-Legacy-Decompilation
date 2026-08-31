@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Screen-only, no source probe spent: classified the residual from the aligned view and matched it against the recorded law corpus, which returns a do-not-probe verdict on both of its two clusters.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED and APPLIES EXACTLY - its scope line describes 'a target and our build disagree only on whether a zero-valued register is rematerialized (li rD,0) or copied from an already-live zero (addi rD,rS,0), typically at a loop preheader that initializes two induction variables', and that is verbatim this function's `-1 li` cluster: target emits `li r6,0` @0x10 then `addi r3,r6,0` @0x24, ours emits `li r6,0` then rematerialises `li r3,0` @0x44. Its disposition is 'stop spending probes on it'. claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 SCREENED, same cluster, same verdict, and its scope explicitly names the `fndiff --ops` signature 'ours-only -1 li' that this function reports. claim.law.addr16-lo-home-copy-census-no-source-discriminant.20260831.v1 SCREENED, DOES NOT APPLY: the general-temp census puts ProcessCritterList at tA=1/oA=1/tB=0/oB=0 - its gCritterPool address is homed DIRECTLY into r30 on both sides, so it was never in the address-copy family at all. claim.law.pointer-decl-order-flips-addrlo-inplace-vs-fresh-destination.20260901.v1 SCREENED, does not apply (no volatile address copy at issue; the gPlayers @lo is FRESH on both sides, only its placement differs).",
+    "laws_applied": "[\"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\", \"claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1\"]",
+    "residual": "Two clusters, net `ours-only -1 li`, 49 vs 50 insns. (1) ZERO REMAT: target `li r6,0 ; ... ; addi r3,r6,0` (copies the live zero) versus ours `li r6,0 ; ... ; li r3,0` (rematerialises) - the screened do-not-probe class. (2) SCHEDULE: the gPlayers `addi rD,r3,@lo` is FRESH on both sides but the target places it at index 7 (before the stmw region settles, feeding r5) while ours places it at index 12 and then moves it once (`addi r5,r4,0`); the two addis cancel in the multiset, which is why the net residual is a single li. Both clusters are register/schedule class with the opcode multiset difference fully explained.",
+    "scope": "src/game/enemy/critter.c - NO edit made. defake_gate baseline taken for the TU (86 functions, 63 at real 0) and probe.py BASELINE banked for the function so a future session has a revert point.",
+    "verification": "probe.py BASELINE real 25 (insns T49/O50, multiset 1t). fndiff --ops and fnasm --diff 0x0:0x50 read for classification. No build changed; full `ninja -j2` green, main.dol: OK. Per AGENTS 'Before parking - search the residual class for known levers first': the search returned two accepted laws that both close this residual class as source-unreachable, so spending probes would have been a knowing violation of a recorded cap."
+  },
+  "function": "function:ProcessCritterList",
+  "id": "attempt.processcritterlist-zero-remat-law-screen-park.20260901.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T23:00:03Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
