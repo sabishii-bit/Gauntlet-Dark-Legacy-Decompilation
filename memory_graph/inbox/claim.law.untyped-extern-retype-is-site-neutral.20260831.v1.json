@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "symbol-identity",
+      "defake",
+      "build-hygiene",
+      "param-retype",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.untyped-extern-retype-is-site-neutral.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:37:55Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "claim.offsetcast-recoverable-blockers-ranked ranks 'untyped extern shadowing a typed header' as the project's single biggest de-fakematch blocker (1832 RECOVERABLE sites, 74% of the class, across 24 TUs re-declaring `extern u8 gPlayers[]` / `extern u8* gCurLevel` / etc.). Verified 2026-08-31 across four TUs (psfx.c, sounds.c, shop.c, shopquery.c, 30 sites total): the retype itself is FREE, and the safe procedure is a two-stage split that isolates it. STAGE A -- change only the declaration (`extern u8 gPlayers[]` -> `extern Player gPlayers[4]`, `extern u8* gCurLevel` -> `extern level_data*`) and preserve every call/deref site's EXISTING spelling by inserting the mechanical cast the retype now requires (`gPlayers + i*13148` -> `(u8*)gPlayers + i*13148`, `gCurLevel + offsetof(level_data,f)` -> `(u8*)gCurLevel + offsetof(...)`), then gate. This was byte-identical in all four TUs, first try, every time -- 4/4 GATE OK -- because the front end still sees the identical additive expression on a byte pointer. STAGE B -- promote only the sites the retype actually gives authority over, in small gated batches. This is where the value lands and where the risk lives, and it must be kept separate from Stage A so a failure is attributable. Stage B results: scalar member promotions (`gCurLevel->musicvol`, `->soundvol`, `->bosstype`, `->audio`, `pl->item_body_lo`) were byte-identical at all 18 sites tried; a typed `level_data* lvl` local replacing a `u8* lvl` copy was byte-identical across 3 field reads in a 90%-fuzzy function; and the array-index promotion `((Player*)((u8*)gPlayers + plr*0x335C))->state` -> `gPlayers[plr].state` (with `(s32*)&gPlayers[plr]` at two call sites) IMPROVED LoadPlyrData's fndiff real 1651 -> 1635 and fuzzy 96.4253% -> 96.4780%, both metrics agreeing -- consistent with claim.law.recomputed-index-array-form-safe, since `plr` is a parameter recomputed per use rather than a carried accumulator. Screen two hazards while doing this. (1) claim.law.local-alias-vs-direct-global-spelling-diverges: never unify site spellings during Stage A, and gate the WHOLE TU, not the edited function -- a shared global's access pattern can move a sibling. (2) A retyped extern must not silently rescale existing pointer arithmetic: `&gPlayers[player * 13148]` reads as a byte index under `u8 gPlayers[]` but would become a 13148-ELEMENT stride under `Player gPlayers[4]`, so rewrite those to `(u8*)gPlayers + player * 13148` in the same edit -- gauntworld.c's leveldata pass recorded this exact class as a real latent BUG, not merely an unnamed offset."
+}

@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "EXTERN-RETYPE lane TU pass over game/shop/shopquery.c: retype the untyped shadowing `extern u8 gPlayers[]` to `Player gPlayers[4]` and give the item-cursor parameter a named record, converting all four of the TU's raw-offset sites.",
+  "attributes": {
+    "law_screen": "claim.law.multifield-alias-defeats-indexed-addressing screened and cleared: PlayerItemState's `pl` is an index-computed base but the two fields it reads sit on MUTUALLY EXCLUSIVE branches (item_body_lo and item_body_hi are never both live), so the law's 3+-nearby-field hazard does not reach it; the typed `Player* pl = &gPlayers[pidx]` was A/B'd anyway and gated byte-identical. claim.law.recomputed-index-array-form-safe APPLIED: `pl` is recomputed from the parameter, never a carried accumulator, so the array-index form was the safe first try -- and it was. claim.law.swap-loop-is-record-layout-ground-truth APPLIED as the verification instrument for the DSItem view (shop.c's ShopLoadData swap loop). claim.law.offsetof-rename-preserves-protected-web APPLIED for the two `+ 0x44` cursor sites: offsetof on the ORIGINAL raw u8* parameter, no typed intermediate introduced. claim.law.embedded-struct-member-whole-tu-cascade screened and honored: DSItem was added as a file-LOCAL typedef, not to any shared header. claim.law.local-alias-vs-direct-global-spelling-diverges screened: only one gPlayers site exists in this TU, so no cross-site spelling could be unified.",
+    "laws_applied": "[\"claim.law.recomputed-index-array-form-safe.20260830.v1\", \"claim.law.offsetof-rename-preserves-protected-web.20260830.v1\", \"claim.law.swap-loop-is-record-layout-ground-truth.20260830.v1\"]",
+    "residual": "None. All four sites converted; both functions remain byte-exact.",
+    "scope": "src/game/shop/shopquery.c only. Raw-offset debt 4 bare sites -> 0; the TU no longer appears in the gdlmem debt census. Two gated commits. `extern u8 gPlayers[]` -> `Player gPlayers[4]` with `u8* pl = gPlayers + pidx * 0x335C` becoming `Player* pl = &gPlayers[pidx]` and the two flag reads becoming `pl->item_body_lo` / `pl->item_body_hi` -- fields that include/game/player.h already carried and had annotated 'VERIFIED shopquery @7864/@7868', i.e. the header had been verified FROM this TU and the TU had never adopted the result. The item-cursor `+ 0x44` sites got a file-local DSItem view mirroring shop.c's, with widths kept identical to shop.c's so the two TUs cannot drift into the conflicting-reconstruction failure AGENTS.md records for critter.c.",
+    "verification": "defake_gate.py baseline then `check --rebuild` after each of 4 batches, all GATE OK. `fndiff --count` reports OK (real 0) for both ItemDefValid and PlayerItemState after the pass, matching baseline. Full `ninja -j2` green with `build/GUNE5D/main.dol: OK`. `git diff --check` clean."
+  },
+  "function": "function:PlayerItemState",
+  "id": "attempt.shopquery-extern-retype-tupass.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T02:37:38Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

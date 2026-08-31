@@ -85,7 +85,7 @@ extern char* strcat(char* dst, const char* src);
 extern s32 lbl_801232C8[]; /* per-player name/track id table, stride 4 */
 extern char lbl_801232DC[6][8]; /* material names used by music cues */
 extern char lbl_80114A48[]; /* SOUNDS string table */
-extern u8 gPlayers[];  /* player array, stride 0x335C */
+extern Player gPlayers[4]; /* gPlayerRecords[4], stride 0x335C */
 extern u8 sSpeechNameBuf[];  /* scratch name buffer; aliases per-class speech id tables at offsets */
 extern char lbl_80348534[8];  /* "SHOP_%c" fmt (sdata2) */
 extern char lbl_80114C9C[];   /* "S_SHOP_%c" fmt (rodata) */
@@ -96,7 +96,7 @@ extern u8 lbl_80124458[];
 extern s32 sActiveTrackId[]; /* active-track id array (45 entries) */
 extern char lbl_801200B0[][4]; /* 4-char class name table */
 extern char sStreamNameBuf[];    /* stream-name scratch buffer */
-extern u8* gCurLevel;       /* current-level descriptor pointer */
+extern level_data* gCurLevel; /* 0x8034483C active level record */
 extern s32 good_wiz_state;   /* audio mode (<=2 => attract/menu path) */
 extern s32 sAudioInitFlag;
 extern s32 sCurSelectTrack;
@@ -170,7 +170,7 @@ void AudioWelcomeBack(int pidx, int flag)
 
 void AudioWithName(int id, int pidx, f32 vol, int s4, int s5)
 {
-    Player* player = &((Player*)gPlayers)[pidx];
+    Player* player = &gPlayers[pidx];
     s32* T = (s32*)sSpeechNameBuf;
     s32 (*T16)[16] = (s32(*)[16])sSpeechNameBuf;
     int track;
@@ -422,7 +422,7 @@ void AudioMusicVolUpdate(void)
     }
     AudioSetupLevelStreams();
     if (sMusicSubState == 1 && sMusicSubIndex != sSelectStreamState &&
-        *(s16*)(*(u8**)(gCurLevel + offsetof(level_data, audio)) +
+        *(s16*)((u8*)gCurLevel->audio +
                 offsetof(AudioDataLayout, nareas)) > 1) {
         target = sCurMusicVol;
         if (target > 3) {
@@ -446,7 +446,7 @@ void AudioMusicVolUpdate(void)
         target = current - 8;
     }
     sCurMusicVol = target;
-    AudioDeferSlot((void*)(s32)((f32)target * *(f32*)(gCurLevel + offsetof(level_data, musicvol))), target);
+    AudioDeferSlot((void*)(s32)((f32)target * gCurLevel->musicvol), target);
 }
 
 void AudioStopSelect(void)
@@ -467,7 +467,7 @@ void BGMusicStart(void)
     }
     sndFxResetVoices();
     sCurSelectTrack = 0;
-    AudioRegisterNameBanks(*(char**)(gCurLevel + offsetof(level_data, audio)), 0);
+    AudioRegisterNameBanks((char*)gCurLevel->audio, 0);
     sSelectStreamHandle = v;
     sCurMusicVol = lbl_80343B4C;
     sSelectStreamState = 0;
@@ -492,7 +492,7 @@ void AudioRegisterNameBanks(char* name, int flag)
         sndFxQueEmpty();
     }
     for (i = 0; i < 4; i++) {
-        p = &gPlayers[i * 13148];
+        p = (u8*)gPlayers + i * 13148;
         st = *(s32*)(p + offsetof(Player, state));
         if (st == 0) {
             continue;
@@ -558,14 +558,14 @@ void AudioSetupLevelStreams(void)
         if (sMusicSubState < 2 && sCurMusicVol > 3) {
             return;
         }
-        if (*(s16*)(*(u8**)(gCurLevel + offsetof(level_data, audio)) +
+        if (*(s16*)((u8*)gCurLevel->audio +
                     offsetof(AudioDataLayout, nareas)) <= 1) {
             sMusicSubIndex = 0;
             sMusicSubState = 0;
             return;
         }
     }
-    lvl = *(u8**)(gCurLevel + offsetof(level_data, audio));
+    lvl = (u8*)gCurLevel->audio;
     if (lvl == NULL) {
         return;
     }
@@ -590,7 +590,7 @@ void AudioSetupLevelStreams(void)
     tmp = sMusicField2F4;
     sSelectStreamState = idx;
     lbl_803442F8 = tmp;
-    lvl2 = *(u8**)(gCurLevel + offsetof(level_data, audio));
+    lvl2 = (u8*)gCurLevel->audio;
     chans = *(s16*)(lvl2 + offsetof(AudioDataLayout, stereo));
     if (*(s16*)(lvl2 + offsetof(AudioDataLayout, nareas)) == 1) {
         sprintf(buf, lbl_80348528, (char*)(lvl2 + offsetof(AudioDataLayout, stream)));
@@ -598,7 +598,7 @@ void AudioSetupLevelStreams(void)
         sprintf(buf, lbl_80348570, (char*)(lvl2 + offsetof(AudioDataLayout, stream)),
                 (signed char)lbl_8012330C[sSelectStreamState]);
     }
-    lvl2 = *(u8**)(gCurLevel + offsetof(level_data, audio));
+    lvl2 = (u8*)gCurLevel->audio;
     lvl2 += sSelectStreamState * 2;
     if (*(s16*)(lvl2 + offsetof(AudioDataLayout, nparts)) > 1) {
         sprintf(nb, lbl_80348578, buf, sMusicField2F4 + 1);
@@ -606,7 +606,7 @@ void AudioSetupLevelStreams(void)
         strcpy(nb, buf);
     }
     strcat(nb, lbl_8034852C);
-    lvl2 = *(u8**)(gCurLevel + offsetof(level_data, audio));
+    lvl2 = (u8*)gCurLevel->audio;
     if (sMusicField2F4 + 1 ==
         *(s16*)(lvl2 + sSelectStreamState * 2 + offsetof(AudioDataLayout, nparts))) {
         mode = 1;
@@ -622,7 +622,7 @@ void AudioSetupLevelStreams(void)
         tmp = 0;
         sMusicSubState = tmp;
         if (AudioStreamPlay((u16)(s32)((f32)sCurMusicVol *
-                                       *(f32*)(gCurLevel + offsetof(level_data, musicvol))),
+                                       gCurLevel->musicvol),
                             mode, chans, tmp) < 0) {
             ErrorPrintf(lbl_80114CE0, nb);
             err = -2;
@@ -661,7 +661,7 @@ void AudioBuildMusicName(void)
         material = (char*)lbl_801232DC + off;
         if (material[0] == '*') {
             sprintf(buf, strings + 692, material + 1);
-        } else if (*(s32*)(gCurLevel + offsetof(level_data, bosstype)) >= 0) {
+        } else if (gCurLevel->bosstype >= 0) {
             sprintf(buf, strings + 704, material, (s8)LevelLetter(0));
         } else {
             sprintf(buf, strings + 716, material, (s8)LevelLetter(0));
@@ -675,7 +675,7 @@ void AudioBuildMusicName(void)
 
         if (material[0] == '*') {
             sprintf(buf, strings + 728, material + 1);
-        } else if (*(s32*)(gCurLevel + offsetof(level_data, bosstype)) >= 0) {
+        } else if (gCurLevel->bosstype >= 0) {
             sprintf(buf, strings + 740, material, (s8)LevelLetter(0));
         } else {
             sprintf(buf, strings + 756, material, (s8)LevelLetter(0));
@@ -906,7 +906,7 @@ s32 AudioSecretProc(f32 scale, s32 sound, f32* position, u32 flags,
     }
 
     scaled = lbl_8034851C * scale;
-    volume = (s32)(scaled * *(f32*)(gCurLevel + offsetof(level_data, soundvol)));
+    volume = (s32)(scaled * gCurLevel->soundvol);
     if (sumnerSpeechActive() != 0 || gTriggerCameraState != 0 ||
         lbl_803447DC != 0) {
         volume = 0x10;

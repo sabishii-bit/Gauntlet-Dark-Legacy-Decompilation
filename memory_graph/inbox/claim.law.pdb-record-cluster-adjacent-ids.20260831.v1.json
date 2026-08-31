@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "workflow",
+      "symbol-identity"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.pdb-record-cluster-adjacent-ids.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T02:37:47Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "A prior pass's 'searched the Xbox PDB, no hits' verdict on a record type is NOT durable evidence, and the cheapest way to overturn it is a SIZE grep over the raw dump plus an ADJACENT-Id sweep. Verified 2026-08-31 on game/sfx/psfx.c: attempt.psfx-defakematch-tupass-w2.20260830.v1 left ~84 sites raw across LoadPlyrData/PlyrSfxDoDamage/PlyrSfxDoDamageSub, recording them as a 'shared on-disk wad-row family, NO verified struct anywhere -- xbox PDB searched, no hits'. Grepping research/xbox_symbols/*.h for the literal record SIZES the source's own stride constants advertise (`// Size=0x180`, `Size=0x58`) found plyr_data (Id=3433) and plyr_damage (Id=3432) immediately; reading the ~40 lines AROUND them yielded plyr_sfx (Id=3434) for the third record type as well. All three were consecutive Ids, because the Xbox compiler emitted the TU's record types in source order -- so finding ONE record of a family locates the whole family. Two procedural lessons. (1) Prefer the size grep to a name query: `gdlmem.py struct <Name>` needs the Xbox TYPE name, which is exactly what you do not have when a record is unnamed, whereas the stride constant is already sitting in the source (`off += 0x180`, `idx * 88`, `recordOffset += 0x50`). (2) The negative finding may simply predate the index: the xbox_structs.tsv the `struct` op resolves against was regenerated from the FULL dump on 2026-08-31, and claim.offsetcast-recoverable-blockers-ranked measured the old index as covering ~12% of the dump's 1885 named structs -- so any 'no PDB hits' note written before that date should be re-run, not trusted. Adoption discipline that made this safe: every candidate was cross-checked against the TU's OWN byte-swap loop before a single name was taken (claim.law.swap-loop-is-record-layout-ground-truth), and the loops matched all three layouts field for field -- including the tell that clinched plyr_data, namely that the swap loop skips exactly offsets 0x04 and 0x08, the two pointer fields that are resolved after load rather than byte-swapped, and skips exactly the two 16-byte text runs in plyr_sfx. Result: 170 bare sites -> 7 in one TU, all conversions byte-identical, and three reconstructed field names were corrected to their real Midway spellings in the process (plyr_sfx 0x08/0x0C had been guessed 'texture'/'parent' but are sfxidx/sndidx -- 0x0C is passed to AudioPlay3DSel as a SOUND id, so the guessed name was actively misleading)."
+}
