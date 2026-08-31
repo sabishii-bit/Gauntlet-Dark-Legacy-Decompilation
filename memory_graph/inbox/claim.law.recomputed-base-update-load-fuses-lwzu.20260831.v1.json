@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/mb/mb_font.c::MBRenderText (worktree GDL-Claude-FlipLadder, work_claim.flip-ladder.20260831.v1, attempt.mbrendertext-structural-closure.20260831.v1, commit d5a8291ce): target add r31,r19,r17 + lwzu r3,4300(r31) reproduced byte-level; the prior array-index source (&st->msgs[i]) compiled to addi r31,r17,4300 + add + plain lwz (the +4300 grouped with the induction temp instead of fusing into the load).",
+    "scope": "MWCC GC 1.2.5 family; applies to a loop that RECOMPUTES a struct-array element pointer each iteration from base + i*stride (strength-reduced accumulator), reads a field through a large intermediate displacement, and then accesses many fields of the same element - as distinct from claim.law.lwzu-idiom-web-retention's WALKED (p += stride across iterations) case.",
+    "tags": [
+      "lwzu-fusion",
+      "walked-pointer",
+      "index-form",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.recomputed-base-update-load-fuses-lwzu.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:39:53Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A per-iteration RECOMPUTED element pointer can carry lwzu fusion, not just a walked one. Source shape: `u8* p = (u8*)base + i * STRIDE;` (literal stride - sizeof spelling screened separately per claim.law.sizeof-defeats-loop-stride-induction) followed by the element's first field read in update form inside the guard, `if (*(u32*)(p += BIG_OFFSET) & FLAG) continue;`, then a typed transit `elem = (Elem*)p;` with all subsequent accesses as elem->field. MWCC compiles this to `add rP,rBase,rAccum; lwzu r3,BIG_OFFSET(rP)` and keeps EVERY downstream elem->field displacement on rP - the typed transit does NOT split the web here, unlike the walked-pointer case recorded in claim.law.lwzu-idiom-web-retention where moving body accesses to a differently-typed second pointer cost the fusion plus 2 instructions. The difference: with a recomputed base the update-load is the pointer web's DEFINING use inside the iteration (no loop-carried lwzu web to protect), so the allocator coalesces the typed alias onto rP instead of splitting. Array-index spelling of the same access (`msg = &st->msgs[i]; if (msg->flags & 1)`) groups the big offset with the induction temp (addi rT,rAccum,BIG; add; lwz 0) and never fuses - in MBRenderText this one rewrite moved real 74->52 and restored the exact target instruction count. Try this form whenever a target shows add+lwzu at a loop head over a struct-array whose element offset within the aggregate is large, and the current source spells it as typed array indexing."
+}

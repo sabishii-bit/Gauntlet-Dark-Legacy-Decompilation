@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "P6 goto-pair wall revisit (target bge->body; b->done vs ours beq/ble from switch): direct if-goto/else-goto arm pair, and empty-then-arm with goto in else",
+  "attributes": {
+    "axis_log": "NEG if (type >= 3) goto draw; else goto done;: collapses to single inverted blt->done, 31/32 real 15 - MWCC inverts if/else goto arms even at cflags_demo (peephole off); NEG if (type >= 3) ; else goto done;: byte-identical to the previous probe (blt collapse) - two identical A/Bs, axis dead. Baseline switch form (case 3 + default if>3) stays best at real 4, 32/32 with beq/ble vs target bge/b.",
+    "law_screen": "claim.law.guard-polarity-restructure-fixes-count-parity-not-form.20260831.v1 applied as compiler evidence - its movieplayer case shows the SAME positive-branch-over-b guard form was NOT reproducible from C (only count parity was recovered there; here count is already exact so that lever offers nothing); claim.law.if-else-arm-swap-controls-fallthrough-placement screened (n/a: both target blocks reached via branch, not an arm-size layout case); core-screen list fetched.",
+    "residual": "2 opcodes: target [bge->28, b->70] vs ours [beq->28, ble->70] at 0x20-0x24, count exact. The bge-over-b pair appears unreachable from portable C: if/else-goto inverts, and switch machinery emits only beq-per-case chains. Corroborates v1's 'asm-device exact' note and the movieplayer law's negative. TU flip blocked by this function alone (10 other fns 100%).",
+    "scope": "src/game/mb/mb_poly.c probes only, all reverted via probe.py --revert; tree clean",
+    "verification": "probe baseline real 4 banked; both probes REGRESSED and reverted; revert re-scored NEUTRAL real 4; git status clean"
+  },
+  "function": "function:DoPolyInst",
+  "id": "attempt.parked.dopolyinst.20260831.v2",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T03:39:30Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.dopolyinst.20260829.v1",
+  "valid_from": "2026-08-31"
+}

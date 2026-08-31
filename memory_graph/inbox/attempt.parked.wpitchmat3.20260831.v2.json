@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "L27 lfsu update-form wall revisit under claim.law.scalar-read-write-lfsu-mixed-form (law postdates the v1 park): mixed-form read/write pairs and lifetime pragmas to keep the v+=2 update materialized",
+  "attributes": {
+    "axis_log": "NEUTRAL cast-transit read b=*(f32*)((u8*)v+8) with separate v+=2 statement and named *v write: identical 43/43 real 4; NEUTRAL split-statement update (v+=2; b=*v;): identical; NEUTRAL #pragma opt_lifetimes off (+existing opt_propagation off) with original b=*(v+=2) form: identical. Three identical A/Bs - the fold of the pointer update into twin 8(r4) displacements is robust against form AND propagation/lifetime pragmas.",
+    "law_screen": "claim.law.scalar-read-write-lfsu-mixed-form.20260830.v1 applied (its fused case = raw-cast read + named write of same address) - did NOT transfer; claim.law.lwzu-idiom-web-retention.20260830.v1 screened (walked-loop case, body uses exist here, still no fusion); core-screen list fetched.",
+    "residual": "1 opcode: target lfsu f4,8(r4)+stfs f0,0(r4) vs ours lfs f4,8(r4)+stfs f0,8(r4) at L27; 43/43 insns, real 4. Law-scope boundary discovered: the scalar-lfsu-mixed-form law's fused case has a loaded struct-pointer base; a LOOP-INDUCTION-derived base (v = matrix + row*4 inside a ctr loop) folds the update regardless of read/write form or opt pragmas - the mixed-form lever does not reach induction bases. TU flip blocked by this function alone (43 other fns 100%).",
+    "scope": "src/game/ps2/ml_fmath.c probes only, all reverted via probe.py --revert; tree clean",
+    "verification": "probe baseline real 4 banked; three probes measured NEUTRAL; revert re-scored NEUTRAL real 4; git status clean"
+  },
+  "function": "function:WPitchMat3",
+  "id": "attempt.parked.wpitchmat3.20260831.v2",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T03:39:24Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.wpitchmat3.20260829.v1",
+  "valid_from": "2026-08-31"
+}

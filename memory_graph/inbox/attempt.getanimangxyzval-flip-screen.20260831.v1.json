@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "TU-flip screen only: game/anim/anim_play reached on the flip ladder, GetAnimAngXYZVal is the sole sub-100 function",
+  "attributes": {
+    "law_screen": "screen-only record, no edits: attempt.getanimangxyzval-register-web-closure.20260829.v1 (capped, REGISTER_ONLY, 11 axes + full 1.2.5/1.2.5n compiler matrix bottomed at real 172) is a hard VETO on every axis I could name; its policy clause requires a genuinely new portable source dependency or surrounding structural change, and none was identified. Core-screen laws fetched but no edit was attempted.",
+    "residual": "unchanged from the standing cap: FPR recolor f28-f31 webs + 4-byte stack-home displacement, real 172, 1047/1047 insns. Additionally the cap's verification notes a pre-existing unclaimed .sdata2 0x8 in datadiff - a second flip blocker beyond text exactness. VETO, moved down the ladder; this record intentionally does NOT supersede the v1 cap (the cap remains the live forensic record).",
+    "scope": "no files touched",
+    "verification": "no edits; brief + record fetch only"
+  },
+  "function": "function:GetAnimAngXYZVal",
+  "id": "attempt.getanimangxyzval-flip-screen.20260831.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-08-31T03:39:35Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,17 @@
+{
+  "attempted_axis": "TU flip: game/mb/mb_main NonMatching -> Matching via tools/gdl/finish_tu.py (all 4 functions already byte-clean)",
+  "attributes": {
+    "law_screen": "core-screen laws fetched (laws --tag core-screen); none applicable: no source edits made, flip-only. Flip-blocker classes screened: claimcheck OK (.sdata2 0x98, .text 0x88c, extab 0x10, extabindex 0x18; dead-strip note only), datadiff .sdata2 OK 0x98 bytes; no BSS/pool/data-claim issue.",
+    "residual": "NONE - TU is Matching; fndiff --clean per fn: MBEndFrame EXACT, MBInit/mbInvSqrtLookup/mbInitInvSqrtTable MATCH with pool-name noise only (real 0).",
+    "scope": "configure.py only (flip via finish_tu.py); no source files edited",
+    "verification": "finish_tu.py: claimcheck+datadiff green, full ninja green, build/GUNE5D/main.dol OK (retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679); linked files 195->196 (game 40->41, 8.64%->8.89% linked); commit 97180d07d"
+  },
+  "function": "function:MBEndFrame",
+  "id": "attempt.mb-main-tu-flip.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T03:39:17Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

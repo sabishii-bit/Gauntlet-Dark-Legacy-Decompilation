@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "schedule-class 4-insn rotation at 0x424-0x440 (lis/rlwinm/stw/addi order + gPadCur load position, opcode multiset IDENTICAL): decl order and explicit invariant-cache levers",
+  "attributes": {
+    "axis_log": "NEUTRAL timer/i declaration order swap: identical 289/289 real 18; NEG block-scoped PADStatus* pad = gPadCur cache declaration in the else block: real 18->20, same cluster shape. Combined with v1's recorded flag/pragma/compiler sweeps this is 3+ dead axes on a pure-scheduler residual.",
+    "law_screen": "claim.law.independent-statement-reorder-matches-target-schedule screened (only 2 statements in the region, flag-clear must precede the loop semantically - no legal reorder); claim.law.point-of-use-single-use-pointer-delay screened (inverse case: target HOISTS the load, ours delays); claim.law.scalar-field-cache-defeats-call-boundary-reload screened -> cache probe below; core-screen list fetched.",
+    "residual": "SCHEDULE only: target interleaves lwz gPadCur before rlwinm/stw gSysFlags and sinks the gPadStartHoldTimer lis/addi after the store; ours hoists lis early and loads gPadCur late; i colored r6(target)/r3(ours) as a knock-on. real 18, 289/289, multiset identical. TU flip blocked by this function alone (16 other fns 100%; sysPollResetButton+sysClearFlags webfrank-pinned, untouched).",
+    "scope": "src/game/sys/sysservice.c probes only, all reverted via probe.py --revert; tree clean",
+    "verification": "probe baseline real 18 banked; 2 probes measured; revert re-scored NEUTRAL real 18; git status clean; pinned functions not edited"
+  },
+  "function": "function:sysResetService",
+  "id": "attempt.parked.sysresetservice.20260831.v2",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T03:39:44Z",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.sysresetservice.20260829.v1",
+  "valid_from": "2026-08-31"
+}

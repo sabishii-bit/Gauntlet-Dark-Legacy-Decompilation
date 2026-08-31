@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "STACK_LAYOUT exact closure of the 8-byte excess frame (48 vs 40): NEW axes beyond v1 - sibling brace scopes around inline call sections (slot-overlay theory) and a second inline helper variant without the matrix local at one call site",
+  "attributes": {
+    "axis_log": "NEG sibling brace scopes around node1+node2 create sections (node3 unscoped): NEUTRAL real 10 insns 310/310 - MWCC does NOT overlay inline-expansion nominal frame slots across sibling scopes at the call-statement level; NEG MBTreeCreateInitializedNode2 variant without the matrix local at the node3 site: 309/310, sinks the gIdentityMatrix lis/addi past the null check (target-only +1 addi), real 249 - same failure class v1 recorded for matrix-as-formal (the early address load REQUIRES the per-expansion matrix local)",
+    "law_screen": "core-screen + matching laws listed via brief; screened claim.law.chained-init-constant-share (n/a - no constant pairs), store-placement-family (n/a), inline-and-deadstrip-rules (applied: helper defined before caller, inlines as before). v1 cap attempt.mbtreeinit-stack-frame-closure.20260829.v1 screened first: the two probes below are NOT in its negative_forms list, so they were spent as genuinely-new axes; both failed, cap stands.",
+    "residual": "unchanged from v1: five paired frame operands only (stwu -40/-48, stmw/lmw r29 at 28/36, LR 44/52, teardown 40/48); frame 48 vs 40, 310/310 insns otherwise exact. TU flip remains blocked by this function alone.",
+    "scope": "src/game/mb/mb_tree.c probes only, all reverted via probe.py --revert; tree clean at HEAD after revert",
+    "verification": "probe.py banked baseline real 10 (310/310); both probes measured and reverted; git status clean; MBNewNode (webfrank-pinned) untouched"
+  },
+  "function": "function:MBTreeInit",
+  "id": "attempt.mbtreeinit-stack-frame-closure.20260831.v2",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T03:39:19Z",
+  "residual_class": "STACK_LAYOUT",
+  "schema_version": 1,
+  "supersedes": "attempt.mbtreeinit-stack-frame-closure.20260829.v1",
+  "valid_from": "2026-08-31"
+}
