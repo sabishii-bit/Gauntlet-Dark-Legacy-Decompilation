@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "HEADER WORK-ORDER lane: SOLE OWNER of include/game/player.h, plus TUs src/game/world/tower.c + src/game/game/gamemain.c. Execute the banked orders, isolation protocol per edit (gate header ALONE across player/pmotion/critter/enemy/select/tower/gamemain, full ninja): (1) claim.player-charsave-completion-fields-are-arrays: completion1/2 become u16[3]/u16[4]-class ARRAYS (the record has the exact shape evidence: pad_16[4] between them = the missing slots; consumers index j<3 and j<8) \u2014 then convert tower.c's nine blocked functions to member form per the R1-R4 playbook (claim.offsetof-deprecation-playbook \u2014 this doubles as its SECOND-TU CONFIRMATION); (2) the char-stat block: 28-byte per-character records at Player+3088 (attempt.gamemain-enum-and-defake-tupass banked the shape: +0/+16/+20 s32 frame-counts, +24 f32, indexed by character) \u2014 scalars-vs-array-of-struct decision per the cascade laws (PlayerCharSave-style member-type reuse is the proven-safe form), then convert do_stats_display's 5 sites; (3) smaller orders: p+7644/7648/7660 (pad_1CD4, shop's record has widths), select's pad_0A88 remainder list. SECONDARY: TowerCheckMessages real 158 exact drive continuation (its record maps the residual; new header fields may unlock it); parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:do_stats_display",
+  "id": "work_claim.player-h-workorders.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PH",
+  "recorded_at": "2026-08-31T14:21:53Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

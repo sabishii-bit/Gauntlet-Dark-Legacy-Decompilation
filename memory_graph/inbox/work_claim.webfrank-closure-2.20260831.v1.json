@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "WEBFRANK CLOSURE lane 2: author sound rules for the machine-named mechanisms banked since the first pass, flip nothing prematurely, prove everything by replay. QUEUE (screen each with the our-colouring discriminant FIRST \u2014 claim.law.webfrank-permutation-is-audited-in-our-colouring; the first lane found 'well-characterized' and 'machine-provable' near-orthogonal): (1) InitEffects (game/sfx/sfx) clean 4-cycle callee-saved permutation r20->r22->r21->r23->r20, identical instructions AND schedule \u2014 recolor stage only, flagged eligible by its discoverer (attempt.initeffects-null-arm-base-relative-w2); (2) playerGiveGargItem (game/game/player) 5-register permutation, structurally exact (attempt.tower-offsetof-deprecation-pilot names it); (3) pbDiagDrawTexture (game/pb/pb_diag) closed permutation x/wg/old + 2 dead-after-compare scratch rows (attempt.pbdiagdrawtexture-saved-register-set-closure); (4) DrawGlowText (game/ui/btext) 3-register scratch-direction renaming over 9 insns (attempt.drawglowtext-scratch-alloc-direction.v2); (5) SumnerDoSpeech (game/world/tower) emission-order pair \u2014 CAUTION: involves ORDER, likely permutation+recolor coupling like the rejected sysResetService \u2014 screen hard before attempting; (6) AdsPutBuffer two-web callee-saved transposition (attempt.adsputbuffer-lo-fold-home-vs-scratch.v2) \u2014 placement is a consequence of the fold, screen whether pure recolor covers it. Rules of the lane: read tools/gdl/webfrank.py + tests + the first closure lane's records FIRST; build the prove-by-replay harness before analysis (~100 lines, its rejections are the oracle); every rule passes the hardened guards + retail-byte assert + a new test; cite mechanism record ids in the rule; full ninja green per rule; NO src edits; NOTE claim.law.webfrank-pin-freezes-its-inlined-helpers-too when picking pins; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:InitEffects",
+  "id": "work_claim.webfrank-closure-2.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WF2",
+  "recorded_at": "2026-08-31T14:21:52Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

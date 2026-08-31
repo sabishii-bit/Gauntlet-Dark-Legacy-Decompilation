@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "OPUS EXACT-DRIVE lane, whole TU src/game/world/camera.c: do_camera 99.27 (247i), debug_camera_pos 99.45 (427i), camera_mode_target 99.41 (452i) \u2014 all WALL re-screens predating ~30 laws (REVERIFY banners expected); then camera_collide_step 90.4 (444i, capped w/ register-permutation screen \u2014 only NEW-law angles) and camera_debug_supervisor's precisely-mapped cross-branch-int-cache residual (its record names the exact mechanism \u2014 check whether value-identity/named-local recovery per the offsetof mechanism law reaches it). Exact or named-mechanism park; our-colouring check before WEBFRANK-READY flags; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:do_camera",
+  "id": "work_claim.exact-camera-2.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CAM2",
+  "recorded_at": "2026-08-31T14:22:03Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

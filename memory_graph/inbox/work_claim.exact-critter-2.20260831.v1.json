@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "OPUS EXACT-DRIVE lane, whole TU src/game/enemy/critter.c: CritterDoTexmodNode 99.87 (463i, WALL re-screen), ProcessCritter 99.83 (420i, STRUCTURAL history), CritterLineCollide 99.56 (91i), CritterDamage residue (92.3 after run-6; branch-polarity cluster named), CritterBossAI residue (96.96 \u2014 must HOLD if untouched). The TU's reconciled records (crit_type/crit_pattern/CritterPattern member-retype win) + the value-identity mechanism law are new ground for these parks. c-base sites remain VETOED (form-independent law). WebFrank pin: CritterLookForCriticalMove + its inlined helpers (the new pin-freezes-helpers law) \u2014 screen first. Exact or named-mechanism park; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:CritterDoTexmodNode",
+  "id": "work_claim.exact-critter-2.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CR",
+  "recorded_at": "2026-08-31T14:22:08Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
