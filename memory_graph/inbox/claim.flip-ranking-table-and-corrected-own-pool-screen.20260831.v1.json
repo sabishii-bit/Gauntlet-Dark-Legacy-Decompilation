@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "law_screen": "Applied claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1 as the flip-blocker screen; its source-text form (grep extern lbl_ADDR inside own pool) proved to OVER-report and is corrected here to the object-table form. Screened claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1 for re-typed stragglers. Per-straggler caps screened via gdlmem context (all five clear candidates carry live same-day STRUCTURAL parks -> AGENTS.md do-not-retry).",
+    "laws_applied": [
+      "claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1"
+    ],
+    "tags": [
+      "workflow",
+      "metrics",
+      "build-hygiene",
+      "sda-global"
+    ],
+    "verification": "build/GUNE5D/report.json measures.matched_functions vs total_functions per unit (authoritative exact count); configure.py Object(NonMatching,...) roster (59 units); config/GUNE5D/splits.txt section ranges; powerpc-eabi-nm -u per object. Build green at 98.09% fuzzy / 61.70% matched / 198-of-324 linked, main.dol sha1 OK."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.flip-ranking-table-and-corrected-own-pool-screen.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T21:44:29Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "FLIP-READINESS RANKING (re-derived 2026-08-31 after InitEffects/move_logic15/get_player_pos/MBTreeInit/CheckSpecials went exact). METHOD, and a correction to the previous one: rank NonMatching TUs by report.json measures.total_functions - matched_functions. Do NOT rank by counting functions with fuzzy<100 -- that conflates 'fuzzy imperfect' with 'not exact' and mis-ranked every TU in an earlier pass (it reported dcsdrv at 3 stragglers when the true count is 1). 59 NonMatching code units. TEN TUs SIT AT EXACTLY ONE NON-EXACT FUNCTION: game/ps2/ml_fmath (WPitchMat3, 172B, data 100%); game/world/btricol (BTriLineCol, 1800B, 100%); game/mb/mb_poly (DoPolyInst, 128B, 100%); game/anim/anim_play (GetAnimAngXYZVal, 4188B, 100%); game/mb/mb_font (MBRenderText, data 61.4% GATED); game/sys/sysservice (sysResetService, data 68.1% GATED); game/g3d/gcontrolpads (G3DReadControlPadStates, 192B, 100%); game/audio/dcsdrv (dcsHandleRequest, 1644B, 100%); game/pb/pb_frame (pbFrameMode, data 40.0% GATED); game/pb/dbgtext (fn_800C03E0, 1732B, 100%). AT TWO: fakelib, pb_window, auxanim, dynobjgrid, mb_blit, action, pb_error, mb_camera. DATA GATE removes mb_font/sysservice/pb_frame outright. RESULT OF THE DRIVE SCREEN, and why nothing flipped this run: all five data-clean 1-straggler TUs have a straggler carrying a LIVE, SAME-DAY (2026-08-31), post-modern-law park or cap, every one re-classified STRUCTURAL after the regnorm/label-correction wave -- WPitchMat3 (v4), DoPolyInst (v4, three post-inverted-guard shapes already tried), G3DReadControlPadStates (capped 2026-08-29), dcsHandleRequest (v3), fn_800C03E0 (v1 five-form closure). Under AGENTS.md these are hard do-not-retry absent a genuinely new source-level idea, so the measurement-supported conclusion is that the flip frontier is currently BLOCKED BEHIND FIVE HARD STRUCTURAL RESIDUALS, not behind ranking ignorance. The next flip will come from solving one of those five, not from finding a cheaper TU -- there is no cheaper TU. CORRECTED OWN-POOL SCREEN (supersedes the source-text recipe in claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1): grepping source for `extern lbl_<ADDR>` whose address lies in the TU's own pool range produces FALSE POSITIVES, because MWCC routinely EMITS those symbols into the TU's own pool as defined symbols -- btricol.o defines lbl_80345D40/D48/D50/D58 as `R` at pool offsets 0/8/0x10/0x18, and anim_play.o defines lbl_80345838 as `R` while leaving only the genuinely foreign lbl_80345840 undefined. Both would have been reported as blocked by the text screen and neither is blocked. THE RELIABLE DISCRIMINANT IS THE OBJECT'S UNDEFINED-SYMBOL TABLE: flag a TU only when `nm -u <obj>` lists an UND lbl_/jumptable_<ADDR> whose address falls inside that TU's OWN splits.txt range. IMAGE-WIDE RESULT OF THAT SCREEN: ZERO of the 59 NonMatching TUs carry an own-pool UND ghost. The symbolified-own-pool blocker class is fully clear as of this commit; mb_tree was the only instance and it is fixed. No future flip-readiness pass needs to re-run the source-text grep."
+}
