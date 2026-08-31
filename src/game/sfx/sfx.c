@@ -1964,19 +1964,21 @@ s32 fn_80093BC0(s32 type, f32* pos, f32* vel, u32 fla, s32 fxhit, s32 hit_audio,
     if (idx < 0) {
         return -1;
     }
-    e = &page->fx[idx];
-    if (vel != NULL) {
-        f32 vz = vel[2];
-        f32 ang = atan2(vel[0], vz);
-        e->vel[0] = vel[0];
-        e->vel[1] = vel[1];
-        e->vel[2] = vel[2];
-        if (e->node != NULL) {
-            YawMat3(e->node, ang);
+    if (idx >= 0) {
+        e = &page->fx[idx];
+        if (vel != NULL) {
+            f32 vz = vel[2];
+            f32 ang = atan2(vel[0], vz);
+            e->vel[0] = vel[0];
+            e->vel[1] = vel[1];
+            e->vel[2] = vel[2];
+            if (e->node != NULL) {
+                YawMat3(e->node, ang);
+            }
         }
+        e->weight = 0.0f;
+        e->colrad = 0.0f;
     }
-    e->weight = 0.0f;
-    e->colrad = 0.0f;
     page->fx[idx].fxhit = fxhit;
     page->fx[idx].hit_audio = hit_audio;
     page->fx[idx].wall_sound = wall_sound;
