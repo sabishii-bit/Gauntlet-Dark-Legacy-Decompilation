@@ -502,7 +502,10 @@ void towerRecordLevelBeaten(int level, int world) {
         Player* rec = &gPlayers[i];
         s32 state = rec->state;
 
-        if (state == 1 || state == 4 || state == 5) {
+        if (state != 1 && state != 4 && state != 5) {
+            continue;
+        }
+        {
             s16 lvl = *(s16*)(gCurLevel + offsetof(level_data, rune));
 
             if (lvl > 0) {
@@ -514,21 +517,21 @@ void towerRecordLevelBeaten(int level, int world) {
                     rec->char_save[rec->character].level_masks[0] |= mask;
                 }
             }
-            {
-                s16 boss = *(s16*)(gCurLevel + offsetof(level_data, legend));
+        }
+        {
+            s16 boss = *(s16*)(gCurLevel + offsetof(level_data, legend));
 
-                if (boss > 0) {
-                    int mask = 1 << boss;
+            if (boss > 0) {
+                int mask = 1 << boss;
 
-                    if ((rec->char_save[rec->character].level_masks[2] & mask) != 0) {
-                        rec->char_save[rec->character].level_masks[3] |= mask;
-                    } else {
-                        rec->char_save[rec->character].level_masks[2] |= mask;
-                    }
+                if ((rec->char_save[rec->character].level_masks[2] & mask) != 0) {
+                    rec->char_save[rec->character].level_masks[3] |= mask;
+                } else {
+                    rec->char_save[rec->character].level_masks[2] |= mask;
                 }
             }
-            ((u8*)rec)[rec->character * 14 + level + LEVEL_STATUS_BYTES_OFF] |= (1 << world);
         }
+        ((u8*)rec)[rec->character * 14 + level + LEVEL_STATUS_BYTES_OFF] |= (1 << world);
     }
 }
 
