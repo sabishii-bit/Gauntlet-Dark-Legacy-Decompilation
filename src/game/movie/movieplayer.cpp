@@ -34,6 +34,15 @@
 #include "dolphin/pad.h"
 #include "dolphin/gx/GXVert.h"
 
+/* Built as C++ so the -Cpp_exceptions on in cflags_demo actually reaches the
+ * front end (the .c extension selected the C compiler, where the flag is
+ * inert). Everything keeps C linkage: the target names every function in this
+ * TU unmangled (PlayVQMovie, MovieDecoderInitBuffers, DTextInitColorRamp,
+ * and the operator-delete pair __dl__FPv/__dla__FPv, which mb_blit.c
+ * references with a C declaration), so mangling any of them would break both
+ * the cross-TU link and the name-keyed diff pairing. */
+extern "C" {
+
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
 #endif
@@ -386,6 +395,7 @@ u32 fn_800D8BCC(MovieDecodeState* p1, int p3, char* p4, int mode, int p5, u8* p6
 u32 fn_800D8F28(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D91B4(MovieDecodeState* p1, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D9A14(MovieRingBuffer* p1, u8* p2, int p3, u8 p4);
+int fn_800D9DBC(u32 param_1, char* param_2, int param_3, u8* param_4);
 void fn_800DBE98(void* param_1, u8* param_2);
 int fn_800DB2F4(MovieChunkStream* param_1, u8* param_2, u32 param_3, u32 param_4);
 void fn_800DB3D4(MovieChunkStream* stream, s32 fd, u32 length);
@@ -1334,6 +1344,11 @@ void fn_800D9C5C(MovieRingBuffer* p, int n) {
 }
 #pragma dont_inline off
 
+/* Kept out-of-line: the target calls this from dtor_800DBB94 (`addi r3,r28,60`
+ * / `li r4,-1` / `bl`), and it is that destructor's only call site, so
+ * suppressing the auto-inline here reproduces the call without affecting any
+ * other function. */
+#pragma dont_inline on
 int* fn_800D9CF4(int* p, s16 releaseAgain) {
     if (p != 0) {
         if (*(u32*)p != 0) {
@@ -1351,6 +1366,7 @@ int* fn_800D9CF4(int* p, s16 releaseAgain) {
     }
     return p;
 }
+#pragma dont_inline off
 
 #ifdef __MWERKS__
 #pragma optimization_level 4
@@ -2030,7 +2046,10 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
 }
 
 /* MoviePlayer teardown (AudioStreamStop, operator delete, dtor_800DBB94) */
-MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting);
+/* C++ region: the exception specification must match the definition's. */
+#pragma cplusplus on
+MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) throw();
+#pragma cplusplus off
 MovieDTextOuter* fn_800DBD30(MovieDTextOuter* self, s16 deleting);
 
 u32* fn_800DB008(u32* self, s16 deleting) {
@@ -2112,9 +2131,13 @@ void __dl__FPv(void* p) {
 #pragma scheduling on
 #endif
 
-u32* dtor_800DB21C(u32* self, s16 deleting) {
-    u8 unused[24];
-
+/* Parsed as C++ so the empty exception specification is accepted: with
+ * -Cpp_exceptions on it is what makes MWCC emit the __unexpected cleanup
+ * edge and the r31 frame-pointer prologue this destructor has in the
+ * target. The surrounding TU stays in its original per-region parse mode
+ * (a uniform C++ parse changes fn_800DA6A4 and trips its WebFrank pin). */
+#pragma cplusplus on
+u32* dtor_800DB21C(u32* self, s16 deleting) throw() {
     if (self != NULL) {
         self[0] = (u32)lbl_801296A4;
         if (deleting > 0 && self != NULL) {
@@ -2126,6 +2149,7 @@ u32* dtor_800DB21C(u32* self, s16 deleting) {
     }
     return self;
 }
+#pragma cplusplus off
 
 void fn_800DB29C(MovieChunkStream* self) {
     MovieChunkNode* node = self->activeNode;
@@ -2475,9 +2499,11 @@ void fn_800DBA80(u8* dec, s32 fd) {
 #pragma scheduling on
 #endif
 
-MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) {
-    u8 unused[32];
-
+/* Same C++ EH shape as dtor_800DB21C: parsed as C++ for the empty exception
+ * specification, which is what emits the __unexpected edge and the r31
+ * frame-pointer prologue. */
+#pragma cplusplus on
+MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) throw() {
     if (self != NULL) {
         __dla__FPv(self->rawBuffer);
         self->rawBuffer = 0;
@@ -2504,6 +2530,7 @@ MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) {
     }
     return self;
 }
+#pragma cplusplus off
 
 MovieChunkStream* fn_800DBC64(register MovieChunkStream* p) {
     register MovieChunkStream* self = p;
@@ -2651,3 +2678,5 @@ MovieDTextInner* DTextInitColorRamp(MovieDTextInner* p) {
     p->ownsAlloc = 0;
     return p;
 }
+
+} /* extern "C" */

@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "workflow",
+      "matching",
+      "inline"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.cpp-rename-is-inert-while-pragma-cplusplus-off-regions-remain.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T23:00:37Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "Renaming a TU from .c to .cpp does NOT by itself put its functions under the C++ front end if the source carries `#pragma cplusplus off` regions: MWCC honours those pragmas even when invoked with -lang=c++, so every function inside an `off` region keeps C parsing and C codegen. MEASURED on game/movie/movieplayer 2026-08-31: the TU was renamed to .cpp, configure.py and splits.txt updated, and the build driver correctly added -lang=c++ -- yet `defake_gate check` reported GATE OK with all 51 functions byte-identical and both WebFrank pins (fn_800D967C, fn_800DA6A4) still applying. That perfect neutrality was NOT evidence of a clean conversion; it was evidence the conversion had not reached the code, because `#pragma cplusplus on/off` pairs already in the file (added earlier so C++ syntax could be used inside a .c TU) held the file in its ORIGINAL per-region parse modes. The tell is a rename that changes nothing at all: a real front-end change essentially always perturbs something. THREE OPERATIONAL CONSEQUENCES. (1) After a .c->.cpp rename, grep the TU for `pragma cplusplus` before concluding anything from a byte-neutral gate. (2) Removing the `off` pragmas to get a uniform C++ parse is NOT free: on this TU it changed fn_800DA6A4's body and tripped its WebFrank pin fail-closed (`input hash ... != expected`), which is the guard working correctly and must not be worked around by re-pinning. The safe form is surgical -- wrap only the functions that need C++ in their own `#pragma cplusplus on/off` pair and leave every other region's parse mode byte-for-byte as it was. (3) An exception specification must match between declaration and definition, so a forward declaration of a `throw()` function needs its own `#pragma cplusplus on/off` wrapper too, or the compile fails with 'exception specification list mismatch'. RELATED FLAG FACT, worth knowing before planning such a conversion: cflags_demo ALREADY carries -Cpp_exceptions on, so the exceptions flag was never the missing piece -- only the front-end selection was. Also note MWCC's C++ front end accepts the implicit void*->T* conversions that C allows (clangd flags them, mwcceppc does not) except inside regions it parses as C++, where two AllocHiMem assignments in this TU did require explicit casts."
+}

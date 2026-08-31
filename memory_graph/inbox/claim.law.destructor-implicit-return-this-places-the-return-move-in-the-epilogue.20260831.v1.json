@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "entry-schedule",
+      "store-placement",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.destructor-implicit-return-this-places-the-return-move-in-the-epilogue.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T23:00:35Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MWCC places the `mr r3,<this-reg>` that materialises a destructor's return value INSIDE the epilogue -- after the `lwz r0,<lr-slot>(...)` and immediately BEFORE the register-restore (`lmw`/`lwz` of the callee-saved home) -- ONLY when the function is a REAL C++ destructor whose `return this` is compiler-synthesised. An ordinary function that returns its own first parameter with an explicit `return self;` statement emits the SAME instruction at the END OF THE BODY, before the branch to the epilogue, and makes that copy the convergence point every guarded path branches to. The two shapes are otherwise identical, so the residual presents as exactly ONE instruction in the wrong place with the instruction COUNT already exact -- easy to misread as scheduler noise. MEASURED DECISIVELY on 2026-08-31 with a two-function scratch TU compiled by the project's own GC/1.2.5 mwcceppc at the movieplayer cflags (-O4 -inline auto -Cpp_exceptions on -lang=c++): form A, `extern \"C\" u32* formA(u32* self, s16 deleting) throw()` ending in `return self;`, emitted `50: mr r3,r30` then `54: b <epilogue>` with the epilogue running `mr r12,r31 / lwz r0,52(r31) / lmw r30,40(r12)`; form B, a genuine `Thing::~Thing()`, emitted `ac: lwz r0,28(r1) / b0: mr r3,r31 / b4: lwz r31,20(r1)` -- the return move sandwiched in the restore sequence. Same body, same return value, same compiler invocation; the ONLY difference is destructor-ness. CONSEQUENCE FOR MATCHING: when a target function's epilogue carries the return move between the LR reload and the register restore, and your build emits it early, do NOT spend the per-axis budget on statement reordering, temp-variable spellings, or branch-shape rewrites -- a temp-variable form was measured here and was strictly WORSE (it added a stack slot: frame 48 -> 56, `lwz r0,60` / `lmw r30,48` against target's `lwz r0,52` / `lmw r30,40`). The axis is destructor-ness itself: the function must be written as an actual C++ destructor, which also changes its symbol to the mangled `__dt__<len><Class>Fv` form, so the symbol-name and split/pairing consequences must be resolved before the shape is reachable. RELATION TO NEIGHBOURING LAW: this is NOT claim.law.callee-saved-home-copy-coalescing-is-source-unreachable.20260831.v1, which covers a target-only `mr rHome,rScratch` that your build does not emit at all; here BOTH builds emit the identical instruction and only its position differs. Screen the two apart by asking whether the instruction is missing (coalescing law) or merely misplaced (this law)."
+}

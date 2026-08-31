@@ -544,7 +544,7 @@ game/g3d/g3dpad.c:
 	.text       start:0x800D7CFC end:0x800D860C
 	.sdata2     start:0x80349350 end:0x80349390
 
-game/movie/movieplayer.c:
+game/movie/movieplayer.cpp:
 	extab       start:0x800081B8 end:0x80008560
 	extabindex  start:0x8000CAE4 end:0x8000CCB8
 	.text       start:0x800D860C end:0x800DC180
