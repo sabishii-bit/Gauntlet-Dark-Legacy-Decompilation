@@ -1,0 +1,28 @@
+{
+  "attempted_axis": "Five bounded pure-register closure probes: mode-web local, register-qualified first loop index, explicit zero/one phase reuse, then alignment-sensitive re-A/B of the first two axes",
+  "attributes": {
+    "axis_log": [
+      "mode copied to a semantic selectMode local: neutral real 84; re-A/B after retained gain neutral real 82",
+      "register-qualified first player-loop index: neutral real 84; re-A/B after retained gain neutral real 82",
+      "one explicit initValue web reused for pre-call zero stores and the later bit constant: improved real 84 -> 82 and retained"
+    ],
+    "baseline_best": "target/current 238/238; fuzzy 98.991600% -> 99.033615%; real 84 -> 82; frame 0x88 unchanged; opcode multiset identical",
+    "law_screen": "All 47 current matching laws fetched full and screened. Register/schedule candidates: declaration-initializer-split-controls-entry-schedule, independent-statement-reorder-matches-target-schedule, chained-init-constant-share, mwcc-codegen-tells, reload-vs-cache-liveness, point-of-use-single-use-pointer-delay; only chained constant-web reuse produced a gain. Verification-only: insn-count-parity-outranks-local-opcode-fidelity and pool-name-churn-is-invisible-to-real-and-fuzzy. No target tell for the remaining families: absent-target-guard, arg-constant-switch-arms, cached-base-alias, direct-global-member, extern-scalar-read, extern-zero-init, f64-pool-literal, guard-polarity, if-else-arm-swap, literal-sweep-needs-lfd-stfd, literal-sweep-pays-without-lfd, load-then-overwrite-vs-ternary, pool-literal-preconditions, pre-dispatch-literal-web, recomputed-base-lwzu, repeated-extern-read, repeated-fp-pool-literal, s16-via-s32, single-use-field-pointer, table-lookup-segment-casts, tautological-fp-compare, tu-wide-literalization, two-step-table-row, uniform-stack-pad, cross-tu-extern-scaling, cross-tu-extern-fctiwz, explicit-fp-symbol, int-float-signedness, narrow-local-reextend, scalar-field-cache, bss-reverse-order, compare-form-dictionary, inline-deadstrip, member-form-kills-addr-pre, store-placement, stride-array-table-view, switch-run-collapse, whole-fn-address-cache, pool-literal-per-function. WebFrank pins screened first: no select/init_player_select entry; config is foreign-owned and untouched.",
+    "laws_applied": [
+      "claim.law.chained-init-constant-share.20260829.v1",
+      "claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1",
+      "claim.law.pool-name-churn-is-invisible-to-real-and-fuzzy.20260831.v1"
+    ],
+    "residual": "REGISTER_ONLY exact-closure cap. Target assigns mode r21, first loop index r17, second loop index r20, and second-loop player pointer r19; MWCC current output assigns mode r17, coalesces both disjoint loop-index webs in r19, then reuses r17 for the second-loop player pointer. The later phase consequently rotates target r23/r22/r25/r24 to current r22/r25/r24/r23. Opcodes, count, CFG, frame, calls, and relocations otherwise align. This is eligible in shape for exact register-remap tooling, but WebFrank config ownership forbids editing it in this lane.",
+    "scope": "Only src/game/ui/select.c::init_player_select plus this proposal; portable C; no headers, config, postprocessor, or other source touched",
+    "verification": "probe.py best real 82; fndiff --ops IDENTICAL 238/238; --clean REGISTER_ONLY 82 (+2 normalized pool-name lines); matchtool TU 13 exact/23; full ninja -j2 linked main.dol OK with retail SHA-1 7cba77aa496eb0fc5ffec60efd9680aa9635d679; git diff --check clean"
+  },
+  "function": "function:init_player_select",
+  "id": "attempt.init-player-select-exact-drive.20260831.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T05:19:20Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

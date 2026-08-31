@@ -2738,6 +2738,7 @@ void init_player_select(s32 mode)
     s32* xp;
     u8* blits;
     u8* pl;
+    s32 initValue;
     u8 _spare[32];
 
     AudioStopSelect();
@@ -2780,9 +2781,10 @@ void init_player_select(s32 mode)
     if (mode == 0) {
         msgInit();
     }
-    lbl_80344BC8 = 0;
+    initValue = 0;
+    lbl_80344BC8 = initValue;
     init_targets();
-    lbl_80344BB0 = 0;
+    lbl_80344BB0 = initValue;
     if (mode != 0) {
         AudioSelectReset();
         lbl_80344BB0 = 4;
@@ -2793,8 +2795,10 @@ void init_player_select(s32 mode)
     i2 = 0;
     new_menu_accept(-1, 1);
     {
+        initValue = 1;
         for (pl = gPlayers; i2 < 4; i2++, pl += 13148) {
-            if (*(s32*)(pl + offsetof(Player, state)) == 0 && (lbl_80344824 & (1 << i2))) {
+            if (*(s32*)(pl + offsetof(Player, state)) == 0 &&
+                (lbl_80344824 & (initValue << i2))) {
                 new_player(i2);
             }
         }
