@@ -1,0 +1,23 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker PH, work_claim.player-h-workorders.20260831.v1, worktree GDL-Claude-PlayerHdr, branch claude/player-h-workorders-20260831. Three independent measurements in src/game/world/tower.c after include/game/player.h declared PlayerCharSave.completion1/completion2 as true s16 arrays (so member form was fully reachable): towerAdvanceLevelRecord EXACT -> STRUCTURAL (target 54 insns, ours 57), towerAdvanceBossRecord EXACT -> STRUCTURAL (target 53, ours 56), TowerCheckMessages real 158 -> 220 (two sites, ours 701 vs target 697). Reproduce by converting any of those sites to `&record->char_save[record->character].completionN[level]` and running tools/gdl/defake_gate.py check game/world/tower.c --rebuild.",
+    "scope": "MWCC GC 1.2.5 family; applies to a two-dimensional struct access `base->arr[idx].field[k]` where the target's own codegen forms a k-SCALED base off `base` FIRST and reuses that one address for two or more accesses (typically a load and a store of the same location, and/or a parallel access into a sibling array at a different fixed displacement). Boundary refinement of R1 in claim.offsetof-deprecation-playbook.20260831.v1.",
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "index-form",
+      "walked-pointer",
+      "register-web",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.shared-level-scaled-base-refuses-member-form.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T14:45:33Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "R1 of claim.offsetof-deprecation-playbook.20260831.v1 says a SHARED-BASE CLUSTER (target shows one `add rBase,rIdx` feeding several accesses) converts correctly and usually improves under member form. That is confirmed for the ordinary case but has a REPRODUCIBLE EXCEPTION, measured three times: when the shared base is the LAST-SUBSCRIPT-SCALED one -- i.e. the target computes `base + k*elemsize` FIRST and then adds the fixed `field_offset + idx*stride` to reach the element -- member form (`base->arr[idx].field[k]`) is STRUCTURALLY WRONG and cannot be recovered by any spelling of the same expression. MECHANISM. The source form `u8* rec = (u8*)base + k*2; ... *(s16*)(rec + idx*STRIDE + FIELD_OFF)` associates as (base + k*2) + (idx*stride + field_off), which materialises ONE address in ONE register that both the load and the store reuse, and which stays live to serve a sibling access (e.g. the checkpoint-shadow twin at a different fixed displacement). Member form associates the other way -- base + field_off + idx*stride + k*2 -- and MWCC then reaches the element with an INDEXED load (lhax) and RECOMPUTES the address for the store, costing exactly `+1 add, +1 addi, +1 lhax` and losing `1 lha` PER SITE. The signature is stable and diagnostic: `opcode multiset DIFFERS, target-only +N lha, ours-only -N add -N addi -N lhax` where N is the number of converted sites. CONSEQUENCE. (a) Treat this signature as proof that the last-subscript-scaled base is load-bearing, and STOP -- do not spend the R4 named-locals budget on it: R4 is scoped to IDENTICAL-multiset residuals and this one DIFFERS by construction. (b) R2's convert-the-cluster/keep-the-outlier split is NOT the remedy and can be strictly worse than either extreme: on the TowerCheckMessages write-site cluster full raw measured real 158, full member form 220, and the R2 split 246. (c) The correct endpoint is playbook STEP 3 -- the byte-pointer local IS the faithful reconstruction of what Midway wrote, because the association order it encodes is exactly what the target emits; keep the raw base and spell only its DISPLACEMENTS via offsetof. (d) This does NOT argue against the header work that unblocks member form: in the same TU and the same pass, 7 of 9 completion-family functions converted byte-identically once completion1/completion2 became true arrays. The distinction is per-SITE and is read off the target's association order, not off the field's declared type."
+}
