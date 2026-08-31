@@ -237,13 +237,18 @@ typedef struct P_SAVE_ATTS {
  *                        which is precisely what the PDB name asserts;
  *   +0x10 atts[]       - Player+0x0A90 stride 24, matched offset-and-stride
  *                        by P_SAVE_ATTS above (itself size-exact).
- * last_color/saved/leveltot are carried to keep the offsets honest; this TU
- * never dereferences them, so those three names are PDB-only. */
+ *   +0x0B saved        - the two menu-accept sites gate sel_step 1-vs-0 on
+ *                        this byte being non-zero, i.e. "has save data",
+ *                        which is what the PDB name asserts.
+ * last_color/leveltot are carried to keep the offsets honest; this TU never
+ * dereferences them, so those two names remain PDB-only. */
 typedef struct P_SAVE_HEAD {
     char name[8];        /* +0x00 == offsetof(Player, name) */
     s16  last_alttype;   /* +0x08 -> Player + 0x0A88 */
     u8   last_color;     /* +0x0A PDB name only -- not read in this TU */
-    u8   saved;          /* +0x0B PDB name only -- not read in this TU */
+    u8   saved;          /* +0x0B -> Player + 0x0A8B; GC-corroborated: the
+                          * two menu-accept sites gate sel_step 1-vs-0 on
+                          * it, i.e. "this player has save data" */
     u16  class_unlock;   /* +0x0C -> Player + 0x0A8C */
     u16  leveltot;       /* +0x0E PDB name only -- not read in this TU */
     /* +0x10 P_SAVE_ATTS atts[]; -> Player + 0x0A90, see above */
@@ -357,7 +362,9 @@ s32 GetBossBeatFlag(s32 boss)
 }
 
 /* Clamp/wrap a class-selection index into the valid range for the current
- * select mode, skipping classes that are locked (bit 23 of +0xA8C). */
+ * select mode, skipping classes that are locked.  The guard below is the
+ * class-16 case of the same `1 << (class - 8)` P_SAVE_HEAD.class_unlock test
+ * the rest of this TU uses: 0x100 == 1 << (16 - 8). */
 static s32 LimitSeltype(u8* player, s32 idx, s32 step)
 {
     int flag;
@@ -377,7 +384,9 @@ static s32 LimitSeltype(u8* player, s32 idx, s32 step)
                 idx = 16;
             }
             flag = 1;
-            if (idx == 16 && (*(u16*)(player + 0xA8C) & 0x100) == 0) {
+            if (idx == 16 &&
+                (*(u16*)(player + offsetof(Player, name) +
+                         offsetof(P_SAVE_HEAD, class_unlock)) & 0x100) == 0) {
                 idx += step;
                 flag = 0;
             }
@@ -689,7 +698,8 @@ s32 do_player_select(void)
                     break;
                 case 1001:
                     remove_optmenu(menu);
-                    if (*(s8*)(pl + 0xA8B) != 0) {
+                    if (*(s8*)(pl + offsetof(Player, name) +
+                              offsetof(P_SAVE_HEAD, saved)) != 0) {
                         *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                     } else {
                         *(s32*)(pl + offsetof(Player, sel_step)) = 0;
@@ -723,7 +733,8 @@ s32 do_player_select(void)
                     break;
                 case 1004: /* change character */
                     remove_optmenu(menu);
-                    if (*(s8*)(pl + 0xA8B) != 0) {
+                    if (*(s8*)(pl + offsetof(Player, name) +
+                              offsetof(P_SAVE_HEAD, saved)) != 0) {
                         *(s32*)(pl + offsetof(Player, sel_step)) = 1;
                     } else {
                         *(s32*)(pl + offsetof(Player, sel_step)) = 0;
@@ -1379,7 +1390,8 @@ s32 do_player_select(void)
                     if (moved != 0 || sel != *(s32*)(pl + offsetof(Player, respawn_char))) {
                         if (*(s32*)(pl + offsetof(Player, respawn_char)) < 8) {
                             known = 1;
-                        } else if (*(u16*)(pl + 0xA8C) &
+                        } else if (*(u16*)(pl + offsetof(Player, name) +
+                                           offsetof(P_SAVE_HEAD, class_unlock)) &
                                    (1 << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
                             known = 1;
                         } else {
@@ -1410,7 +1422,8 @@ s32 do_player_select(void)
                 if (new_menu_accept(i, 0) != 0) {
                     if (*(s32*)(pl + offsetof(Player, respawn_char)) < 8) {
                         known = 1;
-                    } else if (*(u16*)(pl + 0xA8C) &
+                    } else if (*(u16*)(pl + offsetof(Player, name) +
+                                       offsetof(P_SAVE_HEAD, class_unlock)) &
                                (1 << (*(s32*)(pl + offsetof(Player, respawn_char)) - 8))) {
                         known = 1;
                     } else {
