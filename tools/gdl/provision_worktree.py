@@ -48,6 +48,26 @@ def main():
         fail(f"run from the worktree root (cwd: {here})")
     if here.resolve() == MAIN_REPO.resolve():
         fail("this is the main checkout, not a worktree")
+    # Worktree .git files are sometimes written with an MSYS-form gitdir
+    # (/w/...) that native git.exe cannot resolve — BOTH shells then fail,
+    # which trap #1's "switch to PowerShell" advice misdiagnoses. Repair
+    # before anything else touches git.
+    fixer = here / "tools" / "gdl" / "fix_worktrees.py"
+    if fixer.is_file():
+        subprocess.run([sys.executable, str(fixer)], cwd=here)
+    gitfile = here / ".git"
+    if gitfile.is_file():
+        content = gitfile.read_text(encoding="utf-8", errors="replace")
+        m = None
+        for drive in "abcdefghijklmnopqrstuvwxyz":
+            token = f"gitdir: /{drive}/"
+            if content.startswith(token):
+                m = drive
+                break
+        if m:
+            fixed = content.replace(f"gitdir: /{m}/", f"gitdir: {m.upper()}:/", 1)
+            gitfile.write_text(fixed, encoding="utf-8")
+            print("repaired MSYS-form gitdir in .git file")
     src_orig = MAIN_REPO / "orig" / VERSION
     if not src_orig.is_dir():
         fail(f"main checkout has no {src_orig}")
