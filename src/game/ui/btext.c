@@ -425,7 +425,10 @@ s32 StringTextHeightSub(f32 scale, StrList* p, s32 msg, s32 idx, s32 spacing)
         return TextLineHeight(
             (char*)(p->textData + p->textOff[e->first + idx]), fh, spacing);
     }
-    for (line = 0; line < e->count; line++) {
+    for (line = 0;; line++) {
+        if (line >= e->count) {
+            break;
+        }
         total += TextLineHeight(
             (char*)(p->textData + p->textOff[e->first + line]), fh, spacing);
     }
