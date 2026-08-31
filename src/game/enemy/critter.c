@@ -22,6 +22,7 @@
 #include "game/leveldata.h"
 #include "game/mbobject.h"
 #include "game/player.h"
+#include "game/worldobj.h"
 
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
 
@@ -1109,7 +1110,7 @@ f32 *delta;
     result = 0;
     if (surface != NULL) {
         CritterWorldDamage(c, surface, c->pos, contact);
-        if ((*(u32 *)((u8 *)surface + 0x10) & 0x38) == 0) {
+        if ((*(u32 *)((u8 *)surface + offsetof(WorldObj, flags)) & 0x38) == 0) {
             if (SlideAlongWall(wallRadius, from, delta, contact,
                                lbl_8023CA98 + 4) < 0) {
                 delta[2] = delta[0] = lbl_80346470;
@@ -1184,9 +1185,12 @@ f32 *delta;
     }
     *(u32 *)((u8 *)c + 0x448) = result;
     if (surface != NULL) {
-        if (*(void **)((u8 *)surface + 0x28) != NULL &&
-            (*(u32 *)((u8 *)surface + 0x10) & 0x1000) != 0) {
-            MBNodeSetParent(c->mbnode, *(void **)((u8 *)surface + 0x28));
+        if (*(void **)((u8 *)surface + offsetof(WorldObj, nodeptr)) != NULL &&
+            (*(u32 *)((u8 *)surface + offsetof(WorldObj, flags)) & 0x1000) !=
+                0) {
+            MBNodeSetParent(c->mbnode,
+                            *(void **)((u8 *)surface +
+                                       offsetof(WorldObj, nodeptr)));
         } else {
             MBNodeSetParent(c->mbnode, lbl_8034473C);
         }
