@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Label correction: regnorm screen reclassifying a bulk-labelled allocator park as a two-row frame-slot placement residual.",
+  "attributes": {
+    "law_screen": "claim.park-law-age-revisit-census.20260831.v1 APPLIED (screen the label first). claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED - regnorm reports 0 unpaired here so the rows are trustworthy, and its corollary (split displacement rows by base register) is what classifies these two as STACK_LAYOUT rather than a field-selection bug. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED and NOMINATED as the lever for the next agent, not exercised here. claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1 SCREENED, not applicable. No source probe was run.",
+    "laws_applied": "[\"claim.park-law-age-revisit-census.20260831.v1\", \"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\"]",
+    "residual": "SHORT-PATH CANDIDATE, RE-TYPED. The bulk legacy label 'REGISTER_ONLY/SCHEDULE (allocator or scheduler residual)' is wrong: regnorm reports 6 renaming, 2 STRUCTURAL, 0 UNPAIRED, and both STRUCTURAL rows are (r1)-based displacements - `stfs f0,20(r1)` / `lfs f6,20(r1)` in the target versus `stfs f0,24(r1)` / `lfs f6,24(r1)` in ours at +0x00d4/+0x00d8. That is a single 4-byte frame-slot placement difference on one scratch temporary, i.e. STACK_LAYOUT, and it is the entire structural residual of the function. This is one of the cleanest short-path candidates the 156-function census produced: two rows, zero unpaired, one slot. The lever is the declaration-order slot law plus the inner-block-pad law; the next agent should derive the target slot map from the aligned disasm before probing, per the model-first recipe.",
+    "scope": "src/game/world/items.c::FindClosestWaypoint. NO source change - read-only measurement. NOTE game/world/items carries webfrank pins (DistanceToClosestPlayer, InitLighting, InitItemInfoData); FindClosestWaypoint is NOT among them, so its source is editable. Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/regnorm.py game/world/items FindClosestWaypoint --map (2026-08-31, build green at 98.06% fuzzy / 61.70% matched)."
+  },
+  "function": "function:FindClosestWaypoint",
+  "id": "attempt.findclosestwaypoint-frame-slot-relabel.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T20:54:43Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.findclosestwaypoint.20260829.v1",
+  "valid_from": "2026-08-31"
+}

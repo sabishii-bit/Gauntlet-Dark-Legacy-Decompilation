@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Label correction only: run the regnorm measurement the REGISTER_ONLY/SCHEDULE label requires, and re-class the park from the result. No source probe, no edit.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED (this record's own measurement; rows after the first UNPAIRED offset are treated as unreliable and displacement rows are split by base register). claim.park-law-age-revisit-census.20260831.v1 APPLIED (standing rule i: screen the LABEL before the axis). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED (regnorm is the prescribed measurement for a REGISTER_ONLY label). claim.law.regnorm-counts-reloc-annotation-rows-as-structural.20260831.v1 SCREENED (reloc-annotation rows are reported separately as RELOC-SYMBOL and are NOT counted as evidence of a source-reachable structural gap). claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1 SCREENED (no COMMUTED-OPERANDS row was found anywhere in this 156-function census). No source probe was run for this function, so no codegen law was exercised.",
+    "laws_applied": "[\"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.park-law-age-revisit-census.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "residual": "STRUCTURAL-PRESENT: 7 STRUCTURAL rows and 5 unpaired over 45 paired instructions. Row classes: 2 DISPLACEMENT-FRAME, 2 OPCODE-DIFFERS, 1 RELOC-SYMBOL, 1 CFG-BRANCH-TARGET, 1 IMMEDIATE. SAMPLE ROWS (verbatim from regnorm --map): 0x0008 RELOC-SYMBOL: T R_PPC_ADDR16_HA\tlbl / O R_PPC_ADDR16_HA\t...bss.0  [reloc target differs] | 0x000c DISPLACEMENT-FRAME: T stwu    r1,-32(r1) / O stwu    r1,-24(r1) | 0x001c OPCODE-DIFFERS: T addi    r28,r3,0 / O R_PPC_ADDR16_LO\t...bss.0 | 0x0048 OPCODE-DIFFERS: T addi    r3,r27,0 / O li      r0,0 | 0x007c CFG-BRANCH-TARGET: T blt <fn+0x30> / O blt <fn+0x28> | 0x0094 DISPLACEMENT-FRAME: T lwz     r0,36(r1) / O lwz     r0,28(r1) READING: (r1) frame-slot placement -> STACK_LAYOUT, slot-order laws; branch-target (if/else vs goto SHAPE, source-reachable); different opcode (a real codegen-form gap, not a colouring); differing immediate/constant; relocation target symbol differs -> RS lane's class.",
+    "scope": "src/game/game/controls.c::DisablePlayerControls - NO source change; read-only measurement from the ninja object. Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/regnorm.py game/game/controls DisablePlayerControls --map (2026-08-31, build green at 98.06% fuzzy / 61.70% matched). The superseded record's label was applied in bulk by the 2026-08-29 legacy import and carried no per-function measurement."
+  },
+  "function": "function:DisablePlayerControls",
+  "id": "attempt.mp-label-correction.disableplayercontrols.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T20:43:17Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.disableplayercontrols.20260829.v1",
+  "valid_from": "2026-08-31"
+}

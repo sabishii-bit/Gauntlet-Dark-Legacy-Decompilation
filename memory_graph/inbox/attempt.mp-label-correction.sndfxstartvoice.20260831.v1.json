@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Label correction only: run the regnorm measurement the REGISTER_ONLY/SCHEDULE label requires, and re-class the park from the result. No source probe, no edit.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED (this record's own measurement; rows after the first UNPAIRED offset are treated as unreliable and displacement rows are split by base register). claim.park-law-age-revisit-census.20260831.v1 APPLIED (standing rule i: screen the LABEL before the axis). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED (regnorm is the prescribed measurement for a REGISTER_ONLY label). claim.law.regnorm-counts-reloc-annotation-rows-as-structural.20260831.v1 SCREENED (reloc-annotation rows are reported separately as RELOC-SYMBOL and are NOT counted as evidence of a source-reachable structural gap). claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1 SCREENED (no COMMUTED-OPERANDS row was found anywhere in this 156-function census). No source probe was run for this function, so no codegen law was exercised.",
+    "laws_applied": "[\"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.park-law-age-revisit-census.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "residual": "STRUCTURAL-PRESENT: 16 STRUCTURAL rows and 6 unpaired over 183 paired instructions. Row classes: 12 CFG-BRANCH-TARGET, 3 OPCODE-DIFFERS, 1 CFG-BRANCH-SENSE. SAMPLE ROWS (verbatim from regnorm --map): 0x0038 CFG-BRANCH-TARGET: T bne <fn+0x230> / O bne <fn+0x22c> | 0x0044 CFG-BRANCH-TARGET: T blt <fn+0x230> / O blt <fn+0x22c> | 0x00d0 CFG-BRANCH-TARGET: T b <fn+0x264> / O b <fn+0x260> | 0x0138 OPCODE-DIFFERS: T mr      r3,r30 / O li      r3,0 | 0x013c OPCODE-DIFFERS: T add     r4,r31,r3 / O addi    r0,r3,1324 | 0x0140 OPCODE-DIFFERS: T lwz     r0,1324(r4) / O lwzx    r0,r31,r0 READING: branch-target (if/else vs goto SHAPE, source-reachable); different opcode (a real codegen-form gap, not a colouring); inverted branch condition (guard polarity, source-reachable).",
+    "scope": "src/game/audio/sndfx.c::sndFxStartVoice - NO source change; read-only measurement from the ninja object. Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/regnorm.py game/audio/sndfx sndFxStartVoice --map (2026-08-31, build green at 98.06% fuzzy / 61.70% matched). The superseded record's label was applied in bulk by the 2026-08-29 legacy import and carried no per-function measurement."
+  },
+  "function": "function:sndFxStartVoice",
+  "id": "attempt.mp-label-correction.sndfxstartvoice.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T20:50:15Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.sndfxstartvoice.20260829.v1",
+  "valid_from": "2026-08-31"
+}

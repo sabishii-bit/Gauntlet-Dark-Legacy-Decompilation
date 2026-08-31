@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Label correction only: run the regnorm measurement the REGISTER_ONLY/SCHEDULE label requires, and re-class the park from the result. No source probe, no edit.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED (this record's own measurement; rows after the first UNPAIRED offset are treated as unreliable and displacement rows are split by base register). claim.park-law-age-revisit-census.20260831.v1 APPLIED (standing rule i: screen the LABEL before the axis). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED (regnorm is the prescribed measurement for a REGISTER_ONLY label). claim.law.regnorm-counts-reloc-annotation-rows-as-structural.20260831.v1 SCREENED (reloc-annotation rows are reported separately as RELOC-SYMBOL and are NOT counted as evidence of a source-reachable structural gap). claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1 SCREENED (no COMMUTED-OPERANDS row was found anywhere in this 156-function census). No source probe was run for this function, so no codegen law was exercised.",
+    "laws_applied": "[\"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.park-law-age-revisit-census.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "residual": "STRUCTURAL-PRESENT: 7 STRUCTURAL rows and 4 unpaired over 187 paired instructions. Row classes: 3 DISPLACEMENT-FRAME, 3 RELOC-SYMBOL, 1 OPCODE-DIFFERS. SAMPLE ROWS (verbatim from regnorm --map): 0x010c DISPLACEMENT-FRAME: T stfd    f3,24(r1) / O stfd    f3,56(r1) | 0x011c DISPLACEMENT-FRAME: T lwz     r0,28(r1) / O lwz     r0,60(r1) | 0x0120 DISPLACEMENT-FRAME: T stfd    f3,56(r1) / O stfd    f3,48(r1) | 0x01e4 RELOC-SYMBOL: T R_PPC_EMB_SDA21\tdyngrid_list / O R_PPC_EMB_SDA21\tdyngrid  [reloc target differs] | 0x01ec RELOC-SYMBOL: T R_PPC_EMB_SDA21\tdyngrid / O R_PPC_EMB_SDA21\tnum_dyngridx  [reloc target differs] | 0x01f4 RELOC-SYMBOL: T R_PPC_EMB_SDA21\tnum_dyngridx / O R_PPC_EMB_SDA21\tdyngrid_list  [reloc target differs] READING: (r1) frame-slot placement -> STACK_LAYOUT, slot-order laws; different opcode (a real codegen-form gap, not a colouring); relocation target symbol differs -> RS lane's class.",
+    "scope": "src/game/world/dynobjgrid.c::CreateDynobjGrid - NO source change; read-only measurement from the ninja object. Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/regnorm.py game/world/dynobjgrid CreateDynobjGrid --map (2026-08-31, build green at 98.06% fuzzy / 61.70% matched). The superseded record's label was applied in bulk by the 2026-08-29 legacy import and carried no per-function measurement."
+  },
+  "function": "function:CreateDynobjGrid",
+  "id": "attempt.mp-label-correction.createdynobjgrid.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T20:42:06Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.createdynobjgrid.20260829.v1",
+  "valid_from": "2026-08-31"
+}

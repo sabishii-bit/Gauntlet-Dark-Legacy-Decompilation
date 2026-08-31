@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Label correction: screen the bulk REGISTER_ONLY/SCHEDULE label with fndiff, since regnorm cannot resolve this symbol.",
+  "attributes": {
+    "law_screen": "claim.park-law-age-revisit-census.20260831.v1 APPLIED (screen the label before the axis). claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED, THIRD clause: regnorm exits 'missing: dtor_800DBB94 (target: False, ours: False)' on the trailing _<ADDR> suffix; fndiff resolves it. claim.law.inline-frame-candidates-need-a-target-minus-ours-delta-census.20260831.v1 SCREENED and this function MEASURES INTO it (delta -8, our frame bigger) - nominated for that lane, not worked here. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED, secondary to the frame delta. No source probe was run.",
+    "laws_applied": "[\"claim.park-law-age-revisit-census.20260831.v1\", \"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\"]",
+    "residual": "RE-TYPED, AND IT IS HALF OF A MATCHED PAIR. The bulk legacy label is wrong: fndiff measures STRUCTURAL with 85 real diff lines and emits the frame hint 'frame delta -8 -> our frame is BIGGER; drop 8B of pad/locals'. dtor_800DB21C in the same TU measures IDENTICALLY (STRUCTURAL, 85 real, same -8 frame hint), which is strong evidence that both are the same C++ destructor shape emitted from one source pattern and that a single fix closes both. The -8 over-reservation is the REVERSE inline-frame signature: our code declares locals or pad the retail build did not have, or an inline helper expanded differently. Work them as a pair, and start from the frame rather than from any allocator theory.",
+    "scope": "src/game/movie/movieplayer.c::dtor_800DBB94. NO source change - read-only measurement. NOTE game/movie/movieplayer carries webfrank pins (fn_800D967C, fn_800DA6A4); neither dtor is pinned. Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/fndiff.py game/movie/movieplayer dtor_800DBB94 --clean -> 'dtor: STRUCTURAL, 85 real diff lines  HINT: frame delta -8' (2026-08-31, build green at 98.06% fuzzy / 61.70% matched)."
+  },
+  "function": "function:dtor_800DBB94",
+  "id": "attempt.dtor-800dbb94-frame-delta-relabel.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T20:54:38Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.dtor_800dbb94.20260829.v1",
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Label correction only: run the regnorm measurement the REGISTER_ONLY/SCHEDULE label requires, and re-class the park from the result. No source probe, no edit.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED (this record's own measurement; rows after the first UNPAIRED offset are treated as unreliable and displacement rows are split by base register). claim.park-law-age-revisit-census.20260831.v1 APPLIED (standing rule i: screen the LABEL before the axis). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED (regnorm is the prescribed measurement for a REGISTER_ONLY label). claim.law.regnorm-counts-reloc-annotation-rows-as-structural.20260831.v1 SCREENED (reloc-annotation rows are reported separately as RELOC-SYMBOL and are NOT counted as evidence of a source-reachable structural gap). claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1 SCREENED (no COMMUTED-OPERANDS row was found anywhere in this 156-function census). No source probe was run for this function, so no codegen law was exercised.",
+    "laws_applied": "[\"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.park-law-age-revisit-census.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "residual": "STRUCTURAL-PRESENT: 259 STRUCTURAL rows and 61 unpaired over 1359 paired instructions. Row classes: 58 CFG-BRANCH-TARGET, 7 OPCODE-DIFFERS, 2 IMMEDIATE, 2 OTHER. SAMPLE ROWS (verbatim from regnorm --map): 0x0eb8 CFG-BRANCH-TARGET: T bgt <fn+0xed0> / O bgt <fn+0xe9c> | 0x0ec4 CFG-BRANCH-TARGET: T beq <fn+0xed0> / O beq <fn+0xe9c> | 0x0ed4 CFG-BRANCH-TARGET: T b <fn+0x1020> / O b <fn+0xfec> | 0x0ef4 CFG-BRANCH-TARGET: T beq <fn+0xf18> / O beq <fn+0xee4> | 0x0ef8 OPCODE-DIFFERS: T add     r4,r31,r3 / O addi    r0,r3,3368 | 0x0efc OPCODE-DIFFERS: T lwz     r0,3368(r4) / O lwzx    r0,r31,r0 READING: branch-target (if/else vs goto SHAPE, source-reachable); different opcode (a real codegen-form gap, not a colouring); differing immediate/constant; unclassified operand difference.",
+    "scope": "src/game/game/player.c::do_players - NO source change; read-only measurement from the ninja object. Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/regnorm.py game/game/player do_players --map (2026-08-31, build green at 98.06% fuzzy / 61.70% matched). The superseded record's label was applied in bulk by the 2026-08-29 legacy import and carried no per-function measurement."
+  },
+  "function": "function:do_players",
+  "id": "attempt.mp-label-correction.do-players.20260831.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T20:43:43Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.doplayers-sel-idiom.20260831.v3",
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Label correction: regnorm screen, then aligned-view confirmation of an adjacent-f32 displacement row that carried the exact col_pos/effectpos semantic-bug signature.",
+  "attributes": {
+    "law_screen": "claim.park-law-age-revisit-census.20260831.v1 APPLIED (screen the label first). claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED and this function is that law's PROVENANCE. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED (it is the law that motivates treating an adjacent-f32 displacement as a possible shipped field-selection bug). claim.law.regnorm-counts-reloc-annotation-rows-as-structural.20260831.v1 APPLIED (two of the six STRUCTURAL rows here are reloc-annotation rows). claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1 SCREENED, not applicable. No source probe was run.",
+    "laws_applied": "[\"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\", \"claim.law.regnorm-counts-reloc-annotation-rows-as-structural.20260831.v1\", \"claim.park-law-age-revisit-census.20260831.v1\"]",
+    "residual": "A SEMANTIC-BUG CANDIDATE THAT MEASUREMENT REFUTED, PLUS THE TRUE RESIDUAL. regnorm --map reported STRUCTURAL @0x01d0 'T lfs f0,2360(r31) O lfs f0,2364(r31)': same opcode, same base register, adjacent f32 displacement - the exact signature of the get_player_pos col_pos/effectpos bug, and the highest-value shape this lane hunts. IT IS A PHANTOM. The aligned view (fnasm 0x190:0x210 --diff) shows both sides emit `lfs f0,2360(r31)` at +0x1d0, and the whole 2356/2360/2364 triple agrees word for word. regnorm's own UNPAIRED-T @0x0238 / UNPAIRED-O @0x0230 lines give the cause: an lfs/stfs pair transposed one instruction earlier slips the positional alignment by one, so target instruction i was compared against our instruction i+1. THE REAL RESIDUAL is two unrelated things: (a) STACK_LAYOUT - a uniform 4-byte scratch-slot shift, target `addi r4,r1,16` and stores at 64/68/72(r1) versus our `addi r4,r1,12` and 60/64/68(r1), across +0x1b8/+0x1c8/+0x1cc/+0x1d4/+0x1dc/+0x208; and (b) RELOCATION - our object references `...bss.0` where the target references `potionicon_tab` at +0x20, and `@1626`/`@1627` where the target has `lbl_80347978`/`lbl_8034797C` at +0x1fc/+0x204. The reloc half is the RS lane's ghost-extern/duplicate-lbl class (work_claim.reloc-symbol-sweep.20260831.v1) and is HANDED OFF, not fixed here. The prior bulk label REGISTER_ONLY/SCHEDULE is wrong on both counts: 6 STRUCTURAL rows and 10 unpaired.",
+    "scope": "src/game/game/player.c::kill_player. NO source change - read-only measurement. game/game/player is not owned by another lane this run (the pmotion/psfx/bosscam/camera/pb_window exclusions do not cover it). Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/regnorm.py game/game/player kill_player --map (200 paired, 7 renaming, 6 STRUCTURAL, 10 unpaired) and python tools/gdl/fnasm.py game/game/player kill_player 0x190:0x210 --diff (2026-08-31, build green at 98.06% fuzzy / 61.70% matched)."
+  },
+  "function": "function:kill_player",
+  "id": "attempt.kill-player-phantom-displacement-refutation.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T20:54:47Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.kill_player.20260829.v1",
+  "valid_from": "2026-08-31"
+}

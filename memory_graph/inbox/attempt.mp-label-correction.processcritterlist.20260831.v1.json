@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Label correction only: run the regnorm measurement the REGISTER_ONLY/SCHEDULE label requires, and re-class the park from the result. No source probe, no edit.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED (this record's own measurement; rows after the first UNPAIRED offset are treated as unreliable and displacement rows are split by base register). claim.park-law-age-revisit-census.20260831.v1 APPLIED (standing rule i: screen the LABEL before the axis). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED (regnorm is the prescribed measurement for a REGISTER_ONLY label). claim.law.regnorm-counts-reloc-annotation-rows-as-structural.20260831.v1 SCREENED (reloc-annotation rows are reported separately as RELOC-SYMBOL and are NOT counted as evidence of a source-reachable structural gap). claim.law.rebase-add-operand-order-follows-source-expression.20260831.v1 SCREENED (no COMMUTED-OPERANDS row was found anywhere in this 156-function census). No source probe was run for this function, so no codegen law was exercised.",
+    "laws_applied": "[\"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.park-law-age-revisit-census.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "residual": "STRUCTURAL-PRESENT: 5 STRUCTURAL rows and 9 unpaired over 57 paired instructions. Row classes: 5 CFG-BRANCH-TARGET. SAMPLE ROWS (verbatim from regnorm --map): 0x004c CFG-BRANCH-TARGET: T bne <fn+0x54> / O bne <fn+0x58> | 0x0064 CFG-BRANCH-TARGET: T bdnz <fn+0x44> / O bdnz <fn+0x48> | 0x007c CFG-BRANCH-TARGET: T b <fn+0xa0> / O b <fn+0xa4> | 0x008c CFG-BRANCH-TARGET: T beq <fn+0x98> / O beq <fn+0x9c> | 0x00a8 CFG-BRANCH-TARGET: T blt <fn+0x80> / O blt <fn+0x84> READING: branch-target (if/else vs goto SHAPE, source-reachable).",
+    "scope": "src/game/enemy/critter.c::ProcessCritterList - NO source change; read-only measurement from the ninja object. Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
+    "verification": "python tools/gdl/regnorm.py game/enemy/critter ProcessCritterList --map (2026-08-31, build green at 98.06% fuzzy / 61.70% matched). The superseded record's label was applied in bulk by the 2026-08-29 legacy import and carried no per-function measurement."
+  },
+  "function": "function:ProcessCritterList",
+  "id": "attempt.mp-label-correction.processcritterlist.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T20:49:03Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.processcritterlist.20260829.v1",
+  "valid_from": "2026-08-31"
+}
