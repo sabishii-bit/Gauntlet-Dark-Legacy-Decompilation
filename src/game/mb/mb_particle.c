@@ -3072,6 +3072,20 @@ extern f64 lbl_80349210;        /* firework power scale */
 extern MBObject* lbl_80344EBC;
 extern MBObject* gSceneRoot;
 
+/* Two PsysDescrip (0xE8) preset scratch descriptors live inside the psysInfo
+ * block and are filled in place, then handed straight to MBNewPsysDescrip.
+ * Both bases are proven by the target's own argument setup -- MBPsysFirework's
+ * `addi r6,r9,3108` and MBPsysFlame's `addi r4,r31,3340`, each off a register
+ * relocated @psysInfo(ADDR16_HA/LO) -- and every field displacement used below
+ * matches PsysDescrip's declared offset AND its access width (stb for the two
+ * char flags, stw for the u32 rgba quad, stfs for the f32 width/speed fields).
+ * The two blocks are exactly sizeof(PsysDescrip) apart (3340 - 3108 == 0xE8).
+ * NOTE: symbols.txt records psysInfo with size 0x40, but the target's own
+ * relocations name psysInfo for these accesses, so per
+ * claim.law.walked-base-symbol-identity psysInfo is the correct base symbol. */
+#define PSYSINFO_DESCRIP_FIREWORK 3108
+#define PSYSINFO_DESCRIP_FLAME    3340
+
 /* 0x800CFA84 - firework preset (deferred build through MBNewPsysDescrip) */
 #pragma dont_inline on
 MBObject* MBPsysFirework(s32 a, s32 b, s32 count, s32 m0, s32 m1, s32 m2,
@@ -3079,23 +3093,26 @@ MBObject* MBPsysFirework(s32 a, s32 b, s32 count, s32 m0, s32 m1, s32 m2,
     u8* pi = (u8*)psysInfo;
     MBObject* node;
 
-    *(f32*)(pi + 3324) = sc0;
-    *(f32*)(pi + 3328) = sc1;
-    *(f32*)(pi + 3332) = sc1;
-    *(f32*)(pi + 3336) = sc2;
-    *(s32*)(pi + 3308) = m0;
-    *(s32*)(pi + 3312) = m1;
-    *(s32*)(pi + 3316) = m1;
-    *(s32*)(pi + 3320) = m2;
-    *(f32*)(pi + 3252) = (f32)(rate / lbl_80349298);
-    *(u8*)(pi + 3117) = 0;
-    *(u8*)(pi + 3118) = 0;
+    *(f32*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, p_width[0])) = sc0;
+    *(f32*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, p_width[1])) = sc1;
+    *(f32*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, p_width[2])) = sc1;
+    *(f32*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, p_width[3])) = sc2;
+    *(s32*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, p_rgba[0])) = m0;
+    *(s32*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, p_rgba[1])) = m1;
+    *(s32*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, p_rgba[2])) = m1;
+    *(s32*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, p_rgba[3])) = m2;
+    *(f32*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, p_speed)) =
+        (f32)(rate / lbl_80349298);
+    *(u8*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, notex_rgb)) = 0;
+    *(u8*)(pi + PSYSINFO_DESCRIP_FIREWORK + offsetof(PsysDescrip, notex_a)) = 0;
     if (count == 0) {
-        *(s32*)(pi + 3148) = 100;
+        *(s32*)(pi + PSYSINFO_DESCRIP_FIREWORK +
+                offsetof(PsysDescrip, max_particles)) = 100;
     } else {
-        *(s32*)(pi + 3148) = count;
+        *(s32*)(pi + PSYSINFO_DESCRIP_FIREWORK +
+                offsetof(PsysDescrip, max_particles)) = count;
     }
-    node = MBNewPsysDescrip(a, b, 0, pi + 3108);
+    node = MBNewPsysDescrip(a, b, 0, pi + PSYSINFO_DESCRIP_FIREWORK);
     if (node != NULL) {
         *(u16*)(*(u8**)((u8*)node + 112) + 56) = (s32)(lbl_80349210 * power);
     }
@@ -3123,28 +3140,39 @@ MBObject* MBPsysFlame(f32 f1, f32 f2, f32 f3, s32 a, s32 tex, f32* verts) {
     f32 w;
 
     if (f3 <= lbl_80349154) {
-        *(f32*)(pi + 3408) = lbl_8034926C;
-        *(f32*)(pi + 3412) = lbl_80349270;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME +
+                offsetof(PsysDescrip, p_lifefade[0])) = lbl_8034926C;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME +
+                offsetof(PsysDescrip, p_lifefade[1])) = lbl_80349270;
     } else {
-        *(f32*)(pi + 3408) = (f32)(lbl_80349278 * f3);
-        *(f32*)(pi + 3412) = (f32)(lbl_803491F0 * f3);
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME +
+                offsetof(PsysDescrip, p_lifefade[0])) = (f32)(lbl_80349278 * f3);
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME +
+                offsetof(PsysDescrip, p_lifefade[1])) = (f32)(lbl_803491F0 * f3);
     }
     w = (f32)(f2 * lbl_803491A0);
     if (w <= lbl_80349154) {
-        *(f32*)(pi + 3444) = lbl_80349280;
-        *(f32*)(pi + 3448) = lbl_80349280;
-        *(f32*)(pi + 3452) = lbl_80349280;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME +
+                offsetof(PsysDescrip, e_vol[0])) = lbl_80349280;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME +
+                offsetof(PsysDescrip, e_vol[1])) = lbl_80349280;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME +
+                offsetof(PsysDescrip, e_vol[2])) = lbl_80349280;
     } else {
-        *(f32*)(pi + 3444) = w;
-        *(f32*)(pi + 3448) = w;
-        *(f32*)(pi + 3452) = w;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME + offsetof(PsysDescrip, e_vol[0])) = w;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME + offsetof(PsysDescrip, e_vol[1])) = w;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME + offsetof(PsysDescrip, e_vol[2])) = w;
     }
     if (f1 <= lbl_80349154) {
-        *(f32*)(pi + 3400) = lbl_80349220;
-        *(f32*)(pi + 3404) = lbl_8034915C;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME +
+                offsetof(PsysDescrip, e_lifefade[0])) = lbl_80349220;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME +
+                offsetof(PsysDescrip, e_lifefade[1])) = lbl_8034915C;
     } else {
-        *(f32*)(pi + 3400) = f1;
-        *(f32*)(pi + 3404) = (f32)(lbl_803491F0 * f1);
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME +
+                offsetof(PsysDescrip, e_lifefade[0])) = f1;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME +
+                offsetof(PsysDescrip, e_lifefade[1])) = (f32)(lbl_803491F0 * f1);
     }
     if (verts != NULL) {
         f32 vx = verts[0];
@@ -3164,16 +3192,17 @@ MBObject* MBPsysFlame(f32 f1, f32 f2, f32 f3, s32 a, s32 tex, f32* verts) {
             vy = vy * mag;
             vz = vz * mag;
         }
-        *(f32*)(pi + 3428) = vx;
-        *(f32*)(pi + 3432) = vy;
-        *(f32*)(pi + 3436) = vz;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME + offsetof(PsysDescrip, e_dir[0])) = vx;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME + offsetof(PsysDescrip, e_dir[1])) = vy;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME + offsetof(PsysDescrip, e_dir[2])) = vz;
     } else {
         f32 z = lbl_80349154;
-        *(f32*)(pi + 3428) = z;
-        *(f32*)(pi + 3432) = lbl_80349184;
-        *(f32*)(pi + 3436) = z;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME + offsetof(PsysDescrip, e_dir[0])) = z;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME +
+                offsetof(PsysDescrip, e_dir[1])) = lbl_80349184;
+        *(f32*)(pi + PSYSINFO_DESCRIP_FLAME + offsetof(PsysDescrip, e_dir[2])) = z;
     }
-    return MBNewPsysDescrip(a, tex, 0, (void*)(pi + 3340));
+    return MBNewPsysDescrip(a, tex, 0, (void*)(pi + PSYSINFO_DESCRIP_FLAME));
 }
 #pragma dont_inline off
 
