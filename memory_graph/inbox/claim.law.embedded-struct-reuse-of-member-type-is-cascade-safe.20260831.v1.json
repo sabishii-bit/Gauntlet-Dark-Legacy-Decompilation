@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "F1 defake lane, worktree GDL-Claude-DefakeEnemy, branch claude/defake-enemy-player-20260831, commit 7822f62ae; reproduce by re-running defake_gate.py check game/shop/shop.c --rebuild against a header with and without the char_save_ckpt[16] member (the interim scalar form is in commit cbb91a3f7 for the A side).",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.embedded-struct-member-whole-tu-cascade.20260831.v1 -- applies when the aggregate member being ADDED to a widely-included shared header struct has an element type that is already an aggregate member of that same struct.",
+    "tags": [
+      "core-screen",
+      "register-web",
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.embedded-struct-reuse-of-member-type-is-cascade-safe.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T05:40:29Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "claim.law.embedded-struct-member-whole-tu-cascade.20260831.v1 proved that adding a NEW aggregate-typed member to the shared Player struct (PlayerShopStat shop_stat_now[16], a type not previously a member) regressed 6 shop.c functions that never referenced it, and its consequence clause says to gate any new struct-typed member in isolation. BOUNDARY REFINEMENT, verified on the law's own proving-ground TU: adding an aggregate member whose element type is ALREADY an aggregate member of the same struct does NOT trigger the cascade. Player got `PlayerCharSave char_save_ckpt[16]` at 0x2220 (replacing scalar/pad declarations, identical total size, no offset change to any other field) while `PlayerCharSave char_save[16]` already existed at 0xDD4 -- and game/shop/shop.c gated byte-identical (GATE OK, all 14 functions, including the exact 6 that the parent law's PlayerShopStat experiment regressed), as did enemy/player/pmotion/critter/select/gamemain/tower, with a whole-project report diff of 0 moved across 2990 functions and a green main.dol (commit 7822f62ae). This is direct evidence FOR the parent law's working hypothesis (per-aggregate-TYPE front-end bookkeeping whose ordinal leaks into downstream regalloc/scheduling): a second member of an existing member type adds no new type record, so nothing shifts. CONSEQUENCE for header passes: when a pad region is provably an array/embed of a struct type the header ALREADY embeds elsewhere (checkpoint shadows, double-buffered blocks, prev/next pairs), the full aggregate model may be attempted directly under the ordinary isolated gate, without pre-committing to the scalar-interim fallback; introducing a genuinely NEW aggregate type remains governed by the parent law (file-local typedef in the consuming TU). Boundary of this refinement: one verified instance, array-of-existing-struct-type in Player specifically; a NEW type that is merely layout-identical to an existing member type was not tested and should be assumed parent-law-governed."
+}

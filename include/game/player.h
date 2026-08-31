@@ -32,7 +32,7 @@ struct worldobj; /* game/worldobj.h (pointer-only here) */
  *   0x1EB8/0x1EBC item VERIFIED  shopquery.c PlayerItemState  lwz r,7864/7868
  *   0x1EC8 runes /
  *   0x1ECA shards          documented (prior verified research)
- *   0x2220..0x223A         documented crystal/gargoyle/legend counters
+ *   0x2220..0x224C         char_save checkpoint-shadow scalars (see 0x1ECC note)
  *
  * GC-vs-Xbox deltas of note:
  *   - Whole record is 0x335C on GC vs 0x6140 on Xbox (GC drops the in-game-only
@@ -327,13 +327,53 @@ typedef struct Player {
     /* 0x0964 */ s16 hud_flags;      /* 0x20 = attached (lha in target) [player.c] */
     /* 0x0966 */ s16 hud_flags2;     /* 1 = info written, 2 = runes written [player.c] */
     /* 0x0968 */ void* gem_object;   /* thunder/lightning gem model [player.c] */
-    /* 0x096C */ void* field_96C;    /* atree handle, AtreeDelete-cleaned (VERIFIED: not padding -- remove_player_geo teardown, dup call site) [player.c] */
-    /* 0x0970 */ u8  pad_0970[0xA4];
-    /* 0x0A14 */ void* field_A14;    /* "mikey objgrp" node, MBRemoveNode(type=1)-cleaned (VERIFIED: not padding -- remove_player_geo teardown) [player.c] */
-    /* 0x0A18 */ u8  pad_0A18[4];
-    /* 0x0A1C */ s16 field_A1C;      /* weapon-flash one-shot latch [player.c] */
-    /* 0x0A1E */ s16 field_A1E;      /* gem-object latch, flags 0x200000 [player.c] */
-    /* 0x0A20 */ s16 field_A20;      /* gem-object latch, flags 0x400000 [player.c] */
+    /*
+     * Mikey powerup block (0x096C..0x0A22): the GC image of Xbox player's
+     * `struct atree mikey_obj_atree` (0x48) + `struct OBJGRP mikey_objgrp`
+     * (0x68) + `short mikey_dropped_flag` (misc.h player @0xAD0/0xB18/0xB80;
+     * constant GC->Xbox delta +0x164 on both flanks: anchor_pos 0x838->0x99C,
+     * col_radius 0x850->0x9B4, field_A1C 0xA1C->0xB80, weakening_elapsed
+     * 0xA2C->heartbeat 0xB90).  GC keeps both embeds at full Xbox size; the
+     * per-member picture below is fixed by player.c's own PlayerMikeyState
+     * view struct (atree@0x96C, anim_state@0x9A4, matrix@0x9B4,
+     * saved_pos@0x9F4, fx_pos@0xA04, node@0xA14, field_A18@0xA18,
+     * state@0xA1C) and by the enemy.c/gamemain.c range-to-player readers.
+     * Declared as scalars/arrays-of-scalars per
+     * claim.law.embedded-struct-member-whole-tu-cascade (no new aggregate
+     * member may enter this shared header).
+     */
+    /* 0x096C */ void* field_96C;    /* mikey atree embed head = atree.root; AtreeDelete/AtreeInit
+                                      * take its address (VERIFIED: not padding -- remove_player_geo
+                                      * teardown, dup call site; PlayerMikeyState.atree) [player.c] */
+    /* 0x0970 */ u8  pad_0970[0x34]; /* atree.animinfo interior 0x970..0x9A4 (no GC consumer) */
+    /* 0x09A4 */ s16 mikey_anim_state; /* PlayerMikeyState.anim_state (= atree.animinfo.repeat,
+                                        * +0x38 into the embed); set 1 at hatch [player.c] */
+    /* 0x09A6 */ u8  pad_09A6[0xE];  /* atree tail: animinfo.stage(2) + nanodes(4) +
+                                      * firstanode(4) + anodeinfo(4) (no GC consumer) */
+    /* 0x09B4 */ f32 mikey_worldmat[4][4]; /* mikey OBJGRP.worldmat; [3][0]/[3][2] are the
+                                            * chase-bearing alt position read when field_A1C > 2
+                                            * [enemy.c fn_8004CE38; player.c PlayerMikeyState.matrix] */
+    /* 0x09F4 */ f32 mikey_attn_pos[4];    /* mikey OBJGRP.attn_pos (PlayerMikeyState.saved_pos
+                                            * covers [0..2]) [player.c] */
+    /* 0x0A04 */ f32 mikey_coll_pos[4];    /* mikey OBJGRP.coll_pos; [0..2] is the alt position
+                                            * enemies range against when field_A1C > 2
+                                            * [enemy.c fn_80046680, gamemain.c; player.c
+                                            * PlayerMikeyState.fx_pos feeds StartGemFX] */
+    /* 0x0A14 */ void* field_A14;    /* mikey OBJGRP.node, MBRemoveNode(type=1)-cleaned (VERIFIED:
+                                      * not padding -- remove_player_geo teardown; the "mikey objgrp"
+                                      * ErrorPrintf names it) [player.c] */
+    /* 0x0A18 */ s32 mikey_objgrp_flags; /* mikey OBJGRP.flags; zeroed at hatch
+                                          * (PlayerMikeyState.field_A18) [player.c] */
+    /* 0x0A1C */ s16 field_A1C;      /* mikey powerup state machine (Xbox mikey_dropped_flag):
+                                      * 0 = off, 1 = hatch pending (set when flags &
+                                      * SPECIAL_MIKEY=0x100000), 2 = hatched, ++ per live tick,
+                                      * 300 = despawn; enemy.c/gamemain.c read > 2 as "mikey live,
+                                      * range against mikey_coll_pos/mikey_worldmat[3] instead of
+                                      * the player" [player.c PlayerProcessMikeyPUP] */
+    /* 0x0A1E */ s16 field_A1E;      /* gem-object latch, flags 0x200000 (Xbox analogue slot:
+                                      * hand_of_death_flag) [player.c] */
+    /* 0x0A20 */ s16 field_A20;      /* gem-object latch, flags 0x400000 (Xbox analogue slot:
+                                      * health_vamp_flag) [player.c] */
     /* 0x0A22 */ u8  pad_0A22[0x0A];
     /* 0x0A2C */ s32 weakening_elapsed; /* elapsed ticks in weakening cycle [player.c] */
     /* 0x0A30 */ s32 weakening_period; /* weakening cycle duration [player.c] */
@@ -367,13 +407,27 @@ typedef struct Player {
     /* 0x1EC4 */ s32 gold;           /* gold, 99999 cap [player.c PlayerGiveGold] */
     /* 0x1EC8 */ u16 runes;          /* active-character rune count (documented) */
     /* 0x1ECA */ u16 shards;         /* active-character shard count (documented) */
-    /* 0x1ECC */ u8  pad_1ECC[0x354];
-    /* 0x2220 */ s16 crystals[8];    /* crystal counters (documented 0x2220..) */
-    /* 0x2230 */ s16 gargoyle_items[3]; /* gargoyle-item counters (documented) */
-    /* 0x2236 */ s16 legend_items[2];   /* legend-item counters (documented ..0x223A) */
-    /* 0x223A */ u8  pad_223A[0x12];
-    /* 0x224C */ s32 field_224C;     /* per-character(*240) gold checkpoint [shop.c fn_8009A0AC] */
-    /* 0x2250 */ u8  pad_2250[0x10D4];
+    /*
+     * Checkpoint shadow of the persistent block (claim.player-0x2220-is-char-
+     * save-checkpoint-shadow): [0x1ECC, 0x3300) mirrors [0xA80, 0x1EB4) at
+     * delta +0x144C.  gamemain.c:3798 and select.c:1273 copy the whole 0x1434
+     * block on level entry (select.c spells the source offsetof(Player,
+     * name)); player.c:3473 memsets both at 0x1434.  The char_save[16] image
+     * begins at 0x2220 (= 0xDD4 + 0x144C) and is modelled as char_save_ckpt
+     * below; consumers add character * 240 exactly like the live side
+     * (tower.c's paired live/shadow completion writes, shop.c's gold
+     * snapshot at slot +0x2C).  The previous crystals[8]/gargoyle_items[3]/
+     * legend_items[2] names here were misfiled Xbox P_SAVE_STUFF fields with
+     * zero consumers.  Adding this second PlayerCharSave member gated clean
+     * across the heavy includers (incl. shop.c) -- the embedded-cascade law's
+     * hazard is introducing a NEW aggregate type to the header, and
+     * PlayerCharSave was already a member type via char_save[16].
+     */
+    /* 0x1ECC */ u8  pad_1ECC[0x354]; /* shadow of name[8] + pad_0A88[0x34C] */
+    /* 0x2220 */ PlayerCharSave char_save_ckpt[16]; /* checkpoint shadow of
+                                        * char_save[16] (0x2220..0x3120) */
+    /* 0x3120 */ u8  pad_3120[0x1E0];  /* shadow of pad_1CD4 */
+    /* 0x3300 */ u8  pad_3300[0x24];   /* non-shadow bytes before level */
     /* 0x3324 */ s32 level;          /* character level 1..99 [player.c] */
     /* 0x3328 */ s32 intower;        /* set while active in tower [player.c] */
     /* 0x332C */ s32 world_text_active; /* overhead text state [gauntworld] */
@@ -412,5 +466,17 @@ typedef struct Player {
                                       * OPTMENU.sel by setup_sel_menu; -1 when
                                       * no entry is selected [select.c] */
 } Player;                            /* size 0x335C */
+
+/*
+ * Record stride of the gPlayers array, as a named LITERAL for the walked
+ * `p += 13148` loops.  Deliberately an object-like #define and not
+ * sizeof(Player): claim.law.sizeof-defeats-loop-stride-induction records
+ * that a sizeof() stride operand changes MWCC's loop-induction choice even
+ * though it folds to the same constant; a macro literal is codegen-identical
+ * to the bare number.
+ */
+#define PLAYER_STRIDE 0x335C         /* == sizeof(Player), 13148; spelled exactly as
+                                      * combat.c's pre-existing local definition so that
+                                      * definition stays a benign identical redefinition */
 
 #endif /* GAME_PLAYER_H */
