@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/combat.c::InitCamera (worktree GDL-Claude-AliasCombat, work_claim.alias-combat.20260831.v1, attempt.initcamera-alias-lever-and-frame-pad.20260831.v1, commit 7e8ae17d9). Five independent confirmations inside one function: the 0x400D start_wpos/start_attn pair (py1/pz1/py2/pz2), case 0 (pw0/pw1/pw2), case 1 (pa0/pa1/pa2), the default case (p0/p1/p2), and the CAM_SET_CMODE/CAM_SET_AMODE macro-argument pair. Cumulative effect on the target-only addi count: 17 -> 4.",
+    "scope": "MWCC GC 1.2.5 family; applies wherever a reconstruction DECLARES a pointer local for a field (T* p = &base->field / f32* p = (f32*)(base + K)) but spells some nearby accesses to that same field with the full raw expression instead of through the pointer. Companion and inverse of claim.law.cached-base-alias-defeats-rematerialized-index-base: that law removes aliases the target does not have, this one gives aliases the target DOES have enough uses to survive.",
+    "tags": [
+      "matching",
+      "alias-form",
+      "register-web",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.single-use-field-pointer-alias-is-folded-away.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T04:42:38Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A pointer local whose value is a CONSTANT offset from a live base (f32* pw0 = (f32*)(cs + K); Camera* c = (Camera*)(cs + 0xC8)) survives into a real register ONLY if the source uses it at TWO OR MORE sites. Used once, MWCC forward-substitutes its definition into that single use and folds the access to base+displacement, and the local vanishes from the instruction stream entirely. So when target's disassembly shows an `addi rX,rBase,K` materialised into a saved register that YOUR build lacks, the diagnosis is almost never register pressure -- it is that your source spells the OTHER accesses to that same field with the raw expression, leaving the declared alias with a single use. The fix is to route those nearby raw spellings through the existing alias. Two non-obvious corollaries, both verified: (1) MWCC still folds INDIVIDUAL accesses through a materialised alias back to base+displacement, so target legitimately shows `addi r24,r29,300` alongside `stfs f0,300(r29)` and only later `stfs f0,0(r24)` -- a displacement-form store is NOT evidence that the source lacked the pointer, and you must therefore count USES in the source rather than deref forms in the asm; (2) it applies to MACRO ARGUMENTS, which is the highest-yield instance because one argument feeds every expansion: replacing the twice-repeated inline cast `CAM_SET_CMODE((Camera*)(cs + 0xC8), 2); CAM_SET_AMODE((Camera*)(cs + 0xC8), 1);` with a single declared `Camera* cm = (Camera*)((void*)(cs + 0xC8));` passed to both made a whole 12-instruction region byte-identical, reproducing target's one `addi r4,r29,200` shared by all six field accesses across BOTH expansions -- this extends claim.law.declared-alias-vs-repeated-cast from ordinary call sites to macro arguments. Boundary measured in the same pass: the `(void*)` transit cast is load-bearing for the Camera* macro argument but a pure no-op for f32* field pointers (identical bytes with and without), so do not spend probes on transit casts for scalar field aliases. Expect the metric conflict that claim.law.cached-base-alias-defeats-rematerialized-index-base already warns about, and expect it to persist LONGER than that law's single-function description suggests: across a whole function the conversion is all-or-nothing, `real` can stay worse than baseline through every intermediate step, and only the opcode multiset and instruction count track the progress."
+}

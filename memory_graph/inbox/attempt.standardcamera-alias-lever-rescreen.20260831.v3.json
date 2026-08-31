@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "alias-lever rescreen: checked this function for the three levers that carried the sibling InitCamera this session (single-use field-pointer alias, repeated-extern-read local, uniform frame-pad) and probed the one that applied -- chained-init constant sharing for the four entry FPR copies",
+  "attributes": {
+    "axis_log": "AXIS1 (NEUTRAL, byte-identical, reverted) chained the duplicate entry constants so the second variable of each pair initialises from the first rather than re-reading the global: `f32 maxY = maxX, minY = minX;` in place of `f32 maxY = lbl_803461D8, minY = lbl_803461D4;`, and `f32 errY = errX;` in place of a second lbl_80345EC8 read. Rationale from the aligned diff: target emits three `fmr` at entry, loading each constant into a CALLEE-SAVED FPR (f26/f27/f29) and copying once (f24/f25/f28), whereas ours emits SIX, loading into volatile f0/f1/f2 and copying twice each to two saved registers. Result: byte-for-byte identical output -- MWCC forward-substitutes the chained initialiser back to the global read, so the source distinction between `y = GLOBAL` and `y = x` is invisible to it. This kills the chained-init axis for THIS residual shape (duplicate-constant FPR copies at function entry); claim.law.chained-init-constant-share still stands for the entry-schedule effects it was recorded for.",
+    "final_state": "insns 598/601, real 695, fuzzy 91.8177% -- UNCHANGED (probe reverted, no source edit retained). Multiset is already tiny: target-only +1 b +1 blt +1 lfd; ours-only -1 bge -4 fmr -1 frsp.",
+    "law_screen": "claim.law.chained-init-constant-share.20260829.v1: APPLIED, the probed axis, NEUTRAL (see axis log). claim.law.uniform-stack-displacement-delta-is-a-pad-applied-last.20260831.v1 (this session's own finding): SCREENED, NOT applicable -- prologue is byte-identical (stwu r1,-336, _savefpr_24, stmw r26,248(r1) all match), so there is no frame or save-set gap to close here; this is the recorded screen so no future pass re-derives it. claim.law.repeated-extern-read-needs-local-for-target-cse.20260831.v1 (this session's own finding): SCREENED, NOT applicable -- the multiset carries ZERO lfs/lfd imbalance, so no extern read is being reloaded. claim.law.single-use-field-pointer-alias-is-folded-away.20260831.v1 (this session's own finding): SCREENED, NOT applicable -- multiset carries no addi imbalance in either direction, so no field-pointer alias is being folded away or over-held. claim.law.cached-base-alias-defeats-rematerialized-index-base.20260831.v1: SCREENED, signature absent (no add/addi vs indexed-load imbalance). Parked structural branch-fold (project-wide P6-branch-fold class, target-only blt+b vs ours-only bge): re-confirmed present, NOT re-attempted per the existing project-wide veto.",
+    "laws_applied": "[\"claim.law.chained-init-constant-share.20260829.v1\"]",
+    "residual": "The 4 surplus `fmr` are a volatile-vs-callee-saved LOAD DESTINATION choice, not a copy-count choice: target loads the constants directly into the non-volatile FPRs that hold them for the rest of the function, ours loads into volatiles and then copies out twice. No source form tried across three sessions reaches that decision. Together with the vetoed branch-fold and the documented eager-vs-lazy constant-reload class this leaves the function REGISTER_ONLY/SCHEDULE with 4 cumulative distinct axes screened. Do not retry: chained-init (this record), the opcode-class rescreen for the cross-TU extern type mismatch (prior record, zero hits), the branch-fold (project-wide veto).",
+    "scope": "src/game/game/combat.c::StandardCamera_8002B828, declaration block only. Probe reverted; no net change, nothing committed.",
+    "verification": "probe.py BASELINE banked on the clean committed tree before the edit, --revert after the neutral result, re-scored NEUTRAL real 695 (insns 598/601); git status clean; defake_gate.py check --rebuild GATE OK; full ninja green, build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:StandardCamera_8002B828",
+  "id": "attempt.standardcamera-alias-lever-rescreen.20260831.v3",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-08-31T04:44:33Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.standardcamera-opcode-class-rescreen.20260830.v2",
+  "valid_from": "2026-08-31"
+}

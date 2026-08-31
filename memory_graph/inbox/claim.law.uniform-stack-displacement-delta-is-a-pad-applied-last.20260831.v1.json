@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/combat.c::InitCamera (worktree GDL-Claude-AliasCombat, attempt.initcamera-alias-lever-and-frame-pad.20260831.v1, commit 7e8ae17d9): one `u8 unused[48];` declaration moved real 1002 -> 902 in a single probe. Counter-evidence from the same session establishing the ordering rule: the identical function measured frame 440 vs target 448 at session start (an 8-byte delta with a MISMATCHED save-set, stmw r22 vs r21) and no pad was applicable; only after the alias conversion made MWCC allocate the 11th saved GPR did the residual delta become the clean uniform 48.",
+    "scope": "MWCC GC 1.2.5 family; diagnostic for any function whose fndiff shows large `real` with a near-converged opcode multiset. The negative half of the rule (do not pad while the save-set still differs) is what makes it safe to apply mechanically.",
+    "tags": [
+      "matching",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.uniform-stack-displacement-delta-is-a-pad-applied-last.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T04:42:48Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "When every r1-relative displacement in the aligned diff differs by the SAME constant N -- stack temporaries, the saved-LR reload, and the `lmw`/`addi r1,r1` epilogue slots all shifted by N in the same direction -- the residual is one missing local of N bytes, and a single `u8 unused[N];` declaration closes it. The payoff is out of proportion to the edit because a uniform stack shift makes EVERY stack-touching instruction count as a diff line: one such declaration moved InitCamera from real 1002 to 902, roughly a third of the function's remaining diff, with no other change. ORDERING RULE, and this is the part that is easy to get wrong: measure the delta only AFTER the register allocation has converged, i.e. after `stwu r1,-K` is the only prologue line still differing and the `stmw rN` save-set MATCHES. While the save-set is still wrong the frame delta is a symptom of the missing/extra saved registers, not of a missing local, it is not uniform across the diff, and padding to it will mislead -- the same function showed an 8-byte delta under a mismatched save-set that no pad could have fixed, and the true 48-byte delta only appeared once the save-set matched. Practical procedure: (1) converge structure and register count first; (2) read three widely separated stack displacements from `fnasm --diff` and confirm they share one delta; (3) declare the pad as the LAST function-scope local and re-probe. Fleet-scale corollary verified the same session: a 17-function scan of one TU's prologues (comparing `stwu r1,-K` and `stmw rN` between target and ours) costs one script run and found exactly one further candidate, so this screen is cheap enough to run TU-wide before choosing targets rather than per function after committing to one."
+}
