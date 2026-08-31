@@ -32,7 +32,7 @@ struct worldobj; /* game/worldobj.h (pointer-only here) */
  *   0x1EB8/0x1EBC item VERIFIED  shopquery.c PlayerItemState  lwz r,7864/7868
  *   0x1EC8 runes /
  *   0x1ECA shards          documented (prior verified research)
- *   0x2220..0x223A         documented crystal/gargoyle/legend counters
+ *   0x2220..0x224C         char_save checkpoint-shadow scalars (see 0x1ECC note)
  *
  * GC-vs-Xbox deltas of note:
  *   - Whole record is 0x335C on GC vs 0x6140 on Xbox (GC drops the in-game-only
@@ -407,13 +407,43 @@ typedef struct Player {
     /* 0x1EC4 */ s32 gold;           /* gold, 99999 cap [player.c PlayerGiveGold] */
     /* 0x1EC8 */ u16 runes;          /* active-character rune count (documented) */
     /* 0x1ECA */ u16 shards;         /* active-character shard count (documented) */
-    /* 0x1ECC */ u8  pad_1ECC[0x354];
-    /* 0x2220 */ s16 crystals[8];    /* crystal counters (documented 0x2220..) */
-    /* 0x2230 */ s16 gargoyle_items[3]; /* gargoyle-item counters (documented) */
-    /* 0x2236 */ s16 legend_items[2];   /* legend-item counters (documented ..0x223A) */
-    /* 0x223A */ u8  pad_223A[0x12];
-    /* 0x224C */ s32 field_224C;     /* per-character(*240) gold checkpoint [shop.c fn_8009A0AC] */
-    /* 0x2250 */ u8  pad_2250[0x10D4];
+    /*
+     * Checkpoint shadow of the persistent block (claim.player-0x2220-is-char-
+     * save-checkpoint-shadow): [0x1ECC, 0x3300) mirrors [0xA80, 0x1EB4) at
+     * delta +0x144C.  gamemain.c:3798 and select.c:1273 copy the whole 0x1434
+     * block on level entry (select.c spells the source offsetof(Player,
+     * name)); player.c:3473 memsets both at 0x1434.  The char_save[16] image
+     * begins at 0x2220 (= 0xDD4 + 0x144C); the ckpt_* scalars below name the
+     * slot-0 bytes, and consumers add character * 240 exactly like the live
+     * side (tower.c's paired live/shadow completion writes, shop.c's gold
+     * snapshot).  The previous crystals[8]/gargoyle_items[3]/legend_items[2]
+     * names here were misfiled Xbox P_SAVE_STUFF fields with zero consumers.
+     * Kept scalar per claim.law.embedded-struct-member-whole-tu-cascade; the
+     * full PlayerCharSave char_save_ckpt[16] shape needs its own isolated
+     * pass.
+     */
+    /* 0x1ECC */ u8  pad_1ECC[0x354]; /* shadow of name[8] + pad_0A88[0x34C] */
+    /* 0x2220 */ u16 ckpt_rune_stones;   /* shadow of char_save[0].rune_stones */
+    /* 0x2222 */ u16 ckpt_rune_stones2;  /* shadow of .rune_stones2 */
+    /* 0x2224 */ u16 ckpt_rune_near;     /* shadow of .rune_near */
+    /* 0x2226 */ u8  pad_2226[2];        /* shadow of .pad_06 */
+    /* 0x2228 */ u16 ckpt_level_masks[4];/* shadow of .level_masks[0..3] */
+    /* 0x2230 */ u16 ckpt_boss_attempt1; /* shadow of .boss_attempt1 */
+    /* 0x2232 */ u16 ckpt_boss_attempt2; /* shadow of .boss_attempt2 */
+    /* 0x2234 */ u16 ckpt_completion1;   /* shadow of .completion1; tower.c
+                                          * writes 0x2234 + character*240 + j*2
+                                          * paired with the live COMPLETION1_OFF */
+    /* 0x2236 */ u8  pad_2236[4];        /* shadow of .pad_16 */
+    /* 0x223A */ u16 ckpt_completion2;   /* shadow of .completion2; tower.c
+                                          * writes 0x223A + character*240 + j*2
+                                          * paired with the live COMPLETION2_OFF */
+    /* 0x223C */ u8  pad_223C[0x10];     /* shadow of char_save[0] 0x20..0x2C + more */
+    /* 0x224C */ s32 field_224C;     /* per-character(*240) gold checkpoint [shop.c fn_8009A0AC]
+                                      * = shadow of the char_save slot's gold word (+0x2C;
+                                      * Xbox P_SAVE_STUFF int gold @0x30, GC-compacted) */
+    /* 0x2250 */ u8  pad_2250[0x10D4]; /* char_save shadow continues to 0x3120,
+                                        * then 0x1E0 shadow of pad_1CD4, then
+                                        * 0x3300..0x3324 non-shadow bytes */
     /* 0x3324 */ s32 level;          /* character level 1..99 [player.c] */
     /* 0x3328 */ s32 intower;        /* set while active in tower [player.c] */
     /* 0x332C */ s32 world_text_active; /* overhead text state [gauntworld] */
