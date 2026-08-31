@@ -123,11 +123,22 @@ typedef struct Player {
     /* 0x0064 */ f32 effectpos[3];     /* effect/attach position [sfx.c grid pass] */
     /* 0x0070 */ u8  pad_0070[4];
     /* 0x0074 */ u8* node;           /* scene node (parent/grab reparent target) [player.c] */
-    /* 0x0078 */ u8  pad_0078[4];
+    /* 0x0078 */ s32 field_078;      /* cleared beside p->node in load_player_geo /
+                                      * remove_player_geo (VERIFIED: not padding --
+                                      * teardown zero-block) [player.c] */
     /* 0x007C */ s32** platform;     /* moving-platform record [player.c do_players] */
-    /* 0x0080 */ u8  pad_0080[0x20];
+    /* 0x0080 */ u8  pad_0080[0x18];
+    /* 0x0098 */ f32 combo_time;     /* combo window timestamp read at the motion
+                                      * phase exit [pmotion.c] */
+    /* 0x009C */ u8  pad_009C[4];
     /* 0x00A0 */ f32 select_timer;   /* advanced while select overlay is up [player.c] */
-    /* 0x00A4 */ u8  pad_00A4[0x2C];
+    /* 0x00A4 */ u8  pad_00A4[0x20];
+    /* 0x00C4 */ f32 angles[3];      /* orientation angles fed to CreateYPRMatrix(&mat,
+                                      * &angles); angles[1] is the heading/yaw written
+                                      * beside p->move_yaw (VERIFIED: pmotion.c passes
+                                      * (f32*)(p+0xC4) as the second CreateYPRMatrix
+                                      * argument, and stores `heading` at +0xC8)
+                                      * [pmotion.c/player.c] */
     /* 0x00D0 */ f32 beacon_pos[3];  /* platform-relative display pos [player.c] */
     /* 0x00DC */ f32 saved_pos[3];   /* pos saved across parent/grab [player.c] */
     /* 0x00E8 */ s32 state;          /* player state: 0=none 1=active 2=... (VERIFIED @232) */
@@ -152,7 +163,8 @@ typedef struct Player {
     /* 0x01E0 */ u8  powerup_state[11];      /* 1 fresh, 2 use-requested, 3 used [player.c] */
     /* 0x01EB */ u8  pad_01EB[5];
     /* 0x01F0 */ s16 timer_1F0;      /* generic countdowns, dec by frame delta [player.c] */
-    /* 0x01F2 */ u8  pad_01F2[2];
+    /* 0x01F2 */ s16 field_1F2;      /* cleared when the motion driver forces state 4 and
+                                      * at both DoExit resets [pmotion.c] */
     /* 0x01F4 */ s16 respawn_timer;  /* state-0 display rebuild delay [player.c] */
     /* 0x01F6 */ s16 heartbeat_timer; /* low-health heartbeat countdown [player.c] */
     /* 0x01F8 */ s16 name_timer;     /* overhead-name show timer [player.c] */
@@ -172,7 +184,11 @@ typedef struct Player {
     /* 0x06CC */ void* mbnode2;      /* effect anchor node [pmotion.c] */
     /* 0x06D0 */ void* hand_node;    /* off-hand FX parent: shield objects, weapon-hold tree [player.c] */
     /* 0x06D4 */ void* weapon_node;  /* weapon FX parent: wand/gem objects, breath familiars [player.c] */
-    /* 0x06D8 */ u8  pad_06D8[8];
+    /* 0x06D8 */ s32 field_6D8;      /* cleared with grab_node in the teardown block [player.c] */
+    /* 0x06DC */ void* grab_node;    /* node handed to PlayerSetGrabbed as the carry parent;
+                                      * stored from the model's node in load_player_geo and
+                                      * zeroed beside it (VERIFIED: not padding -- teardown
+                                      * store/clear pair) [pmotion.c/player.c] */
     /* 0x06E0 */ void* weaphold_node;   /* node hidden/shown with the weapon-hold FX tree [player.c] */
     /* 0x06E4 */ void* weaphold_atree;  /* weapon-hold FX atree handle [player.c] */
     /* 0x06E8 */ u8  pad_06E8[4];
@@ -208,9 +224,21 @@ typedef struct Player {
     /* 0x0854 */ f32 col_height;     /* collision height (FloorCollide height) [pmotion.c] */
     /* 0x0858 */ f32 light_vec[3];   /* beacon light vector (decayed) [player.c] */
     /* 0x0864 */ f32 light_vel[3];   /* beacon light velocity [player.c] */
-    /* 0x0870 */ u8  pad_0870[0x24];
+    /* 0x0870 */ f32 vel[3];         /* world velocity: scaled by gClockFrameStep into the
+                                      * frame delta, decayed each frame, and impulse-loaded
+                                      * from hit_force by PlayerKnockback (VERIFIED: not
+                                      * padding -- integration triad + teardown zero-block)
+                                      * [pmotion.c/player.c] */
+    /* 0x087C */ f32 prev_pos[3];    /* position saved at the motion phase exit immediately
+                                      * before the live position is advanced by dpos
+                                      * [pmotion.c] */
+    /* 0x0888 */ f32 dpos[3];        /* this frame's clamped position delta, stored back
+                                      * after the move-limit clamps [pmotion.c/player.c] */
     /* 0x0894 */ f32 move_yaw;       /* commanded movement yaw [pmotion.c] */
-    /* 0x0898 */ u8  pad_0898[4];
+    /* 0x0898 */ f32 field_898;      /* reaction deadline on the sMusicFadeBase time base:
+                                      * set to base+1.0 (flag 0x800) or base+4.0 (flag
+                                      * 0x1000) by damage_player, tested `base < field` to
+                                      * force reaction 100 [pmotion.c/player.c] */
     /* 0x089C */ f32 timer_89C;      /* motion-state elapsed time accumulator [pmotion.c] */
     /* 0x08A0 */ f32 floor_hi;       /* clamped floor probe results [player.c] */
     /* 0x08A4 */ f32 floor_lo;
@@ -218,22 +246,37 @@ typedef struct Player {
     /* 0x08AC */ void* special_collision_item; /* nearest special pickup */
     /* 0x08B0 */ s32* speech_req;    /* queued speech request [player.c do_players] */
     /* 0x08B4 */ f32 floor_base;     /* terrain floor height under player [pmotion.c] */
-    /* 0x08B8 */ u8  pad_08B8[0x0C];
+    /* 0x08B8 */ f32 field_8B8;      /* floor_base snapshot; compared against the player's
+                                      * own height to gate the exit check [player.c] */
+    /* 0x08BC */ f32 field_8BC;      /* floor slope term: dpos[1]/planar-distance, or the
+                                      * forward-vector cross used by PlayerNewFloor, read
+                                      * back by ModifyPlayerDpos [pmotion.c] */
+    /* 0x08C0 */ u8  pad_08C0[4];
     /* 0x08C4 */ struct worldobj* floor_name2; /* floor world-object cache [pmotion.c]; desc[16] at +0 doubles as the debug string */
     /* 0x08C8 */ struct worldobj* floor_name;  /* wall/floor hit object [pmotion.c] */
     /* 0x08CC */ f32 floor_cur;      /* active floor-fx height [pmotion.c] */
-    /* 0x08D0 */ u8  pad_08D0[4];
+    /* 0x08D0 */ f32 hit_damage;     /* queued damage accumulator: `+= dmg` in damage_player,
+                                      * gated (> eps) and re-dispatched then cleared by
+                                      * PlayerKnockback (VERIFIED: not padding -- accumulate/
+                                      * consume/clear triad) [pmotion.c/player.c] */
     /* 0x08D4 */ u32 obj_flags;      /* world-obj flags; 0x4000 = parented [player.c] */
     /* 0x08D8 */ u32 act_flags;      /* action state flags [pmotion.c/player.c] */
-    /* 0x08DC */ u8  pad_08DC[0x0C];
+    /* 0x08DC */ f32 hit_force[3];   /* queued knockback impulse: accumulated from the `dir`
+                                      * argument of damage_player, consumed as the velocity
+                                      * impulse and cleared by PlayerKnockback (VERIFIED: not
+                                      * padding -- accumulate/consume/clear triad)
+                                      * [pmotion.c/player.c] */
     /* 0x08E8 */ f32 fxhittime;      /* last critter-effect hit time [critter.c] */
     /* 0x08EC */ f32 floor_fx_time; /* floor hazard damage cooldown [pmotion.c] */
     /* 0x08F0 */ s32 action;         /* current action id (PlayerAttacking) [player.c] */
-    /* 0x08F4 */ u8  pad_08F4[8];
+    /* 0x08F4 */ s32 field_8F4;      /* cleared with field_8F8 in the teardown block [player.c] */
+    /* 0x08F8 */ s32 field_8F8;      /* zero-gate on the melee/attack branch of the motion
+                                      * state machine [pmotion.c/player.c] */
     /* 0x08FC */ f32 combo_fade;     /* combo fade timestamp [pmotion.c] */
     /* 0x0900 */ u32 act_bits;       /* action request bits (SV view writes) [pmotion.c] */
     /* 0x0904 */ f32 melee_yaw;      /* melee target yaw offset [pmotion.c] */
-    /* 0x0908 */ u8  pad_0908[4];
+    /* 0x0908 */ s32 field_908;      /* non-zero selects the moving-hit anim (32) when the
+                                      * player is moving and coll_flags & 5 [pmotion.c] */
     /* 0x090C */ u32 coll_flags;     /* collision state bits [pmotion.c] */
     /* 0x0910 */ f32 coll_score;     /* collision score/severity [pmotion.c] */
     /* 0x0914 */ f32 bossdamage;     /* accumulated boss damage [critter.c] */
@@ -250,11 +293,17 @@ typedef struct Player {
     /* 0x0930 */ s32 got_count;      /* pickup running count [player.c] */
     /* 0x0934 */ s32 fall_frames;    /* fall grunt selector [player.c do_players] */
     /* 0x0938 */ f32 fall_time;      /* fall start timestamp [player.c do_players] */
-    /* 0x093C */ u8  pad_093C[0x14];
+    /* 0x093C */ s32 field_93C;      /* cleared in the do_players per-frame block [player.c] */
+    /* 0x0940 */ s32 field_940;
+    /* 0x0944 */ f32 transport_pos[3]; /* transporter destination: copied from the transporter
+                                      * object's position, then floor-collided and used as the
+                                      * warp target by DoTransporter [pmotion.c] */
     /* 0x0950 */ s16 idle_timer;     /* idle speech timer [player.c do_players] */
     /* 0x0952 */ u8  pad_0952[2];
     /* 0x0954 */ s16 speak_timer;    /* idle speech timer [player.c/pmotion.c] */
-    /* 0x0956 */ u8  pad_0956[2];
+    /* 0x0956 */ s16 field_956;      /* magic/throw request bitmask: reset to 0x10, ORed with
+                                      * 2 on a queued cast, tested for 2, and set to 128 once
+                                      * start_magic has run [pmotion.c/player.c] */
     /* 0x0958 */ s16 throw_str;      /* potion-throw strength [player.c start_magic] */
     /* 0x095A */ u8  pad_095A[2];
     /* 0x095C */ s16 speak_kind;     /* queued speech category [pmotion.c] */
@@ -275,7 +324,14 @@ typedef struct Player {
     /* 0x0A2C */ s32 weakening_elapsed; /* elapsed ticks in weakening cycle [player.c] */
     /* 0x0A30 */ s32 weakening_period; /* weakening cycle duration [player.c] */
     /* 0x0A34 */ s32 milestone[5];   /* recently visited milestone nodes [items.c] */
-    /* 0x0A48 */ u8  pad_0A48[0x10];
+    /* 0x0A48 */ f32 field_A48;      /* four motion tuning scales, all reset to 10000.0f as
+                                      * four separate stores; field_A48 scales the forward
+                                      * move amount and field_A50 scales the control movement
+                                      * (VERIFIED: not padding -- four-store reset block)
+                                      * [pmotion.c/player.c] */
+    /* 0x0A4C */ f32 field_A4C;
+    /* 0x0A50 */ f32 field_A50;
+    /* 0x0A54 */ f32 field_A54;
     /* 0x0A58 */ f32 combo_cd;       /* combo effect cooldown timestamp [pmotion.c] */
     /* 0x0A5C */ s32 camera_limit;   /* camera dpos-limit result [pmotion.c] */
     /* 0x0A60 */ s32 display_mode;   /* HUD display mode (get_display_mode) [player.c] */
