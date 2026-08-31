@@ -1,0 +1,14 @@
+{
+  "constraints": "Read-only census; writes only build/AR_paired.json. Requires a completed `ninja` so build/GUNE5D/asm (target split) and build/GUNE5D/src (our objects) are both current \u2014 stale objects silently misreport. Excludes .postprocess directories, so it scores the RAW compiler output, not WebFrank-postprocessed objects (this is deliberate: the mechanism is a compiler decision). Functions whose opcode multiset and length both match are skipped. The fingerprint is d_add >= MIN_ADD (default 3) together with d_insn > 0; MIN_ADD is a module constant, lower it to widen the net. A hit is a CANDIDATE, not a defect: confirm with `fndiff --ops` and an aligned `fnasm --diff` read before any source edit, and screen the function's attempt records first \u2014 5 of the 11 hits in the founding run were already under a measured do-not-retry.",
+  "id": "tool.add-remat-census.20260831.v1",
+  "kind": "tool",
+  "name": "add_remat_census.py",
+  "purpose": "Image-wide census of the rematerialized-index-base signature: functions where the target emits N more `add` instructions than we do while our stream is SHORTER, the fingerprint of MWCC rematerializing `add rX,rBase,rIdx` per record access where our build hoists a synthesized combined base into a callee-saved GPR.",
+  "recorded_at": "2026-08-31T23:46:27Z",
+  "schema_version": 1,
+  "status": "active",
+  "tool_key": "tools/gdl/add_remat_census.py",
+  "tool_kind": "analysis",
+  "usage": "python tools/gdl/add_remat_census.py    (writes build/AR_paired.json). Joins build/GUNE5D/asm with build/GUNE5D/src function-by-function, the same join addr16_census.py and addrlo_home_general_census.py use. Reports per paired function d_add = target `add` count minus ours and d_insn = target insn count minus ours, ranked by d_add, plus the INVERSE population (ours emitting more adds) as the one-directionality control. Founding run over 2983 paired functions: 849 non-identical, 11 fingerprint hits, INVERSE = 0. See claim.law.split-bss-symbols-are-one-record-and-array-form-defeats-synthesized-index-base.20260831.v2.",
+  "valid_from": "2026-08-31"
+}
