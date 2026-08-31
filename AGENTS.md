@@ -260,8 +260,13 @@ as matching work:
    FIRST as `local_headers`, then PDB reference). Never adopt an Xbox PDB
    name whose offset is not GC-verified: leave the access raw, or
    introduce a file-local view struct with the verifying target-asm
-   evidence noted. Never invent names. Three proven authority moves in
-   priority order: (a) an opaque forward-declared struct with a known
+   evidence noted. Never invent names. Proven authority moves in
+   priority order: (a0) FIRST grep `include/game/*.h` for an existing
+   project struct of the same size and field shape — two of critter.c's
+   multi-session "unresolved blockers" (MBObject, WorldObj) were fully
+   documented project headers all along, and select.c coined a fourth
+   name for a record mb_blit.c already typed; a lookup failure is not a
+   knowledge gap; (a) an opaque forward-declared struct with a known
    size deserves a `struct <name>` PDB-body lookup BEFORE per-site work —
    completing the body converts whole loops at once; (b) the tsv index is
    regenerated from the FULL PDB dump (1,958 records incl. `__unnamed_<Id>`
