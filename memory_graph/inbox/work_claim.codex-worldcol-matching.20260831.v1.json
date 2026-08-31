@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "MATCHING structural lane, whole TU src/game/world/worldcol.c exclusively: primary SlideAlongWall 86.34% has no graph attempt and Xbox WORLDCOL.OBJ evidence; brief/context/xbox/laws + complete target asm + probe.py, portable C/C++ only, preserve exact siblings and TU data; no shared-header edits without integrator approval; parallel fleets pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:SlideAlongWall",
+  "id": "work_claim.codex-worldcol-matching.20260831.v1",
+  "kind": "work_claim",
+  "owner": "codex-worldcol-worker",
+  "recorded_at": "2026-08-31T03:19:31Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

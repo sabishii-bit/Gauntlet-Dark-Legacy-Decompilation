@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "MATCHING structural plus closure lane, whole TU src/game/audio/dcs.c exclusively: primary dcsVoicePlay 82.43% and dcsVoiceSetupAdpcm 86.98% have no graph attempts; secondary dcsReadCalls 98.66% exact closure; brief/context/laws + probe.py, portable C/C++ only, preserve exact siblings and TU data; no shared-header edits without integrator approval; parallel fleets pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:dcsVoicePlay",
+  "id": "work_claim.codex-dcs-matching.20260831.v1",
+  "kind": "work_claim",
+  "owner": "codex-dcs-worker",
+  "recorded_at": "2026-08-31T03:19:28Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

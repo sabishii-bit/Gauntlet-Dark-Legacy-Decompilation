@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "MATCHING structural lane, whole TU src/game/pb/dbgtext.c exclusively: primary fn_800C03E0 92.14% has no graph attempt; verify history freshness, read full target asm, brief/context/laws + probe.py, portable C/C++ only, preserve exact siblings and TU data; no shared-header edits without integrator approval; parallel fleets pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:fn_800C03E0",
+  "id": "work_claim.codex-dbgtext-matching.20260831.v1",
+  "kind": "work_claim",
+  "owner": "codex-dbgtext-worker",
+  "recorded_at": "2026-08-31T03:19:36Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
