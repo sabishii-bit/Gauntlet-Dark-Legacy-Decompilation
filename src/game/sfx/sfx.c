@@ -3064,7 +3064,11 @@ void ProcessEffects(void)
                                 pos[2] = hitpos[2];
                                 moved = 1;
                             }
-                            hit = playerHit == 0 ? 2 : 3;
+                            if (playerHit != 0) {
+                                hit = 3;
+                            } else {
+                                hit = 2;
+                            }
                         }
                     } else if (e->maxtime - remaining > 0.1) {
                         hit = -1;
@@ -3186,23 +3190,30 @@ void ProcessEffects(void)
                                     ownerPlayer, enemy,
                                     enemyState, damage, 0);
                             }
-                            hit = damage == 0 ? 2 : 3;
-                            if (passThrough == 0) {
-                                pos[0] = hitpos[0];
-                                pos[1] = hitpos[1];
-                                pos[2] = hitpos[2];
-                                moved = 1;
+                            if (damage != 0) {
+                                hit = 3;
+                            } else {
+                                hit = 2;
                             }
                         } else {
                             hit = 2;
+                        }
+                        if (passThrough == 0) {
+                            pos[0] = hitpos[0];
+                            pos[1] = hitpos[1];
+                            pos[2] = hitpos[2];
+                            moved = 1;
                         }
                     } else {
                         if (e->maxtime - remaining > 0.0667) {
                             hit = -1;
                         }
                     }
+                    if (passThrough == 0) {
+                        break;
+                    }
                     start = enemyIndex + 1;
-                } while (passThrough != 0);
+                } while (1);
                 if (passThrough != 0) {
                     hit = 0;
                 }
