@@ -107,6 +107,7 @@
 
 #include "types.h"
 #include "game/camera.h"
+#include "game/gamemode.h"
 
 typedef struct Vec3 {
     f32 x;
@@ -443,7 +444,7 @@ s32 UpdateCam(void) {
     if (lbl_80344A6C == 0) {
         fn_8006F16C(0);
     }
-    if (gGameMode != 0x4010) {
+    if (gGameMode != MG_PLAY) {
         done = 1;
     } else {
         if (gScriptedCameraState > 2) {
