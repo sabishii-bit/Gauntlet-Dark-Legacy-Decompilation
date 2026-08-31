@@ -541,8 +541,6 @@ static inline MBTreeNode* MBTreeCreateInitializedNode(s32 type)
 void MBTreeInit(void)
 {
     MBTreeNode* node1;
-    MBTreeNode* node2;
-    MBTreeNode* node3;
     f32 default_scale;
     s32 i;
 
@@ -557,12 +555,12 @@ void MBTreeInit(void)
     lbl_80344ED8 = node1;
     node1->flags |= 4;
 
-    node2 = MBTreeCreateInitializedNode(15);
-    lbl_80344ED4 = node2;
-    node2->flags |= 4;
+    node1 = MBTreeCreateInitializedNode(15);
+    lbl_80344ED4 = node1;
+    node1->flags |= 4;
 
-    node3 = MBTreeCreateInitializedNode(1);
-    lbl_80344EDC = node3;
+    node1 = MBTreeCreateInitializedNode(1);
+    lbl_80344EDC = node1;
 
     MBTreeMoveAfter(gDiag_DEC, lbl_80344EBC);
     MBTreeMoveAfter(gSceneRoot, gDiag_DEC);
