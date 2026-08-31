@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "Found while building tools/gdl/addrlo_home_general_census.py in worktree GDL-Claude-CopyFamily, 2026-08-31. The first run of that census reported target shape-B = 25 and populations P=48 / Q=16, and the P roster contained dolphin/card::TimeoutHandler, dolphin/card::DoneCallback, adstream::AdsNew, player::all_players_go_to_same_level, texPalette::TEXGetPalette, items::did_generate and bosscam::TriggerCamUpdate - functions whose printed target and our shadow contents were instruction-for-instruction the same. Normalising immediates and re-running gave target shape-B = 33, P=40, Q=24 and removed exactly those false rows.",
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.target-asm-hex-immediates-bias-any-hand-rolled-census.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T22:59:29Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "TOOLING HAZARD, and it manufactures precisely the result a census is usually looking for. The target split assembly under build/GUNE5D/asm prints immediates in HEX (`addi r30,r3,0x0`, `cmpwi r4,0x0`, `stw r0,0x4(r1)`), while objdump on our objects prints them in DECIMAL (`addi r30,r3,0`, `cmpwi r4,0`, `stw r0,4(r1)`). MWCC's register-copy form IS `addi rD,rS,0`, so any hand-rolled census that detects a copy with a `,0$` matcher sees ONLY OUR copies and silently scores every target copy as absent. There are 559 `addi rX,rY,0x0` in game/world alone and 341 `mr` forms, i.e. the copy idiom appears in the target under BOTH spellings and the hex one is the majority. THE FAILURE MODE IS DIRECTIONAL, NOT NOISY: it inflates 'ours pays a copy the target does not' and deflates the inverse, so it fabricates exactly the strictly-one-directional signature that census work treats as the fingerprint of an allocator-internal divergence, and it does so with a plausible-looking roster. In the measured instance it added 8 phantom target-avoided copies and 8 phantom P functions, several of them in SDK TUs that are byte-exact and therefore cannot diverge at all - which is the cheap tell. RULE: normalise both instruction streams before comparing (`re.sub(r'(,-?)0x([0-9a-fA-F]+)', decimal)` plus the existing `', ' -> ','` squeeze), and SANITY-CHECK every new census against known byte-exact functions: any fully matched function appearing in a divergence population is a tool bug, not a finding. The two census tools committed on this branch carry the normaliser and the check; tools/gdl/addr16_census.py (the prior lane's tool) does NOT normalise, but is unaffected in its own reported result because its shape-B detector keys on `mr rHOME,r0` rather than on the `addi ...,0` form."
+}

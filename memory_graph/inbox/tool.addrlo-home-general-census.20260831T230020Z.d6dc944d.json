@@ -1,0 +1,20 @@
+{
+  "constraints": [
+    "Requires build/GUNE5D/asm (target split) and build/GUNE5D/src (our objects) to both be current; skips .postprocess directories. Its instruction normaliser is load-bearing: the target split prints immediates in hex (addi rD,rS,0x0) and objdump in decimal, so a copy detector without the normaliser scores only OUR copies and fabricates a one-directional divergence. Any byte-exact function appearing in a divergence population means the tool is wrong, not the build."
+  ],
+  "entrypoint": "python tools/gdl/addrlo_home_general_census.py",
+  "id": "tool.addrlo-home-general-census.20260831T230020Z.d6dc944d",
+  "kind": "tool",
+  "name": "addrlo_home_general_census",
+  "purpose": "Image-wide census of ADDR16_LO addresses homed into a callee-saved register, with a GENERAL volatile intermediate (not only r0). Classifies shape A (lis rT,SYM@ha ; addi rHOME,rT,SYM@lo) vs shape B (address completed in a volatile, then copied into the home) and pairs target against ours per function. Supersedes the r0-only reach of tools/gdl/addr16_census.py; it is the tool that showed LoadItems and StartWorldLoad are inside the class.",
+  "recorded_at": "2026-08-31T23:00:20Z",
+  "schema_version": 1,
+  "source_path": "tools/gdl/addrlo_home_general_census.py",
+  "status": "active",
+  "tool_key": "tool:addrlo-home-general-census",
+  "tool_kind": "analysis",
+  "usage": [
+    "Run from the repo root after a green ninja. Writes build/LC_home.json. Prints the A/B totals, the P/Q/R/S populations paired on shape-B count, the prologue-shadow association of every shape-B instance, and a per-instance dump for a hardcoded lane roster."
+  ],
+  "valid_from": "2026-08-31T23:00:20+00:00"
+}

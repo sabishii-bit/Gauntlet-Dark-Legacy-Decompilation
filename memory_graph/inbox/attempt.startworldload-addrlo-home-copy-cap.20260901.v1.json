@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Ours-only `addi r30,r5,0` homing lbl_8028C9A8 (gWorldName): declaration swap of the two char* locals, run as the matched sibling test of the 'byte-identical signature, one lever closes both' premise shared with LoadItems.",
+  "attributes": {
+    "law_screen": "claim.law.addr16-lo-home-copy-census-no-source-discriminant.20260831.v1 SCREENED and now APPLIES - StartWorldLoad was excluded from the class by that record's r0-only FINDING 6; the general-temp census (tools/gdl/addrlo_home_general_census.py) puts it squarely in shape B (tA=2 oA=1 tB=0 oB=1, via r5, copy `addi r30,r5,0`, @lo at index 3 IN the prologue shadow), inside the corrected P population of 40 with S=0. Its twelve falsified discriminants therefore cover this function. claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 SCREENED: count-asymmetric by exactly one instruction, postprocessor path closed. claim.law.pointer-decl-order-flips-addrlo-inplace-vs-fresh-destination.20260901.v1 SCREENED, does NOT apply (callee-saved destination) - probed anyway as the sibling control and measured NEUTRAL, which is recorded in that law as its second negative control. claim.law.dead-local-identity-reuse-also-closes-ours-only-home-copies.20260831.v1 SCREENED: carrier enumeration empty, both char* locals are live across the whole switch.",
+    "laws_applied": "[\"claim.law.addrlo-home-copy-class-is-general-temp-and-shadow-coupled.20260901.v1\", \"claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1\"]",
+    "residual": "One instruction, structurally byte-for-byte the same signature as LoadItems: target hoists `lis r4,lbl_8028C9A8@ha` alone into the prologue shadow and writes `addi r30,r4,@lo` after the stmw, reusing r4 for the second address; ours hoists `lis r4,@ha`, `addi r5,r4,@lo` and `lis r4,@ha` (three), so the completed address sits in volatile r5 and is copied `addi r30,r5,0`, while our second address `addi r31,r4,@lo` lands correctly after the stmw. Same shadow-coupled joint decision.",
+    "scope": "src/game/world/world.c, StartWorldLoad only. Probe reverted via git; TU byte-identical to its pre-session state.",
+    "verification": "probe.py BASELINE real 63 (T122/O123, ours-only -1 addi). Declaration swap: NEUTRAL real 63, identical --ops clusters. IMPORTANT CROSS-RESULT: the SAME probe on LoadItems, whose residual signature is byte-identical, REGRESSED 13 -> 15. Identical residual signatures did not imply identical lever response, so the work_claim's 'solve once, apply twice' premise is retired by measurement. Full `ninja -j2` green, main.dol: OK."
+  },
+  "function": "function:StartWorldLoad",
+  "id": "attempt.startworldload-addrlo-home-copy-cap.20260901.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T22:59:52Z",
+  "refutes": "claim.control-flow-roster-is-mostly-not-control-flow.20260831.v1",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

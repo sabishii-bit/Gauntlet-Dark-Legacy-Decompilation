@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Extra ours-only `addi r4,r3,0` copying the gPlayers base out of the @ha temp: probed statement split (pl derived from gPlayers instead of from p), then four declaration orders of the function's locals, then the combination.",
+  "attributes": {
+    "law_screen": "claim.law.addr16-lo-home-copy-census-no-source-discriminant.20260831.v1 SCREENED, DOES NOT APPLY: this function's copy destination is VOLATILE (r4), not callee-saved; my own general-temp census (tools/gdl/addrlo_home_general_census.py) confirms tB=0/oB=0 here, so it is outside the P class and outside its do-not-probe disposition. claim.law.dead-local-identity-reuse-also-closes-ours-only-home-copies.20260831.v1 SCREENED, carrier enumeration came up EMPTY on type grounds: the value needing a home is `u8* p`, and every already-declared local dead at its definition point (v, saved, wflag, i) is an s32 - substituting one would be a fakematch cast, so the identity axis was unavailable. claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1 SCREENED: same emptiness, and its recorded negative control (declaration RELOCATION is not a substitute for identity substitution) predicted the decl-order probe would fail - it did not, which is why the new law is recorded rather than the old one extended. claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1 APPLIED as the motivation for the statement-split probe; it measured NEUTRAL here. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 none applicable (no zero-remat disagreement in this function).",
+    "laws_applied": "[\"claim.law.independent-statement-reorder-matches-target-schedule.20260830.v1\", \"claim.law.pointer-decl-order-flips-addrlo-inplace-vs-fresh-destination.20260901.v1\"]",
+    "residual": "REGISTER_ONLY/SCHEDULE, 78/78 insns, opcode multiset IDENTICAL, real 32. Two coupled defects remain, both downstream of ours still folding the low half in place: (1) a one-slot schedule swap - target orders `stw r0,232(r31)` @0x30 then `addi r28,r4,0` (the arg1 parameter home) @0x34, ours emits them in the opposite order; (2) a register rotation - target r5=p / r6=idx*13148 / r3=i, ours r3=p / r5=idx*13148 / r4=i. The rotation is forced by ours writing gPlayers@lo into the @ha temp r3, which keeps r3 alive past the point where the target has already freed it for the counter.",
+    "scope": "src/game/ui/select.c, declaration-order edit only (2 lines). No semantic change.",
+    "verification": "probe.py BASELINE real 45 -> IMPROVED real 32 (insns T78/O79 -> T78/O78, multiset 1t -> 0t). defake_gate.py check game/ui/select --rebuild: GATE OK (1 improved), no sibling regression among the TU's 23 functions / 13 at real 0. Full `ninja -j2` green, build/GUNE5D/main.dol: OK. Committed 8935f7f89."
+  },
+  "function": "function:init_player_change",
+  "id": "attempt.init-player-change-decl-order-closes-address-copy.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T22:59:40Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

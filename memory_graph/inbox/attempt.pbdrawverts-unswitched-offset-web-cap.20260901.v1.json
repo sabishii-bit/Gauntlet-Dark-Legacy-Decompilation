@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Ours-only `addi r7,r8,0` in the vertex loop (the source's `o1 = o2`): probed four offset-variable shapes - collapse to one variable, explicit two source loops with one variable each, duplicated `o1 += 0x24` in both arms, and the original two-variable form.",
+  "attributes": {
+    "law_screen": "claim.law.addr16-lo-home-copy-census-no-source-discriminant.20260831.v1 SCREENED, DOES NOT APPLY: my general-temp census confirms tB=0/oB=0 - this copy has nothing to do with address materialisation, it is an induction-offset web. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED and APPLIES to what the residual turned into: after collapsing to one variable the residual became target-only +1 `li 0`, i.e. exactly the remat-versus-share disagreement that law declares allocator-owned. claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 SCREENED, same conclusion. claim.law.dead-local-identity-reuse-also-closes-ours-only-home-copies.20260831.v1 SCREENED: the copy is written explicitly in the source (`o1 = o2`), so identity substitution is the collapse-to-one-variable probe, which was run. claim.law.chained-init-constant-share.20260829.v1 SCREENED: not a shared-constant initialiser pattern.",
+    "laws_applied": "[\"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\"]",
+    "residual": "MECHANISM FULLY NAMED, and it is a two-sided wall. MWCC unswitches this loop on the invariant `sVtxFormat == 1` into two complete bodies. The TARGET carries THREE things at once: two zero-initialised offset webs (`li r3,0` and `li r4,0` before the branch, one per unswitched copy, the format==1 copy using r4 and the else copy using r3), ONE shared FIFO base (`lis r5,-13311` hoisted above the branch), and NO copy between the offsets. Every source form reachable from here supplies only two of the three: one offset variable gives 1 li + 1 shared lis (87 insns, missing one li); two explicit source loops give 2 li + 2 lis (89 insns, one surplus lis); two variables in one loop give 2 li + 1 lis but the source-level `o1 = o2` copy (89 insns, the baseline). Getting two offset webs out of one source variable requires MWCC to rematerialise the zero into each unswitched copy's register instead of sharing one - an allocator decision, per the screened remat law.",
+    "scope": "src/game/pb/pb_objregs.c, pbDrawVerts only. All four probes reverted; TU byte-identical to its pre-session state.",
+    "verification": "probe.py BASELINE real 101 (T88/O89, ours-only -1 addi). (1) single variable o1, advance after the if: REGRESSED 101 -> 107, insns O87, residual flips to target-only +1 li, aligned view shows the loop bodies otherwise instruction-identical with a pure register permutation. (2) explicit two loops, one offset each: REGRESSED -> 115, insns O89, ours-only -1 lis (FIFO base duplicated into both arms). (3) duplicated `o1 += 0x24` inside both arms: real 107, insns O87 - IDENTICAL to probe 1, and two identical A/Bs kill the axis. (4) reverted to baseline: NEUTRAL real 101. Full `ninja -j2` green, main.dol: OK."
+  },
+  "function": "function:pbDrawVerts",
+  "id": "attempt.pbdrawverts-unswitched-offset-web-cap.20260901.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T22:59:57Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
