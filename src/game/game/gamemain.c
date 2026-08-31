@@ -3223,7 +3223,7 @@ void fn_800516F8(s32 slot)
     bestSpecial = lbl_803468B0;
 
     for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
-        if (*(s32*)(p + 232) == 1) {
+        if (*(s32*)(p + offsetof(Player, state)) == 1) {
             break;
         }
     }
@@ -3280,13 +3280,13 @@ void fn_800516F8(s32 slot)
             kThree = lbl_803468B8;
             {
                 for (; i < 4; i++, p += 13148) {
-                    if (*(s32*)(p + 232) != 1) {
+                    if (*(s32*)(p + offsetof(Player, state)) != 1) {
                         continue;
                     }
-                    if (*(u32*)(p + 292) & 4) {
+                    if (*(u32*)(p + offsetof(Player, flags)) & 4) {
                         continue;
                     }
-                    if (*(s16*)(p + 2588) > 2) {
+                    if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
                         DIST3(dist, (f32*)(e + 84), (f32*)(p + 2564),
                               kZero, kHalf, kThree);
                     } else {
@@ -3297,7 +3297,7 @@ void fn_800516F8(s32 slot)
                     if (range > *(f32*)(e + 768)) {
                         continue;
                     }
-                    if (*(s32*)e == 30 && (*(u32*)(p + 288) & 0x80000)) {
+                    if (*(s32*)e == 30 && (*(u32*)(p + offsetof(Player, shield_flags)) & 0x80000)) {
                         if (range < bestSpecial) {
                             bestSpecial = range;
                             *(s32*)(e + 808) = i;
@@ -5170,7 +5170,7 @@ s32 do_stats_display(void)
     colT = (s32*)((u8*)layout + 116);
 
     for (i = 0, off = 0, p = (u8*)gPlayers; i < 4; i++, off += 4, p += 13148) {
-        s32 st = *(s32*)(p + 232);
+        s32 st = *(s32*)(p + offsetof(Player, state));
         char nbuf[12];
 
         if (st != 1 && st != 5 && st != 4) {
@@ -5188,7 +5188,7 @@ s32 do_stats_display(void)
                               7, 0xFFFFFF, nbuf);
         }
 
-        switch (*(u32*)(p + 2660)) {
+        switch (*(u32*)(p + offsetof(Player, field_A64))) {
         case 0: {
             u8* sp = state + off;
             s32 on = (*(s32*)(sp + 64) == 0);
@@ -5198,8 +5198,8 @@ s32 do_stats_display(void)
             *(s32*)(sp + 48) = on;
             *(s32*)(sp + 32) = on;
             *(s32*)(sp + 80) = 480;
-            (*(s32*)(p + 2660))++;
-            *t96 = *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + 3088) / 60;
+            (*(s32*)(p + offsetof(Player, field_A64)))++;
+            *t96 = *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + 3088) / 60;
             if (*t96 < 1) {
                 *t96 = 1;
             }
@@ -5210,9 +5210,9 @@ s32 do_stats_display(void)
             STAT_TALLY(32, 3088, ok);
             if (ok != 0) {
                 u8* sp2 = state + off;
-                (*(s32*)(p + 2660))++;
+                (*(s32*)(p + offsetof(Player, field_A64)))++;
                 *(s32*)(sp2 + 96) =
-                    *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + 3104) / 60;
+                    *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + 3104) / 60;
                 if (*(s32*)(sp2 += 96) < 1) {
                     *(s32*)sp2 = 1;
                 }
@@ -5229,9 +5229,9 @@ s32 do_stats_display(void)
             STAT_TALLY(48, 3104, ok);
             if (ok != 0) {
                 u8* sp2 = state + off;
-                (*(s32*)(p + 2660))++;
+                (*(s32*)(p + offsetof(Player, field_A64)))++;
                 *(s32*)(sp2 + 96) =
-                    *(s32*)((u8*)p + *(s32*)(p + 12) * 28 + 3108) / 60;
+                    *(s32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + 3108) / 60;
                 if (*(s32*)(sp2 += 96) < 1) {
                     *(s32*)sp2 = 1;
                 }
@@ -5249,9 +5249,9 @@ s32 do_stats_display(void)
             STAT_TALLY(16, 3108, ok);
             if (ok != 0) {
                 u8* sp2 = state + off;
-                (*(s32*)(p + 2660))++;
+                (*(s32*)(p + offsetof(Player, field_A64)))++;
                 *(s32*)(sp2 + 96) =
-                    (s32)(*(f32*)((u8*)p + *(s32*)(p + 12) * 28 + 3112) /
+                    (s32)(*(f32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + 3112) /
                           k60);
                 if (*(s32*)(sp2 += 96) < 60) {
                     *(s32*)sp2 = 60;
@@ -5266,7 +5266,7 @@ s32 do_stats_display(void)
             break;
         }
         case 4:
-            (*(s32*)(p + 2660))++;
+            (*(s32*)(p + offsetof(Player, field_A64)))++;
         case 5: {
             done = 0;
             STAT_ROW(col1, lbl_80346AD8, 32);
@@ -5287,7 +5287,7 @@ s32 do_stats_display(void)
                     }
                     *(s32*)(b + 64) += amt;
                     a = state + *(s32*)p * 4;
-                    tgt = *(f32*)((u8*)p + *(s32*)(p + 12) * 28 + 3112);
+                    tgt = *(f32*)((u8*)p + *(s32*)(p + offsetof(Player, character)) * 28 + 3112);
                     if ((f32)*(s32*)(a += 64) < tgt) {
                         ok = 0;
                     } else {
@@ -5296,7 +5296,7 @@ s32 do_stats_display(void)
                     }
                 }
                 if (ok != 0) {
-                    (*(s32*)(p + 2660))++;
+                    (*(s32*)(p + offsetof(Player, field_A64)))++;
                 } else {
                     stalled = 1;
                 }
@@ -5315,7 +5315,7 @@ s32 do_stats_display(void)
             st = *(s32*)(sp + 80) - gFrameTicks;
             *(s32*)(sp + 80) = st;
             if (st <= 0) {
-                (*(s32*)(p + 2660))++;
+                (*(s32*)(p + offsetof(Player, field_A64)))++;
             }
             break;
         }
