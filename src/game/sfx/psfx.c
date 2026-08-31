@@ -1088,7 +1088,7 @@ extern s32 fn_80055F68(s32 a, s32 b);
 extern u8 MBSetupWad(void* wad, void* data);
 extern void* MBGetFromWad(void* wad, s32 tag, s32* count);
 extern void* memcpy(void* dst, const void* src, u32 n);
-extern u8 gPlayers[];
+extern Player gPlayers[4]; /* gPlayerRecords[4], stride 0x335C */
 extern void PlayerSfxInitData(s32* player, u32* records, s32 count, void* param4);
 
 /* LoadPlyrData @0x8008A928 -- ensure player plr has class cls's pdata wad
@@ -1120,7 +1120,7 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
     if (cls < 0) {
         return;
     }
-    if (cls != pdata->cur[plr] || (((Player*)(gPlayers + plr * 0x335C))->state != 0 && resolve != 0)) {
+    if (cls != pdata->cur[plr] || (gPlayers[plr].state != 0 && resolve != 0)) {
         if ((*(u64*)&gControllerButtons & 0x10) != 0 && fn_80055F68(0, -1) != 0) {
             mode = 2;
         } else {
@@ -1267,7 +1267,7 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
 
             if (resolve != 0) {
                 hdr = (PsfxHeader*)pdata->headers[plr];
-                PlayerSfxInitData((s32*)(gPlayers + plr * 0x335C), (u32*)hdr->records, hdr->count,
+                PlayerSfxInitData((s32*)&gPlayers[plr], (u32*)hdr->records, hdr->count,
                                   ((void**)player_multiple_models)[plr * 0x13 + 18]);
                 ((PsfxHeader*)pdata->headers[plr])->resolved = 1;
             }
@@ -1277,7 +1277,7 @@ void LoadPlyrData(s32 plr, s32 cls, s32 resolve) {
     } else if (resolve != 0) {
         hdr = (PsfxHeader*)pdata->headers[plr];
         if (hdr->resolved == 0) {
-            PlayerSfxInitData((s32*)(gPlayers + plr * 0x335C), (u32*)hdr->records, hdr->count,
+            PlayerSfxInitData((s32*)&gPlayers[plr], (u32*)hdr->records, hdr->count,
                               ((void**)player_multiple_models)[plr * 0x13 + 18]);
             ((PsfxHeader*)pdata->headers[plr])->resolved = 1;
         }
