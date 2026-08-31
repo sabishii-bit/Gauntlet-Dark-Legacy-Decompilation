@@ -1,0 +1,11 @@
+{
+  "claim": "claim.law.offsetof-hazard-is-per-base-not-per-function.20260831.v1",
+  "detail": "CritterInitGeo is the exact function claim.law.offsetof-rename-can-regress-prior-improved-fn was derived from (it records real 63->113 for the c+0xF8/0xFC skinMatrix rename and 63->86 for a 6-site movePathPos/defaultPos block, both on base `c`). With those `c`-based sites left raw and untouched, 16 sites on two OTHER bases inside the same function were converted and gated byte-identical in two separate batches: 6 sites on `c->shadow` -> offsetof(MBObject, mat[3][0..2] / zsort_add / zmod) (commit 4e5a8ba1c), and 10 sites on `header` (= (u8*)c->hdr) -> offsetof(CritterPackedType, node0Index / node1Index / node2Index / typeFlags / floorOffset / vertDrift / atree) (commit ca3fa7f23). Both batches returned GATE OK from defake_gate.py check game/enemy/critter.c --rebuild against a baseline banked before the first edit (86 functions, 61 at real 0). The same per-base result reproduced across the rest of the hazard tier in six more functions for 44 further sites, zero regressions; CritterBossAI in particular was re-measured with tools/gdl/fuzzy.py at 96.9584% both before and after its two conversions, so a delicate prior matching-pass result survived intact.",
+  "evidence_kind": "build",
+  "id": "evidence.offsetof-per-base-critterinitgeo.20260831.v1",
+  "kind": "evidence",
+  "locator": "python tools/gdl/defake_gate.py check game/enemy/critter.c --rebuild @ commits 4e5a8ba1c and ca3fa7f23 (src/game/enemy/critter.c CritterInitGeo, defined at line 6417)",
+  "recorded_at": "2026-08-31T04:46:06Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
