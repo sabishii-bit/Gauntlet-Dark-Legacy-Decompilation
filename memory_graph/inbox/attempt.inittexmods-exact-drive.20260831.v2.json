@@ -1,0 +1,32 @@
+{
+  "attempted_axis": "Five genuinely new portable-C probes against the final signed branch-pair residual: unsigned sign-boundary partition, Boolean predicate carrier, positive-first dual-goto if/else, negated/swapped dual-goto if/else, and signed comparison operand reversal",
+  "attributes": {
+    "axis_log": [
+      "v1 retained complementary signed tests: target/current 27/27, fuzzy 97.77778%, real 2; prior nested/goto/return/pragma/loop/switch/dominated/repeated-condition axes remain vetoed",
+      "unsigned sign-boundary partition: regressed to 29 instructions/real 14; MWCC emitted lis+addi+cmplw+ble+bgt instead of cmpwi+bge+b",
+      "Boolean predicate local: regressed to 33 instructions/real 16; MWCC synthesized li+srawi+srwi+subfc+adde then cmpwi+beq",
+      "positive-first explicit dual-goto if/else: regressed to 26 instructions/real 9; MWCC collapsed bge+b to one blt",
+      "negated/swapped explicit dual-goto if/else: identical 26 instructions/real 9, killing the if/else arm-order axis",
+      "signed operand reversal 0 <= texidx: byte-neutral 27 instructions/real 2; canonicalized identically to texidx >= 0"
+    ],
+    "baseline_best": "target/current 27/27, fuzzy 97.77778%, real 2, frame 0x20, saves r28-r31; no source change retained",
+    "law_screen": "Fetched full current corpus (100/100 records) and screened every head/body before probing. Applicable branch/entry/metric laws: absent-target-guard-means-tautological-reconstruction explains why the retained complementary test survives; guard-polarity-restructure-fixes-count-parity-not-form was inapplicable because count was already exact; if-else-arm-swap-controls-fallthrough-placement drove both dual-goto forms but both collapsed identically, establishing a goto-only boundary; insn-count-parity-outranks-local-opcode-fidelity rejected both 26- and 29/33-instruction forms; declaration-initializer-split, independent-statement-reorder, chained-init-constant-share, compare-form-dictionary, load-then-conditional-overwrite-vs-ternary, switch-run-collapse-and-arm-layout, and inline-and-deadstrip-rules had no untried target tell. Signature searches for 'unconditional branch conditional branch', 'cmpwi bge blt', 'unsigned sign compare cmpwi bge', 'boolean local branch pair', and 'comparison operand order bge' fetched the full prior InitTexMods v1 record plus adsMoveRawToCooked, DoAudioTallySFX, FindWORLDOBJ, AudioEnterNextStage, and LimitCamVal2 branch-wall records; their goto/switch/loop/short-circuit/pragma axes were not repeated. The remaining corpus families were fully screened and excluded by the 27-instruction target: no FP/pool/extern/conversion, address/index/alias/CSE/lwzu/offsetof/struct, load/store/field-width, stack/pad/declaration/data/relocation, header/rename/worktree, or WebFrank-source-freeze tell. WebFrank pins were screened before source inspection: atree is pinned only for AtreeInitSub, not InitTexMods; config remained untouched.",
+    "laws_applied": [
+      "claim.law.absent-target-guard-means-tautological-reconstruction.20260831.v1",
+      "claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1",
+      "claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1"
+    ],
+    "residual": "STRUCTURAL exact cap at target +0x1C cmpwi r29,0; +0x20 bge +0x28 (branch to the immediately following init block); +0x24 unconditional b +0x58. Best portable output has the same cmpwi+bge but +0x24 blt +0x58. Exact mechanism: under GC MWCC 1.2.5 demo flags (-O4 without peephole), the pre-peephole CFG canonicalizer reuses CR0 for the second complementary signed predicate and emits blt; when source spells an explicit unconditional second destination, the canonicalizer folds the whole pair to one inverted blt before the peephole-disabled backend can retain target's branch-to-next plus b. No other instruction, register, frame, call, relocation, or data difference remains. The site is structurally ineligible for register-only WebFrank treatment, and config/postprocessor ownership was forbidden.",
+    "scope": "Only src/game/anim/atree.c::InitTexMods was probed; source restored byte-for-byte to baseline; only this compact inbox proposal retained",
+    "verification": "Clean probe baseline banked before edits and restored after every failed form; final probe 27/27 real 2 multiset 2t; full target/current asm and aligned diff read; object/TU/full-link/status gates recorded after proposal commit"
+  },
+  "function": "function:InitTexMods",
+  "id": "attempt.inittexmods-exact-drive.20260831.v2",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-08-31T05:42:15Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.inittexmods-portable-branch-closure.20260829.v1",
+  "valid_from": "2026-08-31"
+}
