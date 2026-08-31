@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "Found during work_claim.enemy-cleanup.20260831.v1 while resolving enemy.c's Player-base raw-offset sites; src/game/enemy/enemy.c lines ~210-241 (EnemyPlayerView / EnemyPlayerArray) versus include/game/player.h (Player, 0x335C). Not acted on - resolving it is a naming-authority decision for the player.h owner and the integrator.",
+    "tags": [
+      "symbol-identity",
+      "defake",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "proposed",
+  "id": "claim.enemy-c-playerview-conflicts-with-player-h.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T04:46:30Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/enemy",
+  "valid_from": "2026-08-31",
+  "value": "src/game/enemy/enemy.c carries its own partial reconstruction of the Player record, `EnemyPlayerView` (inside the union `EnemyPlayerArray`, which backs the gPlayerWords / gEnemyPlayers macros), and four of its field names CONFLICT with include/game/player.h's fuller, GC-verified Player at the same offsets. This is the two-divergent-reconstructions failure mode AGENTS.md records from critter.c, now present in enemy.c, and it is a naming hazard rather than a layout hazard - both agree on the 0x335C stride and neither miscomputes an address. The four disagreements, EnemyPlayerView name first: 0x054 `position[3]` vs player.h `col_pos[3]` (player.h puts the primary `pos[3]` at 0x044 instead, VERIFIED by lfs 68/72/76 in auxscreen.c calc_wizard_pos, and enemy.c's own fn_8004CE38 reads exactly 68/76 for the chase bearing - so EnemyPlayerView's 'position' is very likely NOT the position a reader would assume); 0x064 `damage_position[3]` vs player.h `effectpos[3]`; 0x120 `flags` vs player.h `shield_flags`, with player.h's real `flags` one word later at 0x124 (VERIFIED lwz @292, bit 0x400) - so a reader following EnemyPlayerView would test the wrong word; 0x954 `it_enemy` vs player.h `speak_timer`; and 0xA1E/0xA20 `attack_reflect`/`attack_heal` vs player.h `field_A1E`/`field_A20` (gem-object latches for flags 0x200000/0x400000). Agreed: `index` @0x000, `character` @0x00C, `state` @0x0E8, `health` @0x1EB4, `level` @0x3324. The 0x120 case is the one worth resolving first, because the two names describe different semantics for adjacent words and either header could be the wrong one. Deliberately NOT resolved by this pass: renaming EnemyPlayerView's fields touches do_enemies (prior-improved, and the subject of claim.law.pointer-walk-array-index-regression, whose recorded neutral form is precisely `((EnemyPlayerView*)pl)->state`), and adopting player.h wholesale in this TU is blocked anyway by a separate `sItems` declaration conflict with game/item.h. Suggested resolution for whoever owns player.h: verify 0x054/0x064/0x120/0x954/0xA1E against the target asm of the functions that WRITE them, then either fold EnemyPlayerView's names into player.h or delete EnemyPlayerView in favour of offsetof(Player, ...) on the same raw bases - the latter is what this pass did for every Player site it could reach, gating each batch byte-identical."
+}

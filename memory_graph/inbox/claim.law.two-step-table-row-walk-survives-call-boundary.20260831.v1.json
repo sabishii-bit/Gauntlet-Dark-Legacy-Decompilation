@@ -1,0 +1,23 @@
+{
+  "attributes": {
+    "provenance": "src/game/enemy/enemy.c init_enemy (target 0x8004FE34, 136 insns), worktree GDL-Claude-EnemyClean, work_claim.enemy-cleanup.20260831.v1, commit f9a15c907; measured with tools/gdl/probe.py game/enemy/enemy init_enemy --ops and tools/gdl/fnasm.py --diff.",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.table-lookup-pre-keyed-on-segment-cast-repetition.20260831.v1 - applies to a per-index SoA table lookup that is separated from an earlier lookup on the SAME table base by a function call.",
+    "tags": [
+      "cse",
+      "register-web",
+      "index-form",
+      "walked-pointer",
+      "defake",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.two-step-table-row-walk-survives-call-boundary.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T04:45:43Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "claim.law.table-lookup-pre-keyed-on-segment-cast-repetition found that for the lbl_8011AF48 per-enemy-type SoA table, a two-step `row = base + index*4; ((T*)row)[N]` and the flat single-additive `*(T*)(base + index*4 + CONST)` compile IDENTICALLY - MWCC's front end normalizes both spellings to the same IR, so the addressing form is not source-shape-controllable. That finding holds only WITHIN one call-free segment. Across a call boundary the two spellings are NOT interchangeable, and the two-step form is the load-bearing one. Verified in game/enemy/enemy.c's init_enemy, which reads the same table three times off the same `u8* tbl` base and the same `toff = type * 4`: two reads (+2080, +2216) sit in the entry region before the SetEnemyObj call and are written flat, and the third (+2760) sits after the call and was written as a scoped two-step walk `{ u8* r = tbl; r += toff; health = *(f32*)(r + 2760); }`. Flattening ONLY that third site to `*(f32*)(tbl + toff + 2760)` - the form the parent law calls equivalent, and the form its two neighbours already use three lines earlier - regressed fndiff real 27 -> 76 with an opcode-multiset DIFFERS classification (target-only +1 add, ours-only -1 lwz). The mechanism is visible in --ops: the target re-materializes the row register AFTER the call (`add r3,r29,r28` at 0xb4, r28/r29 being callee-saved copies of the scaled index and the table base), whereas the flat form lets MWCC treat the post-call read as the same value-numbered expression as the pre-call ones and reuse the entry region's row, DELETING that add. The cost does not stay local: removing one add cascaded an entry-schedule rewrite (an extra addi at 0x24, a stw/lfs displacement shuffle at 0x30-0x40, li/addi swaps at 0x50-0x5c), which is why the real count nearly tripled for a one-line change. This is consistent with - and sharpens - the parent law's own working hypothesis that a call resets MWCC's cross-statement value-numbering pool for the table-base expression: the reset is what the TARGET's code depends on, so source that lets the compiler re-share the expression across the call is wrong even though it is prettier. Consequence for de-fakematch passes: a two-step or scoped pointer walk that looks like gratuitous Ghidra noise is evidence of a call boundary, not of bad reconstruction. Before flattening one, check whether a call separates it from the nearest other read of the same base; if so, expect the flat form to regress, gate it on its own, and if it does regress leave the two-step form in place with the measurement commented rather than repeatedly rediscovering it. Naming the displacement constant (offsetof or a documented macro) is still free and should be done regardless - it captures nearly all the readability value without touching the expression's shape."
+}
