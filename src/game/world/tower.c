@@ -1171,8 +1171,8 @@ void TowerCheckMessages(s32 mode) {
         }
         sumnerCheckLevelUp();
         if (mode != 0) {
-            u32 runeGot = 0;
             u32 runeBanked = 0;
+            u32 runeGot = 0;
             u32 shardGot = 0;
             u32 shardBanked = 0;
             u32 newRunes;
@@ -1183,8 +1183,7 @@ void TowerCheckMessages(s32 mode) {
             for (i = 0; i < 4; i++) {
                 Player* p = &gPlayers[i];
 
-                if (p->state != 0 &&
-                    *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)lbl_80343D6C) {
+                if (p->state != 0 && (u32)p->hidden_code != (u32)lbl_80343D6C) {
                     runeGot |= p->runes;
                     runeBanked |= p->char_save_ckpt[p->character].rune_stones;
                     p->char_save[p->character].rune_stones |= p->runes;
@@ -1211,8 +1210,7 @@ void TowerCheckMessages(s32 mode) {
             for (i = 0; i < 4; i++) {
                 Player* p = &gPlayers[i];
 
-                if (p->state != 0 &&
-                    *(u32*)((u8*)p + offsetof(Player, hidden_code)) != (u32)lbl_80343D6C) {
+                if (p->state != 0 && (u32)p->hidden_code != (u32)lbl_80343D6C) {
                     shardGot |= p->shards;
                     shardBanked |= p->char_save_ckpt[p->character].rune_stones2;
                     p->char_save[p->character].rune_stones2 |= p->shards;
@@ -1271,24 +1269,20 @@ void TowerCheckMessages(s32 mode) {
         }
         {
             for (j = 0; j < 3; j++) {
-                s32* best = &levels[j];
-                u32 curWorld;
-
-                *best = 0;
-                curWorld = lbl_80343D6C;
+                levels[j] = 0;
                 for (i = 0; i < 4; i++) {
                     Player* p = &gPlayers[i];
 
                     if (p->state != 0 &&
-                        *(u32*)((u8*)p + offsetof(Player, hidden_code)) != curWorld) {
+                        (u32)p->hidden_code != (u32)lbl_80343D6C) {
                         s32 val = p->char_save[p->character].completion1[j];
 
-                        if (*best >= 0 && (val < 0 || val > *best)) {
-                            *best = val;
+                        if (levels[j] >= 0 && (val < 0 || val > levels[j])) {
+                            levels[j] = val;
                         }
                     }
                 }
-                if (*best == lbl_80124CDC[j]) {
+                if (levels[j] == lbl_80124CDC[j]) {
                     msg = FindStringMessageListSub_8001FC4C(0, strings + 60);
                     arg = fn_8009C5B8(j);
                     ControllerMessageBox(-1, msg, j, arg);
@@ -1308,24 +1302,20 @@ void TowerCheckMessages(s32 mode) {
             }
             for (j = 0; j < 8; j++) {
                 if (lbl_80124C70[j] != 0) {
-                    s32* best = &bosses[j];
-                    u32 curWorld;
-
-                    *best = 0;
-                    curWorld = lbl_80343D6C;
+                    bosses[j] = 0;
                     for (i = 0; i < 4; i++) {
                         Player* p = &gPlayers[i];
 
                         if (p->state != 0 &&
-                            *(u32*)((u8*)p + offsetof(Player, hidden_code)) != curWorld) {
+                            (u32)p->hidden_code != (u32)lbl_80343D6C) {
                             s32 val = p->char_save[p->character].completion2[j];
 
-                            if (*best >= 0 && (val < 0 || val > *best)) {
-                                *best = val;
+                            if (bosses[j] >= 0 && (val < 0 || val > bosses[j])) {
+                                bosses[j] = val;
                             }
                         }
                     }
-                    if (*best == lbl_80124C70[j]) {
+                    if (bosses[j] == lbl_80124C70[j]) {
                         msg = FindStringMessageListSub_8001FC4C(0, strings + 76);
                         arg = fn_8009C620(j);
                         ControllerMessageBox(-1, msg, j, arg);
