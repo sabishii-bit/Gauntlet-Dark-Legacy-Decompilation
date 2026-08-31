@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "src/game/enemy/enemy.c::move_logic15 (worktree GDL-Claude-MoveLogic15, work_claim.enemy-movelogic15-close.20260831.v1, attempt.move-logic15-declaration-order-slot-closure.20260831.v1). Four measured forms on one otherwise unchanged 215-instruction function, each read from the aligned fnasm --diff filtered to (r1) rows. Start state: declarations `f32 ady; u8 _pad15[48];` at function scope plus `volatile f32 tmp` in an inner if-block; slots ady 0x40, pad 0x10-0x3f, tmp 0x0c; frame 88; target wants ady 0x14, tmp 0x18, pad 0x1c-0x4b. Form A, reorder to `u8 _pad15[48]; volatile f32 tmp; f32 ady;` (tmp hoisted to function scope, qualifier unchanged): ady 0x40 -> 0x0c, tmp 0x0c -> 0x10, relative order now correct, block 8 bytes too low, frame 88, real flat at 104. Form B, additionally append `u8 _pad15b[8]` declared last: all six blocking displacements matched target exactly, but frame grew 88 -> 96 and four new frame words opened, real 104 -> 108. Form C, conserve the total by splitting the pad 40+8 instead of adding, `u8 _pad15[40]; volatile f32 tmp; f32 ady; u8 _pad15b[8];`: frame stayed 88, ady 0x14 and tmp 0x18, every stack word in the function identical to target, real 104 -> 98 with a pure register residual. Commit 622710503, then webfrank copy_register_fields to real 0 at 6941d37a0; ninja main.dol OK, project matched 2640 -> 2641.",
+    "tags": [
+      "matching",
+      "decl-order",
+      "store-placement"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.stack-slots-descend-in-declaration-order.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T17:49:02Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "MWCC lays memory-resident locals out in DESCENDING address order by declaration order: the FIRST-declared local gets the HIGHEST address in the local block, and a local declared in an inner block sits BELOW every function-scope local. So to reproduce a target ascending layout X, Y, Z you declare Z, Y, X. Two operational corollaries, both measured. (1) The local block is anchored at its BOTTOM, just above the parameter save area, and grows upward; its top is therefore free space, not a budget. Consequently APPENDING a pad declared last to push the scalars up grows the frame by exactly that many bytes and opens fresh stwu/stmw/lmw/lwz blocking words, whereas a CONSERVING split - taking N bytes off a high pad and re-declaring them as a separate pad declared LAST - shifts every intervening scalar up by N with the frame size untouched. When a pad must move scalars, split it, never extend it. (2) `real`/fndiff is a MISLEADING arbiter for slot placement: the reorder that fixed the relative order of the two slots left real completely flat at 104 while moving both slots, and the form that closed all six target displacements REGRESSED real to 108 because it traded them for four frame words. Arbitrate slot work by diffing the (r1) displacement rows directly (fnasm <unit> <fn> 0x0:0xEND --diff filtered to `(r1)`), counting blocking words, not by the aggregate score. RELATED TRAP, measured on the same function: a pad whose declaration position is probed while the variable of interest has been MISIDENTIFIED will read as inert across many probes and invite a false 'pad axis is dead' cap. Before capping a pad/slot axis, confirm which source variable owns each differing displacement by its instruction signature - a `*(u32*)&f &= 0x7FFFFFFF` bit-trick abs is stfs/lwz/clrlwi/stw/lfs, while a volatile f32 truncation temp is a bare stfs/lfs pair - and note that stfs/lfs is 32-bit, so a slot pair spelled stfs/lfs is NEVER an f64 scratch."
+}
