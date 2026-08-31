@@ -153,6 +153,26 @@ typedef struct BlitEntry {
     s32 timer;
 } BlitEntry;
 
+/* file-local view: the static placement table inside the select-menu data
+ * page (lbl_80121688), 11 entries of 12 bytes starting at page+0x20 -- one
+ * entry per BlitEntry slot, same index and same stride.  Verified entirely
+ * in-TU: init_player_select's build loop and serve_blits' animate loop both
+ * step j<11 with a 12-byte stride and read exactly +0x20/+0x24/+0x28 off the
+ * entry; the first field is summed with the per-player x shift (*xp) before
+ * MBCreateBlit/mbBlitCalcWidth's x argument, the second feeds the y
+ * argument, and the third is float-converted into mbBlitCvtCoord/
+ * mbBlitCalcWidth's scale argument.  Entries 9 and 10 are additionally
+ * addressed directly (page+140.. / page+152..) alongside their matching
+ * BlitEntry handles at blits+108 / blits+120.  Never cast a live pointer to
+ * this type -- it exists only to feed offsetof() so the raw page/pe pointer
+ * keeps its fused-immediate displacement addressing (see claim.law.
+ * multifield-alias-defeats-indexed-addressing). */
+typedef struct BlitPlacement {
+    s32 x;      /* +0x00 (page+0x20) blit x, before the per-player *xp shift */
+    s32 y;      /* +0x04 (page+0x24) blit y                                  */
+    s32 scale;  /* +0x08 (page+0x28) blit scale, converted to f32 at use     */
+} BlitPlacement;
+
 /* file-local view of the fields of OPTMENU (game/ui/options.c, verified
  * 0xE8-byte struct) actually touched by this TU's per-player menu blocks
  * (do_player_select/setup_sel_menu/sel_set_choice all pass an OPTMENU* to
@@ -2759,15 +2779,15 @@ void init_player_select(s32 mode)
             for (j = 0, joff = 0; j < 11; j++, joff += 12) {
                 u8* e = page + joff;
                 void* b;
-                s32 w = *(s32*)(e + 32);
-                s32 h = *(s32*)(e + 36);
+                s32 w = *(s32*)(e + 0x20 + offsetof(BlitPlacement, x));
+                s32 h = *(s32*)(e + 0x20 + offsetof(BlitPlacement, y));
                 w += *xp;
                 e += 32;
                 b = (void*)MBCreateBlit(0, 0, w, h, -1, -1);
                 *(void**)(blits + joff) = b;
                 mbBlitInit3414(*(void**)(blits + joff), 1);
                 mbBlitCvtCoord(*(void**)(blits + joff),
-                               (f32)*(s32*)(e + 8));
+                               (f32)*(s32*)(e + offsetof(BlitPlacement, scale)));
                 *(s32*)(blits + joff + offsetof(BlitEntry, mode)) = 0;
             }
             *(s32*)(pl + offsetof(Player, exit_dest)) = sLastWorldLevel;
@@ -2913,9 +2933,12 @@ s32 serve_blits(s32 player)
             dv = (s32)((f32)ht * f);
             {
                 u8* pe = page + off;
-                mbBlitCalcWidth(h, *(s32*)(pe + 0x20) - du / 2 + *xp,
-                                *(s32*)(pe + 0x24) - dv / 2,
-                                (f32)*(s32*)(pe + 0x28));
+                mbBlitCalcWidth(h,
+                                *(s32*)(pe + 0x20 + offsetof(BlitPlacement, x)) -
+                                    du / 2 + *xp,
+                                *(s32*)(pe + 0x20 + offsetof(BlitPlacement, y)) -
+                                    dv / 2,
+                                (f32)*(s32*)(pe + 0x20 + offsetof(BlitPlacement, scale)));
             }
             mbBlitProject(h, du, dv);
             break;
@@ -2930,8 +2953,11 @@ s32 serve_blits(s32 player)
             u = t * t;
             {
                 u8* pe = page + off;
-                mbBlitCalcWidth(h, *(s32*)(pe + 0x20) + (*xp + u / 8),
-                                u + t * 3, (f32)*(s32*)(pe + 0x28));
+                mbBlitCalcWidth(h,
+                                *(s32*)(pe + 0x20 + offsetof(BlitPlacement, x)) +
+                                    (*xp + u / 8),
+                                u + t * 3,
+                                (f32)*(s32*)(pe + 0x20 + offsetof(BlitPlacement, scale)));
             }
             MBBlitSetAlpha(h, u);
             mbBlitProject(h, 0x80, 0x100 - u);
@@ -2992,9 +3018,14 @@ s32 serve_blits(s32 player)
             dv = (s32)((f32)ht * f);
             {
                 u8* pe = page + off;
-                mbBlitCalcWidth(h, w / 2 + *(s32*)(pe + 0x20) - du / 2 + *xp,
-                                ht / 2 + *(s32*)(pe + 0x24) - dv / 2,
-                                (f32)*(s32*)(pe + 0x28));
+                mbBlitCalcWidth(h,
+                                w / 2 +
+                                    *(s32*)(pe + 0x20 + offsetof(BlitPlacement, x)) -
+                                    du / 2 + *xp,
+                                ht / 2 +
+                                    *(s32*)(pe + 0x20 + offsetof(BlitPlacement, y)) -
+                                    dv / 2,
+                                (f32)*(s32*)(pe + 0x20 + offsetof(BlitPlacement, scale)));
             }
             mbBlitProject(h, du, dv);
             if (a >= 0x100) {
