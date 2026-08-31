@@ -19,6 +19,13 @@
 >    build.ninja into whatever CWD it runs from (a worker regenerated the
 >    shared checkout's build graph this way; absolute script paths protect
 >    reads, not a script's own output).
+> 6. Adding a TU's FIRST rule to `config/GUNE5D/webfrank.json` does NOT
+>    create its WEBFRANK build edge — a plain `ninja` runs green with the
+>    rule silently unapplied (looks exactly like "the rule didn't work").
+>    Re-run `python configure.py` after editing webfrank.json, then ninja,
+>    and confirm the `WEBFRANK <your TU>` line appears. Also: edit that
+>    file with surgical text inserts only — a json.dump round-trip
+>    reformats every other lane's rules.
 
 This file is the authoritative workflow contract for every LLM or agent
 working in this checkout, on any platform. Read it completely before
