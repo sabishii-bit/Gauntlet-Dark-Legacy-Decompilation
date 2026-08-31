@@ -13,6 +13,12 @@
 >    your TUs — a pinned function's source is FROZEN (the postprocessor
 >    hash-asserts its body and the build aborts on drift). Screen the
 >    pinned list first; do not discover it via a failed ninja.
+> 5. Your shell's DEFAULT working directory is the SHARED main checkout,
+>    which is read-only to workers. `Set-Location` to your own worktree
+>    before ANY command that writes — configure.py especially regenerates
+>    build.ninja into whatever CWD it runs from (a worker regenerated the
+>    shared checkout's build graph this way; absolute script paths protect
+>    reads, not a script's own output).
 
 This file is the authoritative workflow contract for every LLM or agent
 working in this checkout, on any platform. Read it completely before
