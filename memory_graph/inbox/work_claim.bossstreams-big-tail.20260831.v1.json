@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "BIG-TAIL lane: the largest remaining fuzzy deficits are few and huge \u2014 AudioSetupBossStreams (game/sound/sounds_evt, real 1308, T826/O810: a standing 16-INSTRUCTION DEFICIT \u2014 attempt.sounds-evt-bossstreams-aligned-read-followup.20260831.v2 proved the 54 'branch rows' are its position shadow; find the 16 missing instructions: an uninlined helper? a missing statement? compare callee-by-callee and block-by-block against the target CFG) and pbFrameMode-class giants EXCLUDED (other lanes). After bossstreams: fn_800C03E0-adjacent big fns in dbgtext/pb_diag sub-97%% by BYTES (rank report.json by (1-fuzzy)*size, exclude TUs owned this run: movieplayer, sysservice, mb_font, pb_frame, anim_play, select.c, items.c, world.c). This is reconstruction: target CFG first, aligned reads, census for shape questions; the 09-01 law kit applies. Commit per function; gate per TU; honest parks with named mechanisms where walls are real; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:AudioSetupBossStreams",
+  "id": "work_claim.bossstreams-big-tail.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-BT",
+  "recorded_at": "2026-08-31T23:17:06Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

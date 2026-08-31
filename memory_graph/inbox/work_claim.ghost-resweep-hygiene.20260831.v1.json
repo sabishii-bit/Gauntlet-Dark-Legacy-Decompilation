@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "HYGIENE lane: (1) OWN-POOL GHOST RE-SWEEP image-wide: FS's 'zero ghosts' finding is STALE (DG found 3 in sysservice \u2014 negative findings rot fastest). Re-run the sound screen (nm -u per built object; UND lbl_/jumptable_ whose address falls in the TU's own splits ranges) across ALL NonMatching TUs; fix what you find EXCEPT sysservice (flip lane owns it); record the new sweep with its date. (2) The f64 maxDist WRONG EXTERNS: critter.c:326 and tower.c:58 declare f64 where FindClosestWaypoint's real param is f32 (flagged in attempt.findclosestwaypoint-param-width-sets-slot-floor-exact.20260901.v1) \u2014 fix byte-identically, gate both TUs. (3) externcheck.py widening: it only flags float/int-class conflicts and missed both u32-vs-s32 and pointer-vs-int (two waves rediscovered these by hand \u2014 worker GC's criticism): widen it to flag ANY type-class disagreement between extern declarations of one symbol, run image-wide, fix what's conclusive + byte-identical, record the rest. (4) prune-attempts check + any stale-solved candidates via gdlmem stale (NEVER fndiff \u2014 the postprocessed-object law). Commit per fix; gate everything; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:LoadItems",
+  "id": "work_claim.ghost-resweep-hygiene.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-GH",
+  "recorded_at": "2026-08-31T23:17:01Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

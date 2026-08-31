@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "FLIP-STRAGGLER lane: three TUs are ONE function from a file flip with data now clean: (1) sysResetService (game/sys/sysservice, real 18, multiset IDENTICAL \u2014 attempt.sysresetservice-colour-tiebreak-cluster.20260901.v1 names it exactly: target colours the gSysFlags temp r3 keeping it live to the rlwinm, ours r4; the named-local axis DELETED a load \u2014 the &= re-read is load-bearing; try interference levers: an r3-competing use, call-order, the decl-order lever's int-counter discriminant); ALSO fix its 3 own-pool UND ghosts (lbl_80117708/770/790 \u2014 claim.sysservice-data-gap-closed-and-own-pool-und-ghosts-found.20260901.v1) or the flip will fail at link; (2) MBRenderText (game/mb/mb_font, real 22, residual 0x108-0x130 = the color-tiebreak park \u2014 the run-19 binding law (claim.law.bb-plain-read-never-cse-binds-to-a-volatile-load.20260901.v1) and interference theory are genuinely new axes; screen them); (3) pbFrameMode (game/pb/pb_frame, 3832B, same-day cap \u2014 ONLY if a new law applies; its extabindex closes automatically with the fn size). Each solve = a FLIP (finish_tu.py + datadiff --sections \u2014 NEW tool, run it per TU before judging flip-readiness). Exact/flip or resolution-stamped parks; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:sysResetService",
+  "id": "work_claim.flip-stragglers.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-FG",
+  "recorded_at": "2026-08-31T23:16:50Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
