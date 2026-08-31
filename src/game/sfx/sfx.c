@@ -3148,6 +3148,7 @@ void ProcessEffects(void)
                 }
                 }
             } else {
+                s32 noHit = (e->flags & 0x01000000) ? 0 : 1;
                 s32 start = 0;
                 do {
                     s32 damage;
@@ -3155,8 +3156,7 @@ void ProcessEffects(void)
                     struct fxenemy* enemy;
 
                     enemyIndex = MissileCollideEnemy(
-                        radius, oldpos, pos, hitpos, owner,
-                        (e->flags & 0x01000000) ? 0 : 1, start);
+                        radius, oldpos, pos, hitpos, owner, noHit, start);
                     if (enemyIndex < 0) {
                         break;
                     }
