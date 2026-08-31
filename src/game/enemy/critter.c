@@ -3836,9 +3836,9 @@ s32 CritterBossAI(Critter *c)
 
     CritterGetTargetPlayers(c);
     header = (u8 *)c->hdr;
-    one = lbl_80346490;
-    speedBase = lbl_803464E8;
-    speedScale = lbl_803464EC;
+    one = 1.0;
+    speedBase = 0.5f;
+    speedScale = 4.5f;
     ratio = c->health /
             (one + *(f32 *)(header + 0xE4) *
                        *(f32 *)((u8 *)gCurLevel + 0xAC));
@@ -3863,23 +3863,23 @@ s32 CritterBossAI(Critter *c)
     CritterProcessSafeRocks();
 
     if (c->state == 0) {
-        if ((f64)lbl_8034464C == lbl_80346488) {
+        if ((f64)lbl_8034464C == 0.0) {
             if ((*(u32 *)((u8 *)c->hdr + offsetof(CritterPackedType, typeFlags)) & 0x80) == 0) {
-                lbl_8034464C = (f32)(lbl_80346478 + (f64)sMusicFadeBase);
+                lbl_8034464C = (f32)(2.0 + (f64)sMusicFadeBase);
             }
         } else if ((f64)sMusicFadeBase >= (f64)lbl_8034464C) {
             distance = *(f32 *)((u8 *)c->hdr + 0xEC);
-            best = lbl_80346470;
+            best = 0.0f;
             for (i = 0; i < c->targetCount; i++) {
                 f32 candidate = *(f32 *)((u8 *)c + offsetof(Critter, targetAngle) + i * 0x24);
                 if (candidate > best) {
                     best = candidate;
                 }
             }
-            if ((f64)best <= lbl_80346488) {
-                best = lbl_803464C0;
+            if ((f64)best <= 0.0) {
+                best = 1e21f;
             }
-            if ((f64)distance <= lbl_80346488 || best < distance) {
+            if ((f64)distance <= 0.0 || best < distance) {
                 c->state = 3;
                 for (child = c->next; child != NULL; child = child->next) {
                     child->state = 3;
@@ -3913,7 +3913,7 @@ s32 CritterBossAI(Critter *c)
             CritterChildCriticalMove(c);
             child = c->next;
             if (child != NULL) {
-                rateThreshold = lbl_803465C0;
+                rateThreshold = 0.8;
                 linkedChildren = 0;
                 for (; child != NULL; child = child->next) {
                     child->nextmove = -1;
@@ -3965,7 +3965,7 @@ s32 CritterBossAI(Critter *c)
         }
         if (c->nextmove < 0) {
             selected = -1;
-            if ((f64)c->rateScale < lbl_803465C0) {
+            if ((f64)c->rateScale < 0.8) {
                 selected = CritterFindMoveType(c, 0x21, 0);
             }
             if (selected < 0) {
@@ -3981,7 +3981,7 @@ s32 CritterBossAI(Critter *c)
     }
     move = (CritterMove *)(*(u8 **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)) +
                            c->curmove * 0x90);
-    frameHalf = lbl_803464F8;
+    frameHalf = 0.5;
     for (child = c->next; child != NULL; child = child->next) {
         if (child->state == 1) {
             child->nextmove = (s16)CritterFindMoveType(child, 0x11, 1);
@@ -4009,7 +4009,7 @@ s32 CritterBossAI(Critter *c)
     frame = (s32)*(f32 *)&c->sound[0x18];
     duration = *(f32 *)((u8 *)move + 0x8C);
     done = AnimDone(c->sound);
-    if ((f64)duration > lbl_80346488) {
+    if ((f64)duration > 0.0) {
         switch (move->type) {
         case 0x11:
             if (done == 0) {
@@ -4021,21 +4021,21 @@ s32 CritterBossAI(Critter *c)
             } else if ((gControllerButtons & 0x80) == 0) {
                 f32 remaining = c->rate - sMusicFadeBase;
                 gBossDead = 1;
-                if ((f64)remaining < lbl_803464F8) {
+                if ((f64)remaining < 0.5) {
                     s32 fade = 255 -
-                        (s32)(lbl_80346478 * (lbl_803465C8 * remaining));
+                        (s32)(2.0 * (255.0 * remaining));
                     MBTreeSetAlpha(c->anim, fade, 1);
                 }
             }
             break;
         default:
-            if (done == 0 || (f64)c->rate == lbl_80346488) {
+            if (done == 0 || (f64)c->rate == 0.0) {
                 c->rate = sMusicFadeBase + duration;
             }
             break;
         }
     } else {
-        c->rate = lbl_80346470;
+        c->rate = 0.0f;
     }
 
     moveType = move->type;
@@ -4077,14 +4077,14 @@ s32 CritterBossAI(Critter *c)
         CritterLookAtPlayer(child, childMove);
     }
 
-    floorHit = FloorCollide(c->vel, 0, 0, 2, lbl_803464B8,
-                            lbl_80346588, lbl_8034658C) != NULL
+    floorHit = FloorCollide(c->vel, 0, 0, 2, 5.0f,
+                            4.0f, -1000.0f) != NULL
                    ? 1
                    : 0;
     if (floorHit != 0) {
         c->vel[1] = *(f32 *)(gFloorCollisionResult + 0x34) +
                     *(f32 *)((u8 *)c->hdr + 0xB0);
-        if (c->state == 0 && (f64)lbl_8034464C == lbl_80346488 &&
+        if (c->state == 0 && (f64)lbl_8034464C == 0.0 &&
             (*(u32 *)((u8 *)c->hdr + offsetof(CritterPackedType, typeFlags)) & 0x80) != 0) {
             s32 surfaceFlags = 0;
             surface = *(u8 **)(gFloorCollisionResult + 0x44);
@@ -4095,7 +4095,7 @@ s32 CritterBossAI(Critter *c)
                 }
             }
             if ((surfaceFlags & 0x10) != 0) {
-                lbl_8034464C = (f32)(lbl_80346478 + (f64)sMusicFadeBase);
+                lbl_8034464C = (f32)(2.0 + (f64)sMusicFadeBase);
                 BossActivate(c, 0);
             }
         }
@@ -4105,27 +4105,27 @@ s32 CritterBossAI(Critter *c)
             *(f32 *)((u8 *)c->shadow + 0x34) = c->vel[1];
             *(f32 *)((u8 *)c->shadow + 0x38) = c->vel[2];
             *(f32 *)((u8 *)c->shadow + 0x34) =
-                (f32)(lbl_803464B0 +
+                (f32)(0.1 +
                       (f64)*(f32 *)(gFloorCollisionResult + 0x34));
         }
     }
 
     if ((gControllerButtons & 0x10) != 0 && gGameOptions[8] != 0) {
-        distance = lbl_80346480;
+        distance = -1.0f;
         angle = distance;
         if (c->targetCount > 0) {
             angle = *(f32 *)((u8 *)c + offsetof(Critter, targetAngle));
-            if ((f64)angle >= lbl_80346510) {
+            if ((f64)angle >= 1e21) {
                 angle = distance;
             }
             dot = *(f32 *)((u8 *)c + 0x130);
-            distance = (f32)(lbl_803465D0 *
-                             (lbl_803465D8 *
+            distance = (f32)(0.31830988614222805 *
+                             (180.0 *
                               (f64)acosf((f32)(
-                                  (f64)dot < lbl_80346550
-                                      ? lbl_80346550
-                                      : ((f64)dot > lbl_80346490
-                                             ? lbl_80346490
+                                  (f64)dot < -1.0
+                                      ? -1.0
+                                      : ((f64)dot > 1.0
+                                             ? 1.0
                                              : (f64)dot)))));
         }
         if (c->unk11C >= 0) {
@@ -4135,23 +4135,23 @@ s32 CritterBossAI(Critter *c)
         }
         DrawText(8, 214, 0, 0xFFFFFF, lbl_80112104, moveName,
                  (u8 *)move + 0x10, (s32)c->health,
-                 (s32)(lbl_80346594 * c->rateScale),
-                 (s32)(lbl_803464F8 + *(f32 *)&c->sound[0x18]),
-                 c->unk124, (s32)(lbl_803464F8 + angle),
-                 (s32)(lbl_803464F8 + distance));
+                 (s32)(10.0f * c->rateScale),
+                 (s32)(0.5 + *(f32 *)&c->sound[0x18]),
+                 c->unk124, (s32)(0.5 + angle),
+                 (s32)(0.5 + distance));
 
         c = c->next;
-        one = lbl_80346490;
-        angleLimit = lbl_80346510;
-        dotMinimum = lbl_80346550;
-        angleScale = lbl_803465D0;
-        radianScale = lbl_803465D8;
-        displayScale = lbl_80346594;
-        half = lbl_803464F8;
+        one = 1.0;
+        angleLimit = 1e21;
+        dotMinimum = -1.0;
+        angleScale = 0.31830988614222805;
+        radianScale = 180.0;
+        displayScale = 10.0f;
+        half = 0.5;
         i = 0;
         y = 224;
         for (; c != NULL; c = c->next, y += 10, i++) {
-            distance = lbl_80346480;
+            distance = -1.0f;
             angle = distance;
             if (c->targetCount > 0) {
                 angle = *(f32 *)((u8 *)c + offsetof(Critter, targetAngle));
