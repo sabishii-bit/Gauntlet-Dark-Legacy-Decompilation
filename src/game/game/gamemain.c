@@ -132,7 +132,7 @@ typedef struct WorldDataNav {
 
 /* Active level / world-data records (SDA-relative pointers). */
 extern level_data* gCurLevel;      /* 0x8034483C */
-extern u8*  gWorldData;            /* 0x80344838 */
+extern WorldDataNav* gWorldData;   /* 0x80344838 */
 
 /* 44-byte per-realm world-data descriptor table (0x8011... via ADDR16). */
 typedef struct WorldDataType {
@@ -1370,7 +1370,7 @@ void* fn_80057ACC(s32 key)
             }
         }
     }
-    return gWorldData + 4;
+    return (u8*)gWorldData + 4;
 }
 
 /* 0x80057AB4 -- accessor: current-level record + 8. */
@@ -1382,7 +1382,7 @@ void* LevelItemDesc(void)
 /* 0x80057AC0 -- accessor: world-data record + 4. */
 void* WorldItemDesc(void)
 {
-    return gWorldData + 4;
+    return (u8*)gWorldData + 4;
 }
 
 /* 0x80057BC8 -- realm-type descriptor's f20 for a given type id. */
@@ -1442,7 +1442,7 @@ void GetEnemyTypes(void)
     u8* tbl = (u8*)lbl_80257680;
     s32 i;
     s32 seen1e = 0;
-    u8* etab = *(u8**)(gWorldData + 0x20);
+    u8* etab = *(u8**)((u8*)gWorldData + 0x20);
     s32 off;
     s32 levelOff;
 
