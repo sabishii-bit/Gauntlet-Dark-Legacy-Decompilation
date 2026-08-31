@@ -1709,6 +1709,14 @@ f32 SlowNormalVector(f32* v);
  */
 void StandardCamera_8002B828(s32 camIdx)
 {
+    u8 padTop[32];
+    f32 absErrXStart;
+    f32 absErrXMoving;
+    f32 absErrXEase;
+    f32 absErrYStart;
+    f32 absErrYMoving;
+    f32 absErrYEase;
+    f32 dir[3];
     u8* cameraState = gCameraState;
     Camera* cam = (Camera*)(cameraState + camIdx * sizeof(Camera) + 0xC8);
     s32 wasPanning = lbl_803444DC;
@@ -1829,16 +1837,10 @@ valid_boss_type:
             }
         }
     } else {
-        f32 absErrXStart = errX;
-        f32 absErrXMoving;
-        f32 absErrXEase;
         f32 absPanX;
-        f32 absErrYStart;
-        f32 absErrYMoving;
-        f32 absErrYEase;
         f32 absPanY;
-        u8 unused[136];
 
+        absErrXStart = errX;
         *(u32*)&absErrXStart &= 0x7FFFFFFF;
         absErrXMoving = errX;
         *(u32*)&absErrXMoving &= 0x7FFFFFFF;
@@ -1976,7 +1978,7 @@ valid_boss_type:
     } else {
         f32 mn = lbl_8034619C, mx = lbl_803461A0;
         f32 cand[3];
-        f32 dir[3];
+        u8 padBottom[104];
         CameraTarget* t = (CameraTarget*)(cameraState + 0xA10);
         for (i = 0; i < 15; i++, t++) {
             if (t->active > 0) {

@@ -4332,8 +4332,8 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
                        f32 height)
 {
     f32 end[3];
-    u8 padend[28];
     f32 nrm[3];
+    u8 padend[16];
     f32 ts;
     f32 ts2;
     f32 tsa;
@@ -4468,6 +4468,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
             return -1;
         }
         if (hit != 0) {
+            u8 padend2[12];
             ts2 = gFloorCollisionResult[13] - fh;
             *(u32*)&ts2 &= 0x7FFFFFFF;
             if ((*(u32*)(*(u32*)((u8*)gFloorCollisionResult + 68) + 16) & 8)
