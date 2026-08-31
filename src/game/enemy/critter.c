@@ -2841,30 +2841,31 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
     if (c->state < 2) {
         return lbl_80346508;
     }
-    if ((*(u32 *)(hdr + 92) & 2) != 0) {
+    if ((*(u32 *)(hdr + offsetof(CritterPackedType, typeFlags)) & 2) != 0) {
         eps2 = lbl_80346488;
-        for (i = 0, off = 0; i < *(s16 *)(hdr + 280); i++, off += 92) {
+        for (i = 0, off = 0; i < *(s16 *)(hdr + offsetof(CritterPackedType, colCount)); i++, off += 92) {
             row = (u8 *)c + off;
-            node = row + 1272;
-            if (*(void **)(row + 1276) == NULL) {
+            node = row + offsetof(Critter, hitnodes);
+            if (*(void **)(row + offsetof(Critter, hitnodes) + offsetof(CritterHitNode, active)) == NULL) {
                 continue;
             }
-            if (*(f32 *)(node + 88) >= *(f32 *)(node + 84)) {
+            if (*(f32 *)(node + offsetof(CritterHitNode, activeFrom)) >=
+                *(f32 *)(node + offsetof(CritterHitNode, activeUntil))) {
                 continue;
             }
-            delta[0] = *(f32 *)(node + 60) - origin[0];
-            delta[1] = *(f32 *)(node + 64) - origin[1];
-            delta[2] = *(f32 *)(node + 68) - origin[2];
+            delta[0] = *(f32 *)(node + offsetof(CritterHitNode, position[0])) - origin[0];
+            delta[1] = *(f32 *)(node + offsetof(CritterHitNode, position[1])) - origin[1];
+            delta[2] = *(f32 *)(node + offsetof(CritterHitNode, position[2])) - origin[2];
             dist = NormalVector(delta);
             if (limit > eps2 && dist > limit) {
                 continue;
             }
             nodeDef = *(u8 **)node;
-            nodeMax = *(f32 *)(nodeDef + 24);
+            nodeMax = *(f32 *)(nodeDef + offsetof(CritterColDescriptor, unk18));
             if (nodeMax > eps2 && dist > nodeMax) {
                 continue;
             }
-            nd = dist - *(f32 *)(nodeDef + 44);
+            nd = dist - *(f32 *)(nodeDef + offsetof(CritterColDescriptor, radius));
             q = fqdist(delta[0], delta[2]);
             dot = delta[0] * forward[0] + delta[2] * forward[2];
             if (slope > eps2) {
@@ -2875,7 +2876,7 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
             if (dot <= thresh) {
                 continue;
             }
-            score = nd / (*(f32 *)(*(u8 **)node + 28) * (dot - thresh));
+            score = nd / (*(f32 *)(*(u8 **)node + offsetof(CritterColDescriptor, unk1C)) * (dot - thresh));
             if (score < bestScore) {
                 out[0] = delta[0];
                 bestScore = score;
@@ -2895,7 +2896,7 @@ f32 CritterLineRootColSub(Critter *c, f32 *origin, f32 *forward, f32 *out,
     if (limit > *(volatile f64 *)&lbl_80346488 && dist > limit) {
         return lbl_80346508;
     }
-    dr = dist - *(f32 *)((u8 *)c->hdr + 124);
+    dr = dist - *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
     q = fqdist(delta[0], delta[2]);
     dot = delta[0] * forward[0] + delta[2] * forward[2];
     thresh = q * (dr * slope + dotThresh);
@@ -7077,10 +7078,10 @@ s32 CritterLoadDone(s32 maxBytes)
     result = 0;
     fmtbase = lbl_801120E0;
     desc = (u8 *)crit_load_desc;
-    if (*(s16 *)(desc + 0x24) == 1) {
+    if (*(s16 *)(desc + offsetof(CritterDescriptor, loadState)) == 1) {
         if (MBOX_BGLoadModelDone() != 0) {
-            *(s16 *)(desc + 0x24) = 2;
-            switch (*(s16 *)(desc + 0x20)) {
+            *(s16 *)(desc + offsetof(CritterDescriptor, loadState)) = 2;
+            switch (*(s16 *)(desc + offsetof(CritterDescriptor, type))) {
             case 3:
             case 8:
                 sprintf(buf, &fmtbase[416], desc, (u8 *)gWorldData + 4);
@@ -7103,7 +7104,7 @@ s32 CritterLoadDone(s32 maxBytes)
                 size = maxBytes;
             }
             lbl_80344640 = StartFileRead(buf, lbl_8034664C, 0, size,
-                                         *(s32 *)(desc + 0x28),
+                                         *(s32 *)(desc + offsetof(CritterDescriptor, model)),
                                          (void *)CritterBGLoadFile);
         }
     } else {
@@ -7111,9 +7112,11 @@ s32 CritterLoadDone(s32 maxBytes)
         if (handle != NULL) {
             if (*(handle += 4) != 0) {
                 *handle = -1;
-                *(s16 *)(desc + 0x24) = 3;
-                fn_8001267C(*(s32 *)(desc + 0x28), *(s16 *)(desc + 0x22), -1);
-                InitTexMods(*(s32 *)(desc + 0x28), *(s16 *)(desc + 0x22));
+                *(s16 *)(desc + offsetof(CritterDescriptor, loadState)) = 3;
+                fn_8001267C(*(s32 *)(desc + offsetof(CritterDescriptor, model)),
+                            *(s16 *)(desc + offsetof(CritterDescriptor, modelIndex)), -1);
+                InitTexMods(*(s32 *)(desc + offsetof(CritterDescriptor, model)),
+                            *(s16 *)(desc + offsetof(CritterDescriptor, modelIndex)));
                 result = 1;
             }
         } else {
@@ -7153,17 +7156,17 @@ s32 CritterLoadStartNext(void)
         if (*(s32 *)entry != 1) {
             continue;
         }
-        for (j = 0; j < *(s32 *)(entry + 0x10); j++) {
-            sub = *(u8 **)(entry + 0x14) + j * 320;
-            desc = *(u8 **)(sub + 0x120);
+        for (j = 0; j < *(s32 *)(entry + offsetof(CritterFileHeader, typeCount)); j++) {
+            sub = *(u8 **)(entry + offsetof(CritterFileHeader, types)) + j * 320;
+            desc = *(u8 **)(sub + offsetof(CritterPackedType, descriptor));
             if (desc == NULL) {
                 continue;
             }
-            switch (*(s16 *)(desc + 0x24)) {
+            switch (*(s16 *)(desc + offsetof(CritterDescriptor, loadState))) {
             case 0:
                 break;
             case 1:
-                switch (*(s16 *)(desc + 0x20)) {
+                switch (*(s16 *)(desc + offsetof(CritterDescriptor, type))) {
                 case 3:
                 case 8:
                     sprintf(buf, (char *)&fmtbase[416], desc,
@@ -7184,7 +7187,7 @@ s32 CritterLoadStartNext(void)
                     sprintf(buf, (char *)&fmtbase[448], desc);
                     break;
                 }
-                MBOX_BGLoadModelStart(buf, *(s16 *)(desc + 0x22));
+                MBOX_BGLoadModelStart(buf, *(s16 *)(desc + offsetof(CritterDescriptor, modelIndex)));
                 crit_load_desc = desc;
                 lbl_80344640 = NULL;
                 return 1;
@@ -7199,7 +7202,7 @@ s32 CritterLoadStartNext(void)
                 break;
             }
         }
-        if (j == *(s32 *)(entry + 0x10)) {
+        if (j == *(s32 *)(entry + offsetof(CritterFileHeader, typeCount))) {
             *(s32 *)entry = 2;
         }
     }
@@ -7308,7 +7311,7 @@ void CritterLoadFinish(u8 *header)
     if (*(s16 *)(header + offsetof(CritterPackedType, parentIndex)) < 0) {
         sprintf((char *)name, "%s%s",
                 (char *)(*(u8 **)(header + offsetof(CritterPackedType,
-                          descriptor)) + 0x10), header);
+                          descriptor)) + offsetof(CritterDescriptor, prefix)), header);
         *(void **)(header + offsetof(CritterPackedType, atree)) =
             AtreeMatch(*(void **)(*(u8 **)(header + offsetof(CritterPackedType,
                        descriptor)) + offsetof(CritterDescriptor, model)),
@@ -7330,11 +7333,11 @@ void CritterLoadFinish(u8 *header)
 
     for (attachment = *(u8 **)(header + offsetof(CritterPackedType, attachments));
          attachment != NULL;
-         attachment = *(u8 **)(attachment + 8)) {
-        *(void **)(attachment + 4) =
+         attachment = *(u8 **)(attachment + offsetof(CritterAddAnim, next))) {
+        *(void **)(attachment + offsetof(CritterAddAnim, atree)) =
             AtreeMatch(*(void **)(*(u8 **)(header + offsetof(CritterPackedType,
                        descriptor)) + offsetof(CritterDescriptor, model)),
-                       (char *)(attachment + 0x10), 1);
+                       (char *)(attachment + offsetof(CritterAddAnim, name)), 1);
     }
 
     atree = *(void **)(header + offsetof(CritterPackedType, atree));
@@ -7342,8 +7345,8 @@ void CritterLoadFinish(u8 *header)
     if (atree != NULL && (header + offsetof(CritterPackedType, nodeName0)) != NULL &&
         *(char *)(header + offsetof(CritterPackedType, nodeName0)) != '\0' &&
         *(char *)(header + offsetof(CritterPackedType, nodeName0) + 1) != '\0') {
-        index = AtreeFindNodeIdx(*(void **)((u8 *)atree + 0x0C),
-                                 *(s32 *)((u8 *)atree + 0x10),
+        index = AtreeFindNodeIdx(*(void **)((u8 *)atree + offsetof(struct atreeheader, nodeinfo)),
+                                 *(s32 *)((u8 *)atree + offsetof(struct atreeheader, numnodes)),
                                  (char *)(header + offsetof(CritterPackedType,
                                           nodeName0)), 0x10);
     }
@@ -7353,8 +7356,8 @@ void CritterLoadFinish(u8 *header)
     if (atree != NULL && (header + offsetof(CritterPackedType, nodeName1)) != NULL &&
         *(char *)(header + offsetof(CritterPackedType, nodeName1)) != '\0' &&
         *(char *)(header + offsetof(CritterPackedType, nodeName1) + 1) != '\0') {
-        index = AtreeFindNodeIdx(*(void **)((u8 *)atree + 0x0C),
-                                 *(s32 *)((u8 *)atree + 0x10),
+        index = AtreeFindNodeIdx(*(void **)((u8 *)atree + offsetof(struct atreeheader, nodeinfo)),
+                                 *(s32 *)((u8 *)atree + offsetof(struct atreeheader, numnodes)),
                                  (char *)(header + offsetof(CritterPackedType,
                                           nodeName1)), 0x10);
     }
@@ -7364,8 +7367,8 @@ void CritterLoadFinish(u8 *header)
     if (atree != NULL && (header + offsetof(CritterPackedType, nodeName2)) != NULL &&
         *(char *)(header + offsetof(CritterPackedType, nodeName2)) != '\0' &&
         *(char *)(header + offsetof(CritterPackedType, nodeName2) + 1) != '\0') {
-        index = AtreeFindNodeIdx(*(void **)((u8 *)atree + 0x0C),
-                                 *(s32 *)((u8 *)atree + 0x10),
+        index = AtreeFindNodeIdx(*(void **)((u8 *)atree + offsetof(struct atreeheader, nodeinfo)),
+                                 *(s32 *)((u8 *)atree + offsetof(struct atreeheader, numnodes)),
                                  (char *)(header + offsetof(CritterPackedType,
                                           nodeName2)), 0x10);
     }
