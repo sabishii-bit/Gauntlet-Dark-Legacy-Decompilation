@@ -577,5 +577,64 @@ class JumptableTargetTests(unittest.TestCase):
         self.assertEqual(targets, {8})
 
 
+class InstructionCountDeltaIneligibilityTests(unittest.TestCase):
+    """Both stages must fail closed when the instruction count differs.
+
+    Locks in claim.law.webfrank-cannot-close-instruction-count-deltas:
+    a residual that is one instruction LONG (an ours-only `mr`) or one
+    instruction SHORT is not postprocessor work in either direction, no
+    matter how register-flavoured it looks.
+    """
+
+    def test_register_field_copy_rejects_extra_instruction(self):
+        # ours carries an extra `mr r30,r0` the target never emits
+        current = bytes.fromhex("3fc08028 3bde2850 7c1e0378")
+        target = bytes.fromhex("3fc08028 3bde2850")
+        with self.assertRaisesRegex(ValueError, "equal aligned sizes"):
+            copy_register_fields(current, target)
+
+    def test_register_field_copy_rejects_missing_instruction(self):
+        current = bytes.fromhex("3fc08028 3bde2850")
+        target = bytes.fromhex("3fc08028 3bde2850 7c1e0378")
+        with self.assertRaisesRegex(ValueError, "equal aligned sizes"):
+            copy_register_fields(current, target)
+
+    def test_permutation_order_must_be_a_bijection(self):
+        # a permutation can never add or drop an atom
+        region = bytes.fromhex("3fc08028 3bde2850")
+        with self.assertRaisesRegex(ValueError, "not a bijection"):
+            permute_instruction_atoms(
+                region, [0, 1, 1], [],
+                before_sha256=_sha256(region),
+                after_sha256=_sha256(region),
+                before_relocations_sha256=_relocation_sha256([]),
+                after_relocations_sha256=_relocation_sha256([]),
+            )
+
+
+class StackDisplacementIneligibilityTests(unittest.TestCase):
+    """A differing stack displacement is an immediate, never a register.
+
+    move_logic15's residual is six words that differ only in their
+    displacement field (a spill at 0x40(r1) where retail uses 0x14(r1)).
+    The mask must refuse them so no rule can hide a frame-layout gap.
+    """
+
+    def test_differing_stack_displacement_is_rejected(self):
+        # stfd f4, 0x40(r1)  vs  stfd f2, 0x14(r1)
+        current = bytes.fromhex("d0810040")
+        target = bytes.fromhex("d0410014")
+        with self.assertRaisesRegex(ValueError, "non-register"):
+            copy_register_fields(current, target)
+
+    def test_same_displacement_recolors_cleanly(self):
+        # the register half alone IS eligible once the slot agrees
+        current = bytes.fromhex("d0810014")
+        target = bytes.fromhex("d0410014")
+        output, changed = copy_register_fields(current, target)
+        self.assertEqual(output, target)
+        self.assertEqual(changed, 1)
+
+
 if __name__ == "__main__":
     unittest.main()
