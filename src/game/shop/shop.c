@@ -70,6 +70,32 @@
 #include "types.h"
 #include "game/player.h"
 
+#ifndef offsetof
+#define offsetof(type, memb) ((u32) & ((type*)0)->memb)
+#endif
+
+/* Per-character shop pile-stat record, stride 0x1C (28), NOT embedded in
+ * Player (a member-array version of this type inside Player.h regressed
+ * several unrelated functions' codegen TU-wide -- MWCC quirk, verified
+ * 2026-08-31). Two copies exist per player, indexed by `character`: a
+ * "now" copy at absolute pl+3088 (session totals) and a "checkpoint"
+ * copy at pl+8284 (snapshot as of last shop entry) -- fn_8009A0AC
+ * subtracts checkpoint from now to animate the end-of-level gain piles;
+ * shop_show_final_stats reads the "now" copy directly for the playtime
+ * breakdown. Only the fields actually dereferenced in shop.c are named. */
+typedef struct { s32 field_00; u8 _g1[0x0C]; s32 field_10; s32 field_14;
+                 f32 field_18; } PlayerShopStat;   /* size 0x1C = 28 */
+/* Per-character checkpoint of the exp value at last shop entry, stride
+ * 0x18 (24), at absolute pl+7900. Only field 0 is read in this TU (via
+ * ExpToLevel / the this-level exp-delta calc); the remaining bytes are
+ * passed opaquely to the extern check_player_atts(). */
+typedef struct { s32 field_00; } PlayerClassExpCkpt;
+enum {
+    PSHOP_STAT_NOW_OFF  = 3088, /* pl + character*28 + this -> shop_stat_now[character] */
+    PSHOP_STAT_PREV_OFF = 8284, /* pl + character*28 + this -> shop_stat_prev[character] */
+    PCLASS_EXP_CKPT_OFF = 7900  /* pl + character*24 + this -> class_exp_ckpt[character] */
+};
+
 extern u8 gPlayers[];
 extern s32 lbl_8028A520[];
 extern void* lbl_8028B120[];
@@ -190,22 +216,22 @@ s32 do_shop(void)
                 o13148 += 13148, o24 += 24, o4 += 4, pl += 13148) {
                 volatile s32 leave;
                 s32 j;
-                if (*(s32*)(pl + 232) != 1 && *(s32*)(pl + 232) != 5) {
+                if (*(s32*)(pl + offsetof(Player, state)) != 1 && *(s32*)(pl + offsetof(Player, state)) != 5) {
                     continue;
                 }
                 leave = 0;
-                LoadPlyrData(i, *(s32*)(pl + 12), 0);
-                switch (*(u32*)(pl + 2660)) {
+                LoadPlyrData(i, *(s32*)(pl + offsetof(Player, character)), 0);
+                switch (*(u32*)(pl + offsetof(Player, field_A64))) {
                 case 0:
                     *(s32*)(page + o4 + 16) = 0;
                     *(s32*)(page + o4) = 0;
                     *(s32*)(page + o4 + 32) = 0;
                     fn_8009A0AC(i);
-                    *(s32*)(pl + 2668) = 0;
-                    *(f32*)(pl + 2672) = kHalf;
-                    *(f32*)(pl + 2676) = kHalf;
-                    *(f32*)(pl + 2680) = kHalf;
-                    *(f32*)(pl + 2684) = kHalf;
+                    *(s32*)(pl + offsetof(Player, field_A6C)) = 0;
+                    *(f32*)(pl + offsetof(Player, field_A70)) = kHalf;
+                    *(f32*)(pl + offsetof(Player, field_A74)) = kHalf;
+                    *(f32*)(pl + offsetof(Player, field_A78)) = kHalf;
+                    *(f32*)(pl + offsetof(Player, field_A7C)) = kHalf;
                     if (lbl_80344C0C != 0) {
                         void** q = (void**)(page + o24);
                         s32 cnt;
@@ -232,10 +258,10 @@ s32 do_shop(void)
                         slot = page + o12 + cnt * 4;
                         *(s32*)(slot + 128) = *(s32*)(slot + 80);
                         *(s32*)(slot + 80) =
-                            *(s32*)(gPlayers + o13148 + 7876);
-                        *(s32*)(pl + 2660) = 6;
+                            *(s32*)(gPlayers + o13148 + offsetof(Player, gold));
+                        *(s32*)(pl + offsetof(Player, field_A64)) = 6;
                     } else {
-                        *(s32*)(pl + 2660) += 1;
+                        *(s32*)(pl + offsetof(Player, field_A64)) += 1;
                     }
                     break;
                 case 1:
@@ -256,8 +282,8 @@ s32 do_shop(void)
                             if (q[2] != 0) {
                                 mbBlitInit3414(q[2], 1);
                             }
-                            *(s32*)(pl + 2660) = 4;
-                            *(s32*)(pl + 2668) = 0;
+                            *(s32*)(pl + offsetof(Player, field_A64)) = 4;
+                            *(s32*)(pl + offsetof(Player, field_A6C)) = 0;
                         }
                     } else {
                         statsFlag = 1;
@@ -266,9 +292,9 @@ s32 do_shop(void)
                 case 4:
                     if (shop_show_lv(pl, 0) != 0) {
                         if (lbl_803448C8 == 8 && lbl_803448C4 == 3) {
-                            *(s32*)(pl + 2660) = 20;
+                            *(s32*)(pl + offsetof(Player, field_A64)) = 20;
                         } else {
-                            *(s32*)(pl + 2660) += 1;
+                            *(s32*)(pl + offsetof(Player, field_A64)) += 1;
                         }
                     }
                     break;
@@ -285,8 +311,8 @@ s32 do_shop(void)
                     }
                     slot = page + o12 + cnt * 4;
                     *(s32*)(slot + 128) = *(s32*)(slot + 80);
-                    *(s32*)(slot + 80) = *(s32*)(gPlayers + o13148 + 7876);
-                    *(s32*)(pl + 2660) += 1;
+                    *(s32*)(slot + 80) = *(s32*)(gPlayers + o13148 + offsetof(Player, gold));
+                    *(s32*)(pl + offsetof(Player, field_A64)) += 1;
                     break;
                 }
                 case 6:
@@ -311,10 +337,10 @@ s32 do_shop(void)
                                 *q = 0;
                             }
                         }
-                        *(s32*)(pl + 2660) = 9;
+                        *(s32*)(pl + offsetof(Player, field_A64)) = 9;
                         break;
                     }
-                    if (*(s32*)(pl + 232) == 1 || *(s32*)(pl + 232) == 5) {
+                    if (*(s32*)(pl + offsetof(Player, state)) == 1 || *(s32*)(pl + offsetof(Player, state)) == 5) {
                         {
                             u8* playerBlits =
                                 page + *(s32*)pl * 24;
@@ -333,7 +359,7 @@ s32 do_shop(void)
                             }
                         }
                     }
-                    *(s32*)(pl + 2660) += 1;
+                    *(s32*)(pl + offsetof(Player, field_A64)) += 1;
                     /* fall through */
                 case 7:
                     show_piles(i);
@@ -357,21 +383,21 @@ s32 do_shop(void)
                                 *q = 0;
                             }
                         }
-                        *(s32*)(pl + 2660) += 1;
+                        *(s32*)(pl + offsetof(Player, field_A64)) += 1;
                     }
                     break;
                 case 8:
                     if (shop_show_lv(pl, 1) != 0) {
-                        *(s32*)(pl + 2660) += 1;
+                        *(s32*)(pl + offsetof(Player, field_A64)) += 1;
                     }
                     break;
                 case 9:
                     if (lbl_80344C0C == 1) {
-                        *(s32*)(pl + 2660) = 100;
+                        *(s32*)(pl + offsetof(Player, field_A64)) = 100;
                     } else {
                         init_panel_blits(i);
                         AudioTowerFX(2);
-                        *(s32*)(pl + 2660) += 1;
+                        *(s32*)(pl + offsetof(Player, field_A64)) += 1;
                     }
                     break;
                 case 10:
@@ -381,33 +407,33 @@ s32 do_shop(void)
                         if (*(u32*)(playerPad + 8) & 0x2000000) {
                             AudioCursorSelect();
                             init_inventory_panel(i);
-                            *(s32*)(pl + 2660) += 1;
+                            *(s32*)(pl + offsetof(Player, field_A64)) += 1;
                         }
                     }
                     break;
                 case 11:
                     if (draw_inventory_panel(i) != 0) {
                         end_inventory_panel(i);
-                        *(s32*)(pl + 2660) += 1;
+                        *(s32*)(pl + offsetof(Player, field_A64)) += 1;
                     }
                     break;
                 case 12:
-                    *(s32*)(pl + 2660) = 100;
+                    *(s32*)(pl + offsetof(Player, field_A64)) = 100;
                     break;
                 case 20:
                     if (shop_show_final_stats(pl) != 0) {
-                        *(s32*)(pl + 2660) += 1;
+                        *(s32*)(pl + offsetof(Player, field_A64)) += 1;
                     }
                     break;
                 default:
-                    *(s32*)(pl + 2660) = 100;
+                    *(s32*)(pl + offsetof(Player, field_A64)) = 100;
                     /* fall through */
                 case 100:
                     leave = 1;
                     break;
                 }
                 if (leave != 0) {
-                    *(s32*)(pl + 232) = 5;
+                    *(s32*)(pl + offsetof(Player, state)) = 5;
                 } else {
                     result = 0;
                 }
@@ -465,7 +491,7 @@ s32 show_piles(s32 col)
     if (blit == 0) {
         return 1;
     }
-    gold = *(s32*)(pl + 7876);
+    gold = *(s32*)(pl + offsetof(Player, gold));
     slot = tbl + col * 12;
     slot += count * 4;
     cur = *(s32*)(curp = slot + 128);
@@ -620,8 +646,8 @@ static s32 shop_show_final_stats(u8* pl)
 
     pool = lbl_80114918;
     done = 0;
-    stats = pl + *(s32*)(pl + 12) * 28 + 3088;
-    timer = *(s32*)(pl + 2668);
+    stats = pl + *(s32*)(pl + offsetof(Player, character)) * 28 + PSHOP_STAT_NOW_OFF;
+    timer = *(s32*)(pl + offsetof(Player, field_A6C));
     scale = lbl_80348330;
     xbase = lbl_80122F30[*(s32*)pl];
     ypos = lbl_80122F40[*(s32*)pl];
@@ -629,7 +655,7 @@ static s32 shop_show_final_stats(u8* pl)
     t = timer & 0xFFFF;
 
     if (t < 0xF000) {
-        *(s32*)(pl + 2668) = timer + gFrameTicks;
+        *(s32*)(pl + offsetof(Player, field_A6C)) = timer + gFrameTicks;
     }
     nx = -ypos;
     DrawGlowText(lbl_80348334, nx, 32, pool + 80);
@@ -652,7 +678,7 @@ static s32 shop_show_final_stats(u8* pl)
         DrawTextKeepScale(scale, nx, 116, 6, 0xFFFFFF, pool + 120);
     }
     if (t > 150) {
-        sprintf(buf, lbl_80348338, *(s32*)(stats + 16));
+        sprintf(buf, lbl_80348338, *(s32*)(stats + offsetof(PlayerShopStat, field_10)));
         DrawGlowText(scale, nx, y2 + 18, buf);
     }
     if (t > 210 && t < 270) {
@@ -661,7 +687,7 @@ static s32 shop_show_final_stats(u8* pl)
         DrawTextKeepScale(scale, nx, y2 + 38, 6, 0xFFFFFF, pool + 132);
     }
     if (t > 210) {
-        sprintf(buf, lbl_80348338, *(s32*)(stats + 20));
+        sprintf(buf, lbl_80348338, *(s32*)(stats + offsetof(PlayerShopStat, field_14)));
         DrawGlowText(scale, nx, y2 + 56, buf);
     }
     if (t > 270 && t < 330) {
@@ -669,7 +695,7 @@ static s32 shop_show_final_stats(u8* pl)
     } else {
         DrawTextKeepScale(scale, nx, y2 + 76, 6, 0xFFFFFF, pool + 144);
     }
-    secs = *(f32*)(stats + 24);
+    secs = *(f32*)(stats + offsetof(PlayerShopStat, field_18));
     days = (s32)(secs / lbl_80348340);
     secs = (f32)-(lbl_80348340 * (f32)(s32)(secs / lbl_80348340) - secs);
     hours = (s32)(secs / lbl_80348348);
@@ -689,7 +715,7 @@ static s32 shop_show_final_stats(u8* pl)
     if (done != 0) {
         if ((lbl_80240E30[*(s32*)pl].buttons & 0x2000000) != 0) {
             AudioCursorSelect();
-            *(s32*)(pl + 2668) = 0;
+            *(s32*)(pl + offsetof(Player, field_A6C)) = 0;
             return 1;
         }
         MBNewTempBlit(lbl_80344E48, x8 + 8, 280, 16, 16);
@@ -748,73 +774,73 @@ static s32 shop_show_lv(u8* pl, s32 final)
     char buf[20];
 
     kScale = lbl_80348330;
-    exps = pl + *(s32*)(pl + 12) * 24 + 7900;
+    exps = pl + *(s32*)(pl + offsetof(Player, character)) * 24 + PCLASS_EXP_CKPT_OFF;
     fmts = lbl_80114918;
     x1 = *(s32*)((u8*)lbl_80122F30 + (*(s32*)pl << 2)) + 8;
     x2 = *(s32*)((u8*)lbl_80122F30 + (*(s32*)pl << 2)) + 88;
     xcol = lbl_80122F40[*(s32*)pl];
-    tick = *(s32*)(pl + 2668) & 0xFFFF;
+    tick = *(s32*)(pl + offsetof(Player, field_A6C)) & 0xFFFF;
     done = 0;
     lvl = ExpToLevel(*(s32*)exps);
     if (final == 0) {
-        if (lvl == *(s32*)(pl + 13092)) {
+        if (lvl == *(s32*)(pl + offsetof(Player, level))) {
             return 1;
         }
         anim = 1;
         rowgate = 90;
     } else {
-        lvl = *(s32*)(pl + 13092);
+        lvl = *(s32*)(pl + offsetof(Player, level));
         anim = 0;
         rowgate = 30;
     }
-    if (*(s32*)(pl + 2668) == 0) {
+    if (*(s32*)(pl + offsetof(Player, field_A6C)) == 0) {
         if (final == 0) {
             AudioExp(*(s32*)pl, 1);
         }
-        *(s32*)(pl + 2668) += 1;
+        *(s32*)(pl + offsetof(Player, field_A6C)) += 1;
     }
     if (tick < 0xF000) {
-        *(s32*)(pl + 2668) += gFrameTicks;
+        *(s32*)(pl + offsetof(Player, field_A6C)) += gFrameTicks;
     }
-    sprintf(buf, fmts + 196, *(s32*)(pl + 13092));
+    sprintf(buf, fmts + 196, *(s32*)(pl + offsetof(Player, level)));
     if (anim != 0) {
         DrawGlowText(lbl_80348378, -xcol, 32, buf);
     } else {
         DrawTextKeepScale(lbl_80348378, -xcol, 32, 6, 0xFFFFFF, buf);
     }
     {
-        s32 lv = *(s32*)(pl + 13092);
+        s32 lv = *(s32*)(pl + offsetof(Player, level));
         s32 tens = lv / 10;
         char* name;
         if (lv == 99) {
             name = GetStringText(21, 0, 0);
         } else if (lv < 10) {
-            name = GetStringText(23, *(s32*)(pl + 12), 0);
+            name = GetStringText(23, *(s32*)(pl + offsetof(Player, character)), 0);
         } else {
-            name = GetStringListText(0, *(s32*)(pl + 12), tens >> 1, 0);
+            name = GetStringListText(0, *(s32*)(pl + offsetof(Player, character)), tens >> 1, 0);
         }
         xcol = -xcol;
         DrawTextKeepScale(lbl_8034837C, xcol, 64, 6, 0xFFFFFF, name);
     }
     {
-        s32 old = *(s32*)(pl + 13092);
-        *(s32*)(pl + 13092) = lvl;
-        check_player_atts(pl, *(s32*)(pl + 12), exps);
-        d1 = *(f32*)(pl + 244) - *(f32*)(pl + 2672);
-        d2 = *(f32*)(pl + 248) - *(f32*)(pl + 2676);
-        d3 = *(f32*)(pl + 252) - *(f32*)(pl + 2680);
-        d4 = *(f32*)(pl + 256) - *(f32*)(pl + 2684);
-        *(s32*)(pl + 13092) = old;
-        check_player_atts(pl, *(s32*)(pl + 12), 0);
+        s32 old = *(s32*)(pl + offsetof(Player, level));
+        *(s32*)(pl + offsetof(Player, level)) = lvl;
+        check_player_atts(pl, *(s32*)(pl + offsetof(Player, character)), exps);
+        d1 = *(f32*)(pl + offsetof(Player, att_fight)) - *(f32*)(pl + offsetof(Player, field_A70));
+        d2 = *(f32*)(pl + offsetof(Player, att_armor)) - *(f32*)(pl + offsetof(Player, field_A74));
+        d3 = *(f32*)(pl + offsetof(Player, att_magic)) - *(f32*)(pl + offsetof(Player, field_A78));
+        d4 = *(f32*)(pl + offsetof(Player, att_speed)) - *(f32*)(pl + offsetof(Player, field_A7C));
+        *(s32*)(pl + offsetof(Player, level)) = old;
+        check_player_atts(pl, *(s32*)(pl + offsetof(Player, character)), 0);
     }
-    chg = (d1 != *(f32*)(pl + 244));
-    if (d1 != *(f32*)(pl + 244) && tick > rowgate && tick < rowgate + 60) {
+    chg = (d1 != *(f32*)(pl + offsetof(Player, att_fight)));
+    if (d1 != *(f32*)(pl + offsetof(Player, att_fight)) && tick > rowgate && tick < rowgate + 60) {
         DrawGlowText(kScale, x1, 96, fmts + 208);
     } else {
         DrawTextKeepScale(kScale, x1, 96, 6, 0xFFFFFF, fmts + 208);
     }
     if (chg != 0 && tick > rowgate) {
-        sprintf(buf, lbl_80348338, (s32)*(f32*)(pl + 244));
+        sprintf(buf, lbl_80348338, (s32)*(f32*)(pl + offsetof(Player, att_fight)));
         DrawGlowText(kScale, x2, 96, buf);
     } else {
         sprintf(buf, lbl_80348338, (s32)d1);
@@ -823,14 +849,14 @@ static s32 shop_show_lv(u8* pl, s32 final)
     if (chg != 0) {
         rowgate += 60;
     }
-    chg = (d2 != *(f32*)(pl + 248));
-    if (d2 != *(f32*)(pl + 248) && tick > rowgate && tick < rowgate + 60) {
+    chg = (d2 != *(f32*)(pl + offsetof(Player, att_armor)));
+    if (d2 != *(f32*)(pl + offsetof(Player, att_armor)) && tick > rowgate && tick < rowgate + 60) {
         DrawGlowText(kScale, x1, 116, lbl_80348380);
     } else {
         DrawTextKeepScale(kScale, x1, 116, 6, 0xFFFFFF, lbl_80348380);
     }
     if (chg != 0 && tick > rowgate) {
-        sprintf(buf, lbl_80348338, (s32)*(f32*)(pl + 248));
+        sprintf(buf, lbl_80348338, (s32)*(f32*)(pl + offsetof(Player, att_armor)));
         DrawGlowText(kScale, x2, 116, buf);
     } else {
         sprintf(buf, lbl_80348338, (s32)d2);
@@ -839,14 +865,14 @@ static s32 shop_show_lv(u8* pl, s32 final)
     if (chg != 0) {
         rowgate += 60;
     }
-    chg = (d3 != *(f32*)(pl + 252));
-    if (d3 != *(f32*)(pl + 252) && tick > rowgate && tick < rowgate + 60) {
+    chg = (d3 != *(f32*)(pl + offsetof(Player, att_magic)));
+    if (d3 != *(f32*)(pl + offsetof(Player, att_magic)) && tick > rowgate && tick < rowgate + 60) {
         DrawGlowText(kScale, x1, 136, lbl_80348388);
     } else {
         DrawTextKeepScale(kScale, x1, 136, 6, 0xFFFFFF, lbl_80348388);
     }
     if (chg != 0 && tick > rowgate) {
-        sprintf(buf, lbl_80348338, (s32)*(f32*)(pl + 252));
+        sprintf(buf, lbl_80348338, (s32)*(f32*)(pl + offsetof(Player, att_magic)));
         DrawGlowText(kScale, x2, 136, buf);
     } else {
         sprintf(buf, lbl_80348338, (s32)d3);
@@ -855,14 +881,14 @@ static s32 shop_show_lv(u8* pl, s32 final)
     if (chg != 0) {
         rowgate += 60;
     }
-    chg = (d4 != *(f32*)(pl + 256));
-    if (d4 != *(f32*)(pl + 256) && tick > rowgate && tick < rowgate + 60) {
+    chg = (d4 != *(f32*)(pl + offsetof(Player, att_speed)));
+    if (d4 != *(f32*)(pl + offsetof(Player, att_speed)) && tick > rowgate && tick < rowgate + 60) {
         DrawGlowText(kScale, x1, 156, lbl_80348390);
     } else {
         DrawTextKeepScale(kScale, x1, 156, 6, 0xFFFFFF, lbl_80348390);
     }
     if (chg != 0 && tick > rowgate) {
-        sprintf(buf, lbl_80348338, (s32)*(f32*)(pl + 256));
+        sprintf(buf, lbl_80348338, (s32)*(f32*)(pl + offsetof(Player, att_speed)));
         DrawGlowText(kScale, x2, 156, buf);
     } else {
         sprintf(buf, lbl_80348338, (s32)d4);
@@ -886,11 +912,11 @@ static s32 shop_show_lv(u8* pl, s32 final)
     if ((s32)exps != 0 && tick > rowgate) {
         sprintf(buf, lbl_80348338, (s32)player_max_health(pl));
         DrawGlowText(kScale, x2, 196, buf);
-        *(u32*)(pl + 2668) |= 0x10000;
+        *(u32*)(pl + offsetof(Player, field_A6C)) |= 0x10000;
     } else {
         s32 v = (s32)player_max_health(pl);
         if (final == 0) {
-            v = (s32)(v - lbl_803483A8 * (*(s32*)(pl + 13092) - lvl));
+            v = (s32)(v - lbl_803483A8 * (*(s32*)(pl + offsetof(Player, level)) - lvl));
         }
         sprintf(buf, lbl_80348338, v);
         DrawTextKeepScale(kScale, x2, 196, 6, 0xFFFFFF, buf);
@@ -899,11 +925,11 @@ static s32 shop_show_lv(u8* pl, s32 final)
         rowgate += 60;
     }
     if (final == 0) {
-        if (*(s32*)(pl + 13092) == 25) {
-            DrawStringText(xcol, 224, 6, 0xFF80C0, 184, *(s32*)(pl + 8));
+        if (*(s32*)(pl + offsetof(Player, level)) == 25) {
+            DrawStringText(xcol, 224, 6, 0xFF80C0, 184, *(s32*)(pl + offsetof(Player, char_type)));
         }
-        if (*(s32*)(pl + 13092) == 50) {
-            DrawStringText(xcol, 224, 6, 0xFF80C0, 185, *(s32*)(pl + 8));
+        if (*(s32*)(pl + offsetof(Player, level)) == 50) {
+            DrawStringText(xcol, 224, 6, 0xFF80C0, 185, *(s32*)(pl + offsetof(Player, char_type)));
         }
     }
     if (tick >= rowgate) {
@@ -912,7 +938,7 @@ static s32 shop_show_lv(u8* pl, s32 final)
     if (done != 0) {
         if (lbl_80240E30[*(s32*)pl].buttons & 0x2000000) {
             AudioCursorSelect();
-            *(s32*)(pl + 2668) = 0;
+            *(s32*)(pl + offsetof(Player, field_A6C)) = 0;
             return 1;
         }
         MBNewTempBlit(lbl_80344E48, x1 + 8, 280, 16, 16);
@@ -951,16 +977,19 @@ void fn_8009A0AC(s32 col)
     u8* b28;
 
     ResolveWorldData((lbl_803448C8 << 8) | (u8)lbl_803448C4);
-    cls = *(s32*)(pl + 12);
+    cls = *(s32*)(pl + offsetof(Player, character));
     lvl = gCurLevel;
-    goldRaw = *(s32*)(pl + 7876) -
-              *(s32*)((b240 = pl + cls * 240) + 8780);
+    goldRaw = *(s32*)(pl + offsetof(Player, gold)) -
+              *(s32*)((b240 = pl + cls * 240) + offsetof(Player, field_224C));
     t = goldRaw * range / (*(s32*)(lvl + 224) + 1);
     b28 = pl + cls * 28;
-    raw2 = (*(s32*)(b28 + 3088) + *(s32*)(b28 + 3104)) -
-           (*(s32*)(b28 + 8284) + *(s32*)(b28 + 8300));
-    raw3 = *(s32*)(pl + 7872) -
-           *(s32*)((b24 = pl + cls * 24) + 7900);
+    raw2 = (*(s32*)(b28 + PSHOP_STAT_NOW_OFF + offsetof(PlayerShopStat, field_00)) +
+            *(s32*)(b28 + PSHOP_STAT_NOW_OFF + offsetof(PlayerShopStat, field_10))) -
+           (*(s32*)(b28 + PSHOP_STAT_PREV_OFF + offsetof(PlayerShopStat, field_00)) +
+            *(s32*)(b28 + PSHOP_STAT_PREV_OFF + offsetof(PlayerShopStat, field_10)));
+    raw3 = *(s32*)(pl + offsetof(Player, exp)) -
+           *(s32*)((b24 = pl + cls * 24) + PCLASS_EXP_CKPT_OFF +
+                   offsetof(PlayerClassExpCkpt, field_00));
     {
         clampG = t;
         if (clampG < 64) {
@@ -1093,7 +1122,7 @@ static void shop_setup(void)
         s32 poff = 0;
         for (i = 0; i < 4; i++, boff += 20, toff += 4, poff += 13148) {
             u8* pl = gPlayers + poff;
-            s32 cls = *(s32*)(pl + 4);
+            s32 cls = *(s32*)(pl + offsetof(Player, class_id));
             sprintf(buf, fmts + 232, i + 1);
             {
                 s32* texp = (s32*)(tbl + toff);
@@ -1118,7 +1147,7 @@ static void shop_setup(void)
                 clsBase = tbl + cls * 4;
                 sprintf(buf, fmts + 268, *(char**)(clsBase + 144));
                 *(b4 = b + 4) = MBNewBlit(buf, *texp + 32, 0);
-                if (*(s32*)(pl + 232) == 0) {
+                if (*(s32*)(pl + offsetof(Player, state)) == 0) {
                     mbBlitInit3414(*b4, 1);
                 }
                 mbBlitCvtCoord(*b, lbl_803483C0);
@@ -1147,9 +1176,9 @@ static void shop_setup(void)
             s32* itemBlits;
             s32* available;
             s32* playerMap;
-            *(s32*)(pl + 2664) = 0;
-            *(s32*)(pl + 2660) = 0;
-            *(s32*)(pl + 2668) = 0;
+            *(s32*)(pl + offsetof(Player, field_A68)) = 0;
+            *(s32*)(pl + offsetof(Player, field_A64)) = 0;
+            *(s32*)(pl + offsetof(Player, field_A6C)) = 0;
             setup_player_display(i);
             if (lbl_80344C18 != 0) {
                 continue;
@@ -1171,7 +1200,7 @@ static void shop_setup(void)
                     playerMap[j] = 0;
                 }
             }
-            if (*(s32*)(pl + 232) == 1 || *(s32*)(pl + 232) == 5) {
+            if (*(s32*)(pl + offsetof(Player, state)) == 1 || *(s32*)(pl + offsetof(Player, state)) == 5) {
                 s32* texp = (s32*)(tbl + o4);
                 s32 name20 = *(texp += 24) + 20;
                 u8* e = tbl;
@@ -1192,7 +1221,7 @@ static void shop_setup(void)
                     {
                         u8* item = lbl_80344C14;
                         for (j = 0; j < lbl_80344C10; j++, item += 80) {
-                            if (*(s32*)(pl + 7876) >= *(s32*)(item + 72)) {
+                            if (*(s32*)(pl + offsetof(Player, gold)) >= *(s32*)(item + 72)) {
                                 *count += 1;
                             }
                             ((void**)itemBlits)[j] = MBNewBlit(item, name20, 0);
@@ -1406,7 +1435,7 @@ static s32 do_shopping_8009AA48(s32 player)
     if (*scrollp != 0) {
         speed = *scrollp;
     }
-    *dimp = *(s32*)(pl + 2664) - *topp;
+    *dimp = *(s32*)(pl + offsetof(Player, field_A68)) - *topp;
     do {
         if (new_left(player) != 0) {
             if (click == 0) {
@@ -1417,10 +1446,10 @@ static s32 do_shopping_8009AA48(s32 player)
                 speed = *scrollp + 1;
             }
             {
-                s32 c = *(s32*)(pl + 2664) + 1;
-                *(s32*)(pl + 2664) = c;
+                s32 c = *(s32*)(pl + offsetof(Player, field_A68)) + 1;
+                *(s32*)(pl + offsetof(Player, field_A68)) = c;
                 if (c >= *cntp) {
-                    *(s32*)(pl + 2664) = 0;
+                    *(s32*)(pl + offsetof(Player, field_A68)) = 0;
                     moved = 1;
                     *dimp = 0;
                     *topp = 0;
@@ -1436,14 +1465,14 @@ static s32 do_shopping_8009AA48(s32 player)
                 speed = *scrollp + 1;
             }
             {
-            s32 c = *(s32*)(pl + 2664) - 1;
-            *(s32*)(pl + 2664) = c;
+            s32 c = *(s32*)(pl + offsetof(Player, field_A68)) - 1;
+            *(s32*)(pl + offsetof(Player, field_A68)) = c;
             if (c < 0) {
                 u8* item;
                 *cntp = 0;
                 item = lbl_80344C14;
                 for (j = 0; j < lbl_80344C10; j++, item += 80) {
-                    if (*(s32*)(pl + 7876) >= *(s32*)(item + 72)) {
+                    if (*(s32*)(pl + offsetof(Player, gold)) >= *(s32*)(item + 72)) {
                         goto set_back_count;
                     } else {
                         s32 r;
@@ -1475,8 +1504,8 @@ next_back_item:
                     ;
                 }
                 *cntp += 1;
-                *(s32*)(pl + 2664) = *cntp - 1;
-                *dimp = *(s32*)(pl + 2664);
+                *(s32*)(pl + offsetof(Player, field_A68)) = *cntp - 1;
+                *dimp = *(s32*)(pl + offsetof(Player, field_A68));
                 *topp = *dimp - 6;
                 if (*topp < 0) {
                     *dimp = *dimp - *topp;
@@ -1486,8 +1515,8 @@ next_back_item:
             }
             }
         }
-        price = *(s32*)(lbl_80344C14 + *(s32*)(pl + 2664) * 80 + 72);
-    } while (*(s32*)(avail + *(s32*)(pl + 2664) * 4) != 0);
+        price = *(s32*)(lbl_80344C14 + *(s32*)(pl + offsetof(Player, field_A68)) * 80 + 72);
+    } while (*(s32*)(avail + *(s32*)(pl + offsetof(Player, field_A68)) * 4) != 0);
     if (*scrollp == 0) {
         sell = new_ctrl(0x2000000, player);
         buy = new_ctrl(0x1000000, player);
@@ -1496,19 +1525,19 @@ next_back_item:
         buy = 0;
     }
     if (buy != 0 &&
-        (((DSFlag4*)(page + player * 768 + *(s32*)(pl + 2664) * 4))->v & 4)) {
+        (((DSFlag4*)(page + player * 768 + *(s32*)(pl + offsetof(Player, field_A68)) * 4))->v & 4)) {
         u8* item =
-            lbl_80344C14 + *(s32*)(pl + 2664) * 80;
+            lbl_80344C14 + *(s32*)(pl + offsetof(Player, field_A68)) * 80;
         switch (*(s32*)(item + 68)) {
         case 1:
-            if (*(s32*)(pl + 7864) > 0) {
-                *(s32*)(pl + 7864) -= 1;
+            if (*(s32*)(pl + offsetof(Player, item_body_lo)) > 0) {
+                *(s32*)(pl + offsetof(Player, item_body_lo)) -= 1;
                 bought = 1;
             }
             break;
         case 3:
-            if (*(s32*)(pl + 7868) > 0) {
-                *(s32*)(pl + 7868) -= 1;
+            if (*(s32*)(pl + offsetof(Player, item_body_hi)) > 0) {
+                *(s32*)(pl + offsetof(Player, item_body_hi)) -= 1;
                 bought = 1;
             }
             break;
@@ -1548,8 +1577,8 @@ next_back_item:
         }
         if (bought != 0) {
             {
-                *(s32*)(pl + 7876) +=
-                    ((DSItem*)lbl_80344C14)[*(s32*)(pl + 2664)].price * 3 / 4;
+                *(s32*)(pl + offsetof(Player, gold)) +=
+                    ((DSItem*)lbl_80344C14)[*(s32*)(pl + offsetof(Player, field_A68))].price * 3 / 4;
             }
             fn_8009D038(player);
             PlayerProcessPowerups(pl);
@@ -1558,17 +1587,17 @@ next_back_item:
         }
     }
     if (sell != 0) {
-        if (*(s32*)(pl + 7876) >=
-            *(s32*)(lbl_80344C14 + *(s32*)(pl + 2664) * 80 + 72)) {
-            u8* item = lbl_80344C14 + *(s32*)(pl + 2664) * 80;
+        if (*(s32*)(pl + offsetof(Player, gold)) >=
+            *(s32*)(lbl_80344C14 + *(s32*)(pl + offsetof(Player, field_A68)) * 80 + 72)) {
+            u8* item = lbl_80344C14 + *(s32*)(pl + offsetof(Player, field_A68)) * 80;
             paid = 1;
             switch (*(s32*)(item + 68)) {
             default:
                 exit = 1;
                 break;
             case 1:
-                if (*(s32*)(pl + 7864) < lbl_803448A4) {
-                    *(s32*)(pl + 7864) += 1;
+                if (*(s32*)(pl + offsetof(Player, item_body_lo)) < lbl_803448A4) {
+                    *(s32*)(pl + offsetof(Player, item_body_lo)) += 1;
                 } else {
                     paid = 0;
                 }
@@ -1578,10 +1607,10 @@ next_back_item:
                                  lbl_803483CC);
                 break;
             case 3:
-                if (*(s32*)(pl + 7868) < lbl_803448A0) {
+                if (*(s32*)(pl + offsetof(Player, item_body_hi)) < lbl_803448A0) {
                     s32 r = RandInt(4);
-                    s32 old = *(s32*)(pl + 7868);
-                    *(s32*)(pl + 7868) = old + 1;
+                    s32 old = *(s32*)(pl + offsetof(Player, item_body_hi));
+                    *(s32*)(pl + offsetof(Player, item_body_hi)) = old + 1;
                     ((DSPot4*)(pl + old * 4))->v = r + 1;
                 } else {
                     paid = 0;
@@ -1592,23 +1621,23 @@ next_back_item:
                 break;
             case 5:
                 PlayerIncFight(pl, 10);
-                *(f32*)(pl + 2672) =
-                    (f32)(*(f32*)(pl + 2672) + lbl_803483D8);
+                *(f32*)(pl + offsetof(Player, field_A70)) =
+                    (f32)(*(f32*)(pl + offsetof(Player, field_A70)) + lbl_803483D8);
                 break;
             case 6:
                 PlayerIncSpeed(pl, 10);
-                *(f32*)(pl + 2684) =
-                    (f32)(*(f32*)(pl + 2684) + lbl_803483D8);
+                *(f32*)(pl + offsetof(Player, field_A7C)) =
+                    (f32)(*(f32*)(pl + offsetof(Player, field_A7C)) + lbl_803483D8);
                 break;
             case 7:
                 PlayerIncArmor(pl, 10);
-                *(f32*)(pl + 2676) =
-                    (f32)(*(f32*)(pl + 2676) + lbl_803483D8);
+                *(f32*)(pl + offsetof(Player, field_A74)) =
+                    (f32)(*(f32*)(pl + offsetof(Player, field_A74)) + lbl_803483D8);
                 break;
             case 8:
                 PlayerIncMagic(pl, 10);
-                *(f32*)(pl + 2680) =
-                    (f32)(*(f32*)(pl + 2680) + lbl_803483D8);
+                *(f32*)(pl + offsetof(Player, field_A78)) =
+                    (f32)(*(f32*)(pl + offsetof(Player, field_A78)) + lbl_803483D8);
                 break;
             case 9:
                 PlayerAddPowerup(pl, 6, 0x20000, lbl_8034832C,
@@ -1721,8 +1750,8 @@ next_back_item:
                 break;
             }
             if (paid != 0) {
-                *(s32*)(pl + 7876) -= price;
-                if (*(s32*)(pl + 2664) != 0) {
+                *(s32*)(pl + offsetof(Player, gold)) -= price;
+                if (*(s32*)(pl + offsetof(Player, field_A68)) != 0) {
                     fn_8009D038(player);
                     PlayerProcessPowerups(pl);
                 }
@@ -1733,8 +1762,8 @@ next_back_item:
             AudioBuzzer();
         }
     } else if (new_menu_back(player) != 0) {
-        if (*(s32*)(pl + 2664) != 0) {
-            *(s32*)(pl + 2664) = 0;
+        if (*(s32*)(pl + offsetof(Player, field_A68)) != 0) {
+            *(s32*)(pl + offsetof(Player, field_A68)) = 0;
             moved = 1;
         }
     }
@@ -1808,21 +1837,21 @@ available:
         }
         {
             DSTim4* timerSlot =
-                (DSTim4*)(page + (player << 8) + *(s32*)(pl + 2664) * 4);
+                (DSTim4*)(page + (player << 8) + *(s32*)(pl + offsetof(Player, field_A68)) * 4);
             timerSlot->v = 30;
         }
-        while (*(s32*)(pl + 7876) <
-                   *(s32*)(lbl_80344C14 + *(s32*)(pl + 2664) * 80 + 72) ||
-               *(s32*)(avail + *(s32*)(pl + 2664) * 4) != 0) {
-            *(s32*)(pl + 2664) -= 1;
+        while (*(s32*)(pl + offsetof(Player, gold)) <
+                   *(s32*)(lbl_80344C14 + *(s32*)(pl + offsetof(Player, field_A68)) * 80 + 72) ||
+               *(s32*)(avail + *(s32*)(pl + offsetof(Player, field_A68)) * 4) != 0) {
+            *(s32*)(pl + offsetof(Player, field_A68)) -= 1;
         }
-        if (*(s32*)(pl + 2664) < *topp) {
+        if (*(s32*)(pl + offsetof(Player, field_A68)) < *topp) {
             u8* item;
-            *topp = *(s32*)(pl + 2664);
+            *topp = *(s32*)(pl + offsetof(Player, field_A68));
             *cntp = 0;
             item = lbl_80344C14;
             for (j = 0; j < lbl_80344C10; j++, item += 80) {
-                if (*(s32*)(pl + 7876) >= *(s32*)(item + 72)) {
+                if (*(s32*)(pl + offsetof(Player, gold)) >= *(s32*)(item + 72)) {
                     goto set_forward_count;
                 } else {
                     s32 r;
@@ -1856,7 +1885,7 @@ next_forward_item:
         }
         {
             s32 n = lbl_80344C10;
-            for (j = *(s32*)(pl + 2664) + 1; j < n; j++) {
+            for (j = *(s32*)(pl + offsetof(Player, field_A68)) + 1; j < n; j++) {
                 if (*(u32*)(page + (player << 8) + 6480 + j * 4) == 0) {
                     break;
                 }
@@ -1865,7 +1894,7 @@ next_forward_item:
     }
     if (moved == 0) {
         s32 top = *topp;
-        s32 d = *(s32*)(pl + 2664) - top;
+        s32 d = *(s32*)(pl + offsetof(Player, field_A68)) - top;
         if (d > 6) {
             *topp = d + top - 6;
         } else if (d < 0) {
@@ -1994,7 +2023,7 @@ static s32 write_shop_menu(s32 player, s32 scroll)
         } else {
             hl = 0;
         }
-        if (j == *(s32*)(pl + 2664)) {
+        if (j == *(s32*)(pl + offsetof(Player, field_A68))) {
             sel = 1;
         } else {
             sel = 0;
@@ -2256,42 +2285,42 @@ static s32 calculate_player_shopping_parameters_8009C0F0(s32 player, u8* entry)
 {
     u8* p = &gPlayers[player * 13148];
 
-    if (*(s32*)(p + 7876) < *(s32*)(entry + 72)) {
+    if (*(s32*)(p + offsetof(Player, gold)) < *(s32*)(entry + 72)) {
         return 0;
     }
     switch (*(u32*)(entry + 68)) {
     case 1:
-        if (*(s32*)(p + 7864) >= lbl_803448A4) {
+        if (*(s32*)(p + offsetof(Player, item_body_lo)) >= lbl_803448A4) {
             return 0;
         }
         break;
     case 3:
-        if (*(s32*)(p + 7868) >= lbl_803448A0) {
+        if (*(s32*)(p + offsetof(Player, item_body_hi)) >= lbl_803448A0) {
             return 0;
         }
         break;
     case 5:
-        if ((f64)*(f32*)(p + 244) >= 999.0) {
+        if ((f64)*(f32*)(p + offsetof(Player, att_fight)) >= 999.0) {
             return 0;
         }
         break;
     case 6:
-        if ((f64)*(f32*)(p + 256) >= 999.0) {
+        if ((f64)*(f32*)(p + offsetof(Player, att_speed)) >= 999.0) {
             return 0;
         }
         break;
     case 7:
-        if ((f64)*(f32*)(p + 248) >= 999.0) {
+        if ((f64)*(f32*)(p + offsetof(Player, att_armor)) >= 999.0) {
             return 0;
         }
         break;
     case 8:
-        if ((f64)*(f32*)(p + 252) >= 999.0) {
+        if ((f64)*(f32*)(p + offsetof(Player, att_magic)) >= 999.0) {
             return 0;
         }
         break;
     case 17:
-        if ((f64)*(f32*)(p + 7860) >= (f64)player_max_health(p)) {
+        if ((f64)*(f32*)(p + offsetof(Player, health)) >= (f64)player_max_health(p)) {
             return 0;
         }
         break;
