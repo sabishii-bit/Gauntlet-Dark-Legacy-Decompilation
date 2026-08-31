@@ -12,12 +12,36 @@ This catches what fndiff structurally normalizes away:
   - wrong pool/table EMISSION ORDER (sincos duplicate 0.5f pairs)
   - initializer typos that only sha1 would catch after a full link
 
+It also runs an ADVISORY dead-strip screen (see --deadstrip below).
+
 Usage (from repo root):
   python tools/gdl/datadiff.py game/mathfunc
   python tools/gdl/datadiff.py MSL/sincos MSL/trigf_data
   python tools/gdl/datadiff.py --matching        # all Matching units
+  python tools/gdl/datadiff.py --deadstrip game/ui/message   # screen only
+  python tools/gdl/datadiff.py --no-deadstrip game/mathfunc  # byte diff only
 
-Exit 1 if any byte mismatch found.
+Exit 1 if any byte mismatch found. Dead-strip warnings NEVER set exit 1:
+they are advisory, because a zero-reference static can be legitimate
+(claimed data a later flip will wire up, or a symbol another instrument
+already accounts for).
+
+DEAD-STRIP SCREEN (claim.law.base-cast-reconstruction-deadstrips-sibling-statics)
+--------------------------------------------------------------------------------
+mwld dead-strips local data that nothing relocates against. A one-symbol
+base-cast reconstruction -- several `static` arrays tiling one target blob,
+all reached through ONE of the symbols by casting -- therefore compiles,
+links, and passes every OBJECT-level instrument (fndiff, claimcheck, and
+datadiff's own byte comparison) while its sibling statics silently vanish
+from the linked image, taking any string literal only they referenced with
+them. That signature cost a full DOL-forensics session on game/ui/message.c.
+
+This screen flags the exact precondition: a LOCAL (static) data symbol
+defined in this object that NO relocation in the same object points at.
+Reference resolution is by ADDRESS, not by name, so a static reached
+through a section alias plus addend (`...rodata.0+0x28`) or through a
+neighbouring symbol's addend counts as referenced -- name-only matching
+false-positives on exactly the string literals this law cares about.
 """
 
 import re
@@ -104,13 +128,141 @@ def obj_relocs(obj):
     return relocs
 
 
-def check_unit(unit, claims):
+# Sections whose local symbols mwld can dead-strip. BSS-class included:
+# an unreferenced static array there vanishes just as silently.
+STRIPPABLE_SECTIONS = (".rodata", ".data", ".sdata", ".sdata2",
+                       ".bss", ".sbss", ".sbss2")
+
+# objdump -t: "00000000 l     O .data\t00000040 lbl_80124E58"
+SYM_RE = re.compile(
+    r"^([0-9a-f]{8})\s(.{7})\s+(\S+)\s+([0-9a-f]{8})\s+(\S.*?)\s*$")
+
+# objdump -r: "000001de R_PPC_ADDR16_HA   lbl_80124E58[+0x00000004]"
+REL_RE = re.compile(
+    r"^[0-9a-f]+\s+R_PPC_\S+\s+(\S+?)(?:\+0x([0-9a-f]+))?\s*$")
+
+
+def obj_symbols(obj):
+    """Parse objdump -t into symbol dicts.
+
+    flags column is 7 chars: [lg] [w] [C] [W] [Ii] [dD] [FfO]
+      flags[0] == 'l'  -> local (a C `static`, our dead-strip candidate)
+      'O' in flags     -> an object (data), as opposed to a function/section
+      'd' in flags     -> a section symbol
+    """
+    out = subprocess.run([str(OBJDUMP), "-t", str(obj)],
+                         capture_output=True, text=True).stdout
+    syms = []
+    for line in out.splitlines():
+        m = SYM_RE.match(line.replace("\t", " "))
+        if not m:
+            continue
+        value, flags, sec, size, name = m.groups()
+        syms.append({
+            "value": int(value, 16),
+            "size": int(size, 16),
+            "section": sec,
+            "name": name,
+            "local": flags[0] == "l",
+            "object": "O" in flags,
+            "section_sym": "d" in flags,
+        })
+    return syms
+
+
+def obj_reloc_refs(obj):
+    """Every relocation target in the object as (symbol_name, addend)."""
+    out = subprocess.run([str(OBJDUMP), "-r", str(obj)],
+                         capture_output=True, text=True).stdout
+    refs = []
+    for line in out.splitlines():
+        m = REL_RE.match(line)
+        if m:
+            refs.append((m.group(1), int(m.group(2), 16) if m.group(2) else 0))
+    return refs
+
+
+def deadstrip_check(unit, obj, quiet_ok=True):
+    """Advisory: local data symbols with NO incoming relocation.
+
+    Returns the list of unreferenced symbol dicts (never affects exit code).
+    """
+    syms = obj_symbols(obj)
+    refs = obj_reloc_refs(obj)
+
+    by_name = {}
+    for s in syms:
+        by_name.setdefault(s["name"], s)
+
+    # A "section anchor" is a section symbol (.data) or a zero-size local
+    # alias for one (...data.0). SOUNDNESS LIMIT: when a relocation names an
+    # anchor, the displacement that selects which datum it reaches lives in
+    # the ADDR16_HA/LO INSTRUCTION IMMEDIATES, not in the relocation addend,
+    # so nothing in the relocation table says which symbols of that section
+    # are live. Any symbol-level liveness claim there would be a guess, so we
+    # declare the whole section opaque and report nothing in it. That costs
+    # false negatives (a TU addressing its data off one section base is not
+    # screenable) but keeps every warning we DO emit sound -- the right
+    # trade for an advisory that must not cry wolf.
+    def is_anchor(sym):
+        return sym["section_sym"] or (
+            sym["local"] and not sym["object"] and sym["size"] == 0)
+
+    opaque = set()
+    hit_addrs = {}          # section -> set of referenced addresses
+    named = set()
+    for name, addend in refs:
+        named.add(name)
+        base = by_name.get(name)
+        if base is None:
+            continue
+        if is_anchor(base):
+            opaque.add(base["section"])
+            continue
+        hit_addrs.setdefault(base["section"], set()).add(base["value"] + addend)
+
+    unreferenced = []
+    for s in syms:
+        if not (s["local"] and s["object"]):
+            continue
+        if s["section"] not in STRIPPABLE_SECTIONS or s["size"] == 0:
+            continue
+        if s["section"] in opaque:
+            continue
+        if s["name"] in named:
+            continue
+        lo, hi = s["value"], s["value"] + s["size"]
+        if any(lo <= a < hi for a in hit_addrs.get(s["section"], ())):
+            continue
+        unreferenced.append(s)
+
+    if unreferenced:
+        print(f"[{unit}] DEAD-STRIP WARNING: "
+              f"{len(unreferenced)} local data symbol(s) with no incoming "
+              f"relocation in this object -- mwld will strip them from the "
+              f"linked image (advisory, not a failure):")
+        for s in unreferenced:
+            print(f"[{unit}]   {s['section']}+0x{s['value']:X} "
+                  f"size 0x{s['size']:X}  {s['name']}")
+        print(f"[{unit}]   see claim.law.base-cast-reconstruction-"
+              f"deadstrips-sibling-statics: if these tile one target blob "
+              f"reached through a sibling symbol, merge them into ONE "
+              f"aggregate so a single live reference keeps the whole blob.")
+    elif not quiet_ok:
+        print(f"[{unit}] dead-strip screen: OK, every local data symbol "
+              f"is relocated against")
+    return unreferenced
+
+
+def check_unit(unit, claims, run_deadstrip=True):
     obj = REPO / "build" / VERSION / "src" / f"{unit.rsplit('.', 1)[0]}.o"
     if not obj.exists():
         print(f"[{unit}] SKIP: object not built ({obj})")
         return 0
     secs = obj_sections(obj)
     relocs = obj_relocs(obj)
+    if run_deadstrip:
+        deadstrip_check(unit, obj)
     bad = 0
     for sec in DATA_SECTIONS:
         ours = secs.get(sec)
@@ -169,9 +321,26 @@ def check_unit(unit, claims):
 
 def main():
     args = sys.argv[1:]
+    only_deadstrip = "--deadstrip" in args
+    run_deadstrip = "--no-deadstrip" not in args
+    args = [a for a in args if a not in ("--deadstrip", "--no-deadstrip")]
     if not args:
         print(__doc__)
         return 1
+    # --deadstrip also accepts a direct path to any .o (synthetic tests,
+    # objects outside the splits map).
+    if only_deadstrip:
+        direct = [a for a in args if a.endswith(".o")]
+        for p in direct:
+            obj = Path(p)
+            if not obj.exists():
+                print(f"[{p}] SKIP: no such object")
+                continue
+            deadstrip_check(obj.name, obj, quiet_ok=False)
+        args = [a for a in args if not a.endswith(".o")]
+        if not args:
+            return 0
+
     units = parse_splits()
     targets = []
     if args[0] == "--matching":
@@ -186,7 +355,14 @@ def main():
         if key is None:
             print(f"[{t}] no splits entry")
             continue
-        bad += check_unit(key, units[key])
+        if only_deadstrip:
+            obj = REPO / "build" / VERSION / "src" / f"{key.rsplit('.', 1)[0]}.o"
+            if not obj.exists():
+                print(f"[{key}] SKIP: object not built ({obj})")
+                continue
+            deadstrip_check(key, obj, quiet_ok=False)
+            continue
+        bad += check_unit(key, units[key], run_deadstrip=run_deadstrip)
     return 1 if bad else 0
 
 
