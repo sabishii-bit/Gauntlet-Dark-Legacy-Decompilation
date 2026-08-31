@@ -2072,7 +2072,8 @@ void show_optmenu(OPTMENU* m)
             v[0] = (f32)(s32)(tx + m->icon_dx);
             v[1] = (f32)(s32)ty;
             v[2] = optmenu_icon_z;
-            MBWorldToScreen3D((f32*)((u8*)m->icon_node + 0x30), v);
+            MBWorldToScreen3D((f32*)((u8*)m->icon_node +
+                                     offsetof(MBObject, mat[3][0])), v);
         }
         {
             f32 icon_scale = m->icon_scale;
