@@ -297,6 +297,16 @@
         "copy_register_fields": true
       },
       {
+        "function": "move_logic15",
+        "before_sha256": "fa3943ae7cf504b1efecf26d3170c3c6346081179841fe105dce079f3a097aa9",
+        "after_sha256": "be1c59390486f24e232ff7cbcd54551a8ce58d246a643f3f4bfbbc61640afb07",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 215
+        },
+        "copy_register_fields": true
+      },
+      {
         "function": "move_logic30",
         "before_sha256": "dd449aa44d677ae80fb7f590fcab1ef087e67d4be1ba9531c2364c0308e5a2f5",
         "after_sha256": "5786da53eda534630dd5eb87a7f311b00c59c51af8b4c9779b8f64f35aae930a",
