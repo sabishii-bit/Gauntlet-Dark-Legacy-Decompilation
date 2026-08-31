@@ -6239,12 +6239,12 @@ s32 fn_8004C8CC(f32* pos, s32 index)
     f32 probe[3];
     void* obj;
 
-    rad = (f32)(lbl_80346858 + *(f32*)((u8*)e + 568));
-    hht = (f32)(lbl_80346858 + *(f32*)((u8*)e + 572));
-    probe[0] = *(f32*)((u8*)e + 84);
-    probe[1] = *(f32*)((u8*)e + 88);
+    rad = (f32)(lbl_80346858 + *(f32*)((u8*)e + offsetof(Enemy, rad)));
+    hht = (f32)(lbl_80346858 + *(f32*)((u8*)e + offsetof(Enemy, hht)));
+    probe[0] = *(f32*)((u8*)e + offsetof(Enemy, objgrp.coll_pos[0]));
+    probe[1] = *(f32*)((u8*)e + offsetof(Enemy, objgrp.coll_pos[1]));
     result = -1;
-    probe[2] = *(f32*)((u8*)e + 92);
+    probe[2] = *(f32*)((u8*)e + offsetof(Enemy, objgrp.coll_pos[2]));
     probe[1] = pos[1];
     if (fn_8004646C(rad, hht, index, probe, pos, 0, 0) >= 0) {
         result = 0;
@@ -6337,15 +6337,15 @@ s32 fn_8004CE38(Enemy* e)
     f32 x2;
     f32 z2;
 
-    p = (u8*)&gPlayerWords[*(s16*)((u8*)e + 628)];
+    p = (u8*)&gPlayerWords[*(s16*)((u8*)e + offsetof(Enemy, closest))];
     if (*(s16*)(p + 2588) > 2) {
-        dx = *(f32*)((u8*)e + 52) - *(f32*)(p + 2532);
-        dz = *(f32*)((u8*)e + 60) - *(f32*)(p + 2540);
+        dx = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][0])) - *(f32*)(p + 2532);
+        dz = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][2])) - *(f32*)(p + 2540);
     } else {
-        dx = *(f32*)((u8*)e + 52) - *(f32*)(p + 68);
-        dz = *(f32*)((u8*)e + 60) - *(f32*)(p + 76);
+        dx = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][0])) - *(f32*)(p + 68);
+        dz = *(f32*)((u8*)e + offsetof(Enemy, objgrp.worldmat[3][2])) - *(f32*)(p + 76);
     }
-    a = (f32)(lbl_80346920 + *(f32*)((u32)e + 580));
+    a = (f32)(lbl_80346920 + *(f32*)((u32)e + offsetof(Enemy, pyr[1])));
     if (a > lbl_80346840) {
         t = a - lbl_80346848;
     } else if (a <= lbl_80346850) {
@@ -6356,7 +6356,7 @@ s32 fn_8004CE38(Enemy* e)
     ang = (f32)t;
     x1 = dx + sin(ang);
     z1 = dz + cos(ang);
-    a = (f32)(*(f32*)((u8*)e + 580) - lbl_80346920);
+    a = (f32)(*(f32*)((u8*)e + offsetof(Enemy, pyr[1])) - lbl_80346920);
     if (a > lbl_80346840) {
         t = a - lbl_80346848;
     } else if (a <= lbl_80346850) {
@@ -7052,20 +7052,22 @@ s32 fn_8004D958(s32 index)
     s16 t;
     s16 v;
 
-    *(s16*)((u8*)e + 726) += gFrameTicks;
-    if (*(f32*)((u8*)e + 636) > *(f32*)((u8*)e + 768)) {
-        if (*(s16*)((u8*)e + 732) == 0) {
+    *(s16*)((u8*)e + offsetof(Enemy, watchdog)) += gFrameTicks;
+    if (*(f32*)((u8*)e + offsetof(Enemy, actual_dist)) >
+        *(f32*)((u8*)e + offsetof(Enemy, sight))) {
+        if (*(s16*)((u8*)e + offsetof(Enemy, visactive)) == 0) {
             return -1;
         }
     }
-    own = *(s16*)((u8*)e + 630);
-    if (own >= 0 && *(s16*)((u8*)e + 628) != own) {
-        *(s32*)((u8*)e + 844) = 0;
-        *(s32*)((u8*)e + 848) = 4;
+    own = *(s16*)((u8*)e + offsetof(Enemy, prev_closest));
+    if (own >= 0 && *(s16*)((u8*)e + offsetof(Enemy, closest)) != own) {
+        *(s32*)((u8*)e + offsetof(Enemy, ms_idx)) = 0;
+        *(s32*)((u8*)e + offsetof(Enemy, max_msidx)) = 4;
     }
     if (gBossType >= 0 && gBossDying != 0) {
-        fn_800945D0((u8*)e + 68, (u8*)e + 4, 0, 1, *(u32*)e,
-                    *(f32*)((u8*)e + 572));
+        fn_800945D0((u8*)e + offsetof(Enemy, objgrp.attn_pos[0]),
+                    (u8*)e + offsetof(Enemy, objgrp), 0, 1, *(u32*)e,
+                    *(f32*)((u8*)e + offsetof(Enemy, hht)));
         kill_enemy(index);
         return -1;
     }
