@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker FG, 2026-08-31, worktree W:/Repositories/GDL-Claude-FlipStrag, branch claude/flip-stragglers-20260901, commit 6c893c07e. Measured on src/game/sys/sysservice.c against build/GUNE5D/obj/game/sys/sysservice.o.",
+    "tags": [
+      "matching",
+      "relocation",
+      "symbol-identity",
+      "cse",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.own-pool-partition-separate-objects-fold-the-reloc-member-access-costs-an-addi.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T23:54:54Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "HOW TO FIX AN OWN-POOL UND GHOST WITHOUT BREAKING CODEGEN: DEFINE THE SPLIT OBJECTS, DO NOT COLLAPSE THEM INTO ONE STRUCT. claim.law.symbolified-own-pool-literal-blocks-tu-flip prescribes 'delete the extern and spell the actual value at every use', which for a .rodata STRING pool naively means routing every use through one big struct via member access. That prescription is WRONG for this class and costs one instruction per use site. MEASURED, both directions, on game/sys/sysservice: (A) one `static const SysServiceStringPool lbl_801176B0` covering the whole 0x105 span, with the three ghosts respelled as members (`lbl_801176B0.resetInvoked` etc.), made sysHandleReset 65->66 insns and sysAssertFailed 90->91, `ours-only: -1 addi` in each, and demoted both from EXACT to STRUCTURAL. MWCC lowers the address of a STRUCT MEMBER as `lis/addi` of the object base plus a SEPARATE `addi` for the member displacement, and emits the relocation against the base with addend 0. (B) defining the pool as the FOUR objects the target's symbol table actually names (0x58 struct / 0x68 struct / char[0x1F] / char[0x25]) restored both functions to EXACT: a reference to a distinct object is a link-time address constant, so MWCC FOLDS it into a single `lis rX,(sym)@ha / addi rX,rX,(sym)@lo` pair. THE NON-OBVIOUS HALF, and the reason the one-struct form looks necessary at first: a fifth function, sysResetService, materialises ONE base (`lis r3,lbl_801176B0@ha / addi r31,r3,@lo`) and reaches BOTH the first object (+0x44) and the SECOND object (+0x58 = lbl_80117708+0) as `addi r3,r31,68` / `addi r3,r31,88` off that single base. That looks like proof of one big object, and it is not: MWCC assigns .rodata offsets at compile time, so it KNOWS the inter-object distance within a TU and performs address CSE ACROSS SEPARATE OBJECTS in the same section, emitting the base relocation against the FIRST object only. Splitting the pool left sysResetService bit-identical (real 18 unchanged, opcode multiset IDENTICAL). SCREEN: when a TU's own-pool ghosts sit at addresses that its symbols.txt already names as separate objects, reproduce that exact partition in C; read the target's relocation ADDENDS (`objdump -r`) to tell the two forms apart -- a folded `sym+0x00` at a member address proves a separate object, while `base+0xNN` proves member access. SECOND, INDEPENDENT FINDING: dtk does NOT re-derive own-pool data symbols from relocation analysis; deleting lbl_80117708/770/790 from config/GUNE5D/symbols.txt made the split object emit ONE 0x108 `lbl_801176B0` and re-express every reloc as `lbl_801176B0+0xNN`, i.e. the target side can be repartitioned at will from symbols.txt alone. That is a real lever, but it is the WRONG one here: it would have to be justified against the target's own instruction stream, and the fold/addi evidence above shows the four-object partition is the truthful one."
+}

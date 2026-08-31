@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker FG, 2026-08-31, worktree W:/Repositories/GDL-Claude-FlipStrag. Four-point A/B on src/game/sys/sysservice.c (last pool object 0x25 vs 0x28) crossed with two pool partitions (one struct vs four objects), each measured with datadiff plain, datadiff --sections, and build/GUNE5D/report.json.",
+    "tags": [
+      "metrics",
+      "build-hygiene",
+      "symbol-identity",
+      "workflow",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.objdiff-excludes-the-trailing-gap-symbol-so-filling-the-splits-claim-zeroes-matched-data.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T23:54:56Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "DATADIFF AND OBJDIFF DISAGREE, BY CONSTRUCTION, ABOUT A DATA SECTION WHOSE TRUE END IS NOT 4-BYTE ALIGNED, AND THE DISAGREEMENT IS NOT RESOLVABLE BY SHRINKING THE CLAIM. Measured on game/sys/sysservice .rodata, whose splits claim is 0x801176B0..0x801177B8 (0x108) while the compiled object's true extent is 0x105. dtk covers the 3 unclaimed trailing bytes with a `.hidden gap_06_801177B5_rodata` symbol. FOUR-POINT MEASUREMENT (both pool partitions behaved identically, so the partition is NOT the variable): ours 0x105 -> datadiff plain MISMATCH `0x3 claim slack(zero)`, datadiff --sections `SIZE target 0x108 vs ours 0x105 <- FLIP BLOCKER`, but objdiff matched_data 828/828 = 100.0%. ours 0x108 (last object padded) -> BOTH datadiff modes fully green (`OK 0x108 bytes compared`, `size 0x108, 100.0% bytes equal`), but objdiff matched_data 564/828 = 68.115944% because objdiff scores the section 99.42857% and credits matched_data only for sections at 100%. MECHANISM: objdiff EXCLUDES dtk's trailing `.hidden` gap symbol from the target's data, so the target's effective .rodata is 261 bytes; our 261-byte object matches it exactly, while our 264-byte object carries 3 bytes the target 'does not have' -- which is precisely the wording of claim.sysservice-data-gap-closed-and-own-pool-und-ghosts-found, whose diagnosis was therefore right about objdiff and wrong about the OBJECT (the target split object really is 0x108; `objdump -h` on build/GUNE5D/obj/... is the arbiter). WHY THE STANDARD FIX DOES NOT APPLY: claim.law.splits-claim-can-swallow-link-alignment-padding says shrink the claim, and all three of its tells fire here (datadiff prints `claim slack(zero)`; the bytes are zero in the DOL; the neighbouring TU's .rodata claim ends on the odd address 0x80117843, proving the splits author excluded inter-TU padding elsewhere). But the shrink is IMPOSSIBLE: `end:0x801177B5` makes dtk fail the whole split with `Invalid alignment for split: auto_06_801177B5_rodata .rodata 6:0x801177B5`, because the unclaimed remainder becomes an auto-split at a non-4-aligned start. The mb_font precedent worked only because its true ends (0x80127BFC, 0x80348B8C) were already 4-aligned. CONSEQUENCE AND STANDING ADVICE: for such a TU the two gates cannot both be green, so pick by what is at stake. Keep the TRUTHFUL short object while the TU is NonMatching -- it is worth the section's full matched_data credit (264 bytes here) and it is what the object really contains. Switch to the padded form ONLY at the moment of an actual flip, because finish_tu.py gates on `datadiff.py <unit>` (plain) and will refuse otherwise; note the padded form links to a byte-identical DOL (retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679 verified both ways), since the linker re-creates the same 3 pad bytes. The durable fix is a datadiff tolerance for a sub-4-byte, zero-valued, non-shrinkable claim tail; until then this is a KNOWN FALSE POSITIVE in the flip gate and must not be paid for with an inflated array."
+}
