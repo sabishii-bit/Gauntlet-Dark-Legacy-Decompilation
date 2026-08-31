@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Measured 2026-08-31 on game/ui/select.c::serve_blits (worktree GDL-Claude-SelectPads), a 279-instruction loop over 11 blit slots with a seven-way switch and calls in most arms. Three .sdata2 pool constants feed it: f64 lbl_80348040 = 1.0 (kb, assigned in its own statement before the loop), f64 lbl_80348048 = 0.025 (ka, in-declaration init), f32 lbl_80348050 = 0.00390625 (kf, in-declaration init). Values read with tools/gdl/poolval.py --sweep; every A/B measured with tools/gdl/probe.py.",
+    "scope": "MWCC GC 1.2.5 family; refines claim.law.extern-scalar-read-defeats-fp-literal-hoist.20260831.v1 for the case where the literal-substitution recipe measures WORSE instead of better.",
+    "tags": [
+      "matching",
+      "sda-global",
+      "cse",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.f64-pool-literal-substitution-diverges-from-f32.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:24:18Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "claim.law.extern-scalar-read-defeats-fp-literal-hoist's recipe (replace `extern f32/f64 lbl_*` pool reads with the literal) has a sharp failure mode, and it separates cleanly by WIDTH rather than by function or by value. Measured on serve_blits with a three-probe bisection: substituting all three of the function's pool constants at once regressed real 263 -> 437; substituting ONLY the f32 (kf = 0.00390625f) was exactly NEUTRAL at real 263; adding back ONLY one f64 (ka = 0.025) regressed to real 431. So the f32 is free and the f64 alone accounts for essentially the whole 168-instruction penalty. MECHANISM, from the --ops diff: an f64 literal makes MWCC materialise the value through its own int-to-double conversion sequence and re-home the surrounding stack traffic -- our stream grew a `lfd, xoris, stw, mr, fsub, stw, lwz, stw` block exactly where target has a compact `xoris, stw, add, lwz, mr, lfd, stw, fsub` run, and the ripple moved fctiwz/fsubs pairs and address materialisation (ours-only addi/lwz where target keeps lwzu/mr) across the rest of the body. The f32 substitution touched none of that. PRACTICAL RULE FOR A POOL SWEEP: substitute f32 pool labels freely -- across five f32 labels in select.c and one in options.c every single one measured NEUTRAL or better, including inside a function that is already byte-exact (do_screenmenu stayed at real 0). Substitute f64 pool labels one at a time and expect them to be the ones that regress; where an f64 regresses, keep the extern spelling, because the retained-best rule outranks reconstruction tidiness. Corollary for interpretation: an f64 that will not take a literal is NOT proof the original source read a global -- a .sdata2 entry is a compiler-emitted literal pool by construction, so the original almost certainly wrote the literal, and the extern spelling is standing in for a surrounding-codegen gap we have not closed. Record it as a retained fakematch, not as recovered semantics. Counter-evidence that the recipe still pays on f64 when the surrounding shape is right: in the same session options.c::show_optmenu IMPROVED real 506 -> 496 from substituting the f64 pi constant (3.141592654, at two sites) together with an f64 0.0 -- so this is a per-function property of the FP web, not a blanket prohibition on f64. Bisect by width first, then by site."
+}

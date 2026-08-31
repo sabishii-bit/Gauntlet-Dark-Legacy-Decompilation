@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "Hit on 2026-08-31 in worktree GDL-Claude-SelectPads on game/ui/select.c::serve_blits. Sequence: probe.py BASELINE on serve_blits (banked snapshot S0) -> four unrelated pool-literal edits elsewhere in the TU, each probed and committed (07bb19f0b) -> probe.py serve_blits again, which printed NEUTRAL and therefore did NOT re-bank -> two failing probes -> probe.py --revert, which restored S0 and silently wiped the committed literal work from the working tree. Detected by git diff --stat showing 11 insertions / 6 deletions against a HEAD that should have been clean; repaired with git checkout HEAD -- src/game/ui/select.c and re-verified with defake_gate.py check --rebuild (GATE OK).",
+    "scope": "tools/gdl/probe.py, any session that probes more than one function in a single TU or that commits between a BASELINE and its matching --revert.",
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.probe-revert-snapshot-goes-stale-across-commits.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T03:24:11Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "probe.py's revert point is a snapshot of the WHOLE TU source, not of the probed function, and it is re-banked only on a BASELINE or IMPROVED verdict -- never on NEUTRAL. Both facts together make --revert unsafe the moment a pass interleaves work on several functions in one TU, which is the normal shape of a de-fakematch or pool-sweep pass. Concretely: bank a BASELINE on function A, then edit, probe, gate and COMMIT unrelated improvements to functions B/C/D in the same file, then re-probe A (NEUTRAL, so no re-bank) and probe a failing variant and --revert -- and the tool restores the file as it was before B/C/D existed, discarding committed, gated, verified work from the working tree with a message that reads like success ('reverted ... to the last banked good state; re-scoring: NEUTRAL'). The scoring line is doubly misleading because the reverted state legitimately scores NEUTRAL for function A, which is exactly what the operator expects to see. DETECTION: run git diff --stat (or git status) immediately after every --revert; against a clean committed tree the only expected result is an empty diff, so ANY hunks mean the snapshot was stale. RECOVERY: git checkout HEAD -- <the owned file> and re-run defake_gate.py check --rebuild, because HEAD is the verified best and the snapshot is not. PREVENTION, in order of preference: (1) after every commit, re-bank by forcing a fresh BASELINE before the next probe on that TU -- probe.py only re-banks on BASELINE/IMPROVED, so a NEUTRAL re-probe is NOT a re-bank and must not be trusted as one; (2) prefer git checkout HEAD -- <file> over --revert whenever the intervening work is already committed, since HEAD is a stronger guarantee than the tool's snapshot; (3) commit each probe batch before starting the next function, so HEAD is always a valid recovery point. This is a workflow hazard, not a compiler behaviour, but it destroys verified results exactly as effectively as a regression and it hides behind a success message, so it belongs in the same screen."
+}
