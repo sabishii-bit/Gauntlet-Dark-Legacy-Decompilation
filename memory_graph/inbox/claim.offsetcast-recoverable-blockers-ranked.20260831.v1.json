@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "work_claim.offsetcast-investigation.20260831.v1. Blocker (1) counted by grepping src/ for untyped externs of globals that have typed project headers, then intersecting with the classified site set; (3) counted by parsing xbox_structs.tsv (S-rows) against a full parse of research/xbox_symbols/*.h; (2)/(4)/(5) from the classifier's sub-class buckets cross-read against the 56 de-fakematch TU-pass attempt records, whose stated left-raw reasons rank: protected codegen web 37/56 records, A/B falsified 32/56, recorded park 30/56, no covering struct 16/56, pad gap 12/56, scratch-or-disk 12/56, extern conflict 2/56, PDB ambiguity 2/56.",
+    "scope": "The RECOVERABLE class of claim.offsetcast-debt-taxonomy.20260831.v1. Counts are sites, measured over src/ at git:561994d6 + this branch.",
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.offsetcast-recoverable-blockers-ranked.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T01:00:06Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-08-31",
+  "value": "Ranked root causes for why the 2480 RECOVERABLE raw-offset sites have not converted, by sites each unblocks (2026-08-31 measurement; buckets overlap because one site can have two blockers). (1) UNTYPED EXTERN SHADOWING A TYPED HEADER -- 1832 RECOVERABLE sites (74% of the class) sit in the 24 TUs that re-declare an already-typed global as `extern u8 gPlayers[]` / `extern u8* gCurLevel` / `extern u8 gEnemies[]` / `extern u8 gCameraState[]` / `extern u8 gCritterPool[]` / `extern u8 Effects[]`, while include/game/player.h, leveldata.h, enemy.h, camera.h, critter.h and effect.h already carry GC-verified layouts for exactly those records. Several of these externs even document the stride in a trailing comment ('stride 0x335C'), i.e. the TU knows the type and still spells the access raw. The blocker is that adopting the header requires reconciling the TU's own narrower externs and prototypes -- boss.c's pass recorded this explicitly, declining to include game/item.h, game/enemy.h and game/critter.h because item.h's PlaceItem returns Item* where the TU has void*, and enemy.h's gEnemies is Enemy[25] where the TU has u8[]. (2) INCOMPLETE RECORDS the project already owns -- 472 sites land in an explicit pad run inside a project header (Player 295, CritterDescriptor 47, PlayerActionMotionView 44, Critter 20) and a further 353 read PAST the recorded end of a struct that exists (Enemy 43, MovieChunkStream 42, Item 37, CritterFileHeader 31, iteminfodata 28, Player 27). These need layout EXTENSION, not discovery. (3) XBOX PDB INDEX INCOMPLETENESS -- `gdlmem.py struct` resolves against research/xbox_symbols/xbox_structs.tsv, which indexes 227 structs; the raw research/xbox_symbols/*.h dump carries 1885 distinct named structs (3225 counting Id-disambiguated anonymous entries), so the op is blind to ~88% of the available layouts. 235 RECOVERABLE sites have a record size matching a PDB struct that exists ONLY in the dump and is therefore invisible to the tool today, versus 462 already reachable. AGENTS.md already tells workers to grep misc.h after a `struct` miss; regenerating the tsv from the dump removes the manual step. (4) NO SHARED HEADER FOR A GENUINELY CROSS-TU RECORD -- ~497 sites in clusters with no stride/size evidence, dominated by records that multiple TUs touch but nobody owns: gCameraState's supervisor block (combat.c `cs` 58 sites, camera.c, bosscam.c), movieplayer's stream record (`movie`/`param_1` 113 sites), mb_particle's `pi` (33), sounds_evt's `speech` (21), and lbl_80344EE8 (flagged in the bosscam pass as provably shared with camera.c). (5) PDB ANONYMOUS-UNION Id COLLISION -- narrow but real: 175 `__unnamed` structs in the dump are keyed only by Id, and boss.c's pass left 4 sites raw because Item.data's 0x14-byte union (misc.h Id=3254) name-collides across several distinct anonymous unions."
+}

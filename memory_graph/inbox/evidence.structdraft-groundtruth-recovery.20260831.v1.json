@@ -1,0 +1,14 @@
+{
+  "attributes": {
+    "provenance": "work_claim.offsetcast-investigation.20260831.v1. The harness itself surfaced two tool bugs that were fixed before these numbers were taken: file-local structs whose fields carry leading /* 0xNN */ markers parsed as zero-field structs, and an early candidate-scoring rule that named psfx.c's damage row from include/game/psys.h on offset agreement alone (now requires exact record-size match plus zero width conflicts, or the draft stays unkNN)."
+  },
+  "claim": "claim.offsetcast-debt-taxonomy.20260831.v1",
+  "detail": "Blind ground-truth test of tools/gdl/structdraft.py: run it against the PRE-conversion revision of a TU (which contains none of the recovered structs), then score the drafted offsets against the structs a human later hand-recovered in the post-conversion file. critter.c (checkout git:b7bdd105c~1, which has zero occurrences of CritterPackedType): the draft's observed offsets recover CritterDamageDef 20/20 named fields (100%), CritterFileHeader 15/18 (83%), CritterPackedType 42/51 (82%), CritterDescriptor 4/5 (80%), CritterHitNode 7/9 (78%), CritterColDescriptor 6/8 (75%); 226 of 477 observed offsets (47%) land exactly on a hand-recovered field boundary with matching width, the remainder being clusters whose ground truth is nested inside another record at a nonzero base or was left raw. screensaver.c (git:3cc9e36ef~1, zero occurrences of PanelConfigBlob): PanelPieceRow 6/8 named fields (75%), with the draft's x@0x04/y@0x08/width@0x1C/height@0x20 exactly matching the human's later layout. Reproduce: git show <rev>:<path> > old.c then `python tools/gdl/structdraft.py --file old.c --root . --json`. Coverage is bounded by what the TU's code actually reads -- a field no function touches cannot appear in a draft built from reads -- so coverage and precision are reported separately.",
+  "evidence_kind": "reproducible_measurement",
+  "id": "evidence.structdraft-groundtruth-recovery.20260831.v1",
+  "kind": "evidence",
+  "locator": "git:b7bdd105c~1 src/game/enemy/critter.c; git:3cc9e36ef~1 src/game/ui/screensaver.c; tools/gdl/structdraft.py",
+  "recorded_at": "2026-08-31T01:00:11Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
