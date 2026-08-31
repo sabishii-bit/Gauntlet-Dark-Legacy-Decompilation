@@ -1,0 +1,23 @@
+{
+  "attempted_axis": "five-form target-backed closure of mode-5/mode-1 zero-coordinate webs and mode-4 division CSE in fn_800C03E0",
+  "attributes": {
+    "anchors": "src/game/pb/dbgtext.c::fn_800C03E0 target 0x800C03E0 size 0x6C4; reproduce with python tools/gdl/probe.py game/pb/dbgtext fn_800C03E0 --ops",
+    "axis_log": "1 mode-5 outer j=i/j*8: 434 insns real537, scale hoisted; 2 mode-local x=i/x*8: 435 real538, same hoist plus local cost; 3 mode-1 x=j then four x*8 uses: 435 real558, removed literals but introduced move web; 4 explicit mode-4 scale identity: restored target call-time divwu but 434 real553 due extra li; 5 split mode-4 declaration initializers into target statement order: byte-identical to axis4, real553. All restored with probe.py --revert.",
+    "baseline_and_best": "target/current 433/433, fuzzy 92.1386%, real 516, frame 0xB8; no probe beat baseline",
+    "conclusion": "Park current STRUCTURAL/CSE_REGISTER_WEB residual. Count parity is exact, but target has addi+divwu+2 slwi where current has four li. Revisit only with a new cross-mode lifetime reconstruction that jointly prevents zero constant folding and quotient retention without adding moves.",
+    "history_veto": "Did not retry committed 96/88-byte frame pads, tblA/tblB/fmts alias and table-reload forms, mode-1 bid/lx interleave, return-type/sdata-label/pointer forms, or mode-2 color scheduling from commits 616f0664a, 69816ef65, 5b0d278c3, 9c5b95194, 07f45a54d, and 06e593d87.",
+    "law_screen": "Read full matching laws: table-lookup pre-keying (not a same-type SoA segment); declaration-initializer split (applied in axis5, neutral); independent-statement reorder (no independent local cluster remained); point-of-use single-use delay (bases are multi-use); chained-init constant share (no same-constant local pair); same-field second-site sensitivity (no field conversion); whole-function address cache (tblA/tblB/fmts already established by history); compare-form dictionary (branch compares already aligned); reload-vs-cache liveness (used to diagnose scale quotient retention, but no winning form). Final searches for `literal zero slwi addi cse` and `division recompute across call` found no additional law.",
+    "laws_applied": [
+      "claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1"
+    ],
+    "sibling_policy": "No sibling source changed. WebFrank-frozen dbgTextInit and fn_800C031C were not edited; their parked axes were untouched."
+  },
+  "function": "function:fn_800C03E0",
+  "id": "attempt.fn-800c03e0-wave2-closure.20260831.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T03:30:18Z",
+  "residual_class": "STRUCTURAL/CSE_REGISTER_WEB",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
