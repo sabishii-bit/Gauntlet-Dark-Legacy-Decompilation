@@ -403,17 +403,20 @@ static inline s32 TextLineHeight(char* s, s32 fh, s32 spacing)
 s32 StringTextHeightSub(f32 scale, StrList* p, s32 msg, s32 idx, s32 spacing)
 {
     MsgEnt* e = &p->msgs[msg];
+    FontDesc* fd = p->fontDesc;
     s32 fh;
     f32 lh;
     s32 total;
     s32 line;
-    u8 unused[32];
+    u32 color;
+    u8 unused[24];
 
+    color = fd[e->font].color;
     if (spacing < 0) {
         spacing = gLineSpacing;
     }
     lh = (f32)(scale * (f32)e->scale);
-    fh = (s32)((f32)MBFontHeight(p->fontDesc[e->font].color) * lh);
+    fh = (s32)((f32)MBFontHeight(color) * lh);
     total = 0;
     if (idx >= 0) {
         if (idx >= e->count) {
