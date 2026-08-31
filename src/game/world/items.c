@@ -1,6 +1,7 @@
 #include "types.h"
 #include "game/item.h"
 #include "game/enemy.h"
+#include "game/gamemode.h"
 #include "game/worldinfo.h"
 #include "game/worldobj.h"
 #include "game/player.h"
@@ -168,7 +169,7 @@ extern s32             sDeathIconAtree;
 extern s32             sChestAtree;
 extern u32            pbLoad;
 extern s32            gNumPlayers;
-extern u32            gGameMode;
+extern s32            gGameMode;
 extern s32            gGameOptions[12];
 extern char           sMaxItemsError[];
 extern s32            gNumType7Items;
@@ -982,7 +983,7 @@ s32 generate_now(Item* it, f32* pos, s32 a3, s32 a4)
     if (default_gen_count != 0 && a4 == 0) {
         return 0;
     }
-    if ((s32)gGameMode == 0x400C) {
+    if (gGameMode == MG_ROUND_START) {
         return 0;
     }
     if (DistanceToClosestPlayer(pos) > ITEM_ACTIVE_DIST) {
@@ -997,7 +998,7 @@ double DistanceToClosestPlayer(f32* position)
     u8 unused[16];
 
     best = sNoNearbyPlayerDistance;
-    if ((s32)gGameMode == 0x8008) {
+    if (gGameMode == MA_FLYBY) {
         f32 sphere[4];
         volatile f32 root;
         f32 distance;
@@ -2675,7 +2676,7 @@ void AddLocatorInstList(void)
             milestone->active = 1;
             break;
         case 6:
-            if ((s32)gGameMode != 0x400B) {
+            if (gGameMode != MG_PLAYER_SELECT) {
                 CreateYPRMatrix(boss_matrix, loc->pyr);
                 boss_matrix[12] = loc->pos[0];
                 boss_matrix[13] = loc->pos[1];

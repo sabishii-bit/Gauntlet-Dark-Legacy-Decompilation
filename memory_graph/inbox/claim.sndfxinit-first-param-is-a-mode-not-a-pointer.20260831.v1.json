@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "gGameMode conversion lane (worker GC), worktree GDL-Claude-GameModeConv, branch claude/ggamemode-conversion-20260831. Investigated as work-order item 3; evidence is the target disassembly (tools/gdl/fnasm.py game/audio/sndfx sndFxInit) plus a whole-tree caller sweep. No edit made to sndfx.c or attract.c.",
+    "scope": "src/game/audio/sndfx.c (sndFxInit, :214-217) and src/game/ui/attract.c (its six call sites and its lbl_80344290 declaration). Neither TU is this lane's; reported, not fixed.",
+    "tags": [
+      "symbol-identity",
+      "defake",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.sndfxinit-first-param-is-a-mode-not-a-pointer.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T17:11:33Z",
+  "schema_version": 1,
+  "subject": "tu:game/audio/sndfx",
+  "supersedes": "claim.gamemode-raw-site-inventory.20260831.v1",
+  "valid_from": "2026-08-31",
+  "value": "The sndfx.c anomaly flagged as item (a) of claim.gamemode-raw-site-inventory.20260831.v1 is NOT a misattributed symbol, and the two uses are NOT mutually inconsistent. The inventory's hypothesis is OVERTURNED on direct evidence; the real defect is a WRONG PARAMETER TYPE in sndfx.c's reconstruction. (1) The store is genuinely to gGameMode: the target disassembly of sndFxInit shows `stw r3,0(0) @gGameMode(EMB_SDA21)` at +0x1c, immediately after `stw r3,0(0) @lbl_80344290(EMB_SDA21)` at +0x18 -- the relocation resolves to gGameMode's own address 0x8034477C (config/GUNE5D/symbols.txt), so no symbol is misattributed and nothing needs renaming. (2) What is wrong is the signature. sndfx.c declares `void sndFxInit(void* a, void* b)` and is therefore forced to write the nonsense `gGameMode = (s32)a;`. Every caller in the tree passes a MODE CONSTANT as the first argument: src/game/ui/attract.c:365 and :370 pass 0x8009 (MA_TITLESCREEN), :588 passes 0x8000 (MA_CREDITS), :700 passes 0x8004 (MA_SCREEN2D), :1110 passes 0x8008 (MA_FLYBY), and :912 passes lbl_80344290 itself. So the first parameter is an e_mode value and the line is exactly right semantically -- sndFxInit sets the game mode as part of audio-core init, which is also why sndFxPaused()'s `gGameMode & 0x8000` group-bit test in the SAME file is consistent with it rather than contradicting it (every constant the callers pass is an MA_* id, i.e. has 0x8000 set). CORRECT DISPOSITION for the sndfx owner: retype the parameter to `s32` (or `enum e_mode`) and delete the `(s32)` cast, under the ordinary byte gate. TWO ADJACENT DEFECTS found in the same sweep, both in attract.c and both for that TU's owner: (i) lbl_80344290 is ALSO a mode-holding global -- attract.c:1015 switches on `(u32)(lbl_80344290 - 0x8000)`, which is the MA_ group base subtraction, and :1078 switches on it directly -- yet sndfx.c:156 declares it `extern void* lbl_80344290` while attract.c:206 declares it `extern int lbl_80344290`. That is a genuine cross-TU extern type conflict that tools/gdl/externcheck.py does NOT report, for the same reason it misses the items.c case: it flags only float/int-class conflicts, and pointer-vs-int is not in its rule set. Widening externcheck to pointer-vs-integer divergence would catch both. (ii) attract.c:68 declares `extern void sndFxInit();` unprototyped (K&R), which is why attract.c:1110 can call it with ONE argument while every other site passes two -- the missing prototype is silently hiding an arity mismatch. Fixing the signature without first fixing that declaration would turn a silent bug into a compile error, so the two must move together."
+}

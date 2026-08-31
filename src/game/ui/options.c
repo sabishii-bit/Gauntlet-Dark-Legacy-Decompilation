@@ -84,6 +84,7 @@
  */
 
 #include "types.h"
+#include "game/gamemode.h"
 #include "game/mbobject.h"
 #include "game/player.h"
 
@@ -278,7 +279,7 @@ extern u32 lbl_8034461C;    /* any-pad pressed mask */
 extern u32 lbl_80344620;    /* any-pad held mask */
 
 /* gamemain / world state */
-extern s32 gGameMode;    /* game state (0x8009 in-game, 0x4010 tower) */
+extern s32 gGameMode;    /* game state; see enum e_mode (MA_TITLESCREEN, MG_PLAY) */
 extern s32 lbl_803447B8;
 extern u32 sFlags;    /* pause/movie flags */
 extern u64 gControllerButtons;
@@ -668,7 +669,7 @@ int DoOptions(void)
 
     /* auto-open: any active player pressing START */
     if (options_state == OPTMENU_INACTIVE && good_wiz_enabled == 0 && opt_force_player < 0 &&
-        (gGameMode != 0x4010 || lbl_803447B8 == 0)) {
+        (gGameMode != MG_PLAY || lbl_803447B8 == 0)) {
         for (i = 0; i < 4; i++) {
             if (PREC(i, offsetof(Player, state), s32) == 1 &&
                 (PADREC(i, 8, u32) & 0x40000) != 0 &&
@@ -679,7 +680,7 @@ int DoOptions(void)
     }
 
     if (lbl_803445D8 != 0 &&
-        ((gGameMode != 0x4010 && gGameMode != 0x400C) || options_state != OPTMENU_INACTIVE)) {
+        ((gGameMode != MG_PLAY && gGameMode != MG_ROUND_START) || options_state != OPTMENU_INACTIVE)) {
         ticks_for_firescroll();
     }
 
@@ -1362,10 +1363,10 @@ s32 OptionsStart(s32 player)
     }
     optmenu_nochoice = 0;
     switch (gGameMode) {
-    case 0x8009:
+    case MA_TITLESCREEN:
         start_optmenu((OPTMENU*)(data + 0x338), player);
         break;
-    case 0x4010:
+    case MG_PLAY:
         if (sLastWorldLevel == sWorldDataConst) {
             start_optmenu((OPTMENU*)(data + 0x4F8), player);
         } else {
@@ -1523,8 +1524,7 @@ static void do_controlsmenu(OPTMENU* m, s32 player)
             u8* p = base + off;
             CTLBLIT* b = (CTLBLIT*)(p + 7640);
 
-            mbBlitCalcWidth(*(void**)(p + 7660), *(s32*)(p + 7644),
-                            *(s32*)(p + 7648), -1.0f);
+            mbBlitCalcWidth(*(void**)(p + 7660), b->x, b->y, -1.0f);
             mbBlitProject(b->blit, b->w, b->h);
         }
         SetDrawStringScale(OPTCTL_SCALE);
