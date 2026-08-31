@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "CODEX EXACT-DRIVE lane, whole TU src/game/mb/mb_blit.c exclusively: DrawBlit 98.23% has no function attempt and historical opcode parity; exact real-0 required, or reduce to one machine-proven named mechanism after full law screen. config/GUNE5D/webfrank.json remains foreign-owned and must not be edited. Portable C/C++ only; parallel fleets pick other TUs."
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:DrawBlit",
+  "id": "work_claim.codex-exact-drawblit.20260831.v1",
+  "kind": "work_claim",
+  "owner": "codex-drawblit-exact-worker",
+  "recorded_at": "2026-08-31T05:07:57Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

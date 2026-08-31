@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "codex-root",
+    "scope": "CODEX EXACT-DRIVE lane, whole TU src/game/world/tower.c exclusively: EnterTower 95.04% has no function attempt but older TU history/loop-law evidence must be screened; exact real-0 required, or reduce to one named mechanism with the complete law screen. Preserve foreign-owned include/game/player.h unchanged. Portable C/C++ only; parallel fleets pick other TUs."
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:EnterTower",
+  "id": "work_claim.codex-exact-tower.20260831.v1",
+  "kind": "work_claim",
+  "owner": "codex-tower-exact-worker",
+  "recorded_at": "2026-08-31T05:08:03Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
