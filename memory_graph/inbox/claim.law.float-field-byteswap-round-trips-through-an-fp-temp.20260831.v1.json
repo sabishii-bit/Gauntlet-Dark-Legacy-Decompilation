@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "Verified 2026-08-31 in the exact-drive lane on src/game/anim/atree.c::fn_8001267C (GameCube target 0x8001267C, 575 instructions). The node-info loop byte-swaps AtreeNodeDef.position, a genuine f32[3] at struct offset 0x20. Our reconstruction spelled all three swaps as `SWAP32(*(u32*)(ni + offsetof(AtreeNodeDef, position) + k*sizeof(f32)))`, giving a plain `lwz`/`stw` pair per component. fndiff --ops reported target-only `+6 lfs +6 stfs` against ours-only `+2 lwz` with the function 10 instructions SHORT - the multiset arithmetic is exact: 3 components x (2 lfs + 2 stfs) = the observed 6 and 6. Reading the aligned fnasm --diff at 0x5e8-0x6ac showed the target's per-component shape verbatim: `lfs f0,32(r4)` / `stfs f0,388(r1)` / `lwz r0,388(r1)` into the swap, then `stw r0,392(r1)` / `lfs f0,392(r1)` / `stfs f0,32(r4)` out of it - two DISTINCT 4-byte stack temps, one written as float and read as word, the other written as word and read as float. Introducing a SWAPF32 macro built on a `union { f32 f; u32 w; }` pair reproduced the shape and eliminated the entire lfs/stfs/lwz class from the multiset in one probe (42t -> 30t, count 565 -> 577 against target 575). The behaviour-preserving refactor that enabled it - splitting SWAP32(x) into SWAP32TO(d, s) with SWAP32(x) defined as SWAP32TO(x, x) - measured exactly NEUTRAL beforehand, confirming the two-union core is unchanged for existing call sites.",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py; applies to any endian-fixup or bit-manipulation routine that operates on a FLOAT-typed struct field, wherever fndiff --ops shows paired target-only lfs/stfs against ours-only lwz/stw at a site whose underlying field is f32.",
+    "tags": [
+      "matching",
+      "defake",
+      "alias-form",
+      "index-form",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.float-field-byteswap-round-trips-through-an-fp-temp.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T15:51:26Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "When the target byte-swaps (or otherwise word-manipulates) a field whose declared type is f32, MWCC moves the value through FLOATING-POINT loads and stores at BOTH ends, not through integer ones: the field is read with `lfs` into an FPR, spilled with `stfs` into a stack temp, and only then read as a word with `lwz`; on the way back the swapped word is written with `stw` to a SECOND stack temp, reloaded with `lfs`, and stored to the field with `stfs`. Cost is +2 lfs and +2 stfs per swapped component over the integer spelling. A reconstruction that reaches the same bytes by casting the ADDRESS - `*(u32*)&field` or `*(u32*)(base + offsetof(T, field))` - is semantically correct and looks equivalent, but it compiles to a bare lwz/stw pair and is structurally WRONG: it loses four instructions per component and, because those four are missing, drags the whole function's instruction count and register pressure off the target. The tell in fndiff --ops is unmistakable and quantitative: paired target-only `+N lfs +N stfs` where N is exactly twice the number of float components swapped, usually alongside a short instruction count. The fix is to make the value travel as a float in the SOURCE, via a union with both views - `union { f32 f; u32 w; } in, out; in.f = field; out.w = swap(in.w); field = out.f;` - which is idiomatic period C and not a fakematch. Two distinct temps, not one, are what the target shows, matching the two-union form. Generalization: this is the float-typed instance of a broader rule that MWCC's choice of load/store OPCODE follows the declared type of the lvalue actually named in the source, so recovering the real field TYPE is a structural matching lever and not merely reconstruction hygiene - resolve the field through the project header or `gdlmem.py struct` before spelling any word-level manipulation of it. Corollary for macro-based swap code: verify which functions actually expand the macro before reshaping it (here all 40 expansions were inside the one target function, while the exact sibling fn_80011DCC used a separate value-returning helper and the WebFrank-pinned AtreeInitSub used neither), because a shared swap macro otherwise looks frozen by its exact users when it is not."
+}
