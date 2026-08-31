@@ -2223,6 +2223,35 @@ def _probe_record_references(
                 entity_refs.append(record[optional])
     elif kind != "evidence":
         return
+    # Record-id citations must resolve at proposal time. Handoff quality
+    # depends on a successor being able to fetch every cited record in one
+    # `gdlmem record` call; a typoed or stale id rots silently otherwise
+    # (an unresolvable law-id citation shipped in a run brief before a
+    # worker caught it by hand). `supersedes` and the structured
+    # `attributes.laws_applied` list are both checked; free-text mentions
+    # in law_screen stay advisory.
+    cited: list[str] = []
+    if isinstance(record.get("supersedes"), str):
+        cited.append(record["supersedes"])
+    laws_applied = (
+        record.get("attributes", {}).get("laws_applied")
+        if isinstance(record.get("attributes"), dict) else None
+    )
+    if isinstance(laws_applied, str):
+        try:
+            laws_applied = json.loads(laws_applied)
+        except json.JSONDecodeError:
+            raise MemoryGraphError(
+                "attributes.laws_applied must be a JSON list of record ids"
+                " (or a JSON-encoded string of one)"
+            )
+    if laws_applied is not None:
+        if (not isinstance(laws_applied, list)
+                or not all(isinstance(law, str) for law in laws_applied)):
+            raise MemoryGraphError(
+                "attributes.laws_applied must be a JSON list of record ids"
+            )
+        cited.extend(laws_applied)
     ensure_database(root, db_path)
     with closing(open_database(root, db_path)) as connection:
         for key in entity_refs:
@@ -2231,6 +2260,18 @@ def _probe_record_references(
                     f"proposal references unknown entity {key!r}; use an existing"
                     " entity key, or a `function:<symbol>`/`tu:<module>` name that"
                     " resolves against the GameCube symbol import"
+                )
+        for cited_id in cited:
+            if cited_id == record.get("id"):
+                raise MemoryGraphError("a record cannot cite itself")
+            row = connection.execute(
+                "SELECT 1 FROM record_ingest WHERE record_id=?", (cited_id,)
+            ).fetchone()
+            if row is None:
+                raise MemoryGraphError(
+                    f"cited record id {cited_id!r} does not resolve (check"
+                    " supersedes / attributes.laws_applied for typos, or"
+                    " rebuild the graph if the record is new)"
                 )
         if kind == "evidence":
             table = "claim" if record.get("claim") else "edge"

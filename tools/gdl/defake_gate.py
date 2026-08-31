@@ -22,6 +22,16 @@ diagnosis doesn't need a separate command.
 regression and lists it; improvements are reported (and, with
 --update-improved, become the new baseline so later edits are gated against
 the better score).
+
+A real-count regression on a fuzzy function whose CURRENT opcode multiset is
+IDENTICAL to target at equal insn counts is reported as CONFLICT instead of
+REGRESSION: structure fully matches target and the extra real lines can be
+pure register-naming churn, which this gate's real-only score cannot see
+(two workers independently hit this: a genuine load-schedule win scored as
+real 100->104). CONFLICT still fails the gate by default -- arbitrate by
+reading the diff and objdiff fuzzy; pass --arbitrate to accept a checked
+CONFLICT-only result. Byte-exact functions are never eligible: any drift on
+a real-0 function stays REGRESSION.
 """
 
 import json
@@ -152,6 +162,36 @@ def compare(baseline, current):
     return verdicts
 
 
+def arbitrate_regressions(verdicts, unit):
+    """Downgrade real-growth REGRESSIONs to CONFLICT when the current state
+    is structurally target-identical (equal insn counts, IDENTICAL opcode
+    multiset): the growth can be pure naming churn invisible to `real`.
+    Never applies to functions that were byte-exact at baseline."""
+    bare_unit = re.sub(r"\.(c|cpp)$", "", unit)
+    out = []
+    for name, verdict, detail in verdicts:
+        growth = re.match(r"real (\d+) -> (\d+)$", detail)
+        if verdict != "REGRESSION" or not growth or growth.group(1) == "0":
+            out.append((name, verdict, detail))
+            continue
+        ops = subprocess.run(
+            [sys.executable, str(FNDIFF), bare_unit, name,
+             "--ops", "--no-build"],
+            capture_output=True, text=True,
+        ).stdout
+        identical = re.search(
+            r"opcode multiset: IDENTICAL \((\d+)/(\d+)\)", ops)
+        if identical and identical.group(1) == identical.group(2):
+            out.append((name, "CONFLICT",
+                        detail + " BUT opcode multiset IDENTICAL at equal"
+                        " insn counts — possible naming churn; arbitrate"
+                        " with the diff + objdiff fuzzy, do NOT auto-revert"
+                        " (pass --arbitrate to accept)"))
+        else:
+            out.append((name, verdict, detail))
+    return out
+
+
 def run_fndiff(unit, flag):
     result = subprocess.run(
         [sys.executable, str(FNDIFF), unit, flag],
@@ -179,6 +219,7 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     update_improved = "--update-improved" in sys.argv
     rebuild = "--rebuild" in sys.argv or "--build" in sys.argv
+    arbitrate = "--arbitrate" in sys.argv
     if len(args) != 2 or args[0] not in ("baseline", "check"):
         print(__doc__)
         return 2
@@ -213,9 +254,20 @@ def main():
         return 2
     baseline = json.loads(path.read_text(encoding="utf-8"))
     verdicts = compare(baseline, snap)
+    verdicts = arbitrate_regressions(verdicts, unit)
+    conflicts = [v for v in verdicts if v[1] == "CONFLICT"]
     regressions = [v for v in verdicts if v[1] == "REGRESSION"]
     for name, verdict, detail in verdicts:
         print(f"{verdict:10} {name}  {detail}")
+    if conflicts and not regressions and arbitrate:
+        print(f"GATE OK (arbitrated: {len(conflicts)} CONFLICT accepted —"
+              " record the arbitration in the attempt record)")
+        return 0
+    if conflicts and not regressions:
+        print(f"GATE FAILED: {len(conflicts)} CONFLICT — arbitrate (diff +"
+              " objdiff fuzzy), then re-run with --arbitrate to accept or"
+              " revert")
+        return 1
     if regressions:
         print(f"GATE FAILED: {len(regressions)} regression(s) — revert or fix"
               " before committing")
