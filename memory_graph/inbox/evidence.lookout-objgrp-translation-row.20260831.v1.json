@@ -1,0 +1,11 @@
+{
+  "claim": "claim.lookoutparam-is-objgrp-prefixed-lookout.20260831.v1",
+  "detail": "Four independent lines converge on 'a raw +0x30/0x34/0x38 read off one of these node/waypoint handles is a 4x4 world matrix's translation row', which is what makes the LOOKOUT=OBJGRP identification safe to act on. (1) PDB: `LOOKOUT` Size=0x6C = { objgrp@0x00 sz=104; next@0x68 sz=2; param@0x6A sz=2 }, and OBJGRP.worldmat is f32[4][4] at 0x00, so worldmat[3][0..2] lands exactly on 0x30/0x34/0x38. (2) GC self-consistency in enemy.c:6949-6951 -- `*(f32*)((u8*)e->shadow + 0x30) = e->objgrp.worldmat[3][0]` (and [1]/[2] to +0x34/+0x38): the SOURCE of the store is a named worldmat translation row and the DESTINATION is the same triple of raw offsets on a node handle, so both sides are the same concept. (3) GC self-consistency in critter.c CritterCollidePlayers -- `CopyMat3(floorResult, (f32*)c->shadow)` copies a matrix to the handle's base offset 0, then the very next statements write +0x30/+0x34/+0x38, and the value written to +0x34 is derived from `floorResult[13]`, i.e. index 13 == row 3 col 1 of the same 4x4 -- an internal cross-check that the destination triple is row 3. (4) The project header include/game/critter.h already annotates `void *shadow; /* 0x0C4 attached transform obj (->0x30 pos) */` and critter.c's own comment at the CritterAddAnim typedef already says 'node's matrix translation row (mbnode+0x30/0x34/0x38)' -- prior sessions had inferred the semantics but had no struct in scope to spell it with. Independent size corroboration for 0x6C: items.c declares `LookoutParam lookoutParams[20]` and enemy.c declares `extern u8 sLookoutParams[]` with the comment 'prowl-node table (stride 0x6C)'.",
+  "evidence_kind": "source-trace",
+  "id": "evidence.lookout-objgrp-translation-row.20260831.v1",
+  "kind": "evidence",
+  "locator": "src/game/enemy/critter.c:1912-1924 (CritterGetTarget), src/game/enemy/critter.c:4536-4541 (CritterRotate), src/game/enemy/enemy.c:6949-6951, include/game/enemy.h:85-91 (OBJGRP), python memory_graph/gdlmem.py struct lookout",
+  "recorded_at": "2026-08-31T02:20:34Z",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}

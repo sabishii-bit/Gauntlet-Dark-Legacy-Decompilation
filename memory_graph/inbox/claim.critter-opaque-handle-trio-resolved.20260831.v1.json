@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "work_claim.struct-pastend.20260831.v1, worktree GDL-Claude-StructPastEnd, branch claude/struct-pastend-20260831. Resolves the named residual list of attempt.critter-defakematch-tu-pass.20260831.v4. PDB lookups via `gdlmem.py struct mbnode|atree|effect|lookout` against the full 1958-record index; every adopted offset re-checked against the GC access width and the surrounding call semantics at the site before use.",
+    "scope": "GC GUNE5D; src/game/enemy/critter.c, src/game/enemy/enemy.c, src/game/world/items.c; include/game/mbobject.h, include/game/worldobj.h, include/game/effect.h (all READ, none modified)",
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "symbol-identity",
+      "walked-pointer"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.critter-opaque-handle-trio-resolved.20260831.v1",
+  "kind": "claim",
+  "predicate": "struct_layout",
+  "recorded_at": "2026-08-31T02:20:30Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/critter",
+  "valid_from": "2026-08-31",
+  "value": "All three recurring 'no struct established' blockers listed as residual in attempt.critter-defakematch-tu-pass.20260831.v4 are resolvable WITHOUT inventing any name, and two of them needed no new type at all -- the authority already existed in the project's own headers and nobody had looked. (1) MBNode/'c->mbnode+0x44/0x60', 'shadow/root/particle+0x30/0x34/0x38': this is include/game/mbobject.h's MBObject, already GC-verified in MBNewObject/DrawSortObjectsSub/AddDistObject, size 0x80, identical field-for-field to the PDB's `mbnode` (misc.h, 0x80): mat[4][4]@0x00, scale[4]@0x40, id@0x50, type@0x52, alpha@0x53, zsort_add@0x54, texaltidx@0x58, texchangeidx@0x5C, tex_shift_idx@0x5E, extra_byte@0x5F, flags@0x60, color@0x64, zmod@0x68, ambient_add@0x6A, index@0x6C, data@0x70, parent@0x74, child@0x78, next@0x7C. So +0x44 == scale[1], +0x60 == flags, +0x30/34/38 == mat[3][0..2] (translation row), +0x78 == child. The header even documents that mb_objects.c/mb_blit.c/mb_poly.c call this same 0x80 record MBObject/MBNODE/PolyContext respectively. (2) 'Atree header' / `atc+0xC/0x10` in CritterInitColnodes: this is the PDB's `atreeheader` (misc.h, 0x38) = seq@0x00, animheader@0x04, oanimheader@0x08, nodeinfo@0x0C, numnodes@0x10, numseqs@0x14, prefix[30]@0x18, model@0x36. game/effect.h ALREADY forward-declares `struct atreeheader` (it types EffectHeader.atree) but never completes it, so the body was completed file-locally in critter.c -- the only TU that reaches into it -- rather than in a shared header. (3) 'effectData+0x18' in CritterDoSfxSub: Effect.atree, already present at 0x18 in include/game/effect.h's Effect (0xF0), which critter.c already includes. BONUS, same class: the opaque 'surface'/'scene'/'*current' handle that recurs across critter.c, enemy.c AND items.c with the identical offset trio +0x10 (flags, tested &0x38 and &0x1000), +0x18 (parent) and +0x28 (nodeptr, passed straight to MBNodeSetParent) is include/game/worldobj.h's WorldObj (0x3C), whose every offset was already re-verified against GC asm in world.c. METHOD NOTE worth generalizing: two of these four 'blockers' were never PDB problems -- they were project-header lookup failures. Before completing an opaque type from the PDB, grep include/game/ for a struct with the same size and field shape; MBObject and WorldObj were both sitting there fully documented."
+}

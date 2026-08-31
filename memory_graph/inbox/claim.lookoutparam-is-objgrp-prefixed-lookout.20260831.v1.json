@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "work_claim.struct-pastend.20260831.v1, worktree GDL-Claude-StructPastEnd. Recovered by `python memory_graph/gdlmem.py struct lookout` against the FULL 1958-record PDB index (this record was invisible to the pre-2026-08-31 227-record index, which is why prior passes left the region opaque). Cross-checked field-by-field against include/game/enemy.h's independently GC-verified OBJGRP.",
+    "scope": "GC GUNE5D; include/game/item.h LookoutParam; Xbox shell3D.pdb record LOOKOUT; consumers items.c, enemy.c, gauntworld.c, tower.c",
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "walked-pointer"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.lookoutparam-is-objgrp-prefixed-lookout.20260831.v1",
+  "kind": "claim",
+  "predicate": "struct_layout",
+  "recorded_at": "2026-08-31T02:20:26Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/items",
+  "valid_from": "2026-08-31",
+  "value": "include/game/item.h's LookoutParam (0x6C) IS the Xbox PDB record `LOOKOUT` (misc.h, Size=0x6C), whose body is exactly { OBJGRP objgrp; s16 next; s16 param; } -- objgrp@0x00 (0x68), next@0x68, param@0x6A. This resolves the header's own standing comment that 'the preceding camera parameters remain opaque': the opaque `u8 data[0x30]` at 0x00 plus `f32 pos[3]` at 0x30 are NOT camera parameters at all, they are rows 0..2 of OBJGRP.worldmat[4][4] followed by its TRANSLATION ROW worldmat[3][0..2]. The full correspondence is: data[0x30]+pos[3]+_pad3C -> OBJGRP.worldmat[4][4] (0x00-0x40, pos == worldmat[3][0..2], _pad3C == worldmat[3][3]); saved_pos[3]+_pad4C -> OBJGRP.attn_pos[4] (0x40); saved_pos2[3]+_pad5C -> OBJGRP.coll_pos[4] (0x50); handle -> OBJGRP.node (struct mbnode*, 0x60); active -> OBJGRP.flags (0x64); next -> next (0x68); id -> param (0x6A). Every one of the four `_padNN[4]` fillers in the current reconstruction is the w-component of a vec4 -- they are not real padding. CONSEQUENCE for consumers: a raw `waypoint + 0x30/0x34/0x38` read is the node's world-matrix translation row and is correctly spelled offsetof(OBJGRP, worldmat[3][k]) on the raw base -- src/game/enemy/critter.c's CritterGetTarget and CritterRotate were converted exactly this way this session (byte-identical). NOT YET APPLIED to item.h itself: rewriting the member list would rename `pos`/`saved_pos`/`saved_pos2`/`handle`/`active` across a header included by 6 TUs, and embedding OBJGRP as a member is forbidden outright by claim.law.embedded-struct-member-whole-tu-cascade (aggregate-typed member in a widely-included header). The size is UNCHANGED at 0x6C either way, independently corroborated twice: items.c declares `LookoutParam lookoutParams[20]` and enemy.c declares `extern u8 sLookoutParams[]` commented 'prowl-node table (stride 0x6C)', so no array-stride consumer moves. A future pass may replace the opaque members with plain f32 arrays-of-scalars (worldmat[4][4]/attn_pos[4]/coll_pos[4]) which is cascade-law-safe, but must gate all 6 including TUs."
+}
