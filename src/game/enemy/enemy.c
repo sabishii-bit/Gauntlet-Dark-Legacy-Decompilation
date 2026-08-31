@@ -6847,12 +6847,14 @@ void do_enemies(void)
     }
 
     {
-        EnemyMovePage05* page = (EnemyMovePage05*)pool;
         f32 rate = gCurLevel->ene_speed * (f32)(u32)gFrameTicks;
 
         lbl_80344718 = 0;
         for (i = 0; i < 45; i++) {
-            page->speed[i] = rate * lbl_8011B878[i];
+            u8* dst = pool + i * 4;
+
+            *(f32*)(dst + offsetof(EnemyMovePage05, speed)) =
+                rate * lbl_8011B878[i];
         }
     }
 
