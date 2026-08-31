@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "GM header-owner lane, worktree GDL-Claude-GamemodeHdr, branch claude/gamemode-header-20260831. Work order 3 asked the player.h owner to model p+7644/7648/7660 in the pad_1CD4 run, citing shop.c as holding the field widths.",
+    "scope": "src/game/ui/options.c (NOT this lane's TU) and include/game/player.h pad_1CD4; no edit made.",
+    "tags": [
+      "symbol-identity",
+      "defake",
+      "workflow",
+      "offsetof-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.pad1cd4-7644-is-ctlblit-not-a-player-field.20260831.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T16:25:08Z",
+  "schema_version": 1,
+  "subject": "tu:game/ui/options",
+  "valid_from": "2026-08-31",
+  "value": "Work order 3 (model Player+7644/7648/7660 as named player.h fields in the pad_1CD4 run, 'shop's record has the widths') rests on two premises that are both FALSE, and executing it as written would have put WRONG names into the shared header. (1) The stated evidence source does not exist: src/game/shop/shop.c contains no record of these offsets or their widths -- it never references the pad_1CD4 region at all. (2) More importantly, these three offsets are NOT Player fields in their own right. The only consumer in the tree is src/game/ui/options.c:1526, `mbBlitCalcWidth(*(void**)(p + 7660), *(s32*)(p + 7644), *(s32*)(p + 7648), -1.0f)`, and the line IMMEDIATELY above it (options.c:1524) already establishes the correct model: `CTLBLIT* b = (CTLBLIT*)(p + 7640);`. CTLBLIT is an existing file-local typedef at options.c:209, size 0x18, `{char* name; s32 x; s32 y; s32 w; s32 h; void* blit;}`. The three offsets resolve exactly onto its members: 7644 = 7640+0x04 = b->x, 7648 = 7640+0x08 = b->y, 7660 = 7640+0x14 = b->blit. This is independently confirmed by the callee's own signature, declared at options.c:319 as `mbBlitCalcWidth(void* blit, s32 x, s32 y, f32 z)` -- the argument the site passes from +7660 is the blit handle and the two s32s are x and y, matching CTLBLIT's field roles one for one. options.c also already indexes the region as an ARRAY of CTLBLIT elsewhere (`&((CTLBLIT*)(data + 7640))[i]` for i < 3, at options.c:1115 and :1173), so the true shape at Player+7640 is CTLBLIT[3], not three loose scalars. CORRECT DISPOSITION: this is a one-line options.c conversion, not a player.h edit -- the site should read `mbBlitCalcWidth(b->blit, b->x, b->y, -1.0f)` using the `b` that is ALREADY in scope one line above, and it belongs to whichever lane owns game/ui/options. A player.h lane wanting to model the region later must model it as a CTLBLIT[3]-shaped member (and note that pad_1CD4 at 0x1CD4 has a checkpoint SHADOW at pad_3120/0x3120 of the identical 0x1E0 size, so any split there needs a symmetric split in the shadow). This is a further instance of AGENTS.md's rule 1(c): the authority was already inside the consuming TU, one line from the raw site."
+}

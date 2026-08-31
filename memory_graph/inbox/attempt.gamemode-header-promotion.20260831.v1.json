@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Work order 1: promote gamemain.c's anonymous file-local e_mode enum to a new shared include/game/gamemode.h, adopt it in gamemain.c, convert screensaver.c's gGameMode literal sites, and inventory (not convert) the remaining raw-hex gGameMode sites project-wide.",
+  "attributes": {
+    "law_screen": "claim.law.embedded-struct-member-whole-tu-cascade.20260831.v1: SCREENED, NOT APPLICABLE -- gamemode.h is pure enum text with no prototypes and no aggregate types, so no new aggregate type record is introduced into any TU; the cascade class cannot trigger. claim.law.raw-offset-form-supplies-value-identity-not-addressing-shape: APPLIED -- replacing a hex literal with an enum constant of the identical value is a value-identity respelling that constant-folds, byte-neutral by construction; gated anyway because the gate hashes bytes. claim.gamemode-enum-needs-a-header-owner.20260831.v1: this is the execution of that recorded opportunity. Pinned-function screen: config/GUNE5D/webfrank.json pins DoWorldAnimation AND ExpToLevel in game/game/gamemain -- NEITHER touched; no pin in game/ui/screensaver; every build re-applied the pins with no hash-drift abort.",
+    "laws_applied": "[\"claim.law.raw-offset-form-supplies-value-identity-not-addressing-shape\"]",
+    "residual": "NONE for the owned TUs. The enum is now shared; 135 raw-literal gGameMode sites across 16 OTHER TUs remain unconverted BY DESIGN (out of this lane's scope) and are inventoried in claim.gamemode-raw-site-inventory.20260831.v1 for the next wave.",
+    "scope": "NEW include/game/gamemode.h (82 lines, enum only); src/game/game/gamemain.c (deleted the 53-line file-local enum, added the include); src/game/ui/screensaver.c (4 literals -> MG_SHOP, MG_PLAYER_SELECT, MG_GAMEMOVIE, MG_ENDING, plus the include). 3 commits: b8da782f7, 378a4f226, edc1d3129.",
+    "verification": "Enum values RE-VERIFIED verbatim against research/xbox_symbols/misc.h enum e_mode (lines 16779-16830): all 49 constants match gamemain's prior transcription exactly. Two transcription notes now fixed in the header: the PDB declares MG_WORLD_SELECT BEFORE MG_ROUND_START (gamemain had sorted them numerically), and the PDB spells values in decimal (16395 = 0x400B, 16402 = 0x4012, 32768 = 0x8000 all confirmed). defake_gate baselines taken BEFORE any edit (gamemain 77 fns / 58 at real 0; screensaver 22 fns / 14 at real 0). After: defake_gate check --rebuild = GATE OK byte-identical on BOTH TUs. Full ninja -j2 green, build/GUNE5D/main.dol: OK, progress unchanged at 98.01% fuzzy / 59.74% matched (byte-neutral as predicted)."
+  },
+  "function": "function:do_stats_display",
+  "id": "attempt.gamemode-header-promotion.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T16:24:51Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
