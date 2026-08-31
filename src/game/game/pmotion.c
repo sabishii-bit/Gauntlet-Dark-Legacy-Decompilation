@@ -586,7 +586,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     }
 
     if (found == -1) {
-        f64 half = lbl_80347B00;
+        thresh = lbl_80347B00;
         for (j = 0; j < 4; j++) {
             i = (rand4 + j) % 4;
             if (i == playerIdx) {
@@ -623,7 +623,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             SV(p)->rot[0] = SV(other)->rot[0];
             SV(p)->rot[1] = SV(other)->rot[1];
             SV(p)->rot[2] = SV(other)->rot[2];
-            r = half + other->col_radius;
+            r = thresh + other->col_radius;
             k = 0;
             do {
                 pos[0] = other->effectpos[0];
