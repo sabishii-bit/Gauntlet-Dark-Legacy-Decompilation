@@ -999,16 +999,18 @@ void* AtreeMatch(atreeheader* hdr, char* name, s32 report)
 /* byte-order fixup helpers: the atree resource is little-endian on disk. */
 #define SWAP32TO(d, s)                                                        \
     do {                                                                      \
-        union {                                                               \
-            u32 w;                                                            \
-            u8 b[4];                                                          \
-        } _d, _s;                                                             \
-        _s.w = (s);                                                           \
-        _d.b[0] = _s.b[3];                                                    \
-        _d.b[1] = _s.b[2];                                                    \
-        _d.b[2] = _s.b[1];                                                    \
-        _d.b[3] = _s.b[0];                                                    \
-        (d) = _d.w;                                                           \
+        u32 _dw;                                                              \
+        u32 _sw;                                                              \
+        u8* _dp;                                                              \
+        u8* _sp;                                                              \
+        _sw = (s);                                                            \
+        _sp = (u8*)&_sw;                                                       \
+        _dp = (u8*)&_dw;                                                       \
+        _dp[0] = _sp[3];                                                      \
+        _dp[1] = _sp[2];                                                      \
+        _dp[2] = _sp[1];                                                      \
+        _dp[3] = _sp[0];                                                      \
+        (d) = _dw;                                                            \
     } while (0)
 
 #define SWAP32(x) SWAP32TO(x, x)
