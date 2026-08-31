@@ -2665,7 +2665,7 @@ s32 NextAttractWave(s32 worldLevel)
 
             originalLevel = level;
             numLevels = worldTable->worlds[worldIndex].numLevels;
-            levels = ((WorldDataNav*)gWorldData)->levels;
+            levels = gWorldData->levels;
 
             while ((levels[level].flags2 & 2) == 0) {
                 level++;
@@ -2715,10 +2715,10 @@ s32 PrevWorldLevel(s32 waveMask)
     if (waveMask == -1) {
         level = -1;
     } else {
-        level = ((WorldDataNav*)gWorldData)->curLevel - 1;
+        level = gWorldData->curLevel - 1;
         if (waveMask != 0) {
             while (level >= 0 &&
-                   (waveMask & ((WorldDataNav*)gWorldData)->levels[level].flags2) == 0) {
+                   (waveMask & gWorldData->levels[level].flags2) == 0) {
                 level--;
             }
         }
@@ -2766,16 +2766,16 @@ s32 NextWorldLevel(s32 waveMask)
     if (waveMask == -1) {
         level = 99;
     } else {
-        level = ((WorldDataNav*)gWorldData)->curLevel + 1;
+        level = gWorldData->curLevel + 1;
         if (waveMask != 0) {
-            while (level < ((WorldDataNav*)gWorldData)->numLevels &&
-                   (waveMask & ((WorldDataNav*)gWorldData)->levels[level].flags2) == 0) {
+            while (level < gWorldData->numLevels &&
+                   (waveMask & gWorldData->levels[level].flags2) == 0) {
                 level++;
             }
         }
     }
 
-    if (level >= ((WorldDataNav*)gWorldData)->numLevels) {
+    if (level >= gWorldData->numLevels) {
         level = 0;
         do {
             worldIndex++;
@@ -2824,7 +2824,7 @@ s32 fn_80057F44(s32 code, s32 mask)
             }
         } else {
             if (gWorldData != 0) {
-                if (sub >= ((WorldDataNav*)gWorldData)->numLevels) {
+                if (sub >= gWorldData->numLevels) {
                     sub = 0;
                 }
             } else {
