@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "INLINE-FRAME re-open screen (work_claim.inline-frame-sweep-b.20260831.v1): test whether draw_inventory_panel's 56-byte frame-bottom over-reservation is an inline-expansion artifact under claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1, a law that postdates the standing cap.",
+  "attributes": {
+    "axis_log": "B1 park-age-vs-law-age test, the required unpark discipline: the standing cap attempt.draw-inventory-panel-decl-reconstruction.20260831.v2 is recorded_at 2026-08-31T06:38:54Z; the inline-frame law is recorded_at 2026-08-31T19:01:29Z. The park PREDATES the law by 12.4 hours, so it is legitimately re-openable and was re-opened. B2 independent delta measurement (disassembly of both the dtk-split target object and our built object) reproduced the cap's own recovered stack map exactly and from a different direction: target low_gap 4, ours 60, delta -56 - matching the cap's 'TARGET = 8..12 unused, OURS = 8..68 unused' to the byte. B3 DECISIVE SCREEN, no build needed: draw_inventory_panel is defined at src/game/ui/screensaver.c:884, which lies INSIDE that TU's `#pragma dont_inline on` region spanning lines 834 to 1163. No function is inlined into it at all, so there are no inline-expansion frames to reserve and the new law's mechanism cannot be the cause of the 56 bytes. Confirmed independently: the TU contains no `static inline` helper of any kind. NO EDIT MADE.",
+    "law_screen": "claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1 SCREENED and found NOT APPLICABLE - see residual. claim.law.inline-frame-candidates-need-a-target-minus-ours-delta-census.20260831.v1 APPLIED (this function is the worked example of its dont_inline screening rule). claim.law.opt-lifetimes-off-slots-only-unregisterized-locals.20260831.v1 (authored by the standing cap) re-read and CONFIRMED - nothing here contradicts it. No edit was made, so no hazard-class law needed screening.",
+    "laws_applied": "[\"claim.law.inlined-callee-frames-reserve-dead-frame-bottom.20260831.v1\", \"claim.law.inline-frame-candidates-need-a-target-minus-ours-delta-census.20260831.v1\"]",
+    "residual": "Unchanged. The cap attempt.draw-inventory-panel-decl-reconstruction.20260831.v2 STANDS UNOVERTURNED and its do-not-retry conclusions remain in force; this record adds only that the inline-frame mechanism has now been screened and excluded, so future passes need not re-open it on that axis. The cap's own named remaining mechanisms are unaffected: the memory-homed `result`, the five base+index rematerialization clusters, and the single target-only lwzu at @cc; its stated next lever (reduce peak register pressure so the allocator stops reserving 14 spill words, or a WebFrank REGISTER_ONLY rule) is still the live one. MEASUREMENT RESOLUTION: min(referenced r1 displacement) - 8, resolving 4 bytes.",
+    "scope": "No files touched. Documentary re-open screen only.",
+    "verification": "No build required - the screen is a source-position fact (function line number vs pragma region) plus a disassembly measurement of already-built objects. Tree left clean."
+  },
+  "function": "function:draw_inventory_panel",
+  "id": "attempt.draw-inventory-panel-inline-frame-screen.20260831.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-08-31T20:00:35Z",
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-08-31"
+}
