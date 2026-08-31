@@ -414,6 +414,7 @@ s32 StringTextHeightSub(f32 scale, StrList* p, s32 msg, s32 idx, s32 spacing)
     }
     lh = (f32)(scale * (f32)e->scale);
     fh = (s32)((f32)MBFontHeight(p->fontDesc[e->font].color) * lh);
+    total = 0;
     if (idx >= 0) {
         if (idx >= e->count) {
             return 0;
@@ -421,7 +422,6 @@ s32 StringTextHeightSub(f32 scale, StrList* p, s32 msg, s32 idx, s32 spacing)
         return TextLineHeight(
             (char*)(p->textData + p->textOff[e->first + idx]), fh, spacing);
     }
-    total = 0;
     for (line = 0; line < e->count; line++) {
         total += TextLineHeight(
             (char*)(p->textData + p->textOff[e->first + line]), fh, spacing);
