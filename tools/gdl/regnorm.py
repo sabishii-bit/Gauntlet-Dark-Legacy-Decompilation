@@ -73,10 +73,23 @@ def main():
     unit = re.sub(r"\.(c|cpp)$", "", unit)
     target = fndiff.parse(Path(f"build/{VERSION}/obj/{unit}.o"))
     ours = fndiff.parse(Path(f"build/{VERSION}/src/{unit}.o"))
-    if fn not in target or fn not in ours:
-        print(f"missing: {fn} (target: {fn in target}, ours: {fn in ours})")
+
+    def resolve(table, name):
+        # allow a dtk _80XXXXXX suffix on either side (suffix mismatches
+        # made this tool unavailable for exactly its roster's functions)
+        if name in table:
+            return name
+        for cand in table:
+            if cand.startswith(name + "_80") or name.startswith(cand + "_80"):
+                return cand
+        return None
+
+    fn_t, fn_o = resolve(target, fn), resolve(ours, fn)
+    if fn_t is None or fn_o is None:
+        print(f"missing: {fn} (target: {fn_t is not None},"
+              f" ours: {fn_o is not None})")
         return 1
-    t, b = target[fn], ours[fn]
+    t, b = target[fn_t], ours[fn_o]
     pairs, t_only, b_only = aligned_pairs(t, b)
     renaming, structural = [], []
     mapping = {}

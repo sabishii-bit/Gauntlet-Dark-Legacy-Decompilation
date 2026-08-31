@@ -65,13 +65,34 @@ def main():
     unit = re.sub(r"\.(c|cpp)$", "", unit)
     target = fndiff.parse(Path(f"build/{VERSION}/obj/{unit}.o"))
     ours = fndiff.parse(Path(f"build/{VERSION}/src/{unit}.o"))
-    if fn not in target or fn not in ours:
-        print(f"missing: {fn} (target: {fn in target}, ours: {fn in ours})")
+    def resolve(table, name):
+        """Find `name` allowing a dtk `_80XXXXXX` suffix on either side —
+        the suffix mismatch made this tool unavailable for exactly the
+        functions one roster pointed it at."""
+        if name in table:
+            return name
+        for cand in table:
+            if cand.startswith(name + "_80") or name.startswith(cand + "_80"):
+                return cand
+        return None
+
+    fn_t, fn_o = resolve(target, fn), resolve(ours, fn)
+    if fn_t is None or fn_o is None:
+        print(f"missing: {fn} (target: {fn_t is not None},"
+              f" ours: {fn_o is not None})")
         return 1
-    t, o = target[fn], ours[fn]
+    t, o = target[fn_t], ours[fn_o]
     ts, os_ = slot_map(t), slot_map(o)
+    st, so = save_set(t), save_set(o)
+    if st != so:
+        # A save-set delta means an UNALLOCATED CALLEE-SAVED REGISTER, not
+        # a local slot — the single most decisive fact for slot work, and a
+        # worker mis-modeled a session by reading it as a scalar slot.
+        print(f"!! SAVE-SET DELTA: target {st} vs ours {so} — the residual"
+              " includes a callee-saved allocation difference, not (only)"
+              " local slots")
     print(f"frame: target {fndiff.frame_size(t)}  ours {fndiff.frame_size(o)}"
-          f"   saves: target {save_set(t)}  ours {save_set(o)}")
+          f"   saves: target {st}  ours {so}")
     only_t = sorted(set(ts) - set(os_))
     only_o = sorted(set(os_) - set(ts))
     count_diff = sorted(off for off in set(ts) & set(os_)

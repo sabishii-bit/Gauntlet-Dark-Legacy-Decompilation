@@ -89,13 +89,21 @@ def git_head():
     return result.stdout.strip() if result.returncode == 0 else None
 
 
-def bank_snapshot(unit, source):
+def bank_snapshot(unit, source, baseline=False):
     snap = snapshot_path(unit, source)
     shutil.copyfile(source, snap)
     head = git_head()
     if head:
         snap.with_suffix(snap.suffix + ".meta").write_text(
             json.dumps({"head": head}), encoding="utf-8")
+    # The FIRST baseline of a session is banked separately and never
+    # overwritten: NEUTRAL probes re-bank the rolling snapshot, so
+    # --revert restores the last neutral edit rather than the pristine
+    # state (five workers hit this). --revert-baseline reaches past that.
+    if baseline:
+        base = snap.with_suffix(snap.suffix + ".base")
+        if not base.exists():
+            shutil.copyfile(source, base)
 
 
 def main():
@@ -113,10 +121,25 @@ def main():
             snap = snapshot_path(unit, source)
             if snap.exists():
                 snap.unlink()
-            meta = snap.with_suffix(snap.suffix + ".meta")
-            if meta.exists():
-                meta.unlink()
+            for ext in (".meta", ".base"):
+                extra = snap.with_suffix(snap.suffix + ext)
+                if extra.exists():
+                    extra.unlink()
         print("probe state reset")
+        return 0
+    if "--revert-baseline" in sys.argv:
+        if source is None:
+            print(f"cannot revert: no src source found for {unit}")
+            return 1
+        base = snapshot_path(unit, source)
+        base = base.with_suffix(base.suffix + ".base")
+        if not base.exists():
+            print("no session baseline banked for this unit (the first"
+                  " BASELINE probe of a session banks it)")
+            return 1
+        shutil.copyfile(base, source)
+        print(f"restored {source} to the SESSION BASELINE (whole file —"
+              " uncommitted work on other functions in this TU is gone)")
         return 0
     if "--revert" in sys.argv:
         if source is None:
@@ -299,7 +322,8 @@ def main():
             or verdict.startswith("IMPROVED")
             or verdict.startswith("NEUTRAL")
             or verdict.startswith("REBASED")):
-        bank_snapshot(unit, source)
+        bank_snapshot(unit, source,
+                      baseline=verdict.startswith("BASELINE"))
         print(f"[revert point banked: probe.py {unit} {fn} --revert"
               " restores it]")
     elif source is not None and "--no-bank" in sys.argv:

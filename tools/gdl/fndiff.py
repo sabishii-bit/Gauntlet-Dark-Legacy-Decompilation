@@ -405,9 +405,21 @@ def clean_diff(name, t, b):
     tf, bf = frame_size(t), frame_size(b)
     if tf is not None and bf is not None and tf != bf:
         delta = tf - bf
-        hints.append(f"frame delta {delta:+d} -> try `u8 unused[{abs(delta)}]`"
-                     if delta > 0 else
-                     f"frame delta {delta:+d} -> our frame is BIGGER; drop {-delta}B of pad/locals")
+        ti_n, bi_n = len(instruction_lines(t)), len(instruction_lines(b))
+        if delta < 0 and ti_n > bi_n:
+            # A bigger target with a smaller frame means MISSING CODE on
+            # our side (C++ EH scaffolding is the known case), not excess
+            # pad — the "drop pad" hint sent a worker chasing the
+            # instrument on two dtors.
+            hints.append(f"frame delta {delta:+d} BUT target has"
+                         f" {ti_n - bi_n} MORE insns -> missing code"
+                         " (EH scaffolding?), NOT excess pad")
+        else:
+            hints.append(
+                f"frame delta {delta:+d} -> try `u8 unused[{abs(delta)}]`"
+                if delta > 0 else
+                f"frame delta {delta:+d} -> our frame is BIGGER;"
+                f" drop {-delta}B of pad/locals")
     cat = classify_function(t, b)
     status = "MATCH (pool-name noise only)" if real == 0 and raw else \
              "EXACT" if real == 0 else cat

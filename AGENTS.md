@@ -176,6 +176,32 @@ A search hit is evidence, not instruction: laws are compiler-scoped
 observations. Re-verify against your function's target bytes before applying
 one, and supersede the law if your target contradicts it.
 
+### Residual-work discipline (consolidated from runs 17-18, all measured)
+
+1. **Re-derive the mechanism from the aligned view before probing.** A
+   record's residual LABEL is usually trustworthy after the regnorm wave;
+   its prescribed CURE usually is not (3 of 6 cures on one measured roster
+   were wrong). Diagnosis transfers; prescriptions rot.
+2. **Census before probing for any residual seen twice.** Three sessions
+   probed a mechanism whose population (24, not 4) was never counted; the
+   20-minute census closed the class. If the same shape appears in two
+   functions, count it image-wide before touching source.
+3. **Arbiters by residual class:** slot/frame work -> `slotdiff.py` (real
+   actively fights the right answer); recolor claims -> `regnorm.py`
+   (STRUCTURAL rows need aligned-view confirmation — positional pairing
+   fabricates rows near unpaired insns); staleness -> `gdlmem stale`,
+   NEVER fndiff (fndiff scores the POSTPROCESSED object, so every
+   webfrank-pinned function reads real 0 by construction); metric
+   disagreements -> fuzzy from a FRESH successful report build.
+4. **Free evidence first:** the TU's own header comments (one carried the
+   correct diagnosis two passes missed); the target's function address
+   order (= source order); callee prototypes; `nm`/UND tables for link
+   claims. Read these before any build is spent.
+5. **A refuted premise is a deliverable.** When a lane's stated goal
+   evaporates under measurement, convert it into the refutation record
+   plus whatever the evidence actually supports — never execute a
+   premise you have measured false.
+
 Header edits (include/game/*.h): allowed ONLY to the lane whose work_claim
 names it as that header's owner this run — one owner per header per run.
 The owner follows the isolation protocol without exception: exact byte

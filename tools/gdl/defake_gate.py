@@ -282,8 +282,23 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate):
     for name, verdict, detail in verdicts:
         print(f"{verdict:10} {name}  {detail}")
     if conflicts and not regressions and arbitrate:
+        if update_improved:
+            # Law-sanctioned keep (fuzzy/slot arbitration): re-anchor the
+            # baseline over the arbitrated state so later checks gate
+            # against it, instead of leaving the override as an
+            # undocumented manual `baseline` re-run.
+            archive = path.with_suffix(".prev.json")
+            archive.write_text(path.read_text(encoding="utf-8"),
+                               encoding="utf-8")
+            path.write_text(json.dumps(snap, indent=2, sort_keys=True),
+                            encoding="utf-8")
+            print(f"GATE OK (arbitrated: {len(conflicts)} CONFLICT accepted;"
+                  " baseline RE-ANCHORED over the arbitrated state — record"
+                  " the arbitration + its metric in the attempt record)")
+            return 0
         print(f"GATE OK (arbitrated: {len(conflicts)} CONFLICT accepted —"
-              " record the arbitration in the attempt record)")
+              " record the arbitration in the attempt record; add"
+              " --update-improved to re-anchor the baseline on it)")
         return 0
     if conflicts and not regressions:
         print(f"GATE FAILED: {len(conflicts)} CONFLICT — arbitrate (diff +"
