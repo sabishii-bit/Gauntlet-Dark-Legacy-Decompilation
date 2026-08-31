@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "HARVEST lane, image-wide: functions at real<=60 with EQUAL insn counts and multiset 0-1t \u2014 the recolor/slot class. Census from report.json + fndiff; screen parks via gdlmem context + pins (VETO on recorded parks unless a NEW law post-dates the park \u2014 check dates); run the NEW tools/gdl/regnorm.py FIRST on every candidate: STRUCTURAL-PRESENT means the REGISTER_ONLY label was wrong (a semantic bug hid under one this run \u2014 displacements are invisible to multiset); fix structural findings from target bytes. For clean-renaming residuals check webfrank_audit eligibility (a rule = matched% win; you own webfrank.json for functions you close; surgical inserts only). For frame/slot diffs apply claim.law.stack-slots-descend-in-declaration-order.20260831.v1 (pads SPLIT never extended; inner blocks anchor at the bottom). Skip pmotion/atree/enemy TUs (other lanes). Commit per function; gate per TU; 3-attempt cap per axis; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:get_cam_dist",
+  "id": "work_claim.nearmiss-regnorm-harvest.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-NM",
+  "recorded_at": "2026-08-31T18:27:22Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

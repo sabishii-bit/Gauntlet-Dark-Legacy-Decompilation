@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXACT-DRIVE lane, src/game/game/pmotion.c, single target: get_player_pos real 242, STRUCTURAL 0 per the frame closure in attempt.get-player-pos-frame-closure-and-web-colour-table.20260831.v3 \u2014 READ ITS FULL 23-web colour table first, it is the map. The residual is ONE allocator packing decision: target packs other@block1 WITH k in r19 (they share because other@block1's web dies before k's next def); ours gives r19 to k alone, pushing other@block1 to r20 and shifting every later web one slot. Levers to steer the packing: make other@block1's lifetime end visibly earlier (block scope, re-declare per arm); merge other@block1 with an existing dying local (dead-local identity \u2014 destination must be CALLEE-SAVED); split `other` so block1's use is a separate declared pointer WITH a shorter span (note: a plain second-pointer split measured NEUTRAL+map-identical in v3 \u2014 your variant must change LIFETIME, not just identity). Use the NEW tools/gdl/regnorm.py (--map) as the arbiter after EVERY probe \u2014 real is blind here (three v3 probes were NEUTRAL on real but map-identical, the stronger kill). Dead axes in v3: r->sx merge, plain other split, float decl reorder. If the map goes CLEAN-RENAMING with a consistent bijection, webfrank_audit will derive the rule \u2014 land it (you own webfrank.json for this function; surgical text insert, NEVER json.dump round-trip); parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:get_player_pos",
+  "id": "work_claim.pmotion-packing-steer.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PM5",
+  "recorded_at": "2026-08-31T18:27:04Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "FLIP lane: linked files are 197/324 while matched is 61% \u2014 TUs sitting one or two functions short of all-exact are unclaimed linked% wins. Method: from build/GUNE5D/report.json (ninja it first), enumerate NonMatching TUs by count of non-EXACT functions (fndiff --classify per candidate); rank by fewest stragglers \u00d7 smallest real; MANDATORY screen each straggler with gdlmem context BEFORE probing (recorded parks are do-not-retry; a lane died on nine-for-nine parked this run) AND check data-section claims (winglobals law: a TU flips only with green data gates \u2014 literal-address forms in Matching TUs are correct, never symbolify). Drive the unparked stragglers with the current law corpus (inverted-guard for compare chains, stack-slots-descend declaration-order for frame diffs, regnorm.py as REGISTER_ONLY arbiter); flip any TU that goes all-exact via tools/gdl/finish_tu.py. Deliverable: flipped files > exact count. Respect every webfrank pin (screen webfrank.json per TU; pinned source is frozen unless you re-derive); parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-08-31",
+  "function": "function:InitEffects",
+  "id": "work_claim.flip-closest.20260831.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-FL",
+  "recorded_at": "2026-08-31T18:27:12Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-08-31"
+}
