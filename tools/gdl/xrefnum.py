@@ -46,7 +46,9 @@ def main():
         if not root.exists():
             continue
         for path in sorted(root.rglob("*.[ch]*")):
-            if path.suffix.lower() not in (".c", ".cpp", ".h"):
+            # src/Runtime.PPCEABI.H is a DIRECTORY that matches the glob
+            if not path.is_file() or path.suffix.lower() not in (
+                    ".c", ".cpp", ".h"):
                 continue
             text = COMMENT_RE.sub(
                 lambda match: re.sub(r"[^\n]", " ", match.group(0)),
