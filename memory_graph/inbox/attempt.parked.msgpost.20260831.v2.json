@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "run-6 new-angle screen of the parked REGISTER_ONLY residual: (1) array-index induction rewrite of the two gPlayers case-loops (items.c base+i*stride recipe) REGRESSED real 50->184 with +2 ours-only add (pointer-walk-array-index-regression confirmed for this walked accumulator); (2) decl-order swap of int last/int first REGRESSED 50->54 (lever is live, wrong direction); (3) arm assignment-order swap (last before first) NEUTRAL. Separately, symbol-identity alignment (gMsgLevels->lbl_80124E58 static, gJumpTab120240->lbl_80120240, g7C0->lbl_803447C0) was probe-NEUTRAL but removed 12 clean-diff reloc lines and two phantom undefined externs; committed 28ef1773e.",
+  "attributes": {
+    "axis_log": "v1 legacy park: bounded source-shape matrix + flag/pragma/compiler sweeps. v2 adds: array-index induction form REGRESSED; first/last decl-order swap REGRESSED; arm assign-order swap NEUTRAL; lbl_* symbol-identity alignment NEUTRAL-kept.",
+    "law_screen": "claim.law.literal-sweep-needs-lfd-stfd-tell-first: screened, no tell, no FP externs in TU - not applicable; claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell: residual is GPR web not FPR - not applicable; claim.law.pointer-walk-array-index-regression: APPLIED (predicted and explained probe-1 regression); claim.law.sizeof-defeats-loop-stride-induction: honored (kept literal 0x335C); claim.law.guard-polarity-restructure-fixes-count-parity-not-form: insn count already exact - not applicable; claim.law.cached-base-alias / recomputed-base-update-load-fuses-lwzu: no lwzu/add-fusion shape in target - not applicable; claim.law.declaration-initializer-split-controls-entry-schedule: motivated probe 2.",
+    "laws_applied": "[\"claim.law.pointer-walk-array-index-regression.20260830.v1\", \"claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1\"]",
+    "residual": "real 50 = one r26(T)/r29(O) descOffset web + 2-insn addi r25,r25,64 vs addi r28 swap at entry + one whole r3/r4/r5 rotation across both case-2/default gPlayers loops (~34 lines) + sFlags vs gControllerButtons+0x4 reloc display (bytes identical, probe-invisible). Opcode streams identical 387/387.",
+    "scope": "src/game/ui/message.c msgPost only; symbol renames TU-wide (commit 28ef1773e)",
+    "verification": "probe.py A/B per axis, each regressor reverted; final state real 50 insns 387/387; full ninja green at session end"
+  },
+  "function": "function:msgPost",
+  "id": "attempt.parked.msgpost.20260831.v2",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T04:25:38Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.msgpost.20260829.v1",
+  "valid_from": "2026-08-31"
+}

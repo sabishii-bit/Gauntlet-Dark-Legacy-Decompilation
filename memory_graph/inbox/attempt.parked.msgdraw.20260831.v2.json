@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "run-6 new-angle screen of the parked SCHEDULE residual: de-literalization of the FP scale constants (target relocates named lbl_80348618/lbl_8034861C, ours anonymous @@ pool). Probe 1: extern f32 lbl_80348618 read at the swapped StringTextHeight(scale, desc->type,...) site only - NEUTRAL, cluster byte-identical. Probe 2: extern-ize ALL 6x 1.0f + 2x 1.25f sites in msgDraw (FPR-allocation whole-web angle) - NEUTRAL, clusters byte-identical. Two identical A/Bs kill the literal/extern axis for this function.",
+  "attributes": {
+    "axis_log": "v1 legacy park: y+=20/type-scale staging, assignment-in-argument, inline helpers, scoped lifetimes/CSE - tie or regress. v2 adds: single-site extern f32 NEUTRAL; whole-function extern f32 sweep NEUTRAL (identical clusters both, axis dead).",
+    "law_screen": "claim.law.literal-sweep-needs-lfd-stfd-tell-first: screened, --ops multiset IDENTICAL, no lfd/stfd tell - excluded structural class; claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell: motivated both probes (class-2 allocation angle) - measured inert here because every constant use is a call argument reloaded per site in target too, so extern spelling changes no liveness; claim.law.f64-pool-literal-substitution-diverges-from-f32: f32-only TU, honored; claim.law.tu-wide-literalization-breaks-matched-sibling-pool-relocs: respected by scoping edits to msgDraw only (siblings kept literals, msgWidth stayed real 0); claim.law.guard-polarity: count parity already exact - not applicable.",
+    "laws_applied": "[\"claim.law.literal-sweep-pays-on-fpr-allocation-without-the-lfd-tell.20260831.v1\"]",
+    "residual": "real 14 = (a) addi r3,r3,20 for DrawStringText(y+0x14,...) scheduled 3 slots early vs target's last-before-bl placement; (b) lfs f1(scale)/lwz r3(desc->type) order swap before StringTextHeight; (c) r29(T)/r25(O) lineHeight web over 5 sites. Opcode multiset IDENTICAL 314/314.",
+    "scope": "src/game/ui/message.c msgDraw only; all probes reverted",
+    "verification": "probe.py A/B per axis; probe --revert restored baseline; final real 14 insns 314/314"
+  },
+  "function": "function:msgDraw",
+  "id": "attempt.parked.msgdraw.20260831.v2",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-08-31T04:25:39Z",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.msgdraw.20260829.v1",
+  "valid_from": "2026-08-31"
+}
