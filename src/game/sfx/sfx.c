@@ -1471,6 +1471,8 @@ s32 SuicideExplosion(f32* pos, f32 dmg)
 #pragma opt_propagation reset
 
 extern f32 lbl_803480FC;        /* death power preset */
+extern f64 lbl_803480F0;        /* death launch velocity factor */
+extern f32 lbl_803480F8;        /* death timer preset */
 extern void MBTreeSetZsortAdd(struct mbnode* node, s32 v, s32 a);
 extern void MBTreeSetAlpha(struct mbnode* node, s32 v, s32 a);
 
@@ -1482,7 +1484,7 @@ static void SetEnemyDeathParams(u8* base, s32 idx, s32 tf)
         if ((tf & 15) >= 5) {
             tf &= ~0xC;
         }
-        mp->power = 50.0f;
+        mp->power = lbl_803480FC;
         mp->flags = tf;
         mp->scale = 0.0f;
         mp->timer = 0.0f;
@@ -1524,9 +1526,9 @@ s32 StartEnemyDeathFX(u8* en)
         fxp = base + off;
         *(s32*)(fxp + 3072) = 88;
     }
-    v[2] = (f32)(20.0 * *(f32*)(ep + 32));
-    v[3] = (f32)(20.0 * *(f32*)(ep + 36));
-    v[4] = (f32)(20.0 * *(f32*)(ep + 40));
+    v[2] = (f32)(lbl_803480F0 * *(f32*)(ep + 32));
+    v[3] = (f32)(lbl_803480F0 * *(f32*)(ep + 36));
+    v[4] = (f32)(lbl_803480F0 * *(f32*)(ep + 40));
     if (idx >= 0) {
         Effect* e;
         q = base + idx * 240;
@@ -1541,7 +1543,7 @@ s32 StartEnemyDeathFX(u8* en)
             YawMat3(e->node, yaw);
         }
         e->weight = 0.0f;
-        e->colrad = 3.0f;
+        e->colrad = lbl_803480F8;
     }
     SetEnemyDeathParams(base, idx, 0x100020);
     if (idx >= 0) {
@@ -1549,7 +1551,7 @@ s32 StartEnemyDeathFX(u8* en)
         ((EffectPage*)r)->fx[0].fxmorph = 89;
         ((EffectPage*)r)->fx[0].fxmorph2 = -1;
         ((EffectPage*)r)->fx[0].flags |= 0x4000;
-        ((EffectPage*)r)->fx[0].morphtime = 3.0f;
+        ((EffectPage*)r)->fx[0].morphtime = lbl_803480F8;
     }
 done:
     return idx;
@@ -2216,21 +2218,21 @@ s32 fn_800945D0(f32* pos, f32* mat, s32 idx, s32 alt, s32 kind, f32 scale)
         } else {
             tid = tbl->kindidE[t];
         }
-        rad = (f32)(0.5 * scale);
+        rad = (f32)(lbl_803480B0 * scale);
     } else if (kind == 29 || kind == 5 || lbl_8034482C != 0) {
         if (alt != 0) {
             tid = tbl->kindidB[t];
         } else {
             tid = tbl->kindidA[t];
         }
-        rad = 1.0f;
+        rad = lbl_803480A0;
     } else {
         if (alt != 0) {
             tid = tbl->kindidD[t];
         } else {
             tid = tbl->kindidC[t];
         }
-        rad = (f32)(0.5 * scale);
+        rad = (f32)(lbl_803480B0 * scale);
     }
     if (tid == 4) {
         next = lbl_80344BD0 + 1;
@@ -2249,7 +2251,7 @@ s32 fn_800945D0(f32* pos, f32* mat, s32 idx, s32 alt, s32 kind, f32 scale)
     } else {
         EffectHeader* hdr = &page->info[tid];
         if (hdr->atree != NULL) {
-            ret = StartFXTree(hdr->atree, pos, 0, 0x880, 0.0f);
+            ret = StartFXTree(hdr->atree, pos, 0, 0x880, lbl_80348068);
             if (ret >= 0) {
                 s32 ro = ret * 240;
                 MBTreeSetZsortAdd(page->fx[ret].node, hdr->zmod, 1);
@@ -2281,7 +2283,7 @@ s32 fn_800945D0(f32* pos, f32* mat, s32 idx, s32 alt, s32 kind, f32 scale)
         }
         MBTreeSetZsortAdd(
             e->node,
-            (s32)(0.5 + rad * (f32)page->info[t].zmod), 1);
+            (s32)(lbl_803480B0 + rad * (f32)page->info[t].zmod), 1);
     }
     return ret;
 }

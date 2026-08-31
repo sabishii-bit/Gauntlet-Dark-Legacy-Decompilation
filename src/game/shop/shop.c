@@ -769,6 +769,10 @@ extern char lbl_80348390[8]; /* stat row 4 label      */
 extern char lbl_80348398[4]; /* health label line 1   */
 extern char lbl_8034839C[8]; /* health label line 2   */
 extern s32 lbl_80122F30[];  /* per-player panel base x */
+extern f32 lbl_80348330;    /* stat row text scale   */
+extern f32 lbl_80348378;    /* level number scale    */
+extern f32 lbl_8034837C;    /* level name scale      */
+extern f64 lbl_803483A8;    /* health-per-level      */
 
 /* Level-up / level-intro panel for one shop player; returns 1 when the
  * player confirms past it. */
@@ -794,7 +798,7 @@ static s32 shop_show_lv(u8* pl, s32 final)
     f32 d4;
     char buf[20];
 
-    kScale = 0.48f;
+    kScale = lbl_80348330;
     exps = pl + *(s32*)(pl + offsetof(Player, character)) * 24 + PCLASS_EXP_CKPT_OFF;
     fmts = lbl_80114918;
     x1 = lbl_80122F30[*(s32*)pl] + 8;
@@ -825,9 +829,9 @@ static s32 shop_show_lv(u8* pl, s32 final)
     }
     sprintf(buf, fmts + 196, *(s32*)(pl + offsetof(Player, level)));
     if (anim != 0) {
-        DrawGlowText(0.75f, -xcol, 32, buf);
+        DrawGlowText(lbl_80348378, -xcol, 32, buf);
     } else {
-        DrawTextKeepScale(0.75f, -xcol, 32, 6, 0xFFFFFF, buf);
+        DrawTextKeepScale(lbl_80348378, -xcol, 32, 6, 0xFFFFFF, buf);
     }
     {
         s32 lv = *(s32*)(pl + offsetof(Player, level));
@@ -841,7 +845,7 @@ static s32 shop_show_lv(u8* pl, s32 final)
             name = GetStringListText(0, *(s32*)(pl + offsetof(Player, character)), tens >> 1, 0);
         }
         xcol = -xcol;
-        DrawTextKeepScale(0.6f, xcol, 64, 6, 0xFFFFFF, name);
+        DrawTextKeepScale(lbl_8034837C, xcol, 64, 6, 0xFFFFFF, name);
     }
     {
         s32 old = *(s32*)(pl + offsetof(Player, level));
@@ -937,7 +941,7 @@ static s32 shop_show_lv(u8* pl, s32 final)
     } else {
         s32 v = (s32)player_max_health(pl);
         if (final == 0) {
-            v = (s32)(v - 100.0 * (*(s32*)(pl + offsetof(Player, level)) - lvl));
+            v = (s32)(v - lbl_803483A8 * (*(s32*)(pl + offsetof(Player, level)) - lvl));
         }
         sprintf(buf, lbl_80348338, v);
         DrawTextKeepScale(kScale, x2, 196, 6, 0xFFFFFF, buf);
@@ -963,9 +967,9 @@ static s32 shop_show_lv(u8* pl, s32 final)
             return 1;
         }
         MBNewTempBlit(lbl_80344E48, x1 + 8, 280, 16, 16);
-        DrawGlowText(0.5f, x1 + 32, 280, fmts + 184);
+        DrawGlowText(lbl_80348360, x1 + 32, 280, fmts + 184);
     }
-    DrawTextKeepScale(0.45f, xcol, 8, 6, 0, lbl_80348368);
+    DrawTextKeepScale(lbl_80348364, xcol, 8, 6, 0, lbl_80348368);
     return 0;
 }
 
@@ -2185,7 +2189,7 @@ void calc_shop_ypos(s32 player)
     u8* entry;
     s32 i;
     s32 y;
-    f64 scale = 0.5;
+    f64 scale = lbl_80348428;
 
     p = (u8*)gPlayers + player * 13148;
     ypos = &lbl_8028A520[player << 6];
