@@ -544,7 +544,7 @@ void DoPlayerAction(void* player)
     s32* p = (s32*)player;
     Player* pl = (Player*)player;
     f32* pf = (f32*)player;
-    f32* atree = (f32*)((u8*)player + 0x80);
+    animinfo* atree = (animinfo*)((u8*)player + 0x80);
     void* node = (u8*)player + 0x7C;
     ACTIONDEF* defs = (ACTIONDEF*)((u8*)player + 0x210);
     char** action_names = lbl_80126C68;
@@ -728,7 +728,7 @@ void DoPlayerAction(void* player)
         }
         mbobj = pl->weaphold_node;
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
-            if (atree[6] < 2.0f) {
+            if (atree->frame < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
             } else {
                 MBTreeClearFlags(mbobj, 2, 0);
@@ -745,7 +745,7 @@ void DoPlayerAction(void* player)
         }
         mbobj = pl->weaphold_node;
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
-            if (atree[6] < 2.0f) {
+            if (atree->frame < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
             } else {
                 MBTreeClearFlags(mbobj, 2, 0);
@@ -762,7 +762,7 @@ void DoPlayerAction(void* player)
         }
         mbobj = pl->weaphold_node;
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
-            if (atree[6] < 2.0f) {
+            if (atree->frame < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
             } else {
                 MBTreeClearFlags(mbobj, 2, 0);
@@ -779,7 +779,7 @@ void DoPlayerAction(void* player)
         }
         mbobj = pl->weaphold_node;
         if (mbobj != 0 && (p[2] & 3) != 2 && p[2] != 3) {
-            if (atree[6] < 2.0f) {
+            if (atree->frame < 2.0f) {
                 MBTreeSetFlags(mbobj, 2, 0);
             } else {
                 MBTreeClearFlags(mbobj, 2, 0);
@@ -836,7 +836,7 @@ void DoPlayerAction(void* player)
     case 0x20:
         if (atkNext >= 0xB || (u32)(atkNext - 9) <= 1) {
             mode = 2;
-            frame = (s32)(0.5 + atree[6]);
+            frame = (s32)(0.5 + atree->frame);
         } else {
             act = 0x21;
         }
@@ -885,7 +885,7 @@ void DoPlayerAction(void* player)
             } else {
                 act = 0x3C;
             }
-        } else if (flags != 0 && atree[6] <= 2.0 &&
+        } else if (flags != 0 && atree->frame <= 2.0 &&
                    (p[0x243] & 1U) != 0) {
             act = cur == 0x2A ? 0x29 : 0x28;
             mode = 2;
@@ -1151,17 +1151,17 @@ void DoPlayerAction(void* player)
     case 0x5C:
         if (atkNext > 1 && atkNext != 9 && atkNext != 10) {
             mode = 2;
-            frame = (s32)(0.5 + atree[6]);
+            frame = (s32)(0.5 + atree->frame);
         } else if (atkNext == 7) {
             mode = 2;
-            frame = (s32)(0.5 + atree[6]);
+            frame = (s32)(0.5 + atree->frame);
         } else if (cur == 0x73 || cur == 0x75) {
             mode = 2;
         } else if (cur == 0x65) {
             mode = 2;
-            frame = (s32)(0.5 + atree[6]);
+            frame = (s32)(0.5 + atree->frame);
         } else {
-            if (cur != 0x5B && atree[6] >= 2.0f) {
+            if (cur != 0x5B && atree->frame >= 2.0f) {
                 mode = 2;
                 act = dance ? 0x60 : 0x5F;
             } else {
@@ -1191,10 +1191,10 @@ void DoPlayerAction(void* player)
     case 0x66:
         if (atkNext > 1 && atkNext != 9 && atkNext != 10) {
             mode = 2;
-            frame = (s32)(0.5 + atree[6]);
+            frame = (s32)(0.5 + atree->frame);
         } else if (atkNext == 7) {
             mode = 2;
-            frame = (s32)(0.5 + atree[6]);
+            frame = (s32)(0.5 + atree->frame);
         } else if (cur == 0x73 || cur == 0x75) {
             mode = 2;
         } else if (cur == 0x65) {
@@ -1260,7 +1260,7 @@ void DoPlayerAction(void* player)
     case 0x7A:
         didt = 1;
         if (cur == 0 ||
-            (atree[6] < 10.0f && *(u16*)((u8*)atree + offsetof(animinfo, stage)) == 0)) {
+            (atree->frame < 10.0f && atree->stage == 0)) {
             mode = 0;
         } else {
             mode = 2;
@@ -1475,7 +1475,7 @@ void DoPlayerAction(void* player)
         }
         break;
     }
-    *(s16*)((u8*)atree + offsetof(animinfo, repeat)) = (s16)didt;
+    atree->repeat = (s16)didt;
     {
         s32 rawSeq = defs[d].seq;
         if (rawSeq < 0) {
@@ -1487,24 +1487,24 @@ void DoPlayerAction(void* player)
     /* per-action animation speed */
     if ((*(s16*)((u8*)p + offsetof(Player, hud_flags)) & 0xD0) != 0 || atkNext >= 0xB ||
         atkNext == 1) {
-        atree[10] = 1.0f;
+        atree->animscale = 1.0f;
     } else if ((act >= 0x58 && act <= 0x5A) ||
                (act >= 0x88 && act <= 0x93)) {
-        atree[10] = 1.0f;
+        atree->animscale = 1.0f;
     } else if ((p[0x235] & 0x8000U) != 0 && act >= 0x82) {
-        atree[10] = 2.0f;
+        atree->animscale = 2.0f;
     } else if ((p[0x47] & 0x20000000U) != 0 &&
                (u32)(atkNext - 9) <= 1) {
-        atree[10] = 0.75f;
+        atree->animscale = 0.75f;
     } else if (act == 0x78) {
-        atree[10] = (f32)(0.2 * pf[0x42]);
-        if (atree[10] < 0.25) {
-            atree[10] = 0.25f;
+        atree->animscale = (f32)(0.2 * pf[0x42]);
+        if (atree->animscale < 0.25) {
+            atree->animscale = 0.25f;
         }
     } else if ((p[0x49] & 0x10000U) != 0) {
-        atree[10] = 0.75f;
+        atree->animscale = 0.75f;
     } else {
-        atree[10] = 1.0f;
+        atree->animscale = 1.0f;
     }
 
     adv = DoAnimateTree(speed, node, seq, frame, mode, 1);
@@ -1799,7 +1799,7 @@ void DoPlayerAction(void* player)
             pf[0x293] = 0.0f;
             pf[0x295] = 0.0f;
         } else if (cur >= 0x57) {
-            if (p[2] == 6 && atree[6] > 11.0f) {
+            if (p[2] == 6 && atree->frame > 11.0f) {
                 pf[0x293] = 0.0f;
                 pf[0x292] = 0.0f;
             } else {
@@ -1903,8 +1903,8 @@ void DoPlayerAction(void* player)
                          action_names[cur], action_names[act],
                          action_names[next], mode, rpt, didt);
         dbgTextPrintfCol(1, 0x1D, "  SEQ:%s  frame:%.1f/%d",
-                         (char*)(*(s32*)atree + *(s16*)((u8*)atree + offsetof(animinfo, animseq)) * 0x30),
-                         atree[6], (s32)*(s16*)((u8*)atree + offsetof(animinfo, numframes)));
+                         (char*)((s32)atree->seqheader + atree->animseq * 0x30),
+                         atree->frame, (s32)atree->numframes);
     }
 
     if (adv != 0) {
