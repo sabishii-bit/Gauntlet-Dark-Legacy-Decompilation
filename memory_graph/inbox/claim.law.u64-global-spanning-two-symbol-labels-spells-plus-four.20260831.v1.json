@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "Verified twice in the exact-pb-mb lane, 2026-08-31, in two unrelated TUs. (1) src/game/pb/pb_texture.c::fn_800C70C8 reached probe real 0 with fndiff --clean still printing 8 lines, every one of them `R_PPC_EMB_SDA21 <local>` vs `<local>+0x4`: the TU declares `extern u64 lbl_803450D8` and `extern u64 lbl_803450E0` (a 47-region residency/lock mask pair, genuinely 64-bit - __shl2i(0,1,region) is a real 64-bit shift and 0x2f > 32 bits), while config/GUNE5D/symbols.txt declares FOUR separate `size:0x4 data:4byte` .sbss objects at 0x803450D8/DC/E0/E4. (2) src/game/pb/pb_diag.c::pbDiagDrawObject +0x25c reads `sFlags` in the target and `gControllerButtons+0x4` in our object; symbols.txt has gControllerButtons = .sbss:0x803445C8 size:0x4 and sFlags = .sbss:0x803445CC size:0x4, while pb_diag.c declares `extern u64 gControllerButtons` - and `gControllerButtons & 1` needs only the low word, which on big-endian PPC is 0x803445CC. Both cases were arbitrated by address arithmetic, not by rebuilding: symbol+addend resolves to the identical address, and EMB_SDA21 encodes (address - _SDA_BASE_) into the displacement field, so the emitted instruction words are equal.",
+    "scope": "MWCC GC 1.2.5 family, any TU declaring a 64-bit (or otherwise multi-word) global whose storage is covered by MORE THAN ONE label in config/GUNE5D/symbols.txt. Diagnostic only - it tells you when a fndiff --clean residual is NOT a codegen gap. It does NOT license splitting the C declaration to chase the name.",
+    "tags": [
+      "matching",
+      "symbol-identity",
+      "sda-global",
+      "relocation",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.u64-global-spanning-two-symbol-labels-spells-plus-four.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T06:48:07Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "When a TU declares one multi-word global (typically `extern u64 X`) over storage that config/GUNE5D/symbols.txt splits into several 4-byte labels, any access to a non-first word emits the relocation as `X+0xN` while the TARGET listing names the covering label directly (`Y`, where Y == X+N). fndiff --clean reports these as real diff lines and probe.py's raw `real` does not, because the addresses - and therefore the encoded EMB_SDA21/ADDR16 displacements and the final bytes - are IDENTICAL. This is the 'real 0 with only a verified symbol-name normalization issue' case in AGENTS.md and counts as EXACT; verify it by arithmetic (look up both labels in symbols.txt and confirm X+N == Y), never by a rebuild. Do NOT split the C declaration into per-word scalars to make the names agree: in both verified instances the wide type was semantically correct (a >32-bit mask, a 64-bit shift via __shl2i), the split would be a fakematch that damages every other site in the TU, and it buys no bytes. The residual belongs to symbols.txt granularity, not to the source; if it is ever worth closing, the correct fix is a symbols.txt data-layout correction owned by the integrator, not a source edit."
+}

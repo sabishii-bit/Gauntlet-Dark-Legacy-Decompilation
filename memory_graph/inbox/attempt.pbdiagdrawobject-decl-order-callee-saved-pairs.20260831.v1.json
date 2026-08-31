@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Exact-drive re-screen of the stale bulk-import park. Saved-register set already matched (`stmw r24,80(r1)` both sides), so the residual was a pure callee-saved permutation. Aligned-fnasm decode resolved it into four independent two-web swaps; the largest - the object-view pointer `obj` and the column counter `x` holding each other's register (target obj=r26/x=r27, ours obj=r27/x=r26, 14 of 29 rows) - was closed by swapping their DECLARATION order.",
+  "attributes": {
+    "law_screen": "claim.law.dead-local-identity-reuse-flips-callee-saved-coloring SCREENED and correctly classified the residual as paired callee-saved webs; the declaration-order lever it implies WORKED here (real 58 -> 28) where it had failed in sibling pbDiagDrawTexture - the discriminant is that this function carries a scoped `#pragma opt_lifetimes off`, under which MWCC colours callee-saved webs in declaration order. claim.law.declared-alias-vs-repeated-cast SCREENED and then CONFIRMED the hard way: merging the `gd`/`gdi` aliases of gDiagData into one local with a cast at the single `gdi` use improved real 28 -> 26 but broke the opcode multiset to 4t (target `add`+`lwz` at +0x108 became `addi`+`lwzx`), so the declared s32* alias is load-bearing for the addressing form; reverted and re-banked the opcode-identical state via probe.py --rebase-best. claim.law.pointer-reassociation-controls-add-operand-order screened on the px/py pair: respelling `(f32*)((u8*)b + 384)` as the sibling function's `(f32*)&b[96]` REGRESSED real 28 -> 72. claim.law.insn-count-parity-outranks-local-opcode-fidelity APPLIED as the arbitration rule for the gd/gdi CONFLICT verdict.",
+    "laws_applied": "[\"claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1\", \"claim.law.declared-alias-vs-repeated-cast.20260830.v1\", \"claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1\"]",
+    "residual": "real 58 -> 28, fuzzy 99.53488% -> 99.7840%, opcode multiset IDENTICAL 301/301, operand-differing rows 29 -> 14. Remaining is four separable clusters, all callee-saved colouring: (a) the gDiagData base, target r29 vs ours r25, rows +0x1c/+0xe0/+0xe4/+0x108; (b) the px/py pointer pair at buttons+384/+388 holding each other's register, target px=r28/py=r29, rows +0x318/+0x320/+0x444/+0x44c - decl-order swap NEUTRAL and expression-form respell REGRESSED, so that pair has two dead axes; (c) the 0x1000000 literal web, target r27 vs ours r25, rows +0x3a0/+0x3a4/+0x3d0; (d) a saved colour copy, target r24 vs ours r27, rows +0x3b0/+0x468. Plus ONE row that is not a codegen gap at all: +0x25c reads `sFlags` in the target and `gControllerButtons+0x4` in ours - the same address 0x803445CC, byte-identical, see claim.law.u64-global-spanning-two-symbol-labels-spells-plus-four.",
+    "scope": "src/game/pb/pb_diag.c, pbDiagDrawObject only: swapped the declaration order of `DiagObjView* obj` and `int x`. No semantic change.",
+    "verification": "probe.py real 58 -> 28; fndiff --ops opcode multiset IDENTICAL 301/301; objdiff fuzzy 99.53488% -> 99.7840%; defake_gate.py check game/pb/pb_diag.c GATE OK (1 improved, no sibling regression); full `ninja -j2` -> build/GUNE5D/main.dol: OK. Commit 0cdcd79ee. Axis log: A1 obj/x decl swap IMPROVED 58->28; A2 px/py decl swap NEUTRAL; A3 px/py expression form REGRESSED 72; A4 gd/gdi merge CONFLICT (real 26 but multiset 4t) rejected on structure; A5 gd/gdi decl swap NEUTRAL."
+  },
+  "function": "function:pbDiagDrawObject",
+  "id": "attempt.pbdiagdrawobject-decl-order-callee-saved-pairs.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T06:48:01Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.pbdiagdrawobject.20260829.v1",
+  "valid_from": "2026-08-31"
+}

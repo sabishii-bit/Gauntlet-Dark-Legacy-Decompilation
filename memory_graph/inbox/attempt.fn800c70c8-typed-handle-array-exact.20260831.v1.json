@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Exact-drive re-screen of the stale bulk-import park: aligned-fnasm decode split the residual into 4 relocation-SPELLING rows and 4 genuine register rows (r3/r4 transposed between the `lbl_803450E0 &= ~bit` AND-result and the `handle` address); closed the register rows by respelling the raw `mgr + region*4 + 0x320` walk as the TU's already-declared typed view `lbl_802C7438.handles[region]`.",
+  "attributes": {
+    "law_screen": "claim.law.point-of-use-single-use-pointer-delay APPLIED IN REVERSE and was decisive: hoisting `handle = mgr + region*4` above the __shl2i call (axis 1) REGRESSED real 8 -> 45 and dropped an addi (83 -> 82 insns), proving the target's `add` must stay at point of use while only the `slwi` is hoisted. claim.law.pointer-reassociation-controls-add-operand-order screened, NOT applicable: both streams already emit base-first (`add rD,r31,r0`), the divergence was the destination register only. claim.law.direct-global-member-flips-index-base-association APPLIED: spelling the site as a member of the direct global lbl_802C7438 instead of via the local `mgr` alias flipped the index/base association and took real 8 -> 0. claim.law.local-alias-vs-direct-global-spelling-diverges APPLIED (same mechanism, confirms the local-alias vs direct-global split). claim.law.sizeof-defeats-loop-stride-induction screened, not applicable (no sizeof stride at this site). claim.law.lwzu-idiom-web-retention screened, not applicable (no load-update idiom in this web).",
+    "laws_applied": "[\"claim.law.direct-global-member-flips-index-base-association.20260831.v1\", \"claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1\", \"claim.law.point-of-use-single-use-pointer-delay.20260830.v1\"]",
+    "residual": "Instruction stream byte-identical (probe real 0, fndiff --ops IDENTICAL 83/83). fndiff --clean still prints 8 lines, ALL of them the relocation SPELLING of one 64-bit global's low half: ours emits `lbl_803450D8+0x4` / `lbl_803450E0+0x4` where the target names `lbl_803450DC` / `lbl_803450E4`. config/GUNE5D/symbols.txt declares four separate 4-byte .sbss objects at 0x803450D8/DC/E0/E4 while pb_texture.c declares two `u64`s covering the same eight bytes; lbl_803450D8+4 == lbl_803450DC == 0x803450DC, so the EMB_SDA21 displacement encodes identically and the emitted bytes are equal. The u64 typing is semantically correct (0x2f regions needs a >32-bit mask; __shl2i is a genuine 64-bit shift), so this is a verified symbol-name normalization, not a codegen gap. See claim.law.u64-global-spanning-two-symbol-labels-spells-plus-four.",
+    "scope": "src/game/pb/pb_texture.c, one statement in fn_800C70C8 (raw-cast walk -> typed array member). Also removes one raw-offset site, so it doubles as a de-fakematch conversion.",
+    "verification": "probe.py real 8 -> 0; fndiff --ops opcode multiset IDENTICAL (83/83); defake_gate.py check game/pb/pb_texture.c GATE OK (1 improved, no sibling regression, webfrank pin fn_800C72DC unchanged); full `ninja -j2` after `ninja -t clean` -> build/GUNE5D/main.dol: OK; project matched 2615 -> 2616 functions. Commit 54ff61267."
+  },
+  "function": "function:fn_800C70C8",
+  "id": "attempt.fn800c70c8-typed-handle-array-exact.20260831.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T06:46:03Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.fn_800c70c8.20260829.v1",
+  "valid_from": "2026-08-31"
+}
