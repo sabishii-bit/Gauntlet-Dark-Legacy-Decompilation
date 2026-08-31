@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "kind": "claim",
+  "id": "claim.law.pool-literal-substitution-is-per-function.20260831.v1",
+  "predicate": "codegen_law",
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "epistemic_state": "verified",
+  "attributes": {
+    "tags": [
+      "matching",
+      "sda-global",
+      "cse",
+      "register-web",
+      "defake",
+      "batch-gating",
+      "metrics"
+    ],
+    "scope": "MWCC GC 1.2.5 family; any NonMatching TU swept under claim.law.extern-scalar-read-defeats-fp-literal-hoist, i.e. one declaring its own split .sdata2 literal-pool entries as `extern f32/f64 lbl_*` variables and reading them across many functions.",
+    "provenance": "src/game/enemy/critter.c + src/game/enemy/enemy.c extern-literal sweep (worktree GDL-Claude-EnemyLit, work_claim.enemy-literal.20260831.v1, final commit 30f9cb9fc). 83 functions swept across two TUs with a per-function apply/probe/auto-revert driver keyed on fndiff `real`; the driver's keep-list was then re-derived from the pre-sweep base 3d6881622 in one batch and re-checked with a whole-TU fuzzy diff and with fndiff --clean. Of 48 functions the driver wanted to keep, only 2 survived that second stage."
+  },
+  "value": "Literalizing `extern f32/f64 lbl_*` pool reads (per claim.law.extern-scalar-read-defeats-fp-literal-hoist) is neither a safe whole-TU rewrite nor a cleanly per-function one, and fndiff `real` alone is the wrong gate for it. Four measured findings. (1) DIRECTION IS PER FUNCTION. One batch edit across 14 sub-100% critter.c functions measured 2 improved / 9 regressed and was reverted wholesale; re-probing the same conversions individually reproduced the signs, so the extern spelling (forcing a pool reload per use) is genuinely right in some functions and the literal spelling (permitting hoist/CSE) in others within one TU. Near-identical siblings disagree: enemy.c's move_logic05 converted neutrally while its structural twin move_logic06 regressed real 0 -> 42. (2) SEQUENTIAL-PROBE VERDICTS ARE CONTEXT-DEPENDENT. A cumulative driver measures each function against a TU whose pool already holds the earlier conversions' new constants. The driver credited enemy.c's move_logic22 (real 95 -> 49) and init_enemy (27 -> 17) as wins; rebuilding from base with the same keep-list minus damage_enemy returned BOTH to their exact baselines. Those gains belonged to damage_enemy's pool reshaping, not to the probed functions. Never attribute a sequential-probe gain without re-deriving it from a clean base. (3) `real` CAN INVERT AGAINST FUZZY, AND THE DIFF DECIDES. damage_enemy converted to real 151 -> 143 (better) while fuzzy went 99.4046% -> 98.4588% (worse). fndiff --ops showed the converted form introducing a load-WIDTH divergence (target `lfs` at T[143], ours `lfd`) plus three lfd reorderings; with the conversion removed the whole residual collapses to a single branch-polarity cluster (target bne/b vs our beq). The substitution was making the function structurally worse while merging diff lines. Size-weighted it was a net TU fuzzy loss. (4) NEUTRAL CONVERSIONS ARE NOT FREE -- see claim.law.pool-name-churn-is-invisible-to-real-and-fuzzy.20260831.v1. Byte-identical conversions still reorder the generated .sdata2 pool and can flip untouched byte-identical siblings from EXACT to 'MATCH (pool-name noise only)', which both `real` and fuzzy report as flat. In critter.c a 23-function neutral batch silently did this to six previously-EXACT functions. Working procedure that survives all four: run the per-function apply/probe/auto-revert loop to produce a CANDIDATE keep-list; rebuild the TU from the true pre-sweep base with that list in one batch; accept a function ONLY if it improves fuzzy or real on its own from that clean base; then verify with fndiff --clean that no function's suppressed pool-name count rose. Discard score-neutral conversions -- in this sweep all 46 of them were discarded, and the final retained result was 2 functions out of 83, delivering CritterBossAI real 495 -> 325 / fuzzy 94.3783 -> 96.9584 and CritterCollidePlayers real 148 -> 133 with zero regressions and zero added churn. Finally, mechanical converters MUST skip lines beginning with `extern`: rewriting the declaration itself (`extern f64 0.0333333;`) is a compile error appearing as a mid-sweep ninja failure, not a score regression."
+}
