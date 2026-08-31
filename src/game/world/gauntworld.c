@@ -3,6 +3,7 @@
 #include "game/dyngrid.h"
 #include "game/effect.h"
 #include "game/enemy.h"
+#include "game/worldinfo.h"
 #include "game/item.h"
 #include "game/leveldata.h"
 #include "game/mbobject.h"
@@ -1095,7 +1096,7 @@ void fn_8005AC10(s32 player)
     }
 }
 
-extern u8 gWorldInfo[];
+/* gWorldInfo: game/worldinfo.h (WorldInfo, 0x8028CA8C, size 0xA4) */
 extern f64 __fabs(f64 value);
 extern u8 sItemRuntime[];
 extern char* sArrowObjectNames[];
@@ -1137,7 +1138,7 @@ void fn_8005ACE0(f32* position)
     get_screen_pos(0, &x, &y, &item->objgrp.worldmat[3][0]);
 
     if (type == 2 && *(s16*)&item->data[0] >= 0) {
-        fn_8005AF98(*(u8**)(gWorldInfo + 104) +
+        fn_8005AF98(*(u8**)((u8*)&gWorldInfo + 104) +
                         *(s16*)&item->data[0] * 80,
                     &type, &value, &field, &state, &name);
     }
@@ -1218,7 +1219,7 @@ void fn_8005AF98(u8* record, s32* typeOut, s32* valueOut, s32* fieldOut,
     u8 unusedLow[8];
 
     if (view->type == -1) {
-        worldRecords = (u8**)(gWorldInfo + 104);
+        worldRecords = (u8**)((u8*)&gWorldInfo + 104);
         count = view->valueOrCount;
         fn_8005AF98(world_record_at(worldRecords, view->links[0]),
                     &type, &value, &field, &state, &name);
@@ -1749,7 +1750,7 @@ void fn_8005E90C(Item* item, s32* inst)
     idx = *(s16*)&item->data[0];
     info = item->info;
     if ((s16)idx >= 0) {
-        tblp = (iteminfo**)(gWorldInfo + 104);
+        tblp = (iteminfo**)((u8*)&gWorldInfo + 104);
         row = *tblp + idx;
     } else {
         return;
@@ -1797,7 +1798,7 @@ void fn_8005E90C(Item* item, s32* inst)
         case 2:
             if (*(s16*)&item->data[16] > 1) {
                 iteminfo* q = *tblp;
-                u8* world = gWorldInfo;
+                u8* world = (u8*)&gWorldInfo;
                 for (i = 0; i < *(s32*)(world + 116); i++, q++) {
                     iteminfodata* qdata = &q->item;
                     if (strcmp(sKeyringName, qdata->desc) != 0) {
@@ -2157,7 +2158,7 @@ extern void  MBRemoveNode(void* node, s32 mode);
 extern void* AtreeMatchAnyHeader(char* name, s32 mode);
 extern void  fn_8009190C(OBJGRP* grp, s32 evt);
 extern s32   gNextItemIdx;
-extern u8    gWorldInfo[];
+/* gWorldInfo: game/worldinfo.h (WorldInfo, 0x8028CA8C, size 0xA4) */
 extern const char lbl_80346F10[8];     /* "CHICKEN"  */
 extern const char lbl_80346F18[6];     /* "APPLE"    */
 extern char  lbl_80346F20[];     /* "TREAS_GOLD" (sdata2 copy)   */
@@ -2263,7 +2264,7 @@ void fn_8005BA1C(Item* item, u8* player)
         if (*(s16*)&item->data[0] < 0) {
             break;
         }
-        world = gWorldInfo;
+        world = (u8*)&gWorldInfo;
         records = (u8**)(world + 0x68);
         rec = *records + *(s16*)&item->data[0] * 0x50;
         if (*(s32*)rec != 1) {
@@ -2337,7 +2338,7 @@ found_apple:
                 if (item->action == 0) {
                     *(s16*)&item->data[0x10] = 200;
                     rec = *records;
-                    for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
+                    for (k = 0; k < gWorldInfo.niteminfos; k++) {
                         if (strcmp(&objects[0x130],
                                    (char*)(rec + 0x28)) == 0 &&
                             *(s32*)rec == 1 && *(s32*)(rec + 4) == 1) {
@@ -2367,7 +2368,7 @@ found_gold:
                 if (item->action == 0) {
                     *(s16*)&item->data[0x10] = 100;
                     rec = *records;
-                    for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
+                    for (k = 0; k < gWorldInfo.niteminfos; k++) {
                         if (strcmp(&objects[0x13C],
                                    (char*)(rec + 0x28)) == 0 &&
                             *(s32*)rec == 1 && *(s32*)(rec + 4) == 1) {
@@ -3223,14 +3224,14 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
     case 2:
         rec = 0;
         if (*(s16*)&item->data[0] >= 0) {
-            rec = *(u8**)(gWorldInfo + 0x68) + *(s16*)&item->data[0] * 0x50;
+            rec = *(u8**)((u8*)&gWorldInfo + 0x68) + *(s16*)&item->data[0] * 0x50;
         }
         if (rec != 0 && (flags & 0x200) != 0 &&
             EnemyDescType((char*)(rec + 0x28)) == 0x1E && *sub != 0x2B) {
             /* enemy chest converts to an apple generator */
             *sub = 1;
-            rec = *(u8**)(gWorldInfo + 0x68);
-            for (k = 0; k < *(s32*)(gWorldInfo + 0x74); k++) {
+            rec = *(u8**)((u8*)&gWorldInfo + 0x68);
+            for (k = 0; k < *(s32*)((u8*)&gWorldInfo + offsetof(WorldInfo, niteminfos)); k++) {
                 s32* rec_sub = (s32*)(rec + 4);
 
                 if (strcmp(lbl_80346F18, (char*)(rec_sub + 9)) == 0 &&
@@ -3764,7 +3765,7 @@ s32 fn_8005D730(Player* player, Item* item)
             u8* record = *(u8**)&item->data[0];
 
             if (record != NULL && (u8*)player->floor_name2 != record) {
-                u8* worldRecords = *(u8**)(gWorldInfo + 4);
+                u8* worldRecords = *(u8**)((u8*)&gWorldInfo + 4);
                 u8* wanted = (u8*)player->floor_name2;
                 s32 index = *(s16*)(record + 0x2E);
                 s32 found = 0;
@@ -5379,7 +5380,7 @@ void fn_800606FC(void)
             if (c > 1) {
                 if (*(s16*)&it->data[6] < 0x1E) {
                     MBTreeSetAltTex(it->objgrp.node, -2,
-                                    ((s32*)gWorldInfo)[34], 0);
+                                    gWorldInfo.whitetex, 0);
                     MBTreeSetFlags(it->objgrp.node, 0x4000, 1);
                 } else {
                     MBTreeSetAltTex(it->objgrp.node, -1, 0, 0);
@@ -5395,7 +5396,7 @@ void fn_800606FC(void)
                 }
             } else if (c == 1) {
                 MBTreeSetAltTex(it->objgrp.node, -2,
-                                ((s32*)gWorldInfo)[34], 0);
+                                gWorldInfo.whitetex, 0);
                 MBTreeSetFlags(it->objgrp.node, 0x4000, 1);
                 *(s16*)&it->data[4] = 0;
                 *(s16*)&it->data[6] = 0;
@@ -6131,17 +6132,13 @@ s32 fn_8005D20C(s32 index, f32* from, f32* to, s32 ticking)
 extern char lbl_80112C68[];            /* "COL OBJECT Item: idx < 0" */
 extern f32 lbl_8023F7E8[3];
 extern f32 lbl_8023F7F8[3];
-extern u8 gWorldInfo[];
+/* gWorldInfo: game/worldinfo.h (WorldInfo, 0x8028CA8C, size 0xA4) */
 extern s32 lbl_80344188;
 extern char lbl_8034418C;
 extern f32 lbl_80344190;
 extern f32 lbl_80344194;
 extern f64 lbl_80347008;
 extern f32 lbl_80347010;
-typedef struct GauntWorldInfoView {
-    u8 _pad00[0x58];
-    s32 checknum;
-} GauntWorldInfoView;
 void FatalError(const char* msg, int code);
 f32 CTriListCollide(f32 radius, s32 base, s32 count, u8** outTri,
                     s16* idxList, f32* outPt, s32 layerLo, s32 layerHi,
@@ -6173,12 +6170,12 @@ f32 fn_8005FDA8(u8* e, f32* a, f32* b, f32* outPos, f32* outNorm, f32 margin)
         lo = b[1] - margin;
         hi = a[1] + margin;
     }
-    ((GauntWorldInfoView*)gWorldInfo)->checknum =
-        ((GauntWorldInfoView*)gWorldInfo)->checknum + 1;
-    if (((GauntWorldInfoView*)gWorldInfo)->checknum > 255) {
-        ((GauntWorldInfoView*)gWorldInfo)->checknum = 1;
+    *(s32*)((u8*)&gWorldInfo + offsetof(WorldInfo, checknum)) =
+        *(s32*)((u8*)&gWorldInfo + offsetof(WorldInfo, checknum)) + 1;
+    if (*(s32*)((u8*)&gWorldInfo + offsetof(WorldInfo, checknum)) > 255) {
+        *(s32*)((u8*)&gWorldInfo + offsetof(WorldInfo, checknum)) = 1;
     }
-    v = (char)((GauntWorldInfoView*)gWorldInfo)->checknum;
+    v = (char)*(s32*)((u8*)&gWorldInfo + offsetof(WorldInfo, checknum));
     lbl_80344188 = 0;
     lbl_8034418C = v;
     MulBodyVecMat4(a, lbl_8023F7F8, m);
