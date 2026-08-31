@@ -3953,8 +3953,10 @@ void move_logic15(s32 index)
     Enemy* e;
     s32 it = lbl_80344748;
     s32 flee;
+    u8 _pad15[40];
+    volatile f32 tmp;
     f32 ady;
-    u8 _pad15[48];
+    u8 _pad15b[8];
 
     row15 = base + index * 916;
     row15 += 3608;
@@ -4017,7 +4019,6 @@ void move_logic15(s32 index)
                 f32 dy = *(f32*)(n + LOOKOUT_POS_Y) - ey;
                 f32 dz = *(f32*)(n + LOOKOUT_POS_Z) - ez;
                 if ((d = dx * dx + dy * dy + dz * dz) > thresh) {
-                    volatile f32 tmp;
                     f64 y = __frsqrte(d);
                     y = lbl_80346830 * y * (lbl_803468B8 - y * y * d);
                     y = lbl_80346830 * y * (lbl_803468B8 - y * y * d);
