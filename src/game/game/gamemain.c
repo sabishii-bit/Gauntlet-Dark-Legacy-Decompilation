@@ -206,6 +206,65 @@ extern s32   lbl_80344738;
 extern s32   lbl_80344734;
 extern void* lbl_803447B0;
 extern s32   gBossType;            /* 0x8034439C */
+
+/* Game-mode ids held in gGameMode (research/xbox_symbols/misc.h : enum e_mode).
+ * The mode id carries its group in the high bits: 0x8000 marks the attract-loop
+ * modes (MA_*) and 0x4000 the in-game modes (MG_*), which is why the code tests
+ * `gGameMode & 0x8000` / `& 0x4000` to classify a mode without listing it. */
+enum e_mode {
+    M_CREDITS         = 0,
+    M_TITLEMOVIE      = 1,
+    M_MOVIE           = 2,
+    M_INSTRUCT        = 3,
+    M_SCREEN2D        = 4,
+    M_CONTEST         = 5,
+    M_DEMO            = 6,
+    M_HSTABLE         = 7,
+    M_FLYBY           = 8,
+    M_TITLESCREEN     = 9,
+    M_VIEWMENU        = 10,
+    M_PLAYER_SELECT   = 11,
+    M_ROUND_START     = 12,
+    M_WORLD_SELECT    = 13,
+    M_GAMEMOVIE       = 14,
+    M_MAPSCREEN       = 15,
+    M_PLAY            = 16,
+    M_VICTORY         = 17,
+    M_SHOP            = 18,
+    M_LEVEL_ADVANCE   = 19,
+    M_OVER            = 20,
+    M_ENDING          = 21,
+    M_STATS           = 22,
+    M_GWIZ_SPEECH     = 23,
+    M_CHAR_MANAGEMENT = 24,
+
+    MA_CREDITS        = 0x8000,
+    MA_TITLEMOVIE     = 0x8001,
+    MA_MOVIE          = 0x8002,
+    MA_INSTRUCT       = 0x8003,
+    MA_SCREEN2D       = 0x8004,
+    MA_CONTEST        = 0x8005,
+    MA_DEMO           = 0x8006,
+    MA_HSTABLE        = 0x8007,
+    MA_FLYBY          = 0x8008,
+    MA_TITLESCREEN    = 0x8009,
+    MA_VIEWMENU       = 0x800A,
+
+    MG_PLAYER_SELECT  = 0x400B,
+    MG_ROUND_START    = 0x400C,
+    MG_WORLD_SELECT   = 0x400D,
+    MG_GAMEMOVIE      = 0x400E,
+    MG_MAPSCREEN      = 0x400F,
+    MG_PLAY           = 0x4010,
+    MG_VICTORY        = 0x4011,
+    MG_SHOP           = 0x4012,
+    MG_LEVEL_ADVANCE  = 0x4013,
+    MG_OVER           = 0x4014,
+    MG_ENDING         = 0x4015,
+    MG_STATS          = 0x4016,
+    MG_GWIZ_SPEECH    = 0x4017
+};
+
 extern s32   gGameMode;
 extern s32   lbl_80344740;
 extern s32   lbl_80344748;
@@ -1702,7 +1761,7 @@ void game_init_data(void)
     ControlsUpdate();
     InitLighting(0);
     lbl_80344A2C = 0;
-    gGameMode = 0x8002;
+    gGameMode = MA_MOVIE;
     lbl_80344758 = 0;
     lbl_80344B84 = -1;
     reset_sel_menu();
@@ -2602,13 +2661,13 @@ s32 EnemyDescType(const char* name)
 void fn_80053C70(void)
 {
     switch (gGameMode) {
-    case 0x8002:
-    case 0x400F:
-    case 0x8004:
+    case MA_MOVIE:
+    case MG_MAPSCREEN:
+    case MA_SCREEN2D:
         AtreeAlloc(64, 64);
         break;
-    case 0x4012:
-    case 0x8009:
+    case MG_SHOP:
+    case MA_TITLESCREEN:
         AtreeAlloc(3584, 3072);
         break;
     default:
@@ -3262,7 +3321,7 @@ void fn_800516F8(s32 slot)
     }
 
     t = lbl_80344B24;
-    if (t >= 0 && gPlayers[t].state == 1 &&
+    if (t >= 0 && gPlayers[t].state == ACTIVE &&
         !(gPlayers[t].flags & 4) &&
         !(*(s32*)e == 30 && (gPlayers[t].shield_flags & 0x80000))) {
         u8* q;
@@ -3272,7 +3331,7 @@ void fn_800516F8(s32 slot)
         {
             f32 fd;
             if (*(s16*)(q + offsetof(Player, field_A1C)) > 2) {
-                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + 2564),
+                DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, mikey_coll_pos)),
                       lbl_80346820, lbl_80346830, lbl_803468B8);
             } else {
                 DIST3(fd, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(q + offsetof(Player, effectpos)),
@@ -3290,7 +3349,7 @@ void fn_800516F8(s32 slot)
         }
         cur = *(s16*)(e + offsetof(Enemy, closest));
         if ((s16)cur >= 0 &&
-            gPlayers[cur].state != 1) {
+            gPlayers[cur].state != ACTIVE) {
             go = -1;
         }
         if (go != 0) {
@@ -3317,7 +3376,7 @@ void fn_800516F8(s32 slot)
                         continue;
                     }
                     if (*(s16*)(p + offsetof(Player, field_A1C)) > 2) {
-                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + 2564),
+                        DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, mikey_coll_pos)),
                               kZero, kHalf, kThree);
                     } else {
                         DIST3(dist, (f32*)(e + offsetof(Enemy, objgrp) + offsetof(OBJGRP, coll_pos)), (f32*)(p + offsetof(Player, effectpos)),
@@ -3406,7 +3465,7 @@ void fn_80055AFC(void)
     }
     n = 0;
     for (i = 0; i < 4; i++) {
-        if (gPlayers[i].state == 1) {
+        if (gPlayers[i].state == ACTIVE) {
             break;
         }
         n++;
@@ -3698,7 +3757,7 @@ void fn_8005351C(void)
     opt_restart_request = 0;
     AudioReset(0);
     fn_800BC4E4();
-    gGameMode = 0x400C;
+    gGameMode = MG_ROUND_START;
     gGameBusy = 0;
     good_wiz_exit_timer = 0;
     lbl_80344808 = 0;
@@ -3767,9 +3826,9 @@ void fn_8005351C(void)
             ((Player*)p)->exit_dest = sLastWorldLevel;
             ((Player*)p)->node = 0;
             ((Player*)p)->platform = 0;
-            if ((lbl_80344824 & (1 << i)) && ((Player*)p)->state != 11) {
+            if ((lbl_80344824 & (1 << i)) && ((Player*)p)->state != INTOWER) {
                 Player* player = (Player*)p;
-                player->state = 1;
+                player->state = ACTIVE;
                 load_player(i);
                 add_target(player->mat);
                 LoadPlyrData(i, player->character, 1);
@@ -3793,7 +3852,7 @@ void fn_8005351C(void)
         for (i = 0, off2 = 0; i < 4; i++, off2 += 13148) {
             u8* q = base + off2;
             Player* player = (Player*)q;
-            if (player->state != 0) {
+            if (player->state != INACTIVE) {
                 if (sMusicTrackHi == 13) {
                     PlayerSaveState(i, 0);
                 } else if (sMusicTrackHi != 12) {
@@ -3828,7 +3887,7 @@ void fn_8005351C(void)
         }
         if (mt == 13) {
             for (i = 0, p = (u8*)gPlayers; i < 4; i++, p += 13148) {
-                if (((Player*)p)->state == 1) {
+                if (((Player*)p)->state == ACTIVE) {
                     *(PlayerSaveBlk*)(p + 7884) = *(PlayerSaveBlk*)(p + 2688);
                 }
             }
@@ -3946,7 +4005,7 @@ void game_main(void)
     if (opt_quit_request && OptionsDone()) {
         i = 0;
         opt_quit_request = i;
-        gGameMode = 0x4014;
+        gGameMode = MG_OVER;
         gGameBusy = i;
         AudioStopSelect();
         AudioSelectReset();
@@ -3960,7 +4019,7 @@ void game_main(void)
         TriggerCameraEnd();
     }
     if (opt_restart_request) {
-        if (gGameMode == 0x4010 && sMusicTrackHi != 13) {
+        if (gGameMode == MG_PLAY && sMusicTrackHi != 13) {
             if (OptionsDone()) {
                 for (i = 0; i < 4; i++) {
                     kill_player(i);
@@ -3977,7 +4036,7 @@ void game_main(void)
             }
         }
     }
-    if (lbl_80344A2C && gGameMode != 0x400e) {
+    if (lbl_80344A2C && gGameMode != MG_GAMEMOVIE) {
         while (!fn_80055F68(0, 1)) {
             serve_busy(-1);
         }
@@ -4032,7 +4091,7 @@ void game_main(void)
     }
     flag = cond ? 1 : 0;
     SetPlayerVars();
-    if (lbl_803447D8 > lbl_803447D4 && gGameMode == 0x4010) {
+    if (lbl_803447D8 > lbl_803447D4 && gGameMode == MG_PLAY) {
         fn_8009D530();
     }
     c = gGameMode;
@@ -4041,35 +4100,35 @@ void game_main(void)
         if (c >= 0x8000) {
             switch (c) {
             default:
-            case 0x8000:
-            case 0x8007:
+            case MA_CREDITS:
+            case MA_HSTABLE:
                 do_credits();
                 goto attract_tail;
-            case 0x8004:
-            case 0x8005:
+            case MA_SCREEN2D:
+            case MA_CONTEST:
                 if (!lbl_80344798) {
                     lbl_80344798 = 1;
                     check_prefs_loaded();
                 }
                 do_screen2d();
                 goto attract_tail;
-            case 0x8001:
-            case 0x8002:
+            case MA_TITLEMOVIE:
+            case MA_MOVIE:
                 do_movie();
                 goto attract_tail;
-            case 0x8009:
+            case MA_TITLESCREEN:
                 do_titlescreen();
                 goto attract_tail;
-            case 0x8003:
-            case 0x8006:
-            case 0x8008:
+            case MA_INSTRUCT:
+            case MA_DEMO:
+            case MA_FLYBY:
                 world_update();
                 fn_8005B988();
                 do_enemies();
                 enemy_update();
                 do_flyby();
             attract_tail:
-        if (gGameMode != 0x8009 && gGameMode != 0x400b && lbl_803441FC > 1) {
+        if (gGameMode != MA_TITLESCREEN && gGameMode != MG_PLAYER_SELECT && lbl_803441FC > 1) {
             v = new_start(-1);
             if (gGameMode & 0x8000) {
                 if (gControllerButtons & 4) {
@@ -4092,7 +4151,7 @@ void game_main(void)
             }
         }
         break;
-    case 0x400b:
+    case MG_PLAYER_SELECT:
         if (!(gGameOptions[11] & 1)) {
             WritePlayerInfo(-1);
         }
@@ -4100,7 +4159,7 @@ void game_main(void)
             break;
         }
         do_players();
-        if (gGameMode == 0x8009) {
+        if (gGameMode == MA_TITLESCREEN) {
             break;
         }
         if (!do_player_select()) {
@@ -4117,7 +4176,7 @@ void game_main(void)
         }
         fn_8005351C();
         break;
-    case 0x400f:
+    case MG_MAPSCREEN:
         WritePlayerInfo(-1);
         if (do_mapscreen(flag) && !AudioSysUpdate(100000)) {
             ResolveWorldData(lbl_80343C04);
@@ -4128,7 +4187,7 @@ void game_main(void)
             do_players();
         }
         break;
-    case 0x400e:
+    case MG_GAMEMOVIE:
         c = do_gamemovie();
         if (c == 2) {
             init_shop(0);
@@ -4136,8 +4195,8 @@ void game_main(void)
             fn_8005351C();
         }
         break;
-    case 0x400c:
-        gGameMode = 0x4010;
+    case MG_ROUND_START:
+        gGameMode = MG_PLAY;
         WritePlayerInfo(-1);
         AudioMusicVolUpdate();
         if (!gGameBusy && sMusicTrackHi != 12) {
@@ -4145,7 +4204,7 @@ void game_main(void)
         }
         SetPlayerWindows(0);
         break;
-    case 0x4010:
+    case MG_PLAY:
         lbl_803447E4 = 0;
         if (!(gGameBusy | gGameplayPauseTimer | gScriptedCameraState)) {
             if (good_wiz_exit_timer > 0) {
@@ -4171,7 +4230,7 @@ void game_main(void)
         }
         if (!lbl_80344824) {
             i = 0;
-            gGameMode = 0x4014;
+            gGameMode = MG_OVER;
             gGameBusy = i;
             AudioStopSelect();
             AudioSelectReset();
@@ -4193,7 +4252,7 @@ void game_main(void)
             lvl = (lbl_803448D0 << 8) | (lbl_803448CC & 0xFF);
             if (!lbl_80344824) {
                 i = 0;
-                gGameMode = 0x4014;
+                gGameMode = MG_OVER;
                 gGameBusy = i;
                 AudioStopSelect();
                 AudioSelectReset();
@@ -4281,7 +4340,7 @@ void game_main(void)
             fn_80055AFC();
         }
         break;
-    case 0x4012:
+    case MG_SHOP:
         c = do_shop();
         if (c) {
             if (c == 2 && !lbl_80344C18) {
@@ -4293,21 +4352,21 @@ void game_main(void)
             do_players();
         }
         break;
-    case 0x4014:
+    case MG_OVER:
         world_update();
         fn_8005B988();
         do_enemies();
         do_players();
         fn_800521E8();
         break;
-    case 0x4016:
+    case MG_STATS:
         if (do_stats_display()) {
             init_gamemovie(0x2c);
         } else {
             do_players();
         }
         break;
-    case 0x800A:
+    case MA_VIEWMENU:
         if (pbDiagDrawMenu() == 2) {
             gGameMode = lbl_80344788;
         }
@@ -4378,7 +4437,7 @@ void fn_80054E78(void)
                 for (player_off = 0; player_off < 48;
                      player_off += 12, p += 13148) {
                     Player* player = (Player*)p;
-                    if (player->state != 0) {
+                    if (player->state != INACTIVE) {
                         row = state + player_off;
                         *(f32*)(row + 144) = player->pos[0];
                         *(f32*)(row + 148) = player->pos[1];
@@ -4549,13 +4608,13 @@ void world_update(void)
     DoWorldAnimation();
     SetupDynGrid();
     CreateDynobjGrid();
-    if (gBossType >= 0 && gGameMode == 0x4010) {
+    if (gBossType >= 0 && gGameMode == MG_PLAY) {
         if (good_wiz_state) {
             DoGoodWizard();
         }
         ProcessSpewItems();
     }
-    if (gGameMode == 0x4010 || gGameMode == 0x400c) {
+    if (gGameMode == MG_PLAY || gGameMode == MG_ROUND_START) {
         if (lbl_803447B8 != 0) {
             d = sMusicFadeBase - lbl_80344860;
             if (d < lbl_80346C10) {
@@ -4623,7 +4682,7 @@ void world_update(void)
             cond = 0;
         }
     }
-    if (cond && gGameMode == 0x4010 && gBossObj != NULL &&
+    if (cond && gGameMode == MG_PLAY && gBossObj != NULL &&
         *(s32*)(gBossObj + offsetof(Critter, state)) != 0) {
         {
             u32 w = (u32)FindWORLDOBJ(strs + 0xd0);
@@ -4678,7 +4737,7 @@ void world_update(void)
             }
         }
     }
-    if (gGameMode == 0x4010 && lbl_803447B4 != 0) {
+    if (gGameMode == MG_PLAY && lbl_803447B4 != 0) {
         if (lbl_80344864 == lbl_80346C70) {
             lbl_80344864 = sMusicFadeBase;
             if (gBossType != 0x2c) {
@@ -4960,7 +5019,7 @@ chk:
     if (sMusicTrackHi == 13) {
         SumnerInit();
     }
-    if (gGameMode == 0x4010 || gGameMode == 0x400C) {
+    if (gGameMode == MG_PLAY || gGameMode == MG_ROUND_START) {
         MBCompVertScaleAddUV(lbl_8034486C, 0, lbl_80346C90, lbl_80346C90,
                              lbl_80346C30, lbl_80346BF0, lbl_80346BF0);
     } else {

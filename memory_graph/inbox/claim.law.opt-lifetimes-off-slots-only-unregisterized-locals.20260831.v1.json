@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "decl-order",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.opt-lifetimes-off-slots-only-unregisterized-locals.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T06:38:52Z",
+  "schema_version": 1,
+  "subject": "tu:game/ui/screensaver",
+  "valid_from": "2026-08-31",
+  "value": "Under `#pragma opt_lifetimes off` MWCC reserves a 4-byte frame slot ONLY for a declared scalar local that the allocator never registerizes (in practice: a local with no uses). Locals that ARE used get a callee-saved register and cost ZERO frame bytes, so DELETING used declarations does not shrink the frame. Corollary for frame-delta work: (a) the frame is rounded UP to 8 bytes, so removing a single 4-byte slot is often invisible - always test declaration deltas in pairs or better; (b) a reserved-but-never-written region below the char-array block is allocator spill/temp reservation sized by REGISTER PRESSURE, not by the source declaration count, and is therefore NOT source-reachable by re-declaring locals. Machine-verified in draw_inventory_panel (target frame 200, ours 256): adding 4 unused `s32` decls moved the frame 256->272 (+16, exactly 4 slots) while removing 3 genuinely-used decls (`boff`, `poff48`, `blits3`) moved it 256->256 (0 bytes). This OVERTURNS the prescription in attempt.draw-inventory-panel-alias-lever.20260831.v1 (\"the frame tracks the DECLARED local count ... reducing/scoping the 22 declared scalars is the next axis\"): that axis is refuted in both directions and should not be re-run."
+}
