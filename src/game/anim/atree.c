@@ -1184,12 +1184,14 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
     SWAP32(*(u32*)(hdr + 2));
     SWAP32(*(u32*)(hdr + 4));
     SWAP32(*(u32*)(hdr + 6));
-    if ((s16)hdr[1] > 7) {
+    if ((s16)hdr[1] >= 8) {
         SWAP32(*(u32*)(hdr + 8));
         SWAP32(*(u32*)(hdr + 10));
     }
 
-    if (((s16)hdr[1] & 0x8000U) == 0) {
+    if (((s16)hdr[1] & 0x8000U) != 0) {
+        slot = (s16)hdr[1] & 0x7FFF;
+    } else {
         /* match list: name[0x20] + offset, stride 0x24 */
         if (*(u32*)(hdr + 2) != 0) {
             *(u32*)(hdr + 2) += (u32)base;
@@ -1216,7 +1218,7 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             }
         }
         /* node-definition records, stride 0x138 (v8+ headers only) */
-        if ((s16)hdr[1] > 7 && *(u32*)(hdr + 10) != 0) {
+        if ((s16)hdr[1] >= 8 && *(u32*)(hdr + 10) != 0) {
             *(u32*)(hdr + 10) += (u32)base;
             for (i = 0; i < *(s32*)(hdr + 8); i++) {
                 fn_80011DCC((AtreeWorldPsys*)(*(u32*)(hdr + 10) +
@@ -1286,15 +1288,14 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
             nseqs = blob[5];
             seqoff = 0;
             texbase = *(s32*)(hdr + 6);
-            if (nseqs > 0) {
+            {
                 s32 sbase = blob[0];
-                do {
+                for (j = 0; j < nseqs; j++) {
                     s32* ptexmods =
                         (s32*)(sbase + seqoff + offsetof(animseqdesc, texmods));
                     seqoff += sizeof(animseqdesc);
                     *ptexmods = texbase + *ptexmods * sizeof(TEXMOD);
-                    nseqs--;
-                } while (nseqs != 0);
+                }
             }
             *(s16*)((u8*)blob + offsetof(AtreeDefinition, objectIndex)) = (s16)model;
             off += sizeof(atreematch);
@@ -1313,8 +1314,6 @@ u32 fn_8001267C(u16* hdr, s32 model, u32 slot)
         atree_scroll[slot][0] = 0;
         atree_handles[slot] = model;
         hdr[1] = (u16)slot | 0x8000;
-    } else {
-        slot = (s16)hdr[1] & 0x7FFF;
     }
     return slot;
 }
