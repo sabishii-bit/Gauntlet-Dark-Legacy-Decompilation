@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "STACK_LAYOUT closure of the 8-byte excess frame (48 vs 40) via NET REDUCTION of declared function-scope locals - an axis neither v1 (matrix-as-formal) nor v2 (sibling brace scopes, helper variant) tried, motivated by claim.law.stack-slots-descend-in-declaration-order.20260831.v1 which post-dates the v2 cap by ~14h and is the first law to address frame/local-area accounting",
+  "attributes": {
+    "law_screen": "claim.law.stack-slots-descend-in-declaration-order.20260831.v1 (recorded 17:49:02Z) APPLIED - post-dates the v2 cap (03:39:19Z), so genuinely unscreened; its corollary that the local block is anchored at the bottom with free space at the top, and that `real` is a misleading arbiter for slot work, motivated reading the (r1) displacement rows directly instead of trusting the aggregate score. claim.law.inverted-guard-defeats-equality-chain-range-fold.20260831.v1 screened: n/a, no compare chain in this function. winglobals sdata2-pool / never-symbolify laws APPLIED at the TU-flip stage (see residual).",
+    "laws_applied": "[\"claim.law.stack-slots-descend-in-declaration-order.20260831.v1\"]",
+    "residual": "NONE - MBTreeInit is EXACT (real 0, insns 310/310) and game/mb/mb_tree.c is FLIPPED to Matching. Two separate blockers were closed. (1) FRAME: the (r1) census showed ZERO local-slot references in EITHER stream - the entire 20B (target) / 28B (ours) local area is dead nominal reservation, never read or written. node1/node2/node3 are never simultaneously live (each is stored to its own global and its flags touched immediately, and no later statement reads them), so collapsing the three MBTreeNode* declarations into ONE reused `node` local removed exactly 8 nominal bytes and closed the frame in a SINGLE probe: real 10 -> 0. (2) LINK: flipping then failed to link on `undefined: lbl_80348CA0`, an extern declared for what is actually this TU's OWN .sdata2 pool entry 0 (value 1e37f, confirmed by dumping the built object's .sdata2). Replacing all 5 uses with the literal 1e37f and deleting the extern let the TU own its pool. That substitution re-inflated MBTreeInit's frame by 8B (the literal materialization costs a nominal slot the extern-symbol load did not); dropping the now-redundant `default_scale` local and assigning 1e37f directly in the 64-iteration loop reclaimed those 8 bytes and held real 0.",
+    "scope": "src/game/mb/mb_tree.c only; MBNewNode (webfrank-pinned) untouched and still pinned; two commits (a28a2a51a Match MBTreeInit, 79df14a60 Match game/mb/mb_tree.c)",
+    "verification": "probe.py BASELINE real 10 (310/310) banked pre-edit; probe IMPROVED real 10 -> 0; fndiff --clean == EXACT, 0 real diff lines; fndiff --classify: every function EXACT or RELOCATION_ONLY, 2 BASE_ONLY helpers both `static` and dead-stripped by mwld; claimcheck .rodata OK 0x33 / .sdata2 OK 0x28; finish_tu.py flip GREEN, sha1 verified, build/GUNE5D/main.dol: OK; project linked 197 -> 198 files, matched 61.35% -> 61.46%"
+  },
+  "function": "function:MBTreeInit",
+  "id": "attempt.mbtreeinit-nominal-local-frame-closure.20260831.v3",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-08-31T19:03:56Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.mbtreeinit-stack-frame-closure.20260831.v2",
+  "valid_from": "2026-08-31"
+}

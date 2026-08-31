@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "src/game/mb/mb_tree.c flip (worktree GDL-Claude-FlipClosest, work_claim.flip-closest.20260831.v1, commit 79df14a60). objdiff reported 24/25 functions matched and claimcheck reported `.sdata2: OK 0x28 bytes compared`, yet finish_tu.py died at link with `undefined: 'lbl_80348CA0'` referenced from four separate functions. symbols.txt described it as `.sdata2:0x80348CA0 type:object size:0x4 align:4 data:float`, i.e. entry 0 of the pool the TU's own header comment already documented as belonging to this module (0x80348CA0..0x80348CC4). Dumping the built object's .sdata2 section showed entry 0 = 0x7cf0bdc2 = 1e37f, matching the value of the file's otherwise pointless `static f32 MBTreePoolHugeFloat(void) { return 1e37f; }` scaffolding helper. Replacing all five `lbl_80348CA0` reads with the literal 1e37f and deleting the extern linked cleanly and flipped the TU green (sha1 verified).",
+    "tags": [
+      "matching",
+      "relocation",
+      "sda-global",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-08-31T19:04:02Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "A NonMatching TU can reference its OWN .sdata2/.rodata pool entry as an `extern` placeholder symbol and still score perfectly, because while the TU is NonMatching the linker resolves that name against the ORIGINAL extracted object. The moment the TU is flipped to Matching nothing defines the symbol and the link fails with `undefined: <lbl_ADDR>`, referenced from every function that reads the constant. This is invisible to objdiff, to fndiff --classify, and to claimcheck (which reported the pool section byte-correct at the very same time), so it will not appear on any score-based flip-readiness screen - it surfaces only when you actually attempt the flip. DIAGNOSIS: take the undefined `lbl_ADDR` and check it against the TU's own claimed section ranges in config/GUNE5D/symbols.txt and the file header comment; if the address lies INSIDE the module's own pool, the extern is the bug, not a missing sibling definition. Confirm the intended value by dumping the built object's pool section and reading the entry at that offset. FIX, and it is the winglobals never-symbolify rule applied at link scope: delete the extern and spell the actual literal at every use, letting MWCC emit and own its pool entry. Watch two second-order effects. (1) A scaffolding helper may exist purely to seed the literal at the right pool position (here a `static f32 f(void) { return 1e37f; }` that nothing calls); keep it, because it is what places the value at pool offset 0, and it is `static` so mwld dead-strips it - BASE_ONLY entries in fndiff --classify for such helpers do not block a flip. (2) The literal form costs nominal frame space the extern-symbol load did not (see claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1), so a function that was frame-exact before the substitution can regress by 8 bytes and needs a declaration removed to pay for it. GENERAL SCREEN for the flip lane: before judging a near-flip TU ready, grep its source for `extern` declarations of `lbl_<ADDR>` constants whose addresses fall inside the TU's own pool range - each one is a latent link failure that no score will warn you about."
+}
