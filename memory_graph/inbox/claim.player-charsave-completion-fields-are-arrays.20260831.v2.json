@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker PH, work_claim.player-h-workorders.20260831.v1. Supersedes the v1 work order after executing it: the header edit is landed (commit f1755d740) and independently re-verified. Corrections to v1 were both found by verifying the banked evidence against the target rather than trusting it.",
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "workflow",
+      "symbol-identity"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.player-charsave-completion-fields-are-arrays.20260831.v2",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-08-31T14:45:31Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/tower",
+  "supersedes": "claim.player-charsave-completion-fields-are-arrays.20260831.v1",
+  "valid_from": "2026-08-31",
+  "value": "EXECUTED. include/game/player.h now declares PlayerCharSave.completion1 and .completion2 as true arrays; the v1 work order's core finding (both fields are level-indexed arrays that the scalar declaration was blocking) is CONFIRMED, with TWO CORRECTIONS that v1 got wrong and that matter. CORRECTION 1 -- SIGNEDNESS. v1 specified `u16 completion1[3]` / `u16 completion2[8]`. Both are SIGNED s16, not u16. The target loads them with lha / lhax (load halfword ALGEBRAIC): towerGetLevelRecord ends `lha r3,3560(r3)` and towerBossStatus `lha r0,3566(r3)`, and every consumer tests `< 0` as the not-yet-attempted sentinel (tower.c writes an explicit -1 in TowerCheckMessages). Declaring u16 would emit lhz and force a cast back at every consumer, defeating the conversion the work order exists to enable. CORRECTION 2 -- WIDTH OF completion2. v1 said 'at least 8 wide' from tower.c's `j < 8` loops and settled on [8]. The true width is 9. src/game/ui/screensaver.c -- a THIRD consumer v1 did not consider -- walks `for (i = 0; i < 8; i++)` with `off += 2` starting from the former pad_1C (slot offset 0x1C = completion2[1]), so its last access is 0x2A = completion2[8]; it reads lbl_80124C70[i+1] each iteration, pairing one-for-one with the 9-entry requirement table and skipping that table's index-0 zero sentinel. tower.c's own `j < 8` loops only reach [0..7] and guard `lbl_80124C70[j] != 0`, which is why v1 saw only a lower bound. FINAL LAYOUT (PlayerCharSave size 0xF0 unchanged, no pre-existing field moved): 0x14 s16 completion1[3] (0x14-0x19, absorbing pad_16[4]); 0x1A s16 completion2[9] (0x1A-0x2B, absorbing the leading 18 bytes of pad_1C); 0x2C u8 pad_2C[0xC4] (0x2C-0xEF). GATE: the header edit alone, with zero consumer edits, was byte-identical across 9 including TUs / 423 functions (tower, gamemain, critter, enemy, player, pmotion, shop, select, screensaver) and a green main.dol -- confirming claim.law.embedded-struct-member-whole-tu-cascade does not fire for a scalar-array split. PROCESS NOTE for future header owners: the isolation protocol's 'heavy includers' list is not self-validating. screensaver.c consumed the very pads being absorbed (offsetof(PlayerCharSave, pad_16), pad_16+2, pad_1C) and was absent from the work order's gate list, so the 9-TU gate passed while the FULL ninja failed to compile. Derive the gate list mechanically -- grep the tree for every field and pad name the edit removes -- rather than from a curated list. Its three sites were repaired as pure offsetof RENAMES (completion1+2, completion1+4, completion2+2 -- identical integer constants), gated byte-identical, commit 3cd8347a4."
+}
