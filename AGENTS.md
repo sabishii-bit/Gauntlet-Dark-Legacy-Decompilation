@@ -263,10 +263,13 @@ as matching work:
    evidence noted. Never invent names. Three proven authority moves in
    priority order: (a) an opaque forward-declared struct with a known
    size deserves a `struct <name>` PDB-body lookup BEFORE per-site work —
-   completing the body converts whole loops at once; (b) after a `struct`
-   miss, grep `research/xbox_symbols/misc.h` for the struct NAME (the tsv
-   index is incomplete — PBFRAMEBUF's full 0x200 layout was found this
-   way after the op missed); (c) before inventing ANY file-local view,
+   completing the body converts whole loops at once; (b) the tsv index is
+   regenerated from the FULL PDB dump (1,958 records incl. `__unnamed_<Id>`
+   anonymous ones) since 2026-08-31 — a `struct` miss now usually means the
+   record really isn't in the PDB; grep `research/xbox_symbols/*.h` only as
+   a last-resort double check, and rerun `tools/gdl/gen_xbox_structs.py` +
+   `gdlmem.py build` if the dump headers ever change; (c) before inventing
+   ANY file-local view,
    grep the TU for an existing `typedef struct`/`struct <Name>` of the
    same purpose — critter.c accumulated two CONFLICTING partial
    reconstructions of one struct because nobody checked.
