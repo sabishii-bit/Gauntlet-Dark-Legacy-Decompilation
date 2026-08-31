@@ -289,13 +289,20 @@ def main():
     # banking it made --revert silently discard gated neutral work twice
     # in the field. To discard a neutral edit you dislike, use git — the
     # snapshot always points at the last state that scored best.
-    if source is not None and (verdict.startswith("BASELINE")
-                               or verdict.startswith("IMPROVED")
-                               or verdict.startswith("NEUTRAL")
-                               or verdict.startswith("REBASED")):
+    # --no-bank: score without banking. For DIAGNOSTIC probes (rulers,
+    # liveness pokes, calibration instruments) that will be hand-reverted —
+    # without it a neutral diagnostic becomes its own revert point and
+    # --revert can no longer reach the pre-diagnostic state.
+    if source is not None and "--no-bank" not in sys.argv and (
+            verdict.startswith("BASELINE")
+            or verdict.startswith("IMPROVED")
+            or verdict.startswith("NEUTRAL")
+            or verdict.startswith("REBASED")):
         bank_snapshot(unit, source)
         print(f"[revert point banked: probe.py {unit} {fn} --revert"
               " restores it]")
+    elif source is not None and "--no-bank" in sys.argv:
+        print("[--no-bank: snapshot NOT updated — hand-revert this edit]")
 
     # A failed probe almost always needs the ops view next — print it
     # unasked (the multiset pass above already fetched it).
