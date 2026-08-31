@@ -107,6 +107,7 @@
 
 #include "types.h"
 #include "game/camera.h"
+#include "game/gamemode.h"
 
 typedef struct Vec3 {
     f32 x;
@@ -422,7 +423,7 @@ extern void write_stage_info(s32 mode);
 
 extern s32       gGameBusy;   /* master camera-disable flag */
 extern void*     gFrameTicks;   /* camera-enable gate (nonzero to run) */
-extern s32       gGameMode;   /* camera-path mode selector (0x4010 = scripted) */
+extern s32       gGameMode;   /* game mode; see enum e_mode (MG_PLAY = scripted) */
 extern s32       gScriptedCameraState;   /* scripted-path sub-state */
 extern f32*      CurTransmitter;  /* active transmitter marker record (f32 view) */
 extern s32       lbl_803447B8;    /* scripted-path done flag (cleared on finish) */
@@ -443,7 +444,7 @@ s32 UpdateCam(void) {
     if (lbl_80344A6C == 0) {
         fn_8006F16C(0);
     }
-    if (gGameMode != 0x4010) {
+    if (gGameMode != MG_PLAY) {
         done = 1;
     } else {
         if (gScriptedCameraState > 2) {

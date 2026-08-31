@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/gamemode.h"
 #include "game/leveldata.h"
 #include "game/mbobject.h"
 #include "game/player.h"
@@ -752,7 +753,7 @@ s32 do_gamemovie(void)
 /* ================================================================== */
 s32 init_gamemovie(s32 type)
 {
-    gGameMode = 16398;
+    gGameMode = MG_GAMEMOVIE;
     movieactive = 0;
     AudioStopSelect();
     AudioSelectReset();
@@ -914,7 +915,7 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
     draw_font = font | 0x100;
     color_base = 0x1000000;
 
-    if (gGameMode != 0x8002 && remaining > 0.0) {
+    if (gGameMode != MA_MOVIE && remaining > 0.0) {
         do {
             ch = *source++;
 
@@ -969,7 +970,7 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
                 done = 1;
                 break;
             }
-        } while (gGameMode != 0x8002 && remaining > 0.0);
+        } while (gGameMode != MA_MOVIE && remaining > 0.0);
     }
 
     base[1152 + output_len] = 0;
@@ -1154,7 +1155,7 @@ s32 init_mapscreen(s32 timer, s32 movie)
     AudioEmptyCb2();
     MapMusicStart();
     next_world();
-    gGameMode = 16399;
+    gGameMode = MG_MAPSCREEN;
     lvl = sLastWorldLevel;
     fn_80053D08(-2, 1, -1);
     for (i = 0; i < 4; i++) {

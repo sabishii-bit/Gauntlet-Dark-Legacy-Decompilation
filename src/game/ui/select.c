@@ -46,6 +46,7 @@
 
 #include "types.h"
 #include "__va_arg.h"
+#include "game/gamemode.h"
 #include "game/mbobject.h"
 #include "game/player.h"
 
@@ -1555,7 +1556,7 @@ s32 do_player_select(void)
         }
     }
 
-    if (gGameMode == 0x400B) {
+    if (gGameMode == MG_PLAYER_SELECT) {
         s32 r = ShowLoading();
         if (r == 0) {
             if (allIdle != 0 || lbl_80344BA8 != 0) {
@@ -2672,7 +2673,7 @@ void update_class_spec(s32 player)
     eD += boff;
     mbBlitInit3414(*(void**)(eD += 96), 1);
 
-    if (gGameMode == 0x400B) {
+    if (gGameMode == MG_PLAYER_SELECT) {
         state = *(s32*)(pl + offsetof(Player, state));
         if (state == 3) {
             return;
@@ -2803,7 +2804,7 @@ void init_player_select(s32 mode)
 
     AudioStopSelect();
     lbl_80344BB8 = saveFileSize();
-    gGameMode = 0x400B;
+    gGameMode = MG_PLAYER_SELECT;
     gGameBusy = 0;
     lbl_8034481C = 0;
     good_wiz_exit_timer = 0;

@@ -17,6 +17,7 @@
 #include "game/camera.h"
 #include "game/cameradata.h"
 #include "game/enemy.h"
+#include "game/gamemode.h"
 #include "game/player.h"
 #include "game/worldinfo.h"
 #include "game/leveldata.h"
@@ -3532,7 +3533,7 @@ void ClockOncePerFrame(void)
         }
     }
     if ((gControllerButtons.both & 4) != 0 &&
-        gGameMode == 0x4010) {
+        gGameMode == MG_PLAY) {
         freeze = 1;
     }
 

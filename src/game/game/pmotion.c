@@ -15,6 +15,7 @@
  */
 
 #include "types.h"
+#include "game/gamemode.h"
 #include "game/player.h"
 #include "game/worldobj.h"
 
@@ -78,7 +79,7 @@ typedef struct PCollideItemLayout {
 /* extern globals (.sbss/.sdata runtime state)                         */
 /* ------------------------------------------------------------------ */
 
-extern s32 gGameMode;   /* game state (0x4010 = in-game) */
+extern s32 gGameMode;   /* game state; see enum e_mode (MG_PLAY = in-game) */
 extern f32 gClockFrameReciprocal; /* inverse frame delta */
 extern s32 gFrameTicks;   /* frame delta (int) */
 extern s32 lbl_803447B8;   /* pause/menu depth */
@@ -540,7 +541,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
     fn_8005A338(p->mat, p->anchor_fwd, p->anchor_pos);
     rand4 = RandInt(4);
 
-    if (gGameMode == 0x400C || lbl_803447B8 != 0) {
+    if (gGameMode == MG_ROUND_START || lbl_803447B8 != 0) {
         for (i = 0; i < 4; i++) {
             if (i >= playerIdx) {
                 break;
@@ -736,7 +737,7 @@ void get_player_pos(s32 playerIdx, s32 mode) {
             SV(p)->rot[2] = 0.0f;
         }
     } else {
-        if (gGameMode == 0x400C) {
+        if (gGameMode == MG_ROUND_START) {
             CopyMat4((f32*)gIdentityMatrix, mat);
             YawMat3(mat, gPlayerStartYaw);
             CopyMat3(mat, p->mat);
@@ -795,7 +796,7 @@ s32 try_location(u8* motion, Player* p, f32* position, f32* resultPosition,
     p->pos[2] = position[2];
     fn_8005A404(&p->mat[0], p->anchor_fwd, p->anchor_pos);
 
-    if (gGameMode != 0x400C && lbl_80344500 == 0 && lbl_803443A8 == 0) {
+    if (gGameMode != MG_ROUND_START && lbl_80344500 == 0 && lbl_803443A8 == 0) {
         get_actual_screen_pos(0, (f32*)&screen[1], (f32*)&screen[0], p->col_pos);
         if (screen[1] < (f32)(lbl_80344520 + 30) ||
             screen[1] > (f32)(lbl_8034451C - 30) ||
@@ -4516,7 +4517,7 @@ s32 PlayerCollideFloor(u8* p, f32* pos, f32* dpos, s32 mode, f32 rad,
 
 int PlayerCheckMovingFloor_80088688(Player* p) {
     f32 drop = -(3.0 + (f64)p->col_height);
-    if (gGameMode == 0x4010) {
+    if (gGameMode == MG_PLAY) {
         p->floor_name2 = (WorldObj*)FloorCollide(p->col_radius, 0.0f, drop,
             p->pos, NULL, 1, 0);
         p->hud_flags |= 1;

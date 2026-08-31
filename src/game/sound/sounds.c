@@ -1,4 +1,5 @@
 #include "types.h"
+#include "game/gamemode.h"
 #include "game/player.h"
 #include "game/leveldata.h"
 
@@ -912,7 +913,7 @@ s32 AudioSecretProc(f32 scale, s32 sound, f32* position, u32 flags,
         volume = 0x10;
     }
     mode = 0x70;
-    if (gGameMode == 0x4014 || gGameMode == 0x400C || lbl_803447B4 != 0) {
+    if (gGameMode == MG_OVER || gGameMode == MG_ROUND_START || lbl_803447B4 != 0) {
         goto stop;
     }
 

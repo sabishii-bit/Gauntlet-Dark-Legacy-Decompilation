@@ -1,6 +1,7 @@
 #include "types.h"
 #include "game/camera.h"
 #include "game/effect.h"
+#include "game/gamemode.h"
 #include "game/leveldata.h"
 #include "game/player.h"
 
@@ -576,7 +577,7 @@ s32 BossCameraUpdate(void) {
     if (lbl_803443A8 == 0) {
         BossCameraStart();
     }
-    if (gGameMode == 0x4013 || gGameMode == 0x400D || gGameMode == 0x4017) {
+    if (gGameMode == MG_LEVEL_ADVANCE || gGameMode == MG_WORLD_SELECT || gGameMode == MG_GWIZ_SPEECH) {
         if (lbl_803443A8 == 0) {
             lbl_803443A8 = 1;
         }

@@ -1,4 +1,5 @@
 #include "game/enemy.h"
+#include "game/gamemode.h"
 #include "game/worldobj.h"
 #include "game/dyngrid.h"
 #include "game/leveldata.h"
@@ -5742,7 +5743,7 @@ extern s32 InitAnim(f32 time, animinfo* info, s32 seq, s32 frame, s32 active);
 extern void StartGenFX(f32* pos, s32 level);
 extern s32 gBossType;
 extern s32 gBossDying;
-extern s32 gGameMode;      /* current map/world id */
+extern s32 gGameMode;      /* current game mode; see enum e_mode */
 extern s32 lbl_803447DC;      /* generators-disabled flag */
 extern s32 lbl_8034472C;      /* random-type rotation counter */
 extern u8 lbl_8011AF48[];     /* enemy.c .data anchor (type tables at +4284..) */
@@ -5974,7 +5975,7 @@ s32 generate_enemy(f32* pos, s32 type, s32 level, f32* dir, s32 spew,
     f32 out[3];
     f32 startv[3];
 
-    if (gGameMode == 0x8007) {
+    if (gGameMode == MA_HSTABLE) {
         return -1;
     }
     if (lbl_803447DC != 0 && gen != 0) {
