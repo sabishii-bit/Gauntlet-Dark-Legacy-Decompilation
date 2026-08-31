@@ -5405,7 +5405,13 @@ s32 damage_enemy(Enemy* e, f32 amount, s32 player_index, s32 damage_type,
          * dead axes: splitting the `&&` into two nested ifs (MWCC re-merges it
          * through the same cror), and an empty-true-block `if (t != D) {} else
          * goto;`.  Keeping the first guard as a goto restores the target's
-         * matching `bgt` but loses parity again (back to real 151). */
+         * matching `bgt` but loses parity again (back to real 151).
+         * The target's remaining `bne ->calc; b ->store` pair is the P6
+         * goto-pair wall (front-end inversion of a conditional over an
+         * adjacent unconditional jump): the full goto triple, the same with
+         * an intervening label, and a do-while(0)+break carrier all measured
+         * 2026-08-31 and every one collapsed to the identical beq (570/151)
+         * - see attempt.parked.damage-enemy-p6-goto-pair for the roster. */
         if (e->health <= upper && e->type != E_DEATH) {
             if (e->health > lower) {
                 fight = (f32)(lbl_80346A30 * fight);
