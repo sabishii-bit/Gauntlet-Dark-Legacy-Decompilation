@@ -738,10 +738,10 @@ extern void* gDiag_D1C;         /* last attached list */
 extern s32 gDiag_F00;
 extern s32 gGameBusy;
 extern f32 gClockFrameStep;
-extern s32 lbl_80344CF8;        /* menu count (latched from lbl_803441E8) */
-extern s32 lbl_803441E8;
+extern s32 lbl_80344CF8;        /* menu count (latched from natreelists) */
+extern s32 natreelists;
 extern DiagMenu* lbl_8023D180[]; /* per-menu DiagMenu ptr table */
-extern s32 lbl_8023CFA0[];      /* per-menu texmod arg table */
+extern s32 atree_handles[];      /* per-menu texmod arg table */
 extern u8 lbl_8023D000[];       /* per-menu atree params, stride 16 */
 extern f64 lbl_803486E0;        /* s32->f32 conversion bias */
 extern f64 lbl_803486C0;        /* anim rate constant */
@@ -895,7 +895,7 @@ s32 pbDiagDrawInfo(void)
         gDiag_D20 = lbl_80348670;
         gDiag_FC = MBOX_NewObject(strs + 268, gIdentityMatrix, 0, 0);
         gDiag_D8 = 1;
-        lbl_80344CF8 = lbl_803441E8;
+        lbl_80344CF8 = natreelists;
         gDiagMenuIdx = 1;
         gDiagListSel = 0;
         gDiag_D1C = 0;
@@ -931,8 +931,8 @@ s32 pbDiagDrawInfo(void)
     menu = lbl_8023D180[v];
     if (v != old && menu != 0) {
         gDiagListSel = (&b[v])[68];
-        if (lbl_8023CFA0[v] >= 0 && menu->count != 0) {
-            InitTexMods(menu, lbl_8023CFA0[gDiagMenuIdx]);
+        if (atree_handles[v] >= 0 && menu->count != 0) {
+            InitTexMods(menu, atree_handles[gDiagMenuIdx]);
         }
         gDiag_D24 = lbl_803486B8;
         printf(strs + 292, menu->strs + (&b[gDiagMenuIdx])[44] * 36);
