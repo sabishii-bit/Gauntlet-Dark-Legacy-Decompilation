@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "Derived while building the dead-strip detector for claim.law.base-cast-reconstruction-deadstrips-sibling-statics (fleet worker L2, work_claim.law-directional-audit.20260831.v1). A name-and-addend liveness check warned on 28 of 194 byte-exact Matching units; diagnosing game/g3d/sndvoice.c showed why every one of those warnings was unsound, and adding the rule below took the sweep to 0 of 194 while still catching the synthetic reproduction.",
+    "tags": [
+      "relocation",
+      "symbol-identity",
+      "build-hygiene",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.section-anchor-reloc-hides-symbol-liveness.20260831.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-08-31T15:41:12Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-08-31",
+  "value": "WHEN A RELOCATION NAMES A SECTION ANCHOR, THE RELOCATION TABLE NO LONGER SAYS WHICH SYMBOLS OF THAT SECTION ARE LIVE - THE SELECTING DISPLACEMENT LIVES IN THE ADDR16_HA/LO INSTRUCTION IMMEDIATES, NOT IN THE ELF ADDEND. MWCC reaches a TU's own local data in one of two spellings, and they have completely different observability. (a) SYMBOL-SPECIFIC: the relocation names the datum itself, e.g. game/ui/message.c's `R_PPC_ADDR16_HA lbl_80124E58` / `..._LO lbl_80124E58`. Here liveness is readable straight off `objdump -r`. (b) SECTION-ANCHORED: the relocation names a section symbol (`.data`) or the zero-size local alias MWCC emits for one (`...data.0`, `...rodata.0`), and the offset that picks out WHICH datum is encoded in the two instruction immediates the HA/LO pair patches. Verified on game/g3d/sndvoice.c, where every .data reference is `R_PPC_ADDR16_HA/LO ...data.0` with no addend, yet sndVolCurve (.data+0x78C), sndPanCurve (+0x98C) and sndStreamVolTable (+0xB8C) are demonstrably live - the TU is byte-exact and the DOL links green. A liveness analysis that resolves relocations by name plus ELF addend therefore reports all three as unreferenced, which is not a tuning problem but a category error: the information it needs is not in the relocation table at all. THE SOUND RULE, and it is cheap: if ANY relocation in the object names an anchor for section S, declare S OPAQUE and make no symbol-level liveness claim about anything in it. Only sections whose references are entirely symbol-specific can be screened. MEASURED EFFECT on tools/gdl/datadiff.py --deadstrip: without the rule, 28 of 194 Matching units warned and every warning inspected was a false positive; with it, 0 of 194 warn while the synthetic base-cast reproduction is still caught, because the reproduction's .data references ARE symbol-specific (they name `blob_base`, the one symbol the cast reaches everything through). That is not a coincidence - it is why the rule keeps the detector useful: the base-cast reconstruction shape this screens for NECESSARILY produces a symbol-specific reference to the cast-through symbol, which is exactly the condition under which its orphaned siblings become provable. COST, stated honestly: the rule buys soundness with false negatives. A TU that addresses all its data off one section anchor cannot be screened for dead-stripped statics by this method, and a different instrument (a link-time symbol diff, or the DOL-alignment forensics the parent law describes) is needed there. COROLLARY beyond this tool: any future analysis that tries to infer per-symbol facts from `objdump -r` output must first check whether the section is anchor-addressed, or it will silently be reasoning about a section base while believing it is reasoning about a datum."
+}
