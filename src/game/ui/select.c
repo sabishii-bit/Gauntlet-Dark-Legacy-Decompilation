@@ -173,6 +173,36 @@ typedef struct BlitPlacement {
     s32 scale;  /* +0x08 (page+0x28) blit scale, converted to f32 at use     */
 } BlitPlacement;
 
+/* file-local view of the ROM texture header MBRomTexPtr() returns; only the
+ * two fields this TU reads are named.  Same offsets and field names as the
+ * MBTextureDef reconstruction already verified in game/mb/mb_blit.c (width
+ * 0x0A, height 0x0C) -- reused verbatim rather than introducing a third
+ * spelling for one record (mb_struct.c calls it MBRomTexture, mb_poly.c
+ * TexInfo).  Only used to feed offsetof(); never cast a live pointer. */
+typedef struct MBTextureDef {
+    u8 _pad00[0x0A];
+    u16 width;   /* +0x0A */
+    u16 height;  /* +0x0C */
+} MBTextureDef;
+
+/* file-local view of the per-class progression slot update_class_attr reads:
+ * a 24-byte record array based at the player record + 0x0A90 and indexed by
+ * the selected class (`expslot = pl + sel * 24 + 2704`).  Stride, base and
+ * every field offset are verified in-TU from that expression and the four
+ * stat reads; the four f32s are only known by which stats[] row they feed
+ * (drawn against GetStringText(167, row)), so they keep the project's
+ * generic field_NN convention rather than a guessed semantic name.  These
+ * bytes fall inside include/game/player.h's pad_0A88 run, which this pass is
+ * not permitted to split -- hence a file-local view.  offsetof() use only. */
+typedef struct ClassStatSlot {
+    s32 exp;         /* +0x00 experience, fed to ExpToLevel() */
+    u8 _pad04[4];
+    f32 field_08;    /* +0x08 -> stats[0] */
+    f32 field_0C;    /* +0x0C -> stats[2] */
+    f32 field_10;    /* +0x10 -> stats[3] */
+    f32 field_14;    /* +0x14 -> stats[1] */
+} ClassStatSlot;     /* size 0x18 */
+
 /* file-local view of the fields of OPTMENU (game/ui/options.c, verified
  * 0xE8-byte struct) actually touched by this TU's per-player menu blocks
  * (do_player_select/setup_sel_menu/sel_set_choice all pass an OPTMENU* to
@@ -2456,16 +2486,16 @@ void update_class_attr(s32 player)
             LoadPlyrData(player, *(s32*)(pl + offsetof(Player, respawn_char)), 0);
             {
                 u8* cls = lbl_80282930[player];
-                stats[0] = (s32)(*(f32*)(expslot + 8) +
+                stats[0] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_08)) +
                                  (*(f32*)(cls + 40) +
                                   (f32)((lvl - 1) * 5)));
-                stats[1] = (s32)(*(f32*)(expslot + 20) +
+                stats[1] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_14)) +
                                  (*(f32*)(cls + 48) +
                                   (f32)((lvl - 1) * 5)));
-                stats[2] = (s32)(*(f32*)(expslot + 12) +
+                stats[2] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_0C)) +
                                  (*(f32*)(cls + 56) +
                                   (f32)((lvl - 1) * 5)));
-                stats[3] = (s32)(*(f32*)(expslot + 16) +
+                stats[3] = (s32)(*(f32*)(expslot + offsetof(ClassStatSlot, field_10)) +
                                  (*(f32*)(cls + 64) +
                                   (f32)((lvl - 1) * 5)));
             }
@@ -2918,8 +2948,8 @@ s32 serve_blits(s32 player)
 
         case 3: { /* looping pulse */
             u8* tex = MBRomTexPtr(*(u32*)(h + 4));
-            s32 w = *(u16*)(tex + 10);
-            s32 ht = *(u16*)(tex + 12);
+            s32 w = *(u16*)(tex + offsetof(MBTextureDef, width));
+            s32 ht = *(u16*)(tex + offsetof(MBTextureDef, height));
             s32 amp;
             f32 f;
             s32 du;
@@ -3013,8 +3043,8 @@ s32 serve_blits(s32 player)
             half = *(s32*)(e + offsetof(BlitEntry, timer)) >> 1;
             tex = MBRomTexPtr(*(u32*)(h + 4));
             a = half * half;
-            w = *(u16*)(tex + 10);
-            ht = *(u16*)(tex + 12);
+            w = *(u16*)(tex + offsetof(MBTextureDef, width));
+            ht = *(u16*)(tex + offsetof(MBTextureDef, height));
             f = (f32)(0x100 - a) * kf;
             du = (s32)((f32)w * f);
             dv = (s32)((f32)ht * f);
