@@ -3479,19 +3479,20 @@ void clear_player(s32 i, s32 full) {
     player_index = p->index;
     {
         s32 load_class = 0;
-        s32 character = p->character;
         s32 stat_offset = 0;
+
+        cls = p->character;
 
         do {
             LoadPlyrData(player_index, load_class, NULL);
-            PF(p, 0xA98 + stat_offset, f32) = 0.0f;
-            PF(p, 0xA9C + stat_offset, f32) = 0.0f;
-            PF(p, 0xAA0 + stat_offset, f32) = 0.0f;
-            PF(p, 0xAA4 + stat_offset, f32) = 0.0f;
+            PF((u8*)p + stat_offset, 0xA98, f32) = 0.0f;
+            PF((u8*)p + stat_offset, 0xA9C, f32) = 0.0f;
+            PF((u8*)p + stat_offset, 0xAA0, f32) = 0.0f;
+            PF((u8*)p + stat_offset, 0xAA4, f32) = 0.0f;
             load_class++;
             stat_offset += 0x18;
         } while (load_class < 16);
-        check_player_atts(p, character, NULL);
+        check_player_atts(p, cls, NULL);
     }
 }
 
