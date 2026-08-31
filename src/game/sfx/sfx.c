@@ -761,7 +761,7 @@ s32 StartGemFX(f32* pos, s32 sel)
     return ret;
 }
 
-extern f64 Random(f64 range);
+extern f64 Random(f32 range);
 extern f32 lbl_80127D20[3];     /* bag launch direction */
 extern f64 lbl_80348078;
 extern f32 lbl_80348068;
@@ -2436,7 +2436,8 @@ extern void RollMat3(f32* matrix, f32 angle);
 extern void UnparentMatrix(struct mbnode* node, f32* matrix);
 extern f32 NormalVector2D(f32* vector);
 extern s32 AnimateATree(void* tree, s32 sequence, s32 transition);
-extern s32 damage_player();
+extern s32 damage_player(s32 player, f32 damage, s32 c, u32 damagetype,
+                         f32* dir);
 extern s32 damage_enemy();
 extern s32 CritterDamage();
 extern void CritterSetFxHitTime(f32 damage, s32 player, s32 owner);
