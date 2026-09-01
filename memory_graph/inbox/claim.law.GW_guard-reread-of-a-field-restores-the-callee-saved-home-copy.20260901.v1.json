@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "cse",
+      "decl-order",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.GW_guard-reread-of-a-field-restores-the-callee-saved-home-copy.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T18:50:10Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/gauntworld",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5 family. THE TARGET-ONLY CALLEE-SAVED HOME COPY IS SOURCE-REACHABLE BY A THIRD LEVER THAT NEITHER PRIOR RECORD NAMED: LET THE GUARD RE-READ THE FIELD THAT THE ASSIGNMENT ON THE LINE ABOVE ALREADY CACHED. This REFUTES claim.law.callee-saved-home-copy-coalescing-is-source-unreachable.20260831.v1 and EXTENDS claim.law.GW_block-scope-splits-a-coalesced-copy-but-a-same-scope-copy-folds.20260901.v1, whose scope-and-join discriminator predicts failure for this shape and is therefore incomplete rather than wrong.\n\nTELL, the class's standing signature. Target: `lha r0,8(r4)` / ... / `cmpwi r0,0` / `mr r29,r0` / `bne` - the value is produced into a scratch, TESTED there, and only then copied into its callee-saved home. Ours: `lha r30,8(r3)` / `cmpwi r30,0` / `bne` - MWCC coalesced the load straight into the home register and our stream is exactly one instruction short, shifting every downstream branch displacement.\n\nTHE CURE, measured on gauntworld fn_8005F0F4 at +0x8c. Source before and after, one token changed:\n      coltype = data->coltype;\n      R = data->radius;\n  -   if (coltype == 0) {\n  +   if (data->coltype == 0) {\n          return -1.0f;\n      }\nMWCC CSEs the second read back to the single `lha`, evaluates the comparison in the scratch register, and materialises the assignment to `coltype` as the separate home copy - the target's exact shape. real 471 -> 210 and the instruction count went from 660 to 661 against a target of 661, i.e. EXACT COUNT PARITY, in one edit. The lever costs nothing at runtime and reads as ordinary if slightly redundant C.\n\nWHY THE RECORDED DISCRIMINATOR MISSES IT. The block-scope law says the two names must differ in SCOPE AND LIVE-RANGE SHAPE, and predicts NEUTRAL-IDENTICAL when they do not. Here there is only ONE name: the second operand is not a variable at all, it is a re-evaluated lvalue. The value the guard tests and the value that reaches the home are the same CSE temp, which is precisely the condition that keeps the copy alive. Restate the discriminator as: the copy survives when the TESTED value and the HOMED value are separate SSA references to one computation - a block-scoped second name and a re-read field are two ways to arrange that, and a same-scope second scalar is not.\n\nTHE COST, and the arbitration it forces. The re-read costs a respell: because the field is `s16`, MWCC re-extends it and emits `extsh. r0,r3` where the target has `cmpwi r0,0`, and the copy comes out as `addi rD,rS,0` where the target has `mr`. MEASURED ALTERNATIVE on the same site, `s32 ct; ct = data->coltype; R = data->radius; if (ct == 0) return -1.0f; coltype = ct;` - the same-scope split the older law predicts would fold. It does NOT fold: it keeps the copy, fixes the extsh. to cmpwi and improves the opcode multiset 4t -> 2t, but it moves the copy past the branch and measures real 214 / fuzzy 98.7867% against the re-read form's real 210 / fuzzy 98.9153%. At equal instruction counts fuzzy is the arbiter (claim.law.EN-equal-count-opcode-respell-must-be-arbitrated-on-fuzzy-not-real.20260901.v1), so the re-read form wins - but the pair is a real trade and both should be measured on any new instance. No probed form yet closes both respells; that is the open sub-problem.\n\nSCREEN BEFORE SPENDING THE PROBE. The lever needs an ASSIGNMENT and a GUARD on the same field, adjacent, with the assigned variable long-lived afterwards. If the guard is the only consumer, there is no home to copy into and nothing to gain."
+}

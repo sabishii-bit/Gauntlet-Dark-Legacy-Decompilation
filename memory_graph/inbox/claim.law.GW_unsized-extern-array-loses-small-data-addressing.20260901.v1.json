@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "sda-global",
+      "relocation",
+      "symbol-identity",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.GW_unsized-extern-array-loses-small-data-addressing.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T18:50:02Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/gauntworld",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5 family. AN `extern` ARRAY DECLARED WITHOUT A DIMENSION IS NEVER SMALL-DATA ADDRESSED, EVEN WHEN THE OBJECT REALLY LIVES IN .sdata2. THE ADDRESSING MODE IS DECIDED BY THE DECLARED SIZE ALONE - CONST-NESS IS IRRELEVANT AND SO IS THE SECTION THE LINKER WILL ACTUALLY USE.\n\nTELL. The target takes the address of an .sdata/.sdata2 object in ONE instruction, `li rD,0 @sym(EMB_SDA21)` (an addi off the SDA base), and our build takes it in TWO, `lis rD,0 @sym(ADDR16_HA)` + `addi rD,rD,0 @sym(ADDR16_LO)`. Because our form is one instruction LONGER, this defect makes our function look like it has too MANY instructions while the true deficit lies elsewhere - it moves the instruction-count distance in the wrong direction and hides behind it.\n\nMEASURED LADDER, gauntworld.c / fn_8005BA1C, three string labels whose real sizes config/GUNE5D/symbols.txt records as 0x8, 0x8 and 0x5:\n  extern char lbl[];             -> lis/addi   (no size: never eligible)\n  extern const char lbl[11];     -> lis/addi   (over the sdata threshold)\n  extern const char lbl[];       -> lis/addi   (const does not help; still no size)\n  extern const char lbl[8];      -> li @EMB_SDA21   MATCHES TARGET\nThe threshold behaviour is the whole mechanism: `[11]` and `[]` both fail, `[8]` and `[5]` both succeed. Fixing all three labels moved fn_8005BA1C's real 527 -> 524 and objdiff fuzzy 94.1794% -> 95.2177% by itself.\n\nWHERE TO GET THE SIZE - AND WHY THIS IS NOT A FUDGE. `config/GUNE5D/symbols.txt` carries the splitter's recorded size for every label: `lbl_80346F20 = .sdata2:0x80346F20; // type:object size:0x8 data:string`. Declare THAT size. In this TU the pre-existing source comments naming the strings (\"TREAS_GOLD\", \"TREAS_SILVER\") were simply wrong - the labels are 8-byte strings - so the honest declaration and the matching declaration are the same declaration. Never invent a size to get under the threshold; look it up, and if the real size is genuinely over the threshold while the target still uses SDA21, the mechanism is something else and this law does not apply.\n\nSCREEN, cheap and TU-wide. Cross-check every `extern ... name[]` and `extern ... name[N]` in a TU against symbols.txt: any symbol in a .sdata/.sdata2 section whose declaration is unsized is a live defect, and any sized declaration whose N exceeds the recorded size may be one too. In gauntworld this screen found exactly three, all in one function, all closed in one edit. Symbols in .bss/.data/.rodata (gWorldInfo, lbl_802583A8 at 0x58 bytes) legitimately use lis/addi - do not 'fix' those.\n\nBOUNDARY. This is about the ADDRESS of an object. Reading a scalar through an extern is governed by the separate extern-scalar-read family; this law adds nothing there."
+}
