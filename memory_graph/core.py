@@ -61,6 +61,23 @@ LAW_TAG_VOCABULARY = frozenset({
 # only the top-level spelling is templated and documented.
 RESIDUAL_FIELDS = ("signature", "family", "capability_needed", "measured_at")
 
+# Provenance fields the BF backfill added alongside the contract four, kept
+# because they carry the QUARANTINE: family_candidate holds extractor
+# guesses measured at only ~30-50% precision, and merging those into
+# `family` would poison every roster built on the facet. Unknown keys beyond
+# these are tolerated rather than refused — an additive schema must not let
+# one lane's extension break another lane's import, which is exactly what a
+# strict unknown-key check did to the merged corpus on 2026-09-01.
+RESIDUAL_EXTENSION_FIELDS = (
+    "confidence", "extraction_status", "signature_source",
+    "family_candidate", "family_candidate_confidence",
+)
+
+# Sentinels: NOT residual families, but legitimate `family` values meaning
+# "no family assigned" and "this function has no residual at all".
+# Excluded from --family results unless asked for by name.
+RESIDUAL_FAMILY_SENTINELS = frozenset({"unclassified", "no-residual"})
+
 # Starter family vocabulary from the contract. Extensible ONLY by recorded
 # proposal to the integrator — a silently-grown vocabulary makes
 # `find --family` an unreliable negative screen, which is the failure mode
@@ -752,24 +769,31 @@ def _validate_schema_fields(record: dict[str, Any], source: Path) -> None:
     ``gdlmem validate``/``build``, while the requirement gates bind new
     proposals only and never retroactively invalidate accepted records.
     """
-    residual = _record_field(record, "residual")
-    # attributes.residual is legacy free prose ("what remains and why it was
-    # left"); only an OBJECT is the structured run-29 field.
+    # TOP-LEVEL ONLY. `attributes.residual` is legacy free prose ("what
+    # remains and why it was left") on 654 accepted records; conflating the
+    # two would read prose as structure.
+    residual = record.get("residual")
     if isinstance(residual, dict):
-        unknown = sorted(set(residual) - set(RESIDUAL_FIELDS))
-        if unknown:
-            raise MemoryGraphError(
-                f"{source}: residual has unknown key(s) {unknown}; the"
-                f" contract's shape is {{{', '.join(RESIDUAL_FIELDS)}}}"
-            )
-        for key in RESIDUAL_FIELDS:
+        # Unknown keys are TOLERATED, not refused: the schema is additive and
+        # a strict check here broke the whole corpus import the moment a
+        # second lane extended the object.
+        for key in RESIDUAL_FIELDS + RESIDUAL_EXTENSION_FIELDS:
             value = residual.get(key)
             if value is not None and not isinstance(value, str):
                 raise MemoryGraphError(
                     f"{source}: residual.{key} must be a string or null,"
                     f" got {type(value).__name__}"
                 )
+        candidate = residual.get("family_candidate")
+        if candidate and candidate not in RESIDUAL_FAMILY_VOCABULARY:
+            raise MemoryGraphError(
+                f"{source}: residual.family_candidate {candidate!r} is"
+                " outside the contract vocabulary — "
+                + ", ".join(sorted(RESIDUAL_FAMILY_VOCABULARY))
+            )
         family = residual.get("family")
+        if family and family in RESIDUAL_FAMILY_SENTINELS:
+            family = None  # sentinel, not a family
         if family and family not in RESIDUAL_FAMILY_VOCABULARY:
             raise MemoryGraphError(
                 f"{source}: residual.family {family!r} is outside the"
@@ -2613,6 +2637,12 @@ def _apply_proposal_gates(record: dict[str, Any]) -> None:
                 " disprove until it was measured, and all 43 of its hits were"
                 " false). If the claim is genuinely conditional, soften the"
                 " language instead of adding a token falsifier."
+                " THE NORM YOU ARE JOINING: the BF backfill measured 258 of"
+                " 324 existing necessity-laws carrying NO falsifier — see"
+                " claim.BF_necessity-laws-without-falsifiers-report"
+                ".20260901.v1. This gate binds new records only, so that"
+                " backlog is not yours to fix, but it is why the field is"
+                " required going forward."
             )
 
     # Gate B. Moving a function into the postprocessor work class is only
@@ -3180,6 +3210,50 @@ def _record_age_days(valid_from: str | None, recorded_at: str | None) -> int | N
     return (datetime.now(timezone.utc).date() - then).days
 
 
+# residual_class predates `family` by the whole campaign: it sits on 941 of
+# 971 attempts but has drifted to 35 spellings, many compound ("STRUCTURAL(1
+# cluster, precisely rooted) + REGISTER_ONLY/SCHEDULE(2 clusters)"). Families
+# are defined AGAINST these coarse classes, so --family can fall back to the
+# legacy field instead of leaving 941 records invisible to the new facet.
+_RESIDUAL_CLASS_CANON = (
+    "REGISTER_ONLY", "STACK_LAYOUT", "STRUCTURAL", "SCHEDULE", "RELOCATION",
+    "NON_TEXT", "OPERAND_DIFF", "MIXED", "EXACT", "NONE",
+)
+
+FAMILY_TO_RESIDUAL_CLASS = {
+    "live-zero-remat": "REGISTER_ONLY",
+    "copy-form": "REGISTER_ONLY",
+    "regalloc-web": "REGISTER_ONLY",
+    "cse-share": "REGISTER_ONLY",
+    "schedule-window": "SCHEDULE",
+    "branch-pair": "STRUCTURAL",
+    "pool-order": "STRUCTURAL",
+    "addressing-mode": "STRUCTURAL",
+    "constant-hoist": "STRUCTURAL",
+    "inline-boundary": "STRUCTURAL",
+    "frame-slot": "STACK_LAYOUT",
+    "save-area": "STACK_LAYOUT",
+    "prologue-form": "STACK_LAYOUT",
+    "reloc-naming": "RELOCATION",
+    "eh-scaffold": "NON_TEXT",
+}
+
+
+def normalize_residual_class(raw: str | None) -> list[str]:
+    """Canonical class tokens present in a free-form residual_class string."""
+    if not isinstance(raw, str):
+        return []
+    upper = raw.upper()
+    found = []
+    for token in _RESIDUAL_CLASS_CANON:
+        if token in upper and token not in found:
+            found.append(token)
+    # "REGISTER" alone is a live spelling; don't lose it to REGISTER_ONLY.
+    if not found and "REGISTER" in upper:
+        found.append("REGISTER_ONLY")
+    return found
+
+
 _SLUG_SPLIT_RE = re.compile(r"[^a-z0-9]+")
 # Version and date suffixes are NOT content: RC measured that counting law
 # citations by date suffix misreads a record that cites laws by slug alone
@@ -3215,11 +3289,42 @@ def _slug_match(record_id: str, tokens: list[str]) -> bool:
     return all(any(token in word for word in words) for token in tokens)
 
 
+# The measured shape `fndiff --ops` actually emits, which is what 624 of the
+# backfilled signatures carry:
+#   "DIFFERS target-only: +1 add ours-only: -1 mr; insns T71/O71; 6 ops
+#    clusters"
+#   "0t opcode multiset IDENTICAL (155/155); insns T155/O155; 0 ops clusters"
+# Word-splitting that string yields {differs, target, only, ours, insns,
+# ops, clusters, ...}, so ANY two signatures overlap on framing words and
+# the facet degenerates. Take only the mnemonics carried by a +N/-N marker.
+_SIGNATURE_OPCODE_RE = re.compile(r"[+-]\s*\d+\s+([a-z][a-z0-9_.]*)")
+_SIGNATURE_STOPWORDS = frozenset({
+    "differs", "target", "only", "ours", "insns", "ops", "clusters",
+    "cluster", "opcode", "multiset", "identical", "none", "and", "or",
+    "vs", "real", "fuzzy", "t", "o",
+})
+
+
 def _signature_tokens(signature: str) -> set[str]:
-    """Bare mnemonics of a `--ops` token delta, e.g. '+1 addi -1 li'."""
-    tokens = set()
-    for raw in _SLUG_SPLIT_RE.split(signature.lower()):
-        if not raw or raw.isdigit():
+    """Bare opcode mnemonics of a `--ops` token delta.
+
+    Primary path reads the +N/-N markers, which is exact on the measured
+    fndiff format. Bare hand-written forms ('+1 addi -1 li') match the same
+    pattern. Only when neither yields anything does this fall back to word
+    splitting, with the framing vocabulary filtered out.
+    """
+    lowered = signature.lower()
+    tokens = set(_SIGNATURE_OPCODE_RE.findall(lowered))
+    if tokens:
+        return tokens
+    for raw in _SLUG_SPLIT_RE.split(lowered):
+        # A PPC mnemonic starts with a letter, so anything leading with a
+        # digit is a count artifact ("0t", "155", "2t") rather than an
+        # opcode.
+        if not raw or not raw[0].isalpha() or raw in _SIGNATURE_STOPWORDS:
+            continue
+        # drop count artifacts like t71 / o421
+        if re.fullmatch(r"[to]\d+", raw):
             continue
         tokens.add(raw)
     return tokens
@@ -3238,7 +3343,8 @@ def _iter_attempt_residuals(root: Path) -> Iterator[tuple[dict[str, Any], dict[s
                 continue
             if not isinstance(record, dict):
                 continue
-            residual = _record_field(record, "residual")
+            # TOP-LEVEL ONLY: attributes.residual is prose on 654 records.
+            residual = record.get("residual")
             if isinstance(residual, dict):
                 yield record, residual
 
@@ -3831,6 +3937,7 @@ def find_records(
     limit: int = 25,
     family: str | None = None,
     capability: str | None = None,
+    include_candidates: int = 0,
 ) -> dict[str, Any]:
     """Faceted record search: filter by kind, anchor function, TU, attempt
     outcome, residual class, associated law, residual FAMILY and needed
@@ -3912,14 +4019,21 @@ def find_records(
         )
         params.extend([f"%{law}%", f"%{law}%"])
     if family:
-        # Structured only: a family is a controlled tag, so a prose fallback
-        # would let free text masquerade as a classification.
-        sql += (
-            " AND (json_extract(r.raw_json, '$.residual.family') = ?"
-            "   OR json_extract(r.raw_json, '$.attributes.residual.family')"
-            "      = ?)"
-        )
-        params.extend([family, family])
+        # Three tiers, kept SEPARABLE and labelled per row: the verified
+        # `family`; the quarantined `family_candidate` (extractor guesses,
+        # measured ~30-50% precise — opt-in only, never merged silently);
+        # and the legacy coarse residual_class the family is defined against.
+        clauses = ["json_extract(r.raw_json, '$.residual.family') = ?"]
+        params.append(family)
+        if include_candidates:
+            clauses.append(
+                "json_extract(r.raw_json, '$.residual.family_candidate') = ?")
+            params.append(family)
+        legacy_class = FAMILY_TO_RESIDUAL_CLASS.get(family)
+        if legacy_class:
+            clauses.append("UPPER(COALESCE(at.residual_class,'')) LIKE ?")
+            params.append(f"%{legacy_class}%")
+        sql += " AND (" + " OR ".join(clauses) + ")"
     if capability:
         # Structured OR prose: the structured field is the screen, but the
         # corpus predates it and the naming that motivated this facet lived
@@ -3952,9 +4066,29 @@ def find_records(
     # manufactured false clearances (22 of 47 live vetoes missed in one
     # session — claim.find-subcommand-caps-at-100-and-silently-falsifies-
     # park-screens).
-    params.append(limit + 1)
+    # A --family query widens into the coarse legacy class, which can return
+    # hundreds of rows and bury the handful of EXACT family hits behind
+    # them. Fetch generously, rank exact > candidate > fallback in Python,
+    # then apply the caller's limit — otherwise the precise answer is the
+    # part that gets truncated away.
+    fetch = 4000 if family else limit + 1
+    params.append(fetch)
     with closing(open_database(root, db_path)) as connection:
         rows = connection.execute(sql, params).fetchall()
+    if family:
+        def rank(row):
+            try:
+                record = json.loads(row["raw_json"])
+            except json.JSONDecodeError:
+                return 3
+            obj = record.get("residual")
+            obj = obj if isinstance(obj, dict) else {}
+            if obj.get("family") == family:
+                return 0
+            if include_candidates and obj.get("family_candidate") == family:
+                return 1
+            return 2
+        rows = sorted(rows, key=rank)
     truncated = len(rows) > limit
     rows = rows[:limit]
     results = []
@@ -3974,11 +4108,26 @@ def find_records(
             "age_days": _record_age_days(row["valid_from"], row["recorded_at"]),
             "head": _record_head(record),
         }
-        residual_obj = _record_field(record, "residual")
+        residual_obj = record.get("residual")
         if isinstance(residual_obj, dict):
             entry["residual"] = {
                 key: residual_obj.get(key) for key in RESIDUAL_FIELDS
             }
+        if family:
+            obj = residual_obj if isinstance(residual_obj, dict) else {}
+            if obj.get("family") == family:
+                entry["match"] = "family"
+            elif include_candidates and obj.get("family_candidate") == family:
+                entry["match"] = "family_candidate"
+                entry["candidate_warning"] = (
+                    "UNVERIFIED extractor guess (~30-50% precision) — verify"
+                    " against the function's aligned diff before relying on"
+                    " it. This is NOT a family classification."
+                )
+            else:
+                entry["match"] = "residual_class-fallback"
+                entry["fallback_class"] = normalize_residual_class(
+                    record.get("residual_class"))
         if capability:
             structured = isinstance(residual_obj, dict) and capability.lower() \
                 in str(residual_obj.get("capability_needed") or "").lower()
@@ -3999,11 +4148,21 @@ def find_records(
             " that are real so the next screen is structured."
         )
     if family:
+        counts: dict[str, int] = {}
+        for row in results:
+            counts[row.get("match", "?")] = counts.get(row.get("match"), 0) + 1
+        out["family_match_counts"] = counts
         out["family_note"] = (
-            "structured residual.family only. A record that never carried the"
-            " field is INVISIBLE here, so an empty result means 'nothing"
-            " annotated', not 'no such residual exists' — confirm against"
-            " find --residual/--outcome before treating it as a clearance."
+            "THREE TIERS, ranked and labelled per row — do not total them."
+            " match=family is the verified classification and the only tier"
+            " usable as a screen. match=family_candidate (only with"
+            " --include-candidates) is an UNVERIFIED extractor guess measured"
+            " at ~30-50% precision. match=residual_class-fallback is the"
+            " legacy coarse class this family is defined against"
+            f" ({FAMILY_TO_RESIDUAL_CLASS.get(family, 'n/a')}) — a WIDENING"
+            " that says the record is in the right neighbourhood, not that it"
+            " is in this family. An empty verified tier means 'nothing"
+            " annotated', not 'no such residual exists'."
         )
     if truncated:
         out["warning"] = (
@@ -4877,7 +5036,8 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                 kw["query"], root=root, db_path=db, kind=kw["kind"],
                 function=kw["function"], tu=kw["tu"], outcome=kw["outcome"],
                 residual=kw["residual"], law=kw["law"], limit=kw["limit"],
-                family=kw["family"], capability=kw["capability"]),
+                family=kw["family"], capability=kw["capability"],
+                include_candidates=kw["include_candidates"]),
             params=(
                 SurfaceParam("query", str, default=None,
                              help="optional FTS terms"),
@@ -4894,8 +5054,14 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                 SurfaceParam("law", str, default=None,
                              help="law id fragment (structured links + prose)"),
                 SurfaceParam("family", str, default=None,
-                             help="residual.family tag, e.g. live-zero-remat"
-                                  " (controlled vocabulary; structured only)"),
+                             help="residual.family tag, e.g. live-zero-remat;"
+                                  " rows are labelled family (verified) vs"
+                                  " residual_class-fallback (coarse legacy"
+                                  " widening) — never total the tiers"),
+                SurfaceParam("include_candidates", int, default=0, maximum=1,
+                             help="1 = also return quarantined"
+                                  " family_candidate extractor guesses"
+                                  " (~30-50%% precision), labelled as such"),
                 SurfaceParam("capability", str, default=None,
                              help="residual.capability_needed — which parks"
                                   " are waiting on a capability"),

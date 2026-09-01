@@ -840,10 +840,47 @@ class SchemaShapeTests(unittest.TestCase):
             self._check(_attempt("attempt.res.v3", "function:test_fn",
                                  residual={"family": "made-up-family"}))
 
-    def test_unknown_residual_key_fails_closed(self):
-        with self.assertRaisesRegex(MemoryGraphError, "unknown key"):
-            self._check(_attempt("attempt.res.v4", "function:test_fn",
-                                 residual={"signaure": "typo"}))
+    def test_unknown_residual_keys_are_tolerated(self):
+        # REGRESSION: the first cut REFUSED unknown keys, and that broke the
+        # entire corpus import the moment the BF lane added its provenance
+        # fields (confidence / extraction_status / signature_source). An
+        # additive schema must not let one lane's extension break another
+        # lane's build.
+        self._check(_attempt(
+            "attempt.res.v4", "function:test_fn",
+            residual={"signature": "+1 addi", "confidence": "hand-verified",
+                      "extraction_status": "measured-dead",
+                      "signature_source": "fndiff sweep 2026-09-01",
+                      "some_future_key": "tolerated"}))
+
+    def test_extension_field_types_are_still_checked(self):
+        with self.assertRaisesRegex(MemoryGraphError, "must be a string"):
+            self._check(_attempt("attempt.res.v4b", "function:test_fn",
+                                 residual={"confidence": ["not", "a", "str"]}))
+
+    def test_family_sentinels_are_accepted(self):
+        # BF's backfill uses these on 956 records: 'unclassified' = no family
+        # assigned, 'no-residual' = the function has none.
+        for sentinel in ("unclassified", "no-residual"):
+            self._check(_attempt(f"attempt.sent.{sentinel}",
+                                 "function:test_fn",
+                                 residual={"family": sentinel}))
+
+    def test_family_candidate_is_vocabulary_checked_but_kept_separate(self):
+        self._check(_attempt("attempt.cand.v1", "function:test_fn",
+                             residual={"family": "unclassified",
+                                       "family_candidate": "copy-form"}))
+        with self.assertRaisesRegex(MemoryGraphError, "family_candidate"):
+            self._check(_attempt("attempt.cand.v2", "function:test_fn",
+                                 residual={"family_candidate": "invented"}))
+
+    def test_attributes_residual_prose_is_not_read_as_structure(self):
+        # 654 accepted records carry attributes.residual as free prose;
+        # conflating it with the structured object would read prose as data.
+        record = _attempt("attempt.prose.v1", "function:test_fn",
+                          attributes={"residual": "left raw, see the diff"})
+        self._check(record)
+        self.assertIsNone(record.get("residual"))
 
     def test_bad_measured_at_fails_closed(self):
         with self.assertRaisesRegex(MemoryGraphError, "YYYY-MM-DD"):
@@ -1108,6 +1145,18 @@ class RetrievalQueryTests(unittest.TestCase):
                       "capability_needed": None,
                       "measured_at": "2026-09-01"},
         ))
+        # LEGACY tier: coarse residual_class, no family — the 941-record
+        # population that must not be invisible to --family.
+        _write(records / "attempts" / "attempt.legacy-class.v1.json", _attempt(
+            "attempt.legacy-class.v1", "function:test_fn", outcome="parked",
+            axis="legacy coarse class only",
+            residual_class="REGISTER_ONLY/SCHEDULE (allocator residual)",
+            residual={"family": "unclassified",
+                      "family_candidate": "live-zero-remat",
+                      "family_candidate_confidence": "UNVERIFIED guess",
+                      "signature": "DIFFERS target-only: +1 addi ours-only:"
+                                   " -1 li; insns T71/O71; 6 ops clusters"},
+        ))
         # A 10b hypothesis + a multi-edit park with held_fixed, on test_fn.
         _write(records / "attempts" / "attempt.hypothesis.v1.json", _attempt(
             "attempt.hypothesis.v1", "function:test_fn", outcome="capped",
@@ -1209,10 +1258,72 @@ class RetrievalQueryTests(unittest.TestCase):
     # --- find --family / --capability ------------------------------------
     def test_find_family_facet(self):
         hits = find_records(root=self.root, family="live-zero-remat")
-        self.assertEqual({row["id"] for row in hits["results"]},
-                         {"attempt.resid-a.v1"})
+        verified = {row["id"] for row in hits["results"]
+                    if row["match"] == "family"}
+        self.assertEqual(verified, {"attempt.resid-a.v1"})
         self.assertEqual(hits["results"][0]["residual"]["family"],
                          "live-zero-remat")
+
+    def test_signature_tokens_parse_the_real_fndiff_ops_format(self):
+        # Word-splitting the measured format yields {differs, target, only,
+        # ours, insns, ops, clusters, t71, o71}, so ANY two signatures
+        # overlap on framing words and the facet degenerates.
+        tokens = core._signature_tokens(
+            "DIFFERS target-only: +1 add ours-only: -1 mr;"
+            " insns T71/O71; 6 ops clusters")
+        self.assertEqual(tokens, {"add", "mr"})
+
+    def test_signature_tokens_of_an_identical_multiset_are_empty(self):
+        self.assertEqual(
+            core._signature_tokens(
+                "0t opcode multiset IDENTICAL (155/155); insns T155/O155;"
+                " 0 ops clusters"),
+            set())
+
+    def test_two_unrelated_signatures_do_not_share_framing_words(self):
+        a = core._signature_tokens(
+            "DIFFERS target-only: +1 add ours-only: -1 mr; insns T71/O71")
+        b = core._signature_tokens(
+            "DIFFERS target-only: +2 stw ours-only: -2 stmw; insns T9/O9")
+        self.assertEqual(a & b, set())
+
+    def test_find_family_tiers_are_labelled_and_ranked(self):
+        hits = find_records(root=self.root, family="live-zero-remat",
+                            limit=50)
+        by_id = {row["id"]: row for row in hits["results"]}
+        # verified tier
+        self.assertEqual(by_id["attempt.resid-a.v1"]["match"], "family")
+        # legacy coarse class bridges in, but LABELLED as a widening
+        self.assertEqual(by_id["attempt.legacy-class.v1"]["match"],
+                         "residual_class-fallback")
+        self.assertIn("REGISTER_ONLY",
+                      by_id["attempt.legacy-class.v1"]["fallback_class"])
+        # exact hits rank ahead of the widening
+        self.assertEqual(hits["results"][0]["match"], "family")
+        self.assertIn("family_match_counts", hits)
+
+    def test_family_candidates_are_quarantined_unless_asked_for(self):
+        without = find_records(root=self.root, family="live-zero-remat",
+                               limit=50)
+        matches = {row["id"]: row["match"] for row in without["results"]}
+        # present only via the coarse fallback, never as a candidate
+        self.assertNotIn("family_candidate", set(matches.values()))
+        withc = find_records(root=self.root, family="live-zero-remat",
+                             limit=50, include_candidates=1)
+        by_id = {row["id"]: row for row in withc["results"]}
+        self.assertEqual(by_id["attempt.legacy-class.v1"]["match"],
+                         "family_candidate")
+        self.assertIn("UNVERIFIED",
+                      by_id["attempt.legacy-class.v1"]["candidate_warning"])
+
+    def test_residual_class_normalizer_handles_compound_spellings(self):
+        self.assertEqual(
+            core.normalize_residual_class(
+                "STRUCTURAL(1 cluster) + REGISTER_ONLY/SCHEDULE(2 clusters)"),
+            ["REGISTER_ONLY", "STRUCTURAL", "SCHEDULE"])
+        self.assertEqual(core.normalize_residual_class("REGISTER"),
+                         ["REGISTER_ONLY"])
+        self.assertEqual(core.normalize_residual_class(None), [])
 
     def test_find_family_rejects_a_vocabulary_typo(self):
         # A typo would otherwise return zero rows, which reads as a false
