@@ -2171,8 +2171,10 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
                 q->p_parms[2].i.fade_start = fv;
             }
             t3 = t3 * sc;
-            if (!(t3 < lo)) {
-                if (!(t3 > hi)) {
+            if (t3 < lo) {
+            } else {
+                if (t3 > hi) {
+                } else {
                     hi = t3;
                 }
                 lo = hi;
@@ -2220,9 +2222,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             }
             t3 = t3 * sc;
             if (!(t3 < lo)) {
-                if (!(t3 > hi)) {
-                    hi = t3;
-                }
+                hi = (t3 > hi) ? hi : t3;
                 lo = hi;
             }
             q->p_parms[1].i.fade_end = lo;
@@ -2268,9 +2268,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             }
             t3 = t3 * sc;
             if (!(t3 < lo)) {
-                if (!(t3 > hi)) {
-                    hi = t3;
-                }
+                hi = (t3 > hi) ? hi : t3;
                 lo = hi;
             }
             q->p_parms[0].i.fade_end = lo;
@@ -2318,9 +2316,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             }
             t3 = t3 * sc;
             if (!(t3 < lo)) {
-                if (!(t3 > hi)) {
-                    hi = t3;
-                }
+                hi = (t3 > hi) ? hi : t3;
                 lo = hi;
             }
             q->p_parms[3].i.fade_end = lo;
@@ -2368,9 +2364,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             }
             t3 = t3 * sc;
             if (!(t3 < lo)) {
-                if (!(t3 > hi)) {
-                    hi = t3;
-                }
+                hi = (t3 > hi) ? hi : t3;
                 lo = hi;
             }
             q->p_parms[4].i.fade_end = lo;
@@ -3251,7 +3245,6 @@ struct TexPageEnt {
 };
 
 static Psys* allocPsys(s32 fromArena) {
-    u8 unused[8];
     u8* pi = (u8*)psysInfo;
     u8* gw = (u8*)gWinGlobals;
     u8* g = pi + offsetof(PsysInfoCoreView, runtime);
@@ -3814,13 +3807,13 @@ static void freePsysMem(void* mem) {
 
     if (prev != NULL) {
         prev->next = block->next;
-        block = prev;
         pool->next = prev;
         if (prev->next != NULL) {
             prev->next->prev = prev;
         } else {
             pool->last = prev;
         }
+        block = prev;
         bytes += prevBytes;
         pool->free_cnt--;
     }
