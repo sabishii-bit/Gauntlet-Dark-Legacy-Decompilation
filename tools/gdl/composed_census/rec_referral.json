@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "provenance": "Derived 2026-09-01 in worktree GDL-Claude-CombinedCensus, branch claude/combined-census-20260901, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679. Reproduce with CH_scratch/ch_sweep26.py; the derived rules are recorded verbatim in CH_scratch/ch_sweep26.json and print with CH_scratch/ch_show.py. Both were proven to residual 0 through webfrank.apply_patch against the real object; NEITHER was authored, because the owning TUs belong to other lanes this run.",
+    "tags": [
+      "postprocessor",
+      "matching",
+      "workflow",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.CH_two-derived-closures-referred-to-their-owning-lanes.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "value": "TWO FUNCTIONS DERIVE TO RESIDUAL 0 WITH EXISTING, ALREADY-SANCTIONED STAGES AND ARE FREE EXACTS FOR WHOEVER OWNS THEIR TUs. Both are referrals, not rules: the derivations are proven, the authoring is deliberately left to the owning lane per the cross-fleet ownership discipline. Neither needs the combined stage; both are instruction_permutation + copy_register_fields.\n\ngame/world/camera::debug_camera_pos, window [0x90,0xa8), 6 atoms, derived order [0,2,1,5,3,4], plus copy_register_fields. Region before/after sha256 9c52c7ea126ebbff37cf2c22f2bbfbd8266b1f988768d0c6d61586fc98d97599 -> ab9c36fe5c3228698ef86886a4500563869bf1ac8643546f1188ddd377c8d6fc; both region relocation hashes are the empty-string hash e3b0c442..., i.e. the window carries no relocations. THIS IS A REVERSAL OF A RECORDED NEGATIVE AND THAT IS THE POINT: claim.CN_census-rerun-canary-validated-filter.20260901.v1 records debug_camera_pos as reaching 'a consistent-recolor refusal at +0x9c on an FPR'. Under the fixed pair (bipartite derivation, no 8-atom enumeration bound, plus instruction-keyed relocation binding) a different and legal order is derived and the function closes. The CN negative was an artifact of the search, not a property of the function. Owner this run: lane WF (work_claim.combined-stage.20260901.v1 scopes game/world/camera via camera_mode_level).\n\ngame/movie/movieplayer::fn_800DA60C, window [0x48,0x5c), 5 atoms, derived order [0,2,1,3,4], plus copy_register_fields. Region before/after sha256 fc4411ced9e1d13e8111313ad887ff505aa683a1b0813f66e14ba945d019a1a6 -> f69bad09d4c0dbe36dbb3393c10d3b29a505867b75c17604d35bc27fc6070562; region relocation hashes both empty. This one has been on offer for three passes: claim.HV_single-region-permute-plus-recolor-census.20260901.v1 already named it 'a free exact for whoever owns it' and it has been skipped as another lane's TU every run since. Owner this run: lane WF (fn_800D8F28).\n\nSWEEP CONTEXT so the yield is not over-read: 14 of the 39 screens-1-3 survivors derive to residual 0 under the fixed pair, and 11 of those 14 are already-shipped rules re-deriving as canaries. The three genuinely new closures are these two plus game/shop/shop::show_piles, which was unowned and IS authored this run (attempt.CH_show-piles-composed-close.20260901.v1).\n\nPROCEDURAL NOTE WORTH CARRYING. Run-25's sweep script SKIPPED owned TUs outright, so its printed output could not serve as a census -- an exclusion made for authoring reasons silently became a measurement gap, and show_piles sat inside it. Measurement is free and ownership bars only AUTHORING: derive everywhere and TAG ownership. This pass does that, which is why two of the three new closures are referrals rather than absences."
+}

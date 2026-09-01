@@ -1,0 +1,214 @@
+﻿[1/51] WEBFRANK build\GUNE5D\src\game\pb\pb_winglobals.o
+WEBFRANK fn_800C1004: adjusted 26 instruction atoms/fields
+WEBFRANK game/pb/pb_winglobals: 26 instruction atoms/fields total
+[2/51] WEBFRANK build\GUNE5D\src\game\crt\vsprintf.o
+WEBFRANK vsprintf: UNPROVEN recolor equivalence accepted by audit (+0x34: use of g5 does not correspond to g4 under the running renaming) — Crossed mr-form moves: raw addi/or copies attach to swapped destinations in the prologue (+0x28-0x44), so the shipped shape-aligned permutation leaves a dataflow crossing; prologue verified equivalent by inspection 2026-08-25; individually reviewed 2026-08-24.
+WEBFRANK vsprintf: adjusted 30 instruction atoms/fields
+WEBFRANK game/crt/vsprintf: 30 instruction atoms/fields total
+[3/51] WEBFRANK build\GUNE5D\src\game\g3d\gcontrolpads.o
+WEBFRANK G3DReadControlPadStates: adjusted 10 instruction atoms/fields
+WEBFRANK game/g3d/gcontrolpads: 10 instruction atoms/fields total
+[4/51] WEBFRANK build\GUNE5D\src\game\audio\mempool.o
+WEBFRANK pool_garbage_collect: UNPROVEN recolor equivalence accepted by audit (+0x30: use of g0 does not correspond to g0 under the running renaming) — Coalescing residual: raw duplicates the pool pointer into r3 and r29 where retail recycles r3 for the loaded value (+0x20-0x30); dataflow-equivalent by inspection 2026-08-25.
+WEBFRANK pool_garbage_collect: adjusted 22 instruction atoms/fields
+WEBFRANK game/audio/mempool: 22 instruction atoms/fields total
+[5/51] WEBFRANK build\GUNE5D\src\game\g3d\g3dpad.o
+WEBFRANK G3DUpdatePadStatus: adjusted 32 instruction atoms/fields
+WEBFRANK game/g3d/g3dpad: 32 instruction atoms/fields total
+[6/51] WEBFRANK build\GUNE5D\src\game\g3d\sndvoice.o
+WEBFRANK sndVoiceUpdateAll: adjusted 42 instruction atoms/fields
+WEBFRANK game/g3d/sndvoice: 42 instruction atoms/fields total
+[7/51] FIXUP build/GUNE5D/src/Runtime.PPCEABI.H/exception_fixup.stamp
+[8/51] MWCC build\GUNE5D\src\game\shop\.postprocess\body\shop.o
+[9/51] WEBFRANK build\GUNE5D\src\game\world\worldcol.o
+WEBFRANK CTriListCollide: adjusted 14 instruction atoms/fields
+WEBFRANK game/world/worldcol: 14 instruction atoms/fields total
+[10/51] WEBFRANK build\GUNE5D\src\game\anim\atree.o
+WEBFRANK fn_8001267C: adjusted 43 instruction atoms/fields
+WEBFRANK AtreeInitSub: adjusted 19 instruction atoms/fields
+WEBFRANK fn_80011BBC: adjusted 3 instruction atoms/fields
+WEBFRANK game/anim/atree: 65 instruction atoms/fields total
+[11/51] WEBFRANK build\GUNE5D\src\game\audio\audio.o
+WEBFRANK AudioAng: adjusted 9 instruction atoms/fields
+WEBFRANK AudioUnloadPart: adjusted 1 instruction atoms/fields
+WEBFRANK AudioBankLoadName: adjusted 1 instruction atoms/fields
+WEBFRANK AudioBankQueueName: adjusted 1 instruction atoms/fields
+WEBFRANK game/audio/audio: 12 instruction atoms/fields total
+[12/51] LINK build\GUNE5D\main.elf
+[13/51] DOL build\GUNE5D\main.dol
+[14/51] WEBFRANK build\GUNE5D\src\game\ui\auxscreen.o
+WEBFRANK calc_wizard_pos: adjusted 11 instruction atoms/fields
+WEBFRANK game/ui/auxscreen: 11 instruction atoms/fields total
+[15/51] WEBFRANK build\GUNE5D\src\game\ui\btext.o
+WEBFRANK DrawGlowText: adjusted 8 instruction atoms/fields
+WEBFRANK game/ui/btext: 8 instruction atoms/fields total
+[16/51] WEBFRANK build\GUNE5D\src\game\world\camera.o
+WEBFRANK camera_init_for_gamemode: adjusted 2 instruction atoms/fields
+WEBFRANK do_camera: adjusted 4 instruction atoms/fields
+WEBFRANK game/world/camera: 6 instruction atoms/fields total
+[17/51] WEBFRANK build\GUNE5D\src\game\game\combat.o
+WEBFRANK adjust_radius_8002B2D4: adjusted 9 instruction atoms/fields
+WEBFRANK MissileCollideEnemy: adjusted 4 instruction atoms/fields
+WEBFRANK cam_orient_to_80029E8C: adjusted 2 instruction atoms/fields
+WEBFRANK init_game_cam: adjusted 68 instruction atoms/fields
+WEBFRANK get_cam_dist: adjusted 72 instruction atoms/fields
+WEBFRANK game/game/combat: 155 instruction atoms/fields total
+[18/51] WEBFRANK build\GUNE5D\src\game\game\controls.o
+WEBFRANK assign_controller: adjusted 20 instruction atoms/fields
+WEBFRANK do_vibe: adjusted 14 instruction atoms/fields
+WEBFRANK joyReadPad: adjusted 102 instruction atoms/fields
+WEBFRANK CheckSpecials: adjusted 53 instruction atoms/fields
+WEBFRANK game/game/controls: 189 instruction atoms/fields total
+[19/51] WEBFRANK build\GUNE5D\src\game\enemy\critter.o
+WEBFRANK CritterResolveMultipleTargets: UNPROVEN recolor equivalence accepted by audit (+0x1a8: use of g30 does not correspond to g28 under the running renaming) — Spill-strategy residual: raw homes loop values in saved registers where retail uses volatiles (+0x3c/+0x80); whole-function web renumbering with crossed homes; byte-equal to retail and individually reviewed 2026-08-24.
+WEBFRANK CritterResolveMultipleTargets: adjusted 62 instruction atoms/fields
+WEBFRANK CritterLineNodeColSub: adjusted 6 instruction atoms/fields
+WEBFRANK CritterLookForCriticalMove: adjusted 13 instruction atoms/fields
+WEBFRANK CritterLineCollide: adjusted 8 instruction atoms/fields
+WEBFRANK CritterDoTexmodNode: adjusted 11 instruction atoms/fields
+WEBFRANK ProcessCritter: adjusted 3 instruction atoms/fields
+WEBFRANK game/enemy/critter: 103 instruction atoms/fields total
+[20/51] WEBFRANK build\GUNE5D\src\game\enemy\enemy.o
+WEBFRANK closest_enemy: adjusted 26 instruction atoms/fields
+WEBFRANK move_logic00: UNPROVEN recolor equivalence accepted by audit (+0x220: use of f29 does not correspond to f30 under the running renaming) — FP constant-web routing residual: rotated lfd web homes (+0x1dc-0x1f4) cross the renaming; byte-equal to retail and individually reviewed 2026-08-24.
+WEBFRANK move_logic00: adjusted 57 instruction atoms/fields
+WEBFRANK move_logic02: adjusted 16 instruction atoms/fields
+WEBFRANK move_logic04: adjusted 16 instruction atoms/fields
+WEBFRANK move_logic14: adjusted 16 instruction atoms/fields
+WEBFRANK move_logic15: adjusted 50 instruction atoms/fields
+WEBFRANK move_logic30: adjusted 8 instruction atoms/fields
+WEBFRANK gendir_8004FBC8: adjusted 5 instruction atoms/fields
+WEBFRANK find_neighbor_milestone: adjusted 24 instruction atoms/fields
+WEBFRANK game/enemy/enemy: 218 instruction atoms/fields total
+[21/51] WEBFRANK build\GUNE5D\src\game\world\gauntworld.o
+WEBFRANK fn_8005FB48: adjusted 27 instruction atoms/fields
+WEBFRANK game/world/gauntworld: 27 instruction atoms/fields total
+[22/51] WEBFRANK build\GUNE5D\src\game\game\gamemain.o
+WEBFRANK DoWorldAnimation: adjusted 13 instruction atoms/fields
+WEBFRANK fn_80051480: adjusted 40 instruction atoms/fields
+WEBFRANK fn_800511D0: adjusted 41 instruction atoms/fields
+WEBFRANK game/game/gamemain: 94 instruction atoms/fields total
+[23/51] WEBFRANK build\GUNE5D\src\game\world\items.o
+WEBFRANK DistanceToClosestPlayer: adjusted 42 instruction atoms/fields
+WEBFRANK InitLighting: adjusted 8 instruction atoms/fields
+WEBFRANK InitItemInfoData: adjusted 25 instruction atoms/fields
+WEBFRANK game/world/items: 75 instruction atoms/fields total
+[24/51] WEBFRANK build\GUNE5D\src\game\sys\memcard.o
+WEBFRANK add_vmu_file: adjusted 5 instruction atoms/fields
+WEBFRANK memCardErrorPrompt: adjusted 2 instruction atoms/fields
+WEBFRANK MemCardCreateGaunt: adjusted 6 instruction atoms/fields
+WEBFRANK game/sys/memcard: 13 instruction atoms/fields total
+[25/51] WEBFRANK build\GUNE5D\src\game\world\newcam.o
+WEBFRANK fn_8006E654: adjusted 1 instruction atoms/fields
+WEBFRANK CalcFrustrumNormals: adjusted 14 instruction atoms/fields
+WEBFRANK GetPlayerAvgPos: adjusted 49 instruction atoms/fields
+WEBFRANK game/world/newcam: 64 instruction atoms/fields total
+[26/51] WEBFRANK build\GUNE5D\src\game\ui\options.o
+WEBFRANK next_boss_hint: adjusted 9 instruction atoms/fields
+WEBFRANK next_legend_hint: adjusted 9 instruction atoms/fields
+WEBFRANK game/ui/options: 18 instruction atoms/fields total
+[27/51] WEBFRANK build\GUNE5D\src\game\game\player.o
+WEBFRANK do_exit: adjusted 23 instruction atoms/fields
+WEBFRANK ExpToLevel: adjusted 9 instruction atoms/fields
+WEBFRANK load_player_geo: adjusted 8 instruction atoms/fields
+WEBFRANK do_heal_players: adjusted 5 instruction atoms/fields
+WEBFRANK game/game/player: 45 instruction atoms/fields total
+[28/51] WEBFRANK build\GUNE5D\src\game\game\pmotion.o
+WEBFRANK get_player_pos: adjusted 116 instruction atoms/fields
+WEBFRANK game/game/pmotion: 116 instruction atoms/fields total
+[29/51] WEBFRANK build\GUNE5D\src\game\sfx\psfx.o
+WEBFRANK DoPlyrSfxSub: adjusted 32 instruction atoms/fields
+WEBFRANK game/sfx/psfx: 32 instruction atoms/fields total
+[30/51] WEBFRANK build\GUNE5D\src\game\ui\select.o
+WEBFRANK init_player_select: adjusted 41 instruction atoms/fields
+WEBFRANK game/ui/select: 41 instruction atoms/fields total
+[31/51] WEBFRANK build\GUNE5D\src\game\shop\shop.o
+WEBFRANK show_piles: adjusted 31 instruction atoms/fields
+WEBFRANK game/shop/shop: 31 instruction atoms/fields total
+[32/51] WEBFRANK build\GUNE5D\src\game\sfx\sfx.o
+WEBFRANK DmgFxAdd: adjusted 4 instruction atoms/fields
+WEBFRANK StartComboFX: adjusted 18 instruction atoms/fields
+WEBFRANK SuicideExplosion: adjusted 49 instruction atoms/fields
+WEBFRANK fn_80094164: adjusted 57 instruction atoms/fields
+WEBFRANK StartBagFX: adjusted 29 instruction atoms/fields
+WEBFRANK StartBlockFX: adjusted 24 instruction atoms/fields
+WEBFRANK InitEffects: adjusted 23 instruction atoms/fields
+WEBFRANK StartThrowMagicFX: adjusted 29 instruction atoms/fields
+WEBFRANK game/sfx/sfx: 233 instruction atoms/fields total
+[33/51] WEBFRANK build\GUNE5D\src\game\sound\sounds_evt.o
+WEBFRANK AudioPlayerEatSFX: adjusted 6 instruction atoms/fields
+WEBFRANK game/sound/sounds_evt: 6 instruction atoms/fields total
+[34/51] WEBFRANK build\GUNE5D\src\game\sound\sounds.o
+WEBFRANK AudioAmbientUpdate: adjusted 29 instruction atoms/fields
+WEBFRANK game/sound/sounds: 29 instruction atoms/fields total
+[35/51] WEBFRANK build\GUNE5D\src\game\pb\pb_diag.o
+WEBFRANK pbDiagDrawTexture: adjusted 15 instruction atoms/fields
+WEBFRANK pbDiagDrawObject: adjusted 13 instruction atoms/fields
+WEBFRANK game/pb/pb_diag: 28 instruction atoms/fields total
+[36/51] WEBFRANK build\GUNE5D\src\game\world\tower.o
+WEBFRANK SumnerDoSpeech: adjusted 7 instruction atoms/fields
+WEBFRANK game/world/tower: 7 instruction atoms/fields total
+[37/51] WEBFRANK build\GUNE5D\src\game\ps2\fakelib.o
+WEBFRANK sceRead: UNPROVEN recolor equivalence accepted by audit (+0xa8: use of g5 does not correspond to g29 under the running renaming) — Copy-propagation residual: retail compares the original register where raw compares its copy (raw addi r5,r29,0 then cmpwi r5 at +0x98/+0xa8 vs retail cmpwi r29); dataflow-equivalent by inspection 2026-08-25.
+WEBFRANK sceRead: adjusted 12 instruction atoms/fields
+WEBFRANK game/ps2/fakelib: 12 instruction atoms/fields total
+[38/51] WEBFRANK build\GUNE5D\src\game\mb\mb_blit.o
+WEBFRANK fn_800B27C4: adjusted 8 instruction atoms/fields
+WEBFRANK DrawBlit: adjusted 86 instruction atoms/fields
+WEBFRANK game/mb/mb_blit: 94 instruction atoms/fields total
+[39/51] WEBFRANK build\GUNE5D\src\game\mb\mb_font.o
+WEBFRANK MBNewFont: adjusted 28 instruction atoms/fields
+WEBFRANK game/mb/mb_font: 28 instruction atoms/fields total
+[40/51] WEBFRANK build\GUNE5D\src\game\pb\dbgtext.o
+WEBFRANK dbgTextInit: adjusted 5 instruction atoms/fields
+WEBFRANK fn_800C031C: UNPROVEN recolor equivalence accepted by audit (+0x24: use of g7 does not correspond to g4 under the running renaming) — Crossed zero-constant/induction webs with duplicated value homes (raw li r7/mr r0,r7 vs retail li r0/mr r4,r0 at +0x08-0x38); dataflow-equivalent by inspection 2026-08-25.
+WEBFRANK fn_800C031C: adjusted 8 instruction atoms/fields
+WEBFRANK game/pb/dbgtext: 13 instruction atoms/fields total
+[41/51] WEBFRANK build\GUNE5D\src\game\pb\pb_texture.o
+WEBFRANK fn_800C72DC: UNPROVEN recolor equivalence accepted by audit (+0x9c: use of g7 does not correspond to g28 under the running renaming) — Induction-web routing residual: raw and retail route the loop index through different intermediate homes and swapped lwzx address roles (+0x90-0x9c); byte-equal to retail and individually reviewed 2026-08-24.
+WEBFRANK fn_800C72DC: adjusted 18 instruction atoms/fields
+WEBFRANK game/pb/pb_texture: 18 instruction atoms/fields total
+[42/51] WEBFRANK build\GUNE5D\src\game\pb\pb_objects.o
+WEBFRANK pbObjTexSub: adjusted 4 instruction atoms/fields
+WEBFRANK game/pb/pb_objects: 4 instruction atoms/fields total
+[43/51] WEBFRANK build\GUNE5D\src\game\pb\pb_window.o
+WEBFRANK pbWinSetup: adjusted 12 instruction atoms/fields
+WEBFRANK pbProjCalc: adjusted 73 instruction atoms/fields
+WEBFRANK game/pb/pb_window: 85 instruction atoms/fields total
+[44/51] WEBFRANK build\GUNE5D\src\game\mb\mb_particle.o
+WEBFRANK getNewPosRectShare: adjusted 4 instruction atoms/fields
+WEBFRANK getSinCos: adjusted 14 instruction atoms/fields
+WEBFRANK MBPsysSetDebugNode: adjusted 8 instruction atoms/fields
+WEBFRANK game/mb/mb_particle: 26 instruction atoms/fields total
+[45/51] WEBFRANK build\GUNE5D\src\game\audio\dcs.o
+WEBFRANK dcsSampleAllocUpload: adjusted 9 instruction atoms/fields
+WEBFRANK game/audio/dcs: 9 instruction atoms/fields total
+[46/51] WEBFRANK build\GUNE5D\src\game\movie\movieplayer.o
+WEBFRANK fn_800D967C: adjusted 2 instruction atoms/fields
+WEBFRANK fn_800DA6A4: adjusted 14 instruction atoms/fields
+WEBFRANK game/movie/movieplayer: 16 instruction atoms/fields total
+[47/51] WEBFRANK build\GUNE5D\src\game\sys\sysservice.o
+WEBFRANK sysPollResetButton: adjusted 2 instruction atoms/fields
+WEBFRANK sysClearFlags: adjusted 2 instruction atoms/fields
+WEBFRANK game/sys/sysservice: 4 instruction atoms/fields total
+[48/51] RETAILDOL build/GUNE5D/main.retail.dol
+retaildol: wrote build\GUNE5D\main.retail.dol (sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679, 2 byte(s) spliced from W:\Repositories\GDL-Claude-CombinedCensus\orig\GUNE5D\sys\main.dol)
+[49/51] CHECK config\GUNE5D\build.sha1
+build/GUNE5D/main.dol: OK
+[50/51] REPORT
+ INFO Loading project .
+ INFO Generating report for 326 units (using 16 threads)
+ INFO Report generated in 0.260s
+ INFO Writing to build\GUNE5D\report.json
+normalize_report: 0 zero-score row(s) made explicit
+[51/51] PROGRESS
+Progress:
+  All: 98.26% fuzzy, 64.09% matched, 28.31% linked (201 / 326 files)
+    Code: 686912 / 1071824 bytes (2681 / 2990 functions)
+    Data: 177300 / 2361748 bytes (7.51%)
+  Game Code: 97.85% fuzzy, 55.61% matched, 11.38% linked (46 / 102 files)
+    Code: 482156 / 867068 bytes (1759 / 2068 functions)
+    Data: 64184 / 97568 bytes (65.78%)
+  SDK Code: 100.00% fuzzy, 100.00% matched, 100.00% linked (155 / 155 files)
+    Code: 204756 / 204756 bytes (922 / 922 functions)
+    Data: 113116 / 116796 bytes (96.85%)

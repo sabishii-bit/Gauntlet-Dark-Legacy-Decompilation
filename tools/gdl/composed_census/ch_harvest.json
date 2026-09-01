@@ -1,0 +1,55 @@
+{
+ "closed": [],
+ "refused": [
+  {
+   "unit": "game/game/controls",
+   "function": "InitControls",
+   "why": "InitControls: register-field patch is not a consistent recolor (+0x2c: use of g3 does not correspond to g3 under the running renaming); model the residual as an instruction_permutation, or record a manual equivalence audit in \"unproven_recolor_audit\""
+  },
+  {
+   "unit": "game/movie/movieplayer",
+   "function": "fn_800DBE98",
+   "why": "fn_800DBE98: register-field patch is not a consistent recolor (+0x3c: use of f0 does not correspond to f2 under the running renaming); model the residual as an instruction_permutation, or record a manual equivalence audit in \"unproven_recolor_audit\""
+  },
+  {
+   "unit": "game/world/tower",
+   "function": "towerRecordLevelBeaten",
+   "why": "towerRecordLevelBeaten: register-field patch is not a consistent recolor (+0x20: use of g30 does not correspond to g31 under the running renaming); model the residual as an instruction_permutation, or record a manual equivalence audit in \"unproven_recolor_audit\""
+  },
+  {
+   "unit": "game/game/controls",
+   "function": "MtapOpenPort",
+   "why": "+0xac is a branch target: control can enter between the definition and the rewrite site"
+  },
+  {
+   "unit": "game/sfx/psfx",
+   "function": "LoadPdataFile",
+   "why": "LoadPdataFile: register-field patch is not a consistent recolor (+0x118: base register presence differs (g0 vs g23)); model the residual as an instruction_permutation, or record a manual equivalence audit in \"unproven_recolor_audit\""
+  },
+  {
+   "unit": "game/enemy/critter",
+   "function": "CritterLoadDone",
+   "why": "CritterLoadDone: register-field patch is not a consistent recolor (+0x98: base register presence differs (g3 vs g0)); model the residual as an instruction_permutation, or record a manual equivalence audit in \"unproven_recolor_audit\""
+  },
+  {
+   "unit": "game/enemy/critter",
+   "function": "CritterLoadStartNext",
+   "why": "CritterLoadStartNext: register-field patch is not a consistent recolor (+0xe0: base register presence differs (g3 vs g0)); model the residual as an instruction_permutation, or record a manual equivalence audit in \"unproven_recolor_audit\""
+  },
+  {
+   "unit": "game/ui/attract",
+   "function": "scroll_credits",
+   "why": "scroll_credits: register-field patch is not a consistent recolor (+0xe4: base register presence differs (g25 vs g0)); model the residual as an instruction_permutation, or record a manual equivalence audit in \"unproven_recolor_audit\""
+  },
+  {
+   "unit": "game/game/gamemain",
+   "function": "fn_80054E78",
+   "why": "fn_80054E78: register-field patch is not a consistent recolor (+0x154: base register presence differs (g0 vs g29)); model the residual as an instruction_permutation, or record a manual equivalence audit in \"unproven_recolor_audit\""
+  },
+  {
+   "unit": "game/world/tower",
+   "function": "TowerCheckMessages",
+   "why": "TowerCheckMessages: register-field patch is not a consistent recolor (+0x5ac: use of g27 does not correspond to g30 under the running renaming); model the residual as an instruction_permutation, or record a manual equivalence audit in \"unproven_recolor_audit\""
+  }
+ ]
+}

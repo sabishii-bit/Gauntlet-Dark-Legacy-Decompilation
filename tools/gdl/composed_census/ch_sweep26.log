@@ -1,0 +1,161 @@
+﻿== game/anim/action::DoEnemyAction
+  DoEnemyAction: window [0x24,0x34) = 4 atoms (plain object (no webfrank unit))
+  DoEnemyAction: no closing order (1 slot-compatible candidates); first step-0 refusal: instruction permutation breaks def-use chains: [(1, ('g', 3))]
+== game/audio/dcs::dcsSampleAllocUpload  [SHIPPED]
+  dcsSampleAllocUpload: window [0xc,0x30) = 9 atoms (raw postprocess body)
+    apply_patch REFUSED for order [0, 1, 5, 2, 6, 7, 3, 4, 8]: dcsSampleAllocUpload: register-field patch is not a consistent recolor (+0x10: base register presence differs (g3 vs g0)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 1, 5, 2, 7, 6, 3, 4, 8]: dcsSampleAllocUpload: register-field patch is not a consistent recolor (+0x10: base register presence differs (g3 vs g0)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 1, 6, 2, 5, 7, 3, 4, 8]: dcsSampleAllocUpload: register-field patch is not a consistent recolor (+0x10: base register presence differs (g3 vs g0)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 1, 6, 2, 7, 5, 3, 4, 8]: dcsSampleAllocUpload: register-field patch is not a consistent recolor (+0x10: base register presence differs (g3 vs g0)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 1, 7, 2, 5, 6, 3, 4, 8]: dcsSampleAllocUpload: register-field patch is not a consistent recolor (+0x10: base register presence differs (g3 vs g0)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 1, 7, 2, 6, 5, 3, 4, 8]: dcsSampleAllocUpload: register-field patch is not a consistent recolor (+0x10: base register presence differs (g3 vs g0)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 5, 1, 2, 6, 7, 3, 4, 8]: dcsSampleAllocUpload: register-field patch is not a consistent recolor (+0x1c: base register presence differs (g0 vs g26)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 5, 1, 2, 7, 6, 3, 4, 8]: dcsSampleAllocUpload: register-field patch is not a consistent recolor (+0x1c: base register presence differs (g0 vs g26)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 6, 1, 2, 5, 7, 3, 4, 8]: dcsSampleAllocUpload: register-field patch is not a consistent recolor (+0x1c: base register presence differs (g0 vs g26)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 6, 1, 2, 7, 5, 3, 4, 8]: dcsSampleAllocUpload: register-field patch is not a consistent recolor (+0x1c: base register presence differs (g0 vs g26)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 7, 1, 2, 5, 6, 3, 4, 8]: dcsSampleAllocUpload: register-field patch is not a consistent recolor (+0x1c: base register presence differs (g0 vs g26)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 7, 1, 2, 6, 5, 3, 4, 8]: dcsSampleAllocUpload: register-field patch is not a consistent recolor (+0x1c: base register presence differs (g0 vs g26)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+  dcsSampleAllocUpload: no closing order (24 slot-compatible candidates); first step-0 refusal: instruction permutation breaks def-use chains: [(1, ('g', 3))]
+== game/crt/vsprintf::vsprintf  [SHIPPED]
+  vsprintf: window [0x24,0x74) = 20 atoms (raw postprocess body)
+  vsprintf: no closing order (0 slot-compatible candidates)
+== game/enemy/critter::ProcessCritter  [SHIPPED]
+  ProcessCritter: window [0xb0,0xbc) = 3 atoms (raw postprocess body)
+    CLOSES: order [0, 1, 2], 3 atoms/fields, residual 0  [IDENTITY ORDER -> permutation stage DROPPED]
+  ProcessCritter: derived from 1 candidate order(s)
+== game/game/combat::init_game_cam  [SHIPPED]
+  init_game_cam: window [0x88,0x9c) = 5 atoms (raw postprocess body)
+    CLOSES: order [0, 3, 1, 2, 4], 68 atoms/fields, residual 0
+  init_game_cam: derived from 1 candidate order(s)
+== game/game/gamemain::fn_80051164
+  fn_80051164: window [0x40,0x54) = 5 atoms (raw postprocess body)
+  fn_80051164: no closing order (0 slot-compatible candidates)
+== game/game/player::do_exit  [SHIPPED]
+  do_exit: window [0x1f0,0x248) = 22 atoms (raw postprocess body)
+  do_exit: no closing order (0 slot-compatible candidates)
+== game/game/player::PlayerProcessPowerups
+  PlayerProcessPowerups: window [0x19c,0x1b8) = 7 atoms (raw postprocess body)
+  PlayerProcessPowerups: no closing order (0 slot-compatible candidates)
+== game/game/player::player_store_in_save
+  player_store_in_save: window [0x194,0x1b4) = 8 atoms (raw postprocess body)
+  player_store_in_save: no closing order (0 slot-compatible candidates)
+== game/game/player::PlayerLoadSaveFile
+  PlayerLoadSaveFile: window [0x0,0x40) = 16 atoms (raw postprocess body)
+  PlayerLoadSaveFile: no closing order (0 slot-compatible candidates)
+== game/mb/mb_particle::getNewPosRectShare  [SHIPPED]
+  getNewPosRectShare: window [0x14,0x2c) = 6 atoms (raw postprocess body)
+    CLOSES: order [0, 4, 1, 2, 3, 5], 4 atoms/fields, residual 0
+  getNewPosRectShare: derived from 1 candidate order(s)
+== game/movie/movieplayer::__ct__11MoviePlayerFv  [TU owned: WF]
+  __ct__11MoviePlayerFv: window [0x10,0x28) = 6 atoms (raw postprocess body)
+  __ct__11MoviePlayerFv: no closing order (1 slot-compatible candidates); first step-0 refusal: atom 0: permutation region redefines r1
+== game/movie/movieplayer::fn_800DA60C  [TU owned: WF]
+  fn_800DA60C: window [0x48,0x5c) = 5 atoms (raw postprocess body)
+    CLOSES: order [0, 2, 1, 3, 4], 4 atoms/fields, residual 0
+  fn_800DA60C: derived from 1 candidate order(s)
+== game/pb/pb_objects::pbObjTexSub  [SHIPPED]
+  pbObjTexSub: window [0x0,0x14) = 5 atoms (raw postprocess body)
+    CLOSES: order [1, 0, 3, 2, 4], 4 atoms/fields, residual 0
+  pbObjTexSub: derived from 1 candidate order(s)
+== game/pb/pb_objects::fn_800C37C4
+  fn_800C37C4: window [0x4c,0x6c) = 8 atoms (raw postprocess body)
+  fn_800C37C4: no closing order (2 slot-compatible candidates); first step-0 refusal: instruction permutation breaks def-use chains: [(2, ('g', 6))]
+== game/pb/pb_objregs::setTexInfo
+  setTexInfo: window [0x0,0x2c) = 11 atoms (plain object (no webfrank unit))
+  setTexInfo: no closing order (1 slot-compatible candidates); first step-0 refusal: atom 3: permutation region redefines r1
+== game/ps2/fakelib::sceOpen
+  sceOpen: window [0x44,0x54) = 4 atoms (raw postprocess body)
+  sceOpen: no closing order (1 slot-compatible candidates); first step-0 refusal: instruction permutation breaks def-use chains: [(1, ('g', 5))]
+== game/sfx/sfx::UpdateFXStreak  [TU owned: PE]
+  UpdateFXStreak: window [0x114,0x200) = 59 atoms (raw postprocess body)
+  UpdateFXStreak: no closing order (0 slot-compatible candidates)
+== game/shop/shop::show_piles
+  show_piles: window [0x1c,0x3c) = 8 atoms (plain object (no webfrank unit))
+    CLOSES: order [0, 1, 2, 3, 4, 6, 5, 7], 31 atoms/fields, residual 0
+  show_piles: derived from 1 candidate order(s)
+== game/sys/memcard::init_all_dir_info
+  init_all_dir_info: window [0x64,0x74) = 4 atoms (raw postprocess body)
+    apply_patch REFUSED for order [0, 2, 1, 3]: init_all_dir_info: register-field patch is not a consistent recolor (+0x14: base register presence differs (g3 vs g0)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+  init_all_dir_info: no closing order (1 slot-compatible candidates)
+== game/sys/memcard::MemCardCreateGaunt  [SHIPPED]
+  MemCardCreateGaunt: window [0x20,0x3c) = 7 atoms (raw postprocess body)
+    apply_patch REFUSED for order [0, 4, 1, 2, 5, 3, 6]: MemCardCreateGaunt: register-field patch is not a consistent recolor (+0x30: base register presence differs (g0 vs g29)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 5, 1, 2, 4, 3, 6]: MemCardCreateGaunt: register-field patch is not a consistent recolor (+0x30: base register presence differs (g0 vs g29)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+  MemCardCreateGaunt: no closing order (4 slot-compatible candidates); first step-0 refusal: instruction permutation breaks def-use chains: [(3, ('g', 3))]
+== game/sys/memcard::memCardErrorPrompt  [SHIPPED]
+  memCardErrorPrompt: window [0x38,0x48) = 4 atoms (raw postprocess body)
+    CLOSES: order [0, 2, 1, 3], 2 atoms/fields, residual 0
+  memCardErrorPrompt: derived from 1 candidate order(s)
+== game/sys/sysservice::sysPollResetButton  [SHIPPED]
+  sysPollResetButton: window [0x84,0x94) = 4 atoms (raw postprocess body)
+    CLOSES: order [0, 2, 1, 3], 2 atoms/fields, residual 0
+  sysPollResetButton: derived from 1 candidate order(s)
+== game/ui/auxscreen::calc_wizard_pos  [SHIPPED]
+  calc_wizard_pos: window [0x58,0x6c) = 5 atoms (raw postprocess body)
+    CLOSES: order [0, 3, 2, 1, 4], 11 atoms/fields, residual 0
+  calc_wizard_pos: derived from 1 candidate order(s)
+== game/ui/btext::FontInit
+  FontInit: window [0x24,0x34) = 4 atoms (raw postprocess body)
+  FontInit: no closing order (0 slot-compatible candidates)
+== game/ui/options::next_boss_hint  [SHIPPED]
+  next_boss_hint: window [0x10c,0x128) = 7 atoms (raw postprocess body)
+    CLOSES: order [0, 2, 1, 3, 4, 5, 6], 9 atoms/fields, residual 0
+  next_boss_hint: derived from 1 candidate order(s)
+== game/ui/options::next_legend_hint  [SHIPPED]
+  next_legend_hint: window [0x10c,0x128) = 7 atoms (raw postprocess body)
+    CLOSES: order [0, 2, 1, 3, 4, 5, 6], 9 atoms/fields, residual 0
+  next_legend_hint: derived from 1 candidate order(s)
+== game/ui/options::next_rune_hint
+  next_rune_hint: window [0x100,0x118) = 6 atoms (raw postprocess body)
+  next_rune_hint: no closing order (1 slot-compatible candidates); first step-0 refusal: instruction permutation breaks def-use chains: [(3, ('g', 5))]
+== game/ui/screensaver::end_inventory_panel
+  end_inventory_panel: window [0xc,0x34) = 10 atoms (plain object (no webfrank unit))
+    apply_patch REFUSED for order [0, 1, 2, 7, 3, 4, 5, 8, 6, 9]: end_inventory_panel: register-field patch is not a consistent recolor (+0x28: base register presence differs (g0 vs g29)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 1, 2, 8, 3, 4, 5, 7, 6, 9]: end_inventory_panel: register-field patch is not a consistent recolor (+0x28: base register presence differs (g0 vs g29)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+  end_inventory_panel: no closing order (6 slot-compatible candidates); first step-0 refusal: instruction permutation breaks def-use chains: [(1, ('g', 3))]
+== game/world/camera::do_camera  [TU owned: WF]  [SHIPPED]
+  do_camera: window [0x1d4,0x1e8) = 5 atoms (raw postprocess body)
+    apply_patch REFUSED for order [0, 2, 3, 1, 4]: do_camera: register-field patch is not a consistent recolor (+0x1dc: base register presence differs (g0 vs g28)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 3, 2, 1, 4]: do_camera: register-field patch is not a consistent recolor (+0x1dc: base register presence differs (g0 vs g28)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+  do_camera: no closing order (2 slot-compatible candidates)
+== game/world/camera::camera_init_for_gamemode  [TU owned: WF]  [SHIPPED]
+  camera_init_for_gamemode: window [0xf4,0x104) = 4 atoms (raw postprocess body)
+    CLOSES: order [0, 2, 1, 3], 2 atoms/fields, residual 0
+  camera_init_for_gamemode: derived from 1 candidate order(s)
+== game/world/camera::camera_mode_target  [TU owned: WF]
+  camera_mode_target: window [0x2a0,0x2b8) = 6 atoms (raw postprocess body)
+  camera_mode_target: no closing order (2 slot-compatible candidates); first step-0 refusal: instruction permutation breaks def-use chains: [(3, ('f', 0))]
+== game/world/camera::debug_camera_pos  [TU owned: WF]
+  debug_camera_pos: window [0x90,0xa8) = 6 atoms (raw postprocess body)
+    apply_patch REFUSED for order [0, 2, 1, 4, 3, 5]: debug_camera_pos: register-field patch is not a consistent recolor (+0x9c: use of f1 does not correspond to f1 under the running renaming); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    CLOSES: order [0, 2, 1, 5, 3, 4], 13 atoms/fields, residual 0
+  debug_camera_pos: derived from 2 candidate order(s)
+== game/world/gauntworld::fn_8005FDA8  [TU owned: RC]
+  fn_8005FDA8: window [0xec,0x13c) = 20 atoms (raw postprocess body)
+  fn_8005FDA8: no closing order (0 slot-compatible candidates)
+== game/world/gauntworld::fn_8005FB48  [TU owned: RC]  [SHIPPED]
+  fn_8005FB48: window [0x74,0x8c) = 6 atoms (raw postprocess body)
+  fn_8005FB48: no closing order (0 slot-compatible candidates)
+== game/world/newcam::fn_8006DC64
+  fn_8006DC64: window [0x14,0xc8) = 45 atoms (raw postprocess body)
+  fn_8006DC64: no closing order (0 slot-compatible candidates)
+== game/world/tower::towerRuneNearAudio
+  towerRuneNearAudio: window [0x50,0x74) = 9 atoms (raw postprocess body)
+  towerRuneNearAudio: no closing order (1 slot-compatible candidates); first step-0 refusal: instruction permutation breaks def-use chains: [(5, ('g', 3))]
+== game/world/world::WorldSaveInitState
+  WorldSaveInitState: window [0x60,0x70) = 4 atoms (plain object (no webfrank unit))
+    apply_patch REFUSED for order [0, 2, 1, 3]: WorldSaveInitState: register-field patch is not a consistent recolor (+0x64: base register presence differs (g0 vs g29)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+    apply_patch REFUSED for order [0, 3, 1, 2]: WorldSaveInitState: register-field patch is not a consistent recolor (+0x64: base register presence differs (g0 vs g29)); model the residual as an instruction_permutation, or record a manual equivalence audit in "unproven_recolor_audit"
+  WorldSaveInitState: no closing order (2 slot-compatible candidates)
+== game/world/worldcol::CTriListCollide  [SHIPPED]
+  CTriListCollide: window [0x1c,0x6c) = 20 atoms (raw postprocess body)
+    CLOSES: order [0, 3, 2, 1, 5, 7, 6, 9, 8, 10, 12, 11, 14, 13, 15, 16, 17, 18, 4, 19], 14 atoms/fields, residual 0
+  CTriListCollide: derived from 1 candidate order(s)
+
+=== SWEEP RESULT: 14/39 derive to residual 0
+=== of those, NOT already shipped: 3
+  game/movie/movieplayer::fn_800DA60C  [owned WF]
+  game/shop/shop::show_piles  <-- AUTHORABLE
+  game/world/camera::debug_camera_pos  [owned WF]
+
+wrote W:\Repositories\GDL-Claude-CombinedCensus\CH_scratch\ch_sweep26.json

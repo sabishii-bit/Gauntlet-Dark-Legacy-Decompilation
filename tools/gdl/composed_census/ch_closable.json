@@ -1,0 +1,471 @@
+[
+ {
+  "unit": "game/audio/dcs",
+  "function": "update_chinfo",
+  "insns": 75,
+  "tier": "B",
+  "impure_clusters": 1,
+  "window": [
+   "0x68",
+   "0x78"
+  ],
+  "counts": {
+   "regfield": 28,
+   "other": 2,
+   "fwd_rc": 1
+  },
+  "shipped": false,
+  "legal_order": [
+   0,
+   2,
+   1,
+   3
+  ],
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x98: use of g23 does not correspond to g24 under the running renaming",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/crt/vsprintf",
+  "function": "vsprintf",
+  "insns": 665,
+  "tier": "B",
+  "impure_clusters": 1,
+  "window": [
+   "0x28",
+   "0x74"
+  ],
+  "counts": {
+   "regfield": 5,
+   "other": 16,
+   "fwd_rc": 1
+  },
+  "shipped": true,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x28: use of g4 does not correspond to g3 under the running renaming",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/sfx/psfx",
+  "function": "PlayerDoWeapTrail",
+  "insns": 140,
+  "tier": "C-ctrl",
+  "impure_clusters": 1,
+  "window": [
+   "0x38",
+   "0x10c"
+  ],
+  "counts": {
+   "regfield": 27,
+   "other": 46,
+   "fwd_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x3c: non-register bits differ (0x418201e0 vs 0x40820008)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/movie/movieplayer",
+  "function": "fn_800D96B0",
+  "insns": 113,
+  "tier": "C",
+  "impure_clusters": 2,
+  "window": null,
+  "counts": {
+   "other": 3,
+   "fwd_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x1ac: non-register bits differ (0x801f004c vs 0x38600000)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/movie/movieplayer",
+  "function": "fn_800D8BCC",
+  "insns": 215,
+  "tier": "C",
+  "impure_clusters": 3,
+  "window": null,
+  "counts": {
+   "regfield": 117,
+   "inv_rc": 1,
+   "other": 4
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x2cc: use of g3 does not correspond to g11 under the running renaming",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/world/camera",
+  "function": "camera_mode_level",
+  "insns": 582,
+  "tier": "C",
+  "impure_clusters": 2,
+  "window": null,
+  "counts": {
+   "regfield": 27,
+   "other": 4,
+   "fwd_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x740: non-register bits differ (0x801f0658 vs 0x3bbf056c)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/audio/dcs",
+  "function": "dcsVoicePlay",
+  "insns": 103,
+  "tier": "C",
+  "impure_clusters": 2,
+  "window": null,
+  "counts": {
+   "regfield": 32,
+   "other": 7,
+   "fwd_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x48: non-register bits differ (0x39640000 vs 0x3929c08c)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/g3d/auxanim",
+  "function": "InitOAnimList",
+  "insns": 81,
+  "tier": "C",
+  "impure_clusters": 5,
+  "window": null,
+  "counts": {
+   "other": 21,
+   "regfield": 23,
+   "fwd_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0xc: lmw/stmw fields may not differ",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/ui/select",
+  "function": "update_class_spec",
+  "insns": 217,
+  "tier": "C",
+  "impure_clusters": 4,
+  "window": null,
+  "counts": {
+   "other": 26,
+   "regfield": 4,
+   "inv_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x1e8: non-register bits differ (0x48000020 vs 0x48000024)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/enemy/critter",
+  "function": "CritterRemoveColnodeSub",
+  "insns": 77,
+  "tier": "C",
+  "impure_clusters": 6,
+  "window": null,
+  "counts": {
+   "regfield": 14,
+   "other": 30,
+   "fwd_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x50: non-register bits differ (0x48000074 vs 0x48000070)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/mb/mb_model",
+  "function": "MBOX_BGLoadModelStart",
+  "insns": 71,
+  "tier": "C",
+  "impure_clusters": 4,
+  "window": null,
+  "counts": {
+   "other": 50,
+   "regfield": 8,
+   "inv_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0xc: non-register bits differ (0x38050000 vs 0x9421ffd0)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/enemy/critter",
+  "function": "CritterAnimate",
+  "insns": 188,
+  "tier": "C",
+  "impure_clusters": 3,
+  "window": null,
+  "counts": {
+   "other": 57,
+   "regfield": 4,
+   "inv_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x28: non-register bits differ (0x4180003c vs 0x41800040)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/game/gamemain",
+  "function": "fn_8005351C",
+  "insns": 317,
+  "tier": "C",
+  "impure_clusters": 5,
+  "window": null,
+  "counts": {
+   "regfield": 27,
+   "other": 66,
+   "inv_rc": 2
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x2d0: non-register bits differ (0x3c600000 vs 0x3b230000)",
+  "form_sites_rewritten": 2
+ },
+ {
+  "unit": "game/game/player",
+  "function": "set_hidden_player",
+  "insns": 604,
+  "tier": "C",
+  "impure_clusters": 14,
+  "window": null,
+  "counts": {
+   "other": 84,
+   "regfield": 24,
+   "inv_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x10: non-register bits differ (0x9421ff48 vs 0x9421ff50)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/pb/dbgtext",
+  "function": "fn_800C03E0",
+  "insns": 433,
+  "tier": "C",
+  "impure_clusters": 7,
+  "window": null,
+  "counts": {
+   "regfield": 174,
+   "other": 88,
+   "inv_rc": 2,
+   "inv": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x224: non-register bits differ (0x4082019c vs 0x40820198)",
+  "form_sites_rewritten": 3
+ },
+ {
+  "unit": "game/g3d/auxanim",
+  "function": "DoTexModSeqSub",
+  "insns": 201,
+  "tier": "C",
+  "impure_clusters": 6,
+  "window": null,
+  "counts": {
+   "other": 132,
+   "regfield": 4,
+   "inv_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x24: non-register bits differ (0x4182012c vs 0x41820128)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/enemy/critter",
+  "function": "CritterDamage",
+  "insns": 604,
+  "tier": "C",
+  "impure_clusters": 30,
+  "window": null,
+  "counts": {
+   "other": 156,
+   "regfield": 126,
+   "inv_rc": 1,
+   "fwd_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x14: lmw/stmw fields may not differ",
+  "form_sites_rewritten": 2
+ },
+ {
+  "unit": "game/game/combat",
+  "function": "someone_will_be_off_screen",
+  "insns": 199,
+  "tier": "C",
+  "impure_clusters": 3,
+  "window": null,
+  "counts": {
+   "regfield": 9,
+   "other": 159,
+   "inv_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x24: non-register bits differ (0x3ae50000 vs 0x7c781b78)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/audio/adstream",
+  "function": "AdsPutBuffer",
+  "insns": 254,
+  "tier": "C",
+  "impure_clusters": 4,
+  "window": null,
+  "counts": {
+   "other": 204,
+   "regfield": 14,
+   "inv_rc": 1,
+   "fwd_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0xc: non-register bits differ (0x38c60000 vs 0x9421ffb8)",
+  "form_sites_rewritten": 2
+ },
+ {
+  "unit": "game/shop/shop",
+  "function": "shop_setup",
+  "insns": 381,
+  "tier": "C",
+  "impure_clusters": 11,
+  "window": null,
+  "counts": {
+   "other": 213,
+   "regfield": 71,
+   "fwd_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0xc: non-register bits differ (0x38030000 vs 0x3c800000)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/world/items",
+  "function": "SetItem",
+  "insns": 1306,
+  "tier": "C",
+  "impure_clusters": 17,
+  "window": null,
+  "counts": {
+   "regfield": 90,
+   "other": 423,
+   "fwd_rc": 1,
+   "inv_rc": 2
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0xc: non-register bits differ (0x3d000000 vs 0x9421ff00)",
+  "form_sites_rewritten": 3
+ },
+ {
+  "unit": "game/world/camera",
+  "function": "camera_mode_follow",
+  "insns": 1048,
+  "tier": "C",
+  "impure_clusters": 12,
+  "window": null,
+  "counts": {
+   "regfield": 91,
+   "other": 443,
+   "inv_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x244: non-register bits differ (0x2c000000 vs 0xffa0f890)",
+  "form_sites_rewritten": 1
+ },
+ {
+  "unit": "game/enemy/enemy",
+  "function": "do_enemy_move",
+  "insns": 905,
+  "tier": "C",
+  "impure_clusters": 6,
+  "window": null,
+  "counts": {
+   "regfield": 21,
+   "other": 444,
+   "fwd_rc": 16
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x28: non-register bits differ (0x3bc30e18 vs 0x7fdf0214)",
+  "form_sites_rewritten": 16
+ },
+ {
+  "unit": "game/anim/action",
+  "function": "DoPlayerAction",
+  "insns": 1765,
+  "tier": "C",
+  "impure_clusters": 70,
+  "window": null,
+  "counts": {
+   "other": 796,
+   "regfield": 281,
+   "inv_rc": 3,
+   "fwd_rc": 1
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x18: non-register bits differ (0x7c7e1b78 vs 0x3ba30000)",
+  "form_sites_rewritten": 4
+ },
+ {
+  "unit": "game/ui/select",
+  "function": "do_player_select",
+  "insns": 1885,
+  "tier": "C",
+  "impure_clusters": 35,
+  "window": null,
+  "counts": {
+   "regfield": 57,
+   "other": 1336,
+   "fwd_rc": 12,
+   "inv_rc": 23
+  },
+  "shipped": false,
+  "legal_order": null,
+  "step0": null,
+  "recolor": "RECOLOR REFUSES: +0x90: non-register bits differ (0x7c180378 vs 0x3b400000)",
+  "form_sites_rewritten": 35
+ }
+]
