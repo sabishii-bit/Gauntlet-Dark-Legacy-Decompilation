@@ -703,6 +703,449 @@ def verify_consistent_recolor(
             )
 
 
+def _fpr_move(word: int):
+    """``(destination, source)`` when the word is a plain ``fmr fD,fB``.
+
+    Rc set also writes CR1, so ``fmr.`` is not accepted: the copy closure
+    below reasons only about the moved register value.
+    """
+    if (word >> 26) != 63 or ((word >> 1) & 0x3FF) != 72 or word & 1:
+        return None
+    return ((word >> 21) & 0x1F, (word >> 11) & 0x1F)
+
+
+def _value_preserving_copy(word: int, index: int, relocated: set):
+    """``(bank, destination, source)`` when the word provably moves one
+    register's value into another, else ``None``.
+
+    A RELOCATED word is never a copy.  ``addi rD,rA,0`` is the compiler's
+    move form, but with an ADDR16_LO relocation the zero displacement is a
+    link-time placeholder for a symbol's low half — reading it as a copy
+    would be the exact unsoundness this whole mode exists to avoid.
+    """
+    if index in relocated:
+        return None
+    move = _fpr_move(word)
+    if move is not None:
+        return ("f", move[0], move[1])
+    form = decode_copy_form(word)
+    if form is not None and form[0] == "copy":
+        return ("g", form[1], form[2])
+    return None
+
+
+def _compare_result_field(word: int):
+    """The CR field number written by an ``fcmpu``/``fcmpo``, else ``None``.
+
+    Only the floating compares are exchange-eligible: they are the measured
+    population, and every accepted form must be one the tests exercise.
+    """
+    if (word >> 26) != 63 or ((word >> 1) & 0x3FF) not in (0, 32):
+        return None
+    return (word >> 23) & 7
+
+
+def _compare_exchange_is_semantics_preserving(
+    words: list[int],
+    index: int,
+    field: int,
+    successors: list[list[int]],
+    calls: list[bool],
+    call_targets=None,
+) -> bool:
+    """True when exchanging the compare's two operands cannot be observed.
+
+    Exchanging ``fcmpu``/``fcmpo`` operands swaps the FL and FG bits of the
+    result field and leaves FE (equal) and FU (unordered) untouched, so the
+    rewrite is equivalence-preserving exactly when every consumer of that CR
+    field reads only FE or FU, and the field is dead at every exit.  Any
+    other reader — an ordering branch, ``mcrf``, ``mfcr``, a CR-logical —
+    fails closed, as does a field that escapes the function.
+    """
+    resource = ("cr", field)
+    frame = _frame_size(words)
+    pending = list(successors[index])
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        word = words[current]
+        try:
+            reads, writes = _word_effects(word)
+        except ValueError:
+            return False
+        if resource in reads:
+            opcode = word >> 26
+            branch = opcode == 16 or (
+                opcode == 19 and ((word >> 1) & 0x3FF) in (16, 528)
+            )
+            if not branch:
+                return False           # mcrf/mfcr/CR-logical: whole field
+            condition = (word >> 16) & 0x1F
+            if condition >> 2 != field or condition & 3 not in (2, 3):
+                return False           # LT/GT are exactly what the swap moves
+        if calls[current]:
+            helper = _helper_call(
+                call_targets.get(current * 4) if call_targets else None
+            )
+            if helper is None and resource in _CALL_CLOBBERED:
+                continue               # the call destroys the field
+        if resource in writes:
+            continue                   # redefined before any further use
+        if not successors[current]:
+            if _live_at_exit(resource, frame):
+                return False
+            continue
+        pending.extend(successors[current])
+    return True
+
+
+def _relation_define(relation: set, bank: str, ours: int, target: int) -> set:
+    """Retire every pair the write invalidates, then bind the new one.
+
+    Our register now holds a new value, so every ``(ours, *)`` pair is stale;
+    the target's register was overwritten too, so every ``(*, target)`` pair
+    is stale.  This is the relational form of ``_map_define`` and it is
+    strictly more aggressive than it: ``_map_define`` retires only the
+    same-valued keys.
+    """
+    relation = {
+        entry for entry in relation
+        if not (entry[0] == bank and (entry[1] == ours or entry[2] == target))
+    }
+    relation.add((bank, ours, target))
+    return relation
+
+
+_VALUE_EQUALITY_STEP_LIMIT = 200000
+
+
+def _value_equality_transfer(
+    index: int,
+    cur: int,
+    tgt: int,
+    relation: set,
+    renaming: dict,
+    our_copy,
+    target_copy,
+    substitutions: set,
+    exchanges: set,
+) -> tuple[set, dict]:
+    opcode = cur >> 26
+    if opcode in (46, 47):
+        # lmw/stmw name a register RANGE, so no renaming is expressible and
+        # the shipped identity requirement is kept exactly as it stands.
+        renaming = _recolor_transfer(index, cur, tgt, renaming)
+        if opcode == 46:
+            for number in range((cur >> 21) & 0x1F, 32):
+                relation = _relation_define(relation, "g", number, number)
+        return relation, renaming
+    try:
+        operands = instruction_operands(cur)
+    except ValueError as error:
+        raise ValueError(f"+0x{index * 4:x}: {error}") from None
+    allowed = 0
+    for _, shift, _, _ in operands:
+        allowed |= 0x1F << shift
+    if (cur ^ tgt) & ~allowed:
+        raise ValueError(
+            f"+0x{index * 4:x}: non-register bits differ "
+            f"(0x{cur:08x} vs 0x{tgt:08x})"
+        )
+    fields = {
+        shift: (bank, role, zero_none,
+                (cur >> shift) & 0x1F, (tgt >> shift) & 0x1F)
+        for bank, shift, role, zero_none in operands
+    }
+    compare_field = _compare_result_field(cur)
+    pair = _commutative_shifts(cur)
+    if pair is None and compare_field is not None:
+        pair = (16, 11)
+    remap: dict[int, int] = {}
+    if pair is not None and all(shift in fields for shift in pair):
+        first, second = pair
+        bank, _, zero_1, cur_1, tgt_1 = fields[first]
+        _, _, zero_2, cur_2, tgt_2 = fields[second]
+        zero_involved = (zero_1 or zero_2) and 0 in (cur_1, cur_2, tgt_1, tgt_2)
+        straight = ((bank, cur_1, tgt_1) in relation
+                    and (bank, cur_2, tgt_2) in relation)
+        if not straight and not zero_involved \
+                and (bank, cur_1, tgt_2) in relation \
+                and (bank, cur_2, tgt_1) in relation:
+            remap = {first: tgt_2, second: tgt_1}
+            if compare_field is not None:
+                exchanges.add((index, bank, cur_1, cur_2, tgt_1, tgt_2))
+    for shift, (bank, role, zero_none, cur_r, tgt_r) in fields.items():
+        expected = remap.get(shift, tgt_r)
+        if zero_none and (cur_r == 0 or expected == 0):
+            if cur_r != expected:
+                raise ValueError(
+                    f"+0x{index * 4:x}: base register presence differs "
+                    f"({bank}{cur_r} vs {bank}{expected})"
+                )
+            continue
+        if role not in ("u", "b"):
+            continue
+        if (bank, cur_r, expected) not in relation:
+            raise ValueError(
+                f"+0x{index * 4:x}: use of {bank}{cur_r} is not value-equal "
+                f"to {bank}{expected}"
+            )
+        if renaming.get((bank, cur_r)) != expected:
+            substitutions.add((index, bank, cur_r, expected))
+    for _, (bank, role, zero_none, cur_r, tgt_r) in fields.items():
+        if zero_none and cur_r == 0:
+            continue
+        if role not in ("d", "b"):
+            continue
+        if our_copy is not None and target_copy is not None \
+                and our_copy[1] == our_copy[2] and target_copy[1] == target_copy[2]:
+            continue                   # `fmr fX,fX` on both sides: a no-op
+        relation = _relation_define(relation, bank, cur_r, tgt_r)
+        _map_define(renaming, (bank, cur_r), tgt_r)
+        # THE COPY CLOSURE.  After `our: d_o <- s_o`, our d_o holds exactly
+        # what our s_o holds, so every target register value-equal to s_o is
+        # value-equal to d_o; symmetrically on the target side.  Closing over
+        # the pairs that SURVIVED the define above is what lets one value
+        # replicated across five registers in each stream be matched up in
+        # any of the ways the two allocators chose.
+        if our_copy is not None and our_copy[0] == bank \
+                and our_copy[1] == cur_r and our_copy[2] != cur_r:
+            source = our_copy[2]
+            relation |= {
+                (bank, cur_r, other) for kind, one, other in tuple(relation)
+                if kind == bank and one == source
+            }
+        if target_copy is not None and target_copy[0] == bank \
+                and target_copy[1] == tgt_r and target_copy[2] != tgt_r:
+            source = target_copy[2]
+            relation |= {
+                (bank, one, tgt_r) for kind, one, other in tuple(relation)
+                if kind == bank and other == source
+            }
+    return relation, renaming
+
+
+def _declared_substitutions(declarations) -> set:
+    declared = set()
+    for entry in declarations or ():
+        bank = entry["bank"]
+        if bank not in ("g", "f"):
+            raise ValueError(f"invalid value-equality bank {bank!r}")
+        declared.add((_parse_int(entry["at"]) // 4, bank,
+                      int(entry["ours"]), int(entry["target"])))
+    return declared
+
+
+def _declared_exchanges(declarations) -> set:
+    declared = set()
+    for entry in declarations or ():
+        bank = entry["bank"]
+        if bank not in ("g", "f"):
+            raise ValueError(f"invalid comparison-exchange bank {bank!r}")
+        ours = [int(value) for value in entry["ours"]]
+        target = [int(value) for value in entry["target"]]
+        if len(ours) != 2 or len(target) != 2:
+            raise ValueError(
+                f"comparison exchange at {entry['at']} needs two operands "
+                "per side"
+            )
+        declared.add((_parse_int(entry["at"]) // 4, bank,
+                      ours[0], ours[1], target[0], target[1]))
+    return declared
+
+
+def _format_substitution(site) -> str:
+    index, bank, ours, target = site
+    return f"+0x{index * 4:x} {bank}{ours}->{bank}{target}"
+
+
+def _format_exchange(site) -> str:
+    index, bank, cur_1, cur_2, tgt_1, tgt_2 = site
+    return (f"+0x{index * 4:x} ({bank}{cur_1},{bank}{cur_2})"
+            f"<->({bank}{tgt_1},{bank}{tgt_2})")
+
+
+def verify_value_equality_recolor(
+    current: bytes,
+    target: bytes,
+    *,
+    jumptable_targets=(),
+    relocated_offsets=(),
+    target_relocated_offsets=(),
+    call_targets=None,
+    substitutions=(),
+    compare_exchanges=(),
+) -> None:
+    """Prove *target* is *current* under a VALUE-equality correspondence.
+
+    ``verify_consistent_recolor`` carries a partial function from our
+    registers to target registers.  That is the right state for a pure
+    allocator recolor and it cannot express a MULTI-SITE VALUE SPLIT: when
+    both allocators replicate one value across several registers, the
+    positional pairing of the definitions binds root-to-root while the later
+    uses want root-to-copy, so the function-valued state fails at a use whose
+    operands provably hold the same value.  Refining the function does not
+    help — the required correspondence is genuinely many-to-many.
+
+    This carries a RELATION instead, with the invariant
+
+        (bank, a, b) in R  =>  our `a` and the target's `b` hold the same
+                               value at this program point
+
+    seeded with the identity at entry (both streams start from one machine
+    state), narrowed at every definition, intersected at every join, and
+    CLOSED OVER VALUE-PRESERVING COPIES in both streams.  Because every
+    accepted use is backed by a member of R, the rewritten instruction reads
+    operands holding the values our instruction read, which is what
+    equivalence requires.
+
+    The mode is strictly more permissive than the strict proof, so it is
+    never the default: every use it accepts that the strict renaming would
+    refuse must be DECLARED in *substitutions*, every comparison operand
+    exchange in *compare_exchanges*, and an undeclared escape or a declared
+    escape that never fires is an error.  A rule therefore cannot widen
+    silently, and a source change that moves the residual fails the build.
+    """
+    if len(current) != len(target) or len(current) % 4:
+        raise ValueError("recolor verification needs equal word-aligned sizes")
+    words_cur = [_u32(current, off) for off in range(0, len(current), 4)]
+    words_tgt = [_u32(target, off) for off in range(0, len(target), 4)]
+    count = len(words_cur)
+    our_relocated = {off // 4 for off in relocated_offsets}
+    target_relocated = {off // 4 for off in target_relocated_offsets}
+    jumptable = set()
+    for off in jumptable_targets:
+        if off % 4 or not 0 <= off < len(current):
+            raise ValueError(f"invalid jumptable target +0x{off:x}")
+        jumptable.add(off // 4)
+    successors, calls = _successors(words_cur, our_relocated, jumptable)
+
+    our_copies = [
+        _value_preserving_copy(word, index, our_relocated)
+        for index, word in enumerate(words_cur)
+    ]
+    target_copies = [
+        _value_preserving_copy(word, index, target_relocated)
+        for index, word in enumerate(words_tgt)
+    ]
+
+    identity_relation = {
+        (bank, number, number)
+        for bank in ("g", "f") for number in range(32)
+    }
+    identity_renaming = {("g", n): n for n in range(32)}
+    identity_renaming.update({("f", n): n for n in range(32)})
+    incoming: dict[int, tuple[set, dict]] = {
+        0: (identity_relation, identity_renaming)
+    }
+    used_substitutions: set = set()
+    used_exchanges: set = set()
+    pending = [0]
+    steps = 0
+    while pending:
+        index = pending.pop()
+        steps += 1
+        if steps > _VALUE_EQUALITY_STEP_LIMIT:
+            raise ValueError(
+                "value-equality verification did not converge within "
+                f"{_VALUE_EQUALITY_STEP_LIMIT} steps"
+            )
+        relation, renaming = incoming[index]
+        relation, renaming = _value_equality_transfer(
+            index, words_cur[index], words_tgt[index],
+            set(relation), dict(renaming),
+            our_copies[index], target_copies[index],
+            used_substitutions, used_exchanges,
+        )
+        if calls[index]:
+            helper = _helper_call(
+                call_targets.get(index * 4) if call_targets else None
+            )
+            if helper is None:
+                # A pair survives a call only when NEITHER side is clobbered.
+                # The strict checker drops our-side volatile keys only, which
+                # leaves a callee-saved-to-volatile correspondence standing
+                # across a call; the relation drops both directions.
+                volatile = frozenset(_CALL_VOLATILE)
+                relation = {
+                    entry for entry in relation
+                    if (entry[0], entry[1]) not in volatile
+                    and (entry[0], entry[2]) not in volatile
+                }
+                for key in _CALL_VOLATILE:
+                    renaming.pop(key, None)
+                for key in _CALL_RETURNS:
+                    relation = _relation_define(relation, key[0], key[1],
+                                                key[1])
+                    _map_define(renaming, key, key[1])
+            elif helper[0] == "rest":
+                _, bank, first = helper
+                for number in range(first, 32):
+                    relation = _relation_define(relation, bank, number, number)
+                    _map_define(renaming, (bank, number), number)
+        for successor in successors[index]:
+            known = incoming.get(successor)
+            if known is None:
+                merged = (set(relation), dict(renaming))
+            else:
+                merged = (
+                    known[0] & relation,
+                    {key: value for key, value in known[1].items()
+                     if renaming.get(key) == value},
+                )
+            if known is None or merged != known:
+                incoming[successor] = merged
+                pending.append(successor)
+    for index in range(count):
+        if words_cur[index] != words_tgt[index] and index not in incoming:
+            raise ValueError(
+                f"+0x{index * 4:x}: differing word is unreachable from the "
+                "function entry"
+            )
+
+    for site in sorted(used_exchanges):
+        index, _bank, _c1, _c2, _t1, _t2 = site
+        field = _compare_result_field(words_cur[index])
+        if field is None or not _compare_exchange_is_semantics_preserving(
+            words_cur, index, field, successors, calls, call_targets
+        ):
+            raise ValueError(
+                f"+0x{index * 4:x}: the comparison's operands are exchanged "
+                "but its CR field is read for ordering, or escapes the "
+                "function, so the exchange is not equivalence-preserving"
+            )
+
+    declared_substitutions = _declared_substitutions(substitutions)
+    declared_exchanges = _declared_exchanges(compare_exchanges)
+    undeclared = sorted(used_substitutions - declared_substitutions)
+    if undeclared:
+        raise ValueError(
+            "undeclared value-equality substitution(s): "
+            + ", ".join(_format_substitution(site) for site in undeclared[:6])
+        )
+    undeclared_swaps = sorted(used_exchanges - declared_exchanges)
+    if undeclared_swaps:
+        raise ValueError(
+            "undeclared comparison operand exchange(s): "
+            + ", ".join(_format_exchange(site) for site in undeclared_swaps[:6])
+        )
+    stale = sorted(declared_substitutions - used_substitutions)
+    if stale:
+        raise ValueError(
+            "declared value-equality substitution(s) never used: "
+            + ", ".join(_format_substitution(site) for site in stale[:6])
+        )
+    stale_swaps = sorted(declared_exchanges - used_exchanges)
+    if stale_swaps:
+        raise ValueError(
+            "declared comparison operand exchange(s) never used: "
+            + ", ".join(_format_exchange(site) for site in stale_swaps[:6])
+        )
+
+
 def _word_effects(word: int) -> tuple[set, set]:
     """Architectural resources read and written by one instruction.
 
@@ -2386,6 +2829,54 @@ def apply_patch(
                 f"value-changing opcode rewrite"
             )
 
+    # The value-equality recolor mode.  It is strictly more permissive than
+    # verify_consistent_recolor, so it is opt-in, it never runs unless the
+    # strict proof has already failed, and it refuses every composition whose
+    # interaction with it is not exercised by a test.
+    value_equality = patch.get("value_equality_recolor")
+    value_equality_relocations: set = set()
+    if value_equality is not None:
+        if not isinstance(value_equality, dict):
+            raise ValueError(
+                f"{symbol.name}: \"value_equality_recolor\" must be an object "
+                f"carrying its audit and its declared sites"
+            )
+        if not register_stage:
+            raise ValueError(
+                f"{symbol.name}: a value-equality recolor requires a register "
+                f"stage — it exists to prove that stage's output"
+            )
+        if target_data is None:
+            raise ValueError(f"{symbol.name}: target object is required")
+        if patch.get("unproven_recolor_audit"):
+            raise ValueError(
+                f"{symbol.name}: a value-equality recolor may not ride on "
+                f"\"unproven_recolor_audit\": the whole point of the mode is "
+                f"that every escape it takes is machine-proven and declared"
+            )
+        if patch.get("post_recolor_permutation"):
+            raise ValueError(
+                f"{symbol.name}: a value-equality recolor may not compose "
+                f"with a post-recolor permutation; the relation is proved "
+                f"position by position against the recolor's own output and "
+                f"no measured site needs both"
+            )
+        value_equality_sections = _sections(target_data)
+        value_equality_symbol = _find_symbol(
+            target_data, value_equality_sections, symbol.name
+        )
+        if value_equality_symbol.size != symbol.size:
+            raise ValueError(
+                f"{symbol.name}: target/current function size mismatch "
+                f"({value_equality_symbol.size} != {symbol.size})"
+            )
+        value_equality_relocations = set(_function_text_relocations(
+            target_data, value_equality_sections,
+            value_equality_symbol.section_index,
+            value_equality_symbol.value,
+            value_equality_symbol.value + value_equality_symbol.size,
+        ))
+
     # The post-recolor permutation stage.  When present, the recolor must aim
     # at the INTERMEDIATE image (the target with this permutation undone),
     # because the recolor's job is to prove a pure renaming and the permuted
@@ -2517,6 +3008,7 @@ def apply_patch(
     # position, which it has no model for and would refuse.
     recolor_image = bytes(data[start:end])
     if register_stage:
+        strict_failure: ValueError | None = None
         try:
             verify_consistent_recolor(
                 pre_register, recolor_image,
@@ -2524,19 +3016,57 @@ def apply_patch(
                 relocated_offsets=relocated_offsets,
                 call_targets=call_targets,
             )
-        except ValueError as error:
-            audit = patch.get("unproven_recolor_audit")
-            if not audit:
-                raise ValueError(
-                    f"{symbol.name}: register-field patch is not a consistent "
-                    f"recolor ({error}); model the residual as an "
-                    "instruction_permutation, or record a manual equivalence "
-                    "audit in \"unproven_recolor_audit\""
-                ) from None
-            print(
-                f"WEBFRANK {symbol.name}: UNPROVEN recolor equivalence "
-                f"accepted by audit ({error}) — {audit}"
+        except ValueError as failure:
+            strict_failure = failure
+        if strict_failure is None and value_equality is not None:
+            # Not a formality: a rule whose residual has since disappeared
+            # must be rewritten, not left resting on the wider mode.
+            raise ValueError(
+                f"{symbol.name}: \"value_equality_recolor\" is declared but "
+                f"the strict recolor proof succeeds — remove the declaration "
+                f"rather than leaving the rule resting on the wider mode"
             )
+        if strict_failure is not None:
+            error = strict_failure
+            if value_equality is not None:
+                try:
+                    verify_value_equality_recolor(
+                        pre_register, recolor_image,
+                        jumptable_targets=jumptable_offsets,
+                        relocated_offsets=relocated_offsets,
+                        target_relocated_offsets=value_equality_relocations,
+                        call_targets=call_targets,
+                        substitutions=value_equality.get("substitutions", ()),
+                        compare_exchanges=value_equality.get(
+                            "compare_exchanges", ()
+                        ),
+                    )
+                except ValueError as wider:
+                    raise ValueError(
+                        f"{symbol.name}: value-equality recolor proof failed "
+                        f"({wider})"
+                    ) from None
+                print(
+                    f"WEBFRANK {symbol.name}: value-equality recolor proved "
+                    f"({len(value_equality.get('substitutions', ()))} "
+                    f"substitution(s), "
+                    f"{len(value_equality.get('compare_exchanges', ()))} "
+                    f"comparison exchange(s))"
+                )
+            else:
+                audit = patch.get("unproven_recolor_audit")
+                if not audit:
+                    raise ValueError(
+                        f"{symbol.name}: register-field patch is not a "
+                        f"consistent recolor ({error}); model the residual as "
+                        "an instruction_permutation, declare a proved "
+                        "\"value_equality_recolor\", or record a manual "
+                        "equivalence audit in \"unproven_recolor_audit\""
+                    ) from None
+                print(
+                    f"WEBFRANK {symbol.name}: UNPROVEN recolor equivalence "
+                    f"accepted by audit ({error}) — {audit}"
+                )
 
     # Now, and only now, the target colouring exists in the object and the
     # permutation that was illegal in ours can be audited.  exit_dead is

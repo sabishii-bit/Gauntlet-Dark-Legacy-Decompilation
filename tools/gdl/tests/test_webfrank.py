@@ -28,6 +28,7 @@ from tools.gdl.webfrank import (
     unpermute_target_windows,
     verify_consistent_recolor,
     verify_relocation_binding,
+    verify_value_equality_recolor,
 )
 
 
@@ -2498,6 +2499,308 @@ class ApplyPatchObjectTests(unittest.TestCase):
                 symbol.value, symbol.value + symbol.size),
             {0x8: (4, "pool")},
         )
+
+
+# --- value-equality mode fixtures -------------------------------------------
+FMR_F5_F4 = 0xFCA02090      # fmr f5,f4
+FMR_F5_F1 = 0xFCA00890      # fmr f5,f1
+FMR_F31_F1 = 0xFFE00890     # fmr f31,f1
+FMR_F0_F1 = 0xFC000890      # fmr f0,f1
+FMR_F31_F0 = 0xFFE00090     # fmr f31,f0   CameraSupervisor +0x3c, ours
+FMR_F0_F30 = 0xFC00F090     # fmr f0,f30   CameraSupervisor +0x3c, target
+FSUBS_F6_F6_F4 = 0xECC62028  # fsubs f6,f6,f4
+FSUBS_F6_F6_F5 = 0xECC62828  # fsubs f6,f6,f5
+FSUBS_F2_F2_F31 = 0xEC42F828  # fsubs f2,f2,f31
+FSUBS_F2_F2_F0 = 0xEC420028  # fsubs f2,f2,f0
+FSUBS_F3_F3_F31 = 0xEC63F828  # fsubs f3,f3,f31
+FSUBS_F3_F3_F30 = 0xEC63F028  # fsubs f3,f3,f30
+FADDS_F5_F1_F2 = 0xECA1102A  # fadds f5,f1,f2
+FADDS_F0_F1_F2 = 0xEC01102A  # fadds f0,f1,f2
+FADDS_F30_F1_F2 = 0xEFC1102A  # fadds f30,f1,f2
+FCMPU_CR0_F1_F2 = 0xFC011000
+FCMPU_CR0_F2_F1 = 0xFC020800
+FCMPU_CR2_F1_F2 = 0xFD011000
+FCMPU_CR2_F2_F1 = 0xFD020800
+BEQ_PLUS_8 = 0x41820008
+BLT_PLUS_8 = 0x41800008
+MFCR_R3 = 0x7C600026
+CMPW_CR0_R3_R4 = 0x7C032000
+CMPW_CR0_R4_R3 = 0x7C041800
+ADDI_R4_R3_0 = 0x38830000
+ADD_R5_R5_R3 = 0x7CA51A14
+ADD_R5_R5_R4 = 0x7CA52214
+
+
+def _substitution(at, bank, ours, target):
+    return {"at": at, "bank": bank, "ours": ours, "target": target}
+
+
+def _exchange(at, bank, ours, target):
+    return {"at": at, "bank": bank, "ours": list(ours), "target": list(target)}
+
+
+class ValueEqualityRecolorTests(unittest.TestCase):
+    """The relational bisimulation that closes a multi-site value split.
+
+    `verify_consistent_recolor` carries a partial FUNCTION our-reg ->
+    target-reg.  When both allocators replicate ONE value across several
+    registers, the positional definition pairing binds root-to-root while the
+    later uses want root-to-copy, and no refinement of a function-valued state
+    can express that.  This mode carries a RELATION with the invariant
+    `(a, b) in R  =>  value_our(a) == value_target(b)` and closes it over
+    value-preserving copies.  It is opt-in per rule and every escape it takes
+    must be declared, so it can never silently widen an existing rule.
+    """
+
+    # ours: fmr f5,f4 ; fsubs f6,f6,f4 ; blr   (the use reads the ROOT)
+    # tgt:  fmr f5,f4 ; fsubs f6,f6,f5 ; blr   (the use reads the COPY)
+    OURS = _words(FMR_F5_F4, FSUBS_F6_F6_F4, BLR)
+    TARGET = _words(FMR_F5_F4, FSUBS_F6_F6_F5, BLR)
+
+    def test_shipped_strict_checker_refuses_the_root_to_copy_use(self):
+        with self.assertRaisesRegex(ValueError, "does not correspond"):
+            verify_consistent_recolor(self.OURS, self.TARGET)
+
+    def test_declared_root_to_copy_substitution_passes(self):
+        verify_value_equality_recolor(
+            self.OURS, self.TARGET,
+            substitutions=[_substitution("0x4", "f", 4, 5)],
+        )
+
+    def test_undeclared_substitution_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "undeclared value-equality"):
+            verify_value_equality_recolor(self.OURS, self.TARGET)
+
+    def test_declared_but_unused_substitution_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "declared .* never used"):
+            verify_value_equality_recolor(
+                self.OURS, self.TARGET,
+                substitutions=[_substitution("0x4", "f", 4, 5),
+                               _substitution("0x8", "f", 3, 7)],
+            )
+
+    def test_value_equality_is_not_assumed_without_a_copy(self):
+        # The same use with no copy establishing f4 == f5 anywhere.
+        ours = _words(FSUBS_F6_F6_F4, BLR)
+        target = _words(FSUBS_F6_F6_F5, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                substitutions=[_substitution("0x0", "f", 4, 5)],
+            )
+
+    def test_redefining_the_copy_kills_the_value_equality(self):
+        # fmr f5,f4 ; fadds f5,f1,f2 ; fsubs f6,f6,f4|f5 ; blr
+        ours = _words(FMR_F5_F4, FADDS_F5_F1_F2, FSUBS_F6_F6_F4, BLR)
+        target = _words(FMR_F5_F4, FADDS_F5_F1_F2, FSUBS_F6_F6_F5, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                substitutions=[_substitution("0x8", "f", 4, 5)],
+            )
+
+    def test_our_side_closure_lifts_our_copy_onto_the_targets_root(self):
+        # CameraSupervisor's +0x3c shape.  Both streams compute one value and
+        # copy it, but into mirrored registers: ours roots in f0 and copies to
+        # f31, the target roots in f30 and copies to f0.  The definitions bind
+        # f0->f30 and f31->f0, and the later use reads our COPY against the
+        # target's ROOT, which only the our-side closure reaches.
+        ours = _words(FADDS_F0_F1_F2, FMR_F31_F0, FSUBS_F3_F3_F31, BLR)
+        target = _words(FADDS_F30_F1_F2, FMR_F0_F30, FSUBS_F3_F3_F30, BLR)
+        with self.assertRaisesRegex(ValueError, "does not correspond"):
+            verify_consistent_recolor(ours, target)
+        verify_value_equality_recolor(
+            ours, target,
+            substitutions=[_substitution("0x8", "f", 31, 30)],
+        )
+
+    def test_relocated_addi_is_not_a_value_preserving_copy(self):
+        # addi r4,r3,0 ; add r5,r5,r3|r4 ; blr.  Unrelocated the addi is a
+        # copy and the substitution proves; with an ADDR16_LO relocation the
+        # zero displacement is a link-time placeholder, not a copy.
+        ours = _words(ADDI_R4_R3_0, ADD_R5_R5_R3, BLR)
+        target = _words(ADDI_R4_R3_0, ADD_R5_R5_R4, BLR)
+        verify_value_equality_recolor(
+            ours, target,
+            substitutions=[_substitution("0x4", "g", 3, 4)],
+        )
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                relocated_offsets={0x2},
+                target_relocated_offsets={0x2},
+                substitutions=[_substitution("0x4", "g", 3, 4)],
+            )
+
+    def test_a_call_breaks_a_correspondence_into_a_clobbered_register(self):
+        # ours homes the value in callee-saved f31, the target in volatile f0,
+        # and a call intervenes: after it our f31 still holds the value and
+        # the target's f0 does not, so the pair must be dropped.
+        ours = _words(FMR_F31_F1, BL, FSUBS_F2_F2_F31, BLR)
+        target = _words(FMR_F0_F1, BL, FSUBS_F2_F2_F0, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                relocated_offsets={0x4},
+                call_targets={0x4: "callee"},
+                substitutions=[_substitution("0x8", "f", 31, 0)],
+            )
+
+    def test_substitution_declaration_must_name_the_right_registers(self):
+        with self.assertRaisesRegex(ValueError, "undeclared value-equality"):
+            verify_value_equality_recolor(
+                self.OURS, self.TARGET,
+                substitutions=[_substitution("0x4", "f", 5, 4)],
+            )
+
+    def test_a_pure_recolor_needs_no_declarations(self):
+        current = bytes.fromhex("38830001 7ca41a14 7ca32b78 4e800020")
+        target = bytes.fromhex("38030001 7ca01a14 7ca32b78 4e800020")
+        verify_value_equality_recolor(current, target)
+
+
+class CompareOperandExchangeTests(unittest.TestCase):
+    """fcmpu/fcmpo with its two operands exchanged.
+
+    Exchanging the operands swaps the FL and FG bits of the result field and
+    leaves FE and FU alone, so the rewrite is equivalence-preserving exactly
+    when every consumer of that CR field reads only FE (EQ) or FU (SO), and
+    the field is dead at every exit.  Anything else fails closed.
+    """
+
+    OURS = _words(FCMPU_CR0_F1_F2, BEQ_PLUS_8, BLR, BLR)
+    TARGET = _words(FCMPU_CR0_F2_F1, BEQ_PLUS_8, BLR, BLR)
+
+    def test_shipped_strict_checker_refuses_the_exchange(self):
+        with self.assertRaisesRegex(ValueError, "does not correspond"):
+            verify_consistent_recolor(self.OURS, self.TARGET)
+
+    def test_eq_only_consumer_licenses_the_declared_exchange(self):
+        verify_value_equality_recolor(
+            self.OURS, self.TARGET,
+            compare_exchanges=[_exchange("0x0", "f", (1, 2), (2, 1))],
+        )
+
+    def test_undeclared_exchange_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "undeclared comparison"):
+            verify_value_equality_recolor(self.OURS, self.TARGET)
+
+    def test_ordering_consumer_refuses_the_exchange(self):
+        ours = _words(FCMPU_CR0_F1_F2, BLT_PLUS_8, BLR, BLR)
+        target = _words(FCMPU_CR0_F2_F1, BLT_PLUS_8, BLR, BLR)
+        with self.assertRaisesRegex(ValueError, "ordering"):
+            verify_value_equality_recolor(
+                ours, target,
+                compare_exchanges=[_exchange("0x0", "f", (1, 2), (2, 1))],
+            )
+
+    def test_mfcr_consumer_refuses_the_exchange(self):
+        ours = _words(FCMPU_CR0_F1_F2, MFCR_R3, BLR)
+        target = _words(FCMPU_CR0_F2_F1, MFCR_R3, BLR)
+        with self.assertRaisesRegex(ValueError, "ordering"):
+            verify_value_equality_recolor(
+                ours, target,
+                compare_exchanges=[_exchange("0x0", "f", (1, 2), (2, 1))],
+            )
+
+    def test_cr_field_live_at_exit_refuses_the_exchange(self):
+        # cr2 is callee-saved by the EABI, so it escapes the function.
+        ours = _words(FCMPU_CR2_F1_F2, BLR)
+        target = _words(FCMPU_CR2_F2_F1, BLR)
+        with self.assertRaisesRegex(ValueError, "ordering"):
+            verify_value_equality_recolor(
+                ours, target,
+                compare_exchanges=[_exchange("0x0", "f", (1, 2), (2, 1))],
+            )
+
+    def test_integer_compare_is_not_exchange_eligible(self):
+        ours = _words(CMPW_CR0_R3_R4, BEQ_PLUS_8, BLR, BLR)
+        target = _words(CMPW_CR0_R4_R3, BEQ_PLUS_8, BLR, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                compare_exchanges=[_exchange("0x0", "g", (3, 4), (4, 3))],
+            )
+
+    def test_declared_but_unused_exchange_fails_closed(self):
+        current = bytes.fromhex("38830001 7ca41a14 7ca32b78 4e800020")
+        target = bytes.fromhex("38030001 7ca01a14 7ca32b78 4e800020")
+        with self.assertRaisesRegex(ValueError, "declared .* never used"):
+            verify_value_equality_recolor(
+                current, target,
+                compare_exchanges=[_exchange("0x0", "f", (1, 2), (2, 1))],
+            )
+
+
+class ValueEqualityApplyPatchTests(unittest.TestCase):
+    """The mode wired through apply_patch, on the run-27 ELF fixture."""
+
+    OURS = (FMR_F5_F4, FSUBS_F6_F6_F4, BLR)
+    TARGET = (FMR_F5_F4, FSUBS_F6_F6_F5, BLR)
+
+    def build(self, ours_words, target_words, **kwargs):
+        ours = _words(*ours_words)
+        target = _words(*target_words)
+        return (_elf_object(ours, **kwargs), _elf_object(target, **kwargs),
+                ours, target)
+
+    def patch(self, ours, target, **overrides):
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(ours),
+            "after_sha256": _sha256(target),
+            "copy_register_fields": True,
+            "value_equality_recolor": {
+                "audit": "test",
+                "substitutions": [_substitution("0x4", "f", 4, 5)],
+            },
+        }
+        patch.update(overrides)
+        return patch
+
+    def test_mode_reaches_the_target_through_apply_patch(self):
+        data, target_data, ours, target = self.build(self.OURS, self.TARGET)
+        before, after, changed = apply_patch(
+            data, self.patch(ours, target), bytes(target_data))
+        self.assertEqual(before, _sha256(ours))
+        self.assertEqual(after, _sha256(target))
+        self.assertEqual(changed, 1)
+
+    def test_undeclared_site_fails_the_build(self):
+        data, target_data, ours, target = self.build(self.OURS, self.TARGET)
+        patch = self.patch(ours, target,
+                           value_equality_recolor={"audit": "test"})
+        with self.assertRaisesRegex(ValueError, "undeclared value-equality"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_mode_refuses_when_the_strict_proof_already_succeeds(self):
+        # The pure-recolor body from ConsistentRecolorTests: the scratch web
+        # is homed in r0 instead of r4 and nothing else moves.
+        words = (0x38830001, 0x7CA41A14, 0x7CA32B78, BLR)
+        target_words = (0x38030001, 0x7CA01A14, 0x7CA32B78, BLR)
+        data, target_data, ours, target = self.build(words, target_words)
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(ours),
+            "after_sha256": _sha256(target),
+            "copy_register_fields": True,
+            "value_equality_recolor": {"audit": "test"},
+        }
+        with self.assertRaisesRegex(ValueError, "strict recolor proof"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_mode_may_not_ride_on_an_unproven_recolor_audit(self):
+        data, target_data, ours, target = self.build(self.OURS, self.TARGET)
+        patch = self.patch(ours, target, unproven_recolor_audit="hand-waved")
+        with self.assertRaisesRegex(ValueError, "unproven_recolor_audit"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_mode_refuses_a_post_recolor_permutation(self):
+        data, target_data, ours, target = self.build(self.OURS, self.TARGET)
+        patch = self.patch(ours, target, post_recolor_permutation={
+            "start": "0x0", "end": "0x8", "order": [1, 0]})
+        with self.assertRaisesRegex(ValueError, "post-recolor permutation"):
+            apply_patch(data, patch, bytes(target_data))
 
 
 if __name__ == "__main__":
