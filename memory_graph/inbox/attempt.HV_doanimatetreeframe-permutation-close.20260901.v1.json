@@ -1,0 +1,24 @@
+{
+  "attempted_axis": "Image sweep with the corrected arrow order: derive and prove a pre-permutation rule for the tier-B candidate whose own cap already named the residual.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 APPLIED -- it governs the 'target li+addi zero copy versus two li' half of this residual and independently satisfies the Mandatory-policy source-unreachability bar. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED as step 0 for the permutation window. claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1 APPLIED. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED, not applicable: 58/58.",
+    "laws_applied": "[\"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\", \"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\"]",
+    "residual": "NONE -- fndiff --clean MATCH, 0 real diff lines. PROVENANCE, which is why this rule was allowed to ship while others found by the same sweep were not: attempt.parked.doanimatetreeframe.20260830.v1 is an outcome=capped record that names its source axes and their measured outcome -- 'explicit zero-derived offset chronology and scoped propagation-off regressed' -- and describes the residual in the target's own vocabulary as 'target li+addi zero copy versus two li plus coupled address/saved-web schedule'. That is a measured-dead source trail, not a never-attempted one, and it predates the probed_form field rather than omitting it. The permutation stage supplies the schedule half the cap named; the copy-form/recolor stage supplies the zero-copy half.",
+    "scope": "config/GUNE5D/webfrank.json only (one rule added to game/anim/atree). No source touched.",
+    "verification": "Derived and PROVEN through the shipped webfrank.apply_patch (tools/gdl/composed_census/hv_perm.py, residual 0). WEBFRANK DoAnimateTreeFrame adjusted 23 instruction atoms/fields. `python configure.py` then `ninja -j2` printing `build/GUNE5D/main.dol: OK`. `fndiff --clean` = MATCH (pool-name noise only), 0 real diff lines. `defake_gate.py baseline game/anim/atree.c --at-head` then `check` = GATE OK (36 functions, 35 at real 0). Postprocessor split EQUIVALENT 134 -> 135 fns. Commit 7944cddf7."
+  },
+  "function": "function:DoAnimateTreeFrame",
+  "id": "attempt.HV_doanimatetreeframe-permutation-close.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T23:10:11Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-01",
+    "signature": "closed -- was 2 unabsorbed words in 1 cluster at 58/58"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

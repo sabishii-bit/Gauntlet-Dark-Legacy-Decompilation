@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Sweep candidate whose existing park was too thin to license a rule: run source axes first, then close it with a pre-permutation rule if they cap.",
+  "attributes": {
+    "law_screen": "claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1 APPLIED as the first axis and measured NEUTRAL-IDENTICAL -- a genuine negative for this function, so the law does not reach this renaming. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 APPLIED to the `addi r31,r29,0` half of the residual. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED as step 0. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED, not applicable: 67/67.",
+    "laws_applied": "[\"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\", \"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\"]",
+    "probed_form": "TWO DISTINCT SOURCE AXES on src/game/ui/screensaver.c:1197, both measured with tools/gdl/probe.py against the real object. Baseline real 64, insns 67/67. (1) DECLARATION ORDER -- move `int i;` ahead of `u8* base = (u8*)lbl_80274600;` and `void** p;` in the local block, chosen because the target's callee-saved numbering runs i=r31, base=r30, zero=r29, p=r28, player=r26 against our player=r31, base=r29, p=r28: NEUTRAL-IDENTICAL, real 64, OBJECT BYTES UNCHANGED. probe.py's own note is the right reading -- the edit folded away before codegen, so the source text never reached the compiler's decision point, which is a STRONGER negative than a regression. (2) FUSED BASE-PLUS-DISPLACEMENT -- replace the two statements `p = (void**)(base + player * 16); p = (void**)((u8*)p + 928);` with the single `p = (void**)(base + player * 16 + 928);`, aimed at the target's in-place advance (`add r28,r30,r0` then `addi r28,r28,928` in one register, against our `add r3,r29,r0` then `addi r28,r3,928` through a scratch): REGRESSED, real 64 -> 70. Both reverted and the object REBUILT before re-deriving -- the first re-derivation after the revert read the STALE regressed object and reported 8 unabsorbed words where the live object has 4, which is a trap worth naming: probe.py leaves the last probe's object in place, so a derivation run straight after a revert measures the wrong bytes.",
+    "residual": "NONE -- fndiff --clean reports EXACT, 0 real diff lines. The residual was a whole-function GPR renaming (real 64 of 67 instructions) composed with one live-zero-remat word: the target seeds `li r29,0` at +0x18 and spends `addi r31,r29,0` at +0x28 for `i = 0`, while our stream emits two independent `li` (+0x28, +0x2c). The renaming axis itself was already parked by attempt.parked.end-inventory-panel.20260830.v1 ('renum + base-const assoc', the four handle-free loops off lbl_80274600 at +928/992/736/592); that record names an axis but records no measured outcome and no residual mechanism, which is why it was treated as INSUFFICIENT provenance on its own and the two axes above were run before any rule was authored.",
+    "scope": "config/GUNE5D/webfrank.json only (creates the FIRST rule and the first unit block for game/ui/screensaver). Source probes on src/game/ui/screensaver.c were reverted; git status confirmed the file identical to HEAD before the rule was authored.",
+    "verification": "Derived and PROVEN through the shipped webfrank.apply_patch (tools/gdl/composed_census/hv_perm.py, residual 0). Because this is a TU's FIRST rule, `python configure.py` was required to create the build edge -- confirmed by the new `WEBFRANK game/ui/screensaver` line appearing, adjusting 39 instruction atoms/fields. `ninja -j2` printed `build/GUNE5D/main.dol: OK`. `fndiff --clean` = EXACT, 0 real diff lines. `defake_gate.py baseline game/ui/screensaver.c --at-head` then `check` = GATE OK (22 functions, 15 at real 0). Postprocessor split EQUIVALENT 135 -> 136 fns. Commit 733288197."
+  },
+  "function": "function:end_inventory_panel",
+  "held_fixed": "Both probes held the LOOP STRUCTURE and the four base displacements (+928/992/736/592) constant, varying only the declaration order and then only the base-plus-displacement spelling of the first loop.",
+  "id": "attempt.HV_end-inventory-panel-source-first-then-close.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T23:10:19Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-01",
+    "signature": "closed -- was 4 unabsorbed words in 1 cluster, real 64 at 67/67"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}
