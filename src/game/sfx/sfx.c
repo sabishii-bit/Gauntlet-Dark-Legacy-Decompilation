@@ -2612,6 +2612,7 @@ void ProcessEffects(void)
     f32 targetmat[16];
     f32 oldpos[3];
     f32 pos[3];
+    f32 delta[3];
     f32 dir[3];
     f32 hitpos[3];
     f32 normal[3];
@@ -2653,13 +2654,13 @@ void ProcessEffects(void)
 
         if ((e->flags & 0x40000000) && e->targetnode != NULL) {
             GetWorldMat(e->targetnode, targetmat, NULL);
-            dir[0] = targetmat[12] - mat[12];
-            dir[1] = targetmat[13] - mat[13];
-            dir[2] = targetmat[14] - mat[14];
-            NormalVector(dir);
-            e->vel[0] = dir[0] * e->weight;
-            e->vel[1] = dir[1] * e->weight;
-            e->vel[2] = dir[2] * e->weight;
+            delta[0] = targetmat[12] - mat[12];
+            delta[1] = targetmat[13] - mat[13];
+            delta[2] = targetmat[14] - mat[14];
+            NormalVector(delta);
+            e->vel[0] = delta[0] * e->weight;
+            e->vel[1] = delta[1] * e->weight;
+            e->vel[2] = delta[2] * e->weight;
             pos[0] = oldpos[0] + e->vel[0] * gClockFrameStep;
             pos[1] = oldpos[1] + e->vel[1] * gClockFrameStep;
             pos[2] = oldpos[2] + e->vel[2] * gClockFrameStep;
@@ -2799,12 +2800,11 @@ void ProcessEffects(void)
             collisionDamage = e->damage * damageScale;
 
             if (e->lightrad > 0.0f) {
-                f32 lightpos[3];
-                lightpos[0] = pos[0];
-                lightpos[1] = pos[1];
-                lightpos[2] = pos[2];
-                lightpos[1] += 1.0;
-                fn_800C0ADC(lightpos, e->lightcolor,
+                hitpos[0] = pos[0];
+                hitpos[1] = pos[1];
+                hitpos[2] = pos[2];
+                hitpos[1] += 1.0;
+                fn_800C0ADC(hitpos, e->lightcolor,
                             lightScale * (e->lightrad * lbl_80343DF4),
                             lbl_80343DF8);
             }
@@ -2885,7 +2885,6 @@ void ProcessEffects(void)
                             f32 value;
                             u32 bits;
                         } absdy;
-                        f32 delta[3];
                         f32 dist;
                         f32 mindp;
 
@@ -2970,19 +2969,19 @@ void ProcessEffects(void)
                         } else {
                             s32 playerHit;
 
-                            dir[0] = e->vel[0];
-                            dir[1] = e->vel[1];
-                            dir[2] = e->vel[2];
-                            NormalVector(dir);
+                            delta[0] = e->vel[0];
+                            delta[1] = e->vel[1];
+                            delta[2] = e->vel[2];
+                            NormalVector(delta);
                             if (sMusicFadeBase >= player->fxhittime) {
                                 if (e->flags & 0x2000) {
                                     playerHit = damage_player(
                                         player->index, 0.0f, 0,
-                                        e->damagetype | DMG_STUN, dir);
+                                        e->damagetype | DMG_STUN, delta);
                                 } else {
                                     playerHit = damage_player(
                                         player->index, collisionDamage, 1,
-                                        e->damagetype, dir);
+                                        e->damagetype, delta);
                                 }
                                 if (e->owner >= 4096) {
                                     CritterSetFxHitTime(
@@ -3062,7 +3061,6 @@ void ProcessEffects(void)
                 while ((enemyIndex = NextGridItem()) >= 0) {
                     struct fxenemy* enemy =
                         (struct fxenemy*)(gEnemies + enemyIndex * 916);
-                    f32 enemyDelta[3];
                     f32 enemyDist;
                     f32 enemyMindp;
                     s32 enemyState;
@@ -3078,10 +3076,10 @@ void ProcessEffects(void)
                         sMusicFadeBase < enemy->fxhittime[owner]) {
                         continue;
                     }
-                    enemyDelta[0] = enemy->pos[0] - pos[0];
-                    enemyDelta[1] = enemy->pos[1] - pos[1];
-                    enemyDelta[2] = enemy->pos[2] - pos[2];
-                    enemyDist = NormalVector2D(enemyDelta);
+                    delta[0] = enemy->pos[0] - pos[0];
+                    delta[1] = enemy->pos[1] - pos[1];
+                    delta[2] = enemy->pos[2] - pos[2];
+                    enemyDist = NormalVector2D(delta);
                     if (enemyDist > radius + enemy->radius) {
                         continue;
                     }
@@ -3090,8 +3088,8 @@ void ProcessEffects(void)
                         if (enemyDist < 0.2 * (radius + enemy->radius)) {
                             enemyMindp *= 0.85;
                         }
-                        if (enemyDelta[0] * dir[0] +
-                                enemyDelta[2] * dir[2] <
+                        if (delta[0] * dir[0] +
+                                delta[2] * dir[2] <
                             enemyMindp) {
                             continue;
                         }
@@ -3102,7 +3100,7 @@ void ProcessEffects(void)
                         enemyState = 0;
                     }
                     damage = damage_enemy(
-                        enemy, owner - 1, e->damagetype, 0, enemyDelta,
+                        enemy, owner - 1, e->damagetype, 0, delta,
                         collisionDamage, 2);
                     if (damage >= 0) {
                         if (collisionDamage > 2.0f &&
@@ -3138,17 +3136,17 @@ void ProcessEffects(void)
                     }
                     enemy = (struct fxenemy*)(gEnemies + enemyIndex * 916);
                     if (!(e->flags & 0x400)) {
-                        dir[0] = e->vel[0];
-                        dir[1] = e->vel[1];
-                        dir[2] = e->vel[2];
+                        delta[0] = e->vel[0];
+                        delta[1] = e->vel[1];
+                        delta[2] = e->vel[2];
                         e->hitcount++;
-                        NormalVector(dir);
+                        NormalVector(delta);
                         enemyState = enemy->state;
                         if (enemy->health <= 0.0) {
                             enemyState = 0;
                         }
                         damage = damage_enemy(
-                            enemy, owner - 1, e->damagetype, hitpos, dir,
+                            enemy, owner - 1, e->damagetype, hitpos, delta,
                             collisionDamage, 2);
                         if (damage >= 0) {
                             if (collisionDamage > 2.0f &&
@@ -3213,7 +3211,7 @@ void ProcessEffects(void)
                     }
                     e->hitcount++;
                     damage = CritterDamage(
-                        critter, owner - 1, e->damagetype, 0, dir,
+                        critter, owner - 1, e->damagetype, 0, delta,
                         collisionDamage, 2);
                     if (damage >= 0 && e->fxhit >= 0) {
                         StartFXSub(e->fxhit, critter->effectpos, 0, 0x880,
@@ -3233,14 +3231,14 @@ void ProcessEffects(void)
                     if (!(e->flags & 0x400) &&
                         !(critter->header->desc->type == 4 &&
                           (e->flags & 0x800))) {
-                        dir[0] = e->vel[0];
-                        dir[1] = e->vel[1];
-                        dir[2] = e->vel[2];
+                        delta[0] = e->vel[0];
+                        delta[1] = e->vel[1];
+                        delta[2] = e->vel[2];
                         e->hitcount++;
-                        NormalVector(dir);
+                        NormalVector(delta);
                         hit = CritterDamage(
                             critter, owner - 1, e->damagetype, hitpos,
-                            dir, collisionDamage, 2);
+                            delta, collisionDamage, 2);
                         if (hit >= 0) {
                             if (hit != 0) {
                                 hit = 3;
@@ -3378,10 +3376,10 @@ void ProcessEffects(void)
                             continue;
                         }
 
-                        normal[0] = item->pos[0] - pos[0];
-                        normal[1] = item->pos[1] - pos[1];
-                        normal[2] = item->pos[2] - pos[2];
-                        itemDist = NormalVector2D(normal);
+                        delta[0] = item->pos[0] - pos[0];
+                        delta[1] = item->pos[1] - pos[1];
+                        delta[2] = item->pos[2] - pos[2];
+                        itemDist = NormalVector2D(delta);
                         if (itemDist > itemRadius + item->def->radius) {
                             continue;
                         }
@@ -3391,8 +3389,8 @@ void ProcessEffects(void)
                                 0.2 * (itemRadius + item->def->radius)) {
                                 itemMindp *= 0.85;
                             }
-                            if (normal[0] * dir[0] +
-                                    normal[2] * dir[2] <
+                            if (delta[0] * dir[0] +
+                                    delta[2] * dir[2] <
                                 itemMindp) {
                                 continue;
                             }
