@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "BOUNDED PROBE lane, game/world/items.c: SetItem's decomposition (attempt.SI_setitem-cancelling-delta-decomposition-park.20260901.v2) shows 3-short/3-surplus cancelling sites; the short side is blocked by claim.law.SI_forward-branch-pair-needs-an-epilogue-target-not-a-shared-interior-block.20260901.v1. The probe: can faithful control-flow restructuring give those 3 sites an EPILOGUE target (early-return spellings, guard inversion) so the branch pair reproduces \u2014 closing short and surplus sides TOGETHER (surplus cures are recorded and work but are unbankable alone)? Run-25 precedent: accepted-law prescriptions rot (MP's refutation) \u2014 test the law's boundary, do not violate its measurement. HARD CAP 3 restructure attempts per iteration-limits policy, then park with the REFUTED-or-CAPPED vocabulary. Secondary: RegisterItemWobj (real ~60 REMEASURE; context <fn> first). Pins Distance*/InitLighting/InitItemInfoData FROZEN; do not touch LinkItemTriggers. Gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:SetItem",
+  "id": "work_claim.items-shortside.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-IT",
+  "recorded_at": "2026-09-01T15:16:23Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

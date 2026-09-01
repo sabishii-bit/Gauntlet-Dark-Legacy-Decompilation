@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "TU-RECONSTRUCTION lane: pick the highest-value NonMatching TU by (1-fuzzy)*size from a FRESH report.json, EXCLUDING TUs owned this run (pb_window, sfx.c, controls.c, camera.c, movieplayer, items.c, atree, dynobjgrid) \u2014 candidates likely include game/audio/sndfx (sndFxVoiceUpdateCb real ~90, 12t, parked with an unpark rule \u2014 READ its record's unpark condition first, discipline 11), enemy.c, gauntworld. Then drive that TU as a roster: regnorm census FIRST across all its open functions (discipline 9a \u2014 real inverts tractability), context <fn> per function, laws --query per residual signature, slotdiff full-map for frame work, incremental gated commits. Byte-exact or named parks with probed_form; REFUTED/RECLASSIFIED outcomes now exist in AGENTS \u2014 use them. Gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:sndFxVoiceUpdateCb",
+  "id": "work_claim.tu-reconstruction.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-RC",
+  "recorded_at": "2026-09-01T15:16:18Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

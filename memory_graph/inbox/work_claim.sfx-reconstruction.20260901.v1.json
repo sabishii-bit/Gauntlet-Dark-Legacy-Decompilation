@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "RECONSTRUCTION lane, game/sfx/sfx.c: continue ProcessEffects from real 1741 (attempt.PE_processeffects-local-count-reconstruction.20260901.v1: mechanism = surplus declared scratch vectors splitting slots, claim.law.PE_surplus-declared-scratch-vector-splits-a-slot-the-original-reused.20260901.v1; 9T/11O exclusive slots remain; the 8-byte normal[3] park is measured-dead twice, do not re-probe). slotdiff now prints the full map by DEFAULT plus a PARTITION? hint on near-equal exclusive totals \u2014 census the remaining exclusives per-cluster, close clusters incrementally (one gated commit each, the proven cadence). The function's header comment names the original locals + 0x2f0 frame \u2014 free evidence FIRST (discipline 4). When ProcessEffects walls: regnorm census the TU's siblings and drive the nearest (discipline 9a). Gate = 'main.dol: OK'; defake_gate baseline FIRST this time (run-25 could not gate retroactively); parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:ProcessEffects",
+  "id": "work_claim.sfx-reconstruction.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PE",
+  "recorded_at": "2026-09-01T15:16:07Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

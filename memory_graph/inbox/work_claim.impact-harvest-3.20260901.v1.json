@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "IMPACT lane: re-rank Game Code by (1-fuzzy)*size from a FRESH report.json (exclude owned TUs: pb_window, sfx.c, camera.c, movieplayer, items.c, atree + CH/WF targets; exclude terminal caps). ControlsUpdate is the standing leader (80.37 after run-25; attempt.IH_controlsupdate-edge-array-residency.20260901.v1 + claim.law.IH_array-declaration-is-a-residency-lever-bracketed-by-pointer-access.20260901.v1: the bracket measured scalar 947 / array 832 / pointer 1061 \u2014 target spills at ~5 sites, i.e. the answer is a MIXED spelling; find which ~5 of the 24 edge values target keeps in memory \u2014 slotdiff full map + aligned reads localize them). Then the fresh top-2. Kit order per discipline 9; context <fn> per discipline 11 BEFORE first edit on every target. Verified fuzzy improvements are kept and committed. Gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:ControlsUpdate",
+  "id": "work_claim.impact-harvest-3.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-IH",
+  "recorded_at": "2026-09-01T15:16:12Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}
