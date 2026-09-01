@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.IH_impact-ranking-refutation-holds-a-second-run.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-01T14:40:15Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/controls",
+  "valid_from": "2026-09-01",
+  "value": "THE SHOP-LEADERS REFUTATION HELD A SECOND RUN, AND THE WORK ORDER REPEATED THE REFUTED PREMISE ANYWAY. work_claim.impact-harvest-2.20260901.v1 again named the shop.c trio as the lane's 'known leaders' (do_shopping_8009AA48, do_shop, write_shop_menu), even though claim.IH_game-code-impact-ranking-refutes-shop-leaders.20260901.v1 had refuted exactly that nomination one run earlier with measurement. Re-ranked from a fresh report.json this run, the refutation holds: ControlsUpdate 676, ProcessEffects 612, sDrawGeom 530, PlayerMotion 454, show_optmenu 396, loadGauntletSave 341, do_players 295, do_player_select 288, and only then do_shopping_8009AA48 at 266, with do_shop 165 and write_shop_menu 156 far down the list. The nominated leader is worth 39% of the true leader.\n\nWHY THIS MATTERS BEYOND THE ONE LANE: a refutation recorded in the graph did not propagate into the next run's work order, because work orders are drafted from record SALIENCE and the refutation record was one voice against a large shop.c corpus. The parent law already named record salience as anti-correlated with remaining impact; this run adds that the correction is not self-applying. A lane that reads its brief as a queue will re-execute a measured-false premise indefinitely. OPERATIONAL RULE, restated because following it is what produced this run's only win: compute the ranking from the report BEFORE reading the brief's suggestions, treat named leaders as a hypothesis, and when a cited record refutes the brief, report the discrepancy and act on the measurement.\n\nTHE RUN-25 EVIDENCE THAT THE RANKING IS THE RIGHT SELECTOR. The three targets the fresh ranking chose behaved exactly as their measured state predicted, and none of the three shop.c functions would have. ControlsUpdate, the true rank 1, was still carrying an untried hypothesis from run 24 and yielded +8.04 fuzzy (72.3306% -> 80.3666%, real 947 -> 832) to its FIRST mechanism-matched probe. sDrawGeom, rank 2, had its prior mechanism diagnosis refuted at the aligned view and returned two probes that CONFIRMED its existing source shape. show_optmenu, rank 3, was excluded from source work by one slotdiff run (frame equal, 20 slots against 20 aligned, multiset 6t). Meanwhile do_shop and write_shop_menu remain recorded do-not-retry on every axis anyone has proposed for them, so a lane that had executed the brief literally would have spent its whole budget re-probing three functions worth 587 impact points combined against a single function worth 676."
+}

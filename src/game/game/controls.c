@@ -1572,12 +1572,12 @@ void InitJoyAng(void)
 
 /* one per-bit button edge: e = level-bit, kept only on a fresh press */
 #define BTN_EDGE(var, bit)                            \
-    var = lev & (bit);                                \
+    e[var] = lev & (bit);                             \
     hit = 0;                                          \
-    if (var != 0 && (old & (bit)) == 0) {             \
+    if (e[var] != 0 && (old & (bit)) == 0) {          \
         hit = 1;                                      \
     }                                                 \
-    var = hit ? var : 0;
+    e[var] = hit ? e[var] : 0;
 
 /* 0x800330D4  edge/repeat-edge computation (Xbox name: PlayerControls):
  * consume ReadControls' staged levels ("updated" flag), map scheme turbo
@@ -1625,10 +1625,7 @@ void ControlsUpdate(void)
         s32 pad = lbl_8011A258[plyr];
         u32 lev, old, lev8, old8;
         u32 eD, eC, eA, eB;
-        u32 e40000, e80000, e200, e400, e100, e8000, e10000, e800;
-        u32 e1000, e4000, e2000, e20000, e200000, e100000, e800000;
-        u32 e400000, e8000000, e1000000, e2000000, e4000000;
-        u32 e20000000, e10000000, e80000000, e40000000;
+        u32 e[24];
         s32 hit;
 
         if (pad == -1) {
@@ -1666,34 +1663,34 @@ void ControlsUpdate(void)
             } else {
                 eB = 0;
             }
-            BTN_EDGE(e40000, 0x40000)
-            BTN_EDGE(e80000, 0x80000)
-            BTN_EDGE(e200, 0x200)
-            BTN_EDGE(e400, 0x400)
-            BTN_EDGE(e100, 0x100)
-            BTN_EDGE(e8000, 0x8000)
-            BTN_EDGE(e10000, 0x10000)
-            BTN_EDGE(e800, 0x800)
-            BTN_EDGE(e1000, 0x1000)
-            BTN_EDGE(e4000, 0x4000)
-            BTN_EDGE(e2000, 0x2000)
-            BTN_EDGE(e20000, 0x20000)
-            BTN_EDGE(e200000, 0x200000)
-            BTN_EDGE(e100000, 0x100000)
-            BTN_EDGE(e800000, 0x800000)
-            BTN_EDGE(e400000, 0x400000)
-            BTN_EDGE(e8000000, 0x8000000)
-            BTN_EDGE(e1000000, 0x1000000)
-            BTN_EDGE(e2000000, 0x2000000)
-            BTN_EDGE(e4000000, 0x4000000)
-            BTN_EDGE(e20000000, 0x20000000)
-            BTN_EDGE(e10000000, 0x10000000)
-            BTN_EDGE(e80000000, 0x80000000)
-            BTN_EDGE(e40000000, 0x40000000)
-            lbl_802407E8[pad] = e40000000 | e80000000 | e10000000 | e20000000 | e4000000 |
-                                e2000000 | e1000000 | e8000000 | e400000 | e800000 | e100000 |
-                                e200000 | e20000 | e2000 | e4000 | e1000 | e800 | e10000 | e8000 |
-                                e100 | e400 | e200 | e80000 | e40000 | eD | eC | eA | eB;
+            BTN_EDGE(0, 0x40000)
+            BTN_EDGE(1, 0x80000)
+            BTN_EDGE(2, 0x200)
+            BTN_EDGE(3, 0x400)
+            BTN_EDGE(4, 0x100)
+            BTN_EDGE(5, 0x8000)
+            BTN_EDGE(6, 0x10000)
+            BTN_EDGE(7, 0x800)
+            BTN_EDGE(8, 0x1000)
+            BTN_EDGE(9, 0x4000)
+            BTN_EDGE(10, 0x2000)
+            BTN_EDGE(11, 0x20000)
+            BTN_EDGE(12, 0x200000)
+            BTN_EDGE(13, 0x100000)
+            BTN_EDGE(14, 0x800000)
+            BTN_EDGE(15, 0x400000)
+            BTN_EDGE(16, 0x8000000)
+            BTN_EDGE(17, 0x1000000)
+            BTN_EDGE(18, 0x2000000)
+            BTN_EDGE(19, 0x4000000)
+            BTN_EDGE(20, 0x20000000)
+            BTN_EDGE(21, 0x10000000)
+            BTN_EDGE(22, 0x80000000)
+            BTN_EDGE(23, 0x40000000)
+            lbl_802407E8[pad] = e[23] | e[22] | e[21] | e[20] | e[19] |
+                                e[18] | e[17] | e[16] | e[15] | e[14] | e[13] |
+                                e[12] | e[11] | e[10] | e[9] | e[8] | e[7] | e[6] | e[5] |
+                                e[4] | e[3] | e[2] | e[1] | e[0] | eD | eC | eA | eB;
             lbl_802407F8[pad] = lbl_802407E8[pad];
             lev = lbl_802407B8[pad];
             if (lev == 0 || old != lev) {

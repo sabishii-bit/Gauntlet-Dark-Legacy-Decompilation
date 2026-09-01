@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "decl-order",
+      "store-placement",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.IH_array-declaration-is-a-residency-lever-bracketed-by-pointer-access.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T14:39:39Z",
+  "schema_version": 1,
+  "subject": "function:ControlsUpdate",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5. WHERE A FUNCTION COMPUTES A LARGE GROUP OF SAME-SHAPED SCALAR VALUES AND THEN CONSUMES THEM ALL AT ONE POINT, THE CHOICE BETWEEN SEPARATE SCALARS AND AN ARRAY IS A RESIDENCY LEVER WORTH A PROBE, AND ITS DIRECTION IS PREDICTED BY THE SIGN OF THE FRAME GAP.\n\nMECHANISM. Separate scalars let MWCC fuse a value's computation with its test into the record-setting form (`rlwinm. rX,rY,0,22,22`) and keep the value in a register, paying register-to-register copies (`addi`/`mr`) when pressure rises. Declaring the same values as array members inserts a store between the computation and the test, which blocks that fusion and produces the plain `rlwinm` + `stw` + `lwz` + `cmplwi` shape instead. Neither shape is universally right: it is a choice the compiler makes per value under pressure, and the source form biases it.\n\nTHE SCREEN, which is the operative part. Run slotdiff first and read the frame gap. Where the local area is SHORT of target, adding declared storage is directionally right and the array form is a live candidate; where the frame is EQUAL, the lever cannot apply and probing it risks breaking an already-correct frame. Verified in both directions in one pass: ControlsUpdate (game/game/controls.c) had frame T192/O160, 32 bytes short, and the array rewrite of its 24 button-edge locals moved real 947 -> 832, multiset 91t -> 56t and fuzzy 72.3306% -> 80.3666%. sDrawGeom (game/pb/pb_objregs.c) had frame T904/O904 EQUAL, and its analogous residency probe -- splitting an address-taken shared `tmp` -- regressed real 1162 -> 1328. show_optmenu (game/ui/options.c) had frame 216/216 EQUAL with 20 slots against 20 fully aligned, and the lever was excluded by that measurement without a probe being spent.\n\nTHE BRACKET, and it is why 'force it into memory' is the wrong generalisation. Pushing residency all the way -- accessing the same array through a pointer local (`u32* ep = e;` then `ep[i]`), which defeats scalarization entirely -- OVERSHOOTS badly and inverts the diff's sign: ControlsUpdate went real 832 -> 1061 with ours-only -17 stw -21 lwz -18 cmplwi against target-only +16 rlwinm.. So the three states bracket cleanly at real 947 (all scalar) / 832 (array, constant indices) / 1061 (array via pointer), and the target sits between the first two: it fuses at most sites and spills at only about five. Read a store-heavy target cluster as evidence of PARTIAL residency, never as evidence that every value is memory-resident -- a mechanism sentence generalised from a handful of sites is how the prior record on this function overstated it.\n\nCOROLLARY, measured. Renumbering which value occupies which array index -- so the consuming expression reads ascending rather than descending -- is BYTE-IDENTICAL. MWCC assigns these slots independently of index numbering, so the stack-slot-order family does not offer a follow-up here; do not spend a probe on it."
+}
