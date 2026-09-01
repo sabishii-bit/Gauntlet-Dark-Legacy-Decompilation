@@ -568,8 +568,8 @@ s32 do_shop(void)
  * while the pile is still sinking (drives the count-down loop). */
 s32 show_piles(s32 col)
 {
-    u8* tbl = (u8*)&lbl_802897D0;
-    u8* counts = tbl + col * 12 + 224;
+    ShopPage* tbl = (ShopPage*)(u8*)&lbl_802897D0;
+    s32* counts = tbl->pile_count[col];
     u8* blit;
     u8* pl = (u8*)gPlayers + col * 13148;
     s32 adj = gFrameTicks + (gFrameTicks >> 1);
@@ -586,18 +586,18 @@ s32 show_piles(s32 col)
     f32 height;
 
     for (; n != 0; n--) {
-        if (*(s32*)(counts + count * 4) == 0) {
+        if (counts[count] == 0) {
             break;
         }
         count++;
     }
 
-    blit = *(u8**)(tbl + col * 24 + 7504);
+    blit = (u8*)tbl->blits[col][0];
     if (blit == 0) {
         return 1;
     }
     gold = *(s32*)(pl + offsetof(Player, gold));
-    slot = tbl + col * 12;
+    slot = (u8*)tbl->cursor_y + col * 12;
     slot += count * 4;
     cur = *(s32*)(curp = slot + 128);
     tgt = lbl_80343E14 + gold * range / (*(s32*)(slot + 80) + 1);
