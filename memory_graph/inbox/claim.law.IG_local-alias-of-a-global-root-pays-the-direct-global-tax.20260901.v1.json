@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "alias-form",
+      "cse",
+      "register-web",
+      "sda-global"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.IG_local-alias-of-a-global-root-pays-the-direct-global-tax.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T17:29:45Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "BOUNDARY ON claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 clause (A), which prescribes killing a surplus address-PRE web by declaring a SEPARATE TYPED BASE local and routing one of the two views through it. THE PRESCRIPTION DOES NOT TRANSFER WHEN THE BASE IS A GLOBAL SYMBOL. Its proving case (atree.c fn_8001267C) gave a cast-view of an existing LOCAL pointer -- `AtreeDefinition* def = (AtreeDefinition*)blob;` -- its own symbol; `blob` already lived in a register, so the new symbol cost nothing to materialise. When the base is a global instead, the new symbol has to be MATERIALISED, and MWCC will not CSE a fresh local's initialiser with a live local copy of that same address (claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1), so it emits a whole second lis/addi symbol root. MEASURED ON src/game/world/items.c::RegisterItemWobj, whose entire residual is one such web (our callee-saved r25 holds `sItemRuntime + i*4` across an ErrorPrintf call for a single store where target rematerialises `stfsx`). Inside the guarded block, adding `ItemRuntime* rt = &sItemRuntime;` and routing ONE of the two stores through `rt` DID break the web -- the loop top changed from `add r25,r31,r26` to `addi`+`lwzx` -- and cost real 60 -> 75, instructions 139 -> 142, multiset 2t -> 7t: an ours-only `lis` at @138 plus `addi`+`add` at @140-@148. That is the IDENTICAL failure signature, to the instruction, as respelling the same access to the direct global `sItemRuntime.wobjX[i]` (recorded as axis B of the prior attempt). THE RULE: a local alias and a direct symbol reference are the SAME FORM for the purposes of the variable-identity lever whenever the aliased value is a global's address; the lever's power comes from re-symbolising a value that is ALREADY in a register, not from introducing a second name. COROLLARY, also measured on the same function: the sibling lever of taking an ARRAY MEMBER as the new base -- `f32* wx = runtime->wobjX;` then `wx[i] = x;` -- is free of the tax but is inert, because a single-use pointer local is forward-substituted before codegen (claim.law.single-use-field-pointer-alias-is-folded-away.20260831.v1); probe.py reported the object bytes UNCHANGED. Between the tax and the fold there is currently no measured form that breaks a global-rooted address web at zero cost, and that -- not 'no lever exists' -- is the correct statement of the cap."
+}

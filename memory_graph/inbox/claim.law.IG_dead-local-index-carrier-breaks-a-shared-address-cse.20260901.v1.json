@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "cse",
+      "register-web",
+      "index-form",
+      "alias-form",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.IG_dead-local-index-carrier-breaks-a-shared-address-cse.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T17:29:37Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "EXTENDS claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1 from callee-saved COLOURING to ADDRESS CSE, and supplies the lever the address-PRE family has been missing. THE SHAPE. Two array reads at adjacent indices off the same pointer local -- `a = f(data[idx]); ... b = f(data[idx + 1]);` -- make MWCC form the element address once (`slwi rK,rIdx,2 / add rA,rBase,rK`) and serve the second read from it as a displacement (`lwz rB,4(rA)`). The target instead emits the first read with NO address register at all (`slwi rK,rIdx,2 / lwzx rD,rBase,rK`) and a completely separate `addi rK,rIdx,1 / slwi rK,rK,2 / add rA,rBase,rK / lwz rB,0(rA)` for the second. THE LEVER: name the second index in its own declared symbol -- `hdr = idx + 1; b = f(data[hdr]);` -- and the first read collapses to the target's `lwzx`. MWCC forms an address register for an indexed read ONLY when a second use of that address exists; giving `idx + 1` its own symbol destroys the syntactic path by which MWCC rewrites `data + (idx + 1)` into `(data + idx) + 1`, so the second use never arises. Measured on src/game/pb/pb_objregs.c::sDrawGeom (commit 51d58b881): multiset 29t -> 26t, target-only lwzx +2 -> +1, fuzzy 88.1125 -> 88.6120, and our `data[idx]` became instruction-for-instruction identical to target. TWO PRACTICAL CONSTRAINTS. (a) USE AN ALREADY-DEAD LOCAL, not a fresh declaration: `hdr` here is the function's header-word local, dead from the point `end` is computed, so the conversion adds ZERO nominal area and cannot move the frame -- a fresh local would be gated by claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1. (b) THE LEVER IS DIRECTIONAL AND OVERSHOOTS. It removes a share; it does not create one. Two follow-up probes that tried to use the SAME named carrier to CREATE the target's other share (target forms `add r3,rBase,rK` once and serves both `lwz 0(r3)` and `lfs 8(r3)` from it) failed: one folded away byte-identically, the other grew the function by four instructions and lost 0.14 fuzzy. Read this law together with claim.law.direct-global-member-flips-index-base-association.20260831.v1: that law supplies the base-kind x access-kind matrix, this one supplies the only source lever measured so far that changes the NUMBER OF USES rather than the addressing form."
+}
