@@ -1091,9 +1091,9 @@ int loadGauntletSave(void)
     s32 keepFmt3;
     s32 keepFmtDef;
     s32 fileNo;
-    u8 volatile found;
-    u8 volatile needUnmount;
-    u8 volatile needCheck;
+    u8 found;
+    u8 needUnmount;
+    u8 needCheck;
     char* checkMsg;
     u32 volatile neededPct;
     u32 serial[2];
