@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "defake",
+      "offsetof-form",
+      "build-hygiene",
+      "matching",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.union-over-u64-member-silently-breaks-a-hand-built-view-struct.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T04:23:12Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_frame",
+  "valid_from": "2026-09-01",
+  "value": "MECHANISM: when a de-fakematch pass builds a file-local view struct out of an 8-byte member type that is a UNION CONTAINING u64 (here PBGSReg: u64 d / P8 words / u32 w[2] / u16 h[4] / u8 b[8]), that member type carries 8-BYTE ALIGNMENT. Hand-written 4-byte gap fields (u8 _padNN[4]) sized from the target's real offsets then no longer produce those offsets: the compiler realigns every following member up to the next multiple of 8, and the error ACCUMULATES down the struct. Measured in pb_frame.c: PbTplA intended m0C/m18/m24/m30/m38/m44/m4C at 0x0C/0x18/0x24/0x30/0x38/0x44/0x4C but the compiler produced 0x10/0x20/0x30/0x40/0x48/0x58/0x60; PbTplC.m28 produced 0x30. CURE: give the member a 4-ALIGNED 8-byte type -- a plain struct of two u32 (pb_frame already had P8 {u32 a; u32 b;}). Retyping the members reproduced every named offset exactly, with no change at the access sites, which cast independently. DETECTION -- this class is nearly invisible to the normal loop and that is the point: (1) the displacement is an OPERAND, so fndiff --ops shows nothing (its multiset and its insert/delete clusters are opcode-level), and three prior passes on this function read the --ops output as the complete residual; (2) the instruction count, opcode stream, frame size and stack-slot map are all UNCHANGED, so slotdiff and count checks are green too; (3) it therefore surfaces ONLY in the aligned fnasm --diff as '~' opcode-only-match rows, which read exactly like benign register noise. Whenever a hand-built view struct mixes an 8-aligned member type with sub-8 pad fields, verify offsetof against the target's actual displacements BEFORE trusting any score. COROLLARY (this is how the bug was caught, and it retires a law): a single site among structurally identical siblings that regresses when converted to offsetof, with no distinguishing source feature, is evidence of a WRONG STRUCT OFFSET, not of a mysterious per-site register web. The prior pass hit exactly this at tC+40, left the site raw and recorded the mystery as claim.law.offsetof-rename-isolated-site-outlier.20260830.v1; after the alignment fix the identical conversion measured byte-NEUTRAL (real 391->391) where it had previously cost +4 (389->393). Screen alignment first, and only then look for web effects."
+}
