@@ -183,8 +183,8 @@ typedef struct MovieChunkStream {
  * vtable -> RTTI -> name chain (validated against the known-named control
  * __RTTI__Q23std9exception) reads { name = 0x803493C8 -> "Codec", base = NULL }
  * at .sdata 0x80344010 and { name = 0x803493C0 -> "VQCodec", base -> Codec's
- * record } at 0x80344018.  Codec's vtable object is lbl_801296F0 (its dtor slot
- * at +8 = 0x801296F8); VQCodec's is lbl_801296CC.
+ * record } at 0x80344018.  Codec's vtable object is __vt__5Codec (its dtor slot
+ * at +8 = 0x801296F8); VQCodec's is __vt__7VQCodec.
  *
  * The inheritance is confirmed independently of the RTTI base descriptor: the
  * target's VQCodec destructor ends with `addi r3,r29,0 / li r4,0 / bl
@@ -274,7 +274,7 @@ typedef struct MovieAudioState {
  *   0x150 decoder     the MovieDTextOuter decoder object - __dt__11MoviePlayerFv tears
  *                     it down as `(MovieDTextOuter*)(self + 0x54)` on a u32*
  *                     self, i.e. byte 0x150. Its vtable member sits at +0x20
- *                     (fn_800DBE04's `p[8] = lbl_801296CC`), so decoderVtable
+ *                     (fn_800DBE04's `p[8] = __vt__7VQCodec`), so decoderVtable
  *                     at 0x170 is that same word - exactly the MovieCloseVTable
  *                     pointer at `self + 368` that the teardown path
  *                     calls close() through, and the same word fn_800DA6A4
@@ -288,7 +288,7 @@ typedef struct MovieAudioState {
  *                     +0x0C/+0x0E (0x1A0/0x1A2) whose widths the raw code
  *                     itself confirms.
  *
- * Offset 0x000 is the vtable, per __dt__11MoviePlayerFv's `self[0] = lbl_8012968C` and
+ * Offset 0x000 is the vtable, per __dt__11MoviePlayerFv's `self[0] = __vt__11MoviePlayer` and
  * PlayVQMovie's MovieStreamInterface view. No Xbox PDB authority exists for
  * this record - the Xbox build's MOVIE.OBJ is an unrelated cutscene subsystem
  * (InitMovie/ServeMovie/KillMovie) and the PDB type stream carries nothing for
@@ -376,10 +376,10 @@ extern int sceOpen(const char* path, ...);
 extern void sysAssertFailed(const char* expression, const char* file, int line);
 
 /* --- vtables (.data) + subsystem refcounts (.sbss) + colour ramps (.bss) --- */
-extern u32 lbl_801296A4[];
-extern u32 lbl_8012968C[];
-extern u32 lbl_801296CC[];
-extern u32 lbl_801296F0[];
+extern u32 __vt__15MoviePlayerBase[];
+extern u32 __vt__11MoviePlayer[];
+extern u32 __vt__7VQCodec[];
+extern u32 __vt__5Codec[];
 extern u32 lbl_803452B8;
 extern u32 gDTextInitCount;
 extern u8 lbl_80321340[];
@@ -2078,7 +2078,7 @@ MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) throw();
 
 /* MoviePlayer -- the concrete movie player.  RTTI record .sdata 0x80344008 =
  * { name 0x80117648 -> "MoviePlayer", base -> MoviePlayerBase }; vtable
- * lbl_8012968C, whose first virtual slot is this destructor.  Non-virtual
+ * __vt__11MoviePlayer, whose first virtual slot is this destructor.  Non-virtual
  * spelling and no exception specification, per the same recipe as the
  * Codec/VQCodec pair above.
  *
@@ -2088,7 +2088,7 @@ MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) throw();
  *
  * (1) Spelled WITHOUT the `: public MoviePlayerBase` inheritance the RTTI
  *     proves, with the base teardown written out by hand as the trailing
- *     `if (self != NULL) self[0] = lbl_801296A4`.  The target INLINES the base
+ *     `if (self != NULL) self[0] = __vt__15MoviePlayerBase`.  The target INLINES the base
  *     destructor at that point, and MWCC only inlines a base whose body it has
  *     already seen -- but __dt__15MoviePlayerBaseFv must stay defined further
  *     down, because the target's function order fixes its own .text slot at
@@ -2126,7 +2126,7 @@ MoviePlayer::~MoviePlayer() {
     u32* self = (u32*)this;
     u32* stream;
 
-    self[0] = (u32)lbl_8012968C;
+    self[0] = (u32)__vt__11MoviePlayer;
     if ((s32)self[7] != 0) {
         sceClose((s32)self[7]);
     }
@@ -2145,7 +2145,7 @@ MoviePlayer::~MoviePlayer() {
     ((VQCodec*)(self + 0x54))->~VQCodec();
     dtor_800DBB94((MovieChunkStream*)(self + 8), -1);
     if (self != NULL) {
-        self[0] = (u32)lbl_801296A4;
+        self[0] = (u32)__vt__15MoviePlayerBase;
     }
 }
 #pragma cplusplus off
@@ -2153,8 +2153,8 @@ MoviePlayer::~MoviePlayer() {
 u32* fn_800DB0F8(u32* volatile p) {
     u32* self = p;
 
-    self[0] = (u32)lbl_801296A4;
-    self[0] = (u32)lbl_8012968C;
+    self[0] = (u32)__vt__15MoviePlayerBase;
+    self[0] = (u32)__vt__11MoviePlayer;
     fn_800DBC64((MovieChunkStream*)(self + 8));
     fn_800DBE04(self + 0x54);
     self[7] = 0;
@@ -2206,12 +2206,12 @@ void operator delete(void* p) throw() {
 
 /* MoviePlayerBase -- the movie player's abstract base class.  The name is not
  * invented: the GameCube build carries CodeWarrior RTTI, and the base class's
- * vtable lbl_801296A4 begins with a pointer to the RTTI record at .sdata
+ * vtable __vt__15MoviePlayerBase begins with a pointer to the RTTI record at .sdata
  * 0x80344000, whose layout is validated against the known-named control
  * __RTTI__Q23std9exception (0x80344048 -> "std::exception").  That record
  * reads { name = 0x80117654 -> "MoviePlayerBase", base = NULL }, and the same
  * vtable's only virtual slot is this destructor at 0x800DB21C.  (The derived
- * class resolves the same way: vtable lbl_8012968C -> RTTI 0x80344008 ->
+ * class resolves the same way: vtable __vt__11MoviePlayer -> RTTI 0x80344008 ->
  * { "MoviePlayer", base -> MoviePlayerBase }, dtor 0x800DB008.)
  *
  * Declared with a NON-virtual destructor on purpose.  CodeWarrior gives every
@@ -2231,7 +2231,7 @@ public:
 };
 
 MoviePlayerBase::~MoviePlayerBase() {
-    *(u32*)this = (u32)lbl_801296A4;
+    *(u32*)this = (u32)__vt__15MoviePlayerBase;
 }
 #pragma cplusplus off
 
@@ -2657,7 +2657,7 @@ u8 fn_800DBD00(void* self, s32 x) {
     return c;
 }
 
-/* VQCodec::~VQCodec (vtable lbl_801296CC).  Written as a real C++ destructor,
+/* VQCodec::~VQCodec (vtable __vt__7VQCodec).  Written as a real C++ destructor,
  * NON-virtual and with NO exception specification, per the measured recipe:
  * CodeWarrior gives every destructor the hidden `short` in-charge parameter and
  * synthesises both the leading `this == NULL` test and the trailing
@@ -2673,7 +2673,7 @@ u8 fn_800DBD00(void* self, s32 x) {
  * inline a base destructor defined earlier and collapse the call away. */
 #pragma cplusplus on
 VQCodec::~VQCodec() {
-    vtable = lbl_801296CC;
+    vtable = __vt__7VQCodec;
     delete alloc2;
     lbl_803452B8--;
 }
@@ -2682,7 +2682,7 @@ VQCodec::~VQCodec() {
 VQCodec* fn_800DBE04(u32* p) {
     int i;
     DTextInitColorRamp((Codec*)p);
-    p[8] = (u32)lbl_801296CC;
+    p[8] = (u32)__vt__7VQCodec;
     if (lbl_803452B8 == 0) {
         for (i = 0; i < 256; i++) {
             lbl_80321340[i] = (u8)((i * 31 + 128) / 255);
@@ -2717,7 +2717,7 @@ void fn_800DBE98(void* param_1, u8* param_2) {
     param_2[0] = gDTextBuf[(int)(lbl_803493DC + (lbl_803493EC * fVar3 + fVar1))];
 }
 
-/* Codec::~Codec (vtable lbl_801296F0, dtor slot 0x801296F8).  Same recipe as
+/* Codec::~Codec (vtable __vt__5Codec, dtor slot 0x801296F8).  Same recipe as
  * VQCodec::~VQCodec above: non-virtual, no exception specification, and neither
  * the leading null test nor the trailing deleting branch written by hand.
  *
@@ -2728,7 +2728,7 @@ void fn_800DBE98(void* param_1, u8* param_2) {
  * release, r31+16 for the synthesised deleting branch) and its frame of 88. */
 #pragma cplusplus on
 Codec::~Codec() {
-    vtable = lbl_801296F0;
+    vtable = __vt__5Codec;
     gDTextInitCount--;
     delete alloc;
 }
@@ -2744,7 +2744,7 @@ typedef struct DTextRampEntry {
 Codec* DTextInitColorRamp(Codec* p) {
     int i;
     u8* ramp = gDTextColorRamp;
-    p->vtable = lbl_801296F0;
+    p->vtable = __vt__5Codec;
     if (gDTextInitCount == 0) {
         memset(ramp, 0, 256);
         memset(ramp + 512, 255, 256);
