@@ -96,6 +96,49 @@
     ],
     "game/world/btricol": [
       {
+        "function": "BTriLineCol",
+        "before_sha256": "3547811d0751f9fa3d8972e37e7480bcbf11805c98dd53800c2d3ea36ea98186",
+        "after_sha256": "48e7e68939f5ea4cd85f9511109f07e5bb4b8848876b0b424f2bedb6600a10b6",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 450
+        },
+        "mechanism": "attempt.br-btricol-ghosts-unlock-and-btrilinecol-closure.20260901.v1 - a single callee-saved FPR colour choice for the `radius` parameter home. Both streams save f23-f31 and are byte-identical in 445 of 450 instructions; the whole residual is one web, live 0x3c-0x138 (fmr from f1, then r2 = radius*radius, the two radius compares and the fneg), which the target colours f23 and we colour f24. The two webs defined immediately after it at 0x170/0x174 (dx, dz) take f24/f23 in BOTH streams, so radius does not interfere with anything and either colour is legal - the choice is an allocator tie-break with no source discriminant (three distinct source axes measured: dead-declaration removal REGRESSED 10 -> 288, and two declaration-order permutations were byte-identical, killing that axis). Machine-proven as a consistent renaming by verify_consistent_recolor with NO unproven_recolor_audit escape; webfrank_audit.py reports it eligible. The five edits below are the same f24 -> f23 rename in the frD/frA/frB/frC slots of fmr, fmuls, fcmpo, fcmpo and fneg.",
+        "register_fields": [
+          {
+            "at": "0x3c",
+            "set": {
+              "21": 23
+            }
+          },
+          {
+            "at": "0x100",
+            "set": {
+              "6": 23,
+              "16": 23
+            }
+          },
+          {
+            "at": "0x128",
+            "set": {
+              "11": 23
+            }
+          },
+          {
+            "at": "0x130",
+            "set": {
+              "11": 23
+            }
+          },
+          {
+            "at": "0x138",
+            "set": {
+              "11": 23
+            }
+          }
+        ]
+      },
+      {
         "function": "PointLineDist2D",
         "before_sha256": "ada2054b1089e66b4d31bc40b351c083abdeb0843e4325c550cb10c7939f5fe9",
         "after_sha256": "f38c09da2494f12a11e3e843b85536210700b0d35efa23db4bb4cf5cea11902f",
