@@ -2076,9 +2076,9 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
             widest = w;
         }
     }
+    boxW = widest + 96;
     lineH = FontHeight(lbl_80344A54, lbl_80344A58) + 3;
     boxH = (lineH + 6) * (count1 + TextMLines(msg)) + 60;
-    boxW = widest + 96;
     if (boxW < 256) {
         boxW = 256;
     } else if (boxW > 512) {
