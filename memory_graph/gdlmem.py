@@ -12,16 +12,23 @@ RESIDUAL-FIRST RETRIEVAL (run 29). Search by what the diff LOOKS LIKE, not
 by function name:
 
   gdlmem.py laws --residual "+1 addi -1 li"   # who else had this residual
-  gdlmem.py find --family live-zero-remat     # the whole residual family
+  gdlmem.py find --family live-zero-remat     # three LABELLED tiers: the
+                                              # verified family, the legacy
+                                              # residual_class widening, and
+                                              # (with --include-candidates 1)
+                                              # quarantined extractor guesses
+                                              # — never total the tiers
   gdlmem.py find --capability dataflow-equivalence   # parks waiting on a
                                               # capability, i.e. its payoff
   gdlmem.py laws --query "live zero remat"    # matches id SLUG WORDS and
                                               # webfrank pin `mechanism`
                                               # prose, not just law text
 
-Attempt records carry an optional `residual` object
-{signature, family, capability_needed, measured_at}; law records carry
-optional `falsifier` and `asserted_by`; multi-edit parks carry `held_fixed`.
+Attempt records carry an optional TOP-LEVEL `residual` object
+{signature, family, capability_needed, measured_at} — distinct from the
+legacy `attributes.residual` prose, which is never read as structure. Law
+records carry optional `falsifier` and `asserted_by`; multi-edit parks carry
+`held_fixed`.
 `propose-record --template attempt|claim` prints the shapes. Three gates run
 on NEW proposals only: a necessity-language law (must/requires/cannot/only)
 needs a `falsifier`; a record reclassifying a function postprocessor-class
