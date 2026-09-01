@@ -430,13 +430,9 @@ static inline void dcsHandleRequestImpl(u32 request, s32* input, s32* output)
     }
 }
 
-static inline s32* dcsRequestOutput(s32* output)
-{
-    return output;
-}
-
 /* 0x800D4BF4  dispatch a numeric request (id,in,out) */
 void dcsHandleRequest(u32 request, s32* input, s32* output)
 {
-    dcsHandleRequestImpl(request, input, dcsRequestOutput(output));
+    s32* out = output;
+    dcsHandleRequestImpl(request, input, out);
 }
