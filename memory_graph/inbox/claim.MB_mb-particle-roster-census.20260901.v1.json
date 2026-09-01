@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker MB, work_claim.mbparticle-roster.20260901.v1, worktree GDL-Claude-MbParticle27, branch claude/mbparticle-roster-20260901. Census run at run-27 start from a green full build; per-function regnorm plus fndiff --count over all 51 functions of the unit (42 at real 0). Re-measured, not quoted. Post-session state after commits ec44a9dd2, bee62470d, e3dd1c8a1, 8b5947a48.",
+    "tags": [
+      "matching",
+      "metrics",
+      "workflow",
+      "register-web",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.MB_mb-particle-roster-census.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-01T17:36:56Z",
+  "schema_version": 1,
+  "subject": "tu:game/mb/mb_particle",
+  "valid_from": "2026-09-01",
+  "value": "REGNORM CENSUS OF game/mb/mb_particle, ranked by GENUINE structural rows (branch-displacement artifacts excluded, per claim.law.MV_regnorm-census-ranks-tractability-and-real-actively-misranks-it.20260901.v1). Columns: function | target/ours insns | real | genuine STRUCTURAL | branch-disp artifacts | unpaired | renaming.\n\nAT SESSION START, eight open functions: getNewDirConeUnique 143/143 | 2 | 0 | 0 | 2 | 0. freePsysMem 125/125 | 56 | 2 | 15 | 10 | 7. allocPsys 134/134 | 58 | 9 | 0 | 2 | 19. setWorldParms 843/843 | 462 | 15 | 37 | 36 | 170. MBNewPsysDescrip 793/793 | 496 | 15 | 35 | 30 | 184. setupNewPMode 669/663 | 650 | 19 | 58 | 67 | 196. MBDrawPsys 810/812 | 658 | 27 | 51 | 68 | 228. DrawPsysSub 290/285 | 229 | 36 | 10 | 51 | 35.\n\nTHE RANKING INVERTS `real` EXACTLY AS THE LAW PREDICTS, and this census is the cheap confirmation. getNewDirConeUnique carried the LOWEST real in the unit (2) and was also genuinely the most tractable - one displaced word, closed EXACT the same session. But freePsysMem at real 56 outranked allocPsys at real 58 on genuine rows (2 against 9) and yielded a 1.8-point fuzzy gain from a ONE-LINE statement move, while setWorldParms at real 462 outranked setupNewPMode at real 650 despite a 188-point real gap. Rank by genuine structural rows; do not rank this unit by real.\n\nPOST-SESSION STATE. getNewDirConeUnique EXACT (real 0, webfrank permutation rule). freePsysMem real 40, fuzzy 93.52. allocPsys real 48, fuzzy 97.10. setWorldParms real 462 with multiset 32t, fuzzy 95.51. The other four are untouched by this session and their census rows above stand.\n\nWEBFRANK PINS IN THIS UNIT - screen these FIRST, they read real 0 by construction and must never be ranked or edited: getNewPosRectShare (SCHEDULE_CANDIDATE, permutation + copy_register_fields), getNewDirConeUnique (SCHEDULE_CANDIDATE, permutation only, added this session), getSinCos (REGISTER_ONLY), MBPsysSetDebugNode (REGISTER_ONLY, and the anchor of this lane's work claim - source FROZEN).\n\nWHERE THE NEXT SESSION SHOULD START. setWorldParms and MBNewPsysDescrip are STRUCTURAL TWINS: five repeated float-clamp groups each, residuals identical row for row, and both are overwhelmingly RENAMING (170 of 15 and 184 of 15 genuine rows). They are the unit's best remaining EXACT candidates BY THE RECOLOR PATH, not by source: close the five outer clamp guards and the two surplus per-group `fmr` copies on each, keep count parity, and both become webfrank_audit candidates at 843/843 and 793/793. The blocking sub-problem is named and measured in claim.law.MB_empty-then-with-else-also-folds-and-ternary-count-cost-is-per-function.20260901.v1. DrawPsysSub is the outlier worth a separate look: it is the only function in the unit whose instruction count is SHORT by a wide margin (285 against 285/290) with 36 genuine structural rows and few renaming rows - a reconstruction gap, not a colouring one, and therefore a different kind of work from everything else here.\n\nONE UNEXPLAINED ARTEFACT, recorded so it is not rediscovered: fndiff reports ONLY-IN-BASE randRectPos, a target function with no counterpart in our object. The neighbouring getNewPosRect* functions are all at real 0, so it is deadstripped-static noise rather than a live gap, but it has not been positively confirmed as such."
+}
