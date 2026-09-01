@@ -1,7 +1,13 @@
 import unittest
 
+import struct
+
 from tools.gdl.webfrank import (
     _entry_indexes,
+    _find_symbol,
+    _function_text_relocations,
+    _sections,
+    apply_patch,
     _parse_int,
     _relocation_cannot_write,
     _relocation_sha256,
@@ -2211,6 +2217,286 @@ class PostRecolorPermutationTests(unittest.TestCase):
             unpermute_target_windows(target, [{"order": [0, 1]}],
                                      [self.WINDOW]),
             target,
+        )
+
+
+def _elf_object(text, *, function="fn", value=0, relocations=(),
+                extra_symbols=()):
+    """Build a minimal ELF32 big-endian relocatable object in memory.
+
+    Exists so `apply_patch` itself can be tested.  Every other test in this
+    file exercises the STAGE functions in isolation; apply_patch's own
+    orchestration -- stage ordering, the post-recolor preconditions, the
+    relocation-set re-derivation between stages, the deferred exit-dead
+    checks and the closing hash assert -- was reachable only by running the
+    real ninja build against real objects, which is why a guard bug there
+    would have surfaced as a build failure in somebody's lane rather than as
+    a red test.
+
+    The layout mirrors exactly what webfrank's own readers expect:
+    section headers at e_shoff (0x20) with e_shentsize/e_shnum/e_shstrndx at
+    0x2E/0x30/0x32; one PROGBITS .text; one RELA section whose sh_info names
+    .text and whose sh_link names .symtab; a SYMTAB whose sh_link names
+    .strtab.  `relocations` are (function-relative offset, symbol name, type,
+    addend) and are stored at `value + offset`, the section-relative form
+    _function_text_relocations reads back.
+    """
+    names = [name for name, _v, _s, _n in extra_symbols]
+    for _offset, symbol, _type, _addend in relocations:
+        if symbol not in names and symbol != function:
+            names.append(symbol)
+
+    strtab = bytearray(b"\0")
+    string_at = {}
+    for name in [function] + names:
+        if name in string_at:
+            continue
+        string_at[name] = len(strtab)
+        strtab += name.encode("ascii") + b"\0"
+
+    # symbol 0 is the reserved null entry; the function is symbol 1.
+    symbol_index = {function: 1}
+    symtab = bytearray(16)
+    symtab += struct.pack(">IIIBBH", string_at[function], value, len(text),
+                          0x12, 0, 1)
+    for name, sym_value, size, shndx in extra_symbols:
+        symbol_index[name] = len(symtab) // 16
+        symtab += struct.pack(">IIIBBH", string_at[name], sym_value, size,
+                              0x11, 0, shndx)
+    for _offset, name, _type, _addend in relocations:
+        if name in symbol_index:
+            continue
+        symbol_index[name] = len(symtab) // 16
+        symtab += struct.pack(">IIIBBH", string_at[name], 0, 0, 0x10, 0, 0)
+
+    rela = bytearray()
+    for offset, name, kind, addend in relocations:
+        rela += struct.pack(">IIi", value + offset,
+                            (symbol_index[name] << 8) | kind, addend)
+
+    section_names = [b"", b".text", b".rela.text", b".symtab", b".strtab",
+                     b".shstrtab"]
+    shstrtab = bytearray(b"\0")
+    shstr_at = []
+    for name in section_names:
+        if not name:
+            shstr_at.append(0)
+            continue
+        shstr_at.append(len(shstrtab))
+        shstrtab += name + b"\0"
+
+    # The function sits at SECTION-relative `value`, so .text carries that
+    # many leading bytes of other code; every reader adds text.offset +
+    # symbol.value, and a fixture that ignored it would silently only ever
+    # test the value == 0 case.
+    blobs = [bytes(value) + bytes(text), bytes(rela), bytes(symtab),
+             bytes(strtab), bytes(shstrtab)]
+    offsets = []
+    cursor = 52
+    for blob in blobs:
+        cursor = (cursor + 3) & ~3
+        offsets.append(cursor)
+        cursor += len(blob)
+    cursor = (cursor + 3) & ~3
+    section_header_offset = cursor
+
+    # sh_name, sh_type, sh_flags, sh_addr, sh_offset, sh_size, sh_link,
+    # sh_info, sh_addralign, sh_entsize
+    headers = [
+        (shstr_at[0], 0, 0, 0, 0, 0, 0, 0, 0, 0),
+        (shstr_at[1], 1, 6, 0, offsets[0], len(blobs[0]), 0, 0, 4, 0),
+        (shstr_at[2], 4, 0, 0, offsets[1], len(blobs[1]), 3, 1, 4, 12),
+        (shstr_at[3], 2, 0, 0, offsets[2], len(blobs[2]), 4, 1, 4, 16),
+        (shstr_at[4], 3, 0, 0, offsets[3], len(blobs[3]), 0, 0, 1, 0),
+        (shstr_at[5], 3, 0, 0, offsets[4], len(blobs[4]), 0, 0, 1, 0),
+    ]
+
+    data = bytearray(b"\x7fELF\x01\x02\x01" + bytes(9))
+    data += struct.pack(">HHIIIIIHHHHHH",
+                        1, 20, 1, 0, 0, section_header_offset, 0,
+                        52, 0, 0, 40, len(headers), 5)
+    assert len(data) == 52, len(data)
+    for blob, offset in zip(blobs, offsets):
+        data += bytes(offset - len(data))
+        data += blob
+    data += bytes(section_header_offset - len(data))
+    for header in headers:
+        data += struct.pack(">10I", *header)
+    return bytearray(data)
+
+
+class ApplyPatchObjectTests(unittest.TestCase):
+    """Direct coverage for `apply_patch`, driven by an in-memory ELF.
+
+    Run-26's WF lane recorded this as its own top recommendation: the
+    post-recolor permutation stage and its preconditions had no test that
+    called apply_patch, so they were exercised only by the real build.
+    """
+
+    OURS = (LI_R27_5, ADD_R4_R31_R27, ADDI_R29_R4_200, LI_R4_0, BLR)
+    TARGET = (LI_R29_5, ADD_R28_R31_R29, LI_R4_0, ADDI_R28_R28_200, BLR)
+
+    def build(self, **kwargs):
+        ours = _words(*self.OURS)
+        target = _words(*self.TARGET)
+        return (_elf_object(ours, **kwargs),
+                _elf_object(target, **kwargs), ours, target)
+
+    def patch(self, ours, target, **overrides):
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(ours),
+            "after_sha256": _sha256(target),
+            "copy_register_fields": True,
+            "post_recolor_permutation": {
+                "start": "0x8", "end": "0x10", "order": [1, 0],
+            },
+        }
+        patch.update(overrides)
+        return patch
+
+    # ---- the fixture itself must be a faithful object ----
+
+    def test_fixture_round_trips_through_webfranks_own_readers(self):
+        data, _target, ours, _t = self.build(
+            value=0x20,
+            relocations=[(0x10, "callee", 10, 0)],
+        )
+        sections = _sections(data)
+        symbol = _find_symbol(data, sections, "fn")
+        self.assertEqual(symbol.value, 0x20)
+        self.assertEqual(symbol.size, len(ours))
+        text = sections[symbol.section_index]
+        self.assertEqual(
+            bytes(data[text.offset + symbol.value:
+                       text.offset + symbol.value + symbol.size]),
+            ours,
+        )
+        self.assertEqual(
+            _function_text_relocations(
+                data, sections, symbol.section_index,
+                symbol.value, symbol.value + symbol.size),
+            {0x10: (10, "callee")},
+        )
+
+    # ---- the named gap: a post-recolor permutation, end to end ----
+
+    def test_post_recolor_permutation_reaches_the_target_through_apply_patch(
+            self):
+        data, target_data, ours, target = self.build()
+        before, after, changed = apply_patch(
+            data, self.patch(ours, target), bytes(target_data))
+        self.assertEqual(before, _sha256(ours))
+        self.assertEqual(after, _sha256(target))
+        sections = _sections(data)
+        symbol = _find_symbol(data, sections, "fn")
+        text = sections[symbol.section_index]
+        self.assertEqual(
+            bytes(data[text.offset + symbol.value:
+                       text.offset + symbol.value + symbol.size]),
+            target,
+        )
+        self.assertGreater(changed, 0)
+
+    def test_a_nonzero_symbol_value_is_honoured(self):
+        """The function need not sit at the start of .text; every offset in
+        apply_patch is symbol-relative and this pins that."""
+        data, target_data, ours, target = self.build(value=0x40)
+        _b, after, _c = apply_patch(
+            data, self.patch(ours, target), bytes(target_data))
+        self.assertEqual(after, _sha256(target))
+
+    # ---- apply_patch's own preconditions ----
+
+    def test_post_recolor_permutation_requires_a_register_stage(self):
+        data, target_data, ours, target = self.build()
+        patch = self.patch(ours, target)
+        del patch["copy_register_fields"]
+        with self.assertRaisesRegex(ValueError, "requires a register stage"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_post_recolor_permutation_may_not_ride_an_unproven_audit(self):
+        data, target_data, ours, target = self.build()
+        patch = self.patch(ours, target,
+                           unproven_recolor_audit="not a real audit")
+        with self.assertRaisesRegex(ValueError, "may not ride on"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_post_recolor_permutation_refuses_a_relocated_window(self):
+        """This refusal lives ONLY in apply_patch: the stage takes no
+        relocation-binding proof, so a relocated window must fail closed."""
+        relocations = [(0x8, "pool", 109, 0)]
+        data, target_data, ours, target = self.build(relocations=relocations)
+        with self.assertRaisesRegex(ValueError, "only relocation-free"):
+            apply_patch(data, self.patch(ours, target), bytes(target_data))
+
+    def test_a_relocation_outside_the_window_does_not_trip_the_refusal(self):
+        relocations = [(0x0, "pool", 109, 0)]
+        data, target_data, ours, target = self.build(relocations=relocations)
+        _b, after, _c = apply_patch(
+            data, self.patch(ours, target), bytes(target_data))
+        self.assertEqual(after, _sha256(target))
+
+    def test_input_hash_drift_fails_closed(self):
+        data, target_data, ours, target = self.build()
+        patch = self.patch(ours, target, before_sha256=_sha256(b"drifted"))
+        with self.assertRaisesRegex(ValueError, "input hash"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_target_hash_drift_fails_closed(self):
+        data, target_data, ours, target = self.build()
+        patch = self.patch(ours, target, after_sha256=_sha256(b"drifted"))
+        with self.assertRaisesRegex(ValueError, "target function hash"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_a_missing_target_object_fails_closed(self):
+        data, _target_data, ours, target = self.build()
+        with self.assertRaisesRegex(ValueError, "target object is required"):
+            apply_patch(data, self.patch(ours, target), None)
+
+    def test_target_size_mismatch_fails_closed(self):
+        data, _t, ours, target = self.build()
+        short = _elf_object(_words(*self.TARGET[:4]))
+        with self.assertRaisesRegex(ValueError, "size mismatch"):
+            apply_patch(data, self.patch(ours, target), bytes(short))
+
+    # ---- the pre-recolor permutation path, also through apply_patch ----
+
+    def test_pre_recolor_permutation_moves_its_relocation_with_its_atom(self):
+        """A relocation rides its atom, and the relocation TABLE in the
+        object is rewritten -- the property apply_patch owns and that
+        permute_instruction_atoms alone cannot demonstrate."""
+        ours = _words(LI_R27_5, ADDI_R29_R3, ADDI_R5_R6, BLR)
+        target = _words(LI_R27_5, ADDI_R5_R6, ADDI_R29_R3, BLR)
+        relocations = [(0x4, "pool", 4, 0)]
+        data = _elf_object(ours, relocations=relocations)
+        target_data = _elf_object(target,
+                                  relocations=[(0x8, "pool", 4, 0)])
+        region = ours[4:12]
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(ours),
+            "after_sha256": _sha256(target),
+            "instruction_permutation": {
+                "start": "0x4", "end": "0xc", "order": [1, 0],
+                "before_sha256": _sha256(region),
+                "after_sha256": _sha256(target[4:12]),
+                "before_relocations_sha256": _relocation_sha256(
+                    [(0x0, (2 << 8) | 4, 0)]),
+                "after_relocations_sha256": _relocation_sha256(
+                    [(0x4, (2 << 8) | 4, 0)]),
+            },
+        }
+        _b, after, moved = apply_patch(data, patch, bytes(target_data))
+        self.assertEqual(after, _sha256(target))
+        self.assertEqual(moved, 2)
+        sections = _sections(data)
+        symbol = _find_symbol(data, sections, "fn")
+        self.assertEqual(
+            _function_text_relocations(
+                data, sections, symbol.section_index,
+                symbol.value, symbol.value + symbol.size),
+            {0x8: (4, "pool")},
         )
 
 
