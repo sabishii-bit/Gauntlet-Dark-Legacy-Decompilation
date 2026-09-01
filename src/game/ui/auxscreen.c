@@ -56,7 +56,7 @@ extern s32 gClockStepTicks; /* caption frame delta */
 extern f32 sMusicFadeBase;  /* float frame delta */
 extern f32 gClockFrameStep;
 /* Assorted engine handles read by DoGoodWizard/init_gamemovie. */
-extern void* sMusicTrackHi;
+extern s32 sMusicTrackHi;
 extern void* lbl_80344BD4;
 extern void* lbl_80344BEC;
 extern void* sItemFile1Buf;
@@ -113,8 +113,8 @@ s32 good_wiz_exit_timer;
 /* ------------------------------------------------------------------ */
 /* External subroutines                                                */
 /* ------------------------------------------------------------------ */
-extern s32 GetBossBeatFlag(void* p);
-extern s32 GetBossNumRunes(void* p);
+extern s32 GetBossBeatFlag(s32 p);
+extern s32 GetBossNumRunes(s32 p);
 extern void* AtreeMatch(void* atree, char* name, s32 flag);
 extern void* AtreeInit(void* header, void* tree, s32 flags, s32 size);
 extern void* MBNewNode(void* p, void* tbl, s32 a);
@@ -339,7 +339,7 @@ void DoGoodWizard(void)
             add_target(base + offsetof(AuxSceneView, wiz_mtx));
         }
         good_wiz_yaw = lbl_80345A08;
-        good_wiz_plyr_attn = (s32)sMusicTrackHi % 4;
+        good_wiz_plyr_attn = sMusicTrackHi % 4;
         calc_good_wiz_attn(1, 1);
         all_rune_stones = 0;
         if (gBossType == 0x2a) {

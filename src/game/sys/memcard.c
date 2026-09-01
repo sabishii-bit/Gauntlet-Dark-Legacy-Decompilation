@@ -218,8 +218,8 @@ extern u32 sSeconds;               /* frame-driven second counter           */
 extern float lbl_803472F0;         /* probe time-out threshold (seconds)    */
 extern double lbl_803472F8;        /* int->double magic bias (0x43300000..) */
 extern void* gWinGlobals;
-extern u8 gTextWorkBuf[0x800];
-extern u8 gTextFormatBuf[0x404];
+extern char gTextWorkBuf[0x800];
+extern char gTextFormatBuf[0x404];
 extern s32 gGameBusy;
 extern s32 gModalRenderDepth;
 extern u8 gDiskErrorShown;
@@ -2068,7 +2068,7 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
         lbl_80344A58 = lbl_80347374;
     }
 
-    nLines = FixMLineText(msg, (char*) gTextWorkBuf, lines);
+    nLines = FixMLineText(msg, gTextWorkBuf, lines);
     widest = 0;
     for (i = 0; i < nLines; i++) {
         int w = DrawNormalText(((char**) lines)[i], lbl_80344A54, lbl_80344A58);
@@ -2097,7 +2097,7 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
         MBBlitSetColor(quad, -1);
     }
 
-    strcpy((char*) gTextFormatBuf, msg);
+    strcpy(gTextFormatBuf, msg);
     y += 32;
     for (i = 0; i < nLines; i++) {
         DrawTextSub(-256, y, lbl_80344A54, lbl_80344A58, 0x160C03,

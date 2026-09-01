@@ -1729,7 +1729,7 @@ extern Item* NewItemPtr_800642C8(void);
 extern void AddItemSub(Item* item);
 extern f32 sArrowFloorRadius;
 extern u8 gWadAtreeHeaders[];
-extern u8 sEnemyDefaultAlgorithm[];
+extern s32 sEnemyDefaultAlgorithm[];
 extern void fn_8009DAF8(void);
 
 /* 0x8005E90C - resolve an item's world-record binding: reroll random slots,
@@ -1877,7 +1877,7 @@ keyring_found:
             MBTreeSetFlags(*(void**)*(void**)&result->atree[0], 2, 0);
             if (*(s16*)&item->data[16] != 0) {
                 result->data[2] = 2;
-                *(s8*)&result->data[3] = (s8)*(s32*)(sEnemyDefaultAlgorithm + 120);
+                *(s8*)&result->data[3] = (s8)sEnemyDefaultAlgorithm[30];
             }
         }
         *(s16*)&result->data[18] = -1;
