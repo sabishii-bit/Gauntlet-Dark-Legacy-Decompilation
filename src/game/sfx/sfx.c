@@ -3261,7 +3261,7 @@ void ProcessEffects(void)
                             switch (gBossType) {
                             case 34:
                                 critter->boss_texture = MBOX_FindTexture_Sub(
-                                    lbl_80114790 + 20, 0, sItemFile1Handle,
+                                    "SEETHROUGH", 0, sItemFile1Handle,
                                     sItemFile1Handle, 1);
                                 critter->boss_timer_a = 1200;
                                 lbl_8034489C = 4;
@@ -3306,7 +3306,7 @@ void ProcessEffects(void)
                             case 38:
                                 MBSetObject(
                                     critter->object->node,
-                                    MBOX_FindObject(lbl_80114790 + 32));
+                                    MBOX_FindObject("PBOSSQEYEBALL"));
                                 critter->boss_timer_b = 18000;
                                 break;
                             }
