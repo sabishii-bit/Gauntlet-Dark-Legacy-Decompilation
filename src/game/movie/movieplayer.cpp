@@ -2605,31 +2605,23 @@ u8 MovieDecoderInitBuffers(MovieChunkStream* param_1, u32 param_2, u32 param_3) 
     return param_1->buffer != 0;
 }
 
-void fn_800DBA80(u8* dec, s32 fd) {
+/* Parsed as C++ so the three buffer releases are real `operator delete` calls.
+ * The target inlines that operator's body at each site, and because the operator
+ * carries an empty exception specification each inlined copy also brings its own
+ * __unexpected island (islands at r31+76/+48/+20, frame 0x70) -- scaffolding the
+ * hand-written C form of this loop could not produce.  fn_800DBA80 itself takes
+ * NO throw() spec: one more would add a fourth island. */
+#pragma cplusplus on
+extern "C" void fn_800DBA80(u8* dec, s32 fd) {
     u32* self = (u32*)dec;
 
-    if (self[1] != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
+    ::operator delete((void*)self[1]);
     self[1] = 0;
     self[0] = 0;
-    if (self[3] != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
+    ::operator delete((void*)self[3]);
     self[3] = 0;
     self[2] = 0;
-    if (self[21] != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
+    ::operator delete((void*)self[21]);
     self[6] = 0;
     self[5] = 0;
     self[4] = 0;
@@ -2639,6 +2631,7 @@ void fn_800DBA80(u8* dec, s32 fd) {
     self[20] = 0;
     self[21] = 0;
 }
+#pragma cplusplus off
 
 #ifdef __MWERKS__
 #pragma optimization_level 4
