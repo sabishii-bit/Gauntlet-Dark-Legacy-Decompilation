@@ -1889,10 +1889,11 @@ void show_optmenu(OPTMENU* m)
             DrawTextKeepScale(m->title_scale, x + OPTMENU_SHADOW,
                               y + OPTMENU_SHADOW, OPTMENU_FONT, 0, m->title);
         }
-        txt = DrawTextKeepScale(m->title_scale, x, y, OPTMENU_FONT,
-                                ((*(s32*)(data + 216) & 0xFF) << 16) |
-                                ((*(s32*)(data + 220) & 0xFF) << 8) |
-                                (*(s32*)(data + 224) & 0xFF), m->title);
+        color = ((*(s32*)(data + 216) & 0xFF) << 16) |
+                ((*(s32*)(data + 220) & 0xFF) << 8) |
+                (*(s32*)(data + 224) & 0xFF);
+        txt = DrawTextKeepScale(m->title_scale, x, y, OPTMENU_FONT, color,
+                                m->title);
         if (font2 != 0) {
             *(s16*)((u8*)txt + 0x26) = font2;
         }
@@ -2092,8 +2093,8 @@ void show_optmenu(OPTMENU* m)
         ty = lh / 2 + m->items[m->sel].draw_y;
         if (t == 0) {
             if (ty != m->icon_y) {
-                m->icon_t = 1;
                 ty = m->icon_y;
+                m->icon_t = 1;
             }
         } else if (t < OPTMENU_ICON_TIME) {
             m->icon_t = t + vb_elapsed_menu;
