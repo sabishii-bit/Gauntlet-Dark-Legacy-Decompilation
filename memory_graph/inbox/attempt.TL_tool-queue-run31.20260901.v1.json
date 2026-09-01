@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "TOOL-AMENDMENT lane: twelve queued tool criticisms, each reproduced by measurement BEFORE implementing, one commit each, both suites green after every item.",
+  "attributes": {
+    "law_screen": "none applicable to codegen: this lane changed no src/ file and no compiled bytes. The laws that GOVERNED the work were tool-soundness laws, screened and applied: claim.law.HV_name-bound-relocation-hash-migration-stranded-every-deriver-on-relocated-windows.20260901.v1 (APPLIED, item 11 -- named the four remaining call sites); claim.law.HV_defake-gate-naming-drift-is-a-false-benign-on-a-wrong-callee.20260901.v1 (APPLIED, item 12 -- its sound refinement is now the implementation); claim.law.CV_pinned-residuals-are-unreachable-across-the-local-mwcc-archive (screened, not applicable -- no rule authored this run); AGENTS.md discipline 3 'a guard's refusal is a measurement of the guard' (APPLIED, item 8); discipline 14 (APPLIED, items 1/8/12). Progress is unchanged BY this lane: the 65.92 -> 66.19 matched movement across the branch came from the main merge (harvest-4 + constant sweep), not from these commits.",
+    "laws_applied": "[\"claim.law.HV_name-bound-relocation-hash-migration-stranded-every-deriver-on-relocated-windows.20260901.v1\", \"claim.law.HV_defake-gate-naming-drift-is-a-false-benign-on-a-wrong-callee.20260901.v1\"]",
+    "measured_populations": "item 3: classify() cases A/B reproduced verbatim against the pre-change function. item 4a: 165 functions carry a non-relocated same-opcode IMMEDIATE delta inside an --ops EQUAL run, 38 of them under 'multiset IDENTICAL -> pure reorder, schedule-class residual'. item 4b: 60 functions link byte-identical while --clean scored them OPERAND_DIFF. item 5: 150 census rows have unpaired>0 with COUNT PARITY HELD; 60 functions carry an r1 slot delta, 11 under an IDENTICAL multiset, 3 with a frame-size delta. item 6: of 749 differing equal-size functions, 32 are tier A while the genuine count calls them real work, 147 tier B. item 8: 11 of 11 audit rejections are repairable-class; hv_repair parsed 0 of 11 of their reasons. item 9: 97 promoted files, 27 generic basenames.",
+    "residual": "Not fixed, deliberately and reported: wf_mkrule.py still writes a generic 'rule.json' beside itself in the tracked composed_census directory (named in AGENTS discipline 17 as the standing example rather than fixed, to avoid editing another lane's tool unasked). 25 generic rec*.json record drafts remain committed there.",
+    "scope": "tools/gdl (owned): fnasm.py, defake_gate.py, probe.py, fndiff.py, regnorm.py, webfrank_audit.py, build_rule.py, new unabsorbed.py + reloc_symbols.py; composed_census: hv_sweep.py, hv_repair.py, ch_derive.py, cn_derive.py, cn_search.py, build_rule_pw.py; memory_graph/core.py (brief roster field); AGENTS.md discipline 17. Six new test files, +136 tests (407 -> 543).",
+    "verification": "Both suites green after EVERY item (python -m unittest discover tools/gdl/tests; python -m unittest memory_graph.test_graph; python memory_graph/gdlmem.py build). Close: tools/gdl/tests 543 OK, memory_graph.test_graph 90 OK, gdlmem build 1552 records, full ninja -j2 printed 'build/GUNE5D/main.dol: OK'."
+  },
+  "function": "function:InitControls",
+  "id": "attempt.TL_tool-queue-run31.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T23:52:19Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}
