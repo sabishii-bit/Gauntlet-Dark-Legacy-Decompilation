@@ -455,7 +455,6 @@ void do_enemy_move(s32 index)
     s32 n;
     Enemy* other;
     f32 mat[16];
-    u8 unused0[8];
     f32 oldpos[3];
     f32 rad2;
     u8 unused1[4];
@@ -465,7 +464,7 @@ void do_enemy_move(s32 index)
     s32 hitWorld;
     u8 unused3[4];
     f32 half[3];
-    u8 unused4[20];
+    u8 unused4[12];
 
     /* stun freeze + knockback integration */
     if (e->stun_timer > 0) {
