@@ -2612,6 +2612,7 @@ void ProcessEffects(void)
     f32 targetmat[16];
     f32 oldpos[3];
     f32 pos[3];
+    f32 delta[3];
     f32 dir[3];
     f32 hitpos[3];
     f32 normal[3];
@@ -2885,7 +2886,6 @@ void ProcessEffects(void)
                             f32 value;
                             u32 bits;
                         } absdy;
-                        f32 delta[3];
                         f32 dist;
                         f32 mindp;
 
@@ -3062,7 +3062,6 @@ void ProcessEffects(void)
                 while ((enemyIndex = NextGridItem()) >= 0) {
                     struct fxenemy* enemy =
                         (struct fxenemy*)(gEnemies + enemyIndex * 916);
-                    f32 enemyDelta[3];
                     f32 enemyDist;
                     f32 enemyMindp;
                     s32 enemyState;
@@ -3078,10 +3077,10 @@ void ProcessEffects(void)
                         sMusicFadeBase < enemy->fxhittime[owner]) {
                         continue;
                     }
-                    enemyDelta[0] = enemy->pos[0] - pos[0];
-                    enemyDelta[1] = enemy->pos[1] - pos[1];
-                    enemyDelta[2] = enemy->pos[2] - pos[2];
-                    enemyDist = NormalVector2D(enemyDelta);
+                    delta[0] = enemy->pos[0] - pos[0];
+                    delta[1] = enemy->pos[1] - pos[1];
+                    delta[2] = enemy->pos[2] - pos[2];
+                    enemyDist = NormalVector2D(delta);
                     if (enemyDist > radius + enemy->radius) {
                         continue;
                     }
@@ -3090,8 +3089,8 @@ void ProcessEffects(void)
                         if (enemyDist < 0.2 * (radius + enemy->radius)) {
                             enemyMindp *= 0.85;
                         }
-                        if (enemyDelta[0] * dir[0] +
-                                enemyDelta[2] * dir[2] <
+                        if (delta[0] * dir[0] +
+                                delta[2] * dir[2] <
                             enemyMindp) {
                             continue;
                         }
@@ -3102,7 +3101,7 @@ void ProcessEffects(void)
                         enemyState = 0;
                     }
                     damage = damage_enemy(
-                        enemy, owner - 1, e->damagetype, 0, enemyDelta,
+                        enemy, owner - 1, e->damagetype, 0, delta,
                         collisionDamage, 2);
                     if (damage >= 0) {
                         if (collisionDamage > 2.0f &&
