@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "metrics",
+      "workflow",
+      "cse",
+      "index-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.IG_multiset-not-count-distance-is-the-arbiter-on-sdrawgeom.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T17:29:30Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "BOUNDARY ON claim.law.IH_multiset-gain-does-not-imply-fuzzy-gain-arbitrate-with-count-distance.20260901.v1. That law's PROCEDURAL half is confirmed and should be kept: on a large function, arbitrate every probe on FRESH objdiff fuzzy from a full ninja, never on probe.py's verdict. Its PREDICTIVE half -- that instruction-count distance |target - ours| is a cheap stand-in for fuzzy, good enough to skip the build -- is REFUTED, and refuted on sDrawGeom, the very function that supplied two of its four original measurements. FOUR probes on sDrawGeom this pass had count distance and multiset DISAGREE, and fuzzy followed the MULTISET all four times. (1) uv2Ptr regrouping: multiset 34t -> 32t better, count distance 6 -> 8 worse, fuzzy 87.1688 -> 87.5637 BETTER. (2) colPtr regrouping: multiset 32t -> 29t better, count distance 8 -> 9 worse, `real` 1156 -> 1167 worse, probe.py printed 'COUNT DISTANCE 9 (WORSE -- expect a fuzzy loss)', fuzzy 87.5637 -> 88.1125 BETTER. (3) dead-local index carrier: multiset 29t -> 26t better, count distance 9 -> 10 worse, `real` worse, fuzzy 88.1125 -> 88.6120 BETTER. (4) the joint lfs-first probe, the control: multiset UNCHANGED at 26t while count distance went 10 -> 14, and fuzzy FELL to 88.4729. Read (4) with (1)-(3): count distance predicts fuzzy only when the multiset is FLAT, i.e. it is measuring the residue after structure is held constant, not structure itself. WHY THIS MATTERS BEYOND THE METRIC: three separate keeps worth +1.44 fuzzy points would have been discarded unbuilt by following the predictor, and two of them ALSO failed defake_gate, which scores `real` -- so on a large STRUCTURAL residual both of the cheap gates point the wrong way at once. THE OPERATIONAL RULE: on a function above ~1000 instructions with a live STRUCTURAL residual, treat an opcode-multiset improvement as sufficient cause to spend the full-ninja fuzzy build, whatever `real` and count distance say; treat a FLAT multiset with a growing count distance as sufficient cause to reject without building. A defake_gate FAILURE whose only regressing row is the target function's own `real`, with every sibling unchanged, is a metric disagreement to be arbitrated, not a stop signal -- verify the siblings with tools/gdl/fuzzy.py over the whole TU, then re-bank the gate baseline and commit."
+}
