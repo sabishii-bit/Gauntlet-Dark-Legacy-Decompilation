@@ -1,0 +1,12 @@
+{
+  "id": "tool.WS_unfused-branch-and-addic-oracle-census.20260901.v1",
+  "kind": "tool",
+  "name": "ws_unfused_branch_census.py (oracle census: unfused branch pair / addic counted loop)",
+  "purpose": "Find byte-exact functions whose TARGET asm carries a given codegen shape, so their C source can be read as a VERIFIED producer instead of the shape being guessed at; replaces the never-promoted census script that claim.law.GW_unfused-conditional-over-branch-is-a-conditional-EXPRESSION-tell.20260901.v1 cites. Run from the repo root: `python tools/gdl/composed_census/ws_unfused_branch_census.py [branch|addic]`. Mode `branch` reports 563 sites, 271 of them inside 193 byte-exact functions (reproduces the GW figure exactly); mode `addic` reports 9 sites, 3 exact in 2 functions. TWO JOIN HAZARDS ARE BAKED IN AS FIXES, each of which silently yields a FALSE 'zero oracles' result that reads as 'shape unreachable' rather than 'census broken': report.json unit names carry a `main/` prefix that asm-derived paths do not, so an exact-string join matches nothing; and dtk renders `addic.` with a negative immediate as the extended mnemonic `subic.` while tools/gdl/fnasm.py renders the same instruction word as `addic.`, so matching only `addic.` finds zero sites in a DOL that demonstrably contains them. Both were hit and fixed during authoring, and the script raises rather than returning an empty join. Verified by running both modes from the repository root at commit 56451b208.",
+  "recorded_at": "2026-09-01T23:02:20Z",
+  "schema_version": 1,
+  "status": "active",
+  "tool_key": "ws_unfused_branch_census",
+  "tool_kind": "analysis",
+  "valid_from": "2026-09-01"
+}
