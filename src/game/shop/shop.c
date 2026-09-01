@@ -138,14 +138,16 @@ typedef struct { u8 _pad[0xA68]; s32 field_A68; } DSPlayerView;
  *   - the five s32[4] arrays at 0x00..0x50 and the four s32[4][3] pile
  *     arrays at 0x50..0x110 match the Xbox SHOP.OBJ .bss roster's five
  *     16-byte and four 48-byte globals exactly in COUNT and SHAPE.  The
- *     Xbox link order differs from GC's, so only the four whose GC role
- *     is directly observable are named after their Xbox counterpart:
- *     top_y (do_shopping's window top), scroll_flag (read as the scroll
- *     speed), last_available (the item-count bound of the cursor) and
- *     cursor_y (set to cursor index - top).  curfreeze is the single
- *     remaining 16-byte Xbox name and takes the single remaining slot;
- *     the pile_* quartet keeps GC-behavioural names because show_gold
- *     and fn_8009A0AC pin their roles but not their Xbox spellings.
+ *     Xbox link order differs from GC's, so each takes the Xbox name its
+ *     own GC role identifies: cursor_y (+0x00, set to cursor index minus
+ *     top), top_y (+0x10, do_shopping's window top), curfreeze (+0x20,
+ *     nonzero while the list is scrolling -- do_shopping gates buy/sell
+ *     input on it being zero and otherwise reads it as the scroll
+ *     speed), scroll_flag (+0x30, the 0/1 word write_shop_menu clears on
+ *     entry and sets when the list must move) and last_available (+0x40,
+ *     the item-count bound the cursor wraps at).  The pile_* quartet
+ *     keeps GC-behavioural names because show_gold and fn_8009A0AC pin
+ *     their roles but not their Xbox spellings.
  *   - st[4] at 0x150 (336), stride 768, IS the Xbox PDB record
  *     `player_shop_state` (size 768 = 0x300, fields item_availability_
  *     flags / item_sale_value / item_to_player_map at 0/256/512): the GC
@@ -176,8 +178,8 @@ typedef struct {
 typedef struct {
     /* 0x0000 */ s32 cursor_y[4];
     /* 0x0010 */ s32 top_y[4];
-    /* 0x0020 */ s32 scroll_flag[4];
-    /* 0x0030 */ s32 curfreeze[4];
+    /* 0x0020 */ s32 curfreeze[4];
+    /* 0x0030 */ s32 scroll_flag[4];
     /* 0x0040 */ s32 last_available[4];
     /* 0x0050 */ s32 pile_targ[4][3];
     /* 0x0080 */ s32 pile_shown[4][3];
