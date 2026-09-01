@@ -127,6 +127,23 @@ def main():
                     extra.unlink()
         print("probe state reset")
         return 0
+    if "--discard" in sys.argv:
+        # Revert the TU to its last COMMITTED state — the undo people
+        # actually want after a neutral probe (NEUTRAL banks, so --revert
+        # restores the neutral edit; --discard reaches for HEAD).
+        if source is None:
+            print(f"cannot discard: no src source found for {unit}")
+            return 1
+        shown = subprocess.run(
+            ["git", "show", f"HEAD:{source.as_posix()}"], capture_output=True)
+        if shown.returncode != 0:
+            print("cannot discard: git show HEAD failed for"
+                  f" {source.as_posix()}")
+            return 1
+        source.write_bytes(shown.stdout)
+        print(f"discarded: {source} restored to HEAD (whole file —"
+              " uncommitted work on other functions in this TU is gone)")
+        return 0
     if "--revert-baseline" in sys.argv:
         if source is None:
             print(f"cannot revert: no src source found for {unit}")

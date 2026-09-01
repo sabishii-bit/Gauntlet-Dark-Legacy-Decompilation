@@ -213,6 +213,49 @@ def parse(objfile: Path):
     return funcs
 
 
+def raw_words_signature(objfile: Path):
+    """Per-function sha1 of instruction WORDS ONLY (no reloc lines).
+
+    Companion to raw_signature for the gate's naming-drift classification:
+    a symbol rename changes reloc lines but no instruction word, so
+    words-equal + real 0 (which resolves reloc ADDRESSES) proves the drift
+    is naming-only — four workers hand-arbitrated exactly this case.
+    """
+    import hashlib
+    out = subprocess.run(
+        [str(OBJDUMP), "-dr", str(objfile)], capture_output=True, text=True
+    ).stdout
+    raw_names = re.findall(r"^[0-9a-f]+ <(.+)>:$", out, re.M)
+    strip_counts: dict[str, int] = {}
+    for name in raw_names:
+        if not name.startswith("fn_"):
+            stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+            strip_counts[stripped] = strip_counts.get(stripped, 0) + 1
+    hashes = {}
+    cur = None
+    hasher = None
+    for line in out.splitlines():
+        m = re.match(r"^[0-9a-f]+ <(.+)>:$", line)
+        if m:
+            if cur is not None:
+                hashes[cur] = hasher.hexdigest()[:12]
+            cur = m.group(1)
+            if not cur.startswith("fn_"):
+                stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", cur)
+                if strip_counts.get(stripped, 0) <= 1:
+                    cur = stripped
+            hasher = hashlib.sha1()
+            continue
+        if cur is None:
+            continue
+        m = re.match(r"^\s+[0-9a-f]+:\s+((?:[0-9a-f]{2} ){4})", line)
+        if m:
+            hasher.update(m.group(1).encode())
+    if cur is not None:
+        hashes[cur] = hasher.hexdigest()[:12]
+    return hashes
+
+
 def raw_signature(objfile: Path):
     """Per-function sha1 of raw instruction words + raw relocation lines.
 

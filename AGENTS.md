@@ -204,6 +204,17 @@ one, and supersede the law if your target contradicts it.
    evaporates under measurement, convert it into the refutation record
    plus whatever the evidence actually supports — never execute a
    premise you have measured false.
+6. **Two-variable axes need joint probes.** Two correct-alone negative
+   parks jointly hid a 7-function TU flip (btricol: extern-ghost +
+   volatile-scaffold were ONE lever). When two parked axes touch the
+   same instructions, one joint probe is mandatory before treating the
+   pair as closed; a park that held another variable fixed must SAY so.
+7. **Shell file-writing:** never write a source file from PowerShell
+   (`Out-File`/`Set-Content -Encoding utf8` inject a BOM that MWCC
+   rejects as Shift-JIS; `git show HEAD:x > file` corrupts too). Use
+   the Write/Edit tools; for byte-level ops use [System.IO.File].
+   `git stash` is UNUSABLE here (shared stash, 31+ foreign entries) —
+   A/B via a scratch copy or `probe --discard`.
 
 Header edits (include/game/*.h): allowed ONLY to the lane whose work_claim
 names it as that header's owner this run — one owner per header per run.

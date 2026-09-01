@@ -130,6 +130,21 @@ def compare(baseline, current, renames=None):
         if (base.get("bytes") and cur.get("bytes")
                 and base["bytes"] != cur["bytes"]
                 and base.get("real", 1) == 0 and cur.get("real", 1) == 0):
+            # Words-hash discriminant: if every instruction WORD is
+            # unchanged, the drift lives entirely in reloc lines — and
+            # real 0 already proved the resolved reloc ADDRESSES match.
+            # That is a symbol rename / naming-only change (ghost fixes,
+            # data-symbol renames), which four workers hand-arbitrated
+            # before this classification existed.
+            if (base.get("words") and cur.get("words")
+                    and base["words"] == cur["words"]):
+                verdicts.append(
+                    (name, "NAMING-DRIFT",
+                     "reloc lines renamed, instruction words + resolved"
+                     " addresses unchanged — benign; re-baseline with"
+                     " --update-improved when done")
+                )
+                continue
             verdicts.append(
                 (name, "REGRESSION",
                  "raw bytes/relocs changed although every score reads"
@@ -278,6 +293,9 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None):
         for name, digest in fndiff.raw_signature(objfile).items():
             if name in snap:
                 snap[name]["bytes"] = digest
+        for name, digest in fndiff.raw_words_signature(objfile).items():
+            if name in snap:
+                snap[name]["words"] = digest
     path = gate_path(unit)
     if mode == "baseline":
         path.parent.mkdir(parents=True, exist_ok=True)

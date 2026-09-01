@@ -30,6 +30,7 @@ treat the map as a hint, not a sigma).
 import difflib
 import re
 import sys
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -122,6 +123,20 @@ def main():
             structural.append((ti, t[ti], b[bi]))
             print(f"STRUCTURAL @{t_off[ti]:#06x}  T {t[ti].strip()}"
                   f"   O {b[bi].strip()}  [reloc target differs]")
+            continue
+        t_op = t[ti].split()[0] if not t_is_reloc else ""
+        b_op = b[bi].split()[0] if not b_is_reloc else ""
+        if t_op != b_op and Counter(
+                ln.split()[0] for ln in t if not ln.startswith("    ")) == \
+                Counter(ln.split()[0] for ln in b if not ln.startswith("    ")):
+            # Fabricated-row guard: when the opcode MULTISETS are identical,
+            # a paired row with differing opcodes is arithmetically an
+            # alignment artifact, not a real opcode change — a whole record
+            # batch inherited such rows as "codegen-form gaps".
+            structural.append((ti, t[ti], b[bi]))
+            print(f"STRUCTURAL @{t_off[ti]:#06x}  T {t[ti]}   O {b[bi]}"
+                  "  [ALIGNMENT ARTIFACT? multisets identical — confirm"
+                  " against the aligned fnasm --diff before believing]")
             continue
         if fndiff.erase_registers(t[ti]) == fndiff.erase_registers(b[bi]):
             renaming.append((ti, t[ti], b[bi]))
