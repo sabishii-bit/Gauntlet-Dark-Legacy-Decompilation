@@ -702,17 +702,18 @@ void MatchTransporters(void)
 void LinkItemTriggers(void)
 {
     char* strings = (char*)&sObjectsFile;
-    Item* item;
     s32 i;
+    Item* item;
     s32 j;
     Item* other;
     s32 nitems;
 
     {
-    Item* it1;
     s32 i1;
+    Item* it1;
     s32 j1;
     s32 dup1;
+    s32 dup2;
     Item* ot1;
 
     it1 = sItems;
@@ -731,6 +732,7 @@ void LinkItemTriggers(void)
                     }
                     if (*(volatile s8*)&ot1->data[7] ==
                         *(volatile s8*)&it1->data[6]) {
+                        dup2++;
                     }
                 }
             }
