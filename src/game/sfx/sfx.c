@@ -2889,6 +2889,7 @@ void ProcessEffects(void)
                         } absdy;
                         f32 dist;
                         f32 mindp;
+                        f32 sumr;
 
                         if (player->state != 1 ||
                             sMusicFadeBase < player->fxhittime ||
@@ -2904,7 +2905,8 @@ void ProcessEffects(void)
                             continue;
                         }
                         dist = NormalVector2D(delta);
-                        if (dist > radius + player->radius) {
+                        sumr = radius + player->radius;
+                        if (dist > sumr) {
                             continue;
                         }
                         if (dist > 10.0 &&
@@ -2914,7 +2916,7 @@ void ProcessEffects(void)
                         }
                         if (e->mindp > -1.0) {
                             mindp = e->mindp;
-                            if (dist < 0.3 * (radius + player->radius)) {
+                            if (dist < 0.3 * sumr) {
                                 mindp *= 0.85;
                             }
                             if (delta[0] * dir[0] + delta[2] * dir[2] <
