@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.IH_multiset-gain-does-not-imply-fuzzy-gain-arbitrate-with-count-distance.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T15:49:59Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/controls",
+  "valid_from": "2026-09-01",
+  "value": "ON A LARGE FUNCTION, AN OPCODE-MULTISET IMPROVEMENT DOES NOT IMPLY A FUZZY IMPROVEMENT, AND NEITHER DOES A `real` IMPROVEMENT. THE CHEAP PREDICTOR THAT AGREED WITH FUZZY IN ALL FOUR MEASURED CASES THIS PASS WAS INSTRUCTION-COUNT DISTANCE |target - ours|. USE IT TO DECIDE WHETHER A FULL-NINJA ARBITRATION IS WORTH SPENDING; NEVER USE IT INSTEAD OF ONE.\n\nWHY THIS NEEDS SAYING. probe.py's CONFLICT verdict (real regressed, multiset improved) correctly refuses to auto-revert and tells the agent to arbitrate. The standing habit is to treat the multiset as the finer, more structural metric and keep the change. That habit is wrong often enough to cost real ground: this pass measured the multiset and fuzzy DISAGREEING in two of four arbitrations, in both directions.\n\nTHE FOUR MEASUREMENTS, all from full ninja + tools/gdl/fuzzy.py on a fresh report.\n(1) ControlsUpdate, aggregate term reversal: real 832 -> 963 WORSE, multiset 56t -> 49t BETTER, count distance 24 -> 19 BETTER. Fuzzy 80.3666 -> 83.0065 BETTER. Multiset agreed; real did not.\n(2) ControlsUpdate, array shrink to e[20] plus four scalars: real 949 -> 931 BETTER, frame 248 -> 224 BETTER, multiset 43t -> 61t WORSE, count distance unchanged at 19 but the storm added +5 addi +3 mr. Fuzzy 86.4583 -> 83.9411 WORSE. real disagreed; multiset agreed.\n(3) sDrawGeom, four-site pointer regrouping: real 1162 -> 1186 WORSE, multiset 36t -> 26t STRONGLY BETTER, count distance 4 -> 10 WORSE. Fuzzy 86.9230 -> 86.7710 WORSE. THE MULTISET DISAGREED WITH FUZZY, and it disagreed while improving by ten tokens -- the single largest structural gain of the pass was a fuzzy loss.\n(4) sDrawGeom, the same regrouping restricted to the ONE site the aligned view actually implicated: real 1162 -> 1160 BETTER, multiset 36t -> 34t BETTER, count distance 4 -> 6 slightly worse. Fuzzy 86.9230 -> 87.1688 BETTER.\n\nTHE OPERATIONAL RULE. objdiff's fuzzy score is edit-distance-like over the aligned instruction streams, so it charges for LENGTH divergence as well as opcode divergence: a change that makes the opcode bag more similar while making the function longer can lose. Count distance is the cheap proxy for that length term and it is free from probe.py's own banner. When multiset improves and count distance worsens, expect a fuzzy LOSS and spend the arbitration build to confirm it; when both improve, expect a win. Corollary for scope discipline, measured here at a cost of two builds: a source lever validated at ONE site should be applied at one site and re-measured before being generalised across its siblings -- case (3) is case (4) plus three unmeasured sites, and the three extra sites turned a win into a loss."
+}

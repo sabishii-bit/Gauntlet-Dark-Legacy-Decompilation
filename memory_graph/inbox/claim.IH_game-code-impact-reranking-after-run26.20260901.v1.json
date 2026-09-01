@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.IH_game-code-impact-reranking-after-run26.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-01T15:52:30Z",
+  "schema_version": 1,
+  "subject": "function:ControlsUpdate",
+  "valid_from": "2026-09-01",
+  "value": "FRESH GAME-CODE IMPACT RANKING BY (1-fuzzy)*size, computed from build/GUNE5D/report.json after run 26's IH commits (Game Code 97.86% fuzzy, 55.56% matched). 285 non-exact Game Code functions of 200 bytes or more carry 18099 total impact points, down from run 25's 19193.\n\nTOP OF THE TABLE, with owner status as of this run: ProcessEffects 592 (sfx.c, OWNED by PE); sDrawGeom 530 (pb/pb_objregs, worked this pass, now 87.1688%); PlayerMotion 454 (game/pmotion, 97.6253% on 19100 bytes -- large and nearly matched, deeply worked across four prior sessions); show_optmenu 396 (ui/options, OWNED by CH); loadGauntletSave 341 (sys/memcard, 90.0583%, baseline newly established this pass); ControlsUpdate 331 (game/controls, worked this pass); do_players 295 (game/player); do_player_select 288 (ui/select, OWNED); do_shopping_8009AA48 266 (shop.c); InitCamera 263 (game/combat); MBDrawPsys 246 (mb/mb_particle); fn_800606FC 244 (world/gauntworld); serve_blits 225 (ui/select, OWNED, 79.8064% -- the LOWEST fuzzy of any function in the top twenty); setupNewPMode_800CDCE4 218 (mb/mb_particle); ResolveWorldData 209 (world/gauntworld).\n\nWHAT MOVED, and it is the lane's own result. ControlsUpdate entered run 25 as the outright leader at impact 731 and 70.09% fuzzy -- the lowest of any large Game Code function. Two IH passes took it to 86.4697% and impact 331, dropping it from rank 1 to rank 6. That single function accounted for roughly 400 of the 1094 impact points the whole project shed between the two rankings.\n\nUNOWNED CANDIDATES WORTH NAMING FOR THE NEXT LANE, ranked by expected value rather than raw impact. (1) loadGauntletSave, 341: its opcode multiset is ELEVEN tokens over 857 instructions with a count distance of one, which makes it the closest large unmatched function in Game Code and an exact-closure candidate rather than an impact grind; its two residual mechanisms are named in attempt.IH_loadgauntletsave-narrow-reextend-and-switch-layout.20260901.v1. (2) do_players, 295, game/player.c at 93.7240% -- no attempt records, genuinely unworked. (3) MBDrawPsys 246 and setupNewPMode_800CDCE4 218 sit in the same TU (mb/mb_particle) alongside setWorldParms 153 and MBNewPsysDescrip 137, so a TU-roster pass there addresses 754 points with one regnorm census. (4) The gauntworld pair fn_800606FC 244 + fn_8005C1DC 189 + ResolveWorldData 209 = 642 points, likewise one TU.\n\nMETHOD NOTE for whoever runs this next: tools/gdl/lowmatch.py defaults to a 0-40% band and returns EMPTY on this project, because nothing in Game Code is below 40% any more. Rank straight from report.json (unit['functions'], keys 'size' and 'fuzzy_match_percent') rather than assuming the queue tool covers the range."
+}
