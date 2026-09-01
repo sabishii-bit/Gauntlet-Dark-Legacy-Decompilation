@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "Measured 2026-09-01, worktree GDL-Claude-GauntworldTail, at commit d14f43b32 (defake_gate baseline: 46 functions, 34 at real 0).",
+    "tags": [
+      "metrics",
+      "matching",
+      "workflow",
+      "sda-global",
+      "symbol-identity"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any gauntworld symbol referenced with R_PPC_EMB_SDA21 in build/GUNE5D/asm/game/world/gauntworld.s but with R_PPC_ADDR16_HA/LO in build/GUNE5D/src/game/world/gauntworld.o (or the reverse) would reopen the sweep. Reproduce with `powerpc-eabi-objdump -r` on our object joined against the target's `@sda21` operands; the join must print the per-symbol table, not just a count.",
+  "id": "claim.GW_gauntworld-recensus-and-sda21-sweep-exhausted.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T22:04:36Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/gauntworld",
+  "valid_from": "2026-09-01",
+  "value": "TWO MEASUREMENTS ON game/world/gauntworld, both re-runs of numbers a lane brief quoted, recorded because one moved and one did not. (1) RE-CENSUS under the widened alias mapper and reloc-VALUE comparison: ResolveWorldData 12 genuine (UNCHANGED from the brief), fn_8005C1DC 25 genuine (the brief said 27 - it MOVED, and its `real` also reads 424, not the 426 its own attempt record quotes), fn_80062A00 20 genuine, fn_8005F0F4 25 genuine (its record says 32 - MOVED), fn_8005BA1C 9 genuine, fn_800606FC 71 genuine. fn_800606FC is by a wide margin the TU's largest remaining genuine-row population and is NOT in any current lane's scope - it is the obvious next assignment. Every other roster function is EXACT or artifact-only. (2) THE UNSIZED-EXTERN / SDA21 SWEEP IS EXHAUSTED IN THIS TU, contrary to the standing suggestion to look for more instances. The mechanism is real and is recorded at attempt.GW_fn8005ba1c-sdata-sizes-subrecord-alias-and-switch.20260901.v1 (MWCC small-data-addresses an extern only when its DECLARED size is within the 8-byte sdata threshold, so an unsized `[]` array never gets EMB_SDA21), but its population in gauntworld was exactly the three labels that record already fixed. A full per-symbol join of the target's 506 `@sda21` operands (181 distinct symbols) against our object's 1453 relocation records returns ZERO symbols where the target uses EMB_SDA21 and we use ADDR16_HA/LO, and ZERO in the reverse direction. The only residue is naming, not addressing: our `sObjectsFile` is the target's `sObjectsFile_80112AB8` (same .rodata datum at 0x80112AB8, size 0xC, HA/LO on both sides) plus fourteen anonymous @NNNN pool labels - all reloc-naming artifacts, none a defect. METHOD NOTE worth more than the result: this sweep is cheap (two objdump/grep passes, no build) and it is the right FIRST action on any TU inheriting an 'apply this lever more widely' instruction, because it converts an open-ended hunt into a closed table before a single probe is spent."
+}
