@@ -271,7 +271,7 @@ extern f32     sNegativeHalf;
 extern f32     sLightingZero;
 
 extern void  MBInitLights(void);
-extern void  MBAddLight(double val, void* a, f32* b);
+extern int   MBAddLight(f32* dir, f32* color, f32 intensity);
 extern void  MBSetAmbient(f32 val, f32* p);
 extern void  DoLighting(s32 flag);
 extern void  pbResetWindowPool(void);
@@ -653,9 +653,9 @@ void InitLighting(s32 flag)
     MBInitLights();
     if (flag != 0) {
         sLevelAmbient = *(f32*)(gCurLevel + offsetof(level_data, ambient));
-        MBAddLight(*(f32*)(gCurLevel + offsetof(level_data, lightinten)),
-                   gCurLevel + offsetof(level_data, lightdir),
-                   (f32*)(gCurLevel + offsetof(level_data, lightcolor_fp)));
+        MBAddLight((f32*)(gCurLevel + offsetof(level_data, lightdir)),
+                   (f32*)(gCurLevel + offsetof(level_data, lightcolor_fp)),
+                   *(f32*)(gCurLevel + offsetof(level_data, lightinten)));
     } else {
         sLevelAmbient = sOne;
     }
