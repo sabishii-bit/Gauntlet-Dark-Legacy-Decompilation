@@ -18,6 +18,10 @@
 #include "game/gamemode.h"
 #include "game/player.h"
 #include "game/worldobj.h"
+#include "game/critter.h"   /* Critter gCritterPool[16], stride 0xAE0 */
+#include "game/enemy.h"     /* Enemy gEnemies[25], stride 0x394 */
+#include "game/item.h"      /* Item* sItems, stride 0xF0 */
+#include "game/worldinfo.h" /* WorldInfo gWorldInfo */
 
 /* ------------------------------------------------------------------ */
 /* player records                                                      */
@@ -185,7 +189,7 @@ extern u8  lbl_80282850[]; /* wall-collide context (normal copy @+12) */
 extern u8  lbl_8023CA98[]; /* live wall-collide result (normal @+0x10) */
 extern void* lbl_80344B30; /* last wall WorldObj hit */
 extern s32 lbl_80344180;   /* per-cell wall-touch counter index */
-extern u8  gWorldInfo[];   /* WorldInfo (cell touch buffer @+0x5C) */
+/* gWorldInfo: WorldInfo (cell touch buffer @+0x5C) -- game/worldinfo.h */
 extern void* PlayerWallCollide(f32* from, f32* to, void* ctx, f32 range);
 extern void SlideAlongWall(f32* from, f32* dpos, void* ctx, f32* nrm, f32 range);
 extern f64 lbl_80347D00; /* slope clamp threshold */
@@ -201,8 +205,9 @@ extern f64 lbl_80347BB8; /* min forward speed / vertical gate */
 extern f64 lbl_80347C28; /* damage scale / force clamp */
 extern f64 lbl_80347D50; /* knockback force scale */
 extern f32 lbl_80347B98; /* knockback force cap */
-extern u8  gCritterPool[]; /* critter records, stride 0xAE0 */
-extern u8  gEnemies[];     /* enemy records, stride 0x394 */
+/* gCritterPool (stride 0xAE0) / gEnemies (stride 0x394): game/critter.h,
+ * game/enemy.h.  Strides stay bare literals per
+ * claim.law.sizeof-defeats-loop-stride-induction. */
 extern s32 damage_enemy(void* enemy, s32 pidx, s32 a3, s32 a4, f32* dir,
                         s32 flag, f32 dmg);
 extern s32 CritterDamage(void* critter, s32 pidx, s32 a3, s32 a4, f32* dir,
@@ -240,7 +245,7 @@ extern void* CritterMoveNodeCol(f32 radius, f32 zero, f32* from, f32* to,
 extern s32 lbl_803447DC;
 extern f32 fn_8005F0F4(void* item, s32 a2, f32* pos, f32* hit, f32 range, f32 p2);
 extern s32 fn_8005D730(Player* p, void* item);
-extern u8* sItems;
+/* sItems: Item* pool base (stride 0xF0) -- game/item.h */
 extern void MBTreeSetAlpha(void* node, s32 alpha, s32 mode);
 extern void* fn_8005B8B0(Player* p);
 extern s32 PointVisible(f32 y, f32* pos);
@@ -659,10 +664,10 @@ void get_player_pos(s32 playerIdx, s32 mode) {
                 p->pos[1] = resultPos[1];
                 p->pos[2] = resultPos[2];
                 if (resultItem >= 0x10000) {
-                    CritterDamage(gCritterPool + (resultItem & 0xFFFF) * 2784,
+                    CritterDamage((u8*)gCritterPool + (resultItem & 0xFFFF) * 2784,
                                   -2, 0, 0, NULL, 1, lbl_80347B1C);
                 } else {
-                    damage_enemy(gEnemies + resultItem * 916,
+                    damage_enemy((u8*)gEnemies + resultItem * 916,
                                  -2, 0, 0, NULL, 1, lbl_80347B20);
                 }
             } else {
@@ -1382,7 +1387,7 @@ void PlayerMotion(Player* p) {
             if (item >= 0x10000) {
                 u8* critter;
                 critterIndex = item & 0xFFFF;
-                critter = gCritterPool + critterIndex * 2784;
+                critter = (u8*)gCritterPool + critterIndex * 2784;
                 if (*(s16*)(*(u8**)(*(u8**)(critter + 4) + 0x120) +
                             0x20) == 4) {
                     specialCritter = 1;
@@ -1583,7 +1588,7 @@ collision_done:
             critterIndex = item & 0xFFFF;
             enemy = NULL;
         } else if (item >= 0) {
-            enemy = gEnemies + item * 916;
+            enemy = (u8*)gEnemies + item * 916;
             critterIndex = -1;
         } else {
             critterIndex = -1;
@@ -1603,7 +1608,7 @@ collision_done:
             PlayerMotion_WrapAngle(p->melee_yaw);
 
         if (critterIndex >= 0) {
-            u8* critter = gCritterPool + critterIndex * 2784;
+            u8* critter = (u8*)gCritterPool + critterIndex * 2784;
             p->coll_flags |= 0x10;
             if (*(s16*)(*(u8**)(*(u8**)(critter + 4) + 0x120) + 0x20) ==
                 4) {
@@ -1672,7 +1677,7 @@ collision_done:
                     void* effectNode;
                     if (critterIndex >= 0) {
                         u8* critter =
-                            gCritterPool + critterIndex * 2784;
+                            (u8*)gCritterPool + critterIndex * 2784;
                         hit[0] = PF(critter, 0x3C, f32) -
                                  *(f32*)(motion + 0x30);
                         hit[1] = PF(critter, 0x40, f32) -
@@ -2657,7 +2662,7 @@ store_motion_state:
                     critterIndex = item & 0xFFFF;
                     enemy = NULL;
                 } else if (item >= 0) {
-                    enemy = gEnemies + item * 916;
+                    enemy = (u8*)gEnemies + item * 916;
                     critterIndex = -1;
                 } else {
                     critterIndex = -1;
@@ -2695,7 +2700,7 @@ store_motion_state:
                     if (item >= 0) {
                         if (critterIndex >= 0) {
                             u8* critter =
-                                gCritterPool + critterIndex * 2784;
+                                (u8*)gCritterPool + critterIndex * 2784;
                             hit[0] = PF(critter, 0x5C, f32);
                             hit[1] = PF(critter, 0x60, f32);
                             hit[2] = PF(critter, 0x64, f32);
@@ -3595,10 +3600,10 @@ s32 PlayerMotion_DamageTarget(Player* p, s32 targetId, s32 a3, s32 a4, s32 a5,
     s32 result = -1;
 
     if (targetId >= 0x10000) {
-        critter = &gCritterPool[(targetId & 0xFFFF) * 2784];
+        critter = (u8*)gCritterPool + (targetId & 0xFFFF) * 2784;
         enemy = NULL;
     } else if (targetId >= 0) {
-        enemy = (EnemyDamageView*)&gEnemies[targetId * 916];
+        enemy = (EnemyDamageView*)((u8*)gEnemies + targetId * 916);
         critter = NULL;
     } else {
         return -1;
@@ -3687,14 +3692,14 @@ f32 PlayerGetTarget(Player* p, f32* pos, f32* dir, f32* out, s32* outId,
     }
 
     if (id >= 0x10000) {
-        u8* critter = &gCritterPool[(id & 0xFFFF) * 2784];
+        u8* critter = (u8*)gCritterPool + (id & 0xFFFF) * 2784;
         tx = PF(critter, 0x5C, f32);
         ty = PF(critter, 0x60, f32);
         tz = PF(critter, 0x64, f32);
         best = CritterLineRootColSub(lbl_80347D08, lbl_80347B30, critter,
                                      pos, dir, out);
     } else if (id >= 0) {
-        enemy = &gEnemies[id * 916];
+        enemy = (u8*)gEnemies + id * 916;
         if (*(s32*)enemy != 31) {
             f32 dot;
             tx = PF(enemy, 0x54, f32);
@@ -3975,7 +3980,7 @@ s32 PlayerCollideEnemies(Player* p, s32 a2, f32* pos, f32* out, s32 a5,
     while ((idx = NextGridEnemy()) >= 0) {
         s32 result;
 
-        item = sItems + idx * 240;
+        item = (u8*)sItems + idx * 240;
 
         {
             s32 skip = 0;
@@ -4123,7 +4128,7 @@ s32 PlayerCollideItems(Player* p, f32 range, f32 height, f32* from, f32* to,
 
     StartItemGrid(range, to);
     {
-    object = gEnemies;
+    object = (u8*)gEnemies;
     goto item_test;
 item_body:
     {
@@ -4174,7 +4179,7 @@ item_test:
     }
 
     if (closest >= 0) {
-        u8* item = gEnemies + closest * 0x394;
+        u8* item = (u8*)gEnemies + closest * 0x394;
         if (FastWallCollide(from, (f32*)(item + offsetof(PCollideEnemyLayout, coll_pos)), 0, 0) != 0) {
             closest = -1;
         }
@@ -4214,13 +4219,13 @@ item_test:
             s32 radius;
 
             if (closest >= 0x10000) {
-                u8* critter = gCritterPool + (closest & 0xFFFF) * 0xAE0;
+                u8* critter = (u8*)gCritterPool + (closest & 0xFFFF) * 0xAE0;
                 zero = lbl_80347B30;
                 dx = to[0] - *(f32*)(critter + offsetof(PCollideCritterLayout, pos[0]));
                 dz = to[2] - *(f32*)(critter + offsetof(PCollideCritterLayout, pos[2]));
                 radius = (s32)*(f32*)(*(u8**)(critter + offsetof(PCollideCritterLayout, hdr)) + 0x7C);
             } else {
-                u8* item = gEnemies + closest * 0x394;
+                u8* item = (u8*)gEnemies + closest * 0x394;
                 zero = lbl_80347B30;
                 dx = to[0] - *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[0]));
                 dz = to[2] - *(f32*)(item + offsetof(PCollideEnemyLayout, coll_pos[2]));
@@ -4583,7 +4588,7 @@ s32 fn_80088714(f32 range, Player* p, f32* pos, f32* dpos) {
             to[0] = pos[0] + dpos[0];
             to[1] = pos[1] + dpos[1];
             to[2] = pos[2] + dpos[2];
-            (*(u8**)&gWorldInfo[0x5C])[lbl_80344180]++;
+            (*(u8**)((u8*)&gWorldInfo + 0x5C))[lbl_80344180]++;
             wall = (WorldObj*)PlayerWallCollide(
                 pos, to, ctx, (f32)(lbl_80347D78 * range));
             if (wall != NULL) {
