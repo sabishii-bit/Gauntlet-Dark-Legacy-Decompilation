@@ -891,7 +891,7 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
         tmp = pbSwap32(data[next]);
         uv2Ptr = 0;
         if ((tmp & 0xFFF) == 3) {
-            uv2Ptr = (u8*)(data + next + 1);
+            uv2Ptr = (u8*)(data + (next + 1));
             next += step;
         }
         tmp = pbSwap32(data[next]);
