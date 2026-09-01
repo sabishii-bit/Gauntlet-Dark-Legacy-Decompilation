@@ -146,9 +146,9 @@ u32 pool_new(MemList* list) {
 /* 0x800D5390  coalesce free blocks (qsort) */
 s32 pool_garbage_collect(MemPoolLists* pool,
                          s32 (*gapCallback)(MemListNode*, u32)) {
-    MemListNode* node;
     s32 result;
     s32 count;
+    MemListNode* node;
     s32 i;
     u32 currentEnd;
     MemListNode** entries = lbl_8031EB00;
