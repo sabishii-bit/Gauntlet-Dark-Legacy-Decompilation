@@ -1417,6 +1417,7 @@ scan_done:
     }
     return result;
 }
+#pragma opt_lifetimes reset
 
 /*
  * writeGauntletSave - the card write/commit engine.  Loads the opening
