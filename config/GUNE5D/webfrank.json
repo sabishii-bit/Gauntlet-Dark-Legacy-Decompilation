@@ -380,6 +380,23 @@
           "instructions": 463
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "ProcessCritter",
+        "before_sha256": "e8f2375f1b2db9eb16aef8090a2bb8173026f5da57f5d27b1a6f6f694512742d",
+        "after_sha256": "a3506d1fb60adecbcc60d5743f5b23c6a2fd33299eee7d0b8bfb35ac49bd9dda",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 420
+        },
+        "mechanism": "attempt.CN_census-rerun-four-closures.20260901.v1 - the whole 420-instruction residual is THREE words, one form site and a two-word recolor, and NO permutation stage is needed (the census search's first admissible order was the identity, which is why none is configured: an identity instruction_permutation would pin a region hash for a mechanism that does not exist). FORM at +0xb4: our `li r30,0` against the target's `mr r30,r29`. The destination already agrees, so this is a pure form change and not a disguised recolor, and it is DIRECTIONAL the way equivalent_copy_form requires - ours is the `li`, the target is the copy. The `dominating_def` scan discharges it against `li r29,0` at +0xac, two straight-line words back with no interposed call and no branch target, so the weaker across-calls mode is NOT requested. THIS SITE IS THE RECORDED SUBJECT of claim.law.zero-remat-choice-differs-between-identical-sibling-loops.20260831.v1, which was verified in this very function: ProcessCritter's two hit-node scan loops are textually identical in source yet the target emits the COPY form in one and the rematerialized `li` in the other, so no source spelling separates them and the postprocessor path is the honest close. RECOLOR, two words: +0x4dc `addi r30,r3,52` and +0x528 `lfs f0,0(r30)` against the target's r29 in both - one short callee-saved web coloured r30 by us and r29 by the target, a direct knock-on of the form site's source register. Machine-proven by the position-lockstep renaming bisimulation (verify_consistent_recolor) with NO unproven_recolor_audit escape. src/game/enemy/critter.c is byte-unchanged.",
+        "equivalent_copy_form": [
+          {
+            "at": "0xb4",
+            "proof": "dominating_def"
+          }
+        ],
+        "copy_register_fields": true
       }
     ],
     "game/enemy/enemy": [
