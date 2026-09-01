@@ -258,7 +258,28 @@ one, and supersede the law if your target contradicts it.
    tools/gdl/tests` from the repo root. There is no pytest. Module
    counts drift — state test gates as the command plus "all green",
    not as a number.
-14. **Lane scratch directories stay UNTRACKED.** Never `git add` your
+14. **A guard's refusal is a measurement of the guard, not only of the
+   function.** Two coarse guards each refused a provable function
+   while failing correctly by their own logic (blanket relocation
+   distrust; pre-recolor-only permutation), and a
+   verify_consistent_recolor refusal was twice read as a fact about
+   the function when it was a fact about the checker. Before recording
+   a refusal as a cap, instrument it: WHAT check fired, on WHICH
+   word, and would a sound-but-finer check pass? Corollary of
+   discipline 1 for guards instead of cures.
+15. **Never use multi-line `python -c` in PowerShell** — the shim
+   injects `goto :error` artifacts and the command fails confusingly.
+   Write a scratch script file and run it. (Promoted from a buried
+   shell note: it still costs a wasted call per run.)
+16. **Prototype/extern disagreements: run `tools/gdl/abicheck.py`,
+   not positional comparison.** PPC EABI assigns GPR and FPR args as
+   independent sequences, so most positional "conflicts" are
+   register-identical and faithful; the corrupting direction (the
+   definition reads a register no caller writes) numbered THREE rows
+   image-wide when last measured. externcheck ranks type-class
+   disagreements but cannot model this — screen through abicheck
+   before queueing any prototype work.
+17. **Lane scratch directories stay UNTRACKED.** Never `git add` your
    `XX_scratch/` — committed scratch rides merges onto main's repo
    root and has had to be relocated three times. A script worth
    keeping is promoted deliberately: move it under

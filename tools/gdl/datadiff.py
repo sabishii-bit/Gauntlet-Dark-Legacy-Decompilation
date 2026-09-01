@@ -254,8 +254,31 @@ def deadstrip_check(unit, obj, quiet_ok=True):
     return unreferenced
 
 
+def ours_object(base):
+    """Our built object, preferring the raw compiler output.
+
+    The linked object under src/ is POST-webfrank, and a failed webfrank
+    run (e.g. a source edit invalidated a rule hash) leaves it STALE —
+    this tool then reports the pre-edit state twice, which cost a lane
+    the run's most expensive trap. Webfrank rewrites .text only, so for
+    the data-class comparisons here the raw body is both equivalent and
+    always fresh. A staleness note is printed when the linked object
+    lags the body.
+    """
+    linked = REPO / "build" / VERSION / "src" / f"{base}.o"
+    body = linked.parent / ".postprocess" / "body" / linked.name
+    if body.is_file():
+        if (linked.is_file()
+                and linked.stat().st_mtime < body.stat().st_mtime):
+            print(f"[note] {linked.name}: post-webfrank object is STALE"
+                  " (older than the raw body — a failed webfrank run"
+                  " leaves it behind); comparing the raw compiler output")
+        return body
+    return linked
+
+
 def check_unit(unit, claims, run_deadstrip=True):
-    obj = REPO / "build" / VERSION / "src" / f"{unit.rsplit('.', 1)[0]}.o"
+    obj = ours_object(unit.rsplit(".", 1)[0])
     if not obj.exists():
         print(f"[{unit}] SKIP: object not built ({obj})")
         return 0
@@ -341,7 +364,7 @@ def section_table(unit_key):
     match state that objdiff's all-or-nothing matched_data hides.
     """
     base = unit_key.rsplit(".", 1)[0]
-    ours_o = REPO / "build" / VERSION / "src" / f"{base}.o"
+    ours_o = ours_object(base)
     tgt_o = REPO / "build" / VERSION / "obj" / f"{base}.o"
     missing = [str(p) for p in (ours_o, tgt_o) if not p.exists()]
     if missing:
@@ -444,7 +467,7 @@ def main():
             print(f"[{t}] no splits entry")
             continue
         if only_deadstrip:
-            obj = REPO / "build" / VERSION / "src" / f"{key.rsplit('.', 1)[0]}.o"
+            obj = ours_object(key.rsplit(".", 1)[0])
             if not obj.exists():
                 print(f"[{key}] SKIP: object not built ({obj})")
                 continue

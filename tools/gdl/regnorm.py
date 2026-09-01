@@ -100,6 +100,7 @@ def main():
     t, b = target[fn_t], ours[fn_o]
     pairs, t_only, b_only = aligned_pairs(t, b)
     renaming, structural = [], []
+    disp_artifacts = []
     mapping = {}
     # Instruction-relative byte offset per line index (reloc annotation
     # lines share their instruction's offset instead of inflating it).
@@ -153,6 +154,22 @@ def main():
                   "  [ALIGNMENT ARTIFACT? multisets identical — confirm"
                   " against the aligned fnasm --diff before believing]")
             continue
+        t_stripbr = re.sub(r"^(b[a-z+.]*)\s+\S+", r"\1", t[ti])
+        b_stripbr = re.sub(r"^(b[a-z+.]*)\s+\S+", r"\1", b[bi])
+        if (t_op == b_op and t_op.startswith("b") and t_op != "bl"
+                and (t_only or b_only) and t_stripbr == b_stripbr
+                and t[ti] != b[bi]):
+            # Branch differing ONLY in its displacement, in a function
+            # with a count delta: the shifted code moves every branch
+            # target, so a 1-insn delta manufactures a flood of these
+            # artifact rows that swamps the genuine signal (a lane
+            # measured 19 artifacts hiding 1 real row).
+            structural.append((ti, t[ti], b[bi]))
+            disp_artifacts.append(ti)
+            print(f"STRUCT-BRANCH-DISP @{t_off[ti]:#06x}  T {t[ti]}   O"
+                  f" {b[bi]}  [displacement-only + count delta ->"
+                  " alignment artifact, usually not real]")
+            continue
         if fndiff.erase_registers(t[ti]) == fndiff.erase_registers(b[bi]):
             renaming.append((ti, t[ti], b[bi]))
             for ours_reg, tgt_reg in zip(register_tokens(b[bi]),
@@ -182,8 +199,12 @@ def main():
         verdict = "STRUCTURAL-PRESENT"
     else:
         verdict = "COUNT-MISMATCH"
+    art = (f" ({len(disp_artifacts)} of them branch-displacement"
+           " artifacts — read the genuine rows first)"
+           if disp_artifacts else "")
     print(f"== {fn}: {len(pairs)} paired, {len(renaming)} renaming,"
-          f" {len(structural)} STRUCTURAL, {len(t_only)+len(b_only)} unpaired"
+          f" {len(structural)} STRUCTURAL{art},"
+          f" {len(t_only)+len(b_only)} unpaired"
           f" -> {verdict}")
     print("VERDICT (repeated):", verdict,
           "-- REGISTER_ONLY label is only honest at 0 STRUCTURAL, 0 unpaired")

@@ -75,5 +75,15 @@ def report(name):
                   f"{_u32(target, offset):08x}  {' '.join(marks)}")
 
 
-for function in sys.argv[1:] or ["pbWinSetup", "pbProjCalc"]:
+# argv[1] is the UNIT (consumed above); function names start at argv[2].
+# The old sys.argv[1:] loop consumed the unit as a function name and
+# crashed — two lanes hit it.
+_funcs = sys.argv[2:]
+if not _funcs:
+    if UNIT == "game/pb/pb_window":
+        _funcs = ["pbWinSetup", "pbProjCalc"]
+    else:
+        raise SystemExit(
+            "usage: rule_derive.py <unit> <function> [function ...]")
+for function in _funcs:
     report(function)

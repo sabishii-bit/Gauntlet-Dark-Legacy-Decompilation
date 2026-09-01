@@ -312,6 +312,20 @@ def main():
                        " structure is converging; read the diff and"
                        " arbitrate, do NOT auto-revert"
                        " (--rebase-best banks an arbitrated keep)")
+            # Count distance is the one cheap predictor that agreed with
+            # fuzzy in all four field arbitrations of this shape —
+            # multiset gains do NOT imply fuzzy gains.
+            def _cd(text):
+                m = re.match(r"T(\d+)/O(\d+)$", text or "")
+                return (abs(int(m.group(1)) - int(m.group(2)))
+                        if m else None)
+            pd, cd = _cd(state.get("last_insns")), _cd(insns)
+            if pd is not None and cd is not None and pd != cd:
+                trend = "WORSE — expect a fuzzy loss" if cd > pd \
+                    else "better — fuzzy likely agrees"
+                verdict += (f"\nCOUNT DISTANCE {pd} -> {cd} ({trend};"
+                            " arbitrate on fresh fuzzy, weighting this"
+                            " over the multiset)")
         else:
             # The arrow is previous->current; the CLASSIFICATION is vs
             # best. Printing both without labels read as a contradiction
@@ -355,12 +369,20 @@ def main():
             if digest is not None:
                 state["last_bytes"] = digest
                 if prev_digest is not None and digest != prev_digest:
-                    verdict += ("  [OBJECT BYTES CHANGED — this compares"
-                                " BUILT OBJECTS between probes, not your"
-                                " source vs git (source can be identical"
-                                " to HEAD and still trip this); neutral"
-                                " scores do not prove identity — verify"
-                                " with objdiff fuzzy or revert]")
+                    verdict += ("  [NEUTRAL-REARRANGED: OBJECT BYTES"
+                                " CHANGED — this compares BUILT OBJECTS"
+                                " between probes, not your source vs git"
+                                " (source can be identical to HEAD and"
+                                " still trip this); neutral scores do not"
+                                " prove identity — verify with objdiff"
+                                " fuzzy or revert]")
+                elif prev_digest is not None:
+                    verdict += ("  [NEUTRAL-IDENTICAL: object bytes"
+                                " unchanged — the edit FOLDED AWAY before"
+                                " codegen. For a spelling probe this is a"
+                                " STRONGER negative than a regression:"
+                                " the source text never reached the"
+                                " compiler's decision point]")
         except Exception:
             pass
     state["last_real"] = real
