@@ -534,17 +534,44 @@ void fn_800D86C8(u32 param_1, u8* param_2, int param_3) {
 
 #pragma dont_inline off
 
-/* Release one movie allocation and clear the owning slot. */
-s32 fn_800D8784(MovieDecodeState* state) {
-    if (state->chunk != 0) {
+/* Release one movie allocation and clear the owning slot.
+ *
+ * This is a VIRTUAL METHOD of VQCodec: the RTTI/vtable sweep puts it in
+ * __vt__7VQCodec (0x801296CC) at slot 5, and the field it releases -- +0x18 --
+ * is Codec::alloc, the same pointer Codec's destructor frees.  Its method NAME
+ * is not recoverable (the Xbox port of this TU is an unrelated D3D/WMV class,
+ * so the PDB corroborates nothing here), so it keeps its placeholder symbol;
+ * only the C++ PARSE and the empty exception specification are adopted, which
+ * is what the target's codegen actually depends on.  Same shape and same
+ * mechanism as dtor_800DBB94: the `throw()` is what emits the
+ * `addi r3,<fp>,16 / bl __unexpected` island, and the C++ parse is what
+ * supplies the frame pointer and the aliased `lmw` teardown. */
+#pragma cplusplus on
+/* The allocation-counter half of a release, in the same shape as this TU's
+ * class-scope `MoviePlayer::operator delete`: null-checking, inline, and
+ * emitting no symbol of its own.  It is what supplies the target's SECOND
+ * `beq` at +0x24 -- two tests of the same cr0 back to back, with no reload
+ * between them, is a guarded call to an inlined body that null-checks again,
+ * exactly as `if (p) delete p;` expands. */
+static inline void MovieReleaseAlloc(void* p) {
+    if (p != NULL) {
         gMovieAllocCount--;
         if (gMovieAllocCount == 0) {
             ResetAllocTot();
         }
     }
+}
+
+s32 fn_800D8784(MovieDecodeState* state) throw() {
+    void* chunk = (void*)state->chunk;
+
+    if (chunk != NULL) {
+        MovieReleaseAlloc(chunk);
+    }
     state->chunk = 0;
     return 0;
 }
+#pragma cplusplus off
 
 static inline void MovieDecodePalette(MovieDecodeState* state, u8* pal, int count)
 {
