@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "falsifier": "Re-run the scan after a falsifier-backfill wave; if the count does not fall, the requirement is not being applied. This report is also wrong if the necessity-language regex over-matches -- spot-check 20 flagged laws and confirm each really asserts a universal rather than quoting one.",
+    "measurement": "258/324 (80%) necessity-language laws with no falsifier. Corpus predicate split: codegen_law 233, law 84, workflow_law 7.",
+    "provenance": "BF lane run 29; BF_scratch/laws.py scans memory_graph/records for predicate in {law, codegen_law, workflow_law} and flags necessity language lacking a falsifier field or falsifier prose. Full id list reproducible by re-running that scan.",
+    "scope": "324 law-bearing claim records as of 2026-09-01.",
+    "tags": [
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.BF_necessity-laws-without-falsifiers-report.20260901.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-01T20:56:21Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "REPORT (a list, not a rewrite -- no law's text was altered by this lane). 258 of 324 law-bearing claim records (predicates law/codegen_law/workflow_law) state their conclusion in NECESSITY language -- MUST, NEVER, ALWAYS, CANNOT, IS THE ONLY, IMPOSSIBLE, UNREACHABLE, source-unreachable, INVARIANT, 'there is no' -- while carrying NO falsifier: no falsifier/falsified_by/counterexample field, and no prose saying what evidence would disprove them. That is 80% of the corpus asserting universals with nothing recorded that could retire them. Why this matters here specifically: this project's own history is a record of such universals falling. Records in the corpus REFUTE earlier records' necessity claims by measurement ('THAT IS FALSE', 'THE FRAME-DELTA FRAMING IS AN ARTIFACT', 'PREMISE REFUTED BY MACHINE PROOF'), and AGENTS.md already codifies that a law's PRESCRIPTION rots faster than its diagnosis (3 of 6 cures wrong on one measured roster). A necessity claim with no falsifier cannot be screened cheaply, cannot expire, and is therefore indistinguishable from a claim that is merely old. The highest-risk subset is the 'source-unreachable' / 'CANNOT' family, because those laws are exactly the ones cited to justify parking a function or promoting it to the postprocessor path -- an unfalsifiable 'source-unreachable' is a permanent veto asserted on prose authority. RECOMMENDATION (integrator decision, not executed by this lane): require attributes.falsifier on any NEW law using necessity language, and backfill it authoritatively only by the law's own author or a lane that re-measures it -- this lane deliberately did not invent falsifiers for other agents' laws."
+}

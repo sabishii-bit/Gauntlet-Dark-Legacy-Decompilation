@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "falsifier": "Author residual.family at measure time for 30 consecutive new attempt records, then have a second agent independently classify the same 30 from prose alone. If independent agreement reaches 90%+, this law is wrong and back-extraction is viable. Cheaper partial falsifier: verify the 124 quarantined residual.family_candidate values against their functions' aligned diffs -- if 90%+ hold, the extractor is better than these audits measured.",
+    "measurement": "canary 26/26 reproduced; fresh-sample precision audits ~30-50% across 3 extractor configurations; 4/26 hand tags self-corrected for axis-vs-residual conflation; 624/971 live signatures from a 71-TU fndiff --ops sweep on 2026-09-01.",
+    "provenance": "BF lane, run 29. Extractor, canary and all three audit samples in BF_scratch (untracked); reproduce with tools/gdl/fndiff.py --ops per TU. Backfill landed in 10 commits touching memory_graph/records only.",
+    "scope": "memory_graph attempt corpus (971 records); applies to any future scheme that proposes to derive a classification field from existing record prose.",
+    "tags": [
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.BF_residual-family-cannot-be-back-extracted-from-attempt-prose.20260901.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-01T20:54:42Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "A residual FAMILY cannot be back-extracted from an attempt record's prose at a quality fit to write into the graph. Measured on the full 971-record attempt corpus: a canary of 26 hand-tagged records was reproduced 26/26 by the extractor, and THREE independent fresh-sample hand audits of the records it classified still scored only ~30-50% precision (8, 10 and 10 records read in full). The canary was necessary and insufficient: it protects against regressions on the cases it covers, it does NOT establish precision on the ~945 it does not. Root cause, in three parts. (1) These records are long multi-section narratives (baseline, axes, refutations, residual), so a mnemonic or mechanism phrase appearing ANYWHERE in one is not evidence about the residual -- bare stwx/lwzx/stfsx markers drove 3 of 5 addressing-mode misclassifications, and 'opcode multiset IDENTICAL' is a SIGNATURE fact equally true of frame-slot, schedule and regalloc residuals, not a family fact. (2) Records routinely declare several open mechanisms, in many different nouns ('TWO items', 'TWO NAMED RESIDUALS', 'three named groups', 'THREE named mechanisms, all still open'), so any single tag is a guess. (3) DECISIVELY: the axis-vs-residual conflation. FOUR of 26 hand tags made by a careful reader who had read each record in full were wrong, and all four failed the same way -- reading the ATTEMPTED AXIS or the most-emphasised paragraph as the residual. The clearest case is a record whose entire narrative is an inline-helper experiment that was REVERTED (both metrics regressed), so the standing residual is the baseline's, which its own residual_class calls SCHEDULE. If a human reader conflates axis with residual ~15% of the time on records they read completely, a regex over the same prose cannot do better. CONCLUSION: residual.family must be authored AT MEASURE TIME by whoever ran the diff, not back-extracted. The residual SIGNATURE, by contrast, is cheap and reliable to obtain live -- `fndiff --ops` over the 71 TUs owning attempt records took ~6 minutes and produced a machine-measured opcode-multiset delta for 624 of 971 records."
+}
