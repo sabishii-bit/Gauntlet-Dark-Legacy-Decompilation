@@ -387,6 +387,200 @@
           "instructions": 246
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "CameraSupervisor",
+        "before_sha256": "a9162e60603be7a52b3f4d9e32d7d8b2a712249441333aec78069598d4fe2a58",
+        "after_sha256": "596571f7c91ebc9e4c798e15f44236727e22b837ba2dcc1fa888bb21f5386e46",
+        "audit": {
+          "classification": "SCHEDULE+VALUE_EQUALITY",
+          "instructions": 441
+        },
+        "mechanism": "attempt.WF_camerasupervisor-pool-unpark-and-schedule-drive.20260901.v1 left this function count-exact (441/441), opcode multiset IDENTICAL, both permutation windows machine-proven and all 196 copy_register_fields changes passing, blocked ONLY by verify_consistent_recolor. The block was a property of the CHECKER, not of the function: MWCC replicated ONE value across FIVE FPRs in each stream (ours f4,f30,f29,f28,f27 from `lfs f4,lbl_80345EC8`; the target's f29,f28,f27,f26,f5 from `lfs f29,lbl_80345EC8`) and the two allocators distributed the loop's uses across those copies differently. verify_consistent_recolor carries a partial FUNCTION our-reg -> target-reg, so it binds root-to-root at the definitions (+0x18 gives f4->f29) and then refuses the loop guard at +0xc4, which reads our ROOT f4 against the target's fifth COPY f5. The required correspondence is many-to-many and no refinement of a function-valued state can express it. verify_value_equality_recolor carries the RELATION instead and closes it over value-preserving copies, which proves all 18 substitutions; the same replication in the lbl_80346030 web (ours f0/f31, target f30/f0) accounts for the rest. Two further words, +0x1d0 and +0x51c, are fcmpu with the operands EXCHANGED between the streams; each is consumed only by a bne/beq, i.e. only through the EQ bit, which operand exchange leaves untouched, and each is proved by the CR-bit liveness walk rather than declared by hand.",
+        "instruction_permutation": [
+          {
+            "start": "0x1c",
+            "end": "0x64",
+            "order": [
+              4,
+              1,
+              0,
+              2,
+              3,
+              11,
+              5,
+              7,
+              6,
+              9,
+              10,
+              12,
+              14,
+              13,
+              16,
+              8,
+              17,
+              15
+            ],
+            "before_sha256": "9935c94d4611fde8dc42fe34955826b9482ee5f96963889e7330ee1743d6ebb1",
+            "after_sha256": "e286dbe262268a98c6b428b7776ea321c6996eb0d749febc864e56febf06da42",
+            "before_relocations_sha256": "75ef6d634ec147a3d91c839a037ee5996662d73e30ef6fb81a75938797937f20",
+            "after_relocations_sha256": "68a41259c2e736d368843e757842c85ce84cf5e1b50915da1258963ba81dad92"
+          },
+          {
+            "start": "0x1ec",
+            "end": "0x1fc",
+            "order": [
+              1,
+              2,
+              3,
+              0
+            ],
+            "before_sha256": "c48d7e70fe12c0b7913389b94951bab2bade6b5dcd1bcf1c27fe400037668147",
+            "after_sha256": "b2e5dd241131b2c6d10ee0c2a83ee84952ed3190d898fc8608b7dfe067637505",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "Multi-site value split across two replicated-constant webs, plus two fcmpu operand exchanges consumed only through the EQ bit. Every site below is one verify_value_equality_recolor itself demanded; an undeclared site, or a declared site that stops firing, fails the build.",
+          "substitutions": [
+            {
+              "at": "0xc4",
+              "bank": "f",
+              "ours": 4,
+              "target": 5
+            },
+            {
+              "at": "0x120",
+              "bank": "f",
+              "ours": 31,
+              "target": 30
+            },
+            {
+              "at": "0x12c",
+              "bank": "f",
+              "ours": 31,
+              "target": 30
+            },
+            {
+              "at": "0x130",
+              "bank": "f",
+              "ours": 30,
+              "target": 29
+            },
+            {
+              "at": "0x13c",
+              "bank": "f",
+              "ours": 28,
+              "target": 27
+            },
+            {
+              "at": "0x154",
+              "bank": "f",
+              "ours": 0,
+              "target": 0
+            },
+            {
+              "at": "0x188",
+              "bank": "f",
+              "ours": 31,
+              "target": 30
+            },
+            {
+              "at": "0x18c",
+              "bank": "f",
+              "ours": 30,
+              "target": 29
+            },
+            {
+              "at": "0x190",
+              "bank": "f",
+              "ours": 28,
+              "target": 27
+            },
+            {
+              "at": "0x1b4",
+              "bank": "f",
+              "ours": 0,
+              "target": 0
+            },
+            {
+              "at": "0x1b4",
+              "bank": "f",
+              "ours": 31,
+              "target": 30
+            },
+            {
+              "at": "0x330",
+              "bank": "f",
+              "ours": 31,
+              "target": 30
+            },
+            {
+              "at": "0x39c",
+              "bank": "f",
+              "ours": 28,
+              "target": 27
+            },
+            {
+              "at": "0x3a0",
+              "bank": "f",
+              "ours": 30,
+              "target": 29
+            },
+            {
+              "at": "0x3a4",
+              "bank": "f",
+              "ours": 28,
+              "target": 27
+            },
+            {
+              "at": "0x3d8",
+              "bank": "f",
+              "ours": 27,
+              "target": 26
+            },
+            {
+              "at": "0x3dc",
+              "bank": "f",
+              "ours": 29,
+              "target": 28
+            },
+            {
+              "at": "0x3e0",
+              "bank": "f",
+              "ours": 27,
+              "target": 26
+            }
+          ],
+          "compare_exchanges": [
+            {
+              "at": "0x1d0",
+              "bank": "f",
+              "ours": [
+                26,
+                0
+              ],
+              "target": [
+                0,
+                31
+              ]
+            },
+            {
+              "at": "0x51c",
+              "bank": "f",
+              "ours": [
+                0,
+                1
+              ],
+              "target": [
+                0,
+                4
+              ]
+            }
+          ]
+        }
       }
     ],
     "game/enemy/critter": [
