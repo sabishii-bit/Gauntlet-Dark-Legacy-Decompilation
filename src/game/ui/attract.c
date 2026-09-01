@@ -127,7 +127,7 @@ const char* attract_screen_name_80014F34(int kind);
 /* ------------------------------------------------------------------ */
 extern int  sFlags;
 extern int  lbl_803445DC;
-extern int  lbl_80344620;
+extern u32  lbl_80344620;
 extern int  lbl_80343B40;
 extern int  options_state;
 extern int  optmenu_abortall;
