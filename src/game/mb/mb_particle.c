@@ -2020,6 +2020,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
     char* strs = (char*)lbl_80116D70;
     f32* pif = (f32*)psysInfo;
     f32 t0, t1, t2, t3;
+    f32 sc, lo, hi;
     f64 v;
     u32 used;
     u32 mask;
@@ -2140,45 +2141,32 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            f32 sc = pif[63];
-            f32 lo = pif[64];
-            f32 hi = pif[65];
-            {
-                f32 fv = t0 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+            sc = pif[63];
+            lo = pif[64];
+            hi = pif[65];
+                t0 = t0 * sc;
+                if (t0 < lo) {
+                    t0 = lo;
+                } else if (t0 > hi) {
+                    t0 = hi;
                 }
-                q->p_parms[2].i.life_start = fv;
-            }
-            {
-                f32 fv = t1 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[2].i.life_start = t0;
+                t1 = t1 * sc;
+                if (t1 < lo) {
+                    t1 = lo;
+                } else if (t1 > hi) {
+                    t1 = hi;
                 }
-                q->p_parms[2].i.life_end = fv;
-            }
-            {
-                f32 fv = t2 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[2].i.life_end = t1;
+                t2 = t2 * sc;
+                if (t2 < lo) {
+                    t2 = lo;
+                } else if (t2 > hi) {
+                    t2 = hi;
                 }
-                q->p_parms[2].i.fade_start = fv;
-            }
+                q->p_parms[2].i.fade_start = t2;
             t3 = t3 * sc;
-            if (t3 < lo) {
-            } else {
-                if (t3 > hi) {
-                } else {
-                    hi = t3;
-                }
-                lo = hi;
-            }
+            lo = (t3 < lo) ? lo : (hi = (t3 > hi) ? hi : t3);
             q->p_parms[2].i.fade_end = lo;
         }
         /* green (lane 8) */
@@ -2190,41 +2178,32 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            f32 sc = pif[59];
-            f32 lo = pif[60];
-            f32 hi = pif[61];
-            {
-                f32 fv = t0 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+            sc = pif[59];
+            lo = pif[60];
+            hi = pif[61];
+                t0 = t0 * sc;
+                if (t0 < lo) {
+                    t0 = lo;
+                } else if (t0 > hi) {
+                    t0 = hi;
                 }
-                q->p_parms[1].i.life_start = fv;
-            }
-            {
-                f32 fv = t1 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[1].i.life_start = t0;
+                t1 = t1 * sc;
+                if (t1 < lo) {
+                    t1 = lo;
+                } else if (t1 > hi) {
+                    t1 = hi;
                 }
-                q->p_parms[1].i.life_end = fv;
-            }
-            {
-                f32 fv = t2 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[1].i.life_end = t1;
+                t2 = t2 * sc;
+                if (t2 < lo) {
+                    t2 = lo;
+                } else if (t2 > hi) {
+                    t2 = hi;
                 }
-                q->p_parms[1].i.fade_start = fv;
-            }
+                q->p_parms[1].i.fade_start = t2;
             t3 = t3 * sc;
-            if (!(t3 < lo)) {
-                hi = (t3 > hi) ? hi : t3;
-                lo = hi;
-            }
+            lo = (t3 < lo) ? lo : (hi = (t3 > hi) ? hi : t3);
             q->p_parms[1].i.fade_end = lo;
         }
         /* blue (lane 0) */
@@ -2236,41 +2215,32 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            f32 sc = pif[55];
-            f32 lo = pif[56];
-            f32 hi = pif[57];
-            {
-                f32 fv = t0 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+            sc = pif[55];
+            lo = pif[56];
+            hi = pif[57];
+                t0 = t0 * sc;
+                if (t0 < lo) {
+                    t0 = lo;
+                } else if (t0 > hi) {
+                    t0 = hi;
                 }
-                q->p_parms[0].i.life_start = fv;
-            }
-            {
-                f32 fv = t1 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[0].i.life_start = t0;
+                t1 = t1 * sc;
+                if (t1 < lo) {
+                    t1 = lo;
+                } else if (t1 > hi) {
+                    t1 = hi;
                 }
-                q->p_parms[0].i.life_end = fv;
-            }
-            {
-                f32 fv = t2 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[0].i.life_end = t1;
+                t2 = t2 * sc;
+                if (t2 < lo) {
+                    t2 = lo;
+                } else if (t2 > hi) {
+                    t2 = hi;
                 }
-                q->p_parms[0].i.fade_start = fv;
-            }
+                q->p_parms[0].i.fade_start = t2;
             t3 = t3 * sc;
-            if (!(t3 < lo)) {
-                hi = (t3 > hi) ? hi : t3;
-                lo = hi;
-            }
+            lo = (t3 < lo) ? lo : (hi = (t3 > hi) ? hi : t3);
             q->p_parms[0].i.fade_end = lo;
         }
     }
@@ -2284,41 +2254,32 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            f32 sc = pif[67];
-            f32 lo = pif[68];
-            f32 hi = pif[69];
-            {
-                f32 fv = t0 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+            sc = pif[67];
+            lo = pif[68];
+            hi = pif[69];
+                t0 = t0 * sc;
+                if (t0 < lo) {
+                    t0 = lo;
+                } else if (t0 > hi) {
+                    t0 = hi;
                 }
-                q->p_parms[3].i.life_start = fv;
-            }
-            {
-                f32 fv = t1 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[3].i.life_start = t0;
+                t1 = t1 * sc;
+                if (t1 < lo) {
+                    t1 = lo;
+                } else if (t1 > hi) {
+                    t1 = hi;
                 }
-                q->p_parms[3].i.life_end = fv;
-            }
-            {
-                f32 fv = t2 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[3].i.life_end = t1;
+                t2 = t2 * sc;
+                if (t2 < lo) {
+                    t2 = lo;
+                } else if (t2 > hi) {
+                    t2 = hi;
                 }
-                q->p_parms[3].i.fade_start = fv;
-            }
+                q->p_parms[3].i.fade_start = t2;
             t3 = t3 * sc;
-            if (!(t3 < lo)) {
-                hi = (t3 > hi) ? hi : t3;
-                lo = hi;
-            }
+            lo = (t3 < lo) ? lo : (hi = (t3 > hi) ? hi : t3);
             q->p_parms[3].i.fade_end = lo;
         }
     }
@@ -2332,41 +2293,32 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            f32 sc = pif[71];
-            f32 lo = pif[72];
-            f32 hi = pif[73];
-            {
-                f32 fv = t0 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+            sc = pif[71];
+            lo = pif[72];
+            hi = pif[73];
+                t0 = t0 * sc;
+                if (t0 < lo) {
+                    t0 = lo;
+                } else if (t0 > hi) {
+                    t0 = hi;
                 }
-                q->p_parms[4].i.life_start = fv;
-            }
-            {
-                f32 fv = t1 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[4].i.life_start = t0;
+                t1 = t1 * sc;
+                if (t1 < lo) {
+                    t1 = lo;
+                } else if (t1 > hi) {
+                    t1 = hi;
                 }
-                q->p_parms[4].i.life_end = fv;
-            }
-            {
-                f32 fv = t2 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[4].i.life_end = t1;
+                t2 = t2 * sc;
+                if (t2 < lo) {
+                    t2 = lo;
+                } else if (t2 > hi) {
+                    t2 = hi;
                 }
-                q->p_parms[4].i.fade_start = fv;
-            }
+                q->p_parms[4].i.fade_start = t2;
             t3 = t3 * sc;
-            if (!(t3 < lo)) {
-                hi = (t3 > hi) ? hi : t3;
-                lo = hi;
-            }
+            lo = (t3 < lo) ? lo : (hi = (t3 > hi) ? hi : t3);
             q->p_parms[4].i.fade_end = lo;
         }
     }
