@@ -93,6 +93,15 @@ def main():
               " local slots")
     print(f"frame: target {fndiff.frame_size(t)}  ours {fndiff.frame_size(o)}"
           f"   saves: target {st}  ours {so}")
+    if "--all" in sys.argv:
+        # Full side-by-side map: the exclusive pair alone was genuinely
+        # misleading twice (an independent temp region read as a moved
+        # slot; two cancelling pad errors read as a clean frame). Workers
+        # kept scripting this by hand.
+        print("-- full slot map (offset: target-uses / ours-uses) --")
+        for off in sorted(set(ts) | set(os_)):
+            print(f"  {off:>4}: T {ts.get(off, '-'):>3} / O"
+                  f" {os_.get(off, '-'):>3}")
     only_t = sorted(set(ts) - set(os_))
     only_o = sorted(set(os_) - set(ts))
     count_diff = sorted(off for off in set(ts) & set(os_)
@@ -113,6 +122,10 @@ def main():
     print("VERDICT (repeated):", verdict,
           "-- arbitrate slot work HERE, not on real"
           " (claim.law.real-can-underweight-a-large-alignment-gain)")
+    print("CAVEAT: this verdict covers the r1 local block ONLY — EH-frame"
+          " slots addressed off r31 are invisible (an IDENTICAL verdict"
+          " coexisted with a live 8-byte EH-slot delta); on C++/EH"
+          " functions also read the r31-relative addi/lwz rows.")
     return 0
 
 
