@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Remeasure show_optmenu as the work order's named candidate and classify its differing words against the shipped stage's modes.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 APPLIED and it is DISPOSITIVE, which is why no further screen was spent: the function is 797 ours against 799 target. Every WebFrank stage -- instruction_permutation, equivalent_copy_form, copy_register_fields, post_recolor_permutation -- requires equal aligned sizes and refuses otherwise, so no mode of the combined stage can be reached and the destination-already-agrees discriminant the work order asked for has nothing to run on. claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1 SCREENED, NOT REACHABLE for the same reason. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 SCREENED, NOT REACHABLE.",
+    "laws_applied": "[\"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\"]",
+    "probed_form": "NO SOURCE EDITED and no rule authored. Measurement only.",
+    "residual": "REFUTES THE WORK ORDER'S OWN PREMISE, which is the deliverable here. The run-27 HB brief named show_optmenu as the lane's candidate on the strength of a run-26 reclassification to 'postprocessor-class', and instructed that its differing words be classified against the shipped stage's modes. Measured this session: `fndiff --count` reports insns 797/799, real 446, fuzzy 87.5834%. A TWO-INSTRUCTION COUNT DELTA is a hard, pre-existing ineligibility for the entire postprocessor path, so the function never enters the census population at all -- HB's image-wide scan screens equal-size pairs first and show_optmenu is excluded at that screen, not at any stage-specific one. It is SOURCE-CLASS work: two instructions are missing from our stream, and no register, schedule or form mechanism can supply them. RECLASSIFIED back from postprocessor-class to source-class. Anyone re-queueing it should target the missing pair, not the stage.",
+    "scope": "Read-only measurement. No source file and no config file touched for this function.",
+    "verification": "python tools/gdl/fndiff.py game/ui/options show_optmenu --count -> `DIFF show_optmenu  insns 797/799  lines 568  real 446`. python tools/gdl/fuzzy.py game/ui/options show_optmenu -> 87.5834% (size 3188). HB_scratch/hb_closable.py game/ui/options show_optmenu -> `SIZE MISMATCH`, the equal-size screen refusing it before any stage is consulted. Measured on the tree at commit e8417dd2a with a green `build/GUNE5D/main.dol: OK`."
+  },
+  "function": "function:show_optmenu",
+  "id": "attempt.HB_show-optmenu-count-delta-bars-the-postprocessor-path.20260901.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-01T17:24:38Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

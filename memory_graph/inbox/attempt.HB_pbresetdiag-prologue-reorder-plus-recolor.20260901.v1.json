@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "Re-run closability for pbResetDiag against the SHIPPED postprocessor stages instead of trusting the STRUCTURAL park, and close it if the residual is a permutation plus a renaming.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED, same mechanism as this function's pb_texture sibling: the park's STRUCTURAL label came from a regnorm pairing failure that is the signature of a displacement, not of a structural gap. claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 APPLIED and load-bearing here: the moved `lis r6,buttons@ha` carries an R_PPC_ADDR16_HA relocation, so its record must ride the atom and be bound against the target's own relocation table rather than assumed. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED as step 0: the order is legal in OUR colouring, so it runs pre-recolor. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED, NOT APPLICABLE: 39/39. claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1 SCREENED, NOT APPLICABLE: zero form-class sites.",
+    "laws_applied": "[\"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1\", \"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\"]",
+    "probed_form": "NO SOURCE EDITED. src/game/pb/pb_diag.c is byte-unchanged. The shipped rule is instruction_permutation {start 0x8, end 0x18, order [3,0,2,1]} + copy_register_fields true. before_sha256 5a0057e2849c97dd822d6da7f286d222cd4c4bcd6772dab8fcf01f136bef0f26, after_sha256 29887878809f01c68bc8dd013f1e4770ce727a9b2e389f7a19cc8ccea4e12824.",
+    "residual": "CLOSED, real 0, EXACT. 39/39 instructions, opcode multiset identical, 15 differing words in two mechanisms: one four-atom prologue reorder at +0x8..+0x18 and 11 words of renaming. Ours issues `mtctr r0`, `li r4,0`, `lwz r5,48(r3)`, `lis r6,buttons@ha`; retail issues the lis first, then mtctr, lwz, li. THE ONE NON-OBVIOUS SOUNDNESS QUESTION IS THE mtctr AND IT WAS INSTRUMENTED RATHER THAN ASSUMED: webfrank._word_effects decodes opcode-31 xo 467 as an SPR write and maps SPR 9 to 'ctr', so the CTR write IS modelled; CTR is written exactly once in the region, so its final writer is unchanged by the move and check_permutation_dependences accepts at exit_dead=None, which admits no escape for a moved final write. The remaining 11 words exchange the two record-pointer webs (g5<->g4) and shift the buttons base g6->g4 through the store chain, machine-proven by verify_consistent_recolor with no audit escape.",
+    "scope": "config/GUNE5D/webfrank.json only (one rule added to the existing game/pb/pb_diag unit). No source file touched. No change to tools/gdl/webfrank.py.",
+    "verification": "python configure.py then ninja -j2 -> `WEBFRANK pbResetDiag: adjusted 16 instruction atoms/fields` and `build/GUNE5D/main.dol: OK`. python tools/gdl/fuzzy.py game/pb/pb_diag pbResetDiag -> 100.0000%. defake_gate baseline+check game/pb/pb_diag -> GATE OK, 15 functions (11 at real 0); the TU's two pre-existing rules (pbDiagDrawTexture, pbDiagDrawObject) unaffected. python -m unittest discover tools/gdl/tests -> Ran 266 tests, OK. Rule proven in-process before shipping (HB_scratch/hb_compose.py): apply_patch output bytes == extracted target bytes. Commit e8417dd2a."
+  },
+  "function": "function:pbResetDiag",
+  "id": "attempt.HB_pbresetdiag-prologue-reorder-plus-recolor.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T17:24:16Z",
+  "refutes": "attempt.mp-label-correction.pbresetdiag.20260831.v1",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.mp-label-correction.pbresetdiag.20260831.v1",
+  "valid_from": "2026-09-01"
+}

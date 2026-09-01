@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Close DrawGlowTextMLines as a permutation composed with the recolor stage, after the census blind spot surfaced it for the first time.",
+  "attributes": {
+    "law_screen": "claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED as step 0: the epilogue order is legal in OUR colouring, so it runs pre-recolor and no post-recolor stage is needed. claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1 SCREENED, NOT APPLICABLE: zero form-class sites; this is permutation + recolor only. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED, NOT APPLICABLE: 59/59. claim.law.HV_single-permutation-region-is-the-binding-schema-limit.20260901.v1 SCREENED, NOT APPLICABLE: one window suffices. claim.law.HV_emb-sda21-relocation-offset-differs-between-our-objects-and-the-target.20260901.v1 SCREENED: the window carries no relocation in either object. No prior attempt record exists for this function (gdlmem context DrawGlowTextMLines returned empty), so there was no cap to screen.",
+    "laws_applied": "[\"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\"]",
+    "probed_form": "NO SOURCE EDITED. src/game/ui/btext.c is byte-unchanged. The shipped rule is instruction_permutation {start 0xd4, end 0xe0, order [2,0,1]} + copy_register_fields true. before_sha256 66db5bafe854224981f83c84dec2c0263baf849717f7a87ededfe4a73a748382, after_sha256 3648eeffe9a19c411697c5ff425a723a19a9a3c25a6691d301d2c37787c98bc1.",
+    "residual": "CLOSED, real 0, EXACT. 59/59 instructions, opcode multiset identical, five differing words: a three-atom epilogue reorder plus two words of renaming. Ours restores `lwz r0,156(r1)`, `lfd f31,144(r1)`, `lmw r25,116(r1)`; retail restores the lmw first. The three atoms load from DISTINCT stack slots into DISJOINT register sets (g0; f31; g25..g31), the region holds no store, no control instruction and no relocation, so every memory read still chains to the region entry, and r1 is never redefined -- check_permutation_dependences accepts at exit_dead=None. The two remaining words at +0xc8/+0xcc move the line-advance temporary g0->g3, machine-proven by verify_consistent_recolor with no audit escape. THIS FUNCTION IS THE CLEANEST DEMONSTRATION OF THE SCREEN-3 DEFECT recorded in claim.law.HB_two-censuses-can-both-miss-a-function-...20260901.v1: its permutation window is control-free, and cn_census rejected it only because widening the window one slot each side reaches the trailing `blr` sequence. The window webfrank actually permutes is the unwidened one.",
+    "scope": "config/GUNE5D/webfrank.json only (one rule added to the existing game/ui/btext unit). No source file touched. No change to tools/gdl/webfrank.py.",
+    "verification": "python configure.py then ninja -j2 -> `WEBFRANK DrawGlowTextMLines: adjusted 5 instruction atoms/fields` and `build/GUNE5D/main.dol: OK`. python tools/gdl/fuzzy.py game/ui/btext DrawGlowTextMLines -> 100.0000%. defake_gate baseline+check game/ui/btext -> GATE OK, 46 functions (38 at real 0); the pre-existing DrawGlowText rule unaffected. python -m unittest discover tools/gdl/tests -> Ran 266 tests, OK. Rule proven in-process before shipping (HB_scratch/hb_compose.py): apply_patch output bytes == extracted target bytes. Commit eaf655c81."
+  },
+  "function": "function:DrawGlowTextMLines",
+  "id": "attempt.HB_drawglowtextmlines-epilogue-reorder-plus-recolor.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T17:24:23Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}
