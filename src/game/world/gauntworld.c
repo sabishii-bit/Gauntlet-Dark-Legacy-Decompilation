@@ -2163,9 +2163,9 @@ extern s32   gNextItemIdx;
 /* gWorldInfo: game/worldinfo.h (WorldInfo, 0x8028CA8C, size 0xA4) */
 extern const char lbl_80346F10[8];     /* "CHICKEN"  */
 extern const char lbl_80346F18[6];     /* "APPLE"    */
-extern char  lbl_80346F20[];     /* "TREAS_GOLD" (sdata2 copy)   */
-extern char  lbl_80346F28[];     /* "TREAS_SILVER" (sdata2 copy) */
-extern char  lbl_80346F34[];     /* "%s_D"     */
+extern const char lbl_80346F20[8];   /* sdata2 string, size 0x8     */
+extern const char lbl_80346F28[8];   /* sdata2 string, size 0x8     */
+extern const char lbl_80346F34[5];   /* "%s_D", sdata2 size 0x5     */
 extern char  lbl_802583A8[];     /* scratch name buffer          */
 extern char  sObjectsFile[];     /* +0x130 "TREAS_GOLD", +0x13C "TREAS_SILVER" */
 
@@ -2188,6 +2188,7 @@ void fn_8005BA1C(Item* item, u8* player)
     u8* world;
     u8** records;
     u8* rec;
+    s32* rsub;
     u8 unused[32];
 
     (void)unused;
@@ -2287,8 +2288,9 @@ void fn_8005BA1C(Item* item, u8* player)
                 }
                 rec = *records;
                 for (k = 0; k < *(s32*)(world + 0x74); k++) {
-                    if (strcmp(lbl_80346F10, (char*)(rec + 0x28)) == 0 &&
-                        *(s32*)rec == 1 && *(s32*)(rec + 4) == 3) {
+                    rsub = (s32*)(rec + 4);
+                    if (strcmp(lbl_80346F10, (char*)rsub + 0x24) == 0 &&
+                        *(s32*)rec == 1 && *rsub == 3) {
                         goto found_chicken;
                     }
                     rec += 0x50;
@@ -2304,8 +2306,9 @@ found_chicken:
                 }
                 rec = *records;
                 for (k = 0; k < *(s32*)(world + 0x74); k++) {
-                    if (strcmp(lbl_80346F18, (char*)(rec + 0x28)) == 0 &&
-                        *(s32*)rec == 1 && *(s32*)(rec + 4) == 3) {
+                    rsub = (s32*)(rec + 4);
+                    if (strcmp(lbl_80346F18, (char*)rsub + 0x24) == 0 &&
+                        *(s32*)rec == 1 && *rsub == 3) {
                         goto found_apple;
                     }
                     rec += 0x50;
@@ -2340,9 +2343,10 @@ found_apple:
                     *(s16*)&item->data[0x10] = 200;
                     rec = *records;
                     for (k = 0; k < gWorldInfo.niteminfos; k++) {
+                        rsub = (s32*)(rec + 4);
                         if (strcmp(&objects[0x130],
-                                   (char*)(rec + 0x28)) == 0 &&
-                            *(s32*)rec == 1 && *(s32*)(rec + 4) == 1) {
+                                   (char*)rsub + 0x24) == 0 &&
+                            *(s32*)rec == 1 && *rsub == 1) {
                             goto found_gold;
                         }
                         rec += 0x50;
@@ -2370,9 +2374,10 @@ found_gold:
                     *(s16*)&item->data[0x10] = 100;
                     rec = *records;
                     for (k = 0; k < gWorldInfo.niteminfos; k++) {
+                        rsub = (s32*)(rec + 4);
                         if (strcmp(&objects[0x13C],
-                                   (char*)(rec + 0x28)) == 0 &&
-                            *(s32*)rec == 1 && *(s32*)(rec + 4) == 1) {
+                                   (char*)rsub + 0x24) == 0 &&
+                            *(s32*)rec == 1 && *rsub == 1) {
                             goto found_silver;
                         }
                         rec += 0x50;
@@ -2391,18 +2396,22 @@ found_silver:
         break;
 
     case 10:
-        if (*sub == 0x29 || *sub == 0x2B) {
+        switch (*sub) {
+        case 0x29:
+        case 0x2B:
             break;
-        }
-        if (mode != 3) {
+        default:
+            if (mode != 3) {
+                break;
+            }
+            if (rank >= 0x32) {
+                fn_8005C1DC(item, 9999.0f, 0, *(s32*)player);
+                msg = 0x92;
+            } else {
+                *(s16*)&item->data[4] = 4;
+                msg = 0x91;
+            }
             break;
-        }
-        if (rank >= 0x32) {
-            fn_8005C1DC(item, 9999.0f, 0, *(s32*)player);
-            msg = 0x92;
-        } else {
-            *(s16*)&item->data[4] = 4;
-            msg = 0x91;
         }
         break;
 
@@ -2494,16 +2503,19 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     s32 keep;
     s32 type;
     f32 R;
+    f32 Rsum;
     f32 dist;
     f32 cx, cz;
+    f32 unused2[4];
     f32 nv[3];
     f32 mv[3];
-    f32 hitpt[3];
     f32 norm[3];
+    f32 hitpt[3];
     f32 f1, f2, f3, f4;
-    f32 unused[12];
+    f32 unused[6];
 
     (void)unused;
+    (void)unused2;
 
     if (item->active == -1) {
         return -1.0f;
@@ -2523,7 +2535,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     sub = &data->subtype;
     coltype = data->coltype;
     R = data->radius;
-    if (coltype == 0) {
+    if (data->coltype == 0) {
         return -1.0f;
     }
     if ((item->active & 0x40) == 0 && (item->active & 0x4000) == 0) {
@@ -2605,12 +2617,12 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
         return -1.0f;
     }
 
-    R = (f32)(a + R);
+    Rsum = (f32)(a + R);
     cx = item->objgrp.coll_pos[0];
     cz = item->objgrp.coll_pos[2];
     f1 = (f32)(cx - pos[0]);
     f2 = (f32)(cz - pos[2]);
-    if (f1 * f1 + f2 * f2 > R * R) {
+    if (f1 * f1 + f2 * f2 > Rsum * Rsum) {
         return -1.0f;
     }
 
@@ -2623,7 +2635,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
         }
     }
     dist = fqdist(nv[0], nv[2]);
-    if (dist > R) {
+    if (dist > Rsum) {
         return -1.0f;
     }
 
@@ -2631,7 +2643,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     case 1:
         break;
     case 2:
-        if (fqdist(dist, nv[1]) > R) {
+        if (fqdist(dist, nv[1]) > Rsum) {
             keep = 0;
         }
         break;
@@ -2739,7 +2751,7 @@ los_check:
     case 4:
         break;
     default:
-        if (fqdist(nv[0], nv[2]) > R) {
+        if (fqdist(nv[0], nv[2]) > Rsum) {
             break;
         }
         keep = 1;
