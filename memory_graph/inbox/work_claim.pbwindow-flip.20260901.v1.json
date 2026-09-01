@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "FLIP lane, game/pb/pb_window (text 15/15 exact; .rodata claimed; ONLY blocker = .sdata2 SIZE target 0x0 vs ours 0x78 per run-24 WF records \u2014 gdlmem find pb_window sdata2): fix the .sdata2 pool at SOURCE (banked notes: 2 extra zero words + a float/double interleave error; the sdata2 pool law = literals then const objects, see winglobals records; STRIPPED functions still order the pool). The fix RENUMBERS @NNNN pool labels => both webfrank rules (pbWinSetup 2-window permute + copy-form @+0x2c8 + 5-word recolor; pbProjCalc 2-window + 54-word recolor) must be RE-DERIVED against the fresh objects \u2014 use tools/gdl/rule_derive.py + build_rule.py + the tools/gdl/composed_census/ harness; never trust banked offsets blind; step-0 + identity-order trap on every window. Verify real 0 on BOTH stragglers, datadiff --sections shows all sections equal, then finish_tu.py -> FLIP (claimcheck+ninja green-gated). A flip claim without a live datadiff result is invalid (AGENTS discipline 10). Full ninja + retail sha1; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:pbWinSetup",
+  "id": "work_claim.pbwindow-flip.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PW",
+  "recorded_at": "2026-09-01T14:17:15Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "POSTPROCESSOR-DEV lane (owns tools/gdl/webfrank.py + tests + webfrank.json this run): (1) SHIP THE INVERSE-DIRECTION copy-form population \u2014 the current equivalent_copy_form class is DIRECTIONAL (target-is-copy only) per DC's run-24 directionality law (gdlmem laws --query 'copy-form direction'); the inverse (OURS-is-copy, target-is-original) blocks dcsHandleRequest (game/audio/dcsdrv, real 144, v4 park) AND camera_mode_level cluster B. Design it with the same dominating-def discharge run on the TARGET stream; fail-closed; tests first (suite currently 207). (2) The DIFFERING-SOURCE category MV found: an addi_copy->mr pair with matching dest and differing source (movieplayer fn_800D8F28, MV's offset ~+0xec is a paired-sequence position \u2014 RE-LOCATE it in the aligned view) needs composed form+recolor; serve it only if it falls out of (1) naturally \u2014 do not force. (3) PROVE on camera_mode_level: per attempt.CN_camera-mode-level-cluster-a-readiness.20260901.v1 the function is TWO mechanisms from closing (A rule-ready swap [0x740,0x748) order [1,0]; C genuine swap+recolor). Close the FUNCTION or park with the exact gap. (4) Then dcsHandleRequest candidacy; if it closes, run datadiff --sections + finish_tu.py \u2014 dcsdrv data already claimed, a close may FLIP the TU (carry the live datadiff result in any flip claim). Derivation disciplines: C1 step-0 (permutation legal in OUR colouring), identity-order trap (an order search returning identity = no mechanism, do NOT pin), served-direction check. configure.py after every json edit; full ninja + retail sha1; tests green at every stage; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:camera_mode_level",
+  "id": "work_claim.webfrank-inverse.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WF",
+  "recorded_at": "2026-09-01T14:16:47Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

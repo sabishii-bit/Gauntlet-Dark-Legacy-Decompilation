@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "RECONSTRUCTION lane, game/world/effects.c: ProcessEffects \u2014 run-24 IH found a frame SHIFT and took real 2183->2153 (commit 912283b26; gdlmem find ProcessEffects for the records incl. the screened param-floor lever \u2014 do not re-probe vetoed axes). This is sustained reconstruction on a huge function: slotdiff --all FIRST (frame work: real fights the right answer), then per-cluster: side-decompose count deltas by block, regnorm (STRUCTURAL rows confirmed in the aligned view), aligned fnasm reads, mechanism-matched levers. Commit per verified cluster-close (incremental gating \u2014 the SC precedent: piece-wise landing beats single edits). Also in the TU if ProcessEffects walls early: census siblings with regnorm FIRST (discipline 9a \u2014 real inverts tractability). Park honestly at walls with the decomposition + probed_form recorded; A/B/A verify any revert; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:ProcessEffects",
+  "id": "work_claim.effects-reconstruction.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PE",
+  "recorded_at": "2026-09-01T14:17:46Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

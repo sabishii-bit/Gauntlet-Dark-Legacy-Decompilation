@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "COMPOSED-HARVEST lane (existing webfrank classes ONLY \u2014 webfrank.py is WF's this run): run the manual 4-step composed census (per the run-23 audit-silence law: the closable set includes mixed schedule+recolor parks the scanner never lists \u2014 its footer now says so) over (a) the NV green-light roster's copy-form/permute rows (claim.NV_never-probed-park-green-light-roster.20260901.v1: pbSendObjTextures + CTriListCollide flagged mr-vs-addi copy-form; CHECK btricol's current state first \u2014 the TU flipped in run 23, its row may be stale) and (b) parked attempt records with schedule/regalloc-only residuals outside owned TUs (owned: pb_window, movieplayer, items.c, effects, shop.c/controls.c, dcsdrv+camera TUs, NV-sweep TUs). Known-positive CANARY first (replay a shipped rule's derivation, e.g. from tools/gdl/composed_census/); step-0; identity-order trap; served-direction screen (inverse-direction candidates go to a record for WF, not a forced rule). Rules ONLY where the function closes byte-exact; surgical json inserts + configure.py each time; full ninja + retail sha1 each close; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:pbSendObjTextures",
+  "id": "work_claim.composed-harvest.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CH",
+  "recorded_at": "2026-09-01T14:17:28Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "FINISH lane, game/world/items.c: SetItem (real 492, SLOT MAP IDENTICAL, regnorm map BANKED in the run-24 SI records \u2014 gdlmem find SetItem) = composed candidacy: step-0 first, then derive per the banked map ONLY if it is near-consistent (INCONSISTENT registers need def-site web grouping \u2014 a 1306-insn function may be many windows; park honestly with the map if derivation is not clean). AddLocatorInstList (real 306, capped): apply cancelling-delta SIDE accounting to its 419/421 count gap (per-block decomposition \u2014 the DB precedent) + merged-disjunction boundary screen. DO NOT REDO: LinkItemTriggers (EXACT run 24), RegisterItemWobj (de-fakematched byte-identical). Pins Distance*/InitLighting/InitItemInfoData FROZEN. Laws --query each residual signature BEFORE probing (discipline 9b). Commit per function; exact or stamped parks with probed_form; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:SetItem",
+  "id": "work_claim.items-caps.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SI",
+  "recorded_at": "2026-09-01T14:17:34Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}
