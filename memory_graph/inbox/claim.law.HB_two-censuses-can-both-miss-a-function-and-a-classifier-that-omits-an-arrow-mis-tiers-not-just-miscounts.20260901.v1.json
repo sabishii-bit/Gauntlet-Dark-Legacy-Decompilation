@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Derived 2026-09-01 in worktree GDL-Claude-HarvestB, branch claude/stage-harvest-b-20260901, commits 582ee5b28, eaf655c81, d266228e4, e8417dd2a. Lane scaffolding HB_scratch/{hb_census,hb_closable,hb_tierb,hb_compose,hb_screen,hb_why_missed}.py, untracked per discipline 17.",
+    "tags": [
+      "postprocessor",
+      "matching",
+      "metrics",
+      "register-web",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.HB_two-censuses-can-both-miss-a-function-and-a-classifier-that-omits-an-arrow-mis-tiers-not-just-miscounts.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T17:24:00Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "FOUR FUNCTIONS CLOSED BYTE-EXACT THIS RUN WERE INVISIBLE TO BOTH RUN-25/26 CENSUSES AT ONCE, AND NOT ONE OF THEM NEEDED THE COMBINED STAGE. Measured (HB_scratch/hb_why_missed.py, all four against the same objects that produced the closes): pbResetDiag, DrawGlowTextMLines and init_player_change were rejected by cn_census SCREEN 3 -- 'the impure cluster widened one slot each side must be control-free' -- and pbInitTlutRegions by SCREEN 2 -- 'at most one impure cluster' (it has two). Independently, ALL FOUR were absent from CH's closability roster because that roster tiered only the 25 functions CARRYING a combined-stage site, and none of these carries one. Two screens, four functions, zero overlap in coverage.\n\nSCREEN 3 IS THE EXPENSIVE ONE AND ITS WIDENING IS THE DEFECT. permute_instruction_atoms refuses a control instruction INSIDE the region it permutes; it says nothing about the slot on either side. Widening the window by one slot BEFORE testing for control ops therefore rejects functions whose true permutation window is control-free but which sit next to a branch -- which is exactly where MWCC schedule differences live, since they cluster at basic-block boundaries. DrawGlowTextMLines is the clean demonstration: its window +0xd4..+0xe0 is three epilogue restores with no control op in it, and the `blr` sequence immediately after it is what screen 3 trips on. Test the UNWIDENED cluster first and widen only on failure.\n\nA CLASSIFIER THAT OMITS AN ARROW MIS-TIERS, IT DOES NOT MERELY MISCOUNT, AND THAT IS THE MORE GENERAL POINT. ch_census26.classify buckets a differing word pair over exactly two arrows, li->copy and copy->li, and sends everything else that is not a pure register-field difference to `other`. COPY -> COPY is absent -- our `addi rD,rS,0` against retail's `or rD,rS,rS` -- yet that is the shape `unconditional_recolor` serves, the very mode that closed fn_800D8F28. Re-derived here over 2840 equal-size paired functions with that arrow restored and the rule's r0 refusals preserved: other 8980, regfield 7872, form 4, form_rc 19, fwd 5, fwd_rc 41, inv 2, inv_rc 41. The CH-comparable figure reproduces (41+41 = 82 against CH's 83; the tree has advanced by one site), so this EXTENDS CH's census rather than contradicting it -- but the 23 copy->copy sites it recovers were all sitting in `other`, and `other` is the quantity every TIER decision is computed from. An omitted arrow inflates `other` at exactly the functions the omitted mode would serve, so the functions the new stage helps most are the ones the census most confidently files as hopeless. CH's own method note -- a classifier and the rule it is sizing must share their refusals -- generalises: they must also share their ARROWS, and the cost of a missing arrow is paid in tiering, not in the headline count.\n\nTIER A IS NOW EXHAUSTED AND THAT IS A CLEAN, USEFUL NEGATIVE. Running the SHIPPED stage (not a simulation of it) over every equal-size paired function in the image gives 93 functions whose entire residual is absorbable with NO permutation at all; 70 of those pass verify_consistent_recolor; and ALL 70 ARE ALREADY SHIPPED RULES IN config/GUNE5D/webfrank.json. The zero-permutation payoff of the form+recolor composition is fully harvested image-wide. Every remaining exact reachable by this family requires a PERMUTATION composed in, which is what all four of this run's closes are and what camera_mode_level was. Scope the next lane against permutation composition, and stop scoping it against the combined stage's site count."
+}
