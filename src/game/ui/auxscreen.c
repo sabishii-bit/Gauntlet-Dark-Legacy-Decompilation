@@ -676,7 +676,7 @@ have_target:
     }
     delta = target - good_wiz_yaw;
     if (reset == 0) {
-        f32 lim = (f32)(1.5707963267948966 * (double)gClockFrameStep);
+        f32 lim = (f32)(1.570796327 * (double)gClockFrameStep);
         if (delta > lim) {
             delta = lim;
         }

@@ -1368,7 +1368,7 @@ void DoPlayerAction(void* player)
         }
         if (cur != 0 && (cur < 0x56 || cur > 0x93) && cur != 0x1B &&
             (u32)(cur - 0x81) > 1 && (p[2] != 3 || cur != 0x2A)) {
-            speed = 0.0666667f;
+            speed = 0.066667f;
         }
         break;
     case 0x11:

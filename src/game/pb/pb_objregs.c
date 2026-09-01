@@ -1560,9 +1560,9 @@ s32 setChrome(PbDOObj* obj, s32 arg, u8* node, f32* matrix)
             s32 yawDegrees;
 
             yawDegrees = (s32)((180.0 * (f64)g->scr->f4c) /
-                               3.14159265358979323846);
+                               3.141592654);
             pitchDegrees = (s32)((180.0 * (f64)g->scr->f48) /
-                                 3.14159265358979323846);
+                                 3.141592654);
             bulletproof_printf("yaw,pitch= %4d %4d",
                                yawDegrees, pitchDegrees);
         }
