@@ -3376,10 +3376,10 @@ void ProcessEffects(void)
                             continue;
                         }
 
-                        normal[0] = item->pos[0] - pos[0];
-                        normal[1] = item->pos[1] - pos[1];
-                        normal[2] = item->pos[2] - pos[2];
-                        itemDist = NormalVector2D(normal);
+                        delta[0] = item->pos[0] - pos[0];
+                        delta[1] = item->pos[1] - pos[1];
+                        delta[2] = item->pos[2] - pos[2];
+                        itemDist = NormalVector2D(delta);
                         if (itemDist > itemRadius + item->def->radius) {
                             continue;
                         }
@@ -3389,8 +3389,8 @@ void ProcessEffects(void)
                                 0.2 * (itemRadius + item->def->radius)) {
                                 itemMindp *= 0.85;
                             }
-                            if (normal[0] * dir[0] +
-                                    normal[2] * dir[2] <
+                            if (delta[0] * dir[0] +
+                                    delta[2] * dir[2] <
                                 itemMindp) {
                                 continue;
                             }
