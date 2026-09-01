@@ -770,24 +770,15 @@ static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size) {
     sceSamp0MultVec(out1, gCameraMtx, corner);
 
     z1 = out1[2];
-    if (z1 <= (*(f32**)(win + 4))[22]) {
-        return;
-    }
-    if (z1 >= (*(f32**)(win + 4))[23]) {
+    if (z1 <= (*(f32**)(win + 4))[22] || z1 >= (*(f32**)(win + 4))[23]) {
         return;
     }
     x1 = (out1[0] * (*(f32**)(win + 4))[32]) / z1;
     y1 = (out1[1] * (*(f32**)(win + 4))[37]) / z1;
-    if (x1 < lbl_803451D4) {
+    if (x1 < lbl_803451D4 || x1 >= lbl_803451D8) {
         return;
     }
-    if (x1 >= lbl_803451D8) {
-        return;
-    }
-    if (y1 < lbl_803451DC) {
-        return;
-    }
-    if (y1 >= lbl_803451E0) {
+    if (y1 < lbl_803451DC || y1 >= lbl_803451E0) {
         return;
     }
 
@@ -802,16 +793,10 @@ static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size) {
 
     x2 = (out2[0] * (*(f32**)(win + 4))[32]) / out2[2];
     y2 = (out2[1] * (*(f32**)(win + 4))[37]) / out2[2];
-    if (x2 < lbl_803451D4) {
+    if (x2 < lbl_803451D4 || x2 >= lbl_803451D8) {
         return;
     }
-    if (x2 >= lbl_803451D8) {
-        return;
-    }
-    if (y2 < lbl_803451DC) {
-        return;
-    }
-    if (y2 >= lbl_803451E0) {
+    if (y2 < lbl_803451DC || y2 >= lbl_803451E0) {
         return;
     }
 
