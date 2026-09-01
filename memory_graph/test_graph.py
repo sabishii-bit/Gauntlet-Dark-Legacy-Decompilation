@@ -40,7 +40,11 @@ from memory_graph.core import (
     work_claims,
 )
 
-TODAY = "2026-08-30"
+# Dynamic: a hardcoded date made the age-skew assertion break the moment the
+# calendar advanced past it, failing every fleet's test run for an unrelated
+# reason (flagged by a worker 2026-09-01).
+import datetime as _dt
+TODAY = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d")
 
 
 def _write(path: Path, record: dict) -> None:
