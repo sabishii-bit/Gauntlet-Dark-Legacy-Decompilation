@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Discovered while banking claim.CH_two-derived-closures-referred-to-their-owning-lanes.20260901.v1's debug_camera_pos referral, worktree GDL-Claude-CameraUnlock, branch claude/camera-unlock-20260901. My independent derivation reproduced CH's window and CH's before-hash exactly but proposed a DIFFERENT order and would have shipped an unprovable rule; enumerating the window's full order space is what exposed why. Reproduce with WF_scratch/enumerate_orders.py-style enumeration over build/GUNE5D/src/game/world/.postprocess/body/camera.o against build/GUNE5D/obj/game/world/camera.o.",
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "matching",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.WF_enumerate-every-shape-consistent-order-and-select-by-proof.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T17:43:10Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "THE RULE. A permutation window's order must be chosen by the FULL guard chain, not by the first shape-consistent bijection a search finds. Enumerate every order whose atoms are register-field-equal to the target position by position (and relocation-compatible), run each through check_permutation_dependences, copy_register_fields AND verify_consistent_recolor, and select an order only if all three pass. A search that returns its first hit -- identity-preference included -- will sometimes return a legal-but-unprovable order and the rule will fail closed at build time for reasons that look like a property of the function.\n\nTHE MEASUREMENT. game/world/camera::debug_camera_pos, window [0x90,0xa8), 6 relocation-free atoms. EXACTLY TWO shape-consistent bijections exist: [0,2,1,4,3,5] and [0,2,1,5,3,4]. BOTH pass check_permutation_dependences in its strictest form with no exit_dead escape. BOTH pass copy_register_fields -- the first with 7 field changes, the second with 8. Only the SECOND passes verify_consistent_recolor; the first is refused at +0x9c with 'use of f1 does not correspond to f1 under the running renaming'. So neither the permutation guard nor the recolor guard distinguishes them, and the ONLY discriminator is the bisimulation. A greedy identity-first search picks the wrong one here, which is what my derivation did before enumerating.\n\nWHY THIS IS A TRAP AND NOT AN EDGE CASE. The two candidate orders differ only in which of two same-shaped atoms fills which slot -- precisely the situation the shipped guards are designed to be permissive about, because at the level each of them reasons at, the choice genuinely is free. It stops being free only once the recolor has to be a single position-consistent renaming across the whole function, and that constraint is invisible to every earlier stage. Any window containing two atoms of the same form is therefore a candidate for this, and windows of same-form atoms are exactly what schedule residuals produce.\n\nCOROLLARY, AND IT REVERSES A RECORDED NEGATIVE. claim.CN_census-rerun-canary-validated-filter.20260901.v1 recorded debug_camera_pos as reaching 'a consistent-recolor refusal at +0x9c on an FPR'. That refusal is REAL and REPRODUCIBLE -- for the other order. The function closes. Read a recolor refusal on a permuted window as evidence about the ORDER first and about the function only after the order space is exhausted; the refusal message names an offset inside the recolor, which invites the opposite reading.\n\nCOST. The order space is bounded by the window size and the shape classes within it; for the windows this project actually ships (4 to 18 atoms) full enumeration with early shape filtering is milliseconds. There is no reason to guess."
+}

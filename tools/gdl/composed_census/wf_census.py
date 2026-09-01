@@ -14,6 +14,23 @@ Classification per differing word (equal-size functions only):
   inv_rc    - ours copy, target li, dest DIFFERS   (form+recolor, v2)
   other     - structural / immediate / everything else
 
+DESTINATION-AGREEMENT IS THE TRACTABILITY AXIS, and it is what the four-way
+split above is really measuring.  When a copy-form site's DESTINATION already
+agrees (fwd, inv) the edit is a pure form change: the word's value is
+unaffected and no recolor is hiding inside it, so it is dischargeable by the
+plain proof modes.  When the destination DIFFERS (fwd_rc, inv_rc) the site is
+a form change AND a recolor at once, needs the combined class, and is
+justified only by a machine-proven renaming -- strictly more expensive and
+strictly more likely to be refused.  G3DReadControlPadStates is the worked
+example: its mechanism note turns on "all three destinations already agree,
+so each is a pure form change and never a disguised recolor".
+
+The per-site classes carried that information all along but nothing
+aggregated it, so the roster could not be RANKED by it.  `dstok`/`dstrc`
+below are that aggregate, and the roster now sorts on them: within equal
+structural debt, prefer the function whose copy-form sites are pure form
+changes.
+
 Canary discipline (cn_census.py): the scan reads RAW .postprocess/body
 output where present, so already-shipped rules must still show up.
 """
@@ -21,7 +38,11 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.abspath(os.path.join(HERE, ".."))
+# Repo root is THREE levels up from tools/gdl/composed_census/.  The single
+# ".." here was the lane-scratch original, promoted without repointing its
+# paths (AGENTS.md discipline 17), which left ROOT at tools/gdl and made both
+# the `webfrank` import and every build/ path fail from any directory.
+ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 import webfrank as wf  # noqa: E402
 
@@ -86,6 +107,18 @@ def classify(ours_word, tgt_word):
     return "other"
 
 
+def destination_agreement(counts):
+    """(sites whose destination already agrees, sites where it differs).
+
+    A copy-form site is a PURE form change only when its destination register
+    is the same on both sides; otherwise it is a form change carrying a
+    recolor and needs the combined class.
+    """
+    agree = counts.get("fwd", 0) + counts.get("inv", 0)
+    differs = counts.get("fwd_rc", 0) + counts.get("inv_rc", 0)
+    return agree, differs
+
+
 def main():
     rows = []
     seen_funcs = set()
@@ -140,20 +173,36 @@ def main():
     print("IMAGE-WIDE DIFFERING-WORD CLASS TOTALS:")
     for k in sorted(tot, key=lambda x: -tot[x]):
         print(f"  {k:10} {tot[k]}")
+    agree, differs = destination_agreement(tot)
+    total_sites = agree + differs
+    share = f"{100.0 * agree / total_sites:.1f}%" if total_sites else "n/a"
+    print(f"  -- copy-form sites whose DESTINATION already agrees: "
+          f"{agree} of {total_sites} ({share}) -- these are pure form "
+          f"changes; the other {differs} need the combined class")
     print()
 
     inv_rows = [r for r in rows if r[4].get("inv") or r[4].get("inv_rc")]
     print(f"FUNCTIONS CARRYING AN INVERSE SITE: {len(inv_rows)}\n")
     hdr = (f"{'unit':32} {'function':34} {'ins':>5} "
            f"{'inv':>4} {'invrc':>6} {'reg':>5} {'other':>6} {'fwd':>4} "
-           f"{'fwdrc':>6}")
+           f"{'fwdrc':>6} {'dstok':>6} {'dstrc':>6}")
     print(hdr)
+    # Rank by structural debt first (an `other` word is not reachable by any
+    # copy-form mode), then by DESTINATION AGREEMENT descending: among
+    # functions with equal structural debt, the one whose copy-form sites are
+    # pure form changes is the cheaper close.  Size only breaks ties.
     for unit, name, ins, is_raw, c, _s in sorted(
-            inv_rows, key=lambda r: (r[4].get("other", 0), r[2])):
+            inv_rows,
+            key=lambda r: (r[4].get("other", 0),
+                           -destination_agreement(r[4])[0],
+                           destination_agreement(r[4])[1],
+                           r[2])):
+        agree, differs = destination_agreement(c)
         print(f"{unit:32} {name:34} {ins:5} "
               f"{c.get('inv', 0):4} {c.get('inv_rc', 0):6} "
               f"{c.get('regfield', 0):5} {c.get('other', 0):6} "
-              f"{c.get('fwd', 0):4} {c.get('fwd_rc', 0):6}"
+              f"{c.get('fwd', 0):4} {c.get('fwd_rc', 0):6} "
+              f"{agree:6} {differs:6}"
               f"{'' if is_raw else '  (plain obj)'}")
 
     print("\nINVERSE SITE DETAIL (functions with other == 0):")

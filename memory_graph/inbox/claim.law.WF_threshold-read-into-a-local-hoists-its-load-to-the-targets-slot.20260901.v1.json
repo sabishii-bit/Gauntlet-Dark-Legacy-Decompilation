@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Measured on src/game/game/combat.c::CameraSupervisor, worktree GDL-Claude-CameraUnlock, branch claude/camera-unlock-20260901, commit 30d7a50b8. Four independent sites, one lever, applied and measured together and individually.",
+    "tags": [
+      "matching",
+      "entry-schedule",
+      "cse",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.WF_threshold-read-into-a-local-hoists-its-load-to-the-targets-slot.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T17:43:18Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "THE RULE. When the target issues a pool/global comparison constant EARLY in a basic block -- typically alongside the block's other loads, ahead of an intervening store/load sequence -- and our build issues it LATE, immediately before the compare, the lever is to READ IT INTO A NAMED LOCAL and place that assignment where the target issues the load. MWCC's block scheduler follows IR order for this load; the IR order follows statement order; and a constant that appears only inside an `if` condition is created last no matter how much latency there is to hide.\n\nTHE SHAPE THAT PRODUCES IT. The recurring pattern is an abs-via-bit-trick through a stack slot between the value's computation and its comparison: `x = a / b; *(u32*)&x &= 0x7FFFFFFF; GLOBAL = x; if ((f64)x >= THRESHOLD) GLOBAL = CLAMP;`. That store/load round trip separates the compare from everything else, and the target fills it with the threshold load while our build waits.\n\nMEASURED, four sites in one function (thresholds lbl_803460F8, lbl_803460D8, lbl_80346108, lbl_80346118). Adding `maxYawRate = lbl_803460F8;` immediately before the divide, and comparing against the local, moved the `lfd` from +0x570 to +0x55c -- the target's exact slot -- and made the whole block position-identical to the target modulo register names. Applied to all four sites the four displaced clusters vanished from the fndiff --ops output entirely and objdiff fuzzy went 90.741490 -> 93.394554.\n\nTHE METRIC WARNING, WHICH IS THE HALF WORTH REMEMBERING. `real` DID NOT MOVE across the change that closed all four clusters: 426 before, 426 after. It also did not distinguish a shared threshold local from four distinct ones (426 in both -- an identical A/B that correctly killed that axis). A lane arbitrating this lever on `real` would have recorded it as neutral and dropped it. Arbitrate on FRESH objdiff fuzzy from a completed report build, per claim.law.MV_regnorm-census-ranks-tractability-and-real-actively-misranks-it.20260901.v1 and claim.law.IH_multiset-gain-does-not-imply-fuzzy-gain-arbitrate-with-count-distance.20260901.v1. The regnorm census agreed with fuzzy and against real (paired 538 -> 546, STRUCTURAL 6 -> 4, unpaired 28 -> 12).\n\nDIRECTIONAL COMPANION. This is the opposite situation to claim.law.SP_volatile-pool-read-is-load-bearing-it-reproduces-the-per-comparison-reload.20260901.v1, and SP's own cheap screen decides between them: count the target's loads of the constant against ours. If the TARGET has fewer, SP's de-volatilise question applies. If WE have fewer, or the counts agree and only PLACEMENT differs, this law applies instead and de-volatilising would be actively wrong. In the measured function the counts agreed and only placement differed."
+}

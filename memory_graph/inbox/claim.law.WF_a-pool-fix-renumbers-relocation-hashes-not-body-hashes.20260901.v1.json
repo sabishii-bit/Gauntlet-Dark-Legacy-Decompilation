@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Measured while unparking attempt.RC_camerasupervisor-pool-symbol-fix-blocked-by-pinned-permutation-hash.20260901.v1, worktree GDL-Claude-CameraUnlock, branch claude/camera-unlock-20260901, commit 871536105. The blocked park stood because a pool fix in game/game/combat.c broke the PINNED init_game_cam rule; re-deriving the pin took one build and two hash values.",
+    "tags": [
+      "postprocessor",
+      "relocation",
+      "matching",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.WF_a-pool-fix-renumbers-relocation-hashes-not-body-hashes.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T17:43:11Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "THE RULE. Deleting or adding a compiler literal-pool entry renumbers the object's SYMBOL TABLE, and therefore changes the `info` word of EVERY relocation record in the object. It does NOT change any function's compiled bytes. So a pool fix invalidates exactly one kind of pinned field -- an instruction_permutation's before_relocations_sha256 / after_relocations_sha256 -- and leaves every BODY hash (the rule's before_sha256, its after_sha256, and each window's own before/after region hashes) byte-identical. A pinned rule broken by a pool fix is therefore RE-DERIVABLE IN PLACE, and the re-derivation is auditable precisely because the body hashes must come back unchanged: if a body hash moves, the pool fix changed codegen and you are not looking at a renumbering any more.\n\nTHE PROCEDURE, which is a one-build operation and not a reason to park. (1) Land the source fix. (2) Build ONLY the raw body object (build/GUNE5D/src/<dir>/.postprocess/body/<tu>.o) -- the webfrank stage will abort, which is the guard working, and the raw body is all the derivation needs. (3) For each pinned window, recompute the region relocation records exactly as apply_patch does -- read the RELA section whose sh_info names .text, keep records with symbol.value + relative_start <= r_offset < symbol.value + relative_end, rebase each offset to the region, apply the banked order via destination_by_source, and hash with the same >IIi packing. (4) Assert the body hashes re-derive unchanged, then write ONLY the two relocation hashes back. (5) configure.py, then ninja, and confirm every WEBFRANK line for the TU reapplies.\n\nMEASURED. game/game/combat.c: fixing six wrong-relocation-symbol sites in CameraSupervisor deleted four anonymous @NN pool entries. Of the TU's five pinned rules, the four copy_register_fields-only rules replayed untouched; only init_game_cam's permutation failed, at `permute_instruction_atoms: instruction permutation relocation input hash changed`. Its window [0x8c,0x98) carries two ADDR16_LO relocations (MBRemoveBlit, gCurLevel) which post-fix sit at symbol indices 240 and 233. Function body hash, target hash and both region body hashes re-derived BYTE-IDENTICAL; only the two relocation hashes moved. All five rules then replayed.\n\nWHY THE PARK EXISTED, AND THE GENERAL LESSON. RC's record correctly identified the blocker, correctly refused to weaken the guard, and correctly noted the fix is blocked in BOTH directions -- any pool change, toward or away from correctness, invalidates the hash. What it could not know without owning the rule side is that the invalidation is ONLY of the relocation hashes, which makes the unpark cheap. Generalise: a fail-closed hash assert that fires on an unrelated correct change is a SCHEDULING dependency between two lanes, not a permanent block, and the fix is to give one owner both sides rather than to relax the assert. Any lane holding a source TU with pinned siblings can now execute this itself.\n\nSCOPE NOTE. The same reasoning applies to any change that alters which symbols an object references without altering its code -- adding a named extern, dropping a ghost, respelling an anonymous pool label. It does NOT apply to a change that moves instructions; there the body hashes move too and the rule must be genuinely re-derived, not re-hashed."
+}

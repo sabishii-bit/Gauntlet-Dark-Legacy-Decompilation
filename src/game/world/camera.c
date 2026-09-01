@@ -2666,7 +2666,7 @@ void camera_mode_level(s32 reset)
         camera_collide_step(0, lbl_8034601C);
         *(volatile f32*)&lbl_80344408 =
             *(volatile f32*)&lbl_80344530;
-        cam0->pyr[0] = *(volatile f32*)&lbl_80344530;
+        cam0->pyr[0] = *(volatile f32*)&lbl_80344408;
         cam0->pyr[1] = *(volatile f32*)&lbl_80344534;
     }
     calc_cam_pyr(0, 1);
@@ -3581,7 +3581,7 @@ s32 debug_camera_pos(s32 lastPlayer)
         lbl_80344464 =
             (f32)(lbl_80345FC0 * difference + lbl_80345FB0);
         lbl_80344468 =
-            (f32)-(difference * lbl_80345FD0 * lbl_80345FD8 -
+            (f32)-(difference * lbl_80345FD8 * lbl_80345FD0 -
                    lbl_80345FC8);
     }
     if (lbl_80344960 < 0 && (f64)extent >= lbl_80345FE0) {

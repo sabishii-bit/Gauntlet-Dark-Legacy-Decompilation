@@ -392,7 +392,7 @@ typedef struct CombatTriggerCamera {
     f32 x;           /* 0x04 */
     f32 y;           /* 0x08 */
     f32 z;           /* 0x0C */
-    u8  _pad10[8];   /* 0x10 */
+    u8  _pad10[4];   /* 0x10 */
     f32 pitch;       /* 0x14 */
     f32 yaw;         /* 0x18 */
     u8  _pad1C[0xC]; /* 0x1C */
@@ -414,8 +414,9 @@ typedef struct CombatCameraSupervisorScratch {
     volatile f32 projectedRoot;
     volatile f32 segmentRoot;
     volatile f32 candidateRoot;
-    u8 _pad40[12];
+    u8 _pad40[4];
     f32 closest[3];
+    u8 _pad50[8];
 } CombatCameraSupervisorScratch;
 
 /*
@@ -438,10 +439,11 @@ void CameraSupervisor(s32 camIdx)
     u8* secondTrigger;
     f32 nearestDistance = lbl_80346030;
     f32 secondDistance = nearestDistance;
-    f32 nearestYaw = 0.0f;
-    f32 secondYaw = nearestYaw;
-    f32 nearestPitch = nearestYaw;
-    f32 secondPitch = nearestYaw;
+    f32 zero = lbl_80345EC8;
+    f32 nearestYaw = zero;
+    f32 secondYaw = zero;
+    f32 nearestPitch = zero;
+    f32 secondPitch = zero;
     f32 distance;
     f32 combinedDistance;
     f32 segmentLength;
@@ -451,6 +453,10 @@ void CameraSupervisor(s32 camIdx)
     f32 rateDelta;
     CombatCameraSupervisorScratch scratch;
     f64 root;
+    f64 maxYawRate;
+    f64 maxYawStep;
+    f64 maxPitchRate;
+    f64 maxPitchStep;
 
     for (; index < remaining; index++, offset += 0x28) {
         if (sTriggerCameras[offset] == 1 &&
@@ -465,17 +471,17 @@ void CameraSupervisor(s32 camIdx)
                 distance = dy * dy;
                 distance = dx * dx + distance;
                 distance = dz * dz + distance;
-                if ((f64)distance > (f64)0.0f) {
+                if (distance > zero) {
                     root = __frsqrte(distance);
-                    root = 0.5 * root *
-                           -(root * root * distance - 3.0);
-                    root = 0.5 * root *
-                           -(root * root * distance - 3.0);
-                    root = 0.5 * root *
-                           -(root * root * distance - 3.0);
+                    root = lbl_80345F18 * root *
+                           -(root * root * distance - lbl_80345F20);
+                    root = lbl_80345F18 * root *
+                           -(root * root * distance - lbl_80345F20);
+                    root = lbl_80345F18 * root *
+                           -(root * root * distance - lbl_80345F20);
                     scratch.candidateRoot =
-                        (f32)(distance * (0.5 * root *
-                        -(root * root * distance - 3.0)));
+                        (f32)(distance * (lbl_80345F18 * root *
+                        -(root * root * distance - lbl_80345F20)));
                     distance = scratch.candidateRoot;
                 }
 
@@ -536,17 +542,17 @@ void CameraSupervisor(s32 camIdx)
         segmentLength = sy * sy;
         segmentLength = sx * sx + segmentLength;
         segmentLength = sz * sz + segmentLength;
-        if ((f64)segmentLength > (f64)0.0f) {
+        if (segmentLength > lbl_80345EC8) {
             root = __frsqrte(segmentLength);
-            root = 0.5 * root *
-                   -(root * root * segmentLength - 3.0);
-            root = 0.5 * root *
-                   -(root * root * segmentLength - 3.0);
-            root = 0.5 * root *
-                   -(root * root * segmentLength - 3.0);
+            root = lbl_80345F18 * root *
+                   -(root * root * segmentLength - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(root * root * segmentLength - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(root * root * segmentLength - lbl_80345F20);
             scratch.segmentRoot =
-                (f32)(segmentLength * (0.5 * root *
-                -(root * root * segmentLength - 3.0)));
+                (f32)(segmentLength * (lbl_80345F18 * root *
+                -(root * root * segmentLength - lbl_80345F20)));
             segmentLength = scratch.segmentRoot;
         }
 
@@ -556,17 +562,17 @@ void CameraSupervisor(s32 camIdx)
         projectedDistance = sy * sy;
         projectedDistance = sx * sx + projectedDistance;
         projectedDistance = sz * sz + projectedDistance;
-        if ((f64)projectedDistance > (f64)0.0f) {
+        if (projectedDistance > lbl_80345EC8) {
             root = __frsqrte(projectedDistance);
-            root = 0.5 * root *
-                   -(root * root * projectedDistance - 3.0);
-            root = 0.5 * root *
-                   -(root * root * projectedDistance - 3.0);
-            root = 0.5 * root *
-                   -(root * root * projectedDistance - 3.0);
+            root = lbl_80345F18 * root *
+                   -(root * root * projectedDistance - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(root * root * projectedDistance - lbl_80345F20);
+            root = lbl_80345F18 * root *
+                   -(root * root * projectedDistance - lbl_80345F20);
             scratch.projectedRoot =
-                (f32)(projectedDistance * (0.5 * root *
-                -(root * root * projectedDistance - 3.0)));
+                (f32)(projectedDistance * (lbl_80345F18 * root *
+                -(root * root * projectedDistance - lbl_80345F20)));
             projectedDistance = scratch.projectedRoot;
         }
 
@@ -580,7 +586,7 @@ void CameraSupervisor(s32 camIdx)
                 (distance - lbl_80345F28) - lbl_80345FE0);
         }
 
-        if ((f64)projectedRatio <= 0.5) {
+        if ((f64)projectedRatio <= lbl_80345F18) {
             lbl_80344534 = nearestYaw;
             lbl_80344530 = nearestPitch;
             lbl_80344508 = lbl_80344510;
@@ -589,7 +595,7 @@ void CameraSupervisor(s32 camIdx)
             } else {
                 lbl_80344404 = -1;
             }
-        } else if ((f64)projectedRatio > 0.5) {
+        } else if ((f64)projectedRatio > lbl_80345F18) {
             lbl_80344534 = secondYaw;
             lbl_80344530 = secondPitch;
             lbl_80344508 = lbl_8034450C;
@@ -619,17 +625,17 @@ void CameraSupervisor(s32 camIdx)
             selectedDistance = dy * dy;
             selectedDistance = dx * dx + selectedDistance;
             selectedDistance = dz * dz + selectedDistance;
-            if ((f64)selectedDistance > (f64)0.0f) {
+            if (selectedDistance > lbl_80345EC8) {
                 root = __frsqrte(selectedDistance);
-                root = 0.5 * root *
-                       -(root * root * selectedDistance - 3.0);
-                root = 0.5 * root *
-                       -(root * root * selectedDistance - 3.0);
-                root = 0.5 * root *
-                       -(root * root * selectedDistance - 3.0);
+                root = lbl_80345F18 * root *
+                       -(root * root * selectedDistance - lbl_80345F20);
+                root = lbl_80345F18 * root *
+                       -(root * root * selectedDistance - lbl_80345F20);
+                root = lbl_80345F18 * root *
+                       -(root * root * selectedDistance - lbl_80345F20);
                 scratch.selectedRoot =
-                    (f32)(selectedDistance * (0.5 * root *
-                    -(root * root * selectedDistance - 3.0)));
+                    (f32)(selectedDistance * (lbl_80345F18 * root *
+                    -(root * root * selectedDistance - lbl_80345F20)));
                 selectedDistance = scratch.selectedRoot;
             }
 
@@ -643,50 +649,64 @@ void CameraSupervisor(s32 camIdx)
                 if ((f64)distance > lbl_80345F58) {
                     distance = (f32)(lbl_80345F60 - distance);
                 }
+                maxYawRate = lbl_803460F8;
                 scratch.yawRate = distance / selectedDistance;
                 *(u32*)&scratch.yawRate &= 0x7FFFFFFF;
                 lbl_8034444C = scratch.yawRate;
-                if ((f64)scratch.yawRate >= lbl_803460F8) {
+                if ((f64)scratch.yawRate >= maxYawRate) {
                     lbl_8034444C = lbl_80346100;
                 }
 
-                rateDelta = lbl_8034444C - lbl_80344454;
-                scratch.yawRateDelta = rateDelta;
-                *(u32*)&scratch.yawRateDelta &= 0x7FFFFFFF;
-                if ((f64)scratch.yawRateDelta >= lbl_803460D8) {
-                    if (lbl_8034444C > lbl_80344454) {
-                        lbl_8034444C = (f32)(lbl_80344454 + lbl_803460D8);
-                    } else {
-                        lbl_8034444C = (f32)(lbl_80344454 - lbl_803460D8);
+                {
+                    f32 yawRate = lbl_8034444C;
+                    f32 yawRatePrev = lbl_80344454;
+
+                    maxYawStep = lbl_803460D8;
+                    rateDelta = yawRate - yawRatePrev;
+                    scratch.yawRateDelta = rateDelta;
+                    *(u32*)&scratch.yawRateDelta &= 0x7FFFFFFF;
+                    if ((f64)scratch.yawRateDelta >= maxYawStep) {
+                        if (yawRate > yawRatePrev) {
+                            lbl_8034444C = (f32)(yawRatePrev + maxYawStep);
+                        } else {
+                            lbl_8034444C = (f32)(yawRatePrev - maxYawStep);
+                        }
                     }
                 }
 
+                maxPitchRate = lbl_80346108;
                 scratch.pitchRate =
                     (lbl_80344530 - lbl_80344408) / selectedDistance;
                 *(u32*)&scratch.pitchRate &= 0x7FFFFFFF;
                 lbl_80344450 = scratch.pitchRate;
-                if ((f64)scratch.pitchRate >= lbl_80346108) {
+                if ((f64)scratch.pitchRate >= maxPitchRate) {
                     lbl_80344450 = lbl_80346110;
                 }
 
-                rateDelta = lbl_80344450 - lbl_80344458;
-                scratch.pitchRateDelta = rateDelta;
-                *(u32*)&scratch.pitchRateDelta &= 0x7FFFFFFF;
-                if ((f64)scratch.pitchRateDelta >= lbl_80346118) {
-                    if (lbl_80344450 > lbl_80344458) {
-                        lbl_80344450 = (f32)(lbl_80344458 + lbl_80346118);
-                    } else {
-                        lbl_80344450 = (f32)(lbl_80344458 - lbl_80346118);
+                {
+                    f32 pitchRate = lbl_80344450;
+                    f32 pitchRatePrev = lbl_80344458;
+
+                    maxPitchStep = lbl_80346118;
+                    rateDelta = pitchRate - pitchRatePrev;
+                    scratch.pitchRateDelta = rateDelta;
+                    *(u32*)&scratch.pitchRateDelta &= 0x7FFFFFFF;
+                    if ((f64)scratch.pitchRateDelta >= maxPitchStep) {
+                        if (pitchRate > pitchRatePrev) {
+                            lbl_80344450 = (f32)(pitchRatePrev + maxPitchStep);
+                        } else {
+                            lbl_80344450 = (f32)(pitchRatePrev - maxPitchStep);
+                        }
                     }
                 }
 
                 lbl_80344454 = lbl_8034444C;
                 lbl_80344458 = lbl_80344450;
             } else {
-                lbl_8034444C = 0.0f;
-                lbl_80344454 = 0.0f;
-                lbl_80344450 = 0.0f;
-                lbl_80344458 = 0.0f;
+                lbl_8034444C = lbl_80345EC8;
+                lbl_80344454 = lbl_80345EC8;
+                lbl_80344450 = lbl_80345EC8;
+                lbl_80344458 = lbl_80345EC8;
             }
         }
     }
