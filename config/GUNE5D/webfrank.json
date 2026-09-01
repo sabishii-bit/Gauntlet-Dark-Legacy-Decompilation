@@ -1330,6 +1330,27 @@
     ],
     "game/world/camera": [
       {
+        "function": "debug_camera_pos",
+        "before_sha256": "82e089fa643c0bd6e23b227d57fe844c1d9bde3bdf792a4d751028e24765ee49",
+        "after_sha256": "849551999be935e2d6c2a40fb915b9c3c332b48b77026e3bdeed950cf68e867e",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 427,
+          "permuted_instructions": 4
+        },
+        "mechanism": "attempt.WF_debug-camera-pos-referral-banked.20260901.v1, banking the referral in claim.CH_two-derived-closures-referred-to-their-owning-lanes.20260901.v1 now that lane WF owns game/world/camera. The whole 12-line residual is one square-sum load/issue-order difference in the player-extent block at +0x90..+0xa8: six relocation-free atoms, three `lfs fN,disp(r27)` element loads of one vector and three `fmuls`/`fmadds` products of them. Target issues the third element load before the first product; we issue both products first. Order [0, 2, 1, 5, 3, 4]. The window carries NO relocations in either object (both region relocation hashes are the empty-string hash e3b0c442...), so nothing rides an atom and the binding check has nothing to bind. check_permutation_dependences accepts it in its STRICTEST form with NO exit_dead escape: every atom is a load or an arithmetic op with a distinct destination, so no def-use chain, WAR/WAW hazard or final write moves. The remaining eight differing words are a consistent recolor discharged by copy_register_fields and machine-proven by verify_consistent_recolor as a position-consistent bisimulation from the entry identity map, with NO unproven_recolor_audit escape. ORDER SELECTION IS A PROOF, NOT A SEARCH RESULT, and that is the reusable point: EXACTLY TWO shape-consistent bijections exist for this window, [0, 2, 1, 4, 3, 5] and [0, 2, 1, 5, 3, 4]. BOTH pass the dependence audit AND copy_register_fields, so neither the permutation guard nor the recolor guard distinguishes them; only the bisimulation does, refusing the first at +0x9c ('use of f1 does not correspond to f1 under the running renaming') and accepting the second. A derivation that stops at the first bijection its search finds -- identity-preference included -- picks the WRONG one here half the time. Enumerate every shape-consistent order and select by the full guard chain. Not source-reachable: capped by attempt.debug-camera-pos-square-sum-fpr-tie-rescreen.20260831.v1 (three distinct source-shape axes on this exact cluster, all negative, re-arbitrated on objdiff fuzzy). Independently re-derived from the current objects this run, after the lbl_80345FD0/lbl_80345FD8 commutative-chain fix landed in the same function; that fix does not touch this window and both region hashes re-derived identical to CH's.",
+        "instruction_permutation": {
+          "start": "0x90",
+          "end": "0xa8",
+          "order": [0, 2, 1, 5, 3, 4],
+          "before_sha256": "9c52c7ea126ebbff37cf2c22f2bbfbd8266b1f988768d0c6d61586fc98d97599",
+          "after_sha256": "ab9c36fe5c3228698ef86886a4500563869bf1ac8643546f1188ddd377c8d6fc",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "copy_register_fields": true
+      },
+      {
         "function": "camera_init_for_gamemode",
         "before_sha256": "e50243de29fcbd3d8153ca8e40c356cf2173eaf9699c28da6e4239959acb43ad",
         "after_sha256": "f85aa571f1a82a811664518fe4307ecd5529d5b073231bd0614f9c80d4f99087",
