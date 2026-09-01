@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "memCardErrorPrompt was parked STRUCTURAL by a label-only record that ran no source probe. Re-derive the residual from the raw objects, derive a permutation window, dependence-audit it in OUR colouring, compose with copy_register_fields. EXACT - which constructively refutes the STRUCTURAL label.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 IS THE DECISIVE LAW - the park's STRUCTURAL row is a positional-pairing artifact across a reorder, the same defect attempt.SL_drawblitflatquad-label-refutation.20260901.v1 found in this identical mp-label-correction park family. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED FIRST: 25/25, multiset identical (0t). claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1 APPLIED to the moving store: its EMB_SDA21 target lbl_80344A24 is identical in both objects, so the move carries no symbol change. claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 confirmed.",
+    "laws_applied": "[\"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\", \"claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1\"]",
+    "residual": "NONE - real 2 -> 0. Order [0,2,1,3] over +0x38..+0x48: one transposition. Ours materializes the argument `li r4,-1` before the SDA store `stw r0,lbl_80344A24`; the target stores first. The `li` writes r4 only; the store reads r0 (set by the untouched `li r0,0` at +0x38) and writes memory, so the two are disjoint. THIS IS THE LANE'S ONLY RULE WHOSE RELOCATION ACTUALLY MOVES: the store is the sole relocated atom in the window, so its before/after relocation hashes DIFFER rather than matching as they do in an unrelocated window - the EMB_SDA21 entry travels with its own atom and keeps its within-instruction byte offset (+2 in MWCC output; see claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 for why that binding is a derivation-time obligation and not something the guard verifies).",
+    "scope": "config/GUNE5D/webfrank.json only - one rule added to the existing game/sys/memcard block (the add_vmu_file pin screened first and left untouched). NO source edit.",
+    "verification": "probe.py BASELINE real 2 (T25/O25, 0t). Composition proved offline through webfrank's own guards in apply_patch's stage order (all accepted, bytes == target), then fndiff --clean = EXACT 0 real diff lines; defake_gate check game/sys/memcard = GATE OK. Full ninja green; main.dol sha1 540bed0b54c94c6fc63e94b6db20ec927cc66b53 = build.sha1. The superseded label-only park is now stale_solved."
+  },
+  "function": "function:memCardErrorPrompt",
+  "id": "attempt.HV_memcarderrorprompt-argument-store-transposition.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T03:28:32Z",
+  "refutes": "attempt.mp-label-correction.memcarderrorprompt.20260831.v1",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

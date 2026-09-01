@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Image-wide census 2026-09-01, worktree GDL-Claude-MixedHarvest, over all 326 paired units, joining the extracted target objects (build/GUNE5D/obj) with our RAW compiler output (build/GUNE5D/src/**/.postprocess/body, falling back to the plain object) so WebFrank-postprocessed bytes cannot flatter the count. Every candidate order was validated with webfrank's own check_permutation_dependences and every closure claim proved by driving permute_instruction_atoms / equivalent_copy_form / copy_register_fields / verify_consistent_recolor in apply_patch's stage order to byte equality with the target.",
+    "tags": [
+      "postprocessor",
+      "matching",
+      "workflow",
+      "metrics",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.HV_single-region-permute-plus-recolor-census.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-01T03:29:31Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "IMAGE-WIDE CENSUS OF THE MIXED PERMUTE+RECOLOR CLASS, AND A REPEATABLE FILTER THAT FINDS IT. The audit-silence law says the WebFrank-closable set is strictly larger than webfrank_audit reports; this is that set, counted. THE FILTER, in the order that makes it cheap: (1) equal function size - a count delta is ineligible and must be screened first; (2) cluster the differing words and keep functions where AT MOST ONE cluster contains a word that is not a pure register-field difference, since every other cluster is copy_register_fields's job; (3) that cluster, widened one slot each side, must be control-free, because permute_instruction_atoms refuses any region holding a branch; (4) derive an order by matching our atoms to target slots on register-erased form AND on relocation identity (see claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 - matching on the word alone silently swaps SDA relocations), then accept only orders that pass check_permutation_dependences IN OUR COLOURING; (5) prove the whole composition to byte equality before writing a rule. RESULT over 326 units: 29 functions pass screens 1-3. Of those, 8 yield a sound order that closes the function. THREE OF THE EIGHT ARE ALREADY-SHIPPED RULES the scan rediscovered independently - init_game_cam, sysPollResetButton, camera_init_for_gamemode - which is the validation that the filter finds real members rather than artifacts. FIVE WERE NEW and four were landed this session (fn_8005FB48 real 42->0, do_exit real 32->0, pbObjTexSub real 4->0, getNewPosRectShare real 2->0, memCardErrorPrompt real 2->0 - the fifth, movieplayer's fn_800DA60C, was left alone as another lane's TU and is a free exact for whoever owns it). Project matched 62.68% -> 62.86%. THE PARK-QUALITY FINDING, which is the part worth acting on: three of the four newly landed functions were sitting under `attempt.mp-label-correction.*` parks that classified them STRUCTURAL from a positional-pairing artifact and explicitly ran no source probe. A permutation that reproduces the target bytes exactly is a CONSTRUCTIVE disproof of a STRUCTURAL label, and the whole mp-label-correction family should now be treated as unscreened rather than as parked - claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 has now dissolved four of its members (DrawBlitFlatQuad by aligned read, these three by closure). THE NEAR-MISS POPULATION, worth its own pass: three candidates fail only on `base register presence differs (g0 vs gNN)` in the bisimulation - dcsSampleAllocUpload, MemCardCreateGaunt, do_camera. That signature is our `li rD,0` against the target's `addi rD,rS,0`, i.e. exactly equivalent_copy_form's dominating_def case arriving on top of a permutation, so composing the form stage between the permute and the recolor should close all three; they were not attempted here only because do_camera's TU is contested and budget went to the proven set. Two more (ProcessCritter, CTriListCollide) fail on a single non-register word that is likewise a copy-form or immediate site."
+}

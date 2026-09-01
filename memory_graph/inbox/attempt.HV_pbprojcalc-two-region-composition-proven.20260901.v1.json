@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "pbProjCalc: derive permutation windows for the two displaced pool-load sites, dependence-audit in OUR colouring, compose with copy_register_fields. THE COMPOSITION IS MACHINE-PROVEN to reproduce the target bytes exactly; it cannot be shipped because it needs TWO permutation regions and apply_patch accepts ONE. Companion record to attempt.HV_pb-window-both-stragglers-proven-blocked-on-single-region-schema.20260901.v1, which carries the joint forensics.",
+  "attributes": {
+    "law_screen": "claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED - both windows validated with check_permutation_dependences on the raw region in our colouring; both ACCEPTED. claim.law.unpaired-schedule-words-bar-webfrank-candidacy-not-just-its-permute-stage.20260831.v1 REFUTED AS APPLIED TO THIS FUNCTION: attempt.pbprojcalc-zero-web-schedule.20260831.v2 cited it to conclude 'the 8 unpaired words must be closed first, and no source lever for them is known', but the unpaired words are unpaired precisely BECAUSE they are displaced, and a permutation stage is what closes a displacement - the measurement shows they are the permute stage's JOB, not a bar to it. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED FIRST: 608/608, opcode multiset IDENTICAL. claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED. The v2 park's SOURCE-LEVEL conclusions are all UPHELD and none of its do-not-retry axes were re-probed.",
+    "laws_applied": "[\"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\", \"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\"]",
+    "residual": "BLOCKED ON SCHEMA, NOT ON PROOF. real 126, 608/608. Verified spec, ready to ship the moment multi-region permutation exists: permute +0x28..+0x74 order [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,0,17,18] - the shared 0.0f pool load SINKS 16 slots from our +0x28 to the target's +0x68, which is the exact instruction both park versions named as the entire mechanism; then permute +0x3e4..+0x3ec order [1,0], an adjacent swap of an SDA pool load and a stack load 208(r1); then copy_register_fields over 54 words of FPR renaming, accepted by verify_consistent_recolor. Final bytes == target. IMPORTANT: only TWO words of the whole 70-word residual are non-recolor after the first permute, and both are that second adjacent swap - so the function is two transpositions and a rename away from exact. Closing this and pbWinSetup is a pb_window FILE FLIP (13/15 already exact). Window ranges derived from raw-object and fnasm offsets, never from regnorm's @offsets.",
+    "scope": "READ-ONLY derivation and offline proof. NO source edit, NO webfrank.json rule, NO commit. webfrank.py NOT modified (owned this run by lane C2).",
+    "verification": "probe.py BASELINE real 126 (T608/O608, multiset 0t). Composition driven through webfrank's own permute_instruction_atoms / copy_register_fields / verify_consistent_recolor in apply_patch's stage order: every stage ACCEPTED, output bytes identical to the extracted target function. defake_gate baseline game/pb/pb_window taken and the TU left untouched."
+  },
+  "function": "function:pbProjCalc",
+  "id": "attempt.HV_pbprojcalc-two-region-composition-proven.20260901.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-01T03:28:56Z",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

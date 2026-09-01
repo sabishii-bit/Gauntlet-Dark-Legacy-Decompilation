@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Found 2026-09-01 in worktree GDL-Claude-MixedHarvest while matching atoms by relocation identity in gauntworld's fn_8005FDA8. Fixed and committed as 8236ffcc3; the fix is score-neutral (real 16 before and after), which is the whole point of the record.",
+    "tags": [
+      "symbol-identity",
+      "matching",
+      "metrics",
+      "build-hygiene",
+      "sda-global"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.HV_named-literal-defines-leak-past-their-undef-and-produce-score-invisible-wrong-reads.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T03:29:25Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "THE `#define <globalname> <literal>` POOL-NAMING IDIOM CAN SILENTLY CONVERT A GLOBAL READ INTO A CONSTANT READ, AND NOTHING IN THE SCORE STACK SEES IT. Several large NonMatching TUs name their float pool constants by #defining a symbol to a literal for one span of the file and #undefing it afterwards - gauntworld.c does this for about 35 names between lines 4348 and 5597. The hazard is that some of those names are ALSO real extern globals declared elsewhere in the same file, so the identifier means a compile-time literal inside the block and a runtime global outside it. When a later pass propagates a value across that boundary - writing `x = 2.0f` in a function defined after the #undef, because the macro said sCameraVisibilityRadius was 2.0f - the result is a genuine semantic defect: the retail code re-reads a global that other code can change, ours burns in whatever the constant happened to be at reconstruction time. WHY IT IS INVISIBLE: both forms compile to the SAME INSTRUCTION WORD. A literal becomes an own-pool entry loaded with `lfs f0,0(0)` under EMB_SDA21; the global is loaded with the identical `lfs f0,0(0)` under EMB_SDA21. Only the relocation SYMBOL differs. So the opcode multiset is identical, fndiff `real` does not move, objdiff fuzzy does not move, and probe.py reports NEUTRAL on the fix. This is the same family as claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 and it confirms claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1 from a new direction. THE MEASURED INSTANCE: gauntworld.c line 6184, inside fn_8005FDA8 (defined at 6147, i.e. after the #undef at 5591), read `lbl_80344190 = 2.0f;` where the target reads the global - `lbl_80344190 = sCameraVisibilityRadius;`. HOW TO FIND MORE: match instruction atoms between our object and the target by (relocation type, symbol) rather than by instruction word; any site where the target names a REAL global and we name an own-pool `@NNNN` entry is a candidate, and the reverse (we name a global where the target names a pool label) is the same defect with the polarity flipped. Note that a pool-label-to-pool-label difference (`@1280` vs `lbl_80346ED8`) is the ordinary benign NonMatching-TU naming artifact and must NOT be flagged. HYGIENE FOR THE IDIOM ITSELF: never #define a name that is also a real extern in the same TU without checking every use site's position against the #undef, and prefer distinct spellings for the pool aliases so the two can never be confused."
+}

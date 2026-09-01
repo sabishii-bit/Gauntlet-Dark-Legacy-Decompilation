@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Found 2026-09-01 in worktree GDL-Claude-MixedHarvest while deriving the fn_8005FB48 permutation, when a word-only atom matcher proposed an order that swapped two SDA loads carrying different symbols. Confirmed by reading permute_instruction_atoms and by an executable demonstration now shipped as tools/gdl/tests/test_webfrank.py::GauntworldPreheaderPermutationTests::test_payload_check_does_not_bind_a_relocation_to_its_atom, which shows the guard ACCEPTING a relocation-exchanging order.",
+    "tags": [
+      "postprocessor",
+      "relocation",
+      "matching",
+      "workflow",
+      "sda-global"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T03:29:08Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "WEBFRANK'S PERMUTATION RELOCATION CHECK PROVES CONSERVATION, NOT BINDING - AND THE GAP IS REACHABLE BY AN HONEST DERIVATION MISTAKE, NOT ONLY BY MALICE. permute_instruction_atoms moves each relocation with its source atom and then verifies the result by comparing `sorted((offset % 4, info, addend))` before and after. That multiset DROPS THE ATOM INDEX ENTIRELY, keeping only the within-instruction byte offset. So it proves exactly this much: no relocation was created, destroyed, retyped, re-symboled or moved to a different byte position inside its instruction. It does NOT prove that each relocation stayed attached to the instruction it belongs to. Whenever two relocated atoms in one window share a within-instruction offset - which every EMB_SDA21 pair does, and every ADDR16_LO pair does - any permutation that exchanges them passes the check unchanged. WHY THIS IS A LIVE HAZARD AND NOT A THEORETICAL ONE: the SDA load/store family (`lfs`/`lfd`/`stfs`/`lwz` in the `rD,0(0)` form) encodes its displacement as zero and lets the relocation supply it, so two such words differ ONLY in a register field. A matcher that pairs our atoms to target slots by instruction word - the obvious way to write one - therefore considers them freely interchangeable and will cheerfully emit an order that swaps them. The result is an object whose TEXT is byte-identical to the target and whose relocations point the loads at each other's globals: a genuine semantic defect that fndiff real, the opcode multiset, objdiff fuzzy and the whole webfrank guard family all report as EXACT. This lane hit exactly that: fn_8005FB48's window holds three SDA loads (the own-pool 2^52 constant, sZeroDouble, sItemZero) and the word-only matcher's first proposal permuted them wrongly. THE RULE: binding a relocated atom to its target slot is an obligation of whoever DERIVES the order, discharged before the guard ever runs, and it must be stated in the rule's mechanism prose so a reviewer can check it. Match relocated atoms by (relocation type, symbol), never by instruction word. Compiler-generated pool labels are spelled `@NNNN` in MWCC output and `lbl_XXXXXXXX` in the dtk-extracted target, so those cannot be matched by name: require instead a CONSISTENT one-to-one correspondence between our pool symbols and the target's across the whole window, and match every non-pool symbol by exact name. COROLLARY for the tool owner: this is cheap to close properly - carry the (type, symbol) of each atom's relocation through the permutation and assert it against the target object's relocation at the destination offset, modulo a declared pool-label correspondence. Until that exists, treat every multi-relocation permutation window as requiring a hand-checked, recorded symbol audit."
+}
