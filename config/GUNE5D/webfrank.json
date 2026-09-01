@@ -829,6 +829,28 @@
         "copy_register_fields": true
       }
     ],
+    "game/shop/shop": [
+      {
+        "function": "show_piles",
+        "before_sha256": "9d33c671e5a5e25ab96a0ffaf903c9b63851ea284335cf2cde2a1f5009dcc2e1",
+        "after_sha256": "19b65552b3b975c07b8cbe1f2a0da4d2073db3e2d81b16bae2af687426b906c8",
+        "mechanism": "attempt.CH_show-piles-composed-close.20260901.v1 - unhidden by the FIXED census pair (bipartite derivation + instruction-keyed SDA21 relocation binding), not by any new edit class. Both prior passes over this population left show_piles undecided: CN's order search is capped at 8 atoms by itertools.permutations and this window is exactly 8, and more decisively its relocation filter compares RAW r_offset, which false-negatives here for the reason claim.law.CH_sda21-relocation-offset-encoding-differs-between-our-objects-and-the-extracted-target.20260901.v1 measures image-wide. PERMUTATION over [0x1c,0x3c), order [0,1,2,3,4,6,5,7]: a single exchange of two adjacent atoms. The target seeds the loop counter with `li r29,1` and then advances the record pointer with `addi r9,r9,224`; our stream emits the advance before the seed. The two atoms are provably independent - the `li` defines r31 and reads nothing, the `addi` defines r6 and reads only r6, so there is no RAW, WAR or WAW edge between them - and both are memory-free and non-control, so check_permutation_dependences accepts the exchange in its STRICTEST form with no exit_dead escape invoked. THE RELOCATION POINT, which is why this rule exists now and not two passes ago: atom 7 (+0x38) carries an R_PPC_EMB_SDA21 relocation naming lbl_80343E0C, recorded at +0x3a in our object and at +0x38 in the extracted target. Keying binding by the owning instruction, (off - base) & ~3, binds them; comparing raw offsets does not, and the order is silently discarded as inadmissible. Atom 7 does not move, so both region relocation hashes are identical and the rule is still pinned to that symbol and will fail closed if it changes. The remaining 21 differing words are one consistent renaming (r9->r8, r8->r7, r6->r9, r7->r6, r31->r29) verified as a bisimulation by copy_register_fields; residual is 0 through apply_patch against the real object.",
+        "audit": {
+          "classification": "SCHEDULE",
+          "instructions": 102
+        },
+        "instruction_permutation": {
+          "start": "0x1c",
+          "end": "0x3c",
+          "order": [0, 1, 2, 3, 4, 6, 5, 7],
+          "before_sha256": "01da2d905763bd3dbf7cb0291a5d9e59f9d46501195435f10e2be4537a4467ff",
+          "after_sha256": "e23d59df48ce20734746af4baa6ac9dd7b0716c61d4f0d53af716eb25a196c80",
+          "before_relocations_sha256": "528ff7deea393a2409658d9c036688f314af94996a41b9fec0789d1b6b4d6e94",
+          "after_relocations_sha256": "528ff7deea393a2409658d9c036688f314af94996a41b9fec0789d1b6b4d6e94"
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/sound/sounds_evt": [
       {
         "function": "AudioPlayerEatSFX",
