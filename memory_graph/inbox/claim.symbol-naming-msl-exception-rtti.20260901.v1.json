@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "commit": "e375993ac",
+    "laws_applied": [
+      "claim.law.rtti-vtable-chain-recovers-cpp-class-names.20260901.v1",
+      "claim.law.rtti-duplicate-record-per-referencing-context.20260901.v1"
+    ],
+    "tags": [
+      "symbol-identity",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.symbol-naming-msl-exception-rtti.20260901.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-09-01T01:15:14Z",
+  "schema_version": 1,
+  "subject": "tu:Runtime.PPCEABI.H/ExceptionPPC",
+  "valid_from": "2026-09-01",
+  "value": "APPLIED RENAME (commit e375993ac): lbl_80344060 -> __RTTI__Q23std13bad_exception, .sdata:0x80344060, type:object size:0x8 scope:local. EVIDENCE IS COMPILER-AUTHORITATIVE, NOT POSITIONAL -- the built object's own symbol table names it: powerpc-eabi-nm build/GUNE5D/src/Runtime.PPCEABI.H/ExceptionPPC.o prints '00000008 d __RTTI__Q23std13bad_exception', and splits.txt puts ExceptionPPC.cpp's .sdata at 0x80344058, so .sdata+8 = VA 0x80344060 exactly. Corroborated independently by the RTTI chain: __vt__Q23std13bad_exception (0x80238490) word0 -> 0x80344060 -> name string 0x8011796C 'std::bad_exception', base descriptor lbl_80238484 -> 'std::exception'. The scope:local half comes from the same nm line (lowercase 'd') and matches the sibling __RTTI__Q23std9exception at 0x80344048. THESE TWO TUs ARE BUILT -RTTI on (configure.py extra_cflags for NMWException.cpp and ExceptionPPC.cpp: '-Cpp_exceptions on', '-RTTI on', '-str reuse,nopool'), which is WHY the compiler emits these records itself and why nm can be used as the naming authority here -- this does NOT hold for game TUs, which are built -RTTI off and get their RTTI data linked from original bytes. GATE: python configure.py + full ninja -j2 green, build/GUNE5D/main.dol: OK, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679, progress unchanged at 98.13% fuzzy / 62.15% matched (a pure symbol rename must not move either, and did not); git diff --check clean; diff is exactly one line of config/GUNE5D/symbols.txt. DELIBERATELY NOT RENAMED, do not re-attempt: lbl_80344058 is ExceptionPPC.cpp's own local duplicate of std::exception's RTTI record (nm: '00000000 d __RTTI__Q23std9exception'). Its true mangled name __RTTI__Q23std9exception is ALREADY HELD by the NMWException.cpp copy at 0x80344048, so adopting it would define the name twice; symbols.txt requires unique names and two distinct scope:local symbols may legitimately share a mangled name. Leaving it as lbl_80344058 is the CORRECT resolution, not an open gap. Also left alone: the base descriptor at lbl_80238484 (ExceptionPPC .data+0xCC) carries no name in the object's symbol table -- CodeWarrior emits base descriptors anonymously -- so there is no real name to adopt and none should be invented."
+}

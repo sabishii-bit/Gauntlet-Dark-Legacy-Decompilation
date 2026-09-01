@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "laws_applied": [
+      "claim.law.rtti-vtable-chain-recovers-cpp-class-names.20260901.v1"
+    ],
+    "tags": [
+      "symbol-identity",
+      "matching",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.rtti-duplicate-record-per-referencing-context.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T01:14:48Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "A CodeWarrior C++ CLASS HAS MORE THAN ONE RTTI RECORD IN THE IMAGE WHEN IT IS USED AS A BASE CLASS: the record a derived class's BASE DESCRIPTOR points at is a SEPARATE, DUPLICATE record from the one in the base class's OWN vtable, with its OWN duplicate copy of the class-name string. Therefore ANY tool that walks the RTTI chain MUST DEDUPLICATE BY CLASS NAME, NEVER BY RECORD ADDRESS, or it will report the same class twice and mis-count the image. MEASURED both times, 2026-09-01, image-wide via tools/gdl/rttiscan.py: (1) 'std::exception' has records at 0x80344048 AND 0x80344058, with two identical name strings at 0x801178EC and 0x80117980; (2) 'Codec' has records at 0x80344010 AND 0x80344024, with two identical 'Codec' strings at 0x803493C8 and 0x803493D0 (a raw dump of the sdata2 pool shows '436f646563 00' twice back to back). THE MECHANISM IS PROVEN FOR THE CROSS-TU CASE by splits.txt plus the built object's own symbol table, which is free, decisive evidence -- read it before theorizing. __RTTI__ records are emitted scope:local (powerpc-eabi-nm shows lowercase 'd'), so a local record in one TU is NOT linkable from another; a derived class in a DIFFERENT TU must therefore emit its OWN local copy of the base's RTTI record to point its base descriptor at. Confirmed exactly: splits.txt gives NMWException.cpp .sdata 0x80344048-0x80344058 and ExceptionPPC.cpp .sdata 0x80344058-0x80344068, and nm on build/GUNE5D/src/Runtime.PPCEABI.H/ExceptionPPC.o prints '00000000 d __RTTI__Q23std9exception' and '00000008 d __RTTI__Q23std13bad_exception' -- i.e. ExceptionPPC.cpp defines its OWN std::exception RTTI record at .sdata+0 (VA 0x80344058) purely to serve std::bad_exception's base descriptor at lbl_80238484, while NMWException.cpp owns the copy at 0x80344048 that std::exception's own vtable points at. THE CODEC PAIR IS THE SAME SHAPE BUT NOT FULLY EXPLAINED: both Codec records live inside the SINGLE TU game/movie/movieplayer.cpp, so the cross-TU linkage argument does not apply there; the duplicated NAME STRING (which intra-TU string pooling would normally have merged) indicates two independent emissions rather than one, but the exact trigger is not established -- do NOT over-generalize the cross-TU explanation to the intra-TU case without new evidence. PRACTICAL CONSEQUENCE FOR NAMING: two distinct local symbols legitimately carry the SAME mangled name, so symbols.txt (which requires unique names) CANNOT hold both. 0x80344058 is a genuine NAME-TAKEN case against the existing __RTTI__Q23std9exception at 0x80344048 and must be left as lbl_80344058; that is correct, not a gap to be closed."
+}

@@ -1,0 +1,12 @@
+{
+  "id": "tool.rttiscan.20260901.v1",
+  "kind": "tool",
+  "name": "rttiscan",
+  "purpose": "Image-wide CodeWarrior RTTI/vtable sweep of the retail DOL: recovers C++ class names, base chains, dtor and vtable addresses, with the std::exception controls baked in as a fail-closed self-test.",
+  "recorded_at": "2026-09-01T01:14:56Z",
+  "schema_version": 1,
+  "status": "active",
+  "tool_key": "tool:rttiscan",
+  "tool_kind": "analysis",
+  "valid_from": "2026-09-01"
+}
