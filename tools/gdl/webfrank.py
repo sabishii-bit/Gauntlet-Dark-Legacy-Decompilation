@@ -413,6 +413,19 @@ _CALL_ARGUMENTS = frozenset(
 # named save range and the r11 save-area pointer.
 _HELPER_CALL_RE = re.compile(r"^_(save|rest)(gpr|fpr)_(\d+)$")
 
+# The PPC EABI callee-saved GPRs.  r13 is the small-data base and is also
+# preserved, but it is dedicated rather than allocatable and is deliberately
+# excluded so this set means exactly "registers a normal callee restores".
+_EABI_CALLEE_SAVED_GPRS = frozenset(range(14, 32))
+
+# PowerPC text relocation types that patch ONLY an immediate/displacement
+# field, leaving the opcode and every register field intact: ADDR16,
+# ADDR16_LO, ADDR16_HI, ADDR16_HA, REL24, REL14.  Deliberately EXCLUDES
+# R_PPC_ADDR32/R_PPC_REL32 (whole-word) and R_PPC_EMB_SDA21 (which rewrites
+# the base register field to r2/r13), so a decoded write set may only be
+# trusted for a relocated word whose type is in this set.
+_IMMEDIATE_ONLY_RELOCATIONS = frozenset({3, 4, 5, 6, 10, 11})
+
 # Operand pairs the compiler may freely exchange: the two factors of an
 # integer/FP multiply or add, the two sources of symmetric logicals, and the
 # FRA/FRC factors of fused multiply-adds.  Keyed by (opcode, xo); values are
@@ -1101,20 +1114,104 @@ def _entry_indexes(successors: list[list[int]]) -> set[int]:
     return entries
 
 
+def _prove_call_preserves_source(
+    index: int, word: int, source: int, call_targets: dict | None,
+) -> None:
+    """Fail closed unless a *direct, named, non-millicode* ``bl`` at *index*
+    provably leaves GPR *source* intact.
+
+    This is the ONLY control form the backward scan may cross, and it is
+    gated on four separately machine-checked facts.  Three of them are
+    decided here from the bytes and the relocation table; the fourth is a
+    stated ABI axiom, which is why this path carries its own proof label
+    (``dominating_def_across_calls``) and can never be taken silently by a
+    rule that merely asked for ``dominating_def``.
+
+    1. *source* is one of r14-r31.  The PPC EABI makes exactly these GPRs
+       callee-saved; a volatile source may be clobbered by any call and is
+       refused outright.
+    2. The word is ``bl`` — opcode 18 with LK set and AA clear.  ``bctrl``
+       and ``blrl`` call an address this scan cannot resolve to a symbol,
+       ``bla`` is absolute, and every conditional or non-linking branch is
+       ordinary control flow rather than a call; all are refused, so the
+       relaxation is strictly about calls and never about branches.
+    3. The call carries a REL24 relocation naming its callee.  Without a
+       name the callee cannot be screened at all, so an unrelocated (and
+       therefore already-bound, unnameable) call is refused.
+    4. The named callee is NOT MWCC's ``_savegpr_N``/``_restgpr_N``/
+       ``_savefpr_N``/``_restfpr_N`` millicode.  This is the trap the check
+       exists for: that millicode deliberately writes the callee-saved
+       range it is named for — ``_restgpr_28`` really does redefine
+       r28-r31 — so it is the one class of direct call that breaks the
+       preservation contract.  ``_helper_call`` already models exactly this
+       family for the recolor stage and is reused here rather than
+       re-derived.
+
+    THE RESIDUAL AXIOM, stated so it is auditable: for a direct call to a
+    named non-millicode symbol, this function assumes the callee honours
+    the PPC EABI and restores r14-r31.  That is an assumption about code
+    outside this object, not a fact derived from the bytes in front of us,
+    and it is the entire reason the relaxation needs an opt-in label.
+    """
+    offset = index * 4
+    if source not in _EABI_CALLEE_SAVED_GPRS:
+        raise ValueError(
+            f"+0x{offset:x}: r{source} is volatile, so an interposed call "
+            f"may clobber it; only r14-r31 may be carried across a call"
+        )
+    if (word >> 26) != 18 or (word & 3) != 1:
+        raise ValueError(
+            f"+0x{offset:x}: only a direct `bl` may be crossed, and "
+            f"0x{word:08x} is not one"
+        )
+    name = (call_targets or {}).get(offset)
+    if not name:
+        raise ValueError(
+            f"+0x{offset:x}: `bl` carries no REL24 relocation naming its "
+            f"callee, so the callee cannot be screened"
+        )
+    if _helper_call(name) is not None:
+        raise ValueError(
+            f"+0x{offset:x}: `bl {name}` is MWCC register millicode, which "
+            f"writes the callee-saved range it is named for"
+        )
+
+
 def prove_constant_source(
     words: list[int], site: int, source: int, constant: int,
     entry_indexes: set[int], relocated_indexes: set[int],
+    *, across_calls: bool = False, call_targets: dict | None = None,
+    relocation_types: dict | None = None,
 ) -> int:
     """Prove GPR *source* holds *constant* on entry to instruction *site*.
 
     The proof is a straight-line backward scan and is deliberately the
     weakest one that is obviously sound: walking back from the site it
     fails closed on the first index that can be entered from anywhere but
-    its own fallthrough edge, on any control instruction, on any
-    relocated word, and on any write to *source* that is not the exact
-    ``li source,constant`` being looked for.  Reaching such a definition
-    with no interposed write and no way into the span from elsewhere makes
-    *source* equal to *constant* on every path that reaches the site.
+    its own fallthrough edge, on any control instruction, on a relocated
+    word it cannot account for, and on any write to *source* that is not
+    the exact ``li source,constant`` being looked for.  Reaching such a
+    definition with no interposed write and no way into the span from
+    elsewhere makes *source* equal to *constant* on every path that
+    reaches the site.
+
+    RELOCATED WORDS.  A relocated word may never be the definition: an
+    unresolved address half is not the literal the proof needs, so that
+    case is refused outright and unconditionally.  An *interposed*
+    relocated word that does not write *source* cannot change *source*,
+    but only once we know the relocation cannot rewrite the register
+    fields the write set was decoded from — so its type must be in
+    ``_IMMEDIATE_ONLY_RELOCATIONS`` and is checked BEFORE the word is
+    decoded.  This distinction only matters once a rule composes stages:
+    a permutation can move a relocated word into a proof span that did
+    not contain one in the raw stream.
+
+    With *across_calls* set the single exception described in
+    ``_prove_call_preserves_source`` applies: a direct, named,
+    non-millicode ``bl`` may be stepped over when *source* is callee-saved.
+    Everything else about the scan is unchanged — in particular the
+    entry-index check still runs at every step, so the span must still be
+    straight-line, and any OTHER control form still fails closed.
 
     Returns the index of the dominating definition.
     """
@@ -1127,15 +1224,41 @@ def prove_constant_source(
             )
         word = words[index]
         if _is_control_instruction(word):
-            raise ValueError(
-                f"+0x{index * 4:x}: control instruction inside the proof span"
-            )
-        if index in relocated_indexes:
-            raise ValueError(
-                f"+0x{index * 4:x}: relocated word inside the proof span"
-            )
+            if not across_calls:
+                raise ValueError(
+                    f"+0x{index * 4:x}: control instruction inside the "
+                    f"proof span"
+                )
+            # A crossable call is validated as a CALL, so its own REL24
+            # relocation is the evidence rather than a disqualifier; the
+            # relocated-word check below would otherwise reject every
+            # named call by construction.
+            _prove_call_preserves_source(index, word, source, call_targets)
+            index -= 1
+            continue
+        relocated = index in relocated_indexes
+        if relocated:
+            # The write set below is decoded from opcode and register
+            # fields, so it is only trustworthy when the relocation cannot
+            # touch those bits.  R_PPC_EMB_SDA21 is the counterexample that
+            # makes this a real check rather than a formality: it rewrites
+            # the base REGISTER field to r2/r13.  Validate the type BEFORE
+            # believing anything decoded from the word.
+            kind = (relocation_types or {}).get(index)
+            if kind not in _IMMEDIATE_ONLY_RELOCATIONS:
+                raise ValueError(
+                    f"+0x{index * 4:x}: relocated word inside the proof span "
+                    f"carries relocation type {kind}, which may rewrite bits "
+                    f"outside the immediate field"
+                )
         _reads, writes = _word_effects(word)
         if ("g", source) in writes:
+            if relocated:
+                raise ValueError(
+                    f"+0x{index * 4:x}: r{source} is defined by a relocated "
+                    f"word, whose immediate is an unresolved address rather "
+                    f"than the literal this proof requires"
+                )
             form = decode_copy_form(word)
             if form is None or form[0] != "li" or form[1] != source:
                 raise ValueError(
@@ -1157,7 +1280,8 @@ def prove_constant_source(
 def equivalent_copy_form(
     current: bytes, target: bytes, edits: list,
     relocated_offsets: set[int], target_relocated_offsets: set[int],
-    jumptable_offsets: set[int],
+    jumptable_offsets: set[int], call_targets: dict | None = None,
+    relocation_types: dict | None = None,
 ) -> tuple[bytes, int]:
     """Rewrite named words to the target's equivalent copy encoding.
 
@@ -1173,6 +1297,15 @@ def equivalent_copy_form(
     copy ``rD <- rS`` with ``rS != 0``, and a backward scan proves rS holds
     K at that point.  This is a value-equivalence obligation, discharged by
     ``prove_constant_source``.
+
+    ``dominating_def_across_calls`` — the same obligation, discharged by
+    the same scan, but permitting the scan to step over a direct, named,
+    non-millicode ``bl`` when rS is callee-saved.  It is a SEPARATE label
+    rather than a widening of ``dominating_def`` because it rests on an
+    ABI axiom about code outside this object; see
+    ``_prove_call_preserves_source`` for the four checks and the axiom.
+    A rule must ask for it by name, so no existing rule can drift onto the
+    weaker proof.
 
     Every edit additionally requires that neither object carries a
     relocation on the rewritten word, and each rewritten word must equal
@@ -1244,14 +1377,18 @@ def equivalent_copy_form(
                     f"r{source}) — that is a recolor, not a form change"
                 )
         elif ours[0] == "li":
-            if proof != "dominating_def":
+            if proof not in ("dominating_def", "dominating_def_across_calls"):
                 raise ValueError(
                     f"+0x{offset:x}: constant-load site requires "
-                    f'"proof": "dominating_def"'
+                    f'"proof": "dominating_def" (or, to cross a direct '
+                    f'named call, "dominating_def_across_calls")'
                 )
             definition = prove_constant_source(
                 words, offset // 4, source, ours[2], entries,
                 relocated_indexes,
+                across_calls=(proof == "dominating_def_across_calls"),
+                call_targets=call_targets,
+                relocation_types=relocation_types,
             )
             edit["_proved_at"] = definition * 4
         else:
@@ -1323,6 +1460,10 @@ def apply_patch(
     call_targets = {
         offset: name for offset, (reloc_type, name) in text_relocations.items()
         if reloc_type == 10  # R_PPC_REL24
+    }
+    relocation_types = {
+        offset // 4: reloc_type
+        for offset, (reloc_type, _name) in text_relocations.items()
     }
     jumptable_offsets = _jumptable_targets(
         data, sections, symbol.section_index,
@@ -1422,6 +1563,28 @@ def apply_patch(
             )
         changed += moved
 
+        # The permutation just rewrote the relocation table, so the offsets
+        # captured before it ran are stale.  Every later stage consumes
+        # these sets as a FAIL-CLOSED input (a relocated word is not a
+        # literal, and a relocated word is not a copy-form candidate), and a
+        # stale set can silently move a word out from under its own guard.
+        # Re-derive them from the patched object before any stage that
+        # composes with the permutation.
+        text_relocations = _function_text_relocations(
+            data, sections, symbol.section_index,
+            symbol.value, symbol.value + symbol.size,
+        )
+        relocated_offsets = set(text_relocations)
+        call_targets = {
+            offset: name
+            for offset, (reloc_type, name) in text_relocations.items()
+            if reloc_type == 10  # R_PPC_REL24
+        }
+        relocation_types = {
+            offset // 4: reloc_type
+            for offset, (reloc_type, _name) in text_relocations.items()
+        }
+
     copy_forms = patch.get("equivalent_copy_form")
     if copy_forms:
         if target_data is None:
@@ -1447,6 +1610,8 @@ def apply_patch(
             relocated_offsets=relocated_offsets,
             target_relocated_offsets=set(target_relocations),
             jumptable_offsets=jumptable_offsets,
+            call_targets=call_targets,
+            relocation_types=relocation_types,
         )
         data[start:end] = rewritten
         changed += form_changes

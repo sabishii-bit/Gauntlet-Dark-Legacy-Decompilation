@@ -684,6 +684,11 @@ BLR = 0x4E800020
 BL = 0x48000001
 NOP = 0x60000000
 BNE_PLUS_8 = 0x40800008
+LI_R6_0 = 0x38C00000        # li r6,0      (a VOLATILE destination)
+BCTRL = 0x4E800421          # indirect call through CTR
+BLRL = 0x4E800021           # indirect call through LR
+BNE_MINUS_4 = 0x4082FFFC    # bne -4: control, but not a call
+ADDI_R5_R6 = 0x38A60000     # addi r5,r6,0 — writes r5, never r31
 
 
 class DecodeCopyFormTests(unittest.TestCase):
@@ -891,6 +896,239 @@ class EquivalentCopyFormTests(unittest.TestCase):
             self.rewrite(
                 _words(MR_R23_R6), _words(ADDI_R23_R6, BLR),
                 [{"at": 0, "proof": "unconditional"}],
+            )
+
+
+class DominatingDefAcrossCallsTests(unittest.TestCase):
+    """The `dominating_def_across_calls` relaxation.
+
+    The scan may step over a direct, named, non-millicode `bl` when the
+    copied source register is callee-saved.  Every one of those four words
+    is load-bearing, so each gets its own rejection test alongside the
+    accept path.  Shape under test is the measured G3DReadControlPadStates
+    one: `li rS,0` ... `bl <callee>` ... `li rD,0` against a target that
+    copies rD from the still-live rS.
+    """
+
+    def rewrite(self, current, target, edits, **overrides):
+        arguments = {
+            "relocated_offsets": set(),
+            "target_relocated_offsets": set(),
+            "jumptable_offsets": set(),
+            "call_targets": {4: "G3DGetPadStatusBuffer"},
+        }
+        arguments.update(overrides)
+        return equivalent_copy_form(current, target, edits, **arguments)
+
+    def spanning_call(self):
+        # li r31,0 ; bl <callee> ; li r29,0   ->   ... ; addi r29,r31,0
+        return (
+            _words(LI_R31_0, BL, LI_R29_0, BLR),
+            _words(LI_R31_0, BL, ADDI_R29_R31, BLR),
+        )
+
+    # ---- accept ----
+
+    def test_callee_saved_source_crosses_a_named_direct_call(self):
+        current, target = self.spanning_call()
+        edits = [{"at": 8, "proof": "dominating_def_across_calls"}]
+        output, changed = self.rewrite(current, target, edits)
+        self.assertEqual(output, target)
+        self.assertEqual(changed, 1)
+        # The proof must name the real dominating definition, not merely
+        # decline to fail.
+        self.assertEqual(edits[0]["_proved_at"], 0)
+
+    # ---- reject: each of the four checked facts ----
+
+    def test_volatile_source_may_not_cross_a_call(self):
+        # Same shape, but the copied source is r6, which any callee may
+        # clobber.  li r6,0 ; bl ; li r23,0  ->  ... ; addi r23,r6,0
+        current = _words(LI_R6_0, BL, LI_R23_0, BLR)
+        target = _words(LI_R6_0, BL, ADDI_R23_R6, BLR)
+        with self.assertRaisesRegex(ValueError, "r6 is volatile"):
+            self.rewrite(
+                current, target,
+                [{"at": 8, "proof": "dominating_def_across_calls"}],
+            )
+
+    def test_indirect_call_may_not_be_crossed(self):
+        # bctrl reaches an address this scan cannot resolve to a symbol.
+        current = _words(LI_R31_0, BCTRL, LI_R29_0, BLR)
+        target = _words(LI_R31_0, BCTRL, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "only a direct `bl`"):
+            self.rewrite(
+                current, target,
+                [{"at": 8, "proof": "dominating_def_across_calls"}],
+            )
+
+    def test_indirect_call_through_lr_may_not_be_crossed(self):
+        current = _words(LI_R31_0, BLRL, LI_R29_0, BLR)
+        target = _words(LI_R31_0, BLRL, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "only a direct `bl`"):
+            self.rewrite(
+                current, target,
+                [{"at": 8, "proof": "dominating_def_across_calls"}],
+            )
+
+    def test_unnamed_call_may_not_be_crossed(self):
+        # No REL24 relocation means no callee name, so the callee cannot be
+        # screened against the millicode family at all.
+        current, target = self.spanning_call()
+        with self.assertRaisesRegex(ValueError, "no REL24 relocation"):
+            self.rewrite(
+                current, target,
+                [{"at": 8, "proof": "dominating_def_across_calls"}],
+                call_targets={},
+            )
+
+    def test_register_millicode_may_not_be_crossed(self):
+        # THE TRAP: _restgpr_28 deliberately rewrites r28-r31, so it is the
+        # one direct call that breaks the EABI preservation contract.
+        current, target = self.spanning_call()
+        with self.assertRaisesRegex(ValueError, "millicode"):
+            self.rewrite(
+                current, target,
+                [{"at": 8, "proof": "dominating_def_across_calls"}],
+                call_targets={4: "_restgpr_28"},
+            )
+
+    def test_save_millicode_is_refused_too(self):
+        current, target = self.spanning_call()
+        with self.assertRaisesRegex(ValueError, "millicode"):
+            self.rewrite(
+                current, target,
+                [{"at": 8, "proof": "dominating_def_across_calls"}],
+                call_targets={4: "_savefpr_27"},
+            )
+
+    # ---- reject: the relaxation is about CALLS, not control in general ----
+
+    def test_conditional_branch_is_still_not_crossable(self):
+        # bne -4 is control but not a call, so it stays refused even with
+        # the relaxation requested.
+        current = _words(LI_R31_0, BNE_MINUS_4, LI_R29_0, BLR)
+        target = _words(LI_R31_0, BNE_MINUS_4, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "only a direct `bl`"):
+            self.rewrite(
+                current, target,
+                [{"at": 8, "proof": "dominating_def_across_calls"}],
+            )
+
+    def test_branch_into_the_span_is_still_rejected(self):
+        # The entry-index check is untouched by the relaxation.
+        current = _words(LI_R31_0, BNE_PLUS_8, NOP, LI_R29_0, BLR)
+        target = _words(LI_R31_0, BNE_PLUS_8, NOP, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "branch target"):
+            self.rewrite(
+                current, target,
+                [{"at": 12, "proof": "dominating_def_across_calls"}],
+            )
+
+    def test_redefinition_after_the_call_is_still_rejected(self):
+        redefine = 0x7FE63214  # add r31,r6,r6
+        current = _words(LI_R31_0, BL, redefine, LI_R29_0, BLR)
+        target = _words(LI_R31_0, BL, redefine, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "redefined"):
+            self.rewrite(
+                current, target,
+                [{"at": 12, "proof": "dominating_def_across_calls"}],
+            )
+
+    def test_constant_mismatch_across_a_call_is_still_rejected(self):
+        current = _words(LI_R31_5, BL, LI_R29_0, BLR)
+        target = _words(LI_R31_5, BL, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "not the required constant"):
+            self.rewrite(
+                current, target,
+                [{"at": 8, "proof": "dominating_def_across_calls"}],
+            )
+
+    # ---- the label must be asked for by name ----
+
+    def test_plain_dominating_def_still_refuses_the_same_site(self):
+        # The whole point of a separate label: an existing rule cannot
+        # drift onto the ABI-dependent proof just because call_targets
+        # happens to be available.
+        current, target = self.spanning_call()
+        with self.assertRaisesRegex(ValueError, "control instruction"):
+            self.rewrite(
+                current, target, [{"at": 8, "proof": "dominating_def"}]
+            )
+
+    def test_unknown_proof_label_is_rejected(self):
+        current, target = self.spanning_call()
+        with self.assertRaisesRegex(ValueError, "requires"):
+            self.rewrite(
+                current, target, [{"at": 8, "proof": "across_calls"}]
+            )
+
+
+class RelocatedWordInsideProofSpanTests(unittest.TestCase):
+    """A permutation can move a relocated word into a proof span.
+
+    Composing stages therefore forces the span's relocation handling to be
+    exact rather than blanket: an interposed relocated word that does not
+    write the source is harmless, but ONLY when its relocation type cannot
+    rewrite the register fields the write set was decoded from.
+    """
+
+    def rewrite(self, current, target, edits, **overrides):
+        arguments = {
+            "relocated_offsets": set(),
+            "target_relocated_offsets": set(),
+            "jumptable_offsets": set(),
+        }
+        arguments.update(overrides)
+        return equivalent_copy_form(current, target, edits, **arguments)
+
+    def spanning_relocated_word(self):
+        # li r31,0 ; addi r5,r6,<reloc> ; li r29,0  ->  ... ; addi r29,r31,0
+        # The interposed word writes r5, never r31.  Its relocation entry
+        # sits at byte +2 of the instruction at +0x4, hence offset 6.
+        return (
+            _words(LI_R31_0, ADDI_R5_R6, LI_R29_0, BLR),
+            _words(LI_R31_0, ADDI_R5_R6, ADDI_R29_R31, BLR),
+        )
+
+    def test_immediate_only_relocation_may_be_stepped_over(self):
+        current, target = self.spanning_relocated_word()
+        edits = [{"at": 8, "proof": "dominating_def"}]
+        output, changed = self.rewrite(
+            current, target, edits,
+            relocated_offsets={6}, relocation_types={1: 4},  # ADDR16_LO
+        )
+        self.assertEqual(output, target)
+        self.assertEqual(changed, 1)
+        self.assertEqual(edits[0]["_proved_at"], 0)
+
+    def test_sda21_relocation_may_not_be_stepped_over(self):
+        # R_PPC_EMB_SDA21 rewrites the base REGISTER field, so nothing
+        # decoded from the raw word can be trusted.
+        current, target = self.spanning_relocated_word()
+        with self.assertRaisesRegex(ValueError, "outside the immediate field"):
+            self.rewrite(
+                current, target, [{"at": 8, "proof": "dominating_def"}],
+                relocated_offsets={6}, relocation_types={1: 109},
+            )
+
+    def test_unknown_relocation_type_fails_closed(self):
+        current, target = self.spanning_relocated_word()
+        with self.assertRaisesRegex(ValueError, "outside the immediate field"):
+            self.rewrite(
+                current, target, [{"at": 8, "proof": "dominating_def"}],
+                relocated_offsets={6}, relocation_types={},
+            )
+
+    def test_relocated_definition_is_always_refused(self):
+        # An unresolved address half is not the literal the proof needs,
+        # however benign its relocation type is.
+        current = _words(LI_R31_0, LI_R29_0, BLR)
+        target = _words(LI_R31_0, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "defined by a relocated word"):
+            self.rewrite(
+                current, target, [{"at": 4, "proof": "dominating_def"}],
+                relocated_offsets={2}, relocation_types={0: 4},
             )
 
 

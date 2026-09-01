@@ -1,6 +1,77 @@
 {
   "version": 1,
   "units": {
+    "game/g3d/gcontrolpads": [
+      {
+        "function": "G3DReadControlPadStates",
+        "before_sha256": "50147ca5c253680d4c6472e8c3a2c9b72497499fa1b0efb3fd6a79d7f0f752a0",
+        "after_sha256": "2bb653f229f48b61e9b40ae354f2cbc43262c44dde42115e37f9a27bf7c0889a",
+        "mechanism": "attempt.C2_g3dreadcontrolpadstates-composed-close.20260901.v1 - the FULL form+permute+recolor composition on the last non-matching function of an otherwise green TU (6/7 at real 0, data green, so this closes the file). The 48/48 residual is nine differing words in three independent mechanisms, and no single stage reaches any of them alone; this is the first rule to compose all three. PERMUTATION over [0x14,0x1c), order [1,0]: the target seeds the accumulator with `li r29,0` and then forms the gPadManager base with `addi r31,r3,LO`, our stream emits the pair in the opposite order. The two atoms are independent - the addi defines r31 and reads only r3, the li defines r29 and reads nothing, so there is no RAW, WAR or WAW hazard - and both are memory-free and non-control, so check_permutation_dependences accepts the swap in its STRICTEST form with NO exit_dead escape invoked. Unlike the StartThrowMagicFX precedent this region DOES carry a relocation (the ADDR16_LO half of gPadManager rides atom 0 from +0x14 to +0x18), which is why both region relocation hashes are non-empty: the rule is pinned to that relocation's symbol index and will fail closed, not silently misapply, if the symbol table is renumbered. FORM, three li-vs-copy sites all sourced from the single `li r29,0` seed: +0x1c target `mr r30,r29` vs our `li r30,0`, +0x38 target `addi r7,r29,0` vs our `li r7,0`, +0x3c target `addi r3,r29,0` vs our `li r3,0`. All three destinations already agree, so each is a pure form change and never a disguised recolor. +0x1c is discharged by the plain local `dominating_def` scan - after the permutation the seed is the instruction two words back. +0x38 and +0x3c cannot be: `bl G3DGetPadStatusBuffer` at +0x24 sits between the seed and both uses, and the shipped local scan refuses them by name ('control instruction inside the proof span'), exactly as lanes CT and LZ independently recommended. They are closed here by the new `dominating_def_across_calls` proof mode, which crosses that one call only after machine-checking four facts: r29 is in the EABI callee-saved set r14-r31; the word is a direct `bl` (opcode 18, LK set, AA clear) and not `bctrl`, `blrl`, `bla` or any conditional branch; it carries a REL24 relocation naming its callee; and that callee is not MWCC `_savegpr_N`/`_restgpr_N`/`_savefpr_N`/`_restfpr_N` millicode, which is the one direct-call family that really does rewrite the callee-saved range. The residual assumption - that a named non-millicode callee honours the EABI - is why the mode is a separate opt-in label rather than a widening of `dominating_def`; the plain label still refuses these two sites and is regression-pinned to do so. The entry-index audit is unchanged and still runs: the only branch targets in the function are +0x44, +0x70, +0x7c, +0x80 and +0xa0, every one at or after the loop head, so all three sites lie in the straight-line preheader and no back edge re-enters between the seed and any use, notwithstanding the loop's own `or r29,r29,r6` at +0x7c. RECOLOR, the r6<->r8 transposition of two disjoint webs: the pad-buffer base (`addi` at +0x28, consumed by the `lwz` at +0x44) and the shift mask (`srw` at +0x4c, consumed by the two `or`s at +0x7c and +0x84). It is expressed as five explicit register_fields edits rather than `copy_register_fields` because a blanket field copy refuses this function at +0x4: our object carries ADDR16_HA/ADDR16_LO relocations to gPadManager where the extracted target object has the already-resolved literals 0x8029/0x645c baked in, a relocation payload difference that objdiff and fndiff already score as matching and that must never be papered over by a register stage. Those two words are therefore deliberately left untouched, which is why after_sha256 is the hash of our patched body rather than of the target body; the linker resolves them to the identical bytes and the retail DOL sha1 gate is the proof. The renaming itself is machine-proven by webfrank.verify_consistent_recolor as a position-consistent bisimulation across the whole CFG from the entry identity map, with NO unproven_recolor_audit escape. Not source-reachable: capped on the source axis by attempt.CT_g3dreadcontrolpadstates-form-site-precondition-audit.20260901.v3 and its v2 dead-lever list (including the scoped `#pragma opt_propagation off` the TU already carries), per claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1. Derived from the raw compiler output and proven by replaying every stage in order against the retail bytes: 9 of 9 real differing words closed, the only remaining words being the two relocation halves.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 48,
+          "permuted_instructions": 2
+        },
+        "instruction_permutation": {
+          "start": "0x14",
+          "end": "0x1c",
+          "order": [
+            1,
+            0
+          ],
+          "before_sha256": "35784f6f065cbd8b20f35ac50342c1f3e0fef5793e06930701640dc90f60c912",
+          "after_sha256": "2aa3ab8d44cbf96bb79eb0bf7e6abec039eaf9cab639cd7f9c2103408d44946e",
+          "before_relocations_sha256": "2776d6a3b0f207a4a8a6c9f8f60cccf1fd40d2c7255c8cfaa2efdbca1fe8935d",
+          "after_relocations_sha256": "c83797b0f06eb99cc2b35bf7be349ed742d28a22f8b3a012c1eebf81a8ced0a2"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x1c",
+            "proof": "dominating_def"
+          },
+          {
+            "at": "0x38",
+            "proof": "dominating_def_across_calls"
+          },
+          {
+            "at": "0x3c",
+            "proof": "dominating_def_across_calls"
+          }
+        ],
+        "register_fields": [
+          {
+            "at": "0x28",
+            "set": {
+              "21": 8
+            }
+          },
+          {
+            "at": "0x44",
+            "set": {
+              "16": 8
+            }
+          },
+          {
+            "at": "0x4c",
+            "set": {
+              "16": 6
+            }
+          },
+          {
+            "at": "0x7c",
+            "set": {
+              "11": 6
+            }
+          },
+          {
+            "at": "0x84",
+            "set": {
+              "11": 6
+            }
+          }
+        ]
+      }
+    ],
     "game/anim/anim_play": [
       {
         "function": "GetAnimAngXYZVal",
