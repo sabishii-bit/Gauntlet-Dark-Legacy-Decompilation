@@ -9,6 +9,7 @@ from tools.gdl.webfrank import (
     decode_copy_form,
     equivalent_copy_form,
     instruction_operands,
+    permutation_windows,
     permute_instruction_atoms,
     recolor_instruction,
     register_slot_mask,
@@ -1171,6 +1172,7 @@ class RelocatedWordInsideProofSpanTests(unittest.TestCase):
                 relocated_offsets={2}, relocation_types={0: 4},
             )
 
+
 class GauntworldPreheaderPermutationTests(unittest.TestCase):
     """config/GUNE5D/webfrank.json :: game/world/gauntworld :: fn_8005FB48.
 
@@ -1247,6 +1249,94 @@ class GauntworldPreheaderPermutationTests(unittest.TestCase):
         )
 
 
+class PermutationWindowSchemaTests(unittest.TestCase):
+    """Multi-window permutation schema.
+
+    claim.law.HV_single-permutation-region-is-the-binding-schema-limit
+    .20260901.v1: apply_patch read instruction_permutation as ONE dict, so
+    a function whose displaced words fall in two separated windows could
+    not be expressed at all, however sound each window was.  That single
+    fact blocked the pb_window file flip.
+    """
+
+    def window(self, start, end):
+        return {"start": start, "end": end, "order": [0]}
+
+    # ---- back-compatibility: every shipped rule keeps its meaning ----
+
+    def test_single_dict_is_accepted_unchanged(self):
+        window = self.window(0x10, 0x20)
+        windows, ranges = permutation_windows(window, 0x100)
+        self.assertEqual(windows, [window])
+        self.assertEqual(ranges, [(0x10, 0x20)])
+
+    def test_hex_string_bounds_are_parsed(self):
+        windows, ranges = permutation_windows(
+            {"start": "0x188", "end": "0x194", "order": [0]}, 0x400
+        )
+        self.assertEqual(ranges, [(0x188, 0x194)])
+        self.assertEqual(len(windows), 1)
+
+    # ---- the list form ----
+
+    def test_two_disjoint_windows_are_accepted_in_order(self):
+        first = self.window(0x188, 0x194)
+        second = self.window(0x2c0, 0x2d8)
+        windows, ranges = permutation_windows([first, second], 0x400)
+        self.assertEqual(windows, [first, second])
+        self.assertEqual(ranges, [(0x188, 0x194), (0x2c0, 0x2d8)])
+
+    def test_adjacent_windows_are_disjoint_and_accepted(self):
+        # Touching at a boundary is disjoint: [0x10,0x20) and [0x20,0x30).
+        _windows, ranges = permutation_windows(
+            [self.window(0x10, 0x20), self.window(0x20, 0x30)], 0x100
+        )
+        self.assertEqual(ranges, [(0x10, 0x20), (0x20, 0x30)])
+
+    def test_overlapping_windows_are_refused(self):
+        # Overlap would make the per-window before-hashes ill-defined.
+        with self.assertRaisesRegex(ValueError, "disjoint"):
+            permutation_windows(
+                [self.window(0x10, 0x28), self.window(0x20, 0x30)], 0x100
+            )
+
+    def test_descending_windows_are_refused(self):
+        with self.assertRaisesRegex(ValueError, "ascending"):
+            permutation_windows(
+                [self.window(0x2c0, 0x2d8), self.window(0x188, 0x194)], 0x400
+            )
+
+    def test_duplicate_window_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "disjoint"):
+            permutation_windows(
+                [self.window(0x10, 0x20), self.window(0x10, 0x20)], 0x100
+            )
+
+    def test_empty_list_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "empty"):
+            permutation_windows([], 0x100)
+
+    # ---- per-window range validation still fails closed ----
+
+    def test_unaligned_window_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "invalid"):
+            permutation_windows([self.window(0x12, 0x20)], 0x100)
+
+    def test_window_past_the_function_end_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "invalid"):
+            permutation_windows([self.window(0xf0, 0x120)], 0x100)
+
+    def test_empty_window_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "invalid"):
+            permutation_windows([self.window(0x20, 0x20)], 0x100)
+
+    def test_second_window_is_range_checked_too(self):
+        with self.assertRaisesRegex(ValueError, "invalid"):
+            permutation_windows(
+                [self.window(0x10, 0x20), self.window(0x30, 0x120)], 0x100
+            )
+
+
 class RelocationBindingTests(unittest.TestCase):
     """Closes claim.law.HV_permute-payload-check-does-not-bind-a-
     relocation-to-its-atom.20260901.v1.
@@ -1297,12 +1387,40 @@ class RelocationBindingTests(unittest.TestCase):
                 ours, target, region_start=0, region_end=4
             )
 
-    def test_word_relocated_only_on_our_side_is_refused(self):
+    def test_word_relocated_only_on_our_side_needs_region_words(self):
+        """dtk resolves addresses when it extracts the retail object, so a
+        word we still relocate can appear in the target as a baked literal.
+        That word has no counterpart to bind against, so it is exempt --
+        but only once nothing in the window could have been exchanged with
+        it, which cannot be judged without the words."""
         ours = {2: (self.SDA21, "gTheGlobal"), 6: (self.SDA21, "gOther")}
         target = {0: (self.SDA21, "gTheGlobal")}
-        with self.assertRaisesRegex(ValueError, "relocated"):
+        with self.assertRaisesRegex(ValueError, "unexchangeable"):
             verify_relocation_binding(
                 ours, target, region_start=0, region_end=8
+            )
+
+    def test_unbindable_word_is_accepted_when_unexchangeable(self):
+        # +0x4 is `addi r31,r3,LO` (relocated here, baked in the target);
+        # the only other relocated word is an `lfs`, a different form, so
+        # no permutation could have exchanged them.
+        ours = {2: (self.ADDR16_LO, "gPadManager"), 6: (self.SDA21, "gOther")}
+        target = {4: (self.SDA21, "gOther")}
+        verify_relocation_binding(
+            ours, target, region_start=0, region_end=8,
+            words=[0x3BE30000, 0xC3A00000],
+        )
+
+    def test_unbindable_word_is_refused_when_exchangeable(self):
+        # Both relocated words are `lfs fD,0(0)`, identical outside their
+        # register fields, and one has no target counterpart: a
+        # permutation could have exchanged them and neither can be bound.
+        ours = {2: (self.SDA21, "gTheGlobal"), 6: (self.SDA21, "gOther")}
+        target = {4: (self.SDA21, "gOther")}
+        with self.assertRaisesRegex(ValueError, "exchanged"):
+            verify_relocation_binding(
+                ours, target, region_start=0, region_end=8,
+                words=[0xC3A00000, 0xC3C00000],
             )
 
     def test_word_relocated_only_on_the_target_side_is_refused(self):
@@ -1359,6 +1477,31 @@ class RelocationBindingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "one-to-one|correspondence"):
             verify_relocation_binding(
                 ours, target, region_start=0, region_end=12
+            )
+
+    def test_identical_pool_label_names_bind_directly(self):
+        """Our object often carries the target's own `lbl_XXXXXXXX`
+        placeholder spelling for an own-pool datum, so an exact name match
+        must bind whatever the name looks like.  Live instance:
+        game/game/combat +0x4, symbol lbl_80240E30 on both sides."""
+        ours = {2: (self.ADDR16_LO, "lbl_80240E30")}
+        target = {0: (self.ADDR16_LO, "lbl_80240E30")}
+        verify_relocation_binding(ours, target, region_start=0, region_end=4)
+
+    def test_exchanged_identical_pool_label_names_are_still_refused(self):
+        ours = {
+            2: (self.ADDR16_LO, "lbl_80240E30"),
+            6: (self.ADDR16_LO, "lbl_80240E38"),
+        }
+        target = {
+            0: (self.ADDR16_LO, "lbl_80240E38"),
+            4: (self.ADDR16_LO, "lbl_80240E30"),
+        }
+        # Both sides spell these the same way, so the exchange is caught by
+        # the exact-name test rather than by the pool correspondence.
+        with self.assertRaisesRegex(ValueError, "wrong instruction"):
+            verify_relocation_binding(
+                ours, target, region_start=0, region_end=8
             )
 
     def test_named_symbol_may_not_be_matched_against_a_pool_label(self):
