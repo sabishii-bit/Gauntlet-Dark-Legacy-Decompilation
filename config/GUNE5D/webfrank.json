@@ -1133,6 +1133,24 @@
     ],
     "game/movie/movieplayer": [
       {
+        "function": "fn_800D8F28",
+        "before_sha256": "902e7000515ba3c145bfd6b65ba69da459f6a6136017e066547b0ef1d1a47aad",
+        "after_sha256": "80c31d63ead02d761e1ad62b3cb373952c524b3d7e0ca2cbdbc2e9a407d607ce",
+        "mechanism": "attempt.WF_combined-form-recolor-stage.20260901.v1 - the first rule in the COMBINED form+recolor class, and the simplest member of it. 163/163 instructions, 55 differing words: 54 are a clean whole-function register renaming and exactly ONE is a form difference riding on top of it, at +0xec, where ours is `addi r26,r28,0` and the target is `mr r26,r27`. Both words decode as a copy, the DESTINATION already agrees (r26), and only the SOURCE differs - our r28 against the target's r27 - which is not a form fact at all but the same renaming the other 54 words carry, visible one instruction earlier at +0xe4 where our `lbz r29,0(r28)` pairs with the target's `lbz r24,0(r27)`. Every pre-existing proof mode refuses this by name: `unconditional` requires both sides to decode as the SAME copy and the sources differ pre-recolor, `dominating_def` requires ours to be `li rD,K` and it is not, and copy_register_fields refuses an opcode change it has no model for. That is the wall claim.law.DC and claim.LZ both recorded as needing a v2 combined pass, and attempt.MP_fn800d8f28-copy-encoding-is-allocator-and-the-composed-rule-question-is-closed.20260901.v1 capped the function against until one existed. THE MECHANISM, and the reason it needs no new trust: the stage does NOT copy the target word, which would import the target's registers as an unproven recolor. It re-encodes the TARGET'S ENCODING around OUR registers, writing `or r26,r28,r28` - our r28 preserved, the target's `or` form adopted. That single rewrite is justified by architectural identity alone and needs no dataflow whatsoever: `addi r26,r28,0` and `or r26,r28,r28` both set r26 to the contents of r28, with Rc clear so neither writes CR0, exactly the `unconditional` rationale with the register question deferred rather than answered. What comes out differs from the target in REGISTER FIELDS ONLY - asserted per-word by the stage, not assumed - so the UNCHANGED recolor stage completes it, and verify_consistent_recolor proves the whole 163-instruction renaming as a position-consistent bisimulation from the entry identity map, with NO unproven_recolor_audit escape (which a combined edit is now refused outright, since the form rewrite is justified ONLY by the recolor being machine-proven). Two existing proofs composed in the one order that makes both true. `our_source` is not needed in this mode because the source is read off our own word. Not source-reachable: three source axes are measured dead on this function (declaration order, initializer-group promotion, address-of-subscript, all NEUTRAL) on top of the roughly twenty killed axes in claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1, whose scope covers exactly this mr-vs-addi encoding choice and whose instruction is to stop probing it.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 163,
+          "form_sites": 1
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0xec",
+            "proof": "unconditional_recolor"
+          }
+        ],
+        "copy_register_fields": true
+      },
+      {
         "function": "fn_800D967C",
         "before_sha256": "fe36fa51cabfcdc667baa8377232c60aa38736fedbed7d1f04a239244779317b",
         "after_sha256": "3d9ea44e2169f95f896de1e67fa45cd2b82015985bfb6a9ef4b55782a4a15794",
@@ -1308,6 +1326,42 @@
           "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
           "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         }
+      },
+      {
+        "function": "camera_mode_level",
+        "before_sha256": "c8050a0ee9adcdefb47be06b3e9af4619f0d1d054d832ea4edadb817a1cae679",
+        "after_sha256": "aebb82562ba06aeb37bc2f8500ac0f9f6b4c169aaba0109fbc0bf37bbc9c607b",
+        "mechanism": "attempt.WF_combined-form-recolor-stage.20260901.v1 - the four-stage composition, and the first rule to use a permutation on BOTH sides of the recolor. 582/582 instructions, 32 differing words in three mechanisms; 27 are pure register fields and none of the three other clusters is reachable by any single stage. STAGE 1, PERMUTATION over [0x740,0x748), order [1,0]: ours is `lwz r0,1624(r31)` then `addi r29,r31,1388`, the target the reverse. The two atoms are independent (the lwz defines r0 and reads r31, the addi defines r29 and reads r31; no RAW, WAR or WAW hazard) and both are non-control, so check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None. The window carries NO relocation on either side, so both region relocation hashes are the empty-payload hash. This window is attempt.CN_camera-mode-level-cluster-a-readiness.20260901.v1's cluster A, including its correction of the earlier record's single-atom window. STAGE 2, THE COMBINED FORM+RECOLOR SITE at +0x8b0, which is what this whole lane exists for: ours decodes ('li',27,0), the target ('copy',29,30) - a form change AND a destination recolor on ONE word, which every pre-existing mode refuses by name as 'a recolor, not a form change'. The stage does not copy the target word; it re-encodes the target's `or` form around OUR registers, writing `mr r27,r30`, so what it leaves differs from the target in REGISTER FIELDS ONLY (asserted per word) and the unchanged recolor stage completes it. The value obligation - that OUR r30 holds 0 at the site - is discharged by `constant_dataflow_recolor`, a whole-CFG forward dataflow, because the straight-line `dominating_def` scan cannot reach it: the defining `li r30,0` is at +0x774, 0x13c bytes and several branches away, and the scan refuses at the first branch target it meets. The dataflow crosses 21 direct named non-millicode `bl`s (r30 is EABI callee-saved) and four EMB_SDA21-relocated `lfs` words, each of which is stepped over only because SDA21 provably rewrites nothing but the base register field and can only write r0/r2/r13 there, so it cannot introduce a write of r30; a blanket distrust of relocated words refuses this function and is measured wrong here. STAGE 3, the RECOLOR: verify_consistent_recolor proves the entire remainder a position-consistent renaming from the entry identity map, with NO unproven_recolor_audit escape - which a combined edit is refused outright anyway. THIS ALSO REFUTES A RECORDED READING: attempt.CN concluded the remainder 'is not a bijective renaming either' and that the target COALESCES two of our webs, from a refusal at +0x8b8. It is a clean bijection; the refusal was the forward-inference artifact claim.law.WF_a-register-transposition-can-be-byte-invisible-at-its-own-definitions.20260901.v1 warns about, and it dissolves once cluster C is expressed as stage 4 instead of as a pre-recolor permutation. STAGE 4, POST-RECOLOR PERMUTATION over [0x8c0,0x8c8), order [1,0]: ours is `addi r29,r4,200` then `li r4,0`, the target `li r4,0` then `addi r28,r28,200`. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 classifies this as structurally unreachable, and it is exactly right for a permutation that runs FIRST: our build colours both webs r4, so the swap is a genuine WAR hazard and check_permutation_dependences refuses it (`breaks def-use chains: [(0,('g',4))]`) - correctly, since performing it in our colouring would zero the pointer before the addi reads it. In the TARGET's colouring the same two words are independent. So the permutation runs LAST: the recolor aims at an INTERMEDIATE image derived from the target by applying this permutation's inverse, which restores position correspondence so the unchanged recolor guard can adjudicate that link, and the permutation then carries the intermediate to the target under check_permutation_dependences in its strictest form (exit_dead is not offered to this stage at all). The window carries no relocation on either side, which this stage requires rather than assumes. C1's law is not weakened - it is bounded: the class it calls unreachable is unreachable for a pre-recolor permutation only. src/game/world/camera.c is byte-unchanged; the rule is derived entirely from raw compiler output and replayed stage by stage against the retail bytes, closing 32 of 32 differing words.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 582,
+          "permuted_instructions": 4,
+          "form_sites": 1
+        },
+        "instruction_permutation": {
+          "start": "0x740",
+          "end": "0x748",
+          "order": [1, 0],
+          "before_sha256": "aa3adccae223d6cedba32cb00852bff407e37c988f73a8c360cea46ab15e69e9",
+          "after_sha256": "7c4c47d371fa2dc79a5b3fd20d525657cbe1f62ba08aed3543f9cf7e817db784",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x8b0",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 30
+          }
+        ],
+        "copy_register_fields": true,
+        "post_recolor_permutation": [
+          {
+            "start": "0x8c0",
+            "end": "0x8c8",
+            "order": [1, 0]
+          }
+        ]
       },
       {
         "function": "do_camera",
