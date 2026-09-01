@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "metrics",
+      "workflow",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.EN-equal-count-opcode-respell-must-be-arbitrated-on-fuzzy-not-real.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T02:30:51Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/enemy",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5 family, metric-arbitration rule for the specific case where a source change RESPELLS a residual into a different opcode at UNCHANGED instruction count and unchanged multiset token count. In that case `real` and objdiff `fuzzy` can disagree in opposite directions, and FUZZY is the correct arbiter - `real` counts how MANY rows differ, fuzzy scores HOW MUCH each row differs, so a respell that aligns more rows while making the surviving rows less similar improves real and worsens fuzzy. MEASURED on move_logic10 2026-09-01: rewriting the two angle-normalization blocks from the f64-temp form to a no-temp in-place form held the count at T1085/O1087 and the multiset at 2 tokens, moved the residual from ours-only -2 fmr to ours-only -2 frsp, IMPROVED real 476 -> 458 (18 rows), and REGRESSED fuzzy 98.8940 -> 98.4470. The change passed defake_gate (GATE OK, no sibling moved) and a full green ninja with main.dol OK, so the gate chain alone would have banked a regression; only a fuzzy read from a FRESH report build caught it. Independent target-byte evidence agreed with fuzzy and against real: target emits exactly ONE frsp, placed after the if/else join, which proves the f64 temp existed and was narrowed once, so the no-temp form is the wrong shape however it scores on real. BOUNDARY: this does NOT overturn claim.law.fuzzy-can-underweight-a-real-improvement, which is scoped to SMALL functions where reading the --ops diff settles it; move_logic10 is 1085 instructions. PROCEDURE: whenever a probe changes WHICH opcode carries the residual at equal instruction count, read fuzzy from a fresh report build before committing, and prefer the form the target's own byte evidence supports."
+}

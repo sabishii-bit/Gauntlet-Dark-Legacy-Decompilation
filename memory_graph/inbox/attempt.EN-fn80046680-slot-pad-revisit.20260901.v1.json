@@ -1,0 +1,21 @@
+{
+  "attempted_axis": "fn_80046680 capped-record revisit on a genuinely NEW measurement (slotdiff, never run on this function): test whether the 2-slot placement delta yields to the bottom-anchored pad lever that closed do_enemy_move and do_enemies in this same pass.",
+  "attributes": {
+    "axis_log": [
+      "AXIS 1 (NEGATIVE, reverted): widen `u8 _pad4[4]` -> `[8]`. _pad4 is declared immediately after `f32 hit[4]`, so under bottom-anchored allocation it sits below hit and should have lifted hit from 72 to 76. Measured real 35 -> 43, a clear regression, with the opcode clusters unchanged. The pad lever that worked on do_enemy_move and do_enemies does NOT transfer here; the 4-byte shift is not produced by the adjacent pad."
+    ],
+    "law_screen": "attempt.parked.fn-80046680.20260830.v1 SCREENED FIRST - it is a CAP, and its burned-forms list includes a vague 'balanced stack layout'. Revisit justified under the AGENTS.md rule that a cap may be revisited with a genuinely new source-level idea, recorded either way: the new input is a slotdiff measurement (2T/2O exclusive slots at target 76/84 vs ours 72/80, frame 152 correct in both) that no prior pass on this function had taken. claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever.20260831.v1 SCREENED and APPLIED as the probe. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED and APPLIED to choose the pad. claim.law.a-lone-dead-stack-word-is-usually-the-alignment-pad-of-the-first-8-byte-temp.20260901.v1 screened, not applicable - the delta is 4 bytes, not an 8-byte alignment gap.",
+    "laws_applied": "[\"claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever.20260831.v1\", \"claim.law.stack-slots-descend-in-declaration-order.20260831.v1\"]",
+    "residual": "Unchanged from the cap: real 35, insns T117/O118 (ours one LONG), opcode multiset ours-only -1 mr, fuzzy 97.36752, frame 152 both, saves r25 both. The cap STANDS and is now sharper on one point: its vague 'balanced stack layout' entry is CORROBORATED by an explicit slotdiff measurement - two locals (`hit[4]` at target 76 and a second word at target 84) sit 4 bytes low in ours, and the adjacent-pad lever is measured NEGATIVE against them. The separate `-1 mr` opcode residual is the recorded LO-into-scratch class shared with move_logic22 and is untouched by this probe. DO-NOT-RETRY: widening _pad4 or any adjacent padding local to lift hit[4].",
+    "scope": "src/game/enemy/enemy.c, fn_80046680 declaration block only. Probe REVERTED; NOTHING RETAINED, working tree clean against HEAD.",
+    "verification": "Clean BASELINE probed before the edit per the first-baseline trap (real 35, T117/O118, multiset 1t) - this function had not been probed earlier in the session. Probe measured with probe.py plus fndiff --ops, reverted with probe.py --revert and re-scored NEUTRAL at real 35. git status clean afterwards."
+  },
+  "function": "function:fn_80046680",
+  "id": "attempt.EN-fn80046680-slot-pad-revisit.20260901.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-01T02:30:39Z",
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}
