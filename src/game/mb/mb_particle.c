@@ -3251,7 +3251,6 @@ struct TexPageEnt {
 };
 
 static Psys* allocPsys(s32 fromArena) {
-    u8 unused[8];
     u8* pi = (u8*)psysInfo;
     u8* gw = (u8*)gWinGlobals;
     u8* g = pi + offsetof(PsysInfoCoreView, runtime);
