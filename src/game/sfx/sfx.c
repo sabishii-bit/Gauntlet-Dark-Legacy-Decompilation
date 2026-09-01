@@ -2718,7 +2718,7 @@ void ProcessEffects(void)
             if (e->flags & 0x20) {
                 if (e->flags & 0x10) {
                     mode = 2;
-                    ageRadius = (f32)(remaining > 1.0 ? 1.0 : (f64)remaining);
+                    ageRadius = (f32)(1.0 < remaining ? 1.0 : (f64)remaining);
                 } else {
                     mode = 1;
                     ageRadius = (f32)(remaining + 0.066667);
@@ -2821,7 +2821,7 @@ void ProcessEffects(void)
         if (e->fxfade > 0.0 && e->fxhit <= 0 && remaining < e->fxfade) {
             MBTreeSetAlpha(
                 e->node,
-                (s32)(255.0 * (1.0 - remaining / e->fxfade)), 1);
+                (s32)(255.0 * (f32)(1.0 - remaining / e->fxfade)), 1);
         }
         if (e->flags & 0x08410000) {
             MBTreeClearFlags(e->node, 8, 0);
