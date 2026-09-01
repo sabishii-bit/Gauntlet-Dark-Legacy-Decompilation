@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Close load_player_model's two-part residual (target `add r30,r29,r30` forming pot+prod AFTER the sprintf, plus three fresh `addi r3,r29,1268` scratch materializations) by (a) breaking the cross-call CSE of `pot + prod` with an explicit reassociation at the call site, then (b) extending the TU's existing `#pragma opt_common_subs off` bracket one function earlier so the scratch-pointer CSE stops hoisting.",
+  "attributes": {
+    "axis_log": "axis1 reassociate the call argument: CONFLICT real 58->59 and count 80->81, BUT `--ops` target-only went to (none) - the best structural state - and the `add r30,r29,r30` cluster matched exactly, confirming the pot+prod CSE was the cause. axis2 extend the opt_common_subs bracket: CONFLICT real 59->60 with count back to 80/80 and multiset IDENTICAL (80/80); arbitrated on fresh fuzzy 94.9625->97.8750 and KEPT. The sibling load_player_model_sub, now newly inside the bracket, did NOT regress (defake_gate reported exactly one CONFLICT row, its own).",
+    "law_screen": "claim.law.reload-vs-cache-liveness.20260829.v1 APPLIED - it names exactly this shape (retail rematerializes per use across calls; a block-local pointer cache is correct only where the target holds the value in a saved register) and correctly predicted both halves. claim.law.direct-global-member-flips-index-base-association.20260831.v1 screened: NOT applicable, the base here is a pointer local (pot) and both sides already agree on the symbol. claim.law.point-of-use-single-use-pointer-delay.20260830.v1 screened, consistent. claim.law.multifield-alias-defeats-indexed-addressing.20260830.v2 screened: not applicable, one field per base. The reassociation was NOT the operand-order axis that claim.law.direct-global-member-flips-index-base-association declares dead: that law's dead axis is source operand ORDER for an ADDRESSING canonicalization, whereas this edit changes WHICH subexpression exists for cross-call CSE analysis, and it measured non-neutral.",
+    "laws_applied": "[\"claim.law.reload-vs-cache-liveness.20260829.v1\", \"claim.law.point-of-use-single-use-pointer-delay.20260830.v1\"]",
+    "probed_form": "KEPT (axis 1): `ret = load_player_model_sub(i, vp, cls, name, pot + (prod + 1300));` replacing `... pot + prod + 1300);`. KEPT (axis 2): moved the line `#pragma opt_common_subs off` from immediately above `s32 load_player_model_sub(...)` to immediately above `s32 load_player_model(...)`, leaving the matching `#pragma opt_common_subs reset` at the end of load_player_model_sub, so the bracket now spans BOTH functions.",
+    "residual": "CLEAN-RENAMING per regnorm: 97 paired, 30 renaming, 0 STRUCTURAL, 0 unpaired - but UNLIKE its sibling load_player_model_sub the positional map is INCONSISTENT on every callee-saved register (r26->r30x13/r26x1, r27->r30x2/r29x1/r27x1, r28->r27x2/r28x2, r29->r28x5/r26x3/r29x1, r30->r29x8/r30x1). That is the web-split tell, NOT a permutation, so this function is NOT a copy_register_fields candidate without a def-site-grouped audit. Recorded so a later lane does not mistake CLEAN-RENAMING alone for WebFrank eligibility.",
+    "scope": "src/game/game/player.c, load_player_model (one call-site expression) plus the relocation of one pragma line. Commit a257f8b25.",
+    "verification": "probe.py --ops and --fuzzy (fresh report both sides: baseline 94.9625, final 97.8750); regnorm --map; defake_gate check --bank-arbitrated=load_player_model, GATE OK with no sibling regression; full `ninja -j2` printed `build/GUNE5D/main.dol: OK`; `git diff --check` clean."
+  },
+  "function": "function:load_player_model",
+  "id": "attempt.PL_load-player-model-cse-break-and-pragma-bracket.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T18:41:48Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

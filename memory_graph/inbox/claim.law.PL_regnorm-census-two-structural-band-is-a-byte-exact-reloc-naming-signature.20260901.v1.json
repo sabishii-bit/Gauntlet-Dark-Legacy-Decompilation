@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "metrics",
+      "workflow",
+      "relocation",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.PL_regnorm-census-two-structural-band-is-a-byte-exact-reloc-naming-signature.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T18:45:42Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/player",
+  "valid_from": "2026-09-01",
+  "value": "In regnorm.py TU CENSUS mode, a row reading exactly '0 renaming, 2 STRUCTURAL, 0 unpaired' is a SIGNATURE OF A BYTE-EXACT FUNCTION, not of a residual, and must be excluded before ranking a roster by genuine structural rows. The two rows are the ADDR16_HA/ADDR16_LO pair of ONE relocation whose target symbol our object names as an auto-split SECTION symbol (`...bss.0`, `...rodata.0`) where the target names the real symbol (`potionicon_tab`). Measured on game/game/player 2026-09-01: the census returned 56 rows at a clean 0/0/0 EXACT plus 13 rows in this 2-STRUCTURAL band; 56 + 13 = 69, which is EXACTLY the count of real-0 functions independently reported by `defake_gate.py baseline game/game/player` ('92 functions (69 at real 0)'). Every function in the band is therefore byte-exact. Spot-verified on AppendItemToLevel: `fndiff --clean` shows no real diff, and regnorm's own two rows are `@0x001c T R_PPC_ADDR16_HA potionicon_tab / O R_PPC_ADDR16_HA ...bss.0` plus the ADDR16_LO twin. THE TOOL GAP, which is the actionable part: regnorm's census DOES carry an artifact annotator and it fired on some rows this run - WritePlayerInfo printed '2 STRUCTURAL (2 reloc-naming artifacts - read the genuine rows first)' and do_got_it/do_players printed reloc-naming counts - but it did NOT fire on the other 13, including AppendItemToLevel, DoPlayerTexMods, GetMaxPlayerModelSize, SetPlayerWindows, SetupPlayerTexMods, ShowRuneStones, add_got_it, del_player_blits, init_got_it, kill_got_it, setup_player_models and show_crystals, whose rows are the SAME class. So the annotator under-reports the split-section-symbol form while catching some other naming form, and an agent ranking a roster on the printed STRUCTURAL number alone will queue a dozen already-finished functions. PROCEDURE until the annotator is fixed: cross-check any census row against `defake_gate baseline`'s real-0 count, and treat the '0 renaming / 2 STRUCTURAL / 0 unpaired' shape as EXACT unless a relocation dump shows the two rows differ in VALUE and not merely in symbol NAME. Independently, a function reading real > 0 with 0/0/0 in the census is the mirror image and is also finished: start_magic measured real 4 in the gate baseline while regnorm reported a clean EXACT, and `fndiff --clean` resolved it as 'MATCH (pool-name noise only), 0 real diff lines (+38 pool-name lines suppressed)'."
+}

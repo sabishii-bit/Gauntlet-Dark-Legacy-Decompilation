@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "activate_player's entire residual (real 46, ours 106 insns vs target 108) traces to the player-record BASE SYMBOL: the target reaches every record through `potionicon_tab + index*0x335C` with the 0xC40 block offset folded into each displacement (3368 = 0xC40+232, 3252 = 0xC40+116, and a separate `addi r29,r29,3136` for the 2096 field), while our source spells it `gPlayerRecords`/`gPlayers` with the bare 232/116 displacements. Probed the PT() respelling that would put us on the target's base.",
+  "attributes": {
+    "axis_log": "Single axis, one probe: REGRESSED real 46->86, and the instruction count moved AWAY from target (106->110 against a target of 108) with the multiset going 4t->6t. The failure signature is the law's documented TAX exactly: a whole extra symbol materialization appeared deep in the function (+1 lis at @0xf0 and +3 addi), because the member form makes MWCC re-materialize potionicon_tab per region while the target caches it once in r31 and merely re-ADDS the index. Reverted; the axis is measured-dead in this spelling.",
+    "law_screen": "claim.law.direct-global-member-flips-index-base-association.20260831.v1 APPLIED, and its explicit PROCEDURE decided this function: 'count the target's lis/addi pairs for the symbol. If target has one cached base AND per-access adds, the residual is rematerialize-vs-cache register allocation - classify REGISTER_ONLY, record, and move on.' Counted: the target has exactly ONE potionicon_tab lis/addi pair (+0x18/+0x20) AND per-access adds (+0x24, +0x44, the loop's +0xfc, +0x168). That is precisely the not-reachable-by-respelling case, and the measurement below confirms it. claim.law.IG_local-alias-of-a-global-root-pays-the-direct-global-tax.20260901.v1 APPLIED - caching PT(i) in the local `p` pays the direct-global tax. claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1 screened, consistent.",
+    "laws_applied": "[\"claim.law.direct-global-member-flips-index-base-association.20260831.v1\", \"claim.law.IG_local-alias-of-a-global-root-pays-the-direct-global-tax.20260901.v1\"]",
+    "probed_form": "REVERTED: deleted `Player* players = gPlayerRecords;`, rewrote `players[i].state = 1;` to `PT(i)->state = 1;`, `p = &players[i];` to `p = PT(i);`, and inside the j-loop `Player* other = &players[j];` to `Player* other = PT(j);`. All other lines unchanged.",
+    "residual": "REGISTER/SYMBOL-class, named. Target base r31=potionicon_tab and r30=i*0x335C stay live and are re-added at +0x24 and +0x168; r29 becomes PT(i) via `addi r29,r29,3136`. Our base is gPlayers, so every record displacement differs by 0xC40 and the two re-add instructions have no counterpart, which is the whole T108/O106 count gap. IMPORTANT SCOPING NOTE for the next lane: this is NOT the same thing as the TU header's blanket BSS-POOLING GATE claim, which is separately refuted (see claim.law.PL_bss-pooling-gate-is-per-function-not-tu-wide.20260901.v1). activate_player's target genuinely uses potionicon_tab; change_player's and load_player's targets genuinely use gPlayers. Only the potionicon_tab group is affected, and for this function the respelling cure is measured harmful.",
+    "scope": "src/game/game/player.c, activate_player. NO source change retained - probe reverted, tree returned to the banked baseline at real 46.",
+    "verification": "probe.py --ops baseline banked BEFORE the first edit (real 46, T108/O106, multiset 4t); probe reverted via probe.py --revert and re-scored back to real 46; aligned reads via fnasm.py --diff at 0x0:0x50 and 0x100:0x180; `git status --short` clean afterwards."
+  },
+  "function": "function:activate_player",
+  "id": "attempt.PL_activate-player-base-symbol-spelling-cap.20260901.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-01T18:43:32Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}
