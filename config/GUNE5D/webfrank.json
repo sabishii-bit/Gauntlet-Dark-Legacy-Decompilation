@@ -1643,6 +1643,55 @@
         },
         "copy_register_fields": true
       }
+    ],
+    "game/world/worldcol": [
+      {
+        "function": "CTriListCollide",
+        "before_sha256": "d0abc7b3bd1865f40d384388ee6f1321bc1fc56e9d4439a4337b6fc4a24f1aec",
+        "after_sha256": "15a8f12dc70266859a4127e4462c0daefed43f7fa3148506cff7b76338db0c94",
+        "mechanism": "attempt.CH_ctrilistcollide-composed-close.20260901.v1 - permute + one copy-form site, NO recolor stage, over a 20-atom prologue window. The 175/175 residual is 13 differing words confined to [0x1c,0x6c), where the target interleaves its SDA-relative float loads among the incoming-argument register copies in a different order than our stream does. PERMUTATION over [0x1c,0x6c), order [0,3,2,1,5,7,6,9,8,10,12,11,14,13,15,16,17,18,4,19]: mostly adjacent transpositions of an `lfs` against a copy, plus ONE long displacement - source atom 4, our `addi r30,r18,lbl_8023CA40@l` at +0x2c, travels to destination slot 18 at +0x64, carrying its ADDR16_LO relocation with it, which is why both region relocation hashes are non-empty and the rule is pinned to that symbol index and fails closed on symbol-table renumbering. check_permutation_dependences accepts the order in its STRICTEST form with exit_dead=None, i.e. C1's step-0 membership test passes standing alone in OUR colouring before any register field is touched. FORM, one site: +0x4c, our `addi r23,r6,0` against the target's `mr r23,r6`. Destination AND source register already agree (r23 <- r6 on both sides), so this is a pure encoding change and never a disguised recolor; it is in the direction equivalent_copy_form actually serves (the TARGET word decodes as a register copy) per claim.law.DC_copy-form-class-is-directional-and-its-inverse-population-is-unserved.20260901.v1, and the `unconditional` proof mode applies because both sides are copies rD<-rS with rS != 0, so no dominating-def scan and no jumptable-entry screen is needed. NO register stage: the permutation plus that single form site reproduce the target bytes exactly, so the rule carries neither copy_register_fields nor register_fields - consistent with claim.CN_census-rerun-canary-validated-filter.20260901.v1's finding that the form stage is often the whole remainder. The order is NOT the identity, so the permutation stage describes a real mechanism rather than the identity-order trap that same record names. WHY THIS WAS PREVIOUSLY UNREACHABLE, and the reason it is landing only now: claim.CN_* left this function open as one of three with 9-20 atom windows 'beyond the 8-atom exhaustive search bound'. The window is 20 atoms, so enumeration is hopeless, but HV census step 4 never asked for enumeration - it asks that the order be DERIVED by matching atoms on register-erased form and relocation identity. Done as a sparse bipartite matching the order is UNIQUE: exactly one slot-compatible candidate exists and it closes. The second blocker was a measurement artifact in the binding filter itself, recorded separately as claim.law.CH_sda21-relocation-offset-encoding-differs-between-our-objects-and-the-extracted-target.20260901.v1: R_PPC_EMB_SDA21 relocations are recorded at instruction+2 in our objects and at instruction+0 in the extracted target objects (measured image-wide, 14259 of 14259 versus 14265 of 14265), so any binding check comparing raw r_offset false-negatives on every window containing one. This window holds eight. Derived from the raw compiler output and proven by replaying every stage in order through webfrank.apply_patch against the retail bytes: 13 of 13 differing words closed, residual 0.",
+        "audit": {
+          "classification": "SCHEDULE",
+          "instructions": 175,
+          "permuted_instructions": 20
+        },
+        "instruction_permutation": {
+          "start": "0x1c",
+          "end": "0x6c",
+          "order": [
+            0,
+            3,
+            2,
+            1,
+            5,
+            7,
+            6,
+            9,
+            8,
+            10,
+            12,
+            11,
+            14,
+            13,
+            15,
+            16,
+            17,
+            18,
+            4,
+            19
+          ],
+          "before_sha256": "d5802e79ed4257cd850606c7a4bf9a1c537e2d319e8e8be2b7531e062099e2c2",
+          "after_sha256": "c524ea4e0fb6bda6f6871d7aff4b81779de6d4ea0bd0f19c5748abc16c9acf4d",
+          "before_relocations_sha256": "d74e154c6984041b3d8e0bc9aa754fa7f6c6b2fec6606beea327e3d83eab19f1",
+          "after_relocations_sha256": "1b0ee97f70f1caf0212395346245c65ab30420ed20767e7ccb9dd130a4da7f8f"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x4c",
+            "proof": "unconditional"
+          }
+        ]
+      }
     ]
   }
 }
