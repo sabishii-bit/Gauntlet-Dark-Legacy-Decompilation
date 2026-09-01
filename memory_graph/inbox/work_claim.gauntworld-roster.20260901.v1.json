@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "ROSTER lane, game/world/gauntworld (impact 1066.9, 97.65 fuzzy, 31.33 matched): drive it RC-style. regnorm census FIRST across all open functions, then nearest-first with the full kit (context <fn> per function; laws --query; free evidence \u2014 header comments + sibling templates measured strongest in run 26). Known history: InitWorldInfo was an asm-first reconstruction candidate; ene_visrad fields are GC-verified; fn_8005FDA8's relocation payload is permanently closed to WebFrank (cites @pool labels vs target named lbl_ \u2014 a WRONG-RELOC-SYMBOL defect like CameraSupervisor's: if the census shows the same pool-spelling mechanism, fix at source the same way, minding any pinned rules in the TU). Byte-exact or named parks; commit per function; gate = 'main.dol: OK'; defake_gate baseline first; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:InitWorldInfo",
+  "id": "work_claim.gauntworld-roster.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-GW",
+  "recorded_at": "2026-09-01T16:52:50Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

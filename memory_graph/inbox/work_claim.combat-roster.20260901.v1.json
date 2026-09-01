@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "ROSTER lane, game/game/combat.c (the measured impact leader, 1389.9): continue run-26 RC's drive (gdlmem context per function; RC's 3 laws: temp-local-for-second-call-arg, fmadd-needs-call-inline, dead-fabs-survives-only-if-address-escapes; the sibling template at combat.c:876-883 is byte-verified free evidence). get_cam_wpos first: real 446 but regnorm now reads 127 STRUCTURAL = 54 branch-disp artifacts + 73 genuine (fresh split, measured at dispatch) \u2014 decompose the genuine rows by cluster. Then the remaining open functions in census order. Do NOT touch CameraSupervisor (WF's this run). free evidence first (discipline 4 \u2014 it outperformed laws --query in this TU per RC's measured criticism; the corpus indexes prose not opcodes). Commit per verified keep; A/B/A reverts; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "tu:game/game/combat",
+  "id": "work_claim.combat-roster.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CB",
+  "recorded_at": "2026-09-01T16:53:35Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "HARVEST-A lane (rules only where functions close; webfrank.py is WF's \u2014 surgical json inserts + configure.py): the run-26 combined stage SHIPPED and CH's Tier-A-empty verdict was a design artifact (claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1 explains why CH's simulation failed) \u2014 RE-RUN the closability analysis against the SHIPPED stage over the 83-site/25-function population (claim.CH_combined-stage-closability-roster-and-its-empty-whole-function-payoff.20260901.v1 + the 83-not-91 law). Known-positive canaries first: replay the two run-26 combined closes (fn_800D8F28, camera_mode_level rules) through your analysis before trusting any verdict. Your half = functions in TUs alphabetically BELOW game/n (audio/dcs, anim, movie, mb, memcard-family etc.), MINUS owned TUs this run: game/world/camera.c (WF), sys/memcard (LG), game/game/combat.c (CB), game/mb/mb_particle (MB), game/world/gauntworld (GW), game/world/items.c + game/pb/pb_objregs (IG). FIRST BANK: fn_800DA60C (movieplayer) \u2014 proven derivation in CH's run-26 records (claim.CH_two-derived-closures-...v1), on offer since HV. Derivation disciplines all mandatory (step-0, identity-order, served-direction, def-pair-window before any audit escape, instrument refusals per new discipline 14). Gate = 'main.dol: OK' per close; defake_gate per TU; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:fn_800DA60C",
+  "id": "work_claim.stage-harvest-a.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-HA",
+  "recorded_at": "2026-09-01T16:52:25Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

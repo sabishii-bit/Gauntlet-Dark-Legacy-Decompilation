@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "IMPACT lane: (1) RegisterItemWobj (game/world/items.c, real 60, 2t): attempt.IT_registeritemwobj-loop-address-web-located-cap.20260901.v2 locates the ENTIRE residual as one callee-saved web \u2014 r25 holds the loop-top address r31+r26 alive across an ErrorPrintf call for one reuse where the target lets it die and rematerializes stfsx; closing that web is predicted to flip the function EXACT. Spelling levers that deny the second use a cached address (re-derive the address expression at the use site, block-scope the temp) \u2014 the record's axes B/C are measured dead, do not repeat. (2) sDrawGeom (game/pb/pb_objregs, 86.92, impact 530): continue from attempt.IH_sdrawgeom-pointer-associativity-...v1 \u2014 the lever is verified at ONE site only; the law says siblings are not verified by it. (3) then fresh top-2 from a re-rank excluding owned TUs this run: game/world/camera.c (WF), sys/memcard (LG), game/game/combat.c (CB), game/mb/mb_particle (MB), game/world/gauntworld (GW), game/world/items.c + game/pb/pb_objregs (IG) and terminal caps. context <fn> before every first edit; count distance outranks multiset (new law + probe now prints it). Verified fuzzy improvements kept and committed; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:RegisterItemWobj",
+  "id": "work_claim.impact-grind-4.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-IG",
+  "recorded_at": "2026-09-01T16:52:55Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

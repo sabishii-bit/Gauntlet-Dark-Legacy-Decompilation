@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "HARVEST-B lane (rules only where functions close; webfrank.py is WF's \u2014 surgical json inserts + configure.py): same brief as HARVEST-A (re-run closability vs the SHIPPED combined stage; canaries first \u2014 replay fn_800D8F28 + camera_mode_level through your analysis; read claim.law.WF_combined-stage-...20260901.v1 and the CH roster records) but your half = functions in TUs alphabetically AT-OR-ABOVE game/n (options/ui, pb, shop, sys, world minus owned), MINUS owned TUs this run: game/world/camera.c (WF), sys/memcard (LG), game/game/combat.c (CB), game/mb/mb_particle (MB), game/world/gauntworld (GW), game/world/items.c + game/pb/pb_objregs (IG). Named candidate: show_optmenu (game/ui/options, ~real 446, reclassified postprocessor-class by attempt.IH_show-optmenu-slots-aligned-residency-refuted.20260901.v1 \u2014 REMEASURE and classify its differing words against the shipped stage's modes first, per the new census discipline: destination-already-agrees is the cheapest tractability discriminant). Derivation disciplines all mandatory; instrument refusals (discipline 14). Gate = 'main.dol: OK' per close; defake_gate per TU; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:show_optmenu",
+  "id": "work_claim.stage-harvest-b.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-HB",
+  "recorded_at": "2026-09-01T16:52:30Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}
