@@ -3034,6 +3034,25 @@ def accept_records(
                 " shell): git add -- " + " ".join(stageable or touched)
             )
     build_database(root)
+    foreign_staged = []
+    if (root / ".git").exists():
+        # A no-pathspec `git commit` after accept has three times reverted
+        # merge-landed SOURCE files: the shared-checkout index can hold
+        # pre-merge content for paths accept never touched. Surface any
+        # foreign staged path loudly so the caller commits with the
+        # pathspec below instead of the whole index.
+        try:
+            cached = subprocess.run(
+                ["git", "-C", str(root), "diff", "--cached",
+                 "--name-only"],
+                capture_output=True, text=True,
+            ).stdout.splitlines()
+            foreign_staged = [
+                path for path in cached
+                if path and not path.startswith("memory_graph/")
+            ]
+        except OSError:
+            pass
     quoted = " ".join(f'"{path}"' for path in stageable)
     result = {
         "accepted": [record_id for record_id in record_ids],
@@ -3044,6 +3063,12 @@ def accept_records(
         "graph_rebuilt": True,
         "commit_command": f'git commit -m "<message>" -- {quoted}',
     }
+    if foreign_staged:
+        result["WARNING_foreign_staged_paths"] = (
+            "the index holds staged changes OUTSIDE memory_graph — a"
+            " no-pathspec commit will include (or REVERT) them: "
+            + ", ".join(foreign_staged[:8])
+            + ". Commit with the pathspec in commit_command.")
     if staging_error:
         result["staging_error"] = staging_error
     return result
