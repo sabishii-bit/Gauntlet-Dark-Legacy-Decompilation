@@ -13,6 +13,14 @@
   "kind": "attempt",
   "outcome": "exact",
   "recorded_at": "2026-08-30T03:51:35Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "structured-field(residual_class)",
+    "family": "no-residual",
+    "measured_at": "2026-08-29",
+    "signature": null,
+    "signature_source": "not measured -- no fndiff mismatch rows in the 2026-09-01 sweep (function measures matched, or its TU was not built)"
+  },
   "residual_class": "EXACT",
   "schema_version": 1,
   "valid_from": "2026-08-29"
