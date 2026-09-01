@@ -5218,6 +5218,7 @@ void fn_800606FC(void)
             if (it->info->item.subtype == 0x32) {
                 s32 b;
                 s32 pbits = *(s32*)&it->data[4];
+                s32 rec;
                 if (pbits == 0) {
                     break;
                 }
@@ -5233,9 +5234,9 @@ void fn_800606FC(void)
                     }
                 }
                 it->active |= 1;
-                lbl_8034481C = (u8)*(s16*)&it->data[0] + 3;
-                SaveAllRecords(i, b, gPlayers[b].pos,
-                               (u8)*(s16*)&it->data[0]);
+                rec = (u8)*(s16*)&it->data[0];
+                lbl_8034481C = rec + 3;
+                SaveAllRecords(i, b, gPlayers[b].pos, rec);
                 init_got_it();
                 break;
             } else {
