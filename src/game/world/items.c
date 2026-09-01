@@ -729,9 +729,8 @@ void LinkItemTriggers(void)
                         *(s8*)&ot1->data[6] = 0;
                         dup1++;
                     }
-                    if (*(volatile s8*)&ot1->data[7] !=
+                    if (*(volatile s8*)&ot1->data[7] ==
                         *(volatile s8*)&it1->data[6]) {
-                        continue;
                     }
                 }
             }
