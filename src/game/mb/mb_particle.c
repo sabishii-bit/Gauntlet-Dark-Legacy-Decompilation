@@ -3814,13 +3814,13 @@ static void freePsysMem(void* mem) {
 
     if (prev != NULL) {
         prev->next = block->next;
-        block = prev;
         pool->next = prev;
         if (prev->next != NULL) {
             prev->next->prev = prev;
         } else {
             pool->last = prev;
         }
+        block = prev;
         bytes += prevBytes;
         pool->free_cnt--;
     }
