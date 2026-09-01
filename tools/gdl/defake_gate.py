@@ -106,11 +106,18 @@ def snapshot(classify_text, count_text):
     return merged
 
 
-def compare(baseline, current):
-    """Verdicts per function; regression = matched fell or real grew."""
+def compare(baseline, current, renames=None):
+    """Verdicts per function; regression = matched fell or real grew.
+
+    ``renames`` maps old baseline names to new current names (--rename
+    old=new): a deliberate symbol rename otherwise reads as vanished+new
+    and fails the gate on a change that may have added exacts — a worker
+    had to arbitrate a 3-exact rename by hand.
+    """
+    renames = renames or {}
     verdicts = []
     for name, base in sorted(baseline.items()):
-        cur = current.get(name)
+        cur = current.get(renames.get(name, name))
         if cur is None:
             verdicts.append((name, "REGRESSION", "function vanished from object"))
             continue
@@ -162,7 +169,8 @@ def compare(baseline, current):
             verdicts.append(
                 (name, "IMPROVED", f"real {base_real} -> {cur_real}")
             )
-    for name in sorted(set(current) - set(baseline)):
+    renamed_targets = set(renames.values())
+    for name in sorted(set(current) - set(baseline) - renamed_targets):
         verdicts.append((name, "NEW", "function absent from baseline"))
     return verdicts
 
@@ -225,6 +233,12 @@ def main():
     update_improved = "--update-improved" in sys.argv
     rebuild = "--rebuild" in sys.argv or "--build" in sys.argv
     arbitrate = "--arbitrate" in sys.argv
+    renames = {}
+    for arg in sys.argv[1:]:
+        if arg.startswith("--rename="):
+            old, _, new = arg[len("--rename="):].partition("=")
+            if old and new:
+                renames[old] = new
     if len(args) != 2 or args[0] not in ("baseline", "check"):
         print(__doc__)
         return 2
@@ -239,13 +253,13 @@ def main():
             if not one:
                 continue
             print(f"==== {one} ====")
-            code = run_single(mode, one, rebuild, update_improved, arbitrate)
+            code = run_single(mode, one, rebuild, update_improved, arbitrate, renames)
             worst = max(worst, code)
         return worst
-    return run_single(mode, unit, rebuild, update_improved, arbitrate)
+    return run_single(mode, unit, rebuild, update_improved, arbitrate, renames)
 
 
-def run_single(mode, unit, rebuild, update_improved, arbitrate):
+def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None):
     unit = normalize_unit(unit)
     if rebuild:
         obj = re.sub(r"\.(c|cpp)$", "", unit)
@@ -275,7 +289,7 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate):
         print(f"no baseline at {path}; run `defake_gate.py baseline {unit}` first")
         return 2
     baseline = json.loads(path.read_text(encoding="utf-8"))
-    verdicts = compare(baseline, snap)
+    verdicts = compare(baseline, snap, renames)
     verdicts = arbitrate_regressions(verdicts, unit)
     conflicts = [v for v in verdicts if v[1] == "CONFLICT"]
     regressions = [v for v in verdicts if v[1] == "REGRESSION"]

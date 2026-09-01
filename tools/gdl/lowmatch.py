@@ -58,10 +58,15 @@ def missing_fuzzy_is_exact_zero(name, base_name_counts):
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    # Defaults track the project's actual frontier: at ~98% fuzzy a 0-50
+    # band silently returns nothing (cost a worker three turns). The
+    # near-miss band is where the work lives now.
     ap.add_argument("--min", type=float, default=0.0, metavar="PCT",
                     help="lower fuzzy bound, inclusive (default 0)")
-    ap.add_argument("--max", type=float, default=50.0, metavar="PCT",
-                    help="upper fuzzy bound, inclusive (default 50)")
+    ap.add_argument("--max", type=float, default=99.99, metavar="PCT",
+                    help="upper fuzzy bound, inclusive (default 99.99 —"
+                         " the sub-exact band; pass --max 50 for the old"
+                         " low-band view)")
     ap.add_argument("--min-size", type=int, default=0, metavar="BYTES",
                     help="minimum target function size (default 0)")
     ap.add_argument("--limit", type=int, default=50, metavar="N",

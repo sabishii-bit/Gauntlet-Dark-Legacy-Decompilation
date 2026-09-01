@@ -516,9 +516,21 @@ def main():
             return 1
 
     target, base = parse(target_o), parse(base_o)
-    names = [re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
-             if not name.startswith("fn_") else name
-             for name in args[1:]] or sorted(
+
+    def resolve_name(name):
+        """Requested-name resolution across the suffix convention: try the
+        raw spelling first (collision-kept names like dtor_800DB21C stay
+        suffixed in parse output), then the stripped form. Unconditional
+        stripping made both dtors unreachable by their own names."""
+        if name in target or name in base:
+            return name
+        if not name.startswith("fn_"):
+            stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", name)
+            if stripped in target or stripped in base:
+                return stripped
+        return name
+
+    names = [resolve_name(name) for name in args[1:]] or sorted(
         set(target) | set(base), key=lambda n: list(target).index(n) if n in target else 999
     )
 
