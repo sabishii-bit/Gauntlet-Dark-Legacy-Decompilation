@@ -894,5 +894,81 @@ class EquivalentCopyFormTests(unittest.TestCase):
             )
 
 
+class GauntworldPreheaderPermutationTests(unittest.TestCase):
+    """config/GUNE5D/webfrank.json :: game/world/gauntworld :: fn_8005FB48.
+
+    Real words from the raw compiler output and the extracted retail
+    object.  attempt.HV_gauntworld-preheader-constant-permute.20260901.v1
+    """
+
+    # +0x74..+0x8c in OUR colouring: lfd f28(sZeroDouble); li r28,0;
+    # lfs f29(sItemZero); li r30,0; lfd f30(own-pool 2^52); lis r24,17200.
+    OURS = _words(0xCB800000, 0x3B800000, 0xC3A00000,
+                  0x3BC00000, 0xCBC00000, 0x3F004330)
+    # The target orders the same five constants [2^52, li, sZeroDouble,
+    # li, sItemZero] and colours them one FPR/GPR further along.
+    TARGET = _words(0xCB800000, 0x3BC00000, 0xCBA00000,
+                    0x3B200000, 0xC3C00000, 0x3F004330)
+    ORDER = [4, 3, 0, 1, 2, 5]
+
+    def _permuted(self) -> bytes:
+        atoms = [self.OURS[i:i + 4] for i in range(0, len(self.OURS), 4)]
+        return b"".join(atoms[source] for source in self.ORDER)
+
+    def test_preheader_constant_permutation_is_dependence_free(self):
+        # Three loads from distinct SDA globals into distinct FPRs and two
+        # `li` to distinct GPRs, with no store in the region.  Checked in
+        # OUR colouring standing alone, because apply_patch runs the
+        # permutation before the recolor snapshot.
+        check_permutation_dependences(self.OURS, self.ORDER)
+
+    def test_window_stops_before_the_branch(self):
+        # +0x8c is `b`, and permute_instruction_atoms refuses any region
+        # holding a control op -- which is why the window ends at 0x8c.
+        with self.assertRaisesRegex(ValueError, "control op"):
+            region = self.OURS + _words(0x48000198)
+            permute_instruction_atoms(
+                region, self.ORDER + [6], [],
+                before_sha256=_sha256(region),
+                after_sha256=_sha256(region),
+                before_relocations_sha256=_relocation_sha256([]),
+                after_relocations_sha256=_relocation_sha256([]),
+            )
+
+    def test_post_permute_residual_is_a_consistent_recolor(self):
+        permuted = self._permuted()
+        verify_consistent_recolor(permuted, self.TARGET)
+        recolored, changed = copy_register_fields(permuted, self.TARGET)
+        self.assertEqual(recolored, self.TARGET)
+        self.assertEqual(changed, 4)
+
+    def test_payload_check_does_not_bind_a_relocation_to_its_atom(self):
+        """The guard gap this rule's derivation had to cover by hand.
+
+        permute_instruction_atoms verifies relocations through a sorted
+        multiset over ``(offset % 4, info, addend)``.  That proves no
+        relocation was created, destroyed or retyped -- it does NOT prove
+        each stayed with its own instruction.  Two SDA loads differ only
+        in a register field, so a word-only matcher can swap them and
+        produce correct text with the symbols on the wrong instructions,
+        and this check will not object.  Binding a relocated atom to its
+        target slot is therefore an obligation of whoever DERIVES the
+        order, not something the guard discharges.
+        """
+        region = _words(0xC3A00000, 0xC3C00000)   # two SDA lfs
+        first, second = 4321, 8765                # distinct symbols
+        before = [(2, first, 0), (6, second, 0)]
+        after = [(2, second, 0), (6, first, 0)]   # symbols exchanged
+        atoms = [region[i:i + 4] for i in range(0, len(region), 4)]
+        permuted = b"".join(atoms[source] for source in [1, 0])
+        permute_instruction_atoms(
+            region, [1, 0], before,
+            before_sha256=_sha256(region),
+            after_sha256=_sha256(permuted),
+            before_relocations_sha256=_relocation_sha256(before),
+            after_relocations_sha256=_relocation_sha256(after),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
