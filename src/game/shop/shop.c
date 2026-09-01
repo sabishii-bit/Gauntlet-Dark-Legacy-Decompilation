@@ -641,14 +641,14 @@ extern void* MBNewTempBlit(void* tex, int x, int y, int w, int h);
 s32 show_gold(s32 col)
 {
     u8* dpage = lbl_80122ED0;
-    u8* tbl = lbl_802897D0;
+    ShopPage* tbl = (ShopPage*)lbl_802897D0;
     s32 adj = gFrameTicks + (gFrameTicks >> 1);
     f64 heightScale = lbl_803483B0;
-    u8* blits = tbl + col * 24 + 7504;
-    u8* counts = tbl + col * 12 + 224;
-    u8* shownT = tbl + col * 12 + 128;
-    u8* targT = tbl + col * 12 + 80;
-    u8* valT = tbl + col * 12 + 176;
+    void** blits = tbl->blits[col];
+    s32* counts = tbl->pile_count[col];
+    s32* shownT = tbl->pile_shown[col];
+    s32* targT = tbl->pile_targ[col];
+    s32* valT = tbl->pile_val[col];
     s32 ypos = *(s32*)(dpage + col * 4 + 112);
     s32 xbase = *(s32*)(dpage + col * 4 + 96);
     s32 k = 0;
@@ -664,9 +664,9 @@ s32 show_gold(s32 col)
     char buf[32];
 
     for (; k < 3; k++) {
-        tgt = *(s32*)(targT + k * 4);
-        shown = *(s32*)(shownT + k * 4);
-        blit = *(u8**)(blits + *(s32*)(counts + k * 4) * 4);
+        tgt = targT[k];
+        shown = shownT[k];
+        blit = (u8*)blits[counts[k]];
         grew = 0;
         if (done != 0) {
             mbBlitInit3414(blit, 1);
@@ -687,11 +687,11 @@ s32 show_gold(s32 col)
             mbBlitProject(blit, 0, shown);
             mbBlitSetupVerts(blit, lbl_8034832C, lbl_80348328, lbl_8034832C,
                              height);
-            *(s32*)(shownT + k * 4) = shown;
+            shownT[k] = shown;
         }
-        item = dpage + *(s32*)(counts + k * 4) * 4;
+        item = dpage + counts[k] * 4;
         drawX = *(s32*)(item + 172);
-        sprintf(buf, lbl_803483B8, *(u32*)(item + 160), *(s32*)(valT + k * 4));
+        sprintf(buf, lbl_803483B8, *(u32*)(item + 160), valT[k]);
         if (grew != 0) {
             DrawGlowText(lbl_80348360, xbase + 16, drawX, buf);
         } else {
