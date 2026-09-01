@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "Measured 2026-09-01 on game/sfx/sfx.c::ProcessEffects, worktree GDL-Claude-SfxRecon, commits f0efe4185 / 753055807 / 388346d24. Refutes the residual localisation recorded in attempt.PE_processeffects-local-count-reconstruction.20260901.v1.",
+    "tags": [
+      "workflow",
+      "metrics",
+      "matching",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.PE_localise-a-frame-delta-by-region-arithmetic-not-by-the-exclusive-slot-list.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T15:47:14Z",
+  "schema_version": 1,
+  "subject": "function:ProcessEffects",
+  "valid_from": "2026-09-01",
+  "value": "A FRAME-SIZE DELTA IS NOT NECESSARILY WHERE THE EXCLUSIVE-SLOT ROWS CLUSTER, AND READING IT OFF THAT LIST COSTS A SESSION. Localise it by REGION ARITHMETIC between matched anchors instead. MEASURED REFUTATION. ProcessEffects carried a frame of 760 vs target 752. Nine of its eleven exclusive-slot rows sat below offset 92, so the prior pass concluded 'the whole remaining residual is 8 frame bytes confined BELOW slot 92' and named the surviving `normal[3]` local as the blocker -- an axis it then measured DEAD twice. That localisation was FALSE. Summing the occupied extents showed the region [4,92) was 88 bytes on BOTH sides: the exclusive rows there were an ORDERING difference at zero net size, contributing nothing to the frame. The true surplus was one extra hoisted f64 in the constant block ABOVE the low slots, in a region whose rows are mostly use-count matches rather than exclusives. THE PROCEDURE THAT WORKS, in order. (1) Bound the local area on both sides from the GPR save base -- the `stmw r14,N(r1)` operand -- and from the FPR base (`addi r11,r1,FRAME` feeding _savefpr_14); locals are [0,N) and the save area above it is typically identical width, so a frame delta with equal save widths is entirely a LOCALS delta. (2) Pick anchors that are use-count-paired on both sides and treat them as fixed points. (3) Sum the byte extents between consecutive anchors on each side and compare SIZES. A region whose size matches cannot hold the delta no matter how many exclusive rows it shows; a region whose size differs holds it even if every row in it is a use-count match. (4) Only then read the exclusive list, and read it as ORDERING information for the equal-size regions. COROLLARY ON PARKED AXES, which is how the same session then broke a two-session park: a park recorded against a COMPOSITION is not a park against its parts. The prior pass parked 'delete normal[3] + pass (pos,dir,delta) to CritterExpCollide' at real 2163 twice. Deleting normal alone removes 12 bytes where only 8 were surplus, so that composition OVERSHOT the frame and could not have succeeded on any argument list. With the frame independently closed first, the identical call-argument change plus a 4-above/8-below hitpos padding split for the same 12 bytes measured real 1611 -> 1537 and drove the slot COUNT to exact. Before treating a joint park as closed, name which variable it held fixed and re-probe with that variable corrected -- and state the held variable in the park record so the next agent can see the hole."
+}

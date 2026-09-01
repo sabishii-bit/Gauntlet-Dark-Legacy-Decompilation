@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Measured 2026-09-01 on game/sfx/sfx.c::ProcessEffects (2309 target insns, frame 0x2f0), worktree GDL-Claude-SfxRecon, commit f0efe4185. Instrument: tools/gdl/slotdiff.py for the frame/slot verdict, tools/gdl/fnasm.py --diff for the aligned single-row confirmation, tools/gdl/probe.py for each A/B.",
+    "scope": "MWCC GC 1.2.5. Sibling to claim.law.f64-pool-literal-substitution-diverges-from-f32.20260831.v1, which covers substituting a literal for an `extern f32/f64 lbl_*` pool READ. This law covers the converse: two literal FORMS of ONE value creating two pool ENTRIES.",
+    "tags": [
+      "cse",
+      "matching",
+      "decl-order",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.PE_one-value-two-literal-forms-costs-a-second-hoisted-f64-slot.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T15:46:49Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "ONE numeric value written in TWO different C literal FORMS at a single clamp site costs a SECOND pooled constant and therefore a SECOND hoisted f64 stack slot, inflating the frame by 8 bytes -- and the cure is the FLOAT form on BOTH operands, not merely making the two literals textually agree. MEASURED. ProcessEffects held a frame of 760 against a target of 752 for four prior passes. The source read `if (e->damage > (f64)15.0f) { e->damage = (f32)(f64)15.0f; }`. The compare operand is a DOUBLE expression and became a double pool entry; the assignment operand folds to a FLOAT and became a separate float pool entry; MWCC then hoisted BOTH into the prologue's f64 constant block as distinct 8-byte stack slots. Target's aligned stream loads the SAME slot at both sites (`lfd f0,440(r1); fcmpo` then `lfd f0,440(r1); stfs f0,172(r31)`); ours loaded 440 then 448. Rewriting BOTH operands to the f32 literal form -- `if (e->damage > 15.0f) { e->damage = 15.0f; }` -- collapsed the pair to one entry: frame 760 -> 752 EXACT, slots 81 -> 80, slot exclusives 9T/11O -> 5T/6O, real 1741 -> 1619. THE DISCRIMINATOR, and the reason this is worth a law rather than a note: rewriting the same site to the DOUBLE form on both operands (`> 15.0` / `= 15.0`) produced BYTE-IDENTICAL codegen to the original -- real unchanged at 1741, the two slots still present. So 'make the two literals agree' is NOT the rule; the assignment of a constant to an f32 lvalue is emitted through a float pool entry regardless of how the literal is spelled, and the only way to make one entry serve both sites is to put the COMPARE on the float form too. Writing the compare as a double is what creates the surplus entry. HOW TO FIND IT: this residual is invisible to the opcode multiset (23t, unchanged) and costs only ONE differing operand in the aligned view, so it will not surface from reading a --ops cluster list. It surfaces from slotdiff region ARITHMETIC: locate the GPR save base (`stmw r14,N(r1)`) on both sides to bound the local area, then compare the SIZES of the sub-regions between matched anchors. Here the sub-92 region was 88 bytes on BOTH sides while the frames differed by 8, which proved the surplus lay in the constant-hoist block above, not below -- the opposite of where the prior record had localised it. GENERALISATION: any `if (x > K) x = K;` clamp on an f32 member is a candidate; prefer the f32 literal form on both operands, and suspect this whenever a frame is exactly 8 bytes (or a multiple) over target with the low slot region already the right size."
+}
