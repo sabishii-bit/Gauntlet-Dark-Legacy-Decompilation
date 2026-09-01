@@ -258,6 +258,13 @@ one, and supersede the law if your target contradicts it.
    tools/gdl/tests` from the repo root. There is no pytest. Module
    counts drift — state test gates as the command plus "all green",
    not as a number.
+14. **Lane scratch directories stay UNTRACKED.** Never `git add` your
+   `XX_scratch/` — committed scratch rides merges onto main's repo
+   root and has had to be relocated three times. A script worth
+   keeping is promoted deliberately: move it under
+   `tools/gdl/composed_census/` (lane-prefixed filename, repo-root-
+   relative paths) in its own commit, and say so in your report.
+   Record DRAFTS go through `gdlmem propose-record`, not into git.
 
 Header edits (include/game/*.h): allowed ONLY to the lane whose work_claim
 names it as that header's owner this run — one owner per header per run.
