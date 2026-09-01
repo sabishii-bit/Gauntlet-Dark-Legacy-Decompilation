@@ -2163,9 +2163,9 @@ extern s32   gNextItemIdx;
 /* gWorldInfo: game/worldinfo.h (WorldInfo, 0x8028CA8C, size 0xA4) */
 extern const char lbl_80346F10[8];     /* "CHICKEN"  */
 extern const char lbl_80346F18[6];     /* "APPLE"    */
-extern char  lbl_80346F20[];     /* "TREAS_GOLD" (sdata2 copy)   */
-extern char  lbl_80346F28[];     /* "TREAS_SILVER" (sdata2 copy) */
-extern char  lbl_80346F34[];     /* "%s_D"     */
+extern const char lbl_80346F20[8];   /* sdata2 string, size 0x8     */
+extern const char lbl_80346F28[8];   /* sdata2 string, size 0x8     */
+extern const char lbl_80346F34[5];   /* "%s_D", sdata2 size 0x5     */
 extern char  lbl_802583A8[];     /* scratch name buffer          */
 extern char  sObjectsFile[];     /* +0x130 "TREAS_GOLD", +0x13C "TREAS_SILVER" */
 
