@@ -2195,8 +2195,8 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
         return -1;
     }
 
-    for (i = 0, offset = 0; i < sNumItemWobjs; i++, offset += 4) {
-        if (*(void**)((u8*)runtime->wobjTarget + offset) == target) {
+    for (i = 0; i < sNumItemWobjs; i++) {
+        if (runtime->wobjTarget[i] == target) {
             s16 flags = wtarget->triggertype;
             s32 old_type = (u8)flags;
 
@@ -2212,17 +2212,15 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
                     ErrorPrintf(strings + 0x480, target, old_type, trigger_type);
                 }
             }
-            if (0.0 ==
-                (f64)*(f32*)((u8*)runtime->wobjX2 + offset)) {
-                *(f32*)((u8*)runtime->wobjX2 + offset) = x;
-                *(f32*)((u8*)runtime->wobjX + offset) = x;
+            if (0.0 == (f64)runtime->wobjX2[i]) {
+                runtime->wobjX2[i] = x;
+                runtime->wobjX[i] = x;
             }
-            if (0.0 ==
-                (f64)*(f32*)((u8*)runtime->wobjZ + offset)) {
-                *(f32*)((u8*)runtime->wobjZ + offset) = z;
+            if (0.0 == (f64)runtime->wobjZ[i]) {
+                runtime->wobjZ[i] = z;
             }
-            if (*(f32*)((u8*)runtime->wobjValue + offset) <= 0.0f) {
-                *(f32*)((u8*)runtime->wobjValue + offset) = (f32)value;
+            if (runtime->wobjValue[i] <= 0.0f) {
+                runtime->wobjValue[i] = (f32)value;
             }
             return -1;
         }
