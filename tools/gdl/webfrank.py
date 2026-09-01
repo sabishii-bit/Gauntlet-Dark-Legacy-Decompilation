@@ -418,6 +418,14 @@ _HELPER_CALL_RE = re.compile(r"^_(save|rest)(gpr|fpr)_(\d+)$")
 # excluded so this set means exactly "registers a normal callee restores".
 _EABI_CALLEE_SAVED_GPRS = frozenset(range(14, 32))
 
+# PowerPC text relocation types that patch ONLY an immediate/displacement
+# field, leaving the opcode and every register field intact: ADDR16,
+# ADDR16_LO, ADDR16_HI, ADDR16_HA, REL24, REL14.  Deliberately EXCLUDES
+# R_PPC_ADDR32/R_PPC_REL32 (whole-word) and R_PPC_EMB_SDA21 (which rewrites
+# the base register field to r2/r13), so a decoded write set may only be
+# trusted for a relocated word whose type is in this set.
+_IMMEDIATE_ONLY_RELOCATIONS = frozenset({3, 4, 5, 6, 10, 11})
+
 # Operand pairs the compiler may freely exchange: the two factors of an
 # integer/FP multiply or add, the two sources of symmetric logicals, and the
 # FRA/FRC factors of fused multiply-adds.  Keyed by (opcode, xo); values are
@@ -1173,17 +1181,30 @@ def prove_constant_source(
     words: list[int], site: int, source: int, constant: int,
     entry_indexes: set[int], relocated_indexes: set[int],
     *, across_calls: bool = False, call_targets: dict | None = None,
+    relocation_types: dict | None = None,
 ) -> int:
     """Prove GPR *source* holds *constant* on entry to instruction *site*.
 
     The proof is a straight-line backward scan and is deliberately the
     weakest one that is obviously sound: walking back from the site it
     fails closed on the first index that can be entered from anywhere but
-    its own fallthrough edge, on any control instruction, on any
-    relocated word, and on any write to *source* that is not the exact
-    ``li source,constant`` being looked for.  Reaching such a definition
-    with no interposed write and no way into the span from elsewhere makes
-    *source* equal to *constant* on every path that reaches the site.
+    its own fallthrough edge, on any control instruction, on a relocated
+    word it cannot account for, and on any write to *source* that is not
+    the exact ``li source,constant`` being looked for.  Reaching such a
+    definition with no interposed write and no way into the span from
+    elsewhere makes *source* equal to *constant* on every path that
+    reaches the site.
+
+    RELOCATED WORDS.  A relocated word may never be the definition: an
+    unresolved address half is not the literal the proof needs, so that
+    case is refused outright and unconditionally.  An *interposed*
+    relocated word that does not write *source* cannot change *source*,
+    but only once we know the relocation cannot rewrite the register
+    fields the write set was decoded from — so its type must be in
+    ``_IMMEDIATE_ONLY_RELOCATIONS`` and is checked BEFORE the word is
+    decoded.  This distinction only matters once a rule composes stages:
+    a permutation can move a relocated word into a proof span that did
+    not contain one in the raw stream.
 
     With *across_calls* set the single exception described in
     ``_prove_call_preserves_source`` applies: a direct, named,
@@ -1215,12 +1236,29 @@ def prove_constant_source(
             _prove_call_preserves_source(index, word, source, call_targets)
             index -= 1
             continue
-        if index in relocated_indexes:
-            raise ValueError(
-                f"+0x{index * 4:x}: relocated word inside the proof span"
-            )
+        relocated = index in relocated_indexes
+        if relocated:
+            # The write set below is decoded from opcode and register
+            # fields, so it is only trustworthy when the relocation cannot
+            # touch those bits.  R_PPC_EMB_SDA21 is the counterexample that
+            # makes this a real check rather than a formality: it rewrites
+            # the base REGISTER field to r2/r13.  Validate the type BEFORE
+            # believing anything decoded from the word.
+            kind = (relocation_types or {}).get(index)
+            if kind not in _IMMEDIATE_ONLY_RELOCATIONS:
+                raise ValueError(
+                    f"+0x{index * 4:x}: relocated word inside the proof span "
+                    f"carries relocation type {kind}, which may rewrite bits "
+                    f"outside the immediate field"
+                )
         _reads, writes = _word_effects(word)
         if ("g", source) in writes:
+            if relocated:
+                raise ValueError(
+                    f"+0x{index * 4:x}: r{source} is defined by a relocated "
+                    f"word, whose immediate is an unresolved address rather "
+                    f"than the literal this proof requires"
+                )
             form = decode_copy_form(word)
             if form is None or form[0] != "li" or form[1] != source:
                 raise ValueError(
@@ -1243,6 +1281,7 @@ def equivalent_copy_form(
     current: bytes, target: bytes, edits: list,
     relocated_offsets: set[int], target_relocated_offsets: set[int],
     jumptable_offsets: set[int], call_targets: dict | None = None,
+    relocation_types: dict | None = None,
 ) -> tuple[bytes, int]:
     """Rewrite named words to the target's equivalent copy encoding.
 
@@ -1349,6 +1388,7 @@ def equivalent_copy_form(
                 relocated_indexes,
                 across_calls=(proof == "dominating_def_across_calls"),
                 call_targets=call_targets,
+                relocation_types=relocation_types,
             )
             edit["_proved_at"] = definition * 4
         else:
@@ -1420,6 +1460,10 @@ def apply_patch(
     call_targets = {
         offset: name for offset, (reloc_type, name) in text_relocations.items()
         if reloc_type == 10  # R_PPC_REL24
+    }
+    relocation_types = {
+        offset // 4: reloc_type
+        for offset, (reloc_type, _name) in text_relocations.items()
     }
     jumptable_offsets = _jumptable_targets(
         data, sections, symbol.section_index,
@@ -1536,6 +1580,10 @@ def apply_patch(
             for offset, (reloc_type, name) in text_relocations.items()
             if reloc_type == 10  # R_PPC_REL24
         }
+        relocation_types = {
+            offset // 4: reloc_type
+            for offset, (reloc_type, _name) in text_relocations.items()
+        }
 
     copy_forms = patch.get("equivalent_copy_form")
     if copy_forms:
@@ -1563,6 +1611,7 @@ def apply_patch(
             target_relocated_offsets=set(target_relocations),
             jumptable_offsets=jumptable_offsets,
             call_targets=call_targets,
+            relocation_types=relocation_types,
         )
         data[start:end] = rewritten
         changed += form_changes

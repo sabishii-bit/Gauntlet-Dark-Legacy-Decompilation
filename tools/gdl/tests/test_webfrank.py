@@ -688,6 +688,7 @@ LI_R6_0 = 0x38C00000        # li r6,0      (a VOLATILE destination)
 BCTRL = 0x4E800421          # indirect call through CTR
 BLRL = 0x4E800021           # indirect call through LR
 BNE_MINUS_4 = 0x4082FFFC    # bne -4: control, but not a call
+ADDI_R5_R6 = 0x38A60000     # addi r5,r6,0 — writes r5, never r31
 
 
 class DecodeCopyFormTests(unittest.TestCase):
@@ -1060,6 +1061,74 @@ class DominatingDefAcrossCallsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "requires"):
             self.rewrite(
                 current, target, [{"at": 8, "proof": "across_calls"}]
+            )
+
+
+class RelocatedWordInsideProofSpanTests(unittest.TestCase):
+    """A permutation can move a relocated word into a proof span.
+
+    Composing stages therefore forces the span's relocation handling to be
+    exact rather than blanket: an interposed relocated word that does not
+    write the source is harmless, but ONLY when its relocation type cannot
+    rewrite the register fields the write set was decoded from.
+    """
+
+    def rewrite(self, current, target, edits, **overrides):
+        arguments = {
+            "relocated_offsets": set(),
+            "target_relocated_offsets": set(),
+            "jumptable_offsets": set(),
+        }
+        arguments.update(overrides)
+        return equivalent_copy_form(current, target, edits, **arguments)
+
+    def spanning_relocated_word(self):
+        # li r31,0 ; addi r5,r6,<reloc> ; li r29,0  ->  ... ; addi r29,r31,0
+        # The interposed word writes r5, never r31.  Its relocation entry
+        # sits at byte +2 of the instruction at +0x4, hence offset 6.
+        return (
+            _words(LI_R31_0, ADDI_R5_R6, LI_R29_0, BLR),
+            _words(LI_R31_0, ADDI_R5_R6, ADDI_R29_R31, BLR),
+        )
+
+    def test_immediate_only_relocation_may_be_stepped_over(self):
+        current, target = self.spanning_relocated_word()
+        edits = [{"at": 8, "proof": "dominating_def"}]
+        output, changed = self.rewrite(
+            current, target, edits,
+            relocated_offsets={6}, relocation_types={1: 4},  # ADDR16_LO
+        )
+        self.assertEqual(output, target)
+        self.assertEqual(changed, 1)
+        self.assertEqual(edits[0]["_proved_at"], 0)
+
+    def test_sda21_relocation_may_not_be_stepped_over(self):
+        # R_PPC_EMB_SDA21 rewrites the base REGISTER field, so nothing
+        # decoded from the raw word can be trusted.
+        current, target = self.spanning_relocated_word()
+        with self.assertRaisesRegex(ValueError, "outside the immediate field"):
+            self.rewrite(
+                current, target, [{"at": 8, "proof": "dominating_def"}],
+                relocated_offsets={6}, relocation_types={1: 109},
+            )
+
+    def test_unknown_relocation_type_fails_closed(self):
+        current, target = self.spanning_relocated_word()
+        with self.assertRaisesRegex(ValueError, "outside the immediate field"):
+            self.rewrite(
+                current, target, [{"at": 8, "proof": "dominating_def"}],
+                relocated_offsets={6}, relocation_types={},
+            )
+
+    def test_relocated_definition_is_always_refused(self):
+        # An unresolved address half is not the literal the proof needs,
+        # however benign its relocation type is.
+        current = _words(LI_R31_0, LI_R29_0, BLR)
+        target = _words(LI_R31_0, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "defined by a relocated word"):
+            self.rewrite(
+                current, target, [{"at": 4, "proof": "dominating_def"}],
+                relocated_offsets={2}, relocation_types={0: 4},
             )
 
 
