@@ -2608,7 +2608,6 @@ void ProcessEffects(void)
 {
     EffectPage* page = (EffectPage*)EffectInfo;
     s32 i;
-    u8 framePad[32];
     f32 mat[16];
     f32 targetmat[16];
     f32 oldpos[3];
@@ -2621,7 +2620,6 @@ void ProcessEffects(void)
     f32 fade;
     f32 collisionDamage;
 
-    (void)framePad;
     if ((gGameBusy | gGameplayPauseTimer) != 0) {
         return;
     }
