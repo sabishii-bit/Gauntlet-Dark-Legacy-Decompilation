@@ -1624,9 +1624,9 @@ f32 someone_will_be_off_screen(s32 camIdx, f32* pos)
     s32 scrH = MBScreenHeight();
     s32 scrW = MBScreenWidth();
     cam = (Camera*)(cameraState + camIdx * sizeof(Camera) + 0xC8);
-    eyeX = (f32*)((u8*)cam + 0x34);
-    eyeY = eyeX + 1;
-    eyeZ = eyeX + 2;
+    eyeX = (f32*)(cameraState + camIdx * sizeof(Camera) + 0xC8 + 0x34);
+    eyeY = (f32*)(cameraState + camIdx * sizeof(Camera) + 0xC8 + 0x38);
+    eyeZ = (f32*)(cameraState + camIdx * sizeof(Camera) + 0xC8 + 0x3C);
     savedX = *eyeX;
     savedY = *eyeY;
     savedZ = *eyeZ;
