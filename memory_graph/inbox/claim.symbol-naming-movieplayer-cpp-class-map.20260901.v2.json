@@ -1,0 +1,23 @@
+{
+  "attributes": {
+    "hand_off_to": "claude-fleet-worker-CL / work_claim.cpp-class-layouts.20260901.v1",
+    "laws_applied": [
+      "claim.law.rtti-vtable-chain-recovers-cpp-class-names.20260901.v1",
+      "claim.law.rtti-duplicate-record-per-referencing-context.20260901.v1"
+    ],
+    "tags": [
+      "symbol-identity",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.symbol-naming-movieplayer-cpp-class-map.20260901.v2",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-09-01T01:15:15Z",
+  "schema_version": 1,
+  "subject": "tu:game/movie/movieplayer",
+  "supersedes": "claim.symbol-naming-movieplayer-cpp-class-map.20260901.v1",
+  "valid_from": "2026-09-01",
+  "value": "SUPERSEDES v1 with the image-wide sweep's findings (tools/gdl/rttiscan.py). NO SOURCE WAS EDITED: game/movie/movieplayer is claude-fleet-worker-CL's under work_claim.cpp-class-layouts.20260901.v1, so this is a HAND-OFF record. v1's four classes and their vtable/RTTI/dtor bindings are all CONFIRMED by the independent sweep; two things CHANGE. CHANGE 1, the important one for CL: v1 described 'a further vtable slot at 0x801296F8 holding dtor 0x800DBF6C'. That is not a stray slot -- it is SLOT 0 OF A COMPLETE, RTTI-BEARING Codec VTABLE at lbl_801296F0 (symbols.txt size 0x20; 0x801296F0 word0 = RTTI 0x80344024 -> 'Codec', word1 = 0, word2 = 0x801296F8 holding dtor 0x800DBF6C, then five NULL slots). So fn_800DBF6C = Codec::~Codec is now RTTI-CONFIRMED by its own class's vtable, NOT merely inferred from VQCodec's in-charge=0 base-subobject call fn_800DBF6C(this+0, 0). CL should treat the Codec dtor identity as settled evidence. CHANGE 2: 'Codec' has TWO RTTI records, 0x80344010 (the one VQCodec's base descriptor lbl_801296C0 points at) and 0x80344024 (the one Codec's own vtable points at), with two separate identical 'Codec' strings at 0x803493C8 and 0x803493D0 -- per claim.law.rtti-duplicate-record-per-referencing-context.20260901.v1. v1 named only 0x80344010 and did not find Codec's vtable at all. NEW LAYOUT CONSTRAINT, free evidence for the class modelling CL is doing: BOTH root classes are ABSTRACT and their pure-virtual counts pin the derived vtable shapes exactly. MoviePlayerBase's vtable lbl_801296A4 (size 0x1C = 7 words) = { RTTI, 0, dtor 0x800DB21C, NULL, NULL, NULL, NULL } = dtor + 4 pure virtuals; MoviePlayer's vtable lbl_8012968C (size 0x18 = 6 words) = { RTTI, 0, dtor 0x800DB008, 0x800DA920, 0x800DA6A4, 0x800DA60C } = dtor + 3 filled slots. Codec's vtable lbl_801296F0 (size 0x20 = 8 words) = dtor + 5 pure virtuals; VQCodec's vtable lbl_801296CC (size 0x24 = 9 words) = { RTTI, 0, dtor 0x800DBD30, 0x800D96B0, 0x800D967C, 0x800D9648, 0x800D9614, 0x800D8784, NULL } = dtor + 5 filled slots + one trailing NULL word. So VQCodec's five non-dtor virtuals correspond ONE-TO-ONE, IN ORDER, to Codec's five pure virtuals -- the base class must declare exactly five pure virtual members in that slot order, and VQCodec must override exactly those five. Note MoviePlayer fills only 3 of MoviePlayerBase's 4 pure slots, so one MoviePlayerBase pure virtual is NOT overridden by MoviePlayer. UNNAMED SYMBOLS AND THEIR EVIDENCED MANGLED NAMES, for CL to adopt via gdlmem rename-symbol when converting (this lane did NOT apply them -- CL owns the TU): lbl_8012968C -> __vt__11MoviePlayer; lbl_801296A4 -> __vt__15MoviePlayerBase; lbl_801296CC -> __vt__7VQCodec; lbl_801296F0 -> __vt__5Codec; lbl_80344000 -> __RTTI__15MoviePlayerBase; lbl_80344008 -> __RTTI__11MoviePlayer; lbl_80344018 -> __RTTI__7VQCodec. The <len><name> mangling convention is verified in-image by the existing __dt__15MoviePlayerBaseFv and by __vt__/__RTTI__Q23std9exception. CAUTION on the two Codec RTTI records: they would BOTH mangle to __RTTI__5Codec, so only one can take that name in symbols.txt -- same NAME-TAKEN situation as lbl_80344058; leave the other as an lbl_. UNCHANGED FROM v1 and re-confirmed by this sweep: dtor_800DBB94 appears in NO vtable anywhere in the IMAGE (not merely in this TU) -- the image-wide scan finds exactly 6 vtables and 8 RTTI records and it is in none of them -- so it is non-polymorphic, has no RTTI record, and its class name is NOT recoverable. Do not invent one."
+}
