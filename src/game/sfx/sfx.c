@@ -2800,12 +2800,11 @@ void ProcessEffects(void)
             collisionDamage = e->damage * damageScale;
 
             if (e->lightrad > 0.0f) {
-                f32 lightpos[3];
-                lightpos[0] = pos[0];
-                lightpos[1] = pos[1];
-                lightpos[2] = pos[2];
-                lightpos[1] += 1.0;
-                fn_800C0ADC(lightpos, e->lightcolor,
+                hitpos[0] = pos[0];
+                hitpos[1] = pos[1];
+                hitpos[2] = pos[2];
+                hitpos[1] += 1.0;
+                fn_800C0ADC(hitpos, e->lightcolor,
                             lightScale * (e->lightrad * lbl_80343DF4),
                             lbl_80343DF8);
             }
