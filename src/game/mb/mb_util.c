@@ -17,7 +17,7 @@
  */
 #include "types.h"
 
-extern int MBWorldSphereVisible(f32* a, f32* b, f32* c);
+extern int MBWorldSphereVisible(f32* sphere, f32 radius); /* mb_camera.c:158 */
 extern void CopyMat4(void* src, f32* dst);
 extern void MulMat4(void* a, f32* b, f32* dst);
 extern void InvertMat4(void* src, f32* dst);
@@ -31,8 +31,13 @@ typedef struct MBUtilNode {
 } MBUtilNode;
 
 /* 0x800BB5F4 */
-int PointVisible(f32* a, f32* b, f32* c) {
-    return MBWorldSphereVisible(a, b, c);
+/* Callers (pmotion.c:3903, player.c:5863) pass the radius in f1 and the
+ * sphere centre in r3, which is exactly what MBWorldSphereVisible reads;
+ * the old `(f32*, f32*, f32*)` spelling here was a pass-through wrapper's
+ * type-transparent disguise -- the forwarding branch is byte-identical
+ * either way, so nothing scored it. */
+int PointVisible(f32 radius, f32* sphere) {
+    return MBWorldSphereVisible(sphere, radius);
 }
 
 /* 0x800BB614 */
