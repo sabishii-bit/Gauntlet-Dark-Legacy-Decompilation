@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "Found 2026-09-01 in worktree GDL-Claude-Harvest3 while running the union re-sweep over 142 equal-size paired functions. Reproduce: load game/movie/movieplayer::fn_800D91B4 from build/GUNE5D/src/game/movie/.postprocess/body/movieplayer.o and call webfrank.check_permutation_dependences on region [0xd0,0x100) with an order that breaks two def-use chains on the SAME atom where one broken resource is a str and the other a tuple. A smaller in-tree instance: game/sys/memcard::drawMemCardMessage region [0x1a8,0x1b8) order [3,1,2,0].",
+    "tags": [
+      "postprocessor",
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.HV_a-guard-that-crashes-while-formatting-its-refusal-aborts-the-sweep-not-the-candidate.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T18:40:01Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "webfrank.check_permutation_dependences RAISES TypeError FROM ITS ERROR PATH, AND THE COST IS MEASURED: FIVE CANDIDATES SILENTLY UNEVALUATED AND ONE BYTE-EXACT CLOSE ALMOST LOST.\n\nTHE DEFECT. At tools/gdl/webfrank.py:956 the refusal path builds its message with `sorted(key for key in ... if baseline_chains.get(key) != permuted_chains.get(key))`. Those keys are `(atom, resource)` pairs, and `resource` is HETEROGENEOUS by construction in _word_effects: a plain str for \"mem\"/\"anymem\"/\"lr\"/\"cr\"/\"ctr\" and a tuple for (\"g\", N), (\"f\", N) and (\"stack\", disp). Sorting compares `atom` first, which is fine, and then compares `resource` against `resource` whenever two broken chains share an atom -- str against tuple, which Python refuses. So the guard computes its verdict CORRECTLY and then dies while rendering it.\n\nWHY THIS IS NOT A COSMETIC BUG. Every caller in the tree -- apply_patch, ha_close.build_rule, and any derivation loop -- catches ValueError, because ValueError is the guard vocabulary for 'refused'. A TypeError therefore escapes as an uncaught exception. In a per-function tool that is a crash; in a SWEEP it aborts the whole function's search on the FIRST candidate order that trips it, so the function is recorded with no verdict rather than with a refusal, and every remaining order for that function is never tried. The failure mode is silent in exactly the way that matters: the sweep's output looks like a refusal taxonomy entry, not like a hole.\n\nTHE MEASUREMENT. Over 142 candidates, 5 aborted this way: pb_objects::pbSendObjTextures, movieplayer::fn_800D91B4, movieplayer::fn_800D860C, movieplayer::fn_800D86C8, ui/select::setup_sel_menu. Catching TypeError and treating it as the refusal it already is re-ran all five: four refuse cleanly and ONE CLOSES BYTE-EXACT -- movieplayer::fn_800D91B4, 136/136, real 136 -> 0 on a single twelve-atom window at [0xd0,0x100). That is a 136-real-diff exact that the crash had hidden behind a taxonomy row.\n\nTHE FIX, for the tool owner (tools/gdl/webfrank.py is not this lane's to edit): give the sort a total order that does not depend on resource type -- `sorted(..., key=lambda k: (k[0], repr(k[1])))` -- or normalise resources to strings before sorting. The refusal logic itself needs no change and no soundness argument; only the message construction is wrong.\n\nTHE GENERAL RULE, which is the part worth keeping. Discipline 14 says a guard's refusal is a measurement of the guard. This is its sharper corollary: a guard that can CRASH rather than refuse is a measurement of the guard that never reaches the record at all. Any derivation loop calling the webfrank guards must catch Exception, not ValueError, and must record WHICH candidates it caught -- otherwise the sweep's refusal taxonomy quietly under-reports its own coverage. A refusal you can count is data; a crash you swallowed is a hole shaped exactly like data."
+}

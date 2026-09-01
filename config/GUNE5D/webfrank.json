@@ -390,6 +390,54 @@
       }
     ],
     "game/enemy/critter": [
+    {
+      "function": "CritterLineRootColSub",
+      "before_sha256": "a67792e802cc08319d9e4d7cb7b9f555740bde663620293e7a0e888fa6af7746",
+      "after_sha256": "b6e19382237934e8be20e87042d1a2b05b6a70ff84338ad83ecdb2663adda62b",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - the widest window this lane shipped and the strongest test of order selection. 174/174, real 42. Permute [0x18,0x40) -- TEN atoms -- order [2,4,0,1,5,7,3,9,6,8], a full entry-block rescheduling, then three `unconditional` copy-form sites at +0x38/+0x3c/+0x40 (copy->copy with MATCHING destination and source, so the re-encode carries no dataflow obligation at all), then copy_register_fields under a proven bisimulation. The copy->copy arrow is the one ch_census26.classify OMITS, and claim.law.HB_two-censuses-...v1 records that an omitted arrow MIS-TIERS rather than merely miscounting -- this function is a live instance: its three form sites were filed under `other`, which is the quantity every tier decision is computed from. Order was selected by running every shape- and relocation-consistent bijection through check_permutation_dependences, copy_register_fields AND verify_consistent_recolor and accepting only one that passes all three. real 42 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 174,
+        "permuted_instructions": 10
+      },
+      "instruction_permutation": [
+        {
+          "start": "0x18",
+          "end": "0x40",
+          "order": [
+            2,
+            4,
+            0,
+            1,
+            5,
+            7,
+            3,
+            9,
+            6,
+            8
+          ],
+          "before_sha256": "33a00c71ca967a325f7956bd507293c7bbef81d782f66407339d3d48cdb94b91",
+          "after_sha256": "0847ef33eaea79a0ebe6b1ebe87b8412fece91b108e6f98735436c21a7cf3084",
+          "before_relocations_sha256": "344a8db891a143638f45aacb0bbe7df0681e35400ca58bdb0874b04ea5bf4d0d",
+          "after_relocations_sha256": "4a18d29b0e1816a07432960f601b14465a4dfe5d443f3098129249f72f354216"
+        }
+      ],
+      "equivalent_copy_form": [
+        {
+          "at": "0x38",
+          "proof": "unconditional"
+        },
+        {
+          "at": "0x3c",
+          "proof": "unconditional"
+        },
+        {
+          "at": "0x40",
+          "proof": "unconditional"
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "CritterResolveMultipleTargets",
         "before_sha256": "aa900ce7a9017394126cce19298bc130850f5356d20f7ac4f45f71c138a108cb",
@@ -462,6 +510,32 @@
       }
     ],
     "game/enemy/enemy": [
+    {
+      "function": "fn_8004646C",
+      "before_sha256": "d3c3b670d3014fb59e53dc22a081e1138f6465c05f8efba0b89608975bd96f4a",
+      "after_sha256": "6d8e2555909caaf2424c4834bfff7efd8fba1ecb64379f06ea23f278056e4ff4",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - mixed schedule+recolor, exactly the population claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 says the audit will never nominate. 133/133 with an IDENTICAL opcode multiset and two displaced words at +0xa8/+0xac: permute [0xa8,0xb0) order [1,0], then copy_register_fields. Step-0 membership (claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1) was run as a MEMBERSHIP test before anything was authored -- the swap is legal in OUR colouring standing alone, which is required because apply_patch runs the permutation FIRST. Relocation-free window in both objects. The two recorded parks (attempt.fn-8004646c-callee-saved-group-swap.20260831.v1, attempt.parked.fn_8004646c.20260829.v1) are SOURCE-axis and are upheld as source caps; this closes the other axis. real 72 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 133,
+        "permuted_instructions": 2
+      },
+      "instruction_permutation": [
+        {
+          "start": "0xa8",
+          "end": "0xb0",
+          "order": [
+            1,
+            0
+          ],
+          "before_sha256": "5c65d8e0cab24588a92cebdceee59eb8d9721024c1916e97fe7c112227349a06",
+          "after_sha256": "4d818f786ac82475f0ac1e4ae03bba6de5d698075403c3b36ecf27e122d671c1",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "closest_enemy",
         "before_sha256": "df7ab68342e6b9d8443c3879d0b0edb444da2893851345d958ba3383bb2ec114",
@@ -682,6 +756,39 @@
       }
     ],
     "game/world/newcam": [
+    {
+      "function": "fn_8006DF34",
+      "before_sha256": "5aae21364f3f2362e080e2b5ebd8cb94749ca7b9bd01cb11de3bf42f592b8cd9",
+      "after_sha256": "7783aea384b12439ed366470efab4b15421a3cdb2a29c729694d56aedfb5ea32",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - the full permute+form+recolor composition. 378/378, real 24. Permute [0x230,0x238) order [1,0] (dependence-audited in our colouring, strictest form, no exit_dead escape); the window DOES carry a relocation, so both region relocation hashes are non-empty and the rule fails closed if the symbol table is renumbered. The moved atom was bound to its target slot by (relocation type, symbol) and not by instruction word, per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 -- the shipped payload check proves CONSERVATION, not binding, so binding is the deriver's obligation. Then +0x240 is a differing-destination li-vs-copy site closed by `constant_dataflow_recolor` naming our source r29, and copy_register_fields completes it under a machine-proven bisimulation. Source axis capped by attempt.fn-8006df34-constant-copy-instance-rescreen.20260831.v1 (the constant-copy-vs-rematerialize class, source-unreachable). real 24 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 378,
+        "permuted_instructions": 2
+      },
+      "instruction_permutation": [
+        {
+          "start": "0x230",
+          "end": "0x238",
+          "order": [
+            1,
+            0
+          ],
+          "before_sha256": "4c4b9122f68fe6a7ae2fb6b03c9e03e55ce747fbc8f3eabdfdace2f594228580",
+          "after_sha256": "7b0492a1deac1824d405967f6f5044d81d60104492f89c8394320ddc83580c41",
+          "before_relocations_sha256": "7f3fbcb494f13df5ead6da70570e5f7f287cd1fa551828862a10be731db65c69",
+          "after_relocations_sha256": "58f69344128f190a3fa46497a5d83bd05d5f5b9bdc4a8481225eee3799d58994"
+        }
+      ],
+      "equivalent_copy_form": [
+        {
+          "at": "0x240",
+          "proof": "constant_dataflow_recolor",
+          "our_source": 29
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "fn_8006E654",
         "before_sha256": "a8ae1a58e6d35e9719ed4def254daf4aa5e07f86247eb8192c3b8d6589c68a5b",
@@ -912,6 +1019,36 @@
       }
     ],
     "game/mb/mb_font": [
+    {
+      "function": "MBRenderText",
+      "before_sha256": "19e13c7eb134b0290d66076dc77fd98ecc366bb4f1e6bcb9106aadb9c8d5b540",
+      "after_sha256": "dbc9fcb57507f9804ef80988e35a608cc7ad00de6112ecbc7a8803fe3f0d8f28",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - a post-recolor permutation that RESOLVES A NAMED PARK AT ITS OWN OFFSETS. 347/347, real 22. attempt.parked.mbrendertext-color-tiebreak.20260901.v4 parks this function on 'an r0<->r3 colour tie-break at +0x108..+0x130' after four source-axis versions; the window shipped here is EXACTLY [0x108,0x130), ten atoms, order [1,0,3,4,5,2,7,6,9,8]. The tie-break is not a colour choice that source can steer -- it is a schedule difference whose displacement is caused by the recolor, so it is reachable only AFTER the register stage, and the pre-placement was enumerated and refuses. The recolor aims at the un-permuted intermediate so verify_consistent_recolor is never asked to adjudicate a reordering, and the window is relocation-free in both objects as that stage requires. The park is UPHELD as a source cap and REFUTED as a statement that the residual is unreachable. real 22 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 347,
+        "permuted_instructions": 10
+      },
+      "post_recolor_permutation": [
+        {
+          "start": "0x108",
+          "end": "0x130",
+          "order": [
+            1,
+            0,
+            3,
+            4,
+            5,
+            2,
+            7,
+            6,
+            9,
+            8
+          ]
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "MBNewFont",
         "before_sha256": "d046e7ffadc58d66f5a9d3118347a494da75e0a6f45bc9536805643e5c3b2517",
@@ -1206,6 +1343,69 @@
       }
     ],
     "game/movie/movieplayer": [
+    {
+      "function": "fn_800D91B4",
+      "before_sha256": "00dc5f00822067de032e7102c7d66483831407aa7a9b7f122fac5c56f8b01ac4",
+      "after_sha256": "121778287568eccee0d0cb18072c39e041d74dc9a80bd468acd56c206247f89f",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - RECOVERED FROM A GUARD CRASH, and that is the point worth recording. 136/136, real 136: the entire function body differs, and the whole of it is one twelve-atom reordering at [0xd0,0x100) order [4,1,2,0,3,11,5,6,7,8,9,10] plus a renaming. On the first sweep this function produced NO verdict at all: webfrank.check_permutation_dependences raised TypeError from its ERROR path while formatting a refusal (it sorts a `broken` list of (atom, resource) keys whose resource is a str for mem/lr/cr and a tuple for ('g',N)/('stack',N); two broken chains on the same atom compare str against tuple), so a legitimate refusal of ONE candidate order reached the caller as an uncaught exception and aborted the search for the whole function. Catching TypeError as the refusal it is recovered this close and four other clean refusals. The order shipped here was selected by proof over every shape-consistent bijection in the window, per claim.law.WF_enumerate-every-shape-consistent-order-and-select-by-proof.20260901.v1; the window is relocation-free in both objects and check_permutation_dependences accepts it in its STRICTEST form with exit_dead=None. real 136 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 136,
+        "permuted_instructions": 12
+      },
+      "instruction_permutation": [
+        {
+          "start": "0xd0",
+          "end": "0x100",
+          "order": [
+            4,
+            1,
+            2,
+            0,
+            3,
+            11,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "before_sha256": "0b395127f3ca24cf96c7441dee9c8d97d9e8d25c5d55ac81a74dccdd8e9f7ea4",
+          "after_sha256": "a3c38f327e4c09fe404ce7a8cc8f46dcfa49acf8288c215660268a587092401f",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "copy_register_fields": true
+    },
+    {
+      "function": "__ct__11MoviePlayerFv",
+      "before_sha256": "adaeef2d0b1026b6a3c36100ba6c78a993a4edcbef76ff116312d8e7649a8fbc",
+      "after_sha256": "5ed9ecce0c73b4d8a4973eef09780617d52202b4a80fbd1a9ac078a8bfd6d7f5",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - a pure four-atom entry reordering with NO register stage at all: 25/25, real 2, permute [0x14,0x24) order [3,0,1,2] and nothing else. Every shape-consistent order over the window was enumerated and each carried through the full guard chain per claim.law.WF_enumerate-every-shape-consistent-order-and-select-by-proof.20260901.v1 (a greedy first-hit search returns legal-but-unprovable orders in windows of same-shaped atoms, which is exactly what an entry sequence is); this is the order the proof selected. The window carries relocations, which ride their atoms and are bound by (type, symbol) rather than by word. THIS DISSOLVES A THIRD MEMBER of the mp-label-correction park family: attempt.mp-label-correction.fn-800db0f8.20260831.v1 classified this function STRUCTURAL from a positional-pairing artifact and explicitly ran no probe, and a permutation that reproduces the target bytes exactly is a CONSTRUCTIVE disproof of a STRUCTURAL label. real 2 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 25,
+        "permuted_instructions": 4
+      },
+      "instruction_permutation": [
+        {
+          "start": "0x14",
+          "end": "0x24",
+          "order": [
+            3,
+            0,
+            1,
+            2
+          ],
+          "before_sha256": "287b4686c6c57d2576e56c60a144fd1c191647dcec350be30e4dc85a05a6246f",
+          "after_sha256": "af31e2a8b0c0ad057df7a694c21ff5f35fb68824a34985704542b37fdb94de29",
+          "before_relocations_sha256": "55943df083649f94baf9ba85f6351181035b4bd24de1d5bfa5f71f80aedfb976",
+          "after_relocations_sha256": "3535d43f12dd5242661be86c675cfd74ac45e138d858e1d2b3ccfc25ffdf8a75"
+        }
+      ]
+    },
       {
         "function": "fn_800D8F28",
         "before_sha256": "902e7000515ba3c145bfd6b65ba69da459f6a6136017e066547b0ef1d1a47aad",
@@ -1443,6 +1643,28 @@
       }
     ],
     "game/world/camera": [
+    {
+      "function": "camera_mode_target",
+      "before_sha256": "5a243a54c6e364cce6c7f31e89839bb05c59bb4a52e95390f911baf45975dc98",
+      "after_sha256": "5b8c615f722cfc904922b6066e8a4cbfd2060a23dbd9a6f2c7ca52ea20062b92",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - a POST-recolor permutation. 452/452, real 24. The displacement at [0x2ac,0x2b4) is CAUSED BY the recolor rather than independent of it, so it is unreachable for a permutation that runs first -- the exact boundary claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1 draws around C1's 'unreachable'. The stage therefore runs LAST: the recolor aims at the intermediate image obtained by applying the permutation's INVERSE to the target (unpermute_target_windows), which restores position correspondence so the UNCHANGED verify_consistent_recolor can adjudicate the renaming, and the permutation then carries the intermediate to the target. Both derivation placements were enumerated and the pre-placement refuses; the post placement is selected BY PROOF, not by preference. Window is relocation-free in both objects, as that stage requires. The two recorded parks are SOURCE-axis (attempt.camera-mode-target-square-product-fpr-tie-rescreen.20260831.v1 capped) and are upheld. real 24 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 452,
+        "permuted_instructions": 2
+      },
+      "post_recolor_permutation": [
+        {
+          "start": "0x2ac",
+          "end": "0x2b4",
+          "order": [
+            1,
+            0
+          ]
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "debug_camera_pos",
         "before_sha256": "82e089fa643c0bd6e23b227d57fe844c1d9bde3bdf792a4d751028e24765ee49",
@@ -1814,6 +2036,32 @@
       }
     ],
     "game/world/tower": [
+    {
+      "function": "TowerCheckMessages",
+      "before_sha256": "ee9590da37daff4a371cb53c1ddcd353cb27677a23074b619f32d861cc433778",
+      "after_sha256": "924878c9658c8f0b0dff2042ce4e099881b48a7757f6198e08fc49999d0a6700",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - the FIRST member of the RECOLOR-REPAIR class to ship, and the reason the class exists. TowerCheckMessages is Tier A: all 122 differing words are pure register-field differences, so copy_register_fields alone reproduces the target bytes. It nonetheless REFUSED, because verify_consistent_recolor demands a position-consistent renaming and ours was two-valued: our build and the target both materialise two interchangeable values around +0x430 and assign them to each other's registers, so the binding is intersected away at the first merge that joins them and the guard reports a use that 'does not correspond' far downstream. Transposing the two definitions -- window [0x430,0x438) order [1,0], two independent atoms with no RAW/WAR/WAW hazard, accepted by check_permutation_dependences in its STRICTEST form with exit_dead=None and carrying no relocation in either object -- makes the SAME recolor a clean bijection. NOTE FOR CENSUS AUTHORS: this window contributes ZERO unabsorbed words, so every census built to date (cn_census, ch_census26, hb_census and my own run-27 filter) is structurally blind to it -- they all derive permutation windows from the words that are NOT pure register-field differences. The refusal offset is a POINTER to the merge, not a verdict on the function; the repair lives at the definitions upstream of it. real 122 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 697,
+        "permuted_instructions": 2
+      },
+      "instruction_permutation": [
+        {
+          "start": "0x430",
+          "end": "0x438",
+          "order": [
+            1,
+            0
+          ],
+          "before_sha256": "92e4332597522c9565456f2c8ffee77b5aca9019c473cc5a1823beea4ccb4e4b",
+          "after_sha256": "9ec074f988299a44e79f5c71e4af6f3f0ad950e2c3f1bec9df5b5319a6592cea",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "SumnerDoSpeech",
         "before_sha256": "84775fdda0cab9527991a042d0992e91fe1ed90e580675667c6a5f5b51b205bf",
@@ -1901,6 +2149,25 @@
       }
     ],
     "game/game/controls": [
+    {
+      "function": "MtapOpenPort",
+      "before_sha256": "279d2f573172400ebc6ca4a0266bf4ed545403e66f9b76d91c895b234be3a5ea",
+      "after_sha256": "abf99d231b45e7cf277d5bfe9af0c3b0545882e23d49287318abb4d0429c6a01",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - TIER A (no permutation): the whole 83/83 residual is one copy-form site plus a renaming. +0xac is our `li rD,0` against the target's register copy with DIFFERING destinations, so neither the pure form stage nor the recolor reaches it alone; it is the combined stage's `constant_dataflow_recolor` mode, naming OUR source register r28 because the target's source is in the target's colouring and says nothing about our stream. The re-encoded word then differs from the target in register fields only and the unchanged copy_register_fields completes it, with verify_consistent_recolor proving the renaming across the whole CFG from the entry identity map and NO unproven_recolor_audit escape. Source axis is capped twice over (attempt.mtapopenport-constant-copy-remat-relabel.20260831.v1 capped, attempt.parked.mtapopenport.20260829.v1 parked) and both parks are SOURCE-axis; neither claims postprocessor ineligibility. Derived and proven through webfrank.apply_patch against the extracted retail object: real 2 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 83,
+        "permuted_instructions": 0
+      },
+      "equivalent_copy_form": [
+        {
+          "at": "0xac",
+          "proof": "constant_dataflow_recolor",
+          "our_source": 28
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "assign_controller",
         "before_sha256": "1b7c24991f45d99607c021c8ce9d80fbf27b43502edaf649788487567ae6a392",
