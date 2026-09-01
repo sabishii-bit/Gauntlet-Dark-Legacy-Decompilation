@@ -1367,6 +1367,27 @@
           "after_relocations_sha256": "e835c6741ad04d5853cb8afbc3ebcec1c57ea295193a961b3f65e1b2147d93d0"
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "next_legend_hint",
+        "before_sha256": "0b1352901851835667d7f2997efca739f44835621017d809800c4bbb9e67ff56",
+        "after_sha256": "e064c097a30c9cbf672fe21c1bd85ae4696f0451b665cb57d1e165ba68564e6f",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 100,
+          "permuted_instructions": 7
+        },
+        "mechanism": "attempt.CN_census-rerun-four-closures.20260901.v1 - the SIBLING of next_boss_hint above, and the same mechanism word for word: the permutation window [0x10c,0x128) is byte-identical between the two functions, so the order, both region content hashes and both region relocation hashes are literally the same values; only the whole-function before/after hashes differ. Read next_boss_hint's mechanism for the full derivation. In brief: a SINGLE TRANSPOSITION of atoms 1 and 2 (`lwz r0,0(r4)` and `lis r3,gPlayers@ha`), which are independent - the load reads r4 and writes r0, the lis writes r3 and reads nothing - so check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None; the two gPlayers relocation halves were bound to their target slots by (type, symbol) rather than by instruction word, per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1, and confirmed against the target object's own relocations (type 6 at 274, type 4 at 286); and the remainder is two volatile transpositions r0<->r4 and r5<->r6, machine-proven by verify_consistent_recolor with NO unproven_recolor_audit escape. That two functions this similar need two separate rules is a consequence of rules being pinned per function, not a sign either derivation was copied: both were searched, bound and proven independently through apply_patch against their own objects. src/game/ui/options.c is byte-unchanged.",
+        "instruction_permutation": {
+          "start": "0x10c",
+          "end": "0x128",
+          "order": [0, 2, 1, 3, 4, 5, 6],
+          "before_sha256": "6acc4c2c06af37b5e89f1199d0192b725a60fdad8556effdfbb6d844c2bfc841",
+          "after_sha256": "207df9eec8c778ce9352d185bdfd3ca82aef0d967460aebd66f960d92ffc1d50",
+          "before_relocations_sha256": "9e7d277f3de126dc226cecb4fc4eccb872f2e18e058c200fce7c6cf83ffa3bfa",
+          "after_relocations_sha256": "e835c6741ad04d5853cb8afbc3ebcec1c57ea295193a961b3f65e1b2147d93d0"
+        },
+        "copy_register_fields": true
       }
     ],
     "game/ui/auxscreen": [
