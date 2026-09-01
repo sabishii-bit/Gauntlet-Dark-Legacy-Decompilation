@@ -185,6 +185,75 @@ class AnnotatorCanary(unittest.TestCase):
                          f"{ARTIFACT_CLASSES - fired}")
 
 
+class CensusColumnTests(unittest.TestCase):
+    """run-31 item 5: count-parity and slot-delta columns.
+
+    Parity is the postprocessor screen and `unpaired` does not answer it:
+    150 rows image-wide are unpaired>0 with equal counts, which reads as a
+    count problem while the function is still rule-eligible.
+    """
+
+    EQ = ["mflr r0", "stw r0,4(r1)", "lwz r3,8(r1)", "blr"]
+
+    def test_equal_counts_report_PARITY(self):
+        result = analyze(self.EQ, list(self.EQ))
+        self.assertTrue(result.count_parity)
+        self.assertEqual(result.count_delta, 0)
+        self.assertIn("T4/O4 PARITY", summary_line("fn", result))
+
+    def test_unequal_counts_report_a_signed_COUNT_delta(self):
+        result = analyze(self.EQ, self.EQ + ["nop"])
+        self.assertFalse(result.count_parity)
+        self.assertEqual(result.count_delta, 1)
+        self.assertIn("T4/O5 COUNT+1", summary_line("fn", result))
+
+    def test_ours_shorter_reports_a_negative_delta(self):
+        result = analyze(self.EQ + ["nop"], list(self.EQ))
+        self.assertIn("T5/O4 COUNT-1", summary_line("fn", result))
+
+    def test_unpaired_rows_do_not_imply_a_count_delta(self):
+        """The 150-row confusion: a delete and an insert of equal size."""
+        t = ["mflr r0", "li r3,1", "lwz r4,8(r1)", "blr"]
+        b = ["mflr r0", "lwz r4,8(r1)", "li r3,1", "blr"]
+        result = analyze(t, b)
+        self.assertTrue(result.count_parity)
+        line = summary_line("fn", result)
+        self.assertIn("T4/O4 PARITY", line)
+
+    def test_a_differing_slot_map_is_reported(self):
+        t = ["stw r3,8(r1)", "lwz r4,12(r1)", "blr"]
+        b = ["stw r3,8(r1)", "lwz r4,16(r1)", "blr"]
+        result = analyze(t, b)
+        self.assertEqual(result.slot_exclusive, ([12], [16]))
+        self.assertIn("slots 1T/1O", summary_line("fn", result))
+
+    def test_an_identical_slot_map_reads_slots_equal(self):
+        t = ["stw r3,8(r1)", "lwz r4,12(r1)", "blr"]
+        result = analyze(t, list(t))
+        self.assertEqual(result.slot_exclusive, ([], []))
+        self.assertIn("slots=", summary_line("fn", result))
+
+    def test_use_count_deltas_are_reported_on_an_aligned_slot_map(self):
+        t = ["stw r3,8(r1)", "lwz r4,8(r1)", "blr"]
+        b = ["stw r3,8(r1)", "blr"]
+        result = analyze(t, b)
+        self.assertEqual(result.slot_exclusive, ([], []))
+        self.assertEqual(result.slot_use_deltas, [8])
+        self.assertIn("use-count", summary_line("fn", result))
+
+    def test_address_takes_count_as_slots(self):
+        """slot_map's addi rX,r1,N half — 48 bytes hid there once."""
+        t = ["addi r3,r1,24", "blr"]
+        b = ["addi r3,r1,28", "blr"]
+        self.assertEqual(analyze(t, b).slot_exclusive, ([24], [28]))
+
+    def test_the_existing_columns_are_still_present(self):
+        line = summary_line("fn", analyze(self.EQ, list(self.EQ)))
+        for token in ("paired", "renaming", "STRUCTURAL", "genuine",
+                      "unpaired", "->"):
+            self.assertIn(token, line)
+
+
 class GenuineAccountingTests(unittest.TestCase):
     def test_genuine_excludes_annotated_rows(self):
         target = ["lis r3,0", "    R_PPC_ADDR16_HA\t@1234",
