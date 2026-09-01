@@ -1646,26 +1646,25 @@ void ControlsUpdate(void)
                 }
             }
             lbl_802407B8[pad] = lev;
-            if (lev8 >> 6 == 0 || (old8 & 0xC0) != 0) {
-                eD = 0;
+            eD = lev8 >> 6;
+            if (eD != 0 && (old8 & 0xC0) == 0) {
+                eD = eD << 6;
             } else {
-                eD = (lev8 >> 6) << 6;
+                eD = 0;
             }
             eC = lev8 >> 4 & 3;
-            if (eC == 0 || (old8 & 0x30) != 0) {
-                eC = 0;
-            } else {
+            if (eC != 0 && (old8 & 0x30) == 0) {
                 eC = eC << 4;
-            }
-            eA = lev & 3;
-            if (eA == 0 || (old8 & 3) != 0) {
-                eA = 0;
-            }
-            eB = lev8 >> 2 & 3;
-            if (eB == 0 || (old8 & 0xC) != 0) {
-                eB = 0;
             } else {
+                eC = 0;
+            }
+            eA = lev8 & 3;
+            eA = (eA != 0 && (old8 & 3) == 0) ? eA : 0;
+            eB = lev8 >> 2 & 3;
+            if (eB != 0 && (old8 & 0xC) == 0) {
                 eB = eB << 2;
+            } else {
+                eB = 0;
             }
             BTN_EDGE(e40000, 0x40000)
             BTN_EDGE(e80000, 0x80000)
