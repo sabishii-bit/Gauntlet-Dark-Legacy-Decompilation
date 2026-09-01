@@ -5293,14 +5293,10 @@ void CritterAnimate(Critter *c)
     current = NULL;
     next = NULL;
     currentIndex = c->curmove;
-    if (c->unk11E < 0 || c->unk120 < 0 || c->unk120 >= 8) {
-        goto requested_move;
-    }
-    candidate = ((CritterPackedType *)c->hdr)
-                    ->patternsPtr[c->unk11E]
-                    .sequence[c->unk120];
-    if (candidate < 0) {
-requested_move:
+    if (c->unk11E < 0 || c->unk120 < 0 || c->unk120 >= 8 ||
+        (candidate = ((CritterPackedType *)c->hdr)
+                         ->patternsPtr[c->unk11E]
+                         .sequence[c->unk120]) < 0) {
         candidate = c->nextmove;
     }
     nextIndex = candidate;
