@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "matching",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.WF_value-equality-refusal-roster.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-01T19:22:56Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "THE POPULATION THE VALUE-EQUALITY MODE DOES NOT SERVE, measured image-wide with tools/gdl/composed_census/wf_value_equality_census.py after the mode landed. 2842 equal-size functions scanned; 91 are PURE register-field candidates (copy_register_fields alone reaches the target bytes, so no permutation or form stage is involved); 68 of those the strict verify_consistent_recolor already serves; 2 the new mode serves (both now pinned); 21 remain refused. Re-run the census rather than citing these counts \u2014 they move as source work lands.\n\nTHE 21 SPLIT INTO TWO CLASSES, and only one of them is a register question.\n\nCLASS A, 9 functions: 'base register presence differs (gX vs g0)'. This is NOT a renaming problem and no relation will ever prove it. One stream addresses through a real base register while the other uses the RA=0 literal-zero form, so the two words have different addressing FORMS and the guard refuses before any value reasoning. Whoever works this next should treat it as a form class in the equivalent_copy_form family, not as a recolor, and should first check whether it is a source-reachable address-materialisation difference at all.\n\nCLASS B, 12 functions: 'use of X is not value-equal to Y'. These reached the relation and it genuinely could not prove them, so each is a real correspondence the copy closure does not reach. TWO of the twelve are worth singling out because they name the SAME register on both sides \u2014 'use of g0 is not value-equal to g0' and 'use of g29 is not value-equal to g29'. That is not a renaming at all: both streams read the same architectural register and the relation still lost the identity pair, which means the two streams had put DIFFERENT values in it earlier. Those two are the most likely members of a next capability (a value equality established by something other than a copy \u2014 a redundant load of the same relocated address, or a rematerialised constant) and are the cheapest place to start.\n\nSEPARATELY, THE UNPROVEN-AUDIT ROSTER. tools/gdl/composed_census/wf_unproven_audit_screen.py screens every shipped rule still resting on an unproven_recolor_audit \u2014 the corpus's only human-inspection escape. After this run 7 remain and NONE is provable by the value-equality mode: PointLineDist2D (+0x30 f0/f1), CritterResolveMultipleTargets (+0x1a8 g30/g28), move_logic00 (+0x220 f29/f30), sceRead (+0x118 g27/g29), fn_800C72DC (+0x9c g7/g28), pool_garbage_collect (+0x30 g0/g0 \u2014 a class-B same-register case), and vsprintf, which is not even a pure recolor (copy_register_fields refuses at +0x2c on non-register bits, so it needs its permutation stage first and the screen cannot judge it). An eighth, dbgtext::fn_800C031C, WAS provable and its audit escape has been replaced by a declared proof this run, byte-neutral. Shedding these is the standing soundness goal: an audit escape is the one place the corpus rests on inspection rather than proof."
+}

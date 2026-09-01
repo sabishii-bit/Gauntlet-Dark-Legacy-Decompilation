@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "relocation",
+      "symbol-identity",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.WF_permutation-relocation-hash-must-bind-names-not-symbol-indices.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T19:22:43Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "THE DEFECT, reported by the GW lane and fixed here. webfrank's window relocation hash packed the raw ELF r_info, which embeds the SYMBOL TABLE INDEX \u2014 a TU-GLOBAL quantity. So adding or dropping any symbol ANYWHERE in a translation unit renumbered it and hard-aborted that whole TU's build against every instruction_permutation pin, with an error ('relocation input hash changed') that reads like the unrelated edit's fault. GW measured it on gauntworld::fn_8005FB48: a _savefpr change moved indices 339->341 and 337->339 while both text hashes were unchanged and every relocation kept its offset, type, addend and symbol NAME.\n\nTHE FIX. Hash the relocation TYPE (the low byte of r_info) plus the SYMBOL NAME, plus offset and addend \u2014 the quantities the rules' own prose already reasons about. Names are MANDATORY whenever a relocation is present: dropping the index without substituting the name would leave the hash blind to a re-symboling, which is a weaker guard, not a friendlier one.\n\nWHY THE MIGRATION WAS CHEAP, and how it was audited. The empty-list hash is unchanged, so only windows that actually carry a relocation needed re-stamping: 22 of 46 windows across 39 permutation rules, 42 hash values. The audit that made it safe was NOT the rewrite but the pre-check \u2014 for every one of the 46 windows the STORED hash was first confirmed to equal what the LEGACY index-based scheme computes from today's objects (46 checked, 0 misaligned), which proves the file-order traversal is aligned and that nothing else had drifted; the rewrite then touched only the two hash string values per window, leaving text hashes untouched, and the full ninja replayed all 39 permutation rules to 'build/GUNE5D/main.dol: OK' with the exact count unchanged. A hash-value-keyed rewrite must also refuse when one old value maps to two different new values; that check found no collisions here but is the thing that would silently corrupt a rule.\n\nSIDE FINDING, worth knowing before authoring one. A post_recolor_permutation window's stored before/after relocation hashes are DEAD DATA: that stage passes [] and computes the empty hash itself, ignoring whatever the rule stores. One shipped window (game/world/camera::camera_mode_level [0x8c0,0x8c8)) carries non-empty values there that nothing reads."
+}
