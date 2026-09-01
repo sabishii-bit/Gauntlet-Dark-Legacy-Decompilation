@@ -1634,6 +1634,71 @@
           "after_relocations_sha256": "f6cd7ca58cbb0ac90da15194bc4798857fd7fbc4e9535d365848a48469089615"
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "fn_8005FDA8",
+        "before_sha256": "b14e8d9fa4f0315d5886e034a0f3a7212fe150d2bf9c223742b39a3198fc29f1",
+        "after_sha256": "f6c1fced313ebe0b6ca1a34fd5285a3d2651db64b81d38bcf732661490859a21",
+        "audit": {
+          "classification": "SCHEDULE",
+          "instructions": 110
+        },
+        "mechanism": "Pure reorder (110/110, opcode multiset IDENTICAL) of the constant-materialisation cluster at +0xf0..+0x138. Parked since attempt.HV_fn8005fda8-shadowed-literal-fix-and-memory-barrier-park.20260901.v1 on a GUARD capability gap, not a function property: webfrank modelled every non-stack memory access as ONE resource, so the target's requirement that our `stfs f2,lbl_80344194` move AFTER the `lfs f0,sCameraVisibilityRadius` read as a store crossing a load. Re-measured this run: of the 64 complete relocation-consistent matchings of this window, ZERO pass under the single-resource model and 16 pass once the three EMB_SDA21 accesses are separated by their proved addresses; exactly TWO of those pass the full guard chain (dependences + copy_register_fields + verify_consistent_recolor). The two differ only in whether our `li r6,0` and `li r10,0` are paired with the target's same-named instructions or exchanged; the order recorded here is the identity pairing, which needs 4 register-field changes where the exchange needs 6 and would gratuitously recolour two identical constant loads. claim.law.WF_enumerate-every-shape-consistent-order-and-select-by-proof.20260901.v1 applied: the order space was enumerated in full and selected by proof, not by first hit. Non-aliasing rests on the split map's ADDRESSES (.sbss 0x80344190/4 against .sdata2 0x80346F50), never on the symbol names differing.",
+        "instruction_permutation": {
+          "start": "0xf0",
+          "end": "0x138",
+          "order": [
+            1,
+            0,
+            5,
+            3,
+            2,
+            6,
+            7,
+            8,
+            4,
+            9,
+            11,
+            10,
+            13,
+            12,
+            14,
+            16,
+            17,
+            15
+          ],
+          "before_sha256": "9825dfed11307fa54e4dc1d85fe4e15aa1036ac714c4c805b4ea8ca1e976232c",
+          "after_sha256": "bb94f17f7f444bad28a698ed338494430b1afed42bd1aa667c18d0133d7f9563",
+          "before_relocations_sha256": "217169d9d7da1f725b455da7082bea5f19bd58436e4f9980d9746b6b6dff79d3",
+          "after_relocations_sha256": "012a599ea8e32126990f57f8073369adaf1f076492e43a3504ed14859318ca92"
+        },
+        "memory_disambiguation": {
+          "audit": "The three EMB_SDA21 accesses in this window address globals the split map places at .sbss 0x80344194, .sdata2 0x80346F50 and .sbss 0x80344190 — pairwise disjoint 4-byte ranges, so the store may cross the load. The two pool loads at +0xf0/+0xf8 and the two lha at +0x120/+0x128 are NOT declared and stay may-alias-everything.",
+          "locations": [
+            {
+              "at": "0x100",
+              "symbol": "lbl_80344194",
+              "section": ".sbss",
+              "address": "0x80344194",
+              "width": 4
+            },
+            {
+              "at": "0x10c",
+              "symbol": "sCameraVisibilityRadius",
+              "section": ".sdata2",
+              "address": "0x80346F50",
+              "width": 4
+            },
+            {
+              "at": "0x118",
+              "symbol": "lbl_80344190",
+              "section": ".sbss",
+              "address": "0x80344190",
+              "width": 4
+            }
+          ]
+        },
+        "copy_register_fields": true
       }
     ],
     "game/world/camera": [

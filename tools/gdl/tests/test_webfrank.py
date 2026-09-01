@@ -1,8 +1,11 @@
+import os
 import unittest
 
 import struct
 
 from tools.gdl.webfrank import (
+    load_symbol_addresses,
+    resolve_memory_locations,
     _entry_indexes,
     _find_symbol,
     _function_text_relocations,
@@ -2564,6 +2567,173 @@ def _substitution(at, bank, ours, target):
 
 def _exchange(at, bank, ours, target):
     return {"at": at, "bank": bank, "ours": list(ours), "target": list(target)}
+
+
+STFS_F2_SDA = 0xD0400000     # stfs f2,0(0)
+LFS_F0_SDA = 0xC0000000      # lfs  f0,0(0)
+LFD_F3_SDA = 0xC8600000      # lfd  f3,0(0)
+LWZ_R3_R4 = 0x80640000       # lwz  r3,0(r4)   (unknown address)
+SDA21 = 109
+
+SPLIT_MAP = {
+    "lbl_80344190": (".sbss", 0x80344190),
+    "lbl_80344194": (".sbss", 0x80344194),
+    "sCameraVisibilityRadius": (".sdata2", 0x80346F50),
+}
+
+
+def _location(at, symbol, width=4):
+    section, address = SPLIT_MAP[symbol]
+    return {"at": at, "symbol": symbol, "section": section,
+            "address": hex(address), "width": width}
+
+
+class MemoryDisambiguationTests(unittest.TestCase):
+    """Two SDA globals under distinct EMB_SDA21 relocations do not alias.
+
+    The shipped model has ONE "mem" resource for every non-stack access, so a
+    store can never cross a load however obviously distinct the globals are —
+    the `(7, 'mem')` obstruction that refused all 64 relocation-consistent
+    matchings of gauntworld::fn_8005FDA8.  Distinct symbol NAMES are not the
+    proof (names can alias); the split map's ADDRESSES are, and the names
+    only bind the declaration to the object.
+    """
+
+    def test_the_single_mem_resource_blocks_a_store_load_reorder(self):
+        region = _words(STFS_F2_SDA, LFS_F0_SDA)
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [1, 0])
+
+    def test_distinct_addresses_permit_the_reorder(self):
+        region = _words(STFS_F2_SDA, LFS_F0_SDA)
+        check_permutation_dependences(region, [1, 0], None, {
+            0: ("global", 0x80344194),
+            1: ("global", 0x80346F50),
+        })
+
+    def test_the_same_address_still_blocks_the_reorder(self):
+        region = _words(STFS_F2_SDA, LFS_F0_SDA)
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [1, 0], None, {
+                0: ("global", 0x80344194),
+                1: ("global", 0x80344194),
+            })
+
+    def test_an_undeclared_access_may_alias_everything(self):
+        # stfs A ; lwz r3,0(r4) ; lfs B.  The middle load's address is
+        # unknown, so hoisting it over the store must still be refused even
+        # though the store and the trailing load are separated.
+        region = _words(STFS_F2_SDA, LWZ_R3_R4, LFS_F0_SDA)
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [1, 0, 2], None, {
+                0: ("global", 0x80344194),
+                2: ("global", 0x80346F50),
+            })
+
+    # ---- the declaration itself ----
+
+    def relocations(self, *pairs):
+        return {at + 2: (SDA21, symbol) for at, symbol in pairs}
+
+    def test_a_valid_declaration_resolves(self):
+        function = _words(STFS_F2_SDA, LFS_F0_SDA)
+        resolved = resolve_memory_locations(
+            function,
+            [_location("0x0", "lbl_80344194"),
+             _location("0x4", "sCameraVisibilityRadius")],
+            self.relocations((0x0, "lbl_80344194"),
+                             (0x4, "sCameraVisibilityRadius")),
+            SPLIT_MAP,
+        )
+        self.assertEqual(resolved, {0x0: ("global", 0x80344194),
+                                    0x4: ("global", 0x80346F50)})
+
+    def test_no_split_map_fails_closed(self):
+        function = _words(STFS_F2_SDA)
+        with self.assertRaisesRegex(ValueError, "needs the split map"):
+            resolve_memory_locations(
+                function, [_location("0x0", "lbl_80344194")],
+                self.relocations((0x0, "lbl_80344194")), None)
+
+    def test_a_symbol_outside_the_split_map_fails_closed(self):
+        function = _words(STFS_F2_SDA)
+        with self.assertRaisesRegex(ValueError, "not in the split map"):
+            resolve_memory_locations(
+                function,
+                [{"at": "0x0", "symbol": "@4126", "section": ".sdata2",
+                  "address": "0x80347010", "width": 4}],
+                self.relocations((0x0, "@4126")), SPLIT_MAP)
+
+    def test_a_declaration_the_object_contradicts_fails_closed(self):
+        function = _words(STFS_F2_SDA)
+        with self.assertRaisesRegex(ValueError, "object relocates against"):
+            resolve_memory_locations(
+                function, [_location("0x0", "lbl_80344194")],
+                self.relocations((0x0, "lbl_80344190")), SPLIT_MAP)
+
+    def test_a_declaration_the_split_map_contradicts_fails_closed(self):
+        function = _words(STFS_F2_SDA)
+        entry = _location("0x0", "lbl_80344194")
+        entry["address"] = "0x80344190"
+        with self.assertRaisesRegex(ValueError, "split map has"):
+            resolve_memory_locations(
+                function, [entry],
+                self.relocations((0x0, "lbl_80344194")), SPLIT_MAP)
+
+    def test_a_non_sda_base_register_fails_closed(self):
+        function = _words(LWZ_R3_R4)
+        with self.assertRaisesRegex(ValueError, "SDA placeholder"):
+            resolve_memory_locations(
+                function, [_location("0x0", "lbl_80344194")],
+                self.relocations((0x0, "lbl_80344194")), SPLIT_MAP)
+
+    def test_a_missing_or_wrong_type_relocation_fails_closed(self):
+        function = _words(STFS_F2_SDA)
+        with self.assertRaisesRegex(ValueError, "exactly one EMB_SDA21"):
+            resolve_memory_locations(
+                function, [_location("0x0", "lbl_80344194")], {}, SPLIT_MAP)
+        with self.assertRaisesRegex(ValueError, "exactly one EMB_SDA21"):
+            resolve_memory_locations(
+                function, [_location("0x0", "lbl_80344194")],
+                {0x2: (4, "lbl_80344194")}, SPLIT_MAP)
+
+    def test_a_wrong_declared_width_fails_closed(self):
+        function = _words(STFS_F2_SDA)
+        entry = _location("0x0", "lbl_80344194", width=8)
+        with self.assertRaisesRegex(ValueError, "accesses 4 bytes"):
+            resolve_memory_locations(
+                function, [entry],
+                self.relocations((0x0, "lbl_80344194")), SPLIT_MAP)
+
+    def test_overlapping_ranges_fail_closed(self):
+        # An 8-byte read at 0x80344190 covers the 4-byte write at 0x80344194.
+        function = _words(LFD_F3_SDA, STFS_F2_SDA)
+        with self.assertRaisesRegex(ValueError, "overlapping"):
+            resolve_memory_locations(
+                function,
+                [_location("0x0", "lbl_80344190", width=8),
+                 _location("0x4", "lbl_80344194")],
+                self.relocations((0x0, "lbl_80344190"),
+                                 (0x4, "lbl_80344194")),
+                SPLIT_MAP,
+            )
+
+    def test_the_split_map_parser_reads_the_projects_own_format(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False,
+                                         encoding="utf-8") as handle:
+            handle.write(
+                "lbl_80344194 = .sbss:0x80344194; // type:object size:0x4\n"
+                "sCameraVisibilityRadius = .sdata2:0x80346F50; // size:0x4\n"
+                "not a symbol line\n")
+            path = handle.name
+        try:
+            addresses = load_symbol_addresses(path)
+        finally:
+            os.unlink(path)
+        self.assertEqual(addresses["lbl_80344194"], (".sbss", 0x80344194))
+        self.assertEqual(addresses["sCameraVisibilityRadius"],
+                         (".sdata2", 0x80346F50))
 
 
 class RelocationHashIdentityTests(unittest.TestCase):

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import itertools
 import json
 import re
 import struct
@@ -1264,7 +1265,7 @@ def _word_effects(word: int) -> tuple[set, set]:
 
 def _is_memory(resource) -> bool:
     return resource in ("mem", "anymem") or (
-        isinstance(resource, tuple) and resource[0] == "stack"
+        isinstance(resource, tuple) and resource[0] in ("stack", "global")
     )
 
 
@@ -1354,7 +1355,8 @@ def _resource_dead_after(
 
 
 def check_permutation_dependences(region: bytes, order: list[int],
-                                  exit_dead=None) -> None:
+                                  exit_dead=None,
+                                  memory_locations=None) -> None:
     """Fail unless the permutation preserves every def-use chain.
 
     Each read must see the same writer atom before and after reordering, and
@@ -1363,6 +1365,8 @@ def check_permutation_dependences(region: bytes, order: list[int],
     words = [_u32(region, off) for off in range(0, len(region), 4)]
     raw_effects = []
     stack_locations = set()
+    named = dict(memory_locations or {})
+    global_locations = set(named.values())
     for index, word in enumerate(words):
         try:
             reads, writes = _word_effects(word)
@@ -1370,6 +1374,21 @@ def check_permutation_dependences(region: bytes, order: list[int],
             raise ValueError(f"atom {index}: {error}") from None
         if ("g", 1) in writes:
             raise ValueError(f"atom {index}: permutation region redefines r1")
+        location = named.get(index)
+        if location is not None:
+            reads = (reads - {"mem"}) | ({location} if "mem" in reads else set())
+            writes = (writes - {"mem"}) | (
+                {location} if "mem" in writes else set())
+        elif named:
+            # SOUNDNESS.  Once ANY access is split out of the single "mem"
+            # resource, an access still spelled "mem" has an unknown address
+            # and may alias every location that was split out.  Promoting it
+            # to "anymem" is what keeps the refinement conservative; leaving
+            # it as a plain "mem" would make it non-conflicting with exactly
+            # the locations just separated from it.
+            reads = (reads - {"mem"}) | ({"anymem"} if "mem" in reads else set())
+            writes = (writes - {"mem"}) | (
+                {"anymem"} if "mem" in writes else set())
         raw_effects.append((reads, writes))
         for item in reads | writes:
             if isinstance(item, tuple) and item[0] == "stack":
@@ -1377,7 +1396,8 @@ def check_permutation_dependences(region: bytes, order: list[int],
 
     def expand(group):
         if "anymem" in group:
-            group = (group - {"anymem"}) | {"mem"} | stack_locations
+            group = ((group - {"anymem"}) | {"mem"} | stack_locations
+                     | global_locations)
         return group
 
     effects = [(expand(reads), expand(writes)) for reads, writes in raw_effects]
@@ -1637,6 +1657,138 @@ def verify_relocation_binding(
     return forward
 
 
+R_PPC_EMB_SDA21 = 109
+
+# Byte width of each D-form load/store opcode's memory access.
+_ACCESS_WIDTH = {
+    32: 4, 33: 4, 34: 1, 35: 1, 36: 4, 37: 4, 38: 1, 39: 1,
+    40: 2, 41: 2, 42: 2, 43: 2, 44: 2, 45: 2,
+    48: 4, 49: 4, 50: 8, 51: 8, 52: 4, 53: 4, 54: 8, 55: 8,
+}
+
+
+def load_symbol_addresses(path) -> dict[str, tuple[str, int]]:
+    """Parse the project's split map into ``name -> (section, address)``.
+
+    This is the same file dtk splits by and the link is placed by, and the
+    DOL checksum gate rests on it, so it is the project's own authority for
+    where a global lives — not a new assumption introduced here.
+    """
+    addresses: dict[str, tuple[str, int]] = {}
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        head, _, tail = line.partition("=")
+        if not tail:
+            continue
+        body = tail.split("//")[0].strip().rstrip(";")
+        section, _, value = body.partition(":")
+        try:
+            addresses[head.strip()] = (section.strip(), int(value, 16))
+        except ValueError:
+            continue
+    return addresses
+
+
+def resolve_memory_locations(
+    function: bytes,
+    declarations,
+    relocations: dict[int, tuple[int, str]],
+    symbol_addresses: dict[str, tuple[str, int]] | None,
+) -> dict[int, tuple]:
+    """Validate a rule's declared SDA memory locations and return
+    ``function-relative instruction offset -> ("global", address)``.
+
+    Every one of these must hold or the declaration is refused, because each
+    is load-bearing for the non-aliasing conclusion:
+
+      * the word is a D-form load/store whose base field is the SDA
+        placeholder zero, so the linked effective address comes ENTIRELY
+        from the relocation and not from a register value we cannot track;
+      * the object carries an ``EMB_SDA21`` relocation on that word naming
+        exactly the declared symbol;
+      * the split map agrees with the declared section, address and access
+        width;
+      * and the declared access ranges are pairwise disjoint or identical.
+
+    Distinct SYMBOL NAMES alone would not be a proof — two names can alias —
+    so the addresses do the work and the names only bind the declaration to
+    the object.
+    """
+    if not declarations:
+        return {}
+    if symbol_addresses is None:
+        raise ValueError(
+            "memory disambiguation needs the split map; pass --symbols "
+            "(default: the symbols.txt beside the webfrank config)"
+        )
+    resolved: dict[int, tuple] = {}
+    ranges: dict[int, tuple[int, int]] = {}
+    for entry in declarations:
+        at = _parse_int(entry["at"])
+        if at % 4 or not 0 <= at < len(function):
+            raise ValueError(f"invalid memory-disambiguation offset {entry}")
+        word = _u32(function, at)
+        opcode = word >> 26
+        if opcode not in _ACCESS_WIDTH:
+            raise ValueError(
+                f"+0x{at:x}: memory disambiguation needs a D-form "
+                f"load/store, found opcode {opcode}"
+            )
+        if ((word >> 16) & 0x1F) != 0:
+            raise ValueError(
+                f"+0x{at:x}: base register is not the SDA placeholder, so "
+                f"the effective address is not determined by the relocation"
+            )
+        carried = [
+            (kind, name) for offset, (kind, name) in relocations.items()
+            if offset // 4 == at // 4
+        ]
+        if len(carried) != 1 or carried[0][0] != R_PPC_EMB_SDA21:
+            raise ValueError(
+                f"+0x{at:x}: expected exactly one EMB_SDA21 relocation, "
+                f"found {carried}"
+            )
+        if carried[0][1] != entry["symbol"]:
+            raise ValueError(
+                f"+0x{at:x}: declared symbol {entry['symbol']!r} but the "
+                f"object relocates against {carried[0][1]!r}"
+            )
+        known = symbol_addresses.get(entry["symbol"])
+        if known is None:
+            raise ValueError(
+                f"+0x{at:x}: {entry['symbol']!r} is not in the split map, so "
+                f"its address cannot be proved"
+            )
+        section, address = known
+        if section != entry["section"] or address != _parse_int(
+            entry["address"]
+        ):
+            raise ValueError(
+                f"+0x{at:x}: declared {entry['section']}:{entry['address']} "
+                f"but the split map has {section}:0x{address:x}"
+            )
+        width = _ACCESS_WIDTH[opcode]
+        if int(entry["width"]) != width:
+            raise ValueError(
+                f"+0x{at:x}: declared width {entry['width']} but the opcode "
+                f"accesses {width} bytes"
+            )
+        resolved[at] = ("global", address)
+        ranges[at] = (address, address + width)
+    items = sorted(ranges.items())
+    for (first_at, first), (second_at, second) in itertools.combinations(
+        items, 2
+    ):
+        if first == second:
+            continue
+        if first[0] < second[1] and second[0] < first[1]:
+            raise ValueError(
+                f"+0x{first_at:x} and +0x{second_at:x} access overlapping "
+                f"ranges [0x{first[0]:x},0x{first[1]:x}) and "
+                f"[0x{second[0]:x},0x{second[1]:x}); they may alias"
+            )
+    return resolved
+
+
 def permutation_windows(
     permutation, function_size: int
 ) -> tuple[list[dict], list[tuple[int, int]]]:
@@ -1758,6 +1910,7 @@ def permute_instruction_atoms(
     exit_dead=None,
     our_symbols: dict[int, str] | None = None,
     target_relocations: dict[int, tuple[int, str]] | None = None,
+    memory_locations: dict[int, tuple] | None = None,
 ) -> tuple[bytes, list[tuple[int, int, int]], int]:
     """Apply one explicit instruction-atom permutation, failing closed.
 
@@ -1782,7 +1935,7 @@ def permute_instruction_atoms(
         if _is_control_instruction(_u32(atom, 0)):
             raise ValueError("instruction permutation region contains a control op")
 
-    check_permutation_dependences(current, order, exit_dead)
+    check_permutation_dependences(current, order, exit_dead, memory_locations)
 
     if _relocation_sha256(relocations,
                           our_symbols) != before_relocations_sha256:
@@ -2633,7 +2786,8 @@ def copy_register_fields(current: bytes, target: bytes) -> tuple[bytes, int]:
 
 
 def apply_patch(
-    data: bytearray, patch: dict, target_data: bytes | None = None
+    data: bytearray, patch: dict, target_data: bytes | None = None,
+    symbol_addresses: dict[str, tuple[str, int]] | None = None,
 ) -> tuple[str, str, int]:
     sections = _sections(data)
     symbol = _find_symbol(data, sections, patch["function"])
@@ -2668,6 +2822,12 @@ def apply_patch(
 
     changed = 0
     permutation = patch.get("instruction_permutation")
+    if patch.get("memory_disambiguation") and not permutation:
+        raise ValueError(
+            f"{symbol.name}: \"memory_disambiguation\" only refines the "
+            f"permutation dependence audit, so it is meaningless without an "
+            f"\"instruction_permutation\""
+        )
     if permutation:
         if target_data is None:
             raise ValueError(f"{symbol.name}: target object is required")
@@ -2695,6 +2855,21 @@ def apply_patch(
         # claim.law.HV_single-permutation-region-is-the-binding-schema-
         # limit.20260901.v1
         windows, ranges = permutation_windows(permutation, symbol.size)
+
+        # SDA memory disambiguation, opt-in and fully declared.  Without it
+        # every non-stack memory access is one resource, so a store can never
+        # cross a load however obviously distinct the two globals are.
+        disambiguation = patch.get("memory_disambiguation") or {}
+        memory_locations = resolve_memory_locations(
+            original_function, disambiguation.get("locations", ()),
+            text_relocations, symbol_addresses,
+        )
+        for at in memory_locations:
+            if not any(start <= at < end for start, end in ranges):
+                raise ValueError(
+                    f"{symbol.name}: memory disambiguation at +0x{at:x} is "
+                    f"outside every permutation window"
+                )
 
         relocation_sections = [
             section for section in sections
@@ -2762,6 +2937,11 @@ def apply_patch(
                 exit_dead=_defer_exit_dead,
                 our_symbols=window_symbols,
                 target_relocations=window_target_relocations,
+                memory_locations={
+                    (at - relative_start) // 4: location
+                    for at, location in memory_locations.items()
+                    if relative_start <= at < relative_end
+                },
             )
             data[start + relative_start:start + relative_end] = permuted
 
@@ -3180,7 +3360,16 @@ def main() -> int:
     parser.add_argument("unit", help="unit key in the config, e.g. game/g3d/sndvoice")
     parser.add_argument("--target", type=Path,
                         help="extracted target object for register-field rules")
+    parser.add_argument(
+        "--symbols", type=Path, default=None,
+        help="split map used to prove two SDA globals do not alias "
+             "(default: symbols.txt beside the config)")
     args = parser.parse_args()
+
+    symbols_path = args.symbols or (args.config.parent / "symbols.txt")
+    symbol_addresses = (
+        load_symbol_addresses(symbols_path) if symbols_path.exists() else None
+    )
 
     config = json.loads(args.config.read_text(encoding="utf-8"))
     patches = config.get("units", {}).get(args.unit)
@@ -3191,7 +3380,7 @@ def main() -> int:
     target_data = args.target.read_bytes() if args.target else None
     total = 0
     for patch in patches:
-        _, _, changed = apply_patch(data, patch, target_data)
+        _, _, changed = apply_patch(data, patch, target_data, symbol_addresses)
         total += changed
         print(
             f"WEBFRANK {patch['function']}: "
