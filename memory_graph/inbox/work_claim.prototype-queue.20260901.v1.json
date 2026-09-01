@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "PROTOTYPE-SPLIT lane from GH's widened externcheck (claim.externcheck-widened-defect-table-20260831.v1): 11 same-arity f32/f64 prototype splits \u2014 FloorPos, NormalVector2D, Random, SlowNormalVector, atan2, sin, cos + the rest in the table. Each is a potential FindClosestWaypoint-class exact: a param width error is INVISIBLE in the instruction stream and shows only in the frame floor (claim.law.parameter-save-area-width-sets-the-local-block-floor.20260901.v1 \u2014 WITH the BB guard: check no fmuls reads the incoming FPR directly first) \u2014 arbitrate with slotdiff NOT fndiff. Per symbol: find the DEFINING TU's signature, check the target frame floors of functions taking the param, fix the wrong declarations byte-identically (or better), gate every affected TU (the gate takes comma-separated lists). CAUTION: sin/cos/atan2 touch MSL \u2014 Matching TUs' declarations are correct by definition, fix only NonMatching consumers. K&R same-arity passthrough idiom is deliberate \u2014 do not batch-fix the 47 arity-mismatch rows. Also work the remaining conclusive CONFLICT rows (100 total; gBossObj/sPowerupsBuf done) where byte-identical. SKIP TUs owned this run (movieplayer, shop, btricol, world/gauntworld). Commit per symbol-fix; exacts where frames close; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:FloorPos",
+  "id": "work_claim.prototype-queue.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PQ",
+  "recorded_at": "2026-09-01T00:53:24Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "AUDIT lane: gdlmem stale flags 5 suspect_low_fuzzy functions \u2014 functions whose recorded state disagrees with their measured fuzzy (the class where semantic bugs hide; the col_pos and AudioPlayerPoison precedents were both found by treating suspicion as a lead). Pull the list via gdlmem stale; per function: regnorm FIRST (STRUCTURAL rows read against target bytes \u2014 wrong displacements/calls = semantic bugs, fix from target authority), then aligned fnasm reads for any call-target or displacement row. Then PlayerMotion itself (4775/4768, 17t, the largest game function, multi-session history \u2014 READ its attempt chain first; drive ONLY structural rows the September kit reaches: split-symbol, population-respell, alignment-pad, count-deficit --ops analysis on the 7-insn gap; its allocator residuals are recorded walls, do not re-litigate). SKIP TUs owned this run. Semantic fixes are the priority \u2014 a wrong-behavior find outranks an exact. Commit per function; gate; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:PlayerMotion",
+  "id": "work_claim.suspect-lowfuzzy.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SL",
+  "recorded_at": "2026-09-01T00:53:55Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

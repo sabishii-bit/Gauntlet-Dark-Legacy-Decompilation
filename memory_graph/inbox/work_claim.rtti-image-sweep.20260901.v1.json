@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "RTTI IMAGE SWEEP lane (read-mostly + naming): DN's control-validated method (claim.law.rtti-vtable-chain-recovers-cpp-class-names.20260901.v1: vtable word0 -> 8-byte RTTI record {name, base*} -> string; first virtual slot = dtor) generalizes. Sweep the ENTIRE image: scan all data sections for vtable-shaped word groups (pointers into .text preceded by the RTTI pointer pattern), resolve every RTTI record, produce the complete C++ class-name map of the DOL (names, base-class links, dtor addresses, vtable addresses). Validate with the std::exception control FIRST, exactly as DN did. Deliverable: a claim record with the full map + symbol-naming claims for every recovered name; APPLY renames only for symbols in TUs no lane owns this run (movieplayer is CL's \u2014 hand your movieplayer findings to the record, not the source), via the cross-TU protocol, gated with --rename. Also inventory which TUs contain C++ (vtables present but built as .c \u2014 future conversion candidates, the movieplayer precedent). This map is permanent infrastructure; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:PlayVQMovie",
+  "id": "work_claim.rtti-image-sweep.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-RT",
+  "recorded_at": "2026-09-01T00:53:34Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

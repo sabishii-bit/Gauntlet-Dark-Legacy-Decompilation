@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SHOP-FAMILY lane, src/game/shop/shop.c: 5 functions carry the add-remat fingerprint over buffer lbl_802897D0 (BT's census, tool.add-remat-census.20260831.v1) \u2014 the bossstreams precedent says split symbols there may be ONE object (claim.law.split-bss-symbols-are-one-record-and-array-form-defeats-synthesized-index-base.20260831.v2). The prior block was NAMES ('a record would be invention'). Break it with evidence: the Xbox PDB shop module (functions_by_module.txt + xbox_structs.tsv) likely names the shop state record and its fields \u2014 recover the real layout, declare the record, respell the WHOLE population per the law (never one site \u2014 the population-precondition lesson), measure with --ops (the +N add signature collapsing is the win). do_shopping_8009AA48 is 870/867 (3 short) \u2014 the deficit may BE the remat class. Screen existing shop parks (do-not-retry lists are axis-scoped: the record-declaration axis is NEW). Commit per function; gate; exacts or the named wall w/ the PDB evidence; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:do_shopping_8009AA48",
+  "id": "work_claim.shop-buffer-naming.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SH",
+  "recorded_at": "2026-09-01T00:53:45Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}
