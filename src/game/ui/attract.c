@@ -948,7 +948,7 @@ int ExitAttract(void) {
 /* the matching init_* routine.  Called by main() as (-1) at boot and  */
 /* (0x8004) when returning from a game.                                */
 /* ================================================================== */
-extern int sMainFrames;
+extern u32 sMainFrames;
 extern int lbl_80344200;
 extern int lbl_80344A2C;
 extern int lbl_80343B00;
