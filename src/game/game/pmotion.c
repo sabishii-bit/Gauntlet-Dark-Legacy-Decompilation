@@ -1352,8 +1352,8 @@ void PlayerMotion(Player* p) {
                 dpos[1] = 0.0f;
                 dpos[2] = 0.0f;
             } else if (anim == 137) {
-                if (sMusicFadeBase >
-                    (f32)(lbl_80347B88 + p->combo_fade)) {
+                if ((f64)sMusicFadeBase >
+                    lbl_80347B88 + p->combo_fade) {
                     hitKind = 1;
                     PlayerCollideWalls(p, (s32)oldpos, dpos, to, hit);
                 }

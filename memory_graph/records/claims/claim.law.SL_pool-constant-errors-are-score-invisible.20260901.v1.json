@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "src/game/boss/boss.c::ProcessSpewItems (target 0x8000A20C, 127 insns), worktree GDL-Claude-SuspectFuzzy, work_claim.suspect-lowfuzzy.20260901.v1, commit 416d91fbd; see attempt.SL_processspewitems-gravity-semantic-fix.20260901.v1. Corroborating precedent in the same lane's history: the PlayerMotion phantom-5.0f-argument bug (attempt.playermotion-extern-literal-drive.20260831.v1) was likewise a wrong FP constant that scored as padding rather than as an error.",
+    "scope": "MWCC GC 1.2.5 family; applies to every FP (and any pooled) literal that MWCC materializes as an .sdata2/.rodata pool entry loaded by lfs/lfd, in any NonMatching function. Does NOT apply to immediates encoded in the instruction word (li/addi/cmpwi/rlwinm masks), which the immediate multiset does catch.",
+    "tags": [
+      "metrics",
+      "matching",
+      "workflow",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T01:29:39Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "A WRONG FLOATING-POINT CONSTANT IS INVISIBLE TO EVERY SCORE THIS PROJECT ARBITRATES ON, SO NO AMOUNT OF MATCHING WORK WILL SURFACE IT - IT MUST BE AUDITED FOR DIRECTLY, VALUE BY VALUE, AGAINST THE SPLIT .sdata2 LISTING. Measured on ProcessSpewItems, whose source applied `8.0 * gClockFrameStep` where the target's `fnmsubs f0,f26,f1,f0` reads f26 from lbl_80345B30, declared `.float 32` in build/GUNE5D/asm/auto_11_803459F0_sdata2.s - boss-spewed items fell at ONE QUARTER retail gravity, a real gameplay defect. Correcting the value ALONE probed NEUTRAL on every metric at once: real stayed 187, instruction counts stayed T127/O140, and the opcode multiset stayed 35t. THE MECHANISM, which is what makes this predictable rather than bad luck: MWCC materializes the literal into a data pool and the function merely loads it, so changing the VALUE changes no instruction word, no displacement, no relocation target and no opcode - fndiff real, fndiff --ops, regnorm and objdiff fuzzy are all computed over the instruction stream and are structurally incapable of seeing it. This is strictly worse than a blind spot: because the wrong constant still compiles to a correctly-shaped load, it makes the function look like a clean register/schedule residual, and ProcessSpewItems had duly been parked as 'register-renumber / FP-form residuals'. A park label is therefore NOT evidence that a function's arithmetic is right. OPERATIONAL RULE. (1) On any function carrying FP literals, resolve every EMB_SDA21 lbl_ referenced by the target's lfs/lfd instructions and read its declared value out of the split listing (`grep -rn lbl_XXXX build/GUNE5D/asm/*.s`, then read the .obj block), and compare each against the literal in source - the whole audit costs one grep plus one read and cleared 9 constants here in a single pass. (2) Mind the LOAD WIDTH as part of the check: `lfs` means the target's literal is a FLOAT (32.0f) and `lfd` means a DOUBLE (0.5, 4.0, 0.1), so a value that matches but is loaded at the wrong width is still a source-form error and shows up as the lfd/lfs multiset tell. (3) Prefer this audit BEFORE spending probes on any function whose park cites 'FP-form' or 'register-renumber' residuals; it is the cheapest possible check and it outranks an exact, because a wrong-behavior find is worth more than a byte. (4) The same audit extends to call arguments: verify which pool label each FPR argument is loaded from rather than assuming the source's literal is the one the target passes."
+}
