@@ -1,0 +1,24 @@
+{
+  "attempted_axis": "Verify the work order's claim that SfxSkipItem's two remaining fndiff rows are reloc-naming artifacts that the widened alias mapper may already clear, and decide whether the function is finished.",
+  "attributes": {
+    "law_screen": "claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1: SCREENED as the hazard that a name-only-looking relocation row can hide a real payload defect - checked and NOT applicable here, because the relocation is a compiler-emitted switch jump table, not a constant pool entry, and its target address is the table itself rather than a value. AGENTS.md residual-work discipline 3 ('gate real > 0 while fndiff --clean says MATCH -> pool-name noise, the function is FINISHED'; 'wrong-symbol/pool defects -> dump the function's RELOCATION SYMBOLS'): APPLIED, and it decided this record. No other law applied - no source edit was made.",
+    "probed_form": "NO SOURCE EDIT MADE. Verification only.",
+    "residual": "MEASURED LIVE 2026-09-01: `fndiff --count` reports insns 94/94, lines 4, real 0; the objdiff report reports fuzzy 100.0000%. So on both project arbiters the function is already fully matched. `fndiff --clean` does NOT print MATCH - it prints 'OPERAND_DIFF, 4 real diff lines' - so the work order's stated shortcut test (RECLASSIFY only if --clean reads MATCH) does not fire, and a lane trusting that test alone would have re-opened a finished function. The four rows are two relocation PAIRS on one instruction pair: target `lis r6,0 / addi r7,r6,0` relocating R_PPC_ADDR16_HA and R_PPC_ADDR16_LO against the dtk-split data symbol @0x80122EA4, ours relocating the same two fields against `<local>`. The following instructions `slwi r6,r8,2 / lwzx r6,r7,r6` identify it as a switch jump-table base load, and the source (sfx.c line 3747) is a dense `switch (def->type)` over cases 1,2,3,4,8,10..., which MWCC lowers to a compiler-emitted table addressed through an unnamed local symbol while dtk's split of the retail image necessarily gives that same table a synthetic @0xADDRESS name. The row is therefore a naming difference forced by the two toolchains' symbol conventions, with real 0 and fuzzy 100% confirming no instruction or payload difference. CONCLUSION: RECLASSIFIED from 'open, 2 reloc rows' to FINISHED. Do not spend further probes; the only thing this row can ever block is a whole-TU flip to Matching, and that is a link-time symbol-naming question for the TU, not a function-level matching task.",
+    "scope": "src/game/sfx/sfx.c SfxSkipItem_80096FF4; verification only, no files modified, no commit.",
+    "verification": "tools/gdl/fndiff.py --count and --clean on the object built by the provisioning full ninja (build/GUNE5D/main.dol: OK); tools/gdl/fuzzy.py reports 100.0000% for the function; source switch confirmed by reading sfx.c line 3741 onward."
+  },
+  "function": "function:SfxSkipItem_80096FF4",
+  "id": "attempt.SF_sfxskipitem-jumptable-reloc-naming-finished.20260901.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-01T21:54:58Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "reloc-naming",
+    "measured_at": "2026-09-01",
+    "signature": "insns T94/O94; real 0; fuzzy 100.0000%; 4 --clean rows, all R_PPC_ADDR16_HA/LO jump-table symbol naming"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

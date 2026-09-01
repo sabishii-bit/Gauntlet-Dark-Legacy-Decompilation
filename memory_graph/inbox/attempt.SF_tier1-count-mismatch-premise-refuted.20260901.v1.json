@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Screen the run-30 banked Tier-1 queue (StartGenHitFx, fn_80093BC0, StartMagicFX) whose work order states they 'carry ZERO genuine structural rows and pure count mismatches: unwritten/missing code, likely the TU's cheapest exacts'. The premise is REFUTED by first measurement: all three have EQUAL instruction counts, so there is no unwritten code to write.",
+  "attributes": {
+    "law_screen": "claim.law.single-use-field-pointer-alias-is-folded-away.20260831.v1: APPLIED and it is the correct and complete diagnosis of StartGenHitFx and fn_80093BC0 - both carry ONE shared cluster in which target emits `mulli r0,idx,240; add rP,base,r0; ...; addi rP,rP,2976` while ours emits `mulli; addi rT,scaled,2976; ...; add rP,base,rT`, i.e. MWCC reassociates base + i*K + C to base + (i*K + C) whenever the pre-offset intermediate is single-use. The law's stated carrier is a genuine READ through the pre-offset pointer before the offset step; both targets read the post-offset pointer exactly once and both are count-EQUAL (54/54 and 82/82), so there is no unrecovered load to supply a second use and the carrier is provably unavailable in both. claim.law.direct-global-member-flips-index-base-association.20260831.v1 and claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1: SCREENED and deliberately NOT re-probed - both were measured NEGATIVE on this exact cluster on StartGenHitFx (regressed real 6 -> 44 and 6 -> 54). claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1: APPLIED to StartMagicFX's surviving +1 mr / -1 addi. No new edits were made, so no gating laws applied.",
+    "probed_form": "NO SOURCE EDIT MADE on any of the three functions - this record is a measurement and a refutation, not a probe. The binding do-not-retry from attempt.startgenhitfx-association-and-reloc-w2.20260831.v1 (five forms) and attempt.fn80093918-preoffset-association-memberform.20260831.v1 (a ninth form, plus the explicit 'DO-NOT-RETRY the association axis without a genuinely new carrier for the pre-offset use') was honoured; no genuinely new carrier was available, so no probe was spent.",
+    "residual": "MEASURED LIVE 2026-09-01 in worktree GDL-Claude-SfxTier1 at commit d14f43b32, all via `fndiff --count` / `--ops` on a freshly built object. StartGenHitFx: insns 54/54, real 6, opcode multiset IDENTICAL, 2 clusters. fn_80093BC0: insns 82/82, real 18, opcode multiset IDENTICAL, 2 clusters. StartMagicFX: insns 115/115, real 50, multiset DIFFERS by +1 mr / -1 addi only. NONE has a count mismatch, so on the AGENTS.md rule that a count-asymmetric residual is the deciding fact, the 'unwritten/missing code' framing is false for all three. StartGenHitFx and fn_80093BC0 additionally share ONE mechanism, so they are not three independent cheap exacts but two instances of an already-capped class plus one allocator residual. WHERE THE PREMISE WAS ACTUALLY TRUE: ProcessEffects, which the same work order ranked LAST, was the only Tier-1-adjacent function with a genuine count gap (T2309/O2303, target longer by 6) - and two of those missing instructions were recovered this session by writing missing code (an frsp narrowing and a comparison operand order). The queue was ranked exactly backwards.",
+    "scope": "Measurement only across src/game/sfx/sfx.c StartGenHitFx, fn_80093BC0, StartMagicFX. No files modified, no commit.",
+    "verification": "Baselines taken with tools/gdl/fndiff.py --count and --ops on the object built by the provisioning full ninja (build/GUNE5D/main.dol: OK, retail sha1 verified by provision_worktree.py). Aligned residuals confirmed with fnasm.py --diff at 0x90:0xd8 (StartGenHitFx) and 0xb4:0xf0 (fn_80093BC0), never by same-offset eyeballing. The two prior capping records were fetched and read in full before concluding."
+  },
+  "function": "function:StartGenHitFx",
+  "held_fixed": "EVERYTHING was held fixed: this record varied NOTHING and made no edit. It is a measurement plus a refutation of the work order's framing, not a probe, and it must not be read as a veto on any axis. The 'five forms' and 'ninth form' phrases quote the two PRIOR capping records (attempt.startgenhitfx-association-and-reloc-w2.20260831.v1 and attempt.fn80093918-preoffset-association-memberform.20260831.v1); those records own their own vetoes and this record neither widens nor narrows them. The one axis this record does close is the QUEUE-RANKING premise, on instruction counts alone.",
+  "id": "attempt.SF_tier1-count-mismatch-premise-refuted.20260901.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-01T21:55:25Z",
+  "refutes": "work_claim.sfx-tier1.20260901.v1",
+  "residual": {
+    "capability_needed": "dataflow-equivalence",
+    "family": "addressing-mode",
+    "measured_at": "2026-09-01",
+    "signature": "0t opcode multiset IDENTICAL (54/54); insns T54/O54; 2 ops clusters"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

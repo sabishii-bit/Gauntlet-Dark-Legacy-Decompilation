@@ -2472,6 +2472,7 @@ extern s32 lbl_8034466C;
 extern f32 sMusicFadeBase;
 extern f32 lbl_80343DF4;
 extern f32 lbl_80343DF8;
+extern f32 lbl_80348080;        /* point-effect collide radius (0.01f) */
 extern f64 lbl_80348098;
 extern f64 lbl_803480A8;
 extern f64 lbl_803480B0;
@@ -2718,7 +2719,7 @@ void ProcessEffects(void)
             if (e->flags & 0x20) {
                 if (e->flags & 0x10) {
                     mode = 2;
-                    ageRadius = (f32)(remaining > 1.0 ? 1.0 : (f64)remaining);
+                    ageRadius = (f32)(1.0 < remaining ? 1.0 : (f64)remaining);
                 } else {
                     mode = 1;
                     ageRadius = (f32)(remaining + 0.066667);
@@ -2821,7 +2822,7 @@ void ProcessEffects(void)
         if (e->fxfade > 0.0 && e->fxhit <= 0 && remaining < e->fxfade) {
             MBTreeSetAlpha(
                 e->node,
-                (s32)(255.0 * (1.0 - remaining / e->fxfade)), 1);
+                (s32)(255.0 * (f32)(1.0 - remaining / e->fxfade)), 1);
         }
         if (e->flags & 0x08410000) {
             MBTreeClearFlags(e->node, 8, 0);
@@ -2944,7 +2945,8 @@ void ProcessEffects(void)
             } else {
                 struct fxplayer* player =
                     (struct fxplayer*)MissileCollidePlayer(
-                        (e->flags & 0x200) ? 0.5f : radius, oldpos, pos, hitpos);
+                        (e->flags & 0x200) ? lbl_80348080 : radius, oldpos,
+                        pos, hitpos);
                 if (player != NULL && player->index != e->owner - 1) {
                     if ((e->flags & 0x200) == 0) {
                         if (player->shield_flags & 0x01020000) {
