@@ -920,6 +920,29 @@
         "copy_register_fields": true
       }
     ],
+    "game/world/gauntworld": [
+      {
+        "function": "fn_8005FB48",
+        "before_sha256": "2452e42c1d7457630545abce051877dfe6c7fa77ad97a9457e98225a98007e02",
+        "after_sha256": "4f54a75732119478f1c3a9409fe341bda0a7fa55c43568811aff6d2cba645e2b",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 152,
+          "permuted_instructions": 5
+        },
+        "mechanism": "attempt.HV_gauntworld-preheader-constant-permute.20260901.v1 - the entry preheader materializes five loop-invariant values: three SDA loads (the 2^52 int-conversion constant, sZeroDouble, sItemZero) and two zeroed counters. Ours emits them [sZeroDouble, li, sItemZero, li, 2^52]; the target emits [2^52, li, sZeroDouble, li, sItemZero], order [4,3,0,1,2,5] over +0x74..+0x8c. The window stops at +0x8c because the `b` there is a control instruction, which permute_instruction_atoms refuses. All five atoms are independent in OUR colouring - three loads from distinct SDA globals into distinct FPRs and two `li` to distinct GPRs, with no store anywhere in the region - so the dependence audit passes as a load/load reorder (checked in our colouring standing alone, per claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1). RELOCATION BINDING, the part the guard cannot check for itself: webfrank's permute payload test is a sorted multiset over (offset%4, info, addend) and so verifies only that no relocation was created, destroyed or retyped - NOT that each stayed with its own instruction. The three SDA loads differ solely in a register field, so a word-only matcher would happily swap two of them and produce correct text with the relocations on the wrong instructions. The order was therefore derived under an explicit symbol correspondence: our own-pool 2^52 literal @1280 corresponds to the target's named lbl_80346ED8 (the benign NonMatching-TU pool-label artifact), while sZeroDouble and sItemZero match by exact name; the emitted relocation triples move 2->10, 10->18, 18->2, binding each symbol to its target slot. The remainder is a bijective renaming over the callee-saved f28-f30 / r25-r30 sets, machine-proven by verify_consistent_recolor.",
+        "instruction_permutation": {
+          "start": "0x74",
+          "end": "0x8c",
+          "order": [4, 3, 0, 1, 2, 5],
+          "before_sha256": "4b6541e84928b44aae6882d2de9d1ed6abff73797716e87fd256b927d16a5078",
+          "after_sha256": "e2bf5e784b44ab34b988166b117d2afa4464a286f798a4f2ebdc0b6545a385ca",
+          "before_relocations_sha256": "eaf62c072c0e39103d617ea49df8f9f4716a08c20ca5d1639a8cba3b84eb72d8",
+          "after_relocations_sha256": "e255545fa91e6e76fb18a544c1da3ac7fe35585317b6f2d90140081ca8f84212"
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/world/camera": [
       {
         "function": "camera_init_for_gamemode",
