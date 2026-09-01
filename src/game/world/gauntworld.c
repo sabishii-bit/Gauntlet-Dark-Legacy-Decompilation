@@ -2188,6 +2188,7 @@ void fn_8005BA1C(Item* item, u8* player)
     u8* world;
     u8** records;
     u8* rec;
+    s32* rsub;
     u8 unused[32];
 
     (void)unused;
@@ -2287,8 +2288,9 @@ void fn_8005BA1C(Item* item, u8* player)
                 }
                 rec = *records;
                 for (k = 0; k < *(s32*)(world + 0x74); k++) {
-                    if (strcmp(lbl_80346F10, (char*)(rec + 0x28)) == 0 &&
-                        *(s32*)rec == 1 && *(s32*)(rec + 4) == 3) {
+                    rsub = (s32*)(rec + 4);
+                    if (strcmp(lbl_80346F10, (char*)rsub + 0x24) == 0 &&
+                        *(s32*)rec == 1 && *rsub == 3) {
                         goto found_chicken;
                     }
                     rec += 0x50;
@@ -2304,8 +2306,9 @@ found_chicken:
                 }
                 rec = *records;
                 for (k = 0; k < *(s32*)(world + 0x74); k++) {
-                    if (strcmp(lbl_80346F18, (char*)(rec + 0x28)) == 0 &&
-                        *(s32*)rec == 1 && *(s32*)(rec + 4) == 3) {
+                    rsub = (s32*)(rec + 4);
+                    if (strcmp(lbl_80346F18, (char*)rsub + 0x24) == 0 &&
+                        *(s32*)rec == 1 && *rsub == 3) {
                         goto found_apple;
                     }
                     rec += 0x50;
@@ -2340,9 +2343,10 @@ found_apple:
                     *(s16*)&item->data[0x10] = 200;
                     rec = *records;
                     for (k = 0; k < gWorldInfo.niteminfos; k++) {
+                        rsub = (s32*)(rec + 4);
                         if (strcmp(&objects[0x130],
-                                   (char*)(rec + 0x28)) == 0 &&
-                            *(s32*)rec == 1 && *(s32*)(rec + 4) == 1) {
+                                   (char*)rsub + 0x24) == 0 &&
+                            *(s32*)rec == 1 && *rsub == 1) {
                             goto found_gold;
                         }
                         rec += 0x50;
@@ -2370,9 +2374,10 @@ found_gold:
                     *(s16*)&item->data[0x10] = 100;
                     rec = *records;
                     for (k = 0; k < gWorldInfo.niteminfos; k++) {
+                        rsub = (s32*)(rec + 4);
                         if (strcmp(&objects[0x13C],
-                                   (char*)(rec + 0x28)) == 0 &&
-                            *(s32*)rec == 1 && *(s32*)(rec + 4) == 1) {
+                                   (char*)rsub + 0x24) == 0 &&
+                            *(s32*)rec == 1 && *rsub == 1) {
                             goto found_silver;
                         }
                         rec += 0x50;
