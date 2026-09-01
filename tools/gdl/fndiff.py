@@ -16,13 +16,23 @@ for identical constants) is normalized away, every function ALWAYS ends with
 a "== name: STATUS, N real diff lines" summary (so empty output can never be
 mistaken for success), and mechanical hints are printed (frame delta -> the
 dead-pad size to try). "MATCH (pool-name noise only)" = byte-identical after
-link.
+link. "MATCH-MODULO-RELOC-NAMING" = every instruction word agrees and every
+relocation TYPE agrees in order, and the only residual is that one side
+names a symbol the other emits as an anonymous local pool entry: 60
+functions score real > 0 in this state while linking byte-identical, and
+read as open work. Two CONCRETE symbols that disagree are never absorbed
+into it -- that is a real relocation defect.
 
 --ops collapses each function to its opcode stream (registers, operands and
 relocs ignored) and prints only the structurally inserted/deleted/replaced
 clusters. Use it to separate real shape differences (missing statements,
 moved blocks, extra calls) from register-renumber noise -- this view is what
 located infblock's missing t<19 clamp and stripped error-path frees.
+Because that reduction keeps only the mnemonic, a pair that agrees on the
+opcode and disagrees on a LITERAL is `equal` to the matcher and appears in
+no cluster; --ops therefore also prints IMMEDIATE rows for those (relocated
+fields, which the linker owns, excluded) and refuses to call such a function
+"pure reorder, schedule-class residual".
 
 --count prints one summary line per function (target/base insn counts, total
 diff lines, and "real" diff lines excluding reloc-name-only noise) -- use it
@@ -465,6 +475,107 @@ def normalized_reloc_lines(lines):
     return out
 
 
+IMM_RE = re.compile(r"-?\b(?:0x[0-9a-fA-F]+|\d+)\b")
+# parse() rewrites every branch destination as <fn+0xNN> (negatives kept).
+BRANCH_TARGET_RE = re.compile(r"<fn\+0x-?[0-9a-f]+>")
+
+
+def immediates(line):
+    """Numeric fields of one instruction, register colors erased."""
+    return IMM_RE.findall(erase_registers(line))
+
+
+def relocated_instructions(lines):
+    """(instruction lines, per-instruction "carries a relocation" flags).
+
+    An instruction whose immediate field is filled in by the LINKER holds
+    the address bits in the target object and a zero in ours; comparing
+    those literals is meaningless, and doing so made the first cut of the
+    immediate flag fire on both halves of every `lis`/`addi` address pair
+    (measured on G3DReadControlPadStates). The relocation line that
+    follows the instruction is the discriminant.
+    """
+    ins, reloc = [], []
+    for ln in lines:
+        if not ln:
+            continue
+        if ln.startswith("    "):
+            if reloc:
+                reloc[-1] = True
+        else:
+            ins.append(ln)
+            reloc.append(False)
+    return ins, reloc
+
+
+def immediate_deltas(t, b):
+    """Aligned same-opcode pairs whose IMMEDIATE fields differ.
+
+    --ops reduces every instruction to its mnemonic, so a pair that agrees
+    on the opcode and disagrees on a literal is `equal` to the sequence
+    matcher and never reaches the cluster list at all. When the multiset
+    also matches, --ops printed "IDENTICAL -- pure reorder, schedule-class
+    residual" over it: a false all-clear on a word that decides
+    postprocessor eligibility.
+
+    Relocated immediates are excluded (see relocated_instructions): the
+    linker owns those bits, and the relocation itself is already scored by
+    `real`.
+
+    Returns [(t_index, b_index, kind, t_line, b_line)] with kind
+    "branch" when the only differing literal is a normalized branch
+    target (usually an artifact of upstream drift) and "immediate"
+    otherwise.
+    """
+    ti, t_rel = relocated_instructions(t)
+    bi, b_rel = relocated_instructions(b)
+    to = [ln.split()[0] for ln in ti]
+    bo = [ln.split()[0] for ln in bi]
+    out = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(
+            None, to, bo, autojunk=False).get_opcodes():
+        if tag != "equal":
+            continue
+        for k in range(i2 - i1):
+            if t_rel[i1 + k] or b_rel[j1 + k]:
+                continue
+            tl, bl = ti[i1 + k], bi[j1 + k]
+            if immediates(tl) == immediates(bl):
+                continue
+            kind = ("branch" if BRANCH_TARGET_RE.search(tl)
+                    and BRANCH_TARGET_RE.sub("", tl)
+                    == BRANCH_TARGET_RE.sub("", bl) else "immediate")
+            out.append((i1 + k, j1 + k, kind, tl, bl))
+    return out
+
+
+def reloc_naming_only(t, b):
+    """True when the ONLY residual is how relocation symbols are SPELLED.
+
+    Requires, conservatively: identical instruction words in order;
+    identical relocation TYPES in order; and every differing symbol pair
+    to have an anonymous local (`<local>`, our side's un-named pool entry)
+    on exactly one side. Two concrete addresses that disagree are a real
+    relocation defect and are never absorbed here.
+    """
+    if instruction_lines(t) != instruction_lines(b):
+        return False
+    tr, br = relocation_signatures(t), relocation_signatures(b)
+    if len(tr) != len(br):
+        return False
+    differs = False
+    for (t_type, t_sym), (b_type, b_sym) in zip(tr, br):
+        if t_type != b_type:
+            return False
+        if t_sym == b_sym:
+            continue
+        differs = True
+        anon = [s.startswith("<local>") for s in (t_sym, b_sym)]
+        if anon.count(True) != 1:
+            return False
+    return differs
+
+
 def frame_size(lines):
     for ln in lines:
         m = FRAME_RE.search(ln)
@@ -510,8 +621,27 @@ def clean_diff(name, t, b):
                 f"frame delta {delta:+d} -> our frame is BIGGER;"
                 f" drop {-delta}B of pad/locals")
     cat = classify_function(t, b)
-    status = "MATCH (pool-name noise only)" if real == 0 and raw else \
-             "EXACT" if real == 0 else cat
+    if real == 0:
+        status = "MATCH (pool-name noise only)" if raw else "EXACT"
+    elif reloc_naming_only(t, b):
+        # A FINISHED function read as open: every instruction word agrees,
+        # every relocation TYPE agrees in order, and the only residual is
+        # that one side names a symbol the other emits as an anonymous
+        # local pool entry. `real` counts those lines and the function
+        # scored OPERAND_DIFF with N real diff lines despite linking
+        # byte-identical (DVDCheckDisk, dolphin/dvd/dvd, a Matching TU).
+        status = "MATCH-MODULO-RELOC-NAMING"
+        hints.append("instruction words and reloc types all agree; the"
+                     " residual is anonymous-local vs named-symbol"
+                     " SPELLING. Link-equal unless the pool entry itself"
+                     " is wrong — confirm by dumping this function's"
+                     " relocation symbols, which no score sees")
+    else:
+        status = cat
+    imm = [d for d in immediate_deltas(t, b) if d[2] == "immediate"]
+    if imm and status not in ("EXACT", "MATCH-MODULO-RELOC-NAMING"):
+        hints.append(f"{len(imm)} aligned same-opcode IMMEDIATE delta(s)"
+                     " — see `--ops`, which lists them with offsets")
     hint_s = ("  HINT: " + "; ".join(hints)) if hints else ""
     noise_s = f" (+{noise} pool-name lines suppressed)" if noise else ""
     print(f"== {name}: {status}, {real} real diff lines{noise_s}{hint_s}")
@@ -553,9 +683,20 @@ def ops_diff(name, t, b):
     to, bo = opcodes(t), opcodes(b)
     sm = difflib.SequenceMatcher(None, to, bo, autojunk=False)
     clusters = [x for x in sm.get_opcodes() if x[0] != "equal"]
-    print(f"==== {name}: target {len(to)} insns, ours {len(bo)}"
-          + (" (opcode streams identical -- diffs are register/reloc only)"
-             if not clusters else ""))
+    # Same-opcode/differing-immediate pairs live INSIDE the equal runs, so
+    # they never reach the cluster list. Compute them before the headline:
+    # "diffs are register/reloc only" was flatly false whenever one exists.
+    imm_all = immediate_deltas(t, b)
+    imm = [d for d in imm_all if d[2] == "immediate"]
+    branch_imm = [d for d in imm_all if d[2] == "branch"]
+    if clusters:
+        head = ""
+    elif imm:
+        head = (f" (opcode streams identical, but {len(imm)} aligned"
+                " IMMEDIATE delta(s) below -- NOT register/reloc only)")
+    else:
+        head = " (opcode streams identical -- diffs are register/reloc only)"
+    print(f"==== {name}: target {len(to)} insns, ours {len(bo)}{head}")
     if clusters and len(to) != len(bo):
         # State the NET direction once. A per-cluster "shortfall" reads as
         # the whole story and has been taken for one.
@@ -568,7 +709,10 @@ def ops_diff(name, t, b):
     delta = Counter(to) - Counter(bo), Counter(bo) - Counter(to)
     if not delta[0] and not delta[1]:
         print(f"  opcode multiset: IDENTICAL ({len(to)}/{len(bo)})"
-              " -- pure reorder, schedule-class residual")
+              + (f" -- but {len(imm)} IMMEDIATE word(s) differ at aligned"
+                 " same-opcode positions (below): NOT pure reorder, NOT"
+                 " schedule-class" if imm else
+                 " -- pure reorder, schedule-class residual"))
     else:
         gains = " ".join(f"+{n} {op}" for op, n in sorted(delta[0].items()))
         losses = " ".join(f"-{n} {op}" for op, n in sorted(delta[1].items()))
@@ -584,6 +728,21 @@ def ops_diff(name, t, b):
         note = f"  [{' + '.join(flags)}]" if flags else ""
         print(f"  {tag:7} T[{i1}:{i2}]@{i1 * 4:x}-{i2 * 4:x}={to[i1:i2]}"
               f"  O[{j1}:{j2}]@{j1 * 4:x}-{j2 * 4:x}={bo[j1:j2]}{note}")
+    for ti, bi, kind, t_line, b_line in imm:
+        print(f"  IMMEDIATE T[{ti}]@{ti * 4:x}  O[{bi}]@{bi * 4:x}"
+              f"   T: {t_line}   O: {b_line}")
+    if imm:
+        print(f"  {len(imm)} IMMEDIATE row(s): the opcode agrees and a"
+              " LITERAL does not. These sit inside the matcher's EQUAL runs,"
+              " so no cluster above covers them and the multiset verdict"
+              " cannot see them — a same-opcode immediate is an"
+              " eligibility-deciding word, not schedule noise. Read each at"
+              f" `fnasm <unit> {name} 0x{imm[0][0] * 4:x}:0x"
+              f"{imm[0][0] * 4 + 4:x} --diff`.")
+    if branch_imm:
+        print(f"  ({len(branch_imm)} further same-opcode row(s) differ only"
+              " in a normalized BRANCH TARGET — usually downstream of the"
+              " clusters above; fix those first and re-read.)")
     if flagged:
         print(f"  {flagged} of {len(clusters)} clusters flagged: SHIFTABLE ="
               " the same edit is expressible at another offset, so THIS"
