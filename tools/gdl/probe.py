@@ -12,6 +12,8 @@ Usage:
                                                                  # banked good
                                                                  # source, then
                                                                  # build+score
+  python tools/gdl/probe.py game/game/player do_players --fuzzy  # arbitration
+                                                                 # READOUT only
   python tools/gdl/probe.py game/game/player do_players --reset  # forget best
   python tools/gdl/probe.py game/game/player do_players --rebase-best
       # after a fuzzy/--ops-arbitrated keep of a real-regressed state:
@@ -43,6 +45,13 @@ not the pre-edit state — use git to discard a neutral edit you don't
 want. (2) The snapshot is the WHOLE TU file: in a multi-function session
 a revert takes every function back with it — commit each function's
 retained state before probing the next.
+
+--fuzzy is a PURE READOUT: it builds, prints the scores and this
+function's fresh objdiff fuzzy, and computes NO verdict and banks NO
+snapshot. Re-running the verdict on bytes that were already scored is
+what made a CONFLICT re-read as REGRESSED (see classify()'s BEST-anchored
+multiset comparison); an arbitration readout must never be able to do
+that. Score and bank with a plain probe, then arbitrate with --fuzzy.
 """
 
 import json
@@ -110,6 +119,280 @@ def bank_snapshot(unit, source, baseline=False):
         base = snap.with_suffix(snap.suffix + ".base")
         if not base.exists():
             shutil.copyfile(source, base)
+
+
+def count_distance(text):
+    """|target - ours| from a "T<n>/O<n>" insns string, or None."""
+    match = re.match(r"T(\d+)/O(\d+)$", text or "")
+    return abs(int(match.group(1)) - int(match.group(2))) if match else None
+
+
+def object_digest(unit, fn, fn_stripped):
+    """Raw-byte signature of the built function, or None if unavailable."""
+    try:
+        sys.path.insert(0, str(TOOLS))
+        import fndiff as _fndiff
+        objfile = Path(f"build/{VERSION}/src/{unit}.o")
+        signature = _fndiff.raw_signature(objfile)
+        return signature.get(fn) or signature.get(fn_stripped)
+    except Exception:
+        return None
+
+
+def classify(state, real, insns, multiset_tokens, rebase_best=False,
+             digest=None, source_changed=True):
+    """Pure verdict function: (verdict_text, new_state).
+
+    ``state`` is the banked gate state; the returned state carries the
+    updated best/last fields. No I/O, no globals — every branch below is
+    covered by tools/gdl/tests/test_probe.py.
+
+    THE BEST ANCHOR. Both scores compared against the high-water mark are
+    read from the BEST-scoring state: `real` from ``best_real`` and the
+    opcode-multiset token count from ``best_multiset``. Carrying the
+    multiset delta against the PREVIOUS probe instead made the verdict a
+    function of probe history rather than of the bytes: after a CONFLICT
+    banked its own multiset into ``last_multiset``, re-scoring the very
+    same object flipped the verdict to REGRESSED with "[revert advised]"
+    (measured on game/sys/memcard get_vmu_directory, real 65 -> 65, run
+    29). ``best_multiset`` is absent from states banked before that fix;
+    the fallback is stated in the verdict text rather than hidden.
+    """
+    state = dict(state)
+    best = state.get("best_real")
+    best_tokens = state.get("best_multiset")
+    prev_tokens = state.get("last_multiset")
+    tok = (f", multiset {multiset_tokens}t"
+           if multiset_tokens is not None else "")
+
+    def bank_best():
+        state["best_real"] = real
+        state["best_multiset"] = multiset_tokens
+        state["best_insns"] = insns
+
+    # RE-SCORE GUARD. A probe that measures exactly what the previous
+    # probe measured has observed no change and must not manufacture a
+    # new verdict — re-running verdict logic over unchanged bytes is the
+    # defect this guard closes. Re-emit the standing verdict verbatim.
+    # The guard is anchored on the OBJECT DIGEST, not on the score triple
+    # alone: scores can read identical while the bytes moved (that is the
+    # NEUTRAL-REARRANGED case), and a triple-only guard would hide it.
+    # With no digest available the guard does not fire at all. It also
+    # requires the SOURCE to be unchanged against the banked snapshot,
+    # which separates "you probed again without editing" from "you edited
+    # and the edit folded away before codegen" — the latter is a real
+    # signal (NEUTRAL-IDENTICAL) and must not be swallowed.
+    unchanged = (digest is not None
+                 and not source_changed
+                 and state.get("last_bytes") == digest
+                 and state.get("last_real") == real
+                 and state.get("last_insns") == insns
+                 and state.get("last_multiset") == multiset_tokens
+                 and state.get("last_verdict") is not None
+                 and not rebase_best)
+    if unchanged:
+        verdict = (f"RE-SCORE  real {real} (insns {insns}{tok}) — nothing"
+                   " moved since the last probe; the standing verdict"
+                   f" below is REPEATED, not recomputed:\n"
+                   f"{state['last_verdict']}")
+        return verdict, state
+
+    if rebase_best:
+        # After fuzzy/--ops arbitration keeps a real-regressed state, the old
+        # banked best is dead and every later probe misreports REGRESSED.
+        # Accept the current state as the new best and revert point.
+        verdict = (f"REBASED   best {best} -> {real} (insns {insns}{tok})"
+                   f"  [arbitrated keep]")
+        bank_best()
+    elif best is None:
+        verdict = f"BASELINE  real {real} (insns {insns}{tok})"
+        bank_best()
+    elif real < best:
+        # A real win with a BLOWN-OUT count distance once banked as best
+        # (949->802 while the function LOST 157 instructions), poisoning
+        # every later verdict until --rebase-best. Refuse to bank those.
+        prev_dist = count_distance(state.get("last_insns"))
+        cur_dist = count_distance(insns)
+        if (prev_dist is not None and cur_dist is not None
+                and cur_dist > prev_dist + 4):
+            verdict = (f"IMPROVED? real {best} -> {real} BUT count"
+                       f" distance {prev_dist} -> {cur_dist} blew out — best"
+                       " NOT updated; this is structural divergence wearing"
+                       " a real win. Arbitrate on fresh fuzzy;"
+                       " --rebase-best banks a deliberate keep")
+        else:
+            verdict = (f"IMPROVED  real {best} -> {real} (insns"
+                       f" {insns}{tok})  [best updated]")
+            bank_best()
+        # Parity-held improvements are the one IMPROVED shape that has
+        # regressed fuzzy end-to-end (real 30->24 at unchanged T47/O47
+        # was a fuzzy 80.85->71.89 loss; probe+gate both passed it).
+        # When insn counts already agreed and did not move, real fell
+        # inside an already-parity-exact shell — fuzzy is the arbiter.
+        parity = re.match(r"T(\d+)/O(\d+)$", insns or "")
+        if (parity and parity.group(1) == parity.group(2)
+                and state.get("last_insns") == insns):
+            verdict += ("\nPARITY-HELD IMPROVEMENT: counts were already"
+                        " equal and unchanged — arbitrate on FRESH objdiff"
+                        " fuzzy BEFORE treating this as progress or running"
+                        " --update-improved; revert if fuzzy fell")
+    elif real > best:
+        anchor_tokens = best_tokens if best_tokens is not None else prev_tokens
+        anchor_name = "best" if best_tokens is not None else "prev"
+        structure_improved = (multiset_tokens is not None
+                              and anchor_tokens is not None
+                              and multiset_tokens < anchor_tokens)
+        if structure_improved:
+            verdict = (f"CONFLICT  real {state.get('last_real', best)} ->"
+                       f" {real} (best {best}, insns {insns}) but multiset"
+                       f" {anchor_tokens}t -> {multiset_tokens}t vs"
+                       f" {anchor_name} IMPROVED — structure is converging;"
+                       " read the diff and arbitrate, do NOT auto-revert"
+                       " (--rebase-best banks an arbitrated keep)")
+            # Count distance is the one cheap predictor that agreed with
+            # fuzzy in all four field arbitrations of this shape —
+            # multiset gains do NOT imply fuzzy gains.
+            prev_dist = count_distance(state.get("last_insns"))
+            cur_dist = count_distance(insns)
+            if (prev_dist is not None and cur_dist is not None
+                    and prev_dist != cur_dist):
+                # Bounded by three independent lane measurements: the
+                # predictor is only sound when the MULTISET IS FLAT —
+                # it measures residue after structure is held constant.
+                # With the multiset moving it was wrong 4/4 on one
+                # function (structure-changing probes), and it must
+                # never be weighed against fuzzy itself.
+                flat = (multiset_tokens is not None
+                        and prev_tokens is not None
+                        and multiset_tokens == prev_tokens)
+                if flat:
+                    trend = ("WORSE — expect a fuzzy loss"
+                             if cur_dist > prev_dist
+                             else "better — fuzzy may agree")
+                    verdict += (f"\nCOUNT DISTANCE {prev_dist} ->"
+                                f" {cur_dist} at a flat multiset ({trend});"
+                                " fuzzy from a fresh report remains the"
+                                " arbiter")
+                else:
+                    verdict += (f"\nCOUNT DISTANCE {prev_dist} ->"
+                                f" {cur_dist} but the multiset moved — the"
+                                " predictor is NOT valid here; arbitrate on"
+                                " fresh fuzzy only")
+        else:
+            # The arrow is previous->current; the CLASSIFICATION is vs
+            # best. Printing both without labels read as a contradiction
+            # ("REGRESSED 244 -> 234") and cost two re-reads in the field.
+            verdict = (f"REGRESSED vs best {best}: real"
+                       f" {state.get('last_real', best)} -> {real}"
+                       f" (prev -> current; insns {insns}{tok})"
+                       "  [revert advised]")
+        if best_tokens is None:
+            # Say it on BOTH outcomes. A legacy state silently reproduces
+            # the old prev-anchored answer, and the REGRESSED half is
+            # exactly the half that tells a worker to throw work away.
+            verdict += ("\n[no best_multiset banked (pre-run-29 state) —"
+                        " the structure comparison fell back to the"
+                        " PREVIOUS probe, which is the shape that misread"
+                        " a CONFLICT as REGRESSED; --reset then re-probe"
+                        " for a BEST-anchored verdict]")
+    else:
+        verdict = f"NEUTRAL   real {real} (insns {insns}{tok})"
+    state["last_real"] = real
+    state["last_insns"] = insns
+    if multiset_tokens is not None:
+        state["last_multiset"] = multiset_tokens
+    if digest is not None:
+        state["last_bytes"] = digest
+    state["last_verdict"] = verdict
+    return verdict, state
+
+
+def fuzzy_readout(unit, fn, fn_stripped, state, state_file):
+    """Build the report and print this function's fresh objdiff fuzzy.
+
+    CONFLICT arbitration used to cost two manual builds per keep; this is
+    that loop, made durable. The report build is a full link — expect it
+    to take as long as ninja.
+    """
+    rep = subprocess.run(["ninja", f"build/{VERSION}/report.json"],
+                         capture_output=True, text=True)
+    if rep.returncode != 0:
+        print("[--fuzzy: report build FAILED — no fuzzy readout]")
+        return
+    try:
+        report = json.loads(
+            Path(f"build/{VERSION}/report.json").read_text(encoding="utf-8"))
+        bare = re.sub(r"\.(c|cpp)$", "", unit)
+        val = None
+        for entry in report.get("units", []):
+            if entry.get("name", "").endswith(bare):
+                for func in entry.get("functions", []):
+                    if func["name"] in (fn, fn_stripped) or \
+                            func["name"].startswith(fn + "_80"):
+                        val = float(func.get("fuzzy_match_percent", 0.0))
+        prev_fz = state.get("last_fuzzy")
+        if val is not None:
+            arrow = (f" (prev {prev_fz:.4f})"
+                     if isinstance(prev_fz, float) else "")
+            print(f"FUZZY (fresh report): {val:.4f}%{arrow}")
+            state["last_fuzzy"] = val
+            state_file.write_text(json.dumps(state), encoding="utf-8")
+        else:
+            print("[--fuzzy: function not found in report]")
+    except Exception as err:
+        print(f"[--fuzzy: readout failed: {err}]")
+
+
+def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
+                     prev_insns, prev_digest, digest):
+    """Byte-identity + structural-drift annotations for a NEUTRAL verdict.
+
+    Split out of classify() so the verdict table stays pure and testable;
+    this half only formats what the caller already measured.
+    """
+    # real-equal is not structure-equal: a NEUTRAL that moved the insn
+    # count further from parity or grew the multiset is WORSE, and banking
+    # it made --revert refuse to undo a bad probe (a worker had to restore
+    # by hand). Key the verdict on the triple.
+    worse = []
+    prev_dist = count_distance(prev_insns)
+    cur_dist = count_distance(insns)
+    if (prev_dist is not None and cur_dist is not None
+            and cur_dist > prev_dist):
+        worse.append(f"count distance {prev_dist} -> {cur_dist}")
+    if (multiset_tokens is not None and prev_tokens is not None
+            and multiset_tokens > prev_tokens):
+        worse.append(f"multiset {prev_tokens}t -> {multiset_tokens}t")
+    # NEUTRAL scores do NOT prove byte identity (a fuzzy-visible encoding
+    # change once passed every score in this tool). Hash the function's raw
+    # bytes and say so when they moved. Byte identity is GROUND TRUTH and
+    # computed FIRST: the worse-triple check compares against last-probe
+    # state that can be stale, and the two once printed a contradictory
+    # composite (NEUTRAL-WORSE + NEUTRAL-IDENTICAL) a worker had to
+    # untangle by hand.
+    bytes_identical = None
+    if digest is not None and prev_digest is not None:
+        bytes_identical = digest == prev_digest
+        if not bytes_identical:
+            verdict += ("  [NEUTRAL-REARRANGED: OBJECT BYTES CHANGED —"
+                        " this compares BUILT OBJECTS between probes, not"
+                        " your source vs git (source can be identical to"
+                        " HEAD and still trip this); neutral scores do not"
+                        " prove identity — verify with objdiff fuzzy or"
+                        " revert]")
+        else:
+            verdict += ("  [NEUTRAL-IDENTICAL: object bytes unchanged — the"
+                        " edit FOLDED AWAY before codegen. For a spelling"
+                        " probe this is a STRONGER negative than a"
+                        " regression: the source text never reached the"
+                        " compiler's decision point]")
+    if worse and bytes_identical is not True:
+        head = f"NEUTRAL   real {real}"
+        verdict = (f"NEUTRAL-WORSE real {real}"
+                   f" ({'; '.join(worse)}) — structurally worse at equal"
+                   " real; NOT banked, revert with git (not --revert) or"
+                   " justify the keep explicitly" + verdict[len(head):])
+    return verdict
 
 
 def main():
@@ -271,200 +554,42 @@ def main():
     state = {}
     if state_file.exists():
         state = json.loads(state_file.read_text(encoding="utf-8"))
-    best = state.get("best_real")
     prev_tokens = state.get("last_multiset")
-    tok = (f", multiset {multiset_tokens}t"
-           if multiset_tokens is not None else "")
-    if "--rebase-best" in sys.argv:
-        # After fuzzy/--ops arbitration keeps a real-regressed state, the old
-        # banked best is dead and every later probe misreports REGRESSED.
-        # Accept the current state as the new best and revert point.
-        verdict = (f"REBASED   best {best} -> {real} (insns {insns}{tok})"
-                   f"  [arbitrated keep]")
-        state["best_real"] = real
-    elif best is None:
-        verdict = f"BASELINE  real {real} (insns {insns}{tok})"
-        state["best_real"] = real
-    elif real < best:
-        # A real win with a BLOWN-OUT count distance once banked as best
-        # (949->802 while the function LOST 157 instructions), poisoning
-        # every later verdict until --rebase-best. Refuse to bank those.
-        def _cdist(text):
-            m = re.match(r"T(\d+)/O(\d+)$", text or "")
-            return abs(int(m.group(1)) - int(m.group(2))) if m else None
-        pd_, cd_ = _cdist(state.get("last_insns")), _cdist(insns)
-        if pd_ is not None and cd_ is not None and cd_ > pd_ + 4:
-            verdict = (f"IMPROVED? real {best} -> {real} BUT count"
-                       f" distance {pd_} -> {cd_} blew out — best NOT"
-                       " updated; this is structural divergence wearing a"
-                       " real win. Arbitrate on fresh fuzzy;"
-                       " --rebase-best banks a deliberate keep")
-        else:
-            verdict = (f"IMPROVED  real {best} -> {real} (insns"
-                       f" {insns}{tok})  [best updated]")
-            state["best_real"] = real
-        # Parity-held improvements are the one IMPROVED shape that has
-        # regressed fuzzy end-to-end (real 30->24 at unchanged T47/O47
-        # was a fuzzy 80.85->71.89 loss; probe+gate both passed it).
-        # When insn counts already agreed and did not move, real fell
-        # inside an already-parity-exact shell — fuzzy is the arbiter.
-        parity = re.match(r"T(\d+)/O(\d+)$", insns or "")
-        if (parity and parity.group(1) == parity.group(2)
-                and state.get("last_insns") == insns):
-            verdict += ("\nPARITY-HELD IMPROVEMENT: counts were already"
-                        " equal and unchanged — arbitrate on FRESH objdiff"
-                        " fuzzy BEFORE treating this as progress or running"
-                        " --update-improved; revert if fuzzy fell")
-    elif real > best:
-        structure_improved = (multiset_tokens is not None
-                              and prev_tokens is not None
-                              and multiset_tokens < prev_tokens)
-        if structure_improved:
-            verdict = (f"CONFLICT  real {state.get('last_real', best)} ->"
-                       f" {real} (best {best}, insns {insns}) but multiset"
-                       f" {prev_tokens}t -> {multiset_tokens}t IMPROVED —"
-                       " structure is converging; read the diff and"
-                       " arbitrate, do NOT auto-revert"
-                       " (--rebase-best banks an arbitrated keep)")
-            # Count distance is the one cheap predictor that agreed with
-            # fuzzy in all four field arbitrations of this shape —
-            # multiset gains do NOT imply fuzzy gains.
-            def _cd(text):
-                m = re.match(r"T(\d+)/O(\d+)$", text or "")
-                return (abs(int(m.group(1)) - int(m.group(2)))
-                        if m else None)
-            pd, cd = _cd(state.get("last_insns")), _cd(insns)
-            if pd is not None and cd is not None and pd != cd:
-                # Bounded by three independent lane measurements: the
-                # predictor is only sound when the MULTISET IS FLAT —
-                # it measures residue after structure is held constant.
-                # With the multiset moving it was wrong 4/4 on one
-                # function (structure-changing probes), and it must
-                # never be weighed against fuzzy itself.
-                flat = (multiset_tokens is not None
-                        and prev_tokens is not None
-                        and multiset_tokens == prev_tokens)
-                if flat:
-                    trend = ("WORSE — expect a fuzzy loss"
-                             if cd > pd else "better — fuzzy may agree")
-                    verdict += (f"\nCOUNT DISTANCE {pd} -> {cd} at a"
-                                f" flat multiset ({trend}); fuzzy from"
-                                " a fresh report remains the arbiter")
-                else:
-                    verdict += (f"\nCOUNT DISTANCE {pd} -> {cd} but the"
-                                " multiset moved — the predictor is NOT"
-                                " valid here; arbitrate on fresh fuzzy"
-                                " only")
-        else:
-            # The arrow is previous->current; the CLASSIFICATION is vs
-            # best. Printing both without labels read as a contradiction
-            # ("REGRESSED 244 -> 234") and cost two re-reads in the field.
-            verdict = (f"REGRESSED vs best {best}: real"
-                       f" {state.get('last_real', best)} -> {real}"
-                       f" (prev -> current; insns {insns}{tok})"
-                       "  [revert advised]")
-    else:
-        verdict = f"NEUTRAL   real {real} (insns {insns}{tok})"
-        # real-equal is not structure-equal: a NEUTRAL that moved the
-        # insn count further from parity or grew the multiset is WORSE,
-        # and banking it made --revert refuse to undo a bad probe (a
-        # worker had to restore by hand). Key the verdict on the triple.
-        def _dist(text):
-            m = re.match(r"T(\d+)/O(\d+)$", text or "")
-            return abs(int(m.group(1)) - int(m.group(2))) if m else None
-        worse = []
-        prev_dist, cur_dist = _dist(state.get("last_insns")), _dist(insns)
-        if (prev_dist is not None and cur_dist is not None
-                and cur_dist > prev_dist):
-            worse.append(f"count distance {prev_dist} -> {cur_dist}")
-        if (multiset_tokens is not None and prev_tokens is not None
-                and multiset_tokens > prev_tokens):
-            worse.append(f"multiset {prev_tokens}t -> {multiset_tokens}t")
-        # NEUTRAL scores do NOT prove byte identity (a fuzzy-visible
-        # encoding change once passed every score in this tool). Hash the
-        # function's raw bytes and say so when they moved. Byte identity
-        # is GROUND TRUTH and computed FIRST: the worse-triple check
-        # compares against last-probe state that can be stale, and the
-        # two once printed a contradictory composite (NEUTRAL-WORSE +
-        # NEUTRAL-IDENTICAL) a worker had to untangle by hand.
-        bytes_identical = None
-        try:
-            sys.path.insert(0, str(TOOLS))
-            import fndiff as _fndiff
-            objfile = Path(f"build/{VERSION}/src/{unit}.o")
-            digest = _fndiff.raw_signature(objfile).get(
-                fn) or _fndiff.raw_signature(objfile).get(fn_stripped)
-            prev_digest = state.get("last_bytes")
-            if digest is not None:
-                state["last_bytes"] = digest
-                if prev_digest is not None:
-                    bytes_identical = digest == prev_digest
-                if prev_digest is not None and digest != prev_digest:
-                    verdict += ("  [NEUTRAL-REARRANGED: OBJECT BYTES"
-                                " CHANGED — this compares BUILT OBJECTS"
-                                " between probes, not your source vs git"
-                                " (source can be identical to HEAD and"
-                                " still trip this); neutral scores do not"
-                                " prove identity — verify with objdiff"
-                                " fuzzy or revert]")
-                elif prev_digest is not None:
-                    verdict += ("  [NEUTRAL-IDENTICAL: object bytes"
-                                " unchanged — the edit FOLDED AWAY before"
-                                " codegen. For a spelling probe this is a"
-                                " STRONGER negative than a regression:"
-                                " the source text never reached the"
-                                " compiler's decision point]")
-        except Exception:
-            pass
-        if worse and bytes_identical is not True:
-            head = f"NEUTRAL   real {real}"
-            verdict = (f"NEUTRAL-WORSE real {real}"
-                       f" ({'; '.join(worse)}) — structurally worse at"
-                       " equal real; NOT banked, revert with git (not"
-                       " --revert) or justify the keep explicitly"
-                       + verdict[len(head):])
-    state["last_real"] = real
-    state["last_insns"] = insns
-    if multiset_tokens is not None:
-        state["last_multiset"] = multiset_tokens
-    state_file.write_text(json.dumps(state), encoding="utf-8")
-    print(verdict)
+    prev_insns = state.get("last_insns")
+    prev_digest = state.get("last_bytes")
+    digest = object_digest(unit, fn, fn_stripped)
+    snap = snapshot_path(unit, source) if source is not None else None
+    source_changed = True
+    if snap is not None and snap.exists() and source.exists():
+        source_changed = snap.read_bytes() != source.read_bytes()
 
     if "--fuzzy" in sys.argv:
-        # One-call fresh-fuzzy readout: build the report and print this
-        # function's fuzzy. CONFLICT arbitration used to cost two manual
-        # builds per keep; this is that loop, made durable. The report
-        # build is a full link — expect it to take as long as ninja.
-        rep = subprocess.run(["ninja", f"build/{VERSION}/report.json"],
-                             capture_output=True, text=True)
-        if rep.returncode != 0:
-            print("[--fuzzy: report build FAILED — no fuzzy readout]")
-        else:
-            try:
-                report = json.loads(
-                    Path(f"build/{VERSION}/report.json").read_text(
-                        encoding="utf-8"))
-                bare = re.sub(r"\.(c|cpp)$", "", unit)
-                val = None
-                for entry in report.get("units", []):
-                    if entry.get("name", "").endswith(bare):
-                        for func in entry.get("functions", []):
-                            if func["name"] in (fn, fn_stripped) or \
-                                    func["name"].startswith(fn + "_80"):
-                                val = float(
-                                    func.get("fuzzy_match_percent", 0.0))
-                prev_fz = state.get("last_fuzzy")
-                if val is not None:
-                    arrow = (f" (prev {prev_fz:.4f})"
-                             if isinstance(prev_fz, float) else "")
-                    print(f"FUZZY (fresh report): {val:.4f}%{arrow}")
-                    state["last_fuzzy"] = val
-                    state_file.write_text(json.dumps(state),
-                                          encoding="utf-8")
-                else:
-                    print("[--fuzzy: function not found in report]")
-            except Exception as err:
-                print(f"[--fuzzy: readout failed: {err}]")
+        # PURE READOUT. No verdict, no state mutation beyond the fuzzy
+        # number itself, no snapshot banked. Arbitration must be able to
+        # re-read a state the loop has already scored without the verdict
+        # changing underneath it (a CONFLICT re-read as REGRESSED that
+        # way, on bytes that had not moved).
+        tok = (f", multiset {multiset_tokens}t"
+               if multiset_tokens is not None else "")
+        print(f"READOUT   real {real} (insns {insns}{tok})"
+              "  [--fuzzy: no verdict computed, no revert point banked]")
+        standing = state.get("last_verdict")
+        if standing:
+            print(f"[standing verdict, unchanged by this readout]"
+                  f"\n{standing}")
+        fuzzy_readout(unit, fn, fn_stripped, state, state_file)
+        return 0
+
+    verdict, state = classify(state, real, insns, multiset_tokens,
+                              rebase_best="--rebase-best" in sys.argv,
+                              digest=digest, source_changed=source_changed)
+    if verdict.startswith("NEUTRAL"):
+        verdict = annotate_neutral(verdict, real, insns, multiset_tokens,
+                                   prev_tokens, prev_insns, prev_digest,
+                                   digest)
+        state["last_verdict"] = verdict
+    state_file.write_text(json.dumps(state), encoding="utf-8")
+    print(verdict)
 
     if verdict.startswith("BASELINE") and source is not None:
         # Scaffold census: pragmas and volatile qualifiers go STALE and
