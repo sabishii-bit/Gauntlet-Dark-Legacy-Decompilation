@@ -12,6 +12,17 @@
   "kind": "attempt",
   "outcome": "capped",
   "recorded_at": "2026-08-31T03:39:19Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "family_candidate": "frame-slot",
+    "family_candidate_confidence": "UNVERIFIED extractor guess -- fresh-sample hand audits scored this extractor at ~30-50% precision. Verify against the function's aligned diff before relying on it.",
+    "measured_at": "2026-09-01",
+    "signature": "0t opcode multiset IDENTICAL (310/310); insns T310/O310; 0 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "STACK_LAYOUT",
   "schema_version": 1,
   "supersedes": "attempt.mbtreeinit-stack-frame-closure.20260829.v1",
