@@ -3,6 +3,7 @@
 #include "game/enemy.h"
 #include "game/gamemode.h"
 #include "game/item.h"
+#include "game/effect.h"
 #include "game/leveldata.h"
 #include "game/mbobject.h"
 #include "game/worldinfo.h"
@@ -4516,7 +4517,7 @@ extern void* lbl_803447B0;
 extern u8*  gBossObj;
 extern s32  gBossDead;
 extern f32  gClockTime;
-extern u8   Effects[];
+extern Effect Effects[]; /* live fx pool, stride 0xF0 (game/effect.h) */
 extern void DoGoodWizard(void);
 extern void ProcessSpewItems(void);
 extern s32  CamGetPlayerAvgPos(f32* pos, s32 mode);
@@ -4790,7 +4791,7 @@ void world_update(void)
             lbl_8034489C = 6;
         }
         if (lbl_80344890 >= 0) {
-            u8* e = Effects + lbl_80344890 * 0xf0;
+            u8* e = (u8*)Effects + lbl_80344890 * 0xf0;
             f32 dt = *(f32*)(e + 0x68) - gClockTime;
 
             if (dt < lbl_80346C40) {
