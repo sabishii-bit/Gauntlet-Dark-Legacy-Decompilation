@@ -2654,13 +2654,13 @@ void ProcessEffects(void)
 
         if ((e->flags & 0x40000000) && e->targetnode != NULL) {
             GetWorldMat(e->targetnode, targetmat, NULL);
-            dir[0] = targetmat[12] - mat[12];
-            dir[1] = targetmat[13] - mat[13];
-            dir[2] = targetmat[14] - mat[14];
-            NormalVector(dir);
-            e->vel[0] = dir[0] * e->weight;
-            e->vel[1] = dir[1] * e->weight;
-            e->vel[2] = dir[2] * e->weight;
+            delta[0] = targetmat[12] - mat[12];
+            delta[1] = targetmat[13] - mat[13];
+            delta[2] = targetmat[14] - mat[14];
+            NormalVector(delta);
+            e->vel[0] = delta[0] * e->weight;
+            e->vel[1] = delta[1] * e->weight;
+            e->vel[2] = delta[2] * e->weight;
             pos[0] = oldpos[0] + e->vel[0] * gClockFrameStep;
             pos[1] = oldpos[1] + e->vel[1] * gClockFrameStep;
             pos[2] = oldpos[2] + e->vel[2] * gClockFrameStep;
