@@ -6181,7 +6181,7 @@ f32 fn_8005FDA8(u8* e, f32* a, f32* b, f32* outPos, f32* outNorm, f32 margin)
     d1 = 64.0 * (k * (lo - m[13]));
     d2 = 64.0 * (k * (hi - m[13]));
     lbl_80344194 = -0.5f;
-    lbl_80344190 = 2.0f;
+    lbl_80344190 = sCameraVisibilityRadius;
     hit = CTriListCollide(margin, *(s16*)(e + 192), *(s16*)(e + 194), &triOut,
                           (s16*)0, pt, (s16)(s32)d1, (s16)(s32)d2, 0);
     if (hit >= 0.0) {
