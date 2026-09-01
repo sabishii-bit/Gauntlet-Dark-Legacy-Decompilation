@@ -287,19 +287,22 @@ void CameraSupervisor(s32 camIdx);
 void DiffRate_8002951C(s32 camIdx)
 {
     f32* camState = (f32*)gCameraState;
-    Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
     register f32* state5 = camState + 5;
+    Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
     f32 prevYaw = cam->pyr[1];
     f32 rate;
     f32 curYaw;
     f64 y;
-    u8 unused[16];
+    f32 yawDelta;
+    u8 unused[12];
 
     camState[6] = camState[5];
     camState[5] = camState[4];
     camState[4] = prevYaw;
     CameraSupervisor(camIdx);
     rate = lbl_8034444C * (f32)(u32)gFrameTicks;
+    yawDelta = lbl_80344534 - cam->pyr[1];
+    *(u32*)&yawDelta = *(u32*)&yawDelta & 0x7FFFFFFF;
 
     if (lbl_80344400 > 0 && cam->pyr[1] != lbl_80344534) {
         cam->pyr[1] = cam->pyr[1] + rate;
