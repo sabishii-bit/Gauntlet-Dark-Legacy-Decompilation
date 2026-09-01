@@ -330,7 +330,7 @@ extern void* gWadAtreeHeaders[45]; /* wad atree headers */
 extern f32   sItemZero;   /* waypoint dist epsilon */
 extern f32     gDefaultPlayerPosition[3];
 extern f32     gPlayerStartYaw;
-extern s32     CurTransmitter;
+extern TriggerCamera* CurTransmitter;
 extern char    sNewItemBadIndex[];
 extern char    sSetItemFailedFmt[];
 
@@ -2451,7 +2451,7 @@ void SetPlayerStartPos(s32 idx)
     if (*(u32*)(base + idx * 4 + 5596) == 0) {
         idx = 0;
     }
-    CurTransmitter = *(s32*)(base + idx * 4 + 5596);
+    CurTransmitter = *(TriggerCamera**)(base + idx * 4 + 5596);
 }
 
 void GetMilestonePos(s32 idx, f32* out)
@@ -2746,7 +2746,7 @@ void AddLocatorInstList(void)
     if (runtime->startCameras[selected] == NULL) {
         selected = 0;
     }
-    CurTransmitter = (s32)runtime->startCameras[selected];
+    CurTransmitter = runtime->startCameras[selected];
 }
 
 #undef ADD_TRANSMITTER
