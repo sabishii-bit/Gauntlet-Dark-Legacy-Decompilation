@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "reproduce": "python tools/gdl/composed_census/cv_taxonomy.py (partitions config/GUNE5D/webfrank.json, writes build/CV_rules.json), then python tools/gdl/composed_census/cv_crossjoin.py for the join against build/CV_census.json",
+    "tags": [
+      "postprocessor",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.CV_webfrank-rule-class-taxonomy.20260901.v1",
+  "kind": "claim",
+  "predicate": "measurement",
+  "recorded_at": "2026-09-01T20:52:11Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "TAXONOMY of the 131 shipped WebFrank rules over 49 units, measured 2026-09-01 from config/GUNE5D/webfrank.json by stage-key partition (every rule key that is not bookkeeping is a mechanism stage). STAGE POPULATION: copy_register_fields 113, instruction_permutation 46, equivalent_copy_form 18, unproven_recolor_audit 7, value_equality_recolor 3, post_recolor_permutation 3, register_fields 2, recolors 1, memory_disambiguation 1. AUDIT CLASSIFICATION: REGISTER_ONLY 94, SCHEDULE_CANDIDATE 21, SCHEDULE 6, COPY_FORM 4, MIXED 4, SCHEDULE+VALUE_EQUALITY 1, unclassified 1. STAGE COMBINATION (the real taxonomy; 17 distinct compositions): recolor-only 69 rules (copy_register_fields 66 + register_fields 1 + recolors 1 + the 1 combination that is register_fields alone), recolor+permutation 25, permutation-only 7, recolor+unproven-audit 6, recolor+copy-form+permutation 5, copy-form-only 4, copy-form+permutation 4, recolor+copy-form 3, recolor+value-equality 2, recolor+post-recolor-permutation 2, and seven singleton compositions. Read as CLASSES: 92 of 131 rules (70%) are pure REGISTER RECOLORING or recoloring plus one other stage; 46 of 131 (35%) carry a permutation stage; only 18 (14%) carry the copy-form stage and only 4 (3%) the value-equality stage. CROSS-JOIN against the MEASURED residual shape of each pinned function's RAW compiler output (see claim.CV_residual-family-census.20260901.v1): ALL 66 copy_register_fields-ONLY rules sit on a function whose entire raw residual is a register-field-only difference (66/66, no exceptions); all 6 copy_register_fields+unproven_recolor_audit rules likewise; 5 of the 7 instruction_permutation-only rules sit on a pure instruction-multiset permutation and the other 2 on a residual my partition files as OTHER; and all 4 equivalent_copy_form-only rules sit on a pure live-zero site. The taxonomy and the measured shapes therefore agree exactly on the single largest class: the rule vocabulary is not over-broad relative to what the compiler actually produces. Caveat recorded for future joins: webfrank.json spells local functions with dtk's _80XXXXXX address suffix while matchtool/fndiff strip it; joining the two without normalizing fabricated 3 spurious 'raw output already matches' rows on the first pass."
+}
