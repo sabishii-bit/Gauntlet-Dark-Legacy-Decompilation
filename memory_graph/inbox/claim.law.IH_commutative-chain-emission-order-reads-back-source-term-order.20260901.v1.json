@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "cse",
+      "index-form",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.IH_commutative-chain-emission-order-reads-back-source-term-order.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T15:49:52Z",
+  "schema_version": 1,
+  "subject": "function:ControlsUpdate",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5. A FLAT COMMUTATIVE OPERATOR CHAIN (`a | b | c | ...`, and by the same parse rule `+`, `^`, `&`) IS EMITTED IN SOURCE TERM ORDER, SO THE TARGET'S INSTRUCTION STREAM IS A DIRECT READ-OUT OF THE ORIGINAL SOURCE'S TERM ORDER. DECODE IT BEFORE PROBING ANYTHING ELSE ABOUT SUCH A CHAIN.\n\nMECHANISM. C parses `a | b | c | d` as `(((a|b)|c)|d)`, and MWCC honours that association even though `|` is commutative and associative. The first two terms feed the first `or`; every later term arrives as the FIRST source operand of `or rD, rNewTerm, rAcc`, with the accumulator second. So reading the chain top-to-bottom and taking the new operand of each `or` recovers the source's term sequence exactly, and the two operands of the very first `or` are terms one and two (the accumulator register of that first `or` is term one).\n\nHOW TO DECODE ONE, the procedure that worked. (1) For each term, find its DEFINITION site earlier in the target and recover its identity from the constant there -- for bit-extract values a `rlwinm rX,rY,0,n,n` names the bit as `0x80000000 >> n`, a `clrlwi`/`slwi` pair names a field. (2) Note whether the definition leaves the value in a register or stores it to a stack slot; the chain then cites it either as that register or as an `lwz` from that slot, and either citation identifies the term. (3) Walk the chain and write down the term identity at each position. (4) Compare with your source's term order.\n\nMEASURED, and the payoff is large. ControlsUpdate (game/game/controls.c) aggregates 28 values -- 24 button-edge words plus four direction nibbles -- into one `|` chain. Our source wrote `e[23] | e[22] | ... | e[0] | eD | eC | eA | eB`; decoding the target's chain gave `eB | eA | eC | eD | e[0] | e[1] | ... | e[23]`, the exact reverse. Reversing the source term order alone moved fuzzy 72.3306% -> ... -> 80.3666% baseline to 83.0065% and the opcode multiset 56t -> 49t, with no other edit.\n\nWHY THIS MATTERS BEYOND ONE FUNCTION, and it is a framing correction. Three sessions on this function read the chain's memory operands as evidence about VALUE RESIDENCY ('which values does target spill?') and spent their probes on declaration form -- scalars vs array vs pointer-accessed array. The residency sets were in fact ALREADY EQUAL at seven values a side; what differed was WHERE IN THE CHAIN those memory operands appeared, because the chain ran backwards. A chain whose head cites memory and whose tail cites registers is telling you about term ORDER first and pressure second: the head of a long commutative chain is the point of maximum live-value pressure, so the terms written FIRST are the ones that spill, whichever values they happen to be. Read the order before theorising about the allocator."
+}

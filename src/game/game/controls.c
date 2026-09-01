@@ -1611,10 +1611,10 @@ void ControlsUpdate(void)
     lbl_803445E4 = 300;
     lbl_803445F4 = 1;
     if (lbl_803445EC != 0) {
-        if (lbl_803445DC == 0) {
-            serve_mtap(0);
-        } else {
+        if (lbl_803445DC != 0) {
             serve_mtap(1);
+        } else {
+            serve_mtap(0);
         }
     }
     step = gClockStepTicks;
@@ -1637,13 +1637,15 @@ void ControlsUpdate(void)
         lev8 = lev & 0xFF;
         if (lev != 0) {
             for (t = 0; t < 10; t++) {
-                if ((lbl_8011ACD0[t][lbl_80240E30[plyr].scheme * 2] & lev) != 0 ||
-                    (lbl_8011ACD0[t][lbl_80240E30[plyr].scheme * 2 + 1] & lev) != 0) {
+                u32 spec0 = lbl_8011ACD0[t][lbl_80240E30[plyr].scheme * 2];
+                u32 spec1 = lbl_8011ACD0[t][lbl_80240E30[plyr].scheme * 2 + 1];
+
+                if ((spec0 & lev) != 0 || (spec1 & lev) != 0) {
                     lev = lev | 1 << (t + 8);
                 }
             }
             lbl_802407B8[pad] = lev;
-            eD = lev8 >> 6;
+            eD = lev8 >> 6 & 3;
             if (eD != 0 && (old8 & 0xC0) == 0) {
                 eD = eD << 6;
             } else {
@@ -1687,25 +1689,26 @@ void ControlsUpdate(void)
             BTN_EDGE(21, 0x10000000)
             BTN_EDGE(22, 0x80000000)
             BTN_EDGE(23, 0x40000000)
-            lbl_802407E8[pad] = e[23] | e[22] | e[21] | e[20] | e[19] |
-                                e[18] | e[17] | e[16] | e[15] | e[14] | e[13] |
-                                e[12] | e[11] | e[10] | e[9] | e[8] | e[7] | e[6] | e[5] |
-                                e[4] | e[3] | e[2] | e[1] | e[0] | eD | eC | eA | eB;
+            lbl_802407E8[pad] = eB | eA | eC | eD | e[0] | e[1] | e[2] |
+                                e[3] | e[4] | e[5] | e[6] | e[7] | e[8] | e[9] |
+                                e[10] | e[11] | e[12] | e[13] | e[14] | e[15] |
+                                e[16] | e[17] | e[18] | e[19] | e[20] | e[21] |
+                                e[22] | e[23];
             lbl_802407F8[pad] = lbl_802407E8[pad];
             lev = lbl_802407B8[pad];
-            if (lev == 0 || old != lev) {
-                lbl_80240808[pad] = 0;
-                lbl_80240818[pad] = 0;
-            } else {
+            if (lev != 0 && old == lev) {
                 lbl_80240808[pad] += step;
-                if ((u32)lbl_8011A220[lbl_80240818[pad]] <= lbl_80240808[pad]) {
+                if (lbl_80240808[pad] >= (u32)lbl_8011A220[lbl_80240818[pad]]) {
                     lbl_80240808[pad] -= lbl_8011A220[lbl_80240818[pad]];
                     lbl_80240818[pad]++;
-                    if (lbl_8011A220[lbl_80240818[pad]] < 1) {
+                    if (lbl_8011A220[lbl_80240818[pad]] <= 0) {
                         lbl_80240818[pad]--;
                     }
                     lbl_802407F8[pad] |= lev;
                 }
+            } else {
+                lbl_80240808[pad] = 0;
+                lbl_80240818[pad] = 0;
             }
         } else {
             lbl_802407E8[pad] = 0;
@@ -1720,19 +1723,19 @@ void ControlsUpdate(void)
         edges = lev & (lbl_80240F90[i] ^ lev);
         lbl_80240FB0[i] = edges;
         lbl_80240FA0[i] = lbl_80240FB0[i];
-        if (lev == 0 || lev != lbl_80240F90[i]) {
-            lbl_80240828[i][0] = 0;
-            lbl_802408E8[i][0] = 0;
-        } else {
+        if (lev != 0 && lev == lbl_80240F90[i]) {
             lbl_80240828[i][0] += step;
             if ((s32)lbl_80240828[i][0] >= lbl_8011A220[lbl_802408E8[i][0]]) {
                 lbl_80240828[i][0] -= lbl_8011A220[lbl_802408E8[i][0]];
                 lbl_802408E8[i][0]++;
-                if (lbl_8011A220[lbl_802408E8[i][0]] < 1) {
+                if (lbl_8011A220[lbl_802408E8[i][0]] <= 0) {
                     lbl_802408E8[i][0]--;
                 }
                 lbl_80240FA0[i] |= lev;
             }
+        } else {
+            lbl_80240828[i][0] = 0;
+            lbl_802408E8[i][0] = 0;
         }
         lbl_8034461C |= edges;
         lbl_80344620 |= lev;
