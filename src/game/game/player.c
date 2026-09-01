@@ -3504,12 +3504,13 @@ void clear_player(s32 i, s32 full) {
 
 /* Take player i live into the world (post-select).                    */
 s32 activate_player(s32 i) {
-    Player* players = gPlayerRecords;
+    u8* tab = (u8*)potionicon_tab;
+    s32 off = i * PREC_STRIDE;
     Player* p;
     s32 j;
 
-    players[i].state = 1;
-    p = &players[i];
+    PF(tab + off, 0xC40 + offsetof(Player, state), s32) = 1;
+    p = (Player*)(tab + off + 0xC40);
     PF(p, offsetof(Player, exit_dest), s32) = other_players_next_level(i);
     del_player_blits(i);
     LoadPlyrData(i, p->character, (void*)1);
@@ -3525,7 +3526,7 @@ s32 activate_player(s32 i) {
     }
     if (lbl_803447B4 != 0 || lbl_803447D0 >= 10 || gGameMode == MG_STATS) {
         for (j = 0; j < 4; j++) {
-            Player* other = &players[j];
+            Player* other = (Player*)(tab + j * PREC_STRIDE + 0xC40);
             s32 state = other->state;
 
             if (lbl_803447B4 != 0 || state == 5) {
