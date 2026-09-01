@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "HARVEST lane (rules-only): the banked candidates \u2014 DiffRate + get_attn_pos (combat; count-symmetric, source-exhausted w/ provenance per run-30 CB claim), show_optmenu (797/797 as of run 30 \u2014 REMEASURE, its exhaustion trail = IH/IG records), drawMemCardMessage (re-screen: the run-28 uninitialised-path bar \u2014 instrument whether the repair transposition serves it now). Fix the ARROW-ORDER defect in the harvest scaffolding (regfield_only tested before decode_copy_form \u2014 mr/li aliasing shadows the copy-form stage; claim.law.HV_*mnemonic-aliasing* has the mechanism) and re-run the sweep with it fixed; fn_80054E78 needs a SOURCE-FIRST pass before its rule (its only record is a label \u2014 do the source axes yourself, then rule if capped; that satisfies the gate). Canaries first (scanner+deriver+apply_patch); enumerate orders; instrument refusals. owned this run: webfrank.py+movieplayer rules (WF), harvest rules everywhere (HV, rules-only), sys/memcard (WS), game/world/gauntworld fn_800606FC + combat someone_will_be_off_screen (FR), game/game/player.c (PL), tools/gdl (TL); CS is read-mostly image-wide. Gate = 'main.dol: OK' per close; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:show_optmenu",
+  "id": "work_claim.harvest-4.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-HV",
+  "recorded_at": "2026-09-01T22:25:46Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}
