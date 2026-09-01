@@ -482,6 +482,27 @@
           "instructions": 79
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "memCardErrorPrompt",
+        "before_sha256": "eb4f114353ce778189184d2991b287fcdf72b4aa9e5907df66239b56036e70a6",
+        "after_sha256": "91c21d0515388e35e245b93f27840bfd3af120a8731612f42d6e9d78bf4c5d0e",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 25,
+          "permuted_instructions": 2
+        },
+        "mechanism": "attempt.HV_memcarderrorprompt-argument-store-transposition.20260901.v1 - REFUTES the STRUCTURAL label in attempt.mp-label-correction.memcarderrorprompt.20260831.v1 (a label-only park, no source probe); the STRUCTURAL row is the positional-pairing artifact of claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1, and this permutation reproducing the target bytes exactly is the proof. One transposition, order [0,2,1,3] over +0x38..+0x48: ours materializes the argument `li r4,-1` before the SDA store `stw r0,lbl_80344A24`, the target stores first. The `li` writes r4 only; the store reads r0 (set by the untouched `li r0,0` at +0x38) and writes memory, so the two are disjoint and the audit passes in OUR colouring. RELOCATION BINDING: the store is the only relocated atom in the window and it MOVES, which is why the before/after relocation hashes differ here rather than matching as they do in an unrelocated window - the EMB_SDA21 entry travels with its own atom and keeps its within-instruction byte offset. Note that webfrank's payload check is a multiset over (offset%4, info, addend) and so cannot itself verify that binding; it was established at derivation time by matching each relocated atom to its target slot by symbol.",
+        "instruction_permutation": {
+          "start": "0x38",
+          "end": "0x48",
+          "order": [0, 2, 1, 3],
+          "before_sha256": "3773ca1f55af2020829a80e8b96cb21ff5411e95118517f5b18fc3a66cd7c1d2",
+          "after_sha256": "dacb42aafc3633ef869bc868fc54ca55889f8f460e53671e329b7af649a8502d",
+          "before_relocations_sha256": "ad28305a3a8521b12b216e306fd8586aa2e3e81be2c5289f1762173fd0c9bd0c",
+          "after_relocations_sha256": "0c75666700f016bbaa68bb7c87339c848a5c00c9647021159417806260632246"
+        },
+        "copy_register_fields": true
       }
     ],
     "game/world/newcam": [
