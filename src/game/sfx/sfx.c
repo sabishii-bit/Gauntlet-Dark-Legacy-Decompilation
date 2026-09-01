@@ -2723,7 +2723,7 @@ void ProcessEffects(void)
                     mode = 1;
                     ageRadius = (f32)(remaining + 0.066667);
                 }
-            } else if (e->webtime > 0.0) {
+            } else if (e->webtime > 0.0f) {
                 mode = 4;
                 ageRadius = 0.0f;
             } else {
