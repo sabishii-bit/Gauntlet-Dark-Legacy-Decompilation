@@ -1346,6 +1346,29 @@
         "copy_register_fields": true
       }
     ],
+    "game/ui/options": [
+      {
+        "function": "next_boss_hint",
+        "before_sha256": "e08fe4b17f3ee4391617591ac13555e659218d8300d81090c7ccc46243dbb0e8",
+        "after_sha256": "2baebf55a677401256d11897a61ea028490c134df0b7c76fe283f5a14ff3a9e6",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 100,
+          "permuted_instructions": 7
+        },
+        "mechanism": "attempt.CN_census-rerun-four-closures.20260901.v1 - a composed permute+recolor rule closing the whole 100/100 residual (8 differing words). next_legend_hint in this same TU has a BYTE-IDENTICAL window and takes the identical order and region hashes; the two are siblings sharing one source shape, and both are shipped as separate rules because a rule is pinned per function. PERMUTATION over [0x10c,0x128), order [0,2,1,3,4,5,6] - a SINGLE TRANSPOSITION of atoms 1 and 2. The seven atoms are `add r4,r0,r4`, `lwz r0,0(r4)`, `lis r3,gPlayers@ha`, `li r4,1`, `addi r5,r3,gPlayers@lo`, `slw r6,r4,r0` and `li r3,0`; our build issues the player-record load before forming the gPlayers address, the target forms the address first. The two exchanged atoms are independent - the load reads r4 and writes r0, while the lis writes r3 and reads nothing - so there is no RAW, WAR or WAW hazard, both are non-control, and check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None and no escape invoked. RELOCATION BINDING per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1, and this window is exactly the hazard that law describes: it carries TWO relocations that BOTH name gPlayers, so the payload multiset check cannot tell them apart and the binding had to be established by the deriving agent. It was, by (type, symbol): the ADDR16_HA half rides atom 2 from +0x116 to +0x112 and the ADDR16_LO half stays with atom 4 at +0x11e, and both destinations were confirmed against the target object's own relocation at that offset (type 6 at 274, type 4 at 286). The two halves differ in TYPE, so an exchange could not have passed undetected here, but the check was run rather than assumed. RECOLOR: two transpositions of volatile registers with disjoint live ranges, r0<->r4 across the load/shift web and r5<->r6 on the gPlayers pointer, machine-proven by the position-lockstep renaming bisimulation (verify_consistent_recolor) with NO unproven_recolor_audit escape. No copy-form site is involved. src/game/ui/options.c is byte-unchanged. NOTE for a future lane: the third sibling next_rune_hint is NOT a member - every window tried refuses at step 0 with `breaks def-use chains: [(N,('g',5))]`, C1's recolor-induced-displacement class.",
+        "instruction_permutation": {
+          "start": "0x10c",
+          "end": "0x128",
+          "order": [0, 2, 1, 3, 4, 5, 6],
+          "before_sha256": "6acc4c2c06af37b5e89f1199d0192b725a60fdad8556effdfbb6d844c2bfc841",
+          "after_sha256": "207df9eec8c778ce9352d185bdfd3ca82aef0d967460aebd66f960d92ffc1d50",
+          "before_relocations_sha256": "9e7d277f3de126dc226cecb4fc4eccb872f2e18e058c200fce7c6cf83ffa3bfa",
+          "after_relocations_sha256": "e835c6741ad04d5853cb8afbc3ebcec1c57ea295193a961b3f65e1b2147d93d0"
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/ui/auxscreen": [
       {
         "function": "calc_wizard_pos",
