@@ -83,6 +83,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fndiff  # noqa: E402
 import slotdiff  # noqa: E402  (slot_map: the layout column)
+import unabsorbed  # noqa: E402  (the closability column)
 
 VERSION = "GUNE5D"
 
@@ -488,7 +489,15 @@ def classify_reloc_pair(offset, t_line, b_line, resolver):
                "reloc target differs")
 
 
-def summary_line(name, result):
+def summary_line(name, result, unabsorbed_row=None):
+    """One census row. ``unabsorbed_row`` is a tools/gdl/unabsorbed.py entry.
+
+    UNABSORBED is the closability column and it answers a DIFFERENT
+    question from the structural counts: 32 differing equal-size functions
+    image-wide are tier A (the register-field stage alone reproduces the
+    target) while this census calls them real work on the genuine count,
+    and 147 are tier B. Ranking a roster without it is ranking blind.
+    """
     art = result.artifact_counts()
     bits = [f"{n} {kind}" for kind, n in sorted(art.items())]
     note = (f" ({' + '.join(bits)} artifacts — read the GENUINE rows"
@@ -511,7 +520,13 @@ def summary_line(name, result):
         slots = f"slots= ({len(result.slot_use_deltas)} use-count)"
     else:
         slots = "slots="
-    return (f"== {name}: {counts} {parity}, {slots},"
+    if unabsorbed_row is None or unabsorbed_row.get("unabsorbed") is None:
+        unabs = "unabs=?"
+    else:
+        unabs = (f"unabs {unabsorbed_row['unabsorbed']}u/"
+                 f"{unabsorbed_row['clusters']}c tier"
+                 f" {unabsorbed_row['tier']}")
+    return (f"== {name}: {counts} {parity}, {slots}, {unabs},"
             f" {result.paired} paired,"
             f" {len(result.renaming)} renaming,"
             f" {len(result.structural)} STRUCTURAL"
@@ -598,10 +613,18 @@ def main():
               " residual is outside every WebFrank/P6Frank class, and"
               " unpaired>0 does NOT imply a count delta); slots aT/bO ="
               " exclusive r1 slot offsets, i.e. a LAYOUT residual, which"
-              " the structural count cannot distinguish from a recolor")
+              " the structural count cannot distinguish from a recolor;"
+              " unabs Nu/Mc tier A|B = UNABSORBED words (tier A = the"
+              " register-field stage alone reproduces the target), the"
+              " CLOSABILITY column the structural counts cannot answer")
+        unabs_rows = {}
+        try:
+            unabs_rows = unabsorbed.unit_rows(bare)
+        except Exception:
+            pass  # fail-soft: the column reads `unabs=?`, nothing breaks
         for name in common:
             result = analyze(target[name], ours[name], resolver)
-            print(summary_line(name, result))
+            print(summary_line(name, result, unabs_rows.get(name)))
         return 0
 
     unit, fn = args

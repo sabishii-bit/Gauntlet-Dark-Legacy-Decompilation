@@ -1388,6 +1388,23 @@ class RetrievalQueryTests(unittest.TestCase):
         self.assertEqual(by_fn["other_fn"]["provenance"],
                          "parked-without-probed_form")
 
+    def test_brief_roster_carries_the_unabsorbed_closability_column(self):
+        """run-31 item 6.
+
+        The test fixture has no built objects, so the metric is UNDEFINED
+        for every row. The contract that matters is that it reads null
+        with a staleness note saying so — null must never be confused with
+        0, which would read as "fully absorbed, stage-closable".
+        """
+        brief = tu_briefing("game/test/foo", root=self.root)
+        self.assertTrue(brief["functions"])
+        for row in brief["functions"]:
+            self.assertIn("unabsorbed", row)
+            self.assertIn("unabsorbed_tier", row)
+            self.assertIsNone(row["unabsorbed"])
+            self.assertIsNone(row["unabsorbed_tier"])
+            self.assertIn("never means zero", row["unabsorbed_staleness"])
+
     def test_brief_has_no_internal_record_leakage(self):
         brief = tu_briefing("game/test/foo", root=self.root)
         for row in brief["live_attempts"]:

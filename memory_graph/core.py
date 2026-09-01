@@ -13,6 +13,7 @@ import os
 import re
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import ast
 import uuid
@@ -4489,12 +4490,40 @@ def tu_briefing(
             " measured now. REMEASURE before quoting: probe.py <unit> <fn>"
             " --fuzzy does build+readout in one call."
         )
+    # UNABSORBED words: the CLOSABILITY column. fuzzy and size say how big
+    # a residual is; `unabsorbed` says whether the WebFrank register-field
+    # stage can reach it at all (tier A = 0 unabsorbed = the stage alone
+    # reproduces the target). 32 differing equal-size functions image-wide
+    # are tier A while a structural census calls them real work, so a
+    # roster ranked without it is ranked blind. Lazy, fail-soft, and never
+    # fabricated: a size mismatch or an unavailable backend reads null.
+    unabsorbed_rows: dict[str, dict[str, Any]] = {}
+    try:
+        sys.path.insert(0, str(root / "tools" / "gdl"))
+        import unabsorbed as _unabsorbed  # type: ignore
+
+        for stem in stems:
+            unabsorbed_rows.update(_unabsorbed.unit_rows(stem, root=root))
+    except Exception:
+        unabsorbed_rows = {}
+    unabsorbed_staleness = (
+        "READ FROM build/GUNE5D/{obj,src} OBJECTS ON DISK, not measured"
+        " now: as stale as the last ninja for this TU. null means the"
+        " metric is UNDEFINED here (unequal function sizes, which is"
+        " itself outside every postprocessor class, or no built object) —"
+        " it never means zero."
+    )
     roster = [
         {
             "function": row["raw_name"],
             "size": row["size"],
             "fuzzy": scores.get(row["raw_name"]),
             "fuzzy_staleness": fuzzy_staleness,
+            "unabsorbed": (unabsorbed_rows.get(row["raw_name"]) or {}).get(
+                "unabsorbed"),
+            "unabsorbed_tier": (
+                unabsorbed_rows.get(row["raw_name"]) or {}).get("tier"),
+            "unabsorbed_staleness": unabsorbed_staleness,
         }
         for row in functions
     ]
