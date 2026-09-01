@@ -1023,6 +1023,38 @@
           "instructions": 65
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "pbInitTlutRegions",
+        "before_sha256": "bd9139637c7733b71cf3a0fcbcb82e6e5fbf3b4f2297697d6c6ea4c278759d50",
+        "after_sha256": "ccc0ef06cf5743b4f77e8b5f47c9a98d095baa06faabdd2e70f94430c2a1f9a8",
+        "audit": {
+          "classification": "SCHEDULE",
+          "instructions": 51,
+          "permuted_instructions": 4
+        },
+        "mechanism": "REFUTES attempt.mp-label-correction.pbinittlutregions.20260831.v1, which capped this function as STRUCTURAL on the grounds that regnorm 'cannot pair the two instruction streams (59 paired, 4 unpaired), so the residual cannot be a register renaming by construction'. The pairing failure was a measurement of regnorm, not of the function: positional pairing fabricates exactly this verdict across DISPLACED words, which is what that record's own cited law claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 predicts. The aligned view shows 51/51 instructions, opcode multiset identical, and a residual of FOUR words in two two-atom swaps and nothing else - the recolor stage changes zero fields. WINDOW 1, +0x30..+0x38 order [1,0]: ours issues `addi r3,r3,48` then `li r5,1`; retail issues them the other way round. The two atoms are independent - the addi reads and writes g3, the li writes g5 and reads nothing, there is no memory access and no control instruction in the region - so the swap holds standing alone in our colouring. WINDOW 2, +0x68..+0x70 order [1,0]: the identical shape one call later, `addi r3,r3,48` against `li r5,16`. Neither window carries a relocation in either object. check_permutation_dependences accepts both in its strictest form (exit_dead=None), so every def-use chain and every resource's final writer is unchanged. Not source-reachable: the two swaps are MWCC's argument-materialisation order around consecutive calls with identical argument shapes, and the decl-order and expression-order axes recorded against this TU never moved them. Derived from the objects ninja produced this session and proven end-to-end through webfrank.apply_patch against the extracted retail object (output bytes == target bytes).",
+        "instruction_permutation": [
+          {
+            "start": "0x30",
+            "end": "0x38",
+            "order": [1, 0],
+            "before_sha256": "1968eec25d3a7c9873adb242a77f34d18eb41f693e0ac258e4d771d232eddc84",
+            "after_sha256": "37a1ffeac78ea458f0ebf4c6ff88242c04f54e6a863b9349f8bfa8bce4217898",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "start": "0x68",
+            "end": "0x70",
+            "order": [1, 0],
+            "before_sha256": "b10fbf18456294fa9aea3891230f082a4a395ab2f7404512d1444a22e79d7c3d",
+            "after_sha256": "0c290f3ec9138601b01b36b41963a500f683f900aca658d601887790047c6d88",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "copy_register_fields": true
       }
     ],
     "game/pb/pb_window": [
