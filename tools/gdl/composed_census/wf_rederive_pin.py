@@ -105,7 +105,12 @@ def main():
             relocation_section.offset + relocation_section.size,
             entry_size)
     ]
-    names = wf._symbols(data, sections)
+    # Function-relative {offset: (reloc_type, symbol_name)} — the same
+    # source apply_patch builds its window_symbols from. Required since
+    # the run-28 name-bound hash migration.
+    text_relocs = wf._function_text_relocations(
+        data, sections, symbol.section_index,
+        symbol.value, symbol.value + symbol.size)
 
     windows, ranges = wf.permutation_windows(
         rule["instruction_permutation"], symbol.size)
@@ -135,8 +140,20 @@ def main():
             key=lambda record: record[0])
 
         print("  RELOCATION HASHES -- these are the ones to paste back:")
-        before = wf._relocation_sha256(region_records)
-        after = wf._relocation_sha256(moved)
+        # Name-bound hashing (run-28 migration): the symbols dicts map
+        # window-relative reloc offset -> symbol NAME, so the hash never
+        # sees an r_info index.
+        window_syms = {
+            off - relative_start: name
+            for off, (_rt, name) in text_relocs.items()
+            if relative_start <= off < relative_end
+        }
+        moved_syms = {
+            destination[off // 4] * 4 + off % 4: window_syms[off]
+            for off, _info, _addend in region_records
+        }
+        before = wf._relocation_sha256(region_records, window_syms)
+        after = wf._relocation_sha256(moved, moved_syms)
         print(f'    "before_relocations_sha256": "{before}"'
               f'{"" if before == window["before_relocations_sha256"] else "   <-- CHANGED"}')
         print(f'    "after_relocations_sha256":  "{after}"'

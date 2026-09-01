@@ -612,8 +612,8 @@
           ],
           "before_sha256": "33a00c71ca967a325f7956bd507293c7bbef81d782f66407339d3d48cdb94b91",
           "after_sha256": "0847ef33eaea79a0ebe6b1ebe87b8412fece91b108e6f98735436c21a7cf3084",
-          "before_relocations_sha256": "344a8db891a143638f45aacb0bbe7df0681e35400ca58bdb0874b04ea5bf4d0d",
-          "after_relocations_sha256": "4a18d29b0e1816a07432960f601b14465a4dfe5d443f3098129249f72f354216"
+          "before_relocations_sha256": "2d6ee6e7ec9ce7f29626ff6f4a446e78cc9426d246eaa6e4660f1c3c8013aab3",
+          "after_relocations_sha256": "04044198be136ed689d8859e5dabb23be63056c258c7157e8e60115b895bee6d"
         }
       ],
       "equivalent_copy_form": [
@@ -970,8 +970,8 @@
           ],
           "before_sha256": "4c4b9122f68fe6a7ae2fb6b03c9e03e55ce747fbc8f3eabdfdace2f594228580",
           "after_sha256": "7b0492a1deac1824d405967f6f5044d81d60104492f89c8394320ddc83580c41",
-          "before_relocations_sha256": "7f3fbcb494f13df5ead6da70570e5f7f287cd1fa551828862a10be731db65c69",
-          "after_relocations_sha256": "58f69344128f190a3fa46497a5d83bd05d5f5b9bdc4a8481225eee3799d58994"
+          "before_relocations_sha256": "32837b28be702ccceee7d27cec88a968cb697c4a8930a0dad7c05279ebc73e1e",
+          "after_relocations_sha256": "c72ab86d2def25a7f00c805df8d46090faacc6ffe35379d49a8e7f9ec3e0d19e"
         }
       ],
       "equivalent_copy_form": [
@@ -1637,8 +1637,8 @@
           ],
           "before_sha256": "287b4686c6c57d2576e56c60a144fd1c191647dcec350be30e4dc85a05a6246f",
           "after_sha256": "af31e2a8b0c0ad057df7a694c21ff5f35fb68824a34985704542b37fdb94de29",
-          "before_relocations_sha256": "55943df083649f94baf9ba85f6351181035b4bd24de1d5bfa5f71f80aedfb976",
-          "after_relocations_sha256": "3535d43f12dd5242661be86c675cfd74ac45e138d858e1d2b3ccfc25ffdf8a75"
+          "before_relocations_sha256": "cc455c38f08efc167842f49b13588a52d0230fc370d669cfddba05b8fda2182a",
+          "after_relocations_sha256": "b1ffc09f4ab84987ed29aed3026fb5344d867fb8d62b17de3ae96dd1f1ded1df"
         }
       ]
     },
@@ -1911,8 +1911,8 @@
           ],
           "before_sha256": "9825dfed11307fa54e4dc1d85fe4e15aa1036ac714c4c805b4ea8ca1e976232c",
           "after_sha256": "bb94f17f7f444bad28a698ed338494430b1afed42bd1aa667c18d0133d7f9563",
-          "before_relocations_sha256": "217169d9d7da1f725b455da7082bea5f19bd58436e4f9980d9746b6b6dff79d3",
-          "after_relocations_sha256": "012a599ea8e32126990f57f8073369adaf1f076492e43a3504ed14859318ca92"
+          "before_relocations_sha256": "237395946730dda85245b1e559e2e110cd0bd2c1858421cd5b93fa395fa0a539",
+          "after_relocations_sha256": "5839203b2234b9e01b771a344e4b0b92d48ac33f3ee7b28401917c7673bb008b"
         },
         "memory_disambiguation": {
           "audit": "The three EMB_SDA21 accesses in this window address globals the split map places at .sbss 0x80344194, .sdata2 0x80346F50 and .sbss 0x80344190 — pairwise disjoint 4-byte ranges, so the store may cross the load. The two pool loads at +0xf0/+0xf8 and the two lha at +0x120/+0x128 are NOT declared and stay may-alias-everything.",
