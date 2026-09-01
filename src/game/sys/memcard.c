@@ -1062,7 +1062,6 @@ typedef struct OptsBlob {
     u8 bytes[32];
 } OptsBlob;
 
-#pragma opt_lifetimes off
 int loadGauntletSave(void)
 {
     char* dpool = lbl_8011CDE0;
@@ -1091,9 +1090,9 @@ int loadGauntletSave(void)
     s32 keepFmt3;
     s32 keepFmtDef;
     s32 fileNo;
-    u8 volatile found;
-    u8 volatile needUnmount;
-    u8 volatile needCheck;
+    u8 found;
+    u8 needUnmount;
+    u8 needCheck;
     char* checkMsg;
     u32 volatile neededPct;
     u32 serial[2];
@@ -2077,9 +2076,9 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
             widest = w;
         }
     }
+    boxW = widest + 96;
     lineH = FontHeight(lbl_80344A54, lbl_80344A58) + 3;
     boxH = (lineH + 6) * (count1 + TextMLines(msg)) + 60;
-    boxW = widest + 96;
     if (boxW < 256) {
         boxW = 256;
     } else if (boxW > 512) {
@@ -2097,8 +2096,8 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
         MBBlitSetColor(quad, -1);
     }
 
-    strcpy(gTextFormatBuf, msg);
     y += 32;
+    strcpy(gTextFormatBuf, msg);
     for (i = 0; i < nLines; i++) {
         DrawTextSub(-256, y, lbl_80344A54, lbl_80344A58, 0x160C03,
                     lbl_80347378, ((char**) lines)[i]);

@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "workflow",
+      "build-hygiene",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.LG_scaffold-pragmas-and-qualifiers-go-stale-reaudit-them-after-any-real-fix.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T17:26:55Z",
+  "schema_version": 1,
+  "subject": "tu:game/sys/memcard",
+  "valid_from": "2026-09-01",
+  "value": "A `#pragma opt_* off` or a `volatile` qualifier left in the tree by an EARLIER matching pass is a hypothesis that was true against an EARLIER version of the function. Once a genuine mechanism in that function is fixed, the scaffold is not merely inert -- it can become actively harmful. RE-AUDIT EVERY SCAFFOLD IN A FUNCTION IMMEDIATELY AFTER LANDING ANY REAL FIX IN IT, and treat each one as a free one-build A/B.\n\nMEASURED, loadGauntletSave (game/sys/memcard). A prior pass had wrapped the function in `#pragma opt_lifetimes off` / `#pragma opt_lifetimes reset`, scoped exactly to it. After removing the `volatile` scaffold from three narrow locals took the function from real 885 to 650, simply DELETING that pragma -- with no other edit -- took it further to real 628, multiset 8t -> 6t, and instruction count 859 -> 855 (target 857, so the count distance improved too). The pragma had been a net positive against the pre-fix shape and was a net negative against the post-fix shape.\n\nWHY THIS IS NOT OBVIOUS IN PRACTICE. Scaffold reads as settled infrastructure: it is committed, it is scoped, it usually carries no comment saying which probe justified it, and `context <function>` surfaces the ATTEMPT that added it but not the fact that its premise has since been invalidated by a later commit. Nothing in the normal loop re-tests it, so it survives indefinitely and silently taxes every subsequent pass -- and worse, it distorts the residual the next agent reads, sending them after mechanisms that are artefacts of the stale scaffold rather than of the target.\n\nOPERATIONAL RULE. After any retained improvement, enumerate the function's scaffold (grep the pragmas bracketing it; grep its declaration block for `volatile`) and A/B each one. Cost is one build per item. Two of the four scaffold items in loadGauntletSave were stale in the same session and together accounted for real 885 -> 628, roughly a third of the function's total gap, at a cost of two builds and zero analysis.\n\nSCOPE CAUTION, measured in the same pass. 'Re-audit' means MEASURE, not 'delete on sight': removing `volatile` from the SAME function's four WIDE scaffold locals regressed real 628 -> 910, and a scoped `#pragma peephole off` probe regressed 885 -> 1096. Scaffold is a hypothesis to be re-tested, in both directions, and a re-audit that regresses is a result worth recording so the next pass does not repeat it.\n\nRELATED, on pragma probes generally: a pragma the compiler does not honour produces a NEUTRAL-IDENTICAL probe (object bytes bit-for-bit unchanged), which is a STRONGER negative than a regression because the source text never reached codegen. `#pragma opt_dead_code off` behaved exactly this way in this TU and must not be respelled."
+}

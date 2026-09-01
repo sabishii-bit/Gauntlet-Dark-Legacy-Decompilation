@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Roster lane, memcard TU. Attacked get_vmu_directory's `bne X / b Y` goto-pair with the recorded if/else arm-swap lever, spelled as an empty then-arm with a populated else.",
+  "attributes": {
+    "law_screen": "claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1: SCREENED and APPLIED as the primary lever; it did NOT transfer here (the empty-then spelling folds away before codegen, see probed_form). claim.law.per-lib-pragma-and-flag-map.20260829.v1: SCREENED for the goto-pair signature and REFUTED for this TU by the loadGauntletSave measurement in attempt.LG_loadgauntletsave-volatile-scaffold-and-stale-pragma.20260901.v1 (global `#pragma peephole off` gives +17 surplus branches and decomposes the fused clrlwi.), so it was NOT respelled here.",
+    "laws_applied": "[\"claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1\"]",
+    "probed_form": "PROBE 1 (REVERTED, NEUTRAL -- folded away, object diff unchanged in every cluster). FROM: `if ((u8) beginSaveCacheTransaction() != 1) {` / `    success = 0;` / `}` TO: `if ((u8) beginSaveCacheTransaction() == 1) {` / `} else {` / `    success = 0;` / `}`. MWCC normalises the empty then-arm straight back to the negated single-arm form, so the source text never reached the codegen decision point. Do not respell this.",
+    "residual": "BEST RETAINED = BASELINE, unchanged: real 48, insns T116/O116, multiset 4t (target-only +1 b +1 bne, ours-only -1 beq -1 li).\n\nMECHANISM, named and localised. At target 0x48: `bne ->50 / b ->54 / 50: li r30,0 / 54: cmpwi r30,0`; ours collapses this to a single `beq ->54` with the `li` on the fallthrough. The target keeps a redundant branch pair where our build keeps none.\n\nPOPULATION FINDING, and this is the part worth carrying forward. The identical signature appears in THREE functions of this one TU: get_vmu_directory at 0x48 (`bne, b` vs our `beq`), writeGauntletSave at 0xe4 (`beq, b` vs our `bne`), and loadGauntletSave at 0x9d4/0x9d8 (the CARDDelete switch's `b ->9dc` plus an unreachable `b ->6c`). Per AGENTS discipline 2 (census before probing any residual seen twice) this should be treated as ONE TU-level question, not three per-function source puzzles. The obvious candidate lever -- global `#pragma peephole off` -- is already MEASURED NEGATIVE on loadGauntletSave (real 885 -> 1096) and is REFUTED, because the same peephole pass also performs the `clrlwi` + `cmplwi` -> `clrlwi.` fusion that the target DOES want. So the target was built with a pass configuration that fuses compares but does NOT eliminate dead/branch-to-next branches. Identifying that configuration is the single highest-value open question in this TU: closing it would move all three functions at once. `#pragma opt_dead_code off` is NOT it (measured folded/no-op).",
+    "scope": "src/game/sys/memcard.c, get_vmu_directory only. NO SOURCE CHANGE RETAINED; probe reverted with git and `git status --short` confirmed the file matches HEAD. No commit.",
+    "verification": "probe.py BASELINE banked on a clean tree before the edit (real 48, T116/O116, 4t). Probe returned NEUTRAL with an unchanged cluster list. Discarded via `git checkout --` per the tool's own instruction that neutral states bank too. Full ninja green with build/GUNE5D/main.dol: OK at pass end."
+  },
+  "function": "function:get_vmu_directory",
+  "id": "attempt.LG_get-vmu-directory-arm-swap.20260901.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-01T17:25:39Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}
