@@ -691,6 +691,12 @@ BCTRL = 0x4E800421          # indirect call through CTR
 BLRL = 0x4E800021           # indirect call through LR
 BNE_MINUS_4 = 0x4082FFFC    # bne -4: control, but not a call
 ADDI_R5_R6 = 0x38A60000     # addi r5,r6,0 — writes r5, never r31
+# --- inverse-direction fixtures (ours is the copy, target is the `li`) ---
+LI_R3_0 = 0x38600000        # li r3,0      (a VOLATILE source)
+LI_R3_5 = 0x38600005        # li r3,5
+LI_R28_0 = 0x3B800000       # li r28,0     (dcsHandleRequest's target word)
+MR_R29_R31 = 0x7FFDFB78     # mr r29,r31   (a CALLEE-SAVED source)
+ADDI_R30_R31 = 0x3BDF0000   # addi r30,r31,0  (dcsHandleRequest's our-word)
 
 
 class DecodeCopyFormTests(unittest.TestCase):
@@ -752,9 +758,14 @@ class EquivalentCopyFormTests(unittest.TestCase):
     def test_copy_from_r0_is_rejected(self):
         # `mr r23,r0` copies GPR 0; `addi r23,r0,0` loads literal 0.  These
         # are NOT equivalent and the rule must refuse the pair.
+        #
+        # This is an INVERSE-direction shape (ours copy, target li), so once
+        # that direction exists the refusal no longer comes from "the target
+        # is not a copy" but from the r0 source itself.  The pair stays
+        # refused either way; only the stated reason is sharper.
         current = _words(MR_R23_R0, BLR)
         target = _words(LI_R23_0, BLR)
-        with self.assertRaisesRegex(ValueError, "not a register copy"):
+        with self.assertRaisesRegex(ValueError, "copies GPR r0"):
             self.rewrite(current, target, [{"at": 0, "proof": "unconditional"}])
 
     def test_differing_destination_is_rejected_as_a_recolor(self):
@@ -937,6 +948,206 @@ class EquivalentCopyFormTests(unittest.TestCase):
             self.rewrite(
                 _words(MR_R23_R6), _words(ADDI_R23_R6, BLR),
                 [{"at": 0, "proof": "unconditional"}],
+            )
+
+
+class InverseCopyFormTests(unittest.TestCase):
+    """The INVERSE direction: ours is the copy, the target is the `li`.
+
+    The three original proof modes all require the TARGET word to be a
+    register copy, so this arrow had no proof mode at all
+    (claim.law.DC_copy-form-class-is-directional-and-its-inverse-population
+    -is-unserved.20260901.v1).  The obligation is the mirror image of
+    `dominating_def`: our word sets rD from rS, the target sets rD to K, so
+    OUR rS must hold K at the site.  The scan runs over OUR stream because
+    ours is the object that executes the rewritten bytes.
+
+    Shape under test is the measured game/anim/atree::fn_8001267C one:
+    `li rS,0` ... `mr rD,rS` against a target that loads the literal.
+    """
+
+    def rewrite(self, current, target, edits, **overrides):
+        arguments = {
+            "relocated_offsets": set(),
+            "target_relocated_offsets": set(),
+            "jumptable_offsets": set(),
+        }
+        arguments.update(overrides)
+        return equivalent_copy_form(current, target, edits, **arguments)
+
+    def test_mr_to_li_rewrites_when_the_source_is_a_proved_zero(self):
+        # li r3,0 ; mr r29,r3   ->   li r3,0 ; li r29,0
+        current = _words(LI_R3_0, MR_R29_R3, BLR)
+        target = _words(LI_R3_0, LI_R29_0, BLR)
+        output, changed = self.rewrite(
+            current, target, [{"at": 4, "proof": "dominating_def_inverse"}]
+        )
+        self.assertEqual(output, target)
+        self.assertEqual(changed, 1)
+
+    def test_addi_copy_to_li_rewrites(self):
+        # The `addi rD,rS,0` spelling of the same copy, which is the form
+        # fn_8001267C carries at +0x380.
+        current = _words(LI_R3_0, ADDI_R29_R3, BLR)
+        target = _words(LI_R3_0, LI_R29_0, BLR)
+        output, changed = self.rewrite(
+            current, target, [{"at": 4, "proof": "dominating_def_inverse"}]
+        )
+        self.assertEqual(output, target)
+        self.assertEqual(changed, 1)
+
+    def test_the_proof_records_where_the_definition_was_found(self):
+        current = _words(LI_R3_0, NOP, MR_R29_R3, BLR)
+        target = _words(LI_R3_0, NOP, LI_R29_0, BLR)
+        edit = {"at": 8, "proof": "dominating_def_inverse"}
+        self.rewrite(current, target, [edit])
+        self.assertEqual(edit["_proved_at"], 0)
+
+    def test_constant_mismatch_is_rejected(self):
+        # r3 holds 5, so copying it does not reproduce `li r29,0`.
+        current = _words(LI_R3_5, MR_R29_R3, BLR)
+        target = _words(LI_R3_5, LI_R29_0, BLR)
+        with self.assertRaisesRegex(ValueError, "not the required constant"):
+            self.rewrite(
+                current, target, [{"at": 4, "proof": "dominating_def_inverse"}]
+            )
+
+    def test_missing_definition_is_rejected(self):
+        current = _words(NOP, MR_R29_R3, BLR)
+        target = _words(NOP, LI_R29_0, BLR)
+        with self.assertRaisesRegex(ValueError, "no dominating"):
+            self.rewrite(
+                current, target, [{"at": 4, "proof": "dominating_def_inverse"}]
+            )
+
+    def test_interposed_redefinition_is_rejected(self):
+        redefine = 0x7C632214  # add r3,r3,r4
+        current = _words(LI_R3_0, redefine, MR_R29_R3, BLR)
+        target = _words(LI_R3_0, redefine, LI_R29_0, BLR)
+        with self.assertRaisesRegex(ValueError, "redefined"):
+            self.rewrite(
+                current, target, [{"at": 8, "proof": "dominating_def_inverse"}]
+            )
+
+    def test_branch_into_the_span_is_rejected(self):
+        current = _words(LI_R3_0, BNE_PLUS_8, NOP, MR_R29_R3, BLR)
+        target = _words(LI_R3_0, BNE_PLUS_8, NOP, LI_R29_0, BLR)
+        with self.assertRaisesRegex(ValueError, "branch target"):
+            self.rewrite(
+                current, target,
+                [{"at": 12, "proof": "dominating_def_inverse"}],
+            )
+
+    def test_call_inside_the_span_is_rejected_without_the_across_label(self):
+        current = _words(LI_R3_0, BL, MR_R29_R3, BLR)
+        target = _words(LI_R3_0, BL, LI_R29_0, BLR)
+        with self.assertRaisesRegex(ValueError, "control instruction"):
+            self.rewrite(
+                current, target, [{"at": 8, "proof": "dominating_def_inverse"}]
+            )
+
+    def test_volatile_source_may_not_cross_a_call(self):
+        # r3 is volatile, so even the across-calls label must refuse it.
+        current = _words(LI_R3_0, BL, MR_R29_R3, BLR)
+        target = _words(LI_R3_0, BL, LI_R29_0, BLR)
+        with self.assertRaisesRegex(ValueError, "volatile"):
+            self.rewrite(
+                current, target,
+                [{"at": 8, "proof": "dominating_def_inverse_across_calls"}],
+                call_targets={4: "G3DGetPadStatusBuffer"},
+            )
+
+    def test_callee_saved_source_may_cross_a_named_call(self):
+        # li r31,0 ; bl <callee> ; mr r29,r31   ->   ... ; li r29,0
+        current = _words(LI_R31_0, BL, MR_R29_R31, BLR)
+        target = _words(LI_R31_0, BL, LI_R29_0, BLR)
+        output, changed = self.rewrite(
+            current, target,
+            [{"at": 8, "proof": "dominating_def_inverse_across_calls"}],
+            call_targets={4: "G3DGetPadStatusBuffer"},
+        )
+        self.assertEqual(output, target)
+        self.assertEqual(changed, 1)
+
+    def test_millicode_call_may_not_be_crossed(self):
+        current = _words(LI_R31_0, BL, MR_R29_R31, BLR)
+        target = _words(LI_R31_0, BL, LI_R29_0, BLR)
+        with self.assertRaisesRegex(ValueError, "millicode"):
+            self.rewrite(
+                current, target,
+                [{"at": 8, "proof": "dominating_def_inverse_across_calls"}],
+                call_targets={4: "_restgpr_29"},
+            )
+
+    # ---- the direction must be asked for BY NAME ----
+
+    def test_forward_label_does_not_serve_the_inverse_site(self):
+        """A rule may not drift onto the opposite arrow: the shipped
+        `dominating_def` label must refuse an inverse site outright."""
+        current = _words(LI_R3_0, MR_R29_R3, BLR)
+        target = _words(LI_R3_0, LI_R29_0, BLR)
+        with self.assertRaisesRegex(ValueError, "inverse copy/constant-load"):
+            self.rewrite(
+                current, target, [{"at": 4, "proof": "dominating_def"}]
+            )
+
+    def test_unconditional_label_does_not_serve_the_inverse_site(self):
+        current = _words(LI_R3_0, MR_R29_R3, BLR)
+        target = _words(LI_R3_0, LI_R29_0, BLR)
+        with self.assertRaisesRegex(ValueError, "inverse copy/constant-load"):
+            self.rewrite(
+                current, target, [{"at": 4, "proof": "unconditional"}]
+            )
+
+    def test_inverse_label_does_not_serve_a_forward_site(self):
+        current = _words(LI_R31_0, LI_R29_0, BLR)
+        target = _words(LI_R31_0, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "constant-load site requires"):
+            self.rewrite(
+                current, target, [{"at": 4, "proof": "dominating_def_inverse"}]
+            )
+
+    # ---- the bars that must survive the new direction ----
+
+    def test_destination_mismatch_is_still_a_recolor(self):
+        """dcsHandleRequest +0x1e0: ours `addi r30,r31,0`, target `li r28,0`.
+        The destinations differ, so the site is a form change AND a recolor
+        and stays refused even now that the direction is served."""
+        current = _words(LI_R31_0, ADDI_R30_R31, BLR)
+        target = _words(LI_R31_0, LI_R28_0, BLR)
+        with self.assertRaisesRegex(ValueError, "destination differs"):
+            self.rewrite(
+                current, target, [{"at": 4, "proof": "dominating_def_inverse"}]
+            )
+
+    def test_inverse_source_of_r0_is_refused(self):
+        """`mr rD,r0` reads GPR 0; `addi rD,r0,K` never does.  The r0
+        asymmetry stays refused even with the inverse label."""
+        current = _words(MR_R23_R0, BLR)
+        target = _words(LI_R23_0, BLR)
+        with self.assertRaisesRegex(ValueError, "copies GPR r0"):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "dominating_def_inverse"}]
+            )
+
+    def test_li_to_li_is_an_immediate_difference_and_stays_refused(self):
+        """Two constant loads of DIFFERENT constants are an immediate
+        difference, which webfrank must never close in either direction."""
+        current = _words(LI_R29_0, BLR)
+        target = _words(0x3BA00005, BLR)   # li r29,5
+        with self.assertRaisesRegex(ValueError, "not a register copy"):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "dominating_def_inverse"}]
+            )
+
+    def test_relocated_word_is_not_an_inverse_candidate(self):
+        current = _words(LI_R3_0, MR_R29_R3, BLR)
+        target = _words(LI_R3_0, LI_R29_0, BLR)
+        with self.assertRaisesRegex(ValueError, "relocated word"):
+            self.rewrite(
+                current, target,
+                [{"at": 4, "proof": "dominating_def_inverse"}],
+                relocated_offsets={6},
             )
 
 
