@@ -106,7 +106,10 @@ BRANCH_RE = re.compile(
     r"([+-]?)\s+(cr\d,)?([0-9a-f]+)\s*$"
 )
 REGISTER_RE = re.compile(r"\b(?:r(?:[12]?\d|3[01])|f(?:[12]?\d|3[01])|cr[0-7])\b")
-PRIVATE_DATA_RE = re.compile(r"^\.{3}(?:rodata|data)\.\d+$")
+# ...bss.N included: its omission left thirteen byte-exact player.c
+# functions reading "2 STRUCTURAL" and nearly queued as work. Widening
+# moves `real` project-wide; gate baselines regenerate via --at-head.
+PRIVATE_DATA_RE = re.compile(r"^\.{3}(?:rodata|data|bss|sbss|sdata2?)\.\d+$")
 
 
 def compiler_private_aliases_from_symbols(symbol_table):
