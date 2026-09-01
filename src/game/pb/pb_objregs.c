@@ -863,7 +863,8 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
         if (tag == 0) {
             break;
         }
-        cnt = pbSwap32(data[idx + 1]);
+        hdr = idx + 1;
+        cnt = pbSwap32(data[hdr]);
         posPtr = (u8*)(data + (idx + 6));
         idx += 5;
         tmp = pbSwap32(data[idx - 2]);
