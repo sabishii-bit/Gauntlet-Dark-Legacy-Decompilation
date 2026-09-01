@@ -2666,7 +2666,7 @@ void camera_mode_level(s32 reset)
         camera_collide_step(0, lbl_8034601C);
         *(volatile f32*)&lbl_80344408 =
             *(volatile f32*)&lbl_80344530;
-        cam0->pyr[0] = *(volatile f32*)&lbl_80344530;
+        cam0->pyr[0] = *(volatile f32*)&lbl_80344408;
         cam0->pyr[1] = *(volatile f32*)&lbl_80344534;
     }
     calc_cam_pyr(0, 1);
