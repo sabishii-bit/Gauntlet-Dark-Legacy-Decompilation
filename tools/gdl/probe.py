@@ -29,6 +29,23 @@ Output: one line per probe —
 The verdict compares against the BEST recorded real, so a probe sequence
 never loses track of the high-water mark even across reverts.
 
+STRUCTURE OUTRANKS REAL IN THE HEADLINE. `real` is a linear diff; the opcode
+multiset token count is what says whether the stream is the right SHAPE, and
+where the two disagree the multiset names the verdict:
+  CONFLICT  real fell BUT the multiset GREW — a shape moving away from
+            target wearing a real win. Best is NOT updated; this read plain
+            "IMPROVED [best updated]" before, indistinguishable from a probe
+            that improved both, and banked the diverged state as the revert
+            point.
+  CONFLICT  real rose BUT the multiset FELL — structure is converging;
+            do not auto-revert.
+  IMPROVED-STRUCTURE  real UNCHANGED but the multiset FELL — a structural
+            win the plain NEUTRAL headline hid, and which left the
+            best_multiset anchor stale at the worse count.
+A real move with the multiset flat, or unmeasurable, keeps its real-only
+verdict; the multiset-GREW-at-flat-real case stays with annotate_neutral's
+NEUTRAL-WORSE, which owns the byte-identity check.
+
 Every BASELINE or IMPROVED probe banks a snapshot of the TU source; a later
 `--revert` copies it back and re-scores in the same call, replacing the
 edit -> probe -> hand-retype-revert -> probe cycle. The snapshot covers the
@@ -434,6 +451,11 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
         # every later verdict until --rebase-best. Refuse to bank those.
         prev_dist = count_distance(state.get("last_insns"))
         cur_dist = count_distance(insns)
+        anchor_tokens = best_tokens if best_tokens is not None else prev_tokens
+        anchor_name = "best" if best_tokens is not None else "prev"
+        structure_diverged = (multiset_tokens is not None
+                              and anchor_tokens is not None
+                              and multiset_tokens > anchor_tokens)
         if (prev_dist is not None and cur_dist is not None
                 and cur_dist > prev_dist + 4):
             verdict = (f"IMPROVED? real {best} -> {real} BUT count"
@@ -441,6 +463,26 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                        " NOT updated; this is structural divergence wearing"
                        " a real win. Arbitrate on fresh fuzzy;"
                        " --rebase-best banks a deliberate keep")
+        elif structure_diverged:
+            # STRUCTURE OUTRANKS REAL (the mirror of the CONFLICT below).
+            # `real` is a linear diff; the opcode multiset is what says
+            # whether the stream is the right SHAPE. A real win whose
+            # multiset grew is a shape that moved AWAY from target, and
+            # the headline used to read plain "IMPROVED [best updated]" —
+            # indistinguishable from a probe that improved both, and it
+            # banked the diverged state as the revert point.
+            verdict = (f"CONFLICT  real {best} -> {real} IMPROVED but"
+                       f" multiset {anchor_tokens}t -> {multiset_tokens}t vs"
+                       f" {anchor_name} DIVERGED — structure moved AWAY from"
+                       " target while the linear diff shrank; best NOT"
+                       " updated, do NOT auto-bank. Read the --ops diff and"
+                       " arbitrate on fresh fuzzy (--rebase-best banks a"
+                       " deliberate keep)")
+            if best_tokens is None:
+                verdict += ("\n[no best_multiset banked (pre-run-29 state) —"
+                            " the structure comparison fell back to the"
+                            " PREVIOUS probe; --reset then re-probe for a"
+                            " BEST-anchored verdict]")
         else:
             verdict = (f"IMPROVED  real {best} -> {real} (insns"
                        f" {insns}{tok})  [best updated]")
@@ -451,7 +493,8 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
         # When insn counts already agreed and did not move, real fell
         # inside an already-parity-exact shell — fuzzy is the arbiter.
         parity = re.match(r"T(\d+)/O(\d+)$", insns or "")
-        if (parity and parity.group(1) == parity.group(2)
+        if (verdict.startswith("IMPROVED")
+                and parity and parity.group(1) == parity.group(2)
                 and state.get("last_insns") == insns):
             verdict += ("\nPARITY-HELD IMPROVEMENT: counts were already"
                         " equal and unchanged — arbitrate on FRESH objdiff"
@@ -517,7 +560,23 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                         " a CONFLICT as REGRESSED; --reset then re-probe"
                         " for a BEST-anchored verdict]")
     else:
-        verdict = f"NEUTRAL   real {real} (insns {insns}{tok})"
+        # real is FLAT. `real` alone has nothing to say here, so the
+        # multiset decides: a converging multiset at unchanged real is a
+        # structural win the plain NEUTRAL headline hid outright — and
+        # because NEUTRAL never re-banked best, best_multiset stayed at the
+        # WORSE count and every later probe was anchored on a stale
+        # structure number.
+        anchor_tokens = best_tokens if best_tokens is not None else prev_tokens
+        anchor_name = "best" if best_tokens is not None else "prev"
+        if (multiset_tokens is not None and anchor_tokens is not None
+                and multiset_tokens < anchor_tokens):
+            verdict = (f"IMPROVED-STRUCTURE real {real} UNCHANGED but multiset"
+                       f" {anchor_tokens}t -> {multiset_tokens}t vs"
+                       f" {anchor_name} FELL — the opcode stream converged at"
+                       f" flat real (insns {insns})  [best updated]")
+            bank_best()
+        else:
+            verdict = f"NEUTRAL   real {real} (insns {insns}{tok})"
     state["last_real"] = real
     state["last_insns"] = insns
     if multiset_tokens is not None:
