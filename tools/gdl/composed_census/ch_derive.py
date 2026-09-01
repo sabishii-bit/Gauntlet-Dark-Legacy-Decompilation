@@ -34,6 +34,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # tools/gdl (fixed after promotion out of CN_scratch)
 import webfrank as wf  # noqa: E402
+from reloc_symbols import moved_symbols as _moved_symbols  # noqa: E402
+from reloc_symbols import region_symbols as _region_symbols  # noqa: E402
 sys.path.insert(0, os.path.dirname(__file__))
 from cn_analyze import our_object, target_object, load  # noqa: E402
 
@@ -74,17 +76,18 @@ def region_symbols(orel, lo, hi):
 
     `orel` is keyed by RAW r_offset (function-relative, NOT floored: SDA21
     sits at instruction+2), which is the same keying apply_patch uses.
+
+    The body now DELEGATES to tools/gdl/reloc_symbols.py: four further
+    derivers needed this mapping and could not import it from here, so the
+    shared module is the single implementation and this name is kept for
+    ch_derive's and ha_close's existing callers.
     """
-    return {off - lo: name
-            for off, (_type, name) in orel.items()
-            if lo <= (off & ~3) < hi}
+    return _region_symbols(orel, lo, hi)
 
 
 def moved_symbols(window_syms, order):
     """`region_symbols` carried through the permutation, as apply_patch does."""
-    dest_by_src = {s: d for d, s in enumerate(order)}
-    return {dest_by_src[off // 4] * 4 + off % 4: name
-            for off, name in window_syms.items()}
+    return _moved_symbols(window_syms, order)
 
 
 def norm_relocs(rel, base=0):

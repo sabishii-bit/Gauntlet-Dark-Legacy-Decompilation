@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # tools/gdl (
 import webfrank as wf  # noqa: E402
 sys.path.insert(0, os.path.dirname(__file__))
 from cn_analyze import our_object, target_object, load  # noqa: E402
+from reloc_symbols import moved_symbols, region_symbols  # noqa: E402
 
 MAX_ATOMS = 8
 
@@ -110,7 +111,7 @@ def try_candidate(unit, fn, lo, hi, verbose=True):
         if not bound:
             continue
         return build(unit, fn, op, tp, ours, tgt, odata, osec, osym,
-                     lo, hi, order, records, forms, verbose)
+                     lo, hi, order, records, forms, verbose, orel)
     if verbose:
         msg = dest_ok_cache.get("step0")
         print(f"  {fn}: NO admissible order over [0x{lo:x},0x{hi:x})"
@@ -119,12 +120,18 @@ def try_candidate(unit, fn, lo, hi, verbose=True):
 
 
 def build(unit, fn, op, tp, ours, tgt, odata, osec, osym,
-          lo, hi, order, records, forms, verbose):
+          lo, hi, order, records, forms, verbose, orel=None):
     region = ours[lo:hi]
     permuted = b"".join(region[s * 4:s * 4 + 4] for s in order)
     dest_by_src = {s: d for d, s in enumerate(order)}
     prec = sorted(((dest_by_src[o // 4] * 4 + o % 4, i, a) for o, i, a in records),
                   key=lambda x: x[0])
+    # Name-bound relocation hashing (run-28 migration). `orel` has to be
+    # threaded in from try_candidate: without it the bare triples raise
+    # "relocation hash needs the symbol name" on every relocation-bearing
+    # window. See tools/gdl/reloc_symbols.py.
+    window_syms = region_symbols(orel or {}, lo, hi)
+    moved_syms = moved_symbols(window_syms, order)
     rule = {
         "function": fn,
         "before_sha256": sha(ours),
@@ -132,8 +139,10 @@ def build(unit, fn, op, tp, ours, tgt, odata, osec, osym,
         "instruction_permutation": {
             "start": hex(lo), "end": hex(hi), "order": order,
             "before_sha256": sha(region), "after_sha256": sha(permuted),
-            "before_relocations_sha256": wf._relocation_sha256(records),
-            "after_relocations_sha256": wf._relocation_sha256(prec),
+            "before_relocations_sha256": wf._relocation_sha256(
+                records, window_syms),
+            "after_relocations_sha256": wf._relocation_sha256(
+                prec, moved_syms),
         },
     }
     if forms:

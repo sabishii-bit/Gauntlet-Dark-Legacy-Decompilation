@@ -56,6 +56,31 @@ OWNED = ("game/sys/memcard", "game/movie/movieplayer",
          "game/world/gauntworld", "game/game/combat", "game/game/player")
 
 
+# Rows the sweep could not EVALUATE, kept apart from rows it evaluated and
+# found wanting. Conflating the two is what turned the un-migrated
+# _relocation_sha256 call sites into a page of false "does not close" rows:
+# a deriver that CRASHES has measured nothing, and reporting that as a
+# refusal is a false negative dressed as a result.
+TOOL_ERRORS: list[tuple[str, str, str, str]] = []
+
+
+def report_tool_errors():
+    """Print the unevaluated rows and fail loudly if there are any."""
+    if not TOOL_ERRORS:
+        return 0
+    print(f"\n!! {len(TOOL_ERRORS)} row(s) could NOT BE EVALUATED — these are"
+          " TOOL BREAKAGE, not refusals, and must not be read as"
+          " 'does not close':")
+    seen = {}
+    for unit, fn, stage, message in TOOL_ERRORS:
+        seen.setdefault(message.split(":")[0] + ": " + message[:110], []) \
+            .append(f"{unit}::{fn} [{stage}]")
+    for message, rows in seen.items():
+        print(f"   {message}")
+        print(f"     {len(rows)} row(s), e.g. {rows[0]}")
+    return 1
+
+
 def shipped():
     path = os.path.join(ROOT, "config", "GUNE5D", "webfrank.json")
     with open(path) as fh:
@@ -101,7 +126,12 @@ def triage():
                 continue
             try:
                 rest = hv.unabsorbed(ours, tgt)
-            except Exception:                              # noqa: BLE001
+            except Exception as exc:                       # noqa: BLE001
+                # NOT a refusal: the classifier failing is TOOL BREAKAGE.
+                # Silently `continue`-ing here dropped rows from the
+                # roster entirely, which reads as "nothing to do".
+                TOOL_ERRORS.append((unit, tsym.name, "unabsorbed",
+                                    f"{type(exc).__name__}: {exc}"))
                 continue
             cl = hv.clusters(rest)
             rows.append({"unit": unit, "fn": tsym.name,
@@ -127,8 +157,18 @@ def prove(rows, only=None, limit=None):
             else:
                 rule, note = hv.search(unit, fn)
         except Exception as exc:                           # noqa: BLE001
+            # A crash is not a measurement. Keep it out of the refusal
+            # population entirely and surface it at the summary.
             rule, note = None, f"{type(exc).__name__}: {exc}"
             traceback.print_exc(limit=1)
+            TOOL_ERRORS.append((unit, fn, f"tier {row['tier']}", note))
+            rec = dict(row)
+            rec["verdict"] = "ERROR"
+            rec["note"] = note
+            out.append(rec)
+            print(f"[{i+1}/{len(todo[:limit])}] {unit}::{fn}: "
+                  f"ERROR (NOT a refusal) -- {note[:150]}", flush=True)
+            continue
         verdict = "CLOSES" if rule else "refuses"
         print(f"[{i+1}/{len(todo[:limit])}] {unit}::{fn} "
               f"({row['insns']}i, tier {row['tier']}, {row['unabsorbed']}u/"
@@ -157,6 +197,7 @@ if __name__ == "__main__":
         from collections import Counter
         print("tier-B cluster histogram:",
               dict(sorted(Counter(r["clusters"] for r in tb).items())))
+        raise SystemExit(report_tool_errors())
     else:
         with open(rpath) as fh:
             rows = json.load(fh)
@@ -167,6 +208,13 @@ if __name__ == "__main__":
         with open(opath, "w") as fh:
             json.dump(res, fh, indent=1)
         closes = [r for r in res if r["verdict"] == "CLOSES"]
-        print(f"\n{len(closes)} of {len(res)} CLOSE")
+        errors = [r for r in res if r["verdict"] == "ERROR"]
+        evaluated = len(res) - len(errors)
+        # Denominator is rows actually EVALUATED. Counting crashed rows as
+        # part of "N of M" understates the close rate and hides breakage.
+        print(f"\n{len(closes)} of {evaluated} evaluated CLOSE"
+              + (f" ({len(errors)} row(s) NOT evaluated — see below)"
+                 if errors else ""))
         for r in closes:
             print(f"  {r['unit']}::{r['fn']}  {r['note']}")
+        raise SystemExit(report_tool_errors())

@@ -19,11 +19,16 @@ sys.path.insert(0, str(ROOT))
 from tools.gdl.webfrank import (  # noqa: E402
     SHT_RELA,
     _find_symbol,
+    _function_text_relocations,
     _relocation_sha256,
     _sections,
     _sha256,
     apply_patch,
     check_permutation_dependences,
+)
+from tools.gdl.reloc_symbols import (  # noqa: E402
+    moved_symbols,
+    region_symbols,
 )
 
 OURS = ROOT / "build/GUNE5D/src/game/pb/.postprocess/body/pb_window.o"
@@ -73,14 +78,24 @@ def window(data, sections, symbol, body, start, end, order):
         (destination_by_source[offset // 4] * 4 + offset % 4, info, addend)
         for offset, info, addend in before
     )
+    # Name-bound relocation hashing (run-28 migration): the bare triples
+    # raise "relocation hash needs the symbol name" on any window carrying
+    # a relocation. See tools/gdl/reloc_symbols.py.
+    relocations = _function_text_relocations(
+        data, sections, symbol.section_index,
+        symbol.value, symbol.value + symbol.size)
+    window_symbols = region_symbols(relocations, start, end)
+    after_symbols = moved_symbols(window_symbols, order)
     return {
         "start": f"0x{start:x}",
         "end": f"0x{end:x}",
         "order": list(order),
         "before_sha256": _sha256(region),
         "after_sha256": _sha256(permuted),
-        "before_relocations_sha256": _relocation_sha256(before),
-        "after_relocations_sha256": _relocation_sha256(after),
+        "before_relocations_sha256": _relocation_sha256(
+            before, window_symbols),
+        "after_relocations_sha256": _relocation_sha256(
+            after, after_symbols),
     }, permuted
 
 
