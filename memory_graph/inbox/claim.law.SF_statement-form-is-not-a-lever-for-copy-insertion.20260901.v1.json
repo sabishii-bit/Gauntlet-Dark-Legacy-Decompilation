@@ -1,0 +1,21 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py NEUTRAL-IDENTICAL verdict (object bytes unchanged between probes) - the mechanical signal that a spelling never reached codegen"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any function in which rewriting a plain scalar assignment between the three normalised spellings - `x = c ? A : B;`, `if (c) x = A; else x = B;`, and `if ((x = expr) REL k)` versus `x = expr; if (x REL k)` - changes the emitted object bytes at all, with no other edit in the TU. One probe showing anything other than probe.py's NEUTRAL-IDENTICAL (byte-identical object) for such a rewrite disproves the normalisation. Note the deliberately NARROW scope: this law is about scalar-valued spellings whose arms differ only in a constant or a simple load. It is already known NOT to extend to the case where one arm is a register copy and the other a global load - measured 2026-09-01 in ProcessEffects at 0xb84, where converting the ternary `(e->flags & 0x200) ? lbl_80348080 : radius` into preset-then-override DID change codegen (removed the ours-only `b`, made the cluster shape-exact against target, real 1479 -> 1528 on a colour cascade, function fuzzy 95.9935% -> 96.0429%). A counterexample inside the narrow scope refutes; that out-of-scope case does not.",
+  "id": "claim.law.SF_statement-form-is-not-a-lever-for-copy-insertion.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T21:56:49Z",
+  "schema_version": 1,
+  "subject": "tu:game/sfx/sfx",
+  "valid_from": "2026-09-01",
+  "value": "MWCC normalises ternary, if/else and assignment-in-condition spellings of a scalar assignment to ONE intermediate representation before register allocation, so rewriting between them cannot move a copy-insertion residual (the `mr rVar,r0` class where target evaluates into scratch r0 and then copies, while our stream writes the destination register directly). Measured twice in ProcessEffects on 2026-09-01, both times with probe.py reporting NEUTRAL-IDENTICAL, i.e. the compiled object bytes were UNCHANGED: (1) line 2863 `owner = e->owner; if (owner < 0 || owner > 4)` rewritten to `if ((owner = e->owner) < 0 || owner > 4)`; (2) line 3043 `if (playerHit != 0) { hit = 3; } else { hit = 2; }` rewritten to `hit = playerHit != 0 ? 3 : 2;`. A byte-identical object is a STRONGER negative than a regression, because it proves the source text never reached the compiler's decision point rather than merely losing a trade-off - so two such results kill the axis outright rather than merely capping it. PRACTICAL CONSEQUENCE: when a residual is a bare target-only `mr` with equal opcode multisets elsewhere, do not spend probes on statement shape; classify it with the copy-vs-rematerialize law family (claim.law.constant-copy-vs-rematerialize-is-source-unreachable, claim.law.live-zero-copy-vs-remat-is-allocator-not-source) as allocator coalescing and look for a different mechanism. In ProcessEffects this class numbers SIX instances (at 0x930, 0xf10, 0x12e0, 0x1594, 0x1b10, 0x1dc8), so the two probes closed a whole population, not a single site."
+}
