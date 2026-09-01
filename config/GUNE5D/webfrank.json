@@ -1833,6 +1833,27 @@
           "instructions": 238
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "init_player_change",
+        "before_sha256": "4802d1fd60373e90df5886dfbb66427290723e6748039350daa5476cac87308e",
+        "after_sha256": "c432410d5fb68371f82cb0ec149f3d63303aad58381526f737c777be44f02b77",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 78,
+          "permuted_instructions": 2
+        },
+        "mechanism": "DISCHARGES attempt.init-player-change-decl-order-exhausted-not-rule-eligible.20260901.v1 on that record's own diagnosis. Its residual analysis is exactly right and is reproduced here from the bytes: 78/78 instructions, opcode multiset identical, and the residual is (1) a one-slot SCHEDULE move of `addi r28,r4,0` - ours emits the arg1 home at +0x30 BEFORE `stw r0,232(r31)`, retail emits it after - plus (2) the coupled REGISTER_ONLY recolor of the gPlayers address web, fifteen words. What that record got wrong was only its ELIGIBILITY verdict, and instrumenting the refusal shows why: it concluded 'NOT WEBFRANK-ELIGIBLE' because `webfrank_audit.py --grep game/ui/select` reported only init_player_select, and because 'the audit requires identical instruction shape and the one-slot permutation breaks that precondition'. That is a fact about webfrank_audit, which screens for PURE recolors and by construction cannot see a function that needs a permutation first; it is not a fact about the function. claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 names this exact trap. PERMUTATION, +0x30..+0x38 order [1,0]: the two atoms are independent - `addi r28,r4,0` writes g28 and reads g4, `stw r0,232(r31)` reads g0 and g31 and writes memory, with no overlap in either direction - and the window carries no relocation in either object and no control instruction. check_permutation_dependences accepts it in its strictest form (exit_dead=None). RECOLOR: with the schedule aligned, the remaining fifteen words are the renaming that record named - retail writes the gPlayers low half to a fresh volatile and folds lbl_80284878 in place while ours does the reverse, giving p g3->g5, i g4->g3, offset g5->g6 - machine-proven by verify_consistent_recolor with NO unproven_recolor_audit escape. The source axis is genuinely exhausted: six declaration orders were measured and all six fall into p-before-i=32 / i-before-p=45 with none reaching 0, so the postprocessor path is the honest one. Derived from the objects ninja produced this session and proven end-to-end through webfrank.apply_patch against the extracted retail object (output bytes == target bytes).",
+        "instruction_permutation": {
+          "start": "0x30",
+          "end": "0x38",
+          "order": [1, 0],
+          "before_sha256": "df323892300dff46c8d110226aea02494b06ce405007a61b5a4cf8a0d52e950c",
+          "after_sha256": "013c8ac743ac18883ab09edb19f4d64ac41dd1531dfc55fd2fb298b6431880e5",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "copy_register_fields": true
       }
     ],
     "game/world/worldcol": [
