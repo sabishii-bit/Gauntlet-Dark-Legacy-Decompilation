@@ -6209,11 +6209,18 @@ extern s32 sNumItemWobjs;
 extern u8 sItemRuntime[];
 s16* FindWobjWanim(void* wobj);
 
+/* Parallel column arrays over sItemRuntime (.bss 0x802577F0, size 0xBB8 =
+ * 3000 = 5 columns * 150 f32).  The object[] column lives past the symbol's
+ * own 3000 bytes but is addressed off the same single base relocation, so it
+ * stays part of this view rather than becoming a second symbol. */
 typedef struct ItemWobjRuntime {
-    f32 y[450];
-    f32 initialY[450];
-    u8 _pad[25616];
-    u32 object[450];
+    f32 y[150];         /* +0     current offset from initialY            */
+    f32 initialY[150];  /* +600   resting Y the offset is added to        */
+    f32 openY[150];     /* +1200  target offset when st & 0x20 is clear   */
+    f32 closedY[150];   /* +1800  target offset when st & 0x20 is set     */
+    f32 dist[150];      /* +2400  compared against sItemSearchDistance    */
+    u8 _pad[26216];     /* +3000                                          */
+    u32 object[150];    /* +29216 WorldObj* per wobj                      */
 } ItemWobjRuntime;
 
 /* Fire all special triggers of the given class. */
