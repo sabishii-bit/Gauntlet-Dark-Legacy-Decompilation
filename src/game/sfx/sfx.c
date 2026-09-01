@@ -2963,8 +2963,8 @@ void ProcessEffects(void)
                             } else {
                                 e->endtime -= 1.0;
                             }
-                            if (e->damage > (f64)15.0f) {
-                                e->damage = (f32)(f64)15.0f;
+                            if (e->damage > 15.0f) {
+                                e->damage = 15.0f;
                             }
                         } else {
                             s32 playerHit;
