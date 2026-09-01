@@ -392,7 +392,7 @@ typedef struct CombatTriggerCamera {
     f32 x;           /* 0x04 */
     f32 y;           /* 0x08 */
     f32 z;           /* 0x0C */
-    u8  _pad10[8];   /* 0x10 */
+    u8  _pad10[4];   /* 0x10 */
     f32 pitch;       /* 0x14 */
     f32 yaw;         /* 0x18 */
     u8  _pad1C[0xC]; /* 0x1C */
@@ -414,8 +414,9 @@ typedef struct CombatCameraSupervisorScratch {
     volatile f32 projectedRoot;
     volatile f32 segmentRoot;
     volatile f32 candidateRoot;
-    u8 _pad40[12];
+    u8 _pad40[4];
     f32 closest[3];
+    u8 _pad50[8];
 } CombatCameraSupervisorScratch;
 
 /*
