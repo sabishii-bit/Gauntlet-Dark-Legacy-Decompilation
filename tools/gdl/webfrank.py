@@ -1427,10 +1427,38 @@ def _sha256(data: bytes | bytearray) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _relocation_sha256(relocations: list[tuple[int, int, int]]) -> str:
+def _relocation_sha256(
+    relocations: list[tuple[int, int, int]],
+    symbols: dict[int, str] | None = None,
+) -> str:
+    """Hash a window's relocations by SYMBOL NAME, never by symbol index.
+
+    The ELF ``r_info`` field packs the symbol-table INDEX, which is a
+    TU-global quantity: adding or dropping any symbol anywhere in the
+    translation unit renumbers it.  Hashing it therefore made every
+    ``instruction_permutation`` rule in a TU abort the build after an
+    unrelated edit elsewhere in that TU, with a message that reads like the
+    edit's fault — measured on gauntworld::fn_8005FB48, where a _savefpr
+    change moved indices 339->341 and 337->339 while both text hashes and
+    every relocation's offset, type, addend and symbol NAME were unchanged.
+
+    Only the relocation TYPE (the low byte of ``r_info``) and the symbol's
+    name are identity here, so the hash tracks what the rules' own prose
+    already reasons about.  Names are mandatory whenever a relocation is
+    present: dropping the index without substituting the name would leave
+    the hash blind to a re-symboling, which is a weaker guard, not a
+    friendlier one.  The empty-list hash is unchanged, so the windows that
+    carry no relocation need no migration.
+    """
     payload = bytearray()
     for offset, info, addend in relocations:
-        payload += struct.pack(">IIi", offset, info, addend)
+        if symbols is None or offset not in symbols:
+            raise ValueError(
+                f"relocation hash needs the symbol name for the relocation "
+                f"at +0x{offset:x}"
+            )
+        payload += struct.pack(">IIi", offset, info & 0xFF, addend)
+        payload += symbols[offset].encode("utf-8") + b"\0"
     return _sha256(payload)
 
 
@@ -1756,7 +1784,8 @@ def permute_instruction_atoms(
 
     check_permutation_dependences(current, order, exit_dead)
 
-    if _relocation_sha256(relocations) != before_relocations_sha256:
+    if _relocation_sha256(relocations,
+                          our_symbols) != before_relocations_sha256:
         raise ValueError("instruction permutation relocation input hash changed")
 
     destination_by_source = {
@@ -1764,6 +1793,7 @@ def permute_instruction_atoms(
     }
     moved_relocations = []
     moved_named: dict[int, tuple[int, str]] = {}
+    moved_symbols: dict[int, str] = {}
     for offset, info, addend in relocations:
         if not 0 <= offset < len(current):
             raise ValueError("instruction permutation relocation is outside region")
@@ -1772,13 +1802,13 @@ def permute_instruction_atoms(
         destination = destination_by_source[source]
         moved_offset = destination * 4 + within_atom
         moved_relocations.append((moved_offset, info, addend))
-        if our_symbols is not None:
-            if offset not in our_symbols:
-                raise ValueError(
-                    f"instruction permutation has no symbol for the "
-                    f"relocation at +0x{offset:x}"
-                )
-            moved_named[moved_offset] = (info & 0xFF, our_symbols[offset])
+        if our_symbols is None or offset not in our_symbols:
+            raise ValueError(
+                f"instruction permutation has no symbol for the "
+                f"relocation at +0x{offset:x}"
+            )
+        moved_named[moved_offset] = (info & 0xFF, our_symbols[offset])
+        moved_symbols[moved_offset] = our_symbols[offset]
     moved_relocations.sort(key=lambda item: item[0])
 
     # The transform may change relocation offsets and ordering, never their
@@ -1792,7 +1822,8 @@ def permute_instruction_atoms(
     )
     if before_payload != after_payload or len(moved_relocations) != len(relocations):
         raise ValueError("instruction permutation failed to preserve relocations")
-    if _relocation_sha256(moved_relocations) != after_relocations_sha256:
+    if _relocation_sha256(moved_relocations,
+                          moved_symbols) != after_relocations_sha256:
         raise ValueError("instruction permutation relocation output hash changed")
 
     # The payload check above proves conservation, never binding: it drops

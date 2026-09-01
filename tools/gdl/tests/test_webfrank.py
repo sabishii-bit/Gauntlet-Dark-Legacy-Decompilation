@@ -73,15 +73,20 @@ class InstructionPermutationTests(unittest.TestCase):
         # destination atom 1.
         self.relocations = [(2, 0x1234, -8)]
         self.expected_relocations = [(6, 0x1234, -8)]
+        self.symbols = {2: "pool"}
+        self.moved_symbols = {6: "pool"}
 
     def permute(self, **overrides):
         arguments = {
             "before_sha256": _sha256(self.current),
             "after_sha256": _sha256(self.expected),
-            "before_relocations_sha256": _relocation_sha256(self.relocations),
-            "after_relocations_sha256": _relocation_sha256(
-                self.expected_relocations
+            "before_relocations_sha256": _relocation_sha256(
+                self.relocations, self.symbols
             ),
+            "after_relocations_sha256": _relocation_sha256(
+                self.expected_relocations, self.moved_symbols
+            ),
+            "our_symbols": self.symbols,
         }
         arguments.update(overrides)
         return permute_instruction_atoms(
@@ -108,8 +113,11 @@ class InstructionPermutationTests(unittest.TestCase):
             relocations,
             before_sha256="decb90402973a79a24378eaba97967a34562786645a9ca1d12a717e8cc276c91",
             after_sha256="9c86562d75c12cda2e5bad4e2aed2736865af0f90fbee9c32fe53488eb91c1eb",
-            before_relocations_sha256="ba25df53f1ea2f7a904fada0025dcaffbfc0ebc725843925b1723c355bbd92e8",
-            after_relocations_sha256="9f7d58b16bc53a6fb78303b594bea2e12a1a54d7458b83e9668c2e97482f8be0",
+            before_relocations_sha256=_relocation_sha256(
+                relocations, {2: "gResetButton"}),
+            after_relocations_sha256=_relocation_sha256(
+                expected_relocations, {6: "gResetButton"}),
+            our_symbols={2: "gResetButton"},
         )
         self.assertEqual(output, expected)
         self.assertEqual(moved_relocations, expected_relocations)
@@ -127,8 +135,11 @@ class InstructionPermutationTests(unittest.TestCase):
                 self.relocations,
                 before_sha256=_sha256(self.current),
                 after_sha256=_sha256(self.current),
-                before_relocations_sha256=_relocation_sha256(self.relocations),
-                after_relocations_sha256=_relocation_sha256(self.relocations),
+                before_relocations_sha256=_relocation_sha256(
+                    self.relocations, self.symbols),
+                after_relocations_sha256=_relocation_sha256(
+                    self.relocations, self.symbols),
+                our_symbols=self.symbols,
             )
 
     def test_moved_control_instruction_fails_closed(self):
@@ -1476,12 +1487,15 @@ class GauntworldPreheaderPermutationTests(unittest.TestCase):
         after = [(2, second, 0), (6, first, 0)]   # symbols exchanged
         atoms = [region[i:i + 4] for i in range(0, len(region), 4)]
         permuted = b"".join(atoms[source] for source in [1, 0])
+        names = {2: "sZeroDouble", 6: "sItemZero"}
+        moved_names = {6: "sZeroDouble", 2: "sItemZero"}
         permute_instruction_atoms(
             region, [1, 0], before,
             before_sha256=_sha256(region),
             after_sha256=_sha256(permuted),
-            before_relocations_sha256=_relocation_sha256(before),
-            after_relocations_sha256=_relocation_sha256(after),
+            before_relocations_sha256=_relocation_sha256(before, names),
+            after_relocations_sha256=_relocation_sha256(after, moved_names),
+            our_symbols=names,
         )
 
 
@@ -1791,8 +1805,10 @@ class RelocationBindingTests(unittest.TestCase):
             region, [1, 0], before,
             before_sha256=_sha256(region),
             after_sha256=_sha256(permuted),
-            before_relocations_sha256=_relocation_sha256(before),
-            after_relocations_sha256=_relocation_sha256(after),
+            before_relocations_sha256=_relocation_sha256(
+                before, {2: "sZeroDouble", 6: "sItemZero"}),
+            after_relocations_sha256=_relocation_sha256(
+                after, {6: "sZeroDouble", 2: "sItemZero"}),
             our_symbols={2: "sZeroDouble", 6: "sItemZero"},
             target_relocations={
                 0: (self.SDA21, "sItemZero"),
@@ -2494,9 +2510,9 @@ class ApplyPatchObjectTests(unittest.TestCase):
                 "before_sha256": _sha256(region),
                 "after_sha256": _sha256(target[4:12]),
                 "before_relocations_sha256": _relocation_sha256(
-                    [(0x0, (2 << 8) | 4, 0)]),
+                    [(0x0, (2 << 8) | 4, 0)], {0x0: "pool"}),
                 "after_relocations_sha256": _relocation_sha256(
-                    [(0x4, (2 << 8) | 4, 0)]),
+                    [(0x4, (2 << 8) | 4, 0)], {0x4: "pool"}),
             },
         }
         _b, after, moved = apply_patch(data, patch, bytes(target_data))
@@ -2548,6 +2564,60 @@ def _substitution(at, bank, ours, target):
 
 def _exchange(at, bank, ours, target):
     return {"at": at, "bank": bank, "ours": list(ours), "target": list(target)}
+
+
+class RelocationHashIdentityTests(unittest.TestCase):
+    """The window relocation hash must track symbol NAMES, not symbol indices.
+
+    `r_info` packs the symbol-table index, which is TU-global: adding or
+    dropping any symbol anywhere in the translation unit renumbers it and
+    used to abort the whole TU's build against every permutation rule, with
+    a message that reads like the unrelated edit's fault.  Measured on
+    gauntworld::fn_8005FB48 when a _savefpr change moved indices 339->341
+    and 337->339 while nothing about the window changed.
+    """
+
+    SDA21 = 109
+
+    def test_symbol_table_renumbering_leaves_the_hash_stable(self):
+        names = {2: "lbl_80347008", 6: "sCameraVisibilityRadius"}
+        before = [(2, (339 << 8) | self.SDA21, 0),
+                  (6, (337 << 8) | self.SDA21, 0)]
+        after_renumber = [(2, (341 << 8) | self.SDA21, 0),
+                          (6, (339 << 8) | self.SDA21, 0)]
+        self.assertEqual(_relocation_sha256(before, names),
+                         _relocation_sha256(after_renumber, names))
+
+    def test_a_different_symbol_moves_the_hash(self):
+        relocations = [(2, (10 << 8) | self.SDA21, 0)]
+        self.assertNotEqual(
+            _relocation_sha256(relocations, {2: "lbl_80344190"}),
+            _relocation_sha256(relocations, {2: "lbl_80344194"}),
+        )
+
+    def test_a_different_relocation_type_moves_the_hash(self):
+        names = {2: "gCameras"}
+        self.assertNotEqual(
+            _relocation_sha256([(2, (10 << 8) | 6, 0)], names),
+            _relocation_sha256([(2, (10 << 8) | 4, 0)], names),
+        )
+
+    def test_a_different_addend_or_offset_moves_the_hash(self):
+        names = {2: "pool", 6: "pool"}
+        base = _relocation_sha256([(2, (10 << 8) | self.SDA21, 0)], names)
+        self.assertNotEqual(
+            base, _relocation_sha256([(2, (10 << 8) | self.SDA21, 8)], names))
+        self.assertNotEqual(
+            base, _relocation_sha256([(6, (10 << 8) | self.SDA21, 0)], names))
+
+    def test_a_missing_symbol_name_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "needs the symbol name"):
+            _relocation_sha256([(2, (10 << 8) | self.SDA21, 0)])
+        with self.assertRaisesRegex(ValueError, "needs the symbol name"):
+            _relocation_sha256([(2, (10 << 8) | self.SDA21, 0)], {6: "other"})
+
+    def test_the_empty_window_hash_is_unchanged_so_it_needs_no_migration(self):
+        self.assertEqual(_relocation_sha256([]), _sha256(b""))
 
 
 class ValueEqualityRecolorTests(unittest.TestCase):
