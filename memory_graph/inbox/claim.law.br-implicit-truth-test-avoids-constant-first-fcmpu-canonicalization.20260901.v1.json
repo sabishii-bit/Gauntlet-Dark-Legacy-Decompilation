@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Measured in src/game/world/btricol.c during work_claim.btricol-repin-unlock.20260901.v1 (worker BR, branch claude/btricol-unlock-20260901, commit 37d53cc64). Every reading is a word-level comparison of the RAW MWCC body object build/GUNE5D/src/game/world/.postprocess/body/btricol.o against the dtk-extracted build/GUNE5D/obj/game/world/btricol.o, so no postprocessor is in the path.",
+    "tags": [
+      "matching",
+      "cse",
+      "sda-global",
+      "register-web",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.br-implicit-truth-test-avoids-constant-first-fcmpu-canonicalization.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T01:32:44Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "WHEN AN EQUALITY COMPARE'S CONSTANT OPERAND BECOMES A LITERAL, MWCC PUTS IT IN fcmpu's frA SLOT; WRITING THE TEST AS AN IMPLICIT TRUTH TEST KEEPS THE VARIABLE IN frA. This is the one-instruction hazard that makes a routine `extern <T> lbl_<ADDR>` -> literal conversion (the own-pool ghost fix) change code inside an otherwise untouched function, and it has a free cure.\n\nTHE RULE. For `x == K` and `x != K` on floating-point operands, MWCC/GC 1.2.5 canonicalises the operand order by OPERAND KIND, not by source order. If K is a memory read (an `extern const f32/f64`), it emits `fcmpu crD, <x>, <K>`. If K is a compile-time literal, it emits `fcmpu crD, <K>, <x>` - the constant moves into the frA slot and the variable into frB. Both forms are semantically identical for the EQ bit, and the branch that follows is unchanged, but the two instruction WORDS differ, which is enough to break a hash-guarded postprocessor rule or a consistent-renaming proof. Writing the source with the operands the other way round does NOT change the emitted order: `0.0f != denom` and `denom != 0.0f` produce byte-identical code, so the source-operand-order axis is dead and must not be spent. RELATIONAL operators are NOT affected: `<`, `<=`, `>`, `>=` against a literal keep the variable in frA (measured at seven sites in the same TU that converted with zero byte change).\n\nTHE CURE, and it is free. Spell the test as an implicit truth test, which has no constant operand for the front end to canonicalise: `if (denom)` for `denom != 0.0f`, and `if (!(f64)length)` for `(f64)length == 0.0` (keep the cast - it is what selects the f64 pool entry and the lfd form). Both restore the memory-read operand order EXACTLY.\n\nMEASUREMENT. src/game/world/btricol.c, converting lbl_80345D50 (f32 0.0f) and lbl_80345D40 (f64 0.0) to literals at 32 sites across four functions. Of the seven functions in the TU, five were byte-unchanged. The two that changed each changed by EXACTLY ONE WORD, both an fcmpu at the TU's only two equality-against-zero tests: LineLineDist +0x78 went fc180000 `fcmpu cr0,f24,f0` -> fc00c000 `fcmpu cr0,f0,f24` (`denom != lbl_80345D50` -> `denom != 0.0f`), and PointLineDist2D +0x84 went fc000800 `fcmpu cr0,f0,f1` -> fc010000 `fcmpu cr0,f1,f0` (`(f64)length == lbl_80345D40` -> `== 0.0`). The target's own words are `fcmpu cr0,f28,f0` and `fcmpu cr0,f0,f5`, i.e. the MEMORY-READ order, so retail's source did not spell these as literal comparisons in a form MWCC canonicalises. Respelling them `if (denom)` and `if (!(f64)length)` returned both bodies to sha256 49596e08...c499498e and ada2054b...39f5fe9 respectively - bit-identical to the pre-conversion bodies.\n\nWHY IT MATTERS BEYOND ONE FUNCTION. The zero load itself was already identical in both spellings (LineLineDist +0x3c is `lfs f0,0(0)` against the same pool entry before and after), so nothing about placement, register or relocation moved - only the compare's operand slots. That single word was the whole difference between 'this TU's ghost fix is structurally blocked by its WebFrank pins' and 'both pins survive untouched'. Screen this law before converting any own-pool ghost, foreign-pool extern, or named FP sentinel that is read by an `==`/`!=` test, and especially before concluding that a pinned function forbids a ghost fix."
+}

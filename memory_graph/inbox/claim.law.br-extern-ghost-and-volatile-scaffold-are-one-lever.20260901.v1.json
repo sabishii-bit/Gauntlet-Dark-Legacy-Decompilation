@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Measured on src/game/world/btricol.c::BTriLineCol during work_claim.btricol-repin-unlock.20260901.v1 (worker BR, branch claude/btricol-unlock-20260901, commit 37d53cc64), against the two separately-measured negatives recorded in attempt.btrilinecol-zero-web-coalesce.20260831.v3 axes 2 and 7.",
+    "tags": [
+      "matching",
+      "cse",
+      "register-web",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.br-extern-ghost-and-volatile-scaffold-are-one-lever.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T01:32:55Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "A POOL-CONSTANT `extern lbl_<ADDR>` AND THE `*(volatile const T*)&` SCAFFOLD BUILT ON IT ARE ONE LEVER, NOT TWO: EACH REMOVED ALONE REGRESSES, AND ONLY THE JOINT REMOVAL CONVERGES. This is a two-variable axis that a one-variable A/B will always mis-park, and this project has a standing population of such sites because the scaffold IDIOM exists only to compensate for the extern.\n\nTHE MECHANISM. The extern spelling makes the constant an aliasable MEMORY read (claim.law.explicit-fp-symbol-vs-literal-zero-regression), which MWCC CSEs across a region; the volatile cast is then added at one site to force the extra load the target emits. Remove ONLY the volatile and the remaining extern reads collapse to one CSE'd load - a load goes missing. Remove ONLY the extern and the surviving volatile cast still emits its own load while the neighbouring plain literal reads rematerialize theirs - a load is added, and the volatile load's result can never be bound by a plain read (claim.law.bb-plain-read-never-cse-binds-to-a-volatile-load). Remove BOTH and the literal rematerializes at each use with the natural def-use binding, which is what the target does. The two negatives are therefore artefacts of holding the other variable fixed.\n\nMEASUREMENT. BTriLineCol, target 450 insns. Recorded singles, both do-not-retry: axis 2 'literal-for-extern on the zero constant REGRESSED real 30 -> 157, target-only +1 fmr - the extern read's opacity is REQUIRED here'; axis 7 'volatile scaffolding removal REGRESSED real 24 -> 135, insns 450/449, target-only +1 lfd - the volatile is what creates the target's 0x114 reload and is load-bearing'. Joint removal (both ghosts spelled as literals AND all nine volatile casts in the TU deleted, one edit): raw-body residual against the target went 12 differing words -> 5, with SEVEN words closed at +0xe8, +0xec, +0xfc, +0x104, +0x10c, +0x120 and +0x144 and ZERO new differences anywhere; fndiff real 24 -> 10; and webfrank_audit moved the function from REJECTED ('+0x120: use of f2 does not correspond to f0 under the running renaming') to ELIGIBLE, i.e. the residual became a machine-provable injective renaming in one edit.\n\nCONSEQUENCES. (1) Before parking a `*(volatile const T*)&lbl_<ADDR>` site, A/B the JOINT removal, not the two singles - the singles are already known to be negative and re-measuring them is wasted budget. (2) A recorded do-not-retry on 'literal-for-extern' or on 'volatile removal' at a site that still carries the OTHER half is scoped to the single, and does not veto the joint axis; the two btricol parks above are exactly this and are now overturned. (3) This is also the cheapest known route from a webfrank-INELIGIBLE binding residual to an eligible one, because both halves of the scaffold are what make our register map non-injective. (4) It composes with the own-pool ghost sweep: the ghost fix is usually the half nobody wanted to touch, so screening ghostsweep.py output for volatile-scaffold neighbours finds these sites for free."
+}
