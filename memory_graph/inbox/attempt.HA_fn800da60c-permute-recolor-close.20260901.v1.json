@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Bank the standing run-26 referral for game/movie/movieplayer::fn_800DA60C as an authored webfrank rule: instruction_permutation over [0x48,0x5c) plus copy_register_fields, re-derived from raw compiler output rather than copied from the referral record.",
+  "attributes": {
+    "law_screen": "claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED as step 0 and PASSED: the two swapped atoms (`lwz r4,368(r30)` and `addi r3,r30,336`) define distinct registers and neither writes the r30 the other reads, so the displacement is the INDEPENDENT half of C1's split, not the recolor-caused half; check_permutation_dependences ACCEPTS with exit_dead=None. claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 APPLIED: window verified relocation-free on BOTH sides word by word, so both region relocation hashes are the empty-payload hash and no binding question arises. claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1 SCREENED, NOT APPLICABLE: this function has ZERO copy-form sites, so no combined mode is used and no post-recolor stage is needed. claim.law.HV_emb-sda21-relocation-offset-differs-between-our-objects-and-the-target.20260901.v1 SCREENED, not applicable: no relocation in the window. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED: consistent with the recorded source-level cap on this function.",
+    "laws_applied": "[\"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\", \"claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1\"]",
+    "residual": "None. Residual 0, proven through webfrank.apply_patch against the real object before authoring and confirmed by the build.",
+    "scope": "config/GUNE5D/webfrank.json only (one rule inserted). src/game/movie/movieplayer.c is BYTE-UNCHANGED, so every other function in the TU stays available to a future lane.",
+    "verification": "python configure.py && ninja -j2 prints `WEBFRANK fn_800DA60C: adjusted 4 instruction atoms/fields` and `build/GUNE5D/main.dol: OK`. tools/gdl/fndiff.py game/movie/movieplayer fn_800DA60C --clean reports `EXACT, 0 real diff lines`. configure.py progress moved 2683 -> 2684 matched functions (64.37% -> 64.38%), Game Code 1761 -> 1762, files and fuzzy unchanged, no sibling regression. Commit 827adb643."
+  },
+  "function": "function:fn_800DA60C",
+  "id": "attempt.HA_fn800da60c-permute-recolor-close.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T17:18:23Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}
