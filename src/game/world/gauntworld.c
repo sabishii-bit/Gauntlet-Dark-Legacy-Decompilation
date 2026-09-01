@@ -2526,7 +2526,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     sub = &data->subtype;
     coltype = data->coltype;
     R = data->radius;
-    if (coltype == 0) {
+    if (data->coltype == 0) {
         return -1.0f;
     }
     if ((item->active & 0x40) == 0 && (item->active & 0x4000) == 0) {
