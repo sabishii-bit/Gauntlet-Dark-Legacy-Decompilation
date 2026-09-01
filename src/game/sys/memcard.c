@@ -367,7 +367,7 @@ int get_vmu_directory(int a, int b)
     int bit = b + a * 4;
     u8 pad[16]; /* unused, matches original frame */
 
-    if (lbl_80343C78 & (1 << bit)) {
+    if (lbl_80343C78 & (success << bit)) {
         if ((u8) beginSaveCacheTransaction() != 1) {
             success = 0;
         }
