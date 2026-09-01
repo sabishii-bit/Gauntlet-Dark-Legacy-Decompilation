@@ -193,7 +193,7 @@ extern const f32 lbl_80345C28;        /* .sdata2 pooled float literal */
 
 /* trigger-camera scripting helpers */
 extern u8 lbl_8023E880[0x40];         /* .bss look-at matrix / target buffer */
-extern u8 lbl_80127D40[];             /* rotation-axis constant */
+extern f32 lbl_80127D40[];            /* rotation-axis constant */
 extern const f64 lbl_80345B88;        /* base heading (radians) */
 extern void DisablePlayerControls(void);
 extern void YawVec3(void* axis, f32* out, f32 angle);
