@@ -321,11 +321,26 @@ def main():
                         if m else None)
             pd, cd = _cd(state.get("last_insns")), _cd(insns)
             if pd is not None and cd is not None and pd != cd:
-                trend = "WORSE — expect a fuzzy loss" if cd > pd \
-                    else "better — fuzzy likely agrees"
-                verdict += (f"\nCOUNT DISTANCE {pd} -> {cd} ({trend};"
-                            " arbitrate on fresh fuzzy, weighting this"
-                            " over the multiset)")
+                # Bounded by three independent lane measurements: the
+                # predictor is only sound when the MULTISET IS FLAT —
+                # it measures residue after structure is held constant.
+                # With the multiset moving it was wrong 4/4 on one
+                # function (structure-changing probes), and it must
+                # never be weighed against fuzzy itself.
+                flat = (multiset_tokens is not None
+                        and prev_tokens is not None
+                        and multiset_tokens == prev_tokens)
+                if flat:
+                    trend = ("WORSE — expect a fuzzy loss"
+                             if cd > pd else "better — fuzzy may agree")
+                    verdict += (f"\nCOUNT DISTANCE {pd} -> {cd} at a"
+                                f" flat multiset ({trend}); fuzzy from"
+                                " a fresh report remains the arbiter")
+                else:
+                    verdict += (f"\nCOUNT DISTANCE {pd} -> {cd} but the"
+                                " multiset moved — the predictor is NOT"
+                                " valid here; arbitrate on fresh fuzzy"
+                                " only")
         else:
             # The arrow is previous->current; the CLASSIFICATION is vs
             # best. Printing both without labels read as a contradiction
