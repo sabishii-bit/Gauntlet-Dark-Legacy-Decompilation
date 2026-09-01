@@ -1,0 +1,23 @@
+{
+  "attributes": {
+    "laws_applied": [
+      "claim.law.destructor-throw-spec-adds-a-second-unexpected-island.20260901.v1"
+    ],
+    "tags": [
+      "matching",
+      "inline",
+      "entry-schedule",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.throw-spec-on-an-inlined-helper-adds-a-spurious-second-island.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T02:21:24Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "AN EMPTY `throw()` SPECIFICATION IS PER-FUNCTION AND DOES NOT COLLAPSE ON INLINING: putting `throw()` on a `static inline` helper that is inlined into a caller which ALSO has `throw()` emits a SECOND `__unexpected` island in the caller, not a shared one. This GENERALISES claim.law.destructor-throw-spec-adds-a-second-unexpected-island beyond destructors, and it is the counter-form to reach for when a function that should have exactly one island has two. MEASURED 2026-09-01 on game/movie/movieplayer.cpp::fn_800D8784: the function itself carries `throw()` and correctly emits ONE island (`addi r3,<fp>,16 / bl __unexpected / b .`); adding the identical spec to the file-local inlined helper it calls added a whole second island -- `fndiff --ops` reported target-only:(none) with ours-only `-1 addi -2 b -1 bl`, i.e. four instructions the target does not contain at all, taking the body from an EXACT 30/30 to 30/34 and the opcode multiset from IDENTICAL to 4t. THE TRAP WORTH RECORDING IS THE METRIC INVERSION, because it is what makes this expensive to rediscover: that strictly-worse form scored a LOWER `real` (14 vs 16) and probe.py duly reported `IMPROVED  [best updated]`. `real` fell only because four spurious instructions happened to re-align the line positions of the tail block. The correct arbitration is claim.law.insn-count-parity-outranks-local-opcode-fidelity: an ours-only opcode delta against `target-only: (none)` is never an improvement, whatever `real` says. OPERATIONAL RULE: after any probe that changes an exception specification, read `fndiff --ops` before trusting probe.py's verdict, and treat a multiset moving AWAY from IDENTICAL as decisive regardless of the `real` direction; bank the arbitrated keep with `probe.py --rebase-best` so the better-scoring-but-wrong state is not left as `best`."
+}

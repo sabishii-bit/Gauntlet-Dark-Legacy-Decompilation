@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Execute the explicit 'NEXT HONEST MOVE' the v1 cap queued for this function: put fn_800D87FC under the C++ front end (surgical #pragma cplusplus on/off around the definition) to see whether the C++ integer-promotion rules dissolve the two-sided u16 narrow-range-mask constraint for free.",
+  "attributes": {
+    "law_screen": "claim.law.cpp-rename-is-inert-while-pragma-cplusplus-off-regions-remain.20260831.v1 APPLIED and it is what made this probe MEANINGFUL rather than a no-op: the TU is already named .cpp and is built with -lang=c++, so without the surgical pragma pair this function was still being parsed by the C front end and the v1 cap's queued idea had never actually been executed. claim.law.narrow-type-buys-rlwimi-insert-and-pays-a-masked-shift.20260901.v1 APPLIED as the statement of the two-sided constraint under test. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED -- the 2t multiset correctly isolates the single opcode row. The v1 cap's three killed axes (widening the declared type to u32 and to int, routing the shift through a 32-bit temp, respelling *8 as <<3) were NOT re-run: they are recorded do-not-retry and this probe was a genuinely different axis, namely the front end rather than the declaration.",
+    "laws_applied": "[\"claim.law.cpp-rename-is-inert-while-pragma-cplusplus-off-regions-remain.20260831.v1\", \"claim.law.narrow-type-buys-rlwimi-insert-and-pays-a-masked-shift.20260901.v1\"]",
+    "residual": "UNCHANGED, and the queued hypothesis is now REFUTED BY MEASUREMENT rather than merely untried. Baseline re-derived exactly as v1 recorded it (real 232, insns 244/244, multiset 2t), the C++ front end applied to this function alone, and the result was NEUTRAL on every metric: real 232, 244/244, multiset still 2t. The C++ front end's integer-promotion rules therefore do NOT dissolve the constraint -- MWCC's narrow-range analysis attaches the 16-bit mask to the palette-index shift identically under both front ends, so the target's simultaneous `slwi` (unmasked shift) and `rlwimi 8,23,23` (read-modify-write insert) still cannot both be obtained from any single declared width for that variable. The inert pragma pair was REMOVED rather than committed, leaving the tree byte-identical: a neutral edit that buys nothing is noise, and leaving it in would falsely advertise that this function had been converted. This closes the LAST axis v1 named; the function should now be treated as a genuine dead end pending a mechanism nobody has proposed yet.",
+    "scope": "src/game/movie/movieplayer.cpp::fn_800D87FC. NO retained source change -- the probe was applied, measured, and fully reverted; `git diff` is empty against the committed state and defake_gate re-checks GATE OK. Not webfrank-pinned.",
+    "verification": "python tools/gdl/probe.py game/movie/movieplayer fn_800D87FC -> BASELINE real 232 (insns T244/O244, multiset 2t), matching the v1 cap's recorded numbers exactly, so the re-derivation requirement is satisfied; with the surgical `#pragma cplusplus on/off` pair around the definition -> NEUTRAL real 232 (T244/O244, multiset 2t). Pragma removed; `git diff --stat` empty; python tools/gdl/defake_gate.py check game/movie/movieplayer --rebuild -> GATE OK."
+  },
+  "function": "function:fn_800D87FC",
+  "id": "attempt.fn800d87fc-cpp-frontend-hypothesis-refuted.20260901.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-01T02:21:18Z",
+  "refutes": "attempt.fn800d87fc-u16-range-mask-vs-rlwimi-two-sided.20260901.v1",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.fn800d87fc-u16-range-mask-vs-rlwimi-two-sided.20260901.v1",
+  "valid_from": "2026-09-01"
+}
