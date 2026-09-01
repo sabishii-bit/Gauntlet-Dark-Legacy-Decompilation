@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "python tools/gdl/fndiff.py game/world/gauntworld.c fn_800606FC --ops",
+    "python tools/gdl/probe.py game/world/gauntworld.c fn_800606FC --fuzzy",
+    "commit 4de3b15b0"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "store-placement",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Build fn_800606FC with `volatile f32 root;` at src/game/world/gauntworld.c lines 4851 and 5439 and run `python tools/gdl/fndiff.py game/world/gauntworld.c fn_800606FC --ops`. This law is DISPROVED if the target-only `+2 lfs +2 stfs` entries remain in the opcode multiset, or if clusters T[884:886] and T[1972:1974] still appear. It is disproved as a GENERAL counter-form if a second, independent function whose target shows a stfs/lfs round-trip on a named float temporary fails to emit that round-trip under volatile qualification \u2014 the three-site population inside fn_800606FC is a single-function sample, and the third site (T[1017:1029]) was already a pure reorder rather than a missing round-trip, so the rule is asserted for missing-instruction round-trips only.",
+  "id": "claim.law.FR_volatile-local-is-the-counter-form-for-a-target-stfs-lfs-roundtrip.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T23:00:27Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/gauntworld",
+  "valid_from": "2026-09-01",
+  "value": "When the target performs a `stfs <local>; lfs <local>` memory round-trip on a computed float that our build keeps entirely in a register, the counter-form is to VOLATILE-QUALIFY the existing named temporary, not to remove it. Measured on fn_800606FC's two Newton-refinement reciprocal-sqrt sites: `f32 root;` -> `volatile f32 root;` emitted the target's stfs+lfs pair at both sites, closing clusters T[884:886] and T[1972:1974], dropping the cluster census 37 -> 33 and the opcode multiset 16t -> 10t, and moving fuzzy 97.2557% -> 97.4295% (the hoist commit then took it to 97.5196%). This is the counter-form that claim.law.store-placement-family.20260829.v1 explicitly lacked for its 'two-phase idiom' entry. IMPORTANT DIRECTIONAL WARNING, both halves measured on the same function: the OPPOSITE edit is a large regression \u2014 attempt.fn-800606fc.20260830.v2 removed the `root` temporary and assigned the Newton result straight back into `d2`, costing +158 real, so the two-step `root`/`d2` form is load-bearing and volatile is an ADDITION to it, never a replacement. EXPECT A METRIC CONFLICT and arbitrate it deliberately: adding the round-trip raises `real` and defake_gate's 'genuine structural rows' (here 1354 -> 1356 and 71 -> 75) while lowering the opcode multiset and raising fuzzy, because the newly emitted stores land at our stack offsets and colour downstream registers. The tiebreaker that justifies the keep is reachability, not score: a state that omits instructions the target contains cannot become byte-exact, so the volatile form is on the path and the register-clean form is a local optimum off it."
+}
