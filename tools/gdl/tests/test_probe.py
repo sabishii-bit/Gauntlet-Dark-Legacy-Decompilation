@@ -15,7 +15,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from probe import (annotate_neutral, classify, count_distance,
-                   function_span, scoped_revert, split_lines, strip_noncode)
+                   function_span, scaffold_rows, scoped_revert, split_lines,
+                   strip_noncode)
 
 
 TU = """\
@@ -190,6 +191,28 @@ class AnnotateNeutralTests(unittest.TestCase):
         self.assertTrue(out.startswith("NEUTRAL-WORSE"), out)
         self.assertIn("count distance 0 -> 6", out)
         self.assertIn("multiset 2t -> 6t", out)
+
+
+class ScaffoldCensusTests(unittest.TestCase):
+    SCAFFOLD = "\n".join(
+        ["#pragma opt_propagation off"]
+        + [f"    volatile int v{i};" for i in range(24)]
+        + ["#pragma force_active on", "int plain = 0;"])
+
+    def test_finds_pragmas_and_volatiles_but_not_force_active(self):
+        rows = scaffold_rows(self.SCAFFOLD)
+        self.assertEqual(len(rows), 25)
+        self.assertTrue(any("opt_propagation" in r for r in rows))
+        self.assertFalse(any("force_active" in r for r in rows))
+        self.assertFalse(any("plain" in r for r in rows))
+
+    def test_rows_are_line_numbered_from_one(self):
+        rows = scaffold_rows(self.SCAFFOLD)
+        self.assertTrue(rows[0].startswith("  L1: "))
+
+    def test_more_rows_exist_than_the_twenty_row_head(self):
+        """The cap is why --scaffold-all had to exist."""
+        self.assertGreater(len(scaffold_rows(self.SCAFFOLD)), 20)
 
 
 class SplitLinesTests(unittest.TestCase):

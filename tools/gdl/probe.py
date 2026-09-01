@@ -40,6 +40,11 @@ docstring omitted it — the flags below all work):
   --discard          restore the TU to HEAD (the neutral-edit undo)
   --revert-baseline  restore the SESSION's first banked baseline
   --no-bank          score without banking (diagnostic probes)
+  --scaffold         print the pragma/volatile scaffold census on ANY
+                     probe, not only a BASELINE
+  --scaffold-all     print EVERY scaffold row (the census is otherwise
+                     capped at 20, and a TU whose scaffold runs past the
+                     cut could not be audited from the loop at all)
 
 Two semantics every worker must know before trusting --revert as an undo:
 (1) NEUTRAL probes BANK TOO (they may be verified-neutral work worth
@@ -521,6 +526,45 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
     return verdict, state
 
 
+SCAFFOLD_RE = re.compile(r"#pragma\s+(?!force_active)"
+                         r"|(^|[^\w])volatile[^\w]")
+SCAFFOLD_HEAD = 20
+
+
+def scaffold_rows(text):
+    """Line-numbered pragma/volatile scaffold rows for a TU."""
+    return [f"  L{i + 1}: {line.strip()[:70]}"
+            for i, line in enumerate(text.splitlines())
+            if SCAFFOLD_RE.search(line)]
+
+
+def print_scaffold_census(source, full=False):
+    """Pragmas and volatile qualifiers go STALE and nothing in the loop
+    re-audits them — two of four scaffold items in one function were
+    stale in a single session, worth a third of its total gap.
+
+    The list was truncated at 20 rows with no way to see the rest, so a
+    TU whose scaffold ran past the cut could not be audited from the
+    loop at all: --scaffold-all prints every row, --scaffold asks for
+    the census on a probe that is not a BASELINE.
+    """
+    try:
+        text = Path(source).read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return
+    rows = scaffold_rows(text)
+    if not rows:
+        return
+    print(f"[scaffold census ({len(rows)} file-wide rows — re-audit each:"
+          " is its original premise still live?)]")
+    shown = rows if full else rows[:SCAFFOLD_HEAD]
+    for row in shown:
+        print(row)
+    if len(rows) > len(shown):
+        print(f"  ... and {len(rows) - len(shown)} more — rerun with"
+              " --scaffold-all to list every row")
+
+
 def fuzzy_readout(unit, fn, fn_stripped, state, state_file):
     """Build the report and print this function's fresh objdiff fuzzy.
 
@@ -829,28 +873,10 @@ def main():
     state_file.write_text(json.dumps(state), encoding="utf-8")
     print(verdict)
 
-    if verdict.startswith("BASELINE") and source is not None:
-        # Scaffold census: pragmas and volatile qualifiers go STALE and
-        # nothing in the loop re-audits them — two of four scaffold items
-        # in one function were stale in a single session, worth a third
-        # of its total gap. File-wide, line-numbered, one line each.
-        try:
-            lines = Path(source).read_text(
-                encoding="utf-8", errors="replace").splitlines()
-            rows = [f"  L{i+1}: {ln.strip()[:70]}"
-                    for i, ln in enumerate(lines)
-                    if re.search(r"#pragma\s+(?!force_active)"
-                                 r"|(^|[^\w])volatile[^\w]", ln)]
-            if rows:
-                print(f"[scaffold census ({len(rows)} file-wide rows —"
-                      " re-audit each: is its original premise still"
-                      " live?)]")
-                for row in rows[:20]:
-                    print(row)
-                if len(rows) > 20:
-                    print(f"  ... and {len(rows) - 20} more")
-        except Exception:
-            pass
+    want_scaffold = ("--scaffold" in sys.argv or "--scaffold-all" in sys.argv
+                     or verdict.startswith("BASELINE"))
+    if want_scaffold and source is not None:
+        print_scaffold_census(source, full="--scaffold-all" in sys.argv)
 
     # Bank a revert point whenever this source state scores at the
     # high-water mark. NEUTRAL banks too: a verified-neutral state (the
