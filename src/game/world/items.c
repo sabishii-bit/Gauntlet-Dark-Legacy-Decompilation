@@ -2182,11 +2182,11 @@ void SetItemGeo(Item* item, void* atree_header, char* name, u32 flags)
 s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
                      s32 value)
 {
+    s32 trigger_type = (u8)type;
     ItemRuntime* runtime = &sItemRuntime;
     u8* target = target_ptr;
     WorldObj* wtarget = (WorldObj*)target_ptr;
     char* strings = (char*)&sObjectsFile;
-    s32 trigger_type = (u8)type;
     f32 x = (f32)(0.1 * (f32)x_grid);
     f32 z = (f32)(0.1 * (f32)z_grid);
     s32 i;
