@@ -562,6 +562,26 @@ static inline void MovieReleaseAlloc(void* p) {
     }
 }
 
+/* Same body, but carrying the empty exception specification, for the release
+ * sites whose CALLER has no throw() of its own.  This models the inlined global
+ * `operator delete` (which does carry throw()): each inlined copy contributes
+ * one __unexpected island, which is what those callers' targets show.  It has to
+ * be a separate helper rather than a throw() on MovieReleaseAlloc above, because
+ * that one is inlined into fn_800D8784, whose own throw() already supplies its
+ * single island -- adding a second spec there emits a spurious second island.
+ * It also cannot simply be `::operator delete`: that operator's out-of-line body
+ * is defined further down (its .text slot is fixed by the target's function
+ * order), and MWCC only inlines an operator it has already seen, so at these
+ * earlier call sites the call would degrade to `bl __dl__FPv`. */
+static inline void MovieReleaseAllocEH(void* p) throw() {
+    if (p != NULL) {
+        gMovieAllocCount--;
+        if (gMovieAllocCount == 0) {
+            ResetAllocTot();
+        }
+    }
+}
+
 s32 fn_800D8784(MovieDecodeState* state) throw() {
     void* chunk = (void*)state->chunk;
 
@@ -1381,21 +1401,21 @@ int fn_800D9C34(MovieRingBuffer* p) {
 }
 #pragma dont_inline off
 
-#pragma dont_inline on
-void fn_800D9C5C(MovieRingBuffer* p, int n) {
-    if (p->buffer != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
+/* C++ region for the same reason as fn_800DBA80: the buffer release is a real
+ * `operator delete`, whose inlined body brings the empty-exception-specification
+ * __unexpected island the hand-written C form cannot produce. */
+#pragma cplusplus on
+extern "C" void fn_800D9C5C(MovieRingBuffer* p, int n) {
+    u8 unused[8]; /* unrecovered local: closes the frame to the target's 72 */
+
+    MovieReleaseAllocEH(p->buffer);
     p->buffer = 0;
     p->size = n;
     p->buffer = (u8*)AllocHiMem(p->size, (u32)gMovieAllocCount++);
     p->readPos = 0;
     p->writePos = 0;
 }
-#pragma dont_inline off
+#pragma cplusplus off
 
 /* Kept out-of-line: the target calls this from dtor_800DBB94 (`addi r3,r28,60`
  * / `li r4,-1` / `bl`), and it is that destructor's only call site, so
@@ -2562,6 +2582,11 @@ void fn_800DB82C(MovieChunkStream* param_1, int param_2, u32 param_3) {
     param_1->_4C = 0;
 }
 
+/* dont_inline here rather than on fn_800D9C5C itself: this is that function's
+ * only call site, and the target calls it out of line.  Suppressing the inliner
+ * from the CALLER side keeps that call while leaving fn_800D9C5C's own region
+ * free to inline the release helper it needs for its __unexpected island. */
+#pragma dont_inline on
 u8 MovieDecoderInitBuffers(MovieChunkStream* param_1, u32 param_2, u32 param_3) {
     int iVar3;
     int iVar4;
@@ -2604,6 +2629,7 @@ u8 MovieDecoderInitBuffers(MovieChunkStream* param_1, u32 param_2, u32 param_3) 
     *(u32*)(param_1->nodePoolRaw + iVar4 * 0x28) = 0;
     return param_1->buffer != 0;
 }
+#pragma dont_inline off
 
 /* Parsed as C++ so the three buffer releases are real `operator delete` calls.
  * The target inlines that operator's body at each site, and because the operator
