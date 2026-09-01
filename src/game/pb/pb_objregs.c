@@ -940,7 +940,7 @@ void sDrawGeom(u32* data, f32* mtx, u8* s, u32 flags)
             nrm[3] = zero;
             kick = ((nv >> 15) & 1) != 0;
             if (uv2Ptr != 0) {
-                u16 v2 = pbSwap16(*(u16*)uv2Ptr);
+                u32 v2 = pbSwap16(*(u16*)uv2Ptr);
                 uv2Ptr += 2;
                 uv2[0] = (f32)((v2 & 0x1F) << 3);
                 uv2[1] = (f32)((v2 >> 2) & 0xF8);
