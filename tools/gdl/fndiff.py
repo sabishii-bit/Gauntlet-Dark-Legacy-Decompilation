@@ -399,6 +399,25 @@ def relocation_signature(line):
     return reloc_type, symbol
 
 
+def relocation_symbols(objfile: Path):
+    """{fn: [(reloc_type, symbol_text), ...]} in instruction order.
+
+    RAW symbol text, deliberately NOT put through relocation_signature:
+    the caller (defake_gate's NAMING-DRIFT check) has to decide whether
+    two spellings denote one datum by RESOLVING them, and a normalizer
+    that collapses them first destroys exactly that evidence.
+    """
+    out = {}
+    for name, lines in parse(objfile).items():
+        rows = []
+        for line in lines:
+            if line.startswith("    "):
+                parts = line.strip().split(maxsplit=1)
+                rows.append((parts[0], parts[1] if len(parts) > 1 else ""))
+        out[name] = rows
+    return out
+
+
 def relocation_signatures(lines):
     """Relocations in instruction order, retaining semantically relevant targets."""
     result = []

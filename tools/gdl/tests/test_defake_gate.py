@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from defake_gate import (arbitrate_regressions, compare, load_baseline,
-                         read_report_fuzzy)
+                         naming_drift_is_benign, read_report_fuzzy)
 
 
 def no_ops(_unit, _name):
@@ -187,6 +187,98 @@ class ReportFuzzyReadTests(unittest.TestCase):
     def test_missing_report_is_not_fatal(self):
         self.assertEqual(
             read_report_fuzzy("game/sys/memcard", Path("no/such.json")), {})
+
+
+class NamingDriftSoundnessTests(unittest.TestCase):
+    """run-31 item 12, per claim.law.HV_defake-gate-naming-drift-is-a-false-
+    benign-on-a-wrong-callee.20260901.v1.
+
+    In an UNLINKED object a REL24 `bl` word carries no target — the callee
+    lives entirely in the relocation symbol. So "instruction words
+    unchanged" is trivially true for ANY callee substitution, and the gate
+    called a genuine wrong-callee bug (gamemain fn_80054E78 +0x28c binding
+    fn_8009FCA8 where the target binds DoAudioTallySFX, two distinct
+    functions at 0x8009FCA8 and 0x8009FB84) a benign NAMING-DRIFT.
+
+    Sound rule: benign only if both names resolve to the SAME ADDRESS.
+    """
+
+    ADDRESSES = {
+        "fn_8009FCA8": 0x8009FCA8,
+        "DoAudioTallySFX": 0x8009FB84,
+        "get_attn_pos": 0x8002C9A8,
+        "get_attn_pos_8002C9A8": 0x8002C9A8,
+    }
+
+    def resolve(self, symbol):
+        return self.ADDRESSES.get(symbol)
+
+    def benign(self, base, cur):
+        return naming_drift_is_benign(base, cur, resolve=self.resolve)
+
+    def test_the_measured_wrong_callee_is_NOT_benign(self):
+        ok, why = self.benign([["R_PPC_REL24", "DoAudioTallySFX"]],
+                              [["R_PPC_REL24", "fn_8009FCA8"]])
+        self.assertFalse(ok)
+        self.assertIn("DoAudioTallySFX", why)
+        self.assertIn("fn_8009FCA8", why)
+
+    def test_the_address_suffix_convention_stays_benign(self):
+        """The real class the heuristic was built for: one datum, two
+        spellings, same address."""
+        ok, _why = self.benign([["R_PPC_REL24", "get_attn_pos_8002C9A8"]],
+                               [["R_PPC_REL24", "get_attn_pos"]])
+        self.assertTrue(ok)
+
+    def test_an_unresolvable_symbol_fails_closed(self):
+        ok, why = self.benign([["R_PPC_REL24", "get_attn_pos"]],
+                              [["R_PPC_REL24", "mysteryFn"]])
+        self.assertFalse(ok)
+        self.assertIn("does not resolve", why)
+
+    def test_a_changed_relocation_TYPE_is_never_benign(self):
+        ok, why = self.benign([["R_PPC_ADDR16_HA", "get_attn_pos"]],
+                              [["R_PPC_REL24", "get_attn_pos"]])
+        self.assertFalse(ok)
+        self.assertIn("type", why)
+
+    def test_a_different_relocation_COUNT_is_never_benign(self):
+        ok, why = self.benign([["R_PPC_REL24", "get_attn_pos"]], [])
+        self.assertFalse(ok)
+        self.assertIn("count", why)
+
+    def test_a_legacy_baseline_without_relocation_symbols_fails_closed(self):
+        ok, why = self.benign(None, [["R_PPC_REL24", "get_attn_pos"]])
+        self.assertFalse(ok)
+        self.assertIn("re-take", why)
+
+    def test_identical_symbols_are_benign(self):
+        rows = [["R_PPC_REL24", "get_attn_pos"]]
+        self.assertTrue(self.benign(rows, list(rows))[0])
+
+
+class NamingDriftInCompareTests(unittest.TestCase):
+    """The verdict wiring: the same two cases through compare()."""
+
+    def rows(self, symbol):
+        return {"status": "STRUCTURAL", "real": 0, "bytes": symbol,
+                "words": "same-words", "relocs": [["R_PPC_REL24", symbol]]}
+
+    def resolve(self, symbol):
+        return NamingDriftSoundnessTests.ADDRESSES.get(symbol)
+
+    def test_a_wrong_callee_is_a_REGRESSION_not_NAMING_DRIFT(self):
+        verdicts = compare({"f": self.rows("DoAudioTallySFX")},
+                           {"f": self.rows("fn_8009FCA8")},
+                           resolve=self.resolve)
+        self.assertEqual(verdicts[0][1], "REGRESSION")
+        self.assertIn("relocation symbol", verdicts[0][2])
+
+    def test_a_true_rename_is_still_NAMING_DRIFT(self):
+        verdicts = compare({"f": self.rows("get_attn_pos_8002C9A8")},
+                           {"f": self.rows("get_attn_pos")},
+                           resolve=self.resolve)
+        self.assertEqual(verdicts[0][1], "NAMING-DRIFT")
 
 
 class BaselineFormatTests(unittest.TestCase):

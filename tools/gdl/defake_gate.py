@@ -143,7 +143,79 @@ def snapshot(classify_text, count_text):
     return merged
 
 
-def compare(baseline, current, renames=None):
+_SYMBOL_TEXT_RE = re.compile(
+    r"([A-Za-z_@.$][\w.$@]*)([+-]0x[0-9a-fA-F]+|[+-]\d+)?$")
+
+
+def resolve_symbol(symbol):
+    """Absolute address for a relocation symbol text, or None.
+
+    fndiff.symbol_addresses() already registers the dtk `_80XXXXXX`
+    address-suffix aliases, which is exactly the benign naming convention
+    (`get_attn_pos` vs `get_attn_pos_8002C9A8`) this check must keep
+    passing.
+    """
+    head = _SYMBOL_TEXT_RE.match((symbol or "").strip())
+    if not head:
+        return None
+    base = fndiff.symbol_addresses().get(head.group(1))
+    if base is None:
+        return None
+    try:
+        return base + int(head.group(2) or "0", 0)
+    except ValueError:
+        return None
+
+
+def naming_drift_is_benign(base_relocs, cur_relocs, resolve=None):
+    """(benign, reason) for a relocation-symbol-only change.
+
+    UNSOUND PREDECESSOR (claim.law.HV_defake-gate-naming-drift-is-a-false-
+    benign-on-a-wrong-callee.20260901.v1): the gate called a change benign
+    whenever the instruction WORDS were unchanged. In an unlinked object a
+    REL24 `bl` word carries no target at all — the callee lives entirely in
+    the relocation symbol — so that test is trivially true for ANY callee
+    substitution. It passed a real wrong-callee bug in both directions:
+    it would not have caught the bug going in, and it called the fix
+    cosmetic.
+
+    The distinguishing evidence is cheap and already on disk: a symbol
+    change is benign only if both names RESOLVE TO THE SAME ADDRESS in
+    config/GUNE5D/symbols.txt. Anything else — a differing address, an
+    unresolvable name, a changed relocation type or count, or a baseline
+    too old to carry the symbols — fails closed.
+    """
+    resolve = resolve or resolve_symbol
+    if base_relocs is None or cur_relocs is None:
+        return False, ("this baseline carries no relocation symbols (taken"
+                       " before the wrong-callee fix), so a symbol change"
+                       " cannot be proved benign — re-take the baseline")
+    if len(base_relocs) != len(cur_relocs):
+        return False, (f"relocation count {len(base_relocs)} ->"
+                       f" {len(cur_relocs)}: a relocation was added or"
+                       " removed, which is never a rename")
+    for (base_type, base_sym), (cur_type, cur_sym) in zip(
+            base_relocs, cur_relocs):
+        if base_type != cur_type:
+            return False, (f"relocation type {base_type} -> {cur_type} on"
+                           f" {base_sym!r}: not a rename")
+        if base_sym == cur_sym:
+            continue
+        base_at, cur_at = resolve(base_sym), resolve(cur_sym)
+        if base_at is None or cur_at is None:
+            unknown = base_sym if base_at is None else cur_sym
+            return False, (f"relocation symbol {base_sym!r} -> {cur_sym!r}:"
+                           f" {unknown!r} does not resolve in symbols.txt,"
+                           " so identity cannot be established")
+        if base_at != cur_at:
+            return False, (f"relocation symbol {base_sym!r} (0x{base_at:08X})"
+                           f" -> {cur_sym!r} (0x{cur_at:08X}) — DIFFERENT"
+                           " addresses, i.e. a different callee/datum, not a"
+                           " rename; this is a semantic change")
+    return True, "every changed relocation symbol resolves to one address"
+
+
+def compare(baseline, current, renames=None, resolve=None):
     """Verdicts per function; regression = matched fell or real grew.
 
     ``renames`` maps old baseline names to new current names (--rename
@@ -175,12 +247,26 @@ def compare(baseline, current, renames=None):
             # before this classification existed.
             if (base.get("words") and cur.get("words")
                     and base["words"] == cur["words"]):
-                verdicts.append(
-                    (name, "NAMING-DRIFT",
-                     "reloc lines renamed, instruction words + resolved"
-                     " addresses unchanged — benign; re-baseline with"
-                     " --update-improved when done")
-                )
+                # Unchanged instruction words do NOT prove a rename: a
+                # REL24 `bl` carries no target in an unlinked object. The
+                # symbols must resolve to ONE address.
+                ok, why = naming_drift_is_benign(
+                    base.get("relocs"), cur.get("relocs"), resolve=resolve)
+                if ok:
+                    verdicts.append(
+                        (name, "NAMING-DRIFT",
+                         f"reloc lines renamed, instruction words unchanged"
+                         f" and {why} — benign; re-baseline with"
+                         " --update-improved when done")
+                    )
+                else:
+                    verdicts.append(
+                        (name, "REGRESSION",
+                         f"relocation symbols changed at unchanged"
+                         f" instruction words — {why}. A REL24 callee lives"
+                         " ENTIRELY in its relocation, so 'words unchanged'"
+                         " proves nothing here")
+                    )
                 continue
             verdicts.append(
                 (name, "REGRESSION",
@@ -635,6 +721,12 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         for name, digest in fndiff.opcode_multiset_signature(objfile).items():
             if name in snap:
                 snap[name]["opset"] = digest
+        # Relocation SYMBOLS, kept as names rather than a hash: the
+        # NAMING-DRIFT check has to resolve two spellings to addresses to
+        # tell a rename from a different callee, and a hash cannot.
+        for name, rows in fndiff.relocation_symbols(objfile).items():
+            if name in snap:
+                snap[name]["relocs"] = [list(row) for row in rows]
     # Genuine structural rows for every function `real` calls imperfect —
     # the structure arbiter's baseline half. Byte-exact rows can never be
     # disputed, so they are skipped and the count stays cheap.
