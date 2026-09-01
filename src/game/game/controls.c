@@ -1577,9 +1577,7 @@ void InitJoyAng(void)
     if (var != 0 && (old & (bit)) == 0) {             \
         hit = 1;                                      \
     }                                                 \
-    if (!hit) {                                       \
-        var = 0;                                      \
-    }
+    var = hit ? var : 0;
 
 /* 0x800330D4  edge/repeat-edge computation (Xbox name: PlayerControls):
  * consume ReadControls' staged levels ("updated" flag), map scheme turbo
