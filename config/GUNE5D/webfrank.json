@@ -390,6 +390,54 @@
       }
     ],
     "game/enemy/critter": [
+    {
+      "function": "CritterLineRootColSub",
+      "before_sha256": "a67792e802cc08319d9e4d7cb7b9f555740bde663620293e7a0e888fa6af7746",
+      "after_sha256": "b6e19382237934e8be20e87042d1a2b05b6a70ff84338ad83ecdb2663adda62b",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - the widest window this lane shipped and the strongest test of order selection. 174/174, real 42. Permute [0x18,0x40) -- TEN atoms -- order [2,4,0,1,5,7,3,9,6,8], a full entry-block rescheduling, then three `unconditional` copy-form sites at +0x38/+0x3c/+0x40 (copy->copy with MATCHING destination and source, so the re-encode carries no dataflow obligation at all), then copy_register_fields under a proven bisimulation. The copy->copy arrow is the one ch_census26.classify OMITS, and claim.law.HB_two-censuses-...v1 records that an omitted arrow MIS-TIERS rather than merely miscounting -- this function is a live instance: its three form sites were filed under `other`, which is the quantity every tier decision is computed from. Order was selected by running every shape- and relocation-consistent bijection through check_permutation_dependences, copy_register_fields AND verify_consistent_recolor and accepting only one that passes all three. real 42 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 174,
+        "permuted_instructions": 10
+      },
+      "instruction_permutation": [
+        {
+          "start": "0x18",
+          "end": "0x40",
+          "order": [
+            2,
+            4,
+            0,
+            1,
+            5,
+            7,
+            3,
+            9,
+            6,
+            8
+          ],
+          "before_sha256": "33a00c71ca967a325f7956bd507293c7bbef81d782f66407339d3d48cdb94b91",
+          "after_sha256": "0847ef33eaea79a0ebe6b1ebe87b8412fece91b108e6f98735436c21a7cf3084",
+          "before_relocations_sha256": "344a8db891a143638f45aacb0bbe7df0681e35400ca58bdb0874b04ea5bf4d0d",
+          "after_relocations_sha256": "4a18d29b0e1816a07432960f601b14465a4dfe5d443f3098129249f72f354216"
+        }
+      ],
+      "equivalent_copy_form": [
+        {
+          "at": "0x38",
+          "proof": "unconditional"
+        },
+        {
+          "at": "0x3c",
+          "proof": "unconditional"
+        },
+        {
+          "at": "0x40",
+          "proof": "unconditional"
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "CritterResolveMultipleTargets",
         "before_sha256": "aa900ce7a9017394126cce19298bc130850f5356d20f7ac4f45f71c138a108cb",
