@@ -380,6 +380,23 @@
           "instructions": 463
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "ProcessCritter",
+        "before_sha256": "e8f2375f1b2db9eb16aef8090a2bb8173026f5da57f5d27b1a6f6f694512742d",
+        "after_sha256": "a3506d1fb60adecbcc60d5743f5b23c6a2fd33299eee7d0b8bfb35ac49bd9dda",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 420
+        },
+        "mechanism": "attempt.CN_census-rerun-four-closures.20260901.v1 - the whole 420-instruction residual is THREE words, one form site and a two-word recolor, and NO permutation stage is needed (the census search's first admissible order was the identity, which is why none is configured: an identity instruction_permutation would pin a region hash for a mechanism that does not exist). FORM at +0xb4: our `li r30,0` against the target's `mr r30,r29`. The destination already agrees, so this is a pure form change and not a disguised recolor, and it is DIRECTIONAL the way equivalent_copy_form requires - ours is the `li`, the target is the copy. The `dominating_def` scan discharges it against `li r29,0` at +0xac, two straight-line words back with no interposed call and no branch target, so the weaker across-calls mode is NOT requested. THIS SITE IS THE RECORDED SUBJECT of claim.law.zero-remat-choice-differs-between-identical-sibling-loops.20260831.v1, which was verified in this very function: ProcessCritter's two hit-node scan loops are textually identical in source yet the target emits the COPY form in one and the rematerialized `li` in the other, so no source spelling separates them and the postprocessor path is the honest close. RECOLOR, two words: +0x4dc `addi r30,r3,52` and +0x528 `lfs f0,0(r30)` against the target's r29 in both - one short callee-saved web coloured r30 by us and r29 by the target, a direct knock-on of the form site's source register. Machine-proven by the position-lockstep renaming bisimulation (verify_consistent_recolor) with NO unproven_recolor_audit escape. src/game/enemy/critter.c is byte-unchanged.",
+        "equivalent_copy_form": [
+          {
+            "at": "0xb4",
+            "proof": "dominating_def"
+          }
+        ],
+        "copy_register_fields": true
       }
     ],
     "game/enemy/enemy": [
@@ -574,6 +591,32 @@
           "after_relocations_sha256": "0c75666700f016bbaa68bb7c87339c848a5c00c9647021159417806260632246"
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "MemCardCreateGaunt",
+        "before_sha256": "a358a786fd88c6154ff01f75bf623de6eb9d80e34bef498011a9e55742ab9450",
+        "after_sha256": "0f78a7ce096749a6e579fb1dbcc735b8c5b9927236988fc65756a38bec54e971",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 106,
+          "permuted_instructions": 5
+        },
+        "mechanism": "attempt.CN_memcardcreategaunt-composed-close.20260901.v1 - a composed permute+copy-form rule closing the whole 106/106 residual (5 differing words, all in one prologue window) with NO recolor stage. PERMUTATION over [0x24,0x38), order [3,0,1,4,2]: the window computes the save-slot address as `mulli r0,r27,132` / `add r3,r3,r4` / `add r28,r3,r0` and seeds two zero locals `li r29,0` / `li r31,0`. Our build emits the whole address computation first and both seeds after; the target hoists the r29 seed ahead of everything and sinks the final `add r28,r3,r0` past the r31 seed. The only def-use edges inside the window are atom0(r0)->atom2 and atom1(r3)->atom2, plus the entry reads of r27, r3 and r4; the chosen order preserves every one of them and every final write, so check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None and no escape invoked. RELOCATION BINDING per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1: the window carries NO relocation on either side (nearest are the ADDR16_LO at +0x22 before it and the EMB_SDA21 at +0x4a after it), so both region relocation hashes are the empty-payload hash and no atom-to-symbol binding question arises. Checked, not assumed. FORM, one li-vs-copy site: after the permutation +0x30 holds our `li r31,0` against the target's `addi r31,r29,0`. The destination already agrees, so this is a pure form change and not a disguised recolor, and the `dominating_def` scan discharges it against the `li r29,0` the permutation places at +0x24 - three straight-line arithmetic words back, no interposed call and no branch target, so the weaker across-calls mode is NOT requested. The choice is an allocator one with no source lever per claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1; src/game/sys/memcard.c is byte-unchanged. After the two stages the function is byte-identical to the target, so no register stage is configured.",
+        "instruction_permutation": {
+          "start": "0x24",
+          "end": "0x38",
+          "order": [3, 0, 1, 4, 2],
+          "before_sha256": "6c7b1a0a398eece08d154e1290cfcbbaea26067545f6fa40fba97f49e682faac",
+          "after_sha256": "5538a59ac4452e1e43d57ef8eb3923120e17fc28b864b6b5376be068a9ca59aa",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x30",
+            "proof": "dominating_def"
+          }
+        ]
       }
     ],
     "game/world/newcam": [
@@ -1048,6 +1091,38 @@
         "copy_register_fields": true
       }
     ],
+    "game/audio/dcs": [
+      {
+        "function": "dcsSampleAllocUpload",
+        "before_sha256": "a46a62394379603232ffa4d7bf66dee5ae3477acfdd3f7acd0b352b5824ac385",
+        "after_sha256": "cf4826455a8885be7e97c05ab9c23967731adf8df72a8fcd1be0683cee9ccd9b",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 74,
+          "permuted_instructions": 7
+        },
+        "mechanism": "attempt.CN_dcssampleallocupload-composed-close.20260901.v1 - a composed permute+copy-form rule that closes the whole 74/74 residual (7 differing words, ALL inside one prologue window) with NO recolor stage. REFUTES the STRUCTURAL label in attempt.mp-label-correction.dcssampleallocupload.20260831.v1, which was a label-only park with no source probe; a permutation plus two value-equivalent form rewrites reproducing the target bytes exactly is the constructive disproof. NOTE ON TU: the HV census and this lane's work claim both place this function in game/audio/dcsdrv; it is in fact in game/audio/dcs.c (splits .text 0x800D1E04-0x800D4308 covers 0x800D374C), which is why this is a new unit key. PERMUTATION over [0x10,0x2c), order [4,0,1,5,6,2,3]: our prologue homes the parameter and forms the ch_info address first and seeds the three zero accumulators last; the target interleaves them, emitting `li r26,0` first, then the parameter home and the address high half, then the two dependent zero seeds, then the two address-derived addi. The seven atoms are `addi r30,r3,0`, `lis r3,HA`, `addi r31,r30,16`, `addi r28,r3,LO`, `li r26,0`, `li r27,0`, `li r29,0`; the only def-use edges among them are r3(entry)->atom0, atom0(r30)->atom2 and atom1(r3)->atom3, and the chosen order preserves all three plus every final write, so check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None and no escape. RELOCATION BINDING, the obligation of the deriving agent per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1: this window carries TWO relocations that both name ch_info, so the payload multiset check cannot distinguish them and binding was established explicitly by (type, symbol). The ADDR16_HA half rides atom 1 from +0x16 to +0x1a and the ADDR16_LO half rides atom 3 from +0x1e to +0x2a; both destinations were confirmed against the target object's own relocation at that offset (type 6 at 26, type 4 at 42). Because the two halves differ in TYPE they could not have been exchanged undetected here, but the check was run rather than assumed. FORM, two li-vs-copy sites, both sourced from the single `li r26,0` seed the permutation moves to +0x10: +0x1c target `addi r27,r26,0` vs our `li r27,0`, and +0x20 target `addi r29,r26,0` vs our `li r29,0`. Both destinations already agree (r27, r29), so each is a pure form change and never a disguised recolor, and both are discharged by the plain local `dominating_def` scan against the seed at +0x10 - straight-line, no interposed call, no branch target, so the weaker across-calls mode is NOT requested. All three sites are allocator choices with no source lever per claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1; src/game/audio/dcs.c is byte-unchanged. After the two stages the function is byte-identical to the target, so no register stage is configured at all.",
+        "instruction_permutation": {
+          "start": "0x10",
+          "end": "0x2c",
+          "order": [4, 0, 1, 5, 6, 2, 3],
+          "before_sha256": "87151c066ab5b3863b2151852dc0104dcb79df20789e8f8dd8e6aced63706a06",
+          "after_sha256": "57e291f7d842a0dc8f590daadb48be63e53679b16d27b3628824ca066543d447",
+          "before_relocations_sha256": "e7b6d18919985a7a4edfe01d90815a0bd4674726950238eff0092c4f104a611a",
+          "after_relocations_sha256": "eb33b18f2502adc015fb0704ebfdf188bc79d423e3c3046c9698c59016d0ad9e"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x1c",
+            "proof": "dominating_def"
+          },
+          {
+            "at": "0x20",
+            "proof": "dominating_def"
+          }
+        ]
+      }
+    ],
     "game/audio/mempool": [
       {
         "function": "pool_garbage_collect",
@@ -1171,6 +1246,32 @@
           "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
           "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         }
+      },
+      {
+        "function": "do_camera",
+        "before_sha256": "2ccc43b69f26931609ec4fdbf3e9474572c3daca4aa64d585b75261bcd9b2f34",
+        "after_sha256": "fddebb42f29d28d2336db6950b4fa01abc8f68ea23d11706ccb3ede1d6bcdc93",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 247,
+          "permuted_instructions": 3
+        },
+        "mechanism": "attempt.CN_do-camera-composed-close.20260901.v1 - a composed permute+copy-form rule closing the whole 247/247 residual (3 differing words in one window) with NO recolor stage. It also discharges the 2026-08-25 P-class park attempt.do-camera-three-atom-init-tie-rescreen.20260831.v1, whose own diagnosis named the residual exactly right - a live-zero rematerialization tangled with a three-atom address/init rotation - and correctly concluded that no source spelling separates the two; the postprocessor path is the honest close for it. PERMUTATION over [0x1d8,0x1e4), order [1,2,0]: the three atoms are `addi r29,r31,200` (forming the camera-state sub-object pointer), `li r28,0` and `li r27,0`. Our build forms the pointer first and seeds the two counters after; the target seeds r28 first, derives r27 from it, and forms the pointer last. The atoms are mutually independent - the addi reads only r31, which none of them writes, and the three destinations r29/r28/r27 are distinct, so there is no RAW, WAR or WAW hazard - and all three are memory-free and non-control, so check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None and no escape invoked. RELOCATION BINDING per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1: the window carries NO relocation on either side (the nearest are the EMB_SDA21 pair at +0x1cc/+0x1d4 immediately before it and the next at +0x1f0), so both region relocation hashes are the empty-payload hash and no atom-to-symbol binding question arises. Checked, not assumed. Note that this function's relocation TABLE differs from the target's in two ways that are not code differences and do not touch this window: our compiler-generated pool labels are spelled @16/@155-@158 against the extracted target's lbl_80345EB0 etc., and our EMB_SDA21 entries are recorded at word+2 where the target records them at word+0 (claim.law.HV_emb-sda21-relocation-offset-differs-between-our-objects-and-the-target). FORM, one li-vs-copy site: after the permutation +0x1dc holds our `li r27,0` against the target's `addi r27,r28,0`. The destination already agrees, so this is a pure form change and not a disguised recolor, and the `dominating_def` scan discharges it against the `li r28,0` the permutation places at the IMMEDIATELY preceding word +0x1d8 - the cheapest possible obligation, no interposed call and no branch target, so the weaker across-calls mode is NOT requested. src/game/world/camera.c is byte-unchanged, so camera_mode_level and every other function in the TU stays available to a future lane. After the two stages the function is byte-identical to the target, so no register stage is configured.",
+        "instruction_permutation": {
+          "start": "0x1d8",
+          "end": "0x1e4",
+          "order": [1, 2, 0],
+          "before_sha256": "966f82d155ffa1f44075a1b11de0711c99340292e48169c558eb05e96ea9230b",
+          "after_sha256": "659fae71d4dece696490455653c8372f0e870bb686440d97108b74445a2cb142",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x1dc",
+            "proof": "dominating_def"
+          }
+        ]
       }
     ],
     "game/ui/message": [
@@ -1313,6 +1414,73 @@
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 301
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/ui/options": [
+      {
+        "function": "next_boss_hint",
+        "before_sha256": "e08fe4b17f3ee4391617591ac13555e659218d8300d81090c7ccc46243dbb0e8",
+        "after_sha256": "2baebf55a677401256d11897a61ea028490c134df0b7c76fe283f5a14ff3a9e6",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 100,
+          "permuted_instructions": 7
+        },
+        "mechanism": "attempt.CN_census-rerun-four-closures.20260901.v1 - a composed permute+recolor rule closing the whole 100/100 residual (8 differing words). next_legend_hint in this same TU has a BYTE-IDENTICAL window and takes the identical order and region hashes; the two are siblings sharing one source shape, and both are shipped as separate rules because a rule is pinned per function. PERMUTATION over [0x10c,0x128), order [0,2,1,3,4,5,6] - a SINGLE TRANSPOSITION of atoms 1 and 2. The seven atoms are `add r4,r0,r4`, `lwz r0,0(r4)`, `lis r3,gPlayers@ha`, `li r4,1`, `addi r5,r3,gPlayers@lo`, `slw r6,r4,r0` and `li r3,0`; our build issues the player-record load before forming the gPlayers address, the target forms the address first. The two exchanged atoms are independent - the load reads r4 and writes r0, while the lis writes r3 and reads nothing - so there is no RAW, WAR or WAW hazard, both are non-control, and check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None and no escape invoked. RELOCATION BINDING per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1, and this window is exactly the hazard that law describes: it carries TWO relocations that BOTH name gPlayers, so the payload multiset check cannot tell them apart and the binding had to be established by the deriving agent. It was, by (type, symbol): the ADDR16_HA half rides atom 2 from +0x116 to +0x112 and the ADDR16_LO half stays with atom 4 at +0x11e, and both destinations were confirmed against the target object's own relocation at that offset (type 6 at 274, type 4 at 286). The two halves differ in TYPE, so an exchange could not have passed undetected here, but the check was run rather than assumed. RECOLOR: two transpositions of volatile registers with disjoint live ranges, r0<->r4 across the load/shift web and r5<->r6 on the gPlayers pointer, machine-proven by the position-lockstep renaming bisimulation (verify_consistent_recolor) with NO unproven_recolor_audit escape. No copy-form site is involved. src/game/ui/options.c is byte-unchanged. NOTE for a future lane: the third sibling next_rune_hint is NOT a member - every window tried refuses at step 0 with `breaks def-use chains: [(N,('g',5))]`, C1's recolor-induced-displacement class.",
+        "instruction_permutation": {
+          "start": "0x10c",
+          "end": "0x128",
+          "order": [0, 2, 1, 3, 4, 5, 6],
+          "before_sha256": "6acc4c2c06af37b5e89f1199d0192b725a60fdad8556effdfbb6d844c2bfc841",
+          "after_sha256": "207df9eec8c778ce9352d185bdfd3ca82aef0d967460aebd66f960d92ffc1d50",
+          "before_relocations_sha256": "9e7d277f3de126dc226cecb4fc4eccb872f2e18e058c200fce7c6cf83ffa3bfa",
+          "after_relocations_sha256": "e835c6741ad04d5853cb8afbc3ebcec1c57ea295193a961b3f65e1b2147d93d0"
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "next_legend_hint",
+        "before_sha256": "0b1352901851835667d7f2997efca739f44835621017d809800c4bbb9e67ff56",
+        "after_sha256": "e064c097a30c9cbf672fe21c1bd85ae4696f0451b665cb57d1e165ba68564e6f",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 100,
+          "permuted_instructions": 7
+        },
+        "mechanism": "attempt.CN_census-rerun-four-closures.20260901.v1 - the SIBLING of next_boss_hint above, and the same mechanism word for word: the permutation window [0x10c,0x128) is byte-identical between the two functions, so the order, both region content hashes and both region relocation hashes are literally the same values; only the whole-function before/after hashes differ. Read next_boss_hint's mechanism for the full derivation. In brief: a SINGLE TRANSPOSITION of atoms 1 and 2 (`lwz r0,0(r4)` and `lis r3,gPlayers@ha`), which are independent - the load reads r4 and writes r0, the lis writes r3 and reads nothing - so check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None; the two gPlayers relocation halves were bound to their target slots by (type, symbol) rather than by instruction word, per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1, and confirmed against the target object's own relocations (type 6 at 274, type 4 at 286); and the remainder is two volatile transpositions r0<->r4 and r5<->r6, machine-proven by verify_consistent_recolor with NO unproven_recolor_audit escape. That two functions this similar need two separate rules is a consequence of rules being pinned per function, not a sign either derivation was copied: both were searched, bound and proven independently through apply_patch against their own objects. src/game/ui/options.c is byte-unchanged.",
+        "instruction_permutation": {
+          "start": "0x10c",
+          "end": "0x128",
+          "order": [0, 2, 1, 3, 4, 5, 6],
+          "before_sha256": "6acc4c2c06af37b5e89f1199d0192b725a60fdad8556effdfbb6d844c2bfc841",
+          "after_sha256": "207df9eec8c778ce9352d185bdfd3ca82aef0d967460aebd66f960d92ffc1d50",
+          "before_relocations_sha256": "9e7d277f3de126dc226cecb4fc4eccb872f2e18e058c200fce7c6cf83ffa3bfa",
+          "after_relocations_sha256": "e835c6741ad04d5853cb8afbc3ebcec1c57ea295193a961b3f65e1b2147d93d0"
+        },
+        "copy_register_fields": true
+      }
+    ],
+    "game/ui/auxscreen": [
+      {
+        "function": "calc_wizard_pos",
+        "before_sha256": "22ade7161e5cdd899c2f2af3d3c50852f3742720eb848cba08ea8aca598f3933",
+        "after_sha256": "456fd7348bea90da97aebbde18af0ce5c79626b3d5f3c3406d83324d0ce05c38",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 55,
+          "permuted_instructions": 5
+        },
+        "mechanism": "attempt.CN_census-rerun-four-closures.20260901.v1 - a composed permute+recolor rule closing the whole 55/55 residual (10 differing words). PERMUTATION over [0x58,0x6c), order [0,3,2,1,4]: the five atoms are `lfs f3,0(r3)`, `fcmpu cr0,f2,f4`, `lfs f0,68(r5)`, `addi r6,r5,72` and `fadds f0,f3,f0`. Our build issues the compare immediately after the first load and computes the second operand's address afterwards; the target sinks the compare two slots, hoisting the address form and its dependent load ahead of it. The compare reads f2/f4 and writes CR0; the two atoms it crosses touch only GPRs r5/r6 and f0, so there is no RAW, WAR or WAW hazard against it, and hoisting `addi r6,r5,72` above `lfs f0,68(r5)` is likewise safe because the addi writes r6 while the load only reads r5. CR0's final write inside the region is still the compare, so check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None and no escape invoked - the compare's result is never carried across the region boundary by the permutation. RELOCATION BINDING per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1: the window carries NO relocation on either side, so both region relocation hashes are the empty-payload hash and no atom-to-symbol binding question arises. Checked, not assumed. RECOLOR: a single r5<->r6 transposition of two volatile GPRs with disjoint live ranges across the window and its two dependent uses, machine-proven by the position-lockstep renaming bisimulation (verify_consistent_recolor) with NO unproven_recolor_audit escape. No copy-form site is involved. src/game/ui/auxscreen.c is byte-unchanged.",
+        "instruction_permutation": {
+          "start": "0x58",
+          "end": "0x6c",
+          "order": [0, 3, 2, 1, 4],
+          "before_sha256": "4b7a75139d00ee33ef9e3c0238d4d2d64d3436f41bb9a6cb405ecb7c313c9cd9",
+          "after_sha256": "8cdd368be5bd513eac07d7a46c3159faf4cbfd1e6c422be7f28691616fa32b43",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
         "copy_register_fields": true
       }
