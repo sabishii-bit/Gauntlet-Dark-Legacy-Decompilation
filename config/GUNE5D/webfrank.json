@@ -1586,6 +1586,27 @@
           "instructions": 301
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "pbResetDiag",
+        "before_sha256": "5a0057e2849c97dd822d6da7f286d222cd4c4bcd6772dab8fcf01f136bef0f26",
+        "after_sha256": "29887878809f01c68bc8dd013f1e4770ce727a9b2e389f7a19cc8ccea4e12824",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 39,
+          "permuted_instructions": 4
+        },
+        "mechanism": "REOPENS attempt.mp-label-correction.pbresetdiag.20260831.v1, which parked this function as STRUCTURAL from a regnorm pairing failure. As with its sibling pbInitTlutRegions the pairing failure measured regnorm rather than the function: 39/39 instructions, opcode multiset identical, and the residual is one four-atom reorder plus a renaming. PERMUTATION, +0x8..+0x18 order [3,0,2,1]: the prologue's four setup atoms. Ours issues `mtctr r0`, `li r4,0`, `lwz r5,48(r3)`, `lis r6,buttons@ha`; retail issues the lis first, then the mtctr, then the lwz, then the li. All four are mutually independent - mtctr writes the CTR special register and reads g0, the li writes g4, the lwz reads g3 and memory and writes g5, the lis writes g6 - so no atom reads or overwrites another's destination, and the region holds no store and no control instruction, which leaves the lwz's memory read chained to the region entry in both orders. CTR is written exactly once in the region, so its final writer is unchanged by the move; check_permutation_dependences models the mtspr SPR write explicitly (webfrank._word_effects xo 467 -> 'ctr') and accepts the order in its strictest form (exit_dead=None). The `lis r6,buttons@ha` carries an R_PPC_ADDR16_HA relocation and moves from atom 3 to slot 0; permute_instruction_atoms carries its relocation record with it and binds it against the target's own relocation table, so the payload is preserved rather than assumed. RECOLOR: eleven further words exchanging the two record-pointer webs (g5<->g4, and the buttons base g6->g4 in the store chain at +0x30/+0x38/+0x3c), machine-proven by verify_consistent_recolor with NO unproven_recolor_audit escape. Derived from the objects ninja produced this session and proven end-to-end through webfrank.apply_patch against the extracted retail object (output bytes == target bytes).",
+        "instruction_permutation": {
+          "start": "0x8",
+          "end": "0x18",
+          "order": [3, 0, 2, 1],
+          "before_sha256": "ca2fc0ffe38e01a5fd1489d06174a99c8225b3bc7d2b2b2ccb3b9944099e9e7d",
+          "after_sha256": "314bf28f28f84f3d0b7ebaf44dc32c67f5e2ccddaf5541b14c32661b0d93bf88",
+          "before_relocations_sha256": "b28fc307b7867709fa3c1228344486e873bd0808834d07080aab793c860546a1",
+          "after_relocations_sha256": "b9885a3a77fe142b0f3d8ca8097ce30d72ca66c1b4fbc8ef5fa6e537f2d54b70"
+        },
+        "copy_register_fields": true
       }
     ],
     "game/ui/options": [
