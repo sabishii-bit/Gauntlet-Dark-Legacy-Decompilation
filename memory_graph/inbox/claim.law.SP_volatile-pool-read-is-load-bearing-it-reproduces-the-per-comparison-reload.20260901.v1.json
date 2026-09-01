@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker SP, work_claim.shop-finish.20260901.v1, worktree GDL-Claude-ShopFinish, branch claude/shop-finish-20260901. One measured probe on src/game/world/worldcol.c::SlideAlongWall, reverted. See attempt.SP_slidealongwall-volatile-pool-reread.20260901.v1. defake_gate GATE OK over all 15 TU functions afterwards; full ninja green, main.dol OK, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679.",
+    "tags": [
+      "matching",
+      "cse",
+      "sda-global",
+      "register-web",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.SP_volatile-pool-read-is-load-bearing-it-reproduces-the-per-comparison-reload.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T02:24:14Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "THE RULE. A `volatile`-qualified read of a floating-point pool constant -- the `#define WZERO64 (*(volatile f64*)&lbl_80345730)` idiom this project uses for comparison zeros -- is NOT reconstruction scaffolding to be cleaned away. It is frequently the ONLY portable C form that reproduces a target which re-loads the same pool constant at every comparison site. Removing the qualifier lets MWCC treat the reads as one common subexpression and collapse them to a single load, DELETING one `lfd`/`lfs` per redundant site. MEASURED on worldcol.c::SlideAlongWall, a function whose instruction count was EXACT at 107/107 with only a 2-token multiset delta: de-volatilising WZERO64 collapsed four separate pool reads into one, took the count to 107/104, moved the multiset 2t -> 7t (target-only +4 lfd +1 lfs) and regressed real 104 -> 125. The qualifier was restored.\n\nTHE DIRECTION THAT MATTERS. This is the constructive complement of claim.law.bb-plain-read-never-cse-binds-to-a-volatile-load.20260901.v1: that law says a plain read will not CSE-bind to a volatile one; this one says the volatile spelling is what BUYS the repeated load in the first place, and that the buy is often exactly right. Treat a `volatile` pool-read macro in an already-count-exact function as a load-bearing part of the reconstruction, on the same footing as the `(u8*)` cast node in claim.law.noop-cast-on-array-decay-not-neutral.20260831.v1.\n\nTHE SCREEN, one cheap count before any de-volatilise probe: count the target's loads of the pool symbol in the function and compare with ours. If the counts already AGREE, the qualifier is doing exactly the work it was added for and removing it can only break count parity -- do not spend the build. Only when the target has FEWER loads than we emit is de-volatilising even a candidate.\n\nCAUTION ON SCOPE. These macros are TU-wide by construction, so a probe on one function silently rewrites every sibling that uses them. Take a `defake_gate.py baseline` for the whole TU before touching one, and re-check after reverting; on this measurement the macro was shared by 13 sites across worldcol.c and only the TU-level gate could have shown whether a sibling had been left disturbed.\n\nNOTE ON WHAT THIS DOES NOT EXPLAIN. The probe's original hypothesis -- that the qualifier was PINNING the single pool load late (ours at 0x38, target at 0x8) and thereby delaying a dependent comparison -- is REFUTED: placement did not improve when the qualifier came off, only the count broke. Late placement of a volatile pool load and per-comparison re-loading are separate phenomena, and the qualifier governs only the second."
+}
