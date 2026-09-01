@@ -179,6 +179,7 @@ extern s32 damage_player(s32 i, f32 dmg, s32 mode, u32 flags, f32* dir);
 extern f64 fn_8005C1DC(void* target, s32 arg, s32 pidx, f64 range); /* hit test -> priority */
 extern void PlayerDamagedItem(Player* p, void* target, s32 exact); /* apply melee hit */
 extern f32 lbl_80347B30; /* 0.0f */
+extern f32 lbl_80347BC8; /* -1.0f */
 extern f64 lbl_80347B28; /* hit-point y offset */
 extern f64 lbl_80347B08; /* hit-priority threshold */
 extern f64 lbl_80347D68; /* min separation for push-out */
@@ -1159,7 +1160,7 @@ void PlayerMotion(Player* p) {
                 sfx = sfxProbe;
                 if (sfxProbe >= 0) {
                     PlyrSfxDoDamage((u8*)p->grab_partner, sfx, (u8*)p,
-                                (u8*)to, lbl_80347B30, lbl_80347B40);
+                                (u8*)to, lbl_80347BC8, lbl_80347B40);
                 }
             }
             hitKind = 1;
@@ -1323,7 +1324,7 @@ void PlayerMotion(Player* p) {
                     sfx = sfxProbe;
                     if (sfxProbe >= 0) {
                         PlyrSfxDoDamage((u8*)p->grab_partner, sfx, (u8*)p,
-                                    (u8*)hit, lbl_80347B30, lbl_80347B40);
+                                    (u8*)hit, lbl_80347BC8, lbl_80347B40);
                     }
                 }
                 hitKind = 1;
@@ -1417,7 +1418,7 @@ void PlayerMotion(Player* p) {
                         if (sfxProbe >= 0) {
                             PlyrSfxDoDamage((u8*)p->grab_partner, sfx,
                                         (u8*)p, (u8*)to,
-                                        lbl_80347B30, lbl_80347B40);
+                                        lbl_80347BC8, lbl_80347B40);
                         }
                     }
                 }
