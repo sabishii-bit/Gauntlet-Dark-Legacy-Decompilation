@@ -1,0 +1,25 @@
+{
+  "attributes": {
+    "laws_applied": [
+      "claim.law.rtti-vtable-chain-recovers-cpp-class-names.20260901.v1",
+      "claim.law.rtti-duplicate-record-per-referencing-context.20260901.v1",
+      "claim.law.cpp-rename-is-inert-while-pragma-cplusplus-off-regions-remain.20260831.v1"
+    ],
+    "tags": [
+      "symbol-identity",
+      "matching",
+      "decl-order",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.symbol-naming-movieplayer-cpp-class-map.20260901.v4",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-09-01T02:21:31Z",
+  "schema_version": 1,
+  "subject": "tu:game/movie/movieplayer",
+  "supersedes": "claim.symbol-naming-movieplayer-cpp-class-map.20260901.v3",
+  "valid_from": "2026-09-01",
+  "value": "SUPERSEDES v3 by adding the COMPLETE VTABLE SLOT MAP, which v3 did not have, and by correcting two premises. Nothing in v3's layouts or identities needed changing; the destructors, the Codec/VQCodec field pins and the two deliberate spelling deviations all stand. NEW: THE FULL SLOT MAP, read with tools/gdl/rttiscan.py after its std::exception controls PASSed, so every row below is evidence rather than inference. __vt__11MoviePlayer (0x8012968C, RTTI 0x80344008, base MoviePlayerBase) has FOUR virtuals: slot0 dtor 0x800DB008 __dt__11MoviePlayerFv, slot1 0x800DA920, slot2 0x800DA6A4, slot3 0x800DA60C. __vt__7VQCodec (0x801296CC, RTTI 0x80344018, base Codec) has SIX: slot0 dtor 0x800DBD30 __dt__7VQCodecFv, slot1 0x800D96B0, slot2 0x800D967C, slot3 0x800D9648, slot4 0x800D9614, slot5 0x800D8784. __vt__15MoviePlayerBase (0x801296A4) and __vt__5Codec (0x801296F0) carry only their destructors. So NINE of this TU's placeholder-named functions are proven virtual METHODS of a known class, which is durable structural evidence even though their method NAMES remain unrecoverable -- the RTTI chain names classes, never members, and the law forbids substituting the Xbox PDB here because that port is an unrelated D3D/WMV class. NAMING CONSEQUENCE, stated so future sessions stop hoping: for these nine, class membership is knowable and the identifier is not, so they must keep placeholder symbols; only functions whose mangled name is fully determined by the CLASS name alone are nameable, which is exactly the destructor and default-constructor family. ONE SUCH NAME WAS ADOPTED THIS RUN: fn_800DB0F8 -> __ct__11MoviePlayerFv, on three independent lines of evidence (it is the ctor argument of __construct_new_array in the same call whose dtor argument is __dt__11MoviePlayerFv; it stores the base vptr then the derived vptr at offset 0; it returns `this`). PREMISE CORRECTION 1: fn_800DB0F8 appears in NO vtable, so the standing hypothesis that it was a MoviePlayer virtual method is REFUTED -- it is the constructor, and the reason it sits between the destructor and __dla__ is simply CodeWarrior's ctor/dtor emission adjacency. PREMISE CORRECTION 2, and this one redirects the TU's flip work: the flip is NOT gated on extab/extabindex. `tools/gdl/datadiff.py game/movie/movieplayer --sections` reports extab and extabindex already AGREEING with the target, and names the two actual FLIP BLOCKERS as `.rodata: SIZE target 0x0 vs ours 0x16C` and `.sdata2: SIZE target 0x0 vs ours 0x10` -- our object emits read-only and sdata2 pool bytes that this TU's split does not own at all. Any future flip attempt must start there, not on exception metadata. STILL UNCHANGED: dtor_800DBB94's class name remains unrecoverable image-wide (it appears in no vtable, so it is non-polymorphic and has no RTTI record); its conversion stays a one-edit exact the moment any evidence names it, and it was again left alone this run because no such evidence appeared."
+}

@@ -4,7 +4,7 @@
     "scope": "COMPLETION lane, src/game/movie/movieplayer.cpp (33/52 at real 0 after CL): drive the remaining sub-100 roster under the C++ front end with the class map (claim.symbol-naming-movieplayer-cpp-class-map.20260901.v3): fn_800DB0F8 (between MoviePlayer dtor and __dla__ \u2014 likely a MoviePlayer method; the vtable slot map may name it), fn_800D8784/fn_800D87FC-family, the VQ decode helpers. Methods may need the cplusplus-region treatment (the surgical #pragma regions are load-bearing \u2014 pins fn_800D967C/fn_800DA6A4 FROZEN; class tags in cplusplus-on regions are invisible to C-parsed regions, CL's boundary note). RTTI map says MoviePlayer's vtable slots beyond the dtor are its virtual methods \u2014 match addresses to the map before naming anything. dtor_800DBB94 (real 14): with MoviePlayer's methods modeled its call-site context may finally supply evidence \u2014 name ONLY on evidence. Check extab/extabindex state per function (datadiff --sections) \u2014 the TU's flip is gated there eventually. Commit per function; exact or named parks; parallel fleets please pick other TUs"
   },
   "claimed_at": "2026-09-01",
-  "function": "function:fn_800DB0F8",
+  "function": "function:__ct__11MoviePlayerFv",
   "id": "work_claim.movieplayer-completion.20260901.v1",
   "kind": "work_claim",
   "owner": "claude-fleet-worker-MP",
