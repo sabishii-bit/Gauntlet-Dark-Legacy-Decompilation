@@ -22,6 +22,7 @@
 #include "game/enemy.h"     /* Enemy gEnemies[25], stride 0x394 */
 #include "game/item.h"      /* Item* sItems, stride 0xF0 */
 #include "game/worldinfo.h" /* WorldInfo gWorldInfo */
+#include "game/effect.h"    /* Effect Effects[], stride 0xF0 */
 
 /* ------------------------------------------------------------------ */
 /* player records                                                      */
@@ -146,7 +147,7 @@ extern s32 lbl_8034476C;
 extern s32 gBoss398;
 extern s32 good_wiz_state;
 extern s32 gBossDead;
-extern u8 Effects[];
+extern Effect Effects[]; /* live SFX pool, stride 0xF0 -- game/effect.h */
 extern s32 lbl_80344890;
 extern s32 lbl_80344894;
 extern s32 lbl_80344BE8;
@@ -1696,7 +1697,7 @@ collision_done:
                         hit[1] = to[1] - *(f32*)(motion + 0x34);
                         hit[2] = to[2] - *(f32*)(motion + 0x38);
                     }
-                    effectRecord = Effects + effect * 240;
+                    effectRecord = (u8*)Effects + effect * 240;
                     CreateDirMatrix(
                         (f32*)*(void**)(effectRecord += 0x14),
                         hit, NULL);
@@ -2118,13 +2119,13 @@ store_motion_state:
                                               lbl_80347C10);
                     if (!(lbl_80344894 < 0)) {
                         MBTreeSetAmbientAdd(
-                            *((void**)(Effects + 0x14) +
+                            *((void**)((u8*)Effects + 0x14) +
                               lbl_80344894 * 60),
                             0x1FF, 1);
                         SfxSetParent(lbl_80344894,
                                      p->hand_node);
                         p->shield_object =
-                            *((void**)(Effects + 0x14) +
+                            *((void**)((u8*)Effects + 0x14) +
                               lbl_80344894 * 60);
                     }
                     break;
@@ -2137,7 +2138,7 @@ store_motion_state:
                                               lbl_80347C10);
                     if (!(lbl_80344894 < 0)) {
                         MBTreeSetAmbientAdd(
-                            *(void**)(Effects + lbl_80344894 * 240 + 0x14),
+                            *(void**)((u8*)Effects + lbl_80344894 * 240 + 0x14),
                             0x1FF, 1);
                         SfxSetParent(lbl_80344894,
                                      p->node);
@@ -2151,7 +2152,7 @@ store_motion_state:
                 s32 combo = StartComboFX(p->col_pos,
                                          PF(p, 4, s32), PF(p, 4, s32));
                 if (combo >= 0) {
-                    PF(Effects + combo * 240, 0x44, f32) =
+                    PF((u8*)Effects + combo * 240, 0x44, f32) =
                         lbl_80347C60;
                 }
                 p->quest_state = 3;
@@ -2325,7 +2326,7 @@ store_motion_state:
                     if (effect >= 0) {
                         SfxSetMorph(lbl_80347C88, effect, 91, 0);
                         MBTreeSetAmbientAdd(
-                            *(void**)(Effects + effect * 240 + 0x14),
+                            *(void**)((u8*)Effects + effect * 240 + 0x14),
                             0x1FF, 1);
                         lbl_80344890 = effect;
                     }
@@ -2436,7 +2437,7 @@ store_motion_state:
                 }
 
                 if (effect >= 0) {
-                    u8* fxRecord = Effects + effect * 240;
+                    u8* fxRecord = (u8*)Effects + effect * 240;
                     MBTreeSetAmbientAdd(
                         *(void**)(fxRecord += 0x14), 0x1FF, 1);
                     if (particleTexture >= 0) {
@@ -2564,7 +2565,7 @@ store_motion_state:
                 } else {
                     SfxSetParent(effect, p->weapon_node);
                 }
-                PF(Effects + effect * 240, 0x9C, f32) =
+                PF((u8*)Effects + effect * 240, 0x9C, f32) =
                     lbl_80347CB8;
                 player_get_powerup_state(1.0f, p, 9, 0x70);
             }
@@ -2806,10 +2807,10 @@ store_motion_state:
             if ((effect = StartMagicPlayerFX(lbl_80127D00)) >= 0) {
                 if (p->mbnode2 != NULL) {
                     MBNodeSetParent(
-                        *(void**)(Effects + effect * 240 + 0x14),
+                        *(void**)((u8*)Effects + effect * 240 + 0x14),
                         p->mbnode2);
                 }
-                MBTreeSetFlags(*(void**)(Effects + effect * 240 + 0x14),
+                MBTreeSetFlags(*(void**)((u8*)Effects + effect * 240 + 0x14),
                                0x04000000, 0);
             }
             SV(p)->act_bits = p->act_bits & ~0x10000U;
@@ -3201,7 +3202,7 @@ player_motion_grab_done:
                         (f32)(lbl_80347BD0 + (f32)(comboMode - 2));
                     s32 effect = StartComboFX(p->col_pos, -1,
                                               PF(p, 4, s32));
-                    PF(Effects + effect * 240, 0x64, u32) = 552;
+                    PF((u8*)Effects + effect * 240, 0x64, u32) = 552;
                     SfxSetDamage(p->stat_damage * scale,
                                  (f32)(lbl_80347C28 * scale), 0.0f,
                                  effect, 32, p->index + 1);
