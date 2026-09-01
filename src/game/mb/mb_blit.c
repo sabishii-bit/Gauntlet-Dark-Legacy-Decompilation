@@ -155,7 +155,7 @@ extern void __dl__FPv(void* object);
 extern u8 lbl_80296450[];
 extern const char gIdentityMatrix[]; /* render-node name block used by MBInitBlits */
 extern MBTextureDef* MBRomTexPtr(s32 texture);
-extern u32 __cvt_fp2unsigned(f32 value);
+extern u32 __cvt_fp2unsigned(f64 value);
 extern MBWindow* gWinGlobals;
 extern const f32 lbl_80348AD0;
 extern const f32 lbl_80348AA0;
