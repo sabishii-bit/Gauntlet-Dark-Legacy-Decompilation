@@ -5,7 +5,108 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fndiff import (classify_function, cluster_flags,
-                    compiler_private_aliases_from_symbols, shiftable_gap)
+                    compiler_private_aliases_from_symbols, immediate_deltas,
+                    relocated_instructions, reloc_naming_only, shiftable_gap)
+
+
+class ImmediateDeltaTests(unittest.TestCase):
+    """run-31 item 4a: --ops reduces each instruction to its mnemonic, so a
+    pair that agrees on the opcode and disagrees on a LITERAL is `equal` to
+    the matcher and never reaches the cluster list. 165 functions carry one
+    image-wide; 38 sat under "multiset IDENTICAL -- pure reorder,
+    schedule-class residual" (census 2026-09-01)."""
+
+    def test_same_opcode_differing_immediate_is_reported(self):
+        t = ["li      r5,0", "addi    r3,r3,32", "blr"]
+        b = ["li      r5,0", "addi    r3,r3,36", "blr"]
+        got = immediate_deltas(t, b)
+        self.assertEqual([(d[0], d[1], d[2]) for d in got],
+                         [(1, 1, "immediate")])
+
+    def test_identical_streams_report_nothing(self):
+        t = ["li      r5,0", "addi    r3,r3,32", "blr"]
+        self.assertEqual(immediate_deltas(t, list(t)), [])
+
+    def test_register_only_difference_is_not_an_immediate_delta(self):
+        t = ["addi    r3,r4,32"]
+        b = ["addi    r5,r6,32"]
+        self.assertEqual(immediate_deltas(t, b), [])
+
+    def test_a_branch_target_delta_is_classified_separately(self):
+        t = ["cmpw    r3,r5", "bne <fn+0x10>", "blr"]
+        b = ["cmpw    r3,r5", "bne <fn+0x0>", "blr"]
+        got = immediate_deltas(t, b)
+        self.assertEqual([d[2] for d in got], ["branch"])
+
+    def test_a_RELOCATED_immediate_is_never_flagged(self):
+        """The linker owns those bits: the target object carries the
+        address, ours carries zero. The first cut fired on both halves of
+        every lis/addi address pair (G3DReadControlPadStates)."""
+        t = ["lis     r3,-32727", "    R_PPC_ADDR16_HA gPadManager",
+             "addi    r31,r3,25692", "    R_PPC_ADDR16_LO gPadManager"]
+        b = ["lis     r3,0", "    R_PPC_ADDR16_HA gPadManager",
+             "addi    r31,r3,0", "    R_PPC_ADDR16_LO gPadManager"]
+        self.assertEqual(immediate_deltas(t, b), [])
+
+    def test_relocated_instructions_flags_the_carrying_instruction(self):
+        lines = ["mflr    r0", "lis     r3,0", "    R_PPC_ADDR16_HA g",
+                 "blr"]
+        ins, rel = relocated_instructions(lines)
+        self.assertEqual(ins, ["mflr    r0", "lis     r3,0", "blr"])
+        self.assertEqual(rel, [False, True, False])
+
+    def test_deltas_inside_an_unequal_run_are_not_double_reported(self):
+        """Clusters already cover non-equal runs; only EQUAL runs count."""
+        t = ["li      r3,1", "add     r3,r3,r4", "blr"]
+        b = ["li      r3,2", "blr"]
+        self.assertTrue(all(d[2] in ("immediate", "branch")
+                            for d in immediate_deltas(t, b)))
+
+
+class RelocNamingOnlyTests(unittest.TestCase):
+    """run-31 item 4b: 60 functions link byte-identical while --clean scored
+    them OPERAND_DIFF with N real diff lines, because one side names a
+    symbol the other emits as an anonymous local pool entry."""
+
+    # The live DVDCheckDisk pair: the target names the jumptable, our
+    # object emits the same pool entry anonymously as @647.
+    T = ["lis     r4,0", "    R_PPC_ADDR16_HA jumptable_8023AAF8",
+         "slwi    r0,r0,2"]
+    B = ["lis     r4,0", "    R_PPC_ADDR16_HA @647", "slwi    r0,r0,2"]
+
+    def test_anonymous_local_versus_named_symbol_is_naming_only(self):
+        self.assertTrue(reloc_naming_only(self.T, self.B))
+
+    def test_it_is_symmetric(self):
+        self.assertTrue(reloc_naming_only(self.B, self.T))
+
+    def test_two_disagreeing_CONCRETE_symbols_are_a_REAL_reloc_defect(self):
+        t = ["lis     r4,0", "    R_PPC_ADDR16_HA jumptable_8023AAF8"]
+        b = ["lis     r4,0", "    R_PPC_ADDR16_HA jumptable_80111111"]
+        self.assertFalse(reloc_naming_only(t, b))
+
+    def test_two_anonymous_locals_that_differ_are_not_absorbed(self):
+        t = ["lis     r4,0", "    R_PPC_ADDR16_HA @1+0x4"]
+        b = ["lis     r4,0", "    R_PPC_ADDR16_HA @2"]
+        self.assertFalse(reloc_naming_only(t, b))
+
+    def test_a_differing_reloc_TYPE_is_never_naming_only(self):
+        t = ["lis     r4,0", "    R_PPC_ADDR16_HA @647"]
+        b = ["lis     r4,0", "    R_PPC_ADDR16_LO jumptable_8023AAF8"]
+        self.assertFalse(reloc_naming_only(t, b))
+
+    def test_differing_instruction_words_are_never_naming_only(self):
+        t = ["lis     r4,0", "    R_PPC_ADDR16_HA jumptable_8023AAF8", "blr"]
+        b = ["lis     r5,0", "    R_PPC_ADDR16_HA @647", "blr"]
+        self.assertFalse(reloc_naming_only(t, b))
+
+    def test_a_missing_relocation_is_never_naming_only(self):
+        t = ["lis     r4,0", "    R_PPC_ADDR16_HA jumptable_8023AAF8"]
+        b = ["lis     r4,0"]
+        self.assertFalse(reloc_naming_only(t, b))
+
+    def test_fully_identical_functions_are_not_reported_as_naming(self):
+        self.assertFalse(reloc_naming_only(self.T, list(self.T)))
 
 
 class ShiftableGapTests(unittest.TestCase):

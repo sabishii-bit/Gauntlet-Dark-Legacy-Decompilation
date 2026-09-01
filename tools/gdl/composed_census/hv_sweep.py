@@ -23,6 +23,8 @@ corrections applied and a THIRD class none of them modelled.
 """
 import json
 import os
+import re
+import subprocess
 import sys
 import traceback
 
@@ -46,14 +48,83 @@ import hv_perm as hv           # noqa: E402
 import hv_repair as hr         # noqa: E402
 import cn_census as census     # noqa: E402
 
-# TUs owned by OTHER lanes this run, read from `gdlmem claims` at run 31:
-# memcard (WS), movieplayer (WF), gauntworld + combat (FR), player.c (PL).
-# A webfrank rule FREEZES its function's source, so shipping into a TU another
-# lane is editing aborts THEIR build at the WEBFRANK step -- this list is a
-# courtesy gate, not an optimisation.  Re-read it from `claims` every run;
-# the previous value was still harvest-3's and had drifted.
-OWNED = ("game/sys/memcard", "game/movie/movieplayer",
-         "game/world/gauntworld", "game/game/combat", "game/game/player")
+# TU-shaped path fragments, for reading ownership out of claim prose.
+TU_RE = re.compile(r"\b((?:game|dolphin|MSL|zlib|libc|runtime)/[\w/]+)")
+# The FALLBACK only: the value hardcoded at run 31, kept solely so the
+# sweep still gates sensibly when the graph cannot be queried.
+_FALLBACK_OWNED = ("game/sys/memcard", "game/movie/movieplayer",
+                   "game/world/gauntworld", "game/game/combat",
+                   "game/game/player")
+
+
+def units_from_claims(payload, me=None):
+    """TU fragments in ACTIVE claims not owned by ``me``. Pure; testable."""
+    units = set()
+    for claim in payload.get("claims", []):
+        if claim.get("state") != "active" or claim.get("owner") == me:
+            continue
+        blob = f"{claim.get('scope', '')} {claim.get('function', '')}"
+        units.update(TU_RE.findall(blob))
+    return tuple(sorted(units))
+
+
+def owned_units(me=None):
+    """TUs claimed by OTHER lanes, read LIVE from `gdlmem claims`.
+
+    A webfrank rule FREEZES its function's source, so shipping into a TU
+    another lane is editing aborts THEIR build at the WEBFRANK step -- this
+    is a courtesy gate, not an optimisation. It was a hardcoded tuple that
+    had already drifted a full run out of date once (still harvest-3's
+    list during harvest-4), and a stale courtesy gate is worse than none:
+    it silently sweeps the TUs it was meant to protect while skipping ones
+    nobody owns any more.
+
+    Claim scopes are prose, so TU-shaped fragments are extracted from the
+    scope and function fields. Over-inclusion costs only a skipped
+    candidate; this sweep never edits source.
+    """
+    try:
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "memory_graph", "gdlmem.py"),
+             "claims"], capture_output=True, text=True, cwd=ROOT, timeout=300)
+        payload = json.loads(out.stdout)
+    except Exception as exc:                                # noqa: BLE001
+        print(f"!! could not read `gdlmem claims` ({type(exc).__name__}:"
+              f" {exc}); falling back to the run-31 hardcoded list, which"
+              " MAY BE STALE — verify ownership by hand")
+        return tuple(_FALLBACK_OWNED)
+    units = tuple(units_from_claims(payload, me))
+    if units:
+        print(f"claims: {len(units)} TU(s) owned by other lanes will be"
+              f" skipped: {', '.join(sorted(units))}")
+    else:
+        print("claims: no other lane holds a TU-scoped claim — sweeping all")
+    return tuple(sorted(units))
+
+
+# Rows the sweep could not EVALUATE, kept apart from rows it evaluated and
+# found wanting. Conflating the two is what turned the un-migrated
+# _relocation_sha256 call sites into a page of false "does not close" rows:
+# a deriver that CRASHES has measured nothing, and reporting that as a
+# refusal is a false negative dressed as a result.
+TOOL_ERRORS: list[tuple[str, str, str, str]] = []
+
+
+def report_tool_errors():
+    """Print the unevaluated rows and fail loudly if there are any."""
+    if not TOOL_ERRORS:
+        return 0
+    print(f"\n!! {len(TOOL_ERRORS)} row(s) could NOT BE EVALUATED — these are"
+          " TOOL BREAKAGE, not refusals, and must not be read as"
+          " 'does not close':")
+    seen = {}
+    for unit, fn, stage, message in TOOL_ERRORS:
+        seen.setdefault(message.split(":")[0] + ": " + message[:110], []) \
+            .append(f"{unit}::{fn} [{stage}]")
+    for message, rows in seen.items():
+        print(f"   {message}")
+        print(f"     {len(rows)} row(s), e.g. {rows[0]}")
+    return 1
 
 
 def shipped():
@@ -67,11 +138,21 @@ def shipped():
     return out
 
 
-def triage():
+def triage(units=None, owned=None):
+    """Roster every unshipped equal-size differing function.
+
+    ``units`` restricts the sweep to the named TUs (the --unit argument):
+    this was image-or-nothing, so a lane wanting one TU's roster paid a
+    full-image sweep for it.
+    """
     have = shipped()
+    owned = tuple(owned if owned is not None else owned_units())
+    wanted = tuple(units) if units else None
     rows = []
     for unit in census.units():
-        if unit.startswith(OWNED):
+        if owned and unit.startswith(owned):
+            continue
+        if wanted and not unit.startswith(wanted):
             continue
         our_path, _isbody = census.our_path(unit)
         if not our_path:
@@ -101,7 +182,12 @@ def triage():
                 continue
             try:
                 rest = hv.unabsorbed(ours, tgt)
-            except Exception:                              # noqa: BLE001
+            except Exception as exc:                       # noqa: BLE001
+                # NOT a refusal: the classifier failing is TOOL BREAKAGE.
+                # Silently `continue`-ing here dropped rows from the
+                # roster entirely, which reads as "nothing to do".
+                TOOL_ERRORS.append((unit, tsym.name, "unabsorbed",
+                                    f"{type(exc).__name__}: {exc}"))
                 continue
             cl = hv.clusters(rest)
             rows.append({"unit": unit, "fn": tsym.name,
@@ -127,8 +213,18 @@ def prove(rows, only=None, limit=None):
             else:
                 rule, note = hv.search(unit, fn)
         except Exception as exc:                           # noqa: BLE001
+            # A crash is not a measurement. Keep it out of the refusal
+            # population entirely and surface it at the summary.
             rule, note = None, f"{type(exc).__name__}: {exc}"
             traceback.print_exc(limit=1)
+            TOOL_ERRORS.append((unit, fn, f"tier {row['tier']}", note))
+            rec = dict(row)
+            rec["verdict"] = "ERROR"
+            rec["note"] = note
+            out.append(rec)
+            print(f"[{i+1}/{len(todo[:limit])}] {unit}::{fn}: "
+                  f"ERROR (NOT a refusal) -- {note[:150]}", flush=True)
+            continue
         verdict = "CLOSES" if rule else "refuses"
         print(f"[{i+1}/{len(todo[:limit])}] {unit}::{fn} "
               f"({row['insns']}i, tier {row['tier']}, {row['unabsorbed']}u/"
@@ -143,30 +239,66 @@ def prove(rows, only=None, limit=None):
     return out
 
 
+USAGE = """hv_sweep — union re-sweep of the postprocessor-closability roster.
+
+  python tools/gdl/composed_census/hv_sweep.py triage [--unit U[,U...]]
+  python tools/gdl/composed_census/hv_sweep.py prove [A|B] [limit]
+
+  --unit U[,U...]   restrict the sweep to these TUs (repeatable). Without
+                    it the sweep is image-wide, which was the only mode.
+  --out DIR         where hv_roster.json / hv_proved_*.json go. Default is
+                    build/GUNE5D/hv/ — BUILD OUTPUT. They used to be written
+                    beside this script, i.e. untracked JSON dropped into a
+                    tracked directory of the repo.
+  --me OWNER        this lane's work_claim owner, so its OWN claim does not
+                    exclude the TUs it is sweeping.
+"""
+
 if __name__ == "__main__":
-    mode = sys.argv[1] if len(sys.argv) > 1 else "triage"
-    rpath = os.path.join(HERE, "hv_roster.json")
+    argv = sys.argv[1:]
+    if argv and argv[0] in ("--help", "-h", "help"):
+        print(USAGE)
+        raise SystemExit(0)
+    flags = {a.split("=", 1)[0]: a.split("=", 1)[1] if "=" in a else ""
+             for a in argv if a.startswith("--")}
+    positional = [a for a in argv if not a.startswith("--")]
+    mode = positional[0] if positional else "triage"
+    only_units = [u for u in flags.get("--unit", "").split(",") if u] or None
+    outdir = flags.get("--out") or os.path.join(
+        ROOT, "build", "GUNE5D", "hv")
+    os.makedirs(outdir, exist_ok=True)
+    rpath = os.path.join(outdir, "hv_roster.json")
     if mode == "triage":
-        rows = triage()
+        rows = triage(only_units, owned_units(flags.get("--me") or None))
         with open(rpath, "w") as fh:
             json.dump(rows, fh, indent=1)
         ta = [r for r in rows if r["tier"] == "A"]
         tb = [r for r in rows if r["tier"] == "B"]
-        print(f"{len(rows)} equal-size differing unshipped functions: "
+        scope = f" over {', '.join(only_units)}" if only_units else ""
+        print(f"{len(rows)} equal-size differing unshipped functions{scope}: "
               f"tier A {len(ta)}, tier B {len(tb)}")
         from collections import Counter
         print("tier-B cluster histogram:",
               dict(sorted(Counter(r["clusters"] for r in tb).items())))
+        print(f"wrote {rpath}")
+        raise SystemExit(report_tool_errors())
     else:
         with open(rpath) as fh:
             rows = json.load(fh)
-        only = sys.argv[2] if len(sys.argv) > 2 else None
-        limit = int(sys.argv[3]) if len(sys.argv) > 3 else None
+        only = positional[1] if len(positional) > 1 else None
+        limit = int(positional[2]) if len(positional) > 2 else None
         res = prove(rows, only, limit)
-        opath = os.path.join(HERE, f"hv_proved_{only or 'all'}.json")
+        opath = os.path.join(outdir, f"hv_proved_{only or 'all'}.json")
         with open(opath, "w") as fh:
             json.dump(res, fh, indent=1)
         closes = [r for r in res if r["verdict"] == "CLOSES"]
-        print(f"\n{len(closes)} of {len(res)} CLOSE")
+        errors = [r for r in res if r["verdict"] == "ERROR"]
+        evaluated = len(res) - len(errors)
+        # Denominator is rows actually EVALUATED. Counting crashed rows as
+        # part of "N of M" understates the close rate and hides breakage.
+        print(f"\n{len(closes)} of {evaluated} evaluated CLOSE"
+              + (f" ({len(errors)} row(s) NOT evaluated — see below)"
+                 if errors else ""))
         for r in closes:
             print(f"  {r['unit']}::{r['fn']}  {r['note']}")
+        raise SystemExit(report_tool_errors())

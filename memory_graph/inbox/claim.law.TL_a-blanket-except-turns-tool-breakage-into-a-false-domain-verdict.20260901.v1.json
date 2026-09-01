@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/hv_sweep.py",
+    "tools/gdl/tests/test_hv_sweep.py",
+    "tools/gdl/tests/test_reloc_symbols.py"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Show a sweep whose blanket `except Exception` handler can be entered ONLY by an in-domain refusal and never by tool breakage -- i.e. every exception type reachable inside the try is raised solely by the guards, not by the deriving code. This law is also disproved if hv_sweep's ERROR rows can be shown to be a subset of its `refuses` rows on any real run: run `python tools/gdl/composed_census/hv_sweep.py triage` then `prove`, and compare the ERROR population against re-running the same rows with the handler removed.",
+  "id": "claim.law.TL_a-blanket-except-turns-tool-breakage-into-a-false-domain-verdict.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T23:52:20Z",
+  "schema_version": 1,
+  "subject": "function:InitControls",
+  "valid_from": "2026-09-01",
+  "value": "A BLANKET `except Exception` AROUND A DERIVATION CONVERTS TOOL BREAKAGE INTO A FALSE IN-DOMAIN VERDICT, AND THE RESULT IS INDISTINGUISHABLE FROM A REAL NEGATIVE. A crashed row has MEASURED NOTHING; reporting it as 'does not close' is a false negative wearing the costume of a result, and it also inflates the denominator of every close-rate quoted from that run.\n\nMEASURED, run 31. The run-28 name-bound relocation-hash migration left four derivers passing bare (offset, info, addend) triples to webfrank._relocation_sha256, which has REQUIRED a symbol-name map since that migration. The EMPTY-window hash was unchanged, so windows with no relocation kept working and only relocation-BEARING windows raised. hv_sweep's `except Exception: continue` (triage) and its `verdict = 'refuses'` handler (prove) swallowed every one of them. The breakage therefore presented as a property of the FUNCTIONS -- a page of plausible-looking refusals -- rather than of the CALLER, which is why it survived a full run undetected while ch_derive and ha_close were being repaired for the identical defect.\n\nTHE SAME EXCEPTION TYPE IS LOAD-BEARING ON BOTH SIDES, so a type-based split does not work: the guards raise ValueError for a legitimate refusal and _relocation_sha256 raises ValueError for a missing symbol name. The separation has to be STRUCTURAL -- an exception escaping the deriving code is an ERROR, distinct from a verdict the deriver returned -- and it has to be REPORTED, not merely recorded.\n\nTHREE OBLIGATIONS, all now implemented in hv_sweep. (1) A crash gets its own verdict value ('ERROR'), never the refusal value. (2) Close-rate denominators count rows actually EVALUATED; counting crashed rows understates the rate and hides the breakage inside a plausible number. (3) The run exits NON-ZERO after printing the unevaluated rows and saying in words that they are not refusals -- silence at summary is what let this persist, because a sweep that prints only refusals looks like a sweep that worked.\n\nGENERALISATION: this is AGENTS.md discipline 14 ('a guard's refusal is a measurement of the guard, not only of the function') one level out. Discipline 14 concerns a guard that correctly refuses; this concerns a tool that never ran at all. Both fail the same way -- a fact about the TOOL is recorded as a fact about the FUNCTION -- and both are only visible if the tool is instrumented to distinguish them."
+}

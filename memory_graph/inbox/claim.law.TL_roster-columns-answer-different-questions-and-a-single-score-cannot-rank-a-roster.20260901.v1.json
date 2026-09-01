@@ -1,0 +1,28 @@
+{
+  "asserted_by": [
+    "tools/gdl/regnorm.py",
+    "tools/gdl/unabsorbed.py",
+    "tools/gdl/probe.py",
+    "tools/gdl/fndiff.py",
+    "tools/gdl/tests/test_regnorm.py",
+    "tools/gdl/tests/test_probe.py"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow",
+      "postprocessor",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Disproved by exhibiting a single score that ORDERS the roster the same way all of these do. Concretely: re-run the four populations below and show any one column is a monotone function of another. `python tools/gdl/regnorm.py <tu>` now prints counts/parity/slots/unabsorbed/genuine per row, so the check is one command per TU. The unabsorbed-vs-genuine half is disproved if the 32 tier-A functions that read genuine>0 can be shown to be genuine-clean after all; the parity half if the 150 unpaired-but-parity-held rows can be shown to carry an instruction-count delta; the immediate half if the 38 masked functions carry no non-relocated same-opcode literal difference.",
+  "id": "claim.law.TL_roster-columns-answer-different-questions-and-a-single-score-cannot-rank-a-roster.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T23:52:33Z",
+  "schema_version": 1,
+  "subject": "function:drawMemCardMessage",
+  "valid_from": "2026-09-01",
+  "value": "THE COLUMNS A ROSTER RANKS ON ANSWER DIFFERENT QUESTIONS, AND NONE OF THEM SUBSUMES THE OTHERS; A ROSTER SHOWING ONE SCORE IS RANKING BLIND ON EVERY QUESTION IT DOES NOT SHOW. FOUR MEASURED SEPARATIONS, ALL RUN 31, ALL OVER THE WHOLE IMAGE.\n\nSUBJECT COUNTS, quoted because this record discusses postprocessor reach: game/sys/memcard drawMemCardMessage measures 204/204 instructions (ours/target), i.e. COUNT PARITY HELD, with 0 unabsorbed words in 0 clusters (tier A) and 0 genuine structural rows -- it is the worked example of a row whose closability column and structural column agree, against check_prefs_loaded in the same TU at 57/57 with 29 unabsorbed words in 2 clusters but only 1 genuine structural row, where they disagree sharply. NO RECLASSIFICATION OF ANY FUNCTION IS ASSERTED HERE: this law is about what a ROSTER COLUMN can express, and every count it quotes is a measurement of the columns, not a claim that a given function is postprocessor-closable. get_vmu_directory is included as the counter-case at 115/116 -- count ASYMMETRIC, so outside every postprocessor class by construction, and its unabsorbed column correctly reads undefined rather than a number.\n\n(1) CLOSABILITY IS NOT RESIDUAL SIZE. UNABSORBED words -- those whose (ours, target) pair classifies as `other`, outside every WebFrank class -- decide whether the postprocessor can reach a function at all. Of 749 differing equal-size functions, 32 are TIER A (unabsorbed 0: the register-field stage alone reproduces the target) while a regnorm census calls them real work on its genuine-structural count, and 147 are tier B. The metric lived only inside tools/gdl/composed_census/hv_perm.py, so no roster could see it; it is now tools/gdl/unabsorbed.py and appears on regnorm census rows and the graph's `brief`.\n\n(2) COUNT PARITY IS NOT `unpaired`. Count asymmetry is the ONE fact that provably puts a residual outside every postprocessor class, and `unpaired` does not answer it: 150 census rows carry unpaired>0 with the two instruction counts EQUAL -- a delete and an insert of equal size, i.e. different PLACEMENT -- and remain rule-eligible. DoPlayerAction (game/anim/action) is the extreme: unpaired=48 at T1765/O1765.\n\n(3) LAYOUT IS NOT STRUCTURE. 60 functions carry an r1 slot-map delta and 11 sit under an IDENTICAL opcode multiset, 3 of those with an outright frame-size delta (sDvdReadSync T48/O56, fn_80093918 T112/O120, AudioWithName T56/O72). PARTIAL REFUTATION, recorded because it bounds the claim: of 3032 census rows, ZERO had a slot delta while reading 0 genuine structural rows, so regnorm's GENUINE column has never given a FALSE ALL-CLEAR on a layout residual. The slot column CLASSIFIES rows (layout vs recolor, indistinguishable in a structural count); it does not rescue missed ones.\n\n(4) A LITERAL IS NOT AN OPCODE, AND `--ops` CANNOT SEE ONE. Reducing each instruction to its mnemonic makes a same-opcode/differing-IMMEDIATE pair `equal` to the sequence matcher, so it reaches no cluster: 165 functions carry such a pair and 38 were printed under 'opcode multiset: IDENTICAL -- pure reorder, schedule-class residual', a flat false all-clear on an eligibility-deciding word. RELOCATED immediates must be excluded when measuring this -- the linker owns those bits, the target object carries the address and ours carries zero -- and failing to exclude them fires on both halves of every lis/addi address pair (measured on G3DReadControlPadStates).\n\nCOROLLARY FOR THE EDIT LOOP, same shape one level down: where two metrics DISAGREE, the coarser one must not name the verdict. probe's headline was decided by `real`, a linear diff, so a real win whose opcode multiset GREW read 'IMPROVED [best updated]' -- word-for-word identical to a probe that improved both -- and banked the structurally diverged state as the revert point; a flat-real probe whose multiset FELL read 'NEUTRAL', hiding a full structural convergence and leaving the best_multiset anchor stale at the worse count. Both now take their headline from the multiset."
+}

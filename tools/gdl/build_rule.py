@@ -19,6 +19,7 @@ sys.path.insert(0, str(ROOT))
 from tools.gdl.webfrank import (  # noqa: E402
     SHT_RELA,
     _find_symbol,
+    _function_text_relocations,
     _relocation_sha256,
     _sections,
     _sha256,
@@ -26,8 +27,17 @@ from tools.gdl.webfrank import (  # noqa: E402
     apply_patch,
     check_permutation_dependences,
 )
+from tools.gdl.reloc_symbols import (  # noqa: E402
+    moved_symbols,
+    region_symbols,
+)
 
-UNIT = (sys.argv[1] if len(sys.argv) > 1 else "game/pb/pb_window").strip("/")
+_args = [a for a in sys.argv[1:] if not a.startswith("--")]
+UNIT = (_args[0] if _args else "game/pb/pb_window").strip("/")
+OUT = Path(next((a.split("=", 1)[1] for a in sys.argv
+                 if a.startswith("--out=")),
+                ROOT / "build" / "GUNE5D" / "rules"
+                / f"{UNIT.replace('/', '_')}_rules.json"))
 _ours = ROOT / "build" / "GUNE5D" / "src" / (UNIT + ".o")
 _raw = _ours.parent / ".postprocess" / "body" / _ours.name
 OURS = _raw if _raw.is_file() else _ours
@@ -78,14 +88,25 @@ def window(data, sections, symbol, body, start, end, order):
         (destination_by_source[offset // 4] * 4 + offset % 4, info, addend)
         for offset, info, addend in before
     )
+    # Name-bound relocation hashing (run-28 migration): passing the bare
+    # triples raises "relocation hash needs the symbol name" on every
+    # window that carries a relocation. This file died that way on its own
+    # default unit until the symbol maps were threaded through.
+    relocations = _function_text_relocations(
+        data, sections, symbol.section_index,
+        symbol.value, symbol.value + symbol.size)
+    window_symbols = region_symbols(relocations, start, end)
+    after_symbols = moved_symbols(window_symbols, order)
     return {
         "start": f"0x{start:x}",
         "end": f"0x{end:x}",
         "order": list(order),
         "before_sha256": _sha256(region),
         "after_sha256": _sha256(permuted),
-        "before_relocations_sha256": _relocation_sha256(before),
-        "after_relocations_sha256": _relocation_sha256(after),
+        "before_relocations_sha256": _relocation_sha256(
+            before, window_symbols),
+        "after_relocations_sha256": _relocation_sha256(
+            after, after_symbols),
     }, permuted
 
 
@@ -132,7 +153,11 @@ rules.append(compose(
      (0x3e4, 0x3ec, [1, 0])],
 ))
 
-Path(ROOT / "WF_scratch/pb_window_rules.json").write_text(
-    json.dumps(rules, indent=2)
-)
-print("\nwrote WF_scratch/pb_window_rules.json")
+# Output path is an ARGUMENT with a build-directory default. It used to be
+# a hardcoded WF_scratch/ path inside the tracked tree: that both writes an
+# untracked artifact into the repo root and hard-crashes with
+# FileNotFoundError in any checkout where the foreign lane's scratch
+# directory does not exist — which is every worktree but its author's.
+OUT.parent.mkdir(parents=True, exist_ok=True)
+OUT.write_text(json.dumps(rules, indent=2))
+print(f"\nwrote {OUT}")

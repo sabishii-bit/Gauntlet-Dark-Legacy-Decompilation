@@ -408,6 +408,38 @@ one, and supersede the law if your target contradicts it.
    law records were still being cited.
    Record DRAFTS go through `gdlmem propose-record`, not into git.
 
+   **Every scratch and generated filename is LANE-PREFIXED, and no tool
+   hardcodes another lane's scratch path.** Three rules, each measured:
+
+   (a) *Prefix the basename, not just the directory.* `XX_scratch/`
+   isolates nothing once a file is promoted or a path is hardcoded, and
+   the basename is what collides. Census 2026-09-01 over
+   `tools/gdl/composed_census/`: 97 promoted files, 70 lane-prefixed
+   (ch, cn, cs, cv, eh, gw, ha, hv, pw, wf, ws) and **27 generic** —
+   `rule.json`, `rec1.json`…`rec6.json`, `rec_law.json`,
+   `rec_roster.json`, `readlaws.py`, `poolrefs.py`. Those are names a
+   second lane picks independently, in a directory every lane shares.
+   `wf_mkrule.py` writes plain `rule.json` beside itself; the next lane
+   to write a rule draft overwrites it silently.
+
+   (b) *Never hardcode a foreign lane's scratch directory.* Measured
+   collision: `pb_window_rules.json` is written by
+   `composed_census/build_rule_pw.py` into `PW_scratch/` while
+   `tools/gdl/splice_rules.py` reads it from `WF_scratch/` — one
+   basename, two lane directories, and neither path exists in a third
+   lane's worktree. `tools/gdl/build_rule.py` carried the same
+   `WF_scratch/` hardcode and hard-crashed with `FileNotFoundError` in
+   every checkout but its author's (fixed run 31: output is `--out=PATH`
+   with a `build/GUNE5D/` default).
+
+   (c) *Generated artifacts go under `build/`, never beside the script.*
+   `os.path.join(HERE, "x.json")` inside `tools/gdl/composed_census/`
+   writes an untracked artifact into a TRACKED directory — 31 such JSONs
+   are already committed there. A tool that emits a roster or a report
+   takes an `--out` argument defaulting under `build/GUNE5D/`; that
+   directory is already gitignored and per-worktree, so two lanes running
+   the same tool cannot overwrite each other at all.
+
 Header edits (include/game/*.h): allowed ONLY to the lane whose work_claim
 names it as that header's owner this run — one owner per header per run.
 The owner follows the isolation protocol without exception: exact byte

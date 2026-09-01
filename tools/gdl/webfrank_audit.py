@@ -45,6 +45,45 @@ def _sha256(data: bytes | bytearray) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+# verify_consistent_recolor's refusal: "+0xNN: use of gA does not correspond
+# to gB under the running renaming" (apply_patch parenthesises it).
+_RECOLOR_REFUSAL = re.compile(
+    r"\(?\+0x([0-9a-f]+): use of \w+ does not correspond to \w+"
+    r" under the running renaming"
+)
+REPAIR_TOOL = "tools/gdl/composed_census/hv_repair.py"
+
+
+def classify_rejection(unit: str, function: str, reason: str) -> dict:
+    """Annotate a rejection with its repair route, if it has one.
+
+    A verify_consistent_recolor refusal is a POINTER, NOT A VERDICT: it
+    names the merge where a two-valued binding was observed, and the repair
+    is usually a transposition of the pair of definitions UPSTREAM of it —
+    a window that contributes ZERO unabsorbed words, so no census proposes
+    it and no reader of this message would think to look. hv_repair
+    searches exactly that space. Every rejection this scanner emitted when
+    the cross-reference was added (11 of 11) was of this class, and not one
+    of them said so.
+
+    AGENTS.md discipline 14: a guard's refusal is a measurement of the
+    GUARD, not only of the function.
+    """
+    match = _RECOLOR_REFUSAL.search(reason or "")
+    if not match:
+        return {"repair_candidate": False}
+    return {
+        "repair_candidate": True,
+        "refusal_offset": f"0x{match.group(1)}",
+        "repair_hint": (
+            "verify_consistent_recolor refusal — a POINTER to a two-valued"
+            " binding, not proof the function is ineligible. The repairing"
+            " transposition lives UPSTREAM of this offset and contributes no"
+            " unabsorbed words, so no census will propose it."),
+        "next": f"python {REPAIR_TOOL} {unit} {function}",
+    }
+
+
 def _normalized_symbol(data: bytes, sections: list[Section], name: str) -> Symbol:
     symbols = _symbols(data, sections)
     exact = [symbol for symbol in symbols if symbol.name == name and symbol.size]
@@ -193,14 +232,14 @@ def main() -> int:
                 units.setdefault(unit, []).append(patch)
                 total_bytes += len(target_bytes)
             except Exception as error:
-                rejected.append(
-                    {
-                        "unit": unit,
-                        "function": function,
-                        "instructions": instruction_count,
-                        "reason": str(error),
-                    }
-                )
+                row = {
+                    "unit": unit,
+                    "function": function,
+                    "instructions": instruction_count,
+                    "reason": str(error),
+                }
+                row.update(classify_rejection(unit, function, str(error)))
+                rejected.append(row)
 
     output = {
         "version": 1,
@@ -225,6 +264,18 @@ def main() -> int:
         print(
             f"  REJECT {item['unit']}::{item['function']} "
             f"({item['instructions']} insns): {item['reason']}"
+        )
+        if item.get("repair_candidate"):
+            print(f"    -> REPAIRABLE CLASS: {item['repair_hint']}")
+            print(f"    -> try: {item['next']}")
+    repairable = [item for item in rejected if item.get("repair_candidate")]
+    if repairable:
+        print(
+            f"  {len(repairable)} of {len(rejected)} rejection(s) are"
+            " verify_consistent_recolor refusals, which are POINTERS, not"
+            " verdicts: do NOT record them as ineligibility without running"
+            f" {REPAIR_TOOL} first (AGENTS.md discipline 14 — a guard's"
+            " refusal measures the GUARD as much as the function)."
         )
     print(
         "NO OPINION on functions not listed above: this scanner only sees"

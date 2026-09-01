@@ -45,7 +45,12 @@ import ha_close as ha          # noqa: E402
 import hv_perm as hv           # noqa: E402
 from cn_analyze import our_object, target_object, load  # noqa: E402
 
-AT = re.compile(r"\(\+0x([0-9a-f]+): ")
+# apply_patch wraps the refusal as "... (+0xNN: use of gA does not ...)",
+# but webfrank_audit prints the bare exception message "+0xNN: use of ...".
+# The parenthesised-only pattern parsed 0 of 11 audit rejections (measured
+# 2026-09-01), so a lane pasting an audit reason in here got refusal_offset
+# None and no repair search at all. Accept both spellings.
+AT = re.compile(r"\(?\+0x([0-9a-f]+): ")
 TYPE_ERRORS = []
 MAX_ATOMS = 4
 ROUNDS = 8

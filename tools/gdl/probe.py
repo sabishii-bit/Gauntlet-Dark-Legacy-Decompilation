@@ -29,6 +29,23 @@ Output: one line per probe —
 The verdict compares against the BEST recorded real, so a probe sequence
 never loses track of the high-water mark even across reverts.
 
+STRUCTURE OUTRANKS REAL IN THE HEADLINE. `real` is a linear diff; the opcode
+multiset token count is what says whether the stream is the right SHAPE, and
+where the two disagree the multiset names the verdict:
+  CONFLICT  real fell BUT the multiset GREW — a shape moving away from
+            target wearing a real win. Best is NOT updated; this read plain
+            "IMPROVED [best updated]" before, indistinguishable from a probe
+            that improved both, and banked the diverged state as the revert
+            point.
+  CONFLICT  real rose BUT the multiset FELL — structure is converging;
+            do not auto-revert.
+  IMPROVED-STRUCTURE  real UNCHANGED but the multiset FELL — a structural
+            win the plain NEUTRAL headline hid, and which left the
+            best_multiset anchor stale at the worse count.
+A real move with the multiset flat, or unmeasurable, keeps its real-only
+verdict; the multiset-GREW-at-flat-real case stays with annotate_neutral's
+NEUTRAL-WORSE, which owns the byte-identity check.
+
 Every BASELINE or IMPROVED probe banks a snapshot of the TU source; a later
 `--revert` copies it back and re-scores in the same call, replacing the
 edit -> probe -> hand-retype-revert -> probe cycle. The snapshot covers the
@@ -434,6 +451,11 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
         # every later verdict until --rebase-best. Refuse to bank those.
         prev_dist = count_distance(state.get("last_insns"))
         cur_dist = count_distance(insns)
+        anchor_tokens = best_tokens if best_tokens is not None else prev_tokens
+        anchor_name = "best" if best_tokens is not None else "prev"
+        structure_diverged = (multiset_tokens is not None
+                              and anchor_tokens is not None
+                              and multiset_tokens > anchor_tokens)
         if (prev_dist is not None and cur_dist is not None
                 and cur_dist > prev_dist + 4):
             verdict = (f"IMPROVED? real {best} -> {real} BUT count"
@@ -441,6 +463,26 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                        " NOT updated; this is structural divergence wearing"
                        " a real win. Arbitrate on fresh fuzzy;"
                        " --rebase-best banks a deliberate keep")
+        elif structure_diverged:
+            # STRUCTURE OUTRANKS REAL (the mirror of the CONFLICT below).
+            # `real` is a linear diff; the opcode multiset is what says
+            # whether the stream is the right SHAPE. A real win whose
+            # multiset grew is a shape that moved AWAY from target, and
+            # the headline used to read plain "IMPROVED [best updated]" —
+            # indistinguishable from a probe that improved both, and it
+            # banked the diverged state as the revert point.
+            verdict = (f"CONFLICT  real {best} -> {real} IMPROVED but"
+                       f" multiset {anchor_tokens}t -> {multiset_tokens}t vs"
+                       f" {anchor_name} DIVERGED — structure moved AWAY from"
+                       " target while the linear diff shrank; best NOT"
+                       " updated, do NOT auto-bank. Read the --ops diff and"
+                       " arbitrate on fresh fuzzy (--rebase-best banks a"
+                       " deliberate keep)")
+            if best_tokens is None:
+                verdict += ("\n[no best_multiset banked (pre-run-29 state) —"
+                            " the structure comparison fell back to the"
+                            " PREVIOUS probe; --reset then re-probe for a"
+                            " BEST-anchored verdict]")
         else:
             verdict = (f"IMPROVED  real {best} -> {real} (insns"
                        f" {insns}{tok})  [best updated]")
@@ -451,7 +493,8 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
         # When insn counts already agreed and did not move, real fell
         # inside an already-parity-exact shell — fuzzy is the arbiter.
         parity = re.match(r"T(\d+)/O(\d+)$", insns or "")
-        if (parity and parity.group(1) == parity.group(2)
+        if (verdict.startswith("IMPROVED")
+                and parity and parity.group(1) == parity.group(2)
                 and state.get("last_insns") == insns):
             verdict += ("\nPARITY-HELD IMPROVEMENT: counts were already"
                         " equal and unchanged — arbitrate on FRESH objdiff"
@@ -517,7 +560,23 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                         " a CONFLICT as REGRESSED; --reset then re-probe"
                         " for a BEST-anchored verdict]")
     else:
-        verdict = f"NEUTRAL   real {real} (insns {insns}{tok})"
+        # real is FLAT. `real` alone has nothing to say here, so the
+        # multiset decides: a converging multiset at unchanged real is a
+        # structural win the plain NEUTRAL headline hid outright — and
+        # because NEUTRAL never re-banked best, best_multiset stayed at the
+        # WORSE count and every later probe was anchored on a stale
+        # structure number.
+        anchor_tokens = best_tokens if best_tokens is not None else prev_tokens
+        anchor_name = "best" if best_tokens is not None else "prev"
+        if (multiset_tokens is not None and anchor_tokens is not None
+                and multiset_tokens < anchor_tokens):
+            verdict = (f"IMPROVED-STRUCTURE real {real} UNCHANGED but multiset"
+                       f" {anchor_tokens}t -> {multiset_tokens}t vs"
+                       f" {anchor_name} FELL — the opcode stream converged at"
+                       f" flat real (insns {insns})  [best updated]")
+            bank_best()
+        else:
+            verdict = f"NEUTRAL   real {real} (insns {insns}{tok})"
     state["last_real"] = real
     state["last_insns"] = insns
     if multiset_tokens is not None:
@@ -601,6 +660,50 @@ def fuzzy_readout(unit, fn, fn_stripped, state, state_file):
             print("[--fuzzy: function not found in report]")
     except Exception as err:
         print(f"[--fuzzy: readout failed: {err}]")
+
+
+REPLAN_AT = 3
+
+
+def update_neutral_identical_streak(state, verdict):
+    """Consecutive NEUTRAL-IDENTICAL probes on this function.
+
+    A RE-SCORE recomputes nothing and is not a probe, so it neither counts
+    nor resets. Every other non-identical verdict resets to zero.
+    """
+    current = state.get("neutral_identical_streak", 0)
+    if verdict.startswith("RE-SCORE"):
+        return current
+    if verdict.startswith("NEUTRAL") and "NEUTRAL-IDENTICAL" in verdict:
+        return current + 1
+    return 0
+
+
+def replan_hint(streak):
+    """Advice after a run of edits that never reached codegen at all.
+
+    NEUTRAL-IDENTICAL means the object bytes did not move: the edit folded
+    away BEFORE codegen, so the source text never reached the compiler's
+    decision point. One is a strong negative on that spelling. Three in a
+    row is no longer evidence about spellings — it is evidence about the
+    AXIS CLASS, because three different source constructs all failed to
+    reach the same decision point. The loop used to say nothing, which
+    invites a fourth spelling of a lever already proven unreachable.
+    """
+    if streak < REPLAN_AT:
+        return None
+    return (
+        f"RE-PLAN THE AXIS CLASS: {streak} consecutive NEUTRAL-IDENTICAL"
+        " probes — every one of those edits folded away before codegen and"
+        " the object bytes never moved. That is a fact about the AXIS, not"
+        " about the spellings: this construct does not reach the compiler's"
+        " decision point at all, so a further spelling of it cannot either."
+        " Change the LEVER (a different mechanism, a different function"
+        " boundary, a declaration/type/order change rather than a statement"
+        " respell), or record the axis as measured-dead with these"
+        f" {streak} probed forms. `gdlmem laws --query <your residual"
+        " signature>` before the next probe."
+    )
 
 
 def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
@@ -880,6 +983,14 @@ def main():
         verdict = annotate_neutral(verdict, real, insns, multiset_tokens,
                                    prev_tokens, prev_insns, prev_digest,
                                    digest)
+        state["last_verdict"] = verdict
+    # A run of edits that never reached codegen is a fact about the axis,
+    # not about the spellings tried. Aggregate it and say so.
+    streak = update_neutral_identical_streak(state, verdict)
+    state["neutral_identical_streak"] = streak
+    hint = replan_hint(streak)
+    if hint:
+        verdict += "\n" + hint
         state["last_verdict"] = verdict
     state_file.write_text(json.dumps(state), encoding="utf-8")
     print(verdict)

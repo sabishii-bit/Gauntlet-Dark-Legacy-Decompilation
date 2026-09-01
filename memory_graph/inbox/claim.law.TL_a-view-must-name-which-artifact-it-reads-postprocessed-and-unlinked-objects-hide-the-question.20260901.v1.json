@@ -1,0 +1,29 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py",
+    "tools/gdl/defake_gate.py",
+    "tools/gdl/fndiff.py",
+    "tools/gdl/tests/test_fnasm.py",
+    "tools/gdl/tests/test_defake_gate.py",
+    "tools/gdl/tests/test_fndiff_classify.py"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "relocation",
+      "symbol-identity",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Disproved for the pinned-function half by exhibiting a WebFrank-pinned function whose build/GUNE5D/src/<unit>.o body DIFFERS from the extracted target body -- run `python tools/gdl/fnasm.py <unit> <fn> --diff` on any entry of config/GUNE5D/webfrank.json and show a non-`=` row. Disproved for the REL24 half by exhibiting an unlinked object in which a `bl`'s instruction word encodes its callee, i.e. two objects identical in every instruction word whose REL24 relocations name functions at different addresses and which nonetheless link to different bytes only because of the words. Disproved for the reloc-naming half by exhibiting a function that fndiff --clean calls MATCH-MODULO-RELOC-NAMING and that does NOT link byte-identical.",
+  "id": "claim.law.TL_a-view-must-name-which-artifact-it-reads-postprocessed-and-unlinked-objects-hide-the-question.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T23:52:27Z",
+  "schema_version": 1,
+  "subject": "function:sysPollResetButton",
+  "valid_from": "2026-09-01",
+  "value": "A DIFF VIEW ANSWERS A QUESTION ABOUT THE ARTIFACT IT READS, NOT ABOUT THE ONE THE READER HAS IN MIND, AND THE TWO STANDARD ARTIFACTS IN THIS PROJECT -- THE POSTPROCESSED OBJECT AND THE UNLINKED OBJECT -- EACH DELETE A DIFFERENT PART OF THE QUESTION. EVERY VIEW MUST THEREFORE NAME ITS ARTIFACT, AND MUST REFUSE TO ANSWER A QUESTION THAT ARTIFACT CANNOT SEE.\n\nTHREE INSTANCES, ALL MEASURED RUN 31, ALL PREVIOUSLY SILENT.\n\n(1) THE POSTPROCESSED OBJECT DELETES THE COMPILER. build/GUNE5D/src/<unit>.o is the WEBFRANK/P6FRANK OUTPUT for every unit in those configs. A pinned function's postprocessed body is byte-identical to the target BY CONSTRUCTION, so `fnasm --ours`/`--diff` compares the target against a copy of itself. Measured: game/sys/sysservice sysPollResetButton printed 60 of 60 `=` rows -- a perfect match, with no warning, saying nothing whatever about the compiler's output. The pre-postprocess object (.postprocess/frank/, else .postprocess/body/) shows the real residual at the same function: a >/< pair at 0x88/0x8c on the gPadResetHoldTimer ADDR16_HA lis. This is fndiff's recorded 'a webfrank-pinned function reads real 0 by construction' hazard, reappearing in a view that had no equivalent guard.\n\n(2) THE UNLINKED OBJECT DELETES THE CALLEE. A REL24 `bl` word carries NO target in an unlinked object; the callee lives entirely in the relocation symbol. So 'instruction words unchanged' is TRIVIALLY TRUE for any callee substitution, and defake_gate's NAMING-DRIFT class -- which was exactly that test -- passed a genuine wrong-callee bug in BOTH directions (claim.law.HV_defake-gate-naming-drift-is-a-false-benign-on-a-wrong-callee.20260901.v1). The sound test is ADDRESS IDENTITY in symbols.txt, verified live: DoAudioTallySFX resolves to 0x8009FB84 and fn_8009FCA8 to 0x8009FCA8, while the benign convention it was built for (get_attn_pos vs get_attn_pos_8002C9A8) resolves to one address, 0x8002C9A8.\n\n(3) THE UNLINKED OBJECT ALSO INVENTS A RESIDUAL THAT LINKING REMOVES, the mirror direction of the same fact. 60 functions link byte-identical while `fndiff --clean` scored them OPERAND_DIFF with N real diff lines, because one side names a symbol the other emits as an anonymous pool entry -- DVDCheckDisk in dolphin/dvd/dvd, a MATCHING TU, read '4 real diff lines' over target jumptable_8023AAF8 against our @647. A finished function reading as open work costs exactly as much as an open one reading as finished.\n\nTHE COMMON SHAPE: in each case a score computed over the WRONG ARTIFACT was locally correct and globally meaningless, and in each case the fix is a NAMED VIEW plus a refusal -- --raw with a PINNED banner, an address-resolving NAMING-DRIFT that fails closed, a MATCH-MODULO-RELOC-NAMING verdict whose predicate never absorbs two concrete disagreeing symbols. Corollary for authors: when adding a view, write down which of {retail target, raw compiler output, postprocessed object, linked image} it reads, and what that artifact cannot represent."
+}

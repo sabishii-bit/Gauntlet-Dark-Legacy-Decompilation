@@ -47,6 +47,24 @@ finished functions:
                     the instruction moved, it did not change
   alignment         differing opcodes while the multisets are identical
 
+CENSUS COLUMNS. Every summary row leads with two facts the structural
+count cannot carry:
+  T<n>/O<n> PARITY | COUNT<+-n>   instruction counts and whether they
+        AGREE. This is the POSTPROCESSOR SCREEN: a count-asymmetric
+        residual is provably outside every WebFrank/P6Frank class. It is
+        NOT the same question as `unpaired` — 150 rows image-wide have
+        unpaired > 0 with parity held (equal counts, different placement)
+        and remain rule-eligible.
+  slots aT/bO | slots=            exclusive r1 slot offsets on each side,
+        i.e. whether this is a LAYOUT residual. A recolor and a frame
+        residual are indistinguishable in the structural count; 11
+        functions carry a slot delta under an IDENTICAL opcode multiset,
+        3 of them with an outright frame-size delta. (Measured caveat:
+        of 3032 census rows, ZERO had a slot delta while reading 0
+        genuine — the GENUINE column has never given a false all-clear on
+        a layout residual, so this column CLASSIFIES rows, it does not
+        rescue missed ones.)
+
 Offsets: @0xNN on paired/T rows is the TARGET function-relative byte
 offset; on UNPAIRED-O rows it is OURS-relative. Both skip reloc
 annotation lines. CLEAN-RENAMING is necessary, not sufficient, for a
@@ -64,6 +82,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fndiff  # noqa: E402
+import slotdiff  # noqa: E402  (slot_map: the layout column)
+import unabsorbed  # noqa: E402  (the closability column)
 
 VERSION = "GUNE5D"
 
@@ -235,6 +255,42 @@ class Result:
         self.paired = 0
         self.t_only = []
         self.b_only = []
+        # Layout/parity columns (run-31 item 5). Instruction counts and the
+        # r1 slot maps of both sides, so a census row can say WHICH KIND of
+        # residual it is instead of only how big it is.
+        self.t_insns = 0
+        self.o_insns = 0
+        self.t_slots = {}
+        self.o_slots = {}
+
+    @property
+    def count_delta(self):
+        """ours minus target instruction count."""
+        return self.o_insns - self.t_insns
+
+    @property
+    def count_parity(self):
+        """Equal instruction counts.
+
+        THE POSTPROCESSOR SCREEN: a count-asymmetric residual is provably
+        outside every WebFrank/P6Frank class, and `unpaired` does not
+        answer this — 150 census rows image-wide carry unpaired > 0 with
+        parity HELD (equal counts, different placement), which reads like
+        a count problem while the function is still rule-eligible.
+        """
+        return self.t_insns == self.o_insns
+
+    @property
+    def slot_exclusive(self):
+        """(target-only, ours-only) r1 slot offsets."""
+        return (sorted(set(self.t_slots) - set(self.o_slots)),
+                sorted(set(self.o_slots) - set(self.t_slots)))
+
+    @property
+    def slot_use_deltas(self):
+        """Shared slots whose USE COUNT differs."""
+        return sorted(off for off in set(self.t_slots) & set(self.o_slots)
+                      if self.t_slots[off] != self.o_slots[off])
 
     @property
     def renaming(self):
@@ -298,6 +354,10 @@ def analyze(target_lines, ours_lines, resolver=None):
     # occurs in the OTHER stream moved, it did not change.
     t_instructions = Counter(fndiff.instruction_lines(target_lines))
     b_instructions = Counter(fndiff.instruction_lines(ours_lines))
+    result.t_insns = sum(t_instructions.values())
+    result.o_insns = sum(b_instructions.values())
+    result.t_slots = slotdiff.slot_map(target_lines)
+    result.o_slots = slotdiff.slot_map(ours_lines)
 
     for ti, bi in pairs:
         t_line, b_line = target_lines[ti], ours_lines[bi]
@@ -429,14 +489,45 @@ def classify_reloc_pair(offset, t_line, b_line, resolver):
                "reloc target differs")
 
 
-def summary_line(name, result):
+def summary_line(name, result, unabsorbed_row=None):
+    """One census row. ``unabsorbed_row`` is a tools/gdl/unabsorbed.py entry.
+
+    UNABSORBED is the closability column and it answers a DIFFERENT
+    question from the structural counts: 32 differing equal-size functions
+    image-wide are tier A (the register-field stage alone reproduces the
+    target) while this census calls them real work on the genuine count,
+    and 147 are tier B. Ranking a roster without it is ranking blind.
+    """
     art = result.artifact_counts()
     bits = [f"{n} {kind}" for kind, n in sorted(art.items())]
     note = (f" ({' + '.join(bits)} artifacts — read the GENUINE rows"
             " first)" if bits else "")
     displaced = len(result.displaced_unpaired)
     moved = f" ({displaced} displaced)" if displaced else ""
-    return (f"== {name}: {result.paired} paired,"
+    # COUNT PARITY: the postprocessor screen. `unpaired` alone cannot
+    # answer it — 150 rows image-wide are unpaired-but-parity-held, which
+    # is still rule-eligible, and reading unpaired as a count problem
+    # queues them wrongly.
+    counts = f"T{result.t_insns}/O{result.o_insns}"
+    parity = ("PARITY" if result.count_parity
+              else f"COUNT{result.count_delta:+d}")
+    # SLOT DELTA: which KIND of residual this row is. A recolor and a
+    # frame-layout residual look the same in the structural count.
+    only_t, only_o = result.slot_exclusive
+    if only_t or only_o:
+        slots = f"slots {len(only_t)}T/{len(only_o)}O"
+    elif result.slot_use_deltas:
+        slots = f"slots= ({len(result.slot_use_deltas)} use-count)"
+    else:
+        slots = "slots="
+    if unabsorbed_row is None or unabsorbed_row.get("unabsorbed") is None:
+        unabs = "unabs=?"
+    else:
+        unabs = (f"unabs {unabsorbed_row['unabsorbed']}u/"
+                 f"{unabsorbed_row['clusters']}c tier"
+                 f" {unabsorbed_row['tier']}")
+    return (f"== {name}: {counts} {parity}, {slots}, {unabs},"
+            f" {result.paired} paired,"
             f" {len(result.renaming)} renaming,"
             f" {len(result.structural)} STRUCTURAL"
             f" ({len(result.genuine)} genuine){note},"
@@ -517,9 +608,23 @@ def main():
         print(f"-- regnorm census: {bare} ({len(common)} paired"
               " functions; rank by GENUINE structural rows, then"
               " unpaired — real inverts tractability) --")
+        print("   columns: T<n>/O<n> = instruction counts; PARITY /"
+              " COUNT<+-n> = the POSTPROCESSOR SCREEN (a count-asymmetric"
+              " residual is outside every WebFrank/P6Frank class, and"
+              " unpaired>0 does NOT imply a count delta); slots aT/bO ="
+              " exclusive r1 slot offsets, i.e. a LAYOUT residual, which"
+              " the structural count cannot distinguish from a recolor;"
+              " unabs Nu/Mc tier A|B = UNABSORBED words (tier A = the"
+              " register-field stage alone reproduces the target), the"
+              " CLOSABILITY column the structural counts cannot answer")
+        unabs_rows = {}
+        try:
+            unabs_rows = unabsorbed.unit_rows(bare)
+        except Exception:
+            pass  # fail-soft: the column reads `unabs=?`, nothing breaks
         for name in common:
             result = analyze(target[name], ours[name], resolver)
-            print(summary_line(name, result))
+            print(summary_line(name, result, unabs_rows.get(name)))
         return 0
 
     unit, fn = args

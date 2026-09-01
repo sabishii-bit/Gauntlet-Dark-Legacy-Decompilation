@@ -20,6 +20,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # tools/gdl (fixed after promotion out of CN_scratch)
 import webfrank as wf  # noqa: E402
+from reloc_symbols import moved_symbols, region_symbols  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))  # repo root (fixed after promotion)
 
@@ -122,6 +123,12 @@ def derive(unit, fn, start, end, order, forms):
         permuted_records.append(
             (dest_by_src[off // 4] * 4 + off % 4, info, addend))
     permuted_records.sort(key=lambda i: i[0])
+    # Name-bound relocation hashing (run-28 migration): passing the bare
+    # triples raises "relocation hash needs the symbol name" on every
+    # window carrying a relocation, which reads as a defect in the FUNCTION
+    # and is really an un-migrated CALLER. See tools/gdl/reloc_symbols.py.
+    window_syms = region_symbols(orel, start, end)
+    moved_syms = moved_symbols(window_syms, order)
     atoms = [region[i * 4:i * 4 + 4] for i in range(n)]
     permuted = b"".join(atoms[s] for s in order)
 
@@ -134,8 +141,10 @@ def derive(unit, fn, start, end, order, forms):
             "order": list(order),
             "before_sha256": sha(region),
             "after_sha256": sha(permuted),
-            "before_relocations_sha256": wf._relocation_sha256(records),
-            "after_relocations_sha256": wf._relocation_sha256(permuted_records),
+            "before_relocations_sha256": wf._relocation_sha256(
+                records, window_syms),
+            "after_relocations_sha256": wf._relocation_sha256(
+                permuted_records, moved_syms),
         },
     }
     if forms:

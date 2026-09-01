@@ -14,9 +14,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from probe import (annotate_neutral, classify, count_distance,
-                   function_span, scaffold_rows, scoped_revert, split_lines,
-                   strip_noncode)
+from probe import (REPLAN_AT, annotate_neutral, classify, count_distance,
+                   function_span, replan_hint, scaffold_rows, scoped_revert,
+                   split_lines, strip_noncode,
+                   update_neutral_identical_streak)
 
 
 TU = """\
@@ -143,6 +144,145 @@ class ClassifyTests(unittest.TestCase):
                  "last_insns": "T47/O47", "last_multiset": 0}
         verdict, _ = classify(state, 24, "T47/O47", 0)
         self.assertIn("PARITY-HELD IMPROVEMENT", verdict)
+
+
+class MultisetOutranksRealTests(unittest.TestCase):
+    """run-31 item 3: the headline verdict is decided by STRUCTURE first.
+
+    The two shapes where a real-only headline actively misadvises, both
+    measured against the pre-item classify():
+
+      real 100 -> 90 with the multiset 2t -> 8t   read "IMPROVED [best
+      updated]" — indistinguishable from a probe whose structure also
+      converged, and it banked the diverged state as the revert point.
+
+      real 100 -> 100 with the multiset 8t -> 0t  read "NEUTRAL", hiding a
+      complete structural convergence, and left best_multiset stale at 8.
+    """
+
+    DIVERGED = {"best_real": 100, "best_multiset": 2, "last_multiset": 2,
+                "last_real": 100, "last_insns": "T120/O120"}
+    CONVERGED = {"best_real": 100, "best_multiset": 8, "last_multiset": 8,
+                 "last_real": 100, "last_insns": "T120/O120"}
+
+    def test_real_win_with_a_growing_multiset_is_a_CONFLICT(self):
+        verdict, state = classify(dict(self.DIVERGED), 90, "T120/O120", 8)
+        self.assertTrue(verdict.startswith("CONFLICT"), verdict)
+        self.assertIn("2t -> 8t vs best", verdict)
+        self.assertIn("DIVERGED", verdict)
+        self.assertIn("do NOT auto-bank", verdict)
+
+    def test_a_diverged_real_win_does_not_become_the_new_best(self):
+        _, state = classify(dict(self.DIVERGED), 90, "T120/O120", 8)
+        self.assertEqual(state["best_real"], 100)
+        self.assertEqual(state["best_multiset"], 2)
+
+    def test_real_win_with_a_falling_multiset_is_still_IMPROVED(self):
+        verdict, state = classify(dict(self.CONVERGED), 90, "T120/O120", 2)
+        self.assertTrue(verdict.startswith("IMPROVED"), verdict)
+        self.assertEqual(state["best_real"], 90)
+        self.assertEqual(state["best_multiset"], 2)
+
+    def test_real_win_with_a_flat_multiset_is_still_IMPROVED(self):
+        verdict, state = classify(dict(self.CONVERGED), 90, "T120/O120", 8)
+        self.assertTrue(verdict.startswith("IMPROVED"), verdict)
+        self.assertEqual(state["best_real"], 90)
+
+    def test_flat_real_with_a_falling_multiset_is_IMPROVED_STRUCTURE(self):
+        verdict, state = classify(dict(self.CONVERGED), 100, "T120/O120", 0)
+        self.assertTrue(verdict.startswith("IMPROVED-STRUCTURE"), verdict)
+        self.assertIn("8t -> 0t vs best", verdict)
+
+    def test_a_flat_real_structural_gain_rebanks_the_multiset_anchor(self):
+        """The stale-anchor half: best_multiset stayed at 8 before."""
+        _, state = classify(dict(self.CONVERGED), 100, "T120/O120", 0)
+        self.assertEqual(state["best_multiset"], 0)
+        self.assertEqual(state["best_real"], 100)
+
+    def test_flat_real_with_a_flat_multiset_is_still_NEUTRAL(self):
+        verdict, _ = classify(dict(self.CONVERGED), 100, "T120/O120", 8)
+        self.assertTrue(verdict.startswith("NEUTRAL"), verdict)
+
+    def test_flat_real_with_a_growing_multiset_is_still_NEUTRAL(self):
+        """annotate_neutral owns that case (NEUTRAL-WORSE); classify must
+        not steal it out from under the byte-identity check."""
+        verdict, _ = classify(dict(self.CONVERGED), 100, "T120/O120", 12)
+        self.assertTrue(verdict.startswith("NEUTRAL"), verdict)
+
+    def test_no_multiset_measurement_leaves_every_verdict_unchanged(self):
+        self.assertTrue(classify(dict(self.CONVERGED), 90, "T120/O120",
+                                 None)[0].startswith("IMPROVED"))
+        self.assertTrue(classify(dict(self.CONVERGED), 100, "T120/O120",
+                                 None)[0].startswith("NEUTRAL"))
+
+    def test_a_legacy_state_falls_back_to_prev_and_says_so(self):
+        state = {"best_real": 100, "last_multiset": 2, "last_real": 100,
+                 "last_insns": "T120/O120"}
+        verdict, _ = classify(state, 90, "T120/O120", 8)
+        self.assertTrue(verdict.startswith("CONFLICT"), verdict)
+        self.assertIn("vs prev", verdict)
+        self.assertIn("no best_multiset banked", verdict)
+
+
+class ReplanHintTests(unittest.TestCase):
+    """run-31 item 10.
+
+    NEUTRAL-IDENTICAL means the object bytes did not move: the edit folded
+    away BEFORE codegen, so the source text never reached the compiler's
+    decision point. One is a strong negative on that spelling. Three in a
+    row is evidence about the AXIS CLASS — the decision point is not
+    reachable from this construct at all — and the loop said nothing,
+    inviting a fourth spelling of the same dead lever.
+    """
+
+    IDENTICAL = ("NEUTRAL   real 30 (insns T47/O47, multiset 0t)"
+                 "  [NEUTRAL-IDENTICAL: object bytes unchanged — the edit"
+                 " FOLDED AWAY before codegen.]")
+    REARRANGED = ("NEUTRAL   real 30  [NEUTRAL-REARRANGED: OBJECT BYTES"
+                  " CHANGED]")
+
+    def streak(self, verdicts, start=0):
+        state = {"neutral_identical_streak": start}
+        for verdict in verdicts:
+            state["neutral_identical_streak"] = \
+                update_neutral_identical_streak(state, verdict)
+        return state["neutral_identical_streak"]
+
+    def test_consecutive_identicals_accumulate(self):
+        self.assertEqual(self.streak([self.IDENTICAL] * 3), 3)
+
+    def test_any_other_verdict_resets_the_streak(self):
+        self.assertEqual(
+            self.streak([self.IDENTICAL, self.IDENTICAL,
+                         "IMPROVED  real 30 -> 24", self.IDENTICAL]), 1)
+
+    def test_a_rearranged_neutral_does_not_count(self):
+        """Bytes MOVED there — the source did reach codegen."""
+        self.assertEqual(self.streak([self.REARRANGED] * 3), 0)
+
+    def test_a_rescore_neither_counts_nor_resets(self):
+        """A re-score recomputes nothing, so it is not a probe."""
+        rescored = ("RE-SCORE  real 30 — nothing moved since the last"
+                    f" probe:\n{self.IDENTICAL}")
+        self.assertEqual(self.streak([rescored, rescored], start=2), 2)
+
+    def test_no_hint_below_the_threshold(self):
+        for count in range(REPLAN_AT):
+            self.assertIsNone(replan_hint(count))
+
+    def test_the_hint_fires_at_the_threshold(self):
+        hint = replan_hint(REPLAN_AT)
+        self.assertIsNotNone(hint)
+        self.assertIn("RE-PLAN THE AXIS CLASS", hint)
+        self.assertIn(str(REPLAN_AT), hint)
+
+    def test_the_hint_says_not_to_try_another_spelling(self):
+        hint = replan_hint(REPLAN_AT + 2)
+        self.assertIn("spelling", hint)
+        self.assertIn(str(REPLAN_AT + 2), hint)
+
+    def test_the_hint_persists_above_the_threshold(self):
+        self.assertIsNotNone(replan_hint(9))
 
 
 class RescoreGuardTests(unittest.TestCase):
