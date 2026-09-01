@@ -30,6 +30,12 @@ edit -> probe -> hand-retype-revert -> probe cycle. The snapshot covers the
 TU's own .c/.cpp only — header edits are yours to manage — and the banked
 state is per-unit, so probe a BASELINE before your first edit of a session.
 
+Escape hatches (a worker concluded --discard "does not exist" because this
+docstring omitted it — the flags below all work):
+  --discard          restore the TU to HEAD (the neutral-edit undo)
+  --revert-baseline  restore the SESSION's first banked baseline
+  --no-bank          score without banking (diagnostic probes)
+
 Two semantics every worker must know before trusting --revert as an undo:
 (1) NEUTRAL probes BANK TOO (they may be verified-neutral work worth
 keeping), so after a neutral probe --revert restores that neutral edit,
