@@ -10,6 +10,15 @@
   "kind": "attempt",
   "outcome": "parked",
   "recorded_at": "2026-08-29T23:25:17Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "measured_at": "2026-09-01",
+    "signature": "0t opcode multiset IDENTICAL (113/113); insns T113/O113; 2 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "REGISTER_ONLY/SCHEDULE (allocator or scheduler residual)",
   "schema_version": 1,
   "valid_from": "2026-08-29"
