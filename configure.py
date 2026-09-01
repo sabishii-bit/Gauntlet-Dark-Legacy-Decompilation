@@ -450,7 +450,7 @@ config.libs = [
             Object(Matching, "game/sys/registry.c", mw_version=p6_compiler_version),
             Object(Matching, "game/sys/gutil.c", mw_version="GC/1.2.5n"),
             Object(Matching, "game/sys/texPalette.c", mw_version="GC/1.2.5n"),
-            Object(NonMatching, "game/g3d/gcontrolpads.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
+            Object(Matching, "game/g3d/gcontrolpads.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(Matching, "game/crt/vsprintf.c", cflags=cflags_demo),
             Object(Matching, "game/pb/pbutils.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
             Object(NonMatching, "game/pb/pb_objects.c", cflags=cflags_demo, mw_version="GC/1.2.5n"),
