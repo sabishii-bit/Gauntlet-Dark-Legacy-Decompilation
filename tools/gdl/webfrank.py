@@ -1048,6 +1048,222 @@ def permute_instruction_atoms(
     return output, moved_relocations, moved
 
 
+COPY_FORM_OPCODES = (14, 24, 31)
+
+
+def decode_copy_form(word: int):
+    """Classify a word as a register-to-register COPY or a constant LOAD.
+
+    Returns ``("copy", rD, rS)`` when the word provably sets rD to the
+    current contents of rS, ``("li", rD, K)`` when it provably sets rD to
+    the literal constant K, and ``None`` for everything else.
+
+    The only two copy encodings accepted are MWCC's two move forms:
+
+      * ``or rD,rS,rS`` (``mr rD,rS``) with Rc clear — Rc set also writes
+        CR0, which no ``addi`` does, so ``mr.`` is never a copy here.
+      * ``addi rD,rS,0`` with **rS != 0**.  This is the whole reason the
+        classification exists: ``addi`` treats a zero rA field as the
+        literal value zero rather than as GPR 0, so ``addi rD,0,0`` is
+        ``li rD,0`` — a constant load, not a copy of r0.
+
+    ``ori rD,rS,0`` is a third valid copy form but is deliberately NOT
+    accepted in this version: it is absent from the measured population,
+    and every accepted form must be one the tests exercise.
+    """
+    opcode = word >> 26
+    if opcode == 14:  # addi rD,rA,SIMM
+        destination = (word >> 21) & 0x1F
+        source = (word >> 16) & 0x1F
+        immediate = _sign_extend(word & 0xFFFF, 16)
+        if source == 0:
+            return ("li", destination, immediate)
+        if immediate == 0:
+            return ("copy", destination, source)
+        return None
+    if opcode == 31 and ((word >> 1) & 0x3FF) == 444:  # or rA,rS,rB
+        source = (word >> 21) & 0x1F
+        destination = (word >> 16) & 0x1F
+        second = (word >> 11) & 0x1F
+        if second == source and not word & 1:
+            return ("copy", destination, source)
+        return None
+    return None
+
+
+def _entry_indexes(successors: list[list[int]]) -> set[int]:
+    """Indexes reachable by anything other than plain fallthrough."""
+    entries = {0}
+    for index, targets in enumerate(successors):
+        for target in targets:
+            if target != index + 1:
+                entries.add(target)
+    return entries
+
+
+def prove_constant_source(
+    words: list[int], site: int, source: int, constant: int,
+    entry_indexes: set[int], relocated_indexes: set[int],
+) -> int:
+    """Prove GPR *source* holds *constant* on entry to instruction *site*.
+
+    The proof is a straight-line backward scan and is deliberately the
+    weakest one that is obviously sound: walking back from the site it
+    fails closed on the first index that can be entered from anywhere but
+    its own fallthrough edge, on any control instruction, on any
+    relocated word, and on any write to *source* that is not the exact
+    ``li source,constant`` being looked for.  Reaching such a definition
+    with no interposed write and no way into the span from elsewhere makes
+    *source* equal to *constant* on every path that reaches the site.
+
+    Returns the index of the dominating definition.
+    """
+    index = site - 1
+    while index >= 0:
+        if index + 1 in entry_indexes:
+            raise ValueError(
+                f"+0x{(index + 1) * 4:x} is a branch target: control can "
+                f"enter between the definition and the rewrite site"
+            )
+        word = words[index]
+        if _is_control_instruction(word):
+            raise ValueError(
+                f"+0x{index * 4:x}: control instruction inside the proof span"
+            )
+        if index in relocated_indexes:
+            raise ValueError(
+                f"+0x{index * 4:x}: relocated word inside the proof span"
+            )
+        _reads, writes = _word_effects(word)
+        if ("g", source) in writes:
+            form = decode_copy_form(word)
+            if form is None or form[0] != "li" or form[1] != source:
+                raise ValueError(
+                    f"+0x{index * 4:x}: r{source} is redefined by a "
+                    f"non-constant instruction"
+                )
+            if form[2] != constant:
+                raise ValueError(
+                    f"+0x{index * 4:x}: r{source} is defined as {form[2]}, "
+                    f"not the required constant {constant}"
+                )
+            return index
+        index -= 1
+    raise ValueError(
+        f"no dominating `li r{source},{constant}` reaches +0x{site * 4:x}"
+    )
+
+
+def equivalent_copy_form(
+    current: bytes, target: bytes, edits: list,
+    relocated_offsets: set[int], target_relocated_offsets: set[int],
+    jumptable_offsets: set[int],
+) -> tuple[bytes, int]:
+    """Rewrite named words to the target's equivalent copy encoding.
+
+    This is neither a renaming nor a permutation, so it gets its own proof
+    obligation rather than reusing the recolor guards.  Two forms are
+    accepted, and nothing else:
+
+    ``unconditional`` — our word and the target word decode as the *same*
+    copy ``rD <- rS`` with ``rS != 0``.  ``mr rD,rS`` and ``addi rD,rS,0``
+    then have identical architectural effect, so no dataflow is needed.
+
+    ``dominating_def`` — our word is ``li rD,K`` and the target word is a
+    copy ``rD <- rS`` with ``rS != 0``, and a backward scan proves rS holds
+    K at that point.  This is a value-equivalence obligation, discharged by
+    ``prove_constant_source``.
+
+    Every edit additionally requires that neither object carries a
+    relocation on the rewritten word, and each rewritten word must equal
+    the target word exactly.
+    """
+    if len(current) != len(target) or len(current) % 4:
+        raise ValueError("copy-form functions must have equal aligned sizes")
+    words = [_u32(current, offset) for offset in range(0, len(current), 4)]
+    successors, _calls = _successors(
+        words,
+        {offset // 4 for offset in relocated_offsets},
+        {offset // 4 for offset in jumptable_offsets},
+    )
+    entries = _entry_indexes(successors)
+    relocated_indexes = {offset // 4 for offset in relocated_offsets}
+
+    output = bytearray(current)
+    changed = 0
+    seen = set()
+    for edit in edits:
+        offset = _parse_int(edit["at"])
+        if offset % 4 or not 0 <= offset <= len(current) - 4:
+            raise ValueError(f"invalid copy-form offset {edit}")
+        if offset in seen:
+            raise ValueError(f"duplicate copy-form edit at +0x{offset:x}")
+        seen.add(offset)
+        if offset in relocated_offsets or offset in target_relocated_offsets:
+            raise ValueError(
+                f"+0x{offset:x}: relocated word is not a copy-form candidate"
+            )
+        word = _u32(current, offset)
+        wanted = _u32(target, offset)
+        if word == wanted:
+            raise ValueError(f"+0x{offset:x}: word already matches target")
+
+        ours = decode_copy_form(word)
+        theirs = decode_copy_form(wanted)
+        if ours is None:
+            raise ValueError(
+                f"+0x{offset:x}: our word 0x{word:08x} is not a copy form"
+            )
+        if theirs is None or theirs[0] != "copy":
+            raise ValueError(
+                f"+0x{offset:x}: target word 0x{wanted:08x} is not a "
+                f"register copy"
+            )
+        _kind, destination, source = theirs
+        if source == 0:
+            raise ValueError(
+                f"+0x{offset:x}: target copies from r0, which addi reads as "
+                f"the literal zero — not a provable copy"
+            )
+        if ours[1] != destination:
+            raise ValueError(
+                f"+0x{offset:x}: destination differs (r{ours[1]} vs "
+                f"r{destination}) — that is a recolor, not a form change"
+            )
+
+        proof = edit.get("proof")
+        if ours[0] == "copy":
+            if proof != "unconditional":
+                raise ValueError(
+                    f"+0x{offset:x}: copy/copy site requires "
+                    f'"proof": "unconditional"'
+                )
+            if ours[2] != source:
+                raise ValueError(
+                    f"+0x{offset:x}: source differs (r{ours[2]} vs "
+                    f"r{source}) — that is a recolor, not a form change"
+                )
+        elif ours[0] == "li":
+            if proof != "dominating_def":
+                raise ValueError(
+                    f"+0x{offset:x}: constant-load site requires "
+                    f'"proof": "dominating_def"'
+                )
+            definition = prove_constant_source(
+                words, offset // 4, source, ours[2], entries,
+                relocated_indexes,
+            )
+            edit["_proved_at"] = definition * 4
+        else:
+            raise ValueError(f"+0x{offset:x}: unsupported form {ours[0]}")
+
+        struct.pack_into(">I", output, offset, wanted)
+        if _u32(output, offset) != wanted:
+            raise ValueError(f"+0x{offset:x}: rewrite did not reach target")
+        changed += 1
+    return bytes(output), changed
+
+
 def copy_register_fields(current: bytes, target: bytes) -> tuple[bytes, int]:
     """Copy only genuine register operand fields from *target*.
 
@@ -1205,6 +1421,35 @@ def apply_patch(
                 *record,
             )
         changed += moved
+
+    copy_forms = patch.get("equivalent_copy_form")
+    if copy_forms:
+        if target_data is None:
+            raise ValueError(f"{symbol.name}: target object is required")
+        target_sections = _sections(target_data)
+        target_symbol = _find_symbol(target_data, target_sections, symbol.name)
+        if target_symbol.size != symbol.size:
+            raise ValueError(
+                f"{symbol.name}: target/current function size mismatch "
+                f"({target_symbol.size} != {symbol.size})"
+            )
+        target_text = target_sections[target_symbol.section_index]
+        target_function = target_data[
+            target_text.offset + target_symbol.value:
+            target_text.offset + target_symbol.value + target_symbol.size
+        ]
+        target_relocations = _function_text_relocations(
+            target_data, target_sections, target_symbol.section_index,
+            target_symbol.value, target_symbol.value + target_symbol.size,
+        )
+        rewritten, form_changes = equivalent_copy_form(
+            bytes(data[start:end]), target_function, copy_forms,
+            relocated_offsets=relocated_offsets,
+            target_relocated_offsets=set(target_relocations),
+            jumptable_offsets=jumptable_offsets,
+        )
+        data[start:end] = rewritten
+        changed += form_changes
 
     pre_register = bytes(data[start:end])
     register_stage = bool(
