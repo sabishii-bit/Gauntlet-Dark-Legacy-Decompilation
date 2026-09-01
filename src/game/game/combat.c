@@ -2257,7 +2257,7 @@ extern f64 lbl_803461F0;
 
 void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
 {
-    u8 unused[44];
+    u8 unused[92];
     u8* cameraState = gCameraState;
     Camera* cam = &((Camera*)(cameraState + 0xC8))[camIdx];
     s32 aMode;
