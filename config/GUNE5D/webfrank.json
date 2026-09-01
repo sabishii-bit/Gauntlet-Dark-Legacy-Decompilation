@@ -1,6 +1,39 @@
 {
   "version": 1,
   "units": {
+    "game/ui/screensaver": [
+      {
+        "function": "end_inventory_panel",
+        "before_sha256": "8748ebb9be0d1a8f8604cd948e83825def1b5efa30f51a6ed170ea1b73db53ce",
+        "after_sha256": "542aa12aa4b4d39c9dd1dcf322350a06c8afb48f7f304f9aabb3dfae9c3ed570",
+        "instruction_permutation": [
+          {
+            "start": "0x18",
+            "end": "0x30",
+            "order": [
+              4,
+              0,
+              1,
+              2,
+              5,
+              3
+            ],
+            "before_sha256": "1a671cd942ea77f1de497ebb166d538d372ed3ed534dd8e2a2026845adb0c1ae",
+            "after_sha256": "4cd64817a0bbae6f99e6cfdd972dd9d59e89403a16b752dd038b081e52731732",
+            "before_relocations_sha256": "2b596f53d5918d5b77d6f32234c0ee0636fb83932f3728aebe2e355e979dc1e0",
+            "after_relocations_sha256": "0834fc9c048c4dcf7c22cbd7e2fc5e9e92add307194735c589a27a623f99ac8f"
+          }
+        ],
+        "equivalent_copy_form": [
+          {
+            "at": "0x28",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 27
+          }
+        ],
+        "copy_register_fields": true
+      }
+    ],
     "game/g3d/gcontrolpads": [
       {
         "function": "G3DReadControlPadStates",
