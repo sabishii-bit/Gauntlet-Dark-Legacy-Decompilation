@@ -1541,10 +1541,7 @@ void fn_8004DB3C(Enemy* enemy, s32 delta)
     s32 alpha = MBTreeGetAlpha(enemy->objgrp.node);
     s32 value;
 
-    if (delta > 0 && alpha >= 255) {
-        return;
-    }
-    if (delta < 0 && alpha == 0) {
+    if ((delta > 0 && alpha >= 255) || (delta < 0 && alpha == 0)) {
         return;
     }
     value = alpha + delta * gFrameTicks;
