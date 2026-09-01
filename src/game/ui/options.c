@@ -1921,9 +1921,9 @@ void show_optmenu(OPTMENU* m)
             break;
         }
         value = it->value;
-        hi2 = hifont;
-        scale = m->scale;
         itemfont = font2;
+        scale = m->scale;
+        hi2 = hifont;
         hi = 0;
         if (value < 0 && (s32)fade < 0x80) {
             alpha = 0x80;
