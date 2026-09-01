@@ -486,6 +486,23 @@
     ],
     "game/world/newcam": [
       {
+        "function": "fn_8006E654",
+        "before_sha256": "a8ae1a58e6d35e9719ed4def254daf4aa5e07f86247eb8192c3b8d6589c68a5b",
+        "after_sha256": "1cb3b0077ee000c5b6f36bf6ff09399b44bb711e805e3fabd2c4cc31027b4f13",
+        "mechanism": "Live-zero constant-copy form difference, the sole residual of a 369-instruction function: at +0x3c the target copies an already-live zero (`addi r30,r29,0`) where MWCC rematerializes it (`li r30,0`). This is the instance named in claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1, whose source already spells the copy (`iter = 0; ok = iter;`) and whose site sits inside a region under a verifiably active scoped `#pragma opt_propagation off` — the fold survives it, so no propagation-class lever reaches it. Proven by webfrank.prove_constant_source against the dominating `li r29,0` at +0x38: the preceding `bl` at +0x34 lies before that definition and so falls outside the proof span, and within the span there is no branch target, no control instruction, no relocation, and no write of r29. addi's rA field is non-zero, so the encoding is a genuine copy and not a literal load.",
+        "audit": {
+          "classification": "COPY_FORM",
+          "proof": "dominating_def",
+          "instructions": 369
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x3c",
+            "proof": "dominating_def"
+          }
+        ]
+      },
+      {
         "function": "CalcFrustrumNormals",
         "before_sha256": "b34989509724156a1c09b98b279d46b23c5ad5fc3232aeeda1cc6fe7093987e0",
         "after_sha256": "1be628a8dcabe2421e96e9407fc8e353576c4b192a6c4d383ed315b3ea42d470",
