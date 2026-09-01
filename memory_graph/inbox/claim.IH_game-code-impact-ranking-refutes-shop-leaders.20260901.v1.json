@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker IH, work_claim.impact-harvest.20260901.v1, worktree GDL-Claude-ImpactHarv, branch claude/impact-harvest-20260901. Ranking computed from build/GUNE5D/report.json produced by a green full ninja at session start (Game Code 97.79% fuzzy / 54.19% matched, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679). Method: for every function in a unit whose metadata.progress_categories contains 'game' and whose metadata.complete is false, impact = (1 - fuzzy/100) * size, using the FLAT per-function `size` and `fuzzy_match_percent` fields. Note for reimplementers: report.json unit names carry a `main/` prefix and per-function scores are flat fields, NOT nested under `measures` as the unit-level scores are; getting either wrong silently yields an empty ranking.",
+    "tags": [
+      "workflow",
+      "metrics",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.IH_game-code-impact-ranking-refutes-shop-leaders.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-01T04:26:38Z",
+  "schema_version": 1,
+  "subject": "function:ControlsUpdate",
+  "valid_from": "2026-09-01",
+  "value": "THE IMPACT LANE'S STANDING 'LIKELY LEADERS' LIST IS REFUTED BY MEASUREMENT, AND THE REAL LEADERS ARE ELSEWHERE. work_claim.impact-harvest.20260901.v1 nominated do_shopping_8009AA48 (shop.c) as the probable top target with write_shop_menu and do_shop behind it. Ranked properly by (1-fuzzy)*size from a fresh report, do_shopping_8009AA48 places NINTH at impact 266, write_shop_menu twenty-eighth at 156, and do_shop twenty-sixth at 166. The measured top of Game Code, excluding the TUs owned by other fleets this run, is: ControlsUpdate (game/controls.c) 731, ProcessEffects (sfx/sfx.c) 612, sDrawGeom (pb/pb_objregs.c) 530, PlayerMotion 454, show_optmenu (ui/options.c) 396, do_players (game/player.c) 295, do_player_select (ui/select.c) 288. The leader is worth 2.75x the nominated one. 323 non-exact Game Code functions carry 19193 total impact points.\\n\\nWHY THE NOMINATION WAS WRONG, and it is a systematic bias worth naming rather than a one-off slip: shop.c is heavily WORKED, not heavily BROKEN. It has accumulated many attempt records across several sessions, which makes it salient in the graph and therefore in a work order drafted from the graph, while its functions sit at 90-92% fuzzy on 1500-3500 byte bodies. The genuine leaders were comparatively INVISIBLE in the record corpus precisely because nobody had worked them: ControlsUpdate at 70.09% fuzzy -- the lowest of any large Game Code function -- and sDrawGeom at 86.92% each carried only a single 2026-08-31 label-correction park with no source probe ever run against them. RECORD SALIENCE IS ANTI-CORRELATED WITH REMAINING IMPACT, and a lane that picks targets from record density will systematically re-work its best-documented functions.\\n\\nOPERATIONAL CONSEQUENCE: compute the ranking from the report BEFORE reading the work order's suggestions, and treat named 'likely leaders' as a hypothesis to check rather than a queue to execute. Both true leaders reached this session yielded to their FIRST mechanism-matched lever after their parks turned out to be probe-free (ControlsUpdate 70.09% -> 72.33%; ProcessEffects's never-diagnosed 64-byte frame overshoot halved), which is what a genuinely unworked function looks like."
+}
