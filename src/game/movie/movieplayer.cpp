@@ -1418,28 +1418,21 @@ extern "C" void fn_800D9C5C(MovieRingBuffer* p, int n) {
 #pragma cplusplus off
 
 /* Kept out-of-line: the target calls this from dtor_800DBB94 (`addi r3,r28,60`
- * / `li r4,-1` / `bl`), and it is that destructor's only call site, so
- * suppressing the auto-inline here reproduces the call without affecting any
- * other function. */
-#pragma dont_inline on
-int* fn_800D9CF4(int* p, s16 releaseAgain) {
+ * / `li r4,-1` / `bl`), and it is that destructor's only call site.  The
+ * dont_inline that reproduces the call is applied at the CALLER, not here: this
+ * region has to stay free for the inliner so the two releases below expand in
+ * place and bring their __unexpected islands (target r31+44 and r31+16). */
+#pragma cplusplus on
+extern "C" int* fn_800D9CF4(int* p, s16 releaseAgain) {
     if (p != 0) {
-        if (*(u32*)p != 0) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-        if (releaseAgain > 0 && p != 0) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
+        MovieReleaseAllocEH((void*)*(u32*)p);
+        if (releaseAgain > 0) {
+            MovieReleaseAllocEH(p);
         }
     }
     return p;
 }
-#pragma dont_inline off
+#pragma cplusplus off
 
 #ifdef __MWERKS__
 #pragma optimization_level 4
@@ -2669,6 +2662,10 @@ extern "C" void fn_800DBA80(u8* dec, s32 fd) {
  * specification, which is what emits the __unexpected edge and the r31
  * frame-pointer prologue. */
 #pragma cplusplus on
+/* Caller-side dont_inline: the target calls fn_800D9CF4 out of line from here,
+ * and this is its only call site (suppressing the inliner at the callee instead
+ * would also stop fn_800D9CF4 inlining its own release helpers). */
+#pragma dont_inline on
 MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) throw() {
     if (self != NULL) {
         __dla__FPv(self->rawBuffer);
@@ -2696,6 +2693,7 @@ MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) throw() {
     }
     return self;
 }
+#pragma dont_inline off
 #pragma cplusplus off
 
 MovieChunkStream* fn_800DBC64(register MovieChunkStream* p) {
