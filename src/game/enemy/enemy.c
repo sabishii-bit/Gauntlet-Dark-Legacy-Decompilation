@@ -6791,7 +6791,7 @@ void do_enemies(void)
     u8* pool = (u8*)lbl_80250E00;
     s32 shown = 0;
     s32 i;
-    u8 unused[32];
+    u8 unused[8];
 
     (void)unused;
 
@@ -7082,6 +7082,10 @@ void do_enemies(void)
                 if (v < pushEpsilon) {
                     e->pushed[2] = zeroFloat;
                 }
+            }
+            {
+                u8 unused2[24];
+                (void)unused2;
             }
             if (e->pushed[1] > zeroFloat) {
                 e->pushed[1] =
