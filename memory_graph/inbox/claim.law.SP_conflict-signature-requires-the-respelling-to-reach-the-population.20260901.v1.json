@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "provenance": "Fleet worker SP, work_claim.shop-finish.20260901.v1, worktree GDL-Claude-ShopFinish, branch claude/shop-finish-20260901. One measured probe on src/game/shop/shop.c::do_shop against the baseline banked in attempt.shop-buffer-record-declaration.20260901.v1, run specifically to convert that record's stated PREDICTION into a measurement. See attempt.SP_do-shop-record-respelling-boundary.20260901.v1. No code retained; full ninja green, main.dol OK, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679.",
+    "tags": [
+      "matching",
+      "metrics",
+      "cse",
+      "index-form",
+      "alias-form",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.SP_conflict-signature-requires-the-respelling-to-reach-the-population.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T02:24:02Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "SCOPE AND STANDING. This BOUNDS claim.law.record-respelling-pays-per-region-not-per-population.20260901.v1. That law's operative conclusion -- count the regions, and on two or more do not spend the record-respelling conversion for score -- is CONFIRMED by a sixth measurement (do_shop, six regions, real 614 -> 620). Its diagnostic SIGNATURE clause is not universal and must not be used as a screening test.\n\nTHE RULE. The parent law's Corollary 1 describes a reproducible CONFLICT signature for multi-region functions: the opcode multiset and instruction-count parity IMPROVE while fuzzy and real REGRESS, so the conversion looks structurally better and scores worse, and objdiff fuzzy is the arbiter. That signature was observed three times out of three, but all three were functions where the respelling actually REACHED the access population (do_shopping_8009AA48 and write_shop_menu, both of which reach the record through plain base+offset expressions the member form can express). It does NOT appear where the population is reached through induction accumulators or loaded-field indices that the member form cannot express without destroying a protected web. In do_shop the conversion regressed BOTH instruments together -- real 614 -> 620 and multiset 20t -> 24t -- and there was no disagreement to arbitrate at all.\n\nWHY, AND THE PRACTICAL TEST. The multiset improves only when the respelling changes the addressing MODE at the residual sites. do_shop's residual sites are `add`+`lwz` in target against `addi`+`lwzx` in ours, and after the full member/array conversion all three were still `addi`+`lwzx`: the respelling never touched them, while the added base local broke one previously-aligned site. So before reading a CONFLICT verdict as 'structurally better but scored worse', confirm from `fndiff --ops` at the named byte offsets that the converted sites actually CHANGED FORM. If they did not, the multiset movement is coming from somewhere else and the conversion is simply worse, with no arbitration owed. This is the cheap discriminator between the parent law's genuine CONFLICT case and an ordinary regression wearing its clothes.\n\nCOROLLARY, AND THIS IS THE TRANSFERABLE PART. The MWCC choice between `add`+`lwz` (register base plus displacement) and `addi`+`lwzx` (indexed) for a `base + idx*stride + const` access is INVARIANT to the surface pointer-expression syntax. It is now confirmed by three independent functions in three different spellings: intermediate-pointer hoist (do_shop, attempt.do-shop-refinement.20260830.v1 axis1), cast-vs-raw-pointer (do_shopping_8009AA48, its axis2), and member/array respelling through a typed record local (this measurement). This is claim.law.address-pre-hoist-survives-every-address-spelling.20260831.v1 holding in a third spelling and should be treated as settled: a residual whose ONLY symptom is this add/lwz-vs-addi/lwzx flip is not reachable by rewriting the address expression, and probes that merely respell it are wasted builds."
+}
