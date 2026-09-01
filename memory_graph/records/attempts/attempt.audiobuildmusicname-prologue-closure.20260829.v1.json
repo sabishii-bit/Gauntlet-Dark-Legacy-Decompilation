@@ -14,6 +14,14 @@
   "kind": "attempt",
   "outcome": "capped",
   "recorded_at": "2026-08-30T00:39:13Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "hand-verified",
+    "family": "prologue-form",
+    "measured_at": "2026-09-01",
+    "signature": "DIFFERS target-only: (none) ours-only: -1 addi; insns T112/O113; 2 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "STRUCTURAL",
   "schema_version": 1,
   "valid_from": "2026-08-29"

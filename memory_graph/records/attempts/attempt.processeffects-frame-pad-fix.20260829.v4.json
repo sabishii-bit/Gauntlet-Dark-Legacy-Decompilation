@@ -20,6 +20,15 @@
   "kind": "attempt",
   "outcome": "improved",
   "recorded_at": "2026-08-31T02:36:10Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "measured_at": "2026-09-01",
+    "signature": "DIFFERS target-only: +1 bge +1 frsp +1 lwz +2 lwzx +6 mr ours-only: -2 add -1 addi -1 b -1 ble; insns T2309/O2303; 57 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "REGISTER_ONLY/SCHEDULE",
   "schema_version": 1,
   "supersedes": "attempt.processeffects-frame-pad-fix.20260829.v3",

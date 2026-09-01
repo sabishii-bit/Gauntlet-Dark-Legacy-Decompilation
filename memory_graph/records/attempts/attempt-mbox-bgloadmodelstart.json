@@ -13,6 +13,14 @@
   "kind": "attempt",
   "outcome": "capped",
   "recorded_at": "2026-08-29T22:38:55Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "hand-verified",
+    "family": "schedule-window",
+    "measured_at": "2026-09-01",
+    "signature": "DIFFERS target-only: +1 add ours-only: -1 mr; insns T71/O71; 6 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "schema_version": 1,
   "supersedes": "attempt.parked.mbox_bgloadmodelstart.20260829.v1",
   "valid_from": "2026-08-29"

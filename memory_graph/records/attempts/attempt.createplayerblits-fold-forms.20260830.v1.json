@@ -12,6 +12,14 @@
   "kind": "attempt",
   "outcome": "capped",
   "recorded_at": "2026-08-30T05:19:59Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "hand-verified",
+    "family": "regalloc-web",
+    "measured_at": "2026-09-01",
+    "signature": "DIFFERS target-only: +2 add +1 neg ours-only: -2 addi -1 lhz -1 li -1 lis; insns T335/O337; 18 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "REGISTER",
   "schema_version": 1,
   "valid_from": "2026-08-30"

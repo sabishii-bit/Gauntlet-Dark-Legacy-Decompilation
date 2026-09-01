@@ -13,6 +13,15 @@
   "kind": "attempt",
   "outcome": "improved",
   "recorded_at": "2026-08-30T10:56:46Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "measured_at": "2026-09-01",
+    "signature": "DIFFERS target-only: +4 and +1 lfd +2 li +2 lwz ours-only: -2 clrlwi -1 fmr -2 srawi; insns T301/O297; 9 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "STRUCTURAL/REGISTER_ONLY",
   "schema_version": 1,
   "valid_from": "2026-08-30"

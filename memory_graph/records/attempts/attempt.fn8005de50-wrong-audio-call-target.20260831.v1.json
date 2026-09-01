@@ -12,6 +12,14 @@
   "kind": "attempt",
   "outcome": "improved",
   "recorded_at": "2026-08-31T20:43:50Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "structured-field(residual_class)",
+    "family": "no-residual",
+    "measured_at": "2026-09-01",
+    "signature": "0t opcode multiset IDENTICAL (687/687); insns T687/O687; 0 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "NONE",
   "schema_version": 1,
   "valid_from": "2026-08-31"

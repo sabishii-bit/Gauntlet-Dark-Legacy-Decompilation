@@ -12,6 +12,14 @@
   "kind": "attempt",
   "outcome": "improved",
   "recorded_at": "2026-08-31T04:42:41Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "structured-field(residual_class)",
+    "family": "no-residual",
+    "measured_at": "2026-09-01",
+    "signature": "DIFFERS target-only: +1 lfd ours-only: -1 mr; insns T566/O566; 14 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "NONE",
   "schema_version": 1,
   "valid_from": "2026-08-31"

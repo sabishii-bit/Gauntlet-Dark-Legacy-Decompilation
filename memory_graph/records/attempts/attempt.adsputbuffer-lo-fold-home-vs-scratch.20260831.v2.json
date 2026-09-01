@@ -12,6 +12,14 @@
   "kind": "attempt",
   "outcome": "capped",
   "recorded_at": "2026-08-31T06:46:08Z",
+  "residual": {
+    "capability_needed": "webfrank-recolor",
+    "confidence": "hand-verified",
+    "family": "regalloc-web",
+    "measured_at": "2026-09-01",
+    "signature": "0t opcode multiset IDENTICAL (254/254); insns T254/O254; 2 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "REGISTER_ONLY",
   "schema_version": 1,
   "supersedes": "attempt.adsputbuffer-lo-placement-and-role-swap.20260831.v1",

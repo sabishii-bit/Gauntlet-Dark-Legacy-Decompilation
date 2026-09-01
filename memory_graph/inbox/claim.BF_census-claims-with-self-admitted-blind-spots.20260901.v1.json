@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "falsifier": "The intersection is lexical and can over-match a record that merely DISCUSSES another census's blind spot rather than admitting its own. Read the 31 and reclassify; if fewer than half are genuine self-admissions, this count is inflated and the recommendation should be scoped to the verified subset.",
+    "measurement": "31 census-like claims whose own text admits a blind spot.",
+    "provenance": "BF lane run 29; BF_scratch/laws.py section 4 intersects census/survey/roster/population language with blind-spot admission language across all 447 claim records.",
+    "scope": "447 claim records scanned; 31 matched, as of 2026-09-01.",
+    "tags": [
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.BF_census-claims-with-self-admitted-blind-spots.20260901.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-01T20:56:37Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "BLIND-SPOT DECLARATION. 31 census/survey/roster-bearing claim records contain, in their OWN text, an admission that their count cannot see something -- phrasings like 'the blind spot is one line', 'invisible to all twelve measured axes', 'no census can see it', 'excludes', 'undercount', 'does not detect', 'no score sees them'. The admissions are currently buried in prose, so a consumer who reads only a census's headline NUMBER inherits the blind spot without inheriting the warning. The clearest self-declarations, which should be promoted to a structured blind_spot field verbatim: CH_census-screen-2-excludes-the-zero-impure-population ('The blind spot is one line: tools/gdl/composed_census/cn_census.py scan_function, `if len(impure) != 1: return None`') -- an exactly-located, checkable exclusion; CH_combined-stage-population-is-83-not-91 ('a classifier and the rule it is sizing must share their refusals. Where they do not, the census overcounts the payoff set by precisely the refusals the classifier omits, and the error is invisible because the bucket totals still look plausible'); HV_a-register-field-only-permutation-repairs-a-non-bijective-recolor-and-no-census-can-see-it; HB_two-censuses-can-both-miss-a-function-and-a-classifier-that-omits-an-arrow-mis-tiers-not-just-miscounts; identical-multiset-is-blind-to-displacements; regnorm-positional-pairing-fabricates-displacement-rows (a census that FABRICATES rows, the inverse failure); symbol-boundary-and-count-pairing-bias-census-rosters; addr16-lo-home-copy-census-no-source-discriminant; NV_never-probed-roster-filter-is-unsound-at-function-granularity; RC_stale-reopen-queue-is-a-classifier-artifact; RQ_reopen-queue-exhausted-form-whitelist-artifact. Full 31-id list is reproducible from the scan. THE PATTERN WORTH NAMING: in this corpus a census's error is almost never a visibly wrong total -- it is a plausible total over a silently wrong population, and the record that later finds it says so in prose that no query surfaces. RECOMMENDATION (integrator decision): give census-bearing claims a structured blind_spot field carrying the record's own admission, so `find`/`search` can return the caveat with the number instead of after it."
+}

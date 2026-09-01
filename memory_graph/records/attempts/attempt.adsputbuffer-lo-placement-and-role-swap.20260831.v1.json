@@ -12,6 +12,14 @@
   "kind": "attempt",
   "outcome": "capped",
   "recorded_at": "2026-08-31T05:31:03Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "hand-verified",
+    "family": "constant-hoist",
+    "measured_at": "2026-09-01",
+    "signature": "0t opcode multiset IDENTICAL (254/254); insns T254/O254; 2 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "SCHEDULE",
   "schema_version": 1,
   "valid_from": "2026-08-31"

@@ -12,6 +12,15 @@
   "kind": "attempt",
   "outcome": "capped",
   "recorded_at": "2026-08-31T20:47:30Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "measured_at": "2026-09-01",
+    "signature": "DIFFERS target-only: (none) ours-only: -1 fmr; insns T793/O794; 3 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "STRUCTURAL",
   "schema_version": 1,
   "supersedes": "attempt.mbnewpsysdescrip-clamp-block-closure.20260829.v1",

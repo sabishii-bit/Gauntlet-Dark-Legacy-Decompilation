@@ -21,6 +21,14 @@
   "kind": "attempt",
   "outcome": "improved",
   "recorded_at": "2026-09-01T01:32:38Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "hand-verified",
+    "family": "no-residual",
+    "measured_at": "2026-09-01",
+    "signature": null,
+    "signature_source": "not measured -- pin-masked: function is webfrank/p6frank-referenced, so fndiff scores the postprocessed object and cannot see the source-level residual"
+  },
   "residual_class": "NONE",
   "schema_version": 1,
   "supersedes": "attempt.bb-btrilinecol-fpr-def-census-names-a-binding-not-a-web.20260901.v1",
