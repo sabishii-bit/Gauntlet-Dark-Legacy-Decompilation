@@ -5,7 +5,7 @@ close given (i) the cluster-A permute and (ii) a blanket recolor.
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools", "gdl"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # tools/gdl (fixed after promotion out of CN_scratch)
 import webfrank as wf  # noqa: E402
 sys.path.insert(0, os.path.dirname(__file__))
 from cn_analyze import load, our_object, target_object, decode  # noqa: E402

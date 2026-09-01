@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
 """One-command worktree bootstrap for fleet workers.
 
-Run from the ROOT of a fresh git worktree:
+Two invocations (run-25 briefs documented the two-argument form before it
+existed — three workers lost a cycle to the mismatch; now both work):
+
+  python tools/gdl/provision_worktree.py <path> <branch>
+      From ANY checkout: creates the worktree (`git worktree add <path>
+      -b <branch>`), then provisions it. Rerunning with an existing
+      worktree/branch just re-provisions.
 
   python tools/gdl/provision_worktree.py
+      From the ROOT of an already-created worktree: provisions in place.
 
 It copies the ignored build inputs from the main checkout (orig/ DOL +
 toolchain caches when present), verifies the retail sha1, runs
@@ -43,6 +50,25 @@ def copy_tree_merge(src: Path, dst: Path):
 
 
 def main():
+    args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    if len(args) == 2:
+        path, branch = Path(args[0]), args[1]
+        if not path.is_dir():
+            add = subprocess.run(
+                ["git", "worktree", "add", str(path), "-b", branch],
+                cwd=Path.cwd(), capture_output=True, text=True)
+            if add.returncode != 0:
+                # branch may already exist from a prior attempt
+                add = subprocess.run(
+                    ["git", "worktree", "add", str(path), branch],
+                    cwd=Path.cwd(), capture_output=True, text=True)
+            if add.returncode != 0:
+                fail(f"git worktree add failed:\n{add.stderr.strip()}")
+            print(f"worktree created: {path} on {branch}")
+        import os
+        os.chdir(path)
+    elif args:
+        fail("usage: provision_worktree.py [<path> <branch>]")
     here = Path.cwd()
     if not (here / "configure.py").is_file():
         fail(f"run from the worktree root (cwd: {here})")
