@@ -1901,6 +1901,25 @@
       }
     ],
     "game/game/controls": [
+    {
+      "function": "MtapOpenPort",
+      "before_sha256": "279d2f573172400ebc6ca4a0266bf4ed545403e66f9b76d91c895b234be3a5ea",
+      "after_sha256": "abf99d231b45e7cf277d5bfe9af0c3b0545882e23d49287318abb4d0429c6a01",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - TIER A (no permutation): the whole 83/83 residual is one copy-form site plus a renaming. +0xac is our `li rD,0` against the target's register copy with DIFFERING destinations, so neither the pure form stage nor the recolor reaches it alone; it is the combined stage's `constant_dataflow_recolor` mode, naming OUR source register r28 because the target's source is in the target's colouring and says nothing about our stream. The re-encoded word then differs from the target in register fields only and the unchanged copy_register_fields completes it, with verify_consistent_recolor proving the renaming across the whole CFG from the entry identity map and NO unproven_recolor_audit escape. Source axis is capped twice over (attempt.mtapopenport-constant-copy-remat-relabel.20260831.v1 capped, attempt.parked.mtapopenport.20260829.v1 parked) and both parks are SOURCE-axis; neither claims postprocessor ineligibility. Derived and proven through webfrank.apply_patch against the extracted retail object: real 2 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 83,
+        "permuted_instructions": 0
+      },
+      "equivalent_copy_form": [
+        {
+          "at": "0xac",
+          "proof": "constant_dataflow_recolor",
+          "our_source": 28
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "assign_controller",
         "before_sha256": "1b7c24991f45d99607c021c8ce9d80fbf27b43502edaf649788487567ae6a392",
