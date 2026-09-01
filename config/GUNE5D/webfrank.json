@@ -1019,6 +1019,36 @@
       }
     ],
     "game/mb/mb_font": [
+    {
+      "function": "MBRenderText",
+      "before_sha256": "19e13c7eb134b0290d66076dc77fd98ecc366bb4f1e6bcb9106aadb9c8d5b540",
+      "after_sha256": "dbc9fcb57507f9804ef80988e35a608cc7ad00de6112ecbc7a8803fe3f0d8f28",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - a post-recolor permutation that RESOLVES A NAMED PARK AT ITS OWN OFFSETS. 347/347, real 22. attempt.parked.mbrendertext-color-tiebreak.20260901.v4 parks this function on 'an r0<->r3 colour tie-break at +0x108..+0x130' after four source-axis versions; the window shipped here is EXACTLY [0x108,0x130), ten atoms, order [1,0,3,4,5,2,7,6,9,8]. The tie-break is not a colour choice that source can steer -- it is a schedule difference whose displacement is caused by the recolor, so it is reachable only AFTER the register stage, and the pre-placement was enumerated and refuses. The recolor aims at the un-permuted intermediate so verify_consistent_recolor is never asked to adjudicate a reordering, and the window is relocation-free in both objects as that stage requires. The park is UPHELD as a source cap and REFUTED as a statement that the residual is unreachable. real 22 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 347,
+        "permuted_instructions": 10
+      },
+      "post_recolor_permutation": [
+        {
+          "start": "0x108",
+          "end": "0x130",
+          "order": [
+            1,
+            0,
+            3,
+            4,
+            5,
+            2,
+            7,
+            6,
+            9,
+            8
+          ]
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "MBNewFont",
         "before_sha256": "d046e7ffadc58d66f5a9d3118347a494da75e0a6f45bc9536805643e5c3b2517",
