@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "UNLOCK lane, game/audio/dcsdrv (1 straggler + data BLOCKED): (1) DATA: .data target 0x0 vs ours 0xB8 per the ranking \u2014 READ THE DIRECTION (the MD law: target-0x0-vs-ours-N = splits fails to claim, NOT an emission failure; verify with objdump -h on the target object + splits.txt coverage; claim byte-identically; slack-ownership law for extents). (2) CODE: dcsHandleRequest real 144 (v4 park: KNR + regnorm census done; jumptable-name rows flagged as possible-normalization \u2014 settle that question definitively with the aligned view + nm, it blocks the flip if real). Then the modern kit: side-decomposition, slotdiff --all, composed candidacy (step-0 first). Both closed = FLIP (finish_tu.py + datadiff --sections + UND screen). Exact/flip or precise blockers; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:dcsHandleRequest",
+  "id": "work_claim.dcsdrv-unlock.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-DC",
+  "recorded_at": "2026-09-01T03:58:37Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

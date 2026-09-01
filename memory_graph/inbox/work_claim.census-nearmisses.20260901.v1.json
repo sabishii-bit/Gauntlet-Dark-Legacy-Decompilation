@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "COMPOSITION lane (existing classes only \u2014 webfrank.py is WF's): the census near-misses failing ONLY on li-vs-copy atop a permute (claim.HV_single-region-permute-plus-recolor-census.20260901.v1): dcsSampleAllocUpload, MemCardCreateGaunt, do_camera \u2014 each = permute + equivalent_copy_form + recolor; C2's G3D close is the composition precedent, C1's step-0 law is mandatory (check_permutation_dependences in OUR colouring before deriving anything). Each copy-form site needs its dominating-def discharged (or across-calls mode w/ its millicode-aware guard). PLUS camera_mode_level cluster A ([0x740,0x744) swap \u2014 step-0 PASSES, rule-ready per attempt.C2_camera-mode-level-composed-blocker.20260901.v1) \u2014 ship it even though the function won't close (it's 1 of 3 clusters \u2014 NO: rules only where the FUNCTION closes; instead verify and record. Correction: apply the LZ discipline \u2014 a pin parks live source; since clusters B/C stay open, DO NOT rule cluster A; record its readiness for the v2 combined pass instead). Then re-run HV's census filter for members its first pass missed (known-positive canary first \u2014 the scanner-lies lesson). Rules only where functions CLOSE. Surgical inserts + configure.py + apply_patch proofs throughout; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:do_camera",
+  "id": "work_claim.census-nearmisses.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CN",
+  "recorded_at": "2026-09-01T03:58:10Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "ROSTER lane, game/movie/movieplayer.cpp (35/52 real-0; data gates CLEAR \u2014 the flip is now purely code): drive the remaining 17. Order by tractability not size (--ops census first): fn_800D9C5C real 4 (EH-state-slot wall recorded \u2014 claim.law.MD_eh-state-slot-offset-is-not-source-reachable.20260901.v1: screen, likely terminal), fn_800D96B0 real 8 (multiset IDENTICAL \u2014 regnorm + composed candidacy), fn_800DA60C real 4 (virtual-call-order tiebreak record), fn_800D87FC real 232 (the big one: cpp-frontend hypothesis refuted \u2014 re-decompose w/ the full kit incl. cancelling-delta side accounting), the rest cheapest-first. The C++ kit: island arithmetic (6/10/14 = 1/2/3 islands), caller-side dont_inline, throw-spec laws, scratch-compile before TU edits, slotdiff's r31 blindness caveat (read r31-relative rows on EH fns). Pins fn_800D967C/fn_800DA6A4 FROZEN. Composed rules allowed for functions you CLOSE (existing classes; step-0 first; surgical inserts). Every close moves the TU toward its flip \u2014 17 to go; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:fn_800D87FC",
+  "id": "work_claim.movieplayer-roster.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-MV",
+  "recorded_at": "2026-09-01T03:58:15Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

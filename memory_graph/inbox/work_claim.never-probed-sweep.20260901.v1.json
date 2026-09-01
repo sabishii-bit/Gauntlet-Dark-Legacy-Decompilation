@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "GREEN-LIGHT sweep: DE found `outcome: parked` hiding a NEVER-PROBED function that went exact in 3 probes (attempt.DE_fn-8004db3c-combined-disjunction-exact.20260901.v1). Sweep ALL parked/capped attempt records for the same signature: label-corrections and read-only diagnoses with NO recorded source probe (the mp-label-correction.* family is the prime population \u2014 HV also found 3 of its 4 closures under such parks). Build the green-light roster (function, record, current measured state \u2014 REMEASURE each, never quote), rank by tractability (--ops census: 1-2-insn deltas and IDENTICAL multisets first), and drive the top candidates with the full kit + the newest levers (merged-disjunction w/ boundary, intermediate-assignment fold, implicit truth test, decl-order families). SKIP TUs owned this run (pb_window, movieplayer, items, pb_frame, dcsdrv, camera/memcard/dcs TUs in CN's roster). The roster claim = a deliverable regardless of exacts. Commit per function; exact or true parks; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:fn_800DA920",
+  "id": "work_claim.never-probed-sweep.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-NV",
+  "recorded_at": "2026-09-01T03:58:32Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}
