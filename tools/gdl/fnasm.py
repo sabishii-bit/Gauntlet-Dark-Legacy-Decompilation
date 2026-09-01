@@ -7,6 +7,7 @@ Usage:
   python tools/gdl/fnasm.py game/pb_window pbProjCalc 0x68:0xa0  # offset slice
   python tools/gdl/fnasm.py game/pb_window pbProjCalc --ours   # OUR built object
   python tools/gdl/fnasm.py game/pb_window pbProjCalc --diff   # target|ours aligned
+  python tools/gdl/fnasm.py game/sys/sysservice sysClearFlags --raw --diff
   python tools/gdl/fnasm.py game/pb_window                     # list functions
 
 --diff prints target and ours side-by-side, sequence-aligned on the opcode
@@ -29,22 +30,90 @@ works before any source exists and is immune to stale-object issues.
 --ours reads build/GUNE5D/src/<unit>.o (our compile) instead — run ninja on
 the object first or the dump is stale.
 
+POSTPROCESSOR TRAP (why --raw exists): build/GUNE5D/src/<unit>.o is the
+POSTPROCESSED object for every unit listed in config/GUNE5D/webfrank.json or
+p6frank.json.  A pinned function's postprocessed body is byte-identical to
+the target by construction, so `--ours`/`--diff` on one compares the target
+against a copy of itself and prints an all-`=` view that looks like a perfect
+match and says nothing about the compiler's actual output.  --raw reads the
+pre-postprocess object instead (.postprocess/frank/<unit>.o when a Frank
+profile stage runs, else .postprocess/body/<unit>.o) — that is the stream a
+source edit can move.  Whenever the postprocessed view is used on a pinned
+function, a PINNED banner is printed naming the rule and pointing at --raw.
+
 OBJDUMP is resolved to an absolute path so this works from any cwd/script.
 """
 
+import json
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 VERSION = "GUNE5D"
-OBJDUMP = (Path(__file__).resolve().parents[2]
-           / "build" / "binutils" / "powerpc-eabi-objdump.exe")
+ROOT = Path(__file__).resolve().parents[2]
+OBJDUMP = ROOT / "build" / "binutils" / "powerpc-eabi-objdump.exe"
+
+
+def pinned_functions(unit, *, root=None):
+    """Map function name -> postprocessor rule for `unit`'s pinned functions.
+
+    Reads the two postprocessor configs directly; a missing or malformed
+    config yields {} rather than raising, because this is a WARNING path and
+    must never take the dump down with it.
+    """
+    root = Path(root) if root is not None else ROOT
+    pins = {}
+    for rule, name in (("webfrank", "webfrank.json"),
+                       ("p6frank", "p6frank.json")):
+        try:
+            cfg = json.loads(
+                (root / "config" / VERSION / name).read_text(encoding="utf-8"))
+            entry = cfg.get("units", {}).get(unit)
+        except Exception:
+            continue
+        if entry is None:
+            continue
+        # webfrank stores a LIST of rules per unit; p6frank a single dict.
+        for item in (entry if isinstance(entry, list) else [entry]):
+            fn = isinstance(item, dict) and item.get("function")
+            if fn:
+                pins[fn] = rule
+    return pins
+
+
+def pin_warning(unit, fn, kind, *, root=None):
+    """Banner text when `kind` is the postprocessed view of a pinned fn."""
+    if kind != "ours" or not fn:
+        return None
+    rule = pinned_functions(unit, root=root).get(fn)
+    if rule is None:
+        return None
+    return (f"!! PINNED: {fn} is {rule}-pinned in config/{VERSION}/"
+            f"{rule}.json — build/{VERSION}/src/{unit}.o is the POSTPROCESSED\n"
+            f"!! object, byte-identical to the target here by construction. "
+            f"This view is target-vs-target\n"
+            f"!! and cannot show a source-level residual. Re-run with --raw "
+            f"to read the compiler output.")
+
+
+def raw_obj_path(unit, *, root=None):
+    """Pre-postprocess compiler object for `unit`, or None if not staged."""
+    root = Path(root) if root is not None else ROOT
+    src = root / "build" / VERSION / "src" / f"{unit}.o"
+    # frank runs before the object postprocessor when both are configured,
+    # so its output is the postprocessor's actual input.
+    for stage in ("frank", "body"):
+        cand = src.parent / ".postprocess" / stage / src.name
+        if cand.exists():
+            return cand
+    return None
 
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    ours = "--ours" in sys.argv
+    raw = "--raw" in sys.argv
+    ours = "--ours" in sys.argv or raw
     if not args or args[0] in ("--help", "-h", "help"):
         print(__doc__)
         return 1
@@ -63,7 +132,15 @@ def main():
         lo, hi = conv(a, 0), conv(b, 1 << 30)
 
     diff = "--diff" in sys.argv
-    rows, names, err = parse_fn(unit, fn, ours=ours and not diff)
+    # The view actually read for the right-hand/only stream.
+    # --diff reads the `ours` object too, even without --ours.
+    our_kind = ("raw" if raw else "ours") if (ours or diff) else "target"
+    warn = pin_warning(unit, fn, our_kind)
+    if warn:
+        # stdout, not stderr: the failure mode this closes is "the reader
+        # piped the dump and never saw the warning".
+        print(warn)
+    rows, names, err = parse_fn(unit, fn, ours=ours and not diff, raw=raw)
     if err:
         print(err)
         return 1
@@ -74,22 +151,31 @@ def main():
         print(f"function {fn} not found; has: {', '.join(names)}")
         return 1
     if diff:
-        our_rows, _, our_err = parse_fn(unit, fn, ours=True)
+        our_rows, _, our_err = parse_fn(unit, fn, ours=True, raw=raw)
         if our_err:
             print(our_err)
             return 1
-        return diff_view(rows, our_rows, lo, hi, by_offset)
+        return diff_view(rows, our_rows, lo, hi, by_offset, raw=raw)
     for i, (off, ins) in enumerate(rows):
         key = off if by_offset else i
         if lo <= key < hi:
             print(f"{off:4x}: {ins}")
-    print(f"[{len(rows)} insns{' (ours)' if ours else ''}]")
+    label = f" ({'raw, pre-postprocess' if raw else 'ours'})" if ours else ""
+    print(f"[{len(rows)} insns{label}]")
     return 0
 
 
-def parse_fn(unit, fn, *, ours):
+def parse_fn(unit, fn, *, ours, raw=False):
     kind = "src" if ours else "obj"
     obj = Path(f"build/{VERSION}/{kind}/{unit}.o")
+    if ours and raw:
+        pre = raw_obj_path(unit)
+        if pre is None:
+            return [], [], (
+                f"--raw: {unit} has no .postprocess stage — it is not "
+                f"WebFrank/P6Frank postprocessed, so build/{VERSION}/src/"
+                f"{unit}.o IS the raw compiler output; drop --raw")
+        obj = pre
     if not obj.exists() and not ours:
         # dtk merges runs of tiny fns into auto_03_* objects and names auto
         # units after their first fn; try the common variants before giving up
@@ -135,7 +221,7 @@ def parse_fn(unit, fn, *, ours):
     return rows, names, None
 
 
-def diff_view(target_rows, our_rows, lo, hi, by_offset):
+def diff_view(target_rows, our_rows, lo, hi, by_offset, raw=False):
     """Aligned side-by-side target/ours view.
 
     Alignment uses opcode-stream sequence matching (the same correspondence
@@ -156,7 +242,8 @@ def diff_view(target_rows, our_rows, lo, hi, by_offset):
     # trailing legend, and reading the view backwards inverts every
     # conclusion drawn from it.
     left_head = "T = TARGET (retail)"
-    right_head = "O = OURS (compiled)"
+    right_head = ("O = OURS (raw, pre-postprocess)" if raw
+                  else "O = OURS (compiled)")
     print(f"{left_head:<{width + 6}}   {right_head}")
     print(f"{'-' * min(len(left_head), width + 6):<{width + 6}}   "
           f"{'-' * len(right_head)}")
@@ -184,6 +271,7 @@ def diff_view(target_rows, our_rows, lo, hi, by_offset):
             print(f"{left:<{width + 6}} {mark} {right}")
             shown += 1
     print(f"[LEFT = TARGET ({len(target_rows)} insns) / RIGHT = OURS"
+          f"{' RAW' if raw else ''}"
           f" ({len(our_rows)} insns); {shown} rows shown;"
           " = same  ~ opcode-only match  | replaced"
           "  < target-only  > ours-only]")
