@@ -1959,14 +1959,14 @@ valid_boss_type:
         f32 cosValue;
 
         if ((f64)lbl_803444D8 > lbl_80345F78) {
-            yaw = (f32)((f64)cam->pyr[1] - 1.570796327);
+            yaw = (f32)((f64)cam->pyr[1] - lbl_80346180);
         } else {
-            yaw = (f32)((f64)cam->pyr[1] + 1.570796327);
+            yaw = (f32)((f64)cam->pyr[1] + lbl_80346180);
         }
-        if ((f64)yaw > 3.141592654) {
-            yaw = (f32)((f64)yaw - 6.283185308);
-        } else if ((f64)yaw <= -3.141592654) {
-            yaw = (f32)(6.283185308 + (f64)yaw);
+        if ((f64)yaw > lbl_80345F58) {
+            yaw = (f32)((f64)yaw - lbl_80345F60);
+        } else if ((f64)yaw <= lbl_80345F68) {
+            yaw = (f32)(lbl_80345F60 + (f64)yaw);
         }
         sinValue = sin(yaw);
         sinScale = lbl_803444D8;
@@ -1986,12 +1986,12 @@ valid_boss_type:
         f64 y = (f64)cam->pyr[1];
         if ((f64)lbl_803444D4 > lbl_80345F78) {
         } else {
-            y = (f32)(y + 3.141592654);
+            y = (f32)(y + lbl_80345F58);
         }
-        if (y > 3.141592654) {
-            y = y - 6.283185308;
-        } else if (y <= -3.141592654) {
-            y = 6.283185308 + y;
+        if (y > lbl_80345F58) {
+            y = y - lbl_80345F60;
+        } else if (y <= lbl_80345F68) {
+            y = lbl_80345F60 + y;
         }
         yaw = (f32)y;
         sinValue = sin(yaw);
@@ -2257,7 +2257,7 @@ extern f64 lbl_803461F0;
 
 void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
 {
-    u8 unused[44];
+    u8 unused[92];
     u8* cameraState = gCameraState;
     Camera* cam = &((Camera*)(cameraState + 0xC8))[camIdx];
     s32 aMode;
@@ -3338,7 +3338,7 @@ void screen_limitation(s32 camIdx)
                      cam->radius);
     dbgTextPrintfCol(1, row - 7, "CAM=");
     switch (cam->c_mode) {
-    case 0:  dbgTextPrintfCol(5, row - 7, "OFF   "); break;
+    case 0:  dbgTextPrintfCol(5, row - 7, "OFF    "); break;
     case 1:  dbgTextPrintfCol(5, row - 7, "FREE   "); break;
     case 2:  dbgTextPrintfCol(5, row - 7, "LOCK   "); break;
     case 3:  dbgTextPrintfCol(5, row - 7, "GAME   "); break;

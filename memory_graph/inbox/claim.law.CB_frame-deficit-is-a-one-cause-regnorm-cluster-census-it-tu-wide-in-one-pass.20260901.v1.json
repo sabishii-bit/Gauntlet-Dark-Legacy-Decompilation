@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "law_screen": "claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1 CONFIRMED and given a cheaper instrument: its conclusion (equal counts plus an identical multiset cannot rule out a frame residual) held exactly, and regnorm's frame rows detect the same thing for the price of one census. claim.law.MV_regnorm-census-ranks-tractability-and-real-actively-misranks-it.20260901.v1 SCREENED and extended: regnorm ranked this correctly BECAUSE the frame rows are a one-cause cluster, which is the mechanism behind its ranking advantage.",
+    "provenance": "src/game/game/combat.c, worktree GDL-Claude-Combat28, branch claude/combat-continue-20260901, commit d25c07c0c; see attempt.CB_get-attn-pos-frame-deficit-and-lfd-cluster-cap.20260901.v1. Census run over all nine open functions of the TU with tools/gdl/regnorm.py per function, filtering rows whose target and ours opcodes are both stwu/stmw/lmw.",
+    "tags": [
+      "matching",
+      "decl-order",
+      "store-placement",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.CB_frame-deficit-is-a-one-cause-regnorm-cluster-census-it-tu-wide-in-one-pass.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T18:32:41Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5 family. A FRAME-SIZE DEFICIT PRESENTS IN regnorm AS A FIXED SIX-ROW STRUCTURAL SIGNATURE WITH A SINGLE CAUSE AND A ONE-TOKEN CURE, AND BECAUSE THE SIGNATURE IS MECHANICAL THE WHOLE TU CAN BE CLEARED IN ONE CENSUS INSTEAD OF ONE FUNCTION AT A TIME.\n\nTHE SIGNATURE, measured on combat.c::get_attn_pos_8002C9A8: six STRUCTURAL rows, all frame words, all expressing one number - `stwu r1,-176` vs `-128`, `addi r11,r1,176` vs `128` (twice, prologue and epilogue), `stmw r29,124(r1)` vs `76(r1)`, `lmw r29,124(r1)` vs `76(r1)`, `lwz r0,180(r1)` vs `132(r1)`. Every one is the same 48-byte delta. They were 6 of the function's 7 STRUCTURAL rows, so the whole structural residual was ONE missing number.\n\nTHE DECISIVE DIAGNOSTIC, and the reason the cure is a single token: if NO r1-relative LOCAL displacement appears in the diff, our locals already sit at the target's offsets, so the missing bytes are not interleaved among them - they are a contiguous block at the TOP of the local frame. Per claim.law.stack-slots-descend-in-declaration-order the top of the local block belongs to the FIRST-declared local, so growing the first declaration by exactly the delta shifts the saved-register area up and moves nothing else. Here `u8 unused[44]` -> `u8 unused[92]` took real 80 -> 66, fresh fuzzy 98.9194 -> 98.9382, and regnorm STRUCTURAL 7 -> 0, with instruction count and opcode multiset unchanged throughout (T372/O372, 0t) - which is exactly why no count-based or multiset-based screen can find this class.\n\nTHE CENSUS RESULT THAT MAKES THIS WORTH RECORDING RATHER THAN JUST FIXING. After the fix, the same frame-row filter was run across all nine open functions of combat.c (DiffRate, EnemyStartMissile, InitCamera, InitPlayerMissiles, PlayerStartMissile, StandardCamera, screen_limitation, someone_will_be_off_screen, get_attn_pos): every remaining function reported 'frame words agree'. get_attn_pos was the class's ONLY member and the class is now CLOSED for this TU. That is a decided-and-empty result, not an untested one, and it should stop any future lane from opening a frame/pad axis here.\n\nOPERATIONAL RULE. Run the frame-row filter across a TU's whole open roster as the FIRST census after regnorm, before ranking anything by genuine structural rows: it costs one regnorm pass per function and no builds, its members are each a one-token fix, and its non-members are conclusively excluded. Also treat it as a standing rebuttal to any record claiming 'no frame/slot residual' on the strength of equal instruction counts - the record superseded here made exactly that claim about exactly this function while a 48-byte deficit was live, because equal counts and an identical multiset are precisely what a pure frame deficit produces."
+}

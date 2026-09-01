@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "law_screen": "claim.law.explicit-fp-symbol-vs-literal-zero-regression.20260830.v1 is the record this BOUNDS: its caution and its required isolated A/B are both upheld, only its implied pessimism is narrowed. claim.law.CB_real-and-count-distance-both-invert-the-fuzzy-ranking-on-a-pool-hoist-respell.20260901.v1 SCREENED: it governs the ARBITRATION of these respells and is unaffected; this law governs which respells are worth attempting.",
+    "provenance": "src/game/game/combat.c::StandardCamera_8002B828, worktree GDL-Claude-Combat28, branch claude/combat-continue-20260901, commit 46584129b; see attempt.CB_standardcamera-pi-pool-respell-and-pin-rederivation.20260901.v1. Baseline and best each measured with their own full ninja -j2 (both printing build/GUNE5D/main.dol: OK) and their own fresh build/GUNE5D/report.json.",
+    "tags": [
+      "matching",
+      "cse",
+      "relocation",
+      "sda-global",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.CB_literal-to-named-extern-respell-is-per-constant-not-per-project.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T18:32:34Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5 family. REPLACING A RAW FP LITERAL WITH THE NAMED sdata2 EXTERN THE TARGET RELOCATES AGAINST IS A PER-CONSTANT, PER-FUNCTION QUESTION WITH MEASURED OUTCOMES IN BOTH DIRECTIONS - IT IS NEITHER A SAFE SPELLING FIX NOR A KNOWN-BAD AXIS. claim.law.explicit-fp-symbol-vs-literal-zero-regression.20260830.v1 measured the negative direction (0.0f in pmotion.c::PlayerMotion: +1 instruction, real 3782 -> 4149) and correctly concluded that the substitution must be A/B'd rather than assumed. This law supplies the positive direction so the axis is not read as closed: on combat.c::StandardCamera_8002B828, respelling eleven pi-family f64 literals (1.570796327, 3.141592654, 6.283185308, -3.141592654) as the already-declared externs lbl_80346180 / lbl_80345F58 / lbl_80345F60 / lbl_80345F68 moved real 483 -> 471 and fresh-report fuzzy 91.9130 -> 91.9381, with instruction counts (T598/O601) and opcode multiset (9t) UNCHANGED.\n\nTHE DISCRIMINATOR THAT IS ACTUALLY AVAILABLE BEFORE SPENDING THE PROBE, in priority order. (1) PLANTED UNUSED EXTERNS. If the TU already declares the named extern and nothing references it, that declaration is reconstruction evidence left by whoever transcribed the function: lbl_80346180 sits at combat.c:1734, in the declaration block immediately preceding StandardCamera, and was unused until this edit. (2) INTERNAL INCONSISTENCY. If the SAME function already spells the SAME value both ways, the raw-literal sites are the debt: StandardCamera used lbl_80345F58 at L2195/L2197 while writing 3.141592654 at three other sites, so MWCC was emitting a duplicate pool entry for a constant the TU had already named. (3) THE 0.0f EXCEPTION HOLDS. Zero is the constant the 0830 law measured regressing, and it is also the constant most likely to be a genuine compile-time zero rather than a table read; the lbl_80345EC8 (.float 0) candidates in this TU's DiffRate and get_attn_pos were deliberately LEFT RAW on that basis.\n\nWHY THE SCORES BEHAVE THIS WAY, which is the part that generalizes. The respell changes no instruction word, no displacement and no opcode - only which symbol each relocation binds. So regnorm's structural census is BLIND to it: StandardCamera measured 740 paired / 98 renaming / 82 STRUCTURAL / 50 unpaired both before and after, identically. A census that ranks work by structural rows will therefore never surface this class, and a lane that ranks only that way will leave it on the floor indefinitely. The instrument that DOES find it is a per-function symbol-set audit - list the named symbols the target's relocations reference, list ours, and diff the sets - which costs one object parse and no builds.\n\nOPERATIONAL RULE. Screen candidates by (1) and (2) above, exclude 0.0f absent new evidence, A/B in isolation, and arbitrate on a fresh full-build fuzzy per claim.law.CB_real-and-count-distance-both-invert-the-fuzzy-ranking-on-a-pool-hoist-respell. Budget for the pin cost BEFORE starting: in a TU carrying WebFrank pins, deleting pooled literals renumbers the object symbol table and invalidates every pinned instruction_permutation's relocation hashes, which is a build-aborting guard, not a silent regression."
+}
