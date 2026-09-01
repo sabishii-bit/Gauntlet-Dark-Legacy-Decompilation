@@ -144,6 +144,34 @@
     ],
     "game/anim/atree": [
       {
+        "function": "DoAnimateTreeFrame",
+        "before_sha256": "19cf287a589fd91e74e6cb7afe8170b3daca2baf7ec54126fa630658b8343125",
+        "after_sha256": "3fa3efdca1768d5f994ad759b464827219fb07675631ff7983e296abe272e9a7",
+        "instruction_permutation": [
+          {
+            "start": "0x54",
+            "end": "0x60",
+            "order": [
+              1,
+              2,
+              0
+            ],
+            "before_sha256": "88eb37c18b3c08b0068a3520edfb7a57c466f0cf021373c48fb796b56069ca5b",
+            "after_sha256": "70e56fc069868f323ece504baa776fc3dbafd6f9fe671b82b9d7aabae5f607d6",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "equivalent_copy_form": [
+          {
+            "at": "0x58",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 23
+          }
+        ],
+        "copy_register_fields": true
+      },
+      {
         "function": "fn_8001267C",
         "before_sha256": "c4a10701e29c74debba7d4c422057e91e799d55775f0907702028d3fa6529ea7",
         "after_sha256": "25c913ba5a969690000cf6b1c1cd461d6e134b27fab2fc71f7057f9364bf86a7",
