@@ -1,0 +1,17 @@
+{
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.PR_law.probe-real-and-fndiff-real-diff-lines-are-different-numbers.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T20:58:37Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/combat",
+  "valid_from": "2026-09-01",
+  "value": "`probe.py` and `fndiff.py --clean` report DIFFERENT values for what both call the function's `real` residual, on the SAME object, in the same tree. Measured on game/game/combat.c::get_cam_dist with its webfrank rule disabled and no source change between the two calls: probe.py printed `real 146` and fndiff.py --clean printed `170 real diff lines` back to back. Neither number is wrong -- they count different line sets (fndiff --clean's count includes rows probe.py's verdict excludes) -- but the two are routinely quoted interchangeably in records and work orders, and a batch harness that scores with one tool while its baseline was taken with the other will report a phantom regression or a phantom win. RULE: fix ONE tool per comparison series and say which one in the record. This lane's batteries are internally consistent (battery 1 and the per-function probes use probe.py; the exhaustive decl-order searches use fndiff --clean) and the two families are reported separately for exactly this reason."
+}

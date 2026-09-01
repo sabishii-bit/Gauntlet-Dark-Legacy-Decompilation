@@ -14,6 +14,15 @@
   "kind": "attempt",
   "outcome": "improved",
   "recorded_at": "2026-09-01T18:40:48Z",
+  "residual": {
+    "capability_needed": "webfrank-recolor",
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "measured_at": "2026-09-01",
+    "signature": "0t opcode multiset IDENTICAL (116/116); insns T116/O116; 0 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "REGISTER_ONLY",
   "schema_version": 1,
   "valid_from": "2026-09-01"

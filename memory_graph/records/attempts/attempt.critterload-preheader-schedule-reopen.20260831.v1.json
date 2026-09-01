@@ -15,6 +15,15 @@
   "outcome": "capped",
   "recorded_at": "2026-08-31T17:46:24Z",
   "refutes": "claim.webfrank-eligibility-frontier-closed.20260831.v1",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "measured_at": "2026-09-01",
+    "signature": "0t opcode multiset IDENTICAL (104/104); insns T104/O104; 2 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "SCHEDULE",
   "schema_version": 1,
   "supersedes": "attempt.parked.critterloaddone.20260829.v1",

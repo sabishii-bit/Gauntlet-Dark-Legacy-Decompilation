@@ -13,6 +13,14 @@
   "kind": "attempt",
   "outcome": "improved",
   "recorded_at": "2026-08-31T14:39:50Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "structured-field(residual_class)",
+    "family": "no-residual",
+    "measured_at": "2026-08-31",
+    "signature": null,
+    "signature_source": "not measured -- pin-masked: function is webfrank/p6frank-referenced, so fndiff scores the postprocessed object and cannot see the source-level residual"
+  },
   "residual_class": "NONE",
   "schema_version": 1,
   "supersedes": "attempt.drawglowtext-scratch-alloc-direction.20260831.v2",

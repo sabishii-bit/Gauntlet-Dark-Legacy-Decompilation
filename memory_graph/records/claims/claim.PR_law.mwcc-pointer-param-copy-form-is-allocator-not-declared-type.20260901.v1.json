@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "register-web",
+      "param-retype",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.PR_law.mwcc-pointer-param-copy-form-is-allocator-not-declared-type.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T20:58:25Z",
+  "schema_version": 1,
+  "subject": "function:CritterLineRootColSub",
+  "valid_from": "2026-09-01",
+  "value": "MWCC 1.2.5 GC at this project's -O4 game cflags emits `addi rD,rS,0` -- NOT `mr rD,rS` -- for a pointer PARAMETER homed into a callee-saved register, and the choice is NOT reachable from the parameter's declared form. Measured with a microbenchmark compiled with critter.c's exact cflags (-nodefaults -proc gekko -align powerpc -enum int -fp hardware -O4 -inline auto -fp_contract on -str reuse,readonly -lang=c): five variants of the same four-pointer-parameter function -- plain `f32 *p`; array-declared `f32 p[3]`; locals initialised from `&p_[0]`; pointer-to-array `f32 (*p)[3]`; and a `(f32*)((u8*)p_)` cast transit -- ALL produced `addi rD,rS,0` for every parameter home, and the single `mr` observed anywhere was `mr r3,r0`, a copy out of a temp that had transited r0. CONSEQUENCE, and the reason this is worth recording: when a real function emits `mr` where the target emits `addi rD,rS,0` (CritterLineRootColSub does, three times), that difference is an ALLOCATOR shuffle inside a high-pressure body, not a source-visible type or declaration property -- so the mr-vs-addi copy-form residual class must not be chased through parameter retyping. Corroboration from the shipped build: our own critter.o contains 548 `addi rD,rS,0` against 214 `mr`, so both forms are freely available to the compiler in the same TU. Reproducer kept at PR_scratch/mb/."
+}

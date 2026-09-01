@@ -972,8 +972,10 @@ elif args.mode == "progress":
             f" byte-identical) + EQUIVALENT"
             f" {100.0 * _asst_bytes / _total:.2f}%"
             f" ({_asst_count} fns, WebFrank-assisted: proven equivalent"
-            f" modulo regalloc/schedule; origin of the variance"
-            f" unattributed)")
+            f" modulo regalloc/schedule; variance unreachable across the"
+            f" local MWCC archive per"
+            f" claim.law.CV_pinned-residuals-are-unreachable-across-the-"
+            f"local-mwcc-archive)")
     except Exception as _err:
         print(f"  (postprocessor split unavailable: {_err})")
 else:

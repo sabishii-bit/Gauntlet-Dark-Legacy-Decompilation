@@ -17,6 +17,15 @@
   "kind": "attempt",
   "outcome": "parked",
   "recorded_at": "2026-08-31T03:09:38Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "measured_at": "2026-09-01",
+    "signature": "DIFFERS target-only: +2 b +2 lfs +2 stfs ours-only: -1 fmr -1 mr -1 stw; insns T721/O718; 32 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "STRUCTURAL/REGISTER_WEB",
   "schema_version": 1,
   "valid_from": "2026-08-31"

@@ -12,6 +12,14 @@
   "kind": "attempt",
   "outcome": "improved",
   "recorded_at": "2026-08-31T19:03:56Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "structured-field(residual_class)",
+    "family": "no-residual",
+    "measured_at": "2026-09-01",
+    "signature": "0t opcode multiset IDENTICAL (310/310); insns T310/O310; 0 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "NONE",
   "schema_version": 1,
   "supersedes": "attempt.mbtreeinit-stack-frame-closure.20260831.v2",

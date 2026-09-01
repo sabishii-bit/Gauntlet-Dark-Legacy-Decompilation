@@ -14,6 +14,15 @@
   "kind": "attempt",
   "outcome": "improved",
   "recorded_at": "2026-08-30T23:49:20Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "measured_at": "2026-09-01",
+    "signature": "DIFFERS target-only: (none) ours-only: -1 mr; insns T826/O827; 1 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
   "residual_class": "NON_TEXT (pure symbol-identity/documentation change; no instruction-stream residual)",
   "schema_version": 1,
   "semantic_note": "AudioSetupBossStreams itself (0x8009E108, 0xCE8, boss/wizard music+speech stream name builder) was NOT a candidate this pass -- it is the assignment's designated anchor function for this TU-family (sounds_evt.c/pb_frame.c/sfx.c/pb_objregs.c/psfx.c/enemy.c/newcam.c all sit in the sound/pb/sfx/enemy/world TU neighborhood this pass worked) and was confirmed still correctly named and still on the sounds_evt.c TU header's own deferred-list ('too large for this light-touch pass, need dedicated sessions') with no change needed.",

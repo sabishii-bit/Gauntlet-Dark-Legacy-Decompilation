@@ -12,6 +12,15 @@
   "kind": "attempt",
   "outcome": "capped",
   "recorded_at": "2026-08-31T20:48:22Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "measured_at": "2026-08-31",
+    "signature": null,
+    "signature_source": "not measured -- pin-masked: function is webfrank/p6frank-referenced, so fndiff scores the postprocessed object and cannot see the source-level residual"
+  },
   "residual_class": "STRUCTURAL",
   "schema_version": 1,
   "supersedes": "attempt.pbinittlutregions-portable-call-schedule.20260829.v1",

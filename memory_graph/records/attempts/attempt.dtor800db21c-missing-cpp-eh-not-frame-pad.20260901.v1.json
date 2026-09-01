@@ -13,6 +13,14 @@
   "outcome": "parked",
   "recorded_at": "2026-08-31T21:56:47Z",
   "refutes": "attempt.dtor-800db21c-frame-delta-relabel.20260831.v1",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "hand-verified",
+    "family": "eh-scaffold",
+    "measured_at": "2026-08-31",
+    "signature": null,
+    "signature_source": "not measured -- no fndiff mismatch rows in the 2026-09-01 sweep (function measures matched, or its TU was not built)"
+  },
   "residual_class": "STRUCTURAL",
   "schema_version": 1,
   "supersedes": "attempt.dtor-800db21c-frame-delta-relabel.20260831.v1",

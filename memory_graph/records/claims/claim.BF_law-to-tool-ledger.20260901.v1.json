@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "falsifier": "The slug-matching may UNDERCOUNT: a tool that implements a law's mechanism without naming its id or slug reads as prose-only here. Falsify by picking 10 prose-only laws and grepping tools/gdl for their MECHANISM rather than their name; if several are in fact encoded, this ledger's method is too literal and the 308 figure is an upper bound.",
+    "measurement": "16 asserted-by-tool, 308 prose-only.",
+    "provenance": "BF lane run 29; BF_scratch/laws.py section 3 greps tools/gdl/**/*.py for each law's full record id and, failing that, its distinctive slug.",
+    "scope": "324 law-bearing claim records vs 117 files under tools/gdl, as of 2026-09-01.",
+    "tags": [
+      "workflow",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.BF_law-to-tool-ledger.20260901.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-01T20:56:29Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "LAW->TOOL LEDGER. Of 324 law-bearing claim records, only 16 are ASSERTED BY a tool or test -- their id or distinctive slug appears in tools/gdl (117 files scanned) -- and 308 are PROSE-ONLY. The 16 asserted, with their asserting file: base-cast-reconstruction-deadstrips-sibling-statics <- datadiff.py; cached-base-alias-defeats-rematerialized-index-base <- add_remat_census.py; callee-saved-home-copy-coalescing-is-source-unreachable <- tests/test_webfrank.py; identical-multiset-is-blind-to-displacements <- regnorm.py; int-vs-signed-long-extern-reorders-schedule <- externcheck.py; knr-extern-arity-can-be-faithful-not-a-defect <- abicheck.py; lwzu-idiom-web-retention <- structdraft.py; own-pool-ghost-extern-flatters-fndiff-reloc-rows <- ghostsweep.py; pointer-decl-order-flips-addrlo-inplace-vs-fresh-destination <- addrlo_inplace_census.py; probe-revert-snapshot-goes-stale-across-commits <- probe.py; rtti-vtable-chain-recovers-cpp-class-names <- rttiscan.py; symbolified-own-pool-literal-blocks-tu-flip <- ghostsweep.py; target-asm-hex-immediates-bias-any-hand-rolled-census <- addrlo_inplace_census.py; webfrank-cannot-close-instruction-count-deltas <- tests/test_webfrank.py; webfrank-cfg-entry-pseudotarget-false-negative <- tests/test_webfrank.py + webfrank.py; webfrank-permutation-is-audited-in-our-colouring <- webfrank.py. READING: the asserted set is concentrated exactly where the project already demands machine proof (webfrank guards, the census tools, the ABI/extern checkers), which is the right place for it. The 308 prose-only laws are not thereby wrong -- most are codegen observations whose natural assertion site is a probe, not a checker -- but they share a property worth naming: nothing breaks when they become false. A prose-only law that has silently rotted is only discovered by an agent spending builds on its prescription. Note this ledger measures ASSERTION (a tool encodes or checks the mechanism), not CITATION -- attributes.laws_applied already gives per-law application counts, which is a different and complementary signal."
+}
