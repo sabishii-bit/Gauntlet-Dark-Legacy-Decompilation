@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "decl-order",
+      "cse",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A measured case where wrapping a producing expression in a block scope makes MWCC emit a target-only register copy while the block-local's definition and the copy into the outer variable sit in STRAIGHT-LINE code with no intervening control-flow join. One such case disproves the necessity claim and reinstates block scope alone as a sufficient lever. The measurement that established this law is reproducible on src/game/game/combat.c::EnemyStartMissile at commit 4a3131f74: apply probe (B) of attempt.CB_enemystartmissile-assignment-expression-colouring-and-fmr-axis-close.20260901.v1 verbatim and run `python tools/gdl/probe.py game/game/combat EnemyStartMissile --ops`; the law predicts REGRESSED with the `delete T[45:46]@b4-b8=['fmr']` cluster unchanged.",
+  "id": "claim.law.CB_block-scope-splits-a-copy-only-across-a-cfg-join-not-in-straight-line-code.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T22:01:29Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/combat",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5 family. REFINES claim.law.GW_block-scope-splits-a-coalesced-copy-but-a-same-scope-copy-folds.20260901.v1 by sharpening its discriminator from a disjunction into a conjunction: BLOCK SCOPE IS NECESSARY BUT NOT SUFFICIENT TO PRESERVE A COALESCED-AWAY REGISTER COPY. The operative half is the CONTROL-FLOW JOIN, not the scope boundary.\n\nThe GW law states its discriminator as 'the two names genuinely differ in SCOPE AND LIVE-RANGE SHAPE - a block-local confined to one arm versus a variable live across the join', and its positive case (gauntworld fn_8005E90C) had both properties at once. Because its measured boundary case (fn_8005D730) varied only SCOPE, the law's evidence could not separate the two conjuncts, and a reader naturally applies the cheaper one - write a block scope. That reading is now measured wrong.\n\nTHE MEASUREMENT. combat.c::EnemyStartMissile at +0xb4 is the same inverse-polarity tell the GW law describes: the target copies a computed value into a callee-saved home (`fmuls f3,f1,f0` / `fdiv f30,f2,f3` / `fmr f31,f3`) and our build is exactly one instruction short because MWCC targets the home directly (`fmuls f31,f1,f0` / `fdiv f30,f2,f31`). A BLOCK-SCOPED staging local was written exactly as the GW law's cure prescribes - `{ f32 prod = desc->speed * PF(gCurLevel, offsetof(level_data, ene_mspeed), f32); invSpeed = (f32)(lbl_80346318 / (f64)prod); dir[0] = launchPos[0] - target[0]; speed = prod; }` - with `prod` confined to the block and `speed` live across the later if/else join. It did not merely fail to help: real REGRESSED 131 -> 143 and the `fmr` cluster was BIT-FOR-BIT unchanged. The difference from the GW positive case is that here `prod`'s definition and the `speed = prod` copy are STRAIGHT-LINE - the join `speed` is live across sits AFTER the copy, not BETWEEN the definition and the copy.\n\nTHE CORRECTED SCREEN, in the order that costs least. Before spending a probe on this lever, ask whether a control-flow join separates the DEFINITION of the value from the COPY into the long-lived variable. If yes, the GW cure applies and block scope is how you express it. If the definition and the copy are straight-line, expect NEUTRAL-IDENTICAL at best and a colouring regression at worst, however the scopes are drawn - and note that 'the outer variable is live across a join somewhere later in the function' does NOT satisfy the test, which is what makes the mis-reading so easy.\n\nCOROLLARY, measured on the same function: adjacency does not substitute for the join either. Repeating the producing expression twice with NO intervening aliasing store (the variant a prior park had not tested, its two spellings having straddled a store it blamed for the failure) also left the cluster unchanged at real 143. MWCC folds the second spelling into the destination's home whether or not a store intervenes, so 'the store broke my CSE' is a diagnosis to verify rather than assume."
+}
