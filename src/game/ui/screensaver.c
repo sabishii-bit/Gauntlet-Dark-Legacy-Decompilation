@@ -76,10 +76,10 @@ s32 MBOX_FindTexture(const char* name, s32* out);
 /* ---- misc engine helpers (other TUs) ---- */
 void ClearAllPlayerControls(int a);   /* 0x80032A80 */
 void AtreeDelete(void* atree);        /* 0x800115D0 */
-int MBRemoveNode(int handle, int flag); /* 0x800BAEAC */
-void MBTreeClearFlags(int node, int mask, int val); /* 0x800BA2C4 */
-void MBTreeSetFlags(int node, int mask, int val); /* 0x800BA368 */
-void MBNodeOrder(int node, int sibling); /* 0x800BACF8 */
+MBObject* MBRemoveNode(MBObject* handle, int flag); /* 0x800BAEAC */
+void MBTreeClearFlags(MBObject* node, int mask, int val); /* 0x800BA2C4 */
+void MBTreeSetFlags(MBObject* node, int mask, int val); /* 0x800BA368 */
+void MBNodeOrder(MBObject* node, MBObject* sibling); /* 0x800BACF8 */
 void ShopMusicStart();                /* 0x800A0DA8 */
 void AudioSelect();                   /* 0x800A0F64 */
 void AudioSelectReset(void);          /* 0x800A17D4 */
@@ -99,9 +99,9 @@ void LoadVU1GameLogic(void);
 
 /* ---- screensaver-weapon struct array (this TU's .bss, stride 0x88) ---- */
 extern u8 lbl_80274620[];             /* node @+0x3c, atree @+0x40 */
-extern int lbl_80344A64;              /* backdrop node handle */
-extern int lbl_80344ECC;              /* active-node list head (next @+0x7c) */
-extern int lbl_80344EDC;              /* active front-end node excluded from hide */
+extern MBObject* lbl_80344A64;        /* backdrop node handle */
+extern MBObject* lbl_80344ECC;        /* active-node list head (next @+0x7c) */
+extern MBObject* lbl_80344EDC;        /* active front-end node excluded from hide */
 extern int lbl_80344A60;              /* saved options state */
 extern int options_state;             /* 0x80344A98 */
 extern void* lbl_80344EE8;
@@ -502,16 +502,16 @@ void ScreenSaverStart(void)
     lbl_80344A60 = options_state;
     options_state = 100;
 
-    for (node = (MBObject*)lbl_80344ECC; node != NULL;
+    for (node = lbl_80344ECC; node != NULL;
          node = node->next) {
         if (node->type != MB_SORT_OBJECTS_NODE &&
             node->type != MB_PSYS_DRAW_NODE &&
-            node != (MBObject*)lbl_80344EDC) {
-            MBTreeSetFlags((s32)node, 2, 0);
+            node != lbl_80344EDC) {
+            MBTreeSetFlags(node, 2, 0);
         }
     }
 
-    lbl_80344A64 = (s32)MBNewNode(0, 0, 0);
+    lbl_80344A64 = MBNewNode(0, 0, 0);
     MBNodeOrder(lbl_80344ECC, lbl_80344A64);
 
     initialPositions = (u8*)lbl_8011DCBC;
@@ -544,9 +544,9 @@ void ScreenSaverStart(void)
                   (randomBase + (f64)Random(lbl_80347378)) * timeScale);
         AtreeDelete(weaponPositions + i * 0x88 +
                     offsetof(ScreenSaverWeapon, atree) - 0x20);
-        *(s32*)(weaponPositions + i * 0x88 +
+        *(MBObject**)(weaponPositions + i * 0x88 +
                 offsetof(ScreenSaverWeapon, node) - 0x20) = MBRemoveNode(
-            *(s32*)(weaponPositions + i * 0x88 +
+            *(MBObject**)(weaponPositions + i * 0x88 +
                     offsetof(ScreenSaverWeapon, node) - 0x20),
             1);
         randomDelay = i * 30 + RandInt(15);
@@ -602,7 +602,7 @@ void ScreenSaverUpdateWeap(s32 idx)
         weapons[weaponIndex].jitterY = (f32)((f64)lbl_80343CB4 *
                               (lbl_803473A0 + (f64)Random(lbl_803473A8)));
         weapons[weaponIndex].duration = 0;
-        MBTreeClearFlags((s32)*node, 2, 0);
+        MBTreeClearFlags(*node, 2, 0);
     }
 
     {
@@ -693,7 +693,7 @@ void ScreenSaverUpdateWeap(s32 idx)
                            (lbl_80347388 +
                             (f64)Random(lbl_80347378))));
                 AtreeDelete(weapons[weaponIndex].atree);
-                weapons[weaponIndex].node = (void*)MBRemoveNode((s32)weapons[weaponIndex].node, 1);
+                weapons[weaponIndex].node = MBRemoveNode(weapons[weaponIndex].node, 1);
                 return;
             }
             break;
@@ -730,15 +730,15 @@ void ScreenSaverEnd(void)
     for (i = 0; i < 4; i++) {
         off = i * 0x88;
         AtreeDelete(base + (offsetof(ScreenSaverWeapon, atree) - 0x20) + off);
-        *(s32*)(base + (offsetof(ScreenSaverWeapon, node) - 0x20) + off) =
+        *(MBObject**)(base + (offsetof(ScreenSaverWeapon, node) - 0x20) + off) =
             MBRemoveNode(
-                *(s32*)(base + (offsetof(ScreenSaverWeapon, node) - 0x20) +
+                *(MBObject**)(base + (offsetof(ScreenSaverWeapon, node) - 0x20) +
                         off),
                 1);
     }
     MBRemoveNode(lbl_80344A64, 1);
-    for (node = (MBObject*)lbl_80344ECC; node != 0; node = node->next) {
-        MBTreeClearFlags((s32)node, 2, 0);
+    for (node = lbl_80344ECC; node != 0; node = node->next) {
+        MBTreeClearFlags(node, 2, 0);
     }
     ClearAllPlayerControls(-2);
     options_state = lbl_80344A60;
