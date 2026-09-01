@@ -811,5 +811,441 @@ class DefakeGateTests(unittest.TestCase):
                          "game/mb/mb_font.c")
 
 
+class SchemaShapeTests(unittest.TestCase):
+    """Run-29 field SHAPE checks, which run on EVERY record.
+
+    These bind corpus-wide (import and propose) precisely so the BF lane's
+    in-place annotation of already-accepted records is caught by
+    `gdlmem validate`/`build` rather than slipping in unvalidated.
+    """
+
+    def _check(self, record):
+        _validate_record(dict(record), Path("<test>"))
+
+    def test_valid_residual_object_passes(self):
+        self._check(_attempt(
+            "attempt.res.v1", "function:test_fn",
+            residual={"signature": "+1 addi -1 li",
+                      "family": "live-zero-remat",
+                      "capability_needed": "dataflow-equivalence",
+                      "measured_at": "2026-09-01"}))
+
+    def test_partial_and_null_residual_fields_pass(self):
+        self._check(_attempt("attempt.res.v2", "function:test_fn",
+                             residual={"signature": "+1 mr",
+                                       "capability_needed": None}))
+
+    def test_family_outside_vocabulary_fails_closed(self):
+        with self.assertRaisesRegex(MemoryGraphError, "outside the contract"):
+            self._check(_attempt("attempt.res.v3", "function:test_fn",
+                                 residual={"family": "made-up-family"}))
+
+    def test_unknown_residual_key_fails_closed(self):
+        with self.assertRaisesRegex(MemoryGraphError, "unknown key"):
+            self._check(_attempt("attempt.res.v4", "function:test_fn",
+                                 residual={"signaure": "typo"}))
+
+    def test_bad_measured_at_fails_closed(self):
+        with self.assertRaisesRegex(MemoryGraphError, "YYYY-MM-DD"):
+            self._check(_attempt("attempt.res.v5", "function:test_fn",
+                                 residual={"measured_at": "Sept 1"}))
+
+    def test_legacy_prose_residual_still_accepted(self):
+        # attributes.residual is free prose across the accepted corpus and
+        # must keep validating, or every legacy record breaks on import.
+        self._check(_attempt("attempt.res.v6", "function:test_fn",
+                             attributes={"residual": "a prose description"}))
+
+    def test_asserted_by_must_be_a_string_array(self):
+        with self.assertRaisesRegex(MemoryGraphError, "asserted_by"):
+            self._check({"schema_version": 1, "id": "claim.a.v1",
+                         "kind": "claim", "subject": "compiler:test",
+                         "predicate": "codegen_law",
+                         "epistemic_state": "verified", "value": "x",
+                         "asserted_by": "tools/gdl/webfrank.py"})
+
+    def test_empty_falsifier_fails_closed(self):
+        with self.assertRaisesRegex(MemoryGraphError, "non-empty"):
+            self._check({"schema_version": 1, "id": "claim.b.v1",
+                         "kind": "claim", "subject": "compiler:test",
+                         "predicate": "codegen_law",
+                         "epistemic_state": "verified", "value": "x",
+                         "falsifier": "   "})
+
+    def test_records_without_the_new_fields_are_untouched(self):
+        # The corpus predates every field above; shape validation must be a
+        # no-op on it or `gdlmem build` regresses on 1400+ records.
+        self._check(_attempt("attempt.plain.v1", "function:test_fn"))
+
+
+class ProposalGateTests(unittest.TestCase):
+    """The three run-29 gates. They bind NEW proposals only.
+
+    Each is traceable to a recorded burned-probe criticism, and the error
+    text names that record so an author reads the reason, not just a rule.
+    """
+
+    def setUp(self):
+        self.root = make_root(with_symbols=False)
+        self._probe = core._probe_record_references
+        core._probe_record_references = lambda *a, **k: None
+
+    def tearDown(self):
+        core._probe_record_references = self._probe
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _law(self, rid, value, **extra):
+        record = {"schema_version": 1, "id": rid, "kind": "claim",
+                  "subject": "compiler:test", "predicate": "codegen_law",
+                  "epistemic_state": "verified", "value": value}
+        record.update(extra)
+        return record
+
+    # --- Gate A: necessity language requires a falsifier -----------------
+    def test_necessity_law_without_falsifier_is_refused(self):
+        law = self._law("claim.law.needs-falsifier.v1",
+                        "MWCC must spill the third web before the call.")
+        with self.assertRaisesRegex(MemoryGraphError, "falsifier"):
+            stage_record_proposal(law, root=self.root)
+
+    def test_necessity_law_with_falsifier_is_accepted(self):
+        law = self._law(
+            "claim.law.has-falsifier.v1",
+            "MWCC cannot close a count-asymmetric residual.",
+            falsifier="a webfrank rule closing a function whose counts"
+                      " differ; tools/gdl/tests/test_webfrank.py",
+            asserted_by=["tools/gdl/webfrank.py"])
+        path = stage_record_proposal(law, root=self.root)
+        self.assertTrue(path.exists())
+
+    def test_gate_a_error_cites_its_motivating_record(self):
+        law = self._law("claim.law.cite-check.v1",
+                        "This only happens under -O4.")
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(law, root=self.root)
+        self.assertIn("RQ_webfrank-audit-silence-is-not-ineligibility",
+                      str(caught.exception))
+
+    def test_descriptive_law_needs_no_falsifier(self):
+        law = self._law("claim.law.descriptive.v1",
+                        "The target loads two nearby values in source order.")
+        self.assertTrue(stage_record_proposal(law, root=self.root).exists())
+
+    def test_falsifier_in_attributes_also_satisfies_gate_a(self):
+        # Readers are tolerant of either spelling so a record authored the
+        # other way is still valid; only top-level is documented.
+        law = self._law("claim.law.attr-falsifier.v1",
+                        "The prologue must save r31 first.",
+                        attributes={"falsifier": "a target prologue that"
+                                                 " does not"})
+        self.assertTrue(stage_record_proposal(law, root=self.root).exists())
+
+    # --- Gate B: postprocessor reclassification requires insns N/N -------
+    def test_postprocessor_reclassification_without_counts_is_refused(self):
+        record = _attempt(
+            "attempt.reclass.v1", "function:test_fn", outcome="parked",
+            axis="this residual is postprocessor-class, not source-class",
+            attributes={"law_screen": "none applicable: test"})
+        with self.assertRaisesRegex(MemoryGraphError, "N/N"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_postprocessor_reclassification_with_counts_is_accepted(self):
+        record = _attempt(
+            "attempt.reclass.v2", "function:test_fn", outcome="parked",
+            axis="postprocessor-class: counts are 27/27, pure recolor",
+            attributes={"law_screen": "none applicable: test"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_b_error_cites_the_count_asymmetry_laws(self):
+        record = _attempt(
+            "attempt.reclass.v3", "function:test_fn", outcome="parked",
+            axis="eligible for the WebFrank path",
+            attributes={"law_screen": "none applicable: test"})
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=self.root)
+        self.assertIn("webfrank-cannot-close-a-count-asymmetric-residual",
+                      str(caught.exception))
+
+    def test_ordinary_park_is_not_treated_as_a_reclassification(self):
+        record = _attempt(
+            "attempt.ordinary.v1", "function:test_fn", outcome="parked",
+            axis="register rotation resisted three spellings",
+            attributes={"law_screen": "none applicable: test",
+                        "probed_form": "swapped the two locals"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    # --- Gate C: multi-edit probed_form requires held_fixed --------------
+    def test_multi_edit_probed_form_without_held_fixed_is_refused(self):
+        record = _attempt(
+            "attempt.multi.v1", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "probed_form": "tried three forms: a cached base,"
+                                       " a volatile scaffold, and an"
+                                       " extern ghost"})
+        with self.assertRaisesRegex(MemoryGraphError, "held_fixed"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_multi_edit_probed_form_with_held_fixed_is_accepted(self):
+        record = _attempt(
+            "attempt.multi.v2", "function:test_fn", outcome="capped",
+            held_fixed="the extern-ghost declaration, kept in all three",
+            attributes={"law_screen": "none applicable: test",
+                        "probed_form": "tried three forms: a, b, c"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_numbered_enumeration_also_triggers_gate_c(self):
+        record = _attempt(
+            "attempt.multi.v3", "function:test_fn", outcome="parked",
+            attributes={"law_screen": "none applicable: test",
+                        "probed_form": "1) hoist the base 2) drop volatile"})
+        with self.assertRaisesRegex(MemoryGraphError, "held_fixed"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_single_edit_probed_form_is_not_gated(self):
+        record = _attempt(
+            "attempt.single.v1", "function:test_fn", outcome="parked",
+            attributes={"law_screen": "none applicable: test",
+                        "probed_form": "hoisted the base pointer to a local"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_c_error_cites_the_btricol_joint_lever(self):
+        record = _attempt(
+            "attempt.multi.v4", "function:test_fn", outcome="parked",
+            attributes={"law_screen": "none applicable: test",
+                        "probed_form": "two spellings, both negative"})
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=self.root)
+        self.assertIn("btricol", str(caught.exception))
+
+    def test_gates_do_not_fire_on_records_lacking_the_trigger(self):
+        # The whole point of siting the gates in staging: an ordinary
+        # attempt proposal is unaffected.
+        record = _attempt("attempt.clean.v1", "function:test_fn",
+                          attributes={"law_screen": "none applicable: test"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+
+class RetrievalQueryTests(unittest.TestCase):
+    """residual / family / capability queries, slug + pin indexing, brief."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = make_root()
+        records = cls.root / "memory_graph" / "records"
+        _write(records / "entities" / "entity.compiler-test.json", {
+            "schema_version": 1, "id": "entity.compiler-test",
+            "kind": "entity", "entity_type": "compiler",
+            "key": "compiler:test", "name": "test compiler",
+        })
+        # A law whose id carries the family words but whose PROSE does not:
+        # the exact shape the prose-only index missed.
+        _write(records / "claims" /
+               "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1"
+               ".json", {
+                   "schema_version": 1,
+                   "id": "claim.law.live-zero-copy-vs-remat-is-allocator"
+                         "-not-source.20260831.v1",
+                   "kind": "claim", "subject": "compiler:test",
+                   "predicate": "codegen_law", "epistemic_state": "verified",
+                   "value": "The allocator picks the carrier; no source form"
+                            " reaches it.",
+                   "valid_from": TODAY,
+                   "falsifier": "a source spelling that flips the carrier",
+                   "asserted_by": ["tools/gdl/webfrank.py"],
+                   "attributes": {"scope": "MWCC 1.2.5n"},
+               })
+        # Two attempts carrying structured residuals in the same family.
+        _write(records / "attempts" / "attempt.resid-a.v1.json", _attempt(
+            "attempt.resid-a.v1", "function:test_fn", outcome="parked",
+            axis="zero carrier park",
+            residual={"signature": "+1 addi -1 li",
+                      "family": "live-zero-remat",
+                      "capability_needed": "dataflow-equivalence",
+                      "measured_at": "2026-09-01"},
+            attributes={"laws_applied": [
+                "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1"]},
+        ))
+        _write(records / "attempts" / "attempt.resid-b.v1.json", _attempt(
+            "attempt.resid-b.v1", "function:other_fn", outcome="capped",
+            axis="frame slot park",
+            residual={"signature": "+2 stw -2 stmw", "family": "frame-slot",
+                      "capability_needed": None,
+                      "measured_at": "2026-09-01"},
+        ))
+        # A 10b hypothesis + a multi-edit park with held_fixed, on test_fn.
+        _write(records / "attempts" / "attempt.hypothesis.v1.json", _attempt(
+            "attempt.hypothesis.v1", "function:test_fn", outcome="capped",
+            axis="capped after four probes",
+            held_fixed="the volatile scaffold",
+            attributes={
+                "probed_form": "tried three forms: a, b, c",
+                "residual": "UNPARK CONDITION: only a dataflow-equivalence"
+                            " audit class reaches this. There is no source"
+                            " lever.",
+            },
+        ))
+        # webfrank pins: one law-backed, one with no trail at all.
+        (cls.root / "config" / "GUNE5D" / "webfrank.json").write_text(
+            json.dumps({"version": 1, "units": {"game/test/foo": [
+                {"function": "test_fn",
+                 "copy_register_fields": {},
+                 "mechanism": "the live-zero carrier is chosen by the"
+                              " allocator; see"
+                              " claim.law.live-zero-copy-vs-remat-is-allocator"
+                              "-not-source.20260831.v1 — target does addi,"
+                              " we do li"},
+                {"function": "other_fn",
+                 "instruction_permutation": {},
+                 "mechanism": "a bare schedule window with no cited record"},
+            ]}}), encoding="utf-8")
+        report = cls.root / "build" / "GUNE5D" / "report.json"
+        report.parent.mkdir(parents=True)
+        report.write_text(json.dumps({
+            "units": [{"name": "main/game/test/foo", "functions": [
+                {"name": "test_fn", "fuzzy_match_percent": 95.0},
+            ]}]
+        }), encoding="utf-8")
+        build_database(cls.root)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.root, ignore_errors=True)
+
+    # --- slug-word + pin indexing ---------------------------------------
+    def test_slug_words_find_a_family_the_prose_index_misses(self):
+        # The law's PROSE contains none of these words; only its id does.
+        result = law_corpus("live zero remat", root=self.root)
+        ids = {row["id"] for row in result["laws"]}
+        self.assertIn(
+            "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1", ids)
+        row = next(r for r in result["laws"] if r["id"] in ids)
+        self.assertIn("slug", row["match"])
+        self.assertNotIn("text", row["match"])
+
+    def test_slug_index_ignores_date_and_version_suffixes(self):
+        # RC: "COUNT CITATIONS BY SLUG, NOT BY DATE SUFFIX".
+        self.assertNotIn("20260831", core._slug_words("claim.law.foo-bar"
+                                                      ".20260831.v1"))
+        self.assertNotIn("v1", core._slug_words("claim.law.foo-bar"
+                                                ".20260831.v1"))
+        self.assertIn("bar", core._slug_words("claim.law.foo-bar.20260831.v1"))
+
+    def test_prose_still_matches_and_is_labelled(self):
+        result = law_corpus("allocator picks", root=self.root)
+        row = result["laws"][0]
+        self.assertIn("text", row["match"])
+
+    def test_pin_mechanism_prose_is_searchable(self):
+        result = law_corpus("carrier", root=self.root)
+        pins = result["pin_mechanisms"]
+        self.assertEqual([p["function"] for p in pins], ["test_fn"])
+        self.assertIn(
+            "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1",
+            pins[0]["cites_records"])
+
+    def test_law_rows_expose_falsifier_and_asserted_by(self):
+        row = law_corpus("live zero remat", root=self.root)["laws"][0]
+        self.assertEqual(row["asserted_by"], ["tools/gdl/webfrank.py"])
+        self.assertTrue(row["falsifier"])
+
+    # --- laws --residual -------------------------------------------------
+    def test_residual_signature_finds_sibling_records(self):
+        result = law_corpus(root=self.root, residual="+1 addi -1 li")
+        matches = {row["record"]: row for row in result["residual_matches"]}
+        self.assertIn("attempt.resid-a.v1", matches)
+        self.assertNotIn("attempt.resid-b.v1", matches)  # disjoint mnemonics
+        self.assertEqual(matches["attempt.resid-a.v1"]["shared_tokens"],
+                         ["addi", "li"])
+        self.assertEqual(matches["attempt.resid-a.v1"]["capability_needed"],
+                         "dataflow-equivalence")
+
+    def test_residual_pulls_in_the_laws_those_siblings_applied(self):
+        result = law_corpus(root=self.root, residual="+1 addi -1 li")
+        ids = {row["id"] for row in result["laws"]}
+        self.assertIn(
+            "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1", ids)
+
+    def test_residual_surfaces_pins_naming_the_same_mnemonics(self):
+        result = law_corpus(root=self.root, residual="+1 addi -1 li")
+        self.assertEqual([p["function"] for p in result["pin_mechanisms"]],
+                         ["test_fn"])
+
+    # --- find --family / --capability ------------------------------------
+    def test_find_family_facet(self):
+        hits = find_records(root=self.root, family="live-zero-remat")
+        self.assertEqual({row["id"] for row in hits["results"]},
+                         {"attempt.resid-a.v1"})
+        self.assertEqual(hits["results"][0]["residual"]["family"],
+                         "live-zero-remat")
+
+    def test_find_family_rejects_a_vocabulary_typo(self):
+        # A typo would otherwise return zero rows, which reads as a false
+        # all-clear on what is used as a NEGATIVE screen.
+        with self.assertRaisesRegex(MemoryGraphError, "unknown residual"):
+            find_records(root=self.root, family="live-zero-rematt")
+
+    def test_find_capability_marks_structured_and_prose_hits(self):
+        hits = find_records(root=self.root, capability="dataflow-equivalence",
+                            limit=50)
+        by_id = {row["id"]: row for row in hits["results"]}
+        self.assertEqual(by_id["attempt.resid-a.v1"]["match"], "field")
+        # the 10b record only MENTIONS the capability in prose
+        self.assertEqual(by_id["attempt.hypothesis.v1"]["match"], "prose")
+        self.assertIn("capability_note", hits)
+
+    def test_find_requires_a_facet(self):
+        with self.assertRaisesRegex(MemoryGraphError, "at least one"):
+            find_records(root=self.root)
+
+    # --- brief upgrade ----------------------------------------------------
+    def test_brief_leads_with_open_hypotheses(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        self.assertEqual(list(brief)[1], "open_hypotheses")
+        markers = {row["marker"] for row in brief["open_hypotheses"]}
+        self.assertIn("unpark condition", markers)
+        self.assertEqual(brief["open_hypotheses"][0]["record"],
+                         "attempt.hypothesis.v1")
+
+    def test_brief_reports_vetoed_axes_with_form_and_held_fixed(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        by_id = {row["record"]: row for row in brief["vetoed_axes"]}
+        self.assertTrue(by_id["attempt.hypothesis.v1"]["has_probed_form"])
+        self.assertEqual(by_id["attempt.hypothesis.v1"]["held_fixed"],
+                         "the volatile scaffold")
+        # a park with no probed_form is surfaced as the weaker veto it is
+        self.assertFalse(by_id["attempt.resid-a.v1"]["has_probed_form"])
+
+    def test_brief_carries_the_structured_residual(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        by_id = {row["record"]: row for row in brief["vetoed_axes"]}
+        self.assertEqual(by_id["attempt.resid-a.v1"]["residual"]["family"],
+                         "live-zero-remat")
+
+    def test_brief_stamps_staleness_on_every_number(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        self.assertIn("REMEASURE", brief["staleness_banner"])
+        self.assertIsNotNone(brief["report_generated_at"])
+        for row in brief["functions"]:
+            self.assertIn("REMEASURE", row["fuzzy_staleness"])
+        recorded = [row for row in brief["live_attempts"]
+                    if row.get("recorded_fuzzy") is not None]
+        for row in recorded:
+            self.assertIn("remeasure", row["recorded_fuzzy_staleness"])
+
+    def test_brief_classes_pin_provenance(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        by_fn = {row["function"]: row for row in brief["webfrank_pins"]}
+        self.assertEqual(by_fn["test_fn"]["provenance"],
+                         "law-backed-source-unreachable")
+        # other_fn's park exists but documents no probed_form
+        self.assertEqual(by_fn["other_fn"]["provenance"],
+                         "parked-without-probed_form")
+
+    def test_brief_has_no_internal_record_leakage(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        for row in brief["live_attempts"]:
+            self.assertNotIn("_record", row)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
