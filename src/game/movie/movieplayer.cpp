@@ -150,7 +150,7 @@ typedef struct MovieChunkNode {
  * MovieChunkNode free-list/pool for demuxed RIFF chunks. Not a GC-verified
  * name - offsets verified purely from this TU's own usage across
  * MovieDecoderInitBuffers, fn_800DB82C, fn_800DB3D4, fn_800DB29C,
- * fn_800DB36C, fn_800DB2F4 and the dtor cluster (fn_800DB008/fn_800DB0F8/
+ * fn_800DB36C, fn_800DB2F4 and the dtor cluster (__dt__11MoviePlayerFv/fn_800DB0F8/
  * __dt__15MoviePlayerBaseFv). self[8]/self[9] are always zeroed but never read in this
  * TU - left as unknown padding. self+0x4C (word 19) is written once (a byte
  * flag in fn_800DB2F4) with no corroborating read - left raw there. */
@@ -178,25 +178,48 @@ typedef struct MovieChunkStream {
     /* 0x58 */ MovieChunkNode* freeListHead;
 } MovieChunkStream;
 
-/* File-local "outer" DText debug-overlay sub-object embedded at movie+0x150
- * (fn_800DB008 passes self+0x54 words = movie+0x150 to fn_800DBD30). Only
- * the vtable and one allocation-owned flag are ever touched in this TU; the
- * gap is genuinely unknown, not merely unused. Not a GC-verified name. */
-typedef struct MovieDTextOuter {
-    /* 0x00 */ u32 _00[8];
-    /* 0x20 */ u32* vtable;
-    /* 0x24 */ u32 _24[2];
-    /* 0x30 */ u32 ownsAlloc;
-} MovieDTextOuter;
-
-/* File-local "inner" DText debug-overlay sub-object (distinct vtable
- * lbl_801296F0 vs MovieDTextOuter's lbl_801296CC). Not a GC-verified name. */
-typedef struct MovieDTextInner {
+/* Codec / VQCodec -- the movie decoder's two-level class pair.  Both names are
+ * RECOVERED, not invented: the GameCube build carries CodeWarrior RTTI, and the
+ * vtable -> RTTI -> name chain (validated against the known-named control
+ * __RTTI__Q23std9exception) reads { name = 0x803493C8 -> "Codec", base = NULL }
+ * at .sdata 0x80344010 and { name = 0x803493C0 -> "VQCodec", base -> Codec's
+ * record } at 0x80344018.  Codec's vtable object is __vt__5Codec (its dtor slot
+ * at +8 = 0x801296F8); VQCodec's is __vt__7VQCodec.
+ *
+ * The inheritance is confirmed independently of the RTTI base descriptor: the
+ * target's VQCodec destructor ends with `addi r3,r29,0 / li r4,0 / bl
+ * __dt__5CodecFv` -- an in-charge=0 base-subobject destructor call on the same
+ * `this`, which is what MWCC synthesises for a base at offset 0.
+ *
+ * LAYOUT, read off the two destructors' teardown displacements:
+ *   Codec   +0x18  pointer released with `delete` (target: `lwz r0,24(this)`
+ *                  feeding the inlined operator delete's null test)
+ *           +0x20  vptr -- target stores it with `stw r0,32(this)` in BOTH
+ *                  destructors, which is why the vptr sits at 0x20, not at 0
+ *   VQCodec +0x30  its own released pointer (target: `lwz r0,48(this)`)
+ * Codec therefore ends at 0x24 and VQCodec's own members start there, which is
+ * exactly what puts the second pointer at 0x30.  (The previous file-local
+ * reconstruction spelled the gap `u32 _24[2]`, which placed that pointer at
+ * 0x2C -- one word low against the target's `lwz r0,48`; corrected here.) */
+#pragma cplusplus on
+class Codec {
+public:
     /* 0x00 */ u32 _00[6];
-    /* 0x18 */ u32 ownsAlloc;
+    /* 0x18 */ u8* alloc;
     /* 0x1C */ u32 _1C;
     /* 0x20 */ u32* vtable;
-} MovieDTextInner;
+
+    ~Codec();
+};
+
+class VQCodec : public Codec {
+public:
+    /* 0x24 */ u32 _24[3];
+    /* 0x30 */ u8* alloc2;
+
+    ~VQCodec();
+};
+#pragma cplusplus off
 
 /* File-local streaming-audio pump state, AllocHiMem'd by PlayVQMovie and
  * stashed at movie+0x190; fn_800D9F20 (per-frame adsPoll/sndCmd17 pump) and
@@ -248,10 +271,10 @@ typedef struct MovieAudioState {
  *                     fn_800DA920 wires its .context/.bitmap to &fileFormat
  *                     and &outFormat (movie+288 <- movie+404, movie+296 <-
  *                     movie+124).
- *   0x150 decoder     the MovieDTextOuter decoder object - fn_800DB008 tears
+ *   0x150 decoder     the MovieDTextOuter decoder object - __dt__11MoviePlayerFv tears
  *                     it down as `(MovieDTextOuter*)(self + 0x54)` on a u32*
  *                     self, i.e. byte 0x150. Its vtable member sits at +0x20
- *                     (fn_800DBE04's `p[8] = lbl_801296CC`), so decoderVtable
+ *                     (fn_800DBE04's `p[8] = __vt__7VQCodec`), so decoderVtable
  *                     at 0x170 is that same word - exactly the MovieCloseVTable
  *                     pointer at `self + 368` that the teardown path
  *                     calls close() through, and the same word fn_800DA6A4
@@ -265,7 +288,7 @@ typedef struct MovieAudioState {
  *                     +0x0C/+0x0E (0x1A0/0x1A2) whose widths the raw code
  *                     itself confirms.
  *
- * Offset 0x000 is the vtable, per fn_800DB008's `self[0] = lbl_8012968C` and
+ * Offset 0x000 is the vtable, per __dt__11MoviePlayerFv's `self[0] = __vt__11MoviePlayer` and
  * PlayVQMovie's MovieStreamInterface view. No Xbox PDB authority exists for
  * this record - the Xbox build's MOVIE.OBJ is an unrelated cutscene subsystem
  * (InitMovie/ServeMovie/KillMovie) and the PDB type stream carries nothing for
@@ -353,10 +376,10 @@ extern int sceOpen(const char* path, ...);
 extern void sysAssertFailed(const char* expression, const char* file, int line);
 
 /* --- vtables (.data) + subsystem refcounts (.sbss) + colour ramps (.bss) --- */
-extern u32 lbl_801296A4[];
-extern u32 lbl_8012968C[];
-extern u32 lbl_801296CC[];
-extern u32 lbl_801296F0[];
+extern u32 __vt__15MoviePlayerBase[];
+extern u32 __vt__11MoviePlayer[];
+extern u32 __vt__7VQCodec[];
+extern u32 __vt__5Codec[];
 extern u32 lbl_803452B8;
 extern u32 gDTextInitCount;
 extern u8 lbl_80321340[];
@@ -386,8 +409,12 @@ extern const f32 lbl_803493EC;
 
 /* --- forward decls for intra-TU calls --- */
 MovieChunkStream* fn_800DBC64(MovieChunkStream* p);
-MovieDTextOuter* fn_800DBE04(u32* p);
-MovieDTextInner* DTextInitColorRamp(MovieDTextInner* p);
+/* C++ region: Codec/VQCodec are class types, which the TU's C-parsed regions
+ * cannot name (MWCC keeps `#pragma cplusplus off` regions on the C front end). */
+#pragma cplusplus on
+VQCodec* fn_800DBE04(u32* p);
+Codec* DTextInitColorRamp(Codec* p);
+#pragma cplusplus off
 void fn_800D9DF0(char* src, int len, u8* dst, int* outlen);
 u32 fn_800D93D4(u32* p1, u32 p2, int p3, char* p4, int p5, u8* p6);
 u32 fn_800D87FC(MovieDecodeState* p1, int p3, char* p4, int mode, int p5, u8* p6);
@@ -408,8 +435,7 @@ s32 fn_800DA920(u8* movie, const char* name);
 u32 fn_800DACD8(int movie, u8* header);
 u8 MovieDecoderInitBuffers(MovieChunkStream* decoder, u32 size, u32 hasAudio);
 void fn_800D9F20(MovieAudioState* audio);
-MovieDTextInner* fn_800DBF6C(MovieDTextInner* self, s16 deleting);
-u32* fn_800DB008(u32* self, s16 deleting);
+u32* __dt__11MoviePlayerFv(u32* self, s16 deleting);
 u32* fn_800DB0F8(u32* self);
 u8 fn_800DBCCC(void* self, s32 x);
 u8 fn_800DBD00(void* self, s32 x);
@@ -1556,13 +1582,13 @@ extern "C" void PlayVQMovie(const char* name) throw()
 
     movie = (u8*)AllocHiMem(472, (u32)gMovieAllocCount++);
     gMovieStreamState = movie = (u8*)__construct_new_array(
-        movie, (void*)fn_800DB0F8, (void*)fn_800DB008, 464, 1);
+        movie, (void*)fn_800DB0F8, (void*)__dt__11MoviePlayerFv, 464, 1);
     ((MovieStreamInterface*)gMovieStreamState)->open(name);
 
     dimensions = (s32*)(gMovieStreamState + 408);
     if (dimensions[0] != 512) {
         ((MovieStreamInterface*)gMovieStreamState)->close();
-        __destroy_new_array(gMovieStreamState, (void*)fn_800DB008);
+        __destroy_new_array(gMovieStreamState, (void*)__dt__11MoviePlayerFv);
         ResetAllocTot();
         return;
     }
@@ -1691,7 +1717,7 @@ extern "C" void PlayVQMovie(const char* name) throw()
             ResetAllocTot();
         }
     }
-    __destroy_new_array(gMovieStreamState, (void*)fn_800DB008);
+    __destroy_new_array(gMovieStreamState, (void*)__dt__11MoviePlayerFv);
     ResetAllocTot();
 }
 #pragma cplusplus off
@@ -2049,47 +2075,86 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
 /* C++ region: the exception specification must match the definition's. */
 #pragma cplusplus on
 MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) throw();
-#pragma cplusplus off
-MovieDTextOuter* fn_800DBD30(MovieDTextOuter* self, s16 deleting);
 
-u32* fn_800DB008(u32* self, s16 deleting) {
-    u32* stream;
-    u8 unused[24];
+/* MoviePlayer -- the concrete movie player.  RTTI record .sdata 0x80344008 =
+ * { name 0x80117648 -> "MoviePlayer", base -> MoviePlayerBase }; vtable
+ * __vt__11MoviePlayer, whose first virtual slot is this destructor.  Non-virtual
+ * spelling and no exception specification, per the same recipe as the
+ * Codec/VQCodec pair above.
+ *
+ * TWO DELIBERATE DEVIATIONS from the class the RTTI describes.  Both are forced
+ * by this TU's split, both are byte-identical to the target, and both are
+ * recorded as reconstruction debt rather than hidden:
+ *
+ * (1) Spelled WITHOUT the `: public MoviePlayerBase` inheritance the RTTI
+ *     proves, with the base teardown written out by hand as the trailing
+ *     `if (self != NULL) self[0] = __vt__15MoviePlayerBase`.  The target INLINES the base
+ *     destructor at that point, and MWCC only inlines a base whose body it has
+ *     already seen -- but __dt__15MoviePlayerBaseFv must stay defined further
+ *     down, because the target's function order fixes its own .text slot at
+ *     0x800DB21C.  Moving that body into the class to make it inlinable would
+ *     stop the out-of-line copy being emitted at all (this TU's split owns no
+ *     .data, so the vtable that would otherwise odr-use it is linked from
+ *     original bytes), trading one exact function for another.
+ *
+ * (2) `operator delete` is a CLASS member, defined inline, and it is what the
+ *     compiler-synthesised deleting branch calls.  This is the mechanism the
+ *     target's own layout points to: that branch's allocation-counter code is
+ *     INLINED here, yet the global operator-delete pair is emitted AFTER this
+ *     function (__dla__FPv 0x800DB15C, __dl__FPv 0x800DB1BC), and MWCC will not
+ *     inline a global operator delete it has not yet seen -- measured.  An
+ *     inline class-scope operator delete satisfies both constraints at once: it
+ *     is available for inlining here, and being inline and never odr-used it
+ *     emits no symbol of its own, leaving the global pair's addresses intact. */
+class MoviePlayer {
+public:
+    u32 words[116];
 
-    if (self != NULL) {
-        self[0] = (u32)lbl_8012968C;
-        if ((s32)self[7] != 0) {
-            sceClose((s32)self[7]);
-        }
-        if (self[100] != 0) {
-            AudioStreamStop();
-            stream = (u32*)self[100];
-            if (stream != NULL) {
-                AudioStreamStop();
-                __dla__FPv((void*)stream[1]);
-                __dl__FPv(stream);
-            }
-        }
-        fn_800DBD30((MovieDTextOuter*)(self + 0x54), -1);
-        dtor_800DBB94((MovieChunkStream*)(self + 8), -1);
-        if (self != NULL) {
-            self[0] = (u32)lbl_801296A4;
-        }
-        if (deleting > 0 && self != NULL) {
+    void operator delete(void* p) throw() {
+        if (p != NULL) {
             gMovieAllocCount--;
             if (gMovieAllocCount == 0) {
                 ResetAllocTot();
             }
         }
     }
-    return self;
+
+    ~MoviePlayer();
+};
+
+MoviePlayer::~MoviePlayer() {
+    u32* self = (u32*)this;
+    u32* stream;
+
+    self[0] = (u32)__vt__11MoviePlayer;
+    if ((s32)self[7] != 0) {
+        sceClose((s32)self[7]);
+    }
+    if (self[100] != 0) {
+        AudioStreamStop();
+        /* Assignment-in-condition, not a separate statement: the split form
+         * loads through r0 and copies (`lwz r0,400 / cmplwi / mr r30,r0`),
+         * where the target loads straight into the callee-saved home
+         * (`lwz r30,400(r28) / cmplwi r30,0`). */
+        if ((stream = (u32*)self[100]) != NULL) {
+            AudioStreamStop();
+            __dla__FPv((void*)stream[1]);
+            __dl__FPv(stream);
+        }
+    }
+    ((VQCodec*)(self + 0x54))->~VQCodec();
+    dtor_800DBB94((MovieChunkStream*)(self + 8), -1);
+    if (self != NULL) {
+        self[0] = (u32)__vt__15MoviePlayerBase;
+    }
 }
+#pragma cplusplus off
 
 u32* fn_800DB0F8(u32* volatile p) {
     u32* self = p;
 
-    self[0] = (u32)lbl_801296A4;
-    self[0] = (u32)lbl_8012968C;
+    self[0] = (u32)__vt__15MoviePlayerBase;
+    self[0] = (u32)__vt__11MoviePlayer;
     fn_800DBC64((MovieChunkStream*)(self + 8));
     fn_800DBE04(self + 0x54);
     self[7] = 0;
@@ -2141,12 +2206,12 @@ void operator delete(void* p) throw() {
 
 /* MoviePlayerBase -- the movie player's abstract base class.  The name is not
  * invented: the GameCube build carries CodeWarrior RTTI, and the base class's
- * vtable lbl_801296A4 begins with a pointer to the RTTI record at .sdata
+ * vtable __vt__15MoviePlayerBase begins with a pointer to the RTTI record at .sdata
  * 0x80344000, whose layout is validated against the known-named control
  * __RTTI__Q23std9exception (0x80344048 -> "std::exception").  That record
  * reads { name = 0x80117654 -> "MoviePlayerBase", base = NULL }, and the same
  * vtable's only virtual slot is this destructor at 0x800DB21C.  (The derived
- * class resolves the same way: vtable lbl_8012968C -> RTTI 0x80344008 ->
+ * class resolves the same way: vtable __vt__11MoviePlayer -> RTTI 0x80344008 ->
  * { "MoviePlayer", base -> MoviePlayerBase }, dtor 0x800DB008.)
  *
  * Declared with a NON-virtual destructor on purpose.  CodeWarrior gives every
@@ -2166,7 +2231,7 @@ public:
 };
 
 MoviePlayerBase::~MoviePlayerBase() {
-    *(u32*)this = (u32)lbl_801296A4;
+    *(u32*)this = (u32)__vt__15MoviePlayerBase;
 }
 #pragma cplusplus off
 
@@ -2592,33 +2657,32 @@ u8 fn_800DBD00(void* self, s32 x) {
     return c;
 }
 
-/* Destroy an outer DText object (vtable lbl_801296CC) and optionally release it. */
-MovieDTextOuter* fn_800DBD30(MovieDTextOuter* self, s16 deleting) {
-    if (self != NULL) {
-        self->vtable = lbl_801296CC;
-        if (self->ownsAlloc != 0) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-        lbl_803452B8--;
-        fn_800DBF6C((MovieDTextInner*)self, 0);
-        if (deleting > 0 && self != NULL) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-    }
-    return self;
+/* VQCodec::~VQCodec (vtable __vt__7VQCodec).  Written as a real C++ destructor,
+ * NON-virtual and with NO exception specification, per the measured recipe:
+ * CodeWarrior gives every destructor the hidden `short` in-charge parameter and
+ * synthesises both the leading `this == NULL` test and the trailing
+ * `if (in_charge > 0) operator delete(this)` branch, so neither is written
+ * here -- writing either yields it twice.  The non-virtual spelling reproduces
+ * the target's stream exactly while NOT emitting a __vt__ object into this TU,
+ * which matters because movieplayer's split owns only .text/extab/extabindex:
+ * every vtable here lives in unsplit .data and is linked from original bytes.
+ *
+ * The base `Codec::~Codec(this, 0)` call is synthesised too -- that is the
+ * target's `addi r3,r29,0 / li r4,0 / bl __dt__5CodecFv`.  Codec::~Codec is
+ * defined BELOW this function, which is what keeps it out of line; MWCC will
+ * inline a base destructor defined earlier and collapse the call away. */
+#pragma cplusplus on
+VQCodec::~VQCodec() {
+    vtable = __vt__7VQCodec;
+    delete alloc2;
+    lbl_803452B8--;
 }
 
 /* Construct an outer DText object (base init + lbl_80321340 ramp, first time only). */
-MovieDTextOuter* fn_800DBE04(u32* p) {
+VQCodec* fn_800DBE04(u32* p) {
     int i;
-    DTextInitColorRamp((MovieDTextInner*)p);
-    p[8] = (u32)lbl_801296CC;
+    DTextInitColorRamp((Codec*)p);
+    p[8] = (u32)__vt__7VQCodec;
     if (lbl_803452B8 == 0) {
         for (i = 0; i < 256; i++) {
             lbl_80321340[i] = (u8)((i * 31 + 128) / 255);
@@ -2626,8 +2690,9 @@ MovieDTextOuter* fn_800DBE04(u32* p) {
     }
     lbl_803452B8++;
     p[12] = 0;
-    return (MovieDTextOuter*)p;
+    return (VQCodec*)p;
 }
+#pragma cplusplus off
 
 #ifdef __MWERKS__
 #pragma optimization_level 4
@@ -2652,26 +2717,22 @@ void fn_800DBE98(void* param_1, u8* param_2) {
     param_2[0] = gDTextBuf[(int)(lbl_803493DC + (lbl_803493EC * fVar3 + fVar1))];
 }
 
-/* Destroy a DText renderer and optionally release the object itself. */
-MovieDTextInner* fn_800DBF6C(MovieDTextInner* self, s16 deleting) {
-    if (self != NULL) {
-        self->vtable = lbl_801296F0;
-        gDTextInitCount--;
-        if (self->ownsAlloc != 0) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-        if (deleting > 0 && self != NULL) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-    }
-    return self;
+/* Codec::~Codec (vtable __vt__5Codec, dtor slot 0x801296F8).  Same recipe as
+ * VQCodec::~VQCodec above: non-virtual, no exception specification, and neither
+ * the leading null test nor the trailing deleting branch written by hand.
+ *
+ * Both `delete` expressions in this pair inline the TU's global
+ * `operator delete` -- which is defined earlier in the file WITH `throw()` --
+ * and each inlined copy contributes exactly one `__unexpected` island.  That is
+ * the arithmetic behind this function's two islands (at r31+44 for the member
+ * release, r31+16 for the synthesised deleting branch) and its frame of 88. */
+#pragma cplusplus on
+Codec::~Codec() {
+    vtable = __vt__5Codec;
+    gDTextInitCount--;
+    delete alloc;
 }
+#pragma cplusplus off
 
 /* 0x800DC034 init the DText debug-overlay 256-entry colour ramp (gDTextColorRamp/gDTextBuf) */
 typedef struct DTextRampEntry {
@@ -2679,10 +2740,11 @@ typedef struct DTextRampEntry {
     u8 value;
 } DTextRampEntry;
 
-MovieDTextInner* DTextInitColorRamp(MovieDTextInner* p) {
+#pragma cplusplus on
+Codec* DTextInitColorRamp(Codec* p) {
     int i;
     u8* ramp = gDTextColorRamp;
-    p->vtable = lbl_801296F0;
+    p->vtable = __vt__5Codec;
     if (gDTextInitCount == 0) {
         memset(ramp, 0, 256);
         memset(ramp + 512, 255, 256);
@@ -2694,8 +2756,9 @@ MovieDTextInner* DTextInitColorRamp(MovieDTextInner* p) {
         }
     }
     gDTextInitCount++;
-    p->ownsAlloc = 0;
+    p->alloc = NULL;
     return p;
 }
+#pragma cplusplus off
 
 } /* extern "C" */

@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "inline",
+      "decl-order",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.class-scope-inline-operator-delete-frees-the-dtor-from-definition-order.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T01:29:36Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "REFINES step (2) of claim.law.destructor-throw-spec-adds-a-second-unexpected-island.20260901.v1, whose recipe says the global `operator delete` must be defined 'textually BEFORE the destructor so MWCC can inline it into the compiler-synthesised deleting branch'. The DEFINITION-ORDER REQUIREMENT IS REAL AND STRICT -- but it is NOT the only way to satisfy it, and taking it literally is unachievable whenever the target's own function order puts the global operator-delete pair AFTER the destructor, which is exactly the case that blocked fn_800DB008 for two sessions. MEASURED 2026-09-01 with the project's GC/1.2.5 mwcceppc at the movieplayer cflags, four scratch TUs, one variable each. (A) Global `operator delete` DEFINED before the destructor: deleting branch inlines it, one `__unexpected` island, r31 frame pointer, frame 56, 60/60 insns = the target. (B) Same TU with the definition moved AFTER the destructor (the target's real emission order): the branch degrades to `bl __dl__FPv`, NO island, no r31 alias, frame 32, 47 insns. So the constraint is definition order, not visibility. (C) An explicit DECLARATION `void operator delete(void*) throw();` placed before the destructor with the definition still after: byte-identical to (B) -- a declaration does NOT buy the inline, killing the obvious workaround. (D) THE RESOLUTION: declare `operator delete` as a CLASS MEMBER, defined inline in the class body, on the class whose destructor you are matching. The compiler-synthesised deleting branch calls the class-scope operator in preference to the global one, it is defined by the time the destructor body is compiled, and -- being an inline member that is never odr-used out of line -- it emits NO symbol of its own. Result: destructor byte-exact AND the global `__dla__FPv`/`__dl__FPv` pair still emitted at their original positions AFTER the destructor, i.e. the target's function order is preserved intact (verified in the real object: __dt__11MoviePlayerFv @0x2a00, fn_800DB0F8 @0x2af0, __dla__FPv @0x2b54, __dl__FPv @0x2bb4, __dt__15MoviePlayerBaseFv @0x2c14 -- the target's order exactly). This is almost certainly what the original source did, because the target simultaneously exhibits an INLINED counter block in the deleting branch and out-of-line operator-delete bodies at HIGHER addresses, which no global-only arrangement can produce. TWO DEAD AXES, recorded so nobody re-spends them: `#pragma inline deferred on` is a NO-OP in this compiler (byte-identical output); the command-line `-inline auto,deferred` DOES enable later-definition inlining but REORDERS function emission TU-wide (measured: a 5-function scratch came out in a completely different order), so it is unusable on a real multi-function TU and must not be added to any TU's cflags to chase this. OPERATIONAL RULE: when a destructor's deleting branch must inline an allocator whose out-of-line body the target places later, reach for the inline class-scope operator before considering any source reordering -- reordering buys the same bytes but destroys the function-order evidence, and is unnecessary."
+}
