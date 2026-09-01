@@ -2969,19 +2969,19 @@ void ProcessEffects(void)
                         } else {
                             s32 playerHit;
 
-                            dir[0] = e->vel[0];
-                            dir[1] = e->vel[1];
-                            dir[2] = e->vel[2];
-                            NormalVector(dir);
+                            delta[0] = e->vel[0];
+                            delta[1] = e->vel[1];
+                            delta[2] = e->vel[2];
+                            NormalVector(delta);
                             if (sMusicFadeBase >= player->fxhittime) {
                                 if (e->flags & 0x2000) {
                                     playerHit = damage_player(
                                         player->index, 0.0f, 0,
-                                        e->damagetype | DMG_STUN, dir);
+                                        e->damagetype | DMG_STUN, delta);
                                 } else {
                                     playerHit = damage_player(
                                         player->index, collisionDamage, 1,
-                                        e->damagetype, dir);
+                                        e->damagetype, delta);
                                 }
                                 if (e->owner >= 4096) {
                                     CritterSetFxHitTime(
@@ -3136,17 +3136,17 @@ void ProcessEffects(void)
                     }
                     enemy = (struct fxenemy*)(gEnemies + enemyIndex * 916);
                     if (!(e->flags & 0x400)) {
-                        dir[0] = e->vel[0];
-                        dir[1] = e->vel[1];
-                        dir[2] = e->vel[2];
+                        delta[0] = e->vel[0];
+                        delta[1] = e->vel[1];
+                        delta[2] = e->vel[2];
                         e->hitcount++;
-                        NormalVector(dir);
+                        NormalVector(delta);
                         enemyState = enemy->state;
                         if (enemy->health <= 0.0) {
                             enemyState = 0;
                         }
                         damage = damage_enemy(
-                            enemy, owner - 1, e->damagetype, hitpos, dir,
+                            enemy, owner - 1, e->damagetype, hitpos, delta,
                             collisionDamage, 2);
                         if (damage >= 0) {
                             if (collisionDamage > 2.0f &&
@@ -3211,7 +3211,7 @@ void ProcessEffects(void)
                     }
                     e->hitcount++;
                     damage = CritterDamage(
-                        critter, owner - 1, e->damagetype, 0, dir,
+                        critter, owner - 1, e->damagetype, 0, delta,
                         collisionDamage, 2);
                     if (damage >= 0 && e->fxhit >= 0) {
                         StartFXSub(e->fxhit, critter->effectpos, 0, 0x880,
@@ -3231,14 +3231,14 @@ void ProcessEffects(void)
                     if (!(e->flags & 0x400) &&
                         !(critter->header->desc->type == 4 &&
                           (e->flags & 0x800))) {
-                        dir[0] = e->vel[0];
-                        dir[1] = e->vel[1];
-                        dir[2] = e->vel[2];
+                        delta[0] = e->vel[0];
+                        delta[1] = e->vel[1];
+                        delta[2] = e->vel[2];
                         e->hitcount++;
-                        NormalVector(dir);
+                        NormalVector(delta);
                         hit = CritterDamage(
                             critter, owner - 1, e->damagetype, hitpos,
-                            dir, collisionDamage, 2);
+                            delta, collisionDamage, 2);
                         if (hit >= 0) {
                             if (hit != 0) {
                                 hit = 3;
