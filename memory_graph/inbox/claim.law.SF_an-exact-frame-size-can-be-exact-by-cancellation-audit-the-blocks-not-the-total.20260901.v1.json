@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "metrics",
+      "decl-order",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.SF_an-exact-frame-size-can-be-exact-by-cancellation-audit-the-blocks-not-the-total.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T18:39:57Z",
+  "schema_version": 1,
+  "subject": "function:ProcessEffects",
+  "valid_from": "2026-09-01",
+  "value": "A FRAME SIZE THAT MATCHES TARGET IS NOT PROOF THAT THE LOCAL AREA IS RIGHT: TWO ERRORS OF OPPOSITE SIGN CAN SUM TO ZERO, AND THE NEXT CORRECT EDIT WILL THEN LOOK LIKE A REGRESSION. MEASURED, and it cost a session to unpick. ProcessEffects was recorded a run earlier as `frame T752/O752 (EXACT)` with `slots T79/O79 (EXACT)`, and that pair was treated as a settled, defended result. It was exact by CANCELLATION: our local block carried TWO SURPLUS 4-byte address-constant homes (folded `SYMBOL+K` constants the target never materialises) and was MISSING ONE 8-byte hoisted f64 constant home. +8 and -8 summed to a correct 752. Removing the two surplus homes -- an unambiguously correct edit that eliminated four opcode classes and raised fuzzy 0.70 -- dropped the frame to 744 and the slot count to 78, and every coarse metric read it as damage. THE DIAGNOSTIC that distinguishes cancellation from correctness is a per-BLOCK census, not the total: partition the local area into its natural blocks (GPR address-constant homes, f64 constant homes, nominal locals, spill slots), count the ENTRIES in each block on both sides, and require each block to match INDEPENDENTLY. Here the target's f64 constant-home block held 22 entries (344..512) against our 21 (352..512), and the address-home block held 14 (276..328) against our 16 (276..336) -- both visible in the aligned prologue view in about ten minutes, and neither visible in `frame: target 752 ours 752`. THE SECOND HALF OF THE FIX generalises too: the missing 22nd f64 home was fed by `stfd f30,352(r1)` -- a STORE WITH NO MATCHING LOAD, because MWCC reused an f32 constant already in a register and homed its DOUBLE value. A prologue store with no paired pool load means the same numeric constant is wanted in both an f32 and an f64 context; the source lever is the LITERAL SUFFIX at the second site, not a new constant. Changing one comparison from `> 0.0` to `> 0.0f` so that the compare operand and the assigned value became the SAME entity restored the 22nd slot and the frame to 752 -- correctly this time -- and took the multiset 22t -> 20t. COROLLARY FOR RECORD-WRITING: state a frame result as the per-block census that produced it, never as the bare total, or the next agent inherits a defended coincidence."
+}

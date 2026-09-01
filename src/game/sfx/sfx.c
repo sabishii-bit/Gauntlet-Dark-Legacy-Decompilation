@@ -2723,7 +2723,7 @@ void ProcessEffects(void)
                     mode = 1;
                     ageRadius = (f32)(remaining + 0.066667);
                 }
-            } else if (e->webtime > 0.0) {
+            } else if (e->webtime > 0.0f) {
                 mode = 4;
                 ageRadius = 0.0f;
             } else {
@@ -2889,6 +2889,8 @@ void ProcessEffects(void)
                         } absdy;
                         f32 dist;
                         f32 mindp;
+                        f32 sumr;
+                        f32 dp;
 
                         if (player->state != 1 ||
                             sMusicFadeBase < player->fxhittime ||
@@ -2904,7 +2906,8 @@ void ProcessEffects(void)
                             continue;
                         }
                         dist = NormalVector2D(delta);
-                        if (dist > radius + player->radius) {
+                        sumr = radius + player->radius;
+                        if (dist > sumr) {
                             continue;
                         }
                         if (dist > 10.0 &&
@@ -2914,11 +2917,11 @@ void ProcessEffects(void)
                         }
                         if (e->mindp > -1.0) {
                             mindp = e->mindp;
-                            if (dist < 0.3 * (radius + player->radius)) {
+                            dp = delta[0] * dir[0] + delta[2] * dir[2];
+                            if (dist < 0.3 * sumr) {
                                 mindp *= 0.85;
                             }
-                            if (delta[0] * dir[0] + delta[2] * dir[2] <
-                                mindp) {
+                            if (dp < mindp) {
                                 continue;
                             }
                         }
@@ -3065,6 +3068,7 @@ void ProcessEffects(void)
                         (struct fxenemy*)(gEnemies + enemyIndex * 916);
                     f32 enemyDist;
                     f32 enemyMindp;
+                    f32 enemyDp;
                     s32 enemyState;
                     s32 damage;
 
@@ -3087,12 +3091,11 @@ void ProcessEffects(void)
                     }
                     if (e->mindp > -1.0) {
                         enemyMindp = e->mindp;
+                        enemyDp = delta[0] * dir[0] + delta[2] * dir[2];
                         if (enemyDist < 0.2 * (radius + enemy->radius)) {
                             enemyMindp *= 0.85;
                         }
-                        if (delta[0] * dir[0] +
-                                delta[2] * dir[2] <
-                            enemyMindp) {
+                        if (enemyDp < enemyMindp) {
                             continue;
                         }
                     }
@@ -3261,7 +3264,7 @@ void ProcessEffects(void)
                             switch (gBossType) {
                             case 34:
                                 critter->boss_texture = MBOX_FindTexture_Sub(
-                                    lbl_80114790 + 20, 0, sItemFile1Handle,
+                                    "SEETHROUGH", 0, sItemFile1Handle,
                                     sItemFile1Handle, 1);
                                 critter->boss_timer_a = 1200;
                                 lbl_8034489C = 4;
@@ -3306,7 +3309,7 @@ void ProcessEffects(void)
                             case 38:
                                 MBSetObject(
                                     critter->object->node,
-                                    MBOX_FindObject(lbl_80114790 + 32));
+                                    MBOX_FindObject("PBOSSQEYEBALL"));
                                 critter->boss_timer_b = 18000;
                                 break;
                             }
@@ -3350,6 +3353,7 @@ void ProcessEffects(void)
                         f32 itemDist;
                         f32 itemHit;
                         f32 itemMindp;
+                        f32 itemDp;
                         s32 skip;
                         s32 special;
                         s32 noDmg;
@@ -3386,13 +3390,12 @@ void ProcessEffects(void)
                         }
                         if (e->mindp > -1.0) {
                             itemMindp = e->mindp;
+                            itemDp = delta[0] * dir[0] + delta[2] * dir[2];
                             if (itemDist <
                                 0.2 * (itemRadius + item->def->radius)) {
                                 itemMindp *= 0.85;
                             }
-                            if (delta[0] * dir[0] +
-                                    delta[2] * dir[2] <
-                                itemMindp) {
+                            if (itemDp < itemMindp) {
                                 continue;
                             }
                         }
