@@ -1,6 +1,40 @@
 {
   "version": 1,
   "units": {
+    "game/ui/screensaver": [
+      {
+        "function": "end_inventory_panel",
+        "mechanism": "attempt.HV_harvest-sweep-arrow-order.20260901.v1. PRE-PERMUTATION plus copy_register_fields, 39 atoms/fields, and the FIRST rule in game/ui/screensaver (the unit block and its WEBFRANK build edge are created with this commit -- configure.py is required or ninja runs green with the rule silently unapplied). The residual is a whole-function GPR renaming (real 64 of 67 instructions) composed with the same live-zero-remat word: the target seeds `li r29,0` at +0x18 and spends `addi r31,r29,0` at +0x28 for `i = 0`, while our stream emits two independent `li`. Source axes measured DEAD on the real object this run: (1) declaration order, moving `int i` ahead of `base`/`p` per the declaration-order law -- NEUTRAL-IDENTICAL, object bytes UNCHANGED, i.e. the edit folded away before codegen, which is a stronger negative than a regression; (2) fusing the base and the +928 displacement into one expression `(void**)(base + player * 16 + 928)` to force the target's in-place advance -- REGRESSED 64 -> 70. The renaming axis itself was already parked by attempt.parked.end-inventory-panel.20260830.v1 ('renum + base-const assoc', the four handle-free loops off lbl_80274600 at +928/992/736/592).",
+        "before_sha256": "8748ebb9be0d1a8f8604cd948e83825def1b5efa30f51a6ed170ea1b73db53ce",
+        "after_sha256": "542aa12aa4b4d39c9dd1dcf322350a06c8afb48f7f304f9aabb3dfae9c3ed570",
+        "instruction_permutation": [
+          {
+            "start": "0x18",
+            "end": "0x30",
+            "order": [
+              4,
+              0,
+              1,
+              2,
+              5,
+              3
+            ],
+            "before_sha256": "1a671cd942ea77f1de497ebb166d538d372ed3ed534dd8e2a2026845adb0c1ae",
+            "after_sha256": "4cd64817a0bbae6f99e6cfdd972dd9d59e89403a16b752dd038b081e52731732",
+            "before_relocations_sha256": "2b596f53d5918d5b77d6f32234c0ee0636fb83932f3728aebe2e355e979dc1e0",
+            "after_relocations_sha256": "0834fc9c048c4dcf7c22cbd7e2fc5e9e92add307194735c589a27a623f99ac8f"
+          }
+        ],
+        "equivalent_copy_form": [
+          {
+            "at": "0x28",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 27
+          }
+        ],
+        "copy_register_fields": true
+      }
+    ],
     "game/g3d/gcontrolpads": [
       {
         "function": "G3DReadControlPadStates",
@@ -143,6 +177,35 @@
       }
     ],
     "game/anim/atree": [
+      {
+        "function": "DoAnimateTreeFrame",
+        "mechanism": "attempt.HV_harvest-sweep-arrow-order.20260901.v1. PRE-PERMUTATION plus copy_register_fields, 23 atoms/fields. Same LIVE-ZERO-REMAT family as fn_80054E78, and its own cap says so in the target's own vocabulary: attempt.parked.doanimatetreeframe.20260830.v1 records 58/58 real 38 and describes the residual verbatim as 'target li+addi zero copy versus two li plus coupled address/saved-web schedule', having measured the explicit zero-derived offset chronology and a scoped propagation-off region as REGRESSIONS. That is the source-exhaustion provenance; the schedule half is what the permutation stage supplies. Governed by claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1.",
+        "before_sha256": "19cf287a589fd91e74e6cb7afe8170b3daca2baf7ec54126fa630658b8343125",
+        "after_sha256": "3fa3efdca1768d5f994ad759b464827219fb07675631ff7983e296abe272e9a7",
+        "instruction_permutation": [
+          {
+            "start": "0x54",
+            "end": "0x60",
+            "order": [
+              1,
+              2,
+              0
+            ],
+            "before_sha256": "88eb37c18b3c08b0068a3520edfb7a57c466f0cf021373c48fb796b56069ca5b",
+            "after_sha256": "70e56fc069868f323ece504baa776fc3dbafd6f9fe671b82b9d7aabae5f607d6",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "equivalent_copy_form": [
+          {
+            "at": "0x58",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 23
+          }
+        ],
+        "copy_register_fields": true
+      },
       {
         "function": "fn_8001267C",
         "before_sha256": "c4a10701e29c74debba7d4c422057e91e799d55775f0907702028d3fa6529ea7",
@@ -325,6 +388,29 @@
       }
     ],
     "game/game/combat": [
+      {
+        "function": "DiffRate_8002951C",
+        "mechanism": "attempt.HV_diffrate-arrow-order-close.20260901.v1. PRE-PERMUTATION over [0x24,0x34), order [1,3,0,2], plus copy_register_fields. The residual is the four-word entry cluster attempt.RC_diffrate-address-taken-abs-and-decl-order.20260901.v1 named and then measured DEAD on the only source axis that reaches it: the target forms base+idx*396 in cam's own home register and advances it in place with `addi r29,r29,200` AFTER reading 368(r29), while our stream forms it in a scratch r4 and offsets once. That record carries TWO literal probed_form A/Bs on the in-place-advance axis (form 1 real 66->70, form 2 real 24->66) plus a third negative on the union FloatBits spelling (122->153), which is the source-exhaustion provenance this rule cites. The window carries NO relocation (both region relocation hashes are the empty-list hash), so the pin cannot be disturbed by anonymous-pool renumbering elsewhere in combat.c. SUPERSEDES the premise of attempt.diffrate-webfrank-ineligible-structural.20260831.v1, which ruled the function out as 163/157 'no bijection between the two instruction streams'; the later source work closed that count gap and the function now measures 163/163, remeasured live this run. An ineligibility verdict computed from an instruction-count asymmetry expires the moment the count closes, and nothing re-screened it for a day.",
+        "before_sha256": "c4174c2a91e9fa92f5539a888107b59c42b3cda3463a9110a25fd0fa3f9620c7",
+        "after_sha256": "cab5f07bd237db1f132ffa51c5a5344f61ae5305eeb433b4991b8fb62674bed5",
+        "instruction_permutation": [
+          {
+            "start": "0x24",
+            "end": "0x34",
+            "order": [
+              1,
+              3,
+              0,
+              2
+            ],
+            "before_sha256": "bb6db7866f99ae896c653c0a5f13c0cee1b110581037097bcafe523e6105a649",
+            "after_sha256": "b744387a88c37a29105029cb42ab462358a658cb4fb8854a0be21a927701c6ad",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "copy_register_fields": true
+      },
       {
         "function": "adjust_radius_8002B2D4",
         "before_sha256": "af757cae485dfd40fa3896c505c939e2e8e5d0ef34f6a31bbaf5245082cb927f",
@@ -824,6 +910,20 @@
       }
     ],
     "game/game/gamemain": [
+      {
+        "function": "fn_80054E78",
+        "mechanism": "attempt.HV_fn80054e78-source-first-then-close.20260901.v1. equivalent_copy_form at +0x154 with proof `constant_dataflow_recolor`, our_source r29, plus copy_register_fields; 19 atoms/fields total (1 form site + 18 register fields). LIVE-ZERO-REMAT: the target spells `addi r30,r29,0` (= `mr r30,r29`) where our build emits `li r30,0`, rematerialising the loop's `off = 0` out of the function's shared zero web instead of a fresh literal. That web is `li r29,0` at +0xf4 and it feeds five sites (+0x100 and,, +0x108/+0x10c xor, +0x154, +0x16c stw) -- our build already builds the same web and already matches at +0x16c, so the allocation is identical and the single differing word is a rematerialise-or-copy choice, not a source shape. THIS RULE IS ONLY LICENSED BY THE SOURCE PASS RUN FIRST: the predecessor record deliberately WITHHELD it for want of provenance, and three distinct source axes were then measured on the real object -- (1) splitting the for-init to `off = 0;` before the loop, NEUTRAL at real 36; (2) a shared `s32 none = 0` feeding both `off` and the `*(u32*)q = 0` store, REGRESSED 36 -> 66; (3) swapping the init order to `for (off = 0, i = 0; ...)`, NEUTRAL at real 36. Consistent with claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 and with both CAPPED members of the family in game/audio/audio.c. Shipping this rule ALSO required a separate SEMANTIC fix in the same commit range: the call at +0x28c bound `fn_8009FCA8` where the target binds `DoAudioTallySFX` -- two genuinely distinct functions in sounds_evt.c -- so the function only reaches `fndiff --clean` MATCH once the callee is corrected. defake_gate called that relocation delta a benign NAMING-DRIFT with 'resolved addresses unchanged', which is a false-benign on a real wrong-callee bug.",
+        "before_sha256": "2943fe531ef794ba0c3ff88954fc31afb402480e81fb9ecafa6ebcb44f1bc39f",
+        "after_sha256": "c3a712c58e2efdaa7a3c655045352848cad93e169bd82c969c001165d084dba3",
+        "equivalent_copy_form": [
+          {
+            "at": "0x154",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 29
+          }
+        ],
+        "copy_register_fields": true
+      },
       {
         "function": "DoWorldAnimation",
         "before_sha256": "eb1d3bbe9f55641bca737789c158eb2cd9f7fc334da026e592a232daea6d5a3e",
@@ -1579,6 +1679,37 @@
       }
     ],
     "game/movie/movieplayer": [
+    {
+      "function": "fn_800D87FC",
+      "before_sha256": "8b29a54853969724626876240a6788df9d125f00c9118385658395387a5956a6",
+      "after_sha256": "3ff5e4b22b1f8d71b87b5c902bdd34c48b1d994c03549ea1e7c30c0c42142e6d",
+      "mechanism": "THE FOUNDING RULE OF THE RANGE-PROOF CLASS (equivalent_mask_form / proof zero_bits_dataflow), plus a transposition and a recolor that were only ever blocked by it. SOURCE EXHAUSTION: attempt.MP_fn800d87fc-additive-spelling-dead-and-the-residual-needs-a-range-proof.20260901.v1 records ELEVEN measured-dead source axes on the one differing word (declared width u8/u32/int, presence/absence of the val variable, statement-split vs single-expression vs fully-inlined OR, the canonical `(x & ~M) | (b << k)` idiom, declaration placement, OR operand order, and the additive `+` spelling), names capability_needed = 'a value-RANGE proof that a redundant rlwinm mask field is a no-op on a provably narrow value', and states that no shipped class covered it. THE RESIDUAL: 244/244 instructions, opcode multiset DIFFERS by exactly one word — +0x230 target `slwi r17,r18,3` (= `rlwinm r17,r18,3,0,28`, mask 0xFFFFFFF8) against ours `rlwinm r17,r18,3,13,28` (mask 0x0007FFF8). Same opcode, same rA, same rS, same SH, same Rc; the two words differ in the MASK FIELD alone and compute the same value exactly when the source bits the two masks disagree about are zero. redundant_mask_source_bits rotates the mask delta 0xFFF80000 back by SH=3 and computes the obligation 0x1FFF0000 — r18 bits 16..28 — which the rule DECLARES, so the claim is readable without re-deriving it. prove_zero_bits discharges it by a whole-CFG known-zero-bit dataflow over OUR OWN stream, seeded with no knowledge at entry and meeting by intersection: +0x21c `lbz r21,0(r19)` gives r21 bits 8..31 zero, +0x228 `addi r18,r21,0` copies that fact, +0x22c `rlwimi r18,r17,8,23,23` writes only bit 8, so r18 is provably 9 bits wide and bits 16..28 are zero on EVERY path. Measured, not argued: the prover reports `PROVED: r18 bits 0x1fff0000 zero on every path` against this object. THE COMPOSITION, and why it was invisible before: the run-28 union-resweep provers (ha_close.build_rule / hv_repair.repair / hv_perm.search) were run over this function at its retained baseline and returned `refuses -- no proved composition` with 1 UNABSORBED WORD IN 1 CLUSTER. That unabsorbed word was +0x230. With the mask stage absorbing it the rest of the function is an ordinary transposition-plus-recolor: ours +0xc8 `addi r17,r26,0` is BYTE-IDENTICAL to the target's +0xd8 word, and the two `addi` copies at +0xc8/+0xd8 are simply emitted in the opposite order, with the three words between them (`subfic`,`subfic`,`lbz`) identical in both streams. Window [0xc8,0xdc) order [4,1,2,3,0] passes check_permutation_dependences (the moved pair reads r26/r20 and writes r17/r27, touching none of r0/r3/r4/r30 that the interior words use) and carries no relocation on either side, and verify_consistent_recolor then PASSES on the permuted, mask-corrected body — 118 atoms/fields, real 232 -> 0. Discipline 14 applied and PARTLY REFUTED on the way: the +0xc8 refusal `use of g26 is not value-equal to g21` reads like the live-zero remat family, and the obvious next capability (a constant-value substitution for value_equality_recolor) would NOT have closed it — prove_constant_dataflow measures our r26 provably 0 at +0xc8 while the target's r21 is NOT provably 0 there, and the only `li rX,0` before the site in either stream is the shared +0xc0 `li r26,0`. The refusal was a fact about the ORDER, not about the values.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 244,
+        "permuted_instructions": 2,
+        "mask_sites": 1
+      },
+      "instruction_permutation": [
+        {
+          "start": "0xc8",
+          "end": "0xdc",
+          "order": [4, 1, 2, 3, 0],
+          "before_sha256": "3cb65cfcc24ac5196842e712c6142cc3a51f8fb36a1dbc693700d357b64fef6e",
+          "after_sha256": "3a6c81704984b5065c4b0bd1c0a61a13313ab3f8f2b0663c77846f868ee8b7da",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "equivalent_mask_form": [
+        {
+          "at": "0x230",
+          "proof": "zero_bits_dataflow",
+          "declared_zero_bits": "0x1fff0000"
+        }
+      ],
+      "copy_register_fields": true
+    },
     {
       "function": "fn_800DBE98",
       "before_sha256": "134cd208d8d148c016faee4842643fcb8f51ad1c9faa009b4ac318d4412db35b",

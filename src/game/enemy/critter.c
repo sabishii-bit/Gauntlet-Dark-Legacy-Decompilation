@@ -2579,7 +2579,7 @@ Critter *CritterExpCollide(f32 *origin, f32 *forward, f32 radius,
             bodyRadius = radius + *(f32 *)((u8 *)c->hdr + offsetof(CritterPackedType, wallRadius));
             if (distance > bodyRadius) {
                 collided = 0;
-            } else if (dot > 0.0 &&
+            } else if (dot > -1.0 &&
                        contact[0] * forward[0] +
                        contact[2] * forward[2] < dot) {
                 collided = 0;

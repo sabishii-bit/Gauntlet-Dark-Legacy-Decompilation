@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py",
+    "tools/gdl/fndiff.py"
+  ],
+  "attributes": {
+    "provenance": "Fleet worker PL, work_claim.player-tail.20260901.v1, worktree GDL-Claude-PlayerTail, branch claude/player-tail-20260901. Measured on src/game/game/player.c::load_player, 2026-09-01, two fresh full-report builds via probe.py --fuzzy taken back to back on the two candidate source states. See attempt.PL_load-player-pointer-live-range-split.20260901.v2 axis4. Full ninja green, main.dol: OK.",
+    "tags": [
+      "metrics",
+      "workflow",
+      "matching",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Show a case where an edit takes the instruction count from off-by-N to EXACT while the opcode multiset degrades, and where fresh objdiff fuzzy nonetheless improves. That would mean count-exactness plus multiset degradation is not reliably a fuzzy loss and the arbitration rule below is unnecessary. A weaker falsifier: show that the fuzzy gap here is an artefact of report staleness by reproducing both numbers from two independent clean full builds and getting the opposite ordering.",
+  "id": "claim.law.PL_count-exactness-bought-with-multiset-degradation-is-a-fuzzy-regression.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T23:05:05Z",
+  "reproduction": "On load_player at commit 9278a90f7, the loop `for (j = 0; j < 5; j++) { ((s32*)((u8*)p + 0xA34))[j] = -1; }` measures real 147, T285/O286, multiset 1t, fresh fuzzy 97.6105. Rewriting it as `for (j = 0; j < 20; j += 4) { PF(p, 0xA34 + j, s32) = -1; }` measures real 136, T285/O285 (count EXACT), multiset 4t, fresh fuzzy 96.2035. Both fuzzy figures come from probe.py --fuzzy, which rebuilds the report in the same call.",
+  "schema_version": 1,
+  "subject": "tu:game/game/player",
+  "valid_from": "2026-09-01",
+  "value": "BOUNDS claim.law.EN-equal-count-opcode-respell-must-be-arbitrated-on-fuzzy-not-real.20260901.v1, which prescribes fuzzy arbitration for EQUAL-COUNT respellings. The dangerous case is the one that law does not cover: an edit where the instruction COUNT MOVES, and moves the right way, all the way to EXACT. THE RULE: reaching instruction-count exactness is NOT evidence of progress when the opcode multiset degrades in the same edit; arbitrate on fresh fuzzy exactly as for the equal-count case, and expect the count-exact state to LOSE. MEASURED on load_player. State A held the original array-form trailing loop: real 147, T285/O286 (one instruction short of target), opcode multiset 1t, fresh fuzzy 97.6105. State B rewrote that loop with an explicit byte-stride accumulator: real 136, T285/O285 - instruction count EXACT - and yet the multiset went 1t -> 4t because the store degraded from the target's `addi`+`stwx` to `add`+`stw`, and fresh fuzzy FELL to 96.2035. Three of the cheap predictors (real down 11, count now exact, cluster count unchanged) all pointed at State B; the finer instrument pointed the other way by 1.4 points, and State A was kept. WHY IT HAPPENS, which is what makes it predictable rather than a curiosity: the count reached parity by COINCIDENCE, not by convergence. State B removed one hoisted `addi` from outside the loop and added one wrong-opcode instruction inside it, so the arithmetic balanced while the code moved further from the target. A count that becomes exact through a compensating pair of unrelated changes is numerically indistinguishable from a count that becomes exact through convergence, and only the multiset separates them. THE SCREEN, before banking any count-exactness: read the `--ops` multiset line in the SAME probe output. If the count improved AND the multiset is IDENTICAL, bank it. If the count improved AND the multiset DEGRADED, you have bought parity with structure - spend the fuzzy build before banking, and expect to revert. COROLLARY: this is the mirror of claim.law.fuzzy-can-underweight-a-real-improvement, and the two together mean neither `real` nor the count is self-sufficient; the multiset is the tiebreaker that tells you WHICH of the two finer instruments to trust."
+}

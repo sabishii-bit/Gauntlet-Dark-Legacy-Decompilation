@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/webfrank.py",
+    "config/GUNE5D/webfrank.json"
+  ],
+  "attributes": {
+    "provenance": "Fleet worker PL, work_claim.player-tail.20260901.v1, worktree GDL-Claude-PlayerTail, branch claude/player-tail-20260901, measured against HEAD c98c8ba3a on 2026-09-01. Discovered while attempting the PTA cell-4 sweep over the six qualifying single-region PT(j) sites in do_players; see attempt.PL_pta-cell4-sweep-and-call-split-boundary.20260901.v1. Reported as a GUARD MEASUREMENT per AGENTS.md discipline 14, not as a fact about do_players.",
+    "tags": [
+      "postprocessor",
+      "relocation",
+      "workflow",
+      "build-hygiene",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Show a size-changing edit to a function that PRECEDES an instruction_permutation-pinned function in the same TU's source order which nonetheless builds green through WEBFRANK. That would mean the permutation stage's relocation-input hash is not position-sensitive and the blocking radius is narrower than claimed. Equally falsifying: show that the failure is caused by the specific SYMBOL a PTA conversion references rather than by the size shift, by reproducing it with a size-neutral edit to a preceding function, or by failing to reproduce it with a size-changing edit that touches no relocation.",
+  "id": "claim.law.PL_permutation-pin-freezes-every-function-preceding-it-in-source-order.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T23:04:17Z",
+  "reproduction": "In game/game/player.c change ANY function that precedes do_exit in SOURCE order so that its instruction count moves - the minimal reproducer is replacing `PT(j)` with `PTA(j)` at the three single-read `state` sites inside do_players (source line 1651) - then run ninja. The WEBFRANK step for game/game/player fails with `ValueError: instruction permutation relocation input hash changed` raised from permute_instruction_atoms at tools/gdl/webfrank.py:1942, reached from apply_patch at :2929. Editing activate_player or load_player, which FOLLOW do_exit (source line 2580), does not trip it - both were edited and committed green in the same session.",
+  "schema_version": 1,
+  "subject": "tu:game/game/player",
+  "valid_from": "2026-09-01",
+  "value": "EXTENDS AGENTS.md trap 15b, which tells a worker that a permutation pin 'STILL invalidates - correctly - on edits that renumber the anonymous pool or alter a window relocation' and gives the screen question as 'does my edit change the TU's anonymous-pool population or a pinned window's relocs?'. That screen is INCOMPLETE, and answering it honestly still gets you a failed build. THE RULE: a WebFrank pin carrying the `instruction_permutation` stage freezes not only its own function but EVERY function that precedes it in the TU's source order, against any edit that changes an instruction COUNT. The permutation stage's relocation-input hash is position-sensitive, so a size change anywhere upstream shifts the pinned window's relocation offsets and the hash assertion fires, even though the pinned function's own source, body and relocations are untouched. MEASURED in game/game/player, whose single instruction_permutation pin is do_exit (source line 2580, stages copy_register_fields + instruction_permutation). Converting three `PT(j)->state` reads to `PTA(j)` inside do_players (source line 1651, i.e. upstream) failed the build with `ValueError: instruction permutation relocation input hash changed`; reverting restored green. The same session edited activate_player and load_player, both DOWNSTREAM of do_exit, changing their instruction counts by +1 and +2 respectively, and both built green and were committed. CONSEQUENCE FOR PLANNING, which is the expensive part: do_exit sits roughly a quarter of the way through this TU's roster, so its pin currently blocks source-level matching work on every function above it - including do_players, the TU's largest function and its biggest remaining prize at real 1024, T1174/O1160, 44 clusters. A lane that claims one of those functions will discover the block only after writing its edits, because the pin screen in `brief` reports do_exit as the frozen function and says nothing about the upstream radius. SECOND CONSEQUENCE, A TOOLING GAP: trap 15b instructs the worker to 're-derive with wf_rederive_pin.py' when this happens, but NO SUCH TOOL EXISTS in the tree - `tools/gdl/` contains only webfrank.py and webfrank_audit.py. The documented remedy is unavailable, so the honest options are to revert, or to escalate to the integrator to re-derive or re-scope the do_exit pin. Do not hand-roll pin surgery on another lane's freshly-authored pin. RECOMMENDATION: either re-derive the do_exit pin after any upstream landing, or prefer pins whose stage set excludes instruction_permutation when the pinned function sits early in a TU that still has heavy upstream work outstanding."
+}

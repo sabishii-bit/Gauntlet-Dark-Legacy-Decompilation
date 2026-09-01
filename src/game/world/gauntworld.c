@@ -4848,7 +4848,7 @@ void fn_800606FC(void)
                 f32 dx = gCameras[0].attn[0] - it->objgrp.worldmat[3][0];
                 f32 dz = gCameras[0].attn[2] - it->objgrp.worldmat[3][2];
                 f32 d2 = dy * dy;
-                f32 root;
+                volatile f32 root;
                 d2 = dx * dx + d2;
                 d2 = dz * dz + d2;
                 if (d2 > sItemZero) {
@@ -5218,6 +5218,7 @@ void fn_800606FC(void)
             if (it->info->item.subtype == 0x32) {
                 s32 b;
                 s32 pbits = *(s32*)&it->data[4];
+                s32 rec;
                 if (pbits == 0) {
                     break;
                 }
@@ -5233,9 +5234,9 @@ void fn_800606FC(void)
                     }
                 }
                 it->active |= 1;
-                lbl_8034481C = (u8)*(s16*)&it->data[0] + 3;
-                SaveAllRecords(i, b, gPlayers[b].pos,
-                               (u8)*(s16*)&it->data[0]);
+                rec = (u8)*(s16*)&it->data[0];
+                lbl_8034481C = rec + 3;
+                SaveAllRecords(i, b, gPlayers[b].pos, rec);
                 init_got_it();
                 break;
             } else {
@@ -5436,7 +5437,7 @@ void fn_800606FC(void)
                             f32 dx = it->objgrp.coll_pos[0] - p->pos[0];
                             f32 dz = it->objgrp.coll_pos[2] - p->pos[2];
                             f32 d2 = dy * dy;
-                            f32 root;
+                            volatile f32 root;
                             d2 = dx * dx + d2;
                             d2 = dz * dz + d2;
                             if (d2 > sItemZero) {

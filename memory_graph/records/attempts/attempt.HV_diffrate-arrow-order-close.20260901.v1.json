@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Remeasure the banked candidate, then close it with a pre-permutation rule; the deciding question was whether the 2026-08-31 WebFrank-INELIGIBLE verdict still holds.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1 APPLIED as step 0 -- the derived order is legal in OUR colouring and check_permutation_dependences accepted it inside the shipped apply_patch. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED, same step. claim.law.webfrank-pinned-function-source-freeze.20260831.v1 SCREENED: combat.c already carries six pins and this adds a seventh; the window carries NO relocation, so anonymous-pool renumbering elsewhere in combat.c cannot invalidate it. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and NOT applicable: remeasured 163/163, count-exact.",
+    "laws_applied": "[\"claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1\", \"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\"]",
+    "residual": "NONE -- fndiff --clean reports MATCH (pool-name noise only), 0 real diff lines. THE REFUTATION IS THE SECOND DELIVERABLE. attempt.diffrate-webfrank-ineligible-structural.20260831.v1 ruled this function permanently out of the closure lane ('STRUCTURAL, and therefore NOT WebFrank-eligible - do not queue it for the closure lane again') on the ground that fndiff reported insns 163/157, so that 'neither the recolor path (which requires equal, word-aligned sizes) nor the permutation path (which requires a complete bijection over existing atoms) can apply even in principle'. That reasoning was correct when written. It expired the same day: attempt.RC_diffrate-address-taken-abs-and-decl-order.20260901.v1 recovered the missing fabs statement and fixed the callee-saved numbering, taking the count 157 -> 163 == target. Remeasured live this run at 163/163 real 24. GENERAL LESSON, recorded because the do-not-retry was load-bearing for a day: an ineligibility verdict computed FROM an instruction-count asymmetry is only valid while that asymmetry holds, and nothing in the corpus re-screens such a verdict when a later source pass closes the count. A count-derived veto should name the count as its premise so `stale` can reopen it.",
+    "scope": "config/GUNE5D/webfrank.json only (one rule added to game/game/combat). No source file touched; combat.c source is FR's this run.",
+    "verification": "Rule derived and PROVEN through the shipped webfrank.apply_patch by tools/gdl/composed_census/hv_perm.py (residual 0 against the extracted retail object), never simulated. Pre-permutation window [0x24,0x34), order [1,3,0,2], plus copy_register_fields; both region relocation hashes are the empty-list hash. `python configure.py` then `ninja -j2` printing `build/GUNE5D/main.dol: OK`; the WEBFRANK line for game/game/combat appeared. `defake_gate.py check game/game/combat.c` = GATE OK (46 functions, 34 at real 0). Postprocessor split moved EQUIVALENT 9.47% (132 fns) -> 9.53% (133 fns). Commit 40fbdb7ff on claude/harvest-4-20260901."
+  },
+  "function": "function:DiffRate_8002951C",
+  "id": "attempt.HV_diffrate-arrow-order-close.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T23:09:49Z",
+  "refutes": "attempt.diffrate-webfrank-ineligible-structural.20260831.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-01",
+    "signature": "no residual -- fndiff --clean MATCH, 0 real diff lines"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_range_proof_census.py",
+    "tools/gdl/fndiff.py"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Re-run `python tools/gdl/composed_census/wf_range_proof_census.py` after a completed ninja on the raw pre-WebFrank bodies. More than one strict member, or an ADJACENT hit that `fndiff --ops` confirms is NOT a pure reorder, disproves the count. The directional half is disproved by exhibiting a function whose target and our stream contain the same rlwinm mask pair at DIFFERENT offsets that this census misses but a permutation-aware screen finds \u2014 which would also, correctly, raise the population.",
+  "id": "claim.law.WF_range-proof-population-is-one-and-offset-paired-censuses-lie-in-both-directions.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T22:54:07Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "THE MEASURED POPULATION OF THE RANGE-PROOF CLASS IS ONE, and the census that measured it has an error in BOTH directions that its numbers do not announce. `tools/gdl/composed_census/wf_range_proof_census.py` screened all 326 target objects against the raw pre-WebFrank bodies on 2026-09-01 and found exactly one strict member \u2014 game/movie/movieplayer::fn_800D87FC at +0x230, obligation 0x1FFF0000, proved and now EXACT \u2014 and exactly one ADJACENT site (a word needing a mask rewrite AND a recolor, which the class refuses by name). THE ADJACENT HIT IS A FALSE POSITIVE, and confirming it cost one `fndiff --ops` call: game/mb/mb_model::MBOX_AllocModelMem reports opcode multiset IDENTICAL (102/102, pure reorder, schedule-class), and the target's `clrrwi r25,r0,4` at +0x2c pairs with OUR `clrrwi r24,r7,4` at +0x30, not with the word that happens to sit at +0x2c. So the class's real adjacent population is ZERO, not one, and the combined mask+recolor mode has no measured payoff to justify it. THE LAW, generalised, because this is the same trap `claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1` names for regnorm and it recurs in every offset-paired census: comparing two instruction streams word-by-word at the SAME BYTE OFFSET OVER-REPORTS on any schedule-class function (it invents pairs out of two differently-ordered streams) and UNDER-REPORTS wherever a genuine member has been DISPLACED by a schedule difference (it compares the member against whatever word landed at its offset and never recognises it). A zero from such a census therefore means 'no member at a fixed offset', never 'no member', and a non-zero hit is a CANDIDATE that must be confirmed against `fndiff --ops` before it is counted. PRACTICAL CONSEQUENCE for the next lane: do not size a proposed postprocessor class from an offset-paired census alone; a class whose members are typically embedded in reordered code needs a permutation-aware screen, and the honest founding number for this class is 'one member found, population unknown above that'."
+}

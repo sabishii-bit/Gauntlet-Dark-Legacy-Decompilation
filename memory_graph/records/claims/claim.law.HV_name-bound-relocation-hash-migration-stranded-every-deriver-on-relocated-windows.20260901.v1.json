@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/ch_canary.py",
+    "tools/gdl/composed_census/ch_derive.py"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "build-hygiene",
+      "workflow",
+      "relocation"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run `python tools/gdl/composed_census/ch_canary.py` from the repo root. The law is disproved if next_boss_hint / next_legend_hint derive their recorded order [0,2,1,3,4,5,6] while `wf._relocation_sha256` is called with a single argument anywhere on their path -- i.e. if a relocation-carrying window can be derived without supplying symbol NAMES. Conversely, `git log -S'_relocation_sha256' tools/gdl/` dates the migration: any deriver call site still passing one argument is a live instance of this defect, and grepping for `_relocation_sha256(` with a single argument enumerates them.",
+  "id": "claim.law.HV_name-bound-relocation-hash-migration-stranded-every-deriver-on-relocated-windows.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T23:11:34Z",
+  "schema_version": 1,
+  "subject": "function:next_boss_hint",
+  "valid_from": "2026-09-01",
+  "value": "THE RUN-28 NAME-BOUND RELOCATION-HASH MIGRATION UPDATED webfrank.py AND wf_rederive_pin.py AND LEFT EVERY OTHER DERIVER BEHIND, SO THE WHOLE PERMUTATION-RULE DERIVATION PATH HAS BEEN DEAD FOR ANY WINDOW CONTAINING A RELOCATION -- AND IT FAILS AS A CRASH THAT READS LIKE A PROPERTY OF THE FUNCTION.\n\nMECHANISM. `webfrank._relocation_sha256(relocations, symbols=None)` was changed to hash the symbol NAME instead of the ELF r_info INDEX, because the index is TU-global and renumbers on any unrelated edit (measured on gauntworld::fn_8005FB48). The new signature REFUSES a relocation whose name it was not given: `raise ValueError(\"relocation hash needs the symbol name for the relocation at +0x%x\")`. The derivers all feed it `raw_region_records()`, which yields only (offset, info, addend) TRIPLES and no names. So every derivation over a window carrying at least one relocation raised, while windows with no relocation kept working perfectly -- the empty-list hash is unchanged. That split is what made the defect invisible: the failure is data-dependent, not systematic.\n\nMEASURED SCOPE at the time of writing: wf_rederive_pin.py was migrated (it passes window_syms/moved_syms and is the correct reference). SIX call sites were not -- ch_derive.py, cn_derive.py, cn_search.py, ha_close.py (_perm_entry), tools/gdl/build_rule.py and composed_census/build_rule_pw.py. ch_derive and ha_close are repaired by the commit that asserts this law (ch_derive.region_symbols / moved_symbols, reproducing exactly the mapping apply_patch builds for `our_symbols`); the other four are REPORTED, not touched, because tools/gdl is another lane's this run.\n\nWHY THIS IS A LAW AND NOT A BUG REPORT. The canary caught it and nothing else could have. ch_canary replays four SHIPPED derivations and requires byte-identical orders; calc_wizard_pos passed (its window carries no relocation) and next_boss_hint CRASHED. A lane that skipped the canary would have read the crash -- or, worse, the sweep's blanket `except Exception: continue`, which silently drops the row -- as 'this function does not close', and recorded a cap on a function the deriver never actually examined. hv_sweep.triage swallows exactly this exception. So the corollary is the operative rule: A DERIVATION THAT CANNOT RUN IS NOT A NEGATIVE RESULT, and any census whose inner loop catches Exception broadly must be canaried before its refusals are believed. Discipline 14 generalises from guards to TOOLS: a crash is a measurement of the tool.\n\nCOST OF THE OMISSION, stated so the migration checklist is concrete: after the repair, the same sweep that had been returning refusals produced two byte-exact closes on its first run. The migration needed one more step -- grep every caller of the changed function -- and skipping it cost at least one run of harvest yield."
+}

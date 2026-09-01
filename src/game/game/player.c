@@ -3504,12 +3504,13 @@ void clear_player(s32 i, s32 full) {
 
 /* Take player i live into the world (post-select).                    */
 s32 activate_player(s32 i) {
-    Player* players = gPlayerRecords;
+    u8* tab = (u8*)potionicon_tab;
+    s32 off = i * PREC_STRIDE;
     Player* p;
     s32 j;
 
-    players[i].state = 1;
-    p = &players[i];
+    PF(tab + off, 0xC40 + offsetof(Player, state), s32) = 1;
+    p = (Player*)(tab + off + 0xC40);
     PF(p, offsetof(Player, exit_dest), s32) = other_players_next_level(i);
     del_player_blits(i);
     LoadPlyrData(i, p->character, (void*)1);
@@ -3525,7 +3526,7 @@ s32 activate_player(s32 i) {
     }
     if (lbl_803447B4 != 0 || lbl_803447D0 >= 10 || gGameMode == MG_STATS) {
         for (j = 0; j < 4; j++) {
-            Player* other = &players[j];
+            Player* other = (Player*)(tab + j * PREC_STRIDE + 0xC40);
             s32 state = other->state;
 
             if (lbl_803447B4 != 0 || state == 5) {
@@ -3551,7 +3552,8 @@ s32 activate_player(s32 i) {
  * Xbox analogue: load_player.
  */
 void load_player(s32 i) {
-    Player* p = P(i);
+    Player* cp = P(i);
+    Player* p = (Player*)((u8*)cp);
     s32 lvl;
     s32 exp;
     s32 product;
@@ -3564,7 +3566,7 @@ void load_player(s32 i) {
 
     if (gDemoMode != 0 && sMusicTrackHi != 0xD) {
         /* cheat build: force the level stamped on the current level */
-        if ((f32)p->level != PF(gCurLevel, offsetof(level_data, plevel), f32)) {
+        if ((f32)cp->level != PF(gCurLevel, offsetof(level_data, plevel), f32)) {
             opt_force_player |= 2;
         }
         lvl = (s32)PF(gCurLevel, offsetof(level_data, plevel), f32);
@@ -3575,11 +3577,11 @@ void load_player(s32 i) {
             exp = 0x28550;
             exp += product;
         }
-        p->exp = exp;
-        p->level = lvl;
-        set_player_default_atts(p);
-        check_player_atts(p, p->character, NULL);
-        p->health = 0.5 * (lvl - 1) + 30.0;
+        cp->exp = exp;
+        cp->level = lvl;
+        set_player_default_atts(cp);
+        check_player_atts(cp, cp->character, NULL);
+        cp->health = 0.5 * (lvl - 1) + 30.0;
     }
     zero = 0;
     p->node = NULL;
