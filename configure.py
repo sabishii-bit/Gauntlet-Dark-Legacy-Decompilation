@@ -971,8 +971,9 @@ elif args.mode == "progress":
             f" ({_matched_count - _asst_count} fns, compiler output"
             f" byte-identical) + EQUIVALENT"
             f" {100.0 * _asst_bytes / _total:.2f}%"
-            f" ({_asst_count} fns, WebFrank-assisted, machine-proven"
-            f" allocator-variant)")
+            f" ({_asst_count} fns, WebFrank-assisted: proven equivalent"
+            f" modulo regalloc/schedule; origin of the variance"
+            f" unattributed)")
     except Exception as _err:
         print(f"  (postprocessor split unavailable: {_err})")
 else:
