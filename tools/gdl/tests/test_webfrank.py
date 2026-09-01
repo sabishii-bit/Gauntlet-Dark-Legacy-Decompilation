@@ -9,10 +9,12 @@ from tools.gdl.webfrank import (
     decode_copy_form,
     equivalent_copy_form,
     instruction_operands,
+    permutation_windows,
     permute_instruction_atoms,
     recolor_instruction,
     register_slot_mask,
     verify_consistent_recolor,
+    verify_relocation_binding,
 )
 
 
@@ -799,6 +801,45 @@ class EquivalentCopyFormTests(unittest.TestCase):
                 target_relocated_offsets={0},
             )
 
+    def test_sda21_relocation_at_word_plus_two_is_rejected(self):
+        """claim.law.HV_emb-sda21-relocation-offset-differs-....20260901.v1.
+
+        MWCC records an EMB_SDA21 entry at the instruction offset PLUS 2,
+        so an exact word-offset membership test never fires for it and a
+        genuinely relocated word passes the 'not relocated' precondition.
+        The screen must test the whole word RANGE [off, off+4).
+        """
+        current = _words(MR_R23_R6, BLR)
+        target = _words(ADDI_R23_R6, BLR)
+        with self.assertRaisesRegex(ValueError, "relocated word"):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "unconditional"}],
+                relocated_offsets={2},
+            )
+
+    def test_target_side_sda21_relocation_at_word_plus_two_is_rejected(self):
+        current = _words(MR_R23_R6, BLR)
+        target = _words(ADDI_R23_R6, BLR)
+        with self.assertRaisesRegex(ValueError, "relocated word"):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "unconditional"}],
+                target_relocated_offsets={2},
+            )
+
+    def test_addr16_lo_at_word_plus_two_is_rejected(self):
+        """The live instance: pbWinSetup +0x314 is `addi r3,r3,lbl@l`,
+        encoded 0x38030000, carrying ADDR16_LO at 790 with the word at
+        788.  decode_copy_form reads it as a register COPY r3<-r3, so
+        without the range screen the rule would rewrite an address half
+        on the false premise that it is an unrelocated copy."""
+        current = _words(0x38030000, BLR)   # addi r3,r3,lbl_801284D8@l
+        target = _words(0x7C631B78, BLR)    # mr r3,r3
+        with self.assertRaisesRegex(ValueError, "relocated word"):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "unconditional"}],
+                relocated_offsets={2},
+            )
+
     def test_wrong_proof_label_is_rejected(self):
         current = _words(MR_R23_R6, BLR)
         target = _words(ADDI_R23_R6, BLR)
@@ -1131,6 +1172,7 @@ class RelocatedWordInsideProofSpanTests(unittest.TestCase):
                 relocated_offsets={2}, relocation_types={0: 4},
             )
 
+
 class GauntworldPreheaderPermutationTests(unittest.TestCase):
     """config/GUNE5D/webfrank.json :: game/world/gauntworld :: fn_8005FB48.
 
@@ -1205,6 +1247,324 @@ class GauntworldPreheaderPermutationTests(unittest.TestCase):
             before_relocations_sha256=_relocation_sha256(before),
             after_relocations_sha256=_relocation_sha256(after),
         )
+
+
+class PermutationWindowSchemaTests(unittest.TestCase):
+    """Multi-window permutation schema.
+
+    claim.law.HV_single-permutation-region-is-the-binding-schema-limit
+    .20260901.v1: apply_patch read instruction_permutation as ONE dict, so
+    a function whose displaced words fall in two separated windows could
+    not be expressed at all, however sound each window was.  That single
+    fact blocked the pb_window file flip.
+    """
+
+    def window(self, start, end):
+        return {"start": start, "end": end, "order": [0]}
+
+    # ---- back-compatibility: every shipped rule keeps its meaning ----
+
+    def test_single_dict_is_accepted_unchanged(self):
+        window = self.window(0x10, 0x20)
+        windows, ranges = permutation_windows(window, 0x100)
+        self.assertEqual(windows, [window])
+        self.assertEqual(ranges, [(0x10, 0x20)])
+
+    def test_hex_string_bounds_are_parsed(self):
+        windows, ranges = permutation_windows(
+            {"start": "0x188", "end": "0x194", "order": [0]}, 0x400
+        )
+        self.assertEqual(ranges, [(0x188, 0x194)])
+        self.assertEqual(len(windows), 1)
+
+    # ---- the list form ----
+
+    def test_two_disjoint_windows_are_accepted_in_order(self):
+        first = self.window(0x188, 0x194)
+        second = self.window(0x2c0, 0x2d8)
+        windows, ranges = permutation_windows([first, second], 0x400)
+        self.assertEqual(windows, [first, second])
+        self.assertEqual(ranges, [(0x188, 0x194), (0x2c0, 0x2d8)])
+
+    def test_adjacent_windows_are_disjoint_and_accepted(self):
+        # Touching at a boundary is disjoint: [0x10,0x20) and [0x20,0x30).
+        _windows, ranges = permutation_windows(
+            [self.window(0x10, 0x20), self.window(0x20, 0x30)], 0x100
+        )
+        self.assertEqual(ranges, [(0x10, 0x20), (0x20, 0x30)])
+
+    def test_overlapping_windows_are_refused(self):
+        # Overlap would make the per-window before-hashes ill-defined.
+        with self.assertRaisesRegex(ValueError, "disjoint"):
+            permutation_windows(
+                [self.window(0x10, 0x28), self.window(0x20, 0x30)], 0x100
+            )
+
+    def test_descending_windows_are_refused(self):
+        with self.assertRaisesRegex(ValueError, "ascending"):
+            permutation_windows(
+                [self.window(0x2c0, 0x2d8), self.window(0x188, 0x194)], 0x400
+            )
+
+    def test_duplicate_window_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "disjoint"):
+            permutation_windows(
+                [self.window(0x10, 0x20), self.window(0x10, 0x20)], 0x100
+            )
+
+    def test_empty_list_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "empty"):
+            permutation_windows([], 0x100)
+
+    # ---- per-window range validation still fails closed ----
+
+    def test_unaligned_window_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "invalid"):
+            permutation_windows([self.window(0x12, 0x20)], 0x100)
+
+    def test_window_past_the_function_end_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "invalid"):
+            permutation_windows([self.window(0xf0, 0x120)], 0x100)
+
+    def test_empty_window_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "invalid"):
+            permutation_windows([self.window(0x20, 0x20)], 0x100)
+
+    def test_second_window_is_range_checked_too(self):
+        with self.assertRaisesRegex(ValueError, "invalid"):
+            permutation_windows(
+                [self.window(0x10, 0x20), self.window(0x30, 0x120)], 0x100
+            )
+
+
+class RelocationBindingTests(unittest.TestCase):
+    """Closes claim.law.HV_permute-payload-check-does-not-bind-a-
+    relocation-to-its-atom.20260901.v1.
+
+    The payload multiset proves CONSERVATION (nothing created, destroyed,
+    retyped or re-symboled, and each entry kept its byte position inside
+    its instruction).  It does not prove BINDING: that each relocation is
+    still attached to the instruction that should carry it.  Two SDA loads
+    differ only in a register field, so a word-only matcher can exchange
+    them and produce byte-correct text with the symbols on the wrong
+    instructions.  verify_relocation_binding closes that by asserting our
+    post-permute relocations against the TARGET object's relocations, word
+    by word.
+    """
+
+    SDA21 = 26   # R_PPC_EMB_SDA21
+    ADDR16_LO = 4
+
+    def test_matching_binding_passes(self):
+        ours = {2: (self.SDA21, "sZeroDouble"), 6: (self.SDA21, "sItemZero")}
+        target = {0: (self.SDA21, "sZeroDouble"), 4: (self.SDA21, "sItemZero")}
+        verify_relocation_binding(ours, target, region_start=0, region_end=8)
+
+    def test_exchanged_symbols_are_refused(self):
+        """The precise defect the law describes: correct text, relocations
+        pointing the two loads at each other's globals.  The payload check
+        accepts this; the binding check must not."""
+        ours = {2: (self.SDA21, "sItemZero"), 6: (self.SDA21, "sZeroDouble")}
+        target = {0: (self.SDA21, "sZeroDouble"), 4: (self.SDA21, "sItemZero")}
+        with self.assertRaisesRegex(ValueError, "symbol"):
+            verify_relocation_binding(
+                ours, target, region_start=0, region_end=8
+            )
+
+    def test_sda21_word_plus_two_offset_is_normalised(self):
+        """Ours records EMB_SDA21 at word+2, the target at word+0.  That is
+        a recording convention, not a mismatch, and must not be read as
+        one."""
+        ours = {2: (self.SDA21, "gTheGlobal")}
+        target = {0: (self.SDA21, "gTheGlobal")}
+        verify_relocation_binding(ours, target, region_start=0, region_end=4)
+
+    def test_relocation_type_change_is_refused(self):
+        ours = {2: (self.SDA21, "gTheGlobal")}
+        target = {0: (self.ADDR16_LO, "gTheGlobal")}
+        with self.assertRaisesRegex(ValueError, "type"):
+            verify_relocation_binding(
+                ours, target, region_start=0, region_end=4
+            )
+
+    def test_word_relocated_only_on_our_side_needs_region_words(self):
+        """dtk resolves addresses when it extracts the retail object, so a
+        word we still relocate can appear in the target as a baked literal.
+        That word has no counterpart to bind against, so it is exempt --
+        but only once nothing in the window could have been exchanged with
+        it, which cannot be judged without the words."""
+        ours = {2: (self.SDA21, "gTheGlobal"), 6: (self.SDA21, "gOther")}
+        target = {0: (self.SDA21, "gTheGlobal")}
+        with self.assertRaisesRegex(ValueError, "unexchangeable"):
+            verify_relocation_binding(
+                ours, target, region_start=0, region_end=8
+            )
+
+    def test_unbindable_word_is_accepted_when_unexchangeable(self):
+        # +0x4 is `addi r31,r3,LO` (relocated here, baked in the target);
+        # the only other relocated word is an `lfs`, a different form, so
+        # no permutation could have exchanged them.
+        ours = {2: (self.ADDR16_LO, "gPadManager"), 6: (self.SDA21, "gOther")}
+        target = {4: (self.SDA21, "gOther")}
+        verify_relocation_binding(
+            ours, target, region_start=0, region_end=8,
+            words=[0x3BE30000, 0xC3A00000],
+        )
+
+    def test_unbindable_word_is_refused_when_exchangeable(self):
+        # Both relocated words are `lfs fD,0(0)`, identical outside their
+        # register fields, and one has no target counterpart: a
+        # permutation could have exchanged them and neither can be bound.
+        ours = {2: (self.SDA21, "gTheGlobal"), 6: (self.SDA21, "gOther")}
+        target = {4: (self.SDA21, "gOther")}
+        with self.assertRaisesRegex(ValueError, "exchanged"):
+            verify_relocation_binding(
+                ours, target, region_start=0, region_end=8,
+                words=[0xC3A00000, 0xC3C00000],
+            )
+
+    def test_word_relocated_only_on_the_target_side_is_refused(self):
+        ours = {2: (self.SDA21, "gTheGlobal")}
+        target = {0: (self.SDA21, "gTheGlobal"), 4: (self.SDA21, "gOther")}
+        with self.assertRaisesRegex(ValueError, "relocated"):
+            verify_relocation_binding(
+                ours, target, region_start=0, region_end=8
+            )
+
+    # ---- compiler pool labels ----
+
+    def test_consistent_pool_label_correspondence_is_accepted(self):
+        """MWCC spells its own constant-pool labels `@NNNN`; the extracted
+        target spells the same objects `lbl_XXXXXXXX`.  They cannot be
+        matched by name, so the rule requires a CONSISTENT one-to-one
+        correspondence across the whole window instead."""
+        ours = {2: (self.SDA21, "@1234"), 6: (self.SDA21, "@1235")}
+        target = {
+            0: (self.SDA21, "lbl_801284D8"),
+            4: (self.SDA21, "lbl_801284E0"),
+        }
+        mapping = verify_relocation_binding(
+            ours, target, region_start=0, region_end=8
+        )
+        self.assertEqual(
+            mapping, {"@1234": "lbl_801284D8", "@1235": "lbl_801284E0"}
+        )
+
+    def test_pool_label_correspondence_must_be_one_to_one(self):
+        # Two distinct pool labels of ours cannot both mean one target
+        # label: that is exactly the exchange defect wearing pool names.
+        ours = {2: (self.SDA21, "@1234"), 6: (self.SDA21, "@1235")}
+        target = {
+            0: (self.SDA21, "lbl_801284D8"),
+            4: (self.SDA21, "lbl_801284D8"),
+        }
+        with self.assertRaisesRegex(ValueError, "one-to-one|correspondence"):
+            verify_relocation_binding(
+                ours, target, region_start=0, region_end=8
+            )
+
+    def test_pool_label_correspondence_must_be_consistent(self):
+        ours = {
+            2: (self.SDA21, "@1234"),
+            6: (self.SDA21, "@1235"),
+            10: (self.SDA21, "@1234"),
+        }
+        target = {
+            0: (self.SDA21, "lbl_801284D8"),
+            4: (self.SDA21, "lbl_801284E0"),
+            8: (self.SDA21, "lbl_801284E8"),
+        }
+        with self.assertRaisesRegex(ValueError, "one-to-one|correspondence"):
+            verify_relocation_binding(
+                ours, target, region_start=0, region_end=12
+            )
+
+    def test_identical_pool_label_names_bind_directly(self):
+        """Our object often carries the target's own `lbl_XXXXXXXX`
+        placeholder spelling for an own-pool datum, so an exact name match
+        must bind whatever the name looks like.  Live instance:
+        game/game/combat +0x4, symbol lbl_80240E30 on both sides."""
+        ours = {2: (self.ADDR16_LO, "lbl_80240E30")}
+        target = {0: (self.ADDR16_LO, "lbl_80240E30")}
+        verify_relocation_binding(ours, target, region_start=0, region_end=4)
+
+    def test_exchanged_identical_pool_label_names_are_still_refused(self):
+        ours = {
+            2: (self.ADDR16_LO, "lbl_80240E30"),
+            6: (self.ADDR16_LO, "lbl_80240E38"),
+        }
+        target = {
+            0: (self.ADDR16_LO, "lbl_80240E38"),
+            4: (self.ADDR16_LO, "lbl_80240E30"),
+        }
+        # Both sides spell these the same way, so the exchange is caught by
+        # the exact-name test rather than by the pool correspondence.
+        with self.assertRaisesRegex(ValueError, "wrong instruction"):
+            verify_relocation_binding(
+                ours, target, region_start=0, region_end=8
+            )
+
+    def test_named_symbol_may_not_be_matched_against_a_pool_label(self):
+        ours = {2: (self.SDA21, "gRealGlobal")}
+        target = {0: (self.SDA21, "lbl_801284D8")}
+        with self.assertRaisesRegex(ValueError, "symbol"):
+            verify_relocation_binding(
+                ours, target, region_start=0, region_end=4
+            )
+
+    # ---- the guard reaches the permutation stage ----
+
+    def test_permute_refuses_a_relocation_exchanging_order(self):
+        """The same demonstration as
+        GauntworldPreheaderPermutationTests.test_payload_check_does_not_
+        bind_a_relocation_to_its_atom, but with the target relocations
+        supplied.  The order swaps two SDA loads; the text is correct and
+        the payload multiset is unchanged, and it must now be refused."""
+        region = _words(0xC3A00000, 0xC3C00000)   # two SDA lfs
+        atoms = [region[i:i + 4] for i in range(0, len(region), 4)]
+        permuted = b"".join(atoms[source] for source in [1, 0])
+        before = [(2, (100 << 8) | self.SDA21, 0),
+                  (6, (200 << 8) | self.SDA21, 0)]
+        after = [(2, (200 << 8) | self.SDA21, 0),
+                 (6, (100 << 8) | self.SDA21, 0)]
+        with self.assertRaisesRegex(ValueError, "symbol|binding"):
+            permute_instruction_atoms(
+                region, [1, 0], before,
+                before_sha256=_sha256(region),
+                after_sha256=_sha256(permuted),
+                before_relocations_sha256=_relocation_sha256(before),
+                after_relocations_sha256=_relocation_sha256(after),
+                our_symbols={2: "sZeroDouble", 6: "sItemZero"},
+                target_relocations={
+                    0: (self.SDA21, "sZeroDouble"),
+                    4: (self.SDA21, "sItemZero"),
+                },
+            )
+
+    def test_permute_accepts_the_correctly_bound_order(self):
+        # Same two loads, but the target really does want them exchanged,
+        # so after the swap each relocation sits where the target has it.
+        region = _words(0xC3A00000, 0xC3C00000)
+        atoms = [region[i:i + 4] for i in range(0, len(region), 4)]
+        permuted = b"".join(atoms[source] for source in [1, 0])
+        before = [(2, (100 << 8) | self.SDA21, 0),
+                  (6, (200 << 8) | self.SDA21, 0)]
+        after = [(2, (200 << 8) | self.SDA21, 0),
+                 (6, (100 << 8) | self.SDA21, 0)]
+        output, moved_relocations, _moved = permute_instruction_atoms(
+            region, [1, 0], before,
+            before_sha256=_sha256(region),
+            after_sha256=_sha256(permuted),
+            before_relocations_sha256=_relocation_sha256(before),
+            after_relocations_sha256=_relocation_sha256(after),
+            our_symbols={2: "sZeroDouble", 6: "sItemZero"},
+            target_relocations={
+                0: (self.SDA21, "sItemZero"),
+                4: (self.SDA21, "sZeroDouble"),
+            },
+        )
+        self.assertEqual(output, permuted)
+        self.assertEqual(moved_relocations, after)
 
 
 if __name__ == "__main__":

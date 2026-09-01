@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Measured 2026-09-01 in worktree GDL-Claude-WfMulti at commit a93754346, with pb_window's text fully exact (fuzzy.py reports all 15 functions at 100.0000%) and the retail sha1 green. Reproduce: `python tools/gdl/datadiff.py game/pb/pb_window --sections` and `python tools/gdl/claimcheck.py game/pb/pb_window`. Section contents compared by reading the retail DOL at the virtual addresses directly against `objdump -s` on build/GUNE5D/src/game/pb/pb_window.o.",
+    "tags": [
+      "build-hygiene",
+      "matching",
+      "workflow",
+      "sda-global",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.WF_pb-window-flip-blocked-on-sdata2-pool-not-on-text.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-01T04:28:25Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_window",
+  "valid_from": "2026-09-01",
+  "value": "PARTIAL REFUTATION OF THE pb_window FLIP PREMISE, AND THE EXACT REMAINING WORK. attempt.HV_pb-window-both-stragglers-proven-blocked-on-single-region-schema.20260901.v1 stated that closing pbWinSetup and pbProjCalc 'IS A FILE FLIP'. Both are now closed and pb_window's TEXT is completely exact - all 15 functions at 100%, 15/15, project matched 62.94% -> 63.28% - and the file STILL DOES NOT FLIP. The premise counted functions and never ran datadiff; the flip additionally requires the TU's DATA claims, and pb_window.c has none. This is not a regression and nothing about the text work is in doubt; it is a second, independent blocker that was always there and is only now visible because the text stopped hiding it. Text-only 'this closes the file' claims should be read as 'this closes the file's CODE' until `datadiff --sections` has been run. THE PRECISE STATE, both sections measured. (1) .rodata is SOLVED AND READY TO APPLY: our object emits 0x48 bytes; splits.txt has an unclaimed gap at 0x80116B28..0x80116B70 of exactly 0x48 bytes, sitting between game/pb/pb_tree.cpp and game/crt/vsprintf.c; and the retail bytes over that range are BYTE-FOR-BYTE IDENTICAL to our .rodata (the two strings the TU emits). The claim line `\\t.rodata     start:0x80116B28 end:0x80116B70` under game/pb/pb_window.c is a mechanical, verified edit. (2) .sdata2 IS THE REAL BLOCKER and needs source work, not a splits edit: the unclaimed gap runs 0x80349018..0x80349088 = 0x70 bytes (between game/pb/pb_tree.cpp and zlib/uncompr.c, and it does begin exactly at lbl_80349018, our @37), but OUR object emits 0x78. Two problems, and the size one is the tractable half: ours carries TWO EXTRA ZERO WORDS (ours has five standalone zero words against retail's three; 2 words = the whole 8-byte delta), so some expression in pb_window.c materializes a constant retail does not. The ordering also differs: retail groups the FLOATS first (0.0f, 1.0f, 90.0f, 2047.0f, two zero words, 4094.0f, 65536.0f) and only then the 8-aligned DOUBLES (0.5, 1.0, the 2^52 magic, then 2.0f/0.5f, then the remaining doubles), whereas our pool interleaves them from the first word. Both are declaration/use-order effects in the C source, so the fix belongs to whoever owns pb_window.c. WARNING FOR THAT LANE: pbWinSetup and pbProjCalc are now PINNED in config/GUNE5D/webfrank.json, so their compiled bodies are hash-asserted and the build will abort on drift. Reordering the constant pool will renumber the `@NNNN` pool labels, which changes the relocation SYMBOLS on the two functions' SDA loads even though the instruction bytes are unchanged; the new machine-checked pool-label binding will refuse a stale correspondence. Expect to re-derive both rules after the pool changes - that is the guard working, not a defect - and the derivation harness for it is a short script over webfrank's own apply_patch."
+}

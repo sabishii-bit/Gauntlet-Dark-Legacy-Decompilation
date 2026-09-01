@@ -898,6 +898,78 @@
         "copy_register_fields": true
       }
     ],
+    "game/pb/pb_window": [
+      {
+        "function": "pbWinSetup",
+        "before_sha256": "b75ae9625dc0df08369392a010b3f464734023b07e0f863f75c2ce6d3ce169b7",
+        "after_sha256": "b0b2d463808d950ad7d09beb899c51dd2e4201481e5fef7e1d9323c5173383cf",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 283,
+          "permuted_instructions": 6
+        },
+        "mechanism": "attempt.HV_pb-window-both-stragglers-proven-blocked-on-single-region-schema.20260901.v1, re-derived against the current objects and shipped on the multi-window schema. This is the FIRST rule to use a LIST of permutation windows: its displaced words fall in two separated regions with control flow between them, which the single-region schema could not express at all (claim.law.HV_single-permutation-region-is-the-binding-schema-limit.20260901.v1). Widening to one region is not the alternative - the intervening code contains control ops and permute_instruction_atoms refuses it, which is the point of that refusal. WINDOW 1, +0x188..+0x194 order [0,2,1]: the target emits `stw r3,476(r29)` before `lis r3,17200`, ours emits the lis first. The two moved atoms are independent - the lis writes r3 and reads nothing, the store reads r4 and r29 and writes memory - and the `li r4,0x41` that the store depends on is atom 0 and does not move, so the swap holds in OUR colouring standing alone (claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1, applied per window). Post-permute the window is a 2-word r4->r3 recolor. WINDOW 2, +0x2c0..+0x2d8 order [0,2,5,3,1,4]: the dir-light preheader, five independent argument materializations the target issues in a different order. The `lwz r27,gWinGlobals@sda21` is atom 0 and does not move, so the `lwz r7,28(r27)` that reads it keeps its definition; every other atom writes a distinct GPR (r5, r6, r3, r4) and none reads another's destination, so there is no RAW, WAR or WAW hazard and no store in the region. FORM, +0x2c8: after the permutation our `li r4,0` sits where the target has `addi r4,r6,0`. Destinations already agree, so it is a pure form change and never a disguised recolor, and prove_constant_source discharges the value-equivalence obligation locally - the `li r6,0` seeding r6 is the immediately preceding word at +0x2c4 after the permute, with no control instruction, no relocated word and no interposed redefinition in the span. Not source-reachable: claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1, which is why the postprocessor path is the honest one here. RECOLOR: 5 words, r4->r3 in window 1 and r27->r30 at +0x2c0, +0x2cc and +0x350, machine-proven by verify_consistent_recolor as a position-consistent bisimulation with NO unproven_recolor_audit escape. Each window's relocations are additionally bound to their instructions against the target's own relocation table (claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1); window 2 carries the gWinGlobals EMB_SDA21 on its non-moving atom 0. Every stage verified through apply_patch against the extracted retail object, final bytes identical to target.",
+        "instruction_permutation": [
+          {
+            "start": "0x188",
+            "end": "0x194",
+            "order": [0, 2, 1],
+            "before_sha256": "5a5730821fe459d0d17777a94fbf5e97ea2e8e640bc1bc71d534259aca4be925",
+            "after_sha256": "492e352cb25a2b4eca8942f116e4c6b343e1ce912c897bef3c3de5ff57a1aeb7",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "start": "0x2c0",
+            "end": "0x2d8",
+            "order": [0, 2, 5, 3, 1, 4],
+            "before_sha256": "ca82b85507b1c2fe0b44cca7ed5ca3baccb875b830d0df442a780c473bfb5f7c",
+            "after_sha256": "b480dc2e3e4c9e4f60c03d15b15cef0155d864057bcefdab5bb2f8c1ba5e34c2",
+            "before_relocations_sha256": "8c50c314735bf3504470e2bdc6039eda62a6be9794bad8cba46cd447d8954f37",
+            "after_relocations_sha256": "8c50c314735bf3504470e2bdc6039eda62a6be9794bad8cba46cd447d8954f37"
+          }
+        ],
+        "equivalent_copy_form": [
+          {
+            "at": "0x2c8",
+            "proof": "dominating_def"
+          }
+        ],
+        "copy_register_fields": true
+      },
+      {
+        "function": "pbProjCalc",
+        "before_sha256": "1ad06d41349bab387f80a3c02b7715d460168bb6a1a128424c1c434ca5ff4d7a",
+        "after_sha256": "04d6defb6bb7948fb88d6932a7b04c117b87a921383071796f53d23b967666b1",
+        "audit": {
+          "classification": "SCHEDULE",
+          "instructions": 608,
+          "permuted_instructions": 19
+        },
+        "mechanism": "attempt.HV_pbprojcalc-two-region-composition-proven.20260901.v1, re-derived against the current objects and shipped on the multi-window schema. Two windows, then a pure FPR/GPR renaming. WINDOW 1, +0x28..+0x6c order [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,0]: a 17-word rotation that SINKS the shared 0.0f own-pool `lfs` from our +0x28 to the target's +0x68 - the exact instruction both versions of attempt.pbprojcalc-zero-web-schedule named as the entire mechanism, and the reason its 8 unpaired words were unpaired. This REFUTES, for this function, the reading of claim.law.unpaired-schedule-words-bar-webfrank-candidacy-not-just-its-permute-stage.20260831.v1 that treated the unpaired words as a bar to the permute stage: they are unpaired precisely BECAUSE they are displaced, and closing a displacement is that stage's job. The sunk atom is a LOAD from the constant pool; the 16 atoms it crosses write r0, r4, f0 and stack slots 0x108-0x114 and 0xa0-0xa4, none of which it reads, and it defines an FPR none of them touches, so the audit passes in OUR colouring standing alone. WINDOW 2, +0x3e4..+0x3ec order [1,0]: an adjacent transposition of the same pool load against a stack load `lfs f0,208(r1)`. These two transpositions are the ONLY non-recolor content in the whole 70-word residual. RELOCATION BINDING: both windows move an own-pool EMB_SDA21 relocation, spelled `@37` and `@109` in MWCC output and `lbl_80349018` and `lbl_80349050` in the extracted target, so they cannot be bound by name; they are bound instead by the window-wide one-to-one pool-label correspondence required by claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1, each landing on exactly the word the target relocates. RECOLOR: 54 words of FPR/GPR renaming, machine-proven by verify_consistent_recolor with NO unproven_recolor_audit escape. Count-exact at 608/608 with an identical opcode multiset, so claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 is screened and clear. Every stage verified through apply_patch against the extracted retail object, final bytes identical to target.",
+        "instruction_permutation": [
+          {
+            "start": "0x28",
+            "end": "0x6c",
+            "order": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0],
+            "before_sha256": "0a35526fbb50866b52068ff8686d39c146d25ab15bb4695c96a832845601de06",
+            "after_sha256": "d026ee86ece1d4d3ec97ee5eea037d52910c5fb8841a8920c87e270ddc7e1017",
+            "before_relocations_sha256": "c0fc9cedebe1ec1e25f27105d030abe09449de7d9809c08a9dd96d1932ef2d51",
+            "after_relocations_sha256": "589d67920386d8ef982340566aa9177a75cbcfefdb3b03dbc14d8318a67978d7"
+          },
+          {
+            "start": "0x3e4",
+            "end": "0x3ec",
+            "order": [1, 0],
+            "before_sha256": "25ccd85536439164c178aa4526565cb96aa39cbb2a06ea10bad0b1370d90f6fc",
+            "after_sha256": "231b942105e8e302dcc97e918f2fc797b7582fc64cbe8d3f62f455185ae007c5",
+            "before_relocations_sha256": "1680c3c11340fb3ab7a530f963c39f11bd8418443cc46e6d9c1e64fdfbd04c5d",
+            "after_relocations_sha256": "2e751e4e8ced9ce1cb8905017a0d31fecdf29611acd0d2bd6010bc7aacb8a49a"
+          }
+        ],
+        "copy_register_fields": true
+      }
+    ],
     "game/mb/mb_particle": [
       {
         "function": "getNewPosRectShare",

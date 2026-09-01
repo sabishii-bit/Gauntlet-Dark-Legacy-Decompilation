@@ -988,6 +988,230 @@ def _is_control_instruction(word: int) -> bool:
     return opcode in {16, 17, 18, 19}
 
 
+# MWCC spells a compiler-generated constant-pool label `@NNNN`; the
+# dtk-extracted retail object spells the same object `lbl_XXXXXXXX` (and a
+# computed-branch table `jumptable_XXXXXXXX`).  The same datum therefore has
+# two different names across the two objects and cannot be bound by name.
+_OUR_POOL_LABEL = re.compile(r"^@\d+$")
+_TARGET_POOL_LABEL = re.compile(r"^(?:lbl|jumptable)_[0-9A-Fa-f]+$")
+
+
+def verify_relocation_binding(
+    our_relocations: dict[int, tuple[int, str]],
+    target_relocations: dict[int, tuple[int, str]],
+    *,
+    region_start: int = 0,
+    region_end: int | None = None,
+    words: list[int] | None = None,
+) -> dict[str, str]:
+    """Prove each relocation is bound to the instruction that should carry it.
+
+    ``permute_instruction_atoms`` verifies its relocation work with a sorted
+    multiset over ``(offset % 4, info, addend)``.  That proves CONSERVATION —
+    no relocation was created, destroyed, retyped, re-symboled, or moved to a
+    different byte position inside its instruction — but it drops the atom
+    index, so it does NOT prove BINDING.  Any two relocated atoms sharing a
+    within-instruction offset (every EMB_SDA21 pair, every ADDR16_LO pair)
+    can be exchanged by a permutation and the multiset will not change.  The
+    SDA load/store family encodes its displacement as zero and lets the
+    relocation supply it, so two such words differ only in a register field
+    and a matcher that pairs atoms by instruction WORD considers them freely
+    interchangeable.  The result is text byte-identical to the target whose
+    loads point at each other's globals — a real semantic defect that fndiff
+    real, the opcode multiset, objdiff fuzzy and every other webfrank guard
+    report as EXACT.
+
+    This closes that by checking our post-permute relocations against the
+    TARGET object's relocations, word by word.  Both sides are normalised to
+    the WORD before comparing, because MWCC records an EMB_SDA21 entry at the
+    instruction offset plus 2 while the extracted target records it at the
+    instruction offset; that is a recording convention, not a mismatch.
+
+    Non-pool symbols must match by exact name.  Compiler pool labels cannot
+    (they are spelled differently in the two objects), so they are instead
+    required to form a CONSISTENT one-to-one correspondence across the whole
+    window, which is what forbids an exchange among them.  The established
+    correspondence is returned so a caller can record it.
+
+    claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-
+    atom.20260901.v1
+    """
+    def _by_word(relocations, label):
+        indexed: dict[int, tuple[int, str]] = {}
+        for offset, (reloc_type, name) in relocations.items():
+            if region_end is not None and not (
+                region_start <= offset < region_end
+            ):
+                continue
+            if offset < region_start:
+                continue
+            index = (offset - region_start) // 4
+            if index in indexed:
+                raise ValueError(
+                    f"relocation binding: {label} carries two relocations on "
+                    f"the word at +0x{index * 4:x}"
+                )
+            indexed[index] = (reloc_type, name)
+        return indexed
+
+    ours = _by_word(our_relocations, "our object")
+    theirs = _by_word(target_relocations, "the target")
+
+    only_ours = sorted(set(ours) - set(theirs))
+    only_theirs = sorted(set(theirs) - set(ours))
+    if only_theirs:
+        # Our object dropped a relocation the target carries.  There is no
+        # benign reading of that direction.
+        raise ValueError(
+            f"relocation binding: word +0x{only_theirs[0] * 4:x} is relocated "
+            f"in the target but not in our object"
+        )
+    if only_ours:
+        # The other direction IS benign and common: dtk resolves an address
+        # when it extracts the retail object, so an ADDR16_HA/ADDR16_LO pair
+        # that we still carry as relocations can appear in the target as
+        # already-baked literals.  game/g3d/gcontrolpads::
+        # G3DReadControlPadStates is a live instance and its rule documents
+        # it.  Such a word has no target counterpart to bind against, so it
+        # is exempt from the cross-object check -- but only when nothing in
+        # the window could have been exchanged WITH it.
+        #
+        # An exchange can only survive into byte-correct text when the two
+        # atoms are identical outside their register fields, since the
+        # recolor stage that runs afterwards can rewrite nothing else.  So
+        # the exemption is safe exactly when the unbindable atom is unique
+        # in the window under that comparison.
+        if words is None:
+            raise ValueError(
+                f"relocation binding: word +0x{only_ours[0] * 4:x} is "
+                f"relocated in our object but not in the target, and no "
+                f"region words were supplied to prove it is unexchangeable"
+            )
+
+        def _normalised(index):
+            word = words[index]
+            try:
+                mask = register_slot_mask(word)
+            except ValueError:
+                # Unmodelled form: assume the widest register mask, which
+                # makes MORE atoms look exchangeable and so fails closed.
+                mask = REGISTER_FIELD_MASK
+            return word & ~mask
+
+        for index in only_ours:
+            if not 0 <= index < len(words):
+                raise ValueError(
+                    f"relocation binding: word +0x{index * 4:x} is outside "
+                    f"the supplied region words"
+                )
+            shape = _normalised(index)
+            for other in sorted(ours):
+                if other == index or not 0 <= other < len(words):
+                    continue
+                if _normalised(other) == shape:
+                    raise ValueError(
+                        f"relocation binding: word +0x{index * 4:x} is "
+                        f"relocated in our object but not in the target, and "
+                        f"word +0x{other * 4:x} is identical to it outside "
+                        f"its register fields — the two could have been "
+                        f"exchanged and neither can be bound"
+                    )
+
+    forward: dict[str, str] = {}
+    backward: dict[str, str] = {}
+    for index in sorted(set(ours) & set(theirs)):
+        our_type, our_name = ours[index]
+        their_type, their_name = theirs[index]
+        if our_type != their_type:
+            raise ValueError(
+                f"relocation binding: word +0x{index * 4:x} has relocation "
+                f"type {our_type} in our object and {their_type} in the target"
+            )
+        # An exact name match binds the relocation directly, whatever the
+        # name looks like: our object often carries the target's own
+        # `lbl_XXXXXXXX` placeholder spelling for an own-pool datum.  It is
+        # still recorded in the correspondence, so a later differing pair in
+        # the same window cannot contradict it.
+        if our_name != their_name:
+            our_pool = bool(_OUR_POOL_LABEL.match(our_name))
+            their_pool = bool(_TARGET_POOL_LABEL.match(their_name))
+            if not (our_pool and their_pool):
+                raise ValueError(
+                    f"relocation binding: word +0x{index * 4:x} carries "
+                    f"symbol {our_name!r} in our object and {their_name!r} "
+                    f"in the target — a relocation is bound to the wrong "
+                    f"instruction"
+                )
+        if forward.setdefault(our_name, their_name) != their_name:
+            raise ValueError(
+                f"relocation binding: pool label {our_name!r} corresponds to "
+                f"both {forward[our_name]!r} and {their_name!r} — the pool "
+                f"correspondence is not one-to-one"
+            )
+        if backward.setdefault(their_name, our_name) != our_name:
+            raise ValueError(
+                f"relocation binding: target pool label {their_name!r} "
+                f"corresponds to both {backward[their_name]!r} and "
+                f"{our_name!r} — the pool correspondence is not one-to-one"
+            )
+    return forward
+
+
+def permutation_windows(
+    permutation, function_size: int
+) -> tuple[list[dict], list[tuple[int, int]]]:
+    """Normalise a rule's ``instruction_permutation`` to a window list.
+
+    A single dict is the original one-window form and keeps working
+    unchanged, so no shipped rule needs rewriting.  A list expresses a
+    function whose displaced words fall in two or more separated windows —
+    the ordinary case rather than an edge case, because
+    ``permute_instruction_atoms`` refuses any region containing a control
+    instruction and MWCC's schedule differences cluster around basic-block
+    boundaries (preheaders, compare/branch pairs, call sequences).
+
+    Widening one region to swallow the intervening code is NOT the
+    alternative: that region would contain control ops and be refused, and
+    widening it to dodge them is exactly the unsound move the control-op
+    refusal exists to prevent.
+
+    Windows must be word-aligned, inside the function, non-empty, and
+    pairwise DISJOINT in strictly ascending order.  Disjointness is the one
+    genuinely new obligation the list form carries: overlapping windows
+    would make the per-window before-hashes ill-defined.  Ascending order
+    makes the applied order the written order.
+
+    claim.law.HV_single-permutation-region-is-the-binding-schema-limit
+    .20260901.v1
+    """
+    windows = permutation if isinstance(permutation, list) else [permutation]
+    if not windows:
+        raise ValueError("empty instruction permutation list")
+
+    ranges: list[tuple[int, int]] = []
+    for window in windows:
+        relative_start = _parse_int(window["start"])
+        relative_end = _parse_int(window["end"])
+        if (relative_start % 4 or relative_end % 4
+                or not 0 <= relative_start < relative_end <= function_size):
+            raise ValueError(
+                f"invalid instruction permutation range "
+                f"+0x{relative_start:x}..+0x{relative_end:x}"
+            )
+        ranges.append((relative_start, relative_end))
+
+    for (previous_start, previous_end), (next_start, _next_end) in zip(
+        ranges, ranges[1:]
+    ):
+        if next_start < previous_end:
+            raise ValueError(
+                f"instruction permutation windows must be disjoint and "
+                f"ascending (+0x{previous_start:x}..+0x{previous_end:x} then "
+                f"+0x{next_start:x})"
+            )
+    return list(windows), ranges
+
+
 def permute_instruction_atoms(
     current: bytes,
     order: list[int],
@@ -998,6 +1222,8 @@ def permute_instruction_atoms(
     before_relocations_sha256: str,
     after_relocations_sha256: str,
     exit_dead=None,
+    our_symbols: dict[int, str] | None = None,
+    target_relocations: dict[int, tuple[int, str]] | None = None,
 ) -> tuple[bytes, list[tuple[int, int, int]], int]:
     """Apply one explicit instruction-atom permutation, failing closed.
 
@@ -1031,13 +1257,22 @@ def permute_instruction_atoms(
         source: destination for destination, source in enumerate(order)
     }
     moved_relocations = []
+    moved_named: dict[int, tuple[int, str]] = {}
     for offset, info, addend in relocations:
         if not 0 <= offset < len(current):
             raise ValueError("instruction permutation relocation is outside region")
         source = offset // 4
         within_atom = offset % 4
         destination = destination_by_source[source]
-        moved_relocations.append((destination * 4 + within_atom, info, addend))
+        moved_offset = destination * 4 + within_atom
+        moved_relocations.append((moved_offset, info, addend))
+        if our_symbols is not None:
+            if offset not in our_symbols:
+                raise ValueError(
+                    f"instruction permutation has no symbol for the "
+                    f"relocation at +0x{offset:x}"
+                )
+            moved_named[moved_offset] = (info & 0xFF, our_symbols[offset])
     moved_relocations.sort(key=lambda item: item[0])
 
     # The transform may change relocation offsets and ordering, never their
@@ -1053,6 +1288,24 @@ def permute_instruction_atoms(
         raise ValueError("instruction permutation failed to preserve relocations")
     if _relocation_sha256(moved_relocations) != after_relocations_sha256:
         raise ValueError("instruction permutation relocation output hash changed")
+
+    # The payload check above proves conservation, never binding: it drops
+    # the atom index, so any two relocated atoms sharing a within-instruction
+    # offset can be exchanged without disturbing it.  Bind each relocation to
+    # the instruction the TARGET carries it on.
+    if target_relocations is not None:
+        if our_symbols is None:
+            raise ValueError(
+                "instruction permutation relocation binding needs our symbols"
+            )
+        permuted_words = [
+            _u32(current, order[index] * 4) for index in range(count)
+        ]
+        verify_relocation_binding(
+            moved_named, target_relocations,
+            region_start=0, region_end=len(current),
+            words=permuted_words,
+        )
 
     output = b"".join(atoms[source] for source in order)
     if _sha256(output) != after_sha256:
@@ -1321,6 +1574,19 @@ def equivalent_copy_form(
     )
     entries = _entry_indexes(successors)
     relocated_indexes = {offset // 4 for offset in relocated_offsets}
+    # Screen by WORD, never by exact offset.  MWCC records an EMB_SDA21
+    # entry at the instruction offset PLUS 2 while the extracted target
+    # records it at the instruction offset, so an exact membership test
+    # against word offsets (always multiples of 4) never fires for one and
+    # a relocated word slips through the "not a copy-form candidate"
+    # precondition.  That precondition is load-bearing: a relocated
+    # `addi rD,rA,0` reads as immediate zero before linking but is really
+    # an address half, which decode_copy_form would classify as a register
+    # COPY.  claim.law.HV_emb-sda21-relocation-offset-differs-between-
+    # our-objects-and-the-target.20260901.v1
+    target_relocated_indexes = {
+        offset // 4 for offset in target_relocated_offsets
+    }
 
     output = bytearray(current)
     changed = 0
@@ -1332,7 +1598,8 @@ def equivalent_copy_form(
         if offset in seen:
             raise ValueError(f"duplicate copy-form edit at +0x{offset:x}")
         seen.add(offset)
-        if offset in relocated_offsets or offset in target_relocated_offsets:
+        if (offset // 4 in relocated_indexes
+                or offset // 4 in target_relocated_indexes):
             raise ValueError(
                 f"+0x{offset:x}: relocated word is not a copy-form candidate"
             )
@@ -1470,7 +1737,6 @@ def apply_patch(
         symbol.value, symbol.value + symbol.size,
     )
     deferred_exit: list = []
-    permutation_region = None
 
     changed = 0
     permutation = patch.get("instruction_permutation")
@@ -1484,14 +1750,23 @@ def apply_patch(
                 f"{symbol.name}: target/current function size mismatch "
                 f"({target_symbol.size} != {symbol.size})"
             )
+        target_function_relocations = _function_text_relocations(
+            target_data, target_sections, target_symbol.section_index,
+            target_symbol.value, target_symbol.value + target_symbol.size,
+        )
 
-        relative_start = _parse_int(permutation["start"])
-        relative_end = _parse_int(permutation["end"])
-        if (relative_start % 4 or relative_end % 4
-                or not 0 <= relative_start < relative_end <= symbol.size):
-            raise ValueError(
-                f"{symbol.name}: invalid instruction permutation range"
-            )
+        # A function whose displaced words fall in two separated windows
+        # cannot be expressed as one region: permute_instruction_atoms
+        # refuses any region containing a control instruction, and MWCC's
+        # schedule differences cluster around basic-block boundaries, so a
+        # widened region that swallows the intervening code is exactly the
+        # unsound move the control-op refusal exists to prevent.  Accept a
+        # LIST of windows instead, each applied in ascending order through
+        # the unchanged permute_instruction_atoms with its own before/after
+        # and relocation hashes.  A single dict keeps working unchanged.
+        # claim.law.HV_single-permutation-region-is-the-binding-schema-
+        # limit.20260901.v1
+        windows, ranges = permutation_windows(permutation, symbol.size)
 
         relocation_sections = [
             section for section in sections
@@ -1508,82 +1783,101 @@ def apply_patch(
         if entry_size != 12 or relocation_section.size % entry_size:
             raise ValueError(f"{symbol.name}: unsupported relocation layout")
 
-        records = []
-        for offset in range(
-            relocation_section.offset,
-            relocation_section.offset + relocation_section.size,
-            entry_size,
-        ):
-            records.append(struct.unpack_from(">IIi", data, offset))
+        for window, (relative_start, relative_end) in zip(windows, ranges):
+            # Re-read the relocation table for every window: the previous
+            # window rewrote it in place.
+            records = []
+            for offset in range(
+                relocation_section.offset,
+                relocation_section.offset + relocation_section.size,
+                entry_size,
+            ):
+                records.append(struct.unpack_from(">IIi", data, offset))
 
-        section_region_start = symbol.value + relative_start
-        section_region_end = symbol.value + relative_end
-        region_records = [
-            (offset - section_region_start, info, addend)
-            for offset, info, addend in records
-            if section_region_start <= offset < section_region_end
-        ]
-        region = bytes(data[start + relative_start:start + relative_end])
-        permutation_region = (relative_start, relative_end)
+            section_region_start = symbol.value + relative_start
+            section_region_end = symbol.value + relative_end
+            region_records = [
+                (offset - section_region_start, info, addend)
+                for offset, info, addend in records
+                if section_region_start <= offset < section_region_end
+            ]
+            region = bytes(data[start + relative_start:start + relative_end])
 
-        def _defer_exit_dead(resource):
-            # Checked against both function images after the whole patch is
-            # applied, when the final downstream register fields are known.
-            deferred_exit.append(resource)
-            return True
+            window_symbols = {
+                offset - relative_start: name
+                for offset, (_reloc_type, name) in text_relocations.items()
+                if relative_start <= offset < relative_end
+            }
+            window_target_relocations = {
+                offset - relative_start: entry
+                for offset, entry in target_function_relocations.items()
+                if relative_start <= offset < relative_end
+            }
 
-        permuted, moved_records, moved = permute_instruction_atoms(
-            region,
-            [_parse_int(index) for index in permutation["order"]],
-            region_records,
-            before_sha256=permutation["before_sha256"],
-            after_sha256=permutation["after_sha256"],
-            before_relocations_sha256=permutation["before_relocations_sha256"],
-            after_relocations_sha256=permutation["after_relocations_sha256"],
-            exit_dead=_defer_exit_dead,
-        )
-        data[start + relative_start:start + relative_end] = permuted
+            exit_index = relative_end // 4
 
-        outside_records = [
-            record for record in records
-            if not section_region_start <= record[0] < section_region_end
-        ]
-        records = outside_records + [
-            (section_region_start + offset, info, addend)
-            for offset, info, addend in moved_records
-        ]
-        records.sort(key=lambda item: item[0])
-        if len(records) * entry_size != relocation_section.size:
-            raise ValueError(f"{symbol.name}: relocation count changed")
-        for index, record in enumerate(records):
-            struct.pack_into(
-                ">IIi", data,
-                relocation_section.offset + index * entry_size,
-                *record,
+            def _defer_exit_dead(resource, exit_index=exit_index):
+                # Checked against both function images after the whole patch
+                # is applied, when the final downstream register fields are
+                # known.  Each resource carries ITS OWN window's exit point.
+                deferred_exit.append((resource, exit_index))
+                return True
+
+            permuted, moved_records, moved = permute_instruction_atoms(
+                region,
+                [_parse_int(index) for index in window["order"]],
+                region_records,
+                before_sha256=window["before_sha256"],
+                after_sha256=window["after_sha256"],
+                before_relocations_sha256=window["before_relocations_sha256"],
+                after_relocations_sha256=window["after_relocations_sha256"],
+                exit_dead=_defer_exit_dead,
+                our_symbols=window_symbols,
+                target_relocations=window_target_relocations,
             )
-        changed += moved
+            data[start + relative_start:start + relative_end] = permuted
 
-        # The permutation just rewrote the relocation table, so the offsets
-        # captured before it ran are stale.  Every later stage consumes
-        # these sets as a FAIL-CLOSED input (a relocated word is not a
-        # literal, and a relocated word is not a copy-form candidate), and a
-        # stale set can silently move a word out from under its own guard.
-        # Re-derive them from the patched object before any stage that
-        # composes with the permutation.
-        text_relocations = _function_text_relocations(
-            data, sections, symbol.section_index,
-            symbol.value, symbol.value + symbol.size,
-        )
-        relocated_offsets = set(text_relocations)
-        call_targets = {
-            offset: name
-            for offset, (reloc_type, name) in text_relocations.items()
-            if reloc_type == 10  # R_PPC_REL24
-        }
-        relocation_types = {
-            offset // 4: reloc_type
-            for offset, (reloc_type, _name) in text_relocations.items()
-        }
+            outside_records = [
+                record for record in records
+                if not section_region_start <= record[0] < section_region_end
+            ]
+            records = outside_records + [
+                (section_region_start + offset, info, addend)
+                for offset, info, addend in moved_records
+            ]
+            records.sort(key=lambda item: item[0])
+            if len(records) * entry_size != relocation_section.size:
+                raise ValueError(f"{symbol.name}: relocation count changed")
+            for index, record in enumerate(records):
+                struct.pack_into(
+                    ">IIi", data,
+                    relocation_section.offset + index * entry_size,
+                    *record,
+                )
+            changed += moved
+
+            # The permutation just rewrote the relocation table, so the
+            # offsets captured before it ran are stale.  Every later stage
+            # consumes these sets as a FAIL-CLOSED input (a relocated word is
+            # not a literal, and a relocated word is not a copy-form
+            # candidate), and a stale set can silently move a word out from
+            # under its own guard.  Re-derive them from the patched object
+            # before the next window and before any stage that composes with
+            # the permutation.
+            text_relocations = _function_text_relocations(
+                data, sections, symbol.section_index,
+                symbol.value, symbol.value + symbol.size,
+            )
+            relocated_offsets = set(text_relocations)
+            call_targets = {
+                offset: name
+                for offset, (reloc_type, name) in text_relocations.items()
+                if reloc_type == 10  # R_PPC_REL24
+            }
+            relocation_types = {
+                offset // 4: reloc_type
+                for offset, (reloc_type, _name) in text_relocations.items()
+            }
 
     copy_forms = patch.get("equivalent_copy_form")
     if copy_forms:
@@ -1721,8 +2015,11 @@ def apply_patch(
             {offset // 4 for offset in relocated_offsets},
             {offset // 4 for offset in jumptable_offsets},
         )
-        exit_index = permutation_region[1] // 4
-        for resource in deferred_exit:
+        # Each deferred resource is checked at ITS OWN window's exit point,
+        # never at a shared one: with several windows a resource certified
+        # dead after the last window could still be live after an earlier
+        # one, and a single exit index would silently excuse it.
+        for resource, exit_index in deferred_exit:
             for label, words in (("raw", words_raw), ("patched", words_final)):
                 if not _resource_dead_after(
                     words, exit_index, resource, successors, call_flags,
@@ -1730,8 +2027,9 @@ def apply_patch(
                 ):
                     raise ValueError(
                         f"{symbol.name}: permutation changes the final write "
-                        f"of {resource}, which is live after the region in "
-                        f"the {label} function"
+                        f"of {resource}, which is live after the region "
+                        f"ending at +0x{exit_index * 4:x} in the {label} "
+                        f"function"
                     )
     return before, after, changed
 

@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "Landed 2026-09-01 in worktree GDL-Claude-WfMulti, branch claude/wf-multiwindow-20260901, commit e59b84591 (schema) on top of b18562d7b (guards). tools/gdl/webfrank.py: new permutation_windows(); apply_patch's permutation stage restructured into a per-window loop. 12 new tests in PermutationWindowSchemaTests (112 -> 139 across the run, 143 final, all green). Regression gate: all 257 built objects hashed before and after and proven byte-for-byte identical, full ninja green, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679.",
+    "tags": [
+      "postprocessor",
+      "matching",
+      "workflow",
+      "relocation"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.WF_multi-window-permutation-schema.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T04:27:59Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "WEBFRANK'S apply_patch NOW ACCEPTS A LIST OF PERMUTATION WINDOWS, WHICH CLOSES THE SCHEMA LIMIT NAMED BY claim.law.HV_single-permutation-region-is-the-binding-schema-limit.20260901.v1. That law is confirmed in full and is now HISTORICAL as a blocker: its predicted fix was correct, was plumbing rather than a new edit class, and needed no new soundness argument. SHAPE. `instruction_permutation` may be a single dict (unchanged, and every shipped rule replays byte-identically - this was measured, not assumed, over all 257 objects) or a LIST of dicts, each with its own start/end/order and its own four hashes. Windows are normalised by the new `permutation_windows(permutation, function_size)`, which is a pure function and therefore unit-testable away from any ELF: it requires each window word-aligned, non-empty and inside the function, and requires the windows PAIRWISE DISJOINT IN STRICTLY ASCENDING ORDER. Disjointness is the one genuinely new obligation, exactly as predicted: overlapping windows make the per-window before-hashes ill-defined. Ascending order makes the applied order the written order. Each window then goes through the UNCHANGED permute_instruction_atoms, so every existing guard keeps its meaning. TWO IMPLEMENTATION FACTS A REIMPLEMENTER MUST NOT MISS, both of which are silent-corruption bugs rather than test failures. (1) THE RELOCATION TABLE MUST BE RE-READ PER WINDOW. Each window rewrites the section's relocation entries in place and re-sorts them, so a table read once before the loop is stale for window two and will write back garbage. The same applies to the derived `relocated_offsets`, `call_targets` and `relocation_types` sets that later stages consume as FAIL-CLOSED inputs - they are re-derived at the end of every window, not once after the loop. (2) THE DEFERRED EXIT-LIVENESS PROOF IS PER WINDOW. `exit_dead` certifies that a moved final write is never observed after ITS OWN region; with several windows a single shared exit index would check a resource certified in window one at window two's exit point and silently excuse it. deferred_exit therefore carries (resource, exit_index) pairs, the index captured in the closure at the window that raised it. WHY THE LIST FORM IS THE ORDINARY CASE: permute_instruction_atoms refuses any region containing a control instruction, and MWCC's schedule differences cluster at basic-block boundaries, so a function with two independently displaced preheaders is normal. Widening one region to swallow the intervening code remains FORBIDDEN and is not what this enables - that region would contain control ops and be refused, and dodging them by widening is the unsound move the refusal exists to prevent. FIRST USE: game/pb/pb_window::pbWinSetup (windows at +0x188 and +0x2c0) and ::pbProjCalc (+0x28 and +0x3e4), both driven from real 14 and real 126 to real 0, project matched 62.94% -> 63.28%."
+}
