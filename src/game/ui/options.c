@@ -2006,10 +2006,9 @@ void show_optmenu(OPTMENU* m)
         MBSetFontScale(m->scale, m->scale);
 
         if (part != 0 || (hi != 0 && it->value > 0)) {
-            s32 w1 = DrawNormalText(m->scale, it->text, OPTMENU_FONT);
-            s32 w2 = DrawNormalText(m->scale, " ~ ", OPTMENU_FONT);
+            x = m->x + DrawNormalText(m->scale, it->text, OPTMENU_FONT);
+            x = x + DrawNormalText(m->scale, " ~ ", OPTMENU_FONT);
             text = it->text2;
-            x = m->x + w1 + w2;
         } else {
             x = m->x;
             text = it->text;
@@ -2156,19 +2155,19 @@ void show_optmenu(OPTMENU* m)
         py = m->prompt_y;
         idx = 0;
         if ((m->flags & 1) != 0) {
+            idx = px;
             if (OPTMSG_SHADOW != 0) {
-                DrawTextKeepScale(msg_scale, -(px + OPTMSG_SHADOW),
+                DrawTextKeepScale(msg_scale, -(idx + OPTMSG_SHADOW),
                                   py + OPTMSG_SHADOW, OPTMENU_FONT, 0, "Back");
             }
-            txt = DrawTextKeepScale(msg_scale, -px, py, OPTMENU_FONT, rgbp,
+            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, rgbp,
                                     "Back");
             if (font2 != 0) {
                 *(s16*)((u8*)txt + 0x26) = (s16)font2;
             }
             pw = DrawNormalText(msg_scale, "Back", OPTMENU_FONT);
             pw /= 2;
-            MBNewTempBlit(lbl_80344E44, ((px - pw) - sx) - 4, py, sx, sy);
-            idx = px;
+            MBNewTempBlit(lbl_80344E44, ((idx - pw) - sx) - 4, py, sx, sy);
         }
         if ((m->flags & 4) != 0) {
             idx = idx + px;
