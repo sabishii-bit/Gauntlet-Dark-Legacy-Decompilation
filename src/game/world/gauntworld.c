@@ -6285,7 +6285,7 @@ extern void MBTreeSetScale(void* node, f32 x, f32 y, f32 z);
 extern u8* CritterNewInst(s32 type, s32 sub, void* mat);
 extern s32 generate_enemy(f32* pos, s32 kind, s32 a, f32* dir, s32 b, s32 c,
                           s32 d, f32 radius);
-extern f64 atan2(f64 y, f64 x);
+extern f32 atan2(f32 y, f32 x);
 extern f64 sPi;
 extern f64 sTwoPi;
 extern f64 sNegativePi;
