@@ -13,6 +13,14 @@
   "outcome": "improved",
   "recorded_at": "2026-08-31T18:52:29Z",
   "refutes": "attempt.get-player-pos-frame-closure-and-web-colour-table.20260831.v3",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "structured-field(residual_class)",
+    "family": "no-residual",
+    "measured_at": "2026-08-31",
+    "signature": null,
+    "signature_source": "not measured -- pin-masked: function is webfrank/p6frank-referenced, so fndiff scores the postprocessed object and cannot see the source-level residual"
+  },
   "residual_class": "NONE",
   "schema_version": 1,
   "supersedes": "attempt.get-player-pos-frame-closure-and-web-colour-table.20260831.v3",
