@@ -7,7 +7,7 @@
     "scope": "src/game/movie/movieplayer.c::dtor_800DB21C. NO source change - read-only measurement. NOTE game/movie/movieplayer carries webfrank pins (fn_800D967C, fn_800DA6A4); neither dtor is pinned. Census: claim.regnorm-park-label-census-legacy-blanket-corpus.20260831.v1",
     "verification": "python tools/gdl/fndiff.py game/movie/movieplayer dtor_800DB21C --clean -> 'dtor: STRUCTURAL, 85 real diff lines  HINT: frame delta -8' (2026-08-31, build green at 98.06% fuzzy / 61.70% matched)."
   },
-  "function": "function:dtor_800DB21C",
+  "function": "function:__dt__15MoviePlayerBaseFv",
   "id": "attempt.dtor-800db21c-frame-delta-relabel.20260831.v1",
   "kind": "attempt",
   "outcome": "parked",

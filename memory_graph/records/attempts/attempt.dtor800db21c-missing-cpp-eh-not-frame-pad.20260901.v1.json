@@ -7,7 +7,7 @@
     "scope": "src/game/movie/movieplayer.c::dtor_800DB21C (and its twin dtor_800DBB94, recorded separately). NO source change - read-only measurement; working tree clean. Neither dtor is webfrank-pinned. Note regnorm cannot resolve either symbol (trailing _<ADDR> suffix) and slotdiff inherits that limitation - 'missing: dtor_800DB21C (target: False, ours: False)'; fnasm --diff and fndiff both resolve them, and the aligned fnasm view is the tool that settled this.",
     "verification": "python tools/gdl/fndiff.py game/movie/movieplayer dtor_800DB21C --clean -> STRUCTURAL, 85 real diff lines, HINT frame delta -8; python tools/gdl/fnasm.py game/movie/movieplayer dtor_800DB21C --diff -> target 32 insns / ours 26, showing stmw r30, addi r31,r1,0, bl __unexpected, lmw r30,40(r12), lwz r1,0(r1) present only on the target side; same shape confirmed for dtor_800DBB94 (target 52 / ours 55). 2026-09-01, build green, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679."
   },
-  "function": "function:dtor_800DB21C",
+  "function": "function:__dt__15MoviePlayerBaseFv",
   "id": "attempt.dtor800db21c-missing-cpp-eh-not-frame-pad.20260901.v1",
   "kind": "attempt",
   "outcome": "parked",

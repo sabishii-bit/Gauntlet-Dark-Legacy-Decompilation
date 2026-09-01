@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "symbol-identity",
+      "matching",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.rtti-vtable-chain-recovers-cpp-class-names.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T00:33:15Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "CodeWarrior RTTI in the GameCube image is a DECISIVE, self-validating source of real C++ CLASS NAMES, and it closes the whole family of `dtor_<ADDR>` placeholder symbols whose match is blocked on destructor-ness. THE CHAIN: (1) a polymorphic class's vtable begins with a pointer to an 8-byte RTTI record in .sdata; (2) that record is { const char* class_name; base_descriptor* } where base==NULL means a root class; (3) the vtable's first function slot is the class's DESTRUCTOR. So `vtable -> RTTI -> name string` names the class AND the `vtable_slot0 -> dtor address` pairing names WHICH destructor belongs to it, in one pass, with no guessing. VALIDATE THE LAYOUT BEFORE TRUSTING IT, using a control whose real mangled name is already known: in this image `__vt__Q23std9exception` (.data 0x802383A8) word0 -> `__RTTI__Q23std9exception` (.sdata 0x80344048) -> the string 'std::exception'. A control that resolves to its own known name proves the record layout; only then read the unknown ones. MEASURED 2026-09-01 on game/movie/movieplayer: lbl_801296A4 word0 -> .sdata 0x80344000 = { 0x80117654 -> \"MoviePlayerBase\", NULL } with dtor slot 0x800DB21C; lbl_8012968C word0 -> 0x80344008 = { 0x80117648 -> \"MoviePlayer\", -> base descriptor 0x80129680 -> MoviePlayerBase's RTTI } with dtor slot 0x800DB008; likewise { \"Codec\", NULL } and { \"VQCodec\", -> Codec } at 0x80344010/0x80344018. CORROBORATION that costs nothing: the symbols.txt SIZE of the name string equals strlen+1 (0xC for \"MoviePlayer\", 0x10 for \"MoviePlayerBase\"), and the mangled destructor's object SIZE equals the target function's size (0x80 for __dt__15MoviePlayerBaseFv vs dtor_800DB21C size 0x80). SCOPE AND LIMITS: this works ONLY for polymorphic classes. A destructor that appears in NO vtable is non-polymorphic, has NO RTTI record, and its class name is NOT recoverable this way -- scan every data section for words pointing into the TU's .text to decide which case you are in before spending effort (dtor_800DBB94 in this TU is exactly the non-recoverable case). Note also that the RTTI data may live in .data/.sdata ranges that are NOT part of the TU's split, so it is read from the retail DOL, not from the built object; and our cflags carry `-RTTI off` while the original was built with RTTI on, which is harmless precisely because that data is linked from original bytes. DO NOT substitute the Xbox PDB for this: the Xbox port of this TU used an entirely different class (CWMVPlayer, D3D/WMV) and the PDB stores DEMANGLED names, so it corroborates neither the name nor the mangling."
+}

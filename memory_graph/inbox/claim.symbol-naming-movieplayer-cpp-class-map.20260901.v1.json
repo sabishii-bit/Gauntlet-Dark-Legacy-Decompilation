@@ -1,0 +1,17 @@
+{
+  "attributes": {
+    "tags": [
+      "symbol-identity",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.symbol-naming-movieplayer-cpp-class-map.20260901.v1",
+  "kind": "claim",
+  "predicate": "symbol_naming",
+  "recorded_at": "2026-09-01T00:33:27Z",
+  "schema_version": 1,
+  "subject": "tu:game/movie/movieplayer",
+  "valid_from": "2026-09-01",
+  "value": "COMPLETE C++ class map for game/movie/movieplayer (.text 0x800D860C-0x800DC180), recovered from CodeWarrior RTTI per claim.law.rtti-vtable-chain-recovers-cpp-class-names.20260901.v1 and layout-validated against the known-named control __RTTI__Q23std9exception. FOUR classes, two inheritance pairs: (A) MoviePlayerBase -- RTTI .sdata 0x80344000 = { name 0x80117654 'MoviePlayerBase', base NULL }; vtable lbl_801296A4 (.data, size 0x1C) = { RTTI, 0, dtor 0x800DB21C, 0, 0, 0, 0 } -- the trailing NULL slots are the pure virtuals the derived class overrides, i.e. this is the abstract base. Destructor ADOPTED as __dt__15MoviePlayerBaseFv and now byte-exact. (B) MoviePlayer : MoviePlayerBase -- RTTI 0x80344008 = { 0x80117648 'MoviePlayer', base descriptor 0x80129680 -> { MoviePlayerBase RTTI, offset 0, flags 0 } }; vtable lbl_8012968C (size 0x18) = { RTTI, 0, dtor 0x800DB008, 0x800DA920, 0x800DA6A4, 0x800DA60C }. So the four virtuals are ~MoviePlayer / open(name) / decode-step / present-or-close, and fn_800DB008 is CONFIRMED to be MoviePlayer::~MoviePlayer -> __dt__11MoviePlayerFv when someone models the class layout. (C) Codec -- RTTI 0x80344010 = { 0x803493C8 'Codec', base NULL }, name string in this TU's own .sdata2 pool. (D) VQCodec : Codec -- RTTI 0x80344018 = { 0x803493C0 'VQCodec', base descriptor 0x801296C0 -> Codec }; vtable at 0x801296CC = { RTTI, 0, dtor 0x800DBD30, 0x800D96B0, 0x800D967C, 0x800D9648, 0x800D9614, 0x800D8784 }. VQCodec's vptr sits at object offset 0x20 (`stw r0,32(r29)`), not 0. A further vtable slot at 0x801296F8 holds dtor 0x800DBF6C, which fn_800DBD30 calls as `fn_800DBF6C(this+0, 0)` -- the in-charge=0 form of a BASE-SUBOBJECT destructor call, so fn_800DBF6C is the base destructor in the Codec/VQCodec pair and must be converted before or with VQCodec. NOT RECOVERABLE, recorded so nobody re-hunts it: dtor_800DBB94 (the object embedded at MoviePlayer+0x20, reconstructed in-tree as `MovieChunkStream`) appears in NO vtable -- a full scan of every data section for words pointing into this TU's .text returns 12 words in 4 vtable groups and 0x800DBB94 is not among them. It is therefore non-polymorphic, emits no RTTI record, and carries no name anywhere in the image. The Xbox PDB does not help either: that port's module wmvplayer.obj implements a different class (CWMVPlayer, hardware WMV/D3D) and the PDB stores demangled names. Leave dtor_800DBB94 and the MovieChunkStream reconstruction name as they are unless new evidence appears; do NOT invent a class name to unblock its one-instruction residual."
+}
