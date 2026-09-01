@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "ROSTER lane, game/game/combat.c MINUS CameraSupervisor (WF's) and get_cam_wpos rules (HV's \u2014 you may still do SOURCE work on other functions): run the NEW regnorm TU census mode first, drive nearest-first by GENUINE rows. Free evidence outperforms laws --query in this TU (measured twice): sibling templates, header comments, planted unused externs, and the RELOCATION-SYMBOL dump (new arbiter in discipline 3 \u2014 'no @NN remains' closed three bugs in camera.c; combat.c has named pool globals too, check every open function for anonymous-pool spellings the way run-27 WF did \u2014 but any pool-renumbering edit needs the pin screen scoped to the WHOLE TU (5 pins; per CB's run-27 record the correct question is 'does my edit change the anonymous-pool population?'). If a pool respell is needed, re-derive affected pins with tools/gdl/composed_census/wf_rederive_pin.py (promoted run 27; body hashes must come back byte-identical = the audit). Byte-exact or named parks; commit per keep; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "tu:game/game/combat",
+  "id": "work_claim.combat-continue.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CB",
+  "recorded_at": "2026-09-01T18:01:28Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

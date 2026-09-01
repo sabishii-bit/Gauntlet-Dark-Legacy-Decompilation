@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CONTINUE lane, game/sfx/sfx.c: ProcessEffects from real ~1537 (frame + slots EXACT since run 26; the 8-byte normal[3] park is measured-dead twice, FROZEN; run-26 PE's record names the 7-insn shortfall cluster T[66:76]@108-130 as the largest unwritten region \u2014 start there with side-decomposition + aligned reads). The 1T/1O exclusive slot (absdy scratch at ours-40 vs target-20) is DOWNSTREAM of the missing insns \u2014 close the count gap first, re-measure the slot after. Then the TU census (regnorm TU mode) for siblings \u2014 sfx.c impact 592 remains the image's largest single-function debt. defake_gate baseline EXISTS since run 26 \u2014 check against it, do not re-baseline (that would launder run-26 state); --bank-arbitrated=<fn> for any fuzzy-keep. Byte-exact or named parks; commit per cluster; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:ProcessEffects",
+  "id": "work_claim.sfx-continue.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SF",
+  "recorded_at": "2026-09-01T18:01:52Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

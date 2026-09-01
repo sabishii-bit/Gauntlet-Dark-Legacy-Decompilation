@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CONTINUE lane, sys/memcard: (1) loadGauntletSave from real 628 (attempt.LG_...v2 supersedes older; the banked untried leads are MANDATORY STEP 1 per new discipline 10b \u2014 read the record first). (2) The TU-level goto-pair census: the same bne/b pair survives in loadGauntletSave@0x9d4, get_vmu_directory@0x48, writeGauntletSave@0xe4; global peephole-off is MEASURED dead (kills the clrlwi. fusion the target needs \u2014 claim.law.LG_volatile-scaffold-...v1); hunt the config/pragma scope that fuses compares but keeps dead branches as ONE census, not three puzzles (scoped pragmas? per-function? check the os-c-peephole recipes in the graph). (3) Then the memcard roster nearest-first via the NEW regnorm TU census mode. probe.py --fuzzy is live (one-call fresh-fuzzy) + scaffold census prints on BASELINE \u2014 re-audit every scaffold row. Byte-exact or named parks w/ probed_form + held_fixed. Gate = 'main.dol: OK'; defake_gate baseline first; --bank-arbitrated=<fn> now exists for fuzzy-keeps; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:loadGauntletSave",
+  "id": "work_claim.memcard-continue.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-LG",
+  "recorded_at": "2026-09-01T18:01:22Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

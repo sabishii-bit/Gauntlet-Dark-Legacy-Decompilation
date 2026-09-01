@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "POSTPROCESSOR-DEV lane (owns webfrank.py + tests + schema; owns CameraSupervisor in combat.c \u2014 CB owns the REST of combat.c): (1) THE new-capability question run 27 isolated: a value-equality proof mode for multi-site value splits (attempt.WF_camerasupervisor-pool-unpark-and-schedule-drive.20260901.v1: count-exact 441/441, multiset IDENTICAL, both permutation windows PASS strict dependence + all 196 copy fields PASS; the sole bar = the allocators distributed ONE value across five same-valued FPRs \u2014 position-consistent bisimulation cannot prove it however refined. Design the mode fail-closed: what byte-level evidence proves two registers hold the same VALUE at every use site? Instrument, prove, test-first; the apply_patch ELF fixture from run 27 is your harness). Prove by CLOSING CameraSupervisor. (2) The fn_8005FDA8 (7,'mem') guard gap (recorded capability request from gauntworld \u2014 read its record; serve or refute w/ instrumented reasons). (3) If the mode generalizes, screen the run-27 refusal corpus (HA/HB roster records list every inconsistent-renaming refusal) for members the mode serves \u2014 record, close only what closes. Enumerate-orders law + discipline 14 throughout; configure.py per json edit; suite green; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:CameraSupervisor",
+  "id": "work_claim.value-equality-mode.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WF",
+  "recorded_at": "2026-09-01T18:01:10Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

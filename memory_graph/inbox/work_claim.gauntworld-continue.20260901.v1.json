@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CONTINUE lane, game/world/gauntworld: the run-27 census claim banked three frame/register leads \u2014 fn_8005F0F4 is 8 BYTES OVER (the INVERSE of the bottom-anchored pad that closed fn_80060114: find the surplus declared local via slotdiff full map + region arithmetic \u2014 claim.law.PE_localise-a-frame-delta-by-region-arithmetic...v1), then fn_80062A00 (21 genuine) and fn_8005BA1C (22 genuine) per the census. The reloc-naming artifact class is now AUTO-CLASSIFIED by regnorm (your run-27 criticism, shipped) \u2014 re-census first; several 'genuine' counts will drop. fn_8005FDA8 stays parked on its (7,'mem') capability request (WF's this run \u2014 do not touch). ResolveWorldData (12 genuine at 1807 insns) is the stretch target if the leads close fast. Byte-exact or named parks w/ probed_form; commit per keep; gate = 'main.dol: OK'; defake_gate baseline first; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:InitWorldInfo",
+  "id": "work_claim.gauntworld-continue.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-GW",
+  "recorded_at": "2026-09-01T18:01:40Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}
