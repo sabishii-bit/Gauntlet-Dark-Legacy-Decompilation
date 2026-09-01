@@ -2396,18 +2396,22 @@ found_silver:
         break;
 
     case 10:
-        if (*sub == 0x29 || *sub == 0x2B) {
+        switch (*sub) {
+        case 0x29:
+        case 0x2B:
             break;
-        }
-        if (mode != 3) {
+        default:
+            if (mode != 3) {
+                break;
+            }
+            if (rank >= 0x32) {
+                fn_8005C1DC(item, 9999.0f, 0, *(s32*)player);
+                msg = 0x92;
+            } else {
+                *(s16*)&item->data[4] = 4;
+                msg = 0x91;
+            }
             break;
-        }
-        if (rank >= 0x32) {
-            fn_8005C1DC(item, 9999.0f, 0, *(s32*)player);
-            msg = 0x92;
-        } else {
-            *(s16*)&item->data[4] = 4;
-            msg = 0x91;
         }
         break;
 
