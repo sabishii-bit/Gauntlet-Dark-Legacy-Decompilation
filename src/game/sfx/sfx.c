@@ -2616,6 +2616,7 @@ void ProcessEffects(void)
     f32 dir[3];
     f32 hitpos[3];
     f32 normal[3];
+    f32 bosspos[3];
     f32 radius;
     f32 remaining;
     f32 fade;
@@ -3267,7 +3268,6 @@ void ProcessEffects(void)
                             case 36:
                             {
                                 EffectHeader* h = &EffectInfo[FX_LEGEND1];
-                                f32 bosspos[3];
                                 s32 effect = -1;
 
                                 critter->boss_timer_b = 1800;
