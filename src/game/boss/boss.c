@@ -113,7 +113,7 @@ extern s32         sMusicTrackHi;         /* 0x803448D8 world index */
 extern f32         gClockFrameStep;       /* physics timestep */
 extern f32         lbl_80344880;          /* ground-probe height */
 
-extern f64  FloorPos(f64 a, f64 b, void* c, u32 d);   /* ground/collision query */
+extern f32  FloorPos(f32 fallback, f32 radius, f32* position, s32 mode); /* ground/collision query */
 extern void UpdateObjWorldMat(void* p);
 
 extern int   sprintf(char* buf, const char* fmt, ...);
@@ -381,14 +381,12 @@ void BossSpewCoins(f32 v, f32* pos, f32* dir) {
 }
 
 static void clampAxis(f32* p, f32 lim) {
-    if (*p <= lim) {
-        if (-lim <= *p) {
-            *p = 0.0f;
-        } else {
-            *p = -(f32)(lim * *p - *p);
-        }
+    if (*p > lim) {
+        *p = *p - lim * *p;
+    } else if (*p < -lim) {
+        *p = *p - lim * *p;
     } else {
-        *p = -(f32)(lim * *p - *p);
+        *p = 0.0f;
     }
 }
 
@@ -424,7 +422,7 @@ void ProcessSpewItems(void) {
         h = 10.0f;
         lim = 0.5 * gClockFrameStep;
         if (it->vy <= 0.0f) {
-            f64 g = FloorPos(lbl_80344880, 1.0f, (char*)obj + offsetof(SpewObjView, worldPos[0]), 0);
+            f64 g = FloorPos(lbl_80344880, 1.0f, (f32*)((char*)obj + offsetof(SpewObjView, worldPos[0])), 0);
             h = *(f32*)((char*)obj + offsetof(SpewObjView, worldPos[1])) - (f32)(1.0 + g);
             if (h < 0.1) {
                 *pvy = (f32)(0.4 * -*pvy);
@@ -436,7 +434,7 @@ void ProcessSpewItems(void) {
             }
         }
         if (0.1 <= h) {
-            *pvy = -(f32)(8.0 * gClockFrameStep - *pvy);
+            *pvy = *pvy - 32.0f * gClockFrameStep;
         }
         clampAxis(pvx, lim);
         clampAxis(pvz, lim);
