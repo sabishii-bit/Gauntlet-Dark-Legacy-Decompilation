@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "pbWinSetup: ship HV's machine-proven two-window composition on the new multi-window schema. Re-derived against the CURRENT objects (never from the banked offsets), applied, and driven to real 0. SHIPPED - this supersedes the blocked state.",
+  "attributes": {
+    "law_screen": "claim.law.HV_single-permutation-region-is-the-binding-schema-limit.20260901.v1 APPLIED and now DISCHARGED - the schema limit it named is closed by claim.law.WF_multi-window-permutation-schema.20260901.v1 and this is its first shipped use. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED PER WINDOW as step 0: check_permutation_dependences was run on each raw region in OUR colouring, standing alone, before any recolor; both ACCEPTED with no exit_dead escape invoked. claim.LZ_webfrank-equivalent-copy-form-edit-class.20260901.v1 APPLIED for the +0x2c8 site, dominating_def discharged locally against the li r6,0 at +0x2c4. claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1 UPHELD as the reason no source lever exists. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED FIRST: 283/283, count-exact. claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 and claim.law.HV_emb-sda21-relocation-offset-differs-between-our-objects-and-the-target.20260901.v1 APPLIED - both are now machine-checked by the tool rather than by hand.",
+    "laws_applied": "[\"claim.law.HV_single-permutation-region-is-the-binding-schema-limit.20260901.v1\", \"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\", \"claim.LZ_webfrank-equivalent-copy-form-edit-class.20260901.v1\", \"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\", \"claim.law.WF_multi-window-permutation-schema.20260901.v1\", \"claim.law.WF_relocation-binding-and-word-range-screens-are-now-machine-checked.20260901.v1\"]",
+    "residual": "NONE. real 14 -> 0, 283/283, fndiff --clean MATCH. The shipped rule, re-derived from the current objects and confirming HV's banked spec in every particular: window +0x188..+0x194 order [0,2,1] (the target stores r3 to 476(r29) before the lis r3,17200; the two moved atoms are independent and the li r4,0x41 the store depends on is atom 0 and does not move); window +0x2c0..+0x2d8 order [0,2,5,3,1,4] (the dir-light preheader, five independent argument materializations, with the lwz r27,gWinGlobals@sda21 held at atom 0 so the lwz r7,28(r27) keeps its definition); equivalent_copy_form at +0x2c8 proof dominating_def; then a 5-word recolor, r4->r3 in window 1 and r27->r30 at +0x2c0/+0x2cc/+0x350. apply_patch reports exactly 12 adjusted atoms/fields = 2 + 4 moved + 1 form + 5 recolor, matching the banked spec's arithmetic exactly.",
+    "scope": "config/GUNE5D/webfrank.json only (new unit game/pb/pb_window). No source edit to pb_window.c. tools/gdl/webfrank.py changes are the schema and guard work recorded separately.",
+    "verification": "Composed and proven THROUGH apply_patch on the real object against the real extracted target, final bytes identical to the target function. Then the shipped path: configure.py, full ninja green, WEBFRANK game/pb/pb_window edge present, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679, build/GUNE5D/main.dol OK. fndiff --clean = MATCH, real 0. defake_gate check game/pb/pb_window = GATE OK. All 257 objects hashed before/after the tool change: only pb_window.o differs. 143 webfrank tests green."
+  },
+  "function": "function:pbWinSetup",
+  "id": "attempt.WF_pbwinsetup-two-window-composition-shipped.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T04:28:08Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.HV_pb-window-both-stragglers-proven-blocked-on-single-region-schema.20260901.v1",
+  "valid_from": "2026-09-01"
+}
