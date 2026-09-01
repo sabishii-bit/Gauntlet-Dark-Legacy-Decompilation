@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "TAIL lane, game/world/items.c (+ world.c leftovers): the old items queue (AddLocatorInstList, LinkItemTriggers, RegisterItemWobj, InitItemInfoData, SetItem 1296/1306) predates the ENTIRE modern kit \u2014 every park there is pre-slotdiff, pre-regnorm, pre-frame-laws. Per function: slotdiff FIRST (the 16-byte-frame-under-REGISTER_ONLY precedent), regnorm second (--ops cannot classify \u2014 the law), then the aligned read; drive what the September/October laws reach (slot-order, 8-byte ruler, initialized-first numbering, split-symbol, population respell, per-region economics for any record work); hand mixed schedule+recolor residuals to the harvest lane via records rather than forcing. SetItem is 10 insns short \u2014 side-decompose the deficit FIRST (quiet-addi lesson). items.c pins (DistanceToClosestPlayer/InitLighting/InitItemInfoData?) \u2014 screen webfrank.json before edits. Commit per function; exact or stamped parks; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:AddLocatorInstList",
+  "id": "work_claim.items-tail.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-IT",
+  "recorded_at": "2026-09-01T02:41:38Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

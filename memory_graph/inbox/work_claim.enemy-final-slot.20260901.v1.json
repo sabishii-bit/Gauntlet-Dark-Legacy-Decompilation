@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "FINISH lane, game/enemy/enemy.c: do_enemy_move at real 176, frame EXACT, 18/19 slots (attempt.EN-do-enemy-move-frame-pad-closure.20260901.v1) \u2014 find slot 19 (slotdiff names it; the slot-order laws + 8-byte ruler apply; remember address-taken arrays appear only as addi rX,r1,N). If the map closes, regnorm + the 4-step composed procedure (the residual may be rulable). Then do_enemies (real 370, SLOT MAP IDENTICAL \u2014 regnorm the recolor tail; composed-rule candidate?), move_logic10's now-sharp cap (pure bisimulation + 2 fmr \u2014 the 2-insn SURPLUS means count-asymmetric = NO rule; verify and leave), and the TU's remaining small tails. IMPROVED-CARRIER gate verdicts (new): arbitrate on fuzzy from a FRESH report before banking. 9 pinned fns frozen \u2014 screen webfrank.json first. Commit per function; exact or stamped parks; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:do_enemy_move",
+  "id": "work_claim.enemy-final-slot.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-DE",
+  "recorded_at": "2026-09-01T02:41:16Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

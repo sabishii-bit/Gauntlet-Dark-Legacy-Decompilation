@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "MIXED-PARK HARVEST lane: the audit-silence law says the closable set includes every mixed schedule+recolor park the scanner never lists. Roster from the corrected corpus: DrawBlitFlatQuad (mb/mb_blit, real ~30: SCHEDULE+REGISTER_ONLY w/ inconsistent map \u2014 the SL refutation record has the decomposition), pbProjCalc (pb/pb_window, real 126, SCHEDULE upheld w/ 8 unpaired), fn_8005FDA8 + fn_8005FB48 (world/gauntworld schedule parks, 110/110 + 152/152 identical multisets), StartShieldFX (sfx/sfx, mixed remat+preoffset cap), pbWinSetup (pb_window, MIXED w/ the IV-init form site). Per candidate, the 4-step procedure: regnorm map -> derive permute windows for unpaired/displaced words -> strict dependence audit -> compose w/ recolor, prove through apply_patch; author only rules that CLOSE the function (a pin parks live source \u2014 the LZ discipline); surgical inserts + configure.py + tests per rule. SKIP TUs owned this run (fakelib, gcontrolpads, movieplayer, enemy, screensaver, dbgtext, items/world). Every closed park = matched% + possibly a flip (pb_window at 2 stragglers!). Exacts or per-candidate hazard verdicts; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:DrawBlitFlatQuad",
+  "id": "work_claim.mixed-park-harvest.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-HV",
+  "recorded_at": "2026-09-01T02:41:27Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

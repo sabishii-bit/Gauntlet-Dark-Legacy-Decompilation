@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "COMPOSED-RULE lane 1, whole TU game/ps2/fakelib (2 stragglers, data GREEN \u2014 closing both = a FILE FLIP): (1) sceOpen (real 24) = the permute+recolor class's MEMBER #2 (attempt.NX_sceopen-is-a-second-permute-plus-recolor-candidate.20260901.v1: inconsistent map r4->r4x5/r5x3 + ONE unpaired store stw r5,16(r1) 0x54 vs 0x4c). Apply RQ's 4-step manual procedure (claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 carries it; StartThrowMagicFX = the worked precedent): derive the permute window, strict dependence audit, compose with copy_register_fields, prove through apply_patch (NOT standalone verify \u2014 the harness drops volatile bindings w/o call_targets), surgical webfrank.json insert + configure.py (trap 6) + tests + retail assert. (2) sDvdReadSync (real 10): residual narrowed to pure +8 frame plumbing (frame 48 vs 56; 4 of 9 'structural' rows = jumptable name artifacts \u2014 attempt.NX_sdvdreadsync-frame-laws-screened-negative.20260901.v1). The +8 means ONE extra 8-byte slot or pad: slotdiff first, then the slot-order laws (pads SPLIT never extended; initialized-first numbering; 8-byte ruler). If both close + datadiff --sections green: FLIP via finish_tu.py. Exact(s)/flip or resolution-stamped parks; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:sceOpen",
+  "id": "work_claim.fakelib-composed-flip.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-C1",
+  "recorded_at": "2026-09-01T02:41:05Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

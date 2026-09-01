@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SCOPED-CLUSTER lane, game/ui/screensaver.c (the schedule-fragile TU \u2014 the int-vs-s32 per-site law was derived HERE, so every edit gates individually): the deferred MBObject coupled cluster (claim.HW_externcheck-defect-table-worked-state.20260901.v1 defers it with reasons): lbl_80344ECC/lbl_80344EDC declared int but cast (MBObject*) at all 4 uses + three EXACT TUs declare them pointers + the unflagged lbl_80344A64 + three local prototypes \u2014 ONE coupled edit, gated as a unit (defake_gate comma form across every affected TU). Expect per-site schedule fragility: any non-neutral function = revert that site's piece and record. Then the TU's sub-100 roster with the modern kit (ScreenSaver real 52 = the recorded int-extern schedule cap \u2014 screen it, the cluster fix may change its context; draw_inventory_panel's park stands unless measurement says otherwise). Commit per verified piece; exact or stamped outcomes; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:ScreenSaver",
+  "id": "work_claim.screensaver-cluster.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SC",
+  "recorded_at": "2026-09-01T02:41:22Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

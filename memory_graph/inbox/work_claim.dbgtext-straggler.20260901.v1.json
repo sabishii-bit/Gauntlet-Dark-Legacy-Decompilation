@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "RECONSTRUCTION lane, game/pb/dbgtext (1 straggler, data GREEN, no data sections \u2014 a solve = a FILE FLIP): fn_800C03E0 real 504, 433/433 count-exact. Its scale-divisor cap (attempt.w2-fn-800c03e0-scale-divisor-confirm.20260831.v2) closed ONE cluster axis; the function was never driven with the modern kit: slotdiff FIRST (a frame/slot error under a big real is the do_enemy_move precedent \u2014 nobody ran it), then regnorm (the label may lie), side-decompose any count-neutral families, split-symbol checks on its data references, population fingerprints. 433 count-exact insns at real 504 means MASSIVE renaming or displaced-slot content \u2014 if the frame closes and the map goes consistent, the 4-step composed procedure may finish it (the closable-set law). dbgTextInit pin frozen \u2014 screen first. Exact/flip or the honest wall with the full decomposition; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:fn_800C03E0",
+  "id": "work_claim.dbgtext-straggler.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-DB",
+  "recorded_at": "2026-09-01T02:41:32Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}
