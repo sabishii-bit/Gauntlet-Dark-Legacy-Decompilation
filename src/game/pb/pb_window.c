@@ -260,6 +260,30 @@ static void debugScissor(u32* p)
     }
 }
 
+/* The aspect-ratio step that pbProjCalc pastes out inline further down (the
+   same "written out inline" style as pbWindowDefaults and pbCameraCalc): the
+   window's aspect scaled by the port rectangle, doubled when the screen is in
+   the half-width field mode (PBSCREEN flag 2).  Its caller inlined it, so mwld
+   dead-strips the out-of-line copy and it contributes no .text to the linked
+   image - but MWCC still code-generates it here, and that is what CREATES the
+   2.0f .sdata2 pool entry ahead of pbProjCalc's own 0.5f.  Its position
+   between debugScissor and pbProjCalc is load-bearing: MWCC lays the pool out
+   strictly in literal creation order (see the pbWindowDefaults note above),
+   and without it 2.0f and 0.5f come out transposed at .sdata2+0x38.  Re-check
+   `python tools/gdl/datadiff.py game/pb/pb_window --sections` before moving,
+   editing or deleting it. */
+static f32 pbAspectRatio(f32 w, f32 h)
+{
+    PBWINGLOBALS* g = gWinGlobals;
+    f32 ratio;
+
+    ratio = (g->current->aspect * w) / h;
+    if ((((PBSCREEN*) g->screen)->flags & 2) != 0) {
+        ratio = ratio * 2.0f;
+    }
+    return ratio;
+}
+
 #pragma dont_inline off
 /* debug zoom: shrinks the port rect / clip size (inlined into pbProjCalc) */
 static inline void debugZoomAdjust(volatile f32* l, volatile f32* r, volatile f32* t,
