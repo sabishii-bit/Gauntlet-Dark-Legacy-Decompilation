@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Measured in game/world/btricol during work_claim.btricol-repin-unlock.20260901.v1 (worker BR, branch claude/btricol-unlock-20260901, commits 37d53cc64 / aa759607e / 0f431fbd0). Derived by reading tools/gdl/webfrank.py apply_patch (before_sha256 is computed over data[start:end], the function's raw TEXT bytes only) and confirming it against two live pins.",
+    "tags": [
+      "postprocessor",
+      "workflow",
+      "build-hygiene",
+      "relocation",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.br-a-pinned-body-freezes-bytes-not-source-text.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T01:33:08Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/btricol",
+  "valid_from": "2026-09-01",
+  "value": "A WEBFRANK PIN FREEZES THE COMPILED BODY BYTES, NOT THE SOURCE TEXT - SO 'THE FIX IS UNREACHABLE BECAUSE THE FUNCTION IS PINNED' IS NOT A VALID CONCLUSION UNTIL THE RAW BODY HAS BEEN MEASURED.\n\nTHE RULE. `before_sha256` is sha256 over the function's raw .text bytes (webfrank.py apply_patch: `before = _sha256(data[start:end])`). It does NOT cover relocations, symbol names, or source text. Therefore: (a) any source edit whose emitted words are unchanged passes a pin untouched, even inside the pinned function's own body; (b) an edit that only changes which SYMBOL a relocation names - the entire own-pool ghost class, where `extern <T> lbl_<ADDR>` becomes a literal MWCC pools itself as `@N` - cannot move a pin's hash at all, because EMB_SDA21 instruction words carry no payload in the object; and (c) conversely, a pin says nothing about relocation correctness, so a ghost can hide behind a green pinned function indefinitely.\n\nTHE PROCEDURE, which is cheap and must be run before declaring a pinned TU blocked. Build the raw body target - `ninja build/GUNE5D/src/<path>/.postprocess/body/<tu>.o` - which stops BEFORE the WEBFRANK edge and therefore never aborts. Hash each function's text there and compare against the pins' `before_sha256`. If they match, nothing needs re-deriving. If a pinned body did move, diff it word-by-word against the PRE-EDIT raw body (recover that by writing `git show HEAD:<file>` to disk with a tool that does not add a BOM - PowerShell `Out-File -Encoding utf8` does, and MWCC rejects the file as Shift-JIS) and count the changed words before assuming the rule is lost: a one-word delta usually has a source respelling that removes it.\n\nTHE RE-PIN AUDIT, when hashes really do change. Verify the four relocation invariants per atom - offset, type, addend, symbol - between the pre-edit and post-edit raw bodies. Offset/type/addend must all be unchanged; a symbol change is acceptable ONLY when it is address-preserving, which you prove by locating the new symbol in the object (`nm` on the pool section: `@46` at .sdata2+0x00 = 0x80345D40, `@48` at +0x10 = 0x80345D50 in the measured case). Then update hashes only, never a guard, and re-run `python configure.py` before ninja (AGENTS.md trap 6). Confirm the WEBFRANK line reports the SAME atom counts as before - an atom-count change means the mechanism moved and the rule must be re-derived, not re-hashed.\n\nMEASUREMENT. attempt.btricol-own-pool-ghosts-blocked-by-webfrank-pins.20260831.v1 discovered its pins through a failed ninja, concluded 'BLOCKED, not capped: the fix is known, correct and one edit wide, but it cannot be applied while the two consuming functions are WebFrank-pinned', and generalised that into a third flip-readiness gate: 'any ghost it does carry must be reachable from an UNPINNED function, because a pinned body cannot be edited to fix it'. That generalisation is REFUTED. Both ghosts were read from pinned bodies (lbl_80345D40 from PointLineDist2D, lbl_80345D50 from LineLineDist); both were converted; the pinned bodies came back BIT-IDENTICAL to their recorded before_sha256 values after one one-word respelling (see claim.law.br-implicit-truth-test-avoids-constant-first-fcmpu-canonicalization.20260901.v1), the WEBFRANK step still reported 63 and 2+140 atoms, and game/world/btricol.c flipped to Matching with sha1 green. The correct third flip gate is 'the TU must be free of own-pool UND ghosts', full stop; the pin clause should be dropped."
+}
