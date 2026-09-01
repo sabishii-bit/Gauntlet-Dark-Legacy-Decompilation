@@ -1344,6 +1344,42 @@
     ],
     "game/movie/movieplayer": [
     {
+      "function": "fn_800D91B4",
+      "before_sha256": "00dc5f00822067de032e7102c7d66483831407aa7a9b7f122fac5c56f8b01ac4",
+      "after_sha256": "121778287568eccee0d0cb18072c39e041d74dc9a80bd468acd56c206247f89f",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - RECOVERED FROM A GUARD CRASH, and that is the point worth recording. 136/136, real 136: the entire function body differs, and the whole of it is one twelve-atom reordering at [0xd0,0x100) order [4,1,2,0,3,11,5,6,7,8,9,10] plus a renaming. On the first sweep this function produced NO verdict at all: webfrank.check_permutation_dependences raised TypeError from its ERROR path while formatting a refusal (it sorts a `broken` list of (atom, resource) keys whose resource is a str for mem/lr/cr and a tuple for ('g',N)/('stack',N); two broken chains on the same atom compare str against tuple), so a legitimate refusal of ONE candidate order reached the caller as an uncaught exception and aborted the search for the whole function. Catching TypeError as the refusal it is recovered this close and four other clean refusals. The order shipped here was selected by proof over every shape-consistent bijection in the window, per claim.law.WF_enumerate-every-shape-consistent-order-and-select-by-proof.20260901.v1; the window is relocation-free in both objects and check_permutation_dependences accepts it in its STRICTEST form with exit_dead=None. real 136 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 136,
+        "permuted_instructions": 12
+      },
+      "instruction_permutation": [
+        {
+          "start": "0xd0",
+          "end": "0x100",
+          "order": [
+            4,
+            1,
+            2,
+            0,
+            3,
+            11,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ],
+          "before_sha256": "0b395127f3ca24cf96c7441dee9c8d97d9e8d25c5d55ac81a74dccdd8e9f7ea4",
+          "after_sha256": "a3c38f327e4c09fe404ce7a8cc8f46dcfa49acf8288c215660268a587092401f",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "copy_register_fields": true
+    },
+    {
       "function": "__ct__11MoviePlayerFv",
       "before_sha256": "adaeef2d0b1026b6a3c36100ba6c78a993a4edcbef76ff116312d8e7649a8fbc",
       "after_sha256": "5ed9ecce0c73b4d8a4973eef09780617d52202b4a80fbd1a9ac078a8bfd6d7f5",
