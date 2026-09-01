@@ -215,7 +215,7 @@ extern s32 lbl_8034481C;
 extern s32 gGameMode;
 extern s32 gGameBusy;
 extern s32 good_wiz_exit_timer;
-extern u8 lbl_802897D0[];
+extern ShopPage lbl_802897D0;
 
 extern void* AllocFile(char* wad, char* name);
 extern s32 MBSetupWad(s32* wad, s32 base);
@@ -285,7 +285,7 @@ static void shop_setup(void);
  * returns nonzero when everyone is done. */
 s32 do_shop(void)
 {
-    u8* page = lbl_802897D0;
+    u8* page = (u8*)&lbl_802897D0;
     s32 result = 1;
     s32 statsFlag = 0;
     s32 loaded;
@@ -566,7 +566,7 @@ s32 do_shop(void)
  * while the pile is still sinking (drives the count-down loop). */
 s32 show_piles(s32 col)
 {
-    u8* tbl = lbl_802897D0;
+    u8* tbl = (u8*)&lbl_802897D0;
     u8* counts = tbl + col * 12 + 224;
     u8* blit;
     u8* pl = (u8*)gPlayers + col * 13148;
@@ -641,7 +641,7 @@ extern void* MBNewTempBlit(void* tex, int x, int y, int w, int h);
 s32 show_gold(s32 col)
 {
     u8* dpage = lbl_80122ED0;
-    ShopPage* tbl = (ShopPage*)lbl_802897D0;
+    ShopPage* tbl = (ShopPage*)(u8*)&lbl_802897D0;
     s32 adj = gFrameTicks + (gFrameTicks >> 1);
     f64 heightScale = lbl_803483B0;
     void** blits = tbl->blits[col];
@@ -1049,7 +1049,7 @@ static s32 shop_show_lv(u8* pl, s32 final)
  * kills, second currency), rank them, and seed the pile animation tables. */
 void fn_8009A0AC(s32 col)
 {
-    u8* tbl = lbl_802897D0;
+    u8* tbl = (u8*)&lbl_802897D0;
     u8* pl = (u8*)gPlayers + col * 13148;
     s32 range = lbl_80343E10 - lbl_80343E0C;
     level_data* lvl;
@@ -1200,7 +1200,7 @@ static void shop_setup(void)
 {
     u8* tbl = lbl_80122ED0;
     char* fmts = lbl_80114918;
-    u8* page = lbl_802897D0;
+    u8* page = (u8*)&lbl_802897D0;
     s32 i;
     s32 j;
     char buf[16];
@@ -1495,7 +1495,7 @@ static s32 write_shop_menu(s32 player, s32 scroll);
 static s32 do_shopping_8009AA48(s32 player)
 {
     u8* pl = (u8*)gPlayers + player * 13148;
-    u8* page = lbl_802897D0;
+    u8* page = (u8*)&lbl_802897D0;
     u8* tbl = lbl_80122ED0;
     volatile s32 exit = 0;
     volatile s32 speed = 1;
@@ -2027,7 +2027,7 @@ void calc_shop_ypos(s32 player);
  * while the list is still moving. */
 static s32 write_shop_menu(s32 player, s32 scroll)
 {
-    u8* page = lbl_802897D0;
+    u8* page = (u8*)&lbl_802897D0;
     u8* pl = (u8*)gPlayers + player * 13148;
     s32 didScroll = 0;
     s32 needUp = 0;
