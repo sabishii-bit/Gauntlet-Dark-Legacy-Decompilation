@@ -530,9 +530,10 @@ class GraphSurfaceTests(unittest.TestCase):
                    for entry in result["reopen_candidates"]}
         self.assertEqual(reasons.get("attempt.moved.v1"),
                          "score_moved_since_park")
-        self.assertEqual(reasons.get("attempt.formless.v1"),
-                         "failing_form_undocumented")
-        # scheduler/regalloc parks are NOT conversion re-try candidates
+        # failing_form_undocumented is RETIRED (2026-09-01): both field
+        # hits were false positives; probed_form is the durable fix.
+        # score_moved is now the sole heuristic reopen signal.
+        self.assertNotIn("attempt.formless.v1", reasons)
         self.assertNotIn("attempt.schedpark.v1", reasons)
 
     def test_laws_tag_filter_and_vocabulary_report(self):

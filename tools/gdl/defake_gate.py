@@ -181,9 +181,26 @@ def compare(baseline, current, renames=None):
                 (name, "REGRESSION", f"real {base_real} -> {cur_real}")
             )
         elif cur_real < base_real:
-            verdicts.append(
-                (name, "IMPROVED", f"real {base_real} -> {cur_real}")
-            )
+            # Carrier-change discriminant: an equal-count opcode respell
+            # can improve real while regressing fuzzy — one such state
+            # passed this gate, ninja, AND the DOL sha1 end-to-end. When
+            # the opcode multiset changed at equal counts, the win must
+            # be arbitrated on fuzzy from a FRESH report before banking.
+            if (base.get("opset") and cur.get("opset")
+                    and base["opset"] != cur["opset"]
+                    and base.get("ti") == cur.get("ti")
+                    and base.get("bi") == cur.get("bi")):
+                verdicts.append(
+                    (name, "IMPROVED-CARRIER",
+                     f"real {base_real} -> {cur_real} BUT the opcode"
+                     " multiset changed at equal counts — arbitrate on"
+                     " fuzzy from a fresh report BEFORE banking (a real"
+                     " win of this shape regressed fuzzy end-to-end)")
+                )
+            else:
+                verdicts.append(
+                    (name, "IMPROVED", f"real {base_real} -> {cur_real}")
+                )
     renamed_targets = set(renames.values())
     for name in sorted(set(current) - set(baseline) - renamed_targets):
         verdicts.append((name, "NEW", "function absent from baseline"))
@@ -296,6 +313,9 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None):
         for name, digest in fndiff.raw_words_signature(objfile).items():
             if name in snap:
                 snap[name]["words"] = digest
+        for name, digest in fndiff.opcode_multiset_signature(objfile).items():
+            if name in snap:
+                snap[name]["opset"] = digest
     path = gate_path(unit)
     if mode == "baseline":
         path.parent.mkdir(parents=True, exist_ok=True)

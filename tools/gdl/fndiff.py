@@ -213,6 +213,27 @@ def parse(objfile: Path):
     return funcs
 
 
+def opcode_multiset_signature(objfile: Path):
+    """Per-function sha1 of the sorted opcode multiset.
+
+    The gate's carrier-change discriminant: a respell at equal count can
+    improve `real` while regressing fuzzy, and the whole gate chain
+    (gate, ninja, DOL sha1) passed one end-to-end because nothing read
+    fuzzy. A changed multiset at equal count means the CARRIER opcodes
+    changed — that state must be arbitrated on fuzzy from a fresh
+    report, never banked on real alone (claim.law.EN-equal-count-opcode-
+    respell-must-be-arbitrated-on-fuzzy-not-real).
+    """
+    import hashlib
+    table = parse(objfile)
+    out = {}
+    for name, lines in table.items():
+        ops = sorted(ln.split()[0] for ln in lines
+                     if ln and not ln.startswith("    "))
+        out[name] = hashlib.sha1("\n".join(ops).encode()).hexdigest()[:12]
+    return out
+
+
 def raw_words_signature(objfile: Path):
     """Per-function sha1 of instruction WORDS ONLY (no reloc lines).
 

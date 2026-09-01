@@ -2330,6 +2330,11 @@ def record_template(kind: str) -> dict[str, Any]:
             "attributes": {
                 "law_screen": "<REQUIRED: laws screened and whether each applied;"
                               " 'none applicable: <why>' is acceptable>",
+                "probed_form": "<OPTIONAL but STRONGLY preferred for any"
+                               " negative/capped probe: the LITERAL edited"
+                               " source text, not a paraphrase — a"
+                               " paraphrased form cost two probes to fail"
+                               " to reproduce>",
                 "laws_applied": "<OPTIONAL: JSON array string of applied law claim ids>",
                 "scope": "<OPTIONAL: files touched and change class>",
                 "verification": "<OPTIONAL: gates run and their verdicts>",
@@ -4329,20 +4334,15 @@ def attempt_staleness(
     missing: list[dict[str, Any]] = []
     reopen: list[dict[str, Any]] = []
     valid = 0
-    form_terms = ("offsetof", "typed alias", "repeated cast", "inline cast",
-                  "declared alias")
-    # form-undocumented only applies to parks about FIELD-CONVERSION work —
-    # scheduler/regalloc parks document different axes and re-probing them
-    # with offsetof forms would be noise, not signal.
-    #
-    # Bare "cast" was removed on 2026-09-01: it is not a conversion signal on
-    # its own. It fired on cited LAW IDs (cast-transit, cast-view-macro,
-    # typed-global-member-vs-view-cast) and on axis prose like "volatile cast",
-    # flagging 13 pure scheduler/regalloc parks. A genuine conversion park
-    # always also says raw offset / field / member conversion / defake.
-    conversion_terms = ("raw offset", "raw-offset", "fakematch", "defake",
-                        "field conversion", "member conversion",
-                        "member-displacement", "struct field")
+    # The failing_form_undocumented reopen reason (and its form_terms /
+    # conversion_terms heuristics) is RETIRED (2026-09-01): the five-word
+    # whitelist flagged parks that document their forms exhaustively in
+    # domain vocabulary — both live field hits were false positives with
+    # explicit do-not-retry conclusions, and two workers independently
+    # recommended retirement over extension. The durable fix is the
+    # attributes.probed_form field on attempt records (literal edited
+    # source, not paraphrase). score_moved_since_park remains the sole
+    # heuristic reopen signal.
     for row in rows:
         name = row["name"]
         score = scores.get(name)
@@ -4370,22 +4370,6 @@ def attempt_staleness(
                  "reason": "score_moved_since_park",
                  "recorded_fuzzy": float(recorded), "current_fuzzy": score}
             )
-        else:
-            # Two different questions, two different texts. "Is this park
-            # ABOUT field conversion?" is answered from substance only.
-            # "Did it document a failing FORM?" is answered from the WHOLE
-            # record, because law_screen legitimately names the forms tried.
-            body = _park_substance_text(row["attempted_axis"], row["raw_json"])
-            full = ((row["attempted_axis"] or "")
-                    + (row["raw_json"] or "")).lower()
-            if (any(_mentions_unnegated(body, term)
-                    for term in conversion_terms)
-                    and not any(term in full for term in form_terms)):
-                reopen.append(
-                    {"function": name, "record": row["record_id"],
-                     "reason": "failing_form_undocumented",
-                     "current_fuzzy": score}
-                )
         if score < 70.0:
             suspect.append(
                 {"function": name, "record": row["record_id"], "fuzzy": score}
