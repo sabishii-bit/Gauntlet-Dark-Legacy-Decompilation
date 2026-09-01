@@ -467,6 +467,7 @@ game/pb/pb_window.c:
 	extab       start:0x80007D80 end:0x80007DC0
 	extabindex  start:0x8000C490 end:0x8000C4F0
 	.text       start:0x800C8294 end:0x800C9B08
+	.rodata     start:0x80116B28 end:0x80116B70
 
 zlib/uncompr.c:
 	extab       start:0x80007DC0 end:0x80007DC8
