@@ -1212,6 +1212,60 @@ def permutation_windows(
     return list(windows), ranges
 
 
+def unpermute_target_windows(
+    target: bytes, windows: list[dict], ranges: list[tuple[int, int]]
+) -> bytes:
+    """Build the RECOLOR TARGET for a post-recolor permutation.
+
+    ``instruction_permutation`` runs before the recolor and is therefore
+    audited in OUR colouring, which is the right and only sound order for it
+    (claim.law.webfrank-permutation-is-audited-in-our-colouring).  But
+    claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-
+    our-colouring.20260901.v1 identified a class that order can never reach:
+    a displacement CAUSED BY the recolor, where the very register assignment
+    that produced the reorder is what makes the reorder illegal before the
+    registers are fixed.  C1 calls that class structurally unreachable, and
+    it is — for a permutation that runs FIRST.
+
+    It is reachable for one that runs LAST.  MEASURED on
+    game/world/camera::camera_mode_level +0x8c0, where ours is
+    ``addi r29,r4,200 ; li r4,0`` and the target is
+    ``li r4,0 ; addi r28,r28,200``: swapping in our colouring breaks a
+    def-use chain (our ``addi`` READS r4 and the ``li`` WRITES it, a WAR
+    hazard that exists only because our build colours both webs r4), while
+    the same swap in the target's colouring is between two independent
+    words and ``check_permutation_dependences`` accepts it in its strictest
+    form.
+
+    So the pipeline gains a final stage, and this function supplies what it
+    needs: the image the recolor should aim at.  Applying the permutation's
+    INVERSE to the target yields an intermediate that is a pure renaming of
+    our post-form stream — which lets the unmodified recolor stage and
+    ``verify_consistent_recolor`` prove that link exactly as they always do
+    — and the permutation then carries the intermediate to the target under
+    ``check_permutation_dependences``.  Two existing proofs again, composed
+    in the one order that makes both of them true.
+    """
+    output = bytearray(target)
+    for window, (relative_start, relative_end) in zip(windows, ranges):
+        count = (relative_end - relative_start) // 4
+        order = [_parse_int(index) for index in window["order"]]
+        if len(order) != count or sorted(order) != list(range(count)):
+            raise ValueError(
+                f"post-recolor permutation +0x{relative_start:x}.."
+                f"+0x{relative_end:x} is not a bijection"
+            )
+        # permute_instruction_atoms produces output[dest] = input[order[dest]],
+        # so the input this stage must be handed is target[dest] placed back
+        # at order[dest].
+        for destination, source in enumerate(order):
+            word = _u32(target, relative_start + destination * 4)
+            struct.pack_into(
+                ">I", output, relative_start + source * 4, word
+            )
+    return bytes(output)
+
+
 def permute_instruction_atoms(
     current: bytes,
     order: list[int],
@@ -1530,6 +1584,205 @@ def prove_constant_source(
     )
 
 
+# R_PPC_EMB_SDA21 is the one text relocation that rewrites a REGISTER field
+# rather than an immediate: it replaces the base register (shift 16) with the
+# small-data base the linker picks.  Those are the only values it can write,
+# and it touches no other field.
+_SDA21_RELOCATION = 109
+_SDA21_BASE_REGISTERS = frozenset({0, 2, 13})
+
+
+def _relocation_cannot_write(kind: int | None, source: int) -> bool:
+    """True when a relocation of *kind* provably cannot make its word write
+    GPR *source*, so the word's decoded effects may be trusted.
+
+    The blunt reading — "a relocation may rewrite register fields, so distrust
+    the whole decode" — is sound but far too coarse to be useful: it stops the
+    dataflow at every small-data access, and MWCC emits those constantly.  On
+    game/world/camera::camera_mode_level it refused four `lfs` words between
+    the ``li r30,0`` and the rewrite site, none of which can touch a GPR at
+    all.
+
+    So the question is answered per relocation type instead of by blanket
+    suspicion, and it fails closed on every type not named here:
+
+    * ``_IMMEDIATE_ONLY_RELOCATIONS`` patch an immediate or displacement and
+      leave every register field alone, so the decode stands as-is.
+    * ``R_PPC_EMB_SDA21`` rewrites exactly one field, the base register, and
+      can only ever write r0, r2 or r13 into it.  It therefore cannot
+      introduce a write of any OTHER register.  (If the pre-link decode
+      already says the word writes *source* — an update-form base — the
+      caller still resets the fact, so the conservative direction is kept.)
+    * Everything else, R_PPC_ADDR32 and R_PPC_REL32 above all, replaces the
+      whole word.  Nothing decoded from it means anything and it is refused.
+    """
+    if kind in _IMMEDIATE_ONLY_RELOCATIONS:
+        return True
+    if kind == _SDA21_RELOCATION:
+        return source not in _SDA21_BASE_REGISTERS
+    return False
+
+
+def prove_constant_dataflow(
+    words: list[int], site: int, source: int, constant: int,
+    successors: list[list[int]], calls: list[bool],
+    relocated_indexes: set[int],
+    *, relocation_types: dict | None = None, call_targets: dict | None = None,
+) -> None:
+    """Prove GPR *source* holds *constant* on entry to *site* on EVERY path.
+
+    ``prove_constant_source`` is a straight-line backward scan: it fails on
+    the first branch target, control instruction, or interposed call it
+    meets, so it can only reach a definition inside the site's own basic
+    block.  That is the right proof for a local rematerialisation, and it is
+    all the pure-form class ever needed.  The COMBINED form+recolor class
+    does need more, because its defining shape is a value the allocator
+    parked in a callee-saved register hundreds of instructions and many
+    blocks earlier — MEASURED on game/world/camera::camera_mode_level, whose
+    ``li r30,0`` sits at +0x774 and whose rewrite site is +0x8b0, with a
+    loop, several branches and a call in between.
+
+    So this is a whole-CFG forward dataflow over a two-point lattice
+    (``True`` = provably *constant*, ``False`` = unknown) with intersection
+    at merges, seeded unknown at the function entry.  It is strictly
+    stronger than the backward scan and strictly sound: a value survives to
+    the site only if EVERY path writes it with the exact
+    ``li source,constant`` and nothing afterwards disturbs it.
+
+    Every way of losing the value fails closed:
+
+    * A write of *source* that is not the exact ``li source,constant``
+      resets the fact to unknown.
+    * ``_word_effects`` raises on any instruction form it does not model, so
+      an unmodelled write can never be silently skipped.
+    * A word carrying a relocation outside ``_IMMEDIATE_ONLY_RELOCATIONS``
+      resets the fact unconditionally: its write set is decoded from
+      register fields the relocation may itself rewrite (R_PPC_EMB_SDA21
+      rewrites the base register to r2/r13), so nothing decoded from it may
+      be trusted.  A relocated word can never BE the definition either — an
+      unresolved address half is not the literal this proof requires.
+    * Calls reset the fact unless *source* is one of r14-r31 AND the call is
+      a direct, named, non-millicode ``bl``.  Indirect calls (``bctrl``,
+      ``blrl``) name no callee that could be screened for millicode, so they
+      reset it even for a callee-saved register; ``_restgpr_N``/``_restfpr_N``
+      deliberately rewrite the saved range they are named for and reset it
+      too.  The surviving case rests on the same stated ABI axiom as
+      ``_prove_call_preserves_source`` — that a named non-millicode callee
+      restores r14-r31 — which is why the proof modes using this prover are
+      named separately and must be asked for by name.
+    """
+    if not 0 <= site < len(words):
+        raise ValueError(f"constant dataflow site +0x{site * 4:x} is outside "
+                         f"the function")
+    if source == 0:
+        raise ValueError(
+            "constant dataflow refuses GPR r0 as a source: `addi rD,r0,K` is "
+            "`li rD,K` and never reads r0, so the two encodings diverge there"
+        )
+
+    holds: dict[int, bool] = {0: False}
+    pending = [0]
+    while pending:
+        index = pending.pop()
+        state = holds[index]
+        word = words[index]
+        if index in relocated_indexes and not _relocation_cannot_write(
+            (relocation_types or {}).get(index), source
+        ):
+            # The write set below is decoded from register fields this
+            # relocation may rewrite; nothing decoded from the word can be
+            # trusted, so the fact cannot survive it.
+            state = False
+        else:
+            _reads, writes = _word_effects(word)
+            if ("g", source) in writes:
+                form = decode_copy_form(word)
+                state = bool(
+                    form is not None and form[0] == "li"
+                    and form[1] == source and form[2] == constant
+                    and index not in relocated_indexes
+                )
+            if calls[index]:
+                if source not in _EABI_CALLEE_SAVED_GPRS:
+                    state = False
+                else:
+                    name = (call_targets or {}).get(index * 4)
+                    helper = _helper_call(name)
+                    if not name or helper is not None or (word >> 26) != 18 \
+                            or (word & 3) != 1:
+                        # Indirect, unnameable, or register millicode: the
+                        # callee-saved guarantee cannot be established.
+                        state = False
+        for successor in successors[index]:
+            known = holds.get(successor)
+            merged = state if known is None else (known and state)
+            if known is None or merged != known:
+                holds[successor] = merged
+                pending.append(successor)
+
+    if site not in holds:
+        raise ValueError(
+            f"+0x{site * 4:x} is not reachable from the function entry, so "
+            f"no dataflow fact reaches it"
+        )
+    if not holds[site]:
+        raise ValueError(
+            f"r{source} is not provably {constant} on every path reaching "
+            f"+0x{site * 4:x}"
+        )
+
+
+# The combined form+recolor proof modes.  They are named separately from the
+# pure-form modes so that no existing rule can drift onto them and so a rule
+# states, in its own text, that it is rewriting a word whose registers ALSO
+# change.  claim.law.WF_inverse-copy-form-is-served-and-the-payoff-inversion-
+# recurs-one-level-down.20260901.v1 measured this population at 91 sites
+# (44 forward + 47 inverse) against 7 for the two pure-form arrows together.
+_COMBINED_PROOFS = frozenset({
+    "unconditional_recolor",
+    "constant_dataflow_recolor",
+    "constant_dataflow_inverse_recolor",
+})
+
+
+def encode_copy_like(target_word: int, destination: int, source: int) -> int:
+    """Re-encode the TARGET's copy/constant word in OUR register colouring.
+
+    This is the heart of the combined stage and the reason it needs no new
+    trust.  A combined site cannot be closed by copying the target word —
+    its registers are the target's, and dropping them into our stream would
+    be a recolor that nothing has proved.  So instead the target's ENCODING
+    is rebuilt around OUR registers, which leaves a word that differs from
+    the target in register fields ONLY.  The existing, unmodified recolor
+    stage then finishes it and, critically, PROVES the renaming while doing
+    so.  The form change and the recolor are thereby discharged by two
+    separate proofs that already exist, rather than by one new one.
+
+    The caller must have established the value equivalence first; this
+    function is purely the encoder.  It never invents an encoding: the shape
+    always comes from the target word, so the result is guaranteed to reach
+    the target under a register-field copy.
+    """
+    opcode = target_word >> 26
+    if opcode == 14:  # addi: either `addi rD,rS,0` or `li rD,K`
+        if (target_word >> 16) & 0x1F == 0:  # li rD,K — no source register
+            return (14 << 26) | (destination << 21) | (target_word & 0xFFFF)
+        if source == 0:
+            raise ValueError(
+                "cannot re-encode an `addi` copy with our source r0: "
+                "`addi rD,r0,0` is `li rD,0`, not a copy of r0"
+            )
+        return (14 << 26) | (destination << 21) | (source << 16)
+    if opcode == 31 and ((target_word >> 1) & 0x3FF) == 444:  # or rA,rS,rB
+        if target_word & 1:
+            raise ValueError("cannot re-encode a record-setting `mr.`")
+        return ((31 << 26) | (source << 21) | (destination << 16)
+                | (source << 11) | (444 << 1))
+    raise ValueError(
+        f"target word 0x{target_word:08x} is not a re-encodable copy form"
+    )
+
+
 def equivalent_copy_form(
     current: bytes, target: bytes, edits: list,
     relocated_offsets: set[int], target_relocated_offsets: set[int],
@@ -1577,7 +1830,7 @@ def equivalent_copy_form(
     if len(current) != len(target) or len(current) % 4:
         raise ValueError("copy-form functions must have equal aligned sizes")
     words = [_u32(current, offset) for offset in range(0, len(current), 4)]
-    successors, _calls = _successors(
+    successors, calls = _successors(
         words,
         {offset // 4 for offset in relocated_offsets},
         {offset // 4 for offset in jumptable_offsets},
@@ -1637,7 +1890,121 @@ def equivalent_copy_form(
             )
 
         proof = edit.get("proof")
-        if theirs[0] == "copy":
+        if proof in _COMBINED_PROOFS:
+            # THE COMBINED FORM+RECOLOR STAGE.  Every mode above requires the
+            # two words' DESTINATIONS to agree, and refuses a mismatch by
+            # name as "a recolor, not a form change".  That refusal is right
+            # for a single-stage rule and it is what walls off the 91-site
+            # population where the form change and the recolor land on ONE
+            # word: the form stage sees a recolor it may not perform, and the
+            # recolor stage sees an opcode change it has no model for, so
+            # neither can take the word and no reordering of the two fixes
+            # it.
+            #
+            # The way through is to stop trying to produce the target word
+            # here.  This stage rewrites our word to the target's ENCODING
+            # carrying OUR registers, which is a pure form change and is
+            # discharged by the same value obligation as the pure modes.
+            # What comes out differs from the target in register fields
+            # only, so the UNCHANGED recolor stage completes it and proves
+            # the renaming with verify_consistent_recolor — the one
+            # component entitled to adjudicate a recolor.  Two existing
+            # proofs, composed; no new trust, and no guard relaxed.
+            if ours[0] != "copy" and ours[0] != "li":
+                raise ValueError(f"+0x{offset:x}: unsupported form {ours[0]}")
+            if proof == "unconditional_recolor":
+                # Copy -> copy.  Our word already sets rD to the contents of
+                # rS and the replacement sets the SAME rD to the SAME rS in
+                # the target's encoding, so the two are architecturally
+                # identical and there is no dataflow obligation at all --
+                # exactly the `unconditional` rationale, with the registers
+                # left for the recolor stage to prove.
+                if ours[0] != "copy" or theirs[0] != "copy":
+                    raise ValueError(
+                        f"+0x{offset:x}: \"unconditional_recolor\" needs both "
+                        f"words to decode as copies (ours {ours[0]}, target "
+                        f"{theirs[0]})"
+                    )
+                destination, source = ours[1], ours[2]
+            elif proof == "constant_dataflow_recolor":
+                # Ours `li rD,K`, target a copy: our declared source must
+                # provably hold K here.  The target's source register is the
+                # TARGET's colour and says nothing about our stream, so the
+                # rule names OUR register and the recolor stage is what
+                # proves the two correspond.
+                if ours[0] != "li" or theirs[0] != "copy":
+                    raise ValueError(
+                        f"+0x{offset:x}: \"constant_dataflow_recolor\" needs "
+                        f"our word to be a constant load and the target to be "
+                        f"a copy (ours {ours[0]}, target {theirs[0]})"
+                    )
+                if "our_source" not in edit:
+                    raise ValueError(
+                        f"+0x{offset:x}: \"constant_dataflow_recolor\" needs "
+                        f'"our_source" (the register in OUR colouring that '
+                        f"holds the constant at this site)"
+                    )
+                destination = ours[1]
+                source = _parse_int(edit["our_source"])
+                if not 0 <= source < 32:
+                    raise ValueError(
+                        f"+0x{offset:x}: our_source r{source} is out of range"
+                    )
+                prove_constant_dataflow(
+                    words, offset // 4, source, ours[2], successors, calls,
+                    relocated_indexes, relocation_types=relocation_types,
+                    call_targets=call_targets,
+                )
+            else:  # constant_dataflow_inverse_recolor
+                # Ours is the copy, the target is `li rD,K`: our OWN source
+                # must hold K here.  No declaration is needed in this
+                # direction because the source is read off our own word.
+                if ours[0] != "copy" or theirs[0] != "li":
+                    raise ValueError(
+                        f"+0x{offset:x}: "
+                        f"\"constant_dataflow_inverse_recolor\" needs our "
+                        f"word to be a copy and the target to be a constant "
+                        f"load (ours {ours[0]}, target {theirs[0]})"
+                    )
+                destination, source = ours[1], ours[2]
+                prove_constant_dataflow(
+                    words, offset // 4, source, theirs[2], successors, calls,
+                    relocated_indexes, relocation_types=relocation_types,
+                    call_targets=call_targets,
+                )
+            if source == 0:
+                raise ValueError(
+                    f"+0x{offset:x}: our word's source is GPR r0, whose "
+                    f"encoding asymmetry this class refuses"
+                )
+            wanted = encode_copy_like(wanted, destination, source)
+            if wanted == word:
+                raise ValueError(
+                    f"+0x{offset:x}: re-encoding is a no-op, so this site is "
+                    f"a pure recolor and belongs to the recolor stage"
+                )
+            # The whole composition rests on this: what we write must differ
+            # from the target in REGISTER FIELDS ONLY, or the recolor stage
+            # cannot finish the word and cannot be the thing that proves it.
+            target_word = _u32(target, offset)
+            if (wanted ^ target_word) & ~register_slot_mask(wanted):
+                raise ValueError(
+                    f"+0x{offset:x}: re-encoded word 0x{wanted:08x} differs "
+                    f"from the target 0x{target_word:08x} outside its "
+                    f"register fields, so the recolor stage could not "
+                    f"complete it"
+                )
+            expected_form = (
+                ("li", destination, theirs[2]) if theirs[0] == "li"
+                else ("copy", destination, source)
+            )
+            check = decode_copy_form(wanted)
+            if check != expected_form:
+                raise ValueError(
+                    f"+0x{offset:x}: re-encoded word 0x{wanted:08x} decodes "
+                    f"as {check}, not the intended {expected_form}"
+                )
+        elif theirs[0] == "copy":
             _kind, destination, source = theirs
             if source == 0:
                 raise ValueError(
@@ -1994,6 +2361,93 @@ def apply_patch(
         or patch.get("register_fields")
     )
 
+    # A combined form+recolor edit leaves a word that is DELIBERATELY not the
+    # target word: it carries the target's encoding around our registers, and
+    # only the recolor stage's proof turns it into the target.  Both halves of
+    # that sentence are load-bearing preconditions, so both are asserted here
+    # rather than left to the after-hash to catch by accident.
+    combined = [
+        edit for edit in (patch.get("equivalent_copy_form") or [])
+        if edit.get("proof") in _COMBINED_PROOFS
+    ]
+    if combined:
+        if not register_stage:
+            raise ValueError(
+                f"{symbol.name}: a combined form+recolor edit requires a "
+                f"register stage in the same patch — the re-encoded word is "
+                f"left in OUR colouring and only the recolor completes it"
+            )
+        if patch.get("unproven_recolor_audit"):
+            raise ValueError(
+                f"{symbol.name}: a combined form+recolor edit may not ride on "
+                f"\"unproven_recolor_audit\" — the form rewrite is justified "
+                f"ONLY by the recolor being machine-proven, so an audit "
+                f"escape would launder an unproven renaming into a "
+                f"value-changing opcode rewrite"
+            )
+
+    # The post-recolor permutation stage.  When present, the recolor must aim
+    # at the INTERMEDIATE image (the target with this permutation undone),
+    # because the recolor's job is to prove a pure renaming and the permuted
+    # target is not one.
+    post_permutation = patch.get("post_recolor_permutation")
+    post_windows: list = []
+    post_ranges: list = []
+    recolor_target: bytes | None = None
+    if post_permutation:
+        if target_data is None:
+            raise ValueError(f"{symbol.name}: target object is required")
+        if not register_stage:
+            raise ValueError(
+                f"{symbol.name}: a post-recolor permutation requires a "
+                f"register stage — it exists to run AFTER the recolor"
+            )
+        if patch.get("unproven_recolor_audit"):
+            raise ValueError(
+                f"{symbol.name}: a post-recolor permutation may not ride on "
+                f"\"unproven_recolor_audit\": the permutation is audited in "
+                f"the TARGET colouring, which is only reached by the recolor "
+                f"being machine-proven"
+            )
+        target_sections = _sections(target_data)
+        target_symbol = _find_symbol(target_data, target_sections, symbol.name)
+        if target_symbol.size != symbol.size:
+            raise ValueError(
+                f"{symbol.name}: target/current function size mismatch "
+                f"({target_symbol.size} != {symbol.size})"
+            )
+        target_text = target_sections[target_symbol.section_index]
+        target_start = target_text.offset + target_symbol.value
+        target_function = target_data[
+            target_start:target_start + target_symbol.size
+        ]
+        target_relocations = _function_text_relocations(
+            target_data, target_sections, target_symbol.section_index,
+            target_symbol.value, target_symbol.value + target_symbol.size,
+        )
+        post_windows, post_ranges = permutation_windows(
+            post_permutation, symbol.size
+        )
+        # This stage deliberately refuses a window carrying ANY relocation in
+        # either object.  Moving a relocation is sound and the first stage
+        # does it, but it needs the binding proof
+        # (verify_relocation_binding) that stage carries, and no measured
+        # post-recolor site has one.  Refusing keeps the new surface to
+        # exactly what is exercised; a relocated site is a separate, audited
+        # extension rather than something this stage silently attempts.
+        for relative_start, relative_end in post_ranges:
+            for offset in list(relocated_offsets) + list(target_relocations):
+                if relative_start <= offset < relative_end:
+                    raise ValueError(
+                        f"{symbol.name}: post-recolor permutation window "
+                        f"+0x{relative_start:x}..+0x{relative_end:x} contains "
+                        f"a relocation at +0x{offset:x}; this stage accepts "
+                        f"only relocation-free windows"
+                    )
+        recolor_target = unpermute_target_windows(
+            target_function, post_windows, post_ranges
+        )
+
     if patch.get("copy_register_fields"):
         if target_data is None:
             raise ValueError(f"{symbol.name}: target object is required")
@@ -2006,7 +2460,8 @@ def apply_patch(
         if _sha256(target_function) != patch["after_sha256"]:
             raise ValueError(f"{symbol.name}: target function hash changed")
         recolored, field_changes = copy_register_fields(
-            bytes(data[start:end]), target_function
+            bytes(data[start:end]),
+            target_function if recolor_target is None else recolor_target,
         )
         data[start:end] = recolored
         changed += field_changes
@@ -2055,17 +2510,16 @@ def apply_patch(
             struct.pack_into(">I", data, offset, recolored)
             changed += 1
 
-    after = _sha256(data[start:end])
-    if after != patch["after_sha256"]:
-        raise ValueError(
-            f"{symbol.name}: output hash {after} != expected {patch['after_sha256']}"
-        )
-
-    final_function = bytes(data[start:end])
+    # The recolor is verified against the image the recolor stage actually
+    # produced, which with a post-recolor permutation is the INTERMEDIATE and
+    # not the final function.  Verifying the final one instead would ask
+    # verify_consistent_recolor to read a permuted stream position by
+    # position, which it has no model for and would refuse.
+    recolor_image = bytes(data[start:end])
     if register_stage:
         try:
             verify_consistent_recolor(
-                pre_register, final_function,
+                pre_register, recolor_image,
                 jumptable_targets=jumptable_offsets,
                 relocated_offsets=relocated_offsets,
                 call_targets=call_targets,
@@ -2083,6 +2537,38 @@ def apply_patch(
                 f"WEBFRANK {symbol.name}: UNPROVEN recolor equivalence "
                 f"accepted by audit ({error}) — {audit}"
             )
+
+    # Now, and only now, the target colouring exists in the object and the
+    # permutation that was illegal in ours can be audited.  exit_dead is
+    # deliberately NOT offered here: this stage gets the strictest form of
+    # check_permutation_dependences, with no escape for a moved final write.
+    for window, (relative_start, relative_end) in zip(post_windows,
+                                                      post_ranges):
+        region = bytes(data[start + relative_start:start + relative_end])
+        no_relocations = _relocation_sha256([])
+        permuted, _moved_records, moved = permute_instruction_atoms(
+            region,
+            [_parse_int(index) for index in window["order"]],
+            [],
+            before_sha256=_sha256(region),
+            after_sha256=_sha256(bytes(
+                target_function[relative_start:relative_end]
+            )),
+            before_relocations_sha256=no_relocations,
+            after_relocations_sha256=no_relocations,
+            exit_dead=None,
+        )
+        data[start + relative_start:start + relative_end] = permuted
+        changed += moved
+
+    after = _sha256(data[start:end])
+    if after != patch["after_sha256"]:
+        raise ValueError(
+            f"{symbol.name}: output hash {after} != expected "
+            f"{patch['after_sha256']}"
+        )
+    final_function = bytes(data[start:end])
+
     if deferred_exit:
         words_raw = [
             _u32(original_function, off)

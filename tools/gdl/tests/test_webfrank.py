@@ -1,18 +1,25 @@
 import unittest
 
 from tools.gdl.webfrank import (
+    _entry_indexes,
     _parse_int,
+    _relocation_cannot_write,
     _relocation_sha256,
     _sha256,
+    _successors,
     check_permutation_dependences,
     copy_register_fields,
     decode_copy_form,
+    encode_copy_like,
     equivalent_copy_form,
     instruction_operands,
     permutation_windows,
     permute_instruction_atoms,
+    prove_constant_dataflow,
+    prove_constant_source,
     recolor_instruction,
     register_slot_mask,
+    unpermute_target_windows,
     verify_consistent_recolor,
     verify_relocation_binding,
 )
@@ -1776,6 +1783,435 @@ class RelocationBindingTests(unittest.TestCase):
         )
         self.assertEqual(output, permuted)
         self.assertEqual(moved_relocations, after)
+
+
+# ---------------------------------------------------------------------------
+# The combined form+recolor stage.
+#
+# Words taken verbatim from the two proving functions:
+#   game/world/camera::camera_mode_level +0x8b0  li r27,0  /  mr r29,r30
+#   game/world/camera::camera_mode_level +0x8c0  the swap-plus-recolor pair
+#   game/movie/movieplayer::fn_800D8F28 +0x00ec  addi r26,r28,0 / mr r26,r27
+# ---------------------------------------------------------------------------
+
+LI_R27_0 = 0x3B600000        # li r27,0        camera +0x8b0, ours
+MR_R29_R30 = 0x7FDDF378      # mr r29,r30      camera +0x8b0, target
+MR_R27_R30 = 0x7FDBF378      # mr r27,r30      the re-encoding in OUR colours
+ADDI_R26_R28 = 0x3B5C0000    # addi r26,r28,0  fn_800D8F28 +0xec, ours
+MR_R26_R27 = 0x7F7ADB78      # mr r26,r27      fn_800D8F28 +0xec, target
+MR_R26_R28 = 0x7F9AE378      # mr r26,r28      the re-encoding in OUR colours
+ADD_R4_R31_R27 = 0x7C9FDA14  # add r4,r31,r27  camera +0x8b8, ours
+ADD_R28_R31_R29 = 0x7F9FEA14  # add r28,r31,r29  camera +0x8b8, target
+ADDI_R29_R4_200 = 0x3BA400C8  # addi r29,r4,200  camera +0x8c0, ours
+ADDI_R28_R28_200 = 0x3B9C00C8  # addi r28,r28,200  camera +0x8c4, target
+LI_R4_0 = 0x38800000         # li r4,0
+LI_R30_0 = 0x3BC00000        # li r30,0        camera +0x774
+LI_R27_5 = 0x3B600005
+LI_R29_5 = 0x3BA00005
+CMPWI_R3_0 = 0x2C030000
+BNE_PLUS_8 = 0x40820008
+BL_FORWARD = 0x48000011      # bl +0x10 (relocated in practice)
+BCTRL = 0x4E800421
+RESTGPR_CALL = 0x48000009    # bl, screened by name
+
+
+class CombinedFormRecolorTests(unittest.TestCase):
+    """The 91-site population: a word that is a form change AND a recolor.
+
+    Every mode that existed before refuses these by name ("that is a recolor,
+    not a form change").  The combined modes do not copy the target word —
+    they re-encode it around OUR registers and leave the renaming to the
+    unchanged recolor stage.
+    """
+
+    def rewrite(self, current, target, edits, **overrides):
+        arguments = {
+            "relocated_offsets": set(),
+            "target_relocated_offsets": set(),
+            "jumptable_offsets": set(),
+        }
+        arguments.update(overrides)
+        return equivalent_copy_form(current, target, edits, **arguments)
+
+    # ---- unconditional_recolor: copy -> copy, no dataflow obligation ----
+
+    def test_fn_800d8f28_source_recolor_re_encodes_in_our_colouring(self):
+        """The real site: destination already agrees, only the source moves."""
+        current = _words(ADDI_R26_R28, BLR)
+        target = _words(MR_R26_R27, BLR)
+        output, changed = self.rewrite(
+            current, target, [{"at": 0, "proof": "unconditional_recolor"}]
+        )
+        self.assertEqual(changed, 1)
+        # NOT the target word: our r28 is preserved, the encoding is theirs.
+        self.assertEqual(output, _words(MR_R26_R28, BLR))
+        self.assertNotEqual(output, target)
+
+    def test_re_encoded_word_differs_from_target_in_register_fields_only(self):
+        """The property the whole composition rests on: whatever this stage
+        writes must be completable by copy_register_fields alone."""
+        current = _words(ADDI_R26_R28, BLR)
+        target = _words(MR_R26_R27, BLR)
+        output, _ = self.rewrite(
+            current, target, [{"at": 0, "proof": "unconditional_recolor"}]
+        )
+        word = int.from_bytes(output[:4], "big")
+        self.assertEqual((word ^ MR_R26_R27) & ~register_slot_mask(word), 0)
+        # And the recolor stage really does finish it.
+        recolored, _ = copy_register_fields(output, target)
+        self.assertEqual(recolored, target)
+
+    def test_unconditional_recolor_refuses_a_constant_load(self):
+        current = _words(LI_R27_0, BLR)
+        target = _words(MR_R29_R30, BLR)
+        with self.assertRaisesRegex(ValueError, "needs both words to decode"):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "unconditional_recolor"}]
+            )
+
+    def test_unconditional_recolor_refuses_our_r0_source(self):
+        """`mr rD,r0` copies GPR 0; re-encoding it as `addi rD,r0,0` would
+        silently become `li rD,0`.  The asymmetry stays refused."""
+        current = _words(MR_R23_R0, BLR)
+        target = _words(0x3AE30000, BLR)  # addi r23,r3,0
+        with self.assertRaisesRegex(ValueError, "source is GPR r0"):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "unconditional_recolor"}]
+            )
+
+    def test_pure_recolor_site_is_refused_as_a_no_op_re_encoding(self):
+        """Same encoding on both sides: nothing for a FORM stage to do, so it
+        must be sent to the recolor stage rather than quietly accepted."""
+        current = _words(MR_R26_R28, BLR)
+        target = _words(MR_R26_R27, BLR)
+        with self.assertRaisesRegex(ValueError, "re-encoding is a no-op"):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "unconditional_recolor"}]
+            )
+
+    # ---- constant_dataflow_recolor: ours `li`, target a copy ----
+
+    def camera_site(self):
+        """camera_mode_level's shape in miniature: the constant is parked in a
+        callee-saved register before a branch, and the rewrite site is the
+        branch's own target — so no straight-line scan can reach it."""
+        current = _words(LI_R30_0, CMPWI_R3_0, BNE_PLUS_8, NOP,
+                         LI_R27_0, BLR)
+        target = _words(LI_R30_0, CMPWI_R3_0, BNE_PLUS_8, NOP,
+                        MR_R29_R30, BLR)
+        return current, target
+
+    def test_camera_site_closes_with_the_dataflow_proof(self):
+        current, target = self.camera_site()
+        output, changed = self.rewrite(
+            current, target,
+            [{"at": 0x10, "proof": "constant_dataflow_recolor",
+              "our_source": 30}],
+        )
+        self.assertEqual(changed, 1)
+        self.assertEqual(int.from_bytes(output[0x10:0x14], "big"), MR_R27_R30)
+
+    def test_the_same_site_is_unreachable_for_the_straight_line_scan(self):
+        """Evidence that the new prover is not redundant with the old one."""
+        current, _ = self.camera_site()
+        words = [int.from_bytes(current[o:o + 4], "big")
+                 for o in range(0, len(current), 4)]
+        successors, _calls = _successors(words, set(), set())
+        with self.assertRaisesRegex(ValueError, "branch target"):
+            prove_constant_source(
+                words, 4, 30, 0, _entry_indexes(successors), set()
+            )
+
+    def test_dataflow_recolor_needs_our_source_named(self):
+        current, target = self.camera_site()
+        with self.assertRaisesRegex(ValueError, '"our_source"'):
+            self.rewrite(
+                current, target,
+                [{"at": 0x10, "proof": "constant_dataflow_recolor"}],
+            )
+
+    def test_dataflow_recolor_refuses_a_source_that_does_not_hold_it(self):
+        current, target = self.camera_site()
+        with self.assertRaisesRegex(ValueError, "not provably 0"):
+            self.rewrite(
+                current, target,
+                [{"at": 0x10, "proof": "constant_dataflow_recolor",
+                  "our_source": 29}],
+            )
+
+    def test_dataflow_recolor_refuses_when_one_path_clobbers_the_constant(self):
+        current = _words(LI_R30_0, CMPWI_R3_0, BNE_PLUS_8, 0x3BC00007,
+                         LI_R27_0, BLR)  # the fallthrough sets r30 to 7
+        target = _words(LI_R30_0, CMPWI_R3_0, BNE_PLUS_8, 0x3BC00007,
+                        MR_R29_R30, BLR)
+        with self.assertRaisesRegex(ValueError, "not provably 0"):
+            self.rewrite(
+                current, target,
+                [{"at": 0x10, "proof": "constant_dataflow_recolor",
+                  "our_source": 30}],
+            )
+
+    # ---- constant_dataflow_inverse_recolor: ours a copy, target `li` ----
+
+    def test_inverse_recolor_re_encodes_as_our_constant_load(self):
+        current = _words(LI_R30_0, MR_R27_R30, BLR)
+        target = _words(LI_R30_0, LI_R29_0, BLR)
+        output, changed = self.rewrite(
+            current, target,
+            [{"at": 4, "proof": "constant_dataflow_inverse_recolor"}],
+        )
+        self.assertEqual(changed, 1)
+        # Our destination r27 kept; the target's constant adopted.
+        self.assertEqual(int.from_bytes(output[4:8], "big"), LI_R27_0)
+
+    def test_inverse_recolor_refuses_a_source_holding_another_constant(self):
+        current = _words(0x3BC00007, MR_R27_R30, BLR)  # li r30,7
+        target = _words(0x3BC00007, LI_R29_0, BLR)
+        with self.assertRaisesRegex(ValueError, "not provably 0"):
+            self.rewrite(
+                current, target,
+                [{"at": 4, "proof": "constant_dataflow_inverse_recolor"}],
+            )
+
+    def test_inverse_recolor_refuses_a_constant_load_on_our_side(self):
+        current = _words(LI_R27_0, BLR)
+        target = _words(LI_R29_5, BLR)
+        with self.assertRaisesRegex(ValueError, "needs our word to be a copy"):
+            self.rewrite(
+                current, target,
+                [{"at": 0, "proof": "constant_dataflow_inverse_recolor"}],
+            )
+
+    # ---- no drift onto or away from the pure modes ----
+
+    def test_pure_modes_still_refuse_a_destination_mismatch(self):
+        """The combined modes must be asked for BY NAME; the old labels keep
+        their old refusal so no shipped rule can drift onto the new path."""
+        current = _words(LI_R27_0, BLR)
+        target = _words(MR_R29_R30, BLR)
+        for label in ("dominating_def", "dominating_def_across_calls",
+                      "unconditional"):
+            with self.assertRaisesRegex(ValueError, "destination differs"):
+                self.rewrite(current, target, [{"at": 0, "proof": label}])
+
+    def test_unknown_combined_label_is_still_rejected(self):
+        current = _words(ADDI_R26_R28, BLR)
+        target = _words(MR_R26_R27, BLR)
+        with self.assertRaises(ValueError):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "recolor_please"}]
+            )
+
+
+class ConstantDataflowProverTests(unittest.TestCase):
+    """The value obligation, proved over the whole CFG instead of one block."""
+
+    def prove(self, words, site, source, constant, **overrides):
+        successors, calls = _successors(
+            words, overrides.pop("relocated", set()), set()
+        )
+        arguments = {"relocation_types": None, "call_targets": None}
+        arguments.update(overrides)
+        return prove_constant_dataflow(
+            words, site, source, constant, successors, calls,
+            overrides.get("relocated_indexes", set()), **{
+                k: v for k, v in arguments.items()
+                if k in ("relocation_types", "call_targets")
+            }
+        )
+
+    def test_constant_survives_a_diamond_when_both_arms_preserve_it(self):
+        words = [LI_R30_0, CMPWI_R3_0, BNE_PLUS_8, NOP, LI_R27_0, BLR]
+        self.prove(words, 4, 30, 0)
+
+    def test_volatile_source_is_killed_by_any_call(self):
+        # li r3,0 ; bl ; li r27,0 — r3 is volatile, the call may clobber it.
+        words = [LI_R3_0, BL_FORWARD, LI_R27_0, BLR]
+        with self.assertRaisesRegex(ValueError, "not provably 0"):
+            self.prove(words, 2, 3, 0,
+                       call_targets={4: "someFunction"})
+
+    def test_callee_saved_source_survives_a_direct_named_call(self):
+        words = [LI_R30_0, BL_FORWARD, LI_R27_0, BLR]
+        self.prove(words, 2, 30, 0, call_targets={4: "someFunction"})
+
+    def test_callee_saved_source_does_not_survive_an_indirect_call(self):
+        """bctrl names no callee, so it cannot be screened for millicode."""
+        words = [LI_R30_0, BCTRL, LI_R27_0, BLR]
+        with self.assertRaisesRegex(ValueError, "not provably 0"):
+            self.prove(words, 2, 30, 0)
+
+    def test_callee_saved_source_does_not_survive_restore_millicode(self):
+        words = [LI_R30_0, RESTGPR_CALL, LI_R27_0, BLR]
+        with self.assertRaisesRegex(ValueError, "not provably 0"):
+            self.prove(words, 2, 30, 0, call_targets={4: "_restgpr_29"})
+
+    def test_unnamed_call_is_refused_even_for_a_callee_saved_source(self):
+        words = [LI_R30_0, BL_FORWARD, LI_R27_0, BLR]
+        with self.assertRaisesRegex(ValueError, "not provably 0"):
+            self.prove(words, 2, 30, 0, call_targets={})
+
+    def test_relocated_definition_is_never_the_literal(self):
+        words = [LI_R30_0, LI_R27_0, BLR]
+        with self.assertRaisesRegex(ValueError, "not provably 0"):
+            prove_constant_dataflow(
+                words, 1, 30, 0,
+                *_successors(words, {0}, set()), {0},
+                relocation_types={0: 3},
+            )
+
+    def test_sda21_word_is_stepped_over_for_an_ordinary_source(self):
+        """R_PPC_EMB_SDA21 rewrites ONLY the base register field and can only
+        write r0/r2/r13 there, so it cannot introduce a write of r30.  Four
+        such `lfs` words sit between camera_mode_level's `li r30,0` and its
+        rewrite site; refusing them blanket-fashion refuses the function."""
+        words = [LI_R30_0, 0x80000000, LI_R27_0, BLR]
+        prove_constant_dataflow(
+            words, 2, 30, 0,
+            *_successors(words, {4}, set()), {1},
+            relocation_types={1: 109},
+        )
+
+    def test_sda21_word_still_resets_a_small_data_base_source(self):
+        """The one case SDA21 really can write: r13 itself."""
+        words = [0x39A00000, 0x80000000, LI_R27_0, BLR]  # li r13,0
+        with self.assertRaisesRegex(ValueError, "not provably 0"):
+            prove_constant_dataflow(
+                words, 2, 13, 0,
+                *_successors(words, {4}, set()), {1},
+                relocation_types={1: 109},
+            )
+
+    def test_whole_word_relocation_always_resets_the_fact(self):
+        """R_PPC_ADDR32 replaces the entire word; nothing decoded from it
+        means anything, so it fails closed whatever the source register."""
+        words = [LI_R30_0, 0x80000000, LI_R27_0, BLR]
+        with self.assertRaisesRegex(ValueError, "not provably 0"):
+            prove_constant_dataflow(
+                words, 2, 30, 0,
+                *_successors(words, {4}, set()), {1},
+                relocation_types={1: 1},
+            )
+
+    def test_relocation_trust_is_decided_per_type(self):
+        self.assertTrue(_relocation_cannot_write(4, 30))    # ADDR16_LO
+        self.assertTrue(_relocation_cannot_write(10, 30))   # REL24
+        self.assertTrue(_relocation_cannot_write(109, 30))  # SDA21, ordinary
+        self.assertFalse(_relocation_cannot_write(109, 13))  # SDA21, the base
+        self.assertFalse(_relocation_cannot_write(109, 2))
+        self.assertFalse(_relocation_cannot_write(1, 30))   # ADDR32
+        self.assertFalse(_relocation_cannot_write(None, 30))
+        self.assertFalse(_relocation_cannot_write(26, 30))  # unmodelled
+
+    def test_immediate_only_relocation_in_the_path_is_stepped_over(self):
+        words = [LI_R30_0, 0x80000000, LI_R27_0, BLR]
+        prove_constant_dataflow(
+            words, 2, 30, 0,
+            *_successors(words, {4}, set()), {1},
+            relocation_types={1: 4},
+        )
+
+    def test_r0_source_is_refused_outright(self):
+        words = [LI_R30_0, LI_R27_0, BLR]
+        with self.assertRaisesRegex(ValueError, "refuses GPR r0"):
+            self.prove(words, 1, 0, 0)
+
+    def test_site_outside_the_function_is_refused(self):
+        words = [LI_R30_0, BLR]
+        with self.assertRaisesRegex(ValueError, "outside the function"):
+            self.prove(words, 9, 30, 0)
+
+
+class EncodeCopyLikeTests(unittest.TestCase):
+    def test_mr_encoding_is_rebuilt_around_our_registers(self):
+        self.assertEqual(encode_copy_like(MR_R29_R30, 27, 30), MR_R27_R30)
+
+    def test_addi_copy_encoding_is_rebuilt_around_our_registers(self):
+        # target `addi r23,r6,0` re-encoded as `addi r29,r3,0`
+        self.assertEqual(encode_copy_like(ADDI_R23_R6, 29, 3), ADDI_R29_R3)
+
+    def test_constant_load_keeps_the_targets_immediate(self):
+        self.assertEqual(encode_copy_like(LI_R29_5, 27, 30), LI_R27_5)
+
+    def test_addi_copy_with_our_r0_source_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "our source r0"):
+            encode_copy_like(ADDI_R23_R6, 29, 0)
+
+    def test_non_copy_word_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "not a re-encodable"):
+            encode_copy_like(BLR, 29, 30)
+
+
+class PostRecolorPermutationTests(unittest.TestCase):
+    """claim.law.C1's structurally-unreachable class, reached by moving the
+    permutation to the far side of the recolor."""
+
+    OURS = (LI_R27_5, ADD_R4_R31_R27, ADDI_R29_R4_200, LI_R4_0, BLR)
+    TARGET = (LI_R29_5, ADD_R28_R31_R29, LI_R4_0, ADDI_R28_R28_200, BLR)
+    WINDOW = (0x08, 0x10)
+
+    def test_the_swap_is_illegal_in_our_colouring(self):
+        """C1's step-0 membership test, reproduced: our build colours both
+        webs r4, so the swap is a genuine WAR hazard."""
+        region = _words(*self.OURS[2:4])
+        with self.assertRaisesRegex(ValueError, "breaks def-use chains"):
+            check_permutation_dependences(region, [1, 0], None)
+
+    def test_the_same_swap_is_legal_in_the_target_colouring(self):
+        intermediate = unpermute_target_windows(
+            _words(*self.TARGET), [{"order": [1, 0]}], [self.WINDOW]
+        )
+        region = intermediate[self.WINDOW[0]:self.WINDOW[1]]
+        check_permutation_dependences(region, [1, 0], None)
+
+    def test_unpermuting_the_target_yields_a_pure_renaming_of_ours(self):
+        """The point of the intermediate: it restores position correspondence
+        so the UNCHANGED recolor guard can adjudicate the link."""
+        intermediate = unpermute_target_windows(
+            _words(*self.TARGET), [{"order": [1, 0]}], [self.WINDOW]
+        )
+        verify_consistent_recolor(_words(*self.OURS), intermediate)
+        recolored, _ = copy_register_fields(_words(*self.OURS), intermediate)
+        self.assertEqual(recolored, intermediate)
+
+    def test_the_final_permutation_reaches_the_target_exactly(self):
+        intermediate = unpermute_target_windows(
+            _words(*self.TARGET), [{"order": [1, 0]}], [self.WINDOW]
+        )
+        region = intermediate[self.WINDOW[0]:self.WINDOW[1]]
+        expected = _words(*self.TARGET)[self.WINDOW[0]:self.WINDOW[1]]
+        output, _relocations, moved = permute_instruction_atoms(
+            region, [1, 0], [],
+            before_sha256=_sha256(region),
+            after_sha256=_sha256(expected),
+            before_relocations_sha256=_relocation_sha256([]),
+            after_relocations_sha256=_relocation_sha256([]),
+            exit_dead=None,
+        )
+        self.assertEqual(output, expected)
+        self.assertEqual(moved, 2)
+
+    def test_verifying_the_recolor_against_the_FINAL_image_would_refuse(self):
+        """Why the verify had to move ahead of the permutation: the permuted
+        target is not a position-consistent renaming of our stream."""
+        with self.assertRaises(ValueError):
+            verify_consistent_recolor(_words(*self.OURS), _words(*self.TARGET))
+
+    def test_unpermute_refuses_a_non_bijection(self):
+        with self.assertRaisesRegex(ValueError, "not a bijection"):
+            unpermute_target_windows(
+                _words(*self.TARGET), [{"order": [1, 1]}], [self.WINDOW]
+            )
+
+    def test_identity_order_round_trips_and_changes_nothing(self):
+        """The identity-order trap (claim.CN_census-rerun-canary-validated-
+        filter): an identity window is a no-op, never a mechanism."""
+        target = _words(*self.TARGET)
+        self.assertEqual(
+            unpermute_target_windows(target, [{"order": [0, 1]}],
+                                     [self.WINDOW]),
+            target,
+        )
 
 
 if __name__ == "__main__":
