@@ -1271,26 +1271,36 @@ void get_cam_wpos_8002ABE0(s32 camIdx)
 
     if (gNumTransmitters == 0 && lbl_803443F8 <= 0) {
         s32 mode = lbl_80344538;
-        f64 yawMin = -3.141592654;
-        f64 yawRange = 6.283185308;
-        f64 yawStep = 1.570796327;
-        f64 yawMax = 3.141592654;
         for (i = 0; i < 4; i++) {
             camState[i] = 0;
         }
+        {
+        f32 lat = lbl_80345EC8;
+        f64 yawMax = lbl_80345F58;
+        f64 yawMin = lbl_80345F68;
+        f64 yawRange = lbl_80345F60;
+        f64 yawStep = lbl_80346180;
         for (i = 0; i < 4; i++) {
             f64 y;
-            place_cam(cam, mat, in, out);
+            CreateYPRMatrix(mat, cam->pyr);
+            in[0] = lat;
+            in[1] = lat;
+            in[2] = cam->radius;
+            WorldVector(in, &out[6], mat);
+            cam->wpos[0] = cam->attn[0] + out[6];
+            cam->wpos[1] = cam->attn[1] + out[7];
+            cam->wpos[2] = cam->attn[2] + out[8];
             camState[mode] = cam_blocked(cam);
             cam->pyr[1] = (f32)((f64)cam->pyr[1] + yawStep);
             y = cam->pyr[1];
             if (y > yawMax) {
-                y -= yawRange;
+                y = y - yawRange;
             } else if (y <= yawMin) {
                 y = yawRange + y;
             }
             mode = mode & 3;
             cam->pyr[1] = (f32)y;
+        }
         }
         if (camState[lbl_80344538] != 0) {
             s32 adj = (lbl_80344538 - 1) & 3;
