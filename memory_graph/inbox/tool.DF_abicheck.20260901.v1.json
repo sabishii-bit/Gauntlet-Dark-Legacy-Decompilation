@@ -1,0 +1,12 @@
+{
+  "id": "tool.DF_abicheck.20260901.v1",
+  "kind": "tool",
+  "name": "abicheck",
+  "purpose": "Register-level cross-TU prototype defect detector: models PPC EABI argument assignment and keeps only the prototype disagreements that actually move an argument register.",
+  "recorded_at": "2026-09-01T15:43:52Z",
+  "schema_version": 1,
+  "status": "active",
+  "tool_key": "tool:abicheck",
+  "tool_kind": "py",
+  "valid_from": "2026-09-01"
+}
