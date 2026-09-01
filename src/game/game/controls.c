@@ -1611,10 +1611,10 @@ void ControlsUpdate(void)
     lbl_803445E4 = 300;
     lbl_803445F4 = 1;
     if (lbl_803445EC != 0) {
-        if (lbl_803445DC == 0) {
-            serve_mtap(0);
-        } else {
+        if (lbl_803445DC != 0) {
             serve_mtap(1);
+        } else {
+            serve_mtap(0);
         }
     }
     step = gClockStepTicks;
