@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "entry-schedule",
+      "store-placement",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.destructor-throw-spec-adds-a-second-unexpected-island.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T00:33:16Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "REFINES claim.law.destructor-implicit-return-this-places-the-return-move-in-the-epilogue.20260831.v1, which is CORRECT that only a real destructor puts the `mr r3,<this>` in the epilogue but INCOMPLETE as a recipe: destructor-ness ALONE does not reproduce the target, and the naive spelling overshoots. THE COMPLETE RECIPE, measured 2026-09-01 against dtor_800DB21C (now __dt__15MoviePlayerBaseFv, EXACT 32/32) with the project's GC/1.2.5 mwcceppc at the movieplayer cflags: (1) the destructor must carry NO exception specification. An empty `throw()` ON THE DESTRUCTOR ITSELF emits a SECOND __unexpected island and grows the frame 48 -> 72 (measured: variant with throw() gave two islands at r31+16 and r31+40 and, critically, still emitted `mr r3,r30` EARLY at the end of the body -- so the throw() spelling also DEFEATS the very epilogue placement one is chasing). Dropping throw() from the destructor collapsed it to one island, frame 48, and moved the return copy into the epilogue between `lwz r0,52(r31)` and `lmw r30,40(r12)`. (2) The EH scaffolding the target does have comes instead from the INLINED global `operator delete`, which must be defined as a REAL operator WITH `throw()`, textually BEFORE the destructor so MWCC can inline it into the compiler-synthesised deleting branch. Each inlined `operator delete` contributes exactly one __unexpected island -- so count the target's islands to predict how many delete calls are inlined. (3) Spell the destructor NON-VIRTUAL even when the class is genuinely polymorphic, and keep the vptr store as an explicit `*(u32*)this = (u32)<vtable label>;` in the body. CodeWarrior gives EVERY destructor -- virtual or not -- the hidden `short` in-charge parameter and the synthesised `if (in_charge > 0) operator delete(this)` branch, so the non-virtual spelling produces an IDENTICAL instruction stream while NOT emitting a `__vt__` object into the TU; the virtual spelling emits one and relocates against it instead of the target's real vtable label, which is wrong whenever that vtable lives outside the TU's split. (4) Do NOT hand-write the deleting branch: it is synthesised, and writing it too yields it twice. INDEPENDENT CONFIRMATION of (3): this TU's dtor_800DBB94 appears in no vtable, is therefore non-virtual, and still carries the in-charge parameter and the deleting branch. SIDE EFFECT WORTH HARVESTING: converting the C stand-ins spelled with mangled names (`void __dl__FPv(void*)`) into genuine `operator delete`/`operator delete[]` with `throw()` gave those two functions the EH scaffolding they were missing and flipped BOTH from real 18 to EXACT in the same edit -- so when a TU fakes the operator-delete pair as C functions, converting them is a free pair of exacts, not just a prerequisite."
+}
