@@ -23,6 +23,8 @@ corrections applied and a THIRD class none of them modelled.
 """
 import json
 import os
+import re
+import subprocess
 import sys
 import traceback
 
@@ -46,14 +48,58 @@ import hv_perm as hv           # noqa: E402
 import hv_repair as hr         # noqa: E402
 import cn_census as census     # noqa: E402
 
-# TUs owned by OTHER lanes this run, read from `gdlmem claims` at run 31:
-# memcard (WS), movieplayer (WF), gauntworld + combat (FR), player.c (PL).
-# A webfrank rule FREEZES its function's source, so shipping into a TU another
-# lane is editing aborts THEIR build at the WEBFRANK step -- this list is a
-# courtesy gate, not an optimisation.  Re-read it from `claims` every run;
-# the previous value was still harvest-3's and had drifted.
-OWNED = ("game/sys/memcard", "game/movie/movieplayer",
-         "game/world/gauntworld", "game/game/combat", "game/game/player")
+# TU-shaped path fragments, for reading ownership out of claim prose.
+TU_RE = re.compile(r"\b((?:game|dolphin|MSL|zlib|libc|runtime)/[\w/]+)")
+# The FALLBACK only: the value hardcoded at run 31, kept solely so the
+# sweep still gates sensibly when the graph cannot be queried.
+_FALLBACK_OWNED = ("game/sys/memcard", "game/movie/movieplayer",
+                   "game/world/gauntworld", "game/game/combat",
+                   "game/game/player")
+
+
+def units_from_claims(payload, me=None):
+    """TU fragments in ACTIVE claims not owned by ``me``. Pure; testable."""
+    units = set()
+    for claim in payload.get("claims", []):
+        if claim.get("state") != "active" or claim.get("owner") == me:
+            continue
+        blob = f"{claim.get('scope', '')} {claim.get('function', '')}"
+        units.update(TU_RE.findall(blob))
+    return tuple(sorted(units))
+
+
+def owned_units(me=None):
+    """TUs claimed by OTHER lanes, read LIVE from `gdlmem claims`.
+
+    A webfrank rule FREEZES its function's source, so shipping into a TU
+    another lane is editing aborts THEIR build at the WEBFRANK step -- this
+    is a courtesy gate, not an optimisation. It was a hardcoded tuple that
+    had already drifted a full run out of date once (still harvest-3's
+    list during harvest-4), and a stale courtesy gate is worse than none:
+    it silently sweeps the TUs it was meant to protect while skipping ones
+    nobody owns any more.
+
+    Claim scopes are prose, so TU-shaped fragments are extracted from the
+    scope and function fields. Over-inclusion costs only a skipped
+    candidate; this sweep never edits source.
+    """
+    try:
+        out = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "memory_graph", "gdlmem.py"),
+             "claims"], capture_output=True, text=True, cwd=ROOT, timeout=300)
+        payload = json.loads(out.stdout)
+    except Exception as exc:                                # noqa: BLE001
+        print(f"!! could not read `gdlmem claims` ({type(exc).__name__}:"
+              f" {exc}); falling back to the run-31 hardcoded list, which"
+              " MAY BE STALE — verify ownership by hand")
+        return tuple(_FALLBACK_OWNED)
+    units = tuple(units_from_claims(payload, me))
+    if units:
+        print(f"claims: {len(units)} TU(s) owned by other lanes will be"
+              f" skipped: {', '.join(sorted(units))}")
+    else:
+        print("claims: no other lane holds a TU-scoped claim — sweeping all")
+    return tuple(sorted(units))
 
 
 # Rows the sweep could not EVALUATE, kept apart from rows it evaluated and
@@ -92,11 +138,21 @@ def shipped():
     return out
 
 
-def triage():
+def triage(units=None, owned=None):
+    """Roster every unshipped equal-size differing function.
+
+    ``units`` restricts the sweep to the named TUs (the --unit argument):
+    this was image-or-nothing, so a lane wanting one TU's roster paid a
+    full-image sweep for it.
+    """
     have = shipped()
+    owned = tuple(owned if owned is not None else owned_units())
+    wanted = tuple(units) if units else None
     rows = []
     for unit in census.units():
-        if unit.startswith(OWNED):
+        if owned and unit.startswith(owned):
+            continue
+        if wanted and not unit.startswith(wanted):
             continue
         our_path, _isbody = census.our_path(unit)
         if not our_path:
@@ -183,28 +239,56 @@ def prove(rows, only=None, limit=None):
     return out
 
 
+USAGE = """hv_sweep — union re-sweep of the postprocessor-closability roster.
+
+  python tools/gdl/composed_census/hv_sweep.py triage [--unit U[,U...]]
+  python tools/gdl/composed_census/hv_sweep.py prove [A|B] [limit]
+
+  --unit U[,U...]   restrict the sweep to these TUs (repeatable). Without
+                    it the sweep is image-wide, which was the only mode.
+  --out DIR         where hv_roster.json / hv_proved_*.json go. Default is
+                    build/GUNE5D/hv/ — BUILD OUTPUT. They used to be written
+                    beside this script, i.e. untracked JSON dropped into a
+                    tracked directory of the repo.
+  --me OWNER        this lane's work_claim owner, so its OWN claim does not
+                    exclude the TUs it is sweeping.
+"""
+
 if __name__ == "__main__":
-    mode = sys.argv[1] if len(sys.argv) > 1 else "triage"
-    rpath = os.path.join(HERE, "hv_roster.json")
+    argv = sys.argv[1:]
+    if argv and argv[0] in ("--help", "-h", "help"):
+        print(USAGE)
+        raise SystemExit(0)
+    flags = {a.split("=", 1)[0]: a.split("=", 1)[1] if "=" in a else ""
+             for a in argv if a.startswith("--")}
+    positional = [a for a in argv if not a.startswith("--")]
+    mode = positional[0] if positional else "triage"
+    only_units = [u for u in flags.get("--unit", "").split(",") if u] or None
+    outdir = flags.get("--out") or os.path.join(
+        ROOT, "build", "GUNE5D", "hv")
+    os.makedirs(outdir, exist_ok=True)
+    rpath = os.path.join(outdir, "hv_roster.json")
     if mode == "triage":
-        rows = triage()
+        rows = triage(only_units, owned_units(flags.get("--me") or None))
         with open(rpath, "w") as fh:
             json.dump(rows, fh, indent=1)
         ta = [r for r in rows if r["tier"] == "A"]
         tb = [r for r in rows if r["tier"] == "B"]
-        print(f"{len(rows)} equal-size differing unshipped functions: "
+        scope = f" over {', '.join(only_units)}" if only_units else ""
+        print(f"{len(rows)} equal-size differing unshipped functions{scope}: "
               f"tier A {len(ta)}, tier B {len(tb)}")
         from collections import Counter
         print("tier-B cluster histogram:",
               dict(sorted(Counter(r["clusters"] for r in tb).items())))
+        print(f"wrote {rpath}")
         raise SystemExit(report_tool_errors())
     else:
         with open(rpath) as fh:
             rows = json.load(fh)
-        only = sys.argv[2] if len(sys.argv) > 2 else None
-        limit = int(sys.argv[3]) if len(sys.argv) > 3 else None
+        only = positional[1] if len(positional) > 1 else None
+        limit = int(positional[2]) if len(positional) > 2 else None
         res = prove(rows, only, limit)
-        opath = os.path.join(HERE, f"hv_proved_{only or 'all'}.json")
+        opath = os.path.join(outdir, f"hv_proved_{only or 'all'}.json")
         with open(opath, "w") as fh:
             json.dump(res, fh, indent=1)
         closes = [r for r in res if r["verdict"] == "CLOSES"]
