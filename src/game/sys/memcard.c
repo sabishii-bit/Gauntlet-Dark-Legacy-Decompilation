@@ -2096,8 +2096,8 @@ void drawMemCardMessage(const char* msg, char** options, s32 count1, s32 count2)
         MBBlitSetColor(quad, -1);
     }
 
-    strcpy(gTextFormatBuf, msg);
     y += 32;
+    strcpy(gTextFormatBuf, msg);
     for (i = 0; i < nLines; i++) {
         DrawTextSub(-256, y, lbl_80344A54, lbl_80344A58, 0x160C03,
                     lbl_80347378, ((char**) lines)[i]);
