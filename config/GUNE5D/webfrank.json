@@ -1091,6 +1091,40 @@
             "proof": "dominating_def"
           }
         ]
+      },
+      {
+        "function": "AudioBankLoadName",
+        "before_sha256": "92c8f9c5163c8ce8ded8e49db297e25265ff8b9c7c35e5a2b360d3aff1bb338e",
+        "after_sha256": "0d571848877486064910806c548bdba4019108a65dc9f6c9c820e8fdc1df7782",
+        "mechanism": "The same live-zero constant-copy form difference as AudioUnloadPart, and the sole residual: at +0x34 the target copies an already-live zero (`addi r25,r30,0`) where MWCC rematerializes it (`li r25,0`). The three audio.c bank-name lookup loops are byte-identical copies of one another, so one mechanism covers all three. Proven by webfrank.prove_constant_source against the dominating `li r30,0` at +0x30, with no branch into the span, no control instruction, no relocation, and no interposed write of r30; addi's rA field is non-zero, so the encoding is a genuine copy and not a literal load. Source axes are recorded exhausted in claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 and attempt.audio-zero-copy-family-iv-construction-rescreen.20260831.v2.",
+        "audit": {
+          "classification": "COPY_FORM",
+          "proof": "dominating_def",
+          "instructions": 115
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x34",
+            "proof": "dominating_def"
+          }
+        ]
+      },
+      {
+        "function": "AudioBankQueueName",
+        "before_sha256": "9bd950ec706ce59609706d33a9a06f7b642388f8751e66c6ecb671684246512b",
+        "after_sha256": "ba69bd62d11887ea9c9eed75e4a94581b930daddb7401f17c1ce16410c917849",
+        "mechanism": "Third instance of the audio.c bank-name loop's live-zero constant-copy form difference, and the sole residual: at +0x34 the target copies an already-live zero (`addi r29,r28,0`) where MWCC rematerializes it (`li r29,0`). Proven by webfrank.prove_constant_source against the dominating `li r28,0` at +0x30 under the same fail-closed conditions. This function's own source axes were separately capped in attempt.audio-bank-queue-name-zero-copy.20260829.v1.",
+        "audit": {
+          "classification": "COPY_FORM",
+          "proof": "dominating_def",
+          "instructions": 75
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x34",
+            "proof": "dominating_def"
+          }
+        ]
       }
     ],
     "game/game/controls": [
