@@ -1759,8 +1759,8 @@ void StandardCamera_8002B828(s32 camIdx)
     f32 errY = lbl_80345EC8;
     s32 scrH = MBScreenHeight();
     s32 scrW = MBScreenWidth();
-    f32 offX = lbl_80345EC8;
-    f32 offZ = lbl_80345EC8;
+    f32 offX;
+    f32 offZ;
     f32 yaw;
     f32 panXStart;
     u8* levelData;
@@ -1789,6 +1789,8 @@ valid_boss_type:
     }
 
     panXStart = lbl_803444D8;
+    offX = lbl_80345EC8;
+    offZ = lbl_80345EC8;
     if (lbl_80345F78 != (f64)lbl_803444D8 || lbl_80345F78 != (f64)lbl_803444D4) {
         lbl_803444DC = 1;
         lbl_803444D0 = lbl_803444D0 + gFrameTicks;
@@ -4118,9 +4120,10 @@ s32 EnemyStartMissile(void* enemy, f32* launchPos, f32* target, s32 slot)
         ErrorPrintf("ENEMY %d HAS NO MISSILE TYPE %d", enemyType, slot);
         return 0;
     }
-    speed = desc->speed * PF(gCurLevel, offsetof(level_data, ene_mspeed), f32);
+    invSpeed = (f32)(lbl_80346318 /
+                     (f64)(speed = desc->speed *
+                                   PF(gCurLevel, offsetof(level_data, ene_mspeed), f32)));
     dir[0] = launchPos[0] - target[0];
-    invSpeed = (f32)(lbl_80346318 / (f64)speed);
     dir[1] = launchPos[1] - target[1];
     dir[2] = launchPos[2] - target[2];
     if (slot == 2) {
