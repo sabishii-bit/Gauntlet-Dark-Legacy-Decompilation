@@ -286,9 +286,23 @@ def main():
         verdict = f"BASELINE  real {real} (insns {insns}{tok})"
         state["best_real"] = real
     elif real < best:
-        verdict = (f"IMPROVED  real {best} -> {real} (insns {insns}{tok})"
-                   "  [best updated]")
-        state["best_real"] = real
+        # A real win with a BLOWN-OUT count distance once banked as best
+        # (949->802 while the function LOST 157 instructions), poisoning
+        # every later verdict until --rebase-best. Refuse to bank those.
+        def _cdist(text):
+            m = re.match(r"T(\d+)/O(\d+)$", text or "")
+            return abs(int(m.group(1)) - int(m.group(2))) if m else None
+        pd_, cd_ = _cdist(state.get("last_insns")), _cdist(insns)
+        if pd_ is not None and cd_ is not None and cd_ > pd_ + 4:
+            verdict = (f"IMPROVED? real {best} -> {real} BUT count"
+                       f" distance {pd_} -> {cd_} blew out — best NOT"
+                       " updated; this is structural divergence wearing a"
+                       " real win. Arbitrate on fresh fuzzy;"
+                       " --rebase-best banks a deliberate keep")
+        else:
+            verdict = (f"IMPROVED  real {best} -> {real} (insns"
+                       f" {insns}{tok})  [best updated]")
+            state["best_real"] = real
         # Parity-held improvements are the one IMPROVED shape that has
         # regressed fuzzy end-to-end (real 30->24 at unchanged T47/O47
         # was a fuzzy 80.85->71.89 loss; probe+gate both passed it).
@@ -415,6 +429,65 @@ def main():
         state["last_multiset"] = multiset_tokens
     state_file.write_text(json.dumps(state), encoding="utf-8")
     print(verdict)
+
+    if "--fuzzy" in sys.argv:
+        # One-call fresh-fuzzy readout: build the report and print this
+        # function's fuzzy. CONFLICT arbitration used to cost two manual
+        # builds per keep; this is that loop, made durable. The report
+        # build is a full link — expect it to take as long as ninja.
+        rep = subprocess.run(["ninja", f"build/{VERSION}/report.json"],
+                             capture_output=True, text=True)
+        if rep.returncode != 0:
+            print("[--fuzzy: report build FAILED — no fuzzy readout]")
+        else:
+            try:
+                report = json.loads(
+                    Path(f"build/{VERSION}/report.json").read_text(
+                        encoding="utf-8"))
+                bare = re.sub(r"\.(c|cpp)$", "", unit)
+                val = None
+                for entry in report.get("units", []):
+                    if entry.get("name", "").endswith(bare):
+                        for func in entry.get("functions", []):
+                            if func["name"] in (fn, fn_stripped) or \
+                                    func["name"].startswith(fn + "_80"):
+                                val = float(
+                                    func.get("fuzzy_match_percent", 0.0))
+                prev_fz = state.get("last_fuzzy")
+                if val is not None:
+                    arrow = (f" (prev {prev_fz:.4f})"
+                             if isinstance(prev_fz, float) else "")
+                    print(f"FUZZY (fresh report): {val:.4f}%{arrow}")
+                    state["last_fuzzy"] = val
+                    state_file.write_text(json.dumps(state),
+                                          encoding="utf-8")
+                else:
+                    print("[--fuzzy: function not found in report]")
+            except Exception as err:
+                print(f"[--fuzzy: readout failed: {err}]")
+
+    if verdict.startswith("BASELINE") and source is not None:
+        # Scaffold census: pragmas and volatile qualifiers go STALE and
+        # nothing in the loop re-audits them — two of four scaffold items
+        # in one function were stale in a single session, worth a third
+        # of its total gap. File-wide, line-numbered, one line each.
+        try:
+            lines = Path(source).read_text(
+                encoding="utf-8", errors="replace").splitlines()
+            rows = [f"  L{i+1}: {ln.strip()[:70]}"
+                    for i, ln in enumerate(lines)
+                    if re.search(r"#pragma\s+(?!force_active)"
+                                 r"|(^|[^\w])volatile[^\w]", ln)]
+            if rows:
+                print(f"[scaffold census ({len(rows)} file-wide rows —"
+                      " re-audit each: is its original premise still"
+                      " live?)]")
+                for row in rows[:20]:
+                    print(row)
+                if len(rows) > 20:
+                    print(f"  ... and {len(rows) - 20} more")
+        except Exception:
+            pass
 
     # Bank a revert point whenever this source state scores at the
     # high-water mark. NEUTRAL banks too: a verified-neutral state (the

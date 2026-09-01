@@ -195,7 +195,16 @@ one, and supersede the law if your target contradicts it.
    fabricates rows near unpaired insns); staleness -> `gdlmem stale`,
    NEVER fndiff (fndiff scores the POSTPROCESSED object, so every
    webfrank-pinned function reads real 0 by construction); metric
-   disagreements -> fuzzy from a FRESH successful report build.
+   disagreements -> fuzzy from a FRESH successful report build
+   (`probe.py ... --fuzzy` does build+readout in one call; NEVER read
+   fuzzy from a report generated mid-sequence by another tool — a
+   0.04-off number was nearly recorded that way); gate real > 0 while
+   `fndiff --clean` says MATCH -> pool-name noise, the function is
+   FINISHED (confirm with --clean before treating a gate row as open);
+   wrong-symbol/pool defects -> dump the function's RELOCATION SYMBOLS
+   (no score sees them; three real bugs found that way in one session —
+   for a named-pool TU, "no @NN remains" is a complete decision
+   procedure).
 4. **Free evidence first:** the TU's own header comments (one carried the
    correct diagnosis two passes missed); the target's function address
    order (= source order); callee prototypes; `nm`/UND tables for link
@@ -214,7 +223,12 @@ one, and supersede the law if your target contradicts it.
    rejects as Shift-JIS; `git show HEAD:x > file` corrupts too). Use
    the Write/Edit tools; for byte-level ops use [System.IO.File].
    `git stash` is UNUSABLE here (shared stash, 31+ foreign entries) —
-   A/B via a scratch copy or `probe --discard`.
+   A/B via a scratch copy or `probe --discard`. `Copy-Item` PRESERVES
+   LastWriteTime, so restoring a file by copy can leave ninja thinking
+   nothing changed and serve you a STALE measurement as if live —
+   touch the timestamp after any copy-restore. Under a concurrent
+   fleet, re-run a failed link ONCE before diagnosing (a transient
+   exception-fixup-stamp race produced a false link failure).
 8. **Write records and commit messages FROM tool output, never before
    it.** Two workers drafted metrics into records/messages before the
    measuring build ran; one shipped fabricated slotdiff numbers. Run
@@ -239,6 +253,13 @@ one, and supersede the law if your target contradicts it.
    which: `measured-dead` (probed, axis vetoed) vs `never-attempted`.
    Any "closing X flips the file" claim must carry a live
    `datadiff --sections` result, not an assumption.
+10b. **A record ending in a concrete untried hypothesis makes that
+   hypothesis MANDATORY STEP 1** for the next lane on the function —
+   ranked above fresh analysis. One such hypothesis, written down and
+   then skipped by its own author, was worth −235 real in a single
+   build when finally executed a run later. Remeasure the record's
+   NEGATIVE findings too, not just its cure: a "nets to zero" claim
+   hid the exact block where the next win lived.
 11. **Per-function step zero: `gdlmem context <function>` BEFORE the
    first edit.** `laws --query` (discipline 9b) is NOT a substitute —
    it finds laws by signature, not this function's own attempt
@@ -285,6 +306,10 @@ one, and supersede the law if your target contradicts it.
    keeping is promoted deliberately: move it under
    `tools/gdl/composed_census/` (lane-prefixed filename, repo-root-
    relative paths) in its own commit, and say so in your report.
+   A promoted script must be RUN ONCE from the repo root before the
+   promoting commit lands — one promoted census tool was unrunnable
+   for two runs because nobody executed it after the move, while its
+   law records were still being cited.
    Record DRAFTS go through `gdlmem propose-record`, not into git.
 
 Header edits (include/game/*.h): allowed ONLY to the lane whose work_claim

@@ -15,6 +15,8 @@ hand from fndiff --clean; this is that script, made durable.
 Usage:
   python tools/gdl/regnorm.py game/game/pmotion get_player_pos
   python tools/gdl/regnorm.py game/enemy/enemy move_logic15 --map
+  python tools/gdl/regnorm.py game/mb/mb_particle      # TU census mode:
+      one summary row per common function (slow-ish: re-parses per fn)
 
 Output per aligned instruction pair:
   SAME        raw-identical (not printed unless --all)
@@ -73,9 +75,31 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     show_all = "--all" in sys.argv
     show_map = "--map" in sys.argv
-    if len(args) != 2:
+    if len(args) not in (1, 2):
         print(__doc__)
         return 2
+    if len(args) == 1:
+        # TU census mode: one summary row per common function. Two runs
+        # of briefs ordered a "regnorm census first" that the tool could
+        # not do; workers substituted hand-rolled loops.
+        import subprocess
+        unit = args[0]
+        bare = re.sub(r"\.(c|cpp)$", "",
+                      unit.replace("\\", "/").removeprefix("src/"))
+        t_tab = fndiff.parse(Path(f"build/{VERSION}/obj/{bare}.o"))
+        o_tab = fndiff.parse(Path(f"build/{VERSION}/src/{bare}.o"))
+        common = sorted(set(t_tab) & set(o_tab))
+        print(f"-- regnorm census: {bare} ({len(common)} paired"
+              " functions; rank by GENUINE structural rows, then"
+              " unpaired — real inverts tractability) --")
+        for name in common:
+            out = subprocess.run(
+                [sys.executable, __file__, bare, name],
+                capture_output=True, text=True).stdout
+            for line in out.splitlines():
+                if line.startswith("== "):
+                    print(line)
+        return 0
     unit, fn = args
     unit = unit.replace("\\", "/").removeprefix("src/")
     unit = re.sub(r"\.(c|cpp)$", "", unit)
@@ -101,6 +125,7 @@ def main():
     pairs, t_only, b_only = aligned_pairs(t, b)
     renaming, structural = [], []
     disp_artifacts = []
+    reloc_artifacts = []
     mapping = {}
     # Instruction-relative byte offset per line index (reloc annotation
     # lines share their instruction's offset instead of inflating it).
@@ -136,9 +161,25 @@ def main():
                 if show_all:
                     print(f"RELOC-SAME {b[bi].strip()}")
                 continue
+            t_txt, b_txt = t[ti].strip(), b[bi].strip()
+            pool = re.compile(r"@@?\d+")
+            named = re.compile(r"(lbl_|jumptable_)[0-9A-Fa-f]+")
+            if ((pool.search(t_txt) and named.search(b_txt))
+                    or (named.search(t_txt) and pool.search(b_txt))):
+                # @NNNN on one side vs a splitter-invented lbl_/jumptable_
+                # name on the other is usually the SAME constant spelled
+                # two ways (a lane hand-classified 4 of 5 "genuine" rows
+                # as exactly this). Verify the constants once per TU, not
+                # per row.
+                structural.append((ti, t[ti], b[bi]))
+                reloc_artifacts.append(ti)
+                print(f"STRUCT-RELOC-NAMING @{t_off[ti]:#06x}  T {t_txt}"
+                      f"   O {b_txt}  [pool-vs-named spelling — likely"
+                      " the same constant; verify once per TU]")
+                continue
             structural.append((ti, t[ti], b[bi]))
-            print(f"STRUCTURAL @{t_off[ti]:#06x}  T {t[ti].strip()}"
-                  f"   O {b[bi].strip()}  [reloc target differs]")
+            print(f"STRUCTURAL @{t_off[ti]:#06x}  T {t_txt}"
+                  f"   O {b_txt}  [reloc target differs]")
             continue
         t_op = t[ti].split()[0] if not t_is_reloc else ""
         b_op = b[bi].split()[0] if not b_is_reloc else ""
@@ -199,9 +240,13 @@ def main():
         verdict = "STRUCTURAL-PRESENT"
     else:
         verdict = "COUNT-MISMATCH"
-    art = (f" ({len(disp_artifacts)} of them branch-displacement"
-           " artifacts — read the genuine rows first)"
-           if disp_artifacts else "")
+    art_bits = []
+    if disp_artifacts:
+        art_bits.append(f"{len(disp_artifacts)} branch-displacement")
+    if reloc_artifacts:
+        art_bits.append(f"{len(reloc_artifacts)} reloc-naming")
+    art = (f" ({' + '.join(art_bits)} artifacts — read the genuine"
+           " rows first)" if art_bits else "")
     print(f"== {fn}: {len(pairs)} paired, {len(renaming)} renaming,"
           f" {len(structural)} STRUCTURAL{art},"
           f" {len(t_only)+len(b_only)} unpaired"

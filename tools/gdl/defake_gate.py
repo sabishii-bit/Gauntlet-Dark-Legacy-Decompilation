@@ -12,6 +12,10 @@ Usage:
   python tools/gdl/defake_gate.py baseline game/enemy/enemy.c
   python tools/gdl/defake_gate.py check game/enemy/enemy.c --rebuild
   python tools/gdl/defake_gate.py check game/enemy/enemy.c --update-improved
+  python tools/gdl/defake_gate.py check game/x/y.c --bank-arbitrated=<fn>
+      (accept a fuzzy-arbitrated keep for ONE function without
+      re-anchoring any sibling — the mandate-correct way to bank a
+      keep that `real` reads as a regression)
   python tools/gdl/defake_gate.py check game/audio/sndfx.c,game/ui/attract.c --rebuild
 
 A comma-separated unit list gates every named TU in one call (exit code =
@@ -271,6 +275,9 @@ def main():
             old, _, new = arg[len("--rename="):].partition("=")
             if old and new:
                 renames[old] = new
+    bank_arbitrated = next(
+        (a.split("=", 1)[1] for a in sys.argv
+         if a.startswith("--bank-arbitrated=")), None)
     if len(args) != 2 or args[0] not in ("baseline", "check"):
         print(__doc__)
         return 2
@@ -285,13 +292,16 @@ def main():
             if not one:
                 continue
             print(f"==== {one} ====")
-            code = run_single(mode, one, rebuild, update_improved, arbitrate, renames)
+            code = run_single(mode, one, rebuild, update_improved, arbitrate,
+                              renames, bank_arbitrated)
             worst = max(worst, code)
         return worst
-    return run_single(mode, unit, rebuild, update_improved, arbitrate, renames)
+    return run_single(mode, unit, rebuild, update_improved, arbitrate,
+                      renames, bank_arbitrated)
 
 
-def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None):
+def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
+               bank_arbitrated=None):
     unit = normalize_unit(unit)
     if rebuild:
         obj = re.sub(r"\.(c|cpp)$", "", unit)
@@ -327,6 +337,34 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None):
         print(f"no baseline at {path}; run `defake_gate.py baseline {unit}` first")
         return 2
     baseline = json.loads(path.read_text(encoding="utf-8"))
+    if bank_arbitrated:
+        # Re-anchor ONE function's row over a fuzzy-arbitrated keep the
+        # mandate accepts but `real` reads as a regression. Re-running a
+        # full `baseline` to launder such a keep silently discarded the
+        # ability to catch a LATER genuine sibling regression — two lanes
+        # hit that. Every other row keeps its original anchor.
+        target_row = None
+        for name in (bank_arbitrated,):
+            if name in snap:
+                target_row = name
+            else:
+                for cand in snap:
+                    if (cand.startswith(name + "_80")
+                            or name.startswith(cand + "_80")):
+                        target_row = cand
+                        break
+        if target_row is None:
+            print(f"--bank-arbitrated: {bank_arbitrated} not in snapshot")
+            return 2
+        archive = path.with_suffix(".prev.json")
+        archive.write_text(path.read_text(encoding="utf-8"),
+                           encoding="utf-8")
+        baseline[target_row] = snap[target_row]
+        path.write_text(json.dumps(baseline, indent=2, sort_keys=True),
+                        encoding="utf-8")
+        print(f"banked arbitrated keep for {target_row} (that row only —"
+              " every sibling still gates against its original anchor;"
+              " record the arbitration + its fuzzy in the attempt record)")
     verdicts = compare(baseline, snap, renames)
     verdicts = arbitrate_regressions(verdicts, unit)
     conflicts = [v for v in verdicts if v[1] == "CONFLICT"]
