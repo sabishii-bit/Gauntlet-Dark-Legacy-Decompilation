@@ -192,6 +192,7 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
 #define PREC_STRIDE 0x335C
 #define P(i)          (&gPlayerRecords[i])
 #define PT(i)         ((Player*)((u8*)potionicon_tab + (i) * PREC_STRIDE + 0xC40))
+#define PTA(i)        (&((Player*)((u8*)potionicon_tab + 0xC40))[i])
 #define PF(p, off, T) (*(T*)((u8*)(p) + (off)))
 
 /* ------------------------------------------------------------------ */
@@ -903,8 +904,8 @@ static void write_health_and_items(s32 i) {
 
     hidden = 0;
     show_gold = 1;
-    rgb = ((u32*)(tab + 1408))[PT(i)->class_id];
-    p = PT(i);
+    rgb = ((u32*)(tab + 1408))[PTA(i)->class_id];
+    p = PTA(i);
     mini_inventory_update(i);
     oldz = MBSetFontZ(63990.0f);
     if (lbl_80344A28 != 0 || gGameOptions[8] != 0) {
