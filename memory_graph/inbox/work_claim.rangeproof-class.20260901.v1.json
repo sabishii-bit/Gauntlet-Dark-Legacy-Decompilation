@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "POSTPROCESSOR-DEV lane (owns webfrank.py + tests + schema + movieplayer rules): the USER-LICENSED dataflow-equivalence RANGE-PROOF class \u2014 prove rlwinm mask bits redundant given a value-range fact (fn_800D87FC: 11 dead axes recorded = provenance met; attempt.MP_fn800d87fc-...-range-proof.20260901.v1 states the obligation: `rlwinm` mask field vs bare `slwi`, equal only under a value-range fact). Design the byte-level range derivation fail-closed (what CFG facts bound the value? refuse anything unprovable); tests-first on the ELF fixture; prove by CLOSING fn_800D87FC. This class is the NEW outer ceiling \u2014 record its boundary explicitly. Then screen the refusal corpus for further members (roster, close only what closes w/ provenance). fnasm has NO --raw (live trap \u2014 use fndiff --raw / rule tools). Gate = 'main.dol: OK'; suite green; configure per json edit; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:fn_800D87FC",
+  "id": "work_claim.rangeproof-class.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WF",
+  "recorded_at": "2026-09-01T22:24:44Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

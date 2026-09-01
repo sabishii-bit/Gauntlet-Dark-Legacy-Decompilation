@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CLOSE lane, sys/memcard: (1) writeGauntletSave \u2014 the recorded CONJUNCTIVE recipe (claim.law.MC_addic-fusion-needs-signed-counter-and-unhoisted-subtraction.20260901.v1): apply BOTH conditions in ONE probe (s32 counter + unhoisted subtraction \u2014 the surplus addi is the entire 191-vs-190 delta; closing it = count parity + 7t->4t). (2) loadGauntletSave w/ the addic-fusion trade understood (the volatile buys fusion+home, costs segregation \u2014 is there a spelling that buys BOTH? e.g. volatile + the subtraction spelled at the guard). (3) The unfused-branch oracle method: GW's census names chained ternaries as the producer (claim.law.GW_unfused-conditional-over-branch...v1, 271 exact-fn oracles); this TU's three goto-pair sites are recorded \u2014 apply the producer construct per site. Do NOT touch the opt_propagation pragma (load-bearing, measured). context per fn; gate = 'main.dol: OK'; 3 pins screened; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:writeGauntletSave",
+  "id": "work_claim.memcard-close.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WS",
+  "recorded_at": "2026-09-01T22:25:05Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}
