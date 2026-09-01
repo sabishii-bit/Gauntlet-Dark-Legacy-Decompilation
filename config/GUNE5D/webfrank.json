@@ -1502,6 +1502,28 @@
       }
     ],
     "game/world/camera": [
+    {
+      "function": "camera_mode_target",
+      "before_sha256": "5a243a54c6e364cce6c7f31e89839bb05c59bb4a52e95390f911baf45975dc98",
+      "after_sha256": "5b8c615f722cfc904922b6066e8a4cbfd2060a23dbd9a6f2c7ca52ea20062b92",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - a POST-recolor permutation. 452/452, real 24. The displacement at [0x2ac,0x2b4) is CAUSED BY the recolor rather than independent of it, so it is unreachable for a permutation that runs first -- the exact boundary claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1 draws around C1's 'unreachable'. The stage therefore runs LAST: the recolor aims at the intermediate image obtained by applying the permutation's INVERSE to the target (unpermute_target_windows), which restores position correspondence so the UNCHANGED verify_consistent_recolor can adjudicate the renaming, and the permutation then carries the intermediate to the target. Both derivation placements were enumerated and the pre-placement refuses; the post placement is selected BY PROOF, not by preference. Window is relocation-free in both objects, as that stage requires. The two recorded parks are SOURCE-axis (attempt.camera-mode-target-square-product-fpr-tie-rescreen.20260831.v1 capped) and are upheld. real 24 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 452,
+        "permuted_instructions": 2
+      },
+      "post_recolor_permutation": [
+        {
+          "start": "0x2ac",
+          "end": "0x2b4",
+          "order": [
+            1,
+            0
+          ]
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "debug_camera_pos",
         "before_sha256": "82e089fa643c0bd6e23b227d57fe844c1d9bde3bdf792a4d751028e24765ee49",
