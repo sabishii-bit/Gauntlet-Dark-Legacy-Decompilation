@@ -1157,6 +1157,32 @@
           "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
           "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         }
+      },
+      {
+        "function": "do_camera",
+        "before_sha256": "2ccc43b69f26931609ec4fdbf3e9474572c3daca4aa64d585b75261bcd9b2f34",
+        "after_sha256": "fddebb42f29d28d2336db6950b4fa01abc8f68ea23d11706ccb3ede1d6bcdc93",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 247,
+          "permuted_instructions": 3
+        },
+        "mechanism": "attempt.CN_do-camera-composed-close.20260901.v1 - a composed permute+copy-form rule closing the whole 247/247 residual (3 differing words in one window) with NO recolor stage. It also discharges the 2026-08-25 P-class park attempt.do-camera-three-atom-init-tie-rescreen.20260831.v1, whose own diagnosis named the residual exactly right - a live-zero rematerialization tangled with a three-atom address/init rotation - and correctly concluded that no source spelling separates the two; the postprocessor path is the honest close for it. PERMUTATION over [0x1d8,0x1e4), order [1,2,0]: the three atoms are `addi r29,r31,200` (forming the camera-state sub-object pointer), `li r28,0` and `li r27,0`. Our build forms the pointer first and seeds the two counters after; the target seeds r28 first, derives r27 from it, and forms the pointer last. The atoms are mutually independent - the addi reads only r31, which none of them writes, and the three destinations r29/r28/r27 are distinct, so there is no RAW, WAR or WAW hazard - and all three are memory-free and non-control, so check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None and no escape invoked. RELOCATION BINDING per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1: the window carries NO relocation on either side (the nearest are the EMB_SDA21 pair at +0x1cc/+0x1d4 immediately before it and the next at +0x1f0), so both region relocation hashes are the empty-payload hash and no atom-to-symbol binding question arises. Checked, not assumed. Note that this function's relocation TABLE differs from the target's in two ways that are not code differences and do not touch this window: our compiler-generated pool labels are spelled @16/@155-@158 against the extracted target's lbl_80345EB0 etc., and our EMB_SDA21 entries are recorded at word+2 where the target records them at word+0 (claim.law.HV_emb-sda21-relocation-offset-differs-between-our-objects-and-the-target). FORM, one li-vs-copy site: after the permutation +0x1dc holds our `li r27,0` against the target's `addi r27,r28,0`. The destination already agrees, so this is a pure form change and not a disguised recolor, and the `dominating_def` scan discharges it against the `li r28,0` the permutation places at the IMMEDIATELY preceding word +0x1d8 - the cheapest possible obligation, no interposed call and no branch target, so the weaker across-calls mode is NOT requested. src/game/world/camera.c is byte-unchanged, so camera_mode_level and every other function in the TU stays available to a future lane. After the two stages the function is byte-identical to the target, so no register stage is configured.",
+        "instruction_permutation": {
+          "start": "0x1d8",
+          "end": "0x1e4",
+          "order": [1, 2, 0],
+          "before_sha256": "966f82d155ffa1f44075a1b11de0711c99340292e48169c558eb05e96ea9230b",
+          "after_sha256": "659fae71d4dece696490455653c8372f0e870bb686440d97108b74445a2cb142",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x1dc",
+            "proof": "dominating_def"
+          }
+        ]
       }
     ],
     "game/ui/message": [
