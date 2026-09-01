@@ -574,6 +574,32 @@
           "after_relocations_sha256": "0c75666700f016bbaa68bb7c87339c848a5c00c9647021159417806260632246"
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "MemCardCreateGaunt",
+        "before_sha256": "a358a786fd88c6154ff01f75bf623de6eb9d80e34bef498011a9e55742ab9450",
+        "after_sha256": "0f78a7ce096749a6e579fb1dbcc735b8c5b9927236988fc65756a38bec54e971",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 106,
+          "permuted_instructions": 5
+        },
+        "mechanism": "attempt.CN_memcardcreategaunt-composed-close.20260901.v1 - a composed permute+copy-form rule closing the whole 106/106 residual (5 differing words, all in one prologue window) with NO recolor stage. PERMUTATION over [0x24,0x38), order [3,0,1,4,2]: the window computes the save-slot address as `mulli r0,r27,132` / `add r3,r3,r4` / `add r28,r3,r0` and seeds two zero locals `li r29,0` / `li r31,0`. Our build emits the whole address computation first and both seeds after; the target hoists the r29 seed ahead of everything and sinks the final `add r28,r3,r0` past the r31 seed. The only def-use edges inside the window are atom0(r0)->atom2 and atom1(r3)->atom2, plus the entry reads of r27, r3 and r4; the chosen order preserves every one of them and every final write, so check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None and no escape invoked. RELOCATION BINDING per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1: the window carries NO relocation on either side (nearest are the ADDR16_LO at +0x22 before it and the EMB_SDA21 at +0x4a after it), so both region relocation hashes are the empty-payload hash and no atom-to-symbol binding question arises. Checked, not assumed. FORM, one li-vs-copy site: after the permutation +0x30 holds our `li r31,0` against the target's `addi r31,r29,0`. The destination already agrees, so this is a pure form change and not a disguised recolor, and the `dominating_def` scan discharges it against the `li r29,0` the permutation places at +0x24 - three straight-line arithmetic words back, no interposed call and no branch target, so the weaker across-calls mode is NOT requested. The choice is an allocator one with no source lever per claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1; src/game/sys/memcard.c is byte-unchanged. After the two stages the function is byte-identical to the target, so no register stage is configured.",
+        "instruction_permutation": {
+          "start": "0x24",
+          "end": "0x38",
+          "order": [3, 0, 1, 4, 2],
+          "before_sha256": "6c7b1a0a398eece08d154e1290cfcbbaea26067545f6fa40fba97f49e682faac",
+          "after_sha256": "5538a59ac4452e1e43d57ef8eb3923120e17fc28b864b6b5376be068a9ca59aa",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x30",
+            "proof": "dominating_def"
+          }
+        ]
       }
     ],
     "game/world/newcam": [
