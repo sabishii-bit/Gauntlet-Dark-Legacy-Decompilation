@@ -112,7 +112,7 @@ extern s32 lbl_80344610[2]; /* mtap port status */
 extern u8  lbl_80343DEC;   /* current card port/slot byte */
 extern char lbl_80114718[];/* save-slot format string A */
 extern char lbl_80114724[];/* save-slot format string B */
-extern u8  gPlayers[]; /* 4-player array, stride 0x335C */
+extern Player gPlayers[4]; /* 4-player array, stride 0x335C (game/player.h) */
 extern u8  lbl_80284878[]; /* 4 pages x 11 entries x 0xC blit table */
 extern u8  lbl_80121688[]; /* select-menu data page */
 extern s32 lbl_80343DD8;
@@ -487,7 +487,7 @@ s32 do_player_select(void)
     lbl_803445DC = 1;
     new_menu_accept(-1, 1);
 
-    pl = gPlayers;
+    pl = (u8*)gPlayers;
     for (i = 0; i < 4; i++, pl += 13148) {
         if (*(s32*)(pl + offsetof(Player, state)) == 0 && (lbl_80344824 & (1 << i))) {
             new_player(i);
@@ -495,7 +495,7 @@ s32 do_player_select(void)
     }
     setup_vmu_entries();
 
-    pl = gPlayers;
+    pl = (u8*)gPlayers;
     for (i = 4; i != 0; i--, pl += 13148) {
         switch (*(s32*)(pl + offsetof(Player, state))) {
         case 2:
@@ -534,7 +534,7 @@ s32 do_player_select(void)
     poff = 0;
     boff = 0;
     moff = 0;
-    pl = gPlayers;
+    pl = (u8*)gPlayers;
     for (i = 0; i < 4; i++, padoff += 60, poff += 13148, xoff += 4,
         boff += 132, moff += 232, pl += 13148) {
         s32 costume = *(s32*)(pl + offsetof(Player, class_id));
@@ -831,7 +831,7 @@ s32 do_player_select(void)
                             s32 qoff = 0;
                             s32 n;
                             for (n = 4; n != 0; n--, qoff += 13148) {
-                                u8* q = gPlayers + qoff;
+                                u8* q = (u8*)gPlayers + qoff;
                                 if (*(s32*)(q + offsetof(Player, state)) == 2 && pl != q &&
                                     *(s32*)(q + offsetof(Player, sel_card_chan)) == *(s32*)(pl + offsetof(Player, sel_card_chan)) &&
                                     *(s32*)(q + offsetof(Player, sel_card_slot)) == *(s32*)(pl + offsetof(Player, sel_card_slot))) {
@@ -995,7 +995,7 @@ s32 do_player_select(void)
                         s32 qoff = 0;
                         s32 n;
                         for (n = 4; n != 0; n--, qoff += 13148) {
-                            u8* q = gPlayers + qoff;
+                            u8* q = (u8*)gPlayers + qoff;
                             if (*(s32*)(q + offsetof(Player, state)) == 2 && pl != q &&
                                 *(s32*)(q + offsetof(Player, sel_card_chan)) == *(s32*)(pl + offsetof(Player, sel_card_chan)) &&
                                 *(s32*)(q + offsetof(Player, sel_card_slot)) == *(s32*)(pl + offsetof(Player, sel_card_slot))) {
@@ -1021,7 +1021,7 @@ s32 do_player_select(void)
                         s32 qoff = 0;
                         s32 n;
                         for (n = 4; n != 0; n--, qoff += 13148) {
-                            u8* q = gPlayers + qoff;
+                            u8* q = (u8*)gPlayers + qoff;
                             if (*(s32*)(q + offsetof(Player, state)) == 2 && pl != q &&
                                 *(s32*)(q + offsetof(Player, sel_card_chan)) == *(s32*)(pl + offsetof(Player, sel_card_chan)) &&
                                 *(s32*)(q + offsetof(Player, sel_card_slot)) == *(s32*)(pl + offsetof(Player, sel_card_slot))) {
@@ -1074,7 +1074,7 @@ s32 do_player_select(void)
                         s32 qoff = 0;
                         s32 n;
                         for (n = 4; n != 0; n--, qoff += 13148) {
-                            u8* q = gPlayers + qoff;
+                            u8* q = (u8*)gPlayers + qoff;
                             if (*(s32*)(q + offsetof(Player, state)) == 2 && pl != q &&
                                 *(s32*)(q + offsetof(Player, sel_card_chan)) == *(s32*)(pl + offsetof(Player, sel_card_chan)) &&
                                 *(s32*)(q + offsetof(Player, sel_card_slot)) == *(s32*)(pl + offsetof(Player, sel_card_slot))) {
@@ -1475,7 +1475,7 @@ s32 do_player_select(void)
                             }
                         } else {
                             s32 picked = *(s32*)(pl + offsetof(Player, respawn_char));
-                            u8* p2 = gPlayers + poff;
+                            u8* p2 = (u8*)gPlayers + poff;
                             s32 saved;
                             s32 wflag;
                             *(s32*)(p2 + offsetof(Player, state)) = 3;
@@ -1656,7 +1656,7 @@ static void do_sel_menu_8008E4F4(s32 player, u32 mode)
     tbl = lbl_80121688;
     xp = (s32*)(tbl + (player << 2));
     pool = lbl_801143F8;
-    pl = gPlayers + player * 13148;
+    pl = (u8*)gPlayers + player * 13148;
     scale = scale0;
     lh = lbl_80343DDC;
     font = lbl_80344BC4;
@@ -2095,7 +2095,7 @@ void init_player_change(s32 idx, s32 arg1)
     s32 saved;
     s32 wflag;
 
-    p = gPlayers;
+    p = (u8*)gPlayers;
     pl = p + idx * 0x335C;
     ((Player*)pl)->state = 3;
 
@@ -2197,7 +2197,7 @@ int verify_vmu_file_ok(u8* pl, s32 v)
     s32 a = *(s32*)(pl + offsetof(Player, sel_card_chan));
     s32 b = *(s32*)(pl + offsetof(Player, sel_card_slot));
     for (i = 0; i < 4; i++) {
-        u8* p = gPlayers + i * 0x335C;
+        u8* p = (u8*)gPlayers + i * 0x335C;
         if (p != pl && ((Player*)p)->state != 0 &&
             *(s32*)(p + offsetof(Player, sel_card_chan)) == a && *(s32*)(p + offsetof(Player, sel_card_slot)) == b &&
             *(s32*)(p + offsetof(Player, sel_file_cursor)) == v) {
@@ -2297,8 +2297,8 @@ void setup_sel_menu(s32 player, s32 mode)
         *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = 0.6f;
         off = 0;
         *selected = off;
-        sum = *(s32*)(gPlayers + sum + offsetof(Player, sel_card_chan)) +
-              *(s32*)(gPlayers + sum + offsetof(Player, sel_card_slot));
+        sum = *(s32*)((u8*)gPlayers + sum + offsetof(Player, sel_card_chan)) +
+              *(s32*)((u8*)gPlayers + sum + offsetof(Player, sel_card_slot));
         sum += 1000;
         i = 0;
         for (;; i++, off += 36) {
@@ -2320,7 +2320,7 @@ void setup_sel_menu(s32 player, s32 mode)
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, x)) = baseChoice + 8;
         *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, y)) = 70;
         *(f32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, scale)) = 0.6f;
-        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = *(s32*)(gPlayers + player * 0x335C + offsetof(Player, sel_file_cursor));
+        *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = *(s32*)((u8*)gPlayers + player * 0x335C + offsetof(Player, sel_file_cursor));
         if (*(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) < 0) {
             *(s32*)(data + playerOffset + 712 + offsetof(OptMenuLayout, sel)) = 0;
         }
@@ -2340,7 +2340,7 @@ void sel_set_inactive(s32 slot)
 static s32 sel_set_choice(s32 player, s32 mode)
 {
     u8* menu = (u8*)&lbl_80121950[player];
-    u8* pl = gPlayers + player * 0x335C;
+    u8* pl = (u8*)gPlayers + player * 0x335C;
     u8* e;
     s32 best = -1;
     s32 i = 0;
@@ -2415,7 +2415,7 @@ s32 other_players_next_level(s32 idx)
     u8* p;
     int i;
 
-    p = gPlayers;
+    p = (u8*)gPlayers;
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (i != idx) {
             st = ((Player*)p)->state;
@@ -2424,7 +2424,7 @@ s32 other_players_next_level(s32 idx)
             }
         }
     }
-    p = gPlayers;
+    p = (u8*)gPlayers;
     p += idx * 0x335C;
     return ((Player*)p)->exit_dest;
 }
@@ -2435,7 +2435,7 @@ int check_active_players(void)
     u8* p;
     int count = 0;
     new_menu_accept(-1, 1);
-    p = gPlayers;
+    p = (u8*)gPlayers;
     for (i = 0; i < 4; i++, p += 0x335C) {
         if (((Player*)p)->state == 0 && (lbl_80344824 & (1 << i))) {
             new_player(i);
@@ -2496,7 +2496,7 @@ extern void* MBOX_FindTexture(char* name, s32 mode);
 
 void update_class_attr(s32 player)
 {
-    u8* pl = gPlayers + player * 13148;
+    u8* pl = (u8*)gPlayers + player * 13148;
     char* pool = lbl_801143F8;
     s32 stats[4];
     u8 statsPad[4];
@@ -2634,7 +2634,7 @@ void update_class_spec(s32 player)
 {
     char* pool = lbl_801143F8;
     u8* blitBase = lbl_80284878;
-    u8* pl = gPlayers + player * 0x335C;
+    u8* pl = (u8*)gPlayers + player * 0x335C;
     s32 boff;
     u8* eWeap;
     u8* eB;
@@ -2819,7 +2819,7 @@ void init_player_select(s32 mode)
     }
     {
         s32 i1;
-        pl = gPlayers;
+        pl = (u8*)gPlayers;
         for (i1 = 0; i1 < 4; i1++, pl += 13148) {
             if (!(lbl_80344824 & (1 << i1))) {
                 abort_player(i1);
@@ -2857,7 +2857,7 @@ void init_player_select(s32 mode)
     new_menu_accept(-1, 1);
     {
         initValue = 1;
-        for (pl = gPlayers; i2 < 4; i2++, pl += 13148) {
+        for (pl = (u8*)gPlayers; i2 < 4; i2++, pl += 13148) {
             if (*(s32*)(pl + offsetof(Player, state)) == 0 &&
                 (lbl_80344824 & (initValue << i2))) {
                 new_player(i2);
@@ -2869,7 +2869,7 @@ void init_player_select(s32 mode)
         s32 j;
         s32 o132 = 0;
         s32 o4 = 0;
-        for (pl = gPlayers; i3 < 4;
+        for (pl = (u8*)gPlayers; i3 < 4;
              i3++, o132 += 132, o4 += 4, pl += 13148) {
             s32 joff;
             xp = (s32*)(page + o4);
