@@ -12,6 +12,9 @@ Usage:
 --diff prints target and ours side-by-side, sequence-aligned on the opcode
 stream (the same correspondence fndiff --ops uses) — immune to the
 upstream-drift trap of comparing both dumps at the same absolute offset.
+The columns are labelled: LEFT is T = TARGET (retail), RIGHT is O = OURS
+(compiled). Reading the view backwards inverts every conclusion drawn
+from it, so the header names both sides and the footer repeats them.
 
 Output is one line per instruction: function-relative hex offset, mnemonic,
 operands, with any relocation folded onto the same line ("@sym"). Branch
@@ -149,6 +152,14 @@ def diff_view(target_rows, our_rows, lo, hi, by_offset):
     width = max((len(row[1]) for row in target_rows), default=20)
     width = min(width, 52)
     shown = 0
+    # Label the columns. Which side was which was inferable only from the
+    # trailing legend, and reading the view backwards inverts every
+    # conclusion drawn from it.
+    left_head = "T = TARGET (retail)"
+    right_head = "O = OURS (compiled)"
+    print(f"{left_head:<{width + 6}}   {right_head}")
+    print(f"{'-' * min(len(left_head), width + 6):<{width + 6}}   "
+          f"{'-' * len(right_head)}")
     for tag, i1, i2, j1, j2 in sm.get_opcodes():
         span = max(i2 - i1, j2 - j1)
         for k in range(span):
@@ -172,9 +183,10 @@ def diff_view(target_rows, our_rows, lo, hi, by_offset):
                 mark = "|"
             print(f"{left:<{width + 6}} {mark} {right}")
             shown += 1
-    print(f"[target {len(target_rows)} insns / ours {len(our_rows)};"
-          f" {shown} rows shown; = same  ~ opcode-only match"
-          "  | replaced  </> one side only]")
+    print(f"[LEFT = TARGET ({len(target_rows)} insns) / RIGHT = OURS"
+          f" ({len(our_rows)} insns); {shown} rows shown;"
+          " = same  ~ opcode-only match  | replaced"
+          "  < target-only  > ours-only]")
     return 0
 
 

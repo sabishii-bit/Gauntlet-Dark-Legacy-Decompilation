@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow",
+      "relocation",
+      "matching",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.TL_gate-real-is-computed-by-dropping-every-reloc-line.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T21:10:27Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "MECHANISM for claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1, read out of the source and confirmed by measurement 2026-09-01. `fndiff --count` computes its `real` as the unified-diff lines with every line containing 'R_PPC' FILTERED OUT (fndiff.main: `real = [l for l in diff if \"R_PPC\" not in l]`). Relocation differences are therefore invisible to `real` BY CONSTRUCTION, not by accident and not by normalization. Because defake_gate scores exclusively from `fndiff --count`, THE GATE CANNOT SEE A WRONG RELOCATION SYMBOL AT ALL: a function whose only defect is that it relocates against the wrong datum gates GREEN at real 0 forever. This is distinct from, and stronger than, the pool-name-noise story: pool names are deliberately normalized by relocation_signature, whereas --count drops the whole line class before any normalization runs. `fndiff --clean` does NOT do this -- it normalizes reloc symbols through relocation_signature and counts what survives -- so --count and --clean legitimately disagree on the same function and neither is wrong: game/game/player add_got_it reads `insns 33/33 lines 4 real 0` under --count and 'OPERAND_DIFF, 4 real diff lines' under --clean. MEASURED CONSEQUENCE, the reconciliation worth reusing: on game/game/player (92 paired functions) regnorm's GENUINE-clean count (0 genuine structural rows and 0 unpaired, after the run-29 artifact annotators) is 69, and `defake_gate baseline` independently reports 69 of 92 at real 0. The two 3-function disagreement sets are fully explained and BOTH favour regnorm: (a) load_player_model, load_player_model_sub and start_magic are regnorm-clean while `real` > 0 -- pool-name noise, the mirror case PL's band law already documents; (b) add_got_it, init_got_it and kill_got_it are real 0 while regnorm reports genuine rows -- the reloc-line drop described above (target `lbl_80275534` against our `got_it`). PROCEDURE: never conclude 'the relocations are fine' from a green gate or from `real`; run regnorm, or dump the function's relocation symbols. When a census and a gate disagree on which functions are finished, reconcile the two sets rather than trusting either -- the disagreement is diagnostic, and on this measurement it was 100% explainable."
+}

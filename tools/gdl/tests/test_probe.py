@@ -1,0 +1,326 @@
+"""probe.py verdict-table tests.
+
+The regression this file exists for: probe's CONFLICT verdict compared the
+opcode-multiset token count against the PREVIOUS probe, and every probe
+banked its own count into that slot. Re-scoring an already-scored state
+therefore flipped CONFLICT -> "REGRESSED ... [revert advised]" on bytes
+that had not moved (measured on game/sys/memcard get_vmu_directory during
+run 29: real 65 -> 65, insns and multiset both unchanged).
+"""
+
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from probe import (annotate_neutral, classify, count_distance,
+                   function_span, scaffold_rows, scoped_revert, split_lines,
+                   strip_noncode)
+
+
+TU = """\
+#include "game.h"
+
+static int helper(int a)
+{
+    return a + 1;
+}
+
+void alpha(Player* p)
+{
+    p->x = 1;
+    p->y = 2;
+}
+
+void beta(Player* p)
+{
+    /* a } brace in a comment must not close the body */
+    const char* s = "} neither must this one";
+    p->z = 3;
+}
+"""
+
+
+
+class CountDistanceTests(unittest.TestCase):
+    def test_parses_insns_string(self):
+        self.assertEqual(count_distance("T116/O115"), 1)
+        self.assertEqual(count_distance("T290/O290"), 0)
+
+    def test_unparseable_is_none(self):
+        self.assertIsNone(count_distance("exact"))
+        self.assertIsNone(count_distance(None))
+
+
+class ClassifyTests(unittest.TestCase):
+    def test_baseline_banks_best_real_and_best_multiset(self):
+        verdict, state = classify({}, 65, "T116/O115", 3)
+        self.assertTrue(verdict.startswith("BASELINE"))
+        self.assertEqual(state["best_real"], 65)
+        self.assertEqual(state["best_multiset"], 3)
+
+    def test_improvement_rebanks_both_best_fields(self):
+        state = {"best_real": 65, "best_multiset": 3,
+                 "last_real": 65, "last_insns": "T116/O115",
+                 "last_multiset": 3}
+        verdict, state = classify(state, 48, "T116/O116", 2)
+        self.assertTrue(verdict.startswith("IMPROVED"), verdict)
+        self.assertEqual(state["best_real"], 48)
+        self.assertEqual(state["best_multiset"], 2)
+
+    def test_conflict_is_anchored_on_best_not_prev(self):
+        """A real rise with structure converging against BEST is CONFLICT."""
+        state = {"best_real": 48, "best_multiset": 4,
+                 "last_real": 48, "last_insns": "T116/O116",
+                 "last_multiset": 4}
+        verdict, _ = classify(state, 65, "T116/O115", 3)
+        self.assertTrue(verdict.startswith("CONFLICT"), verdict)
+        self.assertIn("4t -> 3t vs best", verdict)
+
+    def test_rescoring_a_conflict_state_does_not_flip_to_regressed(self):
+        """THE run-29 REGRESSION TEST.
+
+        Feed classify() exactly the state a CONFLICT probe leaves behind,
+        then re-score the same measurement. Under the prev-anchored
+        comparison this returned REGRESSED with '[revert advised]'.
+        """
+        _, after_conflict = classify(
+            {"best_real": 48, "best_multiset": 4, "last_real": 48,
+             "last_insns": "T116/O116", "last_multiset": 4},
+            65, "T116/O115", 3)
+        verdict, _ = classify(after_conflict, 65, "T116/O115", 3)
+        self.assertNotIn("REGRESSED", verdict)
+        self.assertNotIn("revert advised", verdict)
+        self.assertTrue(verdict.startswith("CONFLICT"), verdict)
+
+    def test_real_rise_without_structure_gain_is_still_regressed(self):
+        state = {"best_real": 48, "best_multiset": 4,
+                 "last_real": 48, "last_insns": "T116/O116",
+                 "last_multiset": 4}
+        verdict, _ = classify(state, 65, "T116/O120", 5)
+        self.assertTrue(verdict.startswith("REGRESSED"), verdict)
+
+    def test_legacy_state_without_best_multiset_says_so(self):
+        state = {"best_real": 48, "last_real": 48,
+                 "last_insns": "T116/O116", "last_multiset": 4}
+        verdict, _ = classify(state, 65, "T116/O115", 3)
+        self.assertTrue(verdict.startswith("CONFLICT"), verdict)
+        self.assertIn("vs prev", verdict)
+        self.assertIn("no best_multiset banked", verdict)
+
+    def test_legacy_fallback_is_flagged_on_the_regressed_half_too(self):
+        """The half that tells a worker to throw work away must say it.
+
+        This is the exact legacy shape measured live in run 29: the state
+        a CONFLICT left behind, re-scored, reads REGRESSED because prev
+        already carries the improved multiset.
+        """
+        state = {"best_real": 48, "last_real": 65,
+                 "last_insns": "T116/O115", "last_multiset": 3}
+        verdict, _ = classify(state, 65, "T116/O115", 3)
+        self.assertTrue(verdict.startswith("REGRESSED"), verdict)
+        self.assertIn("no best_multiset banked", verdict)
+
+    def test_rebase_best_banks_current_as_best(self):
+        state = {"best_real": 48, "best_multiset": 4, "last_real": 65,
+                 "last_insns": "T116/O115", "last_multiset": 3}
+        verdict, state = classify(state, 65, "T116/O115", 3,
+                                  rebase_best=True)
+        self.assertTrue(verdict.startswith("REBASED"), verdict)
+        self.assertEqual(state["best_real"], 65)
+        self.assertEqual(state["best_multiset"], 3)
+
+    def test_blown_out_count_distance_refuses_to_bank_a_real_win(self):
+        state = {"best_real": 949, "best_multiset": 20, "last_real": 949,
+                 "last_insns": "T500/O500", "last_multiset": 20}
+        verdict, state = classify(state, 802, "T500/O343", 25)
+        self.assertIn("IMPROVED?", verdict)
+        self.assertEqual(state["best_real"], 949)
+
+    def test_parity_held_improvement_demands_fuzzy_arbitration(self):
+        state = {"best_real": 30, "best_multiset": 0, "last_real": 30,
+                 "last_insns": "T47/O47", "last_multiset": 0}
+        verdict, _ = classify(state, 24, "T47/O47", 0)
+        self.assertIn("PARITY-HELD IMPROVEMENT", verdict)
+
+
+class RescoreGuardTests(unittest.TestCase):
+    BASE = {"best_real": 48, "best_multiset": 4, "last_real": 65,
+            "last_insns": "T116/O115", "last_multiset": 3,
+            "last_bytes": "abc123", "last_verdict": "CONFLICT  standing"}
+
+    def test_unchanged_source_and_digest_repeats_the_standing_verdict(self):
+        verdict, _ = classify(dict(self.BASE), 65, "T116/O115", 3,
+                              digest="abc123", source_changed=False)
+        self.assertTrue(verdict.startswith("RE-SCORE"), verdict)
+        self.assertIn("CONFLICT  standing", verdict)
+        self.assertIn("REPEATED, not recomputed", verdict)
+
+    def test_changed_source_recomputes_even_at_equal_scores(self):
+        """An edit that folds away must still be classified, not swallowed."""
+        verdict, _ = classify(dict(self.BASE), 65, "T116/O115", 3,
+                              digest="abc123", source_changed=True)
+        self.assertFalse(verdict.startswith("RE-SCORE"), verdict)
+
+    def test_moved_bytes_at_equal_scores_recompute(self):
+        verdict, _ = classify(dict(self.BASE), 65, "T116/O115", 3,
+                              digest="deadbeef", source_changed=False)
+        self.assertFalse(verdict.startswith("RE-SCORE"), verdict)
+
+    def test_no_digest_means_no_guard(self):
+        verdict, _ = classify(dict(self.BASE), 65, "T116/O115", 3,
+                              digest=None, source_changed=False)
+        self.assertFalse(verdict.startswith("RE-SCORE"), verdict)
+
+
+class AnnotateNeutralTests(unittest.TestCase):
+    def test_identical_bytes_flag_a_folded_away_edit(self):
+        out = annotate_neutral("NEUTRAL   real 4 (insns T50/O50, multiset 0t)",
+                               4, "T50/O50", 0, 0, "T50/O50", "same", "same")
+        self.assertIn("NEUTRAL-IDENTICAL", out)
+
+    def test_moved_bytes_flag_a_rearrangement(self):
+        out = annotate_neutral("NEUTRAL   real 4 (insns T50/O50, multiset 0t)",
+                               4, "T50/O50", 0, 0, "T50/O50", "old", "new")
+        self.assertIn("NEUTRAL-REARRANGED", out)
+
+    def test_structurally_worse_neutral_is_not_banked(self):
+        out = annotate_neutral("NEUTRAL   real 4 (insns T50/O44, multiset 6t)",
+                               4, "T50/O44", 6, 2, "T50/O50", "old", "new")
+        self.assertTrue(out.startswith("NEUTRAL-WORSE"), out)
+        self.assertIn("count distance 0 -> 6", out)
+        self.assertIn("multiset 2t -> 6t", out)
+
+
+class ScaffoldCensusTests(unittest.TestCase):
+    SCAFFOLD = "\n".join(
+        ["#pragma opt_propagation off"]
+        + [f"    volatile int v{i};" for i in range(24)]
+        + ["#pragma force_active on", "int plain = 0;"])
+
+    def test_finds_pragmas_and_volatiles_but_not_force_active(self):
+        rows = scaffold_rows(self.SCAFFOLD)
+        self.assertEqual(len(rows), 25)
+        self.assertTrue(any("opt_propagation" in r for r in rows))
+        self.assertFalse(any("force_active" in r for r in rows))
+        self.assertFalse(any("plain" in r for r in rows))
+
+    def test_rows_are_line_numbered_from_one(self):
+        rows = scaffold_rows(self.SCAFFOLD)
+        self.assertTrue(rows[0].startswith("  L1: "))
+
+    def test_more_rows_exist_than_the_twenty_row_head(self):
+        """The cap is why --scaffold-all had to exist."""
+        self.assertGreater(len(scaffold_rows(self.SCAFFOLD)), 20)
+
+
+class SplitLinesTests(unittest.TestCase):
+    def test_crlf_is_preserved_as_content(self):
+        self.assertEqual(split_lines("a\r\nb\r\n", keepends=True),
+                         ["a\r\n", "b\r\n"])
+
+    def test_does_not_break_on_exotic_separators(self):
+        """str.splitlines() breaks on U+0085; a latin-1 round-trip of an
+        ordinary source byte can produce one, desynchronising indices."""
+        text = "a\x85b\nc\n"
+        self.assertEqual(len(split_lines(text)), 2)
+
+    def test_roundtrip_is_byte_exact(self):
+        for text in ("a\nb\n", "a\r\nb", "", "\n", "no trailing newline"):
+            self.assertEqual("".join(split_lines(text, keepends=True)), text)
+
+
+class StripNoncodeTests(unittest.TestCase):
+    def test_preserves_length_and_line_count(self):
+        out = strip_noncode(TU)
+        self.assertEqual(len(out), len(TU))
+        self.assertEqual(out.count("\n"), TU.count("\n"))
+
+    def test_braces_in_comments_and_strings_are_erased(self):
+        out = strip_noncode('int f(){ /* } */ char* s = "}"; }')
+        self.assertEqual(out.count("}"), 1)
+
+
+class FunctionSpanTests(unittest.TestCase):
+    def test_locates_a_definition_and_its_body(self):
+        start, end = function_span(TU, "alpha")
+        lines = split_lines(TU)
+        self.assertIn("void alpha", lines[start])
+        self.assertEqual(lines[end - 1], "}")
+
+    def test_brace_in_comment_or_string_does_not_close_the_body(self):
+        start, end = function_span(TU, "beta")
+        lines = split_lines(TU)
+        self.assertIn("    p->z = 3;", lines[start:end])
+        self.assertEqual(lines[end - 1], "}")
+
+    def test_absent_function_is_none(self):
+        self.assertIsNone(function_span(TU, "gamma"))
+
+    def test_object_name_resolves_a_suffixed_source_spelling(self):
+        """objdump says `SfxSkipItem`, the source says
+        `SfxSkipItem_80096FF4`. 16 of 507 real functions across ten TUs
+        are spelled this way; before this the span lookup missed all of
+        them and --revert refused."""
+        text = TU.replace("void alpha(", "void alpha_8007FC80(")
+        self.assertIsNotNone(function_span(text, "alpha"))
+
+    def test_suffixed_name_resolves_an_unsuffixed_source_spelling(self):
+        self.assertIsNotNone(function_span(TU, "alpha_8007FC80"))
+
+    def test_suffix_tolerance_does_not_match_a_different_function(self):
+        text = TU.replace("void alpha(", "void alpha_8007FC80(")
+        self.assertIsNone(function_span(text, "alph"))
+
+
+class ScopedRevertTests(unittest.TestCase):
+    def test_reverts_only_the_named_function(self):
+        edited = TU.replace("p->x = 1;", "p->x = 99;") \
+                   .replace("p->z = 3;", "p->z = 77;")
+        out, notes = scoped_revert(TU, edited, "alpha")
+        self.assertIn("p->x = 1;", out)     # alpha restored
+        self.assertIn("p->z = 77;", out)    # beta's in-progress work kept
+        self.assertIn("1 hunk(s) inside alpha reverted", notes)
+        self.assertIn("1 hunk(s) elsewhere", notes)
+
+    def test_insertions_and_deletions_inside_the_function(self):
+        edited = TU.replace("    p->y = 2;\n", "")
+        edited = edited.replace("    p->x = 1;\n",
+                                "    p->x = 1;\n    p->w = 0;\n")
+        out, _ = scoped_revert(TU, edited, "alpha")
+        self.assertEqual(out, TU)
+
+    def test_edit_outside_every_function_is_left_alone(self):
+        edited = TU.replace('#include "game.h"', '#include "game.h"\n#include "x.h"')
+        out, notes = scoped_revert(TU, edited, "alpha")
+        self.assertEqual(out, edited)
+        self.assertIn("0 hunk(s) inside alpha reverted", notes)
+
+    def test_straddling_hunk_is_refused_not_guessed(self):
+        """One contiguous hunk covering alpha's last line AND the line
+        after it — the only shape a function-scoped revert cannot split."""
+        edited = TU.replace("}\n\nvoid beta(Player* p)",
+                            "}   /* end of alpha */\nvoid beta(Player* p)")
+        with self.assertRaises(ValueError) as ctx:
+            scoped_revert(TU, edited, "alpha")
+        self.assertIn("straddle", str(ctx.exception))
+        self.assertIn("--whole-file", str(ctx.exception))
+
+    def test_missing_function_refuses_loudly(self):
+        with self.assertRaises(ValueError) as ctx:
+            scoped_revert(TU, TU.replace("void alpha", "void renamed"),
+                          "alpha")
+        self.assertIn("working source", str(ctx.exception))
+
+    def test_crlf_source_round_trips(self):
+        crlf = TU.replace("\n", "\r\n")
+        edited = crlf.replace("p->x = 1;", "p->x = 99;")
+        out, _ = scoped_revert(crlf, edited, "alpha")
+        self.assertEqual(out, crlf)
+        # every LF is still part of a CRLF — no line ending was rewritten
+        self.assertEqual(out.count("\n"), out.count("\r\n"))
+
+
+if __name__ == "__main__":
+    unittest.main()

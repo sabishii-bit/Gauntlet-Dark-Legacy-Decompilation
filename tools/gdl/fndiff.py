@@ -514,6 +514,38 @@ def clean_diff(name, t, b):
     print(f"== {name}: {status}, {real} real diff lines{noise_s}{hint_s}")
 
 
+def shiftable_gap(seq, lo, hi):
+    """Can the [lo, hi) gap slide along ``seq`` and produce the same diff?
+
+    A run of repeating opcodes makes an LCS gap's POSITION arbitrary: the
+    same edit is expressible at several offsets, so the reported one is
+    not where the residual lives. A lane spent a session on a cluster
+    located this way — the recorded "7-instruction shortfall at
+    T[66:76]@108-130" was an artifact of a dense repeating block, and the
+    prologue was 6 instructions LONGER than target's, not shorter
+    (attempt.SF_processeffects-pool-base-and-named-locals.20260901.v3).
+    """
+    if lo >= hi:
+        return False
+    if lo > 0 and seq[lo - 1] == seq[hi - 1]:
+        return True
+    return hi < len(seq) and seq[lo] == seq[hi]
+
+
+def cluster_flags(tag, to, bo, i1, i2, j1, j2):
+    flags = []
+    if tag == "delete" and shiftable_gap(to, i1, i2):
+        flags.append("SHIFTABLE")
+    elif tag == "insert" and shiftable_gap(bo, j1, j2):
+        flags.append("SHIFTABLE")
+    elif tag == "replace" and (shiftable_gap(to, i1, i2)
+                               or shiftable_gap(bo, j1, j2)):
+        flags.append("SHIFTABLE")
+    if i2 > i1 and j2 > j1 and Counter(to[i1:i2]) == Counter(bo[j1:j2]):
+        flags.append("BALANCED")
+    return flags
+
+
 def ops_diff(name, t, b):
     to, bo = opcodes(t), opcodes(b)
     sm = difflib.SequenceMatcher(None, to, bo, autojunk=False)
@@ -521,6 +553,12 @@ def ops_diff(name, t, b):
     print(f"==== {name}: target {len(to)} insns, ours {len(bo)}"
           + (" (opcode streams identical -- diffs are register/reloc only)"
              if not clusters else ""))
+    if clusters and len(to) != len(bo):
+        # State the NET direction once. A per-cluster "shortfall" reads as
+        # the whole story and has been taken for one.
+        longer = "OURS" if len(bo) > len(to) else "TARGET"
+        print(f"  net count: {longer} is longer by {abs(len(bo) - len(to))}"
+              " -- read every cluster against this direction")
     # Multiset verdict: IDENTICAL means every difference is pure reorder
     # (SCHEDULE class); any +/- means something structural is hiding in the
     # diff even when insn counts look close.
@@ -535,9 +573,21 @@ def ops_diff(name, t, b):
               f"  ours-only: {losses or '(none)'}")
     # @0x offsets are function-relative byte offsets (index*4), directly
     # usable as fnasm.py 0xA:0xB slices on the target (T) / --ours (O) dumps.
+    flagged = 0
     for tag, i1, i2, j1, j2 in clusters:
+        flags = cluster_flags(tag, to, bo, i1, i2, j1, j2)
+        if flags:
+            flagged += 1
+        note = f"  [{' + '.join(flags)}]" if flags else ""
         print(f"  {tag:7} T[{i1}:{i2}]@{i1 * 4:x}-{i2 * 4:x}={to[i1:i2]}"
-              f"  O[{j1}:{j2}]@{j1 * 4:x}-{j2 * 4:x}={bo[j1:j2]}")
+              f"  O[{j1}:{j2}]@{j1 * 4:x}-{j2 * 4:x}={bo[j1:j2]}{note}")
+    if flagged:
+        print(f"  {flagged} of {len(clusters)} clusters flagged: SHIFTABLE ="
+              " the same edit is expressible at another offset, so THIS"
+              " offset is not where the residual lives; BALANCED = the"
+              " cluster's own opcode multiset agrees, i.e. a local reorder."
+              " Confirm either against `fnasm <unit> <fn> 0xA:0xB --diff`"
+              " before working it.")
 
 
 def main():

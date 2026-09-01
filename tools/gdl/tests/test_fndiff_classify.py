@@ -4,7 +4,47 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from fndiff import classify_function, compiler_private_aliases_from_symbols
+from fndiff import (classify_function, cluster_flags,
+                    compiler_private_aliases_from_symbols, shiftable_gap)
+
+
+class ShiftableGapTests(unittest.TestCase):
+    """--ops cluster offsets are only meaningful when the gap cannot slide.
+
+    A dense repeating block makes an LCS gap's position arbitrary, and a
+    lane worked a cluster located that way for a session.
+    """
+
+    def test_gap_inside_a_repeating_run_can_slide(self):
+        seq = ["stfd", "lfd", "stfd", "lfd", "stfd", "lfd"]
+        self.assertTrue(shiftable_gap(seq, 2, 4))
+
+    def test_gap_with_distinct_neighbours_is_pinned(self):
+        seq = ["li", "addi", "mr", "blr"]
+        self.assertFalse(shiftable_gap(seq, 1, 2))
+
+    def test_empty_gap_is_not_shiftable(self):
+        self.assertFalse(shiftable_gap(["a", "b"], 1, 1))
+
+
+class ClusterFlagTests(unittest.TestCase):
+    def test_balanced_cluster_is_a_local_reorder(self):
+        to = ["li", "addi", "mr", "blr"]
+        bo = ["li", "mr", "addi", "blr"]
+        self.assertIn("BALANCED",
+                      cluster_flags("replace", to, bo, 1, 3, 1, 3))
+
+    def test_unbalanced_cluster_is_not_flagged_balanced(self):
+        to = ["li", "addi", "blr"]
+        bo = ["li", "mr", "blr"]
+        self.assertNotIn("BALANCED",
+                         cluster_flags("replace", to, bo, 1, 2, 1, 2))
+
+    def test_delete_inside_a_repeating_run_is_shiftable(self):
+        to = ["lfd", "stfd", "lfd", "stfd", "lfd", "stfd"]
+        bo = ["lfd", "stfd", "lfd", "stfd"]
+        self.assertIn("SHIFTABLE",
+                      cluster_flags("delete", to, bo, 2, 4, 2, 2))
 
 
 class ClassifyFunctionTests(unittest.TestCase):

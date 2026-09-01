@@ -32,6 +32,13 @@ regression and lists it; improvements are reported (and, with
 --update-improved, become the new baseline so later edits are gated against
 the better score).
 
+`baseline <unit> --at-head` rebuilds the baseline the CURRENT COMMIT
+implies, setting any working-tree edits aside and restoring them after.
+Baselines are KEYED TO THE COMMIT rather than committed to git (see
+save_baseline for the reasoning): each records the commit and source
+sha1 it was taken at, `check` says so when HEAD has moved, and --at-head
+regenerates it anywhere.
+
 A real-count regression on a fuzzy function whose CURRENT opcode multiset is
 IDENTICAL to target at equal insn counts is reported as CONFLICT instead of
 REGRESSION: structure fully matches target and the extra real lines can be
@@ -41,12 +48,21 @@ real 100->104). CONFLICT still fails the gate by default -- arbitrate by
 reading the diff and objdiff fuzzy; pass --arbitrate to accept a checked
 CONFLICT-only result. Byte-exact functions are never eligible: any drift on
 a real-0 function stays REGRESSION.
+
+The second CONFLICT route is the STRUCTURE ARBITER: real rose while the
+function's GENUINE structural rows (regnorm's count, artifacts excluded)
+FELL. Closing one compensating error re-aligns every instruction after
+it, so a strictly-nearer stream can score worse on `real` alone -- that
+shape read as a flat REGRESSION and had to be overridden by hand. Only
+the disputed functions are re-measured, so the check stays cheap.
 """
 
+import hashlib
 import json
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 VERSION = "GUNE5D"
@@ -54,6 +70,7 @@ FNDIFF = Path(__file__).resolve().parent / "fndiff.py"
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fndiff  # noqa: E402  (raw_signature: the byte-identity backstop)
+import regnorm  # noqa: E402  (genuine structural rows: the CONFLICT arbiter)
 
 COUNT_RE = re.compile(
     r"^DIFF\s+(\S+)\s+insns\s+(\d+)/(\d+)\s+lines\s+(\d+)\s+real\s+(\d+)\s*$"
@@ -211,23 +228,67 @@ def compare(baseline, current, renames=None):
     return verdicts
 
 
-def arbitrate_regressions(verdicts, unit):
+def genuine_counts(unit, names):
+    """{fn: genuine structural rows} for the named functions.
+
+    `real` is the gate's only score and it cannot see structure: a
+    respell that moves the residual strictly nearer target can RAISE real
+    while the genuine structural rows fall, because closing one
+    compensating error re-aligns every instruction after it. That shape
+    read as a flat REGRESSION and had to be overridden by hand
+    (attempt.LG_get-vmu-directory-shared-constant-and-branch-pair-
+    carriers.20260901.v2, real 48 -> 65 at fuzzy 90.04 -> 92.72).
+
+    Kept to the disputed functions only — two objdumps plus a difflib
+    pass each, not a TU-wide census.
+    """
+    bare = re.sub(r"\.(c|cpp)$", "", unit)
+    counts = {}
+    try:
+        target, ours, resolver = regnorm.load_tables(bare)
+    except Exception:
+        return counts
+    for name in names:
+        fn_t = regnorm.resolve_name(target, name)
+        fn_o = regnorm.resolve_name(ours, name)
+        if fn_t is None or fn_o is None:
+            continue
+        try:
+            result = regnorm.analyze(target[fn_t], ours[fn_o], resolver)
+        except Exception:
+            continue
+        counts[name] = len(result.genuine)
+    return counts
+
+
+def ops_text(bare_unit, name):
+    return subprocess.run(
+        [sys.executable, str(FNDIFF), bare_unit, name, "--ops",
+         "--no-build"], capture_output=True, text=True).stdout
+
+
+def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
+                          ops_fn=None):
     """Downgrade real-growth REGRESSIONs to CONFLICT when the current state
     is structurally target-identical (equal insn counts, IDENTICAL opcode
     multiset): the growth can be pure naming churn invisible to `real`.
     Never applies to functions that were byte-exact at baseline."""
     bare_unit = re.sub(r"\.(c|cpp)$", "", unit)
+    baseline = baseline or {}
+    genuine_fn = genuine_fn or genuine_counts
+    ops_fn = ops_fn or ops_text
+    disputed = [name for name, verdict, detail in verdicts
+                if verdict == "REGRESSION"
+                and re.match(r"real (\d+) -> (\d+)$", detail)
+                and not detail.startswith("real 0 ")]
+    genuine_now = genuine_fn(bare_unit, disputed) if disputed else {}
     out = []
     for name, verdict, detail in verdicts:
         growth = re.match(r"real (\d+) -> (\d+)$", detail)
         if verdict != "REGRESSION" or not growth or growth.group(1) == "0":
             out.append((name, verdict, detail))
             continue
-        ops = subprocess.run(
-            [sys.executable, str(FNDIFF), bare_unit, name,
-             "--ops", "--no-build"],
-            capture_output=True, text=True,
-        ).stdout
+        ops = ops_fn(bare_unit, name)
         identical = re.search(
             r"opcode multiset: IDENTICAL \((\d+)/(\d+)\)", ops)
         if identical and identical.group(1) == identical.group(2):
@@ -236,8 +297,31 @@ def arbitrate_regressions(verdicts, unit):
                         " insn counts — possible naming churn; arbitrate"
                         " with the diff + objdiff fuzzy, do NOT auto-revert"
                         " (pass --arbitrate to accept)"))
-        else:
+            continue
+        # Structure arbiter: real rose but the GENUINE structural rows
+        # fell, so the stream is nearer target and `real` is reading the
+        # re-alignment, not a regression.
+        was = baseline.get(name, {}).get("genuine")
+        now = genuine_now.get(name)
+        if was is None or now is None:
+            if was is None and now is not None:
+                out.append((name, verdict, detail + (
+                    " [no genuine-row count in this baseline (taken before"
+                    " run 29) — the structure arbiter is UNAVAILABLE here;"
+                    " re-take the baseline to enable it]")))
+                continue
             out.append((name, verdict, detail))
+            continue
+        if now < was:
+            out.append((name, "CONFLICT",
+                        detail + f" BUT genuine structural rows {was} ->"
+                        f" {now} FELL — the residual moved nearer target"
+                        " and real is reading the re-alignment; arbitrate"
+                        " on fuzzy from a fresh report, do NOT auto-revert"
+                        " (pass --arbitrate to accept)"))
+        else:
+            out.append((name, verdict,
+                        detail + f" (genuine structural rows {was} -> {now})"))
     return out
 
 
@@ -249,6 +333,65 @@ def run_fndiff(unit, flag):
     if result.returncode != 0 and "missing:" in (result.stdout + result.stderr):
         raise SystemExit(f"fndiff failed for {unit}:\n{result.stdout}{result.stderr}")
     return result.stdout
+
+
+def git_head():
+    result = subprocess.run(["git", "rev-parse", "HEAD"],
+                            capture_output=True, text=True)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def source_path(unit):
+    bare = re.sub(r"\.(c|cpp)$", "", unit)
+    for suffix in (".c", ".cpp"):
+        candidate = Path("src") / (bare + suffix)
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def source_digest(unit):
+    src = source_path(unit)
+    if src is None:
+        return None
+    return hashlib.sha1(src.read_bytes()).hexdigest()
+
+
+def load_baseline(path):
+    """(functions, meta). Accepts the pre-run-29 bare-dict format."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(data, dict) and "functions" in data and "meta" in data:
+        return data["functions"], data["meta"]
+    return data, {}
+
+
+def save_baseline(path, snap, unit):
+    """Anchor every baseline to the commit and source bytes it was taken
+    at.
+
+    DURABILITY DECISION (run 29, item 3): gate snapshots are KEYED TO THE
+    COMMIT, not committed to git. build/GUNE5D/gate/ is build output and
+    a per-worktree working state; committing it would put every lane's
+    baselines in every other lane's merge path. What actually failed was
+    RECONSTRUCTION — a lane needed run 26's baseline, the worktree had
+    been pruned, and it had to rebuild one from clean HEAD bytes by hand
+    and prove the reconstruction by matching a function count quoted in a
+    record. So the file now records the commit and the source sha1 it was
+    taken at, `check` says so when HEAD has moved, and `baseline
+    --at-head` performs that reconstruction as a command.
+    """
+    meta = {
+        "unit": unit,
+        "head": git_head(),
+        "source_sha1": source_digest(unit),
+        "taken_at": datetime.now(timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"),
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps({"meta": meta, "functions": snap}, indent=2,
+                   sort_keys=True), encoding="utf-8")
+    return meta
 
 
 def gate_path(unit):
@@ -269,6 +412,7 @@ def main():
     update_improved = "--update-improved" in sys.argv
     rebuild = "--rebuild" in sys.argv or "--build" in sys.argv
     arbitrate = "--arbitrate" in sys.argv
+    at_head = "--at-head" in sys.argv
     renames = {}
     for arg in sys.argv[1:]:
         if arg.startswith("--rename="):
@@ -293,16 +437,53 @@ def main():
                 continue
             print(f"==== {one} ====")
             code = run_single(mode, one, rebuild, update_improved, arbitrate,
-                              renames, bank_arbitrated)
+                              renames, bank_arbitrated, at_head)
             worst = max(worst, code)
         return worst
     return run_single(mode, unit, rebuild, update_improved, arbitrate,
-                      renames, bank_arbitrated)
+                      renames, bank_arbitrated, at_head)
 
 
 def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
-               bank_arbitrated=None):
+               bank_arbitrated=None, at_head=False):
     unit = normalize_unit(unit)
+    if at_head:
+        # Reconstruct the baseline the CURRENT COMMIT implies, with the
+        # working tree's edits temporarily out of the way. This is the
+        # by-hand procedure a lane had to invent when a pruned worktree
+        # took its predecessor's baseline with it (swap the file out,
+        # write HEAD's bytes back, baseline, restore).
+        if mode != "baseline":
+            print("--at-head only applies to `baseline`")
+            return 2
+        src = source_path(unit)
+        if src is None:
+            print(f"--at-head: no source found for {unit}")
+            return 2
+        shown = subprocess.run(["git", "show", f"HEAD:{src.as_posix()}"],
+                               capture_output=True)
+        if shown.returncode != 0:
+            print(f"--at-head: git show HEAD:{src.as_posix()} failed")
+            return 1
+        saved = src.read_bytes()
+        dirty = saved != shown.stdout
+        try:
+            if dirty:
+                src.write_bytes(shown.stdout)
+            print(f"--at-head: baselining {unit} from commit"
+                  f" {(git_head() or '?')[:9]}"
+                  + (" (working-tree edits temporarily set aside)"
+                     if dirty else " (working tree already matches HEAD)"))
+            return run_single(mode, unit, True, update_improved, arbitrate,
+                              renames, bank_arbitrated, at_head=False)
+        finally:
+            if dirty:
+                src.write_bytes(saved)
+                subprocess.run(["ninja", f"build/{VERSION}/src/"
+                                f"{re.sub(r'[.](c|cpp)$', '', unit)}.o"],
+                               capture_output=True, text=True)
+                print("--at-head: working-tree source restored and"
+                      " rebuilt")
     if rebuild:
         obj = re.sub(r"\.(c|cpp)$", "", unit)
         build = subprocess.run(
@@ -326,17 +507,38 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         for name, digest in fndiff.opcode_multiset_signature(objfile).items():
             if name in snap:
                 snap[name]["opset"] = digest
+    # Genuine structural rows for every function `real` calls imperfect —
+    # the structure arbiter's baseline half. Byte-exact rows can never be
+    # disputed, so they are skipped and the count stays cheap.
+    mismatching = [name for name, row in snap.items() if row.get("real")]
+    if mismatching:
+        for name, count in genuine_counts(unit, mismatching).items():
+            if name in snap:
+                snap[name]["genuine"] = count
     path = gate_path(unit)
     if mode == "baseline":
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(snap, indent=2, sort_keys=True), encoding="utf-8")
+        meta = save_baseline(path, snap, unit)
         exact = sum(1 for row in snap.values() if row.get("real") == 0)
         print(f"baseline: {len(snap)} functions ({exact} at real 0) -> {path}")
+        print(f"  anchored to commit {(meta.get('head') or '?')[:9]},"
+              f" source sha1 {(meta.get('source_sha1') or '?')[:9]}"
+              " — rebuild this exact baseline anywhere with"
+              f" `defake_gate.py baseline {unit} --at-head` on that commit")
         return 0
     if not path.exists():
         print(f"no baseline at {path}; run `defake_gate.py baseline {unit}` first")
         return 2
-    baseline = json.loads(path.read_text(encoding="utf-8"))
+    baseline, meta = load_baseline(path)
+    if meta:
+        head = git_head()
+        if meta.get("head") and head and meta["head"] != head:
+            print(f"[baseline was taken at commit {meta['head'][:9]}, HEAD is"
+                  f" now {head[:9]} — it still gates, but say WHICH commit"
+                  " it anchors to when quoting its numbers]")
+    else:
+        print("[baseline predates run 29: no commit anchor and no"
+              " genuine-row counts — re-take it to enable the structure"
+              " arbiter and make it reconstructable]")
     if bank_arbitrated:
         # Re-anchor ONE function's row over a fuzzy-arbitrated keep the
         # mandate accepts but `real` reads as a regression. Re-running a
@@ -360,13 +562,12 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         archive.write_text(path.read_text(encoding="utf-8"),
                            encoding="utf-8")
         baseline[target_row] = snap[target_row]
-        path.write_text(json.dumps(baseline, indent=2, sort_keys=True),
-                        encoding="utf-8")
+        save_baseline(path, baseline, unit)
         print(f"banked arbitrated keep for {target_row} (that row only —"
               " every sibling still gates against its original anchor;"
               " record the arbitration + its fuzzy in the attempt record)")
     verdicts = compare(baseline, snap, renames)
-    verdicts = arbitrate_regressions(verdicts, unit)
+    verdicts = arbitrate_regressions(verdicts, unit, baseline)
     conflicts = [v for v in verdicts if v[1] == "CONFLICT"]
     regressions = [v for v in verdicts if v[1] == "REGRESSION"]
     for name, verdict, detail in verdicts:
@@ -380,8 +581,7 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
             archive = path.with_suffix(".prev.json")
             archive.write_text(path.read_text(encoding="utf-8"),
                                encoding="utf-8")
-            path.write_text(json.dumps(snap, indent=2, sort_keys=True),
-                            encoding="utf-8")
+            save_baseline(path, snap, unit)
             print(f"GATE OK (arbitrated: {len(conflicts)} CONFLICT accepted;"
                   " baseline RE-ANCHORED over the arbitrated state — record"
                   " the arbitration + its metric in the attempt record)")
@@ -417,7 +617,7 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         archive = path.with_suffix(".prev.json")
         archive.write_text(path.read_text(encoding="utf-8"),
                            encoding="utf-8")
-        path.write_text(json.dumps(snap, indent=2, sort_keys=True), encoding="utf-8")
+        save_baseline(path, snap, unit)
         print(f"baseline updated with {len(improved)} improvement(s)"
               f" (previous archived at {archive.name})")
     print("GATE OK" + (f" ({len(improved)} improved)" if improved else ""))
