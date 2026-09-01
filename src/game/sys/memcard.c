@@ -1062,7 +1062,6 @@ typedef struct OptsBlob {
     u8 bytes[32];
 } OptsBlob;
 
-#pragma opt_lifetimes off
 int loadGauntletSave(void)
 {
     char* dpool = lbl_8011CDE0;
