@@ -528,6 +528,7 @@ game/audio/dcsdrv.c:
 	extab       start:0x80008098 end:0x800080B0
 	extabindex  start:0x8000C934 end:0x8000C958
 	.text       start:0x800D4960 end:0x800D5260
+	.data       start:0x801295C8 end:0x80129680
 
 game/audio/mempool.c:
 	extab       start:0x800080B0 end:0x80008118
