@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "entry-schedule",
+      "register-web",
+      "cse",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.RC_temp-local-for-a-second-call-argument-reproduces-the-load-then-copy.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T16:03:28Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/combat",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5 family. TELL: two back-to-back calls whose results are both kept, where TARGET emits `bl f` / `lfs fT,DISP(rB)` / `fmr fSAVE,f1` / `fmr f1,fT` / `bl g` but OUR build emits `bl f` / `fmr fSAVE,f1` / `lfs f1,DISP(rB)` / `bl g`. Ours is one instruction SHORT and the target looks like it wastes a copy: it loads the second call's argument into a scratch FPR BEFORE saving the first call's result, then copies scratch into f1. CURE, measured: give the second call's argument its own named local, assigned in a statement between the two calls, and pass the local. On get_attn_pos_8002C9A8 the edit `sy = sin(cam->pyr[1]); pitch = cam->pyr[0]; cp = cos(pitch);` (replacing `cp = cos(cam->pyr[0]);`) moved real 157 -> 100 and closed the cluster exactly; applying the same lever to the sibling cos/cos pair closed the second one and took the opcode multiset from 4t to 3t. MECHANISM: the separate assignment statement makes the argument load a scheduling unit of its own, so it can be issued before the call-result copy; a load written directly as the call argument is emitted into f1 and therefore cannot precede the save of f1. NON-CURES measured on the same clusters: (a) declaring the result variables without initializers and assigning them (`f32 sy; f32 cp; sy = sin(...); cp = cos(...);`) is byte-identical - the initializer-presence axis is NEUTRAL for this shape, distinct from claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1 which governs callee-saved NUMBERING, not this scheduling; (b) folding both calls into the consuming expression (`out[0] = scale * cos(cam->pyr[0]) * sin(cam->pyr[1]) + out[0];`) REFUTES the natural 'one expression tree' theory - MWCC evaluates that expression LEFT TO RIGHT, so it calls cos before sin, inverting the target's call order and costing real 100 -> 187. SCOPE: any function with consecutive calls whose arguments are plain memory loads and whose results are both live."
+}

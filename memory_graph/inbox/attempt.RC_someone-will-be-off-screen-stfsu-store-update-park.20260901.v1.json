@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "someone_will_be_off_screen: reproduce the target's three stfsu store-with-update eye pointers by removing cached pointer aliases and re-indexing each pointer in full",
+  "attributes": {
+    "law_screen": "claim.law.cached-base-alias-defeats-rematerialized-index-base.20260831.v1 APPLIED and PARTIALLY CONFIRMED: target repeats `add rN,r23,r0` four times for the SAME value (base + camIdx*396) while CSE-ing only the mulli, exactly as the law describes; spelling each eye pointer as the full re-indexed expression instead of the `eyeY = eyeX + 1` alias chain moved real 140 -> 138 and, when the `cam` alias was also removed, closed one of the three surplus adds. But the law's cure does NOT reach the stfsu half of the residual (see residual). claim.law.lwzu-idiom-web-retention.20260830.v1 and claim.law.NV_update-load-extends-to-lfsu-and-the-rematerialised-base-tell.20260901.v1 screened as the nearest update-form laws: both are LOAD-side; no recorded law covers the STORE-side stfsu formation, which is what this function needs. claim.law.scalar-read-write-lfsu-mixed-form.20260830.v1 screened, load-side only. The function's own prior record attempt.someone-will-be-off-screen-inert-pad-conserving-split.20260831.v1 (outcome neutral, a stackLayout[56] pad-split) was NOT re-run - that axis stays measured-neutral and untouched.",
+    "laws_applied": "[\"claim.law.cached-base-alias-defeats-rematerialized-index-base.20260831.v1\"]",
+    "probed_form": "KEPT (real 138, 199/199 insns): `eyeX = (f32*)(cameraState + camIdx * sizeof(Camera) + 0xC8 + 0x34);` and the same full expression with 0x38 / 0x3C for eyeY / eyeZ, replacing `eyeX = (f32*)((u8*)cam + 0x34); eyeY = eyeX + 1; eyeZ = eyeX + 2;`. NEGATIVE (real 145, and it ADDS an instruction: 200 vs target 199) - removing the `cam` alias entirely by deleting `Camera* cam;` and its initializer and passing `(f32*)(cameraState + camIdx * sizeof(Camera) + 0xC8 + offsetof(Camera, mat))` to both MBWindowProject calls: this closes one surplus `add` and improves the multiset 12t -> 11t but costs 7 real words. NEGATIVE and IDENTICAL to it (real 145, same clusters, so the axis is dead at two identical A/Bs) - additionally reading the saved values through direct full expressions `savedX = *(f32*)(cameraState + camIdx * sizeof(Camera) + 0xC8 + 0x34);` so the pointer variables are first materialized at the STORE: MWCC CSEs the address expression back into the read and no stfsu appears.",
+    "residual": "Three target `stfsu f0,252(r28)` / `256(r27)` / `260(r26)` where ours emits plain stfs against an already-materialized pointer, plus the matching surplus `add`s. The eye pointers ARE live across the loop (they are used again at the restore), which is the precondition for MWCC's lazy pointer materialization; no source spelling found that defers materialization to the store. NAMED MECHANISM: store-side update-form (stfsu) fusion of a pointer's constant displacement, unserved by any recorded law - the corpus's update-form laws are all load-side.",
+    "scope": "src/game/game/combat.c, someone_will_be_off_screen only; matching edits (no header touched)",
+    "verification": "probe.py real 140 -> 138 at held parity (199/199); defake_gate check game/game/combat.c = GATE OK (no sibling regression); full ninja -j2 = 'build/GUNE5D/main.dol: OK'; parity-held gain arbitrated on FRESH report fuzzy per AGENTS discipline 9c: 91.93 -> 93.05, so kept. Commit 9ca427528."
+  },
+  "function": "function:someone_will_be_off_screen",
+  "id": "attempt.RC_someone-will-be-off-screen-stfsu-store-update-park.20260901.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-01T16:02:39Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

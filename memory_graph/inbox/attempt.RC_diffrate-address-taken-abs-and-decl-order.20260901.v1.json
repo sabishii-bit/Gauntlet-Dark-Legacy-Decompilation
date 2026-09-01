@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "DiffRate: recover the missing bit-trick fabs statement the u8 unused[16] pad stood in for, then fix the callee-saved numbering by declaration order",
+  "attributes": {
+    "law_screen": "claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1 APPLIED and CONFIRMED: target assigns r30=state5, r29=cam while ours had r29=state5, r30=cam; swapping the declaration order of `state5` and `cam` alone moved real 66 -> 24 with no other edit. claim.law.teardown-call-pattern-is-padding-evidence.20260831.v1 and the AGENTS pad idiom APPLIED in the diagnostic direction: `u8 unused[16]` was standing in for a REAL local (a bit-trick fabs slot at 24(r1)), and reading the target's stfs/lwz/clrlwi/stw quartet recovered it. claim.law.cached-base-alias-defeats-rematerialized-index-base.20260831.v1 screened and MEASURED NEGATIVE here twice (see probed_form). claim.law.sizeof-defeats-loop-stride-induction.20260831.v1 screened, not applicable (the 396 stride is already spelled as a literal/define and is not in a loop).",
+    "laws_applied": "[\"claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1\"]",
+    "probed_form": "NEGATIVE AXIS (measured twice, both register-numbering configurations, so the axis is dead): making the camera pointer a walked base that is advanced in place, intending to reproduce target's `add r29,r31,r0` / `lfs f31,368(r29)` / `addi r29,r29,200`. Form 1 (real 66 -> 70, before the decl-order fix): `u8* camBase = gCameraState + camIdx * CAMERA_STATE_CAMERA_STRIDE; f32 prevYaw = *(f32*)(camBase + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[1])); Camera* cam = (Camera*)(camBase + CAMERA_STATE_CAMERAS_OFF);`. Form 2 (real 24 -> 66, after it): `Camera* cam = (Camera*)(gCameraState + camIdx * CAMERA_STATE_CAMERA_STRIDE); f32 prevYaw = *(f32*)((u8*)cam + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, pyr[1]));` plus a first statement `cam = (Camera*)((u8*)cam + CAMERA_STATE_CAMERAS_OFF);`. Also measured NEGATIVE: spelling the recovered fabs through the TU's existing `union FloatBits` (real 122 -> 153) - MWCC dead-strips the whole statement because the union local is never read; only the address-taken pointer-cast form survives.",
+    "residual": "One entry-sequence cluster (~4 words, 0 STRUCTURAL rows under regnorm): target forms base+idx*396 in cam's own home register and advances it in place with `addi r29,r29,200` AFTER reading 368(r29); ours forms it in a scratch r4 and offsets once. The in-place-advance axis is closed (two identical A/Bs above).",
+    "scope": "src/game/game/combat.c, DiffRate_8002951C only; matching edits (no header touched)",
+    "verification": "probe.py real 122 -> 24; insn count 157 -> 163 == target 163; fndiff --ops opcode multiset DIFFERS(6t) -> IDENTICAL; regnorm 0 STRUCTURAL / 11 renaming / 4 unpaired; defake_gate check game/game/combat.c = GATE OK; full ninja -j2 = 'build/GUNE5D/main.dol: OK'; fresh report fuzzy 92.22 -> 98.20. Commit 8cb910de4."
+  },
+  "function": "function:DiffRate_8002951C",
+  "id": "attempt.RC_diffrate-address-taken-abs-and-decl-order.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T16:02:33Z",
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

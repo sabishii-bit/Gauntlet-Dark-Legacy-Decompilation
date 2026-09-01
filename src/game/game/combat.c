@@ -287,19 +287,22 @@ void CameraSupervisor(s32 camIdx);
 void DiffRate_8002951C(s32 camIdx)
 {
     f32* camState = (f32*)gCameraState;
-    Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
     register f32* state5 = camState + 5;
+    Camera* cam = (Camera*)((u8*)gCameraState + camIdx * 396 + 0xC8);
     f32 prevYaw = cam->pyr[1];
     f32 rate;
     f32 curYaw;
     f64 y;
-    u8 unused[16];
+    f32 yawDelta;
+    u8 unused[12];
 
     camState[6] = camState[5];
     camState[5] = camState[4];
     camState[4] = prevYaw;
     CameraSupervisor(camIdx);
     rate = lbl_8034444C * (f32)(u32)gFrameTicks;
+    yawDelta = lbl_80344534 - cam->pyr[1];
+    *(u32*)&yawDelta = *(u32*)&yawDelta & 0x7FFFFFFF;
 
     if (lbl_80344400 > 0 && cam->pyr[1] != lbl_80344534) {
         cam->pyr[1] = cam->pyr[1] + rate;
@@ -1621,9 +1624,9 @@ f32 someone_will_be_off_screen(s32 camIdx, f32* pos)
     s32 scrH = MBScreenHeight();
     s32 scrW = MBScreenWidth();
     cam = (Camera*)(cameraState + camIdx * sizeof(Camera) + 0xC8);
-    eyeX = (f32*)((u8*)cam + 0x34);
-    eyeY = eyeX + 1;
-    eyeZ = eyeX + 2;
+    eyeX = (f32*)(cameraState + camIdx * sizeof(Camera) + 0xC8 + 0x34);
+    eyeY = (f32*)(cameraState + camIdx * sizeof(Camera) + 0xC8 + 0x38);
+    eyeZ = (f32*)(cameraState + camIdx * sizeof(Camera) + 0xC8 + 0x3C);
     savedX = *eyeX;
     savedY = *eyeY;
     savedZ = *eyeZ;
@@ -2316,17 +2319,18 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
             cam->attn_dest_no_offset[1] = out[1];
             cam->attn_dest_no_offset[2] = out[2];
         } else {
-            f32 minX = lbl_8034619C, maxX = lbl_803461A0;
-            f32 minY = lbl_8034619C, maxY = lbl_803461A0;
-            f32 minZ = lbl_8034619C, maxZ = lbl_803461A0;
+            f32 minX, maxX;
+            f32 minY, maxY;
+            f32 minZ, maxZ;
             f32 sv0, sv1, sv2;
             CameraTarget* target = (CameraTarget*)(cameraState + 2576);
+            minX = minY = minZ = lbl_8034619C;
+            maxX = maxY = maxZ = lbl_803461A0;
             for (i = 0; i < 15; i++, target++) {
                 if (target->active > 0) {
-                    f32* p = (f32*)(target->object + 0x40);
-                    f32 x = p[0];
-                    f32 y = p[1];
-                    f32 z = p[2];
+                    f32 x = *(f32*)(target->object + 0x40);
+                    f32 y = *(f32*)(target->object + 0x44);
+                    f32 z = *(f32*)(target->object + 0x48);
                     if (x < minX) minX = x;
                     if (x > maxX) maxX = x;
                     if (y < minY) minY = y;
@@ -2346,32 +2350,29 @@ void get_attn_pos_8002C9A8(s32 camIdx, f32* out)
             cam->attn_dest_no_offset[2] = out[2];
             if (*(s32*)((u8*)cam + 0xEC) == 3) {
                 if (gNumTransmitters == 0) {
-                    f32 cp = cos(cam->pyr[0]);
                     register f64 half = lbl_80345F18;
                     out[2] = (f32)(half *
-                        (half * (f64)(maxZ - minZ) * (f64)cp) +
+                        (half * (f64)(maxZ - minZ) *
+                        cos(cam->pyr[0])) +
                         (f64)out[2]);
                 } else {
-                    f32 sy = sin(cam->pyr[1]);
-                    f32 cp = cos(cam->pyr[0]);
+                    f32 sy;
+                    f32 cp;
                     f32 scale;
                     f32 cy;
                     f32 cp2;
-                    {
-                        register f64 half = lbl_80345F18;
-                        register f64 spread = lbl_803461F0;
-                        scale = (f32)(spread * half *
-                            (f64)(maxX - minX));
-                    }
+                    f32 pitch;
+                    sy = sin(cam->pyr[1]);
+                    pitch = cam->pyr[0];
+                    cp = cos(pitch);
+                    scale = (f32)(lbl_80345F18 *
+                        (f64)(maxX - minX) * lbl_803461F0);
                     out[0] = scale * cp * sy + out[0];
                     cy = cos(cam->pyr[1]);
-                    cp2 = cos(cam->pyr[0]);
-                    {
-                        register f64 half = lbl_80345F18;
-                        register f64 spread = lbl_803461F0;
-                        scale = (f32)(spread * half *
-                            (f64)(maxZ - minZ));
-                    }
+                    pitch = cam->pyr[0];
+                    cp2 = cos(pitch);
+                    scale = (f32)(lbl_80345F18 *
+                        (f64)(maxZ - minZ) * lbl_803461F0);
                     out[2] = scale * cp2 * cy + out[2];
                 }
             }
