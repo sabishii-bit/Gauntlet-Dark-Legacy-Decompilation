@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "POSTPROCESSOR-DEV lane (the run's highest-value item, handle with maximum soundness care): the live-zero/constant-copy remat family counts 22 recorded functions across 10+ TUs (claim.RC_reopen-triage-verdicts-and-live-zero-population.20260901.v1 + the constant-copy law family) \u2014 every source axis measured dead; the residual is an instruction FORM difference (e.g. ours `mr rD,rS` [= or rD,rS,rS] where target `addi rD,rS,0`, or li-vs-copy variants). WebFrank today cannot express form changes (claim.law.webfrank-cannot-close-instruction-count-deltas covers counts; forms were rejected in the guard-hardening triage). YOUR JOB, in strict order: (1) TAXONOMIZE the 22 by exact form pair + dataflow precondition \u2014 `mr` vs `addi rD,rS,0` is unconditionally equivalent ONLY for rS != r0 (addi with rA=r0 loads the immediate, not a copy!); li-vs-copy needs a PROOF the source register holds the constant at that point (dominating def, no interposed write \u2014 a real dataflow obligation); (2) design ONE new audited edit class in tools/gdl/webfrank.py (e.g. `equivalent_copy_form`) with fail-closed guards: explicit opcode-pair whitelist, the rS!=r0 check machine-enforced, the li-case EXCLUDED unless you also implement the dominating-def audit (prefer excluding it v1); target-bytes assert unchanged; (3) tests in test_webfrank.py: positive (mr<->addi rS!=r0), negative (rS==r0 must REJECT; any other opcode pair must REJECT); (4) apply to the UNCONDITIONAL sub-population only, one rule per function, full ninja + retail sha1 per rule; CTriListCollide first (its record names the exact site). Every rule = matched%. If the audit cannot be made sound, the honest no-go record with the taxonomy is a full deliverable \u2014 do NOT ship an unproven equivalence; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:CTriListCollide",
+  "id": "work_claim.livezero-rule-class.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-LZ",
+  "recorded_at": "2026-09-01T01:51:53Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "BIG-PAIR lane, src/game/enemy/enemy.c: move_logic10 (98.89, 1085/1087) + do_enemy_move (98.98, 905/905) \u2014 the TU's last big pair, untouched since run 12; the banked f64-cand axis is REFUTED (do not retry). Apply the September kit fresh: side-decomposition of the count deltas FIRST (move_logic10 is 2 short \u2014 the quiet-addi lesson: decompose clusters by side, the multiset headline is a decoy), split-symbol checks on adjacent BSS the fns share, alignment-pad slotdiff on any lone dead slot, population fingerprints (--ops repeated signatures), regnorm for the recolor tails. do_enemy_move's cursor/arg-register mechanism is recorded (attempt.do-enemy-move-cursor-and-arg-register.20260831.v1) \u2014 screen it, the Sept laws may reach what it couldn't. Then the TU's remaining sub-100s cheapest-first (fn_8004646C 9-web group swap = recorded wall; damage_enemy P6 = VETO). Commit per function; gate (50+ real-0 siblings incl. move_logic15's pin \u2014 screen webfrank.json first). Exact or resolution-stamped parks; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:move_logic10",
+  "id": "work_claim.enemy-tail.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-EN",
+  "recorded_at": "2026-09-01T01:52:19Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

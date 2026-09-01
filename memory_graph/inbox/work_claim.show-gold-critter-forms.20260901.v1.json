@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "FORM-CLASS SCOUT lane (LZ's field partner): several parked functions have residuals SUSPECTED to be the mr/addi/li form class but never taxonomized: CritterMoveSetup (real 7 \u2014 the ternary reached multiset 0t at real 18 with a copy in the empty arm: is the retained real-7 state's residual the form pair?), CritterAnimate (real 38, branch + li cluster), G3DReadControlPadStates (real 20, 3x li-vs-copy \u2014 its v2 record names them), show_gold (real 117 post-ShopPage), fn_80051C78/GetEnemyType (the run-13 parks: index-base + param home copies \u2014 likely NOT the class, verify). Per function: aligned fnasm read of each differing site; classify into (a) unconditional mr<->addi-copy [rS!=r0], (b) li-vs-copy needing a dominating-def proof, (c) NOT the form class; hand the (a)/(b) roster to the LZ lane via a claim record with per-site offsets/registers/preconditions. Do NOT author rules yourself (LZ owns webfrank.py this run); DO fix anything a source lever reaches along the way. Commit per finding; gate per TU touched. The taxonomy claim is the deliverable; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:CritterMoveSetup",
+  "id": "work_claim.show-gold-critter-forms.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CT",
+  "recorded_at": "2026-09-01T01:52:30Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

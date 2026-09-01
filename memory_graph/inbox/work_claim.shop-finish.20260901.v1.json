@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "FINISH lane, game/shop/shop.c + game/world/worldcol.c: (1) show_piles \u2014 count 102/102 was reported multiset-IDENTICAL with one addi-vs-li slot, but CURRENT regnorm reads COUNT-MISMATCH 2-unpaired: REMEASURE FIRST (the state moved with the ShopPage merge; do not trust the record's baseline). Residual likely the LZ lane's form class \u2014 if so, park with the LZ handoff note rather than probing dead axes. (2) do_shop \u2014 the per-region law PREDICTS a loss (2+ regions) but that is predicted-not-measured: run the ONE confirming probe against the banked baseline (attempt.shop-buffer-record-declaration.20260901.v1 has the 4 site addresses); record the boundary either way. (3) write_shop_menu \u2014 same one-probe status for its two-region state. (4) worldcol.c: PointLineColl 99.08 near-miss + CTriListCollide is LZ's \u2014 do NOT touch it; screen the TU's other sub-100s w/ the Sept kit (regnorm first, slotdiff for frames, per-region economics for any record work). Commit per function; gate per TU; exact or resolution-stamped outcomes; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:show_piles",
+  "id": "work_claim.shop-finish.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SP",
+  "recorded_at": "2026-09-01T01:51:58Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

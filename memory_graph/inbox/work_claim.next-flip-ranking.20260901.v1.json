@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "FLIP-RANKING lane: the landscape changed again (btricol + anim_play flipped; ShopPage landed; ghosts cleared; stale classifier fixed). Re-rank ALL NonMatching TUs by non-EXACT count (fndiff --classify; the corrected instruments: datadiff --sections per candidate, ghostsweep.py, nm/UND, the gate paradox law for alignment-illegal extents). For 0-straggler TUs (if any appear): check data gates and flip immediately. For 1-straggler TUs: context + regnorm the straggler, drive ONLY where a September/October law's precondition measurably holds (DoPolyInst: W1 proved the ternary lever inert in void context \u2014 but the LZ form class may cover its beq/ble pair? measure); mb_poly, ml_fmath (WPitchMat3 lfsu wall), fakelib (sceOpen SCHEDULE + sDvdReadSync 4-byte band), dcsdrv, dbgtext, gcontrolpads, mb_font, sysservice, pb_window (both terminal-capped \u2014 skip unless a law reaches them). Deliverable: flips where reachable + the updated ranking claim (supersede FS's). Commit per drive; full gates per flip; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:DoPolyInst",
+  "id": "work_claim.next-flip-ranking.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-NX",
+  "recorded_at": "2026-09-01T01:52:09Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

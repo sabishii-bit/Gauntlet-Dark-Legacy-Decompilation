@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "EXTERN-HYGIENE lane: the widened externcheck table (claim.externcheck-widened-defect-table-20260831.v1; regenerate with tools/gdl/externcheck.py) still holds ~90 unworked object CONFLICT rows + 43 HAZARD + the coupled sItemFile1Buf/InitCustomEffect pair GH left with reasons. Work the CONFLICT rows: per symbol, find the defining TU's true type (target reloc/access evidence, PDB corroboration), fix the wrong declarations byte-identically; the shim-direction law governs (claim.law.float-width-prototype-split-is-often-the-shipped-per-tu-shim.20260901.v1: lone-outlier->majority = safe; majority->definition = test the evidence-producing TU FIRST; byte-identical = licence-to-keep not proof-of-right); the int-vs-s32 HAZARD class is per-site (screensaver law) \u2014 gate every fix, revert non-neutral. The coupled pair: fix sItemFile1Buf AND InitCustomEffect's prototype together (defake_gate comma form). SKIP TUs owned this run: shop.c, worldcol.c, movieplayer, enemy.c, plus NX/RQ targets if claimed. Commit per symbol; the updated defect table (supersede) is part of the deliverable; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:InitCustomEffect",
+  "id": "work_claim.extern-conflict-tail.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-HW",
+  "recorded_at": "2026-09-01T01:52:25Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}
