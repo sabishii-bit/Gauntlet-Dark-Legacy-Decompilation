@@ -1049,7 +1049,7 @@ static s32 shop_show_lv(u8* pl, s32 final)
  * kills, second currency), rank them, and seed the pile animation tables. */
 void fn_8009A0AC(s32 col)
 {
-    u8* tbl = (u8*)&lbl_802897D0;
+    ShopPage* tbl = (ShopPage*)(u8*)&lbl_802897D0;
     u8* pl = (u8*)gPlayers + col * 13148;
     s32 range = lbl_80343E10 - lbl_80343E0C;
     level_data* lvl;
@@ -1145,16 +1145,15 @@ void fn_8009A0AC(s32 col)
         ra = 2;
     }
 
-    off = col * 12;
     {
-        u8* ranks = tbl + off + 224;
+        s32* ranks = tbl->pile_count[col];
 
-        *(s32*)(ranks + ra * 4) = (i = 0);
-        *(s32*)(ranks + rb * 4) = 2;
-        *(s32*)(ranks + rc * 4) = 1;
+        ranks[ra] = (i = 0);
+        ranks[rb] = 2;
+        ranks[rc] = 1;
     }
     {
-        s32* seeds = (s32*)(tbl + off + 128);
+        s32* seeds = tbl->pile_shown[col];
 
         for (t = 3; t != 0; t--) {
             seeds[i >> 2] = lbl_80343E14;
@@ -1162,18 +1161,18 @@ void fn_8009A0AC(s32 col)
         }
     }
     {
-        u8* stats = tbl + off + 80;
+        s32* stats = tbl->pile_targ[col];
 
-        *(s32*)(stats + ra * 4) = statG;
-        *(s32*)(stats + rb * 4) = stat3;
-        *(s32*)(stats + rc * 4) = stat2;
+        stats[ra] = statG;
+        stats[rb] = stat3;
+        stats[rc] = stat2;
     }
     {
-        u8* raw = tbl + off + 176;
+        s32* raw = tbl->pile_val[col];
 
-        *(s32*)(raw + ra * 4) = goldRaw;
-        *(s32*)(raw + rb * 4) = raw3;
-        *(s32*)(raw + rc * 4) = raw2;
+        raw[ra] = goldRaw;
+        raw[rb] = raw3;
+        raw[rc] = raw2;
     }
     ResolveWorldData(sWorldDataConst);
 }
