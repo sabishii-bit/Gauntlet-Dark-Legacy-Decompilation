@@ -150,7 +150,7 @@ typedef struct MovieChunkNode {
  * MovieChunkNode free-list/pool for demuxed RIFF chunks. Not a GC-verified
  * name - offsets verified purely from this TU's own usage across
  * MovieDecoderInitBuffers, fn_800DB82C, fn_800DB3D4, fn_800DB29C,
- * fn_800DB36C, fn_800DB2F4 and the dtor cluster (fn_800DB008/fn_800DB0F8/
+ * fn_800DB36C, fn_800DB2F4 and the dtor cluster (__dt__11MoviePlayerFv/fn_800DB0F8/
  * __dt__15MoviePlayerBaseFv). self[8]/self[9] are always zeroed but never read in this
  * TU - left as unknown padding. self+0x4C (word 19) is written once (a byte
  * flag in fn_800DB2F4) with no corroborating read - left raw there. */
@@ -271,7 +271,7 @@ typedef struct MovieAudioState {
  *                     fn_800DA920 wires its .context/.bitmap to &fileFormat
  *                     and &outFormat (movie+288 <- movie+404, movie+296 <-
  *                     movie+124).
- *   0x150 decoder     the MovieDTextOuter decoder object - fn_800DB008 tears
+ *   0x150 decoder     the MovieDTextOuter decoder object - __dt__11MoviePlayerFv tears
  *                     it down as `(MovieDTextOuter*)(self + 0x54)` on a u32*
  *                     self, i.e. byte 0x150. Its vtable member sits at +0x20
  *                     (fn_800DBE04's `p[8] = lbl_801296CC`), so decoderVtable
@@ -288,7 +288,7 @@ typedef struct MovieAudioState {
  *                     +0x0C/+0x0E (0x1A0/0x1A2) whose widths the raw code
  *                     itself confirms.
  *
- * Offset 0x000 is the vtable, per fn_800DB008's `self[0] = lbl_8012968C` and
+ * Offset 0x000 is the vtable, per __dt__11MoviePlayerFv's `self[0] = lbl_8012968C` and
  * PlayVQMovie's MovieStreamInterface view. No Xbox PDB authority exists for
  * this record - the Xbox build's MOVIE.OBJ is an unrelated cutscene subsystem
  * (InitMovie/ServeMovie/KillMovie) and the PDB type stream carries nothing for
@@ -435,7 +435,7 @@ s32 fn_800DA920(u8* movie, const char* name);
 u32 fn_800DACD8(int movie, u8* header);
 u8 MovieDecoderInitBuffers(MovieChunkStream* decoder, u32 size, u32 hasAudio);
 void fn_800D9F20(MovieAudioState* audio);
-u32* fn_800DB008(u32* self, s16 deleting);
+u32* __dt__11MoviePlayerFv(u32* self, s16 deleting);
 u32* fn_800DB0F8(u32* self);
 u8 fn_800DBCCC(void* self, s32 x);
 u8 fn_800DBD00(void* self, s32 x);
@@ -1582,13 +1582,13 @@ extern "C" void PlayVQMovie(const char* name) throw()
 
     movie = (u8*)AllocHiMem(472, (u32)gMovieAllocCount++);
     gMovieStreamState = movie = (u8*)__construct_new_array(
-        movie, (void*)fn_800DB0F8, (void*)fn_800DB008, 464, 1);
+        movie, (void*)fn_800DB0F8, (void*)__dt__11MoviePlayerFv, 464, 1);
     ((MovieStreamInterface*)gMovieStreamState)->open(name);
 
     dimensions = (s32*)(gMovieStreamState + 408);
     if (dimensions[0] != 512) {
         ((MovieStreamInterface*)gMovieStreamState)->close();
-        __destroy_new_array(gMovieStreamState, (void*)fn_800DB008);
+        __destroy_new_array(gMovieStreamState, (void*)__dt__11MoviePlayerFv);
         ResetAllocTot();
         return;
     }
@@ -1717,7 +1717,7 @@ extern "C" void PlayVQMovie(const char* name) throw()
             ResetAllocTot();
         }
     }
-    __destroy_new_array(gMovieStreamState, (void*)fn_800DB008);
+    __destroy_new_array(gMovieStreamState, (void*)__dt__11MoviePlayerFv);
     ResetAllocTot();
 }
 #pragma cplusplus off
@@ -2075,48 +2075,80 @@ u32 fn_800DACD8(int param_1, u8* param_2) {
 /* C++ region: the exception specification must match the definition's. */
 #pragma cplusplus on
 MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) throw();
-#pragma cplusplus off
-/* VQCodec's destructor, reached from this C-parsed region by its mangled name.
- * Same device the TU already uses for the operator-delete pair (__dl__FPv /
- * __dla__FPv below): the C++ definition mangles to exactly this symbol, so the
- * call links correctly while leaving this function's parse mode -- and hence
- * its codegen -- untouched.  Reconstruction debt, not the final form: the
- * natural spelling is `((VQCodec*)(self + 0x54))->~VQCodec()`, which becomes
- * available once fn_800DB008 itself is converted to MoviePlayer::~MoviePlayer. */
-void* __dt__7VQCodecFv(void* self, s16 deleting);
 
-u32* fn_800DB008(u32* self, s16 deleting) {
-    u32* stream;
-    u8 unused[24];
+/* MoviePlayer -- the concrete movie player.  RTTI record .sdata 0x80344008 =
+ * { name 0x80117648 -> "MoviePlayer", base -> MoviePlayerBase }; vtable
+ * lbl_8012968C, whose first virtual slot is this destructor.  Non-virtual
+ * spelling and no exception specification, per the same recipe as the
+ * Codec/VQCodec pair above.
+ *
+ * TWO DELIBERATE DEVIATIONS from the class the RTTI describes.  Both are forced
+ * by this TU's split, both are byte-identical to the target, and both are
+ * recorded as reconstruction debt rather than hidden:
+ *
+ * (1) Spelled WITHOUT the `: public MoviePlayerBase` inheritance the RTTI
+ *     proves, with the base teardown written out by hand as the trailing
+ *     `if (self != NULL) self[0] = lbl_801296A4`.  The target INLINES the base
+ *     destructor at that point, and MWCC only inlines a base whose body it has
+ *     already seen -- but __dt__15MoviePlayerBaseFv must stay defined further
+ *     down, because the target's function order fixes its own .text slot at
+ *     0x800DB21C.  Moving that body into the class to make it inlinable would
+ *     stop the out-of-line copy being emitted at all (this TU's split owns no
+ *     .data, so the vtable that would otherwise odr-use it is linked from
+ *     original bytes), trading one exact function for another.
+ *
+ * (2) `operator delete` is a CLASS member, defined inline, and it is what the
+ *     compiler-synthesised deleting branch calls.  This is the mechanism the
+ *     target's own layout points to: that branch's allocation-counter code is
+ *     INLINED here, yet the global operator-delete pair is emitted AFTER this
+ *     function (__dla__FPv 0x800DB15C, __dl__FPv 0x800DB1BC), and MWCC will not
+ *     inline a global operator delete it has not yet seen -- measured.  An
+ *     inline class-scope operator delete satisfies both constraints at once: it
+ *     is available for inlining here, and being inline and never odr-used it
+ *     emits no symbol of its own, leaving the global pair's addresses intact. */
+class MoviePlayer {
+public:
+    u32 words[116];
 
-    if (self != NULL) {
-        self[0] = (u32)lbl_8012968C;
-        if ((s32)self[7] != 0) {
-            sceClose((s32)self[7]);
-        }
-        if (self[100] != 0) {
-            AudioStreamStop();
-            stream = (u32*)self[100];
-            if (stream != NULL) {
-                AudioStreamStop();
-                __dla__FPv((void*)stream[1]);
-                __dl__FPv(stream);
-            }
-        }
-        __dt__7VQCodecFv((void*)(self + 0x54), -1);
-        dtor_800DBB94((MovieChunkStream*)(self + 8), -1);
-        if (self != NULL) {
-            self[0] = (u32)lbl_801296A4;
-        }
-        if (deleting > 0 && self != NULL) {
+    void operator delete(void* p) throw() {
+        if (p != NULL) {
             gMovieAllocCount--;
             if (gMovieAllocCount == 0) {
                 ResetAllocTot();
             }
         }
     }
-    return self;
+
+    ~MoviePlayer();
+};
+
+MoviePlayer::~MoviePlayer() {
+    u32* self = (u32*)this;
+    u32* stream;
+
+    self[0] = (u32)lbl_8012968C;
+    if ((s32)self[7] != 0) {
+        sceClose((s32)self[7]);
+    }
+    if (self[100] != 0) {
+        AudioStreamStop();
+        /* Assignment-in-condition, not a separate statement: the split form
+         * loads through r0 and copies (`lwz r0,400 / cmplwi / mr r30,r0`),
+         * where the target loads straight into the callee-saved home
+         * (`lwz r30,400(r28) / cmplwi r30,0`). */
+        if ((stream = (u32*)self[100]) != NULL) {
+            AudioStreamStop();
+            __dla__FPv((void*)stream[1]);
+            __dl__FPv(stream);
+        }
+    }
+    ((VQCodec*)(self + 0x54))->~VQCodec();
+    dtor_800DBB94((MovieChunkStream*)(self + 8), -1);
+    if (self != NULL) {
+        self[0] = (u32)lbl_801296A4;
+    }
 }
+#pragma cplusplus off
 
 u32* fn_800DB0F8(u32* volatile p) {
     u32* self = p;
