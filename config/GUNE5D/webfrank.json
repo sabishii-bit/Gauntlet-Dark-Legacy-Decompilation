@@ -486,6 +486,23 @@
     ],
     "game/world/newcam": [
       {
+        "function": "fn_8006E654",
+        "before_sha256": "a8ae1a58e6d35e9719ed4def254daf4aa5e07f86247eb8192c3b8d6589c68a5b",
+        "after_sha256": "1cb3b0077ee000c5b6f36bf6ff09399b44bb711e805e3fabd2c4cc31027b4f13",
+        "mechanism": "Live-zero constant-copy form difference, the sole residual of a 369-instruction function: at +0x3c the target copies an already-live zero (`addi r30,r29,0`) where MWCC rematerializes it (`li r30,0`). This is the instance named in claim.law.constant-copy-vs-rematerialize-is-source-unreachable.20260831.v1, whose source already spells the copy (`iter = 0; ok = iter;`) and whose site sits inside a region under a verifiably active scoped `#pragma opt_propagation off` — the fold survives it, so no propagation-class lever reaches it. Proven by webfrank.prove_constant_source against the dominating `li r29,0` at +0x38: the preceding `bl` at +0x34 lies before that definition and so falls outside the proof span, and within the span there is no branch target, no control instruction, no relocation, and no write of r29. addi's rA field is non-zero, so the encoding is a genuine copy and not a literal load.",
+        "audit": {
+          "classification": "COPY_FORM",
+          "proof": "dominating_def",
+          "instructions": 369
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x3c",
+            "proof": "dominating_def"
+          }
+        ]
+      },
+      {
         "function": "CalcFrustrumNormals",
         "before_sha256": "b34989509724156a1c09b98b279d46b23c5ad5fc3232aeeda1cc6fe7093987e0",
         "after_sha256": "1be628a8dcabe2421e96e9407fc8e353576c4b192a6c4d383ed315b3ea42d470",
@@ -1095,6 +1112,57 @@
           "instructions": 70
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "AudioUnloadPart",
+        "before_sha256": "b6694de58a3527a8a5690328ca9524dde39c7ce3aa617eb7bbd0b0a5d6387ee2",
+        "after_sha256": "58eef906ff3f07ff32954f846d133ce860c33d662550b02d9e545d49f05b46ed",
+        "mechanism": "Live-zero constant-copy form difference, the sole residual: at +0x24 the target copies an already-live zero (`addi r29,r31,0`) where MWCC rematerializes it (`li r29,0`). Every other word of the function is already byte-identical, so this one word is the whole gap. The choice is the register allocator's, not the source's: claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 records fourteen dead source axes across this family, including two induction-variable CONSTRUCTION axes measured on this exact function. Value equivalence is machine-proven by webfrank.prove_constant_source, a backward scan that fails closed on any branch into the span, any control instruction, any relocated word, and any write to the source register other than the dominating `li r31,0` at +0x20 carrying the same constant. Because r31 provably holds 0 on entry to +0x24, `addi r29,r31,0` and `li r29,0` assign the same value, and addi's rA field is non-zero so it is a genuine copy rather than a literal load.",
+        "audit": {
+          "classification": "COPY_FORM",
+          "proof": "dominating_def",
+          "instructions": 95
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x24",
+            "proof": "dominating_def"
+          }
+        ]
+      },
+      {
+        "function": "AudioBankLoadName",
+        "before_sha256": "92c8f9c5163c8ce8ded8e49db297e25265ff8b9c7c35e5a2b360d3aff1bb338e",
+        "after_sha256": "0d571848877486064910806c548bdba4019108a65dc9f6c9c820e8fdc1df7782",
+        "mechanism": "The same live-zero constant-copy form difference as AudioUnloadPart, and the sole residual: at +0x34 the target copies an already-live zero (`addi r25,r30,0`) where MWCC rematerializes it (`li r25,0`). The three audio.c bank-name lookup loops are byte-identical copies of one another, so one mechanism covers all three. Proven by webfrank.prove_constant_source against the dominating `li r30,0` at +0x30, with no branch into the span, no control instruction, no relocation, and no interposed write of r30; addi's rA field is non-zero, so the encoding is a genuine copy and not a literal load. Source axes are recorded exhausted in claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 and attempt.audio-zero-copy-family-iv-construction-rescreen.20260831.v2.",
+        "audit": {
+          "classification": "COPY_FORM",
+          "proof": "dominating_def",
+          "instructions": 115
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x34",
+            "proof": "dominating_def"
+          }
+        ]
+      },
+      {
+        "function": "AudioBankQueueName",
+        "before_sha256": "9bd950ec706ce59609706d33a9a06f7b642388f8751e66c6ecb671684246512b",
+        "after_sha256": "ba69bd62d11887ea9c9eed75e4a94581b930daddb7401f17c1ce16410c917849",
+        "mechanism": "Third instance of the audio.c bank-name loop's live-zero constant-copy form difference, and the sole residual: at +0x34 the target copies an already-live zero (`addi r29,r28,0`) where MWCC rematerializes it (`li r29,0`). Proven by webfrank.prove_constant_source against the dominating `li r28,0` at +0x30 under the same fail-closed conditions. This function's own source axes were separately capped in attempt.audio-bank-queue-name-zero-copy.20260829.v1.",
+        "audit": {
+          "classification": "COPY_FORM",
+          "proof": "dominating_def",
+          "instructions": 75
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x34",
+            "proof": "dominating_def"
+          }
+        ]
       }
     ],
     "game/game/controls": [

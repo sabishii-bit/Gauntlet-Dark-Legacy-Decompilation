@@ -6,6 +6,8 @@ from tools.gdl.webfrank import (
     _sha256,
     check_permutation_dependences,
     copy_register_fields,
+    decode_copy_form,
+    equivalent_copy_form,
     instruction_operands,
     permute_instruction_atoms,
     recolor_instruction,
@@ -658,6 +660,238 @@ class StackDisplacementIneligibilityTests(unittest.TestCase):
         output, changed = copy_register_fields(current, target)
         self.assertEqual(output, target)
         self.assertEqual(changed, 1)
+
+
+def _words(*values: int) -> bytes:
+    return b"".join(value.to_bytes(4, "big") for value in values)
+
+
+# MWCC copy/constant encodings used by the copy-form tests.
+LI_R31_0 = 0x3BE00000       # li r31,0
+LI_R31_5 = 0x3BE00005       # li r31,5
+LI_R29_0 = 0x3BA00000       # li r29,0
+LI_R23_0 = 0x3AE00000       # li r23,0     (== addi r23,r0,0)
+ADDI_R29_R31 = 0x3BBF0000   # addi r29,r31,0
+ADDI_R29_R3 = 0x3BA30000    # addi r29,r3,0
+ADDI_R23_R6 = 0x3AE60000    # addi r23,r6,0
+MR_R23_R6 = 0x7CD73378      # mr r23,r6    (== or r23,r6,r6)
+MR_R23_R0 = 0x7C170378      # mr r23,r0    (a genuine copy OF r0)
+MR_R29_R3 = 0x7C7D1B78      # mr r29,r3
+MR_R30_R31 = 0x7FFEFB78     # mr r30,r31
+MR_DOT_R23_R6 = 0x7CD73379  # mr. r23,r6   (Rc set: also writes CR0)
+ADD_R23_R6_R6 = 0x7EE63214  # add r23,r6,r6
+BLR = 0x4E800020
+BL = 0x48000001
+NOP = 0x60000000
+BNE_PLUS_8 = 0x40800008
+
+
+class DecodeCopyFormTests(unittest.TestCase):
+    """The rS != r0 asymmetry is the whole hazard, so pin it directly."""
+
+    def test_mr_is_a_copy(self):
+        self.assertEqual(decode_copy_form(MR_R23_R6), ("copy", 23, 6))
+
+    def test_addi_with_nonzero_base_is_a_copy(self):
+        self.assertEqual(decode_copy_form(ADDI_R23_R6), ("copy", 23, 6))
+
+    def test_addi_with_zero_base_is_a_constant_load_not_a_copy(self):
+        # addi r23,r0,0 reads the zero rA field as the literal zero.
+        self.assertEqual(decode_copy_form(LI_R23_0), ("li", 23, 0))
+
+    def test_mr_from_r0_is_a_real_copy_of_r0(self):
+        # ...whereas `or` really does read GPR 0, which is why the two
+        # encodings diverge exactly at rS == 0.
+        self.assertEqual(decode_copy_form(MR_R23_R0), ("copy", 23, 0))
+
+    def test_record_setting_mr_is_not_a_copy(self):
+        self.assertIsNone(decode_copy_form(MR_DOT_R23_R6))
+
+    def test_unrelated_opcode_is_not_a_copy(self):
+        self.assertIsNone(decode_copy_form(ADD_R23_R6_R6))
+        self.assertIsNone(decode_copy_form(BLR))
+
+
+class EquivalentCopyFormTests(unittest.TestCase):
+    def rewrite(self, current, target, edits, **overrides):
+        arguments = {
+            "relocated_offsets": set(),
+            "target_relocated_offsets": set(),
+            "jumptable_offsets": set(),
+        }
+        arguments.update(overrides)
+        return equivalent_copy_form(current, target, edits, **arguments)
+
+    # ---- unconditional form pair (no dataflow obligation) ----
+
+    def test_mr_to_addi_copy_rewrites(self):
+        current = _words(MR_R23_R6, BLR)
+        target = _words(ADDI_R23_R6, BLR)
+        output, changed = self.rewrite(
+            current, target, [{"at": 0, "proof": "unconditional"}]
+        )
+        self.assertEqual(output, target)
+        self.assertEqual(changed, 1)
+
+    def test_addi_copy_to_mr_rewrites_the_other_direction(self):
+        current = _words(ADDI_R29_R3, BLR)
+        target = _words(MR_R29_R3, BLR)
+        output, changed = self.rewrite(
+            current, target, [{"at": 0, "proof": "unconditional"}]
+        )
+        self.assertEqual(output, target)
+        self.assertEqual(changed, 1)
+
+    def test_copy_from_r0_is_rejected(self):
+        # `mr r23,r0` copies GPR 0; `addi r23,r0,0` loads literal 0.  These
+        # are NOT equivalent and the rule must refuse the pair.
+        current = _words(MR_R23_R0, BLR)
+        target = _words(LI_R23_0, BLR)
+        with self.assertRaisesRegex(ValueError, "not a register copy"):
+            self.rewrite(current, target, [{"at": 0, "proof": "unconditional"}])
+
+    def test_differing_destination_is_rejected_as_a_recolor(self):
+        current = _words(LI_R29_0, BLR)
+        target = _words(MR_R30_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "destination differs"):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "dominating_def"}]
+            )
+
+    def test_differing_source_is_rejected_as_a_recolor(self):
+        current = _words(MR_R23_R6, BLR)
+        target = _words(0x3AE30000, BLR)  # addi r23,r3,0
+        with self.assertRaisesRegex(ValueError, "source differs"):
+            self.rewrite(current, target, [{"at": 0, "proof": "unconditional"}])
+
+    def test_non_copy_opcode_pair_is_rejected(self):
+        current = _words(ADD_R23_R6_R6, BLR)
+        target = _words(ADDI_R23_R6, BLR)
+        with self.assertRaisesRegex(ValueError, "not a copy form"):
+            self.rewrite(current, target, [{"at": 0, "proof": "unconditional"}])
+
+    def test_record_setting_move_is_rejected(self):
+        current = _words(MR_DOT_R23_R6, BLR)
+        target = _words(ADDI_R23_R6, BLR)
+        with self.assertRaisesRegex(ValueError, "not a copy form"):
+            self.rewrite(current, target, [{"at": 0, "proof": "unconditional"}])
+
+    def test_relocated_word_is_rejected(self):
+        current = _words(MR_R23_R6, BLR)
+        target = _words(ADDI_R23_R6, BLR)
+        with self.assertRaisesRegex(ValueError, "relocated word"):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "unconditional"}],
+                relocated_offsets={0},
+            )
+
+    def test_target_side_relocation_is_rejected(self):
+        current = _words(MR_R23_R6, BLR)
+        target = _words(ADDI_R23_R6, BLR)
+        with self.assertRaisesRegex(ValueError, "relocated word"):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "unconditional"}],
+                target_relocated_offsets={0},
+            )
+
+    def test_wrong_proof_label_is_rejected(self):
+        current = _words(MR_R23_R6, BLR)
+        target = _words(ADDI_R23_R6, BLR)
+        with self.assertRaisesRegex(ValueError, "requires"):
+            self.rewrite(
+                current, target, [{"at": 0, "proof": "dominating_def"}]
+            )
+
+    def test_duplicate_edit_is_rejected(self):
+        current = _words(MR_R23_R6, BLR)
+        target = _words(ADDI_R23_R6, BLR)
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            self.rewrite(
+                current, target,
+                [{"at": 0, "proof": "unconditional"},
+                 {"at": 0, "proof": "unconditional"}],
+            )
+
+    def test_already_matching_word_is_rejected(self):
+        current = _words(MR_R23_R6, BLR)
+        with self.assertRaisesRegex(ValueError, "already matches"):
+            self.rewrite(
+                current, current, [{"at": 0, "proof": "unconditional"}]
+            )
+
+    # ---- li -> copy, which carries the dataflow obligation ----
+
+    def test_dominating_definition_proves_the_constant(self):
+        # li r31,0 ; li r29,0   ->   li r31,0 ; addi r29,r31,0
+        # This is the measured AudioUnloadPart shape.
+        current = _words(LI_R31_0, LI_R29_0, BLR)
+        target = _words(LI_R31_0, ADDI_R29_R31, BLR)
+        output, changed = self.rewrite(
+            current, target, [{"at": 4, "proof": "dominating_def"}]
+        )
+        self.assertEqual(output, target)
+        self.assertEqual(changed, 1)
+
+    def test_constant_mismatch_is_rejected(self):
+        # r31 holds 5, so copying it does not reproduce `li r29,0`.
+        current = _words(LI_R31_5, LI_R29_0, BLR)
+        target = _words(LI_R31_5, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "not the required constant"):
+            self.rewrite(
+                current, target, [{"at": 4, "proof": "dominating_def"}]
+            )
+
+    def test_branch_into_the_span_is_rejected(self):
+        # li r31,0 ; bne +8 ; nop ; li r29,0   -- the site is a branch
+        # target, so r31 is not provably 0 on every incoming edge.
+        current = _words(LI_R31_0, BNE_PLUS_8, NOP, LI_R29_0, BLR)
+        target = _words(LI_R31_0, BNE_PLUS_8, NOP, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "branch target"):
+            self.rewrite(
+                current, target, [{"at": 12, "proof": "dominating_def"}]
+            )
+
+    def test_call_inside_the_span_is_rejected(self):
+        # A call may clobber the source register.
+        current = _words(LI_R31_0, BL, LI_R29_0, BLR)
+        target = _words(LI_R31_0, BL, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "control instruction"):
+            self.rewrite(
+                current, target, [{"at": 8, "proof": "dominating_def"}]
+            )
+
+    def test_interposed_redefinition_is_rejected(self):
+        # add r31,... between the definition and the site.
+        redefine = 0x7FE63214  # add r31,r6,r6
+        current = _words(LI_R31_0, redefine, LI_R29_0, BLR)
+        target = _words(LI_R31_0, redefine, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "redefined"):
+            self.rewrite(
+                current, target, [{"at": 8, "proof": "dominating_def"}]
+            )
+
+    def test_missing_definition_is_rejected(self):
+        current = _words(NOP, LI_R29_0, BLR)
+        target = _words(NOP, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "no dominating"):
+            self.rewrite(
+                current, target, [{"at": 4, "proof": "dominating_def"}]
+            )
+
+    def test_li_site_requires_the_dataflow_proof_label(self):
+        current = _words(LI_R31_0, LI_R29_0, BLR)
+        target = _words(LI_R31_0, ADDI_R29_R31, BLR)
+        with self.assertRaisesRegex(ValueError, "requires"):
+            self.rewrite(
+                current, target, [{"at": 4, "proof": "unconditional"}]
+            )
+
+    def test_size_mismatch_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "equal aligned sizes"):
+            self.rewrite(
+                _words(MR_R23_R6), _words(ADDI_R23_R6, BLR),
+                [{"at": 0, "proof": "unconditional"}],
+            )
 
 
 if __name__ == "__main__":
