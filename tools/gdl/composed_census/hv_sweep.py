@@ -46,9 +46,14 @@ import hv_perm as hv           # noqa: E402
 import hv_repair as hr         # noqa: E402
 import cn_census as census     # noqa: E402
 
-# TUs owned by other lanes this run (work_claim.harvest-3.20260901.v1).
-OWNED = ("game/game/combat", "game/sys/memcard", "game/mb/mb_particle",
-         "game/world/gauntworld", "game/game/player", "game/sfx/sfx")
+# TUs owned by OTHER lanes this run, read from `gdlmem claims` at run 31:
+# memcard (WS), movieplayer (WF), gauntworld + combat (FR), player.c (PL).
+# A webfrank rule FREEZES its function's source, so shipping into a TU another
+# lane is editing aborts THEIR build at the WEBFRANK step -- this list is a
+# courtesy gate, not an optimisation.  Re-read it from `claims` every run;
+# the previous value was still harvest-3's and had drifted.
+OWNED = ("game/sys/memcard", "game/movie/movieplayer",
+         "game/world/gauntworld", "game/game/combat", "game/game/player")
 
 
 def shipped():

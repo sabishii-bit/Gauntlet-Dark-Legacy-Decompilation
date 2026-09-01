@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Remeasure the work order's named candidate and decide the postprocessor question; the corpus held two records disagreeing about whether the counts are equal.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and this is exactly the law whose APPLICABILITY is refuted here -- it is a true law, but it is not what bars this function. claim.law.HV_mnemonic-aliasing-manufactures-structural-rows-and-count-asymmetric-signatures.20260901.v1 SCREENED as the likely source of a spurious count-asymmetry reading, and it does not rescue the function either: the bar survives the corrected arrow order. none-applicable otherwise: no source edit was attempted, the screen terminated at the unabsorbed-word census.",
+    "laws_applied": "[]",
+    "residual": "THE PREMISE IS RIGHT AND THE MECHANISM IS WRONG, which matters because the mechanism is what the next lane would act on. attempt.HB_show-optmenu-count-delta-bars-the-postprocessor-path.20260901.v1 concluded that a COUNT DELTA bars the postprocessor path. Remeasured live: `fndiff --count` -> `DIFF show_optmenu insns 797/797 lines 492 real 380`. The counts are EQUAL, quoted as N/N per the reclassification gate, so attempt.IG_show-optmenu-count-gap-closed-by-scope-widening.20260901.v1 was correct that count parity was reached and the later record's stated ground had already evaporated. THE FUNCTION IS STILL BARRED, for a different and much larger reason: hv_perm reports 611 UNABSORBED WORDS in 3 clusters, +0x198..+0x1a4, +0x1cc..+0x1d4 and +0x208..+0xc54. 611 of 797 words is 77% of the function differing beyond every form-aware register mask, and the third cluster spans essentially the whole body. That is not a residual any postprocessor class can or should reach -- it is ordinary reconstruction debt. RECLASSIFICATION: postprocessor-candidate -> SOURCE-class, at 797/797. The operative correction for future ranking is that COUNT PARITY IS NECESSARY BUT NOWHERE NEAR SUFFICIENT for postprocessor eligibility; the screen that decides is the unabsorbed-word count, and a roster that ranks by count parity alone will keep re-queueing this function. This is independently the case for TL's queued item (6), putting `unabsorbed` onto brief/census rows.",
+    "scope": "READ-ONLY measurement. No source file, no config file, no commit for this function.",
+    "verification": "`fndiff --count` and `tools/gdl/composed_census/hv_perm.py game/ui/options show_optmenu` both run live this session against the current object; hv_perm reports 'no proved composition'. Tree at commit 733288197 with `ninja -j2` printing build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:show_optmenu",
+  "id": "attempt.HV_show-optmenu-unabsorbed-bar-not-a-count-bar.20260901.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-01T23:10:34Z",
+  "refutes": "attempt.HB_show-optmenu-count-delta-bars-the-postprocessor-path.20260901.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "unclassified",
+    "measured_at": "2026-09-01",
+    "signature": "611 unabsorbed words in 3 clusters; insns T797/O797; real 380"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

@@ -3858,6 +3858,7 @@ extern void MBRemoveBlit(s32 blit);
 extern void AudioFootstep(s32 n);
 extern void fn_8009FA84(void);
 extern void fn_8009FCA8(s32 n);
+extern void DoAudioTallySFX(s32 sel);
 extern void init_got_it(void);
 extern void DrawText(s32 x, s32 y, s32 flags, s32 color, ...);
 
@@ -4402,7 +4403,7 @@ void fn_80054E78(void)
                 if (n == 8) {
                     fn_8009FA84();
                 } else if (n <= 5 && lbl_8034481C == 0) {
-                    fn_8009FCA8(n);
+                    DoAudioTallySFX(n);
                 }
             }
         }

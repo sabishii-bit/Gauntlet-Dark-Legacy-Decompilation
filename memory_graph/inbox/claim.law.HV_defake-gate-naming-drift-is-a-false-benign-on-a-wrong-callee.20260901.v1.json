@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/defake_gate.py"
+  ],
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "relocation",
+      "symbol-identity",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Reproduce at commit 40fbdb7ff: `defake_gate.py baseline game/game/gamemain.c --at-head` then apply the one-line change of `fn_8009FCA8(n)` to `DoAudioTallySFX(n)` at src/game/game/gamemain.c:4405 and run `check --rebuild`. The law is disproved if the gate reports anything other than a benign NAMING-DRIFT row -- i.e. if it flags the callee change as semantic. It is equally disproved if `fn_8009FCA8` and `DoAudioTallySFX` can be shown to be the same function: they are not, symbols.txt puts them at 0x8009FCA8 and 0x8009FB84 and src/game/sound/sounds_evt.c defines both with different bodies.",
+  "id": "claim.law.HV_defake-gate-naming-drift-is-a-false-benign-on-a-wrong-callee.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T23:11:43Z",
+  "schema_version": 1,
+  "subject": "function:fn_80054E78",
+  "valid_from": "2026-09-01",
+  "value": "defake_gate CLASSIFIES A CHANGED REL24 CALLEE SYMBOL AS BENIGN 'NAMING-DRIFT ... instruction words + resolved addresses unchanged', SO IT PASSES A GENUINE WRONG-CALLEE BUG IN BOTH DIRECTIONS -- IT WOULD NOT HAVE CAUGHT THE BUG BEING INTRODUCED, AND IT CALLED THE FIX COSMETIC.\n\nMEASURED. gamemain::fn_80054E78 +0x28c: our object bound `fn_8009FCA8`, the extracted retail object binds `DoAudioTallySFX`. These are two distinct functions in src/game/sound/sounds_evt.c at two distinct addresses, and the target itself uses `fn_8009FCA8` elsewhere (do_stats_display+0x10ac), which is the control that proves the two names are not aliases for one datum. Correcting the call site changed `fndiff --clean` from OPERAND_DIFF with 2 real diff lines to MATCH with 0. defake_gate reported the same change as `NAMING-DRIFT fn_80054E78 reloc lines renamed, instruction words + resolved addresses unchanged -- benign`.\n\nWHY THE HEURISTIC MISFIRES. In an UNLINKED object a REL24 `bl` instruction word carries no target; the callee lives entirely in the relocation's symbol. So 'instruction words unchanged' is trivially true for ANY callee substitution, and whatever the gate means by 'resolved addresses' does not distinguish two different REL24 symbols. The class it was built for -- our `get_attn_pos` versus the split's `get_attn_pos_8002C9A8`, the address-suffix convention -- is real and common, and the heuristic is right about it. It is the GENERALISATION that is unsound: renaming the same datum and calling a different datum are indistinguishable to a check that only compares instruction words.\n\nSOUND REFINEMENT, since the distinguishing evidence is cheap and already present: a relocation-symbol change is benign only if both names RESOLVE TO THE SAME ADDRESS in config/GUNE5D/symbols.txt (modulo the known `_ADDR` suffix convention). If they resolve to different addresses it is a semantic change and must fail the gate. This is AGENTS.md discipline 3's 'no score sees them' hazard reappearing inside the tool that is supposed to see them -- for a named-pool TU, 'no @NN remains' is a complete decision procedure, but for a REL24 callee the decision procedure has to be address identity, not name similarity."
+}

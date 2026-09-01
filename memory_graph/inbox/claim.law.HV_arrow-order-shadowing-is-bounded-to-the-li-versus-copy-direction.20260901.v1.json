@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/ha_close.py"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "alias-form",
+      "register-web",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Find a word pair that is regfield-only, decodes as copy->copy (both sides the SAME form), and which the shipped apply_patch ACCEPTS as an equivalent_copy_form site rather than rejecting with 're-encoding is a no-op, so this site is a pure recolor and belongs to the recolor stage'. One such pair disproves the boundary. The measured counterexample-free case lives at memcard::drawMemCardMessage +0x14 (ours 0x7c761b78 `mr r22,r3`, target 0x7c7c1b78 `mr r28,r3`); `ha_close.classify(ow, tw, form_first=True)` must classify it 'regfield', not 'form'.",
+  "id": "claim.law.HV_arrow-order-shadowing-is-bounded-to-the-li-versus-copy-direction.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T23:11:36Z",
+  "schema_version": 1,
+  "subject": "function:fn_80054E78",
+  "valid_from": "2026-09-01",
+  "value": "THE ARROW-ORDER DEFECT IS REAL BUT NARROWER THAN THE MNEMONIC-ALIASING LAW IMPLIES: ONLY THE li-VERSUS-copy DIRECTION IS SHADOWED, AND ONLY IN THE addi SPELLING. A copy->copy PAIR THAT DIFFERS ONLY IN REGISTER SLOTS IS GENUINE RECOLOR MATERIAL AND MUST NOT BE OFFERED AS AN ARROW.\n\nBACKGROUND. ha_close.classify tested `regfield_only` BEFORE `decode_copy_form`. Because PPC mnemonics alias -- `li rD,K` IS `addi rD,r0,K`, `mr rD,rS` IS `or rD,rS,rS` -- a pair can be regfield-only LEXICALLY while being a form arrow SEMANTICALLY, and the regfield test wins and folds it into the global renaming, where verify_consistent_recolor must prove it everywhere instead of closing it locally for free. That is claim.law.HV_mnemonic-aliasing-...20260901.v1 and it is correct.\n\nTHE BOUNDARY, which the naive fix gets wrong. An arrow re-encodes the TARGET's form around OUR registers. If both words already share a form and differ only in register slots, that re-encoding reproduces OUR OWN WORD -- the arrow does nothing -- and the shipped apply_patch refuses the site by name: 'at +0x14: re-encoding is a no-op, so this site is a pure recolor and belongs to the recolor stage'. Measured directly: drawMemCardMessage +0x14 is ours `mr r22,r3` against target `mr r28,r3`, a DEST-only difference, which is precisely what a renaming exists to express. A form-first pass that claims such pairs does not close more functions; it hands apply_patch sites it must reject, and it CORRUPTS THE REFUSAL MESSAGE -- the run's first form-first build reported the +0x14 no-op refusal in place of the real, informative +0x1ec uninitialised-path refusal, which would have misdirected the next lane entirely.\n\nSO THE SHADOWED CLASS IS EXACTLY: both words primary opcode 14, differing in the rA slot alone -- ours `addi rD,r0,0` (= `li rD,0`) against the target's `addi rD,rS,0` (= `mr rD,rS`). This is the live-zero-remat shape, and it is regfield-only lexically while being a real form arrow. The `mr`/`or` X-form case is NOT shadowed, and `li` against X-form `mr` cannot be shadowed at all because the primary opcodes differ (14 vs 31) and regfield_only never fires.\n\nIMPLEMENTATION CONSEQUENCE. Neither order dominates -- when a renaming is needed anyway, folding a word into it is cheaper than spending an arrow -- so the order is a PARAMETER and the caller enumerates both, with the shipped apply_patch adjudicating every candidate (per claim.law.WF_enumerate-every-shape-consistent-order-and-select-by-proof.20260901.v1). Because classify falls back in both directions, the 'other'/unabsorbed set is IDENTICAL under both orders: enumerating can only ADD candidates, never turn a closable function unclosable, and never licenses anything apply_patch would not have licensed. Refusals are now reported PER ORDER for the same reason the +0x14 message was misleading: a single note hides the more informative order's failure behind whichever ran last.\n\nYIELD: with the boundary in force, gamemain::fn_80054E78 closes form-first at families={'fwd': 1, 'regfield': 18}, reproducing the withheld run-30 derivation exactly."
+}

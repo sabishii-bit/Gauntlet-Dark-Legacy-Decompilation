@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Re-screen the run-28 uninitialised-path bar as the work order asked: instrument whether the standard transposition repair CHANGES the reachability argument, rather than re-asserting the cap from its text.",
+  "attributes": {
+    "law_screen": "claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED -- and it is the law that settles this, because it is what forces a permutation window to be CONTROL-FREE. claim.law.WF_a-register-transposition-can-be-byte-invisible-at-its-own-definitions.20260901.v1 APPLIED, the class of the repair itself. claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 SCREENED, not applicable in its usual direction: this function is explicitly REJECTED, not merely absent.",
+    "laws_applied": "[\"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\", \"claim.law.WF_a-register-transposition-can-be-byte-invisible-at-its-own-definitions.20260901.v1\"]",
+    "probed_form": "NO SOURCE EDITED and NO RULE AUTHORED. The repair composition was replayed exactly as the predecessor recorded it: `tools/gdl/composed_census/hv_try.py game/sys/memcard drawMemCardMessage pre 0x24:0x2c:1,0` -- transpose our two zero-inits `li r26,0` at +0x24 and `li r29,0` at +0x28 -- plus copy_register_fields.",
+    "residual": "THE BAR HOLDS, and it now holds for a stated STRUCTURAL reason rather than only as a measurement. The reachability question is whether a path from entry reaches the refusing USE at +0x1ec while AVOIDING the definition at +0xcc that should bind it; if such a path exists the correspondence rests on a caller-supplied callee-saved value and verify_consistent_recolor refuses CORRECTLY. Re-measured: `hv_bypass.py game/sys/memcard drawMemCardMessage 0x1ec 0xcc` still prints a path, terminating at `+0x1ec addi r3,r28,0`. THE REPAIR CANNOT CHANGE THIS, and the argument is general: a permutation window must be control-free (apply_patch rejects a region containing a control op), so no permutation stage can add, remove or redirect a CFG edge -- the bypass path is INVARIANT under every repair in the class. The repair therefore relocates the refusal (+0x84 -> +0x1ec, reproduced this run) but can never discharge one that rests on reachability. With the corrected arrow order in ha_close the replay reported the refusal verbatim as recorded: '+0x1ec: use of g28 does not correspond to g25 under the running renaming'. drawMemCardMessage remains SOURCE-class; the fix is to make our build colour the +0xcc web r25-equivalently, which is source work in the memcard TU (WS's this run), not a rule. DISCRIMINATOR for the next lane, unchanged and now proven rather than conjectured: for any consistent-recolor refusal, ask whether a path from entry reaches the refusing USE while avoiding the DEFINITION that should bind it. If no, it is the repairable schedule class. If yes, the postprocessor path is closed and no permutation repair will reopen it.",
+    "scope": "READ-ONLY. No source file, no config file, no commit for this function. config/GUNE5D/webfrank.json remains untouched with respect to game/sys/memcard.",
+    "verification": "Baseline `fndiff --count` -> `DIFF drawMemCardMessage insns 204/204 lines 130 real 126`, remeasured live this run and unchanged at exit. Repair replayed through the SHIPPED webfrank.apply_patch via hv_try.py; bypass path recomputed from webfrank._successors over our own raw postprocess body via hv_bypass.py. Tree at commit 733288197 with `ninja -j2` printing build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:drawMemCardMessage",
+  "id": "attempt.HV_drawmemcardmessage-uninitialised-path-bar-reconfirmed.20260901.v2",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-01T23:10:26Z",
+  "residual": {
+    "capability_needed": "webfrank-recolor",
+    "family": "regalloc-web",
+    "measured_at": "2026-09-01",
+    "signature": "0t opcode multiset IDENTICAL (204/204); insns T204/O204; 0 ops clusters"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.HV_drawmemcardmessage-repair-class-then-uninitialised-path-bar.20260901.v1",
+  "valid_from": "2026-09-01"
+}

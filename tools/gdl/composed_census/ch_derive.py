@@ -58,6 +58,35 @@ def raw_region_records(data, sections, sym, lo, hi):
     return out
 
 
+def region_symbols(orel, lo, hi):
+    """Window-relative relocation offset -> symbol NAME.
+
+    REQUIRED since the run-28 name-bound hash migration.  `_relocation_sha256`
+    hashes the symbol NAME instead of the ELF r_info INDEX (which is TU-global
+    and renumbers on any unrelated edit), and it REFUSES a relocation whose
+    name it was not given.  `raw_region_records` yields only (offset, info,
+    addend) triples, so every deriver that passed those alone raised
+    "relocation hash needs the symbol name" on any window carrying a
+    relocation -- a hard crash that reads like a defect in the FUNCTION and is
+    really an un-migrated CALLER.  This reproduces exactly the mapping
+    apply_patch builds for `our_symbols`, so the derived hashes agree with the
+    ones the shipped stage recomputes.
+
+    `orel` is keyed by RAW r_offset (function-relative, NOT floored: SDA21
+    sits at instruction+2), which is the same keying apply_patch uses.
+    """
+    return {off - lo: name
+            for off, (_type, name) in orel.items()
+            if lo <= (off & ~3) < hi}
+
+
+def moved_symbols(window_syms, order):
+    """`region_symbols` carried through the permutation, as apply_patch does."""
+    dest_by_src = {s: d for d, s in enumerate(order)}
+    return {dest_by_src[off // 4] * 4 + off % 4: name
+            for off, name in window_syms.items()}
+
+
 def norm_relocs(rel, base=0):
     """Key relocations by the OWNING INSTRUCTION, not the raw r_offset.
 
@@ -174,6 +203,8 @@ def build(unit, fn, lo, hi, order, verbose=True):
     dest_by_src = {s: d for d, s in enumerate(order)}
     prec = sorted(((dest_by_src[o // 4] * 4 + o % 4, i, a) for o, i, a in records),
                   key=lambda x: x[0])
+    win_syms = region_symbols(orel, lo, hi)
+    prec_syms = moved_symbols(win_syms, order)
     identity = order == list(range(len(order)))
     rule = {"function": fn,
             "before_sha256": sha(ours),
@@ -182,8 +213,10 @@ def build(unit, fn, lo, hi, order, verbose=True):
         rule["instruction_permutation"] = {
             "start": hex(lo), "end": hex(hi), "order": order,
             "before_sha256": sha(region), "after_sha256": sha(permuted),
-            "before_relocations_sha256": wf._relocation_sha256(records),
-            "after_relocations_sha256": wf._relocation_sha256(prec),
+            "before_relocations_sha256": wf._relocation_sha256(
+                records, win_syms),
+            "after_relocations_sha256": wf._relocation_sha256(
+                prec, prec_syms),
         }
     if forms:
         rule["equivalent_copy_form"] = [

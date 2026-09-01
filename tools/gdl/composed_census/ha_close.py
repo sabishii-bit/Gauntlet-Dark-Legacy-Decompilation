@@ -49,12 +49,70 @@ def regfield_only(ow, tw):
         return False
 
 
-def classify(ow, tw):
-    """('same'|'regfield'|'other', None) or ('form', (family, modes))."""
+def classify(ow, tw, form_first=False):
+    """('same'|'regfield'|'other', None) or ('form', (family, modes)).
+
+    ARROW ORDER.  `regfield_only` is a LEXICAL test on the encoding, and PPC
+    mnemonics ALIAS: `mr rD,rS` IS `or rD,rS,rS` and `li rD,K` IS
+    `addi rD,r0,K`.  So a copy->copy arrow whose SOURCE register differs
+    (`mr r4,r5` -> `mr r4,r6`) is *also* regfield-only, because the two
+    encodings differ in register slots and nothing else.  Testing regfield
+    FIRST therefore SHADOWS the copy-form stage: the word is folded into the
+    global renaming, where verify_consistent_recolor must then prove r5->r6
+    consistently across the WHOLE function, instead of being closed locally
+    by an `unconditional_recolor` arrow that costs the renaming nothing.  A
+    refusal produced that way is a measurement of the ORDER OF TWO TESTS, not
+    of the function (claim.law.HV_mnemonic-aliasing-manufactures-structural-
+    rows-and-count-asymmetric-signatures.20260901.v1; discipline 14).
+
+    Neither order dominates: when a renaming is needed anyway, folding a word
+    into it is CHEAPER than spending an arrow, and arrows have their own
+    per-site proof obligations.  So this takes the order as a parameter and
+    the caller ENUMERATES both, with the shipped apply_patch adjudicating
+    every candidate.  Note the fallbacks make the 'other' (unabsorbed) set
+    IDENTICAL under both orders, so the order can never turn a closable
+    function unclosable -- it can only add candidates.
+    """
     if ow == tw:
         return "same", None
-    if regfield_only(ow, tw):
+    rf = regfield_only(ow, tw)
+    if not form_first and rf:
         return "regfield", None
+    what, info = _copy_form_arrow(ow, tw)
+    if what == "form" and not (rf and _same_copy_form(ow, tw)):
+        return what, info
+    if rf:
+        return "regfield", None
+    return "other", None
+
+
+def _same_copy_form(ow, tw):
+    """Do both words use the SAME copy form (both `li`, or both `copy`)?
+
+    This is the boundary of the shadowing.  An arrow re-encodes the TARGET's
+    form around OUR registers, so when both sides already share a form and
+    differ only in register slots, the re-encoding reproduces our own word
+    and apply_patch rejects the site: "re-encoding is a no-op, so this site
+    is a pure recolor and belongs to the recolor stage" (measured on
+    memcard::drawMemCardMessage +0x14, ours `mr r22,r3` vs target
+    `mr r28,r3` -- a DEST-only difference, which is exactly what a renaming
+    is for).
+
+    So only the li<->copy direction was ever shadowed, and it is shadowed
+    only in the `addi` spelling, where both words carry primary opcode 14 and
+    differ in the rA slot alone: ours `addi rD,r0,0` (= `li rD,0`) against
+    the target's `addi rD,rS,0` (= `mr rD,rS`).  That pair is regfield-only
+    LEXICALLY while being a genuine form arrow SEMANTICALLY -- the
+    live-zero-remat shape, and the one gamemain::fn_80054E78 carries at
+    +0x154.  Restricting form-first to it keeps the enumeration honest
+    instead of offering apply_patch sites it must reject.
+    """
+    o, t = wf.decode_copy_form(ow), wf.decode_copy_form(tw)
+    return o is not None and t is not None and o[0] == t[0]
+
+
+def _copy_form_arrow(ow, tw):
+    """The copy-form decode, independent of the regfield test."""
     ours, theirs = wf.decode_copy_form(ow), wf.decode_copy_form(tw)
     if ours is None or theirs is None:
         return "other", None
@@ -180,76 +238,97 @@ def build_rule(unit, fn, pre=None, post=None, verbose=False):
     else:
         recolor_tgt = tgt
 
-    # --- stage 2: classify what is left ------------------------------------
-    sites, others, families = [], [], {}
-    for off in range(0, len(cur), 4):
-        ow, tw = wf._u32(cur, off), wf._u32(recolor_tgt, off)
-        what, info = classify(ow, tw)
-        if what == "same":
+    # --- stages 2+3, ONCE PER SHAPE-CONSISTENT ARROW ORDER -----------------
+    # regfield-first is the historical order and stays FIRST (it spends no
+    # arrows when a renaming is needed anyway); form-first is the order the
+    # mnemonic-aliasing law says was being shadowed.  Both are proven through
+    # the shipped apply_patch, so enumerating adds candidates, never licence.
+    # Per-order refusals, both reported: a single `last` string hides the more
+    # informative order's failure behind whichever order happened to run last
+    # (discipline 14 -- a refusal is a measurement of the guard too).
+    notes = {}
+    for form_first in (False, True):
+        last = "no combination"
+        sites, others, families = [], [], {}
+        need_recolor = False
+        for off in range(0, len(cur), 4):
+            ow, tw = wf._u32(cur, off), wf._u32(recolor_tgt, off)
+            what, info = classify(ow, tw, form_first=form_first)
+            if what == "same":
+                continue
+            key = info[0] if what == "form" else what
+            families[key] = families.get(key, 0) + 1
+            if what == "other":
+                others.append(off)
+            elif what == "form":
+                sites.append((off, info[0], info[1]))
+            elif what == "regfield":
+                need_recolor = True
+        if others:
+            # Identical under both orders (classify falls back), so this is a
+            # property of the function: report it once and stop.
+            return None, None, ("unabsorbed words at "
+                                + ",".join(f"+0x{o:x}" for o in others[:8])
+                                + (f" (+{len(others)-8} more)"
+                                   if len(others) > 8 else ""))
+
+        rmap = renaming_from_regfields(cur, recolor_tgt)
+
+        choices = []
+        for off, family, modes in sites:
+            ours_d = wf.decode_copy_form(wf._u32(cur, off))
+            theirs_d = wf.decode_copy_form(wf._u32(recolor_tgt, off))
+            per_site = []
+            for mode in modes:
+                if mode == "constant_dataflow_recolor":
+                    inv = {b: a for a, b in rmap.items()}
+                    cands = our_source_candidates(
+                        bytes(cur), off, theirs_d[2], orel, ojt, ours_d[2])
+                    preferred = inv.get(theirs_d[2])
+                    if preferred in cands:
+                        cands = [preferred] + [c for c in cands
+                                               if c != preferred]
+                    for reg in cands[:6]:
+                        per_site.append({"at": hex(off), "proof": mode,
+                                         "our_source": reg})
+                else:
+                    per_site.append({"at": hex(off), "proof": mode})
+            if not per_site:
+                last = f"+0x{off:x}: no proof mode offered"
+                choices = None
+                break
+            choices.append(per_site)
+        if choices is None:
+            notes["form-first" if form_first else "regfield-first"] = last
             continue
-        families[what if what != "form" else info[0]] = \
-            families.get(what if what != "form" else info[0], 0) + 1
-        if what == "other":
-            others.append(off)
-        elif what == "form":
-            sites.append((off, info[0], info[1]))
-    if others:
-        return None, None, ("unabsorbed words at "
-                            + ",".join(f"+0x{o:x}" for o in others[:8])
-                            + (f" (+{len(others)-8} more)"
-                               if len(others) > 8 else ""))
 
-    rmap = renaming_from_regfields(cur, recolor_tgt)
-    need_recolor = any(regfield_only(wf._u32(cur, o), wf._u32(recolor_tgt, o))
-                       and wf._u32(cur, o) != wf._u32(recolor_tgt, o)
-                       for o in range(0, len(cur), 4))
+        combos = [[]]
+        for per_site in choices:
+            combos = [c + [e] for c in combos for e in per_site]
+            if len(combos) > 400:
+                combos = combos[:400]
 
-    # --- stage 3: pick a proof per form site, strictest first --------------
-    choices = []
-    for off, family, modes in sites:
-        ours_d = wf.decode_copy_form(wf._u32(cur, off))
-        theirs_d = wf.decode_copy_form(wf._u32(recolor_tgt, off))
-        per_site = []
-        for mode in modes:
-            if mode == "constant_dataflow_recolor":
-                inv = {b: a for a, b in rmap.items()}
-                cands = our_source_candidates(
-                    bytes(cur), off, theirs_d[2], orel, ojt, ours_d[2])
-                preferred = inv.get(theirs_d[2])
-                if preferred in cands:
-                    cands = [preferred] + [c for c in cands if c != preferred]
-                for reg in cands[:6]:
-                    per_site.append({"at": hex(off), "proof": mode,
-                                     "our_source": reg})
-            else:
-                per_site.append({"at": hex(off), "proof": mode})
-        if not per_site:
-            return None, None, f"+0x{off:x}: no proof mode offered"
-        choices.append(per_site)
-
-    combos = [[]]
-    for per_site in choices:
-        combos = [c + [e] for c in combos for e in per_site]
-        if len(combos) > 400:
-            combos = combos[:400]
-
-    last = "no combination"
-    for combo in combos:
-        candidate = copy.deepcopy(rule)
-        if combo:
-            candidate["equivalent_copy_form"] = combo
-        combined = any(e["proof"] in wf._COMBINED_PROOFS for e in combo)
-        if need_recolor or combined:
-            candidate["copy_register_fields"] = True
-        try:
-            resid = prove(op, tp, fn, candidate, tgt)
-        except ValueError as e:
-            last = str(e)
-            continue
-        if resid == 0:
-            return candidate, 0, f"CLOSES ({kind}); families={families}"
-        last = f"residual {resid}"
-    return None, None, last
+        order_name = "form-first" if form_first else "regfield-first"
+        for combo in combos:
+            candidate = copy.deepcopy(rule)
+            if combo:
+                candidate["equivalent_copy_form"] = combo
+            combined = any(e["proof"] in wf._COMBINED_PROOFS for e in combo)
+            if need_recolor or combined:
+                candidate["copy_register_fields"] = True
+            try:
+                resid = prove(op, tp, fn, candidate, tgt)
+            except ValueError as e:
+                last = str(e)
+                continue
+            if resid == 0:
+                return candidate, 0, (f"CLOSES ({kind}); arrow order "
+                                      f"{order_name}; families={families}")
+            last = f"residual {resid}"
+        notes[order_name] = last
+    if len(set(notes.values())) == 1:
+        return None, None, next(iter(notes.values()))
+    return None, None, "; ".join(f"[{k}] {v}" for k, v in notes.items())
 
 
 def _perm_entry(op, fn, ours, win):
@@ -263,16 +342,22 @@ def _perm_entry(op, fn, ours, win):
     lo, hi, order = win["lo"], win["hi"], win["order"]
     region = ours[lo:hi]
     permuted = b"".join(region[s * 4:s * 4 + 4] for s in order)
-    from ch_derive import raw_region_records
-    odata, osec, osym, _b, _r, _j = load(op, fn)
+    from ch_derive import raw_region_records, region_symbols, moved_symbols
+    odata, osec, osym, _b, orel, _j = load(op, fn)
     recs = raw_region_records(odata, osec, osym, lo, hi) or []
     dest_by_src = {s: d for d, s in enumerate(order)}
     prec = sorted(((dest_by_src[(o // 4)] * 4 + (o % 4), t, a)
                    for o, t, a in recs), key=lambda x: x[0])
+    # Name-bound relocation hashing (run-28 migration): passing the triples
+    # alone raises "relocation hash needs the symbol name" on every window
+    # that carries a relocation.  See ch_derive.region_symbols.
+    win_syms = region_symbols(orel, lo, hi)
     return {"start": hex(lo), "end": hex(hi), "order": order,
             "before_sha256": sha(region), "after_sha256": sha(permuted),
-            "before_relocations_sha256": wf._relocation_sha256(recs),
-            "after_relocations_sha256": wf._relocation_sha256(prec)}
+            "before_relocations_sha256": wf._relocation_sha256(
+                recs, win_syms),
+            "after_relocations_sha256": wf._relocation_sha256(
+                prec, moved_symbols(win_syms, order))}
 
 
 def prove(op, tp, fn, rule, tgt):
