@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "ROSTER lane, game/world/gauntworld: re-census first (the widened alias mapper + reloc-VALUE comparison shift genuine counts), then ResolveWorldData (12 genuine at 1807 insns \u2014 the TU's largest prize; side-decompose by cluster), fn_8005C1DC (27 genuine), fn_80062A00 only via its recorded whole-TU column-array view (46 fns share the base \u2014 screen the record before any probe). fn_8005F0F4/fn_8005BA1C carry fresh run-28 records \u2014 context first, their untried leads are mandatory step 1. Byte-exact or named parks; commit per keep; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:InitWorldInfo",
+  "id": "work_claim.gauntworld-tail.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-GW",
+  "recorded_at": "2026-09-01T21:30:40Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "ROSTER lane, game/game/combat.c minus nothing (CameraSupervisor closed run 28): `gdlmem brief game/game/combat` first; re-census (regnorm TU mode \u2014 the reloc-VALUE comparison and the widened private-alias mapper are NEW since the last census; genuine counts will move). Then nearest-first: InitCamera (59 genuine pre-recensus), screen_limitation (50), InitPlayerMissiles/someone_will_be_off_screen/PlayerStartMissile (~40 each). The TU's measured levers: sibling templates, named-extern respells (pool population changes -> re-derive pins with wf_rederive_pin; 6 pins), relocation-symbol VALUE checks, exhaustive-small-space-search FIRST for pure recolors (the run-29 PR law \u2014 probe --stateless exists for sweeps now). Byte-exact or named parks w/ probed_form + held_fixed; commit per keep; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "tu:game/game/combat",
+  "id": "work_claim.combat-tail.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CB",
+  "recorded_at": "2026-09-01T21:30:20Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

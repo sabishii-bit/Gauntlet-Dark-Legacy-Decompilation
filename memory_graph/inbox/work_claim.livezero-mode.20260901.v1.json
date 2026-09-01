@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "POSTPROCESSOR-DEV lane (owns webfrank.py + tests + schema + game/audio/mempool this run): (1) the BIDIRECTIONAL LIVE-ZERO proof mode \u2014 CV's #1 recommendation: ~55 sites have no proof mode (claim.CV_residual-family-census.20260901.v1; the 56/55 direction split IS the allocator fingerprint; the class sits BELOW the value-equality ceiling). Design fail-closed; prove by CLOSING functions; every rule cites source-exhaustion provenance per Mandatory policy (the live-zero laws + CV's archive-unreachability law cover the class \u2014 cite per function). (2) BANK pool_garbage_collect real 44->28 (attempt.PR_* records: decl order `result, count, node, i, currentEnd`; apply the source change, re-derive its rule against the new body \u2014 this retires one of the few unproven_recolor_audit escapes if the smaller residual now proves). (3) the same-register-both-sides capability (2 fns, run-28 WF roster). fndiff/probe --raw now score pre-webfrank bodies directly; wf_rederive_pin for any pin your source change renumbers. Tests green; configure per json edit; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:pool_garbage_collect",
+  "id": "work_claim.livezero-mode.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WF",
+  "recorded_at": "2026-09-01T21:30:01Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

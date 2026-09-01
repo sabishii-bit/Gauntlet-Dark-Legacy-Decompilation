@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CONTINUE lane, game/sfx/sfx.c: (1) the banked Tier-1 sibling queue (run-28 SF census: StartGenHitFx, fn_80093BC0, StartMagicFX = ZERO genuine structural rows, pure count mismatch \u2014 unwritten-code closes, likely the cheapest exacts in the TU) + verify SfxSkipItem is already finished (2 rows = reloc-naming; the widened alias mapper may clear it \u2014 if fndiff --clean says MATCH, record RECLASSIFIED, done). (2) ProcessEffects from 95.94 (context first \u2014 the do-not-retry list is long; the run-28 SF record decomposed everything). brief game/sfx/sfx first; artifact-aware census; commit per cluster; A/B/A reverts; gate = 'main.dol: OK'; 8+ pins screened; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:ProcessEffects",
+  "id": "work_claim.sfx-tier1.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SF",
+  "recorded_at": "2026-09-01T21:30:27Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

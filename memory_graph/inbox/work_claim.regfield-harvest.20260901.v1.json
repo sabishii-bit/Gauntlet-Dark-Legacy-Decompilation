@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "HARVEST lane (rules only where functions close; webfrank.py is WF's; splice surgically + configure): (1) the REGFIELD-ONLY PERMUTATION class image-wide \u2014 run-28's discovery (claim.law.HV_a-register-field-only-permutation-repairs-a-non-bijective-recolor-and-no-census-can-see-it.20260901.v1): windows whose atoms are ALL pure register-field diffs are invisible to window-deriving censuses; sweep the full image with a purpose-built search (promote it; run once from repo root). (2) PL's banked rule candidate: load_player_model_sub = a perfect bijective 9-register permutation (attempt.PL_* record carries the role table). (3) any CLEAN-RENAMING candidates the run-29 backfill's family queries surface (find --family + laws --residual are LIVE \u2014 use them; verified tier only, never candidates). Canaries first (scanner AND deriver AND real apply_patch); provenance citation per rule (source-exhaustion record or class law); derivation disciplines all mandatory. owned this run: mempool+webfrank.py (WF), player.c rules (HV), movieplayer (MP), combat.c (CB), sfx.c (SF), sys/memcard (MC), gauntworld (GW), ui/options+pb_objregs (IG). Gate = 'main.dol: OK' per close; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:load_player_model_sub",
+  "id": "work_claim.regfield-harvest.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-HV",
+  "recorded_at": "2026-09-01T21:30:07Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}

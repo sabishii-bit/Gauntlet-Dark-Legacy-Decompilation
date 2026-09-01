@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "PRAGMA-SCOPE lane, sys/memcard (LG's highest-leverage untouched item): an UNSCOPED `#pragma opt_propagation off` at ~line 267 leaks over 29 downstream functions, and a dangling `opt_lifetimes reset` at ~1420 scopes into writeGauntletSave (91.8, unworked) \u2014 neither is in any record's premise. The job: a careful full-roster A/B \u2014 re-scope the pragma tightly (bracket the function(s) whose records justify it), measure EVERY function in the TU before/after (defake_gate baseline + check is the harness; regnorm census both sides), keep what improves, revert what regresses, park with the map otherwise. Then the banked D3 lead on loadGauntletSave (hoist `bigSize - 23992`; its record names it next) and writeGauntletSave fresh. brief sys/memcard first; scaffold census on every baseline; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-01",
+  "function": "function:loadGauntletSave",
+  "id": "work_claim.memcard-pragma.20260901.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-MC",
+  "recorded_at": "2026-09-01T21:30:33Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-01"
+}
