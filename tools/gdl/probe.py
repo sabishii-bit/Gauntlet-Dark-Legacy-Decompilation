@@ -662,6 +662,50 @@ def fuzzy_readout(unit, fn, fn_stripped, state, state_file):
         print(f"[--fuzzy: readout failed: {err}]")
 
 
+REPLAN_AT = 3
+
+
+def update_neutral_identical_streak(state, verdict):
+    """Consecutive NEUTRAL-IDENTICAL probes on this function.
+
+    A RE-SCORE recomputes nothing and is not a probe, so it neither counts
+    nor resets. Every other non-identical verdict resets to zero.
+    """
+    current = state.get("neutral_identical_streak", 0)
+    if verdict.startswith("RE-SCORE"):
+        return current
+    if verdict.startswith("NEUTRAL") and "NEUTRAL-IDENTICAL" in verdict:
+        return current + 1
+    return 0
+
+
+def replan_hint(streak):
+    """Advice after a run of edits that never reached codegen at all.
+
+    NEUTRAL-IDENTICAL means the object bytes did not move: the edit folded
+    away BEFORE codegen, so the source text never reached the compiler's
+    decision point. One is a strong negative on that spelling. Three in a
+    row is no longer evidence about spellings — it is evidence about the
+    AXIS CLASS, because three different source constructs all failed to
+    reach the same decision point. The loop used to say nothing, which
+    invites a fourth spelling of a lever already proven unreachable.
+    """
+    if streak < REPLAN_AT:
+        return None
+    return (
+        f"RE-PLAN THE AXIS CLASS: {streak} consecutive NEUTRAL-IDENTICAL"
+        " probes — every one of those edits folded away before codegen and"
+        " the object bytes never moved. That is a fact about the AXIS, not"
+        " about the spellings: this construct does not reach the compiler's"
+        " decision point at all, so a further spelling of it cannot either."
+        " Change the LEVER (a different mechanism, a different function"
+        " boundary, a declaration/type/order change rather than a statement"
+        " respell), or record the axis as measured-dead with these"
+        f" {streak} probed forms. `gdlmem laws --query <your residual"
+        " signature>` before the next probe."
+    )
+
+
 def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                      prev_insns, prev_digest, digest):
     """Byte-identity + structural-drift annotations for a NEUTRAL verdict.
@@ -939,6 +983,14 @@ def main():
         verdict = annotate_neutral(verdict, real, insns, multiset_tokens,
                                    prev_tokens, prev_insns, prev_digest,
                                    digest)
+        state["last_verdict"] = verdict
+    # A run of edits that never reached codegen is a fact about the axis,
+    # not about the spellings tried. Aggregate it and say so.
+    streak = update_neutral_identical_streak(state, verdict)
+    state["neutral_identical_streak"] = streak
+    hint = replan_hint(streak)
+    if hint:
+        verdict += "\n" + hint
         state["last_verdict"] = verdict
     state_file.write_text(json.dumps(state), encoding="utf-8")
     print(verdict)
