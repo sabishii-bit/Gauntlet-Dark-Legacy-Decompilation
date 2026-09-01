@@ -2619,8 +2619,30 @@ def _apply_proposal_gates(record: dict[str, Any]) -> None:
     # meaningful against its instruction counts: a count-ASYMMETRIC residual
     # is provably outside every postprocessor class, so a reclassification
     # with no quoted N/N is unverifiable on its face.
-    reclassifies = str(record.get("outcome", "")).lower() == "reclassified" \
-        or bool(_POSTPROCESSOR_CLASS_RE.search(text))
+    #
+    # TWO SOUNDNESS NARROWINGS, both required, both learned by this gate
+    # firing on the very record that DESCRIBED it:
+    # (a) only FUNCTION-ANCHORED records can reclassify a function, so a
+    #     project-level methodology claim is excluded by construction;
+    # (b) scan a SUBSTANCE projection, not the whole record —
+    #     claim.RC_stale-reopen-queue-is-a-classifier-artifact.20260901.v1
+    #     measured that matching a record's citation and verification prose
+    #     as evidence about its SUBJECT makes every well-run session look
+    #     like the thing being searched for (43/43 false positives there).
+    anchored = bool(record.get("function")) or \
+        str(record.get("subject", "")).startswith("function:")
+    substance = _record_text({
+        key: value for key, value in record.items()
+        if key != "attributes"
+    } | {"attributes": {
+        key: value
+        for key, value in (record.get("attributes") or {}).items()
+        if key not in _PARK_CITATION_KEYS
+    }})
+    reclassifies = anchored and (
+        str(record.get("outcome", "")).lower() == "reclassified"
+        or bool(_POSTPROCESSOR_CLASS_RE.search(substance))
+    )
     if reclassifies and not _INSNS_QUOTE_RE.search(text):
         raise MemoryGraphError(
             "a record reclassifying a function into the postprocessor work"

@@ -966,6 +966,42 @@ class ProposalGateTests(unittest.TestCase):
         self.assertIn("webfrank-cannot-close-a-count-asymmetric-residual",
                       str(caught.exception))
 
+    def test_gate_b_does_not_fire_on_a_record_describing_the_gate(self):
+        # REGRESSION, found by dogfooding: the first cut of gate B refused
+        # the very record that DOCUMENTED it, because the record's prose
+        # contains "postprocessor-class". That is exactly the defect
+        # claim.RC_stale-reopen-queue-is-a-classifier-artifact.20260901.v1
+        # measured (43/43 false positives from matching a record's own
+        # citation prose as evidence about its subject). The fix is to fire
+        # only on FUNCTION-ANCHORED records.
+        methodology = {
+            "schema_version": 1, "id": "claim.about-the-gate.v1",
+            "kind": "claim", "subject": "project:gdl",
+            "predicate": "workflow_law", "epistemic_state": "verified",
+            "falsifier": "any counterexample",
+            "value": "Records reclassifying a function postprocessor-class"
+                     " require a quoted insns count; this claim only"
+                     " describes the rule and reclassifies nothing.",
+        }
+        self.assertTrue(
+            stage_record_proposal(methodology, root=self.root).exists())
+
+    def test_gate_b_ignores_citation_and_verification_prose(self):
+        # Second half of the same defect class: quoting your gate commands
+        # in attributes.verification must not make you look like the thing
+        # being searched for.
+        record = _attempt(
+            "attempt.cites.v1", "function:test_fn", outcome="parked",
+            axis="register rotation resisted",
+            attributes={
+                "law_screen": "screened claim.law.webfrank-cannot-close-a-"
+                              "count-asymmetric-residual; postprocessor-class"
+                              " ruled out",
+                "verification": "defake_gate check; considered the"
+                                " postprocessor path and rejected it",
+            })
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
     def test_ordinary_park_is_not_treated_as_a_reclassification(self):
         record = _attempt(
             "attempt.ordinary.v1", "function:test_fn", outcome="parked",
