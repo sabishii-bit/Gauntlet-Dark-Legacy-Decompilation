@@ -1592,6 +1592,12 @@ def equivalent_copy_form(
     changed = 0
     seen = set()
     for edit in edits:
+        if "at" not in edit:
+            # A KeyError here surfaced as a bare traceback a worker
+            # misread as a tool bug; name the actual authoring mistake.
+            raise ValueError(
+                f"copy-form edit missing its 'at' key: {edit} — each"
+                " equivalent_copy_form edit needs 'at' (byte offset)")
         offset = _parse_int(edit["at"])
         if offset % 4 or not 0 <= offset <= len(current) - 4:
             raise ValueError(f"invalid copy-form offset {edit}")
@@ -1954,6 +1960,10 @@ def apply_patch(
 
     seen_edits = set()
     for edit in patch.get("register_fields", []):
+        if "at" not in edit:
+            raise ValueError(
+                f"{symbol.name}: register-field edit missing its 'at' key:"
+                f" {edit}")
         relative = _parse_int(edit["at"])
         if relative % 4 or not 0 <= relative <= symbol.size - 4:
             raise ValueError(f"{symbol.name}: invalid register-field offset {edit}")

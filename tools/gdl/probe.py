@@ -289,6 +289,18 @@ def main():
         verdict = (f"IMPROVED  real {best} -> {real} (insns {insns}{tok})"
                    "  [best updated]")
         state["best_real"] = real
+        # Parity-held improvements are the one IMPROVED shape that has
+        # regressed fuzzy end-to-end (real 30->24 at unchanged T47/O47
+        # was a fuzzy 80.85->71.89 loss; probe+gate both passed it).
+        # When insn counts already agreed and did not move, real fell
+        # inside an already-parity-exact shell — fuzzy is the arbiter.
+        parity = re.match(r"T(\d+)/O(\d+)$", insns or "")
+        if (parity and parity.group(1) == parity.group(2)
+                and state.get("last_insns") == insns):
+            verdict += ("\nPARITY-HELD IMPROVEMENT: counts were already"
+                        " equal and unchanged — arbitrate on FRESH objdiff"
+                        " fuzzy BEFORE treating this as progress or running"
+                        " --update-improved; revert if fuzzy fell")
     elif real > best:
         structure_improved = (multiset_tokens is not None
                               and prev_tokens is not None
@@ -325,6 +337,7 @@ def main():
         except Exception:
             pass
     state["last_real"] = real
+    state["last_insns"] = insns
     if multiset_tokens is not None:
         state["last_multiset"] = multiset_tokens
     state_file.write_text(json.dumps(state), encoding="utf-8")

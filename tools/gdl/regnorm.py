@@ -25,6 +25,13 @@ ours->target register tally per register with an INCONSISTENT flag on any
 register mapped to more than one target (the web-split tell: a colour
 table needs def-site grouping, which a positional tally cannot see —
 treat the map as a hint, not a sigma).
+
+Offsets: @0xNN on paired/T rows is the TARGET function-relative byte
+offset; on UNPAIRED-O rows it is OURS-relative. Both skip reloc
+annotation lines. CLEAN-RENAMING is necessary, not sufficient, for a
+recolor rule: webfrank_audit can still reject on a per-web
+inconsistency the positional tally cannot see (live case: 0/0 verdict
+with an f0/f2 FPR conflict) — always run the audit before authoring.
 """
 
 import difflib
@@ -101,6 +108,14 @@ def main():
         t_off.append(running)
         if not ln.startswith("    "):
             running += 4
+    # Ours-side table too: UNPAIRED rows used to print line_index*4, which
+    # counts reloc annotation lines as instructions — a worker pasted those
+    # "offsets" into fnasm and landed in an unrelated region.
+    b_off, running = [], 0
+    for ln in b:
+        b_off.append(running)
+        if not ln.startswith("    "):
+            running += 4
     for ti, bi in pairs:
         if t[ti] == b[bi]:
             if show_all:
@@ -149,9 +164,9 @@ def main():
             structural.append((ti, t[ti], b[bi]))
             print(f"STRUCTURAL @{t_off[ti]:#06x}  T {t[ti]}   O {b[bi]}")
     for ti in t_only:
-        print(f"UNPAIRED-T @{ti*4:#06x}  {t[ti]}")
+        print(f"UNPAIRED-T @{t_off[ti]:#06x}  {t[ti]}")
     for bi in b_only:
-        print(f"UNPAIRED-O @{bi*4:#06x}  {b[bi]}")
+        print(f"UNPAIRED-O @{b_off[bi]:#06x}  {b[bi]}")
     if show_map and mapping:
         print("-- register map (ours -> target, positional tally) --")
         for ours_reg in sorted(mapping, key=lambda r: (r[0], int(r[1:]))

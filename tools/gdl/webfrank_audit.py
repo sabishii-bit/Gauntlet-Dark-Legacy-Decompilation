@@ -226,6 +226,12 @@ def main() -> int:
             f"  REJECT {item['unit']}::{item['function']} "
             f"({item['instructions']} insns): {item['reason']}"
         )
+    print(
+        "NO OPINION on functions not listed above: this scanner only sees"
+        " single-class REGISTER_ONLY candidates. Absence here is NOT"
+        " ineligibility — mixed schedule+recolor parks close via the manual"
+        " composed 4-step (claim.law: audit silence is not ineligibility)."
+    )
     try:
         printable = output_path.relative_to(REPO)
     except ValueError:

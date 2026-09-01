@@ -215,6 +215,30 @@ one, and supersede the law if your target contradicts it.
    the Write/Edit tools; for byte-level ops use [System.IO.File].
    `git stash` is UNUSABLE here (shared stash, 31+ foreign entries) —
    A/B via a scratch copy or `probe --discard`.
+8. **Write records and commit messages FROM tool output, never before
+   it.** Two workers drafted metrics into records/messages before the
+   measuring build ran; one shipped fabricated slotdiff numbers. Run
+   the tool, paste from its output, then write. Corollary: REMEASURE
+   is the default — every number quoted from a brief or record is
+   stale until a live tool run confirms it.
+9. **Order of operations for a TU roster or any IMPROVED bank:**
+   (a) regnorm census FIRST across the whole roster — `real` INVERTS
+   tractability (a real-232 function was 1 word from a pure recolor
+   while the real-30 "cheap" one was a schedule rewrite); (b)
+   `gdlmem laws --query` on the residual signature BEFORE the first
+   probe (an existing law predicted a win a worker nearly re-derived);
+   (c) a parity-held real improvement (counts equal and unchanged) is
+   arbitrated on FRESH fuzzy BEFORE `--update-improved` — probe+gate
+   both passed a real 30->24 that was a fuzzy 81->72 regression.
+10. **Sweep/roster hygiene:** screen `config/GUNE5D/webfrank.json`
+   pins before ranking anything by measured real (pinned functions
+   read real 0 by construction); "no source change retained" in a
+   record does NOT mean never-probed — probes may have run and been
+   reverted, and the corpus predates the `probed_form` field, so
+   absence of the field is not absence of probing. Outcomes must say
+   which: `measured-dead` (probed, axis vetoed) vs `never-attempted`.
+   Any "closing X flips the file" claim must carry a live
+   `datadiff --sections` result, not an assumption.
 
 Header edits (include/game/*.h): allowed ONLY to the lane whose work_claim
 names it as that header's owner this run — one owner per header per run.
