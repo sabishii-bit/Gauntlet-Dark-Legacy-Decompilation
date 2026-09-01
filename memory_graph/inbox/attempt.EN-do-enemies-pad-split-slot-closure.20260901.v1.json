@@ -1,0 +1,22 @@
+{
+  "attempted_axis": "do_enemies exact drive: close the 3-slot placement residual that the opcode-multiset classification could not see, by SPLITTING the function's single padding local across the bit-trick blocks so the three stack-homed f32 temps land at target's offsets.",
+  "attributes": {
+    "axis_log": [
+      "DIAGNOSIS: fndiff --ops reports opcode multiset IDENTICAL (568/568, 'pure reorder, schedule-class'), which had routed every prior pass toward schedule work. slotdiff instead reported frame 136 = 136 but 3T/3O exclusive slots: three 4-use words at target 32/36/40 sitting at 8/12/16 in ours. Reading the users identified them as the three `f32 v` locals of the branchless-abs bit-trick blocks at enemy.c:7065-7085 (stfs/lwz/stw/lfs on one address). Target keeps 24 bytes BELOW them and 8 above; ours had 0 below and all 32 above.",
+      "AXIS 1 (IMPROVED, RETAINED): split the single outer pad `u8 unused[32]` into `u8 unused[8]` at its existing position plus a new `{ u8 unused2[24]; (void)unused2; }` block declared textually AFTER the three bit-trick blocks. Total padding is unchanged at 32 bytes, so the frame stays 136. Result: real 394 -> 370 and slotdiff SLOT MAP IDENTICAL (10/10)."
+    ],
+    "law_screen": "claim.law.block-allocation-order-is-textual-not-nesting-depth.20260831.v1 SCREENED and APPLIED - it is what predicted that the three inner-block `f32 v` temps are allocated BELOW the outer `u8 unused[32]`, i.e. at the frame bottom, and therefore that a pad declared textually AFTER them would lift them. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED and APPLIED to compute the 8/24 split. claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever.20260831.v1 SCREENED and APPLIED. claim.law.parameter-save-area-width-sets-the-local-block-floor.20260901.v1 SCREENED as the first hypothesis for the 24-byte floor (DrawTextKeepScale is a 6-argument-word call and 6*4=24 matched target's floor exactly) and then MEASURED FALSE - the prototype already declares all 6 parameters, and the real cause was pad placement, not parameter-area width. Recording this because the coincidence is a convincing trap. claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 screened: not engaged, counts were already 568/568 and unchanged.",
+    "laws_applied": "[\"claim.law.block-allocation-order-is-textual-not-nesting-depth.20260831.v1\", \"claim.law.stack-slots-descend-in-declaration-order.20260831.v1\", \"claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever.20260831.v1\"]",
+    "residual": "RETAINED: real 394 -> 370, fuzzy 97.026405 -> 97.0475, insns T568/O568, opcode multiset IDENTICAL, frame 136 both, saves r28 both, and slotdiff now reports SLOT MAP IDENTICAL - the stack layout of this function is fully closed. What remains is a genuine SCHEDULE-class residual of 6 clusters in the 0x134-0x168 window (an lwz/lfd/lfs/addi reordering around a load group), with the opcode multiset identical - i.e. pure instruction ordering. That window is the correct and only target for the next pass on this function; the stack axis is done and should not be re-probed.",
+    "scope": "src/game/enemy/enemy.c, do_enemies declaration block plus one added padding block after the three bit-trick scopes. Padding locals only - never read or written - so semantics are provably unchanged. Committed as 7a98c3fbc.",
+    "verification": "Clean BASELINE probed before the first edit (real 394, T568/O568, multiset 0t). slotdiff before and after. defake_gate check --rebuild over all 66 TU functions: GATE OK, only do_enemies moved, no sibling regressed, all 9 webfrank-pinned enemy.c functions unchanged. Full ninja green, build/GUNE5D/main.dol: OK. Fuzzy read from a FRESH report build and confirmed to move the same direction as real before committing. git diff --check clean."
+  },
+  "function": "function:do_enemies",
+  "id": "attempt.EN-do-enemies-pad-split-slot-closure.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T02:30:34Z",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "metrics",
+      "workflow",
+      "decl-order",
+      "store-placement",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T02:30:45Z",
+  "schema_version": 1,
+  "subject": "tu:game/enemy/enemy",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5 family, residual-classification rule. NEVER classify a function's residual class from `fndiff --ops` alone. The --ops view compares OPCODE streams and is structurally BLIND to (a) stack displacement operands and (b) relocation targets: a function can differ by a whole frame size, by every local slot, or by a reloc symbol, and still print `opcode multiset: IDENTICAL -- pure reorder, schedule-class`. MEASURED on game/enemy/enemy.c 2026-09-01. do_enemy_move had been recorded REGISTER_ONLY across multiple passes on the strength of a 4-token --ops multiset; slotdiff showed frame target 208 vs ours 224 - a 16-byte frame error with every local displaced +8 and the saved-register block 16 bytes high - which no pass had ever seen. Fixing it via two padding-local edits took real 292 -> 176 and fuzzy 98.98 -> 99.05. do_enemies printed the strongest possible --ops verdict (multiset IDENTICAL, 568/568, 'pure reorder') while carrying three misplaced stack slots; a pad SPLIT closed them to SLOT MAP IDENTICAL and took real 394 -> 370. PROCEDURE: for any function not already exact, run `slotdiff` (frame + slot map) and `regnorm` BEFORE assigning a residual class, and treat --ops as evidence about opcodes only. COROLLARY, also measured: regnorm's STRUCTURAL rows are frequently ARTIFACTS - when the two streams differ in instruction COUNT, every subsequent branch row is reported STRUCTURAL purely from target displacement (in move_logic10 all such rows were displaced by exactly the 2-instruction surplus: 0x10d8 vs 0x10e0). Confirm the displacement arithmetic before believing a STRUCTURAL branch row. A TU-wide slotdiff census is cheap (one call per function) and is the correct first move on any TU whose sub-100% functions were classified from --ops: the census over enemy.c's nine sub-100 functions found exactly one frame error and three slot-placement functions, and closed two of them the same day."
+}
