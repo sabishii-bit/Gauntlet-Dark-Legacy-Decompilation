@@ -2171,8 +2171,10 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
                 q->p_parms[2].i.fade_start = fv;
             }
             t3 = t3 * sc;
-            if (!(t3 < lo)) {
-                if (!(t3 > hi)) {
+            if (t3 < lo) {
+            } else {
+                if (t3 > hi) {
+                } else {
                     hi = t3;
                 }
                 lo = hi;
@@ -2220,9 +2222,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             }
             t3 = t3 * sc;
             if (!(t3 < lo)) {
-                if (!(t3 > hi)) {
-                    hi = t3;
-                }
+                hi = (t3 > hi) ? hi : t3;
                 lo = hi;
             }
             q->p_parms[1].i.fade_end = lo;
@@ -2268,9 +2268,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             }
             t3 = t3 * sc;
             if (!(t3 < lo)) {
-                if (!(t3 > hi)) {
-                    hi = t3;
-                }
+                hi = (t3 > hi) ? hi : t3;
                 lo = hi;
             }
             q->p_parms[0].i.fade_end = lo;
@@ -2318,9 +2316,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             }
             t3 = t3 * sc;
             if (!(t3 < lo)) {
-                if (!(t3 > hi)) {
-                    hi = t3;
-                }
+                hi = (t3 > hi) ? hi : t3;
                 lo = hi;
             }
             q->p_parms[3].i.fade_end = lo;
@@ -2368,9 +2364,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
             }
             t3 = t3 * sc;
             if (!(t3 < lo)) {
-                if (!(t3 > hi)) {
-                    hi = t3;
-                }
+                hi = (t3 > hi) ? hi : t3;
                 lo = hi;
             }
             q->p_parms[4].i.fade_end = lo;
