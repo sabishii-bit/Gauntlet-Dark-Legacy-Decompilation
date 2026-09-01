@@ -291,7 +291,7 @@ extern void  CurTransmitterBlink(s32 idx);                        /* newcam hook
 extern s32   AtreeMatch(void* tree, char* name, s32 flag);
 extern f32   FixAngle(f64 ang);                        /* angle wrap */
 extern void  CreateYPRMatrix(f32* mtx, f32* angles);          /* mtx from angles */
-extern f64   FloorPos(f64 y, f32 r, f32* pos, s32 mode); /* ground probe */
+extern f32   FloorPos(f32 y, f32 r, f32* pos, s32 mode); /* ground probe */
 extern s32   MBOX_NewObject(char* name, f32* mtx, s32 a, s32 b);
 extern void  MBTreeSetAlpha(s32 handle, s32 pri, s32 b);
 extern s32   MBOX_ReallyFindObject(char* name, s32 a, s32 b, s32 c);
