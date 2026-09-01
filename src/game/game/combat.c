@@ -3338,7 +3338,7 @@ void screen_limitation(s32 camIdx)
                      cam->radius);
     dbgTextPrintfCol(1, row - 7, "CAM=");
     switch (cam->c_mode) {
-    case 0:  dbgTextPrintfCol(5, row - 7, "OFF   "); break;
+    case 0:  dbgTextPrintfCol(5, row - 7, "OFF    "); break;
     case 1:  dbgTextPrintfCol(5, row - 7, "FREE   "); break;
     case 2:  dbgTextPrintfCol(5, row - 7, "LOCK   "); break;
     case 3:  dbgTextPrintfCol(5, row - 7, "GAME   "); break;
