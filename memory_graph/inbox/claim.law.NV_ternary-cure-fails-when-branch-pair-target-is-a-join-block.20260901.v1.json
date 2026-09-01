@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "Measured 2026-09-01 on src/game/sound/sounds_evt.c::AudioEnterNextStage (attempt.NV_audioenternextstage-ternary-carrier-dies-on-join-block.20260901.v3), worktree GDL-Claude-MechSweep, branch claude/mechanism-sweep-20260901. Target T50/O50 real 4, cluster `replace T[14:16]@38-40=['blt','b'] O[14:16]=['beq','bge']`. The parent law's arm-ordered ternary was applied verbatim as `entry = (entry_id < 0) ? 0 : entry;` and measured T50/O51, real 13 -> 15, multiset 3t with ours-only '-1 bge -1 li'. Target head read with fnasm 0x0:0x48 confirmed the join: `blt ->0x40` at fn+0x1c (the idx<0 path, which our build already matches exactly) and `blt ->0x40` at fn+0x38 (the entry_id<0 path) both enter the single `li r3,0` at 0x40.",
+    "tags": [
+      "matching",
+      "entry-schedule",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.NV_ternary-cure-fails-when-branch-pair-target-is-a-join-block.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T14:48:09Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "BOUNDARY on claim.law.ternary-diamond-reaches-forward-branch-pair-at-cost-of-temp-result-register.20260831.v1; it does not supersede that law, whose prescription remains correct inside the scope named here. THE ARM-ORDERED TERNARY REACHES THE FORWARD UNFUSED BRANCH PAIR ONLY WHEN THE PAIR'S TARGET BLOCK HAS A SINGLE PREDECESSOR. A ternary arm is an EXPRESSION RESULT, so it cannot be the destination of a `goto` taken from anywhere else in the function. Where the target's branch-pair destination is a JOIN \u2014 two or more paths entering one shared block \u2014 the ternary cannot express the join: MWCC materialises a private copy of the arm for the ternary and leaves the other predecessor's block standing, so the cure ADDS an instruction instead of removing one. Measured signature of the failure: the branch architecture converges as the parent law predicts (the conditional branch appears, multiset token count drops) while the instruction count goes UP by exactly the size of the duplicated arm, and the `--ops` ours-only list names both the fused branch the cure was meant to replace and the duplicated arm opcode \u2014 here '-1 bge -1 li' at T50/O51. HOW TO SCREEN BEFORE SPENDING THE PROBE, which is the operational value of this record: read the target head with `fnasm <unit> <fn> 0x0:<end-of-region>` and count the predecessors of the branch pair's destination address. If two or more branches target it, do not reach for the ternary; the parent law's ladder does not apply and its step (3) arm-order refinement cannot help either, because arm order controls WHICH arm is fallthrough, not whether the arm can be shared. This is cheap: the destination is already printed as the branch operand in the same `--ops` cluster that identified the residual. SCOPE NOTE: the parent law's derivation on critter.c::CritterMoveSetup is a single-predecessor geometry, which is why it succeeded there and why the two results are consistent rather than contradictory. A useful corollary for reconstruction: when the target's pair destination IS a join, the join is usually a shared early-out or error block reached by several guards, and the correct source shape is a `goto` to a shared label \u2014 i.e. exactly the statement spelling the parent law's step (1) shows is inert for producing the pair. Both carriers therefore fail on a join, which is what makes such a site a genuine cap rather than an unexplored axis."
+}
