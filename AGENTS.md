@@ -332,6 +332,21 @@ sibling consumers; never invent names.
   `gdlmem.py tool <name>`. Never weaken a guard, add an unaudited rule, or use
   postprocessing to hide structural, operand, relocation-payload, ABI,
   semantic, or data differences.
+- **A new rule additionally requires SOURCE-EXHAUSTION provenance**: the
+  function must carry a parked/capped attempt record with literal
+  `probed_form` axes (or a law proving its residual class source-
+  unreachable), and the rule's attempt record must cite it. Mechanical
+  closability alone is not sufficient — a provenance audit found 11 rules
+  authored without any source-work trail, which is the "wanton use"
+  failure mode. Functions with no such record get a source-first pass
+  BEFORE any rule.
+- **Class ceiling**: every postprocessor class must be attributable to
+  allocator/scheduler variance under a proven compiler. The relational
+  value-equality mode is the outer boundary — no class may cross into
+  "any semantically equivalent stream". Proposals for new classes go to
+  the integrator as records, never shipped unilaterally.
+- Progress reporting always publishes the STRICT/EQUIVALENT split; never
+  quote the combined matched% alone in a record or report.
 - A verified fuzzy improvement is valuable even when not exact: keep and
   commit it after validation. Byte-exact remains the goal; exactness is not a
   prerequisite for retaining better work.
