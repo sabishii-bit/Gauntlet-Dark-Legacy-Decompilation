@@ -151,7 +151,7 @@ typedef struct MovieChunkNode {
  * name - offsets verified purely from this TU's own usage across
  * MovieDecoderInitBuffers, fn_800DB82C, fn_800DB3D4, fn_800DB29C,
  * fn_800DB36C, fn_800DB2F4 and the dtor cluster (fn_800DB008/fn_800DB0F8/
- * dtor_800DB21C). self[8]/self[9] are always zeroed but never read in this
+ * __dt__15MoviePlayerBaseFv). self[8]/self[9] are always zeroed but never read in this
  * TU - left as unknown padding. self+0x4C (word 19) is written once (a byte
  * flag in fn_800DB2F4) with no corroborating read - left raw there. */
 typedef struct MovieChunkStream {
@@ -2103,9 +2103,18 @@ u32* fn_800DB0F8(u32* volatile p) {
 #pragma scheduling on
 #endif
 
-/* operator delete[] (weak, emitted into this TU) */
+/* The real C++ global operator-delete pair. Written as genuine operators (not
+ * as C functions spelled with their mangled names): MWCC mangles them to
+ * exactly the target's __dla__FPv / __dl__FPv, and only the operator form gets
+ * the empty-exception-specification EH scaffolding (r31 frame pointer, the
+ * __unexpected island, frame 48) that the target's 24-instruction bodies
+ * carry. Defining operator delete HERE -- before the destructor below -- is
+ * also what lets MWCC inline it into that destructor's compiler-synthesised
+ * deleting branch, which is how the target's dtor body is shaped. */
+#pragma cplusplus on
+
 #pragma dont_inline on
-void __dla__FPv(void* p) {
+void operator delete[](void* p) throw() {
     if (p != NULL) {
         gMovieAllocCount--;
         if (gMovieAllocCount == 0) {
@@ -2115,8 +2124,7 @@ void __dla__FPv(void* p) {
 }
 #pragma dont_inline off
 
-/* operator delete (weak, emitted into this TU) */
-void __dl__FPv(void* p) {
+void operator delete(void* p) throw() {
     if (p != NULL) {
         gMovieAllocCount--;
         if (gMovieAllocCount == 0) {
@@ -2131,23 +2139,34 @@ void __dl__FPv(void* p) {
 #pragma scheduling on
 #endif
 
-/* Parsed as C++ so the empty exception specification is accepted: with
- * -Cpp_exceptions on it is what makes MWCC emit the __unexpected cleanup
- * edge and the r31 frame-pointer prologue this destructor has in the
- * target. The surrounding TU stays in its original per-region parse mode
- * (a uniform C++ parse changes fn_800DA6A4 and trips its WebFrank pin). */
-#pragma cplusplus on
-u32* dtor_800DB21C(u32* self, s16 deleting) throw() {
-    if (self != NULL) {
-        self[0] = (u32)lbl_801296A4;
-        if (deleting > 0 && self != NULL) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-    }
-    return self;
+/* MoviePlayerBase -- the movie player's abstract base class.  The name is not
+ * invented: the GameCube build carries CodeWarrior RTTI, and the base class's
+ * vtable lbl_801296A4 begins with a pointer to the RTTI record at .sdata
+ * 0x80344000, whose layout is validated against the known-named control
+ * __RTTI__Q23std9exception (0x80344048 -> "std::exception").  That record
+ * reads { name = 0x80117654 -> "MoviePlayerBase", base = NULL }, and the same
+ * vtable's only virtual slot is this destructor at 0x800DB21C.  (The derived
+ * class resolves the same way: vtable lbl_8012968C -> RTTI 0x80344008 ->
+ * { "MoviePlayer", base -> MoviePlayerBase }, dtor 0x800DB008.)
+ *
+ * Declared with a NON-virtual destructor on purpose.  CodeWarrior gives every
+ * destructor -- virtual or not -- the hidden `short` in-charge parameter and
+ * the compiler-synthesised deleting branch, so the non-virtual spelling
+ * reproduces the target's body exactly while NOT emitting a __vt__ object into
+ * this TU (the real vtable lives in unsplit .data and is linked from the
+ * original bytes).  The destructor must also NOT carry `throw()`: an empty
+ * exception specification on the destructor itself adds a SECOND __unexpected
+ * island and grows the frame 48 -> 72.  Measured against the target: this form
+ * is instruction-for-instruction identical, including the `mr r3,r30` that
+ * lands inside the epilogue between `lwz r0,52(r31)` and `lmw r30,40(r12)` --
+ * the compiler-synthesised `return this` that only a real destructor emits. */
+class MoviePlayerBase {
+public:
+    ~MoviePlayerBase();
+};
+
+MoviePlayerBase::~MoviePlayerBase() {
+    *(u32*)this = (u32)lbl_801296A4;
 }
 #pragma cplusplus off
 
@@ -2499,7 +2518,7 @@ void fn_800DBA80(u8* dec, s32 fd) {
 #pragma scheduling on
 #endif
 
-/* Same C++ EH shape as dtor_800DB21C: parsed as C++ for the empty exception
+/* Same C++ EH shape as __dt__15MoviePlayerBaseFv: parsed as C++ for the empty exception
  * specification, which is what emits the __unexpected edge and the r31
  * frame-pointer prologue. */
 #pragma cplusplus on

@@ -7,7 +7,7 @@
     "scope": "src/game/movie/movieplayer.c renamed to .cpp (configure.py unit list + config/GUNE5D/splits.txt section header updated); whole-file `extern \"C\"` wrapper preserving every unmangled target symbol name; surgical `#pragma cplusplus on/off` pair around this dtor; `throw()` added; `u8 unused[24]` pad removed. Commits c308cb4e1 (byte-neutral conversion) and 0d294628a. Not webfrank-pinned.",
     "verification": "python tools/gdl/fnasm.py game/movie/movieplayer dtor_800DB21C --diff -> target 32 insns / ours 32, single misplaced `mr r3,r30` (baseline was target 32 / ours 26 with the whole EH cluster absent). python tools/gdl/defake_gate.py check game/movie/movieplayer -> GATE OK (no sibling drift; the TU's 27 already-exact functions all held, and both WebFrank pins still applied). Full ninja -j2 green, build/GUNE5D/main.dol: OK, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679. Project fuzzy 98.10% -> 98.11%, Game Code 97.65% -> 97.66%. MEASUREMENT CAVEAT confirmed and extended: probe.py AND fndiff both collapse the `_<ADDR>` suffix and resolve BOTH dtors to a single symbol named `dtor`, returning identical numbers for the two functions; only fnasm --diff distinguishes them. Do not arbitrate these two functions on probe.py or fndiff output."
   },
-  "function": "function:dtor_800DB21C",
+  "function": "function:__dt__15MoviePlayerBaseFv",
   "id": "attempt.dtor800db21c-cpp-conversion-eh-recovered.20260831.v2",
   "kind": "attempt",
   "outcome": "improved",
