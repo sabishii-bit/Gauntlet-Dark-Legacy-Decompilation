@@ -1814,6 +1814,32 @@
       }
     ],
     "game/world/tower": [
+    {
+      "function": "TowerCheckMessages",
+      "before_sha256": "ee9590da37daff4a371cb53c1ddcd353cb27677a23074b619f32d861cc433778",
+      "after_sha256": "924878c9658c8f0b0dff2042ce4e099881b48a7757f6198e08fc49999d0a6700",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - the FIRST member of the RECOLOR-REPAIR class to ship, and the reason the class exists. TowerCheckMessages is Tier A: all 122 differing words are pure register-field differences, so copy_register_fields alone reproduces the target bytes. It nonetheless REFUSED, because verify_consistent_recolor demands a position-consistent renaming and ours was two-valued: our build and the target both materialise two interchangeable values around +0x430 and assign them to each other's registers, so the binding is intersected away at the first merge that joins them and the guard reports a use that 'does not correspond' far downstream. Transposing the two definitions -- window [0x430,0x438) order [1,0], two independent atoms with no RAW/WAR/WAW hazard, accepted by check_permutation_dependences in its STRICTEST form with exit_dead=None and carrying no relocation in either object -- makes the SAME recolor a clean bijection. NOTE FOR CENSUS AUTHORS: this window contributes ZERO unabsorbed words, so every census built to date (cn_census, ch_census26, hb_census and my own run-27 filter) is structurally blind to it -- they all derive permutation windows from the words that are NOT pure register-field differences. The refusal offset is a POINTER to the merge, not a verdict on the function; the repair lives at the definitions upstream of it. real 122 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 697,
+        "permuted_instructions": 2
+      },
+      "instruction_permutation": [
+        {
+          "start": "0x430",
+          "end": "0x438",
+          "order": [
+            1,
+            0
+          ],
+          "before_sha256": "92e4332597522c9565456f2c8ffee77b5aca9019c473cc5a1823beea4ccb4e4b",
+          "after_sha256": "9ec074f988299a44e79f5c71e4af6f3f0ad950e2c3f1bec9df5b5319a6592cea",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "SumnerDoSpeech",
         "before_sha256": "84775fdda0cab9527991a042d0992e91fe1ed90e580675667c6a5f5b51b205bf",
