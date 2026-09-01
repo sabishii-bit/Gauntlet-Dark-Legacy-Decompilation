@@ -1,0 +1,81 @@
+{
+  "game/enemy/critter::ProcessCritter": {
+    "function": "ProcessCritter",
+    "before_sha256": "e8f2375f1b2db9eb16aef8090a2bb8173026f5da57f5d27b1a6f6f694512742d",
+    "after_sha256": "a3506d1fb60adecbcc60d5743f5b23c6a2fd33299eee7d0b8bfb35ac49bd9dda",
+    "equivalent_copy_form": [
+      {
+        "at": "0xb4",
+        "proof": "dominating_def"
+      }
+    ],
+    "copy_register_fields": true
+  },
+  "game/ui/auxscreen::calc_wizard_pos": {
+    "function": "calc_wizard_pos",
+    "before_sha256": "22ade7161e5cdd899c2f2af3d3c50852f3742720eb848cba08ea8aca598f3933",
+    "after_sha256": "456fd7348bea90da97aebbde18af0ce5c79626b3d5f3c3406d83324d0ce05c38",
+    "instruction_permutation": {
+      "start": "0x58",
+      "end": "0x6c",
+      "order": [
+        0,
+        3,
+        2,
+        1,
+        4
+      ],
+      "before_sha256": "4b7a75139d00ee33ef9e3c0238d4d2d64d3436f41bb9a6cb405ecb7c313c9cd9",
+      "after_sha256": "8cdd368be5bd513eac07d7a46c3159faf4cbfd1e6c422be7f28691616fa32b43",
+      "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "copy_register_fields": true
+  },
+  "game/ui/options::next_boss_hint": {
+    "function": "next_boss_hint",
+    "before_sha256": "e08fe4b17f3ee4391617591ac13555e659218d8300d81090c7ccc46243dbb0e8",
+    "after_sha256": "2baebf55a677401256d11897a61ea028490c134df0b7c76fe283f5a14ff3a9e6",
+    "instruction_permutation": {
+      "start": "0x10c",
+      "end": "0x128",
+      "order": [
+        0,
+        2,
+        1,
+        3,
+        4,
+        5,
+        6
+      ],
+      "before_sha256": "6acc4c2c06af37b5e89f1199d0192b725a60fdad8556effdfbb6d844c2bfc841",
+      "after_sha256": "207df9eec8c778ce9352d185bdfd3ca82aef0d967460aebd66f960d92ffc1d50",
+      "before_relocations_sha256": "9e7d277f3de126dc226cecb4fc4eccb872f2e18e058c200fce7c6cf83ffa3bfa",
+      "after_relocations_sha256": "e835c6741ad04d5853cb8afbc3ebcec1c57ea295193a961b3f65e1b2147d93d0"
+    },
+    "copy_register_fields": true
+  },
+  "game/ui/options::next_legend_hint": {
+    "function": "next_legend_hint",
+    "before_sha256": "0b1352901851835667d7f2997efca739f44835621017d809800c4bbb9e67ff56",
+    "after_sha256": "e064c097a30c9cbf672fe21c1bd85ae4696f0451b665cb57d1e165ba68564e6f",
+    "instruction_permutation": {
+      "start": "0x10c",
+      "end": "0x128",
+      "order": [
+        0,
+        2,
+        1,
+        3,
+        4,
+        5,
+        6
+      ],
+      "before_sha256": "6acc4c2c06af37b5e89f1199d0192b725a60fdad8556effdfbb6d844c2bfc841",
+      "after_sha256": "207df9eec8c778ce9352d185bdfd3ca82aef0d967460aebd66f960d92ffc1d50",
+      "before_relocations_sha256": "9e7d277f3de126dc226cecb4fc4eccb872f2e18e058c200fce7c6cf83ffa3bfa",
+      "after_relocations_sha256": "e835c6741ad04d5853cb8afbc3ebcec1c57ea295193a961b3f65e1b2147d93d0"
+    },
+    "copy_register_fields": true
+  }
+}
