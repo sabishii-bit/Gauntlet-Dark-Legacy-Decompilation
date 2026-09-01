@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Re-run the combined form+recolor closability question for game/audio/dcs::update_chinfo against the SHIPPED stage rather than against CH's simulation of it, then author the rule if it closes.",
+  "attributes": {
+    "law_screen": "claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1 APPLIED and is the whole mechanism: the stage re-encodes rather than copying, which is exactly the difference between CH's refusal and this close. Mode used is `constant_dataflow_recolor` (arrow fwd_rc), asked for by name. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED as step 0 and PASSED in OUR colouring, so the permutation is placed BEFORE the recolor and no post-recolor stage is used. claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 APPLIED: the window carries one R_PPC_EMB_SDA21 naming lbl_8034520C which rides its atom from slot 1 to slot 2, so the before/after region relocation hashes legitimately differ and the records are read as real (offset,type,addend) triples from the object's RELA section. claim.law.HV_emb-sda21-relocation-offset-differs-between-our-objects-and-the-target.20260901.v1 APPLIED: relocation identity compared instruction-floored, since our objects record SDA21 at instruction+2 and the target at instruction+0. claim.law.CH_combined-stage-population-is-83-not-91-the-difference-is-the-r0-refusal.20260901.v1 SCREENED and honoured: the classifier used here refuses an r0 source in every mode, matching the rule's own refusal.",
+    "laws_applied": "[\"claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1\", \"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\", \"claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1\", \"claim.law.HV_emb-sda21-relocation-offset-differs-between-our-objects-and-the-target.20260901.v1\"]",
+    "probed_form": "No source was edited. The rule is: instruction_permutation [0x68,0x78) order [0,2,1,3]; equivalent_copy_form at 0x84 with proof `constant_dataflow_recolor` and our_source 22; copy_register_fields true.",
+    "residual": "None. 30 differing words all absorbed: one permutation window of 4 atoms, one combined form site at +0x84, 28 pure register fields. Residual 0 proven through webfrank.apply_patch before authoring.",
+    "scope": "config/GUNE5D/webfrank.json only (one rule inserted). src/game/audio/dcs.c is BYTE-UNCHANGED.",
+    "verification": "python configure.py && ninja -j2 prints `WEBFRANK update_chinfo: adjusted 32 instruction atoms/fields` and `build/GUNE5D/main.dol: OK`. configure.py progress moved 2684 -> 2685 matched functions (64.38% -> 64.41%), Game Code 1762 -> 1763 (55.97% -> 56.00%), files 202 and fuzzy 98.28% unchanged, no sibling regression. defake_gate baseline taken for game/audio/dcs (36 functions, 24 at real 0). Commit 8a4ad7852."
+  },
+  "function": "function:update_chinfo",
+  "id": "attempt.HA_update-chinfo-combined-close.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T17:18:25Z",
+  "refutes": "claim.CH_combined-stage-closability-roster-and-its-empty-whole-function-payoff.20260901.v1",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}
