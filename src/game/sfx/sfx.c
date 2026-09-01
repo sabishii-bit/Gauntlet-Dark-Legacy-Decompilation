@@ -2614,8 +2614,9 @@ void ProcessEffects(void)
     f32 pos[3];
     f32 delta[3];
     f32 dir[3];
+    f32 unused0;
     f32 hitpos[3];
-    f32 normal[3];
+    f32 unused1[2];
     f32 bosspos[3];
     f32 radius;
     f32 remaining;
@@ -3200,7 +3201,7 @@ void ProcessEffects(void)
                     s32 damage;
 
                     critter = CritterExpCollide(
-                        pos, normal, dir, radius, e->mindp, fade,
+                        pos, dir, delta, radius, e->mindp, fade,
                         e->id);
                     if (critter == NULL) {
                         break;
