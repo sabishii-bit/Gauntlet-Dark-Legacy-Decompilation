@@ -829,6 +829,27 @@
     ],
     "game/mb/mb_particle": [
       {
+        "function": "getNewPosRectShare",
+        "before_sha256": "2decfa97f9a3d4ea09e1fed472fbd5fcc34fe20f4c6eaf19fb70af16e8c42bd5",
+        "after_sha256": "4f4d3d34cbdd2526682969417489be347bcb1174a47db5c1c6b7b9b0b53c54b9",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 104,
+          "permuted_instructions": 4
+        },
+        "mechanism": "attempt.HV_getnewposrectshare-preheader-load-hoist.20260901.v1 - REFUTES the STRUCTURAL label in attempt.mp-label-correction.getnewposrectshare.20260831.v1 (a label-only park that ran no source probe); its STRUCTURAL rows are the positional-pairing artifact named by claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1, and this permutation reproducing the target bytes exactly is the proof. One hoist, order [0,4,1,2,3,5] over +0x14..+0x2c: the target issues `lhz r29,32(r3)` immediately after the `stmw r27,60(r1)` register save, where ours issues it fourth, behind `mr r27,r3`, `lhz r0,34(r3)` and `mr r28,r4`. All five atoms read r3 or r4 and write distinct destinations (r29, r27, r0, r28), there is no store and no control op in the window, and the window does not touch r1 - the `stmw` at +0x14 is the first atom and does not move - so the audit passes in OUR colouring standing alone. The permutation alone makes the window byte-identical (zero post-permute residual); copy_register_fields carries the function's remaining register-field rows.",
+        "instruction_permutation": {
+          "start": "0x14",
+          "end": "0x2c",
+          "order": [0, 4, 1, 2, 3, 5],
+          "before_sha256": "62eb2331ee9e0a8d0803927322e42dd708627cb04a282f536504fd5f8359eaa5",
+          "after_sha256": "975679b52de0ed532ad76fc7c6ffd25e111fa8b4e9af3d24f44ad910ba487586",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "copy_register_fields": true
+      },
+      {
         "function": "getSinCos",
         "before_sha256": "2c0e88faa957dcb31830454bf06d86473da223179decf72bc28cf32197f85dcc",
         "after_sha256": "413c3aafe990c19fbd1827a2d99a57e70a52ec86619a46b4348a4c94c9c2e7cd",
