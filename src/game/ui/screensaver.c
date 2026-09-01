@@ -69,7 +69,7 @@ void mbBlitCalcWidth(MBBlit* blit, int x, int y, f64 depth);
 void MBBlitSetAlpha(MBBlit* blit, u32 alpha);
 void mbInitBlitEntry(MBBlit* blit, u32 pos, int a); /* 0x800B2988 */
 MBBlit* MBCreateBlit(void* node, s32 tex, s32 x, s32 y, s32 w, s32 h);
-void mbBlitCvtCoord(MBBlit* blit, f64 depth);
+void mbBlitCvtCoord(MBBlit* blit, f32 depth);
 void mbBlitUpdateEntry(MBBlit* blit, u32 keepMask, u32 setBits);
 s32 MBOX_FindTexture(const char* name, s32* out);
 

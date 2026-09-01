@@ -53,7 +53,7 @@ extern int  MBCreateBlit(int a, int b, int c, int d, int e, int f);
 extern void MBRemoveBlit(int handle);
 extern void mbInitBlitEntry(int a, int b, int c);
 extern void mbBlitInit3414(int a, int b);
-extern void mbBlitCvtCoord(int a, f64 b);
+extern void mbBlitCvtCoord(int a, float b);
 extern void LoadWorldData(void);
 extern int  AudioSelect(int a);
 extern void AudioSelectReset(void);

@@ -319,7 +319,7 @@ extern void* MBRemoveBlit(void* blit);
 extern void mbBlitInit3414(void* blit, s32 hide);
 extern void mbBlitCalcWidth(void* blit, s32 x, s32 y, f32 z);
 extern void mbBlitProject(void* blit, s32 w, s32 h);
-extern void mbBlitCvtCoord(void* blit, f64 z);
+extern void mbBlitCvtCoord(void* blit, f32 z);
 extern void MBBlitSetAlpha(void* blit, s32 alpha);
 extern s32 MBBlitGetTex(void* blit);
 extern void mbInitBlitEntry(void* blit, s32 frames, s32 frame);
