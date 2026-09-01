@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Re-measure the NEGATIVE eligibility finding in PL's record (discipline 10b: remeasure a record's negative findings, not only its cure) and author the copy_register_fields rule it declared impossible.",
+  "attributes": {
+    "law_screen": "claim.law.HV_a-register-field-only-permutation-repairs-a-non-bijective-recolor-and-no-census-can-see-it.20260901.v1 APPLIED as the class definition (Tier A, 30/30 differing words pure register-field, verifying half). claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED and EXTENDED: it already warns that regnorm's positional pairing fabricates rows; this record extends the same caution from displacement rows to regnorm's RENAMING-CONSISTENCY verdict. claim.law.C1_...v1 SCREENED, not reached (no permutation stage). tool.webfrank.20260829.v1 constraints observed.",
+    "laws_applied": "[\"claim.law.HV_a-register-field-only-permutation-repairs-a-non-bijective-recolor-and-no-census-can-see-it.20260901.v1\", \"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\"]",
+    "probed_form": "No source edit. One rule spliced into config/GUNE5D/webfrank.json under game/game/player: {function, before_sha256 5805f206..., after_sha256 c14a478c..., audit{REGISTER_ONLY, 80}, copy_register_fields true}.",
+    "residual": "None. WHAT WAS REFUTED, and it is the reason this function was nearly lost: PL measured the regnorm POSITIONAL map as INCONSISTENT on every callee-saved register (r26->r30x13/r26x1, r27->r30x2/r29x1/r27x1, r28->r27x2/r28x2, r29->r28x5/r26x3/r29x1, r30->r29x8/r30x1), read that as the web-split tell, and wrote that the function is 'NOT a copy_register_fields candidate without a def-site-grouped audit ... recorded so a later lane does not mistake CLEAN-RENAMING alone for WebFrank eligibility'. Measured through the shipped apply_patch, copy_register_fields alone closes it to residual 0. The inference does not hold because the two tools compute different things: regnorm pairs POSITIONALLY and reports ONE whole-function map, so a register that legitimately carries two different values in two DISJOINT live ranges reads as inconsistent; verify_consistent_recolor adjudicates the renaming along DEF-USE WEBS, where those same two live ranges are separate bindings and no conflict exists. A positional-map inconsistency is therefore evidence about regnorm's pairing model, not about WebFrank eligibility. SOURCE-EXHAUSTION PROVENANCE remains PL's record, whose two literal probed_form axes (reassociating the pot+prod call argument, extending the opt_common_subs bracket) were both kept and drove the residual to an identical 80/80 multiset with 0 ops clusters.",
+    "scope": "config/GUNE5D/webfrank.json only, one rule added. Commit c22aef835.",
+    "verification": "Found by tools/gdl/composed_census/hv_regfield_sweep.py (full-image sweep), not by name. ha_close.py game/game/player load_player_model -> CLOSES, families={'regfield': 30}, residual 0 from webfrank.apply_patch against the extracted retail object. ninja -j2 printed 'WEBFRANK load_player_model: adjusted 30 instruction atoms/fields' and 'build/GUNE5D/main.dol: OK'. defake_gate game/game/player GATE OK; 397 unit tests OK; progress 65.83% -> 65.90% matched, STRICT unchanged 56.45%, EQUIVALENT 9.38% -> 9.45%."
+  },
+  "function": "function:load_player_model",
+  "id": "attempt.HV_load-player-model-recolor-rule.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T21:50:29Z",
+  "refutes": "attempt.PL_load-player-model-cse-break-and-pragma-bracket.20260901.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-01",
+    "signature": "no residual: apply_patch residual 0 (80/80 words)"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

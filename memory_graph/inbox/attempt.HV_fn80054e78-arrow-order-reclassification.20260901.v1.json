@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "RECLASSIFY, do not ship: re-measure the STRUCTURAL park in light of the mnemonic-aliasing artifact, derive the closure through the shipped apply_patch, and then deliberately WITHHOLD the rule because the function fails the source-exhaustion provenance bar.",
+  "attributes": {
+    "law_screen": "claim.law.HV_mnemonic-aliasing-manufactures-structural-rows-and-count-asymmetric-signatures.20260901.v1 APPLIED - it is derived from this very function and refutes the STRUCTURAL label. claim.law.HV_lexical-regfield-test-shadows-the-copy-form-arrow-for-mr-versus-li.20260901.v1 APPLIED - the corrected arrow order is what closes it. claim.law.HV_a-register-field-only-permutation-repairs-a-non-bijective-recolor-and-no-census-can-see-it.20260901.v1 APPLIED as the class definition (Tier A, 19 differing words, zero unabsorbed). claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 SCREENED: the superseded record cites it, but this refutation concerns its OPCODE-DIFFERS row class, not its displacement rows.",
+    "laws_applied": "[\"claim.law.HV_mnemonic-aliasing-manufactures-structural-rows-and-count-asymmetric-signatures.20260901.v1\", \"claim.law.HV_lexical-regfield-test-shadows-the-copy-form-arrow-for-mr-versus-li.20260901.v1\"]",
+    "probed_form": "NO EDIT MADE AND NO RULE SHIPPED. The derived-but-withheld rule is: {function fn_80054E78, equivalent_copy_form [{at '0x154', proof <fwd family: dominating_def | dominating_def_across_calls | constant_dataflow_recolor>}], copy_register_fields true}, reproducible with `python tools/gdl/composed_census/hv_formfirst.py` from the repo root.",
+    "residual": "WHY THIS IS PARKED RATHER THAN SHIPPED, and this is the operative point: the Mandatory result policy requires SOURCE-EXHAUSTION provenance for every new rule - a parked/capped record with literal probed_form axes, or a law proving the residual class source-unreachable. This function's only record is the superseded label correction, whose own scope line says 'NO source change ... read-only measurement' and whose attempted_axis says 'No source probe, no edit.' That is a measurement, not an exhaustion. A provenance audit already found 11 rules authored without a source-work trail and named it the wanton-use failure mode, so the rule is deliberately withheld and the function is REFERRED for a source-first pass. RECLASSIFICATION: STRUCTURAL (source-class) -> REGISTER_ONLY / live-zero-remat (postprocessor-eligible), at instruction counts 267/267 - count parity is the deciding fact and is quoted as N/N per the reclassification gate. WHAT THE SOURCE PASS SHOULD KNOW: the target rematerialises a proven-zero out of r29 at +0x154 where our build emits the literal (`mr r30,r29` versus `li r30,0`); the two verified members of the live-zero-remat family, attempt.audio-bank-queue-name-zero-copy.20260829.v1 and attempt.audio-unload-part-rom-bank-web.20260829.v1, are both CAPPED in game/audio/audio.c, so a source lever is not known to exist for this family and the source pass may legitimately return a cap - which would then supply exactly the provenance this rule needs.",
+    "scope": "No files touched. game/game/gamemain is unclaimed by any active work_claim this run; this record is a referral plus a reclassification, not a claim on the TU.",
+    "verification": "tools/gdl/composed_census/hv_instrument.py decoded +0x154 as ours 0x3bc00000 / target 0x3bdd0000, both primary opcode 14, differing in rA only (0 vs 29) - which is what refutes the OPCODE-DIFFERS row quoted verbatim in the superseded record. hv_formfirst.py then proved the closure through webfrank.apply_patch: CLOSES, families={'fwd': 1, 'regfield': 18}, residual 0 against the extracted retail object. No build gate is claimed because nothing was built or shipped for this function."
+  },
+  "function": "function:fn_80054E78",
+  "id": "attempt.HV_fn80054e78-arrow-order-reclassification.20260901.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-09-01T21:50:54Z",
+  "refutes": "attempt.mp-label-correction.fn-80054e78.20260831.v1",
+  "residual": {
+    "capability_needed": "webfrank-equivalent-copy-form",
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-01",
+    "signature": "DIFFERS target-only: +1 addi ours-only: -1 li; insns T267/O267; 1 ops clusters"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "supersedes": "attempt.mp-label-correction.fn-80054e78.20260831.v1",
+  "valid_from": "2026-09-01"
+}

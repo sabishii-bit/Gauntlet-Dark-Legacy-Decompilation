@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Bank PL's recorded rule candidate: author the WebFrank copy_register_fields rule for the perfect bijective nine-register callee-saved permutation, proving it through the shipped apply_patch rather than through any census verdict.",
+  "attributes": {
+    "law_screen": "claim.law.HV_a-register-field-only-permutation-repairs-a-non-bijective-recolor-and-no-census-can-see-it.20260901.v1 APPLIED as the class definition: this function is Tier A (zero unabsorbed words, all 55 differing words pure register-field differences), and it is the VERIFYING half of the class, so no repair permutation was needed and none was authored. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 SCREENED and not reached: the rule carries no instruction_permutation stage, so the step-0 membership precondition does not bind. claim.law.CV_pinned-residuals-are-unreachable-across-the-local-mwcc-archive SCREENED as the class-ceiling justification. tool.webfrank.20260829.v1 constraints observed: individually audited, fail-closed on source/compiler/relocation/hash drift; no structural, immediate, branch, ABI, relocation-payload or data difference is touched.",
+    "laws_applied": "[\"claim.law.HV_a-register-field-only-permutation-repairs-a-non-bijective-recolor-and-no-census-can-see-it.20260901.v1\"]",
+    "probed_form": "No source edit. One rule spliced into config/GUNE5D/webfrank.json under game/game/player: {function, before_sha256 57e64d57..., after_sha256 f3e92665..., audit{REGISTER_ONLY, 116}, copy_register_fields true}.",
+    "residual": "None. SOURCE-EXHAUSTION PROVENANCE is attempt.PL_load-player-model-sub-flag-table-array-form.20260901.v1, which exhausted four literal probed_form axes and concluded declaration order is 'controllable-but-not-sufficient here' - two decl-order probes moved the permutation without solving it, so the allocator variance is not source-reachable. Role table (ours->target, verbatim from that record and re-confirmed by the close): r23->r29 fmt, r24->r30 tab, r25->r31 pot, r26->r24 name, r27->r25 slot, r28->r28 ct8 identity, r29->r27 ct, r30->r26 tier, r31->r23 cls.",
+    "scope": "config/GUNE5D/webfrank.json only, one rule added. Commit c22aef835.",
+    "verification": "tools/gdl/composed_census/ha_close.py game/game/player load_player_model_sub -> CLOSES, families={'regfield': 55}, residual 0 counted by webfrank.apply_patch against the extracted retail object (nothing simulated). Canaries run BEFORE the derivation and both passed: ha_canary.py (both shipped run-26 combined closes read CLOSABLE) and a repair canary re-deriving game/world/tower::TowerCheckMessages from scratch, which reproduced the class law's recorded window [0x430,0x438) order [1,0] exactly. configure.py then ninja -j2 printed 'WEBFRANK load_player_model_sub: adjusted 55 instruction atoms/fields' and 'build/GUNE5D/main.dol: OK'. defake_gate baseline+check game/game/player = GATE OK. python -m unittest discover tools/gdl/tests = 397 tests OK. Project progress moved 65.83% -> 65.90% matched (2703 -> 2705 functions) with STRICT unchanged at 56.45% and EQUIVALENT 9.38% -> 9.45%, which is the correct split for a postprocessor-class close."
+  },
+  "function": "function:load_player_model_sub",
+  "id": "attempt.HV_load-player-model-sub-recolor-rule.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T21:50:20Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-01",
+    "signature": "no residual: apply_patch residual 0 (116/116 words)"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}
