@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "decl-order",
+      "peephole",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.LG_volatile-scaffold-suppresses-the-targets-fused-narrow-mask.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T17:26:48Z",
+  "schema_version": 1,
+  "subject": "tu:game/sys/memcard",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5 family. TELL: the target does `lbz rX,N(r1)` followed by `clrlwi. rX,rX,24`, and OUR build does `lbz rX,N(r1)` followed by `cmplwi rX,0`, on what our source declares as a `u8 volatile` local. THE MASK IS NOT REDUNDANT AND IT IS NOT A SPELLING PROBLEM -- IT IS THE `volatile` QUALIFIER. REMOVE IT.\n\nMECHANISM, established by decomposition rather than inference. The peephole pass FUSES a separate `clrlwi` + `cmplwi` pair into the single recording `clrlwi.`. Measured directly: compiling the same function with `#pragma peephole off` made OUR build emit 18 extra plain `clrlwi` while KEEPING the `cmplwi`s (multiset ours-only -18 clrlwi -26 cmplwi against target-only +21 clrlwi.), i.e. the fused instruction visibly decomposes into exactly those two halves. Therefore a target `clrlwi.` proves a MASK was selected, and MWCC only masks a u8 whose value sits in a REGISTER WEB, because it cannot prove a register narrow. The `lbz` standing in front of it is a SPILL RELOAD inserted by the allocator AFTER mask selection -- not a front-end memory read.\n\nWHY `volatile` DEFEATS IT. A `volatile` local is a true memory variable from the front end onward, so MWCC emits load-then-test and ELIDES the mask, because an `lbz` result is provably 0..255. The register web -- and with it the mask -- never exists. The qualifier is almost always reconstruction scaffold added by an earlier pass to force a memory home; it buys the memory home at the cost of the mask.\n\nMEASURED. loadGauntletSave (game/sys/memcard): deleting `volatile` from the three narrow flags `found`, `needUnmount`, `needCheck` -- with NO other edit -- closed all three sites at once and moved real 885 -> 650 with the opcode multiset 11t -> 8t. The same function contains the control: its two ALREADY-MATCHING sites at 0x448 and 0x778 are `clrlwi.` on plain non-volatile u8 locals held in registers.\n\nDO NOT OVERGENERALISE, measured in the same pass. The inverse move on WIDE scaffold locals in the same function REGRESSED badly: dropping `volatile` from `s32 bigSize`, `u8* dirTab`, `char** opts` and `void* removedCb` took real 628 -> 910. The law is specific to NARROW (u8/s8/u16/s16) locals whose target sites show the `clrlwi.`/`extsb.` mask tell. For wide locals `volatile` is often load-bearing.\n\nRELATIONSHIP TO THE EXISTING CORPUS. This is the missing counterpart to claim.law.narrow-local-reextend-on-read.20260830.v1. That law reads the SAME tell and prescribes WIDENING the declared type to make the extension happen once; this record shows that when the local is `volatile` the extension is not happening at all and the fix runs in the OPPOSITE direction -- keep the narrow type, drop the qualifier. Screen for `volatile` FIRST: if the local is volatile, this record applies and the widening prescription will not reproduce the mask.\n\nCOROLLARY, also measured, on stack layout. MWCC segregates `volatile` locals into their own sub-block placed BELOW the non-volatile block. In loadGauntletSave this put our four volatile scaffold words at (r1)+148..160 where the target has them at +168..180, shifting EVERY non-volatile local uniformly +16, while the relative order INSIDE the non-volatile sub-block was already correct on both sides. So when a whole-block displacement is uniform and the intra-block order already matches, suspect a `volatile` sub-block split -- do NOT spend probes on declaration order, which claim.law.stack-slots-descend-in-declaration-order.20260831.v1 correctly governs only within a sub-block."
+}
