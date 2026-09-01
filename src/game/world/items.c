@@ -729,9 +729,8 @@ void LinkItemTriggers(void)
                         *(s8*)&ot1->data[6] = 0;
                         dup1++;
                     }
-                    if (*(volatile s8*)&ot1->data[7] !=
+                    if (*(volatile s8*)&ot1->data[7] ==
                         *(volatile s8*)&it1->data[6]) {
-                        continue;
                     }
                 }
             }
@@ -1435,7 +1434,7 @@ void SetItem(Item* item, iteminst* instance, iteminfo* info, f32* matrix)
 {
     char name[36];
     char child_name[32];
-    u8 stack_pad[4];
+    u8 stack_pad[20];
     char* strings = (char*)&sObjectsFile;
     iteminfo** infos = &gWorldInfo.iteminfo;
     iteminfo* info_base = *infos;
@@ -1517,19 +1516,16 @@ keyring_found:
     item->coll_offset[1] += 1.0;
     {
         f32 radius = info->item.radius;
+        f32 height = info->item.height;
 
-        if (radius > info->item.height) {
-            goto keep_r;
-        }
-        radius = info->item.height;
-    keep_r:
-        item->visrad = (f32)(2.0 * (f64)radius);
+        item->visrad =
+            (f32)(2.0 * (f64)(radius > height ? radius : height));
     }
     item->objgrp.flags = 0;
     {
         f32 z;
         f32 x;
-        u8 abs_pad[24];
+        u8 abs_pad[12];
 
         z = item->coll_offset[2];
         *(u32*)&z &= 0x7FFFFFFF;
@@ -2199,8 +2195,8 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
         return -1;
     }
 
-    for (i = 0, offset = 0; i < sNumItemWobjs; i++, offset += 4) {
-        if (*(void**)((u8*)runtime->wobjTarget + offset) == target) {
+    for (i = 0; i < sNumItemWobjs; i++) {
+        if (runtime->wobjTarget[i] == target) {
             s16 flags = wtarget->triggertype;
             s32 old_type = (u8)flags;
 
@@ -2216,17 +2212,15 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
                     ErrorPrintf(strings + 0x480, target, old_type, trigger_type);
                 }
             }
-            if (0.0 ==
-                (f64)*(f32*)((u8*)runtime->wobjX2 + offset)) {
-                *(f32*)((u8*)runtime->wobjX2 + offset) = x;
-                *(f32*)((u8*)runtime->wobjX + offset) = x;
+            if (0.0 == (f64)runtime->wobjX2[i]) {
+                runtime->wobjX2[i] = x;
+                runtime->wobjX[i] = x;
             }
-            if (0.0 ==
-                (f64)*(f32*)((u8*)runtime->wobjZ + offset)) {
-                *(f32*)((u8*)runtime->wobjZ + offset) = z;
+            if (0.0 == (f64)runtime->wobjZ[i]) {
+                runtime->wobjZ[i] = z;
             }
-            if (*(f32*)((u8*)runtime->wobjValue + offset) <= 0.0f) {
-                *(f32*)((u8*)runtime->wobjValue + offset) = (f32)value;
+            if (runtime->wobjValue[i] <= 0.0f) {
+                runtime->wobjValue[i] = (f32)value;
             }
             return -1;
         }
