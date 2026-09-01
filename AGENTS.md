@@ -58,12 +58,82 @@ documents as durable memory.
 python memory_graph/gdlmem.py ensure
 python memory_graph/gdlmem.py brief <tu-path-fragment>
 python memory_graph/gdlmem.py context <symbol>
-python memory_graph/gdlmem.py find [--kind K] [--function F] [--tu T] [--outcome O] [--residual R] [--law L] [terms]
+python memory_graph/gdlmem.py find [--kind K] [--function F] [--tu T] [--outcome O] [--residual R] [--law L] [--family F] [--capability C] [--query "terms"]
 python memory_graph/gdlmem.py search "<terms>"
 python memory_graph/gdlmem.py laws [--query <term>] [--tag <tag>] [--full 1]
 python memory_graph/gdlmem.py record <id1>,<id2>,...   # batch detail fetch
 python memory_graph/gdlmem.py tool <tool-or-workflow>
 ```
+
+### Residual-first retrieval (run 29)
+
+Search by what the diff LOOKS LIKE, not by function name. A residual you can
+describe is a residual someone may already have closed:
+
+```text
+gdlmem.py laws --residual "+1 addi -1 li"   # laws + sibling records sharing
+                                            # the signature, + webfrank pins
+gdlmem.py find --family live-zero-remat     # the whole residual family
+gdlmem.py find --capability dataflow-equivalence  # which parks a capability
+                                            # would unpark = its payoff
+gdlmem.py laws --query "live zero remat"    # matches id SLUG WORDS and pin
+                                            # `mechanism` prose, not just text
+```
+
+`laws --query` indexes record-id slug words (date/version suffixes are not
+content — count citations by slug) and the `mechanism` notes on
+`config/GUNE5D/webfrank.json` pins, which carry the densest derivation of a
+closed residual anywhere in the project. Each law row reports `match` (why it
+matched) plus `falsifier`/`asserted_by`.
+
+Three optional record fields, all TOP-LEVEL (`propose-record --template`
+prints the shapes; readers also accept an `attributes.` spelling):
+
+- attempt: `residual` = `{signature, family, capability_needed, measured_at}`,
+  **top-level only** — `attributes.residual` is legacy free prose on 654
+  records and is never read as structure. `signature` is the `fndiff --ops`
+  delta VERBATIM (only the `+N`/`-N` mnemonics are indexed, so the framing
+  words in the real format do not create false overlaps). `family` comes from
+  a controlled 15-term vocabulary plus the sentinels `unclassified` /
+  `no-residual`; a typo is refused, because an empty result on a negative
+  screen reads as a false all-clear. Naming `capability_needed` is what makes
+  a park findable by the lane that could build the capability. Extra
+  provenance keys (`confidence`, `extraction_status`, `signature_source`,
+  `family_candidate`, `family_candidate_confidence`) are tolerated — the
+  schema is additive, and refusing unknown keys once broke the whole corpus
+  import when a second lane extended the object.
+
+`find --family` returns **three labelled tiers — never total them**:
+`match: family` is the verified classification and the only tier usable as a
+screen; `match: family_candidate` appears only with `--include-candidates 1`
+and holds extractor guesses measured at ~30-50% precision; `match:
+residual_class-fallback` bridges the 941 legacy `residual_class` values the
+family is defined against, a coarse *widening* that says "right
+neighbourhood", not "this family". Verified hits always rank first.
+- claim (law): `falsifier` (what evidence would DISPROVE this, and where) and
+  `asserted_by` (tool/test paths that mechanically assert it).
+- attempt: `held_fixed` — the variable a multi-edit park held CONSTANT.
+
+Three gates run on **new proposals only** (accepted records are never
+retroactively invalidated; field SHAPE is checked corpus-wide, so in-place
+annotation of an accepted record is still validated by `validate`/`build`):
+
+1. A law asserting necessity (must/requires/cannot/only) **requires
+   `falsifier`**. An unconditional law with none cannot be screened out by a
+   later lane, only re-derived at full cost.
+2. A record reclassifying a function **postprocessor-class must quote
+   instruction counts as N/N** — a count-asymmetric residual is provably
+   outside every postprocessor class, so the count is the deciding fact.
+3. A `probed_form` enumerating more than one edit **requires `held_fixed`**.
+   Two correct-alone negative parks that each failed to say what they held
+   constant jointly hid a 7-function TU flip.
+
+`brief <tu>` leads with **OPEN 10b HYPOTHESES** (a recorded untried
+hypothesis is mandatory step 1, ranked above fresh analysis), then
+`vetoed_axes` (with `has_probed_form`: false = an unreproducible, weak veto),
+`refutations`, and `webfrank_pins` with a `provenance` class against the
+Mandatory-policy source-exhaustion bar. **Every number it prints is read from
+disk and carries a staleness banner — remeasure before quoting one.**
 
 Fetch your law screen in ONE call: `laws --tag core-screen --full 1`
 (de-fakematch) — `brief` also lists `matching_laws` (schedule/register/

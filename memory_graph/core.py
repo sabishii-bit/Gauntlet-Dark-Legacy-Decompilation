@@ -52,6 +52,73 @@ LAW_TAG_VOCABULARY = frozenset({
     "workflow", "build-hygiene",
 })
 
+# --- run-29 retrieval schema (integrator-decided contract) -----------------
+# Three optional additions, all TOP-LEVEL record keys. `attributes.residual`
+# already exists as free prose in the authoring template, so the structured
+# object had to take a non-colliding home; `residual` also sits beside the
+# `residual_class` it refines. Readers below accept an `attributes.<field>`
+# spelling as a fallback so a record authored either way is still found, but
+# only the top-level spelling is templated and documented.
+RESIDUAL_FIELDS = ("signature", "family", "capability_needed", "measured_at")
+
+# Provenance fields the BF backfill added alongside the contract four, kept
+# because they carry the QUARANTINE: family_candidate holds extractor
+# guesses measured at only ~30-50% precision, and merging those into
+# `family` would poison every roster built on the facet. Unknown keys beyond
+# these are tolerated rather than refused — an additive schema must not let
+# one lane's extension break another lane's import, which is exactly what a
+# strict unknown-key check did to the merged corpus on 2026-09-01.
+RESIDUAL_EXTENSION_FIELDS = (
+    "confidence", "extraction_status", "signature_source",
+    "family_candidate", "family_candidate_confidence",
+)
+
+# Sentinels: NOT residual families, but legitimate `family` values meaning
+# "no family assigned" and "this function has no residual at all".
+# Excluded from --family results unless asked for by name.
+RESIDUAL_FAMILY_SENTINELS = frozenset({"unclassified", "no-residual"})
+
+# Starter family vocabulary from the contract. Extensible ONLY by recorded
+# proposal to the integrator — a silently-grown vocabulary makes
+# `find --family` an unreliable negative screen, which is the failure mode
+# claim.find-subcommand-caps-at-100-and-silently-falsifies-park-screens
+# already measured once on this surface.
+RESIDUAL_FAMILY_VOCABULARY = frozenset({
+    "live-zero-remat", "copy-form", "branch-pair", "frame-slot", "save-area",
+    "pool-order", "reloc-naming", "schedule-window", "regalloc-web",
+    "addressing-mode", "constant-hoist", "cse-share", "inline-boundary",
+    "eh-scaffold", "prologue-form",
+})
+
+# Gate A vocabulary: a law asserting one of these makes an unconditional
+# claim, and an unconditional claim with no stated falsifier cannot be
+# screened OUT by a later lane — it can only be re-derived.
+NECESSITY_TERMS = ("must", "requires", "require", "cannot", "only")
+_NECESSITY_RE = re.compile(
+    r"\b(" + "|".join(NECESSITY_TERMS) + r")\b", re.I)
+
+# Gate B: a record moving a function into the postprocessor work class.
+_POSTPROCESSOR_CLASS_RE = re.compile(
+    r"postprocessor[- ]class|webfrank[- ]class|postprocessor path"
+    r"|eligible for (?:the )?webfrank|webfrank candidacy"
+    r"|reclassif\w+ (?:it |the function )?(?:as |to )?postprocessor",
+    re.I,
+)
+# A quoted instruction count, e.g. "27/27" or "582 / 582".
+_INSNS_QUOTE_RE = re.compile(r"\b\d{1,5}\s*/\s*\d{1,5}\b")
+
+# Gate C: probed_form describing MORE THAN ONE edit. Deliberately narrow —
+# it fires only on an EXPLICIT enumeration, because a loose trigger would
+# make the gate a nuisance rather than a check.
+_MULTI_EDIT_COUNT_RE = re.compile(
+    r"\b(two|three|four|five|six|seven|eight|nine|ten|[2-9]|\d\d+)\s+"
+    r"(?:\w+\s+){0,2}"
+    r"(forms?|shapes?|edits?|axes|axis|probes?|spellings?|variants?"
+    r"|changes?|rewrites?|respellings?)\b",
+    re.I,
+)
+_MULTI_EDIT_ENUM_RE = re.compile(r"(?:^|[\s;])\(?[2-9][.)]\s")
+
 PDB_MODULE_RE = re.compile(r"^==\s+\.\\Release\\(.+?)\s+\((.*?)\)\s*$", re.I)
 PDB_SYMBOL_RE = re.compile(
     r"^\[(\d{4}):([0-9A-Fa-f]{8})\]\s+([0-9A-Fa-f]+)\s+([GLD])\s+(.*)$"
@@ -651,6 +718,120 @@ def _import_exact_name_candidates(connection: sqlite3.Connection) -> int:
     return len(rows)
 
 
+def _record_field(record: dict[str, Any], name: str) -> Any:
+    """Read a run-29 schema field, top-level first, attributes as fallback.
+
+    Tolerant on READ so a record authored either way is still retrievable;
+    only the top-level spelling is templated and documented.
+    """
+    if name in record:
+        return record[name]
+    attributes = record.get("attributes")
+    if isinstance(attributes, dict) and name in attributes:
+        return attributes[name]
+    return None
+
+
+def _is_law_record(record: dict[str, Any]) -> bool:
+    """A claim record carrying a codegen/workflow law."""
+    if record.get("kind") != "claim":
+        return False
+    predicate = record.get("predicate")
+    if predicate in ("codegen_law", "law", "workflow_law"):
+        return True
+    return ".law." in str(record.get("id", ""))
+
+
+def _record_text(record: dict[str, Any]) -> str:
+    """All human prose on a record, flattened for language screening."""
+    parts: list[str] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, str):
+            parts.append(node)
+        elif isinstance(node, dict):
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(record)
+    return "\n".join(parts)
+
+
+def _validate_schema_fields(record: dict[str, Any], source: Path) -> None:
+    """SHAPE-check the run-29 fields on EVERY record (import and propose).
+
+    Deliberately separate from the requirement gates in
+    ``stage_record_proposal``: shape runs corpus-wide so the BF lane's
+    IN-PLACE annotations of already-accepted records are caught by
+    ``gdlmem validate``/``build``, while the requirement gates bind new
+    proposals only and never retroactively invalidate accepted records.
+    """
+    # TOP-LEVEL ONLY. `attributes.residual` is legacy free prose ("what
+    # remains and why it was left") on 654 accepted records; conflating the
+    # two would read prose as structure.
+    residual = record.get("residual")
+    if isinstance(residual, dict):
+        # Unknown keys are TOLERATED, not refused: the schema is additive and
+        # a strict check here broke the whole corpus import the moment a
+        # second lane extended the object.
+        for key in RESIDUAL_FIELDS + RESIDUAL_EXTENSION_FIELDS:
+            value = residual.get(key)
+            if value is not None and not isinstance(value, str):
+                raise MemoryGraphError(
+                    f"{source}: residual.{key} must be a string or null,"
+                    f" got {type(value).__name__}"
+                )
+        candidate = residual.get("family_candidate")
+        if candidate and candidate not in RESIDUAL_FAMILY_VOCABULARY:
+            raise MemoryGraphError(
+                f"{source}: residual.family_candidate {candidate!r} is"
+                " outside the contract vocabulary — "
+                + ", ".join(sorted(RESIDUAL_FAMILY_VOCABULARY))
+            )
+        family = residual.get("family")
+        if family and family in RESIDUAL_FAMILY_SENTINELS:
+            family = None  # sentinel, not a family
+        if family and family not in RESIDUAL_FAMILY_VOCABULARY:
+            raise MemoryGraphError(
+                f"{source}: residual.family {family!r} is outside the"
+                " contract vocabulary — "
+                + ", ".join(sorted(RESIDUAL_FAMILY_VOCABULARY))
+                + " (extend it by recorded proposal to the integrator, never"
+                " in passing: find --family is used as a NEGATIVE screen)"
+            )
+        measured_at = residual.get("measured_at")
+        if measured_at and not re.fullmatch(r"\d{4}-\d{2}-\d{2}",
+                                            measured_at):
+            raise MemoryGraphError(
+                f"{source}: residual.measured_at must be YYYY-MM-DD, got"
+                f" {measured_at!r} — an undated signature cannot be aged"
+                " against the law wave"
+            )
+    elif residual is not None and not isinstance(residual, str):
+        raise MemoryGraphError(
+            f"{source}: residual must be the structured object or legacy"
+            f" prose, got {type(residual).__name__}"
+        )
+    asserted_by = _record_field(record, "asserted_by")
+    if asserted_by is not None:
+        if not isinstance(asserted_by, list) or not all(
+                isinstance(item, str) for item in asserted_by):
+            raise MemoryGraphError(
+                f"{source}: asserted_by must be an array of tool/test paths"
+                " that mechanically assert this law"
+            )
+    for name in ("falsifier", "held_fixed"):
+        value = _record_field(record, name)
+        if value is not None and (not isinstance(value, str)
+                                  or not value.strip()):
+            raise MemoryGraphError(
+                f"{source}: {name} must be a non-empty string"
+            )
+
+
 def _validate_record(record: dict[str, Any], source: Path) -> None:
     required = {"schema_version", "id", "kind"}
     missing = sorted(required - record.keys())
@@ -720,6 +901,7 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
             f"{source}: template placeholders remain — fill every <REQUIRED:...>"
             " field and delete unused <OPTIONAL:...> keys before proposing"
         )
+    _validate_schema_fields(record, source)
 
 
 def _entity_id(connection: sqlite3.Connection, key: str) -> int:
@@ -2322,6 +2504,24 @@ def record_template(kind: str) -> dict[str, Any]:
             "attempted_axis": "<REQUIRED: one-line description of the axis tried>",
             "outcome": "<REQUIRED: improved|neutral|negative|parked|capped>",
             "residual_class": "<OPTIONAL: NONE|REGISTER_ONLY|SCHEDULE|STRUCTURAL|MIXED>",
+            "residual": {
+                "signature": "<OPTIONAL: the fndiff --ops token delta"
+                             " VERBATIM, e.g. '+1 addi -1 li'>",
+                "family": "<OPTIONAL: one of live-zero-remat, copy-form,"
+                          " branch-pair, frame-slot, save-area, pool-order,"
+                          " reloc-naming, schedule-window, regalloc-web,"
+                          " addressing-mode, constant-hoist, cse-share,"
+                          " inline-boundary, eh-scaffold, prologue-form>",
+                "capability_needed": "<OPTIONAL: the postprocessor capability"
+                                     " that would unpark this, or null —"
+                                     " naming it makes the park findable by"
+                                     " `find --capability`>",
+                "measured_at": "<OPTIONAL: YYYY-MM-DD the signature was"
+                               " measured>",
+            },
+            "held_fixed": "<OPTIONAL, REQUIRED when probed_form enumerates"
+                          " more than one edit: the variable this park held"
+                          " CONSTANT while varying the others>",
             "supersedes": "<OPTIONAL: id of the prior attempt record this replaces>",
             "refutes": "<OPTIONAL: id of a record whose mechanism/framing this"
                        " attempt DISPROVED by measurement — distinct from"
@@ -2346,6 +2546,12 @@ def record_template(kind: str) -> dict[str, Any]:
             "predicate": "<REQUIRED: e.g. law|symbol_naming|opportunity>",
             "epistemic_state": "<REQUIRED: e.g. verified|proposed>",
             "value": "<REQUIRED unless 'object' is used: the claim statement>",
+            "falsifier": "<REQUIRED for a law asserting must/requires/cannot/"
+                         "only: what evidence would DISPROVE this, and where"
+                         " that evidence lives. Delete this key on a"
+                         " non-law claim.>",
+            "asserted_by": ["<OPTIONAL: tool/test paths that mechanically"
+                            " assert this law — delete if unused>"],
             "attributes": {
                 "tags": ["<OPTIONAL: controlled-vocabulary tags; see laws"
                          " tags_available — delete this key if unused>"],
@@ -2395,6 +2601,114 @@ def record_template(kind: str) -> dict[str, Any]:
     }
     skeleton.update(templates[kind])
     return skeleton
+
+
+def _apply_proposal_gates(record: dict[str, Any]) -> None:
+    """The three run-29 validation gates, binding on NEW proposals only.
+
+    Each gate exists because a specific burned-probe criticism was recorded;
+    the error text names that record so the author can read WHY rather than
+    just satisfying a checker. These run in ``stage_record_proposal`` and NOT
+    in ``_validate_record``, so accepted records — which predate the fields —
+    are never retroactively invalidated.
+    """
+    text = _record_text(record)
+
+    # Gate A. A law asserting necessity (must/requires/cannot/only) that
+    # states no falsifier can never be screened OUT by a later lane; it can
+    # only be re-derived at full cost. RQ measured the general shape: a
+    # tool's SILENCE was read as a verdict of ineligibility for want of any
+    # stated way to disprove it.
+    if _is_law_record(record):
+        value = record.get("value")
+        law_text = value if isinstance(value, str) else text
+        hit = _NECESSITY_RE.search(law_text)
+        if hit and not _record_field(record, "falsifier"):
+            raise MemoryGraphError(
+                f"necessity-language law (matched {hit.group(0)!r}) requires a"
+                " `falsifier`: state what evidence would DISPROVE this law and"
+                " where that evidence lives. An unconditional law with no"
+                " falsifier cannot be screened out by a later lane, only"
+                " re-derived — see"
+                " claim.law.RQ_webfrank-audit-silence-is-not-ineligibility"
+                ".20260901.v1 (absence of output read as a verdict) and"
+                " claim.RC_stale-reopen-queue-is-a-classifier-artifact"
+                ".20260901.v1 (a record-mining heuristic nobody could"
+                " disprove until it was measured, and all 43 of its hits were"
+                " false). If the claim is genuinely conditional, soften the"
+                " language instead of adding a token falsifier."
+                " THE NORM YOU ARE JOINING: the BF backfill measured 258 of"
+                " 324 existing necessity-laws carrying NO falsifier — see"
+                " claim.BF_necessity-laws-without-falsifiers-report"
+                ".20260901.v1. This gate binds new records only, so that"
+                " backlog is not yours to fix, but it is why the field is"
+                " required going forward."
+            )
+
+    # Gate B. Moving a function into the postprocessor work class is only
+    # meaningful against its instruction counts: a count-ASYMMETRIC residual
+    # is provably outside every postprocessor class, so a reclassification
+    # with no quoted N/N is unverifiable on its face.
+    #
+    # TWO SOUNDNESS NARROWINGS, both required, both learned by this gate
+    # firing on the very record that DESCRIBED it:
+    # (a) only FUNCTION-ANCHORED records can reclassify a function, so a
+    #     project-level methodology claim is excluded by construction;
+    # (b) scan a SUBSTANCE projection, not the whole record —
+    #     claim.RC_stale-reopen-queue-is-a-classifier-artifact.20260901.v1
+    #     measured that matching a record's citation and verification prose
+    #     as evidence about its SUBJECT makes every well-run session look
+    #     like the thing being searched for (43/43 false positives there).
+    anchored = bool(record.get("function")) or \
+        str(record.get("subject", "")).startswith("function:")
+    substance = _record_text({
+        key: value for key, value in record.items()
+        if key != "attributes"
+    } | {"attributes": {
+        key: value
+        for key, value in (record.get("attributes") or {}).items()
+        if key not in _PARK_CITATION_KEYS
+    }})
+    reclassifies = anchored and (
+        str(record.get("outcome", "")).lower() == "reclassified"
+        or bool(_POSTPROCESSOR_CLASS_RE.search(substance))
+    )
+    if reclassifies and not _INSNS_QUOTE_RE.search(text):
+        raise MemoryGraphError(
+            "a record reclassifying a function into the postprocessor work"
+            " class must QUOTE the instruction counts as N/N (ours/target)."
+            " claim.law.webfrank-cannot-close-instruction-count-deltas"
+            ".20260831.v1 and"
+            " claim.law.webfrank-cannot-close-a-count-asymmetric-residual"
+            ".20260831.v1 make the count the DECIDING fact: if the counts"
+            " differ, no postprocessor class can reach the function and the"
+            " reclassification is wrong. Quote the counts you measured."
+        )
+
+    # Gate C. A park that changed several things at once and does not say
+    # which variable it held fixed reads as a veto on every axis it touched.
+    # Discipline 6's measured case: two correct-alone negative parks jointly
+    # hid a 7-function TU flip because neither said what it held constant.
+    if record.get("kind") == "attempt":
+        probed = _record_field(record, "probed_form")
+        if isinstance(probed, str) and probed.strip():
+            multi = _MULTI_EDIT_COUNT_RE.search(probed) \
+                or _MULTI_EDIT_ENUM_RE.search(probed)
+            if multi and not _record_field(record, "held_fixed"):
+                raise MemoryGraphError(
+                    "multi-edit probed_form (matched"
+                    f" {' '.join(multi.group(0).split())!r}) requires"
+                    " `held_fixed`: name the variable this park held CONSTANT"
+                    " while it varied the others. Without it the record reads"
+                    " as a veto on every axis it touched — AGENTS.md"
+                    " discipline 6's measured case is btricol, where two"
+                    " correct-alone negative parks (extern-ghost and"
+                    " volatile-scaffold) were ONE lever and jointly hid a"
+                    " 7-function TU flip; see"
+                    " attempt.br-btricol-ghosts-unlock-and-btrilinecol-"
+                    "closure.20260901.v1. If the probe really varied one"
+                    " thing, say so in held_fixed."
+                )
 
 
 def stage_record_proposal(
@@ -2448,6 +2762,7 @@ def stage_record_proposal(
                 " reviewed change if a new pattern class is real)"
             )
     _validate_record(record, Path("<proposal>"))
+    _apply_proposal_gates(record)
     _probe_record_references(record, root)
     record_id = record["id"]
     in_place_resolved = in_place.resolve() if in_place is not None else None
@@ -2895,6 +3210,198 @@ def _record_age_days(valid_from: str | None, recorded_at: str | None) -> int | N
     return (datetime.now(timezone.utc).date() - then).days
 
 
+# residual_class predates `family` by the whole campaign: it sits on 941 of
+# 971 attempts but has drifted to 35 spellings, many compound ("STRUCTURAL(1
+# cluster, precisely rooted) + REGISTER_ONLY/SCHEDULE(2 clusters)"). Families
+# are defined AGAINST these coarse classes, so --family can fall back to the
+# legacy field instead of leaving 941 records invisible to the new facet.
+_RESIDUAL_CLASS_CANON = (
+    "REGISTER_ONLY", "STACK_LAYOUT", "STRUCTURAL", "SCHEDULE", "RELOCATION",
+    "NON_TEXT", "OPERAND_DIFF", "MIXED", "EXACT", "NONE",
+)
+
+FAMILY_TO_RESIDUAL_CLASS = {
+    "live-zero-remat": "REGISTER_ONLY",
+    "copy-form": "REGISTER_ONLY",
+    "regalloc-web": "REGISTER_ONLY",
+    "cse-share": "REGISTER_ONLY",
+    "schedule-window": "SCHEDULE",
+    "branch-pair": "STRUCTURAL",
+    "pool-order": "STRUCTURAL",
+    "addressing-mode": "STRUCTURAL",
+    "constant-hoist": "STRUCTURAL",
+    "inline-boundary": "STRUCTURAL",
+    "frame-slot": "STACK_LAYOUT",
+    "save-area": "STACK_LAYOUT",
+    "prologue-form": "STACK_LAYOUT",
+    "reloc-naming": "RELOCATION",
+    "eh-scaffold": "NON_TEXT",
+}
+
+
+def normalize_residual_class(raw: str | None) -> list[str]:
+    """Canonical class tokens present in a free-form residual_class string."""
+    if not isinstance(raw, str):
+        return []
+    upper = raw.upper()
+    found = []
+    for token in _RESIDUAL_CLASS_CANON:
+        if token in upper and token not in found:
+            found.append(token)
+    # "REGISTER" alone is a live spelling; don't lose it to REGISTER_ONLY.
+    if not found and "REGISTER" in upper:
+        found.append("REGISTER_ONLY")
+    return found
+
+
+_SLUG_SPLIT_RE = re.compile(r"[^a-z0-9]+")
+# Version and date suffixes are NOT content: RC measured that counting law
+# citations by date suffix misreads a record that cites laws by slug alone
+# ("CTriListCollide's screen cites four wave laws without version suffixes,
+# which is why a naive suffix count reads it as unscreened — COUNT CITATIONS
+# BY SLUG, NOT BY DATE SUFFIX").
+_SLUG_NOISE_RE = re.compile(r"^(v\d+|\d{6,8}|claim|law|attempt|evidence)$")
+
+
+def _slug_words(record_id: str) -> list[str]:
+    """Content words of a record id, with kind/date/version noise dropped."""
+    words = [w for w in _SLUG_SPLIT_RE.split(record_id.lower()) if w]
+    return [w for w in words if not _SLUG_NOISE_RE.match(w)]
+
+
+def _query_tokens(query: str) -> list[str]:
+    return [t for t in _SLUG_SPLIT_RE.split(query.lower()) if t]
+
+
+def _slug_match(record_id: str, tokens: list[str]) -> bool:
+    """True when EVERY query token appears in the id's slug words.
+
+    This is the index RC/MB found missing: `laws --query` matched only
+    prose and the raw id substring, so a hyphenated family name typed as
+    separate words ("live zero remat") returned nothing on a family whose
+    every member carries those words in its id.
+    """
+    if not tokens:
+        return False
+    words = _slug_words(record_id)
+    if not words:
+        return False
+    return all(any(token in word for word in words) for token in tokens)
+
+
+# The measured shape `fndiff --ops` actually emits, which is what 624 of the
+# backfilled signatures carry:
+#   "DIFFERS target-only: +1 add ours-only: -1 mr; insns T71/O71; 6 ops
+#    clusters"
+#   "0t opcode multiset IDENTICAL (155/155); insns T155/O155; 0 ops clusters"
+# Word-splitting that string yields {differs, target, only, ours, insns,
+# ops, clusters, ...}, so ANY two signatures overlap on framing words and
+# the facet degenerates. Take only the mnemonics carried by a +N/-N marker.
+_SIGNATURE_OPCODE_RE = re.compile(r"[+-]\s*\d+\s+([a-z][a-z0-9_.]*)")
+_SIGNATURE_STOPWORDS = frozenset({
+    "differs", "target", "only", "ours", "insns", "ops", "clusters",
+    "cluster", "opcode", "multiset", "identical", "none", "and", "or",
+    "vs", "real", "fuzzy", "t", "o",
+})
+
+
+def _signature_tokens(signature: str) -> set[str]:
+    """Bare opcode mnemonics of a `--ops` token delta.
+
+    Primary path reads the +N/-N markers, which is exact on the measured
+    fndiff format. Bare hand-written forms ('+1 addi -1 li') match the same
+    pattern. Only when neither yields anything does this fall back to word
+    splitting, with the framing vocabulary filtered out.
+    """
+    lowered = signature.lower()
+    tokens = set(_SIGNATURE_OPCODE_RE.findall(lowered))
+    if tokens:
+        return tokens
+    for raw in _SLUG_SPLIT_RE.split(lowered):
+        # A PPC mnemonic starts with a letter, so anything leading with a
+        # digit is a count artifact ("0t", "155", "2t") rather than an
+        # opcode.
+        if not raw or not raw[0].isalpha() or raw in _SIGNATURE_STOPWORDS:
+            continue
+        # drop count artifacts like t71 / o421
+        if re.fullmatch(r"[to]\d+", raw):
+            continue
+        tokens.add(raw)
+    return tokens
+
+
+def _iter_attempt_residuals(root: Path) -> Iterator[tuple[dict[str, Any], dict[str, Any]]]:
+    """Yield (record, residual-object) for every record carrying one."""
+    for relative in ("records", "inbox"):
+        directory = root / "memory_graph" / relative
+        if not directory.exists():
+            continue
+        for path in sorted(directory.rglob("*.json")):
+            try:
+                record = json.loads(path.read_text(encoding="utf-8-sig"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not isinstance(record, dict):
+                continue
+            # TOP-LEVEL ONLY: attributes.residual is prose on 654 records.
+            residual = record.get("residual")
+            if isinstance(residual, dict):
+                yield record, residual
+
+
+def webfrank_pin_mechanisms(
+    root: Path = REPO_ROOT, query: str | None = None
+) -> list[dict[str, Any]]:
+    """Search the `mechanism` prose on config/GUNE5D/webfrank.json pins.
+
+    Requested by the GW lane: a pin's mechanism note carries the full
+    derivation of a closed residual — the single densest description of that
+    residual class anywhere in the project — but it lived only in a config
+    file that no query surface read, so a lane hunting the same signature
+    could not find the derivation that already closed it.
+    """
+    path = root / "config" / "GUNE5D" / "webfrank.json"
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    tokens = _query_tokens(query) if query else []
+    out: list[dict[str, Any]] = []
+    for unit, rules in (data.get("units") or {}).items():
+        if not isinstance(rules, list):
+            continue
+        for rule in rules:
+            if not isinstance(rule, dict):
+                continue
+            mechanism = rule.get("mechanism")
+            if not isinstance(mechanism, str):
+                continue
+            function = rule.get("function") or ""
+            haystack = f"{unit} {function} {mechanism}".lower()
+            if tokens and not all(token in haystack for token in tokens):
+                continue
+            stages = sorted(
+                key for key in rule
+                if key not in ("function", "before_sha256", "after_sha256",
+                               "mechanism", "audit")
+            )
+            text = " ".join(mechanism.split())
+            out.append({
+                "unit": unit,
+                "function": function,
+                "stages": stages,
+                "cites_records": sorted(set(re.findall(
+                    r"\b(?:claim|attempt|evidence)\.[A-Za-z0-9._-]+", text))),
+                "mechanism": text[:600] + (" …" if len(text) > 600 else ""),
+                "source": "config/GUNE5D/webfrank.json",
+                "note": "a PIN, not a law: its source is FROZEN — screen it"
+                        " before editing the function (AGENTS.md trap 4)",
+            })
+    return out
+
+
 def law_corpus(
     query: str | None = None,
     *,
@@ -2903,6 +3410,7 @@ def law_corpus(
     tag: str | None = None,
     full: int = 0,
     limit: int = 100,
+    residual: str | None = None,
 ) -> dict[str, Any]:
     """List the codegen-law corpus, newest first, with freshness and supersession.
 
@@ -2911,6 +3419,16 @@ def law_corpus(
     applicability vocabulary, cheaper and more precise than prose search.
     ``full=1`` inlines each law's complete text (one round trip for a whole
     tagged screen set instead of a `record <id>` call per law).
+
+    ``query`` matches the law's prose AND its id's SLUG WORDS, so a family
+    name typed as separate words finds the family (the prose-only index
+    returned nothing for exactly that shape). It additionally searches the
+    `mechanism` notes on webfrank.json pins, returned as ``pin_mechanisms``.
+
+    ``residual`` takes a `--ops` token delta (e.g. ``"+1 addi -1 li"``) and
+    finds the laws and sibling attempt records whose recorded
+    ``residual.signature`` shares mnemonics with it — "who else had this
+    exact residual", which no facet could ask before.
     """
     ensure_database(root, db_path)
     sql = """
@@ -2933,19 +3451,72 @@ def law_corpus(
     if tag:
         sql += " AND json_extract(r.raw_json, '$.attributes.tags') LIKE ?"
         params.append(f'%"{tag}"%')
-    if query:
-        sql += (
-            " AND (r.record_id LIKE ? OR c.value_json LIKE ?"
-            " OR json_extract(r.raw_json, '$.attributes.scope') LIKE ?)"
-        )
-        pattern = f"%{query}%"
-        params.extend([pattern, pattern, pattern])
+    # The query filter is applied in PYTHON, not SQL: slug-word matching
+    # cannot be expressed as a LIKE, and the corpus is small enough that
+    # fetching then filtering is cheaper than a second index.
     sql += " ORDER BY COALESCE(r.valid_from, '') DESC, r.record_id LIMIT ?"
-    params.append(limit)
+    params.append(limit if not (query or residual) else 5000)
     with closing(open_database(root, db_path)) as connection:
         rows = connection.execute(sql, params).fetchall()
-    laws = []
+
+    residual_matches: list[dict[str, Any]] = []
+    residual_law_ids: set[str] = set()
+    if residual:
+        wanted = _signature_tokens(residual)
+        for record, obj in _iter_attempt_residuals(root):
+            signature = obj.get("signature") or ""
+            shared = _signature_tokens(signature) & wanted
+            if not shared:
+                continue
+            applied = _record_field(record, "laws_applied")
+            if isinstance(applied, str):
+                try:
+                    applied = json.loads(applied)
+                except json.JSONDecodeError:
+                    applied = []
+            if isinstance(applied, list):
+                residual_law_ids.update(
+                    item for item in applied if isinstance(item, str))
+            fn_name = str(record.get("function", "")).split(":", 1)[-1]
+            residual_matches.append({
+                "record": record.get("id"),
+                "function": fn_name or None,
+                "outcome": record.get("outcome"),
+                "signature": signature,
+                "family": obj.get("family"),
+                "capability_needed": obj.get("capability_needed"),
+                "measured_at": obj.get("measured_at"),
+                "shared_tokens": sorted(shared),
+            })
+        residual_matches.sort(
+            key=lambda row: (-len(row["shared_tokens"]), row["record"] or ""))
+
+    tokens = _query_tokens(query) if query else []
+    selected = []
     for row in rows:
+        if not (query or residual):
+            selected.append((row, None))
+            continue
+        why: list[str] = []
+        if query:
+            lowered = query.lower()
+            if lowered in (row["record_id"] or "").lower():
+                why.append("id")
+            if lowered in (row["value_json"] or "").lower():
+                why.append("text")
+            if lowered in (row["scope"] or "").lower():
+                why.append("scope")
+            if _slug_match(row["record_id"], tokens):
+                why.append("slug")
+        if residual and row["record_id"] in residual_law_ids:
+            why.append("residual-sibling")
+        if why:
+            selected.append((row, why))
+    if query or residual:
+        selected = selected[:limit]
+
+    laws = []
+    for row, why in selected:
         value = row["value_json"] or ""
         try:
             value = json.loads(value)
@@ -2970,8 +3541,29 @@ def law_corpus(
                 "tags": tags,
                 "scope": row["scope"],
                 "head": value,
+                "falsifier": None,
+                "asserted_by": None,
+                "match": why,
             }
         )
+    # falsifier/asserted_by come from the raw record, not the claim table.
+    if laws:
+        with closing(open_database(root, db_path)) as connection:
+            marks = ",".join("?" * len(laws))
+            for extra in connection.execute(
+                f"SELECT record_id, raw_json FROM record_ingest"
+                f" WHERE record_id IN ({marks})",
+                [row["id"] for row in laws],
+            ).fetchall():
+                try:
+                    record = json.loads(extra["raw_json"])
+                except json.JSONDecodeError:
+                    continue
+                for row in laws:
+                    if row["id"] != extra["record_id"]:
+                        continue
+                    row["falsifier"] = _record_field(record, "falsifier")
+                    row["asserted_by"] = _record_field(record, "asserted_by")
     with closing(open_database(root, db_path)) as connection:
         tag_rows = connection.execute(
             """
@@ -2988,7 +3580,7 @@ def law_corpus(
                 tag_counts[tag_name] = tag_counts.get(tag_name, 0) + 1
         except (TypeError, json.JSONDecodeError):
             continue
-    return {
+    out: dict[str, Any] = {
         "laws": laws,
         "count": len(laws),
         "tags_available": dict(sorted(tag_counts.items())),
@@ -2996,9 +3588,34 @@ def law_corpus(
             "laws are compiler-scoped observations, not instructions:"
             " re-verify against your target bytes; a superseded_by entry means"
             " read the newer record instead; filter with --tag <name> using"
-            " tags_available (core-screen = the mandatory de-fakematch screen)"
+            " tags_available (core-screen = the mandatory de-fakematch screen)."
+            " `match` says WHY a row matched: slug = the id's words, text ="
+            " prose, residual-sibling = a recorded residual signature. A law"
+            " with falsifier=null asserted before the run-29 gate: treat its"
+            " necessity language as unscreened, not as proven."
         ),
     }
+    if query:
+        out["pin_mechanisms"] = webfrank_pin_mechanisms(root, query)
+    if residual:
+        out["residual_matches"] = residual_matches
+        out["residual_note"] = (
+            "sibling records whose recorded residual.signature shares"
+            " mnemonics with your --ops delta. capability_needed names the"
+            " postprocessor capability that would unpark the function; query"
+            " it directly with `find --capability <name>`. Signatures are"
+            " measured_at a DATE — remeasure before trusting one."
+        )
+        if not query:
+            # Pins whose mechanism prose names one of the delta's mnemonics:
+            # a closed derivation for the same opcode shape is the cheapest
+            # possible read on an open one.
+            wanted = _signature_tokens(residual)
+            out["pin_mechanisms"] = [
+                pin for pin in webfrank_pin_mechanisms(root, None)
+                if wanted & _signature_tokens(pin["mechanism"])
+            ]
+    return out
 
 
 def work_claims(
@@ -3318,19 +3935,41 @@ def find_records(
     residual: str | None = None,
     law: str | None = None,
     limit: int = 25,
+    family: str | None = None,
+    capability: str | None = None,
+    include_candidates: int = 0,
 ) -> dict[str, Any]:
     """Faceted record search: filter by kind, anchor function, TU, attempt
-    outcome, residual class, and associated law, plus optional FTS terms.
+    outcome, residual class, associated law, residual FAMILY and needed
+    CAPABILITY, plus optional FTS terms.
 
     The TU facet is derived through the symbol import (function -> module),
     so historical records are TU-searchable without carrying a `tu` field.
     The law facet matches structured `laws_applied` links and prose mentions
     (law_screen text) alike.
+
+    ``family`` and ``capability`` read the run-29 ``residual`` object.
+    ``capability`` closes the gap the WF lane named highest-leverage: a park
+    record can NAME the postprocessor capability that would unpark it (as
+    InitControls' did), but until now nothing could ask "which parks are
+    waiting on the capability I am about to build", so the payoff of a
+    capability could not be priced before building it. Structured hits are
+    marked ``match: field``; prose-only hits are marked ``match: prose`` and
+    are candidates, not a screen.
     """
-    if not any((query, kind, function, tu, outcome, residual, law)):
+    if not any((query, kind, function, tu, outcome, residual, law,
+                family, capability)):
         raise MemoryGraphError(
             "find needs at least one facet or search term"
-            " (--kind/--function/--tu/--outcome/--residual/--law or query)"
+            " (--kind/--function/--tu/--outcome/--residual/--law/"
+            "--family/--capability or --query)"
+        )
+    if family and family not in RESIDUAL_FAMILY_VOCABULARY:
+        raise MemoryGraphError(
+            f"unknown residual family {family!r}; the contract vocabulary is "
+            + ", ".join(sorted(RESIDUAL_FAMILY_VOCABULARY))
+            + " — a typo here returns zero rows, which reads as a false"
+            " all-clear on a negative screen"
         )
     ensure_database(root, db_path)
     sql = """
@@ -3379,6 +4018,36 @@ def find_records(
             "   OR r.raw_json LIKE ?)"
         )
         params.extend([f"%{law}%", f"%{law}%"])
+    if family:
+        # Three tiers, kept SEPARABLE and labelled per row: the verified
+        # `family`; the quarantined `family_candidate` (extractor guesses,
+        # measured ~30-50% precise — opt-in only, never merged silently);
+        # and the legacy coarse residual_class the family is defined against.
+        clauses = ["json_extract(r.raw_json, '$.residual.family') = ?"]
+        params.append(family)
+        if include_candidates:
+            clauses.append(
+                "json_extract(r.raw_json, '$.residual.family_candidate') = ?")
+            params.append(family)
+        legacy_class = FAMILY_TO_RESIDUAL_CLASS.get(family)
+        if legacy_class:
+            clauses.append("UPPER(COALESCE(at.residual_class,'')) LIKE ?")
+            params.append(f"%{legacy_class}%")
+        sql += " AND (" + " OR ".join(clauses) + ")"
+    if capability:
+        # Structured OR prose: the structured field is the screen, but the
+        # corpus predates it and the naming that motivated this facet lived
+        # in prose, so prose hits are surfaced and LABELLED rather than
+        # silently dropped.
+        sql += (
+            " AND (json_extract(r.raw_json, '$.residual.capability_needed')"
+            "      LIKE ?"
+            "   OR json_extract(r.raw_json,"
+            "      '$.attributes.residual.capability_needed') LIKE ?"
+            "   OR r.raw_json LIKE ?)"
+        )
+        pattern = f"%{capability}%"
+        params.extend([pattern, pattern, pattern])
     if query:
         sql += (
             " AND r.record_id IN"
@@ -3397,9 +4066,29 @@ def find_records(
     # manufactured false clearances (22 of 47 live vetoes missed in one
     # session — claim.find-subcommand-caps-at-100-and-silently-falsifies-
     # park-screens).
-    params.append(limit + 1)
+    # A --family query widens into the coarse legacy class, which can return
+    # hundreds of rows and bury the handful of EXACT family hits behind
+    # them. Fetch generously, rank exact > candidate > fallback in Python,
+    # then apply the caller's limit — otherwise the precise answer is the
+    # part that gets truncated away.
+    fetch = 4000 if family else limit + 1
+    params.append(fetch)
     with closing(open_database(root, db_path)) as connection:
         rows = connection.execute(sql, params).fetchall()
+    if family:
+        def rank(row):
+            try:
+                record = json.loads(row["raw_json"])
+            except json.JSONDecodeError:
+                return 3
+            obj = record.get("residual")
+            obj = obj if isinstance(obj, dict) else {}
+            if obj.get("family") == family:
+                return 0
+            if include_candidates and obj.get("family_candidate") == family:
+                return 1
+            return 2
+        rows = sorted(rows, key=rank)
     truncated = len(rows) > limit
     rows = rows[:limit]
     results = []
@@ -3409,24 +4098,72 @@ def find_records(
         except json.JSONDecodeError:
             record = {}
         fn_key = row["fn_key"] or ""
-        results.append(
-            {
-                "id": row["record_id"],
-                "kind": row["record_kind"],
-                "state": row["record_state"],
-                "function": fn_key.split(":", 1)[-1] if fn_key else None,
-                "tu": row["tu_name"],
-                "outcome": row["outcome"],
-                "age_days": _record_age_days(row["valid_from"], row["recorded_at"]),
-                "head": _record_head(record),
+        entry = {
+            "id": row["record_id"],
+            "kind": row["record_kind"],
+            "state": row["record_state"],
+            "function": fn_key.split(":", 1)[-1] if fn_key else None,
+            "tu": row["tu_name"],
+            "outcome": row["outcome"],
+            "age_days": _record_age_days(row["valid_from"], row["recorded_at"]),
+            "head": _record_head(record),
+        }
+        residual_obj = record.get("residual")
+        if isinstance(residual_obj, dict):
+            entry["residual"] = {
+                key: residual_obj.get(key) for key in RESIDUAL_FIELDS
             }
-        )
+        if family:
+            obj = residual_obj if isinstance(residual_obj, dict) else {}
+            if obj.get("family") == family:
+                entry["match"] = "family"
+            elif include_candidates and obj.get("family_candidate") == family:
+                entry["match"] = "family_candidate"
+                entry["candidate_warning"] = (
+                    "UNVERIFIED extractor guess (~30-50% precision) — verify"
+                    " against the function's aligned diff before relying on"
+                    " it. This is NOT a family classification."
+                )
+            else:
+                entry["match"] = "residual_class-fallback"
+                entry["fallback_class"] = normalize_residual_class(
+                    record.get("residual_class"))
+        if capability:
+            structured = isinstance(residual_obj, dict) and capability.lower() \
+                in str(residual_obj.get("capability_needed") or "").lower()
+            entry["match"] = "field" if structured else "prose"
+        results.append(entry)
     out = {
         "results": results,
         "count": len(results),
         "truncated": truncated,
         "note": "heads only; fetch full detail with gdlmem.py record <id>",
     }
+    if capability:
+        out["capability_note"] = (
+            "match=field is a structured hit and is screenable; match=prose"
+            " is a CANDIDATE found by text and may be an incidental mention"
+            " — read it before counting it. Prose hits exist because the"
+            " corpus predates residual.capability_needed; annotate the ones"
+            " that are real so the next screen is structured."
+        )
+    if family:
+        counts: dict[str, int] = {}
+        for row in results:
+            counts[row.get("match", "?")] = counts.get(row.get("match"), 0) + 1
+        out["family_match_counts"] = counts
+        out["family_note"] = (
+            "THREE TIERS, ranked and labelled per row — do not total them."
+            " match=family is the verified classification and the only tier"
+            " usable as a screen. match=family_candidate (only with"
+            " --include-candidates) is an UNVERIFIED extractor guess measured"
+            " at ~30-50% precision. match=residual_class-fallback is the"
+            " legacy coarse class this family is defined against"
+            f" ({FAMILY_TO_RESIDUAL_CLASS.get(family, 'n/a')}) — a WIDENING"
+            " that says the record is in the right neighbourhood, not that it"
+            " is in this family. An empty verified tier means 'nothing"
+            " annotated', not 'no such residual exists'."
+        )
     if truncated:
         out["warning"] = (
             f"RESULT SET TRUNCATED at limit={limit}: more records match."
@@ -3435,6 +4172,146 @@ def find_records(
             " truncated=false."
         )
     return out
+
+
+# Discipline 10b markers. A record ending in a concrete untried hypothesis
+# makes that hypothesis MANDATORY STEP 1 for the next lane — one such
+# hypothesis, written down and then skipped by its own author, was worth
+# -235 real in a single build when finally executed a run later. The brief
+# could not surface them, so finding one depended on reading every record in
+# full; these are the phrasings the corpus actually uses.
+_HYPOTHESIS_MARKERS = (
+    "unpark condition", "next hypothesis", "next-hypothesis",
+    "untried", "not yet tried", "never tried", "remains to try",
+    "the remaining path", "remaining path", "next step", "next lane",
+    "worth pricing", "recommendation for the next",
+    "mandatory step 1", "would close", "should be tried", "worth trying",
+    "the one carrier", "not been tried",
+)
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.;])\s+")
+
+
+def _open_hypotheses(record: dict[str, Any]) -> list[dict[str, str]]:
+    """Extract concrete untried hypotheses from a record's prose."""
+    found: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for field, text in (("attempted_axis", record.get("attempted_axis")),
+                        ("value", record.get("value")),
+                        *(("attributes." + key, value)
+                          for key, value in
+                          (record.get("attributes") or {}).items()
+                          if isinstance(value, str))):
+        if not isinstance(text, str):
+            continue
+        for sentence in _SENTENCE_SPLIT_RE.split(" ".join(text.split())):
+            lowered = sentence.lower()
+            marker = next((m for m in _HYPOTHESIS_MARKERS if m in lowered),
+                          None)
+            if marker is None:
+                continue
+            key = sentence[:80]
+            if key in seen:
+                continue
+            seen.add(key)
+            found.append({
+                "marker": marker,
+                "field": field,
+                "text": sentence[:400] + (" …" if len(sentence) > 400 else ""),
+            })
+    return found
+
+
+def _pin_provenance(root: Path, tu: str) -> list[dict[str, Any]]:
+    """webfrank.json pins for this TU, each with its SOURCE-EXHAUSTION class.
+
+    The Mandatory-policy provenance rule requires a new rule's function to
+    carry a parked/capped attempt record with literal probed_form axes; an
+    audit found 11 rules authored with no source-work trail at all. Classing
+    each pin here makes that debt visible at spawn instead of at audit.
+
+    The scan covers the WHOLE record history, not the brief's live-attempt
+    list: a rule's source-exhaustion evidence characteristically sits in the
+    very park the rule then SUPERSEDED, so classing against live records
+    alone reports "no trail" for exactly the best-evidenced pins.
+    """
+    pins = [pin for pin in webfrank_pin_mechanisms(root, None)
+            if tu.rstrip("/") in pin["unit"] or pin["unit"] in tu]
+    if not pins:
+        return []
+    wanted = {pin["function"] for pin in pins}
+    trails: dict[str, dict[str, Any]] = {
+        name: {"any": False, "parked": False, "probed": False, "laws": set()}
+        for name in wanted
+    }
+    directory = root / "memory_graph" / "records"
+    if directory.exists():
+        for path in sorted(directory.rglob("*.json")):
+            try:
+                record = json.loads(path.read_text(encoding="utf-8-sig"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if not isinstance(record, dict) or record.get("kind") != "attempt":
+                continue
+            name = str(record.get("function", "")).split(":", 1)[-1]
+            trail = trails.get(name)
+            if trail is None:
+                continue
+            trail["any"] = True
+            applied = _record_field(record, "laws_applied")
+            if isinstance(applied, str):
+                try:
+                    applied = json.loads(applied)
+                except json.JSONDecodeError:
+                    applied = []
+            if isinstance(applied, list):
+                trail["laws"].update(
+                    item for item in applied if isinstance(item, str))
+            if record.get("outcome") in ("parked", "capped"):
+                trail["parked"] = True
+                if _record_field(record, "probed_form"):
+                    trail["probed"] = True
+    for pin in pins:
+        trail = trails[pin["function"]]
+        # The Mandatory-policy bar is a DISJUNCTION: a parked record with
+        # literal probed_form axes, OR a law proving the residual class
+        # source-unreachable. Reporting only the first half would flag
+        # law-backed rules — the best-evidenced kind — as unprovenanced.
+        # Cited by the pin's own mechanism prose OR applied by any attempt
+        # record on the function: for InitControls the unreachability law is
+        # named in the closing record's laws_applied, not in the pin text.
+        candidates = set(pin["cites_records"]) | trail["laws"]
+        law_backed = sorted(
+            cited for cited in candidates
+            if cited.startswith("claim.law.")
+            and any(mark in cited.lower() for mark in
+                    ("source-unreachable", "allocator-not-source",
+                     "unreachable-from-source", "is-not-source",
+                     "source-unavailable"))
+        )
+        if law_backed:
+            pin["provenance"] = "law-backed-source-unreachable"
+            pin["provenance_laws"] = law_backed
+        elif trail["probed"]:
+            pin["provenance"] = "source-exhausted"
+        elif trail["parked"]:
+            pin["provenance"] = "parked-without-probed_form"
+        elif trail["any"]:
+            pin["provenance"] = "attempts-but-no-park"
+        else:
+            pin["provenance"] = "NO-SOURCE-TRAIL"
+        pin["provenance_note"] = (
+            "The Mandatory-policy bar is a disjunction."
+            " law-backed-source-unreachable = the pin cites a law proving the"
+            " residual class source-unreachable (bar met)."
+            " source-exhausted = a parked/capped record with a literal"
+            " probed_form backs this rule, superseded records included, since"
+            " that is usually where the trail lives (bar met)."
+            " parked-without-probed_form = a park exists but never wrote the"
+            " failing form down, so the rule rests on an unreproducible veto."
+            " NO-SOURCE-TRAIL = bar unmet; the function owes a source-first"
+            " pass before any further rule work."
+        )
+    return pins
 
 
 def tu_briefing(
@@ -3509,16 +4386,23 @@ def tu_briefing(
                     record = json.loads(row["raw_json"])
                 except json.JSONDecodeError:
                     record = {}
+                residual_obj = _record_field(record, "residual")
                 attempts.append(
                     {
                         "id": row["record_id"],
                         "function": row["entity_key"].split(":", 1)[-1],
                         "outcome": row["outcome"],
                         "residual_class": record.get("residual_class"),
+                        "residual": residual_obj
+                        if isinstance(residual_obj, dict) else None,
+                        "held_fixed": _record_field(record, "held_fixed"),
+                        "has_probed_form": bool(
+                            _record_field(record, "probed_form")),
                         "age_days": _record_age_days(
                             row["valid_from"], row["recorded_at"]),
                         "head": _record_head(record),
                         "recorded_fuzzy": row["recorded_fuzzy"],
+                        "_record": record,
                     }
                 )
             claim_rows = connection.execute(
@@ -3547,19 +4431,45 @@ def tu_briefing(
     # fuzzy scores from the current objdiff report, when built
     scores: dict[str, float] = {}
     report_path = root / "build" / "GUNE5D" / "report.json"
+    report_stamp = None
+    report_age_hours = None
     stems = {row["object_name"].rsplit(".", 1)[0] for row in modules}
     if report_path.exists():
+        stat = report_path.stat()
+        stamped = datetime.fromtimestamp(stat.st_mtime, timezone.utc)
+        report_stamp = stamped.strftime("%Y-%m-%dT%H:%M:%SZ")
+        report_age_hours = round(
+            (datetime.now(timezone.utc) - stamped).total_seconds() / 3600, 1)
         report = json.loads(report_path.read_text(encoding="utf-8"))
         for unit in report.get("units", []):
             if any(unit.get("name", "").endswith(stem) for stem in stems):
                 for function in unit.get("functions", []):
                     scores[function["name"]] = float(
                         function.get("fuzzy_match_percent", 0.0))
+    # STALENESS BANNER. Every number below came from a file on disk, not from
+    # this call: discipline 8's REMEASURE default says a brief's number is
+    # stale until a live tool run confirms it, and workers repeatedly quoted
+    # brief figures as current. The banner is attached to each number-bearing
+    # row, not only to the envelope, because the envelope is what gets
+    # skimmed past.
+    if report_stamp is None:
+        fuzzy_staleness = (
+            "NO REPORT: build/GUNE5D/report.json does not exist in this"
+            " checkout, so every fuzzy below is null. Run a full ninja."
+        )
+    else:
+        fuzzy_staleness = (
+            f"STALE BY CONSTRUCTION: read from build/GUNE5D/report.json"
+            f" generated {report_stamp} ({report_age_hours}h ago), NOT"
+            " measured now. REMEASURE before quoting: probe.py <unit> <fn>"
+            " --fuzzy does build+readout in one call."
+        )
     roster = [
         {
             "function": row["raw_name"],
             "size": row["size"],
             "fuzzy": scores.get(row["raw_name"]),
+            "fuzzy_staleness": fuzzy_staleness,
         }
         for row in functions
     ]
@@ -3582,6 +4492,68 @@ def tu_briefing(
                 "no measurement recorded (likely a bulk-import park):"
                 " forensics may be thin or polarity-incomplete —"
                 " re-derive the baseline before spending probes")
+    for attempt in attempts:
+        if attempt.get("recorded_fuzzy") is not None:
+            attempt["recorded_fuzzy_staleness"] = (
+                "the value the record BANKED at park time, not a current"
+                " measurement — remeasure before comparing"
+            )
+
+    # 10b FIRST: open hypotheses outrank fresh analysis for the next lane.
+    open_hypotheses: list[dict[str, Any]] = []
+    for attempt in attempts:
+        for hypothesis in _open_hypotheses(attempt["_record"]):
+            open_hypotheses.append({
+                "function": attempt["function"],
+                "record": attempt["id"],
+                "outcome": attempt["outcome"],
+                "age_days": attempt["age_days"],
+                **hypothesis,
+            })
+    # Parked/capped first: those are the records whose author stopped.
+    open_hypotheses.sort(
+        key=lambda row: (0 if row["outcome"] in ("parked", "capped") else 1,
+                         row["age_days"] or 0))
+
+    vetoed_axes = [
+        {
+            "function": attempt["function"],
+            "record": attempt["id"],
+            "outcome": attempt["outcome"],
+            "residual_class": attempt["residual_class"],
+            "residual": attempt["residual"],
+            "held_fixed": attempt["held_fixed"],
+            "has_probed_form": attempt["has_probed_form"],
+            "axis": attempt["head"],
+            "age_days": attempt["age_days"],
+        }
+        for attempt in attempts
+        if attempt["outcome"] in ("parked", "capped", "negative")
+    ]
+
+    refutations: list[dict[str, Any]] = []
+    for attempt in attempts:
+        refuted = attempt["_record"].get("refutes")
+        if refuted:
+            refutations.append({
+                "function": attempt["function"],
+                "record": attempt["id"],
+                "refutes": refuted,
+                "head": attempt["head"],
+            })
+
+    scaffold_rows = [
+        {"function": attempt["function"], "record": attempt["id"],
+         "head": attempt["head"]}
+        for attempt in attempts
+        if "scaffold" in json.dumps(attempt["_record"]).lower()
+    ]
+
+    pins = _pin_provenance(root, tu)
+
+    for attempt in attempts:
+        attempt.pop("_record", None)
+
     core_laws = law_corpus(root=root, db_path=db_path, tag="core-screen",
                            limit=50)["laws"]
     # Matching sessions need the schedule/register/entry levers too —
@@ -3606,6 +4578,49 @@ def tu_briefing(
         debt_rows = []
     return {
         "tu": [row["object_name"] for row in modules],
+        # 10b comes FIRST, before the roster: a recorded untried hypothesis
+        # outranks fresh analysis, and one skipped by its own author was
+        # worth -235 real when a later run finally executed it.
+        "open_hypotheses": open_hypotheses,
+        "open_hypotheses_note": (
+            "AGENTS.md discipline 10b: a record ending in a concrete untried"
+            " hypothesis makes that hypothesis MANDATORY STEP 1 for the next"
+            " lane on that function, ranked ABOVE fresh analysis. These are"
+            " extracted by phrase match — read the cited record before acting,"
+            " and remeasure the record's NEGATIVE findings too, not only its"
+            " cure."
+        ),
+        "vetoed_axes": vetoed_axes,
+        "vetoed_axes_note": (
+            "parked/capped/negative records: each is a VETO on ITS axis."
+            " has_probed_form=false means the failing form was never written"
+            " down, so the veto cannot be reproduced — treat it as a weak"
+            " veto and say so if you re-probe. held_fixed names what the park"
+            " held CONSTANT; a null held_fixed on a multi-edit park is why"
+            " two correct-alone parks once jointly hid a 7-function TU flip."
+        ),
+        "refutations": refutations,
+        "scaffold_rows": scaffold_rows,
+        "webfrank_pins": pins,
+        "webfrank_pins_note": (
+            "a pinned function's SOURCE IS FROZEN (AGENTS.md trap 4): the"
+            " postprocessor hash-asserts its body and the build aborts on"
+            " drift. Screen this list before editing anything in the TU."
+            " `provenance` classes each pin against the Mandatory-policy"
+            " source-exhaustion bar."
+        ),
+        "staleness_banner": (
+            "EVERY NUMBER IN THIS BRIEF IS READ FROM DISK, NOT MEASURED NOW."
+            " Fuzzy comes from build/GUNE5D/report.json"
+            + (f" (generated {report_stamp}, {report_age_hours}h old)"
+               if report_stamp else " (ABSENT — all fuzzy is null)")
+            + "; recorded_fuzzy on an attempt is what that record banked at"
+            " park time. Discipline 8: REMEASURE is the default — a number"
+            " quoted from a brief is stale until a live tool run confirms it."
+            " Do not write a record or a commit message from these figures."
+        ),
+        "report_generated_at": report_stamp,
+        "report_age_hours": report_age_hours,
         "functions": roster,
         "scores_note": (None if scores else
                         "fuzzy is null because build/GUNE5D/report.json does"
@@ -3623,11 +4638,13 @@ def tu_briefing(
         ],
         "raw_offset_debt": debt_rows,
         "note": (
-            "briefing heads only: fetch full law/attempt text in ONE call"
-            " with gdlmem.py record <id1>,<id2>,... or laws --tag X --full;"
-            " parked/capped attempts are VETOes on their axes; run"
-            " tools/gdl/defake_gate.py baseline before the first edit and"
-            " honor active_claims from other owners"
+            "READ open_hypotheses FIRST (discipline 10b), then vetoed_axes,"
+            " then webfrank_pins — only then the roster. Briefing heads only:"
+            " fetch full law/attempt text in ONE call with gdlmem.py record"
+            " <id1>,<id2>,... or laws --tag X --full; parked/capped attempts"
+            " are VETOes on their axes; run tools/gdl/defake_gate.py baseline"
+            " before the first edit and honor active_claims from other"
+            " owners. Every number here is stale — see staleness_banner."
         ),
     }
 
@@ -3992,10 +5009,16 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                  "age, tags, application counts, and supersession flags."),
             call=lambda root, db, **kw: law_corpus(
                 kw["query"], root=root, db_path=db, tag=kw["tag"],
-                full=kw["full"], limit=kw["limit"]),
+                full=kw["full"], limit=kw["limit"],
+                residual=kw["residual"]),
             params=(
                 SurfaceParam("query", str, default=None,
-                             help="optional filter over id/scope/law text"),
+                             help="filter over id SLUG WORDS, scope, law text,"
+                                  " and webfrank pin mechanism prose"),
+                SurfaceParam("residual", str, default=None,
+                             help="`--ops` token delta, e.g. \"+1 addi -1 li\";"
+                                  " returns laws plus sibling records sharing"
+                                  " the residual signature"),
                 SurfaceParam("tag", str, default=None,
                              help="filter by structured applicability tag"),
                 SurfaceParam("full", int, default=0, maximum=1,
@@ -4012,7 +5035,9 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
             call=lambda root, db, **kw: find_records(
                 kw["query"], root=root, db_path=db, kind=kw["kind"],
                 function=kw["function"], tu=kw["tu"], outcome=kw["outcome"],
-                residual=kw["residual"], law=kw["law"], limit=kw["limit"]),
+                residual=kw["residual"], law=kw["law"], limit=kw["limit"],
+                family=kw["family"], capability=kw["capability"],
+                include_candidates=kw["include_candidates"]),
             params=(
                 SurfaceParam("query", str, default=None,
                              help="optional FTS terms"),
@@ -4028,6 +5053,18 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                              help="residual class fragment, e.g. SCHEDULE"),
                 SurfaceParam("law", str, default=None,
                              help="law id fragment (structured links + prose)"),
+                SurfaceParam("family", str, default=None,
+                             help="residual.family tag, e.g. live-zero-remat;"
+                                  " rows are labelled family (verified) vs"
+                                  " residual_class-fallback (coarse legacy"
+                                  " widening) — never total the tiers"),
+                SurfaceParam("include_candidates", int, default=0, maximum=1,
+                             help="1 = also return quarantined"
+                                  " family_candidate extractor guesses"
+                                  " (~30-50%% precision), labelled as such"),
+                SurfaceParam("capability", str, default=None,
+                             help="residual.capability_needed — which parks"
+                                  " are waiting on a capability"),
                 SurfaceParam("limit", int, default=25, maximum=2000),
             ),
         ),

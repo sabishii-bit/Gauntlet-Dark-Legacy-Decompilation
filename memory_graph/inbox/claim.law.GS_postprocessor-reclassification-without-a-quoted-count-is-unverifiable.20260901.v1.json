@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py::_apply_proposal_gates",
+    "memory_graph/test_graph.py::ProposalGateTests"
+  ],
+  "attributes": {
+    "scope": "memory_graph/core.py::_apply_proposal_gates gate B; propose-record time only, all record kinds.",
+    "tags": [
+      "workflow",
+      "postprocessor",
+      "metrics"
+    ],
+    "verification": "memory_graph/test_graph.py::ProposalGateTests covers refusal without counts, acceptance with '27/27' quoted, an assertion that the error names claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1, and a negative control proving an ordinary register-rotation park is NOT read as a reclassification. `python -m unittest discover memory_graph` = 77 tests OK; `python -m unittest discover tools/gdl/tests` = 323 tests OK."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Produce a webfrank/postprocessor rule that closes a function whose instruction counts DIFFER between our object and the target. That single case refutes the premise both cited laws rest on, and with it this gate's necessity. Evidence would live in config/GUNE5D/webfrank.json plus the closing record's own before/after counts. Separately, the gate's TRIGGER is falsified by any record it fires on that is not in fact a reclassification - the lexical patterns are listed in memory_graph/core.py::_POSTPROCESSOR_CLASS_RE and a false fire is a reportable defect, not an author error.",
+  "id": "claim.law.GS_postprocessor-reclassification-without-a-quoted-count-is-unverifiable.20260901.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-01T20:54:15Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "MOVING A FUNCTION INTO THE POSTPROCESSOR WORK CLASS IS A CLAIM ABOUT ITS INSTRUCTION COUNTS, SO A RECLASSIFICATION THAT QUOTES NO N/N IS UNVERIFIABLE ON ITS FACE. Two accepted laws make the count the deciding fact rather than one consideration among several: claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 and claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1. Together they say that if our stream and the target's differ in instruction COUNT, no postprocessor class can reach the function at all - the postprocessor renames and permutes, it does not insert or delete. It follows that the counts alone decide whether a reclassification is even coherent, and a record asserting the reclassification without them is asking the next lane to take the most expensive routing decision in the campaign on unstated evidence. The cost of the miss is asymmetric and large: a wrongly postprocessor-classed function is removed from the source queue, so nobody probes it, and the rule work that was supposed to replace the probing is impossible. It reads as parked-forever rather than as misrouted, which is the outcome-vocabulary failure the campaign has already recorded elsewhere. THE RULE, enforced at staging on NEW proposals only: a record with outcome `reclassified`, or whose text asserts postprocessor-class / webfrank-class / eligibility for the WebFrank path, must quote instruction counts somewhere as N/N. RELATION TO THE PROVENANCE BAR: this is the complement of the Mandatory-policy source-exhaustion requirement, not a duplicate of it. Provenance asks whether the function EARNED a rule by exhausting source; this asks whether a rule could possibly work. A function can satisfy either and fail the other, and both failures have been observed."
+}

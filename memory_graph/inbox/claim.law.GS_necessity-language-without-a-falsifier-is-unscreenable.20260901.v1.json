@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py::_apply_proposal_gates",
+    "memory_graph/test_graph.py::ProposalGateTests"
+  ],
+  "attributes": {
+    "scope": "memory_graph/core.py::_apply_proposal_gates gate A; binds claim records with predicate codegen_law/law/workflow_law or a '.law.' id, at propose-record time only. Accepted records are never retroactively invalidated.",
+    "tags": [
+      "workflow",
+      "metrics"
+    ],
+    "verification": "Implemented and tested: memory_graph/test_graph.py::ProposalGateTests covers refusal on necessity language, acceptance with a falsifier, acceptance of a purely descriptive law, the attributes.falsifier fallback spelling, and an assertion that the error text names claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1. `python -m unittest discover memory_graph` = 77 tests OK; `python -m unittest discover tools/gdl/tests` = 323 tests OK. `gdlmem build` re-imported 1460 records with no shape failure, confirming the gate does not bind the accepted corpus."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Show a law in this corpus that asserts must/requires/cannot/only, carries no falsifier, and was nonetheless SCREENED OUT by a later lane on evidence rather than re-derived from scratch. One such case refutes the necessity half of this law. The gate itself is falsified by any record where the required falsifier field was filled with a non-answer and the next lane was misled by it \u2014 check memory_graph/records/claims for falsifier values that name no evidence and no location.",
+  "id": "claim.law.GS_necessity-language-without-a-falsifier-is-unscreenable.20260901.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-01T20:54:11Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "A LAW THAT ASSERTS NECESSITY (must / requires / cannot / only) AND STATES NO FALSIFIER CANNOT BE SCREENED OUT BY A LATER LANE; IT CAN ONLY BE RE-DERIVED AT FULL COST. The asymmetry is the point. A law that says what DOES happen is checked cheaply against the target bytes and either survives or gets superseded. A law that says what CANNOT happen offers a later lane no procedure at all: the lane's options are to obey it, or to spend the entire probe budget the law was written to save re-establishing the negative from nothing. AGENTS.md already encodes the general danger in discipline 1 (a record's residual LABEL is usually trustworthy, its prescribed CURE usually is not - 3 of 6 cures on one measured roster were wrong) and in discipline 14 (a guard's refusal is a measurement of the guard, not only of the function). MOTIVATING RECORDS, both cited in the gate's own error text so the author reads the reason and not merely a rule: claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1, where a tool's SILENCE was read as a verdict of ineligibility precisely because nothing stated what would have counted as evidence to the contrary; and claim.RC_stale-reopen-queue-is-a-classifier-artifact.20260901.v1, where a record-mining heuristic went unchallenged across multiple sessions until it was finally measured and ALL 43 of its hits proved false positives - a falsifier stated at authoring time ('if the trigger terms fire on records whose residual_class is not a conversion cap, the heuristic is measuring the wrong thing') would have collapsed that in one query instead of several sessions. THE RULE, enforced at staging on NEW proposals only: a claim record that is a law and whose text matches must/requires/cannot/only must carry a `falsifier` naming what evidence would disprove it AND where that evidence lives. Descriptive laws are unaffected and were tested to be unaffected. THE INTENDED ESCAPE IS TO SOFTEN THE LANGUAGE, NOT TO ADD A TOKEN FALSIFIER: if a claim is really conditional, saying so is strictly better than an unconditional claim with a decorative disproof clause. SCOPE LIMIT, stated because the gate is deliberately broad: the trigger is lexical, so it fires on incidental uses of 'only' in an otherwise descriptive law. That is accepted as the cheaper error - the cost is one sentence from the author, whereas the cost of the miss is a lane's whole probe budget."
+}

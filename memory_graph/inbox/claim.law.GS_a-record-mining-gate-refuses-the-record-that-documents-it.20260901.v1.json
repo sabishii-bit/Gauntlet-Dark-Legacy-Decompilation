@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py::_apply_proposal_gates",
+    "memory_graph/test_graph.py::ProposalGateTests.test_gate_b_does_not_fire_on_a_record_describing_the_gate",
+    "memory_graph/test_graph.py::ProposalGateTests.test_gate_b_ignores_citation_and_verification_prose"
+  ],
+  "attributes": {
+    "scope": "memory_graph/core.py::_apply_proposal_gates (gate B anchoring + substance projection); generalises to any propose-time or retrieval-time record-text trigger.",
+    "tags": [
+      "workflow",
+      "batch-gating",
+      "metrics"
+    ],
+    "verification": "Found by running `gdlmem propose-record` on claim.GS_schema-contract-field-placement-and-the-bf-update-path.20260901.v1 with gate B live: it was REFUSED with the postprocessor-class error. After the anchoring + substance-projection fix the same record proposes clean. Two regression tests pin both halves (a project-anchored methodology claim, and an attempt whose attributes.verification/law_screen quote the gate vocabulary). `python -m unittest discover memory_graph` = 89 tests OK; `python -m unittest discover tools/gdl/tests` = 323 tests OK; `gdlmem build` imports 1484 records clean on the merged corpus."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Build a record-mining trigger that scans a record's FULL text, ship it, and show that no methodology record, no law record about the trigger, and no record quoting its gate commands is ever caught by it across a full corpus pass. That would show the self-reference hazard is avoidable without the anchoring/substance narrowings and this law is over-general. Cheap standing check: run gdlmem propose-record on every claim record whose value mentions a gate name and confirm zero refusals.",
+  "id": "claim.law.GS_a-record-mining-gate-refuses-the-record-that-documents-it.20260901.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-01T21:17:59Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "A RECORD-MINING TRIGGER THAT SCANS A RECORD'S WHOLE TEXT WILL REFUSE THE RECORD THAT DOCUMENTS IT, AND THIS IS THE SAME DEFECT CLASS AS THE reopen_candidates ARTIFACT RATHER THAN A NEW ONE. Measured here by dogfooding, not by theory: gate B (postprocessor-class reclassification must quote insns N/N) was implemented, then run against the very claim record that described the run-29 gate set. It REFUSED it, because that record's prose necessarily contains the phrase 'reclassifying a function postprocessor-class'. The record reclassified nothing; it was a methodology claim anchored to project:gdl. This directly extends claim.RC_stale-reopen-queue-is-a-classifier-artifact.20260901.v1, whose general lesson was already stated in the corpus: 'never match tool names or cited record ids as evidence about a record's subject - a project whose discipline requires quoting its gate commands and citing its law corpus will make every well-run session look like the thing being searched for.' RC measured that on a RETRIEVAL heuristic (43/43 false positives). This record extends it to a VALIDATION gate, where the failure mode is worse in kind: a bad retrieval heuristic wastes a lane's triage time and can be ignored, whereas a bad validation gate is fail-closed and BLOCKS the record from being written at all - including, as here, the record that would have explained the gate. A self-refusing gate is therefore not merely noisy, it is self-concealing: the natural author response is to mangle the prose until the checker passes, which destroys exactly the documentation the gate's users need. THE TWO NARROWINGS THAT FIX IT, both required, and generalisable to any future gate. (1) ANCHOR SCOPING: a claim about a FUNCTION can only be made by a record anchored to a function, so gate on the anchor (record.function, or subject starting 'function:') before gating on language. A project-level methodology claim is then excluded by construction rather than by wording. (2) SUBSTANCE PROJECTION: scan the record's substance fields, excluding the citation and verification apparatus (_PARK_CITATION_KEYS: verification, law_screen, laws_applied, anchors, scope, history_screen, measurement_resolution, provenance) - the fields whose CONTENT IS MANDATED BY DISCIPLINE and which therefore carry the searched-for vocabulary in every well-run record. This is the same projection RC's fix introduced for the stale heuristic, and the fact that it was needed again, one surface over, is why this is recorded as a law rather than as a bug note. PRACTICAL COROLLARY FOR ANY LANE SHIPPING A GATE: run the gate against the record you are about to write about the gate, BEFORE committing it. That single check cost nothing here and caught a defect that would otherwise have shipped, and it is the cheapest available instance of AGENTS.md discipline 14 - a guard's refusal is a measurement of the guard, not only of the thing refused."
+}

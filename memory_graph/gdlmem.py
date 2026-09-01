@@ -8,6 +8,38 @@ Examples:
   python memory_graph/gdlmem.py search "register web topology"
   python memory_graph/gdlmem.py proposals --kind parking_legacy
 
+RESIDUAL-FIRST RETRIEVAL (run 29). Search by what the diff LOOKS LIKE, not
+by function name:
+
+  gdlmem.py laws --residual "+1 addi -1 li"   # who else had this residual
+  gdlmem.py find --family live-zero-remat     # three LABELLED tiers: the
+                                              # verified family, the legacy
+                                              # residual_class widening, and
+                                              # (with --include-candidates 1)
+                                              # quarantined extractor guesses
+                                              # — never total the tiers
+  gdlmem.py find --capability dataflow-equivalence   # parks waiting on a
+                                              # capability, i.e. its payoff
+  gdlmem.py laws --query "live zero remat"    # matches id SLUG WORDS and
+                                              # webfrank pin `mechanism`
+                                              # prose, not just law text
+
+Attempt records carry an optional TOP-LEVEL `residual` object
+{signature, family, capability_needed, measured_at} — distinct from the
+legacy `attributes.residual` prose, which is never read as structure. Law
+records carry optional `falsifier` and `asserted_by`; multi-edit parks carry
+`held_fixed`.
+`propose-record --template attempt|claim` prints the shapes. Three gates run
+on NEW proposals only: a necessity-language law (must/requires/cannot/only)
+needs a `falsifier`; a record reclassifying a function postprocessor-class
+must quote instruction counts as N/N; a `probed_form` enumerating more than
+one edit needs `held_fixed`.
+
+`brief <tu>` now leads with OPEN 10b HYPOTHESES, then vetoed axes,
+refutations and webfrank pins with their provenance class. Every number it
+prints is read from disk and carries a staleness banner — REMEASURE before
+quoting one.
+
 Query subcommands are generated from `memory_graph.core.build_surface_ops()`,
 the single registry every consumer (this CLI, the MCP adapter) derives its
 surface from. Add a new query op to the registry, not here.
