@@ -13,6 +13,14 @@
   "kind": "attempt",
   "outcome": "improved",
   "recorded_at": "2026-09-01T15:37:25Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "structured-field(residual_class)",
+    "family": "no-residual",
+    "measured_at": "2026-09-01",
+    "signature": null,
+    "signature_source": "not measured -- pin-masked: function is webfrank/p6frank-referenced, so fndiff scores the postprocessed object and cannot see the source-level residual"
+  },
   "residual_class": "NONE",
   "schema_version": 1,
   "supersedes": "attempt.PW_pbwindow-sdata2-pool-order-fixed-two-byte-residual.20260901.v1",
