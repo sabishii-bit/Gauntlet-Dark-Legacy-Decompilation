@@ -2188,6 +2188,28 @@
         },
         "mechanism": "attempt.do-heal-players-fpr-crossing-rescreen.20260831.v2 - two callee-saved FPR webs hold each other's register and the product temporary is coloured differently: the target leaves 0.5*amount in the volatile f0 (fmul f0,f0,f1 then frsp f30,f0) while ours computes fmul f31,f0,f1 and self-coalesces frsp f31,f31, and the loop-hoisted 0.0f compare constant lands in f31 (target) versus f30 (ours). The record flagged the temporary as possibly needing a dead-temp argument; it does not - the whole 130/130 residual is a single consistent renaming once the fmul's destination is read as an ordinary define, so the plain bisimulation proves it.",
         "copy_register_fields": true
+      },
+      {
+        "function": "load_player_model",
+        "before_sha256": "5805f206719669c355fa529286ac5e004598922a5ebf9b60583843ca5c64e625",
+        "after_sha256": "c14a478cf57f3a93b4ae200ec0ebadb27a9f082dd0730c790da0e68a55972483",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 80
+        },
+        "mechanism": "SOURCE-EXHAUSTION PROVENANCE: attempt.PL_load-player-model-cse-break-and-pragma-bracket.20260901.v1 (outcome improved, residual_class REGISTER_ONLY, two literal probed_form axes - reassociating the pot+prod call argument to break the cross-call CSE, and extending the TU's opt_common_subs bracket one function earlier - both KEPT, driving fuzzy 94.9625 -> 97.8750 and the opcode multiset to IDENTICAL 80/80 with 0 ops clusters). AND IT REFUTES THAT RECORD'S NEGATIVE ELIGIBILITY CLAIM, which is why this rule exists at all. PL measured the regnorm POSITIONAL map as INCONSISTENT on every callee-saved register (r26->r30x13/r26x1, r27->r30x2/r29x1/r27x1, r28->r27x2/r28x2, r29->r28x5/r26x3/r29x1, r30->r29x8/r30x1), read that as the web-split tell, and wrote 'this function is NOT a copy_register_fields candidate without a def-site-grouped audit ... recorded so a later lane does not mistake CLEAN-RENAMING alone for WebFrank eligibility'. That inference does not hold: regnorm pairs positionally and reports one whole-function map, whereas verify_consistent_recolor adjudicates the renaming along def-use webs, so a register legitimately carrying two DIFFERENT values in two disjoint live ranges reads as 'inconsistent' positionally while being a perfectly consistent per-web renaming. Measured through the shipped apply_patch against the extracted retail object: all 30 differing words are pure register-field differences, copy_register_fields alone verifies, residual 0. No permutation stage and no form site is needed.",
+        "copy_register_fields": true
+      },
+      {
+        "function": "load_player_model_sub",
+        "before_sha256": "57e64d5777838ee2cec745e899e1520c2bcaa12fadb1e21e7183fee9cd3097d0",
+        "after_sha256": "f3e9266567248103b279a45f29acb74ceda3e441fa6b5a07aa890ff9e557ac51",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 116
+        },
+        "mechanism": "SOURCE-EXHAUSTION PROVENANCE: attempt.PL_load-player-model-sub-flag-table-array-form.20260901.v1 (outcome improved, residual_class REGISTER_ONLY) exhausted FOUR literal probed_form axes on this residual and left it register-only: axis1 threshold-local REGRESSED real 69->131 with the residual cluster byte-identically unchanged (axis vetoed); axis2 the sibling array form `((s32*)(tab + 2384))[ct]` was KEPT (count 117->116 EXACT, multiset IDENTICAL, fuzzy 96.1207->97.2845); axis3 declaration reorder with pointers last was KEPT (real 114->110, fuzzy ->97.4569, r28 became identity); axis4 the uninitialized-declaration variant REGRESSED to real 118 and perturbed the prologue schedule. The record's own conclusion is that declaration order is 'controllable-but-not-sufficient here', i.e. two decl-order probes MOVED the permutation without solving it - the allocator variance is not source-reachable. The residual is a PERFECT BIJECTION on the nine callee-saved registers with no inconsistent flag: ours->target r23->r29 (fmt), r24->r30 (tab), r25->r31 (pot), r26->r24 (name), r27->r25 (slot), r28->r28 (ct8, identity), r29->r27 (ct), r30->r26 (tier), r31->r23 (cls), with r0/r3-r8/r22 identity. The target allocates the three symbol-address locals LAST and ours allocates them FIRST, which axis4 shows is not merely an initializer-presence artifact. Measured through the shipped apply_patch: all 55 differing words are pure register-field differences, copy_register_fields alone verifies, residual 0.",
+        "copy_register_fields": true
       }
     ],
     "game/pb/pb_diag": [
