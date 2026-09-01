@@ -553,6 +553,27 @@
           "instructions": 79
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "memCardErrorPrompt",
+        "before_sha256": "eb4f114353ce778189184d2991b287fcdf72b4aa9e5907df66239b56036e70a6",
+        "after_sha256": "91c21d0515388e35e245b93f27840bfd3af120a8731612f42d6e9d78bf4c5d0e",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 25,
+          "permuted_instructions": 2
+        },
+        "mechanism": "attempt.HV_memcarderrorprompt-argument-store-transposition.20260901.v1 - REFUTES the STRUCTURAL label in attempt.mp-label-correction.memcarderrorprompt.20260831.v1 (a label-only park, no source probe); the STRUCTURAL row is the positional-pairing artifact of claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1, and this permutation reproducing the target bytes exactly is the proof. One transposition, order [0,2,1,3] over +0x38..+0x48: ours materializes the argument `li r4,-1` before the SDA store `stw r0,lbl_80344A24`, the target stores first. The `li` writes r4 only; the store reads r0 (set by the untouched `li r0,0` at +0x38) and writes memory, so the two are disjoint and the audit passes in OUR colouring. RELOCATION BINDING: the store is the only relocated atom in the window and it MOVES, which is why the before/after relocation hashes differ here rather than matching as they do in an unrelocated window - the EMB_SDA21 entry travels with its own atom and keeps its within-instruction byte offset. Note that webfrank's payload check is a multiset over (offset%4, info, addend) and so cannot itself verify that binding; it was established at derivation time by matching each relocated atom to its target slot by symbol.",
+        "instruction_permutation": {
+          "start": "0x38",
+          "end": "0x48",
+          "order": [0, 2, 1, 3],
+          "before_sha256": "3773ca1f55af2020829a80e8b96cb21ff5411e95118517f5b18fc3a66cd7c1d2",
+          "after_sha256": "dacb42aafc3633ef869bc868fc54ca55889f8f460e53671e329b7af649a8502d",
+          "before_relocations_sha256": "ad28305a3a8521b12b216e306fd8586aa2e3e81be2c5289f1762173fd0c9bd0c",
+          "after_relocations_sha256": "0c75666700f016bbaa68bb7c87339c848a5c00c9647021159417806260632246"
+        },
+        "copy_register_fields": true
       }
     ],
     "game/world/newcam": [
@@ -841,6 +862,29 @@
         "copy_register_fields": true
       }
     ],
+    "game/pb/pb_objects": [
+      {
+        "function": "pbObjTexSub",
+        "before_sha256": "1e13493208ca54d29b2e5cc432e007ff276bff540b7a7f27be8ad36de19ee162",
+        "after_sha256": "2428d3317f03a7aff86e86bdbdc75fd54133b9e69d4d5d2acd5bb6c726c40c32",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 38,
+          "permuted_instructions": 4
+        },
+        "mechanism": "attempt.HV_pbobjtexsub-entry-pair-transpositions.20260901.v1 - REFUTES the STRUCTURAL label in attempt.mp-label-correction.pbobjtexsub.20260831.v1, which was a label-only park that never ran a source probe; per claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 its STRUCTURAL rows are pairing artifacts across a pure reorder, and the proof is that this permutation reproduces the target bytes exactly. Two independent transpositions in the entry block, order [1,0,3,2,4] over +0x0..+0x14: ours emits `lwz r0,0(r6)` before `lha r7,92(r3)` where the target loads the halfword first (two loads off different bases into different registers), and ours emits `rlwinm r0,r0,0,13,11` before `cmpwi r7,-2` where the target compares first (the rotate reads and writes r0, the compare reads r7 and writes CR0 - disjoint). No store and no control op in the window, and the region does not redefine r1, so the dependence audit passes in OUR colouring standing alone per claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1. The permutation alone closes the window; copy_register_fields finishes the function's remaining register-field rows under the bisimulation.",
+        "instruction_permutation": {
+          "start": "0x0",
+          "end": "0x14",
+          "order": [1, 0, 3, 2, 4],
+          "before_sha256": "cb86ae800a09eefac5d4aaab33fc31828ccf83ef59768521dc1b291263d6edd4",
+          "after_sha256": "4725f2fdbaf8aa7d4da674d520a7d31a1f90b1b8d26724e79665c45e2c049ae9",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/pb/pb_texture": [
       {
         "function": "fn_800C72DC",
@@ -855,6 +899,27 @@
       }
     ],
     "game/mb/mb_particle": [
+      {
+        "function": "getNewPosRectShare",
+        "before_sha256": "2decfa97f9a3d4ea09e1fed472fbd5fcc34fe20f4c6eaf19fb70af16e8c42bd5",
+        "after_sha256": "4f4d3d34cbdd2526682969417489be347bcb1174a47db5c1c6b7b9b0b53c54b9",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 104,
+          "permuted_instructions": 4
+        },
+        "mechanism": "attempt.HV_getnewposrectshare-preheader-load-hoist.20260901.v1 - REFUTES the STRUCTURAL label in attempt.mp-label-correction.getnewposrectshare.20260831.v1 (a label-only park that ran no source probe); its STRUCTURAL rows are the positional-pairing artifact named by claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1, and this permutation reproducing the target bytes exactly is the proof. One hoist, order [0,4,1,2,3,5] over +0x14..+0x2c: the target issues `lhz r29,32(r3)` immediately after the `stmw r27,60(r1)` register save, where ours issues it fourth, behind `mr r27,r3`, `lhz r0,34(r3)` and `mr r28,r4`. All five atoms read r3 or r4 and write distinct destinations (r29, r27, r0, r28), there is no store and no control op in the window, and the window does not touch r1 - the `stmw` at +0x14 is the first atom and does not move - so the audit passes in OUR colouring standing alone. The permutation alone makes the window byte-identical (zero post-permute residual); copy_register_fields carries the function's remaining register-field rows.",
+        "instruction_permutation": {
+          "start": "0x14",
+          "end": "0x2c",
+          "order": [0, 4, 1, 2, 3, 5],
+          "before_sha256": "62eb2331ee9e0a8d0803927322e42dd708627cb04a282f536504fd5f8359eaa5",
+          "after_sha256": "975679b52de0ed532ad76fc7c6ffd25e111fa8b4e9af3d24f44ad910ba487586",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "copy_register_fields": true
+      },
       {
         "function": "getSinCos",
         "before_sha256": "2c0e88faa957dcb31830454bf06d86473da223179decf72bc28cf32197f85dcc",
@@ -991,6 +1056,29 @@
         "copy_register_fields": true
       }
     ],
+    "game/world/gauntworld": [
+      {
+        "function": "fn_8005FB48",
+        "before_sha256": "2452e42c1d7457630545abce051877dfe6c7fa77ad97a9457e98225a98007e02",
+        "after_sha256": "4f54a75732119478f1c3a9409fe341bda0a7fa55c43568811aff6d2cba645e2b",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 152,
+          "permuted_instructions": 5
+        },
+        "mechanism": "attempt.HV_gauntworld-preheader-constant-permute.20260901.v1 - the entry preheader materializes five loop-invariant values: three SDA loads (the 2^52 int-conversion constant, sZeroDouble, sItemZero) and two zeroed counters. Ours emits them [sZeroDouble, li, sItemZero, li, 2^52]; the target emits [2^52, li, sZeroDouble, li, sItemZero], order [4,3,0,1,2,5] over +0x74..+0x8c. The window stops at +0x8c because the `b` there is a control instruction, which permute_instruction_atoms refuses. All five atoms are independent in OUR colouring - three loads from distinct SDA globals into distinct FPRs and two `li` to distinct GPRs, with no store anywhere in the region - so the dependence audit passes as a load/load reorder (checked in our colouring standing alone, per claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1). RELOCATION BINDING, the part the guard cannot check for itself: webfrank's permute payload test is a sorted multiset over (offset%4, info, addend) and so verifies only that no relocation was created, destroyed or retyped - NOT that each stayed with its own instruction. The three SDA loads differ solely in a register field, so a word-only matcher would happily swap two of them and produce correct text with the relocations on the wrong instructions. The order was therefore derived under an explicit symbol correspondence: our own-pool 2^52 literal @1280 corresponds to the target's named lbl_80346ED8 (the benign NonMatching-TU pool-label artifact), while sZeroDouble and sItemZero match by exact name; the emitted relocation triples move 2->10, 10->18, 18->2, binding each symbol to its target slot. The remainder is a bijective renaming over the callee-saved f28-f30 / r25-r30 sets, machine-proven by verify_consistent_recolor.",
+        "instruction_permutation": {
+          "start": "0x74",
+          "end": "0x8c",
+          "order": [4, 3, 0, 1, 2, 5],
+          "before_sha256": "4b6541e84928b44aae6882d2de9d1ed6abff73797716e87fd256b927d16a5078",
+          "after_sha256": "e2bf5e784b44ab34b988166b117d2afa4464a286f798a4f2ebdc0b6545a385ca",
+          "before_relocations_sha256": "eaf62c072c0e39103d617ea49df8f9f4716a08c20ca5d1639a8cba3b84eb72d8",
+          "after_relocations_sha256": "e255545fa91e6e76fb18a544c1da3ac7fe35585317b6f2d90140081ca8f84212"
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/world/camera": [
       {
         "function": "camera_init_for_gamemode",
@@ -1078,6 +1166,27 @@
       }
     ],
     "game/game/player": [
+      {
+        "function": "do_exit",
+        "before_sha256": "772104548cfbb3ebfefe259ddf28643f95feb001d59d7b5a2c7638635b742ebf",
+        "after_sha256": "36f50d1902a47b902613c774154160a3d553704b091d225272edbec4027f9ba3",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 161,
+          "permuted_instructions": 8
+        },
+        "mechanism": "attempt.HV_do-exit-int-to-float-triple-schedule.20260901.v1 - the exit-position update runs three consecutive int-to-float conversions of the same shape: `stw` the integer half to a stack slot, `lfd` the pair back as a double, `fsubs` off the 2^52 bias, then `fmuls`/`fadds`/`stfs` into the player record at 68/72/76(r31). Ours interleaves the three triples one slot differently from the target - four local transpositions, order [0,1,2,3,4,5,9,7,6,8,11,12,10,14,13,15,16,17,18,19,20,21] over +0x1f0..+0x248 - and colours the whole f0/f1 pair the other way round. The window holds stack stores AND stack loads, so it is NOT a free load/load reorder: the audit was run on the real words in OUR colouring and accepts because no moved atom crosses a store/load pair that shares a slot (the `stw r0,40(r1)` / `lfd 40(r1)` and `stw r4,36(r1)` pairs keep their relative order; what moves is their interleaving against the independent f3/f4 arithmetic). No control op and no r1 redefinition in the window. The 15 remaining rows are the bijective f0<->f1 renaming, machine-proven by verify_consistent_recolor.",
+        "instruction_permutation": {
+          "start": "0x1f0",
+          "end": "0x248",
+          "order": [0, 1, 2, 3, 4, 5, 9, 7, 6, 8, 11, 12, 10, 14, 13, 15, 16, 17, 18, 19, 20, 21],
+          "before_sha256": "9e6e5719c915d6f6f2c79708fd34340cf7d0a72750451378d8e9966cf2545c3b",
+          "after_sha256": "6eb6d09ea0403c1ec7938687eb56835d6e968283253961d86f6d5af69619b562",
+          "before_relocations_sha256": "ed36190c12570ca167a3fdc6f2820de698f6de40206530fdfb6ded551051f9b8",
+          "after_relocations_sha256": "ed36190c12570ca167a3fdc6f2820de698f6de40206530fdfb6ded551051f9b8"
+        },
+        "copy_register_fields": true
+      },
       {
         "function": "ExpToLevel",
         "before_sha256": "5cc064f36f80ce66eeacf7215afc0f72270830b136f885383ef2bacf9d9634cc",

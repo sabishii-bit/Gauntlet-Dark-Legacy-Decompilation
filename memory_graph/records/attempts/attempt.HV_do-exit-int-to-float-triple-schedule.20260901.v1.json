@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "do_exit: derive a permutation window for the displaced int-to-float conversion triples in the exit-position update, dependence-audit it in OUR colouring, compose with copy_register_fields. EXACT on the first build. This function carried NO prior attempt record - it was found by an image-wide scan, not from the park roster.",
+  "attributes": {
+    "law_screen": "claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED and load-bearing here more than anywhere else in the pass: this window contains stack STORES and stack LOADS to the same slots, so it is not a free load/load reorder, and the audit had to be run on the real words in our colouring rather than reasoned about. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED FIRST: 161/161, opcode multiset identical (0t). claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 APPLIED to read the survey's cluster flags as reorder rather than defect. claim.LZ_webfrank-equivalent-copy-form-edit-class.20260901.v1 SCREENED, not needed - no copy-form word in the residual. claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 is the lane premise and this function is its cleanest confirmation: no park, no audit entry, real 32, and closable.",
+    "laws_applied": "[\"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\", \"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1\"]",
+    "residual": "NONE - real 32 -> 0, the largest single closure of this pass. The exit-position update runs three consecutive int-to-float conversions of identical shape: `stw` the integer half to a stack slot, `lfd` the pair back as a double, `fsubs` off the 2^52 bias, then `fmuls`/`fadds`/`stfs` into the player record at 68/72/76(r31). Ours interleaves the three triples one slot differently from the target - four local transpositions, order [0,1,2,3,4,5,9,7,6,8,11,12,10,14,13,15,16,17,18,19,20,21] over +0x1f0..+0x248 - and colours the whole f0/f1 pair the other way round. The audit accepts because no moved atom crosses a store/load pair sharing a slot: the `stw r0,40(r1)`/`lfd 40(r1)` and `stw r4,36(r1)` pairs keep their relative order, and what moves is their interleaving against the independent f3/f4 arithmetic. The 15 remaining rows are the bijective f0<->f1 renaming.",
+    "scope": "config/GUNE5D/webfrank.json only - one rule added to the existing game/game/player block (the ExpToLevel, load_player_geo and do_heal_players pins screened first and left untouched). NO source edit.",
+    "verification": "probe.py BASELINE real 32 (T161/O161, 0t). Composition proved offline through webfrank's own guards in apply_patch's stage order (all accepted, bytes == target), then fndiff --clean = MATCH (pool-name noise only) 0 real diff lines; defake_gate check game/game/player = GATE OK (92 functions). Full ninja green; main.dol sha1 540bed0b54c94c6fc63e94b6db20ec927cc66b53 = build.sha1."
+  },
+  "function": "function:do_exit",
+  "id": "attempt.HV_do-exit-int-to-float-triple-schedule.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T03:28:38Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

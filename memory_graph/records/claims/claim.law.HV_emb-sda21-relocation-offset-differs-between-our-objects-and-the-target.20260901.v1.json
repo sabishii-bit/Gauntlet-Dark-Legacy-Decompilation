@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Measured 2026-09-01 in worktree GDL-Claude-MixedHarvest by dumping per-function relocation tables from both objects for pbWinSetup: all 9 of its EMB_SDA21 entries sit at word+2 in our object and at word+0 in the target, while every REL24 and every ADDR16_HA/LO entry agrees exactly. Same pattern in gauntworld and memcard.",
+    "tags": [
+      "postprocessor",
+      "relocation",
+      "sda-global",
+      "matching",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.HV_emb-sda21-relocation-offset-differs-between-our-objects-and-the-target.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T03:29:19Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "EMB_SDA21 RELOCATIONS SIT AT DIFFERENT BYTE OFFSETS IN OUR OBJECTS AND IN THE EXTRACTED TARGET, AND ONE WEBFRANK SCREEN IS WRITTEN AS IF THEY DID NOT. In MWCC output an EMB_SDA21 entry is recorded at the instruction's byte offset PLUS 2; in the dtk-extracted retail object the same relocation is recorded at the instruction offset itself. Type, symbol and addend are identical - only the offset differs, and only for EMB_SDA21. REL24 call relocations and the ADDR16_HA/ADDR16_LO pairs agree exactly in both objects, so this is specific to the 21-bit SDA form. Two consequences, one benign and one not. BENIGN: permute_instruction_atoms is unaffected, because it computes an atom index as `offset // 4` and preserves `offset % 4`, so a +2 entry rides its own atom correctly and the before/after hashes stay self-consistent (they are both taken from OUR object). prove_constant_source is likewise fine - it normalizes with `offset // 4` when building its relocated-index set. NOT BENIGN: equivalent_copy_form screens a candidate word with `if offset in relocated_offsets or offset in target_relocated_offsets`, an EXACT match against word offsets, which are multiples of 4. An EMB_SDA21 entry in OUR object is at word+2 and therefore NEVER matches, so a word that IS relocated in our object passes the 'no relocation on the rewritten word' precondition. That precondition is load-bearing: a relocated `addi rD,rA,0` reads as immediate zero before linking but is really an address half, so decode_copy_form classifies it as a register COPY and the rule would rewrite a relocated word on a false premise. A concrete instance exists in the tree today - pbWinSetup +0x314 is `addi r3,r3,lbl_801284D8@l`, encoded 0x38030000, carrying ADDR16_LO at 790 while the word offset is 788; decode_copy_form returns ('copy', 0, 3) for it and the relocation screen does not fire. No shipped rule exploits this and none should: the fix is to normalize both relocation sets to word offsets (`{off // 4 * 4 for off in ...}`, or compare on `off // 4`) before the membership test, in equivalent_copy_form and in any future screen written the same way. GENERAL RULE for anyone comparing relocations across the two objects: normalize to the WORD before comparing, never to the raw offset, and never conclude from a raw-offset mismatch that a relocation is missing on one side."
+}

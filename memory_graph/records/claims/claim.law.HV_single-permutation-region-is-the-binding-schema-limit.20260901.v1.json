@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "Measured 2026-09-01 in worktree GDL-Claude-MixedHarvest. Both pb_window stragglers were driven to a fully verified composition through webfrank's own guard functions in apply_patch's stage order, with final bytes identical to the extracted target, and neither could be shipped. The specs are banked in attempt.HV_pb-window-both-stragglers-proven-blocked-on-single-region-schema.20260901.v1 and attempt.HV_pbprojcalc-two-region-composition-proven.20260901.v1.",
+    "tags": [
+      "postprocessor",
+      "matching",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.HV_single-permutation-region-is-the-binding-schema-limit.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T03:29:14Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "THE BINDING CONSTRAINT ON THE MIXED SCHEDULE+RECOLOR CLASS IS NOT THE GUARDS - IT IS THAT apply_patch ACCEPTS ONE PERMUTATION REGION PER FUNCTION. `patch.get('instruction_permutation')` is read as a single dict with one start/end/order, so a function whose displaced words fall in two separated windows cannot be expressed at all, however sound each window is. This is now measured rather than supposed, and it is expensive: it is the ONLY thing standing between the project and a pb_window FILE FLIP. Both stragglers were composed end to end and BOTH reproduce the target bytes exactly with every obligation discharged - pbWinSetup (real 14) needs windows at +0x188 and +0x2c0 plus one equivalent_copy_form site and a 5-word recolor; pbProjCalc (real 126) needs windows at +0x28 and +0x3e4 plus a 54-word recolor. pb_window is 13/15 exact, so the pair is the whole flip. WHY TWO WINDOWS IS THE COMMON CASE, NOT AN EDGE CASE: permute_instruction_atoms refuses any region containing a control instruction, and MWCC's schedule differences cluster around basic-block boundaries - preheaders, compare/branch pairs, call sequences. A function with two independently displaced preheaders is therefore ORDINARY. The single-region schema silently converts a large closable population into parks, and because webfrank_audit scans only the pure-recolor subclass, none of those parks are ever listed as candidates either (claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1). THE FIX IS PLUMBING, NOT A NEW EDIT CLASS, which matters because a new edit class needs a new soundness argument and this does not: accept a LIST of permutation regions, require them to be disjoint and word-aligned, and apply them in ascending order, each through the unchanged permute_instruction_atoms with its own before/after and relocation hashes. Every existing guard keeps its meaning; the recolor snapshot is still taken after the last permutation, so verify_consistent_recolor is still never asked to adjudicate a reordering. The one genuinely new obligation is disjointness, since overlapping regions would make the per-region before-hashes ill-defined. A single-dict value should keep working so no shipped rule needs rewriting. DO NOT model a second window as a wider region that swallows the intervening code: that region will contain control ops and be refused, and widening it to dodge them is exactly the unsound move the control-op refusal exists to prevent."
+}

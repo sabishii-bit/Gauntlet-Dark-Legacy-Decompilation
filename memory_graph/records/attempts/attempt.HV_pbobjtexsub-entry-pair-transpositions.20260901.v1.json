@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "pbObjTexSub was parked STRUCTURAL by a label-only record that ran no source probe. Re-derive the residual from the raw objects, derive a permutation window, dependence-audit it in OUR colouring, compose with copy_register_fields. EXACT - which constructively refutes the STRUCTURAL label.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 IS THE DECISIVE LAW: the park's STRUCTURAL classification is a positional-pairing artifact across a pure reorder, the same defect attempt.SL_drawblitflatquad-label-refutation.20260901.v1 dissolved for its sibling park in the same mp-label-correction family. A permutation reproducing the target bytes EXACTLY is a constructive disproof of a STRUCTURAL label - stronger than the aligned-read argument the SL record had to use. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 APPLIED: the order was validated with check_permutation_dependences on the raw region in our colouring before acceptance. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED FIRST: 38/38, opcode multiset identical (0t). claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 confirmed - webfrank_audit never lists this function.",
+    "laws_applied": "[\"claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1\", \"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\", \"claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1\"]",
+    "residual": "NONE - real 4 -> 0. Order [1,0,3,2,4] over +0x0..+0x14: two independent entry transpositions. Ours emits `lwz r0,0(r6)` before `lha r7,92(r3)` where the target loads the halfword first (two loads off different bases into different registers); ours emits `rlwinm r0,r0,0,13,11` before `cmpwi r7,-2` where the target compares first (the rotate reads and writes r0, the compare reads r7 and writes CR0 - disjoint). No store, no control op, no r1 redefinition in the window. The permutation alone closes the window; copy_register_fields carries the rest.",
+    "scope": "config/GUNE5D/webfrank.json only - new unit key game/pb/pb_objects with one rule. NO source edit. configure.py re-run per the first-rule-per-TU trap and the WEBFRANK edge confirmed in the build log.",
+    "verification": "probe.py BASELINE real 4 (T38/O38, 0t). Composition proved offline through webfrank's own guards in apply_patch's stage order (all accepted, bytes == target), then fndiff --clean = EXACT 0 real diff lines; defake_gate check game/pb/pb_objects = GATE OK. Full ninja green; main.dol sha1 540bed0b54c94c6fc63e94b6db20ec927cc66b53 = build.sha1. The superseded label-only park is now stale_solved and should be deleted at the next hygiene pass."
+  },
+  "function": "function:pbObjTexSub",
+  "id": "attempt.HV_pbobjtexsub-entry-pair-transpositions.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T03:28:21Z",
+  "refutes": "attempt.mp-label-correction.pbobjtexsub.20260831.v1",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}
