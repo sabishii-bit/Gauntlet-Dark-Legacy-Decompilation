@@ -1175,12 +1175,54 @@
         "function": "fn_800C031C",
         "before_sha256": "2eb2e52208b5318c1bcb6a9f7c1a41e9f0af13f95ab7bc0a078bf3318ae1ebc8",
         "after_sha256": "49acb8aedf760f89d469c98ca6d73b410092c654952bf733046077be3e095083",
-        "unproven_recolor_audit": "Crossed zero-constant/induction webs with duplicated value homes (raw li r7/mr r0,r7 vs retail li r0/mr r4,r0 at +0x08-0x38); dataflow-equivalent by inspection 2026-08-25.",
+        "mechanism": "SOUNDNESS UPGRADE, no byte change. This rule shipped 2026-08-25 on an \"unproven_recolor_audit\" whose text -- 'crossed zero-constant/induction webs with duplicated value homes ... dataflow-equivalent by inspection' -- describes precisely the multi-site value split that verify_value_equality_recolor now proves mechanically. The audit escape is removed and replaced by the proof; the before/after hashes and the emitted bytes are unchanged.",
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 30
         },
-        "copy_register_fields": true
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "The same replicated-zero split this rule was originally accepted for by hand: raw `li r7,0` / `mr r0,r7` against retail `li r0,0` / `mr r4,r0` at +0x08-0x38. The six substitutions below are the uses where the two streams read different members of that one zero web.",
+          "substitutions": [
+            {
+              "at": "0x24",
+              "bank": "g",
+              "ours": 7,
+              "target": 4
+            },
+            {
+              "at": "0x28",
+              "bank": "g",
+              "ours": 0,
+              "target": 0
+            },
+            {
+              "at": "0x2c",
+              "bank": "g",
+              "ours": 7,
+              "target": 4
+            },
+            {
+              "at": "0x30",
+              "bank": "g",
+              "ours": 0,
+              "target": 0
+            },
+            {
+              "at": "0x34",
+              "bank": "g",
+              "ours": 0,
+              "target": 0
+            },
+            {
+              "at": "0x38",
+              "bank": "g",
+              "ours": 0,
+              "target": 0
+            }
+          ],
+          "compare_exchanges": []
+        }
       }
     ],
     "game/pb/pb_objects": [
@@ -2203,6 +2245,71 @@
           "instructions": 127
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "InitControls",
+        "before_sha256": "b6ca0631d5027f61662caaa9d486b9c7c85e087fbeb62324df2f5d3facb8c9e4",
+        "after_sha256": "896c6103d6d2a0293892858edb3fd171e19ae23aad86cab705edde170132380c",
+        "mechanism": "attempt.NV_initcontrols-parallel-array-names-close-stwx.20260901.v1 closed the structural gap (multiset 2 tokens -> IDENTICAL, and it removed a fakematch: the old walking pointer indexed 20 words past a declared u32[4]) and recorded the residual as the NAMED live-zero copy-vs-remat family with the explicit unpark condition 'only the WebFrank dataflow-equivalence audit class ... there is no source lever'. This is that class, discharged as a machine PROOF rather than an audit: verify_value_equality_recolor carries a relation instead of a function and closes it over the value-preserving copies both allocators used, so the eight refused uses are proved rather than inspected.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 27
+        },
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "Replicated-zero value split in the GPR bank. Both streams materialise ONE zero and copy it, but into mirrored registers: the target does `li r5,0` then `addi r3,r5,0` (zero rooted in r5, the index copied from it) while we do `li r3,0` then `addi r0,r3,0` (index first, the zero copied into r0). The positional definition pairing therefore binds root-to-root and every later use of the OTHER member of the web is refused, exactly as in combat::CameraSupervisor's FPR webs. Every one of the 8 substitutions below is a use whose two registers the relation proves value-equal through the copy that created them.",
+          "substitutions": [
+            {
+              "at": "0x2c",
+              "bank": "g",
+              "ours": 3,
+              "target": 3
+            },
+            {
+              "at": "0x30",
+              "bank": "g",
+              "ours": 0,
+              "target": 5
+            },
+            {
+              "at": "0x34",
+              "bank": "g",
+              "ours": 0,
+              "target": 5
+            },
+            {
+              "at": "0x38",
+              "bank": "g",
+              "ours": 0,
+              "target": 5
+            },
+            {
+              "at": "0x38",
+              "bank": "g",
+              "ours": 3,
+              "target": 3
+            },
+            {
+              "at": "0x3c",
+              "bank": "g",
+              "ours": 3,
+              "target": 3
+            },
+            {
+              "at": "0x40",
+              "bank": "g",
+              "ours": 0,
+              "target": 5
+            },
+            {
+              "at": "0x44",
+              "bank": "g",
+              "ours": 0,
+              "target": 5
+            }
+          ],
+          "compare_exchanges": []
+        }
       }
     ],
     "game/ui/select": [
