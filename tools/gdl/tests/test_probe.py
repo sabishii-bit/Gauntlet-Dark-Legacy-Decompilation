@@ -14,7 +14,32 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from probe import annotate_neutral, classify, count_distance
+from probe import (annotate_neutral, classify, count_distance,
+                   function_span, scoped_revert, split_lines, strip_noncode)
+
+
+TU = """\
+#include "game.h"
+
+static int helper(int a)
+{
+    return a + 1;
+}
+
+void alpha(Player* p)
+{
+    p->x = 1;
+    p->y = 2;
+}
+
+void beta(Player* p)
+{
+    /* a } brace in a comment must not close the body */
+    const char* s = "} neither must this one";
+    p->z = 3;
+}
+"""
+
 
 
 class CountDistanceTests(unittest.TestCase):
@@ -165,6 +190,113 @@ class AnnotateNeutralTests(unittest.TestCase):
         self.assertTrue(out.startswith("NEUTRAL-WORSE"), out)
         self.assertIn("count distance 0 -> 6", out)
         self.assertIn("multiset 2t -> 6t", out)
+
+
+class SplitLinesTests(unittest.TestCase):
+    def test_crlf_is_preserved_as_content(self):
+        self.assertEqual(split_lines("a\r\nb\r\n", keepends=True),
+                         ["a\r\n", "b\r\n"])
+
+    def test_does_not_break_on_exotic_separators(self):
+        """str.splitlines() breaks on U+0085; a latin-1 round-trip of an
+        ordinary source byte can produce one, desynchronising indices."""
+        text = "a\x85b\nc\n"
+        self.assertEqual(len(split_lines(text)), 2)
+
+    def test_roundtrip_is_byte_exact(self):
+        for text in ("a\nb\n", "a\r\nb", "", "\n", "no trailing newline"):
+            self.assertEqual("".join(split_lines(text, keepends=True)), text)
+
+
+class StripNoncodeTests(unittest.TestCase):
+    def test_preserves_length_and_line_count(self):
+        out = strip_noncode(TU)
+        self.assertEqual(len(out), len(TU))
+        self.assertEqual(out.count("\n"), TU.count("\n"))
+
+    def test_braces_in_comments_and_strings_are_erased(self):
+        out = strip_noncode('int f(){ /* } */ char* s = "}"; }')
+        self.assertEqual(out.count("}"), 1)
+
+
+class FunctionSpanTests(unittest.TestCase):
+    def test_locates_a_definition_and_its_body(self):
+        start, end = function_span(TU, "alpha")
+        lines = split_lines(TU)
+        self.assertIn("void alpha", lines[start])
+        self.assertEqual(lines[end - 1], "}")
+
+    def test_brace_in_comment_or_string_does_not_close_the_body(self):
+        start, end = function_span(TU, "beta")
+        lines = split_lines(TU)
+        self.assertIn("    p->z = 3;", lines[start:end])
+        self.assertEqual(lines[end - 1], "}")
+
+    def test_absent_function_is_none(self):
+        self.assertIsNone(function_span(TU, "gamma"))
+
+    def test_object_name_resolves_a_suffixed_source_spelling(self):
+        """objdump says `SfxSkipItem`, the source says
+        `SfxSkipItem_80096FF4`. 16 of 507 real functions across ten TUs
+        are spelled this way; before this the span lookup missed all of
+        them and --revert refused."""
+        text = TU.replace("void alpha(", "void alpha_8007FC80(")
+        self.assertIsNotNone(function_span(text, "alpha"))
+
+    def test_suffixed_name_resolves_an_unsuffixed_source_spelling(self):
+        self.assertIsNotNone(function_span(TU, "alpha_8007FC80"))
+
+    def test_suffix_tolerance_does_not_match_a_different_function(self):
+        text = TU.replace("void alpha(", "void alpha_8007FC80(")
+        self.assertIsNone(function_span(text, "alph"))
+
+
+class ScopedRevertTests(unittest.TestCase):
+    def test_reverts_only_the_named_function(self):
+        edited = TU.replace("p->x = 1;", "p->x = 99;") \
+                   .replace("p->z = 3;", "p->z = 77;")
+        out, notes = scoped_revert(TU, edited, "alpha")
+        self.assertIn("p->x = 1;", out)     # alpha restored
+        self.assertIn("p->z = 77;", out)    # beta's in-progress work kept
+        self.assertIn("1 hunk(s) inside alpha reverted", notes)
+        self.assertIn("1 hunk(s) elsewhere", notes)
+
+    def test_insertions_and_deletions_inside_the_function(self):
+        edited = TU.replace("    p->y = 2;\n", "")
+        edited = edited.replace("    p->x = 1;\n",
+                                "    p->x = 1;\n    p->w = 0;\n")
+        out, _ = scoped_revert(TU, edited, "alpha")
+        self.assertEqual(out, TU)
+
+    def test_edit_outside_every_function_is_left_alone(self):
+        edited = TU.replace('#include "game.h"', '#include "game.h"\n#include "x.h"')
+        out, notes = scoped_revert(TU, edited, "alpha")
+        self.assertEqual(out, edited)
+        self.assertIn("0 hunk(s) inside alpha reverted", notes)
+
+    def test_straddling_hunk_is_refused_not_guessed(self):
+        """One contiguous hunk covering alpha's last line AND the line
+        after it — the only shape a function-scoped revert cannot split."""
+        edited = TU.replace("}\n\nvoid beta(Player* p)",
+                            "}   /* end of alpha */\nvoid beta(Player* p)")
+        with self.assertRaises(ValueError) as ctx:
+            scoped_revert(TU, edited, "alpha")
+        self.assertIn("straddle", str(ctx.exception))
+        self.assertIn("--whole-file", str(ctx.exception))
+
+    def test_missing_function_refuses_loudly(self):
+        with self.assertRaises(ValueError) as ctx:
+            scoped_revert(TU, TU.replace("void alpha", "void renamed"),
+                          "alpha")
+        self.assertIn("working source", str(ctx.exception))
+
+    def test_crlf_source_round_trips(self):
+        crlf = TU.replace("\n", "\r\n")
+        edited = crlf.replace("p->x = 1;", "p->x = 99;")
+        out, _ = scoped_revert(crlf, edited, "alpha")
+        self.assertEqual(out, crlf)
+        # every LF is still part of a CRLF — no line ending was rewritten
+        self.assertEqual(out.count("\n"), out.count("\r\n"))
 
 
 if __name__ == "__main__":

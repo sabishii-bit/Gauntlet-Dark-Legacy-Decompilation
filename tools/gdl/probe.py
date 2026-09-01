@@ -8,10 +8,13 @@ scrollback by eye. Tracks best/last per function in build/GUNE5D/gate/.
 Usage:
   python tools/gdl/probe.py game/game/player do_players          # build+score
   python tools/gdl/probe.py game/game/player do_players --ops    # + ops scan
-  python tools/gdl/probe.py game/game/player do_players --revert # restore last
-                                                                 # banked good
+  python tools/gdl/probe.py game/game/player do_players --revert # restore THIS
+                                                                 # function from
+                                                                 # the banked
                                                                  # source, then
                                                                  # build+score
+  python tools/gdl/probe.py game/game/player do_players --revert --whole-file
+      # take the whole TU back to the snapshot (the old behaviour)
   python tools/gdl/probe.py game/game/player do_players --fuzzy  # arbitration
                                                                  # READOUT only
   python tools/gdl/probe.py game/game/player do_players --reset  # forget best
@@ -42,9 +45,13 @@ Two semantics every worker must know before trusting --revert as an undo:
 (1) NEUTRAL probes BANK TOO (they may be verified-neutral work worth
 keeping), so after a neutral probe --revert restores that neutral edit,
 not the pre-edit state — use git to discard a neutral edit you don't
-want. (2) The snapshot is the WHOLE TU file: in a multi-function session
-a revert takes every function back with it — commit each function's
-retained state before probing the next.
+want. (2) --revert is FUNCTION-SCOPED: the snapshot is the whole TU file,
+but only the hunks lying strictly inside the NAMED function are restored,
+so a multi-function session no longer loses its other in-progress work to
+one revert (five lanes hit that). A hunk straddling the function boundary
+is REFUSED loudly, never guessed at; `--revert --whole-file` then takes
+the old all-or-nothing restore deliberately. --revert-baseline and
+--discard remain whole-file by construction.
 
 --fuzzy is a PURE READOUT: it builds, prints the scores and this
 function's fresh objdiff fuzzy, and computes NO verdict and banks NO
@@ -54,6 +61,7 @@ multiset comparison); an arbitration readout must never be able to do
 that. Score and bank with a plain probe, then arbitrate with --fuzzy.
 """
 
+import difflib
 import json
 import re
 import shutil
@@ -119,6 +127,212 @@ def bank_snapshot(unit, source, baseline=False):
         base = snap.with_suffix(snap.suffix + ".base")
         if not base.exists():
             shutil.copyfile(source, base)
+
+
+def strip_noncode(text):
+    """Blank out string/char literals and comments, preserving line count.
+
+    Brace matching has to ignore a `}` inside "…" or /* … */; keeping the
+    line count intact lets the caller index the ORIGINAL lines by the same
+    indices.
+    """
+    out = []
+    i, n = 0, len(text)
+    state = None  # None | 'line' | 'block' | '"' | "'"
+    while i < n:
+        ch = text[i]
+        nxt = text[i + 1] if i + 1 < n else ""
+        if state is None:
+            if ch == "/" and nxt == "/":
+                state, i = "line", i + 2
+                out.append("  ")
+                continue
+            if ch == "/" and nxt == "*":
+                state, i = "block", i + 2
+                out.append("  ")
+                continue
+            if ch in "\"'":
+                state, i = ch, i + 1
+                out.append(" ")
+                continue
+            out.append(ch)
+            i += 1
+            continue
+        if state == "line":
+            if ch == "\n":
+                state = None
+                out.append(ch)
+            else:
+                out.append(" ")
+            i += 1
+            continue
+        if state == "block":
+            if ch == "*" and nxt == "/":
+                state, i = None, i + 2
+                out.append("  ")
+                continue
+            out.append(ch if ch == "\n" else " ")
+            i += 1
+            continue
+        # inside a string or char literal
+        if ch == "\\":
+            out.append("  ")
+            i += 2
+            continue
+        if ch == state:
+            state = None
+        out.append(ch if ch == "\n" else " ")
+        i += 1
+    return "".join(out)
+
+
+def split_lines(text, keepends=False):
+    """Split on '\\n' ONLY, preserving CR as line content.
+
+    str.splitlines() also breaks on \\x0b, \\x0c and U+0085, which a
+    latin-1 byte round-trip can manufacture out of ordinary source bytes;
+    splitting there would desynchronise line indices from the file.
+    """
+    parts = text.split("\n")
+    lines = [p + "\n" for p in parts[:-1]]
+    if parts[-1]:
+        lines.append(parts[-1])
+    return lines if keepends else [ln.rstrip("\n") for ln in lines]
+
+
+def function_span(text, fn):
+    """[start, end) line indices of ``fn``'s definition, or None.
+
+    A definition is a line starting in column 0 that names the function
+    immediately before a '(' — this covers `void foo(void)` and the
+    split-return-type form where `foo(int a)` sits alone on the line. The
+    body is brace-matched over comment/literal-stripped text.
+
+    Name spellings are resolved the way fndiff resolves them: an object
+    symbol `SfxSkipItem` is routinely spelled `SfxSkipItem_80096FF4` in
+    the source (and vice versa). Measured over 507 functions in ten TUs,
+    accepting both spellings took span resolution from 96.8% to 100%.
+    """
+    lines = split_lines(strip_noncode(text))
+    suffix = r"_80[0-9A-Fa-f]{6}"
+    base = re.sub(rf"{suffix}$", "", fn)
+    candidates = [re.escape(fn)]
+    if base != fn:
+        candidates.append(re.escape(base))
+    else:
+        candidates.append(re.escape(fn) + suffix)
+    for candidate in candidates:
+        span = _span_for(lines, re.compile(rf"(^|[^\w]){candidate}\s*\("))
+        if span is not None:
+            return span
+    return None
+
+
+def _span_for(lines, pattern):
+    for i, line in enumerate(lines):
+        if not line or line[0].isspace():
+            continue
+        if not pattern.search(line):
+            continue
+        # Walk forward to the body's opening brace; a prototype or a call
+        # terminates at ';' before any '{' and is not a definition.
+        depth, start_body = 0, None
+        j = i
+        while j < len(lines) and start_body is None:
+            for ch in lines[j]:
+                if ch == "{":
+                    start_body = j
+                    depth = 1
+                    break
+                if ch == ";":
+                    break
+            else:
+                j += 1
+                continue
+            if start_body is None:
+                break
+            j += 1
+        if start_body is None:
+            continue
+        # Brace-match from just past the opening '{'.
+        k = start_body
+        offset = lines[k].index("{") + 1
+        while k < len(lines):
+            for ch in lines[k][offset:]:
+                if ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        return i, k + 1
+            offset = 0
+            k += 1
+        return None
+    return None
+
+
+def _inside(lo, hi, a, b):
+    """Is the [a, b) line range strictly inside the [lo, hi) span?"""
+    if a == b:                      # an insertion point
+        return lo < a < hi
+    return lo <= a and b <= hi
+
+
+def _outside(lo, hi, a, b):
+    if a == b:
+        return a <= lo or a >= hi
+    return b <= lo or a >= hi
+
+
+def scoped_revert(snap_text, cur_text, fn):
+    """Restore only ``fn``'s hunks from ``snap_text``.
+
+    Returns (new_text, notes). Raises ValueError — loudly, never silently
+    widening to the whole file — when the function cannot be located on
+    either side or when a hunk straddles its boundary.
+    """
+    snap_lines = split_lines(snap_text, keepends=True)
+    cur_lines = split_lines(cur_text, keepends=True)
+    snap_span = function_span(snap_text, fn)
+    cur_span = function_span(cur_text, fn)
+    if cur_span is None:
+        raise ValueError(
+            f"cannot locate {fn}'s definition in the working source —"
+            " function-scoped revert refuses to guess")
+    if snap_span is None:
+        raise ValueError(
+            f"cannot locate {fn}'s definition in the banked snapshot —"
+            " function-scoped revert refuses to guess")
+    matcher = difflib.SequenceMatcher(None, snap_lines, cur_lines,
+                                      autojunk=False)
+    out, reverted, kept, entangled = [], 0, 0, []
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            out.extend(cur_lines[j1:j2])
+            continue
+        in_cur = _inside(cur_span[0], cur_span[1], j1, j2)
+        in_snap = _inside(snap_span[0], snap_span[1], i1, i2)
+        out_cur = _outside(cur_span[0], cur_span[1], j1, j2)
+        out_snap = _outside(snap_span[0], snap_span[1], i1, i2)
+        if in_cur and in_snap:
+            out.extend(snap_lines[i1:i2])
+            reverted += 1
+        elif out_cur and out_snap:
+            out.extend(cur_lines[j1:j2])
+            kept += 1
+        else:
+            entangled.append((j1 + 1, j2 + 1))
+            out.extend(cur_lines[j1:j2])
+    if entangled:
+        spans = ", ".join(f"L{a}-L{b}" for a, b in entangled)
+        raise ValueError(
+            f"{len(entangled)} hunk(s) straddle {fn}'s boundary ({spans});"
+            " a function-scoped revert cannot separate them. Inspect with"
+            " `git diff`, or re-run with --whole-file to take the old"
+            " all-or-nothing restore deliberately")
+    notes = (f"{reverted} hunk(s) inside {fn} reverted;"
+             f" {kept} hunk(s) elsewhere in the TU left untouched")
+    return "".join(out), notes
 
 
 def count_distance(text):
@@ -482,13 +696,37 @@ def main():
                   " working tree (NEUTRAL probes bank too). If you want to"
                   " discard an uncommitted neutral edit, use git"
                   " (`git status` / `git checkout -- <file>`); re-scoring:")
-        else:
+        elif "--whole-file" in sys.argv:
             shutil.copyfile(snap, source)
             print(f"reverted {source} to {fn}'s banked snapshot —"
-                  " NOTE this restores the WHOLE FILE: uncommitted work on"
-                  " OTHER functions in this TU since that bank is gone"
-                  " (three workers hit this; commit per function, or use"
-                  " git for surgical reverts); re-scoring:")
+                  " --whole-file: uncommitted work on OTHER functions in"
+                  " this TU since that bank is GONE; re-scoring:")
+        else:
+            # FUNCTION-SCOPED by default. The whole-file restore silently
+            # took every other in-progress function in the TU back with
+            # it; five lanes hit that. Only hunks that lie strictly inside
+            # the named function are restored, and a hunk straddling the
+            # boundary is refused rather than guessed at.
+            # latin-1 round-trips every byte and no newline translation
+            # happens on either side: writing a source file through text
+            # mode would rewrite LF as CRLF wholesale (AGENTS discipline 7
+            # — never let a shell or a codec rewrite a source file).
+            snap_text = snap.read_bytes().decode("latin-1")
+            cur_text = source.read_bytes().decode("latin-1")
+            try:
+                new_text, notes = scoped_revert(snap_text, cur_text, fn)
+            except ValueError as err:
+                print(f"REFUSED (function-scoped revert): {err}")
+                return 1
+            if new_text == cur_text:
+                print(f"nothing to revert INSIDE {fn}: the snapshot and the"
+                      " working tree differ only elsewhere in this TU"
+                      " (--whole-file would take those changes back too);"
+                      " re-scoring:")
+            else:
+                source.write_bytes(new_text.encode("latin-1"))
+                print(f"reverted {fn} to its banked snapshot — {notes};"
+                      " re-scoring:")
 
     build = subprocess.run(
         ["ninja", f"build/{VERSION}/src/{unit}.o"],
