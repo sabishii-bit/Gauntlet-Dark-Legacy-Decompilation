@@ -551,6 +551,7 @@ game/movie/movieplayer.cpp:
 	extabindex  start:0x8000CAE4 end:0x8000CCB8
 	.text       start:0x800D860C end:0x800DC180
 	.rodata     start:0x80117528 end:0x80117694
+	.sdata2     start:0x803493A8 end:0x803493B8
 
 game/sys/cardutil.c:
 	extab       start:0x80008560 end:0x800085F0
