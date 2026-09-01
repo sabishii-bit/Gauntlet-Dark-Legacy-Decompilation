@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "provenance": "Diagnosed 2026-09-01 after an integrator intervention: three PowerShell writes intended for worktree GDL-Claude-PbWindowFlip landed in the shared main checkout instead, triple-duplicating a splits.txt line and renaming a webfrank.json key on main, which blocked other lanes' merges until restored with `git checkout --`.",
+    "tags": [
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.PW_dotnet-file-apis-ignore-set-location.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-01T14:50:25Z",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_window",
+  "valid_from": "2026-09-01",
+  "value": "WORKTREE-ISOLATION HAZARD, and it silently writes into the SHARED MAIN CHECKOUT. In PowerShell, [System.IO.File]::ReadAllText / WriteAllText (and the rest of the .NET file APIs) resolve a RELATIVE path against the .NET process working directory, which `Set-Location` DOES NOT UPDATE. PowerShell-native cmdlets (Get-Content, Set-Content, Select-String) do follow Set-Location. So a single command of the shape `Set-Location <worktree>; $t=[System.IO.File]::ReadAllText('config/GUNE5D/splits.txt'); ...; [System.IO.File]::WriteAllText('config/GUNE5D/splits.txt', $new)` READS AND WRITES THE MAIN CHECKOUT while every Select-String verification in the same command reads the WORKTREE. The failure is silent and actively misleading in three separate ways, all observed in one session: (1) the edit lands on main, dirtying shared files and blocking every other fleet's merges - AGENTS.md's trap 5 warns that the default cwd is the shared checkout, but Set-Location is not the protection it appears to be here; (2) re-running the same edit appears to 'fail' because the worktree copy never changes, so it gets run again and again, leaving the main-checkout line DUPLICATED once per attempt (three identical .sdata2 lines in this incident); (3) worst of all, the mismatch fabricates false technical conclusions - this session briefly concluded that 'dtk dol split rewrites splits.txt and drops a manual .sdata2 claim', a plausible-sounding law that would have been recorded and would have misdirected the next lane, when in fact dtk accepts the claim perfectly and the claim had simply never been written to the file being checked. THE RULE: never use [System.IO.File]::* with a relative path. Use the Write/Edit tools (which take absolute paths and verify the content they matched), or pass an absolute path explicitly. COROLLARY, and the reason this is worth a record rather than a shrug: when a file edit 'does not take', verify WHICH FILE actually changed (`git status` in BOTH checkouts) before theorising about the tool that consumes it. AGENTS.md discipline 8's 'REMEASURE is the default' caught this only after an integrator flagged it; the cheap self-check is `git -C <main> status --short` immediately after any scripted config edit."
+}
