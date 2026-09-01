@@ -1580,6 +1580,37 @@
     ],
     "game/movie/movieplayer": [
     {
+      "function": "fn_800D87FC",
+      "before_sha256": "8b29a54853969724626876240a6788df9d125f00c9118385658395387a5956a6",
+      "after_sha256": "3ff5e4b22b1f8d71b87b5c902bdd34c48b1d994c03549ea1e7c30c0c42142e6d",
+      "mechanism": "THE FOUNDING RULE OF THE RANGE-PROOF CLASS (equivalent_mask_form / proof zero_bits_dataflow), plus a transposition and a recolor that were only ever blocked by it. SOURCE EXHAUSTION: attempt.MP_fn800d87fc-additive-spelling-dead-and-the-residual-needs-a-range-proof.20260901.v1 records ELEVEN measured-dead source axes on the one differing word (declared width u8/u32/int, presence/absence of the val variable, statement-split vs single-expression vs fully-inlined OR, the canonical `(x & ~M) | (b << k)` idiom, declaration placement, OR operand order, and the additive `+` spelling), names capability_needed = 'a value-RANGE proof that a redundant rlwinm mask field is a no-op on a provably narrow value', and states that no shipped class covered it. THE RESIDUAL: 244/244 instructions, opcode multiset DIFFERS by exactly one word — +0x230 target `slwi r17,r18,3` (= `rlwinm r17,r18,3,0,28`, mask 0xFFFFFFF8) against ours `rlwinm r17,r18,3,13,28` (mask 0x0007FFF8). Same opcode, same rA, same rS, same SH, same Rc; the two words differ in the MASK FIELD alone and compute the same value exactly when the source bits the two masks disagree about are zero. redundant_mask_source_bits rotates the mask delta 0xFFF80000 back by SH=3 and computes the obligation 0x1FFF0000 — r18 bits 16..28 — which the rule DECLARES, so the claim is readable without re-deriving it. prove_zero_bits discharges it by a whole-CFG known-zero-bit dataflow over OUR OWN stream, seeded with no knowledge at entry and meeting by intersection: +0x21c `lbz r21,0(r19)` gives r21 bits 8..31 zero, +0x228 `addi r18,r21,0` copies that fact, +0x22c `rlwimi r18,r17,8,23,23` writes only bit 8, so r18 is provably 9 bits wide and bits 16..28 are zero on EVERY path. Measured, not argued: the prover reports `PROVED: r18 bits 0x1fff0000 zero on every path` against this object. THE COMPOSITION, and why it was invisible before: the run-28 union-resweep provers (ha_close.build_rule / hv_repair.repair / hv_perm.search) were run over this function at its retained baseline and returned `refuses -- no proved composition` with 1 UNABSORBED WORD IN 1 CLUSTER. That unabsorbed word was +0x230. With the mask stage absorbing it the rest of the function is an ordinary transposition-plus-recolor: ours +0xc8 `addi r17,r26,0` is BYTE-IDENTICAL to the target's +0xd8 word, and the two `addi` copies at +0xc8/+0xd8 are simply emitted in the opposite order, with the three words between them (`subfic`,`subfic`,`lbz`) identical in both streams. Window [0xc8,0xdc) order [4,1,2,3,0] passes check_permutation_dependences (the moved pair reads r26/r20 and writes r17/r27, touching none of r0/r3/r4/r30 that the interior words use) and carries no relocation on either side, and verify_consistent_recolor then PASSES on the permuted, mask-corrected body — 118 atoms/fields, real 232 -> 0. Discipline 14 applied and PARTLY REFUTED on the way: the +0xc8 refusal `use of g26 is not value-equal to g21` reads like the live-zero remat family, and the obvious next capability (a constant-value substitution for value_equality_recolor) would NOT have closed it — prove_constant_dataflow measures our r26 provably 0 at +0xc8 while the target's r21 is NOT provably 0 there, and the only `li rX,0` before the site in either stream is the shared +0xc0 `li r26,0`. The refusal was a fact about the ORDER, not about the values.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 244,
+        "permuted_instructions": 2,
+        "mask_sites": 1
+      },
+      "instruction_permutation": [
+        {
+          "start": "0xc8",
+          "end": "0xdc",
+          "order": [4, 1, 2, 3, 0],
+          "before_sha256": "3cb65cfcc24ac5196842e712c6142cc3a51f8fb36a1dbc693700d357b64fef6e",
+          "after_sha256": "3a6c81704984b5065c4b0bd1c0a61a13313ab3f8f2b0663c77846f868ee8b7da",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "equivalent_mask_form": [
+        {
+          "at": "0x230",
+          "proof": "zero_bits_dataflow",
+          "declared_zero_bits": "0x1fff0000"
+        }
+      ],
+      "copy_register_fields": true
+    },
+    {
       "function": "fn_800DBE98",
       "before_sha256": "134cd208d8d148c016faee4842643fcb8f51ad1c9faa009b4ac318d4412db35b",
       "after_sha256": "9a4469932b237f6c3010747dfc215b5e4d1ccabea3869fb40358273827f41ba8",

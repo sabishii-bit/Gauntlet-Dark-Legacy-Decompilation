@@ -12,6 +12,7 @@ from tools.gdl.webfrank import (
     _sections,
     apply_patch,
     _parse_int,
+    _ppc_mask,
     _relocation_cannot_write,
     _relocation_sha256,
     _sha256,
@@ -19,14 +20,18 @@ from tools.gdl.webfrank import (
     check_permutation_dependences,
     copy_register_fields,
     decode_copy_form,
+    decode_rlwinm,
     encode_copy_like,
     equivalent_copy_form,
+    equivalent_mask_form,
     instruction_operands,
     permutation_windows,
     permute_instruction_atoms,
     prove_constant_dataflow,
     prove_constant_source,
+    prove_zero_bits,
     recolor_instruction,
+    redundant_mask_source_bits,
     register_slot_mask,
     unpermute_target_windows,
     verify_consistent_recolor,
@@ -3051,6 +3056,507 @@ class ValueEqualityApplyPatchTests(unittest.TestCase):
         patch = self.patch(ours, target, post_recolor_permutation={
             "start": "0x0", "end": "0x8", "order": [1, 0]})
         with self.assertRaisesRegex(ValueError, "post-recolor permutation"):
+            apply_patch(data, patch, bytes(target_data))
+
+
+# --- the range-proof (redundant-mask) class ---------------------------------
+#
+# fn_800D87FC's whole residual, and the shape the class is defined against:
+# ours `rlwinm r17,r18,3,13,28`, the target `slwi r17,r18,3`
+# (= `rlwinm r17,r18,3,0,28`).  The two words differ in the MASK FIELD only
+# and are equal exactly when the bits the narrow mask discards are zero in
+# the value being shifted.
+
+
+def _rlwinm(ra, rs, sh, mb, me, rc=0):
+    return ((21 << 26) | (rs << 21) | (ra << 16) | (sh << 11)
+            | (mb << 6) | (me << 1) | rc)
+
+
+def _rlwimi(ra, rs, sh, mb, me, rc=0):
+    return ((20 << 26) | (rs << 21) | (ra << 16) | (sh << 11)
+            | (mb << 6) | (me << 1) | rc)
+
+
+def _lbz(rd, ra, d=0):
+    return (34 << 26) | (rd << 21) | (ra << 16) | (d & 0xFFFF)
+
+
+def _lhz(rd, ra, d=0):
+    return (40 << 26) | (rd << 21) | (ra << 16) | (d & 0xFFFF)
+
+
+def _lwz(rd, ra, d=0):
+    return (32 << 26) | (rd << 21) | (ra << 16) | (d & 0xFFFF)
+
+
+def _addi(rd, ra, simm):
+    return (14 << 26) | (rd << 21) | (ra << 16) | (simm & 0xFFFF)
+
+
+def _andi_dot(ra, rs, uimm):
+    return (28 << 26) | (rs << 21) | (ra << 16) | (uimm & 0xFFFF)
+
+
+def _ori(ra, rs, uimm):
+    return (24 << 26) | (rs << 21) | (ra << 16) | (uimm & 0xFFFF)
+
+
+def _or(ra, rs, rb):
+    return (31 << 26) | (rs << 21) | (ra << 16) | (rb << 11) | (444 << 1)
+
+
+def _bne(offset_words):
+    # bc 4,2,<offset> — branch when CR0[eq] is clear, two successors.
+    return (16 << 26) | (4 << 21) | (2 << 16) | ((offset_words * 4) & 0xFFFC)
+
+
+_BLR = 0x4E800020
+_BL_FORWARD = (18 << 26) | 4 | 1  # bl +4
+
+
+class PPCMaskTests(unittest.TestCase):
+    def test_ordinary_and_wrapped_masks(self):
+        self.assertEqual(_ppc_mask(0, 31), 0xFFFFFFFF)
+        self.assertEqual(_ppc_mask(0, 28), 0xFFFFFFF8)   # slwi rD,rS,3
+        self.assertEqual(_ppc_mask(13, 28), 0x0007FFF8)  # ours at +0x230
+        self.assertEqual(_ppc_mask(24, 31), 0x000000FF)  # clrlwi rD,rS,24
+        # MB > ME is the legal wrapped form and must not be read as empty.
+        self.assertEqual(_ppc_mask(28, 3), 0xF000000F)
+
+    def test_decode_rlwinm_accepts_only_opcode_21(self):
+        self.assertEqual(
+            decode_rlwinm(_rlwinm(17, 18, 3, 13, 28)), (17, 18, 3, 13, 28, 0)
+        )
+        self.assertEqual(
+            decode_rlwinm(_rlwinm(17, 18, 3, 13, 28, rc=1)),
+            (17, 18, 3, 13, 28, 1),
+        )
+        self.assertIsNone(decode_rlwinm(_rlwimi(18, 17, 8, 23, 23)))
+        self.assertIsNone(decode_rlwinm(_addi(3, 4, 0)))
+        self.assertIsNone(decode_rlwinm(_BLR))
+
+
+class RedundantMaskObligationTests(unittest.TestCase):
+    OURS = _rlwinm(17, 18, 3, 13, 28)
+    TARGET = _rlwinm(17, 18, 3, 0, 28)
+
+    def test_the_measured_site_requires_source_bits_16_to_28(self):
+        # differing result bits 0xFFF80000, rotated back by SH=3.
+        self.assertEqual(
+            redundant_mask_source_bits(self.OURS, self.TARGET), 0x1FFF0000
+        )
+
+    def test_obligation_is_symmetric_in_direction(self):
+        self.assertEqual(
+            redundant_mask_source_bits(self.TARGET, self.OURS), 0x1FFF0000
+        )
+
+    def test_zero_shift_needs_the_differing_bits_themselves(self):
+        self.assertEqual(
+            redundant_mask_source_bits(
+                _rlwinm(4, 5, 0, 16, 31), _rlwinm(4, 5, 0, 0, 31)
+            ),
+            0xFFFF0000,
+        )
+
+    def test_identical_words_are_refused(self):
+        with self.assertRaisesRegex(ValueError, "identical"):
+            redundant_mask_source_bits(self.OURS, self.OURS)
+
+    def test_a_register_field_difference_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "register field"):
+            redundant_mask_source_bits(
+                self.OURS, _rlwinm(17, 19, 3, 0, 28)
+            )
+        with self.assertRaisesRegex(ValueError, "register field"):
+            redundant_mask_source_bits(
+                self.OURS, _rlwinm(16, 18, 3, 0, 28)
+            )
+
+    def test_a_rotate_count_difference_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "rotate"):
+            redundant_mask_source_bits(
+                self.OURS, _rlwinm(17, 18, 4, 0, 28)
+            )
+
+    def test_a_record_bit_difference_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "record"):
+            redundant_mask_source_bits(
+                self.OURS, _rlwinm(17, 18, 3, 0, 28, rc=1)
+            )
+
+    def test_a_non_rlwinm_word_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "rlwinm"):
+            redundant_mask_source_bits(_addi(3, 4, 0), self.TARGET)
+        with self.assertRaisesRegex(ValueError, "rlwinm"):
+            redundant_mask_source_bits(self.OURS, _rlwimi(17, 18, 3, 0, 28))
+
+
+def _zero_bit_scaffold(words):
+    successors, calls = _successors(words, set(), set())
+    return successors, calls
+
+
+class ProveZeroBitsTests(unittest.TestCase):
+    """The dataflow half of the class, exercised on its own."""
+
+    # The measured fn_800D87FC chain, reduced to its defining words:
+    #   lbz r21,0(r19)          -> r21 is a zero-extended byte
+    #   addi r18,r21,0          -> r18 copies it
+    #   rlwimi r18,r17,8,23,23  -> one bit inserted at position 8
+    #   rlwinm r17,r18,3,13,28  <- the site
+    CHAIN = (
+        _lbz(21, 19),
+        _addi(18, 21, 0),
+        _rlwimi(18, 17, 8, 23, 23),
+        _rlwinm(17, 18, 3, 13, 28),
+        _BLR,
+    )
+
+    def prove(self, words, site=3, source=18, required=0x1FFF0000, **kwargs):
+        successors, calls = _zero_bit_scaffold(list(words))
+        return prove_zero_bits(
+            list(words), site, source, required, successors, calls,
+            set(), **kwargs
+        )
+
+    def test_byte_load_copy_and_bit_insert_prove_the_upper_bits_zero(self):
+        self.prove(self.CHAIN)
+
+    def test_a_word_load_proves_nothing(self):
+        words = (_lwz(21, 19),) + self.CHAIN[1:]
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            self.prove(words)
+
+    def test_halfword_load_still_covers_the_measured_obligation(self):
+        # 0x1FFF0000 needs source bits 16..28 clear; an lhz clears 16..31.
+        words = (_lhz(21, 19),) + self.CHAIN[1:]
+        self.prove(words)
+
+    def test_an_interposed_redefinition_kills_the_fact(self):
+        words = (
+            _lbz(21, 19),
+            _addi(18, 21, 0),
+            _lwz(18, 19),                      # r18 reloaded, width unknown
+            _rlwinm(17, 18, 3, 13, 28),
+            _BLR,
+        )
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            self.prove(words)
+
+    def test_a_merge_with_an_unknown_path_kills_the_fact(self):
+        # bne skips the narrowing load, so one path reaches the site with a
+        # full-width r18.  Intersection at the merge must lose the fact.
+        words = (
+            _lwz(18, 19),        # 0: r18 unknown
+            _bne(3),             # 1: -> index 4 or fall through
+            _lbz(21, 19),        # 2
+            _addi(18, 21, 0),    # 3: r18 is a byte on THIS path only
+            _rlwinm(17, 18, 3, 13, 28),  # 4: the site
+            _BLR,
+        )
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            self.prove(words, site=4)
+
+    def test_the_same_shape_proves_when_both_paths_narrow(self):
+        words = (
+            _andi_dot(18, 18, 0xFF),  # 0: r18 narrowed on the fallthrough
+            _bne(3),                  # 1
+            _lbz(21, 19),             # 2
+            _addi(18, 21, 0),         # 3
+            _rlwinm(17, 18, 3, 13, 28),
+            _BLR,
+        )
+        self.prove(words, site=4)
+
+    def test_a_call_between_the_definition_and_the_site_kills_the_fact(self):
+        words = (
+            _lbz(21, 19),
+            _addi(18, 21, 0),
+            _BL_FORWARD,
+            _rlwinm(17, 18, 3, 13, 28),
+            _BLR,
+        )
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            self.prove(words)
+
+    def test_a_relocated_definition_is_not_trusted(self):
+        words = list(self.CHAIN)
+        successors, calls = _zero_bit_scaffold(words)
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            prove_zero_bits(
+                words, 3, 18, 0x1FFF0000, successors, calls,
+                {1}, relocation_types={1: 3},
+            )
+
+    def test_an_unmodelled_relocation_type_drops_every_fact(self):
+        words = list(self.CHAIN)
+        successors, calls = _zero_bit_scaffold(words)
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            prove_zero_bits(
+                words, 3, 18, 0x1FFF0000, successors, calls,
+                {0}, relocation_types={0: 26},
+            )
+
+    def test_an_empty_obligation_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "empty"):
+            self.prove(self.CHAIN, required=0)
+
+    def test_an_out_of_range_site_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "outside"):
+            self.prove(self.CHAIN, site=99)
+
+    def test_masking_narrows_through_andi_and_ori(self):
+        words = (
+            _lwz(21, 19),
+            _andi_dot(21, 21, 0x00FF),   # r21 now provably 8 bits
+            _ori(18, 21, 0x0100),        # OR of one more bit -> 9 bits
+            _rlwinm(17, 18, 3, 13, 28),
+            _BLR,
+        )
+        self.prove(words)
+
+    def test_or_of_two_narrow_values_is_narrow(self):
+        words = (
+            _lbz(21, 19),
+            _lbz(20, 19),
+            _or(18, 21, 20),
+            _rlwinm(17, 18, 3, 13, 28),
+            _BLR,
+        )
+        self.prove(words, site=3)
+
+    def test_or_with_an_unknown_value_is_not_narrow(self):
+        words = (
+            _lbz(21, 19),
+            _lwz(20, 19),
+            _or(18, 21, 20),
+            _rlwinm(17, 18, 3, 13, 28),
+            _BLR,
+        )
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            self.prove(words, site=3)
+
+
+class EquivalentMaskFormTests(unittest.TestCase):
+    """The stage: obligation + proof + rewrite, on our own byte stream."""
+
+    OURS = ProveZeroBitsTests.CHAIN
+    TARGET = ProveZeroBitsTests.CHAIN[:3] + (
+        _rlwinm(17, 18, 3, 0, 28), _BLR,
+    )
+
+    def run_stage(self, edits, ours=None, target=None, **kwargs):
+        ours = _words(*(ours or self.OURS))
+        target = _words(*(target or self.TARGET))
+        options = {
+            "relocated_offsets": set(),
+            "target_relocated_offsets": set(),
+            "jumptable_offsets": set(),
+        }
+        options.update(kwargs)
+        return equivalent_mask_form(ours, target, edits, **options)
+
+    def edit(self, **overrides):
+        edit = {
+            "at": "0xc",
+            "proof": "zero_bits_dataflow",
+            "declared_zero_bits": "0x1fff0000",
+        }
+        edit.update(overrides)
+        return edit
+
+    def test_the_measured_site_closes(self):
+        output, changed = self.run_stage([self.edit()])
+        self.assertEqual(changed, 1)
+        self.assertEqual(output, _words(*self.TARGET))
+
+    def test_the_declared_obligation_must_be_the_computed_one(self):
+        with self.assertRaisesRegex(ValueError, "declared_zero_bits"):
+            self.run_stage([self.edit(declared_zero_bits="0xffff0000")])
+
+    def test_the_declaration_is_mandatory(self):
+        edit = self.edit()
+        del edit["declared_zero_bits"]
+        with self.assertRaisesRegex(ValueError, "declared_zero_bits"):
+            self.run_stage([edit])
+
+    def test_the_proof_label_is_mandatory(self):
+        edit = self.edit()
+        del edit["proof"]
+        with self.assertRaisesRegex(ValueError, "zero_bits_dataflow"):
+            self.run_stage([edit])
+
+    def test_missing_at_key_names_the_authoring_mistake(self):
+        edit = self.edit()
+        del edit["at"]
+        with self.assertRaisesRegex(ValueError, "'at'"):
+            self.run_stage([edit])
+
+    def test_duplicate_offsets_are_refused(self):
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            self.run_stage([self.edit(), self.edit()])
+
+    def test_a_word_that_already_matches_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "already matches"):
+            self.run_stage([self.edit(at="0x0")])
+
+    def test_a_relocated_word_is_refused_in_either_object(self):
+        with self.assertRaisesRegex(ValueError, "relocated"):
+            self.run_stage([self.edit()], relocated_offsets={0xC})
+        with self.assertRaisesRegex(ValueError, "relocated"):
+            self.run_stage([self.edit()], target_relocated_offsets={0xC})
+
+    def test_an_unprovable_site_refuses_rather_than_rewriting(self):
+        ours = (_lwz(21, 19),) + self.OURS[1:]
+        target = (_lwz(21, 19),) + self.TARGET[1:]
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            self.run_stage([self.edit()], ours=ours, target=target)
+
+    def test_a_register_difference_at_the_site_is_refused(self):
+        target = self.TARGET[:3] + (_rlwinm(16, 18, 3, 0, 28), _BLR)
+        with self.assertRaisesRegex(ValueError, "register field"):
+            self.run_stage([self.edit()], target=target)
+
+    def test_an_immediate_difference_that_is_not_a_mask_is_refused(self):
+        # A different rotate count is an ordinary immediate difference and
+        # stays outside the class however narrow the value is.
+        target = self.TARGET[:3] + (_rlwinm(17, 18, 4, 13, 28), _BLR)
+        with self.assertRaisesRegex(ValueError, "rotate"):
+            self.run_stage([self.edit()], target=target)
+
+    def test_a_non_rlwinm_pair_is_refused(self):
+        ours = self.OURS[:3] + (_addi(17, 18, 0), _BLR)
+        target = self.TARGET[:3] + (_addi(17, 18, 8), _BLR)
+        with self.assertRaisesRegex(ValueError, "rlwinm"):
+            self.run_stage([self.edit()], ours=ours, target=target)
+
+
+class MaskFormApplyPatchTests(unittest.TestCase):
+    """The class wired through apply_patch, on the run-28 ELF fixture."""
+
+    OURS = EquivalentMaskFormTests.OURS
+    TARGET = EquivalentMaskFormTests.TARGET
+
+    def build(self, ours_words=None, target_words=None, **kwargs):
+        ours = _words(*(ours_words or self.OURS))
+        target = _words(*(target_words or self.TARGET))
+        return (_elf_object(ours, **kwargs), _elf_object(target, **kwargs),
+                ours, target)
+
+    def patch(self, ours, target, **overrides):
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(ours),
+            "after_sha256": _sha256(target),
+            "equivalent_mask_form": [{
+                "at": "0xc",
+                "proof": "zero_bits_dataflow",
+                "declared_zero_bits": "0x1fff0000",
+            }],
+        }
+        patch.update(overrides)
+        return patch
+
+    def test_the_stage_closes_the_function_through_apply_patch(self):
+        data, target_data, ours, target = self.build()
+        before, after, changed = apply_patch(
+            data, self.patch(ours, target), bytes(target_data)
+        )
+        self.assertEqual(changed, 1)
+        self.assertEqual(before, _sha256(ours))
+        self.assertEqual(after, _sha256(target))
+        sections = _sections(data)
+        symbol = _find_symbol(data, sections, "fn")
+        text = sections[symbol.section_index]
+        self.assertEqual(
+            bytes(data[text.offset + symbol.value:
+                       text.offset + symbol.value + symbol.size]),
+            target,
+        )
+
+    def test_the_stage_works_at_a_nonzero_symbol_value(self):
+        data, target_data, ours, target = self.build(value=0x40)
+        _b, after, changed = apply_patch(
+            data, self.patch(ours, target), bytes(target_data)
+        )
+        self.assertEqual((changed, after), (1, _sha256(target)))
+
+    def test_the_target_object_is_required(self):
+        data, _target_data, ours, target = self.build()
+        with self.assertRaisesRegex(ValueError, "target object is required"):
+            apply_patch(data, self.patch(ours, target), None)
+
+    def test_an_unprovable_site_aborts_the_whole_patch(self):
+        ours_words = (_lwz(21, 19),) + self.OURS[1:]
+        target_words = (_lwz(21, 19),) + self.TARGET[1:]
+        data, target_data, ours, target = self.build(ours_words, target_words)
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            apply_patch(data, self.patch(ours, target), bytes(target_data))
+
+    def test_it_may_not_ride_on_an_unproven_recolor_audit(self):
+        # The mask proof reads OUR pre-recolor register colouring; an
+        # unproven renaming could change the value the proof is about.
+        data, target_data, ours, target = self.build()
+        patch = self.patch(
+            ours, target, copy_register_fields=True,
+            unproven_recolor_audit="hand-waved",
+        )
+        with self.assertRaisesRegex(ValueError, "unproven_recolor_audit"):
+            apply_patch(data, patch, bytes(target_data))
+
+    # --- the composition boundary -------------------------------------
+    #
+    # The mask stage runs BEFORE the register stage and rewrites only the
+    # mask field, so a site it takes must already agree in registers.  A
+    # site that needs BOTH is not a member of this class: rewriting it to
+    # the target word would be a recolor nothing had proved.  That is the
+    # copy-form class's `_COMBINED_PROOFS` problem one level down, and it
+    # stays REFUSED here rather than being quietly attempted.
+
+    COMPOSED_OURS = (
+        _lbz(21, 19),
+        _addi(18, 21, 0),
+        _rlwimi(18, 17, 8, 23, 23),
+        _rlwinm(17, 18, 3, 13, 28),   # mask site: registers already agree
+        _lwz(22, 17),                 # a separate web, renamed by the target
+        _addi(22, 22, 1),
+        _BLR,
+    )
+    COMPOSED_TARGET = (
+        _lbz(21, 19),
+        _addi(18, 21, 0),
+        _rlwimi(18, 17, 8, 23, 23),
+        _rlwinm(17, 18, 3, 0, 28),
+        _lwz(23, 17),
+        _addi(23, 23, 1),
+        _BLR,
+    )
+
+    def test_it_composes_with_a_proved_recolor_elsewhere(self):
+        data, target_data, ours, target = self.build(
+            self.COMPOSED_OURS, self.COMPOSED_TARGET
+        )
+        patch = self.patch(ours, target, copy_register_fields=True)
+        _b, after, changed = apply_patch(data, patch, bytes(target_data))
+        self.assertEqual(after, _sha256(target))
+        self.assertGreaterEqual(changed, 3)
+
+    def test_a_site_needing_both_a_mask_and_a_recolor_is_refused(self):
+        ours_words = self.COMPOSED_OURS
+        target_words = (
+            _lbz(21, 19),
+            _addi(18, 21, 0),
+            _rlwimi(18, 17, 8, 23, 23),
+            _rlwinm(16, 18, 3, 0, 28),   # the site is ALSO renamed
+            _lwz(23, 16),
+            _addi(23, 23, 1),
+            _BLR,
+        )
+        data, target_data, ours, target = self.build(ours_words, target_words)
+        patch = self.patch(ours, target, copy_register_fields=True)
+        with self.assertRaisesRegex(ValueError, "register field differs"):
             apply_patch(data, patch, bytes(target_data))
 
 
