@@ -1181,16 +1181,18 @@ void fn_800D967C(register int param_1, register MovieDecodeCall* param_2) {
  * (mask0->blueShift/Bits, mask1->greenShift/Bits, mask2->redShift/Bits) -
  * preserved faithfully from the original raw-offset wiring, not asserted as
  * a literal R/G/B channel identity. */
-u32 fn_800D96B0(MovieDecodeState* self, u32 unused, u8* header)
+#pragma cplusplus on
+extern "C" u32 fn_800D96B0(MovieDecodeState* self, u32 unused, u8* header)
 {
     s32 height;
     s32 halfPixels;
     s32 size;
+    u8 unused2[8]; /* unrecovered local: closes the frame to the target's 72 */
 
     (void)unused;
     self->width = *(u32*)(header + offsetof(MovieBitmapHeader, width));
     height = *(s32*)(header + offsetof(MovieBitmapHeader, height));
-    self->height = height < 0 ? (u32)-height : (u32)height;
+    self->height = height >= 0 ? (u32)height : (u32)-height;
     self->_08[0] = *(u16*)(header + offsetof(MovieBitmapHeader, bitCount));
     self->maskStride = ((s32)self->width + 31) / 32;
     self->paletteOffset = ((s32)self->height / 4) * self->maskStride;
@@ -1217,16 +1219,14 @@ u32 fn_800D96B0(MovieDecodeState* self, u32 unused, u8* header)
         }
     }
 
-    if (self->chunk != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
+    if (self->chunk != NULL) {
+        MovieReleaseAllocEH(self->chunk);
     }
     self->chunk = (u8*)AllocHiMem((u32)size + 308, (u32)gMovieAllocCount++);
     self->frame = 0;
     return 0;
 }
+#pragma cplusplus off
 #ifdef __MWERKS__
 #pragma optimization_level 4
 #pragma peephole on
