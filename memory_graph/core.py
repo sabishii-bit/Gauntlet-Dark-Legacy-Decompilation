@@ -4177,6 +4177,57 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
     )
 
 
+_PARK_CITATION_KEYS = frozenset({
+    "verification", "law_screen", "laws_applied", "anchors", "scope",
+    "history_screen", "measurement_resolution", "provenance",
+})
+
+
+def _mentions_unnegated(text: str, term: str) -> bool:
+    """True if `term` occurs in `text` outside a negating phrase.
+
+    Parks routinely rule a class OUT in prose ("none applicable: no
+    raw-offset conversion here", "a non-fakematch source edit"). A plain
+    substring test reads those as evidence FOR the class and flags the park
+    for exactly the reason it said did not apply.
+    """
+    negators = ("no ", "non-", "non ", "not a ", "not ", "never ", "without ")
+    start = 0
+    while True:
+        index = text.find(term, start)
+        if index < 0:
+            return False
+        prefix = text[max(0, index - 12):index]
+        if not any(prefix.endswith(negator) for negator in negators):
+            return True
+        start = index + len(term)
+
+
+def _park_substance_text(attempted_axis: Any, raw_json: Any) -> str:
+    """Prose describing what a park is ABOUT, for the conversion heuristic.
+
+    Excludes attributes that record HOW the park was verified or WHICH laws
+    were screened. Scanning those made every properly gated park self-flag as
+    a field-conversion cap: `verification` quotes the mandatory
+    `defake_gate.py` command (substring "defake") and `law_screen` cites law
+    ids containing "cast"/"raw-offset", often in explicitly NEGATED prose
+    ("none applicable: no raw-offset conversion here"). On 2026-09-01 that
+    made 43 of 43 reopen_candidates false positives.
+    """
+    parts: list[str] = [str(attempted_axis or "")]
+    try:
+        record = json.loads(raw_json or "{}")
+    except (TypeError, ValueError):
+        record = {}
+    attributes = record.get("attributes") if isinstance(record, dict) else None
+    if isinstance(attributes, dict):
+        for key, value in attributes.items():
+            if key in _PARK_CITATION_KEYS:
+                continue
+            parts.append(value if isinstance(value, str) else json.dumps(value))
+    return " ".join(parts).lower()
+
+
 def attempt_staleness(
     root: Path = REPO_ROOT, db_path: Path | None = None
 ) -> dict[str, Any]:
@@ -4283,8 +4334,14 @@ def attempt_staleness(
     # form-undocumented only applies to parks about FIELD-CONVERSION work —
     # scheduler/regalloc parks document different axes and re-probing them
     # with offsetof forms would be noise, not signal.
+    #
+    # Bare "cast" was removed on 2026-09-01: it is not a conversion signal on
+    # its own. It fired on cited LAW IDs (cast-transit, cast-view-macro,
+    # typed-global-member-vs-view-cast) and on axis prose like "volatile cast",
+    # flagging 13 pure scheduler/regalloc parks. A genuine conversion park
+    # always also says raw offset / field / member conversion / defake.
     conversion_terms = ("raw offset", "raw-offset", "fakematch", "defake",
-                        "field conversion", "member conversion", "cast",
+                        "field conversion", "member conversion",
                         "member-displacement", "struct field")
     for row in rows:
         name = row["name"]
@@ -4314,9 +4371,16 @@ def attempt_staleness(
                  "recorded_fuzzy": float(recorded), "current_fuzzy": score}
             )
         else:
-            body = ((row["attempted_axis"] or "") + (row["raw_json"] or "")).lower()
-            if (any(term in body for term in conversion_terms)
-                    and not any(term in body for term in form_terms)):
+            # Two different questions, two different texts. "Is this park
+            # ABOUT field conversion?" is answered from substance only.
+            # "Did it document a failing FORM?" is answered from the WHOLE
+            # record, because law_screen legitimately names the forms tried.
+            body = _park_substance_text(row["attempted_axis"], row["raw_json"])
+            full = ((row["attempted_axis"] or "")
+                    + (row["raw_json"] or "")).lower()
+            if (any(_mentions_unnegated(body, term)
+                    for term in conversion_terms)
+                    and not any(term in full for term in form_terms)):
                 reopen.append(
                     {"function": name, "record": row["record_id"],
                      "reason": "failing_form_undocumented",
