@@ -288,10 +288,19 @@ one, and supersede the law if your target contradicts it.
    a refusal as a cap, instrument it: WHAT check fired, on WHICH
    word, and would a sound-but-finer check pass? Corollary of
    discipline 1 for guards instead of cures.
-15. **Never use multi-line `python -c` in PowerShell** — the shim
-   injects `goto :error` artifacts and the command fails confusingly.
-   Write a scratch script file and run it. (Promoted from a buried
-   shell note: it still costs a wasted call per run.)
+15. **Pass anything non-trivial to a shell via a FILE, never argv.**
+   Multi-line `python -c` injects `goto :error` artifacts; PowerShell
+   also mangles `%` format strings, backtick escapes, and multi-line
+   argv (three distinct failures in one session). Write a scratch
+   script and run it.
+15b. **Pin scope after the name-bound hash migration:** a permutation
+   pin no longer freezes its TU against symbol-COUNT changes (indices
+   are not hashed). It STILL invalidates — correctly — on edits that
+   renumber the anonymous pool (@NNNN names change) or alter a window
+   relocation. The pin screen question remains "does my edit change
+   the TU's anonymous-pool population or a pinned window's relocs?";
+   if yes, re-derive with wf_rederive_pin.py (body hashes must return
+   byte-identical).
 16. **Prototype/extern disagreements: run `tools/gdl/abicheck.py`,
    not positional comparison.** PPC EABI assigns GPR and FPR args as
    independent sequences, so most positional "conflicts" are
