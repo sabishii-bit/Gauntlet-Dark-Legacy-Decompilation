@@ -192,7 +192,6 @@ extern Player gPlayers[]; /* gPlayerRecords[4], stride 0x335C */
 #define PREC_STRIDE 0x335C
 #define P(i)          (&gPlayerRecords[i])
 #define PT(i)         ((Player*)((u8*)potionicon_tab + (i) * PREC_STRIDE + 0xC40))
-#define PTA(i)        (&((Player*)((u8*)potionicon_tab + 0xC40))[i])
 #define PF(p, off, T) (*(T*)((u8*)(p) + (off)))
 
 /* ------------------------------------------------------------------ */
@@ -904,8 +903,8 @@ static void write_health_and_items(s32 i) {
 
     hidden = 0;
     show_gold = 1;
-    rgb = ((u32*)(tab + 1408))[PTA(i)->class_id];
-    p = PTA(i);
+    rgb = ((u32*)(tab + 1408))[PT(i)->class_id];
+    p = PT(i);
     mini_inventory_update(i);
     oldz = MBSetFontZ(63990.0f);
     if (lbl_80344A28 != 0 || gGameOptions[8] != 0) {
@@ -4570,7 +4569,6 @@ s32 set_hidden_player(void* vp) {
 }
 
 /* Load the class model + sfx model set into player slot i.            */
-#pragma opt_common_subs off
 s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     Player* p = vp;
     u8* pot = (u8*) potionicon_tab;
@@ -4589,7 +4587,7 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     prod = i * 76;
     record = PT(i);
     cls = record->class_id;
-    ret = load_player_model_sub(i, vp, cls, name, pot + (prod + 1300));
+    ret = load_player_model_sub(i, vp, cls, name, pot + prod + 1300);
     raw = p->character;
     t = raw;
     if (raw >= 8) {
@@ -4617,17 +4615,18 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
 }
 
 /* Load one class model + anim set into a model slot.                  */
+#pragma opt_common_subs off
 s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) {
-    PlayerModelSlot* slot = vslot;
-    u8* q;
-    u8* class_entry;
-    s32 cls;
-    s32 tier;
-    s32 ct;
-    s32 ct8;
     u8* fmt = (u8*) lbl_80113AE0;
     u8* tab = (u8*) lbl_8011FC48;
     u8* pot = (u8*) potionicon_tab;
+    PlayerModelSlot* slot = vslot;
+    u8* q;
+    u8* class_entry;
+    s32 tier;
+    s32 ct;
+    s32 ct8;
+    s32 cls;
     u32 arena;
 
     q = (u8*) vp;
@@ -4644,7 +4643,7 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
         sprintf((char*) pot + 1268, (char*) fmt + 1484, q + 1060, name);
     } else {
         q = tab + ct * 4;
-        if (((s32*) (tab + 2384))[ct] != 0) {
+        if (*(s32*) (q + 2384) != 0) {
             class_entry = tab + cls * 4;
             sprintf((char*) pot + 1268, (char*) fmt + 1500, q + 1060,
                     *(char**) (class_entry + 1196), tier);
