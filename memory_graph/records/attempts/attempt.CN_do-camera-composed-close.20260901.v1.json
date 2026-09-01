@@ -14,6 +14,14 @@
   "outcome": "improved",
   "recorded_at": "2026-09-01T04:30:58Z",
   "refutes": "attempt.do-camera-three-atom-init-tie-rescreen.20260831.v1",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "structured-field(residual_class)",
+    "family": "no-residual",
+    "measured_at": "2026-09-01",
+    "signature": null,
+    "signature_source": "not measured -- pin-masked: function is webfrank/p6frank-referenced, so fndiff scores the postprocessed object and cannot see the source-level residual"
+  },
   "residual_class": "NONE",
   "schema_version": 1,
   "supersedes": "attempt.do-camera-three-atom-init-tie-rescreen.20260831.v1",

@@ -14,6 +14,14 @@
   "kind": "attempt",
   "outcome": "capped",
   "recorded_at": "2026-08-30T00:24:02Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "hand-verified",
+    "family": "live-zero-remat",
+    "measured_at": "2026-08-29",
+    "signature": null,
+    "signature_source": "not measured -- pin-masked: function is webfrank/p6frank-referenced, so fndiff scores the postprocessed object and cannot see the source-level residual"
+  },
   "residual_class": "STRUCTURAL",
   "schema_version": 1,
   "valid_from": "2026-08-29"
