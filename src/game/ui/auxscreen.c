@@ -884,7 +884,7 @@ done:
 #pragma opt_common_subs off
 s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
 {
-    u8* base = lbl_8023DFD0;
+    AuxSceneView* base = (AuxSceneView*)lbl_8023DFD0;
     char* source;
     char* line;
     f32 line_height = 32.0f;
@@ -907,9 +907,9 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
     }
     line_height *= scale;
 
-    base[1152] = 0;
-    strcpy((char*)(base + offsetof(AuxSceneView, caption_scratch)), text);
-    source = (char*)(base + offsetof(AuxSceneView, caption_scratch));
+    base->caption_line_buf[0] = 0;
+    strcpy((char*)base->caption_scratch, text);
+    source = (char*)base->caption_scratch;
     line = source;
     FontSetShadowColor(0);
     draw_font = font | 0x100;
@@ -921,12 +921,12 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
 
             switch (ch) {
             case '\r':
-                base[1152 + output_len] = 0;
+                base->caption_line_buf[output_len] = 0;
                 remaining = (f32)((f64)remaining - 30.0);
                 if (remaining < 0.0f) {
                     break;
                 }
-                base[1152] = 0;
+                base->caption_line_buf[0] = 0;
                 output_len = 0;
                 if (*source == '\n') {
                     source++;
@@ -936,18 +936,18 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
 
             case '\0':
             case '\n':
-                base[1152 + output_len] = 0;
+                base->caption_line_buf[output_len] = 0;
                 if (output_len > 0) {
                     s32 width;
                     s32 x;
-                    width = DrawNormalText(scale, (char*)(base + offsetof(AuxSceneView, caption_line_buf)), font);
+                    width = DrawNormalText(scale, (char*)base->caption_line_buf, font);
                     x = 256 - (width >> 1);
                     DrawTextKeepScale(scale, x, y, draw_font,
-                                      color_base - 1, (char*)(base + offsetof(AuxSceneView, caption_line_buf)));
+                                      color_base - 1, (char*)base->caption_line_buf);
                 }
                 line = source;
                 output_len = 0;
-                base[1152] = 0;
+                base->caption_line_buf[0] = 0;
                 y = (s32)((f32)y + line_height);
                 break;
 
@@ -961,7 +961,7 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
                 /* fall through */
             default:
                 remaining -= glyph_width;
-                base[1152 + output_len] = ch;
+                base->caption_line_buf[output_len] = ch;
                 output_len++;
                 break;
             }
@@ -973,7 +973,7 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
         } while (gGameMode != MA_MOVIE && remaining > 0.0);
     }
 
-    base[1152 + output_len] = 0;
+    base->caption_line_buf[output_len] = 0;
     if (output_len > 0) {
         char* newline = strchr(line, '\n');
         s32 width;
@@ -985,7 +985,7 @@ s32 CaptionTextSub(char* text, f32 scale, s32 font, s32 rows, s32 y)
         width = DrawNormalText(scale, line, font);
         x = 256 - (width >> 1);
         DrawTextKeepScale(scale, x, y, draw_font,
-                          0xffffff, (char*)(base + offsetof(AuxSceneView, caption_line_buf)));
+                          0xffffff, (char*)base->caption_line_buf);
     }
     return done;
 }
