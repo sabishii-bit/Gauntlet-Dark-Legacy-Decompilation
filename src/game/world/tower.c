@@ -97,7 +97,7 @@ extern f64   lbl_803485B0;    /* 3.0 - message cooldown period */
 extern f64   lbl_803485B8;    /* 1.0 */
 extern f64   lbl_803485C8;    /* 1/30 frame time */
 extern f32   lbl_803485A0;    /* 2.0 */
-extern u8    Effects[];       /* live fx pool, stride 0xF0 (game/effect.h) */
+extern Effect Effects[];      /* live fx pool, stride 0xF0 (game/effect.h) */
 extern f32   gClockTime;
 extern void  WindowCamActivate(s32 mode);
 extern void  RuneCamActivate(s32 mode);
@@ -149,7 +149,7 @@ extern void* MBNewNode(void*, void*, int);
 extern void  MBNodeSetParent(void* node, void* parent);
 extern void  CopyMat4(f32* src, void* node);
 extern s32   AtreeInit(void* atree, void* out, s32 a, s32 flags);
-extern u8*   gCurLevel;       /* current-level descriptor pointer */
+extern level_data* gCurLevel; /* current-level descriptor (game/leveldata.h) */
 extern s32   lbl_803448A8;    /* last recorded world */
 extern s32   lbl_803448AC;    /* last recorded level */
 extern s32   sSpecialItem13;    /* rune-proximity world-object handle */
@@ -507,7 +507,7 @@ void towerRecordLevelBeaten(int level, int world) {
             continue;
         }
         {
-            s16 lvl = *(s16*)(gCurLevel + offsetof(level_data, rune));
+            s16 lvl = *(s16*)((u8*)gCurLevel + offsetof(level_data, rune));
 
             if (lvl > 0) {
                 int bit = lvl - 1;
@@ -521,7 +521,7 @@ void towerRecordLevelBeaten(int level, int world) {
             }
         }
         {
-            s16 boss = *(s16*)(gCurLevel + offsetof(level_data, legend));
+            s16 boss = *(s16*)((u8*)gCurLevel + offsetof(level_data, legend));
 
             if (boss > 0) {
                 int mask = 1 << boss;

@@ -28,7 +28,7 @@
 /* ------------------------------------------------------------------ */
 
 /* Player/team array, stride 0x335C (13148). Owned elsewhere. */
-extern u8 gPlayers[];
+extern Player gPlayers[4]; /* stride 0x335C (game/player.h) */
 /* Big aux-screen scene object (blits + good-wizard model), engine owned. */
 extern u8 lbl_8023DFD0[];
 /* Base vec3 used to seed the averaged wizard position. */
@@ -66,7 +66,7 @@ extern s32 sFlags;
 extern s32 lbl_8034481C;
 extern s32 sLastWorldLevel;
 extern s32 gGameMode;
-extern void* gCurLevel;
+extern level_data* gCurLevel; /* game/leveldata.h */
 extern s32 gLanguageId;
 
 /* ------------------------------------------------------------------ */
@@ -249,7 +249,7 @@ void DoGoodWizard(void)
         s32 off;
 
         for (i = 0, off = 0; i < 4; i++, off += sizeof(Player)) {
-            u8* p = gPlayers + off;
+            u8* p = (u8*)gPlayers + off;
 
             if (*(s32*)(p + offsetof(Player, state)) == 1) {
                 u8* slot = p + *(s32*)(p + offsetof(Player, character)) *
@@ -558,7 +558,7 @@ void DoGoodWizard(void)
             s32 i;
 
             for (i = 0, off = 0; i < 4; i++, off += sizeof(Player)) {
-                u8* p = gPlayers + off;
+                u8* p = (u8*)gPlayers + off;
 
                 if (*(s32*)(p + offsetof(Player, state)) == 1) {
                     /* +0x7dc falls inside Player's unmapped pad_07A4 gap
@@ -604,7 +604,7 @@ s32 hide_rune_stones(void* unused)
     s32 i;
 
     for (i = 0; i < 4; i++) {
-        u8* p = gPlayers + i * sizeof(Player);
+        u8* p = (u8*)gPlayers + i * sizeof(Player);
         if (*(s32*)(p + offsetof(Player, state)) == 1) {
             u8* slot = p + *(s32*)(p + offsetof(Player, character)) *
                                sizeof(PlayerCharSave);
@@ -638,7 +638,7 @@ void calc_good_wiz_attn(s32 reset, s32 force)
     u8 unused2[16];
 
     if (force == 0 && good_wiz_plyr_attn >= 0) {
-        u8* p = gPlayers;
+        u8* p = (u8*)gPlayers;
         p += good_wiz_plyr_attn * sizeof(Player);
         if (*(s32*)(p + offsetof(Player, state)) == 1) {
             goto have_target;
@@ -651,7 +651,7 @@ void calc_good_wiz_attn(s32 reset, s32 force)
             if ((good_wiz_plyr_attn = good_wiz_plyr_attn + 1) >= 4) {
                 good_wiz_plyr_attn = 0;
             }
-            if (*(s32*)(gPlayers + good_wiz_plyr_attn * sizeof(Player) +
+            if (*(s32*)((u8*)gPlayers + good_wiz_plyr_attn * sizeof(Player) +
                         offsetof(Player, state)) == 1) {
                 break;
             }
@@ -664,7 +664,7 @@ void calc_good_wiz_attn(s32 reset, s32 force)
 
 have_target:
     {
-        u8* p = gPlayers;
+        u8* p = (u8*)gPlayers;
         f32 dx;
         f32 dz;
         p += good_wiz_plyr_attn * sizeof(Player);
@@ -697,7 +697,7 @@ have_target:
 /* ================================================================== */
 void calc_wizard_pos(f32* out)
 {
-    u8* arr = gPlayers;
+    u8* arr = (u8*)gPlayers;
     f32 count = lbl_80345A40;
     s32 i;
 

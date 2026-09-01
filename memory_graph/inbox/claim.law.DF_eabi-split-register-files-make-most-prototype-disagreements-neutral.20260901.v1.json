@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "symbol-identity",
+      "build-hygiene",
+      "workflow",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.DF_eabi-split-register-files-make-most-prototype-disagreements-neutral.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T15:43:39Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "A CROSS-TU PROTOTYPE DISAGREEMENT IS ONLY A DEFECT IF IT MOVES AN ARGUMENT REGISTER, AND ON PPC EABI ALMOST NONE OF THEM DO. tools/gdl/externcheck.py compares prototypes POSITIONALLY (return class plus per-parameter class in declaration order). PPC EABI assigns integer/pointer arguments from r3.. and floating arguments from f1.. as two INDEPENDENT sequences, so a declaration that lists the same arguments in a different order places every value in exactly the register the definition reads. Measured image-wide 2026-09-01 with the new tools/gdl/abicheck.py: of 267 prototype-conflict rows externcheck reports, 866 individual declaration lines disagree positionally with the symbol's in-tree DEFINITION -- and 685 of those are EABI-EQUIVALENT (register-identical) reorderings or return-type-only splits, 37 more are K&R zero-arity passthroughs already covered by claim.law.knr-extern-arity-can-be-faithful-not-a-defect.20260831.v1, leaving 32 register-level rows. The canonical shape is a leading f32 versus a trailing f32: btext.c defines `void DrawGlowText(f32, s32, s32, u8*)` (f1, r3, r4, r5) while attract.c declares `int (int, int, void*, float)` (r3, r4, r5, f1) -- the SAME four registers. worldcol.c's `FloorCollide(f32, f32, f32, Vec3*, FloorCollisionResult*, s32, s32)` against enemy.c's `void*(f32*, s32, s32, s32, f32, f32, f32)` is the seven-argument version of the identical trick, and player.c's `player_get_powerup_state(f32, void*, s32, u32)` against psfx.c's `void (u8*, s32, u32, f32)` is a third. CONSEQUENCE: do NOT queue externcheck prototype rows as work. Rank them with abicheck.py, which models the register assignment and reports only rows where a register is loaded with a different class/width than the definition reads out of it, or where a register the definition reads is never written. WITHIN the surviving 32, split by DIRECTION, because only one direction can corrupt: 'caller writes a register the definition never reads' is a dead write (29 rows, harmless, and usually means the DEFINITION's reconstruction dropped a parameter -- do not chase it from the caller side); 'the definition reads a register no caller writes' is the corrupting direction and the whole image contains exactly THREE such rows (censused 2026-09-01). Also exclude same-arity f32-vs-f64 rows before ranking: claim.law.float-width-prototype-split-is-often-the-shipped-per-tu-shim.20260901.v1 owns those and they are usually faithful."
+}

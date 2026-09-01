@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "symbol-identity",
+      "build-hygiene",
+      "workflow",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.DF_corrupting-direction-prototype-census-three-rows.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-01T15:43:45Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "THE CORRUPTING-DIRECTION PROTOTYPE POPULATION IS THREE ROWS IMAGE-WIDE, AND ALL THREE ARE NOW RESOLVED. Census 2026-09-01 with tools/gdl/abicheck.py: 'the definition reads an argument register that a declaring TU's callers never write' is the only prototype-disagreement direction that can feed a callee garbage, and the whole tree contains exactly three such lines. Two are PointVisible and were OUR reconstruction error, now FIXED byte-identically (commit 6a3ebd370). mb_util.c declared and defined `int PointVisible(f32* a, f32* b, f32* c)` forwarding to `MBWorldSphereVisible(a, b, c)`, while both real callers -- pmotion.c:3903 inside DoTransporter and player.c:5863 inside ClosestChest -- call it as `(f32 radius, f32* pos)`, i.e. f1 plus r3. mb_camera.c:158 DEFINES `int MBWorldSphereVisible(f32* sphere, f32 radius)`, so mb_util.c's three-pointer spelling for that callee was wrong too. Both callers measure real 0 (DoTransporter 132/132 insns, ClosestChest OK), which is the proof of direction: the target really does pass the radius in f1, so the outlier was mb_util.c. The defect was SCORE-INVISIBLE by construction and this is the general lesson -- PointVisible is a pure forwarding wrapper, and a forwarding wrapper is TYPE-TRANSPARENT: it moves no argument, so any consistent renaming of its parameter types compiles to the same branch and fndiff reports real 0 either way. Screen every thin pass-through wrapper against its CALLERS, never against its own score. The third row is DrawTextKeepScale and is a SHIPPED ORIGINAL DEFECT, deliberately NOT fixed: btext.c defines `void DrawTextKeepScale(f32 scale, s32 x, s32 y, u32 font, u32 color, u8* str)` while combat.c:174 declares it with five arguments and no leading float, so combat.c's call at line 1008 never writes f1 and the callee scales text by whatever f1 happened to hold. combat.c's write_stage_info measures real 0 at 114/114 instructions WITH the five-argument declaration, which proves the target's COMBAT.OBJ carried the same stale prototype -- correcting it would break an exact function and misrepresent the original. Keep the divergence; it is faithful. Six other TUs (auxscreen, options, select, shop, enemy, attract) declare DrawTextKeepScale with the leading f32 and are unaffected."
+}

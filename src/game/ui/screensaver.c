@@ -852,7 +852,7 @@ void DrawGlowText(s32 color, s32 y, void* text, f32 scale);
 int DrawTextKeepScale(f32 scale, s32 x, s32 y, s32 font, s32 color, void* str);
 void animate_panel_piece(f32 progress, s32* piece, void* blit, s32 xOffset,
                          s32 phase);
-extern u8 gPlayers[];
+extern Player gPlayers[4]; /* stride 0x335C (game/player.h) */
 
 /* ROM texture descriptor returned by MBRomTexPtr; same layout/field names as
  * mb_struct.c's MBRomTexture (fieldA/wordC hold the icon's cached
@@ -911,7 +911,7 @@ int draw_inventory_panel(int player)
 
     base = (u8*)lbl_80274600;
     state = base + player * 4;
-    pl = gPlayers + player * 13148;
+    pl = (u8*)gPlayers + player * 13148;
     cfg = (u8*)lbl_8011D568;
     xoff = player << 7;
     result = 0;
@@ -1684,7 +1684,7 @@ extern f32 lbl_80343C80;
 extern void* lbl_80343C84;
 extern void* lbl_80343C88;
 extern s32 lbl_803445D8;
-extern u8 gPlayers[];
+extern Player gPlayers[4]; /* stride 0x335C (game/player.h) */
 
 #pragma opt_propagation off
 int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
@@ -1735,7 +1735,7 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
     }
     blit = MBNewBlit(lbl_80343C88, 0, 0);
     bbl = MBCreateBlit(0, lbl_80344E44, 190, 8, 20, 20);
-    players = gPlayers;
+    players = (u8*)gPlayers;
     for (count = ticks; count <= end; count++) {
         w = ScrollTextWidth(0, msg, count, lbl_80347378) + 96;
         h = ScrollTextHeight(0, msg, count, 4, lbl_80347378) + 96;
@@ -1834,7 +1834,7 @@ int ControllerMessageBox(s32 mask, s32 msg, s32 count, s32 sound)
     lbl_80344E04 = 0;
     gGameBusy = busySave;
     for (i = 0; i < 4; i++) {
-        *(s16*)(gPlayers + i * 13148 + offsetof(Player, hud_flags2)) = 0;
+        *(s16*)((u8*)gPlayers + i * 13148 + offsetof(Player, hud_flags2)) = 0;
     }
     ClearAllPlayerControls(4);
     LoadVU1GameLogic();

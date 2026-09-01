@@ -176,6 +176,8 @@
 #include "game/player.h"
 #include "game/effect.h"
 #include "game/leveldata.h"
+#include "game/item.h"      /* Item* sItems, stride 0xF0 */
+#include "game/worldinfo.h" /* WorldInfo gWorldInfo */
 
 #ifndef offsetof
 #define offsetof(type, memb) ((u32) & ((type*)0)->memb)
@@ -2265,8 +2267,7 @@ typedef struct BigapePowerupSpawn {
 
 extern BigapePowerupInfo lbl_80120274[3];
 extern BigapePowerupSpawn lbl_8012028C[];
-extern u8* sItems;      /* gItems base (stride 0xF0) */
-extern u8 gWorldInfo[];
+/* sItems (Item*, stride 0xF0) -- game/item.h; gWorldInfo -- game/worldinfo.h */
 extern void* sKeyringAtree;    /* see-thru tree (low) */
 extern void* sDeathIconAtree;    /* see-thru tree (high) */
 extern s32 lbl_8025EC68[4];   /* see-thru: player tree node */
@@ -2425,8 +2426,9 @@ extern void AudioPlayEvt102Follow(f32* pos, s32 player);
 extern void fn_8009D4F0(s32 player);
 extern void fn_8009D560(s32 player);
 extern void fn_8009D5A0(s32 player);
-extern s32* PlaceItem(s32 a, s32 b, char* name, f32* mat);
-extern s32* AddItem(s32* tmpl, f32* pos);
+/* PlaceItem: game/item.h (items.c defines Item* PlaceItem(s32, s32, char*,
+ * void*); this TU's old `s32* PlaceItem(..., f32*)` was a wrong redeclaration). */
+/* AddItem: game/item.h (items.c defines Item* AddItem(void*, void*)). */
 extern void AddItemSub(s32* item);
 extern s32 RandItemIdx(s32 item, s32 a, s32 b);
 extern void AudioPlayEvt102(void);
@@ -3163,7 +3165,9 @@ static inline void player_dies(s32 i) {
         m[14] = death_pos[2];
         CopyMat4(p->mat, m);
         if (gBossType < 0) {
-            chest = PlaceItem(1, 2, (p->item_body_lo == 1) ? "KEY" : "KEYRING", m);
+            chest = (s32*)PlaceItem(1, 2,
+                                    (p->item_body_lo == 1) ? "KEY" : "KEYRING",
+                                    m);
             if (chest != NULL) {
                 chest[0x38] = p->item_body_lo;
             }
@@ -5822,7 +5826,7 @@ void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags) {
     appended_item_template.field48 = 0;
     appended_item_template.field4A = 0x1E;
     appended_item_template.atree = AtreeMatch(sPowerupsBuf, itemName, 0);
-    item = AddItem((s32*)&appended_item_template, NULL);
+    item = (s32*)AddItem((s32*)&appended_item_template, NULL);
     *((u8*)item + 0xCD) = 0;
     MBTreeClearFlags((void*)item[0x19], 2, 0);
     if (*(s32*)item[0] == 1) {
@@ -5855,18 +5859,18 @@ static void do_see_thru(void* vp) {
     }
     closest = ClosestChest(p);
     if (closest >= 0) {
-        chest = sItems + closest * 0xF0;
+        chest = (u8*)sItems + closest * 0xF0;
         if (!PointVisible(0.5f * *(f32*)(*(u8**)chest + 0xC), (s32*)(chest + 0x44))) {
             chest = NULL;
         }
     }
     if (chest != NULL) {
         floor_id = *(s16*)(chest + 0xDC);
-        fl = *(s32**)(gWorldInfo + 0x68) + floor_id * 0x14;
+        fl = *(s32**)((u8*)&gWorldInfo + 0x68) + floor_id * 0x14;
         while (*fl == -1) {
             s16 next_floor = *(s16*)((u8*)fl + RandItemIdx(closest, fl[1], 0) * 2 + 8);
             floor_id = next_floor;
-            fl = *(s32**)(gWorldInfo + 0x68) + floor_id * 0x14;
+            fl = *(s32**)((u8*)&gWorldInfo + 0x68) + floor_id * 0x14;
         }
         if (*fl == 4) {
             tree = sDeathIconAtree;
@@ -5973,10 +5977,10 @@ static s32 ClosestChest(void* vp) {
     StartEnemyGrid(p->pos, best);
     zero = lbl_803477AC;
     half = lbl_803478B0;
-    world = gWorldInfo;
+    world = (u8*)&gWorldInfo;
     three = lbl_80347A40;
     while ((j = NextGridEnemy()) >= 0) {
-        it = sItems + j * 0xF0;
+        it = (u8*)sItems + j * 0xF0;
         itemInfo = *(u8**)it;
         if (*(s16*)(it + 0xC4) == -1) {
             continue;
