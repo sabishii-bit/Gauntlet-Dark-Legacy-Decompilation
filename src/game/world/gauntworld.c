@@ -2494,6 +2494,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     s32 keep;
     s32 type;
     f32 R;
+    f32 Rsum;
     f32 dist;
     f32 cx, cz;
     f32 nv[3];
@@ -2501,7 +2502,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     f32 hitpt[3];
     f32 norm[3];
     f32 f1, f2, f3, f4;
-    f32 unused[12];
+    f32 unused[10];
 
     (void)unused;
 
@@ -2605,12 +2606,12 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
         return -1.0f;
     }
 
-    R = (f32)(a + R);
+    Rsum = (f32)(a + R);
     cx = item->objgrp.coll_pos[0];
     cz = item->objgrp.coll_pos[2];
     f1 = (f32)(cx - pos[0]);
     f2 = (f32)(cz - pos[2]);
-    if (f1 * f1 + f2 * f2 > R * R) {
+    if (f1 * f1 + f2 * f2 > Rsum * Rsum) {
         return -1.0f;
     }
 
@@ -2623,7 +2624,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
         }
     }
     dist = fqdist(nv[0], nv[2]);
-    if (dist > R) {
+    if (dist > Rsum) {
         return -1.0f;
     }
 
@@ -2631,7 +2632,7 @@ f32 fn_8005F0F4(Item* item, f32* from, f32* pos, f32* out, f32 a, f32 b)
     case 1:
         break;
     case 2:
-        if (fqdist(dist, nv[1]) > R) {
+        if (fqdist(dist, nv[1]) > Rsum) {
             keep = 0;
         }
         break;
@@ -2739,7 +2740,7 @@ los_check:
     case 4:
         break;
     default:
-        if (fqdist(nv[0], nv[2]) > R) {
+        if (fqdist(nv[0], nv[2]) > Rsum) {
             break;
         }
         keep = 1;
