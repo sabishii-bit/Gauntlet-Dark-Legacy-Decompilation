@@ -847,6 +847,19 @@
     ],
     "game/game/gamemain": [
       {
+        "function": "fn_80054E78",
+        "before_sha256": "2943fe531ef794ba0c3ff88954fc31afb402480e81fb9ecafa6ebcb44f1bc39f",
+        "after_sha256": "c3a712c58e2efdaa7a3c655045352848cad93e169bd82c969c001165d084dba3",
+        "equivalent_copy_form": [
+          {
+            "at": "0x154",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 29
+          }
+        ],
+        "copy_register_fields": true
+      },
+      {
         "function": "DoWorldAnimation",
         "before_sha256": "eb1d3bbe9f55641bca737789c158eb2cd9f7fc334da026e592a232daea6d5a3e",
         "after_sha256": "7a07a28661203a8548af9187abac6702c59a21a1cecba8c10d28761ccc78018e",

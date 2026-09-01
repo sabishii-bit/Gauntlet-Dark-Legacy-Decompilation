@@ -75,14 +75,40 @@ def classify(ow, tw, form_first=False):
     """
     if ow == tw:
         return "same", None
-    if not form_first and regfield_only(ow, tw):
+    rf = regfield_only(ow, tw)
+    if not form_first and rf:
         return "regfield", None
     what, info = _copy_form_arrow(ow, tw)
-    if what == "form":
+    if what == "form" and not (rf and _same_copy_form(ow, tw)):
         return what, info
-    if regfield_only(ow, tw):
+    if rf:
         return "regfield", None
     return "other", None
+
+
+def _same_copy_form(ow, tw):
+    """Do both words use the SAME copy form (both `li`, or both `copy`)?
+
+    This is the boundary of the shadowing.  An arrow re-encodes the TARGET's
+    form around OUR registers, so when both sides already share a form and
+    differ only in register slots, the re-encoding reproduces our own word
+    and apply_patch rejects the site: "re-encoding is a no-op, so this site
+    is a pure recolor and belongs to the recolor stage" (measured on
+    memcard::drawMemCardMessage +0x14, ours `mr r22,r3` vs target
+    `mr r28,r3` -- a DEST-only difference, which is exactly what a renaming
+    is for).
+
+    So only the li<->copy direction was ever shadowed, and it is shadowed
+    only in the `addi` spelling, where both words carry primary opcode 14 and
+    differ in the rA slot alone: ours `addi rD,r0,0` (= `li rD,0`) against
+    the target's `addi rD,rS,0` (= `mr rD,rS`).  That pair is regfield-only
+    LEXICALLY while being a genuine form arrow SEMANTICALLY -- the
+    live-zero-remat shape, and the one gamemain::fn_80054E78 carries at
+    +0x154.  Restricting form-first to it keeps the enumeration honest
+    instead of offering apply_patch sites it must reject.
+    """
+    o, t = wf.decode_copy_form(ow), wf.decode_copy_form(tw)
+    return o is not None and t is not None and o[0] == t[0]
 
 
 def _copy_form_arrow(ow, tw):
@@ -217,8 +243,12 @@ def build_rule(unit, fn, pre=None, post=None, verbose=False):
     # arrows when a renaming is needed anyway); form-first is the order the
     # mnemonic-aliasing law says was being shadowed.  Both are proven through
     # the shipped apply_patch, so enumerating adds candidates, never licence.
-    last = "no combination"
+    # Per-order refusals, both reported: a single `last` string hides the more
+    # informative order's failure behind whichever order happened to run last
+    # (discipline 14 -- a refusal is a measurement of the guard too).
+    notes = {}
     for form_first in (False, True):
+        last = "no combination"
         sites, others, families = [], [], {}
         need_recolor = False
         for off in range(0, len(cur), 4):
@@ -269,6 +299,7 @@ def build_rule(unit, fn, pre=None, post=None, verbose=False):
                 break
             choices.append(per_site)
         if choices is None:
+            notes["form-first" if form_first else "regfield-first"] = last
             continue
 
         combos = [[]]
@@ -294,7 +325,10 @@ def build_rule(unit, fn, pre=None, post=None, verbose=False):
                 return candidate, 0, (f"CLOSES ({kind}); arrow order "
                                       f"{order_name}; families={families}")
             last = f"residual {resid}"
-    return None, None, last
+        notes[order_name] = last
+    if len(set(notes.values())) == 1:
+        return None, None, next(iter(notes.values()))
+    return None, None, "; ".join(f"[{k}] {v}" for k, v in notes.items())
 
 
 def _perm_entry(op, fn, ours, win):
