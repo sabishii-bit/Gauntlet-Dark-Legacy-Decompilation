@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.PR_law.a-matching-tu-cannot-bank-a-nonexact-source-improvement.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T20:58:48Z",
+  "schema_version": 1,
+  "subject": "tu:game/audio/mempool",
+  "valid_from": "2026-09-01",
+  "value": "A source improvement that reduces but does not zero a pinned function's residual is NOT bankable when the owning TU is MATCHING (linked), and the monotonic 'keep every verified improvement' rule must yield to that. Measured on game/audio/mempool.c::pool_garbage_collect: an exhaustive 120-permutation declaration-order search found an order scoring real 28 against the shipped 44 (multiset IDENTICAL, insns T69/O69 both). It could not be retained. With the pin ON, the improved source changes the compiled body bytes and the rule fails closed on its before_sha256 (the guard working correctly); with the pin OFF, real 28 is not 0 and the linked main.dol fails its sha1 CHECK, because a Matching TU links OUR object. The improvement is therefore bankable ONLY jointly with a re-derived rule, which is new-rule authoring rather than remediation. Note also that tools/gdl/composed_census/wf_rederive_pin.py does NOT apply: its stated contract is that BODY hashes must return byte-identical (it exists for literal-pool renumbering, which moves only relocation hashes), and a codegen-moving source change violates that precondition by construction. GENERAL RULE: before spending a source axis on a pinned function, check whether its TU is Matching or NonMatching -- it determines which outcomes are even representable."
+}
