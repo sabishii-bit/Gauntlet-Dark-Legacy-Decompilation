@@ -594,7 +594,8 @@ def ops_diff(name, t, b):
 
 
 def main():
-    flags = ("-l", "--ops", "--count", "--classify", "--no-build", "--clean")
+    flags = ("-l", "--ops", "--count", "--classify", "--no-build", "--clean",
+             "--raw")
     args = [a for a in sys.argv[1:] if a not in flags]
     list_only = "-l" in sys.argv
     ops_only = "--ops" in sys.argv
@@ -602,6 +603,7 @@ def main():
     classify_only = "--classify" in sys.argv
     no_build = "--no-build" in sys.argv
     clean = "--clean" in sys.argv
+    raw = "--raw" in sys.argv
     if not args or args[0] in ("--help", "-h", "help"):
         print(__doc__)
         return 1
@@ -612,6 +614,19 @@ def main():
     unit = re.sub(r"\.(c|cpp)$", "", unit)
     target_o = Path(f"build/{VERSION}/obj/{unit}.o")
     base_o = Path(f"build/{VERSION}/src/{unit}.o")
+    if raw:
+        # Score the RAW compiler output. On a webfrank-pinned TU the
+        # src/ object is post-rewrite (every pinned function reads
+        # real 0 by construction); a whole remediation lane did an
+        # edit-reconfigure-restore dance for want of this flag.
+        body = base_o.parent / ".postprocess" / "body" / base_o.name
+        if body.is_file():
+            base_o = body
+            print(f"[--raw: scoring {body} (pre-webfrank compiler"
+                  " output)]")
+        else:
+            print("[--raw: no .postprocess/body object — this TU has no"
+                  " postprocessor stage; plain object is already raw]")
 
     # rebuild the base object if the source is newer (stale-object trap)
     if not no_build:

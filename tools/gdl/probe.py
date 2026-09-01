@@ -40,6 +40,8 @@ docstring omitted it — the flags below all work):
   --discard          restore the TU to HEAD (the neutral-edit undo)
   --revert-baseline  restore the SESSION's first banked baseline
   --no-bank          score without banking (diagnostic probes)
+  --raw              score the pre-webfrank compiler output (pinned TUs)
+  --stateless        sweep mode: score only — no state, bank, or verdict
   --scaffold         print the pragma/volatile scaffold census on ANY
                      probe, not only a BASELINE
   --scaffold-all     print EVERY scaffold row (the census is otherwise
@@ -781,9 +783,10 @@ def main():
         print((build.stdout + build.stderr).strip()[-1500:])
         return 1
 
+    raw_flag = ["--raw"] if "--raw" in sys.argv else []
     count = subprocess.run(
         [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
-         "--count", "--no-build"],
+         "--count", "--no-build", *raw_flag],
         capture_output=True, text=True,
     ).stdout
     # fndiff strips a trailing _80XXXXXX address suffix from user-supplied
@@ -809,6 +812,14 @@ def main():
         print(count.strip()[:800])
         return 1
 
+    if "--stateless" in sys.argv:
+        # Sweep mode: no state read, no banking, no verdict-vs-best —
+        # the sticky per-function best made exhaustive-search output
+        # chain nonsensically (`REGRESSED vs best 32: real 64 -> 157`).
+        print(f"STATELESS real {real} (insns {insns}) — nothing banked"
+              " or compared; pair with git for reverts")
+        return 0
+
     # The opcode-multiset token count is the STRUCTURE metric: `real` is a
     # linear diff that reads catastrophically worse mid-way through any
     # all-or-nothing conversion (three workers independently reported
@@ -819,7 +830,7 @@ def main():
     if real > 0:
         ops_output = subprocess.run(
             [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
-             "--ops", "--no-build"],
+             "--ops", "--no-build", *raw_flag],
             capture_output=True, text=True,
         ).stdout
         for line in ops_output.splitlines():

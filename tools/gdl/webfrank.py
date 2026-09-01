@@ -3372,7 +3372,17 @@ def main() -> int:
     )
 
     config = json.loads(args.config.read_text(encoding="utf-8"))
-    patches = config.get("units", {}).get(args.unit)
+    units = config.get("units", {})
+    patches = units.get(args.unit)
+    if patches == []:
+        # A unit whose LAST rule was removed leaves an empty list; that
+        # is "no rules", not an error — the KeyError here cost a lane a
+        # build cycle when it disabled a unit's only rule.
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_bytes(args.input.read_bytes())
+        print(f"WEBFRANK {args.unit}: no rules (empty unit) — "
+              "object passed through unchanged")
+        return 0
     if not patches:
         raise KeyError(f"no webfrank configuration for {args.unit!r}")
 

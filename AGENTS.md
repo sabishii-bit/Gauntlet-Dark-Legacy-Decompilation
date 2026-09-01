@@ -21,7 +21,10 @@
 >    before ANY command that writes — configure.py especially regenerates
 >    build.ninja into whatever CWD it runs from (a worker regenerated the
 >    shared checkout's build graph this way; absolute script paths protect
->    reads, not a script's own output).
+>    reads, not a script's own output). ASSERT the cd took:
+>    `Set-Location X; if (-not $?) { throw "cd failed" }` — a failed
+>    Set-Location silently runs everything in the shared checkout, and a
+>    worker read shared-checkout state as its own for six calls.
 > 6. Adding a TU's FIRST rule to `config/GUNE5D/webfrank.json` does NOT
 >    create its WEBFRANK build edge — a plain `ninja` runs green with the
 >    rule silently unapplied (looks exactly like "the rule didn't work").
@@ -348,7 +351,9 @@ one, and supersede the law if your target contradicts it.
 13. **Running the test suite:** `python -m unittest discover
    tools/gdl/tests` from the repo root. There is no pytest. Module
    counts drift — state test gates as the command plus "all green",
-   not as a number.
+   not as a number. For the memory graph, `gdlmem build` is the
+   working integrity gate (~30s); `gdlmem validate` does not complete
+   at current corpus size — never block on it.
 14. **A guard's refusal is a measurement of the guard, not only of the
    function.** Two coarse guards each refused a provable function
    while failing correctly by their own logic (blanket relocation
@@ -359,10 +364,14 @@ one, and supersede the law if your target contradicts it.
    word, and would a sound-but-finer check pass? Corollary of
    discipline 1 for guards instead of cures.
 15. **Pass anything non-trivial to a shell via a FILE, never argv.**
-   Multi-line `python -c` injects `goto :error` artifacts; PowerShell
-   also mangles `%` format strings, backtick escapes, and multi-line
-   argv (three distinct failures in one session). Write a scratch
-   script and run it.
+   Hard rules, each measured more than once: ANY `python -c`
+   containing a newline (a 3-line dict comprehension does not read as
+   "non-trivial" and still fails); commit messages ALWAYS via
+   `git commit -F <file>` (the first `->` arrow breaks argv);
+   PowerShell also mangles `%` format strings and backtick escapes.
+   Write a scratch script / message file and run it. A gate or parity
+   check must PRINT the values it compared — one passed by comparing
+   two empty dicts and printed OK.
 15b. **Pin scope after the name-bound hash migration:** a permutation
    pin no longer freezes its TU against symbol-COUNT changes (indices
    are not hashed). It STILL invalidates — correctly — on edits that

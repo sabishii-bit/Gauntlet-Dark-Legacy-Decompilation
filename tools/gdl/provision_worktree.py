@@ -112,7 +112,13 @@ def main():
         print("::", " ".join(step))
         result = subprocess.run(step, cwd=here)
         if result.returncode != 0:
-            fail(f"{step[0]} exited {result.returncode}")
+            # One automatic retry: concurrent fleets produce transient
+            # CreateProcess/link failures that succeed on a clean re-run.
+            print(f":: {step[0]} exited {result.returncode} — retrying"
+                  " once (fleet-contention pattern)")
+            result = subprocess.run(step, cwd=here)
+        if result.returncode != 0:
+            fail(f"{step[0]} exited {result.returncode} (after retry)")
     print("PROVISION OK — build green, ready to work")
     return 0
 
