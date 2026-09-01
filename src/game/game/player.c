@@ -4617,16 +4617,16 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
 /* Load one class model + anim set into a model slot.                  */
 #pragma opt_common_subs off
 s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) {
-    u8* fmt = (u8*) lbl_80113AE0;
-    u8* tab = (u8*) lbl_8011FC48;
-    u8* pot = (u8*) potionicon_tab;
     PlayerModelSlot* slot = vslot;
     u8* q;
     u8* class_entry;
+    s32 cls;
     s32 tier;
     s32 ct;
     s32 ct8;
-    s32 cls;
+    u8* fmt = (u8*) lbl_80113AE0;
+    u8* tab = (u8*) lbl_8011FC48;
+    u8* pot = (u8*) potionicon_tab;
     u32 arena;
 
     q = (u8*) vp;
