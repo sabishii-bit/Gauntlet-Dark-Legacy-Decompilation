@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "workflow",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.SF_a-defake-gate-baseline-does-not-survive-worktree-cleanup-rebuild-it-from-HEAD.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T18:40:06Z",
+  "schema_version": 1,
+  "subject": "tu:game/sfx/sfx",
+  "valid_from": "2026-09-01",
+  "value": "\"A defake_gate BASELINE ALREADY EXISTS, DO NOT RE-BASELINE\" IS NOT A PORTABLE INSTRUCTION ACROSS RUNS: the baseline lives at `build/GUNE5D/gate/<unit>.json`, which is a GITIGNORED BUILD ARTEFACT inside the worktree that took it. When that worktree is removed after integration, the baseline is destroyed with it, and a fresh worktree's `defake_gate.py check` exits 2 with `no baseline at build\\GUNE5D\\gate\\<unit>.json`. MEASURED this run: a work order forbade re-baselining game/sfx/sfx on the grounds that run 26 had one; a filesystem-wide search for `game_sfx_sfx.json` across every registered worktree returned NOTHING, because run 26's worktree had been pruned. THE PREMISE WAS REFUTED, not merely stale. THE CORRECT RECOVERY -- and the reason the prohibition existed is still sound -- is to rebuild the baseline FROM A CLEAN HEAD TREE, never from your edited tree: save your working file to scratch, write the `git show HEAD:<path>` bytes over it (python `write_bytes`, not a PowerShell redirect, per the BOM trap), run `defake_gate.py baseline <unit>`, then restore your edit. That reconstructs the identical reference the prior run banked, because HEAD IS the prior run's merged result -- and it is verifiable: the reconstructed baseline printed `72 functions (53 at real 0)`, character-for-character the figure the run-26 attempt record had written down. Taking the baseline from an EDITED tree is the actual laundering hazard the prohibition was aimed at, and it is what the naive `defake_gate.py baseline` call would have done. GENERAL RULE: an instruction of the form \"artefact X exists from run N, reuse it\" must name the artefact's PATH and its lifetime; if the path is under `build/`, treat the artefact as absent and state the reconstruction procedure instead. Cross-check the reconstruction against a figure the prior record quoted -- that check is free and converts a trust assumption into a measurement."
+}

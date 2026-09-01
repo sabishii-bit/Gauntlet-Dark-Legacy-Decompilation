@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "relocation",
+      "symbol-identity",
+      "defake",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.SF_raw-pool-plus-offset-defeats-the-rodata-section-base-hoist.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T18:39:40Z",
+  "schema_version": 1,
+  "subject": "function:ProcessEffects",
+  "valid_from": "2026-09-01",
+  "value": "WRITING `extern char POOL[]; ... POOL + K` INSTEAD OF THE ORIGINAL STRING LITERAL IS NOT A NEUTRAL FAKEMATCH -- IT CHANGES ADDRESS MATERIALISATION FOR THE WHOLE FUNCTION, BECAUSE MWCC FOLDS `POOL + K` INTO A SEPARATE ADDRESS CONSTANT WHILE A STRING LITERAL PARTICIPATES IN ONE .rodata SECTION-BASE HOIST. MEASURED on ProcessEffects (2309 insns). THE TELL, and it is unmistakable once named: the target holds the pool base in a CALLEE-SAVED GPR for the whole function and reaches every string as `addi rD,r15,K` (K = 0,0,0,20,32 at five sites), while ours emitted `lwz rD,SLOT(r1)` at all five -- i.e. every `--ops` row read `replace T=['addi'] O=['lwz']`. Ours had folded THREE distinct constants (`...rodata.0+0`, `POOL+20`, `POOL+32`), homed each in its own stack word, and loaded them back; the target has ONE. THE MECHANISM: MWCC pools a TU's string literals into one .rodata section in ORDER OF FIRST USE and, when several are live in one function, materialises the SECTION BASE once (lis/addi into a callee-saved register) and reaches each literal by displacement. `POOL + K` is a constant expression, so it is folded at compile time into an independent relocatable address that gets its OWN hoist and its OWN stack home -- the section-base CSE never forms. THE FIX is to restore the real literals, which are readable from the split target data: the pool bytes are in `build/GUNE5D/asm/auto_*_rodata.s`, decodable straight from the `.4byte` words. Here `POOL+0`/`+20`/`+32` decoded to \"Bad Effect type: %d\" (20 bytes), \"SEETHROUGH\" (12 with padding), \"PBOSSQEYEBALL\", and restoring the two missing literals at their source sites reproduced the target's pool layout EXACTLY (offsets 0/20/32) because first-use order in our source matched. RESULT: fuzzy 93.3378 -> 94.0416, opcode multiset 25t -> 22t, and FOUR whole opcode classes left the multiset in one edit (ours-only -1 lis -1 lwz -2 stw). COROLLARY, and this is the part that generalises past strings: a `SYMBOL + CONSTANT` spelling anywhere costs you the base register's CSE, so before probing register/schedule theories on a function that shows repeated `addi`-vs-`lwz` rows against target, COUNT the distinct address constants each side homes on the stack -- if ours homes more than target, the surplus is almost always a folded `SYMBOL + K` that should be a base plus a displacement at the use site. VERIFY BY VALUE, NOT BY NAME: the pool label's decoded bytes are the evidence, and the TU's own header comment already documented `\"Bad Effect type: %d\" 0x80114790` two runs before anyone read it."
+}

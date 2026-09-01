@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "cse",
+      "register-web",
+      "decl-order",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.SF_a-named-local-not-a-repeated-subexpression-is-what-produces-the-targets-spill-and-its-pre-branch-schedule.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T18:39:42Z",
+  "schema_version": 1,
+  "subject": "function:ProcessEffects",
+  "valid_from": "2026-09-01",
+  "value": "WHEN THE TARGET COMPUTES A VALUE ONCE AND YOUR SOURCE SPELLS THE SUBEXPRESSION TWICE, THE DIFFERENCE IS SOURCE-REACHABLE AND SHOWS UP AS A WHOLE MISSING STACK SLOT PLUS A SCHEDULE THAT LOOKS LIKE ALLOCATOR NOISE. Two distinct tells, both MEASURED on ProcessEffects, both closed by introducing a plain named local. TELL 1 -- `stfs SLOT(r1)` IMMEDIATELY FOLLOWED BY `lfs` FROM THE SAME SLOT is not a redundant round trip: it is a named f32 local whose live range crosses a CALL while every callee-saved FPR is already holding a hoisted constant, so it MUST be memory-homed. Target stored `radius + player->radius` to slot 332 and reloaded it at both uses; we recomputed the `fadds` at the second use and therefore never allocated the slot at all. Writing `f32 sumr = radius + player->radius;` and using `sumr` at both sites took real 1608 -> 1592, insns 2301 -> 2303 (toward target 2309), multiset 20t -> 16t, and restored the slot COUNT to exactly 79/79. TELL 2 -- the same construct's other half: the target computed a dot product BEFORE a conditional it does not depend on, ours computed it after the join. This reads as a scheduler difference and is not one; naming the value (`f32 dp = delta[0]*dir[0] + delta[2]*dir[2];` placed before the `if`) let MWCC schedule it exactly where target does. Applied at the THREE sibling scan loops (player/enemy/item), it took real 1592 -> 1518 and fuzzy 94.4101 -> 95.9415 with NO change to insn count or multiset -- i.e. the coarse structural metrics were completely blind to it. THE PROCEDURE: when a `--ops` cluster shows the same opcodes on both sides in a different ORDER around a branch, or a slotdiff row shows a TARGET-ONLY slot whose uses are `1 store + N loads`, grep the source for the expression the target loaded and check whether you spelled it more than once. CRITICAL ALIGNMENT COROLLARY: this exact axis (`sum = radius + player->radius` as a local) was probed a run earlier, measured real 2317 = REGRESSED, and parked with the honest note \"target homes it in a STACK SLOT 332(r1), ours colors an FPR - slot-homing lever unknown\". The lever was never a source form -- it was FPR PRESSURE, and the park only fell after unrelated prologue work filled the callee-saved FPRs the way target fills them. A park on a pressure-dependent axis is a statement about the surrounding allocation, not about the form; re-probe it after ANY change to the constant-hoist block."
+}
