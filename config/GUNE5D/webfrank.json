@@ -1096,6 +1096,27 @@
     ],
     "game/game/player": [
       {
+        "function": "do_exit",
+        "before_sha256": "772104548cfbb3ebfefe259ddf28643f95feb001d59d7b5a2c7638635b742ebf",
+        "after_sha256": "36f50d1902a47b902613c774154160a3d553704b091d225272edbec4027f9ba3",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 161,
+          "permuted_instructions": 8
+        },
+        "mechanism": "attempt.HV_do-exit-int-to-float-triple-schedule.20260901.v1 - the exit-position update runs three consecutive int-to-float conversions of the same shape: `stw` the integer half to a stack slot, `lfd` the pair back as a double, `fsubs` off the 2^52 bias, then `fmuls`/`fadds`/`stfs` into the player record at 68/72/76(r31). Ours interleaves the three triples one slot differently from the target - four local transpositions, order [0,1,2,3,4,5,9,7,6,8,11,12,10,14,13,15,16,17,18,19,20,21] over +0x1f0..+0x248 - and colours the whole f0/f1 pair the other way round. The window holds stack stores AND stack loads, so it is NOT a free load/load reorder: the audit was run on the real words in OUR colouring and accepts because no moved atom crosses a store/load pair that shares a slot (the `stw r0,40(r1)` / `lfd 40(r1)` and `stw r4,36(r1)` pairs keep their relative order; what moves is their interleaving against the independent f3/f4 arithmetic). No control op and no r1 redefinition in the window. The 15 remaining rows are the bijective f0<->f1 renaming, machine-proven by verify_consistent_recolor.",
+        "instruction_permutation": {
+          "start": "0x1f0",
+          "end": "0x248",
+          "order": [0, 1, 2, 3, 4, 5, 9, 7, 6, 8, 11, 12, 10, 14, 13, 15, 16, 17, 18, 19, 20, 21],
+          "before_sha256": "9e6e5719c915d6f6f2c79708fd34340cf7d0a72750451378d8e9966cf2545c3b",
+          "after_sha256": "6eb6d09ea0403c1ec7938687eb56835d6e968283253961d86f6d5af69619b562",
+          "before_relocations_sha256": "ed36190c12570ca167a3fdc6f2820de698f6de40206530fdfb6ded551051f9b8",
+          "after_relocations_sha256": "ed36190c12570ca167a3fdc6f2820de698f6de40206530fdfb6ded551051f9b8"
+        },
+        "copy_register_fields": true
+      },
+      {
         "function": "ExpToLevel",
         "before_sha256": "5cc064f36f80ce66eeacf7215afc0f72270830b136f885383ef2bacf9d9634cc",
         "after_sha256": "fcdf17a93a81e283c4d571fd6601b670ec4299cd9e131b3fb943fcdfdc5adb87",
