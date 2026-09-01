@@ -12,6 +12,9 @@ Usage:
   python tools/gdl/defake_gate.py baseline game/enemy/enemy.c
   python tools/gdl/defake_gate.py check game/enemy/enemy.c --rebuild
   python tools/gdl/defake_gate.py check game/enemy/enemy.c --update-improved
+  python tools/gdl/defake_gate.py check game/enemy/enemy.c --arbiter fuzzy
+      (measure the fuzzy a real-growth REGRESSION would override when the
+      genuine structural rows are FLAT — see the FUZZY ARBITER below)
   python tools/gdl/defake_gate.py check game/x/y.c --bank-arbitrated=<fn>
       (accept a fuzzy-arbitrated keep for ONE function without
       re-anchoring any sibling — the mandate-correct way to bank a
@@ -55,6 +58,19 @@ FELL. Closing one compensating error re-aligns every instruction after
 it, so a strictly-nearer stream can score worse on `real` alone -- that
 shape read as a flat REGRESSION and had to be overridden by hand. Only
 the disputed functions are re-measured, so the check stays cheap.
+
+The third route is the FUZZY ARBITER (`--arbiter fuzzy`), for the case the
+structure arbiter is silent about: real rose while the genuine structural
+rows held FLAT. Flat rows mean regnorm sees the same amount of genuine
+structure, so `real` alone decides -- and every keep of that shape had to be
+overridden by hand against a fuzzy the gate never printed. --arbiter fuzzy
+regenerates build/GUNE5D/report.json (the discipline-3 "fresh report" rule,
+never a stale read) and reports the per-function fuzzy delta the REGRESSION
+would override: a RISING fuzzy becomes a CONFLICT, a falling or flat one
+stays a REGRESSION with real and fuzzy explicitly agreeing. The delta is
+PRINTED in every arbitrated case, so the number behind a manual override is
+in the gate output instead of a separate command. Baselines taken before
+this item carry no fuzzy anchor and say so.
 """
 
 import hashlib
@@ -267,12 +283,85 @@ def ops_text(bare_unit, name):
          "--no-build"], capture_output=True, text=True).stdout
 
 
+REPORT = Path(f"build/{VERSION}/report.json")
+
+
+def read_report_fuzzy(unit, report=None):
+    """{fn: fuzzy%} for `unit` from an objdiff report, {} if unreadable.
+
+    Read-only and freshness-blind by itself: `fresh_fuzzy` is what enforces
+    the discipline-3 rule that a quoted fuzzy comes from a report generated
+    AFTER the object under test.
+    """
+    path = Path(report) if report is not None else REPORT
+    bare = re.sub(r"\.(c|cpp)$", "", str(unit).replace("\\", "/").strip("/"))
+    if bare.startswith("src/"):
+        bare = bare[len("src/"):]
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    for entry in data.get("units", []):
+        if entry.get("name", "").endswith(bare):
+            return {fn["name"]: float(fn.get("fuzzy_match_percent", 0.0))
+                    for fn in entry.get("functions", [])
+                    if fn.get("name")}
+    return {}
+
+
+def report_is_fresh(unit, report=None):
+    """True when the report is at least as new as the unit's object."""
+    path = Path(report) if report is not None else REPORT
+    obj = Path(f"build/{VERSION}/src/{re.sub(r'[.](c|cpp)$', '', unit)}.o")
+    try:
+        return path.stat().st_mtime >= obj.stat().st_mtime
+    except OSError:
+        return False
+
+
+def fresh_fuzzy(bare_unit, _names):
+    """Per-function fuzzy for `bare_unit` from a FRESHLY built report.
+
+    Regenerates build/GUNE5D/report.json before reading it. Reading the
+    report a previous command left behind is the recorded way a 0.04-off
+    number nearly got banked, so this never reads a report it did not just
+    cause to be written.
+    """
+    build = subprocess.run(["ninja", str(REPORT).replace("\\", "/")],
+                           capture_output=True, text=True)
+    if build.returncode != 0:
+        print("[--arbiter fuzzy: report build FAILED, fuzzy unavailable]")
+        print((build.stdout + build.stderr).strip()[-600:])
+        return {}
+    return read_report_fuzzy(bare_unit)
+
+
+def _fuzzy_note(was, now):
+    """'fuzzy A -> B (+D)' or a reason the delta could not be formed."""
+    if now is None:
+        return None, ("fuzzy delta UNMEASURED — pass `--arbiter fuzzy` to"
+                      " measure the fuzzy this REGRESSION would override")
+    if was is None:
+        return None, (f"fresh fuzzy is {now:.4f} but this baseline carries no"
+                      " fuzzy anchor to compare it against — re-take the"
+                      " baseline to enable the fuzzy arbiter")
+    delta = now - was
+    return delta, f"fuzzy {was:.4f} -> {now:.4f} ({delta:+.4f})"
+
+
 def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
-                          ops_fn=None):
+                          ops_fn=None, fuzzy_fn=None, arbiter=None):
     """Downgrade real-growth REGRESSIONs to CONFLICT when the current state
     is structurally target-identical (equal insn counts, IDENTICAL opcode
     multiset): the growth can be pure naming churn invisible to `real`.
-    Never applies to functions that were byte-exact at baseline."""
+    Never applies to functions that were byte-exact at baseline.
+
+    ``arbiter='fuzzy'`` additionally measures the FRESH fuzzy of every
+    disputed function, so the flat-genuine-rows case — where the structure
+    arbiter has nothing to say and every keep was overridden by hand —
+    reports the delta it would be overriding, and a RISING fuzzy becomes a
+    CONFLICT instead of a bare REGRESSION.
+    """
     bare_unit = re.sub(r"\.(c|cpp)$", "", unit)
     baseline = baseline or {}
     genuine_fn = genuine_fn or genuine_counts
@@ -282,6 +371,9 @@ def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
                 and re.match(r"real (\d+) -> (\d+)$", detail)
                 and not detail.startswith("real 0 ")]
     genuine_now = genuine_fn(bare_unit, disputed) if disputed else {}
+    fuzzy_now = {}
+    if disputed and arbiter == "fuzzy":
+        fuzzy_now = (fuzzy_fn or fresh_fuzzy)(bare_unit, disputed) or {}
     out = []
     for name, verdict, detail in verdicts:
         growth = re.match(r"real (\d+) -> (\d+)$", detail)
@@ -312,16 +404,38 @@ def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
                 continue
             out.append((name, verdict, detail))
             continue
+        delta, note = _fuzzy_note(baseline.get(name, {}).get("fuzzy"),
+                                  fuzzy_now.get(name))
         if now < was:
             out.append((name, "CONFLICT",
                         detail + f" BUT genuine structural rows {was} ->"
                         f" {now} FELL — the residual moved nearer target"
                         " and real is reading the re-alignment; arbitrate"
                         " on fuzzy from a fresh report, do NOT auto-revert"
+                        " (pass --arbitrate to accept)"
+                        + (f" [{note}]" if delta is not None else "")))
+        elif now > was:
+            out.append((name, verdict,
+                        detail + f" (genuine structural rows {was} -> {now}"
+                        " ROSE — structure agrees with real)"))
+        elif delta is not None and delta > 0:
+            # FUZZY ARBITER: rows flat, so the structure arbiter is silent
+            # and `real` alone was deciding. A rising fresh fuzzy says the
+            # finer metric disagrees with real — the exact shape that was
+            # being overridden by hand.
+            out.append((name, "CONFLICT",
+                        detail + f" BUT genuine structural rows FLAT {was} ->"
+                        f" {now} while {note} ROSE — the finer metric"
+                        " disagrees with real; arbitrate, do NOT auto-revert"
                         " (pass --arbitrate to accept)"))
+        elif delta is not None:
+            out.append((name, verdict,
+                        detail + f" (genuine structural rows FLAT {was} ->"
+                        f" {now}; {note} — real and fuzzy AGREE)"))
         else:
             out.append((name, verdict,
-                        detail + f" (genuine structural rows {was} -> {now})"))
+                        detail + f" (genuine structural rows {was} -> {now};"
+                        f" {note})"))
     return out
 
 
@@ -413,6 +527,19 @@ def main():
     rebuild = "--rebuild" in sys.argv or "--build" in sys.argv
     arbitrate = "--arbitrate" in sys.argv
     at_head = "--at-head" in sys.argv
+    # `--arbiter fuzzy` and `--arbiter=fuzzy` both work; the space form has
+    # to pull its value back out of the positional list.
+    arbiter = next((a.split("=", 1)[1] for a in sys.argv
+                    if a.startswith("--arbiter=")), None)
+    if arbiter is None and "--arbiter" in sys.argv:
+        idx = sys.argv.index("--arbiter")
+        if idx + 1 < len(sys.argv) and not sys.argv[idx + 1].startswith("--"):
+            arbiter = sys.argv[idx + 1]
+            if arbiter in args:
+                args.remove(arbiter)
+    if arbiter not in (None, "fuzzy"):
+        print(f"unknown --arbiter {arbiter!r}; the only mode is `fuzzy`")
+        return 2
     renames = {}
     for arg in sys.argv[1:]:
         if arg.startswith("--rename="):
@@ -437,15 +564,15 @@ def main():
                 continue
             print(f"==== {one} ====")
             code = run_single(mode, one, rebuild, update_improved, arbitrate,
-                              renames, bank_arbitrated, at_head)
+                              renames, bank_arbitrated, at_head, arbiter)
             worst = max(worst, code)
         return worst
     return run_single(mode, unit, rebuild, update_improved, arbitrate,
-                      renames, bank_arbitrated, at_head)
+                      renames, bank_arbitrated, at_head, arbiter)
 
 
 def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
-               bank_arbitrated=None, at_head=False):
+               bank_arbitrated=None, at_head=False, arbiter=None):
     unit = normalize_unit(unit)
     if at_head:
         # Reconstruct the baseline the CURRENT COMMIT implies, with the
@@ -475,7 +602,8 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
                   + (" (working-tree edits temporarily set aside)"
                      if dirty else " (working tree already matches HEAD)"))
             return run_single(mode, unit, True, update_improved, arbitrate,
-                              renames, bank_arbitrated, at_head=False)
+                              renames, bank_arbitrated, at_head=False,
+                              arbiter=arbiter)
         finally:
             if dirty:
                 src.write_bytes(saved)
@@ -515,11 +643,30 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         for name, count in genuine_counts(unit, mismatching).items():
             if name in snap:
                 snap[name]["genuine"] = count
+    # Fuzzy anchor for the fuzzy arbiter. Only ever taken from a report at
+    # least as new as the object it describes: an anchor read from a stale
+    # report is worse than no anchor, because `check` would silently
+    # compare a fresh number against a number for different bytes.
+    bare = re.sub(r"\.(c|cpp)$", "", unit)
+    fuzzy_rows, fuzzy_note = {}, "no fuzzy anchor (report older than object)"
+    if arbiter == "fuzzy":
+        fuzzy_rows = fresh_fuzzy(bare, None)
+        fuzzy_note = "fuzzy anchor from a freshly built report"
+    elif report_is_fresh(unit):
+        fuzzy_rows = read_report_fuzzy(bare)
+        fuzzy_note = "fuzzy anchor from the current report"
+    for name, value in fuzzy_rows.items():
+        if name in snap:
+            snap[name]["fuzzy"] = value
+    if not fuzzy_rows:
+        fuzzy_note = ("no fuzzy anchor — re-take with `--arbiter fuzzy` to"
+                      " enable the fuzzy arbiter")
     path = gate_path(unit)
     if mode == "baseline":
         meta = save_baseline(path, snap, unit)
         exact = sum(1 for row in snap.values() if row.get("real") == 0)
         print(f"baseline: {len(snap)} functions ({exact} at real 0) -> {path}")
+        print(f"  {fuzzy_note}")
         print(f"  anchored to commit {(meta.get('head') or '?')[:9]},"
               f" source sha1 {(meta.get('source_sha1') or '?')[:9]}"
               " — rebuild this exact baseline anywhere with"
@@ -567,7 +714,8 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
               " every sibling still gates against its original anchor;"
               " record the arbitration + its fuzzy in the attempt record)")
     verdicts = compare(baseline, snap, renames)
-    verdicts = arbitrate_regressions(verdicts, unit, baseline)
+    verdicts = arbitrate_regressions(verdicts, unit, baseline,
+                                     arbiter=arbiter)
     conflicts = [v for v in verdicts if v[1] == "CONFLICT"]
     regressions = [v for v in verdicts if v[1] == "REGRESSION"]
     for name, verdict, detail in verdicts:
