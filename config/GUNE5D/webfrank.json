@@ -708,6 +708,39 @@
       }
     ],
     "game/world/newcam": [
+    {
+      "function": "fn_8006DF34",
+      "before_sha256": "5aae21364f3f2362e080e2b5ebd8cb94749ca7b9bd01cb11de3bf42f592b8cd9",
+      "after_sha256": "7783aea384b12439ed366470efab4b15421a3cdb2a29c729694d56aedfb5ea32",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - the full permute+form+recolor composition. 378/378, real 24. Permute [0x230,0x238) order [1,0] (dependence-audited in our colouring, strictest form, no exit_dead escape); the window DOES carry a relocation, so both region relocation hashes are non-empty and the rule fails closed if the symbol table is renumbered. The moved atom was bound to its target slot by (relocation type, symbol) and not by instruction word, per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 -- the shipped payload check proves CONSERVATION, not binding, so binding is the deriver's obligation. Then +0x240 is a differing-destination li-vs-copy site closed by `constant_dataflow_recolor` naming our source r29, and copy_register_fields completes it under a machine-proven bisimulation. Source axis capped by attempt.fn-8006df34-constant-copy-instance-rescreen.20260831.v1 (the constant-copy-vs-rematerialize class, source-unreachable). real 24 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 378,
+        "permuted_instructions": 2
+      },
+      "instruction_permutation": [
+        {
+          "start": "0x230",
+          "end": "0x238",
+          "order": [
+            1,
+            0
+          ],
+          "before_sha256": "4c4b9122f68fe6a7ae2fb6b03c9e03e55ce747fbc8f3eabdfdace2f594228580",
+          "after_sha256": "7b0492a1deac1824d405967f6f5044d81d60104492f89c8394320ddc83580c41",
+          "before_relocations_sha256": "7f3fbcb494f13df5ead6da70570e5f7f287cd1fa551828862a10be731db65c69",
+          "after_relocations_sha256": "58f69344128f190a3fa46497a5d83bd05d5f5b9bdc4a8481225eee3799d58994"
+        }
+      ],
+      "equivalent_copy_form": [
+        {
+          "at": "0x240",
+          "proof": "constant_dataflow_recolor",
+          "our_source": 29
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "fn_8006E654",
         "before_sha256": "a8ae1a58e6d35e9719ed4def254daf4aa5e07f86247eb8192c3b8d6589c68a5b",
