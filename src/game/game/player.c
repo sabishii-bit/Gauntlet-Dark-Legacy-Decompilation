@@ -4643,7 +4643,7 @@ s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) 
         sprintf((char*) pot + 1268, (char*) fmt + 1484, q + 1060, name);
     } else {
         q = tab + ct * 4;
-        if (*(s32*) (q + 2384) != 0) {
+        if (((s32*) (tab + 2384))[ct] != 0) {
             class_entry = tab + cls * 4;
             sprintf((char*) pot + 1268, (char*) fmt + 1500, q + 1060,
                     *(char**) (class_entry + 1196), tier);
