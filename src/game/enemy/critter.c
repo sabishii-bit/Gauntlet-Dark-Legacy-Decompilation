@@ -4207,9 +4207,10 @@ void CritterProcessSafeRocks(void)
         }
     } else if (lbl_80344658 > 0) {
         for (i = 0; i < lbl_80344658; i++) {
-            if ((f64)gBig.safeRockTimers[i] > 0.0) {
-                gBig.safeRockTimers[i] -= gClockFrameStep;
-                if ((f64)gBig.safeRockTimers[i] <= 0.0) {
+            f32 *timer = (f32 *)&gBig + i;
+            if ((f64)*(timer += 4) > 0.0) {
+                *timer -= gClockFrameStep;
+                if ((f64)*timer <= 0.0) {
                     SafeRockActivate(gBig.safeRockIndices[i]);
                 }
             }
