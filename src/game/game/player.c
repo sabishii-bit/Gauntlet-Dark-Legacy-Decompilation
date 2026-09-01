@@ -5150,14 +5150,14 @@ void PlayerProcessPowerups(void* vp) {
         if (p->shield_flags & 0x100000) {
             if (weapon_time < 0.0f || weapon_time > lbl_80347A40 ||
                 (((s32)(lbl_80347A58 * weapon_time) & 1) != 0)) {
-                SetSkinFX(1.0f, (f32*)((u8*)p + 0x7DC),
-                          lbl_80344BF0, 1, 1);
+                s32 skin = lbl_80344BF0;
+                SetSkinFX(1.0f, (f32*)((u8*)p + 0x7DC), skin, 1, 1);
             }
         } else if (p->shield_flags & 0x10000) {
             if (weapon_time < 0.0f || weapon_time > lbl_80347A40 ||
                 (((s32)(lbl_80347A58 * weapon_time) & 1) != 0)) {
-                SetSkinFX(1.0f, (f32*)((u8*)p + 0x7DC),
-                          lbl_80344BF4, 1, 1);
+                s32 skin = lbl_80344BF4;
+                SetSkinFX(1.0f, (f32*)((u8*)p + 0x7DC), skin, 1, 1);
             }
         }
 
