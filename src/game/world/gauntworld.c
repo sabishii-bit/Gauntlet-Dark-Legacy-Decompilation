@@ -2287,13 +2287,12 @@ void fn_8005BA1C(Item* item, u8* player)
                     break;
                 }
                 rec = *records;
-                for (k = 0; k < *(s32*)(world + 0x74); k++) {
+                for (k = 0; k < *(s32*)(world + 0x74); k++, rec += 0x50) {
                     rsub = (s32*)(rec + 4);
                     if (strcmp(lbl_80346F10, (char*)rsub + 0x24) == 0 &&
                         *(s32*)rec == 1 && *rsub == 3) {
                         goto found_chicken;
                     }
-                    rec += 0x50;
                 }
                 k = -1;
 found_chicken:
@@ -2305,13 +2304,12 @@ found_chicken:
                     break;
                 }
                 rec = *records;
-                for (k = 0; k < *(s32*)(world + 0x74); k++) {
+                for (k = 0; k < *(s32*)(world + 0x74); k++, rec += 0x50) {
                     rsub = (s32*)(rec + 4);
                     if (strcmp(lbl_80346F18, (char*)rsub + 0x24) == 0 &&
                         *(s32*)rec == 1 && *rsub == 3) {
                         goto found_apple;
                     }
-                    rec += 0x50;
                 }
                 k = -1;
 found_apple:
@@ -2342,14 +2340,13 @@ found_apple:
                 if (item->action == 0) {
                     *(s16*)&item->data[0x10] = 200;
                     rec = *records;
-                    for (k = 0; k < gWorldInfo.niteminfos; k++) {
+                    for (k = 0; k < gWorldInfo.niteminfos; k++, rec += 0x50) {
                         rsub = (s32*)(rec + 4);
                         if (strcmp(&objects[0x130],
                                    (char*)rsub + 0x24) == 0 &&
                             *(s32*)rec == 1 && *rsub == 1) {
                             goto found_gold;
                         }
-                        rec += 0x50;
                     }
                     k = -1;
 found_gold:
@@ -2373,14 +2370,13 @@ found_gold:
                 if (item->action == 0) {
                     *(s16*)&item->data[0x10] = 100;
                     rec = *records;
-                    for (k = 0; k < gWorldInfo.niteminfos; k++) {
+                    for (k = 0; k < gWorldInfo.niteminfos; k++, rec += 0x50) {
                         rsub = (s32*)(rec + 4);
                         if (strcmp(&objects[0x13C],
                                    (char*)rsub + 0x24) == 0 &&
                             *(s32*)rec == 1 && *rsub == 1) {
                             goto found_silver;
                         }
-                        rec += 0x50;
                     }
                     k = -1;
 found_silver:
@@ -6213,11 +6209,18 @@ extern s32 sNumItemWobjs;
 extern u8 sItemRuntime[];
 s16* FindWobjWanim(void* wobj);
 
+/* Parallel column arrays over sItemRuntime (.bss 0x802577F0, size 0xBB8 =
+ * 3000 = 5 columns * 150 f32).  The object[] column lives past the symbol's
+ * own 3000 bytes but is addressed off the same single base relocation, so it
+ * stays part of this view rather than becoming a second symbol. */
 typedef struct ItemWobjRuntime {
-    f32 y[450];
-    f32 initialY[450];
-    u8 _pad[25616];
-    u32 object[450];
+    f32 y[150];         /* +0     current offset from initialY            */
+    f32 initialY[150];  /* +600   resting Y the offset is added to        */
+    f32 openY[150];     /* +1200  target offset when st & 0x20 is clear   */
+    f32 closedY[150];   /* +1800  target offset when st & 0x20 is set     */
+    f32 dist[150];      /* +2400  compared against sItemSearchDistance    */
+    u8 _pad[26216];     /* +3000                                          */
+    u32 object[150];    /* +29216 WorldObj* per wobj                      */
 } ItemWobjRuntime;
 
 /* Fire all special triggers of the given class. */

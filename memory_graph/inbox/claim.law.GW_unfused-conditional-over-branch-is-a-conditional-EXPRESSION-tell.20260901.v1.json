@@ -1,0 +1,22 @@
+{
+  "attributes": {
+    "boundary": "The census counts a SYNTACTIC shape and does not by itself prove the ternary is the only producer; it proves (a) the pattern is routinely reachable under our exact compiler configuration, and (b) 193 exact functions are available as source oracles for anyone who needs a second reading. The gauntworld sites specifically remain OPEN - this law redirects the search, it does not close them.",
+    "provenance": "Measured 2026-09-01 in worktree GDL-Claude-GauntworldTail while attacking fn_8005BA1C's five-site `+5 b +3 bne / -3 beq` residual (attempt.GW_fn8005ba1c-for-increment-order-and-branch-fusion-caps.20260901.v2). Census over the whole split target: 22708 conditional branches scanned, 563 unfused sites in 289 functions; 271 of those sites, in 193 functions, are inside functions we already compile byte-exact. gauntworld alone holds 30 sites across 16 functions. ORACLE READ: game/mb/mb_particle::MBPsysSetEVolume (exact, 100%) contains four sites; its source is a clamp written as a CHAINED TERNARY - `v = (v < 1.0) ? 1.0 : (v > 255.0) ? 255.0 : v;` - which compiles to `fcmpo / bge ->+8 / b ->end` twice, byte-identical to target. A SECOND, INDEPENDENT MEASUREMENT of the same boundary: in fn_8005BA1C two statement-level respells of the guard (De Morgan + `continue` so the `goto` is no longer an if-body; and a positive `if (x == 1) { ... }` wrap of the whole case body) both produced probe.py NEUTRAL-IDENTICAL - object bytes literally unchanged - proving the pattern is NOT controlled by statement shape.",
+    "tags": [
+      "matching",
+      "peephole",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Find an already-EXACT (real 0, byte-identical) function whose target stream contains a `bcc ->A+8` immediately followed by `b ->far` and whose source contains NO conditional expression (ternary, `&&`/`||` used as a VALUE, or a comparison assigned to a variable) anywhere in the enclosing statement. One such function disproves the tell. The census that would find it is GW_scratch/branch_census.py in commit b90cdabf7's worktree (promote before citing): it walks build/GUNE5D/asm/**/*.s, pairs each conditional branch whose `.L_` target equals addr+8 with a following `b`, and joins against build/GUNE5D/report.json fuzzy_match_percent == 100. Conversely, the tell is also disproved if a statement-level respell (guard polarity, if-body shape, break-vs-goto) is ever shown to CREATE or REMOVE the pattern.",
+  "id": "claim.law.GW_unfused-conditional-over-branch-is-a-conditional-EXPRESSION-tell.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T22:05:12Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "A target stream containing `bcc ->(addr+8)` immediately followed by an unconditional `b` - a conditional branch hopping OVER a branch, which our build instead fuses into one inverted conditional - is a tell for a conditional EXPRESSION in the source (a ternary, a chained ternary, or `&&`/`||` evaluated as a VALUE), NOT for any if/goto statement spelling and NOT for a compiler flag. THREE consequences, each measured. (1) DO NOT reach for `#pragma peephole off`: it is the intuitive cure and it is wrong - a scoped peephole-off on fn_8005BA1C moved real 627->683 and the multiset 11t->61t. (2) DO NOT spend probes on statement-level guard respells: guard polarity, if-body shape, and early-exit-vs-nested-block are all canonicalised to one internal form before codegen, and two such forms on fn_8005BA1C returned byte-identical objects. (3) DO use the exact-function oracle set: because 271 of the 563 image-wide sites sit inside functions we already compile byte-exact, the producing C construct is always readable from a known-good source rather than guessed - run the census, pick an exact function, read its source. The general workflow point, which cost this session a false conclusion before it was caught: the FIRST run of this census reported '0 sites in exact functions' because the report's unit names carry a `main/` prefix that the asm paths do not, so the key intersection was empty; a census that joins two name spaces must PRINT the size of the intersection before its headline number is believed."
+}

@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Measured 2026-09-01 in worktree GDL-Claude-GauntworldTail while executing the column-array axis named by attempt.fn-80062a00-cached-alias-removal-insufficient.20260831.v1. Ground truth: `sItemRuntime = .bss:0x802577F0; // type:object size:0xBB8` in config/GUNE5D/symbols.txt. 0xBB8 = 3000 = 5 * 600, and 600 bytes = 150 f32 at stride 4. Committed as b90cdabf7, 'De-fakematch ItemWobjRuntime column layout (byte-identical)', gated with defake_gate.py check --rebuild = GATE OK over all 46 functions and a full `ninja -j2` printing `build/GUNE5D/main.dol: OK`.",
+    "tags": [
+      "defake",
+      "symbol-identity",
+      "index-form",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A symbols.txt entry, splitter output, or target access showing sItemRuntime with a size other than 0xBB8, or any target instruction reading sItemRuntime at a displacement in [3000, 29216) - either would break the five-by-150 partition. Check with `Select-String -Path config/GUNE5D/symbols.txt -Pattern sItemRuntime` and by scanning build/GUNE5D/asm/game/world/gauntworld.s for sItemRuntime displacements.",
+  "id": "claim.GW_sitemruntime-column-layout-is-five-by-150.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T22:04:34Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/gauntworld",
+  "valid_from": "2026-09-01",
+  "value": "sItemRuntime (.bss 0x802577F0, size 0xBB8) is FIVE parallel column arrays of 150 f32 each, at byte offsets 0, 600, 1200, 1800 and 2400 - the symbol size 3000 partitions exactly and leaves no room for any other reading. Semantics inferred from fn_80062A00's use: +0 is the current Y offset, +600 the resting Y it is added to, +1200 and +1800 the open/closed target offsets selected by the st&0x20 bit, +2400 the distance compared against sItemSearchDistance. TWO CORRECTIONS FALL OUT, and each was a live error in the tree. (1) THE TU ALREADY HELD A CONFLICTING RECONSTRUCTION. `typedef struct ItemWobjRuntime` in src/game/world/gauntworld.c declared y[450] / initialY[450] / _pad[25616] / object[450] - 450-entry columns at 1800-byte stride, totalling 31016 bytes, ten times the symbol and flatly inconsistent with the 600-byte stride the same TU's accesses use. This is the critter.c failure mode from AGENTS.md's de-fakematch section repeating: a second partial reconstruction of one base, accumulated because the first was never checked against the symbol size. The corrected typedef is byte-identical in codegen because the struct's only consumer, ActivateSpecialTrigger (already EXACT), touches member `y` at offset 0, whose address is unchanged by the element-count fix - so this correction is safe to make and should be made before any further work on the base. (2) THE PRIOR RECORD'S MAP NAMED A SIXTH COLUMN THAT IS NOT PART OF THIS SYMBOL. Its 'columns at 0, 600, 1200, 1800, 2400 and 29216' plus an 'unmapped 26216-byte gap' is better read as: five columns ARE the symbol, and +29216 lies far outside it, reaching a different .bss object. That access is real and must keep using the same single sItemRuntime base relocation (claim.law.single-base-relocation-refutes-symbol-separation), so the view retains object[150] behind an explicit 26216-byte pad - but nobody should look for meaning in the 'gap', because it is simply other symbols. GENERAL POINT: a raw-offset base with a recorded size is cheap ground truth, and checking the size against the offsets BEFORE adopting an inherited map is what separated a correct five-column partition from a fictitious 31016-byte record here."
+}
