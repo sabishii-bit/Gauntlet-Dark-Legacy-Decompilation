@@ -1821,20 +1821,21 @@ keyring_found:
         }
     }
     if (row->type == 1 && *(u32*)&item->data[8] != 0) {
+        Item* newItem;
         f32 radius;
 
-        child = NewItemPtr_800642C8();
-        SetItem(child, NULL, row, gIdentityMatrix);
-        result = child;
-        MBNodeSetParent(child->objgrp.node, *(void**)&item->data[8]);
-        *(Item**)&item->data[12] = child;
-        *(Item**)&child->data[12] = item;
-        child->opener = (s8)(inst != NULL ? *inst : -1);
+        newItem = NewItemPtr_800642C8();
+        SetItem(newItem, NULL, row, gIdentityMatrix);
+        result = newItem;
+        MBNodeSetParent(newItem->objgrp.node, *(void**)&item->data[8]);
+        *(Item**)&item->data[12] = newItem;
+        *(Item**)&newItem->data[12] = item;
+        newItem->opener = (s8)(inst != NULL ? *inst : -1);
         MBTreeSetFlags(result->objgrp.node, 8, 0);
         radius = sArrowFloorRadius;
-        *(f32*)((u8*)child->objgrp.node + 64) = radius;
-        *(f32*)((u8*)child->objgrp.node + 68) = radius;
-        *(f32*)((u8*)child->objgrp.node + 72) = radius;
+        *(f32*)((u8*)newItem->objgrp.node + 64) = radius;
+        *(f32*)((u8*)newItem->objgrp.node + 68) = radius;
+        *(f32*)((u8*)newItem->objgrp.node + 72) = radius;
     } else {
         s32 subtype;
 
@@ -6576,6 +6577,7 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
     s32 idx;
     f32 root;
     f32 d2;
+    u8 unused[40];
 
     sp = it + 220;
     kind = *(s16*)(it + 220);
