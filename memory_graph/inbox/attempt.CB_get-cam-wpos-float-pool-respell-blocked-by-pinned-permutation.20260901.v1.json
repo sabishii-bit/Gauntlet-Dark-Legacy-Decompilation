@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Respell get_cam_wpos's remaining anonymous FP pool literal 0.019999999552965164f as the named sdata2 extern lbl_80346188 (0.02f) that the target actually relocates against, to convert our surplus `lfd @@586` into the target's `lfs lbl_80346188` and close the last `-1 lfd` in the multiset",
+  "attributes": {
+    "law_screen": "claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 SCREENED -- this axis is exactly its subject matter, and the axis is source-correct. claim.law.webfrank-pinned-function-source-freeze.20260831.v1 and claim.law.webfrank-hash-pinned-site.20260830.v1 SCREENED BEFORE the edit per AGENTS.md first-five-minutes trap 4: the four combat.c pins (adjust_radius_8002B2D4, MissileCollideEnemy, cam_orient_to_80029E8C, init_game_cam) were read out of the prior get_cam_wpos record and get_cam_wpos is NOT among them, so the pin screen PASSED and the edit was expected to be safe. It was not, and that gap is the finding -- see value. claim.law.HV_named-literal-defines-leak-past-their-undef-and-produce-score-invisible-wrong-reads.20260901.v1 SCREENED, not applicable (no #define involved).",
+    "laws_applied": "[]",
+    "probed_form": "In src/game/game/combat.c, all ten occurrences of the token `0.019999999552965164f` inside get_cam_wpos (lines 1346, 1350, 1363, 1367, 1386, 1387, 1388, 1392, 1393, 1394 at commit ab813be2e) replaced by the identifier `lbl_80346188`, which the TU already declares at line 1228 as `extern f32 lbl_80346188;` (declared-but-unused before this probe). Value confirmed as 0.02f from build/GUNE5D/asm/auto_11_80345D70_sdata2.s. Target evidence, from `fnasm.py game/game/combat.c get_cam_wpos_8002ABE0 0x5a8:0x5e8 --diff`: target emits `lfs f1,0(0) @lbl_80346188(EMB_SDA21)` where ours emits `lfd f0,0(0) @@586(EMB_SDA21)`, both as the second operand of the same fsub, and the enclosing source expression at combat.c:1386 is already `lbl_80346178 - 0.019999999552965164f`, so the mixed float/double shape is confirmed source-reachable.",
+    "residual": "BLOCKED, not capped: the axis is source-correct and untested on its merits, because the build aborts before any score can be read. Deleting the two anonymous pool entries (@@585, @@586) RENUMBERS every anonymous pool label in combat.c after them, which changes the relocation input hash of init_game_cam's PINNED instruction_permutation rule. The three earlier pins in the TU replay fine (webfrank.py logs `adjust_radius_8002B2D4: adjusted 9`, `MissileCollideEnemy: adjusted 4`, `cam_orient_to_80029E8C: adjusted 2`) and the failure lands on the fourth: `File tools/gdl/webfrank.py line 1308, in permute_instruction_atoms / ValueError: instruction permutation relocation input hash changed`. Reverted; the tree is back at ab813be2e and `ninja -j2` prints build/GUNE5D/main.dol: OK.",
+    "scope": "src/game/game/combat.c, get_cam_wpos_8002ABE0 only. Probe reverted, nothing committed, no webfrank.json or configure.py edit attempted -- config/GUNE5D/webfrank.json and rule re-derivation belong to work_claim.camera-unlock.20260901.v1 (owner claude-fleet-worker-WF) this run.",
+    "verification": "Full `ninja -j2` FAILED at `[4/10] WEBFRANK build\\GUNE5D\\src\\game\\game\\combat.o` with the ValueError quoted above; the failure is deterministic and reproduces on re-run. After reverting, defake_gate.py check game/game/combat.c => GATE OK and full ninja prints build/GUNE5D/main.dol: OK. Pins enumerated from the live webfrank.py stdout, not from a record."
+  },
+  "function": "function:get_cam_wpos_8002ABE0",
+  "id": "attempt.CB_get-cam-wpos-float-pool-respell-blocked-by-pinned-permutation.20260901.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-01T17:21:11Z",
+  "residual_class": "RELOCATION",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}
