@@ -3581,7 +3581,7 @@ s32 debug_camera_pos(s32 lastPlayer)
         lbl_80344464 =
             (f32)(lbl_80345FC0 * difference + lbl_80345FB0);
         lbl_80344468 =
-            (f32)-(difference * lbl_80345FD0 * lbl_80345FD8 -
+            (f32)-(difference * lbl_80345FD8 * lbl_80345FD0 -
                    lbl_80345FC8);
     }
     if (lbl_80344960 < 0 && (f64)extent >= lbl_80345FE0) {
