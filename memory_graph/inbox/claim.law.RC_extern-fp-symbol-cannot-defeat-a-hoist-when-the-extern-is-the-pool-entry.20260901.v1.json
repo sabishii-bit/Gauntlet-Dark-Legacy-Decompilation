@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/player.c::PlayerProcessPowerups (worktree GDL-Claude-ReopenTriage, work_claim.reopen-triage.20260901.v1, attempt.RC_playerprocesspowerups-call-arg-order-staging-local.20260901.v1). Two SetSkinFX calls at :5150-5162 pass `1.0f`, which MWCC pools at the address already declared in the same TU as `extern f32 lbl_80347790` and read that way at :5539. Target emits the argument's `lfs f1` LAST, we emitted it FIRST, so the hoist is exactly the thing the law addresses. Respelling both call sites' `1.0f` as `lbl_80347790` compiled BYTE-IDENTICAL - real 392 unchanged, insns 1598/1598, opcode multiset IDENTICAL, and the two residual clusters printed unmoved. The cluster was closed instead by claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1, staging the OTHER argument's extern read into a local (real 392 -> 384, fuzzy 98.598 -> 99.0989).",
+    "scope": "MWCC GC 1.2.5 family, any TU that declares its own split .sdata2 literal-pool entries as `extern f32/f64 lbl_*`. Reads together with claim.law.explicit-fp-symbol-vs-literal-zero-regression.20260830.v1 (substituting the canonical extern for a literal can actively REGRESS a whole function) and claim.law.pool-literal-substitution-is-per-function.20260831.v1 (such substitutions almost never survive second-stage validation): between them, the literal-vs-symbol axis on a same-address pool entry is now bounded on all three sides - inert here, regressive there, and rarely durable in bulk."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.RC_extern-fp-symbol-cannot-defeat-a-hoist-when-the-extern-is-the-pool-entry.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T01:35:11Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "BOUNDARY on claim.law.extern-scalar-read-defeats-fp-literal-hoist.20260831.v1, which it narrows rather than overturns. That law's lever is extern OPACITY: reading a value through an extern the compiler cannot fold is supposed to pin the load at its point of use instead of letting it hoist. The lever can only bite when the two spellings produce DIFFERENT instructions. It has NO effect when the named extern IS the small-data pool entry the literal would be allocated to anyway, because both spellings lower to the byte-identical `lfs fD,0(0) @<same symbol>(EMB_SDA21)` and the provenance distinction is erased before the scheduler ever runs. TEST OF APPLICABILITY, cheap and to be run BEFORE spending a probe on this law: resolve the address the literal is pooled at and compare it with the extern's address. If they are the same object, the law is inert - pick a different lever. If they differ (the extern lives elsewhere, so the read is a genuinely distinct memory operand), the law is live."
+}
