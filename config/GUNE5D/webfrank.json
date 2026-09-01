@@ -997,8 +997,8 @@
             "order": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0],
             "before_sha256": "0a35526fbb50866b52068ff8686d39c146d25ab15bb4695c96a832845601de06",
             "after_sha256": "d026ee86ece1d4d3ec97ee5eea037d52910c5fb8841a8920c87e270ddc7e1017",
-            "before_relocations_sha256": "c0fc9cedebe1ec1e25f27105d030abe09449de7d9809c08a9dd96d1932ef2d51",
-            "after_relocations_sha256": "589d67920386d8ef982340566aa9177a75cbcfefdb3b03dbc14d8318a67978d7"
+            "before_relocations_sha256": "08069db18387223457169ec89b23dcdd34c7107f0f7bcc13182fab59503d807c",
+            "after_relocations_sha256": "6c60eaf61849cdd04486969ebcbc8c03d13f92fc68caab371070b1e1887431ee"
           },
           {
             "start": "0x3e4",
@@ -1006,8 +1006,8 @@
             "order": [1, 0],
             "before_sha256": "25ccd85536439164c178aa4526565cb96aa39cbb2a06ea10bad0b1370d90f6fc",
             "after_sha256": "231b942105e8e302dcc97e918f2fc797b7582fc64cbe8d3f62f455185ae007c5",
-            "before_relocations_sha256": "1680c3c11340fb3ab7a530f963c39f11bd8418443cc46e6d9c1e64fdfbd04c5d",
-            "after_relocations_sha256": "2e751e4e8ced9ce1cb8905017a0d31fecdf29611acd0d2bd6010bc7aacb8a49a"
+            "before_relocations_sha256": "869d15666cd92c3a9c19ad26dd38fb61df11636ba48b81eac9f7dc4346f617e8",
+            "after_relocations_sha256": "8975cee6d5fad3161f2ad3b42ccb7b22cda7408ef305e0e4c045612f58bef5bb"
           }
         ],
         "copy_register_fields": true

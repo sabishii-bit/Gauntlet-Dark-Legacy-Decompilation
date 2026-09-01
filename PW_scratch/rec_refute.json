@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "Measured 2026-09-01 in worktree GDL-Claude-PbWindowFlip at commit c330c5e92. Reproduce: powerpc-eabi-objdump -t -s -j .sdata2 on build/GUNE5D/src/game/pb/.postprocess/body/pb_window.o, read against build/GUNE5D/asm/auto_11_80349018_sdata2.s, then python tools/gdl/datadiff.py game/pb/pb_window --sections.",
+    "tags": [
+      "build-hygiene",
+      "matching",
+      "workflow",
+      "sda-global",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.PW_sdata2-delta-is-alignment-padding-not-materialized-constants.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "schema_version": 1,
+  "subject": "tu:game/pb/pb_window",
+  "value": "PARTIAL REFUTATION of claim.WF_pb-window-flip-blocked-on-sdata2-pool-not-on-text.20260901.v1, on the half that would have directed the next lane's work. That record states that pb_window's 8-byte .sdata2 overshoot means 'ours carries TWO EXTRA ZERO WORDS (ours has five standalone zero words against retail's three; 2 words = the whole 8-byte delta), so some expression in pb_window.c materializes a constant retail does not', and prescribes hunting that expression. THAT IS WRONG, and the arithmetic settles it without a build. Our pool and the target pool hold the SAME TWENTY VALUES, value for value; the run-23 record claim.pbwindow-flip-sdata2-pool-order-blocker.20260831.v1 already said so and is correct. The 8-byte delta is TWO 4-BYTE ALIGNMENT PADS, at pool +0x04 and +0x24, forced because our creation order puts a 4-byte float immediately before an 8-byte double at both points (ours: 0.0f, then 0.5 double -> pad at +0x04; then 1.0f, then the 2^52 magic -> pad at +0x24). The target's creation order happens to interleave floats and doubles so that every 8-byte entry is already 8-aligned, which is why it packs to exactly 0x70 with zero padding. Two independent confirmations: (1) laying the target's published order out by hand gives 0x70 with no pad, and laying our pre-fix order out by hand gives 0x78 with pads at exactly +0x04 and +0x24, matching the objdump byte-for-byte; (2) the 'extra zero words' the WF record counted include the target's OWN `.double 0` entry at .sdata2:0x10, which is a real pool constant (the `w == 0.0` comparison in MBWindowClip), not padding. CONSEQUENCE FOR THE READER: the WF record's .rodata half is right and is already applied in splits.txt; its .sdata2 SIZE half must be read as 'the pool is mis-ORDERED', never as 'a spurious constant is being materialized'. The correct and now-executed fix was ordering, not deletion - see attempt.PW_pbwindow-sdata2-pool-order-fixed-two-byte-residual.20260901.v1, which took the section from a 0x78-vs-0x0 SIZE MISMATCH to size-equal 0x70 at 98.2% bytes equal, leaving a single adjacent 2-word transposition. GENERAL LESSON, which is why this is recorded rather than silently fixed: a pool SIZE overshoot in an MWCC .sdata2 block is far more often alignment padding produced by a wrong creation order than a surplus constant, and the two diagnoses point at opposite repairs. Count the values before counting the bytes."
+}

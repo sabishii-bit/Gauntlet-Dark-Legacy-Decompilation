@@ -145,6 +145,37 @@ void MBWindowViewport(f32 l, f32 r, f32 t, f32 b);
 void MBSetCurrentWindow(void);
 void pbInitWindow(void);
 
+/* The window-defaults reset that MBSetCurrentWindow and pbInitWindow both
+   paste out inline further down this file (see the "written out inline
+   (Midway paste style)" note on MBSetCurrentWindow).  In the original TU
+   this body is a real static helper defined HERE, ahead of every other
+   function: mwld dead-strips its out-of-line copy because both callers
+   inlined it, which is why it contributes no .text to the linked image,
+   but MWCC still walks it first and so it is what CREATES the leading
+   .sdata2 constant-pool entries (0.0f, 1.0f, 90.0f, 2047.0f, 0.0, 4095.0f,
+   65536.0f, in that order).  Its position is load-bearing: MWCC lays the
+   pool out strictly in creation order, and without this function the pool
+   is emitted in debugScissor-first order, which needs two 4-byte alignment
+   pads and comes out 0x78 bytes instead of the target's 0x70.  Do not
+   reorder or delete it without re-checking
+   `python tools/gdl/datadiff.py game/pb/pb_window --sections`. */
+static void pbWindowDefaults(void)
+{
+    PBWINGLOBALS* g = gWinGlobals;
+    f32 w;
+
+    g->current->left = 0.0f;
+    g->current->aspect = 1.0f;
+    g->current->view_angle_horiz = 90.0f;
+    w = 2047.0f;
+    if (w == 0.0) {
+        w = 4095.0f;
+    }
+    g->current->near_z = 1.0f;
+    g->current->far_z = 65536.0f;
+    g->current->clip_width = w;
+}
+
 /* 0x800C8294 */
 void pbCloseWindow(void)
 {
