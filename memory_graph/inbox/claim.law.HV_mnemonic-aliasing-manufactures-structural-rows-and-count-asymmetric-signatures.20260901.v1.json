@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/hv_instrument.py"
+  ],
+  "attributes": {
+    "provenance": "Measured 2026-09-01 in worktree GDL-Claude-RegfieldHarvest against game/game/gamemain::fn_80054E78, whose park record attempt.mp-label-correction.fn-80054e78.20260831.v1 carries the offending row verbatim. Build green, 'build/GUNE5D/main.dol: OK'.",
+    "tags": [
+      "metrics",
+      "matching",
+      "workflow",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Take any residual whose fndiff --ops signature names a +N/-N pair drawn from {addi, li, mr, nop, ori} and decode the two words at the reported offset with webfrank._u32. If their primary opcode fields (word >> 26) DIFFER, this law does not apply to that row and the structural reading stands. The law is disproved as a general claim if no such row exists image-wide where the opcodes are equal; tools/gdl/composed_census/hv_instrument.py prints the decode for the eight known cases.",
+  "id": "claim.law.HV_mnemonic-aliasing-manufactures-structural-rows-and-count-asymmetric-signatures.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T21:50:47Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "MNEMONIC-LEVEL OPCODE CENSUSES SPLIT ONE PPC OPCODE INTO SEVERAL NAMES AND SO MANUFACTURE 'STRUCTURAL' ROWS AND COUNT-ASYMMETRIC MULTISET DELTAS WHERE THE ENCODING DIFFERS ONLY IN REGISTER FIELDS. `li rD,K` is not an instruction; it is the disassembler's spelling of `addi rD,0,K`, and `mr rD,rS` is the spelling of `addi rD,rS,0` (also of `or rD,rS,rS`). A census that compares MNEMONIC STRINGS therefore reports a difference of kind where the hardware sees one opcode and a changed register field.\n\nWORKED CASE, and it cost a function a full run. attempt.mp-label-correction.fn-80054e78.20260831.v1 re-classified game/game/gamemain::fn_80054E78 as STRUCTURAL on the strength of one sample row quoted verbatim in the record: `0x0154 OPCODE-DIFFERS: T addi r30,r29,0 / O li r30,0`, read as 'different opcode (a real codegen-form gap, not a colouring)'. Decoding the two words: ours 0x3bc00000, target 0x3bdd0000. Both have primary opcode 14. They differ in the rA field alone (0 versus 29). There is no opcode difference. The same artifact propagated into the record's fndiff signature, 'DIFFERS target-only: +1 addi ours-only: -1 li; insns T267/O267; 1 ops clusters' - and AGENTS.md's own reading rule for --ops ('DIFFERS means something STRUCTURAL is still hiding even when the diff looks like regalloc noise') then correctly instructs every later reader to chase a structural gap that does not exist.\n\nWHAT THE ROW ACTUALLY WAS: the target rematerialises a known zero out of r29, which webfrank.prove_constant_dataflow proves holds the constant 0 at that point, while our build materialises the literal. That is the live-zero-remat family, and the function closes through the shipped equivalent_copy_form stage with a single 'fwd' form site once the word is routed to the copy-form arrow (see claim.law.HV_lexical-regfield-test-shadows-the-copy-form-arrow-for-mr-versus-li.20260901.v1).\n\nSCREENING RULE. Before accepting any STRUCTURAL label or count-asymmetric signature whose named opcodes fall in the alias set {addi, li, mr, nop, ori} - or any other alias family - decode the two words and compare `word >> 26`. Equal primary opcodes mean the row is a register-field difference wearing two names, and the residual belongs to the register/postprocessor class, not the structural one. This does NOT weaken the genuine count-asymmetric wall: a residual whose instruction COUNTS differ is still absolutely closed to every postprocessor class. It bears only on equal-count residuals whose apparent opcode difference is a spelling."
+}

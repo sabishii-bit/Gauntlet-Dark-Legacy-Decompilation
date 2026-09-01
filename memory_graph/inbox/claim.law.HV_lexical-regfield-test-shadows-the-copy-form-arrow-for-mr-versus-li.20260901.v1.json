@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/hv_instrument.py",
+    "tools/gdl/composed_census/hv_formfirst.py"
+  ],
+  "attributes": {
+    "provenance": "Derived and machine-proven 2026-09-01 in worktree GDL-Claude-RegfieldHarvest, branch claude/regfield-harvest-20260901, at project 65.90% matched, gate 'build/GUNE5D/main.dol: OK'. Reproduce with tools/gdl/composed_census/hv_instrument.py (decodes the eight Tier-A refusals) and hv_formfirst.py (re-proves them under the corrected arrow order). Both promoted this run and both run from the repo root.",
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "matching",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a differing word pair that webfrank.decode_copy_form resolves to two DIFFERENT kinds (one 'li', one 'copy') and that copy_register_fields nevertheless closes to residual 0 without an equivalent_copy_form site; that would show the kind mismatch is bridgeable by a renaming after all. Or, conversely, run tools/gdl/composed_census/hv_formfirst.py and observe game/game/gamemain::fn_80054E78 fail to close under the corrected arrow order. Both are one command against the extracted retail object.",
+  "id": "claim.law.HV_lexical-regfield-test-shadows-the-copy-form-arrow-for-mr-versus-li.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T21:50:40Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "A LEXICAL REGISTER-FIELD TEST APPLIED BEFORE A COPY-FORM TEST MISROUTES EVERY mr-VERSUS-li PAIR, AND THE MISROUTING PRESENTS AS A HARD WALL. MWCC's move form is `addi rD,rS,0` and its zero-load is `addi rD,0,0`: both are opcode 14, and they differ ONLY in the rA and rD register fields. So any test of the form 'is the XOR confined to register slots' answers YES for every mr/li pair. ha_close.classify asks exactly that question BEFORE consulting webfrank.decode_copy_form, and returns 'regfield' - so the form arrow, and the whole equivalent_copy_form stage behind it, is UNREACHABLE for precisely the pairs it was built to serve. webfrank.decode_copy_form itself is correct and says so in its own docstring (webfrank.py:2021-2024: 'addi treats a zero rA field as the literal value zero rather than as GPR 0, so addi rD,0,0 is li rD,0 - a constant load, not a copy of r0'); the defect is ordering in the lane classifier, not in the shipped guard.\n\nTHE CONSEQUENCE IS A MISROUTED PROOF, NOT A MISSED OPTIMISATION. The pair is handed to copy_register_fields, which is then asked to prove that some renaming carries 'the contents of r3' to 'the literal zero'. No renaming does, so verify_consistent_recolor refuses - CORRECTLY - and the refusal surfaces as `base register presence differs (g3 vs g0)`. Read at face value that message says the function is not a recolor, and the function is recorded as a wall. It is really a report that the wrong stage was asked.\n\nTHE REPAIR IS ONE LINE OF ORDERING: when a lexically regfield-only pair decodes to two different copy-form KINDS, the form arrow wins. A renaming can map source register A to source register B, so a copy/copy pair is genuinely a recolor; a renaming can never map a register's contents to a literal, so a li/copy pair never is. Every other pair keeps its current arrow.\n\nMEASURED YIELD, all eight Tier-A refusals image-wide re-proven through the shipped apply_patch: 1 CLOSES that previously read as a wall (game/game/gamemain::fn_80054E78, 267/267 instructions, families={'fwd': 1, 'regfield': 18} - a single form site plus eighteen ordinary regfield words). 2 more ADVANCE their refusal downstream, which the parent class law counts as progress to be kept and iterated (game/sfx/psfx::LoadPdataFile +0x118 -> +0x124; game/ui/attract::scroll_credits +0xe4 -> +0xfc). 1 reveals a different and more informative refusal (game/enemy/critter::CritterLoadDone: 'relocated word is not a copy-form candidate' - the word carries a relocation, so the form arrow is correctly declined). The remaining 4 are unaffected because their refusal is a genuine renaming conflict, not a kind mismatch.\n\nDIAGNOSTIC, applicable before any search: a refusal reading `base register presence differs (gA vs gB)` where either A or B is 0 is NEVER a recolor refusal about the function. r0 in the rA slot of a d-form instruction is the literal zero, so the message is reporting an addressing-form difference. Route that word to the form arrow and re-prove; only if BOTH registers are non-zero is it a true base-register disagreement."
+}

@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/hv_regfield_sweep.py"
+  ],
+  "attributes": {
+    "provenance": "Measured 2026-09-01 in worktree GDL-Claude-RegfieldHarvest, branch claude/regfield-harvest-20260901, over all 326 units with a green build ('build/GUNE5D/main.dol: OK'). Reproduce: `python tools/gdl/composed_census/hv_regfield_sweep.py triage` then `... prove`, both from the repo root.",
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "matching",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.HV_regfield-only-class-full-image-sweep-and-its-exhaustion.20260901.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-01T21:51:02Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "THE REGFIELD-ONLY (TIER-A) CLASS IS NOW SWEPT IMAGE-WIDE AND IS EXHAUSTED DOWN TO EIGHT NAMED REFUSALS. Population, measured over all 326 units rather than a lane's half: 292 equal-size differing functions, of which 93 are Tier A (every differing word a pure register-field difference, so copy_register_fields alone reproduces the target bytes) and 199 are Tier B. The 93 INDEPENDENTLY CORROBORATES HB's earlier count of 93 Tier-A functions image-wide, which had never been remeasured at the current match level.\n\nAT SWEEP START: 83 of the 93 shipped, 10 unshipped. AT SWEEP END: 85 shipped, 8 unshipped. The two closes were game/game/player::load_player_model_sub (116/116, 55 regfield words - PL's banked candidate) and game/game/player::load_player_model (80/80, 30 regfield words - a NEW find the sweep surfaced, and one PL's own record had explicitly declared ineligible; see attempt.HV_load-player-model-recolor-rule.20260901.v1). Both are the VERIFYING half of the class: pure copy_register_fields, no repair permutation needed.\n\nTHE EIGHT REFUSALS, INSTRUMENTED RATHER THAN COUNTED (discipline 14 - a guard's refusal is a measurement of the guard). They split into two sub-classes by which check fired, and the split is not visible in the refusal text alone:\n  * BASE-PRESENCE (4): CritterLoadDone (g3 vs g0), LoadPdataFile (g0 vs g23), fn_80054E78 (g0 vs g29), scroll_credits (g25 vs g0). EVERY ONE involves r0, which in a d-form rA slot is the literal zero rather than GPR 0 - so these are mr-versus-li form differences misrouted to the recolor stage, NOT recolor refusals. Under the corrected arrow order one CLOSES (fn_80054E78, withheld for provenance), two advance their refusal downstream (LoadPdataFile +0x118 -> +0x124, scroll_credits +0xe4 -> +0xfc) and one declines informatively (CritterLoadDone: the word carries a relocation).\n  * RENAMING-CONFLICT (4): CritterLoadStartNext (g25 vs g25 - the same register on both sides, the two-valued-binding signature), fn_800DBE98 (f0 vs f2, an FPR not a GPR), towerRecordLevelBeaten (g30 vs g31), drawMemCardMessage (g28 vs g25). These are genuine renaming conflicts. drawMemCardMessage reproduces its recorded cap exactly (+0x1ec, the uninitialised-incoming-path bar of the parent class law) - a third ground-truth confirmation alongside the two canaries.\n\nRETRIEVAL FINDING, worth as much as the closes: `find --capability webfrank-recolor` returns 17 records over 14 distinct functions, and cross-checking them against this sweep's roster shows the sweep is a strict SUPERSET for this class - 8 already shipped, 2 closed here, 1 a correct prior cap (drawMemCardMessage), 3 Tier-B with unabsorbed words and so outside the class. The capability query surfaced NO candidate the full-image sweep had not already found. That is a clean negative screen, and it means the class's remaining payoff is the eight named refusals and nothing else: a future lane should work the arrow-order sub-class or the source-first referrals, and should NOT re-run a candidate hunt over this class."
+}
