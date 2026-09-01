@@ -366,14 +366,14 @@ def main():
         if (multiset_tokens is not None and prev_tokens is not None
                 and multiset_tokens > prev_tokens):
             worse.append(f"multiset {prev_tokens}t -> {multiset_tokens}t")
-        if worse:
-            verdict = (f"NEUTRAL-WORSE real {real} ({'; '.join(worse)})"
-                       " — structurally worse at equal real; NOT banked,"
-                       " revert with git (not --revert) or justify the"
-                       " keep explicitly")
         # NEUTRAL scores do NOT prove byte identity (a fuzzy-visible
         # encoding change once passed every score in this tool). Hash the
-        # function's raw bytes and say so when they moved.
+        # function's raw bytes and say so when they moved. Byte identity
+        # is GROUND TRUTH and computed FIRST: the worse-triple check
+        # compares against last-probe state that can be stale, and the
+        # two once printed a contradictory composite (NEUTRAL-WORSE +
+        # NEUTRAL-IDENTICAL) a worker had to untangle by hand.
+        bytes_identical = None
         try:
             sys.path.insert(0, str(TOOLS))
             import fndiff as _fndiff
@@ -383,6 +383,8 @@ def main():
             prev_digest = state.get("last_bytes")
             if digest is not None:
                 state["last_bytes"] = digest
+                if prev_digest is not None:
+                    bytes_identical = digest == prev_digest
                 if prev_digest is not None and digest != prev_digest:
                     verdict += ("  [NEUTRAL-REARRANGED: OBJECT BYTES"
                                 " CHANGED — this compares BUILT OBJECTS"
@@ -400,6 +402,13 @@ def main():
                                 " compiler's decision point]")
         except Exception:
             pass
+        if worse and bytes_identical is not True:
+            head = f"NEUTRAL   real {real}"
+            verdict = (f"NEUTRAL-WORSE real {real}"
+                       f" ({'; '.join(worse)}) — structurally worse at"
+                       " equal real; NOT banked, revert with git (not"
+                       " --revert) or justify the keep explicitly"
+                       + verdict[len(head):])
     state["last_real"] = real
     state["last_insns"] = insns
     if multiset_tokens is not None:
