@@ -127,7 +127,7 @@ extern int   lbl_80343B70;                /* blit layer/flags */
 extern void StartGoodWizard(void);
 extern int  GetWorldOrder(int worldIdx);
 extern void PlayerGiveRune(int i, int worldOrder);
-extern int  InitCustomEffect(int buf, char* name, int c, int d);
+extern int  InitCustomEffect(void* buf, char* name, int c, int d);
 extern int  SfxSetMorph(f32 a, int blit, int e2, int d);
 extern void fn_8009F340(f32* pos);
 extern void mbBlitInit3414(void* blit, int a);
@@ -137,7 +137,7 @@ typedef struct BossPlayerView {
     u8 _ec[0x335c - 236];
 } BossPlayerView;
 extern BossPlayerView gPlayers[];     /* per-slot item/rune records (0x335c) */
-extern int  sItemFile1Buf;                /* 0x80344974 */
+extern void* sItemFile1Buf;               /* 0x80344974 */
 extern char str_BOSSKEY;                  /* .sdata2 effect name */
 extern char str_BOSSKEY2[];               /* .rodata effect name */
 
