@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py::_apply_proposal_gates",
+    "memory_graph/test_graph.py::ProposalGateTests"
+  ],
+  "attributes": {
+    "scope": "memory_graph/core.py::_apply_proposal_gates gate C; attempt records at propose-record time only. Reported by tu_briefing as vetoed_axes[].held_fixed / has_probed_form.",
+    "tags": [
+      "workflow",
+      "batch-gating"
+    ],
+    "verification": "memory_graph/test_graph.py::ProposalGateTests covers refusal on a counted enumeration ('tried three forms'), refusal on a numbered enumeration ('1) ... 2) ...'), acceptance once held_fixed is supplied, an assertion that the error text names btricol, and a negative control proving a single-edit probed_form is NOT gated. `python -m unittest discover memory_graph` = 77 tests OK; `python -m unittest discover tools/gdl/tests` = 323 tests OK."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Show a multi-edit park in this corpus whose held-constant variable is recoverable from the record's existing prose alone, across a sample rather than in one lucky case - that would show held_fixed is redundant with good probed_form writing and the gate should be retired in favour of a probed_form convention. Conversely the gate's TRIGGER is falsified by any record it fires on whose probed_form really describes a single edit; the two patterns are memory_graph/core.py::_MULTI_EDIT_COUNT_RE and _MULTI_EDIT_ENUM_RE and a false fire is a defect to report, not an author error.",
+  "id": "claim.law.GS_a-multi-edit-park-that-names-no-held-variable-vetoes-axes-it-never-tested.20260901.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-01T20:54:22Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "A PARK THAT VARIED SEVERAL THINGS AT ONCE AND DOES NOT SAY WHICH VARIABLE IT HELD CONSTANT READS AS A VETO ON EVERY AXIS IT TOUCHED, INCLUDING THE AXES IT NEVER ACTUALLY TESTED. The mechanism is a scoping error in how the next lane reads the record. The author knows they varied form A while holding scaffold B fixed, and writes 'tried three forms, all negative'. The reader has no way to recover B, so the honest reading of the record is that the whole neighbourhood is dead - and the joint probe that would have worked is precisely the one the record appears to have excluded. AGENTS.md discipline 6 already states the requirement in prose ('a park that held another variable fixed must SAY so') and names the measured case: btricol, where extern-ghost and volatile-scaffold were two separately-recorded negative parks, each correct on its own terms, that were in fact ONE lever; probing them jointly flipped a 7-function TU. See attempt.br-btricol-ghosts-unlock-and-btrilinecol-closure.20260901.v1. The prose requirement did not hold, which is the observation that justifies a gate: discipline 6 has been in AGENTS.md and multi-edit parks continued to be written without the held variable, because nothing at authoring time asked. THE RULE, enforced at staging on NEW proposals only: an attempt whose `probed_form` explicitly enumerates more than one edit must carry `held_fixed`. THE TRIGGER IS DELIBERATELY NARROW - an explicit count word or digit applied to forms/shapes/edits/axes/probes/spellings/variants, or two or more numbered list markers - because a loose trigger would fire on ordinary prose and make the gate a nuisance rather than a check; a nuisance gate gets satisfied with noise, which is worse than no gate. CONSEQUENCE FOR RETRIEVAL, which is why this pairs with the brief upgrade: `brief` now reports has_probed_form and held_fixed per vetoed axis, so a park that documents neither is visibly a WEAK veto - reproducible only by guesswork - rather than silently carrying the same authority as a park that wrote its form down."
+}
