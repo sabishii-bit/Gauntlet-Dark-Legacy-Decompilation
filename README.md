@@ -123,6 +123,57 @@ To print decompilation progress:
 python configure.py progress
 ```
 
+### Postprocessing, and how progress is reported
+
+Most objects are compared exactly as the compiler emitted them. A minority
+are rewritten first by the project's fail-closed Frank / WebFrank / P6Frank
+harness, which is why `configure.py progress` ends with a line of this
+shape:
+
+```text
+Postprocessor split: STRICT matched NN.NN% (N fns, compiler output byte-identical)
+  + EQUIVALENT N.NN% (N fns, WebFrank-assisted: proven equivalent modulo
+  regalloc/schedule; origin of the variance unattributed)
+```
+
+The two halves mean different things and are not interchangeable:
+
+- **STRICT** — the compiler's own output is byte-identical to the retail
+  target. Nothing was rewritten.
+- **EQUIVALENT** — the object matches after a postprocessor rule that is
+  machine-proven equivalent to the compiler's output modulo register
+  allocation or instruction scheduling. The rule closes the residual; it
+  does not explain where the variance came from.
+
+`AGENTS.md` requires that both halves always be published together:
+"Progress reporting always publishes the STRICT/EQUIVALENT split; never
+quote the combined matched% alone in a record or report." A single
+"matched %" figure taken from the first `All:` line is the combined
+number and must not be quoted on its own.
+
+Three constraints govern the harness itself, quoted from `AGENTS.md`:
+
+- It is "used exactly within the constraints returned by
+  `gdlmem.py tool <name>`. Never weaken a guard, add an unaudited rule, or
+  use postprocessing to hide structural, operand, relocation-payload, ABI,
+  semantic, or data differences."
+- **Source-exhaustion provenance.** "A new rule additionally requires
+  SOURCE-EXHAUSTION provenance: the function must carry a parked/capped
+  attempt record with literal `probed_form` axes (or a law proving its
+  residual class source-unreachable), and the rule's attempt record must
+  cite it. Mechanical closability alone is not sufficient … Functions with
+  no such record get a source-first pass BEFORE any rule."
+- **Class ceiling.** "Every postprocessor class must be attributable to
+  allocator/scheduler variance under a proven compiler. The relational
+  value-equality mode is the outer boundary — no class may cross into 'any
+  semantically equivalent stream'. Proposals for new classes go to the
+  integrator as records, never shipped unilaterally."
+
+A postprocessed function reads `real 0` by construction, so scores taken
+from a pinned function measure the rule rather than the source. Screen
+`config/GUNE5D/webfrank.json` before ranking any roster by measured
+`real`.
+
 ### Matching work queues
 
 Use the low-match queue for semantic and structural reconstruction work:
