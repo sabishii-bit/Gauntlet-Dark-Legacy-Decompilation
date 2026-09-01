@@ -2137,7 +2137,6 @@ void show_optmenu(OPTMENU* m)
         s32 sx;
         s32 sy;
         s32 py;
-        u32 rgbp;
         s32 pw;
         char* pc;
 
@@ -2146,7 +2145,7 @@ void show_optmenu(OPTMENU* m)
                 n++;
             }
         }
-        rgbp = ((*(s32*)(data + 216) & 0xFF) << 16) |
+        color = ((*(s32*)(data + 216) & 0xFF) << 16) |
                ((*(s32*)(data + 220) & 0xFF) << 8) |
                (*(s32*)(data + 224) & 0xFF);
         px = 0x200 / (n + 1);
@@ -2160,7 +2159,7 @@ void show_optmenu(OPTMENU* m)
                 DrawTextKeepScale(msg_scale, -(idx + OPTMSG_SHADOW),
                                   py + OPTMSG_SHADOW, OPTMENU_FONT, 0, "Back");
             }
-            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, rgbp,
+            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, color,
                                     "Back");
             if (font2 != 0) {
                 *(s16*)((u8*)txt + 0x26) = (s16)font2;
@@ -2175,7 +2174,7 @@ void show_optmenu(OPTMENU* m)
                 DrawTextKeepScale(msg_scale, -(idx + OPTMSG_SHADOW),
                                   py + OPTMSG_SHADOW, OPTMENU_FONT, 0, "Change");
             }
-            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, rgbp,
+            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, color,
                                     "Change");
             if (font2 != 0) {
                 *(s16*)((u8*)txt + 0x26) = (s16)font2;
@@ -2192,7 +2191,7 @@ void show_optmenu(OPTMENU* m)
                 DrawTextKeepScale(msg_scale, -(idx + OPTMSG_SHADOW),
                                   py + OPTMSG_SHADOW, OPTMENU_FONT, 0, pc);
             }
-            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, rgbp, pc);
+            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, color, pc);
             if (font2 != 0) {
                 *(s16*)((u8*)txt + 0x26) = (s16)font2;
             }
@@ -2206,7 +2205,7 @@ void show_optmenu(OPTMENU* m)
                 DrawTextKeepScale(msg_scale, -(idx + OPTMSG_SHADOW),
                                   py + OPTMSG_SHADOW, OPTMENU_FONT, 0, pc);
             }
-            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, rgbp, pc);
+            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, color, pc);
             if (font2 != 0) {
                 *(s16*)((u8*)txt + 0x26) = (s16)font2;
             }
