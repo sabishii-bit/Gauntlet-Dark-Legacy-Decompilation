@@ -249,6 +249,17 @@ class PermutationDependenceTests(unittest.TestCase):
         region = bytes.fromhex("90610008 9081000c")
         check_permutation_dependences(region, [1, 0])
 
+    def test_two_broken_chains_on_one_atom_still_report_the_refusal(self):
+        # li r4,8 ; stw r3,0(r5) ; lwz r0,0(r4).  Hoisting the load to the
+        # front breaks TWO chains on atom 2 at once: its ("g",4) chain and
+        # its "mem" chain.  The refusal is correct either way, but the sorted
+        # report used to compare a tuple resource against a str resource and
+        # die with TypeError -- which no caller catches, so one candidate's
+        # legitimate refusal aborted the whole search.
+        region = _words(0x38800008, 0x90650000, 0x80040000)
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [2, 0, 1])
+
     def test_moved_final_write_needs_exit_liveness_proof(self):
         # li r0,1; li r0,2: swapping changes which write survives the region.
         region = bytes.fromhex("38000001 38000002")

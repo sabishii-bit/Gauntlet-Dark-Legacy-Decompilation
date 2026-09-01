@@ -1396,9 +1396,18 @@ def check_permutation_dependences(region: bytes, order: list[int],
     baseline_chains, baseline_last = trace(range(len(words)))
     permuted_chains, permuted_last = trace(order)
     if baseline_chains != permuted_chains:
+        # Sort on repr, never on the resource itself: a chain key is
+        # (atom, resource) and a resource is a str for "mem"/"lr"/"anymem"
+        # but a tuple for ("g", N).  Two broken chains on ONE atom therefore
+        # compared str against tuple and raised TypeError out of the ERROR
+        # path — and since every caller catches ValueError only, one
+        # candidate's perfectly correct refusal aborted the whole search.
         broken = sorted(
-            key for key in set(baseline_chains) | set(permuted_chains)
-            if baseline_chains.get(key) != permuted_chains.get(key)
+            (
+                key for key in set(baseline_chains) | set(permuted_chains)
+                if baseline_chains.get(key) != permuted_chains.get(key)
+            ),
+            key=lambda key: (key[0], repr(key[1])),
         )
         raise ValueError(
             f"instruction permutation breaks def-use chains: {broken[:4]}"
