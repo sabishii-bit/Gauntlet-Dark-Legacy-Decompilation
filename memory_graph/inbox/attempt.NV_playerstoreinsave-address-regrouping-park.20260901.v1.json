@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "player_store_in_save was a NEVER-PROBED park. Remeasured real 66, T131/O131, multiset DIFFERS target-only +1 add +1 sth / ours-only -1 addi -1 sthx: an address-REGROUPING residual at the 0xDDA store. Axis tried: delete the single-use intermediate `item` and write the explicitly left-associated address expression.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED; claim.law.zero-remat-choice-differs-between-identical-sibling-loops.20260831.v1 SCREENED; claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 SCREENED; claim.law.lwzu-idiom-web-retention SCREENED; claim.law.empty-block-branch-pair-splits-forward-vs-backedge.20260831.v1 SCREENED. The addr-CSE / cast-transit no-CSE family was screened as the governing class for an address-regrouping residual. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED and NOT applicable (the residual tokens are add/sth vs addi/sthx, an addressing-form difference, not a li-vs-copy). The lwzu load-update law was screened and NOT applicable (no update form on either side). The branch-pair laws were screened and not engaged.",
+    "laws_applied": "[]",
+    "probed_form": "BASELINE (retained), src/game/game/player.c:\n    {\n        u8* item = (u8*)p + chartype;\n        *(s16*)(item + 0xDDA) = (s16)PF(p, 0x1EC, s32);\n    }\nAXIS 1, REGRESSED real 66 -> 76 with the residual cluster COMPLETELY UNCHANGED, reverted:\n    *(s16*)((u8*)p + chartype + 0xDDA) = (s16)PF(p, 0x1EC, s32);",
+    "residual": "STRUCTURAL address regrouping, precisely located. Target: `add r3,r28,r31` then `sth r4,3546(r3)` -- the two VARIABLE terms (p and chartype) are added first and the 0xDDA constant is spent as the store displacement. Ours: `addi r4,r31,3546` then `sthx r5,r28,r4` -- the constant is folded onto the index and the store becomes indexed. Both compute p + chartype + 0xDDA. The single-use `item` intermediate is folded by MWCC and the sum reassociated, and removing the intermediate does NOT restore the target grouping: axis 1 left the four residual tokens byte-identical while perturbing registers elsewhere for a net +10 real, which is the evidence that the reassociation happens downstream of the source's parenthesisation. IMPORTANT SCOPE NOTE: this cluster is only about 4 of the 66 real lines; the rest is a register cascade elsewhere in a 131-instruction function, so this function is reconstruction-scale work, not a green-light closure, and should not be picked up expecting a cheap exact. The enclosing region is also bracketed by `#pragma opt_common_subs`, which any future attempt must account for before theorising about CSE.",
+    "scope": "src/game/game/player.c::player_store_in_save, the 0xDDA store only. NO source change retained; reverted via probe.py --revert and re-measured at the banked baseline. player.c pins do_exit/ExpToLevel/load_player_geo/do_heal_players; none were touched.",
+    "verification": "defake_gate baseline over the 92-function player TU taken at pass start. probe.py clean BASELINE banked before the first edit (real 66, T131/O131, multiset 4t); axis 1 REGRESSED real 76 with an unchanged cluster; probe.py --revert restored and re-scored NEUTRAL real 66. git status clean for this file."
+  },
+  "function": "function:player_store_in_save",
+  "id": "attempt.NV_playerstoreinsave-address-regrouping-park.20260901.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-09-01T04:38:08Z",
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.mp-label-correction.player-store-in-save.20260831.v1",
+  "valid_from": "2026-09-01"
+}

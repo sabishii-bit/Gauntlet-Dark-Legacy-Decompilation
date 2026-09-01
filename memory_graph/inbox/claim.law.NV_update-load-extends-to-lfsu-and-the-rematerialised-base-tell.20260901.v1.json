@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Measured 2026-09-01 on src/game/enemy/critter.c::CritterProcessSafeRocks (attempt.NV_critterprocesssaferocks-lfsu-load-update-exact.20260901.v1). Target T63/O63 with target-only +1 add +1 lfsu against ours-only -1 addi -1 lfs. The form `f32 *timer = (f32 *)&gBig + i; ... *(timer += 4)` produced the target's `lfsu f1,16(r3)` and went byte-exact (real 8 -> 0). The value-identical form `f32 *timer = &gBig.safeRockTimers[i] - 4; ... *(timer += 4)` REGRESSED straight back to real 8 with the original addi+lfs pair restored. Both spellings denote the same address and the same update; only the base expression's spelling differs.",
+    "tags": [
+      "matching",
+      "lwzu-fusion",
+      "register-web",
+      "cse",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.NV_update-load-extends-to-lfsu-and-the-rematerialised-base-tell.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T04:38:14Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "STRENGTHENS claim.law.recomputed-base-update-load-fuses-lwzu.20260831.v1 with three increments measured on CritterProcessSafeRocks; it does not supersede it, and its prescription is unchanged. (1) THE LAW IS NOT INTEGER-ONLY. The same recomputed-base update-load fusion holds for FLOAT loads: `f32 *timer = (f32 *)&gBig + i; ... *(timer += 4)` emits `lfsu f1,16(r3)`. Read the parent law's `lwzu` as the whole update-load family (lwzu/lhzu/lfsu/lfdu); the residual signature to look for is target-only `<load>u` against ours-only `addi` plus the plain load. (2) A NAMED-FIELD BASE MINUS A CONSTANT IS ALSO A DEAD SPELLING. The parent law records array indexing as the form that never fuses; the value-identical named-field spelling `&gBig.safeRockTimers[i] - 4` with the SAME `*(timer += 4)` update is equally dead, measured as an immediate regression from real 0 back to real 8 with the addi+plain-load pair restored. MWCC folds the `- 4` against the field's own +16 displacement in the front end, so no pointer arithmetic survives for the load to fuse into. This matters because it is a measured EXCEPTION to the project's standing de-fakematch preference for named fields over raw offset arithmetic: at an update-load site the opaque cast-and-add base is not reconstruction debt but the only form that reproduces the target, so a cleanup pass that names the field will silently regress it. Convert AROUND these sites, per claim.law.lwzu-idiom-web-retention.20260830.v1. (3) A CHEAP IDENTIFICATION TELL, usable from the --ops view before any source is read. The update CLOBBERS the base register, so a target that uses the update form must RE-MATERIALISE the base for any later access through it. An otherwise inexplicable extra `add`/`addi` recomputing a base that our build still has live in a register -- here target-only `+1 add` (`add r3,r30,r31` reloading base+i before `lwz r3,80(r3)`) accompanying the target-only `+1 lfsu` -- is positive evidence of an update form earlier in the same region. Whenever the --ops multiset pairs a target-only update-load with a target-only base recomputation, go straight to this family instead of classifying the extra add as schedule or regalloc noise."
+}

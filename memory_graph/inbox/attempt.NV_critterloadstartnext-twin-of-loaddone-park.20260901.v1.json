@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "CritterLoadStartNext was a NEVER-PROBED park. Remeasured real 2, T108/O108, multiset IDENTICAL -- a byte-identical twin of CritterLoadDone's residual (the same `case 7:` scan loop, the same single displaced `addi`, the same registers). Covered by the sibling's three-axis pass rather than re-probed.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED; claim.law.zero-remat-choice-differs-between-identical-sibling-loops.20260831.v1 SCREENED; claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 SCREENED; claim.law.lwzu-idiom-web-retention SCREENED; claim.law.empty-block-branch-pair-splits-forward-vs-backedge.20260831.v1 SCREENED. Same screen as attempt.NV_critterloaddone-preheader-init-order-tiebreak-park.20260901.v1, which shares this function's exact residual. claim.law.zero-remat-choice-differs-between-identical-sibling-loops.20260831.v1 APPLIED by analogy as the standing justification for not re-probing a residual already proven allocator-side in a textually identical sibling loop.",
+    "laws_applied": "[\"claim.law.zero-remat-choice-differs-between-identical-sibling-loops.20260831.v1\"]",
+    "residual": "SCHEDULE. Target `li r0,8 / lis r3,HA / mtctr r0 / li r5,0 / addi r4,r3,LO`; ours transposes the last two. Identical in every respect to CritterLoadDone's residual except the function-relative offset (0xe0 here, 0x98 there). The three axes measured on CritterLoadDone (natural indexed form, split induction init, declaration reordering) all act on the SAME shared source text pattern and would apply identically here, so they are not re-run: axis 1 regressed, axes 2 and 3 were byte-identical no-ops. See that record for the CritterAllocType free-evidence argument that the pair order is decided by register allocation, not source.",
+    "scope": "src/game/enemy/critter.c::CritterLoadStartNext, case 7: scan loop only. NO source change made or retained.",
+    "verification": "probe.py clean BASELINE banked (real 2, T108/O108, multiset 0t). fndiff --ops read for the cluster; fnasm --diff read at 0xd4:0xf4 confirming the transposition. Working tree clean at HEAD for this file."
+  },
+  "function": "function:CritterLoadStartNext",
+  "id": "attempt.NV_critterloadstartnext-twin-of-loaddone-park.20260901.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-09-01T04:37:58Z",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.mp-label-correction.critterloadstartnext.20260831.v1",
+  "valid_from": "2026-09-01"
+}
