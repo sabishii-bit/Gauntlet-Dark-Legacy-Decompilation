@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Derived and verified 2026-09-01 on src/game/pb/pb_window.c in worktree GDL-Claude-PbWindowFinal (commits ba7c21206, 6529d6bd3), by objdump -s -j .sdata2 on build/GUNE5D/src/game/pb/.postprocess/body/pb_window.o against build/GUNE5D/asm/game/pb/pb_window.s, then through datadiff, claimcheck, defake_gate, finish_tu and a full green ninja. Amends claim.law.PW_sdata2-pool-order-is-creation-order-of-codegenned-functions.20260901.v1; that record's four clauses all stand.",
+    "tags": [
+      "matching",
+      "sda-global",
+      "decl-order",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.PW_pool-ordering-device-composes-and-division-cannot-seed-a-literal.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T15:37:27Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "AMENDMENT to claim.law.PW_sdata2-pool-order-is-creation-order-of-codegenned-functions.20260901.v1, adding the three clauses that finished pb_window (the first TU whose flip was gated purely on constant-pool ORDER). (5) THE DEAD-STRIPPED-STATIC ORDERING DEVICE COMPOSES, AND IT IS POSITIONAL, NOT GLOBAL. A second unreferenced `static` placed at ANY point in the file inserts exactly its own new literals at exactly that point in the pool, leaving every earlier and every later entry where it already was. pb_window carries two of them now - pbWindowDefaults ahead of all code for the leading seven entries, and pbAspectRatio between debugScissor and pbProjCalc for one entry - and adding the second moved nothing but its own word pair: .sdata2 went from 19-of-20 to 20-of-20 in one edit, size unchanged at 0x70, every function's text bytes unchanged, and the two adjacent 4-byte floats simply swapped. The device is therefore an ordinary repeatable repair, not a one-shot trick, and the correct unit of repair is ONE literal at ONE position. Cost: mwld dead-strips each helper, so the only visible trace is claimcheck's .text overshoot note (measured here: .text obj 0x1904 against a 0x1874 claim), which claimcheck already documents as normal. (6) A DIVISION BY A CONSTANT CANNOT SEED THAT CONSTANT'S POOL ENTRY - the reciprocal is folded before the literal is created. Measured twice: `x / 2.0f` creates a 0.5f entry and NO 2.0f entry (the prior pass's axis-C probe, recorded verbatim in attempt.PW_pbwindow-sdata2-pool-order-fixed-two-byte-residual.20260901.v1), so no amount of rewriting a multiply as a divide, or the reverse, will put a divisor into the pool. When you need a literal created at a position, the literal must appear as an operand MWCC will actually keep - a variable-operand multiply is the reliable form. (7) DIAGNOSTIC COROLLARY, and the one that closes this class of hunt in one query instead of a session: BEFORE hypothesising which construct creates a mis-ordered literal, grep the extracted target asm for every reference to the two pool labels. If every use of the literal in the WHOLE linked TU is emitted LATER than the literal that should follow it in the pool (pb_window: first 0.5f load at +0x364, first 2.0f load at +0x3e8, both inside pbProjCalc, nothing else in the TU touches either), then by clause (2) no emitted code can be the creator and the answer is NECESSARILY a code-generated-then-dropped construct. That turns 'try the recorded levers' into a proof, and it is also what refutes semantic-reconstruction theories cheaply: pb_window's flagged w2/h2 reads were an unsigned-int-to-float conversion with no floating literal at all, which one fnasm read settles.\n\nTOOLING TRAP THIS EXPOSED, and it is severe enough to belong in the law: datadiff.py reads build/GUNE5D/src/<unit>.o, the POSTPROCESSED object. When a source edit invalidates a webfrank rule's input hashes, webfrank aborts, that file is never rewritten, and datadiff cheerfully re-reports the STALE data diff - so a genuine pool fix reads as 'no change'. On any webfrank-postprocessed unit, verify data-section work against .postprocess/body/<unit>.o (objdump -s -j .sdata2) until the rules are re-derived, and only then trust datadiff."
+}
