@@ -365,15 +365,15 @@
           "instructions": 295,
           "permuted_instructions": 3
         },
-        "mechanism": "attempt.initgamecam-u64-buttons-dance.20260830.v1 - worth 132 real diff lines, the second largest closure in this lane. Three @lo address materializations at +0x8c rotate: ours emits lbl_80240E30, then the 255 constant, then gPlayers; the target emits gPlayers first, order [2, 0, 1]. All three read distinct base registers (r4/r3/r5) and write distinct destinations (r7/r6/r8), so no def-use chain or final write moves and the two ADDR16_LO relocations ride their own atoms. NOTE the queue described this site as a 2-instruction swap; the byte scan does flag exactly two words, but the correct region is three atoms - the bisimulation rejected the pair and named the third. The rest of the residual is a consistent recolor.",
+        "mechanism": "attempt.initgamecam-u64-buttons-dance.20260830.v1 - worth 132 real diff lines, the second largest closure in this lane. Three @lo address materializations at +0x8c rotate: ours emits lbl_80240E30, then the 255 constant, then gPlayers; the target emits gPlayers first, order [2, 0, 1]. All three read distinct base registers (r4/r3/r5) and write distinct destinations (r7/r6/r8), so no def-use chain or final write moves and the two ADDR16_LO relocations ride their own atoms. NOTE the queue described this site as a 2-instruction swap; the byte scan does flag exactly two words, but the correct region is three atoms - the bisimulation rejected the pair and named the third. The rest of the residual is a consistent recolor. RE-DERIVED 2026-09-01 (lane WF, work_claim.camera-unlock.20260901.v1): CameraSupervisor's literal-pool symbol fix in this same TU deleted four anonymous @NN pool entries, which renumbered the object's symbol table and therefore the `info` word of EVERY relocation record, including this window's two ADDR16_LO entries (MBRemoveBlit symidx 240, gCurLevel symidx 233 post-fix). ONLY the two relocation hashes moved: the function body hash, the target hash, and the region's own before/after body hashes all re-derived BYTE-IDENTICAL, which is the proof that the permutation itself, its dependence audit and its relocation binding are untouched and that nothing about the rule was weakened to accommodate the source change. Re-derive with WF_scratch/rederive_pin.py-style computation off build/GUNE5D/src/.../.postprocess/body/combat.o whenever this TU's pool changes again; a pool edit invalidates these hashes in BOTH directions and the guard is correct to fail closed.",
         "instruction_permutation": {
           "start": "0x8c",
           "end": "0x98",
           "order": [2, 0, 1],
           "before_sha256": "5ce2ad5f8980da69820097979251e6f853c965b4e997c38e84ce10e75d372bce",
           "after_sha256": "95d4902e3fd4c42965bebedb420d0891f7969f88753658a231bc4f8cd9b0ebbb",
-          "before_relocations_sha256": "947a5b07e003e1f3cf1055216c29d235a9eea0133c7d8cc05d5d096a12ec2fad",
-          "after_relocations_sha256": "503efc2e515c8fc8a0b9cd10cc1b30e95216d9e5bbe7c940c5093ba59dba0b7c"
+          "before_relocations_sha256": "2cde2e90b4ada1abd11bab80cb3cf0d75991b7a546c2262babb37cad9352873f",
+          "after_relocations_sha256": "ed42ff82684a3b1b07b4eeb29234146e13491193e17bc8a7b604d3ca2898309f"
         },
         "copy_register_fields": true
       },
