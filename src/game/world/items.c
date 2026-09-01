@@ -2190,7 +2190,6 @@ s32 RegisterItemWobj(void* target_ptr, s16 type, s32 x_grid, s32 z_grid,
     f32 x = (f32)(0.1 * (f32)x_grid);
     f32 z = (f32)(0.1 * (f32)z_grid);
     s32 i;
-    s32 offset;
 
     if (*(void**)(target + offsetof(WorldObj, nodeptr)) == NULL) {
         ErrorPrintf(strings + 0x464, target);
