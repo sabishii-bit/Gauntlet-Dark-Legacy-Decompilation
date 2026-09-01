@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "sda-global",
+      "relocation",
+      "store-placement",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.WF_one-mem-resource-hides-provably-disjoint-sda-globals.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T19:22:41Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "THE RULE. webfrank's permutation dependence audit modelled every non-r1 D-form access as ONE resource named 'mem', so a store could never cross a load however obviously distinct the two globals were. That is a GUARD ceiling, not a function property, and it produced clean-looking exhaustive refusals: on game/world/gauntworld::fn_8005FDA8 all 64 complete relocation-consistent matchings of the window [0xf0,0x138) refused on the single obstruction (7,'mem'). Separate the accesses by proved address and 16 of the 64 pass, all 16 reach the target bytes, and 2 pass the full guard chain. The function is now EXACT.\n\nWHAT THE PROOF MUST REST ON, because the obvious version is unsound. Distinct symbol NAMES are NOT an alias proof \u2014 two names can name one address. The argument is ADDRESSES, read from config/GUNE5D/symbols.txt, which is the same split map dtk splits by and the link is placed by and which the DOL checksum gate already rests on; the names only bind the declaration to the object. Each declared location must also be a D-form access whose base field is the SDA placeholder ZERO (so the linked effective address comes entirely from the relocation, not from a register value the audit cannot track), must carry exactly one EMB_SDA21 relocation naming exactly the declared symbol, must agree with the map on section, address and access width, and the declared ranges must be pairwise disjoint. Anything unresolved stays coarse, so the capability is only ever exercised where the map answers.\n\nTHE SOUNDNESS TRAP, and it inverted a measurement before it was caught. The moment ANY access is split out of the single 'mem' resource, every access still spelled 'mem' has an unknown address and may alias exactly the locations just separated \u2014 leaving it as a plain 'mem' makes it non-conflicting with them, which is worse than the model you started from. Every undeclared memory access must be promoted to 'anymem' as soon as one location is declared. The first prototype omitted this and its pass counts were not the real ones; the 16/2 figures above are from the corrected model. Any future refinement that splits a coarse resource inherits this obligation.\n\nCOST NOTE. No configure.py change was needed: webfrank derives the map from the config path it is already handed (symbols.txt sits beside webfrank.json), with an explicit --symbols override, and falls back to no-disambiguation when the file is absent."
+}

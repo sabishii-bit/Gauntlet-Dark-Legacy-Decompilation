@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "workflow",
+      "build-hygiene",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.WF_a-guards-error-path-must-be-tested-not-just-its-verdict.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T19:22:50Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "THE DEFECT, reported by the HV lane and fixed here. check_permutation_dependences reported a broken def-use chain by sorting its (atom, resource) keys. A resource is a str for 'mem'/'lr'/'anymem' but a TUPLE for ('g',N), so when two broken chains landed on ONE atom the sort compared str against tuple and raised TypeError \u2014 out of the ERROR path. Every caller catches ValueError only, so ONE candidate order's perfectly correct refusal aborted the WHOLE function's search. HV measured the cost: 5 functions left unevaluated in one sweep and a 136-real exact nearly lost, recovered only by instrumenting the crash. Fix: sort with key=lambda key: (key[0], repr(key[1])). Regression test: `li r4,8 ; stw r3,0(r5) ; lwz r0,0(r4)` permuted [2,0,1], which breaks that atom's ('g',4) chain and its 'mem' chain at once.\n\nTHE GENERAL LAW, which is why this is worth a record rather than a commit message. A fail-closed guard's REFUSAL PATH is production code and needs the same test coverage as its acceptance path. Every test in the suite asserted that refusals happen (assertRaisesRegex on the verdict) and none exercised a refusal carrying two mixed-type reasons, so the bug survived in a heavily-tested guard. The failure mode is also uniquely nasty: it does not look like a guard bug, it looks like a search that found nothing \u2014 a false NEGATIVE across a whole roster, invisible to every score. When a search over candidates reports zero hits, confirm at least one candidate reached a REFUSAL VERDICT rather than an exception before recording the population as empty."
+}

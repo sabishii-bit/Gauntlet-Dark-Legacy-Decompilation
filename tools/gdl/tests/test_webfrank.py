@@ -1,8 +1,11 @@
+import os
 import unittest
 
 import struct
 
 from tools.gdl.webfrank import (
+    load_symbol_addresses,
+    resolve_memory_locations,
     _entry_indexes,
     _find_symbol,
     _function_text_relocations,
@@ -28,6 +31,7 @@ from tools.gdl.webfrank import (
     unpermute_target_windows,
     verify_consistent_recolor,
     verify_relocation_binding,
+    verify_value_equality_recolor,
 )
 
 
@@ -72,15 +76,20 @@ class InstructionPermutationTests(unittest.TestCase):
         # destination atom 1.
         self.relocations = [(2, 0x1234, -8)]
         self.expected_relocations = [(6, 0x1234, -8)]
+        self.symbols = {2: "pool"}
+        self.moved_symbols = {6: "pool"}
 
     def permute(self, **overrides):
         arguments = {
             "before_sha256": _sha256(self.current),
             "after_sha256": _sha256(self.expected),
-            "before_relocations_sha256": _relocation_sha256(self.relocations),
-            "after_relocations_sha256": _relocation_sha256(
-                self.expected_relocations
+            "before_relocations_sha256": _relocation_sha256(
+                self.relocations, self.symbols
             ),
+            "after_relocations_sha256": _relocation_sha256(
+                self.expected_relocations, self.moved_symbols
+            ),
+            "our_symbols": self.symbols,
         }
         arguments.update(overrides)
         return permute_instruction_atoms(
@@ -107,8 +116,11 @@ class InstructionPermutationTests(unittest.TestCase):
             relocations,
             before_sha256="decb90402973a79a24378eaba97967a34562786645a9ca1d12a717e8cc276c91",
             after_sha256="9c86562d75c12cda2e5bad4e2aed2736865af0f90fbee9c32fe53488eb91c1eb",
-            before_relocations_sha256="ba25df53f1ea2f7a904fada0025dcaffbfc0ebc725843925b1723c355bbd92e8",
-            after_relocations_sha256="9f7d58b16bc53a6fb78303b594bea2e12a1a54d7458b83e9668c2e97482f8be0",
+            before_relocations_sha256=_relocation_sha256(
+                relocations, {2: "gResetButton"}),
+            after_relocations_sha256=_relocation_sha256(
+                expected_relocations, {6: "gResetButton"}),
+            our_symbols={2: "gResetButton"},
         )
         self.assertEqual(output, expected)
         self.assertEqual(moved_relocations, expected_relocations)
@@ -126,8 +138,11 @@ class InstructionPermutationTests(unittest.TestCase):
                 self.relocations,
                 before_sha256=_sha256(self.current),
                 after_sha256=_sha256(self.current),
-                before_relocations_sha256=_relocation_sha256(self.relocations),
-                after_relocations_sha256=_relocation_sha256(self.relocations),
+                before_relocations_sha256=_relocation_sha256(
+                    self.relocations, self.symbols),
+                after_relocations_sha256=_relocation_sha256(
+                    self.relocations, self.symbols),
+                our_symbols=self.symbols,
             )
 
     def test_moved_control_instruction_fails_closed(self):
@@ -247,6 +262,17 @@ class PermutationDependenceTests(unittest.TestCase):
         # locations.
         region = bytes.fromhex("90610008 9081000c")
         check_permutation_dependences(region, [1, 0])
+
+    def test_two_broken_chains_on_one_atom_still_report_the_refusal(self):
+        # li r4,8 ; stw r3,0(r5) ; lwz r0,0(r4).  Hoisting the load to the
+        # front breaks TWO chains on atom 2 at once: its ("g",4) chain and
+        # its "mem" chain.  The refusal is correct either way, but the sorted
+        # report used to compare a tuple resource against a str resource and
+        # die with TypeError -- which no caller catches, so one candidate's
+        # legitimate refusal aborted the whole search.
+        region = _words(0x38800008, 0x90650000, 0x80040000)
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [2, 0, 1])
 
     def test_moved_final_write_needs_exit_liveness_proof(self):
         # li r0,1; li r0,2: swapping changes which write survives the region.
@@ -1464,12 +1490,15 @@ class GauntworldPreheaderPermutationTests(unittest.TestCase):
         after = [(2, second, 0), (6, first, 0)]   # symbols exchanged
         atoms = [region[i:i + 4] for i in range(0, len(region), 4)]
         permuted = b"".join(atoms[source] for source in [1, 0])
+        names = {2: "sZeroDouble", 6: "sItemZero"}
+        moved_names = {6: "sZeroDouble", 2: "sItemZero"}
         permute_instruction_atoms(
             region, [1, 0], before,
             before_sha256=_sha256(region),
             after_sha256=_sha256(permuted),
-            before_relocations_sha256=_relocation_sha256(before),
-            after_relocations_sha256=_relocation_sha256(after),
+            before_relocations_sha256=_relocation_sha256(before, names),
+            after_relocations_sha256=_relocation_sha256(after, moved_names),
+            our_symbols=names,
         )
 
 
@@ -1779,8 +1808,10 @@ class RelocationBindingTests(unittest.TestCase):
             region, [1, 0], before,
             before_sha256=_sha256(region),
             after_sha256=_sha256(permuted),
-            before_relocations_sha256=_relocation_sha256(before),
-            after_relocations_sha256=_relocation_sha256(after),
+            before_relocations_sha256=_relocation_sha256(
+                before, {2: "sZeroDouble", 6: "sItemZero"}),
+            after_relocations_sha256=_relocation_sha256(
+                after, {6: "sZeroDouble", 2: "sItemZero"}),
             our_symbols={2: "sZeroDouble", 6: "sItemZero"},
             target_relocations={
                 0: (self.SDA21, "sItemZero"),
@@ -2482,9 +2513,9 @@ class ApplyPatchObjectTests(unittest.TestCase):
                 "before_sha256": _sha256(region),
                 "after_sha256": _sha256(target[4:12]),
                 "before_relocations_sha256": _relocation_sha256(
-                    [(0x0, (2 << 8) | 4, 0)]),
+                    [(0x0, (2 << 8) | 4, 0)], {0x0: "pool"}),
                 "after_relocations_sha256": _relocation_sha256(
-                    [(0x4, (2 << 8) | 4, 0)]),
+                    [(0x4, (2 << 8) | 4, 0)], {0x4: "pool"}),
             },
         }
         _b, after, moved = apply_patch(data, patch, bytes(target_data))
@@ -2498,6 +2529,529 @@ class ApplyPatchObjectTests(unittest.TestCase):
                 symbol.value, symbol.value + symbol.size),
             {0x8: (4, "pool")},
         )
+
+
+# --- value-equality mode fixtures -------------------------------------------
+FMR_F5_F4 = 0xFCA02090      # fmr f5,f4
+FMR_F5_F1 = 0xFCA00890      # fmr f5,f1
+FMR_F31_F1 = 0xFFE00890     # fmr f31,f1
+FMR_F0_F1 = 0xFC000890      # fmr f0,f1
+FMR_F31_F0 = 0xFFE00090     # fmr f31,f0   CameraSupervisor +0x3c, ours
+FMR_F0_F30 = 0xFC00F090     # fmr f0,f30   CameraSupervisor +0x3c, target
+FSUBS_F6_F6_F4 = 0xECC62028  # fsubs f6,f6,f4
+FSUBS_F6_F6_F5 = 0xECC62828  # fsubs f6,f6,f5
+FSUBS_F2_F2_F31 = 0xEC42F828  # fsubs f2,f2,f31
+FSUBS_F2_F2_F0 = 0xEC420028  # fsubs f2,f2,f0
+FSUBS_F3_F3_F31 = 0xEC63F828  # fsubs f3,f3,f31
+FSUBS_F3_F3_F30 = 0xEC63F028  # fsubs f3,f3,f30
+FADDS_F5_F1_F2 = 0xECA1102A  # fadds f5,f1,f2
+FADDS_F0_F1_F2 = 0xEC01102A  # fadds f0,f1,f2
+FADDS_F30_F1_F2 = 0xEFC1102A  # fadds f30,f1,f2
+FCMPU_CR0_F1_F2 = 0xFC011000
+FCMPU_CR0_F2_F1 = 0xFC020800
+FCMPU_CR2_F1_F2 = 0xFD011000
+FCMPU_CR2_F2_F1 = 0xFD020800
+BEQ_PLUS_8 = 0x41820008
+BLT_PLUS_8 = 0x41800008
+MFCR_R3 = 0x7C600026
+CMPW_CR0_R3_R4 = 0x7C032000
+CMPW_CR0_R4_R3 = 0x7C041800
+ADDI_R4_R3_0 = 0x38830000
+ADD_R5_R5_R3 = 0x7CA51A14
+ADD_R5_R5_R4 = 0x7CA52214
+
+
+def _substitution(at, bank, ours, target):
+    return {"at": at, "bank": bank, "ours": ours, "target": target}
+
+
+def _exchange(at, bank, ours, target):
+    return {"at": at, "bank": bank, "ours": list(ours), "target": list(target)}
+
+
+STFS_F2_SDA = 0xD0400000     # stfs f2,0(0)
+LFS_F0_SDA = 0xC0000000      # lfs  f0,0(0)
+LFD_F3_SDA = 0xC8600000      # lfd  f3,0(0)
+LWZ_R3_R4 = 0x80640000       # lwz  r3,0(r4)   (unknown address)
+SDA21 = 109
+
+SPLIT_MAP = {
+    "lbl_80344190": (".sbss", 0x80344190),
+    "lbl_80344194": (".sbss", 0x80344194),
+    "sCameraVisibilityRadius": (".sdata2", 0x80346F50),
+}
+
+
+def _location(at, symbol, width=4):
+    section, address = SPLIT_MAP[symbol]
+    return {"at": at, "symbol": symbol, "section": section,
+            "address": hex(address), "width": width}
+
+
+class MemoryDisambiguationTests(unittest.TestCase):
+    """Two SDA globals under distinct EMB_SDA21 relocations do not alias.
+
+    The shipped model has ONE "mem" resource for every non-stack access, so a
+    store can never cross a load however obviously distinct the globals are —
+    the `(7, 'mem')` obstruction that refused all 64 relocation-consistent
+    matchings of gauntworld::fn_8005FDA8.  Distinct symbol NAMES are not the
+    proof (names can alias); the split map's ADDRESSES are, and the names
+    only bind the declaration to the object.
+    """
+
+    def test_the_single_mem_resource_blocks_a_store_load_reorder(self):
+        region = _words(STFS_F2_SDA, LFS_F0_SDA)
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [1, 0])
+
+    def test_distinct_addresses_permit_the_reorder(self):
+        region = _words(STFS_F2_SDA, LFS_F0_SDA)
+        check_permutation_dependences(region, [1, 0], None, {
+            0: ("global", 0x80344194),
+            1: ("global", 0x80346F50),
+        })
+
+    def test_the_same_address_still_blocks_the_reorder(self):
+        region = _words(STFS_F2_SDA, LFS_F0_SDA)
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [1, 0], None, {
+                0: ("global", 0x80344194),
+                1: ("global", 0x80344194),
+            })
+
+    def test_an_undeclared_access_may_alias_everything(self):
+        # stfs A ; lwz r3,0(r4) ; lfs B.  The middle load's address is
+        # unknown, so hoisting it over the store must still be refused even
+        # though the store and the trailing load are separated.
+        region = _words(STFS_F2_SDA, LWZ_R3_R4, LFS_F0_SDA)
+        with self.assertRaisesRegex(ValueError, "def-use chains"):
+            check_permutation_dependences(region, [1, 0, 2], None, {
+                0: ("global", 0x80344194),
+                2: ("global", 0x80346F50),
+            })
+
+    # ---- the declaration itself ----
+
+    def relocations(self, *pairs):
+        return {at + 2: (SDA21, symbol) for at, symbol in pairs}
+
+    def test_a_valid_declaration_resolves(self):
+        function = _words(STFS_F2_SDA, LFS_F0_SDA)
+        resolved = resolve_memory_locations(
+            function,
+            [_location("0x0", "lbl_80344194"),
+             _location("0x4", "sCameraVisibilityRadius")],
+            self.relocations((0x0, "lbl_80344194"),
+                             (0x4, "sCameraVisibilityRadius")),
+            SPLIT_MAP,
+        )
+        self.assertEqual(resolved, {0x0: ("global", 0x80344194),
+                                    0x4: ("global", 0x80346F50)})
+
+    def test_no_split_map_fails_closed(self):
+        function = _words(STFS_F2_SDA)
+        with self.assertRaisesRegex(ValueError, "needs the split map"):
+            resolve_memory_locations(
+                function, [_location("0x0", "lbl_80344194")],
+                self.relocations((0x0, "lbl_80344194")), None)
+
+    def test_a_symbol_outside_the_split_map_fails_closed(self):
+        function = _words(STFS_F2_SDA)
+        with self.assertRaisesRegex(ValueError, "not in the split map"):
+            resolve_memory_locations(
+                function,
+                [{"at": "0x0", "symbol": "@4126", "section": ".sdata2",
+                  "address": "0x80347010", "width": 4}],
+                self.relocations((0x0, "@4126")), SPLIT_MAP)
+
+    def test_a_declaration_the_object_contradicts_fails_closed(self):
+        function = _words(STFS_F2_SDA)
+        with self.assertRaisesRegex(ValueError, "object relocates against"):
+            resolve_memory_locations(
+                function, [_location("0x0", "lbl_80344194")],
+                self.relocations((0x0, "lbl_80344190")), SPLIT_MAP)
+
+    def test_a_declaration_the_split_map_contradicts_fails_closed(self):
+        function = _words(STFS_F2_SDA)
+        entry = _location("0x0", "lbl_80344194")
+        entry["address"] = "0x80344190"
+        with self.assertRaisesRegex(ValueError, "split map has"):
+            resolve_memory_locations(
+                function, [entry],
+                self.relocations((0x0, "lbl_80344194")), SPLIT_MAP)
+
+    def test_a_non_sda_base_register_fails_closed(self):
+        function = _words(LWZ_R3_R4)
+        with self.assertRaisesRegex(ValueError, "SDA placeholder"):
+            resolve_memory_locations(
+                function, [_location("0x0", "lbl_80344194")],
+                self.relocations((0x0, "lbl_80344194")), SPLIT_MAP)
+
+    def test_a_missing_or_wrong_type_relocation_fails_closed(self):
+        function = _words(STFS_F2_SDA)
+        with self.assertRaisesRegex(ValueError, "exactly one EMB_SDA21"):
+            resolve_memory_locations(
+                function, [_location("0x0", "lbl_80344194")], {}, SPLIT_MAP)
+        with self.assertRaisesRegex(ValueError, "exactly one EMB_SDA21"):
+            resolve_memory_locations(
+                function, [_location("0x0", "lbl_80344194")],
+                {0x2: (4, "lbl_80344194")}, SPLIT_MAP)
+
+    def test_a_wrong_declared_width_fails_closed(self):
+        function = _words(STFS_F2_SDA)
+        entry = _location("0x0", "lbl_80344194", width=8)
+        with self.assertRaisesRegex(ValueError, "accesses 4 bytes"):
+            resolve_memory_locations(
+                function, [entry],
+                self.relocations((0x0, "lbl_80344194")), SPLIT_MAP)
+
+    def test_overlapping_ranges_fail_closed(self):
+        # An 8-byte read at 0x80344190 covers the 4-byte write at 0x80344194.
+        function = _words(LFD_F3_SDA, STFS_F2_SDA)
+        with self.assertRaisesRegex(ValueError, "overlapping"):
+            resolve_memory_locations(
+                function,
+                [_location("0x0", "lbl_80344190", width=8),
+                 _location("0x4", "lbl_80344194")],
+                self.relocations((0x0, "lbl_80344190"),
+                                 (0x4, "lbl_80344194")),
+                SPLIT_MAP,
+            )
+
+    def test_the_split_map_parser_reads_the_projects_own_format(self):
+        import tempfile
+        with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False,
+                                         encoding="utf-8") as handle:
+            handle.write(
+                "lbl_80344194 = .sbss:0x80344194; // type:object size:0x4\n"
+                "sCameraVisibilityRadius = .sdata2:0x80346F50; // size:0x4\n"
+                "not a symbol line\n")
+            path = handle.name
+        try:
+            addresses = load_symbol_addresses(path)
+        finally:
+            os.unlink(path)
+        self.assertEqual(addresses["lbl_80344194"], (".sbss", 0x80344194))
+        self.assertEqual(addresses["sCameraVisibilityRadius"],
+                         (".sdata2", 0x80346F50))
+
+
+class RelocationHashIdentityTests(unittest.TestCase):
+    """The window relocation hash must track symbol NAMES, not symbol indices.
+
+    `r_info` packs the symbol-table index, which is TU-global: adding or
+    dropping any symbol anywhere in the translation unit renumbers it and
+    used to abort the whole TU's build against every permutation rule, with
+    a message that reads like the unrelated edit's fault.  Measured on
+    gauntworld::fn_8005FB48 when a _savefpr change moved indices 339->341
+    and 337->339 while nothing about the window changed.
+    """
+
+    SDA21 = 109
+
+    def test_symbol_table_renumbering_leaves_the_hash_stable(self):
+        names = {2: "lbl_80347008", 6: "sCameraVisibilityRadius"}
+        before = [(2, (339 << 8) | self.SDA21, 0),
+                  (6, (337 << 8) | self.SDA21, 0)]
+        after_renumber = [(2, (341 << 8) | self.SDA21, 0),
+                          (6, (339 << 8) | self.SDA21, 0)]
+        self.assertEqual(_relocation_sha256(before, names),
+                         _relocation_sha256(after_renumber, names))
+
+    def test_a_different_symbol_moves_the_hash(self):
+        relocations = [(2, (10 << 8) | self.SDA21, 0)]
+        self.assertNotEqual(
+            _relocation_sha256(relocations, {2: "lbl_80344190"}),
+            _relocation_sha256(relocations, {2: "lbl_80344194"}),
+        )
+
+    def test_a_different_relocation_type_moves_the_hash(self):
+        names = {2: "gCameras"}
+        self.assertNotEqual(
+            _relocation_sha256([(2, (10 << 8) | 6, 0)], names),
+            _relocation_sha256([(2, (10 << 8) | 4, 0)], names),
+        )
+
+    def test_a_different_addend_or_offset_moves_the_hash(self):
+        names = {2: "pool", 6: "pool"}
+        base = _relocation_sha256([(2, (10 << 8) | self.SDA21, 0)], names)
+        self.assertNotEqual(
+            base, _relocation_sha256([(2, (10 << 8) | self.SDA21, 8)], names))
+        self.assertNotEqual(
+            base, _relocation_sha256([(6, (10 << 8) | self.SDA21, 0)], names))
+
+    def test_a_missing_symbol_name_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "needs the symbol name"):
+            _relocation_sha256([(2, (10 << 8) | self.SDA21, 0)])
+        with self.assertRaisesRegex(ValueError, "needs the symbol name"):
+            _relocation_sha256([(2, (10 << 8) | self.SDA21, 0)], {6: "other"})
+
+    def test_the_empty_window_hash_is_unchanged_so_it_needs_no_migration(self):
+        self.assertEqual(_relocation_sha256([]), _sha256(b""))
+
+
+class ValueEqualityRecolorTests(unittest.TestCase):
+    """The relational bisimulation that closes a multi-site value split.
+
+    `verify_consistent_recolor` carries a partial FUNCTION our-reg ->
+    target-reg.  When both allocators replicate ONE value across several
+    registers, the positional definition pairing binds root-to-root while the
+    later uses want root-to-copy, and no refinement of a function-valued state
+    can express that.  This mode carries a RELATION with the invariant
+    `(a, b) in R  =>  value_our(a) == value_target(b)` and closes it over
+    value-preserving copies.  It is opt-in per rule and every escape it takes
+    must be declared, so it can never silently widen an existing rule.
+    """
+
+    # ours: fmr f5,f4 ; fsubs f6,f6,f4 ; blr   (the use reads the ROOT)
+    # tgt:  fmr f5,f4 ; fsubs f6,f6,f5 ; blr   (the use reads the COPY)
+    OURS = _words(FMR_F5_F4, FSUBS_F6_F6_F4, BLR)
+    TARGET = _words(FMR_F5_F4, FSUBS_F6_F6_F5, BLR)
+
+    def test_shipped_strict_checker_refuses_the_root_to_copy_use(self):
+        with self.assertRaisesRegex(ValueError, "does not correspond"):
+            verify_consistent_recolor(self.OURS, self.TARGET)
+
+    def test_declared_root_to_copy_substitution_passes(self):
+        verify_value_equality_recolor(
+            self.OURS, self.TARGET,
+            substitutions=[_substitution("0x4", "f", 4, 5)],
+        )
+
+    def test_undeclared_substitution_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "undeclared value-equality"):
+            verify_value_equality_recolor(self.OURS, self.TARGET)
+
+    def test_declared_but_unused_substitution_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "declared .* never used"):
+            verify_value_equality_recolor(
+                self.OURS, self.TARGET,
+                substitutions=[_substitution("0x4", "f", 4, 5),
+                               _substitution("0x8", "f", 3, 7)],
+            )
+
+    def test_value_equality_is_not_assumed_without_a_copy(self):
+        # The same use with no copy establishing f4 == f5 anywhere.
+        ours = _words(FSUBS_F6_F6_F4, BLR)
+        target = _words(FSUBS_F6_F6_F5, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                substitutions=[_substitution("0x0", "f", 4, 5)],
+            )
+
+    def test_redefining_the_copy_kills_the_value_equality(self):
+        # fmr f5,f4 ; fadds f5,f1,f2 ; fsubs f6,f6,f4|f5 ; blr
+        ours = _words(FMR_F5_F4, FADDS_F5_F1_F2, FSUBS_F6_F6_F4, BLR)
+        target = _words(FMR_F5_F4, FADDS_F5_F1_F2, FSUBS_F6_F6_F5, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                substitutions=[_substitution("0x8", "f", 4, 5)],
+            )
+
+    def test_our_side_closure_lifts_our_copy_onto_the_targets_root(self):
+        # CameraSupervisor's +0x3c shape.  Both streams compute one value and
+        # copy it, but into mirrored registers: ours roots in f0 and copies to
+        # f31, the target roots in f30 and copies to f0.  The definitions bind
+        # f0->f30 and f31->f0, and the later use reads our COPY against the
+        # target's ROOT, which only the our-side closure reaches.
+        ours = _words(FADDS_F0_F1_F2, FMR_F31_F0, FSUBS_F3_F3_F31, BLR)
+        target = _words(FADDS_F30_F1_F2, FMR_F0_F30, FSUBS_F3_F3_F30, BLR)
+        with self.assertRaisesRegex(ValueError, "does not correspond"):
+            verify_consistent_recolor(ours, target)
+        verify_value_equality_recolor(
+            ours, target,
+            substitutions=[_substitution("0x8", "f", 31, 30)],
+        )
+
+    def test_relocated_addi_is_not_a_value_preserving_copy(self):
+        # addi r4,r3,0 ; add r5,r5,r3|r4 ; blr.  Unrelocated the addi is a
+        # copy and the substitution proves; with an ADDR16_LO relocation the
+        # zero displacement is a link-time placeholder, not a copy.
+        ours = _words(ADDI_R4_R3_0, ADD_R5_R5_R3, BLR)
+        target = _words(ADDI_R4_R3_0, ADD_R5_R5_R4, BLR)
+        verify_value_equality_recolor(
+            ours, target,
+            substitutions=[_substitution("0x4", "g", 3, 4)],
+        )
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                relocated_offsets={0x2},
+                target_relocated_offsets={0x2},
+                substitutions=[_substitution("0x4", "g", 3, 4)],
+            )
+
+    def test_a_call_breaks_a_correspondence_into_a_clobbered_register(self):
+        # ours homes the value in callee-saved f31, the target in volatile f0,
+        # and a call intervenes: after it our f31 still holds the value and
+        # the target's f0 does not, so the pair must be dropped.
+        ours = _words(FMR_F31_F1, BL, FSUBS_F2_F2_F31, BLR)
+        target = _words(FMR_F0_F1, BL, FSUBS_F2_F2_F0, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                relocated_offsets={0x4},
+                call_targets={0x4: "callee"},
+                substitutions=[_substitution("0x8", "f", 31, 0)],
+            )
+
+    def test_substitution_declaration_must_name_the_right_registers(self):
+        with self.assertRaisesRegex(ValueError, "undeclared value-equality"):
+            verify_value_equality_recolor(
+                self.OURS, self.TARGET,
+                substitutions=[_substitution("0x4", "f", 5, 4)],
+            )
+
+    def test_a_pure_recolor_needs_no_declarations(self):
+        current = bytes.fromhex("38830001 7ca41a14 7ca32b78 4e800020")
+        target = bytes.fromhex("38030001 7ca01a14 7ca32b78 4e800020")
+        verify_value_equality_recolor(current, target)
+
+
+class CompareOperandExchangeTests(unittest.TestCase):
+    """fcmpu/fcmpo with its two operands exchanged.
+
+    Exchanging the operands swaps the FL and FG bits of the result field and
+    leaves FE and FU alone, so the rewrite is equivalence-preserving exactly
+    when every consumer of that CR field reads only FE (EQ) or FU (SO), and
+    the field is dead at every exit.  Anything else fails closed.
+    """
+
+    OURS = _words(FCMPU_CR0_F1_F2, BEQ_PLUS_8, BLR, BLR)
+    TARGET = _words(FCMPU_CR0_F2_F1, BEQ_PLUS_8, BLR, BLR)
+
+    def test_shipped_strict_checker_refuses_the_exchange(self):
+        with self.assertRaisesRegex(ValueError, "does not correspond"):
+            verify_consistent_recolor(self.OURS, self.TARGET)
+
+    def test_eq_only_consumer_licenses_the_declared_exchange(self):
+        verify_value_equality_recolor(
+            self.OURS, self.TARGET,
+            compare_exchanges=[_exchange("0x0", "f", (1, 2), (2, 1))],
+        )
+
+    def test_undeclared_exchange_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, "undeclared comparison"):
+            verify_value_equality_recolor(self.OURS, self.TARGET)
+
+    def test_ordering_consumer_refuses_the_exchange(self):
+        ours = _words(FCMPU_CR0_F1_F2, BLT_PLUS_8, BLR, BLR)
+        target = _words(FCMPU_CR0_F2_F1, BLT_PLUS_8, BLR, BLR)
+        with self.assertRaisesRegex(ValueError, "ordering"):
+            verify_value_equality_recolor(
+                ours, target,
+                compare_exchanges=[_exchange("0x0", "f", (1, 2), (2, 1))],
+            )
+
+    def test_mfcr_consumer_refuses_the_exchange(self):
+        ours = _words(FCMPU_CR0_F1_F2, MFCR_R3, BLR)
+        target = _words(FCMPU_CR0_F2_F1, MFCR_R3, BLR)
+        with self.assertRaisesRegex(ValueError, "ordering"):
+            verify_value_equality_recolor(
+                ours, target,
+                compare_exchanges=[_exchange("0x0", "f", (1, 2), (2, 1))],
+            )
+
+    def test_cr_field_live_at_exit_refuses_the_exchange(self):
+        # cr2 is callee-saved by the EABI, so it escapes the function.
+        ours = _words(FCMPU_CR2_F1_F2, BLR)
+        target = _words(FCMPU_CR2_F2_F1, BLR)
+        with self.assertRaisesRegex(ValueError, "ordering"):
+            verify_value_equality_recolor(
+                ours, target,
+                compare_exchanges=[_exchange("0x0", "f", (1, 2), (2, 1))],
+            )
+
+    def test_integer_compare_is_not_exchange_eligible(self):
+        ours = _words(CMPW_CR0_R3_R4, BEQ_PLUS_8, BLR, BLR)
+        target = _words(CMPW_CR0_R4_R3, BEQ_PLUS_8, BLR, BLR)
+        with self.assertRaisesRegex(ValueError, "not value-equal"):
+            verify_value_equality_recolor(
+                ours, target,
+                compare_exchanges=[_exchange("0x0", "g", (3, 4), (4, 3))],
+            )
+
+    def test_declared_but_unused_exchange_fails_closed(self):
+        current = bytes.fromhex("38830001 7ca41a14 7ca32b78 4e800020")
+        target = bytes.fromhex("38030001 7ca01a14 7ca32b78 4e800020")
+        with self.assertRaisesRegex(ValueError, "declared .* never used"):
+            verify_value_equality_recolor(
+                current, target,
+                compare_exchanges=[_exchange("0x0", "f", (1, 2), (2, 1))],
+            )
+
+
+class ValueEqualityApplyPatchTests(unittest.TestCase):
+    """The mode wired through apply_patch, on the run-27 ELF fixture."""
+
+    OURS = (FMR_F5_F4, FSUBS_F6_F6_F4, BLR)
+    TARGET = (FMR_F5_F4, FSUBS_F6_F6_F5, BLR)
+
+    def build(self, ours_words, target_words, **kwargs):
+        ours = _words(*ours_words)
+        target = _words(*target_words)
+        return (_elf_object(ours, **kwargs), _elf_object(target, **kwargs),
+                ours, target)
+
+    def patch(self, ours, target, **overrides):
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(ours),
+            "after_sha256": _sha256(target),
+            "copy_register_fields": True,
+            "value_equality_recolor": {
+                "audit": "test",
+                "substitutions": [_substitution("0x4", "f", 4, 5)],
+            },
+        }
+        patch.update(overrides)
+        return patch
+
+    def test_mode_reaches_the_target_through_apply_patch(self):
+        data, target_data, ours, target = self.build(self.OURS, self.TARGET)
+        before, after, changed = apply_patch(
+            data, self.patch(ours, target), bytes(target_data))
+        self.assertEqual(before, _sha256(ours))
+        self.assertEqual(after, _sha256(target))
+        self.assertEqual(changed, 1)
+
+    def test_undeclared_site_fails_the_build(self):
+        data, target_data, ours, target = self.build(self.OURS, self.TARGET)
+        patch = self.patch(ours, target,
+                           value_equality_recolor={"audit": "test"})
+        with self.assertRaisesRegex(ValueError, "undeclared value-equality"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_mode_refuses_when_the_strict_proof_already_succeeds(self):
+        # The pure-recolor body from ConsistentRecolorTests: the scratch web
+        # is homed in r0 instead of r4 and nothing else moves.
+        words = (0x38830001, 0x7CA41A14, 0x7CA32B78, BLR)
+        target_words = (0x38030001, 0x7CA01A14, 0x7CA32B78, BLR)
+        data, target_data, ours, target = self.build(words, target_words)
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(ours),
+            "after_sha256": _sha256(target),
+            "copy_register_fields": True,
+            "value_equality_recolor": {"audit": "test"},
+        }
+        with self.assertRaisesRegex(ValueError, "strict recolor proof"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_mode_may_not_ride_on_an_unproven_recolor_audit(self):
+        data, target_data, ours, target = self.build(self.OURS, self.TARGET)
+        patch = self.patch(ours, target, unproven_recolor_audit="hand-waved")
+        with self.assertRaisesRegex(ValueError, "unproven_recolor_audit"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_mode_refuses_a_post_recolor_permutation(self):
+        data, target_data, ours, target = self.build(self.OURS, self.TARGET)
+        patch = self.patch(ours, target, post_recolor_permutation={
+            "start": "0x0", "end": "0x8", "order": [1, 0]})
+        with self.assertRaisesRegex(ValueError, "post-recolor permutation"):
+            apply_patch(data, patch, bytes(target_data))
 
 
 if __name__ == "__main__":

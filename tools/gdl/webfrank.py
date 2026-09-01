@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import itertools
 import json
 import re
 import struct
@@ -703,6 +704,449 @@ def verify_consistent_recolor(
             )
 
 
+def _fpr_move(word: int):
+    """``(destination, source)`` when the word is a plain ``fmr fD,fB``.
+
+    Rc set also writes CR1, so ``fmr.`` is not accepted: the copy closure
+    below reasons only about the moved register value.
+    """
+    if (word >> 26) != 63 or ((word >> 1) & 0x3FF) != 72 or word & 1:
+        return None
+    return ((word >> 21) & 0x1F, (word >> 11) & 0x1F)
+
+
+def _value_preserving_copy(word: int, index: int, relocated: set):
+    """``(bank, destination, source)`` when the word provably moves one
+    register's value into another, else ``None``.
+
+    A RELOCATED word is never a copy.  ``addi rD,rA,0`` is the compiler's
+    move form, but with an ADDR16_LO relocation the zero displacement is a
+    link-time placeholder for a symbol's low half — reading it as a copy
+    would be the exact unsoundness this whole mode exists to avoid.
+    """
+    if index in relocated:
+        return None
+    move = _fpr_move(word)
+    if move is not None:
+        return ("f", move[0], move[1])
+    form = decode_copy_form(word)
+    if form is not None and form[0] == "copy":
+        return ("g", form[1], form[2])
+    return None
+
+
+def _compare_result_field(word: int):
+    """The CR field number written by an ``fcmpu``/``fcmpo``, else ``None``.
+
+    Only the floating compares are exchange-eligible: they are the measured
+    population, and every accepted form must be one the tests exercise.
+    """
+    if (word >> 26) != 63 or ((word >> 1) & 0x3FF) not in (0, 32):
+        return None
+    return (word >> 23) & 7
+
+
+def _compare_exchange_is_semantics_preserving(
+    words: list[int],
+    index: int,
+    field: int,
+    successors: list[list[int]],
+    calls: list[bool],
+    call_targets=None,
+) -> bool:
+    """True when exchanging the compare's two operands cannot be observed.
+
+    Exchanging ``fcmpu``/``fcmpo`` operands swaps the FL and FG bits of the
+    result field and leaves FE (equal) and FU (unordered) untouched, so the
+    rewrite is equivalence-preserving exactly when every consumer of that CR
+    field reads only FE or FU, and the field is dead at every exit.  Any
+    other reader — an ordering branch, ``mcrf``, ``mfcr``, a CR-logical —
+    fails closed, as does a field that escapes the function.
+    """
+    resource = ("cr", field)
+    frame = _frame_size(words)
+    pending = list(successors[index])
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        word = words[current]
+        try:
+            reads, writes = _word_effects(word)
+        except ValueError:
+            return False
+        if resource in reads:
+            opcode = word >> 26
+            branch = opcode == 16 or (
+                opcode == 19 and ((word >> 1) & 0x3FF) in (16, 528)
+            )
+            if not branch:
+                return False           # mcrf/mfcr/CR-logical: whole field
+            condition = (word >> 16) & 0x1F
+            if condition >> 2 != field or condition & 3 not in (2, 3):
+                return False           # LT/GT are exactly what the swap moves
+        if calls[current]:
+            helper = _helper_call(
+                call_targets.get(current * 4) if call_targets else None
+            )
+            if helper is None and resource in _CALL_CLOBBERED:
+                continue               # the call destroys the field
+        if resource in writes:
+            continue                   # redefined before any further use
+        if not successors[current]:
+            if _live_at_exit(resource, frame):
+                return False
+            continue
+        pending.extend(successors[current])
+    return True
+
+
+def _relation_define(relation: set, bank: str, ours: int, target: int) -> set:
+    """Retire every pair the write invalidates, then bind the new one.
+
+    Our register now holds a new value, so every ``(ours, *)`` pair is stale;
+    the target's register was overwritten too, so every ``(*, target)`` pair
+    is stale.  This is the relational form of ``_map_define`` and it is
+    strictly more aggressive than it: ``_map_define`` retires only the
+    same-valued keys.
+    """
+    relation = {
+        entry for entry in relation
+        if not (entry[0] == bank and (entry[1] == ours or entry[2] == target))
+    }
+    relation.add((bank, ours, target))
+    return relation
+
+
+_VALUE_EQUALITY_STEP_LIMIT = 200000
+
+
+def _value_equality_transfer(
+    index: int,
+    cur: int,
+    tgt: int,
+    relation: set,
+    renaming: dict,
+    our_copy,
+    target_copy,
+    substitutions: set,
+    exchanges: set,
+) -> tuple[set, dict]:
+    opcode = cur >> 26
+    if opcode in (46, 47):
+        # lmw/stmw name a register RANGE, so no renaming is expressible and
+        # the shipped identity requirement is kept exactly as it stands.
+        renaming = _recolor_transfer(index, cur, tgt, renaming)
+        if opcode == 46:
+            for number in range((cur >> 21) & 0x1F, 32):
+                relation = _relation_define(relation, "g", number, number)
+        return relation, renaming
+    try:
+        operands = instruction_operands(cur)
+    except ValueError as error:
+        raise ValueError(f"+0x{index * 4:x}: {error}") from None
+    allowed = 0
+    for _, shift, _, _ in operands:
+        allowed |= 0x1F << shift
+    if (cur ^ tgt) & ~allowed:
+        raise ValueError(
+            f"+0x{index * 4:x}: non-register bits differ "
+            f"(0x{cur:08x} vs 0x{tgt:08x})"
+        )
+    fields = {
+        shift: (bank, role, zero_none,
+                (cur >> shift) & 0x1F, (tgt >> shift) & 0x1F)
+        for bank, shift, role, zero_none in operands
+    }
+    compare_field = _compare_result_field(cur)
+    pair = _commutative_shifts(cur)
+    if pair is None and compare_field is not None:
+        pair = (16, 11)
+    remap: dict[int, int] = {}
+    if pair is not None and all(shift in fields for shift in pair):
+        first, second = pair
+        bank, _, zero_1, cur_1, tgt_1 = fields[first]
+        _, _, zero_2, cur_2, tgt_2 = fields[second]
+        zero_involved = (zero_1 or zero_2) and 0 in (cur_1, cur_2, tgt_1, tgt_2)
+        straight = ((bank, cur_1, tgt_1) in relation
+                    and (bank, cur_2, tgt_2) in relation)
+        if not straight and not zero_involved \
+                and (bank, cur_1, tgt_2) in relation \
+                and (bank, cur_2, tgt_1) in relation:
+            remap = {first: tgt_2, second: tgt_1}
+            if compare_field is not None:
+                exchanges.add((index, bank, cur_1, cur_2, tgt_1, tgt_2))
+    for shift, (bank, role, zero_none, cur_r, tgt_r) in fields.items():
+        expected = remap.get(shift, tgt_r)
+        if zero_none and (cur_r == 0 or expected == 0):
+            if cur_r != expected:
+                raise ValueError(
+                    f"+0x{index * 4:x}: base register presence differs "
+                    f"({bank}{cur_r} vs {bank}{expected})"
+                )
+            continue
+        if role not in ("u", "b"):
+            continue
+        if (bank, cur_r, expected) not in relation:
+            raise ValueError(
+                f"+0x{index * 4:x}: use of {bank}{cur_r} is not value-equal "
+                f"to {bank}{expected}"
+            )
+        if renaming.get((bank, cur_r)) != expected:
+            substitutions.add((index, bank, cur_r, expected))
+    for _, (bank, role, zero_none, cur_r, tgt_r) in fields.items():
+        if zero_none and cur_r == 0:
+            continue
+        if role not in ("d", "b"):
+            continue
+        if our_copy is not None and target_copy is not None \
+                and our_copy[1] == our_copy[2] and target_copy[1] == target_copy[2]:
+            continue                   # `fmr fX,fX` on both sides: a no-op
+        relation = _relation_define(relation, bank, cur_r, tgt_r)
+        _map_define(renaming, (bank, cur_r), tgt_r)
+        # THE COPY CLOSURE.  After `our: d_o <- s_o`, our d_o holds exactly
+        # what our s_o holds, so every target register value-equal to s_o is
+        # value-equal to d_o; symmetrically on the target side.  Closing over
+        # the pairs that SURVIVED the define above is what lets one value
+        # replicated across five registers in each stream be matched up in
+        # any of the ways the two allocators chose.
+        if our_copy is not None and our_copy[0] == bank \
+                and our_copy[1] == cur_r and our_copy[2] != cur_r:
+            source = our_copy[2]
+            relation |= {
+                (bank, cur_r, other) for kind, one, other in tuple(relation)
+                if kind == bank and one == source
+            }
+        if target_copy is not None and target_copy[0] == bank \
+                and target_copy[1] == tgt_r and target_copy[2] != tgt_r:
+            source = target_copy[2]
+            relation |= {
+                (bank, one, tgt_r) for kind, one, other in tuple(relation)
+                if kind == bank and other == source
+            }
+    return relation, renaming
+
+
+def _declared_substitutions(declarations) -> set:
+    declared = set()
+    for entry in declarations or ():
+        bank = entry["bank"]
+        if bank not in ("g", "f"):
+            raise ValueError(f"invalid value-equality bank {bank!r}")
+        declared.add((_parse_int(entry["at"]) // 4, bank,
+                      int(entry["ours"]), int(entry["target"])))
+    return declared
+
+
+def _declared_exchanges(declarations) -> set:
+    declared = set()
+    for entry in declarations or ():
+        bank = entry["bank"]
+        if bank not in ("g", "f"):
+            raise ValueError(f"invalid comparison-exchange bank {bank!r}")
+        ours = [int(value) for value in entry["ours"]]
+        target = [int(value) for value in entry["target"]]
+        if len(ours) != 2 or len(target) != 2:
+            raise ValueError(
+                f"comparison exchange at {entry['at']} needs two operands "
+                "per side"
+            )
+        declared.add((_parse_int(entry["at"]) // 4, bank,
+                      ours[0], ours[1], target[0], target[1]))
+    return declared
+
+
+def _format_substitution(site) -> str:
+    index, bank, ours, target = site
+    return f"+0x{index * 4:x} {bank}{ours}->{bank}{target}"
+
+
+def _format_exchange(site) -> str:
+    index, bank, cur_1, cur_2, tgt_1, tgt_2 = site
+    return (f"+0x{index * 4:x} ({bank}{cur_1},{bank}{cur_2})"
+            f"<->({bank}{tgt_1},{bank}{tgt_2})")
+
+
+def verify_value_equality_recolor(
+    current: bytes,
+    target: bytes,
+    *,
+    jumptable_targets=(),
+    relocated_offsets=(),
+    target_relocated_offsets=(),
+    call_targets=None,
+    substitutions=(),
+    compare_exchanges=(),
+) -> None:
+    """Prove *target* is *current* under a VALUE-equality correspondence.
+
+    ``verify_consistent_recolor`` carries a partial function from our
+    registers to target registers.  That is the right state for a pure
+    allocator recolor and it cannot express a MULTI-SITE VALUE SPLIT: when
+    both allocators replicate one value across several registers, the
+    positional pairing of the definitions binds root-to-root while the later
+    uses want root-to-copy, so the function-valued state fails at a use whose
+    operands provably hold the same value.  Refining the function does not
+    help — the required correspondence is genuinely many-to-many.
+
+    This carries a RELATION instead, with the invariant
+
+        (bank, a, b) in R  =>  our `a` and the target's `b` hold the same
+                               value at this program point
+
+    seeded with the identity at entry (both streams start from one machine
+    state), narrowed at every definition, intersected at every join, and
+    CLOSED OVER VALUE-PRESERVING COPIES in both streams.  Because every
+    accepted use is backed by a member of R, the rewritten instruction reads
+    operands holding the values our instruction read, which is what
+    equivalence requires.
+
+    The mode is strictly more permissive than the strict proof, so it is
+    never the default: every use it accepts that the strict renaming would
+    refuse must be DECLARED in *substitutions*, every comparison operand
+    exchange in *compare_exchanges*, and an undeclared escape or a declared
+    escape that never fires is an error.  A rule therefore cannot widen
+    silently, and a source change that moves the residual fails the build.
+    """
+    if len(current) != len(target) or len(current) % 4:
+        raise ValueError("recolor verification needs equal word-aligned sizes")
+    words_cur = [_u32(current, off) for off in range(0, len(current), 4)]
+    words_tgt = [_u32(target, off) for off in range(0, len(target), 4)]
+    count = len(words_cur)
+    our_relocated = {off // 4 for off in relocated_offsets}
+    target_relocated = {off // 4 for off in target_relocated_offsets}
+    jumptable = set()
+    for off in jumptable_targets:
+        if off % 4 or not 0 <= off < len(current):
+            raise ValueError(f"invalid jumptable target +0x{off:x}")
+        jumptable.add(off // 4)
+    successors, calls = _successors(words_cur, our_relocated, jumptable)
+
+    our_copies = [
+        _value_preserving_copy(word, index, our_relocated)
+        for index, word in enumerate(words_cur)
+    ]
+    target_copies = [
+        _value_preserving_copy(word, index, target_relocated)
+        for index, word in enumerate(words_tgt)
+    ]
+
+    identity_relation = {
+        (bank, number, number)
+        for bank in ("g", "f") for number in range(32)
+    }
+    identity_renaming = {("g", n): n for n in range(32)}
+    identity_renaming.update({("f", n): n for n in range(32)})
+    incoming: dict[int, tuple[set, dict]] = {
+        0: (identity_relation, identity_renaming)
+    }
+    used_substitutions: set = set()
+    used_exchanges: set = set()
+    pending = [0]
+    steps = 0
+    while pending:
+        index = pending.pop()
+        steps += 1
+        if steps > _VALUE_EQUALITY_STEP_LIMIT:
+            raise ValueError(
+                "value-equality verification did not converge within "
+                f"{_VALUE_EQUALITY_STEP_LIMIT} steps"
+            )
+        relation, renaming = incoming[index]
+        relation, renaming = _value_equality_transfer(
+            index, words_cur[index], words_tgt[index],
+            set(relation), dict(renaming),
+            our_copies[index], target_copies[index],
+            used_substitutions, used_exchanges,
+        )
+        if calls[index]:
+            helper = _helper_call(
+                call_targets.get(index * 4) if call_targets else None
+            )
+            if helper is None:
+                # A pair survives a call only when NEITHER side is clobbered.
+                # The strict checker drops our-side volatile keys only, which
+                # leaves a callee-saved-to-volatile correspondence standing
+                # across a call; the relation drops both directions.
+                volatile = frozenset(_CALL_VOLATILE)
+                relation = {
+                    entry for entry in relation
+                    if (entry[0], entry[1]) not in volatile
+                    and (entry[0], entry[2]) not in volatile
+                }
+                for key in _CALL_VOLATILE:
+                    renaming.pop(key, None)
+                for key in _CALL_RETURNS:
+                    relation = _relation_define(relation, key[0], key[1],
+                                                key[1])
+                    _map_define(renaming, key, key[1])
+            elif helper[0] == "rest":
+                _, bank, first = helper
+                for number in range(first, 32):
+                    relation = _relation_define(relation, bank, number, number)
+                    _map_define(renaming, (bank, number), number)
+        for successor in successors[index]:
+            known = incoming.get(successor)
+            if known is None:
+                merged = (set(relation), dict(renaming))
+            else:
+                merged = (
+                    known[0] & relation,
+                    {key: value for key, value in known[1].items()
+                     if renaming.get(key) == value},
+                )
+            if known is None or merged != known:
+                incoming[successor] = merged
+                pending.append(successor)
+    for index in range(count):
+        if words_cur[index] != words_tgt[index] and index not in incoming:
+            raise ValueError(
+                f"+0x{index * 4:x}: differing word is unreachable from the "
+                "function entry"
+            )
+
+    for site in sorted(used_exchanges):
+        index, _bank, _c1, _c2, _t1, _t2 = site
+        field = _compare_result_field(words_cur[index])
+        if field is None or not _compare_exchange_is_semantics_preserving(
+            words_cur, index, field, successors, calls, call_targets
+        ):
+            raise ValueError(
+                f"+0x{index * 4:x}: the comparison's operands are exchanged "
+                "but its CR field is read for ordering, or escapes the "
+                "function, so the exchange is not equivalence-preserving"
+            )
+
+    declared_substitutions = _declared_substitutions(substitutions)
+    declared_exchanges = _declared_exchanges(compare_exchanges)
+    undeclared = sorted(used_substitutions - declared_substitutions)
+    if undeclared:
+        raise ValueError(
+            "undeclared value-equality substitution(s): "
+            + ", ".join(_format_substitution(site) for site in undeclared[:6])
+        )
+    undeclared_swaps = sorted(used_exchanges - declared_exchanges)
+    if undeclared_swaps:
+        raise ValueError(
+            "undeclared comparison operand exchange(s): "
+            + ", ".join(_format_exchange(site) for site in undeclared_swaps[:6])
+        )
+    stale = sorted(declared_substitutions - used_substitutions)
+    if stale:
+        raise ValueError(
+            "declared value-equality substitution(s) never used: "
+            + ", ".join(_format_substitution(site) for site in stale[:6])
+        )
+    stale_swaps = sorted(declared_exchanges - used_exchanges)
+    if stale_swaps:
+        raise ValueError(
+            "declared comparison operand exchange(s) never used: "
+            + ", ".join(_format_exchange(site) for site in stale_swaps[:6])
+        )
+
+
 def _word_effects(word: int) -> tuple[set, set]:
     """Architectural resources read and written by one instruction.
 
@@ -821,7 +1265,7 @@ def _word_effects(word: int) -> tuple[set, set]:
 
 def _is_memory(resource) -> bool:
     return resource in ("mem", "anymem") or (
-        isinstance(resource, tuple) and resource[0] == "stack"
+        isinstance(resource, tuple) and resource[0] in ("stack", "global")
     )
 
 
@@ -911,7 +1355,8 @@ def _resource_dead_after(
 
 
 def check_permutation_dependences(region: bytes, order: list[int],
-                                  exit_dead=None) -> None:
+                                  exit_dead=None,
+                                  memory_locations=None) -> None:
     """Fail unless the permutation preserves every def-use chain.
 
     Each read must see the same writer atom before and after reordering, and
@@ -920,6 +1365,8 @@ def check_permutation_dependences(region: bytes, order: list[int],
     words = [_u32(region, off) for off in range(0, len(region), 4)]
     raw_effects = []
     stack_locations = set()
+    named = dict(memory_locations or {})
+    global_locations = set(named.values())
     for index, word in enumerate(words):
         try:
             reads, writes = _word_effects(word)
@@ -927,6 +1374,21 @@ def check_permutation_dependences(region: bytes, order: list[int],
             raise ValueError(f"atom {index}: {error}") from None
         if ("g", 1) in writes:
             raise ValueError(f"atom {index}: permutation region redefines r1")
+        location = named.get(index)
+        if location is not None:
+            reads = (reads - {"mem"}) | ({location} if "mem" in reads else set())
+            writes = (writes - {"mem"}) | (
+                {location} if "mem" in writes else set())
+        elif named:
+            # SOUNDNESS.  Once ANY access is split out of the single "mem"
+            # resource, an access still spelled "mem" has an unknown address
+            # and may alias every location that was split out.  Promoting it
+            # to "anymem" is what keeps the refinement conservative; leaving
+            # it as a plain "mem" would make it non-conflicting with exactly
+            # the locations just separated from it.
+            reads = (reads - {"mem"}) | ({"anymem"} if "mem" in reads else set())
+            writes = (writes - {"mem"}) | (
+                {"anymem"} if "mem" in writes else set())
         raw_effects.append((reads, writes))
         for item in reads | writes:
             if isinstance(item, tuple) and item[0] == "stack":
@@ -934,7 +1396,8 @@ def check_permutation_dependences(region: bytes, order: list[int],
 
     def expand(group):
         if "anymem" in group:
-            group = (group - {"anymem"}) | {"mem"} | stack_locations
+            group = ((group - {"anymem"}) | {"mem"} | stack_locations
+                     | global_locations)
         return group
 
     effects = [(expand(reads), expand(writes)) for reads, writes in raw_effects]
@@ -953,9 +1416,18 @@ def check_permutation_dependences(region: bytes, order: list[int],
     baseline_chains, baseline_last = trace(range(len(words)))
     permuted_chains, permuted_last = trace(order)
     if baseline_chains != permuted_chains:
+        # Sort on repr, never on the resource itself: a chain key is
+        # (atom, resource) and a resource is a str for "mem"/"lr"/"anymem"
+        # but a tuple for ("g", N).  Two broken chains on ONE atom therefore
+        # compared str against tuple and raised TypeError out of the ERROR
+        # path — and since every caller catches ValueError only, one
+        # candidate's perfectly correct refusal aborted the whole search.
         broken = sorted(
-            key for key in set(baseline_chains) | set(permuted_chains)
-            if baseline_chains.get(key) != permuted_chains.get(key)
+            (
+                key for key in set(baseline_chains) | set(permuted_chains)
+                if baseline_chains.get(key) != permuted_chains.get(key)
+            ),
+            key=lambda key: (key[0], repr(key[1])),
         )
         raise ValueError(
             f"instruction permutation breaks def-use chains: {broken[:4]}"
@@ -975,10 +1447,38 @@ def _sha256(data: bytes | bytearray) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _relocation_sha256(relocations: list[tuple[int, int, int]]) -> str:
+def _relocation_sha256(
+    relocations: list[tuple[int, int, int]],
+    symbols: dict[int, str] | None = None,
+) -> str:
+    """Hash a window's relocations by SYMBOL NAME, never by symbol index.
+
+    The ELF ``r_info`` field packs the symbol-table INDEX, which is a
+    TU-global quantity: adding or dropping any symbol anywhere in the
+    translation unit renumbers it.  Hashing it therefore made every
+    ``instruction_permutation`` rule in a TU abort the build after an
+    unrelated edit elsewhere in that TU, with a message that reads like the
+    edit's fault — measured on gauntworld::fn_8005FB48, where a _savefpr
+    change moved indices 339->341 and 337->339 while both text hashes and
+    every relocation's offset, type, addend and symbol NAME were unchanged.
+
+    Only the relocation TYPE (the low byte of ``r_info``) and the symbol's
+    name are identity here, so the hash tracks what the rules' own prose
+    already reasons about.  Names are mandatory whenever a relocation is
+    present: dropping the index without substituting the name would leave
+    the hash blind to a re-symboling, which is a weaker guard, not a
+    friendlier one.  The empty-list hash is unchanged, so the windows that
+    carry no relocation need no migration.
+    """
     payload = bytearray()
     for offset, info, addend in relocations:
-        payload += struct.pack(">IIi", offset, info, addend)
+        if symbols is None or offset not in symbols:
+            raise ValueError(
+                f"relocation hash needs the symbol name for the relocation "
+                f"at +0x{offset:x}"
+            )
+        payload += struct.pack(">IIi", offset, info & 0xFF, addend)
+        payload += symbols[offset].encode("utf-8") + b"\0"
     return _sha256(payload)
 
 
@@ -1157,6 +1657,138 @@ def verify_relocation_binding(
     return forward
 
 
+R_PPC_EMB_SDA21 = 109
+
+# Byte width of each D-form load/store opcode's memory access.
+_ACCESS_WIDTH = {
+    32: 4, 33: 4, 34: 1, 35: 1, 36: 4, 37: 4, 38: 1, 39: 1,
+    40: 2, 41: 2, 42: 2, 43: 2, 44: 2, 45: 2,
+    48: 4, 49: 4, 50: 8, 51: 8, 52: 4, 53: 4, 54: 8, 55: 8,
+}
+
+
+def load_symbol_addresses(path) -> dict[str, tuple[str, int]]:
+    """Parse the project's split map into ``name -> (section, address)``.
+
+    This is the same file dtk splits by and the link is placed by, and the
+    DOL checksum gate rests on it, so it is the project's own authority for
+    where a global lives — not a new assumption introduced here.
+    """
+    addresses: dict[str, tuple[str, int]] = {}
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        head, _, tail = line.partition("=")
+        if not tail:
+            continue
+        body = tail.split("//")[0].strip().rstrip(";")
+        section, _, value = body.partition(":")
+        try:
+            addresses[head.strip()] = (section.strip(), int(value, 16))
+        except ValueError:
+            continue
+    return addresses
+
+
+def resolve_memory_locations(
+    function: bytes,
+    declarations,
+    relocations: dict[int, tuple[int, str]],
+    symbol_addresses: dict[str, tuple[str, int]] | None,
+) -> dict[int, tuple]:
+    """Validate a rule's declared SDA memory locations and return
+    ``function-relative instruction offset -> ("global", address)``.
+
+    Every one of these must hold or the declaration is refused, because each
+    is load-bearing for the non-aliasing conclusion:
+
+      * the word is a D-form load/store whose base field is the SDA
+        placeholder zero, so the linked effective address comes ENTIRELY
+        from the relocation and not from a register value we cannot track;
+      * the object carries an ``EMB_SDA21`` relocation on that word naming
+        exactly the declared symbol;
+      * the split map agrees with the declared section, address and access
+        width;
+      * and the declared access ranges are pairwise disjoint or identical.
+
+    Distinct SYMBOL NAMES alone would not be a proof — two names can alias —
+    so the addresses do the work and the names only bind the declaration to
+    the object.
+    """
+    if not declarations:
+        return {}
+    if symbol_addresses is None:
+        raise ValueError(
+            "memory disambiguation needs the split map; pass --symbols "
+            "(default: the symbols.txt beside the webfrank config)"
+        )
+    resolved: dict[int, tuple] = {}
+    ranges: dict[int, tuple[int, int]] = {}
+    for entry in declarations:
+        at = _parse_int(entry["at"])
+        if at % 4 or not 0 <= at < len(function):
+            raise ValueError(f"invalid memory-disambiguation offset {entry}")
+        word = _u32(function, at)
+        opcode = word >> 26
+        if opcode not in _ACCESS_WIDTH:
+            raise ValueError(
+                f"+0x{at:x}: memory disambiguation needs a D-form "
+                f"load/store, found opcode {opcode}"
+            )
+        if ((word >> 16) & 0x1F) != 0:
+            raise ValueError(
+                f"+0x{at:x}: base register is not the SDA placeholder, so "
+                f"the effective address is not determined by the relocation"
+            )
+        carried = [
+            (kind, name) for offset, (kind, name) in relocations.items()
+            if offset // 4 == at // 4
+        ]
+        if len(carried) != 1 or carried[0][0] != R_PPC_EMB_SDA21:
+            raise ValueError(
+                f"+0x{at:x}: expected exactly one EMB_SDA21 relocation, "
+                f"found {carried}"
+            )
+        if carried[0][1] != entry["symbol"]:
+            raise ValueError(
+                f"+0x{at:x}: declared symbol {entry['symbol']!r} but the "
+                f"object relocates against {carried[0][1]!r}"
+            )
+        known = symbol_addresses.get(entry["symbol"])
+        if known is None:
+            raise ValueError(
+                f"+0x{at:x}: {entry['symbol']!r} is not in the split map, so "
+                f"its address cannot be proved"
+            )
+        section, address = known
+        if section != entry["section"] or address != _parse_int(
+            entry["address"]
+        ):
+            raise ValueError(
+                f"+0x{at:x}: declared {entry['section']}:{entry['address']} "
+                f"but the split map has {section}:0x{address:x}"
+            )
+        width = _ACCESS_WIDTH[opcode]
+        if int(entry["width"]) != width:
+            raise ValueError(
+                f"+0x{at:x}: declared width {entry['width']} but the opcode "
+                f"accesses {width} bytes"
+            )
+        resolved[at] = ("global", address)
+        ranges[at] = (address, address + width)
+    items = sorted(ranges.items())
+    for (first_at, first), (second_at, second) in itertools.combinations(
+        items, 2
+    ):
+        if first == second:
+            continue
+        if first[0] < second[1] and second[0] < first[1]:
+            raise ValueError(
+                f"+0x{first_at:x} and +0x{second_at:x} access overlapping "
+                f"ranges [0x{first[0]:x},0x{first[1]:x}) and "
+                f"[0x{second[0]:x},0x{second[1]:x}); they may alias"
+            )
+    return resolved
+
+
 def permutation_windows(
     permutation, function_size: int
 ) -> tuple[list[dict], list[tuple[int, int]]]:
@@ -1278,6 +1910,7 @@ def permute_instruction_atoms(
     exit_dead=None,
     our_symbols: dict[int, str] | None = None,
     target_relocations: dict[int, tuple[int, str]] | None = None,
+    memory_locations: dict[int, tuple] | None = None,
 ) -> tuple[bytes, list[tuple[int, int, int]], int]:
     """Apply one explicit instruction-atom permutation, failing closed.
 
@@ -1302,9 +1935,10 @@ def permute_instruction_atoms(
         if _is_control_instruction(_u32(atom, 0)):
             raise ValueError("instruction permutation region contains a control op")
 
-    check_permutation_dependences(current, order, exit_dead)
+    check_permutation_dependences(current, order, exit_dead, memory_locations)
 
-    if _relocation_sha256(relocations) != before_relocations_sha256:
+    if _relocation_sha256(relocations,
+                          our_symbols) != before_relocations_sha256:
         raise ValueError("instruction permutation relocation input hash changed")
 
     destination_by_source = {
@@ -1312,6 +1946,7 @@ def permute_instruction_atoms(
     }
     moved_relocations = []
     moved_named: dict[int, tuple[int, str]] = {}
+    moved_symbols: dict[int, str] = {}
     for offset, info, addend in relocations:
         if not 0 <= offset < len(current):
             raise ValueError("instruction permutation relocation is outside region")
@@ -1320,13 +1955,13 @@ def permute_instruction_atoms(
         destination = destination_by_source[source]
         moved_offset = destination * 4 + within_atom
         moved_relocations.append((moved_offset, info, addend))
-        if our_symbols is not None:
-            if offset not in our_symbols:
-                raise ValueError(
-                    f"instruction permutation has no symbol for the "
-                    f"relocation at +0x{offset:x}"
-                )
-            moved_named[moved_offset] = (info & 0xFF, our_symbols[offset])
+        if our_symbols is None or offset not in our_symbols:
+            raise ValueError(
+                f"instruction permutation has no symbol for the "
+                f"relocation at +0x{offset:x}"
+            )
+        moved_named[moved_offset] = (info & 0xFF, our_symbols[offset])
+        moved_symbols[moved_offset] = our_symbols[offset]
     moved_relocations.sort(key=lambda item: item[0])
 
     # The transform may change relocation offsets and ordering, never their
@@ -1340,7 +1975,8 @@ def permute_instruction_atoms(
     )
     if before_payload != after_payload or len(moved_relocations) != len(relocations):
         raise ValueError("instruction permutation failed to preserve relocations")
-    if _relocation_sha256(moved_relocations) != after_relocations_sha256:
+    if _relocation_sha256(moved_relocations,
+                          moved_symbols) != after_relocations_sha256:
         raise ValueError("instruction permutation relocation output hash changed")
 
     # The payload check above proves conservation, never binding: it drops
@@ -2150,7 +2786,8 @@ def copy_register_fields(current: bytes, target: bytes) -> tuple[bytes, int]:
 
 
 def apply_patch(
-    data: bytearray, patch: dict, target_data: bytes | None = None
+    data: bytearray, patch: dict, target_data: bytes | None = None,
+    symbol_addresses: dict[str, tuple[str, int]] | None = None,
 ) -> tuple[str, str, int]:
     sections = _sections(data)
     symbol = _find_symbol(data, sections, patch["function"])
@@ -2185,6 +2822,12 @@ def apply_patch(
 
     changed = 0
     permutation = patch.get("instruction_permutation")
+    if patch.get("memory_disambiguation") and not permutation:
+        raise ValueError(
+            f"{symbol.name}: \"memory_disambiguation\" only refines the "
+            f"permutation dependence audit, so it is meaningless without an "
+            f"\"instruction_permutation\""
+        )
     if permutation:
         if target_data is None:
             raise ValueError(f"{symbol.name}: target object is required")
@@ -2212,6 +2855,21 @@ def apply_patch(
         # claim.law.HV_single-permutation-region-is-the-binding-schema-
         # limit.20260901.v1
         windows, ranges = permutation_windows(permutation, symbol.size)
+
+        # SDA memory disambiguation, opt-in and fully declared.  Without it
+        # every non-stack memory access is one resource, so a store can never
+        # cross a load however obviously distinct the two globals are.
+        disambiguation = patch.get("memory_disambiguation") or {}
+        memory_locations = resolve_memory_locations(
+            original_function, disambiguation.get("locations", ()),
+            text_relocations, symbol_addresses,
+        )
+        for at in memory_locations:
+            if not any(start <= at < end for start, end in ranges):
+                raise ValueError(
+                    f"{symbol.name}: memory disambiguation at +0x{at:x} is "
+                    f"outside every permutation window"
+                )
 
         relocation_sections = [
             section for section in sections
@@ -2279,6 +2937,11 @@ def apply_patch(
                 exit_dead=_defer_exit_dead,
                 our_symbols=window_symbols,
                 target_relocations=window_target_relocations,
+                memory_locations={
+                    (at - relative_start) // 4: location
+                    for at, location in memory_locations.items()
+                    if relative_start <= at < relative_end
+                },
             )
             data[start + relative_start:start + relative_end] = permuted
 
@@ -2385,6 +3048,54 @@ def apply_patch(
                 f"escape would launder an unproven renaming into a "
                 f"value-changing opcode rewrite"
             )
+
+    # The value-equality recolor mode.  It is strictly more permissive than
+    # verify_consistent_recolor, so it is opt-in, it never runs unless the
+    # strict proof has already failed, and it refuses every composition whose
+    # interaction with it is not exercised by a test.
+    value_equality = patch.get("value_equality_recolor")
+    value_equality_relocations: set = set()
+    if value_equality is not None:
+        if not isinstance(value_equality, dict):
+            raise ValueError(
+                f"{symbol.name}: \"value_equality_recolor\" must be an object "
+                f"carrying its audit and its declared sites"
+            )
+        if not register_stage:
+            raise ValueError(
+                f"{symbol.name}: a value-equality recolor requires a register "
+                f"stage — it exists to prove that stage's output"
+            )
+        if target_data is None:
+            raise ValueError(f"{symbol.name}: target object is required")
+        if patch.get("unproven_recolor_audit"):
+            raise ValueError(
+                f"{symbol.name}: a value-equality recolor may not ride on "
+                f"\"unproven_recolor_audit\": the whole point of the mode is "
+                f"that every escape it takes is machine-proven and declared"
+            )
+        if patch.get("post_recolor_permutation"):
+            raise ValueError(
+                f"{symbol.name}: a value-equality recolor may not compose "
+                f"with a post-recolor permutation; the relation is proved "
+                f"position by position against the recolor's own output and "
+                f"no measured site needs both"
+            )
+        value_equality_sections = _sections(target_data)
+        value_equality_symbol = _find_symbol(
+            target_data, value_equality_sections, symbol.name
+        )
+        if value_equality_symbol.size != symbol.size:
+            raise ValueError(
+                f"{symbol.name}: target/current function size mismatch "
+                f"({value_equality_symbol.size} != {symbol.size})"
+            )
+        value_equality_relocations = set(_function_text_relocations(
+            target_data, value_equality_sections,
+            value_equality_symbol.section_index,
+            value_equality_symbol.value,
+            value_equality_symbol.value + value_equality_symbol.size,
+        ))
 
     # The post-recolor permutation stage.  When present, the recolor must aim
     # at the INTERMEDIATE image (the target with this permutation undone),
@@ -2517,6 +3228,7 @@ def apply_patch(
     # position, which it has no model for and would refuse.
     recolor_image = bytes(data[start:end])
     if register_stage:
+        strict_failure: ValueError | None = None
         try:
             verify_consistent_recolor(
                 pre_register, recolor_image,
@@ -2524,19 +3236,57 @@ def apply_patch(
                 relocated_offsets=relocated_offsets,
                 call_targets=call_targets,
             )
-        except ValueError as error:
-            audit = patch.get("unproven_recolor_audit")
-            if not audit:
-                raise ValueError(
-                    f"{symbol.name}: register-field patch is not a consistent "
-                    f"recolor ({error}); model the residual as an "
-                    "instruction_permutation, or record a manual equivalence "
-                    "audit in \"unproven_recolor_audit\""
-                ) from None
-            print(
-                f"WEBFRANK {symbol.name}: UNPROVEN recolor equivalence "
-                f"accepted by audit ({error}) — {audit}"
+        except ValueError as failure:
+            strict_failure = failure
+        if strict_failure is None and value_equality is not None:
+            # Not a formality: a rule whose residual has since disappeared
+            # must be rewritten, not left resting on the wider mode.
+            raise ValueError(
+                f"{symbol.name}: \"value_equality_recolor\" is declared but "
+                f"the strict recolor proof succeeds — remove the declaration "
+                f"rather than leaving the rule resting on the wider mode"
             )
+        if strict_failure is not None:
+            error = strict_failure
+            if value_equality is not None:
+                try:
+                    verify_value_equality_recolor(
+                        pre_register, recolor_image,
+                        jumptable_targets=jumptable_offsets,
+                        relocated_offsets=relocated_offsets,
+                        target_relocated_offsets=value_equality_relocations,
+                        call_targets=call_targets,
+                        substitutions=value_equality.get("substitutions", ()),
+                        compare_exchanges=value_equality.get(
+                            "compare_exchanges", ()
+                        ),
+                    )
+                except ValueError as wider:
+                    raise ValueError(
+                        f"{symbol.name}: value-equality recolor proof failed "
+                        f"({wider})"
+                    ) from None
+                print(
+                    f"WEBFRANK {symbol.name}: value-equality recolor proved "
+                    f"({len(value_equality.get('substitutions', ()))} "
+                    f"substitution(s), "
+                    f"{len(value_equality.get('compare_exchanges', ()))} "
+                    f"comparison exchange(s))"
+                )
+            else:
+                audit = patch.get("unproven_recolor_audit")
+                if not audit:
+                    raise ValueError(
+                        f"{symbol.name}: register-field patch is not a "
+                        f"consistent recolor ({error}); model the residual as "
+                        "an instruction_permutation, declare a proved "
+                        "\"value_equality_recolor\", or record a manual "
+                        "equivalence audit in \"unproven_recolor_audit\""
+                    ) from None
+                print(
+                    f"WEBFRANK {symbol.name}: UNPROVEN recolor equivalence "
+                    f"accepted by audit ({error}) — {audit}"
+                )
 
     # Now, and only now, the target colouring exists in the object and the
     # permutation that was illegal in ours can be audited.  exit_dead is
@@ -2610,7 +3360,16 @@ def main() -> int:
     parser.add_argument("unit", help="unit key in the config, e.g. game/g3d/sndvoice")
     parser.add_argument("--target", type=Path,
                         help="extracted target object for register-field rules")
+    parser.add_argument(
+        "--symbols", type=Path, default=None,
+        help="split map used to prove two SDA globals do not alias "
+             "(default: symbols.txt beside the config)")
     args = parser.parse_args()
+
+    symbols_path = args.symbols or (args.config.parent / "symbols.txt")
+    symbol_addresses = (
+        load_symbol_addresses(symbols_path) if symbols_path.exists() else None
+    )
 
     config = json.loads(args.config.read_text(encoding="utf-8"))
     patches = config.get("units", {}).get(args.unit)
@@ -2621,7 +3380,7 @@ def main() -> int:
     target_data = args.target.read_bytes() if args.target else None
     total = 0
     for patch in patches:
-        _, _, changed = apply_patch(data, patch, target_data)
+        _, _, changed = apply_patch(data, patch, target_data, symbol_addresses)
         total += changed
         print(
             f"WEBFRANK {patch['function']}: "

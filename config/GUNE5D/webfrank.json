@@ -21,8 +21,8 @@
           ],
           "before_sha256": "35784f6f065cbd8b20f35ac50342c1f3e0fef5793e06930701640dc90f60c912",
           "after_sha256": "2aa3ab8d44cbf96bb79eb0bf7e6abec039eaf9cab639cd7f9c2103408d44946e",
-          "before_relocations_sha256": "2776d6a3b0f207a4a8a6c9f8f60cccf1fd40d2c7255c8cfaa2efdbca1fe8935d",
-          "after_relocations_sha256": "c83797b0f06eb99cc2b35bf7be349ed742d28a22f8b3a012c1eebf81a8ced0a2"
+          "before_relocations_sha256": "2df590853f0bee261cc97d26d1e31ebb9b458f497ad0c97bc0b11d9e58dee011",
+          "after_relocations_sha256": "879539abe39acfda3a5cf4d7a0a3f211db844d4abb251061254c56f2feaeca28"
         },
         "equivalent_copy_form": [
           {
@@ -372,8 +372,8 @@
           "order": [2, 0, 1],
           "before_sha256": "5ce2ad5f8980da69820097979251e6f853c965b4e997c38e84ce10e75d372bce",
           "after_sha256": "95d4902e3fd4c42965bebedb420d0891f7969f88753658a231bc4f8cd9b0ebbb",
-          "before_relocations_sha256": "3ab03f2cb4e609fa50a2baded8c032660296ddd71da67939f554369f630ce698",
-          "after_relocations_sha256": "883f0051056a5eacfe5351b76efb95a2ec4eb22a941bb083177ed35afc02f74e"
+          "before_relocations_sha256": "0a068b9950512f1abad6ca6a0c322f22455984bae99b3cfcde934790e3898d49",
+          "after_relocations_sha256": "5936d2d6cc2ab23c8a0fcf49698cf41f595f29e2ee7b1b5137b64d42aa97837b"
         },
         "copy_register_fields": true
       },
@@ -387,6 +387,200 @@
           "instructions": 246
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "CameraSupervisor",
+        "before_sha256": "a9162e60603be7a52b3f4d9e32d7d8b2a712249441333aec78069598d4fe2a58",
+        "after_sha256": "596571f7c91ebc9e4c798e15f44236727e22b837ba2dcc1fa888bb21f5386e46",
+        "audit": {
+          "classification": "SCHEDULE+VALUE_EQUALITY",
+          "instructions": 441
+        },
+        "mechanism": "attempt.WF_camerasupervisor-pool-unpark-and-schedule-drive.20260901.v1 left this function count-exact (441/441), opcode multiset IDENTICAL, both permutation windows machine-proven and all 196 copy_register_fields changes passing, blocked ONLY by verify_consistent_recolor. The block was a property of the CHECKER, not of the function: MWCC replicated ONE value across FIVE FPRs in each stream (ours f4,f30,f29,f28,f27 from `lfs f4,lbl_80345EC8`; the target's f29,f28,f27,f26,f5 from `lfs f29,lbl_80345EC8`) and the two allocators distributed the loop's uses across those copies differently. verify_consistent_recolor carries a partial FUNCTION our-reg -> target-reg, so it binds root-to-root at the definitions (+0x18 gives f4->f29) and then refuses the loop guard at +0xc4, which reads our ROOT f4 against the target's fifth COPY f5. The required correspondence is many-to-many and no refinement of a function-valued state can express it. verify_value_equality_recolor carries the RELATION instead and closes it over value-preserving copies, which proves all 18 substitutions; the same replication in the lbl_80346030 web (ours f0/f31, target f30/f0) accounts for the rest. Two further words, +0x1d0 and +0x51c, are fcmpu with the operands EXCHANGED between the streams; each is consumed only by a bne/beq, i.e. only through the EQ bit, which operand exchange leaves untouched, and each is proved by the CR-bit liveness walk rather than declared by hand.",
+        "instruction_permutation": [
+          {
+            "start": "0x1c",
+            "end": "0x64",
+            "order": [
+              4,
+              1,
+              0,
+              2,
+              3,
+              11,
+              5,
+              7,
+              6,
+              9,
+              10,
+              12,
+              14,
+              13,
+              16,
+              8,
+              17,
+              15
+            ],
+            "before_sha256": "9935c94d4611fde8dc42fe34955826b9482ee5f96963889e7330ee1743d6ebb1",
+            "after_sha256": "e286dbe262268a98c6b428b7776ea321c6996eb0d749febc864e56febf06da42",
+            "before_relocations_sha256": "f729a336f326ebac0b5dbbd5e92b9043ef430acc92f521bfe69bca9c6e1d1c91",
+            "after_relocations_sha256": "0914ab2017b69cd8bb4c42331216cb13c82ee66418f6bfa9856167fba4d94563"
+          },
+          {
+            "start": "0x1ec",
+            "end": "0x1fc",
+            "order": [
+              1,
+              2,
+              3,
+              0
+            ],
+            "before_sha256": "c48d7e70fe12c0b7913389b94951bab2bade6b5dcd1bcf1c27fe400037668147",
+            "after_sha256": "b2e5dd241131b2c6d10ee0c2a83ee84952ed3190d898fc8608b7dfe067637505",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "Multi-site value split across two replicated-constant webs, plus two fcmpu operand exchanges consumed only through the EQ bit. Every site below is one verify_value_equality_recolor itself demanded; an undeclared site, or a declared site that stops firing, fails the build.",
+          "substitutions": [
+            {
+              "at": "0xc4",
+              "bank": "f",
+              "ours": 4,
+              "target": 5
+            },
+            {
+              "at": "0x120",
+              "bank": "f",
+              "ours": 31,
+              "target": 30
+            },
+            {
+              "at": "0x12c",
+              "bank": "f",
+              "ours": 31,
+              "target": 30
+            },
+            {
+              "at": "0x130",
+              "bank": "f",
+              "ours": 30,
+              "target": 29
+            },
+            {
+              "at": "0x13c",
+              "bank": "f",
+              "ours": 28,
+              "target": 27
+            },
+            {
+              "at": "0x154",
+              "bank": "f",
+              "ours": 0,
+              "target": 0
+            },
+            {
+              "at": "0x188",
+              "bank": "f",
+              "ours": 31,
+              "target": 30
+            },
+            {
+              "at": "0x18c",
+              "bank": "f",
+              "ours": 30,
+              "target": 29
+            },
+            {
+              "at": "0x190",
+              "bank": "f",
+              "ours": 28,
+              "target": 27
+            },
+            {
+              "at": "0x1b4",
+              "bank": "f",
+              "ours": 0,
+              "target": 0
+            },
+            {
+              "at": "0x1b4",
+              "bank": "f",
+              "ours": 31,
+              "target": 30
+            },
+            {
+              "at": "0x330",
+              "bank": "f",
+              "ours": 31,
+              "target": 30
+            },
+            {
+              "at": "0x39c",
+              "bank": "f",
+              "ours": 28,
+              "target": 27
+            },
+            {
+              "at": "0x3a0",
+              "bank": "f",
+              "ours": 30,
+              "target": 29
+            },
+            {
+              "at": "0x3a4",
+              "bank": "f",
+              "ours": 28,
+              "target": 27
+            },
+            {
+              "at": "0x3d8",
+              "bank": "f",
+              "ours": 27,
+              "target": 26
+            },
+            {
+              "at": "0x3dc",
+              "bank": "f",
+              "ours": 29,
+              "target": 28
+            },
+            {
+              "at": "0x3e0",
+              "bank": "f",
+              "ours": 27,
+              "target": 26
+            }
+          ],
+          "compare_exchanges": [
+            {
+              "at": "0x1d0",
+              "bank": "f",
+              "ours": [
+                26,
+                0
+              ],
+              "target": [
+                0,
+                31
+              ]
+            },
+            {
+              "at": "0x51c",
+              "bank": "f",
+              "ours": [
+                0,
+                1
+              ],
+              "target": [
+                0,
+                4
+              ]
+            }
+          ]
+        }
       }
     ],
     "game/enemy/critter": [
@@ -723,8 +917,8 @@
           "order": [0, 2, 1, 3],
           "before_sha256": "3773ca1f55af2020829a80e8b96cb21ff5411e95118517f5b18fc3a66cd7c1d2",
           "after_sha256": "dacb42aafc3633ef869bc868fc54ca55889f8f460e53671e329b7af649a8502d",
-          "before_relocations_sha256": "ad28305a3a8521b12b216e306fd8586aa2e3e81be2c5289f1762173fd0c9bd0c",
-          "after_relocations_sha256": "0c75666700f016bbaa68bb7c87339c848a5c00c9647021159417806260632246"
+          "before_relocations_sha256": "9688470f3cce6f3ea2451fc2a9be9805b50aadd7bdde6028ba887e2c0986a3ae",
+          "after_relocations_sha256": "19339f99b2dd1217de5254f6cd1be65c86a6baa84e1ebf83cc4888e57bfbcf1e"
         },
         "copy_register_fields": true
       },
@@ -952,8 +1146,8 @@
           "order": [0, 1, 2, 3, 4, 6, 5, 7],
           "before_sha256": "01da2d905763bd3dbf7cb0291a5d9e59f9d46501195435f10e2be4537a4467ff",
           "after_sha256": "e23d59df48ce20734746af4baa6ac9dd7b0716c61d4f0d53af716eb25a196c80",
-          "before_relocations_sha256": "528ff7deea393a2409658d9c036688f314af94996a41b9fec0789d1b6b4d6e94",
-          "after_relocations_sha256": "528ff7deea393a2409658d9c036688f314af94996a41b9fec0789d1b6b4d6e94"
+          "before_relocations_sha256": "9df72e43e33fcc076458ca44fc498b4e0fbf8c18fa17dfb84f2edc2653049f32",
+          "after_relocations_sha256": "9df72e43e33fcc076458ca44fc498b4e0fbf8c18fa17dfb84f2edc2653049f32"
         },
         "copy_register_fields": true
       }
@@ -1118,12 +1312,54 @@
         "function": "fn_800C031C",
         "before_sha256": "2eb2e52208b5318c1bcb6a9f7c1a41e9f0af13f95ab7bc0a078bf3318ae1ebc8",
         "after_sha256": "49acb8aedf760f89d469c98ca6d73b410092c654952bf733046077be3e095083",
-        "unproven_recolor_audit": "Crossed zero-constant/induction webs with duplicated value homes (raw li r7/mr r0,r7 vs retail li r0/mr r4,r0 at +0x08-0x38); dataflow-equivalent by inspection 2026-08-25.",
+        "mechanism": "SOUNDNESS UPGRADE, no byte change. This rule shipped 2026-08-25 on an \"unproven_recolor_audit\" whose text -- 'crossed zero-constant/induction webs with duplicated value homes ... dataflow-equivalent by inspection' -- describes precisely the multi-site value split that verify_value_equality_recolor now proves mechanically. The audit escape is removed and replaced by the proof; the before/after hashes and the emitted bytes are unchanged.",
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 30
         },
-        "copy_register_fields": true
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "The same replicated-zero split this rule was originally accepted for by hand: raw `li r7,0` / `mr r0,r7` against retail `li r0,0` / `mr r4,r0` at +0x08-0x38. The six substitutions below are the uses where the two streams read different members of that one zero web.",
+          "substitutions": [
+            {
+              "at": "0x24",
+              "bank": "g",
+              "ours": 7,
+              "target": 4
+            },
+            {
+              "at": "0x28",
+              "bank": "g",
+              "ours": 0,
+              "target": 0
+            },
+            {
+              "at": "0x2c",
+              "bank": "g",
+              "ours": 7,
+              "target": 4
+            },
+            {
+              "at": "0x30",
+              "bank": "g",
+              "ours": 0,
+              "target": 0
+            },
+            {
+              "at": "0x34",
+              "bank": "g",
+              "ours": 0,
+              "target": 0
+            },
+            {
+              "at": "0x38",
+              "bank": "g",
+              "ours": 0,
+              "target": 0
+            }
+          ],
+          "compare_exchanges": []
+        }
       }
     ],
     "game/pb/pb_objects": [
@@ -1221,8 +1457,8 @@
             "order": [0, 2, 5, 3, 1, 4],
             "before_sha256": "ca82b85507b1c2fe0b44cca7ed5ca3baccb875b830d0df442a780c473bfb5f7c",
             "after_sha256": "b480dc2e3e4c9e4f60c03d15b15cef0155d864057bcefdab5bb2f8c1ba5e34c2",
-            "before_relocations_sha256": "8d6c941c014363b12fe854fe28544a1ec459578bc9b00b9d481ffbbedbae0946",
-            "after_relocations_sha256": "8d6c941c014363b12fe854fe28544a1ec459578bc9b00b9d481ffbbedbae0946"
+            "before_relocations_sha256": "85daf3b9723ac7a5817f5025470179374a27768b075a9eb7530d12b20ce02aef",
+            "after_relocations_sha256": "85daf3b9723ac7a5817f5025470179374a27768b075a9eb7530d12b20ce02aef"
           }
         ],
         "equivalent_copy_form": [
@@ -1250,8 +1486,8 @@
             "order": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 0],
             "before_sha256": "0a35526fbb50866b52068ff8686d39c146d25ab15bb4695c96a832845601de06",
             "after_sha256": "d026ee86ece1d4d3ec97ee5eea037d52910c5fb8841a8920c87e270ddc7e1017",
-            "before_relocations_sha256": "08069db18387223457169ec89b23dcdd34c7107f0f7bcc13182fab59503d807c",
-            "after_relocations_sha256": "6c60eaf61849cdd04486969ebcbc8c03d13f92fc68caab371070b1e1887431ee"
+            "before_relocations_sha256": "f706d464730ef8a231fbeacaa9f66145ea85f41d787384820cf8850b640c7fc8",
+            "after_relocations_sha256": "a0a58d260ee9bee5586fb09fff0ef511a06de770c61cb76e81a7e16e4575dbfa"
           },
           {
             "start": "0x3e4",
@@ -1259,8 +1495,8 @@
             "order": [1, 0],
             "before_sha256": "25ccd85536439164c178aa4526565cb96aa39cbb2a06ea10bad0b1370d90f6fc",
             "after_sha256": "231b942105e8e302dcc97e918f2fc797b7582fc64cbe8d3f62f455185ae007c5",
-            "before_relocations_sha256": "7f3fbcb494f13df5ead6da70570e5f7f287cd1fa551828862a10be731db65c69",
-            "after_relocations_sha256": "58f69344128f190a3fa46497a5d83bd05d5f5b9bdc4a8481225eee3799d58994"
+            "before_relocations_sha256": "84daec4489bc8b6f2f08cd0d38cd61fce9a14a38c54b64efb44d63e32e02f456",
+            "after_relocations_sha256": "ae3c49760261200ef20b33ece8cc1c391677793facea541f5f1d9932715529f9"
           }
         ],
         "copy_register_fields": true
@@ -1496,8 +1732,8 @@
           ],
           "before_sha256": "1860fa77ca33a39530b3d4217750bcf1f3807cb2ee4e5f0a3923743e8cc56a9b",
           "after_sha256": "6fe2bf55c3dd4330eeaea094ef1ee66f69b54b31712cf2fd937781fccfbdc4cb",
-          "before_relocations_sha256": "f57fd27c12c71339d0adc2c58d75c241a17b1f8e179e63c4ee78cd6f039101af",
-          "after_relocations_sha256": "84c66035f2ef2f1e70b3b79ddd21a28e29def5b6722c79e3d17a34d32012a71c"
+          "before_relocations_sha256": "f86f92b9bbbdd4f6594f9449443ef5bc6decb93a8f31551d7117bc50feae6809",
+          "after_relocations_sha256": "8207ef806cad30658153937f33f8f5acb9c6238cbed7c8383fc3211792a8ed14"
         },
         "equivalent_copy_form": [
           {
@@ -1524,8 +1760,8 @@
           "order": [4, 0, 1, 5, 6, 2, 3],
           "before_sha256": "87151c066ab5b3863b2151852dc0104dcb79df20789e8f8dd8e6aced63706a06",
           "after_sha256": "57e291f7d842a0dc8f590daadb48be63e53679b16d27b3628824ca066543d447",
-          "before_relocations_sha256": "e7b6d18919985a7a4edfe01d90815a0bd4674726950238eff0092c4f104a611a",
-          "after_relocations_sha256": "eb33b18f2502adc015fb0704ebfdf188bc79d423e3c3046c9698c59016d0ad9e"
+          "before_relocations_sha256": "6e53821df1b4f9284536c4ede90220cf753fd39b8c1ee42d6fe41d5a5851f2a8",
+          "after_relocations_sha256": "ce113cbaed203ff12507dc9eccb0c0ffa4f751f211c45e035add3d8afd0d1203"
         },
         "equivalent_copy_form": [
           {
@@ -1580,8 +1816,8 @@
           "order": [1, 0],
           "before_sha256": "decb90402973a79a24378eaba97967a34562786645a9ca1d12a717e8cc276c91",
           "after_sha256": "9c86562d75c12cda2e5bad4e2aed2736865af0f90fbee9c32fe53488eb91c1eb",
-          "before_relocations_sha256": "d1903a848fe7b9e4a2676eaba062aec9a4a8a3ceb7ba0c728fc0fa769ca8e7ad",
-          "after_relocations_sha256": "f055f84da8ff4770149545ec358391c3de9d2c854d929af64177181ae883a277"
+          "before_relocations_sha256": "dc9767b166c73aae4ae1e84286d7cae8acaa45ad2eaebd5e8f32d69303814b28",
+          "after_relocations_sha256": "02b27e5b65af6d7e851b040c4b38b5b0656d4d7ba5e26253931d5451901874c0"
         }
       },
       {
@@ -1613,8 +1849,8 @@
           "order": [10, 13, 14, 1, 17, 2, 0, 3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 16],
           "before_sha256": "526ec89477e2ae0caffa832150f5bfc8f4bad4e258e3a7651479c227ac0ad33e",
           "after_sha256": "2831f0966a36779b82a76707253f51467b50df9287dbda1b6bf2611a926acf2c",
-          "before_relocations_sha256": "4f6a494bd924e656a070fd608202df5f87daecc9e587058fb8eaf7d81e5bcea1",
-          "after_relocations_sha256": "49e8fc8fc45be47eca5ae21be40e92d6841679b8d5c7a71650187a6f878df0dc"
+          "before_relocations_sha256": "f1fef90b49032be7572927b4493d2b7bfc5a19aa492e79975cb9fcc9fb0c44bf",
+          "after_relocations_sha256": "623b769e054c71d5d60ef18d141820e45ce7454aa4945f740ead3b200603a537"
         },
         "copy_register_fields": true
       }
@@ -1636,8 +1872,73 @@
           "order": [4, 3, 0, 1, 2, 5],
           "before_sha256": "4b6541e84928b44aae6882d2de9d1ed6abff73797716e87fd256b927d16a5078",
           "after_sha256": "e2bf5e784b44ab34b988166b117d2afa4464a286f798a4f2ebdc0b6545a385ca",
-          "before_relocations_sha256": "9b5e64d948c4007f6b351a9b33ac03871e7dcffc4f51b1b786900785bcbdf9fe",
-          "after_relocations_sha256": "f78108020a8abf7fe330d691ecc98582480ec995a4e78e37f6147ae5316f9454"
+          "before_relocations_sha256": "af8f8d5a3e75230d0996710e6caa26c5ad2812fb77609c414651c73d06f4cc20",
+          "after_relocations_sha256": "f6cd7ca58cbb0ac90da15194bc4798857fd7fbc4e9535d365848a48469089615"
+        },
+        "copy_register_fields": true
+      },
+      {
+        "function": "fn_8005FDA8",
+        "before_sha256": "b14e8d9fa4f0315d5886e034a0f3a7212fe150d2bf9c223742b39a3198fc29f1",
+        "after_sha256": "f6c1fced313ebe0b6ca1a34fd5285a3d2651db64b81d38bcf732661490859a21",
+        "audit": {
+          "classification": "SCHEDULE",
+          "instructions": 110
+        },
+        "mechanism": "Pure reorder (110/110, opcode multiset IDENTICAL) of the constant-materialisation cluster at +0xf0..+0x138. Parked since attempt.HV_fn8005fda8-shadowed-literal-fix-and-memory-barrier-park.20260901.v1 on a GUARD capability gap, not a function property: webfrank modelled every non-stack memory access as ONE resource, so the target's requirement that our `stfs f2,lbl_80344194` move AFTER the `lfs f0,sCameraVisibilityRadius` read as a store crossing a load. Re-measured this run: of the 64 complete relocation-consistent matchings of this window, ZERO pass under the single-resource model and 16 pass once the three EMB_SDA21 accesses are separated by their proved addresses; exactly TWO of those pass the full guard chain (dependences + copy_register_fields + verify_consistent_recolor). The two differ only in whether our `li r6,0` and `li r10,0` are paired with the target's same-named instructions or exchanged; the order recorded here is the identity pairing, which needs 4 register-field changes where the exchange needs 6 and would gratuitously recolour two identical constant loads. claim.law.WF_enumerate-every-shape-consistent-order-and-select-by-proof.20260901.v1 applied: the order space was enumerated in full and selected by proof, not by first hit. Non-aliasing rests on the split map's ADDRESSES (.sbss 0x80344190/4 against .sdata2 0x80346F50), never on the symbol names differing.",
+        "instruction_permutation": {
+          "start": "0xf0",
+          "end": "0x138",
+          "order": [
+            1,
+            0,
+            5,
+            3,
+            2,
+            6,
+            7,
+            8,
+            4,
+            9,
+            11,
+            10,
+            13,
+            12,
+            14,
+            16,
+            17,
+            15
+          ],
+          "before_sha256": "9825dfed11307fa54e4dc1d85fe4e15aa1036ac714c4c805b4ea8ca1e976232c",
+          "after_sha256": "bb94f17f7f444bad28a698ed338494430b1afed42bd1aa667c18d0133d7f9563",
+          "before_relocations_sha256": "217169d9d7da1f725b455da7082bea5f19bd58436e4f9980d9746b6b6dff79d3",
+          "after_relocations_sha256": "012a599ea8e32126990f57f8073369adaf1f076492e43a3504ed14859318ca92"
+        },
+        "memory_disambiguation": {
+          "audit": "The three EMB_SDA21 accesses in this window address globals the split map places at .sbss 0x80344194, .sdata2 0x80346F50 and .sbss 0x80344190 — pairwise disjoint 4-byte ranges, so the store may cross the load. The two pool loads at +0xf0/+0xf8 and the two lha at +0x120/+0x128 are NOT declared and stay may-alias-everything.",
+          "locations": [
+            {
+              "at": "0x100",
+              "symbol": "lbl_80344194",
+              "section": ".sbss",
+              "address": "0x80344194",
+              "width": 4
+            },
+            {
+              "at": "0x10c",
+              "symbol": "sCameraVisibilityRadius",
+              "section": ".sdata2",
+              "address": "0x80346F50",
+              "width": 4
+            },
+            {
+              "at": "0x118",
+              "symbol": "lbl_80344190",
+              "section": ".sbss",
+              "address": "0x80344190",
+              "width": 4
+            }
+          ]
         },
         "copy_register_fields": true
       }
@@ -1786,8 +2087,8 @@
           "order": [1, 0],
           "before_sha256": "3543e7e0922ba5835ddefac4d208a44a94979101376e3025e0df4a84c2bb88fe",
           "after_sha256": "5bbce066839492aa866d610a73d0f6a39911304eef885bc975ca6b421d3ef889",
-          "before_relocations_sha256": "d854eb531e7f853b38655f6946438e708904f4aec07a8893531088451ee309e4",
-          "after_relocations_sha256": "542b3a711cfa5ba45e52f59c8701eaecfb6690f422e89e776e2e149f68b51c5f"
+          "before_relocations_sha256": "64338e8e4c4b274ff77632dbb895f01b05a478e661e9616767d4d09b591e1d2c",
+          "after_relocations_sha256": "d87507b2fa2dcd3b99a17f842a57313d908229bf4cf73ef68a8abf875a94c9e3"
         },
         "copy_register_fields": true
       },
@@ -1827,8 +2128,8 @@
           "order": [1, 0],
           "before_sha256": "d047b20dc0b439030da316b7e8b74bb1ae6ea3ca0d24087f0cf9a7eb5a255e4a",
           "after_sha256": "f5c1e0f96e54c6da2235605eb3c39f668e15db2d0862ef1a8ca996c88d3dcb15",
-          "before_relocations_sha256": "0d594c2467a63be7c51d2260bf894a25a43e1dbdc4881983b9d5dd4f1ed10097",
-          "after_relocations_sha256": "6b5b67bde398c4101dc049807b9ea9e35f9c641acc899f052bd34ae5a97f57e8"
+          "before_relocations_sha256": "0bce52f59a488c05028daf10a5ed07755cda2dd3be87acfdd358d43b84d91d8d",
+          "after_relocations_sha256": "0c90103def855c650034c809a9ff49cbee7b38a42854cf3a1584aec4e693d93f"
         },
         "copy_register_fields": true
       }
@@ -1850,8 +2151,8 @@
           "order": [0, 1, 2, 3, 4, 5, 9, 7, 6, 8, 11, 12, 10, 14, 13, 15, 16, 17, 18, 19, 20, 21],
           "before_sha256": "9e6e5719c915d6f6f2c79708fd34340cf7d0a72750451378d8e9966cf2545c3b",
           "after_sha256": "6eb6d09ea0403c1ec7938687eb56835d6e968283253961d86f6d5af69619b562",
-          "before_relocations_sha256": "ed36190c12570ca167a3fdc6f2820de698f6de40206530fdfb6ded551051f9b8",
-          "after_relocations_sha256": "ed36190c12570ca167a3fdc6f2820de698f6de40206530fdfb6ded551051f9b8"
+          "before_relocations_sha256": "d09ab1fa052c25d78013fddae88578b4dd4556b536d8b5e07ee740e70d0ae6d8",
+          "after_relocations_sha256": "d09ab1fa052c25d78013fddae88578b4dd4556b536d8b5e07ee740e70d0ae6d8"
         },
         "copy_register_fields": true
       },
@@ -1928,8 +2229,8 @@
           "order": [3, 0, 2, 1],
           "before_sha256": "ca2fc0ffe38e01a5fd1489d06174a99c8225b3bc7d2b2b2ccb3b9944099e9e7d",
           "after_sha256": "314bf28f28f84f3d0b7ebaf44dc32c67f5e2ccddaf5541b14c32661b0d93bf88",
-          "before_relocations_sha256": "b28fc307b7867709fa3c1228344486e873bd0808834d07080aab793c860546a1",
-          "after_relocations_sha256": "b9885a3a77fe142b0f3d8ca8097ce30d72ca66c1b4fbc8ef5fa6e537f2d54b70"
+          "before_relocations_sha256": "4e1aef2a24965006b8870cdfe3d4780c2205d0a30437f1600ed33a9d7582799f",
+          "after_relocations_sha256": "9625fd750b5cb95d41b4163e8cf4d126f560bc8edcac67f54fe4a7b2eae3ed0e"
         },
         "copy_register_fields": true
       }
@@ -1951,8 +2252,8 @@
           "order": [0, 2, 1, 3, 4, 5, 6],
           "before_sha256": "6acc4c2c06af37b5e89f1199d0192b725a60fdad8556effdfbb6d844c2bfc841",
           "after_sha256": "207df9eec8c778ce9352d185bdfd3ca82aef0d967460aebd66f960d92ffc1d50",
-          "before_relocations_sha256": "9e7d277f3de126dc226cecb4fc4eccb872f2e18e058c200fce7c6cf83ffa3bfa",
-          "after_relocations_sha256": "e835c6741ad04d5853cb8afbc3ebcec1c57ea295193a961b3f65e1b2147d93d0"
+          "before_relocations_sha256": "81ca8cd890c7ae61ad397962cdda60d909e5c41f56f064c47372283e8e97e23e",
+          "after_relocations_sha256": "7bf29f9bf754becd41b0c8e07ee376e5bbee5fd411c3b606bb7501d6b8b4d9fe"
         },
         "copy_register_fields": true
       },
@@ -1972,8 +2273,8 @@
           "order": [0, 2, 1, 3, 4, 5, 6],
           "before_sha256": "6acc4c2c06af37b5e89f1199d0192b725a60fdad8556effdfbb6d844c2bfc841",
           "after_sha256": "207df9eec8c778ce9352d185bdfd3ca82aef0d967460aebd66f960d92ffc1d50",
-          "before_relocations_sha256": "9e7d277f3de126dc226cecb4fc4eccb872f2e18e058c200fce7c6cf83ffa3bfa",
-          "after_relocations_sha256": "e835c6741ad04d5853cb8afbc3ebcec1c57ea295193a961b3f65e1b2147d93d0"
+          "before_relocations_sha256": "81ca8cd890c7ae61ad397962cdda60d909e5c41f56f064c47372283e8e97e23e",
+          "after_relocations_sha256": "7bf29f9bf754becd41b0c8e07ee376e5bbee5fd411c3b606bb7501d6b8b4d9fe"
         },
         "copy_register_fields": true
       }
@@ -2078,8 +2379,8 @@
           "order": [2, 1, 0, 4, 3],
           "before_sha256": "4de09ec6fbac3d84a76863a67fa59a9c8148d5e3e0f24e256e64caad41d1c6c7",
           "after_sha256": "814d67a5aff71f8bb25fe20b0e41e21c890674f6d982c78952a4518d3245646f",
-          "before_relocations_sha256": "355ed5d6ae70a0aec4a77219001091d8b9aca15c01c28d2c3216dbc7d9be07fa",
-          "after_relocations_sha256": "a630ae11894c3a39c96f6f1a62377c74a431fdc3e53bcc317989c3a18f2ed12a"
+          "before_relocations_sha256": "d9bc4614a0f0f2f76ed114145d804430cd41b290b177e7ac8c5a2bf73f97f6aa",
+          "after_relocations_sha256": "657e2b3d1fd951afd332349dae4da2206aa133883b878a03730c610a94a681a5"
         },
         "copy_register_fields": true
       }
@@ -2211,6 +2512,71 @@
           "instructions": 127
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "InitControls",
+        "before_sha256": "b6ca0631d5027f61662caaa9d486b9c7c85e087fbeb62324df2f5d3facb8c9e4",
+        "after_sha256": "896c6103d6d2a0293892858edb3fd171e19ae23aad86cab705edde170132380c",
+        "mechanism": "attempt.NV_initcontrols-parallel-array-names-close-stwx.20260901.v1 closed the structural gap (multiset 2 tokens -> IDENTICAL, and it removed a fakematch: the old walking pointer indexed 20 words past a declared u32[4]) and recorded the residual as the NAMED live-zero copy-vs-remat family with the explicit unpark condition 'only the WebFrank dataflow-equivalence audit class ... there is no source lever'. This is that class, discharged as a machine PROOF rather than an audit: verify_value_equality_recolor carries a relation instead of a function and closes it over the value-preserving copies both allocators used, so the eight refused uses are proved rather than inspected.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 27
+        },
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "Replicated-zero value split in the GPR bank. Both streams materialise ONE zero and copy it, but into mirrored registers: the target does `li r5,0` then `addi r3,r5,0` (zero rooted in r5, the index copied from it) while we do `li r3,0` then `addi r0,r3,0` (index first, the zero copied into r0). The positional definition pairing therefore binds root-to-root and every later use of the OTHER member of the web is refused, exactly as in combat::CameraSupervisor's FPR webs. Every one of the 8 substitutions below is a use whose two registers the relation proves value-equal through the copy that created them.",
+          "substitutions": [
+            {
+              "at": "0x2c",
+              "bank": "g",
+              "ours": 3,
+              "target": 3
+            },
+            {
+              "at": "0x30",
+              "bank": "g",
+              "ours": 0,
+              "target": 5
+            },
+            {
+              "at": "0x34",
+              "bank": "g",
+              "ours": 0,
+              "target": 5
+            },
+            {
+              "at": "0x38",
+              "bank": "g",
+              "ours": 0,
+              "target": 5
+            },
+            {
+              "at": "0x38",
+              "bank": "g",
+              "ours": 3,
+              "target": 3
+            },
+            {
+              "at": "0x3c",
+              "bank": "g",
+              "ours": 3,
+              "target": 3
+            },
+            {
+              "at": "0x40",
+              "bank": "g",
+              "ours": 0,
+              "target": 5
+            },
+            {
+              "at": "0x44",
+              "bank": "g",
+              "ours": 0,
+              "target": 5
+            }
+          ],
+          "compare_exchanges": []
+        }
       }
     ],
     "game/ui/select": [
@@ -2285,8 +2651,8 @@
           ],
           "before_sha256": "d5802e79ed4257cd850606c7a4bf9a1c537e2d319e8e8be2b7531e062099e2c2",
           "after_sha256": "c524ea4e0fb6bda6f6871d7aff4b81779de6d4ea0bd0f19c5748abc16c9acf4d",
-          "before_relocations_sha256": "d74e154c6984041b3d8e0bc9aa754fa7f6c6b2fec6606beea327e3d83eab19f1",
-          "after_relocations_sha256": "1b0ee97f70f1caf0212395346245c65ab30420ed20767e7ccb9dd130a4da7f8f"
+          "before_relocations_sha256": "27beece3dd8e76a523f64c5ddadde505a8e16d4d4eb622eafa9d08eb3c848eaf",
+          "after_relocations_sha256": "839600dfffa9925b8d917c95fdbf9b0f10f7d79c62f35827511888d7eb6a0c00"
         },
         "equivalent_copy_form": [
           {
