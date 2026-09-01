@@ -1120,6 +1120,26 @@
         "copy_register_fields": true
       },
       {
+        "function": "getNewDirConeUnique",
+        "before_sha256": "b995b282a3dd081fcd90119b4ba89256c5e1edaaeddecd62715d10056e5c02d5",
+        "after_sha256": "c9ca039303364218e19f2fa001b38c36b035503d070588ebd7e39371424c65a7",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 143,
+          "permuted_instructions": 4
+        },
+        "mechanism": "attempt.MB_getnewdirconeunique-entry-load-sink.20260901.v1 - REFUTES the STRUCTURAL label in attempt.mp-label-correction.getnewdirconeunique.20260831.v1 (a label-only park that ran no source probe). regnorm reports 0 STRUCTURAL and 0 RENAMING rows with 2 unpaired, i.e. one displaced word and nothing else. One sink, order [0,2,3,4,1] over +0x14..+0x28: the target issues `lhz r29,48(r3)` LAST of the four entry atoms, immediately before `bl pbRand`, where ours issues it FIRST, ahead of `mr r31,r3`, `lwz r28,20(r3)` and `mr r27,r4`. This is the exact mirror of the getNewPosRectShare rule in this same unit (there the load hoists, here it sinks). All four moved atoms read r3 or r4 and write distinct destinations (r29, r31, r28, r27); there is no store and no control op in the window (the `bl` at +0x28 is deliberately OUTSIDE it), the `stmw r27,100(r1)` at +0x14 is atom 0 and does not move, so r1 is untouched and check_permutation_dependences passes in OUR colouring standing alone. The window carries no relocations, so the relocation-binding obligation is vacuous. SOURCE AXES EXHAUSTED FIRST, both measured negative: (1) claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1 form C (split every declaration from its initialiser, assign in the target's emission order) moved the lhz correctly but displaced `mr r27,r4` instead, real 2 -> 4; (2) removing the `psys`/`obj` shadow locals and using the register parameters directly regressed real 2 -> 40, proving those locals are load-bearing. Declaration order is pinned by the callee-saved numbering (psys r31, idx r30, count r29, use r28, obj r27), and in this compiler an adjacent (move, load) initialiser pair always emits load-first - the sibling getNewDirConeShare, which is real 0, shows the same load-before-move entry idiom - so the target's move,load,move,load entry is not reachable by any declaration or assignment permutation. The permutation alone makes the WHOLE FUNCTION byte-identical: zero post-permute residual words, so no copy_register_fields stage is needed.",
+        "instruction_permutation": {
+          "start": "0x14",
+          "end": "0x28",
+          "order": [0, 2, 3, 4, 1],
+          "before_sha256": "4c7cdb60304fcc2913edc06711e81191fd5da4513d2d2fd4ab505e03095ed452",
+          "after_sha256": "5461c969e9522b88bdedf40ab359b097db507907c07683545f5fe2d26ee94be0",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
         "function": "getSinCos",
         "before_sha256": "2c0e88faa957dcb31830454bf06d86473da223179decf72bc28cf32197f85dcc",
         "after_sha256": "413c3aafe990c19fbd1827a2d99a57e70a52ec86619a46b4348a4c94c9c2e7cd",
