@@ -767,7 +767,7 @@ s32 StartGemFX(f32* pos, s32 sel)
     return ret;
 }
 
-extern f64 Random(f32 range);
+extern f32 Random(f32 range);
 extern f32 lbl_80127D20[3];     /* bag launch direction */
 extern f64 lbl_80348078;
 extern f32 lbl_80348068;
