@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "get_attn_pos roster drive: kill the lfsu pointer-walk in the min/max loop, restore the target's copy-chain init homes, and close the sin/cos and scale clusters by re-spelling call arguments and pool-constant reads",
+  "attributes": {
+    "law_screen": "claim.law.lwzu-idiom-web-retention.20260830.v1 APPLIED (the `f32* p = (f32*)(target->object+0x40); x=p[0]` form was producing lfsu 64(r3) where target emits three plain lfs at 64/68/72; reading each component directly off target->object closed it, real 146->144, multiset 6t->4t). claim.law.chained-init-constant-share.20260829.v1 APPLIED in its chained-ASSIGNMENT form (`minX = minY = minZ = CONST`) - the separate-initializer form and the copy-chain form (`minY = minX`) both leave the pool load in a scratch FPR, only the chained assignment puts it in a variable home matching target's f29/f28. claim.law.MV_regnorm-census-ranks-tractability-and-real-actively-misranks-it.20260901.v1 APPLIED and CONFIRMED: this function was picked from an 11-function census because it had the LOWEST structural count (12) despite a middling real (146); the real-446 and real-885 siblings had 127 and 110. claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1 screened, not applicable (no frame/slot residual; counts were equal at 372/372 throughout). claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1 screened and MEASURED NEUTRAL here (declare-then-assign for sy/cp produced byte-identical output).",
+    "laws_applied": "[\"claim.law.lwzu-idiom-web-retention.20260830.v1\", \"claim.law.chained-init-constant-share.20260829.v1\", \"claim.law.MV_regnorm-census-ranks-tractability-and-real-actively-misranks-it.20260901.v1\"]",
+    "probed_form": "REMAINING CLUSTER (one lfd placement, ~4 words). Ours emits `lfd f27,lbl_80345F18` BEFORE `bl cos` (callee-saved, because the local `register f64 half` is initialized in a statement preceding the expression that contains the call); target emits `lfd f3,lbl_80345F18` AFTER the call. THREE spellings measured, all leaving exactly one of the two defects: (A) KEPT (real 80): `register f64 half = lbl_80345F18; out[2] = (f32)(half * (half * (f64)(maxZ - minZ) * cos(cam->pyr[0])) + (f64)out[2]);` -> fmadd fuses, lfd hoisted to f27. (B) real 121: `f64 cp = cos(cam->pyr[0]); register f64 half = lbl_80345F18; out[2] = (f32)(half * (half * (f64)(maxZ - minZ) * cp) + (f64)out[2]);` -> lfd lands EXACTLY at +0x41c in f3, but the fmadd de-fuses to fmul+fadd (373 insns). (C) real 131: both reads inlined as `lbl_80345F18` with the call inline -> BOTH defects. Within (B) three further spellings all measured identically 121: addend-first `(f64)out[2] + half * (...)`; an addend local `f64 o2 = out[2]`; and the multiply-first order. Axis closed at three identical A/Bs.",
+    "residual": "One lfd placement + its register class (f27 vs f3) in the gNumTransmitters==0 branch. Opcode multiset is IDENTICAL (372/372) - pure schedule/register-class. The two defects are a two-variable tension: the call must be INSIDE the expression for MWCC to form the fmadd, but that same inlining forces the constant local to live across the call.",
+    "scope": "src/game/game/combat.c, get_attn_pos_8002C9A8 only; matching edits (no header touched)",
+    "verification": "probe.py real 146 -> 80; fndiff --ops opcode multiset DIFFERS(6t) -> IDENTICAL; regnorm 12 -> 1 non-branch STRUCTURAL row; defake_gate check game/game/combat.c = GATE OK (no sibling regression); full ninja -j2 = 'build/GUNE5D/main.dol: OK'; fresh report fuzzy 95.52 -> 98.92. Commit e5cd3c72f."
+  },
+  "function": "function:get_attn_pos_8002C9A8",
+  "id": "attempt.RC_get-attn-pos-call-inline-and-temp-local-argument.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T16:02:32Z",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

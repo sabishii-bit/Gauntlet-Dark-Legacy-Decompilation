@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "cse",
+      "register-web",
+      "entry-schedule",
+      "sda-global"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.RC_fmadd-fusion-needs-the-call-inline-which-forces-a-constant-local-across-the-call.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T16:03:34Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/combat",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5 family. TWO-VARIABLE TENSION, measured exhaustively on get_attn_pos_8002C9A8's gNumTransmitters==0 branch, where the expression is `K * (K * dz * cos(a)) + out2` with K a pool double. (1) MWCC forms `fmadd` for the outer `K * X + out2` ONLY when the call sits INSIDE the expression. Assigning the call result to a named local FIRST de-fuses it into `fmul` + `fadd` (one extra instruction), and this holds whether the local is declared `f32` or `f64` - so it is NOT a single/double conversion-node effect, which was the obvious theory and is REFUTED. (2) But with the call inline, a `register f64 K = lbl_...;` local is initialized in a statement PRECEDING the expression, so its pool load is hoisted ABOVE the call and coloured callee-saved (ours `lfd f27` at the top of the block vs target `lfd f3` after the call). Writing the pool symbol inline twice instead of using the local does NOT escape this: MWCC still builds one CSE temp and still hoists it, AND loses the fusion - the worst of both (real 131 vs 80). CONSEQUENCE: for this shape the two defects cannot both be closed from source; pick the fusion (it is worth ~40 real words here: form (A) real 80 vs form (B) real 121) and leave the load placement. The remainder is a single named SCHEDULE/register-class residual, not a structural one - the opcode multiset is IDENTICAL at 372/372. COROLLARY, separately useful: when the pool constant is used ONCE in an expression, inlining the global read instead of a local puts the load at the point of use and also fixes the multiply ASSOCIATION - converting `scale = (f32)(spread * half * dx)` to `scale = (f32)(lbl_80345F18 * dx * lbl_803461F0)` closed two clusters at once (real 92 -> 80), because target multiplies `half*dx` first and never multiplies the two constants together."
+}

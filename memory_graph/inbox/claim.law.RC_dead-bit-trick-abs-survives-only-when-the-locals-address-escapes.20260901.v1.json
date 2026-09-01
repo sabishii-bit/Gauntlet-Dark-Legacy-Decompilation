@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "store-placement",
+      "decl-order",
+      "cse",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.RC_dead-bit-trick-abs-survives-only-when-the-locals-address-escapes.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T16:03:41Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/combat",
+  "valid_from": "2026-09-01",
+  "value": "MWCC GC 1.2.5 family. TELL: target contains the quartet `stfs fX,N(r1)` / `lwz r0,N(r1)` / `clrlwi r0,r0,1` / `stw r0,N(r1)` on a stack slot that is NEVER read again - a bit-trick fabs whose result is dead - and our reconstruction is exactly those 4 instructions short, usually with a `u8 unused[N]` pad sitting where the slot belongs. RECOVERY: the pad stands for a real local; the missing statement is an absolute value taken by masking the sign bit. SPELLING IS LOAD-BEARING: writing it through the TU's existing `union FloatBits { f32 value; u32 bits; }` makes MWCC DEAD-STRIP the whole statement (the union local is never read, so the stores vanish and the score gets WORSE - measured real 122 -> 153, and the instruction count fell further below target, 157 -> 154). The form that reproduces the target is the address-taken pointer cast, because taking the address defeats MWCC's dead-store elimination: `f32 d; d = A - B; *(u32*)&d = *(u32*)&d & 0x7FFFFFFF;` - measured real 122 -> 66 with the instruction count landing exactly on target (163/163) and the opcode multiset going IDENTICAL. NOTE the union spelling is still correct where the masked value IS subsequently read (screen_limitation in the same TU uses it that way and is fine); this law is specifically about the DEAD case, which is the one that needs the escaping address. Shrink the standing pad by the recovered local's size (here `u8 unused[16]` -> `u8 unused[12]`) to hold the frame."
+}
