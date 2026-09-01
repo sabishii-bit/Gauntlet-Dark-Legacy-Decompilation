@@ -1666,6 +1666,27 @@
         },
         "mechanism": "attempt.drawglowtext-scratch-alloc-direction.20260831.v2 - the record's OPERAND_DIFF residual is a three-register scratch renaming over nine instructions (+0x24-0x54), not an operand-order fault reachable from source. The two glow-global webs exchange homes (r6<->r8: ours loads the first into r6 and shifts it, retail into r8, and the roles swap again at the second load and at the surviving cmpw r29 at +0x54), and the divisor/product temporary moves r9->r3. The record's own top axis - multiply operand order - is the tell that closes it rather than a defect: the mullw at +0x3c genuinely exchanges its two commuting factors (ours mullw r0,r9,r0 vs retail mullw r0,r0,r3), and the bisimulation's commutative-operand path accepts exactly that pairing under the running renaming, so the swap is a consequence of the recolor and not an independent difference. Zero mask offenders, machine-proven by verify_consistent_recolor with no audit escape.",
         "copy_register_fields": true
+      },
+      {
+        "function": "DrawGlowTextMLines",
+        "before_sha256": "66db5bafe854224981f83c84dec2c0263baf849717f7a87ededfe4a73a748382",
+        "after_sha256": "3648eeffe9a19c411697c5ff425a723a19a9a3c25a6691d301d2c37787c98bc1",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 59,
+          "permuted_instructions": 3
+        },
+        "mechanism": "59/59 instructions, opcode multiset identical, five differing words in two mechanisms and nothing else. PERMUTATION, +0xd4..+0xe0 order [2,0,1]: the epilogue restore sequence. Ours issues `lwz r0,156(r1)` then `lfd f31,144(r1)` then `lmw r25,116(r1)`; retail issues the lmw first, then the lwz, then the lfd. All three atoms are restores from DISTINCT stack slots into DISJOINT register sets - the lwz writes g0 and reads stack(156), the lfd writes f31 and reads stack(144), the lmw writes g25..g31 and reads memory - and the region contains no store, no control instruction and no relocation in either object, so every memory read still chains to the region entry and no def-use chain moves. check_permutation_dependences accepts the order in its strictest form (exit_dead=None), which also proves no resource's final writer changes: r1 is never redefined and the three destination sets are pairwise disjoint. RECOLOR, two words immediately before the window at +0xc8 and +0xcc: the line-advance temporary moves g0->g3 in a `subf`, and the paired `add` reads it from g26 in both streams, machine-proven by verify_consistent_recolor as a position-consistent renaming with NO unproven_recolor_audit escape. The two halves are one joint allocator decision - retail's epilogue order frees the temporary earlier - which is why neither half is reachable on its own from source. Derived from the objects ninja produced this session and proven end-to-end through webfrank.apply_patch against the extracted retail object (output bytes == target bytes).",
+        "instruction_permutation": {
+          "start": "0xd4",
+          "end": "0xe0",
+          "order": [2, 0, 1],
+          "before_sha256": "e0e00eb7cf5819bcad1cac7f005a33d6a27dfd250368c2c54795dd3579dcefe4",
+          "after_sha256": "9ab2de268f28acfa2f816cdf7bc107e5f88e7f2f6204075b52738d86274bf6ed",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "copy_register_fields": true
       }
     ],
     "game/world/tower": [
