@@ -4569,6 +4569,7 @@ s32 set_hidden_player(void* vp) {
 }
 
 /* Load the class model + sfx model set into player slot i.            */
+#pragma opt_common_subs off
 s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     Player* p = vp;
     u8* pot = (u8*) potionicon_tab;
@@ -4587,7 +4588,7 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
     prod = i * 76;
     record = PT(i);
     cls = record->class_id;
-    ret = load_player_model_sub(i, vp, cls, name, pot + prod + 1300);
+    ret = load_player_model_sub(i, vp, cls, name, pot + (prod + 1300));
     raw = p->character;
     t = raw;
     if (raw >= 8) {
@@ -4615,7 +4616,6 @@ s32 load_player_model(s32 i, void* vp, s32 alt, char* name) {
 }
 
 /* Load one class model + anim set into a model slot.                  */
-#pragma opt_common_subs off
 s32 load_player_model_sub(s32 i, void* vp, s32 cls_in, char* name, void* vslot) {
     PlayerModelSlot* slot = vslot;
     u8* q;
