@@ -562,6 +562,26 @@ static inline void MovieReleaseAlloc(void* p) {
     }
 }
 
+/* Same body, but carrying the empty exception specification, for the release
+ * sites whose CALLER has no throw() of its own.  This models the inlined global
+ * `operator delete` (which does carry throw()): each inlined copy contributes
+ * one __unexpected island, which is what those callers' targets show.  It has to
+ * be a separate helper rather than a throw() on MovieReleaseAlloc above, because
+ * that one is inlined into fn_800D8784, whose own throw() already supplies its
+ * single island -- adding a second spec there emits a spurious second island.
+ * It also cannot simply be `::operator delete`: that operator's out-of-line body
+ * is defined further down (its .text slot is fixed by the target's function
+ * order), and MWCC only inlines an operator it has already seen, so at these
+ * earlier call sites the call would degrade to `bl __dl__FPv`. */
+static inline void MovieReleaseAllocEH(void* p) throw() {
+    if (p != NULL) {
+        gMovieAllocCount--;
+        if (gMovieAllocCount == 0) {
+            ResetAllocTot();
+        }
+    }
+}
+
 s32 fn_800D8784(MovieDecodeState* state) throw() {
     void* chunk = (void*)state->chunk;
 
@@ -1161,16 +1181,18 @@ void fn_800D967C(register int param_1, register MovieDecodeCall* param_2) {
  * (mask0->blueShift/Bits, mask1->greenShift/Bits, mask2->redShift/Bits) -
  * preserved faithfully from the original raw-offset wiring, not asserted as
  * a literal R/G/B channel identity. */
-u32 fn_800D96B0(MovieDecodeState* self, u32 unused, u8* header)
+#pragma cplusplus on
+extern "C" u32 fn_800D96B0(MovieDecodeState* self, u32 unused, u8* header)
 {
     s32 height;
     s32 halfPixels;
     s32 size;
+    u8 unused2[8]; /* unrecovered local: closes the frame to the target's 72 */
 
     (void)unused;
     self->width = *(u32*)(header + offsetof(MovieBitmapHeader, width));
     height = *(s32*)(header + offsetof(MovieBitmapHeader, height));
-    self->height = height < 0 ? (u32)-height : (u32)height;
+    self->height = height >= 0 ? (u32)height : (u32)-height;
     self->_08[0] = *(u16*)(header + offsetof(MovieBitmapHeader, bitCount));
     self->maskStride = ((s32)self->width + 31) / 32;
     self->paletteOffset = ((s32)self->height / 4) * self->maskStride;
@@ -1197,16 +1219,14 @@ u32 fn_800D96B0(MovieDecodeState* self, u32 unused, u8* header)
         }
     }
 
-    if (self->chunk != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
+    if (self->chunk != NULL) {
+        MovieReleaseAllocEH(self->chunk);
     }
     self->chunk = (u8*)AllocHiMem((u32)size + 308, (u32)gMovieAllocCount++);
     self->frame = 0;
     return 0;
 }
+#pragma cplusplus off
 #ifdef __MWERKS__
 #pragma optimization_level 4
 #pragma peephole on
@@ -1381,45 +1401,38 @@ int fn_800D9C34(MovieRingBuffer* p) {
 }
 #pragma dont_inline off
 
-#pragma dont_inline on
-void fn_800D9C5C(MovieRingBuffer* p, int n) {
-    if (p->buffer != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
+/* C++ region for the same reason as fn_800DBA80: the buffer release is a real
+ * `operator delete`, whose inlined body brings the empty-exception-specification
+ * __unexpected island the hand-written C form cannot produce. */
+#pragma cplusplus on
+extern "C" void fn_800D9C5C(MovieRingBuffer* p, int n) {
+    u8 unused[8]; /* unrecovered local: closes the frame to the target's 72 */
+
+    MovieReleaseAllocEH(p->buffer);
     p->buffer = 0;
     p->size = n;
     p->buffer = (u8*)AllocHiMem(p->size, (u32)gMovieAllocCount++);
     p->readPos = 0;
     p->writePos = 0;
 }
-#pragma dont_inline off
+#pragma cplusplus off
 
 /* Kept out-of-line: the target calls this from dtor_800DBB94 (`addi r3,r28,60`
- * / `li r4,-1` / `bl`), and it is that destructor's only call site, so
- * suppressing the auto-inline here reproduces the call without affecting any
- * other function. */
-#pragma dont_inline on
-int* fn_800D9CF4(int* p, s16 releaseAgain) {
+ * / `li r4,-1` / `bl`), and it is that destructor's only call site.  The
+ * dont_inline that reproduces the call is applied at the CALLER, not here: this
+ * region has to stay free for the inliner so the two releases below expand in
+ * place and bring their __unexpected islands (target r31+44 and r31+16). */
+#pragma cplusplus on
+extern "C" int* fn_800D9CF4(int* p, s16 releaseAgain) {
     if (p != 0) {
-        if (*(u32*)p != 0) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
-        }
-        if (releaseAgain > 0 && p != 0) {
-            gMovieAllocCount--;
-            if (gMovieAllocCount == 0) {
-                ResetAllocTot();
-            }
+        MovieReleaseAllocEH((void*)*(u32*)p);
+        if (releaseAgain > 0) {
+            MovieReleaseAllocEH(p);
         }
     }
     return p;
 }
-#pragma dont_inline off
+#pragma cplusplus off
 
 #ifdef __MWERKS__
 #pragma optimization_level 4
@@ -2562,6 +2575,11 @@ void fn_800DB82C(MovieChunkStream* param_1, int param_2, u32 param_3) {
     param_1->_4C = 0;
 }
 
+/* dont_inline here rather than on fn_800D9C5C itself: this is that function's
+ * only call site, and the target calls it out of line.  Suppressing the inliner
+ * from the CALLER side keeps that call while leaving fn_800D9C5C's own region
+ * free to inline the release helper it needs for its __unexpected island. */
+#pragma dont_inline on
 u8 MovieDecoderInitBuffers(MovieChunkStream* param_1, u32 param_2, u32 param_3) {
     int iVar3;
     int iVar4;
@@ -2604,32 +2622,25 @@ u8 MovieDecoderInitBuffers(MovieChunkStream* param_1, u32 param_2, u32 param_3) 
     *(u32*)(param_1->nodePoolRaw + iVar4 * 0x28) = 0;
     return param_1->buffer != 0;
 }
+#pragma dont_inline off
 
-void fn_800DBA80(u8* dec, s32 fd) {
+/* Parsed as C++ so the three buffer releases are real `operator delete` calls.
+ * The target inlines that operator's body at each site, and because the operator
+ * carries an empty exception specification each inlined copy also brings its own
+ * __unexpected island (islands at r31+76/+48/+20, frame 0x70) -- scaffolding the
+ * hand-written C form of this loop could not produce.  fn_800DBA80 itself takes
+ * NO throw() spec: one more would add a fourth island. */
+#pragma cplusplus on
+extern "C" void fn_800DBA80(u8* dec, s32 fd) {
     u32* self = (u32*)dec;
 
-    if (self[1] != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
+    ::operator delete((void*)self[1]);
     self[1] = 0;
     self[0] = 0;
-    if (self[3] != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
+    ::operator delete((void*)self[3]);
     self[3] = 0;
     self[2] = 0;
-    if (self[21] != 0) {
-        gMovieAllocCount--;
-        if (gMovieAllocCount == 0) {
-            ResetAllocTot();
-        }
-    }
+    ::operator delete((void*)self[21]);
     self[6] = 0;
     self[5] = 0;
     self[4] = 0;
@@ -2639,6 +2650,7 @@ void fn_800DBA80(u8* dec, s32 fd) {
     self[20] = 0;
     self[21] = 0;
 }
+#pragma cplusplus off
 
 #ifdef __MWERKS__
 #pragma optimization_level 4
@@ -2650,6 +2662,10 @@ void fn_800DBA80(u8* dec, s32 fd) {
  * specification, which is what emits the __unexpected edge and the r31
  * frame-pointer prologue. */
 #pragma cplusplus on
+/* Caller-side dont_inline: the target calls fn_800D9CF4 out of line from here,
+ * and this is its only call site (suppressing the inliner at the callee instead
+ * would also stop fn_800D9CF4 inlining its own release helpers). */
+#pragma dont_inline on
 MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) throw() {
     if (self != NULL) {
         __dla__FPv(self->rawBuffer);
@@ -2677,6 +2693,7 @@ MovieChunkStream* dtor_800DBB94(MovieChunkStream* self, s16 deleting) throw() {
     }
     return self;
 }
+#pragma dont_inline off
 #pragma cplusplus off
 
 MovieChunkStream* fn_800DBC64(register MovieChunkStream* p) {

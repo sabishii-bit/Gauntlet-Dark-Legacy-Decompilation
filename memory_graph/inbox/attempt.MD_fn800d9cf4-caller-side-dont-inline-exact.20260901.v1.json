@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Convert the two hand-written allocation-counter blocks to inlined release calls carrying throw(), and relocate the function's `#pragma dont_inline on` from the callee to its single caller so the region is free for the inliner.",
+  "attributes": {
+    "law_screen": "claim.law.destructor-throw-spec-adds-a-second-unexpected-island APPLIED as the island-counting diagnostic: the target's two ['b','addi','bl','b'] runs at r31+44 and r31+16 predicted exactly two inlined releases, and the 10-instruction shortfall arithmetic (2 islands = 8, plus stmw/lmw = 2) confirmed it before any build. claim.law.throw-spec-on-an-inlined-helper-adds-a-spurious-second-island APPLIED and load-bearing: it is why the release helper (not this function) carries throw(), and why a separate throw() helper was introduced rather than adding a spec to the shared no-throw MovieReleaseAlloc, which would have put a spurious second island in fn_800D8784. claim.law.class-scope-inline-operator-delete-frees-the-dtor-from-definition-order APPLIED - its case (B) is why `::operator delete` could not be used at this call site (defined far below; it degrades to `bl __dl__FPv`). claim.law.cpp-rename-is-inert-while-pragma-cplusplus-off-regions-remain APPLIED (surgical cplusplus on/off + extern \"C\"). claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first SCREENED - not needed for classification here since the multiset was DIFFERS with a named structural shortfall, but slotdiff was run on the sibling functions of this pass.",
+    "laws_applied": "[\"claim.law.destructor-throw-spec-adds-a-second-unexpected-island.20260901.v1\", \"claim.law.throw-spec-on-an-inlined-helper-adds-a-spurious-second-island.20260901.v1\", \"claim.law.class-scope-inline-operator-delete-frees-the-dtor-from-definition-order.20260901.v1\", \"claim.law.cpp-rename-is-inert-while-pragma-cplusplus-off-regions-remain.20260831.v1\"]",
+    "probed_form": "#pragma cplusplus on / extern \"C\" int* fn_800D9CF4(int* p, s16 releaseAgain) { if (p != 0) { MovieReleaseAllocEH((void*)*(u32*)p); if (releaseAgain > 0) { MovieReleaseAllocEH(p); } } return p; } / #pragma cplusplus off -- with `static inline void MovieReleaseAllocEH(void* p) throw()` defined near the top of the TU, and `#pragma dont_inline on/off` wrapped around dtor_800DBB94 instead of around this function.",
+    "residual": "None - byte-exact. Note the `releaseAgain > 0 && p != 0` conjunct in the old source was redundant: the inlined helper's own null check supplies the second test off the same cr0.",
+    "scope": "src/game/movie/movieplayer.cpp only; commit c960c9d64 on claude/movie-data-20260901. Also moved `#pragma dont_inline on/off` onto dtor_800DBB94 (this function's only call site).",
+    "verification": "fndiff --ops = OK, fndiff --clean = EXACT 0 real diff lines, real 44 -> 0, insns 44/44. defake_gate check --rebuild GATE OK (1 improved, 0 regressions); dtor_800DBB94 unchanged at real 14 and MovieDecoderInitBuffers still EXACT. Full ninja green, main.dol OK, retail sha1 verified. Project 2659 -> 2660 exact functions."
+  },
+  "function": "function:fn_800D9CF4",
+  "id": "attempt.MD_fn800d9cf4-caller-side-dont-inline-exact.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T03:26:06Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.mp-label-correction.fn-800d9cf4.20260831.v1",
+  "valid_from": "2026-09-01"
+}

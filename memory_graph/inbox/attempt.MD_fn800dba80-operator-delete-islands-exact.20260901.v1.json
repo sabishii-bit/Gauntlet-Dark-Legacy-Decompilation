@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Act on the v2 retriage's own diagnosis (three C++ throw()/__unexpected landing-pad islands absent from the portable C body) by putting the function under the C++ front end and replacing its three hand-written allocation-counter blocks with real inlined `operator delete` calls.",
+  "attributes": {
+    "law_screen": "claim.law.destructor-throw-spec-adds-a-second-unexpected-island APPLIED - its 'each inlined operator delete contributes exactly one island, so count the target's islands' rule turned the --ops output directly into the edit, and its step (1) 'no exception specification on the function itself' is why fn_800DBA80 was left without throw() (a fourth island otherwise). claim.law.class-scope-inline-operator-delete-frees-the-dtor-from-definition-order APPLIED and this function is its lucky case: the global operator delete is defined at line 2255, ABOVE this function at 2608, so the inline was available with no workaround. claim.law.cpp-rename-is-inert-while-pragma-cplusplus-off-regions-remain APPLIED - the function sat outside every `cplusplus on` region and was being parsed as C, which is the whole reason it had no EH scaffolding; fixed with a surgical on/off pair plus `extern \"C\"` to keep the placeholder symbol unmangled. claim.law.throw-spec-on-an-inlined-helper-adds-a-spurious-second-island SCREENED and honoured (no throw() added anywhere in this edit). claim.law.insn-count-parity-outranks-local-opcode-fidelity APPLIED as the arbitration rule: probe.py's verdict was confirmed against fndiff --ops and --clean before trusting it, per that law's metric-inversion warning.",
+    "laws_applied": "[\"claim.law.destructor-throw-spec-adds-a-second-unexpected-island.20260901.v1\", \"claim.law.class-scope-inline-operator-delete-frees-the-dtor-from-definition-order.20260901.v1\", \"claim.law.cpp-rename-is-inert-while-pragma-cplusplus-off-regions-remain.20260831.v1\", \"claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1\"]",
+    "probed_form": "#pragma cplusplus on / extern \"C\" void fn_800DBA80(u8* dec, s32 fd) { u32* self = (u32*)dec; ::operator delete((void*)self[1]); self[1] = 0; self[0] = 0; ::operator delete((void*)self[3]); self[3] = 0; self[2] = 0; ::operator delete((void*)self[21]); self[6] = 0; ... } / #pragma cplusplus off",
+    "residual": "None - byte-exact. The function scored fuzzy 0.0 before this pass.",
+    "scope": "src/game/movie/movieplayer.cpp only; commit 7f2cfbb86 on claude/movie-data-20260901.",
+    "verification": "fndiff --ops = OK, fndiff --clean = EXACT 0 real diff lines, real 66 -> 0, insns 69/69. defake_gate check --rebuild GATE OK (1 improved, 0 regressions) over all 52 functions. Full ninja green, build/GUNE5D/main.dol: OK, retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679. Project 2658 -> 2659 exact functions, Code 671832 -> 672108 bytes (+276 = this function's exact size). Both WebFrank pins (fn_800D967C, fn_800DA6A4) still applied."
+  },
+  "function": "function:fn_800DBA80",
+  "id": "attempt.MD_fn800dba80-operator-delete-islands-exact.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T03:26:00Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.fn-800dba80-report-retriage.20260829.v2",
+  "valid_from": "2026-09-01"
+}
