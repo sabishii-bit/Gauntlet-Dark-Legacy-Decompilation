@@ -770,24 +770,15 @@ static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size) {
     sceSamp0MultVec(out1, gCameraMtx, corner);
 
     z1 = out1[2];
-    if (z1 <= (*(f32**)(win + 4))[22]) {
-        return;
-    }
-    if (z1 >= (*(f32**)(win + 4))[23]) {
+    if (z1 <= (*(f32**)(win + 4))[22] || z1 >= (*(f32**)(win + 4))[23]) {
         return;
     }
     x1 = (out1[0] * (*(f32**)(win + 4))[32]) / z1;
     y1 = (out1[1] * (*(f32**)(win + 4))[37]) / z1;
-    if (x1 < lbl_803451D4) {
+    if (x1 < lbl_803451D4 || x1 >= lbl_803451D8) {
         return;
     }
-    if (x1 >= lbl_803451D8) {
-        return;
-    }
-    if (y1 < lbl_803451DC) {
-        return;
-    }
-    if (y1 >= lbl_803451E0) {
+    if (y1 < lbl_803451DC || y1 >= lbl_803451E0) {
         return;
     }
 
@@ -802,16 +793,10 @@ static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size) {
 
     x2 = (out2[0] * (*(f32**)(win + 4))[32]) / out2[2];
     y2 = (out2[1] * (*(f32**)(win + 4))[37]) / out2[2];
-    if (x2 < lbl_803451D4) {
+    if (x2 < lbl_803451D4 || x2 >= lbl_803451D8) {
         return;
     }
-    if (x2 >= lbl_803451D8) {
-        return;
-    }
-    if (y2 < lbl_803451DC) {
-        return;
-    }
-    if (y2 >= lbl_803451E0) {
+    if (y2 < lbl_803451DC || y2 >= lbl_803451E0) {
         return;
     }
 
@@ -2020,6 +2005,7 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
     char* strs = (char*)lbl_80116D70;
     f32* pif = (f32*)psysInfo;
     f32 t0, t1, t2, t3;
+    f32 sc, lo, hi;
     f64 v;
     u32 used;
     u32 mask;
@@ -2140,45 +2126,32 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            f32 sc = pif[63];
-            f32 lo = pif[64];
-            f32 hi = pif[65];
-            {
-                f32 fv = t0 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+            sc = pif[63];
+            lo = pif[64];
+            hi = pif[65];
+                t0 = t0 * sc;
+                if (t0 < lo) {
+                    t0 = lo;
+                } else if (t0 > hi) {
+                    t0 = hi;
                 }
-                q->p_parms[2].i.life_start = fv;
-            }
-            {
-                f32 fv = t1 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[2].i.life_start = t0;
+                t1 = t1 * sc;
+                if (t1 < lo) {
+                    t1 = lo;
+                } else if (t1 > hi) {
+                    t1 = hi;
                 }
-                q->p_parms[2].i.life_end = fv;
-            }
-            {
-                f32 fv = t2 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[2].i.life_end = t1;
+                t2 = t2 * sc;
+                if (t2 < lo) {
+                    t2 = lo;
+                } else if (t2 > hi) {
+                    t2 = hi;
                 }
-                q->p_parms[2].i.fade_start = fv;
-            }
+                q->p_parms[2].i.fade_start = t2;
             t3 = t3 * sc;
-            if (t3 < lo) {
-            } else {
-                if (t3 > hi) {
-                } else {
-                    hi = t3;
-                }
-                lo = hi;
-            }
+            lo = (t3 < lo) ? lo : (hi = (t3 > hi) ? hi : t3);
             q->p_parms[2].i.fade_end = lo;
         }
         /* green (lane 8) */
@@ -2190,41 +2163,32 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            f32 sc = pif[59];
-            f32 lo = pif[60];
-            f32 hi = pif[61];
-            {
-                f32 fv = t0 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+            sc = pif[59];
+            lo = pif[60];
+            hi = pif[61];
+                t0 = t0 * sc;
+                if (t0 < lo) {
+                    t0 = lo;
+                } else if (t0 > hi) {
+                    t0 = hi;
                 }
-                q->p_parms[1].i.life_start = fv;
-            }
-            {
-                f32 fv = t1 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[1].i.life_start = t0;
+                t1 = t1 * sc;
+                if (t1 < lo) {
+                    t1 = lo;
+                } else if (t1 > hi) {
+                    t1 = hi;
                 }
-                q->p_parms[1].i.life_end = fv;
-            }
-            {
-                f32 fv = t2 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[1].i.life_end = t1;
+                t2 = t2 * sc;
+                if (t2 < lo) {
+                    t2 = lo;
+                } else if (t2 > hi) {
+                    t2 = hi;
                 }
-                q->p_parms[1].i.fade_start = fv;
-            }
+                q->p_parms[1].i.fade_start = t2;
             t3 = t3 * sc;
-            if (!(t3 < lo)) {
-                hi = (t3 > hi) ? hi : t3;
-                lo = hi;
-            }
+            lo = (t3 < lo) ? lo : (hi = (t3 > hi) ? hi : t3);
             q->p_parms[1].i.fade_end = lo;
         }
         /* blue (lane 0) */
@@ -2236,41 +2200,32 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            f32 sc = pif[55];
-            f32 lo = pif[56];
-            f32 hi = pif[57];
-            {
-                f32 fv = t0 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+            sc = pif[55];
+            lo = pif[56];
+            hi = pif[57];
+                t0 = t0 * sc;
+                if (t0 < lo) {
+                    t0 = lo;
+                } else if (t0 > hi) {
+                    t0 = hi;
                 }
-                q->p_parms[0].i.life_start = fv;
-            }
-            {
-                f32 fv = t1 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[0].i.life_start = t0;
+                t1 = t1 * sc;
+                if (t1 < lo) {
+                    t1 = lo;
+                } else if (t1 > hi) {
+                    t1 = hi;
                 }
-                q->p_parms[0].i.life_end = fv;
-            }
-            {
-                f32 fv = t2 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[0].i.life_end = t1;
+                t2 = t2 * sc;
+                if (t2 < lo) {
+                    t2 = lo;
+                } else if (t2 > hi) {
+                    t2 = hi;
                 }
-                q->p_parms[0].i.fade_start = fv;
-            }
+                q->p_parms[0].i.fade_start = t2;
             t3 = t3 * sc;
-            if (!(t3 < lo)) {
-                hi = (t3 > hi) ? hi : t3;
-                lo = hi;
-            }
+            lo = (t3 < lo) ? lo : (hi = (t3 > hi) ? hi : t3);
             q->p_parms[0].i.fade_end = lo;
         }
     }
@@ -2284,41 +2239,32 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            f32 sc = pif[67];
-            f32 lo = pif[68];
-            f32 hi = pif[69];
-            {
-                f32 fv = t0 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+            sc = pif[67];
+            lo = pif[68];
+            hi = pif[69];
+                t0 = t0 * sc;
+                if (t0 < lo) {
+                    t0 = lo;
+                } else if (t0 > hi) {
+                    t0 = hi;
                 }
-                q->p_parms[3].i.life_start = fv;
-            }
-            {
-                f32 fv = t1 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[3].i.life_start = t0;
+                t1 = t1 * sc;
+                if (t1 < lo) {
+                    t1 = lo;
+                } else if (t1 > hi) {
+                    t1 = hi;
                 }
-                q->p_parms[3].i.life_end = fv;
-            }
-            {
-                f32 fv = t2 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[3].i.life_end = t1;
+                t2 = t2 * sc;
+                if (t2 < lo) {
+                    t2 = lo;
+                } else if (t2 > hi) {
+                    t2 = hi;
                 }
-                q->p_parms[3].i.fade_start = fv;
-            }
+                q->p_parms[3].i.fade_start = t2;
             t3 = t3 * sc;
-            if (!(t3 < lo)) {
-                hi = (t3 > hi) ? hi : t3;
-                lo = hi;
-            }
+            lo = (t3 < lo) ? lo : (hi = (t3 > hi) ? hi : t3);
             q->p_parms[3].i.fade_end = lo;
         }
     }
@@ -2332,41 +2278,32 @@ static void setWorldParms(MBObject* node, Psys* p, PsysDescrip* wpd, f32* over) 
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            f32 sc = pif[71];
-            f32 lo = pif[72];
-            f32 hi = pif[73];
-            {
-                f32 fv = t0 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+            sc = pif[71];
+            lo = pif[72];
+            hi = pif[73];
+                t0 = t0 * sc;
+                if (t0 < lo) {
+                    t0 = lo;
+                } else if (t0 > hi) {
+                    t0 = hi;
                 }
-                q->p_parms[4].i.life_start = fv;
-            }
-            {
-                f32 fv = t1 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[4].i.life_start = t0;
+                t1 = t1 * sc;
+                if (t1 < lo) {
+                    t1 = lo;
+                } else if (t1 > hi) {
+                    t1 = hi;
                 }
-                q->p_parms[4].i.life_end = fv;
-            }
-            {
-                f32 fv = t2 * sc;
-                if (fv < lo) {
-                    fv = lo;
-                } else if (fv > hi) {
-                    fv = hi;
+                q->p_parms[4].i.life_end = t1;
+                t2 = t2 * sc;
+                if (t2 < lo) {
+                    t2 = lo;
+                } else if (t2 > hi) {
+                    t2 = hi;
                 }
-                q->p_parms[4].i.fade_start = fv;
-            }
+                q->p_parms[4].i.fade_start = t2;
             t3 = t3 * sc;
-            if (!(t3 < lo)) {
-                hi = (t3 > hi) ? hi : t3;
-                lo = hi;
-            }
+            lo = (t3 < lo) ? lo : (hi = (t3 > hi) ? hi : t3);
             q->p_parms[4].i.fade_end = lo;
         }
     }
@@ -2546,6 +2483,7 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
     MBObject* node;
     Psys* q;
     u32 used;
+    f32 sc, lo, hi;
 
     used = wp->fields_used;
     if (used & 8) {
@@ -2738,43 +2676,32 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
             if (q->e_phase > 1) {
                 ErrorPrintf(strs + 316);
             } else {
-                f32 sc = pif[67];
-                f32 lo = pif[68];
-                f32 hi = pif[69];
-                {
-                    f32 v = x0 * sc;
-                    if (v < lo) {
-                        v = lo;
-                    } else if (v > hi) {
-                        v = hi;
+                sc = pif[67];
+                lo = pif[68];
+                hi = pif[69];
+                    x0 = x0 * sc;
+                    if (x0 < lo) {
+                        x0 = lo;
+                    } else if (x0 > hi) {
+                        x0 = hi;
                     }
-                    q->p_parms[3].o.life_start = v;
-                }
-                {
-                    f32 v = x1 * sc;
-                    if (v < lo) {
-                        v = lo;
-                    } else if (v > hi) {
-                        v = hi;
+                    q->p_parms[3].o.life_start = x0;
+                    x1 = x1 * sc;
+                    if (x1 < lo) {
+                        x1 = lo;
+                    } else if (x1 > hi) {
+                        x1 = hi;
                     }
-                    q->p_parms[3].o.life_slope = v;
-                }
-                {
-                    f32 v = x2 * sc;
-                    if (v < lo) {
-                        v = lo;
-                    } else if (v > hi) {
-                        v = hi;
+                    q->p_parms[3].o.life_slope = x1;
+                    x2 = x2 * sc;
+                    if (x2 < lo) {
+                        x2 = lo;
+                    } else if (x2 > hi) {
+                        x2 = hi;
                     }
-                    q->p_parms[3].o.fade_start = v;
-                }
+                    q->p_parms[3].o.fade_start = x2;
                 x3 = x3 * sc;
-                if (!(x3 < lo)) {
-                    if (!(x3 > hi)) {
-                        hi = x3;
-                    }
-                    lo = hi;
-                }
+                lo = (x3 < lo) ? lo : (hi = (x3 > hi) ? hi : x3);
                 q->p_parms[3].o.fade_slope = lo;
             }
         }
@@ -2787,43 +2714,32 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
             if (q->e_phase > 1) {
                 ErrorPrintf(strs + 316);
             } else {
-                f32 sc = pif[63];
-                f32 lo = pif[64];
-                f32 hi = pif[65];
-                {
-                    f32 v = x0 * sc;
-                    if (v < lo) {
-                        v = lo;
-                    } else if (v > hi) {
-                        v = hi;
+                sc = pif[63];
+                lo = pif[64];
+                hi = pif[65];
+                    x0 = x0 * sc;
+                    if (x0 < lo) {
+                        x0 = lo;
+                    } else if (x0 > hi) {
+                        x0 = hi;
                     }
-                    q->p_parms[2].o.life_start = v;
-                }
-                {
-                    f32 v = x1 * sc;
-                    if (v < lo) {
-                        v = lo;
-                    } else if (v > hi) {
-                        v = hi;
+                    q->p_parms[2].o.life_start = x0;
+                    x1 = x1 * sc;
+                    if (x1 < lo) {
+                        x1 = lo;
+                    } else if (x1 > hi) {
+                        x1 = hi;
                     }
-                    q->p_parms[2].o.life_slope = v;
-                }
-                {
-                    f32 v = x2 * sc;
-                    if (v < lo) {
-                        v = lo;
-                    } else if (v > hi) {
-                        v = hi;
+                    q->p_parms[2].o.life_slope = x1;
+                    x2 = x2 * sc;
+                    if (x2 < lo) {
+                        x2 = lo;
+                    } else if (x2 > hi) {
+                        x2 = hi;
                     }
-                    q->p_parms[2].o.fade_start = v;
-                }
+                    q->p_parms[2].o.fade_start = x2;
                 x3 = x3 * sc;
-                if (!(x3 < lo)) {
-                    if (!(x3 > hi)) {
-                        hi = x3;
-                    }
-                    lo = hi;
-                }
+                lo = (x3 < lo) ? lo : (hi = (x3 > hi) ? hi : x3);
                 q->p_parms[2].o.fade_slope = lo;
             }
         }
@@ -2836,43 +2752,32 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
             if (q->e_phase > 1) {
                 ErrorPrintf(strs + 316);
             } else {
-                f32 sc = pif[59];
-                f32 lo = pif[60];
-                f32 hi = pif[61];
-                {
-                    f32 v = x0 * sc;
-                    if (v < lo) {
-                        v = lo;
-                    } else if (v > hi) {
-                        v = hi;
+                sc = pif[59];
+                lo = pif[60];
+                hi = pif[61];
+                    x0 = x0 * sc;
+                    if (x0 < lo) {
+                        x0 = lo;
+                    } else if (x0 > hi) {
+                        x0 = hi;
                     }
-                    q->p_parms[1].o.life_start = v;
-                }
-                {
-                    f32 v = x1 * sc;
-                    if (v < lo) {
-                        v = lo;
-                    } else if (v > hi) {
-                        v = hi;
+                    q->p_parms[1].o.life_start = x0;
+                    x1 = x1 * sc;
+                    if (x1 < lo) {
+                        x1 = lo;
+                    } else if (x1 > hi) {
+                        x1 = hi;
                     }
-                    q->p_parms[1].o.life_slope = v;
-                }
-                {
-                    f32 v = x2 * sc;
-                    if (v < lo) {
-                        v = lo;
-                    } else if (v > hi) {
-                        v = hi;
+                    q->p_parms[1].o.life_slope = x1;
+                    x2 = x2 * sc;
+                    if (x2 < lo) {
+                        x2 = lo;
+                    } else if (x2 > hi) {
+                        x2 = hi;
                     }
-                    q->p_parms[1].o.fade_start = v;
-                }
+                    q->p_parms[1].o.fade_start = x2;
                 x3 = x3 * sc;
-                if (!(x3 < lo)) {
-                    if (!(x3 > hi)) {
-                        hi = x3;
-                    }
-                    lo = hi;
-                }
+                lo = (x3 < lo) ? lo : (hi = (x3 > hi) ? hi : x3);
                 q->p_parms[1].o.fade_slope = lo;
             }
         }
@@ -2885,43 +2790,32 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
             if (q->e_phase > 1) {
                 ErrorPrintf(strs + 316);
             } else {
-                f32 sc = pif[55];
-                f32 lo = pif[56];
-                f32 hi = pif[57];
-                {
-                    f32 v = x0 * sc;
-                    if (v < lo) {
-                        v = lo;
-                    } else if (v > hi) {
-                        v = hi;
+                sc = pif[55];
+                lo = pif[56];
+                hi = pif[57];
+                    x0 = x0 * sc;
+                    if (x0 < lo) {
+                        x0 = lo;
+                    } else if (x0 > hi) {
+                        x0 = hi;
                     }
-                    q->p_parms[0].o.life_start = v;
-                }
-                {
-                    f32 v = x1 * sc;
-                    if (v < lo) {
-                        v = lo;
-                    } else if (v > hi) {
-                        v = hi;
+                    q->p_parms[0].o.life_start = x0;
+                    x1 = x1 * sc;
+                    if (x1 < lo) {
+                        x1 = lo;
+                    } else if (x1 > hi) {
+                        x1 = hi;
                     }
-                    q->p_parms[0].o.life_slope = v;
-                }
-                {
-                    f32 v = x2 * sc;
-                    if (v < lo) {
-                        v = lo;
-                    } else if (v > hi) {
-                        v = hi;
+                    q->p_parms[0].o.life_slope = x1;
+                    x2 = x2 * sc;
+                    if (x2 < lo) {
+                        x2 = lo;
+                    } else if (x2 > hi) {
+                        x2 = hi;
                     }
-                    q->p_parms[0].o.fade_start = v;
-                }
+                    q->p_parms[0].o.fade_start = x2;
                 x3 = x3 * sc;
-                if (!(x3 < lo)) {
-                    if (!(x3 > hi)) {
-                        hi = x3;
-                    }
-                    lo = hi;
-                }
+                lo = (x3 < lo) ? lo : (hi = (x3 > hi) ? hi : x3);
                 q->p_parms[0].o.fade_slope = lo;
             }
         }
@@ -2936,43 +2830,32 @@ MBObject* MBNewPsysDescrip(s32 a, s32 b, s32 c, void* cfg) {
         if (q->e_phase > 1) {
             ErrorPrintf(strs + 316);
         } else {
-            f32 sc = pif[71];
-            f32 lo = pif[72];
-            f32 hi = pif[73];
-            {
-                f32 v = x0 * sc;
-                if (v < lo) {
-                    v = lo;
-                } else if (v > hi) {
-                    v = hi;
+            sc = pif[71];
+            lo = pif[72];
+            hi = pif[73];
+                x0 = x0 * sc;
+                if (x0 < lo) {
+                    x0 = lo;
+                } else if (x0 > hi) {
+                    x0 = hi;
                 }
-                q->p_parms[4].o.life_start = v;
-            }
-            {
-                f32 v = x1 * sc;
-                if (v < lo) {
-                    v = lo;
-                } else if (v > hi) {
-                    v = hi;
+                q->p_parms[4].o.life_start = x0;
+                x1 = x1 * sc;
+                if (x1 < lo) {
+                    x1 = lo;
+                } else if (x1 > hi) {
+                    x1 = hi;
                 }
-                q->p_parms[4].o.life_slope = v;
-            }
-            {
-                f32 v = x2 * sc;
-                if (v < lo) {
-                    v = lo;
-                } else if (v > hi) {
-                    v = hi;
+                q->p_parms[4].o.life_slope = x1;
+                x2 = x2 * sc;
+                if (x2 < lo) {
+                    x2 = lo;
+                } else if (x2 > hi) {
+                    x2 = hi;
                 }
-                q->p_parms[4].o.fade_start = v;
-            }
+                q->p_parms[4].o.fade_start = x2;
             x3 = x3 * sc;
-            if (!(x3 < lo)) {
-                if (!(x3 > hi)) {
-                    hi = x3;
-                }
-                lo = hi;
-            }
+            lo = (x3 < lo) ? lo : (hi = (x3 > hi) ? hi : x3);
             q->p_parms[4].o.fade_slope = lo;
         }
     }
