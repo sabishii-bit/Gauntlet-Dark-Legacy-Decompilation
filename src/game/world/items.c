@@ -271,7 +271,7 @@ extern f32     sNegativeHalf;
 extern f32     sLightingZero;
 
 extern void  MBInitLights(void);
-extern void  MBAddLight(double val, void* a, f32* b);
+extern int   MBAddLight(f32* dir, f32* color, f32 intensity);
 extern void  MBSetAmbient(f32 val, f32* p);
 extern void  DoLighting(s32 flag);
 extern void  pbResetWindowPool(void);
@@ -291,7 +291,7 @@ extern void  CurTransmitterBlink(s32 idx);                        /* newcam hook
 extern s32   AtreeMatch(void* tree, char* name, s32 flag);
 extern f32   FixAngle(f64 ang);                        /* angle wrap */
 extern void  CreateYPRMatrix(f32* mtx, f32* angles);          /* mtx from angles */
-extern f64   FloorPos(f64 y, f32 r, f32* pos, s32 mode); /* ground probe */
+extern f32   FloorPos(f32 y, f32 r, f32* pos, s32 mode); /* ground probe */
 extern s32   MBOX_NewObject(char* name, f32* mtx, s32 a, s32 b);
 extern void  MBTreeSetAlpha(s32 handle, s32 pri, s32 b);
 extern s32   MBOX_ReallyFindObject(char* name, s32 a, s32 b, s32 c);
@@ -653,9 +653,9 @@ void InitLighting(s32 flag)
     MBInitLights();
     if (flag != 0) {
         sLevelAmbient = *(f32*)(gCurLevel + offsetof(level_data, ambient));
-        MBAddLight(*(f32*)(gCurLevel + offsetof(level_data, lightinten)),
-                   gCurLevel + offsetof(level_data, lightdir),
-                   (f32*)(gCurLevel + offsetof(level_data, lightcolor_fp)));
+        MBAddLight((f32*)(gCurLevel + offsetof(level_data, lightdir)),
+                   (f32*)(gCurLevel + offsetof(level_data, lightcolor_fp)),
+                   *(f32*)(gCurLevel + offsetof(level_data, lightinten)));
     } else {
         sLevelAmbient = sOne;
     }

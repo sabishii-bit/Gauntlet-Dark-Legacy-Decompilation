@@ -719,7 +719,7 @@ static void BossCamLimitAttn(f32* target);
 static f32 LimitCamVal2(f32 value, f32 target, f32 minVelocity,
                         f32 maxVelocity, f32 acceleration, f32 stopScale,
                         f32* velocity, s32 wrapAngle);
-extern f64 NormalVector2D(f32* vector);
+extern f32 NormalVector2D(f32* vector);
 extern f64 SlowNormalVector2D(f32* vector);
 extern f32 atan2(f32 y, f32 x);
 extern u8 lbl_8023E558[0xB0];
@@ -1627,7 +1627,7 @@ static void GetBossAvgPos(f32* out, f32 t, f32* p4, f32* p5, s32 mode) {
 }
 #pragma opt_propagation reset
 /* Averaged view/aim vector (0x4B4, atan2 + sin/cos).  Parked: large fp body. */
-extern f64 NormalVector2D(f32* vec);
+extern f32 NormalVector2D(f32* vec);
 extern f32 atan2(f32 y, f32 x);
 extern f32 sin(f32 x);
 extern f64 __fabs(f64 x);

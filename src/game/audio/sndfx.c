@@ -122,7 +122,7 @@ extern int fn_800BC418(int a, int b);
 extern s32 fn_80053D08(s32 wave, s32 mode, s32 loadResult);
 extern void bulletproof_printf(const char* fmt, ...);
 extern void init_moving_objects(int a);
-extern f32 DistanceToClosestPlayer(Vec3* a);     /* distance from listener */
+extern f64 DistanceToClosestPlayer(Vec3* a);     /* distance from listener */
 extern f32 NormalVector(Vec3* a);    /* normalize vector, return approximate length */
 extern int AudioAng(Vec3* pos);      /* position -> spatial descriptor */
 extern void AudioKillMask(int mask); /* stop voices by channel mask */

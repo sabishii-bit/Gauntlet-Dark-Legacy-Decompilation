@@ -120,7 +120,7 @@ extern char lbl_80348700[8];
 extern char lbl_80348708[8];
 extern char lbl_803486F0[8];
 extern void MBSetAmbient(int idx, f32 v);
-extern void MBAddLight(int a, int b, f32 v);
+extern int  MBAddLight(f32* dir, f32* color, f32 intensity);
 extern void MBWindowViewport(f32 a, f32 b, f32 c, f32 d);
 extern s32 MBOX_NewObject(char* name, f32* mtx, int a, int b);
 extern void* MBOX_FindTexture_Err(char* name, int a, int b);

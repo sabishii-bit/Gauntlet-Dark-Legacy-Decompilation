@@ -89,7 +89,7 @@ extern void* CritterNewInst(int a, int b, void* obj);
 extern void* CopyMat4(void* a, void* b);
 extern void* PlaceItem(s32 a, s32 b, char* name, void* mat);
 extern void YawVec3(void* axis, f32* out, f32 angle);
-extern f64  Random(f64 a);
+extern f32  Random(f32 a);
 extern s32  StartFXSub(s32 type, f32* pos, u32 fla, u32 flb, f32 time);
 extern void SfxSetDamage(f32 damage, f32 radius, f32 delay, s32 idx, s32 type, s32 owner);
 
@@ -113,7 +113,7 @@ extern s32         sMusicTrackHi;         /* 0x803448D8 world index */
 extern f32         gClockFrameStep;       /* physics timestep */
 extern f32         lbl_80344880;          /* ground-probe height */
 
-extern f64  FloorPos(f64 a, f64 b, void* c, u32 d);   /* ground/collision query */
+extern f32  FloorPos(f32 a, f32 b, void* c, s32 d);   /* ground/collision query */
 extern void UpdateObjWorldMat(void* p);
 
 extern int   sprintf(char* buf, const char* fmt, ...);
