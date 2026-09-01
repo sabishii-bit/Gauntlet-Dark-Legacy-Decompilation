@@ -329,6 +329,30 @@ class ShippedRuleMechanismTests(unittest.TestCase):
         target = bytes.fromhex("3b000000 3b180001 7c180000 4e800020")
         verify_consistent_recolor(current, target)
 
+    def test_start_throw_magic_fx_sinks_the_type_mask_clrlwi(self):
+        # +0x64: clrlwi r28,r25,28 (type & 0xF) sinks three atoms past
+        # rlwinm r0,r25,2,26,29; add r3,r30,r0; lwz r23,3504(r3).
+        # It defines r28 and reads only r25: no intervening atom writes r25
+        # or touches r28, and it accesses no memory, so the rotation is
+        # dependence-free WITHOUT an exit_dead escape.
+        # attempt.RQ_startthrowmagicfx-permute-recolor-closure.20260901.v1
+        region = bytes.fromhex("573c073e 572016ba 7c7e0214 82e30db0")
+        check_permutation_dependences(region, [1, 2, 3, 0])
+
+    def test_start_throw_magic_fx_effect_base_web_recolor(self):
+        # The r3<->r4 exchange over +0x1a0..+0x1bc, gathered past the
+        # non-differing words between the sites: the lwz defines our r3 where
+        # retail defines r4, then the add retires that correspondence in the
+        # opposite direction and the three stores check against the new
+        # binding.  Same rule record as above.
+        current = bytes.fromhex(
+            "80630d9c 7c9f0214 7c600734 b0040c5e 93640c6c 4e800020"
+        )
+        target = bytes.fromhex(
+            "80830d9c 7c7f0214 7c800734 b0030c5e 93630c6c 4e800020"
+        )
+        verify_consistent_recolor(current, target)
+
     def test_home_copy_coalescing_class_is_not_recolor_eligible(self):
         # claim.law.callee-saved-home-copy-coalescing-is-source-unreachable
         # names three gauntworld functions whose residual is a target-only

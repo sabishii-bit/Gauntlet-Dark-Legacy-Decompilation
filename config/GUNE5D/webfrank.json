@@ -592,6 +592,27 @@
           "instructions": 747
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "StartThrowMagicFX",
+        "before_sha256": "ff830e105420ea95b34cfc2c728f205c0f47e4abb76514fb675252b485bd08c6",
+        "after_sha256": "a24f773242fd057c490f4898b5c16c9ff25868c1cb813dd53eb69f2a93b6d613",
+        "mechanism": "attempt.RQ_startthrowmagicfx-permute-recolor-closure.20260901.v1 - the whole 167-instruction residual is ONE schedule rotation composed with a consistent recolor, closed by the two EXISTING webfrank stages (no new edit class). PERMUTATION: the `type & 0xF` mask `clrlwi r28,r25,28` issues at +0x64 in our stream and at +0x70 in the target, sinking three atoms past `rlwinm r0,r25,2,26,29` / `add r3,r30,r0` / `lwz r23,3504(r3)`, i.e. order [1, 2, 3, 0] over [0x64,0x74). The clrlwi defines r28 and reads only r25; none of the three intervening atoms writes r25, and none reads or writes r28, so there is no RAW, WAR or WAW hazard, and the clrlwi touches no memory so it cannot race the lwz. check_permutation_dependences accepts it in its STRICTEST form - every def-use chain and every final write is preserved with NO exit_dead escape invoked. The region contains no control instruction and no relocation (both region relocation hashes are the empty-payload hash), so nothing rides an atom. RECOLOR: the remaining 25 differing words are register fields only - the f30<->f31 transposition of the two callee-saved FPR webs (the rad/size homes: fmr/fmul/frsp/fcmpo/lfs at +0x18..+0x60 and the stfs pair at +0x1f4/+0x20c), the scaled-base temp at +0x114/+0x11c where the target colours the `add`/`addi` chain into one register (r23,r23) while we split it across r3 then r20, retiring r3's stale correspondence at the define exactly as the camorient rule documents, and the r3<->r4 exchange over +0x1a0..+0x1bc. Machine-proven by webfrank.verify_consistent_recolor as a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, with NO unproven_recolor_audit escape; the _savefpr_28 prologue call is recognised as a save helper, so no volatile binding is spuriously dropped. Not source-reachable: the 2026-08-29 cap measured statement placement x4, cast-transit, assignment-in-index, the size-parameter copy, the e/ep association chains and a multi-definition compound-mask `t4 = type; t4 &= 0xF` shape, all byte-identical to baseline. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes (29 atoms/fields, 0 differing words remaining).",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 167,
+          "permuted_instructions": 4
+        },
+        "instruction_permutation": {
+          "start": "0x64",
+          "end": "0x74",
+          "order": [1, 2, 3, 0],
+          "before_sha256": "379cb1639ea794802d4033ef61cb7fc7a24f8592abd78e21c15bf91d709810f3",
+          "after_sha256": "fec5ccbd2bc753ae804801e7b86bbf4f2b154066b7998c6e654484c88ceb68dc",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "copy_register_fields": true
       }
     ],
     "game/sound/sounds_evt": [
