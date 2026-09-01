@@ -1,0 +1,28 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py",
+    "tools/gdl/fndiff.py",
+    "tools/gdl/defake_gate.py"
+  ],
+  "attributes": {
+    "provenance": "Fleet worker PL, work_claim.player-tail.20260901.v1, worktree GDL-Claude-PlayerTail, branch claude/player-tail-20260901, measured against HEAD c98c8ba3a. Four probes on src/game/game/player.c::kill_player, a function chosen because it is instruction-count EXACT (171/171) with an IDENTICAL opcode multiset, so `real` is the only moving instrument and every change is cleanly attributable. See attempt.PL_pta-cell4-sweep-and-call-split-boundary.20260901.v1. Full ninja green, main.dol: OK.",
+    "tags": [
+      "matching",
+      "index-form",
+      "cse",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Find a function whose PT(i)-style base is consumed only inside ONE syntactic block, where that block CONTAINS a call that does not take the base as an argument, and where converting the base to the cell-4 PTA form measures equal-or-better on real with the instruction count not increasing. One such measurement disproves this law. Conversely, a function whose base is consumed across several syntactic blocks with NO intervening call, and where the cell-4 form still LOSES, would show the call is not the operative boundary either and would send the boundary back to being unexplained.",
+  "id": "claim.law.PL_cell4-region-boundary-is-a-call-not-a-syntactic-block.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T23:03:31Z",
+  "reproduction": "python tools/gdl/probe.py game/game/player.c kill_player --ops gives BASELINE real 32, T171/O171, multiset 0t; replacing `Player* p = PT(i);` with `Player* p = PTA(i);` and re-probing gives real 172, T171/O173, one ours-only addi+add cluster at @0x40. The sibling measurement is the already-accepted attempt.PL_abort-player-pta-region-tax-boundary.20260901.v1 (real 102 -> 140, count 187 -> 189).",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "REFINES claim.law.PL_cell4-array-member-base-pays-only-when-the-base-is-consumed-in-one-region.20260901.v1 by fixing what 'one region' means. That law's PROCEDURE says to apply the cell-4 array/member base form `(&((T*)((u8*)SYM + BLOCKOFF))[i])` only when the converted base is consumed inside ONE region, and it is correct; but 'region' read as a SYNTACTIC BLOCK mis-screens, and the mis-screen costs a build every time. THE RULE: the region boundary that decides the trade is a CALL, not a brace. A base that is consumed only inside a single `if` block still pays the cell-4 tax if that block contains a call, because the call forces the base into a callee-saved home across the call and MWCC then re-forms the cell-4 address on the far side, adding an `addi`+`add` pair that the folded-displacement form did not need. MEASURED ON kill_player, whose whole body is one `if (p->state != 0) { ... }` block and which therefore PASSES a syntactic-block screen: the block contains two calls (player_dies and setup_player_display). Converting `Player* p = PT(i);` to `Player* p = PTA(i);` did exactly what the parent law predicts for a qualifying function - ALL FOUR prologue clusters closed and the `--ops` target-only column went to (none) - and then lost anyway: a surplus `addi`+`add` appeared at @0x40, the instruction count went from an already-exact 171/171 to 173, and real went 32 -> 172. That is byte-for-byte the same failure signature already recorded for abort_player (prologue converged, surplus addi+add, count 187 -> 189, real 102 -> 140), which is what promotes a single observation to a law: two functions, two different bodies, one shared mechanism. The winning case remains write_health_and_items, whose two PTA sites feed one local consumed in straight-line code with NO call between the base's formation and its last use. COROLLARY, and this is the part that saves builds: the screen is now free and purely textual. Before probing, read the base's live span and ask whether a call sits inside it; if one does, do not spend the build. Applying this screen to game/game/player.c rejected inactivate_player (base spans an early-return branch, a call, and a node branch) and the `speaker` base in do_players (consumed across fn_8005DE50) at zero cost, and it retro-explains abort_player without re-running it. COROLLARY 2, ON THE SIBLING LEVER: the split base/index form that wins on activate_player - separate locals for the symbol root and for `i * STRIDE` - is NOT a substitute here and transfers badly (kill_player real 32 -> 142), and caching the SYMBOL alone is a fold-away no-op (NEUTRAL-IDENTICAL, object bytes unchanged). What makes the activate_player form work is the SCALED-INDEX local, which keeps `i * STRIDE` live so MWCC can re-add it per region; the symbol local on its own never reaches the compiler's decision point."
+}
