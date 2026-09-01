@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Three stacked axes: recover the missing __unexpected island via an inlined throw() release; flip the height-abs ternary to the diamond arm order; restore the outer null guard that supplies the target's duplicated beq.",
+  "attributes": {
+    "law_screen": "claim.law.destructor-throw-spec-adds-a-second-unexpected-island APPLIED (8-instruction shortfall = 1 island + prologue/epilogue frame form). claim.law.float-clamp-ternary-diamond-vs-negated-guard APPLIED and DECISIVE for the second axis: our `height < 0 ? -height : height` produced a single negated guard (`bge`) where the target has the full diamond (`blt` + an empty-arm `b`); the law's two preconditions were both required - flip the comparison operator AND place the pass-through value in the first arm - giving `height >= 0 ? height : -height`, which closed the cluster (real 34 -> 23). claim.law.if-else-arm-swap-controls-fallthrough-placement SCREENED and correctly NOT applied: its own stated boundary excludes simple ternary expressions assigned to a scalar. claim.law.empty-block-branch-pair-splits-forward-vs-backedge SCREENED - the forward variant matched the observed shape and corroborated the ternary reading. claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first APPLIED before classifying the remainder (slotdiff: frame 72/72, saves r28/r28, SLOT MAP IDENTICAL).",
+    "laws_applied": "[\"claim.law.destructor-throw-spec-adds-a-second-unexpected-island.20260901.v1\", \"claim.law.float-clamp-ternary-diamond-vs-negated-guard.20260831.v1\", \"claim.law.throw-spec-on-an-inlined-helper-adds-a-spurious-second-island.20260901.v1\", \"claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1\", \"claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever.20260831.v1\"]",
+    "probed_form": "#pragma cplusplus on / extern \"C\" u32 fn_800D96B0(...) { s32 height; s32 halfPixels; s32 size; u8 unused2[8]; ... self->height = height >= 0 ? (u32)height : (u32)-height; ... if (self->chunk != NULL) { MovieReleaseAllocEH(self->chunk); } self->chunk = (u8*)AllocHiMem((u32)size + 308, (u32)gMovieAllocCount++); ... } / #pragma cplusplus off",
+    "residual": "Same two named residuals as fn_800D9C5C, and DO-NOT-RETRY on the same axes. (1) EH state slot `addi r3,r31,24` against target `addi r3,r31,32`, 8 bytes low with slot map already IDENTICAL; pad declared-first and declared-last both probed NEUTRAL here. (2) epilogue `mr r12,r31` ordering against the trailing `li r3,0 / stw r0,28(r29) / lwz r0,76(r31)` group. A worthwhile free observation for whoever resumes: restoring the outer `if (p != NULL)` guard around an inlined release is worth exactly one `beq`, because the target tests the same un-reloaded cr0 twice - this TU's own MovieReleaseAlloc comment already stated it and it was still worth one probe to confirm.",
+    "scope": "src/game/movie/movieplayer.cpp only; commit 1015acdaf on claude/movie-data-20260901. This function is __vt__7VQCodec slot1, so it is only ever called through the vtable and needed no dont_inline relocation.",
+    "verification": "real 124 -> 8 in four measured steps (124 -> 34 island, -> 23 ternary arm order, -> 14 outer guard, -> 8 frame pad), insns EXACT 113/113, opcode multiset IDENTICAL (0t), frame 72/72, fuzzy 87.66 -> 97.69. defake_gate check --rebuild GATE OK, 0 regressions. Full ninja green, main.dol OK, retail sha1 verified."
+  },
+  "function": "function:fn_800D96B0",
+  "id": "attempt.MD_fn800d96b0-island-ternary-guard-drive.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T03:26:17Z",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.mp-label-correction.fn-800d96b0.20260831.v1",
+  "valid_from": "2026-09-01"
+}

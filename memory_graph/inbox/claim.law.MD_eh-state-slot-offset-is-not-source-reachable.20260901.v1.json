@@ -1,0 +1,23 @@
+{
+  "attributes": {
+    "law_screen": "claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first APPLIED as mandated: slotdiff was run on all three functions BEFORE classifying, and it is what makes this record safe to state (frame, save set and slot map are all identical, so the delta is provably not hidden slot work). claim.law.stack-slots-descend-in-declaration-order and claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever SCREENED and MEASURED NEGATIVE for this particular offset -- they correctly govern the FRAME SIZE half and are what closed it, but they do not reach the EH block. claim.law.a-lone-dead-stack-word-is-usually-the-alignment-pad-of-the-first-8-byte-temp SCREENED via the f64 pad variant, negative.",
+    "laws_applied": "[\"claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1\", \"claim.law.stack-slots-descend-in-declaration-order.20260831.v1\", \"claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever.20260831.v1\", \"claim.law.a-lone-dead-stack-word-is-usually-the-alignment-pad-of-the-first-8-byte-temp.20260901.v1\"]",
+    "tags": [
+      "matching",
+      "decl-order",
+      "store-placement",
+      "metrics",
+      "workflow"
+    ],
+    "verification": "game/movie/movieplayer.cpp, branch claude/movie-data-20260901. Three probes on fn_800D9C5C (pad declared in a trailing block; pad respelled `f64 unused`) and one on fn_800D96B0 (pad moved from last to first declaration slot) all returned probe.py NEUTRAL with real unchanged. tools/gdl/slotdiff.py on fn_800D9C5C, fn_800D96B0 and dtor_800DBB94 each reported `frame: target N ours N, saves: target r28 ours r28, SLOT MAP IDENTICAL`. Full ninja green, main.dol OK on every measurement."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.MD_eh-state-slot-offset-is-not-source-reachable.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T03:23:45Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "THE `__unexpected` ISLAND'S EH-STATE FRAME SLOT IS ALLOCATED BY THE COMPILER OUTSIDE THE USER LOCAL BLOCK, SO IT IS NOT MOVABLE BY ANY PADDING-LOCAL SHAPE, SIZE OR DECLARATION POSITION -- AND slotdiff CANNOT SEE IT. Split the residual in two before spending probes, because the two halves have different answers.\n\nHALF ONE, THE FRAME SIZE, IS SOURCE-REACHABLE and yields to the ordinary padding-local idiom: fndiff --clean's `HINT: frame delta +N -> try u8 unused[N]` was correct twice here (fn_800D9C5C 64 -> 72, fn_800D96B0 64 -> 72), each closing several real diff lines including the `lwz r0,K(r31)` and `lmw r28,K(r12)` epilogue displacements.\n\nHALF TWO, THE ISLAND'S OWN SLOT, IS NOT. After the frame is byte-correct, the island can still read `addi r3,r31,24` against a target `addi r3,r31,32` -- an 8-byte delta INSIDE a frame whose total size, saved-register set and complete r1 occupancy map are all already identical. Four distinct probes failed to move it: pad declared first, pad declared last, pad hoisted into a trailing nested block, and pad respelled as an 8-byte `f64`. Two of those were on one function and two on another, so this is not a single function's quirk.\n\nWHY THE USUAL ARBITER IS BLIND HERE, which is the part worth carrying: slotdiff collects r1 displacements from loads/stores and from `addi rX,r1,N` address-takes, and it reported SLOT MAP IDENTICAL for all three functions while this delta was live. The island's `addi r3,r31,K` is taken off the FRAME POINTER r31, not off r1, so it never enters the occupancy map. A SLOT MAP IDENTICAL verdict is therefore evidence about the user local block only, and says nothing about EH-state placement -- do not read it as 'the frame is fully solved'.\n\nOPERATIONAL RULE. On any function carrying an `__unexpected` island, close the frame size with the padding idiom, then read the island's `addi rN,r31,K` displacement DIRECTLY out of the aligned view as a separate residual. If it disagrees while the slot map is identical, stop: it is not a locals problem. Record it and move on rather than cycling padding shapes -- three functions in this TU (fn_800D9C5C real 4, fn_800D96B0 real 8, and dtor_800DBB94's sibling `mr r12,r31` epilogue tiebreak) sit on exactly this wall with instruction counts exact and opcode multisets IDENTICAL."
+}

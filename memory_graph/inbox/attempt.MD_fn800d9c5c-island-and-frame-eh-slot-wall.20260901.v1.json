@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Recover the missing __unexpected island by converting the hand-written allocation-counter block to an inlined throw() release, relocate dont_inline to the caller, then close the frame with a padding local.",
+  "attributes": {
+    "law_screen": "claim.law.destructor-throw-spec-adds-a-second-unexpected-island APPLIED (island counting: 6-instruction shortfall = 1 island + stmw/lmw). claim.law.throw-spec-on-an-inlined-helper-adds-a-spurious-second-island APPLIED - the island must come from the inlined helper's spec, not the function's own; an intermediate variant that put throw() on fn_800D9C5C itself reached real 22 but placed the island at the FUNCTION END rather than at the inline site, which is how the two forms are told apart. claim.law.class-scope-inline-operator-delete-frees-the-dtor-from-definition-order APPLIED, case (B) confirmed by direct measurement (`bl __dl__FPv` emitted). claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first APPLIED before classifying the remainder: slotdiff reports frame 72/72, saves r28/r28, SLOT MAP IDENTICAL. claim.law.stack-slots-descend-in-declaration-order and claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever APPLIED for the frame half (correct) and measured NEGATIVE for the EH-slot half. claim.law.a-lone-dead-stack-word-is-usually-the-alignment-pad-of-the-first-8-byte-temp SCREENED via the f64 variant, negative.",
+    "laws_applied": "[\"claim.law.destructor-throw-spec-adds-a-second-unexpected-island.20260901.v1\", \"claim.law.throw-spec-on-an-inlined-helper-adds-a-spurious-second-island.20260901.v1\", \"claim.law.class-scope-inline-operator-delete-frees-the-dtor-from-definition-order.20260901.v1\", \"claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1\", \"claim.law.local-block-is-bottom-anchored-so-the-lowest-pad-is-the-shift-lever.20260831.v1\"]",
+    "probed_form": "#pragma cplusplus on / extern \"C\" void fn_800D9C5C(MovieRingBuffer* p, int n) { u8 unused[8]; MovieReleaseAllocEH(p->buffer); p->buffer = 0; p->size = n; p->buffer = (u8*)AllocHiMem(p->size, (u32)gMovieAllocCount++); p->readPos = 0; p->writePos = 0; } / #pragma cplusplus off",
+    "residual": "DO-NOT-RETRY on padding-local shape for the EH slot. Two named residuals remain with instruction counts exact and multiset IDENTICAL: (1) the island's EH state slot reads `addi r3,r31,20` against target `addi r3,r31,28` - an 8-byte delta inside a frame whose size, save set and full slot map are already identical; four padding variants across this function and fn_800D96B0 (declared first, declared last, hoisted into a trailing nested block, respelled as f64) all probed NEUTRAL. See claim.law.MD_eh-state-slot-offset-is-not-source-reachable. (2) one epilogue `mr r12,r31` scheduled after `lwz r0,76(r31)` instead of before the two trailing stores - the same tiebreak dtor_800DBB94 shows, and the two are almost certainly one mechanism.",
+    "scope": "src/game/movie/movieplayer.cpp only; commit 9b55040bd on claude/movie-data-20260901. dont_inline moved onto MovieDecoderInitBuffers (this function's only call site).",
+    "verification": "real 38 -> 4, insns EXACT 38/38, opcode multiset IDENTICAL (0t), frame 72/72, fuzzy 77.13 -> 84.18. defake_gate check --rebuild GATE OK, 0 regressions. Full ninja green, main.dol OK, retail sha1 verified. NOTE a real regression was caught and repaired mid-pass: removing dont_inline from this function let it inline into MovieDecoderInitBuffers (EXACT -> STRUCTURAL, +10 insns); moving the pragma to that caller restored it."
+  },
+  "function": "function:fn_800D9C5C",
+  "id": "attempt.MD_fn800d9c5c-island-and-frame-eh-slot-wall.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T03:26:12Z",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.mp-label-correction.fn-800d9c5c.20260831.v1",
+  "valid_from": "2026-09-01"
+}
