@@ -1560,6 +1560,16 @@ def equivalent_copy_form(
     A rule must ask for it by name, so no existing rule can drift onto the
     weaker proof.
 
+    ``dominating_def_inverse`` / ``dominating_def_inverse_across_calls`` —
+    THE INVERSE DIRECTION.  The three modes above all require the TARGET
+    word to be a register copy; this pair covers the opposite arrow, where
+    OURS is the copy ``rD <- rS`` and the target is ``li rD,K``.  The
+    obligation is the mirror image and is discharged by the same backward
+    scan over the same (our) stream: our rS must hold K at the site, since
+    it is our object that will execute the rewritten word.  A source of r0
+    is refused outright — ``mr rD,r0`` reads GPR 0 while ``addi rD,r0,K``
+    never does, which is the encoding asymmetry the whole class rests on.
+
     Every edit additionally requires that neither object carries a
     relocation on the rewritten word, and each rewritten word must equal
     the target word exactly.
@@ -1620,52 +1630,114 @@ def equivalent_copy_form(
             raise ValueError(
                 f"+0x{offset:x}: our word 0x{word:08x} is not a copy form"
             )
-        if theirs is None or theirs[0] != "copy":
+        if theirs is None:
             raise ValueError(
                 f"+0x{offset:x}: target word 0x{wanted:08x} is not a "
                 f"register copy"
             )
-        _kind, destination, source = theirs
-        if source == 0:
-            raise ValueError(
-                f"+0x{offset:x}: target copies from r0, which addi reads as "
-                f"the literal zero — not a provable copy"
-            )
-        if ours[1] != destination:
-            raise ValueError(
-                f"+0x{offset:x}: destination differs (r{ours[1]} vs "
-                f"r{destination}) — that is a recolor, not a form change"
-            )
 
         proof = edit.get("proof")
-        if ours[0] == "copy":
-            if proof != "unconditional":
+        if theirs[0] == "copy":
+            _kind, destination, source = theirs
+            if source == 0:
                 raise ValueError(
-                    f"+0x{offset:x}: copy/copy site requires "
-                    f'"proof": "unconditional"'
+                    f"+0x{offset:x}: target copies from r0, which addi reads as "
+                    f"the literal zero — not a provable copy"
                 )
-            if ours[2] != source:
+            if ours[1] != destination:
                 raise ValueError(
-                    f"+0x{offset:x}: source differs (r{ours[2]} vs "
-                    f"r{source}) — that is a recolor, not a form change"
+                    f"+0x{offset:x}: destination differs (r{ours[1]} vs "
+                    f"r{destination}) — that is a recolor, not a form change"
                 )
-        elif ours[0] == "li":
-            if proof not in ("dominating_def", "dominating_def_across_calls"):
+            if ours[0] == "copy":
+                if proof != "unconditional":
+                    raise ValueError(
+                        f"+0x{offset:x}: copy/copy site requires "
+                        f'"proof": "unconditional"'
+                    )
+                if ours[2] != source:
+                    raise ValueError(
+                        f"+0x{offset:x}: source differs (r{ours[2]} vs "
+                        f"r{source}) — that is a recolor, not a form change"
+                    )
+            elif ours[0] == "li":
+                if proof not in (
+                    "dominating_def", "dominating_def_across_calls"
+                ):
+                    raise ValueError(
+                        f"+0x{offset:x}: constant-load site requires "
+                        f'"proof": "dominating_def" (or, to cross a direct '
+                        f'named call, "dominating_def_across_calls")'
+                    )
+                definition = prove_constant_source(
+                    words, offset // 4, source, ours[2], entries,
+                    relocated_indexes,
+                    across_calls=(proof == "dominating_def_across_calls"),
+                    call_targets=call_targets,
+                    relocation_types=relocation_types,
+                )
+                edit["_proved_at"] = definition * 4
+            else:
+                raise ValueError(f"+0x{offset:x}: unsupported form {ours[0]}")
+        elif ours[0] == "copy":
+            # THE INVERSE DIRECTION: ours is the copy, the target is the
+            # `li`.  Our word sets rD to the CURRENT CONTENTS of rS; the
+            # target word sets rD to the literal K.  Rewriting ours to the
+            # target encoding is value-preserving exactly when OUR rS holds
+            # K at this point, which is the same obligation shape as
+            # `dominating_def` and is discharged by the same backward scan
+            # over the SAME (our) stream — the stream that will execute
+            # these bytes.  Scanning the TARGET stream would prove a fact
+            # about the target's registers, which says nothing about the
+            # object being patched.
+            #
+            # It is a SEPARATELY NAMED proof mode rather than a widening of
+            # `dominating_def` so that no existing rule can drift onto the
+            # opposite direction, and so a rule states which way it is
+            # rewriting.  claim.law.DC_copy-form-class-is-directional-and-
+            # its-inverse-population-is-unserved.20260901.v1
+            destination, constant = theirs[1], theirs[2]
+            if ours[2] == 0:
+                # `mr rD,r0` really does read GPR 0, but `addi rD,r0,K` is
+                # `li rD,K` and never reads it.  The pair is the r0 encoding
+                # asymmetry that decode_copy_form exists to expose, the
+                # measured inverse population contains no r0 source, and
+                # every accepted form must be one the tests exercise — so
+                # this stays refused rather than becoming a fourth mode.
                 raise ValueError(
-                    f"+0x{offset:x}: constant-load site requires "
-                    f'"proof": "dominating_def" (or, to cross a direct '
-                    f'named call, "dominating_def_across_calls")'
+                    f"+0x{offset:x}: our word copies GPR r0, whose value the "
+                    f"target's literal load cannot be shown to reproduce — "
+                    f"the r0 encoding asymmetry is refused in this class"
+                )
+            if ours[1] != destination:
+                raise ValueError(
+                    f"+0x{offset:x}: destination differs (r{ours[1]} vs "
+                    f"r{destination}) — that is a recolor, not a form change"
+                )
+            if proof not in (
+                "dominating_def_inverse", "dominating_def_inverse_across_calls"
+            ):
+                raise ValueError(
+                    f"+0x{offset:x}: inverse copy/constant-load site requires "
+                    f'"proof": "dominating_def_inverse" (or, to cross a '
+                    f'direct named call, '
+                    f'"dominating_def_inverse_across_calls")'
                 )
             definition = prove_constant_source(
-                words, offset // 4, source, ours[2], entries,
+                words, offset // 4, ours[2], constant, entries,
                 relocated_indexes,
-                across_calls=(proof == "dominating_def_across_calls"),
+                across_calls=(proof == "dominating_def_inverse_across_calls"),
                 call_targets=call_targets,
                 relocation_types=relocation_types,
             )
             edit["_proved_at"] = definition * 4
         else:
-            raise ValueError(f"+0x{offset:x}: unsupported form {ours[0]}")
+            # li -> li is an IMMEDIATE difference, never a form change, and
+            # webfrank must never close one.
+            raise ValueError(
+                f"+0x{offset:x}: target word 0x{wanted:08x} is not a "
+                f"register copy"
+            )
 
         struct.pack_into(">I", output, offset, wanted)
         if _u32(output, offset) != wanted:

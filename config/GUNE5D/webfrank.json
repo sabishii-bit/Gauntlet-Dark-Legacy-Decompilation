@@ -144,6 +144,68 @@
     ],
     "game/anim/atree": [
       {
+        "function": "fn_8001267C",
+        "before_sha256": "c4a10701e29c74debba7d4c422057e91e799d55775f0907702028d3fa6529ea7",
+        "after_sha256": "25c913ba5a969690000cf6b1c1cd461d6e134b27fab2fc71f7057f9364bf86a7",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 575,
+          "permuted_instructions": 5
+        },
+        "mechanism": "attempt.WF_atree-fn8001267C-inverse-copy-form-close.20260901.v1 - the FIRST rule to use the INVERSE copy-form direction, and the function whose existence justifies building it. The whole 575/575 residual closes as three permutation windows + two inverse-form rewrites + a pure recolor, all machine-proven with NO unproven_recolor_audit and no escape invoked. DIRECTION: claim.law.DC_copy-form-class-is-directional-and-its-inverse-population-is-unserved.20260901.v1 records that all three shipped proof modes require the TARGET word to be a register copy. Here the arrow is inverted at both form sites - OURS is the copy, the target is the `li` - which is the direction DC measured as unserved. The obligation is the mirror image and is discharged by the SAME backward scan over OUR stream, because ours is the object that executes the rewritten bytes; scanning the target stream would prove a fact about the target's registers and say nothing about this object. WINDOW 1, [0x178,0x180) order [1,0], AND THIS IS THE SUBTLE ONE: the two words are `li r4,0` then `li r3,0` and they are BYTE-IDENTICAL to the target, so the raw diff shows nothing here at all. They are nevertheless a genuine schedule difference, because our r3-web corresponds to the target's r4 and our r4-web to the target's r3 (read off the loop body: ours r3+=1 / r5=r0+r4 / r4+=0x24 / cmpw r3,r0 against the target's r4+=1 / r5=r0+r3 / r3+=0x24 / cmpw r4,r0). The two webs are therefore DEFINED IN OPPOSITE ORDER in the two streams, and reorder+rename cancel exactly at these two words, which is why the byte comparison hides it. Without this window verify_consistent_recolor infers the identity map g3->3, g4->4 from the two identical defs and then refuses the first swapped use at +0x1c8 with `use of g3 does not correspond to g4 under the running renaming'; WITH it, copy_register_fields records g3->4 and g4->3 at the defs and the whole transposition verifies. The permutation itself is two independent constant loads to distinct registers, so check_permutation_dependences ACCEPTS in its strictest form with exit_dead=None. WINDOW 2, [0x1e0,0x1ec) order [1,0,2]: atoms `li r3,0`, `stw r0,12(r31)` and `mr r5,r3`; the target stores first and seeds r3 after. The store reads r0/r31/memory and the li writes r3, so there is no RAW, WAR or WAW hazard between the exchanged pair, and the third atom does not move. WINDOW 3, [0x378,0x384) order [2,0,1]: atoms `li r26,0`, `addi r27,r26,0` and `extsh r28,r29`; the extsh moves from last to first and reads r29 / writes r28, neither of which the other two touch, while the relative order of the dependent pair (li r26,0 before the addi that reads r26) is preserved. All three windows are control-free and carry NO relocation on either side, so every region relocation hash is the empty-payload hash and no atom-to-symbol binding question arises - checked against the object's own relocation table, not assumed. FORM, two inverse sites, each discharged by prove_constant_source against a definition the permutation places immediately before it: +0x1e8 is our `mr r5,r3` against the target's `li r5,0`, proved by the `li r3,0` window 2 moves to +0x1e4; +0x380 is our `addi r27,r26,0` against the target's `li r27,0`, proved by the `li r26,0` window 3 moves to +0x37c. Both destinations already agree (r5 and r27), so neither site is a disguised recolor. Note that +0x380's inverse nature is invisible to a POSITIONAL scan - before the permutation that offset holds our `extsh` - which is why a positional census undercounts this direction. RECOLOR: the remaining 32 words are pure register fields and verify_consistent_recolor ACCEPTS the whole function once window 1 seeds the transposition.",
+        "instruction_permutation": [
+          {
+            "start": "0x178",
+            "end": "0x180",
+            "order": [
+              1,
+              0
+            ],
+            "before_sha256": "13437c59d2041626948944eb3230e16889c6f7c03d7f736444aee4b3f62f0ee7",
+            "after_sha256": "9806c34e4f353e738a2188367b9d74d868a0a80d315c4207e2efcce3a7b1e007",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "start": "0x1e0",
+            "end": "0x1ec",
+            "order": [
+              1,
+              0,
+              2
+            ],
+            "before_sha256": "21f3ab3d9625e477517e231869060bfe60d12d977be8bd24b69518ae30a49e1a",
+            "after_sha256": "4af1b5b4ecf8bf5e7d639dc20c8ca2ab8abda7f6ca5cdf83bad3fbd459f94364",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "start": "0x378",
+            "end": "0x384",
+            "order": [
+              2,
+              0,
+              1
+            ],
+            "before_sha256": "5f6cfafca547721b564362496d8acd2331236a5eb2bf33cedfc05448525f9ec0",
+            "after_sha256": "d0133c3a7069a672ba16eb883cc8c4691d7c14b6676c56669f7e43d2ff3d6c46",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "equivalent_copy_form": [
+          {
+            "at": "0x1e8",
+            "proof": "dominating_def_inverse"
+          },
+          {
+            "at": "0x380",
+            "proof": "dominating_def_inverse"
+          }
+        ],
+        "copy_register_fields": true
+      },
+      {
         "function": "AtreeInitSub",
         "before_sha256": "8bb19f832ddc59d7f757caf5aea2b4e0ab38af7630fcc055a7bbbb31abeb2f23",
         "after_sha256": "f113c1841d8fe12a7c2161026f2fbab71ffad2bb9f6a73db715ff567ac33e777",
