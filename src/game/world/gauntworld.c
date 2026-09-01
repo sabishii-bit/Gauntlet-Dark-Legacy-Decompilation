@@ -6577,6 +6577,7 @@ void fn_80060114(Item* item, f32* pos, f32* dir)
     s32 idx;
     f32 root;
     f32 d2;
+    u8 unused[40];
 
     sp = it + 220;
     kind = *(s16*)(it + 220);
