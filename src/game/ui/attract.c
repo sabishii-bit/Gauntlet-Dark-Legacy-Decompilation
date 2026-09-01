@@ -210,7 +210,7 @@ extern int lbl_80344204;
 extern unsigned int lbl_80344208;
 extern int lbl_80344218;
 extern unsigned int gFrameTicks;
-extern int gGameBusy;
+extern s32 gGameBusy;
 extern int gClockStepTicks;
 extern s32 gControllerButtons;
 extern int lbl_80344778;
