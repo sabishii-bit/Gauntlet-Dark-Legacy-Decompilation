@@ -976,6 +976,38 @@
         "copy_register_fields": true
       }
     ],
+    "game/audio/dcs": [
+      {
+        "function": "dcsSampleAllocUpload",
+        "before_sha256": "a46a62394379603232ffa4d7bf66dee5ae3477acfdd3f7acd0b352b5824ac385",
+        "after_sha256": "cf4826455a8885be7e97c05ab9c23967731adf8df72a8fcd1be0683cee9ccd9b",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 74,
+          "permuted_instructions": 7
+        },
+        "mechanism": "attempt.CN_dcssampleallocupload-composed-close.20260901.v1 - a composed permute+copy-form rule that closes the whole 74/74 residual (7 differing words, ALL inside one prologue window) with NO recolor stage. REFUTES the STRUCTURAL label in attempt.mp-label-correction.dcssampleallocupload.20260831.v1, which was a label-only park with no source probe; a permutation plus two value-equivalent form rewrites reproducing the target bytes exactly is the constructive disproof. NOTE ON TU: the HV census and this lane's work claim both place this function in game/audio/dcsdrv; it is in fact in game/audio/dcs.c (splits .text 0x800D1E04-0x800D4308 covers 0x800D374C), which is why this is a new unit key. PERMUTATION over [0x10,0x2c), order [4,0,1,5,6,2,3]: our prologue homes the parameter and forms the ch_info address first and seeds the three zero accumulators last; the target interleaves them, emitting `li r26,0` first, then the parameter home and the address high half, then the two dependent zero seeds, then the two address-derived addi. The seven atoms are `addi r30,r3,0`, `lis r3,HA`, `addi r31,r30,16`, `addi r28,r3,LO`, `li r26,0`, `li r27,0`, `li r29,0`; the only def-use edges among them are r3(entry)->atom0, atom0(r30)->atom2 and atom1(r3)->atom3, and the chosen order preserves all three plus every final write, so check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None and no escape. RELOCATION BINDING, the obligation of the deriving agent per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1: this window carries TWO relocations that both name ch_info, so the payload multiset check cannot distinguish them and binding was established explicitly by (type, symbol). The ADDR16_HA half rides atom 1 from +0x16 to +0x1a and the ADDR16_LO half rides atom 3 from +0x1e to +0x2a; both destinations were confirmed against the target object's own relocation at that offset (type 6 at 26, type 4 at 42). Because the two halves differ in TYPE they could not have been exchanged undetected here, but the check was run rather than assumed. FORM, two li-vs-copy sites, both sourced from the single `li r26,0` seed the permutation moves to +0x10: +0x1c target `addi r27,r26,0` vs our `li r27,0`, and +0x20 target `addi r29,r26,0` vs our `li r29,0`. Both destinations already agree (r27, r29), so each is a pure form change and never a disguised recolor, and both are discharged by the plain local `dominating_def` scan against the seed at +0x10 - straight-line, no interposed call, no branch target, so the weaker across-calls mode is NOT requested. All three sites are allocator choices with no source lever per claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1; src/game/audio/dcs.c is byte-unchanged. After the two stages the function is byte-identical to the target, so no register stage is configured at all.",
+        "instruction_permutation": {
+          "start": "0x10",
+          "end": "0x2c",
+          "order": [4, 0, 1, 5, 6, 2, 3],
+          "before_sha256": "87151c066ab5b3863b2151852dc0104dcb79df20789e8f8dd8e6aced63706a06",
+          "after_sha256": "57e291f7d842a0dc8f590daadb48be63e53679b16d27b3628824ca066543d447",
+          "before_relocations_sha256": "e7b6d18919985a7a4edfe01d90815a0bd4674726950238eff0092c4f104a611a",
+          "after_relocations_sha256": "eb33b18f2502adc015fb0704ebfdf188bc79d423e3c3046c9698c59016d0ad9e"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x1c",
+            "proof": "dominating_def"
+          },
+          {
+            "at": "0x20",
+            "proof": "dominating_def"
+          }
+        ]
+      }
+    ],
     "game/audio/mempool": [
       {
         "function": "pool_garbage_collect",
