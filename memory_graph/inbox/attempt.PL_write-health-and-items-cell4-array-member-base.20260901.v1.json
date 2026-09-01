@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Close write_health_and_items' two prologue clusters by moving the player-record base from the PT() raw-offset spelling (global symbol + cast + byte arithmetic) to an array-element/member spelling off the same symbol, so MWCC folds the 0xC40 block offset into each memory operand's DISPLACEMENT instead of into the scaled index.",
+  "attributes": {
+    "axis_log": "Single axis, first probe: IMPROVED real 76->68 with BOTH prologue clusters eliminated (the `insert/delete` pairs at @0x1c-0x30 and @0x38-0x48 vanished); parity-held (counts already 403/403 and unchanged) so arbitrated on fresh objdiff fuzzy 97.80397->98.9504 before banking, per the parity-held rule.",
+    "law_screen": "claim.law.direct-global-member-flips-index-base-association.20260831.v1 APPLIED and CONFIRMED in its cell (4). Its matrix says exactly one cell yields target's `add rBase,rIdx` + displacement: global SYMBOL reached through a member/array reference. The TU's PT(i) macro is cell (3) (global symbol + raw offset), which the law says is byte-for-byte identical to the pointer-local case and does NOT flip - matching our emitted `addi r28,r3,3136 / add / lwz 4(r28)` against target's `add r28,r31,r0 / lwz 3140(r28)`. Writing the same address as an array element + member moved it to cell (4) and reproduced the target. claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1 and claim.law.IG_local-alias-of-a-global-root-pays-the-direct-global-tax.20260901.v1 screened: the local `p` is retained, and no extra symbol materialization appeared here because every use sits in ONE region (see the boundary law recorded separately).",
+    "laws_applied": "[\"claim.law.direct-global-member-flips-index-base-association.20260831.v1\"]",
+    "probed_form": "Added next to the existing PT macro: `#define PTA(i)        (&((Player*)((u8*)potionicon_tab + 0xC40))[i])`. Then in write_health_and_items only: `rgb = ((u32*)(tab + 1408))[PTA(i)->class_id];` and `p = PTA(i);`, replacing the two `PT(i)` spellings. No other PT() site was changed.",
+    "residual": "Two clusters remain, both classified. (1) @0x24c a two-instruction slwi reorder (schedule-class). (2) @0x608 an EQUIVALENT-COPY-FORM: target emits `li r25,0` then `addi r24,r25,0` - initialising the byte-offset induction as a COPY of the loop counter's zero - where we emit two independent `li ...,0`. Confirmed compiler-internal by reading the loop body (@0x610-0x628): the source `for (j = 0; j < 7; j++) mbBlitInit3414(pm_blit[i][j], 1);` has exactly ONE variable, so the second zero has no source spelling. Both sides then run identical `addi rJ,rJ,1 / cmpwi rJ,7 / addi rOff,rOff,4 / blt`. This is a candidate for the WebFrank equivalent-copy-form class (claim.LZ_webfrank-equivalent-copy-form-edit-class.20260901.v1), not a source axis.",
+    "scope": "src/game/game/player.c: one new macro definition plus two spellings inside write_health_and_items. Commit 2aca152b1.",
+    "verification": "probe.py --ops and --fuzzy (fresh report both sides: baseline 97.80397, final 98.9504); defake_gate check --update-improved reported IMPROVED 76->68 and GATE OK with no sibling regression; full `ninja -j2` printed `build/GUNE5D/main.dol: OK`; `git diff --check` clean."
+  },
+  "function": "function:write_health_and_items",
+  "id": "attempt.PL_write-health-and-items-cell4-array-member-base.20260901.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-01T18:41:57Z",
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

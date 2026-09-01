@@ -1,0 +1,20 @@
+{
+  "attempted_axis": "Transfer the PTA cell-4 array/member base form that had just closed write_health_and_items' prologue to abort_player, whose prologue shows the identical mechanism (target folds 0xC40 into displacements 16232/3368/16248/16252 off a potionicon_tab base; ours folds it into the index off the split .bss symbol).",
+  "attributes": {
+    "axis_log": "Single axis, one probe: the prologue DID converge - the `--ops` target-only column went to (none) and the leading lis/li clusters disappeared - but a new surplus `addi`+`add` pair appeared at @0x58, taking the count from an already-exact 187/187 to 189 and real from 102 to 140. Net REGRESSED; reverted. This is a cure that works locally and loses globally, so it must not be re-run on this function.",
+    "law_screen": "claim.law.direct-global-member-flips-index-base-association.20260831.v1 APPLIED - the diagnosis transferred exactly and the cure closed the prologue, but the law's documented per-region rematerialization TAX then exceeded the gain, which is the boundary this record establishes. claim.law.IG_local-alias-of-a-global-root-pays-the-direct-global-tax.20260901.v1 APPLIED - abort_player caches the base in `p` and consumes it across several regions, so it pays the tax that write_health_and_items did not.",
+    "laws_applied": "[\"claim.law.direct-global-member-flips-index-base-association.20260831.v1\", \"claim.law.IG_local-alias-of-a-global-root-pays-the-direct-global-tax.20260901.v1\"]",
+    "probed_form": "REVERTED: `Player* p = PTA(i);` replacing `Player* p = PT(i);` as the first line of abort_player, where `#define PTA(i) (&((Player*)((u8*)potionicon_tab + 0xC40))[i])`. Nothing else changed.",
+    "residual": "Unchanged from baseline: real 102, T187/O187, opcode multiset IDENTICAL (187/187) - a pure schedule-class residual whose every cluster sits in the prologue (@0x4-0x40), consisting of the ordering of the lis/li/mulli/addi quartet plus the base-association difference described above. Because the multiset is already identical at an exact count, abort_player is a schedule/recolor closure candidate rather than a structural one.",
+    "scope": "src/game/game/player.c, abort_player. NO source change retained - probe reverted, tree returned to the banked baseline at real 102.",
+    "verification": "probe.py --ops baseline banked BEFORE the first edit (real 102, T187/O187, multiset 0t); probe reverted via probe.py --revert and re-scored back to real 102; aligned read via fnasm.py --diff at 0x0:0x48; `git status --short` clean afterwards."
+  },
+  "function": "function:abort_player",
+  "id": "attempt.PL_abort-player-pta-region-tax-boundary.20260901.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-01T18:43:40Z",
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-01"
+}

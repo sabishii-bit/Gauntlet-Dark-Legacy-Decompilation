@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "symbol-identity",
+      "relocation",
+      "sda-global",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.PL_bss-pooling-gate-is-per-function-not-tu-wide.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T18:45:10Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/player",
+  "valid_from": "2026-09-01",
+  "value": "REFUTES the standing blanket premise written in src/game/game/player.c's own file header (the 'BSS-POOLING GATE' paragraph), which states that 'the TARGET pools all player-record accesses off potionicon_tab (.bss block base, -0xC40 from the records), so our extern-based displacements differ by construction until the flip-time .bss claim', names GetPlayerPos, GetPlayerColPos, PlayerSelecting, new_player, change_player, player_can_be_damaged and all_players_go_to_same_level, and concludes 'NOT a per-fn matching failure -- do not grind.' Measured 2026-09-01: the premise is FALSE AS STATED, and the real situation is a THREE-WAY split that the blanket wording collapses into one. (1) TARGET-USES-gPlayers, ALREADY EXACT: change_player - explicitly named in the header's own list - is byte-exact and its relocations read `@gPlayers(ADDR16_HA)/@gPlayers(ADDR16_LO)` on BOTH sides, identically; load_player's target likewise materializes `@gPlayers`. For this group our gPlayers spelling is CORRECT and there is nothing to fix or wait for. (2) RELOC-NAMING ONLY, ALREADY BYTE-EXACT: a band of functions is byte-exact in instruction bytes while our relocations name the auto-split section symbol `...bss.0` where the target names `potionicon_tab` - e.g. AppendItemToLevel, whose only two regnorm STRUCTURAL rows are `@0x001c T R_PPC_ADDR16_HA potionicon_tab / O R_PPC_ADDR16_HA ...bss.0` and the matching ADDR16_LO row, with `fndiff --clean` reporting no real diff. This band is the tolerated symbol-name normalization and is what the header's flip-time .bss claim actually addresses. (3) GENUINELY DIFFERENT BYTES: activate_player and write_health_and_items have targets that really do reach the records through potionicon_tab with the 0xC40 folded into each displacement (3368 = 0xC40+232, 3252 = 0xC40+116, 16232, 16248, 16252), while our source's base and/or association differ - these ARE per-function matching failures, they are source-reachable, and 'do not grind' is wrong for them. Demonstration that group (3) is real and reachable: respelling write_health_and_items' base to the cell-4 array/member form closed BOTH its prologue clusters, real 76->68 and fuzzy 97.80397->98.9504 (commit 2aca152b1). CONSEQUENCE: before citing the BSS-POOLING GATE as a reason not to work a player.c function, classify it - dump the function's relocations and compare the target's named symbol against our pool entry's VALUE, not merely the symbol name. Groups (1) and (2) need no work; group (3) is ordinary matching work. COROLLARY on the run-28 'no @NN remains is a complete decision procedure' arbiter: its precondition FAILS in player.c in a way not previously described. This TU's byte-exact functions do carry unnamed pool symbols, but as split-SECTION symbols (`...bss.0`, `...rodata.0`), not as `@NN` anonymous entries; an @NN-presence test would therefore report this TU clean while the section-symbol class is exactly the one that matters here."
+}

@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "tags": [
+      "matching",
+      "index-form",
+      "alias-form",
+      "cse",
+      "register-web",
+      "sda-global"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.PL_cell4-array-member-base-pays-only-when-the-base-is-consumed-in-one-region.20260901.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-01T18:45:27Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-01",
+  "value": "OPERATIONALISES claim.law.direct-global-member-flips-index-base-association.20260831.v1 into a usable edit plus the boundary that decides whether to make it, for the common case of a record block living at a fixed offset inside a global .bss symbol. THE EDIT. A macro of the shape `((T*)((u8*)SYM + i * STRIDE + BLOCKOFF))` is that law's cell (3) - global symbol reached by RAW OFFSET - and MWCC folds BLOCKOFF into the scaled index, emitting `mulli/addi rIdx,rIdx,BLOCKOFF / add / lwz SMALL(rX)`. Rewriting the SAME address as cell (4), an array element plus member off the symbol - `(&((T*)((u8*)SYM + BLOCKOFF))[i])` - moves BLOCKOFF into every memory operand's DISPLACEMENT and reproduces the target's `add rX,rSym,rIdx / lwz BLOCKOFF+FIELD(rX)`. Measured in game/game/player: PT(i) is the cell-3 macro; adding `#define PTA(i) (&((Player*)((u8*)potionicon_tab + 0xC40))[i])` and using it at write_health_and_items' two PT(i) sites eliminated BOTH prologue clusters, real 76->68, fresh fuzzy 97.80397->98.9504 (commit 2aca152b1). Target there emits `add r28,r31,r0 / lwz 3140(r28)` where we had emitted `addi r28,r3,3136 / add r28,r30,r28 / lwz 4(r28)` - same address, 3140 = 0xC40+4. THE BOUNDARY, which is the new content. The parent law says the cell-4 conversion is 'usually a losing trade' because MWCC re-materializes the symbol per region; this refines WHEN. The trade is decided by how many REGIONS consume the converted base, not by how many textual sites use the macro. write_health_and_items uses PTA twice and WINS because both feed one local (`p`) consumed in a single straight-line region. abort_player uses it ONCE - `Player* p = PTA(i);` as its first line - and LOSES: its prologue converged correctly and `--ops` target-only went to (none), but a surplus `addi`+`add` appeared at @0x58, count went from an already-exact 187/187 to 189, and real went 102->140. activate_player, whose record base is consumed across the entry block, a bdnz loop and two later branches, loses worst: the member respelling cost a whole extra symbol materialization (+1 lis at @0xf0, +3 addi) and drove real 46->86 with the count moving away from target, 106->110 against 108. PROCEDURE: apply the cell-4 form only when the converted base is consumed inside ONE region; if the target itself shows one cached lis/addi pair for the symbol plus per-access adds, the parent law's own decision procedure already says the remainder is rematerialize-vs-cache allocation and is not reachable by respelling. Convert one function at a time and gate it - the macro can be added TU-wide harmlessly because it changes nothing until a call site adopts it."
+}
