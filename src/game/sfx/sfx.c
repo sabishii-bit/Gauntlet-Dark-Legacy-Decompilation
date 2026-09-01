@@ -2614,8 +2614,10 @@ void ProcessEffects(void)
     f32 pos[3];
     f32 delta[3];
     f32 dir[3];
+    f32 unused0;
     f32 hitpos[3];
-    f32 normal[3];
+    f32 unused1[2];
+    f32 bosspos[3];
     f32 radius;
     f32 remaining;
     f32 fade;
@@ -2963,8 +2965,8 @@ void ProcessEffects(void)
                             } else {
                                 e->endtime -= 1.0;
                             }
-                            if (e->damage > (f64)15.0f) {
-                                e->damage = (f32)(f64)15.0f;
+                            if (e->damage > 15.0f) {
+                                e->damage = 15.0f;
                             }
                         } else {
                             s32 playerHit;
@@ -3199,7 +3201,7 @@ void ProcessEffects(void)
                     s32 damage;
 
                     critter = CritterExpCollide(
-                        pos, normal, dir, radius, e->mindp, fade,
+                        pos, dir, delta, radius, e->mindp, fade,
                         e->id);
                     if (critter == NULL) {
                         break;
@@ -3267,7 +3269,6 @@ void ProcessEffects(void)
                             case 36:
                             {
                                 EffectHeader* h = &EffectInfo[FX_LEGEND1];
-                                f32 bosspos[3];
                                 s32 effect = -1;
 
                                 critter->boss_timer_b = 1800;
