@@ -770,6 +770,29 @@
         "copy_register_fields": true
       }
     ],
+    "game/pb/pb_objects": [
+      {
+        "function": "pbObjTexSub",
+        "before_sha256": "1e13493208ca54d29b2e5cc432e007ff276bff540b7a7f27be8ad36de19ee162",
+        "after_sha256": "2428d3317f03a7aff86e86bdbdc75fd54133b9e69d4d5d2acd5bb6c726c40c32",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 38,
+          "permuted_instructions": 4
+        },
+        "mechanism": "attempt.HV_pbobjtexsub-entry-pair-transpositions.20260901.v1 - REFUTES the STRUCTURAL label in attempt.mp-label-correction.pbobjtexsub.20260831.v1, which was a label-only park that never ran a source probe; per claim.law.regnorm-positional-pairing-fabricates-displacement-rows.20260831.v1 its STRUCTURAL rows are pairing artifacts across a pure reorder, and the proof is that this permutation reproduces the target bytes exactly. Two independent transpositions in the entry block, order [1,0,3,2,4] over +0x0..+0x14: ours emits `lwz r0,0(r6)` before `lha r7,92(r3)` where the target loads the halfword first (two loads off different bases into different registers), and ours emits `rlwinm r0,r0,0,13,11` before `cmpwi r7,-2` where the target compares first (the rotate reads and writes r0, the compare reads r7 and writes CR0 - disjoint). No store and no control op in the window, and the region does not redefine r1, so the dependence audit passes in OUR colouring standing alone per claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1. The permutation alone closes the window; copy_register_fields finishes the function's remaining register-field rows under the bisimulation.",
+        "instruction_permutation": {
+          "start": "0x0",
+          "end": "0x14",
+          "order": [1, 0, 3, 2, 4],
+          "before_sha256": "cb86ae800a09eefac5d4aaab33fc31828ccf83ef59768521dc1b291263d6edd4",
+          "after_sha256": "4725f2fdbaf8aa7d4da674d520a7d31a1f90b1b8d26724e79665c45e2c049ae9",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "copy_register_fields": true
+      }
+    ],
     "game/pb/pb_texture": [
       {
         "function": "fn_800C72DC",
