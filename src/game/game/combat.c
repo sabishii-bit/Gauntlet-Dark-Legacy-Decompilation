@@ -453,6 +453,10 @@ void CameraSupervisor(s32 camIdx)
     f32 rateDelta;
     CombatCameraSupervisorScratch scratch;
     f64 root;
+    f64 maxYawRate;
+    f64 maxYawStep;
+    f64 maxPitchRate;
+    f64 maxPitchStep;
 
     for (; index < remaining; index++, offset += 0x28) {
         if (sTriggerCameras[offset] == 1 &&
@@ -645,10 +649,11 @@ void CameraSupervisor(s32 camIdx)
                 if ((f64)distance > lbl_80345F58) {
                     distance = (f32)(lbl_80345F60 - distance);
                 }
+                maxYawRate = lbl_803460F8;
                 scratch.yawRate = distance / selectedDistance;
                 *(u32*)&scratch.yawRate &= 0x7FFFFFFF;
                 lbl_8034444C = scratch.yawRate;
-                if ((f64)scratch.yawRate >= lbl_803460F8) {
+                if ((f64)scratch.yawRate >= maxYawRate) {
                     lbl_8034444C = lbl_80346100;
                 }
 
@@ -656,23 +661,25 @@ void CameraSupervisor(s32 camIdx)
                     f32 yawRate = lbl_8034444C;
                     f32 yawRatePrev = lbl_80344454;
 
+                    maxYawStep = lbl_803460D8;
                     rateDelta = yawRate - yawRatePrev;
                     scratch.yawRateDelta = rateDelta;
                     *(u32*)&scratch.yawRateDelta &= 0x7FFFFFFF;
-                    if ((f64)scratch.yawRateDelta >= lbl_803460D8) {
+                    if ((f64)scratch.yawRateDelta >= maxYawStep) {
                         if (yawRate > yawRatePrev) {
-                            lbl_8034444C = (f32)(yawRatePrev + lbl_803460D8);
+                            lbl_8034444C = (f32)(yawRatePrev + maxYawStep);
                         } else {
-                            lbl_8034444C = (f32)(yawRatePrev - lbl_803460D8);
+                            lbl_8034444C = (f32)(yawRatePrev - maxYawStep);
                         }
                     }
                 }
 
+                maxPitchRate = lbl_80346108;
                 scratch.pitchRate =
                     (lbl_80344530 - lbl_80344408) / selectedDistance;
                 *(u32*)&scratch.pitchRate &= 0x7FFFFFFF;
                 lbl_80344450 = scratch.pitchRate;
-                if ((f64)scratch.pitchRate >= lbl_80346108) {
+                if ((f64)scratch.pitchRate >= maxPitchRate) {
                     lbl_80344450 = lbl_80346110;
                 }
 
@@ -680,14 +687,15 @@ void CameraSupervisor(s32 camIdx)
                     f32 pitchRate = lbl_80344450;
                     f32 pitchRatePrev = lbl_80344458;
 
+                    maxPitchStep = lbl_80346118;
                     rateDelta = pitchRate - pitchRatePrev;
                     scratch.pitchRateDelta = rateDelta;
                     *(u32*)&scratch.pitchRateDelta &= 0x7FFFFFFF;
-                    if ((f64)scratch.pitchRateDelta >= lbl_80346118) {
+                    if ((f64)scratch.pitchRateDelta >= maxPitchStep) {
                         if (pitchRate > pitchRatePrev) {
-                            lbl_80344450 = (f32)(pitchRatePrev + lbl_80346118);
+                            lbl_80344450 = (f32)(pitchRatePrev + maxPitchStep);
                         } else {
-                            lbl_80344450 = (f32)(pitchRatePrev - lbl_80346118);
+                            lbl_80344450 = (f32)(pitchRatePrev - maxPitchStep);
                         }
                     }
                 }
