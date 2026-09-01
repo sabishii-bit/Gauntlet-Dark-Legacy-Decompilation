@@ -1223,6 +1223,40 @@
     ],
     "game/audio/dcs": [
       {
+        "function": "update_chinfo",
+        "before_sha256": "d221a1e0283c37ecc65afc7b44d4753ff21e4b1595c23d7bcd11428da5a541c8",
+        "after_sha256": "0d37b299b3ab6453507e5fc822ae7ce00ec2b9c20044092df667727075678321",
+        "mechanism": "attempt.HA_update-chinfo-combined-close.20260901.v1. THIS IS THE FUNCTION claim.CH_combined-stage-closability-roster-and-its-empty-whole-function-payoff.20260901.v1 NAMED AS 'the single highest-closability member in the image' AND THEN RULED REFUSING 'for reasons beyond the stage', concluding the combined stage is 'necessary for 25 functions and sufficient for NONE of them'. That verdict was an artifact of the simulation, not a property of this function. CH's ch_closable.py absorbs a form site by executing `cur[off:off+4] = tgt[off:off+4]` - it COPIES THE TARGET WORD - whereas the shipped stage's defining move, stated in one sentence by claim.law.WF_combined-stage-re-encodes-in-our-colouring-and-a-permutation-may-run-after-the-recolor.20260901.v1, is that it NEVER copies the target word and instead re-encodes the target's ENCODING around OUR registers. Copying the target word at +0x84 imports the target's DESTINATION r24 into our stream, after which the remainder really is not a position-consistent renaming and the verifier really does refuse at +0x98 with 'use of g23 does not correspond to g24' - CH's reported bar, faithfully measured against a design the project did not build. Re-encoding instead leaves our destination r23 in place, the r23->r24 correspondence stays consistent with the other 28 words, and the function closes. CH's parallel finding that TIER A IS EMPTY is NOT refuted and reproduces exactly here: re-run against the shipped stage, zero of the sixteen HALF-A carriers close with no permutation at all, so the stage still always composes with a reorder. 75/75 instructions, 30 differing words. STAGE 1, PERMUTATION over [0x68,0x78), order [0,2,1,3]: ours emits the SDA21-relocated `lwz r0,0(r0)` then `li r22,0`; the target emits them in the opposite order. C1 STEP-0, run as a MEMBERSHIP test before authoring per claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1: the two swapped atoms are independent in OUR OWN colouring - the load defines r0 and the `li` defines r22, distinct destinations, and the `li` reads nothing at all so it can cross the load in either direction - and check_permutation_dependences ACCEPTS in its STRICTEST form with exit_dead=None, no escape invoked. This is the independent-displacement half of C1's split, so the permutation belongs BEFORE the recolor and no post-recolor stage is used. IDENTITY-ORDER TRAP checked rather than assumed: the identity order also passes step-0, so passing step-0 proves nothing about necessity; the discriminator is that with no permutation the function refuses with unabsorbed words at +0x6c and +0x70, and [0,2,1,3] is not the identity, so the stage is load-bearing. RELOCATION BINDING per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1: this window DOES carry a relocation - one R_PPC_EMB_SDA21 naming lbl_8034520C, riding the `lwz` atom from slot 1 to slot 2 - so the before and after region relocation hashes legitimately DIFFER, and the records are read as real (offset,type,addend) triples out of the object's own RELA section rather than reconstructed. Recorded because it cost a derivation: relocations RIDE THEIR ATOM, so any proof run against the permuted stream must be handed the PERMUTED relocation set. Handing prove_constant_dataflow the un-permuted set marks whichever word lands on a formerly-relocated offset as relocated, and a relocated word may never be a definition, so the `li r22,0` this permutation moves INTO +0x6c is refused as the definition it plainly is - a false refusal that reads exactly like a property of the function. STAGE 2, THE COMBINED SITE at +0x84: ours decodes ('li',23,0), the target ('copy',24,22) - a form change AND a destination recolor on ONE word, which every pre-existing mode refuses by name as 'a recolor, not a form change'. The stage re-encodes the target's `or` form around our registers, writing `mr r23,r22`, so what it leaves differs from the target in REGISTER FIELDS ONLY and the unchanged recolor stage completes it. The value obligation - that OUR r22 holds 0 at the site - is discharged by `constant_dataflow_recolor`, the whole-CFG forward dataflow, against the `li r22,0` the permutation places at +0x6c, six instructions earlier with NO interposed call (the surrounding calls are dcsMemLock at +0x30 and dcsVoiceInUse at +0x8c, both outside the def/use window). SERVED DIRECTION: the arrow is fwd_rc - ours the constant load, the target the copy - which `constant_dataflow_recolor` is the named mode for; the inverse mode is not applicable and is not requested. r22 is the UNIQUE provable source: all 31 GPRs were tried and only r22 proves, so `our_source` is determined by the dataflow rather than chosen. STAGE 3, the RECOLOR: verify_consistent_recolor proves the remaining 28 words a position-consistent renaming with NO unproven_recolor_audit escape, which a combined edit is refused outright anyway. src/game/audio/dcs.c is byte-unchanged.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 75,
+          "permuted_instructions": 4,
+          "form_sites": 1
+        },
+        "instruction_permutation": {
+          "start": "0x68",
+          "end": "0x78",
+          "order": [
+            0,
+            2,
+            1,
+            3
+          ],
+          "before_sha256": "1860fa77ca33a39530b3d4217750bcf1f3807cb2ee4e5f0a3923743e8cc56a9b",
+          "after_sha256": "6fe2bf55c3dd4330eeaea094ef1ee66f69b54b31712cf2fd937781fccfbdc4cb",
+          "before_relocations_sha256": "f57fd27c12c71339d0adc2c58d75c241a17b1f8e179e63c4ee78cd6f039101af",
+          "after_relocations_sha256": "84c66035f2ef2f1e70b3b79ddd21a28e29def5b6722c79e3d17a34d32012a71c"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x84",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 22
+          }
+        ],
+        "copy_register_fields": true
+      },
+      {
         "function": "dcsSampleAllocUpload",
         "before_sha256": "a46a62394379603232ffa4d7bf66dee5ae3477acfdd3f7acd0b352b5824ac385",
         "after_sha256": "cf4826455a8885be7e97c05ab9c23967731adf8df72a8fcd1be0683cee9ccd9b",
