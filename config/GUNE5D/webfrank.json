@@ -462,6 +462,32 @@
       }
     ],
     "game/enemy/enemy": [
+    {
+      "function": "fn_8004646C",
+      "before_sha256": "d3c3b670d3014fb59e53dc22a081e1138f6465c05f8efba0b89608975bd96f4a",
+      "after_sha256": "6d8e2555909caaf2424c4834bfff7efd8fba1ecb64379f06ea23f278056e4ff4",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - mixed schedule+recolor, exactly the population claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 says the audit will never nominate. 133/133 with an IDENTICAL opcode multiset and two displaced words at +0xa8/+0xac: permute [0xa8,0xb0) order [1,0], then copy_register_fields. Step-0 membership (claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1) was run as a MEMBERSHIP test before anything was authored -- the swap is legal in OUR colouring standing alone, which is required because apply_patch runs the permutation FIRST. Relocation-free window in both objects. The two recorded parks (attempt.fn-8004646c-callee-saved-group-swap.20260831.v1, attempt.parked.fn_8004646c.20260829.v1) are SOURCE-axis and are upheld as source caps; this closes the other axis. real 72 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 133,
+        "permuted_instructions": 2
+      },
+      "instruction_permutation": [
+        {
+          "start": "0xa8",
+          "end": "0xb0",
+          "order": [
+            1,
+            0
+          ],
+          "before_sha256": "5c65d8e0cab24588a92cebdceee59eb8d9721024c1916e97fe7c112227349a06",
+          "after_sha256": "4d818f786ac82475f0ac1e4ae03bba6de5d698075403c3b36ecf27e122d671c1",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "copy_register_fields": true
+    },
       {
         "function": "closest_enemy",
         "before_sha256": "df7ab68342e6b9d8443c3879d0b0edb444da2893851345d958ba3383bb2ec114",
