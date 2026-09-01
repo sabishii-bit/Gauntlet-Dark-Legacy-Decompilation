@@ -2,13 +2,19 @@
 
 Every hash below is computed from the objects ninja just produced; nothing
 is copied from a banked record.
+
+Usage: python tools/gdl/build_rule.py [unit]   (default game/pb/pb_window)
+Runs from ANY checkout; the OURS side prefers the raw compiler output
+(.postprocess/body/) — reading the post-webfrank object as input is only
+correct when webfrank is disabled for the unit.
 """
 import json
 import struct
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"W:\Repositories\GDL-Claude-WfMulti")
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
 
 from tools.gdl.webfrank import (  # noqa: E402
     SHT_RELA,
@@ -21,9 +27,11 @@ from tools.gdl.webfrank import (  # noqa: E402
     check_permutation_dependences,
 )
 
-ROOT = Path(r"W:\Repositories\GDL-Claude-WfMulti")
-OURS = ROOT / "build/GUNE5D/src/game/pb/pb_window.o"
-TARGET = ROOT / "build/GUNE5D/obj/game/pb/pb_window.o"
+UNIT = (sys.argv[1] if len(sys.argv) > 1 else "game/pb/pb_window").strip("/")
+_ours = ROOT / "build" / "GUNE5D" / "src" / (UNIT + ".o")
+_raw = _ours.parent / ".postprocess" / "body" / _ours.name
+OURS = _raw if _raw.is_file() else _ours
+TARGET = ROOT / "build" / "GUNE5D" / "obj" / (UNIT + ".o")
 
 
 def function_bytes(path, name):

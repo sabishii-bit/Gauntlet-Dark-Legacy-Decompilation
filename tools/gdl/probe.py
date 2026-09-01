@@ -313,11 +313,35 @@ def main():
                        " arbitrate, do NOT auto-revert"
                        " (--rebase-best banks an arbitrated keep)")
         else:
-            verdict = (f"REGRESSED real {state.get('last_real', best)} ->"
-                       f" {real} (best {best}, insns {insns}{tok})"
+            # The arrow is previous->current; the CLASSIFICATION is vs
+            # best. Printing both without labels read as a contradiction
+            # ("REGRESSED 244 -> 234") and cost two re-reads in the field.
+            verdict = (f"REGRESSED vs best {best}: real"
+                       f" {state.get('last_real', best)} -> {real}"
+                       f" (prev -> current; insns {insns}{tok})"
                        "  [revert advised]")
     else:
         verdict = f"NEUTRAL   real {real} (insns {insns}{tok})"
+        # real-equal is not structure-equal: a NEUTRAL that moved the
+        # insn count further from parity or grew the multiset is WORSE,
+        # and banking it made --revert refuse to undo a bad probe (a
+        # worker had to restore by hand). Key the verdict on the triple.
+        def _dist(text):
+            m = re.match(r"T(\d+)/O(\d+)$", text or "")
+            return abs(int(m.group(1)) - int(m.group(2))) if m else None
+        worse = []
+        prev_dist, cur_dist = _dist(state.get("last_insns")), _dist(insns)
+        if (prev_dist is not None and cur_dist is not None
+                and cur_dist > prev_dist):
+            worse.append(f"count distance {prev_dist} -> {cur_dist}")
+        if (multiset_tokens is not None and prev_tokens is not None
+                and multiset_tokens > prev_tokens):
+            worse.append(f"multiset {prev_tokens}t -> {multiset_tokens}t")
+        if worse:
+            verdict = (f"NEUTRAL-WORSE real {real} ({'; '.join(worse)})"
+                       " — structurally worse at equal real; NOT banked,"
+                       " revert with git (not --revert) or justify the"
+                       " keep explicitly")
         # NEUTRAL scores do NOT prove byte identity (a fuzzy-visible
         # encoding change once passed every score in this tool). Hash the
         # function's raw bytes and say so when they moved.
@@ -331,9 +355,12 @@ def main():
             if digest is not None:
                 state["last_bytes"] = digest
                 if prev_digest is not None and digest != prev_digest:
-                    verdict += ("  [BYTES CHANGED — neutral scores do not"
-                                " prove identity; verify with objdiff"
-                                " fuzzy or revert]")
+                    verdict += ("  [OBJECT BYTES CHANGED — this compares"
+                                " BUILT OBJECTS between probes, not your"
+                                " source vs git (source can be identical"
+                                " to HEAD and still trip this); neutral"
+                                " scores do not prove identity — verify"
+                                " with objdiff fuzzy or revert]")
         except Exception:
             pass
     state["last_real"] = real
@@ -356,12 +383,19 @@ def main():
     if source is not None and "--no-bank" not in sys.argv and (
             verdict.startswith("BASELINE")
             or verdict.startswith("IMPROVED")
-            or verdict.startswith("NEUTRAL")
+            or (verdict.startswith("NEUTRAL")
+                and not verdict.startswith("NEUTRAL-WORSE"))
             or verdict.startswith("REBASED")):
         bank_snapshot(unit, source,
                       baseline=verdict.startswith("BASELINE"))
-        print(f"[revert point banked: probe.py {unit} {fn} --revert"
-              " restores it]")
+        kind = verdict.split()[0]
+        # Name WHICH verdict banked: the discard path differs (a banked
+        # NEUTRAL means --revert restores the PROBE, so discarding it
+        # needs git), and the identical banner hid that twice.
+        print(f"[revert point banked ({kind}): probe.py {unit} {fn}"
+              " --revert restores THIS state"
+              + ("; to discard this neutral edit use git, not --revert"
+                 if kind == "NEUTRAL" else "") + "]")
     elif source is not None and "--no-bank" in sys.argv:
         print("[--no-bank: snapshot NOT updated — hand-revert this edit]")
 

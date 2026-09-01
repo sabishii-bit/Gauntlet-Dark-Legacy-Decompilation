@@ -8,6 +8,10 @@ compares the actual r1 occupancy maps.
 
 Usage:
   python tools/gdl/slotdiff.py game/boss/bosscam BossCamBossCalc
+  Flags: --brief (suppress the full side-by-side slot map, which is
+  printed by default; the exclusive-pair summary alone misled three
+  sessions). A PARTITION? line flags near-equal exclusive-use totals
+  (one region split across declared locals).
 
 Per side it collects every r1 displacement from loads/stores
 (N(r1) operands) AND from address-takes (addi rX,r1,N — invisible to a
@@ -93,11 +97,13 @@ def main():
               " local slots")
     print(f"frame: target {fndiff.frame_size(t)}  ours {fndiff.frame_size(o)}"
           f"   saves: target {st}  ours {so}")
-    if "--all" in sys.argv:
-        # Full side-by-side map: the exclusive pair alone was genuinely
-        # misleading twice (an independent temp region read as a moved
-        # slot; two cancelling pad errors read as a clean frame). Workers
-        # kept scripting this by hand.
+    if "--brief" not in sys.argv:
+        # Full side-by-side map is the DEFAULT (was --all): the exclusive
+        # pair alone was genuinely misleading three times (an independent
+        # temp region read as a moved slot; two cancelling pad errors
+        # read as a clean frame; a 51-use slot partitioned across four
+        # ours-slots reported as "21T/31O exclusive" with no cause named).
+        # --brief suppresses it for scripted callers.
         print("-- full slot map (offset: target-uses / ours-uses) --")
         for off in sorted(set(ts) | set(os_)):
             print(f"  {off:>4}: T {ts.get(off, '-'):>3} / O"
@@ -112,6 +118,19 @@ def main():
         print(f"OURS-ONLY   slot {off:>4}  (uses {os_[off]})")
     for off in count_diff:
         print(f"USE-COUNT   slot {off:>4}  target {ts[off]} vs ours {os_[off]}")
+    # Near-sum partition hint: one side's big exclusive slot whose use
+    # count roughly equals the SUM of the other side's exclusives usually
+    # means one region got split across declared locals (the surplus-
+    # scratch-vector mechanism), not independent slots.
+    if only_t and only_o:
+        sum_t = sum(ts[off] for off in only_t)
+        sum_o = sum(os_[off] for off in only_o)
+        lo, hi = sorted((sum_t, sum_o))
+        if lo and hi and lo / hi >= 0.8:
+            print(f"PARTITION? exclusive-use totals nearly match"
+                  f" (target {sum_t} vs ours {sum_o}) — one region"
+                  " likely split/merged across slots; check for surplus"
+                  " declared locals before treating slots as moved")
     if only_t or only_o:
         verdict = f"SLOTS DIFFER ({len(only_t)}T/{len(only_o)}O exclusive)"
     elif count_diff:

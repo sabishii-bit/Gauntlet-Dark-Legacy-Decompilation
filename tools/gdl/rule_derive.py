@@ -1,12 +1,18 @@
-"""Re-derive the pb_window permutation specs against the CURRENT objects.
+"""Re-derive permutation specs against the CURRENT objects.
 
 Never trusts banked offsets: everything below is read out of the objects
 that ninja just produced.
+
+Usage: python tools/gdl/rule_derive.py [unit]   (default game/pb/pb_window)
+Runs from ANY checkout: paths resolve relative to this file's repo, and
+the OURS side prefers the raw compiler output (.postprocess/body/) so a
+unit that already has webfrank rules is derived from its true residual.
 """
 import sys
 from pathlib import Path
 
-sys.path.insert(0, r"W:\Repositories\GDL-Claude-WfMulti")
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
 
 from tools.gdl.webfrank import (  # noqa: E402
     _find_symbol,
@@ -15,8 +21,11 @@ from tools.gdl.webfrank import (  # noqa: E402
     _u32,
 )
 
-OURS = Path(r"W:\Repositories\GDL-Claude-WfMulti\build\GUNE5D\src\game\pb\pb_window.o")
-TARGET = Path(r"W:\Repositories\GDL-Claude-WfMulti\build\GUNE5D\obj\game\pb\pb_window.o")
+UNIT = (sys.argv[1] if len(sys.argv) > 1 else "game/pb/pb_window").strip("/")
+_ours = ROOT / "build" / "GUNE5D" / "src" / (UNIT + ".o")
+_raw = _ours.parent / ".postprocess" / "body" / _ours.name
+OURS = _raw if _raw.is_file() else _ours
+TARGET = ROOT / "build" / "GUNE5D" / "obj" / (UNIT + ".o")
 
 
 def load(path, name):

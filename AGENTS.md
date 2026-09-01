@@ -239,6 +239,25 @@ one, and supersede the law if your target contradicts it.
    which: `measured-dead` (probed, axis vetoed) vs `never-attempted`.
    Any "closing X flips the file" claim must carry a live
    `datadiff --sections` result, not an assumption.
+11. **Per-function step zero: `gdlmem context <function>` BEFORE the
+   first edit.** `laws --query` (discipline 9b) is NOT a substitute —
+   it finds laws by signature, not this function's own attempt
+   history. A sweep lane spent 5 of 11 probes re-running axes whose
+   caps and vetoes were sitting in per-function records the whole
+   time, because a roster's "never-probed" label was trusted over the
+   function's context. Roster/label claims about a function are
+   remeasured like any other number.
+12. **Two hashes, two meanings.** The build gate is `ninja` printing
+   `build/GUNE5D/main.dol: OK` — dtk verifying against
+   `config/GUNE5D/build.sha1` (540bed0b...). The `7cba77aa...` sha1 is
+   the ORIGINAL retail DOL in `orig/` (what provision verifies).
+   Hashing the built DOL and comparing to 7cba77aa yields a FALSE
+   failure — state gates as commands ("ninja prints main.dol: OK"),
+   never as raw hashes.
+13. **Running the test suite:** `python -m unittest discover
+   tools/gdl/tests` from the repo root. There is no pytest. Module
+   counts drift — state test gates as the command plus "all green",
+   not as a number.
 
 Header edits (include/game/*.h): allowed ONLY to the lane whose work_claim
 names it as that header's owner this run — one owner per header per run.
@@ -278,6 +297,14 @@ Every outcome is one of:
 - `CAPPED`: no retained improvement after bounded, documented attempts.
   Restore only the unsuccessful probes, keep any earlier best, record the cap
   as an attempt record, and move on.
+- `REFUTED`: the target's standing premise (a recorded diagnosis, a law's
+  prescription, a brief's claim) was measured false this session. Zero score
+  movement with a refutation is a DELIVERABLE, not a failure — record what
+  the evidence actually supports, with `refutes`/`supersedes` citations, so
+  `stale`/reopen tooling can distinguish it from an ordinary dead end.
+- `RECLASSIFIED`: the function moved between work classes (e.g. source-class
+  to postprocessor-class, or a park family to a served rule class) without a
+  score change. Name the old and new class and what reassignment it implies.
 - `VETO`: a prior cap or ownership conflict was discovered before editing; no
   edits made.
 

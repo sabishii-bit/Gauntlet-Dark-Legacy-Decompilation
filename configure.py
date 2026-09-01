@@ -280,11 +280,14 @@ cflags_runtime = [
     "-inline auto",
 ]
 
-# Dolphin demo library (DEMOInit.c): base flags but without peephole
-# (keeps stmw prologues; a trailing -O4 would not clear the ,p), with
-# readonly strings (large strings -> .rodata, <=8-byte -> .sdata2), and
-# with C++ exceptions on (the DOL carries extab/extabindex entries for
-# this TU's functions).
+# Dolphin demo library (DEMOInit.c): base flags but without the ,p
+# suffix. MEASURED 2026-09-01: ,p is optimize-for-SPEED, not peephole —
+# removing it changed loop unrolling wholesale, and #pragma peephole on
+# was a no-op because peephole is already on under plain -O4. (A
+# trailing -O4 would not clear the ,p, hence the rewrite.) Also
+# readonly strings (large strings -> .rodata, <=8-byte -> .sdata2) and
+# C++ exceptions on (the DOL carries extab/extabindex entries for this
+# TU's functions).
 cflags_demo = [
     *[("-O4" if flag == "-O4,p" else flag) for flag in cflags_base],
     "-Cpp_exceptions on",

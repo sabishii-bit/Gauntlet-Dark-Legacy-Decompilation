@@ -391,6 +391,17 @@ def section_table(unit_key):
               f" equal{mark}")
         if pct != 100.0:
             bad += 1
+            # A percentage hides a finish-line residual: "98.2% equal"
+            # was actually a fully-characterized 2-byte transposition a
+            # worker had to hand-derive. Name the differing bytes when
+            # they are few; summarize when they are not.
+            diffs = [i for i, (a, b) in enumerate(zip(tb, ob)) if a != b]
+            head = ", ".join(
+                f"+0x{i:X} (T {tb[i]:02x} vs O {ob[i]:02x})"
+                for i in diffs[:16])
+            tail = f" … and {len(diffs) - 16} more" if len(diffs) > 16 else ""
+            print(f"[{unit_key}] {sec}: {len(diffs)} byte(s) differ:"
+                  f" {head}{tail}")
     return bad
 
 
