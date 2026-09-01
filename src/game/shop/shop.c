@@ -122,6 +122,77 @@ typedef struct { u8 _pad[13056]; s32 v; } DSPot4;
 typedef struct { u8 _pad[5456]; s32 v; } DSTim4;
 typedef struct { u8 _pad[0xA68]; s32 field_A68; } DSPlayerView;
 
+/* ---------------------------------------------------------------------
+ * The shop draw-layout state block (ShopPage).
+ *
+ * ONE .bss object at 0x802897D0, cut into three symbols by the extractor
+ * (lbl_802897D0 size 0xD50, lbl_8028A520 size 0xC00, lbl_8028B120 size
+ * 0x4B0 -- 0xD50+0xC00+0x4B0 == 0x1E00 == sizeof(ShopPage) exactly).  It
+ * is one object, not three: the target reaches +336/+4432/+5456/+6480
+ * from a SINGLE @lbl_802897D0 ADDR16_HA/LO pair plus register adds, and
+ * MWCC never reassociates an address across distinct symbols
+ * (claim.law.single-base-relocation-refutes-symbol-separation); per
+ * claim.law.walked-base-symbol-identity the head symbol stays the base.
+ *
+ * Layout evidence, per region:
+ *   - the five s32[4] arrays at 0x00..0x50 and the four s32[4][3] pile
+ *     arrays at 0x50..0x110 match the Xbox SHOP.OBJ .bss roster's five
+ *     16-byte and four 48-byte globals exactly in COUNT and SHAPE.  The
+ *     Xbox link order differs from GC's, so only the four whose GC role
+ *     is directly observable are named after their Xbox counterpart:
+ *     top_y (do_shopping's window top), scroll_flag (read as the scroll
+ *     speed), last_available (the item-count bound of the cursor) and
+ *     cursor_y (set to cursor index - top).  curfreeze is the single
+ *     remaining 16-byte Xbox name and takes the single remaining slot;
+ *     the pile_* quartet keeps GC-behavioural names because show_gold
+ *     and fn_8009A0AC pin their roles but not their Xbox spellings.
+ *   - st[4] at 0x150 (336), stride 768, IS the Xbox PDB record
+ *     `player_shop_state` (size 768 = 0x300, fields item_availability_
+ *     flags / item_sale_value / item_to_player_map at 0/256/512): the GC
+ *     stride, the record size and the read (a per-item flag word tested
+ *     with &4 at sub-offset 0) all agree.  GC touches only field 0.
+ *   - the four abutting 1KB tables at 0xD50/0x1150/0x1550/0x1950 are
+ *     [player][item] with 64 items per player: item_y is what
+ *     calc_shop_ypos fills and write_shop_menu reads, avail is the
+ *     purchasable flag, timers is the per-item flash timer, item_blits
+ *     the per-item blit handles (== lbl_8028B120, calc_shop_ypos's
+ *     `blits`).
+ *
+ * NOT yet adopted at the access sites: measured 2026-09-01, respelling
+ * do_shopping's population through a typed `ShopPage*` local closes five
+ * --ops clusters and 3 opcode-multiset tokens but costs 6-17 `real`
+ * lines of prologue schedule churn, and the cast-view spelling
+ * `((ShopPage*)page)->` is worse still (27t) per
+ * claim.law.cast-view-macro-reopens-addr-pre-that-member-form-closed.
+ * The record is declared here as the recovered ground truth; the
+ * conversion is gated per function.
+ * ------------------------------------------------------------------- */
+typedef struct {
+    /* 0x000 */ s32 item_availability_flags[64];
+    /* 0x100 */ s32 item_sale_value[64];
+    /* 0x200 */ s32 item_to_player_map[64];
+} player_shop_state; /* Xbox PDB, size 0x300 = 768 */
+
+typedef struct {
+    /* 0x0000 */ s32 cursor_y[4];
+    /* 0x0010 */ s32 top_y[4];
+    /* 0x0020 */ s32 scroll_flag[4];
+    /* 0x0030 */ s32 curfreeze[4];
+    /* 0x0040 */ s32 last_available[4];
+    /* 0x0050 */ s32 pile_targ[4][3];
+    /* 0x0080 */ s32 pile_shown[4][3];
+    /* 0x00B0 */ s32 pile_val[4][3];
+    /* 0x00E0 */ s32 pile_count[4][3];
+    /* 0x0110 */ u8 _pad110[0x40];
+    /* 0x0150 */ player_shop_state st[4];
+    /* 0x0D50 */ s32 item_y[4][64];
+    /* 0x1150 */ s32 avail[4][64];
+    /* 0x1550 */ s32 timers[4][64];
+    /* 0x1950 */ void* item_blits[4][64];
+    /* 0x1D50 */ void* blits[4][6];
+    /* 0x1DB0 */ u8 _pad1DB0[0x50];
+} ShopPage; /* size 0x1E00 = 7680 */
+
 enum {
     PSHOP_STAT_NOW_OFF  = 3088, /* pl + character*28 + this -> shop_stat_now[character] */
     PSHOP_STAT_PREV_OFF = 8284, /* pl + character*28 + this -> shop_stat_prev[character] */
