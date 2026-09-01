@@ -326,6 +326,28 @@
     ],
     "game/game/combat": [
       {
+        "function": "DiffRate_8002951C",
+        "before_sha256": "c4174c2a91e9fa92f5539a888107b59c42b3cda3463a9110a25fd0fa3f9620c7",
+        "after_sha256": "cab5f07bd237db1f132ffa51c5a5344f61ae5305eeb433b4991b8fb62674bed5",
+        "instruction_permutation": [
+          {
+            "start": "0x24",
+            "end": "0x34",
+            "order": [
+              1,
+              3,
+              0,
+              2
+            ],
+            "before_sha256": "bb6db7866f99ae896c653c0a5f13c0cee1b110581037097bcafe523e6105a649",
+            "after_sha256": "b744387a88c37a29105029cb42ab462358a658cb4fb8854a0be21a927701c6ad",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "copy_register_fields": true
+      },
+      {
         "function": "adjust_radius_8002B2D4",
         "before_sha256": "af757cae485dfd40fa3896c505c939e2e8e5d0ef34f6a31bbaf5245082cb927f",
         "after_sha256": "1e98d18756a50c1e2d2a2e6eb5d3576395002ef677edb1b4aef8eddc1d96bae6",
