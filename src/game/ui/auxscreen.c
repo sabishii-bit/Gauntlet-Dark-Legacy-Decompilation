@@ -154,7 +154,7 @@ extern s32 sprintf(char* buf, const char* fmt, ...);
 extern s32 MBOX_FindTexture_Sub(char* name, s32* p, s32 a, s32 b, s32 c);
 extern void AudioMapDot(void);
 extern void* MBCreateBlit(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f);
-extern void mbBlitCvtCoord(void* blit, f32 z);
+extern void mbBlitCvtCoord(void* blit, f64 z);
 extern void MBBlitSetAlpha(void* blit, s32 alpha);
 extern void DrawGlowText(s32 x, s32 y, char* s, f32 z);
 extern void mbBlitInit3414(void* blit, s32 a);
