@@ -2749,6 +2749,385 @@ def equivalent_copy_form(
     return bytes(output), changed
 
 
+# ---------------------------------------------------------------------------
+# THE RANGE-PROOF CLASS (redundant rlwinm mask bits).
+#
+# BOUNDARY, stated before the code so a reader can check the code against it:
+# this class closes a difference between two `rlwinm` words that agree in
+# opcode, destination, source, rotate count and record bit and differ ONLY in
+# the MB/ME mask field, and only when every source bit the two masks disagree
+# about is PROVABLY ZERO in our own instruction stream.  It is a
+# dataflow-equivalence class, so it is deliberately the narrowest possible
+# one: a single opcode, a single field, and a bit-level fact derived from OUR
+# object's bytes with no appeal to source, to the target's registers, or to
+# any semantic argument about what the function means.
+#
+# It is NOT "any semantically equivalent stream": every other immediate
+# difference — a rotate count, a displacement, a literal, a different opcode
+# with the same effect — is refused by name, and the proof refuses outright
+# rather than falling back to a weaker check.
+# ---------------------------------------------------------------------------
+
+
+def _ppc_mask(mb: int, me: int) -> int:
+    """The 32-bit mask PowerPC's MB/ME pair names.
+
+    Bits are numbered big-endian (bit 0 is 0x80000000).  ``mb > me`` is the
+    legal WRAPPED form — bits mb..31 and 0..me — and reading it as an empty
+    mask would understate what a word discards, which is the unsound
+    direction.  So it is spelled out rather than assumed away.
+    """
+    if not 0 <= mb < 32 or not 0 <= me < 32:
+        raise ValueError(f"invalid rlwinm mask field MB={mb} ME={me}")
+    mask = 0
+    index = mb
+    while True:
+        mask |= 1 << (31 - index)
+        if index == me:
+            break
+        index = (index + 1) & 31
+    return mask
+
+
+def _rotl32(value: int, amount: int) -> int:
+    amount &= 31
+    value &= 0xFFFFFFFF
+    if not amount:
+        return value
+    return ((value << amount) | (value >> (32 - amount))) & 0xFFFFFFFF
+
+
+def decode_rlwinm(word: int):
+    """``(rA, rS, SH, MB, ME, Rc)`` for an ``rlwinm``, else ``None``.
+
+    Only primary opcode 21 is accepted.  ``rlwimi`` (20) reads its
+    destination and ``rlwnm`` (23) takes its rotate from a register, so
+    neither is a member of this class however similar the encoding looks.
+    """
+    if (word >> 26) != 21:
+        return None
+    return (
+        (word >> 16) & 0x1F,   # rA — destination
+        (word >> 21) & 0x1F,   # rS — source
+        (word >> 11) & 0x1F,   # SH
+        (word >> 6) & 0x1F,    # MB
+        (word >> 1) & 0x1F,    # ME
+        word & 1,              # Rc
+    )
+
+
+def redundant_mask_source_bits(ours: int, target: int) -> int:
+    """The obligation for rewriting *ours* to *target*: a mask of SOURCE bits
+    that must be provably zero.
+
+    Both words must be ``rlwinm`` and must agree in everything but MB/ME.
+    ``rlwinm rA,rS,SH,MB,ME`` computes ``ROTL(rS,SH) & MASK(MB,ME)``, so the
+    two words differ exactly in the result bits where their masks disagree,
+    and result bit *j* is source bit ``(j - SH) mod 32``.  Rotating the mask
+    delta back by SH therefore names precisely the source bits whose being
+    zero makes the two words compute the same value.
+
+    The relation is SYMMETRIC: widening and narrowing a mask carry the same
+    obligation, so no separate direction label is needed (unlike the copy-form
+    class, whose two arrows have genuinely different proof shapes).
+    """
+    mine = decode_rlwinm(ours)
+    theirs = decode_rlwinm(target)
+    if mine is None or theirs is None:
+        raise ValueError(
+            f"the redundant-mask class needs two `rlwinm` words "
+            f"(ours 0x{ours:08x}, target 0x{target:08x})"
+        )
+    if ours == target:
+        raise ValueError("the two words are identical; there is nothing to prove")
+    if mine[0] != theirs[0] or mine[1] != theirs[1]:
+        raise ValueError(
+            f"register field differs (ours rA=r{mine[0]},rS=r{mine[1]}; "
+            f"target rA=r{theirs[0]},rS=r{theirs[1]}) — that is a recolor, "
+            f"not a redundant mask"
+        )
+    if mine[2] != theirs[2]:
+        raise ValueError(
+            f"rotate count differs ({mine[2]} vs {theirs[2]}); this class "
+            f"closes MASK fields only, never any other immediate"
+        )
+    if mine[5] != theirs[5]:
+        raise ValueError(
+            f"record bit differs (Rc {mine[5]} vs {theirs[5]}); the CR0 "
+            f"update is a separate architectural effect"
+        )
+    delta = _ppc_mask(mine[3], mine[4]) ^ _ppc_mask(theirs[3], theirs[4])
+    if not delta:
+        # Two different MB/ME spellings of the SAME mask cannot happen for a
+        # 32-bit rotate, but if the decode ever changes, refuse rather than
+        # returning an empty (vacuously satisfiable) obligation.
+        raise ValueError("mask fields differ but denote the same mask")
+    return _rotl32(delta, 32 - (mine[2] & 31)) if mine[2] % 32 else delta
+
+
+# The instruction forms whose result's provably-zero bits are computed from
+# their operands'.  Everything absent from this table contributes NOTHING:
+# its destination becomes fully unknown, which is the fail-closed direction.
+def _modelled_zero_result(word: int, state: tuple) -> dict:
+    opcode = word >> 26
+    rd = (word >> 21) & 0x1F        # rD for D-form loads / rS for logicals
+    ra = (word >> 16) & 0x1F        # rA: base for loads, destination for logicals
+    rb = (word >> 11) & 0x1F
+    uimm = word & 0xFFFF
+    all_ones = 0xFFFFFFFF
+
+    if opcode == 34:                                    # lbz  rD,d(rA)
+        return {rd: 0xFFFFFF00}
+    if opcode == 40:                                    # lhz  rD,d(rA)
+        return {rd: 0xFFFF0000}
+    if opcode == 14:                                    # addi rD,rA,SIMM
+        if ra == 0:                                     #   -> li rD,SIMM
+            return {rd: ~(_sign_extend(uimm, 16) & all_ones) & all_ones}
+        if uimm == 0:                                   #   -> mr rD,rA
+            return {rd: state[ra]}
+        return {}
+    if opcode == 15 and ra == 0:                        # lis rD,UIMM
+        return {rd: ~((uimm << 16) & all_ones) & all_ones}
+    if opcode == 24:                                    # ori   rA,rS,UIMM
+        return {ra: state[rd] & ~uimm & all_ones}
+    if opcode == 25:                                    # oris  rA,rS,UIMM
+        return {ra: state[rd] & ~((uimm << 16) & all_ones) & all_ones}
+    if opcode == 28:                                    # andi. rA,rS,UIMM
+        return {ra: state[rd] | (~uimm & all_ones)}
+    if opcode == 29:                                    # andis. rA,rS,UIMM
+        return {ra: state[rd] | (~((uimm << 16) & all_ones) & all_ones)}
+    if opcode == 21:                                    # rlwinm rA,rS,SH,MB,ME
+        mask = _ppc_mask((word >> 6) & 0x1F, (word >> 1) & 0x1F)
+        return {ra: (~mask & all_ones) | _rotl32(state[rd], rb)}
+    if opcode == 20:                                    # rlwimi rA,rS,SH,MB,ME
+        mask = _ppc_mask((word >> 6) & 0x1F, (word >> 1) & 0x1F)
+        return {ra: (mask & _rotl32(state[rd], rb))
+                    | (~mask & all_ones & state[ra])}
+    if opcode == 31:
+        xo = (word >> 1) & 0x3FF
+        if xo == 87:                                    # lbzx rD,rA,rB
+            return {rd: 0xFFFFFF00}
+        if xo == 279:                                   # lhzx rD,rA,rB
+            return {rd: 0xFFFF0000}
+        if xo == 28:                                    # and  rA,rS,rB
+            return {ra: state[rd] | state[rb]}
+        if xo == 444:                                   # or   rA,rS,rB (mr)
+            return {ra: state[rd] & state[rb]}
+        return {}
+    return {}
+
+
+def _known_zero_transfer(word: int, state: tuple, *, trust_immediates: bool):
+    """The out-state for one instruction, or ``None`` when its effects are not
+    modelled at all (the caller then drops every fact).
+
+    ``_word_effects`` supplies the WRITE SET, so a register written by a form
+    this table does not model still becomes unknown — an unmodelled write can
+    never be silently skipped.  With *trust_immediates* clear (a relocated
+    word, whose immediate is an unresolved address half) every written
+    register becomes unknown regardless of form.
+    """
+    try:
+        _reads, writes = _word_effects(word)
+    except ValueError:
+        return None
+    written = {
+        item[1] for item in writes
+        if isinstance(item, tuple) and len(item) == 2 and item[0] == "g"
+    }
+    if not written:
+        return state
+    modelled = _modelled_zero_result(word, state) if trust_immediates else {}
+    return tuple(
+        (modelled.get(register, 0) & 0xFFFFFFFF) if register in written
+        else state[register]
+        for register in range(32)
+    )
+
+
+def prove_zero_bits(
+    words: list[int], site: int, source: int, required: int,
+    successors: list[list[int]], calls: list[bool],
+    relocated_indexes: set[int],
+    *, relocation_types: dict | None = None,
+) -> None:
+    """Prove every bit in *required* is zero in GPR *source* on entry to
+    *site*, on EVERY path through the function.
+
+    A whole-CFG forward dataflow over a per-GPR KNOWN-ZERO BIT MASK, meeting
+    by intersection at merges and seeded with NO knowledge at the entry.  The
+    lattice orders by information, the entry is the bottom element, and every
+    modelled transfer is monotone, so the worklist converges; a step budget
+    fails the proof closed if that ever stops being true.
+
+    Every way of losing the fact loses it:
+
+    * a write this table does not model makes its destination unknown;
+    * ``_word_effects`` raising on an unmodelled FORM drops ALL facts, so an
+      instruction webfrank cannot decode can never be stepped over silently;
+    * a relocated word makes its writes unknown, and one carrying a
+      relocation outside ``_IMMEDIATE_ONLY_RELOCATIONS`` drops all facts,
+      because its write set is decoded from register fields the relocation
+      may itself rewrite (R_PPC_EMB_SDA21 rewrites the base register);
+    * a CALL drops ALL facts.  Deliberately: the copy-form class has an ABI
+      axiom letting a callee-saved register survive a named call, and this
+      class does not adopt it.  A range fact is a claim about VALUE, and
+      nothing in this analysis establishes what value a callee leaves in a
+      restored register; the axiom's own justification ("restores r14-r31")
+      is about the register file, not about the bits.  A site whose
+      definition is separated from it by a call is simply refused.
+
+    The analysis runs over OUR stream, because our object executes it.
+    """
+    if not 0 <= site < len(words):
+        raise ValueError(
+            f"zero-bit dataflow site +0x{site * 4:x} is outside the function"
+        )
+    if not 0 <= source < 32:
+        raise ValueError(f"zero-bit dataflow source r{source} is out of range")
+    if not required:
+        raise ValueError(
+            "zero-bit dataflow refuses an empty obligation: a vacuous proof "
+            "would accept a rewrite nothing had checked"
+        )
+
+    bottom = (0,) * 32
+    states: dict[int, tuple] = {0: bottom}
+    pending = [0]
+    steps = 0
+    budget = 64 * (len(words) + 1) * 32
+    while pending:
+        steps += 1
+        if steps > budget:
+            raise ValueError(
+                "zero-bit dataflow did not converge within its step budget"
+            )
+        index = pending.pop()
+        state = states[index]
+        word = words[index]
+        kind = (relocation_types or {}).get(index)
+        if index in relocated_indexes and kind not in _IMMEDIATE_ONLY_RELOCATIONS:
+            out = bottom
+        else:
+            out = _known_zero_transfer(
+                word, state,
+                trust_immediates=index not in relocated_indexes,
+            )
+            if out is None:
+                out = bottom
+        if calls[index]:
+            out = bottom
+        for successor in successors[index]:
+            known = states.get(successor)
+            merged = out if known is None else tuple(
+                a & b for a, b in zip(known, out)
+            )
+            if known is None or merged != known:
+                states[successor] = merged
+                pending.append(successor)
+
+    if site not in states:
+        raise ValueError(
+            f"+0x{site * 4:x} is not reachable from the function entry, so no "
+            f"range fact reaches it"
+        )
+    proved = states[site][source]
+    missing = required & ~proved & 0xFFFFFFFF
+    if missing:
+        raise ValueError(
+            f"+0x{site * 4:x}: r{source} bits 0x{missing:08x} are not provably "
+            f"zero on every path, so the mask fields are not interchangeable"
+        )
+
+
+def equivalent_mask_form(
+    current: bytes, target: bytes, edits: list,
+    *, relocated_offsets: set[int], target_relocated_offsets: set[int],
+    jumptable_offsets: set[int], relocation_types: dict | None = None,
+) -> tuple[bytes, int]:
+    """Rewrite named ``rlwinm`` words whose mask bits are provably redundant.
+
+    Each edit must carry ``"proof": "zero_bits_dataflow"`` and a
+    ``declared_zero_bits`` mask that EQUALS the obligation computed from the
+    two words.  The declaration is not decoration: it makes the rule state, in
+    its own text, exactly which bits it is claiming are zero, so an audit can
+    read the claim without re-deriving it, and a rule whose residual quietly
+    changed shape fails instead of proving a different statement.
+
+    The analysis is re-derived from the OUTPUT before every edit, so a second
+    edit reasons about the stream that will actually execute rather than the
+    one we started with.
+    """
+    if len(current) != len(target) or len(current) % 4:
+        raise ValueError("mask-form functions must have equal aligned sizes")
+    relocated_indexes = {offset // 4 for offset in relocated_offsets}
+    target_relocated_indexes = {
+        offset // 4 for offset in target_relocated_offsets
+    }
+
+    output = bytearray(current)
+    changed = 0
+    seen = set()
+    for edit in edits:
+        if "at" not in edit:
+            raise ValueError(
+                f"mask-form edit missing its 'at' key: {edit} — each "
+                f"equivalent_mask_form edit needs 'at' (byte offset)"
+            )
+        offset = _parse_int(edit["at"])
+        if offset % 4 or not 0 <= offset <= len(current) - 4:
+            raise ValueError(f"invalid mask-form offset {edit}")
+        if offset in seen:
+            raise ValueError(f"duplicate mask-form edit at +0x{offset:x}")
+        seen.add(offset)
+        if (offset // 4 in relocated_indexes
+                or offset // 4 in target_relocated_indexes):
+            raise ValueError(
+                f"+0x{offset:x}: relocated word is not a mask-form candidate"
+            )
+        word = _u32(output, offset)
+        wanted = _u32(target, offset)
+        if word == wanted:
+            raise ValueError(f"+0x{offset:x}: word already matches target")
+        if edit.get("proof") != "zero_bits_dataflow":
+            raise ValueError(
+                f"+0x{offset:x}: the redundant-mask class requires "
+                f'"proof": "zero_bits_dataflow" — it has exactly one proof '
+                f"mode and no default"
+            )
+        try:
+            required = redundant_mask_source_bits(word, wanted)
+        except ValueError as failure:
+            raise ValueError(f"+0x{offset:x}: {failure}") from None
+        if "declared_zero_bits" not in edit:
+            raise ValueError(
+                f"+0x{offset:x}: the rule must state its obligation as "
+                f'"declared_zero_bits" (computed: 0x{required:08x})'
+            )
+        declared = _parse_int(edit["declared_zero_bits"])
+        if declared != required:
+            raise ValueError(
+                f"+0x{offset:x}: declared_zero_bits 0x{declared:08x} is not "
+                f"the computed obligation 0x{required:08x}"
+            )
+
+        words = [_u32(output, at) for at in range(0, len(output), 4)]
+        successors, calls = _successors(
+            words, relocated_indexes,
+            {at // 4 for at in jumptable_offsets},
+        )
+        prove_zero_bits(
+            words, offset // 4, decode_rlwinm(word)[1], required,
+            successors, calls, relocated_indexes,
+            relocation_types=relocation_types,
+        )
+        struct.pack_into(">I", output, offset, wanted)
+        if _u32(output, offset) != wanted:
+            raise ValueError(f"+0x{offset:x}: rewrite did not reach target")
+        changed += 1
+    return bytes(output), changed
+
+
 def copy_register_fields(current: bytes, target: bytes) -> tuple[bytes, int]:
     """Copy only genuine register operand fields from *target*.
 
@@ -3017,6 +3396,53 @@ def apply_patch(
         )
         data[start:end] = rewritten
         changed += form_changes
+
+    # THE RANGE-PROOF (redundant rlwinm mask) STAGE.  It runs BEFORE the
+    # register stage on purpose: its proof is a bit-level fact about OUR
+    # colouring, and the recolor stage's own proof then carries that fact
+    # into the target colouring.  With "unproven_recolor_audit" there IS no
+    # such proof — an unproved renaming could change which value the site
+    # reads — so the composition is refused by name rather than trusted.
+    mask_forms = patch.get("equivalent_mask_form")
+    if mask_forms:
+        if target_data is None:
+            raise ValueError(f"{symbol.name}: target object is required")
+        if patch.get("unproven_recolor_audit"):
+            raise ValueError(
+                f"{symbol.name}: a redundant-mask rewrite may not ride on "
+                f"\"unproven_recolor_audit\" — the range proof reads our "
+                f"pre-recolor registers, so an unproven renaming would "
+                f"launder it into a claim about a different value"
+            )
+        mask_sections = _sections(target_data)
+        mask_symbol = _find_symbol(target_data, mask_sections, symbol.name)
+        if mask_symbol.size != symbol.size:
+            raise ValueError(
+                f"{symbol.name}: target/current function size mismatch "
+                f"({mask_symbol.size} != {symbol.size})"
+            )
+        mask_text = mask_sections[mask_symbol.section_index]
+        mask_target_function = target_data[
+            mask_text.offset + mask_symbol.value:
+            mask_text.offset + mask_symbol.value + mask_symbol.size
+        ]
+        mask_target_relocations = _function_text_relocations(
+            target_data, mask_sections, mask_symbol.section_index,
+            mask_symbol.value, mask_symbol.value + mask_symbol.size,
+        )
+        rewritten, mask_changes = equivalent_mask_form(
+            bytes(data[start:end]), mask_target_function, mask_forms,
+            relocated_offsets=relocated_offsets,
+            target_relocated_offsets=set(mask_target_relocations),
+            jumptable_offsets=jumptable_offsets,
+            relocation_types=relocation_types,
+        )
+        data[start:end] = rewritten
+        changed += mask_changes
+        print(
+            f"WEBFRANK {symbol.name}: redundant-mask range proof "
+            f"({mask_changes} site(s))"
+        )
 
     pre_register = bytes(data[start:end])
     register_stage = bool(

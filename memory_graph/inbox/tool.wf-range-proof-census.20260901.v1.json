@@ -1,0 +1,24 @@
+{
+  "constraints": [
+    "Read-only: it rewrites nothing and writes only the optional --json file. It is a CANDIDATE screen, never a licence to author a rule \u2014 the Mandatory-policy source-exhaustion bar still applies to every rule it suggests.",
+    "Pairs words at the SAME BYTE OFFSET, so it OVER-reports on schedule-class functions (fabricating pairs out of two differently-ordered streams) and UNDER-reports any member displaced by a schedule difference. A zero result means 'no member at a fixed offset', never 'no member'.",
+    "Only equal-size function pairs are screened; a count-asymmetric residual is outside every postprocessor class by construction.",
+    "Founding run 2026-09-01 over 326 target objects: 1 strict member (game/movie/movieplayer::fn_800D87FC, closed) and 1 ADJACENT hit that fndiff --ops confirmed was a pure reorder, i.e. a false positive."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/wf_range_proof_census.py [--json PATH]",
+  "id": "tool.wf-range-proof-census.20260901.v1",
+  "kind": "tool",
+  "name": "wf_range_proof_census.py",
+  "purpose": "Image-wide screen for members of the WebFrank range-proof class (redundant rlwinm mask bits), reporting each candidate's obligation, whether the class's own prover discharges it, and how many other differing words remain.",
+  "recorded_at": "2026-09-01T22:54:57Z",
+  "schema_version": 1,
+  "status": "active",
+  "tool_key": "tools/gdl/composed_census/wf_range_proof_census.py",
+  "tool_kind": "analysis",
+  "usage": [
+    "Run from the repository root after a completed `ninja` \u2014 it joins build/GUNE5D/obj (the extracted target) against the RAW pre-WebFrank bodies under build/GUNE5D/src/**/.postprocess/body, falling back to the plain object for units with no WebFrank rules, so it scores compiler output and not postprocessed output.",
+    "Read the `remaining` column: 0 with proved>0 means the class closes the function ALONE; proved>0 with remaining>0 means the class unblocks a composition that still needs the permutation and/or recolor stages, which is what fn_800D87FC turned out to be.",
+    "Confirm every hit with `fndiff --ops` before counting it \u2014 see the ADJACENT false positive recorded in claim.law.WF_range-proof-population-is-one-and-offset-paired-censuses-lie-in-both-directions.20260901.v1."
+  ],
+  "valid_from": "2026-09-01"
+}

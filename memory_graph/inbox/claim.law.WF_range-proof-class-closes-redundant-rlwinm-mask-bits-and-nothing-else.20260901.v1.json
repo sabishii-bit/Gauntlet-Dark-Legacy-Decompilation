@@ -1,0 +1,31 @@
+{
+  "asserted_by": [
+    "tools/gdl/webfrank.py::_ppc_mask",
+    "tools/gdl/webfrank.py::decode_rlwinm",
+    "tools/gdl/webfrank.py::redundant_mask_source_bits",
+    "tools/gdl/webfrank.py::prove_zero_bits",
+    "tools/gdl/webfrank.py::equivalent_mask_form",
+    "tools/gdl/tests/test_webfrank.py::PPCMaskTests",
+    "tools/gdl/tests/test_webfrank.py::RedundantMaskObligationTests",
+    "tools/gdl/tests/test_webfrank.py::ProveZeroBitsTests",
+    "tools/gdl/tests/test_webfrank.py::EquivalentMaskFormTests",
+    "tools/gdl/tests/test_webfrank.py::MaskFormApplyPatchTests",
+    "tools/gdl/composed_census/wf_range_proof_census.py"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a site the stage ACCEPTS whose two words are not value-equal at that point: concretely, a bit named in the accepted `declared_zero_bits` that is non-zero on some path reaching the site in our own object. tools/gdl/tests/test_webfrank.py::ProveZeroBitsTests holds the negative cases the prover must keep refusing (full-width load, interposed redefinition, a merge with an unknown path, an interposed call, a relocated definition, an unmodelled relocation type); a case the prover accepts while one of those bits is reachably non-zero disproves the law. EQUALLY FALSIFYING: any accepted rewrite where the two words differ in a field other than MB/ME, or where the rewritten word is not byte-identical to the target's. A build-level falsifier also exists and is cheap: `build/GUNE5D/main.dol: OK` failing after a rule is added means the composed stages did not reproduce the target bytes.",
+  "id": "claim.law.WF_range-proof-class-closes-redundant-rlwinm-mask-bits-and-nothing-else.20260901.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-01T22:54:04Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-01",
+  "value": "THE RANGE-PROOF CLASS AND ITS BOUNDARY (user-licensed, run 31, shipped as webfrank's `equivalent_mask_form` stage with the single proof mode `zero_bits_dataflow`). THE CLASS: it rewrites one word to the target's when BOTH words are `rlwinm` (primary opcode 21) agreeing in destination rA, source rS, rotate count SH and record bit Rc, differing ONLY in the MB/ME mask field, and every SOURCE bit the two masks disagree about is provably zero in our own object. `rlwinm rA,rS,SH,MB,ME` computes ROTL(rS,SH) & MASK(MB,ME), so result bit j is source bit (j-SH) mod 32 and rotating the mask delta back by SH names the obligation exactly; a rule must DECLARE that obligation as `declared_zero_bits` and the stage refuses if the declaration is not the computed mask. The obligation is discharged by a whole-CFG forward dataflow over a per-GPR KNOWN-ZERO BIT MASK, seeded with NO knowledge at the function entry, meeting by intersection at merges, run over OUR stream because our object executes it. Modelled forms: zero-extending loads (lbz/lhz/lbzx/lhzx), li/lis, the addi and or copy forms, rlwinm, rlwimi, ori/oris, andi./andis., and the register and/or forms. THE BOUNDARY, which is the point of this law: (1) EVERY OTHER IMMEDIATE IS REFUSED BY NAME -- a differing rotate count, displacement, or literal, and any non-rlwinm pair, raise rather than fall back to a weaker check; (2) A SITE THAT ALSO NEEDS A RECOLOR IS REFUSED -- writing the target word there would be a renaming nothing had proved, the same wall the copy-form class's `_COMBINED_PROOFS` names one level up; (3) THE CLASS ADOPTS NO ABI AXIOM -- unlike `dominating_def_across_calls`, a CALL drops every fact, because a range fact is a claim about VALUE and 'the callee restores r14-r31' says nothing about the bits; (4) an unmodelled instruction form, an unmodelled write, a relocated definition, or a relocation outside _IMMEDIATE_ONLY_RELOCATIONS all drop facts rather than being stepped over; (5) it may not ride on `unproven_recolor_audit`, because the proof reads our PRE-recolor registers and an unproved renaming would launder it into a claim about a different value. This is a dataflow-equivalence class and therefore the project's current OUTER CEILING; it is deliberately one opcode and one field wide, and it is NOT and must not become 'any semantically equivalent stream'. MEASURED POPULATION: exactly ONE member image-wide (game/movie/movieplayer::fn_800D87FC at +0x230, obligation 0x1FFF0000, now EXACT) over 326 target objects. The class's value is not volume: it was the last unabsorbed word blocking a composition -- the run-28 union-resweep provers had refused that function with `refuses -- no proved composition, 1 unabsorbed word in 1 cluster`, and with the mask absorbed the remaining residual is an ordinary proved transposition plus a proved recolor."
+}
