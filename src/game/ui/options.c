@@ -2201,17 +2201,17 @@ void show_optmenu(OPTMENU* m)
             MBNewTempBlit(lbl_80344E48, ((idx - pw / 2) - sx) - 4, py, sx, sy);
         }
         if ((m->flags & 8) != 0) {
+            pc = "Center";
             idx = idx + px;
             if (OPTMSG_SHADOW != 0) {
                 DrawTextKeepScale(msg_scale, -(idx + OPTMSG_SHADOW),
-                                  py + OPTMSG_SHADOW, OPTMENU_FONT, 0, "Center");
+                                  py + OPTMSG_SHADOW, OPTMENU_FONT, 0, pc);
             }
-            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, rgbp,
-                                    "Center");
+            txt = DrawTextKeepScale(msg_scale, -idx, py, OPTMENU_FONT, rgbp, pc);
             if (font2 != 0) {
                 *(s16*)((u8*)txt + 0x26) = (s16)font2;
             }
-            pw = DrawNormalText(msg_scale, "Center", OPTMENU_FONT);
+            pw = DrawNormalText(msg_scale, pc, OPTMENU_FONT);
             MBNewTempBlit(lbl_80344E3C, ((idx - pw / 2) - sx) - 4, py, sx, sy);
         }
     }
