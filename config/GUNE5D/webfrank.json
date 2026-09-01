@@ -1265,6 +1265,33 @@
       }
     ],
     "game/movie/movieplayer": [
+    {
+      "function": "__ct__11MoviePlayerFv",
+      "before_sha256": "adaeef2d0b1026b6a3c36100ba6c78a993a4edcbef76ff116312d8e7649a8fbc",
+      "after_sha256": "5ed9ecce0c73b4d8a4973eef09780617d52202b4a80fbd1a9ac078a8bfd6d7f5",
+      "mechanism": "attempt.HV_union-resweep-eight-composed-closes.20260901.v1 - a pure four-atom entry reordering with NO register stage at all: 25/25, real 2, permute [0x14,0x24) order [3,0,1,2] and nothing else. Every shape-consistent order over the window was enumerated and each carried through the full guard chain per claim.law.WF_enumerate-every-shape-consistent-order-and-select-by-proof.20260901.v1 (a greedy first-hit search returns legal-but-unprovable orders in windows of same-shaped atoms, which is exactly what an entry sequence is); this is the order the proof selected. The window carries relocations, which ride their atoms and are bound by (type, symbol) rather than by word. THIS DISSOLVES A THIRD MEMBER of the mp-label-correction park family: attempt.mp-label-correction.fn-800db0f8.20260831.v1 classified this function STRUCTURAL from a positional-pairing artifact and explicitly ran no probe, and a permutation that reproduces the target bytes exactly is a CONSTRUCTIVE disproof of a STRUCTURAL label. real 2 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 25,
+        "permuted_instructions": 4
+      },
+      "instruction_permutation": [
+        {
+          "start": "0x14",
+          "end": "0x24",
+          "order": [
+            3,
+            0,
+            1,
+            2
+          ],
+          "before_sha256": "287b4686c6c57d2576e56c60a144fd1c191647dcec350be30e4dc85a05a6246f",
+          "after_sha256": "af31e2a8b0c0ad057df7a694c21ff5f35fb68824a34985704542b37fdb94de29",
+          "before_relocations_sha256": "55943df083649f94baf9ba85f6351181035b4bd24de1d5bfa5f71f80aedfb976",
+          "after_relocations_sha256": "3535d43f12dd5242661be86c675cfd74ac45e138d858e1d2b3ccfc25ffdf8a75"
+        }
+      ]
+    },
       {
         "function": "fn_800D8F28",
         "before_sha256": "902e7000515ba3c145bfd6b65ba69da459f6a6136017e066547b0ef1d1a47aad",
