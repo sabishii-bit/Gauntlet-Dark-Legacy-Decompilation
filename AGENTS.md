@@ -378,8 +378,16 @@ one, and supersede the law if your target contradicts it.
    renumber the anonymous pool (@NNNN names change) or alter a window
    relocation. The pin screen question remains "does my edit change
    the TU's anonymous-pool population or a pinned window's relocs?";
-   if yes, re-derive with wf_rederive_pin.py (body hashes must return
-   byte-identical).
+   if yes, re-derive with
+   `tools/gdl/composed_census/wf_rederive_pin.py` (FULL path — one lane
+   reported the tool "does not exist" after checking only tools/gdl/;
+   body hashes must return byte-identical, that IS the audit). ALSO
+   position-sensitivity, measured: an instruction-COUNT change in any
+   function PRECEDING a pinned function in source order can shift the
+   pinned window's relocation addends and abort the build. That is NOT
+   a reason to park the upstream function — make the edit, re-derive
+   the downstream pin, and verify its body hashes held. The upstream
+   freeze is a re-derivation chore, not a wall.
 16. **Prototype/extern disagreements: run `tools/gdl/abicheck.py`,
    not positional comparison.** PPC EABI assigns GPR and FPR args as
    independent sequences, so most positional "conflicts" are
