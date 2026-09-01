@@ -1517,13 +1517,10 @@ keyring_found:
     item->coll_offset[1] += 1.0;
     {
         f32 radius = info->item.radius;
+        f32 height = info->item.height;
 
-        if (radius > info->item.height) {
-            goto keep_r;
-        }
-        radius = info->item.height;
-    keep_r:
-        item->visrad = (f32)(2.0 * (f64)radius);
+        item->visrad =
+            (f32)(2.0 * (f64)(radius > height ? radius : height));
     }
     item->objgrp.flags = 0;
     {
