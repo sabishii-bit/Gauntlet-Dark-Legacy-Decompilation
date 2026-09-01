@@ -186,40 +186,45 @@ typedef struct PbDispEnvRec {
 /* per-field templates copied into the packet body -- local stack
  * buffers (tplA1/tplA2/tplB1/tplB2/tplC1/tplC2), no PDB struct match.
  * Only the touched fields are named; gaps stay raw padding. */
+/* NOTE: these use P8 (4-byte aligned) and NOT PBGSReg: PBGSReg is a union
+ * over u64, so it carries 8-byte alignment, which pushes every member that
+ * follows a 4-byte pad up to the next multiple of 8 (m0C->0x10, m18->0x20,
+ * ... m44->0x58). The named offsets below are the ones the target actually
+ * reads, and only a 4-aligned 8-byte member type reproduces them. */
 typedef struct PbTplA {
-    PBGSReg m00;
+    P8 m00;
     u8 _pad08[4];
-    PBGSReg m0C;
+    P8 m0C;
     u8 _pad14[4];
-    PBGSReg m18;
+    P8 m18;
     u8 _pad20[4];
-    PBGSReg m24;
+    P8 m24;
     u8 _pad2C[4];
-    PBGSReg m30;
-    PBGSReg m38;
+    P8 m30;
+    P8 m38;
     u8 _pad40[4];
-    PBGSReg m44;
-    PBGSReg m4C;
+    P8 m44;
+    P8 m4C;
 } PbTplA;
 typedef struct PbTplB {
-    PBGSReg m00;
+    P8 m00;
     u8 _pad08[4];
-    PBGSReg m0C;
+    P8 m0C;
     u8 _pad14[4];
-    PBGSReg m18;
+    P8 m18;
     u8 _pad20[4];
-    PBGSReg m24;
+    P8 m24;
     u8 _pad2C[32];
-    PBGSReg m4C;
+    P8 m4C;
 } PbTplB;
 typedef struct PbTplC {
-    PBGSReg m00;
-    PBGSReg m08;
-    PBGSReg m10;
+    P8 m00;
+    P8 m08;
+    P8 m10;
     u8 _pad18[4];
-    PBGSReg m1C;
+    P8 m1C;
     u8 _pad24[4];
-    PBGSReg m28;
+    P8 m28;
 } PbTplC;
 typedef struct GsFldB5b1 { u8 a : 5; u8 b : 1; u8 c : 2; } GsFldB5b1;
 extern s32 lbl_80343F00;
@@ -664,9 +669,7 @@ void pbFrameMode(s32 mode, s32 flag)
         *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_prim))) = *(P8*)(tC + (offsetof(PbTplC, m08)));
         *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_rgbaq))) = *(P8*)(tC + (offsetof(PbTplC, m10)));
         *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2a))) = *(P8*)(tC + (offsetof(PbTplC, m1C)));
-        /* kept raw (not offsetof(PbTplC, m28)): A/B-verified regression,
-         * real 389->393 -- see attempt record for the isolation. */
-        *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2b))) = *(P8*)(tC + 40);
+        *(P8*)(buf + (offsetof(PBFRAMEBUF, clr_xyz2b))) = *(P8*)(tC + (offsetof(PbTplC, m28)));
         *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_frame) + 12)) = 76;
         *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_frame) + 8)) = 0;
         *(u32*)(buf + (offsetof(PBFRAMEBUF, c1_zbuf) + 12)) = 78;
