@@ -1580,6 +1580,32 @@
     ],
     "game/movie/movieplayer": [
     {
+      "function": "fn_800DBE98",
+      "before_sha256": "134cd208d8d148c016faee4842643fcb8f51ad1c9faa009b4ac318d4412db35b",
+      "after_sha256": "9a4469932b237f6c3010747dfc215b5e4d1ccabea3869fb40358273827f41ba8",
+      "mechanism": "attempt.MP_fn800dbe98-transposition-plus-recolor-close.20260901.v1 - the two-instruction transposition that attempt.fn800dbe98-ready-fsubs-schedule-tiebreak.20260831.v2 named as the function's whole residual and explicitly referred to this path. 53/53 instructions, 9 differing words, and ALL NINE are one FPR recolor riding on top of a single swap of two adjacent, mutually independent fsubs at [0x3c,0x44): ours emits `fsubs f6,f0,f4` (the p[2]-C conversion) then `fsubs f5,f1,f3` (the p[0] conversion), the target emits them in the opposite order. Both are ready at +0x3c, their destinations (f6,f5) are distinct and neither reads the other's def, so check_permutation_dependences accepts order [1,0] in its STRICTEST form with exit_dead=None, and the window carries NO relocation on either side (before/after relocation hashes are both the empty-list hash). The swap is what unblocks the recolor: webfrank_audit rejected this function with `+0x3c: use of f0 does not correspond to f2 under the running renaming`, which is a fact about the TRANSPOSITION and not about the colouring (AGENTS discipline 14) - verify_consistent_recolor PASSES on the permuted body, and it needs its per-def web handling to do so, because ours f1 maps to target f2 on the web defined at +0x34 and to target f3 on the disjoint web defined at +0x54. Step 0 of claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring is satisfied in OUR colouring, not merely the target's. SOURCE EXHAUSTION: all six statement orders of the three conversions are now measured (baseline (1,3,2) real 18 is the optimum; (1,2,3)=32, (3,1,2)=32, (2,3,1)=36, (2,1,3)=36, (3,2,1)=36, the last two identical which kills the axis), plus alias-assignment placement (NEUTRAL, no gain), local-alias-to-direct-global (18 -> 48), expression operand order and value-identity split (both byte-identical, inert). real 18 -> 0.",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 53,
+        "permuted_instructions": 2
+      },
+      "instruction_permutation": [
+        {
+          "start": "0x3c",
+          "end": "0x44",
+          "order": [
+            1,
+            0
+          ],
+          "before_sha256": "1a0241fe7f648476150cb24f8e1db94a4744506bba4ec3dae3873060e4ca9329",
+          "after_sha256": "c58bce2cd80fe056310490414208a6d802b2e66c8531176ee1a8c0a9fd721fc8",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      ],
+      "copy_register_fields": true
+    },
+    {
       "function": "fn_800D91B4",
       "before_sha256": "00dc5f00822067de032e7102c7d66483831407aa7a9b7f122fac5c56f8b01ac4",
       "after_sha256": "121778287568eccee0d0cb18072c39e041d74dc9a80bd468acd56c206247f89f",
