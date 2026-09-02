@@ -724,6 +724,7 @@ static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size) {
     f32 corner[4];
     f32 out1[4];
     f32 out2[4];
+    u8 unused[4];
     s32 ix, iy;
     u8 rgba[4];
     u32 cw;
@@ -1200,7 +1201,7 @@ phaseD:
                     } while (carry > (s32)am16);
                     e = e & ~am16;
                 }
-                *scan = e | (u16)carry;
+                *scan = e | carry;
             }
         }
     }
@@ -1225,7 +1226,6 @@ phaseD:
             PSlot* sl = &slots[4];
             f32* src = (f32*)&p->p_parms[4];
             list = NULL;
-            cmask = 0;
             do {
                 if (*(s32*)(src + 1) == 0) {
                     sl->cur = src[0];
