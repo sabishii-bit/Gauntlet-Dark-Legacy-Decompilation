@@ -3080,6 +3080,76 @@ def _reference_resolvable(connection: sqlite3.Connection, key: str) -> bool:
     return False
 
 
+def entity_key_namespaces(connection: sqlite3.Connection) -> list[tuple]:
+    """[(prefix, count, example_key)] over the entity table, biggest first.
+
+    The `entity` table is the FIRST thing `_reference_resolvable` consults,
+    so any key already in it resolves — including the non-code namespaces
+    (`project:`, `tool:`, `workflow:`) that no error message named. Two run-35
+    lanes burned records discovering `project:gdl` by counting ~1,600 record
+    files by hand, because the refusal listed only `function:` and `tu:`.
+    Read the namespaces out of the corpus instead of hardcoding a list that
+    would go stale the first time a lane coins one.
+    """
+    return [
+        (row[0], row[1], row[2])
+        for row in connection.execute(
+            "SELECT substr(entity_key, 1, instr(entity_key, ':') - 1)"
+            "         AS prefix,"
+            "       COUNT(*) AS n, MIN(entity_key) AS example"
+            " FROM entity WHERE instr(entity_key, ':') > 1"
+            " GROUP BY prefix ORDER BY n DESC, prefix"
+        ).fetchall()
+    ]
+
+
+def _entity_key_suggestions(connection: sqlite3.Connection, key: str,
+                            limit: int = 5) -> list[str]:
+    """Existing entity keys that look like the one that failed to resolve."""
+    name = key.split(":", 1)[-1]
+    prefix = key.split(":", 1)[0] if ":" in key else ""
+    rows = connection.execute(
+        "SELECT entity_key FROM entity"
+        " WHERE lower(entity_key) LIKE lower(?)"
+        "    OR lower(entity_key) LIKE lower(?)"
+        "    OR lower(name) = lower(?)"
+        " ORDER BY length(entity_key) LIMIT ?",
+        (f"%:{name}", f"{prefix}:%{name}%", name, limit),
+    ).fetchall()
+    return [row[0] for row in rows]
+
+
+def unknown_entity_message(key: str, namespaces, suggestions) -> str:
+    """The refusal, as a DIRECTORY of what would have worked.
+
+    Run-35 item 7. The old text named two forms out of the several that
+    resolve and offered no way to enumerate the rest, so the only route to a
+    valid non-code key was to grep the corpus. Everything below is derived
+    from the live database, so it cannot drift away from what actually
+    resolves.
+    """
+    lines = [
+        f"proposal references unknown entity {key!r}. THREE things resolve:",
+        "  1. any entity_key ALREADY IN the graph — including the non-code"
+        " namespaces, which is the half no error used to mention;",
+        "  2. `function:<symbol>` naming exactly one GameCube function;",
+        "  3. `tu:<module>` naming a GameCube object (with or without a"
+        " .c/.cpp suffix).",
+    ]
+    if namespaces:
+        lines.append("Namespaces live in this corpus right now"
+                     " (prefix, count, example):")
+        for prefix, count, example in namespaces[:12]:
+            lines.append(f"  {prefix}: {count} — e.g. {example}")
+    if suggestions:
+        lines.append("Did you mean: " + ", ".join(suggestions) + "?")
+    lines.append(
+        "List them yourself with"
+        " `python memory_graph/gdlmem.py find --query <term>` or"
+        " `gdlmem.py search <term>`; do NOT go counting record files.")
+    return "\n".join(lines)
+
+
 def _probe_record_references(
     record: dict[str, Any], root: Path, db_path: Path | None = None,
     connection: sqlite3.Connection | None = None,
@@ -3170,11 +3240,11 @@ def _probe_references_with(
     """
     for key in entity_refs:
         if not _reference_resolvable(connection, key):
-            raise MemoryGraphError(
-                f"proposal references unknown entity {key!r}; use an existing"
-                " entity key, or a `function:<symbol>`/`tu:<module>` name that"
-                " resolves against the GameCube symbol import"
-            )
+            raise MemoryGraphError(unknown_entity_message(
+                key,
+                entity_key_namespaces(connection),
+                _entity_key_suggestions(connection, key),
+            ))
     dangling: list[str] = []
     for cited_id in cited:
         if cited_id == record.get("id"):

@@ -2314,6 +2314,69 @@ class ProposalGateNarrowingTests(unittest.TestCase):
             core._apply_proposal_gates(parked)
 
 
+class UnknownEntityMessageTests(unittest.TestCase):
+    """T6 run-36 item 7: the refusal named 2 of the 3 resolvable forms.
+
+    Two run-35 lanes burned records discovering `project:gdl` by counting
+    ~1,600 record files, because nothing told them an existing entity_key in
+    ANY namespace resolves.
+    """
+
+    NAMESPACES = [("function", 445, "function:AddItemSub"),
+                  ("tu", 65, "tu:MSL/atanf.c"),
+                  ("project", 1, "project:gdl")]
+
+    def test_all_three_resolvable_forms_are_named(self):
+        message = core.unknown_entity_message("projekt:gdl", [], [])
+        self.assertIn("entity_key ALREADY IN the graph", message)
+        self.assertIn("function:<symbol>", message)
+        self.assertIn("tu:<module>", message)
+
+    def test_the_live_namespaces_are_listed_with_examples(self):
+        message = core.unknown_entity_message(
+            "projekt:gdl", self.NAMESPACES, [])
+        self.assertIn("project: 1 — e.g. project:gdl", message)
+        self.assertIn("function: 445", message)
+
+    def test_a_near_miss_is_offered(self):
+        message = core.unknown_entity_message(
+            "projekt:gdl", self.NAMESPACES, ["project:gdl"])
+        self.assertIn("Did you mean: project:gdl?", message)
+
+    def test_it_tells_you_not_to_go_counting_files(self):
+        message = core.unknown_entity_message("x:y", [], [])
+        self.assertIn("do NOT go counting record files", message)
+        self.assertIn("gdlmem.py find --query", message)
+
+    def test_namespaces_are_read_from_the_live_corpus(self):
+        """Hardcoding the list would rot the first time a lane coins one."""
+        core.ensure_database(REPO_ROOT, None)
+        with closing(core.open_database(REPO_ROOT, None)) as connection:
+            namespaces = core.entity_key_namespaces(connection)
+        prefixes = {row[0] for row in namespaces}
+        self.assertIn("function", prefixes)
+        self.assertIn("tu", prefixes)
+        # project:gdl is the key the two lanes could not find; it resolves.
+        self.assertIn("project", prefixes)
+        for prefix, count, example in namespaces:
+            self.assertTrue(example.startswith(prefix + ":"), example)
+            self.assertGreater(count, 0)
+
+    def test_the_real_refusal_carries_the_directory(self):
+        record = {
+            "schema_version": 1, "kind": "claim",
+            "id": "claim.t6-subject-probe.20260902.v1",
+            "subject": "projekt:gdl", "predicate": "workflow_note",
+            "value": "probe", "epistemic_state": "hypothesis",
+            "attributes": {},
+        }
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
+        message = str(caught.exception)
+        self.assertIn("project:gdl", message)
+        self.assertIn("THREE things resolve", message)
+
+
 class WindowedResidualWordCountGateTests(unittest.TestCase):
     """T6 run-36 item 6: a "4-word residual" that was 122 of 215 words.
 
