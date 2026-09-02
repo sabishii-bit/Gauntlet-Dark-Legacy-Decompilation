@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Screen the third btext live-zero instance against the EXISTING composed class before spending the new one on it -- and find that the existing class closes it outright.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED and APPLIED -- it plus the superseded record's own source drive (real 30 -> 26 by mirroring the byte-exact sibling FindStringMessageSub, then a NEGATIVE counter-init hoist) is the source-exhaustion provenance. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED and DECISIVE: the --ops delta is one token but the RAW differing-word count is 14 of 38, and it is the 14 that decides candidacy -- a lane sizing this against the 1-token delta would have written a one-site rule that cannot close it. claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 SCREENED and NOT NEEDED (window carries no relocation; the two ADDR16 halves sit immediately before it). claim.law.WF_inverse-copy-form-is-served-and-the-payoff-inversion-recurs-one-level-down.20260901.v1 SCREENED and APPLIED -- this is a forward combined site, and the combined mode is what the site needs.",
+    "laws_applied": "[\"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "probed_form": "NO SOURCE EDIT this pass. src/game/ui/btext.c is byte-unchanged; the source work is the superseded record's.",
+    "residual": "None. THE FINDING WORTH CARRYING: the capability request this function filed (`copy_register_fields + live-zero-copy normalization`) was HALF WRONG. Its live-zero half is `li rD,0` against `addi rD,rS,0`, which the existing combined `constant_dataflow_recolor` mode has modelled since run 31 -- what was missing was not a mode but the PERMUTATION that puts the seed in front of the site, plus the recognition that the target's source register is the TARGET's colour and so the rule must name OURS. Only its two siblings in the same TU (`slwi` against a copy) needed a new class. A capability request that names a FAMILY rather than the exact two words is not screenable: the family straddles the existing class boundary. EQUIVALENT tier, not STRICT.",
+    "scope": "config/GUNE5D/webfrank.json (one new rule under game/ui/btext). Commit 539fd5b34.",
+    "verification": "COUNT PARITY QUOTED AS THE DECIDING FACT: insns 38/38 (ours/target). Proved through webfrank.apply_patch before shipping, output bytes == target bytes (18 words changed across the three stages). After configure.py + ninja -j2: WEBFRANK FindStringMessageListSub_8001FC4C adjusted 18 instruction atoms/fields, `build/GUNE5D/main.dol: OK`, `fndiff --clean` = EXACT, 0 real diff lines. verify_consistent_recolor proved the 3-cycle with NO unproven_recolor_audit escape. Both suites green."
+  },
+  "function": "function:FindStringMessageListSub_8001FC4C",
+  "id": "attempt.WF_findstringmessagelistsub-existing-class-closes-it.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T18:26:37Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-02",
+    "signature": "closed -- was 'DIFFERS target-only: +1 addi ours-only: -1 li; insns 38/38 (ours/target, COUNT PARITY); 2 ops clusters; RAW DIFFERING WORDS = 14 of 38; real 26'"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.UA_findstringmessagelistsub-nameoffset-temp-mirrors-the-exact-sibling.20260902.v1",
+  "valid_from": "2026-09-02"
+}

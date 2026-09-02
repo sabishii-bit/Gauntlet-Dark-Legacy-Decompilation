@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Close the second member of the live-zero VALUE class -- the same shift-of-a-live-zero against copy-of-a-live-zero shape as DrawStringTextMLines with different registers -- now that the class exists.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED and APPLIED as the class-level source-exhaustion proof, on top of this function's own cap attempt.fontinit-portable-zero-offset-induction.20260829.v1, which spent byte-offset and integer-address forms, explicit/local/volatile mode-table bases, shifted and one-byte array views, independent-zero and split-zero initialisation, signed and narrow index types and for-initializer grouping. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED and APPLIED (2 of 45 words measured with wf_word_diff.py). claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 SCREENED and DECISIVE HERE, unlike on the sibling: this permutation window DOES carry a relocation (the ADDR16_LO on gScrollMsgList) and it MOVES with its atom, so the before/after relocation hashes differ and the atom-to-symbol binding rests on verify_relocation_binding against the target's own table rather than on the payload multiset. claim.law.HV_emb-sda21-relocation-offset-differs-between-our-objects-and-the-target.20260901.v1 SCREENED -- the relocation is recorded at instruction offset plus two, which is exactly why the class screens relocated words by WORD and not by exact offset.",
+    "laws_applied": "[\"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\", \"claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "probed_form": "NO SOURCE EDIT. src/game/ui/btext.c is byte-unchanged; the source axes were spent by the superseded cap.",
+    "residual": "None. EQUIVALENT tier, not STRICT: STRICT held at 56.46% / 2575 fns across the whole lane.",
+    "scope": "config/GUNE5D/webfrank.json (one new rule under game/ui/btext). Commit 4a2bee74c.",
+    "verification": "COUNT PARITY QUOTED AS THE DECIDING FACT: insns 45/45 (ours/target). Proved end-to-end through webfrank.apply_patch against the extracted retail object before shipping, output bytes == target bytes (tools/gdl/composed_census/wf_livezero_derive.py). After configure.py + ninja -j2: WEBFRANK FontInit line present, `build/GUNE5D/main.dol: OK`, `fndiff --clean` = EXACT, 0 real diff lines. Both suites green."
+  },
+  "function": "function:FontInit",
+  "id": "attempt.WF_fontinit-live-zero-value-class.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T18:26:16Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-02",
+    "signature": "closed -- was 'insns 45/45 (ours/target, COUNT PARITY); RAW DIFFERING WORDS = 2 of 45; +0x28 O 3ba30000 T 3bdb0000, +0x2c O 577e103a T 3ba30000'"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.fontinit-portable-zero-offset-induction.20260829.v1",
+  "valid_from": "2026-09-02"
+}

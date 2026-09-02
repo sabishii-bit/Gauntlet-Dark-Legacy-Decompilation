@@ -1,0 +1,28 @@
+{
+  "asserted_by": [
+    "tools/gdl/webfrank.py",
+    "tools/gdl/tests/test_webfrank.py",
+    "tools/gdl/composed_census/wf_livezero_derive.py",
+    "tools/gdl/composed_census/wf_livezero_census.py",
+    "config/GUNE5D/webfrank.json"
+  ],
+  "attributes": {
+    "population_note": "The image-wide screen tools/gdl/composed_census/wf_livezero_census.py found 530 candidate words in 119 functions and PROVED ZERO of them, alongside 607 words the existing copy-form class already models. That zero measures the METHOD, not the class: an offset-paired census cannot see a member whose two words are TRANSPOSED, which both shipped members are. Use it to size the permutation-free population only, and never as a negative screen.",
+    "provenance": "Run 37 WF lane, commits 4a2bee74c / 539fd5b34 / 08f3e98e9. Demand census done BEFORE building, per the run-34 zero-customer lesson: four named customers, each wf_word_diff'd and count-checked -- DrawStringTextMLines 2 of 150 words at 150/150, FontInit 2 of 45 at 45/45, FindStringMessageListSub_8001FC4C 14 of 38 at 38/38, init_all_dir_info 12 of 41 at 41/41. All four now read fndiff --clean EXACT/MATCH and the linked DOL gate prints build/GUNE5D/main.dol: OK. Scores: STRICT HELD at 56.46% (2575 fns) with EQUIVALENT 9.86% (138) -> 9.97% (142).",
+    "tags": [
+      "matching",
+      "postprocessor",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any site where our word is a register copy or a constant load, the target's is the other, and `constant_dataflow_recolor` (with our_source naming OUR register, after whatever permutation the schedule needs) still refuses -- that would show the split is not where this law puts it. Conversely, any `equivalent_zero_form` site whose two words are BOTH copy forms would show the new class is not disjoint from the old one; the stage does not itself forbid that overlap, so it is a real falsifier and not a tautology. Re-derive with `python tools/gdl/composed_census/wf_livezero_derive.py`, which re-proves all four shipped rules through webfrank.apply_patch.",
+  "id": "claim.law.WF_live-zero-family-straddles-the-copy-form-boundary-and-only-half-of-it-needed-a-new-class.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T18:28:01Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "The live-zero copy-vs-remat FAMILY is not one postprocessor class, and a capability request naming the family rather than the two exact words cannot be screened. Measured 2026-09-02 on the four censused customers, all count-symmetric, all closed: the family splits cleanly by what OUR word is. Where ours is `li rD,0` against the target's `addi rD,rS,0` (btext::FindStringMessageListSub_8001FC4C +0x24 at 38/38, memcard::init_all_dir_info +0x18 and +0x1c at 41/41) the EXISTING combined mode `constant_dataflow_recolor` already models the site and no new class was needed -- what was missing was the PERMUTATION window that puts the zero seed in front of the site, plus the recognition that the target's source register is the TARGET's colour so the rule must name OUR register. Where ours is a zero-producing COMPUTATION rather than a copy or a load -- `slwi rD,rS,2` = `rlwinm rD,rS,2,0,29` against the target's `addi rD,rS,0` (btext::DrawStringTextMLines +0x1f4 at 150/150, btext::FontInit +0x28 at 45/45) -- `decode_copy_form` returns None and `equivalent_copy_form` refuses at 'our word is not a copy form' with no mode offered, and no reordering of the existing stages reaches it. That second half is what the LIVE-ZERO VALUE class (`equivalent_zero_form`, proof `zero_value_dataflow`) serves. The class adds NO semantic distance: it asks the EXISTING known-zero-bit dataflow (`_zero_bit_states`, shared with the range-proof class) one transfer further on, requiring `_modelled_zero_result` to return all-ones for BOTH words' destination -- the target's word evaluated against OUR facts before it is written into our stream -- and it is walled by an opcode whitelist (addi/li, rlwinm, or/mr, all Rc-clear), by an exactly-one-written-resource check, by destination agreement, and by refusing to compose with a register stage or with unproven_recolor_audit. It proves the literal ZERO and nothing else, because zero is the only constant the known-zero-bit lattice can express. CONSEQUENCE for the demand-census policy: count the exact WORD PAIRS, never the family name. Half this lane's censused demand for a new capability was already served by a mode shipped six runs earlier, and the half that was not would have been invisible to anyone who screened on the family label."
+}
