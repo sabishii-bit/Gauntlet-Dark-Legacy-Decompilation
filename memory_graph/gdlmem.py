@@ -124,6 +124,11 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
         help="validate and stage a structured JSON record for review",
     )
     propose_record.add_argument("json_file", type=Path, nargs="?")
+    # Alias, kept on its own dest so passing BOTH spellings is an explicit
+    # error rather than a silent last-one-wins overwrite.
+    propose_record.add_argument("--file", dest="json_file_opt", type=Path,
+                                default=None,
+                                help="alias for the positional json_file")
     propose_record.add_argument("--dry-run", action="store_true",
                                 help="validate fully but write nothing")
     propose_record.add_argument(
@@ -199,10 +204,16 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "propose-record" and args.template:
             result = record_template(args.template)
         elif args.command == "propose-record":
-            if args.json_file is None:
+            if (args.json_file is not None and args.json_file_opt is not None
+                    and args.json_file != args.json_file_opt):
+                parser.error("propose-record got two different paths"
+                             f" ({args.json_file} positionally and"
+                             f" {args.json_file_opt} via --file); pass one")
+            json_file = args.json_file or args.json_file_opt
+            if json_file is None:
                 parser.error("propose-record needs a json_file or --template")
-            record = json.loads(args.json_file.read_text(encoding="utf-8-sig"))
-            source = args.json_file.resolve()
+            record = json.loads(json_file.read_text(encoding="utf-8-sig"))
+            source = json_file.resolve()
             inbox_dir = (root / "memory_graph" / "inbox").resolve()
             in_place = source if source.parent == inbox_dir else None
             path = stage_record_proposal(record, root=root, in_place=in_place,
