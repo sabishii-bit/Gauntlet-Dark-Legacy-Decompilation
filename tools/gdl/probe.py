@@ -1376,6 +1376,58 @@ def genuine_row_count(unit, fn):
 BEST_KEYS = ("best_real", "best_multiset", "best_insns", "best_bytes",
              "best_fuzzy")
 
+SNAPSHOT_ANCHOR = "snapshot_anchor"
+
+
+def anchor_of(state):
+    """The BEST anchor currently in ``state``, as a plain dict."""
+    return {key: state.get(key) for key in BEST_KEYS}
+
+
+def roll_back_anchor(state):
+    """(new_state, note) — put the BEST anchor back to the one banked WITH
+    the snapshot --revert just restored (run-38 item 9).
+
+    THE DEFECT. classify() scores every verdict against ``best_real``, and
+    probe.py persists the state UNCONDITIONALLY — while the SNAPSHOT bank
+    sits behind ``--no-bank``, the flag documented for exactly the probes
+    this bites ("DIAGNOSTIC probes ... that will be hand-reverted"). So a
+    diagnostic edit moves the anchor onto itself and leaves the revert
+    point behind, and the following --revert scores the RESTORED state
+    against the edit it just discarded: "REGRESSED vs best 5 ... [revert
+    advised]" on a revert that worked perfectly. AT measured it; T7's
+    run-37 item-7 fix relabelled the neighbouring annotations but never
+    touched this comparison.
+
+    Fail-soft in both directions. No recorded anchor (a state banked
+    before this, or a snapshot last moved by a probe of a DIFFERENT
+    function in the same TU) leaves the anchor alone and SAYS so, rather
+    than inventing a rollback target; an anchor equal to the current one
+    is a no-op with no note.
+    """
+    banked = state.get(SNAPSHOT_ANCHOR)
+    if not isinstance(banked, dict):
+        return state, ("[no anchor was recorded with this snapshot, so the"
+                       " verdict below is scored against the BEST state"
+                       " seen this session — which, after a --no-bank"
+                       " diagnostic, is the edit you just discarded. Probe"
+                       " once more to re-anchor.]")
+    current = anchor_of(state)
+    if all(banked.get(key) == current.get(key) for key in BEST_KEYS):
+        return state, ""
+    state = dict(state)
+    for key in BEST_KEYS:
+        value = banked.get(key)
+        if value is None:
+            state.pop(key, None)
+        else:
+            state[key] = value
+    return state, (
+        f"[BEST anchor rolled back with the source: best_real"
+        f" {current.get('best_real')} -> {banked.get('best_real')}. The"
+        " restored state is scored against ITS OWN history, not against"
+        " the edit this revert discarded.]")
+
 # Fuzzy is a float percentage; anything at or above the anchor is "not a
 # regression". The epsilon keeps float noise from manufacturing a refusal.
 FUZZY_GATE_EPS = 1e-9
@@ -2280,6 +2332,23 @@ def main():
         # here rather than warned about (run 34 item 8).
         restore_transient_pins(unit)
         warn_pin_drift(unit, snap)
+        # Roll the BEST anchor back with the source (run-38 item 9), before
+        # the re-score below reads the state file. Without it the restored
+        # state is scored against the session's best — which after a
+        # --no-bank diagnostic is the edit this revert just discarded, and
+        # the successful revert prints "[revert advised]".
+        if state_file.exists():
+            try:
+                reverted_state = json.loads(
+                    state_file.read_text(encoding="utf-8"))
+            except ValueError:
+                reverted_state = None
+            if isinstance(reverted_state, dict):
+                reverted_state, note = roll_back_anchor(reverted_state)
+                if note:
+                    print(note)
+                state_file.write_text(json.dumps(reverted_state),
+                                      encoding="utf-8")
         # A FUNCTION-SCOPED revert reaches only hunks inside `fn`. Cross-check
         # the whole tree and name what it could not reach — MV's
         # volatile-in-a-macro header edit survived a revert and stayed live.
@@ -2551,6 +2620,13 @@ def main():
         # overrule that instruction.
         if keep_consumes_transient_bank(sys.argv):
             drop_transient_pins(unit, f"{kind} keep")
+        # Record the BEST anchor that goes WITH these bytes (run-38 item 9).
+        # --revert restores the source; without this it cannot restore the
+        # anchor, and the restored state gets scored against whatever the
+        # session's best was — after a --no-bank diagnostic, the very edit
+        # the revert discarded.
+        state[SNAPSHOT_ANCHOR] = anchor_of(state)
+        state_file.write_text(json.dumps(state), encoding="utf-8")
     elif source is not None and "--no-bank" in sys.argv:
         print("[--no-bank: snapshot NOT updated — hand-revert this edit]")
 

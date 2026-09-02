@@ -17,7 +17,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import probe  # noqa: E402
-from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
+from probe import (BEST_KEYS, CONFLICT_UNARBITRATED_EXIT, REPLAN_AT,
+                   annotate_neutral,
                    apply_fuzzy_bank_gate, arbitrate_table,
                    baseline_bank_decision, bank_divergence,
                    bank_warning, banks_best, classify,
@@ -25,8 +26,9 @@ from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
                    data_line, format_genuine_note, function_span,
                    fuzzy_anchor_note, moved_sections, parse_section_digests,
                    outside_edit_warning, parse_numstat, pin_drift,
-                   drop_transient_pins, keep_consumes_transient_bank,
-                   readout_banks_baseline,
+                   anchor_of, drop_transient_pins,
+                   keep_consumes_transient_bank,
+                   readout_banks_baseline, roll_back_anchor,
                    replan_hint, scaffold_rows, scoped_revert,
                    slot_arbiter_header, slot_arbiter_signal, split_lines,
                    stale_restore_refusal, strip_noncode,
@@ -201,6 +203,79 @@ class ReadoutBanksBaselineTests(unittest.TestCase):
     def test_a_unit_with_no_source_cannot_bank(self):
         self.assertFalse(readout_banks_baseline(
             snapshot_exists=False, has_source=False, no_bank=False))
+
+
+class RevertAnchorRollbackTests(unittest.TestCase):
+    """run-38 item 9: after --revert the verdict was scored against the
+    DISCARDED state.
+
+    classify() scores against `best_real` and probe.py persists the state
+    UNCONDITIONALLY, while the SNAPSHOT bank sits behind `--no-bank` — the
+    flag documented for exactly the probes this bites ("DIAGNOSTIC probes
+    ... that will be hand-reverted"). So a diagnostic edit moves the
+    anchor onto itself, leaves the revert point behind, and the following
+    --revert prints "REGRESSED vs best 5 ... [revert advised]" on a revert
+    that worked. Reproduced: BASELINE real 10 -> --no-bank IMPROVED real 5
+    -> --revert restores real 10 -> REGRESSED [revert advised].
+
+    T7's run-37 item-7 fix relabelled the neighbouring annotations; it
+    never touched this comparison."""
+
+    BANKED = {"best_real": 10, "best_multiset": 4, "best_insns": "T50/O50",
+              "best_bytes": "aaa", "best_fuzzy": None}
+
+    def state(self, **extra):
+        state = {"best_real": 5, "best_multiset": 2, "best_insns": "T50/O50",
+                 "best_bytes": "bbb"}
+        state.update(extra)
+        return state
+
+    def test_anchor_of_reads_every_best_key(self):
+        self.assertEqual(set(anchor_of(self.state())), set(BEST_KEYS))
+
+    def test_the_anchor_rolls_back_to_the_one_banked_with_the_snapshot(self):
+        rolled, note = roll_back_anchor(
+            self.state(snapshot_anchor=self.BANKED))
+        self.assertEqual(rolled["best_real"], 10)
+        self.assertEqual(rolled["best_multiset"], 4)
+        self.assertIn("rolled back", note)
+
+    def test_the_restored_state_then_reads_NEUTRAL_not_REGRESSED(self):
+        """The whole point: a successful revert must not advise a revert."""
+        before, _ = classify(self.state(), real=10, insns="T50/O50",
+                             multiset_tokens=4, digest="aaa")
+        self.assertTrue(before.startswith("REGRESSED"))
+        rolled, _note = roll_back_anchor(
+            self.state(snapshot_anchor=self.BANKED))
+        after, _ = classify(rolled, real=10, insns="T50/O50",
+                            multiset_tokens=4, digest="aaa")
+        self.assertFalse(after.startswith("REGRESSED"))
+        self.assertNotIn("revert advised", after)
+
+    def test_a_None_valued_key_is_REMOVED_not_stored_as_None(self):
+        """best_fuzzy=None must clear the anchor, never become a stale
+        number's placeholder."""
+        rolled, _ = roll_back_anchor(
+            self.state(best_fuzzy=91.0, snapshot_anchor=self.BANKED))
+        self.assertNotIn("best_fuzzy", rolled)
+
+    def test_no_recorded_anchor_changes_nothing_and_SAYS_so(self):
+        state = self.state()
+        rolled, note = roll_back_anchor(state)
+        self.assertEqual(rolled["best_real"], 5)
+        self.assertIn("no anchor was recorded", note)
+
+    def test_an_already_equal_anchor_is_a_silent_no_op(self):
+        current = {"best_real": 5, "best_multiset": 2,
+                   "best_insns": "T50/O50", "best_bytes": "bbb",
+                   "best_fuzzy": None}
+        rolled, note = roll_back_anchor(self.state(snapshot_anchor=current))
+        self.assertEqual(note, "")
+        self.assertEqual(rolled["best_real"], 5)
+
+    def test_a_malformed_anchor_is_ignored_rather_than_trusted(self):
+        _rolled, note = roll_back_anchor(self.state(snapshot_anchor="oops"))
+        self.assertIn("no anchor was recorded", note)
 
 
 class TransientPinBankLifecycleTests(unittest.TestCase):
