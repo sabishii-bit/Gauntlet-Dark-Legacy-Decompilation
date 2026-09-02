@@ -2314,6 +2314,86 @@ class ProposalGateNarrowingTests(unittest.TestCase):
             core._apply_proposal_gates(parked)
 
 
+class WindowedResidualWordCountGateTests(unittest.TestCase):
+    """T6 run-36 item 6: a "4-word residual" that was 122 of 215 words.
+
+    --ops clusters where the OPCODE stream diverges and cannot see pure
+    register-field words, so a window-confined residual sized off --ops is
+    sized off the wrong number entirely.
+    """
+
+    def _attempt_record(self, **extra):
+        record = {
+            "schema_version": 1, "id": "attempt.t6-word-gate.20260902.v1",
+            "kind": "attempt", "function": "function:fn_800D8BCC",
+            "attempted_axis": "probe", "outcome": "parked",
+            "attributes": {"law_screen": "none applicable: test fixture"},
+        }
+        record.update(extra)
+        return record
+
+    def test_a_windowed_word_sized_residual_without_a_count_is_refused(self):
+        record = self._attempt_record(
+            residual_class="REGISTER_ONLY",
+            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
+                           " residual; sized for a live-zero recolor rule")
+        with self.assertRaises(MemoryGraphError) as caught:
+            core._apply_proposal_gates(record)
+        self.assertIn("DIFFERING-WORD COUNT", str(caught.exception))
+        self.assertIn("wf_word_diff.py", str(caught.exception))
+
+    def test_quoting_the_tools_output_line_discharges_it(self):
+        record = self._attempt_record(
+            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
+                           " residual by --ops, but wf_word_diff reports"
+                           " DIFFERING WORDS = 122 over 215 insns")
+        core._apply_proposal_gates(record)
+
+    def test_the_typed_field_discharges_it(self):
+        record = self._attempt_record(
+            differing_words=122,
+            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
+                           " residual")
+        core._apply_proposal_gates(record)
+
+    def test_a_window_with_no_word_sized_claim_does_not_fire(self):
+        """The gate checks a SIZE claim, not the word 'window'."""
+        record = self._attempt_record(
+            attempted_axis="permuted the window at +0x40..+0x60 and"
+                           " re-derived the pin")
+        core._apply_proposal_gates(record)
+
+    def test_a_word_count_with_no_window_does_not_fire(self):
+        record = self._attempt_record(
+            attempted_axis="a 4-word residual across the whole body")
+        core._apply_proposal_gates(record)
+
+    def test_the_pb_window_tu_name_is_not_a_window_token(self):
+        """`_` is a word character, so `pb_window` has no \\b before it."""
+        record = self._attempt_record(
+            function="function:pbWindowDraw",
+            attempted_axis="pb_window cleanup left a 4-word residual")
+        core._apply_proposal_gates(record)
+
+    def test_an_unanchored_record_is_out_of_scope(self):
+        record = self._attempt_record(
+            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
+                           " residual")
+        del record["function"]
+        core._apply_proposal_gates(record)
+
+    def test_citation_prose_quoting_a_windowed_claim_is_not_caught(self):
+        """Gate B/D's self-refusal lesson, applied here too."""
+        record = self._attempt_record(
+            attempted_axis="re-measure the upstream park",
+            attributes={
+                "law_screen": "screened attempt.x.v1, which recorded a"
+                              " 4-word residual in the window at"
+                              " +0x40..+0x60",
+            })
+        core._apply_proposal_gates(record)
+
+
 class TemplateCliOrderTests(unittest.TestCase):
     """Run 34 item 10: the CLI must NOT sort_keys the --template result, or
     schema_version sinks to the bottom of the fill-in skeleton and id/kind

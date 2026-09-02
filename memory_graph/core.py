@@ -281,6 +281,40 @@ _MULTI_EDIT_COUNT_RE = re.compile(
     re.I,
 )
 _MULTI_EDIT_ENUM_RE = re.compile(r"(?:^|[\s;])\(?[2-9][.)]\s")
+
+# Gate E (run 36, from the run-35 T6 queue): a residual claim CONFINED TO A
+# NAMED WINDOW and SIZED IN WORDS must quote a raw differing-word count.
+#
+# `fndiff --ops` clusters only where the OPCODE stream diverges and is
+# structurally blind to pure register-field words, so a function can print
+# "4 tokens in 5 clusters" while more than half its words differ. Run 35
+# found a recorded "4-word residual" was 122 of 215 words
+# (game/movie/movieplayer::fn_800D8BCC). The word count, not the --ops
+# cluster count, is what decides postprocessor candidacy, and a rule sized
+# against the cluster count is sized against a residual that does not exist.
+#
+# `\bwindows?\b` does NOT match `pb_window`: `_` is a word character, so
+# there is no word boundary before "window" there — the pb_window TU's own
+# records are excluded by construction rather than by a name list.
+_WINDOW_TOKEN_RE = re.compile(
+    r"\bwindows?\b"
+    r"|@0x[0-9a-fA-F]+\s*-\s*0x[0-9a-fA-F]+"
+    r"|\+0x[0-9a-fA-F]+\s*(?:\.\.|-|to)\s*\+?0x[0-9a-fA-F]+",
+    re.I,
+)
+# The claim the count has to back: a residual SIZED in words.
+_WORD_SIZED_RESIDUAL_RE = re.compile(
+    r"\b\d{1,5}[-\s]word\b"
+    r"|\b\d{1,5}\s+words?\s+(?:differ|of\s+\d{1,5})",
+    re.I,
+)
+# The measurement that discharges it — the tool, or its output line.
+_WORD_DIFF_EVIDENCE_RE = re.compile(
+    r"\bwf_word_diff\b"
+    r"|differing[-\s]words?\s*[:=]\s*\d{1,5}"
+    r"|\bdiffering[-\s]word count\b",
+    re.I,
+)
 # Outcomes for which a multi-edit probe must name what it held fixed: only the
 # ones that VETO an axis. See gate C.
 HELD_FIXED_OUTCOMES = frozenset({"negative", "parked", "capped"})
@@ -3543,6 +3577,37 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
                 " issuing one — screening it, re-measuring it, or overturning"
                 " it — set `describes_denial_of` to the record id you are"
                 " describing instead of adding a denial you do not mean."
+            )
+
+    # Gate E (run 36). A residual claim confined to a named window and sized
+    # in WORDS has to quote the raw differing-word count that backs it. See
+    # the regex block for the measured case: a recorded "4-word residual"
+    # was 122 of 215 words, because --ops is blind to register-field words.
+    # Anchored like gates B and D, and scanned over `substance`, so a record
+    # CITING somebody else's windowed claim is not caught by its citation.
+    if (anchored
+            and _WINDOW_TOKEN_RE.search(substance)
+            and not _record_field(record, "differing_words")):
+        sized = _WORD_SIZED_RESIDUAL_RE.search(substance)
+        if sized and not _WORD_DIFF_EVIDENCE_RE.search(substance):
+            raise MemoryGraphError(
+                "a residual claim confined to a named window and sized in"
+                f" words (matched {' '.join(sized.group(0).split())!r})"
+                " must quote the RAW DIFFERING-WORD COUNT that backs it."
+                " `fndiff --ops` clusters only where the OPCODE stream"
+                " diverges and is structurally blind to pure register-field"
+                " words, so it under-reports the residual it is asked to"
+                " size: run 35 found a recorded \"4-word residual\" was 122"
+                " of 215 words on game/movie/movieplayer::fn_800D8BCC (see"
+                " claim.law.identical-multiset-is-blind-to-displacements"
+                ".20260831.v1). The word count, not the --ops cluster count,"
+                " decides postprocessor candidacy, and a rule sized against"
+                " the cluster count is sized against a residual that is not"
+                " there. MEASURE IT:"
+                "\n    python tools/gdl/composed_census/wf_word_diff.py"
+                " <unit> <function>"
+                "\nthen quote its `DIFFERING WORDS = N` line in the record,"
+                " or set the `differing_words` field to the number."
             )
 
     # Gate C. A park that changed several things at once and does not say
