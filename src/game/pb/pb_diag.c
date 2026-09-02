@@ -1595,6 +1595,7 @@ s32 pbDiagDrawObject(void)
     }
     return 0;
 }
+#pragma opt_propagation reset
 #pragma opt_lifetimes reset
 
 
@@ -1719,6 +1720,7 @@ typedef struct DiagDataView {
 /* top-level diag menu: latch pads, draw/step the 5 entries, dispatch the
  * active entry's handler */
 #pragma opt_lifetimes off
+#pragma opt_propagation off
 s32 pbDiagDrawMenu(void)
 {
     f32* gd = gDiagData;
@@ -1755,13 +1757,15 @@ s32 pbDiagDrawMenu(void)
             printf(strs + 764, row + 156);
         }
         x = 0;
-        for (i = x; (u32)i < 5; i++) {
+        for (i = 0; (u32)i < 5; i++) {
             if (i == gDiag_DC) {
                 color = 0x00FFFF00;
             } else {
                 color = 0x00FFFFFF;
             }
-            fn_800C008C(color, x, 2, (char*)&gd[i * 3] + 156);
+            row = (char*)&gd[i * 3];
+            row += 156;
+            fn_800C008C(color, x, 2, row);
             x += 8;
         }
         if (gDiagRepeatDelay == 0 && (b[4] & 0x02000000)) {

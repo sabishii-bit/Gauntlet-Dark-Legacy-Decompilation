@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py game/audio/adstream adsInitFromHeader 0x0:0x60 --diff",
+    "tools/gdl/fndiff.py game/audio/adstream adsInitFromHeader --clean",
+    "tools/gdl/nearmiss.py --min 90",
+    "git:7d13eb2b9"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "pool-layout",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Take any function whose target prologue loads its float constants in a different order from ours while the load COUNT and instruction order agree, convert its `extern f32/f64 lbl_` locals to literals at the use sites, and measure. If the register assignment does not follow first-use-inside-the-loop order after the conversion - or if a function with NO extern-scaffold local nevertheless assigns its generated conversion constants out of first-use order - the law is wrong. Cheapest single check: `python tools/gdl/fnasm.py <unit> <fn> 0x0:0x60 --diff` on any function with several callee-saved FPR constant loads.",
+  "id": "claim.law.NM_extern-scaffold-float-steals-the-low-callee-saved-fpr-from-the-generated-conversion-constants.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T23:09:40Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "MWCC assigns a function's loop-invariant floating CONSTANTS to callee-saved FPRs in the order of their FIRST USE inside the loop, and a named local initialised from an `extern f32/f64 lbl_XXXXXXXX` sdata2 object is NOT one of them: it is an ordinary definition at the point of assignment, so it takes an EARLIER (lower-numbered) callee-saved FPR than every compiler-generated conversion constant, and rotates all of them up by one. WORKED PROOF, adsInitFromHeader (game/audio/adstream, 155/155, opcode multiset IDENTICAL, real 8 before this lever and 0 after). Prologue, target: `lfd f28,@lbl_80349318` / `lfs f29,@lbl_80349308` / `lfd f30,@lbl_80349320` / `lfd f31,@lbl_80349310`. Prologue, ours before the fix: `lfd f28,@lbl_80349310` / `lfs f29,@lbl_80349308` / `lfd f30,@@273` / `lfd f31,@@276`. The load ORDER and the register sequence f28,f29,f30,f31 are identical in both; only WHICH constant sits in each register differs. Reading the four values out of the retail image settles it: 0x80349308 = 32000.0f, 0x80349310 = 65536.0, 0x80349318 = 0x4330000000000000 (the u32->f64 bias), 0x80349320 = 0x4330000080000000 (the s32->f64 bias). The target's order f28..f31 is exactly first-use order inside the loop: the u32 bias is consumed at +0xb0 (`fsubs f27,f0,f28`), the 32000.0f divisor at +0x16c (`fdivs f27,f27,f29`), the s32 bias at +0x1a4 (`fsubs f0,f0,f30`) and 65536.0 at +0x1ac (`fmul f0,f31,f27`). Our order was DEFINITION order instead, because `kscale = lbl_80349310; kdiv = lbl_80349308;` sat at the top of the function: kscale took f28, kdiv f29, and the two generated biases were pushed to f30 and f31. Deleting both locals and writing `ratio / 32000.0f` and `65536.0 * ratio` at their use sites moved every constant into the generated-constant pool, restored first-use order, and closed the function BYTE-EXACT in one probe. CONSEQUENCE FOR THE `extern f32/f64 lbl_` SCAFFOLD, which is a large population: `grep -rn 'extern f32 lbl_\\|extern f64 lbl_' src/` counts 807 declaration sites image-wide (census 2026-09-02). The scaffold is faithful for a genuine cross-TU object, but where the address is one of THIS TU's own sdata2 literals the declaration is a reconstruction artifact with a codegen cost, and converting it to the literal is a normal matching lever, not merely a de-fakematch cleanup. It also stops suppressing the TU's own pool: adstream's .sdata2 grew 0x10 -> 0x20 as our object began emitting the four constants the retail TU owns at 0x80349308..0x80349320. SCOPE AND LIMIT: this law is about the ORDER of callee-saved FPR assignment for loop-invariant constants, and it was measured on one function; it does not claim that replacing any extern with a literal is always an improvement, and a TU whose pool ORDER is already correct has nothing to gain. IMAGE-WIDE POPULATION OF THE PURE SYMPTOM, measured rather than estimated: screening all 229 `nearmiss.py --min 90` rows (vetoed TUs excluded) for a residual whose every differing line is an FPR RENAMING and nothing else returns exactly TWO functions - adsInitFromHeader (closed by this law) and game/world/worldcol::PointLineColl (12 rows), which is separately capped by attempt.SP_pointlinecoll-branch-recompute-cse-fold.20260901.v1 as an x-z-y branch load-order rotation. So the pure-FPR-rotation class is small; the law's value is as a screen to run BEFORE theorising about FPR allocation, not as a harvest lane."
+}

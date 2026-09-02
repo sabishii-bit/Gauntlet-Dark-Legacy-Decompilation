@@ -2492,6 +2492,17 @@
     ],
     "game/ui/options": [
       {
+        "function": "next_rune_hint",
+        "before_sha256": "018e6ddbaf543561447da87af229dd3cdee7e09790dc412c175e6b7e129a5e6b",
+        "after_sha256": "36501771969941f8a43e01ec80e4a4c72699a5061b97c24cf33e307de4df1053",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 96
+        },
+        "mechanism": "attempt.NM_next-rune-hint-copy-register-fields-close.20260902.v1, whose source-exhaustion provenance is attempt.UA_next-rune-hint-named-base-removes-the-permutation-that-blocked-the-pin.20260902.v1 (PROBE 1 KEPT: naming the gPlayers base as a local `u8* base` materialises the address ahead of the shift and removed the one-position displacement that made every permutation window refuse at step 0; PROBE 2 NEGATIVE: reusing the declared-but-unused `s32 off` as a named shift amount folded away, object bytes unchanged) plus PROBE 3 measured for THIS rule and NEGATIVE the same way: swapping the `u32 bit` / `u8* base` declaration order is NEUTRAL-IDENTICAL (bytes cc8d36603a4e, real 18, T96/O96), which is the declaration-order axis proving that these are volatile registers whose numbering no source reordering reaches. RESIDUAL, measured with tools/gdl/rule_derive.py at commit 260e636be: 96/96 instructions, opcode multiset IDENTICAL, `fndiff --ops` ZERO clusters, 9 differing words in four runs (+0xfc..+0x114 six words, +0x11c one, +0x134 one, +0x150 one), real 18, fuzzy 99.2188. NO instruction_permutation stage is needed or declared - the instruction ORDER already matches the target word for word, which is exactly what the provenance record's PROBE 1 bought, and it is why the next_boss_hint rule's own closing note ('the third sibling next_rune_hint is NOT a member - every window tried refuses at step 0 with breaks def-use chains') is obsolete rather than wrong. THE RECOLOR, web by web, ours -> target: the loaded rune index r3 -> r4 (+0xfc lwz); the gPlayers ADDR16_HA half r5 -> r3 (+0x100 lis); the constant 1 r4 -> r0 (+0x104 li); the shift amount `rune_idx_table[rune_hint_index] - 1` r0 -> r4 (+0x108 addi -1); the ADDR16_LO base r5 -> r6 (+0x10c addi, and +0x11c add r7); and the mask `bit` r6 -> r5 (+0x110 slw, +0x134 and., +0x150 and.). Every changed field is one of PowerPC's five-bit register slots; no immediate, branch displacement, relocation payload or opcode moves, and the two `and.` words are a commutative rA/rB field exchange on the same pair, not an operand-semantics change. src/game/ui/options.c is byte-unchanged by this rule.",
+        "copy_register_fields": true
+      },
+      {
         "function": "next_boss_hint",
         "before_sha256": "e08fe4b17f3ee4391617591ac13555e659218d8300d81090c7ccc46243dbb0e8",
         "after_sha256": "2baebf55a677401256d11897a61ea028490c134df0b7c76fe283f5a14ff3a9e6",
