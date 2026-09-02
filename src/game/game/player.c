@@ -6368,9 +6368,9 @@ static void do_got_it_8007FC80(void) {
                 if (sMusicTrackHi == 0xC) {
                     g->blit2 = MBNewBlit("COINHUD", x, 0);
                 } else if (g->count > 10) {
-                    g->blit2 = MBNewBlit("KEYS", x, 0);
+                    g->blit2 = MBNewBlit("GOLD", x, 0);
                 } else {
-                    g->blit2 = MBNewBlit("KEY", x, 0);
+                    g->blit2 = MBNewBlit("JUNK", x, 0);
                 }
                 break;
             case 5:
@@ -6404,12 +6404,12 @@ static void do_got_it_8007FC80(void) {
             blit = &g->blit1;
             if (g->blit1 != NULL) {
                 mbBlitProject(g->blit1, 0x80, 0);
-                mbBlitCalcWidth(*blit, x, 0x180, 0.15f);
+                mbBlitCalcWidth(*blit, x, 0x180, 63980.0f);
             }
             blit = &g->blit2;
             if (g->blit2 != NULL) {
                 mbBlitProject(g->blit2, 0x80, 0);
-                mbBlitCalcWidth(*blit, x, 400, 0.16f);
+                mbBlitCalcWidth(*blit, x, 400, 63979.0f);
             }
             g->state++;
             break;
