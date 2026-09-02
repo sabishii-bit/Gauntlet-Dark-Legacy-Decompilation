@@ -32,8 +32,8 @@ from probe import (BEST_KEYS, CONFLICT_UNARBITRATED_EXIT, REPLAN_AT,
                    anchor_of, drop_transient_pins,
                    keep_consumes_transient_bank,
                    readout_banks_baseline, roll_back_anchor,
-                   discard_refusal, replan_hint, restore_scope_counts,
-    scaffold_rows, scoped_revert,
+                   count_class_line, discard_refusal, replan_hint,
+    restore_scope_counts, scaffold_rows, scoped_revert,
                    slot_arbiter_header, slot_arbiter_signal, split_lines,
                    stale_restore_refusal, strip_noncode,
                    update_neutral_identical_streak)
@@ -1963,6 +1963,41 @@ class ScopedRevertTests(unittest.TestCase):
         self.assertEqual(out, crlf)
         # every LF is still part of a CRLF — no line ending was rewritten
         self.assertEqual(out.count("\n"), out.count("\r\n"))
+
+
+class CountParityClassTests(unittest.TestCase):
+    """T10 run-40 item 8: a count change is a CLASS change, not a score."""
+
+    def test_gaining_parity_is_announced(self):
+        line = count_class_line("T1174/O1172", "T1174/O1174")
+        self.assertTrue(line.startswith("COUNT-PARITY GAINED"), line)
+        self.assertIn("CLASS change", line)
+
+    def test_losing_parity_is_announced_with_the_delta(self):
+        line = count_class_line("T1174/O1174", "T1174/O1172")
+        self.assertTrue(line.startswith("COUNT-PARITY LOST"), line)
+        self.assertIn("2 instruction(s)", line)
+        self.assertIn("NO postprocessor rule", line)
+
+    def test_an_unchanged_relationship_is_silent(self):
+        self.assertEqual(count_class_line("T100/O100", "T100/O100"), "")
+        self.assertEqual(count_class_line("T100/O98", "T100/O95"), "")
+
+    def test_an_unparseable_count_says_nothing(self):
+        self.assertEqual(count_class_line(None, "T100/O100"), "")
+        self.assertEqual(count_class_line("T100/O100", "1174/1172"), "")
+
+    def test_classify_carries_it_out_of_band(self):
+        """It must NOT be prefixed onto the verdict: every downstream
+        decision in probe.py dispatches on verdict.startswith(), so a
+        prefix would silently disable banking."""
+        state = {"best_real": 840, "best_multiset": 14, "last_real": 840,
+                 "last_insns": "T1174/O1172", "last_multiset": 14}
+        verdict, after = classify(state, 830, "T1174/O1174", 14)
+        self.assertTrue(verdict.startswith("IMPROVED "), verdict)
+        self.assertNotIn("COUNT-PARITY", verdict)
+        self.assertTrue(after["count_class"].startswith("COUNT-PARITY GAINED"))
+        self.assertEqual(after["best_real"], 830, "banking still works")
 
 
 class DiscardScopeTests(unittest.TestCase):

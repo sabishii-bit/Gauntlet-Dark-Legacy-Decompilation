@@ -1323,6 +1323,53 @@ def scoped_revert(snap_text, cur_text, fn):
     return "".join(out), notes
 
 
+def _parity(insns):
+    """(target, ours) from a "T<n>/O<n>" string, or None."""
+    match = re.match(r"T(\d+)/O(\d+)$", insns or "")
+    return (int(match.group(1)), int(match.group(2))) if match else None
+
+
+def count_class_line(prev_insns, insns):
+    """The CATEGORICAL verdict, printed before any real/fuzzy comparison.
+
+    MV, run 39 (run-40 item 8): an instruction-COUNT change is not a
+    quantity on the same scale as `real` or fuzzy — it is a CLASS change.
+    claim.law.webfrank-cannot-close-a-count-asymmetric-residual and
+    claim.law.webfrank-cannot-close-instruction-count-deltas both make the
+    count the deciding fact: while T != O, NO postprocessor class can reach
+    the function at all, so no rule, no permutation and no recolor is
+    available however good the fuzzy looks. probe printed that only
+    indirectly, as a `real`/multiset comparison and a count-distance
+    predictor, so a probe that GAINED or LOST parity read as an ordinary
+    numeric move and the class change went unremarked.
+
+    Silent when parity did not change: this is a transition report, and
+    saying "still asymmetric" on every probe of a long-asymmetric function
+    is the kind of constant line readers learn to skip.
+    """
+    now = _parity(insns)
+    before = _parity(prev_insns)
+    if now is None or before is None:
+        return ""
+    was_equal = before[0] == before[1]
+    is_equal = now[0] == now[1]
+    if was_equal == is_equal:
+        return ""
+    if is_equal:
+        return (f"COUNT-PARITY GAINED  insns {prev_insns} -> {insns}:"
+                " ours and target now hold the SAME instruction count. This"
+                " is a CLASS change, not a score change — a count-asymmetric"
+                " residual is outside EVERY postprocessor class, and this"
+                " function has just become eligible for one. Read it before"
+                " the real/fuzzy line below.")
+    return (f"COUNT-PARITY LOST  insns {prev_insns} -> {insns}:"
+            f" ours and target now differ by {abs(now[0] - now[1])}"
+            " instruction(s). This is a CLASS change, not a score change —"
+            " while the counts differ NO postprocessor rule can close this"
+            " function, so a fuzzy or real gain here buys a state no rule"
+            " can finish. Read it before the real/fuzzy line below.")
+
+
 def restore_scope_counts(base_text, cur_text, fn):
     """(inside, outside, entangled_spans) hunks between ``base`` and the tree.
 
@@ -2563,6 +2610,14 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
     verdict, state = apply_fuzzy_bank_gate(verdict, state, prior_best,
                                            best_fuzzy, fuzzy,
                                            accept_fuzzy_loss)
+    # THE CATEGORICAL LINE (run-40 item 8) is carried OUT OF BAND, in
+    # `count_class`, and printed by main() ABOVE the verdict. It is not
+    # prepended to `verdict` on purpose: every downstream decision in this
+    # tool — banks_best, the snapshot bank, conflict_gate, the NEUTRAL
+    # annotators — dispatches on verdict.startswith(), so a prefix would
+    # silently disable banking. It changes what the verdict MEANS, never
+    # what it IS.
+    state["count_class"] = count_class_line(state.get("last_insns"), insns)
     state["last_real"] = real
     state["last_insns"] = insns
     if multiset_tokens is not None:
@@ -3576,6 +3631,12 @@ def main():
         verdict += "\n" + hint
         state["last_verdict"] = verdict
     state_file.write_text(json.dumps(state), encoding="utf-8")
+    # CATEGORICAL FIRST (run-40 item 8). A count-parity change decides which
+    # postprocessor classes exist for this function at all; `real` and fuzzy
+    # cannot express that, and printing it under them let a class change
+    # read as an ordinary numeric move.
+    if state.get("count_class"):
+        print(state["count_class"])
     print(verdict)
     # The DATA column, printed alongside EVERY verdict (run 34 item 1): the
     # verdict above scores the INSTRUCTION STREAM ONLY, so a moved non-text
