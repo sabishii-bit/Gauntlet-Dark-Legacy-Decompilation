@@ -76,6 +76,11 @@ describe is a residual someone may already have closed:
 ```text
 gdlmem.py laws --residual "+1 addi -1 li"   # laws + sibling records sharing
                                             # the signature, + webfrank pins
+                                            # (QUOTES REQUIRED: unquoted, the
+                                            # shell splits it and argparse
+                                            # reparses "+1" as a subcommand,
+                                            # dumping usage — not a broken
+                                            # tool)
 gdlmem.py find --family live-zero-remat     # the whole residual family
 gdlmem.py find --capability dataflow-equivalence  # which parks a capability
                                             # would unpark = its payoff
@@ -556,6 +561,18 @@ project-level result.
 - On functions larger than roughly 4000 instructions, arbitrate probes with
   the objdiff fuzzy score from `build/GUNE5D/report.json`, not `real` line
   counts: register-color cascades move `real` in both directions.
+- **Measure fresh fuzzy BEFORE banking any keep, even when real and multiset
+  agree** (run 35, measured): probe banked an "IMPROVED" state whose fresh
+  fuzzy was a 0.46 regression, and the next probe — measured on that
+  poisoned base — read the run's best edit as a loss (re-applied from the
+  last commit it was +0.33). Corollary: re-run any negative verdict from
+  the last COMMITTED state before recording it. `probe --arbitrate` prints
+  the (real, fuzzy) pair for both states in one call.
+- **A windowed residual claim requires a raw differing-word count**
+  (`tools/gdl/composed_census/wf_word_diff.py`): run 35 found a recorded
+  "4-word residual" was 122 words — `--ops` clusters only where the opcode
+  stream diverges and is blind to pure register-field words. The word
+  count, not the `--ops` cluster count, decides postprocessor candidacy.
 - A green linked DOL proves little for a `NonMatching` TU: the linker can use
   original extracted bytes instead of the compiled object. Validate
   nonmatching work with the object build, function diff, calls/CFG/field
@@ -1004,6 +1021,30 @@ contention on one machine. Rules:
   `memory_graph/inbox/` bypasses that guard entirely (measured: a twin's
   detailed record was silently overwritten by a same-id write). Write the
   JSON in your scratch directory and let `propose-record` place it.
+
+Dispatch screens (run 35: 2 of 6 lanes were sent to already-complete
+regions, and a third inherited a residual claim that was 30x wrong —
+each screen below costs one command and would have caught its lane):
+
+- **Fresh-TU work orders**: the integrator runs
+  `tools/gdl/composed_census/mt_region_census.py` over the target prefix at
+  DISPATCH time and quotes the target TUs' current `Object()` states from
+  configure.py in the order. An `Object(Matching, ...)` line means the TU
+  is done and the lane is over before it starts.
+- **Citations resolve to record ids.** "Banked in the graph" prose is not
+  a citation; `gdlmem search` must return the record, and the order names
+  its id. (A memory-index summary can advertise a plan its own note body
+  records as superseded — dispatch reads indexes.)
+- **Postprocessor-lane briefs**: run `wf_word_diff.py` on the target
+  function first and quote the raw differing-word count next to any
+  residual description the brief inherits from a record.
+- **Worker step 0 is `python tools/gdl/provision_worktree.py`** from the
+  worker's own worktree — a fresh worktree lacks build.ninja/orig/build
+  and the failure mode is a confusing smoke-test error minutes in.
+- **Multi-item lanes commit each item BEFORE starting the next.** Three
+  items interleaved in one file cost 9 tool calls and two full suite runs
+  to disentangle (git stash is banned here and `git add -p` is unusable
+  non-interactively).
 
 Worktrees: writing workers use separate worktrees/branches; the shared
 checkout is read-only to them. Reuse existing clean campaign worktrees before
