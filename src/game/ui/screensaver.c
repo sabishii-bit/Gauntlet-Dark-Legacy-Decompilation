@@ -1447,14 +1447,16 @@ void print_n_of_m(s32 style, s32 n, s32 m, s32 x, u32 node)
     char buf[76];
     u8* cfg;
     f32 scale;
-    s32 xr;
-    s32 yr;
+    u32 nd;
     s32 d;
+    s32 yr;
+    s32 xr;
     s32 e;
     s32 w;
     s32 h;
     u8* base;
 
+    nd = node;
     base = lbl_8011D568;
     if (n < 0 || n > m) {
         n = m;
@@ -1476,10 +1478,10 @@ void print_n_of_m(s32 style, s32 n, s32 m, s32 x, u32 node)
     xr += d;
     yr += e;
     h = DrawTextKeepScale(scale, xr - w, yr, lbl_80343CA0, 0xFFFFFF, buf);
-    MBFontMsgSetAlpha(h, node);
+    MBFontMsgSetAlpha(h, nd);
     sprintf(buf, lbl_80347424, m);
     h = DrawTextKeepScale(scale, xr, yr, lbl_80343CA0, 0xFFFFFF, buf);
-    MBFontMsgSetAlpha(h, node);
+    MBFontMsgSetAlpha(h, nd);
 }
 
 /* Build the green-circle screen-transition blits and seed the wipe anchors. */
