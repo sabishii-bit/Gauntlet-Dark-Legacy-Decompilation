@@ -4121,7 +4121,7 @@ model_ready:
     } else {
         strcpy(name, ((char**)(tab + 1212))[pad]);
     }
-    sprintf(geoBss->scratch, "%s%s", (char*)(tab + 1128) + cls * 4, name);
+    sprintf(geoBss->scratch, "%s_%s", (char*)(tab + 1128) + cls * 4, name);
     strncpy((char*)&p->pad_0210[0x4B0], geoBss->scratch, 8);
     p->node = MBNewNode(lbl_80344B2C, gIdentityMatrix, 1);
     PF(p, 0x78, s32) = 0;
@@ -4180,7 +4180,7 @@ model_ready:
     } else {
         p->weapon_node = NULL;
     }
-    sprintf(geoBss->scratch, "%sTORSO", (char*)&p->pad_0210[0x4B0]);
+    sprintf(geoBss->scratch, "%sDUMMY", (char*)&p->pad_0210[0x4B0]);
     n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
@@ -4203,9 +4203,9 @@ model_ready:
         p->texmod_id = -1;
         if (p->char_type == 7) {
             *(u32*)((u8*)p->weaphold_node + 0x60) |= 0x4000000;
-            p->texmod_id = AddSpecialTexmod(p->geo_handle, "%s%s",
+            p->texmod_id = AddSpecialTexmod(p->geo_handle, "BOMB",
                                             (char*)geoBss->models[i].sfx_arena,
-                                            "", 5, 1);
+                                            "BOMB00", 5, 1);
         }
     }
     /* live combat fields */
