@@ -1,0 +1,23 @@
+{
+  "attributes": {
+    "asserted_by": [
+      "tools/gdl/composed_census/wf_framebase_census.py",
+      "build/GUNE5D/wf_framebase_census.json"
+    ],
+    "falsifier": "Re-run python tools/gdl/composed_census/wf_framebase_census.py after any change that alters frame layout. A nonzero 'NO other differing word (closable)' count would disprove the second half of this law (that no equal-size function closes on the frame base alone); a delta histogram collapsing onto a single value across many functions would disprove the first half (that the deltas are idiosyncratic rather than a class).",
+    "tags": [
+      "matching",
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.law.WF_uniform-frame-base-delta-is-idiosyncratic-and-closes-no-function-alone.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T03:12:18Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "THE LAW. A uniform r1-displacement delta between our stream and the target's is NOT a codegen class with a shared mechanism, and no equal-size function in this image is closed by fixing its frame base alone. Both halves are measured, and both contradict the framing that motivated the census.\n\nWHAT WAS COUNTED. For every function our object and the extracted target both define at the same size, a FRAME-SLOT row is a same-offset pair of words agreeing in opcode, in the destination/source register field and in the base register field, whose base register is r1 and which differ only in the 16-bit signed displacement. delta = target displacement minus ours. Measured 2026-09-02 over the raw pre-WebFrank bodies (never the postprocessed objects, which would hide exactly the words a rule already rewrites), retail sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679, full ninja green.\n\nTHE NUMBERS. 26 functions carry any frame-slot displacement row. 11 of those have ONE uniform nonzero delta. ZERO have no other differing word. The delta histogram is scattered, not clustered: +4 on 5 functions, +8 on 2, and one each of -8, +12, -16, -4. A single mechanism producing a single reservation delta would not spread across six values in eleven functions.\n\nWHY IT MATTERS. The census was motivated by three functions that looked like a class - mb_particle::DrawPsysSub, mb_particle::MBDrawPsys and gauntworld::fn_8005F0F4 were each described as carrying 'the same +8 base delta'. The census does not reproduce that: DrawPsysSub appears with delta -8 over 44 rows, MBDrawPsys does NOT appear in the uniform-delta population at all, and fn_8005F0F4 is excluded from the join entirely because it is count-asymmetric (T661/O660) and the census only pairs equal-size functions. So the 'shared +8 pattern' recorded across those functions is an artifact of reading three residuals separately, and a lane should not spend a probe on a unified frame-base mechanism.\n\nTHE OPERATIONAL CONSEQUENCE. Because the closable count is ZERO, a frame-base fix is never sufficient on its own: every uniform-delta function carries other differing words too (DrawPsysSub 47, camera::camera_mode_follow 524, mb_blit::DrawBlitFlatQuad 74, enemy::do_enemy_move 479). Frame-base work is therefore always a COMPONENT of a composite close and must be priced as such, never as a standalone exact.\n\nTHE LIMIT, stated because the numbers do not announce it. Words are compared at the SAME BYTE OFFSET, so on a schedule-class function the pairing invents rows out of two differently ordered streams, and a genuine frame row displaced by a schedule difference is never recognised; count-asymmetric functions are skipped entirely. The 'other differing words' column is inflated by exactly this on reordered functions. Confirm any individual hit with fndiff --ops before working it - the same discipline every offset-paired census in this project carries."
+}

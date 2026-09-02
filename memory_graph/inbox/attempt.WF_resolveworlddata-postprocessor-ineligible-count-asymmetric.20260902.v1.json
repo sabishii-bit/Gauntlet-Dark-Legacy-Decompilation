@@ -1,0 +1,28 @@
+{
+  "attempted_axis": "Serve-or-refute the capability request the GT record filed for ResolveWorldData's 4 live-zero sites: screen its residual against the new relocation-binding post-recolor permutation and the existing copy-form / live-zero modes.",
+  "attributes": {
+    "law_screen": "AGENTS.md gate 2 (count-asymmetric residual outside every postprocessor class) APPLIED and deciding. claim.law.live-zero-copy-vs-remat-is-allocator-not-source SCREENED: it explains the li-vs-mr rows but does not make them postprocessor-closable \u2014 li and mr are DIFFERENT opcodes, so exchanging them is a count change, not a register recolor. claim.law.WF_post-recolor-permutation-binds-a-relocated-window-word-by-word-against-the-target.20260902.v1 SCREENED: not applicable (no reloc-carrying reorder in the residual).",
+    "residual": "Instruction counts 1805/1807 (ours/target) \u2014 count-asymmetric by 2, which by AGENTS.md gate 2 alone places the residual outside every postprocessor class. probe/fndiff --ops (game/world/gauntworld.c ResolveWorldData): opcode multiset DIFFERS, target-only +2 lfsu +5 li, ours-only -2 lfs -3 mr, across 17 clusters, no branch rows. TWO out-of-ceiling classes: (a) the +2 lfsu / -2 lfs load-update-idiom difference (a load-with-update vs a plain load plus separate add is a structural/count difference); (b) the +5 li / -3 mr live-zero-remat difference (li rX,0 vs mr rX,rY are different opcodes). No WebFrank mode changes an opcode identity or an instruction count; the relocation-binding capability serves neither.",
+    "verification": "python tools/gdl/probe.py game/world/gauntworld.c ResolveWorldData --ops (per attempt.GT_resolveworlddata-...20260902.v1) measured target-only +2 lfsu +5 li / ours-only -2 lfs -3 mr; re-confirmed as count-asymmetric this run. No source touched."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/world/gauntworld.c ResolveWorldData --ops \u2014 if a source fix makes the opcode multiset IDENTICAL (only register/schedule residual remaining), re-screen for a WebFrank rule.",
+    "falsifier": "A build of ResolveWorldData whose opcode multiset is IDENTICAL and whose sole residual is a recolor/reorder \u2014 then a rule becomes possible.",
+    "premise_measurement": "opcode multiset DIFFERS with lfsu/lfs and li/mr count deltas (2026-09-02); a count-asymmetric, opcode-identity-changing residual is outside every postprocessor class by construction.",
+    "scope": "ResolveWorldData ONLY, its WebFrank (postprocessor) candidacy including the new relocation-binding capability. Does NOT deny the source-axis work the GT/GW records already track (the live-zero and lfsu block-scope-cursor axes)."
+  },
+  "function": "function:ResolveWorldData",
+  "id": "attempt.WF_resolveworlddata-postprocessor-ineligible-count-asymmetric.20260902.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-02T03:14:07Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-02",
+    "signature": "+2 lfsu +5 li target-only / -2 lfs -3 mr ours-only (count-asymmetric, 17 clusters)"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
