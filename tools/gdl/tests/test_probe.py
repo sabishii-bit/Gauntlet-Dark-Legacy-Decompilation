@@ -16,9 +16,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from probe import (REPLAN_AT, annotate_neutral, classify, count_distance,
-                   function_span, fuzzy_anchor_note, moved_sections,
-                   parse_section_digests, replan_hint, scaffold_rows,
-                   scoped_revert, split_lines, strip_noncode,
+                   data_line, function_span, fuzzy_anchor_note,
+                   moved_sections, parse_section_digests, replan_hint,
+                   scaffold_rows, scoped_revert, split_lines, strip_noncode,
                    update_neutral_identical_streak)
 
 
@@ -535,6 +535,66 @@ class DataOnlyEditTests(unittest.TestCase):
                                prev_data=self.BEFORE, data=self.AFTER)
         self.assertIn("NEUTRAL-REARRANGED", out)
         self.assertNotIn("NEUTRAL-DATA-ONLY", out)
+
+
+class DataColumnTests(unittest.TestCase):
+    """The DATA column: a moved non-text section is reported on EVERY
+    verdict, not only on NEUTRAL.
+
+    The regression this class exists for (run 34, item 1): probe measured
+    the object's non-text sections on every probe and banked them in
+    `last_data`, but only ever CONSULTED them inside annotate_neutral,
+    which main() calls only when the verdict starts with NEUTRAL. A
+    frame-widening keep therefore improved `real` — and with it --ops,
+    regnorm, the multiset and fuzzy, every one of which is computed over
+    the instruction stream — while destroying a 208-byte .extab match that
+    no arbiter in the loop could see. The measurement was already in hand;
+    only the reporting was missing.
+    """
+
+    BEFORE = {".extab": "aaa", ".extabindex": "ccc", ".rodata": "eee"}
+    AFTER = {".extab": "bbb", ".extabindex": "ddd", ".rodata": "eee"}
+
+    def test_a_moved_section_is_reported(self):
+        out = data_line(self.BEFORE, self.AFTER)
+        self.assertTrue(out.startswith("DATA"))
+        self.assertIn(".extab", out)
+        self.assertIn(".extabindex", out)
+
+    def test_it_names_only_the_sections_that_moved(self):
+        out = data_line(self.BEFORE, self.AFTER)
+        self.assertNotIn(".rodata", out)
+
+    def test_flat_sections_print_nothing(self):
+        self.assertEqual(data_line(self.BEFORE, dict(self.BEFORE)), "")
+
+    def test_an_unmeasured_side_never_manufactures_a_line(self):
+        for prev, cur in ((None, self.AFTER), (self.BEFORE, None),
+                          (None, None)):
+            self.assertEqual(data_line(prev, cur), "")
+
+    def test_an_unedited_source_prints_nothing(self):
+        """A sibling lane's rebuild can move a shared pool; only an edit of
+        THIS source may be attributed to this probe."""
+        self.assertEqual(
+            data_line(self.BEFORE, self.AFTER, source_changed=False), "")
+
+    def test_it_says_the_verdict_above_cannot_see_these_bytes(self):
+        out = data_line(self.BEFORE, self.AFTER)
+        self.assertIn("datadiff", out)
+        for arbiter in ("real", "--ops", "regnorm", "fuzzy"):
+            self.assertIn(arbiter, out)
+
+    def test_an_exception_table_move_is_called_out(self):
+        """.extab/.extabindex losses are invisible in the DOL until the
+        link, which is what made the motivating incident survive review."""
+        out = data_line(self.BEFORE, self.AFTER)
+        self.assertIn("exception", out.lower())
+
+    def test_a_plain_pool_move_is_not_called_an_exception_table(self):
+        out = data_line({".sdata2": "1"}, {".sdata2": "2"})
+        self.assertIn(".sdata2", out)
+        self.assertNotIn("exception", out.lower())
 
 
 class SectionDigestTests(unittest.TestCase):

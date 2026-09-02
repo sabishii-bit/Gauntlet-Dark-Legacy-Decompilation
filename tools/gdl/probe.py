@@ -466,6 +466,60 @@ def moved_sections(prev, cur):
                   if prev.get(name) != cur.get(name))
 
 
+# dtk/MWCC name the EABI exception tables WITHOUT a leading dot in these
+# objects (`extab`/`extabindex`, per `objdump -s`); dotted spellings kept
+# for portability across other toolchains.
+EH_SECTIONS = ("extab", "extabindex", ".extab", ".extabindex",
+               ".eh_frame", ".gcc_except_table")
+
+
+def data_line(prev_data, data, source_changed=True):
+    """The DATA column, printed alongside EVERY verdict.
+
+    probe already measured the object's non-text sections on every probe
+    and banked them in `last_data`, but only ever CONSULTED them inside
+    annotate_neutral — which main() calls only when the verdict starts
+    with NEUTRAL. So the one shape the measurement exists to catch, an
+    edit whose .text got BETTER while a data section moved, printed
+    nothing at all: a source change that widens a function's callee-saved
+    save area silently DESTROYS its TU's extab match while real, fuzzy,
+    the opcode multiset and the instruction count all IMPROVE — measured
+    on writeGauntletSave at -208 bytes of Data with a win on every .text
+    arbiter (claim.law.WS_frame-widening-silently-breaks-the-tus-extab-
+    match).
+
+    NEUTRAL-DATA-ONLY owns its own annotation, so main() suppresses this
+    line there; this is the alarm for the TEXT-VISIBLE verdicts
+    (IMPROVED / REGRESSED / CONFLICT) the neutral path never reaches.
+    Returns "" — never a manufactured line — when either side is
+    unmeasured or the source did not change, exactly like moved_sections.
+    """
+    moved = moved_sections(prev_data, data) if source_changed else []
+    if not moved:
+        return ""
+    eh = [name for name in moved if name in EH_SECTIONS]
+    line = (f"DATA      non-text section(s) {', '.join(moved)} MOVED — the"
+            " verdict above scores the INSTRUCTION STREAM ONLY. real,"
+            " --ops, regnorm, the multiset and fuzzy are all computed over"
+            " .text and are structurally blind to these bytes, so a keep"
+            " that improves every text arbiter can still DESTROY a matched"
+            " data section (measured: a frame-widening keep took a"
+            " 208-byte .extab match with it while every text arbiter"
+            " approved). This is NOT a revert order — it is the half of"
+            " the result nothing else here scores. ARBITRATE with"
+            " `python tools/gdl/datadiff.py <unit> --sections` before"
+            " keeping or reverting")
+    if eh:
+        line += (f"\n          EXCEPTION-TABLE section(s) {', '.join(eh)}"
+                 " moved: these carry no instructions, so every score in"
+                 " this loop reads them as absent. A changed save-area"
+                 " register (the stmw/lmw IMMEDIATE row) is the usual"
+                 " cause — check the table's SIZE against target, and the"
+                 " whole-image `ninja` PROGRESS 'Data:' figure, before"
+                 " keeping the frame change")
+    return line
+
+
 def fuzzy_anchor_note(best_fuzzy, cur_fuzzy):
     """What the CONFLICT verdict can say about fuzzy without a build.
 
@@ -1187,6 +1241,18 @@ def main():
         state["last_verdict"] = verdict
     state_file.write_text(json.dumps(state), encoding="utf-8")
     print(verdict)
+    # The DATA column, printed alongside EVERY verdict (run 34 item 1): the
+    # verdict above scores the INSTRUCTION STREAM ONLY, so a moved non-text
+    # section — a widened save area losing its .extab match, a corrected pool
+    # word — is invisible to real, --ops, regnorm, the multiset and fuzzy
+    # alike. data_line returns "" unless a section actually moved.
+    # NEUTRAL-DATA-ONLY already names the same sections with advice tuned to
+    # a byte-identical stream, so it owns that verdict; printing both would
+    # report one measurement twice with two different recommendations.
+    if "NEUTRAL-DATA-ONLY" not in verdict:
+        dcl = data_line(prev_data, data, source_changed)
+        if dcl:
+            print(dcl)
 
     want_scaffold = ("--scaffold" in sys.argv or "--scaffold-all" in sys.argv
                      or verdict.startswith("BASELINE"))
