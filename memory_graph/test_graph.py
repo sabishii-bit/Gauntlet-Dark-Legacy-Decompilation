@@ -1197,6 +1197,71 @@ class ProposalGateTests(unittest.TestCase):
                         "residual": self.CLOSURE})
         self.assertTrue(stage_record_proposal(record, root=self.root).exists())
 
+    # --- Gate G, composed extension (run 38): name the WINDOWS ----------
+    #
+    # A composed rule is a CHOICE OF SPANS AND ORDERS, not one object, so a
+    # composition that refuses refuses AT A SHAPE. MEASURED:
+    # attempt.MC_init-all-dir-info-composed-refusal-... denied the existing
+    # composed class for init_all_dir_info on ONE window, `pre
+    # 0x68:0x70:1,0`, refusing "on both arrow orders" — which names the
+    # MODE, while the record's own analysis puts the refusal in the
+    # +0x14..+0x20 half that window does not cover at all.
+    COMPOSED = ("copy_register_fields cannot rewrite the li, so the composed"
+                " rule refuses on both arrow orders and the existing"
+                " WebFrank composition is closed for this function")
+
+    def test_a_composed_refusal_naming_only_the_mode_is_refused(self):
+        record = _attempt(
+            "attempt.composed.v1", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.COMPOSED})
+        with self.assertRaisesRegex(MemoryGraphError, "windows_tried"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_a_composed_refusal_with_windows_tried_is_accepted(self):
+        record = _attempt(
+            "attempt.composed.v2", "function:test_fn", outcome="capped",
+            windows_tried=["0x68:0x70:1,0", "0x14:0x20:2,0,1"],
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.COMPOSED})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_windows_quoted_in_the_PROSE_also_satisfy_the_gate(self):
+        """The MC record's own spelling: the shape is in the measurement."""
+        record = _attempt(
+            "attempt.composed.v3", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.COMPOSED
+                        + ". Window tried: 0x68:0x70:1,0 only."})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_the_composed_gate_error_names_the_mode_versus_shape_distinction(
+            self):
+        record = _attempt(
+            "attempt.composed.v4", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.COMPOSED})
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=self.root)
+        message = str(caught.exception)
+        self.assertIn("init_all_dir_info", message)
+        self.assertIn("arrow orders", message)
+
+    def test_the_composed_gate_only_fires_on_veto_outcomes(self):
+        record = _attempt(
+            "attempt.composed.v5", "function:test_fn", outcome="improved",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.COMPOSED})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_an_ordinary_park_is_not_taxed_by_the_composed_gate(self):
+        record = _attempt(
+            "attempt.composed.v6", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": "Plain register-allocation park; no"
+                                    " postprocessor claim at all."})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
     def test_gate_g_does_not_fire_on_a_single_verifier_report(self):
         """Reporting ONE verifier's refusal without generalising from it is
         not a closure claim and is not gated."""

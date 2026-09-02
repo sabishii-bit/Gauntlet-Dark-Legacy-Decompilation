@@ -403,6 +403,40 @@ _WEBFRANK_VERIFIER_RE = re.compile(
 # Narrow and literal, like gate D's vocabulary — a record that merely reports
 # one verifier's refusal without generalising from it is not making this
 # claim and is not taxed.
+# Gate G extension (run 38). A COMPOSED rule is a CHOICE OF WINDOWS, not a
+# single object: `instruction_permutation` takes a window list, and each
+# window has a span and an order. So "the composed rule refuses" is a
+# measurement of the SHAPE that was tried, exactly as gate G's original
+# case was a measurement of the verifier subset that was run.
+#
+# MEASURED: attempt.MC_init-all-dir-info-composed-refusal-and-the-decl-
+# order-form-the-prose-park-never-wrote.20260902.v1 denies "the
+# existing-class WebFrank composition (instruction_permutation +
+# copy_register_fields + equivalent_copy_form)" for init_all_dir_info on
+# the strength of ONE window, `pre 0x68:0x70:1,0`, refusing "on both arrow
+# orders". Naming the two ARROW ORDERS is naming the MODE; the record's own
+# analysis says the refusal comes from the +0x14..+0x20 half, which that
+# window does not cover at all. The denial is scoped to a shape nothing in
+# it declares.
+_COMPOSED_CLOSED_RE = re.compile(
+    r"(?:composed|composition)\s+(?:\w+\s+){0,3}"
+    r"(?:refus\w+|fail\w+|is|was|are|were)\s*(?:therefore\s+)?"
+    r"(?:refus\w+|closed|impossible|ineligible|not\s+possible)?"
+    r"|(?:the\s+)?composed\s+(?:rule|class|path|composition)\s+refus\w+"
+    r"|no\s+composition\s+(?:works|closes|is\s+possible)",
+    re.I,
+)
+
+# Evidence that a concrete window SHAPE is on the record: an hv_try-style
+# `0xA:0xB:order` triple, an explicit span, or a stated window count.
+_WINDOW_SHAPE_RE = re.compile(
+    r"0x[0-9a-fA-F]+\s*:\s*0x[0-9a-fA-F]+\s*:"
+    r"|\+0x[0-9a-fA-F]+\s*(?:\.\.|-|to)\s*\+?0x[0-9a-fA-F]+"
+    r"|\bwindows?\s+(?:tried|attempted|enumerated|shapes?)\b"
+    r"|\b(?:tried|attempted)\s+\d+\s+windows?\b",
+    re.I,
+)
+
 _POSTPROCESSOR_CLOSED_RE = re.compile(
     r"(?:postprocessor|webfrank)[- ](?:path|route|class)"
     r"\s*(?:is|are|remains?|stays?)?\s*(?:therefore\s+)?closed"
@@ -3535,6 +3569,14 @@ def record_template(kind: str) -> dict[str, Any]:
                                         " a region untouched while both were"
                                         " blind to register-relative cursor"
                                         " stores>",
+            "windows_tried": "<OPTIONAL, REQUIRED when the record closes the"
+                             " COMPOSED postprocessor class: the spans and"
+                             " orders you actually ran, e.g."
+                             " [\"0x68:0x70:1,0\", \"0x14:0x20:2,0,1\"]."
+                             " A composed rule is a CHOICE of windows, so a"
+                             " refusal measures the SHAPE tried; naming only"
+                             " the arrow order names the MODE, not the"
+                             " shape. If you tried exactly one, say so>",
             "verifiers_run": "<OPTIONAL, REQUIRED when the record closes the"
                              " POSTPROCESSOR path for a function: the list of"
                              " verifiers you ACTUALLY ran ("
@@ -3987,6 +4029,42 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
                 " deliberately did NOT run one, say which and why in the"
                 " same list entry, because \"not run\" and \"refused\" are"
                 " different findings."
+            )
+
+    # Gate G, composed-class extension (run 38). Gate G above makes a
+    # postprocessor refusal name its VERIFIERS. A COMPOSED refusal has a
+    # second free variable the mode does not capture: the WINDOWS. An
+    # `instruction_permutation` is a choice of spans and orders, so a
+    # composition that refuses refuses AT A SHAPE, and a record that names
+    # only the mode denies the whole class on the evidence of one shape.
+    if (anchored
+            and record.get("kind") == "attempt"
+            and str(record.get("outcome", "")).lower() in HELD_FIXED_OUTCOMES
+            and _WEBFRANK_VERIFIER_RE.search(substance)
+            and not _record_field(record, "windows_tried")
+            and not _WINDOW_SHAPE_RE.search(substance)):
+        composed = _COMPOSED_CLOSED_RE.search(substance)
+        if composed:
+            raise MemoryGraphError(
+                "a record closing the COMPOSED postprocessor class"
+                f" (matched {' '.join(composed.group(0).split())!r}) must"
+                " name the WINDOWS it tried, in `windows_tried` or in the"
+                " prose. A composed rule is a CHOICE OF SPANS AND ORDERS,"
+                " not one object, so a refusal is a measurement of the"
+                " SHAPE that was tried — the same fact gate G already"
+                " enforces one level up for the verifier subset."
+                " MEASURED: attempt.MC_init-all-dir-info-composed-refusal-"
+                "and-the-decl-order-form-the-prose-park-never-wrote"
+                ".20260902.v1 denied the existing composed class for"
+                " init_all_dir_info on ONE window, `pre 0x68:0x70:1,0`,"
+                " refusing \"on both arrow orders\" — which names the MODE,"
+                " while the record's own analysis puts the refusal in the"
+                " +0x14..+0x20 half that window does not cover at all."
+                "\nSet `windows_tried` to the spans and orders you actually"
+                " ran, e.g. [\"0x68:0x70:1,0\", \"0x14:0x20:2,0,1\"], or"
+                " quote them in the prose — and if you tried exactly one,"
+                " say so, because \"one shape refused\" and \"the class"
+                " refuses\" are different findings."
             )
 
     # Gate H (run 37). "Nothing writes r1+8..55" is a UNIVERSAL claim over
