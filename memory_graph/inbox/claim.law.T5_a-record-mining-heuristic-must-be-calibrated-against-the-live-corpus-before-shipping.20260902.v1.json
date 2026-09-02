@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py",
+    "memory_graph/test_graph.py"
+  ],
+  "attributes": {
+    "law_screen": "Screened claim.RC_stale-reopen-queue-is-a-classifier-artifact.20260901.v1 - APPLIES and is the parent finding this generalises; its 43/43 result is the measured case for calibrating before shipping, and its scope lesson (do not mine citation/verification prose as evidence ABOUT a record's subject) is narrowed here rather than copied: the question asked of verification prose in this session is not 'does it use the vocabulary' but 'does this literal file exist', which is a fact rather than a classification, so verification IS mined for anchors while remaining excluded from vocabulary matching. Screened the retired failing_form_undocumented heuristic (documented in memory_graph/core.py attempt_staleness) - APPLIES as the second measured instance of an uncalibrated queue. No matching/codegen law applicable: this is a tooling-surface law.",
+    "tags": [
+      "workflow",
+      "metrics"
+    ],
+    "verification": "Live corpus scans over memory_graph/records/ (1613 record files): anchor check 111 -> 14 hits after excluding generated suffixes; hypothesis-refuter warning 0 of 29 typed hypotheses. python -m memory_graph.test_graph all green (179 tests); python -m unittest discover tools/gdl/tests all green (698 tests)."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A record-mining heuristic shipped without a corpus calibration whose measured precision on the live corpus is nonetheless above 90 percent would show the calibration is not load-bearing; run any such heuristic with `python memory_graph/gdlmem.py stale` (or the proposing lane's own scan) over memory_graph/records/ and count. The scope corollary is falsified by a genuine stranded anchor that appears ONLY in a narrative key and nowhere in an anchor-role key - i.e. a record whose sole pointer at its evidence lives in law_screen or probed_form.",
+  "id": "claim.law.T5_a-record-mining-heuristic-must-be-calibrated-against-the-live-corpus-before-shipping.20260902.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-02T15:29:20Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "Any heuristic that mines the record corpus and emits a QUEUE (reopen candidates, proposal warnings, debt rows) must be run against the whole live corpus BEFORE it ships, and its hit count reported as a number in the proposing record. The queue's value is its precision, and precision is not predictable from the rule's wording - it is measured. Two calibrations run this session, both changing the shipped design: (1) a first cut of the stale anchor_path_missing check flagged 111 accepted records, of which 108 were records naming an OBJECT by its source-tree path (src/game/boss/boss.o, src/game/world/.postprocess/body/btricol.o); those live under build/ by construction, so the check was reporting the BUILD LAYOUT as record rot. Excluding generated suffixes took it to 14 hits, all genuine. (2) the propose-record hypothesis-refuter warning was run against all 29 accepted records carrying a typed hypothesis and warned on 0 of them while still firing on the criticism's own shape - establishing it as a guard against recurrence rather than a fix for standing debt, which is a materially different claim from the one that would have been written without the number. The general rule: an uncalibrated queue is indistinguishable from a calibrated one at authoring time and distinguishable only after a lane has spent its budget on false positives, which is what claim.RC_stale-reopen-queue-is-a-classifier-artifact.20260901.v1 measured at 43 of 43. Corollary on SCOPE: mine the keys whose ROLE is to anchor (anchors, evidence, implementation_anchors, reference_anchors, provenance, reproduction, verification, source_path, entrypoint, an evidence record's locator), never the keys that narrate the work (law_screen, attempted_axis, probed_form, axis_log, value, scope, falsifier, denial, hypothesis) - a path or a phrase there is a story, not an assertion."
+}

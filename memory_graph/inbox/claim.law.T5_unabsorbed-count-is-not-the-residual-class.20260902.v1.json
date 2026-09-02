@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/unabsorbed.py",
+    "tools/gdl/tests/test_unabsorbed.py"
+  ],
+  "attributes": {
+    "law_screen": "Screened claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 and claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 - both APPLY and are the basis of the count-asymmetric class here (a size mismatch is outside every class by construction, so its row reports no number rather than a misleading one). Screened claim.law.HV_single-permutation-region-is-the-binding-schema-limit.20260901.v1 - APPLIES, and is why the schedule class is stated as a CANDIDATE rather than a closure: a legal window must also exist. Screened claim.law.HV_mnemonic-aliasing-manufactures-structural-rows-and-count-asymmetric-signatures.20260901.v1 - APPLIES as the reason the classifier REUSES ha_close.classify for absorption rather than re-deriving it, and as the motivating case for masking register fields out of the opcode key.",
+    "tags": [
+      "postprocessor",
+      "metrics"
+    ],
+    "verification": "python tools/gdl/unabsorbed.py game/sys/memcard (30 paired functions, live objects); python -m unittest tools.gdl.tests.test_unabsorbed (13 cases over real PPC encodings); full ninja printing build/GUNE5D/main.dol: OK with scores held at 66.22% matched, STRICT 56.45% + EQUIVALENT 9.77%, 98.43% fuzzy."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Two functions whose unabsorbed offsets carry identical opcode multisets and identical word multisets, where a permutation nonetheless cannot reproduce the target (which would show the schedule class is not a permutation candidate at all); or a function classed source-structural by this classifier that a shipped WebFrank class does in fact close. Either is checkable with `python tools/gdl/unabsorbed.py <unit>` against `python tools/gdl/webfrank_audit.py` and the rule set in config/GUNE5D/webfrank.json. The A-form width rule is falsified by any primary-63 or primary-59 opcode on this core whose A-form XO is below 16 or whose X-form XO has low 5 bits at or above 16.",
+  "id": "claim.law.T5_unabsorbed-count-is-not-the-residual-class.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T15:29:17Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "A postprocessor-closability ROSTER must report the residual CLASS, not only the unabsorbed word COUNT: the count is not a monotone proxy for eligibility, and an unchanged count can hide the residual moving between classes that different postprocessor stages can and cannot reach. Decided over the UNABSORBED offsets only (absorbed words differ by a register respell by construction, so including them conflates the recolor stage with everything else), five classes partition every paired function: allocator (0 unabsorbed words - the register-field stage alone reproduces the target); schedule (our words at those offsets are a PERMUTATION of the target's, i.e. identical word multiset - a permutation CANDIDATE, still subject to a legal window existing); operand (identical opcode multiset, differing non-register operand fields - displacement, immediate, addend - reachable by neither recolor nor permutation); source-structural (the opcode multisets themselves differ - an opcode one side emits and the other does not, provably outside every postprocessor class); count-asymmetric (unequal sizes, metric undefined). The decision order is forced: a differing OPCODE multiset outranks the permutation test, so a structural row can never be reported as a schedule candidate. The opcode key must mask register and immediate fields AND use the A-form 5-bit XO for primaries 4/59/63 - reading fmadds with the 10-bit XO folds its FRC REGISTER into the opcode identity and reports a pure recolor as source-structural. Measured on game/sys/memcard, 30 paired functions: allocator 24, count-asymmetric 3, schedule 1, source-structural 2, with init_all_dir_info at 2 unabsorbed words classing schedule while buildSaveImage at 10 classes source-structural - the count orders those two the wrong way round for eligibility."
+}

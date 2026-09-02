@@ -164,6 +164,38 @@ DENIAL_FIELDS = ("scope", "premise_measurement", "expiry_check", "falsifier")
 HYPOTHESIS_FIELDS = ("statement", "cheapest_refuting_observation",
                      "screened_against_target")
 
+# Words that carry no MECHANISM. Two groups: ordinary function words, and
+# this project's generic measurement/process vocabulary — "probe", "score",
+# "build", "fuzzy", "real", "match". A refuter that shares only those with
+# its statement has not named anything it could observe ABOUT the idea, which
+# is the shape run 34's CI lane shipped: a mandatory-step-1 hypothesis whose
+# cheapest_refuting_observation could never refute it. Stripping them from
+# the STATEMENT is the safe direction — a statement left with no mechanism
+# terms is not judged at all rather than warned about.
+_HYPOTHESIS_STOPWORDS = frozenset("""
+about after again against also although always another around because
+been before being below best better between both build builds built
+cannot change changed changes check could current currently
+does doing done down during each either else even ever every
+first from further give given goes going
+have having here improve improved improves improving into itself
+just keep kept know known
+less like likely little look looking
+made make makes making many maybe might more most much must
+near needs never next nothing
+occur occurs only other others over
+part past probe probed probes
+rather real really result results right
+same score scored scores seems shall should side since some still such
+take taken than that their them then there these they thing think this
+those three thus time times together
+under until upon used uses using
+very want well were what when where whether which while will with within
+without would
+match matched matches matching fuzzy insns instruction instructions
+function functions target ours source
+""".split())
+
 # Gate D vocabulary: denial phrasing that closes an axis for everyone after
 # you. Kept narrow and literal — these are the phrases that actually appear
 # in the corpus's parks, not a general negativity detector.
@@ -3239,7 +3271,77 @@ def record_template(kind: str) -> dict[str, Any]:
     return skeleton
 
 
-def _apply_proposal_gates(record: dict[str, Any]) -> None:
+_TOKEN_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_]*")
+# Below this length a term is matched exactly; at or above it, on a prefix,
+# so `register`/`registers` and `reload`/`reloads` agree while `reload` and
+# `relocation` (which share only four characters) do not.
+_STEM_LENGTH = 6
+
+
+def _mechanism_terms(text: str) -> set[str]:
+    """Content words in ``text`` that could name a mechanism."""
+    return {token.lower() for token in _TOKEN_RE.findall(text or "")
+            if len(token) >= 4 and token.lower() not in _HYPOTHESIS_STOPWORDS}
+
+
+def hypothesis_refuter_warning(hypothesis: Any) -> str | None:
+    """Warn when a refuting observation shares no mechanism with its idea.
+
+    Run-34 criticism (CI): a MANDATORY-STEP-1 hypothesis shipped with a
+    `cheapest_refuting_observation` that could never refute it. Discipline
+    10b makes such a hypothesis the next lane's first action, so a refuter
+    that names nothing about the idea does not merely fail to help — it
+    certifies an unkillable hypothesis as screenable and hands the next lane
+    a step 1 with no exit.
+
+    This is a WARNING, never a refusal. Vocabulary overlap is a heuristic:
+    a refuter can legitimately be phrased in the language of an INSTRUMENT
+    ("regnorm reports zero genuine rows") rather than of the mechanism, and
+    refusing those would tax correct records to catch sloppy ones — the
+    failure mode this corpus has already measured twice (the retired
+    failing_form_undocumented heuristic, and the 43/43 false-positive reopen
+    queue). Returns None when there is nothing to say, including when the
+    statement carries no mechanism terms at all to compare against.
+    """
+    if not isinstance(hypothesis, dict):
+        return None
+    statement = hypothesis.get("statement")
+    refuter = hypothesis.get("cheapest_refuting_observation")
+    if not isinstance(statement, str) or not isinstance(refuter, str):
+        return None
+    terms = _mechanism_terms(statement)
+    if not terms:
+        return None
+    refuter_terms = _mechanism_terms(refuter)
+    for term in terms:
+        if term in refuter_terms:
+            return None
+        if len(term) >= _STEM_LENGTH:
+            stem = term[:_STEM_LENGTH]
+            if any(other.startswith(stem) for other in refuter_terms):
+                return None
+        for other in refuter_terms:
+            if len(other) >= _STEM_LENGTH and term.startswith(
+                    other[:_STEM_LENGTH]):
+                return None
+    sample = ", ".join(sorted(terms)[:8])
+    return (
+        "WARNING: this hypothesis' cheapest_refuting_observation names none"
+        f" of the mechanism terms in its own statement ({sample}). Discipline"
+        " 10b makes a recorded hypothesis the next lane's MANDATORY STEP 1,"
+        " so a refuter that does not mention what the idea is ABOUT cannot"
+        " kill it — the lane runs the observation, learns nothing either way,"
+        " and the hypothesis survives forever as an unfalsifiable"
+        " instruction. Run 34's CI lane shipped exactly that. State an"
+        " observation whose OUTCOME differs depending on whether the"
+        " statement is true, in the statement's own terms. (If your refuter"
+        " is correctly phrased in an INSTRUMENT's vocabulary rather than the"
+        " mechanism's, this warning is a false positive — it does not block"
+        " the proposal.)"
+    )
+
+
+def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
     """The three run-29 validation gates, binding on NEW proposals only.
 
     Each gate exists because a specific burned-probe criticism was recorded;
@@ -3247,8 +3349,16 @@ def _apply_proposal_gates(record: dict[str, Any]) -> None:
     just satisfying a checker. These run in ``stage_record_proposal`` and NOT
     in ``_validate_record``, so accepted records — which predate the fields —
     are never retroactively invalidated.
+
+    Returns the list of non-blocking WARNINGS raised (run 34 item 7); a
+    blocking gate still raises MemoryGraphError.
     """
     text = _record_text(record)
+    warnings: list[str] = []
+    refuter_warning = hypothesis_refuter_warning(
+        _record_field(record, "hypothesis"))
+    if refuter_warning:
+        warnings.append(refuter_warning)
 
     # Gate A. A law asserting necessity (must/requires/cannot/only) that
     # states no falsifier can never be screened OUT by a later lane; it can
@@ -3404,6 +3514,7 @@ def _apply_proposal_gates(record: dict[str, Any]) -> None:
                     "closure.20260901.v1. If the probe really varied one"
                     " thing, say so in held_fixed."
                 )
+    return warnings
 
 
 def _duplicate_claim_candidates(
@@ -3513,6 +3624,7 @@ def stage_record_proposal(
     in_place: Path | None = None,
     dry_run: bool = False,
     confirm_new: bool = False,
+    warnings: list[str] | None = None,
 ) -> Path:
     """Atomically stage one validated record in the review-required inbox.
 
@@ -3558,7 +3670,9 @@ def stage_record_proposal(
                 " reviewed change if a new pattern class is real)"
             )
     _validate_record(record, Path("<proposal>"))
-    _apply_proposal_gates(record)
+    gate_warnings = _apply_proposal_gates(record)
+    if warnings is not None:
+        warnings.extend(gate_warnings)
     _probe_record_references(record, root)
     record_id = record["id"]
     in_place_resolved = in_place.resolve() if in_place is not None else None
@@ -6452,6 +6566,15 @@ def tu_briefing(
                 "unabsorbed"),
             "unabsorbed_tier": (
                 unabsorbed_rows.get(row["raw_name"]) or {}).get("tier"),
+            # THE COUNT IS NOT THE CLASS (run 34 item 5): an unchanged
+            # unabsorbed count hid a residual moving from a class no
+            # postprocessor can reach to one a permutation window can, so
+            # the roster reported "no change" on a real change. Classes:
+            # allocator / schedule / operand / source-structural /
+            # count-asymmetric — only the first two are reachable at all.
+            "unabsorbed_class": (
+                unabsorbed_rows.get(row["raw_name"]) or {}).get(
+                    "residual_class"),
             "unabsorbed_staleness": unabsorbed_staleness,
         }
         for row in functions
@@ -7373,6 +7496,133 @@ _PARK_CITATION_KEYS = frozenset({
 })
 
 
+# Repo-relative paths under a TRACKED root only. `build/` and `orig/` are
+# gitignored and legitimately absent in a fresh worktree, so their absence
+# says nothing about a record; these five roots are committed, and a path
+# under them that is gone really is gone.
+_ANCHOR_PATH_RE = re.compile(
+    r"(?:src|include|tools|config|memory_graph)"
+    r"/[A-Za-z0-9_][A-Za-z0-9_./+-]*\.[A-Za-z0-9_]{1,6}"
+)
+
+# Extensions this check must NEVER read as a stranded anchor. Records
+# routinely name an OBJECT by its source-tree path (`src/game/boss/boss.o`,
+# `src/game/world/.postprocess/body/btricol.o`) — those live under `build/`
+# and are absent from `src/` by construction, so treating them as missing
+# files reports the build layout as record rot. Measured: a first cut of this
+# check flagged 111 records, and 108 of them were exactly this shape.
+_GENERATED_SUFFIXES = frozenset({
+    "o", "s", "a", "d", "elf", "dol", "bin", "map", "obj", "lib",
+})
+# The one rename that has actually stranded records here (movieplayer.c ->
+# movieplayer.cpp, 2026-08-31). Offered only for source spellings; a `.o`
+# has no meaningful `.c` sibling.
+_RENAME_SIBLINGS = {"c": "cpp", "cpp": "c"}
+
+# The keys whose JOB is to point at where a record's truth lives. Prose
+# fields that merely NARRATE the work (law_screen, attempted_axis,
+# probed_form, axis_log, value, falsifier, denial, hypothesis, scope) are
+# deliberately excluded: a path mentioned there is a story, not an anchor,
+# and claim.RC_stale-reopen-queue-is-a-classifier-artifact.20260901.v1
+# measured what scanning narrative prose does to a reopen queue (43/43 false
+# positives). `verification`/`provenance`/`reproduction` ARE included despite
+# being citation keys, because the question here is not "does this prose use
+# the vocabulary" but "does this literal file still exist" — a reproduction
+# command whose file is gone cannot be run, which is precisely a reopen
+# signal rather than a classifier artifact.
+_ANCHOR_ROLE_KEYS = (
+    "anchor", "anchors", "evidence", "implementation_anchors",
+    "reference_anchors", "provenance", "reproduction", "verification",
+    "source_path", "entrypoint",
+)
+
+
+def _anchor_path_strings(record: Any) -> list[str]:
+    """Repo-relative paths a record offers as its truth anchors."""
+    if not isinstance(record, dict):
+        return []
+    found: list[str] = []
+    scopes: list[Any] = [record.get("locator")]
+    for container in (record, record.get("attributes")):
+        if not isinstance(container, dict):
+            continue
+        for key in _ANCHOR_ROLE_KEYS:
+            if key in container:
+                scopes.append(container[key])
+    for value in scopes:
+        if value is None:
+            continue
+        text = value if isinstance(value, str) else json.dumps(value)
+        found.extend(_ANCHOR_PATH_RE.findall(text))
+    # Preserve first-seen order; a record repeating one anchor is one anchor.
+    return list(dict.fromkeys(found))
+
+
+_ANCHOR_INDEX_ROOTS = ("src", "include", "tools", "config", "memory_graph")
+
+
+def anchor_basename_index(root: Path) -> dict[str, list[str]]:
+    """{basename: [repo-relative paths]} across the tracked anchor roots.
+
+    Built ONCE per `stale` run and passed in, because the alternative — an
+    rglob per record — is the quadratic shape run 33 already had to fix once
+    in `validate`.
+    """
+    index: dict[str, list[str]] = {}
+    for top in _ANCHOR_INDEX_ROOTS:
+        base = root / top
+        if not base.is_dir():
+            continue
+        for path in base.rglob("*"):
+            if path.is_file():
+                index.setdefault(path.name, []).append(
+                    path.relative_to(root).as_posix())
+    return index
+
+
+def missing_anchor_paths(record: Any, root: Path,
+                         basename_index: dict[str, list[str]] | None = None
+                         ) -> list[dict[str, Any]]:
+    """Anchor paths this record names that no longer exist in the tree.
+
+    Run-34 criticism (MV): an ACCEPTED PlayVQMovie record was anchored to a
+    deleted `movieplayer.c` and described a layout the tree no longer
+    produces — an authoritative record pointing at a file that is not there.
+    Nothing in `stale` could see it, because every heuristic there compares
+    SCORES, and a record whose anchor evaporated has no score to move.
+
+    The `.c`/`.cpp` sibling is reported when it exists, because that rename
+    is the measured cause (movieplayer.c -> movieplayer.cpp, 2026-08-31) and
+    it turns "this record is stranded" into a one-line repair. With a
+    ``basename_index`` supplied, a file that MOVED DIRECTORY is reported the
+    same way — the live corpus carries both shapes (`src/game/leveldata.h`
+    now lives at `include/game/leveldata.h`, `src/game/sfx/sndfx.c` at
+    `src/game/audio/sndfx.c`).
+    """
+    out: list[dict[str, Any]] = []
+    for path in _anchor_path_strings(record):
+        stem, _dot, suffix = path.rpartition(".")
+        if suffix.lower() in _GENERATED_SUFFIXES:
+            continue
+        if (root / path).exists():
+            continue
+        entry: dict[str, Any] = {"path": path}
+        sibling = _RENAME_SIBLINGS.get(suffix.lower())
+        if sibling and stem and (root / f"{stem}.{sibling}").exists():
+            entry["renamed_to"] = f"{stem}.{sibling}"
+        elif basename_index:
+            moved = basename_index.get(path.rsplit("/", 1)[-1]) or []
+            # One unambiguous candidate is a repair; several is a guess, and
+            # a guess in a reopen queue is how the last record-mining
+            # heuristic here produced 43 false positives.
+            if len(moved) == 1:
+                entry["moved_to"] = moved[0]
+            elif moved:
+                entry["candidates"] = sorted(moved)[:5]
+        out.append(entry)
+    return out
+
+
 def _mentions_unnegated(text: str, term: str) -> bool:
     """True if `term` occurs in `text` outside a negating phrase.
 
@@ -7561,6 +7811,35 @@ def attempt_staleness(
             )
         else:
             valid += 1
+    # STRANDED ANCHORS (run 34 item 6). Every heuristic above compares
+    # SCORES, and a record whose anchor file was deleted or renamed has no
+    # score to move — MV found an ACCEPTED PlayVQMovie record anchored to a
+    # `movieplayer.c` that no longer exists, describing a layout the tree no
+    # longer produces. Scanned over EVERY accepted record, not just the
+    # parked/capped rows above: the defect is orthogonal to outcome.
+    basename_index = anchor_basename_index(root)
+    with closing(open_database(root, db_path)) as connection:
+        anchor_rows = connection.execute(
+            "SELECT record_id, raw_json FROM record_ingest"
+            " WHERE record_state = 'accepted'"
+        ).fetchall()
+    for row in anchor_rows:
+        try:
+            record = json.loads(row["raw_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        gone = missing_anchor_paths(record, root, basename_index)
+        if not gone:
+            continue
+        entry = {
+            "record": row["record_id"],
+            "reason": "anchor_path_missing",
+            "missing_anchors": gone,
+        }
+        subject = record.get("function") or record.get("subject")
+        if isinstance(subject, str) and subject:
+            entry["function"] = subject.split(":", 1)[-1]
+        reopen.append(entry)
     return {
         "stale_solved": stale,
         "postprocessor_walls": walls,
@@ -7581,7 +7860,19 @@ def attempt_staleness(
             " disturbed the function (re-probe cheaply);"
             " failing_form_undocumented means the cap predates form-recording"
             " — per claim.law.offsetof-overturns-typed-alias-caps, re-try the"
-            " offsetof-on-raw-pointer form before trusting it."
+            " offsetof-on-raw-pointer form before trusting it;"
+            " anchor_path_missing means the record cites a source path that"
+            " is NOT in the tree, so its evidence cannot be reopened as"
+            " written — this one is scanned over EVERY accepted record, not"
+            " just parks, because it is orthogonal to outcome and to score."
+            " `renamed_to`/`moved_to` name the surviving file when exactly"
+            " one candidate exists (the repair is superseding the record"
+            " with the corrected anchor, NOT deleting it); `candidates`"
+            " means several files share the basename and a human must"
+            " choose. Object paths under a source tree"
+            " (src/.../foo.o, .postprocess/body/*.o) are EXCLUDED: they live"
+            " under build/ by construction, and counting them reported the"
+            " build layout as record rot (108 of a first cut's 111 hits)."
             " active_work_claims presumed_abandoned entries are older than"
             " one day: verify via git log against the claimed scope, then"
             " remove the claim in a standalone cleanup commit (AGENTS.md"

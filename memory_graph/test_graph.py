@@ -38,6 +38,9 @@ from memory_graph.core import (
     law_corpus,
     law_evidence_score,
     law_score_sort_key,
+    anchor_basename_index,
+    hypothesis_refuter_warning,
+    missing_anchor_paths,
     prune_attempts,
     record_lookup,
     regime_events,
@@ -2333,6 +2336,203 @@ class TemplateCliOrderTests(unittest.TestCase):
                     if line.strip().startswith('"')]
             self.assertEqual(keys[:3], ["schema_version", "id", "kind"],
                              f"{kind} template head order")
+
+
+class MissingAnchorTests(unittest.TestCase):
+    """A record whose anchor file is gone is a REOPEN candidate.
+
+    Run-34 criticism (MV): an ACCEPTED PlayVQMovie record was anchored to a
+    deleted `movieplayer.c` and described a layout the tree no longer
+    produces. Every other stale heuristic compares SCORES, and a record whose
+    anchor evaporated has no score to move, so nothing could see it.
+    """
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        for relative in ("src/game/movie/movieplayer.cpp",
+                         "src/game/audio/sndfx.c",
+                         "include/game/leveldata.h",
+                         "tools/gdl/probe.py"):
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("x", encoding="utf-8")
+
+    def test_a_live_anchor_is_not_flagged(self):
+        record = {"attributes": {"anchors": ["tools/gdl/probe.py"]}}
+        self.assertEqual(missing_anchor_paths(record, self.root), [])
+
+    def test_a_deleted_anchor_is_flagged(self):
+        record = {"attributes": {"anchors": ["src/game/ui/gone.c"]}}
+        found = missing_anchor_paths(record, self.root)
+        self.assertEqual([entry["path"] for entry in found],
+                         ["src/game/ui/gone.c"])
+
+    def test_the_c_to_cpp_rename_names_the_survivor(self):
+        record = {"attributes": {
+            "anchors": ["src/game/movie/movieplayer.c PlayVQMovie"]}}
+        found = missing_anchor_paths(record, self.root)
+        self.assertEqual(found[0]["renamed_to"],
+                         "src/game/movie/movieplayer.cpp")
+
+    def test_a_moved_file_is_resolved_by_basename_when_unambiguous(self):
+        index = anchor_basename_index(self.root)
+        record = {"attributes": {"anchors": ["src/game/sfx/sndfx.c"]}}
+        found = missing_anchor_paths(record, self.root, index)
+        self.assertEqual(found[0]["moved_to"], "src/game/audio/sndfx.c")
+
+    def test_no_index_means_no_moved_to_guess(self):
+        record = {"attributes": {"anchors": ["src/game/sfx/sndfx.c"]}}
+        found = missing_anchor_paths(record, self.root)
+        self.assertNotIn("moved_to", found[0])
+
+    def test_ambiguous_basenames_are_candidates_not_a_repair(self):
+        for relative in ("src/a/dup.c", "src/b/dup.c"):
+            path = self.root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("x", encoding="utf-8")
+        index = anchor_basename_index(self.root)
+        record = {"attributes": {"anchors": ["src/c/dup.c"]}}
+        found = missing_anchor_paths(record, self.root, index)
+        self.assertNotIn("moved_to", found[0])
+        self.assertEqual(found[0]["candidates"], ["src/a/dup.c", "src/b/dup.c"])
+
+    def test_object_paths_under_a_source_tree_are_not_record_rot(self):
+        """108 of a first cut's 111 hits were exactly this shape.
+
+        Records name an object by its source-tree path; those live under
+        build/ by construction and are absent from src/ always.
+        """
+        record = {"attributes": {"anchors": [
+            "src/game/boss/boss.o",
+            "src/game/world/.postprocess/body/btricol.o"]}}
+        self.assertEqual(missing_anchor_paths(record, self.root), [])
+
+    def test_narrative_prose_is_not_scanned_for_anchors(self):
+        """law_screen/probed_form/value narrate; they do not anchor.
+
+        claim.RC_stale-reopen-queue-is-a-classifier-artifact measured what
+        mining narrative prose does to a reopen queue (43/43 false hits).
+        """
+        record = {"value": "we did not touch src/game/ui/gone.c",
+                  "attributes": {"law_screen": "screened src/game/ui/gone.c",
+                                 "probed_form": "src/game/ui/gone.c"}}
+        self.assertEqual(missing_anchor_paths(record, self.root), [])
+
+    def test_the_evidence_locator_is_an_anchor(self):
+        record = {"kind": "evidence", "locator": "src/game/ui/gone.c:120"}
+        found = missing_anchor_paths(record, self.root)
+        self.assertEqual([entry["path"] for entry in found],
+                         ["src/game/ui/gone.c"])
+
+    def test_untracked_roots_are_not_treated_as_missing(self):
+        """build/ and orig/ are gitignored and absent in a fresh worktree."""
+        record = {"attributes": {"anchors": [
+            "build/GUNE5D/report.json", "orig/GUNE5D/sys/main.dol"]}}
+        self.assertEqual(missing_anchor_paths(record, self.root), [])
+
+    def test_one_anchor_repeated_is_reported_once(self):
+        record = {"attributes": {"anchors": ["src/game/ui/gone.c"],
+                                 "verification": "see src/game/ui/gone.c"}}
+        self.assertEqual(len(missing_anchor_paths(record, self.root)), 1)
+
+
+class HypothesisRefuterTests(unittest.TestCase):
+    """A refuter must name something about the idea it claims to kill.
+
+    Run-34 criticism (CI): a MANDATORY-STEP-1 hypothesis shipped with a
+    cheapest_refuting_observation that could never refute it. Discipline 10b
+    makes such a hypothesis the next lane's first action, so an unkillable
+    one hands that lane a step 1 with no exit.
+    """
+
+    STATEMENT = ("the volatile qualifier on gFrameTicks forces a reload at"
+                 " each loop iteration")
+
+    def warn(self, refuter, statement=None):
+        return hypothesis_refuter_warning({
+            "statement": statement if statement is not None else self.STATEMENT,
+            "cheapest_refuting_observation": refuter,
+            "screened_against_target": "no"})
+
+    def test_a_generic_refuter_is_warned_about(self):
+        text = self.warn("re-run the probe and see whether the score moves")
+        self.assertIsNotNone(text)
+        self.assertIn("cheapest_refuting_observation", text)
+        self.assertIn("volatile", text)
+
+    def test_a_mechanism_naming_refuter_is_silent(self):
+        self.assertIsNone(self.warn(
+            "drop the volatile qualifier and check whether the reload"
+            " survives"))
+
+    def test_one_shared_mechanism_term_is_enough(self):
+        self.assertIsNone(self.warn("read gFrameTicks out of the disassembly"))
+
+    def test_morphology_is_tolerated_on_a_six_character_stem(self):
+        self.assertIsNone(hypothesis_refuter_warning({
+            "statement": "an extra saved register widens the frame",
+            "cheapest_refuting_observation":
+                "count the saved registers in the prologue"}))
+
+    def test_a_four_character_coincidence_does_not_count_as_overlap(self):
+        """`reload` and `relocation` share four characters and no meaning."""
+        self.assertIsNotNone(hypothesis_refuter_warning({
+            "statement": "the reload happens at each iteration",
+            "cheapest_refuting_observation":
+                "dump the relocations for the window"}))
+
+    def test_a_statement_with_no_mechanism_terms_is_not_judged(self):
+        self.assertIsNone(self.warn("anything at all",
+                                    statement="the score will improve"))
+
+    def test_non_string_or_absent_fields_are_not_judged(self):
+        self.assertIsNone(hypothesis_refuter_warning(None))
+        self.assertIsNone(hypothesis_refuter_warning({}))
+        self.assertIsNone(hypothesis_refuter_warning(
+            {"statement": self.STATEMENT}))
+
+    def _stage(self, rid, refuter):
+        """Stage a dry-run attempt carrying this refuter; return warnings."""
+        root = make_root(with_symbols=False)
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        original = core._probe_record_references
+        core._probe_record_references = lambda *args, **kwargs: None
+        try:
+            record = _attempt(
+                rid, "function:test_fn", outcome="parked",
+                axis="volatile scaffold on the frame counter",
+                hypothesis={
+                    "statement": self.STATEMENT,
+                    "cheapest_refuting_observation": refuter,
+                    "screened_against_target": "no"},
+                attributes={"law_screen": "none applicable: tooling probe"})
+            warnings: list[str] = []
+            path = stage_record_proposal(record, root=root, dry_run=True,
+                                         warnings=warnings)
+            return path, warnings
+        finally:
+            core._probe_record_references = original
+
+    def test_the_warning_does_not_block_the_proposal(self):
+        """It is a WARNING: vocabulary overlap is a heuristic.
+
+        A refuter phrased in an INSTRUMENT's vocabulary is legitimate, and
+        refusing those would tax correct records to catch sloppy ones — the
+        failure mode this corpus measured twice already.
+        """
+        path, warnings = self._stage(
+            "attempt.t5-refuter-warning-probe.v1",
+            "re-run and see whether the number moves")
+        self.assertTrue(str(path).endswith(".json"))
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("MANDATORY STEP 1", warnings[0])
+
+    def test_a_sound_refuter_produces_no_warning_through_the_gate(self):
+        _path, warnings = self._stage(
+            "attempt.t5-refuter-clean-probe.v1",
+            "drop the volatile qualifier and see if the reload survives")
+        self.assertEqual(warnings, [])
 
 
 if __name__ == "__main__":

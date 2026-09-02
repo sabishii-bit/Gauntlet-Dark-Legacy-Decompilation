@@ -266,9 +266,14 @@ def main(argv: list[str] | None = None) -> int:
             source = json_file.resolve()
             inbox_dir = (root / "memory_graph" / "inbox").resolve()
             in_place = source if source.parent == inbox_dir else None
+            # Non-blocking gate findings (run 34 item 7). A warning must be
+            # reported with the proposal, not swallowed: the record still
+            # stages, but the author sees what a reviewer would have said.
+            gate_warnings: list[str] = []
             path = stage_record_proposal(record, root=root, in_place=in_place,
                                          dry_run=args.dry_run,
-                                         confirm_new=args.confirm_new)
+                                         confirm_new=args.confirm_new,
+                                         warnings=gate_warnings)
             result = {
                 "proposal": str(path),
                 "review_state": "valid (not staged)" if args.dry_run
@@ -278,6 +283,8 @@ def main(argv: list[str] | None = None) -> int:
                          "review the JSON, then move it from"
                          " memory_graph/inbox to records"),
             }
+            if gate_warnings:
+                result["warnings"] = gate_warnings
         elif args.command == "event":
             if args.action == "list":
                 result = {"events": regime_events(root=root, db_path=database)}

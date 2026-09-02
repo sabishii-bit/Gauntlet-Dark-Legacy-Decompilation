@@ -17,6 +17,11 @@ Usage:
       # take the whole TU back to the snapshot (the old behaviour)
   python tools/gdl/probe.py game/game/player do_players --fuzzy  # arbitration
                                                                  # READOUT only
+  python tools/gdl/probe.py game/game/player do_players --arbitrate
+      # ONE call, BOTH states: builds and scores the banked snapshot AND the
+      # working tree and prints the (real, fuzzy) pair for each, then restores
+      # the working tree. --vs-baseline arbitrates against the session's first
+      # banked baseline instead of the rolling snapshot.
   python tools/gdl/probe.py game/game/player do_players --reset  # forget best
   python tools/gdl/probe.py game/game/player do_players --rebase-best
       # after a fuzzy/--ops-arbitrated keep of a real-regressed state:
@@ -32,6 +37,12 @@ never loses track of the high-water mark even across reverts.
 STRUCTURE OUTRANKS REAL IN THE HEADLINE. `real` is a linear diff; the opcode
 multiset token count is what says whether the stream is the right SHAPE, and
 where the two disagree the multiset names the verdict:
+  CONFLICT-UNARBITRATED  a CONFLICT with no fresh fuzzy on both states.
+            It classifies NOTHING and exits 3: `real` and the multiset point
+            opposite ways, and the arbiter for that is objdiff fuzzy. Run
+            --arbitrate (both halves, one call) or --fuzzy on each state,
+            then re-probe. PC recorded a false regression from an
+            unarbitrated CONFLICT headline in run 34.
   CONFLICT  real fell BUT the multiset GREW — a shape moving away from
             target wearing a real win. Best is NOT updated; this read plain
             "IMPROVED [best updated]" before, indistinguishable from a probe
@@ -74,6 +85,13 @@ docstring omitted it — the flags below all work):
                      moved), configure.py, and rebuild the object to confirm
                      the WEBFRANK stage reapplies — the repair for a downstream
                      permutation pin after an upstream pool renumbering
+  --rederive-pin --transient
+                     the same, for a THROWAWAY A/B: the pin's pre-probe hashes
+                     are banked first, and --revert / --revert-baseline /
+                     --discard restore them and drop the bank. Without it a
+                     revert restores the SOURCE and leaves the re-derived
+                     hashes in webfrank.json, which GW measured as ~2 of 15
+                     probe cycles spent on pure pin plumbing
   --stateless        sweep mode: score only — no state, bank, or verdict
   --scaffold         print the pragma/volatile scaffold census on ANY
                      probe, not only a BASELINE
@@ -110,6 +128,19 @@ snapshot. Re-running the verdict on bytes that were already scored is
 what made a CONFLICT re-read as REGRESSED (see classify()'s BEST-anchored
 multiset comparison); an arbitration readout must never be able to do
 that. Score and bank with a plain probe, then arbitrate with --fuzzy.
+
+--arbitrate is the WHOLE arbitration in one call. A real/fuzzy disagreement
+needs FOUR numbers — (real, fuzzy) for the banked state and for the edited
+one — and getting them by hand is probe --fuzzy, probe --revert, probe
+--fuzzy, re-apply the edit, probe again: MV measured ~4 extra builds per
+disagreement, and the re-apply step is where an edit gets lost. --arbitrate
+builds and scores BOTH states itself, prints the pair for each with the
+delta, names fuzzy as the arbiter when the two metrics disagree, and
+RESTORES the working tree (in a finally, so a failed build restores too).
+It banks nothing and computes no verdict: it is a measurement, and the keep
+decision stays yours (--rebase-best banks an arbitrated keep). The DATA
+column is reported too, since a moved non-text section is invisible to both
+arbiters.
 """
 
 import difflib
@@ -225,7 +256,135 @@ def warn_pin_drift(unit, snap):
               " pin — GT had to restore both by hand.")
 
 
-def rederive_pin(unit, fn):
+HEADER_SUFFIXES = (".h", ".hpp", ".hxx", ".inc")
+
+
+def parse_numstat(text):
+    """[(added, deleted, path)] from `git diff --numstat`.
+
+    A binary file reports '-' for both counts; those become None rather than
+    0, so "cannot count" is never rendered as "no change".
+    """
+    rows = []
+    for line in (text or "").splitlines():
+        parts = line.rstrip("\n").split("\t")
+        if len(parts) < 3:
+            continue
+        added, deleted, path = parts[0], parts[1], parts[-1]
+        rows.append((
+            None if added == "-" else int(added) if added.isdigit() else None,
+            None if deleted == "-" else int(deleted) if deleted.isdigit()
+            else None,
+            path.replace("\\", "/"),
+        ))
+    return rows
+
+
+def outside_edit_warning(rows, unit_source, fn):
+    """Edits a function-scoped revert could NOT reach, or "".
+
+    Run-34 criticism (MV): --revert is function-scoped, so MV's
+    volatile-in-a-MACRO edit — which lived in a header, not in the reverted
+    function — was invisible to the revert and stayed live for every
+    subsequent probe. A revert that silently leaves half the edit in place is
+    worse than no revert: the next score describes a state the worker
+    believes was undone.
+
+    Only two classes are reported, because everything else in a numstat
+    belongs to other lanes or other work: the TU's OWN source (edits
+    elsewhere in the file) and any HEADER anywhere in the tree (a macro,
+    typedef or volatile qualifier that keeps affecting every includer).
+    """
+    tu_rows = [row for row in rows if unit_source and row[2] == unit_source]
+    header_rows = [row for row in rows
+                   if row[2].lower().endswith(HEADER_SUFFIXES)]
+    if not tu_rows and not header_rows:
+        return ""
+
+    def render(row):
+        added, deleted, path = row
+        counts = ("binary" if added is None and deleted is None
+                  else f"+{added}/-{deleted}")
+        return f"    {path} ({counts} vs HEAD)"
+
+    lines = ["REVERT IS PARTIAL — edits this revert could NOT reach remain"
+             " in the working tree:"]
+    if tu_rows:
+        scope = f" outside {fn}" if fn else ""
+        lines.append(f"  TU source{scope} still differs from HEAD:")
+        lines.extend(render(row) for row in tu_rows)
+    if header_rows:
+        lines.append("  HEADER(S) still differ from HEAD — a function-scoped"
+                     " revert can never see these, and a macro/typedef/"
+                     "volatile change in one keeps affecting EVERY includer:")
+        lines.extend(render(row) for row in header_rows)
+    lines.append("  The score you are about to read describes the tree WITH"
+                 " these still applied. Undo them with git if the revert was"
+                 " meant to be total.")
+    return "\n".join(lines)
+
+
+def warn_outside_edits(source, fn):
+    """Run the numstat cross-check and print whatever it finds."""
+    diff = subprocess.run(["git", "diff", "--numstat"],
+                          capture_output=True, text=True)
+    if diff.returncode != 0:
+        return
+    warning = outside_edit_warning(
+        parse_numstat(diff.stdout),
+        source.as_posix() if source is not None else None, fn)
+    if warning:
+        print(warning)
+
+
+def _wf_rederive_module():
+    """The wf_rederive_pin module, or None. Fail-soft by design.
+
+    probe must keep working in a checkout where the postprocessor stack
+    cannot import; a missing transient bank is not an error, it is the
+    ordinary case for every TU with no pins.
+    """
+    try:
+        for path in (str(TOOLS), str(TOOLS / "composed_census")):
+            if path not in sys.path:
+                sys.path.insert(0, path)
+        import wf_rederive_pin
+        return wf_rederive_pin
+    except Exception:
+        return None
+
+
+def restore_transient_pins(unit):
+    """Put back any pin this TU re-derived with --transient (run 34 item 8).
+
+    A revert restores the SOURCE; without this the re-derived hashes stay in
+    webfrank.json and the pin has to be walked back by hand — GW measured ~2
+    of 15 probe cycles as exactly that plumbing.
+    """
+    module = _wf_rederive_module()
+    if module is None:
+        return
+    bank = module.bank_path(unit)
+    if not Path(bank).exists():
+        return
+    config = Path(f"config/{VERSION}/webfrank.json")
+    if not config.exists():
+        return
+    try:
+        restored, notes = module.restore_transient(unit, str(config), bank)
+    except Exception as error:
+        print(f"[transient pin restore FAILED: {error} — webfrank.json still"
+              " carries the re-derived hashes; restore the pin by hand]")
+        return
+    if restored:
+        print(f"[transient pin(s) restored to their pre-probe hashes:"
+              f" {', '.join(restored)}. Run configure.py before the next"
+              " build so the WEBFRANK edge picks the restored rule up.]")
+    for note in notes:
+        print(f"[transient pin restore: {note}]")
+
+
+def rederive_pin(unit, fn, transient=False):
     """One-call pin re-derivation: body build + wf_rederive_pin --apply +
     configure + confirm (run 34 item 9).
 
@@ -249,9 +408,10 @@ def rederive_pin(unit, fn):
         print((r.stdout + r.stderr).strip()[-1200:])
         return 1
 
-    print(f"[2/4] re-deriving pin {unit}::{fn} (wf_rederive_pin --apply)")
+    mode = "--transient" if transient else "--apply"
+    print(f"[2/4] re-deriving pin {unit}::{fn} (wf_rederive_pin {mode})")
     r = subprocess.run(
-        [sys.executable, str(wf_tool), unit, fn, "--apply"],
+        [sys.executable, str(wf_tool), unit, fn, mode],
         capture_output=True, text=True)
     print(r.stdout.strip())
     if r.returncode != 0:
@@ -285,7 +445,79 @@ def rederive_pin(unit, fn):
     return 0
 
 
-def bank_snapshot(unit, source, baseline=False):
+def head_bytes(source):
+    """The committed bytes of ``source`` at HEAD, or None when unavailable."""
+    shown = subprocess.run(["git", "show", f"HEAD:{source.as_posix()}"],
+                           capture_output=True)
+    return shown.stdout if shown.returncode == 0 else None
+
+
+def bank_divergence(source_bytes, head_text):
+    """Changed line count of the working source vs HEAD, or None.
+
+    None means "cannot tell" (the file is untracked, git is unavailable) and
+    must never be rendered as "clean" — a manufactured all-clear on the
+    question of whether a revert point is the pre-edit state is precisely the
+    defect this measures.
+    """
+    if head_text is None or source_bytes is None:
+        return None
+    if source_bytes == head_text:
+        return 0
+    old = split_lines(head_text.decode("latin-1"))
+    new = split_lines(source_bytes.decode("latin-1"))
+    matcher = difflib.SequenceMatcher(None, old, new, autojunk=False)
+    return sum(max(i2 - i1, j2 - j1)
+               for tag, i1, i2, j1, j2 in matcher.get_opcodes()
+               if tag != "equal")
+
+
+def bank_warning(kind, changed_lines, unit=None, fn=None):
+    """What to say when a revert point is banked from a NON-HEAD state.
+
+    Run-34 criticism (MV): probe banks whatever state it FIRST sees per
+    function, so a BASELINE taken after an edit banks the EDITED state as the
+    pre-edit reference, and a NEUTRAL probe re-banks the rolling snapshot on
+    top of an edit — MV's second probe did exactly that, and --revert then
+    restored the BAD state. Both are documented behaviours nothing measured
+    or announced. This announces them with the actual divergence.
+
+    BASELINE gets the loud form (its whole meaning is "the state before your
+    edits"). NEUTRAL gets the shorter note (banking is deliberate there; what
+    was missing is that the banked point is not HEAD). Every other verdict
+    banks an edited state ON PURPOSE and is not warned about.
+    """
+    where = f" {unit} {fn}" if unit and fn else " <unit> <fn>"
+    if changed_lines is None:
+        if kind != "BASELINE":
+            return ""
+        return ("WARNING: cannot compare this source against HEAD (untracked"
+                " file, or git unavailable), so whether this BASELINE is the"
+                " pre-edit state is UNMEASURED. --revert-baseline will"
+                " restore whatever was on disk just now.")
+    if changed_lines == 0:
+        return ""
+    if kind == "BASELINE":
+        return (
+            f"WARNING: BASELINE BANKED FROM AN EDITED TREE — this unit's"
+            f" source differs from HEAD by {changed_lines} line(s), so the"
+            " 'baseline' revert point is NOT the pre-edit state:"
+            " --revert-baseline will restore YOUR EDITS. probe banks whatever"
+            " state it FIRST sees per function (the FIRST-BASELINE TRAP), and"
+            " that bank is never overwritten. If you meant to baseline the"
+            f" clean state, run `probe.py{where} --discard` (restores the TU"
+            f" to HEAD), then `probe.py{where} --reset`, then probe again"
+            " BEFORE your first edit.")
+    if kind == "NEUTRAL":
+        return (
+            f"NOTE: the revert point just banked is NOT HEAD — it differs by"
+            f" {changed_lines} line(s). NEUTRAL probes bank too, so --revert"
+            " restores THIS edited state, not a clean tree. To discard the"
+            f" edit use git or `probe.py{where} --discard`.")
+    return ""
+
+
+def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None):
     snap = snapshot_path(unit, source)
     shutil.copyfile(source, snap)
     head = git_head()
@@ -310,6 +542,16 @@ def bank_snapshot(unit, source, baseline=False):
             base.with_suffix(base.suffix + ".pins").write_text(
                 json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
                 encoding="utf-8")
+    # Say WHAT was banked (run 34 item 2). A BASELINE taken over an edited
+    # tree is not a baseline, and a NEUTRAL bank moves the revert point onto
+    # an edit — both silent until now.
+    kind = verdict_kind or ("BASELINE" if baseline else None)
+    if kind in ("BASELINE", "NEUTRAL"):
+        warning = bank_warning(
+            kind, bank_divergence(source.read_bytes(), head_bytes(source)),
+            unit=unit, fn=fn)
+        if warning:
+            print(warning)
 
 
 def strip_noncode(text):
@@ -684,6 +926,52 @@ def fuzzy_anchor_note(best_fuzzy, cur_fuzzy):
             " it rose, revert if it fell]")
 
 
+CONFLICT_UNARBITRATED_EXIT = 3
+
+
+def conflict_gate(verdict, best_fuzzy, cur_fuzzy):
+    """(verdict, exit_code) — CONFLICT refuses to classify without fuzzy.
+
+    Run-34 criticism (PC): CONFLICT is the one verdict whose whole meaning is
+    "the two arbiters disagree, go measure fuzzy" — and PC skipped the
+    mandated arbiter and recorded a FALSE REGRESSION from the headline alone.
+    Advice in the verdict text was not enough, because the verdict text still
+    LOOKED like a classification.
+
+    So an unarbitrated CONFLICT is no longer a classification at all: the
+    headline says UNARBITRATED, the text refuses an outcome, and the process
+    exits CONFLICT_UNARBITRATED_EXIT (3) so a script or a worker reading only
+    the exit status cannot treat it as a completed probe. It becomes a
+    classification the moment both fuzzy halves exist for these exact bytes —
+    which --arbitrate, or --fuzzy on each state, produces.
+
+    Nothing is reverted and nothing is banked either way: this gates the
+    RECORDING of an outcome, not the work.
+    """
+    if not verdict.startswith("CONFLICT"):
+        return verdict, 0
+    if best_fuzzy is not None and cur_fuzzy is not None:
+        return verdict + (
+            "\n[ARBITRATED: both fuzzy halves are cached against these exact"
+            " bytes, so the delta above IS the arbiter and an outcome may be"
+            " recorded from it]"), 0
+    have = ("the BEST state" if best_fuzzy is not None else
+            "this state" if cur_fuzzy is not None else "NEITHER state")
+    return (
+        verdict.replace("CONFLICT ", "CONFLICT-UNARBITRATED ", 1)
+        + "\nOUTCOME REFUSED: this probe classifies NOTHING. A CONFLICT means"
+          " `real` and the opcode multiset point opposite ways, and the"
+          " project's arbiter for that is objdiff fuzzy from a fresh report"
+          f" — which exists for {have} right now. Do NOT record IMPROVED,"
+          " REGRESSED, a park, or a law from this line: run"
+          " `probe.py <unit> <fn> --arbitrate` (both halves, one call) or"
+          " `--fuzzy` on each state, then re-probe. Run-34's PC lane skipped"
+          " this arbiter and recorded a regression that was not one."
+          f"\n[exit {CONFLICT_UNARBITRATED_EXIT}: unarbitrated CONFLICT —"
+          " not a build failure, not a scoring failure]"
+    ), CONFLICT_UNARBITRATED_EXIT
+
+
 def format_genuine_note(n, rows, cap=8):
     """The regnorm GENUINE structural-row note for CONFLICT/NEUTRAL-WORSE.
 
@@ -1006,6 +1294,204 @@ def print_scaffold_census(source, full=False):
               " --scaffold-all to list every row")
 
 
+def score_function(unit, fn, fn_stripped, raw_flag=()):
+    """(real, insns) via `fndiff --count` over an ALREADY-BUILT object.
+
+    Factored out of main() so --arbitrate scores its two states through the
+    exact same path the verdict does; two scorers would be two definitions of
+    `real`. Returns (None, None) when the function cannot be scored.
+    """
+    count = subprocess.run(
+        [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
+         "--count", "--no-build", *raw_flag],
+        capture_output=True, text=True,
+    ).stdout
+    for line in count.splitlines():
+        match = COUNT_RE.match(line.strip())
+        if match and match.group(1) in (fn, fn_stripped):
+            _, ti, bi, _lines, real_text = match.groups()
+            # target/ours — labeled after a worker mis-read which side was
+            # longer reconciling probe vs fndiff.
+            return int(real_text), f"T{ti}/O{bi}"
+    if re.search(rf"^OK\s+({re.escape(fn)}|{re.escape(fn_stripped)})\s*$",
+                 count, re.M) or not count.strip():
+        # fndiff --count prints nothing for byte-identical functions.
+        return 0, "exact"
+    return None, None
+
+
+def report_fuzzy(unit, fn, fn_stripped):
+    """Build the objdiff report and return this function's fuzzy, or None.
+
+    The report build is a full link — expect it to take as long as ninja.
+    """
+    rep = subprocess.run(["ninja", f"build/{VERSION}/report.json"],
+                         capture_output=True, text=True)
+    if rep.returncode != 0:
+        return None
+    try:
+        report = json.loads(
+            Path(f"build/{VERSION}/report.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    bare = re.sub(r"\.(c|cpp)$", "", unit)
+    val = None
+    for entry in report.get("units", []):
+        if entry.get("name", "").endswith(bare):
+            for func in entry.get("functions", []):
+                if func["name"] in (fn, fn_stripped) or \
+                        func["name"].startswith(fn + "_80"):
+                    val = float(func.get("fuzzy_match_percent", 0.0))
+    return val
+
+
+def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
+                    moved=()):
+    """The four-number arbitration readout, as pure text.
+
+    A real/fuzzy DISAGREEMENT is the whole reason this mode exists, so the
+    recommendation is explicit about which metric decides it: fuzzy, from a
+    fresh report build, per the metric-disagreement rule (AGENTS.md
+    "Metric and semantic discipline" + residual-work discipline 9c, where a
+    real 30->24 that probe and gate both passed was a fuzzy 81->72 loss).
+    Fuzzy that is UNMEASURED never becomes a verdict — it prints
+    INCONCLUSIVE, because `real` alone cannot arbitrate a disagreement it is
+    one half of.
+    """
+
+    def fz(value):
+        return "n/a" if value is None else f"{value:.4f}%"
+
+    lines = [
+        "ARBITRATION (one call, both states built; no verdict computed,"
+        " nothing banked, working tree restored)",
+        f"  BANKED  ({label})  real {base_real}  fuzzy {fz(base_fuzzy)}",
+        f"  CURRENT (working)  real {cur_real}  fuzzy {fz(cur_fuzzy)}",
+    ]
+    real_delta = None
+    if base_real is not None and cur_real is not None:
+        real_delta = cur_real - base_real
+        fuzzy_text = ("n/a" if base_fuzzy is None or cur_fuzzy is None
+                      else f"{cur_fuzzy - base_fuzzy:+.4f}")
+        lines.append(f"  DELTA              real {real_delta:+d} "
+                     f" fuzzy {fuzzy_text}")
+    if base_fuzzy is None or cur_fuzzy is None:
+        lines.append(
+            "  ARBITER: INCONCLUSIVE — fuzzy is unmeasured on"
+            f" {'the banked' if base_fuzzy is None else 'the current'} state"
+            " (report build failed, or the function is absent from the"
+            " report). `real` alone cannot arbitrate a real/fuzzy"
+            " disagreement, so no keep/revert is recommended here.")
+    else:
+        fuzzy_delta = cur_fuzzy - base_fuzzy
+        real_better = real_delta is not None and real_delta < 0
+        real_worse = real_delta is not None and real_delta > 0
+        if fuzzy_delta > 0:
+            verdict = ("fuzzy ROSE — KEEP the current state"
+                       + (" (--rebase-best banks it as the new best and"
+                          " revert point, which is required because real"
+                          " REGRESSED)" if real_worse else ""))
+        elif fuzzy_delta < 0:
+            verdict = ("fuzzy FELL — REVERT to the banked state"
+                       + (" even though real IMPROVED: this is exactly the"
+                          " shape where probe and defake_gate both pass a"
+                          " fuzzy loss" if real_better else ""))
+        else:
+            verdict = ("fuzzy is FLAT — fuzzy cannot decide; fall back to"
+                       " real"
+                       + (" (improved: keep)" if real_better else
+                          " (regressed: revert)" if real_worse else
+                          " (also flat: this edit is NEUTRAL on both"
+                          " arbiters)"))
+        lines.append(f"  ARBITER: {verdict}")
+        if (real_better and fuzzy_delta < 0) or (real_worse
+                                                 and fuzzy_delta > 0):
+            lines.append(
+                "  METRICS DISAGREE: real and fuzzy point opposite ways."
+                " FUZZY from a fresh report is the arbiter here (both"
+                " numbers above ARE from fresh report builds); real is a"
+                " linear diff and reads register-color cascades in both"
+                " directions.")
+    if moved:
+        lines.append(
+            f"  DATA: non-text section(s) {', '.join(moved)} DIFFER between"
+            " the two states — neither arbiter above can see them (both are"
+            " computed over .text). Arbitrate those bytes separately with"
+            " `python tools/gdl/datadiff.py <unit> --sections` before"
+            " keeping or reverting.")
+    return "\n".join(lines)
+
+
+def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
+                  vs_baseline=False):
+    """Build+score BOTH the banked and the working state, then restore.
+
+    The restore is in a `finally`: a failed build, a KeyboardInterrupt or an
+    exception must never leave the snapshot's bytes sitting in the worker's
+    source file, which is the one way this mode could destroy an edit.
+    """
+    if source is None:
+        print(f"cannot arbitrate: no src source found for {unit}")
+        return 1
+    snap = snapshot_path(unit, source)
+    label = "rolling snapshot"
+    if vs_baseline:
+        snap = snap.with_suffix(snap.suffix + ".base")
+        label = "session baseline"
+    if not snap.exists():
+        print(f"cannot arbitrate: no banked {label} for this unit yet"
+              " (a BASELINE or IMPROVED probe banks one)")
+        return 1
+    current_bytes = source.read_bytes()
+    banked_bytes = snap.read_bytes()
+    if current_bytes == banked_bytes:
+        print(f"nothing to arbitrate: the working tree IS the banked"
+              f" {label}, so both halves would measure the same bytes."
+              " Edit first, or use --fuzzy for a single-state readout.")
+        return 1
+
+    def measure(which):
+        build = subprocess.run(["ninja", f"build/{VERSION}/src/{unit}.o"],
+                               capture_output=True, text=True)
+        if build.returncode != 0:
+            print(f"BUILD FAILED ({which} state):")
+            print((build.stdout + build.stderr).strip()[-1200:])
+            return None
+        real, insns = score_function(unit, fn, fn_stripped, raw_flag)
+        if real is None:
+            print(f"could not score {fn} in the {which} state")
+            return None
+        data = data_digest(unit)
+        print(f"[{which}] real {real} (insns {insns}) — building the"
+              " objdiff report for fuzzy")
+        return real, insns, report_fuzzy(unit, fn, fn_stripped), data
+
+    try:
+        current = measure("current")
+        if current is None:
+            return 1
+        source.write_bytes(banked_bytes)
+        banked = measure("banked")
+        if banked is None:
+            return 1
+    finally:
+        # Unconditional: the working tree leaves this call exactly as it
+        # arrived, whatever happened in between.
+        if source.read_bytes() != current_bytes:
+            source.write_bytes(current_bytes)
+            print("[working tree restored to your edited state]")
+    rebuild = subprocess.run(["ninja", f"build/{VERSION}/src/{unit}.o"],
+                             capture_output=True, text=True)
+    if rebuild.returncode != 0:
+        print("WARNING: the object failed to rebuild after restoring your"
+              " edit — the source is restored but build/ now holds the"
+              " BANKED object. Re-run a plain probe before trusting any"
+              " score.")
+    print(arbitrate_table(label, banked[0], banked[2], current[0], current[2],
+                          moved=moved_sections(banked[3], current[3])))
+    return 0
+
+
 def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
     """Build the report and print this function's fresh objdiff fuzzy.
 
@@ -1018,22 +1504,8 @@ def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
     same ones — and when those bytes are the BEST state's, it also becomes
     the fuzzy anchor a later CONFLICT prints without spending a build.
     """
-    rep = subprocess.run(["ninja", f"build/{VERSION}/report.json"],
-                         capture_output=True, text=True)
-    if rep.returncode != 0:
-        print("[--fuzzy: report build FAILED — no fuzzy readout]")
-        return
     try:
-        report = json.loads(
-            Path(f"build/{VERSION}/report.json").read_text(encoding="utf-8"))
-        bare = re.sub(r"\.(c|cpp)$", "", unit)
-        val = None
-        for entry in report.get("units", []):
-            if entry.get("name", "").endswith(bare):
-                for func in entry.get("functions", []):
-                    if func["name"] in (fn, fn_stripped) or \
-                            func["name"].startswith(fn + "_80"):
-                        val = float(func.get("fuzzy_match_percent", 0.0))
+        val = report_fuzzy(unit, fn, fn_stripped)
         prev_fz = state.get("last_fuzzy")
         if val is not None:
             arrow = (f" (prev {prev_fz:.4f})"
@@ -1051,7 +1523,9 @@ def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
                           " anchor once this state is banked as best]")
             state_file.write_text(json.dumps(state), encoding="utf-8")
         else:
-            print("[--fuzzy: function not found in report]")
+            print("[--fuzzy: no number — the report build FAILED or this"
+                  " function is absent from build/GUNE5D/report.json; no"
+                  " fuzzy readout, and nothing cached]")
     except Exception as err:
         print(f"[--fuzzy: readout failed: {err}]")
 
@@ -1202,7 +1676,15 @@ def main():
         print("probe state reset")
         return 0
     if "--rederive-pin" in sys.argv:
-        return rederive_pin(unit, fn)
+        return rederive_pin(unit, fn, transient="--transient" in sys.argv)
+    if "--arbitrate" in sys.argv:
+        # Both halves of a real/fuzzy arbitration in one call. Dispatched
+        # before the ordinary build/score path because it owns its own
+        # builds, banks nothing, and computes no verdict.
+        return run_arbitrate(
+            unit, fn, re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn), source,
+            raw_flag=["--raw"] if "--raw" in sys.argv else [],
+            vs_baseline="--vs-baseline" in sys.argv)
     if "--discard" in sys.argv:
         # Revert the TU to its last COMMITTED state — the undo people
         # actually want after a neutral probe (NEUTRAL banks, so --revert
@@ -1219,6 +1701,9 @@ def main():
         source.write_bytes(shown.stdout)
         print(f"discarded: {source} restored to HEAD (whole file —"
               " uncommitted work on other functions in this TU is gone)")
+        restore_transient_pins(unit)
+        # Even a whole-file discard leaves HEADER edits live (run 34 item 3).
+        warn_outside_edits(source, None)
         return 0
     if "--revert-baseline" in sys.argv:
         if source is None:
@@ -1233,7 +1718,9 @@ def main():
         shutil.copyfile(base, source)
         print(f"restored {source} to the SESSION BASELINE (whole file —"
               " uncommitted work on other functions in this TU is gone)")
+        restore_transient_pins(unit)
         warn_pin_drift(unit, base)
+        warn_outside_edits(source, None)
         return 0
     if "--revert" in sys.argv:
         if source is None:
@@ -1303,7 +1790,14 @@ def main():
                       " re-scoring:")
         # A source revert does not restore webfrank.json; warn if a pin was
         # re-derived since this snapshot was banked (run 34 item 3).
+        # A pin re-derived with --transient IS restorable, and is restored
+        # here rather than warned about (run 34 item 8).
+        restore_transient_pins(unit)
         warn_pin_drift(unit, snap)
+        # A FUNCTION-SCOPED revert reaches only hunks inside `fn`. Cross-check
+        # the whole tree and name what it could not reach — MV's
+        # volatile-in-a-macro header edit survived a revert and stayed live.
+        warn_outside_edits(source, None if "--whole-file" in sys.argv else fn)
 
     build = subprocess.run(
         ["ninja", f"build/{VERSION}/src/{unit}.o"],
@@ -1315,32 +1809,14 @@ def main():
         return 1
 
     raw_flag = ["--raw"] if "--raw" in sys.argv else []
-    count = subprocess.run(
-        [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
-         "--count", "--no-build", *raw_flag],
-        capture_output=True, text=True,
-    ).stdout
     # fndiff strips a trailing _80XXXXXX address suffix from user-supplied
     # names; accept either spelling here so one name works everywhere.
     fn_stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn)
-    real = None
-    for line in count.splitlines():
-        match = COUNT_RE.match(line.strip())
-        if match and match.group(1) in (fn, fn_stripped):
-            _, ti, bi, lines, real_text = match.groups()
-            real = int(real_text)
-            insns = f"T{ti}/O{bi}"  # target/ours — labeled after a worker
-            # mis-read which side was longer reconciling probe vs fndiff
-            break
-    else:
-        if re.search(rf"^OK\s+({re.escape(fn)}|{re.escape(fn_stripped)})\s*$",
-                     count, re.M) or not count.strip():
-            # fndiff --count prints nothing for byte-identical functions
-            real, insns = 0, "exact"
+    real, insns = score_function(unit, fn, fn_stripped, raw_flag)
 
     if real is None:
-        print(f"could not score {fn}:")
-        print(count.strip()[:800])
+        print(f"could not score {fn} — fndiff --count named no such function"
+              " in the built object")
         return 1
 
     if "--stateless" in sys.argv:
@@ -1416,6 +1892,13 @@ def main():
                               rebase_best="--rebase-best" in sys.argv,
                               digest=digest, source_changed=source_changed,
                               fuzzy=cached_fuzzy)
+    # A CONFLICT with no fresh fuzzy on BOTH states classifies nothing at all
+    # (run 34 item 4): PC recorded a false regression from an unarbitrated
+    # CONFLICT headline. The exit code carries the refusal to any script.
+    verdict, exit_code = conflict_gate(verdict, state.get("best_fuzzy"),
+                                       cached_fuzzy)
+    if exit_code:
+        state["last_verdict"] = verdict
     if verdict.startswith("NEUTRAL"):
         verdict = annotate_neutral(verdict, real, insns, multiset_tokens,
                                    prev_tokens, prev_insns, prev_digest,
@@ -1475,9 +1958,10 @@ def main():
             or (verdict.startswith("NEUTRAL")
                 and not verdict.startswith("NEUTRAL-WORSE"))
             or verdict.startswith("REBASED")):
-        bank_snapshot(unit, source,
-                      baseline=verdict.startswith("BASELINE"))
         kind = verdict.split()[0]
+        bank_snapshot(unit, source,
+                      baseline=verdict.startswith("BASELINE"),
+                      verdict_kind=kind, fn=fn)
         # Name WHICH verdict banked: the discard path differs (a banked
         # NEUTRAL means --revert restores the PROBE, so discarding it
         # needs git), and the identical banner hid that twice.
@@ -1515,7 +1999,9 @@ def main():
     # workers misread results when the verdict scrolled above the ops dump.
     if printed_ops:
         print(f"VERDICT (repeated): {verdict}")
-    return 0
+    # Non-zero ONLY for an unarbitrated CONFLICT (3). Every other verdict —
+    # including REGRESSED — is a completed probe and exits 0.
+    return exit_code
 
 
 if __name__ == "__main__":

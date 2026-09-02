@@ -15,12 +15,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from probe import (REPLAN_AT, annotate_neutral, classify, count_distance,
+from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
+                   arbitrate_table, bank_divergence, bank_warning, classify,
+                   conflict_gate, count_distance,
                    data_line, format_genuine_note, function_span,
                    fuzzy_anchor_note, moved_sections, parse_section_digests,
-                   pin_drift, replan_hint, scaffold_rows, scoped_revert,
-                   split_lines, strip_noncode,
-                   update_neutral_identical_streak)
+                   outside_edit_warning, parse_numstat, pin_drift,
+                   replan_hint, scaffold_rows, scoped_revert, split_lines,
+                   strip_noncode, update_neutral_identical_streak)
 
 
 TU = """\
@@ -656,6 +658,225 @@ class GenuineRowNoteTests(unittest.TestCase):
     def test_a_short_list_prints_no_remainder(self):
         note = format_genuine_note(3, self.ROWS[:3])
         self.assertNotIn("more genuine", note)
+
+
+class ArbitrateTableTests(unittest.TestCase):
+    """--arbitrate prints BOTH halves of a real/fuzzy arbitration.
+
+    Run-34 criticism (MV): a real/fuzzy disagreement needs four numbers, and
+    collecting them by hand cost ~4 extra builds per disagreement plus a
+    re-apply step where an edit can be lost.
+    """
+
+    def test_both_states_and_the_delta_are_printed(self):
+        text = arbitrate_table("rolling snapshot", 30, 80.85, 24, 71.89)
+        self.assertIn("real 30", text)
+        self.assertIn("80.8500%", text)
+        self.assertIn("real 24", text)
+        self.assertIn("71.8900%", text)
+        self.assertIn("real -6", text)
+        self.assertIn("-8.9600", text)
+
+    def test_real_win_with_a_fuzzy_loss_orders_a_revert(self):
+        text = arbitrate_table("rolling snapshot", 30, 80.85, 24, 71.89)
+        self.assertIn("fuzzy FELL", text)
+        self.assertIn("REVERT", text)
+        self.assertIn("METRICS DISAGREE", text)
+
+    def test_real_regression_with_a_fuzzy_gain_orders_a_rebase_keep(self):
+        text = arbitrate_table("rolling snapshot", 24, 71.89, 30, 80.85)
+        self.assertIn("fuzzy ROSE", text)
+        self.assertIn("--rebase-best", text)
+        self.assertIn("METRICS DISAGREE", text)
+
+    def test_agreeing_metrics_do_not_claim_a_disagreement(self):
+        text = arbitrate_table("rolling snapshot", 30, 71.89, 24, 80.85)
+        self.assertIn("fuzzy ROSE", text)
+        self.assertNotIn("METRICS DISAGREE", text)
+
+    def test_unmeasured_fuzzy_is_inconclusive_not_a_real_verdict(self):
+        text = arbitrate_table("rolling snapshot", 30, None, 24, 80.85)
+        self.assertIn("INCONCLUSIVE", text)
+        self.assertNotIn("KEEP", text)
+        self.assertNotIn("REVERT", text)
+
+    def test_flat_on_both_arbiters_reads_neutral(self):
+        text = arbitrate_table("session baseline", 24, 80.85, 24, 80.85)
+        self.assertIn("fuzzy is FLAT", text)
+        self.assertIn("NEUTRAL on both arbiters", text)
+
+    def test_moved_data_sections_are_reported_as_unarbitrated(self):
+        text = arbitrate_table("rolling snapshot", 30, 80.0, 24, 81.0,
+                               moved=["extab", ".sdata2"])
+        self.assertIn("extab", text)
+        self.assertIn("datadiff.py", text)
+
+    def test_no_data_line_when_no_section_moved(self):
+        self.assertNotIn("DATA:", arbitrate_table("x", 30, 80.0, 24, 81.0))
+
+
+class BankSemanticsTests(unittest.TestCase):
+    """A revert point banked from a NON-HEAD state says so.
+
+    Run-34 criticism (MV): probe banks whatever state it FIRST sees, so a
+    BASELINE taken after an edit banks the EDITED state as the pre-edit
+    reference, and MV's second probe re-banked the rolling snapshot onto a
+    neutral edit — --revert then restored the BAD state.
+    """
+
+    HEAD = b"void f(void)\n{\n    int a = 1;\n    g(a);\n}\n"
+
+    def test_clean_tree_measures_zero(self):
+        self.assertEqual(bank_divergence(self.HEAD, self.HEAD), 0)
+
+    def test_edited_tree_counts_changed_lines(self):
+        edited = self.HEAD.replace(b"int a = 1;", b"volatile int a = 1;")
+        self.assertEqual(bank_divergence(edited, self.HEAD), 1)
+
+    def test_added_lines_are_counted(self):
+        edited = self.HEAD.replace(b"    g(a);\n", b"    g(a);\n    h(a);\n")
+        self.assertEqual(bank_divergence(edited, self.HEAD), 1)
+
+    def test_unavailable_head_is_none_not_clean(self):
+        self.assertIsNone(bank_divergence(self.HEAD, None))
+
+    def test_clean_baseline_is_silent(self):
+        self.assertEqual(bank_warning("BASELINE", 0), "")
+
+    def test_dirty_baseline_warns_loudly_with_the_recovery_command(self):
+        text = bank_warning("BASELINE", 7, unit="game/mv/movie", fn="Play")
+        self.assertIn("BASELINE BANKED FROM AN EDITED TREE", text)
+        self.assertIn("7 line(s)", text)
+        self.assertIn("--discard", text)
+        self.assertIn("--reset", text)
+        self.assertIn("game/mv/movie Play", text)
+
+    def test_unmeasurable_baseline_says_unmeasured_not_clean(self):
+        text = bank_warning("BASELINE", None)
+        self.assertIn("UNMEASURED", text)
+
+    def test_neutral_bank_notes_the_revert_point_is_not_head(self):
+        text = bank_warning("NEUTRAL", 3)
+        self.assertIn("NOT HEAD", text)
+        self.assertIn("3 line(s)", text)
+
+    def test_neutral_on_a_clean_tree_is_silent(self):
+        self.assertEqual(bank_warning("NEUTRAL", 0), "")
+
+    def test_unmeasurable_neutral_is_silent(self):
+        self.assertEqual(bank_warning("NEUTRAL", None), "")
+
+    def test_improved_banks_an_edit_on_purpose_and_is_not_warned(self):
+        self.assertEqual(bank_warning("IMPROVED", 12), "")
+        self.assertEqual(bank_warning("REBASED", 12), "")
+
+
+class RevertCompletenessTests(unittest.TestCase):
+    """A function-scoped revert names what it could NOT reach.
+
+    Run-34 criticism (MV): the volatile-in-a-MACRO edit lived in a header,
+    was invisible to the per-function revert, and stayed live — so every
+    later score described a state the worker believed was undone.
+    """
+
+    TU = "src/game/mv/movie.c"
+
+    def test_numstat_parses_counts_and_paths(self):
+        rows = parse_numstat("3\t1\tsrc/game/mv/movie.c\n"
+                             "2\t0\tinclude/game/movie.h\n")
+        self.assertEqual(rows[0], (3, 1, "src/game/mv/movie.c"))
+        self.assertEqual(rows[1], (2, 0, "include/game/movie.h"))
+
+    def test_binary_rows_are_none_not_zero(self):
+        rows = parse_numstat("-\t-\torig/GUNE5D/sys/main.dol\n")
+        self.assertEqual(rows[0][:2], (None, None))
+
+    def test_backslash_paths_are_normalised(self):
+        rows = parse_numstat("1\t1\tinclude\\game\\movie.h\n")
+        self.assertEqual(rows[0][2], "include/game/movie.h")
+
+    def test_blank_and_short_lines_are_skipped(self):
+        self.assertEqual(parse_numstat("\nnot a row\n"), [])
+
+    def test_a_clean_tree_warns_about_nothing(self):
+        self.assertEqual(outside_edit_warning([], self.TU, "PlayVQMovie"), "")
+
+    def test_a_surviving_header_edit_is_named(self):
+        rows = parse_numstat("2\t0\tinclude/game/movie.h\n")
+        text = outside_edit_warning(rows, self.TU, "PlayVQMovie")
+        self.assertIn("REVERT IS PARTIAL", text)
+        self.assertIn("include/game/movie.h", text)
+        self.assertIn("+2/-0", text)
+        self.assertIn("EVERY includer", text)
+
+    def test_a_surviving_tu_edit_names_the_function_scope(self):
+        rows = parse_numstat(f"5\t2\t{self.TU}\n")
+        text = outside_edit_warning(rows, self.TU, "PlayVQMovie")
+        self.assertIn("outside PlayVQMovie", text)
+        self.assertIn(self.TU, text)
+
+    def test_whole_file_revert_omits_the_function_scope_wording(self):
+        rows = parse_numstat(f"5\t2\t{self.TU}\n")
+        text = outside_edit_warning(rows, self.TU, None)
+        self.assertIn("TU source still differs", text)
+        self.assertNotIn("outside", text)
+
+    def test_other_lanes_files_are_not_reported(self):
+        rows = parse_numstat("9\t9\tsrc/game/other/enemy.c\n"
+                             "1\t1\ttools/gdl/probe.py\n")
+        self.assertEqual(outside_edit_warning(rows, self.TU, "f"), "")
+
+    def test_headers_anywhere_count_including_src(self):
+        rows = parse_numstat("1\t0\tsrc/game/mv/movie_priv.h\n")
+        self.assertIn("movie_priv.h",
+                      outside_edit_warning(rows, self.TU, "f"))
+
+
+class ConflictGateTests(unittest.TestCase):
+    """An unarbitrated CONFLICT classifies nothing and exits non-zero.
+
+    Run-34 criticism (PC): PC skipped the mandated fuzzy arbiter and recorded
+    a false regression from a CONFLICT headline that still read like a
+    classification.
+    """
+
+    CONFLICT = ("CONFLICT  real 30 -> 24 IMPROVED but multiset 4t -> 9t vs"
+                " best DIVERGED — structure moved AWAY from target")
+
+    def test_non_conflict_verdicts_pass_through_untouched(self):
+        for verdict in ("IMPROVED  real 30 -> 24", "REGRESSED vs best 24",
+                        "NEUTRAL   real 24", "BASELINE  real 30"):
+            self.assertEqual(conflict_gate(verdict, None, None),
+                             (verdict, 0))
+
+    def test_conflict_without_any_fuzzy_refuses_and_exits_three(self):
+        text, code = conflict_gate(self.CONFLICT, None, None)
+        self.assertEqual(code, CONFLICT_UNARBITRATED_EXIT)
+        self.assertTrue(text.startswith("CONFLICT-UNARBITRATED"))
+        self.assertIn("OUTCOME REFUSED", text)
+        self.assertIn("NEITHER state", text)
+        self.assertIn("--arbitrate", text)
+
+    def test_one_cached_half_is_still_unarbitrated(self):
+        text, code = conflict_gate(self.CONFLICT, 80.5, None)
+        self.assertEqual(code, CONFLICT_UNARBITRATED_EXIT)
+        self.assertIn("the BEST state", text)
+        text, code = conflict_gate(self.CONFLICT, None, 80.5)
+        self.assertEqual(code, CONFLICT_UNARBITRATED_EXIT)
+        self.assertIn("this state", text)
+
+    def test_both_halves_cached_makes_it_a_real_classification(self):
+        text, code = conflict_gate(self.CONFLICT, 80.5, 81.2)
+        self.assertEqual(code, 0)
+        self.assertIn("ARBITRATED", text)
+        self.assertNotIn("OUTCOME REFUSED", text)
+        self.assertTrue(text.startswith("CONFLICT "))
+
+    def test_a_zero_fuzzy_reading_is_a_measurement_not_a_missing_one(self):
+        # 0.0 is falsy; the gate must key on `is None`, or a genuinely
+        # zero-scoring half would be misreported as unmeasured.
+        _text, code = conflict_gate(self.CONFLICT, 0.0, 0.0)
+        self.assertEqual(code, 0)
 
     def test_zero_genuine_rows_still_states_the_count(self):
         note = format_genuine_note(0, [])
