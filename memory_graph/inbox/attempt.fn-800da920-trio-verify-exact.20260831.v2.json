@@ -1,0 +1,30 @@
+{
+  "attempted_axis": "work_claim.movieplayer-structural.20260831.v1 structural-residual-trio matching pass: baselined fn_800DA920 before any edit per AGENTS.md's mandatory pre-edit baseline step.",
+  "attributes": {
+    "anchor_repair": "ANCHOR ONLY. This version differs from attempt.fn-800da920-trio-verify-exact.20260831.v1 in exactly one respect: the cited source path, stranded by the movieplayer.c -> movieplayer.cpp rename of 2026-08-31, now names the file that exists (src/game/movie/movieplayer.c -> src/game/movie/movieplayer.cpp). Rewritten key(s): attributes.anchors. THE CONTENT IS NOT RE-VERIFIED and must not be read as revalidated: claim.T5_stranded-record-anchors-14-rows-run35.20260902.v1 is explicit that a corrected path does not re-verify a stale claim, and names attempt.playvqmovie-gxcolor-layout.20260829.v1 as a row MV had already reported as describing a layout the tree no longer produces. Re-measure before relying on any figure here.",
+    "anchors": "src/game/movie/movieplayer.cpp fn_800DA920 0x800DA920, size 0x238 (238 insns)",
+    "conclusion": "This function of the assigned trio is already at policy-EXACT and required no source change this session. This directly contradicts the work-claim's framing of all three trio members as having a residual 'a prior pass classified as structural, not register noise' -- fn_800DA920 in fact has NO residual at all under the project's own EXACT definition. Flagging this discrepancy so the work-claim's premise is understood as partially stale for future readers; not attributing blame, since the function may simply have reached this state through normal prior-session work on this TU (the 2026-08-30 de-fakematch pass and/or earlier sessions) between when the trio was originally triaged and this session's baseline.",
+    "law_screen": "Ran gdlmem.py brief game/movie/movieplayer and laws --tag core-screen --full 1 at session start per AGENTS.md step 0; no edit was made to this function so no de-fakematch hazard law applies. None applicable: verification-only pass, zero lines of source touched.",
+    "measurements": "fndiff --count: insns 238/238, 6 diff lines, real 0. fndiff --clean: 'MATCH (pool-name noise only), 0 real diff lines (+6 pool-name lines suppressed)' -- fndiff.py's own --clean help text defines this status as byte-identical after link. fndiff --ops: opcode multiset IDENTICAL. No source edit made or needed.",
+    "residual_detail": "fnasm --diff shows exactly two instruction pairs with a relocation-symbol-name-only mismatch: (1) offset 0x4/0x34, an ADDR16_HA/LO pair addressing a .rodata float constant -- target names it @lbl_80117528, our object's disassembler falls back to a synthetic @...rodata.0 label because no local symbol exists at that exact byte offset in our compiled object; (2) offset 0x1e4, an EMB_SDA21 double-constant load -- target names it @lbl_803493B0, ours shows the anonymous pool index @509. Both pairs point at byte-identical relocation targets/addresses; only the disassembly listing's chosen label text differs, matching AGENTS.md's 'EXACT: instruction stream and relocations exact (or real 0 with only a verified symbol-name normalization issue)' clause exactly.",
+    "verification": "python tools/gdl/fndiff.py game/movie/movieplayer fn_800DA920 --count/--ops/--clean, all re-run against the current object after the session's unrelated edits to sibling functions in the same TU; full ninja -j2 green, build/GUNE5D/main.dol: OK; git diff --check clean; no lines of fn_800DA920 appear in this session's git diff."
+  },
+  "function": "function:fn_800DA920",
+  "id": "attempt.fn-800da920-trio-verify-exact.20260831.v2",
+  "kind": "attempt",
+  "outcome": "exact",
+  "recorded_at": "2026-09-02T17:19:43Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "measured_at": "2026-09-01",
+    "signature": "0t opcode multiset IDENTICAL (238/238); insns T238/O238; 0 ops clusters",
+    "signature_source": "fndiff --ops sweep 2026-09-01"
+  },
+  "residual_class": "RELOCATION",
+  "schema_version": 1,
+  "supersedes": "attempt.fn-800da920-trio-verify-exact.20260831.v1",
+  "valid_from": "2026-09-02"
+}

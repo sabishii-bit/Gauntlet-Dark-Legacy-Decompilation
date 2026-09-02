@@ -1,0 +1,24 @@
+{
+  "attributes": {
+    "anchor_repair": "ANCHOR ONLY. This version differs from claim.law.low-field-count-param-retype-can-regress-exact.20260830.v1 in exactly one respect: the cited source path, stranded by the movieplayer.c -> movieplayer.cpp rename of 2026-08-31, now names the file that exists (src/game/movie/movieplayer.c -> src/game/movie/movieplayer.cpp). Rewritten key(s): attributes.provenance. THE CONTENT IS NOT RE-VERIFIED and must not be read as revalidated: claim.T5_stranded-record-anchors-14-rows-run35.20260902.v1 is explicit that a corrected path does not re-verify a stale claim, and names attempt.playvqmovie-gxcolor-layout.20260829.v1 as a row MV had already reported as describing a layout the tree no longer produces. Re-measure before relying on any figure here. GATE NOTE: the run-29 necessity gate refused this version for carrying no `falsifier`. The one added here is DERIVED FROM THIS RECORD'S OWN stated measurement and probe set \u2014 it names the experiment the law already describes and says which outcome would disprove it. The law's claim is unchanged; only its anchor and its falsifiability are.",
+    "law_screen": "Screened claim.T5_stranded-record-anchors-14-rows-run35.20260902.v1 (APPLIES: this record is one of its 14 rows) and claim.law.T5_a-record-mining-heuristic-must-be-calibrated-against-the-live-corpus-before-shipping.20260902.v1 (APPLIES: only anchor-ROLE keys were rewritten, never the keys that narrate the work).",
+    "provenance": "src/game/movie/movieplayer.cpp::fn_800DBE04 (worktree GDL-Claude-MovieDefake, work_claim.movieplayer-defake.20260830.v1); attempt.movieplayer-defakematch-tupass.20260830.v1",
+    "scope": "MWCC GC 1.2.5 family; boundary refinement of claim.law.declared-alias-vs-repeated-cast and claim.law.multifield-alias-defeats-indexed-addressing - applies even to a LOW field-count (as few as 2), single-site-per-field direct function PARAMETER, not just walked/indexed/loaded/multifield bases.",
+    "tags": [
+      "param-retype",
+      "alias-form",
+      "defake"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Re-run the isolation A/B this law was derived from, on the current tree: in src/game/movie/movieplayer.cpp, retype fn_800DBE04's own parameter from u32* to the 2-field struct pointer while holding field-access style constant (the law's stated method). If the function now measures real 0 rather than the recorded real 2, the counterexample no longer stands and the law is refuted for this compiler. More generally: a census of low-field-count, single-touch parameter retypes across the image in which NONE regresses an exact function would show the recorded regression was an artifact of fn_800DBE04 rather than a property of the retype class.",
+  "id": "claim.law.low-field-count-param-retype-can-regress-exact.20260830.v2",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T17:22:27Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "supersedes": "claim.law.low-field-count-param-retype-can-regress-exact.20260830.v1",
+  "valid_from": "2026-09-02",
+  "value": "claim.law.declared-alias-vs-repeated-cast established that a struct-typed direct function PARAMETER (not walked/indexed/loaded) is normally safe for de-fakematch conversion regardless of field count - verified repeatedly in this same TU (fn_800D87FC/fn_800D8BCC's MovieDecodeState* state, 6+ field touches, stayed at baseline). fn_800DBE04 is a counterexample: retyping its OWN parameter from u32* to a 2-field struct pointer (MovieDTextOuter*, each field touched exactly ONCE, no loop, no multifield-in-one-block density) regressed an EXACT function from real0 to real2 (opcode stream identical - register/reloc only) purely from the parameter type change, independent of whether the two field writes used `->` notation or offsetof() on an explicit (u8*) cast (both regressed identically). The single variable that fixed it was reverting the PARAMETER's own declared type back to u32* while still casting to the richer struct type at every callee-argument boundary that needed it (a sibling function call taking the struct pointer) and at the return statement. Consequence: field count and access pattern (walked/indexed/loaded vs plain) are NOT the only variables governing whether a struct-typed parameter retype is codegen-neutral - the specific function's register-pressure/scheduling state can make even a trivial 2-field, single-touch retype unsafe. Do not assume a low field count exempts a parameter retype from the A/B-both-forms requirement; test the retype in isolation (temporarily reverting ONLY the parameter's own declared type, keeping field-access style constant) before concluding which variable caused a regression, exactly as the counter-form search here did."
+}
