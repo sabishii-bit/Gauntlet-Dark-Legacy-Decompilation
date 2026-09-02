@@ -8,12 +8,14 @@ that had not moved (measured on game/sys/memcard get_vmu_directory during
 run 29: real 65 -> 65, insns and multiset both unchanged).
 """
 
+import io
 import os
 import re
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -336,6 +338,68 @@ class TransientPinBankLifecycleTests(unittest.TestCase):
             self.assertFalse(
                 keep_consumes_transient_bank(["probe.py", "u", "f", flag]),
                 flag)
+
+
+class RebuildAfterRestoreTests(unittest.TestCase):
+    """run-39 item 11 / claim.law.MS_probe-discard-restores-source-but-not-
+    objects-so-object-reading-tools-report-the-discarded-probe.20260902.v1.
+
+    `--discard` and `--revert-baseline` restore the SOURCE and return early
+    without building, so wf_word_diff / fnasm / fndiff --no-build / regnorm
+    keep reading the DISCARDED probe on a tree git calls clean. MS nearly
+    banked a word count that way (62 stale vs 61 true).
+
+    Reproduced and then fixed at f1105b430 on
+    game/game/player::DoPlayerTexMods: clean 0, storage-class flip 7, after
+    `--discard` still 7 — and 0 once the rebuild landed. That satisfies the
+    law's OWN falsifier ("the discard path now triggers a build ... this law
+    has expired and should be superseded").
+    """
+
+    class FakeRun:
+        def __init__(self, returncode, output=""):
+            self.calls = []
+            self._returncode = returncode
+            self._output = output
+
+        def __call__(self, cmd, **kwargs):
+            self.calls.append(cmd)
+            return SimpleNamespace(returncode=self._returncode,
+                                   stdout=self._output, stderr="")
+
+    def run_it(self, returncode, output=""):
+        fake = self.FakeRun(returncode, output)
+        original = probe.subprocess.run
+        probe.subprocess.run = fake
+        buffer = io.StringIO()
+        stdout = sys.stdout
+        sys.stdout = buffer
+        try:
+            ok = probe.rebuild_after_restore("game/game/player", "--discard")
+        finally:
+            sys.stdout = stdout
+            probe.subprocess.run = original
+        return ok, fake.calls, buffer.getvalue()
+
+    def test_it_builds_the_units_object(self):
+        ok, calls, _text = self.run_it(0)
+        self.assertTrue(ok)
+        self.assertEqual(
+            [["ninja", "build/GUNE5D/src/game/game/player.o"]], calls)
+
+    def test_success_says_the_object_now_matches_the_restored_source(self):
+        _ok, _calls, text = self.run_it(0)
+        self.assertIn("object rebuilt after --discard", text)
+        self.assertIn("wf_word_diff", text)
+
+    def test_a_failed_rebuild_WARNS_instead_of_reporting_success(self):
+        """A silent failure here restores the exact defect: a clean tree
+        whose objects describe a discarded probe."""
+        ok, _calls, text = self.run_it(1, "ninja: build stopped.")
+        self.assertFalse(ok)
+        self.assertIn("FAILED to rebuild", text)
+        self.assertIn("Do not quote a number from this tree", text)
+        self.assertIn("build stopped", text)
 
 
 class NeutralIdenticalProofTests(unittest.TestCase):

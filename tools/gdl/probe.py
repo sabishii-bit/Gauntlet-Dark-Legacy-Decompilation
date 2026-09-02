@@ -88,8 +88,11 @@ is the deliberate override.
 
 Escape hatches (a worker concluded --discard "does not exist" because this
 docstring omitted it — the flags below all work):
-  --discard          restore the TU to HEAD (the neutral-edit undo)
-  --revert-baseline  restore the SESSION's first banked baseline
+  --discard          restore the TU to HEAD (the neutral-edit undo), then
+                     REBUILD the object so object-reading tools stop
+                     reporting the discarded probe (--no-rebuild skips)
+  --revert-baseline  restore the SESSION's first banked baseline, then
+                     rebuild the object for the same reason
   --no-bank          score without banking (diagnostic probes)
   --raw              score the pre-webfrank compiler output (pinned TUs)
   --rederive-pin     one call: build the raw body object, run
@@ -834,6 +837,44 @@ def rederive_pin(unit, fn, transient=False):
           " the WEBFRANK object built clean. Run a full `ninja` before"
           " committing.")
     return 0
+
+
+def rebuild_after_restore(unit, why):
+    """Rebuild ``unit``'s object after a restore that returns early.
+
+    Run-39 item 11 / claim.law.MS_probe-discard-restores-source-but-not-
+    objects-so-object-reading-tools-report-the-discarded-probe.20260902.v1.
+    `--discard` and `--revert-baseline` restore the SOURCE and return
+    without building, so every object-reading tool — wf_word_diff, fnasm,
+    fndiff --no-build, regnorm, savedregs — keeps reporting the DISCARDED
+    probe on a tree `git status` calls clean. MS nearly banked a word count
+    that way (62 stale against 61 true).
+
+    Reproduced at f1105b430 on game/game/player::DoPlayerTexMods: clean
+    tree DIFFERING WORDS = 0; with a storage-class flip, 7; after
+    `--discard` restored the source to HEAD, still 7.
+
+    `--revert` never needed this — it falls through to main()'s own build
+    and re-score. The two early-returning paths did.
+    """
+    build = subprocess.run(["ninja", f"build/{VERSION}/src/{unit}.o"],
+                           capture_output=True, text=True)
+    if build.returncode == 0:
+        print(f"[object rebuilt after {why}: build/{VERSION}/src/{unit}.o now"
+              " describes the restored source, so wf_word_diff / fnasm /"
+              " fndiff --no-build / regnorm read the tree you are actually"
+              " in. --no-rebuild skips this.]")
+        return True
+    print(f"WARNING: the object FAILED to rebuild after {why}. The source is"
+          f" restored but build/{VERSION}/src/{unit}.o still holds the"
+          " DISCARDED probe's bytes, and every object-reading tool"
+          " (wf_word_diff, fnasm, fndiff --no-build, regnorm, savedregs)"
+          " will report that state on a tree git calls clean — the defect"
+          " claim.law.MS_probe-discard-restores-source-but-not-objects"
+          " records. Do not quote a number from this tree until a build"
+          " succeeds. Build output:")
+    print((build.stdout + build.stderr).strip()[-1200:])
+    return False
 
 
 def head_bytes(source):
@@ -2958,6 +2999,8 @@ def main():
         restore_transient_pins(unit)
         # Even a whole-file discard leaves HEADER edits live (run 34 item 3).
         warn_outside_edits(source, None)
+        if "--no-rebuild" not in sys.argv:
+            rebuild_after_restore(unit, "--discard")
         return 0
     if "--revert-baseline" in sys.argv:
         if source is None:
@@ -2977,6 +3020,8 @@ def main():
         restore_transient_pins(unit)
         warn_pin_drift(unit, base)
         warn_outside_edits(source, None)
+        if "--no-rebuild" not in sys.argv:
+            rebuild_after_restore(unit, "--revert-baseline")
         return 0
     if "--revert" in sys.argv:
         if source is None:
