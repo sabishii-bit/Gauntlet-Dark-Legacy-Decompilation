@@ -123,12 +123,16 @@ neighbourhood", not "this family". Verified hits always rank first.
   `asserted_by` (tool/test paths that mechanically assert it).
 - attempt: `held_fixed` — the variable a multi-edit park held CONSTANT.
 
-Proposal gates run on **new proposals only**; the full set is A-H in
+Proposal gates run on **new proposals only**; the full set is A-I in
 `memory_graph/core.py` — beyond the three corpus-critical ones below:
 dedup-at-propose, windowed-residual word counts (E), banked-evidence
 citation resolution (F), `verifiers_run` on postprocessor closures (G),
-`addressing_modes_covered` on region-untouched claims (H); the gate code
-is the authority, this list summarizes. (Accepted records are never
+`addressing_modes_covered` on region-untouched claims (H), and a
+register-naming `hypothesis` must cite that register inside a quoted
+instruction beside its stream offset (I — the dispatch screen below, moved
+to record-authoring time where the misreading starts; ABI-fixed registers
+and save-set RANGES are exempt); the gate code is the authority, this list
+summarizes. (Accepted records are never
 retroactively invalidated; field SHAPE is checked corpus-wide, so in-place
 annotation of an accepted record is still validated by `validate`/`build`):
 

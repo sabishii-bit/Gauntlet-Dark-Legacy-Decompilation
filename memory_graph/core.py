@@ -371,6 +371,116 @@ _ADDRESSING_MODE_EVIDENCE_RE = re.compile(
     re.I,
 )
 
+# ---------------------------------------------------------------------------
+# Gate I (run 39): a hypothesis naming a REGISTER must quote that register's
+# DEFINITION SITE.
+#
+# AGENTS.md already carries the dispatch rule ("A brief naming a specific
+# register must quote that register's definition site"), but it fires at
+# DISPATCH — after the wrong register is already written down. Both measured
+# failures were authored as records first: run 37's mandated hypothesis named
+# the wrong register, and run 38's work order did it again on the same
+# function. attempt.PC_do-players-loop-head-named-base-refuted-and-the-
+# linkage-lever.20260902.v1 settled it in ZERO BUILDS: "in OUR stream r20 has
+# EXACTLY ONE definition, `@0x684 addi r20,r5,0 @lbl_80240E30(ADDR16_LO)`,
+# which is an unrelated level-table address" -- the real web was r18/r19.
+# A recorded hypothesis is the next lane's MANDATORY STEP 1 (discipline 10b),
+# so a wrong register in one is an instruction to go the wrong way.
+_HYPOTHESIS_REGISTER_RE = re.compile(r"\b([rf](?:3[01]|[12]\d|\d))\b")
+# A save-set or range spelling (`r16-r31`, `r3..r10`) names no single register
+# and must not be taxed: the claim is about the SET, and its members have no
+# individual definition site to quote.
+_REGISTER_RANGE_RE = re.compile(
+    r"\b[rf](?:3[01]|[12]\d|\d)\s*(?:\.\.|-{1,2}|through|to)\s*"
+    r"[rf]?(?:3[01]|[12]\d|\d)\b",
+    re.I,
+)
+# An offset/address anchor: where in the stream the citation points.
+_STREAM_ANCHOR_RE = re.compile(
+    r"@\s*\+?0x[0-9A-Fa-f]+"
+    r"|\+0x[0-9A-Fa-f]+"
+    r"|\b0x8[0-9A-Fa-f]{5,7}\b"
+    r"|\bT\[\d+\]|\bO\[\d+\]",
+)
+# How many characters may separate the anchor from the defining instruction.
+# Record prose is frequently ONE long paragraph (the PC record's verification
+# has no newlines at all), so this is a character window, never a line.
+_DEFINITION_WINDOW = 140
+
+# ABI-FIXED registers have no definition site inside a function to quote:
+# r1 is the stack pointer, r2/r13 the small-data bases. Naming one is not the
+# error this gate is about, and demanding a defining instruction for `224(r1)`
+# is unsatisfiable. Measured: before this mask, 9 of 22 corpus trips were r1
+# alone.
+_ABI_FIXED_REGISTERS = frozenset({"r1", "r2", "r13"})
+
+# A citation is an INSTRUCTION, so the token in front of the operands has to
+# be a real PPC mnemonic — otherwise ordinary prose ("the r20 web") sitting
+# near an offset would discharge the gate and it would assert nothing.
+_PPC_MNEMONIC = (
+    r"l(?:bz|hz|ha|wz|fs|fd|mw|wa)(?:u?x?)|"
+    r"st(?:b|h|w|fs|fd|mw)(?:u?x?)|"
+    r"addi[cs]?\.?|addze|add\.?|subf(?:ic|e|ze)?|subfc|neg|"
+    r"mul(?:li|lw|hw|hwu)|div(?:w|wu)|"
+    r"li[s]?|mr\.?|or[ic]?[s.]?|and[ic]?[s.]?|nor|xor[is]?|"
+    r"rlwi(?:nm|mi)\.?|s(?:lw|rw|raw)i?\.?|extsb|extsh|cntlzw|"
+    r"cmp(?:w|wi|lw|lwi)|cror|crclr|crxor|"
+    r"f(?:mr|abs|neg|add|sub|mul|div|madd|msub|nmadd|nmsub)s?\.?|"
+    r"frsp|fctiwz|fcmpu|fsel|fres|frsqrte|"
+    r"mf(?:lr|ctr|cr|spr|fs)|mt(?:lr|ctr|cr|spr|fsf)|"
+    r"b(?:l|la|lr|ctr|ctrl|lrl)?|b(?:eq|ne|lt|gt|le|ge|dnz|dz)[+-]?|"
+    r"nop|isync|sync|dcbz|dcbf|icbi|stwcx\.|lwarx"
+)
+
+
+def _cited_instruction_spans(text, register):
+    """Spans where `register` appears inside a quoted PPC INSTRUCTION.
+
+    ANY operand position counts, not just the destination. The question this
+    gate asks is "did you read the stream for this register, or name it from
+    memory?", and a base register is routinely cited as a SOURCE — the PC
+    census's own key line, `addi r18,r31,3136`, cites r31 that way. Requiring
+    the destination position tripped 13 of 22 corpus records that had in fact
+    done the work (measured before this was narrowed).
+    """
+    pattern = re.compile(
+        rf"\b(?:{_PPC_MNEMONIC})\s+[^\n;]{{0,48}}?\b{re.escape(register)}\b")
+    return [match.span() for match in pattern.finditer(text or "")]
+
+
+def register_definition_gaps(statement, record_text):
+    """Registers the hypothesis names with no instruction-level citation.
+
+    A register is DISCHARGED when the record quotes it inside a PPC
+    instruction sitting next to a stream anchor (`@0x334 addi rX,r31,3136`)
+    — the form a defs census produces. ABI-fixed registers and register
+    RANGES are excluded, having no single definition site to quote.
+
+    Pure over two strings so every branch is tested without a graph.
+    """
+    if not isinstance(statement, str) or not statement.strip():
+        return []
+    masked = _REGISTER_RANGE_RE.sub(
+        lambda match: " " * len(match.group(0)), statement)
+    named = sorted(set(_HYPOTHESIS_REGISTER_RE.findall(masked))
+                   - _ABI_FIXED_REGISTERS)
+    if not named:
+        return []
+    text = record_text or ""
+    gaps = []
+    for register in named:
+        discharged = False
+        for start, end in _cited_instruction_spans(text, register):
+            window = text[max(0, start - _DEFINITION_WINDOW):
+                          end + _DEFINITION_WINDOW]
+            if _STREAM_ANCHOR_RE.search(window):
+                discharged = True
+                break
+        if not discharged:
+            gaps.append(register)
+    return gaps
+
+
 # Outcomes for which a multi-edit probe must name what it held fixed: only the
 # ones that VETO an axis. See gate C.
 HELD_FIXED_OUTCOMES = frozenset({"negative", "parked", "capped"})
@@ -4097,6 +4207,52 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
             " rN,rA,rB), UPDATE-form stores (stwu/stfsu), and"
             " REGISTER-RELATIVE cursors (a base copied out of r1 by"
             " `addi rN,r1,K` and then written through)."
+        )
+
+    # Gate I (run 39). A HYPOTHESIS that names a specific register must quote
+    # that register's DEFINITION SITE somewhere in the record.
+    #
+    # AGENTS.md carries this as a DISPATCH screen, which fires after the
+    # wrong register has already been written down — and both measured
+    # failures were authored as records first: run 37's mandated hypothesis
+    # named the wrong register, and run 38's work order repeated it on the
+    # same function. This is the same screen moved to the source of the
+    # misreading. It is cheap to discharge and cheaper still to run: the
+    # refutation that settled it needed ZERO BUILDS.
+    #
+    # Scoped to `hypothesis` alone, because discipline 10b makes a recorded
+    # hypothesis the next lane's MANDATORY STEP 1 — a wrong register there
+    # is an instruction to go the wrong way, which is exactly what it cost
+    # twice. Register RANGES (`r16-r31`, a save set) are masked out: they
+    # name a set, not a register, and have no single definition site.
+    statement = _record_field(record, "hypothesis")
+    if isinstance(statement, dict):
+        statement = statement.get("statement")
+    gaps = register_definition_gaps(statement, text)
+    if gaps:
+        raise MemoryGraphError(
+            "this hypothesis names the register(s)"
+            f" {', '.join(gaps)} but the record never quotes a DEFINITION"
+            " SITE for them — an instruction that WRITES the register,"
+            " beside the stream offset it sits at. A hypothesis is the next"
+            " lane's MANDATORY STEP 1 (discipline 10b), so a register named"
+            " on inspection rather than on a defs census sends that lane the"
+            " wrong way.\nMEASURED TWICE, on the same function: run 37's"
+            " mandated hypothesis identified the wrong register, and run"
+            " 38's work order did it again. The census that settled it cost"
+            " ZERO BUILDS and is quoted in"
+            " attempt.PC_do-players-loop-head-named-base-refuted-and-the-"
+            "linkage-lever.20260902.v1: \"in OUR stream r20 has EXACTLY ONE"
+            " definition, `@0x684 addi r20,r5,0 @lbl_80240E30(ADDR16_LO)`,"
+            " which is an unrelated level-table address\" — the web the"
+            " hypothesis was really about was r18/r19. Two builds were spent"
+            " on the wrong register before anyone counted.\nDISCHARGE IT:"
+            " run `python tools/gdl/fnasm.py <unit> <fn>` (or fndiff --ops)"
+            " and quote each named register's defining instruction next to"
+            " its offset, e.g. `@0x22c addi r18,r31,3136`. If the register"
+            " is incidental to the idea, name the mechanism instead of the"
+            " register; if you mean a save-set RANGE, spell it as a range"
+            " (`r16-r31`), which this gate does not tax."
         )
     return warnings
 

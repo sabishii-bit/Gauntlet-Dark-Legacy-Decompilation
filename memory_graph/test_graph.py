@@ -1094,6 +1094,60 @@ class ProposalGateTests(unittest.TestCase):
                         "probed_form": "swapped the two locals"})
         self.assertTrue(stage_record_proposal(record, root=self.root).exists())
 
+    # --- Gate I: a hypothesis naming a register must cite it in the stream
+    #
+    # AGENTS.md carries this as a DISPATCH screen, which fires after the
+    # wrong register is already written down. Run 37's mandated hypothesis
+    # named the wrong register and run 38's work order repeated it on the
+    # same function; the census that settled it cost ZERO builds.
+    CITED = ("defs census: r20 has exactly one definition in our stream,"
+             " `@0x684 addi r20,r5,0 @lbl_80240E30(ADDR16_LO)`, an"
+             " unrelated level-table address.")
+
+    def _hypothesis(self, statement):
+        return {"statement": statement,
+                "cheapest_refuting_observation": "probe --ops shows the"
+                                                 " cluster unchanged",
+                "screened_against_target": "not yet"}
+
+    def _reg_attempt(self, rid, statement, verification=None):
+        attributes = {"law_screen": "none applicable: test"}
+        if verification:
+            attributes["verification"] = verification
+        return _attempt(rid, "function:test_fn", outcome="parked",
+                        hypothesis=self._hypothesis(statement),
+                        attributes=attributes)
+
+    def test_a_hypothesis_naming_a_register_without_a_citation_is_refused(
+            self):
+        record = self._reg_attempt(
+            "attempt.reg.v1",
+            "The residual is caused by r20 holding the cached base.")
+        with self.assertRaisesRegex(MemoryGraphError, "r20"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_quoting_the_definition_site_discharges_it(self):
+        record = self._reg_attempt(
+            "attempt.reg.v2",
+            "The residual is caused by r20 holding the cached base.",
+            verification=self.CITED)
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_i_error_cites_the_zero_build_refutation(self):
+        record = self._reg_attempt(
+            "attempt.reg.v3", "r20 holds the base across the loop.")
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=self.root)
+        self.assertIn("PC_do-players-loop-head-named-base-refuted",
+                      str(caught.exception))
+
+    def test_a_hypothesis_naming_no_register_is_untouched(self):
+        record = self._reg_attempt(
+            "attempt.reg.v4",
+            "The residual is a declaration-order rotation in the locals"
+            " block.")
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
     # --- Gate C: multi-edit probed_form requires held_fixed --------------
     def test_multi_edit_probed_form_without_held_fixed_is_refused(self):
         record = _attempt(
@@ -3276,6 +3330,75 @@ class SupersessionScreenPerformanceTests(unittest.TestCase):
                     " LEFT JOIN binary_module bm ON bm.id = bs.module_id"))
         self.assertIn("binary_symbol_raw_name_idx", plan, plan)
         self.assertIn("raw_name=?", plan, plan)
+
+
+class RegisterDefinitionGapTests(unittest.TestCase):
+    """The pure half of Gate I, calibrated against the accepted corpus.
+
+    Measured on 1721 accepted records: 29 hypotheses name a register at
+    all. A destination-only rule tripped 22 of them, and inspection showed
+    most were records that HAD done the work but cited the register as a
+    SOURCE operand (`addi r18,r31,3136`) or named r1. Widening to any
+    operand position and masking the ABI-fixed registers took it to 13 --
+    roughly one firing every three runs, against an error that cost two
+    builds twice in three runs.
+    """
+
+    CITED = "`@0x22c addi r18,r31,3136` materialises the base"
+
+    def gaps(self, statement, text=""):
+        return core.register_definition_gaps(statement, text)
+
+    def test_a_bare_register_claim_is_a_gap(self):
+        self.assertEqual(["r20"], self.gaps("r20 holds the cached base."))
+
+    def test_an_anchored_instruction_discharges_the_register(self):
+        self.assertEqual([], self.gaps("r18 holds the base.", self.CITED))
+
+    def test_a_source_operand_citation_counts(self):
+        """The PC census's own key line cites r31 as a SOURCE; requiring the
+        destination position tripped 13 corpus records that had done the
+        work."""
+        self.assertEqual([], self.gaps("r31 is the base.", self.CITED))
+
+    def test_an_instruction_with_no_anchor_does_not_discharge(self):
+        self.assertEqual(["r18"],
+                         self.gaps("r18 holds the base.", "addi r18,r31,3136"))
+
+    def test_an_anchor_with_no_instruction_does_not_discharge(self):
+        self.assertEqual(["r18"],
+                         self.gaps("r18 holds the base.",
+                                   "the r18 web starts at @0x22c"))
+
+    def test_abi_fixed_registers_have_no_definition_site_to_quote(self):
+        for register in ("r1", "r2", "r13"):
+            self.assertEqual(
+                [], self.gaps(f"the locals spill to 224({register})."),
+                register)
+
+    def test_a_save_set_range_names_a_set_not_a_register(self):
+        self.assertEqual(
+            [], self.gaps("save set target r16-r31 vs ours r15-r31."))
+        self.assertEqual([], self.gaps("the r3..r10 argument block."))
+
+    def test_every_named_register_is_reported_not_just_the_first(self):
+        self.assertEqual(["r24", "r25"],
+                         self.gaps("gPlayers reaches r24 ours vs r25 target."))
+
+    def test_float_registers_are_covered_too(self):
+        self.assertEqual(["f1"], self.gaps("f1 carries the scaled value."))
+
+    def test_prose_near_an_offset_is_not_an_instruction_citation(self):
+        """Without a real mnemonic the gate would assert nothing: ordinary
+        prose sitting near an offset would discharge it."""
+        self.assertEqual(
+            ["r20"],
+            self.gaps("r20 holds the base.",
+                      "the r20 web at @0x684 is the one to split"))
+
+    def test_an_empty_or_missing_statement_is_not_a_gap(self):
+        self.assertEqual([], self.gaps(""))
+        self.assertEqual([], self.gaps(None))
 
 
 if __name__ == "__main__":
