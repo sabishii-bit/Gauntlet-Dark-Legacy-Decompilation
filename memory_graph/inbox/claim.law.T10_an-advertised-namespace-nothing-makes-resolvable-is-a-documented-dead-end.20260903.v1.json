@@ -1,0 +1,29 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py::_reference_resolvable",
+    "memory_graph/core.py::_tool_behaviour_laws",
+    "memory_graph/test_graph.py::ToolNamespaceTests"
+  ],
+  "attributes": {
+    "evidence": [
+      "run 40, T10: 130 accepted records with subject project:gdl",
+      "gdlmem tool probe before: 11 tools, 0 laws; after: 6 laws, all bridged",
+      "bridge calibration: asserted_by matching returned 33 laws about combat.c/gauntworld; slug-word matching returns 6, all about probe"
+    ],
+    "scope": "memory_graph record subjects as of run 40. The 130-record project:gdl population is NOT retroactively invalid -- accepted records are never retroactively invalidated, and re-anchoring one is a supersession, which is the integrator's call. The name bridge labels itself `name_bridge_from_<subject>` so the debt stays visible.",
+    "tags": [
+      "workflow",
+      "symbol-identity"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Show a record accepted before run 40 carrying `subject: tool:<x>` or `subject: workflow:<x>` that was NOT hand-seeded as an entity record -- that would mean the namespace was reachable all along and the project:gdl population has some other cause. Or re-run the count: `grep -c '\"subject\": \"project:gdl\"' memory_graph/records/**/*.json` (130 at run 40) and `gdlmem tool probe` (6 laws, all name_bridge_from_ a foreign subject, 0 subject_anchored).",
+  "id": "claim.law.T10_an-advertised-namespace-nothing-makes-resolvable-is-a-documented-dead-end.20260903.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-02T23:49:36Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-02",
+  "value": "A NAMESPACE THE ERROR MESSAGE ADVERTISES AND THE RESOLVER REFUSES TRAINS EVERY AUTHOR TO FILE IN THE WRONG PLACE, AND THE MISFILING LOOKS LIKE A HABIT RATHER THAN A DEFECT. `entity_key_namespaces` has listed `tool:` and `workflow:` as live record-subject namespaces since run 35, and the unknown-entity refusal names them -- but `_reference_resolvable` handled only `function:` and `tu:` plus keys ALREADY PRESENT in the entity table, and entity rows are auto-created from record anchors. So the first record to write `subject: tool:probe` was refused as an unknown entity, and every author fell back to `project:gdl`. 130 accepted records now sit there, tool-behaviour laws among them, where `gdlmem tool <name>` could not see them: `tool probe` returned 11 tool_catalog entries and ZERO laws, while 6 laws about probe.py's own behaviour sat under THREE different foreign subjects (tu:game/game/combat, tu:game/sys/memcard, project:gdl). This is the THIRD recurrence of the same item in the tool queue. THE FIX IS TO GIVE THE NAMESPACE A VOCABULARY, not to document it harder: tool_catalog already holds a row keyed `tool:<slug>` for every tools/gdl source plus every reviewed tool record, so resolving `tool:` against that table makes the advertised namespace true. GENERAL FORM: an advertised affordance with no implementation behind it is worse than an absent one, because the workaround it forces becomes the corpus's convention and then reads as the authors' preference. When a queue item recurs a third time, check whether the thing being asked for EXISTS at all before asking why nobody uses it. COROLLARY, measured while building the bridge back to the misfiled records: bridging on `asserted_by` pulled 33 laws about combat.c and gauntworld into `tool probe`, because asserted_by names the tool that MEASURED a law, not the law's subject. Provenance is not aboutness."
+}

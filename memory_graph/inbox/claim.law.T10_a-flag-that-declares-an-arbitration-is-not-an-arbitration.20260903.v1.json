@@ -1,0 +1,29 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py::apply_fuzzy_bank_gate",
+    "tools/gdl/tests/test_probe.py::ClassifyTests.test_rebase_best_at_a_fuzzy_loss_is_refused",
+    "tools/gdl/tests/test_probe.py::ClassifyTests.test_rebase_best_at_a_fuzzy_rise_still_banks"
+  ],
+  "attributes": {
+    "evidence": [
+      "run 39 do_players probe A: real 840->852, multiset 14t->12t, fuzzy 97.2692->96.8433, banked",
+      "corpus census run 40: 23 records mention --rebase-best, 0 describe a keep at a fuzzy loss"
+    ],
+    "scope": "tools/gdl/probe.py's bank decision as of run 40. The general clause -- a gate may not exempt a verdict because the operator promised to check by hand -- is tool-independent.",
+    "tags": [
+      "metrics",
+      "workflow",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a --rebase-best keep whose fresh fuzzy FELL and which was nonetheless the right call -- a state the project should hold at a lower fuzzy score -- and show that --accept-fuzzy-loss's extra invocation and headline are a real cost rather than an accurate label. Or show the corpus census is wrong: re-run it over records mentioning --rebase-best and find keeps at a fuzzy loss among them (T10 measured 23 records, 0 such keeps).",
+  "id": "claim.law.T10_a-flag-that-declares-an-arbitration-is-not-an-arbitration.20260903.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-02T23:49:35Z",
+  "schema_version": 1,
+  "subject": "tool:probe",
+  "valid_from": "2026-09-02",
+  "value": "AN ESCAPE HATCH NAMED AFTER THE DISCIPLINE IT BYPASSES WILL BE USED TO BYPASS IT. probe.py's fuzzy bank gate was built in run 38 to stop exactly one failure -- banking a state whose fresh fuzzy fell -- and it opened with `if not banks_best(verdict) or verdict.startswith(\"REBASED\"): return`, commented `REBASED is exempt -- it IS the deliberate arbitrated keep`. main() went further and skipped MEASURING fuzzy at all when --rebase-best was passed. The flag records an INTENTION to arbitrate; nothing checked the intention was discharged, and one run later the failure walked through the one door left open for it. Run 39, do_players probe A: real 840 -> 852 WORSE, multiset 14t -> 12t BETTER, fresh fuzzy 97.2692 -> 96.8433, banked as BEST, after which probe.py scored the next two probes as REGRESSED against that anchor (attempt.PC_do-players-linkage-axis-closed-from-step0-artifact-and-the-assignment-site-decides.20260903.v1). THE RULE: a gate may not exempt a verdict on the grounds that the operator promised to do the check by hand. Bind the gate to every shape, and make the deliberate override SPELL OUT WHAT IT IS OVERRIDING -- `--rebase-best --accept-fuzzy-loss` now measures fuzzy, refuses on a loss as REBASE-REFUSED, and when acknowledged prints REBASED-FUZZY-LOSS with the delta in the HEADLINE, so a record quoting the verdict cannot omit it. THE EXEMPTION COST NOTHING TO REMOVE, and that is the transferable part: all 23 accepted records that mention --rebase-best describe keeps whose fuzzy ROSE (80.37->83.01, 95.80->96.26, 96.26->96.36, 85.90->96.22, and the run's best state at 95.27), so the new refusal would have blocked ZERO of them. An exemption defended as 'the expert path' was, measured across the whole corpus, never exercised by an expert -- only by the accident it was supposed to trust away."
+}
