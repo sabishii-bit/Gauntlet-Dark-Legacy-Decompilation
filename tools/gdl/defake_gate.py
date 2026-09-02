@@ -22,6 +22,16 @@ Usage:
   python tools/gdl/defake_gate.py check game/audio/sndfx.c,game/ui/attract.c --rebuild
   python tools/gdl/defake_gate.py arbitrations [game/enemy/enemy.c]
       (counts and the override RATE from the arbitration log)
+  python tools/gdl/defake_gate.py roster game/enemy/critter [--rebuild]
+      (the whole per-function sweep in ONE call: status, insn counts,
+      `real` with its delta against the gate baseline, genuine structural
+      rows, fndiff --clean's verdict, fuzzy, and which rows are
+      WebFrank-PINNED. Every one of those numbers was already computed
+      here to take a baseline and reachable no other way, so a lane
+      wanting the per-function view ran fndiff once per function instead
+      — 15 subprocess calls for one mandated sweep. Rows sort by `real`
+      descending with pinned rows last, because a pinned function reads
+      real 0 by construction and is not open work.)
 
 EVERY ARBITRATION IS LOGGED. `--arbitrate` keeps, `--bank-arbitrated` row
 re-anchors, and refused CONFLICTs all append one json line to
@@ -35,6 +45,18 @@ from memory with nothing on disk to check them against.
 A comma-separated unit list gates every named TU in one call (exit code =
 worst) — use it for paired fixes (a signature change plus its callers) so
 the second TU can never be forgotten.
+
+RELOCATION CHANGES CARRY A DIRECTION. A changed relocation symbol at
+unchanged instruction words is a semantic change and stays loud, but the
+check no longer scores it OURS-VS-OURS: the new symbol is resolved against
+the TARGET object's relocation at that instruction, and the verdict is
+RELOC-TOWARD-TARGET (a repair — passes the gate, bank it with
+--update-improved) or REGRESSION/MOVED-AWAY-FROM-TARGET. Without a target
+object, or when neither symbol matches the target's, it is
+REGRESSION/DIRECTION-UNKNOWN — fail-closed, as before. The old check printed
+one "revert or fix before committing" for both directions and told three
+run-37 lanes to revert genuine fixes
+(claim.law.RS_defake-gate-wrong-callee-check-is-ours-vs-ours-...20260902.v1).
 
 --rebuild runs the unit's ninja object target first, so rebuild+gate is one
 call and a stale object can never be gated. On any REGRESSION the check
@@ -308,15 +330,133 @@ def naming_drift_is_benign(base_relocs, cur_relocs, resolve=None):
     return True, "every changed relocation symbol resolves to one address"
 
 
-def compare(baseline, current, renames=None, resolve=None):
+def target_object(unit):
+    return Path(f"build/{VERSION}/obj/{re.sub(r'[.](c|cpp)$', '', unit)}.o")
+
+
+def target_relocation_symbols(unit):
+    """{fn: [(reloc_type, symbol), ...]} from the TARGET object, or {}.
+
+    The gate scores our object against OUR OWN earlier baseline, which is
+    correct for every other verdict and backwards for exactly one: a
+    relocation change has a DIRECTION, and the truth about which direction
+    is right has been sitting unread in build/GUNE5D/obj/ the whole time
+    (claim.law.RS_defake-gate-wrong-callee-check-is-ours-vs-ours-so-a-
+    correction-toward-the-target-reads-as-a-regression.20260902.v1).
+    Missing object -> {} -> the check keeps its old fail-closed behaviour;
+    a missing measurement never manufactures a verdict.
+    """
+    obj = target_object(unit)
+    if not obj.exists():
+        return {}
+    try:
+        return fndiff.relocation_symbols(obj)
+    except Exception:
+        return {}
+
+
+def _resolved_counts(rows, resolve):
+    from collections import Counter
+    return Counter(
+        addr for addr in (resolve(sym) for _type, sym in (rows or []))
+        if addr is not None)
+
+
+def _row_direction(index, base_sym, cur_sym, cur_relocs, target_relocs,
+                   resolve):
+    """(direction, detail) for ONE changed relocation, judged vs target.
+
+    Positional pairing first: `real 0` on both sides means the instruction
+    stream already agrees with target, so relocation i on our side is
+    relocation i on the target's. When the lists do not line up (differing
+    length or type at i) it falls back to how many times each address is
+    relocated in the target function at all — weaker, but still a fact
+    about the TARGET rather than about our own history.
+    """
+    base_at, cur_at = resolve(base_sym), resolve(cur_sym)
+    aligned = (len(target_relocs) == len(cur_relocs)
+               and index < len(target_relocs)
+               and target_relocs[index][0] == cur_relocs[index][0])
+    if aligned:
+        target_sym = target_relocs[index][1]
+        target_at = resolve(target_sym)
+        where = (f"target reloc[{index}] is {target_sym!r}"
+                 + (f" (0x{target_at:08X})" if target_at is not None else
+                    " (unresolvable)"))
+        if target_at is None:
+            return "unknown", (f"{where} — the target's own symbol does not"
+                               " resolve, so direction is undecidable")
+        if cur_at == target_at and base_at != target_at:
+            return "toward", f"{where} — our new symbol MATCHES it"
+        if base_at == target_at and cur_at != target_at:
+            return "away", f"{where} — our OLD symbol matched it, the new one"\
+                           " does not"
+        return "unknown", (f"{where} — neither the old nor the new symbol"
+                           " matches it")
+    counts = _resolved_counts(target_relocs, resolve)
+    n_base, n_cur = counts.get(base_at, 0), counts.get(cur_at, 0)
+    where = (f"relocation lists do not line up positionally (target"
+             f" {len(target_relocs)} vs ours {len(cur_relocs)}), so the"
+             f" target's relocated-address counts decide: old address"
+             f" {n_base}x, new address {n_cur}x in the target function")
+    if n_cur > n_base:
+        return "toward", where
+    if n_cur < n_base:
+        return "away", where
+    return "unknown", where
+
+
+def relocation_change_direction(base_relocs, cur_relocs, target_relocs,
+                                resolve=None):
+    """('toward'|'away'|'unknown', detail) for a relocation-symbol change.
+
+    Called only for a change `naming_drift_is_benign` already refused as a
+    rename, i.e. one that genuinely re-points a call or a datum. `away`
+    dominates: if any single relocation moved away from the target the
+    whole change fails, no matter what the others did.
+    """
+    resolve = resolve or resolve_symbol
+    if not target_relocs:
+        return "unknown", ("no target relocation list available (build"
+                           " build/GUNE5D/obj/<unit>.o), so the direction of"
+                           " this change cannot be judged")
+    if base_relocs is None or cur_relocs is None:
+        return "unknown", "no baseline relocation symbols to compare"
+    rows = []
+    for index, ((base_type, base_sym), (_cur_type, cur_sym)) in enumerate(
+            zip(base_relocs, cur_relocs)):
+        if base_sym == cur_sym:
+            continue
+        direction, detail = _row_direction(
+            index, base_sym, cur_sym, cur_relocs, target_relocs, resolve)
+        rows.append((direction, f"{base_sym!r} -> {cur_sym!r}: {detail}"))
+    if not rows:
+        return "unknown", "no changed relocation symbol to judge"
+    joined = "; ".join(detail for _direction, detail in rows)
+    directions = {direction for direction, _detail in rows}
+    if "away" in directions:
+        return "away", joined
+    if directions == {"toward"}:
+        return "toward", joined
+    return "unknown", joined
+
+
+def compare(baseline, current, renames=None, resolve=None,
+            target_relocs=None):
     """Verdicts per function; regression = matched fell or real grew.
 
     ``renames`` maps old baseline names to new current names (--rename
     old=new): a deliberate symbol rename otherwise reads as vanished+new
     and fails the gate on a change that may have added exacts — a worker
     had to arbitrate a 3-exact rename by hand.
+
+    ``target_relocs`` is {fn: [(reloc_type, symbol)]} from the TARGET
+    object. With it, a relocation change that is not a rename is reported
+    with its DIRECTION — RELOC-TOWARD-TARGET (a repair, which passes) or
+    REGRESSION/MOVED-AWAY-FROM-TARGET — instead of one verdict for both.
     """
     renames = renames or {}
+    target_relocs = target_relocs or {}
     verdicts = []
     # Per-TU DATA verdict class (run 34 item 1): a moved non-text section is
     # score-invisible to every per-function row below, so it is compared
@@ -360,13 +500,39 @@ def compare(baseline, current, renames=None, resolve=None):
                          " --update-improved when done")
                     )
                 else:
-                    verdicts.append(
-                        (name, "REGRESSION",
-                         f"relocation symbols changed at unchanged"
-                         f" instruction words — {why}. A REL24 callee lives"
-                         " ENTIRELY in its relocation, so 'words unchanged'"
-                         " proves nothing here")
-                    )
+                    # DIRECTION, against the target object. The detection
+                    # above is right and valuable; what it could not do was
+                    # tell a repair from a defect, so it printed
+                    # "revert or fix" over three genuine run-37 fixes.
+                    cur_name = renames.get(name, name)
+                    direction, dwhy = relocation_change_direction(
+                        base.get("relocs"), cur.get("relocs"),
+                        target_relocs.get(cur_name), resolve=resolve)
+                    head = ("relocation symbols changed at unchanged"
+                            f" instruction words — {why}.")
+                    if direction == "toward":
+                        verdicts.append(
+                            (name, "RELOC-TOWARD-TARGET",
+                             head + " MOVED-TOWARD-TARGET: " + dwhy
+                             + " — this is a relocation REPAIR, not a"
+                               " regression; keep it and re-anchor with"
+                               " --update-improved")
+                        )
+                    elif direction == "away":
+                        verdicts.append(
+                            (name, "REGRESSION",
+                             head + " MOVED-AWAY-FROM-TARGET: " + dwhy
+                             + " — revert or fix before committing")
+                        )
+                    else:
+                        verdicts.append(
+                            (name, "REGRESSION",
+                             head + " DIRECTION-UNKNOWN: " + dwhy
+                             + ". A REL24 callee lives ENTIRELY in its"
+                               " relocation, so 'words unchanged' proves"
+                               " nothing here — arbitrate against the"
+                               " target (fndiff --relocs) before keeping")
+                        )
                 continue
             verdicts.append(
                 (name, "REGRESSION",
@@ -750,6 +916,106 @@ def format_arbitrations(summary, unit=None):
     return "\n".join(lines)
 
 
+CLEAN_RE = re.compile(r"^==\s+(\S+?):\s+(.+?),\s+(\d+)\s+real diff lines")
+
+
+def parse_clean(text):
+    """{fn: (clean_status, clean_real)} from a whole-TU `fndiff --clean`.
+
+    --clean already covers every function in ONE call; what was missing
+    was anything that read it alongside `real` and the genuine-row count.
+    """
+    out = {}
+    for line in text.splitlines():
+        match = CLEAN_RE.match(line.strip())
+        if match:
+            name, status, real = match.groups()
+            out[name] = (status, int(real))
+    return out
+
+
+def webfrank_pins(unit):
+    """Function names this TU has a WebFrank rule for, or set().
+
+    AGENTS.md discipline 10: a pinned function reads real 0 BY
+    CONSTRUCTION (the gate scores the postprocessed object), so any
+    roster that ranks by `real` must say which rows are pinned or it
+    silently promises work that is already closed.
+    """
+    path = Path(f"config/{VERSION}/webfrank.json")
+    if not path.exists():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set()
+    return {rule.get("function")
+            for rule in (data.get("units") or {}).get(unit, [])
+            if rule.get("function")}
+
+
+def roster_rows(snap, clean, pins, baseline=None):
+    """Sorted roster rows: (name, status, insns, real, genuine, clean,
+    clean_real, fuzzy, pinned, delta).
+
+    Ordered by the work each row represents — `real` descending, then
+    name — so the roster reads as a queue. Pinned rows sort last whatever
+    their score, because their real is not a measurement of open work.
+    """
+    baseline = baseline or {}
+    rows = []
+    for name, entry in snap.items():
+        if name == "__sections__":
+            continue
+        pinned = name in pins
+        was = (baseline.get(name) or {}).get("real")
+        real = entry.get("real")
+        delta = (None if was is None or real is None or was == real
+                 else f"{was}->{real}")
+        clean_status, clean_real = clean.get(name, ("?", None))
+        ti, bi = entry.get("ti"), entry.get("bi")
+        # A function with no DIFF line carries no counts at all; printing
+        # "None/None" for the exact rows made the roster look broken.
+        insns = "-" if ti is None and bi is None else f"{ti}/{bi}"
+        rows.append((name, entry.get("status"), insns,
+                     real, entry.get("genuine"), clean_status, clean_real,
+                     entry.get("fuzzy"), pinned, delta))
+    rows.sort(key=lambda row: (row[8], -(row[3] or 0), row[0]))
+    return rows
+
+
+def format_roster(unit, rows, has_baseline):
+    lines = [f"ROSTER {unit}: {len(rows)} function(s)"
+             f"  [real | genuine structural rows | fndiff --clean | fuzzy]"]
+    open_rows = [r for r in rows if (r[3] or 0) > 0 and not r[8]]
+    exact = sum(1 for r in rows if r[3] == 0 and not r[8])
+    pinned = sum(1 for r in rows if r[8])
+    lines.append(f"  {exact} at real 0, {len(open_rows)} with a residual,"
+                 f" {pinned} WebFrank-PINNED (real 0 by construction —"
+                 " not open work)")
+    header = (f"  {'FUNCTION':<38} {'STATUS':<18} {'INSNS':>9} {'REAL':>6}"
+              f" {'GEN':>5} {'FUZZY':>8}  CLEAN")
+    lines.append(header)
+    for (name, status, insns, real, genuine, clean_status, clean_real,
+         fuzzy, pinned, delta) in rows:
+        mark = " [PINNED]" if pinned else ""
+        show_real = "-" if real is None else str(real)
+        if delta:
+            show_real += f" ({delta})"
+        lines.append(
+            f"  {name:<38.38} {str(status):<18.18} {insns:>9}"
+            f" {show_real:>6} {('-' if genuine is None else genuine):>5}"
+            f" {('-' if fuzzy is None else f'{fuzzy:.2f}'):>8}"
+            f"  {clean_status}"
+            + (f" [{clean_real}]" if clean_real not in (None, real) else "")
+            + mark)
+    if not has_baseline:
+        lines.append("  (no gate baseline for this unit, so no REAL delta is"
+                     " shown — take one with `defake_gate.py baseline"
+                     f" {unit}`)")
+    return "\n".join(lines)
+
+
 def run_fndiff(unit, flag):
     result = subprocess.run(
         [sys.executable, str(FNDIFF), unit, flag],
@@ -865,6 +1131,14 @@ def main():
         print(format_arbitrations(
             summarize_arbitrations(read_arbitrations(), unit), unit))
         return 0
+    if args[:1] == ["roster"] and len(args) == 2:
+        worst = 0
+        for one in args[1].split(","):
+            one = one.strip()
+            if not one:
+                continue
+            worst = max(worst, run_roster(one, rebuild, arbiter))
+        return worst
     if len(args) != 2 or args[0] not in ("baseline", "check"):
         print(__doc__)
         return 2
@@ -885,6 +1159,95 @@ def main():
         return worst
     return run_single(mode, unit, rebuild, update_improved, arbitrate,
                       renames, bank_arbitrated, at_head, arbiter)
+
+
+def measure_unit(unit, arbiter=None):
+    """(snapshot, fuzzy_note) — every per-function measurement this tool
+    takes, in ONE pass over the unit.
+
+    Extracted from run_single so `roster` can reuse it (run-38 item 7):
+    the numbers a sweep needs — status, insn counts, real, genuine
+    structural rows, fuzzy — were all computed here already and reachable
+    only by taking a gate baseline, so a lane wanting a per-function view
+    ran fndiff once per function instead (UC: 15 subprocess calls).
+    """
+    snap = snapshot(run_fndiff(unit, "--classify"),
+                    run_fndiff(unit, "--count"))
+    objfile = Path(
+        f"build/{VERSION}/src/{re.sub(r'[.](c|cpp)$', '', unit)}.o")
+    if objfile.exists():
+        for name, digest in fndiff.raw_signature(objfile).items():
+            if name in snap:
+                snap[name]["bytes"] = digest
+        for name, digest in fndiff.raw_words_signature(objfile).items():
+            if name in snap:
+                snap[name]["words"] = digest
+        for name, digest in fndiff.opcode_multiset_signature(objfile).items():
+            if name in snap:
+                snap[name]["opset"] = digest
+        # Relocation SYMBOLS, kept as names rather than a hash: the
+        # NAMING-DRIFT check has to resolve two spellings to addresses to
+        # tell a rename from a different callee, and a hash cannot.
+        for name, rows in fndiff.relocation_symbols(objfile).items():
+            if name in snap:
+                snap[name]["relocs"] = [list(row) for row in rows]
+        # Per-TU DATA baseline (run 34 item 1): the object's non-text
+        # sections, banked under a reserved key so `compare` can flag a
+        # score-invisible data-section change (a lost .extab match) as its
+        # own verdict class. Kept out of every per-function loop above.
+        data_sections = data_section_digests(objfile)
+        if data_sections is not None:
+            snap["__sections__"] = {"data": data_sections}
+    # Genuine structural rows for every function `real` calls imperfect —
+    # the structure arbiter's baseline half. Byte-exact rows can never be
+    # disputed, so they are skipped and the count stays cheap.
+    mismatching = [name for name, row in snap.items() if row.get("real")]
+    if mismatching:
+        for name, count in genuine_counts(unit, mismatching).items():
+            if name in snap:
+                snap[name]["genuine"] = count
+    # Fuzzy anchor for the fuzzy arbiter. Only ever taken from a report at
+    # least as new as the object it describes: an anchor read from a stale
+    # report is worse than no anchor, because `check` would silently
+    # compare a fresh number against a number for different bytes.
+    bare = re.sub(r"\.(c|cpp)$", "", unit)
+    fuzzy_rows, fuzzy_note = {}, "no fuzzy anchor (report older than object)"
+    if arbiter == "fuzzy":
+        fuzzy_rows = fresh_fuzzy(bare, None)
+        fuzzy_note = "fuzzy anchor from a freshly built report"
+    elif report_is_fresh(unit):
+        fuzzy_rows = read_report_fuzzy(bare)
+        fuzzy_note = "fuzzy anchor from the current report"
+    for name, value in fuzzy_rows.items():
+        if name in snap:
+            snap[name]["fuzzy"] = value
+    if not fuzzy_rows:
+        fuzzy_note = ("no fuzzy anchor — re-take with `--arbiter fuzzy` to"
+                      " enable the fuzzy arbiter")
+    return snap, fuzzy_note
+
+
+def run_roster(unit, rebuild, arbiter=None):
+    """The whole per-function sweep in ONE call (run-38 item 7)."""
+    unit = normalize_unit(unit)
+    if rebuild:
+        obj = re.sub(r"\.(c|cpp)$", "", unit)
+        build = subprocess.run(["ninja", f"build/{VERSION}/src/{obj}.o"],
+                               capture_output=True, text=True)
+        if build.returncode != 0:
+            print("BUILD FAILED (roster not run):")
+            print((build.stdout + build.stderr).strip()[-1500:])
+            return 1
+    snap, fuzzy_note = measure_unit(unit, arbiter)
+    clean = parse_clean(run_fndiff(unit, "--clean"))
+    baseline = {}
+    path = gate_path(unit)
+    if path.exists():
+        baseline, _meta = load_baseline(path)
+    rows = roster_rows(snap, clean, webfrank_pins(unit), baseline)
+    print(format_roster(unit, rows, bool(baseline)))
+    print(f"  {fuzzy_note}")
+    return 0
 
 
 def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
@@ -938,58 +1301,7 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
             print("BUILD FAILED (gate not run):")
             print((build.stdout + build.stderr).strip()[-1500:])
             return 1
-    snap = snapshot(run_fndiff(unit, "--classify"), run_fndiff(unit, "--count"))
-    objfile = Path(
-        f"build/{VERSION}/src/{re.sub(r'[.](c|cpp)$', '', unit)}.o")
-    if objfile.exists():
-        for name, digest in fndiff.raw_signature(objfile).items():
-            if name in snap:
-                snap[name]["bytes"] = digest
-        for name, digest in fndiff.raw_words_signature(objfile).items():
-            if name in snap:
-                snap[name]["words"] = digest
-        for name, digest in fndiff.opcode_multiset_signature(objfile).items():
-            if name in snap:
-                snap[name]["opset"] = digest
-        # Relocation SYMBOLS, kept as names rather than a hash: the
-        # NAMING-DRIFT check has to resolve two spellings to addresses to
-        # tell a rename from a different callee, and a hash cannot.
-        for name, rows in fndiff.relocation_symbols(objfile).items():
-            if name in snap:
-                snap[name]["relocs"] = [list(row) for row in rows]
-        # Per-TU DATA baseline (run 34 item 1): the object's non-text
-        # sections, banked under a reserved key so `compare` can flag a
-        # score-invisible data-section change (a lost .extab match) as its
-        # own verdict class. Kept out of every per-function loop above.
-        data_sections = data_section_digests(objfile)
-        if data_sections is not None:
-            snap["__sections__"] = {"data": data_sections}
-    # Genuine structural rows for every function `real` calls imperfect —
-    # the structure arbiter's baseline half. Byte-exact rows can never be
-    # disputed, so they are skipped and the count stays cheap.
-    mismatching = [name for name, row in snap.items() if row.get("real")]
-    if mismatching:
-        for name, count in genuine_counts(unit, mismatching).items():
-            if name in snap:
-                snap[name]["genuine"] = count
-    # Fuzzy anchor for the fuzzy arbiter. Only ever taken from a report at
-    # least as new as the object it describes: an anchor read from a stale
-    # report is worse than no anchor, because `check` would silently
-    # compare a fresh number against a number for different bytes.
-    bare = re.sub(r"\.(c|cpp)$", "", unit)
-    fuzzy_rows, fuzzy_note = {}, "no fuzzy anchor (report older than object)"
-    if arbiter == "fuzzy":
-        fuzzy_rows = fresh_fuzzy(bare, None)
-        fuzzy_note = "fuzzy anchor from a freshly built report"
-    elif report_is_fresh(unit):
-        fuzzy_rows = read_report_fuzzy(bare)
-        fuzzy_note = "fuzzy anchor from the current report"
-    for name, value in fuzzy_rows.items():
-        if name in snap:
-            snap[name]["fuzzy"] = value
-    if not fuzzy_rows:
-        fuzzy_note = ("no fuzzy anchor — re-take with `--arbiter fuzzy` to"
-                      " enable the fuzzy arbiter")
+    snap, fuzzy_note = measure_unit(unit, arbiter)
     path = gate_path(unit)
     if mode == "baseline":
         meta = save_baseline(path, snap, unit)
@@ -1055,7 +1367,8 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         print(f"banked arbitrated keep for {target_row} (that row only —"
               " every sibling still gates against its original anchor;"
               " record the arbitration + its fuzzy in the attempt record)")
-    verdicts = compare(baseline, snap, renames)
+    verdicts = compare(baseline, snap, renames,
+                       target_relocs=target_relocation_symbols(unit))
     verdicts = arbitrate_regressions(verdicts, unit, baseline,
                                      arbiter=arbiter)
     conflicts = [v for v in verdicts if v[1] == "CONFLICT"]
@@ -1120,7 +1433,14 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
             # changed literal that was the whole residual.
             print(fndiff.truncate_ops(ops, 14))
         return 1
-    improved = [v for v in verdicts if v[1] == "IMPROVED"]
+    # RELOC-TOWARD-TARGET and NAMING-DRIFT both leave the baseline holding
+    # the OLD relocation symbols, so without re-anchoring they re-report on
+    # every later check. Both details already tell the worker to re-anchor
+    # with --update-improved; before this they were not in the bankable set,
+    # so that instruction did nothing.
+    improved = [v for v in verdicts
+                if v[1] in ("IMPROVED", "RELOC-TOWARD-TARGET",
+                            "NAMING-DRIFT")]
     if improved and update_improved:
         # Archive the outgoing baseline so the session-start census stays
         # reconstructable (a worker had to rebuild it from transcripts).

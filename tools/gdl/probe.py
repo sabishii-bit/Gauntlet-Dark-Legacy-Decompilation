@@ -103,7 +103,14 @@ docstring omitted it — the flags below all work):
                      --discard restore them and drop the bank. Without it a
                      revert restores the SOURCE and leaves the re-derived
                      hashes in webfrank.json, which GW measured as ~2 of 15
-                     probe cycles spent on pure pin plumbing
+                     probe cycles spent on pure pin plumbing.
+                     BOTH ENDS of that A/B consume the bank: a KEEPING verdict
+                     (BASELINE/IMPROVED/NEUTRAL/REBASED) drops it too, because
+                     the re-derived pin is the one matching the state just
+                     banked. Only the revert end used to, so a bank outlived
+                     its A/B and the NEXT revert in the TU put pre-session pin
+                     hashes back over a kept re-derivation (PC hand-deleted
+                     the bank twice)
   --slots            force the slotdiff map even without a slot signal
   --no-slots         suppress the auto-invoked slot map (below)
   --rebaseline       deliberately MOVE the session baseline to the current
@@ -192,11 +199,18 @@ proves it describes the bytes in front of you; banking a new best without
 a fuzzy measurement CLEARS the anchor rather than carrying a stale one.
 
 --fuzzy is otherwise a PURE READOUT: it builds, prints the scores and this
-function's fresh objdiff fuzzy, and computes NO verdict and banks NO
-snapshot. Re-running the verdict on bytes that were already scored is
-what made a CONFLICT re-read as REGRESSED (see classify()'s BEST-anchored
-multiset comparison); an arbitration readout must never be able to do
-that. Score and bank with a plain probe, then arbitrate with --fuzzy.
+function's fresh objdiff fuzzy, and computes NO verdict and does not move
+the BEST anchor or the rolling revert point. Re-running the verdict on
+bytes that were already scored is what made a CONFLICT re-read as
+REGRESSED (see classify()'s BEST-anchored multiset comparison); an
+arbitration readout must never be able to do that.
+
+The ONE exception is the first probe on a unit: when NO snapshot exists,
+--fuzzy banks the baseline from the state it just built and scored, so a
+worker who reaches for --fuzzy first is not left with `--revert` saying
+"no banked snapshot for this unit yet" over a build already paid for.
+There is nothing to move in that case, which is exactly why it is safe;
+once a snapshot exists --fuzzy never touches it. --no-bank opts out.
 
 --arbitrate is the WHOLE arbitration in one call. A real/fuzzy disagreement
 needs FOUR numbers — (real, fuzzy) for the banked state and for the edited
@@ -532,6 +546,55 @@ def restore_transient_pins(unit):
         print(f"[transient pin restore: {note}]")
 
 
+def keep_consumes_transient_bank(argv):
+    """Should a KEEP drop this TU's transient pin bank? (run-38 item 5)
+
+    False on a revert invocation: --revert / --revert-baseline / --discard
+    re-score through the same keep path, and their own consumer
+    (wf_rederive_pin.restore_transient) deliberately KEEPS the bank when
+    it emitted notes — "resolve these, then delete it by hand". Dropping
+    it from the keep path would overrule that instruction.
+    """
+    return not any(flag in argv for flag in
+                   ("--revert", "--revert-baseline", "--discard"))
+
+
+def drop_transient_pins(unit, why):
+    """Consume this TU's transient pin bank on a KEEP (run-38 item 5).
+
+    `restore_transient` consumes the bank on a REVERT, because it
+    describes one A/B. The other end of that A/B had no consumer at all:
+    when a probe KEEPS the state, the re-derived pin is the one that
+    matches the tree from here on, and the pre-probe hashes in the bank
+    are stale. Left there, the next `--revert` / `--revert-baseline` /
+    `--discard` in the same TU restores PRE-SESSION pin hashes over a pin
+    that was deliberately re-derived and kept — a state PC had to
+    hand-delete the bank to escape, twice.
+
+    Returns True when a bank was dropped. Fail-soft like every other
+    transient-pin path: a checkout where the postprocessor stack cannot
+    import has no bank to drop.
+    """
+    module = _wf_rederive_module()
+    if module is None:
+        return False
+    bank = Path(module.bank_path(unit))
+    if not bank.exists():
+        return False
+    try:
+        bank.unlink()
+    except OSError as error:
+        print(f"[transient pin bank NOT dropped: {error} — delete {bank} by"
+              " hand, or a later revert will restore pre-session pin"
+              " hashes]")
+        return False
+    print(f"[transient pin bank CONSUMED by this {why}: the re-derived pin"
+          " hashes now match the banked state, so no later revert will put"
+          " the pre-probe hashes back. Re-derive again if you revert the"
+          " source by hand.]")
+    return True
+
+
 def rederive_pin(unit, fn, transient=False):
     """One-call pin re-derivation: body build + wf_rederive_pin --apply +
     configure + confirm (run 34 item 9).
@@ -704,6 +767,19 @@ def baseline_bank_decision(kind, base_exists, rebaseline=False):
         " FIRST bank on this unit, and the rolling revert point moves with"
         " later NEUTRAL probes while this one does not. --revert-baseline"
         " restores THIS state.]")
+
+
+def readout_banks_baseline(snapshot_exists, has_source, no_bank):
+    """Should a --fuzzy READOUT bank the session baseline? (run-38 item 4)
+
+    True ONLY on the first probe of a unit. --fuzzy is an arbitration
+    readout and must never move a revert point that already exists — that
+    is the whole reason the branch banks nothing. But when NO snapshot
+    exists there is nothing to move, and refusing to bank left `--revert`
+    answering "no banked snapshot for this unit yet" on a function whose
+    build had already been paid for by the readout itself.
+    """
+    return bool(has_source) and not snapshot_exists and not no_bank
 
 
 def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None,
@@ -1299,6 +1375,58 @@ def genuine_row_count(unit, fn):
 
 BEST_KEYS = ("best_real", "best_multiset", "best_insns", "best_bytes",
              "best_fuzzy")
+
+SNAPSHOT_ANCHOR = "snapshot_anchor"
+
+
+def anchor_of(state):
+    """The BEST anchor currently in ``state``, as a plain dict."""
+    return {key: state.get(key) for key in BEST_KEYS}
+
+
+def roll_back_anchor(state):
+    """(new_state, note) — put the BEST anchor back to the one banked WITH
+    the snapshot --revert just restored (run-38 item 9).
+
+    THE DEFECT. classify() scores every verdict against ``best_real``, and
+    probe.py persists the state UNCONDITIONALLY — while the SNAPSHOT bank
+    sits behind ``--no-bank``, the flag documented for exactly the probes
+    this bites ("DIAGNOSTIC probes ... that will be hand-reverted"). So a
+    diagnostic edit moves the anchor onto itself and leaves the revert
+    point behind, and the following --revert scores the RESTORED state
+    against the edit it just discarded: "REGRESSED vs best 5 ... [revert
+    advised]" on a revert that worked perfectly. AT measured it; T7's
+    run-37 item-7 fix relabelled the neighbouring annotations but never
+    touched this comparison.
+
+    Fail-soft in both directions. No recorded anchor (a state banked
+    before this, or a snapshot last moved by a probe of a DIFFERENT
+    function in the same TU) leaves the anchor alone and SAYS so, rather
+    than inventing a rollback target; an anchor equal to the current one
+    is a no-op with no note.
+    """
+    banked = state.get(SNAPSHOT_ANCHOR)
+    if not isinstance(banked, dict):
+        return state, ("[no anchor was recorded with this snapshot, so the"
+                       " verdict below is scored against the BEST state"
+                       " seen this session — which, after a --no-bank"
+                       " diagnostic, is the edit you just discarded. Probe"
+                       " once more to re-anchor.]")
+    current = anchor_of(state)
+    if all(banked.get(key) == current.get(key) for key in BEST_KEYS):
+        return state, ""
+    state = dict(state)
+    for key in BEST_KEYS:
+        value = banked.get(key)
+        if value is None:
+            state.pop(key, None)
+        else:
+            state[key] = value
+    return state, (
+        f"[BEST anchor rolled back with the source: best_real"
+        f" {current.get('best_real')} -> {banked.get('best_real')}. The"
+        " restored state is scored against ITS OWN history, not against"
+        " the edit this revert discarded.]")
 
 # Fuzzy is a float percentage; anything at or above the anchor is "not a
 # regression". The epsilon keeps float noise from manufacturing a refusal.
@@ -2204,6 +2332,23 @@ def main():
         # here rather than warned about (run 34 item 8).
         restore_transient_pins(unit)
         warn_pin_drift(unit, snap)
+        # Roll the BEST anchor back with the source (run-38 item 9), before
+        # the re-score below reads the state file. Without it the restored
+        # state is scored against the session's best — which after a
+        # --no-bank diagnostic is the edit this revert just discarded, and
+        # the successful revert prints "[revert advised]".
+        if state_file.exists():
+            try:
+                reverted_state = json.loads(
+                    state_file.read_text(encoding="utf-8"))
+            except ValueError:
+                reverted_state = None
+            if isinstance(reverted_state, dict):
+                reverted_state, note = roll_back_anchor(reverted_state)
+                if note:
+                    print(note)
+                state_file.write_text(json.dumps(reverted_state),
+                                      encoding="utf-8")
         # A FUNCTION-SCOPED revert reaches only hunks inside `fn`. Cross-check
         # the whole tree and name what it could not reach — MV's
         # volatile-in-a-macro header edit survived a revert and stayed live.
@@ -2282,19 +2427,40 @@ def main():
         source_changed = snap.read_bytes() != source.read_bytes()
 
     if "--fuzzy" in sys.argv:
-        # PURE READOUT. No verdict, no state mutation beyond the fuzzy
-        # number itself, no snapshot banked. Arbitration must be able to
-        # re-read a state the loop has already scored without the verdict
-        # changing underneath it (a CONFLICT re-read as REGRESSED that
-        # way, on bytes that had not moved).
+        # PURE READOUT. No verdict, and no state mutation beyond the fuzzy
+        # number itself. Arbitration must be able to re-read a state the
+        # loop has already scored without the verdict changing underneath
+        # it (a CONFLICT re-read as REGRESSED that way, on bytes that had
+        # not moved).
+        #
+        # FIRST-BASELINE TRAP, --fuzzy edition (run-38 item 4). Banking
+        # nothing is right whenever a revert point already EXISTS — moving
+        # it under an arbitration is the hazard this branch was built to
+        # avoid. On a function nobody has probed yet there is nothing to
+        # move: the state was just built and scored, the pristine bytes
+        # are in front of us, and refusing to bank left `--revert`
+        # answering "no banked snapshot for this unit yet" over a build
+        # already paid for. Bank ONLY in that case; still no verdict, and
+        # the BEST anchor is still untouched.
+        first_bank = snap is not None and readout_banks_baseline(
+            snap.exists(), source is not None, "--no-bank" in sys.argv)
         tok = (f", multiset {multiset_tokens}t"
                if multiset_tokens is not None else "")
+        banked_note = ("no verdict computed; no revert point existed, so"
+                       " this readout banked one" if first_bank else
+                       "no verdict computed, no revert point banked")
         print(f"READOUT   real {real} (insns {insns}{tok})"
-              "  [--fuzzy: no verdict computed, no revert point banked]")
+              f"  [--fuzzy: {banked_note}]")
         standing = state.get("last_verdict")
         if standing:
             print(f"[standing verdict, unchanged by this readout]"
                   f"\n{standing}")
+        if first_bank:
+            bank_snapshot(unit, source, baseline=True,
+                          verdict_kind="BASELINE", fn=fn)
+            print("[banked from the CURRENT state — still no verdict and no"
+                  " BEST anchor. --revert / --revert-baseline now restore"
+                  " THIS state; --no-bank opts out.]")
         fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=digest)
         return 0
 
@@ -2442,6 +2608,25 @@ def main():
               " --revert restores THIS state"
               + ("; to discard this neutral edit use git, not --revert"
                  if kind == "NEUTRAL" else "") + "]")
+        # The KEEP end of the transient-pin A/B (run-38 item 5). The revert
+        # end already consumes the bank; this one did not, so a bank
+        # outlived the A/B it described and the NEXT revert in the TU
+        # restored pre-session pin hashes over a kept re-derivation.
+        #
+        # NOT on a revert invocation: --revert/--revert-baseline/--discard
+        # re-score through this same path, and their own consumer
+        # (restore_transient) deliberately KEEPS the bank when it emitted
+        # notes ("resolve these, then delete it"). Dropping it here would
+        # overrule that instruction.
+        if keep_consumes_transient_bank(sys.argv):
+            drop_transient_pins(unit, f"{kind} keep")
+        # Record the BEST anchor that goes WITH these bytes (run-38 item 9).
+        # --revert restores the source; without this it cannot restore the
+        # anchor, and the restored state gets scored against whatever the
+        # session's best was — after a --no-bank diagnostic, the very edit
+        # the revert discarded.
+        state[SNAPSHOT_ANCHOR] = anchor_of(state)
+        state_file.write_text(json.dumps(state), encoding="utf-8")
     elif source is not None and "--no-bank" in sys.argv:
         print("[--no-bank: snapshot NOT updated — hand-revert this edit]")
 

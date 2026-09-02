@@ -4225,6 +4225,44 @@ def apply_patch(
     return before, after, changed
 
 
+def rederive_hint(unit: str, function: str | None, error: BaseException) -> str:
+    """The one-command repair for a RELOCATION-hash refusal, or "".
+
+    Run-38 item 6. A pin whose window relocations re-hash — the anonymous
+    pool renumbered, nothing else — aborts the build with
+    "instruction permutation relocation input/output hash changed" and no
+    next step, and a worker then reconstructs the repair by hand:
+    ninja-fail -> wf_rederive_pin --transient -> configure.py (PC measured
+    4 of ~12 build cycles as exactly that). `probe.py --rederive-pin`
+    already drives the whole sequence in one call; what was missing was
+    any way to LEARN that at the moment of failure.
+
+    Deliberately narrow. It fires ONLY on the two relocation-hash
+    messages, never on "instruction permutation input hash changed" (a
+    BODY hash), because a moved body hash means codegen changed and
+    re-deriving would launder a real difference — which is precisely what
+    wf_rederive_pin's own guard aborts on.
+    """
+    text = str(error)
+    if not any(phrase in text for phrase in
+               ("relocation input hash changed",
+                "relocation output hash changed")):
+        return ""
+    name = function or "<function>"
+    return (
+        f"\nWEBFRANK: this is the RELOCATION-hash class — the window's"
+        f" instruction bytes are unchanged and only its relocation hashes"
+        f" moved, which is what an anonymous-pool renumbering upstream"
+        f" does. It is a re-derivation chore, not a wall, and ONE command"
+        f" drives the whole repair (body build, guarded re-derive,"
+        f" configure.py, rebuild):\n"
+        f"    python tools/gdl/probe.py {unit} {name} --rederive-pin\n"
+        f"  Add --transient if this is a throwaway A/B, so `probe.py"
+        f" {unit} {name} --revert` puts the pre-probe hashes back.\n"
+        f"  If it ABORTS on a BODY hash instead, codegen really changed:"
+        f" re-derive the rule from scratch, do not paste.")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("input", type=Path)
@@ -4282,8 +4320,12 @@ def main() -> int:
     data = bytearray(args.input.read_bytes())
     target_data = args.target.read_bytes() if args.target else None
     total = 0
+    # Which rule was in flight when it refused: the hint below has to name
+    # the FUNCTION, and the loop variable does not survive the except.
+    failing = None
     try:
         for patch in patches:
+            failing = patch.get("function")
             _, _, changed = apply_patch(data, patch, target_data,
                                         symbol_addresses)
             total += changed
@@ -4294,15 +4336,18 @@ def main() -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_bytes(data)
     except BaseException as err:
+        hint = rederive_hint(args.unit, failing, err)
         try:
             marker.parent.mkdir(parents=True, exist_ok=True)
             marker.write_text(
                 f"WEBFRANK {args.unit} refused at"
                 f" {datetime.now(timezone.utc).isoformat(timespec='seconds')}:"
-                f" {type(err).__name__}: {err}",
+                f" {type(err).__name__}: {err}{hint}",
                 encoding="utf-8")
         except OSError:
             pass
+        if hint:
+            print(hint, file=sys.stderr)
         raise
     # Written successfully: the object is current again, so the marker must
     # go. Leaving it would turn a one-off failure into a permanent warning

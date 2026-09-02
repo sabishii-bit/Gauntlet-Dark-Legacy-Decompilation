@@ -21,6 +21,7 @@ from tools.gdl.webfrank import (
     apply_patch,
     _parse_int,
     _ppc_mask,
+    _prove_call_preserves_source,
     _relocation_cannot_write,
     _relocation_sha256,
     _sha256,
@@ -43,6 +44,7 @@ from tools.gdl.webfrank import (
     prove_zero_bits,
     prove_zero_result,
     recolor_instruction,
+    rederive_hint,
     redundant_mask_source_bits,
     register_slot_mask,
     unpermute_target_windows,
@@ -50,6 +52,188 @@ from tools.gdl.webfrank import (
     verify_relocation_binding,
     verify_value_equality_recolor,
 )
+
+
+class RederiveHintTests(unittest.TestCase):
+    """run-38 item 6. `probe.py --rederive-pin` already drives the whole
+    repair in one call (verified this run on
+    game/ui/screensaver::end_inventory_panel) — the brief's premise that
+    it did not is REFUTED. What was actually missing is that the refusal
+    naming the problem said nothing about the repair, so a worker
+    reconstructed ninja-fail -> wf_rederive_pin --transient -> configure.py
+    by hand (PC: 4 of ~12 build cycles).
+
+    The hint must stay narrow: a moved BODY hash means codegen changed,
+    and pointing a worker at a re-derivation there would launder a real
+    difference."""
+
+    def hint(self, message):
+        return rederive_hint("game/ui/screensaver", "end_inventory_panel",
+                             ValueError(message))
+
+    def test_a_relocation_INPUT_hash_change_names_the_one_command_repair(self):
+        out = self.hint(
+            "instruction permutation relocation input hash changed")
+        self.assertIn("--rederive-pin", out)
+        self.assertIn("game/ui/screensaver end_inventory_panel", out)
+
+    def test_a_relocation_OUTPUT_hash_change_does_too(self):
+        self.assertIn("--rederive-pin", self.hint(
+            "instruction permutation relocation output hash changed"))
+
+    def test_it_offers_the_transient_variant_for_a_throwaway_AB(self):
+        out = self.hint(
+            "instruction permutation relocation input hash changed")
+        self.assertIn("--transient", out)
+        self.assertIn("--revert", out)
+
+    def test_a_BODY_hash_change_gets_NO_rederive_hint(self):
+        """Codegen changed; re-deriving would launder a real difference."""
+        self.assertEqual(
+            self.hint("instruction permutation input hash changed"), "")
+
+    def test_an_unrelated_refusal_gets_no_hint(self):
+        self.assertEqual(
+            self.hint("instruction permutation is not a bijection"), "")
+        self.assertEqual(
+            self.hint("register-field copy did not reproduce target bytes"),
+            "")
+
+    def test_a_missing_function_name_still_produces_a_usable_command(self):
+        out = rederive_hint("game/x/y", None, ValueError(
+            "instruction permutation relocation input hash changed"))
+        self.assertIn("game/x/y <function>", out)
+
+
+def _rlwinm(ra, rs, sh, mb, me, rc=0):
+    """`rlwinm rA,rS,SH,MB,ME[.]` — opcode 21."""
+    return ((21 << 26) | (rs << 21) | (ra << 16) | (sh << 11)
+            | (mb << 6) | (me << 1) | rc)
+
+
+class PromisedRefusalTests(unittest.TestCase):
+    """run-38 item 12: a refusal the proof classes PROMISE but no test pins.
+
+    WF found the M-form Rc hole because no shipped rule sat on a
+    record-form rotate — the promise was in the code and nothing held it
+    there. An audit of this tree (T8_scratch/t8_item12_audit.py) counted
+    216 refusal sites in webfrank.py, of which 83 had no test asserting
+    on their message. Most of that tail is fail-CLOSED bail-outs
+    ("unsupported instruction 0x...", "not reachable from the function
+    entry", "out of range"): a hole there refuses MORE, never less, so an
+    untested one cannot admit an unsound rewrite.
+
+    These six are the other kind. Each is a CLASS BOUNDARY, where a hole
+    would let a rewrite through that the class does not actually prove,
+    and each had zero test references before this file.
+    """
+
+    # 1. THE Rc PROMISE — the same class WF found the hole in. `rlwinm.`
+    #    writes CR0; the redundant-mask proof reasons only about the
+    #    result register, so a differing record bit is a second
+    #    architectural effect it has not proved anything about.
+    def test_a_record_form_rotate_is_refused_by_the_redundant_mask_class(self):
+        ours = _rlwinm(3, 4, 0, 0, 31, rc=0)
+        target = _rlwinm(3, 4, 0, 0, 31, rc=1)
+        with self.assertRaisesRegex(ValueError, "record bit differs"):
+            redundant_mask_source_bits(ours, target)
+
+    def test_the_record_bit_refusal_names_the_CR0_effect(self):
+        """So the reader learns WHY, not just that it was refused."""
+        with self.assertRaises(ValueError) as caught:
+            redundant_mask_source_bits(_rlwinm(3, 4, 0, 0, 31, rc=0),
+                                       _rlwinm(3, 4, 0, 0, 31, rc=1))
+        self.assertIn("CR0", str(caught.exception))
+
+    # 2. A VACUOUS PROOF. Two identical words have an empty obligation,
+    #    and an empty obligation is satisfied by anything — so accepting
+    #    it would bank a "proof" that checked nothing.
+    def test_two_identical_words_are_refused_not_trivially_accepted(self):
+        word = _rlwinm(3, 4, 0, 0, 31)
+        with self.assertRaisesRegex(ValueError, "nothing to prove"):
+            redundant_mask_source_bits(word, word)
+
+    # 3. The same trap by another route: different MB/ME fields that
+    #    denote the SAME mask yield an empty delta. The code calls this
+    #    unreachable for a 32-bit rotate and refuses anyway; nothing held
+    #    it to that, so a future decode change could silently turn it into
+    #    a vacuous acceptance.
+    def test_distinct_mask_fields_denoting_one_mask_are_refused(self):
+        ours = _rlwinm(3, 4, 0, 0, 31)
+        target = _rlwinm(3, 4, 0, 1, 31)
+        with mock.patch("tools.gdl.webfrank._ppc_mask", return_value=0xFF00):
+            with self.assertRaisesRegex(ValueError, "same mask"):
+                redundant_mask_source_bits(ours, target)
+
+    # 4. THE STACK POINTER. Reordering a region that redefines r1 moves
+    #    every r1-relative access in it onto a different frame, so the
+    #    permutation class refuses the region outright.
+    def test_a_permutation_region_redefining_r1_is_refused(self):
+        # addi r1,r1,16 ; li r3,1 — a frame adjustment inside the window.
+        region = _words(0x38210010, 0x38600001)
+        with self.assertRaisesRegex(ValueError, "redefines r1"):
+            check_permutation_dependences(region, [1, 0])
+
+    def test_the_same_region_without_the_r1_write_is_allowed(self):
+        """Pins that the refusal is about r1, not about the shape."""
+        check_permutation_dependences(_words(0x38A10010, 0x38600001), [1, 0])
+
+    # 5. CARRYING A VALUE ACROSS A CALL. Only r14-r31 survive a call under
+    #    the PPC EABI, so a volatile source is refused before any of the
+    #    other three checks run.
+    def test_a_volatile_source_may_not_be_carried_across_a_call(self):
+        with self.assertRaisesRegex(ValueError, "volatile"):
+            _prove_call_preserves_source(0, 0x48000001, 3,
+                                         {0x0: "SomeCallee"})
+
+    def test_the_volatile_refusal_names_the_callee_saved_range(self):
+        with self.assertRaises(ValueError) as caught:
+            _prove_call_preserves_source(0, 0x48000001, 0, {0x0: "C"})
+        self.assertIn("r14-r31", str(caught.exception))
+
+    # 6. A NON-INJECTIVE RECOLOR IS NOT A RENAMING. Mapping two registers
+    #    onto one MERGES two live values; the whole recolor class rests on
+    #    the map being a bijection on the registers it touches.
+    def test_a_non_injective_gpr_map_is_refused_by_apply_patch(self):
+        text = _words(0x7C831B78)  # mr r3,r4
+        data = bytearray(_elf_object(text))
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(text),
+            "after_sha256": _sha256(text),
+            "recolors": [{"start": "0x0", "end": "0x4",
+                          "gpr": {"3": 5, "4": 5}}],
+        }
+        with self.assertRaisesRegex(ValueError, "not injective"):
+            apply_patch(data, patch, None)
+
+    # 7. A permutation region is a list of 4-byte ATOMS. A region whose
+    #    length is not a multiple of 4 cannot be split into them, and
+    #    permuting it would shuffle partial instructions.
+    def test_a_non_word_aligned_permutation_region_is_refused(self):
+        region = b"\x38\x60\x00"  # three bytes: not a whole instruction
+        with self.assertRaisesRegex(ValueError, "not word-aligned"):
+            permute_instruction_atoms(
+                region, [0], [],
+                before_sha256=_sha256(region),
+                after_sha256=_sha256(region),
+                before_relocations_sha256=_relocation_sha256([], {}),
+                after_relocations_sha256=_relocation_sha256([], {}),
+                our_symbols={},
+            )
+
+    def test_an_out_of_range_gpr_map_is_refused_too(self):
+        text = _words(0x7C831B78)
+        data = bytearray(_elf_object(text))
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(text),
+            "after_sha256": _sha256(text),
+            "recolors": [{"start": "0x0", "end": "0x4",
+                          "gpr": {"3": 32, "4": 5}}],
+        }
+        with self.assertRaisesRegex(ValueError, "out of range"):
+            apply_patch(data, patch, None)
 
 
 class RecolorInstructionTests(unittest.TestCase):

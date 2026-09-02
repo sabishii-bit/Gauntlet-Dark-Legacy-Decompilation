@@ -15,8 +15,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from fndiff import (reloc_rows_from_lines, reloc_set_delta,  # noqa: E402
-                    truncate_ops)
+import fndiff  # noqa: E402
+from fndiff import (cancel_proven_rows,  # noqa: E402
+                    positional_reloc_rows, reloc_rows_from_lines,
+                    reloc_set_delta, truncate_ops)
 
 
 # A deterministic resolver standing in for symbols.txt: two names denote one
@@ -124,6 +126,124 @@ class RelocSetDeltaTests(unittest.TestCase):
         self.assertEqual(
             reloc_rows_from_lines(lines),
             [("R_PPC_REL24", "someFunc"), ("R_PPC_ADDR16_HA", "sFlags")])
+
+
+class PositionalRelocPassTests(unittest.TestCase):
+    """run-38 item 2, per claim.law.RS_relocation-identity-catches-wrong-
+    pool-constants-that-value-set-sweeps-cannot.20260902.v1.
+
+    The SET pass collapses pool symbols to <local> so that NAMING a pool
+    constant cannot change a score — correct, and as a side effect blind
+    to a pool VALUE swap. The POSITIONAL pass resolves them: when the
+    instruction words already agree, relocation i denotes the same
+    instruction on both sides, so a differing address there is a wrong
+    datum, full stop.
+
+    Live confirmation on this tree: game/ui/auxscreen::calc_wizard_pos
+    relocates lbl_80345A48 (.double 2) and lbl_80345A28 (.double 1) in the
+    OPPOSITE order to the target, while `fndiff --clean` reports
+    "MATCH (pool-name noise only), 0 real diff lines".
+    """
+
+    # The auxscreen shape, reduced: two adjacent pool loads, swapped.
+    POOL = {"lbl_80345A28": 0x80345A28, "lbl_80345A48": 0x80345A48,
+            "sFlags": 0x803445CC, "gControllerButtons": 0x803445C8}
+
+    def resolve(self, symbol):
+        symbol = (symbol or "").strip()
+        if "+0x" in symbol:
+            name, _, addend = symbol.partition("+0x")
+            base = self.POOL.get(name)
+            return None if base is None else base + int(addend, 16)
+        return self.POOL.get(symbol)
+
+    def lines(self, first, second):
+        return ["lfd f1, 0(r2)", f"    R_PPC_EMB_SDA21 {first}",
+                "lfd f2, 0(r2)", f"    R_PPC_EMB_SDA21 {second}"]
+
+    def test_a_swapped_pair_of_pool_constants_is_WRONG_DATUM(self):
+        rows, why = positional_reloc_rows(
+            self.lines("lbl_80345A28", "lbl_80345A48"),
+            self.lines("lbl_80345A48", "lbl_80345A28"),
+            resolve=self.resolve)
+        self.assertEqual(why, "")
+        self.assertEqual([r[1] for r in rows],
+                         ["WRONG_DATUM", "WRONG_DATUM"])
+        self.assertEqual([r[0] for r in rows], [0, 1])
+
+    def test_the_SET_pass_cannot_see_that_same_swap(self):
+        """The reason the positional pass had to exist."""
+        t = reloc_rows_from_lines(self.lines("lbl_80345A28", "lbl_80345A48"))
+        o = reloc_rows_from_lines(self.lines("lbl_80345A48", "lbl_80345A28"))
+        t_only, o_only, _ = reloc_set_delta(t, o, resolve=resolve)
+        self.assertEqual((t_only, o_only), ([], []))
+
+    def test_one_address_two_spellings_is_SPELLING_DRIFT_not_a_defect(self):
+        rows, _why = positional_reloc_rows(
+            self.lines("sFlags", "lbl_80345A28"),
+            self.lines("gControllerButtons+0x4", "lbl_80345A28"),
+            resolve=self.resolve)
+        self.assertEqual([r[1] for r in rows], ["SPELLING_DRIFT"])
+
+    def test_differing_instruction_words_SKIP_the_pass_and_say_so(self):
+        rows, why = positional_reloc_rows(
+            self.lines("lbl_80345A28", "lbl_80345A48"),
+            ["lfs f1, 0(r2)", "    R_PPC_EMB_SDA21 lbl_80345A48"],
+            resolve=self.resolve)
+        self.assertEqual(rows, [])
+        self.assertIn("UNSOUND", why)
+
+    def test_an_unresolvable_symbol_is_left_undecided(self):
+        rows, why = positional_reloc_rows(
+            self.lines("lbl_80345A28", "lbl_80345A48"),
+            self.lines("lbl_80345A28", "sBossGenName"),
+            resolve=self.resolve)
+        self.assertEqual(why, "")
+        self.assertEqual(rows, [])
+
+    def test_a_proven_spelling_drift_is_cancelled_out_of_the_set_delta(self):
+        ours = reloc_rows_from_lines(
+            self.lines("gControllerButtons+0x4", "lbl_80345A28"))
+        rows, _why = positional_reloc_rows(
+            self.lines("sFlags", "lbl_80345A28"),
+            self.lines("gControllerButtons+0x4", "lbl_80345A28"),
+            resolve=self.resolve)
+        cancelled = cancel_proven_rows(ours, rows)
+        self.assertEqual(cancelled[0], ("R_PPC_EMB_SDA21", "sFlags"))
+
+    def test_a_wrong_datum_row_is_NOT_cancelled(self):
+        ours = reloc_rows_from_lines(
+            self.lines("lbl_80345A48", "lbl_80345A28"))
+        rows, _why = positional_reloc_rows(
+            self.lines("lbl_80345A28", "lbl_80345A48"),
+            self.lines("lbl_80345A48", "lbl_80345A28"),
+            resolve=self.resolve)
+        self.assertEqual(cancel_proven_rows(ours, rows), ours)
+
+
+class PositionalResolverScopeTests(unittest.TestCase):
+    """The resolver split is the item: lbl_ resolves in the POSITIONAL pass
+    and must NOT resolve in the SET pass. Measured over the 92 game/ unit
+    pairs in this tree, set-delta rows go 238 -> 6844 with lbl_ resolution
+    inside the set pass, burying every real row."""
+
+    def test_the_set_resolver_still_refuses_every_lbl_spelling(self):
+        for name in ("lbl_80345A28", "jumptable_80120B4C", "@123"):
+            self.assertIsNone(fndiff.resolve_reloc_symbol(name), name)
+
+    def test_the_positional_resolver_refuses_only_ANONYMOUS_spellings(self):
+        for name in ("lbl", "jumptable", "@123", "jtbl"):
+            self.assertIsNone(
+                fndiff.resolve_reloc_symbol_positional(name), name)
+
+    def test_the_positional_resolver_reads_symbols_txt_for_lbl_names(self):
+        """Not a fixture: this address comes from config/GUNE5D/symbols.txt,
+        which is the whole source of the positional pass's authority."""
+        if fndiff.symbol_addresses().get("lbl_80345A28") is None:
+            self.skipTest("symbols.txt unavailable")
+        self.assertEqual(
+            fndiff.resolve_reloc_symbol_positional("lbl_80345A28"),
+            0x80345A28)
 
 
 class TruncateOpsTests(unittest.TestCase):

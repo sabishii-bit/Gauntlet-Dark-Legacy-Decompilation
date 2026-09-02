@@ -20,7 +20,9 @@ from defake_gate import (arbitrate_regressions, arbitration_event, compare,
                          data_section_verdicts, format_arbitrations,
                          load_baseline, log_arbitration,
                          naming_drift_is_benign, parse_section_digests,
+                         format_roster, parse_clean,
                          read_arbitrations, read_report_fuzzy,
+                         relocation_change_direction, roster_rows,
                          summarize_arbitrations)
 
 
@@ -283,6 +285,215 @@ class NamingDriftInCompareTests(unittest.TestCase):
                            {"f": self.rows("get_attn_pos")},
                            resolve=self.resolve)
         self.assertEqual(verdicts[0][1], "NAMING-DRIFT")
+
+
+class RelocationDirectionTests(unittest.TestCase):
+    """run-38 item 1, per claim.law.RS_defake-gate-wrong-callee-check-is-
+    ours-vs-ours-so-a-correction-toward-the-target-reads-as-a-regression.
+    20260902.v1.
+
+    The measured case: game/enemy/critter::CritterFirePlayerCollide loaded
+    the wrong .sdata2 pool constant lbl_80346470 (0.0) where the target
+    relocates lbl_803464E8 (0.5), at reloc index 9 of 24. Repairing it and
+    breaking it produced the SAME `GATE FAILED ... revert or fix` verdict,
+    because the check compared our object against our own earlier baseline
+    and never read the target's relocation at that instruction.
+    """
+
+    ADDRESSES = {
+        "lbl_80346470": 0x80346470,
+        "lbl_803464E8": 0x803464E8,
+        "DoAudioTallySFX": 0x8009FB84,
+        "fn_8009FCA8": 0x8009FCA8,
+    }
+    WRONG, RIGHT = "lbl_80346470", "lbl_803464E8"
+
+    def resolve(self, symbol):
+        return self.ADDRESSES.get(symbol)
+
+    def rows(self, symbol):
+        """The critter shape: the changed reloc at index 1 of 3."""
+        return [["R_PPC_EMB_SDA21", "gCritterFlags"],
+                ["R_PPC_EMB_SDA21", symbol],
+                ["R_PPC_REL24", "DoAudioTallySFX"]]
+
+    def direction(self, base_sym, cur_sym, target_sym):
+        return relocation_change_direction(
+            self.rows(base_sym), self.rows(cur_sym), self.rows(target_sym),
+            resolve=self.resolve)
+
+    def test_a_repair_toward_the_target_is_TOWARD(self):
+        direction, why = self.direction(self.WRONG, self.RIGHT, self.RIGHT)
+        self.assertEqual(direction, "toward")
+        self.assertIn("reloc[1]", why)
+
+    def test_a_drift_away_from_the_target_is_AWAY(self):
+        direction, why = self.direction(self.RIGHT, self.WRONG, self.RIGHT)
+        self.assertEqual(direction, "away")
+        self.assertIn("reloc[1]", why)
+
+    def test_neither_symbol_matching_the_target_is_UNKNOWN(self):
+        direction, _why = self.direction(
+            self.WRONG, self.RIGHT, "DoAudioTallySFX")
+        self.assertEqual(direction, "unknown")
+
+    def test_no_target_relocations_stays_UNKNOWN_and_fails_closed(self):
+        direction, why = relocation_change_direction(
+            self.rows(self.WRONG), self.rows(self.RIGHT), None,
+            resolve=self.resolve)
+        self.assertEqual(direction, "unknown")
+        self.assertIn("no target relocation list", why)
+
+    def test_AWAY_dominates_a_mixed_change(self):
+        """One repaired relocation never launders a broken sibling."""
+        base = [["R_PPC_EMB_SDA21", self.WRONG],
+                ["R_PPC_REL24", "DoAudioTallySFX"]]
+        cur = [["R_PPC_EMB_SDA21", self.RIGHT],
+               ["R_PPC_REL24", "fn_8009FCA8"]]
+        target = [["R_PPC_EMB_SDA21", self.RIGHT],
+                  ["R_PPC_REL24", "DoAudioTallySFX"]]
+        direction, _why = relocation_change_direction(
+            base, cur, target, resolve=self.resolve)
+        self.assertEqual(direction, "away")
+
+    def test_unaligned_lists_fall_back_to_target_address_counts(self):
+        base = [["R_PPC_EMB_SDA21", self.WRONG]]
+        cur = [["R_PPC_EMB_SDA21", self.RIGHT]]
+        target = [["R_PPC_EMB_SDA21", self.RIGHT],
+                  ["R_PPC_REL24", "DoAudioTallySFX"]]
+        direction, why = relocation_change_direction(
+            base, cur, target, resolve=self.resolve)
+        self.assertEqual(direction, "toward")
+        self.assertIn("do not line up", why)
+
+
+class RelocationDirectionInCompareTests(unittest.TestCase):
+    """The verdict wiring: the two directions through compare()."""
+
+    def resolve(self, symbol):
+        return RelocationDirectionTests.ADDRESSES.get(symbol)
+
+    def entry(self, symbol):
+        return {"status": "STRUCTURAL", "real": 0, "bytes": symbol,
+                "words": "identical-words",
+                "relocs": [["R_PPC_EMB_SDA21", symbol]]}
+
+    def verdict(self, base_sym, cur_sym, target_sym=None):
+        target = ({"f": [["R_PPC_EMB_SDA21", target_sym]]}
+                  if target_sym else None)
+        rows = compare({"f": self.entry(base_sym)},
+                       {"f": self.entry(cur_sym)},
+                       resolve=self.resolve, target_relocs=target)
+        return rows[0][1], rows[0][2]
+
+    def test_the_measured_repair_now_PASSES_as_RELOC_TOWARD_TARGET(self):
+        verdict, detail = self.verdict(
+            RelocationDirectionTests.WRONG, RelocationDirectionTests.RIGHT,
+            RelocationDirectionTests.RIGHT)
+        self.assertEqual(verdict, "RELOC-TOWARD-TARGET")
+        self.assertIn("MOVED-TOWARD-TARGET", detail)
+
+    def test_the_same_change_reversed_is_still_a_REGRESSION(self):
+        verdict, detail = self.verdict(
+            RelocationDirectionTests.RIGHT, RelocationDirectionTests.WRONG,
+            RelocationDirectionTests.RIGHT)
+        self.assertEqual(verdict, "REGRESSION")
+        self.assertIn("MOVED-AWAY-FROM-TARGET", detail)
+
+    def test_without_a_target_object_it_fails_closed_as_before(self):
+        verdict, detail = self.verdict(
+            RelocationDirectionTests.WRONG, RelocationDirectionTests.RIGHT)
+        self.assertEqual(verdict, "REGRESSION")
+        self.assertIn("DIRECTION-UNKNOWN", detail)
+
+    def test_a_true_rename_never_reaches_the_direction_check(self):
+        """Same address, two spellings: still the benign NAMING-DRIFT."""
+        rows = compare(
+            {"f": self.entry("get_attn_pos_8002C9A8")},
+            {"f": self.entry("get_attn_pos")},
+            resolve=NamingDriftSoundnessTests.ADDRESSES.get,
+            target_relocs={"f": [["R_PPC_EMB_SDA21", "get_attn_pos"]]})
+        self.assertEqual(rows[0][1], "NAMING-DRIFT")
+
+
+class RosterModeTests(unittest.TestCase):
+    """run-38 item 7: every number a per-function sweep needs was already
+    computed to take a gate baseline and reachable no other way, so a lane
+    ran fndiff once per function instead (UC: 15 subprocess calls for one
+    mandated sweep)."""
+
+    CLEAN = """\
+== CritterCollideEnemies: EXACT, 0 real diff lines
+== CritterDamage: STRUCTURAL, 505 real diff lines [artifact-filtered; raw 9]
+== ProcessCritter: MATCH (pool-name noise only), 0 real diff lines
+== CritterDoTexmodNode: MATCH-MODULO-RELOC-NAMING, 4 real diff lines
+"""
+
+    def test_parse_clean_reads_one_row_per_function(self):
+        rows = parse_clean(self.CLEAN)
+        self.assertEqual(rows["CritterCollideEnemies"], ("EXACT", 0))
+        self.assertEqual(rows["CritterDamage"], ("STRUCTURAL", 505))
+
+    def test_parse_clean_keeps_a_parenthesised_status_whole(self):
+        self.assertEqual(parse_clean(self.CLEAN)["ProcessCritter"],
+                         ("MATCH (pool-name noise only)", 0))
+
+    def snap(self):
+        return {
+            "__sections__": {"data": {}},
+            "CritterDamage": {"status": "STRUCTURAL", "ti": 604, "bi": 604,
+                              "real": 476, "genuine": 37, "fuzzy": 92.54},
+            "CritterCollideEnemies": {"status": "EXACT", "ti": None,
+                                      "bi": None, "real": 0},
+            "ProcessCritter": {"status": "RELOCATION_ONLY", "ti": 420,
+                               "bi": 420, "real": 0, "fuzzy": 100.0},
+        }
+
+    def test_the_reserved_sections_key_is_never_a_roster_row(self):
+        names = [row[0] for row in
+                 roster_rows(self.snap(), parse_clean(self.CLEAN), set())]
+        self.assertNotIn("__sections__", names)
+
+    def test_rows_sort_by_real_descending(self):
+        names = [row[0] for row in
+                 roster_rows(self.snap(), parse_clean(self.CLEAN), set())]
+        self.assertEqual(names[0], "CritterDamage")
+
+    def test_a_pinned_row_sorts_LAST_whatever_its_real(self):
+        """Its real 0 is a construction artifact, not closed work."""
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN),
+                           {"CritterDamage"})
+        self.assertEqual(rows[-1][0], "CritterDamage")
+        self.assertTrue(rows[-1][8])
+
+    def test_a_baseline_supplies_the_real_delta(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN), set(),
+                           baseline={"CritterDamage": {"real": 500}})
+        by_name = {row[0]: row for row in rows}
+        self.assertEqual(by_name["CritterDamage"][9], "500->476")
+
+    def test_an_unchanged_real_shows_no_delta(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN), set(),
+                           baseline={"CritterDamage": {"real": 476}})
+        self.assertIsNone({r[0]: r for r in rows}["CritterDamage"][9])
+
+    def test_the_header_counts_pinned_rows_separately_from_exact(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN),
+                           {"ProcessCritter"})
+        out = format_roster("game/enemy/critter", rows, has_baseline=True)
+        self.assertIn("1 at real 0", out)
+        self.assertIn("1 with a residual", out)
+        self.assertIn("1 WebFrank-PINNED", out)
+
+    def test_a_missing_baseline_says_so_instead_of_showing_no_delta(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN), set())
+        out = format_roster("game/x/y", rows, has_baseline=False)
+        self.assertIn("no gate baseline", out)
+
+    def test_an_exact_row_prints_a_dash_not_None_over_None(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN), set())
+        out = format_roster("game/x/y", rows, has_baseline=True)
+        self.assertNotIn("None/None", out)
 
 
 class BaselineFormatTests(unittest.TestCase):

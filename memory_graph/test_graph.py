@@ -1197,6 +1197,71 @@ class ProposalGateTests(unittest.TestCase):
                         "residual": self.CLOSURE})
         self.assertTrue(stage_record_proposal(record, root=self.root).exists())
 
+    # --- Gate G, composed extension (run 38): name the WINDOWS ----------
+    #
+    # A composed rule is a CHOICE OF SPANS AND ORDERS, not one object, so a
+    # composition that refuses refuses AT A SHAPE. MEASURED:
+    # attempt.MC_init-all-dir-info-composed-refusal-... denied the existing
+    # composed class for init_all_dir_info on ONE window, `pre
+    # 0x68:0x70:1,0`, refusing "on both arrow orders" — which names the
+    # MODE, while the record's own analysis puts the refusal in the
+    # +0x14..+0x20 half that window does not cover at all.
+    COMPOSED = ("copy_register_fields cannot rewrite the li, so the composed"
+                " rule refuses on both arrow orders and the existing"
+                " WebFrank composition is closed for this function")
+
+    def test_a_composed_refusal_naming_only_the_mode_is_refused(self):
+        record = _attempt(
+            "attempt.composed.v1", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.COMPOSED})
+        with self.assertRaisesRegex(MemoryGraphError, "windows_tried"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_a_composed_refusal_with_windows_tried_is_accepted(self):
+        record = _attempt(
+            "attempt.composed.v2", "function:test_fn", outcome="capped",
+            windows_tried=["0x68:0x70:1,0", "0x14:0x20:2,0,1"],
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.COMPOSED})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_windows_quoted_in_the_PROSE_also_satisfy_the_gate(self):
+        """The MC record's own spelling: the shape is in the measurement."""
+        record = _attempt(
+            "attempt.composed.v3", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.COMPOSED
+                        + ". Window tried: 0x68:0x70:1,0 only."})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_the_composed_gate_error_names_the_mode_versus_shape_distinction(
+            self):
+        record = _attempt(
+            "attempt.composed.v4", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.COMPOSED})
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=self.root)
+        message = str(caught.exception)
+        self.assertIn("init_all_dir_info", message)
+        self.assertIn("arrow orders", message)
+
+    def test_the_composed_gate_only_fires_on_veto_outcomes(self):
+        record = _attempt(
+            "attempt.composed.v5", "function:test_fn", outcome="improved",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.COMPOSED})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_an_ordinary_park_is_not_taxed_by_the_composed_gate(self):
+        record = _attempt(
+            "attempt.composed.v6", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": "Plain register-allocation park; no"
+                                    " postprocessor claim at all."})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
     def test_gate_g_does_not_fire_on_a_single_verifier_report(self):
         """Reporting ONE verifier's refusal without generalising from it is
         not a closure claim and is not gated."""
@@ -1565,6 +1630,56 @@ class RetrievalQueryTests(unittest.TestCase):
         result = law_corpus(root=self.root, residual="+1 addi -1 li")
         self.assertEqual([p["function"] for p in result["pin_mechanisms"]],
                          ["test_fn"])
+
+    # --- laws --residual discrimination (run-38 item 10) -----------------
+    def test_a_shared_token_carries_its_corpus_frequency(self):
+        """So a reader can see WHY a row ranked where it did."""
+        result = law_corpus(root=self.root, residual="+1 addi -1 li")
+        row = next(r for r in result["residual_matches"]
+                   if r["record"] == "attempt.resid-a.v1")
+        self.assertEqual(set(row["shared_token_frequency"]), {"addi", "li"})
+        self.assertGreater(row["token_specificity"], 0.0)
+
+    def test_a_rare_mnemonic_outranks_a_ubiquitous_one(self):
+        """THE MEASURED DEFECT. A jumptable-class query returned 153 rows
+        of which 151 shared exactly one token — `b`, carried by 151 of the
+        corpus's signatures — while the two rows that actually shared
+        `jumptable` sorted in among them. Counting shared mnemonics
+        treats every opcode as equally informative; they are not."""
+        common = {f"op{n}": 40 for n in range(1)}
+        common["b"] = 151
+        common["jumptable"] = 2
+        rare = core._token_rarity("jumptable", common, 200)
+        ubiquitous = core._token_rarity("b", common, 200)
+        self.assertGreater(rare, ubiquitous)
+
+    def test_token_rarity_is_zero_on_an_empty_corpus(self):
+        self.assertEqual(core._token_rarity("b", {}, 0), 0.0)
+
+    def test_an_instruction_band_is_not_a_discriminating_facet(self):
+        """The weights already call it 'a coincidence two hundred records
+        also share'; the SELECTION gate did not read them."""
+        self.assertEqual(
+            core.discriminating_facets(
+                ["insnband:200", "parity:even", "flag:x"]),
+            [])
+
+    def test_real_signature_content_IS_discriminating(self):
+        self.assertEqual(
+            core.discriminating_facets(["op:jumptable", "insnband:200"]),
+            ["op:jumptable"])
+
+    def test_a_zero_weight_facet_never_discriminates(self):
+        """`kind:` gates the comparison and scores nothing, so it cannot
+        also be the evidence that selects a row."""
+        self.assertEqual(
+            core.discriminating_facets(["kind:reorder", "resolution:x"]), [])
+
+    def test_a_weak_only_match_is_suppressed_and_COUNTED(self):
+        """A filter that quietly drops rows reads as a false all-clear."""
+        result = law_corpus(root=self.root, residual="+1 addi -1 li")
+        self.assertIn("residual_weak_only_suppressed", result)
+        self.assertIsInstance(result["residual_weak_only_suppressed"], int)
 
     # --- find --family / --capability ------------------------------------
     def test_find_family_facet(self):

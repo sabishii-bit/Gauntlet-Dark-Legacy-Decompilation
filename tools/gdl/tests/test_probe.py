@@ -10,12 +10,15 @@ run 29: real 65 -> 65, insns and multiset both unchanged).
 
 import re
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
+import probe  # noqa: E402
+from probe import (BEST_KEYS, CONFLICT_UNARBITRATED_EXIT, REPLAN_AT,
+                   annotate_neutral,
                    apply_fuzzy_bank_gate, arbitrate_table,
                    baseline_bank_decision, bank_divergence,
                    bank_warning, banks_best, classify,
@@ -23,6 +26,9 @@ from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
                    data_line, format_genuine_note, function_span,
                    fuzzy_anchor_note, moved_sections, parse_section_digests,
                    outside_edit_warning, parse_numstat, pin_drift,
+                   anchor_of, drop_transient_pins,
+                   keep_consumes_transient_bank,
+                   readout_banks_baseline, roll_back_anchor,
                    replan_hint, scaffold_rows, scoped_revert,
                    slot_arbiter_header, slot_arbiter_signal, split_lines,
                    stale_restore_refusal, strip_noncode,
@@ -170,6 +176,165 @@ class BaselineBankDecisionTests(unittest.TestCase):
         action, _ = baseline_bank_decision("NEUTRAL", base_exists=False,
                                            rebaseline=True)
         self.assertEqual(action, "create")
+
+
+class ReadoutBanksBaselineTests(unittest.TestCase):
+    """run-38 item 4: `probe --fuzzy` on a unit with no banked snapshot
+    left `--revert` answering "no banked snapshot for this unit yet" over
+    a build the readout had already paid for. Reproduced on
+    game/ui/auxscreen::calc_wizard_pos before the fix.
+
+    The readout still must NOT move a revert point that already exists —
+    that is the whole reason this branch banks nothing (a CONFLICT re-read
+    as REGRESSED on bytes that had not moved)."""
+
+    def test_the_first_probe_on_a_unit_banks(self):
+        self.assertTrue(readout_banks_baseline(
+            snapshot_exists=False, has_source=True, no_bank=False))
+
+    def test_an_existing_snapshot_is_never_moved(self):
+        self.assertFalse(readout_banks_baseline(
+            snapshot_exists=True, has_source=True, no_bank=False))
+
+    def test_no_bank_opts_out(self):
+        self.assertFalse(readout_banks_baseline(
+            snapshot_exists=False, has_source=True, no_bank=True))
+
+    def test_a_unit_with_no_source_cannot_bank(self):
+        self.assertFalse(readout_banks_baseline(
+            snapshot_exists=False, has_source=False, no_bank=False))
+
+
+class RevertAnchorRollbackTests(unittest.TestCase):
+    """run-38 item 9: after --revert the verdict was scored against the
+    DISCARDED state.
+
+    classify() scores against `best_real` and probe.py persists the state
+    UNCONDITIONALLY, while the SNAPSHOT bank sits behind `--no-bank` — the
+    flag documented for exactly the probes this bites ("DIAGNOSTIC probes
+    ... that will be hand-reverted"). So a diagnostic edit moves the
+    anchor onto itself, leaves the revert point behind, and the following
+    --revert prints "REGRESSED vs best 5 ... [revert advised]" on a revert
+    that worked. Reproduced: BASELINE real 10 -> --no-bank IMPROVED real 5
+    -> --revert restores real 10 -> REGRESSED [revert advised].
+
+    T7's run-37 item-7 fix relabelled the neighbouring annotations; it
+    never touched this comparison."""
+
+    BANKED = {"best_real": 10, "best_multiset": 4, "best_insns": "T50/O50",
+              "best_bytes": "aaa", "best_fuzzy": None}
+
+    def state(self, **extra):
+        state = {"best_real": 5, "best_multiset": 2, "best_insns": "T50/O50",
+                 "best_bytes": "bbb"}
+        state.update(extra)
+        return state
+
+    def test_anchor_of_reads_every_best_key(self):
+        self.assertEqual(set(anchor_of(self.state())), set(BEST_KEYS))
+
+    def test_the_anchor_rolls_back_to_the_one_banked_with_the_snapshot(self):
+        rolled, note = roll_back_anchor(
+            self.state(snapshot_anchor=self.BANKED))
+        self.assertEqual(rolled["best_real"], 10)
+        self.assertEqual(rolled["best_multiset"], 4)
+        self.assertIn("rolled back", note)
+
+    def test_the_restored_state_then_reads_NEUTRAL_not_REGRESSED(self):
+        """The whole point: a successful revert must not advise a revert."""
+        before, _ = classify(self.state(), real=10, insns="T50/O50",
+                             multiset_tokens=4, digest="aaa")
+        self.assertTrue(before.startswith("REGRESSED"))
+        rolled, _note = roll_back_anchor(
+            self.state(snapshot_anchor=self.BANKED))
+        after, _ = classify(rolled, real=10, insns="T50/O50",
+                            multiset_tokens=4, digest="aaa")
+        self.assertFalse(after.startswith("REGRESSED"))
+        self.assertNotIn("revert advised", after)
+
+    def test_a_None_valued_key_is_REMOVED_not_stored_as_None(self):
+        """best_fuzzy=None must clear the anchor, never become a stale
+        number's placeholder."""
+        rolled, _ = roll_back_anchor(
+            self.state(best_fuzzy=91.0, snapshot_anchor=self.BANKED))
+        self.assertNotIn("best_fuzzy", rolled)
+
+    def test_no_recorded_anchor_changes_nothing_and_SAYS_so(self):
+        state = self.state()
+        rolled, note = roll_back_anchor(state)
+        self.assertEqual(rolled["best_real"], 5)
+        self.assertIn("no anchor was recorded", note)
+
+    def test_an_already_equal_anchor_is_a_silent_no_op(self):
+        current = {"best_real": 5, "best_multiset": 2,
+                   "best_insns": "T50/O50", "best_bytes": "bbb",
+                   "best_fuzzy": None}
+        rolled, note = roll_back_anchor(self.state(snapshot_anchor=current))
+        self.assertEqual(note, "")
+        self.assertEqual(rolled["best_real"], 5)
+
+    def test_a_malformed_anchor_is_ignored_rather_than_trusted(self):
+        _rolled, note = roll_back_anchor(self.state(snapshot_anchor="oops"))
+        self.assertIn("no anchor was recorded", note)
+
+
+class TransientPinBankLifecycleTests(unittest.TestCase):
+    """run-38 item 5: the transient pin bank had a consumer at only ONE end
+    of its A/B. `restore_transient` drops it on a revert; a KEEP dropped
+    nothing, so the bank outlived the A/B it described and the next
+    revert in the TU restored PRE-SESSION pin hashes over a pin that had
+    been deliberately re-derived and kept. PC hand-deleted it twice.
+
+    Reproduced on game/ui/screensaver::end_inventory_panel: bank, keep,
+    bank still on disk."""
+
+    class FakeModule:
+        def __init__(self, path):
+            self._path = path
+
+        def bank_path(self, _unit):
+            return str(self._path)
+
+    def drop(self, exists):
+        with tempfile.TemporaryDirectory() as tmp:
+            bank = Path(tmp) / "wfpin_game_ui_screensaver.json"
+            if exists:
+                bank.write_text('{"pins": {}}', encoding="utf-8")
+            module = self.FakeModule(bank)
+            original = probe._wf_rederive_module
+            probe._wf_rederive_module = lambda: module
+            try:
+                dropped = drop_transient_pins("game/ui/screensaver", "keep")
+            finally:
+                probe._wf_rederive_module = original
+            return dropped, bank.exists()
+
+    def test_a_keep_consumes_an_existing_bank(self):
+        dropped, still_there = self.drop(exists=True)
+        self.assertTrue(dropped)
+        self.assertFalse(still_there)
+
+    def test_no_bank_is_not_an_error(self):
+        dropped, _ = self.drop(exists=False)
+        self.assertFalse(dropped)
+
+    def test_no_postprocessor_stack_is_not_an_error(self):
+        original = probe._wf_rederive_module
+        probe._wf_rederive_module = lambda: None
+        try:
+            self.assertFalse(drop_transient_pins("game/x/y", "keep"))
+        finally:
+            probe._wf_rederive_module = original
+
+    def test_a_plain_keep_consumes_the_bank(self):
+        self.assertTrue(keep_consumes_transient_bank(
+            ["probe.py", "game/x/y", "fn"]))
+
+    def test_a_revert_invocation_leaves_the_bank_to_its_own_consumer(self):
+        for flag in ("--revert", "--revert-baseline", "--discard"):
+            self.assertFalse(
+                keep_consumes_transient_bank(["probe.py", "u", "f", flag]),
+                flag)
 
 
 class BanksBestTests(unittest.TestCase):

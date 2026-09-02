@@ -403,6 +403,40 @@ _WEBFRANK_VERIFIER_RE = re.compile(
 # Narrow and literal, like gate D's vocabulary — a record that merely reports
 # one verifier's refusal without generalising from it is not making this
 # claim and is not taxed.
+# Gate G extension (run 38). A COMPOSED rule is a CHOICE OF WINDOWS, not a
+# single object: `instruction_permutation` takes a window list, and each
+# window has a span and an order. So "the composed rule refuses" is a
+# measurement of the SHAPE that was tried, exactly as gate G's original
+# case was a measurement of the verifier subset that was run.
+#
+# MEASURED: attempt.MC_init-all-dir-info-composed-refusal-and-the-decl-
+# order-form-the-prose-park-never-wrote.20260902.v1 denies "the
+# existing-class WebFrank composition (instruction_permutation +
+# copy_register_fields + equivalent_copy_form)" for init_all_dir_info on
+# the strength of ONE window, `pre 0x68:0x70:1,0`, refusing "on both arrow
+# orders". Naming the two ARROW ORDERS is naming the MODE; the record's own
+# analysis says the refusal comes from the +0x14..+0x20 half, which that
+# window does not cover at all. The denial is scoped to a shape nothing in
+# it declares.
+_COMPOSED_CLOSED_RE = re.compile(
+    r"(?:composed|composition)\s+(?:\w+\s+){0,3}"
+    r"(?:refus\w+|fail\w+|is|was|are|were)\s*(?:therefore\s+)?"
+    r"(?:refus\w+|closed|impossible|ineligible|not\s+possible)?"
+    r"|(?:the\s+)?composed\s+(?:rule|class|path|composition)\s+refus\w+"
+    r"|no\s+composition\s+(?:works|closes|is\s+possible)",
+    re.I,
+)
+
+# Evidence that a concrete window SHAPE is on the record: an hv_try-style
+# `0xA:0xB:order` triple, an explicit span, or a stated window count.
+_WINDOW_SHAPE_RE = re.compile(
+    r"0x[0-9a-fA-F]+\s*:\s*0x[0-9a-fA-F]+\s*:"
+    r"|\+0x[0-9a-fA-F]+\s*(?:\.\.|-|to)\s*\+?0x[0-9a-fA-F]+"
+    r"|\bwindows?\s+(?:tried|attempted|enumerated|shapes?)\b"
+    r"|\b(?:tried|attempted)\s+\d+\s+windows?\b",
+    re.I,
+)
+
 _POSTPROCESSOR_CLOSED_RE = re.compile(
     r"(?:postprocessor|webfrank)[- ](?:path|route|class)"
     r"\s*(?:is|are|remains?|stays?)?\s*(?:therefore\s+)?closed"
@@ -3535,6 +3569,14 @@ def record_template(kind: str) -> dict[str, Any]:
                                         " a region untouched while both were"
                                         " blind to register-relative cursor"
                                         " stores>",
+            "windows_tried": "<OPTIONAL, REQUIRED when the record closes the"
+                             " COMPOSED postprocessor class: the spans and"
+                             " orders you actually ran, e.g."
+                             " [\"0x68:0x70:1,0\", \"0x14:0x20:2,0,1\"]."
+                             " A composed rule is a CHOICE of windows, so a"
+                             " refusal measures the SHAPE tried; naming only"
+                             " the arrow order names the MODE, not the"
+                             " shape. If you tried exactly one, say so>",
             "verifiers_run": "<OPTIONAL, REQUIRED when the record closes the"
                              " POSTPROCESSOR path for a function: the list of"
                              " verifiers you ACTUALLY ran ("
@@ -3987,6 +4029,42 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
                 " deliberately did NOT run one, say which and why in the"
                 " same list entry, because \"not run\" and \"refused\" are"
                 " different findings."
+            )
+
+    # Gate G, composed-class extension (run 38). Gate G above makes a
+    # postprocessor refusal name its VERIFIERS. A COMPOSED refusal has a
+    # second free variable the mode does not capture: the WINDOWS. An
+    # `instruction_permutation` is a choice of spans and orders, so a
+    # composition that refuses refuses AT A SHAPE, and a record that names
+    # only the mode denies the whole class on the evidence of one shape.
+    if (anchored
+            and record.get("kind") == "attempt"
+            and str(record.get("outcome", "")).lower() in HELD_FIXED_OUTCOMES
+            and _WEBFRANK_VERIFIER_RE.search(substance)
+            and not _record_field(record, "windows_tried")
+            and not _WINDOW_SHAPE_RE.search(substance)):
+        composed = _COMPOSED_CLOSED_RE.search(substance)
+        if composed:
+            raise MemoryGraphError(
+                "a record closing the COMPOSED postprocessor class"
+                f" (matched {' '.join(composed.group(0).split())!r}) must"
+                " name the WINDOWS it tried, in `windows_tried` or in the"
+                " prose. A composed rule is a CHOICE OF SPANS AND ORDERS,"
+                " not one object, so a refusal is a measurement of the"
+                " SHAPE that was tried — the same fact gate G already"
+                " enforces one level up for the verifier subset."
+                " MEASURED: attempt.MC_init-all-dir-info-composed-refusal-"
+                "and-the-decl-order-form-the-prose-park-never-wrote"
+                ".20260902.v1 denied the existing composed class for"
+                " init_all_dir_info on ONE window, `pre 0x68:0x70:1,0`,"
+                " refusing \"on both arrow orders\" — which names the MODE,"
+                " while the record's own analysis puts the refusal in the"
+                " +0x14..+0x20 half that window does not cover at all."
+                "\nSet `windows_tried` to the spans and orders you actually"
+                " ran, e.g. [\"0x68:0x70:1,0\", \"0x14:0x20:2,0,1\"], or"
+                " quote them in the prose — and if you tried exactly one,"
+                " say so, because \"one shape refused\" and \"the class"
+                " refuses\" are different findings."
             )
 
     # Gate H (run 37). "Nothing writes r1+8..55" is a UNIVERSAL claim over
@@ -4975,6 +5053,49 @@ RESIDUAL_FACET_WEIGHTS: dict[str, float] = {
 }
 
 
+# FACETS THAT ARE A COINCIDENCE RATHER THAN EVIDENCE (run-38 item 10).
+# The weights above already say an instruction band is "a coincidence two
+# hundred records also share", but the SELECTION gate did not read them: a
+# candidate was selected on ANY shared facet of the same kind, so a
+# jumptable-class query returned 153 matches in a 365KB spill whose top
+# rows shared nothing with the query but their size bracket. Weight alone
+# cannot fix that — it reorders a flood, it does not stop one — so these
+# facets are barred from SELECTING a row while still contributing to its
+# score once some discriminating facet has selected it.
+RESIDUAL_WEAK_FACETS = frozenset({"insnband", "parity", "flag"})
+
+
+def _token_rarity(token: str, document_freq: dict[str, int],
+                  corpus: int) -> float:
+    """Inverse document frequency of one mnemonic, floored at 0.
+
+    A mnemonic most signatures carry (`b`, in this corpus 151 of them)
+    scores low; one only two records carry scores high. This is the same
+    log-damped document frequency the law-relevance ranking already uses,
+    applied to the opcode overlap that was previously counted raw.
+
+    SMOOTHED, and the smoothing is load-bearing rather than cosmetic. The
+    bare `log(corpus / (1 + freq))` floors to exactly 0 once a token
+    appears in half the corpus — so in a SMALL corpus every token scores
+    0, every specificity divides 0 by 0, and the ranking silently
+    degenerates to ties while still reporting a confident 0.0 per row.
+    The +1 keeps every weight strictly positive, so a rarer token always
+    outranks a commoner one at any corpus size.
+    """
+    if corpus <= 0:
+        return 0.0
+    freq = document_freq.get(token, 0)
+    return math.log((corpus + 1) / (1 + freq)) + 1.0
+
+
+def discriminating_facets(facets: Iterable[str]) -> list[str]:
+    """The facets that carry real signature evidence, weak ones dropped."""
+    return sorted(
+        f for f in facets
+        if f.split(":", 1)[0] not in RESIDUAL_WEAK_FACETS
+        and _facet_weight(f) > 0)
+
+
 def _insn_band(count: int) -> int:
     for high in REORDER_INSN_BANDS:
         if count <= high:
@@ -5467,15 +5588,32 @@ def law_corpus(
     residual_matches: list[dict[str, Any]] = []
     residual_law_ids: set[str] = set()
     residual_parsed: dict[str, Any] | None = None
+    # REPORTED, never silent: a filter that quietly drops rows reads as a
+    # false all-clear, which is the failure this corpus already has a rule
+    # about.
+    weak_only_suppressed = 0
+    ubiquitous_tail = 0
+    token_document_freq: dict[str, int] = {}
+    corpus_signatures = 0
     if residual:
         residual_parsed = parse_residual_signature(residual)
         wanted_tokens = _signature_tokens(residual)
         wanted_facets = set(residual_parsed["facets"])
         for record, obj in _iter_attempt_residuals(root):
             signature = obj.get("signature") or ""
+            # Corpus document frequency per mnemonic, counted over EVERY
+            # signature (not only the selected ones) so the rarity weight
+            # below is a fact about the corpus rather than about this
+            # query's own result set.
+            row_tokens = _signature_tokens(signature)
+            if row_tokens:
+                corpus_signatures += 1
+                for token in row_tokens:
+                    token_document_freq[token] = (
+                        token_document_freq.get(token, 0) + 1)
             # OPCODE path, unchanged: a count-asymmetric residual is matched on
             # its shared +N/-N mnemonics, which is exact where those exist.
-            shared = _signature_tokens(signature) & wanted_tokens
+            shared = row_tokens & wanted_tokens
             candidate = parse_residual_signature(signature)
             strength, shared_facets = residual_facet_similarity(
                 wanted_facets, candidate["facets"])
@@ -5486,7 +5624,16 @@ def law_corpus(
             # undiscriminated listing look like a result.
             same_kind = (residual_parsed["kind"] != "empty"
                          and candidate["kind"] == residual_parsed["kind"])
-            if not shared and not (same_kind and shared_facets):
+            # DISCRIMINATION TERM (run-38 item 10). A shared instruction
+            # BAND (or parity, or a flag) is a size bracket hundreds of
+            # records fall in; selecting on it turned a jumptable-class
+            # query into 153 rows whose top hits shared nothing with the
+            # signature. Only a discriminating facet may SELECT a row —
+            # the weak ones still score it once it is in.
+            strong_facets = discriminating_facets(shared_facets)
+            if not shared and not (same_kind and strong_facets):
+                if same_kind and shared_facets:
+                    weak_only_suppressed += 1
                 continue
             applied = _law_id_list(record, "laws_applied")
             residual_law_ids.update(applied)
@@ -5503,12 +5650,54 @@ def law_corpus(
                 "kind": candidate["kind"],
                 "resolution": candidate.get("resolution"),
                 "shared_facets": shared_facets,
+                "discriminating_facets": strong_facets,
                 "match_strength": round(strength, 4),
                 "laws_applied": applied,
             })
+        # TOKEN RARITY (run-38 item 10). Counting shared mnemonics treats
+        # every opcode as equally informative, and they are not: measured
+        # on this corpus, a jumptable-class query returned 153 rows of
+        # which 151 shared exactly one token — `b`, the unconditional
+        # branch, which 151 of the corpus's signatures carry — while the
+        # two rows that actually shared `jumptable` sorted in among them.
+        # Each shared token is now weighted by its inverse document
+        # frequency, so a rare mnemonic outranks a ubiquitous one and the
+        # top hits carry real signature overlap.
+        wanted_weight = sum(_token_rarity(t, token_document_freq,
+                                          corpus_signatures)
+                            for t in wanted_tokens)
+        for row in residual_matches:
+            got = sum(_token_rarity(t, token_document_freq,
+                                    corpus_signatures)
+                      for t in row["shared_tokens"])
+            row["token_specificity"] = round(
+                got / wanted_weight if wanted_weight > 0 else 0.0, 4)
+            row["shared_token_frequency"] = {
+                t: token_document_freq.get(t, 0)
+                for t in row["shared_tokens"]}
         residual_matches.sort(
-            key=lambda row: (-len(row["shared_tokens"]),
+            key=lambda row: (-row["token_specificity"],
+                             -len(row["discriminating_facets"]),
                              -row["match_strength"], row["record"] or ""))
+        # Say how much of the tail is weak, so the SIZE of the result is
+        # interpretable instead of reading as 153 findings. Calibrated
+        # against the BEST row rather than a magic document-frequency
+        # threshold: a fixed cutoff described 1 row of the measured
+        # jumptable flood when 151 of them were the same ubiquitous `b`.
+        # Not dropped — a common-token neighbour is weak evidence, not no
+        # evidence.
+        top_specificity = max((row["token_specificity"]
+                               for row in residual_matches), default=0.0)
+        # Specificity ALONE decides this, deliberately. The facet classes
+        # are about a facet's TYPE — `op:` is discriminating as a type —
+        # while rarity is about the particular MNEMONIC, and `op:b` is
+        # both at once: a discriminating facet type carrying a ubiquitous
+        # token. ANDing the two conditions described 1 row of a 151-row
+        # tail.
+        ubiquitous_tail = (
+            sum(1 for row in residual_matches
+                if row["token_specificity"] < top_specificity / 2)
+            if top_specificity > 0 else 0)
 
     tokens = _query_tokens(query) if query else []
     # Per-term OR diagnostics (run 34 item 6). Silent AND-combining returned
@@ -5817,6 +6006,26 @@ def law_corpus(
         out["pin_mechanisms"] = webfrank_pin_mechanisms(root, query)
     if residual:
         out["residual_matches"] = residual_matches
+        out["residual_weak_only_suppressed"] = weak_only_suppressed
+        out["residual_ubiquitous_tail"] = ubiquitous_tail
+        if ubiquitous_tail:
+            out["residual_ranking_note"] = (
+                f"{ubiquitous_tail} of {len(residual_matches)} row(s) score"
+                " under HALF the top row's token specificity and share no"
+                " discriminating facet — they overlap this signature only"
+                " on a mnemonic much of the corpus carries. They are ranked"
+                " LAST by inverse document frequency, not dropped: a"
+                " common-token neighbour is weak evidence, not no evidence."
+                " Read `token_specificity` and `shared_token_frequency` per"
+                " row; the top rows are the ones sharing a RARE mnemonic.")
+        if weak_only_suppressed:
+            out["residual_selection_note"] = (
+                f"{weak_only_suppressed} same-kind record(s) shared ONLY a"
+                f" weak facet ({', '.join(sorted(RESIDUAL_WEAK_FACETS))}) —"
+                " an instruction-size bracket, not signature content — and"
+                " were NOT selected. Every row returned shares at least one"
+                " discriminating facet or opcode marker; read"
+                " `discriminating_facets` to see which.")
         out["residual_parsed"] = residual_parsed
         out["residual_note"] = (
             "sibling records whose recorded residual.signature shares"
