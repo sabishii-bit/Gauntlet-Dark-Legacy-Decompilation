@@ -2458,20 +2458,127 @@ class ApplyPatchObjectTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "may not ride on"):
             apply_patch(data, patch, bytes(target_data))
 
-    def test_post_recolor_permutation_refuses_a_relocated_window(self):
-        """This refusal lives ONLY in apply_patch: the stage takes no
-        relocation-binding proof, so a relocated window must fail closed."""
-        relocations = [(0x8, "pool", 109, 0)]
-        data, target_data, ours, target = self.build(relocations=relocations)
-        with self.assertRaisesRegex(ValueError, "only relocation-free"):
-            apply_patch(data, self.patch(ours, target), bytes(target_data))
+    # ---- the relocation-binding extension: a relocated window is now
+    # accepted under a per-window binding proof, no longer blanket-refused
+    # (provenance attempt.MB_drawpsyssub-frame-slot-reclassification
+    # .20260902.v2, DrawPsysSub) ----
 
-    def test_a_relocation_outside_the_window_does_not_trip_the_refusal(self):
+    SDA21 = 109  # R_PPC_EMB_SDA21
+
+    def _reloc_fixture(self, *, ours_relocations, target_relocations,
+                       value=0x20):
+        """Two SDA loads inside the permutation window, both relocated.
+
+        OURS:   lwz r3,0(0) ; lwz r4,0(0) ; blr   (order [1,0] window 0x0..0x8)
+        TARGET: lwz r5,0(0) ; lwz r6,0(0) ; blr
+
+        The recolor renames r3->r6, r4->r5 into the INTERMEDIATE (the target
+        with the swap undone); the permutation then swaps the two loads to
+        reach the target text.  ours records each EMB_SDA21 at word+2 and the
+        target at word+0 exactly as MWCC and dtk do.
+        """
+        LWZ_R3, LWZ_R4 = 0x80600000, 0x80800000
+        LWZ_R5, LWZ_R6 = 0x80A00000, 0x80C00000
+        ours_text = _words(LWZ_R3, LWZ_R4, BLR)
+        target_text = _words(LWZ_R5, LWZ_R6, BLR)
+        ours = _elf_object(ours_text, value=value,
+                           relocations=ours_relocations)
+        target = _elf_object(target_text, value=value,
+                             relocations=target_relocations)
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(ours_text),
+            "after_sha256": _sha256(target_text),
+            "copy_register_fields": True,
+            "post_recolor_permutation": {
+                "start": "0x0", "end": "0x8", "order": [1, 0],
+            },
+        }
+        return ours, target, target_text, patch
+
+    def test_post_recolor_permutation_binds_a_relocated_window(self):
+        """The named extension end to end: a window carrying EMB_SDA21
+        relocations reaches the target AND its relocations move with their
+        atoms.  ours' symA@w0/symB@w1 must land on target's symB@w0/symA@w1
+        after the swap for the binding to pass."""
+        ours, target, target_text, patch = self._reloc_fixture(
+            ours_relocations=[(0x2, "symA", self.SDA21, 0),
+                              (0x6, "symB", self.SDA21, 0)],
+            target_relocations=[(0x0, "symB", self.SDA21, 0),
+                                (0x4, "symA", self.SDA21, 0)],
+        )
+        _b, after, changed = apply_patch(ours, patch, bytes(target))
+        self.assertEqual(after, _sha256(target_text))
+        self.assertGreater(changed, 0)
+        # The relocation entries physically moved with their instructions:
+        # symA rode from word 0 to word 1, symB from word 1 to word 0.
+        sections = _sections(ours)
+        symbol = _find_symbol(ours, sections, "fn")
+        self.assertEqual(
+            _function_text_relocations(
+                ours, sections, symbol.section_index,
+                symbol.value, symbol.value + symbol.size),
+            {0x2: (self.SDA21, "symB"), 0x6: (self.SDA21, "symA")},
+        )
+
+    def test_relocated_window_with_exchanged_target_symbols_fails_closed(self):
+        """Byte-correct text whose loads point at each other's globals is
+        exactly the defect verify_relocation_binding exists to catch: the
+        text still equals the target, so only the binding proof rejects it."""
+        ours, target, _t, patch = self._reloc_fixture(
+            ours_relocations=[(0x2, "symA", self.SDA21, 0),
+                              (0x6, "symB", self.SDA21, 0)],
+            # NOT exchanged relative to ours: after the swap ours lands
+            # symB@w0/symA@w1, so a target of symA@w0/symB@w1 is the wrong
+            # binding.
+            target_relocations=[(0x0, "symA", self.SDA21, 0),
+                                (0x4, "symB", self.SDA21, 0)],
+        )
+        with self.assertRaisesRegex(ValueError, "wrong instruction|symbol"):
+            apply_patch(ours, patch, bytes(target))
+
+    def test_relocated_window_dropping_a_target_relocation_fails_closed(self):
+        """Our object missing a relocation the target carries has no benign
+        reading; the binding proof refuses it."""
+        ours, target, _t, patch = self._reloc_fixture(
+            ours_relocations=[(0x2, "symA", self.SDA21, 0)],
+            target_relocations=[(0x0, "symB", self.SDA21, 0),
+                                (0x4, "symA", self.SDA21, 0)],
+        )
+        with self.assertRaisesRegex(
+                ValueError, "relocated in the target but not"):
+            apply_patch(ours, patch, bytes(target))
+
+    def test_relocated_window_type_mismatch_fails_closed(self):
+        """A relocation whose TYPE differs between the two objects is a
+        different fixup, never a benign renaming."""
+        ADDR16_LO = 4
+        ours, target, _t, patch = self._reloc_fixture(
+            ours_relocations=[(0x2, "symA", self.SDA21, 0),
+                              (0x6, "symB", self.SDA21, 0)],
+            target_relocations=[(0x0, "symB", ADDR16_LO, 0),
+                                (0x4, "symA", self.SDA21, 0)],
+        )
+        with self.assertRaisesRegex(ValueError, "type"):
+            apply_patch(ours, patch, bytes(target))
+
+    def test_a_relocation_outside_the_window_is_left_untouched(self):
+        """A relocation outside every permutation window is neither bound nor
+        moved: the stage sees no in-window relocation and reaches the target,
+        and the out-of-window entry stays where it was."""
         relocations = [(0x0, "pool", 109, 0)]
         data, target_data, ours, target = self.build(relocations=relocations)
         _b, after, _c = apply_patch(
             data, self.patch(ours, target), bytes(target_data))
         self.assertEqual(after, _sha256(target))
+        sections = _sections(data)
+        symbol = _find_symbol(data, sections, "fn")
+        self.assertEqual(
+            _function_text_relocations(
+                data, sections, symbol.section_index,
+                symbol.value, symbol.value + symbol.size),
+            {0x0: (109, "pool")},
+        )
 
     def test_input_hash_drift_fails_closed(self):
         data, target_data, ours, target = self.build()

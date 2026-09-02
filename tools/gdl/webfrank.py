@@ -3565,22 +3565,21 @@ def apply_patch(
         post_windows, post_ranges = permutation_windows(
             post_permutation, symbol.size
         )
-        # This stage deliberately refuses a window carrying ANY relocation in
-        # either object.  Moving a relocation is sound and the first stage
-        # does it, but it needs the binding proof
-        # (verify_relocation_binding) that stage carries, and no measured
-        # post-recolor site has one.  Refusing keeps the new surface to
-        # exactly what is exercised; a relocated site is a separate, audited
-        # extension rather than something this stage silently attempts.
-        for relative_start, relative_end in post_ranges:
-            for offset in list(relocated_offsets) + list(target_relocations):
-                if relative_start <= offset < relative_end:
-                    raise ValueError(
-                        f"{symbol.name}: post-recolor permutation window "
-                        f"+0x{relative_start:x}..+0x{relative_end:x} contains "
-                        f"a relocation at +0x{offset:x}; this stage accepts "
-                        f"only relocation-free windows"
-                    )
+        # A window MAY carry relocations.  Moving a relocation is sound — the
+        # pre-recolor permutation stage does it — but the payload multiset
+        # permute_instruction_atoms conserves proves only CONSERVATION, never
+        # BINDING: two relocated atoms sharing a within-instruction offset can
+        # be exchanged and the multiset will not notice, producing byte-exact
+        # text whose loads point at each other's globals.  So every relocated
+        # window in this stage is bound word-by-word against the target object
+        # via verify_relocation_binding, reached in the application loop below
+        # by supplying our post-recolor symbols and the target's relocations —
+        # the identical proof the pre-recolor stage carries.  A relocation-free
+        # window reduces to the original path with no behaviour change.  This
+        # is the audited extension the refusal that lived here named; its
+        # provenance is DrawPsysSub's frame-slot reclassification record
+        # (attempt.MB_drawpsyssub-frame-slot-reclassification.20260902.v2), the
+        # first measured post-recolor site carrying a relocation.
         recolor_target = unpermute_target_windows(
             target_function, post_windows, post_ranges
         )
@@ -3718,24 +3717,136 @@ def apply_patch(
     # permutation that was illegal in ours can be audited.  exit_dead is
     # deliberately NOT offered here: this stage gets the strictest form of
     # check_permutation_dependences, with no escape for a moved final write.
+    #
+    # Relocation binding for a post-recolor window (the audited extension the
+    # setup comment names).  The recolor stage that just ran rewrites only
+    # register fields, never relocation entries, so the object's relocations
+    # still stand at their pre-permute positions with their original symbols;
+    # re-derive them fresh (fail-closed: a stale set could move a word out
+    # from under its own binding).
+    if post_windows:
+        post_relocations = _function_text_relocations(
+            data, sections, symbol.section_index,
+            symbol.value, symbol.value + symbol.size,
+        )
+        post_relocation_sections = [
+            section for section in sections
+            if section.section_type == SHT_RELA
+            and section.info == symbol.section_index
+        ]
+        if len(post_relocation_sections) > 1:
+            raise ValueError(
+                f"{symbol.name}: expected at most one relocation section for "
+                f"text, found {len(post_relocation_sections)}"
+            )
+        post_relocation_section = (
+            post_relocation_sections[0] if post_relocation_sections else None
+        )
+        post_entry_size = (
+            (post_relocation_section.entry_size or 12)
+            if post_relocation_section is not None else 12
+        )
+        if post_relocation_section is not None and (
+            post_entry_size != 12
+            or post_relocation_section.size % post_entry_size
+        ):
+            raise ValueError(f"{symbol.name}: unsupported relocation layout")
+
     for window, (relative_start, relative_end) in zip(post_windows,
                                                       post_ranges):
         region = bytes(data[start + relative_start:start + relative_end])
-        no_relocations = _relocation_sha256([])
-        permuted, _moved_records, moved = permute_instruction_atoms(
+        order = [_parse_int(index) for index in window["order"]]
+
+        # Read the relocation table fresh every window: a previous window
+        # rewrote it in place.
+        section_region_start = symbol.value + relative_start
+        section_region_end = symbol.value + relative_end
+        records = []
+        if post_relocation_section is not None:
+            for record_offset in range(
+                post_relocation_section.offset,
+                post_relocation_section.offset + post_relocation_section.size,
+                post_entry_size,
+            ):
+                records.append(struct.unpack_from(">IIi", data, record_offset))
+        region_records = [
+            (offset - section_region_start, info, addend)
+            for offset, info, addend in records
+            if section_region_start <= offset < section_region_end
+        ]
+        window_symbols = {
+            offset - relative_start: name
+            for offset, (_reloc_type, name) in post_relocations.items()
+            if relative_start <= offset < relative_end
+        }
+        window_target_relocations = {
+            offset - relative_start: entry
+            for offset, entry in target_relocations.items()
+            if relative_start <= offset < relative_end
+        }
+
+        # before/after relocation hashes are a self-consistency check on the
+        # move; the load-bearing proof is permute_instruction_atoms' own
+        # payload-conservation multiset plus verify_relocation_binding against
+        # the target, reached here by supplying our_symbols and
+        # target_relocations.
+        before_relocations = _relocation_sha256(region_records, window_symbols)
+        destination_by_source = {
+            source: destination for destination, source in enumerate(order)
+        }
+        expected_moved = []
+        expected_moved_symbols: dict[int, str] = {}
+        for offset, info, addend in region_records:
+            moved_offset = (
+                destination_by_source[offset // 4] * 4 + offset % 4
+            )
+            expected_moved.append((moved_offset, info, addend))
+            expected_moved_symbols[moved_offset] = window_symbols[offset]
+        # permute_instruction_atoms sorts the moved entries by offset before
+        # hashing; match that so the self-consistency hash lines up.
+        expected_moved.sort(key=lambda item: item[0])
+        after_relocations = _relocation_sha256(
+            expected_moved, expected_moved_symbols
+        )
+
+        permuted, moved_records, moved = permute_instruction_atoms(
             region,
-            [_parse_int(index) for index in window["order"]],
-            [],
+            order,
+            region_records,
             before_sha256=_sha256(region),
             after_sha256=_sha256(bytes(
                 target_function[relative_start:relative_end]
             )),
-            before_relocations_sha256=no_relocations,
-            after_relocations_sha256=no_relocations,
+            before_relocations_sha256=before_relocations,
+            after_relocations_sha256=after_relocations,
             exit_dead=None,
+            our_symbols=window_symbols,
+            target_relocations=window_target_relocations,
         )
         data[start + relative_start:start + relative_end] = permuted
         changed += moved
+
+        # The text moved; its relocation entries must move with it or the
+        # linker fixes up the wrong words.  Rewrite the table in place exactly
+        # as the pre-recolor stage does.
+        if post_relocation_section is not None and region_records:
+            outside_records = [
+                record for record in records
+                if not section_region_start <= record[0] < section_region_end
+            ]
+            records = outside_records + [
+                (section_region_start + offset, info, addend)
+                for offset, info, addend in moved_records
+            ]
+            records.sort(key=lambda item: item[0])
+            if len(records) * post_entry_size != post_relocation_section.size:
+                raise ValueError(f"{symbol.name}: relocation count changed")
+            for index, record in enumerate(records):
+                struct.pack_into(
+                    ">IIi", data,
+                    post_relocation_section.offset + index * post_entry_size,
+                    *record,
+                )
 
     after = _sha256(data[start:end])
     if after != patch["after_sha256"]:
