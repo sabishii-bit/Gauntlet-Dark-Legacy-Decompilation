@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "laws_applied": "[\"claim.law.RS_relocation-identity-catches-wrong-pool-constants-that-value-set-sweeps-cannot.20260902.v1\", \"claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1\"]",
+    "provenance": "worktree GDL-Claude-ToolQueue8, work_claim.tool-queue-8.20260902.v1 item 2, commit ae27aa6ab.",
+    "scope": "game/ui/auxscreen::calc_wizard_pos only. No source change was made by this lane.",
+    "tags": [
+      "matching",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "DISPROVED if `python tools/gdl/fndiff.py game/ui/auxscreen calc_wizard_pos --relocs --no-build` stops reporting the two WRONG-DATUM rows while the source is unchanged, or if build/GUNE5D/asm/auto_11_803459F0_sdata2.s is shown to store the same value at lbl_80345A28 and lbl_80345A48 (it stores .double 1 and .double 2 respectively).",
+  "id": "claim.T8_calc-wizard-pos-loads-two-swapped-pool-constants.20260902.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-02T20:24:16Z",
+  "schema_version": 1,
+  "subject": "function:calc_wizard_pos",
+  "valid_from": "2026-09-02",
+  "value": "game/ui/auxscreen::calc_wizard_pos LOADS TWO POOL CONSTANTS IN THE OPPOSITE ORDER TO THE TARGET, AND EVERY EXISTING SCORE READS THE FUNCTION AS FINISHED. MEASURED 2026-09-02 with the positional relocation-identity pass added this run: at reloc index 5 the target relocates lbl_80345A28 (0x80345A28) where ours relocates lbl_80345A48 (0x80345A48), and at index 6 exactly the reverse. The values, read out of build/GUNE5D/asm/auto_11_803459F0_sdata2.s per the SL pool-constant audit procedure, are `.double 1` at lbl_80345A28 and `.double 2` at lbl_80345A48 - so the function computes with 2.0 where the retail image uses 1.0 and with 1.0 where retail uses 2.0. WHY NOTHING CAUGHT IT: `fndiff --clean` reports `MATCH (pool-name noise only), 0 real diff lines`; objdiff fuzzy is 100.0; the relocation SET delta is empty because a swap is a permutation of one set. The positional pass is the only view that decides it, exactly as claim.law.RS_relocation-identity-catches-wrong-pool-constants-that-value-set-sweeps-cannot.20260902.v1 predicts, and this is the first finding it produced that its own author did not already know about. NOT FIXED HERE: the TOOL lane owns tools/gdl and memory_graph, not game/ui/auxscreen. A source lane should confirm with `python tools/gdl/composed_census/t8_poolrefs.py game/ui/auxscreen calc_wizard_pos` and correct the source order. SCOPE OF THE SWEEP THAT FOUND IT: 2040 paired functions across every game/ unit; the positional pass reported exactly 2 WRONG_DATUM rows (both of them these) and 47 SPELLING_DRIFT rows, so its false-positive rate on this corpus remains zero."
+}

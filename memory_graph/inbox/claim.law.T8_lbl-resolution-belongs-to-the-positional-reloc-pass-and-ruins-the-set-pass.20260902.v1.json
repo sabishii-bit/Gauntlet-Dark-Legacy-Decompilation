@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py",
+    "tools/gdl/tests/test_reloc_delta.py"
+  ],
+  "attributes": {
+    "laws_applied": "[\"claim.law.RS_relocation-identity-catches-wrong-pool-constants-that-value-set-sweeps-cannot.20260902.v1\", \"claim.law.parse-strips-the-lbl-address-so-signature-alone-cannot-clear-a-reloc-row.20260831.v1\"]",
+    "provenance": "worktree GDL-Claude-ToolQueue8, work_claim.tool-queue-8.20260902.v1 item 2, commit ae27aa6ab. Extends claim.law.RS_relocation-identity-catches-wrong-pool-constants-that-value-set-sweeps-cannot.20260902.v1 by measuring the cost of the resolver choice it left implicit.",
+    "scope": "tools/gdl/fndiff.py relocation views only: resolve_reloc_symbol (set pass) vs resolve_reloc_symbol_positional (positional pass). The positional pass is sound ONLY when the two instruction streams already agree word for word; fndiff skips it and says so otherwise.",
+    "tags": [
+      "metrics",
+      "matching",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "DISPROVED if resolving `lbl_` symbols inside `fndiff.reloc_set_delta` is shown NOT to inflate the set-delta row count - i.e. if a re-run of the measurement below over the same 92 game/ unit pairs returns a figure near 238 rather than near 6844. The measurement is a scripted two-way count of `reloc_set_delta` with and without an lbl_-resolving resolver; it needs no build.",
+  "id": "claim.law.T8_lbl-resolution-belongs-to-the-positional-reloc-pass-and-ruins-the-set-pass.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T20:25:07Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A RELOCATION SYMBOL'S ADDRESS MUST BE RESOLVED IN THE POSITIONAL PASS AND MUST NOT BE RESOLVED IN THE SET PASS, AND THE TWO PASSES THEREFORE REQUIRE TWO DIFFERENT RESOLVERS. MEASURED 2026-09-02 over the 92 game/ unit pairs in one worktree: set-delta rows total 238 with fndiff's own resolver (which returns None for every `lbl_`/`jumptable_`/`@N` spelling) and 6844 when `lbl_` names resolve inside the same set pass - a 28.8x inflation that buries every real row. THE MECHANISM, and it is not a tuning question: our unlinked object emits its pool entries ANONYMOUSLY (`@674`), so those names carry no cross-object address at all, while dtk names the target's as addressed `lbl_803464E8`. Under SET semantics the target's resolved address then has nothing to cancel against and every benign pool row surfaces as a false delta. The POSITIONAL pass has no such problem: when the instruction words already agree it pairs relocation i with relocation i, so it never has to cancel anything, and the target's `lbl_` address is precisely the fact that decides a wrong pool constant. COROLLARY, measured the same day: with the resolver split this way the positional pass over 2040 paired game/ functions reported 2 WRONG_DATUM rows and 47 SPELLING_DRIFT rows, and both WRONG_DATUM rows were a real defect (see claim.T8_calc-wizard-pos-loads-two-swapped-pool-constants.20260902.v1). GENERAL FORM: a comparison that must CANCEL two spellings and a comparison that must DECIDE between two addresses want opposite things from a symbol resolver, so a codebase carrying both needs both, and sharing one is a silent correctness bug in whichever pass loses."
+}
