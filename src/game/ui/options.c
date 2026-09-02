@@ -2504,6 +2504,7 @@ static void next_rune_hint(s32 advance)
     s32 off;
     s32 p;
     u32 bit;
+    u8* base;
 
     pass = 0;
     if (advance == 0) {
@@ -2539,9 +2540,10 @@ have_index:
         /* per-player: mask lives in the active character's save slot
          * (Player.char_save[Player.character], stride 0xF0 kept as a bare
          * literal per claim.law.sizeof-defeats-loop-stride-induction) */
+        base = gPlayers;
         bit = 1 << (rune_idx_table[rune_hint_index] - 1);
         for (p = 0; p < 4; p++) {
-            u8* rec = &gPlayers[p * PREC_STRIDE];
+            u8* rec = base + p * PREC_STRIDE;
             if (pass == 0 &&
                 (bit & *(u16*)(rec + *(s32*)(rec + offsetof(Player, character)) * 0xF0 +
                                offsetof(Player, char_save) +

@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Close TextHeightMLines by reusing the TU's own inline helper TextLineHeight instead of open-coding its loop, after four spelling axes on the open-coded form proved codegen-invisible.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source SCREENED -- NOT applicable: the residual's target-only `addi` here was an `addi r4,r31,0` walked-pointer INIT, not a zero rematerialisation, and it was source-reachable. claim.law.lwzu-idiom-web-retention APPLIED as the diagnosis (the walked pointer needs its own web kept alive; the open-coded form bound it to the parameter's callee-saved home). claim.law.sizeof-defeats-loop-stride-induction SCREENED, not applicable (no stride arithmetic). claim.law.local-alias-vs-direct-global-spelling-diverges SCREENED, not applicable (no global base). claim.law.EN-equal-count-opcode-respell-must-be-arbitrated-on-fuzzy-not-real APPLIED -- counts were equal 46/46 throughout, so the keep was arbitrated on fresh objdiff fuzzy via probe --arbitrate, not on real. core-screen offsetof/alias/index laws: none applicable (no member conversion in this function).",
+    "laws_applied": "[\"claim.law.lwzu-idiom-web-retention.20260830.v1\", \"claim.law.EN-equal-count-opcode-respell-must-be-arbitrated-on-fuzzy-not-real.20260901.v1\"]",
+    "probed_form": "STEP 1 (structural, real 26 -> 22): added `char* p;` and rewrote the loop to walk `p` instead of the parameter `str`:\n    char* p;\n    fh = MBFontHeight(font);\n    lineHeight = (s32)((f32)fh * scale);\n    p = str;\n    fh = 0;\n    for (;;) {\n        p = find_newline(p);\n        if (p == 0 || fh >= 0xF) { break; }\n        p++;\n        fh++;\n    }\n    return (fh + 1) * lineHeight;\nThis closed the opcode multiset (DIFFERS -> IDENTICAL 46/46) and left a pure 3-cycle recolor: ours r3/r4/r5 == target r4/r5/r3 (p, char, counter).\nSTEP 2a NEGATIVE (folded away, object bytes unchanged): swapped to `fh = 0; p = str;`.\nSTEP 2b NEGATIVE (folded away): declared `char* p;` FIRST, before `s32 fh;`.\nSTEP 2c NEGATIVE (folded away): `register s32 fh;`.\nSTEP 3 EXACT (real 22 -> 0): deleted `p` and the open-coded loop entirely and called the TU's existing helper:\n    s32 fh;\n    register s32 lineHeight;\n    u8 unused[16];\n\n    fh = MBFontHeight(font);\n    lineHeight = (s32)((f32)fh * scale);\n    return TextLineHeight(str, lineHeight, 0);",
+    "residual": "None -- byte-exact. TextHeightMLines is the FIRST of the TU's three open-coded copies of this line-counting loop to close; StringTextHeightSub already calls TextLineHeight and its own residual is a separate one-instruction copy-coalescing item (see attempt.bb-stringtextheightsub-multiply-destination-decides-the-owed-copy.20260901.v1).",
+    "scope": "src/game/ui/btext.c, TextHeightMLines only. Committed. No header, config, webfrank.json or symbols.txt change. The TU's two webfrank pins (DrawGlowText, DrawGlowTextMLines) both PRECEDE this function in source order and the instruction count never moved off 46, so no pinned window's relocation addends could shift (AGENTS.md trap 15b screened, not assumed).",
+    "verification": "probe.py clean-state BASELINE banked before the first edit (first-baseline trap honoured). fndiff --clean = MATCH, 0 real diff lines (2 pool-name lines suppressed). probe.py --arbitrate --vs-baseline, BOTH states built fresh: BANKED real 26 fuzzy 92.7174% / CURRENT real 0 fuzzy 100.0000%, arbiter 'fuzzy ROSE -- KEEP'. defake_gate.py check game/ui/btext --rebuild = GATE OK. Full `ninja -j2` printed `build/GUNE5D/main.dol: OK`. Project STRICT matched moved 56.45% (2574 fns) -> 56.46% (2575 fns); EQUIVALENT held at 9.77%."
+  },
+  "function": "function:TextHeightMLines",
+  "held_fixed": "Across the four negative spelling probes the BODY was held byte-constant (same loop, same find_newline inline, same `u8 unused[16]` pad, same `register s32 lineHeight`): only one dimension moved per probe -- (a) statement order `p = str; fh = 0;` vs `fh = 0; p = str;`, (b) declaration order of `char* p` relative to `s32 fh`, (c) the `register` storage class on `fh`. The winning probe held the pad, the scale arithmetic and the MBFontHeight call constant and varied ONLY the loop's expression: open-coded loop -> `return TextLineHeight(str, lineHeight, 0);`.",
+  "id": "attempt.UA_textheightmlines-inline-helper-reuse-exact.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T16:39:54Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-02",
+    "signature": "closed -- was DIFFERS target-only +1 addi / ours-only -1 mr, T46/O46, 3 ops clusters, real 26"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

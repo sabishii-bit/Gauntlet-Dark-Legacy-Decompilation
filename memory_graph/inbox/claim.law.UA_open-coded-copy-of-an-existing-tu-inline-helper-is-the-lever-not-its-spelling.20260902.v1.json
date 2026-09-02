@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py",
+    "tools/gdl/fndiff.py"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "register-web",
+      "walked-pointer",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function whose open-coded loop and equivalent-inline-helper-call form compile to byte-identical objects, or one where respelling the open-coded body alone reaches the target colouring. Measure with `python tools/gdl/probe.py <unit> <fn>` on both forms and compare the reported real and the objdiff fuzzy from `probe.py <unit> <fn> --arbitrate`; a NEUTRAL-IDENTICAL verdict between the two FORMS (not between spellings) refutes the law.",
+  "id": "claim.law.UA_open-coded-copy-of-an-existing-tu-inline-helper-is-the-lever-not-its-spelling.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T16:40:02Z",
+  "schema_version": 1,
+  "subject": "function:TextHeightMLines",
+  "valid_from": "2026-09-02",
+  "value": "When a TU already defines a `static inline` helper and another function in that TU OPEN-CODES the helper's body, the open-coded form is not a spelling variant of the call: it is a different register-allocation problem, and no respelling of the open-coded body can reach the call form's colouring. Measured on btext.c TextHeightMLines: with the loop open-coded, three distinct spelling axes (statement order, declaration order, and a `register` storage class) each compiled to BYTE-IDENTICAL objects -- probe.py reported NEUTRAL-IDENTICAL three times, i.e. the edits folded away before codegen -- while one structural axis (a walked pointer distinct from the saved parameter) moved real 26 -> 22 and closed the opcode multiset, and replacing the whole open-coded loop with the existing `TextLineHeight(str, lineHeight, 0)` call went byte-EXACT (real 22 -> 0, fuzzy 92.72 -> 100.00). PRACTICAL RULE: when a function's residual is a register rotation and its TU defines an inline helper whose body that function duplicates, spend the probe on the CALL FORM before any spelling axis; and read three consecutive NEUTRAL-IDENTICAL probes as proof that the construct under the microscope is not the one the compiler is deciding on."
+}

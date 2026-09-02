@@ -849,10 +849,11 @@ void SetScrollLevelMsgList(s32 level, const char* suffix)
 s32 FindStringMessageListSub_8001FC4C(s32 list, const u8* name)
 {
     s32 i;
+    s32 nameOffset;
 
     for (i = 0; i < gScrollMsgList[list].nName; i++) {
-        if (stricmp(gScrollMsgList[list].nameData +
-                    gScrollMsgList[list].nameOff[i], name) == 0) {
+        nameOffset = gScrollMsgList[list].nameOff[i];
+        if (stricmp(gScrollMsgList[list].nameData + nameOffset, name) == 0) {
             break;
         }
     }
@@ -1119,16 +1120,7 @@ s32 TextHeightMLines(f32 scale, s32 font, char* str)
 
     fh = MBFontHeight(font);
     lineHeight = (s32)((f32)fh * scale);
-    fh = 0;
-    for (;;) {
-        str = find_newline(str);
-        if (str == 0 || fh >= 0xF) {
-            break;
-        }
-        str++;
-        fh++;
-    }
-    return (fh + 1) * lineHeight;
+    return TextLineHeight(str, lineHeight, 0);
 }
 
 /* ==== 0x8002081C FontHeight ==== */
