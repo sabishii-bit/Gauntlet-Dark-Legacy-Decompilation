@@ -1200,7 +1200,7 @@ phaseD:
                     } while (carry > (s32)am16);
                     e = e & ~am16;
                 }
-                *scan = e | (u16)carry;
+                *scan = e | carry;
             }
         }
     }
@@ -1225,7 +1225,6 @@ phaseD:
             PSlot* sl = &slots[4];
             f32* src = (f32*)&p->p_parms[4];
             list = NULL;
-            cmask = 0;
             do {
                 if (*(s32*)(src + 1) == 0) {
                     sl->cur = src[0];
