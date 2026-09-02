@@ -1,0 +1,32 @@
+{
+  "attempted_axis": "Cluster census on the 33 remaining clusters, then drive the two nearest source-reachable rows. (1) Invert the `na` if/else polarity at the action-toggle site so the target's `beq`-to-the-1-arm shape is emitted instead of our `bne`-to-the-0-arm; closes the T[383:384] beq/bne row byte-identically. (2) Apply the narrow-store law to the `wob` site: the local was already declared `s16` and emitted NO extsh, so change it to `s32` and cast at the store. real 1356 -> 1343, ours 2217 -> 2218 insns against the target's 2221, multiset 12t -> 11t.",
+  "attributes": {
+    "law_screen": "claim.law.GT_narrow-store-sign-extension-needs-an-int-variable-transit.20260902.v1 APPLIED to the wob row -- it is the law this run derived in fn_8005C1DC and this is its first transfer to a second function. claim.law.fuzzy-can-underweight-a-real-improvement screened and APPLIED IN REVERSE for the polarity flip: probe.py reported NEUTRAL-WORSE on the opcode-multiset TOKEN COUNT (10t -> 12t) while the cluster count FELL 34 -> 33 and the region went byte-identical, so the finer evidence was read before the verdict was trusted. claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 screened: the anonymous-pool citations seen in this function's preheader (@@3835/@@3836/@@3842/@@3846/@@3849/@@1297 against the target's named lbl_ and sItemZero symbols) are the recorded benign NonMatching-TU pool-label artifact, not a wrong-constant defect, and were deliberately left alone. claim.law.destructor-throw-spec-adds-a-second-unexpected-island.20260901.v1 screened, not applicable: no EH island in this function.",
+    "laws_applied": "[\"claim.law.GT_narrow-store-sign-extension-needs-an-int-variable-transit.20260902.v1\"]",
+    "probed_form": "KEPT 1: `if ((s8)c8 != 0) { na = 0; } else { na = 1; }` replacing `if ((s8)c8 == 0) { na = 1; } else { na = 0; }`. KEPT 2: `s32 wob;` replacing `s16 wob;`, together with `wob = (s32)((f32)(lbl_80347050 * (f32)(u8)gen[0xB]) * fa); *(s16*)&it->data[8] = (s16)wob;` replacing `wob = (s16)(...same float expression...); *(s16*)&it->data[8] = wob;`.",
+    "residual": "The multiset token count is a MISLEADING arbiter on this function and the next lane should not trust it. Closing the T[383:384] beq/bne row RAISED the token count from 10 to 12 while strictly improving the object, because the closed row's target-only `beq` had been cancelling against an ours-only `beq` contributed by a different cluster; removing one side of a cancelling pair inflates the printed total. The cluster count (34 -> 33) and fresh fuzzy (97.5196% -> 97.5227%) both moved the right way and were the arbiters used. Remaining reachable rows, nearest first: the T[443:456] preheader lis/addi ordering with its swapped 224(r1)/228(r1) spill slots, which is a two-local declaration-order question; the T[617:633] lwz/lha/rlwinm reorder; the T[474:479] and T[505:507] lfd/stfd reorders; and the T[1017:1029] lfs/fmul/stfs reorder. The T[690:691] `mr.`-vs-`cmpwi` row is the generate_enemy slot-register axis, whose exhaustion is already documented in the superseded record; this run left it untouched and adds no new evidence about it.",
+    "scope": "src/game/world/gauntworld.c only; two statement-level edits inside fn_800606FC.",
+    "verification": "python tools/gdl/probe.py game/world/gauntworld.c fn_800606FC --fuzzy on BOTH halves of the polarity A/B from the same tool: baseline 97.5196%, flipped 97.5227%, cluster count 34 -> 33. python tools/gdl/probe.py ... after the wob edit -> IMPROVED real 1356 -> 1343, insns T2221/O2218, multiset 11t. python tools/gdl/defake_gate.py check game/world/gauntworld.c --rebuild -> GATE OK (1 improved). ninja -j2 -> build/GUNE5D/main.dol: OK. Committed as a976112bc."
+  },
+  "function": "function:fn_800606FC",
+  "held_fixed": "The two edits were probed and arbitrated SEPARATELY: the polarity flip was measured alone and arbitrated on fresh fuzzy against a freshly re-measured baseline before the `wob` edit was written, so their contributions are independently attributable. Held CONSTANT throughout and never touched: the T[357:365] neg/addi/bne/b cluster, which the superseded record records as unreachable-by-remat; the generate_enemy slot register (r3-vs-r4) axis, which the superseded record already reports as exhausted; and both `volatile f32 root` scaffolds from the superseded record's Newton-refinement work.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "One probe: swap the two declarations and re-read `python tools/gdl/fndiff.py game/world/gauntworld.c fn_800606FC --ops`. If the T[443:444] and T[455:456] lis/addi replace rows survive with the spill offsets still crossed, the pair is allocator-assigned rather than declaration-ordered and the cluster should be recorded as such.",
+    "screened_against_target": "yes -- python tools/gdl/fnasm.py game/world/gauntworld.c fn_800606FC 0x6e0:0x748 --diff shows the target's `stw r0,224(r1)` at +0x720 and `stw r0,228(r1)` at +0x73c against our `stw r0,228(r1)` at +0x718 and `stw r0,224(r1)` at +0x734, with the same opcodes on both sides.",
+    "statement": "Close the T[443:456] preheader cluster by swapping the DECLARATION ORDER of the two s32 locals that spill to 224(r1) and 228(r1). The target stores to 224 first then 228; ours stores to 228 first then 224, and the surrounding lis/addi rows are the same instructions in a different order. This is a declaration-order question, not a scheduling one, and it has not been probed: the superseded record's work was entirely on the Newton-refinement float rows and never touched the preheader."
+  },
+  "id": "attempt.GT_fn800606fc-branch-polarity-and-narrow-store-transit.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T01:41:02Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-02",
+    "signature": "DIFFERS target-only: +1 addi +2 b +2 bne +1 mr. +1 neg ours-only: -2 beq -1 cmpwi -1 mr; insns T2221/O2218; 29 ops clusters"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.FR_fn-800606fc-volatile-newton-roundtrip-and-single-read-hoist.20260901.v1",
+  "valid_from": "2026-09-02"
+}

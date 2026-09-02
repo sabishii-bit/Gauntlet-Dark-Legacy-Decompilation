@@ -1,0 +1,22 @@
+{
+  "asserted_by": [
+    "python tools/gdl/fndiff.py game/world/gauntworld.c fn_8005C1DC --ops (target-only '+1 extsh' token disappears)",
+    "python tools/gdl/fnasm.py game/world/gauntworld.c fn_8005C1DC 0x684:0x6a4 --diff (all rows '=')",
+    "python tools/gdl/probe.py game/world/gauntworld.c fn_800606FC (IMPROVED real 1356 -> 1343, insns O2217 -> 2218, multiset 12t -> 11t)"
+  ],
+  "attributes": {
+    "counter_evidence": "This law does NOT make every such row closable. In fn_8005C1DC the extsb row at T[577:578] is mechanically closable by the same cure (`item->data[6] = (s8)state;` DOES land the extsb, measured this run) but is blocked behind a separate count surplus in the function's `mult` if/else-if chain: landing the extsb takes ours from 924 to 925 against the target's 924, because the missing sign-extension had been masking a pre-existing surplus instruction. The cure is only bankable where the function has count headroom.",
+    "law_screen": "claim.law.declared-alias-vs-repeated-cast.20260830.v1 screened: adjacent family (cast spelling vs declared variable) but it governs ADDRESS webs, not value narrowing, so it does not cover this. claim.law.lwzu-idiom-web-retention.20260830.v1 screened, not applicable: no load-update idiom is involved. claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 screened, not applicable: the change is score-visible on both real and fuzzy.",
+    "scope": "MWCC 1.2.5n as configured for game/world/gauntworld; derived from two functions in one TU, expected to generalise to every narrowing store in the image but NOT yet censused outside this TU."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A narrowing store whose value transits an s32 local and is cast at the store, which STILL emits no extsh/extsb; or a narrow-typed (s16/s8) local whose plain store DOES emit one. Check with `python tools/gdl/fnasm.py <unit> <fn> 0xA:0xB --diff` over the store window, and `python tools/gdl/fndiff.py <unit> <fn> --ops` for the extsh/extsb token.",
+  "id": "claim.law.GT_narrow-store-sign-extension-needs-an-int-variable-transit.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T01:36:29Z",
+  "schema_version": 1,
+  "subject": "tu:game/world/gauntworld",
+  "valid_from": "2026-09-02",
+  "value": "MWCC emits the sign-extension (extsh/extsb) before a narrowing store ONLY when the stored value transits an INT-TYPED VARIABLE and is narrowed by a cast at the store. It does NOT emit it when the narrowing cast is applied directly to a float-conversion expression, and it does NOT emit it when the value transits a NARROW-typed (s16/s8) local. Canonical proof pair, both inside fn_8005C1DC and 0x50 bytes apart in the same object, so compiler flags/alignment are held constant: `*(s16*)&item->data[0] = (s16)k;` (k an s32 local) compiles to `extsh r0,rK; sth r0,220(r31)` in BOTH target and ours, while `*(s16*)&item->data[2] = (s16)(lbl_80346F6C * power);` compiled to `lwz; sth` in ours against the target's `lwz; extsh; sth`. Rewriting the second as `k = (s32)(lbl_80346F6C * power); *(s16*)&item->data[2] = (s16)k;` made the whole 0x684-0x6a4 window byte-identical. The narrow-local form is the measured-dead third case: fn_800606FC already declared `s16 wob; wob = (s16)(<float expr>); *(s16*)&it->data[8] = wob;` and emitted NO extsh; changing only the declaration to `s32 wob` plus a `(s16)` cast at the store landed the extsh and moved real 1356->1343."
+}
