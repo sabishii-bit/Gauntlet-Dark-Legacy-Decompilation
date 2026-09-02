@@ -1905,10 +1905,11 @@ s32 do_players(void) {
             switch (state) {
             case 0:
             {
-                s16 timer = p->respawn_timer;
+                s32 t = p->respawn_timer;
 
-                if (timer > 0) {
-                    timer -= gFrameTicks;
+                if (t > 0) {
+                    s16 timer = t - gFrameTicks;
+
                     p->respawn_timer = timer;
                     if (timer <= 0) {
                         setup_player_display(i);
@@ -1990,16 +1991,16 @@ s32 do_players(void) {
                 }
                 add_target(p->mat);
                 {
-                    s16 name_timer;
+                    s32 nt;
 
                     if ((sMusicTrackHi != 0xD || sumnerSpeechActive() == 0) &&
                         gTriggerCameraState == 0 && gModalRenderDepth == 0 &&
-                        gMessageActive == 0 && (name_timer = p->name_timer) > 0 &&
+                        gMessageActive == 0 && (nt = p->name_timer) > 0 &&
                         !(gGameBusy | gGameplayPauseTimer)) {
                         char name[88];
                         f32 spos[2];
+                        s16 name_timer = nt - gFrameTicks;
 
-                        name_timer -= gFrameTicks;
                         p->name_timer = name_timer;
                         if (name_timer <= 0) {
                             p->name_timer = 0;
