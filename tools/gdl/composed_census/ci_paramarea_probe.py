@@ -28,6 +28,29 @@ MEASURED RESULT (run 34):
      parameter area.  See claim.law.CI_mwcc-outgoing-param-area-is-sized-
      only-by-stack-spilled-args.20260902.v1.
 
+MEASUREMENT DEFECT FOUND AND FIXED (lane CH, run 36):
+  The run-34 `param area` column is (lowest `addi rN,r1,K`) - 8.  That
+  heuristic assumes every `addi rN,r1,K` addresses a DECLARED local.  On a
+  by-value aggregate argument it does not: MWCC emits `addi r5,r1,8` as the
+  cursor for the argument COPY, so the run-34 table reported
+  `shape_struct_byval ... param area 0` -- an impossible value (the EABI
+  minimum is 8) that was read as "does not reach 48" instead of as a broken
+  measurement.  Discipline 14 (a guard's refusal measures the guard) applied
+  to a metric.  The `below-locals` section replaces it with a marker that is
+  present in every case by construction: the offset of the declared `s16
+  sp[2]` buffer, read straight off the wrapper's own `lha rN,K(r1)`.  Bytes
+  in [8, sp) are the region BELOW every declared local -- exactly the
+  quantity swbos's residual is about (target temp base 56, ours 16).
+
+MEASURED RESULT (run 36, `below-locals` section):
+  * A 40-byte BY-VALUE STRUCT argument seats 48 bytes below the declared
+    locals (8-byte parameter area at r1+8..15 plus a 40-byte argument copy
+    at r1+16..55, the declared s16[2] landing at r1+56) -- the CI law is
+    intact on parameter-area SIZING and its consequence clause is wrong:
+    a source-level construct DOES reserve exactly swbos's 48 dead bytes.
+  * The reserved block tracks the aggregate size in 8-byte steps, so the
+    region is a size-addressable source lever, not allocator slack.
+
 Run FROM THE REPOSITORY ROOT:
     python tools/gdl/composed_census/ci_paramarea_probe.py
 """
@@ -90,6 +113,39 @@ RET_CASE = ("shape_struct_return", None,
             "{ Big b=makeBig(); sp[0]=(s16)b.w[0]; }")
 
 
+# ---- BY-VALUE AGGREGATE sizing (lane CH, run 36) -------------------------
+# The sub-case claim.law.CI_...v1's own falsifier invites and the run-34
+# table mis-measured.  Each case passes an aggregate of a known size BY
+# VALUE and is scored on `below-locals` (see analyse_below), not on the
+# broken lowest-addi heuristic.
+def byval_case(nbytes, second=False):
+    """A call taking an `nbytes` struct by value.
+
+    second=True places the aggregate as argument 2 of a 4-argument call,
+    which is swbos's actual call shape:
+    MBWindowProject(ptr, <aggregate>, 0, s16*).
+    """
+    words = nbytes // 4
+    typ = "S%d" % nbytes
+    decl = ("typedef struct %s { s32 w[%d]; } %s;\n"
+            "extern %s g%s;\n" % (typ, words, typ, typ, typ))
+    if second:
+        decl += "void CALLEE(f32* a, %s m, s32 f, s16* sp);" % typ
+        call = "CALLEE((f32*)gBase,g%s,0,sp);" % typ
+        tag = "byval%d_as_arg2" % nbytes
+    else:
+        decl += "void CALLEE(%s b, s16* sp);" % typ
+        call = "CALLEE(g%s,sp);" % typ
+        tag = "byval%d_as_arg1" % nbytes
+    return (tag, decl, call)
+
+
+BYVAL_CASES = ([("byval0_none", "void CALLEE(f32* a, s16* sp);",
+                 "CALLEE((f32*)gBase,sp);")] +
+               [byval_case(n) for n in (8, 16, 24, 32, 40, 48, 64)] +
+               [byval_case(40, second=True), byval_case(48, second=True)])
+
+
 def wrap(decl, call):
     d = (decl + "\n") if decl else ""
     return (PROLOGUE + d +
@@ -146,6 +202,67 @@ def analyse(text):
     return frame, first_local, param
 
 
+def analyse_below(text):
+    """Frame, declared-local base, and the byte count below every local.
+
+    The declared `s16 sp[2]` buffer is the one object every wrapper both
+    takes the address of AND reads back (`a+=(f32)sp[0]`), so its `lha
+    rN,K(r1)` read identifies it unambiguously in every case -- unlike the
+    lowest `addi rN,r1,K`, which an argument-copy cursor also produces.
+
+    Returns (frame, sp_off, below, bases) where `below` = sp_off - 8 is the
+    reserved region beneath the declared locals (8 = the EABI minimum
+    outgoing parameter area) and `bases` lists the r1-relative block
+    addresses the body forms below sp_off.
+    """
+    seg = text.split("<probefn>:", 1)
+    if len(seg) < 2:
+        return None
+    frame = None
+    sp_off = None
+    bases = []
+    for ln in seg[1].splitlines():
+        if ln.strip().endswith(">:") and "probefn" not in ln:
+            break
+        m = re.search(r"stwu\s+r1,-(\d+)\(r1\)", ln)
+        if m and frame is None:
+            frame = int(m.group(1))
+        m = re.search(r"lha\s+r\d+,(\d+)\(r1\)", ln)
+        if m and sp_off is None:
+            sp_off = int(m.group(1))
+        m = re.search(r"addi\s+r\d+,r1,(\d+)", ln)
+        if m:
+            bases.append(int(m.group(1)))
+    if sp_off is None:
+        return frame, None, None, sorted(set(bases))
+    below = sp_off - 8
+    return frame, sp_off, below, sorted(set(b for b in bases
+                                            if b < sp_off and b != frame))
+
+
+def run_below(cases, header):
+    print(header)
+    print("  %-22s %-7s %-11s %-13s %s"
+          % ("case", "frame", "locals@", "below locals", "blocks below"))
+    for tag, decl, call in cases:
+        obj, err = compile_src(tag, wrap(decl, call))
+        if obj is None:
+            print("  %-22s FAIL: %s" % (tag, (err or "")[:48]))
+            continue
+        res = analyse_below(dump(obj))
+        if res is None:
+            print("  %-22s (no probefn)" % tag)
+            continue
+        frame, sp_off, below, bases = res
+        if sp_off is None:
+            print("  %-22s %-7s (no declared-local marker)" % (tag, frame))
+            continue
+        flag = "  <<<< 48!" if below == 48 else ""
+        print("  %-22s %-7s %-11s %-13s %s%s"
+              % (tag, frame, sp_off, below,
+                 ",".join(str(b) for b in bases) or "-", flag))
+
+
 def run(cases, header):
     print(header)
     print("  %-22s %-7s %-11s %s" % ("case", "frame", "1st local",
@@ -178,8 +295,19 @@ def main():
     print()
     run(SHAPE_CASES + [RET_CASE], "call SHAPE (arg count / aggregate / "
         "return / alloca-like):")
-    print("\nverdict: no register-only call shape reaches param area 48; "
-          "form is byte-irrelevant.")
+    print("  NOTE the `param area` column above is the run-34 lowest-addi"
+          " heuristic and is")
+    print("  WRONG for aggregates: shape_struct_byval's 0 is below the EABI"
+          " minimum of 8.")
+    print()
+    run_below(BYVAL_CASES + SHAPE_CASES + [RET_CASE],
+              "BY-VALUE AGGREGATE sizing, scored below-locals (run 36):")
+    print("\nverdict: the outgoing PARAMETER AREA is 8 for every <=8-GPR-arg"
+          " call (CI law holds),")
+    print("but a BY-VALUE AGGREGATE argument reserves its own copy below the"
+          " declared locals,")
+    print("so a 40-byte by-value struct arg seats exactly 48 bytes there ="
+          " swbos's dead region.")
     return 0
 
 
