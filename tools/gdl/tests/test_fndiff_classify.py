@@ -6,7 +6,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fndiff import (classify_function, cluster_flags,
                     compiler_private_aliases_from_symbols, count_real,
-                    immediate_deltas, real_reconciliation,
+                    immediate_deltas, immediate_row_reliability,
+                    real_reconciliation,
                     relocated_instructions, reloc_naming_only, shiftable_gap)
 
 
@@ -265,6 +266,78 @@ class TwoRealsTests(unittest.TestCase):
         note = real_reconciliation(5, rows, noise=1)
         self.assertIn("non-reloc", note)
         self.assertNotIn("suppressed", note)
+
+
+class ImmediateRowReliabilityTests(unittest.TestCase):
+    """run-39 item 12. immediate_deltas pairs positionally INSIDE the
+    matcher's equal runs — sound in the middle of a long run, a guess at its
+    edges, where the matcher CHOSE the boundary. A row printed there reads
+    exactly like a wrong-constant bug and need not be one; UD nearly
+    recorded one.
+
+    ANNOTATES, never suppresses: hiding the row would trade a false positive
+    for a false negative on the one word class that decides postprocessor
+    eligibility. Censused over 12 real TUs at 00df6545d: 254 of 1041
+    IMMEDIATE rows marked (24.4%).
+    """
+
+    def rel(self, t, b):
+        return immediate_row_reliability(t, b)
+
+    def test_a_row_beside_an_unpaired_block_is_marked(self):
+        t = ["li      r5,0", "add     r3,r3,r4", "lwz     r3,36(r3)", "blr"]
+        b = ["li      r5,0", "lwz     r3,16(r3)", "blr"]
+        marked = self.rel(t, b)
+        self.assertTrue(marked, "the lwz pair straddles the replace")
+        self.assertIn("unpaired block", " ".join(marked.values()))
+
+    def test_a_row_deep_inside_a_long_equal_run_is_not_marked(self):
+        """Measured on game/game/player::SetPlayerWindows: T[84]/O[83] sits 5
+        rows into a long run and its 36-vs-16 delta is the same +20 .bss
+        shift as every other row — a genuine pairing the guard must not
+        cast doubt on."""
+        pad = [f"or      r{n},r{n},r{n}" for n in range(10, 20)]
+        t = ["add     r3,r3,r4"] + pad + ["lwz     r3,36(r3)"] + pad + ["blr"]
+        b = ["lwzx    r3,r3,r4"] + pad + ["lwz     r3,16(r3)"] + pad + ["blr"]
+        self.assertNotIn(len(pad) + 1, self.rel(t, b))
+
+    def test_a_fully_aligned_pair_of_streams_marks_nothing(self):
+        t = ["li      r5,0", "addi    r3,r3,32", "blr"]
+        b = ["li      r5,0", "addi    r3,r3,36", "blr"]
+        self.assertEqual({}, self.rel(t, b))
+
+    def test_the_function_edges_are_not_unpaired_blocks(self):
+        """A run bounded by the function's own start/end abuts nothing the
+        matcher had to choose, so its first and last rows are trustworthy."""
+        t = ["addi    r3,r3,32", "li      r5,0", "blr"]
+        b = ["addi    r3,r3,36", "li      r5,0", "blr"]
+        self.assertEqual({}, self.rel(t, b))
+
+    def test_stream_drift_is_reported_as_context_on_a_marked_row(self):
+        t = ["add     r3,r3,r4", "lwz     r3,36(r3)", "blr"]
+        b = ["lwzx    r3,r3,r4", "nop", "lwz     r3,16(r3)", "blr"]
+        marked = self.rel(t, b)
+        self.assertTrue(any("drifted by" in why for why in marked.values()),
+                        marked)
+
+    def test_drift_alone_does_not_mark_a_well_aligned_row(self):
+        """One deletion upstream shifts every later index, but a long equal
+        run after it is still correctly aligned — drift is context, adjacency
+        is the signal."""
+        pad = [f"or      r{n},r{n},r{n}" for n in range(10, 20)]
+        t = ["nop"] + pad + ["addi    r3,r3,32"] + pad + ["blr"]
+        b = pad + ["addi    r3,r3,36"] + pad + ["blr"]
+        self.assertNotIn(len(pad) + 1, self.rel(t, b))
+
+    def test_relocated_instructions_are_indexed_the_same_way_as_deltas(self):
+        """The keys must line up with immediate_deltas' t_index or the
+        annotation lands on the wrong row."""
+        t = ["add     r3,r3,r4", "lwz     r3,36(r3)", "blr"]
+        b = ["lwzx    r3,r3,r4", "lwz     r3,16(r3)", "blr"]
+        deltas = immediate_deltas(t, b)
+        marked = self.rel(t, b)
+        self.assertTrue(deltas)
+        self.assertTrue(any(d[0] in marked for d in deltas), (deltas, marked))
 
 
 if __name__ == "__main__":
