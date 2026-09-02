@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py game/game/player do_players 0x228:0x260 --diff",
+    "tools/gdl/fnasm.py game/game/player do_players 0xee8:0xf08 --diff",
+    "tools/gdl/probe.py game/game/player do_players --ops"
+  ],
+  "attributes": {
+    "provenance": "src/game/game/player.c::do_players (target 1174 insns), worktree GDL-Claude-DoPlayers24c, work_claim.do-players-24c.20260902.v1, commits bebb989f7 and b2c7d2c4e; see attempt.PC_do-players-addressing-form-is-source-reachable-and-the-exit-check-is-an-inlined-predicate.20260902.v1 for all eleven probes and their verdicts. Directly refutes the unreachability clause of attempt.PC_do-players-mixed-spelling-residual-is-the-24c-addressing-form.20260902.v2, whose own cheapest_refuting_observation named the probe that refuted it.",
+    "scope": "MWCC GC 1.2.5 family. Applies to a memory reference whose address is a base register plus a scaled index plus a compile-time constant, where the source may choose whether to name the base-plus-index sub-expression. Says nothing about references with no scaled index, and nothing about float indexed forms except the measured negative recorded in the direction clause.",
+    "tags": [
+      "index-form",
+      "cse",
+      "matching",
+      "walked-pointer"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Produce an MWCC 1.2.5 function in which the inline base-plus-index-plus-constant expression, with NO named pointer local, emits `add rP,base,index` + a displacement load -- that would show the named temp is not the lever. Or, on do_players' twin j-loops at src/game/game/player.c lines 2111/2142, obtain the target's `add r4,r31,r3 / lwz r0,3368(r4)` with the `add` BELOW the `j != i` guard from any source form: probes C and D of attempt.PC_do-players-addressing-form-is-source-reachable-and-the-exit-check-is-an-inlined-predicate.20260902.v1 are the recorded negatives for the two obvious declaration sites, and reproducing either POSITIVE disproves the second clause. Conversely, showing that a named OFFSET local (rather than a named pointer local) reaches the `lfsx`/`stfsx` index form would disprove the direction clause -- measured false here at line 1970.",
+  "id": "claim.law.PC_a-named-pointer-local-selects-the-displacement-load-and-its-declaration-site-decides-the-hoist.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T15:16:14Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "MWCC PICKS BETWEEN `add rP,base,index` + `lwz disp(rP)` AND `addi rT,index,disp` + `lwzx rD,base,rT` ON WHETHER THE SOURCE NAMES THE POINTER, NOT ON HOW THE ARITHMETIC IS PARENTHESISED. Measured on do_players at +0x24c, +0x6bc, +0xef8 and +0xfd4, all four reading the same field of the same record through the same base register and the same folded constant 3368. THE POSITIVE: binding the base-plus-scaled-index to a named local -- `u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;` -- and then reading through it with the whole remaining constant as one displacement (`PF(prec, 0xC40 + 0xE8, s32)`) emits the target's `add`+displacement form. At +0x24c this produced a BYTE-IDENTICAL cluster including register allocation (`add r3,r31,r16 / lwz r0,3368(r3)`), which is the observation that refuted the standing claim that this addressing form was source-unreachable across PT/PTA/walked-pointer spellings. THE NEGATIVE THAT ISOLATES THE CAUSE: writing the SAME address arithmetic inline, with no local (`PF((u8*)potionicon_tab + j * PREC_STRIDE, 0xC40 + 0xE8, s32)`), left `addi`+`lwzx` bit-for-bit unchanged and moved the opcode multiset not at all. Parenthesisation and macro spelling are therefore not the lever; the named temp is. SECOND CLAUSE, AND THE ONE THAT COSTS RUNS IF MISSED: THE DECLARATION SITE DECIDES WHERE THE `add` LANDS, AND A FLIPPED FORM AT THE WRONG OFFSET IS A NET LOSS. Declaring the local at the top of a loop body flips the form but HOISTS the `add` above the guard branch that should precede it (twin j-loops: multiset 27t against 31t, yet fresh fuzzy FELL to 94.1755 from 94.2308, because the order-blind multiset cannot see that the instruction is in the wrong place). Moving that same declaration inside the guard block, so the `add` would land correctly, LOSES the flip entirely and returns `addi`+`lwzx` (multiset back to 31t, real 1129). The two requirements are in direct conflict at a site whose guard is a plain conditional, and that is the recorded reason the twin sites are closed rather than solved. WHERE IT DOES WORK CLEANLY: a site whose enclosing block is entered unconditionally on the path in question, so the local may be declared at block top without crossing a guard -- do_players line 1836, where wrapping the test in a bare block gave the target's `add r4,r31,r26 / lwz r0,3368(r4) / cmpwi 2 / cmpwi 3` and, per claim.law.PC_two-load-shape-and-range-check-collapse-are-one-lever, took the adjacent-constant range check with it: multiset 31t -> 24t, fresh fuzzy 94.2308 -> 94.6721. DIRECTION MATTERS: this law describes reaching the DISPLACEMENT form. The inverse (reaching `lfsx`/`stfsx`, where the target keeps the base and puts the constant in the index) is NOT obtained by naming the OFFSET instead of the pointer -- do_players line 1970, naming `s32 stat_off = 0xC28 + p->character * 0x1C`, made MWCC fold the named offset straight into a pointer add and emit `lfs 0(r3)` / `stfs 0(r3)`, further from target than the displacement form it replaced."
+}

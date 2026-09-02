@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_rederive_pin.py game/game/player do_exit --apply",
+    "tools/gdl/probe.py game/game/player do_players --rederive-pin"
+  ],
+  "attributes": {
+    "provenance": "worktree GDL-Claude-DoPlayers24c, work_claim.do-players-24c.20260902.v1, run 35, nine re-derivations across eleven probes; body hashes returned unchanged on every one, so each was a pure symbol-table renumbering exactly as claim.law.WF_a-pool-fix-renumbers-relocation-hashes-not-body-hashes.20260901.v1 describes. The lane worked around it with an untracked scratch script that anchors the paste on the do_exit window's unique region hash 6eb6d09ea0403c1e... rather than on the relocation hash itself; that anchoring is the fix wf_rederive_pin should adopt, since a region hash is unique per rule while a twinned relocation hash is not.",
+    "scope": "config/GUNE5D/webfrank.json rules whose instruction_permutation carries identical before_ and after_relocations_sha256 values, and the probe.py/wf_rederive_pin orchestration around them. Does not claim the guard is unsound -- it is refusing correctly by its own logic, per AGENTS.md discipline 14.",
+    "tags": [
+      "postprocessor",
+      "relocation",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run `python tools/gdl/composed_census/wf_rederive_pin.py game/game/player do_exit --apply` after any count-changing edit to a function preceding do_exit in source order. If it pastes without the `refusing an ambiguous paste` error, clause (2) has been fixed or the rule's two relocation hashes have diverged. For clause (1), a `probe.py --rederive-pin` that accepts the pinned function's name independently of the probed function's name would close it.",
+  "id": "claim.law.PC_wf-rederive-pin-apply-cannot-paste-a-twinned-relocation-hash-and-probe-rederive-pin-targets-the-wrong-function.20260902.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-02T15:16:31Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "THE DOWNSTREAM-PIN REPAIR PATH IS UNAUTOMATED FOR EXACTLY THE PIN SHAPE IT WAS BUILT FOR, AND ITS ORCHESTRATOR FLAG POINTS AT THE WRONG FUNCTION. Measured nine times in one session on game/game/player. (1) `probe.py <unit> <fn> --rederive-pin` re-derives the pin belonging to THE FUNCTION NAMED ON THE COMMAND LINE, but the pin that a do_players edit invalidates belongs to do_exit, the function DOWNSTREAM in source order. Running `probe.py game/game/player do_players --rederive-pin` therefore prints `no webfrank rule for game/game/player::do_players` and aborts, which reads as 'the repair tool does not apply here' rather than 'you named the wrong function'. The working invocation is the underlying tool against the PINNED function: `python tools/gdl/composed_census/wf_rederive_pin.py game/game/player do_exit --apply`. (2) That --apply then refuses anyway. do_exit's instruction_permutation moves no relocation, so its before_relocations_sha256 and after_relocations_sha256 carry the SAME hash; wf_rederive_pin's surgical single-occurrence string swap counts two occurrences of that string and aborts with `refusing an ambiguous paste; hand-edit the window`. Both occurrences belong to the one rule, so replacing both is precisely what --apply intended -- the guard fires on its own success case. Every count-changing probe upstream of a twinned-hash pin therefore costs a manual webfrank.json edit plus a configure.py re-run, three extra tool calls per probe, and the failure surfaces only as a build abort mid-probe (`ValueError: instruction permutation relocation input hash changed`) AFTER the edit is already in the tree. (3) THE TRAP THIS SETS: when the build aborts, the previously built object is still on disk, so an `fnasm --diff` run in the same breath returns the PREVIOUS probe's aligned view with no staleness marker. A verdict was nearly recorded from that stale view this session. Always re-derive, re-configure and rebuild green BEFORE reading any aligned view. (4) A pin's hash is a function of the pool numbering, not a monotone counter: across nine probes the do_exit hash cycled ffa3fe42 -> d09ab1fa -> 87c96f03 -> d09ab1fa -> ffa3fe42 -> ... and returned to its committed value at the state that was finally kept, so `git status` showed webfrank.json CLEAN. A clean webfrank.json after a pin repair is NOT evidence that the repair was skipped."
+}

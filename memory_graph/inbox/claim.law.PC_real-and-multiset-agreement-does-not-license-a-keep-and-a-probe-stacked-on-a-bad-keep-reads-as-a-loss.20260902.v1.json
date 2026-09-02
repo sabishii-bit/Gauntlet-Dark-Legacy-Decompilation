@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py game/game/player do_players --fuzzy",
+    "tools/gdl/probe.py game/game/player do_players --rebase-best"
+  ],
+  "attributes": {
+    "provenance": "src/game/game/player.c::do_players, worktree GDL-Claude-DoPlayers24c, work_claim.do-players-24c.20260902.v1, run 35. First clause = probe I; second clause = probes J (94.9106, stacked) versus K (95.2683, on the clean committed tree at b2c7d2c4e), which are the SAME source edit. Full probe log and verdicts in attempt.PC_do-players-addressing-form-is-source-reachable-and-the-exit-check-is-an-inlined-predicate.20260902.v1. Extends claim.law.IH_multiset-gain-does-not-imply-fuzzy-gain-arbitrate-with-count-distance.20260901.v1, which covers the multiset alone; the new content is that real AND multiset agreeing is still not sufficient, and that the banked-base effect inverts a later probe's sign.",
+    "scope": "The tools/gdl/probe.py edit loop as it stands at run 35, on functions below the 4000-instruction threshold where real is nominally the primary arbiter. Does not claim probe.py is wrong to print IMPROVED -- it claims the verdict does not license banking without a fuzzy measurement.",
+    "tags": [
+      "metrics",
+      "workflow",
+      "batch-gating"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a probe.py IMPROVED verdict (real down, multiset flat or down) on any function where a fresh `probe.py --fuzzy` on the same bytes confirms fuzzy also rose, in a large enough sample that the first clause's failure mode is shown to be rare rather than structural -- the claim here is only that AGREEMENT OF real AND multiset IS NOT SUFFICIENT, so a single counterexample of agreement-plus-fuzzy-gain does not disprove it, but a measured survey finding no IMPROVED-verdict fuzzy regressions would. For the second clause: re-apply the do_players predicate extraction (probe K of attempt.PC_do-players-addressing-form-is-source-reachable-and-the-exit-check-is-an-inlined-predicate.20260902.v1) on top of the probe-I state and obtain a fuzzy at or above 95.2683; that would show the stacking did not cause the inversion.",
+  "id": "claim.law.PC_real-and-multiset-agreement-does-not-license-a-keep-and-a-probe-stacked-on-a-bad-keep-reads-as-a-loss.20260902.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-02T15:16:23Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "TWO MEASUREMENT FAILURES, ONE ROOT CAUSE: THE PROBE LOOP ARBITRATES A STATE AGAINST THE PREVIOUS STATE, SO A BAD KEEP BECOMES THE YARDSTICK FOR EVERY LATER PROBE. FIRST CLAUSE: probe.py's IMPROVED verdict is not sufficient evidence to bank. The mandate requires fresh fuzzy on a CONFLICT, and CONFLICT is defined as real and the opcode multiset DISAGREEING -- so the one shape the mandate does not cover is real and multiset AGREEING while fuzzy falls. Measured on do_players: an edit naming a byte offset as an s32 local moved real 1092 -> 1091 AND the multiset 20t -> 19t AND the instruction count 1170 -> 1171 toward the target's 1174, so probe.py printed `IMPROVED [best updated]` and banked it as the revert point. Its fresh fuzzy was 94.4804 against the previous state's 94.9387 -- a 0.4583 REGRESSION that all three primary arbiters called an improvement, because the edit replaced a displacement pair with a pointer add that read further from target while shortening the linear diff. SECOND CLAUSE, AND THE MORE EXPENSIVE ONE: once that state was banked, the NEXT probe was measured on top of it and its verdict inverted. The same predicate-extraction edit measured 94.9106 stacked on the bad keep -- a loss against 94.9387, and it would have been recorded as a refuted axis -- and 95.2683 when the tree was first restored to the last COMMITTED state and the identical edit applied alone. The edit was worth +0.3296 fuzzy and five multiset tokens; stacked, it read as -0.0281. A banked state that no gate ever rejected silently converted a win into a park. THE RULE: measure fresh fuzzy before banking ANY state whose keep decision rests on real or the multiset, not only on a CONFLICT; and when a probe lands on a base that was itself banked without a fuzzy measurement, re-run it from the last COMMITTED tree before recording a negative. The commit, not the bank, is the trustworthy base -- which is the arbitration corollary of the run-34 lane-lock law that the commit is the first evidence an edit exists."
+}
