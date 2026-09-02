@@ -5635,12 +5635,12 @@ static void PlayerProcessSkinFX(void* vp) {
     }
     if (fresh != 0 && ps->atree != NULL) {
         if (p->level >= 99) {
-            *(f32*)((u8*)ps->atree + 0x10) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x164);
-            *(f32*)((u8*)ps->atree + 0x14) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x168);
-            *(f32*)((u8*)ps->atree + 0x18) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x16C);
-            *(f32*)(*(u8**)ps->atree + 0x30) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x164);
-            *(f32*)(*(u8**)ps->atree + 0x34) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x168);
-            *(f32*)(*(u8**)ps->atree + 0x38) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x16C);
+            *(f32*)((u8*)ps->atree + 0x10) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x164);
+            *(f32*)((u8*)ps->atree + 0x14) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x168);
+            *(f32*)((u8*)ps->atree + 0x18) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x16C);
+            *(f32*)(*(u8**)ps->atree + 0x30) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x164);
+            *(f32*)(*(u8**)ps->atree + 0x34) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x168);
+            *(f32*)(*(u8**)ps->atree + 0x38) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x16C);
         } else {
             *(f32*)((u8*)ps->atree + 0x10) = *(f32*)(lbl_80282930[p->index] + 0x164);
             *(f32*)((u8*)ps->atree + 0x14) = *(f32*)(lbl_80282930[p->index] + 0x168);
