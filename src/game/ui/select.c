@@ -2734,9 +2734,9 @@ substate:
                       lbl_801200B0[spec], extra);
         }
         if (texName != 0) {
+            extra = lbl_801200B0[*(s32*)(pl + offsetof(Player, respawn_char))];
             (void)pbLoad;
-            setup_tex(player, 8, 0, 0, lbl_80347F58,
-                      lbl_801200B0[*(s32*)(pl + offsetof(Player, respawn_char))]);
+            setup_tex(player, 8, 0, 0, lbl_80347F58, extra);
         } else {
             mbBlitInit3414(*(void**)eB, 1);
             mbBlitInit3414(*(void**)eC, 1);
