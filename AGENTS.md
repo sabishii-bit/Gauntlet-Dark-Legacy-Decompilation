@@ -352,8 +352,11 @@ one, and supersede the law if your target contradicts it.
    tools/gdl/tests` from the repo root. There is no pytest. Module
    counts drift — state test gates as the command plus "all green",
    not as a number. For the memory graph, `gdlmem build` is the
-   working integrity gate (~30s); `gdlmem validate` does not complete
-   at current corpus size — never block on it.
+   write-path gate (~30s) and `gdlmem validate` is the whole-corpus
+   check — it now completes in under a second (the old "never block
+   on it" advice described a quadratic bug, fixed run 33 at 3,400x).
+   validate reports dangling citations from pruned records as DEBT,
+   not failure; staging stays strict.
 14. **A guard's refusal is a measurement of the guard, not only of the
    function.** Two coarse guards each refused a provable function
    while failing correctly by their own logic (blanket relocation
