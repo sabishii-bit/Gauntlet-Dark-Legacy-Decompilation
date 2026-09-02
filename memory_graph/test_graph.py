@@ -1890,6 +1890,51 @@ class RetrievalQueryTests(unittest.TestCase):
         for row in brief["live_attempts"]:
             self.assertNotIn("_record", row)
 
+    # --- run-39 item 8: the word-diff screen rides the signature ----------
+    # AGENTS.md carried this as a screen for POSTPROCESSOR-lane briefs only,
+    # so a SOURCE-lane brief inherited a residual signature without it and
+    # UD's "25-word permutation" framing died on contact with the real
+    # count. Measured live on game/game/player at 17297fddd:
+    # player_store_in_save's recorded signature frames the residual as "2
+    # ops clusters" while the CURRENT raw count is 33 words; and
+    # PlayerProcessPowerups reads 187 raw against 2 unabsorbed, which is why
+    # quoting `unabsorbed` under a word-count framing understates the work.
+
+    def test_a_row_quoting_a_signature_carries_the_live_word_count(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        quoting = [row for row in brief["vetoed_axes"]
+                   if (row.get("residual") or {}).get("signature")]
+        self.assertTrue(quoting, "fixture must have a signature-bearing park")
+        for row in quoting:
+            self.assertIn("current_differing_words", row)
+            self.assertIn("signature_screen", row)
+
+    def test_the_screen_names_the_raw_count_as_the_decider(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        for row in brief["vetoed_axes"]:
+            if "signature_screen" not in row:
+                continue
+            screen = row["signature_screen"]
+            self.assertIn("RAW COUNT", screen)
+            self.assertIn("postprocessor candidacy", screen)
+            # null must never read as zero — the metric is undefined for a
+            # count-asymmetric function, which is itself a finding.
+            self.assertIn("never zero", screen)
+
+    def test_a_row_with_no_signature_is_not_given_a_screen(self):
+        """The screen is about an INHERITED signature; attaching it to every
+        park would make it noise and teach lanes to skim past it."""
+        brief = tu_briefing("game/test/foo", root=self.root)
+        for row in brief["vetoed_axes"]:
+            if (row.get("residual") or {}).get("signature"):
+                continue
+            self.assertNotIn("signature_screen", row)
+
+    def test_the_roster_carries_the_raw_word_count_too(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        for row in brief["functions"]:
+            self.assertIn("differing_words", row)
+
     # --- run-39 item 9: --roster-only -------------------------------------
     # A full brief on game/game/player measures 201,535 bytes (~50K tokens);
     # UD measured 47K for one TU. The roster is 35.7% of it, and 53KB of

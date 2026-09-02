@@ -7529,6 +7529,15 @@ def tu_briefing(
             "unabsorbed_class": (
                 unabsorbed_rows.get(row["raw_name"]) or {}).get(
                     "residual_class"),
+            # The RAW differing-word count, already computed in the same
+            # pass (run-39 item 8). It is what decides postprocessor
+            # candidacy — `unabsorbed` is what the register-field stage
+            # cannot absorb, a strictly smaller number (do_exit: 18 raw, 8
+            # unabsorbed) — and a brief that quoted only the latter under a
+            # word-count framing understated the work.
+            "differing_words": (
+                unabsorbed_rows.get(row["raw_name"]) or {}).get(
+                    "differing_words"),
             "unabsorbed_staleness": unabsorbed_staleness,
         }
         for row in functions
@@ -7593,6 +7602,33 @@ def tu_briefing(
             "axis": attempt["head"],
             "age_days": attempt["age_days"],
         }
+        # THE WORD-DIFF SCREEN, ATTACHED TO THE INHERITED SIGNATURE (run-39
+        # item 8). AGENTS.md carried this as a screen for POSTPROCESSOR-lane
+        # briefs only, so a SOURCE-lane brief inherited a residual signature
+        # without it and UD's "25-word permutation" framing died on contact
+        # with the real count. The count is what decides postprocessor
+        # candidacy, not the --ops cluster count — and it is already
+        # computed in this call, so the screen costs nothing and cannot be
+        # skipped by whoever writes the brief.
+        signature = (row["residual"] or {}).get("signature") \
+            if isinstance(row["residual"], dict) else None
+        if signature:
+            live = unabsorbed_rows.get(
+                str(row["function"]).removeprefix("function:")) or {}
+            row["current_differing_words"] = live.get("differing_words")
+            row["current_unabsorbed_words"] = live.get("unabsorbed")
+            measured_at = (row["residual"] or {}).get("measured_at") \
+                or "an unstated date"
+            row["signature_screen"] = (
+                "This row QUOTES a residual signature recorded at"
+                f" {measured_at}; current_differing_words beside it is the"
+                " CURRENT raw differing-word count for this function, read"
+                " from the objects on disk. If they disagree the signature"
+                " is STALE, and the RAW COUNT decides postprocessor"
+                " candidacy — not the --ops cluster count and not the"
+                " recorded framing. null means unmeasurable here (unequal"
+                " sizes, or no built object), never zero."
+            )
         typed_denial = _record_field(attempt["_record"], "denial")
         if typed_denial:
             row["denial"] = typed_denial

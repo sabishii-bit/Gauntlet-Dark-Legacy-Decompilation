@@ -1057,9 +1057,18 @@ each screen below costs one command and would have caught its lane):
   a citation; `gdlmem search` must return the record, and the order names
   its id. (A memory-index summary can advertise a plan its own note body
   records as superseded — dispatch reads indexes.)
-- **Postprocessor-lane briefs**: run `wf_word_diff.py` on the target
-  function first and quote the raw differing-word count next to any
-  residual description the brief inherits from a record.
+- **ANY brief inheriting a residual signature** — not only a
+  postprocessor-lane one: quote the raw differing-word count next to the
+  inherited description. Run 38: a SOURCE-lane brief skipped this because
+  the rule named postprocessor lanes, and its "25-word permutation"
+  framing died on contact with the real count. `brief` now attaches
+  `current_differing_words` to every `vetoed_axes` row that quotes a
+  signature (and to every roster row), so the screen costs nothing and
+  cannot be skipped by whoever writes the brief; `wf_word_diff.py <unit>
+  <fn>` remains the one-function form. The RAW count decides
+  postprocessor candidacy — `unabsorbed` is the strictly smaller
+  register-field-stage number (do_exit: 18 raw, 8 unabsorbed) and is not
+  a substitute for it.
 - **Worker step 0 is `python tools/gdl/provision_worktree.py`** from the
   worker's own worktree — a fresh worktree lacks build.ninja/orig/build
   and the failure mode is a confusing smoke-test error minutes in.
