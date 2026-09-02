@@ -481,6 +481,29 @@ sibling consumers; never invent names.
   authored without any source-work trail, which is the "wanton use"
   failure mode. Functions with no such record get a source-first pass
   BEFORE any rule.
+- **Commissioning a postprocessor CAPABILITY requires a DEMAND CENSUS
+  FIRST** (WF, run 34: a sound, correctly-guarded capability was built and
+  shipped with ZERO customers — no parked function in the corpus was
+  waiting on it). Soundness is necessary and not sufficient; a capability
+  with no customer is a guard surface to maintain forever in exchange for
+  nothing. Before writing one, COUNT the functions it would unpark and
+  name them in the proposing record:
+
+  ```text
+  gdlmem.py find --capability <name>       # the parks that named this
+                                           # capability_needed = its payoff
+  gdlmem.py laws --residual "<signature>"  # who else has this residual
+  gdlmem.py find --residual <signature> --outcome parked
+  ```
+
+  Report the census as a NUMBER with the record ids, and treat a count of
+  zero as a refutation of the premise, not as a reason to build it and
+  hope (discipline 5: a refuted premise is a deliverable). If the demand
+  is real but unrecorded, the fix is to record the parks first — a
+  capability justified only by the builder's belief that someone will
+  want it is the "wanton use" failure mode in a different costume.
+  Corollary of the source-exhaustion rule above, at the class level
+  rather than the rule level.
 - **Class ceiling**: every postprocessor class must be attributable to
   allocator/scheduler variance under a proven compiler. The relational
   value-equality mode is the outer boundary — no class may cross into
