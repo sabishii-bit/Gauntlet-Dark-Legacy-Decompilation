@@ -1,0 +1,24 @@
+{
+  "attempted_axis": "Work order: write the MSL FLOAT trig TU covering [0x800EA674,0x800EAE2C) as trigf.c from a roster+plan said to be banked in the graph, then the 0x800E539C gap fn. Executed the verification step the order mandated FIRST; every premise measured false, so no source was written.",
+  "attributes": {
+    "law_screen": "AGENTS.md discipline 5 (a refuted premise is a deliverable) - APPLIED, and is the whole outcome of this lane. Discipline 8 (write records FROM tool output) - APPLIED: every number above is pasted from a live run at 456857fd4, none from the work order or from MEMORY.md. Discipline 11 (gdlmem context before first edit) - APPLIED and decisive: the graph screen is what exposed the missing roster before any source was written. Discipline 17 (promoted scripts run once from repo root, lane-prefixed) - APPLIED to mt_region_census.py. Codegen laws: NONE APPLICABLE - no source was edited and no residual exists to screen, because every function in scope already measures byte-exact. The parked MSL siblings named as VETOED in the work order (e_rem_pio2, bsearch, qsort, strstr) were not touched; note for the record that all four now measure 100.00/100.00 Matching, so those vetoes are moot rather than binding.",
+    "residual": "None in scope. The lane's product is the refutation plus the census tool.",
+    "scope": "No source files touched. Added tools/gdl/composed_census/mt_region_census.py (commit e37d0c9f0), a promoted pre-dispatch screen.",
+    "verification": "ninja -j2 green, 'build/GUNE5D/main.dol: OK' (retail sha1 held); progress unchanged at 98.43% fuzzy / 66.22% matched, STRICT 56.45% + EQUIVALENT 9.77% - identical to the pre-lane baseline, as expected for a lane that correctly wrote nothing."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/mt_region_census.py --prefix MSL/  -- exit 1 and 'VERDICT: MSL/ is COMPLETE' means this denial still holds; exit 0 lists the units that reopened.",
+    "falsifier": "Any MSL/ unit printed as OPEN by mt_region_census.py (status not Matching, or missing src/), or a non-zero UNCLAIMED gap in the MSL .text span, or an MSL unit appearing in webfrank.json/p6frank.json (which would move it from STRICT to EQUIVALENT and make STRICT-closure real work).",
+    "premise_measurement": "Three independent measurements on 2026-09-02 at commit 456857fd4. (1) `gdlmem search trigf` and `gdlmem search 'MSL trig'` each return ONE record - the work_claim itself - plus two symbols (__sinit_trigf_c, __sinit_trigf_c_reference); there is NO roster record and NO plan record in the graph. (2) config/GUNE5D/splits.txt already splits the region into three named TUs (MSL/atanf.c .text 0x800EA674-0x800EAAC4, MSL/sincos.c .text 0x800EAAC4-0x800EAE2C, MSL/trigf_data.c .data 0x802387C0-0x80238808); configure.py carries all three as Object(Matching, ...); src/MSL/atanf.c, src/MSL/sincos.c, src/MSL/trigf_data.c and src/MSL/trigf.h all exist on disk; git log shows them landed by commits 79aa62155 ('Match MSL/atanf.c') and 50a0bfc67 ('Match MSL/sincos.c + trigf_data.c'). (3) Live build/GUNE5D/report.json after a green `ninja -j2`: MSL/atanf 100.00 fuzzy / 100.00 matched, 7/7 functions (fabsf, atan, atanf, __rsqrtf, acosf, atan2, floorf); MSL/sincos 100.00/100.00, 3/3 (cos, sin, __sinit_trigf_c); MSL/trigf_data 100.00/100.00. The order's own roster hint ('fabsf/atan/atanf/acosf lead the region') matches MSL/atanf.c's shipped roster exactly - the roster was right and the work was already done. Separately, 0x800E539C is not trig at all: symbols.txt gives `__exit = .text:0x800E539C` and splits.txt makes it the START of MSL/abort_exit.c, which measures 100.00/100.00 3/3 and is Matching. Full-family census (tools/gdl/composed_census/mt_region_census.py --prefix MSL/): 40 .text TUs + 1 data-only TU, ALL Matching with source present, ALL 100.00 fuzzy / 100.00 matched, ZERO unclaimed .text gaps across 0x800E539C-0x800EAE2C. Zero MSL entries in config/GUNE5D/webfrank.json (235KB) or p6frank.json, so the whole family is STRICT, not EQUIVALENT. Gate: `ninja -j2` printed 'build/GUNE5D/main.dol: OK'.",
+    "scope": "The MSL float-trig write lane specifically: TUs MSL/atanf.c, MSL/sincos.c, MSL/trigf_data.c covering .text [0x800EA674,0x800EAE2C), plus the 0x800E539C 'gap fn'. Not a denial about any other MSL work or about the fdlibm double-precision siblings."
+  },
+  "function": "function:atanf",
+  "id": "attempt.MT_msl-trigf-region-was-already-complete-before-dispatch.20260902.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-02T14:49:57Z",
+  "refutes": "work_claim.msl-trigf.20260902.v1",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

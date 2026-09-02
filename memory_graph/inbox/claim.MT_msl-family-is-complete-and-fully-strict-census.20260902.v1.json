@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "gate": "ninja -j2 printed 'build/GUNE5D/main.dol: OK'; progress 98.43% fuzzy / 66.22% matched, STRICT 56.45% + EQUIVALENT 9.77%",
+    "measured_at": "2026-09-02",
+    "measured_at_commit": "456857fd4",
+    "measurement_command": "python tools/gdl/composed_census/mt_region_census.py --prefix MSL/",
+    "tags": [
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.MT_msl-family-is-complete-and-fully-strict-census.20260902.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-02T14:50:08Z",
+  "schema_version": 1,
+  "subject": "tu:MSL/atanf.c",
+  "valid_from": "2026-09-02",
+  "value": "NEGATIVE OPPORTUNITY - the MSL family has zero open matching work as of 2026-09-02 at commit 456857fd4, measured live, not inferred. Census via tools/gdl/composed_census/mt_region_census.py --prefix MSL/ against splits.txt, configure.py and a fresh build/GUNE5D/report.json: 40 MSL TUs carry a .text split spanning 0x800E539C-0x800EAE2C contiguously, plus one data-only TU (MSL/trigf_data.c). Every one of the 41 is Object(Matching, ...) in configure.py, has its source present under src/MSL/, and measures 100.00 fuzzy / 100.00 matched with all functions matched. Zero unclaimed .text gaps inside the span. Zero MSL units appear anywhere in config/GUNE5D/webfrank.json (235KB) or config/GUNE5D/p6frank.json, so all 41 are STRICT (compiler output byte-identical) and none is EQUIVALENT/postprocessor-assisted - there is no STRICT-closure work hiding behind a matched percentage here either. This supersedes as MOOT the four MSL parks that later runs kept re-flagging as vetoed axes: e_rem_pio2, bsearch, qsort and strstr (the strfind.c pair) all now measure Matching at 100.00/100.00, so those regalloc parks describe a state the tree has left. Practical consequence for dispatchers: MSL is not a source of candidates - the 'MSL trig gap' and 'MSL region remaining' items still circulating in run notes are stale, and the frontier is entirely inside the NonMatching game TUs."
+}

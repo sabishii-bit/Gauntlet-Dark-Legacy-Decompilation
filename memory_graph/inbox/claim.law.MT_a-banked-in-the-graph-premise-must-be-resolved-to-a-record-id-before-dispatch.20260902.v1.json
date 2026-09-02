@@ -1,0 +1,22 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/mt_region_census.py"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A work order citing 'banked in the graph' whose named artifact resolves to a real roster/plan record of kind claim or attempt (not merely its own work_claim) under `gdlmem search <slug>`, dispatched onto a family that mt_region_census.py reports OPEN - that would show the citation habit is sound and that this lane's loss came from something other than an unresolvable premise. Equally falsifying: a measured case where running the census before dispatch failed to predict whether the lane had work, i.e. the census reported COMPLETE for a family that still had genuinely unwritten functions.",
+  "id": "claim.law.MT_a-banked-in-the-graph-premise-must-be-resolved-to-a-record-id-before-dispatch.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T14:49:59Z",
+  "schema_version": 1,
+  "subject": "tu:MSL/atanf.c",
+  "valid_from": "2026-09-02",
+  "value": "A work order that justifies a FRESH-TU write lane with 'roster and plan banked in the graph' must cite the RECORD ID, and the dispatcher must run the three-command completeness screen (splits.txt + configure.py status + live report.json, i.e. mt_region_census.py --prefix X) before spawning. Measured 2026-09-02 at 456857fd4: the run-35 MT lane was dispatched to write the MSL float trig TU [0x800EA674,0x800EAE2C) on a 'roster + plan banked in the graph - gdlmem search trigf' premise. `gdlmem search trigf` returns exactly one record, the work_claim itself: the roster and plan were never graph records at all. They existed only as a line in a user-side markdown memory file ('remaining: public trig TU [A674-AE2C) FULLY IDENTIFIED as FLOAT trigf.c (roster+plan banked) - write next'), which AGENTS.md explicitly excludes from the knowledge system. The region had in fact been matched two commits earlier (79aa62155, 50a0bfc67): all three TUs Matching, 10/10 functions at 100.00 fuzzy / 100.00 matched, and the whole MSL family complete with zero unclaimed .text gaps. The stale markdown note was the sole source of the premise and it outlived the work by two commits. Two distinct failure modes are jointly responsible and each is separately screenable: (a) an unresolvable citation - 'banked in the graph' with no id is unfalsifiable prose, and a grep for the id costs one call; (b) no completeness screen - the census that settled it takes about three seconds and is now one command. Corollary, measured on the same lane: a work order's SECONDARY target can be misclassified the same way. The order queued 'the 0x800E539C gap function ... if your roster confirms it belongs to this family'; symbols.txt shows 0x800E539C is `__exit`, and splits.txt makes it the first address of MSL/abort_exit.c, already Matching at 100.00/100.00 - a bare address in a work order is a hypothesis, and resolving it against symbols.txt costs one grep. Corollary two: a roster hint can be CORRECT while the lane is still void - the order's 'fabsf/atan/atanf/acosf lead the region' matched the shipped MSL/atanf.c roster exactly, so premise accuracy about CONTENT is not evidence about STATE. Screen state and content separately."
+}
