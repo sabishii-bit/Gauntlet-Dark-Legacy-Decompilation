@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/unabsorbed.py game/sys/memcard",
+    "tools/gdl/composed_census/wf_word_diff.py game/sys/memcard memCardErrorPrompt",
+    "MC_scratch/mc_objcheck.py"
+  ],
+  "attributes": {
+    "provenance": "Measured 2026-09-02 in worktree GDL-Claude-MemcardSweep on branch claude/memcard-sweep-20260902 at base 5d54ac462, under work_claim.memcard-sweep.20260902.v1. The census reproduced run-35's T5 numbers exactly (30 paired: allocator 24, schedule 1, source-structural 2, count-asymmetric 3), so the disagreement is not a drift artifact - the same census that is correct at the TU level is blind at the row level.",
+    "tags": [
+      "metrics",
+      "matching",
+      "workflow",
+      "core-screen",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Point unabsorbed.py at the raw .postprocess/body for game/sys/memcard and re-run: if memCardErrorPrompt, MemCardCreateGaunt and add_vmu_file still report 0 unabsorbed / class allocator, then the postprocessed object is not the cause and this law is wrong. Equivalently, find any function with a shipped webfrank rule whose current census row is NOT tier A / allocator - one such row disproves the 'by construction' clause.",
+  "id": "claim.law.MC_the-unabsorbed-census-scores-the-postprocessed-object-so-its-allocator-class-conflates-compiler-exact-rule-served-and-open.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T16:36:34Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "THE `unabsorbed` CENSUS COLUMN - the closability metric that `gdlmem brief` prints and that roster lanes rank by - READS THE POSTPROCESSED OBJECT, so a function already closed by a shipped WebFrank rule reads 0 unabsorbed / tier A / class `allocator` BY CONSTRUCTION, exactly like a function the compiler already emits byte-exactly. THE MECHANISM: tools/gdl/unabsorbed.py::unit_rows loads ours from build/GUNE5D/src/<tu>.o, which is the WEBFRANK stage's OUTPUT, while tools/gdl/composed_census/wf_word_diff.py deliberately loads the RAW build/GUNE5D/src/<dir>/.postprocess/body/<tu>.o so already-shipped rules stay visible. MEASURED on game/sys/memcard at commit 5d54ac462, all four rows in one run: memCardErrorPrompt src/.o differing words 0 vs RAW 2; MemCardCreateGaunt 0 vs 5; add_vmu_file 0 vs 5; drawMemCardMessage 61 vs 61 (the control - it has no rule, so both views agree). The three that disagree are precisely the TU's three webfrank pins. THIS IS THE `fndiff` PIN-MASKING LAW GENERALISED FROM A SCORE TO A CLASSIFIER, and it is more dangerous there, because a score that reads 0 announces itself as suspicious while a CLASS that reads `allocator` reads as a work item. WHAT IT COSTS A LANE THAT DOES NOT KNOW IT: a work order sized from the class line. This lane was dispatched to screen \"24 allocator-class functions\" for postprocessor candidacy; running wf_word_diff over all 24 showed 20 with ZERO differing words (the compiler already emits them exactly - nothing to screen), 3 already served by shipped rules, and exactly ONE genuinely open candidate (drawMemCardMessage). The premise's population was 24 and its true population was 1, a 24x sizing error, and no amount of reading the census alone would have revealed it. THE CHEAP FIX FOR A CONSUMER: never rank or size from `unabsorbed`/`residual_class` alone - join it against the raw word count and against the unit's rule list in config/GUNE5D/webfrank.json, which is what separates `compiler-exact` from `rule-served` from `open`. THE FIX FOR THE TOOL: unabsorbed.py should read the raw .postprocess/body where present, as wf_word_diff already does, and report rule-served rows as their own class rather than folding them into `allocator`."
+}
