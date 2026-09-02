@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/defake_gate.py baseline game/game/player",
+    "build/GUNE5D/gate/game_game_player.json"
+  ],
+  "attributes": {
+    "provenance": "Run 39, do_players lane, worktree GDL-Claude-DoPlayersNext at main 0f45ae610. The step-0 baseline command reported '93 functions (71 at real 0)' and wrote build/GUNE5D/gate/game_game_player.json; the relocation census above was read from that file with no build in between. It refutes the live branch of attempt.PC_do-players-loop-head-named-base-refuted-and-the-linkage-lever.20260902.v1 ('converting the whole TU's model of this object to the external form could hold do_players' +0.2998 AND re-close all six') and independently corroborates the standing TU-wide veto in claim.law.PC_storage-class-of-a-same-tu-base-object-is-a-codegen-lever-that-must-be-gated-tu-wide.20260902.v1, which was honoured rather than re-tested: the storage class was held at `static` for the whole session and probes K and L were not re-applied.",
+    "scope": "tools/gdl/defake_gate.py gate baselines for GUNE5D, and the OURS side of any relocation question. Says nothing about the target side, which has no relocations to read. The six-consumer inference is scoped to an object that several byte-exact functions address as a shared base anchor; a single exact consumer would be much weaker evidence, and a consumer that is NOT byte-exact is no evidence at all about which payload form the target used.",
+    "tags": [
+      "workflow",
+      "relocation",
+      "symbol-identity",
+      "metrics",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a `build/GUNE5D/gate/<unit>.json` produced by a current `defake_gate.py baseline` whose function entries lack a `relocs` list, or one whose `relocs` symbols disagree with `objdump -r` on the same object for the same function -- either would show the artifact is not a sound record of our relocations and that the zero-cost screen asserted here is unavailable or wrong. Cheapest check: pick any function in any gate baseline, read its `relocs`, and compare against the object's own relocation table; they must agree symbol-for-symbol. To disprove the do_players-specific conclusion instead, find a `.bss` section-symbol relocation anywhere in game/game/player's object, or show that one of the six named functions is NOT real 0 at HEAD.",
+  "id": "claim.law.PC_the-defake-gate-baseline-already-holds-the-per-function-relocation-table-that-decides-a-storage-class-question.20260903.v1",
+  "kind": "claim",
+  "predicate": "tooling_law",
+  "recorded_at": "2026-09-02T21:06:25Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "THE ARTIFACT EVERY LANE ALREADY PRODUCES AT STEP 0 CARRIES OUR OBJECT'S PER-FUNCTION RELOCATION TABLE, SO A RELOCATION-FORM OR STORAGE-CLASS QUESTION IS ANSWERABLE AT ZERO BUILD COST -- READ IT BEFORE PROBING. `defake_gate.py baseline <unit>` writes build/GUNE5D/gate/<unit>.json, and each function entry holds `real`, `fuzzy`, `bytes`, `opset` AND a `relocs` list of [type, symbol] pairs read from the real ELF object. That list is the sound side of the relocation comparison: per claim.law.PC_fnasm-target-relocation-annotations-are-symbolized-from-symbols-txt-not-real-relocations.20260902.v1 the retail DOL is a linked image with NO relocations, so 'dump the target's relocations' is not an instrument that exists, and any work order or record demanding one is unexecutable as written. What IS decisive is which symbol OUR object relocates against and whether the functions using that form are byte-exact. MEASURED ON game/game/player at HEAD, before any edit: `potionicon_tab` anchors 56 relocations across the TU and the count naming ANY `.bss` section symbol is ZERO -- our object already relocates the whole 0xC40 .bss run by OBJECT NAME plus addend, not through a section symbol. That killed a two-run-old premise outright. It also closed the question a run-38 record had left as its mandatory step 1: all six functions that record named as demoted by an external-linkage probe (DoPlayerTexMods, GetMaxPlayerModelSize, SetPlayerWindows, SetupPlayerTexMods, ShowRuneStones, del_player_blits) are real 0 / fuzzy 100.0 TODAY and EACH carries exactly two relocations naming `potionicon_tab`. Six byte-exact consumers carrying a payload form is direct evidence the target's own object used that form; they are not reconstruction debt, and the storage-class flip that destroys the form cannot net positive. THE COST OF NOT READING IT: the run-38 lane spent two full-build probes plus a whole-project PROGRESS comparison to discover this question, then wrote it down as work for the next lane -- and the answer was already inside the JSON its own step-0 gate had written minutes earlier. PROCEDURE: before any probe motivated by a relocation, a symbol identity, or a storage class, load the gate baseline JSON and count the reloc symbols per function. It costs one file read, it is already on disk, and it distinguishes 'our object names the wrong thing' from 'the two tools print different kinds of fact'."
+}
