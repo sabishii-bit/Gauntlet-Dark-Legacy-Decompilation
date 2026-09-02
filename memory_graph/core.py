@@ -4359,6 +4359,33 @@ _CONTRADICTION_STOPWORDS = frozenset("""
 # cannot fire, which is worse than no gate because it reads as an all-clear.
 _CONTRADICTION_MIN_SHARED = 2
 
+# How many sibling residual rows `laws --residual` returns without --full.
+# The rows are ranked by match_strength with the common-mnemonic tail LAST,
+# so the truncation drops the weakest evidence first (run-40 item 4).
+RESIDUAL_MATCH_PREVIEW = 15
+RESIDUAL_LAW_PREVIEW = 15
+RESIDUAL_HEAD_CHARS = 280
+# The projection a --residual query returns per law without --full. MEASURED
+# on this corpus: a full law row averages 1.47 KB, of which `evidence`
+# (42.0%), `head` (24.3%) and `scope` (11.1%) are the weight — and 91 of
+# them made `laws --residual "+1 stfsu -1 stfs"` a 230,719-byte spill for a
+# 72-record cohort. Filtering by cohort citation does NOT help on a common
+# mnemonic (all 91 laws were cited by that cohort), so the fix is the
+# PROJECTION, not the predicate: enough to rank and to decide what to fetch,
+# with `record <id>` or `--full 1` for the bodies.
+RESIDUAL_LAW_PREVIEW_KEYS = (
+    "id", "status", "score", "n", "applied_count", "match",
+    "residual_relevance", "residual_cohort_citations", "superseded_by",
+    "age_days", "tags",
+)
+# Pin `mechanism` prose is the densest derivation of a closed residual
+# anywhere in the project (AGENTS.md), so it is truncated rather than
+# dropped, and the file it lives in is named so the full text is one Read
+# away. 39 pins matched "+1 addi -1 li" at 2.4 KB each = 92 KB, 67% of the
+# post-compaction payload.
+RESIDUAL_PIN_PREVIEW = 6
+RESIDUAL_PIN_MECHANISM_CHARS = 700
+
 
 def _sentences(text: str) -> list[str]:
     return [part.strip() for part in re.split(r"(?<=[.;!?])\s+|\n+", text)
@@ -6692,6 +6719,31 @@ def law_corpus(
             laws.sort(key=lambda row: law_score_sort_key(
                 {"status": row["status"], "wilson": row["score"],
                  "n": row["n"], "id": row["id"]}))
+    # RESIDUAL VOLUME (run-40 item 4). `--residual` RANKED the corpus for the
+    # query but never FILTERED it, so a signature with a handful of siblings
+    # still shipped every law and every pin: measured on this corpus,
+    # `laws --residual "+1 stfsu -1 stfs"` returned 230,719 bytes of which
+    # 163,198 (70.7%) were 91 laws the cohort never cites, and
+    # `"+1 addi -1 li"` returned 519,435 bytes. Both spilled to a file, which
+    # turns a one-line question into "read this 500KB artifact".
+    #
+    # A residual query asks "who else had THIS residual, and what closed it".
+    # The answer is the laws the matching cohort actually cites; the rest of
+    # the corpus is what `laws` with no --residual is for. Counts are always
+    # reported, so a suppressed row is visible and never silent, and
+    # `--full 1` returns everything.
+    residual_filtered = False
+    laws_unmatched_suppressed = 0
+    if residual and not full and not query and not tag:
+        matched_laws = [
+            row for row in laws
+            if float(row.get("residual_relevance") or 0.0) > 0.0
+            or int(row.get("residual_cohort_citations") or 0) > 0
+        ]
+        laws_unmatched_suppressed = len(laws) - len(matched_laws)
+        laws = matched_laws
+        residual_filtered = True
+        limit = min(limit, RESIDUAL_LAW_PREVIEW)
     truncated = max(0, len(laws) - limit)
     laws = laws[:limit]
 
@@ -6798,8 +6850,55 @@ def law_corpus(
     }
     if query:
         out["pin_mechanisms"] = webfrank_pin_mechanisms(root, query)
+    if residual_filtered:
+        out["laws"] = [
+            {key: row[key] for key in RESIDUAL_LAW_PREVIEW_KEYS if key in row}
+            | {"head": str(row.get("head") or "")[:RESIDUAL_HEAD_CHARS]}
+            for row in laws
+        ]
+        out["laws_projection"] = (
+            "COMPACT residual projection: "
+            + ", ".join(RESIDUAL_LAW_PREVIEW_KEYS)
+            + f", head (first {RESIDUAL_HEAD_CHARS} chars). `evidence`,"
+            " `scope`, `falsifier` and `asserted_by` are omitted — they are"
+            " 58% of a full law row's bytes and are what made this query a"
+            " half-megabyte spill. Fetch a law you actually want with"
+            " `gdlmem.py record <id>`, or re-run with `--full 1`.")
+        out["laws_unmatched_suppressed"] = laws_unmatched_suppressed
+        out["laws_selection_note"] = (
+            f"{laws_unmatched_suppressed} law(s) the matching cohort never"
+            " cites were NOT returned: a --residual query asks who else had"
+            " THIS residual, and the unranked corpus is what `laws` with no"
+            " --residual is for. Every law here is cited by at least one"
+            " cohort record (read `residual_cohort_citations` and"
+            " `residual_relevance`). `--full 1` returns the whole corpus"
+            " with the residual ranking applied instead of the filter.")
+        if not laws:
+            out["laws_selection_note"] = (
+                "NO law in the corpus is cited by any record matching this"
+                f" signature ({laws_unmatched_suppressed} law(s) withheld as"
+                " unmatched). That is NOT evidence the corpus is silent about"
+                " your residual — read `residual_matches` for the sibling"
+                " records themselves, and `--full 1` for the ranked corpus.")
     if residual:
-        out["residual_matches"] = residual_matches
+        if full:
+            shown = residual_matches
+        else:
+            shown = [
+                dict(row, laws_applied_count=len(row.get("laws_applied") or []))
+                for row in residual_matches[:RESIDUAL_MATCH_PREVIEW]
+            ]
+            for row in shown:
+                row.pop("laws_applied", None)
+        out["residual_matches"] = shown
+        out["residual_matches_total"] = len(residual_matches)
+        if len(shown) < len(residual_matches):
+            out["residual_matches_note"] = (
+                f"showing the {len(shown)} best-matching of"
+                f" {len(residual_matches)} sibling record(s), ranked by"
+                " match_strength; `--full 1` returns all of them. The tail is"
+                " ordered LAST because it shares only common mnemonics, so"
+                " truncating it drops the weakest evidence first.")
         out["residual_weak_only_suppressed"] = weak_only_suppressed
         out["residual_ubiquitous_tail"] = ubiquitous_tail
         if ubiquitous_tail:
@@ -6870,10 +6969,39 @@ def law_corpus(
             # a closed derivation for the same opcode shape is the cheapest
             # possible read on an open one.
             wanted = _signature_tokens(residual)
-            out["pin_mechanisms"] = [
+            matching_pins = [
                 pin for pin in webfrank_pin_mechanisms(root, None)
                 if wanted & _signature_tokens(pin["mechanism"])
             ]
+            # Rank by how many of the delta's mnemonics the mechanism names,
+            # so a pin sharing a RARE opcode outranks one that merely says
+            # "addi" — the same inverse-frequency reasoning the match rows
+            # already use.
+            matching_pins.sort(
+                key=lambda pin: (
+                    -len(wanted & _signature_tokens(pin["mechanism"])),
+                    str(pin.get("function") or "")))
+            out["pin_mechanisms_total"] = len(matching_pins)
+            if full:
+                out["pin_mechanisms"] = matching_pins
+            else:
+                out["pin_mechanisms"] = [
+                    dict(pin, mechanism=str(pin.get("mechanism") or "")
+                         [:RESIDUAL_PIN_MECHANISM_CHARS])
+                    for pin in matching_pins[:RESIDUAL_PIN_PREVIEW]
+                ]
+                if len(matching_pins) > RESIDUAL_PIN_PREVIEW or any(
+                        len(str(pin.get("mechanism") or ""))
+                        > RESIDUAL_PIN_MECHANISM_CHARS
+                        for pin in matching_pins[:RESIDUAL_PIN_PREVIEW]):
+                    out["pin_mechanisms_note"] = (
+                        f"showing {len(out['pin_mechanisms'])} of"
+                        f" {len(matching_pins)} pin(s) whose mechanism names"
+                        " one of your mnemonics, ranked by how many they"
+                        f" share, each truncated to"
+                        f" {RESIDUAL_PIN_MECHANISM_CHARS} chars. The full"
+                        " prose is in config/GUNE5D/webfrank.json under the"
+                        " named function; `--full 1` returns all of it here.")
     return out
 
 

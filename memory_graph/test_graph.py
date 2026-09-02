@@ -2980,6 +2980,53 @@ class GraphRebuildCostTests(unittest.TestCase):
             marker.unlink(missing_ok=True)
 
 
+class ResidualVolumeTests(unittest.TestCase):
+    """T10 run-40 item 4: `laws --residual` returned the whole corpus.
+
+    MEASURED on the live corpus at b2876d6bc:
+      "+1 addi -1 li"      519,435 bytes -> 32,319   (16.1x)
+      "+1 stfsu -1 stfs"   230,719 bytes -> 28,251   ( 8.2x)
+    Both spilled to a file for a question with a handful of real answers.
+    """
+
+    def test_the_residual_payload_is_bounded_and_much_smaller(self):
+        compact = core.law_corpus(root=REPO_ROOT, residual="+1 addi -1 li")
+        full = core.law_corpus(root=REPO_ROOT, residual="+1 addi -1 li",
+                               full=1)
+        compact_bytes = len(json.dumps(compact, default=str).encode("utf-8"))
+        full_bytes = len(json.dumps(full, default=str).encode("utf-8"))
+        self.assertLess(compact_bytes, full_bytes / 4,
+                        f"compact {compact_bytes} vs full {full_bytes}")
+        self.assertLessEqual(len(compact["laws"]), core.RESIDUAL_LAW_PREVIEW)
+        self.assertLessEqual(len(compact["residual_matches"]),
+                             core.RESIDUAL_MATCH_PREVIEW)
+        self.assertLessEqual(len(compact.get("pin_mechanisms", [])),
+                             core.RESIDUAL_PIN_PREVIEW)
+
+    def test_every_truncation_reports_its_own_total(self):
+        # A suppressed row must be VISIBLE. A retrieval surface that
+        # silently returns 15 of 336 reads as "the corpus holds 15".
+        compact = core.law_corpus(root=REPO_ROOT, residual="+1 addi -1 li")
+        self.assertIn("residual_matches_total", compact)
+        self.assertIn("laws_unmatched_suppressed", compact)
+        self.assertIn("pin_mechanisms_total", compact)
+        self.assertGreater(compact["residual_matches_total"],
+                           len(compact["residual_matches"]))
+        self.assertIn("--full 1", compact["laws_projection"])
+
+    def test_full_restores_the_complete_rows(self):
+        full = core.law_corpus(root=REPO_ROOT, residual="+1 addi -1 li",
+                               full=1)
+        self.assertNotIn("laws_projection", full)
+        self.assertIn("evidence", full["laws"][0])
+        self.assertIn("laws_applied", full["residual_matches"][0])
+
+    def test_a_plain_law_listing_is_untouched(self):
+        plain = core.law_corpus(root=REPO_ROOT)
+        self.assertNotIn("laws_projection", plain)
+        self.assertIn("evidence", plain["laws"][0])
+
+
 class HypothesisContradictionTests(unittest.TestCase):
     """T10 run-40 item 3: a hypothesis mandating what the record denies.
 
