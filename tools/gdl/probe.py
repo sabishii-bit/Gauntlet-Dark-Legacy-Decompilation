@@ -103,7 +103,14 @@ docstring omitted it — the flags below all work):
                      --discard restore them and drop the bank. Without it a
                      revert restores the SOURCE and leaves the re-derived
                      hashes in webfrank.json, which GW measured as ~2 of 15
-                     probe cycles spent on pure pin plumbing
+                     probe cycles spent on pure pin plumbing.
+                     BOTH ENDS of that A/B consume the bank: a KEEPING verdict
+                     (BASELINE/IMPROVED/NEUTRAL/REBASED) drops it too, because
+                     the re-derived pin is the one matching the state just
+                     banked. Only the revert end used to, so a bank outlived
+                     its A/B and the NEXT revert in the TU put pre-session pin
+                     hashes back over a kept re-derivation (PC hand-deleted
+                     the bank twice)
   --slots            force the slotdiff map even without a slot signal
   --no-slots         suppress the auto-invoked slot map (below)
   --rebaseline       deliberately MOVE the session baseline to the current
@@ -537,6 +544,55 @@ def restore_transient_pins(unit):
               " build so the WEBFRANK edge picks the restored rule up.]")
     for note in notes:
         print(f"[transient pin restore: {note}]")
+
+
+def keep_consumes_transient_bank(argv):
+    """Should a KEEP drop this TU's transient pin bank? (run-38 item 5)
+
+    False on a revert invocation: --revert / --revert-baseline / --discard
+    re-score through the same keep path, and their own consumer
+    (wf_rederive_pin.restore_transient) deliberately KEEPS the bank when
+    it emitted notes — "resolve these, then delete it by hand". Dropping
+    it from the keep path would overrule that instruction.
+    """
+    return not any(flag in argv for flag in
+                   ("--revert", "--revert-baseline", "--discard"))
+
+
+def drop_transient_pins(unit, why):
+    """Consume this TU's transient pin bank on a KEEP (run-38 item 5).
+
+    `restore_transient` consumes the bank on a REVERT, because it
+    describes one A/B. The other end of that A/B had no consumer at all:
+    when a probe KEEPS the state, the re-derived pin is the one that
+    matches the tree from here on, and the pre-probe hashes in the bank
+    are stale. Left there, the next `--revert` / `--revert-baseline` /
+    `--discard` in the same TU restores PRE-SESSION pin hashes over a pin
+    that was deliberately re-derived and kept — a state PC had to
+    hand-delete the bank to escape, twice.
+
+    Returns True when a bank was dropped. Fail-soft like every other
+    transient-pin path: a checkout where the postprocessor stack cannot
+    import has no bank to drop.
+    """
+    module = _wf_rederive_module()
+    if module is None:
+        return False
+    bank = Path(module.bank_path(unit))
+    if not bank.exists():
+        return False
+    try:
+        bank.unlink()
+    except OSError as error:
+        print(f"[transient pin bank NOT dropped: {error} — delete {bank} by"
+              " hand, or a later revert will restore pre-session pin"
+              " hashes]")
+        return False
+    print(f"[transient pin bank CONSUMED by this {why}: the re-derived pin"
+          " hashes now match the banked state, so no later revert will put"
+          " the pre-probe hashes back. Re-derive again if you revert the"
+          " source by hand.]")
+    return True
 
 
 def rederive_pin(unit, fn, transient=False):
@@ -2483,6 +2539,18 @@ def main():
               " --revert restores THIS state"
               + ("; to discard this neutral edit use git, not --revert"
                  if kind == "NEUTRAL" else "") + "]")
+        # The KEEP end of the transient-pin A/B (run-38 item 5). The revert
+        # end already consumes the bank; this one did not, so a bank
+        # outlived the A/B it described and the NEXT revert in the TU
+        # restored pre-session pin hashes over a kept re-derivation.
+        #
+        # NOT on a revert invocation: --revert/--revert-baseline/--discard
+        # re-score through this same path, and their own consumer
+        # (restore_transient) deliberately KEEPS the bank when it emitted
+        # notes ("resolve these, then delete it"). Dropping it here would
+        # overrule that instruction.
+        if keep_consumes_transient_bank(sys.argv):
+            drop_transient_pins(unit, f"{kind} keep")
     elif source is not None and "--no-bank" in sys.argv:
         print("[--no-bank: snapshot NOT updated — hand-revert this edit]")
 

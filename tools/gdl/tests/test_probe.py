@@ -10,11 +10,13 @@ run 29: real 65 -> 65, insns and multiset both unchanged).
 
 import re
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import probe  # noqa: E402
 from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
                    apply_fuzzy_bank_gate, arbitrate_table,
                    baseline_bank_decision, bank_divergence,
@@ -23,6 +25,7 @@ from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
                    data_line, format_genuine_note, function_span,
                    fuzzy_anchor_note, moved_sections, parse_section_digests,
                    outside_edit_warning, parse_numstat, pin_drift,
+                   drop_transient_pins, keep_consumes_transient_bank,
                    readout_banks_baseline,
                    replan_hint, scaffold_rows, scoped_revert,
                    slot_arbiter_header, slot_arbiter_signal, split_lines,
@@ -198,6 +201,65 @@ class ReadoutBanksBaselineTests(unittest.TestCase):
     def test_a_unit_with_no_source_cannot_bank(self):
         self.assertFalse(readout_banks_baseline(
             snapshot_exists=False, has_source=False, no_bank=False))
+
+
+class TransientPinBankLifecycleTests(unittest.TestCase):
+    """run-38 item 5: the transient pin bank had a consumer at only ONE end
+    of its A/B. `restore_transient` drops it on a revert; a KEEP dropped
+    nothing, so the bank outlived the A/B it described and the next
+    revert in the TU restored PRE-SESSION pin hashes over a pin that had
+    been deliberately re-derived and kept. PC hand-deleted it twice.
+
+    Reproduced on game/ui/screensaver::end_inventory_panel: bank, keep,
+    bank still on disk."""
+
+    class FakeModule:
+        def __init__(self, path):
+            self._path = path
+
+        def bank_path(self, _unit):
+            return str(self._path)
+
+    def drop(self, exists):
+        with tempfile.TemporaryDirectory() as tmp:
+            bank = Path(tmp) / "wfpin_game_ui_screensaver.json"
+            if exists:
+                bank.write_text('{"pins": {}}', encoding="utf-8")
+            module = self.FakeModule(bank)
+            original = probe._wf_rederive_module
+            probe._wf_rederive_module = lambda: module
+            try:
+                dropped = drop_transient_pins("game/ui/screensaver", "keep")
+            finally:
+                probe._wf_rederive_module = original
+            return dropped, bank.exists()
+
+    def test_a_keep_consumes_an_existing_bank(self):
+        dropped, still_there = self.drop(exists=True)
+        self.assertTrue(dropped)
+        self.assertFalse(still_there)
+
+    def test_no_bank_is_not_an_error(self):
+        dropped, _ = self.drop(exists=False)
+        self.assertFalse(dropped)
+
+    def test_no_postprocessor_stack_is_not_an_error(self):
+        original = probe._wf_rederive_module
+        probe._wf_rederive_module = lambda: None
+        try:
+            self.assertFalse(drop_transient_pins("game/x/y", "keep"))
+        finally:
+            probe._wf_rederive_module = original
+
+    def test_a_plain_keep_consumes_the_bank(self):
+        self.assertTrue(keep_consumes_transient_bank(
+            ["probe.py", "game/x/y", "fn"]))
+
+    def test_a_revert_invocation_leaves_the_bank_to_its_own_consumer(self):
+        for flag in ("--revert", "--revert-baseline", "--discard"):
+            self.assertFalse(
+                keep_consumes_transient_bank(["probe.py", "u", "f", flag]),
+                flag)
 
 
 class BanksBestTests(unittest.TestCase):
