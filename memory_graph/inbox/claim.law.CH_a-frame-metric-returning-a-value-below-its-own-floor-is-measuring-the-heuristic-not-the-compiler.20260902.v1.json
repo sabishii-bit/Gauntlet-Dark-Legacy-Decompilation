@@ -1,0 +1,21 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/ci_paramarea_probe.py"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a frame or slot metric in this project whose out-of-range reading was in fact a true property of the compiled code rather than an artifact of the heuristic -- or show that the `below-locals` marker used to replace the lowest-addi heuristic is itself absent or ambiguous in a case ci_paramarea_probe.py compiles, which would make the replacement no better grounded than the original.",
+  "id": "claim.law.CH_a-frame-metric-returning-a-value-below-its-own-floor-is-measuring-the-heuristic-not-the-compiler.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T16:36:33Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/combat",
+  "valid_from": "2026-09-02",
+  "value": "A derived frame measurement must be range-checked against the floor its own definition guarantees, and a reading that violates that floor must be treated as a broken measurement rather than as a finding about the compiler. MEASURED 2026-09-02: tools/gdl/composed_census/ci_paramarea_probe.py computed the outgoing parameter area as (lowest `addi rN,r1,K`) - 8, a heuristic that silently assumes every r1-relative addi addresses a DECLARED local. On the one case that mattered -- a by-value aggregate argument, where MWCC emits `addi r5,r1,8` as the argument-COPY cursor -- it printed `shape_struct_byval ... param area 0`. Zero is below the PPC EABI minimum of 8 and was therefore impossible on its face, yet the run-34 lane read the row as 'struct-by-value does not reach 48' and the reading was promoted into claim.law.CI_mwcc-outgoing-param-area-is-sized-only-by-stack-spilled-args.20260902.v1's consequence clause, which two later lanes then screened against as settled. Re-measuring the same object with a marker guaranteed present by construction (the wrapper's own `lha rN,K(r1)` read of its declared s16[2]) gave 48, reversing the conclusion. SECOND INSTANCE, same run and same shape: the swbos region r1+8..55 was certified 'NEVER read and NEVER written' by enumerating `N(r1)` displacements -- a view structurally blind to the `stwu rX,8(r5)` cursor stores a by-value copy actually emits, so the enumeration could not have detected the construct it was being used to exclude. In both cases the tool failed correctly by its own logic and the defect was invisible without asking what the metric CANNOT see. PROCEDURE: state the floor (or the addressing modes covered) next to any derived frame figure, assert it in the tool, and when a residual claim rests on a region being untouched, confirm it against register-relative stores and not only r1-relative displacements. This is AGENTS.md discipline 14 (a guard's refusal measures the guard) applied to metrics rather than to provers."
+}
