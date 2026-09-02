@@ -85,6 +85,13 @@ docstring omitted it — the flags below all work):
                      moved), configure.py, and rebuild the object to confirm
                      the WEBFRANK stage reapplies — the repair for a downstream
                      permutation pin after an upstream pool renumbering
+  --rederive-pin --transient
+                     the same, for a THROWAWAY A/B: the pin's pre-probe hashes
+                     are banked first, and --revert / --revert-baseline /
+                     --discard restore them and drop the bank. Without it a
+                     revert restores the SOURCE and leaves the re-derived
+                     hashes in webfrank.json, which GW measured as ~2 of 15
+                     probe cycles spent on pure pin plumbing
   --stateless        sweep mode: score only — no state, bank, or verdict
   --scaffold         print the pragma/volatile scaffold census on ANY
                      probe, not only a BASELINE
@@ -330,7 +337,54 @@ def warn_outside_edits(source, fn):
         print(warning)
 
 
-def rederive_pin(unit, fn):
+def _wf_rederive_module():
+    """The wf_rederive_pin module, or None. Fail-soft by design.
+
+    probe must keep working in a checkout where the postprocessor stack
+    cannot import; a missing transient bank is not an error, it is the
+    ordinary case for every TU with no pins.
+    """
+    try:
+        for path in (str(TOOLS), str(TOOLS / "composed_census")):
+            if path not in sys.path:
+                sys.path.insert(0, path)
+        import wf_rederive_pin
+        return wf_rederive_pin
+    except Exception:
+        return None
+
+
+def restore_transient_pins(unit):
+    """Put back any pin this TU re-derived with --transient (run 34 item 8).
+
+    A revert restores the SOURCE; without this the re-derived hashes stay in
+    webfrank.json and the pin has to be walked back by hand — GW measured ~2
+    of 15 probe cycles as exactly that plumbing.
+    """
+    module = _wf_rederive_module()
+    if module is None:
+        return
+    bank = module.bank_path(unit)
+    if not Path(bank).exists():
+        return
+    config = Path(f"config/{VERSION}/webfrank.json")
+    if not config.exists():
+        return
+    try:
+        restored, notes = module.restore_transient(unit, str(config), bank)
+    except Exception as error:
+        print(f"[transient pin restore FAILED: {error} — webfrank.json still"
+              " carries the re-derived hashes; restore the pin by hand]")
+        return
+    if restored:
+        print(f"[transient pin(s) restored to their pre-probe hashes:"
+              f" {', '.join(restored)}. Run configure.py before the next"
+              " build so the WEBFRANK edge picks the restored rule up.]")
+    for note in notes:
+        print(f"[transient pin restore: {note}]")
+
+
+def rederive_pin(unit, fn, transient=False):
     """One-call pin re-derivation: body build + wf_rederive_pin --apply +
     configure + confirm (run 34 item 9).
 
@@ -354,9 +408,10 @@ def rederive_pin(unit, fn):
         print((r.stdout + r.stderr).strip()[-1200:])
         return 1
 
-    print(f"[2/4] re-deriving pin {unit}::{fn} (wf_rederive_pin --apply)")
+    mode = "--transient" if transient else "--apply"
+    print(f"[2/4] re-deriving pin {unit}::{fn} (wf_rederive_pin {mode})")
     r = subprocess.run(
-        [sys.executable, str(wf_tool), unit, fn, "--apply"],
+        [sys.executable, str(wf_tool), unit, fn, mode],
         capture_output=True, text=True)
     print(r.stdout.strip())
     if r.returncode != 0:
@@ -1621,7 +1676,7 @@ def main():
         print("probe state reset")
         return 0
     if "--rederive-pin" in sys.argv:
-        return rederive_pin(unit, fn)
+        return rederive_pin(unit, fn, transient="--transient" in sys.argv)
     if "--arbitrate" in sys.argv:
         # Both halves of a real/fuzzy arbitration in one call. Dispatched
         # before the ordinary build/score path because it owns its own
@@ -1646,6 +1701,7 @@ def main():
         source.write_bytes(shown.stdout)
         print(f"discarded: {source} restored to HEAD (whole file —"
               " uncommitted work on other functions in this TU is gone)")
+        restore_transient_pins(unit)
         # Even a whole-file discard leaves HEADER edits live (run 34 item 3).
         warn_outside_edits(source, None)
         return 0
@@ -1662,6 +1718,7 @@ def main():
         shutil.copyfile(base, source)
         print(f"restored {source} to the SESSION BASELINE (whole file —"
               " uncommitted work on other functions in this TU is gone)")
+        restore_transient_pins(unit)
         warn_pin_drift(unit, base)
         warn_outside_edits(source, None)
         return 0
@@ -1733,6 +1790,9 @@ def main():
                       " re-scoring:")
         # A source revert does not restore webfrank.json; warn if a pin was
         # re-derived since this snapshot was banked (run 34 item 3).
+        # A pin re-derived with --transient IS restorable, and is restored
+        # here rather than warned about (run 34 item 8).
+        restore_transient_pins(unit)
         warn_pin_drift(unit, snap)
         # A FUNCTION-SCOPED revert reaches only hunks inside `fn`. Cross-check
         # the whole tree and name what it could not reach — MV's
