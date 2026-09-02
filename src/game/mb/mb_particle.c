@@ -724,6 +724,7 @@ static void DrawPsysSub(f32* pos, u32 color, s32 c, s32 sx, s32 sy, f32 size) {
     f32 corner[4];
     f32 out1[4];
     f32 out2[4];
+    u8 unused[4];
     s32 ix, iy;
     u8 rgba[4];
     u32 cw;
