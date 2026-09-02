@@ -4301,6 +4301,156 @@ def hypothesis_refuter_warning(hypothesis: Any) -> str | None:
     )
 
 
+# ---------------------------------------------------------------------------
+# GATE J (run-40 item 3): a mandated instrument the record itself denies.
+#
+# THE MEASURED FAILURE. attempt.PC_do-players-loop-head-named-base-refuted-
+# and-the-linkage-lever.20260902.v1 wrote, in `hypothesis.
+# screened_against_target`, that "fnasm's target column annotates retail
+# addresses from symbols.txt and shows no real relocations, because the
+# retail DOL has none" — and then, in `hypothesis.
+# cheapest_refuting_observation` of the SAME record, mandated "dump the
+# relocation SYMBOLS of the six demoted functions ... against the retail
+# object's own relocation entries". A hypothesis is the next lane's
+# MANDATORY STEP 1 (discipline 10b), so that record ordered a lane to read
+# something it had already recorded does not exist. Its own sibling law,
+# staged 76 seconds later, said so again
+# (claim.law.PC_fnasm-target-relocation-annotations-are-symbolized-from-
+# symbols-txt-not-real-relocations.20260902.v1). The next lane closed the
+# axis at ZERO build cost by noticing.
+#
+# WHY THIS IS A WARNING AND NOT A REFUSAL. Contradiction between two pieces
+# of English cannot be decided mechanically; this screen pairs a
+# NON-EXISTENCE sentence with a MANDATE sentence that shares distinctive
+# terms, which is a suggestive coincidence, not a proof. Calibrated over
+# the 1,568-record live corpus before shipping (AGENTS.md hard rule).
+_DENIAL_SENTENCE_RE = re.compile(
+    r"(?:does|do|did|can|could|will|would)\s*n[o']?t\s+"
+    r"(?:exist|answer|have|report|resolve|reach|produce|contain|carry|show)"
+    r"|(?:has|have|had)\s+(?:no|none)\b"
+    r"|\bshows?\s+no\b|\bthere\s+(?:is|are)\s+no\b"
+    r"|\bis\s+nonexistent\b|\bdoes\s+not\s+exist\b",
+    re.I)
+_MANDATE_SENTENCE_RE = re.compile(
+    r"\b(?:run|dump|re-?apply|read|measure|screen|obtain|fetch|grep|"
+    r"compare|diff|inspect|extract)\b", re.I)
+# Tokens distinctive enough that sharing them means the two sentences are
+# about the same thing: tool/file names, and any long word.
+_ARTIFACT_TOKEN_RE = re.compile(r"[A-Za-z0-9_./-]*(?:\.py|\.json|/)"
+                                r"[A-Za-z0-9_./-]*")
+_CONTRADICTION_STOPWORDS = frozenset("""
+    against because before between cannot record records against another
+    function functions instruction instructions project should statement
+    something already however therefore whether without through during
+    measured measurement measurements probe probes probed session sessions
+    target targets source sources result results verdict verdicts
+""".split())
+# CALIBRATED, not guessed (run 40, T10, over all 1,743 accepted records —
+# 70 of which carry a hypothesis):
+#     >= 2 shared terms : 2 hits (2.9%), the known positive CAUGHT
+#     >= 3 shared terms : 0 hits, 0 recall
+# There is no threshold with both recall and precision, because the true
+# positive's two sentences share exactly two distinctive terms
+# ("relocation", "symbols") — the most ordinary vocabulary in this project.
+# So the screen ships at 2 with its measured precision (1 of 2 hits correct)
+# STATED IN THE WARNING, and it is a warning rather than a refusal. That is
+# the whole justification: it fires about twice per corpus, prints both
+# sentences, and costs one read to dismiss. Anything stricter is a gate that
+# cannot fire, which is worse than no gate because it reads as an all-clear.
+_CONTRADICTION_MIN_SHARED = 2
+
+
+def _sentences(text: str) -> list[str]:
+    return [part.strip() for part in re.split(r"(?<=[.;!?])\s+|\n+", text)
+            if part.strip()]
+
+
+def _distinctive_terms(sentence: str) -> set[str]:
+    terms = {token.lower() for token in _ARTIFACT_TOKEN_RE.findall(sentence)
+             if len(token) > 3}
+    for word in re.findall(r"[A-Za-z][A-Za-z_]{6,}", sentence):
+        lowered = word.lower()
+        # Crude singularization. Without it the measured case does not
+        # match at all: its denial says "relocations" and its mandate says
+        # "relocation", and a screen that misses on a plural is a screen
+        # that cannot fire.
+        if lowered.endswith("s") and not lowered.endswith("ss"):
+            lowered = lowered[:-1]
+        if lowered not in _CONTRADICTION_STOPWORDS:
+            terms.add(lowered)
+    return terms
+
+
+def hypothesis_contradiction_warning(
+    record: Mapping[str, Any], cited_texts: Mapping[str, str] | None = None,
+) -> str | None:
+    """Warn when a hypothesis MANDATES what this record (or a law it cites)
+    DENIES exists. See the block comment above for the measured case."""
+    hypothesis = _record_field(record, "hypothesis")
+    if isinstance(hypothesis, Mapping):
+        # Newline-joined, not space-joined: the sentence splitter breaks on
+        # newlines, and a field that ends without punctuation would
+        # otherwise glue itself to the next field's first sentence and
+        # defeat the self-match guard below.
+        mandate_text = "\n".join(
+            str(hypothesis.get(key) or "") for key in
+            ("statement", "cheapest_refuting_observation"))
+    elif isinstance(hypothesis, str):
+        mandate_text = hypothesis
+    else:
+        return None
+    if not mandate_text.strip():
+        return None
+    mandates = [sentence for sentence in _sentences(mandate_text)
+                if _MANDATE_SENTENCE_RE.search(sentence)]
+    if not mandates:
+        return None
+    # Denials come from the record's OWN text — INCLUDING the hypothesis's
+    # other fields, because that is exactly where the measured case put it:
+    # `screened_against_target` recorded "the retail DOL has none" while
+    # `cheapest_refuting_observation`, two keys away, ordered a lane to read
+    # the retail object's relocations — and from every law the record lists
+    # in attributes.laws_applied.
+    mandate_set = {" ".join(sentence.split()) for sentence in mandates}
+    sources: list[tuple[str, str]] = [("this record", _record_text(record))]
+    for law_id, law_text in (cited_texts or {}).items():
+        sources.append((law_id, law_text))
+    for origin, source_text in sources:
+        for denial in _sentences(source_text):
+            if " ".join(denial.split()) in mandate_set:
+                continue  # a sentence cannot contradict itself
+            if not _DENIAL_SENTENCE_RE.search(denial):
+                continue
+            denial_terms = _distinctive_terms(denial)
+            if len(denial_terms) < _CONTRADICTION_MIN_SHARED:
+                continue
+            for mandate in mandates:
+                shared = denial_terms & _distinctive_terms(mandate)
+                if len(shared) < _CONTRADICTION_MIN_SHARED:
+                    continue
+                return (
+                    "POSSIBLE SELF-CONTRADICTION IN THE HYPOTHESIS (warning,"
+                    " not a refusal). A hypothesis is the next lane's"
+                    " MANDATORY STEP 1, so an instrument it names must"
+                    " actually exist.\n"
+                    f"  MANDATE: {mandate[:300]}\n"
+                    f"  DENIAL ({origin}): {denial[:300]}\n"
+                    f"  shared terms: {', '.join(sorted(shared))}\n"
+                    "  MEASURED: attempt.PC_do-players-loop-head-named-base-"
+                    "refuted-and-the-linkage-lever.20260902.v1 mandated"
+                    " dumping the retail object's relocation entries in one"
+                    " field while recording in another that the retail DOL"
+                    " has none; its own sibling law repeated the denial 76"
+                    " seconds later. If the two really are about different"
+                    " things, ignore this line — the screen pairs sentences"
+                    " by shared vocabulary and cannot decide meaning.\n"
+                    "  MEASURED PRECISION: over the whole accepted corpus"
+                    " (1,743 records, 70 with a hypothesis) this screen"
+                    " fires TWICE, and one of the two is a false positive."
+                    " Weight it accordingly; it costs one read to dismiss.")
+    return None
+
+
 def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
     """The three run-29 validation gates, binding on NEW proposals only.
 
@@ -4874,6 +5024,19 @@ def stage_record_proposal(
         _probe_record_references(record, root)
     record_id = record["id"]
     in_place_resolved = in_place.resolve() if in_place is not None else None
+    # Gate J's denial sources are collected in THIS pass, not a second one:
+    # the records this proposal cites, and the same-day siblings anchored to
+    # the same function. Piggybacking on the duplicate-id scan keeps the
+    # sibling-consistency screen free.
+    cited_ids = set(_law_id_list(record, "laws_applied")) | set(
+        _refuted_ids(record))
+    for citing_key in ("supersedes", "refutes"):
+        value = record.get(citing_key)
+        if isinstance(value, str) and value:
+            cited_ids.add(value)
+    anchor = record.get("function")
+    same_day = str(record.get("valid_from") or "")
+    denial_texts: dict[str, str] = {}
     for relative in (Path("memory_graph/records"), Path("memory_graph/inbox")):
         directory = root / relative
         if not directory.exists():
@@ -4885,8 +5048,25 @@ def stage_record_proposal(
                 existing = json.loads(path.read_text(encoding="utf-8-sig"))
             except (OSError, json.JSONDecodeError):
                 continue
-            if isinstance(existing, dict) and existing.get("id") == record_id:
+            if not isinstance(existing, dict):
+                continue
+            if existing.get("id") == record_id:
                 raise MemoryGraphError(f"record id {record_id!r} already exists at {path}")
+            existing_id = existing.get("id")
+            if not isinstance(existing_id, str):
+                continue
+            sibling = (anchor is not None
+                       and existing.get("function") == anchor
+                       and str(existing.get("valid_from") or "") == same_day)
+            if existing_id in cited_ids or sibling:
+                label = ("cited law " if existing_id in cited_ids
+                         else "same-day sibling on this function ")
+                denial_texts[label + existing_id] = _record_text(existing)
+    contradiction = hypothesis_contradiction_warning(record, denial_texts)
+    if contradiction:
+        gate_warnings.append(contradiction)
+        if warnings is not None:
+            warnings.append(contradiction)
     # DEDUP-AT-PROPOSE, attach-not-error. Claims only: an attempt record is
     # per-function forensics and is SUPPOSED to resemble its siblings.
     if record.get("kind") == "claim" and not confirm_new and in_place is None:

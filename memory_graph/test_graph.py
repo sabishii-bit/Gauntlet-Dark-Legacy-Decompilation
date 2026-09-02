@@ -2980,6 +2980,83 @@ class GraphRebuildCostTests(unittest.TestCase):
             marker.unlink(missing_ok=True)
 
 
+class HypothesisContradictionTests(unittest.TestCase):
+    """T10 run-40 item 3: a hypothesis mandating what the record denies.
+
+    Reproduced from attempt.PC_do-players-loop-head-named-base-refuted-and-
+    the-linkage-lever.20260902.v1: `screened_against_target` recorded that
+    the retail DOL has no relocations while `cheapest_refuting_observation`
+    ordered a lane to dump them.
+    """
+
+    def _record(self, **hypothesis):
+        base = {
+            "schema_version": 1, "id": "attempt.t10-contradiction.20260903.v1",
+            "kind": "attempt", "function": "function:do_players",
+            "attempted_axis": "probe", "outcome": "capped",
+            "hypothesis": hypothesis,
+            "attributes": {"law_screen": "none applicable: test fixture"},
+        }
+        return base
+
+    def test_the_measured_case_is_caught(self):
+        record = self._record(
+            statement="The linkage of the base object is a live lever.",
+            cheapest_refuting_observation=(
+                "Re-apply probe L and dump the relocation SYMBOLS of the six"
+                " demoted functions against the retail object's own"
+                " relocation entries."),
+            screened_against_target=(
+                "no. fnasm's target column annotates retail addresses from"
+                " symbols.txt and shows no real relocations, because the"
+                " retail DOL has none."),
+        )
+        warning = core.hypothesis_contradiction_warning(record)
+        self.assertIsNotNone(warning)
+        self.assertIn("SELF-CONTRADICTION", warning)
+        self.assertIn("relocation", warning)
+        # The precision it was calibrated at must travel WITH the warning:
+        # a screen that fires 2x per corpus with 1 false positive is only
+        # usable if the reader is told that.
+        self.assertIn("MEASURED PRECISION", warning)
+
+    def test_a_hypothesis_with_no_mandate_verb_never_fires(self):
+        record = self._record(
+            statement="The residual is a one-slot permutation.",
+            cheapest_refuting_observation="It is not a permutation.",
+            screened_against_target="no. the retail DOL has none.")
+        self.assertIsNone(core.hypothesis_contradiction_warning(record))
+
+    def test_a_record_with_no_hypothesis_is_out_of_scope(self):
+        self.assertIsNone(core.hypothesis_contradiction_warning(
+            {"id": "claim.x", "kind": "claim", "value": "there are no"
+             " relocations; run the relocation dump"}))
+
+    def test_a_cited_law_can_supply_the_denial(self):
+        record = self._record(
+            statement="Probe the widget.",
+            cheapest_refuting_observation=(
+                "Run wf_word_diff and read the differing WIDGET words."))
+        warning = core.hypothesis_contradiction_warning(
+            record, {"claim.law.example":
+                     "wf_word_diff does not report differing WIDGET words;"
+                     " that instrument has none."})
+        self.assertIsNotNone(warning)
+        self.assertIn("claim.law.example", warning)
+
+    def test_a_sentence_cannot_contradict_itself(self):
+        # The measured record's own mandate sentence carries a denial
+        # clause ("cannot answer this"); pairing it with itself would be a
+        # guaranteed false positive on every carefully-hedged hypothesis.
+        record = self._record(
+            statement="x",
+            cheapest_refuting_observation=(
+                "Dump the relocation symbols -- NOT against fnasm's target"
+                " column, which is symbolized from symbols.txt and cannot"
+                " answer this relocation symbols question."))
+        self.assertIsNone(core.hypothesis_contradiction_warning(record))
+
+
 class RecordSizePreflightTests(unittest.TestCase):
     """T10 run-40 item 1: the 16KB cap now says WHERE the bytes are."""
 
