@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "scope": "read-only measurement pass; no source edits made, nothing to change",
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ],
+    "verification": "ninja -j2 -> build/GUNE5D/main.dol: OK; report.json per-unit matched_code == total_code on all 9 units; claimcheck.py ok on all 9 units all sections; fndiff --clean real 0 on 9 spot-checked functions; grep zlib config/GUNE5D/webfrank.json empty"
+  },
+  "epistemic_state": "verified",
+  "id": "claim.ZI_zlib-inflate-stack-complete-and-strict.20260902.v1",
+  "kind": "claim",
+  "predicate": "region_status",
+  "recorded_at": "2026-09-02T14:48:34Z",
+  "schema_version": 1,
+  "subject": "tu:zlib/inflate",
+  "valid_from": "2026-09-02",
+  "value": "CLOSED REGION - do not re-claim. The entire zlib 1.0.4 inflate stack is already decompiled, wired, and byte-exact as of run 35 remeasurement (2026-09-02, branch claude/zlib-inflate-20260902b at main 456857fd4). All NINE zlib TUs are Object(Matching, ...) in configure.py lines 527-535: adler32.c, uncompr.c, zutil.c, infutil.c, inffast.c, infcodes.c, infblock.c, inflate.c, inftrees.c. Sources live at src/zlib/*.c with headers include/zlib/zlib.h + include/zlib/infprivate.h. MEASURED THIS RUN, not quoted from the landing commits: (a) full `ninja -j2` prints `build/GUNE5D/main.dol: OK`; because these TUs are Matching, their compiled objects are the ones linked, so the green DOL checksum IS proof of byte-exactness for them (the AGENTS.md caveat that a green DOL proves little applies to NonMatching TUs only); (b) build/GUNE5D/report.json gives every zlib unit fuzzy 100.0000 with matched_code == total_code: zutil 40/40, infblock 4104/4104, infcodes 2508/2508, inffast 1004/1004, inflate 2220/2220, inftrees 2612/2612, infutil 392/392, uncompr 200/200, adler32 376/376; (c) `tools/gdl/claimcheck.py zlib/<unit>` returns `ok` for all nine across EVERY section - .text, .data, .rodata, .sdata2, .bss, .sbss, extab, extabindex - so no data range in the region is unclaimed or mismatched; (d) spot `fndiff --clean` runs return real 0 for huft_build (EXACT), inflate_trees_fixed (EXACT), falloc (EXACT), zcalloc (EXACT), inflate_fast (MATCH, pool-name noise only), inflate_blocks / inflate_codes / inflate / uncompress (real 0, MATCH-MODULO-RELOC-NAMING = anonymous-local vs named-symbol spelling, which AGENTS.md residual-work discipline 3 classifies as FINISHED). CORRECTED COUNT: the region holds 23 functions, not the 30 asserted by landing commit 874463a8a and by the auto-memory frontier note - per-TU: infblock 4, infcodes 3, inffast 1, inflate 4, inftrees 6, infutil 1, zutil 2, uncompr 1, adler32 1. STRICT/EQUIVALENT SPLIT: `grep zlib config/GUNE5D/webfrank.json` returns nothing, so ZERO zlib functions are WebFrank-pinned - all 23 are STRICT (raw compiler output byte-identical), none EQUIVALENT. Landing commits, all already ancestors of main: 405fd932f (infutil + headers), 55e366432 (inffast), c326a2155 + 2389eed7a (inftrees), 3079b98ca (infcodes), a2aa0f413 (infblock), 874463a8a (inflate, stack close). There is no remaining source-reachable work in this region; a future lane pointed here should spend its budget elsewhere."
+}

@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Run-35 FRESH-TU lane: decompile and wire the six zlib 1.0.4 inflate TUs (infblock, inftrees, infcodes, infutil, inffast, inflate) per work_claim.zlib-inflate.20260902.v1, expecting multiple STRICT closes. Axis abandoned at the premise-verification step, before any source was written, because the region was measured already complete.",
+  "attributes": {
+    "law_screen": "Screened the 35 core-screen laws and the 59 matching laws from `brief zlib/inflate`; none applicable: no source edit was made and no residual exists to screen. AGENTS.md residual-work discipline 5 (a refuted premise is a deliverable) and discipline 8 (remeasure before quoting) are the governing rules for this record; discipline 3 supplied the ruling that a `--clean` MATCH with reloc-naming noise and real 0 means FINISHED.",
+    "probed_form": "No source edited. The premise check, in order, was: (1) `ls src/zlib/` - all six inflate TUs already present alongside adler32/uncompr/zutil; (2) `grep -n zlib configure.py` - lines 527-535 list all nine as Object(Matching, ...); (3) `git log --oneline -- src/zlib/` - six landing commits ending 874463a8a 'zlib 1.0.4 inflate stack complete'; (4) `python tools/gdl/provision_worktree.py` -> full ninja green, `build/GUNE5D/main.dol: OK`; (5) report.json per-unit matched_code == total_code on all nine; (6) `claimcheck.py zlib/<unit>` ok on all nine, every section; (7) `fndiff --clean` real 0 on huft_build, inflate_trees_fixed, falloc, zcalloc, inflate_fast, inflate_blocks, inflate_codes, inflate, uncompress; (8) `grep zlib config/GUNE5D/webfrank.json` empty, so all 23 functions are STRICT with zero WebFrank assist.",
+    "residual": "Nothing. The region holds 23 functions (not the 30 claimed by commit 874463a8a and the auto-memory frontier note - corrected count recorded in claim.ZI_zlib-inflate-stack-complete-and-strict.20260902.v1), all byte-exact and all STRICT.",
+    "scope": "Read-only measurement pass in worktree W:/Repositories/GDL-Claude-ZlibInflate on branch claude/zlib-inflate-20260902b. Zero exact closes delivered because zero were available; the deliverable is the refutation plus the terminal region_status record that stops the next lane being dispatched here.",
+    "verification": "ninja -j2 green with main.dol: OK; project progress unchanged at 98.43% fuzzy / 66.22% matched, STRICT 56.45% + EQUIVALENT 9.77%. No source, config, or split-map file was modified by this lane, so no regression is possible."
+  },
+  "function": "function:inflate_blocks",
+  "id": "attempt.ZI_zlib-inflate-lane-premise-refuted-region-already-closed.20260902.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-02T14:48:44Z",
+  "refutes": "work_claim.zlib-inflate.20260902.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-02",
+    "signature": "no residual: fndiff --clean reports real 0 on every zlib function spot-checked (EXACT, or MATCH with pool-name / reloc-naming noise only)"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
