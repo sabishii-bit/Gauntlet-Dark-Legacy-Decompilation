@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "Run 32 TOOL lane, worktree GDL-Claude-ToolQueue3, work_claim.tool-queue-3.20260902.v1, item 1. Reproduced at commit 7bdd91853's parent and fixed in 7bdd91853. Instrument: src/game/pb/pb_objregs.c::setChrome, target real 0, insns T362/O362.",
+    "scope": "MWCC GC 1.2.5 family, any NonMatching or Matching function carrying a pooled literal. Applies to any instrument that claims byte identity from a text-derived hash - probe.py's annotate_neutral was the measured instance; defake_gate's raw_signature backstop shares the property but is not a fold-away claim, so it is not miscommunicating in the same way.",
+    "tags": [
+      "workflow",
+      "metrics",
+      "pool-layout"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Produce a source edit that changes ONLY a pooled value (an FP literal, a string, a table entry) and show that the built object's non-text sections hash identical across it, or show a function whose text digest moved while the only edit was such a value. Either result breaks the separation this law rests on. Mechanically asserted by tools/gdl/tests/test_probe.py::DataOnlyEditTests and ::SectionDigestTests, and reproducible on src/game/pb/pb_objregs.c::setChrome by toggling commit adc292074's PI constant and dumping .sdata2 either side.",
+  "id": "claim.law.TQ_a-text-only-identity-check-reads-a-pooled-value-edit-as-a-fold-away.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T00:40:30Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A BYTE-IDENTITY CHECK COMPUTED OVER TEXT ALONE CANNOT DISTINGUISH 'THE EDIT FOLDED AWAY BEFORE CODEGEN' FROM 'THE EDIT LANDED IN A DATA POOL', AND REPORTING THE FORMER FOR THE LATTER INVERTS THE ADVICE. This is the operational corollary of claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1, which established that a wrong pooled constant is invisible to every score arbitrated here. The additional finding is about the INSTRUMENT rather than the metric: probe.py's byte-identity annotation hashed instruction words and relocation lines only, so a pooled-value edit satisfied it exactly as a null probe does, and the loop printed 'the edit FOLDED AWAY before codegen. For a spelling probe this is a STRONGER negative than a regression'. That message is not merely uninformative for a value fix, it argues for reverting one - and it was printed at each of the five correct constant fixes in attempt.CS_image-wide-constant-sweep-five-fixes.20260901.v1, two of which were behavioural bugs (a facing-restriction sentinel and a damage-scale argument). MEASURED SEPARATION: reverting setChrome's PI fix (3.141592654 -> 3.14159265358979323846) left the function's text digest and all of real, insn counts and the opcode multiset unchanged, while .sdata2+0x40 moved from 400921fb54442d18 to 400921fb54524550. A per-section digest of the object's non-text sections separates the two cases cleanly, and a comment-only control edit still hashes flat on BOTH text and data, so the discrimination is real rather than an artifact of any edit at all. OPERATIONAL RULE: (1) treat a NEUTRAL-DATA-ONLY verdict as a signal to run a VALUE AUDIT against the split .sdata2/.rodata listing, never as a negative probe result; (2) do not count such a probe toward a fold-away streak, because it is evidence the axis DOES reach codegen; (3) when a section digest is unmeasured on either side, fall back to the weaker wording rather than asserting a data-only change, since a verdict manufactured from a missing measurement is the failure mode this law is about."
+}
