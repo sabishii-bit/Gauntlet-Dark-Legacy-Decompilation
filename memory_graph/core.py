@@ -3947,13 +3947,27 @@ def unknown_entity_message(key: str, namespaces, suggestions) -> str:
     resolves.
     """
     lines = [
-        f"proposal references unknown entity {key!r}. THREE things resolve:",
+        f"proposal references unknown entity {key!r}. FOUR things resolve:",
         "  1. any entity_key ALREADY IN the graph — including the non-code"
         " namespaces, which is the half no error used to mention;",
         "  2. `function:<symbol>` naming exactly one GameCube function;",
         "  3. `tu:<module>` naming a GameCube object (with or without a"
-        " .c/.cpp suffix).",
+        " .c/.cpp suffix);",
+        "  4. `tool:<key>` / `workflow:<key>` naming a row in the tool"
+        " catalog — the right home for a law about how a TOOL behaves."
+        " The key is the catalog's, not the filename: `gdlmem.py tool"
+        " <name>` prints `tool_key` for every match (memory_graph/gdlmem.py"
+        " is `tool:gdl-memory-graph`, not `tool:gdlmem`, and anything under"
+        " composed_census carries the `tool:composed-census-` prefix).",
     ]
+    if key.startswith(("tool:", "workflow:")):
+        lines.append(
+            "THE NAMESPACE IS RIGHT AND THE KEY IS NOT: `tool:`/`workflow:`"
+            " resolve against tool_catalog, so run `gdlmem.py tool"
+            f" {key.split(':', 1)[1].replace('-', ' ')}` and copy the"
+            " `tool_key` it prints. Before run 40 this namespace was"
+            " advertised but unresolvable, which is why 130 records that"
+            " belong here say `project:gdl` instead — do not follow them.")
     if namespaces:
         lines.append("Namespaces live in this corpus right now"
                      " (prefix, count, example):")

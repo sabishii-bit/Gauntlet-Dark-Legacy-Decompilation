@@ -3523,7 +3523,17 @@ class UnknownEntityMessageTests(unittest.TestCase):
             stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
         message = str(caught.exception)
         self.assertIn("project:gdl", message)
-        self.assertIn("THREE things resolve", message)
+        # FOUR since run 40: tool:/workflow: now resolve against the tool
+        # catalog, so the directory has a fourth entry.
+        self.assertIn("FOUR things resolve", message)
+        self.assertIn("tool:<key>", message)
+
+    def test_a_wrong_tool_key_is_told_the_namespace_was_right(self):
+        """The likeliest mistake now that tool: resolves: the right
+        namespace with the filename instead of the catalog key."""
+        message = core.unknown_entity_message("tool:gdlmem", [], [])
+        self.assertIn("THE NAMESPACE IS RIGHT AND THE KEY IS NOT", message)
+        self.assertIn("gdlmem.py tool", message)
 
 
 class WindowedResidualWordCountGateTests(unittest.TestCase):
