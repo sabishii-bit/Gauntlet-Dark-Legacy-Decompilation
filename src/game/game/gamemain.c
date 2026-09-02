@@ -4512,7 +4512,7 @@ extern f32  lbl_80346C4C;
 extern f32  lbl_80346C50;
 extern f32  lbl_80346C80;
 extern f32  lbl_80346C84;
-extern char lbl_80346C48[8];
+extern char lbl_80346C48[4];
 extern s32  lbl_803447B4;
 extern void* lbl_803447B0;
 extern u8*  gBossObj;
