@@ -1,0 +1,34 @@
+{
+  "attempted_axis": "Close DrawPsysSub with the new relocation-binding post_recolor_permutation capability (the capability its reclassification record filed as residual.capability_needed). Built the capability, then measured whether the function's residual is served by it.",
+  "attributes": {
+    "law_screen": "claim.law.WF_post-recolor-permutation-binds-a-relocated-window-word-by-word-against-the-target.20260902.v1 APPLIED (the capability this run built) and is the reason the reloc-carrying lwz/stw to lbl_80345188 in the tail window is now bindable. claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1 APPLIED: the multiset is IDENTICAL yet 49 immediate words differ. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 SCREENED: still the reason the reorder is post-recolor. AGENTS.md gate 2 (count-asymmetric residual is outside every postprocessor class) SCREENED and NOT triggering here (counts are equal 290/290) \u2014 the blocker is the immediate-value class instead, which is equally out of ceiling.",
+    "residual": "The tail schedule window (fnasm 0x3f0:0x470 --diff) is NOT a pure recolor+permutation: its lfs stack reloads carry the SAME +8 frame-base immediate delta as the rest of the function (target lfs f3,76(r1) / f2,72(r1) / f1,68(r1) vs ours lfs f2,84(r1) / f3,80(r1) / f0,76(r1); target lfs f0,52(r1) / f4,56(r1) vs ours f4,60(r1) / f1,64(r1)). A post-recolor permutation reorders whole atoms and a recolor rewrites register fields; NEITHER can change a displacement immediate from 84 to 76. So even after the reloc-carrying lwz/addi/stw are permuted+bound and the fN/base registers recolored, 49 immediate words (the uniform +8 locals-block base, ours r1+40 vs target r1+32) remain. The capability is NECESSARY (the window is reloc-carrying) but NOT SUFFICIENT (the +8 frame residual pervades the same window).",
+    "verification": "python tools/gdl/fndiff.py game/mb/mb_particle.c DrawPsysSub --ops: multiset IDENTICAL (290/290), 49 IMMEDIATE rows all showing target minus 8 on r1-relative displacements. python tools/gdl/fnasm.py game/mb/mb_particle.c DrawPsysSub 0x3f0:0x470 --diff confirms the reloc atoms (lwz/stw @lbl_80345188 EMB_SDA21) AND +8-immediate lfs loads coexist in one window. No source edit made (mb_particle.c is not this lane's TU). Full ninja main.dol: OK; STRICT 56.45% + EQUIVALENT 9.77% unchanged."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/mb/mb_particle.c DrawPsysSub --ops \u2014 if the 49 IMMEDIATE rows disappear (a source fix collapses the +8 frame base to 0) while the tail reloc window remains, this denial EXPIRES and the capability should be re-run against the reduced residual: it is then expected to close.",
+    "falsifier": "A build of DrawPsysSub whose fndiff --ops shows zero IMMEDIATE rows, at which point a post_recolor_permutation rule over the tail window (bound by the new capability) is predicted to reach real 0.",
+    "premise_measurement": "fndiff --ops on 2026-09-02: 49 IMMEDIATE words differ by exactly +8 on r1-relative displacements; the tail window at 0x3f0:0x470 mixes EMB_SDA21 reloc atoms with +8-immediate lfs loads. An immediate-value delta is outside every postprocessor class (recolor changes register fields, permutation reorders atoms; neither rewrites a displacement literal).",
+    "scope": "DrawPsysSub ONLY, and ONLY the claim that the relocation-binding capability alone closes it byte-exact. It does NOT deny that the capability is correct, nor that a SOURCE fix of the +8 frame base (the parameter-save-area sizing, still open per attempt.MB_drawpsyssub-frame-slot-reclassification.20260902.v2) would leave a residual the capability then closes."
+  },
+  "function": "function:DrawPsysSub",
+  "hypothesis": {
+    "cheapest_refuting_observation": "If collapsing the +8 base still leaves any non-immediate, non-reorder, non-recolor difference in the tail window, the two-step close fails and the window is genuinely structural.",
+    "screened_against_target": "yes \u2014 the tail window 0x3f0:0x470 aligned diff shows the reloc atoms move from early (T@408/@414) to late (O@460/@464) and the fN/base registers recolor cleanly; only the +8 immediates block it, and those are frame-base, not window-local.",
+    "statement": "Source-fix the +8 locals-block base (make MWCC reserve a 24-byte outgoing parameter-save area, matching the target, instead of 32) IN mb_particle.c; then author a post_recolor_permutation rule over the tail window [0x3f8,0x468) whose reloc-carrying lwz/addi/stw to lbl_80345188 are bound by the new capability. This is the two-step path to DrawPsysSub byte-exact."
+  },
+  "id": "attempt.WF_drawpsyssub-reloc-binding-necessary-not-sufficient.20260902.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-02T03:12:57Z",
+  "refutes": null,
+  "residual": {
+    "capability_needed": "source fix of the +8 parameter-save-area frame base, THEN the (now-built) post-recolor relocation-binding permutation",
+    "family": "frame-slot",
+    "measured_at": "2026-09-02",
+    "signature": "IDENTICAL (290/290) but 49 IMMEDIATE words differ (uniform +8 r1-base); tail window mixes EMB_SDA21 reloc atoms with +8-immediate lfs loads"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

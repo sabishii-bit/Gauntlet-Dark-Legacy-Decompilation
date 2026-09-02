@@ -1,0 +1,28 @@
+{
+  "attempted_axis": "Screen fn_8005F0F4 (gauntworld, ceded to WF by the GW lane's work_claim for postprocessor candidacy) against every WebFrank mode including the new relocation-binding post-recolor permutation. Classify its residual.",
+  "attributes": {
+    "law_screen": "AGENTS.md gate 2 (a count-asymmetric residual is provably outside every postprocessor class) APPLIED and is the deciding fact: target 661 insns vs ours 660. claim.law.WF_post-recolor-permutation-binds-a-relocated-window-word-by-word-against-the-target.20260902.v1 SCREENED: not applicable, the residual is not a reloc-carrying reorder. claim.law.live-zero-copy-vs-remat-is-allocator-not-source SCREENED: not the mechanism here.",
+    "residual": "fndiff --ops: opcode multiset DIFFERS, target-only +1 mr (a target-only mr at T[36]@90 our compile lacks), plus an lfs shift, so ours is 660 to the target's 661. On TOP of the count asymmetry the function carries the SAME +8 frame-base immediate delta seen in DrawPsysSub (e.g. T stfs f0,120(r1) vs O stfs f0,112(r1), many rows). Both classes are out of ceiling: a postprocessor cannot synthesise a missing instruction (count) and cannot rewrite a displacement literal (immediate).",
+    "verification": "python tools/gdl/fndiff.py game/world/gauntworld.c fn_8005F0F4 --ops on 2026-09-02: net TARGET longer by 1, target-only +1 mr, 25+ IMMEDIATE +8 rows. No source touched (GW lane owns the source; per its work_claim this record returns fn_8005F0F4 to source work)."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/world/gauntworld.c fn_8005F0F4 --ops \u2014 if a source fix makes counts equal (661/661) AND removes the +8 IMMEDIATE rows, re-screen for a permutation/recolor rule.",
+    "falsifier": "A build of fn_8005F0F4 with equal instruction counts and no immediate-value rows whose sole residual is a recolor/reorder \u2014 then a WebFrank rule becomes possible.",
+    "premise_measurement": "fndiff --ops 2026-09-02: target 661 / ours 660, target-only +1 mr; a count-asymmetric multiset is outside every postprocessor class by construction (no mode creates or destroys an instruction).",
+    "scope": "fn_8005F0F4 ONLY, its postprocessor (WebFrank) candidacy. Does NOT deny a source close: the missing mr is a source-reachable uncoalesced copy and the +8 is a frame-base source issue, both the GW lane's next-run work."
+  },
+  "function": "function:fn_8005F0F4",
+  "id": "attempt.WF_fn8005f0f4-postprocessor-ineligible-count-asymmetric.20260902.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-02T03:12:59Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "save-area",
+    "measured_at": "2026-09-02",
+    "signature": "+1 mr target-only (661/660 count-asymmetric); 25+ IMMEDIATE +8 r1-base rows"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

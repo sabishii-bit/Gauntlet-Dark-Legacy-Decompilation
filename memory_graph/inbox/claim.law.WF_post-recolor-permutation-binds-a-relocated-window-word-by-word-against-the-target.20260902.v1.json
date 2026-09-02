@@ -1,0 +1,22 @@
+{
+  "asserted_by": [
+    "tools/gdl/tests/test_webfrank.py::ApplyPatchObjectTests::test_post_recolor_permutation_binds_a_relocated_window",
+    "tools/gdl/tests/test_webfrank.py::ApplyPatchObjectTests::test_relocated_window_with_exchanged_target_symbols_fails_closed",
+    "tools/gdl/tests/test_webfrank.py::ApplyPatchObjectTests::test_relocated_window_dropping_a_target_relocation_fails_closed",
+    "tools/gdl/tests/test_webfrank.py::ApplyPatchObjectTests::test_relocated_window_type_mismatch_fails_closed",
+    "tools/gdl/webfrank.py::verify_relocation_binding"
+  ],
+  "attributes": {
+    "tags": []
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A post-recolor permutation that moves a relocated atom onto a target word carrying a different symbol/type, or drops/creates a relocation, and is nonetheless accepted by apply_patch; or a build in which an existing WebFrank rule stops replaying under this change (STRICT/EQUIVALENT split moves from 56.45/9.77). Evidence lives in tools/gdl/tests/test_webfrank.py ApplyPatchObjectTests and the full ninja main.dol: OK gate.",
+  "id": "claim.law.WF_post-recolor-permutation-binds-a-relocated-window-word-by-word-against-the-target.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T03:13:57Z",
+  "schema_version": 1,
+  "subject": "function:DrawPsysSub",
+  "valid_from": "2026-09-02",
+  "value": "The post_recolor_permutation stage now accepts a window carrying relocations. Its soundness rests ENTIRELY on binding each moved relocation against the target object's own relocations, word by word (name+type+word-position, EMB_SDA21 word+2 vs word+0 normalised), via the SAME verify_relocation_binding the pre-recolor instruction_permutation stage carries. The stage MUST run that binding (permute_instruction_atoms is called with our_symbols and target_relocations non-None) for every relocated window, and MUST physically rewrite the relocation table so the emitted object's entries move with their atoms. It is fail-closed: a relocation-free window reduces to the prior relocation-free path unchanged; a relocation present in the target but not ours, an exchange among same-shaped SDA atoms, or a type/symbol mismatch each raises. This widens WINDOW ELIGIBILITY of an existing stage and stays inside the class ceiling (allocator/schedule variance under the proven compiler); it is NOT a new semantic class. Measured scope of demand: DrawPsysSub is the ONLY corpus record whose structured residual.capability_needed names this capability (every other match is incidental prose), and DrawPsysSub is necessary-but-not-sufficient (its schedule window also carries the +8 frame-base immediate delta, out of ceiling), so no shipped rule exercises this path yet \u2014 the capability is proven only by the ELF fixture end-to-end tests."
+}
