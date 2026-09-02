@@ -852,7 +852,6 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
                     u8 idx;
                     u32 val;
                     u8* entry;
-                    int adv;
 
                     idx = *ip;
                     val = idx;
@@ -867,10 +866,9 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
                         nb = 0;
                         bp++;
                     }
-                    adv = (x & 4) * 6 + 4;
+                    dst += (x & 4) * 6 + 4;
+                    dst2 += (x & 4) * 6 + 4;
                     x += 4;
-                    dst += adv;
-                    dst2 += adv;
                 } while (x < state->width);
                 row += d2;
             }
@@ -895,17 +893,15 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
                 do {
                     u32 idx;
                     u8* entry;
-                    int adv;
 
                     idx = *ip;
                     ip++;
                     entry = pal + idx * 8;
                     *(u32*)dst = *(u32*)entry;
                     *(u32*)dst2 = *(u32*)(entry + 4);
-                    adv = (x & 4) * 6 + 4;
+                    dst += (x & 4) * 6 + 4;
+                    dst2 += (x & 4) * 6 + 4;
                     x += 4;
-                    dst += adv;
-                    dst2 += adv;
                 } while (x < state->width);
                 row += d2;
             }
