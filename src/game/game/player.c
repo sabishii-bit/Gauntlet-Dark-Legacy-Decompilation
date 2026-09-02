@@ -5000,9 +5000,10 @@ typedef struct TierColor {
         }                                                                      \
     } while (0)
 
+#pragma opt_propagation off
 void PlayerProcessPowerups(void* vp) {
     Player* p = vp;
-    u8 unused[64];
+    u8 unused[112];
     u32 old_flags;
     s32 index = p->index;
     f32 alpha_time;
@@ -5605,6 +5606,7 @@ void PlayerProcessPowerups(void* vp) {
 
     (void)shield_time;
 }
+#pragma opt_propagation reset
 
 /* Struct view over the familiar/halo atree state at Player+0x748.  A    */
 /* typed member (displacement) read keeps &atree out of an address-CSE.  */
