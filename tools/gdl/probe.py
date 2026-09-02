@@ -669,10 +669,18 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                                 " fuzzy from a fresh report remains the"
                                 " arbiter")
                 else:
-                    verdict += (f"\nCOUNT DISTANCE {prev_dist} ->"
-                                f" {cur_dist} but the multiset moved — the"
-                                " predictor is NOT valid here; arbitrate on"
-                                " fresh fuzzy only")
+                    # SUPPRESSED, not disclaimed. Printing the figure and
+                    # then denying it below leaves the number as the only
+                    # concrete thing on the line, and a number in a verdict
+                    # reads as evidence no matter what follows it. The
+                    # predictor was wrong 4/4 on one function in exactly
+                    # this shape, so there is nothing here worth quoting.
+                    verdict += ("\nCOUNT DISTANCE: WITHHELD — this predictor"
+                                " is sound ONLY at a flat multiset, and the"
+                                " multiset moved, so no figure is reported"
+                                " (it was wrong 4/4 on one function in this"
+                                " exact shape). Arbitrate on fresh fuzzy"
+                                " only")
         else:
             # The arrow is previous->current; the CLASSIFICATION is vs
             # best. Printing both without labels read as a contradiction

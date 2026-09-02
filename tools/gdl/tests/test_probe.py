@@ -8,6 +8,7 @@ that had not moved (measured on game/sys/memcard get_vmu_directory during
 run 29: real 65 -> 65, insns and multiset both unchanged).
 """
 
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -414,6 +415,53 @@ class FuzzyAnchorTests(unittest.TestCase):
                            classify(dict(self.BEST), 48, "T116/O116", 4)):
             self.assertNotIn("BEST-STATE FUZZY", verdict)
             self.assertNotIn("no cached fuzzy anchor", verdict)
+
+
+class CountDistanceSuppressionTests(unittest.TestCase):
+    """Run-32 item 4: an invalid predictor still printed its number.
+
+    Reproduced before implementing. The CONFLICT branch bounds its own
+    count-distance predictor to a FLAT multiset, and when the multiset had
+    moved it printed "COUNT DISTANCE 1 -> 6 but the multiset moved — the
+    predictor is NOT valid here". The figure led and the denial trailed;
+    a number in a verdict reads as evidence whatever follows it.
+    """
+
+    # real 48 -> 65 (rose) with multiset 4t -> 3t (converging => CONFLICT).
+    STATE = {"best_real": 48, "best_multiset": 4, "best_insns": "T116/O116",
+             "last_real": 48, "last_insns": "T116/O115", "last_multiset": 4}
+
+    def line(self, insns, tokens):
+        verdict, _ = classify(dict(self.STATE), 65, insns, tokens)
+        self.assertTrue(verdict.startswith("CONFLICT"), verdict)
+        return next((ln.strip() for ln in verdict.splitlines()
+                     if "COUNT DISTANCE" in ln), "")
+
+    def test_a_moved_multiset_reports_no_figure_at_all(self):
+        line = self.line("T116/O110", 3)          # distance 1 -> 6
+        self.assertIn("WITHHELD", line)
+        self.assertIsNone(re.search(r"COUNT DISTANCE:? \d+ -> \d+", line))
+        self.assertNotRegex(line, r"\b1 -> 6\b")
+
+    def test_it_says_why_the_predictor_is_unavailable(self):
+        line = self.line("T116/O110", 3)
+        self.assertIn("flat multiset", line)
+        self.assertIn("fresh fuzzy", line)
+
+    def test_a_flat_multiset_still_reports_the_figure(self):
+        """The predictor is sound there — suppression must be scoped to the
+        case that admitted invalidity, not applied to every CONFLICT."""
+        state = dict(self.STATE, last_multiset=3)   # flat: 3t -> 3t
+        verdict, _ = classify(state, 65, "T116/O110", 3)
+        line = next(ln for ln in verdict.splitlines()
+                    if "COUNT DISTANCE" in ln)
+        self.assertIn("1 -> 6", line)
+        self.assertIn("flat multiset", line)
+        self.assertNotIn("WITHHELD", line)
+
+    def test_an_unchanged_distance_reports_nothing_either_way(self):
+        verdict, _ = classify(dict(self.STATE), 65, "T116/O115", 3)
+        self.assertNotIn("COUNT DISTANCE", verdict)
 
 
 class DataOnlyEditTests(unittest.TestCase):
