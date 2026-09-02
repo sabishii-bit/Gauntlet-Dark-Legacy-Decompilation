@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "Test CB's run-33 unpark hypothesis that the 48 dead bytes at target r1+8..55 (temp-pool base 56 vs ours 16) are an outgoing parameter area, by enumerating the three named candidate mechanisms (prototype-less/varargs callee; struct-by-value arg; inlined-callee/large-return) both on the real function and in a cflags-faithful lookalike harness.",
+  "attributes": {
+    "law_screen": "claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED, not re-probed (FR/CB measured the declared-pad axis dead 4x). claim.law.cached-base-alias-defeats-rematerialized-index-base.20260831.v1 SCREENED, not applicable (this pass changed no addressing form). NEW law authored: claim.law.CI_mwcc-outgoing-param-area-is-sized-only-by-stack-spilled-args.20260902.v1, which this record's harness asserts. Core-screen defake laws screened, none applicable: no raw-offset conversion attempted.",
+    "laws_applied": "[\"claim.law.CI_mwcc-outgoing-param-area-is-sized-only-by-stack-spilled-args.20260902.v1\"]",
+    "probed_form": "REAL-FUNCTION PROBE (reverted, tree clean vs HEAD): combat.c line 1623 `void MBWindowProject();` replaced by `void MBWindowProject(f32* pt, void* node, f32* outEye, s16* outScr);` -> probe.py NEUTRAL-IDENTICAL, object bytes unchanged, temp-pool base still 16. HARNESS PROBES (tools/gdl/composed_census/ci_paramarea_probe.py, run from repo root): (a) empty-parens vs full-prototype vs varargs decl of a 4-register-arg callee -> identical frame 64, pool base 16, param area 8; (b) rising GPR arg counts -> param area 8 (<=8 args), 16 (9-10), 24 (12), 32 (14), 40 (16), 48 only at 18 args; (c) struct-by-value arg, struct-return-by-value, and alloca-like addressable-local-by-pointer -> none reaches 48.",
+    "residual": "CB's frame MAP stands (six union temporaries kept at 56/60/64/68/72/76, two s16[2] buffers, three f64 magic-constant temps at 104/112/120, GPRs r22-r31 at 128, FPRs f24-f31 at 168-231, frame 232). What is REFUTED is CB's forward hypothesis that the 48 dead bytes at r1+8..55 are an outgoing parameter area: someone_will_be_off_screen calls only MBScreenHeight/Width (0 args) and MBWindowProject twice (4 register args), so by the new law its outgoing parameter area is the 8-byte minimum and cannot be 48. Independent diagnostic: removing our fabricated `u8 stackLayout[56]` drops the natural frame to 176 (target 232), a 56-byte deficit -- the original reserved 56 bytes our C does not, and our stackLayout pad restores the frame SIZE but MWCC places it as a high local (r1+48..103) rather than reproducing the target's split of 48 dead below the pool + 16 dead above it. The 48+16 dead bytes are therefore UNRECOVERED REAL LOCALS interleaved with the compiler temp pool, not argument space; a declared u8 pad can never occupy the below-pool slot because MWCC allocates declared locals ABOVE the temp pool (measured here and 4x by FR/CB). NEXT LANE: stop chasing the parameter-area / declared-pad axes (both closed); the residual needs the original's real sub-pool locals recovered from the target's 8..55 and 88..103 slot usage pattern, which is a whole-function reconstruction, not a pad tweak.",
+    "scope": "src/game/game/combat.c, someone_will_be_off_screen only. NO CHANGE RETAINED (both real-function probes reverted; git status --short and git diff empty). No header touched, no literal added/removed, so combat.c's anonymous pool population and its 6 WebFrank pins were never disturbed.",
+    "verification": "probe.py clean-state BASELINE banked before the first edit (real 138, insns T199/O199, multiset 12t). Real-function prototype probe = NEUTRAL-IDENTICAL. Harness self-consistent and run once from the repo root (all 8 declaration/shape cases compiled green). Tree restored via git checkout; git status --short empty. defake_gate.py baseline for game/game/combat.c taken at pass start (46 functions, 34 at real 0)."
+  },
+  "function": "function:someone_will_be_off_screen",
+  "held_fixed": "The union FloatBits round-trip source and the RC record's kept eye-pointer spelling were held CONSTANT; the real-function probe varied ONLY the MBWindowProject declaration form. The harness held the call site's 4 register arguments fixed while varying declaration form, and held declaration form (full prototype) fixed while varying argument count / aggregate shape.",
+  "id": "attempt.CI_swbos-parameter-area-hypothesis-refuted.20260902.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-02T03:14:55Z",
+  "refutes": "attempt.CB_someone-will-be-off-screen-target-keeps-the-six-union-temporaries.20260902.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "frame-slot",
+    "measured_at": "2026-09-02",
+    "signature": "DIFFERS target-only: +3 add +3 stfsu ours-only: -2 addi -1 mr -3 stfs; insns T199/O199; 12 ops clusters"
+  },
+  "residual_class": "STACK_LAYOUT",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
