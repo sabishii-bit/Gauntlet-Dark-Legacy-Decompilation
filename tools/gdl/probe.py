@@ -1911,18 +1911,41 @@ def update_neutral_identical_streak(state, verdict):
 
 
 def replan_hint(streak):
-    """Advice after a run of edits that never reached codegen at all.
+    """Advice after an edit that never reached codegen at all.
 
     NEUTRAL-IDENTICAL means the object bytes did not move: the edit folded
     away BEFORE codegen, so the source text never reached the compiler's
-    decision point. One is a strong negative on that spelling. Three in a
-    row is no longer evidence about spellings — it is evidence about the
-    AXIS CLASS, because three different source constructs all failed to
-    reach the same decision point. The loop used to say nothing, which
-    invites a fourth spelling of a lever already proven unreachable.
+    decision point.
+
+    DECISIVE AT ONE (run-37 item 6). This used to stay silent until the
+    THIRD consecutive identical, on the theory that one was only evidence
+    about a spelling and three were evidence about the axis. That reasoning
+    undercharges the observation: an unchanged OBJECT is not a weak
+    measurement of the edit, it is a categorical one — the construct was
+    gone before the compiler chose anything, so no score can move and the
+    probe answered a question about the FRONT END, not about codegen. UA
+    and UB each spent two further probes re-spelling a lever the first
+    probe had already shown unreachable. The banner now fires on the first,
+    and ESCALATES at REPLAN_AT, where the evidence really has widened from
+    one construct to the axis class.
     """
-    if streak < REPLAN_AT:
+    if streak < 1:
         return None
+    if streak < REPLAN_AT:
+        return (
+            "THIS EDIT NEVER REACHED CODEGEN: the object bytes are"
+            " unchanged, so the construct folded away in the front end and"
+            " the compiler never made the decision you were probing. That"
+            " is CATEGORICAL for this form, not a weak negative — no"
+            " further spelling of the SAME construct can reach the decision"
+            " point either, and re-spelling it is how UA and UB each spent"
+            " two more probes for nothing. Before the next probe, establish"
+            " that your lever can reach codegen AT ALL (does the construct"
+            " survive to the object? does the target even differ here?), or"
+            " change the LEVER — a declaration/type/order change rather"
+            " than a statement respell. `gdlmem laws --query <your residual"
+            " signature>` first."
+        )
     return (
         f"RE-PLAN THE AXIS CLASS: {streak} consecutive NEUTRAL-IDENTICAL"
         " probes — every one of those edits folded away before codegen and"

@@ -504,9 +504,27 @@ class ReplanHintTests(unittest.TestCase):
                     f" probe:\n{self.IDENTICAL}")
         self.assertEqual(self.streak([rescored, rescored], start=2), 2)
 
-    def test_no_hint_below_the_threshold(self):
-        for count in range(REPLAN_AT):
-            self.assertIsNone(replan_hint(count))
+    def test_no_hint_without_an_identical_probe(self):
+        self.assertIsNone(replan_hint(0))
+
+    def test_the_first_identical_already_fires_a_banner(self):
+        """Run-37 item 6: this used to stay SILENT until the third, and UA
+        and UB each spent two further probes re-spelling a lever the first
+        probe had already shown unreachable. An unchanged object is a
+        categorical measurement, not a weak one."""
+        hint = replan_hint(1)
+        self.assertIsNotNone(hint)
+        self.assertIn("NEVER REACHED CODEGEN", hint)
+        self.assertIn("CATEGORICAL", hint)
+
+    def test_the_first_banner_is_not_the_axis_class_banner(self):
+        """One identical is evidence about the CONSTRUCT; the axis-class
+        claim still needs REPLAN_AT of them."""
+        self.assertNotIn("RE-PLAN THE AXIS CLASS", replan_hint(1))
+
+    def test_every_identical_below_the_threshold_is_covered(self):
+        for count in range(1, REPLAN_AT):
+            self.assertIsNotNone(replan_hint(count))
 
     def test_the_hint_fires_at_the_threshold(self):
         hint = replan_hint(REPLAN_AT)
