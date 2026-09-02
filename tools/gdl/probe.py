@@ -633,6 +633,124 @@ def drop_transient_pins(unit, why):
     return True
 
 
+REDERIVE_HINT_RE = re.compile(
+    r"probe\.py\s+(?P<unit>\S+)\s+(?P<fn>\S+)\s+--rederive-pin")
+
+
+def pin_named_by_build(text):
+    """The pin function webfrank's OWN repair hint names, or None.
+
+    webfrank.rederive_hint() already prints
+    `python tools/gdl/probe.py <unit> <pin> --rederive-pin` on the abort, so
+    the failing pin's identity is in the build output every time. probe just
+    never read it.
+    """
+    match = REDERIVE_HINT_RE.search(text or "")
+    return match.group("fn") if match else None
+
+
+def pin_functions(config_data, unit):
+    """Every function this TU has a webfrank rule for, in file order."""
+    if not isinstance(config_data, dict):
+        return []
+    return [rule.get("function")
+            for rule in config_data.get("units", {}).get(unit, [])
+            if isinstance(rule, dict) and rule.get("function")]
+
+
+def read_pin_functions(unit):
+    config = Path(f"config/{VERSION}/webfrank.json")
+    if not config.exists():
+        return []
+    try:
+        return pin_functions(
+            json.loads(config.read_text(encoding="utf-8")), unit)
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def resolve_pin_target(requested, pins, failing=None):
+    """(function_to_rederive, note) for --rederive-pin (run-39 item 3).
+
+    THE DEFECT. `--rederive-pin` re-derived the function NAMED ON THE
+    COMMAND LINE, which is the function the worker was probing — while the
+    pin that aborts a build is a DOWNSTREAM one (a permutation pin whose
+    window relocations moved because the upstream edit renumbered the
+    pool). Reproduced at 0f45ae610:
+    `probe.py game/game/player do_players --rederive-pin` printed
+    "no webfrank rule for game/game/player::do_players" and then
+    "rederive-pin ABORTED — a body hash moved (the edit changed codegen,
+    not just the pool)". The first line is accurate and useless; the second
+    is WRONG — no body hash moved, there is simply no rule — and it tells
+    the worker their edit changed codegen when it did not. The pin that
+    actually failed was do_exit, and webfrank's own abort text named it.
+
+    Pure so every branch is decided without a build. Resolution order:
+    the requested function if it really is a pin; else the pin the BUILD
+    named; else the TU's only pin; else refuse and list the candidates,
+    because guessing among several pins would paste hashes into the wrong
+    rule.
+    """
+    if requested in pins:
+        return requested, ""
+    if not pins:
+        return None, (
+            f"{requested} has no webfrank rule, and neither does any other"
+            " function in this TU — there is no pin here to re-derive."
+            " Nothing was built or pasted. If a build is failing, it is not"
+            " failing on a pin in this unit.")
+    if failing and failing in pins:
+        return failing, (
+            f"[{requested} has no webfrank rule; the pin that ABORTED the"
+            f" build is {failing}, which webfrank's own abort text names."
+            f" Re-deriving {failing} instead — this is the downstream"
+            " permutation pin your upstream edit shifted.]")
+    if len(pins) == 1:
+        return pins[0], (
+            f"[{requested} has no webfrank rule. This TU has exactly one"
+            f" pin, {pins[0]}, so that is the one being re-derived — a"
+            " permutation pin aborts on the function it PINS, not on the"
+            " function you edited.]")
+    return None, (
+        f"{requested} has no webfrank rule, and this TU has"
+        f" {len(pins)} pins, so which one to re-derive cannot be inferred:"
+        f" {', '.join(pins)}.\n"
+        "  Nothing was built or pasted — pasting hashes into the wrong rule"
+        " is not recoverable from the rule text alone. Re-run the failing"
+        " build and read the pin named in webfrank's abort, then:\n"
+        f"    python tools/gdl/probe.py <unit> <that pin> --rederive-pin")
+
+
+def rederive_abort_reason(output, unit, fn):
+    """Why wf_rederive_pin refused, read from ITS OWN output.
+
+    The abort used to print ONE sentence for every failure: "a body hash
+    moved (the edit changed codegen, not just the pool), or the rule has no
+    instruction_permutation". On the missing-rule path that sentence is
+    FALSE in its load-bearing half — no body hash moved, and the worker is
+    told their edit changed codegen when it did not. Measured at 0f45ae610
+    on `probe.py game/game/player do_players --rederive-pin`.
+
+    Pure over the tool's text so each branch is tested without a build.
+    """
+    text = output or ""
+    if "no webfrank rule" in text:
+        return (f"rederive-pin ABORTED: {unit}::{fn} has no webfrank rule,"
+                " so there is nothing to re-derive. NO body hash moved and"
+                " nothing about your edit's codegen is implied by this."
+                " A permutation pin aborts a build on the function it PINS,"
+                " which is usually DOWNSTREAM of the one you edited — re-run"
+                " the failing build and use the pin webfrank's abort names.")
+    if "instruction_permutation" in text or "permutation" in text:
+        return (f"rederive-pin ABORTED: {unit}::{fn} has a rule but no"
+                " instruction_permutation window, so there are no relocation"
+                " hashes to re-derive. Nothing was pasted.")
+    return ("rederive-pin ABORTED — a body hash moved, so the edit changed"
+            " CODEGEN, not just the anonymous pool. Nothing was pasted:"
+            " re-derive the rule from scratch rather than pasting hashes"
+            " over a body that is no longer the one the rule was proven on.")
+
+
 def rederive_pin(unit, fn, transient=False):
     """One-call pin re-derivation: body build + wf_rederive_pin --apply +
     configure + confirm (run 34 item 9).
@@ -644,11 +762,38 @@ def rederive_pin(unit, fn, transient=False):
     hashes into webfrank.json, run configure.py, rebuild. This sequences all
     of it and ABORTS at the guard wf_rederive_pin enforces — if any BODY hash
     moved the edit changed codegen, so nothing is pasted.
+
+    The function re-derived is RESOLVED, not assumed (run-39 item 3): the
+    pin that aborts a build is the DOWNSTREAM one, not the function being
+    probed, so a worker naming their own function used to get an accurate
+    "no webfrank rule" followed by a FALSE "a body hash moved (the edit
+    changed codegen)". See resolve_pin_target.
     """
     parts = unit.split("/")
     body = Path(f"build/{VERSION}/src/{'/'.join(parts[:-1])}"
                 f"/.postprocess/body/{parts[-1]}.o")
     wf_tool = TOOLS / "composed_census" / "wf_rederive_pin.py"
+
+    pins = read_pin_functions(unit)
+    if fn not in pins:
+        # Ask the BUILD which pin is failing before guessing. webfrank's
+        # abort text names it; this is the only place that costs a build,
+        # and only on the path that was previously guaranteed to fail.
+        failing = None
+        if len(pins) > 1:
+            print(f"[{fn} has no webfrank rule in {unit} — building the"
+                  " object to read which pin the WEBFRANK stage aborts on]")
+            probe_build = subprocess.run(
+                ["ninja", f"build/{VERSION}/src/{unit}.o"],
+                capture_output=True, text=True)
+            failing = pin_named_by_build(probe_build.stdout
+                                         + probe_build.stderr)
+        target, note = resolve_pin_target(fn, pins, failing)
+        if note:
+            print(note)
+        if target is None:
+            return 1
+        fn = target
 
     print(f"[1/4] building raw body object {body.name}")
     r = subprocess.run(["ninja", str(body)], capture_output=True, text=True)
@@ -666,10 +811,7 @@ def rederive_pin(unit, fn, transient=False):
     if r.returncode != 0:
         if r.stderr.strip():
             print(r.stderr.strip()[-800:])
-        print("rederive-pin ABORTED — a body hash moved (the edit changed"
-              " codegen, not just the pool), or the rule has no"
-              " instruction_permutation. Nothing was pasted; re-derive the"
-              " rule from scratch if codegen changed.")
+        print(rederive_abort_reason(r.stdout + r.stderr, unit, fn))
         return 1
 
     print("[3/4] configure.py (materialize the WEBFRANK edge for the new hash)")

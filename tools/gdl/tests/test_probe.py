@@ -338,6 +338,107 @@ class TransientPinBankLifecycleTests(unittest.TestCase):
                 flag)
 
 
+class RederivePinTargetTests(unittest.TestCase):
+    """run-39 item 3, reproduced at 0f45ae610.
+
+    `probe.py game/game/player do_players --rederive-pin` printed
+    "no webfrank rule for game/game/player::do_players" and then
+    "rederive-pin ABORTED -- a body hash moved (the edit changed codegen,
+    not just the pool)". The first is accurate and useless; the second is
+    FALSE in its load-bearing half and tells the worker their edit changed
+    codegen when it did not. The pin that actually aborted the build was
+    do_exit -- a DOWNSTREAM permutation pin -- and webfrank's own abort text
+    named it all along.
+    """
+
+    PLAYER_PINS = ["do_exit", "ExpToLevel", "load_player_geo",
+                   "do_heal_players", "load_player_model",
+                   "load_player_model_sub"]
+
+    ABORT = (
+        "WEBFRANK: this is the RELOCATION-hash class - the window's"
+        " instruction bytes are unchanged and only its relocation hashes"
+        " moved.\n"
+        "    python tools/gdl/probe.py game/game/player do_exit"
+        " --rederive-pin\n"
+        "  Add --transient if this is a throwaway A/B.")
+
+    def test_the_failing_pin_is_read_out_of_webfranks_own_abort(self):
+        self.assertEqual("do_exit", probe.pin_named_by_build(self.ABORT))
+
+    def test_a_build_that_named_no_pin_yields_none(self):
+        self.assertIsNone(probe.pin_named_by_build("ninja: build stopped."))
+        self.assertIsNone(probe.pin_named_by_build(None))
+
+    def test_pin_functions_reads_the_units_rules_in_order(self):
+        config = {"units": {"game/game/player": [
+            {"function": "do_exit"}, {"function": "ExpToLevel"},
+            {"no_function_key": 1}]}}
+        self.assertEqual(["do_exit", "ExpToLevel"],
+                         probe.pin_functions(config, "game/game/player"))
+        self.assertEqual([], probe.pin_functions(config, "game/other/tu"))
+        self.assertEqual([], probe.pin_functions(None, "game/game/player"))
+
+    def test_a_real_pin_is_used_as_asked(self):
+        self.assertEqual(("do_exit", ""),
+                         probe.resolve_pin_target("do_exit", self.PLAYER_PINS))
+
+    def test_the_build_named_pin_wins_over_the_requested_function(self):
+        target, note = probe.resolve_pin_target(
+            "do_players", self.PLAYER_PINS, failing="do_exit")
+        self.assertEqual("do_exit", target)
+        self.assertIn("ABORTED the build is do_exit", note)
+        self.assertIn("downstream", note)
+
+    def test_a_single_pin_tu_needs_no_build_to_disambiguate(self):
+        target, note = probe.resolve_pin_target(
+            "end_inventory_panel_helper", ["end_inventory_panel"])
+        self.assertEqual("end_inventory_panel", target)
+        self.assertIn("exactly one", note)
+
+    def test_several_pins_and_no_failing_build_REFUSES_rather_than_guesses(
+            self):
+        """Pasting hashes into the wrong rule is not recoverable from the
+        rule text alone, so this must never guess."""
+        target, note = probe.resolve_pin_target(
+            "do_players", self.PLAYER_PINS)
+        self.assertIsNone(target)
+        self.assertIn("cannot be inferred", note)
+        for pin in self.PLAYER_PINS:
+            self.assertIn(pin, note)
+
+    def test_a_pin_named_by_the_build_but_absent_from_the_rules_is_ignored(
+            self):
+        target, _note = probe.resolve_pin_target(
+            "do_players", self.PLAYER_PINS, failing="some_other_fn")
+        self.assertIsNone(target)
+
+    def test_a_tu_with_no_pins_at_all_says_exactly_that(self):
+        target, note = probe.resolve_pin_target("f", [])
+        self.assertIsNone(target)
+        self.assertIn("no webfrank rule, and neither does any other", note)
+
+    def test_the_missing_rule_abort_no_longer_blames_codegen(self):
+        reason = probe.rederive_abort_reason(
+            "no webfrank rule for game/game/player::do_players",
+            "game/game/player", "do_players")
+        self.assertIn("has no webfrank rule", reason)
+        self.assertIn("NO body hash moved", reason)
+        self.assertNotIn("changed codegen, not just the pool", reason)
+
+    def test_a_genuine_body_hash_move_still_says_codegen_changed(self):
+        reason = probe.rederive_abort_reason(
+            "BODY HASH CHANGED: region before_sha256 differs",
+            "game/game/player", "do_exit")
+        self.assertIn("changed", reason)
+        self.assertIn("CODEGEN", reason)
+
+    def test_a_rule_without_a_permutation_window_is_named_as_such(self):
+        reason = probe.rederive_abort_reason(
+            "rule has no instruction_permutation", "u", "f")
+        self.assertIn("no instruction_permutation window", reason)
+
+
 class ArbitrateTransientPinTests(unittest.TestCase):
     """run-39 item 2, reproduced live on game/game/player at 0f45ae610.
 
