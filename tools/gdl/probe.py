@@ -839,6 +839,45 @@ def rederive_pin(unit, fn, transient=False):
     return 0
 
 
+def raw_object_target(unit):
+    """The ninja target for `unit`'s PRE-postprocess object.
+
+    Run-39 item 10. `--raw` exists to score the compiler's own output for a
+    TU whose functions are WebFrank-pinned, but probe built
+    `build/<V>/src/<unit>.o` regardless — the POSTPROCESSED object, whose
+    edge hash-asserts every pin. So the one situation --raw is for (a pin
+    made stale by your own upstream edit) was exactly the situation in which
+    it could not run: reproduced at 7688fc7df, where `probe --raw` on
+    game/game/player::do_players died in the WEBFRANK stage on the do_exit
+    pin. SY worked around it by building the body object and running fnasm
+    by hand.
+
+    Resolved through fnasm.raw_obj_path so the `frank` stage is preferred
+    over `body` exactly as the reader does — frank runs BEFORE the object
+    postprocessor when both are configured, so its output is what webfrank
+    consumes. Falls back to the body path when nothing is staged yet,
+    because a target that does not exist must still be BUILDABLE.
+
+    Returned REPO-ROOT-RELATIVE with forward slashes: fnasm hands back an
+    absolute path (it is a reader), and ninja rejects those outright —
+    `ninja: error: unknown target 'W:\\...'`, measured on the first run of
+    this function.
+    """
+    parts = unit.split("/")
+    fallback = (f"build/{VERSION}/src/{'/'.join(parts[:-1])}"
+                f"/.postprocess/body/{parts[-1]}.o")
+    try:
+        sys.path.insert(0, str(TOOLS))
+        import fnasm as _fnasm
+        staged = _fnasm.raw_obj_path(unit)
+        if staged is not None:
+            return Path(staged).resolve().relative_to(
+                Path.cwd().resolve()).as_posix()
+    except Exception:
+        pass
+    return fallback
+
+
 def rebuild_after_restore(unit, why):
     """Rebuild ``unit``'s object after a restore that returns early.
 
@@ -1267,12 +1306,18 @@ def count_distance(text):
     return abs(int(match.group(1)) - int(match.group(2))) if match else None
 
 
-def object_digest(unit, fn, fn_stripped):
-    """Raw-byte signature of the built function, or None if unavailable."""
+def object_digest(unit, fn, fn_stripped, objfile=None):
+    """Raw-byte signature of the built function, or None if unavailable.
+
+    ``objfile`` overrides the default postprocessed object so `--raw` hashes
+    the bytes it actually scored; hashing the postprocessed object under
+    --raw would make the re-score guard and NEUTRAL-IDENTICAL describe a
+    different object than the verdict.
+    """
     try:
         sys.path.insert(0, str(TOOLS))
         import fndiff as _fndiff
-        objfile = Path(f"build/{VERSION}/src/{unit}.o")
+        objfile = Path(objfile or f"build/{VERSION}/src/{unit}.o")
         signature = _fndiff.raw_signature(objfile)
         return signature.get(fn) or signature.get(fn_stripped)
     except Exception:
@@ -1306,7 +1351,7 @@ def parse_section_digests(dump):
             if not name.startswith(".text")}
 
 
-def data_digest(unit):
+def data_digest(unit, objfile=None):
     """Per-section digest of the object's NON-TEXT sections, or None.
 
     object_digest() above hashes instruction words and relocation lines,
@@ -1322,7 +1367,7 @@ def data_digest(unit):
     try:
         sys.path.insert(0, str(TOOLS))
         import fndiff as _fndiff
-        objfile = Path(f"build/{VERSION}/src/{unit}.o")
+        objfile = Path(objfile or f"build/{VERSION}/src/{unit}.o")
         dump = subprocess.run(
             [str(_fndiff.OBJDUMP), "-s", str(objfile)],
             capture_output=True, text=True)
@@ -3104,16 +3149,26 @@ def main():
         # volatile-in-a-macro header edit survived a revert and stayed live.
         warn_outside_edits(source, None if "--whole-file" in sys.argv else fn)
 
+    # --raw BUILDS THE RAW OBJECT (run-39 item 10). Building the
+    # postprocessed object here made --raw unusable in the one case it
+    # exists for: a pin your own upstream edit made stale aborts the
+    # WEBFRANK edge, so the escape hatch died on the thing it was escaping.
+    raw = "--raw" in sys.argv
+    object_target = (raw_object_target(unit) if raw
+                     else f"build/{VERSION}/src/{unit}.o")
+    if raw:
+        print(f"[--raw: building {object_target} — the compiler's own"
+              " output, WITHOUT driving the WEBFRANK edge, so a stale pin"
+              " cannot block this score]")
     build = subprocess.run(
-        ["ninja", f"build/{VERSION}/src/{unit}.o"],
-        capture_output=True, text=True,
+        ["ninja", object_target], capture_output=True, text=True,
     )
     if build.returncode != 0:
         print("BUILD FAILED:")
         print((build.stdout + build.stderr).strip()[-1500:])
         return 1
 
-    raw_flag = ["--raw"] if "--raw" in sys.argv else []
+    raw_flag = ["--raw"] if raw else []
     # fndiff strips a trailing _80XXXXXX address suffix from user-supplied
     # names; accept either spelling here so one name works everywhere.
     fn_stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn)
@@ -3162,9 +3217,13 @@ def main():
     prev_tokens = state.get("last_multiset")
     prev_insns = state.get("last_insns")
     prev_digest = state.get("last_bytes")
-    digest = object_digest(unit, fn, fn_stripped)
+    # Both digests read the object that was actually SCORED, so under --raw
+    # the re-score guard and NEUTRAL-IDENTICAL describe the same bytes the
+    # verdict does.
+    scored_object = object_target if raw else None
+    digest = object_digest(unit, fn, fn_stripped, scored_object)
     prev_data = state.get("last_data")
-    data = data_digest(unit)
+    data = data_digest(unit, scored_object)
     # A cached fuzzy is usable ONLY when it provably describes the bytes
     # in front of us. Anything looser reintroduces the stale-number defect
     # the --fuzzy readout exists to prevent.
