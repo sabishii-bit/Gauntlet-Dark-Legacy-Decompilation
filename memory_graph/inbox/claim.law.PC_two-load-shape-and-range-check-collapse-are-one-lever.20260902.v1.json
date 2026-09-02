@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py game/game/player do_players 0x230:0x2a0 --diff",
+    "tools/gdl/probe.py game/game/player do_players --ops"
+  ],
+  "attributes": {
+    "provenance": "src/game/game/player.c::do_players (target 1174 insns), worktree GDL-Claude-PlayerConstants, work_claim.player-constants.20260902.v1, commit 669466bcf; see attempt.PC_do-players-mixed-spelling-splits-the-state-cse.20260902.v1. Builds on the untried hypothesis left by attempt.PT_do-players-pta-cell4-measured-and-reread-refuted.20260902.v1, whose probe C established the negative half.",
+    "scope": "MWCC GC 1.2.5 family. Applies where a target reads one field twice through two different base forms while the same source reads it once, AND where an adjacent-constant equality pair (x == C, x == C+1) sits on that value. Does NOT claim anything about non-adjacent constants, which MWCC has no range check to form.",
+    "tags": [
+      "cse",
+      "index-form",
+      "walked-pointer",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Produce an MWCC 1.2.5 function in which the target reads one address twice through two different bases AND ALSO range-checks an adjacent-constant equality pair off one of those loads: that co-occurrence would show the two phenomena are independent rather than one lever. Or, on do_players itself, obtain the target's `add`+`lwz` second load from a source in which BOTH reads use the same kind of access (the same macro, or the same walked pointer) \u2014 probe C of attempt.PT_do-players-pta-cell4-measured-and-reread-refuted.20260902.v1 is the recorded negative for that direction and reproducing it POSITIVE disproves this law. Conversely, showing that two textually different spellings of the SAME KIND (PT(i) vs PTA(i)) do split the CSE would disprove the 'different kind, not merely different text' clause \u2014 measured false here, since those two produced byte-identical objects.",
+  "id": "claim.law.PC_two-load-shape-and-range-check-collapse-are-one-lever.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T03:26:06Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "MWCC'S DUPLICATE-LOAD SUPPRESSION AND ITS ADJACENT-CONSTANT RANGE-CHECK COLLAPSE ARE THE SAME LEVER, AND THE LEVER IS PULLED BY GIVING THE TWO READS TWO DIFFERENT KINDS OF ACCESS \u2014 NOT MERELY TWO DIFFERENT TEXTS. Measured on do_players at +0x230..+0x274. THE TARGET SHAPE: it forms `addi r18,r31,3136`, reads `lwz r0,232(r18)` for the `!= 0` test, then RE-READS THE SAME ADDRESS through a second base, `add r3,r31,r16` + `lwz r0,3368(r3)` (3136+232 == 3368, the same field of the same record), and tests that value with `cmpwi r0,2 / beq / cmpwi r0,3 / bne`. OURS emitted ONE load and, off that single value, the range check `addi r0,r3,-2 / cmplwi r0,1 / bgt` \u2014 MWCC's standard folding of `x == 2 || x == 3` into `(unsigned)(x-2) <= 1`. THE COUPLING, which is the content of this law: the range check is only formable while the two comparisons see ONE value number, so the second load and the absence of the range check are not two independent differences to chase separately \u2014 splitting the CSE removes the range check in the same edit, and no edit that leaves one load can remove it. That is why three prior NEUTRAL-IDENTICAL probes on this cluster moved nothing: they respelled reads that MWCC re-merged. WHAT ACTUALLY SPLITS THE CSE. Different TEXT is not sufficient: `PT(i)->state` (offset-cast macro) and `PTA(i)->state` (stride-sized-array-view macro) name the same address by visibly different expressions and produced BYTE-IDENTICAL objects here (both real 1087, O1165, multiset 33t, identical addi/lwzx cluster), so MWCC's value numbering saw through the spelling difference. What worked was a different KIND of access: keeping the loop's WALKED POINTER `p->state` for the `!= 0` test and using an INDEXED `PTA(i)->state` for the `== 2 || == 3` pair. That emitted the second load, removed the range check at that site, moved the opcode multiset 40t -> 33t and objdiff fuzzy 93.7240% -> 94.0818%. NEGATIVE TRANSFER, measured in the same run and worth as much as the positive: applying the identical PT-for-!=0 / PTA-for-2-3 edit to the two twin j-loops FAILED (multiset 33t -> 35t, two extra lwzx, range check still present), because at those sites the `!= 0` read is ALREADY indexed, so the pair offered no second KIND. The rule is therefore directional: supply the kind the loop does not already have. METRIC NOTE: this lever costs `real` badly (1024 -> 1087) because inserting instructions early in a 1174-instruction function re-aligns every downstream diff row; defake_gate independently reported 'genuine structural rows 46 -> 43 FELL \u2014 the residual moved nearer target and real is reading the re-alignment', and probe.py withheld its count-distance predictor because the multiset moved. On this lever, arbitrate on the multiset and fresh fuzzy, never on `real`."
+}

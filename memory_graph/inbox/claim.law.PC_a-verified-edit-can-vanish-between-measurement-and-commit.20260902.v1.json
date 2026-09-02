@@ -1,0 +1,21 @@
+{
+  "attributes": {
+    "provenance": "worktree GDL-Claude-PlayerConstants, work_claim.player-constants.20260902.v1, run 34. Observed TWICE on src/game/game/player.c while carrying attempt.PC_do-players-mixed-spelling-splits-the-state-cse.20260902.v1 to commit 669466bcf. An IDE was attached to the same absolute path throughout (the session's diagnostics hook reported warnings for this exact file on every edit), which is the leading but UNPROVEN suspect.",
+    "scope": "Workflow/instrumentation, not codegen. Applies to any lane editing a source file that an external editor also holds open.",
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "provisional",
+  "falsifier": "Identify the writer. Run a lane that touches ONE source file with an attached IDE/editor closed, repeating the same probe/gate/commit sequence, and show the working tree stays dirty throughout; that localises the cause to the editor and retires this as a tooling note. Conversely, reproduce the disappearance with no editor attached and the cause is inside the gdl tool chain, which would make this a tool bug to fix rather than a discipline to follow. tools/gdl/defake_gate.py is already EXCLUDED by inspection: its only source-restoring path is the `--at-head` branch of run_single (it writes HEAD's bytes in, re-baselines, then restores in a `finally`), and this lane never passed --at-head.",
+  "id": "claim.law.PC_a-verified-edit-can-vanish-between-measurement-and-commit.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T03:27:16Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A SOURCE EDIT THAT WAS VERIFIED PRESENT ON DISK CAN BE GONE BY COMMIT TIME, AND EVERY GREEN GATE IN BETWEEN WILL THEN BE DESCRIBING THE BASELINE RATHER THAN YOUR WORK \u2014 SO THE COMMIT, NOT THE GATE, IS THE FIRST TRUSTWORTHY EVIDENCE THAT AN EDIT EXISTS. Observed twice in one lane on one file. OCCURRENCE 1: the edit was applied, then `ninja` rebuilt the body object and `wf_rederive_pin.py` reported the downstream pin's relocation hashes UNCHANGED. That 'unchanged' was the true signal \u2014 the edit was already gone \u2014 and it was rationalised away as a quirk of the hash migration instead of being checked. The subsequent full `ninja -j2` printed `build/GUNE5D/main.dol: OK` and `WEBFRANK game/game/player: 130 instruction atoms/fields total`, and defake_gate printed GATE OK: three green gates, all of them describing HEAD. OCCURRENCE 2: the same edit was re-applied and CONFIRMED on disk by reading the line back and by `git status --short` showing both files modified; probe.py then measured the edited state (real 1087, multiset 33t, fresh fuzzy 94.0818%) and defake_gate independently classified it (`real 1024 -> 1087 BUT genuine structural rows 46 -> 43 FELL`), so the edit demonstrably reached the compiler. Minutes later `git commit` answered 'nothing to commit, working tree clean'. THE ASYMMETRY THAT MAKES THIS DANGEROUS: a lost edit does not fail anything. It converts every downstream instrument into a re-measurement of the baseline, and a baseline passes all gates by construction, so the lane sails to the report and states an improvement that is not in the tree. This lane came one command from doing exactly that. OPERATIONAL RULE, cheap and sufficient: (1) treat a re-derivation or gate that reports NO CHANGE after an edit you believe changed instruction counts as a MISSING-EDIT alarm, not a curiosity \u2014 that is the earliest and cheapest detector, and it fired correctly here and was ignored; (2) between verifying an edit and committing it, run NOTHING that is not required \u2014 commit first, then gate the committed state, which is the order this lane finished on; (3) quote in the record only numbers whose state you can still see in `git status`/`git log`, per AGENTS.md discipline 8, because the alternative is a fabricated metric with a green gate behind it."
+}
