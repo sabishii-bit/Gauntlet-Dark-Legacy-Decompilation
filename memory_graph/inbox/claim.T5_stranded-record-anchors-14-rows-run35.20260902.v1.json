@@ -1,0 +1,16 @@
+{
+  "attributes": {
+    "law_screen": "Screened claim.RC_stale-reopen-queue-is-a-classifier-artifact.20260901.v1 - APPLIES, and is why this list is reported only after the check's precision was calibrated against the whole corpus (a first cut produced 111 rows, 108 of them the src/*.o build-layout artifact). All 14 rows below were confirmed by hand against the working tree, not taken from the tool's output alone.",
+    "next_action": "Integrator: supersede each record with its corrected anchor, then re-run stale to confirm reopen_candidates returns to empty. Separately, re-measure the movieplayer records' CONTENT against src/game/movie/movieplayer.cpp - a corrected path does not revalidate a stale layout claim.",
+    "verification": "python memory_graph/gdlmem.py --out build/gdlmem_out/t5_stale.json stale, then a per-row filesystem check of each cited path and of the named survivor."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.T5_stranded-record-anchors-14-rows-run35.20260902.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-02T15:29:28Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "Fourteen ACCEPTED records cite a source path that is not in the tree, so their evidence cannot be reopened as written. Surfaced for the first time by the run-35 stale anchor_path_missing check (reopen_candidates was otherwise EMPTY, so these are 14 findings the queue could not previously produce). Twelve were stranded by the movieplayer.c -> movieplayer.cpp rename of 2026-08-31: attempt.fn-800da920-trio-verify-exact.20260831.v1, attempt.fn-800dacd8-trio-drive.20260831.v1, attempt.fn-800db3d4-trio-drive.20260831.v1, attempt.fn-800db3d4-trio-drive.20260831.v2, attempt.fn-800dba80-report-retriage.20260829.v2, attempt.movieplayer-defakematch-tupass.20260830.v1, attempt.movieplayer-defakematch-tupass.20260831.v2, attempt.playvqmovie-gxcolor-layout.20260829.v1, claim.law.guard-polarity-restructure-fixes-count-parity-not-form.20260831.v1, claim.law.low-field-count-param-retype-can-regress-exact.20260830.v1, claim.law.narrow-type-buys-rlwimi-insert-and-pays-a-masked-shift.20260901.v1, evidence.moviestate-layout-proof.20260831.v1. Two were stranded by directory moves: attempt.shop-c-defakematch-tupass2.20260831.v1 cites src/game/leveldata.h (now include/game/leveldata.h) and attempt.sndfxinit-signature-and-mode-global-fix.20260831.v1 cites src/game/sfx/sndfx.c (now src/game/audio/sndfx.c). The repair in every case is SUPERSEDING the record with the corrected anchor, never deleting it - each row names its single surviving file. Note the run-34 criticism this came from concerned attempt.playvqmovie-gxcolor-layout.20260829.v1 specifically: MV reported it as describing a layout the tree no longer produces, which is a SECOND defect this check does not test for - a corrected anchor does not re-verify the content, and the movieplayer records should be re-measured against the .cpp before their claims are relied on."
+}
