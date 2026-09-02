@@ -1312,6 +1312,39 @@ def _entity_id(connection: sqlite3.Connection, key: str) -> int:
     raise MemoryGraphError(f"record references unknown entity {key!r}")
 
 
+def tu_name_candidates(name: str) -> list[str]:
+    """Every module spelling a `tu:<module>` reference might mean.
+
+    Covers the two ways a worker's path differs from an `object_name`:
+
+    * the SOURCE EXTENSION, in both directions — a TU renamed between .c and
+      .cpp (movieplayer.c -> movieplayer.cpp, 2026-08-31) must not strand
+      records anchored to its former spelling; and
+    * a leading `src/`, which is how every matching TOOL spells a unit path
+      and therefore how a worker types one. Measured 2026-09-02:
+      `tu:src/game/sys/memcard.c` was refused while `tu:game/sys/memcard`
+      resolved, and the refusal's directory said the suffix was optional
+      without ever mentioning the prefix — so the obvious next guess was to
+      change the suffix, which was already fine. tools/gdl already strips a
+      stray `src/` for exactly this reason; the graph now agrees with it.
+
+    Order is preserved and duplicates removed, so callers can use the first
+    hit as the canonical spelling.
+    """
+    out: list[str] = []
+    for candidate in (name, name.removeprefix("src/")):
+        base = candidate
+        for suffix in (".cpp", ".c"):
+            if base.endswith(suffix):
+                base = base[: -len(suffix)]
+                break
+        for spelling in (candidate, candidate + ".c", candidate + ".cpp",
+                         base, base + ".c", base + ".cpp"):
+            if spelling and spelling not in out:
+                out.append(spelling)
+    return out
+
+
 def _autoresolve_entity(connection: sqlite3.Connection, key: str) -> int | None:
     """Materialize a minimal entity from the deterministic symbol/module import.
 
@@ -1343,16 +1376,7 @@ def _autoresolve_entity(connection: sqlite3.Connection, key: str) -> int | None:
         return None
     if key.startswith("tu:"):
         name = key.split(":", 1)[1]
-        # Match with OR without the source extension, in both directions: a TU
-        # that is renamed between .c and .cpp (movieplayer.c -> movieplayer.cpp,
-        # 2026-08-31) must not strand records anchored to its former spelling.
-        base = name
-        for suffix in (".cpp", ".c"):
-            if base.endswith(suffix):
-                base = base[: -len(suffix)]
-                break
-        candidates = [name, name + ".c", name + ".cpp", base, base + ".c", base + ".cpp"]
-        candidates = list(dict.fromkeys(candidates))
+        candidates = tu_name_candidates(name)
         placeholders = ",".join("?" for _ in candidates)
         rows = connection.execute(
             "SELECT object_name FROM binary_module"
@@ -3166,11 +3190,12 @@ def _reference_resolvable(connection: sqlite3.Connection, key: str) -> bool:
         ).fetchone()[0]
         return int(count) == 1
     if key.startswith("tu:"):
-        name = key.split(":", 1)[1]
+        candidates = tu_name_candidates(key.split(":", 1)[1])
+        placeholders = ",".join("?" for _ in candidates)
         count = connection.execute(
             "SELECT COUNT(*) FROM binary_module"
-            " WHERE platform='gamecube' AND (object_name=? OR object_name=? OR object_name=?)",
-            (name, name + ".c", name + ".cpp"),
+            f" WHERE platform='gamecube' AND object_name IN ({placeholders})",
+            candidates,
         ).fetchone()[0]
         return int(count) >= 1
     return False
@@ -3237,6 +3262,20 @@ def unknown_entity_message(key: str, namespaces, suggestions) -> str:
                      " (prefix, count, example):")
         for prefix, count, example in namespaces[:12]:
             lines.append(f"  {prefix}: {count} — e.g. {example}")
+    # Name the STRAY PREFIX, because the suffix clause above actively
+    # misleads here: it says the extension is optional (true), so a reader
+    # whose `tu:src/game/sys/memcard.c` was refused reaches for the suffix,
+    # which was never the problem. Measured 2026-09-02 — UB spent a round
+    # trip on exactly that. `src/` is how every matching tool spells a unit
+    # path, so it is the likeliest thing a worker types.
+    if key.startswith("tu:src/"):
+        lines.append(
+            "THE `src/` PREFIX IS WHAT BROKE THIS, not the suffix: a module"
+            f" is named {key.replace('tu:src/', 'tu:', 1)!r}, the way"
+            " configure.py names the object, not the way a tool takes a"
+            " unit path. (The .c/.cpp suffix really is optional, so"
+            " changing it will not help — that is the round trip this line"
+            " exists to save.)")
     if suggestions:
         lines.append("Did you mean: " + ", ".join(suggestions) + "?")
     lines.append(

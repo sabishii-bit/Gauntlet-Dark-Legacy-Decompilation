@@ -1288,6 +1288,50 @@ class ProposalGateTests(unittest.TestCase):
             stage_record_proposal(record, root=self.root)
 
 
+class TuNameCandidateTests(unittest.TestCase):
+    """A `tu:` reference must accept the path a worker actually types.
+
+    Run-37 item 10. The brief said the error should "say the module path
+    needs its .c suffix" — REFUTED on measurement: the suffix was already
+    optional in both directions. What actually failed was the leading
+    `src/`, which is how every matching tool spells a unit path, and the
+    refusal's own directory said the suffix was optional while never
+    mentioning the prefix — so the obvious next guess was the one thing
+    that was already fine. tools/gdl strips a stray `src/`; the graph now
+    agrees with it.
+    """
+
+    def test_a_src_prefixed_unit_path_is_a_candidate(self):
+        self.assertIn("game/sys/memcard",
+                      core.tu_name_candidates("src/game/sys/memcard.c"))
+
+    def test_the_suffix_was_never_the_problem(self):
+        for spelling in ("game/sys/memcard", "game/sys/memcard.c",
+                         "game/sys/memcard.cpp"):
+            self.assertIn("game/sys/memcard.c",
+                          core.tu_name_candidates(spelling))
+
+    def test_a_renamed_tu_resolves_from_its_former_spelling(self):
+        """movieplayer.c -> movieplayer.cpp, 2026-08-31."""
+        self.assertIn("game/movie/movieplayer.cpp",
+                      core.tu_name_candidates("game/movie/movieplayer.c"))
+
+    def test_candidates_are_deduplicated_and_ordered(self):
+        out = core.tu_name_candidates("game/sys/memcard")
+        self.assertEqual(len(out), len(set(out)))
+        self.assertEqual(out[0], "game/sys/memcard")
+
+    def test_the_error_names_the_prefix_not_the_suffix(self):
+        message = core.unknown_entity_message(
+            "tu:src/game/nope/not_a_tu.c", [], [])
+        self.assertIn("`src/` PREFIX IS WHAT BROKE THIS", message)
+        self.assertIn("suffix really is optional", message)
+
+    def test_the_prefix_note_is_absent_when_there_is_no_prefix(self):
+        message = core.unknown_entity_message("tu:game/nope/x.c", [], [])
+        self.assertNotIn("PREFIX IS WHAT BROKE THIS", message)
+
+
 class MechanismSentenceTests(unittest.TestCase):
     """Pin prose that names a SIBLING is evidence the sibling cannot get.
 
