@@ -1580,5 +1580,281 @@ class StaleRestoreRefusalTest(unittest.TestCase):
         self.assertIn("bbbbbbbbb", msg)
 
 
+# The reproduction case, verbatim from
+# claim.law.PC_storage-class-of-a-same-tu-base-object-is-a-codegen-lever-
+# that-must-be-gated-tu-wide and re-measured in this worktree at 0f45ae610:
+# removing ONE `static` moved nine byte-exact siblings.
+PLAYER_HEAD = """\
+#include "game.h"
+
+#pragma peephole off
+
+static void* potionicon_tab[5];    /* potion type -> texture */
+static void* hod_blit[4];
+
+extern s32 gFrameTicks;
+
+static void helper(int i)
+{
+    potionicon_tab[i] = 0;   /* a brace } inside a comment */
+}
+
+void do_players(void)
+{
+    int i;
+    for (i = 0; i < 4; i++) {
+        helper(i);
+    }
+}
+"""
+
+
+class TuScopeItemTests(unittest.TestCase):
+    """file_scope_items keeps exactly what can move a SIBLING's bytes."""
+
+    def test_declarations_and_pragma_and_fndef_heads_are_kept(self):
+        items = probe.file_scope_items(PLAYER_HEAD)
+        self.assertIn(("pragma", "#pragma peephole off"), items)
+        self.assertIn(("decl", "static void* potionicon_tab[5]"), items)
+        self.assertIn(("decl", "static void* hod_blit[4]"), items)
+        self.assertIn(("decl", "extern s32 gFrameTicks"), items)
+        self.assertIn(("fndef", "static void helper(int i)"), items)
+        self.assertIn(("fndef", "void do_players(void)"), items)
+
+    def test_function_bodies_are_discarded_entirely(self):
+        """The gate must cost an ordinary body-only probe NOTHING."""
+        for _kind, text in probe.file_scope_items(PLAYER_HEAD):
+            self.assertNotIn("for (i", text)
+            self.assertNotIn("helper(i);", text)
+
+    def test_body_only_edit_produces_an_identical_item_list(self):
+        edited = PLAYER_HEAD.replace("i < 4", "i < gNumPlayers")
+        self.assertNotEqual(edited, PLAYER_HEAD)
+        self.assertEqual(probe.file_scope_items(PLAYER_HEAD),
+                         probe.file_scope_items(edited))
+        self.assertEqual([], probe.tu_scope_changes(PLAYER_HEAD, edited))
+
+    def test_aggregate_definition_with_a_body_stays_one_declaration(self):
+        text = "static struct { int a; int b; } gThing;\nvoid f(void) {}\n"
+        items = probe.file_scope_items(text)
+        self.assertIn(("decl", "static struct { int a; int b; } gThing"),
+                      items)
+        self.assertIn(("fndef", "void f(void)"), items)
+
+    def test_a_brace_in_a_string_cannot_desynchronise_the_parser(self):
+        text = 'static char* s = "}{";\nstatic int after;\n'
+        self.assertIn(("decl", "static int after"),
+                      probe.file_scope_items(text))
+
+    def test_an_extern_C_block_is_transparent_not_a_scope(self):
+        """`extern "C" {` wraps lines 44-2842 of movieplayer.cpp and 73-400
+        of pb_tree.cpp. Counting it as a scope makes the gate itemize
+        NOTHING there and silently pass every file-scope edit in those
+        TUs."""
+        text = ('#ifdef __cplusplus\n'
+                'extern "C" {\n'
+                '#endif\n'
+                'static void* tab[5];\n'
+                'void f(void)\n'
+                '{\n'
+                '    tab[0] = 0;\n'
+                '}\n'
+                '#ifdef __cplusplus\n'
+                '}  /* extern "C" */\n'
+                '#endif\n')
+        items = probe.file_scope_items(text)
+        self.assertIn(("decl", "static void* tab[5]"), items)
+        self.assertIn(("fndef", "void f(void)"), items)
+        edited = text.replace("static void* tab[5];", "void* tab[5];")
+        self.assertEqual(["storage-class/linkage"],
+                         [c for c, _ in probe.tu_scope_changes(text, edited)])
+
+    def test_a_multi_line_macro_body_cannot_desynchronise_the_parser(self):
+        text = ("#define LOOP(n) \\\n"
+                "    { int i; for (i = 0; i < (n); i++) \\\n"
+                "        work(i); }\n"
+                "static int after;\n")
+        self.assertIn(("decl", "static int after"),
+                      probe.file_scope_items(text))
+
+
+class TuScopeChangeTests(unittest.TestCase):
+
+    def test_the_nine_strict_edit_is_classified_as_a_linkage_change(self):
+        edited = PLAYER_HEAD.replace(
+            "static void* potionicon_tab[5];", "void* potionicon_tab[5];")
+        changes = probe.tu_scope_changes(PLAYER_HEAD, edited)
+        self.assertEqual(1, len(changes))
+        category, what = changes[0]
+        self.assertEqual("storage-class/linkage", category)
+        self.assertIn("potionicon_tab", what)
+
+    def test_static_added_to_a_function_definition_is_caught(self):
+        edited = PLAYER_HEAD.replace("void do_players(void)",
+                                     "static void do_players(void)")
+        self.assertEqual([("storage-class/linkage",
+                           "void do_players(void)  ->  "
+                           "static void do_players(void)")],
+                         probe.tu_scope_changes(PLAYER_HEAD, edited))
+
+    def test_a_const_flip_is_a_pool_qualifier_change_not_a_linkage_one(self):
+        edited = PLAYER_HEAD.replace("static void* hod_blit[4];",
+                                     "static const void* hod_blit[4];")
+        self.assertEqual(["pool qualifier"],
+                         [c for c, _ in
+                          probe.tu_scope_changes(PLAYER_HEAD, edited)])
+
+    def test_an_added_declaration_is_caught(self):
+        edited = PLAYER_HEAD.replace(
+            "static void* hod_blit[4];",
+            "static void* hod_blit[4];\nstatic u8 pad[0x14];")
+        self.assertEqual([("decl ADDED", "static u8 pad[0x14]")],
+                         probe.tu_scope_changes(PLAYER_HEAD, edited))
+
+    def test_a_removed_declaration_is_caught(self):
+        edited = PLAYER_HEAD.replace("static void* hod_blit[4];\n", "")
+        self.assertEqual([("decl REMOVED", "static void* hod_blit[4]")],
+                         probe.tu_scope_changes(PLAYER_HEAD, edited))
+
+    def test_a_pragma_change_is_caught(self):
+        edited = PLAYER_HEAD.replace("#pragma peephole off",
+                                     "#pragma peephole on")
+        self.assertEqual(1, len(probe.tu_scope_changes(PLAYER_HEAD, edited)))
+
+    def test_an_uncommitted_file_reports_nothing_to_regress(self):
+        """Mirrors stale_restore_refusal: no committed state, no committed
+        sibling that this edit could possibly demote."""
+        self.assertEqual([], probe.tu_scope_changes(None, PLAYER_HEAD))
+
+
+class SiblingStrictLossTests(unittest.TestCase):
+
+    VERDICTS = [
+        ("__sections__", "DATA-CHANGED", "extabindex changed"),
+        ("do_players", "IMPROVED-CARRIER", "real 840 -> 838"),
+        ("AppendItemToLevel", "REGRESSION", "was byte-identical, now real 46"),
+        ("DoPlayerTexMods", "REGRESSION",
+         "status EXACT -> OPERAND_DIFF (byte-exact demoted)"),
+        ("draw_power_meter", "REGRESSION", "real 151 -> 171"),
+        ("abort_player", "CONFLICT", "real 102 -> 106"),
+        ("show_crystals", "REGRESSION", "was byte-identical, now real 16"),
+    ]
+
+    def test_byte_exact_losses_are_separated_from_ordinary_regressions(self):
+        strict, other = probe.sibling_strict_losses(
+            self.VERDICTS, {"do_players"})
+        self.assertEqual(["AppendItemToLevel", "DoPlayerTexMods",
+                          "show_crystals"], [n for n, _ in strict])
+        self.assertEqual(["draw_power_meter"], [n for n, _ in other])
+
+    def test_the_probed_function_is_never_its_own_sibling(self):
+        rows = [("do_players", "REGRESSION", "was byte-identical, now real 3")]
+        self.assertEqual(([], []),
+                         probe.sibling_strict_losses(rows, {"do_players"}))
+
+    def test_the_address_suffixed_spelling_is_also_the_probed_function(self):
+        rows = [("SfxSkipItem", "REGRESSION", "status EXACT -> STRUCTURAL")]
+        self.assertEqual(([], []), probe.sibling_strict_losses(
+            rows, {"SfxSkipItem_80096FF4", "SfxSkipItem"}))
+
+    def test_no_verdicts_is_not_a_loss(self):
+        self.assertEqual(([], []), probe.sibling_strict_losses(None, {"f"}))
+
+
+class TuScopeGateTests(unittest.TestCase):
+
+    SCOPE = [("storage-class/linkage",
+              "static void* potionicon_tab[5]  ->  void* potionicon_tab[5]")]
+    STRICT = [("AppendItemToLevel", "was byte-identical, now real 46"),
+              ("DoPlayerTexMods", "status EXACT -> OPERAND_DIFF")]
+    PRIOR = {"best_real": 840, "best_multiset": 14, "best_insns": "T1174/O1172",
+             "best_bytes": "aaa", "best_fuzzy": 97.2692}
+    BANKED = {"best_real": 838, "best_multiset": 12, "best_insns": "T1174/O1172",
+              "best_bytes": "bbb", "best_fuzzy": 97.5690}
+
+    def gate(self, verdict, strict, other=(), note="baseline at 0f45ae610",
+             scope=None):
+        return probe.apply_tu_scope_gate(
+            verdict, dict(self.BANKED), dict(self.PRIOR),
+            self.SCOPE if scope is None else scope,
+            strict, list(other), note, "game/game/player", "do_players")
+
+    def test_a_byte_exact_sibling_loss_un_banks_the_new_best(self):
+        verdict, state = self.gate(
+            "IMPROVED  real 840 -> 838 (insns T1174/O1172, multiset 12t)"
+            "  [best updated]", self.STRICT)
+        self.assertTrue(verdict.startswith("TU-SCOPE REGRESSED"))
+        self.assertIn("2 BYTE-EXACT sibling(s) lost", verdict)
+        self.assertIn("AppendItemToLevel", verdict)
+        self.assertIn("DoPlayerTexMods", verdict)
+        # The whole BEST anchor goes back, exactly as the fuzzy gate does.
+        for key in BEST_KEYS:
+            self.assertEqual(self.PRIOR[key], state[key])
+
+    def test_the_superseded_instruction_stream_verdict_is_still_quoted(self):
+        verdict, _ = self.gate("IMPROVED  real 840 -> 838  [best updated]",
+                               self.STRICT)
+        self.assertIn("SUPERSEDED by the gate: IMPROVED  real 840 -> 838",
+                      verdict)
+
+    def test_the_refusal_names_the_law_and_the_escape_hatch(self):
+        verdict, _ = self.gate("IMPROVED  real 840 -> 838", self.STRICT)
+        self.assertIn("claim.law.PC_storage-class-of-a-same-tu-base-object",
+                      verdict)
+        self.assertIn("--no-tu-gate", verdict)
+
+    def test_an_unrunnable_cross_check_fails_CLOSED(self):
+        """A measurement nobody took is not evidence of no loss — that is
+        exactly how the nine were lost."""
+        verdict, state = self.gate("IMPROVED  real 840 -> 838",
+                                   None, note="no TU baseline at build/x.json")
+        self.assertTrue(verdict.startswith("TU-SCOPE UNGATED"))
+        self.assertIn("no TU baseline", verdict)
+        self.assertIn("defake_gate.py baseline game/game/player --at-head",
+                      verdict)
+        for key in BEST_KEYS:
+            self.assertEqual(self.PRIOR[key], state[key])
+
+    def test_a_clean_cross_check_keeps_the_bank_and_says_so(self):
+        verdict, state = self.gate("IMPROVED  real 840 -> 838", [])
+        self.assertTrue(verdict.startswith("IMPROVED"))
+        self.assertIn("no byte-exact sibling lost", verdict)
+        self.assertEqual(self.BANKED, state)
+
+    def test_non_exact_sibling_regressions_are_reported_not_refused(self):
+        verdict, state = self.gate(
+            "IMPROVED  real 840 -> 838", [],
+            other=[("draw_power_meter", "real 151 -> 171")])
+        self.assertTrue(verdict.startswith("IMPROVED"))
+        self.assertIn("draw_power_meter", verdict)
+        self.assertEqual(self.BANKED, state)
+
+    def test_a_body_only_edit_is_never_gated(self):
+        verdict, state = self.gate("IMPROVED  real 840 -> 838", None,
+                                   scope=[])
+        self.assertEqual("IMPROVED  real 840 -> 838", verdict)
+        self.assertEqual(self.BANKED, state)
+
+    def test_baseline_is_annotated_but_still_banks(self):
+        """Refusing a BASELINE would leave the session with NO revert point
+        at all — strictly worse than the hazard it guards."""
+        verdict, state = self.gate("BASELINE  real 840", self.STRICT)
+        self.assertTrue(verdict.startswith("BASELINE"))
+        self.assertIn("banked over file-scope change(s)", verdict)
+        self.assertEqual(self.BANKED, state)
+
+    def test_rebase_best_is_exempt_like_the_fuzzy_gate(self):
+        verdict, state = self.gate("REBASED  real 838", self.STRICT)
+        self.assertEqual("REBASED  real 838", verdict)
+        self.assertEqual(self.BANKED, state)
+
+    def test_a_non_banking_verdict_is_untouched(self):
+        for headline in ("REGRESSED real 838 -> 900", "NEUTRAL real 840",
+                         "CONFLICT real fell but the multiset grew"):
+            verdict, state = self.gate(headline, self.STRICT)
+            self.assertEqual(headline, verdict)
+            self.assertEqual(self.BANKED, state)
+
+
 if __name__ == "__main__":
     unittest.main()
