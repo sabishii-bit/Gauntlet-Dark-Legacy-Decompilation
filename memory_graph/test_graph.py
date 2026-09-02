@@ -3467,63 +3467,59 @@ class WindowedResidualWordCountGateTests(unittest.TestCase):
     sized off the wrong number entirely.
     """
 
-    def _attempt_record(self, **extra):
+    def _attempt_record(self, claim=None, **extra):
+        """`claim` goes in attributes.residual — the record's OWN residual
+        claim, which is what gate E is asking about (run-40 item 7)."""
+        attributes = {"law_screen": "none applicable: test fixture"}
+        if claim is not None:
+            attributes["residual"] = claim
         record = {
             "schema_version": 1, "id": "attempt.t6-word-gate.20260902.v1",
             "kind": "attempt", "function": "function:fn_800D8BCC",
             "attempted_axis": "probe", "outcome": "parked",
-            "attributes": {"law_screen": "none applicable: test fixture"},
+            "attributes": attributes,
         }
         record.update(extra)
         return record
 
     def test_a_windowed_word_sized_residual_without_a_count_is_refused(self):
         record = self._attempt_record(
-            residual_class="REGISTER_ONLY",
-            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
-                           " residual; sized for a live-zero recolor rule")
+            "the window at +0x40..+0x60 carries a 4-word residual; sized"
+            " for a live-zero recolor rule",
+            residual_class="REGISTER_ONLY")
         with self.assertRaises(MemoryGraphError) as caught:
             core._apply_proposal_gates(record)
         self.assertIn("DIFFERING-WORD COUNT", str(caught.exception))
         self.assertIn("wf_word_diff.py", str(caught.exception))
 
     def test_quoting_the_tools_output_line_discharges_it(self):
-        record = self._attempt_record(
-            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
-                           " residual by --ops, but wf_word_diff reports"
-                           " DIFFERING WORDS = 122 over 215 insns")
-        core._apply_proposal_gates(record)
+        core._apply_proposal_gates(self._attempt_record(
+            "the window at +0x40..+0x60 carries a 4-word residual by --ops,"
+            " but wf_word_diff reports DIFFERING WORDS = 122 over 215 insns"))
 
     def test_the_typed_field_discharges_it(self):
-        record = self._attempt_record(
-            differing_words=122,
-            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
-                           " residual")
-        core._apply_proposal_gates(record)
+        core._apply_proposal_gates(self._attempt_record(
+            "the window at +0x40..+0x60 carries a 4-word residual",
+            differing_words=122))
 
     def test_a_window_with_no_word_sized_claim_does_not_fire(self):
         """The gate checks a SIZE claim, not the word 'window'."""
-        record = self._attempt_record(
-            attempted_axis="permuted the window at +0x40..+0x60 and"
-                           " re-derived the pin")
-        core._apply_proposal_gates(record)
+        core._apply_proposal_gates(self._attempt_record(
+            "permuted the window at +0x40..+0x60 and re-derived the pin"))
 
     def test_a_word_count_with_no_window_does_not_fire(self):
-        record = self._attempt_record(
-            attempted_axis="a 4-word residual across the whole body")
-        core._apply_proposal_gates(record)
+        core._apply_proposal_gates(self._attempt_record(
+            "a 4-word residual across the whole body"))
 
     def test_the_pb_window_tu_name_is_not_a_window_token(self):
         """`_` is a word character, so `pb_window` has no \\b before it."""
-        record = self._attempt_record(
-            function="function:pbWindowDraw",
-            attempted_axis="pb_window cleanup left a 4-word residual")
-        core._apply_proposal_gates(record)
+        core._apply_proposal_gates(self._attempt_record(
+            "pb_window cleanup left a 4-word residual",
+            function="function:pbWindowDraw"))
 
     def test_an_unanchored_record_is_out_of_scope(self):
         record = self._attempt_record(
-            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
-                           " residual")
+            "the window at +0x40..+0x60 carries a 4-word residual")
         del record["function"]
         core._apply_proposal_gates(record)
 
@@ -3537,6 +3533,41 @@ class WindowedResidualWordCountGateTests(unittest.TestCase):
                               " +0x40..+0x60",
             })
         core._apply_proposal_gates(record)
+
+    # --- run-40 item 7: the gate asks the CLAIM field, not narration -----
+
+    def test_narration_fields_are_out_of_scope(self):
+        """`attempted_axis` says what was TRIED and `hypothesis` proposes
+        FUTURE work. Neither is a claim about the residual this pass
+        measured, and 2 of the 8 corpus records that fired gate E fired
+        from those two fields alone."""
+        core._apply_proposal_gates(self._attempt_record(
+            attempted_axis="probe the window at +0x40..+0x60, where the"
+                           " prior lane reported a 4-word residual"))
+        core._apply_proposal_gates(self._attempt_record(
+            hypothesis={
+                "statement": "the window at +0x40..+0x60 is a 4-word"
+                             " residual and therefore permutation-class",
+                "cheapest_refuting_observation": "run wf_word_diff",
+                "screened_against_target": "no - not measured yet",
+            }))
+
+    def test_a_sentence_quoting_another_record_is_not_a_claim(self):
+        """A sentence naming a record id narrates THAT record's sizing.
+        Demanding a fresh word count to repeat it taxes the citation habit
+        the corpus depends on."""
+        core._apply_proposal_gates(self._attempt_record(
+            "attempt.some-prior-park.20260901.v1 recorded a 4-word residual"
+            " in the window at +0x40..+0x60. This pass did not remeasure"
+            " it."))
+
+    def test_the_records_own_unquoted_claim_still_fires(self):
+        """The narrowing must not become an all-clear: the same sentence
+        WITHOUT a citation is the record making the claim itself."""
+        with self.assertRaises(MemoryGraphError):
+            core._apply_proposal_gates(self._attempt_record(
+                "measured a 4-word residual in the window at +0x40..+0x60."
+                " This pass did not remeasure it."))
 
 
 class TemplateCliOrderTests(unittest.TestCase):

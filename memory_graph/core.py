@@ -328,6 +328,20 @@ _WORD_DIFF_EVIDENCE_RE = re.compile(
     r"|\bdiffering[-\s]word count\b",
     re.I,
 )
+# GATE E SCOPE (run-40 item 7). The gate asks "does the record's own
+# residual claim quote its word count", and it was asking the whole record.
+# Two narrowings, measured over the accepted corpus:
+#
+#  (a) FIELDS. `attempted_axis` narrates what was TRIED and `hypothesis`
+#      proposes FUTURE work; neither is a claim about the residual this
+#      pass measured. 2 of the 8 corpus records that fire gate E fire only
+#      from those two fields.
+#  (b) QUOTES. A sentence that names another record id is narrating that
+#      record's claim, not making one. Gate B and gate D both learned this
+#      the same way — gate B refused the very record that documented it —
+#      and gate E's substance projection covered the citation ATTRIBUTES
+#      (`law_screen`, `verification`) while leaving quotes in the body.
+_GATE_E_NARRATION_KEYS = frozenset({"attempted_axis", "hypothesis"})
 
 # Gate F (run 36): a work_claim scope asserting that its premise is already
 # recorded. Dispatch reads the scope as the lane's briefing, so an unnamed
@@ -4599,6 +4613,31 @@ def hypothesis_contradiction_warning(
     return None
 
 
+def gate_e_substance(record: Mapping[str, Any]) -> str:
+    """The record's OWN residual claim, with narration and quotes removed.
+
+    See the _GATE_E_NARRATION_KEYS block for the two narrowings and their
+    measured effect. Sentences naming another record id are dropped whole:
+    a quote of somebody else's sizing is evidence about THAT record, and
+    demanding a fresh word count to repeat it makes the gate tax the
+    citation habit it depends on.
+    """
+    body = {
+        key: value for key, value in record.items()
+        if key not in _GATE_E_NARRATION_KEYS and key != "attributes"
+    }
+    body["attributes"] = {
+        key: value
+        for key, value in (record.get("attributes") or {}).items()
+        if key not in _PARK_CITATION_KEYS
+        and key not in _GATE_E_NARRATION_KEYS
+    }
+    return "\n".join(
+        sentence for sentence in _sentences(_record_text(body))
+        if not _RECORD_ID_RE.search(sentence)
+    )
+
+
 def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
     """The three run-29 validation gates, binding on NEW proposals only.
 
@@ -4761,11 +4800,12 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
     # was 122 of 215 words, because --ops is blind to register-field words.
     # Anchored like gates B and D, and scanned over `substance`, so a record
     # CITING somebody else's windowed claim is not caught by its citation.
+    gate_e_text = gate_e_substance(record)
     if (anchored
-            and _WINDOW_TOKEN_RE.search(substance)
+            and _WINDOW_TOKEN_RE.search(gate_e_text)
             and not _record_field(record, "differing_words")):
-        sized = _WORD_SIZED_RESIDUAL_RE.search(substance)
-        if sized and not _WORD_DIFF_EVIDENCE_RE.search(substance):
+        sized = _WORD_SIZED_RESIDUAL_RE.search(gate_e_text)
+        if sized and not _WORD_DIFF_EVIDENCE_RE.search(gate_e_text):
             raise MemoryGraphError(
                 "a residual claim confined to a named window and sized in"
                 f" words (matched {' '.join(sized.group(0).split())!r})"
