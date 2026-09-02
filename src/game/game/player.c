@@ -1849,7 +1849,6 @@ s32 do_players(void) {
         if (gGameMode == MG_PLAYER_SELECT || gGameMode == MG_MAPSCREEN) {
             continue;
         }
-        state = p->state;
         {
             u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
 
@@ -1865,7 +1864,7 @@ s32 do_players(void) {
                 continue;
             }
             if (lbl_803447B8 != 0 && lbl_8034481C == 0 && opt_restart_request == 0) {
-                if (state == 1) {
+                if (p->state == 1) {
                     PlayerProcessPowerups(p);
                     PlayerMotion_SetAnimState(p);
                     PlayerProcessScale(p);
