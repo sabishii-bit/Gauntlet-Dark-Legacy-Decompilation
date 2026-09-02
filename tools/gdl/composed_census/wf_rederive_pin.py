@@ -158,11 +158,13 @@ def main():
               f'{"" if before == window["before_relocations_sha256"] else "   <-- CHANGED"}')
         print(f'    "after_relocations_sha256":  "{after}"'
               f'{"" if after == window["after_relocations_sha256"] else "   <-- CHANGED"}')
+        # Name-bound: report the SYMBOL NAME the hash actually binds, not the
+        # r_info index the run-28 migration stopped hashing (the old symidx
+        # lookup referenced an undefined `names` and crashed here, killing the
+        # verdict line below before it could print).
         for offset, info, addend in region_records:
-            index = info >> 8
-            name = names[index].name if index < len(names) else "?"
-            print(f"      +0x{offset:02x} type={info & 0xFF} symidx={index} "
-                  f"addend={addend} {name}")
+            print(f"      +0x{offset:02x} type={info & 0xFF} "
+                  f"addend={addend} {window_syms.get(offset, '?')}")
         updates.append((before, after))
 
     print()
