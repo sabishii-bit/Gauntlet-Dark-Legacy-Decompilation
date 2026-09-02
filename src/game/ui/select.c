@@ -98,7 +98,7 @@ extern s32 gGameMode;
 extern char lbl_801143F8[];  /* select-screen string pool             */
 extern char* lbl_80120104[]; /* per-class texture-name pointer table  */
 extern char lbl_80347F44[8];  /* "?" texture name (sdata)              */
-extern char lbl_80347F4C[12];  /* unarmed spec label fmt (sdata)        */
+extern char lbl_80347F4C[8];  /* unarmed spec label fmt (sdata)        */
 extern char lbl_80347F58[8];  /* "%s NAME" fmt (sdata)                 */
 extern volatile u32 pbLoad;
 void PlayerModel(s32 player);
@@ -2712,8 +2712,10 @@ substate:
             known = 1;
         } else {
             known = 1;
-            if ((*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (known << (spec - 8))) == 0) {
+            switch (*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (known << (spec - 8))) {
+            case 0:
                 known = 0;
+                break;
             }
         }
         if (known != 0) {
@@ -2732,9 +2734,9 @@ substate:
                       lbl_801200B0[spec], extra);
         }
         if (texName != 0) {
+            extra = lbl_801200B0[*(s32*)(pl + offsetof(Player, respawn_char))];
             (void)pbLoad;
-            setup_tex(player, 8, 0, 0, lbl_80347F58,
-                      lbl_801200B0[*(s32*)(pl + offsetof(Player, respawn_char))]);
+            setup_tex(player, 8, 0, 0, lbl_80347F58, extra);
         } else {
             mbBlitInit3414(*(void**)eB, 1);
             mbBlitInit3414(*(void**)eC, 1);

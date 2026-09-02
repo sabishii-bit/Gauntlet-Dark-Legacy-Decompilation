@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "config/GUNE5D/symbols.txt (lines 10779-10781: lbl_80347F44 size:0x6, lbl_80347F4C size:0x8, lbl_80347F54 size:0x4 align:4)",
+    "tools/gdl/fnasm.py game/ui/select do_player_select (retail +0x1800 emits the EMB_SDA21 form)",
+    "tools/gdl/slotdiff.py game/ui/select do_player_select (frame and per-slot map for both pad states)",
+    "tools/gdl/probe.py game/ui/select do_player_select --fuzzy (the three fresh-report fuzzy readings)"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "matching",
+      "workflow",
+      "symbol-identity",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Find a TU in which correcting an extern's declared size to its symbols.txt value makes a sibling function's instruction count or frame size diverge from target AND the corrected state measures worse on fresh objdiff fuzzy than the wrong-size state. That would show the wrong size was carrying real information rather than a compensating error, and would confine this law to game/ui/select. The screen is cheap: for each `extern <type> <sym>[N]` in a TU, compare N against the `size:` field on that symbol's line in config/GUNE5D/symbols.txt, then check whether the next symbol's address falls inside the declared extent.",
+  "id": "claim.law.UC_a-wrong-extern-size-can-manufacture-false-count-and-frame-parity-in-a-sibling.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T18:26:49Z",
+  "schema_version": 1,
+  "subject": "tu:game/ui/select",
+  "valid_from": "2026-09-02",
+  "value": "A wrong declared SIZE on a file-scope extern is not a local defect: it changes the addressing form MWCC selects at every site in the TU, and the spurious address constant it forces into the hoisted spill run can COINCIDENTALLY restore instruction-count parity and frame-size parity in a DIFFERENT function of the same TU. Such parity is a compensating error, not evidence of correctness, so instruction-count parity and frame parity must NOT be used as keep rules on a TU whose extern sizes have not been screened against config/GUNE5D/symbols.txt. Measured on game/ui/select: `extern char lbl_80347F4C[12]` (symbols.txt says size:0x8, and the 4 bytes beyond it belong to lbl_80347F54, a separate size:0x4 align:4 float object, so the declaration ALIASED a neighbour). With the wrong [12], do_player_select read 1885/1885 instructions and a 176-byte frame, both exactly matching retail. Correcting the size to [8] -- which retail's own codegen confirms, since retail emits `li r7,0 @lbl_80347F4C(EMB_SDA21)` at do_player_select+0x1800 -- dropped us to 1882 instructions and a 168-byte frame and raised `real` by 101, while simultaneously moving the opcode multiset CLOSER to target (18t -> 17t) and raising that function's fresh objdiff fuzzy from 96.1857 to 96.2610. The pre-correction parity was therefore manufactured. Corollary, also measured on the same function: restoring the frame parity mechanically by growing the trailing `u8 unused` pad from 24 to 28 achieved frame 176 == 176 and `SLOTS ALIGNED` on every offset, and was WORSE on both arbiters (real 1195 -> 1215, fresh fuzzy 96.2610 -> 96.2573), so recovering a lost parity is not automatically progress either."
+}
