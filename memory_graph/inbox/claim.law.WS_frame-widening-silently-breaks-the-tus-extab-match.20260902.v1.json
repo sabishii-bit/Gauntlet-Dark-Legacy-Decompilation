@@ -1,0 +1,17 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py game/sys/memcard writeGauntletSave --ops (the stmw/lmw IMMEDIATE row is the tell)",
+    "ninja -j2 PROGRESS 'Data:' line (177572 at HEAD and at the committed state; 177364 with the widened frame)",
+    "build/GUNE5D/report.json per-unit measures.matched_data for main/game/sys/memcard (208 vs absent)"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "A measured case where a function's callee-saved save area changes (a differing `stmw`/`lmw` register or frame displacement between target and ours) while its TU's extab section still reports matched_data unchanged in build/GUNE5D/report.json - or, conversely, an extab match lost with the save area provably identical. Either would show the save-area set is not what invalidates the extab entry. Re-measure with: rebuild HEAD and the probe state separately with a full `ninja -j2`, compare the PROGRESS 'Data:' line, and attribute per unit by diffing the two report.json files' per-unit `matched_data`.",
+  "id": "claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T01:28:06Z",
+  "schema_version": 1,
+  "subject": "tu:game/sys/memcard",
+  "valid_from": "2026-09-02",
+  "value": "A source change that widens a function's callee-saved save area can DESTROY its TU's extab (exception-table) match, and NO function-level metric can see it: real, fuzzy, fndiff --ops, the opcode multiset and the instruction count all IMPROVE while the project silently loses the whole extab section. Measured 2026-09-02 in writeGauntletSave: merging the site-two split live-zero web (arm 2 sharing the function-wide `zero` local) bought count parity T190/O190, multiset 3t, real 187->124 and FRESH function fuzzy 93.4737 - a win on every function-level arbiter - while allocating ONE extra callee-saved GPR (`stmw r22,24(r1)` where the target has `stmw r23,28(r1)`, with the matching `lmw` row). Full-build A/B: project Data 177572 -> 177364 and Game Code Data 66.06% -> 65.85%, i.e. -208 bytes; per-unit report diffing shows the ONLY changed unit is main/game/sys/memcard with matched_data 208 -> absent, and its extab section is exactly 208 bytes. The extab entry encodes the saved-register set, so widening the save area invalidates it wholesale - it is all-or-nothing, not proportional. CONSEQUENCES: (1) the `stmw`/`lmw` IMMEDIATE row in `fndiff --ops` is not cosmetic register noise, it is a DATA-MATCH ALARM - a changed save-area register or frame displacement on that row predicts an extab loss; (2) any probe that changes a function's saved-register set must be arbitrated with a full `ninja` PROGRESS 'Data:' comparison, not on probe.py verdicts alone, because probe.py scores only .text; (3) this is a fourth score-invisible regression class alongside the known @@NNNN-vs-named relocation defects, and unlike those it is produced by ordinary, otherwise-correct matching work. GENERALITY: the mechanism is the EABI extab encoding, not anything memcard-specific, so it applies to every TU that has an extab section; memcard is simply where it was first measured."
+}
