@@ -36,6 +36,18 @@ A comma-separated unit list gates every named TU in one call (exit code =
 worst) — use it for paired fixes (a signature change plus its callers) so
 the second TU can never be forgotten.
 
+RELOCATION CHANGES CARRY A DIRECTION. A changed relocation symbol at
+unchanged instruction words is a semantic change and stays loud, but the
+check no longer scores it OURS-VS-OURS: the new symbol is resolved against
+the TARGET object's relocation at that instruction, and the verdict is
+RELOC-TOWARD-TARGET (a repair — passes the gate, bank it with
+--update-improved) or REGRESSION/MOVED-AWAY-FROM-TARGET. Without a target
+object, or when neither symbol matches the target's, it is
+REGRESSION/DIRECTION-UNKNOWN — fail-closed, as before. The old check printed
+one "revert or fix before committing" for both directions and told three
+run-37 lanes to revert genuine fixes
+(claim.law.RS_defake-gate-wrong-callee-check-is-ours-vs-ours-...20260902.v1).
+
 --rebuild runs the unit's ninja object target first, so rebuild+gate is one
 call and a stale object can never be gated. On any REGRESSION the check
 automatically prints each regressing function's fndiff --ops summary so the
@@ -308,15 +320,133 @@ def naming_drift_is_benign(base_relocs, cur_relocs, resolve=None):
     return True, "every changed relocation symbol resolves to one address"
 
 
-def compare(baseline, current, renames=None, resolve=None):
+def target_object(unit):
+    return Path(f"build/{VERSION}/obj/{re.sub(r'[.](c|cpp)$', '', unit)}.o")
+
+
+def target_relocation_symbols(unit):
+    """{fn: [(reloc_type, symbol), ...]} from the TARGET object, or {}.
+
+    The gate scores our object against OUR OWN earlier baseline, which is
+    correct for every other verdict and backwards for exactly one: a
+    relocation change has a DIRECTION, and the truth about which direction
+    is right has been sitting unread in build/GUNE5D/obj/ the whole time
+    (claim.law.RS_defake-gate-wrong-callee-check-is-ours-vs-ours-so-a-
+    correction-toward-the-target-reads-as-a-regression.20260902.v1).
+    Missing object -> {} -> the check keeps its old fail-closed behaviour;
+    a missing measurement never manufactures a verdict.
+    """
+    obj = target_object(unit)
+    if not obj.exists():
+        return {}
+    try:
+        return fndiff.relocation_symbols(obj)
+    except Exception:
+        return {}
+
+
+def _resolved_counts(rows, resolve):
+    from collections import Counter
+    return Counter(
+        addr for addr in (resolve(sym) for _type, sym in (rows or []))
+        if addr is not None)
+
+
+def _row_direction(index, base_sym, cur_sym, cur_relocs, target_relocs,
+                   resolve):
+    """(direction, detail) for ONE changed relocation, judged vs target.
+
+    Positional pairing first: `real 0` on both sides means the instruction
+    stream already agrees with target, so relocation i on our side is
+    relocation i on the target's. When the lists do not line up (differing
+    length or type at i) it falls back to how many times each address is
+    relocated in the target function at all — weaker, but still a fact
+    about the TARGET rather than about our own history.
+    """
+    base_at, cur_at = resolve(base_sym), resolve(cur_sym)
+    aligned = (len(target_relocs) == len(cur_relocs)
+               and index < len(target_relocs)
+               and target_relocs[index][0] == cur_relocs[index][0])
+    if aligned:
+        target_sym = target_relocs[index][1]
+        target_at = resolve(target_sym)
+        where = (f"target reloc[{index}] is {target_sym!r}"
+                 + (f" (0x{target_at:08X})" if target_at is not None else
+                    " (unresolvable)"))
+        if target_at is None:
+            return "unknown", (f"{where} — the target's own symbol does not"
+                               " resolve, so direction is undecidable")
+        if cur_at == target_at and base_at != target_at:
+            return "toward", f"{where} — our new symbol MATCHES it"
+        if base_at == target_at and cur_at != target_at:
+            return "away", f"{where} — our OLD symbol matched it, the new one"\
+                           " does not"
+        return "unknown", (f"{where} — neither the old nor the new symbol"
+                           " matches it")
+    counts = _resolved_counts(target_relocs, resolve)
+    n_base, n_cur = counts.get(base_at, 0), counts.get(cur_at, 0)
+    where = (f"relocation lists do not line up positionally (target"
+             f" {len(target_relocs)} vs ours {len(cur_relocs)}), so the"
+             f" target's relocated-address counts decide: old address"
+             f" {n_base}x, new address {n_cur}x in the target function")
+    if n_cur > n_base:
+        return "toward", where
+    if n_cur < n_base:
+        return "away", where
+    return "unknown", where
+
+
+def relocation_change_direction(base_relocs, cur_relocs, target_relocs,
+                                resolve=None):
+    """('toward'|'away'|'unknown', detail) for a relocation-symbol change.
+
+    Called only for a change `naming_drift_is_benign` already refused as a
+    rename, i.e. one that genuinely re-points a call or a datum. `away`
+    dominates: if any single relocation moved away from the target the
+    whole change fails, no matter what the others did.
+    """
+    resolve = resolve or resolve_symbol
+    if not target_relocs:
+        return "unknown", ("no target relocation list available (build"
+                           " build/GUNE5D/obj/<unit>.o), so the direction of"
+                           " this change cannot be judged")
+    if base_relocs is None or cur_relocs is None:
+        return "unknown", "no baseline relocation symbols to compare"
+    rows = []
+    for index, ((base_type, base_sym), (_cur_type, cur_sym)) in enumerate(
+            zip(base_relocs, cur_relocs)):
+        if base_sym == cur_sym:
+            continue
+        direction, detail = _row_direction(
+            index, base_sym, cur_sym, cur_relocs, target_relocs, resolve)
+        rows.append((direction, f"{base_sym!r} -> {cur_sym!r}: {detail}"))
+    if not rows:
+        return "unknown", "no changed relocation symbol to judge"
+    joined = "; ".join(detail for _direction, detail in rows)
+    directions = {direction for direction, _detail in rows}
+    if "away" in directions:
+        return "away", joined
+    if directions == {"toward"}:
+        return "toward", joined
+    return "unknown", joined
+
+
+def compare(baseline, current, renames=None, resolve=None,
+            target_relocs=None):
     """Verdicts per function; regression = matched fell or real grew.
 
     ``renames`` maps old baseline names to new current names (--rename
     old=new): a deliberate symbol rename otherwise reads as vanished+new
     and fails the gate on a change that may have added exacts — a worker
     had to arbitrate a 3-exact rename by hand.
+
+    ``target_relocs`` is {fn: [(reloc_type, symbol)]} from the TARGET
+    object. With it, a relocation change that is not a rename is reported
+    with its DIRECTION — RELOC-TOWARD-TARGET (a repair, which passes) or
+    REGRESSION/MOVED-AWAY-FROM-TARGET — instead of one verdict for both.
     """
     renames = renames or {}
+    target_relocs = target_relocs or {}
     verdicts = []
     # Per-TU DATA verdict class (run 34 item 1): a moved non-text section is
     # score-invisible to every per-function row below, so it is compared
@@ -360,13 +490,39 @@ def compare(baseline, current, renames=None, resolve=None):
                          " --update-improved when done")
                     )
                 else:
-                    verdicts.append(
-                        (name, "REGRESSION",
-                         f"relocation symbols changed at unchanged"
-                         f" instruction words — {why}. A REL24 callee lives"
-                         " ENTIRELY in its relocation, so 'words unchanged'"
-                         " proves nothing here")
-                    )
+                    # DIRECTION, against the target object. The detection
+                    # above is right and valuable; what it could not do was
+                    # tell a repair from a defect, so it printed
+                    # "revert or fix" over three genuine run-37 fixes.
+                    cur_name = renames.get(name, name)
+                    direction, dwhy = relocation_change_direction(
+                        base.get("relocs"), cur.get("relocs"),
+                        target_relocs.get(cur_name), resolve=resolve)
+                    head = ("relocation symbols changed at unchanged"
+                            f" instruction words — {why}.")
+                    if direction == "toward":
+                        verdicts.append(
+                            (name, "RELOC-TOWARD-TARGET",
+                             head + " MOVED-TOWARD-TARGET: " + dwhy
+                             + " — this is a relocation REPAIR, not a"
+                               " regression; keep it and re-anchor with"
+                               " --update-improved")
+                        )
+                    elif direction == "away":
+                        verdicts.append(
+                            (name, "REGRESSION",
+                             head + " MOVED-AWAY-FROM-TARGET: " + dwhy
+                             + " — revert or fix before committing")
+                        )
+                    else:
+                        verdicts.append(
+                            (name, "REGRESSION",
+                             head + " DIRECTION-UNKNOWN: " + dwhy
+                             + ". A REL24 callee lives ENTIRELY in its"
+                               " relocation, so 'words unchanged' proves"
+                               " nothing here — arbitrate against the"
+                               " target (fndiff --relocs) before keeping")
+                        )
                 continue
             verdicts.append(
                 (name, "REGRESSION",
@@ -1055,7 +1211,8 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         print(f"banked arbitrated keep for {target_row} (that row only —"
               " every sibling still gates against its original anchor;"
               " record the arbitration + its fuzzy in the attempt record)")
-    verdicts = compare(baseline, snap, renames)
+    verdicts = compare(baseline, snap, renames,
+                       target_relocs=target_relocation_symbols(unit))
     verdicts = arbitrate_regressions(verdicts, unit, baseline,
                                      arbiter=arbiter)
     conflicts = [v for v in verdicts if v[1] == "CONFLICT"]
@@ -1120,7 +1277,14 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
             # changed literal that was the whole residual.
             print(fndiff.truncate_ops(ops, 14))
         return 1
-    improved = [v for v in verdicts if v[1] == "IMPROVED"]
+    # RELOC-TOWARD-TARGET and NAMING-DRIFT both leave the baseline holding
+    # the OLD relocation symbols, so without re-anchoring they re-report on
+    # every later check. Both details already tell the worker to re-anchor
+    # with --update-improved; before this they were not in the bankable set,
+    # so that instruction did nothing.
+    improved = [v for v in verdicts
+                if v[1] in ("IMPROVED", "RELOC-TOWARD-TARGET",
+                            "NAMING-DRIFT")]
     if improved and update_improved:
         # Archive the outgoing baseline so the session-start census stays
         # reconstructable (a worker had to rebuild it from transcripts).
