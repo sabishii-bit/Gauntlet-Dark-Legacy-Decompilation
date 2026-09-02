@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py game/game/player do_players --slots",
+    "tools/gdl/fnasm.py game/game/player do_players 0x0:0x60 --diff",
+    "tools/gdl/fnasm.py game/game/player do_players --ours"
+  ],
+  "attributes": {
+    "provenance": "src/game/game/player.c::do_players, worktree GDL-Claude-DoPlayersGpr, work_claim.do-players-gpr.20260902.v1. Refutes the register identification in the hypothesis of attempt.PC_do-players-inplace-update-and-symbol-unification.20260902.v1, which was carried into run 37's work order as a mandatory step-1 lever. See attempt.PC_do-players-save-set-hypothesis-refuted-and-named-base-lever.20260902.v1 for both probes.",
+    "scope": "MWCC GC 1.2.5 family, and any lane reading a `stmw rN` / frame-size delta out of `fndiff --ops` IMMEDIATE rows or probe.py's slot map. Concerns the INFERENCE from a save-set delta to a named value, not the delta itself.",
+    "tags": [
+      "matching",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a function whose `stmw` save-set delta IS attributable to the residual family a diff-cluster reading assigns it to, confirmed by a defs census showing the surplus register carries that family's value and no other -- that would show the inference from residual family to register identity is sometimes sound and this law over-warns. Conversely, re-run the defs census on do_players after the cached-web clusters close: if the save set moves to r16 at that moment, the web and the save-set delta were coupled after all, and only the ROUTE to the conclusion was wrong rather than the conclusion.",
+  "id": "claim.law.PC_a-save-set-delta-names-a-register-not-a-web-read-its-defs-before-naming-the-value.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T18:22:13Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A SAVE-SET DELTA TELLS YOU HOW MANY CALLEE-SAVED REGISTERS EACH SIDE USED. IT DOES NOT TELL YOU WHICH VALUE THE SURPLUS ONE HOLDS, AND THE RESIDUAL'S LOUDEST FAMILY IS NOT EVIDENCE FOR THAT. The cheap defs census -- count writes to r14..r31 in both streams and read the ADDR16_LO materialisations -- costs no build and answers it directly; a diff-cluster reading of the same delta guessed wrong here and was carried across two runs as a mandatory lever. MEASURED: do_players reads `stmw r15,140(r1)` frame 264 against the target's `stmw r16,136(r1)` frame 256, and a prior record concluded that the extra register WAS the cached potionicon_tab+0xC40 web because that web dominated the visible clusters. The defs census refutes it. Our r15 is a .rodata base, materialised `addi r15,r4,0 @...rodata.0` at +0x28 and spent on five message-box string pointers at displacements 112/124/136/152/164 before being recycled as a loop counter -- and THE TARGET DEDICATES A CALLEE-SAVED REGISTER TO EXACTLY THE SAME VALUE, `addi r17,r4,0 @lbl_80113AE0` at +0x28 with its own five strings at 996/1008/1020/1036/1048. Both streams also cache the same seven ADDR16_LO bases in total. The cached +0xC40 web lives in r18 (the walked loop pointer, advanced `addi r18,r18,13148`) and r20, neither of which is the boundary register the save set names. THE PRACTICAL CONSEQUENCE, and the reason this is worth a law: the prescribed cure that followed from the misidentification -- shrink the declared-local set so the allocator has no spare register -- was measured DEAD in both available directions. Scoping the only legally scopeable long-lived local REGRESSED real 1154 -> 1182 while the prologue still read `stmw r15,140(r1)` frame 264, which was the prior record's OWN stated refutation condition; block-scoping and renaming a walked loop pointer came back BYTE-IDENTICAL, the edit folding away before codegen. PROCEDURE: on any save-set or frame delta, run the defs census FIRST and name the surplus register's value from its own definition site, THEN pick the axis. Corollary of the guards-are-measurements discipline: a save-set delta is a measurement of the ALLOCATOR'S BUDGET, not an index into the residual you happen to be reading."
+}

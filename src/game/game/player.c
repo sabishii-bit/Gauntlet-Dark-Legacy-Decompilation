@@ -1849,7 +1849,6 @@ s32 do_players(void) {
         if (gGameMode == MG_PLAYER_SELECT || gGameMode == MG_MAPSCREEN) {
             continue;
         }
-        state = p->state;
         {
             u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
 
@@ -1865,7 +1864,7 @@ s32 do_players(void) {
                 continue;
             }
             if (lbl_803447B8 != 0 && lbl_8034481C == 0 && opt_restart_request == 0) {
-                if (state == 1) {
+                if (p->state == 1) {
                     PlayerProcessPowerups(p);
                     PlayerMotion_SetAnimState(p);
                     PlayerProcessScale(p);
@@ -2185,9 +2184,10 @@ s32 do_players(void) {
     j = firstgetidx++ % 4;
     for (i = 0; i < 4; i++) {
         s32 k = (j + i) % 4;
-        Player* speaker = PT(k);
+        u8* krec = (u8*)potionicon_tab + k * PREC_STRIDE;
+        Player* speaker = (Player*)(krec + 0xC40);
 
-        if (speaker->speech_req != NULL) {
+        if (PF(krec, 0xC40 + offsetof(Player, speech_req), s32*) != NULL) {
             if (speaker->state == 1 && gGameMode == MG_PLAY) {
                 fn_8005DE50(speaker, speaker->speech_req);
                 for (j = 0; j < 4; j++) {
@@ -2205,7 +2205,9 @@ s32 do_players(void) {
         }
     }
     if (i < 4 && gGameMode != MG_SHOP) {
-        fn_8009D610(0, PT(i)->col_pos);
+        u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
+
+        fn_8009D610(0, ((Player*)(prec + 0xC40))->col_pos);
     } else {
         fn_8009D610(2, NULL);
     }

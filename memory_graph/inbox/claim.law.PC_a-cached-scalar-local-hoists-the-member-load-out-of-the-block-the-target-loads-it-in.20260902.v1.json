@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py game/game/player do_players 0x6b0:0x6d0 --diff",
+    "tools/gdl/fnasm.py game/game/player do_players 0x720:0x740 --diff",
+    "tools/gdl/probe.py game/game/player do_players --fuzzy"
+  ],
+  "attributes": {
+    "provenance": "src/game/game/player.c::do_players, worktree GDL-Claude-DoPlayersGpr, work_claim.do-players-gpr.20260902.v1, commit 791ebcd30. Measured against a live baseline of real 1154 / fuzzy 96.3552% re-derived at commit cf81a9103. See attempt.PC_do-players-save-set-hypothesis-refuted-and-named-base-lever.20260902.v1.",
+    "scope": "MWCC GC 1.2.5 family. Applies where `fndiff --ops` reports a MATCHED PAIR of same-opcode clusters -- one ours-only load EARLY and one target-only load of the SAME field and base LATER -- with the opcode multiset UNCHANGED, i.e. the counts agree and only the position differs. Says nothing about load COUNT differences, which are a CSE-population question and belong to the pragma-reachability family instead.",
+    "tags": [
+      "matching",
+      "cse",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Produce an MWCC 1.2.5 function in which deleting a cached scalar local and reading the member directly at its single use site leaves the load's POSITION unchanged in the emitted stream -- that would show the local is not what pins the load. Or, on do_players, restore `state = p->state;` ahead of the selected-flag block while keeping the consumer spelled `p->state == 1`: if the ours-only lwz at +0x6b8 does NOT come back, the cached local is not the cause and the win belongs to the consumer's spelling instead. Conversely, a site where the target itself CACHES and our build re-loads is the mirror case and is NOT governed by this law -- do not apply it in that direction without measuring.",
+  "id": "claim.law.PC_a-cached-scalar-local-hoists-the-member-load-out-of-the-block-the-target-loads-it-in.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T18:21:53Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "A CACHED SCALAR LOCAL PINS ITS MEMBER LOAD AT THE ASSIGNMENT, NOT AT THE USE, AND MWCC WILL NOT SINK IT BACK DOWN. When the target loads a struct member immediately before its consumer and your build loads the same member EARLIER, with the opcode multiset identical, look for a source-level local that caches the member ahead of an intervening guard: the assignment is where MWCC emits the load, and no amount of scheduling moves it past the branches in between. THE CURE IS TO DELETE THE LOCAL AND SPELL THE MEMBER AT ITS USE SITE, and it is only legal -- and only pays -- when nothing writes that member in between, which is exactly the condition that makes the two forms value-identical. MEASURED: do_players cached `state = p->state;` ahead of a selected-flag block and two early-out guards, then tested `state == 1` after them; our build emitted `lwz r5,232(r28)` at +0x6b8 inside the flag block while the target emitted `lwz r0,232(r21)` at +0x72c immediately before its `cmpwi r0,1`. Deleting the assignment and writing `p->state == 1` at the consumer closed BOTH clusters at once -- the ours-only one at +0x6b8 and the target-only one at +0x72c -- taking the --ops cluster count 25 -> 23, real 1154 -> 1152 and fresh objdiff fuzzy 96.3552 -> 96.5307. WHY IT IS EASY TO MISREAD: the opcode multiset does not move at all (the load is neither added nor removed, only relocated), so a multiset-only screen calls this residual invisible and a `real`-only screen scores it as two unrelated single-instruction clusters in opposite columns. The tell is the MATCHED PAIR in opposite columns naming the same displacement and the same base register; read it as one moved instruction, not two defects. GENERALISATION AND ITS LIMIT: the same reasoning applies to any cached scalar whose consumer sits behind a guard, but the direction matters -- this law licenses removing OUR cache to match a target that re-loads. Where the target caches and we re-load, adding a local is the candidate cure and was not measured here."
+}
