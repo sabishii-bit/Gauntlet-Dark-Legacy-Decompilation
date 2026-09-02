@@ -1,0 +1,21 @@
+{
+  "asserted_by": [
+    "tools/gdl/tests/test_webfrank.py"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Read tools/gdl/webfrank.py's recolor_instruction and find opcode 48-55 handled, or exhibit a shipped rule in config/GUNE5D/webfrank.json whose `recolors` range provably spans a float load or store and still replays green under a forced full rebuild (touch tools/gdl/webfrank.py, full ninja).",
+  "id": "claim.law.WF_region-recolor-cannot-touch-float-loads-and-stores.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T21:01:22Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "webfrank's `recolors` region mode CANNOT be written across any region containing a float load or store. recolor_instruction's audited opcode subset (tools/gdl/webfrank.py, the function's own body) is exactly: D-form INTEGER loads/stores plus addi (opcodes 14 and 32-47), rlwinm (21), and three opcode-31 forms (subf/mulhw/add xo 40/75/266, srawi xo 824). Everything else -- including lfs/lfsu/lfd/lfdu/stfs/stfsu/stfd/stfdu, opcodes 48-55 -- raises `unsupported instruction 0x%08x (opcode %d)`, and because the `recolors` stage walks EVERY word in the declared [start,end) range, one float access anywhere in the range aborts the whole rule. Measured: recolor_instruction(0xd00400fc, {4: 28}) raises 'unsupported instruction 0xd00400fc (opcode 52)' (someone_will_be_off_screen's `stfs f0,252(r4)`), while recolor_instruction(0x3b8400fc, {4: 23}) returns 0x3b9700fc, so the refusal is about the FLOAT FORM and not about the mapping. CONSEQUENCE FOR SCREENING: a residual saturated with lfs/stfs is outside the region-recolor mode by construction, whatever its --ops signature suggests, and the only register-stage paths left for it are the word-by-word `copy_register_fields` (which refuses any pair differing outside the register slots) and per-word `register_fields` edits. This is a fact about the CHECKER, not about the function, which is exactly the distinction AGENTS.md discipline 14 asks a lane to instrument before recording a refusal as a cap: it was found while writing a refusal test that assumed recolor would merely fail to REACH the fused word, and instead it refused to consider the word at all."
+}

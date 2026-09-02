@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_storefusion_census.py",
+    "tools/gdl/composed_census/wf_word_diff.py"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a capability whose site population and unpark payoff agree -- i.e. a census where every function carrying the shape has residual_after_class 0 -- and show that the population number alone would have made the same build/don't-build decision. Or show that residual_after_class systematically UNDER-counts what a class can reach (it is computed as differing_words minus two words per fused site, a deliberately generous bound), by shipping a class that closes a function the column scored above 0.",
+  "id": "claim.law.WF_a-capability-census-must-count-unpark-payoff-not-site-population.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T21:00:59Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A postprocessor capability's demand census MUST report, per candidate function, the residual that would REMAIN if the capability shipped and discharged every one of its sites -- not the number of functions carrying the shape. Site population and unpark payoff are different numbers and they came apart by the whole margin on the first class where both were measured. Run 39's commissioned store-with-update fusion class (target `stfsu fS,d(rB)` against our `addi rA,rB,d` + `stfs fS,d(rB)` split pair) has SITE POPULATION 2 -- someone_will_be_off_screen (+3 stfsu) and ScreenSaverUpdateWeap (+1 stfsu), measured over 2842 equal-size target/ours function pairs by tools/gdl/composed_census/wf_storefusion_census.py -- and UNPARK PAYOFF 0: after the class, swbos still differs in 163 of 199 words and ScreenSaverUpdateWeap in 172 of 333. Population 2 reads as a green light under the run-34 zero-customer rule; payoff 0 is the refutation. THE MECHANISM behind the divergence is that an `fndiff --ops` opcode-multiset signature is the SMALLEST honest description of a residual and reads like the whole of it: swbos's brief inherited '+3 add +3 stfsu / -2 addi -1 mr -3 stfs', six opcodes, while wf_word_diff.py measures 169 differing words and the census's own multiset-intersection column measures 54 words that appear nowhere in the target's stream at all. A census keyed on the opcode signature therefore counts SHAPES; only a residual-after-class column counts CUSTOMERS. PRACTICAL RULE: every capability census tool emits a residual_after_class column and an explicit 'UNPARK PAYOFF (customers this class alone would close)' line, and a commissioning record quotes that line, not the population. Corollary for dispatch: AGENTS.md already requires a postprocessor-lane brief to quote wf_word_diff.py's raw differing-word count; this law says the census tool must compute the same quantity itself, because the brief is where the opcode framing gets inherited."
+}
