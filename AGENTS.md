@@ -768,6 +768,12 @@ python tools/gdl/probe.py <unit> <fn> [--ops | --revert]  # MATCHING loop: build
 python tools/gdl/defake_gate.py check <unit> --rebuild  # DEFAKE loop: build+gate, one call
 python tools/gdl/fnasm.py <unit> <fn> [0xA:0xB | i:j] [--ours | --diff]
 python tools/gdl/fndiff.py <unit> <function> --count | --ops | --clean
+python tools/gdl/savedregs.py <unit> <fn> [--uses]  # callee-saved
+    # correspondence, BOTH streams, zero builds: which local lands in which
+    # saved register. `--ops` compares opcode MULTISETS and is blind to a
+    # save-register permutation (MV spent three lanes on one that reads
+    # "multiset: IDENTICAL"); this prints the assignment and reports
+    # emission ORDER separately, because they are different questions.
 python tools/gdl/defake_rewrite.py <file> --base X --type T --map off=field,...
 python tools/gdl/fuzzy.py <unit> [<fn>]        # fuzzy from last report, no regen
 python tools/gdl/xrefnum.py <const...> [--cast-only]  # who else uses this offset
