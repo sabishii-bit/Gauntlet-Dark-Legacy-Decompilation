@@ -1252,6 +1252,7 @@ void draw_panels(void)
     register s32 pieceoff;
     register u8* pieces;
     register char playerChar;
+    register char zeroChar;
     register s32 zero;
     register s32 slot;
 
@@ -1281,14 +1282,15 @@ void draw_panels(void)
                         offsetof(PanelBlitOverlay, group4)) == 0) {
                 slot = zero;
                 pieceoff = zero;
+                zeroChar = zero;
                 playerChar = player + '1';
                 handleoff = 0;
                 do {
                     if ((u32)(slot - 2) <= 1) {
-                        label[0] = zero;
+                        label[0] = zeroChar;
                     } else {
                         label[0] = playerChar;
-                        label[1] = zero;
+                        label[1] = zeroChar;
                     }
                     *(void**)(group4Base + handleoff) = (void*)
                         disp_piece((u32*)(pieces + pieceoff), xoff, (u32)label);
