@@ -20,6 +20,17 @@ Usage:
       re-anchoring any sibling — the mandate-correct way to bank a
       keep that `real` reads as a regression)
   python tools/gdl/defake_gate.py check game/audio/sndfx.c,game/ui/attract.c --rebuild
+  python tools/gdl/defake_gate.py arbitrations [game/enemy/enemy.c]
+      (counts and the override RATE from the arbitration log)
+
+EVERY ARBITRATION IS LOGGED. `--arbitrate` keeps, `--bank-arbitrated` row
+re-anchors, and refused CONFLICTs all append one json line to
+build/GUNE5D/gate/arbitrations.jsonl carrying the unit, the commit, the
+arbiter used and the full verdict detail (real delta, genuine rows, fuzzy
+note) behind the decision. Refusals are logged as well as keeps ON PURPOSE:
+with keeps alone the log counts overrides but cannot form a rate, and the
+override ratios this project quotes about itself were previously asserted
+from memory with nothing on disk to check them against.
 
 A comma-separated unit list gates every named TU in one call (exit code =
 worst) — use it for paired fixes (a signature change plus its callers) so
@@ -525,6 +536,130 @@ def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
     return out
 
 
+ARBITRATION_LOG = Path(f"build/{VERSION}/gate/arbitrations.jsonl")
+
+
+def bare_unit(unit):
+    """`game/sys/memcard` from any accepted spelling of that unit.
+
+    The log is keyed on the EXTENSIONLESS form. `check` is invoked as
+    `game/sys/memcard.c` and `game/sys/memcard` interchangeably across
+    this project's tools, and keying on the raw string made
+    `arbitrations game/sys/memcard` report zero events for a unit that had
+    just logged one — a scoping filter that silently answers "none" is
+    worse than no filter at all.
+    """
+    return re.sub(r"\.(c|cpp)$", "", normalize_unit(unit))
+
+
+def arbitration_event(unit, action, rows, arbiter=None, reanchored=False,
+                      head=None, at=None):
+    """One append-only record of an arbitration decision.
+
+    ``rows`` is the list of (name, verdict, detail) triples the decision
+    covered; the detail strings already carry the real delta, the genuine
+    structural rows and the fuzzy note, so the log preserves the EVIDENCE
+    behind an override, not merely a counter.
+    """
+    return {
+        "at": at or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "unit": bare_unit(unit),
+        "action": action,
+        "arbiter": arbiter,
+        "reanchored": bool(reanchored),
+        "head": head,
+        "functions": [{"name": n, "verdict": v, "detail": d}
+                      for n, v, d in rows],
+    }
+
+
+def log_arbitration(event, path=None):
+    """Append one event to the gate's arbitration log.
+
+    The filename is deliberately NOT lane-prefixed: build/GUNE5D/gate/ is
+    per-worktree build output, so there is no cross-lane collision to
+    avoid, and a per-lane name would defeat the only thing the log is for
+    — aggregating a rate across a lane's whole pass.
+
+    Logging never fails a gate: an unwritable log is reported and
+    swallowed, because losing an audit line must not turn a passing check
+    into a failing one.
+    """
+    path = Path(path) if path is not None else ARBITRATION_LOG
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(event, sort_keys=True) + "\n")
+    except OSError as err:
+        print(f"[arbitration log NOT written to {path}: {err}]")
+        return False
+    return True
+
+
+def read_arbitrations(path=None):
+    """Every well-formed event in the log, malformed lines skipped."""
+    path = Path(path) if path is not None else ARBITRATION_LOG
+    events = []
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return events
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(event, dict) and event.get("action"):
+            events.append(event)
+    return events
+
+
+def summarize_arbitrations(events, unit=None):
+    """Counts and the override RATE the '1/3 of keeps' claim needs.
+
+    ACCEPTED and REFUSED are the two halves of the same decision, so the
+    rate is well-defined: of every CONFLICT a check raised, what fraction
+    was overridden into a keep? Nothing in this tool used to persist
+    either half, which is why that ratio has only ever been asserted.
+    BANKED (--bank-arbitrated) is counted separately: it re-anchors one
+    row without the gate having raised a CONFLICT in the same call.
+    """
+    if unit is not None:
+        bare = bare_unit(unit)
+        events = [e for e in events if e.get("unit") == bare]
+    counts = {"accepted": 0, "refused": 0, "banked": 0}
+    functions = 0
+    for event in events:
+        action = event.get("action")
+        if action in counts:
+            counts[action] += 1
+        functions += len(event.get("functions") or [])
+    decided = counts["accepted"] + counts["refused"]
+    rate = counts["accepted"] / decided if decided else None
+    return {"events": len(events), "functions": functions,
+            "decided": decided, "rate": rate, **counts}
+
+
+def format_arbitrations(summary, unit=None):
+    scope = f" for {unit}" if unit else " (all units)"
+    lines = [f"arbitration log{scope}: {summary['events']} event(s),"
+             f" {summary['functions']} function row(s)"]
+    lines.append(f"  accepted (--arbitrate keep)   {summary['accepted']}")
+    lines.append(f"  refused  (gate failed)        {summary['refused']}")
+    lines.append(f"  banked   (--bank-arbitrated)  {summary['banked']}")
+    if summary["rate"] is None:
+        lines.append("  override rate: UNDEFINED — no CONFLICT has been"
+                     " raised through a logging gate yet")
+    else:
+        lines.append(f"  override rate: {summary['rate']:.1%}"
+                     f" ({summary['accepted']}/{summary['decided']} raised"
+                     " CONFLICTs kept)")
+    return "\n".join(lines)
+
+
 def run_fndiff(unit, flag):
     result = subprocess.run(
         [sys.executable, str(FNDIFF), unit, flag],
@@ -635,6 +770,11 @@ def main():
     bank_arbitrated = next(
         (a.split("=", 1)[1] for a in sys.argv
          if a.startswith("--bank-arbitrated=")), None)
+    if args[:1] == ["arbitrations"]:
+        unit = args[1] if len(args) > 1 else None
+        print(format_arbitrations(
+            summarize_arbitrations(read_arbitrations(), unit), unit))
+        return 0
     if len(args) != 2 or args[0] not in ("baseline", "check"):
         print(__doc__)
         return 2
@@ -800,8 +940,16 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         archive = path.with_suffix(".prev.json")
         archive.write_text(path.read_text(encoding="utf-8"),
                            encoding="utf-8")
+        before = baseline.get(target_row) or {}
         baseline[target_row] = snap[target_row]
         save_baseline(path, baseline, unit)
+        log_arbitration(arbitration_event(
+            unit, "banked",
+            [(target_row, "BANKED",
+              f"real {before.get('real')} -> {snap[target_row].get('real')}"
+              f" (fuzzy {before.get('fuzzy')} ->"
+              f" {snap[target_row].get('fuzzy')})")],
+            arbiter=arbiter, reanchored=True, head=git_head()))
         print(f"banked arbitrated keep for {target_row} (that row only —"
               " every sibling still gates against its original anchor;"
               " record the arbitration + its fuzzy in the attempt record)")
@@ -813,6 +961,11 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
     for name, verdict, detail in verdicts:
         print(f"{verdict:10} {name}  {detail}")
     if conflicts and not regressions and arbitrate:
+        # Log BEFORE the two return paths below so an accepted override is
+        # recorded whether or not the baseline is re-anchored.
+        log_arbitration(arbitration_event(
+            unit, "accepted", conflicts, arbiter=arbiter,
+            reanchored=update_improved, head=git_head()))
         if update_improved:
             # Law-sanctioned keep (fuzzy/slot arbitration): re-anchor the
             # baseline over the arbitrated state so later checks gate
@@ -831,6 +984,11 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
               " --update-improved to re-anchor the baseline on it)")
         return 0
     if conflicts and not regressions:
+        # The DENOMINATOR. Without recording refusals too, the log could
+        # only ever count keeps, and an override RATE would stay exactly
+        # as unfalsifiable as it was before.
+        log_arbitration(arbitration_event(
+            unit, "refused", conflicts, arbiter=arbiter, head=git_head()))
         print(f"GATE FAILED: {len(conflicts)} CONFLICT — arbitrate (diff +"
               " objdiff fuzzy), then re-run with --arbitrate to accept or"
               " revert")

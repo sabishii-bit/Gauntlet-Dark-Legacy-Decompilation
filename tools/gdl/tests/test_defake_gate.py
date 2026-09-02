@@ -16,8 +16,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from defake_gate import (arbitrate_regressions, compare, load_baseline,
-                         naming_drift_is_benign, read_report_fuzzy)
+from defake_gate import (arbitrate_regressions, arbitration_event, compare,
+                         format_arbitrations, load_baseline, log_arbitration,
+                         naming_drift_is_benign, read_arbitrations,
+                         read_report_fuzzy, summarize_arbitrations)
 
 
 def no_ops(_unit, _name):
@@ -319,6 +321,115 @@ class CompareRegressionTests(unittest.TestCase):
         base = {"f": {"status": "STRUCTURAL", "real": 9}}
         cur = {"f": {"status": "STRUCTURAL", "real": 4}}
         self.assertEqual(compare(base, cur)[0][1], "IMPROVED")
+
+
+class ArbitrationLogTests(unittest.TestCase):
+    """Run-32 item 2: an override rate nothing records is unfalsifiable.
+
+    Measured before implementing: `grep -c jsonl tools/gdl/defake_gate.py`
+    was 0 and every `log|append|audit` hit in the file was
+    `verdicts.append(...)`. The tool printed "record the arbitration in the
+    attempt record" and then persisted nothing, so the project's own claims
+    about how often it overrides its gate could not be checked against
+    anything on disk. The single `.prev.json` archive is not a history —
+    the next bank overwrites it.
+    """
+
+    ROWS = [("get_vmu_directory", "CONFLICT",
+             "real 48 -> 65 BUT genuine structural rows FLAT 3 -> 3 while"
+             " fuzzy 90.0400 -> 92.7200 (+2.6800) ROSE")]
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.log = Path(self.tmp.name) / "arbitrations.jsonl"
+        self.addCleanup(self.tmp.cleanup)
+
+    def write(self, *actions):
+        for action in actions:
+            log_arbitration(
+                arbitration_event("game/sys/memcard.c", action, self.ROWS),
+                path=self.log)
+
+    def test_an_event_keeps_the_evidence_not_just_a_counter(self):
+        event = arbitration_event("game/sys/memcard.c", "accepted", self.ROWS,
+                                  arbiter="fuzzy", reanchored=True,
+                                  head="abc123", at="2026-09-02T00:00:00Z")
+        # Keyed extensionless, so `arbitrations game/sys/memcard` and
+        # `... game/sys/memcard.c` scope to the same rows.
+        self.assertEqual(event["unit"], "game/sys/memcard")
+        self.assertEqual(event["arbiter"], "fuzzy")
+        self.assertTrue(event["reanchored"])
+        self.assertIn("fuzzy 90.0400 -> 92.7200",
+                      event["functions"][0]["detail"])
+
+    def test_appends_one_line_per_event(self):
+        self.write("refused", "accepted")
+        self.assertEqual(
+            len(self.log.read_text(encoding="utf-8").strip().splitlines()), 2)
+        self.assertEqual([e["action"] for e in read_arbitrations(self.log)],
+                         ["refused", "accepted"])
+
+    def test_a_malformed_line_does_not_poison_the_log(self):
+        self.write("accepted")
+        with self.log.open("a", encoding="utf-8") as handle:
+            handle.write("{not json\n\n")
+        self.write("refused")
+        self.assertEqual(len(read_arbitrations(self.log)), 2)
+
+    def test_a_missing_log_reads_as_empty_not_an_error(self):
+        self.assertEqual(read_arbitrations(Path(self.tmp.name) / "nope"), [])
+
+    def test_the_override_rate_needs_both_halves(self):
+        self.write("accepted", "accepted", "refused", "refused")
+        summary = summarize_arbitrations(read_arbitrations(self.log))
+        self.assertEqual(summary["decided"], 4)
+        self.assertAlmostEqual(summary["rate"], 0.5)
+
+    def test_banked_rows_are_counted_apart_from_the_rate(self):
+        """--bank-arbitrated re-anchors without a CONFLICT being raised in
+        the same call, so it must not distort the accepted/raised ratio."""
+        self.write("accepted", "refused", "banked", "banked")
+        summary = summarize_arbitrations(read_arbitrations(self.log))
+        self.assertEqual(summary["banked"], 2)
+        self.assertEqual(summary["decided"], 2)
+        self.assertAlmostEqual(summary["rate"], 0.5)
+
+    def test_an_empty_log_reports_an_undefined_rate_not_zero(self):
+        summary = summarize_arbitrations([])
+        self.assertIsNone(summary["rate"])
+        self.assertIn("UNDEFINED", format_arbitrations(summary))
+
+    def test_the_summary_can_be_scoped_to_one_unit(self):
+        self.write("accepted")
+        log_arbitration(arbitration_event("game/ui/select.c", "refused",
+                                          self.ROWS), path=self.log)
+        events = read_arbitrations(self.log)
+        self.assertEqual(
+            summarize_arbitrations(events, "game/sys/memcard")["events"], 1)
+        self.assertEqual(summarize_arbitrations(events)["events"], 2)
+
+    def test_unit_spellings_normalize_so_scoping_actually_matches(self):
+        log_arbitration(arbitration_event("src/game/sys/memcard.c", "accepted",
+                                          self.ROWS), path=self.log)
+        events = read_arbitrations(self.log)
+        self.assertEqual(
+            summarize_arbitrations(events, "game/sys/memcard.c")["events"], 1)
+
+    def test_an_unwritable_log_reports_but_does_not_raise(self):
+        """Losing an audit line must never turn a passing gate into a
+        failing one."""
+        blocked = Path(self.tmp.name) / "file.txt"
+        blocked.write_text("not a directory", encoding="utf-8")
+        self.assertFalse(log_arbitration(
+            arbitration_event("game/x/y.c", "accepted", self.ROWS),
+            path=blocked / "arbitrations.jsonl"))
+
+    def test_the_rate_is_reported_as_a_percentage_of_raised_conflicts(self):
+        self.write("accepted", "refused", "refused", "refused")
+        text = format_arbitrations(
+            summarize_arbitrations(read_arbitrations(self.log)))
+        self.assertIn("25.0%", text)
+        self.assertIn("1/4", text)
 
 
 if __name__ == "__main__":

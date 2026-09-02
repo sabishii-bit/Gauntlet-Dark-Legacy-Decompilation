@@ -8,6 +8,7 @@ that had not moved (measured on game/sys/memcard get_vmu_directory during
 run 29: real 65 -> 65, insns and multiset both unchanged).
 """
 
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -15,8 +16,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from probe import (REPLAN_AT, annotate_neutral, classify, count_distance,
-                   function_span, replan_hint, scaffold_rows, scoped_revert,
-                   split_lines, strip_noncode,
+                   function_span, fuzzy_anchor_note, moved_sections,
+                   parse_section_digests, replan_hint, scaffold_rows,
+                   scoped_revert, split_lines, strip_noncode,
                    update_neutral_identical_streak)
 
 
@@ -331,6 +333,243 @@ class AnnotateNeutralTests(unittest.TestCase):
         self.assertTrue(out.startswith("NEUTRAL-WORSE"), out)
         self.assertIn("count distance 0 -> 6", out)
         self.assertIn("multiset 2t -> 6t", out)
+
+
+class FuzzyAnchorTests(unittest.TestCase):
+    """Run-32 item 3: CONFLICT ordered a fuzzy arbitration and printed no
+    fuzzy.
+
+    Reproduced before implementing, by driving classify() with a state that
+    already carried last_fuzzy = 90.04: both CONFLICT branches produced a
+    verdict containing neither "90.04" nor (in the converging branch) the
+    word "fuzzy" at all. Every arbitration therefore cost two report builds
+    — one on the current state, one after a revert — even when probe had
+    already measured one of them. Three lanes paid that.
+    """
+
+    BEST = {"best_real": 48, "best_multiset": 4, "best_insns": "T116/O116",
+            "last_real": 48, "last_insns": "T116/O116", "last_multiset": 4}
+
+    def conflict_real_rose(self, **extra):
+        state = dict(self.BEST, **extra)
+        verdict, _ = classify(state, 65, "T116/O116", 3)
+        self.assertTrue(verdict.startswith("CONFLICT"), verdict)
+        return verdict
+
+    def conflict_real_fell(self, **extra):
+        state = dict(self.BEST, **extra)
+        verdict, _ = classify(state, 40, "T116/O116", 6)
+        self.assertTrue(verdict.startswith("CONFLICT"), verdict)
+        return verdict
+
+    def test_a_cached_anchor_is_printed_on_the_converging_conflict(self):
+        verdict = self.conflict_real_rose(best_fuzzy=90.04)
+        self.assertIn("90.0400", verdict)
+        self.assertIn("BEST-STATE FUZZY", verdict)
+
+    def test_a_cached_anchor_is_printed_on_the_diverging_conflict(self):
+        verdict = self.conflict_real_fell(best_fuzzy=90.04)
+        self.assertIn("90.0400", verdict)
+
+    def test_both_halves_cached_print_the_delta_and_spend_no_build(self):
+        state = dict(self.BEST, best_fuzzy=90.04)
+        verdict, _ = classify(state, 65, "T116/O116", 3, fuzzy=92.72)
+        self.assertIn("90.0400 -> 92.7200 (+2.6800)", verdict)
+        self.assertIn("ROSE", verdict)
+        self.assertIn("NO build spent", verdict)
+
+    def test_a_missing_anchor_says_how_to_warm_it(self):
+        verdict = self.conflict_real_rose()
+        self.assertIn("no cached fuzzy anchor", verdict)
+        self.assertIn("--fuzzy", verdict)
+
+    def test_banking_a_best_records_the_bytes_it_describes(self):
+        _, state = classify({}, 48, "T116/O116", 4, digest="cafe")
+        self.assertEqual(state["best_bytes"], "cafe")
+
+    def test_a_measured_fuzzy_is_banked_with_the_new_best(self):
+        _, state = classify({}, 48, "T116/O116", 4, digest="cafe",
+                            fuzzy=90.04)
+        self.assertEqual(state["best_fuzzy"], 90.04)
+
+    def test_a_new_best_without_a_fuzzy_CLEARS_the_stale_anchor(self):
+        """A stale anchor would compare a fresh number against a number
+        for different bytes — worse than having none."""
+        state = dict(self.BEST, best_fuzzy=90.04)
+        _, out = classify(state, 30, "T116/O116", 4, digest="beef")
+        self.assertTrue(out["best_real"] == 30)
+        self.assertNotIn("best_fuzzy", out)
+
+    def test_a_fallen_fuzzy_reads_as_FELL(self):
+        note = fuzzy_anchor_note(92.72, 90.04)
+        self.assertIn("(-2.6800)", note)
+        self.assertIn("FELL", note)
+
+    def test_an_unchanged_fuzzy_reads_as_flat(self):
+        self.assertIn("is FLAT", fuzzy_anchor_note(90.04, 90.04))
+
+    def test_non_conflict_verdicts_carry_no_anchor(self):
+        """The anchor belongs to the verdict that orders an arbitration."""
+        for verdict, _ in (classify({}, 48, "T116/O116", 4),
+                           classify(dict(self.BEST), 30, "T116/O116", 4),
+                           classify(dict(self.BEST), 48, "T116/O116", 4)):
+            self.assertNotIn("BEST-STATE FUZZY", verdict)
+            self.assertNotIn("no cached fuzzy anchor", verdict)
+
+
+class CountDistanceSuppressionTests(unittest.TestCase):
+    """Run-32 item 4: an invalid predictor still printed its number.
+
+    Reproduced before implementing. The CONFLICT branch bounds its own
+    count-distance predictor to a FLAT multiset, and when the multiset had
+    moved it printed "COUNT DISTANCE 1 -> 6 but the multiset moved — the
+    predictor is NOT valid here". The figure led and the denial trailed;
+    a number in a verdict reads as evidence whatever follows it.
+    """
+
+    # real 48 -> 65 (rose) with multiset 4t -> 3t (converging => CONFLICT).
+    STATE = {"best_real": 48, "best_multiset": 4, "best_insns": "T116/O116",
+             "last_real": 48, "last_insns": "T116/O115", "last_multiset": 4}
+
+    def line(self, insns, tokens):
+        verdict, _ = classify(dict(self.STATE), 65, insns, tokens)
+        self.assertTrue(verdict.startswith("CONFLICT"), verdict)
+        return next((ln.strip() for ln in verdict.splitlines()
+                     if "COUNT DISTANCE" in ln), "")
+
+    def test_a_moved_multiset_reports_no_figure_at_all(self):
+        line = self.line("T116/O110", 3)          # distance 1 -> 6
+        self.assertIn("WITHHELD", line)
+        self.assertIsNone(re.search(r"COUNT DISTANCE:? \d+ -> \d+", line))
+        self.assertNotRegex(line, r"\b1 -> 6\b")
+
+    def test_it_says_why_the_predictor_is_unavailable(self):
+        line = self.line("T116/O110", 3)
+        self.assertIn("flat multiset", line)
+        self.assertIn("fresh fuzzy", line)
+
+    def test_a_flat_multiset_still_reports_the_figure(self):
+        """The predictor is sound there — suppression must be scoped to the
+        case that admitted invalidity, not applied to every CONFLICT."""
+        state = dict(self.STATE, last_multiset=3)   # flat: 3t -> 3t
+        verdict, _ = classify(state, 65, "T116/O110", 3)
+        line = next(ln for ln in verdict.splitlines()
+                    if "COUNT DISTANCE" in ln)
+        self.assertIn("1 -> 6", line)
+        self.assertIn("flat multiset", line)
+        self.assertNotIn("WITHHELD", line)
+
+    def test_an_unchanged_distance_reports_nothing_either_way(self):
+        verdict, _ = classify(dict(self.STATE), 65, "T116/O115", 3)
+        self.assertNotIn("COUNT DISTANCE", verdict)
+
+
+class DataOnlyEditTests(unittest.TestCase):
+    """The five-correct-fixes regression.
+
+    Reproduced live on src/game/pb/pb_objregs.c::setChrome (the fix in
+    commit adc292074, recorded in
+    attempt.CS_image-wide-constant-sweep-five-fixes.20260901.v1):
+    respelling the PI literal moved .sdata2+0x40 from 400921fb54442d18 to
+    400921fb54524550 and probe printed "NEUTRAL-IDENTICAL: object bytes
+    unchanged — the edit FOLDED AWAY before codegen ... a STRONGER
+    negative than a regression". The instruction stream really is
+    identical; the object is not, and the advice to treat it as a null
+    probe is how five correct constant fixes nearly got reverted.
+    """
+
+    NEUTRAL = "NEUTRAL   real 0 (insns T362/O362, multiset 0t)"
+    BEFORE = {".rodata": "aaa", ".sdata2": "111", ".bss": "zzz"}
+    AFTER = {".rodata": "aaa", ".sdata2": "222", ".bss": "zzz"}
+
+    def annotate(self, prev_data, data, source_changed=True):
+        return annotate_neutral(self.NEUTRAL, 0, "T362/O362", 0, 0,
+                                "T362/O362", "same", "same",
+                                prev_data=prev_data, data=data,
+                                source_changed=source_changed)
+
+    def test_a_moved_data_section_is_not_a_fold_away(self):
+        out = self.annotate(self.BEFORE, self.AFTER)
+        self.assertIn("NEUTRAL-DATA-ONLY", out)
+        self.assertNotIn("NEUTRAL-IDENTICAL", out)
+        self.assertNotIn("FOLDED AWAY", out)
+
+    def test_it_names_the_section_that_moved(self):
+        out = self.annotate(self.BEFORE, self.AFTER)
+        self.assertIn(".sdata2", out)
+        self.assertNotIn(".rodata", out)
+
+    def test_it_directs_to_a_value_audit_not_a_revert(self):
+        out = self.annotate(self.BEFORE, self.AFTER)
+        self.assertIn("VALUE AUDIT", out)
+        self.assertIn("claim.law.SL_pool-constant-errors-are-score-invisible",
+                      out)
+
+    def test_flat_data_still_reads_as_a_fold_away(self):
+        out = self.annotate(self.BEFORE, dict(self.BEFORE))
+        self.assertIn("NEUTRAL-IDENTICAL", out)
+        self.assertNotIn("NEUTRAL-DATA-ONLY", out)
+
+    def test_an_unedited_source_is_never_called_data_only(self):
+        """A sibling lane's rebuild can move a shared pool; only an edit
+        of THIS source may be reported as a data-only change."""
+        out = self.annotate(self.BEFORE, self.AFTER, source_changed=False)
+        self.assertIn("NEUTRAL-IDENTICAL", out)
+
+    def test_an_unmeasured_side_never_manufactures_the_verdict(self):
+        for prev, cur in ((None, self.AFTER), (self.BEFORE, None),
+                          (None, None)):
+            out = self.annotate(prev, cur)
+            self.assertIn("NEUTRAL-IDENTICAL", out)
+
+    def test_a_moved_data_section_does_not_feed_the_axis_dead_streak(self):
+        """Three data-only edits are three landed changes, not evidence
+        that the axis cannot reach codegen."""
+        state = {"neutral_identical_streak": 2}
+        out = self.annotate(self.BEFORE, self.AFTER)
+        self.assertEqual(update_neutral_identical_streak(state, out), 0)
+
+    def test_moved_bytes_still_outrank_the_data_check(self):
+        out = annotate_neutral(self.NEUTRAL, 0, "T362/O362", 0, 0,
+                               "T362/O362", "old", "new",
+                               prev_data=self.BEFORE, data=self.AFTER)
+        self.assertIn("NEUTRAL-REARRANGED", out)
+        self.assertNotIn("NEUTRAL-DATA-ONLY", out)
+
+
+class SectionDigestTests(unittest.TestCase):
+    DUMP = """\
+pb_objregs.o:     file format elf32-powerpc
+
+Contents of section .text:
+ 0000 9421ffd0 7c0802a6 90010034 bf610014  .!..|......4.a..
+Contents of section .rodata:
+ 0000 79617700 70697463 68000000 00000000  yaw.pitch.......
+Contents of section .sdata2:
+ 0040 400921fb 54442d18 3f008081 3f000000  @.!.TD-.?...?...
+"""
+
+    def test_text_sections_are_excluded(self):
+        digests = parse_section_digests(self.DUMP)
+        self.assertEqual(sorted(digests), [".rodata", ".sdata2"])
+
+    def test_a_changed_pool_word_changes_only_its_own_section(self):
+        after = self.DUMP.replace("54442d18", "54524550")
+        moved = moved_sections(parse_section_digests(self.DUMP),
+                               parse_section_digests(after))
+        self.assertEqual(moved, [".sdata2"])
+
+    def test_an_unchanged_dump_moves_nothing(self):
+        digests = parse_section_digests(self.DUMP)
+        self.assertEqual(moved_sections(digests, dict(digests)), [])
+
+    def test_an_added_or_dropped_section_counts_as_moved(self):
+        digests = parse_section_digests(self.DUMP)
+        fewer = {k: v for k, v in digests.items() if k != ".rodata"}
+        self.assertEqual(moved_sections(digests, fewer), [".rodata"])
+
+    def test_a_dump_with_no_sections_is_empty_not_an_error(self):
+        self.assertEqual(parse_section_digests("no sections here"), {})
 
 
 class ScaffoldCensusTests(unittest.TestCase):
