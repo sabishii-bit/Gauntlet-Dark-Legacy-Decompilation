@@ -48,21 +48,78 @@ CURRENT hash slots to build/GUNE5D/gate/wfpin_<unit>.json before pasting, and
 function WINS (like probe's session baseline): re-deriving three times during
 one A/B still returns to the pre-probe pin, not to the second derivation.
 
-Run after building ONLY the raw body object, e.g.
-    ninja build/GUNE5D/src/game/game/.postprocess/body/combat.o
-(the WEBFRANK stage will abort on the stale hash -- that is the guard working,
-and the raw body is all this needs).
+This tool BUILDS the raw body object it derives from (the WEBFRANK stage
+will abort on the stale hash -- that is the guard working, and the raw body
+is all this needs).  It used to read whatever object sat on disk and print
+the docstring instruction "run after building the body object" instead; an
+instruction is not a guard.  Measured 2026-09-02 on
+game/ui/screensaver::end_inventory_panel: with the source at HEAD but the
+object left from a since-reverted probe edit, it derived
+before_sha256=1d409357... , reported the pin CHANGED, and --apply would have
+pasted that reverted probe's hash into webfrank.json
+(claim.law.PC_wf-rederive-pin-derives-from-whatever-object-is-on-disk).
+--no-build opts out and says so; a body object older than its source is
+refused outright.
 """
 import json
 import os
 import re
 import struct
+import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 import webfrank as wf  # noqa: E402
+
+
+def unit_source(unit):
+    """Absolute path to `unit`'s source file, or None."""
+    for suffix in (".c", ".cpp"):
+        path = os.path.join(ROOT, "src", *unit.split("/")) + suffix
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def stale_body_refusal(source_mtime, body_mtime):
+    """Refusal when the raw body object predates its source, else None.
+
+    Pure over two mtimes so the decision is tested without a build tree.
+    `None` for either side means the path is missing and the caller has
+    already reported that.
+    """
+    if source_mtime is None or body_mtime is None:
+        return None
+    if body_mtime >= source_mtime:
+        return None
+    return ("REFUSED: the raw body object is OLDER than its source, so every"
+            " hash below would describe bytes the current source does not"
+            " produce. Build the body object first"
+            " (this tool does it for you unless --no-build is passed).")
+
+
+def build_body_object(body, unit):
+    """Build the raw body object this derivation reads.
+
+    The whole point of the tool is to paste hashes into webfrank.json, and
+    it used to derive them from WHATEVER object happened to sit on disk.
+    Measured 2026-09-02 on game/ui/screensaver::end_inventory_panel: with
+    the source at HEAD but the object left over from a since-reverted
+    probe edit, the tool reported before_sha256 as CHANGED and would have
+    pasted the reverted probe's hash into the config (PC's run-36 law).
+    The docstring said "run after building the body object" — an
+    instruction is not a guard.
+    """
+    relative = os.path.relpath(body, ROOT).replace(os.sep, "/")
+    result = subprocess.run(["ninja", relative], cwd=ROOT,
+                            capture_output=True, text=True)
+    if result.returncode != 0:
+        raise SystemExit(
+            f"cannot build the raw body object for {unit}:\n"
+            + (result.stdout + result.stderr).strip()[-1500:])
+    return relative
 
 
 def _string_aware_mask(text):
@@ -410,6 +467,20 @@ def main():
         raise SystemExit(
             f"{function} has no instruction_permutation; a pool renumbering "
             f"cannot invalidate a body-hash-only rule")
+
+    # Derive from an object this tool BUILT, never from whatever is on disk.
+    if "--no-build" in sys.argv:
+        print("[--no-build: deriving from the object already on disk — its"
+              " hashes describe THAT object, not necessarily your source]")
+    else:
+        print(f"[building {build_body_object(body, unit)}]")
+
+    source = unit_source(unit)
+    refusal = stale_body_refusal(
+        os.path.getmtime(source) if source else None,
+        os.path.getmtime(body) if os.path.exists(body) else None)
+    if refusal:
+        raise SystemExit(refusal)
 
     with open(body, "rb") as handle:
         data = bytearray(handle.read())

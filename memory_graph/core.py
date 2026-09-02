@@ -334,9 +334,86 @@ _RECORD_ID_RE = re.compile(
     r"\b(?:attempt|claim|evidence|entity|edge|work_claim|event)"
     r"\.[A-Za-z0-9_][A-Za-z0-9_.-]{3,}",
 )
+# Gate H (run 37): a claim that a stack REGION IS NEVER ACCESSED must say
+# which ADDRESSING MODES the measurement covered.
+#
+# "Nothing writes r1+8..55" is a universal claim over the instruction
+# stream, and a scan that enumerates only the forms its author thought of
+# returns exactly the same answer as a complete one. CH's swbos lineage had
+# TWO measurements assert the region untouched while both were blind to
+# register-relative cursor stores — the very form a by-value aggregate
+# argument copy emits, which was the mechanism under investigation. The
+# record that finally settled it said so explicitly ("no store into
+# r1+8..55 under ANY addressing mode, register-relative included"); the
+# ones that did not were indistinguishable from it in the corpus.
+_REGION_UNTOUCHED_RE = re.compile(
+    r"no stores? (?:into|to)\b"
+    r"|never (?:written|accessed|touched)\b"
+    r"|nothing (?:writes|touches|accesses)\b"
+    r"|no (?:address computation|cursor|access)\w*\s+(?:reach\w*|into|to)\b"
+    r"|\bdead bytes\b"
+    r"|(?:region|block|area) (?:is|are) (?:dead|untouched|unused)\b",
+    re.I,
+)
+# The region the claim is about: an r1-relative span or an offset range.
+_STACK_REGION_RE = re.compile(
+    r"\br1\s*\+\s*\d+\s*(?:\.\.|-{1,2}|to)\s*\+?\d+"
+    r"|\+0x[0-9a-fA-F]+\s*(?:\.\.|-{1,2}|to)\s*\+?0x[0-9a-fA-F]+",
+    re.I,
+)
+# What discharges it in prose, when the typed field is absent.
+_ADDRESSING_MODE_EVIDENCE_RE = re.compile(
+    r"addressing[- ]modes?"
+    r"|register[- ]relative"
+    r"|\b[dx][- ]form\b"
+    r"|indexed (?:store|load|access|form)"
+    r"|update[- ]form",
+    re.I,
+)
+
 # Outcomes for which a multi-edit probe must name what it held fixed: only the
 # ones that VETO an axis. See gate C.
 HELD_FIXED_OUTCOMES = frozenset({"negative", "parked", "capped"})
+
+# Gate G (run 37): a postprocessor REFUSAL must enumerate WHICH verifiers ran.
+#
+# The shipped verifier surface. A refusal that names one of these reads as a
+# verdict about the whole postprocessor path, and the corpus has already paid
+# for that: attempt.HV_drawmemcardmessage-uninitialised-path-bar-reconfirmed
+# .20260901.v2 concluded "the postprocessor path is closed and no permutation
+# repair will reopen it" having run verify_consistent_recolor and NEVER
+# verify_value_equality_recolor — the very mode the refusal message names as
+# an escape. MC re-screened a run later, found the missing verifier also
+# refuses (for a different and better reason), and had to supersede the cap.
+# The cap was not wrong; it was UNDERDETERMINED, and nothing in it said so.
+WEBFRANK_VERIFIERS = (
+    "copy_register_fields",
+    "verify_consistent_recolor",
+    "verify_value_equality_recolor",
+    "verify_relocation_binding",
+    "instruction_permutation",
+    "unproven_recolor_audit",
+)
+_WEBFRANK_VERIFIER_RE = re.compile(
+    r"\b(?:" + "|".join(WEBFRANK_VERIFIERS) + r")\b"
+    r"|\bvalue[- ]equality\b|\bconsistent[- ]recolor\b|\bwebfrank\b",
+    re.I,
+)
+# The claim the enumeration has to back: the postprocessor path is CLOSED.
+# Narrow and literal, like gate D's vocabulary — a record that merely reports
+# one verifier's refusal without generalising from it is not making this
+# claim and is not taxed.
+_POSTPROCESSOR_CLOSED_RE = re.compile(
+    r"(?:postprocessor|webfrank)[- ](?:path|route|class)"
+    r"\s*(?:is|are|remains?|stays?)?\s*(?:therefore\s+)?closed"
+    r"|path (?:is|remains) closed"
+    r"|no (?:permutation )?(?:repair|rule|class) (?:will|can|could)"
+    r"\s+(?:ever\s+)?(?:reopen|close|reach|help)"
+    r"|every (?:existing )?(?:postprocessor )?class refuses"
+    r"|outside every postprocessor class"
+    r"|not (?:a )?(?:webfrank|postprocessor)[- ](?:candidate|class)",
+    re.I,
+)
 
 PDB_MODULE_RE = re.compile(r"^==\s+\.\\Release\\(.+?)\s+\((.*?)\)\s*$", re.I)
 PDB_SYMBOL_RE = re.compile(
@@ -1235,6 +1312,39 @@ def _entity_id(connection: sqlite3.Connection, key: str) -> int:
     raise MemoryGraphError(f"record references unknown entity {key!r}")
 
 
+def tu_name_candidates(name: str) -> list[str]:
+    """Every module spelling a `tu:<module>` reference might mean.
+
+    Covers the two ways a worker's path differs from an `object_name`:
+
+    * the SOURCE EXTENSION, in both directions — a TU renamed between .c and
+      .cpp (movieplayer.c -> movieplayer.cpp, 2026-08-31) must not strand
+      records anchored to its former spelling; and
+    * a leading `src/`, which is how every matching TOOL spells a unit path
+      and therefore how a worker types one. Measured 2026-09-02:
+      `tu:src/game/sys/memcard.c` was refused while `tu:game/sys/memcard`
+      resolved, and the refusal's directory said the suffix was optional
+      without ever mentioning the prefix — so the obvious next guess was to
+      change the suffix, which was already fine. tools/gdl already strips a
+      stray `src/` for exactly this reason; the graph now agrees with it.
+
+    Order is preserved and duplicates removed, so callers can use the first
+    hit as the canonical spelling.
+    """
+    out: list[str] = []
+    for candidate in (name, name.removeprefix("src/")):
+        base = candidate
+        for suffix in (".cpp", ".c"):
+            if base.endswith(suffix):
+                base = base[: -len(suffix)]
+                break
+        for spelling in (candidate, candidate + ".c", candidate + ".cpp",
+                         base, base + ".c", base + ".cpp"):
+            if spelling and spelling not in out:
+                out.append(spelling)
+    return out
+
+
 def _autoresolve_entity(connection: sqlite3.Connection, key: str) -> int | None:
     """Materialize a minimal entity from the deterministic symbol/module import.
 
@@ -1266,16 +1376,7 @@ def _autoresolve_entity(connection: sqlite3.Connection, key: str) -> int | None:
         return None
     if key.startswith("tu:"):
         name = key.split(":", 1)[1]
-        # Match with OR without the source extension, in both directions: a TU
-        # that is renamed between .c and .cpp (movieplayer.c -> movieplayer.cpp,
-        # 2026-08-31) must not strand records anchored to its former spelling.
-        base = name
-        for suffix in (".cpp", ".c"):
-            if base.endswith(suffix):
-                base = base[: -len(suffix)]
-                break
-        candidates = [name, name + ".c", name + ".cpp", base, base + ".c", base + ".cpp"]
-        candidates = list(dict.fromkeys(candidates))
+        candidates = tu_name_candidates(name)
         placeholders = ",".join("?" for _ in candidates)
         rows = connection.execute(
             "SELECT object_name FROM binary_module"
@@ -3089,11 +3190,12 @@ def _reference_resolvable(connection: sqlite3.Connection, key: str) -> bool:
         ).fetchone()[0]
         return int(count) == 1
     if key.startswith("tu:"):
-        name = key.split(":", 1)[1]
+        candidates = tu_name_candidates(key.split(":", 1)[1])
+        placeholders = ",".join("?" for _ in candidates)
         count = connection.execute(
             "SELECT COUNT(*) FROM binary_module"
-            " WHERE platform='gamecube' AND (object_name=? OR object_name=? OR object_name=?)",
-            (name, name + ".c", name + ".cpp"),
+            f" WHERE platform='gamecube' AND object_name IN ({placeholders})",
+            candidates,
         ).fetchone()[0]
         return int(count) >= 1
     return False
@@ -3160,6 +3262,20 @@ def unknown_entity_message(key: str, namespaces, suggestions) -> str:
                      " (prefix, count, example):")
         for prefix, count, example in namespaces[:12]:
             lines.append(f"  {prefix}: {count} — e.g. {example}")
+    # Name the STRAY PREFIX, because the suffix clause above actively
+    # misleads here: it says the extension is optional (true), so a reader
+    # whose `tu:src/game/sys/memcard.c` was refused reaches for the suffix,
+    # which was never the problem. Measured 2026-09-02 — UB spent a round
+    # trip on exactly that. `src/` is how every matching tool spells a unit
+    # path, so it is the likeliest thing a worker types.
+    if key.startswith("tu:src/"):
+        lines.append(
+            "THE `src/` PREFIX IS WHAT BROKE THIS, not the suffix: a module"
+            f" is named {key.replace('tu:src/', 'tu:', 1)!r}, the way"
+            " configure.py names the object, not the way a tool takes a"
+            " unit path. (The .c/.cpp suffix really is optional, so"
+            " changing it will not help — that is the round trip this line"
+            " exists to save.)")
     if suggestions:
         lines.append("Did you mean: " + ", ".join(suggestions) + "?")
     lines.append(
@@ -3409,6 +3525,24 @@ def record_template(kind: str) -> dict[str, Any]:
             "held_fixed": "<OPTIONAL, REQUIRED when probed_form enumerates"
                           " more than one edit: the variable this park held"
                           " CONSTANT while varying the others>",
+            "addressing_modes_covered": "<OPTIONAL, REQUIRED when the record"
+                                        " claims a stack REGION IS NEVER"
+                                        " ACCESSED: the store/address forms"
+                                        " the scan actually covered —"
+                                        " D-form, indexed/X-form,"
+                                        " update-form, and register-relative"
+                                        " cursors. Two swbos records asserted"
+                                        " a region untouched while both were"
+                                        " blind to register-relative cursor"
+                                        " stores>",
+            "verifiers_run": "<OPTIONAL, REQUIRED when the record closes the"
+                             " POSTPROCESSOR path for a function: the list of"
+                             " verifiers you ACTUALLY ran ("
+                             + ", ".join(WEBFRANK_VERIFIERS) + ")."
+                             " A refusal from a partial screen measures the"
+                             " SCREEN, not the function; say which you did"
+                             " NOT run and why, because 'not run' and"
+                             " 'refused' are different findings>",
             "denial": {
                 "scope": "<REQUIRED if present, and REQUIRED on any record"
                          " using do-not-retry / not-a-candidate / ineligible"
@@ -3812,6 +3946,80 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
                     "closure.20260901.v1. If the probe really varied one"
                     " thing, say so in held_fixed."
                 )
+
+    # Gate G (run 37). A refusal that closes the POSTPROCESSOR path for a
+    # function must enumerate WHICH verifiers were actually run. AGENTS.md
+    # discipline 14 already says a guard's refusal is a measurement of the
+    # GUARD; this is the same fact one level up — a refusal from a PARTIAL
+    # screen is a measurement of the SCREEN, and a reader cannot tell the
+    # two apart unless the record lists what ran.
+    #
+    # Anchored and substance-projected exactly like gates B, D and E, so a
+    # methodology law ABOUT refusals, and a record merely CITING somebody
+    # else's refusal, are both excluded by construction rather than by
+    # wording.
+    if (anchored
+            and record.get("kind") == "attempt"
+            and str(record.get("outcome", "")).lower() in HELD_FIXED_OUTCOMES
+            and _WEBFRANK_VERIFIER_RE.search(substance)
+            and not _record_field(record, "verifiers_run")):
+        closed = _POSTPROCESSOR_CLOSED_RE.search(substance)
+        if closed:
+            raise MemoryGraphError(
+                "a record closing the POSTPROCESSOR path for a function"
+                f" (matched {' '.join(closed.group(0).split())!r}) must"
+                " enumerate WHICH verifiers ran, in `verifiers_run`. A"
+                " refusal from a PARTIAL screen is a measurement of the"
+                " SCREEN, not of the function, and nothing in the record"
+                " distinguishes them:"
+                " attempt.HV_drawmemcardmessage-uninitialised-path-bar-"
+                "reconfirmed.20260901.v2 concluded \"the postprocessor path"
+                " is closed and no permutation repair will reopen it\""
+                " having run verify_consistent_recolor and NEVER"
+                " verify_value_equality_recolor — the mode the refusal"
+                " message itself names as an escape. It read as a total"
+                " closure, it was underdetermined, and MC had to re-screen"
+                " and supersede it a run later. The shipped verifier"
+                " surface is: " + ", ".join(WEBFRANK_VERIFIERS) + "."
+                "\nSet `verifiers_run` to the list you actually ran, e.g."
+                " [\"copy_register_fields\", \"verify_consistent_recolor\","
+                " \"verify_value_equality_recolor\"] — and if you"
+                " deliberately did NOT run one, say which and why in the"
+                " same list entry, because \"not run\" and \"refused\" are"
+                " different findings."
+            )
+
+    # Gate H (run 37). "Nothing writes r1+8..55" is a UNIVERSAL claim over
+    # the instruction stream, and a scan that enumerates only the forms its
+    # author thought of returns the same answer as a complete one. State
+    # the coverage or the reader cannot tell the two apart.
+    if (anchored
+            and _REGION_UNTOUCHED_RE.search(substance)
+            and _STACK_REGION_RE.search(substance)
+            and not _record_field(record, "addressing_modes_covered")
+            and not _ADDRESSING_MODE_EVIDENCE_RE.search(substance)):
+        raise MemoryGraphError(
+            "a claim that a stack REGION IS NEVER ACCESSED must state which"
+            " ADDRESSING MODES the measurement covered — set"
+            " `addressing_modes_covered`, or say so in the prose. This is a"
+            " universal claim over the instruction stream, so a scan that"
+            " enumerated only the forms its author thought of produces"
+            " exactly the same sentence as a complete one, and the corpus"
+            " cannot tell them apart. MEASURED: two records in the swbos"
+            " lineage asserted the r1+8..55 region untouched while both"
+            " were blind to REGISTER-RELATIVE CURSOR STORES — the very form"
+            " a by-value aggregate argument copy emits, which was the"
+            " mechanism under investigation. The record that settled it"
+            " (attempt.CH_swbos-by-value-aggregate-axis-refuted-on-the-"
+            "targets-own-bytes.20260902.v1) said it explicitly: \"no store"
+            " into r1+8..55 under ANY addressing mode, register-relative"
+            " included\"."
+            "\nName the forms you actually scanned: D-form displacement"
+            " stores (stw/stfs rN,K(r1)), INDEXED/X-form stores (stwx/stfsx"
+            " rN,rA,rB), UPDATE-form stores (stwu/stfsu), and"
+            " REGISTER-RELATIVE cursors (a base copied out of r1 by"
+            " `addi rN,r1,K` and then written through)."
+        )
     return warnings
 
 
@@ -4980,6 +5188,41 @@ def _derive_residual_index(connection: sqlite3.Connection) -> None:
         )
 
 
+def mechanism_sentences_naming(
+    text: str, names, exclude: str | None = None
+) -> dict[str, list[str]]:
+    """{function: [sentences in `text` that NAME it]}.
+
+    A pin's mechanism prose routinely explains its residual by reference to
+    OTHER functions in the same TU — the sibling whose colouring forced the
+    window, the upstream function whose instruction count moved it. Those
+    sentences are the best evidence a lane working on the SIBLING can get,
+    and nothing surfaced them: the sibling's own records say nothing, and
+    the pin is filed under a different function's name.
+
+    `exclude` drops the pin's own function so a pin does not report itself.
+    Matching is on word boundaries, so `do_players` does not match inside
+    `do_players_tail`, and the longest name wins when two overlap.
+    """
+    wanted = sorted(
+        {str(name) for name in (names or []) if name and str(name) != exclude},
+        key=len, reverse=True)
+    if not wanted or not text:
+        return {}
+    # Split on sentence enders followed by whitespace. Deliberately simple:
+    # this prose is technical, and over-splitting costs a reader nothing
+    # while under-splitting would hand back the whole note again.
+    sentences = [part.strip()
+                 for part in re.split(r"(?<=[.!?])\s+", text) if part.strip()]
+    out: dict[str, list[str]] = {}
+    for name in wanted:
+        pattern = re.compile(r"\b" + re.escape(name) + r"\b")
+        hits = [sentence for sentence in sentences if pattern.search(sentence)]
+        if hits:
+            out[name] = hits
+    return out
+
+
 def webfrank_pin_mechanisms(
     root: Path = REPO_ROOT, query: str | None = None
 ) -> list[dict[str, Any]]:
@@ -5025,7 +5268,20 @@ def webfrank_pin_mechanisms(
                 "stages": stages,
                 "cites_records": sorted(set(re.findall(
                     r"\b(?:claim|attempt|evidence)\.[A-Za-z0-9._-]+", text))),
-                "mechanism": text[:600] + (" …" if len(text) > 600 else ""),
+                # NOT TRUNCATED (run-37 item 5). This prose is the densest
+                # derivation of a closed residual anywhere in the project,
+                # and a 600-character cut discarded 59.1% of it — 77,547 of
+                # 131,115 characters across 82 of the 91 pins that carry a
+                # mechanism, the longest being 4,997 characters of which 88%
+                # was hidden. The tails are where the operative content
+                # lives: the dependence-analysis verdicts, the residual
+                # descriptions, the law citations. UA measured one such
+                # sentence sitting past the cut and outvaluing every graph
+                # query it ran. Large results already spill to
+                # build/gdlmem_out/ (AGENTS.md trap 3), so size is the
+                # spiller's problem, not a reason to destroy evidence.
+                "mechanism": text,
+                "mechanism_chars": len(text),
                 "source": "config/GUNE5D/webfrank.json",
                 "note": "a PIN, not a law: its source is FROZEN — screen it"
                         " before editing the function (AGENTS.md trap 4)",
@@ -6581,7 +6837,8 @@ def _open_hypotheses(record: dict[str, Any]) -> list[dict[str, str]]:
     return found
 
 
-def _pin_provenance(root: Path, tu: str) -> list[dict[str, Any]]:
+def _pin_provenance(root: Path, tu: str,
+                    roster_names=None) -> list[dict[str, Any]]:
     """webfrank.json pins for this TU, each with its SOURCE-EXHAUSTION class.
 
     The Mandatory-policy provenance rule requires a new rule's function to
@@ -6659,6 +6916,18 @@ def _pin_provenance(root: Path, tu: str) -> list[dict[str, Any]]:
             pin["provenance"] = "attempts-but-no-park"
         else:
             pin["provenance"] = "NO-SOURCE-TRAIL"
+        # Sentences in THIS pin's derivation that name a SIBLING in the TU
+        # roster. A lane working the sibling has no other route to them:
+        # the sibling's own records are silent and the pin is filed under
+        # another function's name (run-37 item 5).
+        mentions = mechanism_sentences_naming(
+            pin["mechanism"], roster_names, exclude=pin["function"])
+        if mentions:
+            pin["roster_mentions"] = mentions
+            pin["roster_mentions_note"] = (
+                "sentences from THIS pin's mechanism prose that name another"
+                " function in the TU roster — read them before working that"
+                " sibling; they are evidence its own records do not carry.")
         pin["provenance_note"] = (
             "The Mandatory-policy bar is a disjunction."
             " law-backed-source-unreachable = the pin cites a law proving the"
@@ -6859,7 +7128,13 @@ def tu_briefing(
             # postprocessor can reach to one a permutation window can, so
             # the roster reported "no change" on a real change. Classes:
             # allocator / schedule / operand / source-structural /
-            # count-asymmetric — only the first two are reachable at all.
+            # count-asymmetric — only the first two are reachable at all —
+            # plus compiler-exact and rule-served, which are already CLOSED
+            # and are not work items. Those two used to be folded into
+            # `allocator` because the census scored the POSTPROCESSED
+            # object, which oversized one work order 24:1 (run-37 item 3,
+            # claim.law.MC_the-unabsorbed-census-scores-the-postprocessed-
+            # object...); it now reads the raw .postprocess/body.
             "unabsorbed_class": (
                 unabsorbed_rows.get(row["raw_name"]) or {}).get(
                     "residual_class"),
@@ -6953,7 +7228,8 @@ def tu_briefing(
         if "scaffold" in json.dumps(attempt["_record"]).lower()
     ]
 
-    pins = _pin_provenance(root, tu)
+    pins = _pin_provenance(
+        root, tu, roster_names=[entry["function"] for entry in roster])
 
     # RUN-33 (RG): seed the transferability cohort from what this TU's OWN
     # records already measured — the dominant verified residual family and the
@@ -7074,7 +7350,11 @@ def tu_briefing(
             " postprocessor hash-asserts its body and the build aborts on"
             " drift. Screen this list before editing anything in the TU."
             " `provenance` classes each pin against the Mandatory-policy"
-            " source-exhaustion bar."
+            " source-exhaustion bar. `mechanism` is the FULL derivation,"
+            " no longer cut at 600 characters (that cut discarded 59.1% of"
+            " the corpus's pin prose, and the operative sentence is"
+            " routinely in the tail). `roster_mentions` pulls out the"
+            " sentences naming a SIBLING in this roster."
         ),
         "staleness_banner": (
             "EVERY NUMBER IN THIS BRIEF IS READ FROM DISK, NOT MEASURED NOW."

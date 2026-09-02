@@ -25,7 +25,8 @@ from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
                    outside_edit_warning, parse_numstat, pin_drift,
                    replan_hint, scaffold_rows, scoped_revert,
                    slot_arbiter_header, slot_arbiter_signal, split_lines,
-                   strip_noncode, update_neutral_identical_streak)
+                   stale_restore_refusal, strip_noncode,
+                   update_neutral_identical_streak)
 
 
 TU = """\
@@ -503,9 +504,27 @@ class ReplanHintTests(unittest.TestCase):
                     f" probe:\n{self.IDENTICAL}")
         self.assertEqual(self.streak([rescored, rescored], start=2), 2)
 
-    def test_no_hint_below_the_threshold(self):
-        for count in range(REPLAN_AT):
-            self.assertIsNone(replan_hint(count))
+    def test_no_hint_without_an_identical_probe(self):
+        self.assertIsNone(replan_hint(0))
+
+    def test_the_first_identical_already_fires_a_banner(self):
+        """Run-37 item 6: this used to stay SILENT until the third, and UA
+        and UB each spent two further probes re-spelling a lever the first
+        probe had already shown unreachable. An unchanged object is a
+        categorical measurement, not a weak one."""
+        hint = replan_hint(1)
+        self.assertIsNotNone(hint)
+        self.assertIn("NEVER REACHED CODEGEN", hint)
+        self.assertIn("CATEGORICAL", hint)
+
+    def test_the_first_banner_is_not_the_axis_class_banner(self):
+        """One identical is evidence about the CONSTRUCT; the axis-class
+        claim still needs REPLAN_AT of them."""
+        self.assertNotIn("RE-PLAN THE AXIS CLASS", replan_hint(1))
+
+    def test_every_identical_below_the_threshold_is_covered(self):
+        for count in range(1, REPLAN_AT):
+            self.assertIsNotNone(replan_hint(count))
 
     def test_the_hint_fires_at_the_threshold(self):
         hint = replan_hint(REPLAN_AT)
@@ -1267,6 +1286,133 @@ class ScopedRevertTests(unittest.TestCase):
         self.assertEqual(out, crlf)
         # every LF is still part of a CRLF — no line ending was rewritten
         self.assertEqual(out.count("\n"), out.count("\r\n"))
+
+
+class RevertVerdictWordingTests(unittest.TestCase):
+    """A reverted state must not read as a FAILED revert.
+
+    Every annotation compares against the PREVIOUS probe, which after a
+    revert is the edit that was just undone. So a successful revert printed
+    "OBJECT BYTES CHANGED … verify with objdiff fuzzy or revert" and, when
+    the restored state scored structurally below the edit, "NEUTRAL-WORSE …
+    NOT banked, revert with git (not --revert)". Both advise re-doing the
+    thing that just succeeded; UB and MC each burned verification calls on
+    it (run-37 item 7).
+    """
+
+    BASE, EDIT = "digest-base", "digest-edit"
+
+    def annotate(self, tokens, reverted):
+        return annotate_neutral(
+            "NEUTRAL   real 30", 30, "T204/O204", tokens,
+            prev_tokens=8, prev_insns="T204/O204",
+            prev_digest=self.EDIT, digest=self.BASE, reverted=reverted)
+
+    def test_a_revert_says_the_byte_change_is_the_revert_working(self):
+        out = self.annotate(8, reverted=True)
+        self.assertIn("REVERT OK", out)
+        self.assertNotIn("NEUTRAL-REARRANGED", out)
+
+    def test_a_revert_never_advises_reverting(self):
+        out = self.annotate(8, reverted=True)
+        self.assertNotIn("or revert]", out)
+
+    def test_a_worse_restored_state_is_not_called_a_failed_revert(self):
+        out = self.annotate(10, reverted=True)
+        self.assertIn("REVERTED real 30", out)
+        self.assertNotIn("NEUTRAL-WORSE", out)
+        self.assertNotIn("revert with git", out)
+
+    def test_the_worse_comparison_is_still_reported(self):
+        """The measurement is correct and stays; only the advice changes."""
+        self.assertIn("8t -> 10t", self.annotate(10, reverted=True))
+
+    def test_a_non_revert_probe_is_unchanged(self):
+        out = self.annotate(8, reverted=False)
+        self.assertIn("NEUTRAL-REARRANGED", out)
+        self.assertNotIn("REVERT OK", out)
+
+    def test_a_non_revert_worse_probe_is_unchanged(self):
+        out = self.annotate(10, reverted=False)
+        self.assertIn("NEUTRAL-WORSE", out)
+        self.assertIn("revert with git", out)
+
+    def test_reverted_defaults_to_false(self):
+        """Callers that never heard of the flag keep the old wording."""
+        out = annotate_neutral(
+            "NEUTRAL   real 30", 30, "T204/O204", 8,
+            prev_tokens=8, prev_insns="T204/O204",
+            prev_digest=self.EDIT, digest=self.BASE)
+        self.assertIn("NEUTRAL-REARRANGED", out)
+
+
+class StaleRestoreRefusalTest(unittest.TestCase):
+    """Restoring a banked snapshot must never delete committed work.
+
+    Measured 2026-09-02 on game/pb/pbutils: with a commit landed since the
+    bank, `--revert --whole-file` correctly REFUSED, but two sibling paths
+    destroyed a committed line and then printed it back as "+0/-1 vs HEAD —
+    an edit this revert could not reach":
+
+      * `--revert-baseline` carried no commit anchor at all (no .base.meta
+        was ever written), so nothing could be compared;
+      * `--revert` skipped the whole check when the .meta sidecar was
+        missing, i.e. it failed OPEN on unknown provenance.
+    """
+
+    OLD = b"int f(void) { return 1; }\n"
+    COMMITTED = b"int f(void) { return 2; }\n"
+
+    def test_stale_snapshot_over_differing_commit_is_refused(self):
+        msg = stale_restore_refusal("aaaaaaaaa1", "bbbbbbbbb2",
+                                    self.OLD, self.COMMITTED)
+        self.assertIsNotNone(msg)
+        self.assertIn("REFUSED", msg)
+        self.assertIn("destroy committed work", msg)
+
+    def test_missing_anchor_fails_CLOSED(self):
+        """The regression: no stamp used to mean no check."""
+        msg = stale_restore_refusal(None, "bbbbbbbbb2",
+                                    self.OLD, self.COMMITTED)
+        self.assertIsNotNone(msg)
+        self.assertIn("NO commit anchor", msg)
+
+    def test_missing_head_also_fails_closed(self):
+        msg = stale_restore_refusal("aaaaaaaaa1", None,
+                                    self.OLD, self.COMMITTED)
+        self.assertIsNotNone(msg)
+        self.assertIn("NO commit anchor", msg)
+
+    def test_same_commit_is_a_normal_revert(self):
+        """Snapshot and tree differ because of UNCOMMITTED edits — which is
+        the entire point of --revert. Refusing here would break the loop."""
+        self.assertIsNone(
+            stale_restore_refusal("aaaaaaaaa1", "aaaaaaaaa1",
+                                  self.OLD, self.COMMITTED))
+
+    def test_snapshot_equal_to_commit_is_safe_however_old(self):
+        """Restoring bytes identical to HEAD's cannot lose anything, so an
+        unstamped ancient snapshot is still allowed through."""
+        self.assertIsNone(
+            stale_restore_refusal(None, "bbbbbbbbb2",
+                                  self.COMMITTED, self.COMMITTED))
+
+    def test_uncommitted_file_has_nothing_to_destroy(self):
+        self.assertIsNone(
+            stale_restore_refusal(None, "bbbbbbbbb2", self.OLD, None))
+
+    def test_refusal_names_the_label_and_the_override(self):
+        msg = stale_restore_refusal("aaaaaaaaa1", "bbbbbbbbb2",
+                                    self.OLD, self.COMMITTED,
+                                    label="session baseline")
+        self.assertIn("session baseline", msg)
+        self.assertIn("--force-stale-revert", msg)
+
+    def test_refusal_quotes_both_commits(self):
+        msg = stale_restore_refusal("aaaaaaaaa1", "bbbbbbbbb2",
+                                    self.OLD, self.COMMITTED)
+        self.assertIn("aaaaaaaaa", msg)
+        self.assertIn("bbbbbbbbb", msg)
 
 
 if __name__ == "__main__":

@@ -114,8 +114,13 @@ docstring omitted it — the flags below all work):
                      Faster, and how the loop behaved before run 36 — but
                      a keep banked this way is unarbitrated
   --stateless        sweep mode: score only — no state, bank, or verdict
-  --scaffold         print the pragma/volatile scaffold census on ANY
-                     probe, not only a BASELINE
+  --verbose          print the pragma/volatile scaffold census. It is NOT
+                     printed by default any more: in full it ran 13-22
+                     lines on every BASELINE probe and buried the verdict
+                     the probe was run for. A BASELINE now prints a
+                     one-line row COUNT instead, so the audit obligation
+                     is announced without the wall of text
+  --scaffold         same as --verbose (kept: it is in muscle memory)
   --scaffold-all     print EVERY scaffold row (the census is otherwise
                      capped at 20, and a TU whose scaffold runs past the
                      cut could not be audited from the loop at all)
@@ -131,6 +136,18 @@ one revert (five lanes hit that). A hunk straddling the function boundary
 is REFUSED loudly, never guessed at; `--revert --whole-file` then takes
 the old all-or-nothing restore deliberately. --revert-baseline and
 --discard remain whole-file by construction.
+
+(3) NO RESTORE MAY DELETE COMMITTED WORK. Both banked states (the rolling
+snapshot and the session .base) are stamped with the commit they were
+taken at, exactly as defake_gate anchors its baselines, and any restore
+whose bytes differ from HEAD's while the anchor is older than HEAD — or
+ABSENT — is REFUSED. Fail-closed on a missing stamp is the point: on
+2026-09-02 `--revert --whole-file` refused correctly while
+`--revert-baseline` (which had no stamp at all) and an unstamped
+`--revert` each deleted a committed line and reported it back as
+"+0/-1 vs HEAD — an edit this revert could not reach". `--discard` is
+always safe: it restores HEAD itself. Override with
+--force-stale-revert only after `git diff` confirms nothing is lost.
 
 THE SLOT MAP ARRIVES WITH THE VERDICT. `real` actively fights frame work —
 a design one 4-byte step from a slot-exact map can score REGRESSED while
@@ -244,6 +261,85 @@ def git_head():
     result = subprocess.run(["git", "rev-parse", "HEAD"],
                             capture_output=True, text=True)
     return result.stdout.strip() if result.returncode == 0 else None
+
+
+def stale_restore_refusal(banked_head, head, snap_bytes, committed_bytes,
+                          label="snapshot"):
+    """Refusal message when restoring `snap_bytes` would destroy committed
+    work, or None when the restore is safe.
+
+    Every whole-file restore in this tool overwrites the source with bytes
+    banked at some earlier moment. When commits landed since that bank, those
+    bytes are older than HEAD and the restore silently deletes committed
+    work — a lane nearly lost a committed exact this way. defake_gate anchors
+    its baselines to the commit they were taken at; this is the same anchor
+    for probe's snapshots.
+
+    Fails CLOSED on unknown provenance. `banked_head is None` means the
+    snapshot carries no anchor stamp (banked by an older probe, or by a bank
+    where `git rev-parse` failed) — measured on 2026-09-02, that case skipped
+    the check entirely and destroyed a committed line while printing it as
+    "an edit the revert could not reach". Absence of provenance is not
+    evidence of freshness.
+
+    Pure over bytes so the decision is tested without a git tree.
+    `committed_bytes is None` = the file does not exist in HEAD, so there is
+    nothing committed to destroy.
+    """
+    if committed_bytes is None:
+        return None
+    if snap_bytes == committed_bytes:
+        # Restoring reproduces the committed bytes exactly; nothing is lost
+        # however old the bank is.
+        return None
+    if banked_head and head and banked_head == head:
+        # No commit landed since the bank. The difference is uncommitted
+        # working-tree work, which is precisely what a revert is for.
+        return None
+    if not banked_head or not head:
+        why = (f"this {label} carries NO commit anchor, so it cannot be"
+               " shown to be newer than HEAD")
+    else:
+        why = (f"commits landed since this {label} was banked"
+               f" ({banked_head[:9]} -> {head[:9]})")
+    return (f"REFUSED: {why}, and the committed source differs from it —"
+            " restoring would destroy committed work. Run a fresh probe on"
+            " the current state to re-bank, or use git to inspect history."
+            " Override with --force-stale-revert only after confirming with"
+            " `git diff` that nothing committed is lost.")
+
+
+def read_banked_head(meta_file):
+    """The commit a snapshot sidecar was stamped with, or None."""
+    try:
+        return json.loads(
+            meta_file.read_text(encoding="utf-8")).get("head")
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return None
+
+
+def committed_bytes_for(source):
+    """HEAD's bytes for `source`, or None when it is not committed."""
+    shown = subprocess.run(["git", "show", f"HEAD:{source.as_posix()}"],
+                           capture_output=True)
+    return shown.stdout if shown.returncode == 0 else None
+
+
+def guard_stale_restore(snap, source, label):
+    """Print and return a refusal when restoring `snap` over `source` would
+    destroy committed work. Returns True when the caller must abort."""
+    if "--force-stale-revert" in sys.argv:
+        print(f"[--force-stale-revert: {label} staleness check SKIPPED —"
+              " you asserted nothing committed is lost]")
+        return False
+    message = stale_restore_refusal(
+        read_banked_head(snap.with_suffix(snap.suffix + ".meta")),
+        git_head(), snap.read_bytes(), committed_bytes_for(source),
+        label=label)
+    if message:
+        print(message)
+        return True
+    return False
 
 
 def webfrank_pin_hashes(unit):
@@ -639,6 +735,15 @@ def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None,
         base.with_suffix(base.suffix + ".pins").write_text(
             json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
             encoding="utf-8")
+        # Anchor the baseline to its commit exactly like the rolling
+        # snapshot. The .base file is the OLDEST state a session can
+        # restore and is whole-file by construction, so it is the most
+        # likely of the two to predate HEAD — yet it shipped with no
+        # stamp at all, and --revert-baseline destroyed a committed line
+        # with it (measured 2026-09-02).
+        if head:
+            base.with_suffix(base.suffix + ".meta").write_text(
+                json.dumps({"head": head}), encoding="utf-8")
     if note:
         print(note)
     # Say WHAT was banked (run 34 item 2). A BASELINE taken over an edited
@@ -1811,18 +1916,41 @@ def update_neutral_identical_streak(state, verdict):
 
 
 def replan_hint(streak):
-    """Advice after a run of edits that never reached codegen at all.
+    """Advice after an edit that never reached codegen at all.
 
     NEUTRAL-IDENTICAL means the object bytes did not move: the edit folded
     away BEFORE codegen, so the source text never reached the compiler's
-    decision point. One is a strong negative on that spelling. Three in a
-    row is no longer evidence about spellings — it is evidence about the
-    AXIS CLASS, because three different source constructs all failed to
-    reach the same decision point. The loop used to say nothing, which
-    invites a fourth spelling of a lever already proven unreachable.
+    decision point.
+
+    DECISIVE AT ONE (run-37 item 6). This used to stay silent until the
+    THIRD consecutive identical, on the theory that one was only evidence
+    about a spelling and three were evidence about the axis. That reasoning
+    undercharges the observation: an unchanged OBJECT is not a weak
+    measurement of the edit, it is a categorical one — the construct was
+    gone before the compiler chose anything, so no score can move and the
+    probe answered a question about the FRONT END, not about codegen. UA
+    and UB each spent two further probes re-spelling a lever the first
+    probe had already shown unreachable. The banner now fires on the first,
+    and ESCALATES at REPLAN_AT, where the evidence really has widened from
+    one construct to the axis class.
     """
-    if streak < REPLAN_AT:
+    if streak < 1:
         return None
+    if streak < REPLAN_AT:
+        return (
+            "THIS EDIT NEVER REACHED CODEGEN: the object bytes are"
+            " unchanged, so the construct folded away in the front end and"
+            " the compiler never made the decision you were probing. That"
+            " is CATEGORICAL for this form, not a weak negative — no"
+            " further spelling of the SAME construct can reach the decision"
+            " point either, and re-spelling it is how UA and UB each spent"
+            " two more probes for nothing. Before the next probe, establish"
+            " that your lever can reach codegen AT ALL (does the construct"
+            " survive to the object? does the target even differ here?), or"
+            " change the LEVER — a declaration/type/order change rather"
+            " than a statement respell. `gdlmem laws --query <your residual"
+            " signature>` first."
+        )
     return (
         f"RE-PLAN THE AXIS CLASS: {streak} consecutive NEUTRAL-IDENTICAL"
         " probes — every one of those edits folded away before codegen and"
@@ -1839,11 +1967,24 @@ def replan_hint(streak):
 
 def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                      prev_insns, prev_digest, digest,
-                     prev_data=None, data=None, source_changed=True):
+                     prev_data=None, data=None, source_changed=True,
+                     reverted=False):
     """Byte-identity + structural-drift annotations for a NEUTRAL verdict.
 
     Split out of classify() so the verdict table stays pure and testable;
     this half only formats what the caller already measured.
+
+    ``reverted`` says the bytes this verdict describes were RESTORED by
+    --revert rather than edited into place (run-37 item 7). Every
+    annotation below compares against the PREVIOUS probe, which after a
+    revert is the edit that was just undone — so a successful revert
+    printed "OBJECT BYTES CHANGED … verify with objdiff fuzzy or revert"
+    and, when the restored state scored structurally below the edit,
+    "NEUTRAL-WORSE … NOT banked, revert with git (not --revert)". Both
+    read as a FAILED revert and both advise re-doing the thing that just
+    succeeded; UB and MC each burned verification calls on it. The
+    comparison is still correct and still shown — only the advice, which
+    is wrong here, is replaced.
     """
     # real-equal is not structure-equal: a NEUTRAL that moved the insn
     # count further from parity or grew the multiset is WORSE, and banking
@@ -1868,7 +2009,12 @@ def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
     bytes_identical = None
     if digest is not None and prev_digest is not None:
         bytes_identical = digest == prev_digest
-        if not bytes_identical:
+        if not bytes_identical and reverted:
+            verdict += ("  [REVERT OK: object bytes changed because the"
+                        " REVERT restored them — that is the revert"
+                        " working, not a failure. Every comparison in this"
+                        " line is against the edit you just undid]")
+        elif not bytes_identical:
             verdict += ("  [NEUTRAL-REARRANGED: OBJECT BYTES CHANGED —"
                         " this compares BUILT OBJECTS between probes, not"
                         " your source vs git (source can be identical to"
@@ -1910,10 +2056,22 @@ def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                             " compiler's decision point]")
     if worse and bytes_identical is not True:
         head = f"NEUTRAL   real {real}"
-        verdict = (f"NEUTRAL-WORSE real {real}"
-                   f" ({'; '.join(worse)}) — structurally worse at equal"
-                   " real; NOT banked, revert with git (not --revert) or"
-                   " justify the keep explicitly" + verdict[len(head):])
+        if reverted:
+            # The "worse" comparison is against the edit this revert just
+            # undid, so it describes the RESTORED state — which is the one
+            # the worker asked for. Telling them to revert it is backwards.
+            verdict = (f"REVERTED real {real}"
+                       f" ({'; '.join(worse)} vs the undone edit) — the"
+                       " restored state scores structurally below the edit"
+                       " you removed. That is a fact about the EDIT (it was"
+                       " a structural improvement you have now discarded),"
+                       " not a failed revert. Re-apply it deliberately if"
+                       " you wanted it" + verdict[len(head):])
+        else:
+            verdict = (f"NEUTRAL-WORSE real {real}"
+                       f" ({'; '.join(worse)}) — structurally worse at equal"
+                       " real; NOT banked, revert with git (not --revert) or"
+                       " justify the keep explicitly" + verdict[len(head):])
     return verdict
 
 
@@ -1978,6 +2136,8 @@ def main():
             print("no session baseline banked for this unit (the first"
                   " BASELINE probe of a session banks it)")
             return 1
+        if guard_stale_restore(base, source, "session baseline"):
+            return 1
         shutil.copyfile(base, source)
         print(f"restored {source} to the SESSION BASELINE (whole file —"
               " uncommitted work on other functions in this TU is gone)")
@@ -1997,24 +2157,11 @@ def main():
         # A snapshot banked before a commit is STALE: restoring it would
         # silently destroy the committed state (observed in the field —
         # claim.law.probe-revert-snapshot-goes-stale-across-commits).
-        meta_file = snap.with_suffix(snap.suffix + ".meta")
-        if meta_file.exists():
-            banked_head = json.loads(
-                meta_file.read_text(encoding="utf-8")).get("head")
-            head = git_head()
-            if banked_head and head and banked_head != head:
-                committed = subprocess.run(
-                    ["git", "show",
-                     f"HEAD:{source.as_posix()}"],
-                    capture_output=True)
-                if committed.returncode == 0 and \
-                        committed.stdout != snap.read_bytes():
-                    print("REFUSED: commits landed since this snapshot was"
-                          " banked and the committed source differs from it"
-                          " — reverting would destroy committed work. Run a"
-                          " fresh probe on the current state to re-bank,"
-                          " or use git to inspect history.")
-                    return 1
+        # This used to run only when the .meta sidecar existed, which made
+        # a missing stamp a silent PASS; it now fails closed in the shared
+        # guard.
+        if guard_stale_restore(snap, source, "snapshot"):
+            return 1
         if snap.read_bytes() == source.read_bytes():
             print("nothing to revert: the banked snapshot IS the current"
                   " working tree (NEUTRAL probes bank too). If you want to"
@@ -2199,7 +2346,8 @@ def main():
         verdict = annotate_neutral(verdict, real, insns, multiset_tokens,
                                    prev_tokens, prev_insns, prev_digest,
                                    digest, prev_data=prev_data, data=data,
-                                   source_changed=source_changed)
+                                   source_changed=source_changed,
+                                   reverted="--revert" in sys.argv)
         state["last_verdict"] = verdict
     # A run of edits that never reached codegen is a fact about the axis,
     # not about the spellings tried. Aggregate it and say so.
@@ -2247,10 +2395,24 @@ def main():
                 reason or "requested with --slots (no decisive slot signal)"))
             print(slots_output.strip())
 
+    # The census used to print in full on EVERY baseline probe. Measured
+    # 2026-09-02: 22 lines per probe on game/world/camera, game/game/combat,
+    # game/ui/screensaver and game/game/player, 13 on game/sys/memcard —
+    # the same file-wide rows re-listed every time, burying the verdict the
+    # worker actually ran the probe for. It is now opt-in behind --verbose
+    # (or the existing --scaffold/--scaffold-all), and a BASELINE prints a
+    # ONE-LINE pointer so the audit obligation is still announced rather
+    # than silently dropped (run-37 item 7).
     want_scaffold = ("--scaffold" in sys.argv or "--scaffold-all" in sys.argv
-                     or verdict.startswith("BASELINE"))
+                     or "--verbose" in sys.argv)
     if want_scaffold and source is not None:
         print_scaffold_census(source, full="--scaffold-all" in sys.argv)
+    elif verdict.startswith("BASELINE") and source is not None:
+        count = len(scaffold_rows(source.read_bytes().decode("latin-1")))
+        if count:
+            print(f"[{count} pragma/volatile scaffold row(s) in this TU —"
+                  " re-audit each (is its original premise still live?):"
+                  " rerun with --verbose, or --scaffold-all for every row]")
 
     # Bank a revert point whenever this source state scores at the
     # high-water mark. NEUTRAL banks too: a verified-neutral state (the

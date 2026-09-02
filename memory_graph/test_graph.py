@@ -1144,6 +1144,239 @@ class ProposalGateTests(unittest.TestCase):
                           attributes={"law_screen": "none applicable: test"})
         self.assertTrue(stage_record_proposal(record, root=self.root).exists())
 
+    # --- Gate G: a postprocessor closure must enumerate its verifiers ----
+    #
+    # attempt.HV_drawmemcardmessage-uninitialised-path-bar-reconfirmed
+    # .20260901.v2 concluded "the postprocessor path is closed and no
+    # permutation repair will reopen it" having run
+    # verify_consistent_recolor and NEVER verify_value_equality_recolor —
+    # the mode the refusal message itself names as an escape. MC re-screened
+    # a run later and had to supersede it. The cap was not wrong, it was
+    # UNDERDETERMINED, and nothing in it said so.
+    CLOSURE = ("insns 204/204. verify_consistent_recolor refuses at +0x1ec,"
+               " so the postprocessor path is closed and no permutation"
+               " repair will reopen it")
+
+    def test_postprocessor_closure_without_verifiers_run_is_refused(self):
+        record = _attempt(
+            "attempt.closure.v1", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.CLOSURE})
+        with self.assertRaisesRegex(MemoryGraphError, "verifiers_run"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_postprocessor_closure_with_verifiers_run_is_accepted(self):
+        record = _attempt(
+            "attempt.closure.v2", "function:test_fn", outcome="capped",
+            verifiers_run=["copy_register_fields",
+                           "verify_consistent_recolor",
+                           "verify_value_equality_recolor"],
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.CLOSURE})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_g_error_names_the_shipped_verifier_surface(self):
+        """The message has to tell the author what there was to run."""
+        record = _attempt(
+            "attempt.closure.v3", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.CLOSURE})
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=self.root)
+        message = str(caught.exception)
+        self.assertIn("verify_value_equality_recolor", message)
+        # cites the motivating record by id (its slug is lowercased)
+        self.assertIn("drawmemcardmessage", message)
+
+    def test_gate_g_only_fires_on_veto_outcomes(self):
+        """An IMPROVED record vetoes nothing, so it is not taxed — the same
+        narrowing gate C took."""
+        record = _attempt(
+            "attempt.closure.v4", "function:test_fn", outcome="improved",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.CLOSURE})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_g_does_not_fire_on_a_single_verifier_report(self):
+        """Reporting ONE verifier's refusal without generalising from it is
+        not a closure claim and is not gated."""
+        record = _attempt(
+            "attempt.closure.v5", "function:test_fn", outcome="capped",
+            attributes={
+                "law_screen": "none applicable: test",
+                "residual": "verify_consistent_recolor refuses at +0x1ec"
+                            " with 'use of g28 does not correspond to g25';"
+                            " next lane should try the value-equality mode"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_g_ignores_a_record_with_no_webfrank_vocabulary(self):
+        record = _attempt(
+            "attempt.closure.v6", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": "the path is closed for source work"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    # --- Gate H: region-untouched claims state their scan coverage -------
+    #
+    # "Nothing writes r1+8..55" is a UNIVERSAL claim over the instruction
+    # stream, so a scan enumerating only the forms its author thought of
+    # produces the same sentence as a complete one. Two records in CH's
+    # swbos lineage asserted the region untouched while both were blind to
+    # register-relative cursor stores — the very form a by-value aggregate
+    # argument copy emits, which was the mechanism under investigation.
+    UNTOUCHED = ("There is no store into r1+8..55 anywhere in the function,"
+                 " so the 48 dead bytes cannot be an argument copy.")
+    COVERED = ("There is no store into r1+8..55 under ANY addressing mode,"
+               " register-relative included, so the 48 dead bytes cannot be"
+               " an argument copy.")
+
+    def test_region_untouched_without_coverage_is_refused(self):
+        record = _attempt(
+            "attempt.region.v1", "function:test_fn", outcome="negative",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.UNTOUCHED})
+        with self.assertRaisesRegex(MemoryGraphError,
+                                    "addressing_modes_covered"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_the_prose_coverage_sentence_discharges_it(self):
+        """The wording the settling CH record actually used."""
+        record = _attempt(
+            "attempt.region.v2", "function:test_fn", outcome="negative",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.COVERED})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_the_typed_field_discharges_it(self):
+        record = _attempt(
+            "attempt.region.v3", "function:test_fn", outcome="negative",
+            addressing_modes_covered=["D-form", "indexed", "update-form",
+                                      "register-relative cursors"],
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.UNTOUCHED})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_h_needs_an_actual_region(self):
+        """A general 'nothing writes it' with no region is not this claim."""
+        record = _attempt(
+            "attempt.region.v4", "function:test_fn", outcome="negative",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": "there is no store into the scratch"
+                                    " buffer at any point"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_h_error_names_the_blind_spot(self):
+        record = _attempt(
+            "attempt.region.v5", "function:test_fn", outcome="negative",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.UNTOUCHED})
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=self.root)
+        message = str(caught.exception)
+        self.assertIn("REGISTER-RELATIVE CURSOR STORES", message)
+        self.assertIn("stwx", message)
+
+    def test_gate_h_applies_to_a_positive_outcome_too(self):
+        """Unlike gates C and G, this one is not about vetoing an axis: a
+        wrong region claim misleads whatever its outcome."""
+        record = _attempt(
+            "attempt.region.v6", "function:test_fn", outcome="improved",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.UNTOUCHED})
+        with self.assertRaisesRegex(MemoryGraphError,
+                                    "addressing_modes_covered"):
+            stage_record_proposal(record, root=self.root)
+
+
+class TuNameCandidateTests(unittest.TestCase):
+    """A `tu:` reference must accept the path a worker actually types.
+
+    Run-37 item 10. The brief said the error should "say the module path
+    needs its .c suffix" — REFUTED on measurement: the suffix was already
+    optional in both directions. What actually failed was the leading
+    `src/`, which is how every matching tool spells a unit path, and the
+    refusal's own directory said the suffix was optional while never
+    mentioning the prefix — so the obvious next guess was the one thing
+    that was already fine. tools/gdl strips a stray `src/`; the graph now
+    agrees with it.
+    """
+
+    def test_a_src_prefixed_unit_path_is_a_candidate(self):
+        self.assertIn("game/sys/memcard",
+                      core.tu_name_candidates("src/game/sys/memcard.c"))
+
+    def test_the_suffix_was_never_the_problem(self):
+        for spelling in ("game/sys/memcard", "game/sys/memcard.c",
+                         "game/sys/memcard.cpp"):
+            self.assertIn("game/sys/memcard.c",
+                          core.tu_name_candidates(spelling))
+
+    def test_a_renamed_tu_resolves_from_its_former_spelling(self):
+        """movieplayer.c -> movieplayer.cpp, 2026-08-31."""
+        self.assertIn("game/movie/movieplayer.cpp",
+                      core.tu_name_candidates("game/movie/movieplayer.c"))
+
+    def test_candidates_are_deduplicated_and_ordered(self):
+        out = core.tu_name_candidates("game/sys/memcard")
+        self.assertEqual(len(out), len(set(out)))
+        self.assertEqual(out[0], "game/sys/memcard")
+
+    def test_the_error_names_the_prefix_not_the_suffix(self):
+        message = core.unknown_entity_message(
+            "tu:src/game/nope/not_a_tu.c", [], [])
+        self.assertIn("`src/` PREFIX IS WHAT BROKE THIS", message)
+        self.assertIn("suffix really is optional", message)
+
+    def test_the_prefix_note_is_absent_when_there_is_no_prefix(self):
+        message = core.unknown_entity_message("tu:game/nope/x.c", [], [])
+        self.assertNotIn("PREFIX IS WHAT BROKE THIS", message)
+
+
+class MechanismSentenceTests(unittest.TestCase):
+    """Pin prose that names a SIBLING is evidence the sibling cannot get.
+
+    Run-37 item 5 (UA): a pin's mechanism note routinely explains its
+    residual by reference to another function in the same TU, and nothing
+    surfaced those sentences — the sibling's own records are silent and the
+    pin is filed under a different function's name. Verified live on
+    game/world/camera: the do_camera pin names camera_mode_level.
+    """
+
+    TEXT = ("The window is control-free. camera_mode_level forced the"
+            " colouring here. Unrelated closing sentence.")
+
+    def test_returns_only_sentences_naming_the_function(self):
+        out = core.mechanism_sentences_naming(
+            self.TEXT, ["camera_mode_level"])
+        self.assertEqual(len(out["camera_mode_level"]), 1)
+        self.assertIn("forced the colouring", out["camera_mode_level"][0])
+
+    def test_a_name_that_never_appears_is_absent(self):
+        self.assertEqual(
+            core.mechanism_sentences_naming(self.TEXT, ["do_camera"]), {})
+
+    def test_exclude_stops_a_pin_reporting_itself(self):
+        out = core.mechanism_sentences_naming(
+            self.TEXT, ["camera_mode_level"], exclude="camera_mode_level")
+        self.assertEqual(out, {})
+
+    def test_word_boundaries_prevent_a_prefix_match(self):
+        """`do_players` must not match inside `do_players_tail`."""
+        out = core.mechanism_sentences_naming(
+            "do_players_tail was rewritten.", ["do_players"])
+        self.assertEqual(out, {})
+
+    def test_multiple_names_each_get_their_own_sentences(self):
+        text = ("alpha was hoisted. beta was not. alpha and beta both moved.")
+        out = core.mechanism_sentences_naming(text, ["alpha", "beta"])
+        self.assertEqual(len(out["alpha"]), 2)
+        self.assertEqual(len(out["beta"]), 2)
+
+    def test_empty_inputs_are_safe(self):
+        self.assertEqual(core.mechanism_sentences_naming("", ["a"]), {})
+        self.assertEqual(core.mechanism_sentences_naming("text", []), {})
+        self.assertEqual(core.mechanism_sentences_naming("text", None), {})
+
 
 class RetrievalQueryTests(unittest.TestCase):
     """residual / family / capability queries, slug + pin indexing, brief."""
@@ -1274,6 +1507,15 @@ class RetrievalQueryTests(unittest.TestCase):
         self.assertIn(
             "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1",
             pins[0]["cites_records"])
+
+    def test_pin_mechanism_is_not_truncated(self):
+        """Run-37 item 5: the prose used to be cut at 600 characters, which
+        discarded 59.1% of the corpus's pin derivations (77,547 of 131,115
+        chars across 82 of 91 pins). The operative sentence is routinely in
+        the tail — UA measured one there that outvalued every graph query."""
+        pin = law_corpus("carrier", root=self.root)["pin_mechanisms"][0]
+        self.assertEqual(pin["mechanism_chars"], len(pin["mechanism"]))
+        self.assertNotIn(" …", pin["mechanism"])
 
     def test_law_rows_expose_falsifier_and_asserted_by(self):
         row = law_corpus("live zero remat", root=self.root)["laws"][0]

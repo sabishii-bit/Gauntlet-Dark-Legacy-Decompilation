@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py",
+    "tools/gdl/composed_census/wf_rederive_pin.py",
+    "memory_graph/core.py"
+  ],
+  "attributes": {
+    "measured_rate": "3 of 11 items contradicted their brief; 11 of 11 reproduced before coding",
+    "tags": [
+      "workflow",
+      "metrics",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run the one-command reproduction named in each item of a future tool-queue work_claim BEFORE coding it, and record for each whether the symptom reproduced as stated. If a whole queue reproduces exactly as written, the rate claimed here does not generalise and the reproduce-first screen is costing more than it saves. Per-item: any of the three findings below is refuted by re-running its named command at cf81a9103 and observing the behaviour the brief described instead of the one recorded here.",
+  "id": "claim.law.T7_a-queue-items-stated-symptom-is-a-hypothesis-and-three-of-eleven-were-wrong-in-different-ways.20260902.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-02T18:52:49Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A TOOL-QUEUE ITEM'S STATED SYMPTOM IS A HYPOTHESIS ABOUT A DEFECT, NOT AN OBSERVATION OF ONE, AND THE DEFECT IT POINTS AT IS ROUTINELY REAL WHILE THE POINTING IS WRONG. Run-37's TOOL lane reproduced all 11 items before coding, per the run-36 dispatch screen. THREE reproductions contradicted their brief, each in a DIFFERENT way, and each way costs something different: (1) SYMPTOM VANISHED, DEFECT LARGER. Item 1 said `probe --revert --whole-file` restores a snapshot predating HEAD. Measured on game/pb/pbutils: it REFUSED correctly -- the guard already existed. The unguarded paths were its two siblings: `--revert-baseline` carried no commit anchor at all (no .base.meta was ever written) and `--revert` skipped the check entirely when .meta was absent, i.e. failed OPEN on unknown provenance. Both destroyed a committed line and then printed it back as '+0/-1 vs HEAD -- an edit this revert could not reach'. Coding the item as written would have hardened a path that was already sound and left two that were not. This is the run-36 pattern (a vanished symptom masking a larger defect) reproducing a second time, which is what makes it a law rather than an anecdote. (2) SYMPTOM REAL, DIAGNOSIS WRONG. Item 10 said the propose-record `tu:` error should say the module path needs its .c suffix. Measured: the suffix was ALREADY optional in both directions, and `tu:game/sys/memcard` staged fine. What actually failed was the leading `src/` -- the way every matching tool spells a unit path and therefore the way a worker types one. Worse, the refusal's own directory said the suffix was optional while never mentioning the prefix, so the obvious next guess was the one thing that was already fine. Implementing the item as written would have changed a message that was already correct about the suffix and left the prefix unhandled. (3) SYMPTOM REAL, POPULATION UNDERSTATED. Item 7 said the scaffold census prints 12 lines per probe; measured 13 on game/sys/memcard and 22 on camera, combat, screensaver and player. Item 8's floor assert, once written, flagged a SECOND impossible row the item's prose had never named (shape_struct_return reporting `param area 4`, also below the EABI minimum of 8). THE RULE: reproduce with the one command, and when the reproduction disagrees with the brief, the deliverable is the DISAGREEMENT plus whatever the evidence actually supports -- never the item as written. AGENTS.md discipline 5 already says a refuted premise is a deliverable; this is the same rule applied to the premise of a TOOLING item, where it is easier to miss because the item names a specific file and reads as an instruction rather than a claim. COROLLARY FOR DISPATCH: an item's symptom sentence should be written as the command and its expected output, not as a prose diagnosis, because a prose diagnosis smuggles in a cause that nobody measured."
+}

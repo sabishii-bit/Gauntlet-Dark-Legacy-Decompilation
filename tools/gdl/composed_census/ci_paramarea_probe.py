@@ -61,6 +61,41 @@ import sys
 
 ROOT = os.getcwd()
 OUT = os.path.join(ROOT, "build", "GUNE5D", "ci_paramarea_probe")
+
+# The PPC EABI reserves at least 8 bytes at r1+0: the saved back-chain word
+# and the LR save word. No frame can seat a declared local below that, and
+# no outgoing parameter area can be smaller.
+EABI_MIN_PARAM_AREA = 8
+
+
+def frame_metric_floor_violation(name, value, floor=EABI_MIN_PARAM_AREA):
+    """Message when a derived frame metric fell below its ABI floor, else None.
+
+    A DERIVED frame figure is a heuristic over disassembly, and when the
+    heuristic breaks it does not fail — it returns a number. Run 34's
+    `param area` column is (lowest `addi rN,r1,K`) - 8, which assumes every
+    such addi addresses a declared local; on a by-value aggregate argument
+    MWCC emits `addi r5,r1,8` as the argument-COPY cursor, so the column
+    printed `shape_struct_byval ... param area 0`. Zero is below the EABI
+    minimum of 8 and therefore impossible, but it was read as "does not
+    reach 48" — i.e. as evidence — and shipped into
+    claim.law.CI_mwcc-outgoing-param-area-is-sized-only-by-stack-spilled-
+    args.20260902.v1. A metric that cannot say "I am broken" will be quoted
+    as if it were sound (AGENTS.md discipline 14, applied to a metric
+    rather than to a guard).
+
+    Pure, so the floor is tested without a compiler.
+    """
+    if value is None:
+        return None
+    if value >= floor:
+        return None
+    return (f"IMPOSSIBLE {name}={value}: below the EABI floor of {floor}."
+            " This is a BROKEN MEASUREMENT, not a small frame — do not"
+            " quote it, and do not read it as 'did not reach' the value"
+            " you were hunting. The lowest-addi heuristic behind it"
+            " mistakes an argument-copy cursor for a declared local; score"
+            " the case with the `below-locals` marker instead.")
 CFLAGS = [
     "-nodefaults", "-proc", "gekko", "-align", "powerpc", "-enum", "int",
     "-fp", "hardware", "-Cpp_exceptions", "off", "-O4", "-inline", "auto",
@@ -257,6 +292,15 @@ def run_below(cases, header):
         if sp_off is None:
             print("  %-22s %-7s (no declared-local marker)" % (tag, frame))
             continue
+        # The replacement marker gets the same floor as the metric it
+        # replaced: a declared local cannot sit below the EABI reserve, so
+        # sp_off < 8 (hence below < 0) would mean the `lha` this reads was
+        # not the declared buffer after all.
+        violation = frame_metric_floor_violation("locals@", sp_off)
+        if violation:
+            print("  %-22s %-7s %s" % (tag, frame, "INVALID"))
+            print("      %s" % violation)
+            continue
         flag = "  <<<< 48!" if below == 48 else ""
         print("  %-22s %-7s %-11s %-13s %s%s"
               % (tag, frame, sp_off, below,
@@ -279,6 +323,14 @@ def run(cases, header):
             print("  %-22s (no probefn)" % tag)
             continue
         frame, fl, pa = res
+        violation = frame_metric_floor_violation("param area", pa)
+        if violation:
+            # Refuse to print the number at all: the run-34 table printed
+            # `0` and it was quoted as evidence.
+            print("  %-22s %-7s %-11s %s" % (tag, frame, fl, "INVALID"))
+            print("      %s" % violation)
+            ok = False
+            continue
         flag = "  <<<< 48!" if pa == 48 else ""
         print("  %-22s %-7s %-11s %s%s" % (tag, frame, fl, pa, flag))
     return ok
@@ -296,9 +348,11 @@ def main():
     run(SHAPE_CASES + [RET_CASE], "call SHAPE (arg count / aggregate / "
         "return / alloca-like):")
     print("  NOTE the `param area` column above is the run-34 lowest-addi"
-          " heuristic and is")
-    print("  WRONG for aggregates: shape_struct_byval's 0 is below the EABI"
-          " minimum of 8.")
+          " heuristic and is WRONG")
+    print("  for aggregates. Any value below the EABI minimum of 8 now"
+          " prints INVALID rather than a")
+    print("  number: shape_struct_byval used to report 0 there and it was"
+          " quoted as evidence.")
     print()
     run_below(BYVAL_CASES + SHAPE_CASES + [RET_CASE],
               "BY-VALUE AGGREGATE sizing, scored below-locals (run 36):")

@@ -34,6 +34,25 @@ count, decided over the unabsorbed offsets only:
   count-asymmetric  unequal function sizes, so the metric is undefined and
                     no postprocessor class can apply (the count asymmetry
                     laws).
+  compiler-exact    the RAW compiler output already equals the target: zero
+                    differing words, nothing to screen.
+  rule-served       a WebFrank rule for this function is already shipped in
+                    config/GUNE5D/webfrank.json; it is closed, not open.
+
+READ THE RAW OBJECT, NOT THE POSTPROCESSED ONE.  Run-36 criticism (MC): this
+census loaded `ours` from build/GUNE5D/src/<tu>.o -- the WEBFRANK stage's
+OUTPUT -- so every function a shipped rule already closed read 0 unabsorbed /
+tier A / class `allocator` BY CONSTRUCTION, exactly like a function the
+compiler emits byte-exactly.  That is the fndiff pin-masking law generalised
+from a SCORE to a CLASSIFIER, and it is worse there: a score of 0 announces
+itself as suspicious, while a class of `allocator` reads as a work item.  A
+lane was dispatched to screen "24 allocator-class functions" for
+postprocessor candidacy; 20 had zero differing words, 3 were already
+rule-served, and exactly ONE was genuinely open -- a 24:1 sizing error
+(claim.law.MC_the-unabsorbed-census-scores-the-postprocessed-object...).
+`ours` now comes from the raw .postprocess/body object where one exists, as
+wf_word_diff.py already did, and the two already-closed populations get their
+own classes so no roster can fold them into the open one again.
 
 The metric was derived in the HV lane and lived only in
 tools/gdl/composed_census/hv_perm.py, so every ROSTER -- the regnorm census,
@@ -170,6 +189,50 @@ def residual_class(ours: bytes, target: bytes, offsets):
 # also exist); the other two are not reachable by any shipped class.
 ELIGIBLE_CLASSES = ("allocator", "schedule")
 
+# Already closed, by two different routes. These are NOT work items, and
+# folding them into `allocator` is what produced the 24:1 sizing error.
+CLOSED_CLASSES = ("compiler-exact", "rule-served")
+
+
+def rule_served_functions(unit: str, root: Path | None = None):
+    """Function names carrying a shipped WebFrank rule for `unit`.
+
+    The join the MC law prescribes: it is what separates `rule-served` from
+    `open`, and no amount of reading the census alone reveals it.
+    """
+    root = Path(root) if root is not None else ROOT
+    config = root / "config" / VERSION / "webfrank.json"
+    try:
+        data = json.loads(config.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set()
+    return {rule.get("function")
+            for rule in data.get("units", {}).get(unit, [])
+            if rule.get("function")}
+
+
+def raw_object_path(root: Path, bare: str):
+    """Our object for `bare`, preferring the RAW pre-WebFrank body.
+
+    build/GUNE5D/src/<tu>.o is the postprocessor's OUTPUT; comparing it to
+    the target hides every shipped rule. The .postprocess/body object is
+    the compiler's own output, which is what a closability metric must
+    score. Falls back to the plain path for units with no postprocess step
+    (the SDK libraries), where the two are the same bytes anyway.
+    """
+    parts = bare.split("/")
+    raw = (root / "build" / VERSION / "src" / Path(*parts[:-1])
+           / ".postprocess" / "body" / (parts[-1] + ".o"))
+    return raw if raw.exists() else root / "build" / VERSION / "src" / f"{bare}.o"
+
+
+def differing_words(ours: bytes, target: bytes):
+    """Count of 4-byte words that differ, or None when sizes disagree."""
+    if len(ours) != len(target):
+        return None
+    return sum(1 for off in range(0, len(ours), 4)
+               if ours[off:off + 4] != target[off:off + 4])
+
 
 def clusters(offsets, gap: int = CLUSTER_GAP):
     """Contiguous runs of unabsorbed offsets, merged across `gap` bytes."""
@@ -218,7 +281,9 @@ def unit_rows(unit: str, root: Path | None = None):
     bare = re.sub(r"\.(c|cpp)$", "",
                   unit.replace("\\", "/").removeprefix("src/"))
     target = _function_bytes(root / "build" / VERSION / "obj" / f"{bare}.o")
-    ours = _function_bytes(root / "build" / VERSION / "src" / f"{bare}.o")
+    # RAW compiler output, never the WebFrank stage's output (MC law).
+    ours = _function_bytes(raw_object_path(root, bare))
+    served = rule_served_functions(bare, root=root)
     rows = {}
     for name, t_bytes in target.items():
         o_bytes = ours.get(name)
@@ -228,15 +293,30 @@ def unit_rows(unit: str, root: Path | None = None):
         if offsets is None:
             rows[name] = {"unabsorbed": None, "clusters": None,
                           "insns": len(t_bytes) // 4, "tier": None,
-                          "residual_class": "count-asymmetric"}
+                          "differing_words": None,
+                          "rule_served": name in served,
+                          "residual_class": ("rule-served" if name in served
+                                             else "count-asymmetric")}
             continue
+        differing = differing_words(o_bytes, t_bytes)
+        # Precedence: a shipped rule and a byte-exact compiler output are
+        # both facts about whether this row is OPEN at all, and they
+        # outrank the shape of a residual that is already closed.
+        if name in served:
+            klass = "rule-served"
+        elif differing == 0:
+            klass = "compiler-exact"
+        else:
+            # THE COUNT IS NOT THE CLASS (run 34 item 5).
+            klass = residual_class(o_bytes, t_bytes, offsets)
         rows[name] = {
             "unabsorbed": len(offsets),
             "clusters": len(clusters(offsets)),
             "insns": len(t_bytes) // 4,
             "tier": "A" if not offsets else "B",
-            # THE COUNT IS NOT THE CLASS (run 34 item 5).
-            "residual_class": residual_class(o_bytes, t_bytes, offsets),
+            "differing_words": differing,
+            "rule_served": name in served,
+            "residual_class": klass,
         }
     return rows
 
@@ -267,16 +347,23 @@ def main():
         else:
             print(f"== {name}: {row['insns']}i  unabsorbed"
                   f" {row['unabsorbed']}u/{row['clusters']}c  tier"
-                  f" {row['tier']}  class {row['residual_class']}")
+                  f" {row['tier']}  raw-diff {row['differing_words']}w"
+                  f"  class {row['residual_class']}")
     tier_a = sum(1 for r in rows.values() if r["tier"] == "A")
     counts: dict[str, int] = {}
     for row in rows.values():
         counts[row["residual_class"]] = counts.get(row["residual_class"], 0) + 1
     breakdown = ", ".join(f"{name} {counts[name]}" for name in sorted(counts))
     eligible = sum(counts.get(name, 0) for name in ELIGIBLE_CLASSES)
+    closed = sum(counts.get(name, 0) for name in CLOSED_CLASSES)
     print(f"[tier A {tier_a} / {len(rows)}]")
     print(f"[class: {breakdown}]")
-    print(f"[postprocessor-reachable classes {eligible} / {len(rows)}"
+    print(f"[already closed {closed} / {len(rows)}"
+          f" (compiler-exact {counts.get('compiler-exact', 0)} +"
+          f" rule-served {counts.get('rule-served', 0)}) — NOT work items."
+          " Scoring the POSTPROCESSED object used to fold both into"
+          " `allocator` and oversized one work order 24:1]")
+    print(f"[OPEN postprocessor-reachable {eligible} / {len(rows)}"
           " (allocator + schedule; schedule still needs a legal permutation"
           " window). THE COUNT IS NOT THE CLASS: an unchanged unabsorbed"
           " count can hide a move between these classes — compare this line"

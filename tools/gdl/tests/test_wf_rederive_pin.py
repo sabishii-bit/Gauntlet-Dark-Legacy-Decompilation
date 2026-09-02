@@ -303,5 +303,44 @@ class TransientBankTests(unittest.TestCase):
         self.assertFalse(Path(self.bank).exists())
 
 
+class StaleBodyObjectTests(unittest.TestCase):
+    """The derivation must never read a body object older than its source.
+
+    Measured 2026-09-02 on game/ui/screensaver::end_inventory_panel: with
+    the source at HEAD but the raw body object left over from a
+    since-reverted probe edit, the tool derived
+    before_sha256=1d409357... , printed the pin as CHANGED, and --apply
+    would have pasted that reverted probe's hash into webfrank.json. The
+    docstring said "run after building the body object"; an instruction is
+    not a guard. The tool now builds the object itself.
+    """
+
+    def test_object_older_than_source_is_refused(self):
+        msg = wf.stale_body_refusal(source_mtime=200.0, body_mtime=100.0)
+        self.assertIsNotNone(msg)
+        self.assertIn("REFUSED", msg)
+        self.assertIn("OLDER than its source", msg)
+
+    def test_object_newer_than_source_is_fine(self):
+        self.assertIsNone(
+            wf.stale_body_refusal(source_mtime=100.0, body_mtime=200.0))
+
+    def test_equal_mtimes_are_fine(self):
+        """A same-second build is the common case on a fast machine."""
+        self.assertIsNone(
+            wf.stale_body_refusal(source_mtime=100.0, body_mtime=100.0))
+
+    def test_missing_paths_defer_to_the_caller(self):
+        self.assertIsNone(wf.stale_body_refusal(None, 100.0))
+        self.assertIsNone(wf.stale_body_refusal(100.0, None))
+
+    def test_unit_source_resolves_a_real_unit(self):
+        self.assertTrue(
+            wf.unit_source("game/ui/screensaver").endswith("screensaver.c"))
+
+    def test_unit_source_is_none_for_a_nonexistent_unit(self):
+        self.assertIsNone(wf.unit_source("game/nope/not_a_unit"))
+
+
 if __name__ == "__main__":
     unittest.main()
