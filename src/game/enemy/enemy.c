@@ -6844,10 +6844,10 @@ void do_enemies(void)
         }
     }
 
+    lbl_80344718 = 0;
     {
         f32 rate = gCurLevel->ene_speed * (f32)(u32)gFrameTicks;
 
-        lbl_80344718 = 0;
         for (i = 0; i < 45; i++) {
             u8* dst = pool + i * 4;
 
