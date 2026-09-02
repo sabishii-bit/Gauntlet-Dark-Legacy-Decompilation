@@ -5,7 +5,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fndiff import (classify_function, cluster_flags,
-                    compiler_private_aliases_from_symbols, immediate_deltas,
+                    compiler_private_aliases_from_symbols, count_real,
+                    immediate_deltas, real_reconciliation,
                     relocated_instructions, reloc_naming_only, shiftable_gap)
 
 
@@ -210,6 +211,60 @@ class ClassifyFunctionTests(unittest.TestCase):
         target = ["li r3,0", "blr"]
         base = ["li r3,0", "stw r3,0(r4)", "blr"]
         self.assertEqual(classify_function(target, base), "STRUCTURAL")
+
+
+class TwoRealsTests(unittest.TestCase):
+    """Run-32 item 5: `real` names two different numbers.
+
+    --count's `real` drops every reloc line from the raw diff rows;
+    --clean's `real` counts rows over reloc-NORMALIZED text. Measured on
+    game/pb/pb_objregs::sDrawGeom before implementing:
+        --count  DIFF sDrawGeom  insns 1013/1020  lines 1183  real 1177
+        --clean  == sDrawGeom: STRUCTURAL, 1189 real diff lines
+    Twelve apart, and neither line said the other number existed. The old
+    "(+N pool-name lines suppressed)" note could not bridge it: computed as
+    raw - real and clamped at zero, it printed NOTHING in exactly this
+    case, where the filtered count is the larger of the two.
+    """
+
+    ROWS = ["-li      r3,0", "+li      r3,1",
+            "-\t\t\t4: R_PPC_EMB_SDA21\tlbl_80345B30",
+            "+\t\t\t4: R_PPC_EMB_SDA21\t@524"]
+
+    def test_count_real_drops_every_reloc_row(self):
+        self.assertEqual(count_real(self.ROWS), 2)
+
+    # The measured sDrawGeom shape: 1183 raw rows, 6 of them reloc lines,
+    # so --count reports 1177 while --clean reports 1189.
+    SDRAWGEOM = (["-li      r3,0"] * 1177
+                 + ["-\t4: R_PPC_EMB_SDA21\tlbl_80345B30"] * 6)
+
+    def test_the_sDrawGeom_shape_reconciles_all_three_numbers(self):
+        self.assertEqual(len(self.SDRAWGEOM), 1183)
+        self.assertEqual(count_real(self.SDRAWGEOM), 1177)
+        note = real_reconciliation(1189, self.SDRAWGEOM, noise=0)
+        self.assertIn("raw rows 1183", note)
+        self.assertIn("1177 non-reloc", note)
+        self.assertIn("--count", note)
+
+    def test_a_larger_filtered_count_is_no_longer_silent(self):
+        """The exact case the clamped noise figure hid completely."""
+        self.assertNotEqual(real_reconciliation(1189, self.SDRAWGEOM, 0), "")
+
+    def test_agreeing_numbers_keep_the_old_pool_name_note(self):
+        rows = ["-a", "+b"] + ["-\t4: R_PPC_EMB_SDA21\t@1"] * 14
+        self.assertEqual(real_reconciliation(2, rows, noise=14),
+                         " (+14 pool-name lines suppressed)")
+
+    def test_agreeing_numbers_with_no_noise_print_nothing(self):
+        self.assertEqual(real_reconciliation(2, ["-a", "+b"], noise=0), "")
+
+    def test_the_reconciliation_outranks_the_noise_note(self):
+        """When both could apply, the ambiguity is what needs saying."""
+        rows = ["-a", "+b", "-\t4: R_PPC_REL24\tfoo"]
+        note = real_reconciliation(5, rows, noise=1)
+        self.assertIn("non-reloc", note)
+        self.assertNotIn("suppressed", note)
 
 
 if __name__ == "__main__":

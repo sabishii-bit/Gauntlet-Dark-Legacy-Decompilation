@@ -35,8 +35,18 @@ fields, which the linker owns, excluded) and refuses to call such a function
 "pure reorder, schedule-class residual".
 
 --count prints one summary line per function (target/base insn counts, total
-diff lines, and "real" diff lines excluding reloc-name-only noise) -- use it
-as the per-iteration score instead of piping through grep -c.
+diff lines, and "real" diff lines) -- use it as the per-iteration score
+instead of piping through grep -c.
+
+TWO DIFFERENT NUMBERS ARE CALLED `real`, and reconciling them cost two
+lanes a re-read each. --count's `real` drops EVERY reloc line from the raw
+diff rows; --clean's `real` counts rows over reloc-NORMALIZED text. They
+differ in either direction -- on game/pb/pb_objregs::sDrawGeom --count says
+`real 1177` while --clean says `1189 real diff lines`. --clean now prints
+the raw and non-reloc row counts beside its own figure whenever they
+disagree, and names which one --count and probe.py report; the older
+"(+N pool-name lines suppressed)" note could not do that, since it was
+clamped to zero exactly when the filtered count was the larger of the two.
 
 --classify deliberately uses conservative categories for native-port work:
 EXACT, RELOCATION_ONLY, REGISTER_ONLY, SCHEDULE_CANDIDATE, OPERAND_DIFF, and
@@ -603,6 +613,40 @@ def frame_size(lines):
     return None
 
 
+def count_real(raw_rows):
+    """`--count`'s `real`: raw diff rows with every reloc line dropped.
+
+    Kept as one function so the two views cannot drift apart again — this
+    is byte-for-byte the computation main()'s --count branch performs.
+    """
+    return sum(1 for line in raw_rows if "R_PPC" not in line)
+
+
+def real_reconciliation(real, raw_rows, noise):
+    """Reconcile the numbers this project all calls `real`.
+
+    THE TWO-REALS CONFUSION (measured twice). `--count` reports
+    `real` = raw diff rows minus every reloc line, while `--clean` reports
+    `real` = diff rows over reloc-NORMALIZED text. They are different
+    computations of a same-named quantity and can differ in EITHER
+    direction: measured on game/pb/pb_objregs::sDrawGeom, `--count` says
+    `real 1177` and `--clean` says `1189 real diff lines`, and neither
+    line acknowledged that the other number existed.
+
+    The old parenthetical could not close the gap, because it was computed
+    as `raw - real` and clamped to zero — exactly the sDrawGeom case, where
+    the filtered count is LARGER than the raw rows, printed nothing at all.
+    """
+    filtered = count_real(raw_rows)
+    if filtered != real:
+        return (f" [artifact-filtered; raw rows {len(raw_rows)}, of which"
+                f" {filtered} non-reloc — {filtered} is the `real` that"
+                " --count and probe.py report for this function]")
+    if noise:
+        return f" (+{noise} pool-name lines suppressed)"
+    return ""
+
+
 def clean_diff(name, t, b):
     """Noise-free diff + always-printed summary + mechanical hints.
 
@@ -662,8 +706,8 @@ def clean_diff(name, t, b):
         hints.append(f"{len(imm)} aligned same-opcode IMMEDIATE delta(s)"
                      " — see `--ops`, which lists them with offsets")
     hint_s = ("  HINT: " + "; ".join(hints)) if hints else ""
-    noise_s = f" (+{noise} pool-name lines suppressed)" if noise else ""
-    print(f"== {name}: {status}, {real} real diff lines{noise_s}{hint_s}")
+    print(f"== {name}: {status}, {real} real diff lines"
+          f"{real_reconciliation(real, raw, noise)}{hint_s}")
 
 
 def shiftable_gap(seq, lo, hi):
@@ -878,10 +922,10 @@ def main():
         if count_only:
             diff = [l for l in difflib.unified_diff(t, b, lineterm="", n=0)
                     if l[:1] in "+-" and l[:3] not in ("+++", "---")]
-            real = [l for l in diff if "R_PPC" not in l]
+            real = count_real(diff)
             ti = sum(1 for l in t if "R_PPC" not in l)
             bi = sum(1 for l in b if "R_PPC" not in l)
-            print(f"DIFF {name}  insns {ti}/{bi}  lines {len(diff)}  real {len(real)}")
+            print(f"DIFF {name}  insns {ti}/{bi}  lines {len(diff)}  real {real}")
             continue
         if ops_only:
             ops_diff(name, t, b)
