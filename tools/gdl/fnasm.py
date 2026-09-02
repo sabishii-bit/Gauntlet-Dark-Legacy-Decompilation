@@ -50,6 +50,9 @@ import subprocess
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import fndiff  # noqa: E402  (stale-object marker: one owner, one spelling)
+
 VERSION = "GUNE5D"
 ROOT = Path(__file__).resolve().parents[2]
 OBJDUMP = ROOT / "build" / "binutils" / "powerpc-eabi-objdump.exe"
@@ -189,6 +192,12 @@ def parse_fn(unit, fn, *, ours, raw=False):
         hint = (f"run ninja build/{VERSION}/src/{unit}.o first" if ours
                 else "run ninja once so dtk extracts it")
         return [], [], f"missing {obj} ({hint})"
+    # A postprocessor refusal leaves the PREVIOUS object here (run-35 item
+    # 4). Reading assembly out of it is the quietest possible wrong answer:
+    # the listing is well-formed, it just is not the source in your tree.
+    stale = fndiff.stale_object_warning(obj)
+    if stale:
+        print(stale, file=sys.stderr)
     out = subprocess.run([str(OBJDUMP), "-dr", str(obj)],
                          capture_output=True, text=True).stdout
     cur = None

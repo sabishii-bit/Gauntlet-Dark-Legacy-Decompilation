@@ -28,8 +28,16 @@ import itertools
 import json
 import re
 import struct
+import sys
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+# ONE definition of where the stale marker lives — fndiff owns it because
+# fndiff is the reader every other tool already goes through. Two spellings
+# of a path is how a warning silently stops being emitted.
+from fndiff import stale_marker_path  # noqa: E402
 
 
 SHT_SYMTAB = 2
@@ -3908,6 +3916,25 @@ def main() -> int:
         load_symbol_addresses(symbols_path) if symbols_path.exists() else None
     )
 
+    # MARK THE OBJECT WE FAIL TO WRITE, CLEAR IT WHEN WE DO (run-35 item 4).
+    # Any refusal below — a pin body-hash assertion, a guard rejection, a
+    # malformed rule — aborts before args.output is written, leaving the
+    # PREVIOUS successful object on disk under a name every reader trusts.
+    # fndiff, fnasm, slotdiff and probe then score bytes that do not
+    # correspond to the source in the tree, silently; PC nearly recorded a
+    # verdict from one. The marker is what fndiff.stale_object_warning()
+    # reads. Computed HERE, above the empty-unit early return, because that
+    # return writes a perfectly good object too — a test caught a stale
+    # marker surviving it, which would have turned the warning into
+    # permanent noise nobody believes.
+    marker = stale_marker_path(args.output)
+
+    def clear_marker():
+        try:
+            marker.unlink()
+        except OSError:
+            pass
+
     config = json.loads(args.config.read_text(encoding="utf-8"))
     units = config.get("units", {})
     patches = units.get(args.unit)
@@ -3917,6 +3944,7 @@ def main() -> int:
         # build cycle when it disabled a unit's only rule.
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_bytes(args.input.read_bytes())
+        clear_marker()
         print(f"WEBFRANK {args.unit}: no rules (empty unit) — "
               "object passed through unchanged")
         return 0
@@ -3926,15 +3954,32 @@ def main() -> int:
     data = bytearray(args.input.read_bytes())
     target_data = args.target.read_bytes() if args.target else None
     total = 0
-    for patch in patches:
-        _, _, changed = apply_patch(data, patch, target_data, symbol_addresses)
-        total += changed
-        print(
-            f"WEBFRANK {patch['function']}: "
-            f"adjusted {changed} instruction atoms/fields"
-        )
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_bytes(data)
+    try:
+        for patch in patches:
+            _, _, changed = apply_patch(data, patch, target_data,
+                                        symbol_addresses)
+            total += changed
+            print(
+                f"WEBFRANK {patch['function']}: "
+                f"adjusted {changed} instruction atoms/fields"
+            )
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_bytes(data)
+    except BaseException as err:
+        try:
+            marker.parent.mkdir(parents=True, exist_ok=True)
+            marker.write_text(
+                f"WEBFRANK {args.unit} refused at"
+                f" {datetime.now(timezone.utc).isoformat(timespec='seconds')}:"
+                f" {type(err).__name__}: {err}",
+                encoding="utf-8")
+        except OSError:
+            pass
+        raise
+    # Written successfully: the object is current again, so the marker must
+    # go. Leaving it would turn a one-off failure into a permanent warning
+    # nobody believes — which is how a real warning stops being read.
+    clear_marker()
     print(f"WEBFRANK {args.unit}: {total} instruction atoms/fields total")
     return 0
 
