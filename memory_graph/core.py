@@ -334,6 +334,43 @@ _RECORD_ID_RE = re.compile(
     r"\b(?:attempt|claim|evidence|entity|edge|work_claim|event)"
     r"\.[A-Za-z0-9_][A-Za-z0-9_.-]{3,}",
 )
+# Gate H (run 37): a claim that a stack REGION IS NEVER ACCESSED must say
+# which ADDRESSING MODES the measurement covered.
+#
+# "Nothing writes r1+8..55" is a universal claim over the instruction
+# stream, and a scan that enumerates only the forms its author thought of
+# returns exactly the same answer as a complete one. CH's swbos lineage had
+# TWO measurements assert the region untouched while both were blind to
+# register-relative cursor stores — the very form a by-value aggregate
+# argument copy emits, which was the mechanism under investigation. The
+# record that finally settled it said so explicitly ("no store into
+# r1+8..55 under ANY addressing mode, register-relative included"); the
+# ones that did not were indistinguishable from it in the corpus.
+_REGION_UNTOUCHED_RE = re.compile(
+    r"no stores? (?:into|to)\b"
+    r"|never (?:written|accessed|touched)\b"
+    r"|nothing (?:writes|touches|accesses)\b"
+    r"|no (?:address computation|cursor|access)\w*\s+(?:reach\w*|into|to)\b"
+    r"|\bdead bytes\b"
+    r"|(?:region|block|area) (?:is|are) (?:dead|untouched|unused)\b",
+    re.I,
+)
+# The region the claim is about: an r1-relative span or an offset range.
+_STACK_REGION_RE = re.compile(
+    r"\br1\s*\+\s*\d+\s*(?:\.\.|-{1,2}|to)\s*\+?\d+"
+    r"|\+0x[0-9a-fA-F]+\s*(?:\.\.|-{1,2}|to)\s*\+?0x[0-9a-fA-F]+",
+    re.I,
+)
+# What discharges it in prose, when the typed field is absent.
+_ADDRESSING_MODE_EVIDENCE_RE = re.compile(
+    r"addressing[- ]modes?"
+    r"|register[- ]relative"
+    r"|\b[dx][- ]form\b"
+    r"|indexed (?:store|load|access|form)"
+    r"|update[- ]form",
+    re.I,
+)
+
 # Outcomes for which a multi-edit probe must name what it held fixed: only the
 # ones that VETO an axis. See gate C.
 HELD_FIXED_OUTCOMES = frozenset({"negative", "parked", "capped"})
@@ -3449,6 +3486,16 @@ def record_template(kind: str) -> dict[str, Any]:
             "held_fixed": "<OPTIONAL, REQUIRED when probed_form enumerates"
                           " more than one edit: the variable this park held"
                           " CONSTANT while varying the others>",
+            "addressing_modes_covered": "<OPTIONAL, REQUIRED when the record"
+                                        " claims a stack REGION IS NEVER"
+                                        " ACCESSED: the store/address forms"
+                                        " the scan actually covered —"
+                                        " D-form, indexed/X-form,"
+                                        " update-form, and register-relative"
+                                        " cursors. Two swbos records asserted"
+                                        " a region untouched while both were"
+                                        " blind to register-relative cursor"
+                                        " stores>",
             "verifiers_run": "<OPTIONAL, REQUIRED when the record closes the"
                              " POSTPROCESSOR path for a function: the list of"
                              " verifiers you ACTUALLY ran ("
@@ -3902,6 +3949,38 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
                 " same list entry, because \"not run\" and \"refused\" are"
                 " different findings."
             )
+
+    # Gate H (run 37). "Nothing writes r1+8..55" is a UNIVERSAL claim over
+    # the instruction stream, and a scan that enumerates only the forms its
+    # author thought of returns the same answer as a complete one. State
+    # the coverage or the reader cannot tell the two apart.
+    if (anchored
+            and _REGION_UNTOUCHED_RE.search(substance)
+            and _STACK_REGION_RE.search(substance)
+            and not _record_field(record, "addressing_modes_covered")
+            and not _ADDRESSING_MODE_EVIDENCE_RE.search(substance)):
+        raise MemoryGraphError(
+            "a claim that a stack REGION IS NEVER ACCESSED must state which"
+            " ADDRESSING MODES the measurement covered — set"
+            " `addressing_modes_covered`, or say so in the prose. This is a"
+            " universal claim over the instruction stream, so a scan that"
+            " enumerated only the forms its author thought of produces"
+            " exactly the same sentence as a complete one, and the corpus"
+            " cannot tell them apart. MEASURED: two records in the swbos"
+            " lineage asserted the r1+8..55 region untouched while both"
+            " were blind to REGISTER-RELATIVE CURSOR STORES — the very form"
+            " a by-value aggregate argument copy emits, which was the"
+            " mechanism under investigation. The record that settled it"
+            " (attempt.CH_swbos-by-value-aggregate-axis-refuted-on-the-"
+            "targets-own-bytes.20260902.v1) said it explicitly: \"no store"
+            " into r1+8..55 under ANY addressing mode, register-relative"
+            " included\"."
+            "\nName the forms you actually scanned: D-form displacement"
+            " stores (stw/stfs rN,K(r1)), INDEXED/X-form stores (stwx/stfsx"
+            " rN,rA,rB), UPDATE-form stores (stwu/stfsu), and"
+            " REGISTER-RELATIVE cursors (a base copied out of r1 by"
+            " `addi rN,r1,K` and then written through)."
+        )
     return warnings
 
 

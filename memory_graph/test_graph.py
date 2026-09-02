@@ -1216,6 +1216,77 @@ class ProposalGateTests(unittest.TestCase):
                         "residual": "the path is closed for source work"})
         self.assertTrue(stage_record_proposal(record, root=self.root).exists())
 
+    # --- Gate H: region-untouched claims state their scan coverage -------
+    #
+    # "Nothing writes r1+8..55" is a UNIVERSAL claim over the instruction
+    # stream, so a scan enumerating only the forms its author thought of
+    # produces the same sentence as a complete one. Two records in CH's
+    # swbos lineage asserted the region untouched while both were blind to
+    # register-relative cursor stores — the very form a by-value aggregate
+    # argument copy emits, which was the mechanism under investigation.
+    UNTOUCHED = ("There is no store into r1+8..55 anywhere in the function,"
+                 " so the 48 dead bytes cannot be an argument copy.")
+    COVERED = ("There is no store into r1+8..55 under ANY addressing mode,"
+               " register-relative included, so the 48 dead bytes cannot be"
+               " an argument copy.")
+
+    def test_region_untouched_without_coverage_is_refused(self):
+        record = _attempt(
+            "attempt.region.v1", "function:test_fn", outcome="negative",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.UNTOUCHED})
+        with self.assertRaisesRegex(MemoryGraphError,
+                                    "addressing_modes_covered"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_the_prose_coverage_sentence_discharges_it(self):
+        """The wording the settling CH record actually used."""
+        record = _attempt(
+            "attempt.region.v2", "function:test_fn", outcome="negative",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.COVERED})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_the_typed_field_discharges_it(self):
+        record = _attempt(
+            "attempt.region.v3", "function:test_fn", outcome="negative",
+            addressing_modes_covered=["D-form", "indexed", "update-form",
+                                      "register-relative cursors"],
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.UNTOUCHED})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_h_needs_an_actual_region(self):
+        """A general 'nothing writes it' with no region is not this claim."""
+        record = _attempt(
+            "attempt.region.v4", "function:test_fn", outcome="negative",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": "there is no store into the scratch"
+                                    " buffer at any point"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_h_error_names_the_blind_spot(self):
+        record = _attempt(
+            "attempt.region.v5", "function:test_fn", outcome="negative",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.UNTOUCHED})
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=self.root)
+        message = str(caught.exception)
+        self.assertIn("REGISTER-RELATIVE CURSOR STORES", message)
+        self.assertIn("stwx", message)
+
+    def test_gate_h_applies_to_a_positive_outcome_too(self):
+        """Unlike gates C and G, this one is not about vetoing an axis: a
+        wrong region claim misleads whatever its outcome."""
+        record = _attempt(
+            "attempt.region.v6", "function:test_fn", outcome="improved",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.UNTOUCHED})
+        with self.assertRaisesRegex(MemoryGraphError,
+                                    "addressing_modes_covered"):
+            stage_record_proposal(record, root=self.root)
+
 
 class MechanismSentenceTests(unittest.TestCase):
     """Pin prose that names a SIBLING is evidence the sibling cannot get.
