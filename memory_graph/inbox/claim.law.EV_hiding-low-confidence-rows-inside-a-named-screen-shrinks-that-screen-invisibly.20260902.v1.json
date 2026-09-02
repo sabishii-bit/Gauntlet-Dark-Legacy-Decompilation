@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py::law_corpus",
+    "memory_graph/test_graph.py::LawRankingTests.test_a_targeted_request_never_drops_a_provisional_match",
+    "memory_graph/test_graph.py::LawRankingTests.test_provisional_hidden_from_the_browse_but_not_deleted"
+  ],
+  "attributes": {
+    "scope": "memory_graph/core.py::law_corpus provisional suppression; generalises to every faceted retrieval op on this surface (find, laws, brief) and to any future confidence-based filtering.",
+    "tags": [
+      "workflow",
+      "batch-gating",
+      "metrics"
+    ],
+    "verification": "Measured 2026-09-02. Corpus: 357 laws, of which 150 are provisional (no verified success). Applying suppression inside `--tag core-screen` removed 7 of that screen's 33 laws, a 21% reduction of a screen AGENTS.md calls mandatory. Counted with a scratch census over law_corpus(tag=...) with and without include_provisional. After scoping suppression to the unfiltered browse only, core-screen returns 33 of 33 and reports provisional_retained=7."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Show a retrieval surface here that filters rows out of an explicitly-named set (a tag, a query, a facet) where a consumer can still tell, from the response alone, that rows were withheld and how many. If the response carries that count and consumers act on it, the hazard is bookkeeping rather than soundness and this law is too strong.",
+  "id": "claim.law.EV_hiding-low-confidence-rows-inside-a-named-screen-shrinks-that-screen-invisibly.20260902.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-02T00:45:32Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A CONFIDENCE FILTER APPLIED INSIDE AN EXPLICITLY-NAMED SET SHRINKS THAT SET WITHOUT TELLING ANYONE, AND WHEN THE SET IS A MANDATORY SCREEN THAT IS A SOUNDNESS FAILURE RATHER THAN A PRESENTATION CHOICE. Caught by measuring the feature against the screens that consume it, before shipping. The run-32 contract asked for provisional laws - those with no verified success - to be excluded from the deterministic view, for a good reason: an unverified law that renders identically to a proven one is how one lane's confident guess becomes fleet-wide doctrine. Implemented as a plain filter, that exclusion also fired inside `laws --tag core-screen`, which AGENTS.md designates the mandatory de-fakematch screen and instructs every lane to fetch in one call. Seven of its thirty-three members are provisional. Every lane would have run a screen 21% smaller than the one the contract describes, would have seen a normal-looking response, and would have had no way to notice. THE DISTINCTION THAT RESOLVES IT: ranking a BROWSE and answering a NAMED REQUEST are different acts. Excluding a row from a ranked browse is a judgement about authority and is exactly what was asked for. Removing a row from a set the caller identified by name - a tag, a query string, a residual signature - converts 'not verified yet' into 'the graph is silent', and this project has already measured what that costs: claim.find-subcommand-caps-at-100-and-silently-falsifies-park-screens records a filter quietly falsifying a negative screen, and AGENTS.md warns separately that an empty search result must be retried before it is believed. So suppression now applies to precisely one surface, the unfiltered ranked browse; --tag, --query and --residual keep their low-confidence matches, labelled, with a provisional_retained count. SECOND HALF, EQUALLY LOAD-BEARING: even in the browse the rows are SEGREGATED into a separate list rather than dropped, because the unfiltered call is also the corpus enumeration surface, and the run-29 limit audit already measured the cost of enumeration blindness at 36 of 136 laws unreachable. The general rule: a retrieval surface may reorder freely, may de-emphasise freely, and may only make a row unreachable when the caller asked for reachability to be narrowed."
+}

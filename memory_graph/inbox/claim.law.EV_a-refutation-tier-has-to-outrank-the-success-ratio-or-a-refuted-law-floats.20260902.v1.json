@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py::law_score_sort_key",
+    "memory_graph/test_graph.py::LawRankingTests.test_tier_outranks_raw_score",
+    "tools/gdl/composed_census/ev_law_score_canary.py"
+  ],
+  "attributes": {
+    "scope": "memory_graph/core.py law ranking (LAW_STATUS_ORDER, law_score_sort_key); generalises to any ranking that mixes a frequency statistic with a categorical disconfirmation signal.",
+    "tags": [
+      "workflow",
+      "metrics",
+      "batch-gating"
+    ],
+    "verification": "Measured 2026-09-02 over the merged corpus. claim.law.offsetof-rename-isolated-site-outlier.20260830.v1: 11 successes, 1 refutation, Wilson lower bound (z=1.96) 0.6461. claim.law.DE_merged-disjunction-unfuses-a-forward-guard-pair-only-into-the-epilogue.20260901.v1: 1 success, 0 refutations, Wilson 0.2065. Under bare-score ordering the refuted law outranks the winner by a factor of three. Under tier-first ordering it ranks 200 against the winner's 138. The 15-law canary asserts this invariant and reports GREEN."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Rank this corpus's laws by a pure statistic over successes and failures - any smoothing, any prior - and show that no law carrying a standing refutation lands above a law with verified successes and none. A single counterexample row from `laws --rank 1` output, with the two Wilson scores printed, disproves the need for the tier.",
+  "id": "claim.law.EV_a-refutation-tier-has-to-outrank-the-success-ratio-or-a-refuted-law-floats.20260902.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-02T00:45:24Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "WHEN A RANKING MIXES A FREQUENCY STATISTIC WITH A CATEGORICAL DISCONFIRMATION, THE DISCONFIRMATION HAS TO BE A SORT TIER RATHER THAN A TERM IN THE STATISTIC, OR A HEAVILY-USED REFUTED ITEM OUTRANKS A LIGHTLY-USED CORRECT ONE. This was found by building the ranking and then testing it against outcomes the project already knew, which is the only reason it was caught before shipping. A Wilson lower bound over successes and failures is the right way to stop a 1-of-1 law reading like a 40-of-40 law, and it does that job well. What it cannot do is express that a refutation is a DIFFERENT KIND of event from a failed application: a refutation is somebody measuring the law false, so it should disqualify, whereas the statistic merely dilutes it. On this corpus the dilution is nowhere near enough, because refutations are rare (8 laws carry one) while successes accumulate (the top law has 41). The concrete failure: a law with 11 landings and 1 standing refutation scores 0.646 and would have been presented, ranked, and read as the third-best law in its neighbourhood - above two laws the work order names as known-winners. A lane trusting the top of that list would apply a claim the corpus had already recorded as false. THE FIX AND ITS SHAPE. Four tiers, ordered established > contested > provisional > refuted, with the Wilson score ordering only WITHIN a tier. This keeps the statistic doing the job it is good at while making disconfirmation categorical. 'contested' exists as its own tier because deleting a refuted law's 11 successes would be its own kind of lie - the refutation may be scope-limited, and the row says so and names the refuting record so the reader can go check. THE TRANSFERABLE PART, which is not about laws at all: any scoring surface this project builds over its own records will be scoring a corpus where negative evidence is rare and positive evidence is cheap to accumulate, because that is how the recording discipline works. Frequency will always swamp disconfirmation unless disconfirmation is lifted out of the arithmetic. Build the known-good and known-bad list FIRST, then rank, then check the ranking against the list - a scorer validated only against itself will reproduce its own blind spot at every scale."
+}

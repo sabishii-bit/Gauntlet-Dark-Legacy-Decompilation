@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "laws_applied": "[\"claim.law.GS_a-record-mining-gate-refuses-the-record-that-documents-it.20260901.v1\", \"claim.law.GS_necessity-language-without-a-falsifier-is-unscreenable.20260901.v1\"]",
+    "scope": "memory_graph/ (core.py, schema.sql, gdlmem.py, test_graph.py) and tools/gdl/composed_census/ev_law_score_canary.py, run 32, commits c1e1b922d and 2b762fa41 on claude/evidence-scoring-20260902.",
+    "tags": [
+      "workflow",
+      "metrics"
+    ],
+    "verification": "138 memory_graph tests OK (90 before, 48 added), 543 tools/gdl tests OK, `gdlmem build` clean at 1555 records with zero inbox rejections. Record-count parity vs main PRINTED and held: 1555 vs 1555, 0 added, 0 removed, per-directory attempts 1016, claims 498, entities 5, evidence 16, tools 17, inbox 3. Canary GREEN 15/15."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.EV_evidence-layer-shipped-canary-table-and-corpus-scoring-census.20260902.v1",
+  "kind": "claim",
+  "predicate": "measurement",
+  "recorded_at": "2026-09-02T00:45:40Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "RUN-32 EVIDENCE LAYER: SHIPPED MEASUREMENTS, for later lanes to compare against rather than re-derive. All figures measured 2026-09-02 on the merged corpus. CORPUS SHAPE: 1552 accepted records, of which 366 are law records and 1016 attempts. Attempt outcomes: parked 378, improved 352, capped 201, negative 45, neutral 29, exact 8, plus three one-off merge/retention spellings. 630 attempts carry laws_applied, citing 250 distinct law ids across 1912 citations; 7 cited ids dangle (no such record), all of them ids missing their date/version suffix. 79 refutes citations exist against 77 distinct targets, of which only 8 targets are laws. SCORING OUTCOME: 320 records receive an evidence row. Of 357 laws surfaced by `laws`, 199 are established, 5 contested, 3 refuted, and 150 provisional - so 42% of the law corpus has never been cited by an attempt that landed. That number is the layer's single most useful output: it is not a claim that those 150 laws are wrong, but it is a claim that the corpus cannot currently tell you which of them are right. CITATION-VERSUS-LANDING SPREAD: the most-cited law (claim.law.identical-multiset-is-blind-to-displacements.20260831.v1) has 147 citations but 13 landings, because 112 of its citations are parks it correctly predicted. Any future consumer reading citation counts as a proxy for reliability will therefore be wrong by an order of magnitude on exactly the project's best negative screens; read n, not cited_total. TOP OF THE RANKED VIEW, for comparison after the next wave: offsetof-rename-preserves-protected-web 41/0 Wilson 0.914; C1_permute-recolor-composition 29/0 at 0.883; multifield-alias-defeats-indexed-addressing.v2 22/0 at 0.851; stack-slots-descend-in-declaration-order 21/0 at 0.845. CANARY: 15 hand-scored laws, 15 reproduced, on three independent checks (tier agreement, a raw-JSON recount that shares no code with the shipped path, and the ordering invariant). The ordering invariant is the one that matters: the contested law at Wilson 0.646 ranks 200, below the known-winner at Wilson 0.207 at rank 138."
+}
