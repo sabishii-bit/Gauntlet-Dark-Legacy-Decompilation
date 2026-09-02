@@ -714,10 +714,10 @@ void calc_wizard_pos(f32* out)
             out[0] = out[0] + *(f32*)(p + offsetof(Player, pos[0]));
             out[1] = out[1] + *(f32*)(p + offsetof(Player, pos[1]));
             out[2] = out[2] + *(f32*)(p + offsetof(Player, pos[2]));
-            if (lbl_80345A48 == count) {
-                out[1] = (f32)(lbl_80345A28 * (f64)*py);
+            if (lbl_80345A28 == count) {
+                out[1] = (f32)(lbl_80345A48 * (f64)*py);
             }
-            count = (f32)(count + lbl_80345A48);
+            count = (f32)(count + lbl_80345A28);
         }
     }
     for (i = 0; i < 3; i++) {
