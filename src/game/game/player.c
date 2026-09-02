@@ -6677,10 +6677,10 @@ void mini_inventory_draw_label(s32 i) {
     switch (st) {
     case 1:
     case 3:
-        DrawTextKeepScale(0.09f, x, y, 6, 0xFFFFFF, label);
+        DrawTextKeepScale(0.45f, x, y, 6, 0xFFFFFF, label);
         break;
     case 2:
-        DrawGlowText(0.09f, x, y, label);
+        DrawGlowText(0.45f, x, y, label);
         break;
     }
 }
