@@ -98,7 +98,7 @@ extern s32 gGameMode;
 extern char lbl_801143F8[];  /* select-screen string pool             */
 extern char* lbl_80120104[]; /* per-class texture-name pointer table  */
 extern char lbl_80347F44[8];  /* "?" texture name (sdata)              */
-extern char lbl_80347F4C[12];  /* unarmed spec label fmt (sdata)        */
+extern char lbl_80347F4C[8];  /* unarmed spec label fmt (sdata)        */
 extern char lbl_80347F58[8];  /* "%s NAME" fmt (sdata)                 */
 extern volatile u32 pbLoad;
 void PlayerModel(s32 player);
@@ -2712,8 +2712,10 @@ substate:
             known = 1;
         } else {
             known = 1;
-            if ((*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (known << (spec - 8))) == 0) {
+            switch (*(u16*)(pl + offsetof(Player, name) + offsetof(P_SAVE_HEAD, class_unlock)) & (known << (spec - 8))) {
+            case 0:
                 known = 0;
+                break;
             }
         }
         if (known != 0) {
