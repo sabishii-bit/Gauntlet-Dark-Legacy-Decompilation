@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "configure.py",
+    "tools/gdl/claimcheck.py",
+    "memory_graph/gdlmem.py"
+  ],
+  "attributes": {
+    "law_screen": "Screened the 35 core-screen laws plus the 59 matching laws returned by `laws` and `brief zlib/inflate`; none covers work-order premise verification or graph-silence interpretation, which is why this is proposed as new rather than as a supersession.",
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a region that is absent from the graph AND genuinely carries open source-reachable work, where a live `grep <lib> configure.py` shows Object(NonMatching, ...) or no entry at all, and a fresh report.json shows matched_code < total_code. That would show absence-from-graph still discriminates open from closed work. Conversely this law is strengthened by any further lane dispatched onto a region whose configure.py entries were already Matching. Re-run the screen with: python memory_graph/gdlmem.py brief <tu> ; grep -n <lib> configure.py ; python tools/gdl/claimcheck.py <unit>",
+  "id": "claim.law.ZI_graph-silence-on-a-region-is-not-evidence-of-open-work.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T14:48:36Z",
+  "schema_version": 1,
+  "subject": "tu:zlib/inflate",
+  "valid_from": "2026-09-02",
+  "value": "A region's ABSENCE from the memory graph is not evidence that work remains there - it is equally consistent with the region being finished and never recorded. Measured run 35: the zlib inflate stack was fully matched across six commits ending 874463a8a, yet `gdlmem context inflate_blocks` returns attempts [] and claims [], and `gdlmem brief zlib/inflate` reports live_attempts 0, active_claims 0, webfrank_pins 0, refutations 0, open_hypotheses 0. Every trace of the completion lived OUTSIDE the graph: in git commit messages and in the user's auto-memory markdown note. A whole fresh-TU lane was therefore dispatched onto nine already-Matching TUs with an instruction to expect 'multiple STRICT closes'. The compounding failure is an INDEX that summarizes a note's PLAN instead of its RESULT: the frontier note records 'STACK COMPLETE 2026-07-24 ... all 9 zlib TUs MATCHED sha1-green' at line 91, but leaves the superseded planning sentence 'NEXT BIG CHUNK: map + match the 1.0.4 inflate stack' at line 100, and the MEMORY.md index entry propagated the stale plan ('6-TU inflate stack fully mapped w/ addresses in frontier note - next session's chunk') rather than the completion twelve lines earlier. Consequences and required practice: (1) a completed region MUST get a terminal graph record (predicate region_status, epistemic_state verified) in the same wave that lands it - a commit message is not a knowledge system, and AGENTS.md already designates the graph as the project's ONLY one; (2) a work order's scope premise MUST be verified against configure.py Object() states and a live build BEFORE any source is written, because that check costs one grep plus one ninja and here it replaced an entire lane's budget; (3) when a note is amended with a result, its superseded plan text and its index entry must be amended in the SAME edit, or the plan outlives the result. Cheapest possible screen, and the one that would have caught this in a single call: `grep -n '<lib>' configure.py` - an Object(Matching, ...) line means the TU is already byte-exact and the lane is finished before it starts."
+}
