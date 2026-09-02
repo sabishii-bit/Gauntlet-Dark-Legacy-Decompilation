@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "POSTPROCESSOR-DEV lane (owns webfrank.py + tests + webfrank.json) - USER-SANCTIONED 2026-09-03: 'If post-processing is needed to proceed, then so be it.' The swbos class question is ruled: build store-with-update FUSION equivalence - target stfsu rX,d(rB) corresponds to our stfs rX,d(rB) + separate base-advance (addi/mr), value-equality of stored data, address, and every subsequent read of the updated base, machine-proven per site, fail-closed. Precedent: the run-31 range-proof class (user-licensed, population may be 1). STEP 1 demand census: swbos is the proven customer (T199/O199 count-symmetric; residual target-only +3 add +3 stfsu vs ours-only -2 addi -1 mr -3 stfs; source-exhaustion chain = the CI param-area refutation + CL bottom-anchored-temp-group law + CH by-value harness records); sweep the refusal corpus and capped attempts for other stfsu/stwu-vs-split shapes and publish the table (population 1 is acceptable, measured is mandatory). STEP 2: the proof machinery - note the correspondence is n-to-m WORDS (1 fused vs 2 split) though swbos is count-symmetric overall; model on the existing permutation+recolor composition, reuse the value-equality dataflow; every wall tested with a refusal test (the T8 refusal-coverage precedent: write the refusal tests the class PROMISES). STEP 3: close swbos to real 0 EQUIVALENT (STRICT must not move); provenance cited in the rule; configure per json edit; forced full-replay gate (touch webfrank.py, full ninja, every rule replays, DOL OK). Instrumented refusal if the proof cannot reach a word - report honestly rather than widen further. Both suites green; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:someone_will_be_off_screen",
+  "id": "work_claim.stfsu-fusion.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WF",
+  "recorded_at": "2026-09-02T20:35:51Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

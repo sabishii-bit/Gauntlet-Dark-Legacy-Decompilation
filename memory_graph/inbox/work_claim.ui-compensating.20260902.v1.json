@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, game/ui select.c + screensaver.c: (1) setup_vmu_entries - the run-38 UD record banked the mandatory step 1: the 59/59 parity is a COMPENSATING PAIR (retail 2-word lbl_80344610 load where ours is 1; ours rematerializes li r6,0 at +0x84 where retail keeps r6 live from +0x18); the untried close is UB's probe B PLUS any form that kills the second li r6,0 - a two-variable joint probe (discipline 6). Read the UD reclassification record first (25 differing words, NOT permutation-class). (2) animate_panel_piece: the banked next lever - SCOPED #pragma opt_propagation off (in-idiom two functions below; NEVER unscoped mid-TU, the poisoning law stands). (3) do_player_select's unmasked pool debt (census nearest-first, laws --residual). context per fn FIRST; fresh fuzzy per keep; select pins screened; pool changes re-derive. defake_gate baseline step 0; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:setup_vmu_entries",
+  "id": "work_claim.ui-compensating.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-UE",
+  "recorded_at": "2026-09-02T20:36:31Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, game/movie/movieplayer.cpp: fn_800D8BCC from 95 words / real 184 / fuzzy 95.1628. STEP 0: gdlmem context fn_800D8BCC; the run-38 MV record's mandatory step 1 = hoist dst/dst2/x out of the per-iteration y-loop scope (a LIVENESS change - within-block reordering is measured dead by two identical A/Bs; the typed 7-axis denial lists everything else dead). The width-class law (claim.law.MV_callee-saved-numbering-has-a-width-class...) governs decl probes - cross-class reorders are byte-identical, only type changes cross the boundary. ARBITER: wf_word_diff count must FALL + fresh fuzzy (never --ops alone; never difference counts across count changes). If <~20 words: rule-request record citing the WF/CH/MV chain, not your own webfrank edit. Also derive the full callee-saved correspondence table per probe (the run-38 diagnostic that cracked this fn - one fnasm --diff, zero builds). C++ kit; vetoed fns vetoed; pins untouched (a pinned-sibling Edit collision was correctly refused last run - anchor edits uniquely). defake_gate baseline step 0; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:fn_800D8BCC",
+  "id": "work_claim.movieplayer-liveness.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-MV",
+  "recorded_at": "2026-09-02T20:36:51Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}
