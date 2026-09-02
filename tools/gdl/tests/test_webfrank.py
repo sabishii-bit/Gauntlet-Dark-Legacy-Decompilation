@@ -43,6 +43,7 @@ from tools.gdl.webfrank import (
     prove_zero_bits,
     prove_zero_result,
     recolor_instruction,
+    rederive_hint,
     redundant_mask_source_bits,
     register_slot_mask,
     unpermute_target_windows,
@@ -50,6 +51,57 @@ from tools.gdl.webfrank import (
     verify_relocation_binding,
     verify_value_equality_recolor,
 )
+
+
+class RederiveHintTests(unittest.TestCase):
+    """run-38 item 6. `probe.py --rederive-pin` already drives the whole
+    repair in one call (verified this run on
+    game/ui/screensaver::end_inventory_panel) — the brief's premise that
+    it did not is REFUTED. What was actually missing is that the refusal
+    naming the problem said nothing about the repair, so a worker
+    reconstructed ninja-fail -> wf_rederive_pin --transient -> configure.py
+    by hand (PC: 4 of ~12 build cycles).
+
+    The hint must stay narrow: a moved BODY hash means codegen changed,
+    and pointing a worker at a re-derivation there would launder a real
+    difference."""
+
+    def hint(self, message):
+        return rederive_hint("game/ui/screensaver", "end_inventory_panel",
+                             ValueError(message))
+
+    def test_a_relocation_INPUT_hash_change_names_the_one_command_repair(self):
+        out = self.hint(
+            "instruction permutation relocation input hash changed")
+        self.assertIn("--rederive-pin", out)
+        self.assertIn("game/ui/screensaver end_inventory_panel", out)
+
+    def test_a_relocation_OUTPUT_hash_change_does_too(self):
+        self.assertIn("--rederive-pin", self.hint(
+            "instruction permutation relocation output hash changed"))
+
+    def test_it_offers_the_transient_variant_for_a_throwaway_AB(self):
+        out = self.hint(
+            "instruction permutation relocation input hash changed")
+        self.assertIn("--transient", out)
+        self.assertIn("--revert", out)
+
+    def test_a_BODY_hash_change_gets_NO_rederive_hint(self):
+        """Codegen changed; re-deriving would launder a real difference."""
+        self.assertEqual(
+            self.hint("instruction permutation input hash changed"), "")
+
+    def test_an_unrelated_refusal_gets_no_hint(self):
+        self.assertEqual(
+            self.hint("instruction permutation is not a bijection"), "")
+        self.assertEqual(
+            self.hint("register-field copy did not reproduce target bytes"),
+            "")
+
+    def test_a_missing_function_name_still_produces_a_usable_command(self):
+        out = rederive_hint("game/x/y", None, ValueError(
+            "instruction permutation relocation input hash changed"))
+        self.assertIn("game/x/y <function>", out)
 
 
 class RecolorInstructionTests(unittest.TestCase):
