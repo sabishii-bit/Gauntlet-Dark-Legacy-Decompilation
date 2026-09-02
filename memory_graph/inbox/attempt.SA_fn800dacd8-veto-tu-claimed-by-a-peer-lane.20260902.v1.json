@@ -1,0 +1,22 @@
+{
+  "attempted_axis": "Item 2 of work_claim.sched-powerups.20260902.v1 (fn_800DACD8, '2 of 204, 38 words'). Screened before editing per AGENTS.md and stopped: VETO. No source edit was made to game/movie/movieplayer.cpp.",
+  "attributes": {
+    "law_screen": "No codegen law was reached - the screen that stopped this item is the ownership and denial screen, not a codegen one. (1) OWNERSHIP: `gdlmem.py claims` shows work_claim.movieplayer-winner.20260902.v1 (owner claude-fleet-worker-MV, state active, claimed 2026-09-02) on fn_800D8BCC in game/movie/movieplayer.cpp - the SAME TU as fn_800DACD8. AGENTS.md 'Assign disjoint TUs only' and 'a foreign claim with state: active is a VETO on that entire TU scope' both apply, and MV's own scope text names movieplayer.cpp as an owned TU that parallel lanes must avoid; work_claim.nearmiss-close.20260902.v1 also lists movieplayer.cpp as VETO'd for exactly this reason. Two live claims were dispatched onto one TU. (2) TYPED DENIAL: attempt.fn-800dacd8-trio-drive.20260831.v2 carries a typed denial scoped to 'fn_800DACD8 ONLY, and within it only the p/q pointer-local register-colour axis: plain declaration-order changes and chained-assignment splitting on that pair', whose premise_measurement is 'real 76 at insns 204/204 with the opcode multiset IDENTICAL ... a single 4-byte addi-position cluster (target @0x188-0x190, ours @0x188-0x18c)'. Its expiry_check was RUN and the premise HOLDS in the current tree. (3) A third axis on the same cluster is already CAPPED by attempt.MP_fn800dacd8-naming-the-sum-costs-a-web-and-never-reassociates.20260901.v1 (binding the two-variable sum to a distinct pointer variable). The statement-order lever this lane was dispatched with is the same declaration/assignment-order family the typed denial names.",
+    "scope": "No files touched. Recorded so the dispatch collision is visible to the integrator and so the next lane does not re-derive the same three screens.",
+    "verification": "Read-only measurement at HEAD cd59c684c, no build of movieplayer.cpp source changed: `python tools/gdl/fndiff.py game/movie/movieplayer.cpp fn_800DACD8 --ops` -> target 204 insns, ours 204, opcode multiset IDENTICAL (204/204), two clusters, insert T[98:98]@188-188=[] O[98:99]@188-18c=['addi'] and delete T[99:100]@18c-190=['addi'] O[100:100]@190-190=[] [SHIFTABLE]. `python tools/gdl/composed_census/wf_word_diff.py game/movie/movieplayer.cpp fn_800DACD8` -> 204 insns, DIFFERING WORDS = 38. Both numbers CONFIRM the work order's '2 of 204, 38 words' verbatim, so the brief's inherited signature was accurate; the item was blocked on ownership, not on a stale premise. git diff over src/game/movie/ is empty."
+  },
+  "function": "function:fn_800DACD8",
+  "id": "attempt.SA_fn800dacd8-veto-tu-claimed-by-a-peer-lane.20260902.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-02T23:00:46Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "addressing-mode",
+    "measured_at": "2026-09-02",
+    "signature": "0t opcode multiset IDENTICAL (204/204); insns T204/O204; 2 ops clusters; 38 raw differing words"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
