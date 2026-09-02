@@ -455,12 +455,9 @@ void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg) {
         MulBodyVecMat4((f32*)(ps + offsetof(Player, col_pos)), viewpt, camera);
         py = (f32*)(buf + 68);
         pz = (f32*)(buf + 72);
-        v0 = viewpt[0];
-        dx = *(f32*)(buf + 64) - v0;
-        v1 = viewpt[1];
-        dy = *py - v1;
-        v2 = viewpt[2];
-        dz = *pz - v2;
+        dx = *(f32*)(buf + 64) - (v0 = viewpt[0]);
+        dy = *py - (v1 = viewpt[1]);
+        dz = *pz - (v2 = viewpt[2]);
         if (planeLR != 0) {
             dx = lbl_80345BA0;
         } else if ((flags & 0x300) != 0) {
