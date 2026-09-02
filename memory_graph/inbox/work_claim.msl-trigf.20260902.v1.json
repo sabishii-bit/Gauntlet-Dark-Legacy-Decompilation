@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "FRESH-TU lane, MSL float trig: the public trig TU [0x800EA674-0x800EAE2C) is FULLY IDENTIFIED as FLOAT trigf.c (roster + plan banked in the graph - gdlmem search trigf; the MSL region status also queues the gap fn at 0x800E539C). 33 MSL TUs are already sha1-green in-repo as cflags/style oracles (fdlibm math TUs especially - copy their exact per-file cflags pattern). Write trigf.c from the banked roster, byte-exact or named park per function; then the 0x800E539C gap fn if the roster confirms it belongs to this family. Verify the banked plan against current splits FIRST (it predates several runs). Parked MSL siblings (e_rem_pio2/bsearch/qsort/strstr regalloc parks) are VETOED - do not retry them. context per fn; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:atanf",
+  "id": "work_claim.msl-trigf.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-MT",
+  "recorded_at": "2026-09-02T14:33:29Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

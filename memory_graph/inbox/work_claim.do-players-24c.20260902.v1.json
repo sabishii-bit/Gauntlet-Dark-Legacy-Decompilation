@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, game/game/player.c: drive do_players below real 1087. MANDATORY STEP 1 = the typed hypothesis in attempt.PC_do-players-mixed-spelling-residual-is-the-24c-addressing-form.20260902.v2: the @0x24c residual is the addressing FORM (target add r3,r31,r16; lwz 3368(r3) vs ours addi+lwzx); its recorded cheapest refuting observation is a second use of the materialized base+i*stride pointer inside the p->state != 0 block - probe exactly that first and record the verdict either way. Then the recorded mirror form for the twin j-loops (walked pointer for the twins whose != 0 read is already indexed - the run-34 record names it next). Then re-census remaining clusters nearest-first. claim.law.PC_two-load-shape-and-range-check-collapse-are-one-lever applies - screen every probe against it. The do_exit downstream pin: use probe --rederive-pin (landed run 34). On any CONFLICT verdict, fresh --fuzzy is NON-OPTIONAL before recording an outcome. context per fn; gate = 'main.dol: OK'; pins screened; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:do_players",
+  "id": "work_claim.do-players-24c.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PC",
+  "recorded_at": "2026-09-02T14:32:53Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

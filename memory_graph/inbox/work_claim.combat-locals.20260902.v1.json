@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, game/game/combat.c, the run-34 CI reframe: swbos' 232-byte target frame is NOT reproducible from our C (natural frame 176 without the fabricated pad; 56-byte deficit; the 48+16 dead regions are UNRECOVERED REAL LOCALS interleaved with the temp pool, NOT param area - attempt.CI_swbos-parameter-area-hypothesis-refuted.20260902.v1 + claim.law.CI_mwcc-outgoing-param-area-is-sized-only-by-stack-spilled-args are the ground truth; the param-area and declared-pad axes are DEAD, do not retry). Your axis: reconstruct real local(s) the original had - re-read the target consumer views for r1+8..55 and r1+88..103 (are they EVER read/written? by callees? spill slots?), hypothesis-screen, then probe declared locals that MWCC seats BELOW the pool (measured 4x: declared locals seat ABOVE - so the lever must change what the compiler considers a temp, e.g. address-taken locals, arrays, struct temps). Same mechanism unparks InitCamera (its mat[16] block is displaced 80 bytes by the alias-record u8 unused[48] pad - attempt.CI_initcamera-mat-block-displaced-by-frame-pad names the unpark). Honest park with typed next-step if the class walls. 7 pins screened; pool changes use probe --rederive-pin; context per fn; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:someone_will_be_off_screen",
+  "id": "work_claim.combat-locals.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CL",
+  "recorded_at": "2026-09-02T14:33:14Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

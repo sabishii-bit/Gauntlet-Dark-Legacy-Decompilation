@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "POSTPROCESSOR lane (owns webfrank.py/webfrank.json AND game/movie/movieplayer.cpp this run): close fn_800D8BCC to EQUIVALENT. Step 1: apply the recorded source form ((u16*)pal)[i] subscript that fixes the sthx store (attempt.MV_fn800d8bcc-i-subscript-fixes-the-store-but-lands-on-live-zero-remat.20260902.v1 carries the literal form; the fuzzy dip 94.00->92.58 at neutral real is expected and irrelevant if the function closes). Step 2: screen the surviving residual (target addi r19,r29,0 copies a live zero where ours li r19,0 rematerialises, plus mr-vs-addi for p=pal) against the EXISTING classes: bidirectional live-zero and copy_register_fields/value-equality modes. If a rule closes it, cite the MV record as source-exhaustion provenance, pin per policy, configure per json edit. If NO existing class fits, do NOT widen anything - record an instrumented refusal (which check fired, on which word) and stop; a new class is a USER decision. Also verify the DrawPsysSub/8005F0F4/ResolveWorldData run-34 ineligibility records still hold under your final webfrank state (no code change expected). Suites green; gate = 'main.dol: OK'; expected: fn_800D8BCC real 0 EQUIVALENT tier, STRICT unchanged; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:fn_800D8BCC",
+  "id": "work_claim.wf-8bcc-close.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WF",
+  "recorded_at": "2026-09-02T14:32:44Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}
