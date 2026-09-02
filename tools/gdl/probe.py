@@ -88,7 +88,8 @@ is the deliberate override.
 
 Escape hatches (a worker concluded --discard "does not exist" because this
 docstring omitted it — the flags below all work):
-  --discard          restore the TU to HEAD (the neutral-edit undo), then
+  --discard [--function | --whole-file]
+                     restore the TU to HEAD (the neutral-edit undo), then
                      REBUILD the object so object-reading tools stop
                      reporting the discarded probe (--no-rebuild skips)
   --revert-baseline  restore the SESSION's first banked baseline, then
@@ -154,8 +155,18 @@ but only the hunks lying strictly inside the NAMED function are restored,
 so a multi-function session no longer loses its other in-progress work to
 one revert (five lanes hit that). A hunk straddling the function boundary
 is REFUSED loudly, never guessed at; `--revert --whole-file` then takes
-the old all-or-nothing restore deliberately. --revert-baseline and
---discard remain whole-file by construction.
+the old all-or-nothing restore deliberately. --revert-baseline remains
+whole-file by construction.
+
+(2b) --discard is SCOPE-CHECKED since run 40. It still restores the whole
+file, but it first asks what that would destroy: if any uncommitted hunk
+in the TU lies outside the named function — a sibling function's
+in-progress edit, or a file-scope declaration change — it REFUSES and
+offers `--discard --function` (restore only this function's hunks) or
+`--discard --whole-file` (the old behaviour, deliberately). When every
+hunk is inside the named function the two are the same bytes and nothing
+changes. Its success line always said "uncommitted work on other
+functions in this TU is gone", which is a receipt, not a guard.
 
 (3) NO RESTORE MAY DELETE COMMITTED WORK. Both banked states (the rolling
 snapshot and the session .base) are stamped with the commit they were
@@ -1310,6 +1321,69 @@ def scoped_revert(snap_text, cur_text, fn):
     notes = (f"{reverted} hunk(s) inside {fn} reverted;"
              f" {kept} hunk(s) elsewhere in the TU left untouched")
     return "".join(out), notes
+
+
+def restore_scope_counts(base_text, cur_text, fn):
+    """(inside, outside, entangled_spans) hunks between ``base`` and the tree.
+
+    The counting half of `scoped_revert`, split out so `--discard` can ASK
+    what a whole-file restore would destroy before doing it. Returns None
+    when the function cannot be located on either side — the caller must
+    then refuse to reason about scope rather than assume.
+    """
+    base_lines = split_lines(base_text, keepends=True)
+    cur_lines = split_lines(cur_text, keepends=True)
+    base_span = function_span(base_text, fn)
+    cur_span = function_span(cur_text, fn)
+    if base_span is None or cur_span is None:
+        return None
+    matcher = difflib.SequenceMatcher(None, base_lines, cur_lines,
+                                      autojunk=False)
+    inside = outside = 0
+    entangled = []
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            continue
+        in_cur = _inside(cur_span[0], cur_span[1], j1, j2)
+        in_base = _inside(base_span[0], base_span[1], i1, i2)
+        out_cur = _outside(cur_span[0], cur_span[1], j1, j2)
+        out_base = _outside(base_span[0], base_span[1], i1, i2)
+        if in_cur and in_base:
+            inside += 1
+        elif out_cur and out_base:
+            outside += 1
+            entangled.append(("outside", j1 + 1, j2 + 1))
+        else:
+            entangled.append(("straddling", j1 + 1, j2 + 1))
+    return inside, outside, entangled
+
+
+def discard_refusal(fn, unit, inside, outside, entangled):
+    """The refusal text for a --discard that would destroy other work.
+
+    MEASURED TWICE: `--discard` restores the WHOLE FILE to HEAD, and every
+    multi-function TU session runs it. Its own success line has always said
+    "uncommitted work on other functions in this TU is gone" — after the
+    fact, which is not a guard, it is a receipt. `--revert` has been
+    function-scoped since run 36 for exactly this reason; --discard was left
+    whole-file "by construction".
+
+    The refusal fires ONLY when there IS other work: with every hunk inside
+    the named function a whole-file restore and a scoped one are the same
+    bytes, and nothing changes.
+    """
+    spans = ", ".join(f"{kind} L{a}-L{b}" for kind, a, b in entangled)
+    return (
+        f"REFUSED: --discard would restore ALL of {unit} to HEAD, and"
+        f" {outside} uncommitted hunk(s) in this TU lie OUTSIDE {fn}"
+        f" ({spans}). That is the one thing this flag cannot undo.\n"
+        "  --discard --function   restore ONLY the hunks inside"
+        f" {fn}, leaving the rest of the TU's uncommitted work alone\n"
+        "  --discard --whole-file  take the old all-or-nothing restore"
+        " deliberately (run `git diff` first)\n"
+        "  A hunk marked `straddling` crosses the function boundary and"
+        " cannot be separated at all; --whole-file is the only option for"
+        " it, and only after you have read the diff.")
 
 
 def count_distance(text):
@@ -3122,7 +3196,49 @@ def main():
             print("cannot discard: git show HEAD failed for"
                   f" {source.as_posix()}")
             return 1
-        source.write_bytes(shown.stdout)
+        head_bytes_now = shown.stdout
+        whole_file = "--whole-file" in sys.argv
+        scoped = "--function" in sys.argv
+        counts = None
+        if not whole_file:
+            try:
+                counts = restore_scope_counts(
+                    head_bytes_now.decode("latin-1"),
+                    source.read_bytes().decode("latin-1"), fn)
+            except ValueError:
+                counts = None
+        if counts is None and not whole_file:
+            print(f"[--discard: cannot locate {fn} on both sides, so the"
+                  " scope of this restore is UNMEASURED — falling back to"
+                  " whole-file. Run `git diff` first if other functions in"
+                  " this TU carry uncommitted work.]")
+        elif counts is not None:
+            inside, outside, entangled = counts
+            if entangled and not scoped:
+                print(discard_refusal(fn, unit, inside, outside, entangled))
+                return 1
+            if scoped:
+                straddling = [row for row in entangled
+                              if row[0] == "straddling"]
+                if straddling:
+                    print(discard_refusal(fn, unit, inside, outside,
+                                          entangled))
+                    return 1
+                try:
+                    new_text, notes = scoped_revert(
+                        head_bytes_now.decode("latin-1"),
+                        source.read_bytes().decode("latin-1"), fn)
+                except ValueError as error:
+                    print(f"cannot discard --function: {error}")
+                    return 1
+                source.write_bytes(new_text.encode("latin-1"))
+                print(f"discarded (function-scoped): {source} — {notes}")
+                restore_transient_pins(unit)
+                warn_outside_edits(source, None)
+                if "--no-rebuild" not in sys.argv:
+                    rebuild_after_restore(unit, "--discard --function")
+                return 0
+        source.write_bytes(head_bytes_now)
         print(f"discarded: {source} restored to HEAD (whole file —"
               " uncommitted work on other functions in this TU is gone)")
         restore_transient_pins(unit)

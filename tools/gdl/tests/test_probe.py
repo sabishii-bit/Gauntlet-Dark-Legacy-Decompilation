@@ -32,7 +32,8 @@ from probe import (BEST_KEYS, CONFLICT_UNARBITRATED_EXIT, REPLAN_AT,
                    anchor_of, drop_transient_pins,
                    keep_consumes_transient_bank,
                    readout_banks_baseline, roll_back_anchor,
-                   replan_hint, scaffold_rows, scoped_revert,
+                   discard_refusal, replan_hint, restore_scope_counts,
+    scaffold_rows, scoped_revert,
                    slot_arbiter_header, slot_arbiter_signal, split_lines,
                    stale_restore_refusal, strip_noncode,
                    update_neutral_identical_streak)
@@ -1962,6 +1963,57 @@ class ScopedRevertTests(unittest.TestCase):
         self.assertEqual(out, crlf)
         # every LF is still part of a CRLF — no line ending was rewritten
         self.assertEqual(out.count("\n"), out.count("\r\n"))
+
+
+class DiscardScopeTests(unittest.TestCase):
+    """T10 run-40 item 6: --discard was a whole-file footgun.
+
+    `--revert` has been function-scoped since run 36 because five lanes lost
+    sibling work to it. `--discard` was left whole-file "by construction"
+    and its success line reported the loss AFTER the fact.
+    """
+
+    def test_an_edit_only_inside_the_function_is_not_refused(self):
+        """The common case must be untouched: whole-file and scoped are the
+        same bytes when every hunk is inside the named function."""
+        edited = TU.replace("p->x = 1;", "p->x = 99;")
+        inside, outside, entangled = restore_scope_counts(TU, edited, "alpha")
+        self.assertEqual((inside, outside), (1, 0))
+        self.assertEqual(entangled, [])
+
+    def test_a_sibling_functions_edit_is_seen(self):
+        edited = TU.replace("p->z = 3;", "p->z = 77;")
+        inside, outside, entangled = restore_scope_counts(TU, edited, "alpha")
+        self.assertEqual((inside, outside), (0, 1))
+        self.assertEqual(entangled[0][0], "outside")
+
+    def test_a_file_scope_declaration_edit_is_seen(self):
+        """Probe K of the run-39 do_players session changed a file-scope
+        storage class — outside every function, and exactly the kind of
+        edit a function-scoped restore would silently leave live."""
+        edited = TU.replace('#include "game.h"',
+                            '#include "game.h"\nstatic int tab[5];')
+        _, outside, entangled = restore_scope_counts(TU, edited, "alpha")
+        self.assertEqual(outside, 1)
+        self.assertEqual(entangled[0][0], "outside")
+
+    def test_a_straddling_hunk_is_classified_as_such(self):
+        edited = TU.replace("}\n\nvoid beta(Player* p)",
+                            "}   /* end of alpha */\nvoid beta(Player* p)")
+        _, _, entangled = restore_scope_counts(TU, edited, "alpha")
+        self.assertTrue(any(row[0] == "straddling" for row in entangled))
+
+    def test_an_unlocatable_function_reports_none_not_a_guess(self):
+        self.assertIsNone(restore_scope_counts(
+            TU, TU.replace("void alpha", "void renamed"), "alpha"))
+
+    def test_the_refusal_names_both_ways_out(self):
+        text = discard_refusal("alpha", "game/x/y", 1, 2,
+                               [("outside", 10, 12)])
+        self.assertIn("REFUSED", text)
+        self.assertIn("--discard --function", text)
+        self.assertIn("--discard --whole-file", text)
+        self.assertIn("L10-L12", text)
 
 
 class RevertVerdictWordingTests(unittest.TestCase):
