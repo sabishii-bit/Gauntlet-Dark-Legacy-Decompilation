@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, statement-order class (same RC census record as SA): (1) do_enemies (game/game/enemy.c, 6 mnemonic divergences in 568 insns, 184 differing words). (2) CritterTranslate (game/game/critter.c, 2 of 354, 76 words). Both never probed for statement order. Method identical to SA: aligned view at the divergence sites first (the divergences are the mechanism), savedregs.py for the register echo, laws --residual, fresh fuzzy per keep, NEUTRAL-IDENTICAL decisive at one, 3-attempt cap then typed park. Screen enemy.c/critter.c pins; critter had 2 constant fixes run 37 - do not disturb; context per fn FIRST (records land mid-run). defake_gate baseline step 0 per TU; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:do_enemies",
+  "id": "work_claim.sched-enemies.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SB",
+  "recorded_at": "2026-09-02T22:28:55Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, game/movie/movieplayer.cpp: fn_800D8BCC from 95 words / real 184 / fuzzy 95.1628. MANDATORY STEP 1 = the run-39 MV record's banked hypothesis (gdlmem context fn_800D8BCC, cite id+version, execute ITS step): dissolve the idx/entry web - the WINNER of the two-register competition, untouched across three records: delete the named entry local, write both loads as *(u32*)(pal + val * 8) / + 4; screened vs target (its add r10,r25,r8 feeds both loads, so a CSE back to one add preserves 215/215 by construction). The residual is EXACTLY 2 callee-saved rows (r21/r19 dead-param reuse) - derive the savedregs.py table at every state; the width-class law + its uses-truncate boundary govern retypes; the typed denials list everything dead. ARBITER: word count must FALL + fresh fuzzy; count-asymmetry aborts the probe categorically. If <~20 words: rule-request record, not a webfrank edit. defake_gate baseline step 0; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:fn_800D8BCC",
+  "id": "work_claim.movieplayer-winner.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-MV",
+  "recorded_at": "2026-09-02T22:29:07Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}
