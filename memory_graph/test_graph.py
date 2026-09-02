@@ -2314,6 +2314,71 @@ class ProposalGateNarrowingTests(unittest.TestCase):
             core._apply_proposal_gates(parked)
 
 
+class TypedDenialEscapeTests(unittest.TestCase):
+    """T6 run-36 item 9: CL read the refusal as "invent a denial".
+
+    The escape was implemented and named — in the last sentence of a
+    nine-sentence paragraph. An escape a reader does not reach is an escape
+    that does not exist.
+    """
+
+    REAL_LAW = ("claim.law.webfrank-pinned-function-source-freeze"
+                ".20260831.v1")
+
+    def _record(self, **extra):
+        record = {
+            "schema_version": 1, "kind": "attempt",
+            "id": "attempt.t6-denial-escape.20260902.v1",
+            "function": "function:TowerInit", "outcome": "improved",
+            "attempted_axis": "re-measuring a prior park that called this"
+                              " axis a do-not-retry, to see if it holds",
+            "attributes": {"law_screen": "none applicable: test fixture"},
+        }
+        record.update(extra)
+        return record
+
+    def test_the_escape_is_offered_before_the_typed_object(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            core._apply_proposal_gates(self._record())
+        message = str(caught.exception)
+        self.assertIn("describes_denial_of", message)
+        self.assertLess(message.index("describes_denial_of"),
+                        message.index("premise_measurement"),
+                        "the escape must come BEFORE the typed-object"
+                        " instructions a describing record does not need")
+
+    def test_the_message_asks_which_of_the_two_you_are_doing(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            core._apply_proposal_gates(self._record())
+        message = str(caught.exception)
+        self.assertIn("ARE YOU DESCRIBING SOMEONE ELSE'S DENIAL", message)
+        self.assertIn("ARE YOU ISSUING THE DENIAL?", message)
+
+    def test_the_escape_still_releases_the_gate(self):
+        core._apply_proposal_gates(
+            self._record(describes_denial_of="attempt.some-prior-park.v1"))
+
+    def test_the_escape_id_must_actually_resolve(self):
+        """The text calls it a citation; staging now makes that true."""
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(
+                self._record(describes_denial_of="attempt.no-such-park.v9"),
+                root=REPO_ROOT, dry_run=True)
+        self.assertIn("does not resolve", str(caught.exception))
+
+    def test_a_resolving_escape_id_passes_staging(self):
+        stage_record_proposal(
+            self._record(describes_denial_of=self.REAL_LAW),
+            root=REPO_ROOT, dry_run=True)
+
+    def test_the_attributes_spelling_is_checked_too(self):
+        record = self._record()
+        record["attributes"]["describes_denial_of"] = "attempt.no-such.v9"
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
+        self.assertIn("does not resolve", str(caught.exception))
+
+
 class BankedEvidenceClaimGateTests(unittest.TestCase):
     """T6 run-36 item 8: "banked in the graph" prose is not a citation.
 

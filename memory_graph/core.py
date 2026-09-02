@@ -3213,9 +3213,20 @@ def _probe_record_references(
     # `attributes.laws_applied` list are both checked; free-text mentions
     # in law_screen stay advisory.
     cited: list[str] = []
+    # `describes_denial_of` joins these (run-36 item 9). Gate D has always
+    # DESCRIBED it as "a CITATION, not a free-text opt-out ... which is
+    # checkable" — but nothing checked it, so any string at all released the
+    # typed-denial gate. Resolving it is what makes the documented promise
+    # true and keeps the escape from becoming the opt-out it disclaims.
     for citing_key in ("supersedes", "refutes"):
         if isinstance(record.get(citing_key), str):
             cited.append(record[citing_key])
+    # Read through _record_field, because gate D releases on EITHER spelling
+    # (top-level or attributes.) — checking only the top-level one would
+    # leave the same hole one level down.
+    describes = _record_field(record, "describes_denial_of")
+    if isinstance(describes, str) and describes.strip():
+        cited.append(describes)
     laws_applied = (
         record.get("attributes", {}).get("laws_applied")
         if isinstance(record.get("attributes"), dict) else None
@@ -3706,21 +3717,36 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
     if anchored and not _record_field(record, "denial") and not describes:
         denial_hit = _DENIAL_PHRASE_RE.search(substance)
         if denial_hit:
+            # THE ESCAPE GOES FIRST (run-35 item 9). This text already
+            # implemented `describes_denial_of`, but named it in the last
+            # sentence of a nine-sentence paragraph — and CL, whose record
+            # was DESCRIBING a prior park exactly as discipline 1 and 10b
+            # ask, read the refusal as "you must invent a denial". An
+            # escape a reader does not reach is an escape that does not
+            # exist. Two branches, in the order a reader needs them.
             raise MemoryGraphError(
                 f"denial language (matched {denial_hit.group(0)!r}) on a"
-                " function-anchored record requires a typed `denial` object:"
-                " {scope, premise_measurement, expiry_check, falsifier}."
-                " A prose denial cannot be screened out, cannot expire, and"
-                " renders as a permanent veto in every brief — see"
-                " claim.law.RQ_webfrank-audit-silence-is-not-ineligibility"
-                ".20260901.v1, where a tool's SILENCE was read as a verdict"
-                " of ineligibility. State the SCOPE the denial covers, the"
-                " MEASUREMENT behind it, an EXPIRY_CHECK command a later lane"
-                " can run to see whether it still holds, and the FALSIFIER."
-                " If you are DESCRIBING someone else's denial rather than"
-                " issuing one — screening it, re-measuring it, or overturning"
-                " it — set `describes_denial_of` to the record id you are"
-                " describing instead of adding a denial you do not mean."
+                " function-anchored record.\n"
+                "\nARE YOU DESCRIBING SOMEONE ELSE'S DENIAL — screening it,"
+                " re-measuring it, or overturning it? That is what AGENTS.md"
+                " disciplines 1 and 10b ask for, and this gate is not aimed"
+                " at you. Add:\n"
+                '    "describes_denial_of": "<the record id you are'
+                ' describing>"\n'
+                "It is a CITATION, not a free-text opt-out: the id must"
+                " resolve. It does not suppress the gate for a record that"
+                " ALSO issues a denial of its own — that still needs the"
+                " typed object below.\n"
+                "\nARE YOU ISSUING THE DENIAL? Then it needs the typed"
+                " `denial` object: {scope, premise_measurement,"
+                " expiry_check, falsifier} — the SCOPE it covers, the"
+                " MEASUREMENT behind it, an EXPIRY_CHECK command a later"
+                " lane can run to see whether it still holds, and the"
+                " FALSIFIER. A prose denial cannot be screened out, cannot"
+                " expire, and renders as a permanent veto in every brief;"
+                " see claim.law.RQ_webfrank-audit-silence-is-not-"
+                "ineligibility.20260901.v1, where a tool's SILENCE was read"
+                " as a verdict of ineligibility."
             )
 
     # Gate E (run 36). A residual claim confined to a named window and sized
