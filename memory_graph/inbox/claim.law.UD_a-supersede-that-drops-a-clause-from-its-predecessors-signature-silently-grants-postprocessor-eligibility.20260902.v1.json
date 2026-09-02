@@ -1,0 +1,28 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py -- reports 25 differing words at 59 insns for game/ui/select::setup_vmu_entries, the number that contradicts the permutation claim",
+    "tools/gdl/fndiff.py --ops -- prints the IMMEDIATE row UC's signature omits",
+    "tools/gdl/fnasm.py game/ui/select setup_vmu_entries 0x0:0x78 --diff -- shows the two words present in only one stream each"
+  ],
+  "attributes": {
+    "law_screen": "claim.law.MC_the-raw-differing-word-count-is-an-obligation-size-not-a-distance-and-must-never-be-differenced-across-probes.20260902.v1 APPLIED: the 25 is quoted as a single-state obligation size, never differenced against another probe. claim.law.MC_the-unabsorbed-census-scores-the-postprocessed-object-so-its-allocator-class-conflates-compiler-exact-rule-served-and-open.20260902.v1 SCREENED and it is why the brief's `unabsorbed: 24 / operand / tier B` row for this function was NOT used as the eligibility input. claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 SCREENED for polarity: that law warns against reading a tool's silence as ineligibility, and this law is its mirror -- a record's silence about a clause must not be read as eligibility. claim.law.T7_a-queue-items-stated-symptom-is-a-hypothesis-and-three-of-eleven-were-wrong-in-different-ways.20260902.v1 APPLIED as the general framing.",
+    "scope": "Record supersession discipline for attempt records carrying a residual.signature. Derived from one fully measured instance in game/ui/select.c; the corollary about inherited prose is derived from the same instance.",
+    "tags": [
+      "workflow",
+      "metrics",
+      "matching",
+      "postprocessor"
+    ],
+    "verification": "All numbers re-measured this session from objects built by `ninja -j2` at commit 374141980: fndiff --ops, fnasm --diff over 0x0:0x78 and 0x74:0xa0, wf_word_diff.py. defake_gate check game/ui/select.c --rebuild = GATE OK; full ninja = build/GUNE5D/main.dol: OK."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Show a superseded pair in which the successor dropped a signature clause AND the dropped clause was independently re-measured false at the time of the supersede (the record naming the command and its number). That would make clause-dropping a legitimate compression rather than a silent eligibility grant, and would confine this law to records that drop a clause SILENTLY. Equally falsifying: show that postprocessor lane selection reads the objects rather than the signature -- run `gdlmem find --capability webfrank-permutation` and demonstrate that a lane re-derives word multisets from the objects before accepting a candidate, in which case a wrong signature costs nothing.",
+  "id": "claim.law.UD_a-supersede-that-drops-a-clause-from-its-predecessors-signature-silently-grants-postprocessor-eligibility.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T19:29:02Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A superseding attempt record MUST reproduce or explicitly discharge every clause of its predecessor's residual signature, because eligibility for the postprocessor path is computed from the signature and not from the bytes. Dropping a clause is indistinguishable, to every downstream reader and to `find --capability`, from having measured it away. MEASURED INSTANCE, run 38, game/ui/select::setup_vmu_entries: UB signed the residual `0t opcode multiset IDENTICAL (59/59) with 1 IMMEDIATE row`, residual_class MIXED, capability_needed null. UC superseded it on an unrelated point (refuting the 'surviving mr' blocker, correctly) and re-signed as `0t opcode multiset IDENTICAL (59/59)` -- the IMMEDIATE clause simply absent -- with residual_class SCHEDULE and capability_needed `webfrank-permutation`. Nothing was measured about that clause; it was not carried. The function is NOT permutation-class: its WORD multisets differ (retail holds `li r3,0 @lbl_80344610(EMB_SDA21)`, absent from our stream; our stream holds `lwz r0,0(0) @lbl_80344610(EMB_SDA21)` and a second `li r6,0`, both absent from retail), and wf_word_diff.py reports 25 differing words at 59 instructions. A permutation rule authored against UC's signature would have been refused by the guards, and per claim.law.HB the refusal would have been read as a guard defect rather than a bad brief. COROLLARY, same instance: a supersede must also re-screen the mechanism PROSE it inherits. UB's mechanism (3) explained the residual by 'our LO lands in r5, which still holds the incoming parameter m ... until `addi r26,r5,0` has run' -- setup_vmu_entries is `void(void)`, has no parameter m, and contains no `addi r26,r5,0`; the sentence was transplanted from the sibling print_n_of_m that UB cites two sentences later, and UC carried it forward unchecked. OPERATIONAL RULE: when superseding, diff your signature against the predecessor's clause by clause, and for any clause you drop, state the command and the number that discharged it."
+}
