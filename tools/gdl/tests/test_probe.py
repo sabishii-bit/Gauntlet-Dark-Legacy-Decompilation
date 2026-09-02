@@ -15,9 +15,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from probe import (REPLAN_AT, annotate_neutral, classify, count_distance,
-                   function_span, moved_sections, parse_section_digests,
-                   replan_hint, scaffold_rows, scoped_revert,
-                   split_lines, strip_noncode,
+                   function_span, fuzzy_anchor_note, moved_sections,
+                   parse_section_digests, replan_hint, scaffold_rows,
+                   scoped_revert, split_lines, strip_noncode,
                    update_neutral_identical_streak)
 
 
@@ -332,6 +332,88 @@ class AnnotateNeutralTests(unittest.TestCase):
         self.assertTrue(out.startswith("NEUTRAL-WORSE"), out)
         self.assertIn("count distance 0 -> 6", out)
         self.assertIn("multiset 2t -> 6t", out)
+
+
+class FuzzyAnchorTests(unittest.TestCase):
+    """Run-32 item 3: CONFLICT ordered a fuzzy arbitration and printed no
+    fuzzy.
+
+    Reproduced before implementing, by driving classify() with a state that
+    already carried last_fuzzy = 90.04: both CONFLICT branches produced a
+    verdict containing neither "90.04" nor (in the converging branch) the
+    word "fuzzy" at all. Every arbitration therefore cost two report builds
+    — one on the current state, one after a revert — even when probe had
+    already measured one of them. Three lanes paid that.
+    """
+
+    BEST = {"best_real": 48, "best_multiset": 4, "best_insns": "T116/O116",
+            "last_real": 48, "last_insns": "T116/O116", "last_multiset": 4}
+
+    def conflict_real_rose(self, **extra):
+        state = dict(self.BEST, **extra)
+        verdict, _ = classify(state, 65, "T116/O116", 3)
+        self.assertTrue(verdict.startswith("CONFLICT"), verdict)
+        return verdict
+
+    def conflict_real_fell(self, **extra):
+        state = dict(self.BEST, **extra)
+        verdict, _ = classify(state, 40, "T116/O116", 6)
+        self.assertTrue(verdict.startswith("CONFLICT"), verdict)
+        return verdict
+
+    def test_a_cached_anchor_is_printed_on_the_converging_conflict(self):
+        verdict = self.conflict_real_rose(best_fuzzy=90.04)
+        self.assertIn("90.0400", verdict)
+        self.assertIn("BEST-STATE FUZZY", verdict)
+
+    def test_a_cached_anchor_is_printed_on_the_diverging_conflict(self):
+        verdict = self.conflict_real_fell(best_fuzzy=90.04)
+        self.assertIn("90.0400", verdict)
+
+    def test_both_halves_cached_print_the_delta_and_spend_no_build(self):
+        state = dict(self.BEST, best_fuzzy=90.04)
+        verdict, _ = classify(state, 65, "T116/O116", 3, fuzzy=92.72)
+        self.assertIn("90.0400 -> 92.7200 (+2.6800)", verdict)
+        self.assertIn("ROSE", verdict)
+        self.assertIn("NO build spent", verdict)
+
+    def test_a_missing_anchor_says_how_to_warm_it(self):
+        verdict = self.conflict_real_rose()
+        self.assertIn("no cached fuzzy anchor", verdict)
+        self.assertIn("--fuzzy", verdict)
+
+    def test_banking_a_best_records_the_bytes_it_describes(self):
+        _, state = classify({}, 48, "T116/O116", 4, digest="cafe")
+        self.assertEqual(state["best_bytes"], "cafe")
+
+    def test_a_measured_fuzzy_is_banked_with_the_new_best(self):
+        _, state = classify({}, 48, "T116/O116", 4, digest="cafe",
+                            fuzzy=90.04)
+        self.assertEqual(state["best_fuzzy"], 90.04)
+
+    def test_a_new_best_without_a_fuzzy_CLEARS_the_stale_anchor(self):
+        """A stale anchor would compare a fresh number against a number
+        for different bytes — worse than having none."""
+        state = dict(self.BEST, best_fuzzy=90.04)
+        _, out = classify(state, 30, "T116/O116", 4, digest="beef")
+        self.assertTrue(out["best_real"] == 30)
+        self.assertNotIn("best_fuzzy", out)
+
+    def test_a_fallen_fuzzy_reads_as_FELL(self):
+        note = fuzzy_anchor_note(92.72, 90.04)
+        self.assertIn("(-2.6800)", note)
+        self.assertIn("FELL", note)
+
+    def test_an_unchanged_fuzzy_reads_as_flat(self):
+        self.assertIn("is FLAT", fuzzy_anchor_note(90.04, 90.04))
+
+    def test_non_conflict_verdicts_carry_no_anchor(self):
+        """The anchor belongs to the verdict that orders an arbitration."""
+        for verdict, _ in (classify({}, 48, "T116/O116", 4),
+                           classify(dict(self.BEST), 30, "T116/O116", 4),
+                           classify(dict(self.BEST), 48, "T116/O116", 4)):
+            self.assertNotIn("BEST-STATE FUZZY", verdict)
+            self.assertNotIn("no cached fuzzy anchor", verdict)
 
 
 class DataOnlyEditTests(unittest.TestCase):

@@ -88,7 +88,18 @@ is REFUSED loudly, never guessed at; `--revert --whole-file` then takes
 the old all-or-nothing restore deliberately. --revert-baseline and
 --discard remain whole-file by construction.
 
---fuzzy is a PURE READOUT: it builds, prints the scores and this
+--fuzzy CACHES what it measures, keyed to the object digest it measured
+it on, and when those bytes are the banked BEST state it becomes the
+fuzzy ANCHOR. CONFLICT — the one verdict that orders a fuzzy arbitration
+— used to print neither half of that comparison even with a number
+sitting in the state file, so every arbitration cost two report builds
+(one here, one after a revert). It now prints the cached anchor, and when
+both halves are cached against the current bytes it prints the delta
+outright, for zero builds. A cached number is used ONLY when the digest
+proves it describes the bytes in front of you; banking a new best without
+a fuzzy measurement CLEARS the anchor rather than carrying a stale one.
+
+--fuzzy is otherwise a PURE READOUT: it builds, prints the scores and this
 function's fresh objdiff fuzzy, and computes NO verdict and banks NO
 snapshot. Re-running the verdict on bytes that were already scored is
 what made a CONFLICT re-read as REGRESSED (see classify()'s BEST-anchored
@@ -455,8 +466,35 @@ def moved_sections(prev, cur):
                   if prev.get(name) != cur.get(name))
 
 
+def fuzzy_anchor_note(best_fuzzy, cur_fuzzy):
+    """What the CONFLICT verdict can say about fuzzy without a build.
+
+    CONFLICT is the one verdict that ORDERS a fuzzy arbitration, and it
+    used to ship without either half of the comparison — so each
+    arbitration cost two report builds (one here, one after a revert) even
+    when probe had already measured one of them. Three lanes paid that.
+    """
+    if best_fuzzy is None:
+        return ("\n[no cached fuzzy anchor for the best state — run"
+                " `--fuzzy` HERE, then `--revert` and `--fuzzy` again for"
+                " the other half. Running `--fuzzy` at each banked best"
+                " keeps the anchor warm and makes the next arbitration"
+                " cost ONE build]")
+    if cur_fuzzy is None:
+        return (f"\n[BEST-STATE FUZZY (cached, no build): {best_fuzzy:.4f}"
+                " — one `--fuzzy` on THIS state now completes the"
+                " comparison; no revert-and-rebuild needed for the other"
+                " half]")
+    delta = cur_fuzzy - best_fuzzy
+    trend = "ROSE" if delta > 0 else ("FELL" if delta < 0 else "is FLAT")
+    return (f"\n[FUZZY {best_fuzzy:.4f} -> {cur_fuzzy:.4f} ({delta:+.4f})"
+            f" {trend} — both halves cached against these exact bytes, NO"
+            " build spent. This is the arbiter: keep with --rebase-best if"
+            " it rose, revert if it fell]")
+
+
 def classify(state, real, insns, multiset_tokens, rebase_best=False,
-             digest=None, source_changed=True):
+             digest=None, source_changed=True, fuzzy=None):
     """Pure verdict function: (verdict_text, new_state).
 
     ``state`` is the banked gate state; the returned state carries the
@@ -481,10 +519,23 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
     tok = (f", multiset {multiset_tokens}t"
            if multiset_tokens is not None else "")
 
+    best_fuzzy = state.get("best_fuzzy")
+
     def bank_best():
         state["best_real"] = real
         state["best_multiset"] = multiset_tokens
         state["best_insns"] = insns
+        if digest is not None:
+            # Which BYTES the best state is, so a later fuzzy readout can
+            # prove it is measuring the anchor rather than some other probe.
+            state["best_bytes"] = digest
+        if fuzzy is not None:
+            state["best_fuzzy"] = fuzzy
+        else:
+            # A stale anchor is worse than none: it would silently compare
+            # a fresh number against a number for DIFFERENT bytes, which is
+            # the failure this project already has a discipline rule about.
+            state.pop("best_fuzzy", None)
 
     # RE-SCORE GUARD. A probe that measures exactly what the previous
     # probe measured has observed no change and must not manufacture a
@@ -556,6 +607,7 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                        " updated, do NOT auto-bank. Read the --ops diff and"
                        " arbitrate on fresh fuzzy (--rebase-best banks a"
                        " deliberate keep)")
+            verdict += fuzzy_anchor_note(best_fuzzy, fuzzy)
             if best_tokens is None:
                 verdict += ("\n[no best_multiset banked (pre-run-29 state) —"
                             " the structure comparison fell back to the"
@@ -591,6 +643,7 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                        f" {anchor_name} IMPROVED — structure is converging;"
                        " read the diff and arbitrate, do NOT auto-revert"
                        " (--rebase-best banks an arbitrated keep)")
+            verdict += fuzzy_anchor_note(best_fuzzy, fuzzy)
             # Count distance is the one cheap predictor that agreed with
             # fuzzy in all four field arbitrations of this shape —
             # multiset gains do NOT imply fuzzy gains.
@@ -704,12 +757,17 @@ def print_scaffold_census(source, full=False):
               " --scaffold-all to list every row")
 
 
-def fuzzy_readout(unit, fn, fn_stripped, state, state_file):
+def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
     """Build the report and print this function's fresh objdiff fuzzy.
 
     CONFLICT arbitration used to cost two manual builds per keep; this is
     that loop, made durable. The report build is a full link — expect it
     to take as long as ninja.
+
+    The measured number is CACHED AGAINST THE OBJECT DIGEST it describes,
+    so a later probe can reuse it only when the bytes are provably the
+    same ones — and when those bytes are the BEST state's, it also becomes
+    the fuzzy anchor a later CONFLICT prints without spending a build.
     """
     rep = subprocess.run(["ninja", f"build/{VERSION}/report.json"],
                          capture_output=True, text=True)
@@ -733,6 +791,15 @@ def fuzzy_readout(unit, fn, fn_stripped, state, state_file):
                      if isinstance(prev_fz, float) else "")
             print(f"FUZZY (fresh report): {val:.4f}%{arrow}")
             state["last_fuzzy"] = val
+            if digest is not None:
+                state["last_fuzzy_bytes"] = digest
+                if state.get("best_bytes") == digest:
+                    state["best_fuzzy"] = val
+                    print("[cached as the BEST-STATE fuzzy anchor — the next"
+                          " CONFLICT prints it without spending a build]")
+                else:
+                    print("[cached against these exact bytes; it becomes the"
+                          " anchor once this state is banked as best]")
             state_file.write_text(json.dumps(state), encoding="utf-8")
         else:
             print("[--fuzzy: function not found in report]")
@@ -1062,6 +1129,12 @@ def main():
     digest = object_digest(unit, fn, fn_stripped)
     prev_data = state.get("last_data")
     data = data_digest(unit)
+    # A cached fuzzy is usable ONLY when it provably describes the bytes
+    # in front of us. Anything looser reintroduces the stale-number defect
+    # the --fuzzy readout exists to prevent.
+    cached_fuzzy = (state.get("last_fuzzy")
+                    if digest is not None
+                    and state.get("last_fuzzy_bytes") == digest else None)
     snap = snapshot_path(unit, source) if source is not None else None
     source_changed = True
     if snap is not None and snap.exists() and source.exists():
@@ -1081,12 +1154,13 @@ def main():
         if standing:
             print(f"[standing verdict, unchanged by this readout]"
                   f"\n{standing}")
-        fuzzy_readout(unit, fn, fn_stripped, state, state_file)
+        fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=digest)
         return 0
 
     verdict, state = classify(state, real, insns, multiset_tokens,
                               rebase_best="--rebase-best" in sys.argv,
-                              digest=digest, source_changed=source_changed)
+                              digest=digest, source_changed=source_changed,
+                              fuzzy=cached_fuzzy)
     if verdict.startswith("NEUTRAL"):
         verdict = annotate_neutral(verdict, real, insns, multiset_tokens,
                                    prev_tokens, prev_insns, prev_digest,
