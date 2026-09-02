@@ -137,6 +137,88 @@ def parse_count(text):
     return counts
 
 
+SECTION_HEAD_RE = re.compile(r"^Contents of section (\S+):$")
+# dtk/MWCC name the EABI exception tables WITHOUT a leading dot in these
+# objects (`extab`/`extabindex`, confirmed by `objdump -s` on memcard.o);
+# the dotted spellings are kept for portability across other toolchains.
+EH_SECTIONS = ("extab", "extabindex", ".extab", ".extabindex",
+               ".eh_frame", ".gcc_except_table")
+
+
+def data_section_digests(objfile):
+    """{section: sha1[:12]} over the object's NON-TEXT sections, or None.
+
+    The per-TU DATA baseline (run 34 item 1). defake_gate scores only .text
+    (fndiff over the instruction stream), so a source change that widens a
+    function's callee-saved save area silently DESTROYS its TU's .extab
+    match while every per-function verdict IMPROVES
+    (claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match). The
+    snapshot already banks per-function text signatures; this banks the TU's
+    non-text sections alongside them so `check` can flag a data-section
+    change as its own verdict class. None when the object or objdump is
+    unavailable — a missing measurement never manufactures a verdict.
+    """
+    if not objfile.exists():
+        return None
+    dump = subprocess.run([str(fndiff.OBJDUMP), "-s", str(objfile)],
+                          capture_output=True, text=True)
+    if dump.returncode != 0:
+        return None
+    return parse_section_digests(dump.stdout)
+
+
+def parse_section_digests(dump):
+    """{section: sha1[:12]} over an `objdump -s` dump, .text* excluded.
+
+    Pure text -> dict so the classification is testable without an object
+    file or a toolchain.
+    """
+    out, cur, hasher = {}, None, None
+    for line in dump.splitlines():
+        head = SECTION_HEAD_RE.match(line.strip())
+        if head:
+            if cur is not None:
+                out[cur] = hasher.hexdigest()[:12]
+            cur = head.group(1)
+            hasher = hashlib.sha1()
+            continue
+        if cur is not None:
+            hasher.update(line.encode())
+    if cur is not None:
+        out[cur] = hasher.hexdigest()[:12]
+    return {n: h for n, h in out.items() if not n.startswith(".text")}
+
+
+def data_section_verdicts(base_entry, cur_entry):
+    """DATA-CHANGED verdict rows for moved non-text sections, or [].
+
+    Its own verdict class: score-invisible to every per-function row, so it
+    neither passes nor fails the gate on its own — it ORDERS an arbitration
+    (a full `ninja` PROGRESS 'Data:' comparison) the per-function verdicts
+    cannot. None on either side (a baseline taken before this feature, or an
+    unmeasured object) yields no row rather than a false alarm.
+    """
+    base = (base_entry or {}).get("data")
+    cur = (cur_entry or {}).get("data")
+    if not isinstance(base, dict) or not isinstance(cur, dict):
+        return []
+    moved = sorted(n for n in set(base) | set(cur)
+                   if base.get(n) != cur.get(n))
+    if not moved:
+        return []
+    eh = [n for n in moved if n in EH_SECTIONS]
+    detail = ("non-text section(s) " + ", ".join(moved) + " changed — every"
+              " per-function verdict here scores .text ONLY and is blind to"
+              " these bytes")
+    if eh:
+        detail += ("; exception-table section(s) " + ", ".join(eh)
+                   + " moved (the all-or-nothing extab-loss signature — a"
+                   " widened callee-saved save area is the usual cause)")
+    detail += (". Arbitrate with a full `ninja` PROGRESS 'Data:' comparison"
+               " (or `datadiff.py <unit> --sections`) before committing")
+    return [("__sections__", "DATA-CHANGED", detail)]
+
+
 def snapshot(classify_text, count_text):
     """Merge the two fndiff views into {fn: {status, ti, bi, real}}."""
     roster = parse_classify(classify_text)
@@ -236,7 +318,14 @@ def compare(baseline, current, renames=None, resolve=None):
     """
     renames = renames or {}
     verdicts = []
+    # Per-TU DATA verdict class (run 34 item 1): a moved non-text section is
+    # score-invisible to every per-function row below, so it is compared
+    # separately and its reserved key skipped in the function loop.
+    verdicts.extend(data_section_verdicts(baseline.get("__sections__"),
+                                          current.get("__sections__")))
     for name, base in sorted(baseline.items()):
+        if name == "__sections__":
+            continue
         cur = current.get(renames.get(name, name))
         if cur is None:
             verdicts.append((name, "REGRESSION", "function vanished from object"))
@@ -336,7 +425,8 @@ def compare(baseline, current, renames=None, resolve=None):
                     (name, "IMPROVED", f"real {base_real} -> {cur_real}")
                 )
     renamed_targets = set(renames.values())
-    for name in sorted(set(current) - set(baseline) - renamed_targets):
+    for name in sorted(set(current) - set(baseline) - renamed_targets
+                       - {"__sections__"}):
         verdicts.append((name, "NEW", "function absent from baseline"))
     return verdicts
 
@@ -867,6 +957,13 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         for name, rows in fndiff.relocation_symbols(objfile).items():
             if name in snap:
                 snap[name]["relocs"] = [list(row) for row in rows]
+        # Per-TU DATA baseline (run 34 item 1): the object's non-text
+        # sections, banked under a reserved key so `compare` can flag a
+        # score-invisible data-section change (a lost .extab match) as its
+        # own verdict class. Kept out of every per-function loop above.
+        data_sections = data_section_digests(objfile)
+        if data_sections is not None:
+            snap["__sections__"] = {"data": data_sections}
     # Genuine structural rows for every function `real` calls imperfect —
     # the structure arbiter's baseline half. Byte-exact rows can never be
     # disputed, so they are skipped and the count stays cheap.
@@ -897,7 +994,12 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
     if mode == "baseline":
         meta = save_baseline(path, snap, unit)
         exact = sum(1 for row in snap.values() if row.get("real") == 0)
-        print(f"baseline: {len(snap)} functions ({exact} at real 0) -> {path}")
+        nfns = sum(1 for name in snap if name != "__sections__")
+        print(f"baseline: {nfns} functions ({exact} at real 0) -> {path}")
+        secs = (snap.get("__sections__") or {}).get("data")
+        if secs:
+            print(f"  DATA baseline: {len(secs)} non-text section(s)"
+                  f" digested ({', '.join(sorted(secs))})")
         print(f"  {fuzzy_note}")
         print(f"  anchored to commit {(meta.get('head') or '?')[:9]},"
               f" source sha1 {(meta.get('source_sha1') or '?')[:9]}"
@@ -960,6 +1062,13 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
     regressions = [v for v in verdicts if v[1] == "REGRESSION"]
     for name, verdict, detail in verdicts:
         print(f"{verdict:10} {name}  {detail}")
+    data_changed = [v for v in verdicts if v[1] == "DATA-CHANGED"]
+    if data_changed:
+        print("NOTE: DATA-CHANGED — a non-text section moved; NO per-function"
+              " verdict here can see it. A frame-widening keep can improve"
+              " every .text arbiter while destroying its TU's .extab match."
+              " Arbitrate with a full `ninja` PROGRESS 'Data:' comparison"
+              " before committing.")
     if conflicts and not regressions and arbitrate:
         # Log BEFORE the two return paths below so an accepted override is
         # recorded whether or not the baseline is re-anchored.
@@ -1006,7 +1115,10 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
                  "--ops", "--no-build"],
                 capture_output=True, text=True,
             ).stdout
-            print("\n".join(ops.strip().splitlines()[:14]))
+            # Announce any IMMEDIATE row dropped by the cut (item 5): they
+            # sit below the clusters and a silent truncation hid the one
+            # changed literal that was the whole residual.
+            print(fndiff.truncate_ops(ops, 14))
         return 1
     improved = [v for v in verdicts if v[1] == "IMPROVED"]
     if improved and update_improved:

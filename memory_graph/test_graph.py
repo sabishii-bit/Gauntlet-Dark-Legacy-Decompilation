@@ -388,9 +388,23 @@ class GraphSurfaceTests(unittest.TestCase):
         # Fixture stamps a local date; age is computed against UTC now, so
         # allow the one-day skew a date boundary introduces.
         self.assertLessEqual(laws["claim.law.test-law.v2"]["age_days"], 1)
+        # Run 34 item 6: query terms are OR-matched, so "scope v1" now
+        # SURFACES both laws instead of the old AND filter's single
+        # exact-phrase hit (which returned 0 on a spread query). v1 carries
+        # BOTH terms, v2 only "scope". Cross-tier order still obeys tier
+        # first (v2 is verified, v1 provisional), so this pins the surfacing
+        # and per-term evidence, not the cross-tier position.
         filtered = law_corpus("scope v1", root=self.root)
-        self.assertEqual([row["id"] for row in filtered["laws"]],
-                         ["claim.law.test-law.v1"])
+        by_id = {r["id"]: r for r in filtered["laws"]}
+        self.assertIn("claim.law.test-law.v1", by_id)
+        self.assertEqual(by_id["claim.law.test-law.v1"]["query_terms_matched"],
+                         2)
+        self.assertEqual(by_id["claim.law.test-law.v2"]["query_terms_matched"],
+                         1)
+        # Per-term corpus hit counts: "scope" is in both scopes, "v1" only in
+        # v1's; a zero here would name a dead term.
+        self.assertEqual(filtered["query_term_hits"]["scope"], 2)
+        self.assertEqual(filtered["query_term_hits"]["v1"], 1)
 
     def test_work_claims_staleness(self):
         result = work_claims(root=self.root, stale_after=2)
@@ -441,6 +455,10 @@ class GraphSurfaceTests(unittest.TestCase):
         template = record_template("attempt")
         self.assertEqual(template["kind"], "attempt")
         self.assertEqual(template["schema_version"], 1)
+        # Run 34 item 10: the head fields lead by construction so the CLI,
+        # which prints the template WITHOUT sort_keys, presents a top-down
+        # fill-in. sort_keys would sink schema_version to the bottom.
+        self.assertEqual(list(template)[:3], ["schema_version", "id", "kind"])
         self.assertIn("law_screen", template["attributes"])
         self.assertIn("<REQUIRED", template["id"])
         with self.assertRaises(MemoryGraphError):
@@ -1257,6 +1275,28 @@ class RetrievalQueryTests(unittest.TestCase):
         row = law_corpus("live zero remat", root=self.root)["laws"][0]
         self.assertEqual(row["asserted_by"], ["tools/gdl/webfrank.py"])
         self.assertTrue(row["falsifier"])
+
+    # --- run 34 item 6: per-term hit counts + OR-rank --------------------
+    def test_or_rank_surfaces_a_partial_match_the_and_filter_dropped(self):
+        # "remat" is a slug word, "picks" is in the prose, "nope" is nowhere.
+        # The old AND filter required ALL tokens in ONE field and returned 0
+        # (the "reloc blind real naming" failure); OR-rank surfaces the 2-of-3.
+        result = law_corpus("remat picks nope", root=self.root)
+        ids = [row["id"] for row in result["laws"]]
+        self.assertIn(
+            "claim.law.live-zero-copy-vs-remat-is-allocator-not-source"
+            ".20260831.v1", ids)
+        self.assertEqual(result["laws"][0]["query_terms_matched"], 2)
+
+    def test_per_term_hit_counts_name_a_dead_term(self):
+        hits = law_corpus("remat picks nope", root=self.root)["query_term_hits"]
+        self.assertEqual(hits["remat"], 1)
+        self.assertEqual(hits["picks"], 1)
+        self.assertEqual(hits["nope"], 0)
+
+    def test_a_single_term_query_reports_its_own_hit_count(self):
+        result = law_corpus("allocator", root=self.root)
+        self.assertEqual(result["query_term_hits"], {"allocator": 1})
 
     # --- laws --residual -------------------------------------------------
     def test_residual_signature_finds_sibling_records(self):
@@ -2268,6 +2308,31 @@ class ProposalGateNarrowingTests(unittest.TestCase):
         parked = self._attempt_record(outcome="parked", probed_form=multi)
         with self.assertRaises(MemoryGraphError):
             core._apply_proposal_gates(parked)
+
+
+class TemplateCliOrderTests(unittest.TestCase):
+    """Run 34 item 10: the CLI must NOT sort_keys the --template result, or
+    schema_version sinks to the bottom of the fill-in skeleton and id/kind
+    scatter. Measured on the real CLI, because the defect was purely in
+    gdlmem.py's json.dumps and invisible at the core-function level."""
+
+    def _template(self, kind):
+        import subprocess
+        gdlmem = REPO_ROOT / "memory_graph" / "gdlmem.py"
+        out = subprocess.run(
+            [sys.executable, str(gdlmem), "propose-record", "--template", kind],
+            capture_output=True, text=True, cwd=str(REPO_ROOT))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        return out.stdout
+
+    def test_the_head_fields_lead_the_printed_template(self):
+        for kind in ("attempt", "claim"):
+            text = self._template(kind)
+            keys = [line.strip().split('"')[1]
+                    for line in text.splitlines()
+                    if line.strip().startswith('"')]
+            self.assertEqual(keys[:3], ["schema_version", "id", "kind"],
+                             f"{kind} template head order")
 
 
 if __name__ == "__main__":

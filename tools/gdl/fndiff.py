@@ -10,6 +10,18 @@ Usage:
   python tools/gdl/fndiff.py zlib/infblock.c --ops          # opcode-cluster view
   python tools/gdl/fndiff.py game/g3d/sndvoice.c --classify # semantic-risk class
   python tools/gdl/fndiff.py game/mb/mb_window.c --clean    # noise-free + hints
+  python tools/gdl/fndiff.py game/sys/memcard.c writeGauntletSave --relocs
+      # target/ours relocation-symbol-set delta, addresses resolved
+
+--relocs is the relocation-defect view. `real` DROPS every reloc line and
+--clean NORMALIZES pool names, so a wrong-callee or wrong-datum relocation
+(a `bl` to the wrong function, a load of the wrong global) reads as MATCH in
+every other view — a REL24 callee lives ENTIRELY in its relocation, carrying
+no target in the unlinked word. --relocs resolves every symbol to its
+symbols.txt address and prints the SET delta: two spellings of one address
+(a benign rename) cancel, while a differing address surfaces as a target-only
+/ ours-only row. It runs even at real 0. CB hand-rolled this twice; it was
+decisive both times.
 
 --clean is the recommended iteration view: pool-name reloc noise (@N vs lbl_
 for identical constants) is normalized away, every function ALWAYS ends with
@@ -428,6 +440,139 @@ def relocation_symbols(objfile: Path):
     return out
 
 
+_RELOC_SYM_RE = re.compile(
+    r"([A-Za-z_@.$][\w.$@]*)([+-]0x[0-9a-fA-F]+|[+-]\d+)?$")
+
+
+def resolve_reloc_symbol(symbol):
+    """Absolute address for a relocation symbol text, or None.
+
+    Mirrors relocation_signature's address logic WITHOUT collapsing locals —
+    the --relocs view resolves a public callee/datum to its symbols.txt
+    address so two spellings of one address (a benign rename) compare equal,
+    while a genuinely different callee shows as a set delta. Locals
+    (lbl_/jumptable/@N) and splitter-named pool constants have no stable
+    address and resolve to None (compared by normalized name instead).
+    """
+    head = _RELOC_SYM_RE.match((symbol or "").strip())
+    if not head:
+        return None
+    name = head.group(1)
+    if re.fullmatch(r"(?:lbl|jumptable|@\d+).*", name) or name in pool_symbols():
+        return None
+    base = symbol_addresses().get(name)
+    if base is None:
+        return None
+    try:
+        return base + int(head.group(2) or "0", 0)
+    except ValueError:
+        return None
+
+
+# dtk names anonymous local labels (jump tables, pool/block labels) with an
+# address suffix — jumptable_80120B4C, lbl_80347F3C — while our unlinked
+# object emits them anonymously at a DIFFERENT address. relocation_signature
+# only collapses the bare `lbl`/`jumptable`/`@N` spellings, so the suffixed
+# forms would otherwise leak into the set as false deltas and bury a real
+# wrong-callee row. A local label carries no stable cross-object address; it
+# is compared by TYPE and COUNT alone (collapsed to <local>), exactly as the
+# --clean view treats pool-name noise.
+_LOCAL_LABEL_RE = re.compile(
+    r"(?:lbl|jumptable|jtbl|@\d+)(?:_[0-9A-Fa-f]{6,8})?([+-].+)?$")
+
+
+def _reloc_key(reloc_type, symbol, resolve):
+    """Canonical identity of a relocation for set comparison.
+
+    (type, 0xADDR) when the symbol resolves; (type, <local>+addend) for an
+    anonymous local label (no stable cross-object address); otherwise
+    (type, normalized symbol via relocation_signature).
+    """
+    addr = resolve(symbol)
+    if addr is not None:
+        return (reloc_type, f"0x{addr:08X}")
+    local = _LOCAL_LABEL_RE.fullmatch((symbol or "").strip())
+    if local:
+        return (reloc_type, "<local>" + (local.group(1) or ""))
+    _, norm = relocation_signature(f"{reloc_type} {symbol}".strip())
+    return (reloc_type, norm)
+
+
+def _reloc_display(reloc_type, symbol, resolve):
+    addr = resolve(symbol)
+    where = f"  ({'0x%08X' % addr})" if addr is not None else "  (unresolved)"
+    return f"{reloc_type:<16} {symbol}{where}"
+
+
+def reloc_set_delta(target_rows, ours_rows, resolve=None):
+    """(target_only, ours_only, common_count) for two relocation lists.
+
+    Each row is (reloc_type, raw_symbol). Multiset semantics: a relocation
+    present twice on one side and once on the other is a one-row delta.
+    Rows are keyed by resolved address when possible (so a rename cancels)
+    and returned as human display strings with the address resolved.
+
+    This is the score-invisible defect class fndiff otherwise cannot show:
+    `real` DROPS every reloc line and `--clean` NORMALIZES pool names, so a
+    wrong-callee / wrong-datum relocation reads as MATCH in every other view
+    (claim.law.HV_defake-gate-naming-drift-is-a-false-benign-on-a-wrong-
+    callee). CB hand-rolled this delta twice; it was decisive both times.
+    """
+    from collections import Counter
+    resolve = resolve or resolve_reloc_symbol
+    t_keys = Counter(_reloc_key(*row, resolve) for row in target_rows)
+    b_keys = Counter(_reloc_key(*row, resolve) for row in ours_rows)
+    target_only, ours_only = [], []
+    seen = Counter()
+    for reloc_type, symbol in target_rows:
+        key = _reloc_key(reloc_type, symbol, resolve)
+        if seen[key] < (t_keys[key] - b_keys.get(key, 0)):
+            target_only.append(_reloc_display(reloc_type, symbol, resolve))
+            seen[key] += 1
+    seen = Counter()
+    for reloc_type, symbol in ours_rows:
+        key = _reloc_key(reloc_type, symbol, resolve)
+        if seen[key] < (b_keys[key] - t_keys.get(key, 0)):
+            ours_only.append(_reloc_display(reloc_type, symbol, resolve))
+            seen[key] += 1
+    common = sum((t_keys & b_keys).values())
+    return target_only, ours_only, common
+
+
+def relocs_diff(name, target_rows, ours_rows, resolve=None):
+    """Print the target/ours relocation-symbol-set delta for one function."""
+    target_only, ours_only, common = reloc_set_delta(
+        target_rows, ours_rows, resolve=resolve)
+    if not target_only and not ours_only:
+        print(f"== {name}: relocation sets IDENTICAL ({common} reloc(s),"
+              " addresses resolved)")
+        return
+    print(f"RELOCS {name}  ({common} shared;"
+          f" {len(target_only)} target-only, {len(ours_only)} ours-only —"
+          " a differing ADDRESS is a wrong callee/datum, not a rename)")
+    if target_only:
+        print("  target-only (target has, ours lacks):")
+        for row in target_only:
+            print(f"    {row}")
+    if ours_only:
+        print("  ours-only (ours has, target lacks):")
+        for row in ours_only:
+            print(f"    {row}")
+
+
+def reloc_rows_from_lines(lines):
+    """[(reloc_type, raw_symbol)] from one function's parsed lines.
+
+    Same extraction as relocation_symbols() but off an already-parsed line
+    list (the --relocs view has target/base parsed in hand)."""
+    rows = []
+    for line in lines:
+        if line.startswith("    "):
+            parts = line.strip().split(maxsplit=1)
+            rows.append((parts[0], parts[1] if len(parts) > 1 else ""))
+    return rows
+
+
 def relocation_signatures(lines):
     """Relocations in instruction order, retaining semantically relevant targets."""
     result = []
@@ -815,9 +960,37 @@ def ops_diff(name, t, b):
               " before working it.")
 
 
+def truncate_ops(ops_text, limit):
+    """First `limit` lines of an --ops dump, plus a suppressed-IMMEDIATE note.
+
+    probe.py and defake_gate.py print only the first N lines of --ops after
+    a failed probe. IMMEDIATE rows sit at the BOTTOM of ops_diff — they live
+    inside the matcher's EQUAL runs, so no cluster covers them — so a
+    truncated view SILENTLY dropped exactly the same-opcode-immediate words
+    that decide eligibility. CB read one such cut as a frame collapse when
+    the real story was a changed literal below the fold (run 34 item 5). The
+    cut is now announced, and the dropped IMMEDIATE count is named.
+    """
+    lines = ops_text.strip().splitlines()
+    if len(lines) <= limit:
+        return "\n".join(lines)
+    kept, dropped = lines[:limit], lines[limit:]
+    imm_dropped = sum(
+        1 for line in dropped if line.lstrip().startswith("IMMEDIATE "))
+    if imm_dropped:
+        note = (f"  ... {imm_dropped} IMMEDIATE row(s) suppressed"
+                f" ({len(dropped)} --ops line(s) hidden) — a same-opcode"
+                " immediate decides eligibility and is NOT schedule noise;"
+                " read the full `fndiff --ops` before concluding")
+    else:
+        note = (f"  ... {len(dropped)} more --ops line(s) suppressed"
+                " (full view: `fndiff --ops`)")
+    return "\n".join(kept + [note])
+
+
 def main():
     flags = ("-l", "--ops", "--count", "--classify", "--no-build", "--clean",
-             "--raw")
+             "--raw", "--relocs")
     args = [a for a in sys.argv[1:] if a not in flags]
     list_only = "-l" in sys.argv
     ops_only = "--ops" in sys.argv
@@ -826,6 +999,7 @@ def main():
     no_build = "--no-build" in sys.argv
     clean = "--clean" in sys.argv
     raw = "--raw" in sys.argv
+    relocs_only = "--relocs" in sys.argv
     if not args or args[0] in ("--help", "-h", "help"):
         print(__doc__)
         return 1
@@ -901,6 +1075,15 @@ def main():
             side = "target" if t is None else "base"
             print(f"ONLY-IN-{'BASE' if t is None else 'TARGET'}  {name}"
                   f"  (extra {side} fns are usually deadstripped statics)")
+            continue
+        if relocs_only:
+            # First-class relocation-symbol-set delta with addresses resolved
+            # from symbols.txt (run 34 item 4). Runs even at real 0: `real`
+            # DROPS every reloc line and `--clean` NORMALIZES pool names, so a
+            # wrong-callee/wrong-datum relocation is invisible to every other
+            # view here.
+            relocs_diff(name, reloc_rows_from_lines(t),
+                        reloc_rows_from_lines(b))
             continue
         if t == b:
             if classify_only:

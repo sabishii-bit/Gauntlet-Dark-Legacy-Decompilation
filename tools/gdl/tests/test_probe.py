@@ -16,9 +16,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from probe import (REPLAN_AT, annotate_neutral, classify, count_distance,
-                   function_span, fuzzy_anchor_note, moved_sections,
-                   parse_section_digests, replan_hint, scaffold_rows,
-                   scoped_revert, split_lines, strip_noncode,
+                   data_line, format_genuine_note, function_span,
+                   fuzzy_anchor_note, moved_sections, parse_section_digests,
+                   pin_drift, replan_hint, scaffold_rows, scoped_revert,
+                   split_lines, strip_noncode,
                    update_neutral_identical_streak)
 
 
@@ -537,6 +538,66 @@ class DataOnlyEditTests(unittest.TestCase):
         self.assertNotIn("NEUTRAL-DATA-ONLY", out)
 
 
+class DataColumnTests(unittest.TestCase):
+    """The DATA column: a moved non-text section is reported on EVERY
+    verdict, not only on NEUTRAL.
+
+    The regression this class exists for (run 34, item 1): probe measured
+    the object's non-text sections on every probe and banked them in
+    `last_data`, but only ever CONSULTED them inside annotate_neutral,
+    which main() calls only when the verdict starts with NEUTRAL. A
+    frame-widening keep therefore improved `real` — and with it --ops,
+    regnorm, the multiset and fuzzy, every one of which is computed over
+    the instruction stream — while destroying a 208-byte .extab match that
+    no arbiter in the loop could see. The measurement was already in hand;
+    only the reporting was missing.
+    """
+
+    BEFORE = {".extab": "aaa", ".extabindex": "ccc", ".rodata": "eee"}
+    AFTER = {".extab": "bbb", ".extabindex": "ddd", ".rodata": "eee"}
+
+    def test_a_moved_section_is_reported(self):
+        out = data_line(self.BEFORE, self.AFTER)
+        self.assertTrue(out.startswith("DATA"))
+        self.assertIn(".extab", out)
+        self.assertIn(".extabindex", out)
+
+    def test_it_names_only_the_sections_that_moved(self):
+        out = data_line(self.BEFORE, self.AFTER)
+        self.assertNotIn(".rodata", out)
+
+    def test_flat_sections_print_nothing(self):
+        self.assertEqual(data_line(self.BEFORE, dict(self.BEFORE)), "")
+
+    def test_an_unmeasured_side_never_manufactures_a_line(self):
+        for prev, cur in ((None, self.AFTER), (self.BEFORE, None),
+                          (None, None)):
+            self.assertEqual(data_line(prev, cur), "")
+
+    def test_an_unedited_source_prints_nothing(self):
+        """A sibling lane's rebuild can move a shared pool; only an edit of
+        THIS source may be attributed to this probe."""
+        self.assertEqual(
+            data_line(self.BEFORE, self.AFTER, source_changed=False), "")
+
+    def test_it_says_the_verdict_above_cannot_see_these_bytes(self):
+        out = data_line(self.BEFORE, self.AFTER)
+        self.assertIn("datadiff", out)
+        for arbiter in ("real", "--ops", "regnorm", "fuzzy"):
+            self.assertIn(arbiter, out)
+
+    def test_an_exception_table_move_is_called_out(self):
+        """.extab/.extabindex losses are invisible in the DOL until the
+        link, which is what made the motivating incident survive review."""
+        out = data_line(self.BEFORE, self.AFTER)
+        self.assertIn("exception", out.lower())
+
+    def test_a_plain_pool_move_is_not_called_an_exception_table(self):
+        out = data_line({".sdata2": "1"}, {".sdata2": "2"})
+        self.assertIn(".sdata2", out)
+        self.assertNotIn("exception", out.lower())
+
+
 class SectionDigestTests(unittest.TestCase):
     DUMP = """\
 pb_objregs.o:     file format elf32-powerpc
@@ -570,6 +631,60 @@ Contents of section .sdata2:
 
     def test_a_dump_with_no_sections_is_empty_not_an_error(self):
         self.assertEqual(parse_section_digests("no sections here"), {})
+
+
+class GenuineRowNoteTests(unittest.TestCase):
+    """Run 34 item 2: on CONFLICT/NEUTRAL-WORSE the verdict is set by the
+    opcode-multiset token count, which is unsound under cancelling pairs
+    (closing a genuine row can RAISE it). The regnorm GENUINE count is the
+    sound structure signal and is printed alongside."""
+
+    ROWS = [f"STRUCTURAL @0x{i*4:x}: T 'li r3,{i}'  O 'addi r3,r3,{i}'"
+            for i in range(12)]
+
+    def test_the_count_and_the_soundness_warning_are_stated(self):
+        note = format_genuine_note(12, self.ROWS)
+        self.assertIn("GENUINE structural rows: 12", note)
+        self.assertIn("unsound under cancelling pairs", note)
+
+    def test_rows_are_capped_and_the_remainder_counted(self):
+        note = format_genuine_note(12, self.ROWS, cap=8)
+        self.assertIn("... 4 more genuine row(s)", note)
+        self.assertEqual(sum(1 for r in self.ROWS
+                             if r in note), 8)
+
+    def test_a_short_list_prints_no_remainder(self):
+        note = format_genuine_note(3, self.ROWS[:3])
+        self.assertNotIn("more genuine", note)
+
+    def test_zero_genuine_rows_still_states_the_count(self):
+        note = format_genuine_note(0, [])
+        self.assertIn("GENUINE structural rows: 0", note)
+
+
+class PinDriftTests(unittest.TestCase):
+    """Run 34 item 3: --revert banks the TU's webfrank pin hashes and warns
+    when a pin was re-derived since (GT hand-restored source AND pin)."""
+
+    BANKED = {"fnA": ["aaa", "bbb"], "fnB": ["ccc", "ddd"]}
+
+    def test_no_change_is_no_drift(self):
+        self.assertEqual(pin_drift(self.BANKED, dict(self.BANKED)), [])
+
+    def test_a_rederived_after_hash_is_drift(self):
+        current = {"fnA": ["aaa", "ZZZ"], "fnB": ["ccc", "ddd"]}
+        self.assertEqual(pin_drift(self.BANKED, current), ["fnA"])
+
+    def test_a_removed_or_added_pin_is_drift(self):
+        self.assertEqual(pin_drift(self.BANKED, {"fnA": ["aaa", "bbb"]}),
+                         ["fnB"])
+        self.assertEqual(
+            pin_drift(self.BANKED,
+                      {**self.BANKED, "fnC": ["e", "f"]}), ["fnC"])
+
+    def test_an_unmeasured_side_is_not_drift(self):
+        self.assertEqual(pin_drift(None, self.BANKED), [])
+        self.assertEqual(pin_drift(self.BANKED, None), [])
 
 
 class ScaffoldCensusTests(unittest.TestCase):

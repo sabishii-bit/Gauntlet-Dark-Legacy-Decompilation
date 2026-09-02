@@ -294,7 +294,13 @@ one, and supersede the law if your target contradicts it.
 7. **Shell file-writing:** never write a source file from PowerShell
    (`Out-File`/`Set-Content -Encoding utf8` inject a BOM that MWCC
    rejects as Shift-JIS; `git show HEAD:x > file` corrupts too). Use
-   the Write/Edit tools; for byte-level ops use [System.IO.File].
+   the Write/Edit tools; for byte-level ops use [System.IO.File] — but
+   pass it ABSOLUTE paths on BOTH sides (source AND destination):
+   .NET resolves relative paths against the process working directory,
+   NOT PowerShell's `$PWD`, and the two diverge in this harness, so a
+   relative `[System.IO.File]::Copy('a','b')` reads or writes the wrong
+   directory silently (measured twice). `Resolve-Path`/`Join-Path` the
+   arguments first, or spell out `W:\...` literals.
    `git stash` is UNUSABLE here (shared stash, 31+ foreign entries) —
    A/B via a scratch copy or `probe --discard`. `Copy-Item` PRESERVES
    LastWriteTime, so restoring a file by copy can leave ninja thinking

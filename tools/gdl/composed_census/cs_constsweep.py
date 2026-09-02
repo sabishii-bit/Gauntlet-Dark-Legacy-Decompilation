@@ -701,6 +701,73 @@ def discover_units():
     return units
 
 
+def _finding_pairs(finding):
+    """The SUBSTITUTION pairs of a finding: (target_value, ours_value) for
+    every value target reads that we don't crossed with every value we read
+    that target doesn't."""
+    t_only = [str(v) for v in (finding.get("target_only") or [])]
+    o_only = [str(v) for v in (finding.get("ours_only") or [])]
+    return [(t, o) for t in t_only for o in o_only]
+
+
+def value_corroboration(findings):
+    """{(target_value, ours_value) -> set of (unit, function)}.
+
+    Keyed on the SUBSTITUTION pair, not on individual values. A single common
+    constant (100.0, 0.5) recurs across dozens of NonMatching residuals as
+    ordinary reconstruction debt and is NOT signal; what marks a systematic
+    source error — a shared #define or table entry read wrong in every
+    consumer — is the SAME swap (target reads X where we read Y) recurring
+    across a SET of functions. That is the gravity/collision bug signature
+    the sweep exists for, so the sweep ranks pair-corroborated rows first
+    (run 34 item 8).
+    """
+    corro: dict[tuple, set] = {}
+    for f in findings:
+        site = (f.get("unit"), f.get("function"))
+        for pair in _finding_pairs(f):
+            corro.setdefault(pair, set()).add(site)
+    return corro
+
+
+def corroboration_score(finding, corro):
+    """(max functions sharing any one substitution pair, [((t, o), n>=2)]).
+
+    A score of 1 means no substitution this function makes recurs anywhere
+    else (uncorroborated); >=2 means the SAME target->ours swap appears in
+    that many DISTINCT functions.
+    """
+    best = 1
+    shared = set()
+    for pair in _finding_pairs(finding):
+        n = len(corro.get(pair, ()))
+        if n > best:
+            best = n
+        if n >= 2:
+            shared.add((pair, n))
+    return best, sorted(shared)
+
+
+def rank_value_mismatches(findings):
+    """VALUE_MISMATCH findings, set-corroborated rows first.
+
+    Stable within a corroboration tier (unit, function), so the ranking is
+    deterministic and a corroborated systematic bug never hides behind a
+    lone reconstruction difference that happened to sweep first.
+    """
+    corro = value_corroboration(findings)
+    ranked = []
+    for f in findings:
+        best, shared = corroboration_score(f, corro)
+        row = dict(f)
+        row["corroboration"] = best
+        row["corroborated_values"] = shared
+        ranked.append(row)
+    ranked.sort(key=lambda r: (-r["corroboration"],
+                               r.get("unit") or "", r.get("function") or ""))
+    return ranked
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("units", nargs="*", help="unit paths (default: all)")
@@ -731,8 +798,8 @@ def main():
     def of(kind):
         return [f for f in all_findings if f["verdict"] == kind]
 
-    vals, widths, imb = of("VALUE_MISMATCH"), of("WIDTH_MISMATCH"), \
-        of("IMBALANCE")
+    vals, widths, imb = rank_value_mismatches(of("VALUE_MISMATCH")), \
+        of("WIDTH_MISMATCH"), of("IMBALANCE")
     aligned = of("ALIGNED_MISMATCH")
 
     print(f"units swept: {len(units)}   "
@@ -757,10 +824,20 @@ def main():
     print(f"WIDTH_MISMATCH (right value, wrong load width): {len(widths)}")
     print(f"IMBALANCE      (reconstruction debt, low signal): {len(imb)}")
 
+    corroborated = sum(1 for f in vals if f["corroboration"] >= 2)
+    if corroborated:
+        print(f"  ({corroborated} of {len(vals)} are SET-CORROBORATED — the"
+              " SAME target->ours substitution recurs across >=2 functions,"
+              " i.e. a likely systematic wrong constant; listed first)")
     for f in vals:
-        print(f"\n=== VALUE_MISMATCH {f['unit']} :: {f['function']}")
+        tag = (f"  [SET-CORROBORATED x{f['corroboration']}]"
+               if f["corroboration"] >= 2 else "")
+        print(f"\n=== VALUE_MISMATCH {f['unit']} :: {f['function']}{tag}")
         print(f"    target reads, we never do: {f['target_only']}")
         print(f"    we read, target never does: {f['ours_only']}")
+        for (t_val, o_val), n in f["corroborated_values"]:
+            print(f"    corroborated: target {t_val} -> ours {o_val} recurs"
+                  f" in {n} function(s)")
     for f in widths:
         print(f"\n=== WIDTH_MISMATCH {f['unit']} :: {f['function']}")
         for w in f["width_diffs"]:

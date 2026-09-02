@@ -69,6 +69,11 @@ docstring omitted it — the flags below all work):
   --revert-baseline  restore the SESSION's first banked baseline
   --no-bank          score without banking (diagnostic probes)
   --raw              score the pre-webfrank compiler output (pinned TUs)
+  --rederive-pin     one call: build the raw body object, run
+                     wf_rederive_pin --apply (guarded: aborts if a BODY hash
+                     moved), configure.py, and rebuild the object to confirm
+                     the WEBFRANK stage reapplies — the repair for a downstream
+                     permutation pin after an upstream pool renumbering
   --stateless        sweep mode: score only — no state, bank, or verdict
   --scaffold         print the pragma/volatile scaffold census on ANY
                      probe, not only a BASELINE
@@ -158,6 +163,128 @@ def git_head():
     return result.stdout.strip() if result.returncode == 0 else None
 
 
+def webfrank_pin_hashes(unit):
+    """{function: [before_sha256, after_sha256]} for this unit's webfrank
+    pins, or {} when the TU has none.
+
+    A permutation/recolor pin freezes a function's body hash; when an UPSTREAM
+    instruction-count change shifts a pinned window, the pin is re-derived
+    (wf_rederive_pin.py) and its before/after hashes in
+    config/GUNE5D/webfrank.json change. --revert restores only the SOURCE, so
+    a pin re-derived since the snapshot was banked is left inconsistent with
+    the reverted tree — GT had to hand-restore both. Banking these hashes lets
+    --revert WARN when that happened (run 34 item 3).
+    """
+    cfg = Path(f"config/{VERSION}/webfrank.json")
+    if not cfg.exists():
+        return {}
+    try:
+        data = json.loads(cfg.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    out = {}
+    for rule in data.get("units", {}).get(unit, []):
+        fn = rule.get("function")
+        if fn is None:
+            continue
+        if "before_sha256" in rule or "after_sha256" in rule:
+            out[fn] = [rule.get("before_sha256"), rule.get("after_sha256")]
+    return out
+
+
+def pin_drift(banked, current):
+    """Sorted function names whose banked pin hashes differ from current.
+
+    Pure over two {fn: [before, after]} maps so the drift test is exercised
+    without a webfrank.json on disk."""
+    if not isinstance(banked, dict) or not isinstance(current, dict):
+        return []
+    return sorted(fn for fn in set(banked) | set(current)
+                  if banked.get(fn) != current.get(fn))
+
+
+def warn_pin_drift(unit, snap):
+    """Warn if webfrank pins changed since this snapshot's .pins was banked."""
+    pins_file = snap.with_suffix(snap.suffix + ".pins")
+    if not pins_file.exists():
+        return
+    try:
+        banked = json.loads(pins_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    drifted = pin_drift(banked, webfrank_pin_hashes(unit))
+    if drifted:
+        print("WARNING: webfrank pin(s) re-derived since this snapshot was"
+              f" banked: {', '.join(drifted)}. --revert restored only the"
+              " SOURCE; the pin's before/after_sha256 in"
+              f" config/{VERSION}/webfrank.json no longer matches the reverted"
+              " tree, so the pinned function's body will not hash-assert."
+              " Re-derive with"
+              " tools/gdl/composed_census/wf_rederive_pin.py (FULL path,"
+              " body hashes must return byte-identical) or hand-restore the"
+              " pin — GT had to restore both by hand.")
+
+
+def rederive_pin(unit, fn):
+    """One-call pin re-derivation: body build + wf_rederive_pin --apply +
+    configure + confirm (run 34 item 9).
+
+    An upstream edit that renumbers a TU's anonymous pool invalidates a
+    downstream instruction_permutation pin's RELOCATION hashes (the body
+    hashes stay byte-identical). Repairing it by hand was ~5 steps over 2
+    builds: build the raw body object, run wf_rederive_pin, hand-paste two
+    hashes into webfrank.json, run configure.py, rebuild. This sequences all
+    of it and ABORTS at the guard wf_rederive_pin enforces — if any BODY hash
+    moved the edit changed codegen, so nothing is pasted.
+    """
+    parts = unit.split("/")
+    body = Path(f"build/{VERSION}/src/{'/'.join(parts[:-1])}"
+                f"/.postprocess/body/{parts[-1]}.o")
+    wf_tool = TOOLS / "composed_census" / "wf_rederive_pin.py"
+
+    print(f"[1/4] building raw body object {body.name}")
+    r = subprocess.run(["ninja", str(body)], capture_output=True, text=True)
+    if r.returncode != 0:
+        print("BODY BUILD FAILED:")
+        print((r.stdout + r.stderr).strip()[-1200:])
+        return 1
+
+    print(f"[2/4] re-deriving pin {unit}::{fn} (wf_rederive_pin --apply)")
+    r = subprocess.run(
+        [sys.executable, str(wf_tool), unit, fn, "--apply"],
+        capture_output=True, text=True)
+    print(r.stdout.strip())
+    if r.returncode != 0:
+        if r.stderr.strip():
+            print(r.stderr.strip()[-800:])
+        print("rederive-pin ABORTED — a body hash moved (the edit changed"
+              " codegen, not just the pool), or the rule has no"
+              " instruction_permutation. Nothing was pasted; re-derive the"
+              " rule from scratch if codegen changed.")
+        return 1
+
+    print("[3/4] configure.py (materialize the WEBFRANK edge for the new hash)")
+    c = subprocess.run([sys.executable, "configure.py"],
+                       capture_output=True, text=True)
+    if c.returncode != 0:
+        print("configure.py FAILED:")
+        print((c.stdout + c.stderr).strip()[-1200:])
+        return 1
+
+    print(f"[4/4] rebuilding build/{VERSION}/src/{unit}.o to confirm the"
+          " WEBFRANK stage reapplies")
+    b = subprocess.run(["ninja", f"build/{VERSION}/src/{unit}.o"],
+                       capture_output=True, text=True)
+    if b.returncode != 0:
+        print("FULL OBJECT BUILD FAILED after re-derive (pin still stale?):")
+        print((b.stdout + b.stderr).strip()[-1200:])
+        return 1
+    print(f"rederive-pin OK: {unit}::{fn} re-derived, pasted, configured, and"
+          " the WEBFRANK object built clean. Run a full `ninja` before"
+          " committing.")
+    return 0
+
+
 def bank_snapshot(unit, source, baseline=False):
     snap = snapshot_path(unit, source)
     shutil.copyfile(source, snap)
@@ -165,6 +292,13 @@ def bank_snapshot(unit, source, baseline=False):
     if head:
         snap.with_suffix(snap.suffix + ".meta").write_text(
             json.dumps({"head": head}), encoding="utf-8")
+    # Bank this TU's webfrank pin hashes alongside the source so --revert can
+    # warn when a pin was re-derived since (run 34 item 3). Written even when
+    # empty, so a later drift compare is well-defined rather than reading a
+    # stale sidecar from an earlier bank.
+    snap.with_suffix(snap.suffix + ".pins").write_text(
+        json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
+        encoding="utf-8")
     # The FIRST baseline of a session is banked separately and never
     # overwritten: NEUTRAL probes re-bank the rolling snapshot, so
     # --revert restores the last neutral edit rather than the pristine
@@ -173,6 +307,9 @@ def bank_snapshot(unit, source, baseline=False):
         base = snap.with_suffix(snap.suffix + ".base")
         if not base.exists():
             shutil.copyfile(source, base)
+            base.with_suffix(base.suffix + ".pins").write_text(
+                json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
+                encoding="utf-8")
 
 
 def strip_noncode(text):
@@ -466,6 +603,60 @@ def moved_sections(prev, cur):
                   if prev.get(name) != cur.get(name))
 
 
+# dtk/MWCC name the EABI exception tables WITHOUT a leading dot in these
+# objects (`extab`/`extabindex`, per `objdump -s`); dotted spellings kept
+# for portability across other toolchains.
+EH_SECTIONS = ("extab", "extabindex", ".extab", ".extabindex",
+               ".eh_frame", ".gcc_except_table")
+
+
+def data_line(prev_data, data, source_changed=True):
+    """The DATA column, printed alongside EVERY verdict.
+
+    probe already measured the object's non-text sections on every probe
+    and banked them in `last_data`, but only ever CONSULTED them inside
+    annotate_neutral — which main() calls only when the verdict starts
+    with NEUTRAL. So the one shape the measurement exists to catch, an
+    edit whose .text got BETTER while a data section moved, printed
+    nothing at all: a source change that widens a function's callee-saved
+    save area silently DESTROYS its TU's extab match while real, fuzzy,
+    the opcode multiset and the instruction count all IMPROVE — measured
+    on writeGauntletSave at -208 bytes of Data with a win on every .text
+    arbiter (claim.law.WS_frame-widening-silently-breaks-the-tus-extab-
+    match).
+
+    NEUTRAL-DATA-ONLY owns its own annotation, so main() suppresses this
+    line there; this is the alarm for the TEXT-VISIBLE verdicts
+    (IMPROVED / REGRESSED / CONFLICT) the neutral path never reaches.
+    Returns "" — never a manufactured line — when either side is
+    unmeasured or the source did not change, exactly like moved_sections.
+    """
+    moved = moved_sections(prev_data, data) if source_changed else []
+    if not moved:
+        return ""
+    eh = [name for name in moved if name in EH_SECTIONS]
+    line = (f"DATA      non-text section(s) {', '.join(moved)} MOVED — the"
+            " verdict above scores the INSTRUCTION STREAM ONLY. real,"
+            " --ops, regnorm, the multiset and fuzzy are all computed over"
+            " .text and are structurally blind to these bytes, so a keep"
+            " that improves every text arbiter can still DESTROY a matched"
+            " data section (measured: a frame-widening keep took a"
+            " 208-byte .extab match with it while every text arbiter"
+            " approved). This is NOT a revert order — it is the half of"
+            " the result nothing else here scores. ARBITRATE with"
+            " `python tools/gdl/datadiff.py <unit> --sections` before"
+            " keeping or reverting")
+    if eh:
+        line += (f"\n          EXCEPTION-TABLE section(s) {', '.join(eh)}"
+                 " moved: these carry no instructions, so every score in"
+                 " this loop reads them as absent. A changed save-area"
+                 " register (the stmw/lmw IMMEDIATE row) is the usual"
+                 " cause — check the table's SIZE against target, and the"
+                 " whole-image `ninja` PROGRESS 'Data:' figure, before"
+                 " keeping the frame change")
+    return line
+
+
 def fuzzy_anchor_note(best_fuzzy, cur_fuzzy):
     """What the CONFLICT verdict can say about fuzzy without a build.
 
@@ -491,6 +682,56 @@ def fuzzy_anchor_note(best_fuzzy, cur_fuzzy):
             f" {trend} — both halves cached against these exact bytes, NO"
             " build spent. This is the arbiter: keep with --rebase-best if"
             " it rose, revert if it fell]")
+
+
+def format_genuine_note(n, rows, cap=8):
+    """The regnorm GENUINE structural-row note for CONFLICT/NEUTRAL-WORSE.
+
+    probe's CONFLICT and NEUTRAL-WORSE verdicts are set by the opcode-multiset
+    TOKEN COUNT, which is UNSOUND under cancelling pairs: closing a genuine
+    structural row can RAISE the token count (a +addi/-li pair reads as
+    growth) even as the stream moves nearer target. regnorm's GENUINE column —
+    structural rows with no artifact explanation — is the sound structure
+    signal, and regnorm.analyze runs in-process (run 34 item 2).
+    """
+    lines = [f"regnorm GENUINE structural rows: {n} — the SOUND structure"
+             " signal here. This verdict was set by the opcode-multiset TOKEN"
+             " COUNT, which is unsound under cancelling pairs (closing a"
+             " genuine row can RAISE it). Trust the genuine count for whether"
+             " the stream moved nearer target."]
+    for row in rows[:cap]:
+        lines.append(f"    {row}")
+    if len(rows) > cap:
+        lines.append(f"    ... {len(rows) - cap} more genuine row(s)")
+    return "\n".join(lines)
+
+
+def genuine_row_count(unit, fn):
+    """(genuine_count, [row_reprs]) via regnorm.analyze, or None.
+
+    Only ever called on a CONFLICT/NEUTRAL-WORSE verdict, where the sounder
+    structure signal is worth two objdump reads (no ninja build).
+    """
+    try:
+        sys.path.insert(0, str(TOOLS))
+        import regnorm
+        bare = re.sub(r"\.(c|cpp)$", "", unit)
+        target, ours, resolver = regnorm.load_tables(bare)
+        fn_t = regnorm.resolve_name(target, fn)
+        fn_o = regnorm.resolve_name(ours, fn)
+        if fn_t is None or fn_o is None:
+            return None
+        result = regnorm.analyze(target[fn_t], ours[fn_o], resolver)
+        rows = []
+        for r in result.genuine:
+            try:
+                where = f"@0x{r.offset:x}"
+            except (TypeError, ValueError):
+                where = f"@{r.offset}"
+            rows.append(f"{r.kind} {where}: T {r.target!r}  O {r.ours!r}")
+        return len(result.genuine), rows
+    except Exception:
+        return None
 
 
 def classify(state, real, insns, multiset_tokens, rebase_best=False,
@@ -954,12 +1195,14 @@ def main():
             snap = snapshot_path(unit, source)
             if snap.exists():
                 snap.unlink()
-            for ext in (".meta", ".base"):
+            for ext in (".meta", ".base", ".pins", ".base.pins"):
                 extra = snap.with_suffix(snap.suffix + ext)
                 if extra.exists():
                     extra.unlink()
         print("probe state reset")
         return 0
+    if "--rederive-pin" in sys.argv:
+        return rederive_pin(unit, fn)
     if "--discard" in sys.argv:
         # Revert the TU to its last COMMITTED state — the undo people
         # actually want after a neutral probe (NEUTRAL banks, so --revert
@@ -990,6 +1233,7 @@ def main():
         shutil.copyfile(base, source)
         print(f"restored {source} to the SESSION BASELINE (whole file —"
               " uncommitted work on other functions in this TU is gone)")
+        warn_pin_drift(unit, base)
         return 0
     if "--revert" in sys.argv:
         if source is None:
@@ -1057,6 +1301,9 @@ def main():
                 source.write_bytes(new_text.encode("latin-1"))
                 print(f"reverted {fn} to its banked snapshot — {notes};"
                       " re-scoring:")
+        # A source revert does not restore webfrank.json; warn if a pin was
+        # re-derived since this snapshot was banked (run 34 item 3).
+        warn_pin_drift(unit, snap)
 
     build = subprocess.run(
         ["ninja", f"build/{VERSION}/src/{unit}.o"],
@@ -1187,6 +1434,25 @@ def main():
         state["last_verdict"] = verdict
     state_file.write_text(json.dumps(state), encoding="utf-8")
     print(verdict)
+    # The DATA column, printed alongside EVERY verdict (run 34 item 1): the
+    # verdict above scores the INSTRUCTION STREAM ONLY, so a moved non-text
+    # section — a widened save area losing its .extab match, a corrected pool
+    # word — is invisible to real, --ops, regnorm, the multiset and fuzzy
+    # alike. data_line returns "" unless a section actually moved.
+    # NEUTRAL-DATA-ONLY already names the same sections with advice tuned to
+    # a byte-identical stream, so it owns that verdict; printing both would
+    # report one measurement twice with two different recommendations.
+    if "NEUTRAL-DATA-ONLY" not in verdict:
+        dcl = data_line(prev_data, data, source_changed)
+        if dcl:
+            print(dcl)
+    # The regnorm GENUINE structural-row count on the two verdicts the opcode
+    # multiset can mislead (run 34 item 2): CONFLICT and NEUTRAL-WORSE are set
+    # by the token count, which is unsound under cancelling pairs.
+    if verdict.startswith("CONFLICT") or "NEUTRAL-WORSE" in verdict:
+        gr = genuine_row_count(unit, fn)
+        if gr is not None:
+            print(format_genuine_note(*gr))
 
     want_scaffold = ("--scaffold" in sys.argv or "--scaffold-all" in sys.argv
                      or verdict.startswith("BASELINE"))
@@ -1227,7 +1493,12 @@ def main():
     printed_ops = False
     if (verdict.startswith(("REGRESSED", "CONFLICT"))
             and "--ops" not in sys.argv and ops_output):
-        print("\n".join(ops_output.strip().splitlines()[:16]))
+        # Truncate through fndiff.truncate_ops so a dropped IMMEDIATE row
+        # (which sits below the clusters) is announced, never silently cut —
+        # a truncated ops view read as a frame collapse once (item 5).
+        sys.path.insert(0, str(TOOLS))
+        from fndiff import truncate_ops
+        print(truncate_ops(ops_output, 16))
         printed_ops = True
 
     if "--ops" in sys.argv:

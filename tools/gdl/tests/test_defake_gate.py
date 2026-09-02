@@ -17,9 +17,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from defake_gate import (arbitrate_regressions, arbitration_event, compare,
-                         format_arbitrations, load_baseline, log_arbitration,
-                         naming_drift_is_benign, read_arbitrations,
-                         read_report_fuzzy, summarize_arbitrations)
+                         data_section_verdicts, format_arbitrations,
+                         load_baseline, log_arbitration,
+                         naming_drift_is_benign, parse_section_digests,
+                         read_arbitrations, read_report_fuzzy,
+                         summarize_arbitrations)
 
 
 def no_ops(_unit, _name):
@@ -321,6 +323,76 @@ class CompareRegressionTests(unittest.TestCase):
         base = {"f": {"status": "STRUCTURAL", "real": 9}}
         cur = {"f": {"status": "STRUCTURAL", "real": 4}}
         self.assertEqual(compare(base, cur)[0][1], "IMPROVED")
+
+
+class DataSectionTests(unittest.TestCase):
+    """Run 34 item 1: a moved non-text section is its own verdict class.
+
+    A frame-widening keep improved every .text arbiter (real, --ops, the
+    multiset, fuzzy) while destroying a 208-byte .extab match no per-function
+    verdict could see (claim.law.WS_frame-widening-silently-breaks-the-tus-
+    extab-match). The per-TU DATA baseline banks the object's non-text
+    sections so `compare` can surface exactly that.
+    """
+
+    DUMP = (
+        "build/x.o:     file format elf32-powerpc\n"
+        "Contents of section .text:\n"
+        " 0000 3c608000 60630001                    <`..`c..\n"
+        "Contents of section .extab:\n"
+        " 0000 00000001 00000000                    ........\n"
+        "Contents of section .rodata:\n"
+        " 0000 40490fdb                             @I..\n"
+    )
+
+    def test_text_sections_are_excluded(self):
+        digests = parse_section_digests(self.DUMP)
+        self.assertNotIn(".text", digests)
+        self.assertIn(".extab", digests)
+        self.assertIn(".rodata", digests)
+
+    def test_a_moved_extab_is_its_own_verdict_class(self):
+        base = {"__sections__": {"data": {".extab": "aaa", ".rodata": "eee"}}}
+        cur = {"__sections__": {"data": {".extab": "bbb", ".rodata": "eee"}}}
+        verdicts = compare(base, cur)
+        self.assertEqual(len(verdicts), 1)
+        name, verdict, detail = verdicts[0]
+        self.assertEqual(verdict, "DATA-CHANGED")
+        self.assertIn(".extab", detail)
+        self.assertNotIn(".rodata", detail)
+
+    def test_an_exception_table_move_is_called_out(self):
+        base = {"__sections__": {"data": {".extab": "aaa"}}}
+        cur = {"__sections__": {"data": {".extab": "bbb"}}}
+        self.assertIn("exception", compare(base, cur)[0][2].lower())
+
+    def test_a_plain_pool_move_is_not_called_an_exception_table(self):
+        rows = data_section_verdicts({"data": {".sdata2": "1"}},
+                                     {"data": {".sdata2": "2"}})
+        self.assertIn(".sdata2", rows[0][2])
+        self.assertNotIn("exception", rows[0][2].lower())
+
+    def test_flat_sections_produce_no_row(self):
+        same = {"__sections__": {"data": {".extab": "aaa"}}}
+        self.assertEqual(
+            [v for v in compare(same, dict(same)) if v[1] == "DATA-CHANGED"],
+            [])
+
+    def test_a_missing_side_never_manufactures_a_row(self):
+        cur = {"__sections__": {"data": {".extab": "bbb"}}}
+        self.assertEqual(data_section_verdicts(None, cur), [])
+        self.assertEqual(data_section_verdicts({"data": {".extab": "a"}},
+                                               None), [])
+
+    def test_the_reserved_key_never_reads_as_a_function(self):
+        """A baseline with the reserved key and one real function must not
+        emit a spurious NEW/vanished row for __sections__."""
+        base = {"__sections__": {"data": {".extab": "a"}},
+                "f": {"status": "STRUCTURAL", "real": 4}}
+        cur = {"__sections__": {"data": {".extab": "a"}},
+               "f": {"status": "STRUCTURAL", "real": 4}}
+        names = {v[0] for v in compare(base, cur)}
+        self.assertNotIn("__sections__", names)
 
 
 class ArbitrationLogTests(unittest.TestCase):

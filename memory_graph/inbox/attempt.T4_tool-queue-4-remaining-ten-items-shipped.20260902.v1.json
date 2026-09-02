@@ -1,0 +1,18 @@
+{
+  "attempted_axis": "Run-34 TOOL queue items 2-11: ship the remaining tool-lane changes after item 1, each reproduced by measurement before implementing, one droppable commit apiece.",
+  "attributes": {
+    "item7_verification": "REFUTES the premise that the run-33 MB gate narrowings shipped as records only: both are LIVE in memory_graph/core.py \u2014 HELD_FIXED_OUTCOMES={negative,parked,capped} keys Gate C on outcome (line ~208, ~3386) and describes_denial_of is the typed-denial escape (line ~3354), covered green by ProposalGateNarrowingTests. No implementation needed.",
+    "law_screen": "No codegen/matching laws applicable: this is tool work, not a source edit, and no function's bytes changed (full ninja progress identical). claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match and claim.law.HV_defake-gate-naming-drift-is-a-false-benign-on-a-wrong-callee are CITED as the motivating measurements for items 1/4 respectively and are now referenced in the tool docstrings; claim.law.SL_pool-constant-errors-are-score-invisible motivates item 8's corroboration ranking.",
+    "scope": "item2 probe.genuine_row_count+format_genuine_note (commit 7eb128431); item3 probe webfrank_pin_hashes+pin_drift+warn_pin_drift, .pins sidecar (dc6ba19dc); item4 fndiff --relocs reloc_set_delta (53530c24f); item5 fndiff.truncate_ops wired into probe+defake_gate (e4d3aa1c5); item6 core.law_corpus per-term OR-rank + query_term_hits (97074e6c2); item8 cs_constsweep rank_value_mismatches pair-corroboration (this commit); item9 wf_rederive_pin --apply + probe --rederive-pin (this commit); item10 gdlmem propose-record --template no sort_keys (9929fdedb); item11 AGENTS.md System.IO.File absolute-path trap (2f7571691).",
+    "verification": "Each item reproduced first: item6 'reloc blind real naming' returned 0 under AND, 315 laws OR-ranked after; item9 ran end-to-end on game/ui/screensaver::end_inventory_panel (4 steps green, hashes already current so webfrank.json untouched); item4 live surfaced ours-only gPlayers ADDR16 on draw_power_meter; item8 live 7/19 corroborated across player/enemy/effect/boss. Suites: tools/gdl 638 green, memory_graph 159 green. Full ninja -j2 prints build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:writeGauntletSave",
+  "held_fixed": "The DOL build output: every change is diagnostic/tooling or a guarded config-paste path that is a no-op unless a pin was actually re-derived; no game source or webfrank.json rule changed, so full ninja prints build/GUNE5D/main.dol: OK with progress identical to provision (98.43% fuzzy, 66.22% matched = STRICT 56.45 + EQUIVALENT 9.77).",
+  "id": "attempt.T4_tool-queue-4-remaining-ten-items-shipped.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T03:54:47Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
