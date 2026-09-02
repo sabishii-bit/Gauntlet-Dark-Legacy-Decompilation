@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/t7_extern_size_census.py",
+    "tools/gdl/fnasm.py"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "DISPROVED for the class-1 rule if merging a fragment set whose interior symbols have zero references fails to make the census row vanish while `ninja` still prints `main.dol: OK` and PROGRESS `Data:` is unchanged. DISPROVED for the class-3 rule on any given row by an fnasm --ours --raw --diff dump showing the TARGET emitting its own lis/addi relocation to the interior symbol rather than a displacement off the outer base -- in that case the source really is over-declared and the accesses should be rewritten. DISPROVED as a general partition if a row is found that fits none of the three. Re-run: python tools/gdl/composed_census/t7_extern_size_census.py",
+  "id": "claim.law.SY_the-extern-overlap-bucket-has-three-causes-and-the-targets-own-base-plus-displacement-decides.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T19:44:33Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "THE over_declared_overlaps BUCKET OF THE T7 EXTERN-SIZE CENSUS MIXES THREE DIFFERENT DEFECTS PLUS A FALSE-POSITIVE CLASS, AND ONLY THE TARGET'S OWN ADDRESSING FORM SEPARATES THEM. Worked end to end run 38 over the 8 live rows (the record's stated 9 was already stale -- select.c:101 had been fixed by the UC/UB pair, so re-run the census rather than trusting the count). CLASS 1, THE MAP FRAGMENTED ONE OBJECT: the interior symbols have ZERO references in any C source and appear in no .s file but the split output, and the fragments TILE the declared extent exactly. gPlayers is the type case -- dtk recorded size:0x9F1 (2545, not even divisible by 4) and placed lbl_802764D1 and lbl_80278B8B at unaligned addresses inside it, the three tiling to 0x80275AE0 + 0xCD70 = 0x80282850 exactly, while the target's own calc_wizard_pos walks the array with `addi r4,r4,13148` = 0x335C. lbl_80346C48 is the same class in .sdata2, where the split cut a string literal in half. FIX THE MAP. CLASS 2, A GENUINE SOURCE OVER-DECLARATION: the split data itself gives the true length and the consumer only decays the array to a pointer. lbl_80346AA0 is `.string \"L1\"` (3 bytes) declared [8]; lbl_803473FC is `.string \"Inv\"` (4 bytes) declared [6]. FIX THE BOUND. Both stayed at or below MWCC's 8-byte small-data threshold on each side, so neither was score-visible -- unlike UB's select.c row, where 12-vs-8 crossed the threshold and changed the addressing form. CLASS 3, BOTH SIDES CORRECT: the source spans two INDEPENDENTLY REFERENCED symbols through ONE base because the target does. game/world/btricol.c declares lbl_8023F7E8[8] to reach p1 at +16, and lbl_8023F7F8 is separately referenced 15 times in worldcol.c/gauntworld.c with its own lis/addi. Converting the six accesses to lbl_8023F7F8[0..2] was measured and REGRESSED: the aligned raw view shows the target holding ONE base, `lis/addi @lbl_8023F7E8` into r29 then `lfs f0,16(r29)`, where the converted form emits `lis/addi @lbl_8023F7F8` into r6 then `lfs f0,0(r6)`, additionally shifting an FPR (f23 -> f24) and breaking the shared web; the WebFrank pin on BTriLineCol refused the changed body hash, which is the guard working. DO NOT EDIT EITHER SIDE of a class-3 row. THE ONE-COMMAND DISCRIMINATOR, which no score supplies: `python tools/gdl/fnasm.py <unit> <fn> --ours --raw --diff` and read whether the TARGET reaches the aliased region as base+displacement or as its own relocation; combine it with a reference count on the interior symbol (zero C references => class 1; referenced => class 2 or 3)."
+}

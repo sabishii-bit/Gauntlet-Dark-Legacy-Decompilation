@@ -1,0 +1,30 @@
+{
+  "attempted_axis": "Work the T7 extern-size census over_declared_overlaps bucket row by row, deciding each against the split data, the interior symbol's reference count, and the consumer, rather than against the mismatch alone.",
+  "attributes": {
+    "law_screen": "claim.law.UC_a-wrong-extern-size-can-manufacture-false-count-and-frame-parity-in-a-sibling.20260902.v1 APPLIED as the mandated sibling screen -- every row was gated with defake_gate on its own TU before commit, and none produced a sibling parity change. claim.law.SY_the-extern-overlap-bucket-has-three-causes-and-the-targets-own-base-plus-displacement-decides.20260902.v1 was DERIVED from this pass. The census's own instruction (never fix a row on the mismatch alone) was treated as binding.",
+    "laws_applied": "[\"claim.law.UC_a-wrong-extern-size-can-manufacture-false-count-and-frame-parity-in-a-sibling.20260902.v1\"]",
+    "probed_form": "CLOSED, map side: config/GUNE5D/symbols.txt `gPlayers size:0x9F1` plus interior `lbl_802764D1 size:0x26BA` and `lbl_80278B8B size:0x9CC5` merged to a single `gPlayers = .bss:0x80275AE0; // type:object size:0xCD70`; `lbl_80346C48 size:0x1 data:byte` plus `lbl_80346C49 size:0x2 data:string` merged to `lbl_80346C48 size:0x4 data:string`. CLOSED, source side: gamemain.c:3120 `extern char lbl_80346AA0[8]` -> `[3]`; screensaver.c:846 `extern char lbl_803473FC[6]` -> `[4]`; gamemain.c:4515 `extern char lbl_80346C48[8]` -> `[4]`.",
+    "residual": "FOUR ROWS REMAIN, and none is a simple bound trim. src/game/sys/memcard.c:209 lbl_80344A10[2] is VETOED -- work_claim.memcard-source.20260902.v1 (claude-fleet-worker-MS) holds sys/memcard this run. src/game/world/btricol.c:48 is REFUTED as a source defect, see attempt.SY_btricol-query-line-span-is-faithful-not-an-over-declaration.20260902.v1. src/game/enemy/critter.c:360 and src/game/mb/mb_model.c:85 are UNMEASURED against the target and are predicted to share btricol's faithful-one-base shape; that prediction is explicitly not a finding.",
+    "scope": "config/GUNE5D/symbols.txt, src/game/game/gamemain.c, src/game/ui/screensaver.c. Commits 010cde40a, 929f9dc48, c934b4dbf.",
+    "verification": "The record's stated bucket size of 9 was STALE on arrival: a fresh `python tools/gdl/composed_census/t7_extern_size_census.py` returned 8, because select.c:101 had already been fixed by the UC/UB pair. Four of the eight were closed and the bucket re-measured at 4. defake_gate GATE OK on game/game/gamemain, game/ui/screensaver, game/sys/main, game/ui/attract. Full ninja printed `main.dol: OK` after every commit, with Code 712004/1071824 (2717/2990 functions), Data 177572/2361748 (7.52%), STRICT 56.46% (2575) + EQUIVALENT 9.97% (142) unchanged throughout. gPlayers' merged shape is corroborated by the target's own stride: calc_wizard_pos walks it with `addi r4,r4,13148` = 0x335C, and the three fragments tile the declared extent exactly to 0x80282850."
+  },
+  "function": "function:calc_wizard_pos",
+  "hypothesis": {
+    "cheapest_refuting_observation": "`python tools/gdl/fnasm.py game/enemy/critter <fn> --ours --raw --diff` at the strided-walk site (critter.c:6992/7003) and the same for mb_model.c:212/320: a target relocation naming gCritterPool or lbl_802A5D0C directly, rather than a displacement off the outer base, refutes the prediction and makes the row a genuine over-declaration.",
+    "screened_against_target": "no -- consumer C use sites and interior reference counts were read, the target addressing form was not dumped for either row.",
+    "statement": "The two large .bss rows left open, critter.c:360 lbl_802411B0[0x540] and mb_model.c:85 lbl_802A5CF0[0x4C4], are decidable in ZERO builds. Each declares a bound that spans an interior symbol which is genuinely referenced elsewhere (gCritterPool with 16 C references at +0x54; lbl_802A5D0C and lbl_802A5D1C with 3 each), which is btricol's exact shape, and btricol's span was measured FAITHFUL. If the target reaches the interior region as a displacement off the outer base, both rows are false positives and the census tool should learn to suppress the class rather than have a third lane re-derive it."
+  },
+  "id": "attempt.SY_extern-overlap-bucket-worked-eight-rows-four-closed-one-refuted-two-vetoed.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T19:45:30Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "reloc-naming",
+    "measured_at": "2026-09-02",
+    "signature": "census over_declared_overlaps 8 rows -> 4 rows"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

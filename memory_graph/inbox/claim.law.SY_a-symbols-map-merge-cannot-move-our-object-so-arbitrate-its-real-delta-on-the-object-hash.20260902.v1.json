@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/defake_gate.py",
+    "tools/gdl/composed_census/t7_extern_size_census.py"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "DISPROVED if any edit confined to config/GUNE5D/symbols.txt produces a different sha1 for a compiled object under build/GUNE5D/src/**/*.o with the C source, headers and cflags unchanged -- that would mean some tool feeds the symbol map into compilation and the whole inference fails. Reproduce: hash the object, revert symbols.txt, `python configure.py`, `ninja -j2`, re-hash. Also disproved for a given row if the full ninja stops printing `main.dol: OK` or PROGRESS `Data:` moves, either of which means the merge changed linked output rather than only its naming.",
+  "id": "claim.law.SY_a-symbols-map-merge-cannot-move-our-object-so-arbitrate-its-real-delta-on-the-object-hash.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T19:44:16Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A CHANGE CONFINED TO config/GUNE5D/symbols.txt CANNOT CHANGE ANY COMPILED OBJECT, SO A defake_gate `real` DELTA FOLLOWING ONE IS A TARGET-SIDE MEASUREMENT ARTIFACT AND MUST NOT BE READ AS A REGRESSION. MWCC never reads symbols.txt; a compiled object is a function of (C source, headers, cflags) alone. What a splitter merge changes is the TARGET side of the comparison -- dtk renames the relocation the target's own disassembly carries -- and fndiff's row alignment over an already-misaligned function can redistribute by a couple of rows when those relocation strings change. MEASURED, run 38: merging lbl_803450D8/DC and lbl_803450E0/E4 into two size:0x8 objects made defake_gate report game/pb/pb_texture::fn_800C6BB4 real 153 -> 155 and FAIL its gate, while our compiled build/GUNE5D/src/game/pb/pb_texture.o was BYTE-IDENTICAL across the change (sha1 DAB5861E23089BED229002C18EF51605A4301BD6 before and after, obtained by reverting symbols.txt, rebuilding, and re-hashing), genuine structural rows were FLAT 13 -> 13, and objdiff fuzzy was FLAT 85.0677 -> 85.0677. fn_800C6BB4 is deeply NonMatching (it carries a frame-size difference, stwu -64 vs -72), which is exactly the condition under which row alignment is unstable. THE DECIDING ARBITER for any map-only edit is therefore, in order: (1) the compiled object's hash before and after -- if it is unchanged, no codegen regression is possible and `real` is not evidence about the function; (2) the full ninja gate printing `main.dol: OK`; (3) PROGRESS `Data:` and the exact function count. Quote all three. This does NOT license ignoring gate failures generally -- it licenses ignoring them ONLY when the object hash proves our side did not move, and the hash must be measured, not assumed."
+}

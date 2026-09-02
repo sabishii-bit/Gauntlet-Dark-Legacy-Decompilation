@@ -3117,7 +3117,7 @@ s32 fn_800511D0(s32 arg0, f32 arg1)
 /* 0x80051E1C - format a world/level display name (uppercased) */
 extern char lbl_80346A90[8];    /* "%s" fmt */
 extern char lbl_80346A98[8];    /* "%s %c" fmt */
-extern char lbl_80346AA0[8];    /* suffix */
+extern char lbl_80346AA0[3];    /* suffix */
 extern char lbl_80343BF8[5];    /* level letter table */
 
 char* fn_80051E1C(s32 world, s32 lvl, s32 flag)
@@ -4512,7 +4512,7 @@ extern f32  lbl_80346C4C;
 extern f32  lbl_80346C50;
 extern f32  lbl_80346C80;
 extern f32  lbl_80346C84;
-extern char lbl_80346C48[8];
+extern char lbl_80346C48[4];
 extern s32  lbl_803447B4;
 extern void* lbl_803447B0;
 extern u8*  gBossObj;

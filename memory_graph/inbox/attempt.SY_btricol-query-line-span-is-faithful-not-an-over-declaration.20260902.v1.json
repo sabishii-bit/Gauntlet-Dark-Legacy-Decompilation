@@ -1,0 +1,36 @@
+{
+  "attempted_axis": "Split the over-declared query-line array: declare lbl_8023F7E8[4] plus lbl_8023F7F8[3] and rewrite the six [4..6] accesses to lbl_8023F7F8[0..2].",
+  "attributes": {
+    "held_fixed": "The p0 accesses (lbl_8023F7E8[0..2]) and every other line of the TU were held constant; only the p1 spelling and the two extern declarations varied.",
+    "law_screen": "claim.law.RS_split-symbol-map-halves-a-64-bit-object-so-a-plus-4-addend-is-faithful.20260902.v1 SCREENED and found NOT APPLICABLE in its remediation direction: that law's remedy is to merge the pair in symbols.txt and drop the phantom half, but lbl_8023F7F8 is NOT a phantom -- it carries 15 independent C references in worldcol.c and gauntworld.c and its own lis/addi relocations in both TUs' target asm, so neither side of this pair may be merged away. claim.law.UC_a-wrong-extern-size-can-manufacture-false-count-and-frame-parity-in-a-sibling.20260902.v1 SCREENED as the reason to gate rather than assume; here it did not apply -- the over-declaration is not a compensating error, it is faithful. claim.law.lwzu-idiom-web-retention SCREENED: the relevant hazard class (a protected address web that must be converted around, not through) is exactly what fired.",
+    "probed_form": "src/game/world/btricol.c: `extern f32 lbl_8023F7E8[8]; /* [0..2] = p0, [4..6] = p1 (0x8023F7F8) */` replaced by `extern f32 lbl_8023F7E8[4]; /* p0 */` and `extern f32 lbl_8023F7F8[3]; /* p1 */`, and both occurrences of the block `v1.x = lbl_8023F7E8[4] - cx; v1.y = lbl_8023F7E8[5] - cy; v1.z = lbl_8023F7E8[6] - cz;` (in TriLineCol and BTriLineCol) rewritten to `lbl_8023F7F8[0..2]`. Reverted with git checkout; worktree clean, no commit.",
+    "residual": "None to close: the source is already correct. The census row src/game/world/btricol.c:48 lbl_8023F7E8[8] declared 32B vs linker 16B is a FALSE POSITIVE on the source side and cannot be closed on the map side either.",
+    "scope": "src/game/world/btricol.c, reverted. No commit. Object(Matching, game/world/btricol.c) with 7 of 7 functions at real 0 was preserved.",
+    "verification": "defake_gate baseline game/world/btricol at commit c934b4dbf recorded 7 functions, 7 at real 0. After the edit the WEBFRANK stage aborted with `ValueError: BTriLineCol: input hash 500c7fd0... != expected 3547811d...`, proving the edit moved compiled bytes. Clean-state probe --raw banked BASELINE real 10 (insns T450/O450, fresh fuzzy 100.0000%). The aligned raw view `fnasm game/world/btricol BTriLineCol --ours --raw --diff` is the deciding evidence and is quoted in the residual signature. Reverted; full ninja back to `main.dol: OK` with Code 2717 fns, Data 7.52%, STRICT 56.46% + EQUIVALENT 9.97%."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fnasm.py game/world/btricol BTriLineCol --ours --raw --diff -- if the TARGET column ever shows its own lis/addi relocation to lbl_8023F7F8 instead of `lfs f0,16(r29)` off the lbl_8023F7E8 base, this denial has expired and the split spelling is the faithful one.",
+    "falsifier": "A dump of the target showing p1 reached through its own lbl_8023F7F8 relocation rather than as a +16 displacement off lbl_8023F7E8.",
+    "premise_measurement": "The target holds ONE base for both points: `lis r3,0 @lbl_8023F7E8(ADDR16_HA)` / `addi r29,r3,0 @lbl_8023F7E8(ADDR16_LO)` then `lfs f0,16(r29)` for p1. The converted form emits `@lbl_8023F7F8` into r6 and `lfs f0,0(r6)`, and additionally moves an FPR (f23 -> f24). Measured 2026-09-02 at commit c934b4dbf.",
+    "scope": "One axis on one row: rewriting btricol.c's p1 accesses to reference lbl_8023F7F8 directly. It does NOT deny work on the other over_declared_overlaps rows, and does not deny map-side work elsewhere."
+  },
+  "function": "function:BTriLineCol",
+  "hypothesis": {
+    "cheapest_refuting_observation": "For each, run `python tools/gdl/fnasm.py <unit> <fn> --ours --raw --diff` and read whether the target reaches the interior symbol as a displacement off the outer base (faithful, leave alone) or through its own relocation (genuine over-declaration, rewrite the accesses). Zero builds if the objects are current.",
+    "screened_against_target": "no -- only the C use sites and the interior symbols' reference counts were read this run; the target addressing form was not dumped for either.",
+    "statement": "The remaining two class-3-looking rows, critter.c:360 lbl_802411B0[0x540] (a strided walk `(CritterSubnode *)(lbl_802411B0 + i * 0x54)` spanning gCritterPool, which carries 16 C references) and mb_model.c:85 lbl_802A5CF0[0x4C4] (whole-region casts spanning two symbols with 3 C references each), share btricol's shape and are PREDICTED to be faithful one-base spans rather than over-declarations -- but they were NOT measured this run and the prediction must not be recorded as a finding."
+  },
+  "id": "attempt.SY_btricol-query-line-span-is-faithful-not-an-over-declaration.20260902.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-02T19:45:12Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "addressing-mode",
+    "measured_at": "2026-09-02",
+    "signature": "ours-only base recolor r29 -> r6 plus fmr f23 -> f24; target `lis/addi @lbl_8023F7E8` + `lfs f0,16(r29)` vs ours `lis/addi @lbl_8023F7F8` + `lfs f0,0(r6)`"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

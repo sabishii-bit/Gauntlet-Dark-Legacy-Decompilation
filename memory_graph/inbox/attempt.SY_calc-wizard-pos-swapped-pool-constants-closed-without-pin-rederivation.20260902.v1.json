@@ -1,0 +1,32 @@
+{
+  "attempted_axis": "Exchange the two f64 pool constants in place at all three use sites, rather than hoisting them into locals to force a load order.",
+  "attributes": {
+    "law_screen": "claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 APPLIED and CONFIRMED: the defect was invisible to every aggregate (fuzzy 100.0000% before and after, and the postprocessed object read real 2 only because fndiff scores relocation rows). AGENTS.md residual-work discipline 1 (diagnosis transfers, prescriptions rot) APPLIED and was the decisive screen -- RS's DIAGNOSIS was correct and its CURE was unnecessary. claim.law.CS_wrong-constant-detection-needs-two-detectors-and-three-artifact-filters.20260901.v1 screened and confirmed BLIND here, as RS recorded: both values are read by both sides and only their positions are exchanged, which set semantics cannot express.",
+    "laws_applied": "[\"claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1\"]",
+    "probed_form": "src/game/ui/auxscreen.c, calc_wizard_pos: `if (lbl_80345A48 == count)` -> `if (lbl_80345A28 == count)`; `out[1] = (f32)(lbl_80345A28 * (f64)*py);` -> `(f32)(lbl_80345A48 * (f64)*py)`; `count = (f32)(count + lbl_80345A48);` -> `count = (f32)(count + lbl_80345A28);`. Three sites, one exchange, no other edit.",
+    "residual": "None. This was the last WRONG_DATUM row in the image-wide composed census (population 124, WRONG_DATUM 1).",
+    "scope": "src/game/ui/auxscreen.c only. Commit 214346ab9. config/GUNE5D/webfrank.json UNTOUCHED.",
+    "verification": "probe --raw real 20 -> 18 with insns T55/O55 unchanged and fresh objdiff fuzzy 100.0000% held; defake_gate check game/ui/auxscreen reported IMPROVED calc_wizard_pos real 2 -> 0, GATE OK; fnasm --ours --raw confirms +0x38 now loads lbl_80345A28 and +0x3c lbl_80345A48, matching the target; full ninja printed `main.dol: OK` with Code 2717 fns, Data 7.52%, STRICT 56.46% + EQUIVALENT 9.97% all unchanged."
+  },
+  "function": "function:calc_wizard_pos",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Run `python tools/gdl/composed_census/wf_rederive_pin.py game/ui/auxscreen calc_wizard_pos` after the edit: if any of the four body hashes prints as moved, the edit changed codegen and the rule would have to be re-derived from scratch rather than left alone.",
+    "screened_against_target": "yes -- fnasm on both sides before editing showed identical opcodes and registers at +0x38/+0x3c with only the EMB_SDA21 relocation symbols exchanged, and the pool values were read from build/GUNE5D/asm/auto_11_803459F0_sdata2.s as `.double 1` and `.double 2`.",
+    "statement": "The defect was a genuine SEMANTIC bug, not a load-order nit, and the pin was never the blocker. Both objects load the same two constants into the same registers at the same offsets; only the relocation targets are exchanged, so the built game compares the active-player count against 2.0 and scales by 1.0 where retail compares against 1.0 and scales by 2.0, and accumulates the count by 2.0 instead of 1.0. Target evidence: fcmpu reads f2 = lbl_80345A28 (.double 1), fmul reads f1 = lbl_80345A48 (.double 2), and the loop's accumulator step is `fadd f4,f4,f2` before the final `fdivs`. Because only relocation TARGETS move and no instruction byte does, the WebFrank pin needs no re-derivation at all: wf_rederive_pin returned all four body hashes byte-identical, and the pin's permutation window at +0x58..+0x6c carries no relocations (both region relocation hashes are the empty-payload constant), so it is untouched by an edit at +0x38/+0x3c."
+  },
+  "id": "attempt.SY_calc-wizard-pos-swapped-pool-constants-closed-without-pin-rederivation.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T19:44:52Z",
+  "refutes": "attempt.RS_calc-wizard-pos-swapped-pool-doubles-blocked-by-pin.20260902.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-02",
+    "signature": "no residual: real 2 -> 0, fndiff --clean MATCH"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.RS_calc-wizard-pos-swapped-pool-doubles-blocked-by-pin.20260902.v1",
+  "valid_from": "2026-09-02"
+}
