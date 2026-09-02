@@ -4627,10 +4627,10 @@ void fn_800606FC(void)
             if (!((s8)c8 != 0 && (a & 2))) {
                 s32 na;
                 s32 t;
-                if ((s8)c8 == 0) {
-                    na = 1;
-                } else {
+                if ((s8)c8 != 0) {
                     na = 0;
+                } else {
+                    na = 1;
                 }
                 it->action = na;
                 if ((s8)it->action != 0) {
@@ -4775,12 +4775,12 @@ void fn_800606FC(void)
                 }
                 {
                     u8* e = (u8*)gEnemies + slot * 0x394;
-                    s16 wob;
+                    s32 wob;
                     f32 fa = sItemFloorRadius + *(f32*)&it->data[0xC];
                     f32 rate = sItemFloorRadius /
                                (f32)(sCameraVisibilityRadius * (f32)max);
-                    wob = (s16)((f32)(lbl_80347050 * (f32)(u8)gen[0xB]) * fa);
-                    *(s16*)&it->data[8] = wob;
+                    wob = (s32)((f32)(lbl_80347050 * (f32)(u8)gen[0xB]) * fa);
+                    *(s16*)&it->data[8] = (s16)wob;
                     *(f32*)&it->data[0xC] =
                         *(f32*)&it->data[0xC] + rate;
                     if (*(f32*)&it->data[0xC] > sItemFloorRadius) {
