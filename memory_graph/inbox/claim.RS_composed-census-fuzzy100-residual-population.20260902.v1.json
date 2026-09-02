@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/rs_composed_census.py"
+  ],
+  "attributes": {
+    "provenance": "worktree GDL-Claude-RelocSweep, branch claude/reloc-identity-sweep-20260903, work_claim.reloc-identity-sweep.20260902.v1, owner claude-fleet-worker-RS. Census output build/GUNE5D/rs_census.json + rs_census.out.txt (gitignored, regenerate with the one command). Baseline at dispatch: 98.45% fuzzy, 66.33% matched, STRICT 56.46% + EQUIVALENT 9.86%; unchanged at close, as expected for a score-invisible lane.",
+    "reproduction": "python tools/gdl/composed_census/rs_composed_census.py --out build/GUNE5D/rs_census.json  (add --unit-filter game/enemy/critter to scope it to one TU)",
+    "tags": [
+      "metrics",
+      "workflow",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.RS_composed-census-fuzzy100-residual-population.20260902.v1",
+  "kind": "claim",
+  "predicate": "measurement",
+  "recorded_at": "2026-09-02T18:26:19Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "THE SCORE-INVISIBLE RELOC-IDENTITY POPULATION IS 124 FUNCTIONS OF THE 2713 THAT objdiff SCORES AT FUZZY 100 (4.6%), AND ONLY 5 OF THEM WERE EVER DEFECTS. Measured image-wide by tools/gdl/composed_census/rs_composed_census.py at commit 013032d83 over 256 units, one pass, three independent residual views per function (fndiff --count `real`; fndiff --clean over reloc-NORMALIZED text; the address-resolved relocation SET delta) plus a fourth POSITIONAL view this lane added. CLASS TABLE, and the class is what matters because the raw count is dominated by benign rows: NAMING_ONLY 57 - fndiff's own documented MATCH-MODULO-RELOC-NAMING plus pool-name noise, where our object emits an anonymous @N pool entry against a splitter-named symbol; link-equal, FINISHED, not work. RELOC_SET_DELTA 33 - the same anonymous-vs-named shape but where the two sides' symbol TEXT does not even normalize to a common key (MWCC's local-static mangling `atanhi$1`, `cmdTypeAndStatus$371`, `tbl3$222` against dtk's `lbl_80117FA0`); also benign, and the mangled suffix is the whole difference. SPELLING_DRIFT 33 - REFUTED as a defect class this run, see claim.law.RS_split-symbol-map-halves-a-64-bit-object-so-a-plus-4-addend-is-faithful.20260902.v1. WRONG_DATUM 4 - the only genuine defects, all four found by the POSITIONAL view and invisible to every other one. 13 of the 124 rows are WebFrank-PINNED, i.e. their source is frozen and the bytes scored are POSTPROCESSED; the census now labels them, after two of them were discovered only by a failed ninja. HEADLINE FOR THE NEXT LANE: the run-36 premise that this population is a large body of open reloc-identity work is FALSE - 90 of the 124 rows are benign by construction and a further 33 were refuted by measurement. The yield of the whole sweep is 4 real bugs, of which 3 are fixed (commits 03eefd674, 33ab771b7) and 1 is blocked behind a pin. Re-run cost is one command and roughly 6 minutes."
+}

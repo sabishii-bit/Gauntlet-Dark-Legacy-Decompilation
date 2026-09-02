@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/rs_composed_census.py"
+  ],
+  "attributes": {
+    "laws_applied": "[\"claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1\", \"claim.law.CS_wrong-constant-detection-needs-two-detectors-and-three-artifact-filters.20260901.v1\"]",
+    "provenance": "worktree GDL-Claude-RelocSweep, work_claim.reloc-identity-sweep.20260902.v1, commits 03eefd674 and 33ab771b7. Extends rather than supersedes both cited laws.",
+    "scope": "Requires identical instruction words (real 0) for the positional pairing to be sound; on functions whose opcode streams differ, fall back to the set/value detectors. Applies to R_PPC_EMB_SDA21 and ADDR16_HA/LO rows resolvable through config/GUNE5D/symbols.txt.",
+    "tags": [
+      "metrics",
+      "matching",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "DISPROVED if cs_constsweep.py, run at commit 03eefd674^ over game/enemy/critter, reports either CritterFirePlayerCollide or CritterNodePlayerCollide as a candidate - that would show the value-based sweep is not blind here and the detectors are redundant rather than complementary. Also DISPROVED if any WRONG_DATUM row this detector reports is shown, by an fnasm dump, to reference the same address on both sides (i.e. the positional pairing fabricated the row).",
+  "id": "claim.law.RS_relocation-identity-catches-wrong-pool-constants-that-value-set-sweeps-cannot.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T18:26:42Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A RELOCATION-IDENTITY COMPARISON FINDS WRONG POOL CONSTANTS THAT A VALUE-BASED SWEEP IS STRUCTURALLY UNABLE TO SEE, AND THE TWO DETECTORS ARE COMPLEMENTARY RATHER THAN REDUNDANT. claim.law.CS_wrong-constant-detection-needs-two-detectors-and-three-artifact-filters.20260902 names its own blind spot in filter (a): under SET semantics, `we read 0.0 and the target never does` is FALSE whenever the wrong value also occurs legitimately elsewhere in the same function. game/enemy/critter is exactly that case - 0.0 (lbl_80346470) is the TU's literal-zero carrier at roughly 45 sites - and cs_constsweep.py accordingly reports it clean while TWO real bugs sit in it. THE COMPLEMENTARY DETECTOR. When a function's instruction WORDS are identical (real 0, opcode streams equal, which is precisely the fuzzy-100 population), the two objects' relocation lists are in instruction order and PAIR POSITIONALLY without any matching heuristic at all. Compare position i's target symbol against ours by RESOLVED ADDRESS: equal address with different text is a naming question; DIFFERENT ADDRESS at the same instruction is a wrong datum, full stop. No values, no pool contents, no slide filters, no run demotion - the pairing is exact by construction, so the three artifact filters the value-based sweep needs do not arise. MEASURED FINDINGS, both invisible to every score the project arbitrates on and both fixed at commit 03eefd674: game/enemy/critter::CritterFirePlayerCollide loaded lbl_80346470 (0.0) where the target loads lbl_803464E8 (0.5), passing it as the first argument to fn_8005FB48; CritterNodePlayerCollide loaded lbl_80346470 (0.0) where the target loads lbl_803464A8 (1.0), assigned into deltaFromCritter[1] before NormalVector. Values read from build/GUNE5D/asm/auto_11_80345D70_sdata2.s per the SL law's audit procedure. A third row, game/game/gamemain::init_thermometer, was a reversed chained assignment (`a = b = v` storing in the opposite order) - the same detector, a different cause - fixed at 33ab771b7. WHY NO SCORE SEES ANY OF THEM: fndiff `real` DROPS every reloc line, `--clean` NORMALIZES pool names, and `--relocs` deliberately collapses .sdata2/.rodata pool symbols to `<local>` so that NAMING a pool constant cannot change a score - a correct rule that is, as a side effect, blind to a pool VALUE swap. All three functions read `fndiff --clean MATCH` and objdiff fuzzy 100.0 before and after. OPERATIONAL RULE: run the positional relocation-identity view over the fuzzy-100 population as a matter of course; it is the only view in the stack that can decide a wrong datum, it costs one pass, and its false-positive rate on this corpus was zero."
+}

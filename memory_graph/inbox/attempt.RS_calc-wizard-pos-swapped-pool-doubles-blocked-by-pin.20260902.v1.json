@@ -1,0 +1,24 @@
+{
+  "attempted_axis": "Hoist the two f64 pool constants into locals in the target's load order so lbl_80345A28 (1.0) is loaded before lbl_80345A48 (2.0).",
+  "attributes": {
+    "law_screen": "claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 APPLIED - values read from build/GUNE5D/asm/auto_11_803459F0_sdata2.s: lbl_80345A28 is `.double 1`, lbl_80345A48 is `.double 2`; both are loaded by lfd, so the width check passes and only the ORDER is wrong. claim.law.CS_wrong-constant-detection-needs-two-detectors-and-three-artifact-filters.20260901.v1 SCREENED and BLIND here, because both values are read by both sides - only their POSITIONS are exchanged, which is exactly what set semantics cannot express. Pin screen was the failure: config/GUNE5D/webfrank.json was checked for game/ui/auxscreen but the listing was read truncated and calc_wizard_pos's own pin was missed until ninja aborted.",
+    "laws_applied": "[\"claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1\"]",
+    "probed_form": "Declared `f64 one; f64 two;` after `f32 count = lbl_80345A40;` in calc_wizard_pos, assigned `one = lbl_80345A28; two = lbl_80345A48;` before the loop, and rewrote the loop body to `if (two == count) { out[1] = (f32)(one * (f64)*py); } ... count = (f32)(count + two);`. REVERTED UNBUILT - the build aborted before scoring with `ValueError: calc_wizard_pos: input hash ... != expected ...` from tools/gdl/webfrank.py, so this form has NO measurement attached and is not a negative result.",
+    "residual": "This is the LAST remaining WRONG_DATUM row in the image-wide census (population 124, WRONG_DATUM 1) and it is a genuine defect: at +0x38/+0x3c the target loads lfd lbl_80345A28 (1.0) then lfd lbl_80345A48 (2.0), and our object loads them in the opposite order. It is score-invisible - real 2, `fndiff --clean` MATCH, objdiff fuzzy 100.0 - and it is blocked only by ownership plus a pin, not by any codegen difficulty.",
+    "scope": "src/game/ui/auxscreen.c; edit reverted with git checkout, worktree clean. No commit.",
+    "verification": "None obtainable. defake_gate baseline was taken at 33ab771b7 (before the edit) and the post-edit check could not run: the WebFrank pin assertion aborts the build before the postprocessed object is written."
+  },
+  "function": "function:calc_wizard_pos",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Apply the form and run `python tools/gdl/fnasm.py game/ui/auxscreen calc_wizard_pos --ours` - if the two lfd instructions are still emitted in the 2.0-then-1.0 order, first-textual-use is not what orders them and the axis is dead without spending the pin re-derivation.",
+    "screened_against_target": "yes - `python tools/gdl/fnasm.py game/ui/auxscreen calc_wizard_pos` shows exactly three pool loads: lfs lbl_80345A40 at +0x4, lfd lbl_80345A28 at +0x38, lfd lbl_80345A48 at +0x3c. The census pairs our +0x38/+0x3c against those two positionally and reports both as exchanged.",
+    "statement": "Hoisting the two f64 constants into locals declared and assigned in the target's order (the literal probed_form above) closes the row, because MWCC emits pool loads in first-textual-use order and our source's first use is the `lbl_80345A48 == count` comparison, which is the 2.0 load. The blocker is procedural, not technical: calc_wizard_pos is WebFrank-pinned, so the edit invalidates its body hash and the build aborts. Execute as: apply the form, re-derive the pin with tools/gdl/composed_census/wf_rederive_pin.py (FULL path; body hashes must return byte-identical, that IS the audit), then gate with rs_composed_census.py --unit-filter game/ui/auxscreen and a full ninja."
+  },
+  "id": "attempt.RS_calc-wizard-pos-swapped-pool-doubles-blocked-by-pin.20260902.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-09-02T18:28:14Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
