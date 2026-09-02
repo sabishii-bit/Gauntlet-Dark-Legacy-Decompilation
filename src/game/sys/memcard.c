@@ -1439,7 +1439,7 @@ int writeGauntletSave(void)
     s32 zero;
     u8 retryFlag;
     u8 retryFlag2;
-    u32 count;
+    s32 count;
     u32 big;
     u32 okay;
 
@@ -1467,14 +1467,13 @@ retry:
     }
 
     cardMount(0, lbl_803449FC, cardRemovedCallback);
-    if (cardWaitResult() != 0) {
-        goto mount_fail;
+    switch (cardWaitResult()) {
+    case 0:
+        CARDGetSerialNo(0, serial);
+        break;
+    default:
+        return 0;
     }
-    CARDGetSerialNo(0, serial);
-    goto mount_cont;
-mount_fail:
-    return 0;
-mount_cont:
     zero = 0;
     if (((((u32) lbl_80344A20) ^ zero) | (((u32) lbl_80344A24) ^ zero)) != 0 &&
         ((serial[0] ^ (u32) lbl_80344A20) | (serial[1] ^ (u32) lbl_80344A24)) !=
@@ -1501,14 +1500,15 @@ mount_cont:
     img = buildSaveImage(dpool + 1904, (void*) lbl_803449EC,
                          (int) lbl_803449E4, (int) lbl_803449E8, 2, 0,
                          (const char*) (rpool + 716));
-    count = big - 23992;
     sum = 0;
     *(u32*) (lbl_80343C74 + offsetof(SaveRecord, okay)) = okay; /* "OKAY" */
     *(u32*) lbl_80343C74 = sum;
     p = lbl_80343C74;
     q = p;
-    for (; count != 0; count--) {
-        sum += *q++;
+    if ((count = big - 23992) != 0) {
+        do {
+            sum += *q++;
+        } while (--count);
     }
     *(u32*) p = sum;
     *(SaveBlob*) img = *(SaveBlob*) lbl_80343C74;
