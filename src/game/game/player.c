@@ -4985,8 +4985,10 @@ typedef struct TierColor {
 
 #define PLAYER_SET_FAMILIAR(source_, parent_)                                  \
     do {                                                                       \
-        void* familiar_parent = (parent_);                                     \
-        void* familiar_source = (source_);                                     \
+        void* familiar_source;                                                 \
+        void* familiar_parent;                                                 \
+        familiar_parent = (parent_);                                           \
+        familiar_source = (source_);                                           \
         if (p->atree != NULL &&                                                \
             (familiar_source == NULL ||                                        \
              p->atree_src_id != ((u32*)familiar_source)[1])) {                 \
