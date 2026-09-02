@@ -15,11 +15,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from probe import (REPLAN_AT, annotate_neutral, classify, count_distance,
-                   data_line, format_genuine_note, function_span,
-                   fuzzy_anchor_note, moved_sections, parse_section_digests,
-                   pin_drift, replan_hint, scaffold_rows, scoped_revert,
-                   split_lines, strip_noncode,
+from probe import (REPLAN_AT, annotate_neutral, arbitrate_table, classify,
+                   count_distance, data_line, format_genuine_note,
+                   function_span, fuzzy_anchor_note, moved_sections,
+                   parse_section_digests, pin_drift, replan_hint,
+                   scaffold_rows, scoped_revert, split_lines, strip_noncode,
                    update_neutral_identical_streak)
 
 
@@ -656,6 +656,61 @@ class GenuineRowNoteTests(unittest.TestCase):
     def test_a_short_list_prints_no_remainder(self):
         note = format_genuine_note(3, self.ROWS[:3])
         self.assertNotIn("more genuine", note)
+
+
+class ArbitrateTableTests(unittest.TestCase):
+    """--arbitrate prints BOTH halves of a real/fuzzy arbitration.
+
+    Run-34 criticism (MV): a real/fuzzy disagreement needs four numbers, and
+    collecting them by hand cost ~4 extra builds per disagreement plus a
+    re-apply step where an edit can be lost.
+    """
+
+    def test_both_states_and_the_delta_are_printed(self):
+        text = arbitrate_table("rolling snapshot", 30, 80.85, 24, 71.89)
+        self.assertIn("real 30", text)
+        self.assertIn("80.8500%", text)
+        self.assertIn("real 24", text)
+        self.assertIn("71.8900%", text)
+        self.assertIn("real -6", text)
+        self.assertIn("-8.9600", text)
+
+    def test_real_win_with_a_fuzzy_loss_orders_a_revert(self):
+        text = arbitrate_table("rolling snapshot", 30, 80.85, 24, 71.89)
+        self.assertIn("fuzzy FELL", text)
+        self.assertIn("REVERT", text)
+        self.assertIn("METRICS DISAGREE", text)
+
+    def test_real_regression_with_a_fuzzy_gain_orders_a_rebase_keep(self):
+        text = arbitrate_table("rolling snapshot", 24, 71.89, 30, 80.85)
+        self.assertIn("fuzzy ROSE", text)
+        self.assertIn("--rebase-best", text)
+        self.assertIn("METRICS DISAGREE", text)
+
+    def test_agreeing_metrics_do_not_claim_a_disagreement(self):
+        text = arbitrate_table("rolling snapshot", 30, 71.89, 24, 80.85)
+        self.assertIn("fuzzy ROSE", text)
+        self.assertNotIn("METRICS DISAGREE", text)
+
+    def test_unmeasured_fuzzy_is_inconclusive_not_a_real_verdict(self):
+        text = arbitrate_table("rolling snapshot", 30, None, 24, 80.85)
+        self.assertIn("INCONCLUSIVE", text)
+        self.assertNotIn("KEEP", text)
+        self.assertNotIn("REVERT", text)
+
+    def test_flat_on_both_arbiters_reads_neutral(self):
+        text = arbitrate_table("session baseline", 24, 80.85, 24, 80.85)
+        self.assertIn("fuzzy is FLAT", text)
+        self.assertIn("NEUTRAL on both arbiters", text)
+
+    def test_moved_data_sections_are_reported_as_unarbitrated(self):
+        text = arbitrate_table("rolling snapshot", 30, 80.0, 24, 81.0,
+                               moved=["extab", ".sdata2"])
+        self.assertIn("extab", text)
+        self.assertIn("datadiff.py", text)
+
+    def test_no_data_line_when_no_section_moved(self):
+        self.assertNotIn("DATA:", arbitrate_table("x", 30, 80.0, 24, 81.0))
 
     def test_zero_genuine_rows_still_states_the_count(self):
         note = format_genuine_note(0, [])

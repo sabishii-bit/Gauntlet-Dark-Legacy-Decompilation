@@ -17,6 +17,11 @@ Usage:
       # take the whole TU back to the snapshot (the old behaviour)
   python tools/gdl/probe.py game/game/player do_players --fuzzy  # arbitration
                                                                  # READOUT only
+  python tools/gdl/probe.py game/game/player do_players --arbitrate
+      # ONE call, BOTH states: builds and scores the banked snapshot AND the
+      # working tree and prints the (real, fuzzy) pair for each, then restores
+      # the working tree. --vs-baseline arbitrates against the session's first
+      # banked baseline instead of the rolling snapshot.
   python tools/gdl/probe.py game/game/player do_players --reset  # forget best
   python tools/gdl/probe.py game/game/player do_players --rebase-best
       # after a fuzzy/--ops-arbitrated keep of a real-regressed state:
@@ -110,6 +115,19 @@ snapshot. Re-running the verdict on bytes that were already scored is
 what made a CONFLICT re-read as REGRESSED (see classify()'s BEST-anchored
 multiset comparison); an arbitration readout must never be able to do
 that. Score and bank with a plain probe, then arbitrate with --fuzzy.
+
+--arbitrate is the WHOLE arbitration in one call. A real/fuzzy disagreement
+needs FOUR numbers — (real, fuzzy) for the banked state and for the edited
+one — and getting them by hand is probe --fuzzy, probe --revert, probe
+--fuzzy, re-apply the edit, probe again: MV measured ~4 extra builds per
+disagreement, and the re-apply step is where an edit gets lost. --arbitrate
+builds and scores BOTH states itself, prints the pair for each with the
+delta, names fuzzy as the arbiter when the two metrics disagree, and
+RESTORES the working tree (in a finally, so a failed build restores too).
+It banks nothing and computes no verdict: it is a measurement, and the keep
+decision stays yours (--rebase-best banks an arbitrated keep). The DATA
+column is reported too, since a moved non-text section is invisible to both
+arbiters.
 """
 
 import difflib
@@ -1006,6 +1024,204 @@ def print_scaffold_census(source, full=False):
               " --scaffold-all to list every row")
 
 
+def score_function(unit, fn, fn_stripped, raw_flag=()):
+    """(real, insns) via `fndiff --count` over an ALREADY-BUILT object.
+
+    Factored out of main() so --arbitrate scores its two states through the
+    exact same path the verdict does; two scorers would be two definitions of
+    `real`. Returns (None, None) when the function cannot be scored.
+    """
+    count = subprocess.run(
+        [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
+         "--count", "--no-build", *raw_flag],
+        capture_output=True, text=True,
+    ).stdout
+    for line in count.splitlines():
+        match = COUNT_RE.match(line.strip())
+        if match and match.group(1) in (fn, fn_stripped):
+            _, ti, bi, _lines, real_text = match.groups()
+            # target/ours — labeled after a worker mis-read which side was
+            # longer reconciling probe vs fndiff.
+            return int(real_text), f"T{ti}/O{bi}"
+    if re.search(rf"^OK\s+({re.escape(fn)}|{re.escape(fn_stripped)})\s*$",
+                 count, re.M) or not count.strip():
+        # fndiff --count prints nothing for byte-identical functions.
+        return 0, "exact"
+    return None, None
+
+
+def report_fuzzy(unit, fn, fn_stripped):
+    """Build the objdiff report and return this function's fuzzy, or None.
+
+    The report build is a full link — expect it to take as long as ninja.
+    """
+    rep = subprocess.run(["ninja", f"build/{VERSION}/report.json"],
+                         capture_output=True, text=True)
+    if rep.returncode != 0:
+        return None
+    try:
+        report = json.loads(
+            Path(f"build/{VERSION}/report.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    bare = re.sub(r"\.(c|cpp)$", "", unit)
+    val = None
+    for entry in report.get("units", []):
+        if entry.get("name", "").endswith(bare):
+            for func in entry.get("functions", []):
+                if func["name"] in (fn, fn_stripped) or \
+                        func["name"].startswith(fn + "_80"):
+                    val = float(func.get("fuzzy_match_percent", 0.0))
+    return val
+
+
+def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
+                    moved=()):
+    """The four-number arbitration readout, as pure text.
+
+    A real/fuzzy DISAGREEMENT is the whole reason this mode exists, so the
+    recommendation is explicit about which metric decides it: fuzzy, from a
+    fresh report build, per the metric-disagreement rule (AGENTS.md
+    "Metric and semantic discipline" + residual-work discipline 9c, where a
+    real 30->24 that probe and gate both passed was a fuzzy 81->72 loss).
+    Fuzzy that is UNMEASURED never becomes a verdict — it prints
+    INCONCLUSIVE, because `real` alone cannot arbitrate a disagreement it is
+    one half of.
+    """
+
+    def fz(value):
+        return "n/a" if value is None else f"{value:.4f}%"
+
+    lines = [
+        "ARBITRATION (one call, both states built; no verdict computed,"
+        " nothing banked, working tree restored)",
+        f"  BANKED  ({label})  real {base_real}  fuzzy {fz(base_fuzzy)}",
+        f"  CURRENT (working)  real {cur_real}  fuzzy {fz(cur_fuzzy)}",
+    ]
+    real_delta = None
+    if base_real is not None and cur_real is not None:
+        real_delta = cur_real - base_real
+        fuzzy_text = ("n/a" if base_fuzzy is None or cur_fuzzy is None
+                      else f"{cur_fuzzy - base_fuzzy:+.4f}")
+        lines.append(f"  DELTA              real {real_delta:+d} "
+                     f" fuzzy {fuzzy_text}")
+    if base_fuzzy is None or cur_fuzzy is None:
+        lines.append(
+            "  ARBITER: INCONCLUSIVE — fuzzy is unmeasured on"
+            f" {'the banked' if base_fuzzy is None else 'the current'} state"
+            " (report build failed, or the function is absent from the"
+            " report). `real` alone cannot arbitrate a real/fuzzy"
+            " disagreement, so no keep/revert is recommended here.")
+    else:
+        fuzzy_delta = cur_fuzzy - base_fuzzy
+        real_better = real_delta is not None and real_delta < 0
+        real_worse = real_delta is not None and real_delta > 0
+        if fuzzy_delta > 0:
+            verdict = ("fuzzy ROSE — KEEP the current state"
+                       + (" (--rebase-best banks it as the new best and"
+                          " revert point, which is required because real"
+                          " REGRESSED)" if real_worse else ""))
+        elif fuzzy_delta < 0:
+            verdict = ("fuzzy FELL — REVERT to the banked state"
+                       + (" even though real IMPROVED: this is exactly the"
+                          " shape where probe and defake_gate both pass a"
+                          " fuzzy loss" if real_better else ""))
+        else:
+            verdict = ("fuzzy is FLAT — fuzzy cannot decide; fall back to"
+                       " real"
+                       + (" (improved: keep)" if real_better else
+                          " (regressed: revert)" if real_worse else
+                          " (also flat: this edit is NEUTRAL on both"
+                          " arbiters)"))
+        lines.append(f"  ARBITER: {verdict}")
+        if (real_better and fuzzy_delta < 0) or (real_worse
+                                                 and fuzzy_delta > 0):
+            lines.append(
+                "  METRICS DISAGREE: real and fuzzy point opposite ways."
+                " FUZZY from a fresh report is the arbiter here (both"
+                " numbers above ARE from fresh report builds); real is a"
+                " linear diff and reads register-color cascades in both"
+                " directions.")
+    if moved:
+        lines.append(
+            f"  DATA: non-text section(s) {', '.join(moved)} DIFFER between"
+            " the two states — neither arbiter above can see them (both are"
+            " computed over .text). Arbitrate those bytes separately with"
+            " `python tools/gdl/datadiff.py <unit> --sections` before"
+            " keeping or reverting.")
+    return "\n".join(lines)
+
+
+def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
+                  vs_baseline=False):
+    """Build+score BOTH the banked and the working state, then restore.
+
+    The restore is in a `finally`: a failed build, a KeyboardInterrupt or an
+    exception must never leave the snapshot's bytes sitting in the worker's
+    source file, which is the one way this mode could destroy an edit.
+    """
+    if source is None:
+        print(f"cannot arbitrate: no src source found for {unit}")
+        return 1
+    snap = snapshot_path(unit, source)
+    label = "rolling snapshot"
+    if vs_baseline:
+        snap = snap.with_suffix(snap.suffix + ".base")
+        label = "session baseline"
+    if not snap.exists():
+        print(f"cannot arbitrate: no banked {label} for this unit yet"
+              " (a BASELINE or IMPROVED probe banks one)")
+        return 1
+    current_bytes = source.read_bytes()
+    banked_bytes = snap.read_bytes()
+    if current_bytes == banked_bytes:
+        print(f"nothing to arbitrate: the working tree IS the banked"
+              f" {label}, so both halves would measure the same bytes."
+              " Edit first, or use --fuzzy for a single-state readout.")
+        return 1
+
+    def measure(which):
+        build = subprocess.run(["ninja", f"build/{VERSION}/src/{unit}.o"],
+                               capture_output=True, text=True)
+        if build.returncode != 0:
+            print(f"BUILD FAILED ({which} state):")
+            print((build.stdout + build.stderr).strip()[-1200:])
+            return None
+        real, insns = score_function(unit, fn, fn_stripped, raw_flag)
+        if real is None:
+            print(f"could not score {fn} in the {which} state")
+            return None
+        data = data_digest(unit)
+        print(f"[{which}] real {real} (insns {insns}) — building the"
+              " objdiff report for fuzzy")
+        return real, insns, report_fuzzy(unit, fn, fn_stripped), data
+
+    try:
+        current = measure("current")
+        if current is None:
+            return 1
+        source.write_bytes(banked_bytes)
+        banked = measure("banked")
+        if banked is None:
+            return 1
+    finally:
+        # Unconditional: the working tree leaves this call exactly as it
+        # arrived, whatever happened in between.
+        if source.read_bytes() != current_bytes:
+            source.write_bytes(current_bytes)
+            print("[working tree restored to your edited state]")
+    rebuild = subprocess.run(["ninja", f"build/{VERSION}/src/{unit}.o"],
+                             capture_output=True, text=True)
+    if rebuild.returncode != 0:
+        print("WARNING: the object failed to rebuild after restoring your"
+              " edit — the source is restored but build/ now holds the"
+              " BANKED object. Re-run a plain probe before trusting any"
+              " score.")
+    print(arbitrate_table(label, banked[0], banked[2], current[0], current[2],
+                          moved=moved_sections(banked[3], current[3])))
+    return 0
+
+
 def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
     """Build the report and print this function's fresh objdiff fuzzy.
 
@@ -1018,22 +1234,8 @@ def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
     same ones — and when those bytes are the BEST state's, it also becomes
     the fuzzy anchor a later CONFLICT prints without spending a build.
     """
-    rep = subprocess.run(["ninja", f"build/{VERSION}/report.json"],
-                         capture_output=True, text=True)
-    if rep.returncode != 0:
-        print("[--fuzzy: report build FAILED — no fuzzy readout]")
-        return
     try:
-        report = json.loads(
-            Path(f"build/{VERSION}/report.json").read_text(encoding="utf-8"))
-        bare = re.sub(r"\.(c|cpp)$", "", unit)
-        val = None
-        for entry in report.get("units", []):
-            if entry.get("name", "").endswith(bare):
-                for func in entry.get("functions", []):
-                    if func["name"] in (fn, fn_stripped) or \
-                            func["name"].startswith(fn + "_80"):
-                        val = float(func.get("fuzzy_match_percent", 0.0))
+        val = report_fuzzy(unit, fn, fn_stripped)
         prev_fz = state.get("last_fuzzy")
         if val is not None:
             arrow = (f" (prev {prev_fz:.4f})"
@@ -1051,7 +1253,9 @@ def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
                           " anchor once this state is banked as best]")
             state_file.write_text(json.dumps(state), encoding="utf-8")
         else:
-            print("[--fuzzy: function not found in report]")
+            print("[--fuzzy: no number — the report build FAILED or this"
+                  " function is absent from build/GUNE5D/report.json; no"
+                  " fuzzy readout, and nothing cached]")
     except Exception as err:
         print(f"[--fuzzy: readout failed: {err}]")
 
@@ -1203,6 +1407,14 @@ def main():
         return 0
     if "--rederive-pin" in sys.argv:
         return rederive_pin(unit, fn)
+    if "--arbitrate" in sys.argv:
+        # Both halves of a real/fuzzy arbitration in one call. Dispatched
+        # before the ordinary build/score path because it owns its own
+        # builds, banks nothing, and computes no verdict.
+        return run_arbitrate(
+            unit, fn, re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn), source,
+            raw_flag=["--raw"] if "--raw" in sys.argv else [],
+            vs_baseline="--vs-baseline" in sys.argv)
     if "--discard" in sys.argv:
         # Revert the TU to its last COMMITTED state — the undo people
         # actually want after a neutral probe (NEUTRAL banks, so --revert
@@ -1315,32 +1527,14 @@ def main():
         return 1
 
     raw_flag = ["--raw"] if "--raw" in sys.argv else []
-    count = subprocess.run(
-        [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
-         "--count", "--no-build", *raw_flag],
-        capture_output=True, text=True,
-    ).stdout
     # fndiff strips a trailing _80XXXXXX address suffix from user-supplied
     # names; accept either spelling here so one name works everywhere.
     fn_stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn)
-    real = None
-    for line in count.splitlines():
-        match = COUNT_RE.match(line.strip())
-        if match and match.group(1) in (fn, fn_stripped):
-            _, ti, bi, lines, real_text = match.groups()
-            real = int(real_text)
-            insns = f"T{ti}/O{bi}"  # target/ours — labeled after a worker
-            # mis-read which side was longer reconciling probe vs fndiff
-            break
-    else:
-        if re.search(rf"^OK\s+({re.escape(fn)}|{re.escape(fn_stripped)})\s*$",
-                     count, re.M) or not count.strip():
-            # fndiff --count prints nothing for byte-identical functions
-            real, insns = 0, "exact"
+    real, insns = score_function(unit, fn, fn_stripped, raw_flag)
 
     if real is None:
-        print(f"could not score {fn}:")
-        print(count.strip()[:800])
+        print(f"could not score {fn} — fndiff --count named no such function"
+              " in the built object")
         return 1
 
     if "--stateless" in sys.argv:
