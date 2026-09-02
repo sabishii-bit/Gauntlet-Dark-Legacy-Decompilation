@@ -1,0 +1,29 @@
+{
+  "attempted_axis": "TOOL lane, run 36: the 13-item run-35 amendment queue over tools/gdl and memory_graph, one commit per item.",
+  "attributes": {
+    "anchor_repair_scope": "13 supersessions proposed, not 14. attempt.fn-800db3d4-trio-drive.20260831.v1 was left unrepaired ON PURPOSE: its bumped id collides with the .v2 that already exists, and that v2 already supersedes v1, so v1 is not the live record and repairing it would fork the chain. The live row is v2, repaired as v3. Per claim.T5's own warning, every one of the 13 states in attributes.anchor_repair that the CONTENT is not re-verified - a corrected path does not revalidate a stale claim, and attempt.playvqmovie-gxcolor-layout is specifically flagged as a row MV already reported as describing a layout the tree no longer produces.",
+    "findings": "Three findings the queue did not predict. (1) Item 11's stated symptom did NOT reproduce: all 2,990 function rows already carry an explicit fuzzy_match_percent and completed units read 100.0. The live defect is one level up and much wider - NOT ONE of the 16 unit/top-level measure keys ever appears with an explicit zero in 327 scopes, so seven different key-shapes exist purely as a function of which values were zero, and normalize_report only ever fixed one function-level field. (2) Item 7's `tool:`/`workflow:` namespaces do not exist in the entity table at all; the only namespaces are function (445), tu (65), project (1) and compiler (1), so the OR branch of the item - make the error enumerate what resolves - was the correct half to take, and it is now derived live from the corpus rather than hardcoded. (3) Item 9's escape hatch WAS named in the gate text but was never actually checked: `describes_denial_of` accepted any string at all, so the comment calling it 'a CITATION, not a free-text opt-out ... which is checkable' was aspirational. It now resolves, in both the top-level and attributes spellings.",
+    "law_screen": "Screened claim.law.PC_real-and-multiset-agreement-does-not-license-a-keep (APPLIES: item 1 implements it as a gate rather than as advice); claim.law.PC_wf-rederive-pin-apply-cannot-paste-a-twinned-relocation-hash (APPLIES: item 5); claim.law.MT_a-banked-in-the-graph-premise-is-not-a-citation (APPLIES: item 8); claim.law.WF_per-offset-absorption-decided-before-window-selection-hides-the-true-permutation-window.20260902.v1 (APPLIES: item 12, including its stated scope limit that reopening changes WHICH refusal its anchor produces, not whether it closes); claim.T5_stranded-record-anchors-14-rows-run35.20260902.v1 (APPLIES: item 13); claim.law.T5_a-record-mining-heuristic-must-be-calibrated-against-the-live-corpus-before-shipping.20260902.v1 (APPLIES: item 13 rewrote only anchor-ROLE keys, never the keys that narrate the work); AGENTS.md discipline 14, a guard's refusal is a measurement of the guard (APPLIES throughout: items 5, 7 and 9 are all guards refusing correct work).",
+    "laws_applied": [
+      "claim.law.WF_per-offset-absorption-decided-before-window-selection-hides-the-true-permutation-window.20260902.v1",
+      "claim.law.T5_a-record-mining-heuristic-must-be-calibrated-against-the-live-corpus-before-shipping.20260902.v1"
+    ],
+    "measurements": "memory_graph suite 179 tests / 84.7s -> 209 tests / 17.5s (item 10, 4.8x with coverage ADDED). tools/gdl suite 698 -> 760 tests, 4.9s -> 3.4s. Per-query: supersession screen 14.352s -> 0.029s (495x, identical 649 rows); binary_symbol raw_name join 2.227s -> 0.029s (77x); source_fingerprint 1.01s -> 0.21s. report.json: 1,239 protobuf-omitted measure keys made explicit across 327 scopes, idempotent, top-level figures unchanged (98.44 fuzzy / 66.22 matched). Project progress UNCHANGED by design: this lane ships no source edits.",
+    "self_refusals": "Three of the lane's own gates refused the lane's own item-13 records, which is the AGENTS.md discipline-14 shape and was treated as information rather than worked around. The run-29 necessity gate refused two law supersessions carrying no falsifier, and the run-32 typed-denial gate refused one attempt that issues a real do-not-retry. Each was resolved by DERIVING the missing field from the record's own stated measurement and probe set - no new claim was made in any of the three - and each carries a GATE NOTE saying exactly that. The item-6 gate added this run was screened against all 13 drafts and correctly fired on none of them.",
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ],
+    "verification": "Full unittest discover tools/gdl/tests and python -m memory_graph.test_graph green at every one of the 13 commits; python memory_graph/gdlmem.py validate valid:true with dangling_citation_count unchanged at 64; gdlmem build inbox_rejected empty; ninja printing build/GUNE5D/main.dol: OK at close; configure.py progress re-read identical to the provisioning baseline."
+  },
+  "describes_denial_of": "attempt.fn-800dacd8-trio-drive.20260831.v1",
+  "function": "function:writeGauntletSave",
+  "id": "attempt.T6_tool-queue-6-run36-thirteen-items.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T17:27:08Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
