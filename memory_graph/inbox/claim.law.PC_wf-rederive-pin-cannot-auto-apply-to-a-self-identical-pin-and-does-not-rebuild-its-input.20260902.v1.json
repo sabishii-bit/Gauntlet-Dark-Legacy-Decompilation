@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_rederive_pin.py game/game/player do_exit",
+    "tools/gdl/probe.py game/game/player do_players --rederive-pin --transient"
+  ],
+  "attributes": {
+    "provenance": "Worktree GDL-Claude-DoPlayersCont, work_claim.do-players-cont.20260902.v1. Four count-changing probes on src/game/game/player.c::do_players (probes N, O, P, T of attempt.PC_do-players-inplace-update-and-symbol-unification.20260902.v1) each invalidated the do_exit pin and each hit the identical refusal; the relocation hash cycled a4536707e2cf... -> 87e857f0a566... -> 824954665f6c... and back, with the window's region after_sha256 6eb6d09ea040... unchanged throughout. A lane-local helper implementing the window-anchored paste plus the missing raw-body build is at PC_scratch/pc_repin.py (UNTRACKED per AGENTS.md discipline 17); it is deliberately not promoted, because the correct fix is in wf_rederive_pin itself and a promoted per-lane copy would entrench the defect.",
+    "scope": "The WebFrank permutation-pin re-derivation path, for any pin in config/GUNE5D/webfrank.json whose instruction_permutation window is relocation-stable (before_relocations_sha256 == after_relocations_sha256). Defect one is exact and total for such pins; defect two applies to any direct or wrapped invocation of wf_rederive_pin that does not build the raw body object first. Extends the run-35 PC finding that the twinned-hash refusal needs a region-hash anchor workaround, by establishing that the refusal is STRUCTURAL for this pin class rather than an occasional collision, and by adding the stale-input defect that the workaround alone does not cover.",
+    "tags": [
+      "workflow",
+      "postprocessor",
+      "build-hygiene",
+      "relocation"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run `python tools/gdl/composed_census/wf_rederive_pin.py game/game/player do_exit --apply` after any edit to do_players that changes its instruction count. If it pastes successfully rather than printing the 'appears 2 times' refusal, defect one has been fixed or never applied to this pin. For defect two: with the tree at a known-good commit, edit a function, run a probe (letting it build), revert the edit, then call wf_rederive_pin directly WITHOUT rebuilding; if the hash it pastes lets the next build succeed, the tool is rebuilding its input after all and defect two is refuted.",
+  "id": "claim.law.PC_wf-rederive-pin-cannot-auto-apply-to-a-self-identical-pin-and-does-not-rebuild-its-input.20260902.v1",
+  "kind": "claim",
+  "predicate": "tooling_law",
+  "recorded_at": "2026-09-02T16:34:51Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "TWO INDEPENDENT DEFECTS IN THE PIN RE-DERIVATION PATH, EACH OF WHICH SILENTLY COSTS A LANE BUILDS, MEASURED FOUR TIMES IN ONE SESSION ON game/game/player::do_exit. DEFECT ONE, THE SELF-IDENTICAL PIN: wf_rederive_pin's --apply step locates the hash to replace by searching webfrank.json for the OLD hash VALUE and refuses when that value occurs more than once ('appears 2 times in webfrank.json -- refusing an ambiguous paste'). For any pin whose window is relocation-STABLE across the permutation, before_relocations_sha256 and after_relocations_sha256 are EQUAL by construction, so the value always occurs at least twice and the automatic paste can NEVER succeed for that pin -- not 'sometimes', not 'under contention', never. The refusal is not evidence about the edit: this run's four refusals all printed 'BODY HASHES ALL UNCHANGED: this is a pure symbol-table renumbering, and pasting the two relocation hashes above ... is sound' immediately before refusing to paste them. The sound fix is to anchor the paste on the located WINDOW rather than on the hash value's global uniqueness -- the window's region after_sha256 is unique and sits on the line directly above the two relocation lines, which is exactly what the refusal message tells a human to do by hand. DEFECT TWO, THE STALE INPUT, WHICH IS THE DANGEROUS ONE: wf_rederive_pin READS the raw body object (build/GUNE5D/src/<tu>/.postprocess/body/<tu>.o); it does not build it. probe.py --rederive-pin builds it first ('[1/4] building raw body object'), so a lane that only ever goes through probe never sees this -- but a lane calling wf_rederive_pin directly, or through its own wrapper, re-derives against WHATEVER THE PREVIOUS PROBE LEFT ON DISK and pastes a hash describing source that is no longer in the tree. It fails CLOSED at the next build ('instruction permutation relocation input hash changed'), so nothing is corrupted, but it reads exactly like a fresh pin invalidation and invites a second, equally wrong re-derivation. Measured here: after reverting a probe, a bare wf_rederive_pin call pasted the REVERTED probe's hash and the following build failed with the identical message the revert was meant to clear. THIRD, SMALLER, AND A TRAP FOR ANY HAND-ROLLED HELPER: webfrank.json is CRLF in the working tree, so a Python helper that reads and rewrites it with default newline handling converts every line ending and presents the whole file as modified while `git diff --numstat` reports zero changed lines -- open it with newline='' on BOTH the read and the write."
+}

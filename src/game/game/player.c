@@ -343,7 +343,6 @@ extern s32 lbl_802575BC;
 
 /* controls (pad state, stride 0xF words per player) */
 extern u32 lbl_80240E34[];
-extern u32 lbl_80240E38[];
 extern f32 lbl_80240E50[];
 
 /* game/world state (.sbss/.sdata) */
@@ -1799,7 +1798,7 @@ s32 do_players(void) {
                 p->light_vec[0] = p->light_vel[0] * len;
                 p->light_vec[1] = p->light_vel[1] * len;
                 p->light_vec[2] = p->light_vel[2] * len;
-                len = (f32)(len * 0.667);
+                len *= 0.667;
                 if (len < 0.01) {
                     len = 0.0f;
                 }
@@ -1937,10 +1936,10 @@ s32 do_players(void) {
             }
             case 0xB:
                 if (gGameMode == MG_PLAY && p->motion_state == 1) {
-                    if (lbl_80240E38[i * 0xF] & 0x8000000) {
+                    if (lbl_80240E30[i].edges & 0x8000000) {
                         abort_player(i);
                     }
-                    if (lbl_80240E38[i * 0xF] & 0x2000000) {
+                    if (lbl_80240E30[i].edges & 0x2000000) {
                         p->motion_state = 0;
                     }
                 }
@@ -2183,8 +2182,7 @@ s32 do_players(void) {
             }
         }
     }
-    j = firstgetidx % 4;
-    firstgetidx++;
+    j = firstgetidx++ % 4;
     for (i = 0; i < 4; i++) {
         s32 k = (j + i) % 4;
         Player* speaker = PT(k);
