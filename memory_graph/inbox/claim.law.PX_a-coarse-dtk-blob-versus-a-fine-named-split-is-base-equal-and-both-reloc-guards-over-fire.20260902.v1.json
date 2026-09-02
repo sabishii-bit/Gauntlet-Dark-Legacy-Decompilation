@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/regnorm.py",
+    "tools/gdl/fndiff.py",
+    "config/GUNE5D/symbols.txt"
+  ],
+  "attributes": {
+    "provenance": "Run 33, worktree GDL-Claude-PilotFull, merge-base ad3ff0f9, measured on game/boss/boss.c::BossDeath with objects from a full green ninja. Arithmetic printed by PX_scratch/px_bossbss.py.",
+    "tags": [
+      "relocation",
+      "symbol-identity",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a case where a target-side lbl_<ADDR> blob and our named global share a base address, the six-field tiling arithmetic holds, and the linked bytes nevertheless differ -- that would show base equality is insufficient and the guards are right to refuse. Conversely the law is DISPROVED as stated if regnorm is shown to already resolve blob-vs-split base equality (run it on any other function whose TU splits a dtk bss blob and check whether the STRUCTURAL row is reported as genuine). The BossDeath instance specifically is refuted if boss.c's BSS declaration order does not place HealthMeterFG at the blob's base under -common on.",
+  "id": "claim.law.PX_a-coarse-dtk-blob-versus-a-fine-named-split-is-base-equal-and-both-reloc-guards-over-fire.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T01:37:03Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A TARGET-SIDE ANONYMOUS dtk BLOB AND OUR FINER NAMED SPLIT ARE BASE-EQUAL, AND BOTH RELOCATION GUARDS OVER-FIRE ON THE PAIR. This is the mirror of the already-recorded own-pool ghost case, and it is a measurement of the GUARDS as much as of the function (AGENTS.md discipline 14).\n\nTHE SHAPE. dtk names a .bss region it cannot subdivide with one placeholder, `lbl_<ADDR>`, sized to the whole run. A TU that reconstructs that region as several real C globals emits its relocation against the FIRST of them. The two reloc rows then read `lbl_<ADDR>` on the target side against a concrete C identifier on ours, which is neither the anonymous-vs-anonymous shape that fndiff's MATCH-MODULO-RELOC-NAMING verdict absorbs, nor a wrong-symbol bug.\n\nMEASURED INSTANCE, game/boss/boss.c::BossDeath. fndiff --clean labelled it OPERAND_DIFF with '4 real diff lines' while its own line already said 'raw rows 8, of which 0 non-reloc -- 0 is the real'; regnorm printed `2 STRUCTURAL (2 genuine)` with the annotation `[reloc target differs]`, the exact signature of the btricol wrong-symbol bug that regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol was written for. Both refusals were CORRECT BY THEIR OWN LOGIC and both were wrong about the function. symbols.txt carries HealthMeterBG at .bss:0x8023E608 size 0x18 and then a single blob lbl_8023E620 size 0x54; boss.c declares six consecutive globals from 0x8023E620 -- 0x18 + 0xC + 0xC + 0xC + 0xC + 0xC = 0x54 exactly, every declared address equal to the running sum, and the next declaration gSpewItems landing at 0x8023E674 = base + 0x54. HealthMeterFG's base IS lbl_8023E620's base.\n\nTHE DECISION PROCEDURE, and it costs no build. When a reloc row reads `lbl_<ADDR>` against one of your own named globals: (1) look up the blob's SIZE in symbols.txt; (2) sum the sizes of your consecutive declarations starting at that address; (3) check that the sums tile the blob exactly and that the next declaration lands at base+size. Tiles exactly => base-equal, the row is a naming artifact and the function's `real` of 0 is the truth. Does not tile => you have a genuine wrong-symbol or wrong-size defect and the guards were right; go read the btricol law.\n\nWHAT THIS DOES NOT PROVE, stated because a green DOL proves little here: boss.c is a NonMatching Object, so its BSS is never linked, and the base equality rests on the TU's own declaration order under -common on (which links reverse-order -- see the BSS reverse-declaration-order hazard). Base equality is an argument about addresses in symbols.txt, not a link gate. The gate arrives only when the TU flips.\n\nCONSEQUENCE. Do not record a `[reloc target differs]` row as a defect, and do not record it as noise, until the tiling arithmetic has been run and PRINTED. Two runs have now spent effort on rows of this class -- run 32 read one as a report-vs-fndiff disagreement, this run read one as a candidate wrong-symbol bug -- and in both cases the deciding fact was three lines of arithmetic over symbols.txt that no score computes."
+}

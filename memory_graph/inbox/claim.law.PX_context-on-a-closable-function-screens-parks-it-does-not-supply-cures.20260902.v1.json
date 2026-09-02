@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "memory_graph/gdlmem.py",
+    "tools/gdl/RS_regression_manifest.json"
+  ],
+  "attributes": {
+    "provenance": "Run 33 full retrieval pilot, worktree GDL-Claude-PilotFull, merge-base ad3ff0f9. `gdlmem.py context <fn>` run with the global --out flag for all 24 frozen regression-set functions; record counts and per-record dates read from build/GUNE5D/PX_queries/*.context.json against memory_graph/records/.",
+    "tags": [
+      "workflow",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run `context <fn>` over any set of functions that are currently non-exact but historically closable, and show a record that (a) is not anchored to the function under test, or is anchored to it but predates its close, AND (b) names the mechanism that closes it. One such row disproves the law for that population. The law is explicitly scoped to CLOSABLE functions and says nothing about parked ones, where `context` is measured to be the correct and mandatory screen.",
+  "id": "claim.law.PX_context-on-a-closable-function-screens-parks-it-does-not-supply-cures.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T01:37:28Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "`context <fn>` RETURNED NOTHING TRANSFERABLE ON 24 OF 24 CLOSABLE FUNCTIONS. Measured run 33 over the whole frozen regression set. Twenty-one of the twenty-four returned ZERO records. The three that returned anything returned EXACTLY ONE record each -- ProcCamera_8002E548 (attempt.proccamera-exact-closure.20260830.v1, dated the day of its match commit), PlayerCollidePlayers (attempt.playercollideplayers-literal-hoist-exact.20260831.v1, same), LinkItemTriggers (attempt.SI_linkitemtriggers-dead-store-body-exact.20260901.v1, same) -- and all three are the closing agent's own write-up, each naming the cure outright, each excluded by the leave-one-out screen of claim.method.RS_graph-utility-regression-set-protocol.20260902.v1. After the screen the channel is empty on every row without exception. This generalises the run-32 pilot's n=4 observation to n=24.\n\nTHE ASYMMETRY THAT EXPLAINS IT, and it is structural rather than a corpus gap. A per-function attempt record exists because someone PARKED or CAPPED the function, or because someone CLOSED it and wrote up how. A function that is currently open and closable is by construction in neither state: nobody has parked it, and nobody has closed it yet. So `context <fn>` on exactly the population an agent is about to work has no reason to hold anything, and the corpus being large does not change that -- 24 of 24 empty is what a well-formed per-function corpus looks like from the pre-match side.\n\nCONSEQUENCE FOR AGENTS.md DISCIPLINE 11, which makes `context <fn>` mandatory step zero before the first edit. The mandate is CORRECT and should stand, but its stated payoff is wrong and the wrong payoff has a cost: the discipline's own justification cites a sweep lane that spent 5 of 11 probes re-running vetoed axes, which is a PARK-SCREENING failure, not a cure-finding one. Restate the step as what it is: `context` is the ownership, veto and do-not-retry screen, and an empty result is the NORMAL and expected outcome on a fresh closable function -- a green light, never evidence that the graph is silent about the mechanism. An agent who reads an empty `context` as 'the corpus has nothing for me' will skip the channels that do carry the mechanism, which on this population is the corpus-wide law listing (11 of 12 measured retrieval hits) and, once, the TU's own `tu_mentioned_laws`.\n\nCOROLLARY FOR SCORING ANY FUTURE RETRIEVAL EXPERIMENT: a record anchored to the function under test and dated on or after its close is the graph remembering its own answer. Counting it is how a channel that is empty 24 times out of 24 scores three perfect rank-1 hits."
+}

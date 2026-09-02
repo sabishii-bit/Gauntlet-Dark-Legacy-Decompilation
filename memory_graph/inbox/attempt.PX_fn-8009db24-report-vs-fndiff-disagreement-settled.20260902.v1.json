@@ -1,0 +1,28 @@
+{
+  "attempted_axis": "Settle the run-32 report-vs-fndiff disagreement on fn_8009DB24: report.json reads 100% while fndiff was read as non-exact. Measurement only, no source edit.",
+  "attributes": {
+    "law_screen": "claim.PR_law.probe-real-and-fndiff-real-diff-lines-are-different-numbers.20260901.v1 APPLIED, direct explanation of the misread. claim.law.TL_a-view-must-name-which-artifact-it-reads-postprocessed-and-unlinked-objects-hide-the-question.20260901.v1 APPLIED -- instance (3), the anonymous-vs-named pool row that the MATCH-MODULO-RELOC-NAMING verdict exists to fail closed on; fired correctly here. claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1 APPLIED as arbiter, clean (0 genuine). claim.law.own-pool-ghost-extern-flatters-fndiff-reloc-rows.20260831.v1 SCREENED, does not apply -- compiler-generated switch table, not an imported ghost.",
+    "laws_applied": "[\"claim.PR_law.probe-real-and-fndiff-real-diff-lines-are-different-numbers.20260901.v1\", \"claim.law.TL_a-view-must-name-which-artifact-it-reads-postprocessed-and-unlinked-objects-hide-the-question.20260901.v1\", \"claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1\"]",
+    "scope": "Measurement only. No file in src/ was edited. Worktree GDL-Claude-PilotFull, merge-base ad3ff0f9, objects freshly built by a full green ninja.",
+    "verification": "UNIT CORRECTION FIRST, and it is probably the whole of the run-32 reading for this row: fn_8009DB24 is NOT in game/sfx/sfx.c. `fndiff.py game/sfx/sfx.c fn_8009DB24 --clean` prints `MISSING-IN-BOTH  fn_8009DB24`, which is trivially non-exact and says nothing about the function. The definition is in game/sound/sounds_evt.c (symbols.txt: fn_8009DB24 = .text:0x8009DB24, size 0x190; sfx.c only references it). Scored in its own unit: `--clean` prints `MATCH-MODULO-RELOC-NAMING, 4 real diff lines [artifact-filtered; raw rows 4, of which 0 non-reloc -- 0 is the `real`]`; `regnorm.py` prints `T100/O100 PARITY, 108 paired, 0 renaming, 2 STRUCTURAL (0 genuine) (2 reloc-naming artifacts), 0 unpaired`. report.json: main/game/sound/sounds_evt, fuzzy_match_percent 100.0, size 400. Not in config/GUNE5D/webfrank.json."
+  },
+  "function": "function:fn_8009DB24",
+  "hypothesis": {
+    "cheapest_refuting_observation": "objdump -s -j .data over jumptable_801243A8's 0x34 extent, ours against the extracted target object; unequal bytes would refute link-equality without touching the text.",
+    "screened_against_target": "yes -- 100/100 instruction parity in the correct unit, 108 paired regnorm rows, 0 renaming, 0 genuine STRUCTURAL, 0 unpaired",
+    "statement": "VERDICT: report.json is right, fndiff's `real` agrees at 0, and the STRICT count does not move. Two lessons worth carrying: (1) a MISSING-IN-BOTH from the wrong unit is not a measurement of the function -- always resolve the unit from symbols.txt before scoring a bare fn_ symbol, since a referencing TU is not the defining TU; (2) as with camera_run_mode, the residual is a compiler-generated switch table addressed as @446 by us and jumptable_801243A8 by the target. game/sound/sounds_evt.c is a NonMatching Object, so its .data is not linked and the table's byte equality is untested here."
+  },
+  "id": "attempt.PX_fn-8009db24-report-vs-fndiff-disagreement-settled.20260902.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-02T01:37:37Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "reloc-naming",
+    "measured_at": "2026-09-02",
+    "signature": "T R_PPC_ADDR16_HA/LO jumptable_801243A8 vs O R_PPC_ADDR16_HA/LO @446"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
