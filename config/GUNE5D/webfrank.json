@@ -2545,6 +2545,60 @@
           "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "DrawStringTextMLines",
+        "before_sha256": "ba0d94c10f850918f87958023b6c2ec7842eda987274aa6ff40ac9b7a8c60aa1",
+        "after_sha256": "83fa89927b9af7a7e2904a8fa7f026b480eae33ea5941eeb9d27e9358230b80a",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 150,
+          "permuted_instructions": 2
+        },
+        "mechanism": "150/150 instructions, RAW DIFFERING WORDS = 2 of 150 (tools/gdl/composed_census/wf_word_diff.py, measured this session - not inferred from the --ops token count). The first member of the LIVE-ZERO VALUE class, whose proof mode was written this run because equivalent_copy_form refuses this site outright: our word is not a copy form at all. SOURCE EXHAUSTION: attempt.drawstringtextmlines-iv-init-materialization.20260831.v2 parked the function after four induction-variable source shapes, and claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 proves the residual class source-unreachable across twelve functions in eight TUs; attempt.UA_findstringmessagelistsub-nameoffset-temp-mirrors-the-exact-sibling.20260902.v1 is the record that measured this instance and named btext.c as the densest customer. PERMUTATION, [0x1f4,0x1fc) order [1,0]: `bl FixMLineText` returns, `li r30,0` seeds the counter at +0x1f0, and the two following atoms are transposed - ours issues `addi r29,r1,148` then the induction seed, the target issues the seed first. The atoms are disjoint (one writes g29 reading g1, the other writes g27 reading g30), each resource has a single writer inside the region so no final write can move at all, and the window carries NO relocation in either object (both region relocation hashes are the empty-payload hash, checked and not assumed per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1). LIVE-ZERO VALUE, one site at +0x1f4 after the permutation: ours `slwi r27,r30,2` (= `rlwinm r27,r30,2,0,29`) against the target's `addi r27,r30,0`. Both words write g27 and nothing else, and BOTH results are proved to be the literal zero on every path by the existing known-zero-bit dataflow evaluated one transfer further on - the target's word is evaluated against OUR facts before it is written into our stream. The registers already agree, so this is a pure value-form change with no recolor anywhere in the function and no register stage configured. src/game/ui/btext.c is byte-unchanged.",
+        "instruction_permutation": {
+          "start": "0x1f4",
+          "end": "0x1fc",
+          "order": [1, 0],
+          "before_sha256": "1bc1c6996c98bdb0dc56fa8b37e4b99ca696ad6fed4474ca1d53205aea4a3f39",
+          "after_sha256": "15ab0038d9fa1ae1b7a1e6d8bc9036ad14c9296199df5a4089b74ea377f1e038",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "equivalent_zero_form": [
+          {
+            "at": "0x1f4",
+            "proof": "zero_value_dataflow",
+            "declared_zero_register": 27
+          }
+        ]
+      },
+      {
+        "function": "FontInit",
+        "before_sha256": "cee2457f0a6905d1fe5da392f317e08cd27f341709e09c660387745cfa70e9f4",
+        "after_sha256": "dd18229ed1626c72918ec18f1cd215bbb5ccaa3aee6129bd487ac0ac604f8c5d",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 45,
+          "permuted_instructions": 2
+        },
+        "mechanism": "45/45 instructions, RAW DIFFERING WORDS = 2 of 45 (wf_word_diff.py, measured). The same live-zero value mechanism as this TU's DrawStringTextMLines rule with different registers, which is why the class was commissioned rather than the site hand-audited. SOURCE EXHAUSTION: attempt.fontinit-portable-zero-offset-induction.20260829.v1 capped the function after byte-offset and integer-address forms, explicit/local/volatile mode-table bases, shifted and one-byte array views, independent-zero and split-zero initialisation, signed and narrow index types and for-initializer grouping; claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 carries the class-level proof. PERMUTATION, [0x28,0x30) order [1,0]: after `bl StringInitSub`, `li r27,0` at +0x20 seeds the counter and `lis r3,gScrollMsgList@ha` at +0x24 starts the table address; ours then issues `addi r29,r3,gScrollMsgList@l` before the induction seed, the target the other way round. The two atoms are disjoint (g29 from g3 against g30 from g27) and each resource is written once inside the region, so no final write moves. UNLIKE the DrawStringTextMLines window this one DOES carry a relocation: the ADDR16_LO on gScrollMsgList, recorded at window offset +0x2 (instruction +0x0 plus two), and it MOVES with its own atom - which is why the before and after relocation hashes differ here instead of matching. The atom-to-symbol binding is the one permute_instruction_atoms proves against the target object's own relocation table (verify_relocation_binding), not the payload multiset, per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1. LIVE-ZERO VALUE, one site at +0x28 after the permutation: ours `slwi r30,r27,2` against the target's `addi r30,r27,0`, both proved to write the literal zero to g30 on every path. Registers already agree; no register stage. src/game/ui/btext.c is byte-unchanged.",
+        "instruction_permutation": {
+          "start": "0x28",
+          "end": "0x30",
+          "order": [1, 0],
+          "before_sha256": "ccf4e05b8eefe2467d463e57dec4e375754223c9ce5e089d5fe30dc548e53346",
+          "after_sha256": "6086309ba1134961cfc50dcb924d6cb959e53d96a1a4e5e6a30dfc91b47a61ee",
+          "before_relocations_sha256": "c4d2431ffc17f30f5a4e0dcdca8c4239544049a2b2ef5cc034eaafcb6d054ed8",
+          "after_relocations_sha256": "3e7525828140eea395a0696e228a4a86efa33604f324a19b0f2c7ec22329184e"
+        },
+        "equivalent_zero_form": [
+          {
+            "at": "0x28",
+            "proof": "zero_value_dataflow",
+            "declared_zero_register": 30
+          }
+        ]
       }
     ],
     "game/world/tower": [

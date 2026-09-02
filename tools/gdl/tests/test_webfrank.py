@@ -25,19 +25,23 @@ from tools.gdl.webfrank import (
     _relocation_sha256,
     _sha256,
     _successors,
+    _word_effects,
     check_permutation_dependences,
     copy_register_fields,
     decode_copy_form,
     decode_rlwinm,
+    decode_zero_form_destination,
     encode_copy_like,
     equivalent_copy_form,
     equivalent_mask_form,
+    equivalent_zero_form,
     instruction_operands,
     permutation_windows,
     permute_instruction_atoms,
     prove_constant_dataflow,
     prove_constant_source,
     prove_zero_bits,
+    prove_zero_result,
     recolor_instruction,
     redundant_mask_source_bits,
     register_slot_mask,
@@ -3673,6 +3677,371 @@ class MaskFormApplyPatchTests(unittest.TestCase):
         patch = self.patch(ours, target, copy_register_fields=True)
         with self.assertRaisesRegex(ValueError, "register field differs"):
             apply_patch(data, patch, bytes(target_data))
+
+
+# --- the live-zero value class (a zero produced two ways) -------------------
+#
+# The measured shape, game/ui/btext::DrawStringTextMLines +0x1f4 (and, with
+# different registers, ::FontInit +0x28): a `li rS,0` seeds the loop counter
+# and the byte-offset induction variable is then produced two ways.  The
+# target COPIES the live zero (`addi rD,rS,0`); our build SHIFTS it
+# (`slwi rD,rS,2` = `rlwinm rD,rS,2,0,29`).  Both write the literal zero to
+# the same GPR, but ours is not a copy form at all, so equivalent_copy_form
+# refuses it outright with no proof mode offered.
+
+
+def _slwi(ra, rs, sh):
+    return _rlwinm(ra, rs, sh, 0, 31 - sh)
+
+
+def _and(ra, rs, rb):
+    return (31 << 26) | (rs << 21) | (ra << 16) | (rb << 11) | (28 << 1)
+
+
+class DecodeZeroFormDestinationTests(unittest.TestCase):
+    def test_the_three_whitelisted_forms_report_their_destination(self):
+        self.assertEqual(decode_zero_form_destination(_addi(27, 30, 0)), 27)
+        self.assertEqual(decode_zero_form_destination(_addi(27, 0, 0)), 27)
+        self.assertEqual(decode_zero_form_destination(_slwi(27, 30, 2)), 27)
+        self.assertEqual(decode_zero_form_destination(_or(27, 30, 30)), 27)
+
+    def test_a_memory_form_is_outside_the_class(self):
+        with self.assertRaisesRegex(ValueError, "outside the live-zero"):
+            decode_zero_form_destination(_lbz(27, 19))
+        with self.assertRaisesRegex(ValueError, "outside the live-zero"):
+            decode_zero_form_destination(_lwz(27, 19))
+
+    def test_a_zero_provable_form_outside_the_whitelist_is_still_refused(self):
+        # `and rD,rS,rS` has a modelled known-zero transfer, so the dataflow
+        # WOULD prove it; the whitelist is the wall, not the prover.
+        with self.assertRaisesRegex(ValueError, "or/mr"):
+            decode_zero_form_destination(_and(27, 30, 30))
+
+    def test_a_record_setting_variant_is_refused_for_writing_cr0(self):
+        with self.assertRaisesRegex(ValueError, "record-setting"):
+            decode_zero_form_destination(_rlwinm(27, 30, 2, 0, 29, rc=1))
+        with self.assertRaisesRegex(ValueError, "record-setting"):
+            decode_zero_form_destination(_or(27, 30, 30) | 1)
+
+    def test_the_shared_effect_model_now_sees_the_m_form_record_bit(self):
+        # The gap this class's whitelist test uncovered: `rlwinm.` was
+        # modelled as writing only rA, so the permutation dependence audit
+        # could have moved one past a CR0 consumer.  Guard the fix.
+        for word in (_rlwinm(27, 30, 2, 0, 29, rc=1),
+                     _rlwimi(27, 30, 2, 0, 29, rc=1)):
+            _reads, writes = _word_effects(word)
+            self.assertIn(("cr", 0), writes)
+        _reads, writes = _word_effects(_rlwinm(27, 30, 2, 0, 29))
+        self.assertNotIn(("cr", 0), writes)
+
+    def test_a_branch_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "outside the live-zero"):
+            decode_zero_form_destination(_BLR)
+
+
+class ProveZeroResultTests(unittest.TestCase):
+    """The dataflow half: is the RESULT of this word provably zero here?"""
+
+    CHAIN = (
+        _addi(30, 0, 0),        # 0: li r30,0
+        _slwi(27, 30, 2),       # 1: the site, ours
+        _BLR,
+    )
+
+    def prove(self, words, word, destination=27, site=1, **kwargs):
+        words = list(words)
+        successors, calls = _successors(words, set(), set())
+        return prove_zero_result(
+            words, site, word, destination, successors, calls, set(), **kwargs
+        )
+
+    def test_a_shift_of_a_live_zero_is_zero(self):
+        self.prove(self.CHAIN, _slwi(27, 30, 2))
+
+    def test_a_copy_of_the_same_live_zero_is_zero(self):
+        # The TARGET's word, evaluated against OUR facts before it is
+        # written into our stream — the whole point of the split.
+        self.prove(self.CHAIN, _addi(27, 30, 0))
+
+    def test_a_literal_zero_is_zero_without_any_source(self):
+        self.prove(self.CHAIN, _addi(27, 0, 0))
+
+    def test_a_nonzero_literal_is_not_proved(self):
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            self.prove(self.CHAIN, _addi(27, 0, 4))
+
+    def test_an_unproven_source_is_not_proved(self):
+        words = (_lwz(30, 19),) + self.CHAIN[1:]
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            self.prove(words, _slwi(27, 30, 2))
+
+    def test_a_call_between_the_seed_and_the_site_kills_the_fact(self):
+        words = (_addi(30, 0, 0), _BL_FORWARD, _slwi(27, 30, 2), _BLR)
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            self.prove(words, _slwi(27, 30, 2), site=2)
+
+    def test_a_merge_with_an_unzeroed_path_kills_the_fact(self):
+        words = (
+            _lwz(30, 19),        # 0: r30 unknown
+            _bne(2),             # 1: -> index 3 or fall through
+            _addi(30, 0, 0),     # 2: zeroed on THIS path only
+            _slwi(27, 30, 2),    # 3: the site
+            _BLR,
+        )
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            self.prove(words, _slwi(27, 30, 2), site=3)
+
+    def test_the_same_shape_proves_when_both_paths_zero(self):
+        words = (
+            _addi(30, 0, 0),     # 0: zeroed on the fallthrough
+            _bne(2),             # 1
+            _addi(30, 0, 0),     # 2
+            _slwi(27, 30, 2),    # 3
+            _BLR,
+        )
+        self.prove(words, _slwi(27, 30, 2), site=3)
+
+    def test_an_unmodelled_relocation_type_drops_every_fact(self):
+        words = list(self.CHAIN)
+        successors, calls = _successors(words, set(), set())
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            prove_zero_result(
+                words, 1, _slwi(27, 30, 2), 27, successors, calls,
+                {0}, relocation_types={0: 26},
+            )
+
+    def test_an_out_of_range_site_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "outside the function"):
+            self.prove(self.CHAIN, _slwi(27, 30, 2), site=99)
+
+
+class EquivalentZeroFormTests(unittest.TestCase):
+    """The stage: whitelist + destination agreement + proof + rewrite."""
+
+    OURS = ProveZeroResultTests.CHAIN
+    TARGET = (_addi(30, 0, 0), _addi(27, 30, 0), _BLR)
+
+    def run_stage(self, edits, ours=None, target=None, **kwargs):
+        ours = _words(*(ours or self.OURS))
+        target = _words(*(target or self.TARGET))
+        options = {
+            "relocated_offsets": set(),
+            "target_relocated_offsets": set(),
+            "jumptable_offsets": set(),
+        }
+        options.update(kwargs)
+        return equivalent_zero_form(ours, target, edits, **options)
+
+    def edit(self, **overrides):
+        edit = {
+            "at": "0x4",
+            "proof": "zero_value_dataflow",
+            "declared_zero_register": 27,
+        }
+        edit.update(overrides)
+        return edit
+
+    def test_the_measured_site_closes(self):
+        output, changed = self.run_stage([self.edit()])
+        self.assertEqual(changed, 1)
+        self.assertEqual(output, _words(*self.TARGET))
+
+    def test_the_mr_spelling_is_accepted_too(self):
+        ours = (_addi(30, 0, 0), _or(27, 30, 30), _BLR)
+        output, changed = self.run_stage([self.edit()], ours=ours)
+        self.assertEqual((changed, output), (1, _words(*self.TARGET)))
+
+    def test_the_declared_register_must_be_the_written_one(self):
+        with self.assertRaisesRegex(ValueError, "declared_zero_register"):
+            self.run_stage([self.edit(declared_zero_register=30)])
+
+    def test_the_declaration_is_mandatory(self):
+        edit = self.edit()
+        del edit["declared_zero_register"]
+        with self.assertRaisesRegex(ValueError, "declared_zero_register"):
+            self.run_stage([edit])
+
+    def test_the_proof_label_is_mandatory(self):
+        edit = self.edit()
+        del edit["proof"]
+        with self.assertRaisesRegex(ValueError, "zero_value_dataflow"):
+            self.run_stage([edit])
+
+    def test_missing_at_key_names_the_authoring_mistake(self):
+        edit = self.edit()
+        del edit["at"]
+        with self.assertRaisesRegex(ValueError, "'at'"):
+            self.run_stage([edit])
+
+    def test_duplicate_offsets_are_refused(self):
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            self.run_stage([self.edit(), self.edit()])
+
+    def test_a_word_that_already_matches_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "already matches"):
+            self.run_stage([self.edit(at="0x0")])
+
+    def test_a_relocated_word_is_refused_in_either_object(self):
+        with self.assertRaisesRegex(ValueError, "relocated"):
+            self.run_stage([self.edit()], relocated_offsets={4})
+        with self.assertRaisesRegex(ValueError, "relocated"):
+            self.run_stage([self.edit()], target_relocated_offsets={4})
+
+    def test_a_destination_difference_is_a_recolor_and_is_refused(self):
+        target = (_addi(30, 0, 0), _addi(26, 30, 0), _BLR)
+        with self.assertRaisesRegex(ValueError, "destinations differ"):
+            self.run_stage([self.edit()], target=target)
+
+    def test_an_unprovable_source_refuses_rather_than_rewriting(self):
+        ours = (_lwz(30, 19), _slwi(27, 30, 2), _BLR)
+        target = (_lwz(30, 19), _addi(27, 30, 0), _BLR)
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            self.run_stage([self.edit()], ours=ours, target=target)
+
+    def test_the_refusal_names_which_side_failed(self):
+        # ours is provable, the target's word is not: the message must say
+        # which, per the instrumented-refusal discipline.
+        ours = (_addi(30, 0, 0), _slwi(27, 30, 2), _BLR)
+        target = (_addi(30, 0, 0), _addi(27, 29, 0), _BLR)
+        with self.assertRaisesRegex(ValueError, "target: .*not provably zero"):
+            self.run_stage([self.edit()], ours=ours, target=target)
+
+    def test_equal_nonzero_constants_are_outside_the_class(self):
+        # The lattice expresses ZERO and nothing else; a pair that is
+        # value-equal at 4 is refused rather than widened to "equal values".
+        ours = (_addi(30, 0, 4), _addi(27, 0, 4), _BLR)
+        target = (_addi(30, 0, 4), _addi(27, 30, 0), _BLR)
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            self.run_stage([self.edit()], ours=ours, target=target)
+
+    def test_a_memory_form_on_either_side_is_refused(self):
+        ours = (_addi(30, 0, 0), _lbz(27, 30), _BLR)
+        with self.assertRaisesRegex(ValueError, "outside the live-zero"):
+            self.run_stage([self.edit()], ours=ours)
+
+    def test_a_size_mismatch_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "equal aligned sizes"):
+            equivalent_zero_form(
+                _words(*self.OURS), _words(*self.TARGET[:2]), [self.edit()],
+                relocated_offsets=set(), target_relocated_offsets=set(),
+                jumptable_offsets=set(),
+            )
+
+
+class ZeroFormApplyPatchTests(unittest.TestCase):
+    """The class wired through apply_patch, on the ELF fixture."""
+
+    OURS = EquivalentZeroFormTests.OURS
+    TARGET = EquivalentZeroFormTests.TARGET
+
+    def build(self, ours_words=None, target_words=None, **kwargs):
+        ours = _words(*(ours_words or self.OURS))
+        target = _words(*(target_words or self.TARGET))
+        return (_elf_object(ours, **kwargs), _elf_object(target, **kwargs),
+                ours, target)
+
+    def patch(self, ours, target, **overrides):
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(ours),
+            "after_sha256": _sha256(target),
+            "equivalent_zero_form": [{
+                "at": "0x4",
+                "proof": "zero_value_dataflow",
+                "declared_zero_register": 27,
+            }],
+        }
+        patch.update(overrides)
+        return patch
+
+    def test_the_stage_closes_the_function_through_apply_patch(self):
+        data, target_data, ours, target = self.build()
+        before, after, changed = apply_patch(
+            data, self.patch(ours, target), bytes(target_data)
+        )
+        self.assertEqual((changed, before, after),
+                         (1, _sha256(ours), _sha256(target)))
+        sections = _sections(data)
+        symbol = _find_symbol(data, sections, "fn")
+        text = sections[symbol.section_index]
+        self.assertEqual(
+            bytes(data[text.offset + symbol.value:
+                       text.offset + symbol.value + symbol.size]),
+            target,
+        )
+
+    def test_the_stage_works_at_a_nonzero_symbol_value(self):
+        data, target_data, ours, target = self.build(value=0x40)
+        _b, after, changed = apply_patch(
+            data, self.patch(ours, target), bytes(target_data)
+        )
+        self.assertEqual((changed, after), (1, _sha256(target)))
+
+    def test_the_target_object_is_required(self):
+        data, _target_data, ours, target = self.build()
+        with self.assertRaisesRegex(ValueError, "target object is required"):
+            apply_patch(data, self.patch(ours, target), None)
+
+    def test_an_unprovable_site_aborts_the_whole_patch(self):
+        ours_words = (_lwz(30, 19), _slwi(27, 30, 2), _BLR)
+        target_words = (_lwz(30, 19), _addi(27, 30, 0), _BLR)
+        data, target_data, ours, target = self.build(ours_words, target_words)
+        with self.assertRaisesRegex(ValueError, "not provably zero"):
+            apply_patch(data, self.patch(ours, target), bytes(target_data))
+
+    def test_it_may_not_ride_on_an_unproven_recolor_audit(self):
+        data, target_data, ours, target = self.build()
+        patch = self.patch(
+            ours, target, copy_register_fields=True,
+            unproven_recolor_audit="hand-waved",
+        )
+        with self.assertRaisesRegex(ValueError, "unproven_recolor_audit"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_it_refuses_to_compose_with_a_register_stage(self):
+        # The word written is the TARGET's; a recolor would then have to read
+        # one target-coloured word as an identity inside our colouring.  No
+        # measured site needs both, so the composition is refused by name.
+        data, target_data, ours, target = self.build()
+        patch = self.patch(ours, target, copy_register_fields=True)
+        with self.assertRaisesRegex(ValueError, "does not compose"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_it_composes_with_a_pre_recolor_permutation(self):
+        # The btext shape in full: the two words are also TRANSPOSED, so the
+        # permutation stage runs first and the zero proof then reads the
+        # permuted stream.
+        ours_words = (
+            _addi(30, 0, 0),      # li r30,0
+            _addi(29, 1, 148),    # addi r29,r1,148
+            _slwi(27, 30, 2),     # ours: the zero, shifted
+            _BLR,
+        )
+        target_words = (
+            _addi(30, 0, 0),
+            _addi(27, 30, 0),     # target: the zero, copied — and FIRST
+            _addi(29, 1, 148),
+            _BLR,
+        )
+        data, target_data, ours, target = self.build(ours_words, target_words)
+        permuted_region = _words(_slwi(27, 30, 2), _addi(29, 1, 148))
+        empty = _relocation_sha256([], {})
+        patch = self.patch(
+            ours, target,
+            instruction_permutation={
+                "start": "0x4",
+                "end": "0xc",
+                "order": [1, 0],
+                "before_sha256": _sha256(_words(_addi(29, 1, 148),
+                                                _slwi(27, 30, 2))),
+                "after_sha256": _sha256(permuted_region),
+                "before_relocations_sha256": empty,
+                "after_relocations_sha256": empty,
+            },
+        )
+        _b, after, changed = apply_patch(data, patch, bytes(target_data))
+        self.assertEqual(after, _sha256(target))
+        self.assertGreaterEqual(changed, 2)
 
 
 class StaleObjectMarkerTests(unittest.TestCase):
