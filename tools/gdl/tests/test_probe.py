@@ -16,7 +16,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
-                   arbitrate_table, bank_divergence, bank_warning, classify,
+                   apply_fuzzy_bank_gate, arbitrate_table, bank_divergence,
+                   bank_warning, banks_best, classify,
                    conflict_gate, count_distance,
                    data_line, format_genuine_note, function_span,
                    fuzzy_anchor_note, moved_sections, parse_section_digests,
@@ -57,6 +58,48 @@ class CountDistanceTests(unittest.TestCase):
     def test_unparseable_is_none(self):
         self.assertIsNone(count_distance("exact"))
         self.assertIsNone(count_distance(None))
+
+
+class BanksBestTests(unittest.TestCase):
+    def test_the_four_banking_verdicts(self):
+        for verdict in ("BASELINE  real 65", "IMPROVED  real 65 -> 48",
+                        "IMPROVED-STRUCTURE real 30 UNCHANGED",
+                        "REBASED   best 48 -> 65"):
+            self.assertTrue(banks_best(verdict), verdict)
+
+    def test_non_banking_verdicts(self):
+        for verdict in ("IMPROVED? real 949 -> 802 BUT count",
+                        "REGRESSED vs best 48", "NEUTRAL   real 30",
+                        "CONFLICT  real 48 -> 30", "NEUTRAL-WORSE real 30",
+                        "RE-SCORE  real 65"):
+            self.assertFalse(banks_best(verdict), verdict)
+
+
+class FuzzyBankGateTests(unittest.TestCase):
+    PRIOR = {"best_real": 30, "best_multiset": 4, "best_insns": "T47/O48",
+             "best_bytes": "aa", "best_fuzzy": 81.25}
+
+    def test_non_banking_verdict_is_untouched(self):
+        state = {"best_real": 24}
+        verdict, after = apply_fuzzy_bank_gate(
+            "REGRESSED vs best 30", state, self.PRIOR, 81.25, 70.0)
+        self.assertEqual(verdict, "REGRESSED vs best 30")
+        self.assertIs(after, state)
+
+    def test_gate_restores_every_best_key(self):
+        state = {"best_real": 24, "best_multiset": 3, "best_insns": "T47/O49",
+                 "best_bytes": "bb", "best_fuzzy": 80.0}
+        _, after = apply_fuzzy_bank_gate(
+            "IMPROVED  real 30 -> 24", state, self.PRIOR, 81.25, 80.0)
+        for key, value in self.PRIOR.items():
+            self.assertEqual(after[key], value, key)
+
+    def test_gate_pops_keys_the_prior_state_did_not_have(self):
+        prior = dict(self.PRIOR, best_bytes=None)
+        state = {"best_real": 24, "best_bytes": "bb"}
+        _, after = apply_fuzzy_bank_gate(
+            "IMPROVED  real 30 -> 24", state, prior, 81.25, 80.0)
+        self.assertNotIn("best_bytes", after)
 
 
 class ClassifyTests(unittest.TestCase):
@@ -127,6 +170,84 @@ class ClassifyTests(unittest.TestCase):
         verdict, _ = classify(state, 65, "T116/O115", 3)
         self.assertTrue(verdict.startswith("REGRESSED"), verdict)
         self.assertIn("no best_multiset banked", verdict)
+
+    def test_fuzzy_regression_refuses_to_bank_a_real_and_multiset_win(self):
+        """THE run-35 REGRESSION TEST (item 1).
+
+        real fell AND the multiset fell — both instruction-stream metrics
+        agree — but the fresh objdiff fuzzy fell too. Under the old
+        behaviour this banked as IMPROVED and poisoned every later verdict.
+        """
+        state = {"best_real": 30, "best_multiset": 4, "best_insns": "T47/O48",
+                 "best_fuzzy": 81.2500, "last_real": 30,
+                 "last_insns": "T47/O48", "last_multiset": 4}
+        verdict, after = classify(state, 24, "T47/O49", 3, fuzzy=80.7900)
+        self.assertTrue(verdict.startswith("FUZZY-REGRESSED"), verdict)
+        self.assertIn("-0.4600", verdict)
+        self.assertEqual(after["best_real"], 30)
+        self.assertEqual(after["best_multiset"], 4)
+        self.assertEqual(after["best_fuzzy"], 81.2500)
+
+    def test_fuzzy_rise_banks_the_win_and_the_new_anchor(self):
+        state = {"best_real": 30, "best_multiset": 4, "best_fuzzy": 81.2500,
+                 "last_real": 30, "last_insns": "T47/O48",
+                 "last_multiset": 4}
+        verdict, after = classify(state, 24, "T47/O49", 3, fuzzy=81.5800)
+        self.assertTrue(verdict.startswith("IMPROVED "), verdict)
+        self.assertEqual(after["best_real"], 24)
+        self.assertEqual(after["best_fuzzy"], 81.5800)
+
+    def test_flat_fuzzy_is_not_a_regression(self):
+        state = {"best_real": 30, "best_multiset": 4, "best_fuzzy": 81.2500,
+                 "last_real": 30, "last_insns": "T47/O48",
+                 "last_multiset": 4}
+        verdict, after = classify(state, 24, "T47/O49", 3, fuzzy=81.2500)
+        self.assertTrue(verdict.startswith("IMPROVED "), verdict)
+        self.assertEqual(after["best_real"], 24)
+
+    def test_rebase_best_is_exempt_from_the_fuzzy_gate(self):
+        """--rebase-best IS the arbitrated keep; the gate must not undo it."""
+        state = {"best_real": 30, "best_multiset": 4, "best_fuzzy": 81.2500,
+                 "last_real": 30, "last_insns": "T47/O48",
+                 "last_multiset": 4}
+        verdict, after = classify(state, 24, "T47/O49", 3, fuzzy=80.0,
+                                  rebase_best=True)
+        self.assertTrue(verdict.startswith("REBASED"), verdict)
+        self.assertEqual(after["best_real"], 24)
+        self.assertEqual(after["best_fuzzy"], 80.0)
+
+    def test_unmeasured_fuzzy_against_a_live_anchor_is_announced(self):
+        state = {"best_real": 30, "best_multiset": 4, "best_fuzzy": 81.2500,
+                 "last_real": 30, "last_insns": "T47/O48",
+                 "last_multiset": 4}
+        verdict, after = classify(state, 24, "T47/O49", 3)
+        self.assertTrue(verdict.startswith("IMPROVED "), verdict)
+        self.assertIn("FUZZY GATE UNMEASURED", verdict)
+        self.assertNotIn("best_fuzzy", after)
+
+    def test_no_anchor_and_no_measurement_stays_quiet(self):
+        verdict, after = classify({}, 65, "T116/O115", 3)
+        self.assertTrue(verdict.startswith("BASELINE"), verdict)
+        self.assertNotIn("FUZZY GATE", verdict)
+
+    def test_baseline_banks_the_measured_fuzzy_as_the_anchor(self):
+        _, after = classify({}, 65, "T116/O115", 3, fuzzy=77.5)
+        self.assertEqual(after["best_fuzzy"], 77.5)
+
+    def test_improved_structure_is_gated_too(self):
+        state = {"best_real": 30, "best_multiset": 6, "best_fuzzy": 81.25,
+                 "last_real": 30, "last_insns": "T47/O47",
+                 "last_multiset": 6}
+        verdict, after = classify(state, 30, "T47/O47", 3, fuzzy=80.0)
+        self.assertTrue(verdict.startswith("FUZZY-REGRESSED"), verdict)
+        self.assertIn("IMPROVED-STRUCTURE", verdict)
+        self.assertEqual(after["best_multiset"], 6)
+
+    def test_regressed_carries_the_rerun_from_last_commit_reminder(self):
+        state = {"best_real": 48, "best_multiset": 4, "last_real": 48,
+                 "last_insns": "T116/O116", "last_multiset": 4}
+        verdict, _ = classify(state, 65, "T116/O120", 5)
+        self.assertIn("RE-RUN THIS NEGATIVE FROM THE LAST COMMIT", verdict)
 
     def test_rebase_best_banks_current_as_best(self):
         state = {"best_real": 48, "best_multiset": 4, "last_real": 65,

@@ -92,6 +92,9 @@ docstring omitted it — the flags below all work):
                      revert restores the SOURCE and leaves the re-derived
                      hashes in webfrank.json, which GW measured as ~2 of 15
                      probe cycles spent on pure pin plumbing
+  --no-fuzzy-gate    skip the pre-bank fresh-fuzzy measurement (below).
+                     Faster, and how the loop behaved before run 36 — but
+                     a keep banked this way is unarbitrated
   --stateless        sweep mode: score only — no state, bank, or verdict
   --scaffold         print the pragma/volatile scaffold census on ANY
                      probe, not only a BASELINE
@@ -110,6 +113,25 @@ one revert (five lanes hit that). A hunk straddling the function boundary
 is REFUSED loudly, never guessed at; `--revert --whole-file` then takes
 the old all-or-nothing restore deliberately. --revert-baseline and
 --discard remain whole-file by construction.
+
+FRESH FUZZY RUNS BEFORE ANY BANK. The four verdicts that move the BEST
+anchor — BASELINE, IMPROVED, IMPROVED-STRUCTURE, REBASED — used to bank on
+`real` and the opcode multiset alone. Both are computed over the
+instruction stream, both read register-color cascades, and in run 35 they
+AGREED on a keep whose fresh objdiff fuzzy was a 0.46 REGRESSION; the next
+probe, anchored on that poisoned best, then read the run's actual best edit
+as a loss (re-applied from the last commit it was +0.33). probe now spends
+one report build at exactly those verdicts, before the bank, and:
+  FUZZY-REGRESSED  the instruction-stream metrics improved but fresh fuzzy
+            FELL below the banked anchor — best NOT updated, nothing
+            banked. Revert, or arbitrate and bank deliberately with
+            --rebase-best (which is exempt from the gate by construction).
+A passing gate banks the measured number as the new fuzzy anchor, so the
+anchor stops decaying and later CONFLICTs print their comparison for free.
+--no-fuzzy-gate restores the old build-free behaviour. REGRESSED verdicts
+now also carry the corollary reminder: re-run a negative from the LAST
+COMMIT before recording it, because a negative measured against a bad
+anchor is a fact about the anchor.
 
 --fuzzy CACHES what it measures, keyed to the object digest it measured
 it on, and when those bytes are the banked BEST state it becomes the
@@ -1022,6 +1044,81 @@ def genuine_row_count(unit, fn):
         return None
 
 
+BEST_KEYS = ("best_real", "best_multiset", "best_insns", "best_bytes",
+             "best_fuzzy")
+
+# Fuzzy is a float percentage; anything at or above the anchor is "not a
+# regression". The epsilon keeps float noise from manufacturing a refusal.
+FUZZY_GATE_EPS = 1e-9
+
+
+def banks_best(verdict):
+    """True when this verdict text is one of the four that move the BEST
+    anchor: BASELINE, IMPROVED, IMPROVED-STRUCTURE, REBASED.
+
+    `IMPROVED?` (the blown-out-count-distance headline) deliberately does
+    NOT bank, so it must not be matched by a bare startswith("IMPROVED").
+    """
+    return verdict.startswith(("BASELINE", "REBASED", "IMPROVED-STRUCTURE",
+                               "IMPROVED "))
+
+
+def apply_fuzzy_bank_gate(verdict, state, prior_best, prior_best_fuzzy,
+                          fuzzy):
+    """Refuse to bank a new BEST whose fresh fuzzy fell below the anchor.
+
+    Run-35 criticism (claim.law.PC_real-and-multiset-agreement-does-not-
+    license-a-keep): probe banked an IMPROVED whose fresh fuzzy was a 0.46
+    REGRESSION, and the next probe — measured against that poisoned anchor
+    — read the run's best edit as a loss. real and the opcode multiset
+    AGREEING is not a licence to keep: both are computed over the
+    instruction stream and both read register-color cascades in ways fuzzy
+    does not. The project's own metric-disagreement rule already names
+    fuzzy from a fresh report as the arbiter; this makes the loop obey it
+    instead of advising it.
+
+    Pure: `prior_best` is the snapshot of the BEST_KEYS taken before any
+    branch called bank_best(), and restoring it is exactly the un-bank.
+    REBASED is exempt — it IS the deliberate arbitrated keep.
+    """
+    if not banks_best(verdict) or verdict.startswith("REBASED"):
+        return verdict, state
+    if fuzzy is None:
+        if prior_best_fuzzy is None:
+            # No anchor existed and none could be measured: there is
+            # nothing to gate against, and saying so on every probe would
+            # be noise.
+            return verdict, state
+        return verdict + (
+            "\nFUZZY GATE UNMEASURED: a fuzzy anchor"
+            f" ({prior_best_fuzzy:.4f}%) was banked for the previous best,"
+            " but this state's fresh fuzzy could not be measured (report"
+            " build failed, or --no-fuzzy-gate). The new best is banked"
+            " WITHOUT the check that would have caught a fuzzy regression"
+            " hiding under a real+multiset win, and the anchor is CLEARED"
+            " rather than carried stale. Run --arbitrate before recording"
+            " this as progress."), state
+    if prior_best_fuzzy is None or fuzzy >= prior_best_fuzzy - FUZZY_GATE_EPS:
+        return verdict, state
+    state = dict(state)
+    for key, value in prior_best.items():
+        if value is None:
+            state.pop(key, None)
+        else:
+            state[key] = value
+    head = verdict.split("\n", 1)[0]
+    gated = (
+        f"FUZZY-REGRESSED  fresh objdiff fuzzy {prior_best_fuzzy:.4f}% ->"
+        f" {fuzzy:.4f}% ({fuzzy - prior_best_fuzzy:+.4f}) — best NOT updated"
+        " and NOTHING banked, even though the instruction-stream metrics"
+        " improved. real and the multiset are both computed over .text and"
+        " both read register-color cascades; fuzzy from a fresh report is"
+        " the arbiter when they disagree. REVERT, or arbitrate and bank the"
+        " keep deliberately with --rebase-best."
+        f"\n[instruction-stream verdict, SUPERSEDED by the gate: {head}]")
+    return gated, state
+
+
 def classify(state, real, insns, multiset_tokens, rebase_best=False,
              digest=None, source_changed=True, fuzzy=None):
     """Pure verdict function: (verdict_text, new_state).
@@ -1049,6 +1146,9 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
            if multiset_tokens is not None else "")
 
     best_fuzzy = state.get("best_fuzzy")
+    # Everything the fuzzy bank gate has to be able to put BACK when it
+    # refuses a keep. Captured before any branch can call bank_best().
+    prior_best = {key: state.get(key) for key in BEST_KEYS}
 
     def bank_best():
         state["best_real"] = real
@@ -1218,6 +1318,17 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                        f" {state.get('last_real', best)} -> {real}"
                        f" (prev -> current; insns {insns}{tok})"
                        "  [revert advised]")
+            # Run-35 corollary to the fuzzy-bank-gate law: a negative
+            # verdict measured on top of a poisoned anchor is not a fact
+            # about the edit. One run's BEST edit read as a loss this way
+            # and was re-applied from the last commit at +0.33 fuzzy.
+            verdict += (
+                "\nRE-RUN THIS NEGATIVE FROM THE LAST COMMIT before"
+                " recording it: this verdict is measured against a BEST"
+                " banked by earlier probes in this session, and a keep that"
+                " should not have been banked makes a good edit read as a"
+                " loss. `probe --discard` (back to HEAD), re-apply the edit,"
+                " re-probe — or `--arbitrate` for the four-number view.")
         if best_tokens is None:
             # Say it on BOTH outcomes. A legacy state silently reproduces
             # the old prev-anchored answer, and the REGRESSED half is
@@ -1245,6 +1356,10 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
             bank_best()
         else:
             verdict = f"NEUTRAL   real {real} (insns {insns}{tok})"
+    # LAST WORD ON EVERY BANK. Nothing above this line may leave a new best
+    # standing whose fresh fuzzy fell below the anchor.
+    verdict, state = apply_fuzzy_bank_gate(verdict, state, prior_best,
+                                           best_fuzzy, fuzzy)
     state["last_real"] = real
     state["last_insns"] = insns
     if multiset_tokens is not None:
@@ -1888,10 +2003,43 @@ def main():
         fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=digest)
         return 0
 
+    rebase_best = "--rebase-best" in sys.argv
+    # The pre-verdict state, kept so the fuzzy gate below can re-run the
+    # classification from the SAME inputs. Re-classifying from the state
+    # classify() already returned would compare `real` against a best it
+    # had just banked and read every improvement as NEUTRAL.
+    state_before = dict(state)
     verdict, state = classify(state, real, insns, multiset_tokens,
-                              rebase_best="--rebase-best" in sys.argv,
+                              rebase_best=rebase_best,
                               digest=digest, source_changed=source_changed,
                               fuzzy=cached_fuzzy)
+    # FRESH FUZZY BEFORE THE BANK (run-35 item 1). The verdict above is
+    # provisional whenever it would move the BEST anchor: a real+multiset
+    # win can still be a fuzzy LOSS, and banking one poisons every later
+    # verdict on the function. Spend the report build here — on the four
+    # verdicts that actually change the high-water mark — rather than
+    # discovering it two probes later. --rebase-best is exempt (it is the
+    # deliberate arbitrated keep) and --no-fuzzy-gate opts out entirely.
+    if (banks_best(verdict) and cached_fuzzy is None and not rebase_best
+            and "--no-fuzzy-gate" not in sys.argv):
+        print(f"[fuzzy gate: {verdict.split()[0]} would bank a new BEST —"
+              " measuring this state's fresh objdiff fuzzy FIRST (report"
+              " build; --no-fuzzy-gate skips it)]")
+        fresh = report_fuzzy(unit, fn, fn_stripped)
+        if fresh is not None:
+            print(f"FUZZY (fresh report): {fresh:.4f}%")
+        else:
+            print("[fuzzy gate: no number — the report build FAILED or this"
+                  " function is absent from build/GUNE5D/report.json]")
+        verdict, state = classify(state_before, real, insns, multiset_tokens,
+                                  rebase_best=False, digest=digest,
+                                  source_changed=source_changed,
+                                  fuzzy=fresh)
+        if fresh is not None:
+            cached_fuzzy = fresh
+            state["last_fuzzy"] = fresh
+            if digest is not None:
+                state["last_fuzzy_bytes"] = digest
     # A CONFLICT with no fresh fuzzy on BOTH states classifies nothing at all
     # (run 34 item 4): PC recorded a false regression from an unarbitrated
     # CONFLICT headline. The exit code carries the refusal to any script.
