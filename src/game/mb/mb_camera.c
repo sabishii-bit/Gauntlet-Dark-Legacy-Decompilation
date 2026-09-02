@@ -224,12 +224,14 @@ void MBCameraUpdate(f32* position, f32* matrix)
     f32* copied = &camera[25];
     f32* view3 = &camera[41];
     f32* inverse = &camera[57];
-    f32 x;
     f32 y;
+    f32 x;
     f32 z;
+    f32 zero;
 
+    zero = lbl_80348B3C;
     for (row = 0; row < 3; row++) {
-        matrix[row * 4 + 3] = lbl_80348B3C;
+        matrix[row * 4 + 3] = zero;
     }
     matrix[15] = lbl_80348B20;
     pbInitCamera(position, &matrix[8]);
@@ -280,13 +282,13 @@ void MBCameraUpdate(f32* position, f32* matrix)
     copied[14] = position[2];
     copied[15] = lbl_80348B20;
 
+    row = 0;
     {
         int dstOffset = 0;
+        f32 z = lbl_80348B3C;
 
-        row = 0;
         do {
             int srcOffset = row * 4;
-            f32 z = lbl_80348B3C;
             int col;
 
             for (col = 0; col < 3; col++) {
@@ -304,7 +306,7 @@ void MBCameraUpdate(f32* position, f32* matrix)
     x = -view3[13];
     y = -view3[12];
     z = -view3[14];
-    view3[12] = view3[4] * x + view3[0] * y + view3[8] * z;
-    view3[13] = view3[5] * x + view3[1] * y + view3[9] * z;
-    view3[14] = view3[6] * x + view3[2] * y + view3[10] * z;
+    view3[12] = view3[0] * y + view3[4] * x + view3[8] * z;
+    view3[13] = view3[1] * y + view3[5] * x + view3[9] * z;
+    view3[14] = view3[2] * y + view3[6] * x + view3[10] * z;
 }
