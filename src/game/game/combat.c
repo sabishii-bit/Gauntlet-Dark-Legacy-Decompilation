@@ -2553,7 +2553,8 @@ void InitCamera(s32 resetAll)
     f32 mat[16];
     f32 in[3];
     f32 out[3];
-    u8 unused[48];
+    u8 unused[8];
+    f32 m2[16];
 
     {
         f32 zero = lbl_80345EC8;
@@ -2781,6 +2782,7 @@ void InitCamera(s32 resetAll)
             c0->state = 1;
         } else if ((u32)mode == 0x8008) {
             if (lbl_80344288 != 0) {
+                u8 unused2[40];
                 f32 d[3];
                 f32 saveA[3];
                 f32 saveW[3];
@@ -2976,9 +2978,8 @@ void InitCamera(s32 resetAll)
                 }
                 default: {
                     void dbgTextPrintfCol(s32 x, s32 line, char* fmt, ...);
-                    f32 m2[16];
-                    f32 saveW[3];
                     f32 saveA[3];
+                    f32 saveW[3];
                     f32 d2[3];
                     u8* st = sSpecialTransmitter;
                     f32* p0 = (f32*)(cs + CAMERA_STATE_CAMERAS_OFF + offsetof(Camera, wpos[0]));

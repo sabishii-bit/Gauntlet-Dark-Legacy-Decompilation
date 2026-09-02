@@ -1,0 +1,22 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/ci_paramarea_probe.py"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "decl-order",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Compile, under combat.c's cflags with GC/1.2.5, a call passing an aggregate of size N by value and measure the bytes below the lowest declared local (the `below-locals` column of ci_paramarea_probe.py, which locates the declared local by its own `lha rN,K(r1)` read rather than by the lowest `addi rN,r1,K`). Any N for which that figure is not 8 + roundup8(N), or any by-value aggregate call whose copy is placed ABOVE a declared local rather than bottom-anchored beneath every one of them, disproves this law.",
+  "id": "claim.law.CH_by-value-aggregate-argument-reserves-a-bottom-anchored-copy-below-the-declared-locals.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T16:36:30Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/combat",
+  "valid_from": "2026-09-02",
+  "value": "Under GC/1.2.5 with combat.c's cflags (-align powerpc, -O4, -Cpp_exceptions on, -lang=c), a call argument passed BY VALUE as an aggregate does NOT enlarge the outgoing parameter area, but it DOES reserve a caller-side copy of the aggregate that MWCC bottom-anchors immediately above the 8-byte parameter area and BELOW every declared local. Measured table (tools/gdl/composed_census/ci_paramarea_probe.py, `below-locals` section, run 36): bytes reserved below the lowest declared local = 8 + roundup8(sizeof aggregate) exactly -- byval8 16, byval16 24, byval24 32, byval32 40, byval40 48, byval48 56, byval64 72 -- and the figure is identical whether the aggregate is argument 1 of a 2-argument call or argument 2 of a 4-argument call (byval40_as_arg1 and byval40_as_arg2 both give 48, locals base 56). MWCC passes the aggregate by POINTER to that copy (`addi r3,r28,0` where r28 addresses the copy), materialising it with a `stwu`-cursor copy loop off `addi r5,r1,8`. CONSEQUENCE, and this is the correction: claim.law.CI_mwcc-outgoing-param-area-is-sized-only-by-stack-spilled-args.20260902.v1 is CORRECT on parameter-area SIZING and its parenthetical consequence clause -- that a struct-by-value argument cannot produce a 48-byte reserved region and therefore no source construct reserves swbos's 48 dead bytes -- is WRONG. A 40-byte by-value aggregate argument reserves exactly 48 bytes at r1+8..55 and seats the declared locals at r1+56, which is byte-for-byte someone_will_be_off_screen's target frame signature (temp base 56). The class-level premise 'no source construct reaches this region' is therefore refuted; whether a GIVEN function used the construct is a separate question decided by its own bytes (for swbos it did not -- see attempt.CH_swbos-by-value-aggregate-axis-refuted-on-the-targets-own-bytes.20260902.v1)."
+}
