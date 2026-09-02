@@ -2980,6 +2980,64 @@ class GraphRebuildCostTests(unittest.TestCase):
             marker.unlink(missing_ok=True)
 
 
+class ToolNamespaceTests(unittest.TestCase):
+    """T10 run-40 item 5: `tool:` / `workflow:` were advertised but unusable.
+
+    The namespaces appeared in `entity_key_namespaces` and in the unknown-
+    entity error message, but nothing made a NEW key resolve — an entity row
+    had to exist first, and entity rows come from record anchors. So the
+    first record to try `subject: tool:probe` was refused, every author fell
+    back to `project:gdl`, and 130 records now live there where
+    `gdlmem tool <name>` cannot see them. Third recurrence.
+    """
+
+    def test_a_record_can_now_be_anchored_at_a_tool(self):
+        record = {
+            "schema_version": 1,
+            "id": "claim.t10-tool-anchor-probe.20260903.v1",
+            "kind": "claim", "subject": "tool:probe",
+            "predicate": "workflow_law",
+            "value": "probe banks whatever state it first sees per function.",
+            "epistemic_state": "provisional", "attributes": {},
+        }
+        # dry_run runs the full reference resolution and writes nothing.
+        stage_record_proposal(record, root=REPO_ROOT, dry_run=True,
+                              confirm_new=True)
+
+    def test_an_invented_tool_key_is_still_refused(self):
+        record = {
+            "schema_version": 1,
+            "id": "claim.t10-tool-anchor-bogus.20260903.v1",
+            "kind": "claim", "subject": "tool:no-such-tool-anywhere",
+            "predicate": "workflow_law", "value": "x",
+            "epistemic_state": "provisional", "attributes": {},
+        }
+        with self.assertRaises(MemoryGraphError):
+            stage_record_proposal(record, root=REPO_ROOT, dry_run=True,
+                                  confirm_new=True)
+
+    def test_tool_query_returns_the_laws_about_that_tool(self):
+        result = core.tool_context("probe", root=REPO_ROOT)
+        ids = [law["id"] for law in result["laws"]]
+        self.assertTrue(ids, "no laws surfaced for probe")
+        self.assertTrue(
+            any("probe-discard" in law_id or "probe-revert" in law_id
+                for law_id in ids), ids)
+        self.assertIn("laws_note", result)
+
+    def test_the_bridge_does_not_match_prose_or_asserted_by(self):
+        """Calibration, and the first version FAILED it.
+
+        Bridging on `asserted_by` pulled 33 laws about combat.c and
+        gauntworld into `tool probe`, because asserted_by names the tool
+        that MEASURED a law, not its subject.
+        """
+        result = core.tool_context("probe", root=REPO_ROOT, limit=100)
+        for law in result["laws"]:
+            self.assertIn("probe", set(core._slug_words(law["id"])),
+                          f"bridged without the name in its slug: {law['id']}")
+
+
 class ResidualVolumeTests(unittest.TestCase):
     """T10 run-40 item 4: `laws --residual` returned the whole corpus.
 

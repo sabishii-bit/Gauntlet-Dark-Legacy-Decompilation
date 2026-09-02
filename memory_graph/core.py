@@ -3583,7 +3583,98 @@ def tool_context(
         evidence = search_memory(query, root=root, db_path=db_path, limit=limit)["documents"]
     except MemoryGraphError:
         evidence = []
-    return {"query": query, "tools": tools, "legacy_provenance": evidence}
+    laws, bridged = _tool_behaviour_laws(
+        query, tools, root=root, db_path=db_path, limit=limit)
+    result = {"query": query, "tools": tools, "laws": laws,
+              "legacy_provenance": evidence}
+    result["laws_note"] = (
+        "Laws about how this TOOL behaves. `subject_anchored` rows are"
+        " anchored with `subject: tool:<slug>` / `workflow:<slug>` — the"
+        " correct home, resolvable since run 40. `bridged` rows are laws"
+        " filed under `project:gdl` whose id or asserted_by names this"
+        f" tool ({bridged} of them here): they are found by a name bridge,"
+        " not by an anchor, so a rename would lose them. When you supersede"
+        " one, re-anchor it to its tool.")
+    return result
+
+
+def _tool_behaviour_laws(
+    query: str,
+    tools: list[dict[str, Any]],
+    *,
+    root: Path,
+    db_path: Path | None,
+    limit: int,
+) -> tuple[list[dict[str, Any]], int]:
+    """Laws about a tool: anchored ones first, name-bridged ones after.
+
+    THE MEASURED GAP (run-40 item 5, third recurrence): `gdlmem tool <name>`
+    returned only tool_catalog entries — purpose, usage, constraints — and
+    NO laws, while the laws that describe how a tool actually behaves
+    (probe --discard's object staleness, wf_rederive_pin's auto-apply
+    refusal, the fuzzy-bank gate) were all filed under `project:gdl`, which
+    no tool query touches. The anchor namespace is now resolvable, but 130
+    records already sit in project:gdl; the bridge is what makes them
+    reachable TODAY, and it says so rather than pretending they were
+    anchored.
+    """
+    keys = {str(tool.get("tool_key")) for tool in tools
+            if str(tool.get("tool_key") or "").startswith("tool:")}
+    keys.add("tool:" + re.sub(r"[^a-z0-9]+", "-", query.lower()).strip("-"))
+    workflow_keys = {"workflow:" + key.split(":", 1)[1] for key in keys}
+    # Name tokens the bridge matches on. CALIBRATED, and the first version
+    # was refuted by the calibration: taking a token from every fuzzily
+    # matched tool row and substring-matching it against the records' prose
+    # bridged laws about combat.c and gauntworld into `tool probe`, because
+    # "probe" is a substring of "probed"/"probes" and appears in almost
+    # every scope line in the corpus. Two narrowings, both required:
+    #   * tokens come from the query and from tools whose NAME IS the query,
+    #     not from every fuzzy hit;
+    #   * matching is on TOOL PATHS in `asserted_by` and on WHOLE SLUG WORDS
+    #     of the record id — never on free prose.
+    tokens = {query.lower()}
+    for tool in tools:
+        if str(tool.get("name") or "").lower() == query.lower():
+            source = str(tool.get("source_path") or "")
+            if source:
+                tokens.add(Path(source).stem.lower())
+    tokens = {token for token in tokens if len(token) >= 4}
+    anchored: list[dict[str, Any]] = []
+    bridged_rows: list[dict[str, Any]] = []
+    with closing(open_database(root, db_path)) as connection:
+        for row in connection.execute(
+            """
+            SELECT r.record_id, r.raw_json, e.entity_key
+            FROM claim c
+            JOIN record_ingest r ON r.record_id = c.record_id
+            JOIN entity e ON e.id = c.subject_entity_id
+            WHERE (c.predicate IN ('codegen_law', 'workflow_law', 'law')
+                   OR r.record_id LIKE '%law%')
+            """
+        ).fetchall():
+            key = str(row["entity_key"])
+            try:
+                record = json.loads(row["raw_json"])
+            except json.JSONDecodeError:
+                continue
+            head = str(record.get("value") or "")[:280]
+            item = {"id": row["record_id"], "subject": key, "head": head}
+            if key in keys or key in workflow_keys:
+                item["match"] = "subject_anchored"
+                anchored.append(item)
+                continue
+            # SLUG WORDS ONLY. `asserted_by` was the obvious second signal
+            # and it is the WRONG one, measured: it names the tool that
+            # MEASURED the law, not the law's subject, so bridging on it
+            # pulled 33 laws about combat.c and gauntworld into
+            # `tool probe`. A law about a tool says so in its own name.
+            slug_words = set(_slug_words(str(record.get("id") or "")))
+            if tokens & slug_words:
+                item["match"] = "name_bridge_from_" + key
+                bridged_rows.append(item)
+    anchored.sort(key=lambda item: item["id"])
+    bridged_rows.sort(key=lambda item: item["id"])
+    return (anchored + bridged_rows)[:limit], len(bridged_rows)
 
 
 def memory_audit(
@@ -3728,6 +3819,36 @@ def _reference_resolvable(connection: sqlite3.Connection, key: str) -> bool:
             "SELECT COUNT(*) FROM binary_module"
             f" WHERE platform='gamecube' AND object_name IN ({placeholders})",
             candidates,
+        ).fetchone()[0]
+        return int(count) >= 1
+    # tool:/workflow: — THE THIRD-RECURRENCE FIX (run-40 item 5).
+    #
+    # `entity_key_namespaces` has advertised `tool:` and `workflow:` as live
+    # namespaces since run 35, but nothing MADE them resolve: an entity row
+    # had to exist first, and entity rows are auto-created from record
+    # anchors, so the first record to try `subject: tool:probe` was refused
+    # as an unknown entity. Every author then fell back to `project:gdl` —
+    # 130 records now sit there, tool-behaviour laws among them, where
+    # `gdlmem tool <name>` cannot see them. The namespace was documented,
+    # advertised in the error message, and unusable.
+    #
+    # tool_catalog already holds a row for every tools/gdl source (the
+    # source_scan import) plus every reviewed tool record, keyed exactly as
+    # `tool:<slug>`. That table IS the vocabulary; resolve against it.
+    if key.startswith("tool:"):
+        count = connection.execute(
+            "SELECT COUNT(*) FROM tool_catalog WHERE tool_key=?", (key,)
+        ).fetchone()[0]
+        return int(count) >= 1
+    if key.startswith("workflow:"):
+        # A workflow is a tool_catalog row whose tool_kind says so — the
+        # documented multi-tool procedures (the matching toolchain, the
+        # de-fakematch loop), addressed by their own namespace so a law
+        # about the PROCEDURE is not filed under one of its scripts.
+        count = connection.execute(
+            "SELECT COUNT(*) FROM tool_catalog"
+            " WHERE tool_kind='workflow' AND tool_key=?",
+            ("tool:" + key.split(":", 1)[1],),
         ).fetchone()[0]
         return int(count) >= 1
     return False
