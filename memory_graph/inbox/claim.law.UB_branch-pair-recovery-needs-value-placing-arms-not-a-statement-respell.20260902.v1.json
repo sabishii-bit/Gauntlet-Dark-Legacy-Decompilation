@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py --ops (the target-only/ours-only branch token delta is the detector for this class)",
+    "tools/gdl/probe.py (its NEUTRAL-IDENTICAL verdict and its RE-PLAN THE AXIS CLASS banner after three of them are the mechanical stop signal)"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any control-transfer-only site where a C spelling of the conditional changes the built object bytes and recovers retail's branch pair. Concretely: re-run the three probed forms in attempt.UB_controllermessagebox-goto-spelling-axis-is-measured-dead.20260902.v1 against src/game/ui/screensaver.c:1810-1813 and rebuild; if any of them stops reporting NEUTRAL-IDENTICAL, the control-transfer half of this law is dead. Symmetrically, a value-placing site where the one-case switch does NOT recover the pair falsifies the other half -- re-run the A4 form recorded in attempt.UB_update-class-spec-branch-pair-plus-sdata-size-are-one-coupled-lever.20260902.v1 against src/game/ui/select.c:2715 and read fndiff --ops for update_class_spec: it must report 'opcode multiset: IDENTICAL (217/217)'.",
+  "id": "claim.law.UB_branch-pair-recovery-needs-value-placing-arms-not-a-statement-respell.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T16:38:47Z",
+  "schema_version": 1,
+  "subject": "tu:game/ui/select.c",
+  "valid_from": "2026-09-02",
+  "value": "When retail carries a NON-INVERTED branch pair that our build collapses to one branch -- retail `beq X`/`b Y` or `bne X`/`b Y` against our single inverted branch, i.e. an fndiff --ops signature of target-only +1 b +1 beq (or +1 bne) against ours-only -1 of the opposite sense -- whether that pair is source-reachable at all is decided by WHAT THE ARMS DO, not by how the conditional is spelled. If the two arms PLACE A VALUE, rewriting the conditional as a one-case switch (`switch (expr) { case 0: <assignment>; break; }`) recovers the pair, and as a bonus lets the assigned variable share the register that already holds the compared constant. If both arms are PURE CONTROL TRANSFERS with no value to place, the pair is NOT source-reachable: every C spelling -- inverted if, explicit else, one-case switch -- normalises to the identical IR before codegen and the built object bytes do not move at all. Two consequences follow. First, on a control-transfer-only site, three spellings is not a budget to spend: the FIRST NEUTRAL-IDENTICAL verdict already decides the axis, because an edit whose object bytes are unchanged never reached the compiler's decision point. Second, because this residual class is always COUNT-ASYMMETRIC (the pair is one instruction more than the collapsed branch), claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 applies and there is no postprocessor fallback -- a control-transfer-only site of this shape is a genuine park, not a rule candidate."
+}
