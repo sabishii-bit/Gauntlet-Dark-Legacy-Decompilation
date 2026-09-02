@@ -164,6 +164,38 @@ DENIAL_FIELDS = ("scope", "premise_measurement", "expiry_check", "falsifier")
 HYPOTHESIS_FIELDS = ("statement", "cheapest_refuting_observation",
                      "screened_against_target")
 
+# Words that carry no MECHANISM. Two groups: ordinary function words, and
+# this project's generic measurement/process vocabulary — "probe", "score",
+# "build", "fuzzy", "real", "match". A refuter that shares only those with
+# its statement has not named anything it could observe ABOUT the idea, which
+# is the shape run 34's CI lane shipped: a mandatory-step-1 hypothesis whose
+# cheapest_refuting_observation could never refute it. Stripping them from
+# the STATEMENT is the safe direction — a statement left with no mechanism
+# terms is not judged at all rather than warned about.
+_HYPOTHESIS_STOPWORDS = frozenset("""
+about after again against also although always another around because
+been before being below best better between both build builds built
+cannot change changed changes check could current currently
+does doing done down during each either else even ever every
+first from further give given goes going
+have having here improve improved improves improving into itself
+just keep kept know known
+less like likely little look looking
+made make makes making many maybe might more most much must
+near needs never next nothing
+occur occurs only other others over
+part past probe probed probes
+rather real really result results right
+same score scored scores seems shall should side since some still such
+take taken than that their them then there these they thing think this
+those three thus time times together
+under until upon used uses using
+very want well were what when where whether which while will with within
+without would
+match matched matches matching fuzzy insns instruction instructions
+function functions target ours source
+""".split())
+
 # Gate D vocabulary: denial phrasing that closes an axis for everyone after
 # you. Kept narrow and literal — these are the phrases that actually appear
 # in the corpus's parks, not a general negativity detector.
@@ -3239,7 +3271,77 @@ def record_template(kind: str) -> dict[str, Any]:
     return skeleton
 
 
-def _apply_proposal_gates(record: dict[str, Any]) -> None:
+_TOKEN_RE = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_]*")
+# Below this length a term is matched exactly; at or above it, on a prefix,
+# so `register`/`registers` and `reload`/`reloads` agree while `reload` and
+# `relocation` (which share only four characters) do not.
+_STEM_LENGTH = 6
+
+
+def _mechanism_terms(text: str) -> set[str]:
+    """Content words in ``text`` that could name a mechanism."""
+    return {token.lower() for token in _TOKEN_RE.findall(text or "")
+            if len(token) >= 4 and token.lower() not in _HYPOTHESIS_STOPWORDS}
+
+
+def hypothesis_refuter_warning(hypothesis: Any) -> str | None:
+    """Warn when a refuting observation shares no mechanism with its idea.
+
+    Run-34 criticism (CI): a MANDATORY-STEP-1 hypothesis shipped with a
+    `cheapest_refuting_observation` that could never refute it. Discipline
+    10b makes such a hypothesis the next lane's first action, so a refuter
+    that names nothing about the idea does not merely fail to help — it
+    certifies an unkillable hypothesis as screenable and hands the next lane
+    a step 1 with no exit.
+
+    This is a WARNING, never a refusal. Vocabulary overlap is a heuristic:
+    a refuter can legitimately be phrased in the language of an INSTRUMENT
+    ("regnorm reports zero genuine rows") rather than of the mechanism, and
+    refusing those would tax correct records to catch sloppy ones — the
+    failure mode this corpus has already measured twice (the retired
+    failing_form_undocumented heuristic, and the 43/43 false-positive reopen
+    queue). Returns None when there is nothing to say, including when the
+    statement carries no mechanism terms at all to compare against.
+    """
+    if not isinstance(hypothesis, dict):
+        return None
+    statement = hypothesis.get("statement")
+    refuter = hypothesis.get("cheapest_refuting_observation")
+    if not isinstance(statement, str) or not isinstance(refuter, str):
+        return None
+    terms = _mechanism_terms(statement)
+    if not terms:
+        return None
+    refuter_terms = _mechanism_terms(refuter)
+    for term in terms:
+        if term in refuter_terms:
+            return None
+        if len(term) >= _STEM_LENGTH:
+            stem = term[:_STEM_LENGTH]
+            if any(other.startswith(stem) for other in refuter_terms):
+                return None
+        for other in refuter_terms:
+            if len(other) >= _STEM_LENGTH and term.startswith(
+                    other[:_STEM_LENGTH]):
+                return None
+    sample = ", ".join(sorted(terms)[:8])
+    return (
+        "WARNING: this hypothesis' cheapest_refuting_observation names none"
+        f" of the mechanism terms in its own statement ({sample}). Discipline"
+        " 10b makes a recorded hypothesis the next lane's MANDATORY STEP 1,"
+        " so a refuter that does not mention what the idea is ABOUT cannot"
+        " kill it — the lane runs the observation, learns nothing either way,"
+        " and the hypothesis survives forever as an unfalsifiable"
+        " instruction. Run 34's CI lane shipped exactly that. State an"
+        " observation whose OUTCOME differs depending on whether the"
+        " statement is true, in the statement's own terms. (If your refuter"
+        " is correctly phrased in an INSTRUMENT's vocabulary rather than the"
+        " mechanism's, this warning is a false positive — it does not block"
+        " the proposal.)"
+    )
+
+
+def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
     """The three run-29 validation gates, binding on NEW proposals only.
 
     Each gate exists because a specific burned-probe criticism was recorded;
@@ -3247,8 +3349,16 @@ def _apply_proposal_gates(record: dict[str, Any]) -> None:
     just satisfying a checker. These run in ``stage_record_proposal`` and NOT
     in ``_validate_record``, so accepted records — which predate the fields —
     are never retroactively invalidated.
+
+    Returns the list of non-blocking WARNINGS raised (run 34 item 7); a
+    blocking gate still raises MemoryGraphError.
     """
     text = _record_text(record)
+    warnings: list[str] = []
+    refuter_warning = hypothesis_refuter_warning(
+        _record_field(record, "hypothesis"))
+    if refuter_warning:
+        warnings.append(refuter_warning)
 
     # Gate A. A law asserting necessity (must/requires/cannot/only) that
     # states no falsifier can never be screened OUT by a later lane; it can
@@ -3404,6 +3514,7 @@ def _apply_proposal_gates(record: dict[str, Any]) -> None:
                     "closure.20260901.v1. If the probe really varied one"
                     " thing, say so in held_fixed."
                 )
+    return warnings
 
 
 def _duplicate_claim_candidates(
@@ -3513,6 +3624,7 @@ def stage_record_proposal(
     in_place: Path | None = None,
     dry_run: bool = False,
     confirm_new: bool = False,
+    warnings: list[str] | None = None,
 ) -> Path:
     """Atomically stage one validated record in the review-required inbox.
 
@@ -3558,7 +3670,9 @@ def stage_record_proposal(
                 " reviewed change if a new pattern class is real)"
             )
     _validate_record(record, Path("<proposal>"))
-    _apply_proposal_gates(record)
+    gate_warnings = _apply_proposal_gates(record)
+    if warnings is not None:
+        warnings.extend(gate_warnings)
     _probe_record_references(record, root)
     record_id = record["id"]
     in_place_resolved = in_place.resolve() if in_place is not None else None

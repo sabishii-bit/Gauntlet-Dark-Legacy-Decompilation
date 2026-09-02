@@ -39,6 +39,7 @@ from memory_graph.core import (
     law_evidence_score,
     law_score_sort_key,
     anchor_basename_index,
+    hypothesis_refuter_warning,
     missing_anchor_paths,
     prune_attempts,
     record_lookup,
@@ -2434,6 +2435,104 @@ class MissingAnchorTests(unittest.TestCase):
         record = {"attributes": {"anchors": ["src/game/ui/gone.c"],
                                  "verification": "see src/game/ui/gone.c"}}
         self.assertEqual(len(missing_anchor_paths(record, self.root)), 1)
+
+
+class HypothesisRefuterTests(unittest.TestCase):
+    """A refuter must name something about the idea it claims to kill.
+
+    Run-34 criticism (CI): a MANDATORY-STEP-1 hypothesis shipped with a
+    cheapest_refuting_observation that could never refute it. Discipline 10b
+    makes such a hypothesis the next lane's first action, so an unkillable
+    one hands that lane a step 1 with no exit.
+    """
+
+    STATEMENT = ("the volatile qualifier on gFrameTicks forces a reload at"
+                 " each loop iteration")
+
+    def warn(self, refuter, statement=None):
+        return hypothesis_refuter_warning({
+            "statement": statement if statement is not None else self.STATEMENT,
+            "cheapest_refuting_observation": refuter,
+            "screened_against_target": "no"})
+
+    def test_a_generic_refuter_is_warned_about(self):
+        text = self.warn("re-run the probe and see whether the score moves")
+        self.assertIsNotNone(text)
+        self.assertIn("cheapest_refuting_observation", text)
+        self.assertIn("volatile", text)
+
+    def test_a_mechanism_naming_refuter_is_silent(self):
+        self.assertIsNone(self.warn(
+            "drop the volatile qualifier and check whether the reload"
+            " survives"))
+
+    def test_one_shared_mechanism_term_is_enough(self):
+        self.assertIsNone(self.warn("read gFrameTicks out of the disassembly"))
+
+    def test_morphology_is_tolerated_on_a_six_character_stem(self):
+        self.assertIsNone(hypothesis_refuter_warning({
+            "statement": "an extra saved register widens the frame",
+            "cheapest_refuting_observation":
+                "count the saved registers in the prologue"}))
+
+    def test_a_four_character_coincidence_does_not_count_as_overlap(self):
+        """`reload` and `relocation` share four characters and no meaning."""
+        self.assertIsNotNone(hypothesis_refuter_warning({
+            "statement": "the reload happens at each iteration",
+            "cheapest_refuting_observation":
+                "dump the relocations for the window"}))
+
+    def test_a_statement_with_no_mechanism_terms_is_not_judged(self):
+        self.assertIsNone(self.warn("anything at all",
+                                    statement="the score will improve"))
+
+    def test_non_string_or_absent_fields_are_not_judged(self):
+        self.assertIsNone(hypothesis_refuter_warning(None))
+        self.assertIsNone(hypothesis_refuter_warning({}))
+        self.assertIsNone(hypothesis_refuter_warning(
+            {"statement": self.STATEMENT}))
+
+    def _stage(self, rid, refuter):
+        """Stage a dry-run attempt carrying this refuter; return warnings."""
+        root = make_root(with_symbols=False)
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        original = core._probe_record_references
+        core._probe_record_references = lambda *args, **kwargs: None
+        try:
+            record = _attempt(
+                rid, "function:test_fn", outcome="parked",
+                axis="volatile scaffold on the frame counter",
+                hypothesis={
+                    "statement": self.STATEMENT,
+                    "cheapest_refuting_observation": refuter,
+                    "screened_against_target": "no"},
+                attributes={"law_screen": "none applicable: tooling probe"})
+            warnings: list[str] = []
+            path = stage_record_proposal(record, root=root, dry_run=True,
+                                         warnings=warnings)
+            return path, warnings
+        finally:
+            core._probe_record_references = original
+
+    def test_the_warning_does_not_block_the_proposal(self):
+        """It is a WARNING: vocabulary overlap is a heuristic.
+
+        A refuter phrased in an INSTRUMENT's vocabulary is legitimate, and
+        refusing those would tax correct records to catch sloppy ones — the
+        failure mode this corpus measured twice already.
+        """
+        path, warnings = self._stage(
+            "attempt.t5-refuter-warning-probe.v1",
+            "re-run and see whether the number moves")
+        self.assertTrue(str(path).endswith(".json"))
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("MANDATORY STEP 1", warnings[0])
+
+    def test_a_sound_refuter_produces_no_warning_through_the_gate(self):
+        _path, warnings = self._stage(
+            "attempt.t5-refuter-clean-probe.v1",
+            "drop the volatile qualifier and see if the reload survives")
+        self.assertEqual(warnings, [])
 
 
 if __name__ == "__main__":
