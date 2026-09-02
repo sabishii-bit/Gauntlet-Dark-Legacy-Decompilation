@@ -1,0 +1,28 @@
+{
+  "attempted_axis": "Settle the run-32 report-vs-fndiff disagreement on BossDeath: report.json reads 100% while fndiff --clean labels it OPERAND_DIFF. Measurement only, no source edit. Includes instrumenting WHY the two fail-closed classifiers refused, per AGENTS.md discipline 14.",
+  "attributes": {
+    "law_screen": "claim.PR_law.probe-real-and-fndiff-real-diff-lines-are-different-numbers.20260901.v1 APPLIED -- the '4 real diff lines' in fndiff's header is a LINE count, not the residual; the same line prints 'of which 0 non-reloc -- 0 is the real'. claim.law.TL_a-view-must-name-which-artifact-it-reads-postprocessed-and-unlinked-objects-hide-the-question.20260901.v1 APPLIED, and its stated design constraint 'a MATCH-MODULO-RELOC-NAMING verdict whose predicate never absorbs two concrete disagreeing symbols' EXPLAINS the OPERAND_DIFF label: HealthMeterFG is a concrete C identifier, so the verdict correctly withholds and falls back. claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1 APPLIED as the prescribed arbiter and it FIRED (2 genuine STRUCTURAL, '[reloc target differs]') -- the btricol signature it was written for; instrumented and found to be a false positive here, see verification. claim.law.own-pool-ghost-extern-flatters-fndiff-reloc-rows.20260831.v1 SCREENED, does not apply: HealthMeterFG is DEFINED in boss.c, not an imported ghost extern.",
+    "laws_applied": "[\"claim.PR_law.probe-real-and-fndiff-real-diff-lines-are-different-numbers.20260901.v1\", \"claim.law.TL_a-view-must-name-which-artifact-it-reads-postprocessed-and-unlinked-objects-hide-the-question.20260901.v1\", \"claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1\"]",
+    "scope": "Measurement only. No file in src/ was edited. Worktree GDL-Claude-PilotFull, merge-base ad3ff0f9, objects freshly built by a full green ninja.",
+    "verification": "`fndiff.py game/boss/boss.c BossDeath --count` prints `DIFF BossDeath  insns 114/114  lines 8  real 0`. `--clean` prints `OPERAND_DIFF, 4 real diff lines [artifact-filtered; raw rows 8, of which 0 non-reloc -- 0 is the `real`]`. `regnorm.py` prints `T114/O114 PARITY, 143 paired, 0 renaming, 2 STRUCTURAL (2 genuine), 0 unpaired -> STRUCTURAL-PRESENT`. report.json: fuzzy_match_percent 100.0, size 456. Not in config/GUNE5D/webfrank.json. THE TWO 'GENUINE' ROWS WERE THEN DISPROVED BY EXACT ARITHMETIC, printed by PX_scratch/px_bossbss.py: symbols.txt carries HealthMeterBG = .bss:0x8023E608 size 0x18 and a single anonymous blob lbl_8023E620 = .bss:0x8023E620 size 0x54, while boss.c declares six consecutive globals from 0x8023E620 -- HealthMeterFG 0x18, HealthMeterNPieces 0xC, HealthMeterValue 0xC, HealthMeterMaxValue 0xC, HealthMeter65C 0xC, HealthMeter668 0xC. Each declared address equals the running sum (all six contiguous=True), the sum is 0x54 == the blob's size, and the next declaration gSpewItems sits at 0x8023E674 == base+0x54. HealthMeterFG and lbl_8023E620 therefore share a base address exactly; the reloc is base-equal."
+  },
+  "function": "function:BossDeath",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Show that boss.c's BSS declaration order does not place HealthMeterFG first in the blob under -common on (see the BSS reverse-declaration-order hazard). That would break the base equality without touching the text, and is the one thing this measurement cannot check while game/boss/boss.c remains a NonMatching Object and its BSS is never linked.",
+    "screened_against_target": "yes -- 114/114 instruction parity, 143 paired regnorm rows, 0 renaming, 0 unpaired; the only two differing words are the ADDR16_HA/LO pair whose base equality is proven above",
+    "statement": "VERDICT: both tools are right and neither moves the headline. report.json's 100% is correct (instruction words identical, 114/114). fndiff's `real 0` is correct. fndiff's OPERAND_DIFF label and regnorm's '2 genuine' are both the guards failing CLOSED on a named-vs-anonymous pair they cannot resolve, and the arithmetic above resolves it: our TU splits the target's coarse dtk bss blob into six correctly-based named globals whose first member starts at the blob's base. BossDeath satisfies the STRICT definition and the STRICT count 2574 does NOT move. The generalisable gap is that neither guard can see a COARSE-BLOB-VS-FINE-SPLIT base equality, and the decision procedure is arithmetic over symbols.txt sizes, not a score -- recorded as claim.law.PX_a-coarse-dtk-blob-versus-a-fine-named-split-is-base-equal-and-both-reloc-guards-over-fire.20260902.v1."
+  },
+  "id": "attempt.PX_bossdeath-report-vs-fndiff-disagreement-settled.20260902.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-02T01:37:05Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "reloc-naming",
+    "measured_at": "2026-09-02",
+    "signature": "T R_PPC_ADDR16_HA/LO lbl_8023E620 vs O R_PPC_ADDR16_HA/LO HealthMeterFG (2 words, regnorm '[reloc target differs]')"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

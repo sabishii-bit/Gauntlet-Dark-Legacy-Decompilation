@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "memory_graph/gdlmem.py",
+    "tools/gdl/RS_regression_manifest.json"
+  ],
+  "attributes": {
+    "provenance": "Run 33 full retrieval pilot, worktree GDL-Claude-PilotFull, merge-base ad3ff0f9. 24 signatures captured verbatim from `fndiff --ops` at each manifest entry's rewound pre state, then passed to `gdlmem.py laws --residual <signature>` with the global --out flag; payload sha1 and record count recorded per row (build/GUNE5D/PX_queries/PX_query_summary.json).",
+    "supersedes_note": "EXTENDS rather than replaces claim.law.RS_residual-retrieval-is-blind-to-pure-reorder-residuals.20260902.v1, whose pure-reorder result is reconfirmed here at n=13.",
+    "tags": [
+      "workflow",
+      "metrics",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Pass any signature to `laws --residual` and show the returned payload is BOTH smaller than half the corpus AND different from both constants (sha1 6c8feea5048d, 6 laws; sha1 c75a343b38ce, 5 laws) at this commit. That single result disproves the 'constant or firehose' shape. The law is also disproved if the two constants are shown to be selected by something the function actually did rather than by the boilerplate wording of the --ops summary line -- test by hand-editing a signature's PROSE while keeping its +N/-N mnemonics fixed and showing the result set changes.",
+  "id": "claim.law.PX_residual-index-returns-a-constant-or-most-of-the-corpus-never-a-discriminated-set.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T01:37:52Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "ON A REAL POPULATION, `laws --residual` NEVER RETURNS A DISCRIMINATED SET: IT RETURNS ONE OF TWO CONSTANTS, OR MOST OF THE CORPUS, OR NOTHING. Measured run 33 across all 24 frozen regression-set functions at their pre-match states, corpus size 207 laws.\n\nTHE THREE BEHAVIOURS, EXHAUSTIVE ON THIS POPULATION. (1) CONSTANT A: 13 of 24 rows, every one whose --ops summary reads `opcode multiset: IDENTICAL (N/N) -- pure reorder, schedule-class residual`, returned a byte-identical 6-law payload, sha1 6c8feea5048d. This is the RS lane's pure-reorder blindness, reconfirmed at n=13 with distinct signatures and distinct instruction counts. (2) CONSTANT B, WHICH IS NEW: 4 of 24 rows, every one whose summary reads `IDENTICAL (N/N) -- but K IMMEDIATE word(s) differ at aligned same-opcode positions: NOT pure reorder, NOT schedule-class` (CalcAnimation, start_audioslider, pbCameraUpdate, shop_show_lv), returned a DIFFERENT byte-identical 5-law payload, sha1 c75a343b38ce -- and its contents are dominated by exception-handling and destructor-island laws that have nothing to do with any of the four functions. So the degeneracy is not confined to pure reorder: a second boilerplate phrasing selects a second constant, and the selection is made by the SUMMARY LINE'S PROSE, not by the residual. (3) FIREHOSE OR EMPTY: the 7 count-asymmetric rows returned 124, 128, 152, 162, 168 and 176 laws -- 60% to 85% of the 207-law corpus -- and LinkItemTriggers, whose signature carries three concrete mnemonics (`target-only: +1 cmpw +2 extsb  ours-only: (none)`), returned ZERO. The one row with the cleanest, most specific token set in the whole population is the row the index answered with nothing.\n\nWHY THIS IS WORSE THAN THE RS LAW ALONE. The RS law bounded the blindness to the pure-reorder case and predicted that count-asymmetric signatures, 'where terms exist', would discriminate. Measured, they do not: they widen to most of the corpus, which is the same non-answer with a larger payload and a much larger reading cost. Every match reason returned on every row of this population was the single generic tier `residual-sibling`. Across 24 queries, the index produced exactly 9 distinct payloads, 17 of which were one of two constants.\n\nRULE FOR LANES, unchanged in direction from the RS law and now stronger in scope: `laws --residual` IS NOT A SCREEN. An empty result, a generic result, and a 170-law result are all the same event -- nothing was asked. Do not record 'the corpus is silent on this residual' on its strength, and do not cite its rank as a retrieval rank: a position inside a constant list is a property of the list. Use `laws --query` on the mechanism words you can read off the aligned view, and read `brief`'s TU-SCOPED channels (per claim.law.PX_brief-law-lists-are-a-global-constant-not-tu-scoped-retrieval.20260902.v1, its two law lists are not TU-scoped either).\n\nSECOND MEASURED HAZARD, RECONFIRMED AND WORTH REPEATING because it silently zeroes any programmatic collector: `brief` and `laws` auto-spill above roughly 30KB and stdout then carries only a {\"large_output\": path} stub. Every query in this pilot was run with the global `--out` flag specifically to avoid it. A harness that parses stdout reads 0 records and reports the graph as empty; the real payloads here ran to 95-137 records per brief."
+}

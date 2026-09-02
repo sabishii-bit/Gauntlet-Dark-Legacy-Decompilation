@@ -1,0 +1,28 @@
+{
+  "attempted_axis": "Settle the run-32 report-vs-fndiff disagreement on camera_run_mode: report.json reads 100% while fndiff was read as non-exact. Measurement only, no source edit.",
+  "attributes": {
+    "law_screen": "claim.PR_law.probe-real-and-fndiff-real-diff-lines-are-different-numbers.20260901.v1 APPLIED and is the direct explanation -- it already records that `real` and fndiff --clean's 'N real diff lines' are different numbers routinely quoted interchangeably; this row is a third measured instance. claim.law.TL_a-view-must-name-which-artifact-it-reads-postprocessed-and-unlinked-objects-hide-the-question.20260901.v1 APPLIED: its instance (3) already records 60 functions that link byte-identical while fndiff --clean scored them OPERAND_DIFF over anonymous-vs-named pool spellings, and the MATCH-MODULO-RELOC-NAMING verdict was built as the fail-closed answer. claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1 APPLIED as the arbiter and ran clean here (0 genuine rows). claim.law.own-pool-ghost-extern-flatters-fndiff-reloc-rows.20260831.v1 SCREENED, does not apply: this is a compiler-generated switch table, not an imported own-pool ghost extern.",
+    "laws_applied": "[\"claim.PR_law.probe-real-and-fndiff-real-diff-lines-are-different-numbers.20260901.v1\", \"claim.law.TL_a-view-must-name-which-artifact-it-reads-postprocessed-and-unlinked-objects-hide-the-question.20260901.v1\", \"claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1\"]",
+    "scope": "Measurement only. No file in src/ was edited. Worktree GDL-Claude-PilotFull, merge-base ad3ff0f9, objects freshly built by a full green ninja.",
+    "verification": "`fndiff.py game/world/camera.c camera_run_mode --count` prints `DIFF camera_run_mode  insns 831/831  lines 36  real 0`. `--clean` prints `MATCH-MODULO-RELOC-NAMING, 8 real diff lines [artifact-filtered; raw rows 36, of which 0 non-reloc -- 0 is the `real` that --count and probe.py report for this function]`. `regnorm.py` prints `T831/O831 PARITY, 924 paired, 0 renaming, 4 STRUCTURAL (0 genuine) (4 reloc-naming artifacts), 0 unpaired`. report.json: fuzzy_match_percent 100.0, size 3324. Not present in config/GUNE5D/webfrank.json."
+  },
+  "function": "function:camera_run_mode",
+  "hypothesis": {
+    "cheapest_refuting_observation": "objdump -s -j .data on our camera.o against the extracted target object over the two table extents; unequal bytes refute link-equality without touching the text.",
+    "screened_against_target": "no -- the text was screened (831/831, 0 genuine rows); the referenced .data tables were not",
+    "statement": "The remaining open question is NON-TEXT and bounded: game/world/camera.c is a NonMatching Object in configure.py, so its .data is not linked and the equality of our compiler-generated switch tables with the target's jumptable_80118D28/jumptable_80118CF8 bytes has NOT been demonstrated by any gate run here. A lane flipping camera.c should compare those two tables byte-for-byte before trusting the reloc-naming verdict as a link-equality proof."
+  },
+  "id": "attempt.PX_camera-run-mode-report-vs-fndiff-disagreement-settled.20260902.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-02T01:37:21Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "reloc-naming",
+    "measured_at": "2026-09-02",
+    "signature": "T R_PPC_ADDR16_HA jumptable_80118D28 vs O R_PPC_ADDR16_HA @518 (and the LO pair; same for jumptable_80118CF8 vs @521)"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

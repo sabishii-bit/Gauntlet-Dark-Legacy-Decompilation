@@ -1,0 +1,22 @@
+{
+  "asserted_by": [
+    "memory_graph/gdlmem.py"
+  ],
+  "attributes": {
+    "provenance": "Run 33 full retrieval pilot, worktree GDL-Claude-PilotFull, merge-base ad3ff0f9. 24 `brief <tu>` payloads captured with the global --out flag over the 24 distinct TUs of tools/gdl/RS_regression_manifest.json; the id tuples of each list were compared for equality across all 24.",
+    "tags": [
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run `gdlmem.py --out X brief <tu>` over any two TUs and compare the id tuples of `matching_laws` and `core_screen_laws`. The law is DISPROVED the moment those tuples differ between two TUs, or the moment either list is shown to be ranked or filtered by anything about the TU. It is also disproved if the counts (59 and 34 at this commit) are shown to be a per-TU truncation of a larger per-TU ranking rather than the whole tagged corpus.",
+  "id": "claim.law.PX_brief-law-lists-are-a-global-constant-not-tu-scoped-retrieval.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T01:37:13Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "`brief <tu>`'s TWO LAW LISTS ARE A GLOBAL CORPUS DUMP, IDENTICAL FOR EVERY TU, AND THEY ARE ROUGHLY 93 OF THE BRIEF'S ~100 ITEMS. Measured run 33 over all 24 TUs of the frozen regression set: `matching_laws` returned ONE distinct 59-id tuple shared by 24 of 24 TUs, and `core_screen_laws` ONE distinct 34-id tuple shared by 24 of 24. Nothing about the TU, its roster, its residuals or its parks selects or orders either list.\n\nWHY THIS MATTERS RATHER THAN BEING A HARMLESS CONVENIENCE. AGENTS.md sells `brief <tu>` as 'the one-call briefing' and directs agents to read it at spawn for TU-scoped work. An agent reading a brief cannot tell, from the brief, which of its items were selected FOR this TU and which would have appeared for any TU in the project. In the run-33 pilot this distinction decided the whole result: eleven of twelve retrieval hits landed inside the constant `matching_laws` dump, at fixed ranks that are the same for every function, and exactly one landed in a channel that responded to the query. Scoring the constant list as 'retrieval' measures the corpus's COVERAGE, not the graph's ability to find anything; a lane that improves retrieval and re-measures against a baseline that counted the dump will see no movement and wrongly conclude the change did nothing.\n\nWHAT IS ACTUALLY TU-SCOPED in a brief, and is therefore where a retrieval change can show up: `open_hypotheses`, `vetoed_axes`, `live_attempts`, `tu_mentioned_laws`, `webfrank_pins`, `functions`, `raw_offset_debt`, `active_claims`, `refutations`, `scaffold_rows`. Measured character of the first three on this population: they are always about SIBLING functions of the TU, which is correct -- the function under test is matched, so it has no live park of its own -- and they carry parks and vetoes, which is real value, but they are not a source of cures for the function you are about to edit.\n\nCONSEQUENCE FOR LANE PRACTICE. (1) When reporting that a brief 'surfaced' a law, say WHICH channel: an item from `matching_laws`/`core_screen_laws` was not retrieved for you, it was printed for everyone. (2) Any before/after measurement of a retrieval change must exclude the two constant lists or it will be insensitive by construction. (3) The two lists are still worth reading -- the corpus genuinely covers most of this population's mechanisms -- but they are a READING LIST, and 59 items is a reading list an agent under budget will skim, which is why eleven mechanisms sat in it unused while their functions were closed by re-derivation."
+}
