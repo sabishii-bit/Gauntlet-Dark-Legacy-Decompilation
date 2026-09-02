@@ -7333,6 +7333,7 @@ def tu_briefing(
     root: Path = REPO_ROOT,
     db_path: Path | None = None,
     limit: int = 100,
+    roster_only: bool = False,
 ) -> dict[str, Any]:
     """One-call spawn briefing for a TU-scoped pass.
 
@@ -7341,6 +7342,12 @@ def tu_briefing(
     (parks and caps first), active claims touching the TU, the core-screen
     law list plus laws that mention this TU, and the raw-offset debt count.
     Heads only — fetch forensics per record id.
+
+    ``roster_only`` returns JUST the scored roster (run-39 item 9): a full
+    brief on game/game/player measures 201,535 bytes, of which the roster is
+    35.7%. It is a RE-READ form, not a substitute for the spawn briefing —
+    the omitted sections carry the mandatory-step-1 hypotheses and the
+    cross-fleet claim vetoes, and the returned note says so.
     """
     tu = tu.replace("\\", "/").strip("/")
     if tu.startswith("src/"):
@@ -7689,6 +7696,45 @@ def tu_briefing(
                                    limit=10)["tus"]
     except MemoryGraphError:
         debt_rows = []
+    if roster_only:
+        # Run-39 item 9. A full brief on game/game/player measures 201,535
+        # bytes (~50K tokens) and the ROSTER is 35.7% of it; the rest is the
+        # laws/attempts/hypotheses payload a lane re-reads on every call. UD
+        # measured 47K tokens for one TU.
+        #
+        # The per-row staleness strings are hoisted to ONE note each. In the
+        # FULL brief they stay attached per row on purpose ("the envelope is
+        # what gets skimmed past"), and that decision is left standing —
+        # here the whole result IS the roster, so the envelope cannot be
+        # skimmed past, and repeating two paragraphs 92 times was ~53KB of
+        # the roster's 61KB.
+        return {
+            "tu": [row["object_name"] for row in modules],
+            "functions": [
+                {key: value for key, value in row.items()
+                 if key not in ("fuzzy_staleness", "unabsorbed_staleness")}
+                for row in roster
+            ],
+            "fuzzy_staleness": fuzzy_staleness,
+            "unabsorbed_staleness": unabsorbed_staleness,
+            "raw_offset_debt": debt_rows,
+            "report_generated_at": report_stamp,
+            "report_age_hours": report_age_hours,
+            "roster_only_note": (
+                "ROSTER ONLY: this call deliberately OMITS open_hypotheses,"
+                " vetoed_axes, refutations, live_attempts, active_claims,"
+                " webfrank_pins, similar_residuals and the law lists. Those"
+                " are not optional reading — a recorded hypothesis is"
+                " MANDATORY STEP 1 (discipline 10b) and an active foreign"
+                " claim is a VETO — so run the FULL `brief` before your"
+                " first edit in this TU, and use this form only to re-read"
+                " the scores afterwards."
+            ),
+            "staleness_banner": (
+                "EVERY NUMBER HERE IS READ FROM DISK, NOT MEASURED NOW."
+                " REMEASURE before quoting one."
+            ),
+        }
     return {
         "tu": [row["object_name"] for row in modules],
         # 10b comes FIRST, before the roster: a recorded untried hypothesis
@@ -8255,11 +8301,20 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                  "scores, live attempts, active claims, screened laws, and "
                  "raw-offset debt."),
             call=lambda root, db, **kw: tu_briefing(
-                kw["tu"], root=root, db_path=db, limit=kw["limit"]),
+                kw["tu"], root=root, db_path=db, limit=kw["limit"],
+                roster_only=bool(kw["roster_only"])),
             params=(
                 SurfaceParam("tu", str, required=True,
                              help="TU path fragment, e.g. game/enemy/enemy"),
                 SurfaceParam("limit", int, default=100, maximum=200),
+                SurfaceParam("roster_only", int, default=0, maximum=1,
+                             help="1 for the SCORED ROSTER ONLY (a full brief"
+                                  " on game/game/player is 201,535 bytes and"
+                                  " the roster is 35.7% of it). A RE-READ"
+                                  " form: it omits the mandatory-step-1"
+                                  " hypotheses and the cross-fleet claim"
+                                  " vetoes, so run the full brief before your"
+                                  " first edit in a TU"),
             ),
         ),
         SurfaceOp(

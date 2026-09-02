@@ -1890,6 +1890,67 @@ class RetrievalQueryTests(unittest.TestCase):
         for row in brief["live_attempts"]:
             self.assertNotIn("_record", row)
 
+    # --- run-39 item 9: --roster-only -------------------------------------
+    # A full brief on game/game/player measures 201,535 bytes (~50K tokens);
+    # UD measured 47K for one TU. The roster is 35.7% of it, and 53KB of
+    # that roster was TWO staleness paragraphs repeated across 92 rows.
+    # --roster-only takes the same TU to 19,623 bytes (10.3x).
+    #
+    # The per-row staleness stays in the FULL brief on purpose — "the
+    # envelope is what gets skimmed past" is a recorded decision, left
+    # standing. In roster-only the whole result IS the roster, so there is
+    # no envelope to skim past.
+
+    def roster_only(self):
+        return tu_briefing("game/test/foo", root=self.root, roster_only=True)
+
+    def test_roster_only_drops_the_narrative_sections(self):
+        compact = self.roster_only()
+        for key in ("open_hypotheses", "vetoed_axes", "live_attempts",
+                    "active_claims", "webfrank_pins", "core_screen_laws",
+                    "matching_laws", "similar_residuals", "refutations"):
+            self.assertNotIn(key, compact, key)
+
+    def test_roster_only_keeps_the_roster_and_its_anchors(self):
+        compact = self.roster_only()
+        for key in ("tu", "functions", "raw_offset_debt",
+                    "report_generated_at", "staleness_banner"):
+            self.assertIn(key, compact, key)
+
+    def test_the_staleness_paragraphs_are_hoisted_not_dropped(self):
+        """Cheaper must not mean less honest: the warning survives, once."""
+        compact = self.roster_only()
+        self.assertIn("never means zero", compact["unabsorbed_staleness"])
+        self.assertTrue(compact["fuzzy_staleness"])
+        for row in compact["functions"]:
+            self.assertNotIn("fuzzy_staleness", row)
+            self.assertNotIn("unabsorbed_staleness", row)
+
+    def test_it_says_it_is_not_a_substitute_for_the_spawn_briefing(self):
+        """The omitted sections carry MANDATORY step 1 and the claim vetoes,
+        so this form must never read as the spawn briefing."""
+        note = self.roster_only()["roster_only_note"]
+        self.assertIn("MANDATORY STEP 1", note)
+        self.assertIn("VETO", note)
+
+    def test_the_full_brief_is_unchanged_and_still_per_row(self):
+        full = tu_briefing("game/test/foo", root=self.root)
+        self.assertIn("open_hypotheses", full)
+        self.assertNotIn("roster_only_note", full)
+        for row in full["functions"]:
+            self.assertIn("fuzzy_staleness", row)
+
+    def test_roster_only_is_smaller_than_the_full_brief(self):
+        self.assertLess(
+            len(json.dumps(self.roster_only())),
+            len(json.dumps(tu_briefing("game/test/foo", root=self.root))))
+
+    def test_no_function_is_lost_from_the_roster(self):
+        full = tu_briefing("game/test/foo", root=self.root)
+        self.assertEqual([row["function"] for row in full["functions"]],
+                         [row["function"]
+                          for row in self.roster_only()["functions"]])
+
 
 def ev_root():
     """A test root that can hold law records.
