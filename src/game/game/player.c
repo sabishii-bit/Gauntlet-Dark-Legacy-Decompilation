@@ -1645,6 +1645,24 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode, f32 power_scale) {
 /* master driver                                                       */
 /* ------------------------------------------------------------------ */
 
+/* Is any player still walking in or ghost-walking?  Inlined into the
+ * do_players exit check: the target's `li 1; b <join>` at +0x970 and the
+ * trailing `li 0` at +0x980 are this function's two returns, and the walked
+ * `q` is its own induction variable. */
+static s32 any_player_walking(void) {
+    s32 j;
+    Player* q;
+
+    for (j = 0, q = PT(0); j < 4; j++, q++) {
+        s32 st = q->state;
+
+        if (st == 1 || st == 8) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Per-frame driver for all four players: welcome/demo speech, beacon
  * light decay, state machine per player (select/dead/ghost/tower),
  * action + motion, "IT" search, speech round-robin, ambient audio. */
@@ -1709,8 +1727,9 @@ s32 do_players(void) {
         for (i = 0, p = PT(0); i < 4; i++, p++) {
             if (p->state != 0) {
                 s32 sel;
+                u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
 
-                if (PTA(i)->state == 2 || PTA(i)->state == 3) {
+                if (PF(prec, 0xC40 + 0xE8, s32) == 2 || PF(prec, 0xC40 + 0xE8, s32) == 3) {
                     sel = 1;
                 } else {
                     sel = 0;
@@ -1832,10 +1851,14 @@ s32 do_players(void) {
             continue;
         }
         state = p->state;
-        if (state == 2 || state == 3) {
-            selected = 1;
-        } else {
-            selected = 0;
+        {
+            u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
+
+            if (PF(prec, 0xC40 + 0xE8, s32) == 2 || PF(prec, 0xC40 + 0xE8, s32) == 3) {
+                selected = 1;
+            } else {
+                selected = 0;
+            }
         }
         if (selected == 0) {
             if (gGameMode == MG_SHOP || gGameMode == MG_WORLD_SELECT || gGameMode == MG_MAPSCREEN ||
@@ -1900,10 +1923,11 @@ s32 do_players(void) {
             switch (state) {
             case 0:
             {
-                s16 timer = p->respawn_timer;
+                s32 t = p->respawn_timer;
 
-                if (timer > 0) {
-                    timer -= gFrameTicks;
+                if (t > 0) {
+                    s16 timer = t - gFrameTicks;
+
                     p->respawn_timer = timer;
                     if (timer <= 0) {
                         setup_player_display(i);
@@ -1932,17 +1956,12 @@ s32 do_players(void) {
                     }
                 }
                 if (exit_level != 0 || lbl_803447B4 != 0) {
-                    s32 any = 0;
+                    s32 any;
 
-                    if (lbl_803447B4 == 0) {
-                        for (j = 0; j < 4; j++) {
-                            s32 st = PT(j)->state;
-
-                            if (st == 1 || st == 8) {
-                                any = 1;
-                                break;
-                            }
-                        }
+                    if (lbl_803447B4 != 0) {
+                        any = 0;
+                    } else {
+                        any = any_player_walking();
                     }
                     if (!any) {
                         PlayerProcessScale(p);
@@ -1985,16 +2004,16 @@ s32 do_players(void) {
                 }
                 add_target(p->mat);
                 {
-                    s16 name_timer;
+                    s32 nt;
 
                     if ((sMusicTrackHi != 0xD || sumnerSpeechActive() == 0) &&
                         gTriggerCameraState == 0 && gModalRenderDepth == 0 &&
-                        gMessageActive == 0 && (name_timer = p->name_timer) > 0 &&
+                        gMessageActive == 0 && (nt = p->name_timer) > 0 &&
                         !(gGameBusy | gGameplayPauseTimer)) {
                         char name[88];
                         f32 spos[2];
+                        s16 name_timer = nt - gFrameTicks;
 
-                        name_timer -= gFrameTicks;
                         p->name_timer = name_timer;
                         if (name_timer <= 0) {
                             p->name_timer = 0;
