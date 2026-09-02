@@ -1,0 +1,16 @@
+{
+  "asserted_by": [
+    "tools/gdl/slotdiff.py",
+    "tools/gdl/fnasm.py"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "Find a function where slotdiff.py reports SLOT MAP IDENTICAL and a declaration-order or padding-local edit nevertheless closes an IMMEDIATE row carrying an r1-relative displacement, with the object bytes proving the row was a real slot assignment difference that slotdiff could not see. Run `python tools/gdl/slotdiff.py <unit> <fn>` alongside `python tools/gdl/fndiff.py <unit> <fn> --ops`; the law is disproved if the two disagree in that direction on any function. The known blind spot is already stated by slotdiff's own caveat -- it covers the r1 local block only and cannot see EH-frame slots addressed off r31 -- so a counterexample built on an r31-relative slot confirms the caveat rather than falsifying this law, and must be excluded.",
+  "id": "claim.law.UE_an-immediate-row-naming-a-stack-displacement-must-be-confirmed-by-slotdiff-before-it-is-called-a-slot-delta.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T21:06:58Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "An fndiff IMMEDIATE row whose differing literal is an r1-relative DISPLACEMENT is evidence that non-schedule content is present in the window; it is NOT evidence that the two streams assign different stack slots, and it must never be promoted to a frame or declaration-order diagnosis without a slotdiff.py confirmation. IMMEDIATE rows sit inside the matcher's EQUAL runs, so a one-instruction issue-order drift makes the matcher pair store A against store B when BOTH stores exist identically in BOTH streams; the row then reads as 'retail homes at 80/104, we home at 108/80' when the true slot maps are identical and only the issue order differs. MEASURED TWICE, in two TUs, by two lanes. (1) setup_vmu_entries, game/ui/select.c: attempt.UD_...20260902.v1 recorded fndiff's `T@84 li r5,1` against `O@84 li r6,0` as a true signal with a fabricated localisation across a one-instruction drift. (2) animate_panel_piece, game/ui/screensaver.c, this record's evidence: fndiff reported two IMMEDIATE rows, `T@370 stw r29,80(r1)` against `O@36c stw r0,108(r1)` and `T@378 stw r29,104(r1)` against `O@374 stw r29,80(r1)`, and attempt.UB_animate-panel-piece-first-classification.20260902.v1 made that the next lane's mandatory step 1 as 'the declaration-order lever and the one thing here that is plainly source-shaped'. slotdiff.py returns SLOT MAP IDENTICAL -- 33 slots each side, every offset with equal use-counts, frame 184 both, saves r29 both -- and the aligned fnasm --diff view shows all three stores `stw r0,108(r1)`, `stw r29,80(r1)` and `stw r29,104(r1)` present in BOTH streams, ours each issued one slot later against the interleaved fsubs/fmuls chain. The cost of the missing confirmation is a whole lane pointed at a cure for a delta that does not exist; the confirmation costs one command and no build. COROLLARY, and the reason this is worth a law rather than a note: slotdiff's use-count column is what distinguishes the two cases, because a genuine slot delta changes WHICH offsets are used or HOW OFTEN, while a pairing artifact leaves the map bit-identical and moves only the order."
+}
