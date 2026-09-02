@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/rs_composed_census.py"
+  ],
+  "attributes": {
+    "provenance": "worktree GDL-Claude-RelocSweep, work_claim.reloc-identity-sweep.20260902.v1. Refuting measurement: defake_gate check game/enemy/critter after converting all 11 sites (2 regressed functions with named opcode deltas), reverted at commit-time; git diff --numstat showed 6/6 lines, i.e. only the unrelated pool-constant fixes survived.",
+    "scope": "MWCC GC 1.2.5 family, GUNE5D split. Applies to R_PPC_EMB_SDA21 and ADDR16 rows where the two sides' relocations resolve to the SAME address through different spellings and the addend is a whole-word offset into an adjacent splitter symbol. Does NOT apply to rows whose two sides resolve to DIFFERENT addresses - those are the WRONG_DATUM class and are real defects.",
+    "tags": [
+      "matching",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "DISPROVED for any given row by an fnasm dump of the target function showing that only ONE of the two adjacent words is referenced - i.e. no second lwz/stw/lfs to the sibling address anywhere in the function - in which case the +0x4 addend really does name the wrong datum and the source should reference the sibling symbol directly. DISPROVED as a general law if merging any such pair in config/GUNE5D/symbols.txt into one size:0x8 entry fails to make the census row vanish while keeping `ninja` at `main.dol: OK` and PROGRESS `Data:` unchanged. Re-run: python tools/gdl/composed_census/rs_composed_census.py",
+  "id": "claim.law.RS_split-symbol-map-halves-a-64-bit-object-so-a-plus-4-addend-is-faithful.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T18:26:20Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "WHEN THE TARGET REFERENCES TWO ADJACENT 4-BYTE SPLITTER SYMBOLS AND OUR OBJECT REFERENCES THE FIRST ONE WITH A +0x4 ADDEND, THE SOURCE IS FAITHFUL AND THE SYMBOL MAP IS WRONG: dtk HAS SPLIT ONE GENUINE 64-BIT OBJECT INTO TWO NAMED HALVES. This refutes the run-36 premise carried into work_claim.reloc-identity-sweep.20260902.v1, which named `ControllerMessageBox reads gControllerButtons+0x4 where retail reads sFlags - same linked address, wrong symbol, STILL OPEN, fix it` as a defect to close, and it refutes it for the whole 33-row SPELLING_DRIFT class at once, not just that function. THE DECIDING OBSERVATION, which costs one fnasm and which no score can supply: read the target's own instruction stream around the relocation. game/enemy/critter::CritterDoSfx at +0x5c..+0x7c is `lwz r0,@gControllerButtons` / `li r4,0` / `lwz r5,@sFlags` / `li r3,128` / `and` / `and` / `xor` / `xor` / `or.` - the target loads BOTH words and performs a genuine 64-BIT AND against 0x0000000000000080 followed by a 64-bit compare-to-zero. A 32-bit variable at 0x803445CC cannot produce that stream. `extern u64 gControllerButtons` (0x803445C8, low half 0x803445CC) is therefore the CORRECT reconstruction, and `sFlags` is a phantom: a name config/GUNE5D/symbols.txt assigned to the low half of a 64-bit object it recorded as two `size:0x4` entries. THE CONVERSION IS ACTIVELY HARMFUL, measured: rewriting the eleven critter.c sites to `sFlags & 0x10` replaced each 8-instruction 64-bit sequence with a single `rlwinm.`, moving CritterDoSfx from real 0 to `target-only +2 and +2 li +1 lwz +1 or. +2 xor` and CritterBossAI to a 35-instruction deficit across four clusters. All eleven were reverted; net source change from that axis is zero. THE SAME CLASS COVERS EVERY OTHER `+0x4` ROW IN THE CENSUS, each confirmed by the same two-word read: game/pb/pb_texture (`lbl_803450D8`/`DC` and `lbl_803450E0`/`E4`, two 64-bit masks, four independent lwz/stw halves in the target), game/sys/main (`lbl_80344278`/`8034427C`, an s64 OSTime snapshot stored as two stw), game/game/combat (`sPreviousFlags`/`lbl_803445D4`). Two of those TUs' own header comments ALREADY carried the diagnosis - main.c line 446 states it verbatim - which is AGENTS.md discipline 4 (free evidence first) paying out and being skipped twice. OPERATIONAL RULE. (1) A `name+0x4` versus `adjacent_name` relocation row is NOT a defect until the target's instruction stream around it has been read; if both halves are loaded or stored, close the row as faithful. (2) The real remediation is in config/GUNE5D/symbols.txt - merge the pair into one `size:0x8` entry and drop the phantom half - NOT in source. That change re-splits shared data and regenerates .s for every referencing TU (lbl_8034427C alone is referenced by game/sys/main.s AND game/ui/attract.s), so it belongs to a single-owner splitter pass with a full Data% comparison, never to a source lane mid-run. (3) Do not spend a probe converting these; the axis is measured dead in both directions."
+}

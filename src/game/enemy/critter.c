@@ -1616,7 +1616,7 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
     f32 radius;
     f32 minDistance;
     f32 distance;
-    f32 zeroForCollision;
+    f32 halfForCollision;
     f64 hitTimeBase;
     f32 zeroForDamage;
     f64 damageScale;
@@ -1642,7 +1642,7 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
     end[2] = delta[2] * maxDistance + start[2];
     damageGate = *(volatile f64 *)&lbl_80346490;
     damageScale = *(volatile f64 *)&lbl_803464F8;
-    zeroForCollision = *(volatile f32 *)&lbl_80346470;
+    halfForCollision = *(volatile f32 *)&lbl_803464E8;
     zeroForDamage = *(volatile f32 *)&lbl_80346470;
     hitTimeBase = *(volatile f64 *)&lbl_80346500;
 
@@ -1669,7 +1669,7 @@ void CritterFirePlayerCollide(Critter *c, struct CritterDamageDef *damage)
                                  start, end, transformed, 0)) {
             continue;
         }
-        if (fn_8005FB48(zeroForCollision, start, playerPos, playerPos, 1) >= 0) {
+        if (fn_8005FB48(halfForCollision, start, playerPos, playerPos, 1) >= 0) {
             continue;
         }
         delta[0] = end[0] - start[0];
@@ -1703,7 +1703,7 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
     f64 damageScale;
     f64 damageGate;
     f64 half;
-    f32 zeroY;
+    f32 oneForY;
     f64 zeroRadius;
     f32 playerDamage;
     f32 distance;
@@ -1735,7 +1735,7 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
     half = *(volatile f64 *)&lbl_80346478;
     damageGate = *(volatile f64 *)&lbl_80346490;
     damageScale = *(volatile f64 *)&lbl_803464F8;
-    zeroY = *(volatile f32 *)&lbl_80346470;
+    oneForY = *(volatile f32 *)&lbl_803464A8;
     zeroRadius = *(volatile f64 *)&lbl_80346488;
     zeroDamage = *(volatile f32 *)&lbl_80346470;
     hitTimeBase = *(volatile f64 *)&lbl_80346500;
@@ -1766,7 +1766,7 @@ s32 CritterNodePlayerCollide(Critter *c, struct CritterDamageDef *damage,
         *(volatile f32 *)&deltaFromCritter[1] =
             playerPos[1] - c->pos[1];
         deltaFromCritter[2] = playerPos[2] - c->pos[2];
-        deltaFromCritter[1] = zeroY;
+        deltaFromCritter[1] = oneForY;
         NormalVector(deltaFromNode);
         distance = NormalVector(deltaFromCritter);
         if (distance < bestDistance) {

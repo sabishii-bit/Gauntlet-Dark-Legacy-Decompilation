@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "worktree GDL-Claude-RelocSweep, work_claim.reloc-identity-sweep.20260902.v1. Three independent firings; all three edits kept and committed (03eefd674, 33ab771b7) after target-side arbitration, with `ninja` at `main.dol: OK` and every progress figure unchanged.",
+    "scope": "tools/gdl/defake_gate.py, the NAMING-DRIFT / wrong-callee branch only. Every other defake_gate verdict in this run behaved correctly, including the DATA-CHANGED .comment note, which arbitrated benign against an unchanged PROGRESS `Data:` line.",
+    "tags": [
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "DISPROVED if defake_gate is shown to consult the target object when it emits the `relocation symbols changed at unchanged instruction words` row - i.e. if a deliberate edit that moves a relocation AWAY from the target and one that moves it TOWARD the target produce different verdicts. Reproduce at commit 03eefd674^: apply the two-line critter.c pool-constant fix and run `python tools/gdl/defake_gate.py check game/enemy/critter --rebuild`.",
+  "id": "claim.law.RS_defake-gate-wrong-callee-check-is-ours-vs-ours-so-a-correction-toward-the-target-reads-as-a-regression.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T18:27:05Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "defake_gate's WRONG-CALLEE/WRONG-DATUM CHECK COMPARES OUR OBJECT AGAINST OUR OWN EARLIER BASELINE, NOT AGAINST THE TARGET, SO EVERY CORRECTION OF A WRONG RELOCATION FAILS THE GATE BY CONSTRUCTION AND ITS `GATE FAILED - revert or fix before committing` VERDICT IS BACKWARDS. Measured three times this run on three different TUs. Fixing game/enemy/critter::CritterFirePlayerCollide from lbl_80346470 (0.0) to the target's lbl_803464E8 (0.5) produced `REGRESSION CritterFirePlayerCollide relocation symbols changed at unchanged instruction words - relocation symbol 'lbl_80346470' (0x80346470) -> 'lbl_803464E8' (0x803464E8) - DIFFERENT addresses, i.e. a different callee/datum, not a rename; this is a semantic change`, and identically for CritterNodePlayerCollide and for game/game/gamemain::init_thermometer. The detection is CORRECT and valuable - a changed relocation at unchanged instruction words IS a semantic change and deserves to be loud - but the check has no notion of DIRECTION, so it cannot distinguish a drift AWAY from the target from a repair TOWARD it, and it prints the same fail-and-revert instruction for both. Following that instruction reverts the fix. This is AGENTS.md discipline 14 exactly (`a guard's refusal is a measurement of the guard, not only of the function`), and the guard was instrumented rather than obeyed: the same three functions read `OK` (real 0) under fndiff in the very same gate output, immediately below the REGRESSION lines, and the census re-run showed the WRONG_DATUM rows GONE. THE ARBITER when this fires: re-run the positional relocation census against the TARGET (tools/gdl/composed_census/rs_composed_census.py --unit-filter <tu>); if the row disappears, the edit moved toward the target and the gate verdict is inverted. THE FIX the tool wants: defake_gate already receives --target; resolve the new symbol's address against the TARGET object's relocation at that instruction and report MOVED-TOWARD-TARGET versus MOVED-AWAY, rather than a bare REGRESSION. Until then, a relocation-symbol REGRESSION row is the ONLY defake_gate verdict that must not be taken at face value."
+}

@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Relocation-identity sweep of game/enemy/critter: correct two wrong .sdata2 pool constants found by positional reloc pairing, then convert the eleven gControllerButtons+0x4 sites to the splitter's sFlags spelling.",
+  "attributes": {
+    "law_screen": "claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 APPLIED - supplied the audit procedure (resolve each EMB_SDA21 lbl_ out of build/GUNE5D/asm/*sdata2.s and read the declared value); the three values here are lbl_80346470 .float 0, lbl_803464A8 .float 1, lbl_803464E8 .float 0.5. claim.law.CS_wrong-constant-detection-needs-two-detectors-and-three-artifact-filters.20260901.v1 SCREENED and found BLIND here for the reason its own filter (a) names: 0.0 is critter.c's literal-zero carrier at ~45 sites, so set semantics cannot report 'we read 0.0 and the target never does'. claim.law.parse-strips-the-lbl-address-so-signature-alone-cannot-clear-a-reloc-row SCREENED and confirmed - fndiff.resolve_reloc_symbol returns None for every lbl_ spelling, which is why the census resolves them from symbols.txt itself for the positional pass only. Pins screened against config/GUNE5D/webfrank.json BEFORE the first edit for the pool-constant work; the sFlags conversion nonetheless hit CritterDoTexmodNode's pin because a source edit anywhere in a pinned function's BODY invalidates it.",
+    "laws_applied": "[\"claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1\"]",
+    "probed_form": "KEPT (2 sites, 6 lines): `f32 halfForCollision; ... halfForCollision = *(volatile f32 *)&lbl_803464E8;` replacing `zeroForCollision = *(volatile f32 *)&lbl_80346470` in CritterFirePlayerCollide, and `f32 oneForY; ... oneForY = *(volatile f32 *)&lbl_803464A8;` replacing `zeroY = *(volatile f32 *)&lbl_80346470` in CritterNodePlayerCollide, with the consumers renamed. Load ORDER was read off the target: CritterFirePlayerCollide +0xec..+0xfc is lfd lbl_80346490 / lfd lbl_803464F8 / lfs lbl_803464E8 / lfs lbl_80346470 / lfd lbl_80346500, and the third slot is zeroForCollision's. REVERTED (11 sites): `(gControllerButtons & 0x10)` -> `(sFlags & 0x10)` and the u64 `controllerFlag = gControllerButtons & 0x80` -> `sFlags & 0x80`. See claim.law.RS_split-symbol-map-halves-a-64-bit-object-so-a-plus-4-addend-is-faithful.20260902.v1.",
+    "residual": "One site left unconverted and one class closed. (1) The eleven sFlags sites are NOT residual work - the axis is measured dead in both directions and recorded as a law. (2) game/enemy/critter::CritterDoTexmodNode carries the same faithful gControllerButtons+0x4 spelling and is WebFrank-pinned; nothing is owed there.",
+    "scope": "src/game/enemy/critter.c only; 6 insertions / 6 deletions at commit 03eefd674. No header, config or tool change.",
+    "verification": "defake_gate baseline at cf81a9103 (86 functions, 66 at real 0) then check --rebuild: the only rows were the two intended relocation corrections, which the gate reports as REGRESSION for the reason recorded in claim.law.RS_defake-gate-wrong-callee-check-is-ours-vs-ours-...20260902.v1, alongside `OK` (real 0) from fndiff for both functions. Arbitrated against the TARGET with rs_composed_census.py --unit-filter game/enemy/critter: both WRONG_DATUM rows GONE, no new row. Full `ninja -j2`: `build/GUNE5D/main.dol: OK`, All 98.45% fuzzy / 66.33% matched, Data 177572 unchanged, STRICT 56.46% + EQUIVALENT 9.86% - all identical to baseline, as a score-invisible correctness fix must be."
+  },
+  "function": "function:CritterFirePlayerCollide",
+  "id": "attempt.RS_critter-wrong-pool-constants-and-sflags-refutation.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T18:27:30Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

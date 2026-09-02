@@ -1,0 +1,19 @@
+{
+  "attempted_axis": "Reverse the chained assignment `lbl_80344790 = lbl_8034478C = playerOffset` so the two .sbss stores are emitted in the target's order.",
+  "attributes": {
+    "law_screen": "claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 SCREENED, not applicable - this is a STORE to two writable .sbss globals, not a pool literal load. claim.law.CS_wrong-constant-detection-needs-two-detectors-and-three-artifact-filters.20260901.v1 SCREENED, not applicable for the same reason and because its own scope boundary excludes stw stores. No law in the corpus covers chained-assignment store ORDER; the relocation-identity view found it directly. Pins screened against config/GUNE5D/webfrank.json: game/game/gamemain pins fn_80054E78, DoWorldAnimation, fn_80051480 and fn_800511D0; init_thermometer is NOT pinned.",
+    "laws_applied": "[]",
+    "probed_form": "`lbl_8034478C = lbl_80344790 = playerOffset;` replacing `lbl_80344790 = lbl_8034478C = playerOffset;` at src/game/game/gamemain.c:3577. C evaluates `a = b = v` by storing to b then a, so swapping the two names swaps the store order; both receive the same value, making the change semantically neutral and purely a codegen-order correction.",
+    "residual": "None for this function. game/game/gamemain::EnemyDescType remains a RELOC_SET_DELTA row (target lbl_80346AA4 vs our sBossGenName, neither resolvable to a common key) - benign anonymous-vs-named, not queued.",
+    "scope": "src/game/game/gamemain.c only; 1 insertion / 1 deletion at commit 33ab771b7.",
+    "verification": "defake_gate baseline at 03eefd674 (77 functions, 61 at real 0) then check --rebuild: one REGRESSION row for the intended relocation swap (see claim.law.RS_defake-gate-wrong-callee-check-is-ours-vs-ours-...20260902.v1) with fndiff reporting `OK` for the function. Arbitrated against the target with rs_composed_census.py --unit-filter game/game/gamemain: the WRONG_DATUM row is GONE and gamemain's remaining rows are all the refuted sFlags class plus benign naming rows. Full `ninja -j2`: `main.dol: OK`, All 98.45% fuzzy / 66.33% matched, Data 177572 unchanged, STRICT 56.46% + EQUIVALENT 9.86%."
+  },
+  "function": "function:init_thermometer",
+  "id": "attempt.RS_init-thermometer-chained-assignment-store-order.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T18:27:53Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
