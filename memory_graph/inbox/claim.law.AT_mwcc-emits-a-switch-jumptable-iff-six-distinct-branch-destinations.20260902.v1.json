@@ -1,0 +1,28 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/at_switch_emission_threshold.py --phases 1",
+    "tools/gdl/composed_census/at_switch_emission_threshold.py --phases 2",
+    "tools/gdl/composed_census/at_switch_emission_threshold.py --phases 3"
+  ],
+  "attributes": {
+    "provenance": "Run 37, AT lane (work_claim.attract-structural.20260902.v1), src/game/ui/attract.c::init_attract_mode. Derived to settle whether that function's target-only cmplwi/bgt/slwi/lwzx/mtctr/bctr cluster is source-reachable. Measurements: 12 shapes x GC/1.2.5 -O4 (12/12 agree with the rule, zero counterexamples); 17 optimization/pragma settings on the init_attract_mode shape (0/17 emit a table); 29 archive compilers at -O4 on that shape (0/29 emit a table). The retail target's own table, jumptable_8011892C, is 10 entries resolving to 5 distinct addresses (+0x14C, +0x180 x2, +0x1D0 x5 = the default, +0x1B0, +0x16C), which is BELOW this threshold -- so the retail attract.c was built by a toolchain outside the local archive, and the law's practical use here is that it CLOSES the axis rather than opening it.",
+    "scope": "MWCC PPC switch statement lowering. Measured on GC/1.2.5 (game/ui/attract.c's exact cflags) for the shape family, and confirmed invariant across every mwcceppc.exe in build/compilers -- GC 1.0, 1.1, 1.1p1, 1.2.5, 1.2.5n, 1.3, 1.3.2, 1.3.2r, 2.0, 2.0p1, 2.5, 2.6, 2.7, 3.0a3, 3.0a3p1, 3.0a3.2, 3.0a3.3, 3.0a3.4, 3.0a5, 3.0a5.2 and Wii 0x4201_127, 1.0RC1, 1.0, 1.0a, 1.1, 1.3, 1.5, 1.6, 1.7 (29 compilers, all chain on the 5-destination shape).",
+    "tags": [
+      "matching",
+      "entry-schedule",
+      "metrics",
+      "workflow"
+    ],
+    "verification": "python tools/gdl/composed_census/at_switch_emission_threshold.py --out build/GUNE5D/at_switch/at_result.json ran from the repository root at commit 35275d32e and exited 0, printing 'counterexamples: NONE (12/12 agree)', 'flag settings emitting a TABLE: 0/17', 'compilers emitting a TABLE: 0/29'. Table membership is detected by the presence of the bctr word 0x4E800420 in the compiled object."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit any C switch that compiles under an archive MWCC to a bctr jump table while having five or fewer distinct branch destinations (default counted once when in-range reachable), or a compare chain while having six or more. Run `python tools/gdl/composed_census/at_switch_emission_threshold.py --phases 1`: it prints DESTS, the observed emission and the rule's prediction per shape, and flags any row as MISFIT. A single MISFIT row disproves the law. The counting rule for `destinations` is the falsifiable part: count the distinct code addresses the switch can transfer to, adding the default once iff some value in [min,max] falls through to it.",
+  "id": "claim.law.AT_mwcc-emits-a-switch-jumptable-iff-six-distinct-branch-destinations.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T18:19:06Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "MWCC emits a switch JUMP TABLE (slwi/lwzx/mtctr/bctr behind a cmplwi+bgt range guard) if and only if the switch has at least SIX DISTINCT BRANCH DESTINATIONS, counting the default exactly once when it is reachable from inside [min_case,max_case]. Below six it emits a compare chain. Three things that are widely assumed to be the knob are MEASURED NOT TO BE: (a) CASE COUNT and LABEL COUNT -- a switch whose ten labels 0..9 resolve to five destinations gets a chain, while one whose six labels resolve to six destinations gets a table; (b) RANGE and DENSITY -- shape S12 spreads the same five destinations over the range 0..20 and still gets a chain, so density is not consulted at all; (c) EMPTY-CASE SPELLING -- empty case bodies merge into the default BEFORE the decision is taken, and the merge is complete: writing 3/5/6/7/8 as five separate `case N: break;` groups (S8) produces an object BYTE-IDENTICAL to writing them as one five-label group (S1), 1384 bytes both ways. Distinct destinations, not distinct bodies, is the count: S9 gives two case groups textually IDENTICAL bodies and still scores six, because MWCC does not tail-merge non-empty case blocks before deciding. Corollary for reconstruction: when a target emits a table that our build renders as a chain, the case SET is not the lever and no rewriting of case labels, case order, `default:` placement, cast signedness, or empty-group spelling will reach it -- 12 of 12 shapes and 17 of 17 flag settings confirm. See claim.law.IT_empty-bodied-if-elides-its-own-comparison for the analogous elision on `if`."
+}
