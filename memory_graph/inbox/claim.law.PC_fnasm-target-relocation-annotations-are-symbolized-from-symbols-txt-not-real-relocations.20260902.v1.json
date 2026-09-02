@@ -1,0 +1,28 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py game/game/player do_players --ours",
+    "tools/gdl/fnasm.py game/game/player do_players",
+    "config/GUNE5D/symbols.txt"
+  ],
+  "attributes": {
+    "provenance": "Run 38, do_players lane. A register census over both streams read OUR relocation at +0x2c as `addi r31,r3,0 @...bss.0(ADDR16_LO)` and the TARGET column at the same site as `addi r31,r3,0 @potionicon_tab(ADDR16_LO)`. That asymmetry was taken as evidence of a wrong-symbol defect -- AGENTS.md residual-work discipline 3 explicitly directs lanes to dump relocation symbols because 'no score sees them' -- and it motivated probe K. The probe found a REAL codegen lever by coincidence (see claim.law.PC_storage-class-of-a-same-tu-base-object-is-a-codegen-lever-that-must-be-gated-tu-wide.20260902.v1), but the premise was false: the retail DOL is a fully linked image and carries no relocations at all, so the target column's `@name(TYPE)` text is a symbols.txt lookup over the resolved address.",
+    "scope": "tools/gdl/fnasm.py output for GUNE5D. Applies to the TARGET column only. The OURS column reads a real ELF object and its relocation annotations ARE real, so an ours-vs-ours comparison across two builds remains sound evidence, as does comparing our relocations against another OBJECT.",
+    "tags": [
+      "matching",
+      "metrics",
+      "workflow",
+      "relocation",
+      "symbol-identity"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a retail GUNE5D function whose fnasm TARGET column shows a relocation annotation naming a symbol that is ABSENT from config/GUNE5D/symbols.txt, or one whose annotated symbol contradicts the symbols.txt entry covering that address. Either would show the target column carries relocation information of its own rather than a symbols.txt lookup. Cheapest check: rename a symbol with `gdlmem.py rename-symbol` and re-run fnasm -- if the TARGET column's annotation follows the rename, it is a lookup, which is the claim.",
+  "id": "claim.law.PC_fnasm-target-relocation-annotations-are-symbolized-from-symbols-txt-not-real-relocations.20260902.v1",
+  "kind": "claim",
+  "predicate": "tooling_law",
+  "recorded_at": "2026-09-02T19:40:02Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A RELOCATION-SYMBOL DISAGREEMENT BETWEEN fnasm's TARGET AND OURS COLUMNS IS NOT EVIDENCE OF A DEFECT, BECAUSE ONLY ONE SIDE HAS RELOCATIONS. The retail DOL is a linked image with none; fnasm annotates its instructions by resolving each address through config/GUNE5D/symbols.txt, so the target side prints the NAME COVERING AN ADDRESS while the ours side prints the ACTUAL RELOCATION EMITTED BY THE COMPILER. The two are different kinds of fact and disagree routinely and harmlessly: a file-local object relocates through its section symbol (`@...bss.0`, `@...rodata.0`) with an addend, while symbols.txt names the object (`@potionicon_tab`, `@lbl_80113AE0`) at the same address. Nothing is wrong in that pair. This matters because AGENTS.md's residual-work discipline 3 correctly tells lanes to dump relocation symbols -- three real bugs were found that way -- and the natural way to do it, reading fnasm's two columns side by side, produces a false positive on every static object in every NonMatching TU. The genuine version of that check compares our object's relocations against ANOTHER OBJECT's, or checks our relocation's symbol+addend actually resolves to the address symbols.txt gives the target; it is never 'the names differ'. PROCEDURE: before recording a wrong-symbol defect from fnasm, confirm the ours-side name is wrong for the ADDRESS it computes, not merely different from the target-side annotation; and note that a `@...section.N` form on our side is the normal, correct encoding for a `static` object, not a lost symbol."
+}
