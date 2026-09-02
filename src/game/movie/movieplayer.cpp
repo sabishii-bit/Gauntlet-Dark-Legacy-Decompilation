@@ -766,9 +766,16 @@ u32 fn_800D87FC(MovieDecodeState* state, int param_2, char* param_3, int param_4
 
 /* VQ tile decode variant (ReadU16LE, DCFlush/Invalidate, GXInvalidateTexAll) */
 u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4, int param_5, u8* param_6) {
-    int count;
+    u8* p;
+    int n;
+    int i;
+    int sh1;
+    int sh0;
+    int sh2;
+    int off;
     u8* pal;
     u8* ip;
+    int count;
 
     count = ReadU16LE(state->chunk);
     pal = state->chunk + 4;
@@ -782,18 +789,11 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
         fn_800D860C((u32)state, pal, count);
         break;
     case 2: {
-        int i;
-        int off;
-        u8* p;
-        u8 sh1;
-        u8 sh0;
-        u8 sh2;
-        int n;
-        sh1 = 8 - state->greenBits;
+        sh1 = (u8)(8 - state->greenBits);
         i = 0;
-        sh0 = 8 - state->redBits;
+        sh0 = (u8)(8 - state->redBits);
         p = pal;
-        sh2 = 8 - state->blueBits;
+        sh2 = (u8)(8 - state->blueBits);
         off = i;
         n = count * 4;
         for (; i < n; i++) {
@@ -846,7 +846,8 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
 
                 dst = (u8*)param_6 + (row & ~3) * state->width;
                 dst += (row & 3) * 8;
-                dst2 = dst + d8;
+                dst2 = (u8*)param_6 + (row & ~3) * state->width;
+                dst2 += (row & 3) * 8 + d8;
                 x = 0;
                 do {
                     u8 idx;
@@ -888,7 +889,8 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
 
                 dst = (u8*)param_6 + (row & ~3) * state->width;
                 dst += (row & 3) * 8;
-                dst2 = dst + d8;
+                dst2 = (u8*)param_6 + (row & ~3) * state->width;
+                dst2 += (row & 3) * 8 + d8;
                 x = 0;
                 do {
                     u32 idx;
