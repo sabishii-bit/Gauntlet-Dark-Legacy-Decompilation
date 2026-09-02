@@ -10,14 +10,18 @@ The classifier is deliberately exercised over raw word bytes: it must not
 need a built object, a toolchain, or the webfrank backend to be testable.
 """
 
+import json
 import struct
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from unabsorbed import (ELIGIBLE_CLASSES, opcode_key, residual_class)
+from unabsorbed import (CLOSED_CLASSES, ELIGIBLE_CLASSES, differing_words,
+                        opcode_key, raw_object_path, residual_class,
+                        rule_served_functions)
 
 
 def words(*ws):
@@ -130,6 +134,77 @@ class EligibilityTests(unittest.TestCase):
         self.assertEqual(set(ELIGIBLE_CLASSES), {"allocator", "schedule"})
         for name in ("operand", "source-structural", "count-asymmetric"):
             self.assertNotIn(name, ELIGIBLE_CLASSES)
+
+
+class ClosedClassesTests(unittest.TestCase):
+    """Already-closed rows must not read as open work items.
+
+    Run-36 criticism (MC): the census loaded `ours` from
+    build/GUNE5D/src/<tu>.o -- the WEBFRANK stage's OUTPUT -- so every
+    function a shipped rule already closed read 0 unabsorbed / tier A /
+    class `allocator`, exactly like a function the compiler emits
+    byte-exactly. A lane was dispatched to screen "24 allocator-class
+    functions"; 20 were compiler-exact, 3 rule-served, 1 genuinely open.
+    Re-measured on game/sys/memcard after this fix: compiler-exact 20,
+    rule-served 4, OPEN 2 of 30.
+    """
+
+    def test_closed_and_eligible_classes_are_disjoint(self):
+        for name in CLOSED_CLASSES:
+            self.assertNotIn(name, ELIGIBLE_CLASSES)
+
+    def test_differing_words_counts_words_not_bytes(self):
+        ours = words(0x60000000, 0x38000001, 0x4E800020)
+        target = words(0x60000000, 0x38000002, 0x4E800021)
+        self.assertEqual(differing_words(ours, target), 2)
+
+    def test_differing_words_zero_is_compiler_exact_evidence(self):
+        same = words(0x60000000, 0x4E800020)
+        self.assertEqual(differing_words(same, same), 0)
+
+    def test_differing_words_undefined_on_size_mismatch(self):
+        self.assertIsNone(
+            differing_words(words(0x60000000), words(0x60000000, 0x60000000)))
+
+    def test_rule_served_reads_the_units_shipped_rules(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cfg = root / "config" / "GUNE5D"
+            cfg.mkdir(parents=True)
+            (cfg / "webfrank.json").write_text(json.dumps({"units": {
+                "game/sys/memcard": [{"function": "add_vmu_file"},
+                                     {"function": "buildSaveImage"}],
+                "game/ui/select": [{"function": "init_player_select"}],
+            }}), encoding="utf-8")
+            self.assertEqual(
+                rule_served_functions("game/sys/memcard", root=root),
+                {"add_vmu_file", "buildSaveImage"})
+            self.assertEqual(
+                rule_served_functions("game/no/rules", root=root), set())
+
+    def test_rule_served_is_empty_without_a_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(
+                rule_served_functions("game/sys/memcard", root=Path(tmp)),
+                set())
+
+    def test_raw_object_path_prefers_the_postprocess_body(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            body = root / "build/GUNE5D/src/game/sys/.postprocess/body"
+            body.mkdir(parents=True)
+            (body / "memcard.o").write_bytes(b"")
+            self.assertEqual(raw_object_path(root, "game/sys/memcard"),
+                             body / "memcard.o")
+
+    def test_raw_object_path_falls_back_when_no_body_exists(self):
+        """SDK units have no postprocess step; both paths are the same
+        bytes there, so the fallback is correct rather than a compromise."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self.assertEqual(
+                raw_object_path(root, "dolphin/os/OS"),
+                root / "build/GUNE5D/src/dolphin/os/OS.o")
 
 
 if __name__ == "__main__":

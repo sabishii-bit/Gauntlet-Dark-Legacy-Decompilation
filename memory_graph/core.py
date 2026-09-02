@@ -6859,7 +6859,13 @@ def tu_briefing(
             # postprocessor can reach to one a permutation window can, so
             # the roster reported "no change" on a real change. Classes:
             # allocator / schedule / operand / source-structural /
-            # count-asymmetric — only the first two are reachable at all.
+            # count-asymmetric — only the first two are reachable at all —
+            # plus compiler-exact and rule-served, which are already CLOSED
+            # and are not work items. Those two used to be folded into
+            # `allocator` because the census scored the POSTPROCESSED
+            # object, which oversized one work order 24:1 (run-37 item 3,
+            # claim.law.MC_the-unabsorbed-census-scores-the-postprocessed-
+            # object...); it now reads the raw .postprocess/body.
             "unabsorbed_class": (
                 unabsorbed_rows.get(row["raw_name"]) or {}).get(
                     "residual_class"),
