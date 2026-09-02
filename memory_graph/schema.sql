@@ -164,6 +164,64 @@ CREATE TABLE attempt_law_application (
 CREATE INDEX attempt_law_application_law_idx
     ON attempt_law_application(law_record_id);
 
+-- One row per law an attempt declares it applied and that FAILED to predict
+-- the outcome (attributes.laws_failed). The explicit counterpart of
+-- attempt_law_application: the run-32 evidence layer derives FAILURE from
+-- `refutes` edges alone, and this table exists so a lane can state a failure
+-- directly instead of having to author a whole refutation record. Same
+-- unchecked-text rule as the application table.
+CREATE TABLE attempt_law_failure (
+    attempt_record_id TEXT NOT NULL REFERENCES attempt(record_id),
+    law_record_id TEXT NOT NULL,
+    UNIQUE(attempt_record_id, law_record_id)
+);
+
+CREATE INDEX attempt_law_failure_law_idx
+    ON attempt_law_failure(law_record_id);
+
+-- One row per `refutes` citation on ANY record kind. The refuted id is
+-- unchecked text for the same reason as the law tables: the target may be an
+-- accepted record, another fleet's inbox proposal, or (rarely) a typo, and a
+-- foreign-key refusal here would take down the whole import.
+CREATE TABLE record_refutation (
+    refuting_record_id TEXT NOT NULL,
+    refuted_record_id TEXT NOT NULL,
+    UNIQUE(refuting_record_id, refuted_record_id)
+);
+
+CREATE INDEX record_refutation_target_idx
+    ON record_refutation(refuted_record_id);
+
+-- DERIVED. Rebuilt in full at every `gdlmem build` from the three tables
+-- above plus attempt.outcome; NEVER incremented, and never written by any
+-- other code path. A hand-incremented counter is a number nobody can
+-- re-derive, which is the failure mode this whole layer exists to avoid:
+-- delete the row set and the next build reproduces it exactly.
+CREATE TABLE law_evidence (
+    law_record_id TEXT PRIMARY KEY,
+    successes INTEGER NOT NULL DEFAULT 0,
+    failures INTEGER NOT NULL DEFAULT 0,
+    neutral_citations INTEGER NOT NULL DEFAULT 0,
+    cited_total INTEGER NOT NULL DEFAULT 0,
+    latest_evidence_at TEXT,
+    success_records TEXT NOT NULL DEFAULT '[]',
+    failure_records TEXT NOT NULL DEFAULT '[]'
+);
+
+-- Regime-change events (`gdlmem event add`). A claim whose newest supporting
+-- evidence predates a matching event is flagged needs-revalidation. Event
+-- based, never calendar decay: a law does not rot because time passed, it
+-- rots because the world it was measured in changed.
+CREATE TABLE regime_event (
+    record_id TEXT PRIMARY KEY REFERENCES record_ingest(record_id),
+    slug TEXT NOT NULL,
+    scope TEXT NOT NULL,
+    occurred_at TEXT NOT NULL,
+    note TEXT
+);
+
+CREATE INDEX regime_event_occurred_idx ON regime_event(occurred_at);
+
 CREATE TABLE measurement (
     id INTEGER PRIMARY KEY,
     attempt_record_id TEXT NOT NULL REFERENCES attempt(record_id),

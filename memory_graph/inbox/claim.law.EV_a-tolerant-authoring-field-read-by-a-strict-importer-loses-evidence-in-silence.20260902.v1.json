@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py::_law_id_list",
+    "memory_graph/test_graph.py::EvidenceLayerTests.test_json_string_spelling_of_laws_applied_is_counted",
+    "tools/gdl/composed_census/ev_law_score_canary.py::independent_tally"
+  ],
+  "attributes": {
+    "scope": "memory_graph/core.py::_import_records (attempt branch) and every consumer of attempt_law_application; generalises to any record field whose authoring template permits more than one JSON spelling.",
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ],
+    "verification": "Measured 2026-09-02 on the merged corpus at c0eb74a38. Direct count over memory_graph/records/**.json: 630 attempt records carry attributes.laws_applied, citing 250 distinct law ids, 1912 citations in total. Count in the built graph BEFORE the fix: attempt_law_application = 142. AFTER changing the reader to accept both spellings: 1912. Both numbers printed by `gdlmem build`. 138 memory_graph tests OK, 543 tools/gdl tests OK."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Point at a structured field in this corpus that is documented with two authoring spellings, read by an importer that accepts one, and show that a consumer query nevertheless reports the full population - or show a case where the strict reader raised an error a lane actually saw. Cheap standing check: for every list-shaped record field, count the field's occurrences directly over memory_graph/records/**.json and compare to the row count of the table it populates; the two numbers must agree.",
+  "id": "claim.law.EV_a-tolerant-authoring-field-read-by-a-strict-importer-loses-evidence-in-silence.20260902.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-02T00:45:22Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A RECORD FIELD WHOSE AUTHORING TEMPLATE PERMITS TWO SPELLINGS, READ BY AN IMPORTER THAT ACCEPTS ONE, LOSES THE OTHER SPELLING'S DATA IN COMPLETE SILENCE - AND THE LOSS IS INVISIBLE PRECISELY BECAUSE THE SURVIVING ROWS LOOK NORMAL. Measured here, not theorised. `attributes.laws_applied` is documented in propose-record's own template as a 'JSON array string', and lanes wrote it that way; the importer tested `isinstance(laws_applied, list)` and skipped everything else. Result on the 2026-09-02 corpus: 142 of 1912 citations reached attempt_law_application, so 92.6% of the project's law-application evidence was unreachable by every query built on that table. Nothing failed. `gdlmem build` printed clean, no record was rejected, and the `applied_count` column on `laws` returned a plausible-looking small integer for every law - which is the whole problem, because a plausible wrong number is not investigated. The corpus had been quietly reporting that its most-applied law had been applied 4 times when the true figure was 53. THREE GENERALISABLE CONSEQUENCES. (1) The READ path must be at least as tolerant as the WRITE path documents. The project already learned the tolerant-read lesson once, for the run-29 schema fields, and encoded it in _record_field (top-level first, attributes as fallback); the same discipline simply had not been applied to the VALUE shape, only to the key location. _law_id_list now handles both, and both homes. (2) A silent-drop bug is only detectable by counting the SAME quantity two ways. This one was found because the run-32 canary deliberately recomputed law evidence from the raw JSON rather than from the table it was validating - a check sharing the import path would have agreed with the bug perfectly. Any derived table worth trusting needs one independent recount somewhere in the test suite. (3) This is a specific instance of the corpus's standing rule that absence of output is not a verdict, alongside claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1: there, a tool's silence was read as ineligibility; here, an importer's silence was read as 'that is how much evidence exists'. In both cases the missing thing was the check that the pipeline could produce output at all."
+}

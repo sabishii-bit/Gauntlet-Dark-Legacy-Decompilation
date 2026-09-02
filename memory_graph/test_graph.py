@@ -24,19 +24,27 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from memory_graph import core
 from memory_graph.core import (
     ATTEMPT_BYTE_CAP,
+    LAW_STATUS_ORDER,
     MemoryGraphError,
     _record_age_days,
     _validate_record,
     accept_records,
     attempt_staleness,
+    beta_mean,
     build_database,
     fakematch_debt,
     find_records,
     law_corpus,
+    law_evidence_score,
+    law_score_sort_key,
     prune_attempts,
     record_lookup,
+    regime_events,
+    stage_event_proposal,
     stage_record_proposal,
+    symbol_context,
     tu_briefing,
+    wilson_lower_bound,
     work_claims,
 )
 
@@ -352,8 +360,24 @@ class GraphSurfaceTests(unittest.TestCase):
 
     def test_law_corpus_counts_and_supersession(self):
         result = law_corpus(root=self.root)
-        laws = {row["id"]: row for row in result["laws"]}
-        self.assertIn("claim.law.test-law.v1", laws)
+        # Run-32 change, deliberate: the unfiltered browse is the
+        # DETERMINISTIC VIEW and excludes provisional laws (zero verified
+        # successes) from `laws`. v1 has no landing, so it moves to
+        # `provisional_laws` — segregated, never deleted, because the
+        # unfiltered call is also the corpus enumeration surface. Everything
+        # this test actually pins (supersession reporting, applied_count) is
+        # asserted below across the union.
+        laws = {row["id"]: row
+                for row in result["laws"] + result["provisional_laws"]}
+        self.assertNotIn("claim.law.test-law.v1",
+                         {row["id"] for row in result["laws"]})
+        self.assertIn("claim.law.test-law.v1",
+                      {row["id"] for row in result["provisional_laws"]})
+        # The invariant that matters: the hidden count equals what was
+        # segregated, so the browse loses nothing it does not also hand back.
+        self.assertEqual(result["hidden_provisional"],
+                         len(result["provisional_laws"]))
+        self.assertGreaterEqual(result["hidden_provisional"], 1)
         self.assertIn("claim.law.test-law.v2", laws)
         self.assertEqual(laws["claim.law.test-law.v1"]["superseded_by"],
                          "claim.law.test-law.v2")
@@ -1409,6 +1433,642 @@ class RetrievalQueryTests(unittest.TestCase):
         brief = tu_briefing("game/test/foo", root=self.root)
         for row in brief["live_attempts"]:
             self.assertNotIn("_record", row)
+
+
+def ev_root():
+    """A test root that can hold law records.
+
+    `make_root` seeds only the GameCube symbol map, so `compiler:test` and
+    `project:gdl` — the subjects every law and methodology claim is anchored
+    to — do not resolve. Seeding them here keeps the run-32 fixtures
+    self-contained instead of widening the shared helper.
+    """
+    root = make_root()
+    entities = root / "memory_graph" / "records" / "entities"
+    for key, kind, name in (("compiler:test", "compiler", "test compiler"),
+                            ("project:gdl", "project", "GDL")):
+        _write(entities / f"{key.replace(':', '-')}.json", {
+            "schema_version": 1, "id": f"entity.{key.replace(':', '-')}",
+            "kind": "entity", "entity_type": kind, "key": key, "name": name,
+        })
+    return root
+
+
+def _law(rid, value="a law about copy forms", **extra):
+    record = {
+        "schema_version": 1, "id": rid, "kind": "claim",
+        "subject": "compiler:test", "predicate": "codegen_law",
+        "epistemic_state": "verified", "value": value,
+        "valid_from": extra.pop("valid_from", "2026-08-20"),
+        "recorded_at": extra.pop("recorded_at", "2026-08-20T09:00:00Z"),
+    }
+    record.update(extra)
+    return record
+
+
+class EvidenceLayerTests(unittest.TestCase):
+    """Deliverable 1: the derived evidence table and what counts as evidence."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = ev_root()
+        records = cls.root / "memory_graph" / "records"
+        # winner: two landings, nothing against it
+        _write(records / "claims" / "w.json", _law("claim.law.winner.v1"))
+        # heavily-cited law whose citations are mostly PARKS it predicted
+        _write(records / "claims" / "p.json", _law("claim.law.predictor.v1"))
+        # refuted: no landing, one refutation
+        _write(records / "claims" / "r.json", _law("claim.law.rotten.v1"))
+        # contested: a landing AND a refutation
+        _write(records / "claims" / "c.json", _law("claim.law.contested.v1"))
+        # provisional: never cited at all
+        _write(records / "claims" / "u.json", _law("claim.law.untried.v1"))
+
+        for i, outcome in enumerate(("improved", "exact")):
+            _write(records / "attempts" / f"win{i}.json", _attempt(
+                f"attempt.win{i}.v1", "function:test_fn", outcome=outcome,
+                attributes={"laws_applied": ["claim.law.winner.v1"]}))
+        # the JSON-ENCODED-STRING spelling of laws_applied, which the
+        # importer used to drop on the floor (142 of 1912 citations survived)
+        _write(records / "attempts" / "winstr.json", _attempt(
+            "attempt.winstr.v1", "function:test_fn", outcome="improved",
+            attributes={"laws_applied": '["claim.law.winner.v1"]'}))
+        # parks and caps the predictor law correctly called: NOT failures
+        for i, outcome in enumerate(("parked", "capped", "parked", "negative")):
+            _write(records / "attempts" / f"pred{i}.json", _attempt(
+                f"attempt.pred{i}.v1", "function:test_fn", outcome=outcome,
+                attributes={"laws_applied": ["claim.law.predictor.v1"]}))
+        _write(records / "attempts" / "predwin.json", _attempt(
+            "attempt.predwin.v1", "function:test_fn", outcome="improved",
+            attributes={"laws_applied": ["claim.law.predictor.v1"]}))
+        # refutations
+        _write(records / "attempts" / "refuter.json", _attempt(
+            "attempt.refuter.v1", "function:test_fn", outcome="improved",
+            refutes="claim.law.rotten.v1"))
+        _write(records / "attempts" / "refuter2.json", _attempt(
+            "attempt.refuter2.v1", "function:test_fn", outcome="improved",
+            refutes="claim.law.contested.v1"))
+        _write(records / "attempts" / "conwin.json", _attempt(
+            "attempt.conwin.v1", "function:test_fn", outcome="improved",
+            attributes={"laws_applied": ["claim.law.contested.v1"]}))
+        build_database(cls.root)
+        cls.rows = {
+            row["id"]: row for row in
+            law_corpus(root=cls.root, include_provisional=1)["laws"]
+        }
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.root, ignore_errors=True)
+
+    def test_success_is_an_exact_or_improved_landing(self):
+        winner = self.rows["claim.law.winner.v1"]["evidence"]
+        self.assertEqual(winner["successes"], 3)  # improved + exact + string
+        self.assertEqual(winner["failures"], 0)
+
+    def test_json_string_spelling_of_laws_applied_is_counted(self):
+        """The measured import bug: only the list spelling was read."""
+        winner = self.rows["claim.law.winner.v1"]["evidence"]
+        self.assertIn("attempt.winstr.v1", winner["success_records"])
+
+    def test_a_park_a_cap_and_a_negative_are_not_failures(self):
+        predictor = self.rows["claim.law.predictor.v1"]["evidence"]
+        self.assertEqual(predictor["failures"], 0)
+        self.assertEqual(predictor["neutral_citations"], 4)
+        self.assertEqual(predictor["successes"], 1)
+
+    def test_n_is_the_landing_denominator_not_the_citation_count(self):
+        predictor = self.rows["claim.law.predictor.v1"]
+        self.assertEqual(predictor["evidence"]["cited_total"], 5)
+        self.assertEqual(predictor["n"], 1)
+        self.assertLess(predictor["n"], predictor["evidence"]["cited_total"])
+
+    def test_a_refutes_edge_is_a_failure(self):
+        rotten = self.rows["claim.law.rotten.v1"]["evidence"]
+        self.assertEqual(rotten["failures"], 1)
+        self.assertEqual(rotten["failure_records"], ["attempt.refuter.v1"])
+
+    def test_explicit_laws_failed_citation_counts(self):
+        root = ev_root()
+        records = root / "memory_graph" / "records"
+        _write(records / "claims" / "l.json", _law("claim.law.explicit.v1"))
+        _write(records / "attempts" / "f.json", _attempt(
+            "attempt.explicit-fail.v1", "function:test_fn", outcome="parked",
+            attributes={"laws_failed": ["claim.law.explicit.v1"]}))
+        build_database(root)
+        rows = {row["id"]: row for row in
+                law_corpus(root=root, include_provisional=1)["laws"]}
+        self.assertEqual(
+            rows["claim.law.explicit.v1"]["evidence"]["failures"], 1)
+        shutil.rmtree(root, ignore_errors=True)
+
+    def test_the_table_is_derived_and_a_rebuild_is_idempotent(self):
+        before = law_corpus(root=self.root, include_provisional=1)["laws"]
+        build_database(self.root)
+        after = law_corpus(root=self.root, include_provisional=1)["laws"]
+        self.assertEqual([(r["id"], r["n"], r["score"]) for r in before],
+                         [(r["id"], r["n"], r["score"]) for r in after])
+
+    def test_wilson_penalises_a_small_sample(self):
+        self.assertEqual(wilson_lower_bound(0, 0), 0.0)
+        self.assertLess(wilson_lower_bound(1, 0), wilson_lower_bound(40, 0))
+        self.assertEqual(wilson_lower_bound(0, 5), 0.0)
+        self.assertLessEqual(wilson_lower_bound(3, 0), 1.0)
+
+    def test_beta_mean_distinguishes_unknown_from_known_bad(self):
+        # no information reads 0.5; a refuted law with no landing reads below
+        self.assertAlmostEqual(beta_mean(0, 0), 0.5)
+        self.assertLess(beta_mean(0, 3), 0.5)
+        self.assertGreater(beta_mean(3, 0), 0.5)
+
+
+class LawRankingTests(unittest.TestCase):
+    """Deliverables 2 and 3: tiering, ranking, and provisional handling."""
+
+    def test_status_tiers(self):
+        self.assertEqual(law_evidence_score(3, 0)["status"], "established")
+        self.assertEqual(law_evidence_score(3, 1)["status"], "contested")
+        self.assertEqual(law_evidence_score(0, 1)["status"], "refuted")
+        self.assertEqual(law_evidence_score(0, 0)["status"], "provisional")
+
+    def test_tier_outranks_raw_score(self):
+        """THE CANARY INVARIANT, in miniature.
+
+        A refuted law with 11 landings scores 0.65; a clean winner with one
+        landing scores 0.21. Ranking on the bare number would float the
+        refuted one above the winner, which is the exact failure the run-32
+        canary forbids. The tier must win.
+        """
+        contested = law_evidence_score(11, 1) | {"id": "contested"}
+        winner = law_evidence_score(1, 0) | {"id": "winner"}
+        self.assertGreater(contested["wilson"], winner["wilson"])
+        self.assertLess(law_score_sort_key(winner),
+                        law_score_sort_key(contested))
+
+    def test_tier_order_is_the_documented_one(self):
+        self.assertEqual(
+            LAW_STATUS_ORDER,
+            ("established", "contested", "provisional", "refuted"))
+
+    def test_provisional_hidden_from_the_browse_but_not_deleted(self):
+        root = ev_root()
+        records = root / "memory_graph" / "records"
+        _write(records / "claims" / "u.json", _law("claim.law.unverified.v1"))
+        _write(records / "claims" / "w.json", _law("claim.law.verified.v1"))
+        _write(records / "attempts" / "a.json", _attempt(
+            "attempt.a.v1", "function:test_fn", outcome="improved",
+            attributes={"laws_applied": ["claim.law.verified.v1"]}))
+        build_database(root)
+        browse = law_corpus(root=root)
+        self.assertNotIn("claim.law.unverified.v1",
+                         {row["id"] for row in browse["laws"]})
+        # segregated, NOT deleted: the browse is also the enumeration surface
+        self.assertIn("claim.law.unverified.v1",
+                      {row["id"] for row in browse["provisional_laws"]})
+        opened = law_corpus(root=root, include_provisional=1)
+        self.assertIn("claim.law.unverified.v1",
+                      {row["id"] for row in opened["laws"]})
+        shutil.rmtree(root, ignore_errors=True)
+
+    def test_a_targeted_request_never_drops_a_provisional_match(self):
+        """A mandatory screen must not silently shrink.
+
+        Measured on the live corpus: 7 of the 33 core-screen laws are
+        provisional. Suppressing inside a tag/query/residual filter would
+        have removed 21% of a screen AGENTS.md calls mandatory.
+        """
+        root = ev_root()
+        records = root / "memory_graph" / "records"
+        _write(records / "claims" / "u.json", _law(
+            "claim.law.unverified-screen.v1",
+            attributes={"tags": ["core-screen"], "scope": "screening"}))
+        build_database(root)
+        for kwargs in ({"tag": "core-screen"}, {"query": "unverified screen"}):
+            with self.subTest(**kwargs):
+                result = law_corpus(root=root, **kwargs)
+                self.assertIn("claim.law.unverified-screen.v1",
+                              {row["id"] for row in result["laws"]})
+                self.assertEqual(result["provisional_retained"], 1)
+                self.assertEqual(result["hidden_provisional"], 0)
+        shutil.rmtree(root, ignore_errors=True)
+
+    def test_ranking_happens_before_truncation(self):
+        """A limit must cut the WORST rows, not the date-newest ones."""
+        root = ev_root()
+        records = root / "memory_graph" / "records"
+        for i in range(4):
+            _write(records / "claims" / f"l{i}.json", _law(
+                f"claim.law.rank{i}.v1", valid_from=f"2026-08-0{i + 1}"))
+            for j in range(i + 1):
+                _write(records / "attempts" / f"a{i}_{j}.json", _attempt(
+                    f"attempt.a{i}x{j}.v1", "function:test_fn",
+                    outcome="improved",
+                    attributes={"laws_applied": [f"claim.law.rank{i}.v1"]}))
+        build_database(root)
+        top = law_corpus(root=root, limit=1)
+        # rank3 has the most landings and the OLDEST date but must survive
+        self.assertEqual(top["laws"][0]["id"], "claim.law.rank3.v1")
+        self.assertEqual(top["truncated"], 3)
+        shutil.rmtree(root, ignore_errors=True)
+
+    def test_brief_law_rows_carry_the_evidence_columns(self):
+        root = ev_root()
+        records = root / "memory_graph" / "records"
+        _write(records / "claims" / "l.json", _law(
+            "claim.law.briefed.v1",
+            attributes={"tags": ["core-screen"], "scope": "briefing"}))
+        _write(records / "attempts" / "a.json", _attempt(
+            "attempt.briefed.v1", "function:test_fn", outcome="improved",
+            attributes={"laws_applied": ["claim.law.briefed.v1"]}))
+        build_database(root)
+        brief = tu_briefing("game/test/foo", root=root)
+        row = next(r for r in brief["core_screen_laws"]
+                   if r["id"] == "claim.law.briefed.v1")
+        for column in ("status", "score", "n", "successes", "failures"):
+            self.assertIn(column, row)
+        self.assertEqual(row["status"], "established")
+        self.assertIn("law_evidence_note", brief)
+        shutil.rmtree(root, ignore_errors=True)
+
+
+class RegimeEventTests(unittest.TestCase):
+    """Deliverable 4: needs-revalidation is EVENT-based, never calendar decay."""
+
+    def _root(self):
+        root = ev_root()
+        records = root / "memory_graph" / "records"
+        _write(records / "claims" / "old.json", _law(
+            "claim.law.regnorm-thing.v1", valid_from="2026-08-01",
+            recorded_at="2026-08-01T09:00:00Z",
+            attributes={"tags": ["metrics"], "scope": "tools/gdl/regnorm.py"}))
+        _write(records / "attempts" / "a.json", _attempt(
+            "attempt.oldwin.v1", "function:test_fn", outcome="improved",
+            valid_from="2026-08-01",
+            attributes={"laws_applied": ["claim.law.regnorm-thing.v1"]}))
+        return root
+
+    def test_event_add_stages_and_lists(self):
+        root = self._root()
+        path = stage_event_proposal("regnorm-v2", scope="regnorm",
+                                    occurred_at="2026-08-30", root=root)
+        self.assertTrue(path.exists())
+        build_database(root)
+        events = regime_events(root=root)
+        self.assertEqual(events[0]["slug"], "regnorm-v2")
+        self.assertEqual(events[0]["scope"], "regnorm")
+        shutil.rmtree(root, ignore_errors=True)
+
+    def test_banner_fires_when_evidence_predates_the_event(self):
+        root = self._root()
+        stage_event_proposal("regnorm-v2", scope="regnorm",
+                             occurred_at="2026-08-30", root=root)
+        build_database(root)
+        row = next(r for r in law_corpus(root=root, include_provisional=1)["laws"]
+                   if r["id"] == "claim.law.regnorm-thing.v1")
+        self.assertEqual(row["needs_revalidation"]["banner"],
+                         "NEEDS REVALIDATION")
+        shutil.rmtree(root, ignore_errors=True)
+
+    def test_evidence_postdating_the_event_clears_the_banner(self):
+        root = self._root()
+        _write(root / "memory_graph" / "records" / "attempts" / "new.json",
+               _attempt("attempt.newwin.v1", "function:test_fn",
+                        outcome="improved", valid_from="2026-09-01",
+                        recorded_at="2026-09-01T09:00:00Z",
+                        attributes={"laws_applied":
+                                    ["claim.law.regnorm-thing.v1"]}))
+        stage_event_proposal("regnorm-v2", scope="regnorm",
+                             occurred_at="2026-08-30", root=root)
+        build_database(root)
+        row = next(r for r in law_corpus(root=root, include_provisional=1)["laws"]
+                   if r["id"] == "claim.law.regnorm-thing.v1")
+        self.assertNotIn("needs_revalidation", row)
+        shutil.rmtree(root, ignore_errors=True)
+
+    def test_age_alone_never_flags_a_law(self):
+        """No event, no banner — however old the evidence is."""
+        root = self._root()
+        build_database(root)
+        rows = law_corpus(root=root, include_provisional=1)["laws"]
+        self.assertTrue(all("needs_revalidation" not in row for row in rows))
+        shutil.rmtree(root, ignore_errors=True)
+
+    def test_event_scope_matches_the_id_slug_not_only_scope_prose(self):
+        """Measured: only 124 of 357 laws carry scope prose, and none of it
+        named the subject. Slug matching is what makes the feature fire."""
+        root = ev_root()
+        _write(root / "memory_graph" / "records" / "claims" / "l.json", _law(
+            "claim.law.regnorm-counts-rows.v1", valid_from="2026-08-01",
+            recorded_at="2026-08-01T09:00:00Z"))  # no attributes.scope at all
+        stage_event_proposal("regnorm-v2", scope="regnorm",
+                             occurred_at="2026-08-30", root=root)
+        build_database(root)
+        row = next(r for r in law_corpus(root=root, include_provisional=1)["laws"]
+                   if r["id"] == "claim.law.regnorm-counts-rows.v1")
+        self.assertIn("needs_revalidation", row)
+        shutil.rmtree(root, ignore_errors=True)
+
+    def test_scope_matches_a_tag(self):
+        root = self._root()
+        stage_event_proposal("metric-redefinition", scope="metrics",
+                             occurred_at="2026-08-30", root=root)
+        build_database(root)
+        row = next(r for r in law_corpus(root=root, include_provisional=1)["laws"]
+                   if r["id"] == "claim.law.regnorm-thing.v1")
+        self.assertIn("needs_revalidation", row)
+        shutil.rmtree(root, ignore_errors=True)
+
+    def test_bad_slug_and_missing_scope_fail_closed(self):
+        root = ev_root()
+        with self.assertRaisesRegex(MemoryGraphError, "kebab-case"):
+            stage_event_proposal("Not A Slug", scope="*", root=root)
+        with self.assertRaisesRegex(MemoryGraphError, "needs --scope"):
+            stage_event_proposal("fine-slug", scope="  ", root=root)
+        shutil.rmtree(root, ignore_errors=True)
+
+
+class DedupAtProposeTests(unittest.TestCase):
+    """Deliverable 5: near-duplicate claims attach, they do not error out."""
+
+    def setUp(self):
+        self.root = ev_root()
+        _write(self.root / "memory_graph" / "records" / "claims" / "e.json",
+               _law("claim.law.copy-form-remat-is-allocator-choice.v1"))
+        build_database(self.root)
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _near(self, rid):
+        return _law(rid, value="a fresh derivation of the same thing")
+
+    def test_near_duplicate_is_refused_with_attach_guidance(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(
+                self._near("claim.law.copy-form-remat-is-allocator-choice.v2x"),
+                root=self.root)
+        message = str(caught.exception)
+        self.assertIn("copy-form-remat-is-allocator-choice", message)
+        self.assertIn("--confirm-new", message)
+        # attach-not-error semantics: it must say what to do instead
+        self.assertIn("ATTACHING", message)
+
+    def test_confirm_new_proceeds(self):
+        path = stage_record_proposal(
+            self._near("claim.law.copy-form-remat-is-allocator-choice.v2x"),
+            root=self.root, confirm_new=True)
+        self.assertTrue(path.exists())
+
+    def test_a_supersession_is_exempt(self):
+        """A v2 is SUPPOSED to resemble its v1; gating that would fire
+        hardest on exactly the records the corpus most wants written."""
+        record = self._near(
+            "claim.law.copy-form-remat-is-allocator-choice.v2x")
+        record["supersedes"] = \
+            "claim.law.copy-form-remat-is-allocator-choice.v1"
+        path = stage_record_proposal(record, root=self.root)
+        self.assertTrue(path.exists())
+
+    def test_a_refutation_is_exempt(self):
+        record = self._near(
+            "claim.law.copy-form-remat-is-allocator-choice.v2x")
+        record["refutes"] = \
+            "claim.law.copy-form-remat-is-allocator-choice.v1"
+        path = stage_record_proposal(record, root=self.root)
+        self.assertTrue(path.exists())
+
+    def test_a_genuinely_different_claim_passes(self):
+        path = stage_record_proposal(
+            _law("claim.law.entry-schedule-follows-initializer-split.v1"),
+            root=self.root)
+        self.assertTrue(path.exists())
+
+    def test_attempts_are_not_deduped(self):
+        """Attempt records are per-function forensics and SHOULD resemble
+        their siblings."""
+        record = _attempt("attempt.copy-form-remat-is-allocator-choice.v1",
+                          "function:test_fn",
+                          attributes={"law_screen": "none applicable: test"})
+        path = stage_record_proposal(record, root=self.root)
+        self.assertTrue(path.exists())
+
+
+class TypedProseObjectTests(unittest.TestCase):
+    """Deliverable 6: typed denial/hypothesis objects and gate D."""
+
+    def setUp(self):
+        self.root = ev_root()
+        build_database(self.root)
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _denial(self, **overrides):
+        denial = {
+            "scope": "the offsetof axis on test_fn only",
+            "premise_measurement": "fndiff --ops: real 30 -> 34, 3 probes",
+            "expiry_check": "python tools/gdl/probe.py game/test/foo.c test_fn",
+            "falsifier": "any offsetof form that measures real < 30",
+        }
+        denial.update(overrides)
+        return denial
+
+    def test_denial_shape_is_checked(self):
+        record = _attempt("attempt.d.v1", "function:test_fn",
+                          outcome="parked", denial="just prose")
+        with self.assertRaisesRegex(MemoryGraphError, "structured object"):
+            _validate_record(record, Path("<t>"))
+
+    def test_denial_missing_a_field_fails_closed(self):
+        denial = self._denial()
+        del denial["expiry_check"]
+        record = _attempt("attempt.d.v1", "function:test_fn",
+                          outcome="parked", denial=denial)
+        with self.assertRaisesRegex(MemoryGraphError, "expiry_check"):
+            _validate_record(record, Path("<t>"))
+
+    def test_complete_denial_passes(self):
+        record = _attempt("attempt.d.v1", "function:test_fn",
+                          outcome="parked", denial=self._denial())
+        _validate_record(record, Path("<t>"))
+
+    def test_hypothesis_shape_is_checked(self):
+        record = _attempt("attempt.h.v1", "function:test_fn",
+                          hypothesis={"statement": "try the split decl"})
+        with self.assertRaisesRegex(MemoryGraphError,
+                                    "cheapest_refuting_observation"):
+            _validate_record(record, Path("<t>"))
+
+    def test_gate_d_refuses_prose_denial_without_the_typed_object(self):
+        record = _attempt(
+            "attempt.prose.v1", "function:test_fn", outcome="parked",
+            axis="offsetof rotation is a do-not-retry axis here",
+            attributes={"law_screen": "none applicable: test"})
+        with self.assertRaisesRegex(MemoryGraphError, "typed `denial`"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_gate_d_accepts_the_same_record_with_a_typed_denial(self):
+        record = _attempt(
+            "attempt.prose.v1", "function:test_fn", outcome="parked",
+            axis="offsetof rotation is a do-not-retry axis here",
+            denial=self._denial(),
+            attributes={"law_screen": "none applicable: test"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_d_does_not_refuse_the_record_that_documents_it(self):
+        """The GS gate-B lesson, applied in advance rather than after.
+
+        A project-anchored methodology claim necessarily contains the denial
+        vocabulary it describes. Anchor scoping excludes it by construction.
+        """
+        record = _law(
+            "claim.law.a-prose-denial-cannot-expire.v1",
+            value=("A record saying do-not-retry or NOT a candidate or"
+                   " ineligible, with no typed denial, states no scope and"
+                   " no expiry check."),
+            subject="project:gdl", predicate="workflow_law",
+            falsifier="show a prose denial a later lane screened out cheaply")
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_d_ignores_citation_and_verification_prose(self):
+        """Substance projection: a well-run record QUOTES the vocabulary in
+        its law_screen, and must not be caught by its own apparatus."""
+        record = _attempt(
+            "attempt.cites.v1", "function:test_fn", outcome="improved",
+            axis="split the declaration",
+            attributes={
+                "law_screen": "screened the do-not-retry denial laws;"
+                              " none applicable",
+                "verification": "confirmed this is not a candidate for the"
+                                " postprocessor path",
+            })
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_brief_prefers_a_typed_hypothesis(self):
+        records = self.root / "memory_graph" / "records"
+        _write(records / "attempts" / "typed.json", _attempt(
+            "attempt.typed-hyp.v1", "function:test_fn", outcome="improved",
+            hypothesis={
+                "statement": "split the initializer to move the entry store",
+                "cheapest_refuting_observation": "fnasm 0x0:0x20 --diff",
+                "screened_against_target": "no",
+            }))
+        _write(records / "attempts" / "prose.json", _attempt(
+            "attempt.prose-hyp.v1", "function:other_fn", outcome="parked",
+            axis="untried: perhaps the pad belongs one slot lower"))
+        build_database(self.root)
+        brief = tu_briefing("game/test/foo", root=self.root)
+        self.assertEqual(brief["open_hypotheses"][0]["marker"], "TYPED")
+        self.assertEqual(brief["open_hypotheses"][0]["record"],
+                         "attempt.typed-hyp.v1")
+        self.assertIn("cheapest_refuting_observation",
+                      brief["open_hypotheses"][0])
+
+
+class LegacyQuarantineTests(unittest.TestCase):
+    """Deliverable 7: flag ungated prose denials, never auto-extract them."""
+
+    def setUp(self):
+        self.root = ev_root()
+        records = self.root / "memory_graph" / "records"
+        _write(records / "attempts" / "legacy.json", _attempt(
+            "attempt.legacy-prose.v1", "function:test_fn", outcome="parked",
+            axis="regalloc rotation; this function is NOT a candidate,"
+                 " do-not-retry"))
+        _write(records / "attempts" / "typed.json", _attempt(
+            "attempt.typed-denial.v1", "function:other_fn", outcome="parked",
+            axis="do-not-retry the offsetof axis",
+            denial={"scope": "offsetof axis on other_fn",
+                    "premise_measurement": "real 30 -> 34 over 3 probes",
+                    "expiry_check": "probe.py game/test/foo.c other_fn",
+                    "falsifier": "an offsetof form measuring real < 30"}))
+        _write(records / "attempts" / "clean.json", _attempt(
+            "attempt.clean.v1", "function:test_fn", outcome="parked",
+            axis="scheduler fog after three distinct forms"))
+        build_database(self.root)
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def test_context_flags_the_prose_denial(self):
+        rows = {row["record_id"]: row
+                for row in symbol_context("test_fn", root=self.root)["attempts"]}
+        flagged = rows["attempt.legacy-prose.v1"]
+        self.assertEqual(flagged["quarantine"]["banner"],
+                         "UNGATED-PROSE-DENIAL")
+        self.assertIn("NOT a candidate", flagged["quarantine"]["matched"]
+                      + flagged["quarantine"]["why"] + "NOT a candidate")
+
+    def test_a_typed_denial_is_not_quarantined(self):
+        rows = {row["record_id"]: row
+                for row in symbol_context("other_fn", root=self.root)["attempts"]}
+        typed = rows["attempt.typed-denial.v1"]
+        self.assertNotIn("quarantine", typed)
+        self.assertIn("denial", typed)
+
+    def test_an_ordinary_park_is_not_flagged(self):
+        rows = {row["record_id"]: row
+                for row in symbol_context("test_fn", root=self.root)["attempts"]}
+        self.assertNotIn("quarantine", rows["attempt.clean.v1"])
+
+    def test_the_flag_carries_no_extracted_fields(self):
+        """Render-flag ONLY. The family backfill measured prose extraction at
+        30-50% precision; a fabricated typed denial would be trusted more
+        than the prose it replaced."""
+        rows = {row["record_id"]: row
+                for row in symbol_context("test_fn", root=self.root)["attempts"]}
+        quarantine = rows["attempt.legacy-prose.v1"]["quarantine"]
+        for field in ("scope", "premise_measurement", "expiry_check",
+                      "falsifier"):
+            self.assertNotIn(field, quarantine)
+        self.assertIn("30-50%", quarantine["not_extracted"])
+
+    def test_brief_carries_the_quarantine_on_vetoed_axes(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        rows = {row["record"]: row for row in brief["vetoed_axes"]}
+        self.assertIn("quarantine", rows["attempt.legacy-prose.v1"])
+        self.assertNotIn("quarantine", rows["attempt.clean.v1"])
+
+
+class ClaimsOwnsTests(unittest.TestCase):
+    """Deliverable 8: `claims --owns <path>`."""
+
+    def setUp(self):
+        self.root = ev_root()
+        _write(self.root / "memory_graph" / "inbox" / "wc.json", {
+            "schema_version": 1, "id": "work_claim.owner.v1",
+            "kind": "work_claim", "function": "function:test_fn",
+            "owner": "worker-x", "state": "active", "claimed_at": TODAY,
+            "attributes": {"scope": "game/test/foo.c whole TU"},
+        })
+        build_database(self.root)
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def test_owns_finds_the_claim_by_scope_path(self):
+        result = work_claims(root=self.root, owns="game/test/foo.c")
+        self.assertEqual(result["verdict"], "CLAIMED")
+        self.assertEqual(result["claims"][0]["owner"], "worker-x")
+
+    def test_owns_matches_a_backslash_path(self):
+        result = work_claims(root=self.root, owns=r"src\game\test\foo.c")
+        self.assertEqual(result["count"], 1)
+
+    def test_owns_finds_the_claim_by_anchor_function(self):
+        result = work_claims(root=self.root, owns="test_fn")
+        self.assertEqual(result["count"], 1)
+
+    def test_an_unclaimed_path_reports_no_claim_but_no_guarantee(self):
+        result = work_claims(root=self.root, owns="game/other/bar.c")
+        self.assertEqual(result["count"], 0)
+        self.assertEqual(result["verdict"], "no claim found")
+        self.assertIn("unpushed claim protects nothing", result["owns_note"])
+
+    def test_owns_is_absent_from_an_unfiltered_listing(self):
+        result = work_claims(root=self.root)
+        self.assertNotIn("verdict", result)
+        self.assertEqual(result["count"], 1)
 
 
 if __name__ == "__main__":
