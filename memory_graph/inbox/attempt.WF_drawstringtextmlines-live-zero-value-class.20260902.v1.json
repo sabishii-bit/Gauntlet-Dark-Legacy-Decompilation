@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Close the function through the postprocessor by commissioning the LIVE-ZERO VALUE proof class, after the demand census confirmed the residual is a shift-of-a-live-zero against a copy-of-a-live-zero that no existing proof mode offers anything for.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED and APPLIED -- it is the whole residual and it supplies the source-exhaustion provenance at class level (twelve functions, eight TUs, a named list of dead source axes), on top of this function's own park attempt.drawstringtextmlines-iv-init-materialization.20260831.v2 (four induction-variable source shapes). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED and APPLIED -- the raw differing-word count (2 of 150) was MEASURED with wf_word_diff.py, not inferred from the --ops token delta. claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 SCREENED and NOT NEEDED -- the permutation window carries no relocation in either object, checked rather than assumed (both region relocation hashes are the empty-payload hash). claim.law.HV_emb-sda21-relocation-offset-differs-between-our-objects-and-the-target.20260901.v1 SCREENED -- the class screens relocated words by WORD, inheriting the fix.",
+    "laws_applied": "[\"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "probed_form": "NO SOURCE EDIT. src/game/ui/btext.c is byte-unchanged; the whole change is one config/GUNE5D/webfrank.json rule plus the new proof class in tools/gdl/webfrank.py. The source axes were spent by the superseded record.",
+    "residual": "None. The function is byte-identical to the target through the postprocessor. Reported as an EQUIVALENT-tier close, NOT a STRICT one: STRICT held at 56.46% / 2575 fns across this lane; EQUIVALENT moved 9.86% (138 fns) -> 9.97% (142 fns) over the lane's four closes.",
+    "scope": "config/GUNE5D/webfrank.json (one new rule under game/ui/btext), tools/gdl/webfrank.py (the equivalent_zero_form stage), tools/gdl/tests/test_webfrank.py. Commit 4a2bee74c.",
+    "verification": "COUNT PARITY QUOTED AS THE DECIDING FACT: insns 150/150 (ours/target). The rule was proved through the real webfrank.apply_patch against the extracted retail object before it was written into webfrank.json, output bytes == target bytes (tools/gdl/composed_census/wf_livezero_derive.py, re-runnable). After `python configure.py` + `ninja -j2`: the WEBFRANK DrawStringTextMLines line appears, `build/GUNE5D/main.dol: OK`, `fndiff --clean` = MATCH (pool-name noise only, 0 real diff lines). Both suites green (`python -m unittest discover tools/gdl/tests` 798 tests OK; `python -m memory_graph.test_graph` 209 tests OK). All 257 pre-existing WebFrank rule applications re-ran in the same build and replayed green."
+  },
+  "function": "function:DrawStringTextMLines",
+  "id": "attempt.WF_drawstringtextmlines-live-zero-value-class.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T18:25:55Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-02",
+    "signature": "closed -- was 'insns 150/150 (ours/target, COUNT PARITY); RAW DIFFERING WORDS = 2 of 150; +0x1f4 O 3ba10094 T 3b7e0000, +0x1f8 O 57db103a T 3ba10094'"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.drawstringtextmlines-iv-init-materialization.20260831.v2",
+  "valid_from": "2026-09-02"
+}

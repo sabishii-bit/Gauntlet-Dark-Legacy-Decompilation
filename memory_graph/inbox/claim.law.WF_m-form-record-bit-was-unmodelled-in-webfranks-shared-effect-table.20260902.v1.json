@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/webfrank.py",
+    "tools/gdl/tests/test_webfrank.py"
+  ],
+  "attributes": {
+    "provenance": "Run 37 WF lane, commit 4a2bee74c. The failing assertion was DecodeZeroFormDestinationTests.test_a_record_setting_variant_is_refused_for_writing_cr0; the fix is guarded going forward by test_the_shared_effect_model_now_sees_the_m_form_record_bit.",
+    "tags": [
+      "matching",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any shipped rule that stops replaying under the stricter model would show the omission was load-bearing rather than latent -- checked this run by forcing every webfrank edge to re-run (touch tools/gdl/webfrank.py; ninja -j2) and counting 257 WEBFRANK application lines with build/GUNE5D/main.dol: OK. Re-run that to re-check. A second falsifier for the general form: a remaining opcode carrying Rc that is still unmodelled here -- grep `_word_effects` for the opcode sets and compare against the PowerPC M-form/X-form Rc-bearing lists.",
+  "id": "claim.law.WF_m-form-record-bit-was-unmodelled-in-webfranks-shared-effect-table.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T18:28:02Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "webfrank's `_word_effects` -- the single shared architectural-effect model behind the permutation dependence audit, the recolor bisimulation, the constant/zero dataflows and the dead-final-write proof -- did not model the Rc bit on the M-form rotates. It handled Rc for the opcode-31 forms and for opcodes 13/28/29, and silently omitted opcodes 20, 21 and 23, so `rlwinm.`, `rlwimi.` and `rlwnm.` read as writing ONLY their destination GPR. A permutation window could therefore have moved a record-setting rotate past a CR0 consumer with the dependence audit seeing no conflict at all, and the audit would have reported success. FIXED 2026-09-02 (`if opcode in (20, 21, 23) and word & 1: writes.add((\"cr\", 0))`); the change can only make every guard STRICTER, and all 257 pre-existing WebFrank rule applications re-ran green in the same build, so the gap was latent and not live. HOW IT WAS FOUND, which is the transferable part: not by auditing the model, but by a NEW class's own whitelist test asserting that a record-setting variant must be refused for writing CR0 -- the assertion failed because the refusal never fired. A guard's acceptance is as much a measurement of the guard as its refusal is (the converse of discipline 14), and a new proof class is a cheap oracle for the shared machinery underneath it, because it exercises corners no shipped rule happens to sit on. Any lane adding a class to a shared model should write at least one test per REFUSAL its class promises, not only per acceptance."
+}

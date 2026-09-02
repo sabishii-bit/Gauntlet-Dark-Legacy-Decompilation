@@ -1227,6 +1227,15 @@ def _word_effects(word: int) -> tuple[set, set]:
         writes.add(("cr", (word >> 23) & 7))
     if opcode in (13, 28, 29):
         writes.add(("cr", 0))
+    # The M-form rotates (rlwimi/rlwinm/rlwnm) carry an Rc bit exactly like
+    # the opcode-31 forms do, and it was NOT modelled here: `rlwinm.` read as
+    # writing only rA, so a permutation could have moved one past a consumer
+    # of CR0 with the dependence audit seeing nothing.  Found run 37 by the
+    # live-zero class's own whitelist test, which expected the write-set check
+    # to refuse a record-setting variant and got an acceptance instead.
+    # Adding the write can only make every guard STRICTER.
+    if opcode in (20, 21, 23) and word & 1:
+        writes.add(("cr", 0))
     if opcode in (8, 12, 13):
         writes.add("ca")
     if opcode == 31:
@@ -2953,6 +2962,54 @@ def _known_zero_transfer(word: int, state: tuple, *, trust_immediates: bool):
     )
 
 
+def _zero_bit_states(
+    words: list[int], successors: list[list[int]], calls: list[bool],
+    relocated_indexes: set[int], relocation_types: dict | None,
+) -> dict[int, tuple]:
+    """The known-zero-bit dataflow itself, as a map from index to IN-state.
+
+    Split out of ``prove_zero_bits`` so a second class can ask a different
+    question of the SAME analysis without re-deriving it.  Nothing about the
+    lattice, the transfers or the fail-closed behaviour changes here; see
+    ``prove_zero_bits`` for the full statement of what each step guarantees.
+    """
+    bottom = (0,) * 32
+    states: dict[int, tuple] = {0: bottom}
+    pending = [0]
+    steps = 0
+    budget = 64 * (len(words) + 1) * 32
+    while pending:
+        steps += 1
+        if steps > budget:
+            raise ValueError(
+                "zero-bit dataflow did not converge within its step budget"
+            )
+        index = pending.pop()
+        state = states[index]
+        word = words[index]
+        kind = (relocation_types or {}).get(index)
+        if index in relocated_indexes and kind not in _IMMEDIATE_ONLY_RELOCATIONS:
+            out = bottom
+        else:
+            out = _known_zero_transfer(
+                word, state,
+                trust_immediates=index not in relocated_indexes,
+            )
+            if out is None:
+                out = bottom
+        if calls[index]:
+            out = bottom
+        for successor in successors[index]:
+            known = states.get(successor)
+            merged = out if known is None else tuple(
+                a & b for a, b in zip(known, out)
+            )
+            if known is None or merged != known:
+                states[successor] = merged
+                pending.append(successor)
+    return states
+
+
 def prove_zero_bits(
     words: list[int], site: int, source: int, required: int,
     successors: list[list[int]], calls: list[bool],
@@ -2999,40 +3056,9 @@ def prove_zero_bits(
             "would accept a rewrite nothing had checked"
         )
 
-    bottom = (0,) * 32
-    states: dict[int, tuple] = {0: bottom}
-    pending = [0]
-    steps = 0
-    budget = 64 * (len(words) + 1) * 32
-    while pending:
-        steps += 1
-        if steps > budget:
-            raise ValueError(
-                "zero-bit dataflow did not converge within its step budget"
-            )
-        index = pending.pop()
-        state = states[index]
-        word = words[index]
-        kind = (relocation_types or {}).get(index)
-        if index in relocated_indexes and kind not in _IMMEDIATE_ONLY_RELOCATIONS:
-            out = bottom
-        else:
-            out = _known_zero_transfer(
-                word, state,
-                trust_immediates=index not in relocated_indexes,
-            )
-            if out is None:
-                out = bottom
-        if calls[index]:
-            out = bottom
-        for successor in successors[index]:
-            known = states.get(successor)
-            merged = out if known is None else tuple(
-                a & b for a, b in zip(known, out)
-            )
-            if known is None or merged != known:
-                states[successor] = merged
-                pending.append(successor)
+    states = _zero_bit_states(
+        words, successors, calls, relocated_indexes, relocation_types,
+    )
 
     if site not in states:
         raise ValueError(
@@ -3129,6 +3155,251 @@ def equivalent_mask_form(
             successors, calls, relocated_indexes,
             relocation_types=relocation_types,
         )
+        struct.pack_into(">I", output, offset, wanted)
+        if _u32(output, offset) != wanted:
+            raise ValueError(f"+0x{offset:x}: rewrite did not reach target")
+        changed += 1
+    return bytes(output), changed
+
+
+# ---------------------------------------------------------------------------
+# THE LIVE-ZERO VALUE CLASS (a zero produced two ways).
+#
+# BOUNDARY, stated before the code so a reader can check the code against it:
+# this class closes a difference between two words that PROVABLY WRITE THE
+# LITERAL ZERO TO THE SAME GPR and have no other architectural effect
+# whatever.  It exists because `equivalent_copy_form` covers only the
+# `li rD,0` / `addi rD,rS,0` pair, and the measured live-zero population is
+# wider than that pair: game/ui/btext::DrawStringTextMLines and ::FontInit
+# both compute the zero as `slwi rD,rS,2` off a register the target simply
+# copies, and neither word is a copy form at all, so that stage refuses them
+# at "our word is not a copy form" with no proof mode offered.
+#
+# The obligation is discharged entirely inside the EXISTING known-zero-bit
+# dataflow: both words' results are evaluated with `_modelled_zero_result`
+# against the state `prove_zero_bits` already computes, and each must come
+# out all-ones (every bit provably zero).  No new analysis, no new trust.
+# The semantic distance is therefore unchanged: it is the same
+# value-equality ceiling the range-proof class sits on, asked about a
+# WHOLE REGISTER instead of a mask's worth of bits.
+#
+# It is NOT "any semantically equivalent stream".  Four separate walls:
+#
+#   * an opcode whitelist (`addi`/`li`, `rlwinm`, `or`/`mr`, all with Rc
+#     clear) — every other form is refused BY NAME, so no load, no store, no
+#     trapping form and no carry/CR producer can enter the class even if the
+#     dataflow would happen to prove its result zero;
+#   * both words must write exactly ONE resource and it must be the SAME
+#     GPR, checked through `_word_effects`, so a second write can never ride
+#     along;
+#   * the value proved is the literal zero and nothing else — there is no
+#     "equal constants" generalisation here, because zero is the only
+#     constant the known-zero-bit lattice can express;
+#   * the proof reads OUR pre-recolor registers, so the stage refuses to
+#     compose with anything that would launder an unproven renaming into it.
+# ---------------------------------------------------------------------------
+
+# The forms this class will look at at all.  Each entry is (opcode, xo or
+# None); every one is a non-trapping, non-memory ALU form whose result the
+# known-zero-bit table models exactly, and every one is exercised by a test.
+_ZERO_FORM_OPCODES = {
+    14: None,    # addi rD,rA,SIMM  (rA == 0 spells `li rD,SIMM`)
+    21: None,    # rlwinm rA,rS,SH,MB,ME  (`slwi` is the measured spelling)
+    31: 444,     # or rA,rS,rB  (`mr` when rS == rB)
+}
+
+
+def decode_zero_form_destination(word: int) -> int:
+    """Return the single GPR *word* writes, or raise naming the refusal.
+
+    The whitelist is checked first and the write set second, so a form
+    outside the class is rejected for BEING outside it rather than for
+    whatever its effects happen to look like.  A record-setting variant is
+    refused by the write-set check (Rc adds a CR write), and that refusal is
+    kept rather than folded into the whitelist so the reason a reader sees
+    is the true one.
+    """
+    opcode = word >> 26
+    if opcode not in _ZERO_FORM_OPCODES:
+        raise ValueError(
+            f"0x{word:08x}: opcode {opcode} is outside the live-zero value "
+            f"class, which accepts only addi/li, rlwinm and or/mr"
+        )
+    expected_xo = _ZERO_FORM_OPCODES[opcode]
+    if expected_xo is not None and ((word >> 1) & 0x3FF) != expected_xo:
+        raise ValueError(
+            f"0x{word:08x}: opcode-31 form xo {(word >> 1) & 0x3FF} is "
+            f"outside the live-zero value class, which accepts only "
+            f"or/mr (xo 444)"
+        )
+    if opcode in (21, 31) and word & 1:
+        # Stated by this class in its own right rather than left to the
+        # write-set check below.  `_word_effects` did not model the M-form Rc
+        # bit at all until run 37 (fixed alongside this), and a class whose
+        # soundness depends on a shared model noticing a CR write should say
+        # so itself instead of inheriting the omission.
+        raise ValueError(
+            f"0x{word:08x}: record-setting form also writes CR0, which the "
+            f"live-zero value class refuses"
+        )
+    reads, writes = _word_effects(word)
+    if any(_is_memory(resource) for resource in reads | writes):
+        raise ValueError(
+            f"0x{word:08x}: touches memory, which this class refuses"
+        )
+    if len(writes) != 1:
+        raise ValueError(
+            f"0x{word:08x}: writes {sorted(map(str, writes))} — the live-zero "
+            f"value class requires exactly one written resource (a "
+            f"record-setting form also writes CR0 and is refused here)"
+        )
+    resource = next(iter(writes))
+    if not (isinstance(resource, tuple) and len(resource) == 2
+            and resource[0] == "g"):
+        raise ValueError(
+            f"0x{word:08x}: writes {resource}, which is not a GPR"
+        )
+    return resource[1]
+
+
+def prove_zero_result(
+    words: list[int], site: int, word: int, destination: int,
+    successors: list[list[int]], calls: list[bool],
+    relocated_indexes: set[int],
+    *, relocation_types: dict | None = None,
+) -> None:
+    """Prove *word*, executed at *site* in OUR stream, writes 0 to *destination*.
+
+    ``prove_zero_bits`` asks whether some bits of a SOURCE register are zero
+    on entry to a site; this asks whether every bit of the RESULT is, which
+    is the same lattice evaluated one transfer further on.  The word need not
+    be the one currently at *site* — that is the whole point, because the
+    target's word is evaluated against OUR dataflow facts before it is
+    written into our stream.
+
+    Failing closed is inherited wholesale: an unmodelled form, a call, a
+    merge with an unknown path, or a relocation the analysis may not trust
+    all leave the result short of all-ones and the proof refuses.
+    """
+    if not 0 <= site < len(words):
+        raise ValueError(
+            f"live-zero site +0x{site * 4:x} is outside the function"
+        )
+    states = _zero_bit_states(
+        words, successors, calls, relocated_indexes, relocation_types,
+    )
+    if site not in states:
+        raise ValueError(
+            f"+0x{site * 4:x} is not reachable from the function entry, so no "
+            f"zero fact reaches it"
+        )
+    modelled = _modelled_zero_result(word, states[site])
+    proved = modelled.get(destination)
+    if proved is None:
+        raise ValueError(
+            f"+0x{site * 4:x}: the known-zero table does not model the result "
+            f"of 0x{word:08x} in r{destination}"
+        )
+    missing = ~proved & 0xFFFFFFFF
+    if missing:
+        raise ValueError(
+            f"+0x{site * 4:x}: 0x{word:08x} is not provably zero in "
+            f"r{destination} on every path (bits 0x{missing:08x} unproven)"
+        )
+
+
+def equivalent_zero_form(
+    current: bytes, target: bytes, edits: list,
+    *, relocated_offsets: set[int], target_relocated_offsets: set[int],
+    jumptable_offsets: set[int], relocation_types: dict | None = None,
+) -> tuple[bytes, int]:
+    """Rewrite named words whose result is provably the literal zero on both
+    sides.
+
+    Each edit must carry ``"proof": "zero_value_dataflow"`` and a
+    ``declared_zero_register`` naming the GPR it claims both words zero.  As
+    with ``declared_zero_bits`` the declaration is not decoration: it makes
+    the rule state its own claim, so an audit reads it instead of
+    re-deriving it, and a rule whose residual quietly changed shape fails
+    rather than proving a different statement.
+
+    The analysis is re-derived from the OUTPUT before every edit, so a second
+    edit reasons about the stream that will actually execute.
+    """
+    if len(current) != len(target) or len(current) % 4:
+        raise ValueError("live-zero functions must have equal aligned sizes")
+    relocated_indexes = {offset // 4 for offset in relocated_offsets}
+    target_relocated_indexes = {
+        offset // 4 for offset in target_relocated_offsets
+    }
+
+    output = bytearray(current)
+    changed = 0
+    seen = set()
+    for edit in edits:
+        if "at" not in edit:
+            raise ValueError(
+                f"live-zero edit missing its 'at' key: {edit} — each "
+                f"equivalent_zero_form edit needs 'at' (byte offset)"
+            )
+        offset = _parse_int(edit["at"])
+        if offset % 4 or not 0 <= offset <= len(current) - 4:
+            raise ValueError(f"invalid live-zero offset {edit}")
+        if offset in seen:
+            raise ValueError(f"duplicate live-zero edit at +0x{offset:x}")
+        seen.add(offset)
+        if (offset // 4 in relocated_indexes
+                or offset // 4 in target_relocated_indexes):
+            raise ValueError(
+                f"+0x{offset:x}: relocated word is not a live-zero candidate"
+            )
+        word = _u32(output, offset)
+        wanted = _u32(target, offset)
+        if word == wanted:
+            raise ValueError(f"+0x{offset:x}: word already matches target")
+        if edit.get("proof") != "zero_value_dataflow":
+            raise ValueError(
+                f"+0x{offset:x}: the live-zero value class requires "
+                f'"proof": "zero_value_dataflow" — it has exactly one proof '
+                f"mode and no default"
+            )
+        try:
+            ours_destination = decode_zero_form_destination(word)
+            target_destination = decode_zero_form_destination(wanted)
+        except ValueError as failure:
+            raise ValueError(f"+0x{offset:x}: {failure}") from None
+        if ours_destination != target_destination:
+            raise ValueError(
+                f"+0x{offset:x}: destinations differ (r{ours_destination} vs "
+                f"r{target_destination}) — that is a recolor, and this class "
+                f"proves a VALUE, never a renaming"
+            )
+        if "declared_zero_register" not in edit:
+            raise ValueError(
+                f"+0x{offset:x}: the rule must state its claim as "
+                f'"declared_zero_register" (computed: r{ours_destination})'
+            )
+        declared = _parse_int(edit["declared_zero_register"])
+        if declared != ours_destination:
+            raise ValueError(
+                f"+0x{offset:x}: declared_zero_register r{declared} is not "
+                f"the written register r{ours_destination}"
+            )
+
+        words = [_u32(output, at) for at in range(0, len(output), 4)]
+        successors, calls = _successors(
+            words, relocated_indexes,
+            {at // 4 for at in jumptable_offsets},
+        )
+        for label, candidate in (("ours", word), ("target", wanted)):
+            try:
+                prove_zero_result(
+                    words, offset // 4, candidate, ours_destination,
+                    successors, calls, relocated_indexes,
+                    relocation_types=relocation_types,
+                )
+            except ValueError as failure:
+                raise ValueError(f"{label}: {failure}") from None
         struct.pack_into(">I", output, offset, wanted)
         if _u32(output, offset) != wanted:
             raise ValueError(f"+0x{offset:x}: rewrite did not reach target")
@@ -3450,6 +3721,63 @@ def apply_patch(
         print(
             f"WEBFRANK {symbol.name}: redundant-mask range proof "
             f"({mask_changes} site(s))"
+        )
+
+    # THE LIVE-ZERO VALUE STAGE.  Like the range-proof stage it reads OUR
+    # registers, so it runs before the register stage and refuses the audit
+    # escape for the same reason.  It additionally refuses to run alongside a
+    # register stage at all: the word it writes is the TARGET's, so a
+    # subsequent recolor would be asked to treat one target-coloured word as
+    # an identity inside our colouring, and no measured site needs the
+    # composition.  Widening that is a deliberate, audited step for the lane
+    # that first measures a customer needing it — not a default.
+    zero_forms = patch.get("equivalent_zero_form")
+    if zero_forms:
+        if target_data is None:
+            raise ValueError(f"{symbol.name}: target object is required")
+        if patch.get("unproven_recolor_audit"):
+            raise ValueError(
+                f"{symbol.name}: a live-zero rewrite may not ride on "
+                f"\"unproven_recolor_audit\" — the zero proof reads our "
+                f"pre-recolor registers, so an unproven renaming would "
+                f"launder it into a claim about a different value"
+            )
+        if (patch.get("copy_register_fields") or patch.get("recolors")
+                or patch.get("register_fields")):
+            raise ValueError(
+                f"{symbol.name}: the live-zero value class does not compose "
+                f"with a register stage — it writes the TARGET's word into "
+                f"our colouring, which no recolor proof models, and no "
+                f"measured site needs both"
+            )
+        zero_sections = _sections(target_data)
+        zero_symbol = _find_symbol(target_data, zero_sections, symbol.name)
+        if zero_symbol.size != symbol.size:
+            raise ValueError(
+                f"{symbol.name}: target/current function size mismatch "
+                f"({zero_symbol.size} != {symbol.size})"
+            )
+        zero_text = zero_sections[zero_symbol.section_index]
+        zero_target_function = target_data[
+            zero_text.offset + zero_symbol.value:
+            zero_text.offset + zero_symbol.value + zero_symbol.size
+        ]
+        zero_target_relocations = _function_text_relocations(
+            target_data, zero_sections, zero_symbol.section_index,
+            zero_symbol.value, zero_symbol.value + zero_symbol.size,
+        )
+        rewritten, zero_changes = equivalent_zero_form(
+            bytes(data[start:end]), zero_target_function, zero_forms,
+            relocated_offsets=relocated_offsets,
+            target_relocated_offsets=set(zero_target_relocations),
+            jumptable_offsets=jumptable_offsets,
+            relocation_types=relocation_types,
+        )
+        data[start:end] = rewritten
+        changed += zero_changes
+        print(
+            f"WEBFRANK {symbol.name}: live-zero value proof "
+            f"({zero_changes} site(s))"
         )
 
     pre_register = bytes(data[start:end])

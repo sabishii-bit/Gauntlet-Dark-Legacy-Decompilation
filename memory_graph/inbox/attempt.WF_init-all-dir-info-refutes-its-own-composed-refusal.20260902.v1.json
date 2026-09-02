@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "Re-measure the composed-class refusal the previous record wrote down as a typed denial, instead of inheriting it -- discipline 14, a guard's refusal is a measurement of the guard.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED and APPLIED, unchanged: it plus the superseded record's literal declaration-order probe (E1, reverted, probe NEUTRAL-REARRANGED) is the source-exhaustion provenance, and the corroboration stands that our SOURCE ALREADY SPELLS THE COPY (`zero = 0; i = zero; off = zero;`) while MWCC rematerialises anyway. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED and APPLIED (12 of 41 words remeasured with wf_word_diff.py this session, equal to the recorded count). claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 SCREENED and DECISIVE on BOTH windows: window one moves an ADDR16_LO and window two moves an EMB_SDA21, so all four relocation hashes differ from each other and the binding rests on verify_relocation_binding. claim.law.HV_emb-sda21-relocation-offset-differs-between-our-objects-and-the-target.20260901.v1 SCREENED -- the EMB_SDA21 entry sits at window offset +0x6, i.e. instruction offset plus two, exactly as the law says. claim.law.dead-local-identity-reuse-flips-callee-saved-coloring.20260831.v1 SCREENED and still NOT spent, for the reason the superseded record gave.",
+    "laws_applied": "[\"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\", \"claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "probed_form": "NO SOURCE EDIT. src/game/sys/memcard.c is byte-unchanged.",
+    "residual": "None. WHAT THE REFUTATION ACTUALLY IS, because it is not that the predecessor was careless: its denial clause (b) said the existing composition refuses at '+0x18: no proof mode offered -- no dominating definition of the zero reaches that site', and BOTH halves were true of the composition it ran and false of the class. (i) It permuted only the +0x68 tail window (hv_try.py ... pre 0x68:0x70:1,0), so the prologue zeros were never reordered and no seed could reach +0x18 -- the record's own stated falsifier, 'a dominating definition of the zero value reaching +0x18', is supplied by adding the [0x14,0x28) window with order [1,2,3,0,4]. (ii) The mode it was offered was the PURE `dominating_def`, which requires the TARGET's source register to hold the constant in OUR stream; the site needs the COMBINED `constant_dataflow_recolor`, which names OUR g29 and leaves the correspondence to the recolor proof. So the denial expired by its own terms. GENERAL FORM, worth more than the function: a refusal message that names ONE site is a fact about the ONE composition that produced it, and a permutation-window choice is part of that composition -- re-derive the WINDOWS before believing a composed-class refusal, not just the proof modes.",
+    "scope": "config/GUNE5D/webfrank.json (one new rule under game/sys/memcard). Commit 539fd5b34.",
+    "verification": "COUNT PARITY QUOTED AS THE DECIDING FACT: insns 41/41 (ours/target). Proved through webfrank.apply_patch against the extracted retail object before shipping, output bytes == target bytes, 18 words changed across four stages. After configure.py + ninja -j2: WEBFRANK init_all_dir_info adjusted 18 instruction atoms/fields, `build/GUNE5D/main.dol: OK`, `fndiff --clean` = EXACT, 0 real diff lines. verify_consistent_recolor proved the 4-cycle g28->g29->g30->g31->g28 with NO unproven_recolor_audit escape. Both suites green; all 257 pre-existing WebFrank applications replayed in the same build."
+  },
+  "function": "function:init_all_dir_info",
+  "id": "attempt.WF_init-all-dir-info-refutes-its-own-composed-refusal.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T18:26:59Z",
+  "refutes": "attempt.MC_init-all-dir-info-composed-refusal-and-the-decl-order-form-the-prose-park-never-wrote.20260902.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-02",
+    "signature": "closed -- was 'DIFFERS target-only: +2 addi ours-only: -2 li; insns 41/41 (ours/target, COUNT PARITY); 4 ops clusters; RAW DIFFERING WORDS = 12 of 41, of which 2 unabsorbed in 1 cluster'"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.MC_init-all-dir-info-composed-refusal-and-the-decl-order-form-the-prose-park-never-wrote.20260902.v1",
+  "valid_from": "2026-09-02"
+}

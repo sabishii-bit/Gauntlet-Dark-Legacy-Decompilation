@@ -1079,6 +1079,50 @@
           }
         ],
         "copy_register_fields": true
+      },
+      {
+        "function": "init_all_dir_info",
+        "before_sha256": "27ce2e92da374d47360761af9bc09f8b3c5d341516573b23907a7dbd0efef5b3",
+        "after_sha256": "95bd229a5315add3c7b904d95c67a4b0ffcb8a3fb2dcd85236fd375f2388995f",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 41,
+          "permuted_instructions": 7
+        },
+        "mechanism": "41/41 instructions, RAW DIFFERING WORDS = 12 of 41 (wf_word_diff.py, remeasured this session and equal to the count attempt.MC_init-all-dir-info-composed-refusal-and-the-decl-order-form-the-prose-park-never-wrote.20260902.v1 recorded). THIS RULE REFUTES CLAUSE (b) OF THAT RECORD'S OWN DENIAL, which says the existing composition refuses the function because 'equivalent_copy_form reports no proof mode offered at +0x18: no dominating definition of the zero reaches that site'. Both halves of that sentence were true of the composition ACTUALLY TRIED and false of the class: the tried composition permuted only the +0x68 tail window, so the prologue zeros were never reordered and the seed never reached +0x18; and the mode consulted was the PURE `dominating_def`, which requires the target's own source register to hold the constant in OUR stream. The site needs the COMBINED `constant_dataflow_recolor` instead - it names OUR register and leaves the correspondence to the recolor proof - and it needs the prologue permutation to put the seed in front of it. The record's stated falsifier ('a dominating definition of the zero value reaching +0x18') is exactly what the first window supplies, so the denial expires by its own terms rather than being overridden. SOURCE EXHAUSTION is unaffected and still carries the rule: that record's declaration-order probe (probed_form E1, reverted, NEUTRAL-REARRANGED) plus claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1, whose corroboration here is that our SOURCE ALREADY SPELLS THE COPY (`zero = 0; i = zero; off = zero;`) and MWCC rematerialises anyway. PERMUTATION WINDOW ONE, [0x14,0x28) order [1,2,3,0,4]: ours computes the table base `addi r31,lbl_80274578@l(r3)` first and then seeds three zeros and a -1; the target seeds the zero first, derives the other two from it, and sinks the base computation to fourth. The five atoms write five distinct registers and only the base atom reads anything (g3), so no def-use chain moves and every resource keeps its single writer. The base atom is RELOCATED (ADDR16_LO on lbl_80274578, recorded at window offset +0x2) and it MOVES, which is why this window's two relocation hashes differ; the atom-to-symbol binding is proved by verify_relocation_binding against the target object's own table, not by the payload multiset (claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1). WINDOW TWO, [0x68,0x70) order [1,0]: the clean adjacent transposition the record already identified as dependence-clean and as the same idiom this TU's shipped memCardErrorPrompt pin closes - ours materialises `li r0,-1` before the SDA store, the target stores first. The `li` writes g0 only; the store reads g3 and writes memory, and its base register field is the literal zero rather than g0 (EMB_SDA21 rewrites it at link time), so the two are disjoint. Its EMB_SDA21 entry travels with its own atom, hence the differing relocation hashes again. FORM+RECOLOR, two sites, both `constant_dataflow_recolor` naming OUR g29: +0x18 our `li r27,0` against the target's `addi r27,r30,0`, and +0x1c our `li r30,0` against the target's `addi r31,r30,0` (this one changes destination as well, which is precisely why the pure mode cannot take it). The whole-CFG constant dataflow proves g29 holds 0 at both sites from the `li r29,0` window one places at +0x14. RECOLOR: the surviving 4-cycle g28->g29->g30->g31->g28 with g27 fixed, completed by copy_register_fields and machine-proven by verify_consistent_recolor with NO unproven_recolor_audit escape. src/game/sys/memcard.c is byte-unchanged.",
+        "instruction_permutation": [
+          {
+            "start": "0x14",
+            "end": "0x28",
+            "order": [1, 2, 3, 0, 4],
+            "before_sha256": "01fd9d0a7b0e8ab0bea47235d90c9a1482f67c596a042cbe002f7749370f3a8c",
+            "after_sha256": "b7e0b33c97499ba46f0ef00d750514e4fa95c1c7d2df62e3fb94920f2de3a47a",
+            "before_relocations_sha256": "3af1bcd02d8309a40b36412b66ae018c12c6a5b1655c775ee532304cc73766cf",
+            "after_relocations_sha256": "e775d027827c9f6269b8f9b0af2368cd8960365aaf7404fa43b7e1eb0d9402be"
+          },
+          {
+            "start": "0x68",
+            "end": "0x70",
+            "order": [1, 0],
+            "before_sha256": "7343ebf373ecaaccc15b9eb132b34e25e991d9e062662d0b12e7a639545bca11",
+            "after_sha256": "78071a1ec5310a0bb9e0e66edf04edd7b5a0165f8fe91fb5b12a8dd702916730",
+            "before_relocations_sha256": "19339f99b2dd1217de5254f6cd1be65c86a6baa84e1ebf83cc4888e57bfbcf1e",
+            "after_relocations_sha256": "1c9333083bee1c9de62169ef297898d78f6a110702390e81663adf23f4652590"
+          }
+        ],
+        "equivalent_copy_form": [
+          {
+            "at": "0x18",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 29
+          },
+          {
+            "at": "0x1c",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 29
+          }
+        ],
+        "copy_register_fields": true
       }
     ],
     "game/world/newcam": [
@@ -2544,6 +2588,88 @@
           "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
           "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         },
+        "copy_register_fields": true
+      },
+      {
+        "function": "DrawStringTextMLines",
+        "before_sha256": "ba0d94c10f850918f87958023b6c2ec7842eda987274aa6ff40ac9b7a8c60aa1",
+        "after_sha256": "83fa89927b9af7a7e2904a8fa7f026b480eae33ea5941eeb9d27e9358230b80a",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 150,
+          "permuted_instructions": 2
+        },
+        "mechanism": "150/150 instructions, RAW DIFFERING WORDS = 2 of 150 (tools/gdl/composed_census/wf_word_diff.py, measured this session - not inferred from the --ops token count). The first member of the LIVE-ZERO VALUE class, whose proof mode was written this run because equivalent_copy_form refuses this site outright: our word is not a copy form at all. SOURCE EXHAUSTION: attempt.drawstringtextmlines-iv-init-materialization.20260831.v2 parked the function after four induction-variable source shapes, and claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 proves the residual class source-unreachable across twelve functions in eight TUs; attempt.UA_findstringmessagelistsub-nameoffset-temp-mirrors-the-exact-sibling.20260902.v1 is the record that measured this instance and named btext.c as the densest customer. PERMUTATION, [0x1f4,0x1fc) order [1,0]: `bl FixMLineText` returns, `li r30,0` seeds the counter at +0x1f0, and the two following atoms are transposed - ours issues `addi r29,r1,148` then the induction seed, the target issues the seed first. The atoms are disjoint (one writes g29 reading g1, the other writes g27 reading g30), each resource has a single writer inside the region so no final write can move at all, and the window carries NO relocation in either object (both region relocation hashes are the empty-payload hash, checked and not assumed per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1). LIVE-ZERO VALUE, one site at +0x1f4 after the permutation: ours `slwi r27,r30,2` (= `rlwinm r27,r30,2,0,29`) against the target's `addi r27,r30,0`. Both words write g27 and nothing else, and BOTH results are proved to be the literal zero on every path by the existing known-zero-bit dataflow evaluated one transfer further on - the target's word is evaluated against OUR facts before it is written into our stream. The registers already agree, so this is a pure value-form change with no recolor anywhere in the function and no register stage configured. src/game/ui/btext.c is byte-unchanged.",
+        "instruction_permutation": {
+          "start": "0x1f4",
+          "end": "0x1fc",
+          "order": [1, 0],
+          "before_sha256": "1bc1c6996c98bdb0dc56fa8b37e4b99ca696ad6fed4474ca1d53205aea4a3f39",
+          "after_sha256": "15ab0038d9fa1ae1b7a1e6d8bc9036ad14c9296199df5a4089b74ea377f1e038",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "equivalent_zero_form": [
+          {
+            "at": "0x1f4",
+            "proof": "zero_value_dataflow",
+            "declared_zero_register": 27
+          }
+        ]
+      },
+      {
+        "function": "FontInit",
+        "before_sha256": "cee2457f0a6905d1fe5da392f317e08cd27f341709e09c660387745cfa70e9f4",
+        "after_sha256": "dd18229ed1626c72918ec18f1cd215bbb5ccaa3aee6129bd487ac0ac604f8c5d",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 45,
+          "permuted_instructions": 2
+        },
+        "mechanism": "45/45 instructions, RAW DIFFERING WORDS = 2 of 45 (wf_word_diff.py, measured). The same live-zero value mechanism as this TU's DrawStringTextMLines rule with different registers, which is why the class was commissioned rather than the site hand-audited. SOURCE EXHAUSTION: attempt.fontinit-portable-zero-offset-induction.20260829.v1 capped the function after byte-offset and integer-address forms, explicit/local/volatile mode-table bases, shifted and one-byte array views, independent-zero and split-zero initialisation, signed and narrow index types and for-initializer grouping; claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 carries the class-level proof. PERMUTATION, [0x28,0x30) order [1,0]: after `bl StringInitSub`, `li r27,0` at +0x20 seeds the counter and `lis r3,gScrollMsgList@ha` at +0x24 starts the table address; ours then issues `addi r29,r3,gScrollMsgList@l` before the induction seed, the target the other way round. The two atoms are disjoint (g29 from g3 against g30 from g27) and each resource is written once inside the region, so no final write moves. UNLIKE the DrawStringTextMLines window this one DOES carry a relocation: the ADDR16_LO on gScrollMsgList, recorded at window offset +0x2 (instruction +0x0 plus two), and it MOVES with its own atom - which is why the before and after relocation hashes differ here instead of matching. The atom-to-symbol binding is the one permute_instruction_atoms proves against the target object's own relocation table (verify_relocation_binding), not the payload multiset, per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1. LIVE-ZERO VALUE, one site at +0x28 after the permutation: ours `slwi r30,r27,2` against the target's `addi r30,r27,0`, both proved to write the literal zero to g30 on every path. Registers already agree; no register stage. src/game/ui/btext.c is byte-unchanged.",
+        "instruction_permutation": {
+          "start": "0x28",
+          "end": "0x30",
+          "order": [1, 0],
+          "before_sha256": "ccf4e05b8eefe2467d463e57dec4e375754223c9ce5e089d5fe30dc548e53346",
+          "after_sha256": "6086309ba1134961cfc50dcb924d6cb959e53d96a1a4e5e6a30dfc91b47a61ee",
+          "before_relocations_sha256": "c4d2431ffc17f30f5a4e0dcdca8c4239544049a2b2ef5cc034eaafcb6d054ed8",
+          "after_relocations_sha256": "3e7525828140eea395a0696e228a4a86efa33604f324a19b0f2c7ec22329184e"
+        },
+        "equivalent_zero_form": [
+          {
+            "at": "0x28",
+            "proof": "zero_value_dataflow",
+            "declared_zero_register": 30
+          }
+        ]
+      },
+      {
+        "function": "FindStringMessageListSub_8001FC4C",
+        "before_sha256": "4a4958f7225e88ff800d34955b60017f3e3164c1a41e81060bacdb350aa45465",
+        "after_sha256": "807acc91e52970b0f5bc5d4d6aae163ef0e8ff4885049749abe1ac368a48e7a5",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 38,
+          "permuted_instructions": 4
+        },
+        "mechanism": "38/38 instructions, RAW DIFFERING WORDS = 14 of 38 (wf_word_diff.py, measured). The third live-zero instance in this TU and the one the census expected to need the NEW class - it does NOT. Screened first and closed with the EXISTING composition, which is the finding: the shape here is `li` against a register copy, which equivalent_copy_form already models, while its two siblings above are `slwi` against a copy, which it does not. SOURCE EXHAUSTION: attempt.UA_findstringmessagelistsub-nameoffset-temp-mirrors-the-exact-sibling.20260902.v1 drove the function from real 30 to 26 by mirroring the byte-exact sibling FindStringMessageSub and then screened the survivor OUT of further source work under claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1. PERMUTATION, [0x1c,0x2c) order [2,0,3,1]: the loop preheader. Ours issues `addi r27,r4,0` (the name argument), `add r30,r0,r29` (the gScrollMsgList record base), then the two seeds `li r28,0` / `li r31,0`; the target hoists the counter seed to the front and sinks the record base to the end. The four atoms write four DISTINCT registers and none reads another's destination, so every def-use chain is preserved and each resource keeps its single writer - check_permutation_dependences accepts in its strictest form. The window carries no relocation in either object (both hashes are the empty-payload hash; the two ADDR16 halves sit at +0x14/+0x18, immediately before it). FORM+RECOLOR, one site at +0x24 after the permutation: our `li r31,0` against the target's `addi r31,r30,0`. The destination already agrees, but the target's SOURCE r30 is the TARGET's colour and says nothing about our stream, so the site is taken by `constant_dataflow_recolor` naming OUR r28 - which the whole-CFG constant dataflow proves holds 0 at that site, seeded by the `li r28,0` the permutation has just placed at +0x1c. The stage rewrites our word to the target's ENCODING around our register (`addi r31,r28,0`), leaving a word that differs from the target in register fields ONLY. RECOLOR: the surviving 3-cycle of the volatile webs, ours g28/g29/g30 against the target's g30/g28/g29 with g27 and g31 fixed, completed by copy_register_fields and machine-proven by verify_consistent_recolor with NO unproven_recolor_audit escape - which is also what proves the `addi r31,r28,0` the form stage left behind. src/game/ui/btext.c is byte-unchanged.",
+        "instruction_permutation": {
+          "start": "0x1c",
+          "end": "0x2c",
+          "order": [2, 0, 3, 1],
+          "before_sha256": "dfb90fed6d406592ba22b0d805aa5d092e6f5228f78dbdf81040ee05bab57863",
+          "after_sha256": "00f6b7e20fef162c731046e5224ccb256de8b49dca348b734b34b52bda87b9ae",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x24",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 28
+          }
+        ],
         "copy_register_fields": true
       }
     ],
