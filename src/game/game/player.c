@@ -1645,6 +1645,24 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode, f32 power_scale) {
 /* master driver                                                       */
 /* ------------------------------------------------------------------ */
 
+/* Is any player still walking in or ghost-walking?  Inlined into the
+ * do_players exit check: the target's `li 1; b <join>` at +0x970 and the
+ * trailing `li 0` at +0x980 are this function's two returns, and the walked
+ * `q` is its own induction variable. */
+static s32 any_player_walking(void) {
+    s32 j;
+    Player* q;
+
+    for (j = 0, q = PT(0); j < 4; j++, q++) {
+        s32 st = q->state;
+
+        if (st == 1 || st == 8) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Per-frame driver for all four players: welcome/demo speech, beacon
  * light decay, state machine per player (select/dead/ghost/tower),
  * action + motion, "IT" search, speech round-robin, ambient audio. */
@@ -1938,17 +1956,12 @@ s32 do_players(void) {
                     }
                 }
                 if (exit_level != 0 || lbl_803447B4 != 0) {
-                    s32 any = 0;
+                    s32 any;
 
-                    if (lbl_803447B4 == 0) {
-                        for (j = 0; j < 4; j++) {
-                            s32 st = PT(j)->state;
-
-                            if (st == 1 || st == 8) {
-                                any = 1;
-                                break;
-                            }
-                        }
+                    if (lbl_803447B4 != 0) {
+                        any = 0;
+                    } else {
+                        any = any_player_walking();
                     }
                     if (!any) {
                         PlayerProcessScale(p);
