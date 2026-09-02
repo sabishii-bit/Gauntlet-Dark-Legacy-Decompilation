@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Execute the PT record's standing untried hypothesis (discipline 10b mandatory step 1): make the two reads of a player's state field TEXTUALLY DIFFERENT SPELLINGS so MWCC cannot CSE them, targeting the aligned-view @0x24c two-load/two-base shape. Re-derived the true location as the i-loop at src line 1710-1713 (NOT the j-loop the PT probes touched): the != 0 test is p->state (walked pointer p), the ==2||==3 test is the sibling read. Probed line 1713 p->state -> PTA(i)->state.",
+  "attributes": {
+    "law_screen": "claim.law.fuzzy-can-underweight-a-real-improvement.20260830.v1 SCREENED and applied in its finer-metric direction: real is the arbiter once the --ops diff is read, and the diff shows the PTA edit's @24c cluster is UNCHANGED while real regresses, so no fuzzy contest arises. claim.law.sizeof-defeats-loop-stride-induction (cited in include/game/player.h:542) SCREENED as the mechanism candidate for why array-subscript PTA(i) might differ from explicit-stride PT(i) -- MEASURED INSUFFICIENT: both spellings emit identical addressing code here. claim.law.SL_pool-constant-errors-are-score-invisible not applicable (no value edit). Core-screen defake laws not applicable (no raw-offset conversion).",
+    "laws_applied": "[\"claim.law.fuzzy-can-underweight-a-real-improvement.20260830.v1\"]",
+    "probed_form": "src/game/game/player.c line 1713, inside `if (p->state != 0) { s32 sel;` (line 1710): `if (p->state == 2 || p->state == 3) {` -> `if (PTA(i)->state == 2 || PTA(i)->state == 3) {`. PTA(i) = &((Player*)((u8*)potionicon_tab + 0xC40))[i]; PT(i) = (Player*)((u8*)potionicon_tab + i*PREC_STRIDE + 0xC40); PREC_STRIDE == sizeof(Player) == 0x335C so both are address-identical. do_players precedes pinned do_exit in source order; the edit shifted do_exit's relocations and was re-derived clean with tools/gdl/composed_census/wf_rederive_pin.py game/game/player do_exit (body hashes UNCHANGED = pure symbol-table renumbering; new relocation hash ffa3fe42..., confirming trap 15b 'chore not wall' and that wf_rederive_pin exists at the composed_census path). REVERTED to HEAD after measuring.",
+    "scope": "src/game/game/player.c (reverted) and config/GUNE5D/webfrank.json do_exit relocation hashes (reverted). NO source change retained; do_players stays at committed HEAD real 1024.",
+    "verification": "BASELINE (clean HEAD, p->state at 1713): fndiff do_players insns 1174/1160, real 1024, opcode multiset 40t. PTA(i) PROBE: real 1024 -> 1091 (WORSE by 67), insns 1160 -> 1165, @0x24c cluster IDENTICAL before and after: `replace T@24c-254=[add, lwz]  O@24c-254=[addi, lwzx]`. Corroborating prior: PT record probe A (PTA at the six j-loop sites) measured real 1024 -> 1057, also worse. The aligned view (fnasm ... do_players 0x230:0x260 --diff) on clean HEAD shows WHY p->state is best: MWCC CSEs the load shared with the != 0 test AND folds ==2||==3 into a range check `addi r0,r3,-2; cmplwi r0,1; bgt` -- ONE load, no recompute. The TARGET instead re-loads through a fresh base `add r3,r31,r16; lwz r0,3368(r3)` and uses explicit `cmpwi 2 / cmpwi 3`. PTA(i)/PT(i) DO break the CSE (two loads, as wanted) but emit the load as `addi r0,r16,3368; lwzx r0,r31,r0` -- the WRONG addressing form -- and lose the range-check fold, netting worse real. Full `ninja -j2` after revert printed `build/GUNE5D/main.dol: OK`; do_players fndiff back to real 1024; git status clean."
+  },
+  "function": "function:do_players",
+  "held_fixed": "Varied ONLY the spelling of the ==2||==3 read at src/game/game/player.c line 1713; the entire rest of do_players held constant (the != 0 test at line 1710 kept as the walked p->state, no other site touched). One-edit probe, reverted to HEAD.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "One probe emitting `add rX,r31,r16; lwz rT,3368(rX)` from source would refute the addressing-mode-is-unreachable claim; e.g. force a second consumer of the materialized base+i*stride pointer in the same block so MWCC keeps it in a register, then re-read the @0x24c aligned view.",
+    "screened_against_target": "yes - fnasm.py game/game/player do_players 0x230:0x260 --diff on clean HEAD shows the target's `add r3,r31,r16; lwz r0,3368(r3); cmpwi 2; cmpwi 3` against ours `lwz r3,232(r18)...; addi r0,r3,-2; cmplwi r0,1; bgt` (CSE + range-check); the PTA probe object shows the two-load form arrives with `addi;lwzx`, not the target's `add;lwz`.",
+    "statement": "The @0x24c residual is a single MWCC addressing-mode selection: the target materializes the player pointer `base + i*stride` with `add r3,r31,r16` and uses a displacement load `lwz r0,3368(r3)`, while ours emits `addi r0,r16,3368; lwzx r0,r31,r0` for the SAME address. This choice is INDEPENDENT of the source pointer spelling -- p->state (CSE'd), PT(i)->state and PTA(i)->state all yield `addi;lwzx` once they load, so no source pointer expression reaches the `add;lwz(disp)` form. The remaining untried lever is therefore not a spelling but whatever makes MWCC prefer a materialized base pointer over an index+displacement offset here (register-pressure / whether `base + i*stride` is consumed a second time in the block); if nothing in-source moves it, this is a REGISTER_ONLY/addressing-mode residual and a WebFrank-rule candidate now carrying source-exhaustion provenance (PT j-loop probes + this i-loop probe)."
+  },
+  "id": "attempt.PC_do-players-two-spelling-addressing-form-refuted.20260902.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-02T03:23:11Z",
+  "refutes": "attempt.PT_do-players-pta-cell4-measured-and-reread-refuted.20260902.v1",
+  "residual": {
+    "capability_needed": "an addressing-mode selection lever (materialize base+index pointer then displacement-load vs index+disp then indexed-load) that is source-unreachable across PT/PTA/walked-pointer spellings",
+    "family": "addressing-mode",
+    "measured_at": "2026-09-02",
+    "signature": "replace @24c-254 target [add, lwz] vs ours [addi, lwzx]; insns T1174/O1160; real 1024; 44 ops clusters"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
