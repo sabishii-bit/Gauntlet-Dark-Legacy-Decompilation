@@ -39,6 +39,52 @@ INBOX_DIR = REPO_ROOT / "memory_graph" / "inbox"
 ATTEMPT_BYTE_CAP = 16384
 ATTEMPT_LIMIT_PER_FUNCTION = 5
 
+# The record ids that a LATER accepted record supersedes — the "is this
+# record still live?" screen, in the ONE spelling every caller must use.
+#
+# NON-CORRELATED ON PURPOSE. The natural spelling is
+#   NOT EXISTS (SELECT 1 FROM record_ingest newer
+#               WHERE json_extract(newer.raw_json,'$.supersedes')
+#                     = <outer>.record_id
+#                 AND newer.record_state = 'accepted')
+# and it re-runs a json_extract over the WHOLE record_ingest table once per
+# candidate row: quadratic in the corpus, with a JSON parse in the inner
+# loop. Measured run 36 on the live corpus (1,637 records): 14.352s for one
+# unconstrained call against 0.029s for the form below, returning the
+# identical 649 rows — a 495x cut, and 54.7s of the memory_graph suite's
+# 72.9s. Same shape as the run-33 `validate` quadratic. SQLite materializes
+# a non-correlated IN subquery once into an ephemeral index; a correlated
+# one it cannot. An expression index on json_extract was measured and does
+# NOT fix it (the planner still scans: 14.8s -> 18.1s).
+#
+# The `IS NOT NULL` guard is LOAD-BEARING, not tidiness: `x NOT IN (list)`
+# evaluates to NULL — which filters as false — for EVERY row as soon as one
+# NULL is in the list, and most records carry no `supersedes` key at all.
+# Dropping it silently returns zero rows everywhere.
+SUPERSEDED_RECORD_IDS = (
+    "SELECT json_extract(newer.raw_json, '$.supersedes')"
+    " FROM record_ingest newer"
+    " WHERE newer.record_state = 'accepted'"
+    "   AND json_extract(newer.raw_json, '$.supersedes') IS NOT NULL"
+)
+
+# The companion LOOKUP: for each superseded record, WHICH record replaced
+# it. Joined as a derived table for the same reason the screen above is a
+# flat IN — a correlated scalar subquery re-parses the corpus per row.
+# Note the deliberate difference from SUPERSEDED_RECORD_IDS: no
+# `record_state` filter, because the `laws` surface reports a proposed
+# successor too, and narrowing it here would silently change what the law
+# browse says about supersession. MIN() replaces a bare `LIMIT 1` with no
+# ORDER BY: same arbitrary pick when there is one successor, deterministic
+# when a record was superseded twice.
+SUPERSEDING_RECORD_BY_TARGET = (
+    "SELECT json_extract(newer.raw_json, '$.supersedes') AS old_id,"
+    " MIN(newer.record_id) AS newer_id"
+    " FROM record_ingest newer"
+    " WHERE json_extract(newer.raw_json, '$.supersedes') IS NOT NULL"
+    " GROUP BY 1"
+)
+
 # Controlled applicability vocabulary for law records (attributes.tags).
 # `laws` reports live per-tag counts; proposals with tags outside this set
 # fail closed so the vocabulary cannot drift silently. Extend it here, in one
@@ -359,10 +405,31 @@ def _iter_tool_source_paths(root: Path) -> Iterator[Path]:
 
 
 def source_fingerprint(root: Path = REPO_ROOT) -> str:
+    """Cache key over every build input: relative path + size + mtime.
+
+    RESOLVE THE ROOT ONCE. `_repo_relative` resolves BOTH sides on every
+    call, and on Windows each `Path.resolve()` is two `_getfinalpathname`
+    syscalls: 1,779 inputs cost 7,120 of them, ~1.0s per call — and
+    `ensure_database` calls this on essentially every gdlmem entry point.
+    Measured run 36.
+
+    `_iter_input_paths` composes every path it yields as `root / ...`, so
+    `relative_to` against the root is pure string arithmetic with no
+    syscall at all; the resolving form is kept as the fallback for a root
+    the caller passed in some other shape.
+    """
     digest = hashlib.sha256()
+    root_resolved = root.resolve()
     for path in _iter_input_paths(root):
         stat = path.stat()
-        digest.update(_repo_relative(root, path).encode("utf-8"))
+        try:
+            key = path.relative_to(root).as_posix()
+        except ValueError:
+            try:
+                key = path.relative_to(root_resolved).as_posix()
+            except ValueError:
+                key = _repo_relative(root, path)
+        digest.update(key.encode("utf-8"))
         digest.update(str(stat.st_size).encode("ascii"))
         digest.update(str(stat.st_mtime_ns).encode("ascii"))
     return digest.hexdigest()
@@ -2398,16 +2465,12 @@ def symbol_context(
             # forensic attributes stay in the record; fetch them on demand
             # with the `record <id>` operation so briefings stay small.
             for row in connection.execute(
-                """
+                f"""
                 SELECT a.record_id, r.record_state, a.attempted_axis, a.outcome,
                        a.residual_class, a.commit_hash, r.raw_json
                 FROM attempt a JOIN record_ingest r ON r.record_id=a.record_id
                 WHERE a.function_entity_id=?
-                  AND NOT EXISTS (
-                      SELECT 1 FROM record_ingest newer
-                      WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id
-                        AND newer.record_state = 'accepted'
-                  )
+                  AND a.record_id NOT IN ({SUPERSEDED_RECORD_IDS})
                 ORDER BY r.record_state='accepted' DESC, a.id DESC
                 """,
                 (entity["id"],),
@@ -4882,20 +4945,17 @@ def law_corpus(
     exact residual", which no facet could ask before.
     """
     ensure_database(root, db_path)
-    sql = """
+    sql = f"""
         SELECT r.record_id, r.record_state, r.valid_from, r.recorded_at,
                c.epistemic_state, c.value_json,
                json_extract(r.raw_json, '$.attributes.scope') AS scope,
                json_extract(r.raw_json, '$.attributes.tags') AS tags,
-               COALESCE(
-                   c.superseded_by,
-                   (SELECT newer.record_id FROM record_ingest newer
-                    WHERE json_extract(newer.raw_json, '$.supersedes') = r.record_id
-                    LIMIT 1)
-               ) AS superseded_by,
+               COALESCE(c.superseded_by, sup.newer_id) AS superseded_by,
                (SELECT COUNT(*) FROM attempt_law_application ala
                 WHERE ala.law_record_id = r.record_id) AS applied_count
         FROM claim c JOIN record_ingest r ON r.record_id = c.record_id
+        LEFT JOIN ({SUPERSEDING_RECORD_BY_TARGET}) sup
+               ON sup.old_id = r.record_id
         WHERE (c.predicate = 'codegen_law' OR r.record_id LIKE '%law%')
     """
     params: list[Any] = []
@@ -5427,7 +5487,7 @@ def similar_residuals(
             " WHERE json_extract(raw_json,'$.residual') IS NOT NULL"
         ).fetchone()[0])
         rows = connection.execute(
-            """
+            f"""
             SELECT r.record_id, r.raw_json, r.valid_from, r.recorded_at,
                    a.outcome AS outcome, a.attempted_axis AS axis,
                    a.residual_class AS residual_class,
@@ -5445,11 +5505,7 @@ def similar_residuals(
                AND bs.platform = 'gamecube' AND bs.symbol_kind = 'function'
             LEFT JOIN binary_module bm ON bm.id = bs.module_id
             LEFT JOIN residual_signature rs ON rs.record_id = r.record_id
-            WHERE NOT EXISTS (
-                SELECT 1 FROM record_ingest newer
-                WHERE json_extract(newer.raw_json, '$.supersedes') = r.record_id
-                  AND newer.record_state = 'accepted'
-            )
+            WHERE r.record_id NOT IN ({SUPERSEDED_RECORD_IDS})
             """
         ).fetchall()
 
@@ -6440,10 +6496,7 @@ def tu_briefing(
                 JOIN entity e ON e.id = a.function_entity_id
                 JOIN record_ingest r ON r.record_id = a.record_id
                 WHERE e.entity_key IN ({fn_marks})
-                  AND NOT EXISTS (SELECT 1 FROM record_ingest newer
-                      WHERE json_extract(newer.raw_json, '$.supersedes')
-                            = a.record_id
-                        AND newer.record_state = 'accepted')
+                  AND a.record_id NOT IN ({SUPERSEDED_RECORD_IDS})
                 ORDER BY CASE WHEN a.outcome IN ('parked', 'capped')
                          THEN 0 ELSE 1 END,
                          COALESCE(r.recorded_at, '') DESC
@@ -7718,17 +7771,13 @@ def attempt_staleness(
             " JOIN entity e ON e.id = a.function_entity_id"
             " JOIN record_ingest r ON r.record_id = a.record_id"
             " WHERE a.outcome IN ('parked', 'capped')"
-            " AND NOT EXISTS (SELECT 1 FROM record_ingest newer"
-            " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id"
-            " AND newer.record_state = 'accepted')"
+            f" AND a.record_id NOT IN ({SUPERSEDED_RECORD_IDS})"
         ).fetchall()
     with closing(open_database(root, db_path)) as connection:
         multi_rows = connection.execute(
             "SELECT e.name, COUNT(*) AS n, GROUP_CONCAT(a.record_id) AS ids"
             " FROM attempt a JOIN entity e ON e.id = a.function_entity_id"
-            " WHERE NOT EXISTS (SELECT 1 FROM record_ingest newer"
-            " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id"
-            " AND newer.record_state = 'accepted')"
+            f" WHERE a.record_id NOT IN ({SUPERSEDED_RECORD_IDS})"
             " GROUP BY a.function_entity_id HAVING COUNT(*) > 1"
         ).fetchall()
     multi = [

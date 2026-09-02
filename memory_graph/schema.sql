@@ -339,6 +339,14 @@ CREATE TABLE binary_symbol (
 
 CREATE INDEX binary_symbol_name_idx
     ON binary_symbol(platform, normalized_name);
+-- raw_name, not normalized_name: record entity keys carry the symbol
+-- SPELLING (`function:<raw_name>`), so every "which TU owns this record's
+-- function" join resolves on raw_name and no index covered it. The planner
+-- fell back to binary_symbol_name_idx's `platform=?` prefix and scanned all
+-- 21,212 symbols per candidate row. Measured run 36 on similar_residuals'
+-- roster join: 2.227s -> 0.029s (77x) for the identical 649 rows.
+CREATE INDEX binary_symbol_raw_name_idx
+    ON binary_symbol(platform, symbol_kind, raw_name);
 CREATE INDEX binary_symbol_address_idx
     ON binary_symbol(platform, address);
 CREATE INDEX binary_symbol_module_order_idx

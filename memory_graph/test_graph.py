@@ -17,6 +17,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -2533,6 +2534,113 @@ class HypothesisRefuterTests(unittest.TestCase):
             "attempt.t5-refuter-clean-probe.v1",
             "drop the volatile qualifier and see if the reload survives")
         self.assertEqual(warnings, [])
+
+
+class SupersessionScreenPerformanceTests(unittest.TestCase):
+    """T6 run-36 item 10: the suite's 54.7s-of-72.9s hot path.
+
+    The "is this record still live?" screen was a CORRELATED subquery
+    running a json_extract over the whole record_ingest table once per
+    candidate row. These tests pin the two properties that make the
+    non-correlated replacement both correct and fast, so neither can be
+    undone by a later edit without a red test.
+    """
+
+    CORRELATED = (
+        "SELECT r.record_id FROM record_ingest r WHERE NOT EXISTS ("
+        " SELECT 1 FROM record_ingest newer WHERE"
+        " json_extract(newer.raw_json,'$.supersedes')=r.record_id"
+        " AND newer.record_state='accepted') ORDER BY r.record_id")
+
+    def _fixture(self):
+        import sqlite3
+        connection = sqlite3.connect(":memory:")
+        connection.execute(
+            "CREATE TABLE record_ingest (record_id TEXT PRIMARY KEY,"
+            " record_state TEXT NOT NULL, raw_json TEXT NOT NULL)")
+        rows = [
+            # superseded by an accepted record -> must be screened OUT
+            ("attempt.a.v1", "accepted", "{}"),
+            ("attempt.a.v2", "accepted",
+             '{"supersedes": "attempt.a.v1"}'),
+            # superseded only by a PROPOSED record -> still live
+            ("attempt.b.v1", "accepted", "{}"),
+            ("attempt.b.v2", "proposed",
+             '{"supersedes": "attempt.b.v1"}'),
+            # never superseded, and carrying no `supersedes` key at all:
+            # this is the row that goes missing without the NULL guard
+            ("attempt.c.v1", "accepted", "{}"),
+        ]
+        connection.executemany(
+            "INSERT INTO record_ingest VALUES (?,?,?)", rows)
+        return connection
+
+    def test_the_flat_screen_answers_exactly_what_the_correlated_one_did(self):
+        connection = self._fixture()
+        correlated = [row[0] for row in
+                      connection.execute(self.CORRELATED).fetchall()]
+        flat = [row[0] for row in connection.execute(
+            "SELECT record_id FROM record_ingest WHERE record_id NOT IN"
+            f" ({core.SUPERSEDED_RECORD_IDS}) ORDER BY record_id"
+        ).fetchall()]
+        self.assertEqual(correlated, flat)
+        # Print the values compared, per the parity-check discipline: a
+        # gate that passes by comparing two empty lists is not a gate.
+        self.assertEqual(
+            flat, ["attempt.a.v2", "attempt.b.v1", "attempt.b.v2",
+                   "attempt.c.v1"])
+
+    def test_the_is_not_null_guard_is_load_bearing(self):
+        """Drop it and `NOT IN` returns NOTHING — the silent-empty trap."""
+        connection = self._fixture()
+        without_guard = connection.execute(
+            "SELECT record_id FROM record_ingest WHERE record_id NOT IN ("
+            " SELECT json_extract(newer.raw_json,'$.supersedes')"
+            " FROM record_ingest newer WHERE newer.record_state='accepted')"
+        ).fetchall()
+        self.assertEqual(without_guard, [])
+        self.assertIn("IS NOT NULL", core.SUPERSEDED_RECORD_IDS)
+
+    def test_no_correlated_supersedes_subquery_remains_in_core(self):
+        """The idiom is quadratic; it must not come back by copy-paste."""
+        source = (REPO_ROOT / "memory_graph" / "core.py").read_text(
+            encoding="utf-8")
+        # Strip comments so SUPERSEDED_RECORD_IDS' own explanation of the
+        # bad form (which quotes it verbatim) is not read as a use of it.
+        code = "\n".join(line for line in source.splitlines()
+                         if not line.lstrip().startswith("#"))
+        offenders = [
+            line for line in code.splitlines()
+            if "'$.supersedes')" in line and "= r.record_id" in line
+        ] + [
+            line for line in code.splitlines()
+            if "'$.supersedes')" in line and "= a.record_id" in line
+        ]
+        self.assertEqual(offenders, [], offenders)
+
+    def test_the_roster_join_resolves_raw_name_through_an_index(self):
+        """binary_symbol has 21k rows; the join key is raw_name.
+
+        Only `normalized_name` was indexed, so the planner scanned every
+        gamecube symbol per candidate row (2.227s -> 0.029s once indexed).
+        Asserted on the QUERY PLAN rather than on wall-clock, which is not
+        a sound gate on a machine shared by a build fleet.
+        """
+        core.ensure_database(REPO_ROOT, None)
+        with closing(core.open_database(REPO_ROOT, None)) as connection:
+            plan = " ".join(
+                str(tuple(row)) for row in connection.execute(
+                    "EXPLAIN QUERY PLAN SELECT bm.object_name"
+                    " FROM attempt a"
+                    " LEFT JOIN entity fe ON fe.id = a.function_entity_id"
+                    " LEFT JOIN binary_symbol bs"
+                    "   ON fe.entity_key LIKE 'function:%'"
+                    "  AND bs.raw_name = substr(fe.entity_key, 10)"
+                    "  AND bs.platform = 'gamecube'"
+                    "  AND bs.symbol_kind = 'function'"
+                    " LEFT JOIN binary_module bm ON bm.id = bs.module_id"))
+        self.assertIn("binary_symbol_raw_name_idx", plan, plan)
+        self.assertIn("raw_name=?", plan, plan)
 
 
 if __name__ == "__main__":
