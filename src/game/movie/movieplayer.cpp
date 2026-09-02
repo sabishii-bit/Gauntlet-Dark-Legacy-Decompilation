@@ -846,7 +846,8 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
 
                 dst = (u8*)param_6 + (row & ~3) * state->width;
                 dst += (row & 3) * 8;
-                dst2 = dst + d8;
+                dst2 = (u8*)param_6 + (row & ~3) * state->width;
+                dst2 += (row & 3) * 8 + d8;
                 x = 0;
                 do {
                     u8 idx;
@@ -888,7 +889,8 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
 
                 dst = (u8*)param_6 + (row & ~3) * state->width;
                 dst += (row & 3) * 8;
-                dst2 = dst + d8;
+                dst2 = (u8*)param_6 + (row & ~3) * state->width;
+                dst2 += (row & 3) * 8 + d8;
                 x = 0;
                 do {
                     u32 idx;
