@@ -317,16 +317,22 @@ def main(argv: list[str] | None = None) -> int:
     except (MemoryGraphError, OSError, ValueError, json.JSONDecodeError) as error:
         print(f"gdlmem: error: {error}", file=sys.stderr)
         return 1
+    # A record template is authored top-down: schema_version, id, kind come
+    # first by construction so the author fills the head fields before the
+    # body. sort_keys alphabetizes that away — schema_version sinks to the
+    # bottom and id/kind scatter — so the one result that IS a fill-in skeleton
+    # keeps its insertion order (run 34 item 10).
+    sort_keys = not (args.command == "propose-record" and args.template)
     if args.out is not None:
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(
-            json.dumps(result, indent=2, sort_keys=True, default=str),
+            json.dumps(result, indent=2, sort_keys=sort_keys, default=str),
             encoding="utf-8",
         )
         print(f"wrote {args.out}")
         return 0
     payload = json.dumps(result, indent=None if args.compact else 2,
-                         sort_keys=True, default=str)
+                         sort_keys=sort_keys, default=str)
     # Shell pipes (Bash tool, PowerShell tail) silently truncate large
     # stdout; spill big results to a file and print the pointer instead.
     threshold = SPILL_THRESHOLD if args.inline is None else max(0, args.inline)

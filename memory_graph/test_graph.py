@@ -455,6 +455,10 @@ class GraphSurfaceTests(unittest.TestCase):
         template = record_template("attempt")
         self.assertEqual(template["kind"], "attempt")
         self.assertEqual(template["schema_version"], 1)
+        # Run 34 item 10: the head fields lead by construction so the CLI,
+        # which prints the template WITHOUT sort_keys, presents a top-down
+        # fill-in. sort_keys would sink schema_version to the bottom.
+        self.assertEqual(list(template)[:3], ["schema_version", "id", "kind"])
         self.assertIn("law_screen", template["attributes"])
         self.assertIn("<REQUIRED", template["id"])
         with self.assertRaises(MemoryGraphError):
@@ -2304,6 +2308,31 @@ class ProposalGateNarrowingTests(unittest.TestCase):
         parked = self._attempt_record(outcome="parked", probed_form=multi)
         with self.assertRaises(MemoryGraphError):
             core._apply_proposal_gates(parked)
+
+
+class TemplateCliOrderTests(unittest.TestCase):
+    """Run 34 item 10: the CLI must NOT sort_keys the --template result, or
+    schema_version sinks to the bottom of the fill-in skeleton and id/kind
+    scatter. Measured on the real CLI, because the defect was purely in
+    gdlmem.py's json.dumps and invisible at the core-function level."""
+
+    def _template(self, kind):
+        import subprocess
+        gdlmem = REPO_ROOT / "memory_graph" / "gdlmem.py"
+        out = subprocess.run(
+            [sys.executable, str(gdlmem), "propose-record", "--template", kind],
+            capture_output=True, text=True, cwd=str(REPO_ROOT))
+        self.assertEqual(out.returncode, 0, out.stderr)
+        return out.stdout
+
+    def test_the_head_fields_lead_the_printed_template(self):
+        for kind in ("attempt", "claim"):
+            text = self._template(kind)
+            keys = [line.strip().split('"')[1]
+                    for line in text.splitlines()
+                    if line.strip().startswith('"')]
+            self.assertEqual(keys[:3], ["schema_version", "id", "kind"],
+                             f"{kind} template head order")
 
 
 if __name__ == "__main__":
