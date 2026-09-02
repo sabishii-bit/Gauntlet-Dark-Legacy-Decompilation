@@ -5043,7 +5043,7 @@ void PlayerProcessPowerups(void* vp) {
             continue;
         }
         if (sMusicTrackHi != 0xD && gTriggerCameraState == 0 &&
-            gGameplayPauseTimer == 0 && timeleft > 0.0) {
+            lbl_803447B8 == 0 && timeleft > 0.0) {
             if (gBossType >= 0) {
                 if (gBossActive != 0 && gBossDead == 0) {
                     p->powerup[i].timeleft = (f32)((f64)timeleft -
