@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py game/enemy/enemy.c do_enemies --ops",
+    "tools/gdl/regnorm.py game/enemy/enemy.c do_enemies",
+    "tools/gdl/composed_census/wf_word_diff.py game/enemy/enemy.c do_enemies"
+  ],
+  "attributes": {
+    "tags": [
+      "entry-schedule",
+      "store-placement",
+      "matching",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A window that survives every permutation of its block's statements while an expression-level edit inside one of those statements closes it - that would show the scheduler seed is set below statement granularity. Concretely: on do_enemies at a228fd7fb, restoring `lbl_80344718 = 0;` to its position inside the block and closing 0x134-0x168 by any edit confined to the `rate` initializer would refute this. Also refuted by any block where moving a neighbouring statement changes instruction COUNT rather than order, since the law is about scheduling a fixed instruction set.",
+  "id": "claim.law.SB_a-schedule-window-is-owned-by-the-block-statement-order-not-by-the-expression-inside-it.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T22:56:48Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "WHEN AN MWCC ENTRY-SCHEDULE WINDOW SURVIVES EVERY RESHAPING OF THE EXPRESSION THAT PRODUCED IT, MOVE THE NEIGHBOURING STATEMENT INSTEAD. MWCC feeds its list scheduler the statements of a block in source order; the scheduler then reorders freely WITHIN that seed, so the seed's leading statement decides which dependence chain starts materialising first, and an expression's own decomposition cannot reach that decision at all.\n\nMEASURED ON do_enemies (game/enemy/enemy.c) at commit b2876d6bc -> a228fd7fb. The block was:\n    {\n        f32 rate = gCurLevel->ene_speed * (f32)(u32)gFrameTicks;\n\n        lbl_80344718 = 0;\n        for (i = 0; i < 45; i++) { ... }\n    }\nand the residual was a six-cluster window at 0x134-0x168 in which the target loads the u32->f64 bias literal at 0x138 and defers the `lfs 176(rN)` ene_speed read to 0x164 (reusing the FPR the literal vacated), while ours loaded gCurLevel at 0x134 and the field at 0x144 into a second FPR. THREE prior probes on the EXPRESSION all failed and two of them returned a cluster list BYTE-IDENTICAL to baseline: splitting the conversion into its own temp (real 370->380), swapping the multiply's operands (370->378), and the declaration-initializer split (392->404). Hoisting the ONE NEIGHBOURING STATEMENT out of the block - `lbl_80344718 = 0;` moved above the opening brace, the rate expression left character-identical - closed all six clusters in a single build: real 370->350, fresh objdiff fuzzy 97.0475%->98.3891%, raw differing words 184->172, and `fndiff --ops` went from six clusters to `opcode streams identical -- diffs are register/reloc only`. regnorm went from 5 STRUCTURAL + 10 unpaired to CLEAN-RENAMING (674 paired, 172 renaming, 0 STRUCTURAL, 0 unpaired), which reclassified the function from SCHEDULE to REGISTER_ONLY and made it a WebFrank recolor candidate.\n\nWHY THE OLD READING WAS WRONG. attempt.do-enemies-store-reassociation-closure.20260831.v1 cited claim.law.repeated-fp-pool-literal-first-load-is-position-invariant.20260831.v1 to declare this window source-unreachable, on the ground that a pool constant's first materialisation position is chosen by the allocate-then-schedule pipeline rather than by statement position. That law is position-invariant with respect to the STATEMENT CONTAINING THE LITERAL - which is what both probes varied - and says nothing about the position of OTHER statements in the block. The literal's first load moved from 0x154 to 0x138 the moment a different statement led the block.\n\nSCREEN, one line: if a window's probes have varied only the expression, the axis is NOT dead - list the block's other statements and permute THEM before parking."
+}

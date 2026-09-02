@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/savedregs.py game/enemy/enemy.c do_enemies",
+    "tools/gdl/fndiff.py game/enemy/enemy.c do_enemies --ops",
+    "tools/gdl/probe.py game/enemy/enemy.c do_enemies --fuzzy"
+  ],
+  "attributes": {
+    "tags": [
+      "decl-order",
+      "register-web",
+      "metrics",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any build in which reordering an initialised declaration group changes the callee-saved numbering WITHOUT changing the emission order of that group's initializer loads (or the converse). Run it as: reorder the group, then read `python tools/gdl/savedregs.py <unit> <fn>` - if its `ASSIGNMENT` table moves while its `EMISSION ORDER` lines stay put, the two are decoupled and this law is wrong. Equally refuted by a group whose initializers are emitted in an order other than declaration order in either stream.",
+  "id": "claim.law.SB_declaration-order-is-double-bound-it-sets-initializer-emission-order-and-callee-saved-numbering-at-once.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T22:57:00Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "A DECLARATION GROUP WHOSE LOCALS CARRY INITIALIZERS IS DOUBLE-BOUND: MWCC emits the initializer loads IN DECLARATION ORDER AND numbers the callee-saved registers f31-downward IN THE SAME DECLARATION ORDER. When a function's emission order already matches the target but its register numbering does not, no permutation of that group can fix the numbering without breaking the emission order, and the declaration-order lever is provably closed on that group - not merely 'tried and failed'.\n\nMEASURED TWICE IN ONE FUNCTION, do_enemies (game/enemy/enemy.c) at commit a228fd7fb, from the state where `fndiff --ops` reports ZERO clusters. GROUP A, seven locals: `f32 skinOne = lbl_803468F0; f64 zero = lbl_80346810; f64 bossRise = lbl_80346818; f32 zeroFloat = lbl_80346820; f64 pushDamping = lbl_80346940; f64 pushEpsilon = lbl_80346878; f32 verticalDamping = lbl_803469C0;`. Our build numbers them f31,f30,f29,f28,f27,f26,f25 - declaration order, descending - and emits their loads at 0x278,0x280,0x288,0x28c,0x290,0x294,0x298 in that same declaration order. The TARGET emits the loads in the IDENTICAL order at the IDENTICAL offsets, but numbers them f27,f26,f28,f29,f30,f31,f25. Rewriting the group to the target-implied numbering order [pushEpsilon, pushDamping, zeroFloat, bossRise, skinOne, zero, verticalDamping] fixed four of the seven registers and simultaneously CREATED three fresh `--ops` clusters (`replace T@0x278 lfs / O@0x278 lfd`, `insert O@0x288 lfs`, `delete T@0x290 lfd`), because the emission order followed the declarations too. Metrics split exactly as claim.law.real-can-underweight-a-large-alignment-gain-so-arbitrate-conflicts-on-fuzzy.20260831.v1 predicts: real IMPROVED 350->314 while fresh objdiff fuzzy REGRESSED 98.3891%->98.1426%. Reverted. GROUP B, two locals in a different block: `f32 visibilityScale = lbl_80346980; f64 visibilityAdd = lbl_80346928;`, ours f25/f26 against the target's f26/f25 with the emission order agreeing at 0x1f4/0x200. Swapping the two declarations produced the same trade - real 350->346 with two fresh clusters at 0x1f4/0x200. Reverted. Two independent groups, same direction, same cost.\n\nCOROLLARY, and it is the practical half: THE CORRECT KEEP IS THE STATE WITH THE WORSE `real`. A group in this bind reads as a cheap 30-40 line win on `real` and is a fuzzy regression and a loss of postprocessor eligibility - a clean renaming bisimulation (0 STRUCTURAL, 0 unpaired) is worth more than any number of recoloured rows, because the recolor half is closable by rule and a reordered instruction stream is not.\n\nRELATION TO THE INITIALIZER-GROUP LEVER. claim.law.SP_initializer-presence-outranks-declaration-position-in-callee-saved-numbering.20260901.v1 offers the escape of moving a local between the initialised and uninitialised groups. On do_enemies BOTH DIRECTIONS OF THAT ESCAPE ARE ALSO CLOSED, each by a byte-identical build: attempt.DE_do-enemies-schedule-window-and-group-swap.20260901.v1 demoted `s32 shown = 0;` to a plain declaration plus a first-statement `shown = 0;` and MWCC folded the assignment back INTO the declaration; this lane promoted `s32 i;` to `s32 i = 0;` ahead of `shown` and MWCC folded the dead-store initializer AWAY. Fold in both directions means the group boundary is not addressable from source in this function."
+}
