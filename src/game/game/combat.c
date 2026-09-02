@@ -1637,7 +1637,7 @@ f32 someone_will_be_off_screen(s32 camIdx, f32* pos)
     } FloatBits;
     u8 stackLayout[56];
     u8* cameraState = gCameraState;
-    Camera* cam;
+    f32* camMat;
     f32* eyeX;
     f32* eyeY;
     f32* eyeZ;
@@ -1653,7 +1653,7 @@ f32 someone_will_be_off_screen(s32 camIdx, f32* pos)
     FloatBits extent0, extent1;
     s32 scrH = MBScreenHeight();
     s32 scrW = MBScreenWidth();
-    cam = (Camera*)(cameraState + camIdx * sizeof(Camera) + 0xC8);
+    camMat = ((Camera*)(cameraState + camIdx * sizeof(Camera) + 0xC8))->mat[0];
     eyeX = (f32*)(cameraState + camIdx * sizeof(Camera) + 0xC8 + 0x34);
     eyeY = (f32*)(cameraState + camIdx * sizeof(Camera) + 0xC8 + 0x38);
     eyeZ = (f32*)(cameraState + camIdx * sizeof(Camera) + 0xC8 + 0x3C);
@@ -1668,14 +1668,14 @@ f32 someone_will_be_off_screen(s32 camIdx, f32* pos)
         if (target->active != 0) {
             s16 sp[2];
             f32 sx, sy;
-            MBWindowProject((f32*)(target->object + 0x40), cam->mat[0], 0, sp);
+            MBWindowProject((f32*)(target->object + 0x40), camMat, 0, sp);
             sx = (f32)sp[0];
             sy = (f32)sp[1];
             if (sx < minX) minX = sx;
             if (sx > maxX) maxX = sx;
             if (sy < minY) minY = sy;
             if (sy > maxY) maxY = sy;
-            MBWindowProject((f32*)(target->object + 0x30), cam->mat[0], 0, sp);
+            MBWindowProject((f32*)(target->object + 0x30), camMat, 0, sp);
             sx = (f32)sp[0];
             sy = (f32)sp[1];
             if (sx < minX) minX = sx;
