@@ -789,13 +789,13 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
         fn_800D860C((u32)state, pal, count);
         break;
     case 2: {
-        sh1 = (u8)(8 - state->greenBits);
         i = 0;
-        sh0 = (u8)(8 - state->redBits);
         p = pal;
-        sh2 = (u8)(8 - state->blueBits);
         off = i;
         n = count * 4;
+        sh1 = (u8)(8 - state->greenBits);
+        sh0 = (u8)(8 - state->redBits);
+        sh2 = (u8)(8 - state->blueBits);
         for (; i < n; i++) {
             fn_800DBE98(state, p);
             *(u16*)(pal + off) =
@@ -812,8 +812,12 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
     }
 
     {
+        int w;
         int dir;
+        int d8;
         int row;
+        int d2;
+        int y;
 
         if (*(int*)(param_5 + offsetof(MovieBitmapHeader, height)) < 0) {
             dir = -1;
@@ -826,10 +830,6 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
             u8 bits;
             u8 nb;
             u8* bp;
-            int d8;
-            int d2;
-            int y;
-            int w;
 
             w = state->width;
             bp = ip + 1;
@@ -875,10 +875,6 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
             }
             state->width = state->width / 2;
         } else {
-            int d8;
-            int d2;
-            int y;
-
             d8 = dir * 8;
             d2 = dir * 2;
             state->width <<= 1;

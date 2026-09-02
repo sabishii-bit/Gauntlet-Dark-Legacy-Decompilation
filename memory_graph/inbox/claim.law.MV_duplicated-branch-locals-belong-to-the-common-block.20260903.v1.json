@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py",
+    "tools/gdl/savedregs.py",
+    "tools/gdl/probe.py"
+  ],
+  "attributes": {
+    "tags": [
+      "register-web",
+      "decl-order",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function with locals duplicated across two sibling branches in which merging them into the enclosing block produces a byte-identical object, or a word count at or above the unmerged form, at an alignment where the callee-saved correspondence is unchanged (check with `python tools/gdl/savedregs.py <unit> <fn>`: if it reports ROLE MISMATCH rows the edit renumbered the pile and is measuring something else). Reproduce this law's own measurement with `python tools/gdl/composed_census/wf_word_diff.py game/movie/movieplayer.cpp fn_800D8BCC`, which prints DIFFERING WORDS = 66 at commit fc7e0f8b0 and printed 95 at b2876d6bc.",
+  "id": "claim.law.MV_duplicated-branch-locals-belong-to-the-common-block.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T23:05:25Z",
+  "schema_version": 1,
+  "subject": "function:fn_800D8BCC",
+  "valid_from": "2026-09-02",
+  "value": "THE LAW. When two sibling branches of an if/else each declare a local of the SAME name, type and role (the classic `int d8; int d2; int y;` computed identically in both arms), MWCC colours the two copies as two INDEPENDENT webs and hands each arm a colour set drawn after the enclosing block's webs are already placed. Declaring that local ONCE in the block that ENCLOSES both arms is not a cosmetic scope change: it merges the two webs into one, moves it into the enclosing block's declaration class, and re-colours BOTH arms at once. This is the lever that reaches a whole-function volatile cascade, and it is categorically different from the scope hoist that claim.law.MV_scope-hoist-is-not-a-liveness-change-def-use-decides.20260902.v1 correctly kills: that law governs moving a local OUT OF A LOOP BODY INTO ITS OWN ENCLOSING BLOCK, where def-use ranges are unchanged and MWCC folds the edit away before codegen (re-confirmed here: hoisting {dst,dst2,x} out of the y-loop was NEUTRAL-IDENTICAL, object bytes unchanged, at two separate alignments). Moving a DUPLICATED declaration up changes the declaration POPULATION of three blocks at once, and population is what the numbering walks. MEASURED 2026-09-03 on game/movie/movieplayer::fn_800D8BCC, count-symmetric at 215/215 throughout, arbitrated on the raw wf_word_diff count with fresh per-function objdiff fuzzy at every keep: hoisting {d8,d2} took 95 -> 87 differing words (real 184 -> 164, fuzzy 95.2093 -> 95.8605); additionally hoisting {y} took 87 -> 76 (real 164 -> 140, fuzzy 95.8605 -> 96.3488); moving the if-branch-only `int w` to the FRONT of that same block took 76 -> 71 (real 140 -> 130, fuzzy 96.3488 -> 96.5581); exchanging `row` and `d8` inside it took 71 -> 66 (real 130 -> 124, fuzzy 96.5581 -> 96.6977). Net 95 -> 66 words and real 184 -> 124 on a function eleven previously recorded axes had left immobile at 95. THREE BOUNDARIES, each measured, because this law must not be read as 'hoist everything'. (a) Hoist only what is DUPLICATED: adding the if-branch-only {bits,nb,bp} to the common block regressed 71 -> 82/79/90 words depending on position, and the whole set {bits,nb,bp,w} regressed 76 -> 88. The single-arm exception that PAID was `int w`, and it paid as a POSITION insert at the front, i.e. as the ordering lever below, not as a merge. (b) Hoisting a local that is duplicated but re-derived inside a LOOP (the y-loop's {dst,dst2,x}) is byte-identical, because that is the case (a) of the scope-hoist law wearing this law's clothes - the test is whether the two copies are in sibling BRANCHES or in a loop body. (c) ORDER inside the common block dominates the gain and is not monotone: all six positions of `row` were measured at 71, 71, 71, 66, 66, 70, and one order (dir,row,y,d8,d2) regressed to 97 words / real 188, worse than never hoisting at all. PROCEDURE. Before spending any probe on a register-only cascade that spans an if/else, list the locals declared in BOTH arms; each one is a candidate merge, and the merge is one probe. Then sweep the ORDER of the resulting common block, since the merge only opens the knob - it does not set it. Derive `savedregs.py` at every state: it is a zero-build call, and it is what distinguishes a merge that re-coloured volatiles (callee-saved rows still correspond) from an edit that renumbered the callee-saved pile, which on this function cost 46 words in one build."
+}
