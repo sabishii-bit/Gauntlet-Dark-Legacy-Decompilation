@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "scope": "memory_graph/core.py `_apply_proposal_gates`, `symbol_context`, `similar_residuals`, `law_corpus`; run 33. Gate narrowings requested by the MB lane through the integrator and implemented by the graph owner of the run.",
+    "tags": [
+      "workflow"
+    ],
+    "verification": "155 memory_graph tests OK including ProposalGateNarrowingTests (describes_denial_of releases the denial gate; held_fixed demanded of a parked multi-edit record and not of an improved one). Template refutation verified by `gdlmem --out ... propose-record --template attempt` then reading the parsed keys: schema_version present, value 1."
+  },
+  "describes_denial_of": "claim.law.RS_residual-retrieval-is-blind-to-pure-reorder-residuals.20260902.v1",
+  "epistemic_state": "verified",
+  "id": "claim.RG_channel-roles-and-two-gate-narrowings-plus-a-refuted-template-defect.20260902.v1",
+  "kind": "claim",
+  "predicate": "measurement",
+  "recorded_at": "2026-09-02T02:29:38Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "RETRIEVAL CHANNEL ROLES, NOW STATED IN THE TOOL OUTPUT ITSELF, PLUS TWO GATE NARROWINGS AND ONE REFUTED DEFECT REPORT. CHANNEL ROLES. PX measured `context` returning zero cross-function cures on 24 of 24 closable functions, and lanes were reading that emptiness as corpus silence. The three channels answer DIFFERENT questions and each now says so in its own payload: `context.attempts` is a PARK/VETO screen -- 'has anyone vetoed an axis on THIS function' -- and an empty one means nobody has parked it, never that the corpus is silent; `context.similar_residuals` (new, run 33) is the CURE channel -- 'who else closed a residual shaped like mine'; `laws --residual` is the LAW channel and discriminates only for signatures carrying row counts, so a multiset-only query gets an explicit residual_warning rather than a confident list. GATE NARROWING A, from the MB lane: the typed-denial gate fired on records whose prose QUOTES a prior denial in order to screen, re-measure or overturn it -- exactly what AGENTS.md disciplines 1 and 10b ask for. `describes_denial_of: <record-id>` is now the escape. It is a CITATION rather than a free-text opt-out, and it does not suppress the gate for a record that also issues a denial of its own. GATE NARROWING B, from the MB lane: `held_fixed` is now demanded only when the outcome is negative, parked or capped. The gate's entire rationale is that a NEGATIVE result reads as a veto on every axis it touched; a record whose edits were all retained vetoes nothing, so demanding held_fixed there taxed the successes to guard a failure mode only the failures have. REFUTED, and reported because a refuted premise is a deliverable: the report that `propose-record --template` OMITS schema_version is FALSE. The skeleton emits `schema_version: 1` -- verified by dumping the template to JSON and reading the key. The real defect is presentational: gdlmem prints with sort_keys=True, so on a 14-key attempt skeleton `schema_version` sorts near the BOTTOM, below `residual` and `refutes`, and a reader checking the head of the output does not see it. Anyone re-reporting this should fix the ORDERING or the docs, not add a field that is already there."
+}

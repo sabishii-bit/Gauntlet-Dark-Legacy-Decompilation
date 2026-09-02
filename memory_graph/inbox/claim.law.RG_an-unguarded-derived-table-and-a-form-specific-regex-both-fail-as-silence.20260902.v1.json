@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py::recount_derived_tables",
+    "tools/gdl/composed_census/rg_residual_index_canary.py",
+    "memory_graph/test_graph.py::DerivedRecountTests"
+  ],
+  "attributes": {
+    "scope": "memory_graph derived tables and residual retrieval, run 33. Applies to any future derived projection added to the graph.",
+    "tags": [
+      "workflow",
+      "metrics"
+    ],
+    "verification": "`gdlmem recount` ok:true across all ten derived tables (attempt 1017, claim 506, work_claim 7, attempt_law_application 1912, attempt_law_failure 0, record_refutation 79, measurement 0, regime_event 0, residual_signature 1001, law_evidence 320 compared per law and per record, zero mismatches). Canary GREEN. 155 memory_graph tests OK, 587 tools/gdl tests OK."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run `gdlmem recount` and show a derived table whose shipped count equals its independent count while the table is in fact wrong -- that would prove the recount shares a defect with the importer and is not independent. For the parsing half: exhibit an emitted `fndiff --ops` form that parse_residual_signature classifies as `empty` while a human reads a residual class off it; tools/gdl/composed_census/rg_residual_index_canary.py fixtures both known forms and exits 1 if either regresses.",
+  "id": "claim.law.RG_an-unguarded-derived-table-and-a-form-specific-regex-both-fail-as-silence.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T02:29:31Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "EVERY DEFECT THIS LANE FOUND PRESENTED AS AN EMPTY OR GENERIC RESULT, NEVER AS AN ERROR, SO A RETRIEVAL SURFACE MUST BE ABLE TO DISTINGUISH 'NOTHING MATCHED' FROM 'NOTHING WAS ASKED' OR IT WILL BE READ AS A SILENT CORPUS. Four measured instances from one run, all of the same shape. (1) A DERIVED TABLE THAT IS PRESENT BUT EMPTY: `residual_signature` shipped 0 rows against 1001 independently counted, and the only symptom was that every similar-residual query returned nothing -- indistinguishable from a genuine silence. Caught by an independent recount, not by any query. (2) A REGEX WRITTEN FROM ONE EMITTED FORM: the stored corpus signature reads 'opcode multiset IDENTICAL (155/155)' while live `fndiff --ops` emits 'opcode multiset: IDENTICAL (33/33)' with a COLON. A sentinel written from the stored form alone classified all 13 pure-reorder acceptance rows as `empty`, i.e. as carrying no residual at all. Parse BOTH the stored and the live form of any tool output, and fixture both. (3) A CONSTANT LIST READS AS AN ANSWER: a facet every class member shares, or a zero-weight facet that still admits rows, returns a large plausible payload identical for every query. (4) A SPILL STUB THAT CARRIES NO COUNTS lets a programmatic consumer read a 111-row result as an empty graph. CONSEQUENCE, and it is a design rule not a nicety: every derived table needs an INDEPENDENT recount written without the importer's own field readers -- the 92.6% law-citation defect lived inside the field reader, so a check that calls it cannot see a bug inside it -- and every retrieval surface must report what it INDEXED alongside what it MATCHED, so an empty result carries its own diagnosis."
+}

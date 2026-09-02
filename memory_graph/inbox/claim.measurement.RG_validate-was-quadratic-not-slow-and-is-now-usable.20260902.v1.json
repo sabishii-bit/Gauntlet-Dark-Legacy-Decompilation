@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "scope": "memory_graph/core.py `validate_records` / `_probe_record_references`, run 33. AGENTS.md discipline 13's 'never block on validate' guidance is now stale and should be rewritten to 'validate is a sub-second gate; run it'.",
+    "tags": [
+      "workflow",
+      "metrics"
+    ],
+    "verification": "Baseline: cProfile over the pre-change function, 1526.804 s, profile retained in the run log. After: `gdlmem.py validate` twice, elapsed_seconds 0.453 then 0.250, valid true, record_count 1568, schema_checks_cached 0 then 1568. 155 memory_graph tests OK including ValidateIncrementalTests."
+  },
+  "epistemic_state": "verified",
+  "id": "claim.measurement.RG_validate-was-quadratic-not-slow-and-is-now-usable.20260902.v1",
+  "kind": "claim",
+  "predicate": "measurement",
+  "recorded_at": "2026-09-02T02:29:24Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "`gdlmem validate` DID NOT COMPLETE BECAUSE IT WAS QUADRATIC, NOT BECAUSE THE CORPUS IS BIG, AND IT NOW RUNS IN UNDER A SECOND. AGENTS.md discipline 13 told every lane to skip it ('does not complete at current corpus size -- never block on it'), which left the only whole-corpus schema check unusable and made `build` the de-facto integrity gate. MEASURED BASELINE, by cProfile on the unmodified code: 1526.81 s for 1568 records, and the profile names the mechanism outright -- 1568 calls to `_probe_record_references` produced 1547 calls to `ensure_database` and 1552 calls to `source_fingerprint`, costing 1489 s of the 1526 s, via 10,618,930 `nt._getfinalpathname` calls (653 s) and 8,285,013 `nt.stat` calls (389 s). `ensure_database` recomputes the fingerprint by stat-ing every record file, both symbol tables, the PDB dump and every tools/gdl source, roughly 1,600 stats, and it was being called ONCE PER RECORD. FIX: hoist the database out of the loop (one connection, one ensure) and memoise per-record results by content hash. Schema validation is a pure function of the record bytes so its cache key is the content hash alone; reference resolution depends on the whole graph so its key additionally carries the database's source_fingerprint, which changes whenever any record does -- a corpus that changed at all therefore revalidates every reference. MEASURED AFTER: 0.453 s cold, 0.250 s warm, 1568/1568 schema and reference checks served from cache on the warm run. A ~3,400x reduction, from never-completes to a routine gate. IMMEDIATE DIVIDEND, and the reason an unusable check is expensive rather than merely absent: the first completing run surfaced 61 dangling citations across the ACCEPTED corpus that no lane could previously see. They are classified as DEBT rather than as a validation failure, because most are the documented `prune-attempts` workflow's own output -- it DELETES records ejected past the per-function cap, stranding every `supersedes` that pointed at one -- and failing the corpus on them would make the gate refuse the workflow that documents it. New proposals stay STRICT: a dangling citation at staging is still refused."
+}
