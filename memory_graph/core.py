@@ -210,6 +210,18 @@ DENIAL_FIELDS = ("scope", "premise_measurement", "expiry_check", "falsifier")
 HYPOTHESIS_FIELDS = ("statement", "cheapest_refuting_observation",
                      "screened_against_target")
 
+# A REPRODUCTION is the cap-STRENGTHENING path (run-39 item 7). AGENTS.md
+# already says parked probes are ALIGNMENT-SENSITIVE — "a probe that measured
+# negative may turn positive after surrounding regions improve, so re-A/B
+# recorded probes after nearby fixes rather than trusting the old sign". That
+# rule is written entirely for the case where the re-probe FLIPS. The other
+# outcome is evidence too, and the stronger kind: a cap re-probed at a NEW
+# alignment that REPRODUCES its regression is no longer one measurement of one
+# moment, it is a repeated one — and the corpus had nowhere to put that, so MV
+# wrote it as prose where no query can rank it. A veto backed by reproductions
+# should outrank a same-age veto measured once.
+REPRODUCTION_FIELDS = ("at", "alignment", "command", "result")
+
 # Words that carry no MECHANISM. Two groups: ordinary function words, and
 # this project's generic measurement/process vocabulary — "probe", "score",
 # "build", "fuzzy", "real", "match". A refuter that shares only those with
@@ -1367,6 +1379,45 @@ def _validate_schema_fields(record: dict[str, Any], source: Path) -> None:
                     f"{source}: {name}.{field} must be a string or null,"
                     f" got {type(item).__name__}"
                 )
+    # REPRODUCTIONS: a LIST, unlike the two objects above, because the whole
+    # point is that a cap can be re-probed more than once and each re-probe
+    # is separate evidence. Shape-checked corpus-wide; never REQUIRED, since
+    # a cap measured once is still a cap.
+    reproductions = _record_field(record, "reproductions")
+    if reproductions is not None:
+        if not isinstance(reproductions, list):
+            raise MemoryGraphError(
+                f"{source}: reproductions must be a LIST of"
+                f" {{{', '.join(REPRODUCTION_FIELDS)}}} objects, got"
+                f" {type(reproductions).__name__}. Each entry is one re-probe"
+                " of this cap at a new alignment: WHEN (at), what MOVED since"
+                " the cap was taken (alignment), the exact COMMAND, and what"
+                " it measured (result)."
+            )
+        for index, entry in enumerate(reproductions):
+            if not isinstance(entry, dict):
+                raise MemoryGraphError(
+                    f"{source}: reproductions[{index}] must be an object"
+                    f" {{{', '.join(REPRODUCTION_FIELDS)}}}, got"
+                    f" {type(entry).__name__}"
+                )
+            absent = [field for field in REPRODUCTION_FIELDS
+                      if not str(entry.get(field) or "").strip()]
+            if absent:
+                raise MemoryGraphError(
+                    f"{source}: reproductions[{index}] is missing"
+                    f" {', '.join(absent)}. A re-probe that does not say WHAT"
+                    " MOVED since the cap (alignment) cannot strengthen it —"
+                    " re-running the same probe on the same tree measures"
+                    " nothing new, and that is precisely the claim this field"
+                    " makes."
+                )
+            for field, item in entry.items():
+                if item is not None and not isinstance(item, str):
+                    raise MemoryGraphError(
+                        f"{source}: reproductions[{index}].{field} must be a"
+                        f" string or null, got {type(item).__name__}"
+                    )
 
 
 def _validate_record(record: dict[str, Any], source: Path) -> None:
@@ -3740,7 +3791,21 @@ def record_template(kind: str) -> dict[str, Any]:
                                            " target bytes? yes/no + what was"
                                            " seen>",
             },
-            "supersedes": "<OPTIONAL: id of the prior attempt record this replaces>",
+            "reproductions": [
+                {
+                    "at": "<REQUIRED if present: the commit or date this"
+                          " re-probe ran at>",
+                    "alignment": "<REQUIRED if present: what MOVED since the"
+                                 " cap was taken — the neighbouring fix or"
+                                 " region change that makes this a NEW"
+                                 " alignment. Re-running the same probe on"
+                                 " the same tree measures nothing>",
+                    "command": "<REQUIRED if present: the exact command>",
+                    "result": "<REQUIRED if present: what it measured, and"
+                              " whether the regression REPRODUCED or"
+                              " diverged>",
+                }
+            ],
             "refutes": "<OPTIONAL: id of a record whose mechanism/framing this"
                        " attempt DISPROVED by measurement — distinct from"
                        " supersedes: the refuted record may belong to another"
@@ -7628,6 +7693,21 @@ def tu_briefing(
                 " candidacy — not the --ops cluster count and not the"
                 " recorded framing. null means unmeasurable here (unequal"
                 " sizes, or no built object), never zero."
+            )
+        # A cap re-probed at a NEW alignment that REPRODUCED its regression
+        # is repeated evidence, and outranks a same-age veto measured once
+        # (run-39 item 7). Prose could not be ranked; this can.
+        reproductions = _record_field(attempt["_record"], "reproductions")
+        if isinstance(reproductions, list) and reproductions:
+            row["reproductions"] = reproductions
+            row["veto_strength"] = (
+                f"STRENGTHENED: re-probed at {len(reproductions)} further"
+                " alignment(s) since the cap was taken. AGENTS.md's"
+                " alignment-sensitivity rule says a recorded negative may"
+                " flip after nearby regions improve — these say it did NOT."
+                " Screen this axis harder than a once-measured veto of the"
+                " same age, and read each entry's `alignment` for what had"
+                " already moved when it held."
             )
         typed_denial = _record_field(attempt["_record"], "denial")
         if typed_denial:

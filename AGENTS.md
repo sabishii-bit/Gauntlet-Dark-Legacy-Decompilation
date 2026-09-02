@@ -122,6 +122,14 @@ neighbourhood", not "this family". Verified hits always rank first.
 - claim (law): `falsifier` (what evidence would DISPROVE this, and where) and
   `asserted_by` (tool/test paths that mechanically assert it).
 - attempt: `held_fixed` — the variable a multi-edit park held CONSTANT.
+- attempt: `reproductions` — a LIST of `{at, alignment, command, result}`,
+  one per re-probe of a cap at a NEW alignment. The alignment-sensitivity
+  rule above is written for the case where a re-probed negative FLIPS; when
+  it REPRODUCES instead, that is repeated evidence and the stronger kind,
+  and it had nowhere to live but prose. `alignment` (what MOVED since the
+  cap) is required — re-running the same probe on the same tree measures
+  nothing. `brief` marks such a row `veto_strength: STRENGTHENED`, so a
+  twice-measured veto outranks a same-age veto measured once.
 
 Proposal gates run on **new proposals only**; the full set is A-I in
 `memory_graph/core.py` — beyond the three corpus-critical ones below:

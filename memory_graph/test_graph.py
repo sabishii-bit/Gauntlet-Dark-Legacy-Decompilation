@@ -1094,6 +1094,58 @@ class ProposalGateTests(unittest.TestCase):
                         "probed_form": "swapped the two locals"})
         self.assertTrue(stage_record_proposal(record, root=self.root).exists())
 
+    # --- run-39 item 7: the cap-STRENGTHENING path ------------------------
+    # AGENTS.md's alignment-sensitivity rule is written entirely for the case
+    # where a re-probed cap FLIPS. The other outcome is evidence too, and the
+    # stronger kind — a cap re-probed at a NEW alignment that REPRODUCES its
+    # regression is repeated evidence — and the corpus had nowhere to put it,
+    # so MV wrote it as prose where no query can rank it.
+
+    REPRO = {
+        "at": "commit 93b1e95f9, 2026-09-03",
+        "alignment": "the storage-class flip in the same TU landed and was"
+                     " reverted; the anonymous pool renumbered twice",
+        "command": "probe.py game/game/player do_players --arbitrate",
+        "result": "REPRODUCED: real 840 -> 870, fuzzy 97.2692 -> 96.6337",
+    }
+
+    def repro_attempt(self, rid, reproductions):
+        return _attempt(rid, "function:test_fn", outcome="capped",
+                        reproductions=reproductions,
+                        attributes={"law_screen": "none applicable: test"})
+
+    def test_a_well_formed_reproduction_is_accepted(self):
+        record = self.repro_attempt("attempt.repro.v1", [dict(self.REPRO)])
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_a_reproduction_missing_its_alignment_is_refused(self):
+        """Re-running the same probe on the same tree measures nothing new,
+        which is exactly the claim this field makes."""
+        entry = {k: v for k, v in self.REPRO.items() if k != "alignment"}
+        with self.assertRaisesRegex(MemoryGraphError, "alignment"):
+            stage_record_proposal(
+                self.repro_attempt("attempt.repro.v2", [entry]),
+                root=self.root)
+
+    def test_reproductions_must_be_a_list_not_a_single_object(self):
+        with self.assertRaisesRegex(MemoryGraphError, "must be a LIST"):
+            stage_record_proposal(
+                self.repro_attempt("attempt.repro.v3", dict(self.REPRO)),
+                root=self.root)
+
+    def test_a_non_object_entry_is_refused(self):
+        with self.assertRaisesRegex(MemoryGraphError, "must be an object"):
+            stage_record_proposal(
+                self.repro_attempt("attempt.repro.v4", ["reproduced twice"]),
+                root=self.root)
+
+    def test_the_field_is_never_required(self):
+        """A cap measured once is still a cap."""
+        record = _attempt("attempt.repro.v5", "function:test_fn",
+                          outcome="capped",
+                          attributes={"law_screen": "none applicable: test"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
     # --- Gate I: a hypothesis naming a register must cite it in the stream
     #
     # AGENTS.md carries this as a DISPATCH screen, which fires after the
