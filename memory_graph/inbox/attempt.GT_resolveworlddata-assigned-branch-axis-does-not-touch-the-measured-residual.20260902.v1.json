@@ -1,0 +1,37 @@
+{
+  "attempted_axis": "Read-only re-derivation of the residual before spending the run's one sanctioned axis (the unfused-branch producer construct / chained ternary, to be copied from one of the 271 exact-function oracles). The premise was REFUTED at first measurement: ResolveWorldData's residual contains NO branch rows at all, so there is no branch shape for an oracle to supply and the assigned axis class cannot apply. Measured signature is entirely live-zero-remat plus a walked-pointer row.",
+  "attributes": {
+    "law_screen": "claim.law.RS_residual-retrieval-is-blind-to-pure-reorder-residuals.20260902.v1 screened and APPLIED: it is why the residual was re-derived from the aligned view rather than from the record's prose label. claim.law.lwzu-idiom-web-retention.20260830.v1 screened and APPLIED to the lfsu rows -- it correctly describes them as a load-update web that must be kept alive, and the superseded record already probed and capped the block-scope-cursor cure for exactly those two rows. claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 screened, not applicable: no constant defect at these sites. No branch-shape or branch-fusion law was applicable, which is the finding.",
+    "probed_form": "No source edit. The refutation is a measurement, not a probe: `python tools/gdl/probe.py game/world/gauntworld.c ResolveWorldData --ops` prints `opcode multiset: DIFFERS target-only: +2 lfsu +5 li ours-only: -2 lfs -3 mr`, which contains no b, beq, bne, blt or any other branch mnemonic on either side, and none of the 17 clusters is a branch row.",
+    "residual": "The dominant residual is THREE structurally identical live-zero-remat clusters plus a fourth as a 1:1 replace. At T[1000]/T[1374]/T[1439] ours emits an early `mr` where the target emits a fresh `li rX,0` three instructions later; at T[1507:1508] the same family appears as a direct li-against-mr replace. The aligned view at +0xf94..+0xfb8 shows the mechanism exactly: two variables are both zeroed around a `count = (a - b) / 108` computation, the target materialises `li r6,0` before the division and `li r3,0` after it, and ours materialises `li r4,0` once and copies it with `mr r3,r4`. IMPORTANTLY, and contrary to what the statement-reorder axis assumed, our SOURCE STATEMENT ORDER ALREADY MATCHES the target's: our `n = 0; off = 0;` pair already straddles nothing the target does not, and both streams already place one zero early and one late. The difference is purely whether MWCC rematerialises the second zero or copies it, which is an allocator decision at the same statement order -- this is why five statement-shape spellings have now folded. The remaining +2 lfsu rows are the walked-pointer idiom at +0xc60 (`lfsu f0,240(r8)` against our `lfs f0,240(r7)`), already probed and capped in the superseded record.",
+    "scope": "No files changed. Read-only measurement of src/game/world/gauntworld.c::ResolveWorldData.",
+    "verification": "python tools/gdl/probe.py game/world/gauntworld.c ResolveWorldData --ops -> BASELINE real 1518, insns T1807/O1805, multiset 12t, 17 clusters, zero branch mnemonics in the multiset. python tools/gdl/fnasm.py game/world/gauntworld.c ResolveWorldData 0xf94:0xfb8 --diff and 0xc50:0xc74 --diff -> the two aligned views quoted above. No build gate was needed because no source changed; the TU's full ninja was green at run end regardless (build/GUNE5D/main.dol: OK)."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/world/gauntworld.c ResolveWorldData --ops -- if any b/beq/bne/blt token ever appears in the target-only or ours-only multiset, this denial has expired and the branch axis is live again.",
+    "falsifier": "A branch mnemonic appearing on either side of ResolveWorldData's opcode multiset, or a demonstration that a chained ternary changes the li-versus-mr choice at one of the four live-zero sites without changing any branch.",
+    "premise_measurement": "python tools/gdl/probe.py game/world/gauntworld.c ResolveWorldData --ops on 2026-09-02 printed `opcode multiset: DIFFERS target-only: +2 lfsu +5 li ours-only: -2 lfs -3 mr` across 17 clusters, containing no branch mnemonic on either side. A construct class that changes branch shapes cannot close a residual that has no branch rows.",
+    "scope": "The unfused-branch producer construct (chained ternary, or any branch shape copied from an exact-function oracle) as an axis for ResolveWorldData specifically. This denial does NOT cover that construct for any other function -- fn_8005BA1C and fn_8005E90C both DO carry genuine branch rows and remain legitimate targets for it."
+  },
+  "function": "function:ResolveWorldData",
+  "held_fixed": "No source edit was made. The whole run on this function was read-only measurement, so nothing in the TU moved and the numbers below are directly comparable to the superseded record's.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Find any function in the image where a source-level change flipped an `mr`-from-a-zero-register into a rematerialised `li rX,0` at a fixed statement order -- `python memory_graph/gdlmem.py find --family live-zero-remat` is the query. One such precedent would show the family is source-reachable after all and this hypothesis should be dropped.",
+    "screened_against_target": "yes -- the aligned view at +0xf94..+0xfb8 shows both streams already placing one zero before the count division and one after it, so the ordering hypothesis that motivated the previous statement-reorder probes is measured false, not merely unproductive.",
+    "statement": "Stop spending source spellings on ResolveWorldData's zero-init sites. The residual is four instances of one allocator decision -- rematerialise `li rX,0` versus copy an existing zero with `mr` -- measured at a statement order that ALREADY matches the target, which is why six spellings across three records have now folded. The correct next move is to serve it as a postprocessor capability request rather than a source axis: the `capability_needed: dataflow-equivalence` on this record names a copy-versus-rematerialise equivalence over a known-constant register, which is squarely inside the allocator-variance class the WebFrank ceiling permits, and closing it would close all four sites in this function at once."
+  },
+  "id": "attempt.GT_resolveworlddata-assigned-branch-axis-does-not-touch-the-measured-residual.20260902.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-02T01:40:17Z",
+  "refutes": "attempt.GW_resolveworlddata-spelling-axes-fold-before-codegen.20260901.v2",
+  "residual": {
+    "capability_needed": "dataflow-equivalence",
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-02",
+    "signature": "DIFFERS target-only: +2 lfsu +5 li ours-only: -2 lfs -3 mr; insns T1807/O1805; 17 ops clusters"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

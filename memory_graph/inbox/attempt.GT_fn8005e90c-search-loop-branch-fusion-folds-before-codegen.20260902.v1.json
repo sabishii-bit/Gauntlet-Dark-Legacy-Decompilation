@@ -1,0 +1,36 @@
+{
+  "attempted_axis": "Transfer the branch-fusion residual family from fn_8005BA1C to its second instance. fn_8005E90C's keyring search loop carries the identical signature (target-only b + bne against ours-only beq): the target emits the UNFUSED `bne <increment>; b <found>` pair where ours emits a single fused `beq <found>`. Probed the one statement shape the fn_8005BA1C record had not covered -- putting the goto inside the if-body rather than behind an inverted continue-guard.",
+  "attributes": {
+    "law_screen": "The open hypothesis on attempt.GW_fn8005ba1c-for-increment-order-and-branch-fusion-caps.20260901.v2 was screened and is the reason this probe was framed as a statement shape rather than a guard-expression respell -- that record measured guard-expression shapes dead twice and directed the next lane at conditional expressions in the computed value instead. claim.law.RS_residual-retrieval-is-blind-to-pure-reorder-residuals.20260902.v1 screened and APPLIED: this second instance of the family was found by an opcode-signature census over the TU, not by residual retrieval, which is exactly the blindness that law describes. claim.law.recomputed-index-array-form-safe.20260830.v1 screened, not applicable: the loop's induction form was not touched.",
+    "probed_form": "NEGATIVE (discarded with git): `if (qdata->subtype == 2) { goto keyring_found; }` as the final statement of the loop body, replacing `if (qdata->subtype != 2) { continue; } goto keyring_found;`. Result was NEUTRAL-IDENTICAL -- probe.py reported `object bytes unchanged -- the edit FOLDED AWAY before codegen`, which for a spelling probe is a stronger negative than a regression because the source text never reached the compiler's decision point.",
+    "residual": "This is the SECOND function in the TU measured to carry the search-loop branch-fusion residual, and the first independent confirmation that the family is invariant to statement-level goto/continue spelling. MWCC canonicalises `if (!C) continue; goto L;` and `if (C) goto L;` to the same object bytes, so the fused `beq` is chosen after the statement shape is already normalised away. Combined with the two guard-expression shapes measured dead in fn_8005BA1C, statement-level and guard-level source forms are now dead THREE ways across TWO functions for this family. The remaining untried class is the one fn_8005BA1C's record named: a conditional expression somewhere inside the VALUE the guard computes, sourced from one of the 271 pattern sites that sit inside already-exact functions.",
+    "scope": "No files changed -- the probe was measured and discarded with git checkout. Read/probe only against src/game/world/gauntworld.c::fn_8005E90C.",
+    "verification": "python tools/gdl/probe.py game/world/gauntworld.c fn_8005E90C --ops -> BASELINE real 143, insns T270/O269, multiset 3t. After the edit -> NEUTRAL, real 143, multiset 3t, banner `NEUTRAL-IDENTICAL: object bytes unchanged`. python tools/gdl/fnasm.py game/world/gauntworld.c fn_8005E90C 0x1cc:0x200 --diff -> the target's `bne ->1e8` at +0x1e0 followed by `b ->200` at +0x1e4, against our single `beq ->1fc` at +0x1e0. Tree restored with git checkout; TU full ninja green at run end (build/GUNE5D/main.dol: OK)."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/world/gauntworld.c fn_8005E90C --ops -- if the `replace T[120:122]=['bne','b'] O=['beq']` cluster ever changes shape after unrelated work in this function, re-probe the statement forms, since this family is alignment-sensitive like every other.",
+    "falsifier": "Any statement-level goto/continue rearrangement in this loop that changes the object bytes at all, in either direction. The measured claim is folding, not merely non-improvement, so a single byte of movement disproves it.",
+    "premise_measurement": "python tools/gdl/probe.py game/world/gauntworld.c fn_8005E90C on 2026-09-02 returned NEUTRAL with the explicit banner `NEUTRAL-IDENTICAL: object bytes unchanged -- the edit FOLDED AWAY before codegen`, at real 143 and multiset 3t both before and after.",
+    "scope": "Statement-level goto/continue placement as an axis for the search-loop branch-fusion row in fn_8005E90C only. It does NOT deny the conditional-expression-in-the-computed-value class, which remains the family's live axis in both this function and fn_8005BA1C."
+  },
+  "function": "function:fn_8005E90C",
+  "held_fixed": "Only the third and final guard of the search loop changed. The two guards above it (`if (strcmp(sKeyringName, qdata->desc) != 0) continue;` and `if (q->type != 1) continue;`), the for-header including its comma increment `i++, q++`, the `i = -1;` fallthrough and the `keyring_found:` label were all left byte-identical, so any movement would have been attributable to the final guard alone.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Disassemble two or three of the 271 exact oracle sites and check whether their search-loop guards are plain field comparisons. If they are, the construct hypothesis is wrong and the family should be reclassified as an allocator/schedule choice with a postprocessor capability request instead of a source axis.",
+    "screened_against_target": "yes -- python tools/gdl/fnasm.py game/world/gauntworld.c fn_8005E90C 0x1cc:0x200 --diff confirms the target's unfused pair and our fused single branch, and the two functions' signatures match token for token (fn_8005BA1C target-only +5 b +3 bne ours-only -3 beq; fn_8005E90C target-only +1 b +1 bne ours-only -1 beq).",
+    "statement": "Execute the oracle method on this row rather than more spellings. The census recorded on fn_8005BA1C found 563 sites of this pattern in 289 functions, of which 271 sites in 193 functions sit inside ALREADY-EXACT functions -- those are oracles whose source is known-correct by construction. Pick an exact function whose search loop emits the UNFUSED `bne <increment>; b <found>` pair, read what its guard actually computes, and copy that construct into fn_8005E90C's third guard. The prediction to test is that the exact oracles compute a conditional expression inside the guard's value rather than comparing a plain field."
+  },
+  "id": "attempt.GT_fn8005e90c-search-loop-branch-fusion-folds-before-codegen.20260902.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-02T01:40:25Z",
+  "residual": {
+    "capability_needed": "dataflow-equivalence",
+    "family": "branch-pair",
+    "measured_at": "2026-09-02",
+    "signature": "DIFFERS target-only: +1 b +1 bne ours-only: -1 beq; insns T270/O269; 7 ops clusters"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
