@@ -91,6 +91,88 @@ RESIDUAL_FAMILY_VOCABULARY = frozenset({
     "eh-scaffold", "prologue-form",
 })
 
+# --- run-32 evidence layer (integrator-decided contract) -------------------
+# The corpus grew to 366 laws with 1016 attempts citing 250 of them. Every
+# consumer surface ranked laws by DATE, so a law refuted the day after it was
+# written outranked one that had paid off forty times. The layer below turns
+# the citations the corpus already carries into a score. Three rules, all
+# deliberate:
+#
+# (1) SUCCESS is narrow. A law counts a success only when an attempt naming
+#     it in `laws_applied` actually landed. The literal contract wording is
+#     "exact/improved"; the two extra spellings below are the same outcome
+#     under merge/retention bookkeeping (1 record each in the 2026-09-02
+#     corpus) and are included so a lane's word choice does not silently
+#     erase its own evidence.
+# (2) A CAP IS NOT A FAILURE. 486 parked and 336 capped citations sit in the
+#     corpus, and a law that correctly predicts a park did its job perfectly.
+#     Counting those as failures would rank the project's best negative
+#     screens — the ones whose whole purpose is to stop work — at the bottom.
+#     They are reported as `neutral_citations`, never in the denominator.
+# (3) FAILURE is a strong signal only: someone measured the law false and
+#     wrote a `refutes` edge (or, from this run on, an explicit
+#     `laws_failed` citation). 8 laws carry one today.
+LAW_SUCCESS_OUTCOMES = frozenset({
+    "exact", "improved", "merged_improved", "retained_improved",
+})
+
+# Wilson lower-bound z for a 95% one-sided interval, and the Beta(1,1)
+# (Laplace) prior used for the smoothed mean. Both are reported: the Wilson
+# bound is the RANKING key because it penalises small samples, while the Beta
+# mean is the more readable point estimate.
+WILSON_Z = 1.96
+
+# Status tiers, in ranking order. The tier is the PRIMARY sort key and the
+# Wilson score only orders within a tier — measured reason: the run-32 canary
+# found claim.law.offsetof-rename-isolated-site-outlier.20260830.v1 at 11
+# successes against 1 refutation (Wilson 0.646), which outscores the
+# known-winner merged-disjunction law at 1 success and 0 refutations (Wilson
+# 0.207). Ranking on the bare score would therefore have floated a REFUTED
+# law above a verified one, which is exactly the outcome the canary exists to
+# forbid. Tiering fixes it without discarding the score.
+LAW_STATUS_ORDER = ("established", "contested", "provisional", "refuted")
+LAW_STATUS_NOTES = {
+    "established": "at least one attempt citing this law landed exact/improved"
+                   " and nothing refutes it",
+    "contested": "has verified successes AND a standing refutation — read the"
+                 " refuting record before applying; the refutation may be"
+                 " scope-limited rather than total",
+    "provisional": "NO verified success yet. Hidden from the default view:"
+                   " an unverified law that reads as authoritative is how a"
+                   " confident hallucination propagates fleet-wide. Pass"
+                   " --include-provisional 1 to see these.",
+    "refuted": "measured FALSE by a refuting record and carrying no verified"
+               " success — do not apply; re-deriving it is wasted work",
+}
+
+# --- run-32 typed prose objects --------------------------------------------
+# A DENIAL is a record telling a future lane not to do something. In prose it
+# is unfalsifiable and immortal: "do-not-retry", "NOT a candidate",
+# "ineligible" carry no scope, no measurement, and no way to ever be cleared,
+# and the corpus has already been measured mistaking a tool's SILENCE for a
+# verdict of ineligibility (claim.law.RQ_webfrank-audit-silence-is-not-
+# ineligibility). The typed form forces the four things that make a denial
+# re-checkable by somebody else.
+DENIAL_FIELDS = ("scope", "premise_measurement", "expiry_check", "falsifier")
+
+# A HYPOTHESIS is discipline 10b's payload: the untried idea a record ends on,
+# which becomes the next lane's MANDATORY step 1. Prose hypotheses are
+# extracted by phrase match today, which is a guess; the typed form is exact
+# and additionally records what it would cost to kill the idea.
+HYPOTHESIS_FIELDS = ("statement", "cheapest_refuting_observation",
+                     "screened_against_target")
+
+# Gate D vocabulary: denial phrasing that closes an axis for everyone after
+# you. Kept narrow and literal — these are the phrases that actually appear
+# in the corpus's parks, not a general negativity detector.
+_DENIAL_PHRASE_RE = re.compile(
+    r"do[- ]not[- ]retry|don't retry|never retry"
+    r"|not a candidate|no[t]? a valid candidate"
+    r"|ineligible|not eligible"
+    r"|permanently parked|closed for good|do not revisit",
+    re.I,
+)
+
 # Gate A vocabulary: a law asserting one of these makes an unconditional
 # claim, and an unconditional claim with no stated falsifier cannot be
 # screened OUT by a later lane — it can only be re-derived.
@@ -733,6 +815,38 @@ def _record_field(record: dict[str, Any], name: str) -> Any:
     return None
 
 
+def _law_id_list(record: dict[str, Any], name: str) -> list[str]:
+    """Read a citation list field tolerantly: list, or JSON-encoded string.
+
+    `laws_applied` is authored both ways across the corpus (the template
+    documents a "JSON array string"), and a reader that understood only one
+    spelling would drop half the evidence on the floor without saying so.
+    """
+    value = _record_field(record, name)
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError:
+            return []
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str) and item]
+
+
+def _refuted_ids(record: dict[str, Any]) -> list[str]:
+    """Every record id this record declares it REFUTES.
+
+    Accepts a single id or a list, top-level or under attributes, because all
+    four spellings occur in the corpus.
+    """
+    value = _record_field(record, "refutes")
+    if isinstance(value, str):
+        return [value] if value else []
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, str) and item]
+    return []
+
+
 def _is_law_record(record: dict[str, Any]) -> bool:
     """A claim record carrying a codegen/workflow law."""
     if record.get("kind") != "claim":
@@ -831,6 +945,44 @@ def _validate_schema_fields(record: dict[str, Any], source: Path) -> None:
             raise MemoryGraphError(
                 f"{source}: {name} must be a non-empty string"
             )
+    # run-32 typed prose objects. Shape-checked corpus-wide like the residual
+    # object; the REQUIREMENT to have one is a propose-time gate, so no
+    # accepted record is retroactively invalidated by the field existing.
+    for name, fields, purpose in (
+        ("denial", DENIAL_FIELDS,
+         "a denial must say WHERE it applies (scope), WHAT was measured to"
+         " support it (premise_measurement), the COMMAND that would show it"
+         " no longer holds (expiry_check), and what evidence would DISPROVE"
+         " it (falsifier)"),
+        ("hypothesis", HYPOTHESIS_FIELDS,
+         "a hypothesis must state the idea (statement), the cheapest"
+         " observation that would KILL it (cheapest_refuting_observation),"
+         " and whether it was already screened against the target"
+         " (screened_against_target)"),
+    ):
+        value = _record_field(record, name)
+        if value is None:
+            continue
+        if not isinstance(value, dict):
+            raise MemoryGraphError(
+                f"{source}: {name} must be the structured object"
+                f" {{{', '.join(fields)}}}, got {type(value).__name__}."
+                f" {purpose}"
+            )
+        # Unknown keys TOLERATED — additive schema, same rule as `residual`.
+        missing = [field for field in fields
+                   if not str(value.get(field) or "").strip()]
+        if missing:
+            raise MemoryGraphError(
+                f"{source}: {name} is missing {', '.join(missing)}."
+                f" {purpose}"
+            )
+        for field, item in value.items():
+            if item is not None and not isinstance(item, str):
+                raise MemoryGraphError(
+                    f"{source}: {name}.{field} must be a string or null,"
+                    f" got {type(item).__name__}"
+                )
 
 
 def _validate_record(record: dict[str, Any], source: Path) -> None:
@@ -848,7 +1000,11 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
         raise MemoryGraphError(f"{source}: record id must be a non-empty string")
     kind = record["kind"]
     allowed = {
-        "entity", "edge", "claim", "evidence", "attempt", "work_claim", "tool"
+        "entity", "edge", "claim", "evidence", "attempt", "work_claim", "tool",
+        # run-32: a regime-change marker. Its own kind rather than a claim
+        # predicate because it is read by DATE against other records' evidence
+        # dates, which is a different question from anything `claim` answers.
+        "event",
     }
     if kind not in allowed:
         raise MemoryGraphError(f"{source}: unsupported record kind {kind!r}")
@@ -860,6 +1016,7 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
         "attempt": {"function", "attempted_axis", "outcome"},
         "work_claim": {"function", "owner", "state", "claimed_at"},
         "tool": {"tool_key", "name", "tool_kind", "status", "purpose"},
+        "event": {"slug", "scope"},
     }
     missing = sorted(per_kind[kind] - record.keys())
     if missing:
@@ -1206,20 +1363,31 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
                         record.get("finished_at"),
                     ),
                 )
-                attributes = record.get("attributes")
-                laws_applied = (
-                    attributes.get("laws_applied")
-                    if isinstance(attributes, dict) else None
-                )
-                if isinstance(laws_applied, list):
-                    for law_id in laws_applied:
-                        if isinstance(law_id, str) and law_id:
-                            connection.execute(
-                                "INSERT OR IGNORE INTO attempt_law_application"
-                                " (attempt_record_id, law_record_id)"
-                                " VALUES (?, ?)",
-                                (record["id"], law_id),
-                            )
+                # MEASURED BUG, fixed run 32: this used to read
+                # `attributes.laws_applied` and accept only a JSON LIST. The
+                # authoring template documents the field as a "JSON array
+                # string", and most lanes wrote it that way — so the importer
+                # silently dropped them. Live count on the 2026-09-02 corpus:
+                # 142 citations imported out of 1912 present, i.e. 92.6% of
+                # the corpus's law-application evidence was invisible to
+                # every query built on this table. _law_id_list() reads both
+                # spellings, and both homes (top-level and attributes).
+                for law_id in _law_id_list(record, "laws_applied"):
+                    connection.execute(
+                        "INSERT OR IGNORE INTO attempt_law_application"
+                        " (attempt_record_id, law_record_id) VALUES (?, ?)",
+                        (record["id"], law_id),
+                    )
+                # laws_failed: the explicit failure citation. Same shape and
+                # same tolerance as laws_applied (JSON list, or a
+                # JSON-encoded string of one) so a lane that writes one
+                # spelling is never silently dropped.
+                for law_id in _law_id_list(record, "laws_failed"):
+                    connection.execute(
+                        "INSERT OR IGNORE INTO attempt_law_failure"
+                        " (attempt_record_id, law_record_id) VALUES (?, ?)",
+                        (record["id"], law_id),
+                    )
                 for phase in ("before", "after"):
                     measurement = record.get(phase)
                     if not measurement:
@@ -1360,10 +1528,167 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
             )
             continue
         connection.execute("RELEASE record_insert")
+
+    # Refutation edges and regime events, from EVERY surviving record kind.
+    # Done in its own pass over `loaded` rather than inside the per-kind
+    # branches: `refutes` is a top-level field on attempts, claims and
+    # evidence alike, and hanging it off one branch is how the corpus ended
+    # up with 79 refutation citations that no query could see.
+    for _, record, _ in loaded:
+        for refuted in _refuted_ids(record):
+            connection.execute(
+                "INSERT OR IGNORE INTO record_refutation"
+                " (refuting_record_id, refuted_record_id) VALUES (?, ?)",
+                (record["id"], refuted),
+            )
+        if record["kind"] == "event":
+            connection.execute(
+                "INSERT OR REPLACE INTO regime_event"
+                " (record_id, slug, scope, occurred_at, note)"
+                " VALUES (?, ?, ?, ?, ?)",
+                (
+                    record["id"], record["slug"], record["scope"],
+                    record.get("occurred_at") or record.get("valid_from") or "",
+                    record.get("note"),
+                ),
+            )
+
+    _derive_law_evidence(connection)
     remaining = connection.execute(
         "SELECT COUNT(*) FROM record_ingest"
     ).fetchone()[0]
     return int(remaining), rejected
+
+
+def _derive_law_evidence(connection: sqlite3.Connection) -> None:
+    """Rebuild `law_evidence` from scratch. Called once per build, never else.
+
+    Everything here is a projection of rows already imported — attempt
+    outcomes, application citations, failure citations, refutation edges. The
+    table is TRUNCATED first so a rebuild is idempotent and a stale row from
+    a deleted record cannot survive: this is the property that makes the
+    layer auditable, and it is why no other code path may write to it.
+    """
+    connection.execute("DELETE FROM law_evidence")
+    tallies: dict[str, dict[str, Any]] = {}
+
+    def slot(law_id: str) -> dict[str, Any]:
+        return tallies.setdefault(law_id, {
+            "successes": 0, "failures": 0, "neutral": 0, "cited": 0,
+            "latest": None, "success_records": [], "failure_records": [],
+        })
+
+    for row in connection.execute(
+        """
+        SELECT ala.law_record_id AS law_id, ala.attempt_record_id AS rid,
+               a.outcome AS outcome,
+               COALESCE(r.recorded_at, r.valid_from) AS stamp
+        FROM attempt_law_application ala
+        JOIN attempt a ON a.record_id = ala.attempt_record_id
+        JOIN record_ingest r ON r.record_id = ala.attempt_record_id
+        """
+    ).fetchall():
+        entry = slot(row["law_id"])
+        entry["cited"] += 1
+        if str(row["outcome"]).lower() in LAW_SUCCESS_OUTCOMES:
+            entry["successes"] += 1
+            entry["success_records"].append(row["rid"])
+            stamp = row["stamp"]
+            if stamp and (entry["latest"] is None or stamp > entry["latest"]):
+                entry["latest"] = stamp
+        else:
+            # A park or cap the law correctly predicted. Counted, reported,
+            # and deliberately kept OUT of the denominator.
+            entry["neutral"] += 1
+
+    for table, column in (("attempt_law_failure", "attempt_record_id"),
+                          ("record_refutation", "refuting_record_id")):
+        target = ("law_record_id" if table == "attempt_law_failure"
+                  else "refuted_record_id")
+        for row in connection.execute(
+            f"SELECT {target} AS law_id, {column} AS rid FROM {table}"
+        ).fetchall():
+            entry = slot(row["law_id"])
+            if row["rid"] not in entry["failure_records"]:
+                entry["failures"] += 1
+                entry["failure_records"].append(row["rid"])
+
+    for law_id, entry in tallies.items():
+        connection.execute(
+            "INSERT INTO law_evidence(law_record_id, successes, failures,"
+            " neutral_citations, cited_total, latest_evidence_at,"
+            " success_records, failure_records) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                law_id, entry["successes"], entry["failures"],
+                entry["neutral"], entry["cited"], entry["latest"],
+                json.dumps(sorted(entry["success_records"])),
+                json.dumps(sorted(entry["failure_records"])),
+            ),
+        )
+
+
+def wilson_lower_bound(successes: int, failures: int,
+                       z: float = WILSON_Z) -> float:
+    """Wilson score interval lower bound for successes/(successes+failures).
+
+    Chosen over the raw ratio because the raw ratio cannot tell 1/1 from
+    40/40 — and the corpus is full of 1/1 laws. Returns 0.0 for an empty
+    sample, which is what puts an uncited law below every cited one.
+    """
+    n = successes + failures
+    if n <= 0:
+        return 0.0
+    p = successes / n
+    denominator = 1.0 + z * z / n
+    centre = p + z * z / (2.0 * n)
+    margin = z * ((p * (1.0 - p) / n + z * z / (4.0 * n * n)) ** 0.5)
+    return max(0.0, min(1.0, (centre - margin) / denominator))
+
+
+def beta_mean(successes: int, failures: int,
+              prior_success: float = 1.0, prior_failure: float = 1.0) -> float:
+    """Posterior mean of Beta(prior + s, prior + f) — the Laplace estimate.
+
+    Reported alongside the Wilson bound as the readable point estimate: an
+    uncited law reads 0.50 (no information) rather than the Wilson 0.00,
+    which is the honest distinction between "unknown" and "known bad".
+    """
+    return (prior_success + successes) / (
+        prior_success + prior_failure + successes + failures)
+
+
+def law_evidence_score(successes: int, failures: int, *,
+                       refuted: bool | None = None) -> dict[str, Any]:
+    """The full score row for one law: tier, Wilson bound, Beta mean, n."""
+    if refuted is None:
+        refuted = failures > 0
+    if refuted:
+        status = "contested" if successes > 0 else "refuted"
+    elif successes > 0:
+        status = "established"
+    else:
+        status = "provisional"
+    return {
+        "status": status,
+        "successes": successes,
+        "failures": failures,
+        "n": successes + failures,
+        "wilson": round(wilson_lower_bound(successes, failures), 4),
+        "beta_mean": round(beta_mean(successes, failures), 4),
+    }
+
+
+def law_score_sort_key(score: Mapping[str, Any]) -> tuple[Any, ...]:
+    """Ranking key: tier FIRST, then Wilson, then sample size, then id.
+
+    Tier before score is load-bearing, not stylistic — see LAW_STATUS_ORDER.
+    """
+    try:
+        tier = LAW_STATUS_ORDER.index(str(score.get("status")))
+    except ValueError:
+        tier = len(LAW_STATUS_ORDER)
+    return (tier, -float(score.get("wilson") or 0.0),
+            -int(score.get("n") or 0), str(score.get("id") or ""))
 
 
 def _python_description(path: Path) -> str:
@@ -1616,6 +1941,8 @@ def memory_stats(root: Path = REPO_ROOT, db_path: Path | None = None) -> dict[st
             "claim", "attempt", "work_claim", "binary_module", "binary_symbol",
             "cross_platform_symbol_link", "pdb_type", "pdb_field",
             "migration_proposal", "tool_catalog",
+            "attempt_law_application", "attempt_law_failure",
+            "record_refutation", "law_evidence", "regime_event",
         ):
             counts[table] = int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
         meta = dict(connection.execute("SELECT key, value FROM meta").fetchall())
@@ -1854,6 +2181,12 @@ def symbol_context(
                     attempt["attempted_axis"] = axis[:297] + "..."
                 if raw.get("attributes"):
                     attempt["detail"] = f"gdlmem.py record {attempt['record_id']}"
+                typed_denial = _record_field(raw, "denial")
+                if typed_denial:
+                    attempt["denial"] = typed_denial
+                quarantine = _ungated_prose_denial(raw)
+                if quarantine:
+                    attempt["quarantine"] = quarantine
                 attempts.append(attempt)
     try:
         documents = search_memory(
@@ -1873,6 +2206,17 @@ def symbol_context(
         "authority_note": (
             "Xbox symbols and legacy notes are reference evidence. GameCube target "
             "assembly/object data remains authoritative until a link or claim is verified."
+        ),
+        "denial_note": (
+            "An attempt carrying `denial` states a TYPED denial: scope,"
+            " premise_measurement, an expiry_check command you can run, and a"
+            " falsifier. An attempt carrying `quarantine`"
+            " (UNGATED-PROSE-DENIAL) denies work in prose only and predates"
+            " the typed-denial gate — it has no scope and no way to expire,"
+            " so treat it as a WEAK veto, re-measure its premise, and"
+            " supersede it with a typed denial if you re-probe. The prose is"
+            " flagged, never auto-extracted: phrase extraction measured"
+            " 30-50% precision on this corpus."
         ),
     }
 
@@ -2523,6 +2867,32 @@ def record_template(kind: str) -> dict[str, Any]:
             "held_fixed": "<OPTIONAL, REQUIRED when probed_form enumerates"
                           " more than one edit: the variable this park held"
                           " CONSTANT while varying the others>",
+            "denial": {
+                "scope": "<REQUIRED if present, and REQUIRED on any record"
+                         " using do-not-retry / not-a-candidate / ineligible"
+                         " phrasing: exactly what this denial covers — one"
+                         " axis on one function, not 'this class'>",
+                "premise_measurement": "<REQUIRED if present: the measurement"
+                                       " the denial rests on, with the"
+                                       " command and its numbers>",
+                "expiry_check": "<REQUIRED if present: the COMMAND a later"
+                                " lane runs to see whether this still holds."
+                                " A denial with no expiry check is immortal>",
+                "falsifier": "<REQUIRED if present: what evidence would"
+                             " DISPROVE the denial>",
+            },
+            "hypothesis": {
+                "statement": "<REQUIRED if present: the concrete untried idea."
+                             " AGENTS.md discipline 10b makes this the next"
+                             " lane's MANDATORY step 1>",
+                "cheapest_refuting_observation": "<REQUIRED if present: the"
+                                                 " cheapest observation that"
+                                                 " would KILL this idea>",
+                "screened_against_target": "<REQUIRED if present: was this"
+                                           " already checked against the"
+                                           " target bytes? yes/no + what was"
+                                           " seen>",
+            },
             "supersedes": "<OPTIONAL: id of the prior attempt record this replaces>",
             "refutes": "<OPTIONAL: id of a record whose mechanism/framing this"
                        " attempt DISPROVED by measurement — distinct from"
@@ -2587,6 +2957,13 @@ def record_template(kind: str) -> dict[str, Any]:
             "tool_kind": "<REQUIRED: e.g. external|analysis>",
             "status": "active",
             "purpose": "<REQUIRED: one-line purpose>",
+        },
+        "event": {
+            "slug": "<REQUIRED: kebab-case name of the regime change>",
+            "scope": "<REQUIRED: path fragment, law tag, id slug word, or"
+                     " '*' for the whole corpus>",
+            "occurred_at": "<OPTIONAL: YYYY-MM-DD, defaults to today>",
+            "note": "<OPTIONAL: one line on what changed>",
         },
     }
     if kind not in templates:
@@ -2686,6 +3063,43 @@ def _apply_proposal_gates(record: dict[str, Any]) -> None:
             " reclassification is wrong. Quote the counts you measured."
         )
 
+    # Gate D (run 32). A record that tells every future lane not to try
+    # something must say so in the TYPED form. Prose denials are the corpus's
+    # most expensive artifact: they are unfalsifiable, they never expire, and
+    # `find`/`brief` render them as vetoes forever. The typed object costs
+    # four sentences and makes the denial re-checkable by somebody who was
+    # not there.
+    #
+    # THE GS SELF-REFUSAL LESSON IS APPLIED HERE, both halves, because gate B
+    # learned it the hard way by refusing the very record that documented it:
+    # (a) ANCHOR SCOPE — only a record anchored to a FUNCTION can deny work on
+    #     one, so this law record, the run-32 methodology claims, and every
+    #     project-level record are excluded by construction rather than by
+    #     wording; and
+    # (b) SUBSTANCE PROJECTION — scan `substance`, which already excludes
+    #     _PARK_CITATION_KEYS, so a record whose law_screen or verification
+    #     prose QUOTES the denial vocabulary (as every record about this gate
+    #     must) is not caught by its own citation apparatus.
+    # The practical corollary from that law was followed: this gate was run
+    # against the records documenting it before the commit landed.
+    if anchored and not _record_field(record, "denial"):
+        denial_hit = _DENIAL_PHRASE_RE.search(substance)
+        if denial_hit:
+            raise MemoryGraphError(
+                f"denial language (matched {denial_hit.group(0)!r}) on a"
+                " function-anchored record requires a typed `denial` object:"
+                " {scope, premise_measurement, expiry_check, falsifier}."
+                " A prose denial cannot be screened out, cannot expire, and"
+                " renders as a permanent veto in every brief — see"
+                " claim.law.RQ_webfrank-audit-silence-is-not-ineligibility"
+                ".20260901.v1, where a tool's SILENCE was read as a verdict"
+                " of ineligibility. State the SCOPE the denial covers, the"
+                " MEASUREMENT behind it, an EXPIRY_CHECK command a later lane"
+                " can run to see whether it still holds, and the FALSIFIER."
+                " If you are describing someone else's denial rather than"
+                " issuing one, say so without the imperative phrasing."
+            )
+
     # Gate C. A park that changed several things at once and does not say
     # which variable it held fixed reads as a veto on every axis it touched.
     # Discipline 6's measured case: two correct-alone negative parks jointly
@@ -2712,12 +3126,113 @@ def _apply_proposal_gates(record: dict[str, Any]) -> None:
                 )
 
 
+def _duplicate_claim_candidates(
+    record: dict[str, Any], root: Path, db_path: Path | None = None,
+) -> list[dict[str, Any]]:
+    """Existing claims that look like the one being proposed.
+
+    Two signals, deliberately cheap and deliberately conservative:
+      * SLUG OVERLAP — Jaccard over the id's meaningful words, reusing the
+        same `_slug_words` tokenizer the retrieval surface already indexes on,
+        so "what the author named it" is compared the same way a searcher
+        would find it.
+      * FTS OVERLAP — the proposed claim's own value text, run through the
+        record index, to catch a re-derivation that chose different words for
+        the id.
+
+    A hit is NOT an error and must never be reported as one. The corpus grew
+    366 laws with 131 of them uncited, and the likeliest reason a lane writes
+    a near-duplicate is that it re-derived something it could not find. The
+    right response to that is to attach the new evidence to the record that
+    already exists, which is a strictly better outcome than a second record:
+    two half-evidenced claims score worse under the evidence layer than one
+    fully-evidenced claim, and they compete for the same reader.
+    """
+    # A supersession or a refutation is SUPPOSED to resemble its target —
+    # that is what a v2 is. Screening those would make the gate fire hardest
+    # on exactly the records the corpus most wants written.
+    declared = set(_refuted_ids(record))
+    supersedes = record.get("supersedes")
+    if isinstance(supersedes, str):
+        declared.add(supersedes)
+    elif isinstance(supersedes, list):
+        declared.update(item for item in supersedes if isinstance(item, str))
+
+    new_words = set(_slug_words(record.get("id", "")))
+    if not new_words:
+        return []
+    value = record.get("value")
+    text = value if isinstance(value, str) else ""
+
+    ensure_database(root, db_path)
+    hits: dict[str, dict[str, Any]] = {}
+    with closing(open_database(root, db_path)) as connection:
+        for row in connection.execute(
+            "SELECT record_id FROM record_ingest WHERE record_kind='claim'"
+        ).fetchall():
+            existing_id = row["record_id"]
+            if existing_id == record.get("id") or existing_id in declared:
+                continue
+            other = set(_slug_words(existing_id))
+            if not other:
+                continue
+            overlap = len(new_words & other) / len(new_words | other)
+            if overlap >= _DEDUP_SLUG_JACCARD:
+                hits[existing_id] = {
+                    "id": existing_id, "signal": "slug",
+                    "similarity": round(overlap, 3),
+                    "shared_words": sorted(new_words & other),
+                }
+        if text and len(text.split()) >= 8:
+            try:
+                query = _fts_query(" ".join(text.split()[:24]))
+            except MemoryGraphError:
+                query = None
+            if query:
+                # OR the tokens: an AND query over 24 words matches nothing,
+                # and a dedup screen that can never fire is worse than none.
+                query = query.replace(" AND ", " OR ")
+                try:
+                    rows = connection.execute(
+                        "SELECT record_id, rank FROM record_fts"
+                        " WHERE record_fts MATCH ? AND record_kind='claim'"
+                        " ORDER BY rank LIMIT 5", (query,)
+                    ).fetchall()
+                except sqlite3.OperationalError:
+                    rows = []
+                for row in rows:
+                    existing_id = row["record_id"]
+                    if (existing_id == record.get("id")
+                            or existing_id in declared
+                            or existing_id in hits):
+                        continue
+                    other = set(_slug_words(existing_id))
+                    overlap = (len(new_words & other) / len(new_words | other)
+                               if other else 0.0)
+                    if overlap >= _DEDUP_FTS_SLUG_FLOOR:
+                        hits[existing_id] = {
+                            "id": existing_id, "signal": "text+slug",
+                            "similarity": round(overlap, 3),
+                            "shared_words": sorted(new_words & other),
+                        }
+    return sorted(hits.values(), key=lambda hit: -hit["similarity"])[:5]
+
+
+# Tuned against the live corpus: at 0.60 the screen fires on genuine
+# re-derivations while leaving distinct laws in the same family alone. The
+# FTS path needs only a weak slug agreement because the text already carried
+# the evidence.
+_DEDUP_SLUG_JACCARD = 0.60
+_DEDUP_FTS_SLUG_FLOOR = 0.34
+
+
 def stage_record_proposal(
     record: dict[str, Any],
     *,
     root: Path = REPO_ROOT,
     in_place: Path | None = None,
     dry_run: bool = False,
+    confirm_new: bool = False,
 ) -> Path:
     """Atomically stage one validated record in the review-required inbox.
 
@@ -2780,6 +3295,29 @@ def stage_record_proposal(
                 continue
             if isinstance(existing, dict) and existing.get("id") == record_id:
                 raise MemoryGraphError(f"record id {record_id!r} already exists at {path}")
+    # DEDUP-AT-PROPOSE, attach-not-error. Claims only: an attempt record is
+    # per-function forensics and is SUPPOSED to resemble its siblings.
+    if record.get("kind") == "claim" and not confirm_new and in_place is None:
+        near = _duplicate_claim_candidates(record, root)
+        if near:
+            listing = "; ".join(
+                f"{hit['id']} ({hit['signal']}, similarity"
+                f" {hit['similarity']}, shared: {', '.join(hit['shared_words'])})"
+                for hit in near)
+            raise MemoryGraphError(
+                "this claim closely resembles a record that already exists:"
+                f" {listing}."
+                " PREFER ATTACHING over duplicating: add your measurement to"
+                " that record as an `evidence` record citing it, or supersede"
+                " it with a v-next that carries both derivations (set"
+                " `supersedes`, which exempts you from this screen). One"
+                " fully-evidenced claim outranks two half-evidenced ones"
+                " under the evidence layer, and a near-duplicate splits the"
+                " citation history that layer scores on — the live corpus"
+                " already carries 131 laws with zero verified successes,"
+                " and a re-derivation nobody could find is how they got"
+                " there. If yours really is a DIFFERENT claim, re-run with"
+                " --confirm-new and say in the record how it differs.")
     if in_place_resolved is not None:
         destination = in_place_resolved
     else:
@@ -3073,6 +3611,58 @@ def accept_records(
     if staging_error:
         result["staging_error"] = staging_error
     return result
+
+
+def stage_event_proposal(
+    slug: str,
+    *,
+    scope: str,
+    occurred_at: str | None = None,
+    note: str | None = None,
+    root: Path = REPO_ROOT,
+) -> Path:
+    """Stage a regime-change event as a reviewable inbox record.
+
+    An event says "the ground under this scope moved on this date". Every
+    claim whose newest supporting measurement predates it, and whose scope the
+    event covers, then renders with a needs-revalidation banner.
+
+    This is the deliberate alternative to calendar decay. Ageing claims by
+    time punishes old laws that are still perfectly true and says nothing
+    about a law measured yesterday under a tool that changed this morning.
+    Tying revalidation to a RECORDED regime change means someone has to name
+    the change, which is also the only way the banner can ever be cleared:
+    re-measure, and the fresh evidence postdates the event.
+    """
+    slug = slug.strip()
+    if not re.fullmatch(r"[a-z0-9][a-z0-9-]{2,80}", slug):
+        raise MemoryGraphError(
+            f"event slug {slug!r} must be lowercase kebab-case, 3-81 chars"
+            " (e.g. 'regnorm-v2-migration', 'webfrank-value-equality-class')"
+        )
+    if not scope or not scope.strip():
+        raise MemoryGraphError(
+            "an event needs --scope: a path fragment (e.g."
+            " 'tools/gdl/regnorm.py'), a law tag (e.g. 'postprocessor'), or"
+            " '*' for the whole corpus. An unscoped event would banner every"
+            " claim in the graph and teach every reader to ignore the banner"
+        )
+    occurred = occurred_at or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", occurred):
+        raise MemoryGraphError(
+            f"--occurred-at must be YYYY-MM-DD, got {occurred!r}")
+    record = {
+        "schema_version": SCHEMA_VERSION,
+        "id": f"event.{slug}.{occurred.replace('-', '')}.v1",
+        "kind": "event",
+        "slug": slug,
+        "scope": scope.strip(),
+        "occurred_at": occurred,
+        "valid_from": occurred,
+    }
+    if note:
+        record["note"] = note
+    return stage_record_proposal(record, root=root)
 
 
 def register_tool_proposal(
@@ -3428,6 +4018,122 @@ def webfrank_pin_mechanisms(
     return out
 
 
+def _load_law_evidence(connection: sqlite3.Connection) -> dict[str, dict[str, Any]]:
+    """Read the derived table into score rows keyed by law id."""
+    out: dict[str, dict[str, Any]] = {}
+    for row in connection.execute(
+        "SELECT law_record_id, successes, failures, neutral_citations,"
+        " cited_total, latest_evidence_at, success_records, failure_records"
+        " FROM law_evidence"
+    ).fetchall():
+        score = law_evidence_score(int(row["successes"]), int(row["failures"]))
+        score.update({
+            "neutral_citations": int(row["neutral_citations"]),
+            "cited_total": int(row["cited_total"]),
+            "latest_evidence_at": row["latest_evidence_at"],
+        })
+        for key, column in (("success_records", "success_records"),
+                            ("failure_records", "failure_records")):
+            try:
+                score[key] = json.loads(row[column])
+            except (TypeError, json.JSONDecodeError):
+                score[key] = []
+        out[row["law_record_id"]] = score
+    return out
+
+
+def regime_events(
+    *,
+    root: Path = REPO_ROOT,
+    db_path: Path | None = None,
+) -> list[dict[str, Any]]:
+    """Every recorded regime-change event, newest first."""
+    ensure_database(root, db_path)
+    with closing(open_database(root, db_path)) as connection:
+        rows = connection.execute(
+            "SELECT record_id, slug, scope, occurred_at, note FROM regime_event"
+            " ORDER BY occurred_at DESC, slug"
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def _event_matches(event: Mapping[str, Any], scope: str | None,
+                   tags: Iterable[str], record_id: str = "") -> bool:
+    """Does this event's scope cover a law with this scope prose, tags, or id?
+
+    Matching is deliberately coarse and OR-shaped: a regime change that a
+    lane bothered to record should over-flag rather than under-flag, because
+    the cost of a spurious banner is one re-read and the cost of a missed one
+    is a lane applying a law the ground truth no longer supports.
+
+    THE ID SLUG IS A MATCH TARGET, and that is not a convenience. Measured on
+    the 2026-09-02 corpus: only 124 of 357 laws carry an `attributes.scope`
+    at all, and those that do carry compiler-family boilerplate ("MWCC GC
+    1.2.5 family; ...") rather than the subject. A `--scope regnorm` event
+    matched ZERO laws by scope prose while eight laws carry `regnorm` in
+    their id. Scope-prose-only matching would have shipped a feature that
+    silently never fires — the same failure mode the run-29 lane recorded
+    when the prose index could not find a family name.
+    """
+    event_scope = str(event.get("scope") or "").strip()
+    if not event_scope or event_scope in ("*", "all", "project"):
+        return True
+    lowered = event_scope.lower()
+    if lowered in {str(tag).lower() for tag in tags}:
+        return True
+    if scope and lowered in scope.lower():
+        return True
+    # Match the id on WORD boundaries of the slug, so `--scope cse` does not
+    # sweep in every law whose id contains the letters "cse" inside another
+    # word. Path-form scopes are compared on their basename stem too.
+    slug_words = set(_slug_words(record_id or ""))
+    needles = {lowered}
+    tail = lowered.replace("\\", "/").rsplit("/", 1)[-1]
+    if tail:
+        needles.add(tail.rsplit(".", 1)[0])
+    return bool(needles & slug_words)
+
+
+def _revalidation_banner(
+    evidence_at: str | None,
+    scope: str | None,
+    tags: Iterable[str],
+    events: Iterable[Mapping[str, Any]],
+    record_id: str = "",
+) -> dict[str, Any] | None:
+    """Flag a law whose newest evidence predates a matching regime event.
+
+    EVENT-BASED, never calendar decay. A law does not become less true
+    because a month passed; it becomes unreliable because the tool, the
+    compiler, or the class that produced its evidence changed underneath it.
+    """
+    tags = list(tags)
+    stale_events = [
+        event for event in events
+        if _event_matches(event, scope, tags, record_id)
+        and str(event.get("occurred_at") or "") >
+        str((evidence_at or "")[:10] or "")
+    ]
+    if not stale_events:
+        return None
+    return {
+        "banner": "NEEDS REVALIDATION",
+        "evidence_predates": [
+            {"slug": event.get("slug"), "scope": event.get("scope"),
+             "occurred_at": event.get("occurred_at"),
+             "record": event.get("record_id")}
+            for event in stale_events
+        ],
+        "newest_evidence_at": evidence_at,
+        "why": (
+            "every measurement backing this law predates a recorded"
+            " regime change covering its scope. The law is not refuted —"
+            " it is UNVERIFIED under the current regime. Re-measure before"
+            " citing it, and the re-measurement itself refreshes this flag."
+        ),
+    }
+
+
 def law_corpus(
     query: str | None = None,
     *,
@@ -3437,6 +4143,8 @@ def law_corpus(
     full: int = 0,
     limit: int = 100,
     residual: str | None = None,
+    include_provisional: int = 0,
+    rank: int = 1,
 ) -> dict[str, Any]:
     """List the codegen-law corpus, newest first, with freshness and supersession.
 
@@ -3480,8 +4188,11 @@ def law_corpus(
     # The query filter is applied in PYTHON, not SQL: slug-word matching
     # cannot be expressed as a LIKE, and the corpus is small enough that
     # fetching then filtering is cheaper than a second index.
+    # Always fetch wide and truncate in Python AFTER ranking: an SQL LIMIT
+    # here is a date-ordered cut, which is exactly the wrong prefix to keep
+    # once rows are ranked by evidence.
     sql += " ORDER BY COALESCE(r.valid_from, '') DESC, r.record_id LIMIT ?"
-    params.append(limit if not (query or residual) else 5000)
+    params.append(5000)
     with closing(open_database(root, db_path)) as connection:
         rows = connection.execute(sql, params).fetchall()
 
@@ -3538,8 +4249,10 @@ def law_corpus(
             why.append("residual-sibling")
         if why:
             selected.append((row, why))
-    if query or residual:
-        selected = selected[:limit]
+    # NOTE: truncation to `limit` happens AFTER scoring below, not here. It
+    # used to happen at this point, which meant a query matching more laws
+    # than the limit kept the DATE-newest prefix and threw away the
+    # best-evidenced rows before anything could rank them.
 
     laws = []
     for row, why in selected:
@@ -3572,6 +4285,73 @@ def law_corpus(
                 "match": why,
             }
         )
+
+    # --- run-32 evidence layer -------------------------------------------
+    # Scores are attached AFTER text filtering and BEFORE truncation, so the
+    # ranking sees the whole matched set rather than an arbitrary prefix of
+    # it (the limit used to slice by date, which silently hid the best-scored
+    # rows whenever a query matched more laws than the limit).
+    with closing(open_database(root, db_path)) as connection:
+        evidence = _load_law_evidence(connection)
+    events = regime_events(root=root, db_path=db_path)
+    for row in laws:
+        score = evidence.get(row["id"]) or law_evidence_score(0, 0)
+        row["evidence"] = score
+        row["score"] = score["wilson"]
+        row["n"] = score["n"]
+        row["status"] = score["status"]
+        banner = _revalidation_banner(
+            score.get("latest_evidence_at") or row["recorded_at"]
+            or row["valid_from"],
+            row["scope"], row["tags"], events, row["id"])
+        if banner:
+            row["needs_revalidation"] = banner
+    # PROVISIONAL SUPPRESSION, and the one place it must NOT apply.
+    #
+    # Hiding unverified laws from the browse is the point of deliverable 3: a
+    # law with no verified success that reads as authoritative is how one
+    # lane's confident guess becomes fleet-wide doctrine. But suppression is a
+    # DELETION, and deleting rows out of a set somebody asked for by name is a
+    # different act from ranking a browse.
+    #
+    # MEASURED, and the reason for this branch: `--tag core-screen` is the
+    # MANDATORY de-fakematch screen (AGENTS.md: "Fetch your law screen in ONE
+    # call"). Of its 33 laws, 7 are provisional. Suppressing inside a tag
+    # filter would have silently removed 21% of a mandatory screen — every
+    # lane would have run a quieter screen and never known. A screen that
+    # fails open is worse than an unranked one.
+    #
+    # The same argument covers --query and --residual, which are TARGETED
+    # retrievals: a lane searching a residual signature for the one law that
+    # explains it, finding nothing, concludes the graph is silent — and
+    # AGENTS.md already names that false conclusion as a failure mode, with
+    # claim.find-subcommand-caps-at-100-and-silently-falsifies-park-screens
+    # as the recorded instance of a filter quietly falsifying a screen.
+    #
+    # So suppression applies to exactly one surface: the UNFILTERED ranked
+    # browse, which is the "deterministic view" the contract names. Every
+    # targeted request keeps its provisional matches, clearly labelled
+    # `status: provisional` and counted in `provisional_retained`.
+    hidden_provisional = 0
+    provisional_retained = 0
+    provisional_rows: list[dict[str, Any]] = []
+    targeted = bool(tag or query or residual)
+    if targeted:
+        provisional_retained = sum(
+            1 for row in laws if row["status"] == "provisional")
+    elif not include_provisional:
+        kept = [row for row in laws if row["status"] != "provisional"]
+        provisional_rows = [row for row in laws
+                            if row["status"] == "provisional"]
+        hidden_provisional = len(provisional_rows)
+        laws = kept
+    if rank:
+        laws.sort(key=lambda row: law_score_sort_key(
+            {"status": row["status"], "wilson": row["score"], "n": row["n"],
+             "id": row["id"]}))
+    truncated = max(0, len(laws) - limit)
+    laws = laws[:limit]
+
     # falsifier/asserted_by come from the raw record, not the claim table.
     if laws:
         with closing(open_database(root, db_path)) as connection:
@@ -3606,10 +4386,53 @@ def law_corpus(
                 tag_counts[tag_name] = tag_counts.get(tag_name, 0) + 1
         except (TypeError, json.JSONDecodeError):
             continue
+    if rank and provisional_rows:
+        provisional_rows.sort(key=lambda row: law_score_sort_key(
+            {"status": row["status"], "wilson": row["score"], "n": row["n"],
+             "id": row["id"]}))
     out: dict[str, Any] = {
         "laws": laws,
         "count": len(laws),
         "tags_available": dict(sorted(tag_counts.items())),
+        "ranked_by": ("status tier, then Wilson lower bound (z=1.96), then"
+                      " sample size" if rank else "valid_from (unranked)"),
+        "hidden_provisional": hidden_provisional,
+        # SEGREGATED, NOT DELETED. The contract excludes provisional laws from
+        # the deterministic view, and they are excluded — from `laws`. They
+        # are still returned here, in the same response, because AGENTS.md
+        # makes the unfiltered `laws` call the corpus ENUMERATION surface
+        # ("read it at the start of every pass") and the run-29 audit already
+        # measured the cost of rows being invisible to enumeration: 36 of 136
+        # laws silently unreachable behind a limit. Excluding a row from the
+        # ranked view is a judgement about authority; making it unreachable
+        # is data loss, and only the first was asked for.
+        "provisional_laws": provisional_rows,
+        "provisional_retained": provisional_retained,
+        "provisional_policy": (
+            "provisional laws are hidden from the UNFILTERED ranked browse"
+            " only. Any targeted request — --tag, --query, --residual — keeps"
+            " its provisional matches, labelled and counted in"
+            " provisional_retained, because a filter that quietly drops"
+            " matches turns 'not verified yet' into 'the graph is silent':"
+            " 7 of the 33 core-screen laws are provisional, and that screen"
+            " is mandatory. --include-provisional 1 shows them everywhere."
+        ),
+        "truncated": truncated,
+        "status_legend": dict(LAW_STATUS_NOTES),
+        "evidence_note": (
+            "SCORES ARE DERIVED, never hand-set: `gdlmem build` recomputes"
+            " every one from the citations already in the corpus."
+            " successes = attempts naming the law in laws_applied whose"
+            " outcome was exact/improved. failures = refutes edges pointing"
+            " at the law, plus explicit laws_failed citations."
+            " neutral_citations = parked/capped/negative/neutral citations,"
+            " which are NOT failures — a law that correctly predicts a park"
+            " did its job, and those are excluded from n on purpose."
+            " READ n BEFORE READING wilson: n is successes+failures, NOT"
+            " cited_total, so a law cited 147 times with 13 landings scores"
+            " on n=13. A high wilson on n=1 means one success and no"
+            " contradiction, not a proven law."
+        ),
         "note": (
             "laws are compiler-scoped observations, not instructions:"
             " re-verify against your target bytes; a superseded_by entry means"
@@ -3650,12 +4473,22 @@ def work_claims(
     db_path: Path | None = None,
     stale_after: int = 2,
     include_released: int = 0,
+    owns: str | None = None,
 ) -> dict[str, Any]:
     """List work claims with owner, scope, age, and a stale flag.
 
     Active claims older than ``stale_after`` days are flagged stale per the
     AGENTS.md stale-claim rule; released/done claims are hidden unless
     ``include_released`` is nonzero.
+
+    ``owns`` answers the question a worker actually has before its first
+    edit — "may I touch this file?" — instead of making it read every claim's
+    scope prose and judge for itself. A foreign ACTIVE claim covering the path
+    is a VETO on that whole scope. The screen is substring-based over the
+    claim's scope prose and its anchor function name, and it deliberately
+    OVER-matches: a spurious hit costs one conversation with the owner, while
+    a missed hit costs two fleets editing one TU, which is the coupling
+    AGENTS.md forbids outright.
     """
     ensure_database(root, db_path)
     with closing(open_database(root, db_path)) as connection:
@@ -3681,6 +4514,15 @@ def work_claims(
             continue
         age = _record_age_days(row["claimed_at"], row["recorded_at"])
         stale = bool(not released and age is not None and age > stale_after)
+        if owns:
+            needle = owns.replace("\\", "/").strip().lower()
+            haystack = " ".join(filter(None, (
+                str(row["scope"] or ""), str(row["function"] or ""),
+            ))).replace("\\", "/").lower()
+            stem = needle.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+            if not (needle and needle in haystack) and not (
+                    stem and len(stem) > 2 and stem in haystack):
+                continue
         stale_count += stale
         claims.append(
             {
@@ -3694,7 +4536,7 @@ def work_claims(
                 "scope": row["scope"],
             }
         )
-    return {
+    result = {
         "claims": claims,
         "count": len(claims),
         "stale_count": stale_count,
@@ -3705,6 +4547,20 @@ def work_claims(
             " before treating the scope as free"
         ),
     }
+    if owns:
+        result["owns_query"] = owns
+        result["verdict"] = "CLAIMED" if claims else "no claim found"
+        result["owns_note"] = (
+            "every claim listed here covers the queried path. An ACTIVE claim"
+            " owned by someone else is a VETO on its ENTIRE scope, not just"
+            " this file — MWCC couples a whole TU through its constant pool,"
+            " declaration order and register allocation, so two writers in one"
+            " TU is a merge conflict by construction."
+            " 'no claim found' is NOT a guarantee: an unpushed claim protects"
+            " nothing and cannot be seen from here, and matching is over"
+            " scope PROSE. Screen `git log -- <path>` too before a first edit."
+        )
+    return result
 
 
 _DEBT_CAST_RE = re.compile(
@@ -4217,10 +5073,77 @@ _HYPOTHESIS_MARKERS = (
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.;])\s+")
 
 
+def _ungated_prose_denial(record: dict[str, Any]) -> dict[str, Any] | None:
+    """RENDER-FLAG a pre-gate record whose prose denies work with no typed object.
+
+    Flag only. This deliberately does NOT extract the prose into a `denial`
+    object, and no future version of it should: the BF family backfill
+    measured phrase-extraction precision at 30-50% on this corpus, so
+    auto-populating a typed field from prose would manufacture authoritative-
+    looking denials that are wrong half the time — strictly worse than the
+    prose it replaced, because the typed form is trusted more.
+
+    What the reader gets instead is an honest label: this record denies work
+    in prose, it predates the typed-denial gate, and therefore it carries no
+    scope, no expiry check, and no falsifier. Treat it as a WEAK veto and say
+    so if you re-probe — the same treatment `has_probed_form: false` already
+    gets.
+    """
+    if _record_field(record, "denial"):
+        return None  # typed: gated, scoped, expirable — not legacy prose
+    substance = _record_text({
+        key: value for key, value in record.items() if key != "attributes"
+    } | {"attributes": {
+        key: value for key, value in (record.get("attributes") or {}).items()
+        if key not in _PARK_CITATION_KEYS
+    }})
+    hit = _DENIAL_PHRASE_RE.search(substance)
+    if not hit:
+        return None
+    return {
+        "banner": "UNGATED-PROSE-DENIAL",
+        "matched": hit.group(0),
+        "why": (
+            "this record denies future work in PROSE and carries no typed"
+            " `denial` object, so it states no scope, no premise measurement,"
+            " no expiry_check command, and no falsifier. It predates the"
+            " run-32 gate and is not wrong for that — but it cannot be"
+            " screened out, only re-derived. Treat it as a WEAK veto: read"
+            " the record, re-measure its premise, and if you re-probe the"
+            " axis, supersede it with a typed denial so the next lane"
+            " inherits something checkable."
+        ),
+        "not_extracted": (
+            "the phrase is FLAGGED, never parsed into fields: the family"
+            " backfill measured prose extraction at 30-50% precision on this"
+            " corpus, and a wrong typed denial outranks the prose it came"
+            " from."
+        ),
+    }
+
+
 def _open_hypotheses(record: dict[str, Any]) -> list[dict[str, str]]:
-    """Extract concrete untried hypotheses from a record's prose."""
+    """Concrete untried hypotheses, TYPED first and prose second.
+
+    A typed hypothesis is exact and carries its own kill-cost; a prose one is
+    a phrase-match guess. Ranking the guess alongside the exact statement is
+    how a briefing's mandatory step 1 ends up being a sentence fragment.
+    """
     found: list[dict[str, str]] = []
     seen: set[str] = set()
+    typed = _record_field(record, "hypothesis")
+    if isinstance(typed, dict) and str(typed.get("statement") or "").strip():
+        statement = str(typed["statement"])
+        seen.add(statement[:80])
+        found.append({
+            "marker": "TYPED",
+            "field": "hypothesis",
+            "text": statement,
+            "cheapest_refuting_observation": str(
+                typed.get("cheapest_refuting_observation") or ""),
+            "screened_against_target": str(
+                typed.get("screened_against_target") or ""),
+        })
     for field, text in (("attempted_axis", record.get("attempted_axis")),
                         ("value", record.get("value")),
                         *(("attributes." + key, value)
@@ -4564,13 +5487,19 @@ def tu_briefing(
                 "age_days": attempt["age_days"],
                 **hypothesis,
             })
-    # Parked/capped first: those are the records whose author stopped.
+    # TYPED hypotheses first (exact, and each carrying its own kill-cost),
+    # then parked/capped prose ones — those are the records whose author
+    # stopped — then everything else by age.
     open_hypotheses.sort(
-        key=lambda row: (0 if row["outcome"] in ("parked", "capped") else 1,
+        key=lambda row: (0 if row["marker"] == "TYPED" else 1,
+                         0 if row["outcome"] in ("parked", "capped") else 1,
                          row["age_days"] or 0))
 
-    vetoed_axes = [
-        {
+    vetoed_axes = []
+    for attempt in attempts:
+        if attempt["outcome"] not in ("parked", "capped", "negative"):
+            continue
+        row = {
             "function": attempt["function"],
             "record": attempt["id"],
             "outcome": attempt["outcome"],
@@ -4581,9 +5510,13 @@ def tu_briefing(
             "axis": attempt["head"],
             "age_days": attempt["age_days"],
         }
-        for attempt in attempts
-        if attempt["outcome"] in ("parked", "capped", "negative")
-    ]
+        typed_denial = _record_field(attempt["_record"], "denial")
+        if typed_denial:
+            row["denial"] = typed_denial
+        quarantine = _ungated_prose_denial(attempt["_record"])
+        if quarantine:
+            row["quarantine"] = quarantine
+        vetoed_axes.append(row)
 
     refutations: list[dict[str, Any]] = []
     for attempt in attempts:
@@ -4610,6 +5543,20 @@ def tu_briefing(
 
     core_laws = law_corpus(root=root, db_path=db_path, tag="core-screen",
                            limit=50)["laws"]
+
+    def _law_head(row: dict[str, Any]) -> dict[str, Any]:
+        """The brief's law row: identity, tags, and the evidence columns.
+
+        A brief that lists laws without their evidence is what let a refuted
+        law sit in a spawn briefing looking exactly like a proven one.
+        """
+        head = {"id": row["id"], "tags": row["tags"],
+                "status": row["status"], "score": row["score"], "n": row["n"],
+                "successes": row["evidence"]["successes"],
+                "failures": row["evidence"]["failures"]}
+        if row.get("needs_revalidation"):
+            head["needs_revalidation"] = row["needs_revalidation"]
+        return head
     # Matching sessions need the schedule/register/entry levers too —
     # core-screen is the de-fakematch set, not the whole toolbox.
     matching_laws = []
@@ -4620,9 +5567,14 @@ def tu_briefing(
                               limit=20)["laws"]:
             if row["id"] not in seen_matching and not row["superseded_by"]:
                 seen_matching.add(row["id"])
-                matching_laws.append({"id": row["id"], "tags": row["tags"],
-                                      "age_days": row["age_days"]})
-    matching_laws.sort(key=lambda row: row["age_days"] or 0)
+                matching_laws.append(
+                    _law_head(row) | {"age_days": row["age_days"]})
+    # Ranked by evidence, not by age: the whole point of the run-32 layer is
+    # that a lane reading a briefing top-down reads the best-evidenced lever
+    # first. Age stays on the row as a tiebreaker the reader can see.
+    matching_laws.sort(key=lambda row: law_score_sort_key(
+        {"status": row["status"], "wilson": row["score"], "n": row["n"],
+         "id": row["id"]}))
     mentioned = law_corpus(tu, root=root, db_path=db_path, limit=20)["laws"]
     mentioned_ids = {row["id"] for row in core_laws}
     try:
@@ -4652,6 +5604,15 @@ def tu_briefing(
             " veto and say so if you re-probe. held_fixed names what the park"
             " held CONSTANT; a null held_fixed on a multi-edit park is why"
             " two correct-alone parks once jointly hid a 7-function TU flip."
+            " A `denial` block is the TYPED form — scoped, with an"
+            " expiry_check you can run and a falsifier. A `quarantine` block"
+            " (UNGATED-PROSE-DENIAL) means the opposite: the record denies"
+            " work in prose only, predating the typed-denial gate, so it"
+            " carries no scope and no way to expire. Prose denials are"
+            " FLAGGED here, never auto-extracted into fields — phrase"
+            " extraction measured 30-50% precision on this corpus, and a"
+            " fabricated typed denial would be trusted more than the prose"
+            " it replaced."
         ),
         "refutations": refutations,
         "scaffold_rows": scaffold_rows,
@@ -4682,9 +5643,20 @@ def tu_briefing(
                         " first, then re-run brief for scores"),
         "live_attempts": attempts,
         "active_claims": claims,
-        "core_screen_laws": [
-            {"id": row["id"], "tags": row["tags"]} for row in core_laws
-        ],
+        "core_screen_laws": [_law_head(row) for row in core_laws],
+        "law_evidence_note": (
+            "status/score/n are DERIVED at build from the corpus's own"
+            " citations: status is the tier (established > contested >"
+            " provisional > refuted), score is the Wilson lower bound"
+            " (z=1.96) over successes+failures, and n is that denominator —"
+            " NOT the citation count, because parks and caps a law correctly"
+            " predicted are not failures and never enter it. PROVISIONAL laws"
+            " (zero verified successes) are hidden from these lists; ask for"
+            " them with `laws --include-provisional 1` when you want the"
+            " unverified pool. A `needs_revalidation` banner means every"
+            " measurement behind the law predates a recorded regime change"
+            " for its scope."
+        ),
         "matching_laws": matching_laws,
         "tu_mentioned_laws": [
             {"id": row["id"], "scope": row["scope"]}
@@ -5064,7 +6036,9 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
             call=lambda root, db, **kw: law_corpus(
                 kw["query"], root=root, db_path=db, tag=kw["tag"],
                 full=kw["full"], limit=kw["limit"],
-                residual=kw["residual"]),
+                residual=kw["residual"],
+                include_provisional=kw["include_provisional"],
+                rank=kw["rank"]),
             params=(
                 SurfaceParam("query", str, default=None,
                              help="filter over id SLUG WORDS, scope, law text,"
@@ -5080,7 +6054,31 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                 # Default must exceed the corpus: at 100, 36 of 136 laws
                 # were silently invisible to enumeration (audit, 2026-08-31).
                 SurfaceParam("limit", int, default=400, maximum=500),
+                SurfaceParam("include_provisional", int, default=0, maximum=1,
+                             help="1 = also return PROVISIONAL laws (zero"
+                                  " verified successes). Hidden by default so"
+                                  " an unverified law cannot read as"
+                                  " authoritative"),
+                SurfaceParam("rank", int, default=1, maximum=1,
+                             help="0 = restore the legacy date ordering"
+                                  " instead of ranking by evidence"),
             ),
+        ),
+        SurfaceOp(
+            name="events", mcp_name="memory_regime_events",
+            doc=("List recorded regime-change events; claims whose evidence "
+                 "predates a matching event carry a needs-revalidation "
+                 "banner."),
+            call=lambda root, db, **kw: {
+                "events": regime_events(root=root, db_path=db),
+                "note": (
+                    "add one with `gdlmem.py event-add <slug> --scope"
+                    " <path-or-tag>`. Revalidation is EVENT-based, never"
+                    " calendar decay: a law goes stale when the regime that"
+                    " produced its evidence changes, not when time passes."
+                    " scope matches a law's attributes.scope substring or one"
+                    " of its tags; '*' covers the whole corpus."),
+            },
         ),
         SurfaceOp(
             name="find", mcp_name="memory_find_records",
@@ -5154,12 +6152,17 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                  "for cross-fleet coordination."),
             call=lambda root, db, **kw: work_claims(
                 root=root, db_path=db, stale_after=kw["stale_after"],
-                include_released=kw["include_released"]),
+                include_released=kw["include_released"], owns=kw["owns"]),
             params=(
                 SurfaceParam("stale_after", int, default=2, maximum=30,
                              help="days before an active claim is stale"),
                 SurfaceParam("include_released", int, default=0, maximum=1,
                              help="1 to include released/done claims"),
+                SurfaceParam("owns", str, default=None,
+                             help="path or TU fragment: which claim owns it?"
+                                  " An active foreign claim is a VETO on its"
+                                  " whole scope — run this before a first"
+                                  " edit"),
             ),
         ),
         SurfaceOp(

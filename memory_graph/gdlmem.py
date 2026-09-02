@@ -65,8 +65,10 @@ from memory_graph.core import (
     memory_stats,
     prune_attempts,
     record_template,
+    regime_events,
     register_tool_proposal,
     rename_symbol,
+    stage_event_proposal,
     stage_record_proposal,
 )
 
@@ -127,11 +129,28 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
     propose_record.add_argument("--dry-run", action="store_true",
                                 help="validate fully but write nothing")
     propose_record.add_argument(
+        "--confirm-new", action="store_true",
+        help="proceed past the near-duplicate screen: this claim really is"
+             " distinct from the existing record(s) it resembles")
+    propose_record.add_argument(
         "--template",
         choices=("attempt", "claim", "evidence", "entity", "edge",
                  "work_claim", "tool"),
         help="print a correctly-shaped skeleton for this kind and exit"
              " (fill <REQUIRED:...>, delete unused <OPTIONAL:...> keys)")
+
+    event = subparsers.add_parser(
+        "event",
+        help="record or list a REGIME-CHANGE event; claims whose evidence "
+             "predates a matching event render a needs-revalidation banner",
+    )
+    event.add_argument("action", choices=("add", "list"))
+    event.add_argument("slug", nargs="?",
+                       help="kebab-case name, e.g. regnorm-v2-migration")
+    event.add_argument("--scope", help="path fragment, law tag, or '*'")
+    event.add_argument("--occurred-at", dest="occurred_at",
+                       help="YYYY-MM-DD (default: today)")
+    event.add_argument("--note", help="one line on what changed and why")
 
     accept = subparsers.add_parser(
         "accept",
@@ -206,7 +225,8 @@ def main(argv: list[str] | None = None) -> int:
             inbox_dir = (root / "memory_graph" / "inbox").resolve()
             in_place = source if source.parent == inbox_dir else None
             path = stage_record_proposal(record, root=root, in_place=in_place,
-                                         dry_run=args.dry_run)
+                                         dry_run=args.dry_run,
+                                         confirm_new=args.confirm_new)
             result = {
                 "proposal": str(path),
                 "review_state": "valid (not staged)" if args.dry_run
@@ -216,6 +236,26 @@ def main(argv: list[str] | None = None) -> int:
                          "review the JSON, then move it from"
                          " memory_graph/inbox to records"),
             }
+        elif args.command == "event":
+            if args.action == "list":
+                result = {"events": regime_events(root=root, db_path=database)}
+            else:
+                if not args.slug or not args.scope:
+                    parser.error("event add needs a slug and --scope")
+                path = stage_event_proposal(
+                    args.slug, scope=args.scope,
+                    occurred_at=args.occurred_at, note=args.note, root=root,
+                )
+                result = {
+                    "proposal": str(path),
+                    "review_state": "pending",
+                    "next": "commit the inbox file; the integrator accepts it."
+                            " After acceptance, every claim whose newest"
+                            " evidence predates this event and whose scope it"
+                            " covers renders a needs-revalidation banner —"
+                            " re-measuring clears the banner by producing"
+                            " evidence that postdates the event.",
+                }
         elif args.command == "accept":
             result = accept_records(
                 args.record_ids, release=args.release, root=root,
