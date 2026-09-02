@@ -1,0 +1,17 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py <unit> <fn> [--ours] - the relocation-symbol dump that detects the class",
+    "tools/gdl/probe.py <unit> <fn> --fuzzy - the fresh-report arbitration that priced it",
+    "tools/gdl/regnorm.py game/game/combat - the census that ranks the affected functions"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "A function where the shared-aggregate re-base closes the surplus lis AND improves fresh-report fuzzy measured at both states with `probe.py <unit> <fn> --fuzzy`. One such case makes the cost conditional rather than characteristic, and the law must then name the condition that separates the paying cases from the two measured here. Conversely, a case where the re-base closes the lis with the base register's live range UNCHANGED (because it was already live at every site) and still regresses fuzzy would refute the stated mechanism while leaving the outcome intact.",
+  "id": "claim.law.CB_shared-aggregate-base-rebase-closes-the-lis-surplus-and-pays-for-it-in-allocation.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T01:28:58Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/combat",
+  "valid_from": "2026-09-02",
+  "value": "When our object materialises a NAMED symbol that the target instead reaches as a displacement off a single neighbouring base, re-basing the source onto that base reliably closes the surplus ADDR16_HA/lis words and shrinks the instruction-count delta, but it is NOT automatically a win: it lengthens the base register's live range across the whole function and rescrambles register allocation, so `real` and fresh-report fuzzy can both regress while the count and the opcode multiset both improve. The re-base only pays when the base register is ALREADY live at every use site; when the use sites are inlined helper bodies, MWCC either rematerialises the base per site (if the source names the global) or spends one copy per site (if the source passes a cached alias). Measured twice in this TU, in the same direction. get_cam_wpos_8002ABE0, 2026-09-02: our gCameraTargets(ADDR16_HA/LO) x4 against the target's ZERO such relocations, the target reaching the array as `addi rN,r31,2576` off its single gCameraState base; re-basing closed all four lis and cut the surplus-word count from 8 to 3, and cost real 438 -> 575 and fuzzy 92.4742% -> 91.7933%, so it was rejected. InitPlayerMissiles, recorded 2026-08-30 and re-screened here: our PlayerMissileDesc(ADDR16_HA/LO) x2 plus DmgTypeDesc(ADDR16_HA/LO) against the target's SINGLE lbl_80118DF8 base, from which PlayerMissileDesc sits at +0x30 and DmgTypeDesc at +0x2F0, both inside 16-bit displacement range; attempt.initplayermissiles-shared-aggregate-regression.20260830.v1 already recorded that re-base as a regression. COROLLARY, and this is the operationally useful half: the relocation-symbol dump is a CHEAP and COMPLETE detector for this class - no score sees it - so run it before ranking such a function's residual, but do not read a symbol-set divergence as evidence that the re-base will score."
+}
