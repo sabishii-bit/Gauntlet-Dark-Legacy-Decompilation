@@ -3083,6 +3083,23 @@ class ToolNamespaceTests(unittest.TestCase):
             stage_record_proposal(record, root=REPO_ROOT, dry_run=True,
                                   confirm_new=True)
 
+    def test_the_namespace_resolves_at_BUILD_time_too(self):
+        """The worst failure shape, and the first version had it: the gate
+        passed at propose time (database already built) and the next
+        `gdlmem build` REJECTED the record, because _import_records runs
+        before _import_discovered_tools populates tool_catalog. A record
+        that stages cleanly and then silently does not import is worse than
+        one that is refused."""
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / "graph.sqlite"
+            stats = build_database(REPO_ROOT, path)
+            self.assertEqual(stats["inbox_rejected"], [])
+        vocabulary = core.tool_key_vocabulary(REPO_ROOT)
+        self.assertIn("tool:probe", vocabulary)
+        self.assertIn("tool:gdl-memory-graph", vocabulary,
+                      "a reviewed tool record outside tools/gdl must be in"
+                      " the vocabulary; the source scan alone misses it")
+
     def test_tool_query_returns_the_laws_about_that_tool(self):
         result = core.tool_context("probe", root=REPO_ROOT)
         ids = [law["id"] for law in result["laws"]]
@@ -3100,7 +3117,10 @@ class ToolNamespaceTests(unittest.TestCase):
         that MEASURED a law, not its subject.
         """
         result = core.tool_context("probe", root=REPO_ROOT, limit=100)
-        for law in result["laws"]:
+        bridged = [law for law in result["laws"]
+                   if law["match"] != "subject_anchored"]
+        self.assertTrue(bridged, "no bridged rows to check")
+        for law in bridged:
             self.assertIn("probe", set(core._slug_words(law["id"])),
                           f"bridged without the name in its slug: {law['id']}")
 

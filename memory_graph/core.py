@@ -1,4 +1,4 @@
-"""Build and query the GDL project-memory graph.
+﻿"""Build and query the GDL project-memory graph.
 
 The SQLite file is a disposable materialized view. Durable reviewed facts live
 as JSON records under memory_graph/records; legacy notes are preserved and
@@ -1665,11 +1665,12 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
     _validate_schema_fields(record, source)
 
 
-def _entity_id(connection: sqlite3.Connection, key: str) -> int:
+def _entity_id(connection: sqlite3.Connection, key: str,
+               root: Path | None = None) -> int:
     row = connection.execute("SELECT id FROM entity WHERE entity_key=?", (key,)).fetchone()
     if row is not None:
         return int(row["id"])
-    resolved = _autoresolve_entity(connection, key)
+    resolved = _autoresolve_entity(connection, key, root)
     if resolved is not None:
         return resolved
     raise MemoryGraphError(f"record references unknown entity {key!r}")
@@ -1708,7 +1709,8 @@ def tu_name_candidates(name: str) -> list[str]:
     return out
 
 
-def _autoresolve_entity(connection: sqlite3.Connection, key: str) -> int | None:
+def _autoresolve_entity(connection: sqlite3.Connection, key: str,
+                        root: Path | None = None) -> int | None:
     """Materialize a minimal entity from the deterministic symbol/module import.
 
     `function:<raw_name>` resolves against the imported GameCube symbol table
@@ -1717,6 +1719,27 @@ def _autoresolve_entity(connection: sqlite3.Connection, key: str) -> int | None:
     satisfy referential checks. Explicit entity records remain the way to add
     curated attributes, and ambiguous names still require one.
     """
+    # tool:/workflow: resolve the same way references do — see
+    # `_reference_resolvable`. Without this arm the namespace works at
+    # PROPOSE time and fails at BUILD time, which stages a record and then
+    # silently drops it from the graph.
+    if key.startswith(("tool:", "workflow:")):
+        name = key.split(":", 1)[1]
+        wanted = "tool:" + name
+        row = connection.execute(
+            "SELECT name, source_path, tool_kind FROM tool_catalog"
+            " WHERE tool_key=? LIMIT 1", (wanted,)).fetchone()
+        if row is None and wanted not in tool_key_vocabulary(root):
+            return None
+        attributes = {"auto_resolved_from": "tool_catalog",
+                      "tool_key": wanted}
+        if row is not None:
+            attributes["source_path"] = row["source_path"]
+            attributes["tool_kind"] = row["tool_kind"]
+        return _insert_auto_entity(
+            connection, key,
+            "workflow" if key.startswith("workflow:") else "tool",
+            (row["name"] if row is not None else name), attributes)
     if key.startswith("function:"):
         name = key.split(":", 1)[1]
         rows = connection.execute(
@@ -1931,9 +1954,9 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
                     """,
                     (
                         record["id"],
-                        _entity_id(connection, record["source"]),
+                        _entity_id(connection, record["source"], root),
                         record["relation"],
-                        _entity_id(connection, record["target"]),
+                        _entity_id(connection, record["target"], root),
                         record.get("state", "active"),
                         record.get("note"),
                         record.get("valid_from"),
@@ -1942,7 +1965,7 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
                     ),
                 )
             elif kind == "claim":
-                object_id = _entity_id(connection, record["object"]) if record.get("object") else None
+                object_id = _entity_id(connection, record["object"], root) if record.get("object") else None
                 value_json = json.dumps(record["value"], sort_keys=True) if "value" in record else None
                 connection.execute(
                     """
@@ -1954,7 +1977,7 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
                     """,
                     (
                         record["id"],
-                        _entity_id(connection, record["subject"]),
+                        _entity_id(connection, record["subject"], root),
                         record["predicate"],
                         object_id,
                         value_json,
@@ -1977,9 +2000,9 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
                     """,
                     (
                         record["id"],
-                        _entity_id(connection, record["function"]),
-                        _entity_id(connection, record["tu"]) if record.get("tu") else None,
-                        _entity_id(connection, record["compiler"]) if record.get("compiler") else None,
+                        _entity_id(connection, record["function"], root),
+                        _entity_id(connection, record["tu"], root) if record.get("tu") else None,
+                        _entity_id(connection, record["compiler"], root) if record.get("compiler") else None,
                         record.get("source_revision"),
                         record["attempted_axis"],
                         record["outcome"],
@@ -2048,7 +2071,7 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
                     """,
                     (
                         record["id"],
-                        _entity_id(connection, record["function"]),
+                        _entity_id(connection, record["function"], root),
                         record["owner"],
                         record.get("branch"),
                         record.get("worktree"),
@@ -3842,7 +3865,8 @@ def memory_audit(
     }
 
 
-def _reference_resolvable(connection: sqlite3.Connection, key: str) -> bool:
+def _reference_resolvable(connection: sqlite3.Connection, key: str,
+                          root: Path | None = None) -> bool:
     row = connection.execute(
         "SELECT id FROM entity WHERE entity_key=?", (key,)
     ).fetchone()
@@ -3867,6 +3891,16 @@ def _reference_resolvable(connection: sqlite3.Connection, key: str) -> bool:
         return int(count) >= 1
     # tool:/workflow: — THE THIRD-RECURRENCE FIX (run-40 item 5).
     #
+    # ORDER-INDEPENDENT ON PURPOSE, and the first version was not. Resolving
+    # against the tool_catalog TABLE alone works at propose time (the
+    # database is already built) and FAILS during `build`, because
+    # `_import_records` runs BEFORE `_import_discovered_tools` — so the four
+    # laws this very run anchored at `tool:probe` and `tool:gdl-memory-graph`
+    # staged cleanly and were then rejected by the next build, which is the
+    # worst possible failure shape: a record that passes its gate and
+    # silently does not import. The vocabulary is therefore read from the
+    # SOURCES and the RECORD FILES as well as the table.
+    #
     # `entity_key_namespaces` has advertised `tool:` and `workflow:` as live
     # namespaces since run 35, but nothing MADE them resolve: an entity row
     # had to exist first, and entity rows are auto-created from record
@@ -3879,23 +3913,57 @@ def _reference_resolvable(connection: sqlite3.Connection, key: str) -> bool:
     # tool_catalog already holds a row for every tools/gdl source (the
     # source_scan import) plus every reviewed tool record, keyed exactly as
     # `tool:<slug>`. That table IS the vocabulary; resolve against it.
-    if key.startswith("tool:"):
-        count = connection.execute(
-            "SELECT COUNT(*) FROM tool_catalog WHERE tool_key=?", (key,)
-        ).fetchone()[0]
-        return int(count) >= 1
-    if key.startswith("workflow:"):
-        # A workflow is a tool_catalog row whose tool_kind says so — the
-        # documented multi-tool procedures (the matching toolchain, the
-        # de-fakematch loop), addressed by their own namespace so a law
-        # about the PROCEDURE is not filed under one of its scripts.
-        count = connection.execute(
-            "SELECT COUNT(*) FROM tool_catalog"
-            " WHERE tool_kind='workflow' AND tool_key=?",
-            ("tool:" + key.split(":", 1)[1],),
-        ).fetchone()[0]
-        return int(count) >= 1
+    if key.startswith(("tool:", "workflow:")):
+        # A workflow is addressed by its own namespace so a law about a
+        # PROCEDURE is not filed under one of its scripts; both resolve
+        # against the same vocabulary.
+        wanted = "tool:" + key.split(":", 1)[1]
+        if connection.execute(
+            "SELECT 1 FROM tool_catalog WHERE tool_key=? LIMIT 1", (wanted,)
+        ).fetchone():
+            return True
+        return wanted in tool_key_vocabulary(root)
     return False
+
+
+def tool_key_vocabulary(root: Path | None) -> frozenset[str]:
+    """Every `tool:<key>` this checkout can name, read off disk.
+
+    Two sources, because neither alone is complete at every moment of a
+    build: every tools/gdl source keyed exactly as `_import_discovered_tools`
+    keys it, and every `tool` RECORD's declared `tool_key` (which is how
+    memory_graph's own scripts and the documented workflows get names —
+    `_iter_tool_source_paths` only walks tools/gdl).
+    """
+    if root is None:
+        return frozenset()
+    root = Path(root)
+    cached = _TOOL_KEY_CACHE.get(root)
+    if cached is not None:
+        return cached
+    keys = {_tool_key(Path(_repo_relative(root, path)))
+            for path in _iter_tool_source_paths(root)}
+    for relative in (Path("memory_graph/records"), Path("memory_graph/inbox")):
+        directory = root / relative
+        if not directory.exists():
+            continue
+        for path in directory.rglob("*.json"):
+            try:
+                record = json.loads(path.read_text(encoding="utf-8-sig"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if (isinstance(record, dict) and record.get("kind") == "tool"
+                    and isinstance(record.get("tool_key"), str)):
+                keys.add(record["tool_key"])
+    vocabulary = frozenset(keys)
+    _TOOL_KEY_CACHE[root] = vocabulary
+    return vocabulary
+
+
+# Per-process, per-root. The vocabulary is derived from files a single
+# gdlmem invocation does not change under itself, and rebuilding it per
+# reference check would re-walk 1,700 record files on every anchor.
+_TOOL_KEY_CACHE: dict[Path, frozenset[str]] = {}
 
 
 def entity_key_namespaces(connection: sqlite3.Connection) -> list[tuple]:
@@ -4125,7 +4193,7 @@ def _probe_references_with(
     build applies.
     """
     for key in entity_refs:
-        if not _reference_resolvable(connection, key):
+        if not _reference_resolvable(connection, key, root):
             raise MemoryGraphError(unknown_entity_message(
                 key,
                 entity_key_namespaces(connection),
