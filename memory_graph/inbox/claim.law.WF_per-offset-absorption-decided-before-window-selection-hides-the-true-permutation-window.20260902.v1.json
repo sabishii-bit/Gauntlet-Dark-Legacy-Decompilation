@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/hv_perm.py",
+    "tools/gdl/composed_census/ha_close.py",
+    "tools/gdl/composed_census/wf_word_diff.py"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "workflow",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Re-run the composed searcher over the candidate population with cluster boundaries widened across every adjacent absorbed word. If that widening never produces a window the narrow run missed \u2014 i.e. no function's refusal changes and no new composition is proved \u2014 then per-offset absorption costs no windows and this law is empty. Conversely, a single function closed only by a window whose boundary word the narrow run absorbed confirms it. The concrete anchor is game/movie/movieplayer::fn_800D8BCC at 456857fd4: hv_perm reports the cluster +0xb0..+0xd8, and the window [0xa8,0xd8) is dependence-legal in 36 orders with 24 carrying both arrows.",
+  "id": "claim.law.WF_per-offset-absorption-decided-before-window-selection-hides-the-true-permutation-window.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T14:59:30Z",
+  "schema_version": 1,
+  "subject": "function:fn_800D8BCC",
+  "valid_from": "2026-09-02",
+  "value": "THE LAW. A composed-rule searcher that decides per-word ABSORPTION at a FIXED OFFSET before it selects permutation windows will systematically hide the true window, because absorption and movement are the two competing explanations of the same word and deciding one first forecloses the other. Both shipped absorption tests have this failure mode. (a) REGFIELD-ONLY ABSORPTION: our word and the target word at the same offset differ in register slots alone, so the word is handed to the recolor \u2014 even when its true partner sits at another offset and it needs to MOVE. (b) COPY-FORM-ARROW ABSORPTION: the pair at a fixed offset decodes as a plausible copy-form arrow, so the word is counted as rewritable in place \u2014 again even when it needs to move. In both cases the word leaves the 'unabsorbed' set, the cluster that window selection is built from shrinks, and the correct window is never offered to the prover at all. MEASURED 2026-09-02 on game/movie/movieplayer::fn_800D8BCC at commit 456857fd4. hv_perm.search reported '5 unabsorbed words in 1 cluster(s): +0xb0..+0xd8' and 'no proved composition'. The true window is [0xa8,0xd8). Two words were absorbed out of it: +0xa8 by mechanism (b) \u2014 ours `mr r24,r27` against target `li r29,0` decodes as the inverse copy-form arrow, and the searcher duly reported its dataflow failure, 'r27 is not provably 0 on every path reaching +0xa8', which reads exactly like a fact about the function and is really a fact about having pinned the word in place; and +0xcc by mechanism (a) \u2014 ours `clrlwi r29,r0,24` against target `clrlwi r28,r4,24`, register-slot-only and therefore folded into the renaming, though our r0-sourced word actually belongs at the target's +0xd4. Supplying [0xa8,0xd8) by hand and enumerating all 216 shape-consistent orders yielded 36 dependence-legal ones, of which 24 carried BOTH copy-form arrows through the shipped apply_patch \u2014 'unconditional_recolor' at +0xb0 and 'constant_dataflow_recolor' (our_source=r25) at +0xc0. The refusal moved from a window-local 'no proof mode offered' to the whole-function recolor at +0x2cc, which is a strictly more informative and genuinely final answer. PROCEDURE. When a searcher refuses with a cluster whose boundary word is absorbed rather than unabsorbed, widen the window across the adjacent absorbed words and re-run before recording the refusal as a property of the function; absorption is a HYPOTHESIS about a word, not an observation. This is discipline 14 applied to window selection, and the same shape as claim.law.HV_mnemonic-aliasing-manufactures-structural-rows-and-count-asymmetric-signatures.20260901.v1 one stage earlier in the pipeline: that law fixed the ORDER OF TWO TESTS on a word, this one fixes the ORDER OF ABSORPTION AGAINST WINDOW SELECTION. NOTE the scope limit, stated because this law must not be read as a licence: widening the window changed WHICH refusal fn_800D8BCC produced, not WHETHER it closes. It does not close, and no rule was shipped."
+}
