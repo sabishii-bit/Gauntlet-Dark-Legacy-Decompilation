@@ -1709,8 +1709,9 @@ s32 do_players(void) {
         for (i = 0, p = PT(0); i < 4; i++, p++) {
             if (p->state != 0) {
                 s32 sel;
+                u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
 
-                if (PTA(i)->state == 2 || PTA(i)->state == 3) {
+                if (PF(prec, 0xC40 + 0xE8, s32) == 2 || PF(prec, 0xC40 + 0xE8, s32) == 3) {
                     sel = 1;
                 } else {
                     sel = 0;
@@ -1832,10 +1833,14 @@ s32 do_players(void) {
             continue;
         }
         state = p->state;
-        if (state == 2 || state == 3) {
-            selected = 1;
-        } else {
-            selected = 0;
+        {
+            u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
+
+            if (PF(prec, 0xC40 + 0xE8, s32) == 2 || PF(prec, 0xC40 + 0xE8, s32) == 3) {
+                selected = 1;
+            } else {
+                selected = 0;
+            }
         }
         if (selected == 0) {
             if (gGameMode == MG_SHOP || gGameMode == MG_WORLD_SELECT || gGameMode == MG_MAPSCREEN ||
