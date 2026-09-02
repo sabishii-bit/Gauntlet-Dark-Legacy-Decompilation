@@ -334,8 +334,8 @@ extern char lbl_80348024[7];
 
 void reset_sel_menu(void)
 {
-    lbl_80344B7C = 0;
     lbl_80344B80 = 0;
+    lbl_80344B7C = 0;
 }
 
 /* Boss-requirement getters: linear-search a 12-entry, 0x24-byte table keyed on
