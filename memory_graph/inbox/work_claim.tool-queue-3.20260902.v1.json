@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "TOOL lane (owns tools/gdl this run): the run-32 queue, one commit per item, criticisms cited, refute-with-measurement allowed: (1) probe.py detects DATA-ONLY edits (only non-text sections moved between probes) and REPLACES the misleading NEUTRAL-IDENTICAL fold-away message with 'data-only change: instruction stream identical by construction \u2014 arbitrate with a value audit' (CS: the current message told a worker to revert five CORRECT constant fixes); (2) defake_gate LOGS every arbitration (--bank-arbitrated/--arbiter overrides) to a jsonl in the gate dir so override rates become measurable (the '1/3 of keeps' ratio is currently unfalsifiable); (3) probe caches this function's fuzzy whenever a report build happens through it and prints the cached baseline fuzzy on CONFLICT (2 builds saved per arbitration, 3 lanes hit it); (4) when count-distance is invalid (multiset moved) print NO number \u2014 the current text admits invalidity while still leading with the figure; (5) fndiff --clean prints the artifact-filtered real count beside raw rows (the two-reals confusion, measured twice); (6) propose-record accepts --file as an alias for the positional json path. Suites green after every item; ninja 'main.dol: OK' at close; expected verdict changes stated; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:ProcessEffects",
+  "id": "work_claim.tool-queue-3.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-TQ",
+  "recorded_at": "2026-09-02T00:10:55Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

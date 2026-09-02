@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "GRAPH-SCORING lane (sole owner of memory_graph/ code this run). SCHEMA CONTRACT (integrator-decided): (1) EVIDENCE layer \u2014 a DERIVED table rebuilt at `gdlmem build`, never hand-incremented: SUCCESS = a law id cited in `laws_applied` of an attempt whose outcome is exact/improved; FAILURE = a law that is the target of a `refutes` edge (strong signal only \u2014 capped/parked attempts are NOT failures, a law can correctly predict a cap); add an optional `laws_failed` field for future explicit failure citations. (2) WILSON RANKING \u2014 wilson lower bound (z=1.96) + beta mean computed at query time; `laws` and `brief` law rows gain score/n/status columns, ranked by wilson with provisional claims EXCLUDED from the deterministic view. (3) PROVISIONAL status: a law with zero successes is provisional \u2014 surfaced only under an explicit --include-provisional flag and clearly labeled (stops a confident hallucination propagating fleet-wide before its first verified success). (4) NEEDS-REVALIDATION events: `gdlmem event add <slug> --scope <path-or-tag>` records a regime change (tool migration, class shipment); claims whose evidence predates a matching event display a needs-revalidation banner (event-based, NEVER calendar decay). (5) DEDUP-AT-PROPOSE: propose-record runs slug+FTS similarity over existing claims; a near-match refuses with 'attach evidence to <id> or pass --confirm-new' \u2014 attach-not-error semantics. (6) TYPED PROSE OBJECTS + gates: `denial` {scope, premise_measurement, expiry_check(cmd), falsifier} \u2014 propose-record refuses do-not-retry/NOT-a-candidate/ineligible phrasing without one; `hypothesis` {statement, cheapest_refuting_observation, screened_against_target}; brief's 10b section prefers typed hypotheses. (7) LEGACY QUARANTINE: context/brief regex-flag prose imperatives in pre-gate records with an UNGATED-PROSE-DENIAL banner (do NOT auto-extract into fields \u2014 the family backfill measured 30-50% extraction precision; render-flag only). (8) `claims --owns <path>` query. PRIORITY ORDER = as numbered; drop from the tail with a report if needed, never from the head. CANARY: hand-score 15 laws spanning outcomes (incl. known-refuted ones like the SI epilogue-target law and known-winners like merged-disjunction) \u2014 the derived scores MUST reproduce your hand scores before the layer ships. All suites green; `gdlmem build` clean; record-count parity measured pre-merge and PRINTED; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:InitControls",
+  "id": "work_claim.evidence-scoring.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-EV",
+  "recorded_at": "2026-09-02T00:10:41Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

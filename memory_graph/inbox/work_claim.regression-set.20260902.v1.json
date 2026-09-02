@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "MEASUREMENT lane (read-only on memory_graph; owns tools/gdl/regression_set.py + its data file): build the FROZEN REGRESSION SET that answers 'is the graph genuinely useful' empirically. (1) SELECT ~24 STRICT-matched functions (source-matched, NOT webfrank-pinned) across >=8 TUs and >=4 mechanism families and >=3 eras of the campaign; for each, locate via git history the PRE-MATCH source state (the real starting point) and the matching commit; freeze the list (fn, TU, pre commit, post commit, mechanism family) in a committed manifest. (2) HARNESS: a script that, in an isolated worktree, reverts ONE function to its pre-match state and verifies the baseline residual reproduces; trial protocol doc: an agent is pointed at the function with a fixed budget, in arm A with full gdlmem access, in arm B with gdlmem queries forbidden (prompt-level) \u2014 outcome = reached-exact yes/no + probe count + build count. (3) PILOT: run 4 functions x both arms yourself by SIMULATING the agent's retrieval step only (cheap proxy: for each fn, does `brief`+`context`+`laws --residual` surface the mechanism that ACTUALLY closed it, per its matching commit? score retrieval hit/miss + rank) \u2014 full agent trials are a future run's budget decision, record the protocol for them. Deliverables: manifest, harness, retrieval-pilot numbers, methodology record w/ falsifier. No memory_graph code edits; no source edits outside the harness worktree; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:DoWorldAnimation",
+  "id": "work_claim.regression-set.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-RS",
+  "recorded_at": "2026-09-02T00:10:48Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}
