@@ -2183,8 +2183,7 @@ s32 do_players(void) {
             }
         }
     }
-    j = firstgetidx % 4;
-    firstgetidx++;
+    j = firstgetidx++ % 4;
     for (i = 0; i < 4; i++) {
         s32 k = (j + i) % 4;
         Player* speaker = PT(k);
