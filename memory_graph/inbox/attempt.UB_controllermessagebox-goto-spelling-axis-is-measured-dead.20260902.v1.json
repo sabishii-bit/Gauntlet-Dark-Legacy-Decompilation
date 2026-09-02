@@ -1,0 +1,32 @@
+{
+  "attempted_axis": "Close ControllerMessageBox's single count delta (T272/O271) by recovering the target's non-inverted branch pair `bne ->+0x310` / `b ->+0x1a0` at +0x308, where our build collapses the goto pair into one `beq`.",
+  "attributes": {
+    "law_screen": "claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 APPLIED: this is the function's ONLY count delta, so it is the thing to buy first and nothing else in the function was touched. claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1 SCREENED but not needed -- the delta is a one-cluster count asymmetry that the aligned fnasm --diff resolves directly, and slotdiff arbitrates frame/slot work which is not what this is. claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1 APPLIED as a BYPRODUCT and it found a second, separate defect (see residual). claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and it is decisive for eligibility: this residual is COUNT-ASYMMETRIC (272 vs 271), so no postprocessor class can close it and the only path is source.",
+    "laws_applied": "[\"claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1\", \"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\"]",
+    "probed_form": "All three at src/game/ui/screensaver.c:1810-1813, replacing `if (fn_80054CDC() != 0) { goto frame_done; } goto frame_top;`. P1 explicit else: `if (fn_80054CDC() != 0) { goto frame_done; } else { goto frame_top; }`. P2 single inverted if, redundant goto deleted: `if (fn_80054CDC() == 0) { goto frame_top; }`. P3 one-case switch (the form that WORKED on update_class_spec this same run): `switch (fn_80054CDC()) { case 0: goto frame_top; }`. ALL THREE produced NEUTRAL-IDENTICAL: the built object bytes did not move at all.",
+    "residual": "TWO separate things remain, and they are independent. (1) THE COUNT DELTA. Retail emits `cmpwi r3,0; bne ->+0x310; b ->+0x1a0` where +0x310 is the IMMEDIATELY FOLLOWING instruction -- a branch-to-next, the canonical peephole-off tell. Our build emits the peephole-collapsed `beq ->+0x1a0`. Three distinct C spellings of that conditional all normalise to the identical IR before codegen, so the branch-inversion decision is NOT reachable from goto/if statement spelling in this function. Note the contrast that makes this precise: on update_class_spec, in the SAME run, the one-case switch DID recover the pair -- so the switch lever is real but conditional, and what distinguishes the two sites is that update_class_spec's arms assign a value while these arms are pure control transfers with no value to place. The remaining untried levers are therefore NOT statement respellings: a scoped `#pragma peephole off` around this function (untried here, and hazardous per the recorded rule against unscoped peephole pragmas poisoning downstream functions), or accepting the delta. (2) A SEPARATE WRONG-SYMBOL DEFECT, found while reading the aligned view and NOT probed: at +0x318 retail loads `sFlags`(EMB_SDA21) while we load `gControllerButtons+0x4`(EMB_SDA21). Our `extern s64 gControllerButtons;` (screensaver.c:134) makes `(gControllerButtons & 8)` a 64-bit AND whose low half our object addresses as an addend on gControllerButtons, whereas retail's relocation names the distinct symbol sFlags (declared but unused at screensaver.c:135). Both resolve to the same linked address, so the DOL is correct, but fndiff counts the differing relocation symbol as real. This is a reloc-naming item for a later lane and is orthogonal to the count delta.",
+    "scope": "src/game/ui/screensaver.c::ControllerMessageBox lines 1810-1813 only. All three probes discarded with `git checkout --`; tree clean, nothing retained.",
+    "verification": "probe.py game/ui/screensaver ControllerMessageBox BASELINE real 45 (insns T272/O271, multiset 3t). Each probe re-scored: real 45, insns T272/O271, multiset 3t, verdict NEUTRAL-IDENTICAL each time. After the third, probe.py itself raised its RE-PLAN THE AXIS CLASS banner ('3 consecutive NEUTRAL-IDENTICAL probes -- that is a fact about the AXIS, not about the spellings'), which is the reason this is recorded as measured-dead rather than capped-after-three. Tree restored, `git status --short` shows only the untracked LANE_LOCK."
+  },
+  "function": "function:ControllerMessageBox",
+  "held_fixed": "All three probes held the surrounding control flow, the label set (frame_top / frame_check / frame_done) and every other statement CONSTANT, varying only the spelling of the single conditional at src/game/ui/screensaver.c:1810-1813.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Rebuild after the respell and diff the relocation symbols at +0x318. If the low-half read still emits `gControllerButtons+0x4`, MWCC is choosing the base symbol for the 64-bit access regardless of how the source names it, and the row is not source-reachable.",
+    "screened_against_target": "yes -- the target row was read directly in the fnasm --diff aligned view at 0x2f0:0x328 and reads `lwz r0,0(0) @sFlags(EMB_SDA21)` against our `lwz r0,0(0) @gControllerButtons+0x4(EMB_SDA21)`. Not probed: this run's three probes were all spent on the count delta.",
+    "statement": "The sFlags row is closable independently of the branch pair: respell the +0x318 read so the relocation names sFlags rather than an addend on gControllerButtons, most likely by declaring the pair as two adjacent 32-bit globals and writing the test against sFlags directly instead of as a 64-bit AND on gControllerButtons."
+  },
+  "id": "attempt.UB_controllermessagebox-goto-spelling-axis-is-measured-dead.20260902.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-02T16:37:48Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-02",
+    "signature": "DIFFERS target-only: +1 b +1 bne ours-only: -1 beq; insns T272/O271; 1 ops clusters"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.SC_controllermessagebox-backedge-and-sflags.20260901.v1",
+  "valid_from": "2026-09-02"
+}

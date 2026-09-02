@@ -1,0 +1,30 @@
+{
+  "attempted_axis": "First classification of a graph-fresh function (context returned zero attempts and zero claims): measure and name animate_panel_piece's residual so the next lane starts from a mechanism rather than a score. Measurement only -- no source edit was made.",
+  "attributes": {
+    "law_screen": "claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED and it is the reason this record exists: the multiset reads IDENTICAL (251/251) and would invite a pure-reorder label, but fndiff --ops surfaces two IMMEDIATE rows the multiset cannot see, and those are frame displacements, so the residual is NOT purely schedule-class. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED as the lever for those two rows and NOT probed. claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 APPLIED to classify the anonymous-pool row (see residual) as naming rather than value. claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1 SCREENED and it names the right next tool: slotdiff.py, not fndiff, is the arbiter for the frame-slot half, and it was not run this session. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 not applicable: counts are equal at 251/251, so this residual is NOT excluded from postprocessor eligibility on count grounds.",
+    "laws_applied": "[\"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\", \"claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1\"]",
+    "probed_form": "None -- no source edit was made. This record is a measurement, and it says so rather than leaving a bare score for the next lane to re-derive.",
+    "residual": "THREE components, measured. (1) FRAME SLOTS, the part the multiset cannot see: two same-opcode rows carry different displacements -- retail `stw r29,80(r1)` at +0x370 against our `stw r0,108(r1)` at +0x36c, and retail `stw r29,104(r1)` at +0x378 against our `stw r29,80(r1)` at +0x374. Retail's pair of homes is 80/104, ours is 108/80. This is the declaration-order lever and it is the one thing here that is plainly source-shaped. (2) FP SCHEDULE WINDOW in `case 2:` (source lines 1386-1389), reading 0x148:0x1b0: both streams contain exactly the same opcodes but retail issues BOTH integer loads of piece[7] and piece[8] before converting either (`lwz r4,28(r30)` then `lwz r0,32(r30)`, then both `xoris`), while ours interleaves load, convert, load, convert; the dependent `fsubs`/`lfd`/`fmadds` then slide by one slot each. Four int-to-float conversions are present on BOTH sides, which rules out the obvious cure: hoisting `(f32)x` and `(f32)y` into named f32 locals would leave only two conversions and change the instruction count, so retail genuinely converts twice per variable and the source must keep doing so. (3) NAMING, not value: at +0x164/+0x168 retail loads the int-to-float bias constant as `lfd f4,0(0) @lbl_80347400(EMB_SDA21)` while our object names its own anonymous copy `@@308(EMB_SDA21)`. Both are the compiler's own conversion constant and both resolve to the same linked bytes, so this is a pool-NAMING row rather than a wrong constant -- but it is one of the rows inside the 92 and it will not close from statement-level source work. NEXT LANE: run slotdiff.py first per the screened law, attack component (1) by declaration order, and re-read (2) only afterwards -- the FP window is one slot wide and is alignment-sensitive, so its sign may change once the frame homes match.",
+    "scope": "src/game/ui/screensaver.c::animate_panel_piece -- read only. Tree unchanged.",
+    "verification": "fndiff --count reports 'insns 251/251, lines 108, real 92'. fndiff --ops reports the multiset IDENTICAL at 251/251 plus 13 clusters and 2 IMMEDIATE rows. fndiff --clean does NOT reduce to a match, so the 92 is genuine and not pool-name noise. Aligned view read at 0x148:0x1b0 via fnasm --diff. The webfrank pin on end_inventory_panel in this unit was screened; nothing was edited, so no pin question arose."
+  },
+  "function": "function:animate_panel_piece",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Reorder the local block to move the two mismatched homes onto 80/104 and re-run fndiff --ops. If the two IMMEDIATE rows close but the 13 clusters in the FP window are unchanged in count, the two components are independent and this framing is wrong.",
+    "screened_against_target": "yes for the measurement -- both displacement pairs and the FP window were read from the fnasm --diff aligned view against the extracted retail object. no for the cure -- no reordering was probed this session, so the causal link between the frame homes and the FP window is asserted from adjacency in the stream, not from a measurement.",
+    "statement": "Component (1) is the whole lever and component (2) is downstream of it. The declared local block is `f32 progress2, factor, dx, dy; s32 tableIndex, x, y; u8 unused[8];` -- reordering it so the two homes retail uses land at 80 and 104 should also re-align the FP window, because our stream's one-slot slides begin immediately after the mismatched stores."
+  },
+  "id": "attempt.UB_animate-panel-piece-first-classification.20260902.v1",
+  "kind": "attempt",
+  "outcome": "parked",
+  "recorded_at": "2026-09-02T16:37:46Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-02",
+    "signature": "0t opcode multiset IDENTICAL (251/251) with 2 IMMEDIATE rows; insns T251/O251; 13 ops clusters"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

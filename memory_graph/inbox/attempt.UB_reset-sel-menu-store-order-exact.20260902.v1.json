@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Close reset_sel_menu (4 insns, real 2) by matching the target's store ORDER: retail writes lbl_80344B80 before lbl_80344B7C, our source wrote them in ascending-address order.",
+  "attributes": {
+    "law_screen": "claim.law.SL_pool-constant-errors-are-score-invisible.20260901.v1 SCREENED: this is the inverse case -- the two rows WERE score-visible because fndiff counts a differing relocation SYMBOL, and both globals are extern (declared at select.c:81-82), so no pool-ownership question arises and no pool re-ordering could result. claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1 SCREENED and NOT needed: fnasm --diff already rendered both relocation symbols side by side because the function is four instructions long. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 not applicable: no locals, no frame. claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 not applicable: counts were already equal at 4/4.",
+    "laws_applied": "[]",
+    "probed_form": "Single edit in src/game/ui/select.c reset_sel_menu: swapped the two statement lines so the body reads `lbl_80344B80 = 0; lbl_80344B7C = 0;` instead of `lbl_80344B7C = 0; lbl_80344B80 = 0;`. One probe, no second axis needed.",
+    "residual": "None. The function is byte-exact.",
+    "scope": "src/game/ui/select.c::reset_sel_menu -- one statement-order swap, retained and committed.",
+    "verification": "probe.py game/ui/select reset_sel_menu BASELINE real 2 (insns T4/O4) then IMPROVED real 2 -> 0 (insns exact, multiset 0t). fndiff --clean = 'EXACT, 0 real diff lines'. defake_gate.py check game/ui/select --rebuild = GATE OK (1 improved), then --update-improved. Full ninja -j2 printed 'build/GUNE5D/main.dol: OK'. Committed as c04e98b97 'Match reset_sel_menu'. Re-baselining the gate at that commit reports 15 of 23 select.c functions at real 0, up from 14 at 5d54ac462."
+  },
+  "function": "function:reset_sel_menu",
+  "id": "attempt.UB_reset-sel-menu-store-order-exact.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T16:38:12Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-02",
+    "signature": "closed -- was 2 reloc-symbol rows at 4/4 insns, real 2; now EXACT, real 0"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
