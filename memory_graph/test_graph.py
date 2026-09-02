@@ -26,6 +26,7 @@ from memory_graph.core import (
     ATTEMPT_BYTE_CAP,
     LAW_STATUS_ORDER,
     MemoryGraphError,
+    REPO_ROOT,
     _record_age_days,
     _validate_record,
     accept_records,
@@ -2069,6 +2070,204 @@ class ClaimsOwnsTests(unittest.TestCase):
         result = work_claims(root=self.root)
         self.assertNotIn("verdict", result)
         self.assertEqual(result["count"], 1)
+
+
+class ReorderIndexTests(unittest.TestCase):
+    """RG run-33 deliverable 1: the pure-reorder residual index axis."""
+
+    def test_stored_and_live_forms_both_parse(self):
+        # The stored corpus form has no colon; live `fndiff --ops` does. A
+        # regex written from the stored form alone silently classified every
+        # live signature as `empty` — measured on all 13 pure-reorder
+        # acceptance rows before the fix.
+        stored = core.parse_residual_signature(
+            "0t opcode multiset IDENTICAL (155/155); insns T155/O155;"
+            " 0 ops clusters")
+        live = core.parse_residual_signature(
+            "  opcode multiset: IDENTICAL (33/33) -- pure reorder,"
+            " schedule-class residual")
+        self.assertEqual(stored["kind"], "reorder")
+        self.assertEqual(stored["insns_target"], 155)
+        self.assertEqual(live["kind"], "reorder")
+        self.assertEqual(live["insns_target"], 33)
+
+    def test_immediate_rows_are_a_different_family_from_a_reorder(self):
+        # MB lane: DrawPsysSub's stored `0t (290/290)` hid 49 IMMEDIATE rows,
+        # and the stale label sent a whole charter down the wrong class.
+        reorder = core.parse_residual_signature(
+            "opcode multiset IDENTICAL (290/290); u4 i0 g0")
+        immediate = core.parse_residual_signature(
+            "opcode multiset: IDENTICAL (290/290) -- but 49 IMMEDIATE word(s)"
+            " differ at aligned same-opcode positions: NOT pure reorder")
+        self.assertEqual(reorder["kind"], "reorder")
+        self.assertEqual(immediate["kind"], "immediate-aligned")
+        self.assertEqual(immediate["immediates"], 49)
+        self.assertEqual(reorder["unpaired"], 4)
+
+    def test_a_multiset_only_signature_is_labelled_unresolved(self):
+        bare = core.parse_residual_signature(
+            "opcode multiset IDENTICAL (290/290)")
+        rich = core.parse_residual_signature(
+            "opcode multiset IDENTICAL (290/290); u0 i49 g3")
+        self.assertEqual(bare["resolution"], "multiset-only")
+        self.assertEqual(rich["resolution"], "row-resolved")
+
+    def test_four_pilot_signatures_no_longer_collapse(self):
+        # claim.law.RS_residual-retrieval-is-blind-to-pure-reorder-residuals
+        # measured four distinct pilot signatures returning byte-identical
+        # payloads. Their facet sets must now differ.
+        facets = {
+            name: tuple(core.parse_residual_signature(
+                f"opcode multiset: IDENTICAL ({n}/{n}) -- pure reorder"
+            )["facets"])
+            for name, n in (("Atree", 33), ("Tower", 25), ("Extract", 92),
+                            ("Collide", 124))
+        }
+        self.assertEqual(len(set(facets.values())), 4)
+
+    def test_metadata_only_facets_never_pair_two_rows(self):
+        # kind/resolution weigh 0. Letting them into the set made every
+        # reorder record match every reorder query, so the SELECTED SET was
+        # constant across 13 acceptance rows and only the order varied.
+        metadata = {"kind:reorder", "resolution:multiset-only"}
+        strength, shared = core.residual_facet_similarity(metadata, metadata)
+        self.assertEqual(shared, [])
+        self.assertEqual(strength, 0.0)
+
+    def test_parity_is_not_emitted_for_an_identical_multiset(self):
+        parsed = core.parse_residual_signature(
+            "opcode multiset IDENTICAL (25/25); insns T25/O25")
+        self.assertNotIn("parity:held", parsed["facets"])
+
+
+class SimilarResidualsTests(unittest.TestCase):
+    """RG run-33 deliverable 2: cross-function transferability."""
+
+    def test_self_anchored_records_are_excluded(self):
+        # The RS protocol's scoring screen, promoted to a product rule: a
+        # record anchored to the function under test is that function's own
+        # write-up, not transfer.
+        result = core.similar_residuals(root=REPO_ROOT, function="clear_player",
+                                        limit=8)
+        self.assertTrue(
+            all(row["function"] != "clear_player" for row in result["rows"]))
+        self.assertIn("channel_role", result)
+        self.assertIn("self_records_excluded", result)
+
+    def test_rows_carry_the_mechanism_and_say_why_they_matched(self):
+        result = core.similar_residuals(
+            root=REPO_ROOT, function="TowerInit", limit=5,
+            signature="opcode multiset: IDENTICAL (25/25) -- pure reorder")
+        self.assertTrue(result["rows"])
+        for row in result["rows"]:
+            self.assertTrue(row["match"], "every row must say WHY it matched")
+            self.assertIn("mechanism", row)
+            self.assertIn("rank_score", row)
+
+    def test_context_carries_the_transferability_section(self):
+        context = symbol_context("TowerInit", root=REPO_ROOT)
+        self.assertIn("similar_residuals", context)
+        self.assertIn("rows", context["similar_residuals"])
+
+
+class DerivedRecountTests(unittest.TestCase):
+    """RG run-33 deliverable 4: independent recounts for every derived table."""
+
+    def test_every_derived_table_recounts_and_prints_its_values(self):
+        result = core.recount_derived_tables(REPO_ROOT)
+        self.assertTrue(result["tables"])
+        for row in result["tables"]:
+            # A parity check must PRINT the values it compared — one passed
+            # once by comparing two empty dicts.
+            self.assertIn("shipped", row)
+            self.assertIn("independent", row)
+            self.assertIn("delta", row)
+            self.assertEqual(row["delta"], row["shipped"] - row["independent"])
+        self.assertTrue(result["ok"], result["tables"])
+
+    def test_the_recount_reads_fields_without_the_importers_helper(self):
+        # The 92.6% defect lived in the field reader, so the check must not
+        # call it. Both documented spellings and both homes must be read.
+        as_list = core._recount_id_list(
+            {"attributes": {"laws_applied": ["claim.law.a"]}}, "laws_applied")
+        as_string = core._recount_id_list(
+            {"laws_applied": '["claim.law.a"]'}, "laws_applied")
+        self.assertEqual(as_list, ["claim.law.a"])
+        self.assertEqual(as_string, ["claim.law.a"])
+
+
+class ValidateIncrementalTests(unittest.TestCase):
+    """RG run-33 deliverable 5: validate made usable."""
+
+    def test_validate_is_incremental_and_reports_its_cost(self):
+        first = core.validate_records(REPO_ROOT, refresh=1)
+        second = core.validate_records(REPO_ROOT)
+        self.assertIn("elapsed_seconds", first)
+        self.assertEqual(first["record_count"], second["record_count"])
+        self.assertEqual(second["schema_checks_cached"],
+                         second["record_count"])
+
+    def test_dangling_citations_are_debt_not_a_validation_failure(self):
+        # `prune-attempts` DELETES ejected records by design, stranding every
+        # supersedes that pointed at one. Failing the corpus on that would
+        # make the gate refuse the workflow that documents it.
+        result = core.validate_records(REPO_ROOT)
+        self.assertIn("dangling_citation_count", result)
+        self.assertTrue(result["valid"])
+
+    def test_a_new_proposal_is_still_strict_about_citations(self):
+        record = {
+            "schema_version": 1, "id": "attempt.rg-strict-probe.20260902.v1",
+            "kind": "attempt", "function": "function:TowerInit",
+            "attempted_axis": "probe", "outcome": "neutral",
+            "supersedes": "attempt.this-id-does-not-exist.v1",
+            "attributes": {"law_screen": "none applicable: test fixture"},
+        }
+        with self.assertRaises(MemoryGraphError):
+            stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
+
+
+class SpillStubTests(unittest.TestCase):
+    """RG run-33 deliverable 3: the machine-readable auto-spill stub."""
+
+    def test_row_counts_distinguish_a_full_result_from_an_empty_one(self):
+        gdlmem = importlib.import_module("memory_graph.gdlmem")
+        full = gdlmem.result_row_counts({"laws": [1, 2, 3], "note": "x"})
+        empty = gdlmem.result_row_counts({"laws": [], "note": "x"})
+        self.assertEqual(full["laws"], 3)
+        self.assertEqual(empty["laws"], 0)
+        self.assertNotEqual(full, empty)
+
+
+class ProposalGateNarrowingTests(unittest.TestCase):
+    """RG run-33: the two MB gate-tuning items."""
+
+    def _attempt_record(self, **extra):
+        record = {
+            "schema_version": 1, "id": "attempt.rg-gate-probe.20260902.v1",
+            "kind": "attempt", "function": "function:TowerInit",
+            "attempted_axis": "probe", "outcome": "improved",
+            "attributes": {"law_screen": "none applicable: test fixture"},
+        }
+        record.update(extra)
+        return record
+
+    def test_describes_denial_of_releases_the_denial_gate(self):
+        quoting = self._attempt_record(
+            attempted_axis="re-measuring a prior park that called this axis"
+                           " a do-not-retry, to see whether it still holds")
+        with self.assertRaises(MemoryGraphError):
+            core._apply_proposal_gates(quoting)
+        quoting["describes_denial_of"] = "attempt.some-prior-park.v1"
+        core._apply_proposal_gates(quoting)
+
+    def test_held_fixed_is_only_demanded_of_a_vetoing_outcome(self):
+        multi = "tried three forms: (1) alias, (2) hoist, (3) reorder"
+        retained = self._attempt_record(outcome="improved", probed_form=multi)
+        core._apply_proposal_gates(retained)   # retained edits veto nothing
+        parked = self._attempt_record(outcome="parked", probed_form=multi)
+        with self.assertRaises(MemoryGraphError):
+            core._apply_proposal_gates(parked)
 
 
 if __name__ == "__main__":

@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import sqlite3
 import subprocess
 import sys
 import tempfile
+import time
 import ast
 import uuid
 from contextlib import closing
@@ -201,6 +203,9 @@ _MULTI_EDIT_COUNT_RE = re.compile(
     re.I,
 )
 _MULTI_EDIT_ENUM_RE = re.compile(r"(?:^|[\s;])\(?[2-9][.)]\s")
+# Outcomes for which a multi-edit probe must name what it held fixed: only the
+# ones that VETO an axis. See gate C.
+HELD_FIXED_OUTCOMES = frozenset({"negative", "parked", "capped"})
 
 PDB_MODULE_RE = re.compile(r"^==\s+\.\\Release\\(.+?)\s+\((.*?)\)\s*$", re.I)
 PDB_SYMBOL_RE = re.compile(
@@ -294,6 +299,12 @@ def _iter_input_paths(root: Path) -> Iterator[Path]:
     for path in (
         root / "memory_graph" / "schema.sql",
         root / "memory_graph" / "schema" / "record.schema.json",
+        # core.py COMPUTES the derived tables (law_evidence,
+        # residual_signature), so it is a build input like the schema is. It
+        # was missing here: a change to a derivation left every existing
+        # database serving rows built by the OLD code, and `ensure_database`
+        # had no way to know. Added run 33 (RG) alongside the reorder index.
+        root / "memory_graph" / "core.py",
     ):
         if path.exists():
             yield path
@@ -1554,6 +1565,7 @@ def _import_records(connection: sqlite3.Connection, root: Path) -> int:
             )
 
     _derive_law_evidence(connection)
+    _derive_residual_index(connection)
     remaining = connection.execute(
         "SELECT COUNT(*) FROM record_ingest"
     ).fetchone()[0]
@@ -1625,6 +1637,197 @@ def _derive_law_evidence(connection: sqlite3.Connection) -> None:
                 json.dumps(sorted(entry["failure_records"])),
             ),
         )
+
+
+# --- RG lane (run 33): independent recounts for every derived table --------
+#
+# WHY. The run-32 evidence layer shipped with a canary that recomputes
+# law_evidence straight from the raw JSON, and that check is what caught the
+# importer accepting only the LIST spelling of laws_applied — 142 citations
+# imported out of 1912 present, 92.6% of the corpus's law-application evidence
+# invisible to every query built on the table. Every OTHER derived table was
+# unguarded and would have failed exactly as silently.
+#
+# INDEPENDENCE IS THE WHOLE POINT, so the field readers below are deliberately
+# re-implemented here rather than imported: the 92.6% defect lived in the field
+# READER, and a check that calls `_law_id_list` cannot see a bug inside
+# `_law_id_list`. (The run-32 canary shares those helpers — that is the gap
+# this closes.) These readers accept both documented spellings, a JSON array
+# and a JSON-encoded string of one, in both homes, top-level and `attributes.`.
+
+
+def _recount_id_list(record: Mapping[str, Any], field: str) -> list[str]:
+    """Independent re-implementation of the citation field reader."""
+    out: list[str] = []
+    for holder in (record, record.get("attributes")):
+        if not isinstance(holder, Mapping):
+            continue
+        value = holder.get(field)
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                value = [value] if value.startswith(("claim.", "attempt.",
+                                                     "evidence.")) else []
+        if isinstance(value, list):
+            out.extend(item for item in value if isinstance(item, str))
+    return out
+
+
+def _recount_refuted(record: Mapping[str, Any]) -> list[str]:
+    out: list[str] = []
+    for holder in (record, record.get("attributes")):
+        if not isinstance(holder, Mapping):
+            continue
+        value = holder.get("refutes")
+        if isinstance(value, str):
+            out.append(value)
+        elif isinstance(value, list):
+            out.extend(item for item in value if isinstance(item, str))
+    return out
+
+
+def recount_derived_tables(
+    root: Path = REPO_ROOT, db_path: Path | None = None
+) -> dict[str, Any]:
+    """Recount every derived table straight from the record JSON.
+
+    A projection table is only trustworthy if something outside its own import
+    path reproduces it. Each row reports the SHIPPED count, the INDEPENDENT
+    count and the delta — printed with values, never as a bare OK, because a
+    parity check that prints nothing once passed by comparing two empty dicts.
+    """
+    ensure_database(root, db_path)
+    with closing(open_database(root, db_path)) as connection:
+        imported = {
+            row["record_id"]: row["raw_json"]
+            for row in connection.execute(
+                "SELECT record_id, raw_json FROM record_ingest").fetchall()
+        }
+        shipped = {
+            table: int(connection.execute(
+                f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+            for table in ("attempt", "claim", "work_claim",
+                          "attempt_law_application", "attempt_law_failure",
+                          "record_refutation", "law_evidence", "measurement",
+                          "regime_event", "residual_signature")
+        }
+        shipped_evidence = {
+            row["law_record_id"]: (int(row["successes"]), int(row["failures"]))
+            for row in connection.execute(
+                "SELECT law_record_id, successes, failures"
+                " FROM law_evidence").fetchall()
+        }
+        shipped_facets = {
+            row["record_id"]: (row["kind"], row["facets_json"])
+            for row in connection.execute(
+                "SELECT record_id, kind, facets_json"
+                " FROM residual_signature").fetchall()
+        }
+
+    # Re-parse the SAME record set from the ingest column, which is the only
+    # honest comparison: reading the directories instead would count inbox
+    # proposals the build legitimately rejected and report a phantom delta.
+    records: dict[str, dict[str, Any]] = {}
+    unparseable = 0
+    for record_id, raw in imported.items():
+        try:
+            parsed = json.loads(raw)
+        except (TypeError, json.JSONDecodeError):
+            unparseable += 1
+            continue
+        if isinstance(parsed, dict):
+            records[record_id] = parsed
+
+    counts = {name: 0 for name in
+              ("attempt", "claim", "work_claim", "attempt_law_application",
+               "attempt_law_failure", "record_refutation", "measurement",
+               "regime_event", "residual_signature")}
+    successes: dict[str, int] = {}
+    failure_sets: dict[str, set[str]] = {}
+    facet_rows: dict[str, tuple[str, str]] = {}
+    law_ids: set[str] = set()
+    for record_id, record in records.items():
+        kind = record.get("kind")
+        if kind in counts:
+            counts[kind] += 1
+        if kind == "attempt":
+            landed = str(record.get("outcome", "")).lower() \
+                in LAW_SUCCESS_OUTCOMES
+            applied = {law for law in _recount_id_list(record, "laws_applied")}
+            counts["attempt_law_application"] += len(applied)
+            law_ids |= applied
+            for law in applied:
+                if landed:
+                    successes[law] = successes.get(law, 0) + 1
+            failed = {law for law in _recount_id_list(record, "laws_failed")}
+            counts["attempt_law_failure"] += len(failed)
+            law_ids |= failed
+            for law in failed:
+                failure_sets.setdefault(law, set()).add(record_id)
+            for phase in ("before", "after"):
+                if record.get(phase):
+                    counts["measurement"] += 1
+        for refuted in set(_recount_refuted(record)):
+            counts["record_refutation"] += 1
+            failure_sets.setdefault(refuted, set()).add(record_id)
+            law_ids.add(refuted)
+        residual = record.get("residual")
+        if isinstance(residual, dict):
+            counts["residual_signature"] += 1
+            parsed_sig = parse_residual_signature(residual.get("signature"))
+            facet_rows[record_id] = (parsed_sig["kind"],
+                                     json.dumps(parsed_sig["facets"]))
+
+    independent_evidence = {
+        law: (successes.get(law, 0), len(failure_sets.get(law, ())))
+        for law in law_ids
+    }
+
+    tables: list[dict[str, Any]] = []
+    for name in ("attempt", "claim", "work_claim",
+                 "attempt_law_application", "attempt_law_failure",
+                 "record_refutation", "measurement", "regime_event",
+                 "residual_signature"):
+        got, want = shipped[name], counts[name]
+        tables.append({"table": name, "shipped": got, "independent": want,
+                       "delta": got - want, "ok": got == want})
+    tables.append({
+        "table": "law_evidence",
+        "shipped": shipped["law_evidence"],
+        "independent": len(independent_evidence),
+        "delta": shipped["law_evidence"] - len(independent_evidence),
+        "ok": shipped_evidence == independent_evidence,
+        "note": "compared PER LAW (successes, failures), not only by row count",
+    })
+    mismatched_rows = sorted(
+        law for law, pair in independent_evidence.items()
+        if shipped_evidence.get(law) != pair)
+    facet_mismatch = sorted(
+        rid for rid, pair in facet_rows.items()
+        if shipped_facets.get(rid) != pair)
+    for row in tables:
+        if row["table"] == "residual_signature":
+            row["ok"] = row["ok"] and not facet_mismatch
+            row["note"] = ("compared PER RECORD (kind, facet list), not only"
+                           " by row count")
+    return {
+        "ok": all(row["ok"] for row in tables),
+        "tables": tables,
+        "records_compared": len(records),
+        "records_unparseable": unparseable,
+        "law_evidence_mismatches": mismatched_rows[:20],
+        "law_evidence_mismatch_count": len(mismatched_rows),
+        "residual_signature_mismatches": facet_mismatch[:20],
+        "residual_signature_mismatch_count": len(facet_mismatch),
+        "method": (
+            "every count is recomputed from record_ingest.raw_json by field"
+            " readers written independently of the importer's. The importer's"
+            " own readers are NOT reused: the 92.6% law-citation defect lived"
+            " inside the field reader, and a check that calls it cannot see a"
+            " bug inside it."
+        ),
+    }
 
 
 def wilson_lower_bound(successes: int, failures: int,
@@ -1943,6 +2146,7 @@ def memory_stats(root: Path = REPO_ROOT, db_path: Path | None = None) -> dict[st
             "migration_proposal", "tool_catalog",
             "attempt_law_application", "attempt_law_failure",
             "record_refutation", "law_evidence", "regime_event",
+            "residual_signature",
         ):
             counts[table] = int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
         meta = dict(connection.execute("SELECT key, value FROM meta").fetchall())
@@ -2092,6 +2296,8 @@ def symbol_context(
     root: Path = REPO_ROOT,
     db_path: Path | None = None,
     document_limit: int = 12,
+    residual: str | None = None,
+    similar_limit: int = 8,
 ) -> dict[str, Any]:
     ensure_database(root, db_path)
     with closing(open_database(root, db_path)) as connection:
@@ -2194,6 +2400,9 @@ def symbol_context(
         )["documents"]
     except MemoryGraphError:
         documents = []
+    similar = similar_residuals(
+        root=root, db_path=db_path, function=symbol_name, signature=residual,
+        limit=similar_limit)
     return {
         "query": symbol_name,
         "gamecube_symbol": dict(gcn) if gcn is not None else None,
@@ -2201,6 +2410,11 @@ def symbol_context(
         "xbox_neighbors": xbox_neighbors,
         "claims": claims,
         "attempts": attempts,
+        # RUN-33 (RG): the transferability section. The RS pilot measured
+        # `context` returning zero transferable items on 4 of 4 closable
+        # functions; `attempts` above is this function's OWN history, which is
+        # a park/veto screen, not a source of cures.
+        "similar_residuals": similar,
         "migration_proposals": proposals,
         "legacy_provenance": documents,
         "authority_note": (
@@ -2738,13 +2952,25 @@ def _reference_resolvable(connection: sqlite3.Connection, key: str) -> bool:
 
 
 def _probe_record_references(
-    record: dict[str, Any], root: Path, db_path: Path | None = None
-) -> None:
+    record: dict[str, Any], root: Path, db_path: Path | None = None,
+    connection: sqlite3.Connection | None = None,
+    strict_citations: bool = True,
+) -> list[str]:
     """Run the same reference resolution the build applies, before staging.
 
     A proposal that the build would reject must never reach the inbox: the
     build is fail-soft about inbox errors, but the proposer should learn about
     a bad reference immediately, with the build's own error text.
+
+    ``connection`` lets a CALLER validating many records at once supply one
+    open database instead of paying for a fresh `ensure_database` per record.
+    That per-record call is what made `validate` unusable: `ensure_database`
+    recomputes `source_fingerprint`, which stats every record file, the symbol
+    tables, the PDB dump and every tools/gdl source — roughly 1,600 stats — so
+    validating 1,568 records performed ~2.5 MILLION file stats plus 1,568
+    connection opens. Measured run 33: the whole call did not finish in 600 s.
+    Single-record callers (`stage_record_proposal`) are unaffected and still
+    pass nothing.
     """
     kind = record.get("kind")
     entity_refs: list[str] = []
@@ -2760,7 +2986,7 @@ def _probe_record_references(
             if record.get(optional):
                 entity_refs.append(record[optional])
     elif kind != "evidence":
-        return
+        return []
     # Record-id citations must resolve at proposal time. Handoff quality
     # depends on a successor being able to fetch every cited record in one
     # `gdlmem record` call; a typoed or stale id rots silently otherwise
@@ -2791,48 +3017,80 @@ def _probe_record_references(
                 "attributes.laws_applied must be a JSON list of record ids"
             )
         cited.extend(laws_applied)
+    if connection is not None:
+        return _probe_references_with(connection, record, kind, entity_refs,
+                                      cited, root,
+                                      strict_citations=strict_citations)
     ensure_database(root, db_path)
-    with closing(open_database(root, db_path)) as connection:
-        for key in entity_refs:
-            if not _reference_resolvable(connection, key):
-                raise MemoryGraphError(
-                    f"proposal references unknown entity {key!r}; use an existing"
-                    " entity key, or a `function:<symbol>`/`tu:<module>` name that"
-                    " resolves against the GameCube symbol import"
-                )
-        for cited_id in cited:
-            if cited_id == record.get("id"):
-                raise MemoryGraphError("a record cannot cite itself")
-            row = connection.execute(
-                "SELECT 1 FROM record_ingest WHERE record_id=?", (cited_id,)
-            ).fetchone()
-            if row is None:
-                # Same-batch proposals cite each other before any rebuild
-                # ingests them — resolve against the inbox files too, so a
-                # correct citation is never reported as a typo (a worker
-                # burned a round trip hunting a misspelling that wasn't
-                # there).
-                inbox = root / "memory_graph" / "inbox"
-                in_inbox = inbox.exists() and any(
-                    p.stem == cited_id for p in inbox.glob("*.json")
-                )
-                if in_inbox:
-                    continue
-                raise MemoryGraphError(
-                    f"cited record id {cited_id!r} does not resolve (check"
-                    " supersedes / attributes.laws_applied for typos; if the"
-                    " record was accepted moments ago, rebuild the graph)"
-                )
-        if kind == "evidence":
-            table = "claim" if record.get("claim") else "edge"
-            target = record.get("claim") or record.get("edge")
-            row = connection.execute(
-                f"SELECT 1 FROM {table} WHERE record_id=?", (target,)
-            ).fetchone()
-            if row is None:
-                raise MemoryGraphError(
-                    f"proposal references unknown {table} record {target!r}"
-                )
+    with closing(open_database(root, db_path)) as owned:
+        return _probe_references_with(owned, record, kind, entity_refs, cited,
+                                      root,
+                                      strict_citations=strict_citations)
+
+
+def _probe_references_with(
+    connection: sqlite3.Connection, record: dict[str, Any], kind: Any,
+    entity_refs: list[str], cited: list[str], root: Path,
+    strict_citations: bool = True,
+) -> list[str]:
+    """The reference checks themselves, against an already-open connection.
+
+    Split out of `_probe_record_references` so a bulk caller can hold ONE
+    connection across every record; the checks are byte-for-byte the ones the
+    build applies.
+    """
+    for key in entity_refs:
+        if not _reference_resolvable(connection, key):
+            raise MemoryGraphError(
+                f"proposal references unknown entity {key!r}; use an existing"
+                " entity key, or a `function:<symbol>`/`tu:<module>` name that"
+                " resolves against the GameCube symbol import"
+            )
+    dangling: list[str] = []
+    for cited_id in cited:
+        if cited_id == record.get("id"):
+            raise MemoryGraphError("a record cannot cite itself")
+        row = connection.execute(
+            "SELECT 1 FROM record_ingest WHERE record_id=?", (cited_id,)
+        ).fetchone()
+        if row is None:
+            # Same-batch proposals cite each other before any rebuild
+            # ingests them — resolve against the inbox files too, so a
+            # correct citation is never reported as a typo (a worker
+            # burned a round trip hunting a misspelling that wasn't
+            # there).
+            inbox = root / "memory_graph" / "inbox"
+            in_inbox = inbox.exists() and any(
+                p.stem == cited_id for p in inbox.glob("*.json")
+            )
+            if in_inbox:
+                continue
+            if not strict_citations:
+                # BULK VALIDATION of the ACCEPTED corpus. A dangling citation
+                # here is usually not a typo: `prune-attempts` DELETES records
+                # ejected past the per-function cap, by design, and every
+                # `supersedes` pointing at one is stranded by that deletion.
+                # Reporting those as hard errors would make `validate` fail on
+                # the documented workflow's own output — the gate refusing the
+                # records that document it. Collected as debt instead.
+                dangling.append(cited_id)
+                continue
+            raise MemoryGraphError(
+                f"cited record id {cited_id!r} does not resolve (check"
+                " supersedes / attributes.laws_applied for typos; if the"
+                " record was accepted moments ago, rebuild the graph)"
+            )
+    if kind == "evidence":
+        table = "claim" if record.get("claim") else "edge"
+        target = record.get("claim") or record.get("edge")
+        row = connection.execute(
+            f"SELECT 1 FROM {table} WHERE record_id=?", (target,)
+        ).fetchone()
+        if row is None:
+            raise MemoryGraphError(
+                f"proposal references unknown {table} record {target!r}"
+            )
+    return dangling
 
 
 def record_template(kind: str) -> dict[str, Any]:
@@ -3082,7 +3340,19 @@ def _apply_proposal_gates(record: dict[str, Any]) -> None:
     #     must) is not caught by its own citation apparatus.
     # The practical corollary from that law was followed: this gate was run
     # against the records documenting it before the commit landed.
-    if anchored and not _record_field(record, "denial"):
+    # (c) RUN 33, from the MB lane via the integrator: the gate also fired on
+    #     records whose substance QUOTES a prior denial in order to screen,
+    #     re-measure or overturn it — exactly the behaviour AGENTS.md asks for
+    #     (discipline 1: re-derive the mechanism; discipline 10b: remeasure the
+    #     NEGATIVE findings). Demanding a typed `denial` from a record that is
+    #     REPORTING someone else's is the self-refusal defect one level out, so
+    #     `describes_denial_of: <record-id>` is the explicit escape. It is a
+    #     CITATION, not a free-text opt-out: it names the record being
+    #     described, which is checkable, and it does not suppress the gate for
+    #     a record that also issues a denial of its own — that still needs the
+    #     typed object.
+    describes = _record_field(record, "describes_denial_of")
+    if anchored and not _record_field(record, "denial") and not describes:
         denial_hit = _DENIAL_PHRASE_RE.search(substance)
         if denial_hit:
             raise MemoryGraphError(
@@ -3096,15 +3366,25 @@ def _apply_proposal_gates(record: dict[str, Any]) -> None:
                 " of ineligibility. State the SCOPE the denial covers, the"
                 " MEASUREMENT behind it, an EXPIRY_CHECK command a later lane"
                 " can run to see whether it still holds, and the FALSIFIER."
-                " If you are describing someone else's denial rather than"
-                " issuing one, say so without the imperative phrasing."
+                " If you are DESCRIBING someone else's denial rather than"
+                " issuing one — screening it, re-measuring it, or overturning"
+                " it — set `describes_denial_of` to the record id you are"
+                " describing instead of adding a denial you do not mean."
             )
 
     # Gate C. A park that changed several things at once and does not say
     # which variable it held fixed reads as a veto on every axis it touched.
     # Discipline 6's measured case: two correct-alone negative parks jointly
     # hid a 7-function TU flip because neither said what it held constant.
-    if record.get("kind") == "attempt":
+    #
+    # RUN-33 NARROWING, from the MB lane via the integrator: the gate is keyed
+    # on OUTCOME. Its whole rationale is that a NEGATIVE result reads as a veto
+    # on every axis it touched, so the record must say which variable it held
+    # constant. A record whose edits were all RETAINED (exact/improved/
+    # neutral/reclassified) vetoes nothing — demanding held_fixed there taxes
+    # the successes to protect against a failure mode only the failures have.
+    if record.get("kind") == "attempt" and \
+            str(record.get("outcome", "")).lower() in HELD_FIXED_OUTCOMES:
         probed = _record_field(record, "probed_form")
         if isinstance(probed, str) and probed.strip():
             multi = _MULTI_EDIT_COUNT_RE.search(probed) \
@@ -3965,6 +4245,329 @@ def _iter_attempt_residuals(root: Path) -> Iterator[tuple[dict[str, Any], dict[s
                 yield record, residual
 
 
+# --- RG lane (run 33): the PURE-REORDER index axis -------------------------
+#
+# MEASURED PROBLEM (claim.law.RS_residual-retrieval-is-blind-to-pure-reorder-
+# residuals): `_signature_tokens` indexes ONLY the +N/-N opcode mnemonics of a
+# `--ops` delta. When the opcode multiset is IDENTICAL there are no such
+# markers, so every pure-reorder signature presents the SAME empty term set and
+# `laws --residual` degenerates to a default listing. The RS pilot proved it:
+# four distinct pilot signatures returned byte-identical 71992-byte payloads,
+# sha1 88dc32585711 for all four.
+#
+# MEASURED CORPUS SHAPE (RG census, 2026-09-02, 1001 records carrying a
+# top-level residual object): 521 signatures yield zero index tokens. Of those,
+# 346 are the EMPTY STRING — genuinely unindexable, and no parser fixes that —
+# and ~175 are pure-reorder signatures that carry real content the old tokenizer
+# threw away.
+#
+# WHAT A REORDER SIGNATURE ACTUALLY CARRIES. The measured emitted form is
+#   "0t opcode multiset IDENTICAL (155/155); insns T155/O155; 0 ops clusters"
+# optionally followed by lane prose such as
+#   "; real 8 = 1 immediate @0x17c + a 3-atom epilogue permutation
+#    ['li','stw','lwz'] at [0x1a4,0x1b4)"
+# So the indexable facts are: the identical-multiset SENTINEL, the instruction
+# count, the cluster count, and — when a lane wrote them — differing-word and
+# atom counts, an opcode list, and shape flags. Those are typed into FACET
+# TOKENS here, which is what makes two reorder signatures comparable at all.
+#
+# HONEST BOUND, stated because the ranking downstream depends on it: a bare
+# reorder signature's whole content is (insns, clusters). Two functions sharing
+# those two numbers have little else in common, so facet similarity over bare
+# reorder signatures is a WEAK predictor of which source-level edit closes the
+# residual — it discriminates the query (which is the fix) without claiming to
+# rank cures. The strong descriptor is regnorm's genuine/unpaired/crossing
+# tuple, which CANNOT be backfilled: a closed function no longer has the
+# residual to measure. That is why the richer facets below are read when a lane
+# recorded them and never invented when it did not.
+# NOTE THE PUNCTUATION CLASS, and it is not cosmetic. The STORED corpus
+# signatures read "opcode multiset IDENTICAL (155/155)" while LIVE
+# `fndiff --ops` emits "opcode multiset: IDENTICAL (33/33)" with a colon. A
+# regex written from the stored form alone parses every live signature as
+# `empty` — measured here: all 13 pure-reorder acceptance rows classified
+# `empty` on the first run, which is the same class of defect this whole lane
+# exists to remove (a query silently asking nothing).
+_REORDER_SENTINEL_RE = re.compile(
+    r"multiset[:\s]+IDENTICAL\s*\(\s*(\d+)\s*/\s*(\d+)\s*\)", re.I)
+_SIG_INSNS_RE = re.compile(r"insns\s+T\s*(\d+)\s*/\s*O\s*(\d+)", re.I)
+_SIG_CLUSTERS_RE = re.compile(r"(\d+)\s+ops\s+clusters", re.I)
+# The STORED form says "N ops clusters"; the LIVE form never does — it prints
+# the clusters themselves and, when any is flagged, a "1 of 2 clusters
+# flagged" line. Both are read so a lane pasting live output gets the same
+# facets as one quoting a recorded signature.
+_SIG_CLUSTERS_FLAGGED_RE = re.compile(r"\d+\s+of\s+(\d+)\s+clusters", re.I)
+_SIG_CLUSTER_LINE_RE = re.compile(
+    r"^\s*(delete|insert|replace)\s+T\[", re.I | re.M)
+_SIG_WORDS_RE = re.compile(r"(\d+)\s+differing\s+words", re.I)
+_SIG_ATOMS_RE = re.compile(r"(\d+)[-\s]atom", re.I)
+# RUN 33, from the MB lane via the integrator, and it is the sharpest thing
+# known about this population: a signature recording ONLY the multiset delta
+# serialises a function whose entire residual is same-opcode IMMEDIATES as
+# "0t IDENTICAL" — INDISTINGUISHABLE from a genuinely closed function.
+# Measured: DrawPsysSub's stored signature read `0t (290/290)` while a live
+# fndiff showed 49 IMMEDIATE rows (frame-slot displacements), and the stale
+# label sent a whole charter down the wrong class. So "IDENTICAL u0 i49" and
+# "IDENTICAL u4 i0" are DIFFERENT FAMILIES and the index must separate them.
+# Both the canonical short form (`u4 i49 g3`) and the long prose lanes
+# actually write ("49 immediate rows", "4 unpaired", "3 genuine") are read.
+_SIG_UNPAIRED_RE = re.compile(
+    r"(?:\bu(\d+)\b|(\d+)\s+unpaired)", re.I)
+_SIG_IMMEDIATE_RE = re.compile(
+    r"(?:\bi(\d+)\b|(\d+)\s+immediate(?:\s+rows?)?)", re.I)
+_SIG_GENUINE_RE = re.compile(
+    r"(?:\bg(\d+)\b|(\d+)\s+genuine)", re.I)
+_SIG_REAL_RE = re.compile(r"\breal\s+(\d+)", re.I)
+_SIG_OPLIST_RE = re.compile(r"\[([^\[\]]*?)\]")
+_SIG_MNEMONIC_RE = re.compile(r"'([a-z][a-z0-9_.]*)'")
+# Shape words a lane writes about a reorder residual. Kept SMALL and literal:
+# an open-ended prose vocabulary is the 30-50%-precision extraction the BF lane
+# measured and the RS lane's discarded keyword scorer, both recorded failures.
+_SIG_SHAPE_FLAGS = (
+    ("immediate", "immediate"),
+    ("permutation", "permutation"),
+    ("shiftable", "shiftable"),
+    ("balanced", "balanced"),
+    ("epilogue", "epilogue"),
+    ("prologue", "prologue"),
+)
+REORDER_INSN_BANDS = (15, 31, 63, 127, 255, 511, 1023)
+
+# Facet weights. A facet's weight is how much SHARING it should count for, and
+# they are deliberately ordered: a shared opcode is real evidence, a shared
+# instruction band is a coincidence two hundred records also share.
+RESIDUAL_FACET_WEIGHTS: dict[str, float] = {
+    # The MB row-shape facets outrank everything else in the reorder class:
+    # they are the only facts that separate "IDENTICAL u0 i49" from
+    # "IDENTICAL u4 i0", which are different families entirely.
+    "immediates": 1.00,
+    "unpaired": 0.95,
+    "genuine": 0.95,
+    "op": 0.90,
+    "insns": 0.60,
+    "words": 0.35,
+    "atoms": 0.35,
+    "insnband": 0.45,
+    "clusters": 0.35,
+    "flag": 0.25,
+    "kind": 0.00,      # sentinel: gates the comparison, scores nothing
+    "resolution": 0.00,  # honesty metadata, reported not scored
+    "parity": 0.10,
+}
+
+
+def _insn_band(count: int) -> int:
+    for high in REORDER_INSN_BANDS:
+        if count <= high:
+            return high
+    return 9999
+
+
+def _facet_weight(facet: str) -> float:
+    return RESIDUAL_FACET_WEIGHTS.get(facet.split(":", 1)[0], 0.20)
+
+
+def parse_residual_signature(signature: str | None) -> dict[str, Any]:
+    """Typed facets of a recorded `fndiff --ops` residual signature.
+
+    Returns a dict with a ``kind`` of ``reorder`` (opcode multiset IDENTICAL —
+    the schedule/recolor class the exact-match mandate concentrates on),
+    ``asymmetric`` (carries +N/-N opcode markers) or ``empty`` (nothing
+    indexable — 346 corpus records are in this state and a parser cannot
+    rescue them), plus the ``facets`` token list the index is built on.
+    """
+    text = signature if isinstance(signature, str) else ""
+    out: dict[str, Any] = {
+        "kind": "empty", "insns_target": None, "insns_ours": None,
+        "clusters": None, "real": None, "words": None, "atoms": None,
+        "unpaired": None, "immediates": None, "genuine": None,
+        "opcodes": [], "flags": [], "facets": [], "resolution": None,
+    }
+    if not text.strip():
+        return out
+    lowered = text.lower()
+    facets: list[str] = []
+
+    sentinel = _REORDER_SENTINEL_RE.search(text)
+    opcode_markers = sorted(_SIGNATURE_OPCODE_RE.findall(lowered))
+    if sentinel:
+        out["insns_target"] = int(sentinel.group(1))
+        out["insns_ours"] = int(sentinel.group(2))
+        # THE MB SEPARATION, and `fndiff --ops` already emits it live:
+        #   "IDENTICAL (52/52) -- but 4 IMMEDIATE word(s) differ at aligned
+        #    same-opcode positions: NOT pure reorder, NOT schedule-class"
+        # An identical multiset with differing immediates is a DIFFERENT
+        # FAMILY from a true reorder — frame-slot displacements, not a
+        # schedule — so it gets its own kind and can never be paired with one.
+        # The stored corpus signatures lost this: DrawPsysSub serialised as
+        # `0t (290/290)` while carrying 49 immediate rows.
+        out["kind"] = ("immediate-aligned"
+                       if ("not pure reorder" in lowered
+                           or "immediate word" in lowered)
+                       else "reorder")
+    elif opcode_markers:
+        out["kind"] = "asymmetric"
+    facets.append(f"kind:{out['kind']}")
+
+    insns = _SIG_INSNS_RE.search(text)
+    if insns:
+        out["insns_target"] = int(insns.group(1))
+        out["insns_ours"] = int(insns.group(2))
+    if out["insns_target"] is not None:
+        facets.append(f"insns:{out['insns_target']}")
+        facets.append(f"insnband:{_insn_band(out['insns_target'])}")
+        # Count parity is informative ONLY for a count-asymmetric signature.
+        # Under an IDENTICAL multiset it is implied by the sentinel — T==O
+        # always — so emitting it there gives every reorder record a facet in
+        # common with every reorder query, which re-creates the constant list
+        # this index exists to break. Measured: with `parity:held` emitted for
+        # reorder signatures, 7 of the 13 acceptance rows still selected one
+        # identical 183-record set.
+        if (out["insns_ours"] == out["insns_target"]
+                and out["kind"] == "asymmetric"):
+            facets.append("parity:held")
+
+    clusters = _SIG_CLUSTERS_RE.search(text)
+    flagged = _SIG_CLUSTERS_FLAGGED_RE.search(text)
+    cluster_lines = len(_SIG_CLUSTER_LINE_RE.findall(text))
+    if clusters:
+        out["clusters"] = int(clusters.group(1))
+    elif flagged:
+        out["clusters"] = int(flagged.group(1))
+    elif cluster_lines:
+        out["clusters"] = cluster_lines
+    if out["clusters"] is not None:
+        # Exact for the small counts that discriminate; banded above, where the
+        # exact number is noise.
+        facets.append(f"clusters:{out['clusters']}"
+                      if out["clusters"] <= 4 else "clusters:5+")
+
+    for attr, pattern in (("words", _SIG_WORDS_RE), ("atoms", _SIG_ATOMS_RE),
+                          ("real", _SIG_REAL_RE)):
+        found = pattern.search(text)
+        if found:
+            out[attr] = int(found.group(1))
+    if out["words"] is not None:
+        facets.append(f"words:{out['words']}")
+    if out["atoms"] is not None:
+        facets.append(f"atoms:{out['atoms']}")
+
+    # The MB separation: unpaired / immediate / genuine row counts.
+    for attr, pattern in (("unpaired", _SIG_UNPAIRED_RE),
+                          ("immediates", _SIG_IMMEDIATE_RE),
+                          ("genuine", _SIG_GENUINE_RE)):
+        found = pattern.search(text)
+        if found:
+            value = found.group(1) or found.group(2)
+            if value is not None:
+                out[attr] = int(value)
+                facets.append(f"{attr}:{out[attr]}")
+    if out["kind"] in ("reorder", "immediate-aligned"):
+        # RESOLUTION is an honesty facet, not a similarity facet: it records
+        # whether this signature can tell a CLOSED function from one carrying
+        # only same-opcode immediate rows. A `multiset-only` reorder signature
+        # cannot — that is the DrawPsysSub defect — so it must never be read
+        # as evidence of a closed or nearly-closed residual, and it must not
+        # be treated as a confident neighbour of a resolved one.
+        resolved = any(out[key] is not None
+                       for key in ("unpaired", "immediates", "genuine"))
+        out["resolution"] = "row-resolved" if resolved else "multiset-only"
+        facets.append(f"resolution:{out['resolution']}")
+
+    mnemonics: set[str] = set(opcode_markers)
+    for group in _SIG_OPLIST_RE.findall(text):
+        mnemonics.update(_SIG_MNEMONIC_RE.findall(group.lower()))
+    out["opcodes"] = sorted(mnemonics)
+    facets.extend(f"op:{name}" for name in out["opcodes"])
+
+    for word, flag in _SIG_SHAPE_FLAGS:
+        if word in lowered:
+            out["flags"].append(flag)
+            facets.append(f"flag:{flag}")
+
+    out["facets"] = sorted(set(facets))
+    return out
+
+
+def residual_facets(signature: str | None) -> set[str]:
+    """The indexable facet tokens of a residual signature."""
+    return set(parse_residual_signature(signature)["facets"])
+
+
+def residual_facet_similarity(
+    query: Iterable[str], candidate: Iterable[str]
+) -> tuple[float, list[str]]:
+    """Weighted overlap of two facet sets, in [0, 1], plus the shared facets.
+
+    Normalised by the QUERY's own weight so the score answers "how much of what
+    I asked about does this row share", not "how similar are two rows" — an
+    unshared facet on the candidate is not evidence against it.
+    """
+    # ONLY POSITIVE-WEIGHT FACETS PARTICIPATE. `kind:` and `resolution:` are
+    # metadata — a sentinel that gates the comparison and an honesty label —
+    # and both weigh 0. Leaving them in the set made every reorder record
+    # share a facet with every reorder query, so the SELECTED SET was constant
+    # across all 13 pure-reorder acceptance rows and only the ORDER varied.
+    # That is precisely the PX failure mode ("any retrieval A/B that counts
+    # constant lists is insensitive by construction"), reproduced inside the
+    # fix for it, and caught by the acceptance measurement rather than by
+    # reasoning.
+    query_set = {f for f in query if _facet_weight(f) > 0}
+    candidate_set = set(candidate)
+    total = sum(_facet_weight(f) for f in query_set)
+    if total <= 0:
+        return 0.0, []
+    shared = sorted(query_set & candidate_set)
+    got = sum(_facet_weight(f) for f in shared)
+    return min(1.0, got / total), shared
+
+
+def _derive_residual_index(connection: sqlite3.Connection) -> None:
+    """Rebuild `residual_signature` from scratch. Called once per build.
+
+    A pure projection of rows already imported, TRUNCATED first so a rebuild is
+    idempotent and a stale row from a deleted record cannot survive — the same
+    property that makes `law_evidence` auditable, and the reason
+    `recount_derived_tables` can check it against the raw JSON.
+    """
+    connection.execute("DELETE FROM residual_signature")
+    rows = connection.execute(
+        "SELECT record_id, raw_json FROM record_ingest").fetchall()
+    for row in rows:
+        try:
+            record = json.loads(row["raw_json"])
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(record, dict):
+            continue
+        # TOP-LEVEL ONLY, exactly as `_iter_attempt_residuals` reads it:
+        # attributes.residual is legacy free prose on 654 records.
+        residual = record.get("residual")
+        if not isinstance(residual, dict):
+            continue
+        parsed = parse_residual_signature(residual.get("signature"))
+        function_key = record.get("function")
+        connection.execute(
+            "INSERT OR REPLACE INTO residual_signature(record_id,"
+            " function_key, outcome, family, capability_needed, kind,"
+            " insns_target, insns_ours, clusters, signature, facets_json,"
+            " measured_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                row["record_id"],
+                str(function_key) if function_key else None,
+                str(record.get("outcome")).lower() if record.get("outcome")
+                else None,
+                residual.get("family"),
+                residual.get("capability_needed"),
+                parsed["kind"],
+                parsed["insns_target"], parsed["insns_ours"],
+                parsed["clusters"],
+                residual.get("signature") or "",
+                json.dumps(parsed["facets"]),
+                residual.get("measured_at"),
+            ),
+        )
+
+
 def webfrank_pin_mechanisms(
     root: Path = REPO_ROOT, query: str | None = None
 ) -> list[dict[str, Any]]:
@@ -4198,22 +4801,30 @@ def law_corpus(
 
     residual_matches: list[dict[str, Any]] = []
     residual_law_ids: set[str] = set()
+    residual_parsed: dict[str, Any] | None = None
     if residual:
-        wanted = _signature_tokens(residual)
+        residual_parsed = parse_residual_signature(residual)
+        wanted_tokens = _signature_tokens(residual)
+        wanted_facets = set(residual_parsed["facets"])
         for record, obj in _iter_attempt_residuals(root):
             signature = obj.get("signature") or ""
-            shared = _signature_tokens(signature) & wanted
-            if not shared:
+            # OPCODE path, unchanged: a count-asymmetric residual is matched on
+            # its shared +N/-N mnemonics, which is exact where those exist.
+            shared = _signature_tokens(signature) & wanted_tokens
+            candidate = parse_residual_signature(signature)
+            strength, shared_facets = residual_facet_similarity(
+                wanted_facets, candidate["facets"])
+            # REORDER path, added run 33: a pure-reorder query carries no
+            # mnemonics, so it is matched on typed facets against the other
+            # reorder rows. The KIND must agree — pairing a reorder signature
+            # with a count-asymmetric one is the false neighbour that makes an
+            # undiscriminated listing look like a result.
+            same_kind = (residual_parsed["kind"] != "empty"
+                         and candidate["kind"] == residual_parsed["kind"])
+            if not shared and not (same_kind and shared_facets):
                 continue
-            applied = _record_field(record, "laws_applied")
-            if isinstance(applied, str):
-                try:
-                    applied = json.loads(applied)
-                except json.JSONDecodeError:
-                    applied = []
-            if isinstance(applied, list):
-                residual_law_ids.update(
-                    item for item in applied if isinstance(item, str))
+            applied = _law_id_list(record, "laws_applied")
+            residual_law_ids.update(applied)
             fn_name = str(record.get("function", "")).split(":", 1)[-1]
             residual_matches.append({
                 "record": record.get("id"),
@@ -4224,9 +4835,15 @@ def law_corpus(
                 "capability_needed": obj.get("capability_needed"),
                 "measured_at": obj.get("measured_at"),
                 "shared_tokens": sorted(shared),
+                "kind": candidate["kind"],
+                "resolution": candidate.get("resolution"),
+                "shared_facets": shared_facets,
+                "match_strength": round(strength, 4),
+                "laws_applied": applied,
             })
         residual_matches.sort(
-            key=lambda row: (-len(row["shared_tokens"]), row["record"] or ""))
+            key=lambda row: (-len(row["shared_tokens"]),
+                             -row["match_strength"], row["record"] or ""))
 
     tokens = _query_tokens(query) if query else []
     selected = []
@@ -4345,10 +4962,48 @@ def law_corpus(
                             if row["status"] == "provisional"]
         hidden_provisional = len(provisional_rows)
         laws = kept
+    # RESIDUAL RELEVANCE (run 33, RG, prompted by the PX 24-row baseline).
+    # PX measured that `laws --residual` returned ONE constant 6-law payload
+    # for all 13 pure-reorder rows and a second constant 5-law payload for 4
+    # more — zero discriminating payloads across 24 queries — and that `brief`
+    # ships a 59-law matching_laws list byte-identical for every TU. A
+    # constant list selects nothing, so ranking it FOR THIS QUERY is the whole
+    # value. Each law is scored by the best-matching cohort record that cites
+    # it (similarity x outcome weight), damped by how ubiquitous the law is in
+    # the cohort — a law every record cites carries no information about which
+    # of them resembles you.
+    if residual and residual_matches:
+        cohort_size = len(residual_matches)
+        support: dict[str, float] = {}
+        document_freq: dict[str, int] = {}
+        for match in residual_matches:
+            for law_id in match.get("laws_applied") or []:
+                document_freq[law_id] = document_freq.get(law_id, 0) + 1
+                weight = (match["match_strength"]
+                          * SIMILAR_OUTCOME_TIER.get(
+                              str(match.get("outcome") or "").lower(), 0.2))
+                if weight > support.get(law_id, 0.0):
+                    support[law_id] = weight
+        for row in laws:
+            raw_support = support.get(row["id"], 0.0)
+            freq = document_freq.get(row["id"], 0)
+            damp = (math.log(max(cohort_size, 2) / freq)
+                    if freq else 0.0)
+            row["residual_relevance"] = round(raw_support * damp, 4)
+            row["residual_cohort_citations"] = freq
     if rank:
-        laws.sort(key=lambda row: law_score_sort_key(
-            {"status": row["status"], "wilson": row["score"], "n": row["n"],
-             "id": row["id"]}))
+        if residual and residual_matches:
+            # Tier still outranks everything — a refuted law must not float on
+            # relevance — but WITHIN a tier the query decides the order.
+            laws.sort(key=lambda row: (
+                LAW_STATUS_ORDER.index(row["status"])
+                if row["status"] in LAW_STATUS_ORDER else len(LAW_STATUS_ORDER),
+                -float(row.get("residual_relevance") or 0.0),
+                -float(row["score"] or 0.0), -int(row["n"] or 0), row["id"]))
+        else:
+            laws.sort(key=lambda row: law_score_sort_key(
+                {"status": row["status"], "wilson": row["score"],
+                 "n": row["n"], "id": row["id"]}))
     truncated = max(0, len(laws) - limit)
     laws = laws[:limit]
 
@@ -4448,13 +5103,51 @@ def law_corpus(
         out["pin_mechanisms"] = webfrank_pin_mechanisms(root, query)
     if residual:
         out["residual_matches"] = residual_matches
+        out["residual_parsed"] = residual_parsed
         out["residual_note"] = (
             "sibling records whose recorded residual.signature shares"
-            " mnemonics with your --ops delta. capability_needed names the"
-            " postprocessor capability that would unpark the function; query"
-            " it directly with `find --capability <name>`. Signatures are"
-            " measured_at a DATE — remeasure before trusting one."
+            " mnemonics OR typed facets with your --ops delta."
+            " capability_needed names the postprocessor capability that would"
+            " unpark the function; query it directly with"
+            " `find --capability <name>`. Signatures are measured_at a DATE —"
+            " remeasure before trusting one."
         )
+        if residual_parsed and residual_parsed["kind"] == "reorder":
+            out["residual_note"] += (
+                " PURE-REORDER QUERY (opcode multiset IDENTICAL): matched on"
+                " typed facets — instruction count/band, cluster count and any"
+                " opcode, word, atom or shape facts the sibling's lane"
+                " recorded — because such a signature carries no +N/-N"
+                " mnemonics at all. READ match_strength BEFORE READING THE"
+                " ORDER: a bare reorder signature's entire content is (insns,"
+                " clusters), so a row matching on those alone is a WEAK"
+                " neighbour, not a prescription. The strong descriptor for"
+                " this class is regnorm's genuine/unpaired/crossing tuple,"
+                " which cannot be backfilled onto closed functions — run"
+                " `regnorm.py <unit> <fn> --map` on YOUR residual and screen"
+                " the returned laws' scope lines against its crossing shape."
+            )
+            if residual_parsed.get("resolution") == "multiset-only":
+                out["residual_warning"] = (
+                    "MULTISET-ONLY SIGNATURE. Yours records the opcode-multiset"
+                    " delta and nothing about ROWS, so it cannot distinguish a"
+                    " CLOSED function from one whose entire residual is"
+                    " same-opcode immediates: DrawPsysSub's stored signature"
+                    " read `0t (290/290)` while a live fndiff showed 49"
+                    " IMMEDIATE rows, and that stale label sent a whole"
+                    " charter down the wrong class. `IDENTICAL u0 i49` and"
+                    " `IDENTICAL u4 i0` are DIFFERENT FAMILIES. Re-measure and"
+                    " record the row counts — the canonical short form is"
+                    " `u<unpaired> i<immediates> g<genuine>` appended to the"
+                    " signature — before trusting any neighbour returned here."
+                )
+        elif residual_parsed and residual_parsed["kind"] == "empty":
+            out["residual_note"] += (
+                " YOUR SIGNATURE PARSED AS EMPTY: it carries neither +N/-N"
+                " mnemonics nor an identical-multiset sentinel, so nothing was"
+                " asked and an empty result is NOT evidence the corpus is"
+                " silent. Paste the `fndiff --ops` output verbatim."
+            )
         if not query:
             # Pins whose mechanism prose names one of the delta's mnemonics:
             # a closed derivation for the same opcode shape is the cheapest
@@ -4465,6 +5158,270 @@ def law_corpus(
                 if wanted & _signature_tokens(pin["mechanism"])
             ]
     return out
+
+
+# --- RG lane (run 33): cross-function transferability ----------------------
+#
+# MEASURED PROBLEM (claim.measurement.RS_retrieval-pilot-four-functions): the
+# per-function `context <fn>` call that AGENTS.md discipline 11 makes mandatory
+# step zero returned ZERO transferable items on 4 of 4 closable functions —
+# empty three times and self-referential once. Its value on that population was
+# screening for parks and vetoes, not finding cures. Nothing in the surface
+# answered "who else had a residual shaped like mine, and what closed it".
+#
+# The self-reference screen below is the RS protocol's, promoted from a scoring
+# rule to a product rule: a record ANCHORED TO THE FUNCTION UNDER TEST is that
+# function's own write-up, and returning it as transferable evidence is the
+# graph remembering its own answer. Measured instance: `context
+# PlayerCollidePlayers` returned exactly one record — the closing agent's own,
+# naming the cure outright.
+SIMILAR_OUTCOME_TIER: dict[str, float] = {
+    "exact": 1.00, "improved": 0.85, "capped": 0.40, "parked": 0.35,
+    "negative": 0.20, "neutral": 0.20,
+}
+SIMILAR_LAW_TIER: dict[str, float] = {
+    "established": 1.0, "contested": 0.5, "provisional": 0.35, "refuted": 0.05,
+}
+# Fixed a priori and reported with the acceptance table, so the ranking cannot
+# be quietly tuned to whichever functions were used to measure it.
+SIMILAR_WEIGHTS: dict[str, float] = {
+    "signature": 0.40, "family": 0.20, "tu": 0.15, "outcome": 0.15,
+    "law_evidence": 0.10,
+}
+
+
+def _module_for_function(connection: sqlite3.Connection,
+                         name: str) -> str | None:
+    row = connection.execute(
+        "SELECT m.object_name AS tu FROM binary_symbol s"
+        " JOIN binary_module m ON m.id = s.module_id"
+        " WHERE s.platform='gamecube' AND s.symbol_kind='function'"
+        "   AND lower(s.raw_name)=lower(?) LIMIT 1",
+        (name,),
+    ).fetchone()
+    return row["tu"] if row else None
+
+
+def similar_residuals(
+    *,
+    root: Path = REPO_ROOT,
+    db_path: Path | None = None,
+    function: str | None = None,
+    tu: str | None = None,
+    signature: str | None = None,
+    family: str | None = None,
+    limit: int = 8,
+    landed_only: int = 0,
+    exclude_tu: str | None = None,
+) -> dict[str, Any]:
+    """"Similar residuals elsewhere": what closed a residual shaped like this.
+
+    Three cohorts, each labelled on the row so a reader can tell WHY it is
+    here: ``signature`` (typed facet overlap with your `--ops` delta, including
+    the run-33 pure-reorder facets), ``family`` (the same residual family) and
+    ``tu`` (a sibling in the same translation unit, resolved through the symbol
+    map because records rarely carry a `tu` field). Ranked by the run-32
+    evidence layer as well as by similarity, capped small, and every row
+    carries the MECHANISM prose — a row without it is not transferable.
+    """
+    ensure_database(root, db_path)
+    fn_name = (function or "").split(":", 1)[-1] or None
+    query_facets: set[str] = set()
+    query_kind = "empty"
+    if signature:
+        parsed = parse_residual_signature(signature)
+        query_facets = set(parsed["facets"])
+        query_kind = parsed["kind"]
+    with closing(open_database(root, db_path)) as connection:
+        if fn_name and not tu:
+            tu = _module_for_function(connection, fn_name)
+        # An agent who already recorded a residual on this function gets its
+        # facets and family for free rather than having to retype them.
+        if fn_name and (not query_facets or not family):
+            for row in connection.execute(
+                "SELECT rs.signature, rs.family FROM residual_signature rs"
+                " WHERE lower(rs.function_key)=lower(?)"
+                " ORDER BY rs.record_id DESC",
+                (f"function:{fn_name}",),
+            ).fetchall():
+                if not query_facets and row["signature"]:
+                    parsed = parse_residual_signature(row["signature"])
+                    query_facets = set(parsed["facets"])
+                    query_kind = parsed["kind"]
+                if not family and row["family"] not in (None, "unclassified",
+                                                        "no-residual"):
+                    family = row["family"]
+        evidence = _load_law_evidence(connection)
+        # A derived table that is present but EMPTY returns "no similar
+        # residuals" — indistinguishable from a genuine silence, which is the
+        # precise failure this lane exists to remove. Caught once during
+        # development by `recount` (shipped 0 vs 1001 independent), so the
+        # condition is reported rather than trusted.
+        indexed = int(connection.execute(
+            "SELECT COUNT(*) FROM residual_signature").fetchone()[0])
+        expected = int(connection.execute(
+            "SELECT COUNT(*) FROM record_ingest"
+            " WHERE json_extract(raw_json,'$.residual') IS NOT NULL"
+        ).fetchone()[0])
+        rows = connection.execute(
+            """
+            SELECT r.record_id, r.raw_json, r.valid_from, r.recorded_at,
+                   a.outcome AS outcome, a.attempted_axis AS axis,
+                   a.residual_class AS residual_class,
+                   fe.entity_key AS fn_key,
+                   bm.object_name AS tu_name,
+                   rs.signature AS signature, rs.family AS family,
+                   rs.kind AS sig_kind, rs.facets_json AS facets_json,
+                   rs.capability_needed AS capability_needed
+            FROM record_ingest r
+            JOIN attempt a ON a.record_id = r.record_id
+            LEFT JOIN entity fe ON fe.id = a.function_entity_id
+            LEFT JOIN binary_symbol bs
+                ON fe.entity_key LIKE 'function:%'
+               AND bs.raw_name = substr(fe.entity_key, 10)
+               AND bs.platform = 'gamecube' AND bs.symbol_kind = 'function'
+            LEFT JOIN binary_module bm ON bm.id = bs.module_id
+            LEFT JOIN residual_signature rs ON rs.record_id = r.record_id
+            WHERE NOT EXISTS (
+                SELECT 1 FROM record_ingest newer
+                WHERE json_extract(newer.raw_json, '$.supersedes') = r.record_id
+                  AND newer.record_state = 'accepted'
+            )
+            """
+        ).fetchall()
+
+    candidates: list[dict[str, Any]] = []
+    excluded_self = 0
+    for row in rows:
+        row_fn = (row["fn_key"] or "").split(":", 1)[-1]
+        if fn_name and row_fn.lower() == fn_name.lower():
+            excluded_self += 1
+            continue
+        # TU-level self-reference: `brief` already lists this TU's own
+        # history, so echoing it back as "transferable" is the same
+        # self-reference defect one scope up.
+        if exclude_tu and row["tu_name"] == exclude_tu:
+            excluded_self += 1
+            continue
+        outcome = str(row["outcome"] or "").lower()
+        tier = SIMILAR_OUTCOME_TIER.get(outcome, 0.0)
+        if tier <= 0:
+            continue
+        if landed_only and outcome not in LAW_SUCCESS_OUTCOMES:
+            continue
+        try:
+            facets = set(json.loads(row["facets_json"] or "[]"))
+        except json.JSONDecodeError:
+            facets = set()
+        strength, shared = 0.0, []
+        if query_facets and facets and row["sig_kind"] == query_kind:
+            strength, shared = residual_facet_similarity(query_facets, facets)
+        family_hit = bool(
+            family and row["family"] == family
+            and family not in ("unclassified", "no-residual"))
+        tu_hit = bool(tu and row["tu_name"] and row["tu_name"] == tu)
+        if not (shared or family_hit or tu_hit):
+            continue
+        try:
+            record = json.loads(row["raw_json"])
+        except json.JSONDecodeError:
+            record = {}
+        best_law: dict[str, Any] | None = None
+        for law_id in _law_id_list(record, "laws_applied"):
+            score = evidence.get(law_id) or law_evidence_score(0, 0)
+            weight = (SIMILAR_LAW_TIER.get(score["status"], 0.3)
+                      * (0.4 + score["wilson"]))
+            if best_law is None or weight > best_law["_weight"]:
+                best_law = {"id": law_id, "status": score["status"],
+                            "wilson": score["wilson"], "n": score["n"],
+                            "_weight": weight}
+        law_component = best_law["_weight"] if best_law else 0.0
+        why: list[str] = []
+        if shared:
+            why.append("signature")
+        if family_hit:
+            why.append("family")
+        if tu_hit:
+            why.append("tu")
+        rank = (SIMILAR_WEIGHTS["signature"] * strength
+                + SIMILAR_WEIGHTS["family"] * (1.0 if family_hit else 0.0)
+                + SIMILAR_WEIGHTS["tu"] * (1.0 if tu_hit else 0.0)
+                + SIMILAR_WEIGHTS["outcome"] * tier
+                + SIMILAR_WEIGHTS["law_evidence"] * min(1.0, law_component))
+        mechanism = " ".join(str(row["axis"] or "").split())
+        candidates.append({
+            "record": row["record_id"],
+            "function": row_fn or None,
+            "tu": row["tu_name"],
+            "outcome": outcome,
+            "residual_class": row["residual_class"],
+            "family": row["family"],
+            "capability_needed": row["capability_needed"],
+            "match": why,
+            "match_strength": round(strength, 4),
+            "shared_facets": shared,
+            "rank_score": round(rank, 4),
+            "age_days": _record_age_days(row["valid_from"],
+                                         row["recorded_at"]),
+            "top_law": ({k: v for k, v in best_law.items() if k != "_weight"}
+                        if best_law else None),
+            "mechanism": (mechanism[:400] + " …") if len(mechanism) > 400
+                         else mechanism,
+            "detail": f"gdlmem.py record {row['record_id']}",
+        })
+    candidates.sort(key=lambda item: (-item["rank_score"], item["record"]))
+    kept = candidates[:max(0, limit)]
+    result: dict[str, Any] = {
+        "query": {"function": fn_name, "tu": tu, "family": family,
+                  "signature_kind": query_kind,
+                  "facets": sorted(query_facets)},
+        "rows": kept,
+        "cohort_size": len(candidates),
+        "truncated": max(0, len(candidates) - len(kept)),
+        "self_records_excluded": excluded_self,
+        "ranked_by": (
+            "signature facet overlap %.2f, family %.2f, same-TU %.2f,"
+            " outcome tier %.2f, best cited law's run-32 evidence %.2f"
+            % (SIMILAR_WEIGHTS["signature"], SIMILAR_WEIGHTS["family"],
+               SIMILAR_WEIGHTS["tu"], SIMILAR_WEIGHTS["outcome"],
+               SIMILAR_WEIGHTS["law_evidence"])),
+        "note": (
+            "TRANSFERABLE EVIDENCE, NOT A PRESCRIPTION. Rows are other"
+            " functions' residuals; `match` says which cohort put each one"
+            " here and `match_strength` how much of your signature it shares."
+            " Records anchored to the function you asked about are EXCLUDED"
+            " (self_records_excluded) — a function's own write-up is not"
+            " transfer. Diagnosis transfers, prescriptions rot (AGENTS.md"
+            " residual-work discipline 1): re-derive the mechanism against"
+            " your own aligned view before probing it. Pass --residual with"
+            " your verbatim `fndiff --ops` output to rank on the signature"
+            " cohort; without it only family and TU cohorts are available."
+        ),
+        # CHANNEL ROLES, stated because the PX lane measured agents misreading
+        # them: `context.attempts` is a PARK/VETO screen (empty on 24 of 24
+        # closable functions — an empty one is NOT corpus silence, it means
+        # nobody has parked this function); THIS section is the cure channel;
+        # `laws --residual` is the law channel and is only discriminating for
+        # signatures that carry row counts.
+        "channel_role": (
+            "CURE CHANNEL. context.attempts answers 'has anyone parked or"
+            " vetoed an axis on THIS function' and is empty for most closable"
+            " functions — that emptiness is not evidence the corpus is silent."
+            " This section answers the different question 'who else closed a"
+            " residual shaped like mine'."
+        ),
+    }
+    if expected and not indexed:
+        result["index_warning"] = (
+            f"THE DERIVED RESIDUAL INDEX IS EMPTY while {expected} records"
+            " carry a residual object. Every row above is missing, and an"
+            " empty result here would otherwise be indistinguishable from a"
+            " genuine silence. Rebuild with `gdlmem.py build` and re-run"
+            " `gdlmem.py recount` before trusting this section."
+        )
+    result["indexed_records"] = indexed
+    result["indexable_records"] = expected
+    return result
 
 
 def work_claims(
@@ -5538,6 +6495,36 @@ def tu_briefing(
 
     pins = _pin_provenance(root, tu)
 
+    # RUN-33 (RG): seed the transferability cohort from what this TU's OWN
+    # records already measured — the dominant verified residual family and the
+    # newest recorded signature — then ask for closes from ELSEWHERE.
+    tu_module = modules[0]["object_name"] if modules else None
+    seed_family: str | None = None
+    seed_signature: str | None = None
+    family_counts: dict[str, int] = {}
+    for attempt in attempts:
+        obj = attempt["_record"].get("residual")
+        if not isinstance(obj, dict):
+            continue
+        name = obj.get("family")
+        if name and name not in ("unclassified", "no-residual"):
+            family_counts[name] = family_counts.get(name, 0) + 1
+        if not seed_signature and obj.get("signature"):
+            seed_signature = obj["signature"]
+    if family_counts:
+        seed_family = max(sorted(family_counts), key=family_counts.get)
+    similar = similar_residuals(
+        root=root, db_path=db_path, tu=None, family=seed_family,
+        signature=seed_signature, limit=8, exclude_tu=tu_module)
+    similar["seeded_from"] = {
+        "tu": tu_module, "family": seed_family,
+        "signature_present": bool(seed_signature),
+        "how": "dominant verified residual family and newest recorded"
+               " signature among THIS TU's own attempt records; rows from"
+               " this TU are excluded because the briefing already lists"
+               " them",
+    }
+
     for attempt in attempts:
         attempt.pop("_record", None)
 
@@ -5616,6 +6603,11 @@ def tu_briefing(
         ),
         "refutations": refutations,
         "scaffold_rows": scaffold_rows,
+        # RUN-33 (RG): TU-scoped transferability. `brief` already lists this
+        # TU's OWN history; these are closes from ELSEWHERE that share its
+        # residual shape or family, so a spawn briefing carries at least one
+        # worked example of the class before the first probe.
+        "similar_residuals": similar,
         "webfrank_pins": pins,
         "webfrank_pins_note": (
             "a pinned function's SOURCE IS FROZEN (AGENTS.md trap 4): the"
@@ -6190,10 +7182,45 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                  "context for a symbol."),
             call=lambda root, db, **kw: symbol_context(
                 kw["symbol"], root=root, db_path=db,
-                document_limit=kw["document_limit"]),
+                document_limit=kw["document_limit"],
+                residual=kw["residual"],
+                similar_limit=kw["similar_limit"]),
             params=(
                 SurfaceParam("symbol", str, required=True),
                 SurfaceParam("document_limit", int, default=12, maximum=50),
+                SurfaceParam("residual", str, default=None,
+                             help="your verbatim `fndiff --ops` delta; ranks"
+                                  " the similar_residuals section on the"
+                                  " signature cohort. Pure-reorder deltas"
+                                  " (multiset IDENTICAL) are supported since"
+                                  " run 33"),
+                SurfaceParam("similar_limit", int, default=8, maximum=50,
+                             help="cap on the similar_residuals section"),
+            ),
+        ),
+        SurfaceOp(
+            name="similar", mcp_name="memory_similar_residuals",
+            doc=("Similar residuals elsewhere: closes on other functions "
+                 "sharing your residual signature, family, or TU, ranked by "
+                 "the evidence layer."),
+            call=lambda root, db, **kw: similar_residuals(
+                root=root, db_path=db, function=kw["function"], tu=kw["tu"],
+                signature=kw["residual"], family=kw["family"],
+                limit=kw["limit"], landed_only=kw["landed_only"]),
+            params=(
+                SurfaceParam("function", str, default=None,
+                             help="the function you are working; its own"
+                                  " records are excluded as self-reference"),
+                SurfaceParam("residual", str, default=None,
+                             help="verbatim `fndiff --ops` delta"),
+                SurfaceParam("tu", str, default=None,
+                             help="TU object name (derived from --function"
+                                  " when omitted)"),
+                SurfaceParam("family", str, default=None,
+                             help="residual family to match"),
+                SurfaceParam("limit", int, default=8, maximum=50),
+                SurfaceParam("landed_only", int, default=0, maximum=1,
+                             help="1 = only exact/improved closes"),
             ),
         ),
         SurfaceOp(
@@ -6269,9 +7296,24 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
             call=lambda root, db, **kw: attempt_staleness(root, db),
         ),
         SurfaceOp(
+            name="recount", mcp_name="memory_recount_derived",
+            doc=("Recount every derived table straight from the record JSON "
+                 "with independently written readers; prints shipped vs "
+                 "independent vs delta per table."),
+            call=lambda root, db, **kw: recount_derived_tables(root, db),
+        ),
+        SurfaceOp(
             name="validate", mcp_name="memory_validate",
-            doc="Validate durable and inbox records, including reference resolution.",
-            call=lambda root, db, **kw: validate_records(root),
+            doc=("Validate durable and inbox records, including reference "
+                 "resolution (incremental: unchanged records are served from "
+                 "a content-hash cache)."),
+            call=lambda root, db, **kw: validate_records(
+                root, db_path=db, refresh=kw["refresh"]),
+            params=(
+                SurfaceParam("refresh", int, default=0, maximum=1,
+                             help="1 = ignore the cache and revalidate every"
+                                  " record from scratch"),
+            ),
         ),
     )
 
@@ -6499,49 +7541,162 @@ def attempt_staleness(
     }
 
 
-def validate_records(root: Path = REPO_ROOT) -> dict[str, Any]:
+def _validate_cache_path(root: Path) -> Path:
+    return default_database_path(root).parent / "validate_cache.json"
+
+
+def validate_records(
+    root: Path = REPO_ROOT, db_path: Path | None = None, refresh: int = 0
+) -> dict[str, Any]:
+    """Validate every durable and inbox record, incrementally.
+
+    RUN 33 (RG): this call previously did not complete. AGENTS.md discipline 13
+    told every lane to skip it ("`gdlmem validate` does not complete at current
+    corpus size — never block on it"), which left the only whole-corpus schema
+    check unusable and made `build` the de-facto integrity gate.
+
+    Two defects, both measured: (1) `_probe_record_references` called
+    `ensure_database` PER RECORD, and `ensure_database` recomputes
+    `source_fingerprint` by stat-ing every record file, both symbol tables, the
+    PDB dump and every tools/gdl source — about 1,600 stats each time, so 1,568
+    records cost roughly 2.5 million file stats and 1,568 connection opens;
+    (2) nothing was cached between runs, so an unchanged corpus paid the full
+    price every time. The fix hoists the database out of the loop and memoises
+    per-record results by CONTENT HASH.
+
+    The cache is sound because the two checks have different dependencies and
+    are keyed accordingly: schema validation is a pure function of the record
+    bytes, so its key is the content hash alone; reference resolution depends
+    on the whole graph, so its key additionally carries the database's
+    `source_fingerprint`, which changes whenever any record does. A corpus that
+    changed at all therefore revalidates its references from scratch. Pass
+    ``refresh=1`` to ignore the cache entirely.
+    """
+    started = time.monotonic()
     paths: list[Path] = []
     for relative in (Path("memory_graph/records"), Path("memory_graph/inbox")):
         directory = root / relative
         if directory.exists():
             paths.extend(directory.rglob("*.json"))
+    paths.sort()
+
+    cache_path = _validate_cache_path(root)
+    cache: dict[str, Any] = {"schema": {}, "references": {}}
+    if not refresh and cache_path.exists():
+        try:
+            loaded = json.loads(cache_path.read_text(encoding="utf-8"))
+            if (isinstance(loaded, dict)
+                    and loaded.get("schema_version") == SCHEMA_VERSION):
+                cache["schema"] = loaded.get("schema") or {}
+                cache["references"] = loaded.get("references") or {}
+        except (OSError, json.JSONDecodeError):
+            cache = {"schema": {}, "references": {}}
+
     ids: set[str] = set()
-    records: list[tuple[Path, dict[str, Any]]] = []
-    for path in sorted(paths):
-        record = json.loads(path.read_text(encoding="utf-8-sig"))
+    records: list[tuple[Path, dict[str, Any], str]] = []
+    schema_cached = 0
+    for path in paths:
+        raw = path.read_bytes()
+        digest = hashlib.sha256(raw).hexdigest()
+        record = json.loads(raw.decode("utf-8-sig"))
         if not isinstance(record, dict):
-            raise MemoryGraphError(f"{path}: top-level JSON value must be an object")
-        _validate_record(record, path)
+            raise MemoryGraphError(
+                f"{path}: top-level JSON value must be an object")
+        if digest in cache["schema"]:
+            schema_cached += 1
+        else:
+            _validate_record(record, path)
+            cache["schema"][digest] = True
+        # The duplicate-id check is a property of the SET, never of one
+        # record, so it is always run and never cached.
         if record["id"] in ids:
-            raise MemoryGraphError(f"duplicate record id {record['id']!r} at {path}")
+            raise MemoryGraphError(
+                f"duplicate record id {record['id']!r} at {path}")
         ids.add(record["id"])
-        records.append((path, record))
+        records.append((path, record, digest))
+
     # Mirror the build's reference resolution so `validate` never blesses a
     # record the build would reject. Uses the existing database when present;
     # skipped (reported) when no graph has been built yet.
     reference_errors: list[dict[str, str]] = []
+    dangling_citations: list[dict[str, str]] = []
     references_checked = False
-    database = default_database_path(root)
+    references_cached = 0
+    database = (db_path or default_database_path(root)).resolve()
     if database.exists():
         references_checked = True
-        for path, record in records:
-            try:
-                _probe_record_references(record, root, database)
-            except MemoryGraphError as error:
-                reference_errors.append(
-                    {"path": _repo_relative(root, path), "error": str(error)}
-                )
-    if reference_errors:
-        return {
-            "valid": False,
-            "record_count": len(paths),
+        with closing(open_database(root, database)) as connection:
+            fingerprint = dict(connection.execute(
+                "SELECT key, value FROM meta").fetchall()
+            ).get("source_fingerprint", "")
+            for path, record, digest in records:
+                key = f"{digest}:{fingerprint}"
+                cached = cache["references"].get(key)
+                if cached is not None:
+                    references_cached += 1
+                    for cited_id in cached:
+                        dangling_citations.append(
+                            {"path": _repo_relative(root, path),
+                             "cited": cited_id})
+                    continue
+                try:
+                    stranded = _probe_record_references(
+                        record, root, database, connection=connection,
+                        strict_citations=False)
+                except MemoryGraphError as error:
+                    reference_errors.append(
+                        {"path": _repo_relative(root, path),
+                         "error": str(error)})
+                else:
+                    cache["references"][key] = stranded
+                    for cited_id in stranded:
+                        dangling_citations.append(
+                            {"path": _repo_relative(root, path),
+                             "cited": cited_id})
+    # The cache is written unconditionally. Skipping the write when ANY record
+    # failed would have thrown away every good result alongside it, which is
+    # how an incremental check silently stays non-incremental.
+    try:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps({
             "schema_version": SCHEMA_VERSION,
-            "references_checked": references_checked,
-            "reference_errors": reference_errors,
-        }
-    return {
-        "valid": True,
+            "schema": cache["schema"],
+            "references": cache["references"],
+        }, sort_keys=True), encoding="utf-8")
+    except OSError:
+        # A read-only or racing checkout must not fail the validation
+        # itself; the next run simply pays full price.
+        pass
+    stranded_ids = sorted({row["cited"] for row in dangling_citations})
+    result = {
+        "valid": not reference_errors,
         "record_count": len(paths),
         "schema_version": SCHEMA_VERSION,
         "references_checked": references_checked,
+        "schema_checks_cached": schema_cached,
+        "reference_checks_cached": references_cached,
+        "dangling_citation_count": len(dangling_citations),
+        "dangling_citation_ids": stranded_ids,
+        "dangling_citations": dangling_citations[:60],
+        "dangling_note": (
+            "CORPUS DEBT, not a validation failure: an accepted record cites a"
+            " record id that no longer exists. Most are the documented"
+            " `prune-attempts` workflow's own output — it DELETES records"
+            " ejected past the per-function cap, stranding every `supersedes`"
+            " that pointed at one — so failing the corpus on them would make"
+            " the gate refuse the records that document it. A NEW proposal is"
+            " still refused for a dangling citation (strict at staging,"
+            " tolerant over history)."
+        ),
+        "elapsed_seconds": round(time.monotonic() - started, 3),
+        "cache": _repo_relative(root, cache_path),
+        "cache_note": (
+            "schema results are keyed by record CONTENT HASH (a pure function"
+            " of the bytes); reference results additionally carry the"
+            " database's source_fingerprint, so any corpus change revalidates"
+            " every reference. --refresh 1 ignores the cache."
+        ),
     }
+    if reference_errors:
+        result["reference_errors"] = reference_errors
+    return result

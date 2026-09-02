@@ -208,6 +208,35 @@ CREATE TABLE law_evidence (
     failure_records TEXT NOT NULL DEFAULT '[]'
 );
 
+-- Derived, run 33 (RG lane). The PURE-REORDER index axis. Every column is a
+-- projection of a record's own top-level `residual` object, so this table is
+-- rebuilt from scratch on every build exactly like law_evidence and can be
+-- recounted straight from the raw JSON (`gdlmem recount`). It exists because
+-- `laws --residual` indexed only +N/-N opcode mnemonics: a residual whose
+-- opcode multiset is IDENTICAL carries none, so all ~175 pure-reorder
+-- signatures in the corpus presented the same empty term set and the query
+-- degenerated to a default listing (claim.law.RS_residual-retrieval-is-blind-
+-- to-pure-reorder-residuals). `kind` is reorder | asymmetric | empty; `empty`
+-- rows are retained deliberately so the count of unindexable records is a
+-- reportable fact rather than a silent absence.
+CREATE TABLE residual_signature (
+    record_id TEXT PRIMARY KEY REFERENCES record_ingest(record_id),
+    function_key TEXT,
+    outcome TEXT,
+    family TEXT,
+    capability_needed TEXT,
+    kind TEXT NOT NULL,
+    insns_target INTEGER,
+    insns_ours INTEGER,
+    clusters INTEGER,
+    signature TEXT NOT NULL DEFAULT '',
+    facets_json TEXT NOT NULL DEFAULT '[]',
+    measured_at TEXT
+);
+
+CREATE INDEX residual_signature_kind_idx ON residual_signature(kind);
+CREATE INDEX residual_signature_family_idx ON residual_signature(family);
+
 -- Regime-change events (`gdlmem event add`). A claim whose newest supporting
 -- evidence predates a matching event is flagged needs-revalidation. Event
 -- based, never calendar decay: a law does not rot because time passed, it

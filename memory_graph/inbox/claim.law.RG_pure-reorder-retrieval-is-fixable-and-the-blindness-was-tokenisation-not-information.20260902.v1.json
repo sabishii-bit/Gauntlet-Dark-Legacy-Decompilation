@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/rg_residual_index_canary.py",
+    "memory_graph/test_graph.py::ReorderIndexTests"
+  ],
+  "attributes": {
+    "laws_applied": [
+      "claim.law.RS_residual-retrieval-is-blind-to-pure-reorder-residuals.20260902.v1"
+    ],
+    "scope": "memory_graph residual retrieval (`laws --residual`, `context`, `brief`, `similar`) under the run-33 facet index; MWCC GC 1.2.5 corpus, 1001 records carrying a top-level residual object.",
+    "tags": [
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Show a pure-reorder signature pair whose facet sets are equal while their residuals belong to different mechanism families, or show that the 24-row selection counts do not reproduce: re-run RG_scratch/rg_acceptance.py against build/GUNE5D/RG_manifest24_signatures.json and compare the distinct-payload counts (18->22 overall, 7->11 on the reorder subset). The claim that the class is INDEXABLE is disproved if the four pilot signatures ever collapse to one facet set again -- tools/gdl/composed_census/rg_residual_index_canary.py asserts exactly that and exits 1 on it.",
+  "id": "claim.law.RG_pure-reorder-retrieval-is-fixable-and-the-blindness-was-tokenisation-not-information.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T02:29:16Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "supersedes": "claim.law.RS_residual-retrieval-is-blind-to-pure-reorder-residuals.20260902.v1",
+  "valid_from": "2026-09-02",
+  "value": "THE PURE-REORDER RETRIEVAL BLINDNESS WAS A TOKENISATION DEFECT, NOT AN INFORMATION SHORTAGE, AND IT IS NOW CLOSED IN THE BOUNDED DIRECTION THE SUPERSEDED LAW NAMED AS ITS OWN FALSIFIER. RS measured four distinct pure-reorder signatures returning byte-identical 71992-byte payloads (sha1 88dc32585711) and concluded the residual index cannot serve the class. The diagnosis was right and the boundary was wrong: an identical-multiset signature carries no +N/-N mnemonics, which is all the old tokenizer read, but it does carry an instruction count, a cluster count, and -- when the lane recorded them -- opcode lists, differing-word and atom counts and shape flags. Typing those into weighted FACETS makes the class indexable: the same four pilot signatures now produce four DISTINCT facet sets, and across the 24 frozen manifest rows the pure-reorder subset goes from 7 distinct selected payloads out of 13 (7 of them one constant list) to 11 of 13, with 13 of 13 distinct once ranked. WHAT REMAINS TRUE FROM THE SUPERSEDED LAW, and lanes must keep applying it: a BARE reorder signature's entire content is (insns, clusters), so facet similarity over one is a WEAK neighbour relation and NOT a prescription -- it tells you who had a residual of your shape, never what will close it. The strong descriptor is regnorm's genuine/unpaired/crossing tuple, and it CANNOT be backfilled, because a closed function no longer has the residual to measure; so the index serves records going forward better than it serves history. TWO GENERAL RULES THIS DERIVATION PRODUCED, both measured inside the fix itself. (a) A FACET THAT EVERY MEMBER OF A CLASS SHARES IS NOT AN INDEX TERM, IT IS A CONSTANT. `parity:held` is implied by an identical multiset (T==O always); emitting it gave every reorder record a facet in common with every reorder query, so the selected set stayed constant across all 13 rows and only the ORDER varied -- the PX failure mode reproduced inside its own remedy. (b) A ZERO-WEIGHT FACET MUST NOT ADMIT A ROW: sentinel and metadata facets that score nothing were still making sets non-empty, which selected all 183 reorder records for every reorder query. Selection must require a positive-weight shared facet."
+}
