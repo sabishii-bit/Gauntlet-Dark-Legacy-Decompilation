@@ -1710,7 +1710,7 @@ s32 do_players(void) {
             if (p->state != 0) {
                 s32 sel;
 
-                if (p->state == 2 || p->state == 3) {
+                if (PTA(i)->state == 2 || PTA(i)->state == 3) {
                     sel = 1;
                 } else {
                     sel = 0;
