@@ -15,7 +15,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from fndiff import reloc_rows_from_lines, reloc_set_delta  # noqa: E402
+from fndiff import (reloc_rows_from_lines, reloc_set_delta,  # noqa: E402
+                    truncate_ops)
 
 
 # A deterministic resolver standing in for symbols.txt: two names denote one
@@ -123,6 +124,41 @@ class RelocSetDeltaTests(unittest.TestCase):
         self.assertEqual(
             reloc_rows_from_lines(lines),
             [("R_PPC_REL24", "someFunc"), ("R_PPC_ADDR16_HA", "sFlags")])
+
+
+class TruncateOpsTests(unittest.TestCase):
+    """Run 34 item 5: a truncated --ops view must announce dropped IMMEDIATE
+    rows, never silently cut them (they sit below the clusters, and one such
+    cut read as a frame collapse when the residual was a changed literal)."""
+
+    def _dump(self, n_head, n_imm):
+        head = [f"  replace T[{i}] O[{i}]" for i in range(n_head)]
+        imm = [f"  IMMEDIATE T[{i}]@0  O[{i}]@0   T: li r3,{i}   O: li r3,{i+1}"
+               for i in range(n_imm)]
+        return "\n".join(head + imm)
+
+    def test_short_output_is_returned_whole(self):
+        text = self._dump(3, 1)
+        self.assertEqual(truncate_ops(text, 16), text.strip())
+
+    def test_a_dropped_immediate_is_counted(self):
+        text = self._dump(16, 3)
+        out = truncate_ops(text, 16)
+        self.assertIn("3 IMMEDIATE row(s) suppressed", out)
+
+    def test_a_dropped_immediate_is_flagged_as_eligibility_deciding(self):
+        out = truncate_ops(self._dump(16, 2), 16)
+        self.assertIn("eligibility", out)
+        self.assertIn("fndiff --ops", out)
+
+    def test_non_immediate_overflow_still_notes_the_cut(self):
+        out = truncate_ops(self._dump(30, 0), 16)
+        self.assertIn("suppressed", out)
+        self.assertNotIn("IMMEDIATE", out)
+
+    def test_kept_lines_are_the_first_limit(self):
+        out = truncate_ops(self._dump(20, 0), 16)
+        self.assertEqual(len(out.splitlines()), 17)  # 16 kept + 1 note
 
 
 if __name__ == "__main__":

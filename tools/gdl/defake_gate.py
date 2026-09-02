@@ -1115,7 +1115,10 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
                  "--ops", "--no-build"],
                 capture_output=True, text=True,
             ).stdout
-            print("\n".join(ops.strip().splitlines()[:14]))
+            # Announce any IMMEDIATE row dropped by the cut (item 5): they
+            # sit below the clusters and a silent truncation hid the one
+            # changed literal that was the whole residual.
+            print(fndiff.truncate_ops(ops, 14))
         return 1
     improved = [v for v in verdicts if v[1] == "IMPROVED"]
     if improved and update_improved:

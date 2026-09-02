@@ -960,6 +960,34 @@ def ops_diff(name, t, b):
               " before working it.")
 
 
+def truncate_ops(ops_text, limit):
+    """First `limit` lines of an --ops dump, plus a suppressed-IMMEDIATE note.
+
+    probe.py and defake_gate.py print only the first N lines of --ops after
+    a failed probe. IMMEDIATE rows sit at the BOTTOM of ops_diff — they live
+    inside the matcher's EQUAL runs, so no cluster covers them — so a
+    truncated view SILENTLY dropped exactly the same-opcode-immediate words
+    that decide eligibility. CB read one such cut as a frame collapse when
+    the real story was a changed literal below the fold (run 34 item 5). The
+    cut is now announced, and the dropped IMMEDIATE count is named.
+    """
+    lines = ops_text.strip().splitlines()
+    if len(lines) <= limit:
+        return "\n".join(lines)
+    kept, dropped = lines[:limit], lines[limit:]
+    imm_dropped = sum(
+        1 for line in dropped if line.lstrip().startswith("IMMEDIATE "))
+    if imm_dropped:
+        note = (f"  ... {imm_dropped} IMMEDIATE row(s) suppressed"
+                f" ({len(dropped)} --ops line(s) hidden) — a same-opcode"
+                " immediate decides eligibility and is NOT schedule noise;"
+                " read the full `fndiff --ops` before concluding")
+    else:
+        note = (f"  ... {len(dropped)} more --ops line(s) suppressed"
+                " (full view: `fndiff --ops`)")
+    return "\n".join(kept + [note])
+
+
 def main():
     flags = ("-l", "--ops", "--count", "--classify", "--no-build", "--clean",
              "--raw", "--relocs")

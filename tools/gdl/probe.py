@@ -1293,7 +1293,12 @@ def main():
     printed_ops = False
     if (verdict.startswith(("REGRESSED", "CONFLICT"))
             and "--ops" not in sys.argv and ops_output):
-        print("\n".join(ops_output.strip().splitlines()[:16]))
+        # Truncate through fndiff.truncate_ops so a dropped IMMEDIATE row
+        # (which sits below the clusters) is announced, never silently cut —
+        # a truncated ops view read as a frame collapse once (item 5).
+        sys.path.insert(0, str(TOOLS))
+        from fndiff import truncate_ops
+        print(truncate_ops(ops_output, 16))
         printed_ops = True
 
     if "--ops" in sys.argv:
