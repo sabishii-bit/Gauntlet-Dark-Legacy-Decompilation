@@ -18,8 +18,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from probe import (REPLAN_AT, annotate_neutral, classify, count_distance,
                    data_line, format_genuine_note, function_span,
                    fuzzy_anchor_note, moved_sections, parse_section_digests,
-                   replan_hint, scaffold_rows, scoped_revert, split_lines,
-                   strip_noncode, update_neutral_identical_streak)
+                   pin_drift, replan_hint, scaffold_rows, scoped_revert,
+                   split_lines, strip_noncode,
+                   update_neutral_identical_streak)
 
 
 TU = """\
@@ -659,6 +660,31 @@ class GenuineRowNoteTests(unittest.TestCase):
     def test_zero_genuine_rows_still_states_the_count(self):
         note = format_genuine_note(0, [])
         self.assertIn("GENUINE structural rows: 0", note)
+
+
+class PinDriftTests(unittest.TestCase):
+    """Run 34 item 3: --revert banks the TU's webfrank pin hashes and warns
+    when a pin was re-derived since (GT hand-restored source AND pin)."""
+
+    BANKED = {"fnA": ["aaa", "bbb"], "fnB": ["ccc", "ddd"]}
+
+    def test_no_change_is_no_drift(self):
+        self.assertEqual(pin_drift(self.BANKED, dict(self.BANKED)), [])
+
+    def test_a_rederived_after_hash_is_drift(self):
+        current = {"fnA": ["aaa", "ZZZ"], "fnB": ["ccc", "ddd"]}
+        self.assertEqual(pin_drift(self.BANKED, current), ["fnA"])
+
+    def test_a_removed_or_added_pin_is_drift(self):
+        self.assertEqual(pin_drift(self.BANKED, {"fnA": ["aaa", "bbb"]}),
+                         ["fnB"])
+        self.assertEqual(
+            pin_drift(self.BANKED,
+                      {**self.BANKED, "fnC": ["e", "f"]}), ["fnC"])
+
+    def test_an_unmeasured_side_is_not_drift(self):
+        self.assertEqual(pin_drift(None, self.BANKED), [])
+        self.assertEqual(pin_drift(self.BANKED, None), [])
 
 
 class ScaffoldCensusTests(unittest.TestCase):

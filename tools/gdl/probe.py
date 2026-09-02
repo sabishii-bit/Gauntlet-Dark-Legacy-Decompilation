@@ -158,6 +158,68 @@ def git_head():
     return result.stdout.strip() if result.returncode == 0 else None
 
 
+def webfrank_pin_hashes(unit):
+    """{function: [before_sha256, after_sha256]} for this unit's webfrank
+    pins, or {} when the TU has none.
+
+    A permutation/recolor pin freezes a function's body hash; when an UPSTREAM
+    instruction-count change shifts a pinned window, the pin is re-derived
+    (wf_rederive_pin.py) and its before/after hashes in
+    config/GUNE5D/webfrank.json change. --revert restores only the SOURCE, so
+    a pin re-derived since the snapshot was banked is left inconsistent with
+    the reverted tree — GT had to hand-restore both. Banking these hashes lets
+    --revert WARN when that happened (run 34 item 3).
+    """
+    cfg = Path(f"config/{VERSION}/webfrank.json")
+    if not cfg.exists():
+        return {}
+    try:
+        data = json.loads(cfg.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    out = {}
+    for rule in data.get("units", {}).get(unit, []):
+        fn = rule.get("function")
+        if fn is None:
+            continue
+        if "before_sha256" in rule or "after_sha256" in rule:
+            out[fn] = [rule.get("before_sha256"), rule.get("after_sha256")]
+    return out
+
+
+def pin_drift(banked, current):
+    """Sorted function names whose banked pin hashes differ from current.
+
+    Pure over two {fn: [before, after]} maps so the drift test is exercised
+    without a webfrank.json on disk."""
+    if not isinstance(banked, dict) or not isinstance(current, dict):
+        return []
+    return sorted(fn for fn in set(banked) | set(current)
+                  if banked.get(fn) != current.get(fn))
+
+
+def warn_pin_drift(unit, snap):
+    """Warn if webfrank pins changed since this snapshot's .pins was banked."""
+    pins_file = snap.with_suffix(snap.suffix + ".pins")
+    if not pins_file.exists():
+        return
+    try:
+        banked = json.loads(pins_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    drifted = pin_drift(banked, webfrank_pin_hashes(unit))
+    if drifted:
+        print("WARNING: webfrank pin(s) re-derived since this snapshot was"
+              f" banked: {', '.join(drifted)}. --revert restored only the"
+              " SOURCE; the pin's before/after_sha256 in"
+              f" config/{VERSION}/webfrank.json no longer matches the reverted"
+              " tree, so the pinned function's body will not hash-assert."
+              " Re-derive with"
+              " tools/gdl/composed_census/wf_rederive_pin.py (FULL path,"
+              " body hashes must return byte-identical) or hand-restore the"
+              " pin — GT had to restore both by hand.")
+
+
 def bank_snapshot(unit, source, baseline=False):
     snap = snapshot_path(unit, source)
     shutil.copyfile(source, snap)
@@ -165,6 +227,13 @@ def bank_snapshot(unit, source, baseline=False):
     if head:
         snap.with_suffix(snap.suffix + ".meta").write_text(
             json.dumps({"head": head}), encoding="utf-8")
+    # Bank this TU's webfrank pin hashes alongside the source so --revert can
+    # warn when a pin was re-derived since (run 34 item 3). Written even when
+    # empty, so a later drift compare is well-defined rather than reading a
+    # stale sidecar from an earlier bank.
+    snap.with_suffix(snap.suffix + ".pins").write_text(
+        json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
+        encoding="utf-8")
     # The FIRST baseline of a session is banked separately and never
     # overwritten: NEUTRAL probes re-bank the rolling snapshot, so
     # --revert restores the last neutral edit rather than the pristine
@@ -173,6 +242,9 @@ def bank_snapshot(unit, source, baseline=False):
         base = snap.with_suffix(snap.suffix + ".base")
         if not base.exists():
             shutil.copyfile(source, base)
+            base.with_suffix(base.suffix + ".pins").write_text(
+                json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
+                encoding="utf-8")
 
 
 def strip_noncode(text):
@@ -1094,6 +1166,7 @@ def main():
         shutil.copyfile(base, source)
         print(f"restored {source} to the SESSION BASELINE (whole file —"
               " uncommitted work on other functions in this TU is gone)")
+        warn_pin_drift(unit, base)
         return 0
     if "--revert" in sys.argv:
         if source is None:
@@ -1161,6 +1234,9 @@ def main():
                 source.write_bytes(new_text.encode("latin-1"))
                 print(f"reverted {fn} to its banked snapshot — {notes};"
                       " re-scoring:")
+        # A source revert does not restore webfrank.json; warn if a pin was
+        # re-derived since this snapshot was banked (run 34 item 3).
+        warn_pin_drift(unit, snap)
 
     build = subprocess.run(
         ["ninja", f"build/{VERSION}/src/{unit}.o"],
