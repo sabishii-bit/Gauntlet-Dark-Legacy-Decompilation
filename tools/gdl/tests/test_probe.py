@@ -19,9 +19,9 @@ from probe import (REPLAN_AT, annotate_neutral, arbitrate_table,
                    bank_divergence, bank_warning, classify, count_distance,
                    data_line, format_genuine_note, function_span,
                    fuzzy_anchor_note, moved_sections, parse_section_digests,
-                   pin_drift, replan_hint, scaffold_rows, scoped_revert,
-                   split_lines, strip_noncode,
-                   update_neutral_identical_streak)
+                   outside_edit_warning, parse_numstat, pin_drift,
+                   replan_hint, scaffold_rows, scoped_revert, split_lines,
+                   strip_noncode, update_neutral_identical_streak)
 
 
 TU = """\
@@ -768,6 +768,67 @@ class BankSemanticsTests(unittest.TestCase):
     def test_improved_banks_an_edit_on_purpose_and_is_not_warned(self):
         self.assertEqual(bank_warning("IMPROVED", 12), "")
         self.assertEqual(bank_warning("REBASED", 12), "")
+
+
+class RevertCompletenessTests(unittest.TestCase):
+    """A function-scoped revert names what it could NOT reach.
+
+    Run-34 criticism (MV): the volatile-in-a-MACRO edit lived in a header,
+    was invisible to the per-function revert, and stayed live — so every
+    later score described a state the worker believed was undone.
+    """
+
+    TU = "src/game/mv/movie.c"
+
+    def test_numstat_parses_counts_and_paths(self):
+        rows = parse_numstat("3\t1\tsrc/game/mv/movie.c\n"
+                             "2\t0\tinclude/game/movie.h\n")
+        self.assertEqual(rows[0], (3, 1, "src/game/mv/movie.c"))
+        self.assertEqual(rows[1], (2, 0, "include/game/movie.h"))
+
+    def test_binary_rows_are_none_not_zero(self):
+        rows = parse_numstat("-\t-\torig/GUNE5D/sys/main.dol\n")
+        self.assertEqual(rows[0][:2], (None, None))
+
+    def test_backslash_paths_are_normalised(self):
+        rows = parse_numstat("1\t1\tinclude\\game\\movie.h\n")
+        self.assertEqual(rows[0][2], "include/game/movie.h")
+
+    def test_blank_and_short_lines_are_skipped(self):
+        self.assertEqual(parse_numstat("\nnot a row\n"), [])
+
+    def test_a_clean_tree_warns_about_nothing(self):
+        self.assertEqual(outside_edit_warning([], self.TU, "PlayVQMovie"), "")
+
+    def test_a_surviving_header_edit_is_named(self):
+        rows = parse_numstat("2\t0\tinclude/game/movie.h\n")
+        text = outside_edit_warning(rows, self.TU, "PlayVQMovie")
+        self.assertIn("REVERT IS PARTIAL", text)
+        self.assertIn("include/game/movie.h", text)
+        self.assertIn("+2/-0", text)
+        self.assertIn("EVERY includer", text)
+
+    def test_a_surviving_tu_edit_names_the_function_scope(self):
+        rows = parse_numstat(f"5\t2\t{self.TU}\n")
+        text = outside_edit_warning(rows, self.TU, "PlayVQMovie")
+        self.assertIn("outside PlayVQMovie", text)
+        self.assertIn(self.TU, text)
+
+    def test_whole_file_revert_omits_the_function_scope_wording(self):
+        rows = parse_numstat(f"5\t2\t{self.TU}\n")
+        text = outside_edit_warning(rows, self.TU, None)
+        self.assertIn("TU source still differs", text)
+        self.assertNotIn("outside", text)
+
+    def test_other_lanes_files_are_not_reported(self):
+        rows = parse_numstat("9\t9\tsrc/game/other/enemy.c\n"
+                             "1\t1\ttools/gdl/probe.py\n")
+        self.assertEqual(outside_edit_warning(rows, self.TU, "f"), "")
+
+    def test_headers_anywhere_count_including_src(self):
+        rows = parse_numstat("1\t0\tsrc/game/mv/movie_priv.h\n")
+        self.assertIn("movie_priv.h",
+                      outside_edit_warning(rows, self.TU, "f"))
 
     def test_zero_genuine_rows_still_states_the_count(self):
         note = format_genuine_note(0, [])

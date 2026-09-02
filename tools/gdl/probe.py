@@ -243,6 +243,87 @@ def warn_pin_drift(unit, snap):
               " pin — GT had to restore both by hand.")
 
 
+HEADER_SUFFIXES = (".h", ".hpp", ".hxx", ".inc")
+
+
+def parse_numstat(text):
+    """[(added, deleted, path)] from `git diff --numstat`.
+
+    A binary file reports '-' for both counts; those become None rather than
+    0, so "cannot count" is never rendered as "no change".
+    """
+    rows = []
+    for line in (text or "").splitlines():
+        parts = line.rstrip("\n").split("\t")
+        if len(parts) < 3:
+            continue
+        added, deleted, path = parts[0], parts[1], parts[-1]
+        rows.append((
+            None if added == "-" else int(added) if added.isdigit() else None,
+            None if deleted == "-" else int(deleted) if deleted.isdigit()
+            else None,
+            path.replace("\\", "/"),
+        ))
+    return rows
+
+
+def outside_edit_warning(rows, unit_source, fn):
+    """Edits a function-scoped revert could NOT reach, or "".
+
+    Run-34 criticism (MV): --revert is function-scoped, so MV's
+    volatile-in-a-MACRO edit — which lived in a header, not in the reverted
+    function — was invisible to the revert and stayed live for every
+    subsequent probe. A revert that silently leaves half the edit in place is
+    worse than no revert: the next score describes a state the worker
+    believes was undone.
+
+    Only two classes are reported, because everything else in a numstat
+    belongs to other lanes or other work: the TU's OWN source (edits
+    elsewhere in the file) and any HEADER anywhere in the tree (a macro,
+    typedef or volatile qualifier that keeps affecting every includer).
+    """
+    tu_rows = [row for row in rows if unit_source and row[2] == unit_source]
+    header_rows = [row for row in rows
+                   if row[2].lower().endswith(HEADER_SUFFIXES)]
+    if not tu_rows and not header_rows:
+        return ""
+
+    def render(row):
+        added, deleted, path = row
+        counts = ("binary" if added is None and deleted is None
+                  else f"+{added}/-{deleted}")
+        return f"    {path} ({counts} vs HEAD)"
+
+    lines = ["REVERT IS PARTIAL — edits this revert could NOT reach remain"
+             " in the working tree:"]
+    if tu_rows:
+        scope = f" outside {fn}" if fn else ""
+        lines.append(f"  TU source{scope} still differs from HEAD:")
+        lines.extend(render(row) for row in tu_rows)
+    if header_rows:
+        lines.append("  HEADER(S) still differ from HEAD — a function-scoped"
+                     " revert can never see these, and a macro/typedef/"
+                     "volatile change in one keeps affecting EVERY includer:")
+        lines.extend(render(row) for row in header_rows)
+    lines.append("  The score you are about to read describes the tree WITH"
+                 " these still applied. Undo them with git if the revert was"
+                 " meant to be total.")
+    return "\n".join(lines)
+
+
+def warn_outside_edits(source, fn):
+    """Run the numstat cross-check and print whatever it finds."""
+    diff = subprocess.run(["git", "diff", "--numstat"],
+                          capture_output=True, text=True)
+    if diff.returncode != 0:
+        return
+    warning = outside_edit_warning(
+        parse_numstat(diff.stdout),
+        source.as_posix() if source is not None else None, fn)
+    if warning:
+        print(warning)
+
+
 def rederive_pin(unit, fn):
     """One-call pin re-derivation: body build + wf_rederive_pin --apply +
     configure + confirm (run 34 item 9).
@@ -1513,6 +1594,8 @@ def main():
         source.write_bytes(shown.stdout)
         print(f"discarded: {source} restored to HEAD (whole file —"
               " uncommitted work on other functions in this TU is gone)")
+        # Even a whole-file discard leaves HEADER edits live (run 34 item 3).
+        warn_outside_edits(source, None)
         return 0
     if "--revert-baseline" in sys.argv:
         if source is None:
@@ -1528,6 +1611,7 @@ def main():
         print(f"restored {source} to the SESSION BASELINE (whole file —"
               " uncommitted work on other functions in this TU is gone)")
         warn_pin_drift(unit, base)
+        warn_outside_edits(source, None)
         return 0
     if "--revert" in sys.argv:
         if source is None:
@@ -1598,6 +1682,10 @@ def main():
         # A source revert does not restore webfrank.json; warn if a pin was
         # re-derived since this snapshot was banked (run 34 item 3).
         warn_pin_drift(unit, snap)
+        # A FUNCTION-SCOPED revert reaches only hunks inside `fn`. Cross-check
+        # the whole tree and name what it could not reach — MV's
+        # volatile-in-a-macro header edit survived a revert and stayed live.
+        warn_outside_edits(source, None if "--whole-file" in sys.argv else fn)
 
     build = subprocess.run(
         ["ninja", f"build/{VERSION}/src/{unit}.o"],
