@@ -15,7 +15,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from probe import (REPLAN_AT, annotate_neutral, classify, count_distance,
-                   function_span, replan_hint, scaffold_rows, scoped_revert,
+                   function_span, moved_sections, parse_section_digests,
+                   replan_hint, scaffold_rows, scoped_revert,
                    split_lines, strip_noncode,
                    update_neutral_identical_streak)
 
@@ -331,6 +332,114 @@ class AnnotateNeutralTests(unittest.TestCase):
         self.assertTrue(out.startswith("NEUTRAL-WORSE"), out)
         self.assertIn("count distance 0 -> 6", out)
         self.assertIn("multiset 2t -> 6t", out)
+
+
+class DataOnlyEditTests(unittest.TestCase):
+    """The five-correct-fixes regression.
+
+    Reproduced live on src/game/pb/pb_objregs.c::setChrome (the fix in
+    commit adc292074, recorded in
+    attempt.CS_image-wide-constant-sweep-five-fixes.20260901.v1):
+    respelling the PI literal moved .sdata2+0x40 from 400921fb54442d18 to
+    400921fb54524550 and probe printed "NEUTRAL-IDENTICAL: object bytes
+    unchanged — the edit FOLDED AWAY before codegen ... a STRONGER
+    negative than a regression". The instruction stream really is
+    identical; the object is not, and the advice to treat it as a null
+    probe is how five correct constant fixes nearly got reverted.
+    """
+
+    NEUTRAL = "NEUTRAL   real 0 (insns T362/O362, multiset 0t)"
+    BEFORE = {".rodata": "aaa", ".sdata2": "111", ".bss": "zzz"}
+    AFTER = {".rodata": "aaa", ".sdata2": "222", ".bss": "zzz"}
+
+    def annotate(self, prev_data, data, source_changed=True):
+        return annotate_neutral(self.NEUTRAL, 0, "T362/O362", 0, 0,
+                                "T362/O362", "same", "same",
+                                prev_data=prev_data, data=data,
+                                source_changed=source_changed)
+
+    def test_a_moved_data_section_is_not_a_fold_away(self):
+        out = self.annotate(self.BEFORE, self.AFTER)
+        self.assertIn("NEUTRAL-DATA-ONLY", out)
+        self.assertNotIn("NEUTRAL-IDENTICAL", out)
+        self.assertNotIn("FOLDED AWAY", out)
+
+    def test_it_names_the_section_that_moved(self):
+        out = self.annotate(self.BEFORE, self.AFTER)
+        self.assertIn(".sdata2", out)
+        self.assertNotIn(".rodata", out)
+
+    def test_it_directs_to_a_value_audit_not_a_revert(self):
+        out = self.annotate(self.BEFORE, self.AFTER)
+        self.assertIn("VALUE AUDIT", out)
+        self.assertIn("claim.law.SL_pool-constant-errors-are-score-invisible",
+                      out)
+
+    def test_flat_data_still_reads_as_a_fold_away(self):
+        out = self.annotate(self.BEFORE, dict(self.BEFORE))
+        self.assertIn("NEUTRAL-IDENTICAL", out)
+        self.assertNotIn("NEUTRAL-DATA-ONLY", out)
+
+    def test_an_unedited_source_is_never_called_data_only(self):
+        """A sibling lane's rebuild can move a shared pool; only an edit
+        of THIS source may be reported as a data-only change."""
+        out = self.annotate(self.BEFORE, self.AFTER, source_changed=False)
+        self.assertIn("NEUTRAL-IDENTICAL", out)
+
+    def test_an_unmeasured_side_never_manufactures_the_verdict(self):
+        for prev, cur in ((None, self.AFTER), (self.BEFORE, None),
+                          (None, None)):
+            out = self.annotate(prev, cur)
+            self.assertIn("NEUTRAL-IDENTICAL", out)
+
+    def test_a_moved_data_section_does_not_feed_the_axis_dead_streak(self):
+        """Three data-only edits are three landed changes, not evidence
+        that the axis cannot reach codegen."""
+        state = {"neutral_identical_streak": 2}
+        out = self.annotate(self.BEFORE, self.AFTER)
+        self.assertEqual(update_neutral_identical_streak(state, out), 0)
+
+    def test_moved_bytes_still_outrank_the_data_check(self):
+        out = annotate_neutral(self.NEUTRAL, 0, "T362/O362", 0, 0,
+                               "T362/O362", "old", "new",
+                               prev_data=self.BEFORE, data=self.AFTER)
+        self.assertIn("NEUTRAL-REARRANGED", out)
+        self.assertNotIn("NEUTRAL-DATA-ONLY", out)
+
+
+class SectionDigestTests(unittest.TestCase):
+    DUMP = """\
+pb_objregs.o:     file format elf32-powerpc
+
+Contents of section .text:
+ 0000 9421ffd0 7c0802a6 90010034 bf610014  .!..|......4.a..
+Contents of section .rodata:
+ 0000 79617700 70697463 68000000 00000000  yaw.pitch.......
+Contents of section .sdata2:
+ 0040 400921fb 54442d18 3f008081 3f000000  @.!.TD-.?...?...
+"""
+
+    def test_text_sections_are_excluded(self):
+        digests = parse_section_digests(self.DUMP)
+        self.assertEqual(sorted(digests), [".rodata", ".sdata2"])
+
+    def test_a_changed_pool_word_changes_only_its_own_section(self):
+        after = self.DUMP.replace("54442d18", "54524550")
+        moved = moved_sections(parse_section_digests(self.DUMP),
+                               parse_section_digests(after))
+        self.assertEqual(moved, [".sdata2"])
+
+    def test_an_unchanged_dump_moves_nothing(self):
+        digests = parse_section_digests(self.DUMP)
+        self.assertEqual(moved_sections(digests, dict(digests)), [])
+
+    def test_an_added_or_dropped_section_counts_as_moved(self):
+        digests = parse_section_digests(self.DUMP)
+        fewer = {k: v for k, v in digests.items() if k != ".rodata"}
+        self.assertEqual(moved_sections(digests, fewer), [".rodata"])
+
+    def test_a_dump_with_no_sections_is_empty_not_an_error(self):
+        self.assertEqual(parse_section_digests("no sections here"), {})
 
 
 class ScaffoldCensusTests(unittest.TestCase):

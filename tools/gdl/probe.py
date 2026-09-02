@@ -46,6 +46,17 @@ A real move with the multiset flat, or unmeasurable, keeps its real-only
 verdict; the multiset-GREW-at-flat-real case stays with annotate_neutral's
 NEUTRAL-WORSE, which owns the byte-identity check.
 
+DATA-ONLY EDITS ARE NOT FOLD-AWAYS. A pooled value (an FP literal, a
+string, a table) is materialized into .sdata2/.rodata and merely LOADED,
+so correcting a wrong constant changes no instruction word — every score
+here reads NEUTRAL and the function's text bytes hash identical. The
+byte-identity annotation used to call that "the edit FOLDED AWAY before
+codegen ... a STRONGER negative than a regression", which is the exact
+opposite of the truth and told one lane its five correct constant fixes
+(two of them behavioural bugs) were null probes. probe now hashes the
+object's NON-TEXT sections too and prints NEUTRAL-DATA-ONLY, naming the
+sections that moved and directing to a value audit rather than a revert.
+
 Every BASELINE or IMPROVED probe banks a snapshot of the TU source; a later
 `--revert` copies it back and re-scores in the same call, replacing the
 edit -> probe -> hand-retype-revert -> probe cycle. The snapshot covers the
@@ -375,6 +386,73 @@ def object_digest(unit, fn, fn_stripped):
         return signature.get(fn) or signature.get(fn_stripped)
     except Exception:
         return None
+
+
+SECTION_HEAD_RE = re.compile(r"^Contents of section (\S+):$")
+
+
+def parse_section_digests(dump):
+    """{section: sha1} over an `objdump -s` dump, .text* excluded.
+
+    Pure text -> dict so the classification below is testable without an
+    object file or a toolchain.
+    """
+    import hashlib
+    out, cur, hasher = {}, None, None
+    for line in dump.splitlines():
+        head = SECTION_HEAD_RE.match(line.strip())
+        if head:
+            if cur is not None:
+                out[cur] = hasher.hexdigest()[:12]
+            cur = head.group(1)
+            hasher = hashlib.sha1()
+            continue
+        if cur is not None:
+            hasher.update(line.encode())
+    if cur is not None:
+        out[cur] = hasher.hexdigest()[:12]
+    return {name: h for name, h in out.items()
+            if not name.startswith(".text")}
+
+
+def data_digest(unit):
+    """Per-section digest of the object's NON-TEXT sections, or None.
+
+    object_digest() above hashes instruction words and relocation lines,
+    which is structurally blind to a pooled VALUE: MWCC materializes an
+    FP literal (or a string, or a table) into .sdata2/.rodata and the
+    function merely loads it, so correcting a wrong constant changes no
+    instruction word, no displacement and no relocation target
+    (claim.law.SL_pool-constant-errors-are-score-invisible). Hashing the
+    data sections is the ONLY thing in this loop that can tell "the edit
+    folded away before codegen" apart from "the edit landed exactly where
+    no score in this project looks".
+    """
+    try:
+        sys.path.insert(0, str(TOOLS))
+        import fndiff as _fndiff
+        objfile = Path(f"build/{VERSION}/src/{unit}.o")
+        dump = subprocess.run(
+            [str(_fndiff.OBJDUMP), "-s", str(objfile)],
+            capture_output=True, text=True)
+        if dump.returncode != 0:
+            return None
+        return parse_section_digests(dump.stdout)
+    except Exception:
+        return None
+
+
+def moved_sections(prev, cur):
+    """Non-text section names that differ between two data digests.
+
+    None (either side unmeasured) means "cannot tell" and is reported as
+    an empty list — the data-only verdict must never be manufactured out
+    of a missing measurement.
+    """
+    if not isinstance(prev, dict) or not isinstance(cur, dict):
+        return []
+    return sorted(name for name in set(prev) | set(cur)
+                  if prev.get(name) != cur.get(name))
 
 
 def classify(state, real, insns, multiset_tokens, rebase_best=False,
@@ -707,7 +785,8 @@ def replan_hint(streak):
 
 
 def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
-                     prev_insns, prev_digest, digest):
+                     prev_insns, prev_digest, digest,
+                     prev_data=None, data=None, source_changed=True):
     """Byte-identity + structural-drift annotations for a NEUTRAL verdict.
 
     Split out of classify() so the verdict table stays pure and testable;
@@ -744,11 +823,38 @@ def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                         " prove identity — verify with objdiff fuzzy or"
                         " revert]")
         else:
-            verdict += ("  [NEUTRAL-IDENTICAL: object bytes unchanged — the"
-                        " edit FOLDED AWAY before codegen. For a spelling"
-                        " probe this is a STRONGER negative than a"
-                        " regression: the source text never reached the"
-                        " compiler's decision point]")
+            # DATA-ONLY comes FIRST because NEUTRAL-IDENTICAL's advice is
+            # actively wrong for it. The fold-away reading assumes the
+            # object did not move at all; when the instruction stream is
+            # identical but a non-text section CHANGED, the edit reached
+            # codegen and landed in a data pool, where no score in this
+            # project can see it. That message told a lane its five
+            # CORRECT constant fixes were null probes
+            # (attempt.CS_image-wide-constant-sweep-five-fixes.20260901.v1
+            # — five value bugs, two of them behavioural, every one of
+            # them reading NEUTRAL-IDENTICAL).
+            moved = moved_sections(prev_data, data) if source_changed else []
+            if moved:
+                verdict += (
+                    "  [NEUTRAL-DATA-ONLY: instruction stream byte-identical"
+                    " BY CONSTRUCTION, but the object's non-text section(s)"
+                    f" {', '.join(moved)} MOVED — this edit reached codegen"
+                    " and landed in a data pool. NOT a fold-away and NOT a"
+                    " negative result: real, --ops, regnorm and fuzzy are all"
+                    " computed over the instruction stream and are"
+                    " structurally incapable of scoring a pooled value"
+                    " (claim.law.SL_pool-constant-errors-are-score-invisible)."
+                    " ARBITRATE WITH A VALUE AUDIT, never on the score: read"
+                    " the target's lbl_ out of build/GUNE5D/asm/*.s and"
+                    " compare the declared value AND the load width against"
+                    " your literal. Reverting on this verdict throws away a"
+                    " correct fix]")
+            else:
+                verdict += ("  [NEUTRAL-IDENTICAL: object bytes unchanged —"
+                            " the edit FOLDED AWAY before codegen. For a"
+                            " spelling probe this is a STRONGER negative than"
+                            " a regression: the source text never reached the"
+                            " compiler's decision point]")
     if worse and bytes_identical is not True:
         head = f"NEUTRAL   real {real}"
         verdict = (f"NEUTRAL-WORSE real {real}"
@@ -954,6 +1060,8 @@ def main():
     prev_insns = state.get("last_insns")
     prev_digest = state.get("last_bytes")
     digest = object_digest(unit, fn, fn_stripped)
+    prev_data = state.get("last_data")
+    data = data_digest(unit)
     snap = snapshot_path(unit, source) if source is not None else None
     source_changed = True
     if snap is not None and snap.exists() and source.exists():
@@ -982,12 +1090,15 @@ def main():
     if verdict.startswith("NEUTRAL"):
         verdict = annotate_neutral(verdict, real, insns, multiset_tokens,
                                    prev_tokens, prev_insns, prev_digest,
-                                   digest)
+                                   digest, prev_data=prev_data, data=data,
+                                   source_changed=source_changed)
         state["last_verdict"] = verdict
     # A run of edits that never reached codegen is a fact about the axis,
     # not about the spellings tried. Aggregate it and say so.
     streak = update_neutral_identical_streak(state, verdict)
     state["neutral_identical_streak"] = streak
+    if data is not None:
+        state["last_data"] = data
     hint = replan_hint(streak)
     if hint:
         verdict += "\n" + hint
