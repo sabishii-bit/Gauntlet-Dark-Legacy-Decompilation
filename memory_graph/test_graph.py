@@ -2314,6 +2314,76 @@ class ProposalGateNarrowingTests(unittest.TestCase):
             core._apply_proposal_gates(parked)
 
 
+class BankedEvidenceClaimGateTests(unittest.TestCase):
+    """T6 run-36 item 8: "banked in the graph" prose is not a citation.
+
+    Dispatch reads a work_claim's scope as the lane's briefing
+    (claim.law.MT_a-banked-in-the-graph-premise-is-not-a-citation), so an
+    unnamed premise sends a worker after evidence it cannot find.
+    """
+
+    REAL_LAW = ("claim.law.webfrank-pinned-function-source-freeze"
+                ".20260831.v1")
+
+    def _claim(self, scope):
+        return {
+            "schema_version": 1, "kind": "work_claim",
+            "id": "work_claim.t6-gatef-probe.20260902.v1",
+            "function": "function:TowerInit",
+            "owner": "claude-fleet-worker-T6", "state": "active",
+            "claimed_at": "2026-09-02",
+            "attributes": {"scope": scope},
+        }
+
+    def test_an_unnamed_banked_premise_is_refused(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(
+                self._claim("close it; the mechanism is banked in the graph"),
+                root=REPO_ROOT, dry_run=True)
+        self.assertIn("is not a citation", str(caught.exception))
+        self.assertIn("MT_a-banked-in-the-graph-premise",
+                      str(caught.exception))
+
+    def test_a_resolving_record_id_discharges_it(self):
+        stage_record_proposal(
+            self._claim("close it; mechanism banked in the graph as"
+                        f" {self.REAL_LAW}"),
+            root=REPO_ROOT, dry_run=True)
+
+    def test_an_unresolvable_id_does_not_discharge_it(self):
+        """A citation that resolves to nothing is the defect, not the cure."""
+        with self.assertRaises(MemoryGraphError):
+            stage_record_proposal(
+                self._claim("banked in the graph as attempt.no-such.v9"),
+                root=REPO_ROOT, dry_run=True)
+
+    def test_a_claim_making_no_banked_assertion_is_untouched(self):
+        stage_record_proposal(
+            self._claim("close the register residual on TowerInit"),
+            root=REPO_ROOT, dry_run=True)
+
+    def test_the_phrase_family_is_covered(self):
+        for scope in ("the premise is recorded in the graph",
+                      "per the graph this axis is dead",
+                      "the graph already holds the census",
+                      "that measurement is already in the memory graph"):
+            with self.assertRaises(MemoryGraphError, msg=scope):
+                stage_record_proposal(self._claim(scope), root=REPO_ROOT,
+                                      dry_run=True)
+
+    def test_the_gate_is_scoped_to_work_claims(self):
+        """An attempt record narrating its own history is not a dispatch."""
+        attempt = {
+            "schema_version": 1, "kind": "attempt",
+            "id": "attempt.t6-gatef-scope.20260902.v1",
+            "function": "function:TowerInit", "attempted_axis": "probe",
+            "outcome": "improved",
+            "attributes": {"law_screen": "none applicable: test fixture",
+                           "note": "the mechanism is banked in the graph"},
+        }
+        stage_record_proposal(attempt, root=REPO_ROOT, dry_run=True)
+
+
 class UnknownEntityMessageTests(unittest.TestCase):
     """T6 run-36 item 7: the refusal named 2 of the 3 resolvable forms.
 

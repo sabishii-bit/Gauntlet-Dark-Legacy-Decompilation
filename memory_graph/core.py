@@ -315,6 +315,25 @@ _WORD_DIFF_EVIDENCE_RE = re.compile(
     r"|\bdiffering[-\s]word count\b",
     re.I,
 )
+
+# Gate F (run 36): a work_claim scope asserting that its premise is already
+# recorded. Dispatch reads the scope as the lane's briefing, so an unnamed
+# "banked in the graph" sends a worker after evidence it cannot find — see
+# claim.law.MT_a-banked-in-the-graph-premise-is-not-a-citation.
+_BANKED_EVIDENCE_RE = re.compile(
+    r"banked (?:in|into) the (?:memory )?graph"
+    r"|\bbanked in the graph\b"
+    r"|(?:already |previously )?recorded in the (?:memory )?graph"
+    r"|(?:is|are|sits?) already in the (?:memory )?graph"
+    r"|per the (?:memory )?graph"
+    r"|the graph (?:already )?(?:has|holds|carries|records)",
+    re.I,
+)
+# A record id, as the corpus spells them: kind, then dotted slug segments.
+_RECORD_ID_RE = re.compile(
+    r"\b(?:attempt|claim|evidence|entity|edge|work_claim|event)"
+    r"\.[A-Za-z0-9_][A-Za-z0-9_.-]{3,}",
+)
 # Outcomes for which a multi-edit probe must name what it held fixed: only the
 # ones that VETO an axis. See gate C.
 HELD_FIXED_OUTCOMES = frozenset({"negative", "parked", "capped"})
@@ -3227,6 +3246,34 @@ def _probe_record_references(
                                       strict_citations=strict_citations)
 
 
+def _cited_ids_that_resolve(connection: sqlite3.Connection,
+                            record: dict[str, Any], root: Path) -> list[str]:
+    """Record ids mentioned ANYWHERE in this record that actually resolve.
+
+    Free prose counts here on purpose: a work_claim's scope is written as
+    English, and requiring the citation to live in a structured field would
+    reject the correct habit (naming the record inline) along with the wrong
+    one. What is NOT accepted is a mention that resolves to nothing.
+    Same-batch inbox files count, exactly as `supersedes` does.
+    """
+    inbox = root / "memory_graph" / "inbox"
+    inbox_ids = ({path.stem for path in inbox.glob("*.json")}
+                 if inbox.exists() else set())
+    resolved = []
+    for candidate in set(_RECORD_ID_RE.findall(_record_text(record))):
+        if candidate == record.get("id"):
+            continue  # a claim cannot cite itself into existence
+        if candidate in inbox_ids:
+            resolved.append(candidate)
+            continue
+        row = connection.execute(
+            "SELECT 1 FROM record_ingest WHERE record_id=?", (candidate,)
+        ).fetchone()
+        if row is not None:
+            resolved.append(candidate)
+    return sorted(resolved)
+
+
 def _probe_references_with(
     connection: sqlite3.Connection, record: dict[str, Any], kind: Any,
     entity_refs: list[str], cited: list[str], root: Path,
@@ -3279,6 +3326,33 @@ def _probe_references_with(
                 " supersedes / attributes.laws_applied for typos; if the"
                 " record was accepted moments ago, rebuild the graph)"
             )
+    # Gate F (run 36, from the run-35 T6 queue). A work_claim whose scope
+    # says its premise is "banked in the graph" must NAME the record.
+    # claim.law.MT_a-banked-in-the-graph-premise-is-not-a-citation: dispatch
+    # reads a claim's scope as the lane's briefing, so unnamed banked
+    # evidence sends a worker to re-derive something it cannot find — or,
+    # worse, to execute a premise that was superseded. AGENTS.md's dispatch
+    # screen already says citations must resolve to record ids; this is that
+    # screen, enforced where the claim is written rather than where it is
+    # read.
+    if kind == "work_claim":
+        banked = _BANKED_EVIDENCE_RE.search(_record_text(record))
+        if banked and not _cited_ids_that_resolve(connection, record, root):
+            raise MemoryGraphError(
+                "this work_claim's scope claims banked evidence (matched"
+                f" {' '.join(banked.group(0).split())!r}) but names no record"
+                " id that resolves. \"Banked in the graph\" is not a"
+                " citation: dispatch reads the scope as the lane's briefing,"
+                " so an unnamed premise sends a worker to re-derive evidence"
+                " it cannot find, or to execute a premise that has since been"
+                " superseded — see"
+                " claim.law.MT_a-banked-in-the-graph-premise-is-not-a-citation"
+                ". Name the record id in the scope text (or in"
+                " attributes.laws_applied / supersedes) so"
+                " `gdlmem.py record <id>` returns it. If the evidence is real"
+                " but unrecorded, RECORD IT FIRST and cite that."
+            )
+
     if kind == "evidence":
         table = "claim" if record.get("claim") else "edge"
         target = record.get("claim") or record.get("edge")
