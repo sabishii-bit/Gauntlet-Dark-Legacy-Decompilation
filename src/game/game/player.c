@@ -4985,8 +4985,10 @@ typedef struct TierColor {
 
 #define PLAYER_SET_FAMILIAR(source_, parent_)                                  \
     do {                                                                       \
-        void* familiar_parent = (parent_);                                     \
-        void* familiar_source = (source_);                                     \
+        void* familiar_source;                                                 \
+        void* familiar_parent;                                                 \
+        familiar_parent = (parent_);                                           \
+        familiar_source = (source_);                                           \
         if (p->atree != NULL &&                                                \
             (familiar_source == NULL ||                                        \
              p->atree_src_id != ((u32*)familiar_source)[1])) {                 \
@@ -5000,9 +5002,10 @@ typedef struct TierColor {
         }                                                                      \
     } while (0)
 
+#pragma opt_propagation off
 void PlayerProcessPowerups(void* vp) {
     Player* p = vp;
-    u8 unused[64];
+    u8 unused[112];
     u32 old_flags;
     s32 index = p->index;
     f32 alpha_time;
@@ -5033,10 +5036,6 @@ void PlayerProcessPowerups(void* vp) {
     p->flags = 0;
 
     {
-    f64 charge_step = lbl_803477D0;
-    f32 charge_cap = lbl_803477D8;
-    f64 boss_step = lbl_80347A40;
-
     for (i = 0; i < 11; i++) {
         f32 timeleft = p->powerup[i].timeleft;
         s32 type;
@@ -5046,11 +5045,11 @@ void PlayerProcessPowerups(void* vp) {
             continue;
         }
         if (sMusicTrackHi != 0xD && gTriggerCameraState == 0 &&
-            gGameplayPauseTimer == 0 && timeleft > 0.0) {
+            lbl_803447B8 == 0 && timeleft > 0.0) {
             if (gBossType >= 0) {
                 if (gBossActive != 0 && gBossDead == 0) {
                     p->powerup[i].timeleft = (f32)((f64)timeleft -
-                        boss_step * (f64)gClockFrameStep);
+                        3.0 * (f64)gClockFrameStep);
                 }
             } else {
                 p->powerup[i].timeleft = timeleft - gClockFrameStep;
@@ -5100,9 +5099,9 @@ void PlayerProcessPowerups(void* vp) {
             p->flags |= p->powerup[i].specialflags;
             if (p->powerup[i].specialflags & 0x80000) {
                 p->power_target =
-                    (f32)((f64)p->power_target + charge_step);
-                if ((f64)p->power_target > charge_step) {
-                    p->power_target = charge_cap;
+                    (f32)((f64)p->power_target + 100.0);
+                if ((f64)p->power_target > 100.0) {
+                    p->power_target = 100.0f;
                 }
                 if (p->powerup[i].timeleft >= 0.0) {
                     p->powerup[i].timeleft = 0.0f;
@@ -5386,9 +5385,12 @@ void PlayerProcessPowerups(void* vp) {
         void* wnode;
 
         if (kind != 0) {
-            void* source = WeapHoldFxTree[index][kind];
-            void* parent = p->hand_node;
+            void* source;
+            void* parent;
             s32 tree_flags = 0x81880;
+
+            parent = p->hand_node;
+            source = WeapHoldFxTree[index][kind];
 
             if (p->weaphold_atree != NULL &&
                 (source == NULL ||
@@ -5609,6 +5611,7 @@ void PlayerProcessPowerups(void* vp) {
 
     (void)shield_time;
 }
+#pragma opt_propagation reset
 
 /* Struct view over the familiar/halo atree state at Player+0x748.  A    */
 /* typed member (displacement) read keeps &atree out of an address-CSE.  */

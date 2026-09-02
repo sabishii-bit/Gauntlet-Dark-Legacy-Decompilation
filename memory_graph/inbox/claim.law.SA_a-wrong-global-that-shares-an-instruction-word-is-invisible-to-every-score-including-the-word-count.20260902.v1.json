@@ -1,0 +1,20 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py",
+    "tools/gdl/fnasm.py"
+  ],
+  "attributes": {
+    "provenance": "src/game/game/player.c::PlayerProcessPowerups, run 40. The powerup-timer decrement gate reads three globals; the target's third is `lwz r0,0(0) @lbl_803447B8(EMB_SDA21)` at +0x1f4 (.sbss 0x803447B8, the scripted-camera gate that bosscam.c/enemy.c/combat.c already spell that way, and that player.c itself already declares at line 372) while our source read `gGameplayPauseTimer` (.sbss 0x80344770). Both are `extern s32`, both are SDA21-reachable, so the words are identical and only the relocation differed. This is a GAMEPLAY defect, not cosmetics: powerup timers were being frozen by the wrong condition. Fixed in commit 1eaf17b39, one identifier, byte-neutral, GATE OK and build/GUNE5D/main.dol: OK.",
+    "scope": "Any TU whose globals live in .sdata/.sbss and are addressed through EMB_SDA21. The cheap screen is the symbol column of `fnasm --diff` over the whole function, or a relocation-symbol dump; no numeric arbiter substitutes for it."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any SDA21-relocated wrong-symbol defect that DOES move real, the multiset, fuzzy or wf_word_diff's count. Reproduce this one: at commit c2b837efa run `python tools/gdl/fnasm.py game/game/player.c PlayerProcessPowerups 0x1f4:0x1f8 --diff` (row differs, target lbl_803447B8 vs ours gGameplayPauseTimer) and `python tools/gdl/composed_census/wf_word_diff.py game/game/player.c PlayerProcessPowerups` (80); at 1eaf17b39 the row is `=` and the count is still 80.",
+  "id": "claim.law.SA_a-wrong-global-that-shares-an-instruction-word-is-invisible-to-every-score-including-the-word-count.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T23:00:16Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A reconstruction that reads the WRONG small-data global is invisible to every arbiter in the matching loop when both globals are reached through EMB_SDA21: the instruction word is `lwz rD,0(rB)` with a zero immediate in both streams and only the RELOCATION names the symbol, so fndiff `real`, the opcode multiset, objdiff fuzzy AND the raw differing-word count from wf_word_diff.py all read it as matching. Measured: fixing one such defect moved NOTHING - probe printed NEUTRAL and wf_word_diff stayed at exactly 80 words before and after - while the aligned `fnasm --diff` row went from `~` to `=`. CONSEQUENCE: the raw word count is NOT a complete residual census for a function that reads small-data globals, and a function at 'real 0 / 0 words' can still carry a semantic bug of this shape. This extends the run-33/34 score-invisible-constant class from POOL constants to SDA21 GLOBALS and confirms AGENTS.md residual-work discipline 3's advice by a second route: for a named-symbol TU the relocation symbols are the only place the defect exists, so read the aligned view's symbol column, not just the numbers."
+}

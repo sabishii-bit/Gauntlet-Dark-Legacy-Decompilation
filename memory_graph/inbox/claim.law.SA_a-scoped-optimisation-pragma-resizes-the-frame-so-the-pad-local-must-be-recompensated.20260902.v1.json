@@ -1,0 +1,16 @@
+{
+  "attributes": {
+    "provenance": "src/game/game/player.c::PlayerProcessPowerups, run 40, attempt.SA_playerprocesspowerups-pool-literal-and-propagation-drive.20260902.v1. The pragma was chosen because the immediately preceding sibling PlayerUpdateAtts - which is MATCHED at real 0 and inlines the SAME `player_scale_att` helper - already carries `#pragma opt_propagation off`/`reset` around itself at player.c:4041-4065; that is the evidence that the TU's original source used the bracket here too. With the pad corrected: real 340 -> 174, fresh fuzzy 99.3116 -> 99.7215, raw words 163 -> 80, and savedregs.py went from FOUR role mismatches (f29, r22, r24, r25) to ASSIGNMENT MATCHES on every callee-saved register. Commit c2b837efa.",
+    "scope": "MWCC GC 1.2.5 family; any function whose frame is held to target by an explicit pad local. Screen the pragma against its already-bracketed siblings in the same TU before inventing one - the bracket is source evidence, not a knob."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function where a scoped optimisation pragma changes the frame size and a 1:1 byte correction of its pad local does NOT restore the target frame (i.e. alignment or a non-byte pad type breaks the 1:1 relation), or one where the pragma's real/fuzzy verdict is unchanged by the pad correction. Reproduce: at commit c2b837efa revert `u8 unused[112]` to `u8 unused[64]` and run `python tools/gdl/probe.py game/game/player.c PlayerProcessPowerups --slots`.",
+  "id": "claim.law.SA_a-scoped-optimisation-pragma-resizes-the-frame-so-the-pad-local-must-be-recompensated.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T23:00:34Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "A scoped `#pragma opt_propagation off` bracket around a single function changes how many compiler temporaries need stack homes, so it RESIZES the frame - and in a function whose frame is currently held to target by a `u8 unused[N]` pad, that resize is charged to the pad. Reading such a probe's verdict without re-compensating the pad understates the lever badly: the pragma alone measured real 384 -> 222 but ALSO shrank the frame 208 -> 160 and produced 24 same-opcode IMMEDIATE rows (every r1-relative displacement plus stwu/stmw/lmw), and bumping `u8 unused[64]` -> `u8 unused[112]` in the same function took it the rest of the way to real 174 with all 24 immediate rows gone. RULE: when a pragma or optimisation-scope probe reports a frame delta, do not judge the axis until the pad has absorbed the delta; probe's slot map prints the exact byte figure (target 208 vs ours 160) and the pad correction is that difference, applied 1:1 for a byte array. Corollary of AGENTS.md's note that a pad stands in for genuinely unrecovered locals - here it stands in for temps the pragma stopped spilling."
+}
