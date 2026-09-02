@@ -843,7 +843,7 @@ extern s32 lbl_80343CA4;
 extern void* lbl_80344E48;
 extern char lbl_801137B4[];
 extern f32 lbl_803473F8;
-extern char lbl_803473FC[6];    /* corner label */
+extern char lbl_803473FC[4];    /* corner label */
 extern s32 lbl_80124C70[][1];
 int towerGetRuneNearStat(s32 player, s32 stat);
 int PlayerHasRune(s32 player, s32 rune);
