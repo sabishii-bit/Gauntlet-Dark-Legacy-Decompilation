@@ -20,8 +20,10 @@ from defake_gate import (arbitrate_regressions, arbitration_event, compare,
                          data_section_verdicts, format_arbitrations,
                          load_baseline, log_arbitration,
                          naming_drift_is_benign, parse_section_digests,
+                         format_roster, parse_clean,
                          read_arbitrations, read_report_fuzzy,
-                         relocation_change_direction, summarize_arbitrations)
+                         relocation_change_direction, roster_rows,
+                         summarize_arbitrations)
 
 
 def no_ops(_unit, _name):
@@ -412,6 +414,86 @@ class RelocationDirectionInCompareTests(unittest.TestCase):
             resolve=NamingDriftSoundnessTests.ADDRESSES.get,
             target_relocs={"f": [["R_PPC_EMB_SDA21", "get_attn_pos"]]})
         self.assertEqual(rows[0][1], "NAMING-DRIFT")
+
+
+class RosterModeTests(unittest.TestCase):
+    """run-38 item 7: every number a per-function sweep needs was already
+    computed to take a gate baseline and reachable no other way, so a lane
+    ran fndiff once per function instead (UC: 15 subprocess calls for one
+    mandated sweep)."""
+
+    CLEAN = """\
+== CritterCollideEnemies: EXACT, 0 real diff lines
+== CritterDamage: STRUCTURAL, 505 real diff lines [artifact-filtered; raw 9]
+== ProcessCritter: MATCH (pool-name noise only), 0 real diff lines
+== CritterDoTexmodNode: MATCH-MODULO-RELOC-NAMING, 4 real diff lines
+"""
+
+    def test_parse_clean_reads_one_row_per_function(self):
+        rows = parse_clean(self.CLEAN)
+        self.assertEqual(rows["CritterCollideEnemies"], ("EXACT", 0))
+        self.assertEqual(rows["CritterDamage"], ("STRUCTURAL", 505))
+
+    def test_parse_clean_keeps_a_parenthesised_status_whole(self):
+        self.assertEqual(parse_clean(self.CLEAN)["ProcessCritter"],
+                         ("MATCH (pool-name noise only)", 0))
+
+    def snap(self):
+        return {
+            "__sections__": {"data": {}},
+            "CritterDamage": {"status": "STRUCTURAL", "ti": 604, "bi": 604,
+                              "real": 476, "genuine": 37, "fuzzy": 92.54},
+            "CritterCollideEnemies": {"status": "EXACT", "ti": None,
+                                      "bi": None, "real": 0},
+            "ProcessCritter": {"status": "RELOCATION_ONLY", "ti": 420,
+                               "bi": 420, "real": 0, "fuzzy": 100.0},
+        }
+
+    def test_the_reserved_sections_key_is_never_a_roster_row(self):
+        names = [row[0] for row in
+                 roster_rows(self.snap(), parse_clean(self.CLEAN), set())]
+        self.assertNotIn("__sections__", names)
+
+    def test_rows_sort_by_real_descending(self):
+        names = [row[0] for row in
+                 roster_rows(self.snap(), parse_clean(self.CLEAN), set())]
+        self.assertEqual(names[0], "CritterDamage")
+
+    def test_a_pinned_row_sorts_LAST_whatever_its_real(self):
+        """Its real 0 is a construction artifact, not closed work."""
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN),
+                           {"CritterDamage"})
+        self.assertEqual(rows[-1][0], "CritterDamage")
+        self.assertTrue(rows[-1][8])
+
+    def test_a_baseline_supplies_the_real_delta(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN), set(),
+                           baseline={"CritterDamage": {"real": 500}})
+        by_name = {row[0]: row for row in rows}
+        self.assertEqual(by_name["CritterDamage"][9], "500->476")
+
+    def test_an_unchanged_real_shows_no_delta(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN), set(),
+                           baseline={"CritterDamage": {"real": 476}})
+        self.assertIsNone({r[0]: r for r in rows}["CritterDamage"][9])
+
+    def test_the_header_counts_pinned_rows_separately_from_exact(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN),
+                           {"ProcessCritter"})
+        out = format_roster("game/enemy/critter", rows, has_baseline=True)
+        self.assertIn("1 at real 0", out)
+        self.assertIn("1 with a residual", out)
+        self.assertIn("1 WebFrank-PINNED", out)
+
+    def test_a_missing_baseline_says_so_instead_of_showing_no_delta(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN), set())
+        out = format_roster("game/x/y", rows, has_baseline=False)
+        self.assertIn("no gate baseline", out)
+
+    def test_an_exact_row_prints_a_dash_not_None_over_None(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN), set())
+        out = format_roster("game/x/y", rows, has_baseline=True)
+        self.assertNotIn("None/None", out)
 
 
 class BaselineFormatTests(unittest.TestCase):

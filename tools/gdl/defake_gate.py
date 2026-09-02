@@ -22,6 +22,16 @@ Usage:
   python tools/gdl/defake_gate.py check game/audio/sndfx.c,game/ui/attract.c --rebuild
   python tools/gdl/defake_gate.py arbitrations [game/enemy/enemy.c]
       (counts and the override RATE from the arbitration log)
+  python tools/gdl/defake_gate.py roster game/enemy/critter [--rebuild]
+      (the whole per-function sweep in ONE call: status, insn counts,
+      `real` with its delta against the gate baseline, genuine structural
+      rows, fndiff --clean's verdict, fuzzy, and which rows are
+      WebFrank-PINNED. Every one of those numbers was already computed
+      here to take a baseline and reachable no other way, so a lane
+      wanting the per-function view ran fndiff once per function instead
+      — 15 subprocess calls for one mandated sweep. Rows sort by `real`
+      descending with pinned rows last, because a pinned function reads
+      real 0 by construction and is not open work.)
 
 EVERY ARBITRATION IS LOGGED. `--arbitrate` keeps, `--bank-arbitrated` row
 re-anchors, and refused CONFLICTs all append one json line to
@@ -906,6 +916,106 @@ def format_arbitrations(summary, unit=None):
     return "\n".join(lines)
 
 
+CLEAN_RE = re.compile(r"^==\s+(\S+?):\s+(.+?),\s+(\d+)\s+real diff lines")
+
+
+def parse_clean(text):
+    """{fn: (clean_status, clean_real)} from a whole-TU `fndiff --clean`.
+
+    --clean already covers every function in ONE call; what was missing
+    was anything that read it alongside `real` and the genuine-row count.
+    """
+    out = {}
+    for line in text.splitlines():
+        match = CLEAN_RE.match(line.strip())
+        if match:
+            name, status, real = match.groups()
+            out[name] = (status, int(real))
+    return out
+
+
+def webfrank_pins(unit):
+    """Function names this TU has a WebFrank rule for, or set().
+
+    AGENTS.md discipline 10: a pinned function reads real 0 BY
+    CONSTRUCTION (the gate scores the postprocessed object), so any
+    roster that ranks by `real` must say which rows are pinned or it
+    silently promises work that is already closed.
+    """
+    path = Path(f"config/{VERSION}/webfrank.json")
+    if not path.exists():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set()
+    return {rule.get("function")
+            for rule in (data.get("units") or {}).get(unit, [])
+            if rule.get("function")}
+
+
+def roster_rows(snap, clean, pins, baseline=None):
+    """Sorted roster rows: (name, status, insns, real, genuine, clean,
+    clean_real, fuzzy, pinned, delta).
+
+    Ordered by the work each row represents — `real` descending, then
+    name — so the roster reads as a queue. Pinned rows sort last whatever
+    their score, because their real is not a measurement of open work.
+    """
+    baseline = baseline or {}
+    rows = []
+    for name, entry in snap.items():
+        if name == "__sections__":
+            continue
+        pinned = name in pins
+        was = (baseline.get(name) or {}).get("real")
+        real = entry.get("real")
+        delta = (None if was is None or real is None or was == real
+                 else f"{was}->{real}")
+        clean_status, clean_real = clean.get(name, ("?", None))
+        ti, bi = entry.get("ti"), entry.get("bi")
+        # A function with no DIFF line carries no counts at all; printing
+        # "None/None" for the exact rows made the roster look broken.
+        insns = "-" if ti is None and bi is None else f"{ti}/{bi}"
+        rows.append((name, entry.get("status"), insns,
+                     real, entry.get("genuine"), clean_status, clean_real,
+                     entry.get("fuzzy"), pinned, delta))
+    rows.sort(key=lambda row: (row[8], -(row[3] or 0), row[0]))
+    return rows
+
+
+def format_roster(unit, rows, has_baseline):
+    lines = [f"ROSTER {unit}: {len(rows)} function(s)"
+             f"  [real | genuine structural rows | fndiff --clean | fuzzy]"]
+    open_rows = [r for r in rows if (r[3] or 0) > 0 and not r[8]]
+    exact = sum(1 for r in rows if r[3] == 0 and not r[8])
+    pinned = sum(1 for r in rows if r[8])
+    lines.append(f"  {exact} at real 0, {len(open_rows)} with a residual,"
+                 f" {pinned} WebFrank-PINNED (real 0 by construction —"
+                 " not open work)")
+    header = (f"  {'FUNCTION':<38} {'STATUS':<18} {'INSNS':>9} {'REAL':>6}"
+              f" {'GEN':>5} {'FUZZY':>8}  CLEAN")
+    lines.append(header)
+    for (name, status, insns, real, genuine, clean_status, clean_real,
+         fuzzy, pinned, delta) in rows:
+        mark = " [PINNED]" if pinned else ""
+        show_real = "-" if real is None else str(real)
+        if delta:
+            show_real += f" ({delta})"
+        lines.append(
+            f"  {name:<38.38} {str(status):<18.18} {insns:>9}"
+            f" {show_real:>6} {('-' if genuine is None else genuine):>5}"
+            f" {('-' if fuzzy is None else f'{fuzzy:.2f}'):>8}"
+            f"  {clean_status}"
+            + (f" [{clean_real}]" if clean_real not in (None, real) else "")
+            + mark)
+    if not has_baseline:
+        lines.append("  (no gate baseline for this unit, so no REAL delta is"
+                     " shown — take one with `defake_gate.py baseline"
+                     f" {unit}`)")
+    return "\n".join(lines)
+
+
 def run_fndiff(unit, flag):
     result = subprocess.run(
         [sys.executable, str(FNDIFF), unit, flag],
@@ -1021,6 +1131,14 @@ def main():
         print(format_arbitrations(
             summarize_arbitrations(read_arbitrations(), unit), unit))
         return 0
+    if args[:1] == ["roster"] and len(args) == 2:
+        worst = 0
+        for one in args[1].split(","):
+            one = one.strip()
+            if not one:
+                continue
+            worst = max(worst, run_roster(one, rebuild, arbiter))
+        return worst
     if len(args) != 2 or args[0] not in ("baseline", "check"):
         print(__doc__)
         return 2
@@ -1041,6 +1159,95 @@ def main():
         return worst
     return run_single(mode, unit, rebuild, update_improved, arbitrate,
                       renames, bank_arbitrated, at_head, arbiter)
+
+
+def measure_unit(unit, arbiter=None):
+    """(snapshot, fuzzy_note) — every per-function measurement this tool
+    takes, in ONE pass over the unit.
+
+    Extracted from run_single so `roster` can reuse it (run-38 item 7):
+    the numbers a sweep needs — status, insn counts, real, genuine
+    structural rows, fuzzy — were all computed here already and reachable
+    only by taking a gate baseline, so a lane wanting a per-function view
+    ran fndiff once per function instead (UC: 15 subprocess calls).
+    """
+    snap = snapshot(run_fndiff(unit, "--classify"),
+                    run_fndiff(unit, "--count"))
+    objfile = Path(
+        f"build/{VERSION}/src/{re.sub(r'[.](c|cpp)$', '', unit)}.o")
+    if objfile.exists():
+        for name, digest in fndiff.raw_signature(objfile).items():
+            if name in snap:
+                snap[name]["bytes"] = digest
+        for name, digest in fndiff.raw_words_signature(objfile).items():
+            if name in snap:
+                snap[name]["words"] = digest
+        for name, digest in fndiff.opcode_multiset_signature(objfile).items():
+            if name in snap:
+                snap[name]["opset"] = digest
+        # Relocation SYMBOLS, kept as names rather than a hash: the
+        # NAMING-DRIFT check has to resolve two spellings to addresses to
+        # tell a rename from a different callee, and a hash cannot.
+        for name, rows in fndiff.relocation_symbols(objfile).items():
+            if name in snap:
+                snap[name]["relocs"] = [list(row) for row in rows]
+        # Per-TU DATA baseline (run 34 item 1): the object's non-text
+        # sections, banked under a reserved key so `compare` can flag a
+        # score-invisible data-section change (a lost .extab match) as its
+        # own verdict class. Kept out of every per-function loop above.
+        data_sections = data_section_digests(objfile)
+        if data_sections is not None:
+            snap["__sections__"] = {"data": data_sections}
+    # Genuine structural rows for every function `real` calls imperfect —
+    # the structure arbiter's baseline half. Byte-exact rows can never be
+    # disputed, so they are skipped and the count stays cheap.
+    mismatching = [name for name, row in snap.items() if row.get("real")]
+    if mismatching:
+        for name, count in genuine_counts(unit, mismatching).items():
+            if name in snap:
+                snap[name]["genuine"] = count
+    # Fuzzy anchor for the fuzzy arbiter. Only ever taken from a report at
+    # least as new as the object it describes: an anchor read from a stale
+    # report is worse than no anchor, because `check` would silently
+    # compare a fresh number against a number for different bytes.
+    bare = re.sub(r"\.(c|cpp)$", "", unit)
+    fuzzy_rows, fuzzy_note = {}, "no fuzzy anchor (report older than object)"
+    if arbiter == "fuzzy":
+        fuzzy_rows = fresh_fuzzy(bare, None)
+        fuzzy_note = "fuzzy anchor from a freshly built report"
+    elif report_is_fresh(unit):
+        fuzzy_rows = read_report_fuzzy(bare)
+        fuzzy_note = "fuzzy anchor from the current report"
+    for name, value in fuzzy_rows.items():
+        if name in snap:
+            snap[name]["fuzzy"] = value
+    if not fuzzy_rows:
+        fuzzy_note = ("no fuzzy anchor — re-take with `--arbiter fuzzy` to"
+                      " enable the fuzzy arbiter")
+    return snap, fuzzy_note
+
+
+def run_roster(unit, rebuild, arbiter=None):
+    """The whole per-function sweep in ONE call (run-38 item 7)."""
+    unit = normalize_unit(unit)
+    if rebuild:
+        obj = re.sub(r"\.(c|cpp)$", "", unit)
+        build = subprocess.run(["ninja", f"build/{VERSION}/src/{obj}.o"],
+                               capture_output=True, text=True)
+        if build.returncode != 0:
+            print("BUILD FAILED (roster not run):")
+            print((build.stdout + build.stderr).strip()[-1500:])
+            return 1
+    snap, fuzzy_note = measure_unit(unit, arbiter)
+    clean = parse_clean(run_fndiff(unit, "--clean"))
+    baseline = {}
+    path = gate_path(unit)
+    if path.exists():
+        baseline, _meta = load_baseline(path)
+    rows = roster_rows(snap, clean, webfrank_pins(unit), baseline)
+    print(format_roster(unit, rows, bool(baseline)))
+    print(f"  {fuzzy_note}")
+    return 0
 
 
 def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
@@ -1094,58 +1301,7 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
             print("BUILD FAILED (gate not run):")
             print((build.stdout + build.stderr).strip()[-1500:])
             return 1
-    snap = snapshot(run_fndiff(unit, "--classify"), run_fndiff(unit, "--count"))
-    objfile = Path(
-        f"build/{VERSION}/src/{re.sub(r'[.](c|cpp)$', '', unit)}.o")
-    if objfile.exists():
-        for name, digest in fndiff.raw_signature(objfile).items():
-            if name in snap:
-                snap[name]["bytes"] = digest
-        for name, digest in fndiff.raw_words_signature(objfile).items():
-            if name in snap:
-                snap[name]["words"] = digest
-        for name, digest in fndiff.opcode_multiset_signature(objfile).items():
-            if name in snap:
-                snap[name]["opset"] = digest
-        # Relocation SYMBOLS, kept as names rather than a hash: the
-        # NAMING-DRIFT check has to resolve two spellings to addresses to
-        # tell a rename from a different callee, and a hash cannot.
-        for name, rows in fndiff.relocation_symbols(objfile).items():
-            if name in snap:
-                snap[name]["relocs"] = [list(row) for row in rows]
-        # Per-TU DATA baseline (run 34 item 1): the object's non-text
-        # sections, banked under a reserved key so `compare` can flag a
-        # score-invisible data-section change (a lost .extab match) as its
-        # own verdict class. Kept out of every per-function loop above.
-        data_sections = data_section_digests(objfile)
-        if data_sections is not None:
-            snap["__sections__"] = {"data": data_sections}
-    # Genuine structural rows for every function `real` calls imperfect —
-    # the structure arbiter's baseline half. Byte-exact rows can never be
-    # disputed, so they are skipped and the count stays cheap.
-    mismatching = [name for name, row in snap.items() if row.get("real")]
-    if mismatching:
-        for name, count in genuine_counts(unit, mismatching).items():
-            if name in snap:
-                snap[name]["genuine"] = count
-    # Fuzzy anchor for the fuzzy arbiter. Only ever taken from a report at
-    # least as new as the object it describes: an anchor read from a stale
-    # report is worse than no anchor, because `check` would silently
-    # compare a fresh number against a number for different bytes.
-    bare = re.sub(r"\.(c|cpp)$", "", unit)
-    fuzzy_rows, fuzzy_note = {}, "no fuzzy anchor (report older than object)"
-    if arbiter == "fuzzy":
-        fuzzy_rows = fresh_fuzzy(bare, None)
-        fuzzy_note = "fuzzy anchor from a freshly built report"
-    elif report_is_fresh(unit):
-        fuzzy_rows = read_report_fuzzy(bare)
-        fuzzy_note = "fuzzy anchor from the current report"
-    for name, value in fuzzy_rows.items():
-        if name in snap:
-            snap[name]["fuzzy"] = value
-    if not fuzzy_rows:
-        fuzzy_note = ("no fuzzy anchor — re-take with `--arbiter fuzzy` to"
-                      " enable the fuzzy arbiter")
+    snap, fuzzy_note = measure_unit(unit, arbiter)
     path = gate_path(unit)
     if mode == "baseline":
         meta = save_baseline(path, snap, unit)
