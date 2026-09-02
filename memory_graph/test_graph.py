@@ -1566,6 +1566,56 @@ class RetrievalQueryTests(unittest.TestCase):
         self.assertEqual([p["function"] for p in result["pin_mechanisms"]],
                          ["test_fn"])
 
+    # --- laws --residual discrimination (run-38 item 10) -----------------
+    def test_a_shared_token_carries_its_corpus_frequency(self):
+        """So a reader can see WHY a row ranked where it did."""
+        result = law_corpus(root=self.root, residual="+1 addi -1 li")
+        row = next(r for r in result["residual_matches"]
+                   if r["record"] == "attempt.resid-a.v1")
+        self.assertEqual(set(row["shared_token_frequency"]), {"addi", "li"})
+        self.assertGreater(row["token_specificity"], 0.0)
+
+    def test_a_rare_mnemonic_outranks_a_ubiquitous_one(self):
+        """THE MEASURED DEFECT. A jumptable-class query returned 153 rows
+        of which 151 shared exactly one token — `b`, carried by 151 of the
+        corpus's signatures — while the two rows that actually shared
+        `jumptable` sorted in among them. Counting shared mnemonics
+        treats every opcode as equally informative; they are not."""
+        common = {f"op{n}": 40 for n in range(1)}
+        common["b"] = 151
+        common["jumptable"] = 2
+        rare = core._token_rarity("jumptable", common, 200)
+        ubiquitous = core._token_rarity("b", common, 200)
+        self.assertGreater(rare, ubiquitous)
+
+    def test_token_rarity_is_zero_on_an_empty_corpus(self):
+        self.assertEqual(core._token_rarity("b", {}, 0), 0.0)
+
+    def test_an_instruction_band_is_not_a_discriminating_facet(self):
+        """The weights already call it 'a coincidence two hundred records
+        also share'; the SELECTION gate did not read them."""
+        self.assertEqual(
+            core.discriminating_facets(
+                ["insnband:200", "parity:even", "flag:x"]),
+            [])
+
+    def test_real_signature_content_IS_discriminating(self):
+        self.assertEqual(
+            core.discriminating_facets(["op:jumptable", "insnband:200"]),
+            ["op:jumptable"])
+
+    def test_a_zero_weight_facet_never_discriminates(self):
+        """`kind:` gates the comparison and scores nothing, so it cannot
+        also be the evidence that selects a row."""
+        self.assertEqual(
+            core.discriminating_facets(["kind:reorder", "resolution:x"]), [])
+
+    def test_a_weak_only_match_is_suppressed_and_COUNTED(self):
+        """A filter that quietly drops rows reads as a false all-clear."""
+        result = law_corpus(root=self.root, residual="+1 addi -1 li")
+        self.assertIn("residual_weak_only_suppressed", result)
+        self.assertIsInstance(result["residual_weak_only_suppressed"], int)
+
     # --- find --family / --capability ------------------------------------
     def test_find_family_facet(self):
         hits = find_records(root=self.root, family="live-zero-remat")
