@@ -1,0 +1,22 @@
+{
+  "asserted_by": [
+    "attempt.CT_mbcameraupdate-statement-order-drive.20260903.v1"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "cse",
+      "index-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function under the same cflags where the target's first-emitted `fmuls` corresponds to the FIRST-written addend of a multi-term source sum, i.e. where writing the terms in emission order reproduces the target. The cheapest check is a two-term sum of products in any Matching TU: dump it with `python tools/gdl/fnasm.py <unit> <fn>` and compare the fmuls operand against the source's first term. A single such counter-example scopes this law down to the three-term form.",
+  "id": "claim.law.CT_mwcc-evaluates-the-second-addend-first-so-source-term-order-is-the-reverse-of-emission-order.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T23:00:18Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "For a source sum of products `A + B + C` (left-associative, as C requires), MWCC-PPC emits the product for B FIRST as an `fmuls`, then folds A in with `fmadds`, then C with a second `fmadds`. The second operand of the inner `+` is evaluated before the first. CONSEQUENCE FOR MATCHING, and this is the part that costs builds: when you read the target and see `fmuls f0,<P>,<q>` followed by `fmadds f0,<R>,<s>,f0`, the SOURCE order is `R*s + P*q + ...` - the REVERSE of what the instruction stream shows. Writing the terms in the order the asm computes them produces the wrong stream, and the symptom is not an extra instruction: it is a set of paired lfs DISPLACEMENTS that look like wrong constants. MEASURED, MBCameraUpdate (game/mb/mb_camera, 2026-09-03): our source read `view3[12] = view3[4] * x + view3[0] * y + view3[8] * z;` and compiled to `@0x1fc lfs f0,48(r31) / @0x200 lfs f1,52(r31) / @0x218 fmuls f0,f0,f5` (f5 = -view3[12], i.e. the SECOND term's product computed first); the target compiled to `@0x1fc lfs f0,52(r31) / @0x200 lfs f1,48(r31) / @0x218 fmuls f0,f0,f5` (f5 = -view3[13], the FIRST term's). Swapping the first two addends in all three rows - `view3[0] * y + view3[4] * x + view3[8] * z` - put all eight lfs displacement words (0x1fc, 0x200, 0x208, 0x214, 0x230, 0x234, 0x24c, 0x250) onto target in one build. The swap is exact in IEEE754: `A + B` and `B + A` are bit-identical (addition is commutative; only ASSOCIATIVITY fails), and the emitted shape stays one fmuls plus two fmadds, so no rounding behaviour changes. SCOPE: verified on a three-term float sum of products under cflags_demo (-O4, no-peephole) in one function; the rule is stated for the `+` operand-evaluation order and is expected to generalise to any commutative binary arithmetic operator, but only float sums have been measured. This is a DIAGNOSTIC rule for reading a target, not a licence to reorder terms whose evaluation has side effects or whose reassociation would change rounding - never apply it across a `-` or to a sum of dissimilar magnitudes where the ASSOCIATION, not the commutation, would move."
+}

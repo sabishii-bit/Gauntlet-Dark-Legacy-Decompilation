@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "attempt.CT_print-n-of-m-param-copy-local-numbering.20260903.v1"
+  ],
+  "attributes": {
+    "tags": [
+      "register-web",
+      "decl-order",
+      "param-retype",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function under these cflags where a parameter's saved copy is numbered ABOVE the declared locals WITHOUT the source assigning it to a declared local, or where swapping the declarations of a param-copy local and a memory-loaded local of the same width changes the object bytes. Either observation is one build: `python tools/gdl/probe.py <unit> <fn>` after the swap - a NEUTRAL-IDENTICAL digest confirms the boundary, any other verdict falsifies it.",
+  "id": "claim.law.CT_a-saved-parameter-numbers-below-the-locals-until-you-give-it-a-declared-copy.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T23:00:19Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "MWCC-PPC numbers the callee-saved bank in TWO bands, and a parameter cannot be moved between them by reordering anything. A parameter that must survive a call is copied at entry and numbered from the BOTTOM of the save set upward, below every local; the function's declared locals are numbered from the TOP downward in DECLARATION ORDER. So a target that puts a parameter's saved copy ABOVE the locals is not showing you an allocator whim - it is showing you that the parameter was written into an explicitly DECLARED LOCAL in the source, which moves it into the locals' band and costs no instruction (MWCC emits the same single `addi rD,rParam,0` copy either way). MEASURED, print_n_of_m (game/ui/screensaver, 2026-09-03): with `node` used directly, our stream produced m=r26, node=r27 and locals d=r31, yr=r29, xr=r30, e=r28 against a target of m=r26, e=r27, xr=r28, yr=r29, d=r30, node=r31 - a five-register permutation. Adding `u32 nd;` as the first declaration, `nd = node;` as the first statement, and passing `nd` at both call sites moved the copy from `@0x20 addi r27,r7,0` to `@0x20 addi r30,r7,0` and dropped the locals into yr=r29, xr=r28, e=r27, all three exactly on target: real 32 -> 22, raw differing words 20 -> 15, fresh objdiff fuzzy 95.7353 -> 96.2500, instruction count unchanged at T68/O68. THE BAND IS A HARD BOUNDARY, and that is the second half of the law: the promoted copy-local and an ordinary memory-loaded local still would not trade places. Retyping the copy-local (`u32 nd` -> `s32 nd`) and swapping its declaration with the loaded local's both returned NEUTRAL-IDENTICAL against the SAME object digest 38009029928d - the edits folded away in the front end. So a param-COPY local and a LOADED local occupy different ranking classes even at identical width, one step finer than claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1, which this record extends rather than contradicts: width class first, then ORIGIN class (param-copy vs loaded), then declaration order. PRACTICAL USE: when a callee-saved permutation puts a parameter at the wrong END of the save set, do not spend probes on declaration order - promote the parameter to a declared local and re-read; when two locals of the same width refuse to reorder, they are in different origin classes and no further reordering will ever move them past each other."
+}

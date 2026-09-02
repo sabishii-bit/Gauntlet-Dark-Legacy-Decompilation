@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "attempt.CT_mbcameraupdate-statement-order-drive.20260903.v1"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "cse",
+      "sda-global",
+      "store-placement"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A loop under these cflags where MWCC hoists a global scalar read out of a loop that stores through a same-type pointer with no source-level temp - i.e. our build already matching a hoisted target without the local. One `fnasm --diff` over any such loop in a Matching TU settles it; a single instance scopes this law down to 'MWCC does not hoist ACROSS a store it cannot disambiguate' rather than 'MWCC does not hoist'.",
+  "id": "claim.law.CT_a-global-scalar-read-in-a-loop-that-stores-through-a-pointer-of-the-same-type-must-be-hoisted-in-source.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T23:01:34Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "A loop that READS a file-scope scalar and STORES through a pointer of the same type keeps the read inside the loop, because the store may alias the global and MWCC will not prove otherwise. The target's build hoists it. The difference is therefore in the SOURCE - the original held the value in a local before the loop - and it is INVISIBLE to every aggregate metric that ranks work: the instruction COUNT is unchanged (the hoisted load moves out of the loop, so N inside becomes N-1 inside plus 1 outside) and `fndiff --ops` reports `opcode multiset: IDENTICAL`. Only the aligned view and the branch target show it. MEASURED TWICE in one function, MBCameraUpdate (game/mb/mb_camera, 2026-09-03), both times against `extern const f32 lbl_80348B3C` stored through an `f32*`. SITE 1: `for (row = 0; row < 3; row++) matrix[row * 4 + 3] = lbl_80348B3C;` put the `lfs` at the loop head (our `bdnz ->3c` against the target's `bdnz ->40`, a 5-instruction loop against 4); declaring `f32 zero;` and assigning `zero = lbl_80348B3C;` before the loop was worth real 44 -> 38 and fresh objdiff fuzzy 95.3270 -> 97.8805. SITE 2: `f32 z = lbl_80348B3C;` declared INSIDE a do-loop body reloaded it every iteration (our loop head `@0x1a4 mtctr` with `@0x1a8 lfs f1` inside, against the target's `@0x1a4 lfs f1` outside and `@0x1a8 mtctr` as the head); moving that one declaration to the enclosing block was worth real 38 -> 34 and fuzzy 97.8805 -> 99.1698. Between them the two hoists took the function from SCHEDULE-REORDER (6 mnemonic divergences) to RECOLOR (0), i.e. they were the whole schedule class. HOW TO SPOT IT WITHOUT KNOWING THE ANSWER: compare the two streams' BRANCH TARGETS at the loop back-edge. A `bdnz`/`blt` whose destination differs by exactly one instruction while the opcode multiset is identical and the counts are equal is this law, not a scheduler whim. THE CONVERSE IS NOT LICENSED: hoisting a global read that the target does NOT hoist changes semantics if any store in the loop can really reach it, so read the target's loop bounds first."
+}
