@@ -15,11 +15,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from probe import (REPLAN_AT, annotate_neutral, arbitrate_table, classify,
-                   count_distance, data_line, format_genuine_note,
-                   function_span, fuzzy_anchor_note, moved_sections,
-                   parse_section_digests, pin_drift, replan_hint,
-                   scaffold_rows, scoped_revert, split_lines, strip_noncode,
+from probe import (REPLAN_AT, annotate_neutral, arbitrate_table,
+                   bank_divergence, bank_warning, classify, count_distance,
+                   data_line, format_genuine_note, function_span,
+                   fuzzy_anchor_note, moved_sections, parse_section_digests,
+                   pin_drift, replan_hint, scaffold_rows, scoped_revert,
+                   split_lines, strip_noncode,
                    update_neutral_identical_streak)
 
 
@@ -711,6 +712,62 @@ class ArbitrateTableTests(unittest.TestCase):
 
     def test_no_data_line_when_no_section_moved(self):
         self.assertNotIn("DATA:", arbitrate_table("x", 30, 80.0, 24, 81.0))
+
+
+class BankSemanticsTests(unittest.TestCase):
+    """A revert point banked from a NON-HEAD state says so.
+
+    Run-34 criticism (MV): probe banks whatever state it FIRST sees, so a
+    BASELINE taken after an edit banks the EDITED state as the pre-edit
+    reference, and MV's second probe re-banked the rolling snapshot onto a
+    neutral edit — --revert then restored the BAD state.
+    """
+
+    HEAD = b"void f(void)\n{\n    int a = 1;\n    g(a);\n}\n"
+
+    def test_clean_tree_measures_zero(self):
+        self.assertEqual(bank_divergence(self.HEAD, self.HEAD), 0)
+
+    def test_edited_tree_counts_changed_lines(self):
+        edited = self.HEAD.replace(b"int a = 1;", b"volatile int a = 1;")
+        self.assertEqual(bank_divergence(edited, self.HEAD), 1)
+
+    def test_added_lines_are_counted(self):
+        edited = self.HEAD.replace(b"    g(a);\n", b"    g(a);\n    h(a);\n")
+        self.assertEqual(bank_divergence(edited, self.HEAD), 1)
+
+    def test_unavailable_head_is_none_not_clean(self):
+        self.assertIsNone(bank_divergence(self.HEAD, None))
+
+    def test_clean_baseline_is_silent(self):
+        self.assertEqual(bank_warning("BASELINE", 0), "")
+
+    def test_dirty_baseline_warns_loudly_with_the_recovery_command(self):
+        text = bank_warning("BASELINE", 7, unit="game/mv/movie", fn="Play")
+        self.assertIn("BASELINE BANKED FROM AN EDITED TREE", text)
+        self.assertIn("7 line(s)", text)
+        self.assertIn("--discard", text)
+        self.assertIn("--reset", text)
+        self.assertIn("game/mv/movie Play", text)
+
+    def test_unmeasurable_baseline_says_unmeasured_not_clean(self):
+        text = bank_warning("BASELINE", None)
+        self.assertIn("UNMEASURED", text)
+
+    def test_neutral_bank_notes_the_revert_point_is_not_head(self):
+        text = bank_warning("NEUTRAL", 3)
+        self.assertIn("NOT HEAD", text)
+        self.assertIn("3 line(s)", text)
+
+    def test_neutral_on_a_clean_tree_is_silent(self):
+        self.assertEqual(bank_warning("NEUTRAL", 0), "")
+
+    def test_unmeasurable_neutral_is_silent(self):
+        self.assertEqual(bank_warning("NEUTRAL", None), "")
+
+    def test_improved_banks_an_edit_on_purpose_and_is_not_warned(self):
+        self.assertEqual(bank_warning("IMPROVED", 12), "")
+        self.assertEqual(bank_warning("REBASED", 12), "")
 
     def test_zero_genuine_rows_still_states_the_count(self):
         note = format_genuine_note(0, [])

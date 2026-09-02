@@ -303,7 +303,79 @@ def rederive_pin(unit, fn):
     return 0
 
 
-def bank_snapshot(unit, source, baseline=False):
+def head_bytes(source):
+    """The committed bytes of ``source`` at HEAD, or None when unavailable."""
+    shown = subprocess.run(["git", "show", f"HEAD:{source.as_posix()}"],
+                           capture_output=True)
+    return shown.stdout if shown.returncode == 0 else None
+
+
+def bank_divergence(source_bytes, head_text):
+    """Changed line count of the working source vs HEAD, or None.
+
+    None means "cannot tell" (the file is untracked, git is unavailable) and
+    must never be rendered as "clean" — a manufactured all-clear on the
+    question of whether a revert point is the pre-edit state is precisely the
+    defect this measures.
+    """
+    if head_text is None or source_bytes is None:
+        return None
+    if source_bytes == head_text:
+        return 0
+    old = split_lines(head_text.decode("latin-1"))
+    new = split_lines(source_bytes.decode("latin-1"))
+    matcher = difflib.SequenceMatcher(None, old, new, autojunk=False)
+    return sum(max(i2 - i1, j2 - j1)
+               for tag, i1, i2, j1, j2 in matcher.get_opcodes()
+               if tag != "equal")
+
+
+def bank_warning(kind, changed_lines, unit=None, fn=None):
+    """What to say when a revert point is banked from a NON-HEAD state.
+
+    Run-34 criticism (MV): probe banks whatever state it FIRST sees per
+    function, so a BASELINE taken after an edit banks the EDITED state as the
+    pre-edit reference, and a NEUTRAL probe re-banks the rolling snapshot on
+    top of an edit — MV's second probe did exactly that, and --revert then
+    restored the BAD state. Both are documented behaviours nothing measured
+    or announced. This announces them with the actual divergence.
+
+    BASELINE gets the loud form (its whole meaning is "the state before your
+    edits"). NEUTRAL gets the shorter note (banking is deliberate there; what
+    was missing is that the banked point is not HEAD). Every other verdict
+    banks an edited state ON PURPOSE and is not warned about.
+    """
+    where = f" {unit} {fn}" if unit and fn else " <unit> <fn>"
+    if changed_lines is None:
+        if kind != "BASELINE":
+            return ""
+        return ("WARNING: cannot compare this source against HEAD (untracked"
+                " file, or git unavailable), so whether this BASELINE is the"
+                " pre-edit state is UNMEASURED. --revert-baseline will"
+                " restore whatever was on disk just now.")
+    if changed_lines == 0:
+        return ""
+    if kind == "BASELINE":
+        return (
+            f"WARNING: BASELINE BANKED FROM AN EDITED TREE — this unit's"
+            f" source differs from HEAD by {changed_lines} line(s), so the"
+            " 'baseline' revert point is NOT the pre-edit state:"
+            " --revert-baseline will restore YOUR EDITS. probe banks whatever"
+            " state it FIRST sees per function (the FIRST-BASELINE TRAP), and"
+            " that bank is never overwritten. If you meant to baseline the"
+            f" clean state, run `probe.py{where} --discard` (restores the TU"
+            f" to HEAD), then `probe.py{where} --reset`, then probe again"
+            " BEFORE your first edit.")
+    if kind == "NEUTRAL":
+        return (
+            f"NOTE: the revert point just banked is NOT HEAD — it differs by"
+            f" {changed_lines} line(s). NEUTRAL probes bank too, so --revert"
+            " restores THIS edited state, not a clean tree. To discard the"
+            f" edit use git or `probe.py{where} --discard`.")
+    return ""
+
+
+def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None):
     snap = snapshot_path(unit, source)
     shutil.copyfile(source, snap)
     head = git_head()
@@ -328,6 +400,16 @@ def bank_snapshot(unit, source, baseline=False):
             base.with_suffix(base.suffix + ".pins").write_text(
                 json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
                 encoding="utf-8")
+    # Say WHAT was banked (run 34 item 2). A BASELINE taken over an edited
+    # tree is not a baseline, and a NEUTRAL bank moves the revert point onto
+    # an edit — both silent until now.
+    kind = verdict_kind or ("BASELINE" if baseline else None)
+    if kind in ("BASELINE", "NEUTRAL"):
+        warning = bank_warning(
+            kind, bank_divergence(source.read_bytes(), head_bytes(source)),
+            unit=unit, fn=fn)
+        if warning:
+            print(warning)
 
 
 def strip_noncode(text):
@@ -1669,9 +1751,10 @@ def main():
             or (verdict.startswith("NEUTRAL")
                 and not verdict.startswith("NEUTRAL-WORSE"))
             or verdict.startswith("REBASED")):
-        bank_snapshot(unit, source,
-                      baseline=verdict.startswith("BASELINE"))
         kind = verdict.split()[0]
+        bank_snapshot(unit, source,
+                      baseline=verdict.startswith("BASELINE"),
+                      verdict_kind=kind, fn=fn)
         # Name WHICH verdict banked: the discard path differs (a banked
         # NEUTRAL means --revert restores the PROBE, so discarding it
         # needs git), and the identical banner hid that twice.
