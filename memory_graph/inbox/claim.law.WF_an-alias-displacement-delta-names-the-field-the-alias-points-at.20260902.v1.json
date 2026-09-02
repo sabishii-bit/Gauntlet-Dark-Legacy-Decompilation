@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/regnorm.py",
+    "tools/gdl/probe.py"
+  ],
+  "attributes": {
+    "tags": [
+      "alias-form",
+      "matching",
+      "index-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a function where the target's alias-vs-use displacements satisfy D1 == D2 + d and re-pointing the alias to the inner field (declaration position held constant) leaves `real` unchanged or worse at held instruction parity; or show that MWCC folds the two spellings to identical code, which would make the observed 6-word difference on someone_will_be_off_screen attributable to something other than the alias's declared type.",
+  "id": "claim.law.WF_an-alias-displacement-delta-names-the-field-the-alias-points-at.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T21:19:31Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "When the target materialises a pointer alias as `addi rN,rBase,D1` and passes it to a call as `addi rArg,rN,0`, while our build emits `addi rN,rBase,D2` and `addi rArg,rN,d` with D1 == D2 + d, the residual is NOT a scheduling or allocation difference: the two streams declare the alias AT DIFFERENT STRUCT FIELDS. The target's alias variable points at the INNER field actually passed; ours points at the ENCLOSING struct and applies the member offset at every use. The cure is to re-point the alias -- keep exactly one alias variable, declared at the SAME position so no stack slot moves, and initialise it to the inner field -- not to delete the alias. THE DIAGNOSTIC IS FREE AND NEEDS NO BUILD: read the target's use-site displacement `d`. A target that passes `addi rArg,rN,0` is telling you its alias is already the thing being passed; any nonzero `d` on our side is the offset you must fold back into the initialiser. MEASURED on game/game/combat someone_will_be_off_screen: target `addi r29,r4,204` then `addi r4,r29,0` (twice) against our `addi r29,r4,200` then `addi r4,r29,4` (twice), with Camera::mat at offset 0x04 and the camera itself at base+0xC8=200, so 200+4 == 204. Replacing `Camera* cam;` + `cam->mat[0]` at two call sites with `f32* camMat = ((Camera*)(...+0xC8))->mat[0];` + `camMat` moved real 138 -> 132 at held parity (199/199, opcode multiset unchanged at 12 tokens, fresh objdiff fuzzy 93.0603% before and after). DISTINGUISH FROM THE NEIGHBOURING NEGATIVE: attempt.RC_someone-will-be-off-screen-stfsu-store-update-park.20260901.v1 probed DELETING the alias and passing the full re-indexed expression at each call site, which measured real 145 AND added an instruction (200 vs 199). Deleting the alias and re-pointing it are different edits with opposite signs; a record that says 'the alias axis is dead' has usually only tested the deletion. POPULATION UNMEASURED: this is one verified instance with a measured win, and the shape (a same-register `addi` immediate pair whose deltas cancel against a downstream use-site displacement) has not been counted image-wide. AGENTS.md discipline 2 puts that census on whoever wants to generalise it; the per-function diagnostic above is free either way."
+}
