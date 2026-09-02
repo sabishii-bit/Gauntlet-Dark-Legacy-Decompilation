@@ -547,6 +547,56 @@ def fuzzy_anchor_note(best_fuzzy, cur_fuzzy):
             " it rose, revert if it fell]")
 
 
+def format_genuine_note(n, rows, cap=8):
+    """The regnorm GENUINE structural-row note for CONFLICT/NEUTRAL-WORSE.
+
+    probe's CONFLICT and NEUTRAL-WORSE verdicts are set by the opcode-multiset
+    TOKEN COUNT, which is UNSOUND under cancelling pairs: closing a genuine
+    structural row can RAISE the token count (a +addi/-li pair reads as
+    growth) even as the stream moves nearer target. regnorm's GENUINE column —
+    structural rows with no artifact explanation — is the sound structure
+    signal, and regnorm.analyze runs in-process (run 34 item 2).
+    """
+    lines = [f"regnorm GENUINE structural rows: {n} — the SOUND structure"
+             " signal here. This verdict was set by the opcode-multiset TOKEN"
+             " COUNT, which is unsound under cancelling pairs (closing a"
+             " genuine row can RAISE it). Trust the genuine count for whether"
+             " the stream moved nearer target."]
+    for row in rows[:cap]:
+        lines.append(f"    {row}")
+    if len(rows) > cap:
+        lines.append(f"    ... {len(rows) - cap} more genuine row(s)")
+    return "\n".join(lines)
+
+
+def genuine_row_count(unit, fn):
+    """(genuine_count, [row_reprs]) via regnorm.analyze, or None.
+
+    Only ever called on a CONFLICT/NEUTRAL-WORSE verdict, where the sounder
+    structure signal is worth two objdump reads (no ninja build).
+    """
+    try:
+        sys.path.insert(0, str(TOOLS))
+        import regnorm
+        bare = re.sub(r"\.(c|cpp)$", "", unit)
+        target, ours, resolver = regnorm.load_tables(bare)
+        fn_t = regnorm.resolve_name(target, fn)
+        fn_o = regnorm.resolve_name(ours, fn)
+        if fn_t is None or fn_o is None:
+            return None
+        result = regnorm.analyze(target[fn_t], ours[fn_o], resolver)
+        rows = []
+        for r in result.genuine:
+            try:
+                where = f"@0x{r.offset:x}"
+            except (TypeError, ValueError):
+                where = f"@{r.offset}"
+            rows.append(f"{r.kind} {where}: T {r.target!r}  O {r.ours!r}")
+        return len(result.genuine), rows
+    except Exception:
+        return None
+
+
 def classify(state, real, insns, multiset_tokens, rebase_best=False,
              digest=None, source_changed=True, fuzzy=None):
     """Pure verdict function: (verdict_text, new_state).
@@ -1253,6 +1303,13 @@ def main():
         dcl = data_line(prev_data, data, source_changed)
         if dcl:
             print(dcl)
+    # The regnorm GENUINE structural-row count on the two verdicts the opcode
+    # multiset can mislead (run 34 item 2): CONFLICT and NEUTRAL-WORSE are set
+    # by the token count, which is unsound under cancelling pairs.
+    if verdict.startswith("CONFLICT") or "NEUTRAL-WORSE" in verdict:
+        gr = genuine_row_count(unit, fn)
+        if gr is not None:
+            print(format_genuine_note(*gr))
 
     want_scaffold = ("--scaffold" in sys.argv or "--scaffold-all" in sys.argv
                      or verdict.startswith("BASELINE"))

@@ -16,10 +16,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from probe import (REPLAN_AT, annotate_neutral, classify, count_distance,
-                   data_line, function_span, fuzzy_anchor_note,
-                   moved_sections, parse_section_digests, replan_hint,
-                   scaffold_rows, scoped_revert, split_lines, strip_noncode,
-                   update_neutral_identical_streak)
+                   data_line, format_genuine_note, function_span,
+                   fuzzy_anchor_note, moved_sections, parse_section_digests,
+                   replan_hint, scaffold_rows, scoped_revert, split_lines,
+                   strip_noncode, update_neutral_identical_streak)
 
 
 TU = """\
@@ -630,6 +630,35 @@ Contents of section .sdata2:
 
     def test_a_dump_with_no_sections_is_empty_not_an_error(self):
         self.assertEqual(parse_section_digests("no sections here"), {})
+
+
+class GenuineRowNoteTests(unittest.TestCase):
+    """Run 34 item 2: on CONFLICT/NEUTRAL-WORSE the verdict is set by the
+    opcode-multiset token count, which is unsound under cancelling pairs
+    (closing a genuine row can RAISE it). The regnorm GENUINE count is the
+    sound structure signal and is printed alongside."""
+
+    ROWS = [f"STRUCTURAL @0x{i*4:x}: T 'li r3,{i}'  O 'addi r3,r3,{i}'"
+            for i in range(12)]
+
+    def test_the_count_and_the_soundness_warning_are_stated(self):
+        note = format_genuine_note(12, self.ROWS)
+        self.assertIn("GENUINE structural rows: 12", note)
+        self.assertIn("unsound under cancelling pairs", note)
+
+    def test_rows_are_capped_and_the_remainder_counted(self):
+        note = format_genuine_note(12, self.ROWS, cap=8)
+        self.assertIn("... 4 more genuine row(s)", note)
+        self.assertEqual(sum(1 for r in self.ROWS
+                             if r in note), 8)
+
+    def test_a_short_list_prints_no_remainder(self):
+        note = format_genuine_note(3, self.ROWS[:3])
+        self.assertNotIn("more genuine", note)
+
+    def test_zero_genuine_rows_still_states_the_count(self):
+        note = format_genuine_note(0, [])
+        self.assertIn("GENUINE structural rows: 0", note)
 
 
 class ScaffoldCensusTests(unittest.TestCase):
