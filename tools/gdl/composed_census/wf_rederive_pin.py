@@ -20,11 +20,23 @@ usage:
     python tools/gdl/composed_census/wf_rederive_pin.py <unit> <function> --transient
 
 --apply pastes the two derived relocation hashes back into
-config/GUNE5D/webfrank.json with a surgical single-occurrence string swap (no
-json.dump round-trip — AGENTS.md trap 6) and ONLY when every body hash is
-unchanged; if a body hash moved it refuses with a non-zero exit so an
-orchestrator (`probe --rederive-pin`) aborts instead of configuring a stale
-rule. After --apply, run configure.py and rebuild the object.
+config/GUNE5D/webfrank.json with a surgical KEY-anchored swap (no json.dump
+round-trip — AGENTS.md trap 6) and ONLY when every body hash is unchanged; if
+a body hash moved it refuses with a non-zero exit so an orchestrator
+(`probe --rederive-pin`) aborts instead of configuring a stale rule. After
+--apply, run configure.py and rebuild the object.
+
+The swap is anchored on the KEY, not on the raw hash string (run-35 item 5).
+A window whose permutation moves no RELOCATED instruction hashes its
+relocation set to the same value before and after, so the rule legitimately
+carries one hash in two slots — and the old single-occurrence string swap
+counted two and refused an ordinary re-derivation outright
+(claim.law.PC_wf-rederive-pin-apply-cannot-paste-a-twinned-relocation-hash).
+The two slots differ by key. When a hash ALSO repeats under the same key
+across windows — an empty relocation set hashes to a constant every such
+window shares — the window's own region before_sha256 anchors the enclosing
+JSON object and confines the swap to it. Genuinely unnarrowable ambiguity
+still refuses; --transient's restore is anchored the same way.
 
 --transient is --apply for a THROWAWAY A/B.  Run-34 criticism (GW): even with
 --apply, ~2 of 15 probe cycles were pure pin plumbing, because an A/B on a
@@ -53,30 +65,157 @@ sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 import webfrank as wf  # noqa: E402
 
 
+def _string_aware_mask(text):
+    """[bool] — True where the character is JSON STRUCTURE, not string body.
+
+    Brace matching over raw text is wrong here: webfrank rules carry
+    `mechanism` prose, and a `{` in a note would derail the scan. One pass,
+    escape-aware.
+    """
+    mask = bytearray(len(text))
+    in_string = False
+    escaped = False
+    for index, char in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        else:
+            mask[index] = 1
+    return mask
+
+
+def enclosing_object_span(text, index, mask=None):
+    """(start, end) of the JSON object literal containing `index`, or None."""
+    if index < 0 or index >= len(text):
+        return None
+    mask = mask if mask is not None else _string_aware_mask(text)
+    depth = 0
+    start = None
+    for position in range(index, -1, -1):
+        if not mask[position]:
+            continue
+        char = text[position]
+        if char == "}":
+            depth += 1
+        elif char == "{":
+            if depth == 0:
+                start = position
+                break
+            depth -= 1
+    if start is None:
+        return None
+    depth = 0
+    for position in range(start, len(text)):
+        if not mask[position]:
+            continue
+        char = text[position]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return start, position + 1
+    return None
+
+
+def _key_value_matches(text, key, old, span=None):
+    """Every `"key": "old"` occurrence, optionally restricted to a span.
+
+    Group 1 is the key and separator VERBATIM and group 2 the closing quote,
+    so a rewrite preserves the file's own spacing — this file is edited by
+    every lane and a normalized `": "` would show up as a diff hunk nobody
+    made.
+    """
+    pattern = re.compile(
+        r'("' + re.escape(key) + r'"\s*:\s*")' + re.escape(old) + r'(")')
+    lo, hi = span if span else (0, len(text))
+    return [match for match in pattern.finditer(text)
+            if lo <= match.start() < hi]
+
+
 def apply_relocation_updates(config_text, pairs):
-    """Surgically replace (old_hash -> new_hash) relocation-hash strings.
+    """Surgically replace hash strings in webfrank.json.
 
     AGENTS.md trap 6: webfrank.json is edited with surgical text inserts only,
-    never a json.dump round-trip (which reformats every other lane's rules). A
-    SHA-256 hex string is globally unique, so each old hash is replaced by an
-    exact, single-occurrence string swap. Unchanged pairs are skipped; an old
-    hash absent from the text (already updated) is a no-op; an old hash that
-    appears more than once refuses rather than clobber. Returns
-    (new_text, [changed hash pairs actually applied]).
+    never a json.dump round-trip (which reformats every other lane's rules).
+
+    Accepts two pair shapes:
+      (old, new)                 — legacy: swap a globally unique hash string
+      (anchor, key, old, new)    — keyed: swap the value of `key`, using
+                                   `anchor` (the window's region before_sha256)
+                                   to disambiguate when the key/value pair
+                                   repeats
+
+    WHY THE KEYED FORM EXISTS (run-35 item 5,
+    claim.law.PC_wf-rederive-pin-apply-cannot-paste-a-twinned-relocation-hash).
+    The legacy form replaces a raw hash STRING and refuses when it occurs more
+    than once. But a window whose permutation moves no relocated instruction
+    hashes its relocation set to the SAME value before and after, so the rule
+    legitimately carries that hash TWICE — once under
+    before_relocations_sha256 and once under after_relocations_sha256 — and a
+    perfectly ordinary re-derivation hit the ambiguity guard and stopped.
+    The two slots are distinguished by their KEY, which is exactly the
+    information the raw-string swap threw away. PC prototyped this for one
+    window by hand; this is the general form.
+
+    Second tier: a hash can also repeat under the SAME key across windows —
+    an empty relocation set hashes to a constant, so every relocation-free
+    window shares it. Then the window's own region before_sha256 (a hash of
+    distinct instruction bytes) anchors the enclosing JSON object and the
+    swap is confined to it.
+
+    Returns (new_text, [(old, new) actually applied]).
     """
     applied = []
-    for old, new in pairs:
+    mask = None
+    for pair in pairs:
+        if len(pair) == 4:
+            anchor, key, old, new = pair
+        else:
+            anchor, key, (old, new) = None, None, pair
         if old == new or not old:
             continue
-        count = config_text.count(old)
-        if count == 0:
+        if key is None:
+            count = config_text.count(old)
+            if count == 0:
+                continue
+            if count > 1:
+                raise ValueError(
+                    f"hash {old} appears {count} times in webfrank.json"
+                    " — refusing an ambiguous paste; hand-edit the window")
+            config_text = config_text.replace(old, new)
+            applied.append((old, new))
+            mask = None  # the text moved; any cached mask is stale
             continue
-        if count > 1:
+        matches = _key_value_matches(config_text, key, old)
+        if not matches:
+            continue
+        if len(matches) > 1 and anchor:
+            # Tier two: confine the swap to the window the anchor names.
+            mask = mask if mask is not None else _string_aware_mask(
+                config_text)
+            anchor_at = config_text.find(anchor)
+            if anchor_at >= 0 and config_text.find(anchor, anchor_at + 1) < 0:
+                span = enclosing_object_span(config_text, anchor_at, mask)
+                if span:
+                    matches = _key_value_matches(config_text, key, old, span)
+        if len(matches) > 1:
             raise ValueError(
-                f"relocation hash {old} appears {count} times in webfrank.json"
+                f'"{key}": "{old}" appears {len(matches)} times in'
+                " webfrank.json and the window anchor could not narrow it"
                 " — refusing an ambiguous paste; hand-edit the window")
-        config_text = config_text.replace(old, new)
+        match = matches[0]
+        config_text = (config_text[:match.start()]
+                       + match.group(1) + new + match.group(2)
+                       + config_text[match.end():])
         applied.append((old, new))
+        mask = None  # the text moved; any cached mask is stale
     return config_text, applied
 
 
@@ -111,6 +250,31 @@ def rule_hash_slots(rule):
                     "before_relocations_sha256", "after_relocations_sha256"):
             slots.append(window.get(key))
     return slots
+
+
+def rule_hash_descriptors(rule):
+    """(anchor, key) for each slot rule_hash_slots() returns, in that order.
+
+    The bank file stores VALUES positionally and predates this, so the two
+    must stay index-parallel; keeping them as separate functions is what
+    lets restore anchor its swaps without changing the bank format.
+    """
+    descriptors = [(None, "before_sha256"), (None, "after_sha256")]
+    permutation = rule.get("instruction_permutation")
+    windows = (permutation if isinstance(permutation, list)
+               else [permutation] if permutation else [])
+    for window in windows:
+        if not isinstance(window, dict):
+            continue
+        anchor = window.get("before_sha256")
+        for key in ("before_sha256", "after_sha256",
+                    "before_relocations_sha256", "after_relocations_sha256"):
+            # The window's OWN before_sha256 is the anchor, so it cannot
+            # also anchor itself: swapping it first would leave later pairs
+            # in this window hunting for a string no longer in the file.
+            descriptors.append((None if key == "before_sha256" else anchor,
+                                key))
+    return descriptors
 
 
 def _find_rule(config, unit, function):
@@ -174,7 +338,8 @@ def restore_transient(unit, config_path, path):
         return [], ["transient pin bank has no pins; left in place"]
     with open(config_path, "r", encoding="utf-8") as handle:
         config = json.load(handle)
-    text = open(config_path, "r", encoding="utf-8", newline="").read()
+    with open(config_path, "r", encoding="utf-8", newline="") as handle:
+        text = handle.read()
     restored = []
     for function, banked in sorted(pins.items()):
         rule = _find_rule(config, unit, function)
@@ -189,9 +354,18 @@ def restore_transient(unit, config_path, path):
                 f" ({len(banked)} hash slots then, {len(current)} now) —"
                 " refusing to pair them; restore this pin by hand")
             continue
+        # KEYED pairs, for the same reason --apply uses them: twinned
+        # before/after relocation hashes are one string in two slots, and
+        # the raw-string swap refused the whole restore.
+        descriptors = rule_hash_descriptors(rule)
+        keyed = [(anchor, key, old, new)
+                 for (anchor, key), old, new
+                 in zip(descriptors, current, banked)]
+        # Order any window's OWN before_sha256 swap last, so it is still in
+        # the file while the other slots of that window use it as anchor.
+        keyed.sort(key=lambda pair: pair[1] == "before_sha256")
         try:
-            text, applied = apply_relocation_updates(
-                text, list(zip(current, banked)))
+            text, applied = apply_relocation_updates(text, keyed)
         except ValueError as error:
             notes.append(f"{function}: {error}")
             continue
@@ -348,8 +522,17 @@ def main():
             print(f"      +0x{offset:02x} type={info & 0xFF} "
                   f"addend={addend} {window_syms.get(offset, '?')}")
         updates.append((before, after))
-        pairs.append((window.get("before_relocations_sha256"), before))
-        pairs.append((window.get("after_relocations_sha256"), after))
+        # KEYED pairs (run-35 item 5). A window whose permutation moves no
+        # relocated instruction has before == after here, so the rule carries
+        # one hash string in two slots and the raw-string swap refused the
+        # whole paste. The key tells the two apart; the region before_sha256
+        # anchors the window when a hash repeats across windows (an empty
+        # relocation set hashes to a constant every such window shares).
+        anchor = window.get("before_sha256")
+        pairs.append((anchor, "before_relocations_sha256",
+                      window.get("before_relocations_sha256"), before))
+        pairs.append((anchor, "after_relocations_sha256",
+                      window.get("after_relocations_sha256"), after))
 
     print()
     if not ok:
@@ -379,7 +562,8 @@ def main():
               " bank.")
     # newline="" on BOTH sides: no \r\n<->\n translation, so the only bytes
     # that change are the hash strings themselves (AGENTS.md trap 6).
-    config_text = open(config_path, "r", encoding="utf-8", newline="").read()
+    with open(config_path, "r", encoding="utf-8", newline="") as handle:
+        config_text = handle.read()
     new_text, applied = apply_relocation_updates(config_text, pairs)
     if not applied:
         print("--apply: every relocation hash already matches — nothing to "

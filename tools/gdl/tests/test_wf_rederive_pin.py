@@ -69,6 +69,115 @@ class ApplyRelocationUpdatesTests(unittest.TestCase):
             wf.apply_relocation_updates(doubled, [(self.A, self.NEW_A)])
 
 
+class TwinnedRelocationHashTests(unittest.TestCase):
+    """Run-35 item 5: the guard refused an ordinary re-derivation.
+
+    A window whose permutation moves no RELOCATED instruction hashes its
+    relocation set to the same value before and after, so the rule carries
+    that one hash string in two slots. The raw-string swap counted two
+    occurrences and refused the whole paste
+    (claim.law.PC_wf-rederive-pin-apply-cannot-paste-a-twinned-relocation-hash).
+    The slots differ by KEY, which is what the string swap threw away.
+    """
+
+    TWIN = "c" * 64
+    REGION = "d" * 64
+    OTHER_REGION = "e" * 64
+    NEW_BEFORE = "3" * 64
+    NEW_AFTER = "4" * 64
+
+    def cfg(self):
+        return (
+            '{ "function": "fn", "instruction_permutation": [\n'
+            f'  {{ "before_sha256": "{self.REGION}",\n'
+            f'    "after_sha256": "{"9" * 64}",\n'
+            f'    "before_relocations_sha256": "{self.TWIN}",\n'
+            f'    "after_relocations_sha256":  "{self.TWIN}" }} ] }}')
+
+    def test_the_legacy_string_swap_still_refuses_the_twin(self):
+        """The defect, pinned: this is what --apply used to do."""
+        with self.assertRaisesRegex(ValueError, "appears 2 times"):
+            wf.apply_relocation_updates(
+                self.cfg(), [(self.TWIN, self.NEW_BEFORE)])
+
+    def test_the_keyed_form_swaps_each_twin_slot_independently(self):
+        text, applied = wf.apply_relocation_updates(self.cfg(), [
+            (self.REGION, "before_relocations_sha256", self.TWIN,
+             self.NEW_BEFORE),
+            (self.REGION, "after_relocations_sha256", self.TWIN,
+             self.NEW_AFTER),
+        ])
+        self.assertEqual(len(applied), 2)
+        self.assertIn(f'"before_relocations_sha256": "{self.NEW_BEFORE}"',
+                      text)
+        self.assertIn(f'"after_relocations_sha256":  "{self.NEW_AFTER}"',
+                      text)
+        self.assertNotIn(self.TWIN, text)
+        # The file is edited by every lane: spacing must survive verbatim.
+        self.assertIn('"after_relocations_sha256":  "', text)
+        json.loads(text)
+
+    def test_a_hash_repeated_across_windows_is_narrowed_by_the_anchor(self):
+        """An empty relocation set hashes to a constant every window shares."""
+        text = (
+            '{ "instruction_permutation": [\n'
+            f'  {{ "before_sha256": "{self.REGION}",\n'
+            f'    "before_relocations_sha256": "{self.TWIN}" }},\n'
+            f'  {{ "before_sha256": "{self.OTHER_REGION}",\n'
+            f'    "before_relocations_sha256": "{self.TWIN}" }} ] }}')
+        out, applied = wf.apply_relocation_updates(text, [
+            (self.OTHER_REGION, "before_relocations_sha256", self.TWIN,
+             self.NEW_AFTER)])
+        self.assertEqual(len(applied), 1)
+        # Only the SECOND window moved.
+        loaded = json.loads(out)["instruction_permutation"]
+        self.assertEqual(loaded[0]["before_relocations_sha256"], self.TWIN)
+        self.assertEqual(loaded[1]["before_relocations_sha256"],
+                         self.NEW_AFTER)
+
+    def test_an_unnarrowable_repeat_still_refuses(self):
+        """Fail closed: no anchor, two matches, no guess."""
+        text = (f'{{ "before_relocations_sha256": "{self.TWIN}",\n'
+                f'  "x": {{ "before_relocations_sha256": "{self.TWIN}" }} }}')
+        with self.assertRaisesRegex(ValueError, "appears 2 times"):
+            wf.apply_relocation_updates(text, [
+                (None, "before_relocations_sha256", self.TWIN,
+                 self.NEW_AFTER)])
+
+    def test_a_brace_in_prose_does_not_derail_the_anchor_span(self):
+        """webfrank rules carry `mechanism` notes; braces live in them."""
+        text = (
+            '{ "instruction_permutation": [\n'
+            '  { "mechanism": "the } brace here must not close anything {",\n'
+            f'    "before_sha256": "{self.REGION}",\n'
+            f'    "before_relocations_sha256": "{self.TWIN}" }},\n'
+            f'  {{ "before_sha256": "{self.OTHER_REGION}",\n'
+            f'    "before_relocations_sha256": "{self.TWIN}" }} ] }}')
+        out, applied = wf.apply_relocation_updates(text, [
+            (self.REGION, "before_relocations_sha256", self.TWIN,
+             self.NEW_AFTER)])
+        self.assertEqual(len(applied), 1)
+        loaded = json.loads(out)["instruction_permutation"]
+        self.assertEqual(loaded[0]["before_relocations_sha256"],
+                         self.NEW_AFTER)
+        self.assertEqual(loaded[1]["before_relocations_sha256"], self.TWIN)
+
+    def test_descriptors_stay_index_parallel_with_the_slots(self):
+        rule = json.loads(self.cfg())
+        rule["before_sha256"] = "7" * 64
+        rule["after_sha256"] = "8" * 64
+        self.assertEqual(len(wf.rule_hash_slots(rule)),
+                         len(wf.rule_hash_descriptors(rule)))
+
+    def test_a_window_never_anchors_its_own_before_sha256(self):
+        rule = json.loads(self.cfg())
+        rule["before_sha256"] = "7" * 64
+        rule["after_sha256"] = "8" * 64
+        for anchor, key in wf.rule_hash_descriptors(rule):
+            if key == "before_sha256":
+                self.assertIsNone(anchor)
+
+
 class TransientBankTests(unittest.TestCase):
     """--transient banks a pin's pre-probe hashes so a revert can undo it.
 
