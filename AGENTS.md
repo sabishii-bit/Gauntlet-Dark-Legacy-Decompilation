@@ -17,14 +17,15 @@
 >    hash-asserts its body and the build aborts on drift). Screen the
 >    pinned list first; do not discover it via a failed ninja.
 > 5. Your shell's DEFAULT working directory is the SHARED main checkout,
->    which is read-only to workers. `Set-Location` to your own worktree
->    before ANY command that writes — configure.py especially regenerates
->    build.ninja into whatever CWD it runs from (a worker regenerated the
->    shared checkout's build graph this way; absolute script paths protect
->    reads, not a script's own output). ASSERT the cd took:
->    `Set-Location X; if (-not $?) { throw "cd failed" }` — a failed
->    Set-Location silently runs everything in the shared checkout, and a
->    worker read shared-checkout state as its own for six calls.
+>    which is read-only to workers — and **`Set-Location` does NOT persist
+>    between tool calls** (run 36: a worker's provision script ran in the
+>    shared checkout on its very first call despite a prior cd). PREFIX
+>    EVERY COMMAND with the cd, in the same call:
+>    `Set-Location X; if (-not $?) { throw "cd failed" }; <command>` —
+>    configure.py especially regenerates build.ninja into whatever CWD it
+>    runs from (a worker regenerated the shared checkout's build graph
+>    this way; absolute script paths protect reads, not a script's own
+>    output).
 > 6. Adding a TU's FIRST rule to `config/GUNE5D/webfrank.json` does NOT
 >    create its WEBFRANK build edge — a plain `ninja` runs green with the
 >    rule silently unapplied (looks exactly like "the rule didn't work").
@@ -371,7 +372,10 @@ one, and supersede the law if your target contradicts it.
    (`python -m memory_graph.test_graph`) runs 66-88s vs 3-4s for
    tools/gdl (measured run 34) — between items of a multi-item lane,
    run only the test class your change touches; the FULL suite is
-   required once per commit, not once per edit.
+   required once per commit, not once per edit. (Run-36 note: the
+   suite now runs ~17s, but editing any `tools/gdl/*.py` invalidates
+   the graph DB fingerprint, so the NEXT graph-suite run pays a ~19s
+   rebuild — a timing swing, not flakiness.)
 14. **A guard's refusal is a measurement of the guard, not only of the
    function.** Two coarse guards each refused a provable function
    while failing correctly by their own logic (blanket relocation
@@ -382,14 +386,17 @@ one, and supersede the law if your target contradicts it.
    word, and would a sound-but-finer check pass? Corollary of
    discipline 1 for guards instead of cures.
 15. **Pass anything non-trivial to a shell via a FILE, never argv.**
-   Hard rules, each measured more than once: ANY `python -c`
-   containing a newline (a 3-line dict comprehension does not read as
-   "non-trivial" and still fails); commit messages ALWAYS via
-   `git commit -F <file>` (the first `->` arrow breaks argv);
-   PowerShell also mangles `%` format strings and backtick escapes.
-   Write a scratch script / message file and run it. A gate or parity
-   check must PRINT the values it compared — one passed by comparing
-   two empty dicts and printed OK.
+   Hard rules, each measured more than once: **NO `python -c` AT ALL**
+   — the old "none containing a newline" phrasing invited a judgment
+   call that failed twice more (run 36: a worker who KNEW the trap
+   reached for a 5-line `-c` anyway and got the cmd-shim `goto :error`
+   injection); write a scratch script, every time. Commit messages
+   ALWAYS via `git commit -F <file>` (the first `->` arrow breaks
+   argv); PowerShell also mangles `%` format strings and backtick
+   escapes, and pipes into python inject a BOM. Write a scratch
+   script / message file and run it. A gate or parity check must
+   PRINT the values it compared — one passed by comparing two empty
+   dicts and printed OK.
 15b. **Pin scope after the name-bound hash migration:** a permutation
    pin no longer freezes its TU against symbol-COUNT changes (indices
    are not hashed). It STILL invalidates — correctly — on edits that
@@ -1045,6 +1052,15 @@ each screen below costs one command and would have caught its lane):
   items interleaved in one file cost 9 tool calls and two full suite runs
   to disentangle (git stash is banned here and `git add -p` is unusable
   non-interactively).
+- **Close-lane rosters get one `fndiff --clean` per DIFF row at dispatch**
+  — run 36: 4 of ~58 assigned functions were already finished (pool-name
+  noise reads as DIFF in every census), and the lane's "matched" counts
+  disagreed with `defake_gate baseline`'s. Rank candidate functions by
+  records-per-unmatched-function, not fuzzy — the nearest-by-fuzzy TU held
+  5 thorough caps while the genuinely unexplored functions ranked last.
+- **A tool-queue item's brief must include the one-command symptom
+  reproduction** — run 36: an item's stated symptom no longer existed and
+  masked a defect 15x larger.
 
 Worktrees: writing workers use separate worktrees/branches; the shared
 checkout is read-only to them. Reuse existing clean campaign worktrees before
