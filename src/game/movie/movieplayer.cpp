@@ -814,8 +814,8 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
     {
         int w;
         int dir;
-        int row;
         int d8;
+        int row;
         int d2;
         int y;
 
