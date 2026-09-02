@@ -2340,8 +2340,8 @@
           "order": [0, 1, 2, 3, 4, 5, 9, 7, 6, 8, 11, 12, 10, 14, 13, 15, 16, 17, 18, 19, 20, 21],
           "before_sha256": "9e6e5719c915d6f6f2c79708fd34340cf7d0a72750451378d8e9966cf2545c3b",
           "after_sha256": "6eb6d09ea0403c1ec7938687eb56835d6e968283253961d86f6d5af69619b562",
-          "before_relocations_sha256": "bed53fff54a5f7b73240607cac991b44914ac07acac5267593f22833c956b8c3",
-          "after_relocations_sha256": "bed53fff54a5f7b73240607cac991b44914ac07acac5267593f22833c956b8c3"
+          "before_relocations_sha256": "4e3e9490ce95abbf443f038f901bd531a1ad54e3d6fe12047e7444ba7f5afce8",
+          "after_relocations_sha256": "4e3e9490ce95abbf443f038f901bd531a1ad54e3d6fe12047e7444ba7f5afce8"
         },
         "copy_register_fields": true
       },

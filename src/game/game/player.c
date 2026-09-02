@@ -2184,9 +2184,10 @@ s32 do_players(void) {
     j = firstgetidx++ % 4;
     for (i = 0; i < 4; i++) {
         s32 k = (j + i) % 4;
-        Player* speaker = PT(k);
+        u8* krec = (u8*)potionicon_tab + k * PREC_STRIDE;
+        Player* speaker = (Player*)(krec + 0xC40);
 
-        if (speaker->speech_req != NULL) {
+        if (PF(krec, 0xC40 + offsetof(Player, speech_req), s32*) != NULL) {
             if (speaker->state == 1 && gGameMode == MG_PLAY) {
                 fn_8005DE50(speaker, speaker->speech_req);
                 for (j = 0; j < 4; j++) {
