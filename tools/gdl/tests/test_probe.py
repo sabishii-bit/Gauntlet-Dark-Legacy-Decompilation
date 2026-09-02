@@ -338,6 +338,76 @@ class TransientPinBankLifecycleTests(unittest.TestCase):
                 flag)
 
 
+class NeutralIdenticalProofTests(unittest.TestCase):
+    """run-39 item 6. A deliberate A/B returning a BYTE-IDENTICAL object is
+    POSITIVE evidence: a within-class reorder always moves something, so an
+    unmoved object proves the two constructs sit in different allocator
+    classes. MV used two as the proofs behind
+    claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-
+    declaration-order.20260902.v1 and had to transcribe them as prose,
+    because the annotation named no unit, function, digest or commit.
+
+    Verified live at f1105b430:
+    `NEUTRAL-IDENTICAL-PROOF unit=game/game/player fn=do_players
+     bytes=9c58832bff51 real=840 insns=T1174/O1172 multiset=14t
+     head=f1105b430`
+    """
+
+    def line(self, **over):
+        args = {"unit": "game/game/player", "fn": "do_players",
+                "digest": "9c58832bff51", "real": 840,
+                "insns": "T1174/O1172", "multiset_tokens": 14,
+                "head": "f1105b430abcdef"}
+        args.update(over)
+        return probe.neutral_identical_proof_line(**args)
+
+    def test_the_line_is_one_greppable_record(self):
+        line = self.line()
+        self.assertTrue(line.startswith("NEUTRAL-IDENTICAL-PROOF "))
+        self.assertEqual(1, len(line.splitlines()))
+
+    def test_it_names_which_bytes_were_identical_and_where(self):
+        line = self.line()
+        for field in ("unit=game/game/player", "fn=do_players",
+                      "bytes=9c58832bff51", "real=840",
+                      "insns=T1174/O1172", "multiset=14t",
+                      "head=f1105b430"):
+            self.assertIn(field, line)
+
+    def test_the_commit_is_abbreviated_not_the_full_sha(self):
+        self.assertIn("head=f1105b430 ", self.line() + " ")
+        self.assertNotIn("abcdef", self.line())
+
+    def test_it_carries_no_timestamp_so_the_same_ab_reproduces_it(self):
+        """A record citing this must be re-verifiable, not merely believed:
+        every field is derivable from the named commit."""
+        self.assertEqual(self.line(), self.line())
+
+    def test_unmeasured_fields_say_so_rather_than_reading_as_zero(self):
+        line = self.line(digest=None, insns=None, multiset_tokens=None,
+                         head=None)
+        self.assertIn("bytes=unmeasured", line)
+        self.assertIn("insns=unmeasured", line)
+        self.assertIn("multiset=unmeasured", line)
+        self.assertIn("head=unknown", line)
+
+    def test_the_annotation_states_the_positive_reading_too(self):
+        verdict = annotate_neutral(
+            "NEUTRAL   real 840", 840, "T1174/O1172", 14, 14,
+            "T1174/O1172", "same", "same")
+        self.assertIn("NEUTRAL-IDENTICAL", verdict)
+        self.assertIn("POSITIVE EVIDENCE", verdict)
+        self.assertIn("class BOUNDARY", verdict)
+        # The negative reading for a SPELLING probe must survive alongside.
+        self.assertIn("STRONGER negative", verdict)
+
+    def test_the_positive_reading_cites_the_law_it_came_from(self):
+        verdict = annotate_neutral(
+            "NEUTRAL   real 840", 840, "T1174/O1172", 14, 14,
+            "T1174/O1172", "same", "same")
+        self.assertIn("MV_callee-saved-numbering-has-a-width-class", verdict)
+
+
 class RederivePinTargetTests(unittest.TestCase):
     """run-39 item 3, reproduced at 0f45ae610.
 

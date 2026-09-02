@@ -2757,6 +2757,36 @@ def replan_hint(streak):
     )
 
 
+def neutral_identical_proof_line(unit, fn, digest, real, insns,
+                                 multiset_tokens, head=None):
+    """The machine-readable NEUTRAL-IDENTICAL line a record can cite.
+
+    Run-39 item 6. A deliberate A/B that returns a BYTE-IDENTICAL object is
+    POSITIVE evidence — it proves the two constructs sit in different
+    allocator classes, because a within-class reorder always moves
+    something. MV used two of them as the proofs behind
+    claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-
+    declaration-order.20260902.v1, and had to transcribe the finding as
+    prose because probe emitted nothing quotable: the annotation named no
+    unit, no function, no object digest and no commit, so a reader could not
+    tell WHICH bytes were identical or WHERE.
+
+    Deliberately has no timestamp. Every field is reproducible from the
+    named commit, so two runs of the same A/B emit the same line and a
+    record citing it can be re-verified rather than merely believed.
+    """
+    fields = [
+        f"unit={unit}", f"fn={fn}",
+        f"bytes={digest or 'unmeasured'}",
+        f"real={real}",
+        f"insns={insns or 'unmeasured'}",
+        f"multiset={multiset_tokens}t" if multiset_tokens is not None
+        else "multiset=unmeasured",
+        f"head={head[:9] if head else 'unknown'}",
+    ]
+    return "NEUTRAL-IDENTICAL-PROOF " + " ".join(fields)
+
+
 def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                      prev_insns, prev_digest, digest,
                      prev_data=None, data=None, source_changed=True,
@@ -2845,7 +2875,18 @@ def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                             " the edit FOLDED AWAY before codegen. For a"
                             " spelling probe this is a STRONGER negative than"
                             " a regression: the source text never reached the"
-                            " compiler's decision point]")
+                            " compiler's decision point."
+                            " FOR A DELIBERATE A/B IT IS POSITIVE EVIDENCE:"
+                            " if you REORDERED or RETYPED two declarations"
+                            " and the object did not move, the two are in"
+                            " different allocator classes and no further"
+                            " reordering will ever move them past each other"
+                            " — that is a proved class BOUNDARY, and MV"
+                            " recorded two of them as the proofs behind"
+                            " claim.law.MV_callee-saved-numbering-has-a-"
+                            "width-class-ahead-of-declaration-order"
+                            ".20260902.v1. The PROOF line below is emitted"
+                            " for citation]")
     if worse and bytes_identical is not True:
         head = f"NEUTRAL   real {real}"
         if reverted:
@@ -3232,6 +3273,13 @@ def main():
         dcl = data_line(prev_data, data, source_changed)
         if dcl:
             print(dcl)
+    # The citable half of a byte-identical A/B (run-39 item 6). A deliberate
+    # reorder/retype that leaves the object unchanged PROVES a class
+    # boundary, and the prose annotation named neither the bytes nor the
+    # commit, so MV had to transcribe its two proofs by hand.
+    if "NEUTRAL-IDENTICAL" in verdict:
+        print(neutral_identical_proof_line(
+            unit, fn, digest, real, insns, multiset_tokens, git_head()))
     # The regnorm GENUINE structural-row count on the two verdicts the opcode
     # multiset can mislead (run 34 item 2): CONFLICT and NEUTRAL-WORSE are set
     # by the token count, which is unsound under cancelling pairs.
