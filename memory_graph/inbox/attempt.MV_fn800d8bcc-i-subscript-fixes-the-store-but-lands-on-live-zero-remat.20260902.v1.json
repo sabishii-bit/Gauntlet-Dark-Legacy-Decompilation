@@ -1,0 +1,30 @@
+{
+  "attempted_axis": "Close the 4 unabsorbed words of the case-2 inlined palette loop by mirroring the proven sibling MovieDecodePalette: replace the manual `off += 2` byte-index and `*(u16*)(pal + off)` store with `((u16*)pal)[i]`, so the compiler keeps pal as a base and emits the target's sthx instead of a walked-pointer sth.",
+  "attributes": {
+    "axis_log": "NEUTRAL(fuzzy-regress): `((u16*)pal)[i]` store form -> real 242 unchanged, sthx now matches, but fuzzy 94.00->92.58; reverted. Baseline `off`-form residual = walked-pointer fold (our compiler folds pal+off despite pal being live-out into the count>0x100 branches) + init copies.",
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source APPLIED (the remaining addi-copy vs li-remat of the zero index-IV is the allocator's choice, not source-reachable); claim.law.fuzzy-can-underweight-a-real-improvement CONSIDERED but did NOT apply (real is NEUTRAL 242=242, not improved, so the finer metric does not favour the [i] form either). MWCC mr-vs-addi register-copy tell (memory: mwcc-codegen-tells) governs the second half of the residual. offsetof/alias/lwzu core-screen laws: none applicable (no member conversion).",
+    "probed_form": "case 2: {\n    int i; u8* p; u8 sh1; u8 sh0; u8 sh2; int n;\n    sh1 = 8 - state->greenBits;\n    i = 0;\n    sh0 = 8 - state->redBits;\n    p = pal;\n    sh2 = 8 - state->blueBits;\n    n = count * 4;\n    for (; i < n; i++) {\n        fn_800DBE98(state, p);\n        ((u16*)pal)[i] = (((p[0] >> sh0) << state->redShift) | ((p[1] >> sh1) << state->greenShift)) | ((p[2] >> sh2) << state->blueShift);\n        p += 3;\n    }\n    break;\n}",
+    "scope": "src/game/movie/movieplayer.cpp, fn_800D8BCC case-2 inlined palette loop. NOT committed: reverted to baseline (the [i] form is a fuzzy regression, see verification).",
+    "verification": "probe.py: baseline real 242 / fuzzy 94.0000; `[i]` form real 242 (NEUTRAL) / fuzzy 92.5814 \u2014 a fuzzy REGRESSION with no real gain, so NOT retained (monotonic policy: baseline kept). Both builds fresh (defake_gate baseline anchored 858c41a79). The [i] form is the FAITHFUL sibling form (matches the standalone MovieDecodePalette which is inlined byte-exact into fn_800D87FC) and RECLASSIFIES the store residual from source-structural (sth-vs-sthx addressing-mode, ineligible) to allocator (live-zero-remat + mr-vs-addi, eligible), but objdiff underweights it. PROVENANCE TRAIL for a future recolor/webfrank lane: the store CAN be matched at source via `[i]`; what remains is pure allocator zero-init copy-vs-remat."
+  },
+  "function": "function:fn_800D8BCC",
+  "held_fixed": "The single varied dimension was the case-2 store form: the `int off; ... off = i; ... *(u16*)(pal+off); off += 2;` construct became `((u16*)pal)[i]` with `off` removed. The three shift locals (sh0/sh1/sh2 = 8 - red/green/blueBits) and their interleaved declaration/assignment order, the `n = count*4` bound, `i=0`, `p=pal`, the `fn_800DBE98(state, p)` call, the OR color expression, `p += 3`, and every other block of the function (switch cases 0/1/default, the count>0x100 branches, the DCFlush/GXInvalidateTexAll tail) were held byte-constant.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "If a webfrank copy_register_fields/live-zero rule on the [i] object fails to hash byte-identical (wf_rederive_pin), the residual is not pure allocator and this cap's classification is wrong.",
+    "screened_against_target": "yes \u2014 the `[i]` form's fndiff --ops was read against target bytes 2026-09-02: store region [0x124] and loop body [0xdc,0x124) match exactly; only [0xa8,0xd8) init differs, and every differing word there is a register copy of a value already live (zero, or pal).",
+    "statement": "The fn_800D8BCC case-2 residual is source-CLOSED except for the live-zero index-IV init (addi-copy vs li-remat) and the p=pal mr-vs-addi copy: author a webfrank copy_register_fields + live-zero-copy rule on the `[i]` form's object (the same stage class as the fn_800D87FC pin), using THIS record as the source-exhaustion trail. Do NOT re-probe the store form \u2014 `[i]` is proven to reproduce the target's sthx."
+  },
+  "id": "attempt.MV_fn800d8bcc-i-subscript-fixes-the-store-but-lands-on-live-zero-remat.20260902.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-02T03:25:43Z",
+  "residual": {
+    "capability_needed": "instruction copy_register_fields + live-zero-copy normalization (same stage class as the fn_800D87FC pin)",
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-02",
+    "signature": "baseline: target-only +1 addi +1 sthx / ours-only -1 mr -1 sth (T215/O215, 4t, real 242). After `[i]`: target-only +2 addi / ours-only -1 li -1 mr (still 4t, real 242) \u2014 the sthx/sth store difference is GONE, residual collapses into the IV-init block [0xa8,0xd8): target copies the live zero (addi r19,r29,0 from r29=li 0) and uses addi-copies for p=pal, ours rematerialises (li r19,0; li r25,0) and copies p=pal via mr."
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

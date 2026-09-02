@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Three fresh source axes on the real-72 residual: (1) reorder the texV int->float conversion after the AllocHiMem call to flip the lwz/lfd load order @110; (2) force the MOVIE_SETUP_DRAW_STATE `color` local onto the stack (volatile) to test whether the three GXColor by-value slots take the target's 8-byte spacing (72/64/56) rather than ours (44/40/36).",
+  "attributes": {
+    "axis_log": "NEGATIVE: texV-after-AllocHiMem (real 72->88); volatile-color (real 72->116, +6 insns, slots unmoved, REFUTES the color-on-stack hypothesis for the 8-spacing). Carries forward the 2026-08-29 residual list (prologue r24/texture-LO, int->float load order, three GXColor ABI slots, throw() island) \u2014 all confirmed still present and all allocator/schedule/EH-frame classes.",
+    "law_screen": "claim.law.real-can-underweight-a-large-alignment-gain screened via slotdiff (verdict SLOT MAP IDENTICAL for the r1 block \u2014 the GXColor slots are r31-relative EH-frame, INVISIBLE to slotdiff per its own caveat, so not an r1-slot problem). The sibling caps attempt.EH_fn800d9c5c-island-immediate-is-source-unreachable-across-the-archive and attempt.EH_fn800d96b0-island-immediate-shares-the-9c5c-wall establish the r31-relative C++/EH slot class as source-unreachable across the local MWCC archive; PlayVQMovie's GXColor slots are the same class. offsetof/alias core-screen laws: none applicable.",
+    "probed_form": "AXIS1: moved `texV = (f32)height / (f32)paddedHeight;` to AFTER `texture = (u8*)AllocHiMem((u32)textureBytes, (u32)gMovieAllocCount++);`. AXIS2: `volatile MovieGXColor color;` in the MOVIE_SETUP_DRAW_STATE macro.",
+    "scope": "src/game/movie/movieplayer.cpp, PlayVQMovie + MOVIE_SETUP_DRAW_STATE macro. NOT committed: both axes reverted, working tree clean at baseline real 72.",
+    "verification": "probe.py: baseline real 72 (T392/O392, multiset 0t). AXIS1 (texV reorder) real 72->88, multiset broke to 2t (+1 addi/-1 mr) -> reverted. AXIS2 (volatile color) real 72->116, insns 392->398 (+6: volatile forces extra lwz/stw) and the passColor slots STAYED at 44/40/36 -> hypothesis REFUTED (the 8-spacing is not `color on stack`; it is the allocator's C++/EH frame placement) -> reverted. full ninja after restore: build/GUNE5D/main.dol: OK; fndiff PlayVQMovie real 72 confirmed."
+  },
+  "function": "function:PlayVQMovie",
+  "held_fixed": "PlayVQMovie's control flow, the __construct_new_array/open/close/__destroy_new_array C++ lifecycle, the GXBegin vertex block, the audio pump block, the pad loop, and the frame (232) were held constant. Axis (1) varied only the statement position of `texV = (f32)height/(f32)paddedHeight;`. Axis (2) varied only the `volatile` qualifier on the macro's `color` local, holding the `passColor = color; GXSetChanMatColor(0, passColor)` pass-through and both declarations constant.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "If a distinct-named GXSetChanMatColor temp still lands the passColor slots at 4-spacing, the 8-spacing is purely allocator (confirm the EH-frame source-unreachable cap) and no source form will move it.",
+    "screened_against_target": "yes \u2014 fndiff --ops and slotdiff read 2026-09-02: r1 block IDENTICAL, the 6 differing immediates are all r31-relative addi/stw at the three slot pairs; frame 232/232.",
+    "statement": "PlayVQMovie's real-72 residual is dominated by the three r31-relative GXColor by-value slots (target 72/64/56, 8-spaced; ours 44/40/36, 4-spaced). The 8-spacing is NOT `color on stack` (volatile refuted). The remaining untried idea: the target may allocate a distinct 4-byte gap after each passColor because a THIRD per-scope temp (the GXSetChanMatColor by-value ABI copy destination) is separate from passColor \u2014 try passing a compound-literal / distinct named temp directly to GXSetChanMatColor so each scope reserves 8 bytes, and measure whether the slots move to 72/64/56."
+  },
+  "id": "attempt.MV_playvqmovie-three-new-source-axes-negative-residual-is-cpp-eh-frame.20260902.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-02T03:25:51Z",
+  "residual": {
+    "capability_needed": "C++/EH-frame r31-relative slot normalization (same class as the capped fn_800D9C5C / fn_800D96B0 EH-island slot residuals)",
+    "family": "eh-scaffold",
+    "measured_at": "2026-09-02",
+    "signature": "opcode multiset IDENTICAL (392/392), real 72. Four regions: (A) three r31-relative GXColor by-value slots target 72/64/56 (8-spaced) vs ours 44/40/36 (4-spaced) = 6 IMMEDIATE addi/stw words; (B) prologue register copies @c/@50/@60/@c4 (new-array result via r24, texture LO timing); (C) lwz/lfd load-order swap @110/@11c (gMovieAllocCount int-load vs int->float bias const); (D) throw() cleanup island block `b,addi,bl,b` at @5e0 vs @5f4."
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.playvqmovie-gxcolor-layout.20260829.v1",
+  "valid_from": "2026-09-02"
+}
