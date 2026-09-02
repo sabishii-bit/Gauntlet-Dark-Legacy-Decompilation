@@ -766,9 +766,16 @@ u32 fn_800D87FC(MovieDecodeState* state, int param_2, char* param_3, int param_4
 
 /* VQ tile decode variant (ReadU16LE, DCFlush/Invalidate, GXInvalidateTexAll) */
 u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4, int param_5, u8* param_6) {
-    int count;
+    u8 sh1;
+    u8 sh0;
+    u8 sh2;
+    u8* p;
+    int n;
+    int i;
+    int off;
     u8* pal;
     u8* ip;
+    int count;
 
     count = ReadU16LE(state->chunk);
     pal = state->chunk + 4;
@@ -782,13 +789,6 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
         fn_800D860C((u32)state, pal, count);
         break;
     case 2: {
-        int i;
-        int off;
-        u8* p;
-        u8 sh1;
-        u8 sh0;
-        u8 sh2;
-        int n;
         sh1 = 8 - state->greenBits;
         i = 0;
         sh0 = 8 - state->redBits;
