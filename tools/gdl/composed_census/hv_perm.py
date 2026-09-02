@@ -259,7 +259,81 @@ def unabsorbed(ours, tgt):
             if ha.classify(wf._u32(ours, off), wf._u32(tgt, off))[0] == "other"]
 
 
-def solve_cluster(ours, tgt, orel, trel, clo, chi, placement):
+def differing(ours, tgt):
+    """Every offset whose word differs, absorbed or not."""
+    return [off for off in range(0, len(ours), 4)
+            if wf._u32(ours, off) != wf._u32(tgt, off)]
+
+
+def widen_across_absorbed(cl, diffs, limit=MAX_WINDOW_ATOMS):
+    """Extend each cluster across ADJACENT DIFFERING words it absorbed.
+
+    claim.law.WF_per-offset-absorption-decided-before-window-selection-hides-
+    the-true-permutation-window: absorption and movement are the two competing
+    explanations of the SAME word, and deciding absorption first at a fixed
+    offset forecloses movement. A word that differs only in register slots
+    (mechanism a) or decodes as a copy-form arrow in place (mechanism b) is
+    dropped from the unabsorbed set, the cluster window selection is built from
+    shrinks, and the correct window is never offered to the prover.
+
+    Absorption is a HYPOTHESIS about a word, not an observation, so this
+    reopens it — but only across words that actually DIFFER, and only up to
+    the window-atom bound. A blanket absorption-off pass is useless here and
+    was measured so: game/movie/movieplayer::fn_800D8BCC differs in 122 of
+    215 words, which merges into clusters far past MAX_WINDOW_ATOMS and
+    refuses immediately, offering nothing.
+    """
+    diffs = set(diffs)
+    out = []
+    for lo, hi in cl:
+        while (lo - 4) in diffs and (hi - (lo - 4)) // 4 <= limit:
+            lo -= 4
+        while hi in diffs and ((hi + 4) - lo) // 4 <= limit:
+            hi += 4
+        out.append((lo, hi))
+    # Widening can make two neighbours overlap; merge so the windows stay
+    # pairwise disjoint, which the combination step below requires.
+    merged = []
+    for lo, hi in sorted(out):
+        if merged and lo <= merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(merged[-1][1], hi))
+        else:
+            merged.append((lo, hi))
+    return [(lo, hi) for lo, hi in merged
+            if (hi - lo) // 4 <= limit]
+
+
+def spread_by_window(sols, cap=8):
+    """Up to `cap` solutions, ROUND-ROBIN across distinct windows.
+
+    The plain `sols[:cap]` truncation re-imposes exactly the narrowness the
+    absorption retry exists to remove: solutions come out narrowest-window
+    first, so a cap of 8 hands the prover eight orders from the SAME narrow
+    window and never reaches the wider one. Measured on
+    game/movie/movieplayer::fn_800D8BCC — the retry offered the widened
+    cluster and the wider window's orders were still cut off by the cap.
+    """
+    by_window = {}
+    for sol in sols:
+        by_window.setdefault((sol["lo"], sol["hi"]), []).append(sol)
+    out = []
+    rank = 0
+    while len(out) < cap:
+        added = False
+        for window in by_window:
+            if rank < len(by_window[window]):
+                out.append(by_window[window][rank])
+                added = True
+                if len(out) >= cap:
+                    break
+        if not added:
+            break
+        rank += 1
+    return out
+
+
+def solve_cluster(ours, tgt, orel, trel, clo, chi, placement,
+                  narrowest_only=True):
     """Windows+orders that make this cluster absorbable, membership-screened.
 
     For a PRE window the order must be legal in OUR colouring standing alone
@@ -267,6 +341,12 @@ def solve_cluster(ours, tgt, orel, trel, clo, chi, placement):
     target colouring after a proven recolor, and webfrank audits it there; we
     only screen shape, relocation-freedom and control-freedom here and let
     apply_patch adjudicate.
+
+    ``narrowest_only`` is the other half of the absorption law. Stopping at
+    the first width that yields ANY order is a second way the true window
+    goes unoffered: a narrow window can enumerate orders that no rule can
+    prove while a wider one proves immediately, and the break means the
+    prover never sees the wider one. The retry pass clears it.
     """
     found = []
     for lo, hi in candidate_windows(ours, tgt, clo, chi):
@@ -295,7 +375,7 @@ def solve_cluster(ours, tgt, orel, trel, clo, chi, placement):
                     # abort the sweep (it aborted 5 candidates before this).
                     continue
             found.append({"lo": lo, "hi": hi, "order": order})
-        if found:
+        if found and narrowest_only:
             # UNWIDENED (or narrowest) wins: stop at the first width that works
             break
     return found
@@ -327,37 +407,69 @@ def search(unit, fn, verbose=False):
     if len(cl) > MAX_CLUSTERS:
         return None, f"{len(cl)} unabsorbed clusters (over search bound)"
 
-    for placement in ("pre", "post"):
-        per_cluster = []
-        ok = True
-        for clo, chi in cl:
-            sols = solve_cluster(ours, tgt, orel, trel, clo, chi, placement)
-            if not sols:
-                ok = False
-                break
-            per_cluster.append(sols[:8])
-        if not ok:
-            continue
-        combos = list(itertools.islice(itertools.product(*per_cluster),
-                                       MAX_COMBOS))
-        last = "no combination proved"
-        for combo in combos:
-            wins = sorted(combo, key=lambda w: w["lo"])
-            if any(wins[i]["hi"] > wins[i + 1]["lo"]
-                   for i in range(len(wins) - 1)):
-                continue          # windows must be pairwise disjoint
-            kw = {"pre": wins} if placement == "pre" else {"post": wins}
-            try:
-                rule, resid, note = ha.build_rule(unit, fn, **kw)
-            except Exception as exc:                      # noqa: BLE001
-                last = f"{type(exc).__name__}: {exc}"
+    # TWO PASSES (run-35 item 12). The first is the narrow search as it has
+    # always run. If it refuses, the refusal is not yet a fact about the
+    # function: per-offset absorption may have eaten the true window's
+    # boundary words before window selection ever saw them, and the
+    # narrowest-width break may have foreclosed a wider window that proves.
+    # claim.law.WF_per-offset-absorption-decided-before-window-selection-
+    # hides-the-true-permutation-window is explicit that absorption is a
+    # HYPOTHESIS about a word, and its stated procedure is to widen and
+    # re-run BEFORE recording the refusal. Retrying costs one extra search
+    # only on functions that already failed.
+    diffs = differing(ours, tgt)
+    passes = [("narrow", cl, True)]
+    reopened = widen_across_absorbed(cl, diffs)
+    if reopened != cl:
+        passes.append(("absorption-reopened", reopened, False))
+
+    last_note = "no proved composition"
+    for label, cluster_set, narrowest_only in passes:
+        if verbose and label != "narrow":
+            print("  RETRY with per-offset absorption REOPENED: "
+                  + ", ".join(f"+0x{a:x}..+0x{b:x}" for a, b in cluster_set))
+        for placement in ("pre", "post"):
+            per_cluster = []
+            ok = True
+            for clo, chi in cluster_set:
+                sols = solve_cluster(ours, tgt, orel, trel, clo, chi,
+                                     placement,
+                                     narrowest_only=narrowest_only)
+                if not sols:
+                    ok = False
+                    break
+                per_cluster.append(sols[:8] if narrowest_only
+                                   else spread_by_window(sols, 8))
+            if not ok:
                 continue
-            if rule:
-                return rule, f"CLOSES via {placement}-permutation ({kind})"
-            last = note
-        if verbose:
-            print(f"  {placement}: {last}")
-    return None, "no proved composition"
+            combos = list(itertools.islice(itertools.product(*per_cluster),
+                                           MAX_COMBOS))
+            last = "no combination proved"
+            for combo in combos:
+                wins = sorted(combo, key=lambda w: w["lo"])
+                if any(wins[i]["hi"] > wins[i + 1]["lo"]
+                       for i in range(len(wins) - 1)):
+                    continue      # windows must be pairwise disjoint
+                kw = {"pre": wins} if placement == "pre" else {"post": wins}
+                try:
+                    rule, resid, note = ha.build_rule(unit, fn, **kw)
+                except Exception as exc:                  # noqa: BLE001
+                    last = f"{type(exc).__name__}: {exc}"
+                    continue
+                if rule:
+                    return rule, (f"CLOSES via {placement}-permutation"
+                                  f" ({kind}, {label} windows)")
+                last = note
+            if verbose:
+                print(f"  {label}/{placement}: {last}")
+            last_note = last
+    # Say WHICH search refused, so the note cannot be read as "absorption was
+    # never reopened" — the whole point of the law is that the narrow
+    # refusal was being recorded as a property of the function.
+    if len(passes) == 1:
+        return None, ("no proved composition (no absorbed word adjacent to"
+                      " any cluster, so there was no wider window to reopen)")
+    return None, f"no proved composition after absorption retry: {last_note}"
 
 
 if __name__ == "__main__":
