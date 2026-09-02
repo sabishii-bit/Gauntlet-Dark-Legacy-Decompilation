@@ -5863,7 +5863,7 @@ static void do_see_thru(void* vp) {
     closest = ClosestChest(p);
     if (closest >= 0) {
         chest = (u8*)sItems + closest * 0xF0;
-        if (!PointVisible(0.5f * *(f32*)(*(u8**)chest + 0xC), (s32*)(chest + 0x44))) {
+        if (!PointVisible(2.0f * *(f32*)(*(u8**)chest + 0xC), (s32*)(chest + 0x44))) {
             chest = NULL;
         }
     }
@@ -5916,9 +5916,9 @@ static void do_see_thru(void* vp) {
                 }
                 lbl_8025ECB8[i][0] = (void*)AtreeInit(tree, &lbl_8025ECB8[i][0], 0, 0x80);
                 MBTreeSetFlags(*(void**)lbl_8025ECB8[i][0], 8, 0);
-                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x40) = 1.001f;
-                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x44) = 1.001f;
-                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x48) = 1.001f;
+                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x40) = 0.65f;
+                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x44) = 0.65f;
+                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x48) = 0.65f;
                 fresh = 1;
             }
             if (fresh) {
