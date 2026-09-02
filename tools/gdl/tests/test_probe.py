@@ -15,8 +15,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from probe import (REPLAN_AT, annotate_neutral, arbitrate_table,
-                   bank_divergence, bank_warning, classify, count_distance,
+from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
+                   arbitrate_table, bank_divergence, bank_warning, classify,
+                   conflict_gate, count_distance,
                    data_line, format_genuine_note, function_span,
                    fuzzy_anchor_note, moved_sections, parse_section_digests,
                    outside_edit_warning, parse_numstat, pin_drift,
@@ -829,6 +830,53 @@ class RevertCompletenessTests(unittest.TestCase):
         rows = parse_numstat("1\t0\tsrc/game/mv/movie_priv.h\n")
         self.assertIn("movie_priv.h",
                       outside_edit_warning(rows, self.TU, "f"))
+
+
+class ConflictGateTests(unittest.TestCase):
+    """An unarbitrated CONFLICT classifies nothing and exits non-zero.
+
+    Run-34 criticism (PC): PC skipped the mandated fuzzy arbiter and recorded
+    a false regression from a CONFLICT headline that still read like a
+    classification.
+    """
+
+    CONFLICT = ("CONFLICT  real 30 -> 24 IMPROVED but multiset 4t -> 9t vs"
+                " best DIVERGED — structure moved AWAY from target")
+
+    def test_non_conflict_verdicts_pass_through_untouched(self):
+        for verdict in ("IMPROVED  real 30 -> 24", "REGRESSED vs best 24",
+                        "NEUTRAL   real 24", "BASELINE  real 30"):
+            self.assertEqual(conflict_gate(verdict, None, None),
+                             (verdict, 0))
+
+    def test_conflict_without_any_fuzzy_refuses_and_exits_three(self):
+        text, code = conflict_gate(self.CONFLICT, None, None)
+        self.assertEqual(code, CONFLICT_UNARBITRATED_EXIT)
+        self.assertTrue(text.startswith("CONFLICT-UNARBITRATED"))
+        self.assertIn("OUTCOME REFUSED", text)
+        self.assertIn("NEITHER state", text)
+        self.assertIn("--arbitrate", text)
+
+    def test_one_cached_half_is_still_unarbitrated(self):
+        text, code = conflict_gate(self.CONFLICT, 80.5, None)
+        self.assertEqual(code, CONFLICT_UNARBITRATED_EXIT)
+        self.assertIn("the BEST state", text)
+        text, code = conflict_gate(self.CONFLICT, None, 80.5)
+        self.assertEqual(code, CONFLICT_UNARBITRATED_EXIT)
+        self.assertIn("this state", text)
+
+    def test_both_halves_cached_makes_it_a_real_classification(self):
+        text, code = conflict_gate(self.CONFLICT, 80.5, 81.2)
+        self.assertEqual(code, 0)
+        self.assertIn("ARBITRATED", text)
+        self.assertNotIn("OUTCOME REFUSED", text)
+        self.assertTrue(text.startswith("CONFLICT "))
+
+    def test_a_zero_fuzzy_reading_is_a_measurement_not_a_missing_one(self):
+        # 0.0 is falsy; the gate must key on `is None`, or a genuinely
+        # zero-scoring half would be misreported as unmeasured.
+        _text, code = conflict_gate(self.CONFLICT, 0.0, 0.0)
+        self.assertEqual(code, 0)
 
     def test_zero_genuine_rows_still_states_the_count(self):
         note = format_genuine_note(0, [])

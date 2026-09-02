@@ -37,6 +37,12 @@ never loses track of the high-water mark even across reverts.
 STRUCTURE OUTRANKS REAL IN THE HEADLINE. `real` is a linear diff; the opcode
 multiset token count is what says whether the stream is the right SHAPE, and
 where the two disagree the multiset names the verdict:
+  CONFLICT-UNARBITRATED  a CONFLICT with no fresh fuzzy on both states.
+            It classifies NOTHING and exits 3: `real` and the multiset point
+            opposite ways, and the arbiter for that is objdiff fuzzy. Run
+            --arbitrate (both halves, one call) or --fuzzy on each state,
+            then re-probe. PC recorded a false regression from an
+            unarbitrated CONFLICT headline in run 34.
   CONFLICT  real fell BUT the multiset GREW — a shape moving away from
             target wearing a real win. Best is NOT updated; this read plain
             "IMPROVED [best updated]" before, indistinguishable from a probe
@@ -863,6 +869,52 @@ def fuzzy_anchor_note(best_fuzzy, cur_fuzzy):
             f" {trend} — both halves cached against these exact bytes, NO"
             " build spent. This is the arbiter: keep with --rebase-best if"
             " it rose, revert if it fell]")
+
+
+CONFLICT_UNARBITRATED_EXIT = 3
+
+
+def conflict_gate(verdict, best_fuzzy, cur_fuzzy):
+    """(verdict, exit_code) — CONFLICT refuses to classify without fuzzy.
+
+    Run-34 criticism (PC): CONFLICT is the one verdict whose whole meaning is
+    "the two arbiters disagree, go measure fuzzy" — and PC skipped the
+    mandated arbiter and recorded a FALSE REGRESSION from the headline alone.
+    Advice in the verdict text was not enough, because the verdict text still
+    LOOKED like a classification.
+
+    So an unarbitrated CONFLICT is no longer a classification at all: the
+    headline says UNARBITRATED, the text refuses an outcome, and the process
+    exits CONFLICT_UNARBITRATED_EXIT (3) so a script or a worker reading only
+    the exit status cannot treat it as a completed probe. It becomes a
+    classification the moment both fuzzy halves exist for these exact bytes —
+    which --arbitrate, or --fuzzy on each state, produces.
+
+    Nothing is reverted and nothing is banked either way: this gates the
+    RECORDING of an outcome, not the work.
+    """
+    if not verdict.startswith("CONFLICT"):
+        return verdict, 0
+    if best_fuzzy is not None and cur_fuzzy is not None:
+        return verdict + (
+            "\n[ARBITRATED: both fuzzy halves are cached against these exact"
+            " bytes, so the delta above IS the arbiter and an outcome may be"
+            " recorded from it]"), 0
+    have = ("the BEST state" if best_fuzzy is not None else
+            "this state" if cur_fuzzy is not None else "NEITHER state")
+    return (
+        verdict.replace("CONFLICT ", "CONFLICT-UNARBITRATED ", 1)
+        + "\nOUTCOME REFUSED: this probe classifies NOTHING. A CONFLICT means"
+          " `real` and the opcode multiset point opposite ways, and the"
+          " project's arbiter for that is objdiff fuzzy from a fresh report"
+          f" — which exists for {have} right now. Do NOT record IMPROVED,"
+          " REGRESSED, a park, or a law from this line: run"
+          " `probe.py <unit> <fn> --arbitrate` (both halves, one call) or"
+          " `--fuzzy` on each state, then re-probe. Run-34's PC lane skipped"
+          " this arbiter and recorded a regression that was not one."
+          f"\n[exit {CONFLICT_UNARBITRATED_EXIT}: unarbitrated CONFLICT —"
+          " not a build failure, not a scoring failure]"
+    ), CONFLICT_UNARBITRATED_EXIT
 
 
 def format_genuine_note(n, rows, cap=8):
@@ -1780,6 +1832,13 @@ def main():
                               rebase_best="--rebase-best" in sys.argv,
                               digest=digest, source_changed=source_changed,
                               fuzzy=cached_fuzzy)
+    # A CONFLICT with no fresh fuzzy on BOTH states classifies nothing at all
+    # (run 34 item 4): PC recorded a false regression from an unarbitrated
+    # CONFLICT headline. The exit code carries the refusal to any script.
+    verdict, exit_code = conflict_gate(verdict, state.get("best_fuzzy"),
+                                       cached_fuzzy)
+    if exit_code:
+        state["last_verdict"] = verdict
     if verdict.startswith("NEUTRAL"):
         verdict = annotate_neutral(verdict, real, insns, multiset_tokens,
                                    prev_tokens, prev_insns, prev_digest,
@@ -1880,7 +1939,9 @@ def main():
     # workers misread results when the verdict scrolled above the ops dump.
     if printed_ops:
         print(f"VERDICT (repeated): {verdict}")
-    return 0
+    # Non-zero ONLY for an unarbitrated CONFLICT (3). Every other verdict —
+    # including REGRESSED — is a completed probe and exits 0.
+    return exit_code
 
 
 if __name__ == "__main__":
