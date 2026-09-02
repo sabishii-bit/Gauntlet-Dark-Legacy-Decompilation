@@ -362,7 +362,11 @@ one, and supersede the law if your target contradicts it.
    check — it now completes in under a second (the old "never block
    on it" advice described a quadratic bug, fixed run 33 at 3,400x).
    validate reports dangling citations from pruned records as DEBT,
-   not failure; staging stays strict.
+   not failure; staging stays strict. The memory_graph suite
+   (`python -m memory_graph.test_graph`) runs 66-88s vs 3-4s for
+   tools/gdl (measured run 34) — between items of a multi-item lane,
+   run only the test class your change touches; the FULL suite is
+   required once per commit, not once per edit.
 14. **A guard's refusal is a measurement of the guard, not only of the
    function.** Two coarse guards each refused a provable function
    while failing correctly by their own logic (blanket relocation
@@ -824,6 +828,10 @@ to the user or another worker.
 - Never commit machine-local paths, credentials, or personal environment
   details, and never commit the generated memory database. If private content
   lands in history, tell the user immediately rather than papering over it.
+- Inspect diffs with `git diff --numstat` or `--name-status`, not
+  `--stat`: with this repo's line-ending config, `--stat` emits a
+  LF-to-CRLF warning per tracked file (~317KB of noise before any
+  content, measured run 34) and buries the signal.
 
 Commit messages are plain one-liners without attribution trailers:
 
@@ -944,6 +952,35 @@ Cross-fleet concurrency (multiple independent agent fleets sharing `main`):
   (the gitdir round-trips through a `W:/` path the `/w/` mount can't
   follow) — run ALL git commands in a worktree through PowerShell;
   non-git tools (python, ninja) work fine from either shell.
+
+Single-writer enforcement (run 34, measured): two fleets dispatched twin
+workers onto the same worktrees and branches, and three lanes collided.
+Measured costs: one complete redundant implementation written and then
+removed (T4); ~15 reconciliation tool calls plus ~4 wasted builds chasing
+edits a twin kept reverting (PC); one false record written, committed, and
+superseded; roughly doubled wall-clock fleet-wide from doubled build
+contention on one machine. Rules:
+
+- **One integrator per repository at a time.** Before dispatching a fleet,
+  the integrator checks for live peer sessions (`ListAgents` or platform
+  equivalent) and for foreign `state: active` work_claims whose
+  `attributes.integrator` is someone else. Either finding: coordinate with
+  the user before spawning anything. Two integrators merging one trunk is
+  never acceptable, and competing git operations in the shared checkout
+  corrupt each other's index mid-merge (observed run-34 closeout).
+- **Lane lock.** A worker's first action inside its worktree is writing an
+  untracked `LANE_LOCK` file at the worktree root with its worker id and a
+  random nonce. If the file already exists with a different id: do not
+  work — report the collision and stop. Re-read it before every commit; a
+  changed nonce means a second writer is present — commit nothing, report,
+  stop. Remember the PC law: a lost edit fails nothing — every green gate
+  describes HEAD, so the commit, not the gate, is the first evidence an
+  edit exists.
+- **Author records in lane scratch, never directly in the inbox.**
+  `propose-record` refuses duplicate ids, but a direct file write into
+  `memory_graph/inbox/` bypasses that guard entirely (measured: a twin's
+  detailed record was silently overwritten by a same-id write). Write the
+  JSON in your scratch directory and let `propose-record` place it.
 
 Worktrees: writing workers use separate worktrees/branches; the shared
 checkout is read-only to them. Reuse existing clean campaign worktrees before
