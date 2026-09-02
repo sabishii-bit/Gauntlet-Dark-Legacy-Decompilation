@@ -1047,6 +1047,38 @@
             "proof": "dominating_def"
           }
         ]
+      },
+      {
+        "function": "buildSaveImage",
+        "before_sha256": "90c5eea15e6e6f0b2669fca207c8d7270ddbd46592531dab5d64c758a27eb048",
+        "after_sha256": "0c7e0b79150e3ee4ed9a1f020f2cee7000bebf6f16c2696f6efdc4108387bc76",
+        "audit": {
+          "classification": "SCHEDULE_CANDIDATE",
+          "instructions": 247,
+          "permuted_instructions": 5
+        },
+        "mechanism": "attempt.MC_buildsaveimage-addr-pre-hoist-closed-then-schedule-permutation.20260902.v1 - SOURCE FIRST, RULE LAST. This function was class source-structural (10 unabsorbed words / 5 clusters, 105 raw differing words) until the source work in commit 421ebafaa; the rule closes only what survived that work. THE SOURCE HALF: the residual's genuine content was an address-PRE hoist, `addi r29,r21,4` parked in a callee-saved and read as `lwz r0,0(r29)` at both icon-loop conditions where the target reads `lwz r0,4(r23)` fresh. Per claim.law.cast-view-macro-reopens-addr-pre-that-member-form-closed.20260831.v1 the lever is naming the CAST RESULT, not the member syntax: the two loops each spelled `((TexAnimHdr*) iconTex)->numFrames`, re-deriving an anonymous cast temporary whose two uses span TEXGet/memcpy calls, which is exactly the two-crossing-a-call trigger that law records. Naming it once (`TexAnimHdr* anim = (TexAnimHdr*) iconTex;`) removed the hoist and, composed with the block-scope `hi1 = pool + 0x10000;` re-derivation that attempt.LG_buildsaveimage-address-rematerialization-vs-invariant-hoist.20260901.v1 measured as its B2 probe, took the function to count parity 247/247, opcode multiset IDENTICAL, regnorm GENUINE structural rows 0, fuzzy 94.3036 -> 95.2632 (arbitrated on fresh report builds, both halves). WHAT REMAINS AND WHY IT IS A RULE: two dependence-clean schedule transpositions, both source-probed NEGATIVE this run. Window [0x78,0x80) order [1,0]: ours emits `stw r0,-19356(r3)` before `addi r21,r3,-19356`, the target the reverse; the addi writes r21 and reads r3, the stw reads r0/r3 and writes memory, so the pair is disjoint and the audit passes in OUR colouring. The source axis is exhausted: swapping the two statements (sizePtr assignment vs the store) compiled BYTE-IDENTICAL - the edit folded away before codegen, which is a stronger negative than a regression. Window [0x2cc,0x2d8) order [2,0,1]: ours emits `slwi`/`li`/`addi r6,r6,-19334`, the target hoists the addi ahead of both; no atom in the window writes a register another reads (r5/r3/r6 are disjoint), so the audit passes strictly. Its source axis is also exhausted: naming the read pointer (`u16* fmtR = (u16*)(hi2 - SIH_OFF(iconFmt));`) - the same lever that WON on the numFrames site - overshot here, growing the function to 248 instructions and multiset 0t -> 1t without touching the cluster, which is the directional overshoot claim.law.IG_dead-local-index-carrier-breaks-a-shared-address-cse.20260901.v1 warns of. RELOCATION BINDING, checked not assumed: both windows carry NO relocation on either side - all four region relocation hashes are the empty-payload hash e3b0c442... - so no atom-to-symbol binding question arises, per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1. Both windows are control-free (permute_instruction_atoms refuses any region containing a control op), word-aligned, disjoint and ascending. After the two permutation windows the residual is a pure register-field respell and copy_register_fields alone reaches the target bytes.",
+        "instruction_permutation": [
+          {
+            "start": "0x78",
+            "end": "0x80",
+            "order": [1, 0],
+            "before_sha256": "2f47ed42a86e7539456500a1af5b4fe8dae650cc481e6daa88d834ac6d385663",
+            "after_sha256": "c55769af072820200434ac239735f0f3064334f4338702afde89a1d77763f158",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "start": "0x2cc",
+            "end": "0x2d8",
+            "order": [2, 0, 1],
+            "before_sha256": "77c87116749c7aacf8fa624b12543474c3374c1fe0554558e391a6e1e3ddc6a8",
+            "after_sha256": "ca7e9524f87c6b21e6522e6f522132482c39cb2dfda7d60e4bae0a15d8a00416",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "copy_register_fields": true
       }
     ],
     "game/world/newcam": [

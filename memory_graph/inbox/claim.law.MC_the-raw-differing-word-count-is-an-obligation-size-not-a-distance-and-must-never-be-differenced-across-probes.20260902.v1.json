@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py game/sys/memcard buildSaveImage",
+    "tools/gdl/probe.py game/sys/memcard buildSaveImage --arbitrate",
+    "tools/gdl/unabsorbed.py game/sys/memcard"
+  ],
+  "attributes": {
+    "provenance": "Measured 2026-09-02 in worktree GDL-Claude-MemcardSweep, branch claude/memcard-sweep-20260902, commits 421ebafaa (source) and e0eaa9418 (rule), under work_claim.memcard-sweep.20260902.v1. Full derivation in attempt.MC_buildsaveimage-addr-pre-hoist-closed-then-schedule-permutation.20260902.v1.",
+    "tags": [
+      "metrics",
+      "matching",
+      "workflow",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a source edit that changes a function's instruction count or ordering and for which the raw differing-word count moves monotonically with fresh fuzzy across a representative sample - that would show the non-monotonicity here was incidental rather than structural. Conversely the law is confirmed by any second case where word count and fuzzy disagree in sign across an instruction-count change; buildSaveImage 105 -> 110 against fuzzy +0.96 is the first recorded instance.",
+  "id": "claim.law.MC_the-raw-differing-word-count-is-an-obligation-size-not-a-distance-and-must-never-be-differenced-across-probes.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T16:36:43Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "THE RAW DIFFERING-WORD COUNT (tools/gdl/composed_census/wf_word_diff.py) IS THE OBLIGATION A RECOLOR STAGE MUST DISCHARGE, NOT A DISTANCE TO TARGET. It is the right number for deciding postprocessor CANDIDACY - that is the standing rule, and it stands - but it is NOT MONOTONE with closeness, so differencing it across two probes to judge progress is unsound. MEASURED, on game/sys/memcard::buildSaveImage across commit 421ebafaa: the raw word count ROSE from 105 to 110 (of 247 insns) while every sound arbiter said the function got materially closer - fresh objdiff fuzzy 94.3036 -> 95.2632 (+0.96, both halves built fresh), opcode multiset 2t -> 0t IDENTICAL, regnorm GENUINE structural rows 2 -> 0, unabsorbed words 10 -> 5, and the residual_class moved source-structural -> operand. The function was byte-exact one commit later. THE REASON IS STRUCTURAL, not a quirk: the word count is a POSITIONAL comparison, so removing a surplus instruction (here an address-PRE hoist, `addi r29,r21,4`) re-aligns the whole tail of the function against the target and every word after the removal point is re-paired against a different target word. A change that deletes or inserts an instruction therefore rewrites the word-count basis, and the before/after numbers are not measuring the same thing. THE COROLLARY THAT MATTERS: the word count is only comparable across two states at IDENTICAL instruction counts AND identical instruction ordering - which is to say, across pure recolor variation, which is exactly the case it was designed for. THE RULE: quote the raw word count when sizing a rule or deciding whether a recolor stage can reach a function; use fresh objdiff fuzzy, the opcode multiset, regnorm genuine structural rows, or the unabsorbed count to judge whether a source edit helped. This does not weaken the run-35 finding that a recorded '4-word' residual measured 122 - that finding is about a SINGLE state being mis-sized, and it stands unchanged."
+}

@@ -1772,15 +1772,17 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
 
     /* icon animation frames */
     if ((u32) iconTex != 0) {
-        u16* fmtW = (u16*) (hi - SIH_OFF(iconFmt));
-        u16* animW = (u16*) (hi - SIH_OFF(iconSpeed));
+        u8* hi1 = pool + 0x10000;
+        u16* fmtW = (u16*) (hi1 - SIH_OFF(iconFmt));
+        u16* animW = (u16*) (hi1 - SIH_OFF(iconSpeed));
         u16* clearAnimW;
         s32 lastFrame;
         s32 j;
         u8* hi2;
+        TexAnimHdr* anim = (TexAnimHdr*) iconTex;
 
         for (i = 0, bit = 0;
-             (u32) i < ((TexAnimHdr*) iconTex)->numFrames && i < 8;
+             (u32) i < anim->numFrames && i < 8;
              i++, bit += 2) {
             void** tex = (void**) TEXGet(iconTex, i);
 
@@ -1824,7 +1826,7 @@ u8* buildSaveImage(const char* name, void* hdr, int bannerTex, int iconTex,
         *(u8*) (hi2 - SIH_OFF(bannerFmt)) |= fmtB;
         lastFrame = -1;
         for (j = 0, bit = 0;
-             (u32) j < ((TexAnimHdr*) iconTex)->numFrames && j < 8;
+             (u32) j < anim->numFrames && j < 8;
              j++, bit += 2) {
             void** tex = (void**) TEXGet(iconTex, j);
 

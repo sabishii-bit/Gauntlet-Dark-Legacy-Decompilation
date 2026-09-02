@@ -1,0 +1,33 @@
+{
+  "attempted_axis": "Screen the predecessor's RECLASSIFICATION rather than re-probe its two dead source axes: it concluded the correct class is the served equivalent_copy_form + recolor class and that 'the next move is the WebFrank audit, not another source probe'. Measured that claim against the shipped stages.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 SCREENED, NOT the operative bar here: counts are 57/57 at parity, so the count laws do not exclude this function - the opcode-class difference does. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED and APPLIED - it is why the raw word count (37 of 57) was measured rather than inferred from the 2-token multiset, and the gap between those two figures is the whole point of this record. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED and NOT applicable: the +1 addi / -1 mr pair is an address-materialisation form, not a live-zero site, so the copy-form family the predecessor invoked does not in fact cover it. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED, already exercised and found not to transfer by the predecessor.",
+    "laws_applied": "[\"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "probed_form": "NO EDIT. Read-only screening through shipped code only: wf.copy_register_fields(ours, target) and ha_close.build_rule(unit, fn), both against the raw .postprocess/body, plus tools/gdl/unabsorbed.py for the class column and wf_word_diff.py for the raw count.",
+    "residual": "THE RECLASSIFICATION IS REFUTED, AND THE FUNCTION GOES BACK TO THE SOURCE QUEUE. The predecessor read a 2-token `--ops` multiset (+1 addi / -1 mr), inferred 'a copy-FORM difference, not a pure recolor', and concluded the served equivalent_copy_form class fits. The mechanism it named is correct and its two source vetoes are sound; the CLASS inference is what fails. The `--ops` view showed 4 clusters and 2 tokens; the raw comparison shows 37 of 57 words differing and 29 of them UNABSORBED, and copy_register_fields refuses at the first differing word (+0xc) because the difference there is in non-register instruction bits, which no recolor and no permutation can reach. THIS IS THE SAME TRAP THE WORD-COUNT DISCIPLINE EXISTS FOR, arriving in its most expensive form: not a mis-sized rule, but a function handed to the postprocessor queue that the postprocessor cannot touch, with its source work declared finished. WHAT THE NEXT LANE SHOULD DO: treat check_prefs_loaded as source work with two axes already dead, and start from the mechanism the predecessor recorded accurately - the target holds the lbl_801131C0 address in callee-saved r31 across the whole function by splitting `lis` (before stwu/stmw) from `addi` (after stmw), and pays one `addi r3,r31,0` at the single use, while our build forms all three words at the point of use and spells the last one `mr`. The open question is a source form that defers only the `@lo` half past the prologue - both recorded probes completed the `@lo` into r0 BEFORE stmw, which is exactly what must not happen.",
+    "scope": "READ-ONLY. No source file, no config file, no commit. config/GUNE5D/webfrank.json is untouched with respect to check_prefs_loaded.",
+    "verification": "Measured on a tree at commit 421ebafaa with `ninja -j2` printing build/GUNE5D/main.dol: OK. All three numbers (37 raw words, 29 unabsorbed / 2 clusters, class source-structural) come from three independent tools reading the same freshly built objects."
+  },
+  "denial": {
+    "expiry_check": "python MC_scratch/mc_screen_rest.py (gate A + gate B for this function in one call), or directly: python tools/gdl/unabsorbed.py game/sys/memcard and read check_prefs_loaded's class. If it ever reports `allocator` or `schedule` rather than `source-structural`, the postprocessor path has reopened and this denial is void.",
+    "falsifier": "Any source change that removes the +0xc opcode-class difference would let copy_register_fields run and could put the function back in a recolor class. Concretely: the target forms the lbl_801131C0 address in two halves straddling the prologue (`lis` before stwu/stmw, `addi` after) and we form all three words at the point of use with the third spelled `mr` - a source form that reaches the target's split would falsify the classification.",
+    "premise_measurement": "copy_register_fields REFUSES before it can even run: 'non-register instruction bits differ at +0xc: 0x04e00000'. The combined stage through the shipped apply_patch REFUSES with 'unabsorbed words at +0xc,+0x24,+0x28,+0x2c,+0x30,+0x34,+0x38,+0x3c (+21 more)' - 29 unabsorbed words in 2 clusters. The unabsorbed census independently classes the function `source-structural`, whose definition is that the opcode multisets themselves differ, i.e. provably outside every postprocessor class.",
+    "scope": "ONE claim on THIS function: that its residual belongs to the served equivalent_copy_form + copy_register_fields class and that a WebFrank audit is the next move. It does NOT deny source work - the opposite: it returns the function to the source queue. It does not deny the predecessor's two source-axis vetoes either, which stand."
+  },
+  "function": "function:check_prefs_loaded",
+  "held_fixed": "THE ENTIRE TREE. This record varied no source and no config; it is a read-only measurement of the predecessor's classification against the shipped webfrank stages, taken on a tree at commit 421ebafaa. The two source axes the predecessor measured dead (initialise-at-declaration, in both declaration orders) were deliberately NOT re-run - they are correctly vetoed and this record does not disturb them.",
+  "id": "attempt.MC_check-prefs-loaded-is-source-structural-not-a-webfrank-audit-candidate.20260902.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-02T16:37:41Z",
+  "refutes": "attempt.LG_check-prefs-loaded-held-pointer-form.20260901.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "copy-form",
+    "measured_at": "2026-09-02",
+    "signature": "DIFFERS target-only: +1 addi ours-only: -1 mr; insns 57/57 (ours/target, COUNT PARITY); 4 ops clusters; RAW DIFFERING WORDS = 37 of 57 (64.9%), of which 29 unabsorbed in 2 clusters"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
