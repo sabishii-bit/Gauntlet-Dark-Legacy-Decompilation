@@ -251,6 +251,17 @@ It banks nothing and computes no verdict: it is a measurement, and the keep
 decision stays yours (--rebase-best banks an arbitrated keep). The DATA
 column is reported too, since a moved non-text section is invisible to both
 arbiters.
+
+--arbitrate SWAPS THE PIN STATE IN STEP WITH THE SOURCE. webfrank.json is
+global and pairs with exactly ONE source state, so on a TU whose pin was
+re-derived with `--rederive-pin --transient` the banked half used to abort
+in the WEBFRANK stage and the whole arbitration returned 1 — measured on
+game/game/player with the do_exit permutation pin: `[current] real 870`
+scored, then `BUILD FAILED (banked state)`. The pre-probe hashes are
+already in the transient bank, so probe reads them out (without consuming
+the bank), builds each half against the pin hashes that belong to it, and
+restores BOTH files in the same `finally` as the source. Unpairable slots
+WARN instead of silently measuring a partial swap.
 """
 
 import difflib
@@ -2343,13 +2354,69 @@ def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
     return "\n".join(lines)
 
 
+def transient_pin_texts(unit):
+    """(wf_for_working, wf_for_banked, notes) — the webfrank.json text that
+    pairs with EACH source state — or None when there is nothing to pair.
+
+    Run-39 item 2, reproduced live before this was written. `--arbitrate`
+    swaps the SOURCE between the working tree and the banked snapshot and
+    builds each, but webfrank.json is global state that pairs with exactly
+    ONE of them: after a `--rederive-pin --transient`, the config holds the
+    re-derived hashes for the WORKING source, so building the BANKED source
+    aborts in the WEBFRANK stage and the whole arbitration returns 1.
+    Measured on game/game/player at 0f45ae610 with the do_exit permutation
+    pin: `[current] real 870` scored, then `BUILD FAILED (banked state)`.
+    That is the one A/B a pinned TU most needs and the one it could not run.
+
+    The pre-probe hashes are already banked — `wf_rederive_pin` wrote them
+    for exactly this reason — so this reads them out WITHOUT consuming the
+    bank: restore_transient is run for its text, both files are put straight
+    back, and the caller gets two texts it can pair with two source states.
+
+    Returns None (arbitrate behaves exactly as before) when there is no
+    bank, no postprocessor stack, or nothing actually moved. Returns notes
+    instead of a pairing when restore_transient could not pair the slots —
+    a partial swap must WARN, never be presented as a measurement.
+    """
+    module = _wf_rederive_module()
+    if module is None:
+        return None
+    config = Path(f"config/{VERSION}/webfrank.json")
+    bank = Path(module.bank_path(unit))
+    if not bank.exists() or not config.exists():
+        return None
+    bank_bytes = bank.read_bytes()
+    working = config.read_bytes()
+    restored, notes = [], []
+    try:
+        restored, notes = module.restore_transient(
+            unit, str(config), str(bank))
+        banked = config.read_bytes()
+    except Exception as error:                       # pragma: no cover
+        banked = working
+        notes = [f"restore_transient raised {type(error).__name__}: {error}"]
+    finally:
+        # Both files go back exactly as found, whatever happened: this
+        # function is a READ of the bank, not a use of it.
+        config.write_bytes(working)
+        if not bank.exists():
+            bank.write_bytes(bank_bytes)
+    if notes:
+        return working, None, notes
+    if not restored or banked == working:
+        return None
+    return working, banked, []
+
+
 def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
                   vs_baseline=False):
     """Build+score BOTH the banked and the working state, then restore.
 
     The restore is in a `finally`: a failed build, a KeyboardInterrupt or an
     exception must never leave the snapshot's bytes sitting in the worker's
-    source file, which is the one way this mode could destroy an edit.
+    source file, which is the one way this mode could destroy an edit. The
+    same `finally` restores config/GUNE5D/webfrank.json, which this mode now
+    swaps in step with the source (see transient_pin_texts).
     """
     if source is None:
         print(f"cannot arbitrate: no src source found for {unit}")
@@ -2371,7 +2438,33 @@ def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
               " Edit first, or use --fuzzy for a single-state readout.")
         return 1
 
-    def measure(which):
+    # PIN STATE PAIRS WITH SOURCE STATE (run-39 item 2). webfrank.json is
+    # global and matches exactly one of the two source states; without this
+    # the banked half aborts in the WEBFRANK stage on any TU whose pin was
+    # re-derived with --transient. The config is an explicit `build.ninja`
+    # input to the webfrank edge, so rewriting it re-triggers the stage on
+    # its own — no configure.py, because no NEW edge is created.
+    config = Path(f"config/{VERSION}/webfrank.json")
+    config_bytes = config.read_bytes() if config.exists() else None
+    pins = transient_pin_texts(unit)
+    wf_working = wf_banked = None
+    if pins is not None:
+        wf_working, wf_banked, notes = pins
+        if wf_banked is None:
+            print("WARNING: this TU has a TRANSIENT pin bank that could not"
+                  " be paired with the banked source state — "
+                  + "; ".join(notes) + ". The banked half of this"
+                  " arbitration will very likely abort in the WEBFRANK"
+                  " stage. Resolve the note(s) above first.")
+        else:
+            print("[transient pin bank found: webfrank.json will be swapped"
+                  " IN STEP with the source so each half builds against the"
+                  " pin hashes that belong to it; both files are restored"
+                  " afterwards]")
+
+    def measure(which, wf_text=None):
+        if wf_text is not None and config_bytes is not None:
+            config.write_bytes(wf_text)
         build = subprocess.run(["ninja", f"build/{VERSION}/src/{unit}.o"],
                                capture_output=True, text=True)
         if build.returncode != 0:
@@ -2388,19 +2481,23 @@ def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
         return real, insns, report_fuzzy(unit, fn, fn_stripped), data
 
     try:
-        current = measure("current")
+        current = measure("current", wf_working)
         if current is None:
             return 1
         source.write_bytes(banked_bytes)
-        banked = measure("banked")
+        banked = measure("banked", wf_banked)
         if banked is None:
             return 1
     finally:
         # Unconditional: the working tree leaves this call exactly as it
-        # arrived, whatever happened in between.
+        # arrived, whatever happened in between — source AND pin state.
         if source.read_bytes() != current_bytes:
             source.write_bytes(current_bytes)
             print("[working tree restored to your edited state]")
+        if config_bytes is not None and config.read_bytes() != config_bytes:
+            config.write_bytes(config_bytes)
+            print("[config/GUNE5D/webfrank.json restored to its pre-"
+                  "arbitration state; the transient pin bank is untouched]")
     rebuild = subprocess.run(["ninja", f"build/{VERSION}/src/{unit}.o"],
                              capture_output=True, text=True)
     if rebuild.returncode != 0:

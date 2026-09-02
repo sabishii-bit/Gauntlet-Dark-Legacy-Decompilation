@@ -8,6 +8,7 @@ that had not moved (measured on game/sys/memcard get_vmu_directory during
 run 29: real 65 -> 65, insns and multiset both unchanged).
 """
 
+import os
 import re
 import sys
 import tempfile
@@ -335,6 +336,126 @@ class TransientPinBankLifecycleTests(unittest.TestCase):
             self.assertFalse(
                 keep_consumes_transient_bank(["probe.py", "u", "f", flag]),
                 flag)
+
+
+class ArbitrateTransientPinTests(unittest.TestCase):
+    """run-39 item 2, reproduced live on game/game/player at 0f45ae610.
+
+    `--arbitrate` swaps the SOURCE between two states and builds each, but
+    webfrank.json is global and pairs with exactly ONE of them. After a
+    `--rederive-pin --transient` the config held the re-derived hashes for
+    the WORKING source, so the banked half aborted in the WEBFRANK stage:
+    `[current] real 870` scored, then `BUILD FAILED (banked state)` and the
+    whole arbitration returned 1 — on the one TU class that most needs it.
+
+    transient_pin_texts reads the pre-probe hashes out of the bank WITHOUT
+    consuming it, so both files must leave every call byte-identical.
+    """
+
+    WORKING = b'{"units": {"u": [{"before_sha256": "NEW"}]}}'
+    BANKED = b'{"units": {"u": [{"before_sha256": "OLD"}]}}'
+    BANK = b'{"unit": "game/game/player", "pins": {"do_exit": ["OLD"]}}'
+
+    class FakeModule:
+        """Stands in for wf_rederive_pin. restore_transient rewrites the
+        config and CONSUMES the bank, exactly as the real one does."""
+
+        def __init__(self, bank, banked_text, restored, notes, raises=False):
+            self._bank = bank
+            self._banked_text = banked_text
+            self._restored = restored
+            self._notes = notes
+            self._raises = raises
+
+        def bank_path(self, _unit):
+            return str(self._bank)
+
+        def restore_transient(self, _unit, config_path, path):
+            if self._raises:
+                raise RuntimeError("shape changed")
+            if self._banked_text is not None:
+                Path(config_path).write_bytes(self._banked_text)
+            if not self._notes:
+                Path(path).unlink()
+            return list(self._restored), list(self._notes)
+
+    def run_it(self, module=None, bank=True, banked_text=None,
+               restored=("do_exit",), notes=(), raises=False):
+        cwd = Path.cwd()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "config" / "GUNE5D").mkdir(parents=True)
+            (root / "build" / "GUNE5D" / "gate").mkdir(parents=True)
+            config = root / "config" / "GUNE5D" / "webfrank.json"
+            config.write_bytes(self.WORKING)
+            bank_file = root / "build" / "GUNE5D" / "gate" / "wf.json"
+            if bank:
+                bank_file.write_bytes(self.BANK)
+            fake = (self.FakeModule(bank_file,
+                                    self.BANKED if banked_text is None
+                                    else banked_text,
+                                    restored, notes, raises)
+                    if module is None else module)
+            original = probe._wf_rederive_module
+            probe._wf_rederive_module = lambda: fake
+            os.chdir(root)
+            try:
+                result = probe.transient_pin_texts("game/game/player")
+            finally:
+                os.chdir(cwd)
+                probe._wf_rederive_module = original
+            return result, config.read_bytes(), bank_file.exists()
+
+    def test_both_pin_states_are_returned(self):
+        result, config_after, bank_there = self.run_it()
+        self.assertEqual((self.WORKING, self.BANKED, []), result)
+        # A READ of the bank, not a use: both files unchanged.
+        self.assertEqual(self.WORKING, config_after)
+        self.assertTrue(bank_there)
+
+    def test_the_bank_is_not_consumed_even_though_restore_consumes_it(self):
+        _result, _config, bank_there = self.run_it()
+        self.assertTrue(bank_there, "the A/B still needs its bank afterwards")
+
+    def test_no_bank_means_no_pairing_and_arbitrate_is_unchanged(self):
+        result, config_after, _ = self.run_it(bank=False)
+        self.assertIsNone(result)
+        self.assertEqual(self.WORKING, config_after)
+
+    def test_no_postprocessor_stack_is_not_an_error(self):
+        original = probe._wf_rederive_module
+        probe._wf_rederive_module = lambda: None
+        try:
+            self.assertIsNone(probe.transient_pin_texts("game/x/y"))
+        finally:
+            probe._wf_rederive_module = original
+
+    def test_a_pin_that_did_not_move_needs_no_pairing(self):
+        result, _config, _bank = self.run_it(banked_text=self.WORKING)
+        self.assertIsNone(result)
+
+    def test_nothing_restored_needs_no_pairing(self):
+        result, _config, _bank = self.run_it(restored=())
+        self.assertIsNone(result)
+
+    def test_unpairable_slots_WARN_rather_than_measure(self):
+        """A partial swap must never be presented as an arbitration."""
+        result, config_after, bank_there = self.run_it(
+            notes=("do_exit: the rule's SHAPE changed since banking",))
+        working, banked, notes = result
+        self.assertEqual(self.WORKING, working)
+        self.assertIsNone(banked)
+        self.assertIn("SHAPE changed", notes[0])
+        self.assertEqual(self.WORKING, config_after)
+        self.assertTrue(bank_there)
+
+    def test_a_raising_restore_leaves_both_files_intact(self):
+        result, config_after, bank_there = self.run_it(raises=True)
+        _working, banked, notes = result
+        self.assertIsNone(banked)
+        self.assertIn("RuntimeError", notes[0])
+        self.assertEqual(self.WORKING, config_after)
+        self.assertTrue(bank_there)
 
 
 class BanksBestTests(unittest.TestCase):
