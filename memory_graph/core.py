@@ -4846,25 +4846,53 @@ def law_corpus(
                              -row["match_strength"], row["record"] or ""))
 
     tokens = _query_tokens(query) if query else []
+    # Per-term OR diagnostics (run 34 item 6). Silent AND-combining returned
+    # 0 on a spread query like "reloc blind real naming" — every term is
+    # real, but no single law carries all four, so the whole-phrase and
+    # all-tokens-slug tests both failed and the lane read the graph as
+    # silent. Now each term is matched independently, a law is selected if it
+    # carries ANY term, and the ranking below is by how many DISTINCT terms
+    # it carries. Per-term corpus hit counts are returned so a zero-hit term
+    # (a typo, or a vocabulary the corpus does not use) is visible.
+    query_term_hits = {t: 0 for t in tokens}
+    terms_by_id: dict[str, int] = {}
     selected = []
     for row in rows:
         if not (query or residual):
             selected.append((row, None))
             continue
         why: list[str] = []
+        terms_matched: set[str] = set()
         if query:
             lowered = query.lower()
-            if lowered in (row["record_id"] or "").lower():
+            rid = (row["record_id"] or "").lower()
+            prose = (row["value_json"] or "").lower()
+            scope_l = (row["scope"] or "").lower()
+            slug_ws = _slug_words(row["record_id"])
+            # Whole-phrase / all-tokens matches keep their precise labels.
+            if lowered in rid:
                 why.append("id")
-            if lowered in (row["value_json"] or "").lower():
+            if lowered in prose:
                 why.append("text")
-            if lowered in (row["scope"] or "").lower():
+            if lowered in scope_l:
                 why.append("scope")
             if _slug_match(row["record_id"], tokens):
                 why.append("slug")
+            # Per-term OR matching across slug words, prose and scope. NOT the
+            # raw id: matching a bare term against the whole id makes the
+            # version/date suffix ("v1", "20260831") a content term, so every
+            # `.v1` law would match "v1". _slug_words already strips those.
+            for term in tokens:
+                if (term in prose or term in scope_l
+                        or any(term in word for word in slug_ws)):
+                    terms_matched.add(term)
+                    query_term_hits[term] += 1
+            if terms_matched and not why:
+                why.append("terms:" + "+".join(sorted(terms_matched)))
         if residual and row["record_id"] in residual_law_ids:
             why.append("residual-sibling")
-        if why:
+        if why or terms_matched:
+            terms_by_id[row["record_id"]] = len(terms_matched)
             selected.append((row, why))
     # NOTE: truncation to `limit` happens AFTER scoring below, not here. It
     # used to happen at this point, which meant a query matching more laws
@@ -4900,6 +4928,7 @@ def law_corpus(
                 "falsifier": None,
                 "asserted_by": None,
                 "match": why,
+                "query_terms_matched": terms_by_id.get(row["record_id"], 0),
             }
         )
 
@@ -5000,6 +5029,17 @@ def law_corpus(
                 if row["status"] in LAW_STATUS_ORDER else len(LAW_STATUS_ORDER),
                 -float(row.get("residual_relevance") or 0.0),
                 -float(row["score"] or 0.0), -int(row["n"] or 0), row["id"]))
+        elif query and tokens:
+            # OR-rank (run 34 item 6): tier FIRST (a refuted law must not
+            # float on term overlap, exactly as in the residual branch), then
+            # the number of distinct query terms the law carries, then
+            # evidence. A 3-of-4-term law outranks a 1-of-4 one instead of
+            # both being dropped by the old AND filter.
+            laws.sort(key=lambda row: (
+                LAW_STATUS_ORDER.index(row["status"])
+                if row["status"] in LAW_STATUS_ORDER else len(LAW_STATUS_ORDER),
+                -int(row.get("query_terms_matched") or 0),
+                -float(row["score"] or 0.0), -int(row["n"] or 0), row["id"]))
         else:
             laws.sort(key=lambda row: law_score_sort_key(
                 {"status": row["status"], "wilson": row["score"],
@@ -5073,6 +5113,15 @@ def law_corpus(
             " is mandatory. --include-provisional 1 shows them everywhere."
         ),
         "truncated": truncated,
+        # Per-term corpus hit counts (run 34 item 6): a zero here is a term
+        # the corpus does not use — a typo or the wrong vocabulary — which is
+        # the diagnosis a silent AND-combined empty result never gave.
+        "query_term_hits": (dict(sorted(query_term_hits.items(),
+                                        key=lambda kv: (-kv[1], kv[0])))
+                            if query else {}),
+        "query_ranked_by": ("status tier, then distinct query terms matched,"
+                            " then evidence (OR-ranked)")
+                            if (query and tokens) else None,
         "status_legend": dict(LAW_STATUS_NOTES),
         "evidence_note": (
             "SCORES ARE DERIVED, never hand-set: `gdlmem build` recomputes"
