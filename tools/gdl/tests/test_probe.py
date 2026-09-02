@@ -25,7 +25,8 @@ from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
                    outside_edit_warning, parse_numstat, pin_drift,
                    replan_hint, scaffold_rows, scoped_revert,
                    slot_arbiter_header, slot_arbiter_signal, split_lines,
-                   strip_noncode, update_neutral_identical_streak)
+                   stale_restore_refusal, strip_noncode,
+                   update_neutral_identical_streak)
 
 
 TU = """\
@@ -1267,6 +1268,75 @@ class ScopedRevertTests(unittest.TestCase):
         self.assertEqual(out, crlf)
         # every LF is still part of a CRLF — no line ending was rewritten
         self.assertEqual(out.count("\n"), out.count("\r\n"))
+
+
+class StaleRestoreRefusalTest(unittest.TestCase):
+    """Restoring a banked snapshot must never delete committed work.
+
+    Measured 2026-09-02 on game/pb/pbutils: with a commit landed since the
+    bank, `--revert --whole-file` correctly REFUSED, but two sibling paths
+    destroyed a committed line and then printed it back as "+0/-1 vs HEAD —
+    an edit this revert could not reach":
+
+      * `--revert-baseline` carried no commit anchor at all (no .base.meta
+        was ever written), so nothing could be compared;
+      * `--revert` skipped the whole check when the .meta sidecar was
+        missing, i.e. it failed OPEN on unknown provenance.
+    """
+
+    OLD = b"int f(void) { return 1; }\n"
+    COMMITTED = b"int f(void) { return 2; }\n"
+
+    def test_stale_snapshot_over_differing_commit_is_refused(self):
+        msg = stale_restore_refusal("aaaaaaaaa1", "bbbbbbbbb2",
+                                    self.OLD, self.COMMITTED)
+        self.assertIsNotNone(msg)
+        self.assertIn("REFUSED", msg)
+        self.assertIn("destroy committed work", msg)
+
+    def test_missing_anchor_fails_CLOSED(self):
+        """The regression: no stamp used to mean no check."""
+        msg = stale_restore_refusal(None, "bbbbbbbbb2",
+                                    self.OLD, self.COMMITTED)
+        self.assertIsNotNone(msg)
+        self.assertIn("NO commit anchor", msg)
+
+    def test_missing_head_also_fails_closed(self):
+        msg = stale_restore_refusal("aaaaaaaaa1", None,
+                                    self.OLD, self.COMMITTED)
+        self.assertIsNotNone(msg)
+        self.assertIn("NO commit anchor", msg)
+
+    def test_same_commit_is_a_normal_revert(self):
+        """Snapshot and tree differ because of UNCOMMITTED edits — which is
+        the entire point of --revert. Refusing here would break the loop."""
+        self.assertIsNone(
+            stale_restore_refusal("aaaaaaaaa1", "aaaaaaaaa1",
+                                  self.OLD, self.COMMITTED))
+
+    def test_snapshot_equal_to_commit_is_safe_however_old(self):
+        """Restoring bytes identical to HEAD's cannot lose anything, so an
+        unstamped ancient snapshot is still allowed through."""
+        self.assertIsNone(
+            stale_restore_refusal(None, "bbbbbbbbb2",
+                                  self.COMMITTED, self.COMMITTED))
+
+    def test_uncommitted_file_has_nothing_to_destroy(self):
+        self.assertIsNone(
+            stale_restore_refusal(None, "bbbbbbbbb2", self.OLD, None))
+
+    def test_refusal_names_the_label_and_the_override(self):
+        msg = stale_restore_refusal("aaaaaaaaa1", "bbbbbbbbb2",
+                                    self.OLD, self.COMMITTED,
+                                    label="session baseline")
+        self.assertIn("session baseline", msg)
+        self.assertIn("--force-stale-revert", msg)
+
+    def test_refusal_quotes_both_commits(self):
+        msg = stale_restore_refusal("aaaaaaaaa1", "bbbbbbbbb2",
+                                    self.OLD, self.COMMITTED)
+        self.assertIn("aaaaaaaaa", msg)
+        self.assertIn("bbbbbbbbb", msg)
 
 
 if __name__ == "__main__":
