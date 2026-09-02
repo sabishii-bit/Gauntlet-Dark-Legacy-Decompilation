@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "POSTPROCESSOR-DEV lane (owns webfrank.py + tests + webfrank.json): INTEGRATOR-SANCTIONED under the demand-census policy - the census is DONE and shows real customers: btext.c carries THREE instances of the live-zero-copy mechanism (FindStringMessageListSub real 26 w/ live-zero-remat family, DrawStringTextMLines, FontInit - UA run-36 records), plus init_all_dir_info (12 words, counts 41/41, MC refusal names 'the live-zero half, no proof mode offered'). STEP 1: verify each customer is count-symmetric and wf_word_diff-small; publish the customer table. STEP 2: extend the proof modes to serve live-zero copy-vs-remat sites STRICTLY WITHIN value-equality semantics (prove the source register holds the literal value at that word via the existing dataflow machinery; fail-closed; no new semantic distance - this widens which words the EXISTING ceiling class can prove, like the sanctioned run-34 reloc-binding precedent). Tests first on fixtures; every existing rule replays; suites green. STEP 3: close customers - rules only where functions reach real 0, provenance cited per rule (the UA/MC records). If a customer's residual exceeds the mode, instrumented refusal. Do NOT touch swbos (its stfsu class question is PENDING USER - out of scope). configure per json edit; gate = 'main.dol: OK'; report closes as EQUIVALENT explicitly; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:DrawStringTextMLines",
+  "id": "work_claim.live-zero-capability.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-WF",
+  "recorded_at": "2026-09-02T17:51:42Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

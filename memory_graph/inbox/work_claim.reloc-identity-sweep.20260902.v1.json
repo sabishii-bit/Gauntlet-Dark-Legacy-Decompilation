@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SWEEP+FIX lane, image-wide: the never-run population screen from run 36 (UB criticism 1): enumerate every function with fndiff real > 0 AND objdiff fuzzy == 100 - the reloc-identity-wrong class that the matched headline CONTAINS and no ranking tool can see (proof instances: reset_sel_menu real 2 fixed run 36; ControllerMessageBox reads gControllerButtons+0x4 where retail reads sFlags - same linked address, wrong symbol, STILL OPEN, fix it). Build the sweep as a composed_census tool (one pass over report.json + fndiff --count), then fix the population nearest-first: each fix is a relocation-naming correction (symbol choice, extern size, addend spelling) gated by fndiff --clean MATCH + real 0 + unchanged DOL sha1. ALSO consume T7's extern-size census rows when they land (poll its branch read-only or re-derive the handful you need yourself). One commit per fixed function or TU group; records for the population count + a law if the class has structure. defake_gate baseline step 0; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:reset_sel_menu",
+  "id": "work_claim.reloc-identity-sweep.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-RS",
+  "recorded_at": "2026-09-02T17:49:52Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}
