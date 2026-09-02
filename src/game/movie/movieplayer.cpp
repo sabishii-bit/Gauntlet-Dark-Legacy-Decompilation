@@ -789,13 +789,13 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
         fn_800D860C((u32)state, pal, count);
         break;
     case 2: {
-        sh1 = (u8)(8 - state->greenBits);
         i = 0;
-        sh0 = (u8)(8 - state->redBits);
         p = pal;
-        sh2 = (u8)(8 - state->blueBits);
         off = i;
         n = count * 4;
+        sh1 = (u8)(8 - state->greenBits);
+        sh0 = (u8)(8 - state->redBits);
+        sh2 = (u8)(8 - state->blueBits);
         for (; i < n; i++) {
             fn_800DBE98(state, p);
             *(u16*)(pal + off) =
