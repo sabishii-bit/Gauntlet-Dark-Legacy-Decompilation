@@ -1,0 +1,17 @@
+{
+  "attributes": {
+    "constraints": "READS the objects already on disk and never builds one, so its answer is as fresh as your last ninja for the TU \u2014 run a build first if you have edited since. It answers the ASSIGNMENT question only; the frame/slot side is slotdiff.py's, which probe already auto-invokes on a save-set delta. Rows pair by REGISTER NUMBER and compare the defining instruction's ROLE (the `addi rD,rS,0` and `mr rD,rS` spellings of a copy are folded together); EMISSION ORDER is reported separately and is a SCHEDULE fact, not an assignment one. Pairing by order instead was measured wrong on the function the governing law came from.",
+    "provenance": "Commissioned as run-39 TOOL item 5 against claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1, whose finding was invisible to --ops through three MV lanes on game/movie/movieplayer.cpp::fn_800D8BCC (count-EXACT 215/215, stable 4-token multiset) and visible immediately in one table. Verified by reproducing that record's closing state: all nine callee-saved webs match the target, and the residual it reports is the emission order, matching the record's '~87 words of pure volatile-bank renaming, every row already opcode-identical'.",
+    "usage": "python tools/gdl/savedregs.py <unit> <fn> [--uses] [--raw]"
+  },
+  "id": "tool.savedregs.20260903.v1",
+  "kind": "tool",
+  "name": "savedregs.py \u2014 callee-saved correspondence table",
+  "purpose": "Print which local lands in which callee-saved register in BOTH streams, zero builds, so a save-register permutation stops hiding under 'opcode multiset: IDENTICAL'.",
+  "recorded_at": "2026-09-02T22:04:55Z",
+  "schema_version": 1,
+  "status": "active",
+  "tool_key": "savedregs",
+  "tool_kind": "analysis",
+  "valid_from": "2026-09-03"
+}
