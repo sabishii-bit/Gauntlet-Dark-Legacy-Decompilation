@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/regression_set.py",
+    "tools/gdl/RS_regression_manifest.json"
+  ],
+  "attributes": {
+    "scope": "Measurement lane, run 32. Read-only on memory_graph and on all game source; the only writes are the harness, the manifest and scratch worktrees.",
+    "tags": [
+      "matching",
+      "postprocessor"
+    ],
+    "verification": "Round-trip proven on RS_AtreeNodeInsert: setup -> `OPEN (real=14)` matching the frozen pre_real exactly, exit 1; restore -> `EXACT`, exit 0. Worktree left clean (git status shows only the two new deliverables). STRICT/EQUIVALENT split at freeze time, quoted per Mandatory result policy: STRICT 56.45% (2574 fns) + EQUIVALENT 9.77% (137 fns), all 98.42% fuzzy / 66.22% matched."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run the two arms on the frozen 24. If arm B (gdlmem forbidden) reaches exact at the same rate and within the same probe count as arm A, the graph is not paying for its retrieval cost on CLOSABLE functions and the per-function `context` mandate in AGENTS.md should be re-scoped to parks and vetoes only. The instrument itself is falsified if `regression_set.py setup` stops reproducing a manifest row's frozen pre_real (it warns on drift), which would mean the surrounding TU has moved enough that the frozen problem is no longer the historical one.",
+  "id": "claim.method.RS_graph-utility-regression-set-protocol.20260902.v1",
+  "kind": "claim",
+  "predicate": "method",
+  "recorded_at": "2026-09-02T00:46:40Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "A FROZEN REGRESSION SET NOW EXISTS FOR MEASURING WHETHER GRAPH RETRIEVAL IMPROVES MATCHING OUTCOMES, AND THE TWO-ARM TRIAL PROTOCOL IS SPECIFIED. Instrument: tools/gdl/RS_regression_manifest.json, 24 STRICT-matched functions (report.json fuzzy_match_percent >= 100 AND not pinned in config/GUNE5D/webfrank.json; the roster script reproduces the campaign's own STRICT count of 2574 exactly), across 24 distinct TUs, 9 mechanism families read off the closing diffs (decl-order-web 7, alias-temp 4, reconstruction 4, pragma-scope 3, typed-view 2, addressing-form/control-form/param-reuse/pool-anchor 1 each), 4 MEASURED fndiff residual classes (STRUCTURAL 7, REGISTER_ONLY 6, OPERAND_DIFF 6, SCHEDULE_CANDIDATE 5) and 3 campaign eras balanced 8/8/8. Every row is measured, never asserted: each entry passed three gates -- HEAD builds byte-exact (real 0), the function-scoped rewind to the matching commit's PARENT applies cleanly, and the rewound state reproduces a NONZERO residual. Of 110 measured candidates 72 passed; the 38 rejections are retained with reasons. HARNESS: tools/gdl/regression_set.py setup/verify/restore/probe, reusing probe.py's function_span + scoped_revert so the rewind touches ONLY the target function's hunks (verified: rewinding AtreeNodeInsert reverted 2 hunks inside the span and left 51 hunks elsewhere in atree.c untouched) and refuses loudly rather than widening when a hunk straddles the boundary. TWO-ARM PROTOCOL for the future trial run: setup puts one function back to its pre state and the agent is told ONLY the function, the TU and the budget -- never the family, the mechanism or the matching commit; arm A has full gdlmem access, arm B has gdlmem FORBIDDEN at the prompt level while every other tool (fnasm, fndiff, probe, regnorm, Ghidra, PDB) stays available, so the arms differ in RETRIEVAL ONLY and not in capability; budget is identical and fixed per arm (recommend 12 probe builds plus a wall-clock cap); the outcome is reached-exact yes/no via `regression_set.py verify` (which reads object bytes, not the agent's reasoning), plus probe count and build count, plus whether the closing axis is the same mechanism the historical commit used. MANDATORY SCORING SCREEN, and the pilot proved it is not optional: a hit may not be counted when the surfaced record is ANCHORED TO THE FUNCTION UNDER TEST and was recorded ON OR AFTER its matching commit. Such a record is the closing agent's own write-up, and counting it measures the graph remembering its own answer rather than transfer. Measured instance: `context PlayerCollidePlayers` returns exactly one record, attempt.playercollideplayers-literal-hoist-exact.20260831.v1, dated the same day as the match commit and naming the cure outright; without this screen that function scores a perfect rank-1 hit on a question it was never asked."
+}

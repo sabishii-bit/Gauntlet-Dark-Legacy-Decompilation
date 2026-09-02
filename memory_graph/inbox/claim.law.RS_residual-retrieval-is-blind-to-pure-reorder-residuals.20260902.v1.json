@@ -1,0 +1,22 @@
+{
+  "asserted_by": [
+    "tools/gdl/RS_regression_manifest.json"
+  ],
+  "attributes": {
+    "provenance": "Run 32 retrieval pilot, worktree GDL-Claude-RegressionSet. Signatures captured by rewinding each function to its manifest pre state, building the object, and reading `fndiff --ops` verbatim; queries run against the shared checkout's graph.",
+    "tags": [
+      "matching",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Pass two signatures that each carry DISTINCT `+N/-N` mnemonics (a count-asymmetric residual) and show `laws --residual` returns different result sets -- that confirms the index works where terms exist and bounds this law to the pure-reorder case. The law is DISPROVED if any pure-reorder signature (multiset IDENTICAL) is shown to return a result set discriminated by its content rather than the default listing; re-run RS_scratch-style capture and compare sha1 of the payloads.",
+  "id": "claim.law.RS_residual-retrieval-is-blind-to-pure-reorder-residuals.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T00:46:46Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "`laws --residual` CANNOT DISCRIMINATE A PURE-REORDER RESIDUAL, BECAUSE SUCH A SIGNATURE CARRIES NO INDEX TERMS AT ALL. The retrieval indexes only the `+N`/`-N` opcode mnemonics of an fndiff --ops delta. When the opcode multiset is IDENTICAL -- the schedule/recolor class the exact-match mandate concentrates on -- the delta contains ZERO such tokens, so every pure-reorder signature presents the same empty term set and the query degenerates to a default corpus listing. MEASURED, run 32: four pilot functions at their pre-match states (AtreeNodeInsert 33/33, TowerInit 25/25, ExtractYPR 92/92, PlayerCollidePlayers 124/124, all `multiset: IDENTICAL`) were queried with their four distinct verbatim signatures and returned BYTE-IDENTICAL 71992-byte payloads, sha1 88dc32585711 for all four. The four differ in instruction counts and in nothing the indexer reads. Consequence for lane practice: on a REGISTER_ONLY or SCHEDULE_CANDIDATE residual, `laws --residual` is not a screen and an empty-looking or generic result from it is NOT evidence that the corpus is silent -- it is evidence that nothing was asked. Use `laws --query` on the mechanism words, or `brief <tu>`, and treat the residual index as serving count-asymmetric residuals only. SECOND MEASURED HAZARD ON THE SAME PATH: `brief` and `laws` auto-spill above roughly 30KB, and stdout then carries only a {\"large_output\": path} stub. A collector that parses stdout as the result reads 0 records and reports the graph as EMPTY. This lane's first pilot pass scored all four functions as `(no records surfaced)` for both queries before the stub was noticed; the real payloads were 49-72KB carrying 95-111 records each. Any tool or agent consuming gdlmem programmatically MUST follow the pointer."
+}
