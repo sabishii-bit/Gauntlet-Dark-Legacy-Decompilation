@@ -1710,7 +1710,7 @@ s32 do_players(void) {
             if (p->state != 0) {
                 s32 sel;
 
-                if (p->state == 2 || p->state == 3) {
+                if (PTA(i)->state == 2 || PTA(i)->state == 3) {
                     sel = 1;
                 } else {
                     sel = 0;
@@ -4121,7 +4121,7 @@ model_ready:
     } else {
         strcpy(name, ((char**)(tab + 1212))[pad]);
     }
-    sprintf(geoBss->scratch, "%s%s", (char*)(tab + 1128) + cls * 4, name);
+    sprintf(geoBss->scratch, "%s_%s", (char*)(tab + 1128) + cls * 4, name);
     strncpy((char*)&p->pad_0210[0x4B0], geoBss->scratch, 8);
     p->node = MBNewNode(lbl_80344B2C, gIdentityMatrix, 1);
     PF(p, 0x78, s32) = 0;
@@ -4180,7 +4180,7 @@ model_ready:
     } else {
         p->weapon_node = NULL;
     }
-    sprintf(geoBss->scratch, "%sTORSO", (char*)&p->pad_0210[0x4B0]);
+    sprintf(geoBss->scratch, "%sDUMMY", (char*)&p->pad_0210[0x4B0]);
     n = MBOX_ReallyFindObject(geoBss->scratch, p->geo_handle, p->geo_handle, 1);
     nd = AtreeFindMbidxNode(p->platform, n);
     if (nd != NULL) {
@@ -4203,9 +4203,9 @@ model_ready:
         p->texmod_id = -1;
         if (p->char_type == 7) {
             *(u32*)((u8*)p->weaphold_node + 0x60) |= 0x4000000;
-            p->texmod_id = AddSpecialTexmod(p->geo_handle, "%s%s",
+            p->texmod_id = AddSpecialTexmod(p->geo_handle, "BOMB",
                                             (char*)geoBss->models[i].sfx_arena,
-                                            "", 5, 1);
+                                            "BOMB00", 5, 1);
         }
     }
     /* live combat fields */
@@ -5635,12 +5635,12 @@ static void PlayerProcessSkinFX(void* vp) {
     }
     if (fresh != 0 && ps->atree != NULL) {
         if (p->level >= 99) {
-            *(f32*)((u8*)ps->atree + 0x10) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x164);
-            *(f32*)((u8*)ps->atree + 0x14) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x168);
-            *(f32*)((u8*)ps->atree + 0x18) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x16C);
-            *(f32*)(*(u8**)ps->atree + 0x30) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x164);
-            *(f32*)(*(u8**)ps->atree + 0x34) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x168);
-            *(f32*)(*(u8**)ps->atree + 0x38) = 1.5 * *(f32*)(lbl_80282930[p->index] + 0x16C);
+            *(f32*)((u8*)ps->atree + 0x10) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x164);
+            *(f32*)((u8*)ps->atree + 0x14) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x168);
+            *(f32*)((u8*)ps->atree + 0x18) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x16C);
+            *(f32*)(*(u8**)ps->atree + 0x30) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x164);
+            *(f32*)(*(u8**)ps->atree + 0x34) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x168);
+            *(f32*)(*(u8**)ps->atree + 0x38) = 1.2 * *(f32*)(lbl_80282930[p->index] + 0x16C);
         } else {
             *(f32*)((u8*)ps->atree + 0x10) = *(f32*)(lbl_80282930[p->index] + 0x164);
             *(f32*)((u8*)ps->atree + 0x14) = *(f32*)(lbl_80282930[p->index] + 0x168);
@@ -5863,7 +5863,7 @@ static void do_see_thru(void* vp) {
     closest = ClosestChest(p);
     if (closest >= 0) {
         chest = (u8*)sItems + closest * 0xF0;
-        if (!PointVisible(0.5f * *(f32*)(*(u8**)chest + 0xC), (s32*)(chest + 0x44))) {
+        if (!PointVisible(2.0f * *(f32*)(*(u8**)chest + 0xC), (s32*)(chest + 0x44))) {
             chest = NULL;
         }
     }
@@ -5916,9 +5916,9 @@ static void do_see_thru(void* vp) {
                 }
                 lbl_8025ECB8[i][0] = (void*)AtreeInit(tree, &lbl_8025ECB8[i][0], 0, 0x80);
                 MBTreeSetFlags(*(void**)lbl_8025ECB8[i][0], 8, 0);
-                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x40) = 1.001f;
-                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x44) = 1.001f;
-                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x48) = 1.001f;
+                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x40) = 0.65f;
+                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x44) = 0.65f;
+                *(f32*)((u8*)*(void**)lbl_8025ECB8[i][0] + 0x48) = 0.65f;
                 fresh = 1;
             }
             if (fresh) {
@@ -6368,9 +6368,9 @@ static void do_got_it_8007FC80(void) {
                 if (sMusicTrackHi == 0xC) {
                     g->blit2 = MBNewBlit("COINHUD", x, 0);
                 } else if (g->count > 10) {
-                    g->blit2 = MBNewBlit("KEYS", x, 0);
+                    g->blit2 = MBNewBlit("GOLD", x, 0);
                 } else {
-                    g->blit2 = MBNewBlit("KEY", x, 0);
+                    g->blit2 = MBNewBlit("JUNK", x, 0);
                 }
                 break;
             case 5:
@@ -6404,12 +6404,12 @@ static void do_got_it_8007FC80(void) {
             blit = &g->blit1;
             if (g->blit1 != NULL) {
                 mbBlitProject(g->blit1, 0x80, 0);
-                mbBlitCalcWidth(*blit, x, 0x180, 0.15f);
+                mbBlitCalcWidth(*blit, x, 0x180, 63980.0f);
             }
             blit = &g->blit2;
             if (g->blit2 != NULL) {
                 mbBlitProject(g->blit2, 0x80, 0);
-                mbBlitCalcWidth(*blit, x, 400, 0.16f);
+                mbBlitCalcWidth(*blit, x, 400, 63979.0f);
             }
             g->state++;
             break;
@@ -6677,10 +6677,10 @@ void mini_inventory_draw_label(s32 i) {
     switch (st) {
     case 1:
     case 3:
-        DrawTextKeepScale(0.09f, x, y, 6, 0xFFFFFF, label);
+        DrawTextKeepScale(0.45f, x, y, 6, 0xFFFFFF, label);
         break;
     case 2:
-        DrawGlowText(0.09f, x, y, label);
+        DrawGlowText(0.45f, x, y, label);
         break;
     }
 }

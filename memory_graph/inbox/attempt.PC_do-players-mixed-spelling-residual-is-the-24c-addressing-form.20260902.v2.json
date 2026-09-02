@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Independent re-measurement of the PT standing hypothesis (two different spellings split the state CSE) at the i-loop site src line 1710-1713. CORRECTION of this record's v1, which wrongly called the PTA(i) edit a regression by arbitrating on `real` alone: for do_players (1174 insns, well under the 4000 fuzzy threshold) probe.py issued a CONFLICT verdict, WITHHELD its count-distance predictor, and mandated fresh-fuzzy arbitration; v1 skipped that. The sibling PC lane measured fresh fuzzy correctly (93.7240 -> 94.0818) and committed the split at 669466bcf. This v2 aligns to that retained improvement and repositions the finding as the RESIDUAL that survives the split.",
+  "attributes": {
+    "law_screen": "claim.law.fuzzy-can-underweight-a-real-improvement.20260830.v1 SCREENED and DECISIVE the correct way this time: do_players is under the 4000-insn threshold where real/--ops is primary, but the --ops MULTISET improved (40t -> 33t) and probe.py explicitly withheld the count predictor for the CONFLICT, so fresh fuzzy is the arbiter -- and fuzzy rose +0.3578. v1 of this record applied `real` as the sole arbiter and reached the wrong verdict; that is the mistake this v2 supersedes. claim.law.CV_pinned-residuals-are-unreachable-across-the-local-mwcc-archive noted for the surviving @24c form's WebFrank eligibility. No value edit (SL law n/a); no raw-offset conversion (defake laws n/a).",
+    "laws_applied": "[\"claim.law.fuzzy-can-underweight-a-real-improvement.20260830.v1\"]",
+    "probed_form": "src/game/game/player.c line 1713, inside `if (p->state != 0) { s32 sel;` (line 1710): `if (p->state == 2 || p->state == 3)` -> `if (PTA(i)->state == 2 || PTA(i)->state == 3)`. PTA(i) = &((Player*)((u8*)potionicon_tab + 0xC40))[i]; PT(i) = (Player*)((u8*)potionicon_tab + i*PREC_STRIDE + 0xC40); PREC_STRIDE == sizeof(Player) == 0x335C so address-identical. do_players precedes pinned do_exit; the edit renumbers do_exit's relocations and is re-derived clean with tools/gdl/composed_census/wf_rederive_pin.py game/game/player do_exit (BODY hashes UNCHANGED = pure symbol-table renumbering; relocation hash -> ffa3fe42...). RETAINED in the tree at commit 669466bcf.",
+    "scope": "src/game/game/player.c line 1713 (RETAINED via sibling commit 669466bcf) + config/GUNE5D/webfrank.json do_exit relocation hashes (retained). This record adds no new source change; it documents the surviving residual.",
+    "verification": "BASELINE (p->state, before the split): real 1024, insns T1174/O1160, multiset 40t, fresh fuzzy 93.7240%. RETAINED (PTA(i) split): insns T1174/O1165, multiset 40t -> 33t (7 tokens of convergence), fresh fuzzy 94.0818% (+0.3578); real rose to ~1087 (line-count metric; the split trades ONE load + range-check for TWO loads, so `real` counts more differing lines while the opcode structure converges). Independently reproduced here via fndiff (O1160/real1024 clean vs O1165 split) and the aligned view fnasm.py game/game/player do_players 0x230:0x260 --diff. Full `ninja -j2` prints `build/GUNE5D/main.dol: OK` with the do_exit pin reapplying on the re-derived hashes."
+  },
+  "function": "function:do_players",
+  "held_fixed": "Varied ONLY the spelling of the ==2||==3 read at src/game/game/player.c line 1713 (p->state -> PTA(i)->state); the != 0 test at line 1710 kept as the walked p->state, no other site touched.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "One probe emitting `add rX,r31,r16; lwz rT,3368(rX)` from source refutes the addressing-mode-is-unreachable claim; e.g. add a second use of the materialized `base+i*stride` pointer inside the `p->state != 0` block, then re-read the @24c aligned view.",
+    "screened_against_target": "yes - fnasm.py game/game/player do_players 0x230:0x260 --diff shows target `add r3,r31,r16; lwz r0,3368(r3); cmpwi 2; cmpwi 3` vs ours (post-split) `addi r0,r16,3368; lwzx ...` -- the @24c cluster is UNCHANGED by the PTA spelling.",
+    "statement": "After the CSE split, the SURVIVING residual is a single MWCC addressing-mode selection at @0x24c: the target loads the ==2||==3 value with `add r3,r31,r16; lwz r0,3368(r3)` (materialize the player pointer base+i*stride, then displacement-load) and uses explicit `cmpwi 2 / cmpwi 3`, while ours emits `addi r0,r16,3368; lwzx r0,r31,r0` (index+disp offset, indexed load). MEASURED: the split's two-load shape arrives with `addi;lwzx` regardless of whether the split read is spelled PT(i)->state or PTA(i)->state -- both compile identically -- so this addressing form is NOT reachable by the pointer SPELLING. The remaining in-source lever is whatever makes MWCC prefer a materialized base pointer over an index+disp offset (e.g. a second consumer of `base + i*stride` in the same block that forces the pointer live in a register). If nothing in-source moves it, the @24c form is a REGISTER_ONLY/addressing-mode residual and a WebFrank-rule candidate now carrying source-exhaustion provenance from the PT j-loop probes and this i-loop probe."
+  },
+  "id": "attempt.PC_do-players-mixed-spelling-residual-is-the-24c-addressing-form.20260902.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T03:28:00Z",
+  "residual": {
+    "capability_needed": "an addressing-mode selection lever (materialize base+index pointer then displacement-load vs index+disp then indexed-load) source-unreachable across PT/PTA/walked-pointer spellings",
+    "family": "addressing-mode",
+    "measured_at": "2026-09-02",
+    "signature": "replace @24c-254 target [add, lwz] vs ours [addi, lwzx]; insns T1174/O1165 after split; multiset 33t; 44 ops clusters"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.PC_do-players-two-spelling-addressing-form-refuted.20260902.v1",
+  "valid_from": "2026-09-02"
+}
