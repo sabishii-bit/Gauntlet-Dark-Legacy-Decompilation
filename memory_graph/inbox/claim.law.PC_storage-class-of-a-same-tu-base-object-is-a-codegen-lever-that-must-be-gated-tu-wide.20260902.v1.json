@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py game/game/player do_players --ops",
+    "tools/gdl/defake_gate.py check game/game/player",
+    "ninja -j2 (PROGRESS Postprocessor split line)"
+  ],
+  "attributes": {
+    "provenance": "src/game/game/player.c::do_players, worktree GDL-Claude-DoPlayersLoop, branch claude/do-players-loophead-20260903, run 38, at main 374141980. Probes K and L of attempt.PC_do-players-loop-head-named-base-refuted-and-the-linkage-lever.20260902.v1. Baseline: real 840, insns T1174/O1172, multiset 14t, fresh fuzzy 97.2692%. Probe K, a ONE-WORD edit (`static void* potionicon_tab[5];` -> `void* potionicon_tab[5];`) touching no function body: real 838, multiset 12t, fresh fuzzy 97.5690%. Probe L added `static u8 potionicon_tab_slot[0x14];` after it. Both reverted; the tree closed at HEAD with the session-start figures restored exactly.",
+    "scope": "MWCC GC 1.2.5 family with the per-TU flags in configure.py, specifically cflags_demo (which carries `-common off`). Applies to an uninitialised aggregate DEFINED in the same TU that consumer functions address as a base. Says nothing about objects defined in another TU, nothing about initialised objects (which land in .data, not .bss), and nothing about TUs built with `-common on`, where configure.py's own cflags_trk comment already records that common storage changes same-TU global access codegen.",
+    "tags": [
+      "matching",
+      "register-web",
+      "cse",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Find an MWCC 1.2.5 TU where flipping one uninitialised aggregate between `static` and external linkage leaves every consumer function's instruction stream AND relocation payloads byte-identical -- that would show the storage class is not a codegen input and this measurement was an artifact. Conversely, to disprove the gating clause, produce a case where `defake_gate check` on the owning TU reports GATE OK while the full `ninja` PROGRESS STRICT count falls: that would show the TU gate is sufficient and the full-build requirement is redundant.",
+  "id": "claim.law.PC_storage-class-of-a-same-tu-base-object-is-a-codegen-lever-that-must-be-gated-tu-wide.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T19:38:54Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-02",
+  "value": "THE STORAGE CLASS OF A SAME-TU BASE OBJECT IS A REAL CODEGEN LEVER, NOT A LINKAGE DETAIL, AND ITS EFFECT IS TU-WIDE -- SO IT MUST BE ARBITRATED ON THE FULL BUILD GATE, NEVER ON THE PROBED FUNCTION. Measured on do_players: changing one declaration from `static void* potionicon_tab[5];` to external linkage, with no function body edited at all, moved the probed function's fresh objdiff fuzzy from 97.2692 to 97.5690 (+0.2998, its best ever measured), took real 840 -> 838 and the opcode multiset 14t -> 12t, and CLOSED the twin j-loop residual at +0xef8/+0xfd4 outright: the ours-only `-2 lwzx` and target-only `+2 lwz` vanished from the delta. That residual had been recorded CLOSED and source-exhausted after three declaration-placement forms, so a storage-class change reached what declaration placement could not. TWO CONSEQUENCES, BOTH LOAD-BEARING. FIRST, THE COST IS PAID BY SIBLINGS AND IS INVISIBLE TO EVERY FUNCTION-LEVEL INSTRUMENT. probe.py scored the edit IMPROVED and banked it as a new BEST on its own fuzzy gate; only the full `ninja` PROGRESS line showed the truth -- matched 66.43% -> 66.15% and STRICT 56.46% (2575 fns) -> 56.19% (2566 fns), NINE byte-exact functions lost, while `main.dol: OK` still printed. `defake_gate check` on the owning TU caught it as 13 regressions, so the TU gate is the cheap detector and the full build is the authority; the per-function probe is blind by construction. Never accept a storage-class change on a probe verdict. SECOND, THE EFFECT DECOMPOSES INTO A LAYOUT HALF AND A RELOCATION HALF, AND ONLY THE LAYOUT HALF IS REPAIRABLE BY PADDING. With `-common off` the object does not go to COMMON; MWCC instead emits externally linked .bss objects AFTER the static run, sliding every following static object earlier by exactly sizeof(the object) -- here 0x14, read directly off AppendItemToLevel as target `stw r5,1604(r30)` against ours `stw r5,1584(r30)`. Reinstating that gap with a `static u8 pad[0x14];` declared in the vacated slot cut the damage from 13 regressions to 7 and turned three siblings POSITIVE (abort_player real 102 -> 96, inactivate_player 30 -> 24, kill_player 32 -> 26), which is the proof that the layout half is a separable, mechanical, fully recoverable cost. The 7 that survive the pad are relocation-payload demotions (`EXACT -> OPERAND_DIFF`, real still 0) on the other functions that address the same object: those consumers are byte-exact TODAY against the section-symbol relocation form, and no padding reaches them because the relocation form, not the address, is what changed. PROCEDURE: treat a storage-class flip as a TU-WIDE conversion, not a one-function probe. Take the `defake_gate baseline` first, make the flip, add the compensating pad in the vacated slot IMMEDIATELY (its absence will otherwise present as a large fake regression that hides the real one), then gate on `defake_gate check` AND a full `ninja` PROGRESS STRICT comparison. Keep it only if the STRICT count does not fall; a probed function's fuzzy gain of a third of a point does not buy nine exact functions."
+}
