@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py",
+    "memory_graph/schema.sql",
+    "memory_graph/test_graph.py"
+  ],
+  "attributes": {
+    "law_screen": "Screened claim.RC_stale-reopen-queue-is-a-classifier-artifact.20260901.v1 (APPLIES in spirit: every number here is an independent re-measurement, and the equivalence of the two SQL forms was checked by comparing row COUNTS, not assumed). Screened the run-33 validate-quadratic finding cited in AGENTS.md discipline 13 - APPLIES, this is the same defect class in a different query, which is why the law is written at the class level rather than about one call site.",
+    "provenance": "T6 lane, run 36, work_claim.tool-queue-6.20260902.v1 item 10. Profiled with a per-test timing harness over memory_graph.test_graph, then per-query timings against build/gdlmem/memory.sqlite.",
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ],
+    "verification": "python -m memory_graph.test_graph (209 tests green, 17.5s vs the 84.7s/179-test baseline); python memory_graph/gdlmem.py validate (valid: true, 1637 records, dangling_citation_count unchanged at 64); python memory_graph/gdlmem.py build (records_imported 1650, inbox_rejected empty)."
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Re-run the two SQL forms against the live corpus with `EXPLAIN QUERY PLAN` and a timer, at a corpus size where the effect should show (>1,000 records). If the correlated form does not carry a 'CORRELATED SCALAR SUBQUERY' plan node, or if the two forms time within a factor of two of each other, the law does not hold for this SQLite build and should be superseded with the version that measured it. Conversely a single site where the flat form returns a DIFFERENT row set than the correlated one refutes the equivalence half -- check the NULL guard first, since that is the one way the rewrite can silently change the answer. Both timings are reproducible from the repo root with a scratch script opening build/gdlmem/memory.sqlite read-only; the regression tests memory_graph.test_graph.SupersessionScreenPerformanceTests assert the equivalence and the query plan mechanically.",
+  "id": "claim.law.T6_a-correlated-json-extract-screen-is-quadratic-and-a-flat-in-subquery-is-not.20260902.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-02T17:26:41Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "THE LAW. In the memory graph, a liveness or membership screen written as a CORRELATED subquery whose inner loop calls json_extract is quadratic in the corpus and will dominate every surface that uses it; the same screen written as a NON-CORRELATED `IN` subquery is materialized once by SQLite into an ephemeral index and is effectively free. This is the same defect class as the run-33 `validate` quadratic (3,400x), rediscovered in a different query. MEASURED 2026-09-02 on the live 1,637-record corpus: the supersession screen `NOT EXISTS (SELECT 1 FROM record_ingest newer WHERE json_extract(newer.raw_json,'$.supersedes') = r.record_id AND newer.record_state='accepted')` took 14.352s; the flat form `r.record_id NOT IN (SELECT json_extract(...) FROM record_ingest newer WHERE record_state='accepted' AND json_extract(...) IS NOT NULL)` took 0.029s and returned the IDENTICAL 649 rows -- a 495x cut. The idiom appeared at six sites in core.py. TWO COROLLARIES, both measured, both non-obvious. (1) AN EXPRESSION INDEX DOES NOT FIX IT: `CREATE INDEX ... ON record_ingest(json_extract(raw_json,'$.supersedes'), record_state)` made the query SLOWER, 14.8s -> 18.1s, because the planner switched from an automatic partial index to a full scan of the new index while still re-running the correlated subquery per row. Reach for the query REWRITE, not for an index. (2) THE `IS NOT NULL` GUARD IN THE FLAT FORM IS LOAD-BEARING, not tidiness: `x NOT IN (list)` evaluates to NULL -- which filters as FALSE -- for EVERY row as soon as one NULL enters the list, and most records carry no `supersedes` key at all, so dropping the guard silently returns zero rows everywhere rather than erroring. A second, independent hot path in the same surface was an UNINDEXED JOIN KEY: record entity keys carry the symbol SPELLING (`function:<raw_name>`), so every 'which TU owns this record' join resolves on binary_symbol.raw_name, and only normalized_name was indexed -- the planner fell back to the `platform=?` prefix and scanned all 21,212 symbols per candidate row, 2.227s -> 0.029s (77x) once indexed. Together with resolving the fingerprint root once instead of per input path (1,779 inputs x 2 Path.resolve() = 7,120 Windows _getfinalpathname syscalls, 1.01s -> 0.21s per ensure_database), these took the memory_graph suite from 179 tests / 84.7s to 209 tests / 17.5s."
+}

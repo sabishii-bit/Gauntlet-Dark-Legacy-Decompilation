@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "TU-scoped de-fakematch pass, game/movie/movieplayer.c: raw offset/word-index this-pointer walks -> file-local cross-validated struct fields (MovieDecodeState extended; new MovieBitmapHeader/MovieRingBuffer/MovieChunkNode/MovieChunkStream/MovieDTextOuter/MovieDTextInner), gated equal-or-better per function.",
+  "attributes": {
+    "anchor_repair": "ANCHOR ONLY. This version differs from attempt.movieplayer-defakematch-tupass.20260830.v1 in exactly one respect: the cited source path, stranded by the movieplayer.c -> movieplayer.cpp rename of 2026-08-31, now names the file that exists (src/game/movie/movieplayer.c -> src/game/movie/movieplayer.cpp). Rewritten key(s): attributes.anchors. THE CONTENT IS NOT RE-VERIFIED and must not be read as revalidated: claim.T5_stranded-record-anchors-14-rows-run35.20260902.v1 is explicit that a corrected path does not re-verify a stale claim, and names attempt.playvqmovie-gxcolor-layout.20260829.v1 as a row MV had already reported as describing a layout the tree no longer produces. Re-measure before relying on any figure here.",
+    "anchors": "src/game/movie/movieplayer.cpp; anchor fn_800DBA80 0x800DBA80 (retriage, untouched); fndiff --count/--ops per fn; matchtool probe unchanged OK:25/bad:26/ties:1, identical per-fn L/D.",
+    "axis_log": "MovieValidateFrameFormat: typed MovieBitmapHeader* alias over a memory-loaded ptr (4 fields) regressed EXACT real0->18; offsetof() on the raw loaded int restored real0 - multifield-alias law's danger zone extends to loaded (not just walked/indexed) bases. fn_800D96B0: MovieBitmapHeader* as a direct 2nd param (6+ touches) regressed real124->128 even though sibling MovieDecodeState* self (also 6+ touches, same fn) was neutral; offsetof-on-raw-u8* fixed it - direct-param status alone doesn't guarantee safety. fn_800DBE04: retyping the fn's OWN param to MovieDTextOuter* (2 single-site field touches) regressed EXACT real0->2 from the type change alone (both -> and offsetof write-forms still regressed); reverting param to u32*, casting only at the callee/return boundary, restored real0 - first confirmed case here of a plain low-field-count direct-param retype regressing an EXACT fn. New law candidate: A/B every param retype in isolation, not just multi-field/walked cases.",
+    "law_screen": "Screened claim.T5_stranded-record-anchors-14-rows-run35.20260902.v1 (APPLIES: this record is one of its 14 rows) and claim.law.T5_a-record-mining-heuristic-must-be-calibrated-against-the-live-corpus-before-shipping.20260902.v1 (APPLIES: only anchor-ROLE keys were rewritten, never the keys that narrate the work).",
+    "measurements": "Every touched fn's real/insns held or improved vs its own pre-conversion value; 3 transient regressions above were caught by the gate and fixed pre-commit. Full ninja -j2 green, main.dol OK, project 97.82%/58.15%/26.09% unchanged (de-fakematch is score-neutral by design).",
+    "sites_converted": "23 fns across 11 commits: MovieDecodeState +6 palette fields (fn_800D87FC/8BCC/96B0/8784, MovieDecodePalette); MovieBitmapHeader (public BITMAPINFOHEADER, offsetof-applied) in MovieValidateFrameFormat/fn_800D93D4/87FC/8BCC/96B0; MovieRingBuffer in fn_800D9A14/9B48/9C5C/9DA4/9C34/DB2F4; MovieChunkNode+MovieChunkStream (0x28/0x5C byte, embedded movie+0x20) in MovieDecoderInitBuffers/DB82C/DB2F4/DB29C/DB36C/dtor_DBB94/DBC64 - constructor MovieDecoderInitBuffers (~15 fields, one fn) stayed byte-identical, strong cross-validation; MovieDTextOuter/Inner (shared vtable slot, single inheritance) in fn_DBD30/DBE04/DBF6C/DTextInitColorRamp.",
+    "sites_left_raw": "Giant movie/CWMVPlayer object (fn_800DA6A4 WebFrank-guarded 14 atoms, fn_800DA920/DACD8/DB3D4 large fns with pre-existing structural residual, fn_DB008/DB0F8 self[0]/[7]/[100]): mostly single-site fields, no cross-fn corroboration, out of this pass's safe scope. fn_800DBA80 untouched per retriage. PlayVQMovie untouched (recent exact-closure fleet work; its accesses are already named locals, not fakematch casts). Local regex census 137->79 sites (methodology-specific, not directly comparable to the work_claim's 71 figure).",
+    "verification": "Rebuilt+gated every region; matchtool identical pre/post; ninja -j2 green; main.dol OK; portable C only, no asm/config/data changes; git diff --check clean."
+  },
+  "function": "function:fn_800DBA80",
+  "id": "attempt.movieplayer-defakematch-tupass.20260830.v2",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T17:20:39Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "measured_at": "2026-08-30",
+    "signature": null,
+    "signature_source": "not measured -- no fndiff mismatch rows in the 2026-09-01 sweep (function measures matched, or its TU was not built)"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.movieplayer-defakematch-tupass.20260830.v1",
+  "valid_from": "2026-09-02"
+}

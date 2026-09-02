@@ -1,0 +1,33 @@
+{
+  "attempted_axis": "report pairing and stale-cap re-triage against the current target symbol, compiled symbol table, and normalized object diff",
+  "attributes": {
+    "anchor": "src/game/movie/movieplayer.cpp:fn_800DBA80; target .text 0x800DBA80 size 0x114",
+    "anchor_repair": "ANCHOR ONLY. This version differs from attempt.fn-800dba80-report-retriage.20260829.v2 in exactly one respect: the cited source path, stranded by the movieplayer.c -> movieplayer.cpp rename of 2026-08-31, now names the file that exists (src/game/movie/movieplayer.c -> src/game/movie/movieplayer.cpp). Rewritten key(s): attributes.anchor. THE CONTENT IS NOT RE-VERIFIED and must not be read as revalidated: claim.T5_stranded-record-anchors-14-rows-run35.20260902.v1 is explicit that a corrected path does not re-verify a stale claim, and names attempt.playvqmovie-gxcolor-layout.20260829.v1 as a row MV had already reported as describing a layout the tree no longer produces. Re-measure before relying on any figure here.",
+    "conclusion": "Keep this function in the active low-match queue. The old imported allocator/scheduler park was factually wrong and must not suppress reporting.",
+    "law_screen": "Screened claim.T5_stranded-record-anchors-14-rows-run35.20260902.v1 (APPLIES: this record is one of its 14 rows) and claim.law.T5_a-record-mining-heuristic-must-be-calibrated-against-the-live-corpus-before-shipping.20260902.v1 (APPLIES: only anchor-ROLE keys were rewritten, never the keys that narrate the work).",
+    "measurements": "target/current 69/55 instructions; fuzzy 0.0%; fndiff --count real 66; --clean real 69; target frame 0x70 versus current frame 0x18",
+    "reporting_result": "objdiff omits the JSON fuzzy_match_percent field when it is exactly 0.0, but the compiled object has one exact-name function symbol, so lowmatch must treat the pair as scored 0.0 rather than unpaired",
+    "residual": "STRUCTURAL: target contains three C++ throw()/__unexpected exception landing-pad islands absent from the current portable C body",
+    "verification": "source body and call site inspected; target and current complete assembly measured; exact-name symbol pairing verified with objdump; lowmatch queue reproduced with parked mark and skip modes"
+  },
+  "function": "function:fn_800DBA80",
+  "id": "attempt.fn-800dba80-report-retriage.20260829.v3",
+  "kind": "attempt",
+  "outcome": "retriaged",
+  "recorded_at": "2026-09-02T17:20:21Z",
+  "residual": {
+    "capability_needed": null,
+    "confidence": "prose-extraction-attempted-insufficient",
+    "extraction_status": "prose back-extraction ATTEMPTED and measured insufficient (BF canary 26/26 but 3 fresh-sample hand audits scored ~30-50% precision); this is measured-dead, NOT never-attempted. See claim.BF_residual-family-prose-extraction-is-unreliable.20260901.v1",
+    "family": "unclassified",
+    "family_candidate": "eh-scaffold",
+    "family_candidate_confidence": "UNVERIFIED extractor guess -- fresh-sample hand audits scored this extractor at ~30-50% precision. Verify against the function's aligned diff before relying on it.",
+    "measured_at": "2026-08-29",
+    "signature": null,
+    "signature_source": "not measured -- no fndiff mismatch rows in the 2026-09-01 sweep (function measures matched, or its TU was not built)"
+  },
+  "residual_class": "STRUCTURAL/C++ exception landing pads",
+  "schema_version": 1,
+  "supersedes": "attempt.fn-800dba80-report-retriage.20260829.v2",
+  "valid_from": "2026-09-02"
+}

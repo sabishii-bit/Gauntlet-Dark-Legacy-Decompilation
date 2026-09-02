@@ -39,6 +39,52 @@ INBOX_DIR = REPO_ROOT / "memory_graph" / "inbox"
 ATTEMPT_BYTE_CAP = 16384
 ATTEMPT_LIMIT_PER_FUNCTION = 5
 
+# The record ids that a LATER accepted record supersedes — the "is this
+# record still live?" screen, in the ONE spelling every caller must use.
+#
+# NON-CORRELATED ON PURPOSE. The natural spelling is
+#   NOT EXISTS (SELECT 1 FROM record_ingest newer
+#               WHERE json_extract(newer.raw_json,'$.supersedes')
+#                     = <outer>.record_id
+#                 AND newer.record_state = 'accepted')
+# and it re-runs a json_extract over the WHOLE record_ingest table once per
+# candidate row: quadratic in the corpus, with a JSON parse in the inner
+# loop. Measured run 36 on the live corpus (1,637 records): 14.352s for one
+# unconstrained call against 0.029s for the form below, returning the
+# identical 649 rows — a 495x cut, and 54.7s of the memory_graph suite's
+# 72.9s. Same shape as the run-33 `validate` quadratic. SQLite materializes
+# a non-correlated IN subquery once into an ephemeral index; a correlated
+# one it cannot. An expression index on json_extract was measured and does
+# NOT fix it (the planner still scans: 14.8s -> 18.1s).
+#
+# The `IS NOT NULL` guard is LOAD-BEARING, not tidiness: `x NOT IN (list)`
+# evaluates to NULL — which filters as false — for EVERY row as soon as one
+# NULL is in the list, and most records carry no `supersedes` key at all.
+# Dropping it silently returns zero rows everywhere.
+SUPERSEDED_RECORD_IDS = (
+    "SELECT json_extract(newer.raw_json, '$.supersedes')"
+    " FROM record_ingest newer"
+    " WHERE newer.record_state = 'accepted'"
+    "   AND json_extract(newer.raw_json, '$.supersedes') IS NOT NULL"
+)
+
+# The companion LOOKUP: for each superseded record, WHICH record replaced
+# it. Joined as a derived table for the same reason the screen above is a
+# flat IN — a correlated scalar subquery re-parses the corpus per row.
+# Note the deliberate difference from SUPERSEDED_RECORD_IDS: no
+# `record_state` filter, because the `laws` surface reports a proposed
+# successor too, and narrowing it here would silently change what the law
+# browse says about supersession. MIN() replaces a bare `LIMIT 1` with no
+# ORDER BY: same arbitrary pick when there is one successor, deterministic
+# when a record was superseded twice.
+SUPERSEDING_RECORD_BY_TARGET = (
+    "SELECT json_extract(newer.raw_json, '$.supersedes') AS old_id,"
+    " MIN(newer.record_id) AS newer_id"
+    " FROM record_ingest newer"
+    " WHERE json_extract(newer.raw_json, '$.supersedes') IS NOT NULL"
+    " GROUP BY 1"
+)
+
 # Controlled applicability vocabulary for law records (attributes.tags).
 # `laws` reports live per-tag counts; proposals with tags outside this set
 # fail closed so the vocabulary cannot drift silently. Extend it here, in one
@@ -235,6 +281,59 @@ _MULTI_EDIT_COUNT_RE = re.compile(
     re.I,
 )
 _MULTI_EDIT_ENUM_RE = re.compile(r"(?:^|[\s;])\(?[2-9][.)]\s")
+
+# Gate E (run 36, from the run-35 T6 queue): a residual claim CONFINED TO A
+# NAMED WINDOW and SIZED IN WORDS must quote a raw differing-word count.
+#
+# `fndiff --ops` clusters only where the OPCODE stream diverges and is
+# structurally blind to pure register-field words, so a function can print
+# "4 tokens in 5 clusters" while more than half its words differ. Run 35
+# found a recorded "4-word residual" was 122 of 215 words
+# (game/movie/movieplayer::fn_800D8BCC). The word count, not the --ops
+# cluster count, is what decides postprocessor candidacy, and a rule sized
+# against the cluster count is sized against a residual that does not exist.
+#
+# `\bwindows?\b` does NOT match `pb_window`: `_` is a word character, so
+# there is no word boundary before "window" there — the pb_window TU's own
+# records are excluded by construction rather than by a name list.
+_WINDOW_TOKEN_RE = re.compile(
+    r"\bwindows?\b"
+    r"|@0x[0-9a-fA-F]+\s*-\s*0x[0-9a-fA-F]+"
+    r"|\+0x[0-9a-fA-F]+\s*(?:\.\.|-|to)\s*\+?0x[0-9a-fA-F]+",
+    re.I,
+)
+# The claim the count has to back: a residual SIZED in words.
+_WORD_SIZED_RESIDUAL_RE = re.compile(
+    r"\b\d{1,5}[-\s]word\b"
+    r"|\b\d{1,5}\s+words?\s+(?:differ|of\s+\d{1,5})",
+    re.I,
+)
+# The measurement that discharges it — the tool, or its output line.
+_WORD_DIFF_EVIDENCE_RE = re.compile(
+    r"\bwf_word_diff\b"
+    r"|differing[-\s]words?\s*[:=]\s*\d{1,5}"
+    r"|\bdiffering[-\s]word count\b",
+    re.I,
+)
+
+# Gate F (run 36): a work_claim scope asserting that its premise is already
+# recorded. Dispatch reads the scope as the lane's briefing, so an unnamed
+# "banked in the graph" sends a worker after evidence it cannot find — see
+# claim.law.MT_a-banked-in-the-graph-premise-is-not-a-citation.
+_BANKED_EVIDENCE_RE = re.compile(
+    r"banked (?:in|into) the (?:memory )?graph"
+    r"|\bbanked in the graph\b"
+    r"|(?:already |previously )?recorded in the (?:memory )?graph"
+    r"|(?:is|are|sits?) already in the (?:memory )?graph"
+    r"|per the (?:memory )?graph"
+    r"|the graph (?:already )?(?:has|holds|carries|records)",
+    re.I,
+)
+# A record id, as the corpus spells them: kind, then dotted slug segments.
+_RECORD_ID_RE = re.compile(
+    r"\b(?:attempt|claim|evidence|entity|edge|work_claim|event)"
+    r"\.[A-Za-z0-9_][A-Za-z0-9_.-]{3,}",
+)
 # Outcomes for which a multi-edit probe must name what it held fixed: only the
 # ones that VETO an axis. See gate C.
 HELD_FIXED_OUTCOMES = frozenset({"negative", "parked", "capped"})
@@ -359,10 +458,31 @@ def _iter_tool_source_paths(root: Path) -> Iterator[Path]:
 
 
 def source_fingerprint(root: Path = REPO_ROOT) -> str:
+    """Cache key over every build input: relative path + size + mtime.
+
+    RESOLVE THE ROOT ONCE. `_repo_relative` resolves BOTH sides on every
+    call, and on Windows each `Path.resolve()` is two `_getfinalpathname`
+    syscalls: 1,779 inputs cost 7,120 of them, ~1.0s per call — and
+    `ensure_database` calls this on essentially every gdlmem entry point.
+    Measured run 36.
+
+    `_iter_input_paths` composes every path it yields as `root / ...`, so
+    `relative_to` against the root is pure string arithmetic with no
+    syscall at all; the resolving form is kept as the fallback for a root
+    the caller passed in some other shape.
+    """
     digest = hashlib.sha256()
+    root_resolved = root.resolve()
     for path in _iter_input_paths(root):
         stat = path.stat()
-        digest.update(_repo_relative(root, path).encode("utf-8"))
+        try:
+            key = path.relative_to(root).as_posix()
+        except ValueError:
+            try:
+                key = path.relative_to(root_resolved).as_posix()
+            except ValueError:
+                key = _repo_relative(root, path)
+        digest.update(key.encode("utf-8"))
         digest.update(str(stat.st_size).encode("ascii"))
         digest.update(str(stat.st_mtime_ns).encode("ascii"))
     return digest.hexdigest()
@@ -2398,16 +2518,12 @@ def symbol_context(
             # forensic attributes stay in the record; fetch them on demand
             # with the `record <id>` operation so briefings stay small.
             for row in connection.execute(
-                """
+                f"""
                 SELECT a.record_id, r.record_state, a.attempted_axis, a.outcome,
                        a.residual_class, a.commit_hash, r.raw_json
                 FROM attempt a JOIN record_ingest r ON r.record_id=a.record_id
                 WHERE a.function_entity_id=?
-                  AND NOT EXISTS (
-                      SELECT 1 FROM record_ingest newer
-                      WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id
-                        AND newer.record_state = 'accepted'
-                  )
+                  AND a.record_id NOT IN ({SUPERSEDED_RECORD_IDS})
                 ORDER BY r.record_state='accepted' DESC, a.id DESC
                 """,
                 (entity["id"],),
@@ -2983,6 +3099,76 @@ def _reference_resolvable(connection: sqlite3.Connection, key: str) -> bool:
     return False
 
 
+def entity_key_namespaces(connection: sqlite3.Connection) -> list[tuple]:
+    """[(prefix, count, example_key)] over the entity table, biggest first.
+
+    The `entity` table is the FIRST thing `_reference_resolvable` consults,
+    so any key already in it resolves — including the non-code namespaces
+    (`project:`, `tool:`, `workflow:`) that no error message named. Two run-35
+    lanes burned records discovering `project:gdl` by counting ~1,600 record
+    files by hand, because the refusal listed only `function:` and `tu:`.
+    Read the namespaces out of the corpus instead of hardcoding a list that
+    would go stale the first time a lane coins one.
+    """
+    return [
+        (row[0], row[1], row[2])
+        for row in connection.execute(
+            "SELECT substr(entity_key, 1, instr(entity_key, ':') - 1)"
+            "         AS prefix,"
+            "       COUNT(*) AS n, MIN(entity_key) AS example"
+            " FROM entity WHERE instr(entity_key, ':') > 1"
+            " GROUP BY prefix ORDER BY n DESC, prefix"
+        ).fetchall()
+    ]
+
+
+def _entity_key_suggestions(connection: sqlite3.Connection, key: str,
+                            limit: int = 5) -> list[str]:
+    """Existing entity keys that look like the one that failed to resolve."""
+    name = key.split(":", 1)[-1]
+    prefix = key.split(":", 1)[0] if ":" in key else ""
+    rows = connection.execute(
+        "SELECT entity_key FROM entity"
+        " WHERE lower(entity_key) LIKE lower(?)"
+        "    OR lower(entity_key) LIKE lower(?)"
+        "    OR lower(name) = lower(?)"
+        " ORDER BY length(entity_key) LIMIT ?",
+        (f"%:{name}", f"{prefix}:%{name}%", name, limit),
+    ).fetchall()
+    return [row[0] for row in rows]
+
+
+def unknown_entity_message(key: str, namespaces, suggestions) -> str:
+    """The refusal, as a DIRECTORY of what would have worked.
+
+    Run-35 item 7. The old text named two forms out of the several that
+    resolve and offered no way to enumerate the rest, so the only route to a
+    valid non-code key was to grep the corpus. Everything below is derived
+    from the live database, so it cannot drift away from what actually
+    resolves.
+    """
+    lines = [
+        f"proposal references unknown entity {key!r}. THREE things resolve:",
+        "  1. any entity_key ALREADY IN the graph — including the non-code"
+        " namespaces, which is the half no error used to mention;",
+        "  2. `function:<symbol>` naming exactly one GameCube function;",
+        "  3. `tu:<module>` naming a GameCube object (with or without a"
+        " .c/.cpp suffix).",
+    ]
+    if namespaces:
+        lines.append("Namespaces live in this corpus right now"
+                     " (prefix, count, example):")
+        for prefix, count, example in namespaces[:12]:
+            lines.append(f"  {prefix}: {count} — e.g. {example}")
+    if suggestions:
+        lines.append("Did you mean: " + ", ".join(suggestions) + "?")
+    lines.append(
+        "List them yourself with"
+        " `python memory_graph/gdlmem.py find --query <term>` or"
+        " `gdlmem.py search <term>`; do NOT go counting record files.")
+    return "\n".join(lines)
+
+
 def _probe_record_references(
     record: dict[str, Any], root: Path, db_path: Path | None = None,
     connection: sqlite3.Connection | None = None,
@@ -3027,9 +3213,20 @@ def _probe_record_references(
     # `attributes.laws_applied` list are both checked; free-text mentions
     # in law_screen stay advisory.
     cited: list[str] = []
+    # `describes_denial_of` joins these (run-36 item 9). Gate D has always
+    # DESCRIBED it as "a CITATION, not a free-text opt-out ... which is
+    # checkable" — but nothing checked it, so any string at all released the
+    # typed-denial gate. Resolving it is what makes the documented promise
+    # true and keeps the escape from becoming the opt-out it disclaims.
     for citing_key in ("supersedes", "refutes"):
         if isinstance(record.get(citing_key), str):
             cited.append(record[citing_key])
+    # Read through _record_field, because gate D releases on EITHER spelling
+    # (top-level or attributes.) — checking only the top-level one would
+    # leave the same hole one level down.
+    describes = _record_field(record, "describes_denial_of")
+    if isinstance(describes, str) and describes.strip():
+        cited.append(describes)
     laws_applied = (
         record.get("attributes", {}).get("laws_applied")
         if isinstance(record.get("attributes"), dict) else None
@@ -3060,6 +3257,34 @@ def _probe_record_references(
                                       strict_citations=strict_citations)
 
 
+def _cited_ids_that_resolve(connection: sqlite3.Connection,
+                            record: dict[str, Any], root: Path) -> list[str]:
+    """Record ids mentioned ANYWHERE in this record that actually resolve.
+
+    Free prose counts here on purpose: a work_claim's scope is written as
+    English, and requiring the citation to live in a structured field would
+    reject the correct habit (naming the record inline) along with the wrong
+    one. What is NOT accepted is a mention that resolves to nothing.
+    Same-batch inbox files count, exactly as `supersedes` does.
+    """
+    inbox = root / "memory_graph" / "inbox"
+    inbox_ids = ({path.stem for path in inbox.glob("*.json")}
+                 if inbox.exists() else set())
+    resolved = []
+    for candidate in set(_RECORD_ID_RE.findall(_record_text(record))):
+        if candidate == record.get("id"):
+            continue  # a claim cannot cite itself into existence
+        if candidate in inbox_ids:
+            resolved.append(candidate)
+            continue
+        row = connection.execute(
+            "SELECT 1 FROM record_ingest WHERE record_id=?", (candidate,)
+        ).fetchone()
+        if row is not None:
+            resolved.append(candidate)
+    return sorted(resolved)
+
+
 def _probe_references_with(
     connection: sqlite3.Connection, record: dict[str, Any], kind: Any,
     entity_refs: list[str], cited: list[str], root: Path,
@@ -3073,11 +3298,11 @@ def _probe_references_with(
     """
     for key in entity_refs:
         if not _reference_resolvable(connection, key):
-            raise MemoryGraphError(
-                f"proposal references unknown entity {key!r}; use an existing"
-                " entity key, or a `function:<symbol>`/`tu:<module>` name that"
-                " resolves against the GameCube symbol import"
-            )
+            raise MemoryGraphError(unknown_entity_message(
+                key,
+                entity_key_namespaces(connection),
+                _entity_key_suggestions(connection, key),
+            ))
     dangling: list[str] = []
     for cited_id in cited:
         if cited_id == record.get("id"):
@@ -3112,6 +3337,33 @@ def _probe_references_with(
                 " supersedes / attributes.laws_applied for typos; if the"
                 " record was accepted moments ago, rebuild the graph)"
             )
+    # Gate F (run 36, from the run-35 T6 queue). A work_claim whose scope
+    # says its premise is "banked in the graph" must NAME the record.
+    # claim.law.MT_a-banked-in-the-graph-premise-is-not-a-citation: dispatch
+    # reads a claim's scope as the lane's briefing, so unnamed banked
+    # evidence sends a worker to re-derive something it cannot find — or,
+    # worse, to execute a premise that was superseded. AGENTS.md's dispatch
+    # screen already says citations must resolve to record ids; this is that
+    # screen, enforced where the claim is written rather than where it is
+    # read.
+    if kind == "work_claim":
+        banked = _BANKED_EVIDENCE_RE.search(_record_text(record))
+        if banked and not _cited_ids_that_resolve(connection, record, root):
+            raise MemoryGraphError(
+                "this work_claim's scope claims banked evidence (matched"
+                f" {' '.join(banked.group(0).split())!r}) but names no record"
+                " id that resolves. \"Banked in the graph\" is not a"
+                " citation: dispatch reads the scope as the lane's briefing,"
+                " so an unnamed premise sends a worker to re-derive evidence"
+                " it cannot find, or to execute a premise that has since been"
+                " superseded — see"
+                " claim.law.MT_a-banked-in-the-graph-premise-is-not-a-citation"
+                ". Name the record id in the scope text (or in"
+                " attributes.laws_applied / supersedes) so"
+                " `gdlmem.py record <id>` returns it. If the evidence is real"
+                " but unrecorded, RECORD IT FIRST and cite that."
+            )
+
     if kind == "evidence":
         table = "claim" if record.get("claim") else "edge"
         target = record.get("claim") or record.get("edge")
@@ -3465,21 +3717,67 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
     if anchored and not _record_field(record, "denial") and not describes:
         denial_hit = _DENIAL_PHRASE_RE.search(substance)
         if denial_hit:
+            # THE ESCAPE GOES FIRST (run-35 item 9). This text already
+            # implemented `describes_denial_of`, but named it in the last
+            # sentence of a nine-sentence paragraph — and CL, whose record
+            # was DESCRIBING a prior park exactly as discipline 1 and 10b
+            # ask, read the refusal as "you must invent a denial". An
+            # escape a reader does not reach is an escape that does not
+            # exist. Two branches, in the order a reader needs them.
             raise MemoryGraphError(
                 f"denial language (matched {denial_hit.group(0)!r}) on a"
-                " function-anchored record requires a typed `denial` object:"
-                " {scope, premise_measurement, expiry_check, falsifier}."
-                " A prose denial cannot be screened out, cannot expire, and"
-                " renders as a permanent veto in every brief — see"
-                " claim.law.RQ_webfrank-audit-silence-is-not-ineligibility"
-                ".20260901.v1, where a tool's SILENCE was read as a verdict"
-                " of ineligibility. State the SCOPE the denial covers, the"
-                " MEASUREMENT behind it, an EXPIRY_CHECK command a later lane"
-                " can run to see whether it still holds, and the FALSIFIER."
-                " If you are DESCRIBING someone else's denial rather than"
-                " issuing one — screening it, re-measuring it, or overturning"
-                " it — set `describes_denial_of` to the record id you are"
-                " describing instead of adding a denial you do not mean."
+                " function-anchored record.\n"
+                "\nARE YOU DESCRIBING SOMEONE ELSE'S DENIAL — screening it,"
+                " re-measuring it, or overturning it? That is what AGENTS.md"
+                " disciplines 1 and 10b ask for, and this gate is not aimed"
+                " at you. Add:\n"
+                '    "describes_denial_of": "<the record id you are'
+                ' describing>"\n'
+                "It is a CITATION, not a free-text opt-out: the id must"
+                " resolve. It does not suppress the gate for a record that"
+                " ALSO issues a denial of its own — that still needs the"
+                " typed object below.\n"
+                "\nARE YOU ISSUING THE DENIAL? Then it needs the typed"
+                " `denial` object: {scope, premise_measurement,"
+                " expiry_check, falsifier} — the SCOPE it covers, the"
+                " MEASUREMENT behind it, an EXPIRY_CHECK command a later"
+                " lane can run to see whether it still holds, and the"
+                " FALSIFIER. A prose denial cannot be screened out, cannot"
+                " expire, and renders as a permanent veto in every brief;"
+                " see claim.law.RQ_webfrank-audit-silence-is-not-"
+                "ineligibility.20260901.v1, where a tool's SILENCE was read"
+                " as a verdict of ineligibility."
+            )
+
+    # Gate E (run 36). A residual claim confined to a named window and sized
+    # in WORDS has to quote the raw differing-word count that backs it. See
+    # the regex block for the measured case: a recorded "4-word residual"
+    # was 122 of 215 words, because --ops is blind to register-field words.
+    # Anchored like gates B and D, and scanned over `substance`, so a record
+    # CITING somebody else's windowed claim is not caught by its citation.
+    if (anchored
+            and _WINDOW_TOKEN_RE.search(substance)
+            and not _record_field(record, "differing_words")):
+        sized = _WORD_SIZED_RESIDUAL_RE.search(substance)
+        if sized and not _WORD_DIFF_EVIDENCE_RE.search(substance):
+            raise MemoryGraphError(
+                "a residual claim confined to a named window and sized in"
+                f" words (matched {' '.join(sized.group(0).split())!r})"
+                " must quote the RAW DIFFERING-WORD COUNT that backs it."
+                " `fndiff --ops` clusters only where the OPCODE stream"
+                " diverges and is structurally blind to pure register-field"
+                " words, so it under-reports the residual it is asked to"
+                " size: run 35 found a recorded \"4-word residual\" was 122"
+                " of 215 words on game/movie/movieplayer::fn_800D8BCC (see"
+                " claim.law.identical-multiset-is-blind-to-displacements"
+                ".20260831.v1). The word count, not the --ops cluster count,"
+                " decides postprocessor candidacy, and a rule sized against"
+                " the cluster count is sized against a residual that is not"
+                " there. MEASURE IT:"
+                "\n    python tools/gdl/composed_census/wf_word_diff.py"
+                " <unit> <function>"
+                "\nthen quote its `DIFFERING WORDS = N` line in the record,"
+                " or set the `differing_words` field to the number."
             )
 
     # Gate C. A park that changed several things at once and does not say
@@ -4882,20 +5180,17 @@ def law_corpus(
     exact residual", which no facet could ask before.
     """
     ensure_database(root, db_path)
-    sql = """
+    sql = f"""
         SELECT r.record_id, r.record_state, r.valid_from, r.recorded_at,
                c.epistemic_state, c.value_json,
                json_extract(r.raw_json, '$.attributes.scope') AS scope,
                json_extract(r.raw_json, '$.attributes.tags') AS tags,
-               COALESCE(
-                   c.superseded_by,
-                   (SELECT newer.record_id FROM record_ingest newer
-                    WHERE json_extract(newer.raw_json, '$.supersedes') = r.record_id
-                    LIMIT 1)
-               ) AS superseded_by,
+               COALESCE(c.superseded_by, sup.newer_id) AS superseded_by,
                (SELECT COUNT(*) FROM attempt_law_application ala
                 WHERE ala.law_record_id = r.record_id) AS applied_count
         FROM claim c JOIN record_ingest r ON r.record_id = c.record_id
+        LEFT JOIN ({SUPERSEDING_RECORD_BY_TARGET}) sup
+               ON sup.old_id = r.record_id
         WHERE (c.predicate = 'codegen_law' OR r.record_id LIKE '%law%')
     """
     params: list[Any] = []
@@ -5427,7 +5722,7 @@ def similar_residuals(
             " WHERE json_extract(raw_json,'$.residual') IS NOT NULL"
         ).fetchone()[0])
         rows = connection.execute(
-            """
+            f"""
             SELECT r.record_id, r.raw_json, r.valid_from, r.recorded_at,
                    a.outcome AS outcome, a.attempted_axis AS axis,
                    a.residual_class AS residual_class,
@@ -5445,11 +5740,7 @@ def similar_residuals(
                AND bs.platform = 'gamecube' AND bs.symbol_kind = 'function'
             LEFT JOIN binary_module bm ON bm.id = bs.module_id
             LEFT JOIN residual_signature rs ON rs.record_id = r.record_id
-            WHERE NOT EXISTS (
-                SELECT 1 FROM record_ingest newer
-                WHERE json_extract(newer.raw_json, '$.supersedes') = r.record_id
-                  AND newer.record_state = 'accepted'
-            )
+            WHERE r.record_id NOT IN ({SUPERSEDED_RECORD_IDS})
             """
         ).fetchall()
 
@@ -6440,10 +6731,7 @@ def tu_briefing(
                 JOIN entity e ON e.id = a.function_entity_id
                 JOIN record_ingest r ON r.record_id = a.record_id
                 WHERE e.entity_key IN ({fn_marks})
-                  AND NOT EXISTS (SELECT 1 FROM record_ingest newer
-                      WHERE json_extract(newer.raw_json, '$.supersedes')
-                            = a.record_id
-                        AND newer.record_state = 'accepted')
+                  AND a.record_id NOT IN ({SUPERSEDED_RECORD_IDS})
                 ORDER BY CASE WHEN a.outcome IN ('parked', 'capped')
                          THEN 0 ELSE 1 END,
                          COALESCE(r.recorded_at, '') DESC
@@ -7718,17 +8006,13 @@ def attempt_staleness(
             " JOIN entity e ON e.id = a.function_entity_id"
             " JOIN record_ingest r ON r.record_id = a.record_id"
             " WHERE a.outcome IN ('parked', 'capped')"
-            " AND NOT EXISTS (SELECT 1 FROM record_ingest newer"
-            " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id"
-            " AND newer.record_state = 'accepted')"
+            f" AND a.record_id NOT IN ({SUPERSEDED_RECORD_IDS})"
         ).fetchall()
     with closing(open_database(root, db_path)) as connection:
         multi_rows = connection.execute(
             "SELECT e.name, COUNT(*) AS n, GROUP_CONCAT(a.record_id) AS ids"
             " FROM attempt a JOIN entity e ON e.id = a.function_entity_id"
-            " WHERE NOT EXISTS (SELECT 1 FROM record_ingest newer"
-            " WHERE json_extract(newer.raw_json, '$.supersedes') = a.record_id"
-            " AND newer.record_state = 'accepted')"
+            f" WHERE a.record_id NOT IN ({SUPERSEDED_RECORD_IDS})"
             " GROUP BY a.function_entity_id HAVING COUNT(*) > 1"
         ).fetchall()
     multi = [

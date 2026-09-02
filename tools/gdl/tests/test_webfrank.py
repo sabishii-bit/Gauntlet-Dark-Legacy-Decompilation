@@ -1,8 +1,16 @@
+import json
 import os
+import shutil
+import sys
+import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 import struct
 
+from tools.gdl import fndiff
+from tools.gdl.webfrank import main as webfrank_main
 from tools.gdl.webfrank import (
     load_symbol_addresses,
     resolve_memory_locations,
@@ -3665,6 +3673,78 @@ class MaskFormApplyPatchTests(unittest.TestCase):
         patch = self.patch(ours, target, copy_register_fields=True)
         with self.assertRaisesRegex(ValueError, "register field differs"):
             apply_patch(data, patch, bytes(target_data))
+
+
+class StaleObjectMarkerTests(unittest.TestCase):
+    """Run-35 item 4: an aborted pin build left the PREVIOUS object served.
+
+    The failure is silent by construction — the object on disk is valid,
+    well-formed and completely current for a source revision that is no
+    longer in the tree. PC nearly recorded a verdict from one.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.obj = Path(self.tmp) / "unit.o"
+        self.marker = fndiff.stale_marker_path(self.obj)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_the_marker_path_is_the_object_plus_one_suffix(self):
+        self.assertEqual(self.marker.name, "unit.o.stale")
+
+    def test_no_marker_means_no_warning(self):
+        self.obj.write_bytes(b"\x00")
+        self.assertEqual(fndiff.stale_object_warning(self.obj), "")
+
+    def test_a_marker_produces_a_warning_quoting_the_build_failure(self):
+        self.obj.write_bytes(b"\x00")
+        self.marker.write_text("WEBFRANK game/x/y refused at 2026-09-02:"
+                               " ValueError: body hash moved",
+                               encoding="utf-8")
+        warning = fndiff.stale_object_warning(self.obj)
+        self.assertIn("STALE OBJECT", warning)
+        self.assertIn("PREVIOUS successful object", warning)
+        self.assertIn("body hash moved", warning)
+
+    def test_webfrank_writes_the_marker_when_a_patch_refuses(self):
+        """End to end: the refusal path must leave the marker behind."""
+        config = Path(self.tmp) / "webfrank.json"
+        source = Path(self.tmp) / "in.o"
+        source.write_bytes(b"\x00" * 64)
+        config.write_text(json.dumps({"units": {"game/x/y": [
+            {"function": "fn", "kind": "no_such_rule_kind"}]}}),
+            encoding="utf-8")
+        argv = ["webfrank.py", str(source), str(self.obj), str(config),
+                "game/x/y"]
+        with mock.patch.object(sys, "argv", argv):
+            with self.assertRaises(BaseException):
+                webfrank_main()
+        self.assertTrue(self.marker.exists(),
+                        "a refused build must mark the object it did not"
+                        " write")
+        self.assertIn("WEBFRANK game/x/y refused",
+                      self.marker.read_text(encoding="utf-8"))
+        self.assertFalse(self.obj.exists(),
+                         "the output must NOT be written on a refusal")
+
+    def test_a_successful_run_clears_a_previous_marker(self):
+        """A permanent warning is a warning nobody reads."""
+        config = Path(self.tmp) / "webfrank.json"
+        source = Path(self.tmp) / "in.o"
+        source.write_bytes(b"\x00" * 64)
+        config.write_text(json.dumps({"units": {"game/x/y": []}}),
+                          encoding="utf-8")
+        self.marker.write_text("stale from an earlier failure",
+                               encoding="utf-8")
+        argv = ["webfrank.py", str(source), str(self.obj), str(config),
+                "game/x/y"]
+        with mock.patch.object(sys, "argv", argv):
+            self.assertEqual(webfrank_main(), 0)
+        self.assertTrue(self.obj.exists())
+        self.assertFalse(self.marker.exists())
+        self.assertEqual(fndiff.stale_object_warning(self.obj), "")
 
 
 if __name__ == "__main__":

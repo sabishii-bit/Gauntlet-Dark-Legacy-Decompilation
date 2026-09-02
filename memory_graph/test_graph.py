@@ -17,6 +17,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -2313,6 +2314,284 @@ class ProposalGateNarrowingTests(unittest.TestCase):
             core._apply_proposal_gates(parked)
 
 
+class TypedDenialEscapeTests(unittest.TestCase):
+    """T6 run-36 item 9: CL read the refusal as "invent a denial".
+
+    The escape was implemented and named — in the last sentence of a
+    nine-sentence paragraph. An escape a reader does not reach is an escape
+    that does not exist.
+    """
+
+    REAL_LAW = ("claim.law.webfrank-pinned-function-source-freeze"
+                ".20260831.v1")
+
+    def _record(self, **extra):
+        record = {
+            "schema_version": 1, "kind": "attempt",
+            "id": "attempt.t6-denial-escape.20260902.v1",
+            "function": "function:TowerInit", "outcome": "improved",
+            "attempted_axis": "re-measuring a prior park that called this"
+                              " axis a do-not-retry, to see if it holds",
+            "attributes": {"law_screen": "none applicable: test fixture"},
+        }
+        record.update(extra)
+        return record
+
+    def test_the_escape_is_offered_before_the_typed_object(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            core._apply_proposal_gates(self._record())
+        message = str(caught.exception)
+        self.assertIn("describes_denial_of", message)
+        self.assertLess(message.index("describes_denial_of"),
+                        message.index("premise_measurement"),
+                        "the escape must come BEFORE the typed-object"
+                        " instructions a describing record does not need")
+
+    def test_the_message_asks_which_of_the_two_you_are_doing(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            core._apply_proposal_gates(self._record())
+        message = str(caught.exception)
+        self.assertIn("ARE YOU DESCRIBING SOMEONE ELSE'S DENIAL", message)
+        self.assertIn("ARE YOU ISSUING THE DENIAL?", message)
+
+    def test_the_escape_still_releases_the_gate(self):
+        core._apply_proposal_gates(
+            self._record(describes_denial_of="attempt.some-prior-park.v1"))
+
+    def test_the_escape_id_must_actually_resolve(self):
+        """The text calls it a citation; staging now makes that true."""
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(
+                self._record(describes_denial_of="attempt.no-such-park.v9"),
+                root=REPO_ROOT, dry_run=True)
+        self.assertIn("does not resolve", str(caught.exception))
+
+    def test_a_resolving_escape_id_passes_staging(self):
+        stage_record_proposal(
+            self._record(describes_denial_of=self.REAL_LAW),
+            root=REPO_ROOT, dry_run=True)
+
+    def test_the_attributes_spelling_is_checked_too(self):
+        record = self._record()
+        record["attributes"]["describes_denial_of"] = "attempt.no-such.v9"
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
+        self.assertIn("does not resolve", str(caught.exception))
+
+
+class BankedEvidenceClaimGateTests(unittest.TestCase):
+    """T6 run-36 item 8: "banked in the graph" prose is not a citation.
+
+    Dispatch reads a work_claim's scope as the lane's briefing
+    (claim.law.MT_a-banked-in-the-graph-premise-is-not-a-citation), so an
+    unnamed premise sends a worker after evidence it cannot find.
+    """
+
+    REAL_LAW = ("claim.law.webfrank-pinned-function-source-freeze"
+                ".20260831.v1")
+
+    def _claim(self, scope):
+        return {
+            "schema_version": 1, "kind": "work_claim",
+            "id": "work_claim.t6-gatef-probe.20260902.v1",
+            "function": "function:TowerInit",
+            "owner": "claude-fleet-worker-T6", "state": "active",
+            "claimed_at": "2026-09-02",
+            "attributes": {"scope": scope},
+        }
+
+    def test_an_unnamed_banked_premise_is_refused(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(
+                self._claim("close it; the mechanism is banked in the graph"),
+                root=REPO_ROOT, dry_run=True)
+        self.assertIn("is not a citation", str(caught.exception))
+        self.assertIn("MT_a-banked-in-the-graph-premise",
+                      str(caught.exception))
+
+    def test_a_resolving_record_id_discharges_it(self):
+        stage_record_proposal(
+            self._claim("close it; mechanism banked in the graph as"
+                        f" {self.REAL_LAW}"),
+            root=REPO_ROOT, dry_run=True)
+
+    def test_an_unresolvable_id_does_not_discharge_it(self):
+        """A citation that resolves to nothing is the defect, not the cure."""
+        with self.assertRaises(MemoryGraphError):
+            stage_record_proposal(
+                self._claim("banked in the graph as attempt.no-such.v9"),
+                root=REPO_ROOT, dry_run=True)
+
+    def test_a_claim_making_no_banked_assertion_is_untouched(self):
+        stage_record_proposal(
+            self._claim("close the register residual on TowerInit"),
+            root=REPO_ROOT, dry_run=True)
+
+    def test_the_phrase_family_is_covered(self):
+        for scope in ("the premise is recorded in the graph",
+                      "per the graph this axis is dead",
+                      "the graph already holds the census",
+                      "that measurement is already in the memory graph"):
+            with self.assertRaises(MemoryGraphError, msg=scope):
+                stage_record_proposal(self._claim(scope), root=REPO_ROOT,
+                                      dry_run=True)
+
+    def test_the_gate_is_scoped_to_work_claims(self):
+        """An attempt record narrating its own history is not a dispatch."""
+        attempt = {
+            "schema_version": 1, "kind": "attempt",
+            "id": "attempt.t6-gatef-scope.20260902.v1",
+            "function": "function:TowerInit", "attempted_axis": "probe",
+            "outcome": "improved",
+            "attributes": {"law_screen": "none applicable: test fixture",
+                           "note": "the mechanism is banked in the graph"},
+        }
+        stage_record_proposal(attempt, root=REPO_ROOT, dry_run=True)
+
+
+class UnknownEntityMessageTests(unittest.TestCase):
+    """T6 run-36 item 7: the refusal named 2 of the 3 resolvable forms.
+
+    Two run-35 lanes burned records discovering `project:gdl` by counting
+    ~1,600 record files, because nothing told them an existing entity_key in
+    ANY namespace resolves.
+    """
+
+    NAMESPACES = [("function", 445, "function:AddItemSub"),
+                  ("tu", 65, "tu:MSL/atanf.c"),
+                  ("project", 1, "project:gdl")]
+
+    def test_all_three_resolvable_forms_are_named(self):
+        message = core.unknown_entity_message("projekt:gdl", [], [])
+        self.assertIn("entity_key ALREADY IN the graph", message)
+        self.assertIn("function:<symbol>", message)
+        self.assertIn("tu:<module>", message)
+
+    def test_the_live_namespaces_are_listed_with_examples(self):
+        message = core.unknown_entity_message(
+            "projekt:gdl", self.NAMESPACES, [])
+        self.assertIn("project: 1 — e.g. project:gdl", message)
+        self.assertIn("function: 445", message)
+
+    def test_a_near_miss_is_offered(self):
+        message = core.unknown_entity_message(
+            "projekt:gdl", self.NAMESPACES, ["project:gdl"])
+        self.assertIn("Did you mean: project:gdl?", message)
+
+    def test_it_tells_you_not_to_go_counting_files(self):
+        message = core.unknown_entity_message("x:y", [], [])
+        self.assertIn("do NOT go counting record files", message)
+        self.assertIn("gdlmem.py find --query", message)
+
+    def test_namespaces_are_read_from_the_live_corpus(self):
+        """Hardcoding the list would rot the first time a lane coins one."""
+        core.ensure_database(REPO_ROOT, None)
+        with closing(core.open_database(REPO_ROOT, None)) as connection:
+            namespaces = core.entity_key_namespaces(connection)
+        prefixes = {row[0] for row in namespaces}
+        self.assertIn("function", prefixes)
+        self.assertIn("tu", prefixes)
+        # project:gdl is the key the two lanes could not find; it resolves.
+        self.assertIn("project", prefixes)
+        for prefix, count, example in namespaces:
+            self.assertTrue(example.startswith(prefix + ":"), example)
+            self.assertGreater(count, 0)
+
+    def test_the_real_refusal_carries_the_directory(self):
+        record = {
+            "schema_version": 1, "kind": "claim",
+            "id": "claim.t6-subject-probe.20260902.v1",
+            "subject": "projekt:gdl", "predicate": "workflow_note",
+            "value": "probe", "epistemic_state": "hypothesis",
+            "attributes": {},
+        }
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
+        message = str(caught.exception)
+        self.assertIn("project:gdl", message)
+        self.assertIn("THREE things resolve", message)
+
+
+class WindowedResidualWordCountGateTests(unittest.TestCase):
+    """T6 run-36 item 6: a "4-word residual" that was 122 of 215 words.
+
+    --ops clusters where the OPCODE stream diverges and cannot see pure
+    register-field words, so a window-confined residual sized off --ops is
+    sized off the wrong number entirely.
+    """
+
+    def _attempt_record(self, **extra):
+        record = {
+            "schema_version": 1, "id": "attempt.t6-word-gate.20260902.v1",
+            "kind": "attempt", "function": "function:fn_800D8BCC",
+            "attempted_axis": "probe", "outcome": "parked",
+            "attributes": {"law_screen": "none applicable: test fixture"},
+        }
+        record.update(extra)
+        return record
+
+    def test_a_windowed_word_sized_residual_without_a_count_is_refused(self):
+        record = self._attempt_record(
+            residual_class="REGISTER_ONLY",
+            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
+                           " residual; sized for a live-zero recolor rule")
+        with self.assertRaises(MemoryGraphError) as caught:
+            core._apply_proposal_gates(record)
+        self.assertIn("DIFFERING-WORD COUNT", str(caught.exception))
+        self.assertIn("wf_word_diff.py", str(caught.exception))
+
+    def test_quoting_the_tools_output_line_discharges_it(self):
+        record = self._attempt_record(
+            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
+                           " residual by --ops, but wf_word_diff reports"
+                           " DIFFERING WORDS = 122 over 215 insns")
+        core._apply_proposal_gates(record)
+
+    def test_the_typed_field_discharges_it(self):
+        record = self._attempt_record(
+            differing_words=122,
+            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
+                           " residual")
+        core._apply_proposal_gates(record)
+
+    def test_a_window_with_no_word_sized_claim_does_not_fire(self):
+        """The gate checks a SIZE claim, not the word 'window'."""
+        record = self._attempt_record(
+            attempted_axis="permuted the window at +0x40..+0x60 and"
+                           " re-derived the pin")
+        core._apply_proposal_gates(record)
+
+    def test_a_word_count_with_no_window_does_not_fire(self):
+        record = self._attempt_record(
+            attempted_axis="a 4-word residual across the whole body")
+        core._apply_proposal_gates(record)
+
+    def test_the_pb_window_tu_name_is_not_a_window_token(self):
+        """`_` is a word character, so `pb_window` has no \\b before it."""
+        record = self._attempt_record(
+            function="function:pbWindowDraw",
+            attempted_axis="pb_window cleanup left a 4-word residual")
+        core._apply_proposal_gates(record)
+
+    def test_an_unanchored_record_is_out_of_scope(self):
+        record = self._attempt_record(
+            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
+                           " residual")
+        del record["function"]
+        core._apply_proposal_gates(record)
+
+    def test_citation_prose_quoting_a_windowed_claim_is_not_caught(self):
+        """Gate B/D's self-refusal lesson, applied here too."""
+        record = self._attempt_record(
+            attempted_axis="re-measure the upstream park",
+            attributes={
+                "law_screen": "screened attempt.x.v1, which recorded a"
+                              " 4-word residual in the window at"
+                              " +0x40..+0x60",
+            })
+        core._apply_proposal_gates(record)
+
+
 class TemplateCliOrderTests(unittest.TestCase):
     """Run 34 item 10: the CLI must NOT sort_keys the --template result, or
     schema_version sinks to the bottom of the fill-in skeleton and id/kind
@@ -2533,6 +2812,113 @@ class HypothesisRefuterTests(unittest.TestCase):
             "attempt.t5-refuter-clean-probe.v1",
             "drop the volatile qualifier and see if the reload survives")
         self.assertEqual(warnings, [])
+
+
+class SupersessionScreenPerformanceTests(unittest.TestCase):
+    """T6 run-36 item 10: the suite's 54.7s-of-72.9s hot path.
+
+    The "is this record still live?" screen was a CORRELATED subquery
+    running a json_extract over the whole record_ingest table once per
+    candidate row. These tests pin the two properties that make the
+    non-correlated replacement both correct and fast, so neither can be
+    undone by a later edit without a red test.
+    """
+
+    CORRELATED = (
+        "SELECT r.record_id FROM record_ingest r WHERE NOT EXISTS ("
+        " SELECT 1 FROM record_ingest newer WHERE"
+        " json_extract(newer.raw_json,'$.supersedes')=r.record_id"
+        " AND newer.record_state='accepted') ORDER BY r.record_id")
+
+    def _fixture(self):
+        import sqlite3
+        connection = sqlite3.connect(":memory:")
+        connection.execute(
+            "CREATE TABLE record_ingest (record_id TEXT PRIMARY KEY,"
+            " record_state TEXT NOT NULL, raw_json TEXT NOT NULL)")
+        rows = [
+            # superseded by an accepted record -> must be screened OUT
+            ("attempt.a.v1", "accepted", "{}"),
+            ("attempt.a.v2", "accepted",
+             '{"supersedes": "attempt.a.v1"}'),
+            # superseded only by a PROPOSED record -> still live
+            ("attempt.b.v1", "accepted", "{}"),
+            ("attempt.b.v2", "proposed",
+             '{"supersedes": "attempt.b.v1"}'),
+            # never superseded, and carrying no `supersedes` key at all:
+            # this is the row that goes missing without the NULL guard
+            ("attempt.c.v1", "accepted", "{}"),
+        ]
+        connection.executemany(
+            "INSERT INTO record_ingest VALUES (?,?,?)", rows)
+        return connection
+
+    def test_the_flat_screen_answers_exactly_what_the_correlated_one_did(self):
+        connection = self._fixture()
+        correlated = [row[0] for row in
+                      connection.execute(self.CORRELATED).fetchall()]
+        flat = [row[0] for row in connection.execute(
+            "SELECT record_id FROM record_ingest WHERE record_id NOT IN"
+            f" ({core.SUPERSEDED_RECORD_IDS}) ORDER BY record_id"
+        ).fetchall()]
+        self.assertEqual(correlated, flat)
+        # Print the values compared, per the parity-check discipline: a
+        # gate that passes by comparing two empty lists is not a gate.
+        self.assertEqual(
+            flat, ["attempt.a.v2", "attempt.b.v1", "attempt.b.v2",
+                   "attempt.c.v1"])
+
+    def test_the_is_not_null_guard_is_load_bearing(self):
+        """Drop it and `NOT IN` returns NOTHING — the silent-empty trap."""
+        connection = self._fixture()
+        without_guard = connection.execute(
+            "SELECT record_id FROM record_ingest WHERE record_id NOT IN ("
+            " SELECT json_extract(newer.raw_json,'$.supersedes')"
+            " FROM record_ingest newer WHERE newer.record_state='accepted')"
+        ).fetchall()
+        self.assertEqual(without_guard, [])
+        self.assertIn("IS NOT NULL", core.SUPERSEDED_RECORD_IDS)
+
+    def test_no_correlated_supersedes_subquery_remains_in_core(self):
+        """The idiom is quadratic; it must not come back by copy-paste."""
+        source = (REPO_ROOT / "memory_graph" / "core.py").read_text(
+            encoding="utf-8")
+        # Strip comments so SUPERSEDED_RECORD_IDS' own explanation of the
+        # bad form (which quotes it verbatim) is not read as a use of it.
+        code = "\n".join(line for line in source.splitlines()
+                         if not line.lstrip().startswith("#"))
+        offenders = [
+            line for line in code.splitlines()
+            if "'$.supersedes')" in line and "= r.record_id" in line
+        ] + [
+            line for line in code.splitlines()
+            if "'$.supersedes')" in line and "= a.record_id" in line
+        ]
+        self.assertEqual(offenders, [], offenders)
+
+    def test_the_roster_join_resolves_raw_name_through_an_index(self):
+        """binary_symbol has 21k rows; the join key is raw_name.
+
+        Only `normalized_name` was indexed, so the planner scanned every
+        gamecube symbol per candidate row (2.227s -> 0.029s once indexed).
+        Asserted on the QUERY PLAN rather than on wall-clock, which is not
+        a sound gate on a machine shared by a build fleet.
+        """
+        core.ensure_database(REPO_ROOT, None)
+        with closing(core.open_database(REPO_ROOT, None)) as connection:
+            plan = " ".join(
+                str(tuple(row)) for row in connection.execute(
+                    "EXPLAIN QUERY PLAN SELECT bm.object_name"
+                    " FROM attempt a"
+                    " LEFT JOIN entity fe ON fe.id = a.function_entity_id"
+                    " LEFT JOIN binary_symbol bs"
+                    "   ON fe.entity_key LIKE 'function:%'"
+                    "  AND bs.raw_name = substr(fe.entity_key, 10)"
+                    "  AND bs.platform = 'gamecube'"
+                    "  AND bs.symbol_kind = 'function'"
+                    " LEFT JOIN binary_module bm ON bm.id = bs.module_id"))
+        self.assertIn("binary_symbol_raw_name_idx", plan, plan)
+        self.assertIn("raw_name=?", plan, plan)
 
 
 if __name__ == "__main__":

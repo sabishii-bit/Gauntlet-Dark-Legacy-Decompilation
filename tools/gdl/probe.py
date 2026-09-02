@@ -74,6 +74,18 @@ edit -> probe -> hand-retype-revert -> probe cycle. The snapshot covers the
 TU's own .c/.cpp only — header edits are yours to manage — and the banked
 state is per-unit, so probe a BASELINE before your first edit of a session.
 
+TWO revert points, and the second one no longer depends on the first
+verdict. The ROLLING snapshot moves with every banking verdict, NEUTRAL
+included — that is deliberate (a gated neutral de-fakematch state is as
+good as best, and not banking it made --revert throw the work away twice).
+The SESSION BASELINE does not move. Before run 36 it was written only when
+the verdict was literally BASELINE, so a worker whose first probe landed
+NEUTRAL — the normal case when a state file survives from an earlier
+session — got no baseline at all and lost the pre-edit state to the next
+neutral re-bank (CL, run 35). The first bank on a unit now creates it
+whatever the verdict, it is never overwritten silently, and --rebaseline
+is the deliberate override.
+
 Escape hatches (a worker concluded --discard "does not exist" because this
 docstring omitted it — the flags below all work):
   --discard          restore the TU to HEAD (the neutral-edit undo)
@@ -92,6 +104,15 @@ docstring omitted it — the flags below all work):
                      revert restores the SOURCE and leaves the re-derived
                      hashes in webfrank.json, which GW measured as ~2 of 15
                      probe cycles spent on pure pin plumbing
+  --slots            force the slotdiff map even without a slot signal
+  --no-slots         suppress the auto-invoked slot map (below)
+  --rebaseline       deliberately MOVE the session baseline to the current
+                     state. The baseline is created by the first bank on a
+                     unit whatever verdict caused it, and is never
+                     overwritten silently; this is the override
+  --no-fuzzy-gate    skip the pre-bank fresh-fuzzy measurement (below).
+                     Faster, and how the loop behaved before run 36 — but
+                     a keep banked this way is unarbitrated
   --stateless        sweep mode: score only — no state, bank, or verdict
   --scaffold         print the pragma/volatile scaffold census on ANY
                      probe, not only a BASELINE
@@ -110,6 +131,37 @@ one revert (five lanes hit that). A hunk straddling the function boundary
 is REFUSED loudly, never guessed at; `--revert --whole-file` then takes
 the old all-or-nothing restore deliberately. --revert-baseline and
 --discard remain whole-file by construction.
+
+THE SLOT MAP ARRIVES WITH THE VERDICT. `real` actively fights frame work —
+a design one 4-byte step from a slot-exact map can score REGRESSED while
+four chained real wins land further from target — and the loop printed no
+slot information whatever for the one residual class whose arbiter IS the
+slot map, so a lane wrote its own r1-displacement scanner (which, unlike
+slotdiff, could not see `addi rX,r1,N` address-takes). probe now runs
+slotdiff.py itself whenever `real > 0`, and prints its map under the
+verdict when slotdiff reports a SAVE-SET delta, a frame-size delta, or
+exclusive slots. Equal slot sets with differing use counts do NOT trigger
+it on their own: that is ordinary register residue, and firing there would
+bury every unrelated probe under a 60-line map.
+
+FRESH FUZZY RUNS BEFORE ANY BANK. The four verdicts that move the BEST
+anchor — BASELINE, IMPROVED, IMPROVED-STRUCTURE, REBASED — used to bank on
+`real` and the opcode multiset alone. Both are computed over the
+instruction stream, both read register-color cascades, and in run 35 they
+AGREED on a keep whose fresh objdiff fuzzy was a 0.46 REGRESSION; the next
+probe, anchored on that poisoned best, then read the run's actual best edit
+as a loss (re-applied from the last commit it was +0.33). probe now spends
+one report build at exactly those verdicts, before the bank, and:
+  FUZZY-REGRESSED  the instruction-stream metrics improved but fresh fuzzy
+            FELL below the banked anchor — best NOT updated, nothing
+            banked. Revert, or arbitrate and bank deliberately with
+            --rebase-best (which is exempt from the gate by construction).
+A passing gate banks the measured number as the new fuzzy anchor, so the
+anchor stops decaying and later CONFLICTs print their comparison for free.
+--no-fuzzy-gate restores the old build-free behaviour. REGRESSED verdicts
+now also carry the corollary reminder: re-run a negative from the LAST
+COMMIT before recording it, because a negative measured against a bad
+anchor is a fact about the anchor.
 
 --fuzzy CACHES what it measures, keyed to the object digest it measured
 it on, and when those bytes are the banked BEST state it becomes the
@@ -517,7 +569,49 @@ def bank_warning(kind, changed_lines, unit=None, fn=None):
     return ""
 
 
-def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None):
+def baseline_bank_decision(kind, base_exists, rebaseline=False):
+    """(action, message) for the SESSION BASELINE file on one bank.
+
+    action is "create", "keep" or "overwrite".
+
+    Run-35 criticism (CL): the session baseline was written only when the
+    VERDICT was BASELINE. A worker whose first probe on a function landed
+    NEUTRAL — the normal case when a state file survives from an earlier
+    session, or when the first edit folds away — therefore never got one at
+    all, and the rolling snapshot (which NEUTRAL probes deliberately move
+    onto the edit) was the only revert point in existence. The pre-edit
+    state was then unreachable except through git, and T5's warning about
+    it was printed and read past.
+
+    So: the FIRST bank of a session creates the baseline whatever verdict
+    caused it, and once it exists nothing overwrites it silently. Refusing
+    the ROLLING bank instead would re-introduce the older regression this
+    tool already fixed — a gated NEUTRAL de-fakematch state is as good as
+    best, and not banking it made --revert throw the work away twice.
+    """
+    if base_exists and rebaseline:
+        return "overwrite", (
+            "[--rebaseline: the SESSION BASELINE has been OVERWRITTEN with"
+            " the current state. --revert-baseline can no longer reach the"
+            " state it held before this call.]")
+    if base_exists:
+        return "keep", (
+            "" if kind != "BASELINE" else
+            "[session baseline already banked for this unit and is NOT"
+            " overwritten — a BASELINE verdict here re-banked only the"
+            " ROLLING revert point. --revert-baseline still reaches the"
+            " ORIGINAL baseline; --rebaseline moves it here deliberately.]")
+    return "create", (
+        "[session baseline banked: probe.py --revert-baseline restores THIS"
+        " state]" if kind == "BASELINE" else
+        f"[session baseline banked from a {kind} verdict — this is the"
+        " FIRST bank on this unit, and the rolling revert point moves with"
+        " later NEUTRAL probes while this one does not. --revert-baseline"
+        " restores THIS state.]")
+
+
+def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None,
+                  rebaseline=False):
     snap = snapshot_path(unit, source)
     shutil.copyfile(source, snap)
     head = git_head()
@@ -531,21 +625,26 @@ def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None):
     snap.with_suffix(snap.suffix + ".pins").write_text(
         json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
         encoding="utf-8")
-    # The FIRST baseline of a session is banked separately and never
-    # overwritten: NEUTRAL probes re-bank the rolling snapshot, so
-    # --revert restores the last neutral edit rather than the pristine
-    # state (five workers hit this). --revert-baseline reaches past that.
-    if baseline:
-        base = snap.with_suffix(snap.suffix + ".base")
-        if not base.exists():
-            shutil.copyfile(source, base)
-            base.with_suffix(base.suffix + ".pins").write_text(
-                json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
-                encoding="utf-8")
+    # The FIRST bank of a session is ALSO written to a separate baseline
+    # file which nothing overwrites silently: NEUTRAL probes re-bank the
+    # rolling snapshot, so --revert restores the last neutral edit rather
+    # than the pristine state (five workers hit this). --revert-baseline
+    # reaches past that — but only if a baseline exists, which before run
+    # 36 required the first verdict to BE a BASELINE.
+    base = snap.with_suffix(snap.suffix + ".base")
+    kind = verdict_kind or ("BASELINE" if baseline else "BANK")
+    action, note = baseline_bank_decision(kind, base.exists(), rebaseline)
+    if action in ("create", "overwrite"):
+        shutil.copyfile(source, base)
+        base.with_suffix(base.suffix + ".pins").write_text(
+            json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
+            encoding="utf-8")
+    if note:
+        print(note)
     # Say WHAT was banked (run 34 item 2). A BASELINE taken over an edited
     # tree is not a baseline, and a NEUTRAL bank moves the revert point onto
-    # an edit — both silent until now.
-    kind = verdict_kind or ("BASELINE" if baseline else None)
+    # an edit — both silent until now. (`kind` is the one computed above;
+    # its "BANK" fallback matches neither arm, exactly as the old None did.)
     if kind in ("BASELINE", "NEUTRAL"):
         warning = bank_warning(
             kind, bank_divergence(source.read_bytes(), head_bytes(source)),
@@ -972,6 +1071,77 @@ def conflict_gate(verdict, best_fuzzy, cur_fuzzy):
     ), CONFLICT_UNARBITRATED_EXIT
 
 
+SLOT_FRAME_RE = re.compile(r"^frame: target (\S+)\s+ours (\S+)", re.M)
+SLOT_VERDICT_RE = re.compile(r"^== .*?-> (.+?)$", re.M)
+
+
+def slot_arbiter_signal(output):
+    """(fires, reason) — does this residual class as frame-slot work?
+
+    Read out of slotdiff.py's OWN output rather than re-derived here. Run-35
+    criticism (CL): probe prints no slot information at all for the one
+    residual class whose arbiter IS the slot map, so a lane hand-wrote an
+    r1-displacement enumerator to get it. A second implementation of "which
+    slots differ" is the wrong fix twice over — it is work already done, and
+    the hand-rolled one saw displacements but not the `addi rX,r1,N`
+    address-takes that slotdiff was specifically taught to collect (48 bytes
+    of address-taken arrays hid there once).
+
+    The three signals, in decreasing decisiveness:
+      * a SAVE-SET delta — a callee-saved allocation difference, which is
+        not a local slot at all and is the single most decisive fact for
+        slot work;
+      * a frame-size delta;
+      * exclusive slots on either side.
+    "SLOTS ALIGNED, N use-count deltas" alone does NOT fire: equal slot sets
+    with different use counts is ordinary register/schedule residue, and
+    firing on it would put a 60-line map under every unrelated probe. It is
+    reported only alongside one of the decisive signals above.
+    """
+    if not output or "== " not in output:
+        return False, ""
+    reasons = []
+    if "SAVE-SET DELTA" in output:
+        reasons.append("a callee-saved SAVE-SET delta (an unallocated"
+                       " callee-saved register, NOT a local slot)")
+    frame = SLOT_FRAME_RE.search(output)
+    if frame and frame.group(1) != frame.group(2):
+        reasons.append(f"frame size target {frame.group(1)} vs ours"
+                       f" {frame.group(2)}")
+    verdict = SLOT_VERDICT_RE.search(output)
+    text = verdict.group(1).strip() if verdict else ""
+    if text.startswith("SLOTS DIFFER"):
+        reasons.append(text.lower())
+    elif text.startswith("SLOTS ALIGNED") and reasons:
+        reasons.append(text.lower())
+    if not reasons:
+        return False, ""
+    return True, "; ".join(reasons)
+
+
+def slot_arbiter_header(reason):
+    """The line that says why a slot map appeared under this verdict."""
+    return (
+        f"SLOT-CLASS RESIDUAL — {reason}. The verdict above is scored on"
+        " `real`, which ACTIVELY FIGHTS slot work: a design one 4-byte step"
+        " from a slot-exact map can read REGRESSED while four chained real"
+        " wins land further from target (two lanes measured that"
+        " independently). ARBITRATE ON THE MAP BELOW, not on the verdict"
+        " (claim.law.real-can-underweight-a-large-alignment-gain)."
+        " `--no-slots` suppresses this; `--slots` forces it.")
+
+
+def run_slot_arbiter(unit, fn):
+    """slotdiff.py's stdout, or None when it could not run."""
+    try:
+        done = subprocess.run(
+            [sys.executable, str(TOOLS / "slotdiff.py"), unit, fn],
+            capture_output=True, text=True)
+    except OSError:
+        return None
+    return done.stdout
+
+
 def format_genuine_note(n, rows, cap=8):
     """The regnorm GENUINE structural-row note for CONFLICT/NEUTRAL-WORSE.
 
@@ -1022,6 +1192,81 @@ def genuine_row_count(unit, fn):
         return None
 
 
+BEST_KEYS = ("best_real", "best_multiset", "best_insns", "best_bytes",
+             "best_fuzzy")
+
+# Fuzzy is a float percentage; anything at or above the anchor is "not a
+# regression". The epsilon keeps float noise from manufacturing a refusal.
+FUZZY_GATE_EPS = 1e-9
+
+
+def banks_best(verdict):
+    """True when this verdict text is one of the four that move the BEST
+    anchor: BASELINE, IMPROVED, IMPROVED-STRUCTURE, REBASED.
+
+    `IMPROVED?` (the blown-out-count-distance headline) deliberately does
+    NOT bank, so it must not be matched by a bare startswith("IMPROVED").
+    """
+    return verdict.startswith(("BASELINE", "REBASED", "IMPROVED-STRUCTURE",
+                               "IMPROVED "))
+
+
+def apply_fuzzy_bank_gate(verdict, state, prior_best, prior_best_fuzzy,
+                          fuzzy):
+    """Refuse to bank a new BEST whose fresh fuzzy fell below the anchor.
+
+    Run-35 criticism (claim.law.PC_real-and-multiset-agreement-does-not-
+    license-a-keep): probe banked an IMPROVED whose fresh fuzzy was a 0.46
+    REGRESSION, and the next probe — measured against that poisoned anchor
+    — read the run's best edit as a loss. real and the opcode multiset
+    AGREEING is not a licence to keep: both are computed over the
+    instruction stream and both read register-color cascades in ways fuzzy
+    does not. The project's own metric-disagreement rule already names
+    fuzzy from a fresh report as the arbiter; this makes the loop obey it
+    instead of advising it.
+
+    Pure: `prior_best` is the snapshot of the BEST_KEYS taken before any
+    branch called bank_best(), and restoring it is exactly the un-bank.
+    REBASED is exempt — it IS the deliberate arbitrated keep.
+    """
+    if not banks_best(verdict) or verdict.startswith("REBASED"):
+        return verdict, state
+    if fuzzy is None:
+        if prior_best_fuzzy is None:
+            # No anchor existed and none could be measured: there is
+            # nothing to gate against, and saying so on every probe would
+            # be noise.
+            return verdict, state
+        return verdict + (
+            "\nFUZZY GATE UNMEASURED: a fuzzy anchor"
+            f" ({prior_best_fuzzy:.4f}%) was banked for the previous best,"
+            " but this state's fresh fuzzy could not be measured (report"
+            " build failed, or --no-fuzzy-gate). The new best is banked"
+            " WITHOUT the check that would have caught a fuzzy regression"
+            " hiding under a real+multiset win, and the anchor is CLEARED"
+            " rather than carried stale. Run --arbitrate before recording"
+            " this as progress."), state
+    if prior_best_fuzzy is None or fuzzy >= prior_best_fuzzy - FUZZY_GATE_EPS:
+        return verdict, state
+    state = dict(state)
+    for key, value in prior_best.items():
+        if value is None:
+            state.pop(key, None)
+        else:
+            state[key] = value
+    head = verdict.split("\n", 1)[0]
+    gated = (
+        f"FUZZY-REGRESSED  fresh objdiff fuzzy {prior_best_fuzzy:.4f}% ->"
+        f" {fuzzy:.4f}% ({fuzzy - prior_best_fuzzy:+.4f}) — best NOT updated"
+        " and NOTHING banked, even though the instruction-stream metrics"
+        " improved. real and the multiset are both computed over .text and"
+        " both read register-color cascades; fuzzy from a fresh report is"
+        " the arbiter when they disagree. REVERT, or arbitrate and bank the"
+        " keep deliberately with --rebase-best."
+        f"\n[instruction-stream verdict, SUPERSEDED by the gate: {head}]")
+    return gated, state
+
+
 def classify(state, real, insns, multiset_tokens, rebase_best=False,
              digest=None, source_changed=True, fuzzy=None):
     """Pure verdict function: (verdict_text, new_state).
@@ -1049,6 +1294,9 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
            if multiset_tokens is not None else "")
 
     best_fuzzy = state.get("best_fuzzy")
+    # Everything the fuzzy bank gate has to be able to put BACK when it
+    # refuses a keep. Captured before any branch can call bank_best().
+    prior_best = {key: state.get(key) for key in BEST_KEYS}
 
     def bank_best():
         state["best_real"] = real
@@ -1218,6 +1466,17 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                        f" {state.get('last_real', best)} -> {real}"
                        f" (prev -> current; insns {insns}{tok})"
                        "  [revert advised]")
+            # Run-35 corollary to the fuzzy-bank-gate law: a negative
+            # verdict measured on top of a poisoned anchor is not a fact
+            # about the edit. One run's BEST edit read as a loss this way
+            # and was re-applied from the last commit at +0.33 fuzzy.
+            verdict += (
+                "\nRE-RUN THIS NEGATIVE FROM THE LAST COMMIT before"
+                " recording it: this verdict is measured against a BEST"
+                " banked by earlier probes in this session, and a keep that"
+                " should not have been banked makes a good edit read as a"
+                " loss. `probe --discard` (back to HEAD), re-apply the edit,"
+                " re-probe — or `--arbitrate` for the four-number view.")
         if best_tokens is None:
             # Say it on BOTH outcomes. A legacy state silently reproduces
             # the old prev-anchored answer, and the REGRESSED half is
@@ -1245,6 +1504,10 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
             bank_best()
         else:
             verdict = f"NEUTRAL   real {real} (insns {insns}{tok})"
+    # LAST WORD ON EVERY BANK. Nothing above this line may leave a new best
+    # standing whose fresh fuzzy fell below the anchor.
+    verdict, state = apply_fuzzy_bank_gate(verdict, state, prior_best,
+                                           best_fuzzy, fuzzy)
     state["last_real"] = real
     state["last_insns"] = insns
     if multiset_tokens is not None:
@@ -1888,10 +2151,43 @@ def main():
         fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=digest)
         return 0
 
+    rebase_best = "--rebase-best" in sys.argv
+    # The pre-verdict state, kept so the fuzzy gate below can re-run the
+    # classification from the SAME inputs. Re-classifying from the state
+    # classify() already returned would compare `real` against a best it
+    # had just banked and read every improvement as NEUTRAL.
+    state_before = dict(state)
     verdict, state = classify(state, real, insns, multiset_tokens,
-                              rebase_best="--rebase-best" in sys.argv,
+                              rebase_best=rebase_best,
                               digest=digest, source_changed=source_changed,
                               fuzzy=cached_fuzzy)
+    # FRESH FUZZY BEFORE THE BANK (run-35 item 1). The verdict above is
+    # provisional whenever it would move the BEST anchor: a real+multiset
+    # win can still be a fuzzy LOSS, and banking one poisons every later
+    # verdict on the function. Spend the report build here — on the four
+    # verdicts that actually change the high-water mark — rather than
+    # discovering it two probes later. --rebase-best is exempt (it is the
+    # deliberate arbitrated keep) and --no-fuzzy-gate opts out entirely.
+    if (banks_best(verdict) and cached_fuzzy is None and not rebase_best
+            and "--no-fuzzy-gate" not in sys.argv):
+        print(f"[fuzzy gate: {verdict.split()[0]} would bank a new BEST —"
+              " measuring this state's fresh objdiff fuzzy FIRST (report"
+              " build; --no-fuzzy-gate skips it)]")
+        fresh = report_fuzzy(unit, fn, fn_stripped)
+        if fresh is not None:
+            print(f"FUZZY (fresh report): {fresh:.4f}%")
+        else:
+            print("[fuzzy gate: no number — the report build FAILED or this"
+                  " function is absent from build/GUNE5D/report.json]")
+        verdict, state = classify(state_before, real, insns, multiset_tokens,
+                                  rebase_best=False, digest=digest,
+                                  source_changed=source_changed,
+                                  fuzzy=fresh)
+        if fresh is not None:
+            cached_fuzzy = fresh
+            state["last_fuzzy"] = fresh
+            if digest is not None:
+                state["last_fuzzy_bytes"] = digest
     # A CONFLICT with no fresh fuzzy on BOTH states classifies nothing at all
     # (run 34 item 4): PC recorded a false regression from an unarbitrated
     # CONFLICT headline. The exit code carries the refusal to any script.
@@ -1937,6 +2233,20 @@ def main():
         if gr is not None:
             print(format_genuine_note(*gr))
 
+    # THE SLOT MAP, unasked, when the residual is slot-shaped (run-35 item
+    # 3). `real` is the wrong arbiter for frame work and the loop offered no
+    # slot information at all, so a lane wrote its own displacement scanner
+    # rather than reach for the tool that already existed. Gated on real > 0
+    # (no residual, nothing to arbitrate) and on slotdiff's own signal, so a
+    # register/schedule probe never carries a 60-line map it does not need.
+    if real > 0 and "--no-slots" not in sys.argv:
+        slots_output = run_slot_arbiter(unit, fn)
+        fires, reason = slot_arbiter_signal(slots_output)
+        if fires or ("--slots" in sys.argv and slots_output):
+            print(slot_arbiter_header(
+                reason or "requested with --slots (no decisive slot signal)"))
+            print(slots_output.strip())
+
     want_scaffold = ("--scaffold" in sys.argv or "--scaffold-all" in sys.argv
                      or verdict.startswith("BASELINE"))
     if want_scaffold and source is not None:
@@ -1961,7 +2271,8 @@ def main():
         kind = verdict.split()[0]
         bank_snapshot(unit, source,
                       baseline=verdict.startswith("BASELINE"),
-                      verdict_kind=kind, fn=fn)
+                      verdict_kind=kind, fn=fn,
+                      rebaseline="--rebaseline" in sys.argv)
         # Name WHICH verdict banked: the discard path differs (a banked
         # NEUTRAL means --revert restores the PROBE, so discarding it
         # needs git), and the identical banner hid that twice.

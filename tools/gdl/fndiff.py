@@ -174,6 +174,44 @@ def compiler_private_aliases(objfile: Path):
     return compiler_private_aliases_from_symbols(out)
 
 
+STALE_SUFFIX = ".stale"
+
+
+def stale_marker_path(objfile) -> Path:
+    """Where a postprocessor records that it FAILED to write this object."""
+    objfile = Path(objfile)
+    return objfile.with_suffix(objfile.suffix + STALE_SUFFIX)
+
+
+def stale_object_warning(objfile) -> str:
+    """Loud warning text when the object on disk is a FAILED build's leftover.
+
+    Run-35 criticism (PC): a WebFrank pin assertion aborts the build BEFORE
+    the postprocessed object is written, so `build/GUNE5D/src/<unit>.o` is
+    left holding the PREVIOUS successful object. Every reader — fndiff,
+    fnasm, probe, slotdiff — then scores bytes that do not correspond to the
+    source in the tree, and does so silently. PC nearly recorded a verdict
+    from one. The postprocessor now drops a marker beside the object it
+    could not write; readers refuse to be quiet about it.
+
+    Returns "" when the object is trustworthy, so callers can print
+    unconditionally.
+    """
+    marker = stale_marker_path(objfile)
+    try:
+        reason = marker.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    return (
+        f"!! STALE OBJECT: {objfile} was NOT written by the last build —"
+        " it is the PREVIOUS successful object, and every number below"
+        " describes bytes that do not match the source in your tree."
+        f"\n!! The build that failed said: {reason}"
+        "\n!! Fix the build and re-run ninja before reading, recording or"
+        " arbitrating ANYTHING from this object. (`--raw` reads the"
+        " pre-postprocess object, which IS current.)")
+
+
 def parse(objfile: Path):
     """Return {function_name: [normalized instruction/reloc lines]}."""
     aliases = compiler_private_aliases(objfile)
@@ -1042,6 +1080,14 @@ def main():
         if not p.exists():
             print(f"missing: {p} (run ninja / check unit path)")
             return 1
+
+    # A postprocessor that REFUSED left the previous object here under a
+    # name this tool trusts (run-35 item 4). Say so before printing a
+    # single number; the ninja rebuild above cannot detect it, because the
+    # build "succeeded" the last time the file was written.
+    stale = stale_object_warning(base_o)
+    if stale:
+        print(stale)
 
     target, base = parse(target_o), parse(base_o)
 
