@@ -343,6 +343,36 @@ _WORD_DIFF_EVIDENCE_RE = re.compile(
 #      (`law_screen`, `verification`) while leaving quotes in the body.
 _GATE_E_NARRATION_KEYS = frozenset({"attempted_axis", "hypothesis"})
 
+# Gate K (run-40 item 9, from RC): a published register correspondence must
+# say WHICH BYTES it covers.
+#
+# AGENTS.md carries this as a dispatch screen — "a table from the first 0xe0
+# of a 0x330 body was wrong three ways and steered two lanes" — which fires
+# after the wrong table has already been written down and quoted. This is
+# that screen at authoring time. A correspondence derived from a prefix of a
+# function is not a smaller version of the real one: register roles change
+# across a body, so a partial table is CONFIDENTLY WRONG about every row it
+# omits, and nothing downstream can tell the two apart.
+#
+# CALIBRATED over the accepted corpus (AGENTS.md hard rule). Population =
+# anchored records with >= 4 distinct mapping rows that call the thing a
+# correspondence/renaming/bijection: 9 records, of which 4 state no coverage
+# at all. All 4 are genuine per-function tables (get_player_pos twice,
+# show_piles, TowerCheckMessages); the two census/roster claims that the
+# looser predicates caught are excluded by the anchor requirement, exactly
+# as gates B, D and E exclude project-level records by construction.
+_CORRESPONDENCE_ROW_RE = re.compile(
+    r"\b([rf])(\d{1,2})\b\s*(?:->|-->|=>|→|\bmaps? to\b|=)\s*"
+    r"\b([rf])(\d{1,2})\b", re.I)
+_CORRESPONDENCE_WORD_RE = re.compile(
+    r"\bcorrespondence\b|\brenaming\b|\bbijection\b", re.I)
+_COVERAGE_RANGE_RE = re.compile(
+    r"0x[0-9a-fA-F]+\s*(?:\.\.|:|-|to|through)\s*\+?0x[0-9a-fA-F]+"
+    r"|\bwhole (?:function|body)\b|\bentire (?:function|body)\b"
+    r"|\bfull body\b|\bbyte range\b|\bcoverage\b",
+    re.I)
+_CORRESPONDENCE_MIN_ROWS = 4
+
 # Gate F (run 36): a work_claim scope asserting that its premise is already
 # recorded. Dispatch reads the scope as the lane's briefing, so an unnamed
 # "banked in the graph" sends a worker after evidence it cannot find — see
@@ -4218,6 +4248,15 @@ def record_template(kind: str) -> dict[str, Any]:
                                         " a region untouched while both were"
                                         " blind to register-relative cursor"
                                         " stores>",
+            "coverage_range": "<OPTIONAL, REQUIRED when the record PUBLISHES"
+                              " a register correspondence (4+ rN->rM rows"
+                              " called a correspondence/renaming/bijection):"
+                              " the byte span the table was derived from,"
+                              " e.g. \"0x0:0x330 — whole body\". A table"
+                              " taken from the first 0xe0 of a 0x330 body is"
+                              " not a smaller version of the real one — it"
+                              " is confidently WRONG about every row it"
+                              " omits, and one steered two lanes>",
             "windows_tried": "<OPTIONAL, REQUIRED when the record closes the"
                              " COMPOSED postprocessor class: the spans and"
                              " orders you actually ran, e.g."
@@ -4824,6 +4863,32 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
                 " <unit> <function>"
                 "\nthen quote its `DIFFERING WORDS = N` line in the record,"
                 " or set the `differing_words` field to the number."
+            )
+
+    # Gate K (run 40). A published register correspondence must state the
+    # byte range it covers. See the regex block for the measured harm and
+    # the calibration.
+    if anchored and not _record_field(record, "coverage_range"):
+        rows = len(set(_CORRESPONDENCE_ROW_RE.findall(text)))
+        if (rows >= _CORRESPONDENCE_MIN_ROWS
+                and _CORRESPONDENCE_WORD_RE.search(text)
+                and not _COVERAGE_RANGE_RE.search(text)):
+            raise MemoryGraphError(
+                f"this record publishes a register correspondence ({rows}"
+                " mapping rows) and never says WHICH BYTES it covers."
+                " A correspondence derived from part of a function is not a"
+                " smaller version of the real one: register roles change"
+                " across a body, so a partial table is confidently WRONG"
+                " about every row it omits, and a reader cannot tell the"
+                " two apart. MEASURED (AGENTS.md dispatch screen): a table"
+                " taken from the first 0xe0 of a 0x330 body was wrong three"
+                " ways and steered two lanes."
+                "\nDISCHARGE IT: set `coverage_range` (e.g."
+                ' "0x0:0x330 — whole body"), or state the span in the prose'
+                " — `0xA:0xB`, \"the whole function\", or \"the entire"
+                " body\" all satisfy this. If the table really is partial,"
+                " SAY SO with the span: a partial table with its bounds is"
+                " useful evidence; the same table without them is a trap."
             )
 
     # Gate C. A park that changed several things at once and does not say

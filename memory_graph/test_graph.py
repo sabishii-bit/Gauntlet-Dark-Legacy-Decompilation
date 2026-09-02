@@ -2980,6 +2980,73 @@ class GraphRebuildCostTests(unittest.TestCase):
             marker.unlink(missing_ok=True)
 
 
+class CorrespondenceCoverageGateTests(unittest.TestCase):
+    """T10 run-40 item 9 (RC): a published correspondence needs its range.
+
+    CALIBRATED over the accepted corpus: 9 anchored records publish a named
+    correspondence with 4+ rows; 4 state no coverage at all, and all 4 are
+    genuine per-function tables. The two census/roster claims the looser
+    predicates caught are excluded by the anchor requirement.
+    """
+
+    TABLE = ("the running renaming is target r14 -> ours r15, r15 -> r16,"
+             " r16 -> r17, r17 -> r18, r18 -> r19")
+
+    def _record(self, prose, **extra):
+        # A NEUTRAL id on purpose: the gate scans the whole record text, id
+        # included, and a record whose own id says "correspondence" IS
+        # publishing one — correct behaviour, but it would mask what these
+        # fixtures are testing.
+        record = {
+            "schema_version": 1,
+            "id": "attempt.t10-reg-table-probe.20260903.v1",
+            "kind": "attempt", "function": "function:TowerInit",
+            "attempted_axis": prose, "outcome": "parked",
+            "attributes": {"law_screen": "none applicable: test fixture"},
+        }
+        record.update(extra)
+        return record
+
+    def test_a_table_without_a_range_is_refused(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            core._apply_proposal_gates(self._record(self.TABLE))
+        message = str(caught.exception)
+        self.assertIn("WHICH BYTES", message)
+        self.assertIn("coverage_range", message)
+
+    def test_a_byte_span_in_the_prose_discharges_it(self):
+        core._apply_proposal_gates(
+            self._record(self.TABLE + ", read over 0x0:0x330"))
+
+    def test_saying_whole_body_discharges_it(self):
+        core._apply_proposal_gates(
+            self._record(self.TABLE + ", over the whole body"))
+
+    def test_the_typed_field_discharges_it(self):
+        core._apply_proposal_gates(
+            self._record(self.TABLE, coverage_range="0x0:0x330 whole body"))
+
+    def test_a_partial_table_that_says_so_is_accepted(self):
+        """A partial table WITH its bounds is useful evidence; the gate is
+        about the missing bounds, not about partiality."""
+        core._apply_proposal_gates(
+            self._record(self.TABLE + " — derived from 0x0:0xe0 ONLY, the"
+                                      " rest of the 0x330 body unread"))
+
+    def test_too_few_rows_is_not_a_published_table(self):
+        core._apply_proposal_gates(self._record(
+            "the renaming is target r14 -> ours r15 and r15 -> r16"))
+
+    def test_rows_without_the_table_word_do_not_fire(self):
+        core._apply_proposal_gates(self._record(
+            "spills moved: r14 -> r15, r15 -> r16, r16 -> r17, r17 -> r18"))
+
+    def test_an_unanchored_record_is_out_of_scope(self):
+        record = self._record(self.TABLE)
+        del record["function"]
+        core._apply_proposal_gates(record)
+
+
 class ToolNamespaceTests(unittest.TestCase):
     """T10 run-40 item 5: `tool:` / `workflow:` were advertised but unusable.
 
