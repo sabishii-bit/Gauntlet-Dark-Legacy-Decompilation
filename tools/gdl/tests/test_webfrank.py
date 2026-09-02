@@ -904,6 +904,151 @@ class StackDisplacementIneligibilityTests(unittest.TestCase):
         self.assertEqual(changed, 1)
 
 
+# ---------------------------------------------------------------------------
+# someone_will_be_off_screen's real words, read out of the built objects on
+# 2026-09-02 (WF_scratch dump, target = build/GUNE5D/obj/game/game/combat.o,
+# ours = the raw .postprocess/body object).  They are spelled out rather than
+# synthesised so the refusal below is anchored to the function the
+# store-with-update fusion class was commissioned for.
+SWBOS_T_ADD_R28_R23_R0 = 0x7F970214    # T+0x04c  add   r28,r23,r0
+SWBOS_T_STFSU_252_R28 = 0xD41C00FC     # T+0x06c  stfsu f0,252(r28)
+SWBOS_T_STFSU_256_R27 = 0xD41B0100     # T+0x084  stfsu f0,256(r27)
+SWBOS_T_STFSU_260_R26 = 0xD41A0104     # T+0x08c  stfsu f0,260(r26)
+SWBOS_O_ADD_R4_R23_R0 = 0x7C970214     # O+0x058  add   r4,r23,r0
+SWBOS_O_ADDI_R28_R4_252 = 0x3B8400FC   # O+0x060  addi  r28,r4,252
+SWBOS_O_STFS_252_R4 = 0xD00400FC       # O+0x074  stfs  f0,252(r4)
+# The two projection-buffer addresses: the target names TWO distinct stack
+# objects, our build reuses ONE for both calls.
+SWBOS_T_ADDI_R6_R1_84 = 0x38C10054     # T+0x0a8  addi  r6,r1,84
+SWBOS_T_ADDI_R6_R1_80 = 0x38C10050     # T+0x130  addi  r6,r1,80
+SWBOS_O_ADDI_R6_R1_32 = 0x38C10020     # O+0x0b0 AND O+0x138  addi r6,r1,32
+BLR_WORD = 0x4E800020
+
+
+class StoreWithUpdateFusionIneligibilityTests(unittest.TestCase):
+    """The store-with-update FUSION shape is refused by every shipped mode.
+
+    Run 39 commissioned a fusion class for the shape where the target emits
+
+        add   rA,rB,rC          stfsu fS,d(rA)      # rA := rA + d
+
+    against our split pair
+
+        add   rX,rB,rC          addi  rA,rX,d       stfs fS,d(rX)
+
+    The demand census
+    (`tools/gdl/composed_census/wf_storefusion_census.py`) measured the
+    population at 2 functions and the UNPARK payoff at 0, so the class was not
+    built.  These tests are the other half of that decision: they pin, on
+    swbos's own words, that no shipped mode can reach the fused word by
+    accident, and that the `unproven_recolor_audit` escape cannot launder one
+    either.  Written to the T8 refusal-coverage precedent -- a wall the class
+    promised to hit is a wall that gets a test.
+    """
+
+    def test_register_field_copy_refuses_plain_store_against_update_store(
+            self):
+        """CHECK: copy_register_fields' non-register mask.
+        WORD: our stfs f0,252(r4) against the target's stfsu f0,252(r28)."""
+        current = SWBOS_O_STFS_252_R4.to_bytes(4, "big")
+        target = SWBOS_T_STFSU_252_R28.to_bytes(4, "big")
+        with self.assertRaisesRegex(ValueError, "non-register"):
+            copy_register_fields(current, target)
+
+    def test_register_field_copy_refuses_the_split_base_advance(self):
+        """CHECK: the same mask on the OTHER half of the n-to-m pair.
+        WORD: our addi r28,r4,252 against the target's add r28,r23,r0."""
+        current = SWBOS_O_ADDI_R28_R4_252.to_bytes(4, "big")
+        target = SWBOS_T_ADD_R28_R23_R0.to_bytes(4, "big")
+        with self.assertRaisesRegex(ValueError, "non-register"):
+            copy_register_fields(current, target)
+
+    def test_region_recolor_refuses_float_stores_outright(self):
+        """CHECK: recolor_instruction's audited opcode subset.
+        WORD: stfs f0,252(r4), opcode 52.
+
+        A second, independent wall found while writing this class: the
+        `recolors` region mode's audited subset is the D-form INTEGER
+        loads/stores plus addi, rlwinm and three opcode-31 forms.  Float
+        loads and stores (opcodes 48-55) are not in it, so a region-recolor
+        rule cannot even be written across swbos's residual, which is
+        saturated with lfs/stfs.  The base renaming a fusion rule would want
+        is refused before the fused word is ever considered.
+        """
+        for word in (SWBOS_O_STFS_252_R4, SWBOS_T_STFSU_252_R28):
+            with self.assertRaisesRegex(ValueError, "unsupported instruction"):
+                recolor_instruction(word, {4: 28})
+        # addi IS in the subset, so the refusal is about the float form and
+        # not about the mapping.
+        self.assertEqual(
+            recolor_instruction(SWBOS_O_ADDI_R28_R4_252, {4: 23}),
+            0x3B9700FC,  # addi r28,r23,252
+        )
+
+    def test_the_fusion_difference_lies_outside_the_register_slot_mask(self):
+        """CHECK: register_slot_mask, the eligibility predicate itself.
+        WORD: stfs f0,252(r4) XOR stfsu f0,252(r28)."""
+        difference = SWBOS_O_STFS_252_R4 ^ SWBOS_T_STFSU_252_R28
+        self.assertTrue(difference & ~register_slot_mask(SWBOS_O_STFS_252_R4))
+
+    def test_permutation_cannot_manufacture_the_fused_word(self):
+        """CHECK: permute_instruction_atoms' payload conservation.
+        WORD: stfsu f0,252(r28) is absent from our region's word multiset, so
+        no reordering of our stream can produce the target region."""
+        region = _words(SWBOS_O_ADD_R4_R23_R0, SWBOS_O_ADDI_R28_R4_252,
+                        SWBOS_O_STFS_252_R4)
+        target_region = _words(SWBOS_T_ADD_R28_R23_R0,
+                               SWBOS_T_STFSU_252_R28, BLR_WORD)
+        self.assertNotIn(SWBOS_T_STFSU_252_R28,
+                         [int.from_bytes(region[at:at + 4], "big")
+                          for at in range(0, len(region), 4)])
+        for order in ([0, 1, 2], [2, 1, 0], [1, 0, 2], [0, 2, 1]):
+            with self.assertRaises(ValueError):
+                permute_instruction_atoms(
+                    region, order, [],
+                    before_sha256=_sha256(region),
+                    after_sha256=_sha256(target_region),
+                    before_relocations_sha256=_relocation_sha256([]),
+                    after_relocations_sha256=_relocation_sha256([]),
+                )
+
+    def test_unproven_recolor_audit_cannot_launder_a_fusion(self):
+        """CHECK: apply_patch's closing after_sha256 gate.
+        WORD: the audit escape bypasses the recolor PROOF, never the hash, so
+        a register-field edit that leaves stfs as stfs is still refused."""
+        ours = _words(SWBOS_O_ADDI_R28_R4_252, SWBOS_O_STFS_252_R4, BLR_WORD)
+        target = _words(SWBOS_T_ADD_R28_R23_R0, SWBOS_T_STFSU_252_R28,
+                        BLR_WORD)
+        data = _elf_object(ours)
+        target_data = _elf_object(target)
+        patch = {
+            "function": "fn",
+            "before_sha256": _sha256(ours),
+            "after_sha256": _sha256(target),
+            # Recolour the store's base r4 -> r28, the most a register stage
+            # can ever do to this word.
+            "register_fields": [{"at": "0x4", "set": {"16": 28}}],
+            "unproven_recolor_audit": "deliberately unsound, for the test",
+        }
+        with self.assertRaisesRegex(ValueError, "output hash"):
+            apply_patch(data, patch, bytes(target_data))
+
+    def test_copy_register_fields_refuses_the_two_buffer_split(self):
+        """CHECK: the non-register mask on the projection-buffer address.
+        WORD: our single `addi r6,r1,32`, emitted at BOTH call sites, against
+        the target's two distinct `addi r6,r1,84` and `addi r6,r1,80`.
+
+        This is the residual that actually dominates swbos: the target names
+        two stack objects where our build reuses one, so the difference is a
+        frame-slot COUNT, not a renaming.  Both target words are refused.
+        """
+        current = SWBOS_O_ADDI_R6_R1_32.to_bytes(4, "big")
+        for target_word in (SWBOS_T_ADDI_R6_R1_84, SWBOS_T_ADDI_R6_R1_80):
+            with self.assertRaisesRegex(ValueError, "non-register"):
+                copy_register_fields(current, target_word.to_bytes(4, "big"))
+        self.assertNotEqual(SWBOS_T_ADDI_R6_R1_84, SWBOS_T_ADDI_R6_R1_80)
+
+
 def _words(*values: int) -> bytes:
     return b"".join(value.to_bytes(4, "big") for value in values)
 
