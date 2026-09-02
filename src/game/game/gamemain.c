@@ -3574,7 +3574,7 @@ void init_thermometer(void)
 
     enabled = 1;
     playerOffset = 0;
-    lbl_80344790 = lbl_8034478C = playerOffset;
+    lbl_8034478C = lbl_80344790 = playerOffset;
     if ((gGameMode & MODE_GROUP_GAME) != 0 && sSpecialItem10 != 0) {
         players = (u8*)gPlayers;
         player = 0;
