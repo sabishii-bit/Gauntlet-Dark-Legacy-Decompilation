@@ -4016,7 +4016,7 @@ void player_save_controls(s32 i) {
 /* Derive the combat stats from the attribute norms x class ranges.    */
 static inline f32 player_scale_att(f32* att, f32* range)
 {
-    return 0.01 * *att * (range[1] - range[0]) + range[0];
+    return 0.001 * *att * (range[1] - range[0]) + range[0];
 }
 
 #pragma opt_propagation off
@@ -4762,7 +4762,7 @@ static void create_player_blits(s32 i) {
     frame_blit[i][5] = MBCreateBlit(0, 0, *lx, 0x148, 0x14, 0x14);
     for (j = 0; j < 6; j++) {
         mbBlitInit3414(frame_blit[i][j], 1);
-        mbBlitCvtCoord(frame_blit[i][j], 0.1f);
+        mbBlitCvtCoord(frame_blit[i][j], 64000.0f);
     }
     {
         s32 rune;
@@ -4776,7 +4776,7 @@ static void create_player_blits(s32 i) {
                              *lx + rune * 8 + rune / 3 + 0xF, 0x132, -1,
                              -1);
             mbBlitInit3414(rune_blit[i][rune], 1);
-            mbBlitCvtCoord(rune_blit[i][rune], 0.1f);
+            mbBlitCvtCoord(rune_blit[i][rune], 64000.0f);
         }
     }
     for (j = 0; j < 8; j++) {
@@ -4784,12 +4784,12 @@ static void create_player_blits(s32 i) {
         tex = (u32)MBOX_FindTexture_Err(tbuf, NULL, 1);
         crystal_blit[i][j] = MBCreateBlit(0, tex, *lx + j * 12 + 0xC, 300, -1, -1);
         mbBlitInit3414(crystal_blit[i][j], 1);
-        mbBlitCvtCoord(crystal_blit[i][j], 0.1f);
+        mbBlitCvtCoord(crystal_blit[i][j], 64000.0f);
     }
     for (j = 0; j < 4; j++) {
         key_blit[i][j] = MBCreateBlit(0, 0, *lx + 0x1A, j * 3 + 0x142, -1, -1);
         mbBlitInit3414(key_blit[i][j], 1);
-        mbBlitCvtCoord(key_blit[i][j], 0.1f);
+        mbBlitCvtCoord(key_blit[i][j], 64000.0f);
     }
     for (j = 0; j < 7; j++) {
         pm_blit[i][j] = MBNewBlit(*(char**)(tab + j * 20 + 4),
@@ -4817,19 +4817,19 @@ static void create_player_blits(s32 i) {
     tex = (u32)MBOX_FindTexture_Err("BTMBK_LEVL", NULL, 1);
     mbInitBlitEntry(rune13_blit[i], tex, 0);
     mbBlitInit3414(rune13_blit[i], 1);
-    mbBlitCvtCoord(rune13_blit[i], 0.1f);
+    mbBlitCvtCoord(rune13_blit[i], 64000.0f);
     if (lbl_803447C0 != 0) {
         mbBlitUpdateEntry(rune13_blit[i], -1, 0x100);
     }
     player->speak_timer = 0;
     hod_blit[i] = MBCreateBlit(0, 0, *lx + 8, 0x154, 0x10, 0x10);
-    tex = (u32)MBOX_FindTexture_Err("HODICON", NULL, 1);
+    tex = (u32)MBOX_FindTexture_Err("RUNE13", NULL, 1);
     mbInitBlitEntry(hod_blit[i], tex, 0);
     mbBlitInit3414(hod_blit[i], 1);
-    mbBlitCvtCoord(hod_blit[i], 0.1f);
+    mbBlitCvtCoord(hod_blit[i], 64000.0f);
     quest_blit[i] = MBCreateBlit(0, 0, *lx + 0x68, 0x152, 0x10, 0x10);
     mbBlitInit3414(quest_blit[i], 1);
-    mbBlitCvtCoord(quest_blit[i], 0.1f);
+    mbBlitCvtCoord(quest_blit[i], 64000.0f);
     player->node = NULL;
     player->index = i;
 }
