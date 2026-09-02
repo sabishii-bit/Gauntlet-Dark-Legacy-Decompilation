@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "GRAPH lane (sole owner of memory_graph code): close the two retrieval gaps the run-32 pilot measured (claim.measurement.RS_retrieval-pilot-four-functions.20260902.v1 + the RS law). (1) PURE-REORDER INDEX AXIS: laws --residual is non-functional when the multiset is IDENTICAL (no +N/-N tokens \u2014 4 signatures returned byte-identical payloads). Add an indexable signature for reorder-class residuals (e.g. 'IDENTICAL uN' from unpaired count, permutation-window shape, or regnorm genuine/unpaired tuple \u2014 design it, document it, backfill it into the derived index from existing residual data where mechanical). (2) CROSS-FUNCTION TRANSFERABILITY: context <fn> returned ZERO transferable items on 4/4 pilot functions \u2014 add a 'similar residuals elsewhere' section to context/brief: same family/signature/TU-sibling CLOSES (landed exacts + their mechanism prose), ranked by the new evidence scores, capped small. Validate against the pilot's 4 functions: after your change, does retrieval surface each one's actual cure? Print the before/after table \u2014 that IS your acceptance test. (3) AUTO-SPILL machine-readable: the spill stub must carry path + row counts as JSON (programmatic consumers read empty graphs today) + an --inline cap flag. (4) Independent recounts for the remaining derived tables (evidence got one; the others are unguarded \u2014 the 92.6% law). (5) gdlmem validate: incremental or formally retired (document either way). Suites green; parity printed with values; canaries for any index backfill; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:InitControls",
+  "id": "work_claim.retrieval-gap.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-RG",
+  "recorded_at": "2026-09-02T00:57:18Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

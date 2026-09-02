@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, game/game/combat.c: (1) someone_will_be_off_screen via FR's named next axis: eliminate the six memory temporaries by respelling the FloatBits and-mask operations (the two-buffer split is proven and IN the FR record \u2014 re-apply it WITH the respell; the declared-pad axis is measured dead 3x, do not retry). (2) the remaining census tail nearest-first (InitCamera 56 genuine, screen_limitation 48, missile trio ~40 each \u2014 recensus first, the tooling moved). (3) get_cam_wpos's 8 surplus words (source-class per run-31 HV refutation \u2014 the ours-only lfd/lis/mr set). Sibling templates + reloc-symbol VALUES are this TU's measured best levers. 6 pins; pool changes re-derive pins. context per fn; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:someone_will_be_off_screen",
+  "id": "work_claim.combat-close.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CB",
+  "recorded_at": "2026-09-02T00:57:45Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}
