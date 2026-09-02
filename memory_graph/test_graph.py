@@ -1144,6 +1144,78 @@ class ProposalGateTests(unittest.TestCase):
                           attributes={"law_screen": "none applicable: test"})
         self.assertTrue(stage_record_proposal(record, root=self.root).exists())
 
+    # --- Gate G: a postprocessor closure must enumerate its verifiers ----
+    #
+    # attempt.HV_drawmemcardmessage-uninitialised-path-bar-reconfirmed
+    # .20260901.v2 concluded "the postprocessor path is closed and no
+    # permutation repair will reopen it" having run
+    # verify_consistent_recolor and NEVER verify_value_equality_recolor —
+    # the mode the refusal message itself names as an escape. MC re-screened
+    # a run later and had to supersede it. The cap was not wrong, it was
+    # UNDERDETERMINED, and nothing in it said so.
+    CLOSURE = ("insns 204/204. verify_consistent_recolor refuses at +0x1ec,"
+               " so the postprocessor path is closed and no permutation"
+               " repair will reopen it")
+
+    def test_postprocessor_closure_without_verifiers_run_is_refused(self):
+        record = _attempt(
+            "attempt.closure.v1", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.CLOSURE})
+        with self.assertRaisesRegex(MemoryGraphError, "verifiers_run"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_postprocessor_closure_with_verifiers_run_is_accepted(self):
+        record = _attempt(
+            "attempt.closure.v2", "function:test_fn", outcome="capped",
+            verifiers_run=["copy_register_fields",
+                           "verify_consistent_recolor",
+                           "verify_value_equality_recolor"],
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.CLOSURE})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_g_error_names_the_shipped_verifier_surface(self):
+        """The message has to tell the author what there was to run."""
+        record = _attempt(
+            "attempt.closure.v3", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.CLOSURE})
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=self.root)
+        message = str(caught.exception)
+        self.assertIn("verify_value_equality_recolor", message)
+        # cites the motivating record by id (its slug is lowercased)
+        self.assertIn("drawmemcardmessage", message)
+
+    def test_gate_g_only_fires_on_veto_outcomes(self):
+        """An IMPROVED record vetoes nothing, so it is not taxed — the same
+        narrowing gate C took."""
+        record = _attempt(
+            "attempt.closure.v4", "function:test_fn", outcome="improved",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": self.CLOSURE})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_g_does_not_fire_on_a_single_verifier_report(self):
+        """Reporting ONE verifier's refusal without generalising from it is
+        not a closure claim and is not gated."""
+        record = _attempt(
+            "attempt.closure.v5", "function:test_fn", outcome="capped",
+            attributes={
+                "law_screen": "none applicable: test",
+                "residual": "verify_consistent_recolor refuses at +0x1ec"
+                            " with 'use of g28 does not correspond to g25';"
+                            " next lane should try the value-equality mode"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_g_ignores_a_record_with_no_webfrank_vocabulary(self):
+        record = _attempt(
+            "attempt.closure.v6", "function:test_fn", outcome="capped",
+            attributes={"law_screen": "none applicable: test",
+                        "residual": "the path is closed for source work"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
 
 class RetrievalQueryTests(unittest.TestCase):
     """residual / family / capability queries, slug + pin indexing, brief."""

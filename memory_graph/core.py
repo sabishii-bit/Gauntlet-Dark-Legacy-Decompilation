@@ -338,6 +338,46 @@ _RECORD_ID_RE = re.compile(
 # ones that VETO an axis. See gate C.
 HELD_FIXED_OUTCOMES = frozenset({"negative", "parked", "capped"})
 
+# Gate G (run 37): a postprocessor REFUSAL must enumerate WHICH verifiers ran.
+#
+# The shipped verifier surface. A refusal that names one of these reads as a
+# verdict about the whole postprocessor path, and the corpus has already paid
+# for that: attempt.HV_drawmemcardmessage-uninitialised-path-bar-reconfirmed
+# .20260901.v2 concluded "the postprocessor path is closed and no permutation
+# repair will reopen it" having run verify_consistent_recolor and NEVER
+# verify_value_equality_recolor — the very mode the refusal message names as
+# an escape. MC re-screened a run later, found the missing verifier also
+# refuses (for a different and better reason), and had to supersede the cap.
+# The cap was not wrong; it was UNDERDETERMINED, and nothing in it said so.
+WEBFRANK_VERIFIERS = (
+    "copy_register_fields",
+    "verify_consistent_recolor",
+    "verify_value_equality_recolor",
+    "verify_relocation_binding",
+    "instruction_permutation",
+    "unproven_recolor_audit",
+)
+_WEBFRANK_VERIFIER_RE = re.compile(
+    r"\b(?:" + "|".join(WEBFRANK_VERIFIERS) + r")\b"
+    r"|\bvalue[- ]equality\b|\bconsistent[- ]recolor\b|\bwebfrank\b",
+    re.I,
+)
+# The claim the enumeration has to back: the postprocessor path is CLOSED.
+# Narrow and literal, like gate D's vocabulary — a record that merely reports
+# one verifier's refusal without generalising from it is not making this
+# claim and is not taxed.
+_POSTPROCESSOR_CLOSED_RE = re.compile(
+    r"(?:postprocessor|webfrank)[- ](?:path|route|class)"
+    r"\s*(?:is|are|remains?|stays?)?\s*(?:therefore\s+)?closed"
+    r"|path (?:is|remains) closed"
+    r"|no (?:permutation )?(?:repair|rule|class) (?:will|can|could)"
+    r"\s+(?:ever\s+)?(?:reopen|close|reach|help)"
+    r"|every (?:existing )?(?:postprocessor )?class refuses"
+    r"|outside every postprocessor class"
+    r"|not (?:a )?(?:webfrank|postprocessor)[- ](?:candidate|class)",
+    re.I,
+)
+
 PDB_MODULE_RE = re.compile(r"^==\s+\.\\Release\\(.+?)\s+\((.*?)\)\s*$", re.I)
 PDB_SYMBOL_RE = re.compile(
     r"^\[(\d{4}):([0-9A-Fa-f]{8})\]\s+([0-9A-Fa-f]+)\s+([GLD])\s+(.*)$"
@@ -3409,6 +3449,14 @@ def record_template(kind: str) -> dict[str, Any]:
             "held_fixed": "<OPTIONAL, REQUIRED when probed_form enumerates"
                           " more than one edit: the variable this park held"
                           " CONSTANT while varying the others>",
+            "verifiers_run": "<OPTIONAL, REQUIRED when the record closes the"
+                             " POSTPROCESSOR path for a function: the list of"
+                             " verifiers you ACTUALLY ran ("
+                             + ", ".join(WEBFRANK_VERIFIERS) + ")."
+                             " A refusal from a partial screen measures the"
+                             " SCREEN, not the function; say which you did"
+                             " NOT run and why, because 'not run' and"
+                             " 'refused' are different findings>",
             "denial": {
                 "scope": "<REQUIRED if present, and REQUIRED on any record"
                          " using do-not-retry / not-a-candidate / ineligible"
@@ -3812,6 +3860,48 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
                     "closure.20260901.v1. If the probe really varied one"
                     " thing, say so in held_fixed."
                 )
+
+    # Gate G (run 37). A refusal that closes the POSTPROCESSOR path for a
+    # function must enumerate WHICH verifiers were actually run. AGENTS.md
+    # discipline 14 already says a guard's refusal is a measurement of the
+    # GUARD; this is the same fact one level up — a refusal from a PARTIAL
+    # screen is a measurement of the SCREEN, and a reader cannot tell the
+    # two apart unless the record lists what ran.
+    #
+    # Anchored and substance-projected exactly like gates B, D and E, so a
+    # methodology law ABOUT refusals, and a record merely CITING somebody
+    # else's refusal, are both excluded by construction rather than by
+    # wording.
+    if (anchored
+            and record.get("kind") == "attempt"
+            and str(record.get("outcome", "")).lower() in HELD_FIXED_OUTCOMES
+            and _WEBFRANK_VERIFIER_RE.search(substance)
+            and not _record_field(record, "verifiers_run")):
+        closed = _POSTPROCESSOR_CLOSED_RE.search(substance)
+        if closed:
+            raise MemoryGraphError(
+                "a record closing the POSTPROCESSOR path for a function"
+                f" (matched {' '.join(closed.group(0).split())!r}) must"
+                " enumerate WHICH verifiers ran, in `verifiers_run`. A"
+                " refusal from a PARTIAL screen is a measurement of the"
+                " SCREEN, not of the function, and nothing in the record"
+                " distinguishes them:"
+                " attempt.HV_drawmemcardmessage-uninitialised-path-bar-"
+                "reconfirmed.20260901.v2 concluded \"the postprocessor path"
+                " is closed and no permutation repair will reopen it\""
+                " having run verify_consistent_recolor and NEVER"
+                " verify_value_equality_recolor — the mode the refusal"
+                " message itself names as an escape. It read as a total"
+                " closure, it was underdetermined, and MC had to re-screen"
+                " and supersede it a run later. The shipped verifier"
+                " surface is: " + ", ".join(WEBFRANK_VERIFIERS) + "."
+                "\nSet `verifiers_run` to the list you actually ran, e.g."
+                " [\"copy_register_fields\", \"verify_consistent_recolor\","
+                " \"verify_value_equality_recolor\"] — and if you"
+                " deliberately did NOT run one, say which and why in the"
+                " same list entry, because \"not run\" and \"refused\" are"
+                " different findings."
+            )
     return warnings
 
 
