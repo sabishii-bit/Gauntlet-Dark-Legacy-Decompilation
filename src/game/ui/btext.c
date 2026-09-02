@@ -849,10 +849,11 @@ void SetScrollLevelMsgList(s32 level, const char* suffix)
 s32 FindStringMessageListSub_8001FC4C(s32 list, const u8* name)
 {
     s32 i;
+    s32 nameOffset;
 
     for (i = 0; i < gScrollMsgList[list].nName; i++) {
-        if (stricmp(gScrollMsgList[list].nameData +
-                    gScrollMsgList[list].nameOff[i], name) == 0) {
+        nameOffset = gScrollMsgList[list].nameOff[i];
+        if (stricmp(gScrollMsgList[list].nameData + nameOffset, name) == 0) {
             break;
         }
     }
