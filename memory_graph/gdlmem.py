@@ -75,6 +75,30 @@ from memory_graph.core import (
 SPILL_THRESHOLD = 24000
 
 
+def result_row_counts(result: object) -> dict[str, int]:
+    """Row counts per top-level key of a result payload.
+
+    RUN 33 (RG). The auto-spill stub used to carry only a path and a byte
+    count, and claim.law.RS_residual-retrieval-is-blind-to-pure-reorder-
+    residuals records what that cost: a collector parsing stdout as the result
+    read 0 records and scored all four pilot functions as "(no records
+    surfaced)" for both queries, when the real payloads were 49-72 KB carrying
+    95-111 records each. A machine consumer needs to know FROM THE STUB whether
+    the query found anything — a stub that cannot distinguish "spilled 111
+    rows" from "spilled an empty graph" turns a successful query into a
+    measured-silent one.
+    """
+    counts: dict[str, int] = {}
+    if not isinstance(result, dict):
+        return counts
+    for key, value in result.items():
+        if isinstance(value, (list, tuple)):
+            counts[key] = len(value)
+        elif isinstance(value, dict):
+            counts[key] = len(value)
+    return counts
+
+
 def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -86,6 +110,13 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
                         help="write result JSON to this file (UTF-8, no BOM)"
                              " instead of stdout — immune to PowerShell pipe"
                              " re-encoding and Bash/Windows path mismatches")
+    parser.add_argument("--inline", type=int, default=None, metavar="BYTES",
+                        help=f"raise the auto-spill cap from the default"
+                             f" {SPILL_THRESHOLD} bytes; 0 disables spilling"
+                             " and always prints inline. Large results"
+                             " normally spill to build/gdlmem_out/ and print a"
+                             " machine-readable stub carrying the path AND"
+                             " per-key row counts")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     build = subparsers.add_parser("build", help="atomically rebuild the SQLite graph")
@@ -298,18 +329,32 @@ def main(argv: list[str] | None = None) -> int:
                          sort_keys=True, default=str)
     # Shell pipes (Bash tool, PowerShell tail) silently truncate large
     # stdout; spill big results to a file and print the pointer instead.
-    if len(payload) > SPILL_THRESHOLD:
+    threshold = SPILL_THRESHOLD if args.inline is None else max(0, args.inline)
+    if threshold and len(payload) > threshold:
         spill_dir = root / "build" / "gdlmem_out"
         spill_dir.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
         spill = spill_dir / f"{args.command}-{stamp}.json"
         spill.write_text(payload, encoding="utf-8")
+        row_counts = result_row_counts(result)
         print(json.dumps({
             "large_output": str(spill),
             "bytes": len(payload),
+            "command": args.command,
+            "spill_threshold": threshold,
+            # THE POINT OF THE STUB: a programmatic consumer must be able to
+            # tell a spilled 111-row result from a spilled empty one WITHOUT
+            # opening the file. Reading this stub as the result and finding no
+            # rows is what scored a live graph as silent in the run-32 pilot.
+            "row_counts": row_counts,
+            "total_rows": sum(row_counts.values()),
+            "keys": sorted(row_counts),
             "hint": "result exceeds safe stdout size; Read the file"
-                    " (do not re-run the query)",
-        }, indent=2))
+                    " (do not re-run the query). THIS STUB IS NOT THE RESULT:"
+                    " row_counts reports what the spilled file holds.",
+            "inline_hint": f"--inline {len(payload) + 1} prints it inline"
+                           " instead; --inline 0 disables spilling entirely",
+        }, indent=2, sort_keys=True))
         return 0
     print(payload)
     return 0
