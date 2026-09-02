@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, game/game/player.c: (1) PT's 7-row constant handover (do_got_it GOLD/KEYS strings + the 63980/63979 64000-family pair; load_player_geo %%sDUMMY/BOMB; mini_inventory_draw_label 0.45f x2; do_see_thru 0.65f; PlayerProcessSkinFX 1.2) \u2014 each needs SET-DETECTOR corroboration before any edit (positional rows alone are noise; the PT records show the method; probe emits NEUTRAL-DATA-ONLY, arbitrate by value audit). (2) do_players (real 1024, 44 clusters): the PTA axis is measured-and-lost \u2014 the recorded finding is that the target's two-load/two-base shape needs TWO DIFFERENT SPELLINGS of the same access (MWCC CSEs identical spellings); design and probe that axis (the PT record carries the NEUTRAL-IDENTICAL trail); any upstream-of-pin probe uses the wf_rederive_pin flow (or probe --rederive-pin if T4 lands it first). context per fn; hypothesis-screen against the aligned view BEFORE builds; gate = 'main.dol: OK'; pins screened; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:do_players",
+  "id": "work_claim.player-constants.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PC",
+  "recorded_at": "2026-09-02T02:49:14Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

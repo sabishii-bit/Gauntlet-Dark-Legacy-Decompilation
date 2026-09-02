@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, game/movie/movieplayer.cpp (40/52; the flip chart is the map): (1) fn_800D8BCC \u2014 118-word renaming with only 4 unabsorbed (87FC's sibling; the chart calls it source-first: close the 4 unabsorbed words at source, then it is recolor-candidate territory w/ its trail as provenance). (2) fn_800D86C8 \u2014 two byte loads with SWAPPED displacements (+3/+0 vs +0/+3) + an already-LEGAL 2-atom permute + 2 large runs: fix the displacement swap at source (likely an index-expression order), then screen. (3) PlayVQMovie \u2014 the TU's largest debt (52 unabsorbed in 392 insns, 3 r31 frame-slot deltas + branch disps + 2 head clusters): decompose honestly, park with typed hypotheses if it walls. C++ kit applies; vetoed fns stay vetoed; pins screened; context per fn; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:fn_800D8BCC",
+  "id": "work_claim.movieplayer-source.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-MV",
+  "recorded_at": "2026-09-02T02:49:34Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

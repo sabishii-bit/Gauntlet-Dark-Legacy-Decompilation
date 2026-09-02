@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, game/world/gauntworld: (1) fn_800606FC from 97.52/29 clusters (the sign-extension + volatile-Newton levers landed; census-decompose the remaining clusters, nearest first; the neg cluster stays vetoed). (2) fn_8005C1DC from 354 (the extsh+frsp pass landed; 26t remains \u2014 re-census, next mechanism). (3) fn_8005F0F4 is WF's this run (postprocessor candidacy) \u2014 do NOT touch its source; if WF refuses it, its record comes back to source work next run. context per fn; laws --residual now DISCRIMINATES (run-33 rebuild \u2014 use it; signatures in canonical u/i/g form); gate = 'main.dol: OK'; pins screened, re-derive on pool changes; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:fn_800606FC",
+  "id": "work_claim.gauntworld-continue.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-GW",
+  "recorded_at": "2026-09-02T02:49:27Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

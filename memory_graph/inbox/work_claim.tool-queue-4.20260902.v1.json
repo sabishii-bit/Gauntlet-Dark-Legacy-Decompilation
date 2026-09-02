@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "TOOL lane (owns tools/gdl + the named gdlmem surfaces): the run-34 queue, one commit per item, criticisms cited, refute-with-measurement allowed. (1) DATA-SECTION COLUMN \u2014 WS's frame-widening class: a keep improved every .text arbiter while destroying a 208-byte extab match. probe: on EVERY verdict print a DATA line when non-text sections changed (the NEUTRAL-DATA-ONLY machinery generalizes); defake_gate: snapshot per-TU data-section digests in the baseline and flag changes as their own verdict class. (2) probe prints regnorm GENUINE rows on CONFLICT/NEUTRAL-WORSE (the token count is unsound under cancelling pairs \u2014 closing a genuine row RAISED it; regnorm.analyze is in-process fast now). (3) --revert snapshots the TU's webfrank pin hashes alongside source, or warns when a pin was re-derived since banking (GT hand-restored both). (4) fndiff --relocs: first-class target/ours relocation-symbol-set delta with addresses resolved from symbols.txt (CB hand-rolled it twice; it was decisive both times). (5) --ops prints 'IMMEDIATE rows: N (suppressed)' instead of silently truncating (CB's false frame-collapse). (6) laws --query: print per-term hit counts and OR-rank (silent AND-combining returned 0 on 'reloc blind real naming'). (7) verify the MB gate narrowings landed in code (describes_denial_of escape; held_fixed keyed on outcome in negative/parked/capped) \u2014 implement if RG shipped them as records only. (8) cs_constsweep ranks set-corroborated rows first. (9) probe --rederive-pin: one call = body build + wf_rederive_pin + paste + configure (PT measured ~5 steps/2 builds per upstream probe). (10) propose-record --template: stop sort_keys burying schema_version. (11) AGENTS trap: [System.IO.File] requires absolute paths BOTH sides (.NET CWD split \u2014 measured twice). Suites green per item; ninja 'main.dol: OK' at close; expected verdict changes stated; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:writeGauntletSave",
+  "id": "work_claim.tool-queue-4.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-T4",
+  "recorded_at": "2026-09-02T02:49:00Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}
