@@ -3075,7 +3075,7 @@ f32 fn_8005C1DC(Item* item, f32 power, s32 flags, s32 owner)
             mult = sItemFloorRadius;
         }
         power = power * mult;
-        if (power < (f32)lbl_80346EE8) {
+        if (power < lbl_80346EE8) {
             power = sItemFloorRadius;
         }
     }
@@ -3257,7 +3257,8 @@ found_gen:
             *(s16*)&item->data[0] = (s16)k;
             AudioPlayEvt101(&v[1]);
             alive = 1;
-            *(s16*)&item->data[2] = (s16)(lbl_80346F6C * power);
+            k = (s32)(lbl_80346F6C * power);
+            *(s16*)&item->data[2] = (s16)k;
         } else if (destroyed != 0 && (item->active & 0x200) != 0) {
             if ((item->active & 1) == 0) {
                 item->active |= 1;
