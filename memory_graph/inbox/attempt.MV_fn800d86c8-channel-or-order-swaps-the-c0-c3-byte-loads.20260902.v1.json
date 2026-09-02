@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Swap the two operands of the inner OR sub-expression so the /256 channels evaluate c0 (byte 0, <<8) before c3 (byte 3, <<24), matching the target's byte-load evaluation order.",
+  "attributes": {
+    "axis_log": "IMPROVED: inner-OR operand swap c0-before-c3 -> real 28->20, byte loads @28/@34 matched. NEGATIVE: three-statement OR split (real 20->26); left-associative (A|B)|C grouping (real 20->46); two-statement split of the <<16 term (real 20->22, +1 cluster). Remaining slwi<<8/<<24/<<16 rotation is schedule-class (top-OR evaluated right-to-left by MWCC); three distinct source axes to force <<16-first all regressed.",
+    "law_screen": "none applicable: this is a matching (not de-fakematch) reorder of an evaluation-order residual on an already opcode-identical (0t) function; the core-screen defake laws (offsetof/alias/lwzu web laws) do not govern an OR-operand order swap. claim.law.fuzzy-can-underweight-a-real-improvement APPLIED as the arbitration rule (see verification).",
+    "probed_form": "value |= (u32)(c2 + c5 + 16) << 16\n               | ((u32)(c0 + 16) << 8 | (u32)(c3 + 16) << 24);   // was ((c3+16)<<24 | (c0+16)<<8)",
+    "scope": "src/game/movie/movieplayer.cpp, fn_800D86C8, one OR-operand swap. Committed 3bc3fb0e5.",
+    "verification": "probe.py: real 28 -> 20 (parity-held, T47/O47, multiset 0t). Baseline fuzzy 84.7447 -> swap 84.6809 (a 0.064 dip). Arbitrated per claim.law.fuzzy-can-underweight-a-real-improvement: the --ops diff shows the two byte-load displacements @28 (byte0) and @34 (byte3) now match the target EXACTLY (they were swapped +3/+0 at baseline) \u2014 a genuine structural channel-order fix; the finer metric (real, -8) wins the marginal fuzzy dip. defake_gate check --rebuild: GATE OK (1 improved, no sibling regressed). full ninja: build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:fn_800D86C8",
+  "held_fixed": "The six per-pixel channel computations (c0..c5), their *224/512 and *224/256 scalings, the value accumulation `value = c1+8; value += c4+8;`, the outer `(c2+c5+16)<<16` term, the store `*(u32*)(out + i*4)`, the `param_2 += 6` walk and the loop bound `cnt = param_3<<1` were all held byte-constant; only the ORDER of the two operands inside the innermost parenthesised OR was changed.",
+  "id": "attempt.MV_fn800d86c8-channel-or-order-swaps-the-c0-c3-byte-loads.20260902.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-02T03:25:41Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-02",
+    "signature": "opcode multiset IDENTICAL (47/47); after fix 3 IMMEDIATE slwi rows differ by rotation (ours <<8,<<24,<<16 vs target <<16,<<8,<<24)"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
