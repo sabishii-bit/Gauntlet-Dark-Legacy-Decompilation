@@ -74,6 +74,18 @@ edit -> probe -> hand-retype-revert -> probe cycle. The snapshot covers the
 TU's own .c/.cpp only — header edits are yours to manage — and the banked
 state is per-unit, so probe a BASELINE before your first edit of a session.
 
+TWO revert points, and the second one no longer depends on the first
+verdict. The ROLLING snapshot moves with every banking verdict, NEUTRAL
+included — that is deliberate (a gated neutral de-fakematch state is as
+good as best, and not banking it made --revert throw the work away twice).
+The SESSION BASELINE does not move. Before run 36 it was written only when
+the verdict was literally BASELINE, so a worker whose first probe landed
+NEUTRAL — the normal case when a state file survives from an earlier
+session — got no baseline at all and lost the pre-edit state to the next
+neutral re-bank (CL, run 35). The first bank on a unit now creates it
+whatever the verdict, it is never overwritten silently, and --rebaseline
+is the deliberate override.
+
 Escape hatches (a worker concluded --discard "does not exist" because this
 docstring omitted it — the flags below all work):
   --discard          restore the TU to HEAD (the neutral-edit undo)
@@ -92,6 +104,10 @@ docstring omitted it — the flags below all work):
                      revert restores the SOURCE and leaves the re-derived
                      hashes in webfrank.json, which GW measured as ~2 of 15
                      probe cycles spent on pure pin plumbing
+  --rebaseline       deliberately MOVE the session baseline to the current
+                     state. The baseline is created by the first bank on a
+                     unit whatever verdict caused it, and is never
+                     overwritten silently; this is the override
   --no-fuzzy-gate    skip the pre-bank fresh-fuzzy measurement (below).
                      Faster, and how the loop behaved before run 36 — but
                      a keep banked this way is unarbitrated
@@ -539,7 +555,49 @@ def bank_warning(kind, changed_lines, unit=None, fn=None):
     return ""
 
 
-def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None):
+def baseline_bank_decision(kind, base_exists, rebaseline=False):
+    """(action, message) for the SESSION BASELINE file on one bank.
+
+    action is "create", "keep" or "overwrite".
+
+    Run-35 criticism (CL): the session baseline was written only when the
+    VERDICT was BASELINE. A worker whose first probe on a function landed
+    NEUTRAL — the normal case when a state file survives from an earlier
+    session, or when the first edit folds away — therefore never got one at
+    all, and the rolling snapshot (which NEUTRAL probes deliberately move
+    onto the edit) was the only revert point in existence. The pre-edit
+    state was then unreachable except through git, and T5's warning about
+    it was printed and read past.
+
+    So: the FIRST bank of a session creates the baseline whatever verdict
+    caused it, and once it exists nothing overwrites it silently. Refusing
+    the ROLLING bank instead would re-introduce the older regression this
+    tool already fixed — a gated NEUTRAL de-fakematch state is as good as
+    best, and not banking it made --revert throw the work away twice.
+    """
+    if base_exists and rebaseline:
+        return "overwrite", (
+            "[--rebaseline: the SESSION BASELINE has been OVERWRITTEN with"
+            " the current state. --revert-baseline can no longer reach the"
+            " state it held before this call.]")
+    if base_exists:
+        return "keep", (
+            "" if kind != "BASELINE" else
+            "[session baseline already banked for this unit and is NOT"
+            " overwritten — a BASELINE verdict here re-banked only the"
+            " ROLLING revert point. --revert-baseline still reaches the"
+            " ORIGINAL baseline; --rebaseline moves it here deliberately.]")
+    return "create", (
+        "[session baseline banked: probe.py --revert-baseline restores THIS"
+        " state]" if kind == "BASELINE" else
+        f"[session baseline banked from a {kind} verdict — this is the"
+        " FIRST bank on this unit, and the rolling revert point moves with"
+        " later NEUTRAL probes while this one does not. --revert-baseline"
+        " restores THIS state.]")
+
+
+def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None,
+                  rebaseline=False):
     snap = snapshot_path(unit, source)
     shutil.copyfile(source, snap)
     head = git_head()
@@ -553,21 +611,26 @@ def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None):
     snap.with_suffix(snap.suffix + ".pins").write_text(
         json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
         encoding="utf-8")
-    # The FIRST baseline of a session is banked separately and never
-    # overwritten: NEUTRAL probes re-bank the rolling snapshot, so
-    # --revert restores the last neutral edit rather than the pristine
-    # state (five workers hit this). --revert-baseline reaches past that.
-    if baseline:
-        base = snap.with_suffix(snap.suffix + ".base")
-        if not base.exists():
-            shutil.copyfile(source, base)
-            base.with_suffix(base.suffix + ".pins").write_text(
-                json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
-                encoding="utf-8")
+    # The FIRST bank of a session is ALSO written to a separate baseline
+    # file which nothing overwrites silently: NEUTRAL probes re-bank the
+    # rolling snapshot, so --revert restores the last neutral edit rather
+    # than the pristine state (five workers hit this). --revert-baseline
+    # reaches past that — but only if a baseline exists, which before run
+    # 36 required the first verdict to BE a BASELINE.
+    base = snap.with_suffix(snap.suffix + ".base")
+    kind = verdict_kind or ("BASELINE" if baseline else "BANK")
+    action, note = baseline_bank_decision(kind, base.exists(), rebaseline)
+    if action in ("create", "overwrite"):
+        shutil.copyfile(source, base)
+        base.with_suffix(base.suffix + ".pins").write_text(
+            json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
+            encoding="utf-8")
+    if note:
+        print(note)
     # Say WHAT was banked (run 34 item 2). A BASELINE taken over an edited
     # tree is not a baseline, and a NEUTRAL bank moves the revert point onto
-    # an edit — both silent until now.
-    kind = verdict_kind or ("BASELINE" if baseline else None)
+    # an edit — both silent until now. (`kind` is the one computed above;
+    # its "BANK" fallback matches neither arm, exactly as the old None did.)
     if kind in ("BASELINE", "NEUTRAL"):
         warning = bank_warning(
             kind, bank_divergence(source.read_bytes(), head_bytes(source)),
@@ -2109,7 +2172,8 @@ def main():
         kind = verdict.split()[0]
         bank_snapshot(unit, source,
                       baseline=verdict.startswith("BASELINE"),
-                      verdict_kind=kind, fn=fn)
+                      verdict_kind=kind, fn=fn,
+                      rebaseline="--rebaseline" in sys.argv)
         # Name WHICH verdict banked: the discard path differs (a banked
         # NEUTRAL means --revert restores the PROBE, so discarding it
         # needs git), and the identical banner hid that twice.

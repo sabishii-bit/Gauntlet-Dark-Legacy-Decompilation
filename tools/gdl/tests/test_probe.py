@@ -16,7 +16,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
-                   apply_fuzzy_bank_gate, arbitrate_table, bank_divergence,
+                   apply_fuzzy_bank_gate, arbitrate_table,
+                   baseline_bank_decision, bank_divergence,
                    bank_warning, banks_best, classify,
                    conflict_gate, count_distance,
                    data_line, format_genuine_note, function_span,
@@ -58,6 +59,43 @@ class CountDistanceTests(unittest.TestCase):
     def test_unparseable_is_none(self):
         self.assertIsNone(count_distance("exact"))
         self.assertIsNone(count_distance(None))
+
+
+class BaselineBankDecisionTests(unittest.TestCase):
+    """Run-35 item 2: CL lost its pre-edit state to a NEUTRAL re-bank."""
+
+    def test_a_neutral_first_bank_still_creates_the_session_baseline(self):
+        action, note = baseline_bank_decision("NEUTRAL", base_exists=False)
+        self.assertEqual(action, "create")
+        self.assertIn("--revert-baseline restores THIS state", note)
+
+    def test_a_baseline_first_bank_creates_it_too(self):
+        action, note = baseline_bank_decision("BASELINE", base_exists=False)
+        self.assertEqual(action, "create")
+        self.assertIn("--revert-baseline", note)
+
+    def test_an_existing_baseline_is_never_overwritten_silently(self):
+        for kind in ("NEUTRAL", "IMPROVED", "REBASED", "BANK"):
+            action, note = baseline_bank_decision(kind, base_exists=True)
+            self.assertEqual(action, "keep", kind)
+            self.assertEqual(note, "", kind)
+
+    def test_a_second_baseline_verdict_says_the_bank_was_refused(self):
+        action, note = baseline_bank_decision("BASELINE", base_exists=True)
+        self.assertEqual(action, "keep")
+        self.assertIn("NOT overwritten", note)
+        self.assertIn("--rebaseline", note)
+
+    def test_rebaseline_overrides_and_announces_the_loss(self):
+        action, note = baseline_bank_decision("NEUTRAL", base_exists=True,
+                                              rebaseline=True)
+        self.assertEqual(action, "overwrite")
+        self.assertIn("OVERWRITTEN", note)
+
+    def test_rebaseline_on_a_missing_baseline_is_just_a_create(self):
+        action, _ = baseline_bank_decision("NEUTRAL", base_exists=False,
+                                           rebaseline=True)
+        self.assertEqual(action, "create")
 
 
 class BanksBestTests(unittest.TestCase):
