@@ -2204,7 +2204,9 @@ s32 do_players(void) {
         }
     }
     if (i < 4 && gGameMode != MG_SHOP) {
-        fn_8009D610(0, PT(i)->col_pos);
+        u8* prec = (u8*)potionicon_tab + i * PREC_STRIDE;
+
+        fn_8009D610(0, ((Player*)(prec + 0xC40))->col_pos);
     } else {
         fn_8009D610(2, NULL);
     }
