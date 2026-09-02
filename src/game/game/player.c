@@ -5385,9 +5385,12 @@ void PlayerProcessPowerups(void* vp) {
         void* wnode;
 
         if (kind != 0) {
-            void* source = WeapHoldFxTree[index][kind];
-            void* parent = p->hand_node;
+            void* source;
+            void* parent;
             s32 tree_flags = 0x81880;
+
+            parent = p->hand_node;
+            source = WeapHoldFxTree[index][kind];
 
             if (p->weaphold_atree != NULL &&
                 (source == NULL ||
