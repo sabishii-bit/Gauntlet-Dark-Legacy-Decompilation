@@ -12,6 +12,7 @@ import json
 import math
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -640,7 +641,15 @@ def default_database_path(root: Path = REPO_ROOT) -> Path:
     return root / ".gdl-memory" / "memory.sqlite"
 
 
-def _iter_input_paths(root: Path) -> Iterator[Path]:
+def _iter_record_input_paths(root: Path) -> Iterator[Path]:
+    """Inputs a worker's own session mutates: records/, inbox/, legacy/.
+
+    Split out of `_iter_input_paths` (run 40, T10) so `ensure_database` can
+    tell "someone staged a proposal" from "the PDB or a tool changed". A
+    `propose-record` writes into inbox/, which invalidated the whole
+    fingerprint and made the NEXT gdlmem call pay a full rebuild — the
+    tool's own output was its own cache-buster.
+    """
     for base in (RECORDS_DIR, INBOX_DIR):
         adjusted = root / base.relative_to(REPO_ROOT)
         if adjusted.exists():
@@ -649,6 +658,10 @@ def _iter_input_paths(root: Path) -> Iterator[Path]:
     if legacy.exists():
         for suffix in ("*.md", "*.txt"):
             yield from sorted(legacy.rglob(suffix))
+
+
+def _iter_static_input_paths(root: Path) -> Iterator[Path]:
+    """Inputs that materialize the symbol/PDB/tool tables the records join against."""
     for path in (
         root / "config" / "GUNE5D" / "symbols.txt",
         root / "config" / "GUNE5D" / "splits.txt",
@@ -673,6 +686,11 @@ def _iter_input_paths(root: Path) -> Iterator[Path]:
         if path.exists():
             yield path
     yield from _iter_tool_source_paths(root)
+
+
+def _iter_input_paths(root: Path) -> Iterator[Path]:
+    yield from _iter_record_input_paths(root)
+    yield from _iter_static_input_paths(root)
 
 
 def _iter_tool_source_paths(root: Path) -> Iterator[Path]:
@@ -704,21 +722,56 @@ def source_fingerprint(root: Path = REPO_ROOT) -> str:
     syscall at all; the resolving form is kept as the fallback for a root
     the caller passed in some other shape.
     """
-    digest = hashlib.sha256()
+    return input_fingerprints(root)["combined"]
+
+
+def input_fingerprints(root: Path = REPO_ROOT) -> dict[str, str]:
+    """Fingerprint each input CLASS as well as the combination.
+
+    `combined` is byte-for-byte the old `source_fingerprint` digest — the
+    same paths hashed in the same order — so a database built before this
+    split is still recognized as current. The three class digests are what
+    let `ensure_database` distinguish the three cases that used to be one
+    undifferentiated "stale":
+
+      * `static` moved (PDB, symbol tables, tools, core.py, schema)
+        -> a full build is genuinely required;
+      * `accepted` moved (records/, legacy/) -> the record class is
+        re-imported into a copy, keeping the symbol and PDB tables;
+      * only `inbox` moved -> a caller that reads the inbox off disk
+        (propose-record does) needs no work at all.
+
+    Paths are attributed by class in ONE pass while `combined` keeps the
+    original iteration order, so no digest costs an extra walk.
+    """
+    combined = hashlib.sha256()
+    digests = {name: hashlib.sha256()
+               for name in ("accepted", "inbox", "static")}
     root_resolved = root.resolve()
-    for path in _iter_input_paths(root):
-        stat = path.stat()
-        try:
-            key = path.relative_to(root).as_posix()
-        except ValueError:
+    inbox_dir = (root / INBOX_DIR.relative_to(REPO_ROOT))
+    for paths, default_class in (
+        (_iter_record_input_paths(root), "accepted"),
+        (_iter_static_input_paths(root), "static"),
+    ):
+        for path in paths:
+            stat = path.stat()
             try:
-                key = path.relative_to(root_resolved).as_posix()
+                key = path.relative_to(root).as_posix()
             except ValueError:
-                key = _repo_relative(root, path)
-        digest.update(key.encode("utf-8"))
-        digest.update(str(stat.st_size).encode("ascii"))
-        digest.update(str(stat.st_mtime_ns).encode("ascii"))
-    return digest.hexdigest()
+                try:
+                    key = path.relative_to(root_resolved).as_posix()
+                except ValueError:
+                    key = _repo_relative(root, path)
+            blob = (key.encode("utf-8") + str(stat.st_size).encode("ascii")
+                    + str(stat.st_mtime_ns).encode("ascii"))
+            name = default_class
+            if default_class == "accepted" and path.is_relative_to(inbox_dir):
+                name = "inbox"
+            digests[name].update(blob)
+            combined.update(blob)
+    result = {name: digest.hexdigest() for name, digest in digests.items()}
+    result["combined"] = combined.hexdigest()
+    return result
 
 
 def _open_raw(path: Path, *, readonly: bool = False) -> sqlite3.Connection:
@@ -1167,34 +1220,101 @@ def _import_pdb_types(connection: sqlite3.Connection, root: Path) -> tuple[int, 
     return type_count, field_count
 
 
+# INDEXED BY is not decoration. This join runs DURING a build, before the
+# closing ANALYZE, so the planner has no statistics and picked
+# binary_symbol_raw_name_idx for the INNER table — an index on
+# (platform, symbol_kind, raw_name), which constrains nothing here. Each of
+# the 2,989 GameCube functions then scanned all 7,405 Xbox functions: 22M
+# row comparisons, 8.79s for the COUNT and 8.61s again for the INSERT, i.e.
+# 57-74% of the entire graph build. The same query against the FINISHED
+# (analyzed) database answers in 0.00s off binary_symbol_name_idx, which is
+# why no profile of a built database ever showed it. Pinning the index makes
+# the plan independent of when the statistics happen to exist.
+# Measured run 40, T10.
+_EXACT_NAME_CANDIDATE_JOIN = """
+    FROM binary_symbol g
+    JOIN binary_symbol x INDEXED BY binary_symbol_name_idx
+      ON x.normalized_name = g.normalized_name
+    WHERE g.platform='gamecube' AND x.platform='xbox'
+      AND g.symbol_kind='function' AND x.symbol_kind='function'
+      AND g.raw_name NOT LIKE 'fn\\_%' ESCAPE '\\'
+      AND g.raw_name NOT LIKE 'lbl\\_%' ESCAPE '\\'
+"""
+
+
 def _import_exact_name_candidates(connection: sqlite3.Connection) -> int:
-    rows = connection.execute(
-        """
-        SELECT g.id AS gcn_id, x.id AS xbox_id, g.raw_name AS name
-        FROM binary_symbol g
-        JOIN binary_symbol x ON x.normalized_name = g.normalized_name
-        WHERE g.platform='gamecube' AND x.platform='xbox'
-          AND g.symbol_kind='function' AND x.symbol_kind='function'
-          AND g.raw_name NOT LIKE 'fn\\_%' ESCAPE '\\'
-          AND g.raw_name NOT LIKE 'lbl\\_%' ESCAPE '\\'
-        """
-    ).fetchall()
-    for row in rows:
+    """Link GC and Xbox functions that share an exact spelling.
+
+    Set-based: this was a `fetchall()` plus one `connection.execute` per
+    row. The returned count is still the number of candidate PAIRS the join
+    produced (not the number inserted), so the build stat is unchanged even
+    though `OR IGNORE` may skip some.
+    """
+    count = int(
         connection.execute(
-            """
-            INSERT OR IGNORE INTO cross_platform_symbol_link(
-                gcn_symbol_id, xbox_symbol_id, relation, verification,
-                confidence, method, note
-            ) VALUES (?, ?, 'probable_equivalent', 'candidate', 0.50,
-                      'exact_name', ?)
-            """,
-            (
-                row["gcn_id"],
-                row["xbox_id"],
-                "Exact spelling only; target behavior and platform applicability remain unverified.",
-            ),
+            "SELECT COUNT(*)" + _EXACT_NAME_CANDIDATE_JOIN
+        ).fetchone()[0]
+    )
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO cross_platform_symbol_link(
+            gcn_symbol_id, xbox_symbol_id, relation, verification,
+            confidence, method, note
         )
-    return len(rows)
+        SELECT g.id, x.id, 'probable_equivalent', 'candidate', 0.50,
+               'exact_name', ?
+        """
+        + _EXACT_NAME_CANDIDATE_JOIN,
+        (
+            "Exact spelling only; target behavior and platform applicability"
+            " remain unverified.",
+        ),
+    )
+    return count
+
+
+def _size_of(value: Any) -> int:
+    return len(json.dumps(value, sort_keys=True).encode("utf-8"))
+
+
+def record_size_report(record: Mapping[str, Any]) -> dict[str, Any]:
+    """Encoded size of a record plus where the bytes actually are.
+
+    The 16 KB attempt cap used to be enforced only at the END of authoring,
+    reporting a total and nothing else: one lane spent roughly ten
+    round-trips hand-trimming a record to find out which field was the
+    heavy one (run 39, PC). Sizes are measured on the SAME encoding the cap
+    uses (`json.dumps(sort_keys=True)`), so the numbers add up to the
+    number the gate compares, and paths are reported two levels deep
+    because `attributes.*` is where the weight lives.
+    """
+    total = _size_of(record)
+    fields: list[dict[str, Any]] = []
+    for key, value in record.items():
+        size = _size_of(value)
+        fields.append({"field": str(key), "bytes": size})
+        if isinstance(value, Mapping):
+            for sub_key, sub_value in value.items():
+                fields.append({
+                    "field": f"{key}.{sub_key}", "bytes": _size_of(sub_value),
+                })
+    fields.sort(key=lambda item: (-item["bytes"], item["field"]))
+    cap = ATTEMPT_BYTE_CAP if record.get("kind") == "attempt" else None
+    return {
+        "id": record.get("id"),
+        "kind": record.get("kind"),
+        "bytes": total,
+        "cap": cap,
+        "cap_applies": cap is not None,
+        "over_by": max(0, total - cap) if cap is not None else 0,
+        "largest_fields": fields[:8],
+    }
+
+
+def format_size_fields(fields: Iterable[Mapping[str, Any]]) -> str:
+    return "; ".join(
+        f"{item['field']} {item['bytes']}B" for item in fields
+    ) or "(no fields)"
 
 
 def _record_field(record: dict[str, Any], name: str) -> Any:
@@ -1463,13 +1583,17 @@ def _validate_record(record: dict[str, Any], source: Path) -> None:
     if kind == "evidence" and "claim" not in record and "edge" not in record:
         raise MemoryGraphError(f"{source}: evidence needs claim or edge")
     if kind == "attempt":
-        encoded = json.dumps(record, sort_keys=True).encode("utf-8")
-        if len(encoded) > ATTEMPT_BYTE_CAP:
+        report = record_size_report(record)
+        if report["over_by"]:
             raise MemoryGraphError(
-                f"{source}: attempt record is {len(encoded)} bytes (cap"
-                f" {ATTEMPT_BYTE_CAP}); keep the do-not-retry head compact —"
-                " fold history into one-line axis_log entries and put deep"
-                " forensics in an evidence record or the commit itself"
+                f"{source}: attempt record is {report['bytes']} bytes (cap"
+                f" {ATTEMPT_BYTE_CAP}, OVER BY {report['over_by']}); keep the"
+                " do-not-retry head compact — fold history into one-line"
+                " axis_log entries and put deep forensics in an evidence"
+                " record or the commit itself.\nLARGEST FIELDS: "
+                + format_size_fields(report["largest_fields"])
+                + "\nFull breakdown without re-running validation:"
+                " `gdlmem.py propose-record --size <file>`"
             )
     anchors: list[str] = []
     attributes = record.get("attributes", {})
@@ -2468,6 +2592,183 @@ def _import_migration_proposals(
     return count
 
 
+# Tables materialized ONLY from the static inputs (symbols.txt/splits.txt,
+# the Xbox PDB dump and its tsv). `source_artifact` is here because the
+# static tables carry foreign keys into it and `_artifact` upserts by
+# artifact_key, so keeping the rows is both required and idempotent.
+STATIC_TABLES = (
+    "source_artifact", "binary_module", "binary_symbol", "binary_symbol_fts",
+    "cross_platform_symbol_link", "symbol_link_evidence",
+    "pdb_type", "pdb_field", "cross_platform_type_link", "field_verification",
+)
+# Everything a record/inbox/legacy edit can change, in delete order (children
+# before parents) so the wipe holds even with foreign keys enforced.
+RECORD_TABLES = (
+    "migration_proposal", "measurement", "regime_event",
+    "law_evidence", "record_refutation",
+    "attempt_law_application", "attempt_law_failure",
+    "evidence", "attempt", "work_claim", "claim", "edge",
+    "residual_signature",
+    "entity_alias", "entity_fts", "entity",
+    "tool_catalog_fts", "tool_catalog",
+    "document_chunk_fts", "document_chunk", "document",
+    "record_fts", "record_ingest",
+)
+FTS_TABLES = ("record_fts", "entity_fts", "tool_catalog_fts",
+              "document_chunk_fts")
+_FTS_SHADOW_SUFFIXES = ("_data", "_idx", "_content", "_docsize", "_config")
+
+
+def _write_fingerprint_meta(
+    connection: sqlite3.Connection, fingerprints: Mapping[str, str]
+) -> None:
+    for key, value in (
+        ("source_fingerprint", fingerprints["combined"]),
+        ("accepted_fingerprint", fingerprints["accepted"]),
+        ("inbox_fingerprint", fingerprints["inbox"]),
+        ("static_fingerprint", fingerprints["static"]),
+    ):
+        connection.execute(
+            "INSERT INTO meta(key, value) VALUES (?, ?)"
+            " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, value),
+        )
+
+
+def _rebuild_fts_indexes(connection: sqlite3.Connection) -> None:
+    """Canonicalize every FTS5 index from its own content table.
+
+    Two reasons, both load-bearing. (1) `DELETE FROM <fts5>` leaves
+    tombstoned segments behind, so an incrementally refreshed index would
+    accrete fragmentation across every refresh of a long run. (2) Segment
+    layout otherwise depends on INSERT history, which differs between a
+    full build and a refresh — running the same canonicalization on BOTH
+    paths is what lets the equivalence test assert every table in the
+    database, shadow tables included, instead of hand-waving past the
+    inverted indexes.
+    """
+    for fts in FTS_TABLES:
+        connection.execute(f"INSERT INTO {fts}({fts}) VALUES('rebuild')")
+
+
+def _unclassified_tables(connection: sqlite3.Connection) -> list[str]:
+    """Tables the STATIC/RECORD split does not cover.
+
+    A new table added to schema.sql and not classified would be silently
+    served STALE by the incremental refresh. This turns that into a
+    detectable condition, and the caller falls back to a full build — a
+    classification gap must cost time, never correctness.
+    """
+    known = set(STATIC_TABLES) | set(RECORD_TABLES) | {"meta"}
+    shadow_prefixes = tuple(
+        name for name in known
+        if name.endswith("_fts") or name.endswith("_fts5")
+    )
+    unclassified = []
+    for row in connection.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+    ).fetchall():
+        name = str(row["name"])
+        if name in known or name.startswith("sqlite_"):
+            continue
+        if any(name == prefix + suffix
+               for prefix in shadow_prefixes
+               for suffix in _FTS_SHADOW_SUFFIXES):
+            continue
+        unclassified.append(name)
+    return sorted(unclassified)
+
+
+def refresh_record_tables(
+    root: Path,
+    db_path: Path,
+    fingerprints: Mapping[str, str],
+    *,
+    include_legacy: bool = True,
+) -> dict[str, Any]:
+    """Re-import ONLY the record class into a copy of an existing database.
+
+    The static half of a build (GC symbols, Xbox symbols, PDB types, the
+    exact-name join) is ~70% of its wall time and all of its large
+    allocations — `_sha256` over the 30 MB PDB and `ast.parse` over every
+    tools/gdl source were both in the run-39 MemoryError tracebacks — and a
+    record edit cannot change a single row of it. So: copy the current
+    database, wipe the record tables, re-run the four record-class
+    importers, replace atomically. Same output as a full build, verified
+    row-for-row by `RecordRefreshEquivalenceTests`.
+
+    Raises `MemoryGraphError` when the copy is not refreshable (missing
+    static rows, an unclassified table); every caller falls back to a full
+    build on that.
+    """
+    root = root.resolve()
+    destination = db_path.resolve()
+    temp_fd, temp_name = tempfile.mkstemp(
+        prefix="memory-refresh-", suffix=".sqlite", dir=destination.parent
+    )
+    os.close(temp_fd)
+    temp_path = Path(temp_name)
+    try:
+        shutil.copyfile(destination, temp_path)
+        connection = _open_raw(temp_path)
+        try:
+            unclassified = _unclassified_tables(connection)
+            if unclassified:
+                raise MemoryGraphError(
+                    "incremental refresh cannot run: unclassified table(s)"
+                    f" {unclassified}; classify them in STATIC_TABLES or"
+                    " RECORD_TABLES in memory_graph/core.py"
+                )
+            if not connection.execute(
+                "SELECT 1 FROM binary_symbol LIMIT 1"
+            ).fetchone():
+                raise MemoryGraphError(
+                    "incremental refresh cannot run: the cached database has"
+                    " no symbol rows to preserve"
+                )
+            connection.execute("PRAGMA foreign_keys = OFF")
+            for table in RECORD_TABLES:
+                connection.execute(f"DELETE FROM {table}")
+            connection.execute("PRAGMA foreign_keys = ON")
+            connection.execute(
+                "INSERT INTO meta(key, value) VALUES ('built_at', ?)"
+                " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (_utc_now(),),
+            )
+            _write_fingerprint_meta(connection, fingerprints)
+            record_count, inbox_rejected = _import_records(connection, root)
+            connection.execute(
+                "INSERT INTO meta(key, value) VALUES ('inbox_rejected', ?)"
+                " ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                (json.dumps(inbox_rejected, sort_keys=True),),
+            )
+            _import_discovered_tools(connection, root)
+            document_ids = (
+                _import_legacy_documents(connection, root)
+                if include_legacy else {}
+            )
+            _import_migration_proposals(connection, root, document_ids)
+            _rebuild_fts_indexes(connection)
+            foreign_key_errors = connection.execute(
+                "PRAGMA foreign_key_check").fetchall()
+            if foreign_key_errors:
+                raise MemoryGraphError(
+                    "refreshed graph has"
+                    f" {len(foreign_key_errors)} foreign-key violations"
+                )
+            connection.execute("ANALYZE")
+            connection.commit()
+        finally:
+            connection.close()
+        os.replace(temp_path, destination)
+    except Exception:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
+    return {"records_imported": record_count, "inbox_rejected": inbox_rejected,
+            "refresh": "record-class only", "database": str(destination)}
+
+
 def build_database(
     root: Path = REPO_ROOT,
     db_path: Path | None = None,
@@ -2478,6 +2779,7 @@ def build_database(
     root = root.resolve()
     destination = (db_path or default_database_path(root)).resolve()
     destination.parent.mkdir(parents=True, exist_ok=True)
+    fingerprints = input_fingerprints(root)
     temp_fd, temp_name = tempfile.mkstemp(
         prefix="memory-", suffix=".sqlite", dir=destination.parent
     )
@@ -2498,10 +2800,7 @@ def build_database(
             connection.execute(
                 "INSERT INTO meta(key, value) VALUES ('built_at', ?)", (_utc_now(),)
             )
-            connection.execute(
-                "INSERT INTO meta(key, value) VALUES ('source_fingerprint', ?)",
-                (source_fingerprint(root),),
-            )
+            _write_fingerprint_meta(connection, fingerprints)
             # Symbols import first so record references can resolve against
             # the deterministic GameCube symbol/module tables.
             gcn_count = _import_gcn_symbols(connection, root)
@@ -2516,6 +2815,7 @@ def build_database(
             type_count, field_count = _import_pdb_types(connection, root)
             candidate_count = _import_exact_name_candidates(connection)
             proposal_count = _import_migration_proposals(connection, root, document_ids)
+            _rebuild_fts_indexes(connection)
             foreign_key_errors = connection.execute("PRAGMA foreign_key_check").fetchall()
             if foreign_key_errors:
                 raise MemoryGraphError(
@@ -2562,8 +2862,23 @@ def build_database(
     return stats
 
 
-def ensure_database(root: Path = REPO_ROOT, db_path: Path | None = None) -> Path:
-    """Create a missing DB; refresh a DB built from the same checkout if stale."""
+def ensure_database(
+    root: Path = REPO_ROOT,
+    db_path: Path | None = None,
+    *,
+    inbox_may_lag: bool = False,
+) -> Path:
+    """Create a missing DB; refresh a DB built from the same checkout if stale.
+
+    ``inbox_may_lag`` is an assertion by the CALLER that it also reads
+    `memory_graph/inbox/` off disk, so freshly staged proposals missing from
+    the database cannot change its answer. Only `propose-record`'s own
+    screens set it, and both of them do exactly that (citations already fall
+    back to inbox filenames; the dedup slug scan unions them in). It exists
+    because `propose-record` WRITES an inbox file, which made the tool its
+    own cache-buster: every proposal after the first in a session paid a
+    full rebuild for a file the next call was going to read from disk anyway.
+    """
     root = root.resolve()
     path = (db_path or default_database_path(root)).resolve()
     if not path.exists():
@@ -2574,11 +2889,33 @@ def ensure_database(root: Path = REPO_ROOT, db_path: Path | None = None) -> Path
             meta = dict(connection.execute("SELECT key, value FROM meta").fetchall())
         if meta.get("schema_version") != str(SCHEMA_VERSION):
             build_database(root, path)
-        elif meta.get("source_fingerprint") != source_fingerprint(root):
-            # Worktrees share the database under the Git common directory.
-            # A database materialized from a sibling worktree is safe to read
-            # only when its complete input fingerprint matches this checkout.
-            build_database(root, path)
+            return path
+        fingerprints = input_fingerprints(root)
+        # Worktrees share the database under the Git common directory.
+        # A database materialized from a sibling worktree is safe to read
+        # only when its complete input fingerprint matches this checkout.
+        if meta.get("source_fingerprint") == fingerprints["combined"]:
+            return path
+        static_held = meta.get("static_fingerprint") == fingerprints["static"]
+        # NO WORK AT ALL: the only thing that moved is the inbox, and the
+        # caller reads the inbox off disk. This is the propose-record case.
+        if (inbox_may_lag and static_held
+                and meta.get("accepted_fingerprint") == fingerprints["accepted"]):
+            return path
+        # INCREMENTAL: when the static half is unchanged and only records /
+        # inbox / legacy moved, re-import the record class into a copy
+        # instead of rebuilding the symbol and PDB tables from scratch. This
+        # is the common case DURING a run — every `propose-record` writes an
+        # inbox file, which used to invalidate the whole cache and make the
+        # NEXT call pay a full build (run 40, T10: 12.69s/50.4MB peak vs
+        # 0.37s/24.2MB when the cache was warm).
+        if static_held:
+            try:
+                refresh_record_tables(root, path, fingerprints)
+                return path
+            except (sqlite3.DatabaseError, MemoryGraphError, OSError):
+                pass  # fall through to the full build; never serve stale rows
+        build_database(root, path)
     except (sqlite3.DatabaseError, MemoryGraphError):
         build_database(root, path)
     return path
@@ -3484,6 +3821,7 @@ def _probe_record_references(
     record: dict[str, Any], root: Path, db_path: Path | None = None,
     connection: sqlite3.Connection | None = None,
     strict_citations: bool = True,
+    inbox_may_lag: bool = False,
 ) -> list[str]:
     """Run the same reference resolution the build applies, before staging.
 
@@ -3561,7 +3899,7 @@ def _probe_record_references(
         return _probe_references_with(connection, record, kind, entity_refs,
                                       cited, root,
                                       strict_citations=strict_citations)
-    ensure_database(root, db_path)
+    ensure_database(root, db_path, inbox_may_lag=inbox_may_lag)
     with closing(open_database(root, db_path)) as owned:
         return _probe_references_with(owned, record, kind, entity_refs, cited,
                                       root,
@@ -4341,6 +4679,27 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
     return warnings
 
 
+def _inbox_claim_ids(root: Path) -> set[str]:
+    """Claim record ids sitting in the inbox, read from the files themselves.
+
+    `propose-record` names each staged file after its record id, but the id
+    is authoritative and a hand-placed file need not match — so read it.
+    """
+    inbox = root / "memory_graph" / "inbox"
+    if not inbox.exists():
+        return set()
+    ids: set[str] = set()
+    for path in inbox.rglob("*.json"):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if (isinstance(record, dict) and record.get("kind") == "claim"
+                and isinstance(record.get("id"), str)):
+            ids.add(record["id"])
+    return ids
+
+
 def _duplicate_claim_candidates(
     record: dict[str, Any], root: Path, db_path: Path | None = None,
 ) -> list[dict[str, Any]]:
@@ -4379,13 +4738,20 @@ def _duplicate_claim_candidates(
     value = record.get("value")
     text = value if isinstance(value, str) else ""
 
-    ensure_database(root, db_path)
+    ensure_database(root, db_path, inbox_may_lag=True)
     hits: dict[str, dict[str, Any]] = {}
     with closing(open_database(root, db_path)) as connection:
-        for row in connection.execute(
-            "SELECT record_id FROM record_ingest WHERE record_kind='claim'"
-        ).fetchall():
-            existing_id = row["record_id"]
+        # The slug scan reads inbox claim ids off DISK as well as from the
+        # database. That is what licenses `inbox_may_lag` above: a claim
+        # staged moments ago is still screened against, without the caller's
+        # own previous write forcing a rebuild first.
+        claim_ids = {
+            str(row["record_id"]) for row in connection.execute(
+                "SELECT record_id FROM record_ingest WHERE record_kind='claim'"
+            ).fetchall()
+        }
+        claim_ids.update(_inbox_claim_ids(root))
+        for existing_id in sorted(claim_ids):
             if existing_id == record.get("id") or existing_id in declared:
                 continue
             other = set(_slug_words(existing_id))
@@ -4497,7 +4863,15 @@ def stage_record_proposal(
     gate_warnings = _apply_proposal_gates(record)
     if warnings is not None:
         warnings.extend(gate_warnings)
-    _probe_record_references(record, root)
+    try:
+        _probe_record_references(record, root, inbox_may_lag=True)
+    except MemoryGraphError:
+        # The cheap screen ran against a database that may not have ingested
+        # sibling proposals staged moments ago. Before reporting a reference
+        # as unresolvable — the one answer a lagging inbox could get wrong —
+        # bring the graph fully current and ask again. The cost is paid only
+        # on the failing path, and the second answer is the authoritative one.
+        _probe_record_references(record, root)
     record_id = record["id"]
     in_place_resolved = in_place.resolve() if in_place is not None else None
     for relative in (Path("memory_graph/records"), Path("memory_graph/inbox")):

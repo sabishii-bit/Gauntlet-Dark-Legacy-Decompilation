@@ -62,8 +62,10 @@ from memory_graph.core import (
     build_database,
     build_surface_ops,
     ensure_database,
+    format_size_fields,
     memory_stats,
     prune_attempts,
+    record_size_report,
     record_template,
     regime_events,
     register_tool_proposal,
@@ -169,6 +171,13 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
         help="proceed past the near-duplicate screen: this claim really is"
              " distinct from the existing record(s) it resembles")
     propose_record.add_argument(
+        "--size", action="store_true",
+        help="PREFLIGHT: report the record's encoded size against the 16KB"
+             " attempt cap, with the largest fields, and exit. Runs no"
+             " validation and stages nothing, so it works on a half-written"
+             " draft — trim before authoring the rest, not after ten"
+             " round-trips of guessing")
+    propose_record.add_argument(
         "--template",
         choices=("attempt", "claim", "evidence", "entity", "edge",
                  "work_claim", "tool"),
@@ -224,11 +233,40 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
     return parser, ops
 
 
+# ERROR_COMMITMENT_LIMIT / ERROR_NOT_ENOUGH_MEMORY / ERROR_OUTOFMEMORY.
+# Windows reports a paging-file exhaustion as 1455 (surfaced elsewhere as
+# HRESULT 0x800705AF), and it arrives as an OSError, not a MemoryError.
+_COMMIT_LIMIT_WINERRORS = {8, 14, 1455}
+_EXIT_RESOURCE_EXHAUSTED = 3
+
+
+def _resource_exhaustion_message(command: str, record_id: str | None,
+                                 error: BaseException) -> str:
+    subject = f"record {record_id!r}" if record_id else f"the {command} call"
+    return (
+        "gdlmem: RESOURCE EXHAUSTION — NOT A REJECTION.\n"
+        f"  {subject} was NOT rejected and NOT staged. The machine ran out"
+        " of memory (or Windows commit charge) while materializing the"
+        " graph database.\n"
+        f"  underlying error: {type(error).__name__}: {error}\n"
+        "  This is a MACHINE condition, not a defect in your record: it"
+        " showed up twice in run 39 under a nine-worker fleet, alongside a"
+        " 0x800705AF commit-limit failure.\n"
+        "  RETRY: re-run the identical command — nothing was written, so"
+        " the record id is still free.\n"
+        "  IF IT RECURS: run `python memory_graph/gdlmem.py build` once on"
+        " its own, with no concurrent ninja builds, to materialize the"
+        " database; every later call then reads the cache instead of"
+        " rebuilding it."
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser, ops = build_parser()
     args = parser.parse_args(argv)
     root = args.root.resolve()
     database = args.db.resolve() if args.db else None
+    record_id_in_flight: str | None = None
     try:
         if args.command == "build":
             result = build_database(root, database, include_legacy=not args.no_legacy)
@@ -263,28 +301,47 @@ def main(argv: list[str] | None = None) -> int:
             if json_file is None:
                 parser.error("propose-record needs a json_file or --template")
             record = json.loads(json_file.read_text(encoding="utf-8-sig"))
-            source = json_file.resolve()
-            inbox_dir = (root / "memory_graph" / "inbox").resolve()
-            in_place = source if source.parent == inbox_dir else None
-            # Non-blocking gate findings (run 34 item 7). A warning must be
-            # reported with the proposal, not swallowed: the record still
-            # stages, but the author sees what a reviewer would have said.
-            gate_warnings: list[str] = []
-            path = stage_record_proposal(record, root=root, in_place=in_place,
-                                         dry_run=args.dry_run,
-                                         confirm_new=args.confirm_new,
-                                         warnings=gate_warnings)
-            result = {
-                "proposal": str(path),
-                "review_state": "valid (not staged)" if args.dry_run
-                                else "pending",
-                "next": ("re-run without --dry-run to stage"
-                         if args.dry_run else
-                         "review the JSON, then move it from"
-                         " memory_graph/inbox to records"),
-            }
-            if gate_warnings:
-                result["warnings"] = gate_warnings
+            if not isinstance(record, dict):
+                parser.error(f"{json_file}: top-level JSON value must be an object")
+            record_id_in_flight = record.get("id")
+            if args.size:
+                report = record_size_report(record)
+                report["largest_fields_line"] = format_size_fields(
+                    report["largest_fields"])
+                report["verdict"] = (
+                    f"OVER the {report['cap']}-byte attempt cap by"
+                    f" {report['over_by']} bytes — trim the fields above"
+                    if report["over_by"] else
+                    f"within the {report['cap']}-byte attempt cap"
+                    if report["cap_applies"] else
+                    f"no size cap applies to a {report['kind']!r} record"
+                )
+                result = report
+            else:
+                source = json_file.resolve()
+                inbox_dir = (root / "memory_graph" / "inbox").resolve()
+                in_place = source if source.parent == inbox_dir else None
+                # Non-blocking gate findings (run 34 item 7). A warning must
+                # be reported with the proposal, not swallowed: the record
+                # still stages, but the author sees what a reviewer would
+                # have said.
+                gate_warnings: list[str] = []
+                path = stage_record_proposal(record, root=root,
+                                             in_place=in_place,
+                                             dry_run=args.dry_run,
+                                             confirm_new=args.confirm_new,
+                                             warnings=gate_warnings)
+                result = {
+                    "proposal": str(path),
+                    "review_state": "valid (not staged)" if args.dry_run
+                                    else "pending",
+                    "next": ("re-run without --dry-run to stage"
+                             if args.dry_run else
+                             "review the JSON, then move it from"
+                             " memory_graph/inbox to records"),
+                }
+                if gate_warnings:
+                    result["warnings"] = gate_warnings
         elif args.command == "event":
             if args.action == "list":
                 result = {"events": regime_events(root=root, db_path=database)}
@@ -321,7 +378,23 @@ def main(argv: list[str] | None = None) -> int:
         else:
             parser.error(f"unknown command {args.command}")
             return 2
-    except (MemoryGraphError, OSError, ValueError, json.JSONDecodeError) as error:
+    except MemoryError as error:
+        # A bare MemoryError traceback names no record and reads exactly
+        # like a rejection — an author who sees one has no way to tell "the
+        # graph refused this" from "the box ran out of RAM". Run 39 hit it
+        # twice and both times the record was fine.
+        print(_resource_exhaustion_message(args.command, record_id_in_flight,
+                                           error), file=sys.stderr)
+        return _EXIT_RESOURCE_EXHAUSTED
+    except OSError as error:
+        if getattr(error, "winerror", None) in _COMMIT_LIMIT_WINERRORS:
+            print(_resource_exhaustion_message(args.command,
+                                               record_id_in_flight, error),
+                  file=sys.stderr)
+            return _EXIT_RESOURCE_EXHAUSTED
+        print(f"gdlmem: error: {error}", file=sys.stderr)
+        return 1
+    except (MemoryGraphError, ValueError, json.JSONDecodeError) as error:
         print(f"gdlmem: error: {error}", file=sys.stderr)
         return 1
     # A record template is authored top-down: schema_version, id, kind come

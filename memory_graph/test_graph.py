@@ -11,9 +11,11 @@ Run:  python memory_graph/test_graph.py
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import shutil
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -2838,6 +2840,200 @@ class ValidateIncrementalTests(unittest.TestCase):
         }
         with self.assertRaises(MemoryGraphError):
             stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
+
+
+class GraphRebuildCostTests(unittest.TestCase):
+    """T10 run-40 item 1: propose-record was its own cache-buster.
+
+    Symptom reproduced at b2876d6bc: `propose-record` stages a file into
+    memory_graph/inbox/, inbox/ was part of the single build fingerprint,
+    so the NEXT gdlmem call rebuilt the whole database — 12.69s and 50.4MB
+    peak working set against 0.37s/24.2MB warm, on every proposal after the
+    first. These tests pin the three pieces of the fix.
+    """
+
+    def _table_digests(self, path: Path) -> dict[str, str]:
+        volatile = {"built_at"}
+        out: dict[str, str] = {}
+        with closing(sqlite3.connect(path)) as connection:
+            connection.row_factory = sqlite3.Row
+            names = [
+                str(row[0]) for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                    " ORDER BY name").fetchall()
+                if not str(row[0]).startswith("sqlite_")
+            ]
+            for table in names:
+                lines = [
+                    repr(tuple(row)) for row in
+                    connection.execute(f"SELECT * FROM {table}").fetchall()
+                    if not (table == "meta" and row["key"] in volatile)
+                ]
+                digest = hashlib.sha256()
+                for line in sorted(lines):
+                    digest.update(line.encode("utf-8", "replace"))
+                out[table] = f"{len(lines)}:{digest.hexdigest()}"
+        return out
+
+    def test_the_class_split_covers_every_table_in_the_schema(self):
+        # THE guard on the whole incremental path: a table added to
+        # schema.sql and left unclassified would be silently served stale.
+        # This is what makes the fallback in ensure_database a safety net
+        # rather than a permanent silent downgrade.
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / "graph.sqlite"
+            build_database(REPO_ROOT, path)
+            with closing(sqlite3.connect(path)) as connection:
+                connection.row_factory = sqlite3.Row
+                self.assertEqual(core._unclassified_tables(connection), [])
+
+    def test_refresh_reproduces_a_full_build_row_for_row(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            full = Path(scratch) / "full.sqlite"
+            refreshed = Path(scratch) / "refreshed.sqlite"
+            build_database(REPO_ROOT, full)
+            shutil.copyfile(full, refreshed)
+            core.refresh_record_tables(
+                REPO_ROOT, refreshed, core.input_fingerprints(REPO_ROOT))
+            before = self._table_digests(full)
+            after = self._table_digests(refreshed)
+            differing = sorted(
+                table for table in set(before) | set(after)
+                if before.get(table) != after.get(table))
+            self.assertEqual(differing, [], "refresh diverged from a full build")
+            self.assertGreater(len(before), 30)
+
+    def test_combined_fingerprint_is_the_concatenation_of_its_classes(self):
+        # `combined` must stay byte-identical to the pre-split digest, or
+        # every existing database would be treated as stale exactly once.
+        prints = core.input_fingerprints(REPO_ROOT)
+        expected = hashlib.sha256()
+        root_resolved = REPO_ROOT.resolve()
+        for path in core._iter_input_paths(REPO_ROOT):
+            stat = path.stat()
+            try:
+                key = path.relative_to(REPO_ROOT).as_posix()
+            except ValueError:
+                key = path.relative_to(root_resolved).as_posix()
+            expected.update(key.encode("utf-8"))
+            expected.update(str(stat.st_size).encode("ascii"))
+            expected.update(str(stat.st_mtime_ns).encode("ascii"))
+        self.assertEqual(prints["combined"], expected.hexdigest())
+        self.assertNotEqual(prints["accepted"], prints["static"])
+
+    def test_an_inbox_only_change_is_free_for_a_caller_that_reads_the_inbox(self):
+        inbox = REPO_ROOT / "memory_graph" / "inbox"
+        inbox.mkdir(parents=True, exist_ok=True)
+        marker = inbox / "t10-ensure-probe.not-a-record.json"
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / "graph.sqlite"
+            build_database(REPO_ROOT, path)
+
+            def built_at() -> str:
+                with closing(sqlite3.connect(path)) as connection:
+                    return str(connection.execute(
+                        "SELECT value FROM meta WHERE key='built_at'"
+                    ).fetchone()[0])
+
+            baseline = built_at()
+            try:
+                marker.write_text(
+                    json.dumps({"schema_version": 1, "id": "x", "kind": "note"}),
+                    encoding="utf-8")
+                prints = core.input_fingerprints(REPO_ROOT)
+                with closing(sqlite3.connect(path)) as connection:
+                    meta = dict(connection.execute(
+                        "SELECT key, value FROM meta").fetchall())
+                self.assertNotEqual(meta["inbox_fingerprint"], prints["inbox"])
+                self.assertEqual(meta["accepted_fingerprint"], prints["accepted"])
+
+                core.ensure_database(REPO_ROOT, path, inbox_may_lag=True)
+                self.assertEqual(built_at(), baseline,
+                                 "inbox_may_lag caller must do no work")
+
+                core.ensure_database(REPO_ROOT, path)
+                self.assertNotEqual(built_at(), baseline,
+                                    "the default caller must absorb the inbox")
+            finally:
+                marker.unlink(missing_ok=True)
+
+    def test_a_staged_inbox_claim_is_still_screened_for_duplicates(self):
+        # The licence for inbox_may_lag: the dedup slug scan reads inbox
+        # claim ids off DISK, so skipping the rebuild cannot hide a sibling
+        # proposal staged seconds earlier.
+        inbox = REPO_ROOT / "memory_graph" / "inbox"
+        inbox.mkdir(parents=True, exist_ok=True)
+        marker = inbox / "t10-dedup-sibling-probe.json"
+        existing = "claim.T10_probe-widget-alignment-law.20260903.v1"
+        try:
+            marker.write_text(json.dumps({
+                "schema_version": 1, "id": existing, "kind": "claim",
+                "subject": "function:TowerInit", "predicate": "codegen_law",
+                "value": "probe", "attributes": {},
+            }), encoding="utf-8")
+            self.assertIn(existing, core._inbox_claim_ids(REPO_ROOT))
+            hits = core._duplicate_claim_candidates(
+                {"id": "claim.T10_probe-widget-alignment-law.20260903.v2",
+                 "kind": "claim", "value": ""}, REPO_ROOT)
+            self.assertIn(existing, [hit["id"] for hit in hits])
+        finally:
+            marker.unlink(missing_ok=True)
+
+
+class RecordSizePreflightTests(unittest.TestCase):
+    """T10 run-40 item 1: the 16KB cap now says WHERE the bytes are."""
+
+    def _oversize(self) -> dict:
+        return {
+            "schema_version": 1, "id": "attempt.t10-size-probe.20260903.v1",
+            "kind": "attempt", "function": "function:TowerInit",
+            "attempted_axis": "probe", "outcome": "neutral",
+            "attributes": {
+                "law_screen": "none applicable: test fixture",
+                "probed_form": "X" * (ATTEMPT_BYTE_CAP - 1000),
+                "verification": "Y" * 2000,
+            },
+        }
+
+    def test_the_report_ranks_the_heaviest_field_first(self):
+        report = core.record_size_report(self._oversize())
+        self.assertEqual(report["cap"], ATTEMPT_BYTE_CAP)
+        self.assertGreater(report["over_by"], 0)
+        self.assertEqual(report["largest_fields"][0]["field"], "attributes")
+        subfields = [item["field"] for item in report["largest_fields"]]
+        self.assertEqual(subfields[1], "attributes.probed_form")
+
+    def test_a_non_attempt_record_has_no_cap(self):
+        report = core.record_size_report(
+            {"id": "claim.x", "kind": "claim", "value": "y"})
+        self.assertFalse(report["cap_applies"])
+        self.assertEqual(report["over_by"], 0)
+
+    def test_the_refusal_names_the_bytes_over_and_the_heavy_field(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            _validate_record(self._oversize(), Path("<probe>"))
+        message = str(caught.exception)
+        self.assertIn("OVER BY", message)
+        self.assertIn("attributes.probed_form", message)
+        self.assertIn("--size", message)
+
+
+class ResourceExhaustionReportingTests(unittest.TestCase):
+    """T10 run-40 item 1: a MemoryError is not a rejection."""
+
+    def test_the_message_names_the_record_and_denies_rejection(self):
+        gdlmem = importlib.import_module("memory_graph.gdlmem")
+        message = gdlmem._resource_exhaustion_message(
+            "propose-record", "attempt.some-record.v1", MemoryError())
+        self.assertIn("NOT A REJECTION", message)
+        self.assertIn("attempt.some-record.v1", message)
+        self.assertIn("RETRY", message)
+
+    def test_a_windows_commit_limit_oserror_is_classified_as_exhaustion(self):
+        gdlmem = importlib.import_module("memory_graph.gdlmem")
+        # 1455 = ERROR_COMMITMENT_LIMIT, the 0x800705AF seen in run 39.
+        self.assertIn(1455, gdlmem._COMMIT_LIMIT_WINERRORS)
+        self.assertNotEqual(gdlmem._EXIT_RESOURCE_EXHAUSTED, 1)
 
 
 class SpillStubTests(unittest.TestCase):
