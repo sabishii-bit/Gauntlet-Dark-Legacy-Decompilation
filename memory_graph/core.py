@@ -210,6 +210,18 @@ DENIAL_FIELDS = ("scope", "premise_measurement", "expiry_check", "falsifier")
 HYPOTHESIS_FIELDS = ("statement", "cheapest_refuting_observation",
                      "screened_against_target")
 
+# A REPRODUCTION is the cap-STRENGTHENING path (run-39 item 7). AGENTS.md
+# already says parked probes are ALIGNMENT-SENSITIVE — "a probe that measured
+# negative may turn positive after surrounding regions improve, so re-A/B
+# recorded probes after nearby fixes rather than trusting the old sign". That
+# rule is written entirely for the case where the re-probe FLIPS. The other
+# outcome is evidence too, and the stronger kind: a cap re-probed at a NEW
+# alignment that REPRODUCES its regression is no longer one measurement of one
+# moment, it is a repeated one — and the corpus had nowhere to put that, so MV
+# wrote it as prose where no query can rank it. A veto backed by reproductions
+# should outrank a same-age veto measured once.
+REPRODUCTION_FIELDS = ("at", "alignment", "command", "result")
+
 # Words that carry no MECHANISM. Two groups: ordinary function words, and
 # this project's generic measurement/process vocabulary — "probe", "score",
 # "build", "fuzzy", "real", "match". A refuter that shares only those with
@@ -370,6 +382,116 @@ _ADDRESSING_MODE_EVIDENCE_RE = re.compile(
     r"|update[- ]form",
     re.I,
 )
+
+# ---------------------------------------------------------------------------
+# Gate I (run 39): a hypothesis naming a REGISTER must quote that register's
+# DEFINITION SITE.
+#
+# AGENTS.md already carries the dispatch rule ("A brief naming a specific
+# register must quote that register's definition site"), but it fires at
+# DISPATCH — after the wrong register is already written down. Both measured
+# failures were authored as records first: run 37's mandated hypothesis named
+# the wrong register, and run 38's work order did it again on the same
+# function. attempt.PC_do-players-loop-head-named-base-refuted-and-the-
+# linkage-lever.20260902.v1 settled it in ZERO BUILDS: "in OUR stream r20 has
+# EXACTLY ONE definition, `@0x684 addi r20,r5,0 @lbl_80240E30(ADDR16_LO)`,
+# which is an unrelated level-table address" -- the real web was r18/r19.
+# A recorded hypothesis is the next lane's MANDATORY STEP 1 (discipline 10b),
+# so a wrong register in one is an instruction to go the wrong way.
+_HYPOTHESIS_REGISTER_RE = re.compile(r"\b([rf](?:3[01]|[12]\d|\d))\b")
+# A save-set or range spelling (`r16-r31`, `r3..r10`) names no single register
+# and must not be taxed: the claim is about the SET, and its members have no
+# individual definition site to quote.
+_REGISTER_RANGE_RE = re.compile(
+    r"\b[rf](?:3[01]|[12]\d|\d)\s*(?:\.\.|-{1,2}|through|to)\s*"
+    r"[rf]?(?:3[01]|[12]\d|\d)\b",
+    re.I,
+)
+# An offset/address anchor: where in the stream the citation points.
+_STREAM_ANCHOR_RE = re.compile(
+    r"@\s*\+?0x[0-9A-Fa-f]+"
+    r"|\+0x[0-9A-Fa-f]+"
+    r"|\b0x8[0-9A-Fa-f]{5,7}\b"
+    r"|\bT\[\d+\]|\bO\[\d+\]",
+)
+# How many characters may separate the anchor from the defining instruction.
+# Record prose is frequently ONE long paragraph (the PC record's verification
+# has no newlines at all), so this is a character window, never a line.
+_DEFINITION_WINDOW = 140
+
+# ABI-FIXED registers have no definition site inside a function to quote:
+# r1 is the stack pointer, r2/r13 the small-data bases. Naming one is not the
+# error this gate is about, and demanding a defining instruction for `224(r1)`
+# is unsatisfiable. Measured: before this mask, 9 of 22 corpus trips were r1
+# alone.
+_ABI_FIXED_REGISTERS = frozenset({"r1", "r2", "r13"})
+
+# A citation is an INSTRUCTION, so the token in front of the operands has to
+# be a real PPC mnemonic — otherwise ordinary prose ("the r20 web") sitting
+# near an offset would discharge the gate and it would assert nothing.
+_PPC_MNEMONIC = (
+    r"l(?:bz|hz|ha|wz|fs|fd|mw|wa)(?:u?x?)|"
+    r"st(?:b|h|w|fs|fd|mw)(?:u?x?)|"
+    r"addi[cs]?\.?|addze|add\.?|subf(?:ic|e|ze)?|subfc|neg|"
+    r"mul(?:li|lw|hw|hwu)|div(?:w|wu)|"
+    r"li[s]?|mr\.?|or[ic]?[s.]?|and[ic]?[s.]?|nor|xor[is]?|"
+    r"rlwi(?:nm|mi)\.?|s(?:lw|rw|raw)i?\.?|extsb|extsh|cntlzw|"
+    r"cmp(?:w|wi|lw|lwi)|cror|crclr|crxor|"
+    r"f(?:mr|abs|neg|add|sub|mul|div|madd|msub|nmadd|nmsub)s?\.?|"
+    r"frsp|fctiwz|fcmpu|fsel|fres|frsqrte|"
+    r"mf(?:lr|ctr|cr|spr|fs)|mt(?:lr|ctr|cr|spr|fsf)|"
+    r"b(?:l|la|lr|ctr|ctrl|lrl)?|b(?:eq|ne|lt|gt|le|ge|dnz|dz)[+-]?|"
+    r"nop|isync|sync|dcbz|dcbf|icbi|stwcx\.|lwarx"
+)
+
+
+def _cited_instruction_spans(text, register):
+    """Spans where `register` appears inside a quoted PPC INSTRUCTION.
+
+    ANY operand position counts, not just the destination. The question this
+    gate asks is "did you read the stream for this register, or name it from
+    memory?", and a base register is routinely cited as a SOURCE — the PC
+    census's own key line, `addi r18,r31,3136`, cites r31 that way. Requiring
+    the destination position tripped 13 of 22 corpus records that had in fact
+    done the work (measured before this was narrowed).
+    """
+    pattern = re.compile(
+        rf"\b(?:{_PPC_MNEMONIC})\s+[^\n;]{{0,48}}?\b{re.escape(register)}\b")
+    return [match.span() for match in pattern.finditer(text or "")]
+
+
+def register_definition_gaps(statement, record_text):
+    """Registers the hypothesis names with no instruction-level citation.
+
+    A register is DISCHARGED when the record quotes it inside a PPC
+    instruction sitting next to a stream anchor (`@0x334 addi rX,r31,3136`)
+    — the form a defs census produces. ABI-fixed registers and register
+    RANGES are excluded, having no single definition site to quote.
+
+    Pure over two strings so every branch is tested without a graph.
+    """
+    if not isinstance(statement, str) or not statement.strip():
+        return []
+    masked = _REGISTER_RANGE_RE.sub(
+        lambda match: " " * len(match.group(0)), statement)
+    named = sorted(set(_HYPOTHESIS_REGISTER_RE.findall(masked))
+                   - _ABI_FIXED_REGISTERS)
+    if not named:
+        return []
+    text = record_text or ""
+    gaps = []
+    for register in named:
+        discharged = False
+        for start, end in _cited_instruction_spans(text, register):
+            window = text[max(0, start - _DEFINITION_WINDOW):
+                          end + _DEFINITION_WINDOW]
+            if _STREAM_ANCHOR_RE.search(window):
+                discharged = True
+                break
+        if not discharged:
+            gaps.append(register)
+    return gaps
+
 
 # Outcomes for which a multi-edit probe must name what it held fixed: only the
 # ones that VETO an axis. See gate C.
@@ -1257,6 +1379,45 @@ def _validate_schema_fields(record: dict[str, Any], source: Path) -> None:
                     f"{source}: {name}.{field} must be a string or null,"
                     f" got {type(item).__name__}"
                 )
+    # REPRODUCTIONS: a LIST, unlike the two objects above, because the whole
+    # point is that a cap can be re-probed more than once and each re-probe
+    # is separate evidence. Shape-checked corpus-wide; never REQUIRED, since
+    # a cap measured once is still a cap.
+    reproductions = _record_field(record, "reproductions")
+    if reproductions is not None:
+        if not isinstance(reproductions, list):
+            raise MemoryGraphError(
+                f"{source}: reproductions must be a LIST of"
+                f" {{{', '.join(REPRODUCTION_FIELDS)}}} objects, got"
+                f" {type(reproductions).__name__}. Each entry is one re-probe"
+                " of this cap at a new alignment: WHEN (at), what MOVED since"
+                " the cap was taken (alignment), the exact COMMAND, and what"
+                " it measured (result)."
+            )
+        for index, entry in enumerate(reproductions):
+            if not isinstance(entry, dict):
+                raise MemoryGraphError(
+                    f"{source}: reproductions[{index}] must be an object"
+                    f" {{{', '.join(REPRODUCTION_FIELDS)}}}, got"
+                    f" {type(entry).__name__}"
+                )
+            absent = [field for field in REPRODUCTION_FIELDS
+                      if not str(entry.get(field) or "").strip()]
+            if absent:
+                raise MemoryGraphError(
+                    f"{source}: reproductions[{index}] is missing"
+                    f" {', '.join(absent)}. A re-probe that does not say WHAT"
+                    " MOVED since the cap (alignment) cannot strengthen it —"
+                    " re-running the same probe on the same tree measures"
+                    " nothing new, and that is precisely the claim this field"
+                    " makes."
+                )
+            for field, item in entry.items():
+                if item is not None and not isinstance(item, str):
+                    raise MemoryGraphError(
+                        f"{source}: reproductions[{index}].{field} must be a"
+                        f" string or null, got {type(item).__name__}"
+                    )
 
 
 def _validate_record(record: dict[str, Any], source: Path) -> None:
@@ -3537,9 +3698,24 @@ def record_template(kind: str) -> dict[str, Any]:
     """
     templates: dict[str, dict[str, Any]] = {
         "attempt": {
-            "function": "<REQUIRED: function:symbol_name>",
+            "function": (
+                "<REQUIRED: function:symbol_name — MUST RESOLVE, and the"
+                " staging error only arrives after you submit. THREE forms"
+                " resolve: any entity_key already in the graph (including"
+                " the non-code namespaces compiler:/project:);"
+                " `function:<symbol>` naming exactly one GameCube function;"
+                " `tu:<module>` naming a GameCube object, with or without a"
+                " .c/.cpp suffix. Check yours FIRST with `gdlmem.py find"
+                " --query <term>` or `gdlmem.py search <term>` rather than"
+                " burning a submission on it>"),
             "attempted_axis": "<REQUIRED: one-line description of the axis tried>",
-            "outcome": "<REQUIRED: improved|neutral|negative|parked|capped>",
+            "outcome": (
+                "<REQUIRED: improved|neutral|negative|parked|capped — this"
+                " is an attempt's ONLY confidence field. `epistemic_state`"
+                " is a CLAIM field: an attempt carrying one still validates"
+                " and is then IGNORED, so a confidence recorded there is"
+                " silently not recorded at all. Put the strength of the"
+                " finding in `outcome` plus attributes.verification>"),
             "residual_class": "<OPTIONAL: NONE|REGISTER_ONLY|SCHEDULE|STRUCTURAL|MIXED>",
             "residual": {
                 "signature": "<OPTIONAL: the fndiff --ops token delta"
@@ -3606,12 +3782,30 @@ def record_template(kind: str) -> dict[str, Any]:
                 "cheapest_refuting_observation": "<REQUIRED if present: the"
                                                  " cheapest observation that"
                                                  " would KILL this idea>",
-                "screened_against_target": "<REQUIRED if present: was this"
+                "screened_against_target": "<REQUIRED if present, and a"
+                " NON-EMPTY STRING: a JSON boolean false is falsy and is"
+                " rejected as MISSING, which reads as a schema error rather"
+                " than the answer 'no'. Write 'no — <what you have not"
+                " checked>'. Was this"
                                            " already checked against the"
                                            " target bytes? yes/no + what was"
                                            " seen>",
             },
-            "supersedes": "<OPTIONAL: id of the prior attempt record this replaces>",
+            "reproductions": [
+                {
+                    "at": "<REQUIRED if present: the commit or date this"
+                          " re-probe ran at>",
+                    "alignment": "<REQUIRED if present: what MOVED since the"
+                                 " cap was taken — the neighbouring fix or"
+                                 " region change that makes this a NEW"
+                                 " alignment. Re-running the same probe on"
+                                 " the same tree measures nothing>",
+                    "command": "<REQUIRED if present: the exact command>",
+                    "result": "<REQUIRED if present: what it measured, and"
+                              " whether the regression REPRODUCED or"
+                              " diverged>",
+                }
+            ],
             "refutes": "<OPTIONAL: id of a record whose mechanism/framing this"
                        " attempt DISPROVED by measurement — distinct from"
                        " supersedes: the refuted record may belong to another"
@@ -4097,6 +4291,52 @@ def _apply_proposal_gates(record: dict[str, Any]) -> list[str]:
             " rN,rA,rB), UPDATE-form stores (stwu/stfsu), and"
             " REGISTER-RELATIVE cursors (a base copied out of r1 by"
             " `addi rN,r1,K` and then written through)."
+        )
+
+    # Gate I (run 39). A HYPOTHESIS that names a specific register must quote
+    # that register's DEFINITION SITE somewhere in the record.
+    #
+    # AGENTS.md carries this as a DISPATCH screen, which fires after the
+    # wrong register has already been written down — and both measured
+    # failures were authored as records first: run 37's mandated hypothesis
+    # named the wrong register, and run 38's work order repeated it on the
+    # same function. This is the same screen moved to the source of the
+    # misreading. It is cheap to discharge and cheaper still to run: the
+    # refutation that settled it needed ZERO BUILDS.
+    #
+    # Scoped to `hypothesis` alone, because discipline 10b makes a recorded
+    # hypothesis the next lane's MANDATORY STEP 1 — a wrong register there
+    # is an instruction to go the wrong way, which is exactly what it cost
+    # twice. Register RANGES (`r16-r31`, a save set) are masked out: they
+    # name a set, not a register, and have no single definition site.
+    statement = _record_field(record, "hypothesis")
+    if isinstance(statement, dict):
+        statement = statement.get("statement")
+    gaps = register_definition_gaps(statement, text)
+    if gaps:
+        raise MemoryGraphError(
+            "this hypothesis names the register(s)"
+            f" {', '.join(gaps)} but the record never quotes a DEFINITION"
+            " SITE for them — an instruction that WRITES the register,"
+            " beside the stream offset it sits at. A hypothesis is the next"
+            " lane's MANDATORY STEP 1 (discipline 10b), so a register named"
+            " on inspection rather than on a defs census sends that lane the"
+            " wrong way.\nMEASURED TWICE, on the same function: run 37's"
+            " mandated hypothesis identified the wrong register, and run"
+            " 38's work order did it again. The census that settled it cost"
+            " ZERO BUILDS and is quoted in"
+            " attempt.PC_do-players-loop-head-named-base-refuted-and-the-"
+            "linkage-lever.20260902.v1: \"in OUR stream r20 has EXACTLY ONE"
+            " definition, `@0x684 addi r20,r5,0 @lbl_80240E30(ADDR16_LO)`,"
+            " which is an unrelated level-table address\" — the web the"
+            " hypothesis was really about was r18/r19. Two builds were spent"
+            " on the wrong register before anyone counted.\nDISCHARGE IT:"
+            " run `python tools/gdl/fnasm.py <unit> <fn>` (or fndiff --ops)"
+            " and quote each named register's defining instruction next to"
+            " its offset, e.g. `@0x22c addi r18,r31,3136`. If the register"
+            " is incidental to the idea, name the mechanism instead of the"
+            " register; if you mean a save-set RANGE, spell it as a range"
+            " (`r16-r31`), which this gate does not tax."
         )
     return warnings
 
@@ -7158,6 +7398,7 @@ def tu_briefing(
     root: Path = REPO_ROOT,
     db_path: Path | None = None,
     limit: int = 100,
+    roster_only: bool = False,
 ) -> dict[str, Any]:
     """One-call spawn briefing for a TU-scoped pass.
 
@@ -7166,6 +7407,12 @@ def tu_briefing(
     (parks and caps first), active claims touching the TU, the core-screen
     law list plus laws that mention this TU, and the raw-offset debt count.
     Heads only — fetch forensics per record id.
+
+    ``roster_only`` returns JUST the scored roster (run-39 item 9): a full
+    brief on game/game/player measures 201,535 bytes, of which the roster is
+    35.7%. It is a RE-READ form, not a substitute for the spawn briefing —
+    the omitted sections carry the mandatory-step-1 hypotheses and the
+    cross-fleet claim vetoes, and the returned note says so.
     """
     tu = tu.replace("\\", "/").strip("/")
     if tu.startswith("src/"):
@@ -7347,6 +7594,15 @@ def tu_briefing(
             "unabsorbed_class": (
                 unabsorbed_rows.get(row["raw_name"]) or {}).get(
                     "residual_class"),
+            # The RAW differing-word count, already computed in the same
+            # pass (run-39 item 8). It is what decides postprocessor
+            # candidacy — `unabsorbed` is what the register-field stage
+            # cannot absorb, a strictly smaller number (do_exit: 18 raw, 8
+            # unabsorbed) — and a brief that quoted only the latter under a
+            # word-count framing understated the work.
+            "differing_words": (
+                unabsorbed_rows.get(row["raw_name"]) or {}).get(
+                    "differing_words"),
             "unabsorbed_staleness": unabsorbed_staleness,
         }
         for row in functions
@@ -7411,6 +7667,48 @@ def tu_briefing(
             "axis": attempt["head"],
             "age_days": attempt["age_days"],
         }
+        # THE WORD-DIFF SCREEN, ATTACHED TO THE INHERITED SIGNATURE (run-39
+        # item 8). AGENTS.md carried this as a screen for POSTPROCESSOR-lane
+        # briefs only, so a SOURCE-lane brief inherited a residual signature
+        # without it and UD's "25-word permutation" framing died on contact
+        # with the real count. The count is what decides postprocessor
+        # candidacy, not the --ops cluster count — and it is already
+        # computed in this call, so the screen costs nothing and cannot be
+        # skipped by whoever writes the brief.
+        signature = (row["residual"] or {}).get("signature") \
+            if isinstance(row["residual"], dict) else None
+        if signature:
+            live = unabsorbed_rows.get(
+                str(row["function"]).removeprefix("function:")) or {}
+            row["current_differing_words"] = live.get("differing_words")
+            row["current_unabsorbed_words"] = live.get("unabsorbed")
+            measured_at = (row["residual"] or {}).get("measured_at") \
+                or "an unstated date"
+            row["signature_screen"] = (
+                "This row QUOTES a residual signature recorded at"
+                f" {measured_at}; current_differing_words beside it is the"
+                " CURRENT raw differing-word count for this function, read"
+                " from the objects on disk. If they disagree the signature"
+                " is STALE, and the RAW COUNT decides postprocessor"
+                " candidacy — not the --ops cluster count and not the"
+                " recorded framing. null means unmeasurable here (unequal"
+                " sizes, or no built object), never zero."
+            )
+        # A cap re-probed at a NEW alignment that REPRODUCED its regression
+        # is repeated evidence, and outranks a same-age veto measured once
+        # (run-39 item 7). Prose could not be ranked; this can.
+        reproductions = _record_field(attempt["_record"], "reproductions")
+        if isinstance(reproductions, list) and reproductions:
+            row["reproductions"] = reproductions
+            row["veto_strength"] = (
+                f"STRENGTHENED: re-probed at {len(reproductions)} further"
+                " alignment(s) since the cap was taken. AGENTS.md's"
+                " alignment-sensitivity rule says a recorded negative may"
+                " flip after nearby regions improve — these say it did NOT."
+                " Screen this axis harder than a once-measured veto of the"
+                " same age, and read each entry's `alignment` for what had"
+                " already moved when it held."
+            )
         typed_denial = _record_field(attempt["_record"], "denial")
         if typed_denial:
             row["denial"] = typed_denial
@@ -7514,6 +7812,45 @@ def tu_briefing(
                                    limit=10)["tus"]
     except MemoryGraphError:
         debt_rows = []
+    if roster_only:
+        # Run-39 item 9. A full brief on game/game/player measures 201,535
+        # bytes (~50K tokens) and the ROSTER is 35.7% of it; the rest is the
+        # laws/attempts/hypotheses payload a lane re-reads on every call. UD
+        # measured 47K tokens for one TU.
+        #
+        # The per-row staleness strings are hoisted to ONE note each. In the
+        # FULL brief they stay attached per row on purpose ("the envelope is
+        # what gets skimmed past"), and that decision is left standing —
+        # here the whole result IS the roster, so the envelope cannot be
+        # skimmed past, and repeating two paragraphs 92 times was ~53KB of
+        # the roster's 61KB.
+        return {
+            "tu": [row["object_name"] for row in modules],
+            "functions": [
+                {key: value for key, value in row.items()
+                 if key not in ("fuzzy_staleness", "unabsorbed_staleness")}
+                for row in roster
+            ],
+            "fuzzy_staleness": fuzzy_staleness,
+            "unabsorbed_staleness": unabsorbed_staleness,
+            "raw_offset_debt": debt_rows,
+            "report_generated_at": report_stamp,
+            "report_age_hours": report_age_hours,
+            "roster_only_note": (
+                "ROSTER ONLY: this call deliberately OMITS open_hypotheses,"
+                " vetoed_axes, refutations, live_attempts, active_claims,"
+                " webfrank_pins, similar_residuals and the law lists. Those"
+                " are not optional reading — a recorded hypothesis is"
+                " MANDATORY STEP 1 (discipline 10b) and an active foreign"
+                " claim is a VETO — so run the FULL `brief` before your"
+                " first edit in this TU, and use this form only to re-read"
+                " the scores afterwards."
+            ),
+            "staleness_banner": (
+                "EVERY NUMBER HERE IS READ FROM DISK, NOT MEASURED NOW."
+                " REMEASURE before quoting one."
+            ),
+        }
     return {
         "tu": [row["object_name"] for row in modules],
         # 10b comes FIRST, before the roster: a recorded untried hypothesis
@@ -8080,11 +8417,20 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                  "scores, live attempts, active claims, screened laws, and "
                  "raw-offset debt."),
             call=lambda root, db, **kw: tu_briefing(
-                kw["tu"], root=root, db_path=db, limit=kw["limit"]),
+                kw["tu"], root=root, db_path=db, limit=kw["limit"],
+                roster_only=bool(kw["roster_only"])),
             params=(
                 SurfaceParam("tu", str, required=True,
                              help="TU path fragment, e.g. game/enemy/enemy"),
                 SurfaceParam("limit", int, default=100, maximum=200),
+                SurfaceParam("roster_only", int, default=0, maximum=1,
+                             help="1 for the SCORED ROSTER ONLY (a full brief"
+                                  " on game/game/player is 201,535 bytes and"
+                                  " the roster is 35.7% of it). A RE-READ"
+                                  " form: it omits the mandatory-step-1"
+                                  " hypotheses and the cross-fleet claim"
+                                  " vetoes, so run the full brief before your"
+                                  " first edit in a TU"),
             ),
         ),
         SurfaceOp(

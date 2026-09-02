@@ -88,8 +88,11 @@ is the deliberate override.
 
 Escape hatches (a worker concluded --discard "does not exist" because this
 docstring omitted it — the flags below all work):
-  --discard          restore the TU to HEAD (the neutral-edit undo)
-  --revert-baseline  restore the SESSION's first banked baseline
+  --discard          restore the TU to HEAD (the neutral-edit undo), then
+                     REBUILD the object so object-reading tools stop
+                     reporting the discarded probe (--no-rebuild skips)
+  --revert-baseline  restore the SESSION's first banked baseline, then
+                     rebuild the object for the same reason
   --no-bank          score without banking (diagnostic probes)
   --raw              score the pre-webfrank compiler output (pinned TUs)
   --rederive-pin     one call: build the raw body object, run
@@ -120,6 +123,10 @@ docstring omitted it — the flags below all work):
   --no-fuzzy-gate    skip the pre-bank fresh-fuzzy measurement (below).
                      Faster, and how the loop behaved before run 36 — but
                      a keep banked this way is unarbitrated
+  --no-tu-gate       skip the pre-bank TU-SCOPE sibling cross-check
+                     (below). Only ever runs at all when the diff changes
+                     a file-scope declaration, storage class, qualifier or
+                     pragma; say so in the record if you use it
   --stateless        sweep mode: score only — no state, bank, or verdict
   --verbose          print the pragma/volatile scaffold census. It is NOT
                      printed by default any more: in full it ran 13-22
@@ -180,6 +187,29 @@ one report build at exactly those verdicts, before the bank, and:
             FELL below the banked anchor — best NOT updated, nothing
             banked. Revert, or arbitrate and bank deliberately with
             --rebase-best (which is exempt from the gate by construction).
+THE TU-SCOPE GATE RUNS BESIDE IT. The fuzzy gate closes "this function's
+other metric disagrees"; it cannot close "this function is not the only
+function in the object". A file-scope declaration, storage-class, pool
+qualifier or pragma change moves SIBLING bytes, and real, the opcode
+multiset, the slot map and fuzzy are all computed over ONE function's
+.text. Measured: a one-word edit (`static void* potionicon_tab[5];` ->
+external linkage) touching no function body scored IMPROVED real 840 ->
+838 here, banked a new BEST, and cost NINE byte-exact functions TU-wide
+(claim.law.PC_storage-class-of-a-same-tu-base-object-is-a-codegen-lever-
+that-must-be-gated-tu-wide). probe now reads the file-scope items out of
+the DIFF, and ONLY when they moved spends a build-free cross-check of the
+whole TU against its `defake_gate` baseline:
+  TU-SCOPE REGRESSED  a byte-exact SIBLING was demoted — best NOT updated
+            and nothing banked. The siblings are named.
+  TU-SCOPE UNGATED    the cross-check could not run (no TU baseline yet,
+            or the baseline describes the edited bytes) — best NOT updated
+            either. Fail-closed: a measurement nobody took is not evidence
+            of no loss, and that is exactly how the nine were lost.
+A body-only edit produces an identical file-scope item list and pays
+nothing. BASELINE is exempt (it banks no improvement claim and is the
+session's only revert point) and is annotated instead; --no-tu-gate opts
+out.
+
 A passing gate banks the measured number as the new fuzzy anchor, so the
 anchor stops decaying and later CONFLICTs print their comparison for free.
 --no-fuzzy-gate restores the old build-free behaviour. REGRESSED verdicts
@@ -224,6 +254,17 @@ It banks nothing and computes no verdict: it is a measurement, and the keep
 decision stays yours (--rebase-best banks an arbitrated keep). The DATA
 column is reported too, since a moved non-text section is invisible to both
 arbiters.
+
+--arbitrate SWAPS THE PIN STATE IN STEP WITH THE SOURCE. webfrank.json is
+global and pairs with exactly ONE source state, so on a TU whose pin was
+re-derived with `--rederive-pin --transient` the banked half used to abort
+in the WEBFRANK stage and the whole arbitration returned 1 — measured on
+game/game/player with the do_exit permutation pin: `[current] real 870`
+scored, then `BUILD FAILED (banked state)`. The pre-probe hashes are
+already in the transient bank, so probe reads them out (without consuming
+the bank), builds each half against the pin hashes that belong to it, and
+restores BOTH files in the same `finally` as the source. Unpairable slots
+WARN instead of silently measuring a partial swap.
 """
 
 import difflib
@@ -595,6 +636,124 @@ def drop_transient_pins(unit, why):
     return True
 
 
+REDERIVE_HINT_RE = re.compile(
+    r"probe\.py\s+(?P<unit>\S+)\s+(?P<fn>\S+)\s+--rederive-pin")
+
+
+def pin_named_by_build(text):
+    """The pin function webfrank's OWN repair hint names, or None.
+
+    webfrank.rederive_hint() already prints
+    `python tools/gdl/probe.py <unit> <pin> --rederive-pin` on the abort, so
+    the failing pin's identity is in the build output every time. probe just
+    never read it.
+    """
+    match = REDERIVE_HINT_RE.search(text or "")
+    return match.group("fn") if match else None
+
+
+def pin_functions(config_data, unit):
+    """Every function this TU has a webfrank rule for, in file order."""
+    if not isinstance(config_data, dict):
+        return []
+    return [rule.get("function")
+            for rule in config_data.get("units", {}).get(unit, [])
+            if isinstance(rule, dict) and rule.get("function")]
+
+
+def read_pin_functions(unit):
+    config = Path(f"config/{VERSION}/webfrank.json")
+    if not config.exists():
+        return []
+    try:
+        return pin_functions(
+            json.loads(config.read_text(encoding="utf-8")), unit)
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def resolve_pin_target(requested, pins, failing=None):
+    """(function_to_rederive, note) for --rederive-pin (run-39 item 3).
+
+    THE DEFECT. `--rederive-pin` re-derived the function NAMED ON THE
+    COMMAND LINE, which is the function the worker was probing — while the
+    pin that aborts a build is a DOWNSTREAM one (a permutation pin whose
+    window relocations moved because the upstream edit renumbered the
+    pool). Reproduced at 0f45ae610:
+    `probe.py game/game/player do_players --rederive-pin` printed
+    "no webfrank rule for game/game/player::do_players" and then
+    "rederive-pin ABORTED — a body hash moved (the edit changed codegen,
+    not just the pool)". The first line is accurate and useless; the second
+    is WRONG — no body hash moved, there is simply no rule — and it tells
+    the worker their edit changed codegen when it did not. The pin that
+    actually failed was do_exit, and webfrank's own abort text named it.
+
+    Pure so every branch is decided without a build. Resolution order:
+    the requested function if it really is a pin; else the pin the BUILD
+    named; else the TU's only pin; else refuse and list the candidates,
+    because guessing among several pins would paste hashes into the wrong
+    rule.
+    """
+    if requested in pins:
+        return requested, ""
+    if not pins:
+        return None, (
+            f"{requested} has no webfrank rule, and neither does any other"
+            " function in this TU — there is no pin here to re-derive."
+            " Nothing was built or pasted. If a build is failing, it is not"
+            " failing on a pin in this unit.")
+    if failing and failing in pins:
+        return failing, (
+            f"[{requested} has no webfrank rule; the pin that ABORTED the"
+            f" build is {failing}, which webfrank's own abort text names."
+            f" Re-deriving {failing} instead — this is the downstream"
+            " permutation pin your upstream edit shifted.]")
+    if len(pins) == 1:
+        return pins[0], (
+            f"[{requested} has no webfrank rule. This TU has exactly one"
+            f" pin, {pins[0]}, so that is the one being re-derived — a"
+            " permutation pin aborts on the function it PINS, not on the"
+            " function you edited.]")
+    return None, (
+        f"{requested} has no webfrank rule, and this TU has"
+        f" {len(pins)} pins, so which one to re-derive cannot be inferred:"
+        f" {', '.join(pins)}.\n"
+        "  Nothing was built or pasted — pasting hashes into the wrong rule"
+        " is not recoverable from the rule text alone. Re-run the failing"
+        " build and read the pin named in webfrank's abort, then:\n"
+        f"    python tools/gdl/probe.py <unit> <that pin> --rederive-pin")
+
+
+def rederive_abort_reason(output, unit, fn):
+    """Why wf_rederive_pin refused, read from ITS OWN output.
+
+    The abort used to print ONE sentence for every failure: "a body hash
+    moved (the edit changed codegen, not just the pool), or the rule has no
+    instruction_permutation". On the missing-rule path that sentence is
+    FALSE in its load-bearing half — no body hash moved, and the worker is
+    told their edit changed codegen when it did not. Measured at 0f45ae610
+    on `probe.py game/game/player do_players --rederive-pin`.
+
+    Pure over the tool's text so each branch is tested without a build.
+    """
+    text = output or ""
+    if "no webfrank rule" in text:
+        return (f"rederive-pin ABORTED: {unit}::{fn} has no webfrank rule,"
+                " so there is nothing to re-derive. NO body hash moved and"
+                " nothing about your edit's codegen is implied by this."
+                " A permutation pin aborts a build on the function it PINS,"
+                " which is usually DOWNSTREAM of the one you edited — re-run"
+                " the failing build and use the pin webfrank's abort names.")
+    if "instruction_permutation" in text or "permutation" in text:
+        return (f"rederive-pin ABORTED: {unit}::{fn} has a rule but no"
+                " instruction_permutation window, so there are no relocation"
+                " hashes to re-derive. Nothing was pasted.")
+    return ("rederive-pin ABORTED — a body hash moved, so the edit changed"
+            " CODEGEN, not just the anonymous pool. Nothing was pasted:"
+            " re-derive the rule from scratch rather than pasting hashes"
+            " over a body that is no longer the one the rule was proven on.")
+
+
 def rederive_pin(unit, fn, transient=False):
     """One-call pin re-derivation: body build + wf_rederive_pin --apply +
     configure + confirm (run 34 item 9).
@@ -606,11 +765,38 @@ def rederive_pin(unit, fn, transient=False):
     hashes into webfrank.json, run configure.py, rebuild. This sequences all
     of it and ABORTS at the guard wf_rederive_pin enforces — if any BODY hash
     moved the edit changed codegen, so nothing is pasted.
+
+    The function re-derived is RESOLVED, not assumed (run-39 item 3): the
+    pin that aborts a build is the DOWNSTREAM one, not the function being
+    probed, so a worker naming their own function used to get an accurate
+    "no webfrank rule" followed by a FALSE "a body hash moved (the edit
+    changed codegen)". See resolve_pin_target.
     """
     parts = unit.split("/")
     body = Path(f"build/{VERSION}/src/{'/'.join(parts[:-1])}"
                 f"/.postprocess/body/{parts[-1]}.o")
     wf_tool = TOOLS / "composed_census" / "wf_rederive_pin.py"
+
+    pins = read_pin_functions(unit)
+    if fn not in pins:
+        # Ask the BUILD which pin is failing before guessing. webfrank's
+        # abort text names it; this is the only place that costs a build,
+        # and only on the path that was previously guaranteed to fail.
+        failing = None
+        if len(pins) > 1:
+            print(f"[{fn} has no webfrank rule in {unit} — building the"
+                  " object to read which pin the WEBFRANK stage aborts on]")
+            probe_build = subprocess.run(
+                ["ninja", f"build/{VERSION}/src/{unit}.o"],
+                capture_output=True, text=True)
+            failing = pin_named_by_build(probe_build.stdout
+                                         + probe_build.stderr)
+        target, note = resolve_pin_target(fn, pins, failing)
+        if note:
+            print(note)
+        if target is None:
+            return 1
+        fn = target
 
     print(f"[1/4] building raw body object {body.name}")
     r = subprocess.run(["ninja", str(body)], capture_output=True, text=True)
@@ -628,10 +814,7 @@ def rederive_pin(unit, fn, transient=False):
     if r.returncode != 0:
         if r.stderr.strip():
             print(r.stderr.strip()[-800:])
-        print("rederive-pin ABORTED — a body hash moved (the edit changed"
-              " codegen, not just the pool), or the rule has no"
-              " instruction_permutation. Nothing was pasted; re-derive the"
-              " rule from scratch if codegen changed.")
+        print(rederive_abort_reason(r.stdout + r.stderr, unit, fn))
         return 1
 
     print("[3/4] configure.py (materialize the WEBFRANK edge for the new hash)")
@@ -654,6 +837,83 @@ def rederive_pin(unit, fn, transient=False):
           " the WEBFRANK object built clean. Run a full `ninja` before"
           " committing.")
     return 0
+
+
+def raw_object_target(unit):
+    """The ninja target for `unit`'s PRE-postprocess object.
+
+    Run-39 item 10. `--raw` exists to score the compiler's own output for a
+    TU whose functions are WebFrank-pinned, but probe built
+    `build/<V>/src/<unit>.o` regardless — the POSTPROCESSED object, whose
+    edge hash-asserts every pin. So the one situation --raw is for (a pin
+    made stale by your own upstream edit) was exactly the situation in which
+    it could not run: reproduced at 7688fc7df, where `probe --raw` on
+    game/game/player::do_players died in the WEBFRANK stage on the do_exit
+    pin. SY worked around it by building the body object and running fnasm
+    by hand.
+
+    Resolved through fnasm.raw_obj_path so the `frank` stage is preferred
+    over `body` exactly as the reader does — frank runs BEFORE the object
+    postprocessor when both are configured, so its output is what webfrank
+    consumes. Falls back to the body path when nothing is staged yet,
+    because a target that does not exist must still be BUILDABLE.
+
+    Returned REPO-ROOT-RELATIVE with forward slashes: fnasm hands back an
+    absolute path (it is a reader), and ninja rejects those outright —
+    `ninja: error: unknown target 'W:\\...'`, measured on the first run of
+    this function.
+    """
+    parts = unit.split("/")
+    fallback = (f"build/{VERSION}/src/{'/'.join(parts[:-1])}"
+                f"/.postprocess/body/{parts[-1]}.o")
+    try:
+        sys.path.insert(0, str(TOOLS))
+        import fnasm as _fnasm
+        staged = _fnasm.raw_obj_path(unit)
+        if staged is not None:
+            return Path(staged).resolve().relative_to(
+                Path.cwd().resolve()).as_posix()
+    except Exception:
+        pass
+    return fallback
+
+
+def rebuild_after_restore(unit, why):
+    """Rebuild ``unit``'s object after a restore that returns early.
+
+    Run-39 item 11 / claim.law.MS_probe-discard-restores-source-but-not-
+    objects-so-object-reading-tools-report-the-discarded-probe.20260902.v1.
+    `--discard` and `--revert-baseline` restore the SOURCE and return
+    without building, so every object-reading tool — wf_word_diff, fnasm,
+    fndiff --no-build, regnorm, savedregs — keeps reporting the DISCARDED
+    probe on a tree `git status` calls clean. MS nearly banked a word count
+    that way (62 stale against 61 true).
+
+    Reproduced at f1105b430 on game/game/player::DoPlayerTexMods: clean
+    tree DIFFERING WORDS = 0; with a storage-class flip, 7; after
+    `--discard` restored the source to HEAD, still 7.
+
+    `--revert` never needed this — it falls through to main()'s own build
+    and re-score. The two early-returning paths did.
+    """
+    build = subprocess.run(["ninja", f"build/{VERSION}/src/{unit}.o"],
+                           capture_output=True, text=True)
+    if build.returncode == 0:
+        print(f"[object rebuilt after {why}: build/{VERSION}/src/{unit}.o now"
+              " describes the restored source, so wf_word_diff / fnasm /"
+              " fndiff --no-build / regnorm read the tree you are actually"
+              " in. --no-rebuild skips this.]")
+        return True
+    print(f"WARNING: the object FAILED to rebuild after {why}. The source is"
+          f" restored but build/{VERSION}/src/{unit}.o still holds the"
+          " DISCARDED probe's bytes, and every object-reading tool"
+          " (wf_word_diff, fnasm, fndiff --no-build, regnorm, savedregs)"
+          " will report that state on a tree git calls clean — the defect"
+          " claim.law.MS_probe-discard-restores-source-but-not-objects"
+          " records. Do not quote a number from this tree until a build"
+          " succeeds. Build output:")
+    print((build.stdout + build.stderr).strip()[-1200:])
+    return False
 
 
 def head_bytes(source):
@@ -1046,12 +1306,18 @@ def count_distance(text):
     return abs(int(match.group(1)) - int(match.group(2))) if match else None
 
 
-def object_digest(unit, fn, fn_stripped):
-    """Raw-byte signature of the built function, or None if unavailable."""
+def object_digest(unit, fn, fn_stripped, objfile=None):
+    """Raw-byte signature of the built function, or None if unavailable.
+
+    ``objfile`` overrides the default postprocessed object so `--raw` hashes
+    the bytes it actually scored; hashing the postprocessed object under
+    --raw would make the re-score guard and NEUTRAL-IDENTICAL describe a
+    different object than the verdict.
+    """
     try:
         sys.path.insert(0, str(TOOLS))
         import fndiff as _fndiff
-        objfile = Path(f"build/{VERSION}/src/{unit}.o")
+        objfile = Path(objfile or f"build/{VERSION}/src/{unit}.o")
         signature = _fndiff.raw_signature(objfile)
         return signature.get(fn) or signature.get(fn_stripped)
     except Exception:
@@ -1085,7 +1351,7 @@ def parse_section_digests(dump):
             if not name.startswith(".text")}
 
 
-def data_digest(unit):
+def data_digest(unit, objfile=None):
     """Per-section digest of the object's NON-TEXT sections, or None.
 
     object_digest() above hashes instruction words and relocation lines,
@@ -1101,7 +1367,7 @@ def data_digest(unit):
     try:
         sys.path.insert(0, str(TOOLS))
         import fndiff as _fndiff
-        objfile = Path(f"build/{VERSION}/src/{unit}.o")
+        objfile = Path(objfile or f"build/{VERSION}/src/{unit}.o")
         dump = subprocess.run(
             [str(_fndiff.OBJDUMP), "-s", str(objfile)],
             capture_output=True, text=True)
@@ -1498,6 +1764,404 @@ def apply_fuzzy_bank_gate(verdict, state, prior_best, prior_best_fuzzy,
         " keep deliberately with --rebase-best."
         f"\n[instruction-stream verdict, SUPERSEDED by the gate: {head}]")
     return gated, state
+
+
+# ---------------------------------------------------------------------------
+# TU-SCOPE BANK GATE (run-39 item 1) — the nine-STRICT hazard.
+#
+# claim.law.PC_storage-class-of-a-same-tu-base-object-is-a-codegen-lever-
+# that-must-be-gated-tu-wide: a ONE-WORD edit touching no function body
+# (`static void* potionicon_tab[5];` -> external linkage) scored
+# `IMPROVED real 840 -> 838 ... [best updated]` here and was banked as a
+# new BEST, while `defake_gate check game/game/player` reported 13
+# regressions of which NINE were byte-exact losses, and the full-image
+# PROGRESS line fell STRICT 56.46% (2575) -> 56.19% (2566). Reproduced in
+# this worktree at 0f45ae610 before the fix: the probe half printed
+# `IMPROVED ... [best updated]`, the gate half named the same nine
+# (AppendItemToLevel, setup_player_models, show_crystals byte-identical ->
+# real N; DoPlayerTexMods, GetMaxPlayerModelSize, SetupPlayerTexMods,
+# ShowRuneStones EXACT -> OPERAND_DIFF; SetPlayerWindows, del_player_blits
+# EXACT -> STRUCTURAL).
+#
+# EVERY function-level instrument in this loop is blind to this by
+# construction — real, the opcode multiset, the slot map, and fuzzy are
+# all computed over ONE function's .text. The DATA column fires here (the
+# extabindex move), but it explicitly says "This is NOT a revert order"
+# and names non-text sections, not sibling .text losses; it is not this
+# alarm and did not stop the bank.
+#
+# So: detect from the DIFF whether the edit reached TU scope at all, and
+# only then spend the sibling cross-check. A body-only edit — the
+# overwhelming majority of probes — pays nothing.
+# ---------------------------------------------------------------------------
+
+# Keywords that decide LINKAGE (which section an object lands in, and
+# whether MWCC may address it off a same-TU base register web).
+LINKAGE_KEYWORDS = ("static", "extern", "inline", "register")
+# Keywords that decide POOL MEMBERSHIP (.rodata/.sdata2 vs .bss/.data/
+# .sdata) without changing linkage. A `const` flip moves an object between
+# pools and renumbers everything after it exactly as an added declaration
+# does.
+POOL_QUALIFIERS = ("const", "volatile")
+
+_WS_RE = re.compile(r"\s+")
+
+
+def _norm_decl(text):
+    """Whitespace-collapsed declaration text; "" when there is nothing."""
+    return _WS_RE.sub(" ", text).strip()
+
+
+def file_scope_items(text):
+    """Ordered [(kind, normalized_text)] for every FILE-SCOPE item.
+
+    Three kinds, and they are exactly the three things that can move a
+    sibling function's bytes without appearing in that sibling's source:
+
+      decl    a file-scope declaration or definition (`static void* t[5];`,
+              `const float k = 1.0f;`, `struct S { ... } s;`). Its presence,
+              size, order, linkage and qualifiers all decide section layout
+              and pool numbering TU-wide.
+      fndef   the HEAD of a function definition (everything before its
+              opening brace). Carries the linkage of the function itself —
+              `static void f(void)` -> `void f(void)` is a TU-scope change
+              that edits no declaration.
+      pragma  a file-scope `#pragma`. AGENTS records the measured hazard
+              directly: "NEVER unscoped #pragma peephole off mid-TU (poisons
+              all downstream fns)".
+
+    Function BODIES are discarded — that is the whole point. An edit that
+    only rewrites statements inside braces produces an identical item list
+    and costs this gate nothing.
+
+    A depth-0 brace group is a FUNCTION BODY iff the text before its `{`
+    ends in `)` (a declarator) or is empty (K&R parameter declarations
+    already flushed at their own semicolons) — then the head is emitted as
+    `fndef` and the body discarded. ANY other head means the braces are an
+    aggregate body or an initializer list (`static struct {...} s;`,
+    `static const int tab[] = {1,2,3};`), whose CONTENTS decide layout and
+    pool bytes, so the braces stay in the buffer and the whole thing lands
+    as one `decl` at its semicolon. Guessing from what FOLLOWS the `}`
+    instead loses the identifier of every `struct {...} name;` (measured:
+    the first form of this parser emitted `fndef "static struct"` plus
+    `decl "gThing"`).
+
+    Parsed over comment/literal-stripped text (so a `}` in a string cannot
+    unbalance the depth), and preprocessor lines are skipped for brace
+    counting entirely, backslash-continuations included: a multi-line macro
+    body carrying an unmatched brace would otherwise desynchronise every
+    item after it.
+
+    A C++ LINKAGE-SPECIFICATION block (`extern "C" { ... }`) is
+    TRANSPARENT: it opens no scope, and everything inside it is still file
+    scope. This is not a nicety — `extern "C" {` wraps lines 44-2842 of
+    src/game/movie/movieplayer.cpp and 73-400 of src/game/pb/pb_tree.cpp,
+    so counting it as a scope would have made this gate itemize NOTHING in
+    those TUs and silently pass every file-scope edit in them. (The first
+    draft of this docstring asserted no such block existed in the tree;
+    grepping refuted it.)
+    """
+    items = []
+    depth = 0            # NON-transparent open braces only
+    stack = []           # one bool per open brace: True = linkage spec
+    buf = []
+    body_head = None
+    in_directive = False
+    for line in split_lines(strip_noncode(text)):
+        stripped = line.strip()
+        if in_directive or stripped.startswith("#"):
+            if depth == 0 and not in_directive and stripped.startswith(
+                    "#pragma"):
+                items.append(("pragma", _norm_decl(stripped)))
+            in_directive = stripped.endswith("\\")
+            continue
+        for ch in line:
+            if ch == "{":
+                head = _norm_decl("".join(buf)) if depth == 0 else None
+                # `extern "C"` normalizes to bare `extern`: strip_noncode
+                # blanks the string literal but preserves its width.
+                if depth == 0 and head == "extern":
+                    stack.append(True)
+                    buf = []
+                    continue
+                if depth == 0:
+                    body_head = head
+                stack.append(False)
+                depth += 1
+                buf.append(ch)
+                continue
+            if ch == "}":
+                if stack and stack.pop():
+                    buf = []
+                    continue
+                depth = max(depth - 1, 0)
+                buf.append(ch)
+                if depth == 0 and (body_head == ""
+                                   or (body_head or "").endswith(")")):
+                    # A function body: keep the head, drop the statements.
+                    if body_head:
+                        items.append(("fndef", body_head))
+                    buf = []
+                    body_head = None
+                continue
+            if ch == ";" and depth == 0:
+                decl = _norm_decl("".join(buf))
+                if decl:
+                    items.append(("decl", decl))
+                buf = []
+                body_head = None
+                continue
+            buf.append(ch)
+        buf.append(" ")
+    return items
+
+
+def _split_keywords(decl):
+    """(frozenset(leading keywords), remainder) for a normalized decl."""
+    words = decl.split(" ")
+    keywords = set()
+    index = 0
+    while index < len(words) and words[index] in (
+            LINKAGE_KEYWORDS + POOL_QUALIFIERS):
+        keywords.add(words[index])
+        index += 1
+    return frozenset(keywords), " ".join(words[index:])
+
+
+def _keyword_change(old, new):
+    """A category name when `old`/`new` differ ONLY in leading storage-class
+    or pool keywords, else None."""
+    old_keywords, old_rest = _split_keywords(old)
+    new_keywords, new_rest = _split_keywords(new)
+    if old_rest != new_rest or old_keywords == new_keywords:
+        return None
+    moved = old_keywords ^ new_keywords
+    if moved & set(LINKAGE_KEYWORDS):
+        return "storage-class/linkage"
+    return "pool qualifier"
+
+
+def tu_scope_changes(head_text, cur_text):
+    """[(category, description)] for every FILE-SCOPE difference, or [].
+
+    `head_text is None` (the source is not committed) returns [] — there is
+    no committed sibling to regress, exactly as stale_restore_refusal treats
+    an uncommitted file. That is the one place this gate is deliberately
+    silent, and it is silent because the hazard cannot exist there.
+
+    Empty means the edit lives entirely inside function bodies and the
+    sibling cross-check below is not worth a measurement.
+    """
+    if head_text is None or cur_text is None:
+        return []
+    old = file_scope_items(head_text)
+    new = file_scope_items(cur_text)
+    if old == new:
+        return []
+    changes = []
+    matcher = difflib.SequenceMatcher(None, old, new, autojunk=False)
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            continue
+        if tag == "replace" and (i2 - i1) == (j2 - j1):
+            for old_item, new_item in zip(old[i1:i2], new[j1:j2]):
+                category = (_keyword_change(old_item[1], new_item[1])
+                            if old_item[0] == new_item[0] else None)
+                if category:
+                    changes.append((category,
+                                    f"{old_item[1]}  ->  {new_item[1]}"))
+                else:
+                    changes.append((f"{new_item[0]} changed",
+                                    f"{old_item[1]}  ->  {new_item[1]}"))
+            continue
+        for kind, item in old[i1:i2]:
+            changes.append((f"{kind} REMOVED", item))
+        for kind, item in new[j1:j2]:
+            changes.append((f"{kind} ADDED", item))
+    return changes
+
+
+# A REGRESSION whose reason names one of these is the loss of a BYTE-EXACT
+# function — the STRICT column, and the only thing the project's progress
+# number counts as matched. defake_gate.compare writes these three phrasings
+# and no other for that class.
+STRICT_LOSS_MARKERS = ("was byte-identical", "status EXACT ->",
+                       "function vanished")
+
+
+def sibling_strict_losses(verdicts, probed_names):
+    """(strict, other) regression rows on functions OTHER than the probed one.
+
+    `strict` are byte-exact losses — the nine of the law. `other` are
+    ordinary real/structure regressions, reported but not fatal: a
+    sibling's real moving while it was never exact is the ordinary cost of
+    a TU-wide conversion and is arbitrated, not refused.
+
+    Pure over defake_gate.compare's (name, verdict, why) triples so the
+    split is tested without an object file.
+    """
+    strict, other = [], []
+    for row in verdicts or []:
+        name, verdict, why = row[0], row[1], row[2]
+        if name in probed_names or name == "__sections__":
+            continue
+        if verdict != "REGRESSION":
+            continue
+        if any(marker in why for marker in STRICT_LOSS_MARKERS):
+            strict.append((name, why))
+        else:
+            other.append((name, why))
+    return strict, other
+
+
+def tu_scope_refusal(scope_changes, strict, other, note, unit, fn):
+    """The refusal text, or "" when the bank may proceed.
+
+    Refuses on a STRICT sibling loss, and refuses just as hard when the
+    cross-check COULD NOT RUN (`note` set, `strict` None). Fail-closed is
+    the whole design: absence of the measurement is not evidence of no
+    sibling loss, and this gate exists because a measurement nobody took
+    cost nine byte-exact functions.
+    """
+    scope_lines = "\n".join(f"    [{category}] {what}"
+                            for category, what in scope_changes)
+    head = ("TU-SCOPE EDIT DETECTED — this diff changes FILE-SCOPE"
+            f" declarations, not just {fn}'s body:\n{scope_lines}\n"
+            "  Every score in this loop (real, the opcode multiset, the"
+            " slot map, fuzzy) is computed over ONE function's .text and"
+            " is blind to what this does to the TU's other functions"
+            " (claim.law.PC_storage-class-of-a-same-tu-base-object-is-a-"
+            "codegen-lever-that-must-be-gated-tu-wide).")
+    if strict is None:
+        return (f"TU-SCOPE UNGATED  best NOT updated and NOTHING banked.\n"
+                f"{head}\n"
+                f"  The sibling cross-check could not run: {note}.\n"
+                "  Take the TU baseline and re-probe:\n"
+                f"    python tools/gdl/defake_gate.py baseline {unit}"
+                " --at-head\n"
+                f"    python tools/gdl/probe.py {unit} {fn}\n"
+                "  --no-tu-gate banks without the cross-check (say so in"
+                " the record if you use it).")
+    if strict:
+        rows = "\n".join(f"    {name}  {why}" for name, why in strict)
+        extra = ""
+        if other:
+            extra = ("\n  Plus"
+                     f" {len(other)} non-exact sibling regression(s):"
+                     " " + ", ".join(name for name, _ in other) + ".")
+        return (f"TU-SCOPE REGRESSED  {len(strict)} BYTE-EXACT sibling(s)"
+                " lost — best NOT updated and NOTHING banked, even though"
+                f" the instruction-stream metrics improved for {fn}.\n"
+                f"{head}\n"
+                f"  Byte-exact siblings destroyed by this edit:\n{rows}"
+                f"{extra}\n"
+                "  A probed function's gain does not buy exact siblings."
+                " Revert, or add the compensating pad in the vacated slot"
+                " and re-probe; keep it only if a full `ninja` PROGRESS"
+                " STRICT count does not fall. --no-tu-gate banks anyway.")
+    passed = ("[TU-scope gate: file-scope change(s) detected and"
+              " cross-checked against the TU baseline — no byte-exact"
+              " sibling lost"
+              + (f", {len(other)} non-exact sibling regression(s):"
+                 " " + ", ".join(name for name, _ in other)
+                 if other else "") + f". Baseline: {note}.]")
+    return "\x00" + passed
+
+
+def apply_tu_scope_gate(verdict, state, prior_best, scope_changes, strict,
+                        other, note, unit, fn):
+    """(verdict, state) — un-bank a new BEST that costs a byte-exact sibling.
+
+    Mirrors apply_fuzzy_bank_gate: only the banking verdicts are gated,
+    REBASED is exempt (it IS the deliberate arbitrated keep), and refusing
+    restores the BEST_KEYS captured before classify() ran.
+
+    BASELINE is exempt too, and for a different reason: it banks no
+    IMPROVEMENT claim, it creates the only revert point the session has.
+    Refusing it would leave a worker who edited before their first probe
+    with no snapshot at all — strictly worse than the hazard, and the
+    FIRST-BASELINE TRAP already has its own loud warning. A BASELINE over a
+    TU-scope diff is ANNOTATED with the same evidence and banks normally.
+    """
+    if not banks_best(verdict) or verdict.startswith("REBASED"):
+        return verdict, state
+    if not scope_changes:
+        return verdict, state
+    if verdict.startswith("BASELINE"):
+        scope_lines = "\n".join(f"    [{category}] {what}"
+                                for category, what in scope_changes)
+        return verdict + (
+            "\n[TU-scope gate: this BASELINE is banked over file-scope"
+            f" change(s) already in the tree:\n{scope_lines}\n"
+            "  The bank proceeds — a baseline claims no improvement and is"
+            " the session's only revert point — but every later verdict on"
+            " this unit is measured against a tree that has already moved"
+            " its siblings. Take `defake_gate.py baseline"
+            f" {unit} --at-head` if you need the committed comparison.]"
+        ), state
+    message = tu_scope_refusal(scope_changes, strict, other, note, unit, fn)
+    if not message:
+        return verdict, state
+    if message.startswith("\x00"):
+        return verdict + "\n" + message[1:], state
+    state = dict(state)
+    for key, value in prior_best.items():
+        if value is None:
+            state.pop(key, None)
+        else:
+            state[key] = value
+    head = verdict.split("\n", 1)[0]
+    return (message + "\n[instruction-stream verdict, SUPERSEDED by the"
+            f" gate: {head}]"), state
+
+
+def _defake_gate_module():
+    """The defake_gate module, or None. Fail-soft import, fail-CLOSED use:
+    the caller turns None into a refusal, not into a pass."""
+    try:
+        if str(TOOLS) not in sys.path:
+            sys.path.insert(0, str(TOOLS))
+        import defake_gate
+        return defake_gate
+    except Exception:
+        return None
+
+
+def tu_sibling_regressions(unit):
+    """(verdicts, note) from the TU's defake_gate baseline, or (None, why).
+
+    Takes NO build: probe has already built this object, and measure_unit
+    only reads it. The baseline is whatever `defake_gate.py baseline` last
+    banked for the unit; a baseline whose `source_sha1` equals the CURRENT
+    source describes the EDITED tree and can only report "no change", so it
+    is refused rather than believed.
+    """
+    module = _defake_gate_module()
+    if module is None:
+        return None, ("tools/gdl/defake_gate.py could not be imported")
+    try:
+        path = module.gate_path(unit)
+        if not path.exists():
+            return None, f"no TU baseline at {path}"
+        baseline, meta = module.load_baseline(path)
+        if meta.get("source_sha1") and meta["source_sha1"] == (
+                module.source_digest(unit)):
+            return None, (
+                f"the baseline at {path} was taken from the SOURCE BYTES"
+                " now in the working tree, so it describes the edited state"
+                " and can only report 'no change'")
+        snap, _fuzzy_note = module.measure_unit(unit)
+        verdicts = module.compare(
+            baseline, snap, resolve=module.resolve_symbol,
+            target_relocs=module.target_relocation_symbols(unit))
+        anchor = (meta.get("head") or "?")[:9]
+        head = git_head()
+        drift = ("" if head and meta.get("head") == head else
+                 " — NOT the current HEAD, so a row here may predate this"
+                 " edit; re-take with --at-head to be sure")
+        return verdicts, f"{path} anchored at {anchor}{drift}"
+    except Exception as error:
+        return None, f"the TU cross-check raised {type(error).__name__}: {error}"
 
 
 def classify(state, real, insns, multiset_tokens, rebase_best=False,
@@ -1918,13 +2582,69 @@ def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
     return "\n".join(lines)
 
 
+def transient_pin_texts(unit):
+    """(wf_for_working, wf_for_banked, notes) — the webfrank.json text that
+    pairs with EACH source state — or None when there is nothing to pair.
+
+    Run-39 item 2, reproduced live before this was written. `--arbitrate`
+    swaps the SOURCE between the working tree and the banked snapshot and
+    builds each, but webfrank.json is global state that pairs with exactly
+    ONE of them: after a `--rederive-pin --transient`, the config holds the
+    re-derived hashes for the WORKING source, so building the BANKED source
+    aborts in the WEBFRANK stage and the whole arbitration returns 1.
+    Measured on game/game/player at 0f45ae610 with the do_exit permutation
+    pin: `[current] real 870` scored, then `BUILD FAILED (banked state)`.
+    That is the one A/B a pinned TU most needs and the one it could not run.
+
+    The pre-probe hashes are already banked — `wf_rederive_pin` wrote them
+    for exactly this reason — so this reads them out WITHOUT consuming the
+    bank: restore_transient is run for its text, both files are put straight
+    back, and the caller gets two texts it can pair with two source states.
+
+    Returns None (arbitrate behaves exactly as before) when there is no
+    bank, no postprocessor stack, or nothing actually moved. Returns notes
+    instead of a pairing when restore_transient could not pair the slots —
+    a partial swap must WARN, never be presented as a measurement.
+    """
+    module = _wf_rederive_module()
+    if module is None:
+        return None
+    config = Path(f"config/{VERSION}/webfrank.json")
+    bank = Path(module.bank_path(unit))
+    if not bank.exists() or not config.exists():
+        return None
+    bank_bytes = bank.read_bytes()
+    working = config.read_bytes()
+    restored, notes = [], []
+    try:
+        restored, notes = module.restore_transient(
+            unit, str(config), str(bank))
+        banked = config.read_bytes()
+    except Exception as error:                       # pragma: no cover
+        banked = working
+        notes = [f"restore_transient raised {type(error).__name__}: {error}"]
+    finally:
+        # Both files go back exactly as found, whatever happened: this
+        # function is a READ of the bank, not a use of it.
+        config.write_bytes(working)
+        if not bank.exists():
+            bank.write_bytes(bank_bytes)
+    if notes:
+        return working, None, notes
+    if not restored or banked == working:
+        return None
+    return working, banked, []
+
+
 def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
                   vs_baseline=False):
     """Build+score BOTH the banked and the working state, then restore.
 
     The restore is in a `finally`: a failed build, a KeyboardInterrupt or an
     exception must never leave the snapshot's bytes sitting in the worker's
-    source file, which is the one way this mode could destroy an edit.
+    source file, which is the one way this mode could destroy an edit. The
+    same `finally` restores config/GUNE5D/webfrank.json, which this mode now
+    swaps in step with the source (see transient_pin_texts).
     """
     if source is None:
         print(f"cannot arbitrate: no src source found for {unit}")
@@ -1946,7 +2666,33 @@ def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
               " Edit first, or use --fuzzy for a single-state readout.")
         return 1
 
-    def measure(which):
+    # PIN STATE PAIRS WITH SOURCE STATE (run-39 item 2). webfrank.json is
+    # global and matches exactly one of the two source states; without this
+    # the banked half aborts in the WEBFRANK stage on any TU whose pin was
+    # re-derived with --transient. The config is an explicit `build.ninja`
+    # input to the webfrank edge, so rewriting it re-triggers the stage on
+    # its own — no configure.py, because no NEW edge is created.
+    config = Path(f"config/{VERSION}/webfrank.json")
+    config_bytes = config.read_bytes() if config.exists() else None
+    pins = transient_pin_texts(unit)
+    wf_working = wf_banked = None
+    if pins is not None:
+        wf_working, wf_banked, notes = pins
+        if wf_banked is None:
+            print("WARNING: this TU has a TRANSIENT pin bank that could not"
+                  " be paired with the banked source state — "
+                  + "; ".join(notes) + ". The banked half of this"
+                  " arbitration will very likely abort in the WEBFRANK"
+                  " stage. Resolve the note(s) above first.")
+        else:
+            print("[transient pin bank found: webfrank.json will be swapped"
+                  " IN STEP with the source so each half builds against the"
+                  " pin hashes that belong to it; both files are restored"
+                  " afterwards]")
+
+    def measure(which, wf_text=None):
+        if wf_text is not None and config_bytes is not None:
+            config.write_bytes(wf_text)
         build = subprocess.run(["ninja", f"build/{VERSION}/src/{unit}.o"],
                                capture_output=True, text=True)
         if build.returncode != 0:
@@ -1963,19 +2709,23 @@ def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
         return real, insns, report_fuzzy(unit, fn, fn_stripped), data
 
     try:
-        current = measure("current")
+        current = measure("current", wf_working)
         if current is None:
             return 1
         source.write_bytes(banked_bytes)
-        banked = measure("banked")
+        banked = measure("banked", wf_banked)
         if banked is None:
             return 1
     finally:
         # Unconditional: the working tree leaves this call exactly as it
-        # arrived, whatever happened in between.
+        # arrived, whatever happened in between — source AND pin state.
         if source.read_bytes() != current_bytes:
             source.write_bytes(current_bytes)
             print("[working tree restored to your edited state]")
+        if config_bytes is not None and config.read_bytes() != config_bytes:
+            config.write_bytes(config_bytes)
+            print("[config/GUNE5D/webfrank.json restored to its pre-"
+                  "arbitration state; the transient pin bank is untouched]")
     rebuild = subprocess.run(["ninja", f"build/{VERSION}/src/{unit}.o"],
                              capture_output=True, text=True)
     if rebuild.returncode != 0:
@@ -2093,6 +2843,36 @@ def replan_hint(streak):
     )
 
 
+def neutral_identical_proof_line(unit, fn, digest, real, insns,
+                                 multiset_tokens, head=None):
+    """The machine-readable NEUTRAL-IDENTICAL line a record can cite.
+
+    Run-39 item 6. A deliberate A/B that returns a BYTE-IDENTICAL object is
+    POSITIVE evidence — it proves the two constructs sit in different
+    allocator classes, because a within-class reorder always moves
+    something. MV used two of them as the proofs behind
+    claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-
+    declaration-order.20260902.v1, and had to transcribe the finding as
+    prose because probe emitted nothing quotable: the annotation named no
+    unit, no function, no object digest and no commit, so a reader could not
+    tell WHICH bytes were identical or WHERE.
+
+    Deliberately has no timestamp. Every field is reproducible from the
+    named commit, so two runs of the same A/B emit the same line and a
+    record citing it can be re-verified rather than merely believed.
+    """
+    fields = [
+        f"unit={unit}", f"fn={fn}",
+        f"bytes={digest or 'unmeasured'}",
+        f"real={real}",
+        f"insns={insns or 'unmeasured'}",
+        f"multiset={multiset_tokens}t" if multiset_tokens is not None
+        else "multiset=unmeasured",
+        f"head={head[:9] if head else 'unknown'}",
+    ]
+    return "NEUTRAL-IDENTICAL-PROOF " + " ".join(fields)
+
+
 def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                      prev_insns, prev_digest, digest,
                      prev_data=None, data=None, source_changed=True,
@@ -2181,7 +2961,18 @@ def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                             " the edit FOLDED AWAY before codegen. For a"
                             " spelling probe this is a STRONGER negative than"
                             " a regression: the source text never reached the"
-                            " compiler's decision point]")
+                            " compiler's decision point."
+                            " FOR A DELIBERATE A/B IT IS POSITIVE EVIDENCE:"
+                            " if you REORDERED or RETYPED two declarations"
+                            " and the object did not move, the two are in"
+                            " different allocator classes and no further"
+                            " reordering will ever move them past each other"
+                            " — that is a proved class BOUNDARY, and MV"
+                            " recorded two of them as the proofs behind"
+                            " claim.law.MV_callee-saved-numbering-has-a-"
+                            "width-class-ahead-of-declaration-order"
+                            ".20260902.v1. The PROOF line below is emitted"
+                            " for citation]")
     if worse and bytes_identical is not True:
         head = f"NEUTRAL   real {real}"
         if reverted:
@@ -2253,6 +3044,8 @@ def main():
         restore_transient_pins(unit)
         # Even a whole-file discard leaves HEADER edits live (run 34 item 3).
         warn_outside_edits(source, None)
+        if "--no-rebuild" not in sys.argv:
+            rebuild_after_restore(unit, "--discard")
         return 0
     if "--revert-baseline" in sys.argv:
         if source is None:
@@ -2272,6 +3065,8 @@ def main():
         restore_transient_pins(unit)
         warn_pin_drift(unit, base)
         warn_outside_edits(source, None)
+        if "--no-rebuild" not in sys.argv:
+            rebuild_after_restore(unit, "--revert-baseline")
         return 0
     if "--revert" in sys.argv:
         if source is None:
@@ -2354,16 +3149,26 @@ def main():
         # volatile-in-a-macro header edit survived a revert and stayed live.
         warn_outside_edits(source, None if "--whole-file" in sys.argv else fn)
 
+    # --raw BUILDS THE RAW OBJECT (run-39 item 10). Building the
+    # postprocessed object here made --raw unusable in the one case it
+    # exists for: a pin your own upstream edit made stale aborts the
+    # WEBFRANK edge, so the escape hatch died on the thing it was escaping.
+    raw = "--raw" in sys.argv
+    object_target = (raw_object_target(unit) if raw
+                     else f"build/{VERSION}/src/{unit}.o")
+    if raw:
+        print(f"[--raw: building {object_target} — the compiler's own"
+              " output, WITHOUT driving the WEBFRANK edge, so a stale pin"
+              " cannot block this score]")
     build = subprocess.run(
-        ["ninja", f"build/{VERSION}/src/{unit}.o"],
-        capture_output=True, text=True,
+        ["ninja", object_target], capture_output=True, text=True,
     )
     if build.returncode != 0:
         print("BUILD FAILED:")
         print((build.stdout + build.stderr).strip()[-1500:])
         return 1
 
-    raw_flag = ["--raw"] if "--raw" in sys.argv else []
+    raw_flag = ["--raw"] if raw else []
     # fndiff strips a trailing _80XXXXXX address suffix from user-supplied
     # names; accept either spelling here so one name works everywhere.
     fn_stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn)
@@ -2412,9 +3217,13 @@ def main():
     prev_tokens = state.get("last_multiset")
     prev_insns = state.get("last_insns")
     prev_digest = state.get("last_bytes")
-    digest = object_digest(unit, fn, fn_stripped)
+    # Both digests read the object that was actually SCORED, so under --raw
+    # the re-score guard and NEUTRAL-IDENTICAL describe the same bytes the
+    # verdict does.
+    scored_object = object_target if raw else None
+    digest = object_digest(unit, fn, fn_stripped, scored_object)
     prev_data = state.get("last_data")
-    data = data_digest(unit)
+    data = data_digest(unit, scored_object)
     # A cached fuzzy is usable ONLY when it provably describes the bytes
     # in front of us. Anything looser reintroduces the stale-number defect
     # the --fuzzy readout exists to prevent.
@@ -2501,6 +3310,35 @@ def main():
             state["last_fuzzy"] = fresh
             if digest is not None:
                 state["last_fuzzy_bytes"] = digest
+    # THE TU-SCOPE BANK GATE (run-39 item 1). The fuzzy gate above closed the
+    # "this function's other metric disagrees" hole; this closes the
+    # "this function is not the only function in the object" hole. A
+    # file-scope declaration, storage class, extern or pool change moves
+    # SIBLING bytes, and every instrument in this loop scores one function's
+    # .text. Measured on the reproduction above: `IMPROVED real 840 -> 838
+    # [best updated]` on a one-word edit that demoted nine byte-exact
+    # siblings. Detected from the DIFF first, so a body-only edit — nearly
+    # every probe — pays nothing at all.
+    if (banks_best(verdict) and not rebase_best
+            and "--no-tu-gate" not in sys.argv and source is not None):
+        committed = head_bytes(source)
+        scope_changes = tu_scope_changes(
+            None if committed is None else committed.decode("latin-1"),
+            source.read_bytes().decode("latin-1"))
+        if scope_changes:
+            print(f"[TU-scope gate: {len(scope_changes)} file-scope"
+                  " change(s) in this diff — cross-checking the whole TU"
+                  " against its defake_gate baseline (no build;"
+                  " --no-tu-gate skips it)]")
+            verdicts, note = tu_sibling_regressions(unit)
+            strict, other = (None, None)
+            if verdicts is not None:
+                strict, other = sibling_strict_losses(
+                    verdicts, {fn, fn_stripped})
+            verdict, state = apply_tu_scope_gate(
+                verdict, state, {key: state_before.get(key)
+                                 for key in BEST_KEYS},
+                scope_changes, strict, other, note, unit, fn)
     # A CONFLICT with no fresh fuzzy on BOTH states classifies nothing at all
     # (run 34 item 4): PC recorded a false regression from an unarbitrated
     # CONFLICT headline. The exit code carries the refusal to any script.
@@ -2539,6 +3377,13 @@ def main():
         dcl = data_line(prev_data, data, source_changed)
         if dcl:
             print(dcl)
+    # The citable half of a byte-identical A/B (run-39 item 6). A deliberate
+    # reorder/retype that leaves the object unchanged PROVES a class
+    # boundary, and the prose annotation named neither the bytes nor the
+    # commit, so MV had to transcribe its two proofs by hand.
+    if "NEUTRAL-IDENTICAL" in verdict:
+        print(neutral_identical_proof_line(
+            unit, fn, digest, real, insns, multiset_tokens, git_head()))
     # The regnorm GENUINE structural-row count on the two verdicts the opcode
     # multiset can mislead (run 34 item 2): CONFLICT and NEUTRAL-WORSE are set
     # by the token count, which is unsound under cancelling pairs.

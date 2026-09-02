@@ -1,0 +1,17 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py rebuild_after_restore",
+    "tools/gdl/tests/test_probe.py RebuildAfterRestoreTests"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "Run any probe that changes object bytes, then `probe.py <unit> <fn> --discard`, then an object-reading tool (wf_word_diff.py, fnasm.py, fndiff.py --no-build, regnorm.py, savedregs.py). If its reading still describes the DISCARDED probe rather than the restored tree, the rebuild did not happen or did not cover that tool's object, and this law is false. Note the deliberate escape: `--discard --no-rebuild` reinstates the old behaviour by request, and a rebuild that FAILS prints a warning naming the stale object rather than reporting success -- a silent failure there would restore the superseded law's defect exactly.",
+  "id": "claim.law.T9_probe-discard-and-revert-baseline-now-rebuild-so-object-reading-tools-read-the-restored-tree.20260903.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-02T22:04:38Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "supersedes": "claim.law.MS_probe-discard-restores-source-but-not-objects-so-object-reading-tools-report-the-discarded-probe.20260902.v1",
+  "valid_from": "2026-09-03",
+  "value": "PROBE --DISCARD AND --REVERT-BASELINE NOW REBUILD THE UNIT'S OBJECT, SO AN OBJECT-READING TOOL RUN AFTER A RESTORE DESCRIBES THE RESTORED TREE AND NOT THE DISCARDED PROBE. This supersedes the MS law by satisfying that law's OWN stated expiry condition, which reads: 'If the two readings agree, either the tool has been changed to rebuild or verify object freshness, or the discard path now triggers a build - in either case this law has expired and should be superseded rather than screened.' THE MECHANISM THE MS LAW DESCRIBED WAS REAL AND IS REPRODUCED HERE at commit 0f45ae610 on game/game/player::DoPlayerTexMods, a count-symmetric 26/26 function: wf_word_diff read DIFFERING WORDS = 0 on the clean tree, 7 with an external-linkage flip applied and built, and STILL 7 after `probe.py game/game/player do_players --discard` had restored the source to HEAD and `git status` reported the tree clean. The true value is 0. MS nearly banked a word count off by one from exactly this shape (62 stale against 61 true). WHY IT WAS ONLY THESE TWO PATHS: `--revert` never had the defect, because it falls through to probe's own build and re-score; `--discard` and `--revert-baseline` RETURN EARLY, and the early return is what skipped the build. That asymmetry is why the defect was invisible in the loop most workers use. AFTER THE FIX the same sequence reads 0, and the rebuild announces itself by naming the tools whose readings it just made honest. A FAILED rebuild does not fall back to silence: it prints the stale-object warning and says not to quote a number from the tree, because failing quietly would reproduce the superseded defect while appearing to have fixed it."
+}

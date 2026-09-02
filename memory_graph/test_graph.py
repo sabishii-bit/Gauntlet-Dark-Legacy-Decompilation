@@ -1094,6 +1094,112 @@ class ProposalGateTests(unittest.TestCase):
                         "probed_form": "swapped the two locals"})
         self.assertTrue(stage_record_proposal(record, root=self.root).exists())
 
+    # --- run-39 item 7: the cap-STRENGTHENING path ------------------------
+    # AGENTS.md's alignment-sensitivity rule is written entirely for the case
+    # where a re-probed cap FLIPS. The other outcome is evidence too, and the
+    # stronger kind — a cap re-probed at a NEW alignment that REPRODUCES its
+    # regression is repeated evidence — and the corpus had nowhere to put it,
+    # so MV wrote it as prose where no query can rank it.
+
+    REPRO = {
+        "at": "commit 93b1e95f9, 2026-09-03",
+        "alignment": "the storage-class flip in the same TU landed and was"
+                     " reverted; the anonymous pool renumbered twice",
+        "command": "probe.py game/game/player do_players --arbitrate",
+        "result": "REPRODUCED: real 840 -> 870, fuzzy 97.2692 -> 96.6337",
+    }
+
+    def repro_attempt(self, rid, reproductions):
+        return _attempt(rid, "function:test_fn", outcome="capped",
+                        reproductions=reproductions,
+                        attributes={"law_screen": "none applicable: test"})
+
+    def test_a_well_formed_reproduction_is_accepted(self):
+        record = self.repro_attempt("attempt.repro.v1", [dict(self.REPRO)])
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_a_reproduction_missing_its_alignment_is_refused(self):
+        """Re-running the same probe on the same tree measures nothing new,
+        which is exactly the claim this field makes."""
+        entry = {k: v for k, v in self.REPRO.items() if k != "alignment"}
+        with self.assertRaisesRegex(MemoryGraphError, "alignment"):
+            stage_record_proposal(
+                self.repro_attempt("attempt.repro.v2", [entry]),
+                root=self.root)
+
+    def test_reproductions_must_be_a_list_not_a_single_object(self):
+        with self.assertRaisesRegex(MemoryGraphError, "must be a LIST"):
+            stage_record_proposal(
+                self.repro_attempt("attempt.repro.v3", dict(self.REPRO)),
+                root=self.root)
+
+    def test_a_non_object_entry_is_refused(self):
+        with self.assertRaisesRegex(MemoryGraphError, "must be an object"):
+            stage_record_proposal(
+                self.repro_attempt("attempt.repro.v4", ["reproduced twice"]),
+                root=self.root)
+
+    def test_the_field_is_never_required(self):
+        """A cap measured once is still a cap."""
+        record = _attempt("attempt.repro.v5", "function:test_fn",
+                          outcome="capped",
+                          attributes={"law_screen": "none applicable: test"})
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    # --- Gate I: a hypothesis naming a register must cite it in the stream
+    #
+    # AGENTS.md carries this as a DISPATCH screen, which fires after the
+    # wrong register is already written down. Run 37's mandated hypothesis
+    # named the wrong register and run 38's work order repeated it on the
+    # same function; the census that settled it cost ZERO builds.
+    CITED = ("defs census: r20 has exactly one definition in our stream,"
+             " `@0x684 addi r20,r5,0 @lbl_80240E30(ADDR16_LO)`, an"
+             " unrelated level-table address.")
+
+    def _hypothesis(self, statement):
+        return {"statement": statement,
+                "cheapest_refuting_observation": "probe --ops shows the"
+                                                 " cluster unchanged",
+                "screened_against_target": "not yet"}
+
+    def _reg_attempt(self, rid, statement, verification=None):
+        attributes = {"law_screen": "none applicable: test"}
+        if verification:
+            attributes["verification"] = verification
+        return _attempt(rid, "function:test_fn", outcome="parked",
+                        hypothesis=self._hypothesis(statement),
+                        attributes=attributes)
+
+    def test_a_hypothesis_naming_a_register_without_a_citation_is_refused(
+            self):
+        record = self._reg_attempt(
+            "attempt.reg.v1",
+            "The residual is caused by r20 holding the cached base.")
+        with self.assertRaisesRegex(MemoryGraphError, "r20"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_quoting_the_definition_site_discharges_it(self):
+        record = self._reg_attempt(
+            "attempt.reg.v2",
+            "The residual is caused by r20 holding the cached base.",
+            verification=self.CITED)
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
+    def test_gate_i_error_cites_the_zero_build_refutation(self):
+        record = self._reg_attempt(
+            "attempt.reg.v3", "r20 holds the base across the loop.")
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=self.root)
+        self.assertIn("PC_do-players-loop-head-named-base-refuted",
+                      str(caught.exception))
+
+    def test_a_hypothesis_naming_no_register_is_untouched(self):
+        record = self._reg_attempt(
+            "attempt.reg.v4",
+            "The residual is a declaration-order rotation in the locals"
+            " block.")
+        self.assertTrue(stage_record_proposal(record, root=self.root).exists())
+
     # --- Gate C: multi-edit probed_form requires held_fixed --------------
     def test_multi_edit_probed_form_without_held_fixed_is_refused(self):
         record = _attempt(
@@ -1835,6 +1941,112 @@ class RetrievalQueryTests(unittest.TestCase):
         brief = tu_briefing("game/test/foo", root=self.root)
         for row in brief["live_attempts"]:
             self.assertNotIn("_record", row)
+
+    # --- run-39 item 8: the word-diff screen rides the signature ----------
+    # AGENTS.md carried this as a screen for POSTPROCESSOR-lane briefs only,
+    # so a SOURCE-lane brief inherited a residual signature without it and
+    # UD's "25-word permutation" framing died on contact with the real
+    # count. Measured live on game/game/player at 17297fddd:
+    # player_store_in_save's recorded signature frames the residual as "2
+    # ops clusters" while the CURRENT raw count is 33 words; and
+    # PlayerProcessPowerups reads 187 raw against 2 unabsorbed, which is why
+    # quoting `unabsorbed` under a word-count framing understates the work.
+
+    def test_a_row_quoting_a_signature_carries_the_live_word_count(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        quoting = [row for row in brief["vetoed_axes"]
+                   if (row.get("residual") or {}).get("signature")]
+        self.assertTrue(quoting, "fixture must have a signature-bearing park")
+        for row in quoting:
+            self.assertIn("current_differing_words", row)
+            self.assertIn("signature_screen", row)
+
+    def test_the_screen_names_the_raw_count_as_the_decider(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        for row in brief["vetoed_axes"]:
+            if "signature_screen" not in row:
+                continue
+            screen = row["signature_screen"]
+            self.assertIn("RAW COUNT", screen)
+            self.assertIn("postprocessor candidacy", screen)
+            # null must never read as zero — the metric is undefined for a
+            # count-asymmetric function, which is itself a finding.
+            self.assertIn("never zero", screen)
+
+    def test_a_row_with_no_signature_is_not_given_a_screen(self):
+        """The screen is about an INHERITED signature; attaching it to every
+        park would make it noise and teach lanes to skim past it."""
+        brief = tu_briefing("game/test/foo", root=self.root)
+        for row in brief["vetoed_axes"]:
+            if (row.get("residual") or {}).get("signature"):
+                continue
+            self.assertNotIn("signature_screen", row)
+
+    def test_the_roster_carries_the_raw_word_count_too(self):
+        brief = tu_briefing("game/test/foo", root=self.root)
+        for row in brief["functions"]:
+            self.assertIn("differing_words", row)
+
+    # --- run-39 item 9: --roster-only -------------------------------------
+    # A full brief on game/game/player measures 201,535 bytes (~50K tokens);
+    # UD measured 47K for one TU. The roster is 35.7% of it, and 53KB of
+    # that roster was TWO staleness paragraphs repeated across 92 rows.
+    # --roster-only takes the same TU to 19,623 bytes (10.3x).
+    #
+    # The per-row staleness stays in the FULL brief on purpose — "the
+    # envelope is what gets skimmed past" is a recorded decision, left
+    # standing. In roster-only the whole result IS the roster, so there is
+    # no envelope to skim past.
+
+    def roster_only(self):
+        return tu_briefing("game/test/foo", root=self.root, roster_only=True)
+
+    def test_roster_only_drops_the_narrative_sections(self):
+        compact = self.roster_only()
+        for key in ("open_hypotheses", "vetoed_axes", "live_attempts",
+                    "active_claims", "webfrank_pins", "core_screen_laws",
+                    "matching_laws", "similar_residuals", "refutations"):
+            self.assertNotIn(key, compact, key)
+
+    def test_roster_only_keeps_the_roster_and_its_anchors(self):
+        compact = self.roster_only()
+        for key in ("tu", "functions", "raw_offset_debt",
+                    "report_generated_at", "staleness_banner"):
+            self.assertIn(key, compact, key)
+
+    def test_the_staleness_paragraphs_are_hoisted_not_dropped(self):
+        """Cheaper must not mean less honest: the warning survives, once."""
+        compact = self.roster_only()
+        self.assertIn("never means zero", compact["unabsorbed_staleness"])
+        self.assertTrue(compact["fuzzy_staleness"])
+        for row in compact["functions"]:
+            self.assertNotIn("fuzzy_staleness", row)
+            self.assertNotIn("unabsorbed_staleness", row)
+
+    def test_it_says_it_is_not_a_substitute_for_the_spawn_briefing(self):
+        """The omitted sections carry MANDATORY step 1 and the claim vetoes,
+        so this form must never read as the spawn briefing."""
+        note = self.roster_only()["roster_only_note"]
+        self.assertIn("MANDATORY STEP 1", note)
+        self.assertIn("VETO", note)
+
+    def test_the_full_brief_is_unchanged_and_still_per_row(self):
+        full = tu_briefing("game/test/foo", root=self.root)
+        self.assertIn("open_hypotheses", full)
+        self.assertNotIn("roster_only_note", full)
+        for row in full["functions"]:
+            self.assertIn("fuzzy_staleness", row)
+
+    def test_roster_only_is_smaller_than_the_full_brief(self):
+        self.assertLess(
+            len(json.dumps(self.roster_only())),
+            len(json.dumps(tu_briefing("game/test/foo", root=self.root))))
+
+    def test_no_function_is_lost_from_the_roster(self):
+        full = tu_briefing("game/test/foo", root=self.root)
+        self.assertEqual([row["function"] for row in full["functions"]],
+                         [row["function"]
+                          for row in self.roster_only()["functions"]])
 
 
 def ev_root():
@@ -3276,6 +3488,114 @@ class SupersessionScreenPerformanceTests(unittest.TestCase):
                     " LEFT JOIN binary_module bm ON bm.id = bs.module_id"))
         self.assertIn("binary_symbol_raw_name_idx", plan, plan)
         self.assertIn("raw_name=?", plan, plan)
+
+
+class AttemptTemplateGuidanceTests(unittest.TestCase):
+    """run-39 item 13. The attempt template stated the SHAPE of a record but
+    not the two rules that reject one, so an author learned both by
+    submitting: UD burned 3 submissions, and this lane burned 4 more on the
+    same template while reproducing the other items.
+
+    Measured at f5ac8b63c: an attempt carrying `epistemic_state` validates
+    CLEANLY and the field is then ignored (it is a claim field), so a
+    confidence recorded there is silently not recorded; and a
+    `screened_against_target` of JSON `false` is falsy and rejected as
+    "missing", which reads as a schema error rather than as the answer no.
+    """
+
+    def setUp(self):
+        self.template = core.record_template("attempt")
+
+    def test_the_subject_rule_is_stated_before_submission(self):
+        text = self.template["function"]
+        self.assertIn("MUST RESOLVE", text)
+        self.assertIn("tu:<module>", text)
+        self.assertIn("gdlmem.py search", text)
+
+    def test_outcome_says_epistemic_state_is_ignored_here(self):
+        text = self.template["outcome"]
+        self.assertIn("epistemic_state", text)
+        self.assertIn("IGNORED", text)
+        self.assertIn("improved|neutral|negative|parked|capped", text)
+
+    def test_screened_against_target_warns_that_false_reads_as_missing(self):
+        text = self.template["hypothesis"]["screened_against_target"]
+        self.assertIn("NON-EMPTY STRING", text)
+        self.assertIn("rejected as MISSING", text)
+
+    def test_the_template_still_stages_when_filled_in(self):
+        """Guidance must not break the shape it documents."""
+        for key in ("function", "attempted_axis", "outcome"):
+            self.assertTrue(self.template[key].startswith("<REQUIRED"), key)
+
+
+class RegisterDefinitionGapTests(unittest.TestCase):
+    """The pure half of Gate I, calibrated against the accepted corpus.
+
+    Measured on 1721 accepted records: 29 hypotheses name a register at
+    all. A destination-only rule tripped 22 of them, and inspection showed
+    most were records that HAD done the work but cited the register as a
+    SOURCE operand (`addi r18,r31,3136`) or named r1. Widening to any
+    operand position and masking the ABI-fixed registers took it to 13 --
+    roughly one firing every three runs, against an error that cost two
+    builds twice in three runs.
+    """
+
+    CITED = "`@0x22c addi r18,r31,3136` materialises the base"
+
+    def gaps(self, statement, text=""):
+        return core.register_definition_gaps(statement, text)
+
+    def test_a_bare_register_claim_is_a_gap(self):
+        self.assertEqual(["r20"], self.gaps("r20 holds the cached base."))
+
+    def test_an_anchored_instruction_discharges_the_register(self):
+        self.assertEqual([], self.gaps("r18 holds the base.", self.CITED))
+
+    def test_a_source_operand_citation_counts(self):
+        """The PC census's own key line cites r31 as a SOURCE; requiring the
+        destination position tripped 13 corpus records that had done the
+        work."""
+        self.assertEqual([], self.gaps("r31 is the base.", self.CITED))
+
+    def test_an_instruction_with_no_anchor_does_not_discharge(self):
+        self.assertEqual(["r18"],
+                         self.gaps("r18 holds the base.", "addi r18,r31,3136"))
+
+    def test_an_anchor_with_no_instruction_does_not_discharge(self):
+        self.assertEqual(["r18"],
+                         self.gaps("r18 holds the base.",
+                                   "the r18 web starts at @0x22c"))
+
+    def test_abi_fixed_registers_have_no_definition_site_to_quote(self):
+        for register in ("r1", "r2", "r13"):
+            self.assertEqual(
+                [], self.gaps(f"the locals spill to 224({register})."),
+                register)
+
+    def test_a_save_set_range_names_a_set_not_a_register(self):
+        self.assertEqual(
+            [], self.gaps("save set target r16-r31 vs ours r15-r31."))
+        self.assertEqual([], self.gaps("the r3..r10 argument block."))
+
+    def test_every_named_register_is_reported_not_just_the_first(self):
+        self.assertEqual(["r24", "r25"],
+                         self.gaps("gPlayers reaches r24 ours vs r25 target."))
+
+    def test_float_registers_are_covered_too(self):
+        self.assertEqual(["f1"], self.gaps("f1 carries the scaled value."))
+
+    def test_prose_near_an_offset_is_not_an_instruction_citation(self):
+        """Without a real mnemonic the gate would assert nothing: ordinary
+        prose sitting near an offset would discharge it."""
+        self.assertEqual(
+            ["r20"],
+            self.gaps("r20 holds the base.",
+                      "the r20 web at @0x684 is the one to split"))
+
+    def test_an_empty_or_missing_statement_is_not_a_gap(self):
+        self.assertEqual([], self.gaps(""))
+        self.assertEqual([], self.gaps(None))
 
 
 if __name__ == "__main__":

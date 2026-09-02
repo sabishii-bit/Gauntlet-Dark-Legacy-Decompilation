@@ -907,6 +907,67 @@ def immediate_deltas(t, b):
     return out
 
 
+# How many rows either side of an unpaired block are treated as guesses.
+# The matcher's alignment is trustworthy in the MIDDLE of a long equal run
+# and progressively less so as it approaches a boundary it had to choose.
+IMMEDIATE_ADJACENCY = 2
+
+
+def immediate_row_reliability(t, b):
+    """{t_index: why} for IMMEDIATE rows whose PAIRING is a guess.
+
+    Run-39 item 12. immediate_deltas() walks the sequence matcher's EQUAL
+    runs and pairs positionally INSIDE them, which is sound in the middle of
+    a long run and a guess at its edges: where a run abuts an insert /
+    delete / replace, the matcher CHOSE that boundary, and the first and
+    last rows of the run may pair two instructions that are not each other's
+    counterparts at all. The row still prints as "the opcode agrees and a
+    LITERAL does not", which reads exactly like a wrong-constant bug — UD
+    nearly recorded one.
+
+    The tell is visible in the printed row itself: `T[84]@150 O[83]@14c`,
+    where the two indices have DRIFTED because instructions upstream are
+    unpaired. Drift alone is not proof of a bad pairing (a long equal run
+    after one deletion is still correctly aligned), so drift is REPORTED as
+    context while ADJACENCY to the boundary is what marks the row.
+
+    Pure over the two instruction-line lists, and deliberately separate from
+    immediate_deltas so its tuple shape — used by callers and tests — does
+    not change.
+    """
+    ti, _t_rel = relocated_instructions(t)
+    bi, _b_rel = relocated_instructions(b)
+    to = [ln.split()[0] for ln in ti]
+    bo = [ln.split()[0] for ln in bi]
+    blocks = difflib.SequenceMatcher(
+        None, to, bo, autojunk=False).get_opcodes()
+    out = {}
+    for index, (tag, i1, i2, j1, j2) in enumerate(blocks):
+        if tag != "equal":
+            continue
+        # A run bounded by the FUNCTION's own start/end is not adjacent to
+        # anything unpaired; only a neighbouring non-equal block counts.
+        after_unpaired = index > 0
+        before_unpaired = index < len(blocks) - 1
+        run = i2 - i1
+        for k in range(run):
+            reasons = []
+            if after_unpaired and k < IMMEDIATE_ADJACENCY:
+                reasons.append(
+                    f"only {k} row(s) after an unpaired block")
+            if before_unpaired and (run - 1 - k) < IMMEDIATE_ADJACENCY:
+                reasons.append(
+                    f"only {run - 1 - k} row(s) before an unpaired block")
+            if not reasons:
+                continue
+            drift = (i1 + k) - (j1 + k)
+            if drift:
+                reasons.append(f"the streams have drifted by {drift}"
+                               " instruction(s) here")
+            out[i1 + k] = "; ".join(reasons)
+    return out
+
+
 def reloc_naming_only(t, b):
     """True when the ONLY residual is how relocation symbols are SPELLED.
 
@@ -1120,9 +1181,27 @@ def ops_diff(name, t, b):
         note = f"  [{' + '.join(flags)}]" if flags else ""
         print(f"  {tag:7} T[{i1}:{i2}]@{i1 * 4:x}-{i2 * 4:x}={to[i1:i2]}"
               f"  O[{j1}:{j2}]@{j1 * 4:x}-{j2 * 4:x}={bo[j1:j2]}{note}")
+    # Which of these rows the matcher had to GUESS at (run-39 item 12).
+    unreliable = immediate_row_reliability(t, b)
+    shaky = 0
     for ti, bi, kind, t_line, b_line in imm:
+        why = unreliable.get(ti)
+        if why:
+            shaky += 1
         print(f"  IMMEDIATE T[{ti}]@{ti * 4:x}  O[{bi}]@{bi * 4:x}"
-              f"   T: {t_line}   O: {b_line}")
+              f"   T: {t_line}   O: {b_line}"
+              + (f"   [PAIRING UNRELIABLE: {why}]" if why else ""))
+    if shaky:
+        print(f"  {shaky} of {len(imm)} IMMEDIATE row(s) are marked PAIRING"
+              " UNRELIABLE: they sit at the edge of an equal run, where the"
+              " matcher CHOSE the boundary, so the two instructions printed"
+              " side by side may not be each other's counterparts at all."
+              " A row like that reads exactly like a wrong-constant bug and"
+              " is not one — UD nearly recorded one. Confirm every marked"
+              " row against the ALIGNED view (`fnasm <unit> <fn> 0xA:0xB"
+              " --diff`) before believing the literal, and close the"
+              " neighbouring cluster first: these rows usually resolve"
+              " themselves once the stream re-aligns.")
     if imm:
         print(f"  {len(imm)} IMMEDIATE row(s): the opcode agrees and a"
               " LITERAL does not. These sit inside the matcher's EQUAL runs,"

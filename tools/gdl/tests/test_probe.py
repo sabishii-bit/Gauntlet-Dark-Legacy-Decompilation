@@ -8,11 +8,14 @@ that had not moved (measured on game/sys/memcard get_vmu_directory during
 run 29: real 65 -> 65, insns and multiset both unchanged).
 """
 
+import io
+import os
 import re
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -335,6 +338,431 @@ class TransientPinBankLifecycleTests(unittest.TestCase):
             self.assertFalse(
                 keep_consumes_transient_bank(["probe.py", "u", "f", flag]),
                 flag)
+
+
+class RawObjectTargetTests(unittest.TestCase):
+    """run-39 item 10. `--raw` exists to score the compiler's own output for
+    a WebFrank-pinned TU, but probe built the POSTPROCESSED object anyway —
+    so the one case --raw is for (a pin your own upstream edit made stale)
+    was exactly the case where it died. Reproduced at 7688fc7df: `probe
+    --raw game/game/player do_players` printed BUILD FAILED from the
+    WEBFRANK stage on the do_exit pin. SY hand-built the body object and ran
+    fnasm instead.
+
+    After the fix the same command scores real 840 -> 870 (T1174/O1176) with
+    the pin still stale and nothing re-derived.
+    """
+
+    def target(self, staged):
+        original = probe.sys.modules.get("fnasm")
+        probe.sys.modules["fnasm"] = SimpleNamespace(
+            raw_obj_path=lambda _unit: staged)
+        try:
+            return probe.raw_object_target("game/game/player")
+        finally:
+            if original is None:
+                del probe.sys.modules["fnasm"]
+            else:
+                probe.sys.modules["fnasm"] = original
+
+    def test_an_unstaged_unit_falls_back_to_the_body_path(self):
+        self.assertEqual(
+            "build/GUNE5D/src/game/game/.postprocess/body/player.o",
+            self.target(None))
+
+    def test_the_target_is_repo_root_relative_not_absolute(self):
+        """ninja rejects an absolute target outright — measured as
+        `ninja: error: unknown target 'W:\\...'` on the first version."""
+        staged = (Path.cwd() / "build" / "GUNE5D" / "src" / "game" / "game"
+                  / ".postprocess" / "frank" / "player.o")
+        self.assertEqual(
+            "build/GUNE5D/src/game/game/.postprocess/frank/player.o",
+            self.target(staged))
+
+    def test_the_frank_stage_is_preferred_when_staged(self):
+        """frank runs BEFORE the object postprocessor, so its output is what
+        webfrank consumes — the reader's own precedence."""
+        self.assertIn("frank", self.target(
+            Path.cwd() / "build" / "GUNE5D" / "src" / "game" / "game"
+            / ".postprocess" / "frank" / "player.o"))
+
+    def test_a_reader_that_raises_still_yields_a_buildable_target(self):
+        """The fallback must survive a checkout where fnasm cannot import or
+        its reader throws: a probe that cannot name a target is worse than
+        one that names the conventional path."""
+        def boom(_unit):
+            raise RuntimeError("no toolchain")
+
+        original = probe.sys.modules.get("fnasm")
+        probe.sys.modules["fnasm"] = SimpleNamespace(raw_obj_path=boom)
+        try:
+            self.assertEqual(
+                "build/GUNE5D/src/game/game/.postprocess/body/player.o",
+                probe.raw_object_target("game/game/player"))
+        finally:
+            if original is None:
+                del probe.sys.modules["fnasm"]
+            else:
+                probe.sys.modules["fnasm"] = original
+
+    def test_it_never_returns_the_postprocessed_object(self):
+        for staged in (None, Path.cwd() / "build" / "GUNE5D" / "src"
+                       / "game" / "game" / ".postprocess" / "body"
+                       / "player.o"):
+            self.assertIn(".postprocess", self.target(staged))
+
+
+class RebuildAfterRestoreTests(unittest.TestCase):
+    """run-39 item 11 / claim.law.MS_probe-discard-restores-source-but-not-
+    objects-so-object-reading-tools-report-the-discarded-probe.20260902.v1.
+
+    `--discard` and `--revert-baseline` restore the SOURCE and return early
+    without building, so wf_word_diff / fnasm / fndiff --no-build / regnorm
+    keep reading the DISCARDED probe on a tree git calls clean. MS nearly
+    banked a word count that way (62 stale vs 61 true).
+
+    Reproduced and then fixed at f1105b430 on
+    game/game/player::DoPlayerTexMods: clean 0, storage-class flip 7, after
+    `--discard` still 7 — and 0 once the rebuild landed. That satisfies the
+    law's OWN falsifier ("the discard path now triggers a build ... this law
+    has expired and should be superseded").
+    """
+
+    class FakeRun:
+        def __init__(self, returncode, output=""):
+            self.calls = []
+            self._returncode = returncode
+            self._output = output
+
+        def __call__(self, cmd, **kwargs):
+            self.calls.append(cmd)
+            return SimpleNamespace(returncode=self._returncode,
+                                   stdout=self._output, stderr="")
+
+    def run_it(self, returncode, output=""):
+        fake = self.FakeRun(returncode, output)
+        original = probe.subprocess.run
+        probe.subprocess.run = fake
+        buffer = io.StringIO()
+        stdout = sys.stdout
+        sys.stdout = buffer
+        try:
+            ok = probe.rebuild_after_restore("game/game/player", "--discard")
+        finally:
+            sys.stdout = stdout
+            probe.subprocess.run = original
+        return ok, fake.calls, buffer.getvalue()
+
+    def test_it_builds_the_units_object(self):
+        ok, calls, _text = self.run_it(0)
+        self.assertTrue(ok)
+        self.assertEqual(
+            [["ninja", "build/GUNE5D/src/game/game/player.o"]], calls)
+
+    def test_success_says_the_object_now_matches_the_restored_source(self):
+        _ok, _calls, text = self.run_it(0)
+        self.assertIn("object rebuilt after --discard", text)
+        self.assertIn("wf_word_diff", text)
+
+    def test_a_failed_rebuild_WARNS_instead_of_reporting_success(self):
+        """A silent failure here restores the exact defect: a clean tree
+        whose objects describe a discarded probe."""
+        ok, _calls, text = self.run_it(1, "ninja: build stopped.")
+        self.assertFalse(ok)
+        self.assertIn("FAILED to rebuild", text)
+        self.assertIn("Do not quote a number from this tree", text)
+        self.assertIn("build stopped", text)
+
+
+class NeutralIdenticalProofTests(unittest.TestCase):
+    """run-39 item 6. A deliberate A/B returning a BYTE-IDENTICAL object is
+    POSITIVE evidence: a within-class reorder always moves something, so an
+    unmoved object proves the two constructs sit in different allocator
+    classes. MV used two as the proofs behind
+    claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-
+    declaration-order.20260902.v1 and had to transcribe them as prose,
+    because the annotation named no unit, function, digest or commit.
+
+    Verified live at f1105b430:
+    `NEUTRAL-IDENTICAL-PROOF unit=game/game/player fn=do_players
+     bytes=9c58832bff51 real=840 insns=T1174/O1172 multiset=14t
+     head=f1105b430`
+    """
+
+    def line(self, **over):
+        args = {"unit": "game/game/player", "fn": "do_players",
+                "digest": "9c58832bff51", "real": 840,
+                "insns": "T1174/O1172", "multiset_tokens": 14,
+                "head": "f1105b430abcdef"}
+        args.update(over)
+        return probe.neutral_identical_proof_line(**args)
+
+    def test_the_line_is_one_greppable_record(self):
+        line = self.line()
+        self.assertTrue(line.startswith("NEUTRAL-IDENTICAL-PROOF "))
+        self.assertEqual(1, len(line.splitlines()))
+
+    def test_it_names_which_bytes_were_identical_and_where(self):
+        line = self.line()
+        for field in ("unit=game/game/player", "fn=do_players",
+                      "bytes=9c58832bff51", "real=840",
+                      "insns=T1174/O1172", "multiset=14t",
+                      "head=f1105b430"):
+            self.assertIn(field, line)
+
+    def test_the_commit_is_abbreviated_not_the_full_sha(self):
+        self.assertIn("head=f1105b430 ", self.line() + " ")
+        self.assertNotIn("abcdef", self.line())
+
+    def test_it_carries_no_timestamp_so_the_same_ab_reproduces_it(self):
+        """A record citing this must be re-verifiable, not merely believed:
+        every field is derivable from the named commit."""
+        self.assertEqual(self.line(), self.line())
+
+    def test_unmeasured_fields_say_so_rather_than_reading_as_zero(self):
+        line = self.line(digest=None, insns=None, multiset_tokens=None,
+                         head=None)
+        self.assertIn("bytes=unmeasured", line)
+        self.assertIn("insns=unmeasured", line)
+        self.assertIn("multiset=unmeasured", line)
+        self.assertIn("head=unknown", line)
+
+    def test_the_annotation_states_the_positive_reading_too(self):
+        verdict = annotate_neutral(
+            "NEUTRAL   real 840", 840, "T1174/O1172", 14, 14,
+            "T1174/O1172", "same", "same")
+        self.assertIn("NEUTRAL-IDENTICAL", verdict)
+        self.assertIn("POSITIVE EVIDENCE", verdict)
+        self.assertIn("class BOUNDARY", verdict)
+        # The negative reading for a SPELLING probe must survive alongside.
+        self.assertIn("STRONGER negative", verdict)
+
+    def test_the_positive_reading_cites_the_law_it_came_from(self):
+        verdict = annotate_neutral(
+            "NEUTRAL   real 840", 840, "T1174/O1172", 14, 14,
+            "T1174/O1172", "same", "same")
+        self.assertIn("MV_callee-saved-numbering-has-a-width-class", verdict)
+
+
+class RederivePinTargetTests(unittest.TestCase):
+    """run-39 item 3, reproduced at 0f45ae610.
+
+    `probe.py game/game/player do_players --rederive-pin` printed
+    "no webfrank rule for game/game/player::do_players" and then
+    "rederive-pin ABORTED -- a body hash moved (the edit changed codegen,
+    not just the pool)". The first is accurate and useless; the second is
+    FALSE in its load-bearing half and tells the worker their edit changed
+    codegen when it did not. The pin that actually aborted the build was
+    do_exit -- a DOWNSTREAM permutation pin -- and webfrank's own abort text
+    named it all along.
+    """
+
+    PLAYER_PINS = ["do_exit", "ExpToLevel", "load_player_geo",
+                   "do_heal_players", "load_player_model",
+                   "load_player_model_sub"]
+
+    ABORT = (
+        "WEBFRANK: this is the RELOCATION-hash class - the window's"
+        " instruction bytes are unchanged and only its relocation hashes"
+        " moved.\n"
+        "    python tools/gdl/probe.py game/game/player do_exit"
+        " --rederive-pin\n"
+        "  Add --transient if this is a throwaway A/B.")
+
+    def test_the_failing_pin_is_read_out_of_webfranks_own_abort(self):
+        self.assertEqual("do_exit", probe.pin_named_by_build(self.ABORT))
+
+    def test_a_build_that_named_no_pin_yields_none(self):
+        self.assertIsNone(probe.pin_named_by_build("ninja: build stopped."))
+        self.assertIsNone(probe.pin_named_by_build(None))
+
+    def test_pin_functions_reads_the_units_rules_in_order(self):
+        config = {"units": {"game/game/player": [
+            {"function": "do_exit"}, {"function": "ExpToLevel"},
+            {"no_function_key": 1}]}}
+        self.assertEqual(["do_exit", "ExpToLevel"],
+                         probe.pin_functions(config, "game/game/player"))
+        self.assertEqual([], probe.pin_functions(config, "game/other/tu"))
+        self.assertEqual([], probe.pin_functions(None, "game/game/player"))
+
+    def test_a_real_pin_is_used_as_asked(self):
+        self.assertEqual(("do_exit", ""),
+                         probe.resolve_pin_target("do_exit", self.PLAYER_PINS))
+
+    def test_the_build_named_pin_wins_over_the_requested_function(self):
+        target, note = probe.resolve_pin_target(
+            "do_players", self.PLAYER_PINS, failing="do_exit")
+        self.assertEqual("do_exit", target)
+        self.assertIn("ABORTED the build is do_exit", note)
+        self.assertIn("downstream", note)
+
+    def test_a_single_pin_tu_needs_no_build_to_disambiguate(self):
+        target, note = probe.resolve_pin_target(
+            "end_inventory_panel_helper", ["end_inventory_panel"])
+        self.assertEqual("end_inventory_panel", target)
+        self.assertIn("exactly one", note)
+
+    def test_several_pins_and_no_failing_build_REFUSES_rather_than_guesses(
+            self):
+        """Pasting hashes into the wrong rule is not recoverable from the
+        rule text alone, so this must never guess."""
+        target, note = probe.resolve_pin_target(
+            "do_players", self.PLAYER_PINS)
+        self.assertIsNone(target)
+        self.assertIn("cannot be inferred", note)
+        for pin in self.PLAYER_PINS:
+            self.assertIn(pin, note)
+
+    def test_a_pin_named_by_the_build_but_absent_from_the_rules_is_ignored(
+            self):
+        target, _note = probe.resolve_pin_target(
+            "do_players", self.PLAYER_PINS, failing="some_other_fn")
+        self.assertIsNone(target)
+
+    def test_a_tu_with_no_pins_at_all_says_exactly_that(self):
+        target, note = probe.resolve_pin_target("f", [])
+        self.assertIsNone(target)
+        self.assertIn("no webfrank rule, and neither does any other", note)
+
+    def test_the_missing_rule_abort_no_longer_blames_codegen(self):
+        reason = probe.rederive_abort_reason(
+            "no webfrank rule for game/game/player::do_players",
+            "game/game/player", "do_players")
+        self.assertIn("has no webfrank rule", reason)
+        self.assertIn("NO body hash moved", reason)
+        self.assertNotIn("changed codegen, not just the pool", reason)
+
+    def test_a_genuine_body_hash_move_still_says_codegen_changed(self):
+        reason = probe.rederive_abort_reason(
+            "BODY HASH CHANGED: region before_sha256 differs",
+            "game/game/player", "do_exit")
+        self.assertIn("changed", reason)
+        self.assertIn("CODEGEN", reason)
+
+    def test_a_rule_without_a_permutation_window_is_named_as_such(self):
+        reason = probe.rederive_abort_reason(
+            "rule has no instruction_permutation", "u", "f")
+        self.assertIn("no instruction_permutation window", reason)
+
+
+class ArbitrateTransientPinTests(unittest.TestCase):
+    """run-39 item 2, reproduced live on game/game/player at 0f45ae610.
+
+    `--arbitrate` swaps the SOURCE between two states and builds each, but
+    webfrank.json is global and pairs with exactly ONE of them. After a
+    `--rederive-pin --transient` the config held the re-derived hashes for
+    the WORKING source, so the banked half aborted in the WEBFRANK stage:
+    `[current] real 870` scored, then `BUILD FAILED (banked state)` and the
+    whole arbitration returned 1 — on the one TU class that most needs it.
+
+    transient_pin_texts reads the pre-probe hashes out of the bank WITHOUT
+    consuming it, so both files must leave every call byte-identical.
+    """
+
+    WORKING = b'{"units": {"u": [{"before_sha256": "NEW"}]}}'
+    BANKED = b'{"units": {"u": [{"before_sha256": "OLD"}]}}'
+    BANK = b'{"unit": "game/game/player", "pins": {"do_exit": ["OLD"]}}'
+
+    class FakeModule:
+        """Stands in for wf_rederive_pin. restore_transient rewrites the
+        config and CONSUMES the bank, exactly as the real one does."""
+
+        def __init__(self, bank, banked_text, restored, notes, raises=False):
+            self._bank = bank
+            self._banked_text = banked_text
+            self._restored = restored
+            self._notes = notes
+            self._raises = raises
+
+        def bank_path(self, _unit):
+            return str(self._bank)
+
+        def restore_transient(self, _unit, config_path, path):
+            if self._raises:
+                raise RuntimeError("shape changed")
+            if self._banked_text is not None:
+                Path(config_path).write_bytes(self._banked_text)
+            if not self._notes:
+                Path(path).unlink()
+            return list(self._restored), list(self._notes)
+
+    def run_it(self, module=None, bank=True, banked_text=None,
+               restored=("do_exit",), notes=(), raises=False):
+        cwd = Path.cwd()
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "config" / "GUNE5D").mkdir(parents=True)
+            (root / "build" / "GUNE5D" / "gate").mkdir(parents=True)
+            config = root / "config" / "GUNE5D" / "webfrank.json"
+            config.write_bytes(self.WORKING)
+            bank_file = root / "build" / "GUNE5D" / "gate" / "wf.json"
+            if bank:
+                bank_file.write_bytes(self.BANK)
+            fake = (self.FakeModule(bank_file,
+                                    self.BANKED if banked_text is None
+                                    else banked_text,
+                                    restored, notes, raises)
+                    if module is None else module)
+            original = probe._wf_rederive_module
+            probe._wf_rederive_module = lambda: fake
+            os.chdir(root)
+            try:
+                result = probe.transient_pin_texts("game/game/player")
+            finally:
+                os.chdir(cwd)
+                probe._wf_rederive_module = original
+            return result, config.read_bytes(), bank_file.exists()
+
+    def test_both_pin_states_are_returned(self):
+        result, config_after, bank_there = self.run_it()
+        self.assertEqual((self.WORKING, self.BANKED, []), result)
+        # A READ of the bank, not a use: both files unchanged.
+        self.assertEqual(self.WORKING, config_after)
+        self.assertTrue(bank_there)
+
+    def test_the_bank_is_not_consumed_even_though_restore_consumes_it(self):
+        _result, _config, bank_there = self.run_it()
+        self.assertTrue(bank_there, "the A/B still needs its bank afterwards")
+
+    def test_no_bank_means_no_pairing_and_arbitrate_is_unchanged(self):
+        result, config_after, _ = self.run_it(bank=False)
+        self.assertIsNone(result)
+        self.assertEqual(self.WORKING, config_after)
+
+    def test_no_postprocessor_stack_is_not_an_error(self):
+        original = probe._wf_rederive_module
+        probe._wf_rederive_module = lambda: None
+        try:
+            self.assertIsNone(probe.transient_pin_texts("game/x/y"))
+        finally:
+            probe._wf_rederive_module = original
+
+    def test_a_pin_that_did_not_move_needs_no_pairing(self):
+        result, _config, _bank = self.run_it(banked_text=self.WORKING)
+        self.assertIsNone(result)
+
+    def test_nothing_restored_needs_no_pairing(self):
+        result, _config, _bank = self.run_it(restored=())
+        self.assertIsNone(result)
+
+    def test_unpairable_slots_WARN_rather_than_measure(self):
+        """A partial swap must never be presented as an arbitration."""
+        result, config_after, bank_there = self.run_it(
+            notes=("do_exit: the rule's SHAPE changed since banking",))
+        working, banked, notes = result
+        self.assertEqual(self.WORKING, working)
+        self.assertIsNone(banked)
+        self.assertIn("SHAPE changed", notes[0])
+        self.assertEqual(self.WORKING, config_after)
+        self.assertTrue(bank_there)
+
+    def test_a_raising_restore_leaves_both_files_intact(self):
+        result, config_after, bank_there = self.run_it(raises=True)
+        _working, banked, notes = result
+        self.assertIsNone(banked)
+        self.assertIn("RuntimeError", notes[0])
+        self.assertEqual(self.WORKING, config_after)
+        self.assertTrue(bank_there)
 
 
 class BanksBestTests(unittest.TestCase):
@@ -1578,6 +2006,282 @@ class StaleRestoreRefusalTest(unittest.TestCase):
                                     self.OLD, self.COMMITTED)
         self.assertIn("aaaaaaaaa", msg)
         self.assertIn("bbbbbbbbb", msg)
+
+
+# The reproduction case, verbatim from
+# claim.law.PC_storage-class-of-a-same-tu-base-object-is-a-codegen-lever-
+# that-must-be-gated-tu-wide and re-measured in this worktree at 0f45ae610:
+# removing ONE `static` moved nine byte-exact siblings.
+PLAYER_HEAD = """\
+#include "game.h"
+
+#pragma peephole off
+
+static void* potionicon_tab[5];    /* potion type -> texture */
+static void* hod_blit[4];
+
+extern s32 gFrameTicks;
+
+static void helper(int i)
+{
+    potionicon_tab[i] = 0;   /* a brace } inside a comment */
+}
+
+void do_players(void)
+{
+    int i;
+    for (i = 0; i < 4; i++) {
+        helper(i);
+    }
+}
+"""
+
+
+class TuScopeItemTests(unittest.TestCase):
+    """file_scope_items keeps exactly what can move a SIBLING's bytes."""
+
+    def test_declarations_and_pragma_and_fndef_heads_are_kept(self):
+        items = probe.file_scope_items(PLAYER_HEAD)
+        self.assertIn(("pragma", "#pragma peephole off"), items)
+        self.assertIn(("decl", "static void* potionicon_tab[5]"), items)
+        self.assertIn(("decl", "static void* hod_blit[4]"), items)
+        self.assertIn(("decl", "extern s32 gFrameTicks"), items)
+        self.assertIn(("fndef", "static void helper(int i)"), items)
+        self.assertIn(("fndef", "void do_players(void)"), items)
+
+    def test_function_bodies_are_discarded_entirely(self):
+        """The gate must cost an ordinary body-only probe NOTHING."""
+        for _kind, text in probe.file_scope_items(PLAYER_HEAD):
+            self.assertNotIn("for (i", text)
+            self.assertNotIn("helper(i);", text)
+
+    def test_body_only_edit_produces_an_identical_item_list(self):
+        edited = PLAYER_HEAD.replace("i < 4", "i < gNumPlayers")
+        self.assertNotEqual(edited, PLAYER_HEAD)
+        self.assertEqual(probe.file_scope_items(PLAYER_HEAD),
+                         probe.file_scope_items(edited))
+        self.assertEqual([], probe.tu_scope_changes(PLAYER_HEAD, edited))
+
+    def test_aggregate_definition_with_a_body_stays_one_declaration(self):
+        text = "static struct { int a; int b; } gThing;\nvoid f(void) {}\n"
+        items = probe.file_scope_items(text)
+        self.assertIn(("decl", "static struct { int a; int b; } gThing"),
+                      items)
+        self.assertIn(("fndef", "void f(void)"), items)
+
+    def test_a_brace_in_a_string_cannot_desynchronise_the_parser(self):
+        text = 'static char* s = "}{";\nstatic int after;\n'
+        self.assertIn(("decl", "static int after"),
+                      probe.file_scope_items(text))
+
+    def test_an_extern_C_block_is_transparent_not_a_scope(self):
+        """`extern "C" {` wraps lines 44-2842 of movieplayer.cpp and 73-400
+        of pb_tree.cpp. Counting it as a scope makes the gate itemize
+        NOTHING there and silently pass every file-scope edit in those
+        TUs."""
+        text = ('#ifdef __cplusplus\n'
+                'extern "C" {\n'
+                '#endif\n'
+                'static void* tab[5];\n'
+                'void f(void)\n'
+                '{\n'
+                '    tab[0] = 0;\n'
+                '}\n'
+                '#ifdef __cplusplus\n'
+                '}  /* extern "C" */\n'
+                '#endif\n')
+        items = probe.file_scope_items(text)
+        self.assertIn(("decl", "static void* tab[5]"), items)
+        self.assertIn(("fndef", "void f(void)"), items)
+        edited = text.replace("static void* tab[5];", "void* tab[5];")
+        self.assertEqual(["storage-class/linkage"],
+                         [c for c, _ in probe.tu_scope_changes(text, edited)])
+
+    def test_a_multi_line_macro_body_cannot_desynchronise_the_parser(self):
+        text = ("#define LOOP(n) \\\n"
+                "    { int i; for (i = 0; i < (n); i++) \\\n"
+                "        work(i); }\n"
+                "static int after;\n")
+        self.assertIn(("decl", "static int after"),
+                      probe.file_scope_items(text))
+
+
+class TuScopeChangeTests(unittest.TestCase):
+
+    def test_the_nine_strict_edit_is_classified_as_a_linkage_change(self):
+        edited = PLAYER_HEAD.replace(
+            "static void* potionicon_tab[5];", "void* potionicon_tab[5];")
+        changes = probe.tu_scope_changes(PLAYER_HEAD, edited)
+        self.assertEqual(1, len(changes))
+        category, what = changes[0]
+        self.assertEqual("storage-class/linkage", category)
+        self.assertIn("potionicon_tab", what)
+
+    def test_static_added_to_a_function_definition_is_caught(self):
+        edited = PLAYER_HEAD.replace("void do_players(void)",
+                                     "static void do_players(void)")
+        self.assertEqual([("storage-class/linkage",
+                           "void do_players(void)  ->  "
+                           "static void do_players(void)")],
+                         probe.tu_scope_changes(PLAYER_HEAD, edited))
+
+    def test_a_const_flip_is_a_pool_qualifier_change_not_a_linkage_one(self):
+        edited = PLAYER_HEAD.replace("static void* hod_blit[4];",
+                                     "static const void* hod_blit[4];")
+        self.assertEqual(["pool qualifier"],
+                         [c for c, _ in
+                          probe.tu_scope_changes(PLAYER_HEAD, edited)])
+
+    def test_an_added_declaration_is_caught(self):
+        edited = PLAYER_HEAD.replace(
+            "static void* hod_blit[4];",
+            "static void* hod_blit[4];\nstatic u8 pad[0x14];")
+        self.assertEqual([("decl ADDED", "static u8 pad[0x14]")],
+                         probe.tu_scope_changes(PLAYER_HEAD, edited))
+
+    def test_a_removed_declaration_is_caught(self):
+        edited = PLAYER_HEAD.replace("static void* hod_blit[4];\n", "")
+        self.assertEqual([("decl REMOVED", "static void* hod_blit[4]")],
+                         probe.tu_scope_changes(PLAYER_HEAD, edited))
+
+    def test_a_pragma_change_is_caught(self):
+        edited = PLAYER_HEAD.replace("#pragma peephole off",
+                                     "#pragma peephole on")
+        self.assertEqual(1, len(probe.tu_scope_changes(PLAYER_HEAD, edited)))
+
+    def test_an_uncommitted_file_reports_nothing_to_regress(self):
+        """Mirrors stale_restore_refusal: no committed state, no committed
+        sibling that this edit could possibly demote."""
+        self.assertEqual([], probe.tu_scope_changes(None, PLAYER_HEAD))
+
+
+class SiblingStrictLossTests(unittest.TestCase):
+
+    VERDICTS = [
+        ("__sections__", "DATA-CHANGED", "extabindex changed"),
+        ("do_players", "IMPROVED-CARRIER", "real 840 -> 838"),
+        ("AppendItemToLevel", "REGRESSION", "was byte-identical, now real 46"),
+        ("DoPlayerTexMods", "REGRESSION",
+         "status EXACT -> OPERAND_DIFF (byte-exact demoted)"),
+        ("draw_power_meter", "REGRESSION", "real 151 -> 171"),
+        ("abort_player", "CONFLICT", "real 102 -> 106"),
+        ("show_crystals", "REGRESSION", "was byte-identical, now real 16"),
+    ]
+
+    def test_byte_exact_losses_are_separated_from_ordinary_regressions(self):
+        strict, other = probe.sibling_strict_losses(
+            self.VERDICTS, {"do_players"})
+        self.assertEqual(["AppendItemToLevel", "DoPlayerTexMods",
+                          "show_crystals"], [n for n, _ in strict])
+        self.assertEqual(["draw_power_meter"], [n for n, _ in other])
+
+    def test_the_probed_function_is_never_its_own_sibling(self):
+        rows = [("do_players", "REGRESSION", "was byte-identical, now real 3")]
+        self.assertEqual(([], []),
+                         probe.sibling_strict_losses(rows, {"do_players"}))
+
+    def test_the_address_suffixed_spelling_is_also_the_probed_function(self):
+        rows = [("SfxSkipItem", "REGRESSION", "status EXACT -> STRUCTURAL")]
+        self.assertEqual(([], []), probe.sibling_strict_losses(
+            rows, {"SfxSkipItem_80096FF4", "SfxSkipItem"}))
+
+    def test_no_verdicts_is_not_a_loss(self):
+        self.assertEqual(([], []), probe.sibling_strict_losses(None, {"f"}))
+
+
+class TuScopeGateTests(unittest.TestCase):
+
+    SCOPE = [("storage-class/linkage",
+              "static void* potionicon_tab[5]  ->  void* potionicon_tab[5]")]
+    STRICT = [("AppendItemToLevel", "was byte-identical, now real 46"),
+              ("DoPlayerTexMods", "status EXACT -> OPERAND_DIFF")]
+    PRIOR = {"best_real": 840, "best_multiset": 14, "best_insns": "T1174/O1172",
+             "best_bytes": "aaa", "best_fuzzy": 97.2692}
+    BANKED = {"best_real": 838, "best_multiset": 12, "best_insns": "T1174/O1172",
+              "best_bytes": "bbb", "best_fuzzy": 97.5690}
+
+    def gate(self, verdict, strict, other=(), note="baseline at 0f45ae610",
+             scope=None):
+        return probe.apply_tu_scope_gate(
+            verdict, dict(self.BANKED), dict(self.PRIOR),
+            self.SCOPE if scope is None else scope,
+            strict, list(other), note, "game/game/player", "do_players")
+
+    def test_a_byte_exact_sibling_loss_un_banks_the_new_best(self):
+        verdict, state = self.gate(
+            "IMPROVED  real 840 -> 838 (insns T1174/O1172, multiset 12t)"
+            "  [best updated]", self.STRICT)
+        self.assertTrue(verdict.startswith("TU-SCOPE REGRESSED"))
+        self.assertIn("2 BYTE-EXACT sibling(s) lost", verdict)
+        self.assertIn("AppendItemToLevel", verdict)
+        self.assertIn("DoPlayerTexMods", verdict)
+        # The whole BEST anchor goes back, exactly as the fuzzy gate does.
+        for key in BEST_KEYS:
+            self.assertEqual(self.PRIOR[key], state[key])
+
+    def test_the_superseded_instruction_stream_verdict_is_still_quoted(self):
+        verdict, _ = self.gate("IMPROVED  real 840 -> 838  [best updated]",
+                               self.STRICT)
+        self.assertIn("SUPERSEDED by the gate: IMPROVED  real 840 -> 838",
+                      verdict)
+
+    def test_the_refusal_names_the_law_and_the_escape_hatch(self):
+        verdict, _ = self.gate("IMPROVED  real 840 -> 838", self.STRICT)
+        self.assertIn("claim.law.PC_storage-class-of-a-same-tu-base-object",
+                      verdict)
+        self.assertIn("--no-tu-gate", verdict)
+
+    def test_an_unrunnable_cross_check_fails_CLOSED(self):
+        """A measurement nobody took is not evidence of no loss — that is
+        exactly how the nine were lost."""
+        verdict, state = self.gate("IMPROVED  real 840 -> 838",
+                                   None, note="no TU baseline at build/x.json")
+        self.assertTrue(verdict.startswith("TU-SCOPE UNGATED"))
+        self.assertIn("no TU baseline", verdict)
+        self.assertIn("defake_gate.py baseline game/game/player --at-head",
+                      verdict)
+        for key in BEST_KEYS:
+            self.assertEqual(self.PRIOR[key], state[key])
+
+    def test_a_clean_cross_check_keeps_the_bank_and_says_so(self):
+        verdict, state = self.gate("IMPROVED  real 840 -> 838", [])
+        self.assertTrue(verdict.startswith("IMPROVED"))
+        self.assertIn("no byte-exact sibling lost", verdict)
+        self.assertEqual(self.BANKED, state)
+
+    def test_non_exact_sibling_regressions_are_reported_not_refused(self):
+        verdict, state = self.gate(
+            "IMPROVED  real 840 -> 838", [],
+            other=[("draw_power_meter", "real 151 -> 171")])
+        self.assertTrue(verdict.startswith("IMPROVED"))
+        self.assertIn("draw_power_meter", verdict)
+        self.assertEqual(self.BANKED, state)
+
+    def test_a_body_only_edit_is_never_gated(self):
+        verdict, state = self.gate("IMPROVED  real 840 -> 838", None,
+                                   scope=[])
+        self.assertEqual("IMPROVED  real 840 -> 838", verdict)
+        self.assertEqual(self.BANKED, state)
+
+    def test_baseline_is_annotated_but_still_banks(self):
+        """Refusing a BASELINE would leave the session with NO revert point
+        at all — strictly worse than the hazard it guards."""
+        verdict, state = self.gate("BASELINE  real 840", self.STRICT)
+        self.assertTrue(verdict.startswith("BASELINE"))
+        self.assertIn("banked over file-scope change(s)", verdict)
+        self.assertEqual(self.BANKED, state)
+
+    def test_rebase_best_is_exempt_like_the_fuzzy_gate(self):
+        verdict, state = self.gate("REBASED  real 838", self.STRICT)
+        self.assertEqual("REBASED  real 838", verdict)
+        self.assertEqual(self.BANKED, state)
+
+    def test_a_non_banking_verdict_is_untouched(self):
+        for headline in ("REGRESSED real 838 -> 900", "NEUTRAL real 840",
+                         "CONFLICT real fell but the multiset grew"):
+            verdict, state = self.gate(headline, self.STRICT)
+            self.assertEqual(headline, verdict)
+            self.assertEqual(self.BANKED, state)
 
 
 if __name__ == "__main__":

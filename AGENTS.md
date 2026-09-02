@@ -122,13 +122,25 @@ neighbourhood", not "this family". Verified hits always rank first.
 - claim (law): `falsifier` (what evidence would DISPROVE this, and where) and
   `asserted_by` (tool/test paths that mechanically assert it).
 - attempt: `held_fixed` — the variable a multi-edit park held CONSTANT.
+- attempt: `reproductions` — a LIST of `{at, alignment, command, result}`,
+  one per re-probe of a cap at a NEW alignment. The alignment-sensitivity
+  rule above is written for the case where a re-probed negative FLIPS; when
+  it REPRODUCES instead, that is repeated evidence and the stronger kind,
+  and it had nowhere to live but prose. `alignment` (what MOVED since the
+  cap) is required — re-running the same probe on the same tree measures
+  nothing. `brief` marks such a row `veto_strength: STRENGTHENED`, so a
+  twice-measured veto outranks a same-age veto measured once.
 
-Proposal gates run on **new proposals only**; the full set is A-H in
+Proposal gates run on **new proposals only**; the full set is A-I in
 `memory_graph/core.py` — beyond the three corpus-critical ones below:
 dedup-at-propose, windowed-residual word counts (E), banked-evidence
 citation resolution (F), `verifiers_run` on postprocessor closures (G),
-`addressing_modes_covered` on region-untouched claims (H); the gate code
-is the authority, this list summarizes. (Accepted records are never
+`addressing_modes_covered` on region-untouched claims (H), and a
+register-naming `hypothesis` must cite that register inside a quoted
+instruction beside its stream offset (I — the dispatch screen below, moved
+to record-authoring time where the misreading starts; ABI-fixed registers
+and save-set RANGES are exempt); the gate code is the authority, this list
+summarizes. (Accepted records are never
 retroactively invalidated; field SHAPE is checked corpus-wide, so in-place
 annotation of an accepted record is still validated by `validate`/`build`):
 
@@ -764,6 +776,12 @@ python tools/gdl/probe.py <unit> <fn> [--ops | --revert]  # MATCHING loop: build
 python tools/gdl/defake_gate.py check <unit> --rebuild  # DEFAKE loop: build+gate, one call
 python tools/gdl/fnasm.py <unit> <fn> [0xA:0xB | i:j] [--ours | --diff]
 python tools/gdl/fndiff.py <unit> <function> --count | --ops | --clean
+python tools/gdl/savedregs.py <unit> <fn> [--uses]  # callee-saved
+    # correspondence, BOTH streams, zero builds: which local lands in which
+    # saved register. `--ops` compares opcode MULTISETS and is blind to a
+    # save-register permutation (MV spent three lanes on one that reads
+    # "multiset: IDENTICAL"); this prints the assignment and reports
+    # emission ORDER separately, because they are different questions.
 python tools/gdl/defake_rewrite.py <file> --base X --type T --map off=field,...
 python tools/gdl/fuzzy.py <unit> [<fn>]        # fuzzy from last report, no regen
 python tools/gdl/xrefnum.py <const...> [--cast-only]  # who else uses this offset
@@ -1047,9 +1065,18 @@ each screen below costs one command and would have caught its lane):
   a citation; `gdlmem search` must return the record, and the order names
   its id. (A memory-index summary can advertise a plan its own note body
   records as superseded — dispatch reads indexes.)
-- **Postprocessor-lane briefs**: run `wf_word_diff.py` on the target
-  function first and quote the raw differing-word count next to any
-  residual description the brief inherits from a record.
+- **ANY brief inheriting a residual signature** — not only a
+  postprocessor-lane one: quote the raw differing-word count next to the
+  inherited description. Run 38: a SOURCE-lane brief skipped this because
+  the rule named postprocessor lanes, and its "25-word permutation"
+  framing died on contact with the real count. `brief` now attaches
+  `current_differing_words` to every `vetoed_axes` row that quotes a
+  signature (and to every roster row), so the screen costs nothing and
+  cannot be skipped by whoever writes the brief; `wf_word_diff.py <unit>
+  <fn>` remains the one-function form. The RAW count decides
+  postprocessor candidacy — `unabsorbed` is the strictly smaller
+  register-field-stage number (do_exit: 18 raw, 8 unabsorbed) and is not
+  a substitute for it.
 - **Worker step 0 is `python tools/gdl/provision_worktree.py`** from the
   worker's own worktree — a fresh worktree lacks build.ninja/orig/build
   and the failure mode is a confusing smoke-test error minutes in.
