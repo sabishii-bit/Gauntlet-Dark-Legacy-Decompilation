@@ -1288,6 +1288,64 @@ class ScopedRevertTests(unittest.TestCase):
         self.assertEqual(out.count("\n"), out.count("\r\n"))
 
 
+class RevertVerdictWordingTests(unittest.TestCase):
+    """A reverted state must not read as a FAILED revert.
+
+    Every annotation compares against the PREVIOUS probe, which after a
+    revert is the edit that was just undone. So a successful revert printed
+    "OBJECT BYTES CHANGED … verify with objdiff fuzzy or revert" and, when
+    the restored state scored structurally below the edit, "NEUTRAL-WORSE …
+    NOT banked, revert with git (not --revert)". Both advise re-doing the
+    thing that just succeeded; UB and MC each burned verification calls on
+    it (run-37 item 7).
+    """
+
+    BASE, EDIT = "digest-base", "digest-edit"
+
+    def annotate(self, tokens, reverted):
+        return annotate_neutral(
+            "NEUTRAL   real 30", 30, "T204/O204", tokens,
+            prev_tokens=8, prev_insns="T204/O204",
+            prev_digest=self.EDIT, digest=self.BASE, reverted=reverted)
+
+    def test_a_revert_says_the_byte_change_is_the_revert_working(self):
+        out = self.annotate(8, reverted=True)
+        self.assertIn("REVERT OK", out)
+        self.assertNotIn("NEUTRAL-REARRANGED", out)
+
+    def test_a_revert_never_advises_reverting(self):
+        out = self.annotate(8, reverted=True)
+        self.assertNotIn("or revert]", out)
+
+    def test_a_worse_restored_state_is_not_called_a_failed_revert(self):
+        out = self.annotate(10, reverted=True)
+        self.assertIn("REVERTED real 30", out)
+        self.assertNotIn("NEUTRAL-WORSE", out)
+        self.assertNotIn("revert with git", out)
+
+    def test_the_worse_comparison_is_still_reported(self):
+        """The measurement is correct and stays; only the advice changes."""
+        self.assertIn("8t -> 10t", self.annotate(10, reverted=True))
+
+    def test_a_non_revert_probe_is_unchanged(self):
+        out = self.annotate(8, reverted=False)
+        self.assertIn("NEUTRAL-REARRANGED", out)
+        self.assertNotIn("REVERT OK", out)
+
+    def test_a_non_revert_worse_probe_is_unchanged(self):
+        out = self.annotate(10, reverted=False)
+        self.assertIn("NEUTRAL-WORSE", out)
+        self.assertIn("revert with git", out)
+
+    def test_reverted_defaults_to_false(self):
+        """Callers that never heard of the flag keep the old wording."""
+        out = annotate_neutral(
+            "NEUTRAL   real 30", 30, "T204/O204", 8,
+            prev_tokens=8, prev_insns="T204/O204",
+            prev_digest=self.EDIT, digest=self.BASE)
+        self.assertIn("NEUTRAL-REARRANGED", out)
+
+
 class StaleRestoreRefusalTest(unittest.TestCase):
     """Restoring a banked snapshot must never delete committed work.
 

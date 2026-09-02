@@ -114,8 +114,13 @@ docstring omitted it — the flags below all work):
                      Faster, and how the loop behaved before run 36 — but
                      a keep banked this way is unarbitrated
   --stateless        sweep mode: score only — no state, bank, or verdict
-  --scaffold         print the pragma/volatile scaffold census on ANY
-                     probe, not only a BASELINE
+  --verbose          print the pragma/volatile scaffold census. It is NOT
+                     printed by default any more: in full it ran 13-22
+                     lines on every BASELINE probe and buried the verdict
+                     the probe was run for. A BASELINE now prints a
+                     one-line row COUNT instead, so the audit obligation
+                     is announced without the wall of text
+  --scaffold         same as --verbose (kept: it is in muscle memory)
   --scaffold-all     print EVERY scaffold row (the census is otherwise
                      capped at 20, and a TU whose scaffold runs past the
                      cut could not be audited from the loop at all)
@@ -1962,11 +1967,24 @@ def replan_hint(streak):
 
 def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                      prev_insns, prev_digest, digest,
-                     prev_data=None, data=None, source_changed=True):
+                     prev_data=None, data=None, source_changed=True,
+                     reverted=False):
     """Byte-identity + structural-drift annotations for a NEUTRAL verdict.
 
     Split out of classify() so the verdict table stays pure and testable;
     this half only formats what the caller already measured.
+
+    ``reverted`` says the bytes this verdict describes were RESTORED by
+    --revert rather than edited into place (run-37 item 7). Every
+    annotation below compares against the PREVIOUS probe, which after a
+    revert is the edit that was just undone — so a successful revert
+    printed "OBJECT BYTES CHANGED … verify with objdiff fuzzy or revert"
+    and, when the restored state scored structurally below the edit,
+    "NEUTRAL-WORSE … NOT banked, revert with git (not --revert)". Both
+    read as a FAILED revert and both advise re-doing the thing that just
+    succeeded; UB and MC each burned verification calls on it. The
+    comparison is still correct and still shown — only the advice, which
+    is wrong here, is replaced.
     """
     # real-equal is not structure-equal: a NEUTRAL that moved the insn
     # count further from parity or grew the multiset is WORSE, and banking
@@ -1991,7 +2009,12 @@ def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
     bytes_identical = None
     if digest is not None and prev_digest is not None:
         bytes_identical = digest == prev_digest
-        if not bytes_identical:
+        if not bytes_identical and reverted:
+            verdict += ("  [REVERT OK: object bytes changed because the"
+                        " REVERT restored them — that is the revert"
+                        " working, not a failure. Every comparison in this"
+                        " line is against the edit you just undid]")
+        elif not bytes_identical:
             verdict += ("  [NEUTRAL-REARRANGED: OBJECT BYTES CHANGED —"
                         " this compares BUILT OBJECTS between probes, not"
                         " your source vs git (source can be identical to"
@@ -2033,10 +2056,22 @@ def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                             " compiler's decision point]")
     if worse and bytes_identical is not True:
         head = f"NEUTRAL   real {real}"
-        verdict = (f"NEUTRAL-WORSE real {real}"
-                   f" ({'; '.join(worse)}) — structurally worse at equal"
-                   " real; NOT banked, revert with git (not --revert) or"
-                   " justify the keep explicitly" + verdict[len(head):])
+        if reverted:
+            # The "worse" comparison is against the edit this revert just
+            # undid, so it describes the RESTORED state — which is the one
+            # the worker asked for. Telling them to revert it is backwards.
+            verdict = (f"REVERTED real {real}"
+                       f" ({'; '.join(worse)} vs the undone edit) — the"
+                       " restored state scores structurally below the edit"
+                       " you removed. That is a fact about the EDIT (it was"
+                       " a structural improvement you have now discarded),"
+                       " not a failed revert. Re-apply it deliberately if"
+                       " you wanted it" + verdict[len(head):])
+        else:
+            verdict = (f"NEUTRAL-WORSE real {real}"
+                       f" ({'; '.join(worse)}) — structurally worse at equal"
+                       " real; NOT banked, revert with git (not --revert) or"
+                       " justify the keep explicitly" + verdict[len(head):])
     return verdict
 
 
@@ -2311,7 +2346,8 @@ def main():
         verdict = annotate_neutral(verdict, real, insns, multiset_tokens,
                                    prev_tokens, prev_insns, prev_digest,
                                    digest, prev_data=prev_data, data=data,
-                                   source_changed=source_changed)
+                                   source_changed=source_changed,
+                                   reverted="--revert" in sys.argv)
         state["last_verdict"] = verdict
     # A run of edits that never reached codegen is a fact about the axis,
     # not about the spellings tried. Aggregate it and say so.
@@ -2359,10 +2395,24 @@ def main():
                 reason or "requested with --slots (no decisive slot signal)"))
             print(slots_output.strip())
 
+    # The census used to print in full on EVERY baseline probe. Measured
+    # 2026-09-02: 22 lines per probe on game/world/camera, game/game/combat,
+    # game/ui/screensaver and game/game/player, 13 on game/sys/memcard —
+    # the same file-wide rows re-listed every time, burying the verdict the
+    # worker actually ran the probe for. It is now opt-in behind --verbose
+    # (or the existing --scaffold/--scaffold-all), and a BASELINE prints a
+    # ONE-LINE pointer so the audit obligation is still announced rather
+    # than silently dropped (run-37 item 7).
     want_scaffold = ("--scaffold" in sys.argv or "--scaffold-all" in sys.argv
-                     or verdict.startswith("BASELINE"))
+                     or "--verbose" in sys.argv)
     if want_scaffold and source is not None:
         print_scaffold_census(source, full="--scaffold-all" in sys.argv)
+    elif verdict.startswith("BASELINE") and source is not None:
+        count = len(scaffold_rows(source.read_bytes().decode("latin-1")))
+        if count:
+            print(f"[{count} pragma/volatile scaffold row(s) in this TU —"
+                  " re-audit each (is its original premise still live?):"
+                  " rerun with --verbose, or --scaffold-all for every row]")
 
     # Bank a revert point whenever this source state scores at the
     # high-water mark. NEUTRAL banks too: a verified-neutral state (the
