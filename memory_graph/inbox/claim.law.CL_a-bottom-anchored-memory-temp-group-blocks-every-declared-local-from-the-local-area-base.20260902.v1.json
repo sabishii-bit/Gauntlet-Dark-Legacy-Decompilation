@@ -1,0 +1,22 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py game/game/combat.c someone_will_be_off_screen --ours",
+    "tools/gdl/slotdiff.py game/game/combat.c InitCamera"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Compile, under combat.c's cflags (GC/1.2.5, cflags_demo), any function that has at least one spilled 4-byte memory temporary AND at least one declared local, and exhibit a DECLARED local allocated at a LOWER r1 displacement than the lowest memory temporary. Procedure: `python tools/gdl/fnasm.py <unit> <fn> --ours`, enumerate every N(r1) displacement, and identify the lowest occupied slot; if a declared object (identifiable by being address-taken, or by disappearing from the map when its declaration is deleted) sits below the lowest 4-use stfs/lwz/stw/lfs temp slot, this law is disproved. A single such observation also reopens the declared-pad axis on someone_will_be_off_screen and InitCamera.",
+  "id": "claim.law.CL_a-bottom-anchored-memory-temp-group-blocks-every-declared-local-from-the-local-area-base.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T15:00:31Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/combat",
+  "valid_from": "2026-09-02",
+  "value": "Under GC/1.2.5 with combat.c's cflags (-align powerpc, -O4, -Cpp_exceptions on, -lang=c), MWCC anchors the function's FIRST-ALLOCATED memory temporaries at the BASE of the local area (r1+16, immediately above the 8-byte outgoing parameter area), and NO declared local is ever allocated below that bottom temp group -- at any scope, any declaration position, any size, any type. Measured on someone_will_be_off_screen in FOUR configurations this run, all with the identical bottom group at r1+16/20/24/28 (four 4-byte, 4-use stfs->lwz->stw->lfs slots): (1) BASELINE, `u8 stackLayout[56]` function-scope first-declared, `s16 sp[2]` inner-block -> temps 16,20,24,28 | sp 32/34 | temps 36,40; frame 232. (2) `u8 stackLayout[16]` first + `u8 lowPad[40]` LAST in the innermost block -> temps 16,20,24,28 | lowPad 32..71 | sp 72/74 | temps 76,80; frame 232. (3) `u8 stackLayout[16]` first + sp0/sp1/sx/sy hoisted to function scope declared LAST, no low pad -> temps 16,20,24,28 | sp1 32/34, sp0 36/38 | temps 40,44; frame 200. (4) configuration 3 plus `u8 lowPad[40]` function-scope declared LAST -> temps 16,20,24,28 | lowPad 32..71 | sp1 72/74, sp0 76/78 | temps 80,84; frame 240. In every case the four bottom slots are IDENTICAL and no declared object reaches below r1+32. This BOUNDS claim.law.stack-slots-descend-in-declaration-order.20260831.v1, which governs the relative order of DECLARED locals only and says nothing about declared-versus-temp ordering, and it REFUTES claim.law.inner-block-pad-reaches-below-the-compiler-temps.20260831.v1 by direct counterexample (configuration 2: an inner-block pad landed at 32..71, ABOVE the four bottom temps, not below them). Two further placement rules fell out of the same four measurements and are asserted with them: (a) declared locals pack DOWNWARD from the top of the local area (just under the 8-byte-aligned f64 magic-constant temps), and the temp allocator fills the gap immediately beneath the lowest declared object first, descending, spilling to the bottom group only when that gap is exhausted -- which is why configuration 3 put exactly two temps at 40,44 in its 8-byte gap and the remaining four at the base; (b) the local area is roundup16(total content), and the frame is 16 + local_area + saved-register area (verified on all four: content 108/108/72/112 -> local 112/112/80/120 -> frame 232/232/200/240). CONSEQUENCE for someone_will_be_off_screen: the target occupies NOTHING at r1+16..55 and seats its six f32 temps at 56..76 with two s16[2] buffers at 80..87, so the target's temp base is 56, exactly 40 bytes above ours. Since no declared local can seat below the bottom temp group, those 40 bytes cannot be produced by ANY declared pad, and the residual is not a pad-placement problem at all -- it requires either a larger outgoing parameter area (which claim.law.CI_mwcc-outgoing-param-area-is-sized-only-by-stack-spilled-args.20260902.v1 forbids for this call set) or allocator slack our source cannot induce."
+}
