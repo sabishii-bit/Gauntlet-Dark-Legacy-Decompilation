@@ -5033,10 +5033,6 @@ void PlayerProcessPowerups(void* vp) {
     p->flags = 0;
 
     {
-    f64 charge_step = lbl_803477D0;
-    f32 charge_cap = lbl_803477D8;
-    f64 boss_step = lbl_80347A40;
-
     for (i = 0; i < 11; i++) {
         f32 timeleft = p->powerup[i].timeleft;
         s32 type;
@@ -5050,7 +5046,7 @@ void PlayerProcessPowerups(void* vp) {
             if (gBossType >= 0) {
                 if (gBossActive != 0 && gBossDead == 0) {
                     p->powerup[i].timeleft = (f32)((f64)timeleft -
-                        boss_step * (f64)gClockFrameStep);
+                        3.0 * (f64)gClockFrameStep);
                 }
             } else {
                 p->powerup[i].timeleft = timeleft - gClockFrameStep;
@@ -5100,9 +5096,9 @@ void PlayerProcessPowerups(void* vp) {
             p->flags |= p->powerup[i].specialflags;
             if (p->powerup[i].specialflags & 0x80000) {
                 p->power_target =
-                    (f32)((f64)p->power_target + charge_step);
-                if ((f64)p->power_target > charge_step) {
-                    p->power_target = charge_cap;
+                    (f32)((f64)p->power_target + 100.0);
+                if ((f64)p->power_target > 100.0) {
+                    p->power_target = 100.0f;
                 }
                 if (p->powerup[i].timeleft >= 0.0) {
                     p->powerup[i].timeleft = 0.0f;
