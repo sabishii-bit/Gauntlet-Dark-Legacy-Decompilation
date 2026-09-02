@@ -721,8 +721,6 @@ void AdsSetVolume(ADSTREAM* s, s32 vol) {
  * AXSetVoiceAddr/SrcType/Type.  Xbox: adsInitFromHeader. */
 #pragma dont_inline on
 void adsInitFromHeader(ADSTREAM* stream) {
-    f32 kdiv;
-    f64 kscale;
     u32 k48;
     u32 cur;
     u32 end;
@@ -739,8 +737,6 @@ void adsInitFromHeader(ADSTREAM* stream) {
 
     k48 = 48000;
     aram = stream->spuReadBase;
-    kscale = lbl_80349310;
-    kdiv = lbl_80349308;
     vnum = 13;
     for (i = 0; i < stream->blocks; i++) {
         bits = stream->sampleBits;
@@ -760,20 +756,20 @@ void adsInitFromHeader(ADSTREAM* stream) {
             adp[18] = *(u16*)(ch + 188);
             adp[19] = *(u16*)(ch + 190);
             AXSetVoiceAdpcm(sVoice[vnum], (AXPBADPCM*)adp);
+            cur = aram * 2 + 2;
             end = (aram + sizeVoiceLoop) * 2 - 1;
             addr[0] = 1;
             addr[1] = 0;
-            cur = aram * 2 + 2;
         } else {
             end = (aram + sShortenedSizeVoiceLoop) >> 1;
             addr[0] = 1;
             addr[1] = 10;
             cur = aram >> 1;
         }
-        ratio = ratio / kdiv;
+        ratio = ratio / 32000.0f;
         srcb[0] = (u16)(s32)ratio;
         ratio -= (f32)(s32)ratio;
-        srcb[1] = (u16)(s32)(kscale * ratio);
+        srcb[1] = (u16)(s32)(65536.0 * ratio);
         srcb[2] = 0;
         srcb[3] = 0;
         srcb[4] = 0;
