@@ -1,0 +1,34 @@
+{
+  "attempted_axis": "Execute the one thing v3's cap said was impossible - 'There is no third local to spend' - by finding a declaration to REUSE rather than to add, so that both typed bases (dt for the descriptor table, rt for the record table) exist without paying a fourth inner declaration.",
+  "attributes": {
+    "law_screen": "claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 SCREENED and MEASURED FALSE as stated: probe (b) holds the inner declaration COUNT constant at three (bt, rt, di against the committed bt, dt, di) and still changes the saved-register set and the instruction count, so the nominal area is not a function of count alone -- the TYPE of the declared pointer participates. This is the refutation this record carries. claim.law.frame-deltas-must-be-probed-with-an-eight-byte-ruler.20260831.v1 APPLIED: both probes moved the frame by a whole save-set entry, not by a pad. claim.law.declared-alias-vs-repeated-cast.20260830.v1 APPLIED as the reason an inline cast was tried for dt at all. claim.law.multifield-alias-defeats-indexed-addressing.20260830.v2 APPLIED: it predicts the lfsx/stfsx degradation the v3 cap measured when rt is dropped, and probe (b) confirmed the mirror case for dt (lha -> lhax).",
+    "laws_applied": "[\"claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1\", \"claim.law.declared-alias-vs-repeated-cast.20260830.v1\", \"claim.law.multifield-alias-defeats-indexed-addressing.20260830.v2\"]",
+    "probed_form": "PROBE A, NEGATIVE, count-asymmetric (T123/O122, prologue stw instead of stmw): drop the block-scope `int di` and reuse the function-scope loop counter `i`, spending the freed declaration on `rt` --\n        SndBankHdr* bt = (SndBankHdr*)sAudioBankTable;\n        SndDesc44* dt;\n        SndDescRec* rt;\n        dt = (SndDesc44*)bt->tbl16;\n        rt = (SndDescRec*)bt->tbl20;\n        i = (soundId & 0xFFF) + dt[soundId >> 16].base;\n        if (vol <= 0.0) {\n            vol = 60.0f * rt[i].vol;\n        }\n        rt[i].fade = acc;\nPROBE B, NEGATIVE, count-asymmetric the same way and additionally re-opening the lha row: keep `di`, drop the `dt` DECLARATION to an inline cast, declare `rt` --\n        SndBankHdr* bt = (SndBankHdr*)sAudioBankTable;\n        SndDescRec* rt;\n        int di;\n        rt = (SndDescRec*)bt->tbl20;\n        di = (soundId & 0xFFF) + ((SndDesc44*)bt->tbl16)[soundId >> 16].base;\n        if (vol <= 0.0) {\n            vol = 60.0f * rt[di].vol;\n        }\n        rt[di].fade = acc;\nBoth reverted with probe.py --discard; src/game/audio/sndfx.c is byte-unchanged by this record.",
+    "residual": "Unchanged at real 12, 123/123, 7 raw differing words. The v3 cap's decomposition still stands and this record adds one correction to its mechanism: the tension is not 'three inner declarations cost too much', because probe B holds the count at three and still loses a saved register. What actually decides the save set is which POINTER TYPES are named -- a `SndDesc44*` and a `SndDescRec*` cannot both be named without paying the fourth entry, and dropping either one degrades that base's accesses from base-plus-displacement to indexed (rt dropped: add/lfs and add/stfs become addi/lfsx and addi/stfsx, the committed state's 4 rows; dt dropped: add/lha becomes addi/lhax). The remaining 5th cluster is the pointer-reassociation reorder at +0xa8..+0xbc that v2 closed as an axis and v3 correctly did not re-spend.",
+    "scope": "src/game/audio/sndfx.c, function sndFxQueAddEx, probe only -- NO source change retained. game/audio/sndfx carries no webfrank pins.",
+    "verification": "probe.py BASELINE real 12 / insns T123/O123 / multiset 8t / fresh fuzzy 96.5854 taken before the first edit; defake_gate baseline game/audio/sndfx taken at commit c9107760c. Both probes measured and reverted; `git status --porcelain` shows only the untracked LANE_LOCK; the post-revert object was rebuilt by --discard. No commit."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/probe.py game/audio/sndfx sndFxQueAddEx -- if the baseline is no longer 123/123 at real 12, the frame tension this denial describes has moved and both sets must be re-measured.",
+    "falsifier": "Any declaration set inside that block which keeps 123/123 AND both base-plus-displacement addressing forms. That is precisely what v3 declared impossible and what these two probes failed to find; one counterexample disproves both records.",
+    "premise_measurement": "Both sets produce 122 instructions against the target's 123, with `stw` in the prologue where the target has `stmw` (a smaller callee-saved set) -- i.e. count-asymmetric, which is categorically outside every postprocessor class and worse than the committed state. Probe (b) additionally re-opened the lha/lhax row the v3 cap had closed (opcode multiset gains `+1 lha / -1 lhax`). Baseline for both: probe.py real 12, insns T123/O123, multiset 8t, fresh fuzzy 96.5854.",
+    "scope": "Two declaration sets inside the `if (soundId >= 0)` block of this one function: (a) keeping dt and reusing the function-scope loop counter `i` in place of the block-scope `di`; (b) keeping `di` and replacing the `dt` declaration with an inline cast while declaring `rt`. It does NOT deny the postprocessor path and does NOT deny further declaration shapes with a DIFFERENT type mix."
+  },
+  "differing_words": 7,
+  "function": "function:sndFxQueAddEx",
+  "held_fixed": "Both probes held the sndFxPaused guard, the queue-count checks, the fade accumulation loop and its `q` walk, the `param >= 0.0` early return, the five que_slot writes, the busy save/restore and the return value; each varied ONLY the declaration set inside the `if (soundId >= 0)` block while keeping the identical arithmetic `(soundId & 0xFFF) + <descriptor table>[soundId >> 16].base`.",
+  "id": "attempt.NM_sndfxqueaddex-the-frame-tension-is-a-type-question-not-a-declaration-count.20260902.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-02T23:16:23Z",
+  "refutes": "attempt.sndfxqueaddex-dead-local-elimination-opens-the-frame-floor.20260831.v3",
+  "residual": {
+    "capability_needed": null,
+    "family": "addressing-mode",
+    "measured_at": "2026-09-02",
+    "signature": "DIFFERS target-only: +2 add +1 lfs +1 stfs ours-only: -2 addi -1 lfsx -1 stfsx; insns T123/O123; 5 ops clusters; RAW DIFFERING WORDS = 7 of 123 (tools/gdl/composed_census/wf_word_diff.py, measured 2026-09-02); real 12; fuzzy 96.5854"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
