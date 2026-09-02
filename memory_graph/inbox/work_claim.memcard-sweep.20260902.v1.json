@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "ELIGIBILITY-SWEEP lane, sys/memcard (owns its TUs + their webfrank.json entries): run-35 T5 census measured 30 paired fns: allocator 24, schedule 1, source-structural 2, count-asymmetric 3. STEP 1: re-run that census yourself (unabsorbed residual_class column, landed run 35) and quote it. Then wf_word_diff.py EVERY allocator-class fn (the raw word count decides candidacy - run 35: a '4-word' residual was 122); rank by word count ascending; for each candidate screen against EXISTING WebFrank classes only (copy_register_fields / value-equality / permutation / live-zero modes) with the fn's park records as source-exhaustion provenance; rule + pin + configure per close; instrumented refusal (which check, which word) where no class fits - NO class widening, that is a USER decision. The 2 source-structural fns (buildSaveImage 10 unabsorbed + 1 more) get source axes: context first, recorded levers, honest parks. Prior memcard records (WS runs 31-33) are mandatory reading - writeGauntletSave's three-piece combined apply and the opt_propagation pragma veto still stand. Gate = 'main.dol: OK'; suites green on any webfrank change; defake_gate check; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:init_all_dir_info",
+  "id": "work_claim.memcard-sweep.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-MC",
+  "recorded_at": "2026-09-02T15:53:38Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

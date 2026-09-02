@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, game/game/player.c: continue do_players from multiset 15t / count 3-off / fuzzy 95.2683 (state @run-35 merge b2252c679). MANDATORY STEP 1 = the recorded next hypothesis in attempt.PC_do-players-addressing-form-is-source-reachable-and-the-exit-check-is-an-inlined-predicate.20260902.v1: the lfsx/stfsx sites want the INVERSE lever (displacement form via a named pointer local - claim.law.PC_a-named-pointer-local-selects-the-displacement-load-and-its-declaration-site-decides-the-hoist governs; probe its refuting observation first). Then re-census the remaining 3-off count + 15t nearest-first. RULES NOW LAW: fresh fuzzy before ANY keep (probe --arbitrate does both states in one call); re-run negatives from the last COMMIT; do_exit pin re-derivation notes in the run-35 PC law (twinned-hash trap - if --apply refuses, hand-paste using the region hash as anchor). context per fn; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:do_players",
+  "id": "work_claim.do-players-cont.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-PC",
+  "recorded_at": "2026-09-02T15:53:31Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

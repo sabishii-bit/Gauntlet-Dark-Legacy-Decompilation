@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CLOSE lane, game/ui north half - census run at dispatch 2026-09-02, all three quoted from configure.py as Object(NonMatching) with source present: btext.c (38/45 fns, fuzzy 98.87, matched 77.93 - NEAREST, start here), attract.c (13/16, fuzzy 97.63), options.c (23/27, fuzzy 96.24). Nearest-first exact closure on the ~14 unmatched fns: context per fn, laws --residual with the signature, classify residual class, apply recorded levers first, byte-exact or named park w/ full screen. Fresh fuzzy before ANY keep (new AGENTS.md rule). Screen webfrank.json for pinned fns in these TUs before editing. Gate = 'main.dol: OK'; one commit per landed fn or coherent group; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "tu:game/ui/btext",
+  "id": "work_claim.ui-close-a.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-UA",
+  "recorded_at": "2026-09-02T15:53:17Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}
