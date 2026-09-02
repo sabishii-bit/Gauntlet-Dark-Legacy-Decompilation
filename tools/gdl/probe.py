@@ -69,6 +69,11 @@ docstring omitted it — the flags below all work):
   --revert-baseline  restore the SESSION's first banked baseline
   --no-bank          score without banking (diagnostic probes)
   --raw              score the pre-webfrank compiler output (pinned TUs)
+  --rederive-pin     one call: build the raw body object, run
+                     wf_rederive_pin --apply (guarded: aborts if a BODY hash
+                     moved), configure.py, and rebuild the object to confirm
+                     the WEBFRANK stage reapplies — the repair for a downstream
+                     permutation pin after an upstream pool renumbering
   --stateless        sweep mode: score only — no state, bank, or verdict
   --scaffold         print the pragma/volatile scaffold census on ANY
                      probe, not only a BASELINE
@@ -218,6 +223,66 @@ def warn_pin_drift(unit, snap):
               " tools/gdl/composed_census/wf_rederive_pin.py (FULL path,"
               " body hashes must return byte-identical) or hand-restore the"
               " pin — GT had to restore both by hand.")
+
+
+def rederive_pin(unit, fn):
+    """One-call pin re-derivation: body build + wf_rederive_pin --apply +
+    configure + confirm (run 34 item 9).
+
+    An upstream edit that renumbers a TU's anonymous pool invalidates a
+    downstream instruction_permutation pin's RELOCATION hashes (the body
+    hashes stay byte-identical). Repairing it by hand was ~5 steps over 2
+    builds: build the raw body object, run wf_rederive_pin, hand-paste two
+    hashes into webfrank.json, run configure.py, rebuild. This sequences all
+    of it and ABORTS at the guard wf_rederive_pin enforces — if any BODY hash
+    moved the edit changed codegen, so nothing is pasted.
+    """
+    parts = unit.split("/")
+    body = Path(f"build/{VERSION}/src/{'/'.join(parts[:-1])}"
+                f"/.postprocess/body/{parts[-1]}.o")
+    wf_tool = TOOLS / "composed_census" / "wf_rederive_pin.py"
+
+    print(f"[1/4] building raw body object {body.name}")
+    r = subprocess.run(["ninja", str(body)], capture_output=True, text=True)
+    if r.returncode != 0:
+        print("BODY BUILD FAILED:")
+        print((r.stdout + r.stderr).strip()[-1200:])
+        return 1
+
+    print(f"[2/4] re-deriving pin {unit}::{fn} (wf_rederive_pin --apply)")
+    r = subprocess.run(
+        [sys.executable, str(wf_tool), unit, fn, "--apply"],
+        capture_output=True, text=True)
+    print(r.stdout.strip())
+    if r.returncode != 0:
+        if r.stderr.strip():
+            print(r.stderr.strip()[-800:])
+        print("rederive-pin ABORTED — a body hash moved (the edit changed"
+              " codegen, not just the pool), or the rule has no"
+              " instruction_permutation. Nothing was pasted; re-derive the"
+              " rule from scratch if codegen changed.")
+        return 1
+
+    print("[3/4] configure.py (materialize the WEBFRANK edge for the new hash)")
+    c = subprocess.run([sys.executable, "configure.py"],
+                       capture_output=True, text=True)
+    if c.returncode != 0:
+        print("configure.py FAILED:")
+        print((c.stdout + c.stderr).strip()[-1200:])
+        return 1
+
+    print(f"[4/4] rebuilding build/{VERSION}/src/{unit}.o to confirm the"
+          " WEBFRANK stage reapplies")
+    b = subprocess.run(["ninja", f"build/{VERSION}/src/{unit}.o"],
+                       capture_output=True, text=True)
+    if b.returncode != 0:
+        print("FULL OBJECT BUILD FAILED after re-derive (pin still stale?):")
+        print((b.stdout + b.stderr).strip()[-1200:])
+        return 1
+    print(f"rederive-pin OK: {unit}::{fn} re-derived, pasted, configured, and"
+          " the WEBFRANK object built clean. Run a full `ninja` before"
+          " committing.")
+    return 0
 
 
 def bank_snapshot(unit, source, baseline=False):
@@ -1130,12 +1195,14 @@ def main():
             snap = snapshot_path(unit, source)
             if snap.exists():
                 snap.unlink()
-            for ext in (".meta", ".base"):
+            for ext in (".meta", ".base", ".pins", ".base.pins"):
                 extra = snap.with_suffix(snap.suffix + ext)
                 if extra.exists():
                     extra.unlink()
         print("probe state reset")
         return 0
+    if "--rederive-pin" in sys.argv:
+        return rederive_pin(unit, fn)
     if "--discard" in sys.argv:
         # Revert the TU to its last COMMITTED state — the undo people
         # actually want after a neutral probe (NEUTRAL banks, so --revert

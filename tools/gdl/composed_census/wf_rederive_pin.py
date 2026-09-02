@@ -16,6 +16,14 @@ renumbering -- do not paste the new relocation hashes in, re-derive the rule.
 
 usage:
     python tools/gdl/composed_census/wf_rederive_pin.py <unit> <function>
+    python tools/gdl/composed_census/wf_rederive_pin.py <unit> <function> --apply
+
+--apply pastes the two derived relocation hashes back into
+config/GUNE5D/webfrank.json with a surgical single-occurrence string swap (no
+json.dump round-trip — AGENTS.md trap 6) and ONLY when every body hash is
+unchanged; if a body hash moved it refuses with a non-zero exit so an
+orchestrator (`probe --rederive-pin`) aborts instead of configuring a stale
+rule. After --apply, run configure.py and rebuild the object.
 
 Run after building ONLY the raw body object, e.g.
     ninja build/GUNE5D/src/game/game/.postprocess/body/combat.o
@@ -33,10 +41,39 @@ sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 import webfrank as wf  # noqa: E402
 
 
+def apply_relocation_updates(config_text, pairs):
+    """Surgically replace (old_hash -> new_hash) relocation-hash strings.
+
+    AGENTS.md trap 6: webfrank.json is edited with surgical text inserts only,
+    never a json.dump round-trip (which reformats every other lane's rules). A
+    SHA-256 hex string is globally unique, so each old hash is replaced by an
+    exact, single-occurrence string swap. Unchanged pairs are skipped; an old
+    hash absent from the text (already updated) is a no-op; an old hash that
+    appears more than once refuses rather than clobber. Returns
+    (new_text, [changed hash pairs actually applied]).
+    """
+    applied = []
+    for old, new in pairs:
+        if old == new or not old:
+            continue
+        count = config_text.count(old)
+        if count == 0:
+            continue
+        if count > 1:
+            raise ValueError(
+                f"relocation hash {old} appears {count} times in webfrank.json"
+                " — refusing an ambiguous paste; hand-edit the window")
+        config_text = config_text.replace(old, new)
+        applied.append((old, new))
+    return config_text, applied
+
+
 def main():
-    if len(sys.argv) != 3:
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    apply = "--apply" in sys.argv
+    if len(args) != 2:
         raise SystemExit(__doc__)
-    unit, function = sys.argv[1], sys.argv[2]
+    unit, function = args[0], args[1]
     parts = unit.split("/")
 
     body = os.path.join(ROOT, "build", "GUNE5D", "src", *parts[:-1],
@@ -115,6 +152,7 @@ def main():
     windows, ranges = wf.permutation_windows(
         rule["instruction_permutation"], symbol.size)
     updates = []
+    pairs = []
     for window, (relative_start, relative_end) in zip(windows, ranges):
         region = bytes(data[start + relative_start:start + relative_end])
         print(f"\nwindow +0x{relative_start:x}..+0x{relative_end:x} "
@@ -166,19 +204,41 @@ def main():
             print(f"      +0x{offset:02x} type={info & 0xFF} "
                   f"addend={addend} {window_syms.get(offset, '?')}")
         updates.append((before, after))
+        pairs.append((window.get("before_relocations_sha256"), before))
+        pairs.append((window.get("after_relocations_sha256"), after))
 
     print()
-    if ok:
-        print("BODY HASHES ALL UNCHANGED: this is a pure symbol-table "
-              "renumbering, and pasting the two relocation hashes above into "
-              "config/GUNE5D/webfrank.json is sound.  Then run configure.py "
-              "and confirm the WEBFRANK line for this unit reapplies.")
-    else:
+    if not ok:
         print("A BODY HASH MOVED: the source change altered codegen, not just "
               "the symbol table.  Do NOT paste the relocation hashes in -- "
               "re-derive the rule from scratch.")
-        return 1
-    return 0
+        # A refused paste must fail LOUDLY so `probe --rederive-pin` aborts
+        # instead of running configure over an unpasted, still-stale rule.
+        # exit 1 preserves the historical body-hash-moved code for the plain
+        # diagnostic run; exit 2 distinguishes an --apply refusal.
+        raise SystemExit(2 if apply else 1)
+
+    print("BODY HASHES ALL UNCHANGED: this is a pure symbol-table "
+          "renumbering, and pasting the two relocation hashes above into "
+          "config/GUNE5D/webfrank.json is sound.")
+    if not apply:
+        print("Then run configure.py and confirm the WEBFRANK line for this "
+              "unit reapplies.  (Re-run with --apply to paste + write here.)")
+        return
+    # newline="" on BOTH sides: no \r\n<->\n translation, so the only bytes
+    # that change are the hash strings themselves (AGENTS.md trap 6).
+    config_text = open(config_path, "r", encoding="utf-8", newline="").read()
+    new_text, applied = apply_relocation_updates(config_text, pairs)
+    if not applied:
+        print("--apply: every relocation hash already matches — nothing to "
+              "paste (the rule was already current).")
+        return
+    with open(config_path, "w", encoding="utf-8", newline="") as handle:
+        handle.write(new_text)
+    print(f"--apply: pasted {len(applied)} relocation hash(es) into "
+          "config/GUNE5D/webfrank.json (surgical string swap, no reformat). "
+          "Run configure.py, then rebuild the object to confirm the WEBFRANK "
+          "stage reapplies.")
 
 
 if __name__ == "__main__":
