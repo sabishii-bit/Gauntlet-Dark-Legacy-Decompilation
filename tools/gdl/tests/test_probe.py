@@ -23,6 +23,7 @@ from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
                    data_line, format_genuine_note, function_span,
                    fuzzy_anchor_note, moved_sections, parse_section_digests,
                    outside_edit_warning, parse_numstat, pin_drift,
+                   readout_banks_baseline,
                    replan_hint, scaffold_rows, scoped_revert,
                    slot_arbiter_header, slot_arbiter_signal, split_lines,
                    stale_restore_refusal, strip_noncode,
@@ -170,6 +171,33 @@ class BaselineBankDecisionTests(unittest.TestCase):
         action, _ = baseline_bank_decision("NEUTRAL", base_exists=False,
                                            rebaseline=True)
         self.assertEqual(action, "create")
+
+
+class ReadoutBanksBaselineTests(unittest.TestCase):
+    """run-38 item 4: `probe --fuzzy` on a unit with no banked snapshot
+    left `--revert` answering "no banked snapshot for this unit yet" over
+    a build the readout had already paid for. Reproduced on
+    game/ui/auxscreen::calc_wizard_pos before the fix.
+
+    The readout still must NOT move a revert point that already exists —
+    that is the whole reason this branch banks nothing (a CONFLICT re-read
+    as REGRESSED on bytes that had not moved)."""
+
+    def test_the_first_probe_on_a_unit_banks(self):
+        self.assertTrue(readout_banks_baseline(
+            snapshot_exists=False, has_source=True, no_bank=False))
+
+    def test_an_existing_snapshot_is_never_moved(self):
+        self.assertFalse(readout_banks_baseline(
+            snapshot_exists=True, has_source=True, no_bank=False))
+
+    def test_no_bank_opts_out(self):
+        self.assertFalse(readout_banks_baseline(
+            snapshot_exists=False, has_source=True, no_bank=True))
+
+    def test_a_unit_with_no_source_cannot_bank(self):
+        self.assertFalse(readout_banks_baseline(
+            snapshot_exists=False, has_source=False, no_bank=False))
 
 
 class BanksBestTests(unittest.TestCase):

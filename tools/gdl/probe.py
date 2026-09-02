@@ -192,11 +192,18 @@ proves it describes the bytes in front of you; banking a new best without
 a fuzzy measurement CLEARS the anchor rather than carrying a stale one.
 
 --fuzzy is otherwise a PURE READOUT: it builds, prints the scores and this
-function's fresh objdiff fuzzy, and computes NO verdict and banks NO
-snapshot. Re-running the verdict on bytes that were already scored is
-what made a CONFLICT re-read as REGRESSED (see classify()'s BEST-anchored
-multiset comparison); an arbitration readout must never be able to do
-that. Score and bank with a plain probe, then arbitrate with --fuzzy.
+function's fresh objdiff fuzzy, and computes NO verdict and does not move
+the BEST anchor or the rolling revert point. Re-running the verdict on
+bytes that were already scored is what made a CONFLICT re-read as
+REGRESSED (see classify()'s BEST-anchored multiset comparison); an
+arbitration readout must never be able to do that.
+
+The ONE exception is the first probe on a unit: when NO snapshot exists,
+--fuzzy banks the baseline from the state it just built and scored, so a
+worker who reaches for --fuzzy first is not left with `--revert` saying
+"no banked snapshot for this unit yet" over a build already paid for.
+There is nothing to move in that case, which is exactly why it is safe;
+once a snapshot exists --fuzzy never touches it. --no-bank opts out.
 
 --arbitrate is the WHOLE arbitration in one call. A real/fuzzy disagreement
 needs FOUR numbers — (real, fuzzy) for the banked state and for the edited
@@ -704,6 +711,19 @@ def baseline_bank_decision(kind, base_exists, rebaseline=False):
         " FIRST bank on this unit, and the rolling revert point moves with"
         " later NEUTRAL probes while this one does not. --revert-baseline"
         " restores THIS state.]")
+
+
+def readout_banks_baseline(snapshot_exists, has_source, no_bank):
+    """Should a --fuzzy READOUT bank the session baseline? (run-38 item 4)
+
+    True ONLY on the first probe of a unit. --fuzzy is an arbitration
+    readout and must never move a revert point that already exists — that
+    is the whole reason the branch banks nothing. But when NO snapshot
+    exists there is nothing to move, and refusing to bank left `--revert`
+    answering "no banked snapshot for this unit yet" on a function whose
+    build had already been paid for by the readout itself.
+    """
+    return bool(has_source) and not snapshot_exists and not no_bank
 
 
 def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None,
@@ -2282,19 +2302,40 @@ def main():
         source_changed = snap.read_bytes() != source.read_bytes()
 
     if "--fuzzy" in sys.argv:
-        # PURE READOUT. No verdict, no state mutation beyond the fuzzy
-        # number itself, no snapshot banked. Arbitration must be able to
-        # re-read a state the loop has already scored without the verdict
-        # changing underneath it (a CONFLICT re-read as REGRESSED that
-        # way, on bytes that had not moved).
+        # PURE READOUT. No verdict, and no state mutation beyond the fuzzy
+        # number itself. Arbitration must be able to re-read a state the
+        # loop has already scored without the verdict changing underneath
+        # it (a CONFLICT re-read as REGRESSED that way, on bytes that had
+        # not moved).
+        #
+        # FIRST-BASELINE TRAP, --fuzzy edition (run-38 item 4). Banking
+        # nothing is right whenever a revert point already EXISTS — moving
+        # it under an arbitration is the hazard this branch was built to
+        # avoid. On a function nobody has probed yet there is nothing to
+        # move: the state was just built and scored, the pristine bytes
+        # are in front of us, and refusing to bank left `--revert`
+        # answering "no banked snapshot for this unit yet" over a build
+        # already paid for. Bank ONLY in that case; still no verdict, and
+        # the BEST anchor is still untouched.
+        first_bank = snap is not None and readout_banks_baseline(
+            snap.exists(), source is not None, "--no-bank" in sys.argv)
         tok = (f", multiset {multiset_tokens}t"
                if multiset_tokens is not None else "")
+        banked_note = ("no verdict computed; no revert point existed, so"
+                       " this readout banked one" if first_bank else
+                       "no verdict computed, no revert point banked")
         print(f"READOUT   real {real} (insns {insns}{tok})"
-              "  [--fuzzy: no verdict computed, no revert point banked]")
+              f"  [--fuzzy: {banked_note}]")
         standing = state.get("last_verdict")
         if standing:
             print(f"[standing verdict, unchanged by this readout]"
                   f"\n{standing}")
+        if first_bank:
+            bank_snapshot(unit, source, baseline=True,
+                          verdict_kind="BASELINE", fn=fn)
+            print("[banked from the CURRENT state — still no verdict and no"
+                  " BEST anchor. --revert / --revert-baseline now restore"
+                  " THIS state; --no-bank opts out.]")
         fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=digest)
         return 0
 
