@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/rc_recolor_class.py"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "matching",
+      "workflow",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any function whose `fndiff --ops` reports `opcode multiset: IDENTICAL` with zero `@0xA-0xB` clusters AND whose target and our instruction streams disagree on NO mnemonic at any shared index while still carrying a nonzero raw differing-word count that is not a register/displacement field - that would show the two-way split below is not exhaustive. Equally falsifying: any function where the index-aligned mnemonic comparison reports divergence but `fnasm --diff` shows the streams are genuinely index-aligned, which would make the discriminator unsound rather than merely coarse. Both checks are free: `python tools/gdl/composed_census/rc_recolor_class.py <unit> <fn>` prints mnemonic_diffs alongside the correspondence, and `python tools/gdl/fnasm.py <unit> <fn> --diff` is the aligned view it must agree with.",
+  "id": "claim.law.RC_identical-multiset-with-zero-clusters-merges-schedule-class-and-recolor-class.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T21:05:49Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "THE SIGNATURE EVERY LANE HAS BEEN USING TO NAME THE BLOCK-ROTATION CLASS DOES NOT NAME IT. `fndiff --ops` reporting `opcode multiset: IDENTICAL (N/N)` with zero clusters means only that the two streams contain the same BAG of opcodes and that no contiguous run of them diverges. It is satisfied by TWO disjoint residual classes, and the run-39 census over the whole corpus measured the split:\n\n  SCHEDULE-REORDER - same multiset, instructions emitted in a DIFFERENT ORDER. 31 of 39 functions, 1809 of 2164 differing words.\n  RECOLOR - streams index-aligned, only register fields differ. 8 of 39 functions, 355 differing words.\n\nThe tool's own gloss ('pure reorder, schedule-class residual') is printed on BOTH, so a lane reading it cannot tell which one it has. Three run-38/39 lane briefs described drawMemCardMessage's residual class using this signature and inherited the wrong class name from it.\n\nTHE DISCRIMINATOR IS FREE AND EXACT: compare mnemonics at the same instruction INDEX in the two streams. Zero mnemonic disagreements at equal instruction counts = recolor class; any disagreement = schedule class, and the count of disagreements measures how far the schedule moved. Measured examples from the census: game/mb/mb_particle::DrawPsysSub reads IDENTICAL/0 clusters but has 7 mnemonic disagreements (a `lwz`/`lfs` pair migrated about 22 positions), and game/audio/adstream::AdsPutBuffer reads IDENTICAL/0 clusters with 189 mnemonic disagreements over 254 instructions - it is almost entirely reordered. Neither is a recolor.\n\nWHY IT MATTERS BEYOND LABELLING. The two classes have disjoint cures and disjoint postprocessor paths: a recolor residual is a register-assignment question answered by declaration order, width and type (see the MV and SP laws), while a schedule residual is an emission-order question answered by statement order and the permutation rule class. Ranking a mixed population by differing-word count and working it top-down therefore spends the expensive probes on the wrong axis - the top four rows of the run-39 word-count ranking (AdsPutBuffer 220, PlayerProcessPowerups 187, do_enemies 184, then buildSaveImage) are three schedule-class functions before the first recolor-class one.\n\nCOROLLARY for the existing law claim.law.identical-multiset-is-blind-to-displacements.20260831.v1, which this EXTENDS rather than supersedes: that law establishes the multiset is blind to register-field words, and the fix it prescribes is to take a raw word count. Correct but insufficient - the word count says HOW MUCH differs and still does not say WHICH class it is. Take the word count AND the index-aligned mnemonic count; they are one command together."
+}

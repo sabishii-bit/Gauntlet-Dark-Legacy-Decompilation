@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py",
+    "tools/gdl/composed_census/rc_recolor_class.py"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "postprocessor",
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run `python tools/gdl/composed_census/wf_word_diff.py <unit> <fn>` on any function carrying a shipped webfrank rule that closes it completely and observe a count of 0 - that would show the tool reads the postprocessed body and this law is wrong. Measured counterexamples at commit 0f45ae610, each a webfrank-pinned function reading NONZERO: game/sys/memcard::buildSaveImage = 110, game/game/player::load_player_model_sub = 55, game/game/player::load_player_model = 30, game/audio/mempool::pool_garbage_collect = 14. Each of the four reads a clean IDENTITY correspondence under `fnasm --ours`, which is the postprocessed stream, at the same commit.",
+  "id": "claim.law.RC_wf-word-diff-reads-the-raw-pre-postprocess-body-so-pinned-functions-rank-first.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T21:06:11Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-02",
+  "value": "wf_word_diff.py MEASURES THE RAW PRE-POSTPROCESS BODY - it says so in its own output line, `(raw postprocess body)` - WHILE fndiff, fnasm --ours, probe.py and defake_gate all read the POSTPROCESSED object. On a webfrank-pinned function the two therefore disagree by construction and in a specific, misleading direction: the word count reports the residual the pin ALREADY CLOSES, so a queue ranked by differing words puts FINISHED functions at the top.\n\nThis is the INVERSE of the hazard AGENTS.md discipline 10 already warns about. That warning is 'pinned functions read real 0 by construction, so screen the pins before ranking by real'. The word count fails the opposite way: pinned functions read a LARGE residual by construction. A lane that switched from `real` to the word count on the strength of claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 - which is the right move for the metric - lands straight in the mirror-image trap, and the pin screen it was told to run for `real` is exactly as mandatory here.\n\nMEASURED THIS RUN, and it is not a marginal effect. Of the 8 functions the run-39 census classified into the recolor class by raw word count, HALF - 4 of 8, carrying 209 of the class's 355 differing words - were already webfrank-pinned and closed. Ranked by word count they occupied first, third, fifth and eighth place, including the top row. The tell that saves the lane is free and unambiguous: build the target-to-ours callee-saved correspondence from `fnasm --ours`; a pinned-and-closed function yields the IDENTITY map with zero unexplained operand pairs while its word count is large. Identity map + large word count = you are reading a shipped rule's input, not an open residual.\n\nTHE SCREEN, in order, before ranking anything by differing words: (1) parse `config/GUNE5D/webfrank.json` - note the rules live under the top-level `units` key, not at the root, and a parser that iterates the root finds 2 keys and 0 pins rather than 50 keys and 142 pins, which reads exactly like 'no pins exist'; (2) drop every function that appears as a rule `function` there; (3) only then rank. The same screen also fixes the reverse question - the correct customer census for a postprocessor capability must be taken over the SURVIVING set, because a pinned function is not a customer for the capability that already serves it."
+}
