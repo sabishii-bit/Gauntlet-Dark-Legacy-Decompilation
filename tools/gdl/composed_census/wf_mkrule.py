@@ -1,10 +1,31 @@
-"""Generate + validate the fn_8001267C composed rule through real apply_patch."""
+"""Generate + validate the fn_8001267C composed rule through real apply_patch.
+
+Run from the repository root:
+  python tools/gdl/composed_census/wf_mkrule.py [--out PATH]
+
+PROMOTION DAMAGE, repaired run 38. This script was written in the WF lane's
+scratch directory at the repository ROOT and promoted into
+tools/gdl/composed_census/ unchanged, which broke it in both of the ways
+AGENTS.md rule 17 names: its `ROOT` was computed as HERE/.. (correct beside
+the repo root, two levels short from here), so it died on
+`ModuleNotFoundError: No module named 'webfrank'` before reaching any
+webfrank call at all; and it wrote a generically-named `rule.json` BESIDE
+itself, into a tracked directory every lane shares, where the next lane to
+draft a rule would silently overwrite it. The output is now `--out`,
+defaulting under build/GUNE5D/ (gitignored and per-worktree).
+
+The run-38 work order named a different cause — `_relocation_sha256` called
+with one argument since the name-bound migration. That call is CORRECT:
+`symbols` is an optional parameter, and the empty relocation list this
+script passes never reaches the lookup that needs it.
+"""
+import argparse
 import json
 import os
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.abspath(os.path.join(HERE, ".."))
+ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 import webfrank as wf  # noqa: E402
 
@@ -46,6 +67,12 @@ AUDIT = (
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default=os.path.join(
+        ROOT, "build", "GUNE5D", "wf_mkrule_rule.json"),
+        help="where to write the rule draft (default: under build/GUNE5D/,"
+             " which is gitignored and per-worktree)")
+    args = ap.parse_args()
     odata = bytearray(open(OURS, "rb").read())
     tdata = bytearray(open(TGT, "rb").read())
     osec, tsec = wf._sections(odata), wf._sections(tdata)
@@ -105,8 +132,10 @@ def main():
     print(f"\napply_patch OK: changed={changed}")
     print(f"  before={before[:16]} after={after[:16]}")
     print(f"  BYTE-EQUAL TO TARGET: {final == tgt}")
-    json.dump(patch, open(os.path.join(HERE, "rule.json"), "w"), indent=2)
-    print("  wrote WF_scratch/rule.json")
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+    with open(args.out, "w", encoding="utf-8") as handle:
+        json.dump(patch, handle, indent=2)
+    print(f"  wrote {args.out}")
 
 
 if __name__ == "__main__":
