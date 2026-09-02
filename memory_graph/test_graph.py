@@ -3332,6 +3332,45 @@ class SupersessionScreenPerformanceTests(unittest.TestCase):
         self.assertIn("raw_name=?", plan, plan)
 
 
+class AttemptTemplateGuidanceTests(unittest.TestCase):
+    """run-39 item 13. The attempt template stated the SHAPE of a record but
+    not the two rules that reject one, so an author learned both by
+    submitting: UD burned 3 submissions, and this lane burned 4 more on the
+    same template while reproducing the other items.
+
+    Measured at f5ac8b63c: an attempt carrying `epistemic_state` validates
+    CLEANLY and the field is then ignored (it is a claim field), so a
+    confidence recorded there is silently not recorded; and a
+    `screened_against_target` of JSON `false` is falsy and rejected as
+    "missing", which reads as a schema error rather than as the answer no.
+    """
+
+    def setUp(self):
+        self.template = core.record_template("attempt")
+
+    def test_the_subject_rule_is_stated_before_submission(self):
+        text = self.template["function"]
+        self.assertIn("MUST RESOLVE", text)
+        self.assertIn("tu:<module>", text)
+        self.assertIn("gdlmem.py search", text)
+
+    def test_outcome_says_epistemic_state_is_ignored_here(self):
+        text = self.template["outcome"]
+        self.assertIn("epistemic_state", text)
+        self.assertIn("IGNORED", text)
+        self.assertIn("improved|neutral|negative|parked|capped", text)
+
+    def test_screened_against_target_warns_that_false_reads_as_missing(self):
+        text = self.template["hypothesis"]["screened_against_target"]
+        self.assertIn("NON-EMPTY STRING", text)
+        self.assertIn("rejected as MISSING", text)
+
+    def test_the_template_still_stages_when_filled_in(self):
+        """Guidance must not break the shape it documents."""
+        for key in ("function", "attempted_axis", "outcome"):
+            self.assertTrue(self.template[key].startswith("<REQUIRED"), key)
+
+
 class RegisterDefinitionGapTests(unittest.TestCase):
     """The pure half of Gate I, calibrated against the accepted corpus.
 

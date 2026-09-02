@@ -3647,9 +3647,24 @@ def record_template(kind: str) -> dict[str, Any]:
     """
     templates: dict[str, dict[str, Any]] = {
         "attempt": {
-            "function": "<REQUIRED: function:symbol_name>",
+            "function": (
+                "<REQUIRED: function:symbol_name — MUST RESOLVE, and the"
+                " staging error only arrives after you submit. THREE forms"
+                " resolve: any entity_key already in the graph (including"
+                " the non-code namespaces compiler:/project:);"
+                " `function:<symbol>` naming exactly one GameCube function;"
+                " `tu:<module>` naming a GameCube object, with or without a"
+                " .c/.cpp suffix. Check yours FIRST with `gdlmem.py find"
+                " --query <term>` or `gdlmem.py search <term>` rather than"
+                " burning a submission on it>"),
             "attempted_axis": "<REQUIRED: one-line description of the axis tried>",
-            "outcome": "<REQUIRED: improved|neutral|negative|parked|capped>",
+            "outcome": (
+                "<REQUIRED: improved|neutral|negative|parked|capped — this"
+                " is an attempt's ONLY confidence field. `epistemic_state`"
+                " is a CLAIM field: an attempt carrying one still validates"
+                " and is then IGNORED, so a confidence recorded there is"
+                " silently not recorded at all. Put the strength of the"
+                " finding in `outcome` plus attributes.verification>"),
             "residual_class": "<OPTIONAL: NONE|REGISTER_ONLY|SCHEDULE|STRUCTURAL|MIXED>",
             "residual": {
                 "signature": "<OPTIONAL: the fndiff --ops token delta"
@@ -3716,7 +3731,11 @@ def record_template(kind: str) -> dict[str, Any]:
                 "cheapest_refuting_observation": "<REQUIRED if present: the"
                                                  " cheapest observation that"
                                                  " would KILL this idea>",
-                "screened_against_target": "<REQUIRED if present: was this"
+                "screened_against_target": "<REQUIRED if present, and a"
+                " NON-EMPTY STRING: a JSON boolean false is falsy and is"
+                " rejected as MISSING, which reads as a schema error rather"
+                " than the answer 'no'. Write 'no — <what you have not"
+                " checked>'. Was this"
                                            " already checked against the"
                                            " target bytes? yes/no + what was"
                                            " seen>",
