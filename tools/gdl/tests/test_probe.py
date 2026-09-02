@@ -23,7 +23,8 @@ from probe import (CONFLICT_UNARBITRATED_EXIT, REPLAN_AT, annotate_neutral,
                    data_line, format_genuine_note, function_span,
                    fuzzy_anchor_note, moved_sections, parse_section_digests,
                    outside_edit_warning, parse_numstat, pin_drift,
-                   replan_hint, scaffold_rows, scoped_revert, split_lines,
+                   replan_hint, scaffold_rows, scoped_revert,
+                   slot_arbiter_header, slot_arbiter_signal, split_lines,
                    strip_noncode, update_neutral_identical_streak)
 
 
@@ -59,6 +60,78 @@ class CountDistanceTests(unittest.TestCase):
     def test_unparseable_is_none(self):
         self.assertIsNone(count_distance("exact"))
         self.assertIsNone(count_distance(None))
+
+
+class SlotArbiterSignalTests(unittest.TestCase):
+    """Run-35 item 3: probe printed nothing for the slot residual class."""
+
+    IDENTICAL = (
+        "frame: target 96  ours 96   saves: target r29  ours r29\n"
+        "== BossCamBossCalc: target 12 slots, ours 12 -> SLOT MAP IDENTICAL\n")
+    USE_COUNTS = (
+        "frame: target 96  ours 96   saves: target r29  ours r29\n"
+        "USE-COUNT   slot   24  target 3 vs ours 4\n"
+        "== BossCamBossCalc: target 12 slots, ours 12 ->"
+        " SLOTS ALIGNED, 1 use-count deltas\n")
+    EXCLUSIVE = (
+        "frame: target 96  ours 96   saves: target r29  ours r29\n"
+        "TARGET-ONLY slot   40  (uses 5)\n"
+        "== BossCamBossCalc: target 13 slots, ours 12 ->"
+        " SLOTS DIFFER (1T/0O exclusive)\n")
+    FRAME_DELTA = (
+        "frame: target 112  ours 96   saves: target r29  ours r29\n"
+        "== BossCamBossCalc: target 12 slots, ours 12 -> SLOT MAP IDENTICAL\n")
+    SAVE_SET = (
+        "!! SAVE-SET DELTA: target r27 vs ours r29 — the residual\n"
+        "frame: target 96  ours 96   saves: target r27  ours r29\n"
+        "== BossCamBossCalc: target 12 slots, ours 12 -> SLOT MAP IDENTICAL\n")
+
+    def test_an_identical_map_does_not_fire(self):
+        fires, reason = slot_arbiter_signal(self.IDENTICAL)
+        self.assertFalse(fires)
+        self.assertEqual(reason, "")
+
+    def test_use_count_deltas_alone_do_not_fire(self):
+        """Ordinary register residue must not drag a 60-line map along."""
+        fires, _ = slot_arbiter_signal(self.USE_COUNTS)
+        self.assertFalse(fires)
+
+    def test_exclusive_slots_fire(self):
+        fires, reason = slot_arbiter_signal(self.EXCLUSIVE)
+        self.assertTrue(fires)
+        self.assertIn("slots differ", reason)
+
+    def test_a_frame_delta_fires_even_with_an_identical_map(self):
+        fires, reason = slot_arbiter_signal(self.FRAME_DELTA)
+        self.assertTrue(fires)
+        self.assertIn("frame size target 112 vs ours 96", reason)
+
+    def test_a_save_set_delta_fires_and_says_it_is_not_a_local_slot(self):
+        fires, reason = slot_arbiter_signal(self.SAVE_SET)
+        self.assertTrue(fires)
+        self.assertIn("SAVE-SET", reason)
+        self.assertIn("NOT a local slot", reason)
+
+    def test_use_counts_are_reported_alongside_a_decisive_signal(self):
+        fires, reason = slot_arbiter_signal(
+            self.USE_COUNTS.replace("target 96  ours 96", "target 112 ours 96")
+            .replace("frame: target 112 ours 96",
+                     "frame: target 112  ours 96"))
+        self.assertTrue(fires)
+        self.assertIn("slots aligned", reason)
+
+    def test_missing_or_failed_output_never_fires(self):
+        for output in (None, "", "missing: BossCamBossCalc (target: True,"
+                                 " ours: False)"):
+            fires, reason = slot_arbiter_signal(output)
+            self.assertFalse(fires, output)
+            self.assertEqual(reason, "")
+
+    def test_the_header_names_real_as_the_wrong_arbiter(self):
+        header = slot_arbiter_header("frame size target 112 vs ours 96")
+        self.assertIn("frame size target 112 vs ours 96", header)
+        self.assertIn("ARBITRATE ON THE MAP BELOW", header)
+        self.assertIn("--no-slots", header)
 
 
 class BaselineBankDecisionTests(unittest.TestCase):

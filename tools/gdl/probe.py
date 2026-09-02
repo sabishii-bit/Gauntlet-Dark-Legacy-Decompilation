@@ -104,6 +104,8 @@ docstring omitted it — the flags below all work):
                      revert restores the SOURCE and leaves the re-derived
                      hashes in webfrank.json, which GW measured as ~2 of 15
                      probe cycles spent on pure pin plumbing
+  --slots            force the slotdiff map even without a slot signal
+  --no-slots         suppress the auto-invoked slot map (below)
   --rebaseline       deliberately MOVE the session baseline to the current
                      state. The baseline is created by the first bank on a
                      unit whatever verdict caused it, and is never
@@ -129,6 +131,18 @@ one revert (five lanes hit that). A hunk straddling the function boundary
 is REFUSED loudly, never guessed at; `--revert --whole-file` then takes
 the old all-or-nothing restore deliberately. --revert-baseline and
 --discard remain whole-file by construction.
+
+THE SLOT MAP ARRIVES WITH THE VERDICT. `real` actively fights frame work —
+a design one 4-byte step from a slot-exact map can score REGRESSED while
+four chained real wins land further from target — and the loop printed no
+slot information whatever for the one residual class whose arbiter IS the
+slot map, so a lane wrote its own r1-displacement scanner (which, unlike
+slotdiff, could not see `addi rX,r1,N` address-takes). probe now runs
+slotdiff.py itself whenever `real > 0`, and prints its map under the
+verdict when slotdiff reports a SAVE-SET delta, a frame-size delta, or
+exclusive slots. Equal slot sets with differing use counts do NOT trigger
+it on their own: that is ordinary register residue, and firing there would
+bury every unrelated probe under a 60-line map.
 
 FRESH FUZZY RUNS BEFORE ANY BANK. The four verdicts that move the BEST
 anchor — BASELINE, IMPROVED, IMPROVED-STRUCTURE, REBASED — used to bank on
@@ -1055,6 +1069,77 @@ def conflict_gate(verdict, best_fuzzy, cur_fuzzy):
           f"\n[exit {CONFLICT_UNARBITRATED_EXIT}: unarbitrated CONFLICT —"
           " not a build failure, not a scoring failure]"
     ), CONFLICT_UNARBITRATED_EXIT
+
+
+SLOT_FRAME_RE = re.compile(r"^frame: target (\S+)\s+ours (\S+)", re.M)
+SLOT_VERDICT_RE = re.compile(r"^== .*?-> (.+?)$", re.M)
+
+
+def slot_arbiter_signal(output):
+    """(fires, reason) — does this residual class as frame-slot work?
+
+    Read out of slotdiff.py's OWN output rather than re-derived here. Run-35
+    criticism (CL): probe prints no slot information at all for the one
+    residual class whose arbiter IS the slot map, so a lane hand-wrote an
+    r1-displacement enumerator to get it. A second implementation of "which
+    slots differ" is the wrong fix twice over — it is work already done, and
+    the hand-rolled one saw displacements but not the `addi rX,r1,N`
+    address-takes that slotdiff was specifically taught to collect (48 bytes
+    of address-taken arrays hid there once).
+
+    The three signals, in decreasing decisiveness:
+      * a SAVE-SET delta — a callee-saved allocation difference, which is
+        not a local slot at all and is the single most decisive fact for
+        slot work;
+      * a frame-size delta;
+      * exclusive slots on either side.
+    "SLOTS ALIGNED, N use-count deltas" alone does NOT fire: equal slot sets
+    with different use counts is ordinary register/schedule residue, and
+    firing on it would put a 60-line map under every unrelated probe. It is
+    reported only alongside one of the decisive signals above.
+    """
+    if not output or "== " not in output:
+        return False, ""
+    reasons = []
+    if "SAVE-SET DELTA" in output:
+        reasons.append("a callee-saved SAVE-SET delta (an unallocated"
+                       " callee-saved register, NOT a local slot)")
+    frame = SLOT_FRAME_RE.search(output)
+    if frame and frame.group(1) != frame.group(2):
+        reasons.append(f"frame size target {frame.group(1)} vs ours"
+                       f" {frame.group(2)}")
+    verdict = SLOT_VERDICT_RE.search(output)
+    text = verdict.group(1).strip() if verdict else ""
+    if text.startswith("SLOTS DIFFER"):
+        reasons.append(text.lower())
+    elif text.startswith("SLOTS ALIGNED") and reasons:
+        reasons.append(text.lower())
+    if not reasons:
+        return False, ""
+    return True, "; ".join(reasons)
+
+
+def slot_arbiter_header(reason):
+    """The line that says why a slot map appeared under this verdict."""
+    return (
+        f"SLOT-CLASS RESIDUAL — {reason}. The verdict above is scored on"
+        " `real`, which ACTIVELY FIGHTS slot work: a design one 4-byte step"
+        " from a slot-exact map can read REGRESSED while four chained real"
+        " wins land further from target (two lanes measured that"
+        " independently). ARBITRATE ON THE MAP BELOW, not on the verdict"
+        " (claim.law.real-can-underweight-a-large-alignment-gain)."
+        " `--no-slots` suppresses this; `--slots` forces it.")
+
+
+def run_slot_arbiter(unit, fn):
+    """slotdiff.py's stdout, or None when it could not run."""
+    try:
+        done = subprocess.run(
+            [sys.executable, str(TOOLS / "slotdiff.py"), unit, fn],
+            capture_output=True, text=True)
+    except OSError:
+        return None
+    return done.stdout
 
 
 def format_genuine_note(n, rows, cap=8):
@@ -2147,6 +2232,20 @@ def main():
         gr = genuine_row_count(unit, fn)
         if gr is not None:
             print(format_genuine_note(*gr))
+
+    # THE SLOT MAP, unasked, when the residual is slot-shaped (run-35 item
+    # 3). `real` is the wrong arbiter for frame work and the loop offered no
+    # slot information at all, so a lane wrote its own displacement scanner
+    # rather than reach for the tool that already existed. Gated on real > 0
+    # (no residual, nothing to arbitrate) and on slotdiff's own signal, so a
+    # register/schedule probe never carries a 60-line map it does not need.
+    if real > 0 and "--no-slots" not in sys.argv:
+        slots_output = run_slot_arbiter(unit, fn)
+        fires, reason = slot_arbiter_signal(slots_output)
+        if fires or ("--slots" in sys.argv and slots_output):
+            print(slot_arbiter_header(
+                reason or "requested with --slots (no decisive slot signal)"))
+            print(slots_output.strip())
 
     want_scaffold = ("--scaffold" in sys.argv or "--scaffold-all" in sys.argv
                      or verdict.startswith("BASELINE"))
