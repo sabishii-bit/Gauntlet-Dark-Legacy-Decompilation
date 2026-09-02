@@ -17,11 +17,27 @@ Usage:
 --clean NORMALIZES pool names, so a wrong-callee or wrong-datum relocation
 (a `bl` to the wrong function, a load of the wrong global) reads as MATCH in
 every other view — a REL24 callee lives ENTIRELY in its relocation, carrying
-no target in the unlinked word. --relocs resolves every symbol to its
-symbols.txt address and prints the SET delta: two spellings of one address
-(a benign rename) cancel, while a differing address surfaces as a target-only
-/ ours-only row. It runs even at real 0. CB hand-rolled this twice; it was
-decisive both times.
+no target in the unlinked word. It runs even at real 0. CB hand-rolled this
+twice; it was decisive both times.
+
+--relocs runs TWO passes with DIFFERENT resolvers, and the split is the
+whole point:
+
+  POSITIONAL  when the instruction words already agree, relocation i means
+              the same instruction on both sides, so the pairing is exact
+              by construction. Only here are dtk's `lbl_ADDR` pool/data
+              symbols resolved out of symbols.txt — which makes this the
+              ONLY view in the tool that can decide a wrong pool CONSTANT
+              (WRONG-DATUM rows; two gameplay bugs in game/enemy/critter
+              were found exactly this way).
+  SET         two spellings of one address cancel, a differing address
+              surfaces as a target-only / ours-only row. Pool symbols stay
+              collapsed to <local> here, because naming a pool constant
+              must never change a score — and because our object emits its
+              pool entries anonymously, so resolving lbl_ in THIS pass has
+              nothing to cancel against: measured over the 92 game/ unit
+              pairs in this tree, set-delta rows go 238 -> 6844 and every
+              real row is buried.
 
 --clean is the recommended iteration view: pool-name reloc noise (@N vs lbl_
 for identical constants) is normalized away, every function ALWAYS ends with
@@ -577,13 +593,143 @@ def reloc_set_delta(target_rows, ours_rows, resolve=None):
     return target_only, ours_only, common
 
 
-def relocs_diff(name, target_rows, ours_rows, resolve=None):
-    """Print the target/ours relocation-symbol-set delta for one function."""
+_ANONYMOUS_POOL_RE = re.compile(r"(?:lbl|jumptable|jtbl|@\d+)$")
+
+
+def resolve_reloc_symbol_positional(symbol):
+    """Address for a relocation symbol, INCLUDING dtk's `lbl_ADDR` data
+    and the splitter's NAMED pool constants.
+
+    FOR THE POSITIONAL PASS ONLY. `resolve_reloc_symbol` deliberately
+    refuses every `lbl_`/`jumptable_` spelling, because our object emits
+    its pool entries anonymously (`@123`) with no cross-object address at
+    all — under SET semantics the target's addressed `lbl_803464E8` would
+    then have nothing to cancel against and every benign pool row would
+    surface as a false delta. MEASURED over the 92 game/ unit pairs in
+    this tree: set-delta rows go 238 -> 6844 when lbl_ resolves inside the
+    set pass, which buries the real rows entirely.
+
+    The POSITIONAL pass has no such problem: it pairs relocation i with
+    relocation i (sound only when the instruction words already agree), so
+    it never has to cancel anything, and the target's lbl_ address is
+    exactly the fact that decides a wrong pool constant
+    (claim.law.RS_relocation-identity-catches-wrong-pool-constants-that-
+    value-set-sweeps-cannot.20260902.v1).
+
+    Only the ANONYMOUS spellings stay unresolvable — bare `lbl`,
+    `jumptable`, `@123` — because those really do carry no cross-object
+    address. Everything symbols.txt names resolves, including the pool
+    constants `resolve_reloc_symbol` refuses.
+    """
+    head = _RELOC_SYM_RE.match((symbol or "").strip())
+    if not head:
+        return None
+    name = head.group(1)
+    if _ANONYMOUS_POOL_RE.fullmatch(name):
+        return None
+    base = symbol_addresses().get(name)
+    if base is None:
+        return None
+    try:
+        return base + int(head.group(2) or "0", 0)
+    except ValueError:
+        return None
+
+
+def positional_reloc_rows(target_lines, ours_lines, resolve=None):
+    """(rows, reason) — the positional relocation-identity pass.
+
+    Sound ONLY when the two instruction streams already agree word for
+    word: then the relocation lists are in instruction order and position
+    i denotes the same instruction on both sides, so the pairing is exact
+    by construction and needs no matching heuristic, no value filters and
+    no run demotion. When they do not agree, `rows` is empty and `reason`
+    says why the pass was skipped — a silent empty result would read as a
+    clean bill of health.
+
+    Each row is (index, kind, target_symbol, ours_symbol, address_pair):
+      WRONG_DATUM     the same instruction relocates DIFFERENT addresses —
+                      a wrong callee or a wrong pool constant, and no
+                      score in this tool can see it (`real` drops reloc
+                      lines, --clean normalizes pool names, and the set
+                      delta collapses pool symbols to <local>)
+      SPELLING_DRIFT  one address, two spellings: links identically, but
+                      the SOURCE names the wrong datum
+    """
+    resolve = resolve or resolve_reloc_symbol_positional
+    if instruction_lines(target_lines) != instruction_lines(ours_lines):
+        return [], ("instruction words differ, so relocation i on one side"
+                    " need not be relocation i on the other — the"
+                    " positional pass is UNSOUND here and was skipped;"
+                    " close the text residual first")
+    t_rows = reloc_rows_from_lines(target_lines)
+    o_rows = reloc_rows_from_lines(ours_lines)
+    if len(t_rows) != len(o_rows):
+        return [], (f"relocation counts differ ({len(t_rows)} target vs"
+                    f" {len(o_rows)} ours) at equal instruction words —"
+                    " the positional pass was skipped; read the set delta")
+    rows = []
+    for index, ((t_type, t_sym), (o_type, o_sym)) in enumerate(
+            zip(t_rows, o_rows)):
+        if t_type != o_type or t_sym == o_sym:
+            continue
+        t_at, o_at = resolve(t_sym), resolve(o_sym)
+        if t_at is None or o_at is None:
+            continue
+        kind = "SPELLING_DRIFT" if t_at == o_at else "WRONG_DATUM"
+        rows.append((index, kind, t_sym, o_sym, (t_at, o_at)))
+    return rows, ""
+
+
+def cancel_proven_rows(ours_rows, positional):
+    """ours_rows with every proven-same-datum row rewritten to the target's
+    spelling, so one spelling drift is not reported twice (once by the
+    positional pass, once as a set delta)."""
+    out = [tuple(row) for row in ours_rows]
+    for index, kind, t_sym, _o_sym, _addrs in positional:
+        if kind == "SPELLING_DRIFT" and index < len(out):
+            out[index] = (out[index][0], t_sym)
+    return out
+
+
+def relocs_diff(name, target_rows, ours_rows, resolve=None,
+                target_lines=None, ours_lines=None):
+    """Print the positional relocation-identity pass and the set delta.
+
+    TWO PASSES, DIFFERENT RESOLVERS ON PURPOSE. The positional pass
+    resolves `lbl_` pool/data symbols out of symbols.txt and is the only
+    view in this tool that can decide a wrong pool CONSTANT; the set pass
+    keeps them collapsed to <local>, because naming a pool constant must
+    never change a score.
+    """
+    positional, skipped = [], ""
+    if target_lines is not None and ours_lines is not None:
+        positional, skipped = positional_reloc_rows(target_lines, ours_lines)
+    wrong = [row for row in positional if row[1] == "WRONG_DATUM"]
+    drift = [row for row in positional if row[1] == "SPELLING_DRIFT"]
+    if wrong:
+        print(f"WRONG-DATUM {name}  ({len(wrong)} relocation(s) point at a"
+              " DIFFERENT address than the target's at the SAME"
+              " instruction — a real defect no score here can see)")
+        for index, _kind, t_sym, o_sym, (t_at, o_at) in wrong:
+            print(f"    reloc[{index}]  target {t_sym} (0x{t_at:08X})"
+                  f"   ours {o_sym} (0x{o_at:08X})")
+    for index, _kind, t_sym, o_sym, (t_at, _o_at) in drift:
+        print(f"    spelling[{index}] target {t_sym}  ours {o_sym}"
+              f"  — one datum (0x{t_at:08X}), two spellings")
+    if skipped:
+        print(f"    [positional pass: {skipped}]")
     target_only, ours_only, common = reloc_set_delta(
-        target_rows, ours_rows, resolve=resolve)
+        target_rows, cancel_proven_rows(ours_rows, positional),
+        resolve=resolve)
     if not target_only and not ours_only:
-        print(f"== {name}: relocation sets IDENTICAL ({common} reloc(s),"
-              " addresses resolved)")
+        if not wrong and not drift:
+            print(f"== {name}: relocation sets IDENTICAL ({common} reloc(s),"
+                  " addresses resolved)")
+        else:
+            print(f"== {name}: set delta clean ({common} reloc(s)) — every"
+                  " row above came from the POSITIONAL pass, which is the"
+                  " only one that resolves pool symbols")
         return
     print(f"RELOCS {name}  ({common} shared;"
           f" {len(target_only)} target-only, {len(ours_only)} ours-only —"
@@ -1129,7 +1275,8 @@ def main():
             # wrong-callee/wrong-datum relocation is invisible to every other
             # view here.
             relocs_diff(name, reloc_rows_from_lines(t),
-                        reloc_rows_from_lines(b))
+                        reloc_rows_from_lines(b),
+                        target_lines=t, ours_lines=b)
             continue
         if t == b:
             if classify_only:
