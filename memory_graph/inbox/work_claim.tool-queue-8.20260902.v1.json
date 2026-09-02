@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "TOOL lane (owns tools/gdl + memory_graph surfaces): run-37 amendment queue; one commit per item BEFORE the next; REPRODUCE each symptom with one command first (3 of 11 run-37 briefs were wrong - treat every stated cause as a hypothesis). (1) defake_gate wrong-callee check is OURS-VS-OURS: it said 'revert' on all 3 genuine run-37 fixes; resolve the new symbol against the TARGET object and print MOVED-TOWARD vs MOVED-AWAY (claim.law from RS). (2) fndiff: resolve lbl_ names from symbols.txt in the POSITIONAL pass only (RS measured: set-delta resolution inflates 127->590 false rows; positional resolution found 2 gameplay bugs). (3) wf_mkrule.py is broken AND tracked: _relocation_sha256 called with 1 arg, signature needs (records, symbols) since the name-bound migration - fix or delete; ALSO clean the 27 generic-named artifacts (rule.json, rec1..rec6.json) out of composed_census. (4) probe --fuzzy on an unbanked function banks the baseline (PC burned a build). (5) a KEPT probe drops its transient pin bank automatically (PC hand-deleted twice; stale bank restores pre-session hashes on later --revert). (6) probe --rederive-pin drives the full transient sequence in one call (PC measured 4 of ~12 build cycles as the 3-command drive: ninja-fail -> wf_rederive_pin --transient -> configure). (7) defake_gate --classify roster mode: per-function real+genuine+clean verdict in ONE call (UC spent 15 subprocess calls on the mandated sweep; the baseline JSON already holds the data). (8) our-side pool inspector: pooldump reads only the retail DOL; 'what is @674 in OUR object' is unanswerable and produced a wrong diagnosis two runs running (UC). (9) probe --revert verdict: AT measured it scoring against the DISCARDED state, not HEAD/baseline - reproduce against T7's item-7 fix first; close whatever gap remains. (10) laws --residual on jumptable-class signatures returned 105 undiscriminated matches in a 244KB spill (AT) - add a discrimination term or de-weight insnband-only matches so the top hits carry signature overlap. (11) extend gate G: composed-class refusals must name the WINDOWS tried, not just the mode (WF: a fixed-shape composition produced a false typed denial). (12) write refusal tests for every promise the proof classes make (WF found the M-form Rc hole because no shipped rule sat on a record-form rotate; audit the other promised refusals for untested ones). Scoped tests between items, FULL suites per commit; ninja 'main.dol: OK' at close; expected verdict changes stated; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:TextHeightMLines",
+  "id": "work_claim.tool-queue-8.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-T8",
+  "recorded_at": "2026-09-02T19:07:35Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}

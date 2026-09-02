@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, game/ui/select.c - the heavy TU (matched 15.75, fuzzy 95.67, 8 genuine DIFF fns confirmed run 37 by UC's clean sweep): (1) setup_vmu_entries - 4 recorded dead axes with causes named (do NOT retry); the run-37 UC record refutes the 'surviving mr' blocker (both streams have one); the real difference is WHICH format string is hoisted - that is the fifth axis, probe it. (2) do_player_select (real 1195 post-extern-fix; its pool-layout residual is UNMASKED debt per claim.law.UC_a-wrong-extern-size-can-manufacture-false-parity...; census the spill run nearest-first). (3) census-decompose the remaining select DIFF fns nearest-first (records-per-unmatched ranking, not fuzzy). context per fn BEFORE edits; laws --residual quoted; fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive at one; select pins (init_player_select, init_player_change) screened - pool changes re-derive via key-anchored --apply. defake_gate baseline step 0; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-02",
+  "function": "function:setup_vmu_entries",
+  "id": "work_claim.select-deep.20260902.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-UD",
+  "recorded_at": "2026-09-02T19:08:14Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-02"
+}
