@@ -1,0 +1,29 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py::_EXACT_NAME_CANDIDATE_JOIN",
+    "memory_graph/core.py::_import_exact_name_candidates"
+  ],
+  "attributes": {
+    "evidence": [
+      "run 40, T10: build_database 15.09s -> 6.45s; _import_exact_name_candidates 8.61s -> 0.01s",
+      "mid-build plan: SEARCH x USING INDEX binary_symbol_raw_name_idx (platform=? AND symbol_kind=?)",
+      "post-ANALYZE plan: SEARCH x USING INDEX binary_symbol_name_idx (platform=? AND normalized_name=?), 0.00s"
+    ],
+    "scope": "memory_graph/core.py's build path as of run 40. The general clause covers any SQL executed inside a table-population step, in this repo or another; the measured numbers are this corpus's (21,206 symbols, 1,373 exact-name pairs, 1,743 records).",
+    "tags": [
+      "build-hygiene",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run the join against a mid-build connection with `INDEXED BY` removed and obtain the binary_symbol_name_idx plan anyway (i.e. show the planner does not need statistics here), or measure `_import_exact_name_candidates` above ~0.5s WITH the hint in place. Either would show the plan, not the timing, was misdiagnosed. Reproduce with T10's harness shape: monkeypatch the importer to print `EXPLAIN QUERY PLAN` and time the COUNT and INSERT separately from inside `build_database`, against a throwaway db_path.",
+  "id": "claim.law.T10_a-query-run-mid-build-has-no-statistics-so-pin-its-index.20260903.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-02T23:49:34Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-02",
+  "value": "A QUERY THAT RUNS DURING A BUILD HAS NO STATISTICS, AND PROFILING THE BUILT ARTEFACT WILL NEVER SHOW YOU WHY IT IS SLOW. memory_graph's `_import_exact_name_candidates` joins binary_symbol to itself on normalized_name and ran for 8.61s of a 15.09s `build_database` -- 57% of the whole graph build, and 73.8% once it was made set-based and paid the join twice. The join is not slow: the IDENTICAL query answers in 0.00s against the finished database, over the same 21,206 rows, producing the same 1,373 pairs. The difference is WHEN it runs. `ANALYZE` executes at the END of build_database, so mid-build SQLite has no statistics for the tables it just populated and fell back to `binary_symbol_raw_name_idx (platform, symbol_kind, raw_name)` for the INNER table -- an index that constrains nothing in this query -- turning an indexed lookup into a scan of all 7,405 Xbox functions for each of 2,989 GameCube ones. 22 million row comparisons, 8.79s for the COUNT and 8.61s again for the INSERT. `EXPLAIN QUERY PLAN` run against the finished DB shows the CORRECT plan and confirms nothing; it must be run against the mid-build connection to see the defect at all. THE FIX IS ONE CLAUSE: `JOIN binary_symbol x INDEXED BY binary_symbol_name_idx`, which makes the plan independent of whether statistics happen to exist yet. Measured after: 8.61s -> 0.01s, full build 15.09s -> 6.45s. GENERAL FORM: any query inside a population step -- an importer, a migration, a census that queries the rows it is writing -- is planned without statistics, so its index must be PINNED rather than inferred, and a profile taken against the finished artefact is measuring a different query plan than the one that runs."
+}

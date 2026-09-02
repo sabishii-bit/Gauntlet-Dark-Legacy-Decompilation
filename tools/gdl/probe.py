@@ -88,7 +88,8 @@ is the deliberate override.
 
 Escape hatches (a worker concluded --discard "does not exist" because this
 docstring omitted it — the flags below all work):
-  --discard          restore the TU to HEAD (the neutral-edit undo), then
+  --discard [--function | --whole-file]
+                     restore the TU to HEAD (the neutral-edit undo), then
                      REBUILD the object so object-reading tools stop
                      reporting the discarded probe (--no-rebuild skips)
   --revert-baseline  restore the SESSION's first banked baseline, then
@@ -123,6 +124,12 @@ docstring omitted it — the flags below all work):
   --no-fuzzy-gate    skip the pre-bank fresh-fuzzy measurement (below).
                      Faster, and how the loop behaved before run 36 — but
                      a keep banked this way is unarbitrated
+  --accept-fuzzy-loss  with --rebase-best ONLY: bank the keep even though
+                     fresh fuzzy FELL below the anchor. Since run 40 the
+                     fuzzy gate binds --rebase-best too, so a keep that
+                     loses fuzzy is REBASE-REFUSED unless you say this;
+                     the verdict then reads REBASED-FUZZY-LOSS with the
+                     delta in the headline, for the record to quote
   --no-tu-gate       skip the pre-bank TU-SCOPE sibling cross-check
                      (below). Only ever runs at all when the diff changes
                      a file-scope declaration, storage class, qualifier or
@@ -148,8 +155,18 @@ but only the hunks lying strictly inside the NAMED function are restored,
 so a multi-function session no longer loses its other in-progress work to
 one revert (five lanes hit that). A hunk straddling the function boundary
 is REFUSED loudly, never guessed at; `--revert --whole-file` then takes
-the old all-or-nothing restore deliberately. --revert-baseline and
---discard remain whole-file by construction.
+the old all-or-nothing restore deliberately. --revert-baseline remains
+whole-file by construction.
+
+(2b) --discard is SCOPE-CHECKED since run 40. It still restores the whole
+file, but it first asks what that would destroy: if any uncommitted hunk
+in the TU lies outside the named function — a sibling function's
+in-progress edit, or a file-scope declaration change — it REFUSES and
+offers `--discard --function` (restore only this function's hunks) or
+`--discard --whole-file` (the old behaviour, deliberately). When every
+hunk is inside the named function the two are the same bytes and nothing
+changes. Its success line always said "uncommitted work on other
+functions in this TU is gone", which is a receipt, not a guard.
 
 (3) NO RESTORE MAY DELETE COMMITTED WORK. Both banked states (the rolling
 snapshot and the session .base) are stamped with the commit they were
@@ -1066,7 +1083,8 @@ def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None,
     base = snap.with_suffix(snap.suffix + ".base")
     kind = verdict_kind or ("BASELINE" if baseline else "BANK")
     action, note = baseline_bank_decision(kind, base.exists(), rebaseline)
-    if action in ("create", "overwrite"):
+    created_baseline = action in ("create", "overwrite")
+    if created_baseline:
         shutil.copyfile(source, base)
         base.with_suffix(base.suffix + ".pins").write_text(
             json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
@@ -1092,6 +1110,11 @@ def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None,
             unit=unit, fn=fn)
         if warning:
             print(warning)
+    # Whether the SESSION BASELINE file was (re)written here — the caller
+    # records the baseline's scores in state on exactly that event, so
+    # `baseline_clause` can print "where this session started" on later
+    # negatives instead of leaving the worker to re-base mentally.
+    return created_baseline
 
 
 def strip_noncode(text):
@@ -1298,6 +1321,116 @@ def scoped_revert(snap_text, cur_text, fn):
     notes = (f"{reverted} hunk(s) inside {fn} reverted;"
              f" {kept} hunk(s) elsewhere in the TU left untouched")
     return "".join(out), notes
+
+
+def _parity(insns):
+    """(target, ours) from a "T<n>/O<n>" string, or None."""
+    match = re.match(r"T(\d+)/O(\d+)$", insns or "")
+    return (int(match.group(1)), int(match.group(2))) if match else None
+
+
+def count_class_line(prev_insns, insns):
+    """The CATEGORICAL verdict, printed before any real/fuzzy comparison.
+
+    MV, run 39 (run-40 item 8): an instruction-COUNT change is not a
+    quantity on the same scale as `real` or fuzzy — it is a CLASS change.
+    claim.law.webfrank-cannot-close-a-count-asymmetric-residual and
+    claim.law.webfrank-cannot-close-instruction-count-deltas both make the
+    count the deciding fact: while T != O, NO postprocessor class can reach
+    the function at all, so no rule, no permutation and no recolor is
+    available however good the fuzzy looks. probe printed that only
+    indirectly, as a `real`/multiset comparison and a count-distance
+    predictor, so a probe that GAINED or LOST parity read as an ordinary
+    numeric move and the class change went unremarked.
+
+    Silent when parity did not change: this is a transition report, and
+    saying "still asymmetric" on every probe of a long-asymmetric function
+    is the kind of constant line readers learn to skip.
+    """
+    now = _parity(insns)
+    before = _parity(prev_insns)
+    if now is None or before is None:
+        return ""
+    was_equal = before[0] == before[1]
+    is_equal = now[0] == now[1]
+    if was_equal == is_equal:
+        return ""
+    if is_equal:
+        return (f"COUNT-PARITY GAINED  insns {prev_insns} -> {insns}:"
+                " ours and target now hold the SAME instruction count. This"
+                " is a CLASS change, not a score change — a count-asymmetric"
+                " residual is outside EVERY postprocessor class, and this"
+                " function has just become eligible for one. Read it before"
+                " the real/fuzzy line below.")
+    return (f"COUNT-PARITY LOST  insns {prev_insns} -> {insns}:"
+            f" ours and target now differ by {abs(now[0] - now[1])}"
+            " instruction(s). This is a CLASS change, not a score change —"
+            " while the counts differ NO postprocessor rule can close this"
+            " function, so a fuzzy or real gain here buys a state no rule"
+            " can finish. Read it before the real/fuzzy line below.")
+
+
+def restore_scope_counts(base_text, cur_text, fn):
+    """(inside, outside, entangled_spans) hunks between ``base`` and the tree.
+
+    The counting half of `scoped_revert`, split out so `--discard` can ASK
+    what a whole-file restore would destroy before doing it. Returns None
+    when the function cannot be located on either side — the caller must
+    then refuse to reason about scope rather than assume.
+    """
+    base_lines = split_lines(base_text, keepends=True)
+    cur_lines = split_lines(cur_text, keepends=True)
+    base_span = function_span(base_text, fn)
+    cur_span = function_span(cur_text, fn)
+    if base_span is None or cur_span is None:
+        return None
+    matcher = difflib.SequenceMatcher(None, base_lines, cur_lines,
+                                      autojunk=False)
+    inside = outside = 0
+    entangled = []
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "equal":
+            continue
+        in_cur = _inside(cur_span[0], cur_span[1], j1, j2)
+        in_base = _inside(base_span[0], base_span[1], i1, i2)
+        out_cur = _outside(cur_span[0], cur_span[1], j1, j2)
+        out_base = _outside(base_span[0], base_span[1], i1, i2)
+        if in_cur and in_base:
+            inside += 1
+        elif out_cur and out_base:
+            outside += 1
+            entangled.append(("outside", j1 + 1, j2 + 1))
+        else:
+            entangled.append(("straddling", j1 + 1, j2 + 1))
+    return inside, outside, entangled
+
+
+def discard_refusal(fn, unit, inside, outside, entangled):
+    """The refusal text for a --discard that would destroy other work.
+
+    MEASURED TWICE: `--discard` restores the WHOLE FILE to HEAD, and every
+    multi-function TU session runs it. Its own success line has always said
+    "uncommitted work on other functions in this TU is gone" — after the
+    fact, which is not a guard, it is a receipt. `--revert` has been
+    function-scoped since run 36 for exactly this reason; --discard was left
+    whole-file "by construction".
+
+    The refusal fires ONLY when there IS other work: with every hunk inside
+    the named function a whole-file restore and a scoped one are the same
+    bytes, and nothing changes.
+    """
+    spans = ", ".join(f"{kind} L{a}-L{b}" for kind, a, b in entangled)
+    return (
+        f"REFUSED: --discard would restore ALL of {unit} to HEAD, and"
+        f" {outside} uncommitted hunk(s) in this TU lie OUTSIDE {fn}"
+        f" ({spans}). That is the one thing this flag cannot undo.\n"
+        "  --discard --function   restore ONLY the hunks inside"
+        f" {fn}, leaving the rest of the TU's uncommitted work alone\n"
+        "  --discard --whole-file  take the old all-or-nothing restore"
+        " deliberately (run `git diff` first)\n"
+        "  A hunk marked `straddling` crosses the function boundary and"
+        " cannot be separated at all; --whole-file is the only option for"
+        " it, and only after you have read the diff.")
 
 
 def count_distance(text):
@@ -1710,8 +1843,32 @@ def banks_best(verdict):
                                "IMPROVED "))
 
 
+def baseline_clause(state, real):
+    """Where this session STARTED, for any verdict that quotes `best`.
+
+    Run-39 criticism (MV, run-40 item 2): `REGRESSED vs best 852: real 852
+    -> 864` names two numbers, neither of which is the one a worker needs —
+    "am I above or below where this session began?" — so every negative got
+    re-based mentally, against a `best` that may itself have been banked by
+    a probe two edits ago. The session baseline real is already on disk (it
+    is what `--revert-baseline` restores); it just was never printed.
+    """
+    base_real = state.get("baseline_real")
+    if base_real is None:
+        return ""
+    delta = real - base_real
+    direction = ("WORSE than" if delta > 0 else
+                 "BETTER than" if delta < 0 else "EQUAL to")
+    insns = state.get("baseline_insns")
+    where = f", insns {insns}" if insns else ""
+    return (f"\n[SESSION BASELINE real {base_real}{where} — this state is"
+            f" {direction} the state this session started from"
+            f" ({delta:+d} real). `best` is a rolling anchor; the baseline"
+            " is the number that says whether the session is ahead.]")
+
+
 def apply_fuzzy_bank_gate(verdict, state, prior_best, prior_best_fuzzy,
-                          fuzzy):
+                          fuzzy, accept_fuzzy_loss=False):
     """Refuse to bank a new BEST whose fresh fuzzy fell below the anchor.
 
     Run-35 criticism (claim.law.PC_real-and-multiset-agreement-does-not-
@@ -1726,10 +1883,24 @@ def apply_fuzzy_bank_gate(verdict, state, prior_best, prior_best_fuzzy,
 
     Pure: `prior_best` is the snapshot of the BEST_KEYS taken before any
     branch called bank_best(), and restoring it is exactly the un-bank.
-    REBASED is exempt — it IS the deliberate arbitrated keep.
+
+    REBASED IS NOT EXEMPT ANY MORE (run-40 item 2). It used to be, on the
+    reasoning that `--rebase-best` "IS the deliberate arbitrated keep" — but
+    the flag records an INTENTION to arbitrate, not an arbitration, and
+    nothing checked that the intention was discharged. Run 39, do_players
+    probe A: a CONFLICT-shaped keep (real 840 -> 852 WORSE, multiset 14t ->
+    12t BETTER) was banked as BEST at fresh fuzzy 96.8433 against the
+    baseline's 97.2692, and the next two probes then scored as REGRESSED
+    against that poisoned anchor — the exact failure the run-38 gate was
+    built to stop, walking through the one door left open for it. Quoted in
+    attempt.PC_do-players-linkage-axis-closed-from-step0-artifact-and-the-
+    assignment-site-decides.20260903.v1. The keep can still be made, but it
+    is now made EXPLICITLY, with the loss on the line, via
+    `--accept-fuzzy-loss`.
     """
-    if not banks_best(verdict) or verdict.startswith("REBASED"):
+    if not banks_best(verdict):
         return verdict, state
+    rebased = verdict.startswith("REBASED")
     if fuzzy is None:
         if prior_best_fuzzy is None:
             # No anchor existed and none could be measured: there is
@@ -1744,24 +1915,54 @@ def apply_fuzzy_bank_gate(verdict, state, prior_best, prior_best_fuzzy,
             " WITHOUT the check that would have caught a fuzzy regression"
             " hiding under a real+multiset win, and the anchor is CLEARED"
             " rather than carried stale. Run --arbitrate before recording"
-            " this as progress."), state
+            " this as progress."
+            + ("\nAND THIS IS A --rebase-best KEEP: the flag declares the"
+               " keep ARBITRATED, and no arbitration happened. Nothing"
+               " downstream will ever say so again — arbitrate NOW."
+               if rebased else "")), state
     if prior_best_fuzzy is None or fuzzy >= prior_best_fuzzy - FUZZY_GATE_EPS:
         return verdict, state
+    head = verdict.split("\n", 1)[0]
+    delta = fuzzy - prior_best_fuzzy
+    if rebased and accept_fuzzy_loss:
+        # The keep proceeds, but the loss is now IN THE HEADLINE, so a
+        # record quoting this verdict cannot omit it and a later probe's
+        # negative can be traced to the anchor it was measured against.
+        return (
+            f"REBASED-FUZZY-LOSS  best banked at a fuzzy REGRESSION:"
+            f" {prior_best_fuzzy:.4f}% -> {fuzzy:.4f}% ({delta:+.4f})"
+            " — ACKNOWLEDGED via --accept-fuzzy-loss. Every later probe on"
+            " this function is now anchored on a state the project scores"
+            " WORSE; say so in the record, and re-derive any negative from"
+            " the last COMMIT before recording it."
+            f"\n[instruction-stream verdict: {head}]"), state
     state = dict(state)
     for key, value in prior_best.items():
         if value is None:
             state.pop(key, None)
         else:
             state[key] = value
-    head = verdict.split("\n", 1)[0]
+    if rebased:
+        gated = (
+            f"REBASE-REFUSED  fresh objdiff fuzzy {prior_best_fuzzy:.4f}% ->"
+            f" {fuzzy:.4f}% ({delta:+.4f}) — --rebase-best did NOT bank."
+            " The flag declares an ARBITRATED keep; fuzzy from a fresh"
+            " report is the arbiter, and it rejected this state. Run 39"
+            " banked exactly this shape (real worse, multiset better, fuzzy"
+            " 96.8433 vs 97.2692) and the next two probes read as REGRESSED"
+            " against it. REVERT, or re-run with --accept-fuzzy-loss if the"
+            " keep is deliberate — that spelling puts the loss in the"
+            " headline for the record to quote."
+            f"\n[instruction-stream verdict, SUPERSEDED by the gate: {head}]")
+        return gated, state
     gated = (
         f"FUZZY-REGRESSED  fresh objdiff fuzzy {prior_best_fuzzy:.4f}% ->"
-        f" {fuzzy:.4f}% ({fuzzy - prior_best_fuzzy:+.4f}) — best NOT updated"
+        f" {fuzzy:.4f}% ({delta:+.4f}) — best NOT updated"
         " and NOTHING banked, even though the instruction-stream metrics"
         " improved. real and the multiset are both computed over .text and"
         " both read register-color cascades; fuzzy from a fresh report is"
         " the arbiter when they disagree. REVERT, or arbitrate and bank the"
-        " keep deliberately with --rebase-best."
+        " keep deliberately with --rebase-best --accept-fuzzy-loss."
         f"\n[instruction-stream verdict, SUPERSEDED by the gate: {head}]")
     return gated, state
 
@@ -2165,7 +2366,8 @@ def tu_sibling_regressions(unit):
 
 
 def classify(state, real, insns, multiset_tokens, rebase_best=False,
-             digest=None, source_changed=True, fuzzy=None):
+             digest=None, source_changed=True, fuzzy=None,
+             accept_fuzzy_loss=False):
     """Pure verdict function: (verdict_text, new_state).
 
     ``state`` is the banked gate state; the returned state carries the
@@ -2318,6 +2520,7 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                        " read the diff and arbitrate, do NOT auto-revert"
                        " (--rebase-best banks an arbitrated keep)")
             verdict += fuzzy_anchor_note(best_fuzzy, fuzzy)
+            verdict += baseline_clause(state, real)
             # Count distance is the one cheap predictor that agreed with
             # fuzzy in all four field arbitrations of this shape —
             # multiset gains do NOT imply fuzzy gains.
@@ -2363,6 +2566,7 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                        f" {state.get('last_real', best)} -> {real}"
                        f" (prev -> current; insns {insns}{tok})"
                        "  [revert advised]")
+            verdict += baseline_clause(state, real)
             # Run-35 corollary to the fuzzy-bank-gate law: a negative
             # verdict measured on top of a poisoned anchor is not a fact
             # about the edit. One run's BEST edit read as a loss this way
@@ -2404,7 +2608,16 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
     # LAST WORD ON EVERY BANK. Nothing above this line may leave a new best
     # standing whose fresh fuzzy fell below the anchor.
     verdict, state = apply_fuzzy_bank_gate(verdict, state, prior_best,
-                                           best_fuzzy, fuzzy)
+                                           best_fuzzy, fuzzy,
+                                           accept_fuzzy_loss)
+    # THE CATEGORICAL LINE (run-40 item 8) is carried OUT OF BAND, in
+    # `count_class`, and printed by main() ABOVE the verdict. It is not
+    # prepended to `verdict` on purpose: every downstream decision in this
+    # tool — banks_best, the snapshot bank, conflict_gate, the NEUTRAL
+    # annotators — dispatches on verdict.startswith(), so a prefix would
+    # silently disable banking. It changes what the verdict MEANS, never
+    # what it IS.
+    state["count_class"] = count_class_line(state.get("last_insns"), insns)
     state["last_real"] = real
     state["last_insns"] = insns
     if multiset_tokens is not None:
@@ -3038,7 +3251,49 @@ def main():
             print("cannot discard: git show HEAD failed for"
                   f" {source.as_posix()}")
             return 1
-        source.write_bytes(shown.stdout)
+        head_bytes_now = shown.stdout
+        whole_file = "--whole-file" in sys.argv
+        scoped = "--function" in sys.argv
+        counts = None
+        if not whole_file:
+            try:
+                counts = restore_scope_counts(
+                    head_bytes_now.decode("latin-1"),
+                    source.read_bytes().decode("latin-1"), fn)
+            except ValueError:
+                counts = None
+        if counts is None and not whole_file:
+            print(f"[--discard: cannot locate {fn} on both sides, so the"
+                  " scope of this restore is UNMEASURED — falling back to"
+                  " whole-file. Run `git diff` first if other functions in"
+                  " this TU carry uncommitted work.]")
+        elif counts is not None:
+            inside, outside, entangled = counts
+            if entangled and not scoped:
+                print(discard_refusal(fn, unit, inside, outside, entangled))
+                return 1
+            if scoped:
+                straddling = [row for row in entangled
+                              if row[0] == "straddling"]
+                if straddling:
+                    print(discard_refusal(fn, unit, inside, outside,
+                                          entangled))
+                    return 1
+                try:
+                    new_text, notes = scoped_revert(
+                        head_bytes_now.decode("latin-1"),
+                        source.read_bytes().decode("latin-1"), fn)
+                except ValueError as error:
+                    print(f"cannot discard --function: {error}")
+                    return 1
+                source.write_bytes(new_text.encode("latin-1"))
+                print(f"discarded (function-scoped): {source} — {notes}")
+                restore_transient_pins(unit)
+                warn_outside_edits(source, None)
+                if "--no-rebuild" not in sys.argv:
+                    rebuild_after_restore(unit, "--discard --function")
+                return 0
+        source.write_bytes(head_bytes_now)
         print(f"discarded: {source} restored to HEAD (whole file —"
               " uncommitted work on other functions in this TU is gone)")
         restore_transient_pins(unit)
@@ -3265,8 +3520,12 @@ def main():
             print(f"[standing verdict, unchanged by this readout]"
                   f"\n{standing}")
         if first_bank:
-            bank_snapshot(unit, source, baseline=True,
-                          verdict_kind="BASELINE", fn=fn)
+            if bank_snapshot(unit, source, baseline=True,
+                             verdict_kind="BASELINE", fn=fn):
+                state["baseline_real"] = real
+                state["baseline_insns"] = insns
+                if multiset_tokens is not None:
+                    state["baseline_multiset"] = multiset_tokens
             print("[banked from the CURRENT state — still no verdict and no"
                   " BEST anchor. --revert / --revert-baseline now restore"
                   " THIS state; --no-bank opts out.]")
@@ -3274,6 +3533,7 @@ def main():
         return 0
 
     rebase_best = "--rebase-best" in sys.argv
+    accept_fuzzy_loss = "--accept-fuzzy-loss" in sys.argv
     # The pre-verdict state, kept so the fuzzy gate below can re-run the
     # classification from the SAME inputs. Re-classifying from the state
     # classify() already returned would compare `real` against a best it
@@ -3282,15 +3542,21 @@ def main():
     verdict, state = classify(state, real, insns, multiset_tokens,
                               rebase_best=rebase_best,
                               digest=digest, source_changed=source_changed,
-                              fuzzy=cached_fuzzy)
+                              fuzzy=cached_fuzzy,
+                              accept_fuzzy_loss=accept_fuzzy_loss)
     # FRESH FUZZY BEFORE THE BANK (run-35 item 1). The verdict above is
     # provisional whenever it would move the BEST anchor: a real+multiset
     # win can still be a fuzzy LOSS, and banking one poisons every later
-    # verdict on the function. Spend the report build here — on the four
+    # verdict on the function. Spend the report build here — on the
     # verdicts that actually change the high-water mark — rather than
-    # discovering it two probes later. --rebase-best is exempt (it is the
-    # deliberate arbitrated keep) and --no-fuzzy-gate opts out entirely.
-    if (banks_best(verdict) and cached_fuzzy is None and not rebase_best
+    # discovering it two probes later. Only --no-fuzzy-gate opts out.
+    #
+    # --rebase-best USED TO BE EXEMPT HERE (run-40 item 2). It was the one
+    # door left open, and run 39 walked through it: a CONFLICT-shaped keep
+    # banked at fuzzy 96.8433 against a 97.2692 baseline, with no fuzzy
+    # measured at all, and the two probes after it read as REGRESSED. A
+    # flag that declares an arbitration is not an arbitration.
+    if (banks_best(verdict) and cached_fuzzy is None
             and "--no-fuzzy-gate" not in sys.argv):
         print(f"[fuzzy gate: {verdict.split()[0]} would bank a new BEST —"
               " measuring this state's fresh objdiff fuzzy FIRST (report"
@@ -3302,9 +3568,10 @@ def main():
             print("[fuzzy gate: no number — the report build FAILED or this"
                   " function is absent from build/GUNE5D/report.json]")
         verdict, state = classify(state_before, real, insns, multiset_tokens,
-                                  rebase_best=False, digest=digest,
+                                  rebase_best=rebase_best, digest=digest,
                                   source_changed=source_changed,
-                                  fuzzy=fresh)
+                                  fuzzy=fresh,
+                                  accept_fuzzy_loss=accept_fuzzy_loss)
         if fresh is not None:
             cached_fuzzy = fresh
             state["last_fuzzy"] = fresh
@@ -3364,6 +3631,12 @@ def main():
         verdict += "\n" + hint
         state["last_verdict"] = verdict
     state_file.write_text(json.dumps(state), encoding="utf-8")
+    # CATEGORICAL FIRST (run-40 item 8). A count-parity change decides which
+    # postprocessor classes exist for this function at all; `real` and fuzzy
+    # cannot express that, and printing it under them let a class change
+    # read as an ordinary numeric move.
+    if state.get("count_class"):
+        print(state["count_class"])
     print(verdict)
     # The DATA column, printed alongside EVERY verdict (run 34 item 1): the
     # verdict above scores the INSTRUCTION STREAM ONLY, so a moved non-text
@@ -3442,10 +3715,23 @@ def main():
                 and not verdict.startswith("NEUTRAL-WORSE"))
             or verdict.startswith("REBASED")):
         kind = verdict.split()[0]
-        bank_snapshot(unit, source,
-                      baseline=verdict.startswith("BASELINE"),
-                      verdict_kind=kind, fn=fn,
-                      rebaseline="--rebaseline" in sys.argv)
+        created_baseline = bank_snapshot(
+            unit, source,
+            baseline=verdict.startswith("BASELINE"),
+            verdict_kind=kind, fn=fn,
+            rebaseline="--rebaseline" in sys.argv)
+        # The SESSION BASELINE's own scores, banked at exactly the moment
+        # the baseline FILE is written, so later negatives can print where
+        # the session started instead of only where the rolling `best` is
+        # (run-40 item 2). Nothing else writes these keys, so --rebaseline
+        # moving the file moves the numbers with it.
+        if created_baseline:
+            state["baseline_real"] = real
+            state["baseline_insns"] = insns
+            if multiset_tokens is not None:
+                state["baseline_multiset"] = multiset_tokens
+            if cached_fuzzy is not None:
+                state["baseline_fuzzy"] = cached_fuzzy
         # Name WHICH verdict banked: the discard path differs (a banked
         # NEUTRAL means --revert restores the PROBE, so discarding it
         # needs git), and the identical banner hid that twice.
@@ -3478,7 +3764,8 @@ def main():
     # A failed probe almost always needs the ops view next — print it
     # unasked (the multiset pass above already fetched it).
     printed_ops = False
-    if (verdict.startswith(("REGRESSED", "CONFLICT"))
+    if (verdict.startswith(("REGRESSED", "CONFLICT", "FUZZY-REGRESSED",
+                            "REBASE-REFUSED"))
             and "--ops" not in sys.argv and ops_output):
         # Truncate through fndiff.truncate_ops so a dropped IMMEDIATE row
         # (which sits below the clusters) is announced, never silently cut —

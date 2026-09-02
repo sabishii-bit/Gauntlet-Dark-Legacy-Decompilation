@@ -1,0 +1,30 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py::mnemonic_divergence",
+    "tools/gdl/unabsorbed.py::opcode_key",
+    "tools/gdl/tests/test_wf_word_diff.py::MnemonicDivergenceTests"
+  ],
+  "attributes": {
+    "evidence": [
+      "DrawPsysSub: hand-rolled key 10 mnemonic diffs, unabsorbed.opcode_key 7, RC law records 7",
+      "drawMemCardMessage: 204 insns, 61 words, 0 diffs on both keys and in the RC law -- the zero case agrees either way",
+      "AdsPutBuffer: 185 with opcode_key vs the law's 189, the gap being simplified mnemonics (mr is or rA,rS,rS)"
+    ],
+    "scope": "tools/gdl as of run 40, 117+ files. Named duplications found and resolved this run: opcode_key and rule_served_functions, both already in unabsorbed.py, both re-derived in a first draft of wf_word_diff.py.",
+    "tags": [
+      "build-hygiene",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Show that unabsorbed.opcode_key and a primary+10-bit-XO key agree on the corpus -- run both over every count-symmetric function pair and find zero disagreements. That would mean the A-form masking is inert here and the two copies were interchangeable after all. (T10 measured them disagreeing on at least DrawPsysSub, 7 vs 10.)",
+  "id": "claim.law.T10_a-second-copy-of-a-discriminator-answers-the-same-question-differently.20260903.v1",
+  "kind": "claim",
+  "predicate": "workflow_law",
+  "recorded_at": "2026-09-02T23:49:37Z",
+  "schema_version": 1,
+  "subject": "tool:composed-census-wf-word-diff",
+  "valid_from": "2026-09-02",
+  "value": "BEFORE WRITING A CLASSIFIER, GREP tools/gdl FOR ONE -- A SECOND COPY DOES NOT MERELY DUPLICATE WORK, IT PRODUCES A DIFFERENT ANSWER TO THE SAME QUESTION. Folding the RC lane's index-aligned mnemonic discriminator into wf_word_diff.py needed an opcode-identity key, so T10 wrote one: mask the primary opcode, and for primaries 4/19/31/59/63 also the 10-bit extended opcode. It ran, it looked right, and it reported 10 mnemonic divergences on game/mb/mb_particle::DrawPsysSub where claim.law.RC_identical-multiset-with-zero-clusters-merges-schedule-class-and-recolor-class.20260902.v1 records 7. tools/gdl/unabsorbed.py has carried `opcode_key` since it shipped, covered by test_unabsorbed.py, and it additionally masks the A-FORM 5-bit XO primaries (fmadd and family), which the fresh copy did not. Importing it reproduced the recorded number EXACTLY: 7. Two functions, one question, two answers, and only the recorded prior measurement revealed which was wrong -- a lane without that number would have shipped 10 and cited it. THE CHECK IS ONE GREP against tools/gdl for the operation's name (`opcode`, `mnemonic`, `differing_words`, `rule_served`), before the first line. COROLLARY, and the reason this is worth a law rather than a note: a duplicated discriminator is INVISIBLE to every test suite, because each copy passes its own tests. The divergence only surfaces when two records quote different numbers for the same function, which is a year of confusion away from the commit that caused it."
+}

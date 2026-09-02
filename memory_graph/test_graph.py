@@ -11,9 +11,11 @@ Run:  python memory_graph/test_graph.py
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import shutil
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -2840,6 +2842,469 @@ class ValidateIncrementalTests(unittest.TestCase):
             stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
 
 
+class GraphRebuildCostTests(unittest.TestCase):
+    """T10 run-40 item 1: propose-record was its own cache-buster.
+
+    Symptom reproduced at b2876d6bc: `propose-record` stages a file into
+    memory_graph/inbox/, inbox/ was part of the single build fingerprint,
+    so the NEXT gdlmem call rebuilt the whole database — 12.69s and 50.4MB
+    peak working set against 0.37s/24.2MB warm, on every proposal after the
+    first. These tests pin the three pieces of the fix.
+    """
+
+    def _table_digests(self, path: Path) -> dict[str, str]:
+        volatile = {"built_at"}
+        out: dict[str, str] = {}
+        with closing(sqlite3.connect(path)) as connection:
+            connection.row_factory = sqlite3.Row
+            names = [
+                str(row[0]) for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                    " ORDER BY name").fetchall()
+                if not str(row[0]).startswith("sqlite_")
+            ]
+            for table in names:
+                lines = [
+                    repr(tuple(row)) for row in
+                    connection.execute(f"SELECT * FROM {table}").fetchall()
+                    if not (table == "meta" and row["key"] in volatile)
+                ]
+                digest = hashlib.sha256()
+                for line in sorted(lines):
+                    digest.update(line.encode("utf-8", "replace"))
+                out[table] = f"{len(lines)}:{digest.hexdigest()}"
+        return out
+
+    def test_the_class_split_covers_every_table_in_the_schema(self):
+        # THE guard on the whole incremental path: a table added to
+        # schema.sql and left unclassified would be silently served stale.
+        # This is what makes the fallback in ensure_database a safety net
+        # rather than a permanent silent downgrade.
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / "graph.sqlite"
+            build_database(REPO_ROOT, path)
+            with closing(sqlite3.connect(path)) as connection:
+                connection.row_factory = sqlite3.Row
+                self.assertEqual(core._unclassified_tables(connection), [])
+
+    def test_refresh_reproduces_a_full_build_row_for_row(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            full = Path(scratch) / "full.sqlite"
+            refreshed = Path(scratch) / "refreshed.sqlite"
+            build_database(REPO_ROOT, full)
+            shutil.copyfile(full, refreshed)
+            core.refresh_record_tables(
+                REPO_ROOT, refreshed, core.input_fingerprints(REPO_ROOT))
+            before = self._table_digests(full)
+            after = self._table_digests(refreshed)
+            differing = sorted(
+                table for table in set(before) | set(after)
+                if before.get(table) != after.get(table))
+            self.assertEqual(differing, [], "refresh diverged from a full build")
+            self.assertGreater(len(before), 30)
+
+    def test_combined_fingerprint_is_the_concatenation_of_its_classes(self):
+        # `combined` must stay byte-identical to the pre-split digest, or
+        # every existing database would be treated as stale exactly once.
+        prints = core.input_fingerprints(REPO_ROOT)
+        expected = hashlib.sha256()
+        root_resolved = REPO_ROOT.resolve()
+        for path in core._iter_input_paths(REPO_ROOT):
+            stat = path.stat()
+            try:
+                key = path.relative_to(REPO_ROOT).as_posix()
+            except ValueError:
+                key = path.relative_to(root_resolved).as_posix()
+            expected.update(key.encode("utf-8"))
+            expected.update(str(stat.st_size).encode("ascii"))
+            expected.update(str(stat.st_mtime_ns).encode("ascii"))
+        self.assertEqual(prints["combined"], expected.hexdigest())
+        self.assertNotEqual(prints["accepted"], prints["static"])
+
+    def test_an_inbox_only_change_is_free_for_a_caller_that_reads_the_inbox(self):
+        inbox = REPO_ROOT / "memory_graph" / "inbox"
+        inbox.mkdir(parents=True, exist_ok=True)
+        marker = inbox / "t10-ensure-probe.not-a-record.json"
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / "graph.sqlite"
+            build_database(REPO_ROOT, path)
+
+            def built_at() -> str:
+                with closing(sqlite3.connect(path)) as connection:
+                    return str(connection.execute(
+                        "SELECT value FROM meta WHERE key='built_at'"
+                    ).fetchone()[0])
+
+            baseline = built_at()
+            try:
+                marker.write_text(
+                    json.dumps({"schema_version": 1, "id": "x", "kind": "note"}),
+                    encoding="utf-8")
+                prints = core.input_fingerprints(REPO_ROOT)
+                with closing(sqlite3.connect(path)) as connection:
+                    meta = dict(connection.execute(
+                        "SELECT key, value FROM meta").fetchall())
+                self.assertNotEqual(meta["inbox_fingerprint"], prints["inbox"])
+                self.assertEqual(meta["accepted_fingerprint"], prints["accepted"])
+
+                core.ensure_database(REPO_ROOT, path, inbox_may_lag=True)
+                self.assertEqual(built_at(), baseline,
+                                 "inbox_may_lag caller must do no work")
+
+                core.ensure_database(REPO_ROOT, path)
+                self.assertNotEqual(built_at(), baseline,
+                                    "the default caller must absorb the inbox")
+            finally:
+                marker.unlink(missing_ok=True)
+
+    def test_a_staged_inbox_claim_is_still_screened_for_duplicates(self):
+        # The licence for inbox_may_lag: the dedup slug scan reads inbox
+        # claim ids off DISK, so skipping the rebuild cannot hide a sibling
+        # proposal staged seconds earlier.
+        inbox = REPO_ROOT / "memory_graph" / "inbox"
+        inbox.mkdir(parents=True, exist_ok=True)
+        marker = inbox / "t10-dedup-sibling-probe.json"
+        existing = "claim.T10_probe-widget-alignment-law.20260903.v1"
+        try:
+            marker.write_text(json.dumps({
+                "schema_version": 1, "id": existing, "kind": "claim",
+                "subject": "function:TowerInit", "predicate": "codegen_law",
+                "value": "probe", "attributes": {},
+            }), encoding="utf-8")
+            self.assertIn(existing, core._inbox_claim_ids(REPO_ROOT))
+            hits = core._duplicate_claim_candidates(
+                {"id": "claim.T10_probe-widget-alignment-law.20260903.v2",
+                 "kind": "claim", "value": ""}, REPO_ROOT)
+            self.assertIn(existing, [hit["id"] for hit in hits])
+        finally:
+            marker.unlink(missing_ok=True)
+
+
+class CorrespondenceCoverageGateTests(unittest.TestCase):
+    """T10 run-40 item 9 (RC): a published correspondence needs its range.
+
+    CALIBRATED over the accepted corpus: 9 anchored records publish a named
+    correspondence with 4+ rows; 4 state no coverage at all, and all 4 are
+    genuine per-function tables. The two census/roster claims the looser
+    predicates caught are excluded by the anchor requirement.
+    """
+
+    TABLE = ("the running renaming is target r14 -> ours r15, r15 -> r16,"
+             " r16 -> r17, r17 -> r18, r18 -> r19")
+
+    def _record(self, prose, **extra):
+        # A NEUTRAL id on purpose: the gate scans the whole record text, id
+        # included, and a record whose own id says "correspondence" IS
+        # publishing one — correct behaviour, but it would mask what these
+        # fixtures are testing.
+        record = {
+            "schema_version": 1,
+            "id": "attempt.t10-reg-table-probe.20260903.v1",
+            "kind": "attempt", "function": "function:TowerInit",
+            "attempted_axis": prose, "outcome": "parked",
+            "attributes": {"law_screen": "none applicable: test fixture"},
+        }
+        record.update(extra)
+        return record
+
+    def test_a_table_without_a_range_is_refused(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            core._apply_proposal_gates(self._record(self.TABLE))
+        message = str(caught.exception)
+        self.assertIn("WHICH BYTES", message)
+        self.assertIn("coverage_range", message)
+
+    def test_a_byte_span_in_the_prose_discharges_it(self):
+        core._apply_proposal_gates(
+            self._record(self.TABLE + ", read over 0x0:0x330"))
+
+    def test_saying_whole_body_discharges_it(self):
+        core._apply_proposal_gates(
+            self._record(self.TABLE + ", over the whole body"))
+
+    def test_the_typed_field_discharges_it(self):
+        core._apply_proposal_gates(
+            self._record(self.TABLE, coverage_range="0x0:0x330 whole body"))
+
+    def test_a_partial_table_that_says_so_is_accepted(self):
+        """A partial table WITH its bounds is useful evidence; the gate is
+        about the missing bounds, not about partiality."""
+        core._apply_proposal_gates(
+            self._record(self.TABLE + " — derived from 0x0:0xe0 ONLY, the"
+                                      " rest of the 0x330 body unread"))
+
+    def test_too_few_rows_is_not_a_published_table(self):
+        core._apply_proposal_gates(self._record(
+            "the renaming is target r14 -> ours r15 and r15 -> r16"))
+
+    def test_rows_without_the_table_word_do_not_fire(self):
+        core._apply_proposal_gates(self._record(
+            "spills moved: r14 -> r15, r15 -> r16, r16 -> r17, r17 -> r18"))
+
+    def test_an_unanchored_record_is_out_of_scope(self):
+        record = self._record(self.TABLE)
+        del record["function"]
+        core._apply_proposal_gates(record)
+
+
+class ToolNamespaceTests(unittest.TestCase):
+    """T10 run-40 item 5: `tool:` / `workflow:` were advertised but unusable.
+
+    The namespaces appeared in `entity_key_namespaces` and in the unknown-
+    entity error message, but nothing made a NEW key resolve — an entity row
+    had to exist first, and entity rows come from record anchors. So the
+    first record to try `subject: tool:probe` was refused, every author fell
+    back to `project:gdl`, and 130 records now live there where
+    `gdlmem tool <name>` cannot see them. Third recurrence.
+    """
+
+    def test_a_record_can_now_be_anchored_at_a_tool(self):
+        record = {
+            "schema_version": 1,
+            "id": "claim.t10-tool-anchor-probe.20260903.v1",
+            "kind": "claim", "subject": "tool:probe",
+            "predicate": "workflow_law",
+            "value": "probe banks whatever state it first sees per function.",
+            "epistemic_state": "provisional", "attributes": {},
+        }
+        # dry_run runs the full reference resolution and writes nothing.
+        stage_record_proposal(record, root=REPO_ROOT, dry_run=True,
+                              confirm_new=True)
+
+    def test_an_invented_tool_key_is_still_refused(self):
+        record = {
+            "schema_version": 1,
+            "id": "claim.t10-tool-anchor-bogus.20260903.v1",
+            "kind": "claim", "subject": "tool:no-such-tool-anywhere",
+            "predicate": "workflow_law", "value": "x",
+            "epistemic_state": "provisional", "attributes": {},
+        }
+        with self.assertRaises(MemoryGraphError):
+            stage_record_proposal(record, root=REPO_ROOT, dry_run=True,
+                                  confirm_new=True)
+
+    def test_the_namespace_resolves_at_BUILD_time_too(self):
+        """The worst failure shape, and the first version had it: the gate
+        passed at propose time (database already built) and the next
+        `gdlmem build` REJECTED the record, because _import_records runs
+        before _import_discovered_tools populates tool_catalog. A record
+        that stages cleanly and then silently does not import is worse than
+        one that is refused."""
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / "graph.sqlite"
+            stats = build_database(REPO_ROOT, path)
+            self.assertEqual(stats["inbox_rejected"], [])
+        vocabulary = core.tool_key_vocabulary(REPO_ROOT)
+        self.assertIn("tool:probe", vocabulary)
+        self.assertIn("tool:gdl-memory-graph", vocabulary,
+                      "a reviewed tool record outside tools/gdl must be in"
+                      " the vocabulary; the source scan alone misses it")
+
+    def test_tool_query_returns_the_laws_about_that_tool(self):
+        result = core.tool_context("probe", root=REPO_ROOT)
+        ids = [law["id"] for law in result["laws"]]
+        self.assertTrue(ids, "no laws surfaced for probe")
+        self.assertTrue(
+            any("probe-discard" in law_id or "probe-revert" in law_id
+                for law_id in ids), ids)
+        self.assertIn("laws_note", result)
+
+    def test_the_bridge_does_not_match_prose_or_asserted_by(self):
+        """Calibration, and the first version FAILED it.
+
+        Bridging on `asserted_by` pulled 33 laws about combat.c and
+        gauntworld into `tool probe`, because asserted_by names the tool
+        that MEASURED a law, not its subject.
+        """
+        result = core.tool_context("probe", root=REPO_ROOT, limit=100)
+        bridged = [law for law in result["laws"]
+                   if law["match"] != "subject_anchored"]
+        self.assertTrue(bridged, "no bridged rows to check")
+        for law in bridged:
+            self.assertIn("probe", set(core._slug_words(law["id"])),
+                          f"bridged without the name in its slug: {law['id']}")
+
+
+class ResidualVolumeTests(unittest.TestCase):
+    """T10 run-40 item 4: `laws --residual` returned the whole corpus.
+
+    MEASURED on the live corpus at b2876d6bc:
+      "+1 addi -1 li"      519,435 bytes -> 32,319   (16.1x)
+      "+1 stfsu -1 stfs"   230,719 bytes -> 28,251   ( 8.2x)
+    Both spilled to a file for a question with a handful of real answers.
+    """
+
+    def test_the_residual_payload_is_bounded_and_much_smaller(self):
+        compact = core.law_corpus(root=REPO_ROOT, residual="+1 addi -1 li")
+        full = core.law_corpus(root=REPO_ROOT, residual="+1 addi -1 li",
+                               full=1)
+        compact_bytes = len(json.dumps(compact, default=str).encode("utf-8"))
+        full_bytes = len(json.dumps(full, default=str).encode("utf-8"))
+        self.assertLess(compact_bytes, full_bytes / 4,
+                        f"compact {compact_bytes} vs full {full_bytes}")
+        self.assertLessEqual(len(compact["laws"]), core.RESIDUAL_LAW_PREVIEW)
+        self.assertLessEqual(len(compact["residual_matches"]),
+                             core.RESIDUAL_MATCH_PREVIEW)
+        self.assertLessEqual(len(compact.get("pin_mechanisms", [])),
+                             core.RESIDUAL_PIN_PREVIEW)
+
+    def test_every_truncation_reports_its_own_total(self):
+        # A suppressed row must be VISIBLE. A retrieval surface that
+        # silently returns 15 of 336 reads as "the corpus holds 15".
+        compact = core.law_corpus(root=REPO_ROOT, residual="+1 addi -1 li")
+        self.assertIn("residual_matches_total", compact)
+        self.assertIn("laws_unmatched_suppressed", compact)
+        self.assertIn("pin_mechanisms_total", compact)
+        self.assertGreater(compact["residual_matches_total"],
+                           len(compact["residual_matches"]))
+        self.assertIn("--full 1", compact["laws_projection"])
+
+    def test_full_restores_the_complete_rows(self):
+        full = core.law_corpus(root=REPO_ROOT, residual="+1 addi -1 li",
+                               full=1)
+        self.assertNotIn("laws_projection", full)
+        self.assertIn("evidence", full["laws"][0])
+        self.assertIn("laws_applied", full["residual_matches"][0])
+
+    def test_a_plain_law_listing_is_untouched(self):
+        plain = core.law_corpus(root=REPO_ROOT)
+        self.assertNotIn("laws_projection", plain)
+        self.assertIn("evidence", plain["laws"][0])
+
+
+class HypothesisContradictionTests(unittest.TestCase):
+    """T10 run-40 item 3: a hypothesis mandating what the record denies.
+
+    Reproduced from attempt.PC_do-players-loop-head-named-base-refuted-and-
+    the-linkage-lever.20260902.v1: `screened_against_target` recorded that
+    the retail DOL has no relocations while `cheapest_refuting_observation`
+    ordered a lane to dump them.
+    """
+
+    def _record(self, **hypothesis):
+        base = {
+            "schema_version": 1, "id": "attempt.t10-contradiction.20260903.v1",
+            "kind": "attempt", "function": "function:do_players",
+            "attempted_axis": "probe", "outcome": "capped",
+            "hypothesis": hypothesis,
+            "attributes": {"law_screen": "none applicable: test fixture"},
+        }
+        return base
+
+    def test_the_measured_case_is_caught(self):
+        record = self._record(
+            statement="The linkage of the base object is a live lever.",
+            cheapest_refuting_observation=(
+                "Re-apply probe L and dump the relocation SYMBOLS of the six"
+                " demoted functions against the retail object's own"
+                " relocation entries."),
+            screened_against_target=(
+                "no. fnasm's target column annotates retail addresses from"
+                " symbols.txt and shows no real relocations, because the"
+                " retail DOL has none."),
+        )
+        warning = core.hypothesis_contradiction_warning(record)
+        self.assertIsNotNone(warning)
+        self.assertIn("SELF-CONTRADICTION", warning)
+        self.assertIn("relocation", warning)
+        # The precision it was calibrated at must travel WITH the warning:
+        # a screen that fires 2x per corpus with 1 false positive is only
+        # usable if the reader is told that.
+        self.assertIn("MEASURED PRECISION", warning)
+
+    def test_a_hypothesis_with_no_mandate_verb_never_fires(self):
+        record = self._record(
+            statement="The residual is a one-slot permutation.",
+            cheapest_refuting_observation="It is not a permutation.",
+            screened_against_target="no. the retail DOL has none.")
+        self.assertIsNone(core.hypothesis_contradiction_warning(record))
+
+    def test_a_record_with_no_hypothesis_is_out_of_scope(self):
+        self.assertIsNone(core.hypothesis_contradiction_warning(
+            {"id": "claim.x", "kind": "claim", "value": "there are no"
+             " relocations; run the relocation dump"}))
+
+    def test_a_cited_law_can_supply_the_denial(self):
+        record = self._record(
+            statement="Probe the widget.",
+            cheapest_refuting_observation=(
+                "Run wf_word_diff and read the differing WIDGET words."))
+        warning = core.hypothesis_contradiction_warning(
+            record, {"claim.law.example":
+                     "wf_word_diff does not report differing WIDGET words;"
+                     " that instrument has none."})
+        self.assertIsNotNone(warning)
+        self.assertIn("claim.law.example", warning)
+
+    def test_a_sentence_cannot_contradict_itself(self):
+        # The measured record's own mandate sentence carries a denial
+        # clause ("cannot answer this"); pairing it with itself would be a
+        # guaranteed false positive on every carefully-hedged hypothesis.
+        record = self._record(
+            statement="x",
+            cheapest_refuting_observation=(
+                "Dump the relocation symbols -- NOT against fnasm's target"
+                " column, which is symbolized from symbols.txt and cannot"
+                " answer this relocation symbols question."))
+        self.assertIsNone(core.hypothesis_contradiction_warning(record))
+
+
+class RecordSizePreflightTests(unittest.TestCase):
+    """T10 run-40 item 1: the 16KB cap now says WHERE the bytes are."""
+
+    def _oversize(self) -> dict:
+        return {
+            "schema_version": 1, "id": "attempt.t10-size-probe.20260903.v1",
+            "kind": "attempt", "function": "function:TowerInit",
+            "attempted_axis": "probe", "outcome": "neutral",
+            "attributes": {
+                "law_screen": "none applicable: test fixture",
+                "probed_form": "X" * (ATTEMPT_BYTE_CAP - 1000),
+                "verification": "Y" * 2000,
+            },
+        }
+
+    def test_the_report_ranks_the_heaviest_field_first(self):
+        report = core.record_size_report(self._oversize())
+        self.assertEqual(report["cap"], ATTEMPT_BYTE_CAP)
+        self.assertGreater(report["over_by"], 0)
+        self.assertEqual(report["largest_fields"][0]["field"], "attributes")
+        subfields = [item["field"] for item in report["largest_fields"]]
+        self.assertEqual(subfields[1], "attributes.probed_form")
+
+    def test_a_non_attempt_record_has_no_cap(self):
+        report = core.record_size_report(
+            {"id": "claim.x", "kind": "claim", "value": "y"})
+        self.assertFalse(report["cap_applies"])
+        self.assertEqual(report["over_by"], 0)
+
+    def test_the_refusal_names_the_bytes_over_and_the_heavy_field(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            _validate_record(self._oversize(), Path("<probe>"))
+        message = str(caught.exception)
+        self.assertIn("OVER BY", message)
+        self.assertIn("attributes.probed_form", message)
+        self.assertIn("--size", message)
+
+
+class ResourceExhaustionReportingTests(unittest.TestCase):
+    """T10 run-40 item 1: a MemoryError is not a rejection."""
+
+    def test_the_message_names_the_record_and_denies_rejection(self):
+        gdlmem = importlib.import_module("memory_graph.gdlmem")
+        message = gdlmem._resource_exhaustion_message(
+            "propose-record", "attempt.some-record.v1", MemoryError())
+        self.assertIn("NOT A REJECTION", message)
+        self.assertIn("attempt.some-record.v1", message)
+        self.assertIn("RETRY", message)
+
+    def test_a_windows_commit_limit_oserror_is_classified_as_exhaustion(self):
+        gdlmem = importlib.import_module("memory_graph.gdlmem")
+        # 1455 = ERROR_COMMITMENT_LIMIT, the 0x800705AF seen in run 39.
+        self.assertIn(1455, gdlmem._COMMIT_LIMIT_WINERRORS)
+        self.assertNotEqual(gdlmem._EXIT_RESOURCE_EXHAUSTED, 1)
+
+
 class SpillStubTests(unittest.TestCase):
     """RG run-33 deliverable 3: the machine-readable auto-spill stub."""
 
@@ -3078,7 +3543,17 @@ class UnknownEntityMessageTests(unittest.TestCase):
             stage_record_proposal(record, root=REPO_ROOT, dry_run=True)
         message = str(caught.exception)
         self.assertIn("project:gdl", message)
-        self.assertIn("THREE things resolve", message)
+        # FOUR since run 40: tool:/workflow: now resolve against the tool
+        # catalog, so the directory has a fourth entry.
+        self.assertIn("FOUR things resolve", message)
+        self.assertIn("tool:<key>", message)
+
+    def test_a_wrong_tool_key_is_told_the_namespace_was_right(self):
+        """The likeliest mistake now that tool: resolves: the right
+        namespace with the filename instead of the catalog key."""
+        message = core.unknown_entity_message("tool:gdlmem", [], [])
+        self.assertIn("THE NAMESPACE IS RIGHT AND THE KEY IS NOT", message)
+        self.assertIn("gdlmem.py tool", message)
 
 
 class WindowedResidualWordCountGateTests(unittest.TestCase):
@@ -3089,63 +3564,59 @@ class WindowedResidualWordCountGateTests(unittest.TestCase):
     sized off the wrong number entirely.
     """
 
-    def _attempt_record(self, **extra):
+    def _attempt_record(self, claim=None, **extra):
+        """`claim` goes in attributes.residual — the record's OWN residual
+        claim, which is what gate E is asking about (run-40 item 7)."""
+        attributes = {"law_screen": "none applicable: test fixture"}
+        if claim is not None:
+            attributes["residual"] = claim
         record = {
             "schema_version": 1, "id": "attempt.t6-word-gate.20260902.v1",
             "kind": "attempt", "function": "function:fn_800D8BCC",
             "attempted_axis": "probe", "outcome": "parked",
-            "attributes": {"law_screen": "none applicable: test fixture"},
+            "attributes": attributes,
         }
         record.update(extra)
         return record
 
     def test_a_windowed_word_sized_residual_without_a_count_is_refused(self):
         record = self._attempt_record(
-            residual_class="REGISTER_ONLY",
-            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
-                           " residual; sized for a live-zero recolor rule")
+            "the window at +0x40..+0x60 carries a 4-word residual; sized"
+            " for a live-zero recolor rule",
+            residual_class="REGISTER_ONLY")
         with self.assertRaises(MemoryGraphError) as caught:
             core._apply_proposal_gates(record)
         self.assertIn("DIFFERING-WORD COUNT", str(caught.exception))
         self.assertIn("wf_word_diff.py", str(caught.exception))
 
     def test_quoting_the_tools_output_line_discharges_it(self):
-        record = self._attempt_record(
-            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
-                           " residual by --ops, but wf_word_diff reports"
-                           " DIFFERING WORDS = 122 over 215 insns")
-        core._apply_proposal_gates(record)
+        core._apply_proposal_gates(self._attempt_record(
+            "the window at +0x40..+0x60 carries a 4-word residual by --ops,"
+            " but wf_word_diff reports DIFFERING WORDS = 122 over 215 insns"))
 
     def test_the_typed_field_discharges_it(self):
-        record = self._attempt_record(
-            differing_words=122,
-            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
-                           " residual")
-        core._apply_proposal_gates(record)
+        core._apply_proposal_gates(self._attempt_record(
+            "the window at +0x40..+0x60 carries a 4-word residual",
+            differing_words=122))
 
     def test_a_window_with_no_word_sized_claim_does_not_fire(self):
         """The gate checks a SIZE claim, not the word 'window'."""
-        record = self._attempt_record(
-            attempted_axis="permuted the window at +0x40..+0x60 and"
-                           " re-derived the pin")
-        core._apply_proposal_gates(record)
+        core._apply_proposal_gates(self._attempt_record(
+            "permuted the window at +0x40..+0x60 and re-derived the pin"))
 
     def test_a_word_count_with_no_window_does_not_fire(self):
-        record = self._attempt_record(
-            attempted_axis="a 4-word residual across the whole body")
-        core._apply_proposal_gates(record)
+        core._apply_proposal_gates(self._attempt_record(
+            "a 4-word residual across the whole body"))
 
     def test_the_pb_window_tu_name_is_not_a_window_token(self):
         """`_` is a word character, so `pb_window` has no \\b before it."""
-        record = self._attempt_record(
-            function="function:pbWindowDraw",
-            attempted_axis="pb_window cleanup left a 4-word residual")
-        core._apply_proposal_gates(record)
+        core._apply_proposal_gates(self._attempt_record(
+            "pb_window cleanup left a 4-word residual",
+            function="function:pbWindowDraw"))
 
     def test_an_unanchored_record_is_out_of_scope(self):
         record = self._attempt_record(
-            attempted_axis="the window at +0x40..+0x60 carries a 4-word"
-                           " residual")
+            "the window at +0x40..+0x60 carries a 4-word residual")
         del record["function"]
         core._apply_proposal_gates(record)
 
@@ -3159,6 +3630,41 @@ class WindowedResidualWordCountGateTests(unittest.TestCase):
                               " +0x40..+0x60",
             })
         core._apply_proposal_gates(record)
+
+    # --- run-40 item 7: the gate asks the CLAIM field, not narration -----
+
+    def test_narration_fields_are_out_of_scope(self):
+        """`attempted_axis` says what was TRIED and `hypothesis` proposes
+        FUTURE work. Neither is a claim about the residual this pass
+        measured, and 2 of the 8 corpus records that fired gate E fired
+        from those two fields alone."""
+        core._apply_proposal_gates(self._attempt_record(
+            attempted_axis="probe the window at +0x40..+0x60, where the"
+                           " prior lane reported a 4-word residual"))
+        core._apply_proposal_gates(self._attempt_record(
+            hypothesis={
+                "statement": "the window at +0x40..+0x60 is a 4-word"
+                             " residual and therefore permutation-class",
+                "cheapest_refuting_observation": "run wf_word_diff",
+                "screened_against_target": "no - not measured yet",
+            }))
+
+    def test_a_sentence_quoting_another_record_is_not_a_claim(self):
+        """A sentence naming a record id narrates THAT record's sizing.
+        Demanding a fresh word count to repeat it taxes the citation habit
+        the corpus depends on."""
+        core._apply_proposal_gates(self._attempt_record(
+            "attempt.some-prior-park.20260901.v1 recorded a 4-word residual"
+            " in the window at +0x40..+0x60. This pass did not remeasure"
+            " it."))
+
+    def test_the_records_own_unquoted_claim_still_fires(self):
+        """The narrowing must not become an all-clear: the same sentence
+        WITHOUT a citation is the record making the claim itself."""
+        with self.assertRaises(MemoryGraphError):
+            core._apply_proposal_gates(self._attempt_record(
+                "measured a 4-word residual in the window at +0x40..+0x60."
+                " This pass did not remeasure it."))
 
 
 class TemplateCliOrderTests(unittest.TestCase):

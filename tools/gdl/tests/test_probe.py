@@ -32,7 +32,8 @@ from probe import (BEST_KEYS, CONFLICT_UNARBITRATED_EXIT, REPLAN_AT,
                    anchor_of, drop_transient_pins,
                    keep_consumes_transient_bank,
                    readout_banks_baseline, roll_back_anchor,
-                   replan_hint, scaffold_rows, scoped_revert,
+                   count_class_line, discard_refusal, replan_hint,
+    restore_scope_counts, scaffold_rows, scoped_revert,
                    slot_arbiter_header, slot_arbiter_signal, split_lines,
                    stale_restore_refusal, strip_noncode,
                    update_neutral_identical_streak)
@@ -910,16 +911,69 @@ class ClassifyTests(unittest.TestCase):
         self.assertTrue(verdict.startswith("IMPROVED "), verdict)
         self.assertEqual(after["best_real"], 24)
 
-    def test_rebase_best_is_exempt_from_the_fuzzy_gate(self):
-        """--rebase-best IS the arbitrated keep; the gate must not undo it."""
+    def test_rebase_best_at_a_fuzzy_rise_still_banks(self):
+        """The overwhelmingly common shape: --rebase-best after a fuzzy WIN.
+
+        Calibration, run 40: all 23 accepted records mentioning
+        --rebase-best describe keeps whose fuzzy ROSE. This arm must stay
+        silent, or the gate would tax the entire real workflow.
+        """
+        state = {"best_real": 30, "best_multiset": 4, "best_fuzzy": 81.2500,
+                 "last_real": 30, "last_insns": "T47/O48",
+                 "last_multiset": 4}
+        verdict, after = classify(state, 24, "T47/O49", 3, fuzzy=83.0,
+                                  rebase_best=True)
+        self.assertTrue(verdict.startswith("REBASED "), verdict)
+        self.assertNotIn("REFUSED", verdict)
+        self.assertEqual(after["best_real"], 24)
+        self.assertEqual(after["best_fuzzy"], 83.0)
+
+    def test_rebase_best_at_a_fuzzy_loss_is_refused(self):
+        """Run-39 do_players probe A: real worse, multiset better, fuzzy down.
+
+        --rebase-best was exempt from the fuzzy gate on the reasoning that
+        it IS the arbitrated keep. The flag declares an intention to
+        arbitrate; nothing checked it was discharged.
+        """
+        state = {"best_real": 840, "best_multiset": 14, "best_fuzzy": 97.2692,
+                 "last_real": 840, "last_insns": "T1174/O1172",
+                 "last_multiset": 14}
+        verdict, after = classify(state, 852, "T1174/O1172", 12,
+                                  fuzzy=96.8433, rebase_best=True)
+        self.assertTrue(verdict.startswith("REBASE-REFUSED"), verdict)
+        self.assertIn("97.2692", verdict)
+        self.assertIn("96.8433", verdict)
+        self.assertEqual(after["best_real"], 840, "the bad keep was un-banked")
+        self.assertEqual(after["best_fuzzy"], 97.2692)
+
+    def test_accept_fuzzy_loss_banks_with_the_loss_in_the_headline(self):
+        state = {"best_real": 840, "best_multiset": 14, "best_fuzzy": 97.2692,
+                 "last_real": 840, "last_insns": "T1174/O1172",
+                 "last_multiset": 14}
+        verdict, after = classify(state, 852, "T1174/O1172", 12,
+                                  fuzzy=96.8433, rebase_best=True,
+                                  accept_fuzzy_loss=True)
+        self.assertTrue(verdict.startswith("REBASED-FUZZY-LOSS"), verdict)
+        self.assertIn("-0.4259", verdict)
+        self.assertEqual(after["best_real"], 852)
+
+    def test_accept_fuzzy_loss_does_not_release_the_ordinary_gate(self):
+        """The escape is scoped to the DELIBERATE keep, not to every bank."""
         state = {"best_real": 30, "best_multiset": 4, "best_fuzzy": 81.2500,
                  "last_real": 30, "last_insns": "T47/O48",
                  "last_multiset": 4}
         verdict, after = classify(state, 24, "T47/O49", 3, fuzzy=80.0,
-                                  rebase_best=True)
-        self.assertTrue(verdict.startswith("REBASED"), verdict)
-        self.assertEqual(after["best_real"], 24)
-        self.assertEqual(after["best_fuzzy"], 80.0)
+                                  accept_fuzzy_loss=True)
+        self.assertTrue(verdict.startswith("FUZZY-REGRESSED"), verdict)
+        self.assertEqual(after["best_real"], 30)
+
+    def test_an_unmeasured_rebase_says_no_arbitration_happened(self):
+        state = {"best_real": 30, "best_multiset": 4, "best_fuzzy": 81.2500,
+                 "last_real": 30, "last_insns": "T47/O48",
+                 "last_multiset": 4}
+        verdict, _ = classify(state, 24, "T47/O49", 3, rebase_best=True)
+        self.assertIn("FUZZY GATE UNMEASURED", verdict)
+        self.assertIn("no arbitration happened", verdict)
 
     def test_unmeasured_fuzzy_against_a_live_anchor_is_announced(self):
         state = {"best_real": 30, "best_multiset": 4, "best_fuzzy": 81.2500,
@@ -953,6 +1007,36 @@ class ClassifyTests(unittest.TestCase):
                  "last_insns": "T116/O116", "last_multiset": 4}
         verdict, _ = classify(state, 65, "T116/O120", 5)
         self.assertIn("RE-RUN THIS NEGATIVE FROM THE LAST COMMIT", verdict)
+
+    def test_regressed_prints_where_the_session_started(self):
+        """MV, run 39: every negative was re-based against HEAD mentally.
+
+        `best` is a ROLLING anchor a previous probe may have moved; the
+        session baseline is the number that answers "am I ahead?".
+        """
+        state = {"best_real": 852, "best_multiset": 12, "last_real": 852,
+                 "last_insns": "T1174/O1172", "last_multiset": 12,
+                 "baseline_real": 840, "baseline_insns": "T1174/O1172"}
+        verdict, _ = classify(state, 864, "T1174/O1180", 14)
+        self.assertTrue(verdict.startswith("REGRESSED"), verdict)
+        self.assertIn("SESSION BASELINE real 840", verdict)
+        self.assertIn("+24 real", verdict)
+        self.assertIn("WORSE than", verdict)
+
+    def test_conflict_prints_the_session_baseline_too(self):
+        state = {"best_real": 840, "best_multiset": 14, "last_real": 840,
+                 "last_insns": "T1174/O1172", "last_multiset": 14,
+                 "baseline_real": 840, "baseline_insns": "T1174/O1172"}
+        verdict, _ = classify(state, 852, "T1174/O1172", 12)
+        self.assertTrue(verdict.startswith("CONFLICT"), verdict)
+        self.assertIn("SESSION BASELINE real 840", verdict)
+        self.assertIn("+12 real", verdict)
+
+    def test_a_state_without_a_banked_baseline_prints_no_clause(self):
+        state = {"best_real": 48, "best_multiset": 4, "last_real": 48,
+                 "last_insns": "T116/O116", "last_multiset": 4}
+        verdict, _ = classify(state, 65, "T116/O120", 5)
+        self.assertNotIn("SESSION BASELINE", verdict)
 
     def test_rebase_best_banks_current_as_best(self):
         state = {"best_real": 48, "best_multiset": 4, "last_real": 65,
@@ -1879,6 +1963,92 @@ class ScopedRevertTests(unittest.TestCase):
         self.assertEqual(out, crlf)
         # every LF is still part of a CRLF — no line ending was rewritten
         self.assertEqual(out.count("\n"), out.count("\r\n"))
+
+
+class CountParityClassTests(unittest.TestCase):
+    """T10 run-40 item 8: a count change is a CLASS change, not a score."""
+
+    def test_gaining_parity_is_announced(self):
+        line = count_class_line("T1174/O1172", "T1174/O1174")
+        self.assertTrue(line.startswith("COUNT-PARITY GAINED"), line)
+        self.assertIn("CLASS change", line)
+
+    def test_losing_parity_is_announced_with_the_delta(self):
+        line = count_class_line("T1174/O1174", "T1174/O1172")
+        self.assertTrue(line.startswith("COUNT-PARITY LOST"), line)
+        self.assertIn("2 instruction(s)", line)
+        self.assertIn("NO postprocessor rule", line)
+
+    def test_an_unchanged_relationship_is_silent(self):
+        self.assertEqual(count_class_line("T100/O100", "T100/O100"), "")
+        self.assertEqual(count_class_line("T100/O98", "T100/O95"), "")
+
+    def test_an_unparseable_count_says_nothing(self):
+        self.assertEqual(count_class_line(None, "T100/O100"), "")
+        self.assertEqual(count_class_line("T100/O100", "1174/1172"), "")
+
+    def test_classify_carries_it_out_of_band(self):
+        """It must NOT be prefixed onto the verdict: every downstream
+        decision in probe.py dispatches on verdict.startswith(), so a
+        prefix would silently disable banking."""
+        state = {"best_real": 840, "best_multiset": 14, "last_real": 840,
+                 "last_insns": "T1174/O1172", "last_multiset": 14}
+        verdict, after = classify(state, 830, "T1174/O1174", 14)
+        self.assertTrue(verdict.startswith("IMPROVED "), verdict)
+        self.assertNotIn("COUNT-PARITY", verdict)
+        self.assertTrue(after["count_class"].startswith("COUNT-PARITY GAINED"))
+        self.assertEqual(after["best_real"], 830, "banking still works")
+
+
+class DiscardScopeTests(unittest.TestCase):
+    """T10 run-40 item 6: --discard was a whole-file footgun.
+
+    `--revert` has been function-scoped since run 36 because five lanes lost
+    sibling work to it. `--discard` was left whole-file "by construction"
+    and its success line reported the loss AFTER the fact.
+    """
+
+    def test_an_edit_only_inside_the_function_is_not_refused(self):
+        """The common case must be untouched: whole-file and scoped are the
+        same bytes when every hunk is inside the named function."""
+        edited = TU.replace("p->x = 1;", "p->x = 99;")
+        inside, outside, entangled = restore_scope_counts(TU, edited, "alpha")
+        self.assertEqual((inside, outside), (1, 0))
+        self.assertEqual(entangled, [])
+
+    def test_a_sibling_functions_edit_is_seen(self):
+        edited = TU.replace("p->z = 3;", "p->z = 77;")
+        inside, outside, entangled = restore_scope_counts(TU, edited, "alpha")
+        self.assertEqual((inside, outside), (0, 1))
+        self.assertEqual(entangled[0][0], "outside")
+
+    def test_a_file_scope_declaration_edit_is_seen(self):
+        """Probe K of the run-39 do_players session changed a file-scope
+        storage class — outside every function, and exactly the kind of
+        edit a function-scoped restore would silently leave live."""
+        edited = TU.replace('#include "game.h"',
+                            '#include "game.h"\nstatic int tab[5];')
+        _, outside, entangled = restore_scope_counts(TU, edited, "alpha")
+        self.assertEqual(outside, 1)
+        self.assertEqual(entangled[0][0], "outside")
+
+    def test_a_straddling_hunk_is_classified_as_such(self):
+        edited = TU.replace("}\n\nvoid beta(Player* p)",
+                            "}   /* end of alpha */\nvoid beta(Player* p)")
+        _, _, entangled = restore_scope_counts(TU, edited, "alpha")
+        self.assertTrue(any(row[0] == "straddling" for row in entangled))
+
+    def test_an_unlocatable_function_reports_none_not_a_guess(self):
+        self.assertIsNone(restore_scope_counts(
+            TU, TU.replace("void alpha", "void renamed"), "alpha"))
+
+    def test_the_refusal_names_both_ways_out(self):
+        text = discard_refusal("alpha", "game/x/y", 1, 2,
+                               [("outside", 10, 12)])
+        self.assertIn("REFUSED", text)
+        self.assertIn("--discard --function", text)
+        self.assertIn("--discard --whole-file", text)
+        self.assertIn("L10-L12", text)
 
 
 class RevertVerdictWordingTests(unittest.TestCase):
