@@ -123,7 +123,12 @@ neighbourhood", not "this family". Verified hits always rank first.
   `asserted_by` (tool/test paths that mechanically assert it).
 - attempt: `held_fixed` — the variable a multi-edit park held CONSTANT.
 
-Three gates run on **new proposals only** (accepted records are never
+Proposal gates run on **new proposals only**; the full set is A-H in
+`memory_graph/core.py` — beyond the three corpus-critical ones below:
+dedup-at-propose, windowed-residual word counts (E), banked-evidence
+citation resolution (F), `verifiers_run` on postprocessor closures (G),
+`addressing_modes_covered` on region-untouched claims (H); the gate code
+is the authority, this list summarizes. (Accepted records are never
 retroactively invalidated; field SHAPE is checked corpus-wide, so in-place
 annotation of an accepted record is still validated by `validate`/`build`):
 
@@ -1060,7 +1065,31 @@ each screen below costs one command and would have caught its lane):
   5 thorough caps while the genuinely unexplored functions ranked last.
 - **A tool-queue item's brief must include the one-command symptom
   reproduction** — run 36: an item's stated symptom no longer existed and
-  masked a defect 15x larger.
+  masked a defect 15x larger. Run 37 re-measured the rule's value: 3 of 11
+  briefs contradicted their stated cause in three different ways.
+- **A brief naming a specific register must quote that register's
+  definition site** — run 37: a mandated hypothesis identified the wrong
+  register (a defs census refutable in zero builds cost two).
+- **One `gdlmem context` per function the order NAMES** (not just the
+  roster) — records land mid-run; run 37 dispatched "no record at all"
+  about a function whose record had been accepted the same day.
+- **One `gdlmem claims` cross-check per named calibration target** —
+  run 37 nominated a calibration case inside another live lane's claimed
+  TU.
+- **A work order quoting a `real` delta must name the arbiter that decides
+  the keep** — run 37: a `real`-denominated bar was unsatisfiable against
+  a compensating-error baseline while fuzzy (the actual arbiter) said keep.
+- **A record asserting "X is the blocker" must quote X's count in BOTH
+  streams** — run 37: a named blocker existed identically in both.
+- **Capability briefs quote the two differing WORDS, never the family
+  label** — run 37: built to its label, the lane would have duplicated a
+  shipped mode and still missed both real customers; pair the word count
+  with the aligned `fnasm --diff` view (offset-pairing lies across
+  permutations).
+- **Any lane editing `webfrank.py` must run the forced full-replay gate**:
+  touch `webfrank.py`, full ninja, confirm every shipped rule replays and
+  the DOL is OK — the only proof that "every existing rule replays," one
+  build, previously undocumented.
 
 Worktrees: writing workers use separate worktrees/branches; the shared
 checkout is read-only to them. Reuse existing clean campaign worktrees before
