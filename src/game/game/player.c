@@ -1799,7 +1799,7 @@ s32 do_players(void) {
                 p->light_vec[0] = p->light_vel[0] * len;
                 p->light_vec[1] = p->light_vel[1] * len;
                 p->light_vec[2] = p->light_vel[2] * len;
-                len = (f32)(len * 0.667);
+                len *= 0.667;
                 if (len < 0.01) {
                     len = 0.0f;
                 }
