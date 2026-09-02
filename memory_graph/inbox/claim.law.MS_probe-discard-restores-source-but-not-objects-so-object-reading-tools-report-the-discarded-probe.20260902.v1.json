@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "memory_graph/records/attempts/attempt.MS_drawmemcardmessage-source-side-cap-the-residual-is-one-params-versus-locals-block-rotation.20260902.v2.json"
+  ],
+  "attributes": {
+    "provenance": "Fleet worker claude-fleet-worker-MS, work_claim.memcard-source.20260902.v1, worktree W:/Repositories/GDL-Claude-MemcardSource, branch claude/memcard-source-20260903, from main 374141980. Both readings (62 stale, 61 true) are pasted from live wf_word_diff.py output one command apart on a tree that `git status --short` reported clean in both cases. The 61 figure independently reproduces the count in attempt.MC_drawmemcardmessage-every-existing-class-refuses-including-value-equality.20260902.v1, which is the cross-check that identifies 61 as correct and 62 as the artefact. Full ninja green, 'build/GUNE5D/main.dol: OK'.",
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run `probe.py <unit> <fn> --discard` after any probe that changed object bytes, then immediately run `wf_word_diff.py <unit> <fn>` and compare against the same command after a forced rebuild. If the two readings agree, either the tool has been changed to rebuild or verify object freshness, or the discard path now triggers a build - in either case this law has expired and should be superseded rather than screened. The cheapest positive check that the law still bites: confirm `--discard`'s output mentions only source restoration and no build step.",
+  "id": "claim.law.MS_probe-discard-restores-source-but-not-objects-so-object-reading-tools-report-the-discarded-probe.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T19:34:07Z",
+  "schema_version": 1,
+  "subject": "tu:game/sys/memcard",
+  "valid_from": "2026-09-02",
+  "value": "`probe.py --discard` and `--revert` restore SOURCE only; they do not rebuild. Any tool that reads the BUILT OBJECT therefore reports the DISCARDED probe's numbers until a rebuild runs, and it reports them without any staleness banner, because from the tool's point of view the object on disk is simply the object on disk.\n\nMEASURED, run 38, game/sys/memcard::drawMemCardMessage. `probe.py --discard` printed 'discarded: src\\game\\sys\\memcard.c restored to HEAD' and `git status --short` confirmed a clean tree. `wf_word_diff.py game/sys/memcard drawMemCardMessage` run immediately after returned '204 insns, DIFFERING WORDS = 62'. That 62 is probe D3's figure, not HEAD's. Re-running probe.py to force a rebuild and then repeating the identical command returned 'DIFFERING WORDS = 61' - which is HEAD's true value and reproduces the count attempt.MC_drawmemcardmessage-every-existing-class-refuses-including-value-equality.20260902.v1 recorded. One command apart, same clean tree, two different answers, and the wrong one is the one a lane gets by default because discarding is the natural thing to do before measuring a baseline.\n\nWHY IT IS DANGEROUS SPECIFICALLY HERE rather than merely untidy. The wrong number is off by ONE WORD. It is not absurd, it does not look stale, and 62 would have been written into an attempt record as this function's raw differing-word count - the exact figure AGENTS.md makes decisive for postprocessor candidacy ('the word count, not the --ops cluster count, decides postprocessor candidacy'). A one-word error in that field is invisible forever and mis-sizes an obligation that a later capability lane would build against. The general 'REMEASURE is the default' discipline does not cover this case, because the lane DID remeasure - it re-ran the measuring command on a verified-clean tree. What it failed to do was rebuild between the discard and the measurement, and no output from either command says so.\n\nTHE RULE. Any object-reading tool - wf_word_diff.py, fndiff.py, fnasm.py --ours, regnorm.py, and every census script under tools/gdl/composed_census/ - must be preceded by a rebuild whenever the immediately preceding action was a discard, a revert, a git checkout, or any source restoration. In practice: run `probe.py <unit> <fn>` (which builds) and read its verdict first, then run the object reader. probe.py's own verdict line is trustworthy across a discard because probe.py builds; the standalone readers are not, and they are the ones a lane reaches for when writing up a cap.\n\nGENERALISATION AND ITS LIMIT. The direction of the error is not predictable - it is simply the last-built state, which may be better or worse than HEAD. In this instance the stale number was WORSE than the truth (62 vs 61), which is the benign direction for a cap record; the dangerous direction is a stale number BETTER than HEAD, which would have a lane record an improvement it does not have."
+}
