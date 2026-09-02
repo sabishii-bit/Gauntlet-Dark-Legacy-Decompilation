@@ -1,0 +1,21 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/ci_paramarea_probe.py"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Compile, with combat.c's cflags under GC/1.2.5, any function that makes only calls of <=8 GPR arguments yet reserves an outgoing parameter area larger than 8 bytes (measured as the lowest addr-taken local offset minus 8 with no addr-taken local sitting below it); OR exhibit a callee declaration form (empty-parens vs prototype vs varargs) that changes the reserved area for a fixed <=8-arg call. Either observation, produced by tools/gdl/composed_census/ci_paramarea_probe.py or an equivalent harness, disproves this law.",
+  "id": "claim.law.CI_mwcc-outgoing-param-area-is-sized-only-by-stack-spilled-args.20260902.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-02T03:14:45Z",
+  "schema_version": 1,
+  "subject": "tu:game/game/combat",
+  "valid_from": "2026-09-02",
+  "value": "Under GC/1.2.5 with cflags_demo (-align powerpc, -O4, -Cpp_exceptions on, -lang=c), MWCC sizes a function's outgoing parameter area SOLELY by genuine stack-spilled call arguments: param_area = 8 + 4 * max(0, nGPRargs - 8), i.e. exactly 8 bytes for every call whose arguments all fit in r3..r10 (<=8 GPR args), growing 4 bytes per argument spilled past r10. The callee declaration FORM is byte-irrelevant to this sizing: an empty-parens/prototype-less declaration, a full prototype, and a varargs (...) prototype of the same 4-register-arg call produce IDENTICAL frames -- confirmed both in a lookalike harness (tools/gdl/composed_census/ci_paramarea_probe.py) and on the real function (swapping combat.c someone_will_be_off_screen's `void MBWindowProject();` for the full 4-pointer prototype is byte-identical, the edit folding away before codegen). Neither a struct-by-value argument, a struct-return-by-value callee, nor a large addressable local passed by pointer (alloca-like) enlarges the area to 48. Reaching a 48-byte outgoing parameter area requires an ~18-GPR-argument call (10 spilled). CONSEQUENCE: a reserved dead frame region below the compiler temp pool is NOT an outgoing parameter area unless the function actually makes a call with more than 8 GPR arguments. This REFUTES the run-33 CB hypothesis (attempt.CB_someone-will-be-off-screen-target-keeps-the-six-union-temporaries.20260902.v1) that someone_will_be_off_screen's 48 dead bytes at r1+8..55 are an outgoing parameter area sized by MBWindowProject: every call in that function passes <=4 register args, so its outgoing parameter area is the 8-byte minimum, and the 48 dead bytes are unrecovered locals interleaved with the compiler temp pool, not argument space."
+}

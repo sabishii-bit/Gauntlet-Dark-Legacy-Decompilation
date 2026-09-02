@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Frame-first decomposition of InitCamera's 16T/15O slot delta (frame and save-set already match at 448 / r21): map the moved block with slotdiff, then try to seat it at the target offsets by reordering the four function-scope locals (mat[16], in[3], out[3], unused[48]).",
+  "attributes": {
+    "law_screen": "claim.law.stack-slots-descend-in-declaration-order.20260831.v1 APPLIED as the reordering rule and MEASURED INSUFFICIENT: it governs the RELATIVE order of declared locals but does not let a declared array cross beneath the compiler temp pool. claim.law.real-can-underweight-a-large-alignment-gain SCREENED and honoured (arbitrated on slotdiff exclusive-slot counts, not on real, which regressed on every reorder). claim.law.CI_mwcc-outgoing-param-area-is-sized-only-by-stack-spilled-args.20260902.v1 SCREENED and APPLIED as the reason the below-pool region cannot be a pad target. Core-screen defake laws screened, none applicable: no raw-offset conversion attempted.",
+    "laws_applied": "[\"claim.law.stack-slots-descend-in-declaration-order.20260831.v1\", \"claim.law.CI_mwcc-outgoing-param-area-is-sized-only-by-stack-spilled-args.20260902.v1\"]",
+    "probed_form": "ALL THREE PROBES REVERTED; tree restored to HEAD (git status --short empty). Baseline order (KEEP): `f32 mat[16]; f32 in[3]; f32 out[3]; u8 unused[48];` -> slotdiff 16T/15O, real 885. PROBE 1: mat[16] moved to LAST (`in; out; unused; mat`) -> 23T/22O, real 959 WORSE. PROBE 2: unused[48] moved to FIRST (`unused; mat; in; out`) -> 23T/22O, real 959 WORSE. The baseline order is the local optimum; every reorder pushes mat[16] further up.",
+    "residual": "THE 16T/15O SLOT DELTA IS DECOMPOSED AND NAMED. slotdiff (frame 448=448, saves r21=r21): the target places a contiguous 64-byte block -- mat[16] -- at r1+68..132 (target-only slots 68,72,76,84,88,92,100,104,108,112,116,120,124,128,132 plus 20), while our build places the SAME block 80 bytes higher at r1+148..208 (ours-only slots 148..208 plus 64). The displacement is caused by the alias-record's `u8 unused[48]` frame-size pad: MWCC seats that declared pad in the low local region where the target seats mat[16], pushing our mat to r1+148. This is the InitCamera instance of the swbos mechanism (a declared u8 pad reproduces frame SIZE but not the below/around-pool ARRANGEMENT): declared locals allocate ABOVE the compiler temp pool, so no reordering of {mat,in,out,unused} can drop mat beneath the pad -- confirmed by 3 orderings, baseline (16T/15O) being the closest. The underlying 56-genuine-structural-row / whole-function GPR-FPR colour permutation (attempt.initcamera-alias-lever-and-frame-pad.20260831.v1) is STACKED under this slot delta and is not addressable until the block is seated. DO NOT re-probe local-declaration reordering of these four locals (measured dead 3x). UNPARK CONDITION: recover the REAL local(s) the 48-byte pad stands in for and give them the type/placement that lets mat[16] take r1+68 -- i.e. reconstruct the original's sub-pool locals rather than pad the frame; a plain u8 pad cannot seat below the temp pool.",
+    "scope": "src/game/game/combat.c, InitCamera only. NO CHANGE RETAINED. No header touched, no literal added/removed, so the TU anonymous pool population and combat.c's 6 WebFrank pins were undisturbed.",
+    "verification": "probe.py clean-state BASELINE banked before the first edit (real 885, insns T1105/O1098, multiset 19t). Each reorder measured with probe.py + slotdiff, then reverted via git checkout; git status --short empty afterward, real back to 885. defake_gate.py baseline for game/game/combat.c taken at pass start."
+  },
+  "function": "function:InitCamera",
+  "held_fixed": "Frame size (448) and the four-local SET {mat[16], in[3], out[3], unused[48]} were held CONSTANT across all three probes; only the DECLARATION ORDER of those four locals was varied. No expression, cast, or addressing form in the function body was touched.",
+  "id": "attempt.CI_initcamera-mat-block-displaced-by-frame-pad.20260902.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-02T03:15:04Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "frame-slot",
+    "measured_at": "2026-09-02",
+    "signature": "SLOTS DIFFER 16T/15O exclusive; mat[16] block at target 68-132 vs ours 148-208 (80-byte displacement); insns T1105/O1098"
+  },
+  "residual_class": "STACK_LAYOUT",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}
