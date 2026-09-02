@@ -816,6 +816,7 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
         int row;
         int d8;
         int d2;
+        int y;
 
         if (*(int*)(param_5 + offsetof(MovieBitmapHeader, height)) < 0) {
             dir = -1;
@@ -828,7 +829,6 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
             u8 bits;
             u8 nb;
             u8* bp;
-            int y;
             int w;
 
             w = state->width;
@@ -875,8 +875,6 @@ u32 fn_800D8BCC(MovieDecodeState* state, int param_2, char* param_3, int param_4
             }
             state->width = state->width / 2;
         } else {
-            int y;
-
             d8 = dir * 8;
             d2 = dir * 2;
             state->width <<= 1;
