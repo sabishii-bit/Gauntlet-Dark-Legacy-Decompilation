@@ -5070,6 +5070,41 @@ def _derive_residual_index(connection: sqlite3.Connection) -> None:
         )
 
 
+def mechanism_sentences_naming(
+    text: str, names, exclude: str | None = None
+) -> dict[str, list[str]]:
+    """{function: [sentences in `text` that NAME it]}.
+
+    A pin's mechanism prose routinely explains its residual by reference to
+    OTHER functions in the same TU — the sibling whose colouring forced the
+    window, the upstream function whose instruction count moved it. Those
+    sentences are the best evidence a lane working on the SIBLING can get,
+    and nothing surfaced them: the sibling's own records say nothing, and
+    the pin is filed under a different function's name.
+
+    `exclude` drops the pin's own function so a pin does not report itself.
+    Matching is on word boundaries, so `do_players` does not match inside
+    `do_players_tail`, and the longest name wins when two overlap.
+    """
+    wanted = sorted(
+        {str(name) for name in (names or []) if name and str(name) != exclude},
+        key=len, reverse=True)
+    if not wanted or not text:
+        return {}
+    # Split on sentence enders followed by whitespace. Deliberately simple:
+    # this prose is technical, and over-splitting costs a reader nothing
+    # while under-splitting would hand back the whole note again.
+    sentences = [part.strip()
+                 for part in re.split(r"(?<=[.!?])\s+", text) if part.strip()]
+    out: dict[str, list[str]] = {}
+    for name in wanted:
+        pattern = re.compile(r"\b" + re.escape(name) + r"\b")
+        hits = [sentence for sentence in sentences if pattern.search(sentence)]
+        if hits:
+            out[name] = hits
+    return out
+
+
 def webfrank_pin_mechanisms(
     root: Path = REPO_ROOT, query: str | None = None
 ) -> list[dict[str, Any]]:
@@ -5115,7 +5150,20 @@ def webfrank_pin_mechanisms(
                 "stages": stages,
                 "cites_records": sorted(set(re.findall(
                     r"\b(?:claim|attempt|evidence)\.[A-Za-z0-9._-]+", text))),
-                "mechanism": text[:600] + (" …" if len(text) > 600 else ""),
+                # NOT TRUNCATED (run-37 item 5). This prose is the densest
+                # derivation of a closed residual anywhere in the project,
+                # and a 600-character cut discarded 59.1% of it — 77,547 of
+                # 131,115 characters across 82 of the 91 pins that carry a
+                # mechanism, the longest being 4,997 characters of which 88%
+                # was hidden. The tails are where the operative content
+                # lives: the dependence-analysis verdicts, the residual
+                # descriptions, the law citations. UA measured one such
+                # sentence sitting past the cut and outvaluing every graph
+                # query it ran. Large results already spill to
+                # build/gdlmem_out/ (AGENTS.md trap 3), so size is the
+                # spiller's problem, not a reason to destroy evidence.
+                "mechanism": text,
+                "mechanism_chars": len(text),
                 "source": "config/GUNE5D/webfrank.json",
                 "note": "a PIN, not a law: its source is FROZEN — screen it"
                         " before editing the function (AGENTS.md trap 4)",
@@ -6671,7 +6719,8 @@ def _open_hypotheses(record: dict[str, Any]) -> list[dict[str, str]]:
     return found
 
 
-def _pin_provenance(root: Path, tu: str) -> list[dict[str, Any]]:
+def _pin_provenance(root: Path, tu: str,
+                    roster_names=None) -> list[dict[str, Any]]:
     """webfrank.json pins for this TU, each with its SOURCE-EXHAUSTION class.
 
     The Mandatory-policy provenance rule requires a new rule's function to
@@ -6749,6 +6798,18 @@ def _pin_provenance(root: Path, tu: str) -> list[dict[str, Any]]:
             pin["provenance"] = "attempts-but-no-park"
         else:
             pin["provenance"] = "NO-SOURCE-TRAIL"
+        # Sentences in THIS pin's derivation that name a SIBLING in the TU
+        # roster. A lane working the sibling has no other route to them:
+        # the sibling's own records are silent and the pin is filed under
+        # another function's name (run-37 item 5).
+        mentions = mechanism_sentences_naming(
+            pin["mechanism"], roster_names, exclude=pin["function"])
+        if mentions:
+            pin["roster_mentions"] = mentions
+            pin["roster_mentions_note"] = (
+                "sentences from THIS pin's mechanism prose that name another"
+                " function in the TU roster — read them before working that"
+                " sibling; they are evidence its own records do not carry.")
         pin["provenance_note"] = (
             "The Mandatory-policy bar is a disjunction."
             " law-backed-source-unreachable = the pin cites a law proving the"
@@ -7049,7 +7110,8 @@ def tu_briefing(
         if "scaffold" in json.dumps(attempt["_record"]).lower()
     ]
 
-    pins = _pin_provenance(root, tu)
+    pins = _pin_provenance(
+        root, tu, roster_names=[entry["function"] for entry in roster])
 
     # RUN-33 (RG): seed the transferability cohort from what this TU's OWN
     # records already measured — the dominant verified residual family and the
@@ -7170,7 +7232,11 @@ def tu_briefing(
             " postprocessor hash-asserts its body and the build aborts on"
             " drift. Screen this list before editing anything in the TU."
             " `provenance` classes each pin against the Mandatory-policy"
-            " source-exhaustion bar."
+            " source-exhaustion bar. `mechanism` is the FULL derivation,"
+            " no longer cut at 600 characters (that cut discarded 59.1% of"
+            " the corpus's pin prose, and the operative sentence is"
+            " routinely in the tail). `roster_mentions` pulls out the"
+            " sentences naming a SIBLING in this roster."
         ),
         "staleness_banner": (
             "EVERY NUMBER IN THIS BRIEF IS READ FROM DISK, NOT MEASURED NOW."

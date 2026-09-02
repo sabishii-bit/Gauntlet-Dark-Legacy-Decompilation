@@ -1217,6 +1217,52 @@ class ProposalGateTests(unittest.TestCase):
         self.assertTrue(stage_record_proposal(record, root=self.root).exists())
 
 
+class MechanismSentenceTests(unittest.TestCase):
+    """Pin prose that names a SIBLING is evidence the sibling cannot get.
+
+    Run-37 item 5 (UA): a pin's mechanism note routinely explains its
+    residual by reference to another function in the same TU, and nothing
+    surfaced those sentences — the sibling's own records are silent and the
+    pin is filed under a different function's name. Verified live on
+    game/world/camera: the do_camera pin names camera_mode_level.
+    """
+
+    TEXT = ("The window is control-free. camera_mode_level forced the"
+            " colouring here. Unrelated closing sentence.")
+
+    def test_returns_only_sentences_naming_the_function(self):
+        out = core.mechanism_sentences_naming(
+            self.TEXT, ["camera_mode_level"])
+        self.assertEqual(len(out["camera_mode_level"]), 1)
+        self.assertIn("forced the colouring", out["camera_mode_level"][0])
+
+    def test_a_name_that_never_appears_is_absent(self):
+        self.assertEqual(
+            core.mechanism_sentences_naming(self.TEXT, ["do_camera"]), {})
+
+    def test_exclude_stops_a_pin_reporting_itself(self):
+        out = core.mechanism_sentences_naming(
+            self.TEXT, ["camera_mode_level"], exclude="camera_mode_level")
+        self.assertEqual(out, {})
+
+    def test_word_boundaries_prevent_a_prefix_match(self):
+        """`do_players` must not match inside `do_players_tail`."""
+        out = core.mechanism_sentences_naming(
+            "do_players_tail was rewritten.", ["do_players"])
+        self.assertEqual(out, {})
+
+    def test_multiple_names_each_get_their_own_sentences(self):
+        text = ("alpha was hoisted. beta was not. alpha and beta both moved.")
+        out = core.mechanism_sentences_naming(text, ["alpha", "beta"])
+        self.assertEqual(len(out["alpha"]), 2)
+        self.assertEqual(len(out["beta"]), 2)
+
+    def test_empty_inputs_are_safe(self):
+        self.assertEqual(core.mechanism_sentences_naming("", ["a"]), {})
+        self.assertEqual(core.mechanism_sentences_naming("text", []), {})
+        self.assertEqual(core.mechanism_sentences_naming("text", None), {})
+
+
 class RetrievalQueryTests(unittest.TestCase):
     """residual / family / capability queries, slug + pin indexing, brief."""
 
@@ -1346,6 +1392,15 @@ class RetrievalQueryTests(unittest.TestCase):
         self.assertIn(
             "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1",
             pins[0]["cites_records"])
+
+    def test_pin_mechanism_is_not_truncated(self):
+        """Run-37 item 5: the prose used to be cut at 600 characters, which
+        discarded 59.1% of the corpus's pin derivations (77,547 of 131,115
+        chars across 82 of 91 pins). The operative sentence is routinely in
+        the tail — UA measured one there that outvalued every graph query."""
+        pin = law_corpus("carrier", root=self.root)["pin_mechanisms"][0]
+        self.assertEqual(pin["mechanism_chars"], len(pin["mechanism"]))
+        self.assertNotIn(" …", pin["mechanism"])
 
     def test_law_rows_expose_falsifier_and_asserted_by(self):
         row = law_corpus("live zero remat", root=self.root)["laws"][0]
