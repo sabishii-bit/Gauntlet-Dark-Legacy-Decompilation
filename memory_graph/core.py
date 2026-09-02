@@ -7382,6 +7382,133 @@ _PARK_CITATION_KEYS = frozenset({
 })
 
 
+# Repo-relative paths under a TRACKED root only. `build/` and `orig/` are
+# gitignored and legitimately absent in a fresh worktree, so their absence
+# says nothing about a record; these five roots are committed, and a path
+# under them that is gone really is gone.
+_ANCHOR_PATH_RE = re.compile(
+    r"(?:src|include|tools|config|memory_graph)"
+    r"/[A-Za-z0-9_][A-Za-z0-9_./+-]*\.[A-Za-z0-9_]{1,6}"
+)
+
+# Extensions this check must NEVER read as a stranded anchor. Records
+# routinely name an OBJECT by its source-tree path (`src/game/boss/boss.o`,
+# `src/game/world/.postprocess/body/btricol.o`) — those live under `build/`
+# and are absent from `src/` by construction, so treating them as missing
+# files reports the build layout as record rot. Measured: a first cut of this
+# check flagged 111 records, and 108 of them were exactly this shape.
+_GENERATED_SUFFIXES = frozenset({
+    "o", "s", "a", "d", "elf", "dol", "bin", "map", "obj", "lib",
+})
+# The one rename that has actually stranded records here (movieplayer.c ->
+# movieplayer.cpp, 2026-08-31). Offered only for source spellings; a `.o`
+# has no meaningful `.c` sibling.
+_RENAME_SIBLINGS = {"c": "cpp", "cpp": "c"}
+
+# The keys whose JOB is to point at where a record's truth lives. Prose
+# fields that merely NARRATE the work (law_screen, attempted_axis,
+# probed_form, axis_log, value, falsifier, denial, hypothesis, scope) are
+# deliberately excluded: a path mentioned there is a story, not an anchor,
+# and claim.RC_stale-reopen-queue-is-a-classifier-artifact.20260901.v1
+# measured what scanning narrative prose does to a reopen queue (43/43 false
+# positives). `verification`/`provenance`/`reproduction` ARE included despite
+# being citation keys, because the question here is not "does this prose use
+# the vocabulary" but "does this literal file still exist" — a reproduction
+# command whose file is gone cannot be run, which is precisely a reopen
+# signal rather than a classifier artifact.
+_ANCHOR_ROLE_KEYS = (
+    "anchor", "anchors", "evidence", "implementation_anchors",
+    "reference_anchors", "provenance", "reproduction", "verification",
+    "source_path", "entrypoint",
+)
+
+
+def _anchor_path_strings(record: Any) -> list[str]:
+    """Repo-relative paths a record offers as its truth anchors."""
+    if not isinstance(record, dict):
+        return []
+    found: list[str] = []
+    scopes: list[Any] = [record.get("locator")]
+    for container in (record, record.get("attributes")):
+        if not isinstance(container, dict):
+            continue
+        for key in _ANCHOR_ROLE_KEYS:
+            if key in container:
+                scopes.append(container[key])
+    for value in scopes:
+        if value is None:
+            continue
+        text = value if isinstance(value, str) else json.dumps(value)
+        found.extend(_ANCHOR_PATH_RE.findall(text))
+    # Preserve first-seen order; a record repeating one anchor is one anchor.
+    return list(dict.fromkeys(found))
+
+
+_ANCHOR_INDEX_ROOTS = ("src", "include", "tools", "config", "memory_graph")
+
+
+def anchor_basename_index(root: Path) -> dict[str, list[str]]:
+    """{basename: [repo-relative paths]} across the tracked anchor roots.
+
+    Built ONCE per `stale` run and passed in, because the alternative — an
+    rglob per record — is the quadratic shape run 33 already had to fix once
+    in `validate`.
+    """
+    index: dict[str, list[str]] = {}
+    for top in _ANCHOR_INDEX_ROOTS:
+        base = root / top
+        if not base.is_dir():
+            continue
+        for path in base.rglob("*"):
+            if path.is_file():
+                index.setdefault(path.name, []).append(
+                    path.relative_to(root).as_posix())
+    return index
+
+
+def missing_anchor_paths(record: Any, root: Path,
+                         basename_index: dict[str, list[str]] | None = None
+                         ) -> list[dict[str, Any]]:
+    """Anchor paths this record names that no longer exist in the tree.
+
+    Run-34 criticism (MV): an ACCEPTED PlayVQMovie record was anchored to a
+    deleted `movieplayer.c` and described a layout the tree no longer
+    produces — an authoritative record pointing at a file that is not there.
+    Nothing in `stale` could see it, because every heuristic there compares
+    SCORES, and a record whose anchor evaporated has no score to move.
+
+    The `.c`/`.cpp` sibling is reported when it exists, because that rename
+    is the measured cause (movieplayer.c -> movieplayer.cpp, 2026-08-31) and
+    it turns "this record is stranded" into a one-line repair. With a
+    ``basename_index`` supplied, a file that MOVED DIRECTORY is reported the
+    same way — the live corpus carries both shapes (`src/game/leveldata.h`
+    now lives at `include/game/leveldata.h`, `src/game/sfx/sndfx.c` at
+    `src/game/audio/sndfx.c`).
+    """
+    out: list[dict[str, Any]] = []
+    for path in _anchor_path_strings(record):
+        stem, _dot, suffix = path.rpartition(".")
+        if suffix.lower() in _GENERATED_SUFFIXES:
+            continue
+        if (root / path).exists():
+            continue
+        entry: dict[str, Any] = {"path": path}
+        sibling = _RENAME_SIBLINGS.get(suffix.lower())
+        if sibling and stem and (root / f"{stem}.{sibling}").exists():
+            entry["renamed_to"] = f"{stem}.{sibling}"
+        elif basename_index:
+            moved = basename_index.get(path.rsplit("/", 1)[-1]) or []
+            # One unambiguous candidate is a repair; several is a guess, and
+            # a guess in a reopen queue is how the last record-mining
+            # heuristic here produced 43 false positives.
+            if len(moved) == 1:
+                entry["moved_to"] = moved[0]
+            elif moved:
+                entry["candidates"] = sorted(moved)[:5]
+        out.append(entry)
+    return out
+
+
 def _mentions_unnegated(text: str, term: str) -> bool:
     """True if `term` occurs in `text` outside a negating phrase.
 
@@ -7570,6 +7697,35 @@ def attempt_staleness(
             )
         else:
             valid += 1
+    # STRANDED ANCHORS (run 34 item 6). Every heuristic above compares
+    # SCORES, and a record whose anchor file was deleted or renamed has no
+    # score to move — MV found an ACCEPTED PlayVQMovie record anchored to a
+    # `movieplayer.c` that no longer exists, describing a layout the tree no
+    # longer produces. Scanned over EVERY accepted record, not just the
+    # parked/capped rows above: the defect is orthogonal to outcome.
+    basename_index = anchor_basename_index(root)
+    with closing(open_database(root, db_path)) as connection:
+        anchor_rows = connection.execute(
+            "SELECT record_id, raw_json FROM record_ingest"
+            " WHERE record_state = 'accepted'"
+        ).fetchall()
+    for row in anchor_rows:
+        try:
+            record = json.loads(row["raw_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        gone = missing_anchor_paths(record, root, basename_index)
+        if not gone:
+            continue
+        entry = {
+            "record": row["record_id"],
+            "reason": "anchor_path_missing",
+            "missing_anchors": gone,
+        }
+        subject = record.get("function") or record.get("subject")
+        if isinstance(subject, str) and subject:
+            entry["function"] = subject.split(":", 1)[-1]
+        reopen.append(entry)
     return {
         "stale_solved": stale,
         "postprocessor_walls": walls,
@@ -7590,7 +7746,19 @@ def attempt_staleness(
             " disturbed the function (re-probe cheaply);"
             " failing_form_undocumented means the cap predates form-recording"
             " — per claim.law.offsetof-overturns-typed-alias-caps, re-try the"
-            " offsetof-on-raw-pointer form before trusting it."
+            " offsetof-on-raw-pointer form before trusting it;"
+            " anchor_path_missing means the record cites a source path that"
+            " is NOT in the tree, so its evidence cannot be reopened as"
+            " written — this one is scanned over EVERY accepted record, not"
+            " just parks, because it is orthogonal to outcome and to score."
+            " `renamed_to`/`moved_to` name the surviving file when exactly"
+            " one candidate exists (the repair is superseding the record"
+            " with the corrected anchor, NOT deleting it); `candidates`"
+            " means several files share the basename and a human must"
+            " choose. Object paths under a source tree"
+            " (src/.../foo.o, .postprocess/body/*.o) are EXCLUDED: they live"
+            " under build/ by construction, and counting them reported the"
+            " build layout as record rot (108 of a first cut's 111 hits)."
             " active_work_claims presumed_abandoned entries are older than"
             " one day: verify via git log against the claimed scope, then"
             " remove the claim in a standalone cleanup commit (AGENTS.md"
