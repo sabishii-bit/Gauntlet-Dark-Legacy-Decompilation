@@ -1,0 +1,29 @@
+{
+  "attempted_axis": "First measured classification of animate_panel_piece: establish the residual class from the real object with the auto-slotdiff arbiter before any source edit, so the next lane inherits a class rather than a fuzzy rank.",
+  "attributes": {
+    "law_screen": "claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1 APPLIED and honoured: the classification here rests on probe.py's auto-slotdiff (which printed NO slot or frame warning, i.e. slots and frame agree) together with the gate baseline's regnorm genuine-row count of 0, not on the multiset alone. claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 APPLIED: counts are already equal at 251/251, so only a pure reorder or recolor can close this and any count-changing source form is disqualified. claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 SCREENED as the constraint any future rule on this function must satisfy. No source law applied because no source edit was made.",
+    "laws_applied": "[\"claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1\", \"claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1\"]",
+    "residual": "Classified, not attacked. STEP-1 SWEEP RESULT for this lane's whole roster, recorded here because it belongs to no single function: `fndiff --clean` was run on ALL 15 DIFF rows across game/ui/select.c (8) and game/ui/screensaver.c (7) at dispatch, and EVERY row is a genuine DIFF -- zero rows were already-finished pool-name noise. That contrasts with run 36, where 4 of ~58 assigned functions were already finished, and it means this lane's roster needed no pruning. Screensaver DIFF roster with real and regnorm genuine rows: draw_inventory_panel 543/33, ScreenSaverUpdateWeap 256/27, animate_panel_piece 92/0, draw_panels 69/1, ScreenSaver 52/0, ControllerMessageBox 45/1, print_n_of_m 32/0. The three genuine-0 rows (animate_panel_piece, ScreenSaver, print_n_of_m) are the recolor-class cluster in this TU; the two genuine-heavy rows are the source-structural work.",
+    "scope": "READ-ONLY. No edit was made to src/game/ui/screensaver.c and none is proposed here. game/ui/screensaver carries a webfrank pin on end_inventory_panel (before_sha256/after_sha256 body hashes, instruction_permutation plus copy_register_fields), so any future edit in this TU that changes an instruction count ahead of that function in source order must re-derive the pin with tools/gdl/composed_census/wf_rederive_pin.py per AGENTS.md discipline 15b.",
+    "verification": "probe.py game/ui/screensaver animate_panel_piece BASELINE real 92 (insns T251/O251, multiset 0t), with NO slot-class or frame warning emitted by the auto-slotdiff, which fires for this class when slots differ. defake_gate baseline for game/ui/screensaver.c taken at step 0 anchored to commit cf81a9103 (22 functions, 15 at real 0) records genuine structural rows 0 for this function. fndiff --clean reports SCHEDULE_CANDIDATE. No build gate was needed because no edit was made."
+  },
+  "function": "function:animate_panel_piece",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Run `regnorm.py game/ui/screensaver animate_panel_piece` and read the STRUCTURAL rows against the aligned view. If regnorm reports ANY genuine structural row -- the gate baseline currently records genuine 0 -- then the residual is not a pure renaming and the recolor framing dies.",
+    "screened_against_target": "no -- only the aggregate classifiers were run this session (probe baseline, fndiff --clean, and the gate baseline's genuine-row count). The aligned view was NOT read, so the specific register pairs are unmeasured and this classification must be confirmed before it is acted on.",
+    "statement": "animate_panel_piece is a whole-function GPR renaming at equal instruction counts and aligned slots, i.e. the same shape as its TU sibling end_inventory_panel, which is already served by the game/ui/screensaver webfrank rule. It is a recolor-class candidate rather than a source target, and the cheapest route to closing it is to test whether the existing screensaver rule's copy_register_fields form extends to it, NOT to spend source axes."
+  },
+  "id": "attempt.UC_animate-panel-piece-first-classification-pure-permutation-at-equal-counts.20260902.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-02T18:26:28Z",
+  "residual": {
+    "capability_needed": "webfrank-recolor",
+    "family": "regalloc-web",
+    "measured_at": "2026-09-02",
+    "signature": "0t opcode multiset IDENTICAL (251/251) -- pure reorder, schedule-class; fndiff --clean reports SCHEDULE_CANDIDATE, 72 real diff lines [artifact-filtered; raw rows 108, of which 92 non-reloc]"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-02"
+}

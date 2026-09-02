@@ -1,0 +1,33 @@
+{
+  "attempted_axis": "Execute the run-36 UB record's mandatory step-1 hypothesis (probe B plus a form that removes the surviving `mr`) by first re-deriving its named mechanisms from the aligned view over the WHOLE function rather than the prologue alone, then probing the one declaration axis its held_fixed clause left untouched.",
+  "attributes": {
+    "law_screen": "claim.law.local-alias-vs-direct-global-spelling-diverges.20260831.v1 SCREENED, not re-probed: the prior record already measured its two pointer-local forms (probes A and B) on this function and both were negative, so re-running them would be a recorded do-not-retry. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED and its declaration-ORDER probe was already measured dead as the prior record's probe C (real 24 -> 30); the untried variable this run isolated was initialisation PLACEMENT, not order. claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 APPLIED: the baseline is already at 59/59 parity with an IDENTICAL multiset, so only a pure reorder can help and any count-changing form is disqualified on sight. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 APPLIED as the framing for the prologue-slack `li r5,0` versus the addi.",
+    "laws_applied": "[\"claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1\", \"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\"]",
+    "probed_form": "AXIS 5, the only axis the prior record's held_fixed clause left open (it held the declarations themselves constant and varied only their order): split initialisation from declaration, `s32 n; s32 idx;` in place of `s32 n = 0; s32 idx = 0;`, with `n = 0; idx = 0;` moved to statements after the `cardPresent` declaration and before the `if (lbl_80344A18 == 3)`. RESULT: NEUTRAL-IDENTICAL -- probe.py reports the OBJECT BYTES UNCHANGED, i.e. the edit folded away before codegen and the source text never reached the compiler's decision point. Per the run-37 dispatch rule that NEUTRAL-IDENTICAL is decisive at one probe, this axis is dead in a single build and needs no A/B repeat. Reverted with `git checkout --`; `git diff --numstat` empty.",
+    "residual": "REFUTATION, which is the deliverable. The superseded record's mechanism (3) named 'THE SURVIVING mr' as 'the real blocker' and asserted that removing it would make probe B net zero. That is measured FALSE: both streams contain exactly ONE `mr` and the counts are equal at 59/59 -- retail's `mr r4,r0` sits at +0x80 in the else arm serving the SECOND format string, ours sits at +0x38 serving the FIRST. There is no extra copy to remove, so 'probe B plus a form that removes the surviving mr' is not a reachable closing pair and the next lane must not spend probes hunting one. What survives from the superseded record is its mechanism (1) diagnosis -- retail hoists a second format-string address above the branch and we do not -- and its probe A measurement that a second NAMED local costs +2 because retail reassigns ONE variable. Its transferable-negative citation of attempt.parked.print-n-of-m.20260830.v1 (global-base initializer and declaration/lifetime forms cannot move a materialisation across the prologue) also survives and is now corroborated by this run's NEUTRAL-IDENTICAL result on the initialisation-placement axis. FIVE axes are now measured dead on this function: the prior record's A, B, A+B and C, plus this run's initialisation-placement.",
+    "scope": "src/game/ui/select.c::setup_vmu_entries. NOTHING RETAINED -- the tree is at HEAD for this function.",
+    "verification": "probe.py game/ui/select setup_vmu_entries BASELINE real 24 (insns T59/O59, multiset 0t), axis 5 NEUTRAL-IDENTICAL at real 24 with object bytes unchanged, then reverted to an empty `git diff --numstat`. Mechanism re-derived from the aligned view over 0x0:0x60 and 0x60:0xec."
+  },
+  "function": "function:setup_vmu_entries",
+  "held_fixed": "The single probe held the control flow, both sprintf call shapes, the VmuMenuEntry writes, the `slotFormat`/`base`/`buf`/`cardPresent` declarations and their initializer expressions CONSTANT, and varied only whether `n` and `idx` are initialised AT their declarations or by separate statements after `cardPresent`.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Any source form that makes MWCC emit `addi r4,r4,LO(lbl_80114718)` in the prologue slack between `stw r0,4(r1)` and `stwu r1,-24(r1)` -- that one slot is occupied by `li r5,0` (the `n = 0` init) in our stream and by the addi in retail's. If any legal source spelling swaps what fills that single slot without changing the count, the residual is source-reachable and this framing dies.",
+    "screened_against_target": "yes -- the full aligned view was read in two windows, `fnasm game/ui/select setup_vmu_entries 0x0:0x60 --diff` and `0x60:0xec --diff`, and every claim above is read off those bytes, including the confirmation that +0x8c onward is already identical.",
+    "statement": "The residual is a single scheduler CHOICE OF WHICH of the two format-string addresses to hoist above the branch, and it is not source-reachable through declaration or initialisation spelling. Retail completes the FIRST string in the prologue slack (`addi r4,r4,LO(lbl_80114718)` at +0x10, before `stwu`) and hoists the SECOND (`lis r3,lbl_80114724@ha` at +0x28, `addi r0,r3,LO` at +0x3c) above the branch, spending it as `mr r4,r0` at +0x80 inside the else arm; we do the exact mirror image -- we complete the FIRST late (`addi r0,r4,LO` at +0x34) and spend OUR one `mr` at +0x38, then materialise the SECOND in place inside the else arm (`lis`+`addi` at +0x6c/+0x70). Instruction counts are equal at 59/59 and each stream contains exactly ONE `mr`. This is a permutation/recolor-class residual at equal counts."
+  },
+  "id": "attempt.UC_setup-vmu-entries-surviving-mr-mechanism-refuted-both-streams-have-one.20260902.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-02T18:26:07Z",
+  "refutes": "attempt.UB_setup-vmu-entries-address-materialisation-position.20260902.v1",
+  "residual": {
+    "capability_needed": "webfrank-permutation",
+    "family": "constant-hoist",
+    "measured_at": "2026-09-02",
+    "signature": "0t opcode multiset IDENTICAL (59/59); the whole tail +0x8c..+0xe8 is byte-identical and the entire residual lives in +0x00..+0x88"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.UB_setup-vmu-entries-address-materialisation-position.20260902.v1",
+  "valid_from": "2026-09-02"
+}
