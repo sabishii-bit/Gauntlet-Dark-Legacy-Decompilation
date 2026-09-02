@@ -6452,6 +6452,15 @@ def tu_briefing(
                 "unabsorbed"),
             "unabsorbed_tier": (
                 unabsorbed_rows.get(row["raw_name"]) or {}).get("tier"),
+            # THE COUNT IS NOT THE CLASS (run 34 item 5): an unchanged
+            # unabsorbed count hid a residual moving from a class no
+            # postprocessor can reach to one a permutation window can, so
+            # the roster reported "no change" on a real change. Classes:
+            # allocator / schedule / operand / source-structural /
+            # count-asymmetric — only the first two are reachable at all.
+            "unabsorbed_class": (
+                unabsorbed_rows.get(row["raw_name"]) or {}).get(
+                    "residual_class"),
             "unabsorbed_staleness": unabsorbed_staleness,
         }
         for row in functions
