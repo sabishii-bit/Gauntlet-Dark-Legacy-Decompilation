@@ -888,7 +888,10 @@ headers, data layout, or exact siblings.
 
 Before any work: `git status --short`, `git branch --show-current`,
 `git rev-parse --show-toplevel`. Record pre-existing dirty files — they belong
-to the user or another worker.
+to the user or another worker. **`git branch --show-current` printing nothing
+means DETACHED HEAD — fix it before any commit or merge**: a host reboot left
+the shared checkout detached once (run 39) and six merges landed off-branch,
+recovered only because the chain was fast-forwardable.
 
 - Never use destructive cleanup (`git reset --hard`, `git checkout -- <file>`)
   on shared work, and never rewrite another worker's uncommitted changes.
@@ -1117,6 +1120,26 @@ each screen below costs one command and would have caught its lane):
   touch `webfrank.py`, full ninja, confirm every shipped rule replays and
   the DOL is OK — the only proof that "every existing rule replays," one
   build, previously undocumented.
+- **Quote a record's residual decomposition VERBATIM, never paraphrased** —
+  six paraphrase-vs-record divergences in three runs; the record is the
+  authority and the order is a pointer to it.
+- **"Measured run N" in a brief or queue item must name the record id** —
+  run 39: an item's cited measurement had no record behind it; items citing
+  ids shipped verbatim, prose rotted.
+- **A capability census asks UNPARK PAYOFF, not site population** — the two
+  came apart 2-vs-0 on the first class where both were measured; a
+  downstream "close X" step is CONDITIONAL on the census gate above it, and
+  the order must say so.
+- **Grep for already-applied source levers before dispatching one** — a
+  banked pragma lever was already in the tree bracketing its function
+  (run 39); one grep at dispatch.
+- **A published register-correspondence table must state the byte range it
+  covers, and an order may not quote one covering less than the whole
+  function** — a table from the first 0xe0 of a 0x330 body was wrong three
+  ways and steered two lanes.
+- **Calibrate every new gate/classifier against the live corpus before
+  shipping it** (hard rule): a run-39 gate would have shipped at a 76%
+  false-positive rate; the census cost ~2 minutes.
 
 Worktrees: writing workers use separate worktrees/branches; the shared
 checkout is read-only to them. Reuse existing clean campaign worktrees before
