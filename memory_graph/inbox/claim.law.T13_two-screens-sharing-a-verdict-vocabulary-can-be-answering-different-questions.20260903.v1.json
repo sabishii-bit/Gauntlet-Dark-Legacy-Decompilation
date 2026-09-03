@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py",
+    "tools/gdl/composed_census/cq_raw_pool_screen.py",
+    "tools/gdl/composed_census/cr_datum_screen.py",
+    "tools/gdl/tests/test_datum_screen.py"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics",
+      "relocation",
+      "pool-layout"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run both tools over the same function list and compare verdicts: if the disagreement count is zero on a live corpus, the two really do answer one question and a merged verdict is sound. The 55-function comparison is reproducible from build/GUNE5D/cr_image_datum.txt's VALUE-DELTA rows plus the controls named in cr_datum_screen.py's docstring.",
+  "id": "claim.law.T13_two-screens-sharing-a-verdict-vocabulary-can-be-answering-different-questions.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T05:46:22Z",
+  "schema_version": 1,
+  "subject": "tool:fndiff",
+  "valid_from": "2026-09-03",
+  "value": "Two census tools that print the SAME verdict words are not necessarily two halves of one screen, and merging them by verdict is unsound until the verdicts are compared on live functions. MEASURED run 43 on the pair the queue called two halves: cq_raw_pool_screen resolves POOL data only (our anonymous @N entries and the splitter's lbl_*) and DROPS every other relocation, so it answers 'is a LITERAL in this function wrong?'; cr_datum_screen keys EVERY relocation, including named globals and callees. Over 55 live functions (the 49 image-wide VALUE-DELTA rows plus 6 controls) the two verdicts disagree 28 times, always in the same direction (pool-only VALUE-EQUAL against all-relocations VALUE-DELTA). What they DID duplicate was infrastructure: a DOL reader, a symbols.txt parser and an objdump reader that fndiff already owned. So the correct dedup was the READERS (verified byte-identical output on all 55 functions afterwards) plus one shared algorithm core, not one merged verdict. A second law-shaped finding fell out of the same comparison: a screen's shipped CALIBRATION CONTROLS go stale by being FIXED \u2014 all five of cr_datum_screen's documented controls now read VALUE-EQUAL because run 42 corrected those defects, so a control list is re-derived from a fresh census, never trusted from a docstring."
+}
