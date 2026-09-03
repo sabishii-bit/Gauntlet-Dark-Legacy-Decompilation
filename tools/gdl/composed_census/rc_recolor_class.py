@@ -28,6 +28,17 @@ first (run 39):
     `consistent_recolor` answers it; `--violations` prints every instruction
     no single bijection can explain.
 
+A FRAME COLUMN TRAVELS WITH THE CLASSIFICATION (run 41). A frame-size
+difference is STACK_LAYOUT — categorically outside both classes above — and
+neither the mnemonic-divergence count nor the opcode multiset can see it, so
+such a function reads as schedule work and ranks into a schedule queue. Two
+of the nine rows of claim.CT_schedule-class-tier-2-remeasured-live-with-pin-
+and-frame-columns.20260903.v1 were exactly that (AudioWithName 16 bytes,
+fn_80093918 8 bytes), and they were the same two rows whose word counts
+failed to reproduce the census. Both streams were already dumped here; only
+the column was missing. `stack_layout` is now a first-class output field and
+the classification string is prefixed, so a queue cannot ignore it silently.
+
 FPRs are compared as well as GPRs: an f-register-only recolor is otherwise
 invisible and the function reads as "100% explained by the identity map"
 while carrying a live word diff (measured on PointLineColl).
@@ -85,6 +96,7 @@ DEFAULT_OUT = os.path.join("build", "GUNE5D", "rc_recolor_class.json")
 
 RE_LINE = re.compile(r"^\s*([0-9a-fA-F]+):\s+(\S+)\s*(.*)$")
 RE_REG = re.compile(r"\b([rf])(\d{1,2})\b")
+RE_FRAME = re.compile(r"\bstwu\s+r1,-(\d+)\(r1\)")
 CALLEE = set(range(14, 32)) | set(range(114, 132))
 ARGREG = set(range(3, 11))
 
@@ -112,6 +124,32 @@ def dump(unit, fn, ours):
             "text": line.rstrip(),
         })
     return rows
+
+
+def frame_size(rows):
+    """Bytes of stack frame from the prologue `stwu r1,-N(r1)`, or None.
+
+    None means "not decidable from this dump" — a leaf function with no
+    frame, or the large-frame `stwux` form. The caller must say UNKNOWN
+    rather than 0, because a silent 0 would read as "frames agree".
+    """
+    for row in rows:
+        m = RE_FRAME.search(row["text"])
+        if m:
+            return int(m.group(1))
+    return None
+
+
+def label_with_frame(classification, frame_delta):
+    """Prefix a class label with STACK_LAYOUT when the frames disagree.
+
+    A frame difference outranks both classes this tool splits, so it goes
+    FIRST in the string: a queue that truncates or greps the label must see
+    it. An UNKNOWN frame (None) never adds a prefix — absence of evidence.
+    """
+    if not frame_delta:
+        return classification
+    return "STACK_LAYOUT (frame %+d) + %s" % (frame_delta, classification)
 
 
 def analyse(unit, fn):
@@ -185,6 +223,21 @@ def analyse(unit, fn):
     param_moved = (bool(param_t)
                    and sorted(param_t.values()) != sorted(param_o.values()))
 
+    # FRAME COLUMN (run 41 item 1). A frame-size difference is STACK_LAYOUT,
+    # categorically outside BOTH classes this tool splits, and it is
+    # invisible to the mnemonic-divergence count and to the opcode multiset
+    # alike -- so a stack-work function reads as schedule work and gets
+    # ranked into a schedule queue. Measured: 2 of the 9 rows of
+    # claim.CT_schedule-class-tier-2-remeasured-live-with-pin-and-frame-
+    # columns.20260903.v1 were exactly this (AudioWithName, 16 bytes:
+    # target `stwu r1,-56(r1)` vs ours `stwu r1,-72(r1)`; fn_80093918,
+    # 8 bytes), and both were the two rows whose word counts failed to
+    # reproduce the census. The streams were already in hand here; only the
+    # column was missing.
+    t_frame, o_frame = frame_size(tgt), frame_size(ours)
+    frame_delta = (None if t_frame is None or o_frame is None
+                   else t_frame - o_frame)
+
     if mnem_diffs:
         classification = "SCHEDULE-REORDER (%d mnemonic diffs)" % mnem_diffs
     elif not votes:
@@ -198,9 +251,15 @@ def analyse(unit, fn):
     else:
         classification = "LIVE-RANGE-RECOLOR"
 
+    classification = label_with_frame(classification, frame_delta)
+
     out.update({
         "classification": classification,
-        "recolor_class": mnem_diffs == 0,
+        "target_frame": t_frame,
+        "ours_frame": o_frame,
+        "frame_delta": frame_delta,
+        "stack_layout": bool(frame_delta),
+        "recolor_class": mnem_diffs == 0 and not frame_delta,
         "consistent_recolor": consistent,
         "diff_words_disasm": diff_words,
         "mnemonic_diffs": mnem_diffs,
@@ -259,19 +318,42 @@ def main():
             json.dump(results, fh, indent=2)
         rec = [r for r in results if r.get("recolor_class")]
         sch = [r for r in results if r.get("recolor_class") is False]
-        hdr = "%-30s %-20s %6s %5s %5s  %s" % ("FUNCTION", "UNIT", "INSNS",
-                                               "EXPL", "SCR", "CLASS")
+        hdr = "%-30s %-20s %6s %5s %5s %6s  %s" % (
+            "FUNCTION", "UNIT", "INSNS", "EXPL", "SCR", "FRAME", "CLASS")
         print(hdr)
-        print("-" * 110)
+        print("-" * 120)
         for r in results:
-            print("%-30s %-20s %6s %5s %5s  %s"
+            if r.get("frame_delta"):
+                frame = "%+d" % r["frame_delta"]
+            elif r.get("frame_delta") == 0:
+                frame = "="
+            else:
+                frame = "?"
+            print("%-30s %-20s %6s %5s %5s %6s  %s"
                   % (str(r.get("function"))[:30],
                      str(r.get("unit") or "").replace("game/", "")[:20],
                      r.get("t_insns"), r.get("explained_pct"),
-                     r.get("n_scratch_diffs"), r.get("classification")))
+                     r.get("n_scratch_diffs"), frame,
+                     r.get("classification")))
+        stack = [r for r in results if r.get("stack_layout")]
         print("\nrecolor class %d | schedule class %d | consistent recolor %d"
+              " | STACK_LAYOUT %d"
               % (len(rec), len(sch),
-                 sum(1 for r in rec if r.get("consistent_recolor"))))
+                 sum(1 for r in rec if r.get("consistent_recolor")),
+                 len(stack)))
+        if stack:
+            print("  FRAME: %d row(s) carry a frame-size difference, which is"
+                  " STACK_LAYOUT and outside BOTH classes this tool splits."
+                  " Rank a schedule queue on mnemonic divergences AND this"
+                  " column, or stack work rides in wearing a schedule label"
+                  " (2 of 9 rows did, claim.CT_schedule-class-tier-2-"
+                  "remeasured-live-with-pin-and-frame-columns.20260903.v1):"
+                  % len(stack))
+            for r in stack:
+                print("    %s::%s  target %s vs ours %s (%+d)"
+                      % (r.get("unit"), r.get("function"),
+                         r.get("target_frame"), r.get("ours_frame"),
+                         r.get("frame_delta")))
         print("wrote %s" % out)
         return 0
 
