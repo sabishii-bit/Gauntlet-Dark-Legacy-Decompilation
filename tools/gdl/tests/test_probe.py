@@ -1253,6 +1253,60 @@ class ReplanHintTests(unittest.TestCase):
         self.assertEqual(replan_hint(1), replan_hint(1, slot_class=False))
 
 
+class NamedBankTests(unittest.TestCase):
+    """Run-42 item 3. The rolling snapshot is ONE slot that every banking
+    verdict overwrites, so a multi-axis lane had nowhere to keep the base it
+    meant to come back to — SA hand-rolled scratch copies and then had to
+    fix LastWriteTime by hand, because Copy-Item preserves mtime and ninja
+    then serves a stale object as if it were live."""
+
+    def test_a_named_bank_has_its_own_path(self):
+        source = Path("src/game/mb/mb_camera.c")
+        plain = probe.snapshot_path("game/mb/mb_camera", source)
+        named = probe.snapshot_path("game/mb/mb_camera", source, "axis-a")
+        self.assertNotEqual(plain, named)
+        self.assertIn("__axis-a", named.name)
+        self.assertEqual(".c", named.suffix)
+
+    def test_two_names_are_two_banks(self):
+        source = Path("src/game/mb/mb_camera.c")
+        self.assertNotEqual(
+            probe.snapshot_path("game/mb/mb_camera", source, "a"),
+            probe.snapshot_path("game/mb/mb_camera", source, "b"))
+
+    def test_the_flag_value_reads_both_spellings(self):
+        self.assertEqual("x", probe.flag_value(["--bank", "x"], "--bank"))
+        self.assertEqual("x", probe.flag_value(["--bank=x"], "--bank"))
+        self.assertIsNone(probe.flag_value(["--no-bank"], "--bank"))
+        self.assertIsNone(probe.flag_value([], "--bank"))
+
+    def test_a_tag_that_would_escape_the_gate_directory_is_refused(self):
+        """The tag becomes a FILENAME. Normalising it instead would let
+        `--bank a/b` and `--bank a_b` be one bank under two spellings,
+        which is how a lane restores the wrong base."""
+        for bad in ("a/b", "../x", "a b", "-x", "", "." * 5 + "/etc"):
+            tag, error = probe.validate_tag(bad, "--bank")
+            self.assertIsNone(tag, bad)
+            self.assertTrue(error, bad)
+
+    def test_a_normal_name_is_accepted_unchanged(self):
+        for good in ("before-declswap", "axis_2", "v1.2", "a"):
+            tag, error = probe.validate_tag(good, "--bank")
+            self.assertEqual(good, tag)
+            self.assertIsNone(error)
+
+    def test_no_flag_is_not_an_error(self):
+        self.assertEqual((None, None), probe.validate_tag(None, "--bank"))
+
+    def test_restore_counts_as_a_revert_for_the_transient_pin_bank(self):
+        """--restore takes the --revert path, so it must sit on the same
+        side of the transient-pin decision or a restore would consume a
+        bank the revert path means to keep."""
+        self.assertFalse(keep_consumes_transient_bank(["--restore", "a"]))
+        self.assertFalse(keep_consumes_transient_bank(["--restore=a"]))
+        self.assertTrue(keep_consumes_transient_bank(["--no-bank"]))
+
+
 class RescoreGuardTests(unittest.TestCase):
     BASE = {"best_real": 48, "best_multiset": 4, "last_real": 65,
             "last_insns": "T116/O115", "last_multiset": 3,

@@ -94,6 +94,21 @@ docstring omitted it — the flags below all work):
                      reporting the discarded probe (--no-rebuild skips)
   --revert-baseline  restore the SESSION's first banked baseline, then
                      rebuild the object for the same reason
+  --bank NAME        write a NAMED snapshot of the current source that no
+                     verdict overwrites, and return without building. The
+                     rolling snapshot is ONE slot and every banking verdict
+                     takes it, so a lane exploring several axes off one base
+                     had nowhere to keep that base: SA hand-rolled scratch
+                     copies and then had to fix LastWriteTime by hand,
+                     because Copy-Item preserves mtime and ninja serves a
+                     STALE object as if it were live (AGENTS discipline 7).
+  --restore NAME     restore a named bank and re-score, through the ordinary
+                     --revert path: function-scoped by default,
+                     --whole-file for all-or-nothing, with the same
+                     stale-restore guard, transient-pin restore and
+                     pin-drift warning
+  --list-banks       the named banks for this unit, with the commit each was
+                     banked at
   --no-bank          score without banking (diagnostic probes)
   --raw              score the pre-webfrank compiler output (pinned TUs)
   --rederive-pin     one call: build the raw body object, run
@@ -322,11 +337,67 @@ def source_path(unit):
     return None
 
 
-def snapshot_path(unit, source):
+def snapshot_path(unit, source, tag=None):
     slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", unit)
-    path = Path(f"build/{VERSION}/gate/snap_{slug}{source.suffix}")
+    name = f"snap_{slug}" + (f"__{tag}" if tag else "")
+    path = Path(f"build/{VERSION}/gate/{name}{source.suffix}")
     path.parent.mkdir(parents=True, exist_ok=True)
     return path
+
+
+# Run-42 item 3. The rolling snapshot is ONE slot and every banking verdict
+# overwrites it, so a lane exploring several axes off one base has nowhere
+# to keep the base: SA hand-rolled scratch copies and then had to touch
+# LastWriteTime by hand, because `Copy-Item` preserves mtime and ninja
+# served a STALE object as if it were live (AGENTS.md discipline 7).
+# Named banks are the same machinery with a name, and they are never
+# overwritten by a verdict — only by an explicit re-bank of that name.
+_TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,39}$")
+
+
+def flag_value(argv, name):
+    """`--name VALUE` or `--name=VALUE` from argv, or None."""
+    for index, arg in enumerate(argv):
+        if arg == name:
+            return argv[index + 1] if index + 1 < len(argv) else ""
+        if arg.startswith(name + "="):
+            return arg[len(name) + 1:]
+    return None
+
+
+def validate_tag(tag, flag):
+    """The tag, or a refusal message — never a silently-normalised name.
+
+    A tag becomes a FILENAME, so a slash or a shell metacharacter in it
+    would write outside the gate directory. Normalising it instead would
+    let `--bank a/b` and `--bank a_b` be one bank under two spellings,
+    which is how a lane restores the wrong base.
+    """
+    if tag is None:
+        return None, None
+    if not tag or tag.startswith("-"):
+        return None, f"{flag} needs a NAME (e.g. `{flag} before-declswap`)"
+    if not _TAG_RE.match(tag):
+        return None, (f"{flag}: {tag!r} is not a usable bank name — letters,"
+                      " digits, _ . - only, starting with a letter or digit,"
+                      " 40 characters max. The name becomes a filename and is"
+                      " never normalised, so two spellings can never be one"
+                      " bank.")
+    return tag, None
+
+
+def list_named_banks(unit, source):
+    """[(tag, path)] for this unit's named banks, oldest name first."""
+    slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", unit)
+    gate = Path(f"build/{VERSION}/gate")
+    if not gate.is_dir():
+        return []
+    out = []
+    for path in sorted(gate.glob(f"snap_{slug}__*{source.suffix}")):
+        tag = path.name[len(f"snap_{slug}__"):-len(source.suffix)]
+        if tag:
+            out.append((tag, path))
+    return out
 
 
 def git_head():
@@ -608,13 +679,18 @@ def keep_consumes_transient_bank(argv):
     """Should a KEEP drop this TU's transient pin bank? (run-38 item 5)
 
     False on a revert invocation: --revert / --revert-baseline / --discard
-    re-score through the same keep path, and their own consumer
+    / --restore re-score through the same keep path, and their own consumer
     (wf_rederive_pin.restore_transient) deliberately KEEPS the bank when
     it emitted notes — "resolve these, then delete it by hand". Dropping
     it from the keep path would overrule that instruction.
+
+    `--restore NAME` (run-42 item 3) takes the same path as `--revert` and
+    belongs on the same side of this decision; it also carries a VALUE, so
+    it is matched by prefix rather than by equality.
     """
     return not any(flag in argv for flag in
-                   ("--revert", "--revert-baseline", "--discard"))
+                   ("--revert", "--revert-baseline", "--discard")) and not any(
+        arg == "--restore" or arg.startswith("--restore=") for arg in argv)
 
 
 def drop_transient_pins(unit, why):
@@ -3389,6 +3465,58 @@ def main():
         if "--no-rebuild" not in sys.argv:
             rebuild_after_restore(unit, "--discard")
         return 0
+    # NAMED BANKS (run-42 item 3). The rolling snapshot is one slot that
+    # every banking verdict overwrites, so a multi-axis lane had nowhere to
+    # keep the base it wanted to come back to; SA hand-rolled scratch copies
+    # and then had to fix LastWriteTime by hand. `--bank NAME` writes a
+    # snapshot no verdict will overwrite; `--restore NAME` takes the ordinary
+    # revert path against it, so the stale-restore guard, the transient-pin
+    # restore, the pin-drift warning and the re-score all apply unchanged.
+    bank_tag, bank_error = validate_tag(
+        flag_value(sys.argv, "--bank"), "--bank")
+    restore_tag, restore_error = validate_tag(
+        flag_value(sys.argv, "--restore"), "--restore")
+    if bank_error or restore_error:
+        print(bank_error or restore_error)
+        return 1
+    if "--list-banks" in sys.argv:
+        if source is None:
+            print(f"no src source found for {unit}")
+            return 1
+        banks = list_named_banks(unit, source)
+        if not banks:
+            print(f"no named banks for {unit} (`--bank NAME` writes one)")
+            return 0
+        for tag, path in banks:
+            meta = path.with_suffix(path.suffix + ".meta")
+            head = "unstamped"
+            if meta.exists():
+                try:
+                    head = (json.loads(meta.read_text(encoding="utf-8"))
+                            .get("head") or "unstamped")[:9]
+                except ValueError:
+                    head = "unreadable"
+            print(f"  {tag:<24} {path}  banked at {head}")
+        return 0
+    if bank_tag:
+        if source is None:
+            print(f"cannot bank: no src source found for {unit}")
+            return 1
+        snap = snapshot_path(unit, source, bank_tag)
+        existed = snap.exists()
+        shutil.copyfile(source, snap)
+        head = git_head()
+        if head:
+            snap.with_suffix(snap.suffix + ".meta").write_text(
+                json.dumps({"head": head}), encoding="utf-8")
+        snap.with_suffix(snap.suffix + ".pins").write_text(
+            json.dumps(webfrank_pin_hashes(unit), sort_keys=True),
+            encoding="utf-8")
+        print(f"{'re-banked' if existed else 'banked'} {source} as"
+              f" '{bank_tag}' -> {snap}. No verdict overwrites a named bank;"
+              f" `--restore {bank_tag}` brings it back and re-scores,"
+              " `--list-banks` lists them.")
+        return 0
     if "--revert-baseline" in sys.argv:
         if source is None:
             print(f"cannot revert: no src source found for {unit}")
@@ -3410,12 +3538,19 @@ def main():
         if "--no-rebuild" not in sys.argv:
             rebuild_after_restore(unit, "--revert-baseline")
         return 0
-    if "--revert" in sys.argv:
+    if "--revert" in sys.argv or restore_tag:
         if source is None:
             print(f"cannot revert: no src source found for {unit}")
             return 1
-        snap = snapshot_path(unit, source)
+        snap = snapshot_path(unit, source, restore_tag)
         if not snap.exists():
+            if restore_tag:
+                known = ", ".join(tag for tag, _p
+                                  in list_named_banks(unit, source))
+                print(f"cannot restore: no bank named '{restore_tag}' for"
+                      f" {unit}" + (f" (have: {known})" if known
+                                    else " (this unit has no named banks)"))
+                return 1
             print("cannot revert: no banked snapshot for this unit yet"
                   " (a BASELINE or IMPROVED probe banks one)")
             return 1
@@ -3425,16 +3560,20 @@ def main():
         # This used to run only when the .meta sidecar existed, which made
         # a missing stamp a silent PASS; it now fails closed in the shared
         # guard.
-        if guard_stale_restore(snap, source, "snapshot"):
+        snap_label = (f"bank '{restore_tag}'" if restore_tag
+                      else f"{fn}'s banked snapshot")
+        if guard_stale_restore(snap, source,
+                               f"bank '{restore_tag}'" if restore_tag
+                               else "snapshot"):
             return 1
         if snap.read_bytes() == source.read_bytes():
-            print("nothing to revert: the banked snapshot IS the current"
+            print(f"nothing to restore: {snap_label} IS the current"
                   " working tree (NEUTRAL probes bank too). If you want to"
                   " discard an uncommitted neutral edit, use git"
                   " (`git status` / `git checkout -- <file>`); re-scoring:")
         elif "--whole-file" in sys.argv:
             shutil.copyfile(snap, source)
-            print(f"reverted {source} to {fn}'s banked snapshot —"
+            print(f"restored {source} to {snap_label} —"
                   " --whole-file: uncommitted work on OTHER functions in"
                   " this TU since that bank is GONE; re-scoring:")
         else:
@@ -3455,13 +3594,13 @@ def main():
                 print(f"REFUSED (function-scoped revert): {err}")
                 return 1
             if new_text == cur_text:
-                print(f"nothing to revert INSIDE {fn}: the snapshot and the"
+                print(f"nothing to restore INSIDE {fn}: {snap_label} and the"
                       " working tree differ only elsewhere in this TU"
                       " (--whole-file would take those changes back too);"
                       " re-scoring:")
             else:
                 source.write_bytes(new_text.encode("latin-1"))
-                print(f"reverted {fn} to its banked snapshot — {notes};"
+                print(f"restored {fn} to {snap_label} — {notes};"
                       " re-scoring:")
         # A source revert does not restore webfrank.json; warn if a pin was
         # re-derived since this snapshot was banked (run 34 item 3).
@@ -3705,7 +3844,8 @@ def main():
                                    prev_tokens, prev_insns, prev_digest,
                                    digest, prev_data=prev_data, data=data,
                                    source_changed=source_changed,
-                                   reverted="--revert" in sys.argv)
+                                   reverted=("--revert" in sys.argv
+                                             or bool(restore_tag)))
         state["last_verdict"] = verdict
     # A run of edits that never reached codegen is a fact about the axis,
     # not about the spellings tried. Aggregate it and say so.
