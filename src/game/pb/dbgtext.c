@@ -418,11 +418,15 @@ s32 fn_800C03E0(s32 mode)
             ;
         }
         j = qline - 20;
-        for (k = 0, i = 0; k < 6; k++, i += 6) {
-            quad = MBNewTempQuad();
-            mbBlitCalcWidth(quad, (i + 30) * 8, 20, lbl_80348EF0);
-            mbBlitProject(quad, 2, j);
-            MBBlitSetColor(quad, 0xFFFFFF);
+        {
+            s32 tk;
+            s32 ti;
+            for (tk = 0, ti = 0; tk < 6; tk++, ti += 6) {
+                quad = MBNewTempQuad();
+                mbBlitCalcWidth(quad, (ti + 30) * 8, 20, lbl_80348EF0);
+                mbBlitProject(quad, 2, j);
+                MBBlitSetColor(quad, 0xFFFFFF);
+            }
         }
     }
 
@@ -508,11 +512,15 @@ s32 fn_800C03E0(s32 mode)
             qline += 8;
         }
         j = qline - 20;
-        for (k = 0, i = 0; k < 6; k++, i += 6) {
-            quad = MBNewTempQuad();
-            mbBlitCalcWidth(quad, (i + 30) * 8, 20, lbl_80348EF0);
-            mbBlitProject(quad, 2, j);
-            MBBlitSetColor(quad, 0xFFFFFF);
+        {
+            s32 tk;
+            s32 ti;
+            for (tk = 0, ti = 0; tk < 6; tk++, ti += 6) {
+                quad = MBNewTempQuad();
+                mbBlitCalcWidth(quad, (ti + 30) * 8, 20, lbl_80348EF0);
+                mbBlitProject(quad, 2, j);
+                MBBlitSetColor(quad, 0xFFFFFF);
+            }
         }
     }
 
