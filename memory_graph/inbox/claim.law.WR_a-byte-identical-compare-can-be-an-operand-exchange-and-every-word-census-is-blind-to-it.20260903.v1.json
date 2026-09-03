@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/webfrank.py::_compare_exchange_is_semantics_preserving",
+    "tools/gdl/webfrank.py::_value_equality_transfer",
+    "tools/gdl/tests/test_webfrank.py",
+    "tools/gdl/composed_census/wr_ve_derive.py"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A site of this shape where the CR field is read for ordering (a blt/bgt/bge/ble on the same field, an mcrf, an mfcr, a CR-logical) or is live at a function exit, and a rule closes it anyway: that would mean _compare_exchange_is_semantics_preserving is not enforcing the FE/FU restriction the law rests on, and the whole class is unsound. Equally falsifying: a case where the two transposed FPRs are NOT value-exchanged (the strict renaming would then have been right to refuse for a different reason) and a compare_exchanges declaration is accepted regardless. Both are checkable by reading webfrank.py's walk and by re-running tools/gdl/composed_census/wr_ve_derive.py on the cited functions.",
+  "id": "claim.law.WR_a-byte-identical-compare-can-be-an-operand-exchange-and-every-word-census-is-blind-to-it.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T03:48:22Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "WHEN A STRICT RECOLOR REFUSES AT AN OFFSET WHOSE WORD IS BYTE-IDENTICAL IN BOTH STREAMS, LOOK FOR AN fcmpu/fcmpo THERE AND REACH FOR value_equality_recolor's compare_exchanges BEFORE ANY OTHER HYPOTHESIS. Two functions closed on exactly this in run 42 and nothing else stood between them and byte-equality.\n\nTHE SHAPE. Two FPRs are transposed between the streams across a compare: the target loads value A into fX and B into fY, ours loads A into fY and B into fX, and the compare word itself - `fcmpu crD,fX,fY` - is THE SAME 32 BITS in both objects. The compare therefore reads its two operands exchanged at the VALUE level while differing in no bit at all.\n\nWHY EVERY CENSUS MISSES IT. wf_word_diff counts DIFFERING WORDS and this word is not one; fndiff --ops sees no cluster because the opcode streams are identical; regnorm pairs it and reports no renaming row. A lane screening candidates by differing-word count, by --ops clusters or by a best-fit register assignment will never nominate the site, yet it is what makes verify_consistent_recolor refuse - and the refusal message names the compare's own offset with a self-referential text that reads like a checker bug: `use of f1 does not correspond to f1 under the running renaming` (PlayerProcessPowerups +0xe68). Read that message as 'the two f1s are different values', not as a tool fault.\n\nWHY IT IS SOUND TO CLOSE. Exchanging fcmpu/fcmpo operands swaps the FL and FG bits of the result field and leaves FE (equal) and FU (unordered) untouched. So the rewrite is equivalence-preserving exactly when every consumer of that CR field reads only FE or FU and the field is dead at every exit - which is what webfrank's _compare_exchange_is_semantics_preserving walks and enforces, failing closed on an ordering branch, on mcrf/mfcr/any CR-logical, and on a field that escapes. It is a MACHINE proof, not a declaration: the rule declares the site, the walk decides it.\n\nMEASURED POPULATION. Run 42, screening the six functions the postprocessor work order named: 2 hits, both closed and both the LAST word standing. game/game/player::PlayerProcessPowerups +0xe68 - 24 differing words, 23 a strict renaming, the 24th this exchange (target loads lbl_803477AC into f0 and 224(r4) into f1, ours the reverse; the only cr0 consumer is `beq ->f08`). game/enemy/enemy::do_enemies +0x738 - 172 differing words, 171 a strict renaming, the 172nd this exchange (target `fcmpu cr0,f26,f0` against ours `fcmpu cr0,f0,f30`, the constant load at +0x734 byte-identical in both, the only consumer `beq ->7bc`). Two earlier instances were already shipped and proved the same way in combat::CameraSupervisor at +0x1d0 and +0x51c. The source side is closed by claim.law.SA_mwcc-canonicalises-commutative-float-operand-order-before-register-assignment.20260903.v1, which measured that swapping the operands in C does not move the emitted word - so the postprocessor is the correct home for this shape and a source lane should not spend probes on it."
+}

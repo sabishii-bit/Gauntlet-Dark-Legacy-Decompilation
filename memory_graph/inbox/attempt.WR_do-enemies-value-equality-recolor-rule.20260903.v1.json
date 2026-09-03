@@ -1,0 +1,29 @@
+{
+  "attempted_axis": "Execute the MANDATORY STEP-1 hypothesis of attempt.SB_do-enemies-neighbour-statement-closes-entry-schedule-window.20260902.v1 verbatim - 'run copy_register_fields and verify_consistent_recolor over the 172 renaming rows and author a WebFrank recolor pin' - and serve the WZ group-B refusal row at +0x738 at its current state.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 and claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 SCREENED and SATISFIED (568/568). claim.law.unpaired-schedule-words-bar-webfrank-candidacy-not-just-its-permute-stage.20260831.v1 SCREENED and SATISFIED - SB's own regnorm run reports 0 unpaired, which is precisely what made the function eligible. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED: the diagnosis came from the aligned fnasm view and the raw word count, never from --ops. claim.law.fndiff-measures-the-postprocessed-object-so-webfrank-pins-fake-stale-solved.20260831.v1 APPLIED - every measurement is from the RAW .postprocess/body object. claim.law.SA_mwcc-canonicalises-commutative-float-operand-order-before-register-assignment.20260903.v1 APPLIED: it is why the +0x738 operand order is not reachable from source, which is what makes the postprocessor the right home for it. claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED as a consequence: do_enemies' source in src/game/enemy/enemy.c is now frozen, and so is any static helper it inlines.",
+    "laws_applied": "[\"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\", \"claim.law.SA_mwcc-canonicalises-commutative-float-operand-order-before-register-assignment.20260903.v1\", \"claim.law.fndiff-measures-the-postprocessed-object-so-webfrank-pins-fake-stale-solved.20260831.v1\"]",
+    "probed_form": "No source edit. config/GUNE5D/webfrank.json only: a new rule in the game/enemy/enemy unit block with `copy_register_fields: true` plus `value_equality_recolor` carrying one compare_exchange {\"at\": \"0x738\", \"bank\": \"f\", \"ours\": [0,30], \"target\": [26,0]} and no substitutions.",
+    "residual": "NONE at the text level. THE REFUTATION: SB's hypothesis stated that do_enemies 'is now a machine-checkable pure renaming bisimulation' and named verify_consistent_recolor as the verifier to run, with the cheapest refuting observation being 'verify_consistent_recolor refusing on any of the 172 rows'. That observation FIRED. The strict proof refuses at +0x738 and the function needed verify_value_equality_recolor with one declared comparison exchange. The refutation is narrow and the record's DIAGNOSIS was otherwise exact: 171 of 172 rows are a strict position-consistent renaming, the class was right, and one word was not a renaming at all. SB's second flagged row, the +0x138 `lfd f1` binding lbl_803468D0 in the target and an anonymous pool entry in ours, was also checked: the words already agree, wf_word_diff reports RELOC-SYMBOL MISMATCH = 0, the rule touches no relocation, and fndiff --clean classifies the surviving rows as pool-name noise (2 POOL-KIND-EQUAL, 1 RENAME). It is not an open residual.",
+    "scope": "config/GUNE5D/webfrank.json only, commit 8963b2a8c. src/game/enemy/enemy.c byte-unchanged.",
+    "verification": "tools/gdl/composed_census/wr_ve_derive.py game/enemy/enemy do_enemies -> BYTE-EQUAL after 1 refusal round. Aligned view at the escape, from `fnasm.py game/enemy/enemy.c do_enemies 0x720:0x760 --diff`: +0x734 `lfs f0,0(0) @lbl_803447D8(EMB_SDA21)` is byte-IDENTICAL in both streams, +0x738 target `fcmpu cr0,f26,f0` against ours `fcmpu cr0,f0,f30`, +0x73c `beq ->7bc` identical. configure.py then ninja -j2 -> `build/GUNE5D/main.dol: OK`. fndiff --clean -> `MATCH (pool-name noise only), 0 real diff lines (+6 pool-name lines suppressed) HINT: suppressed pool rows: 2 POOL-KIND-EQUAL, 1 RENAME`. defake_gate baseline + check game/enemy/enemy.c -> GATE OK. Progress 67.31% -> 67.52% matched, 2724 -> 2725 functions; STRICT HELD at 56.63%, EQUIVALENT 10.68% -> 10.90%. FORCED FULL REPLAY (webfrank.py mtime touched, full ninja): every shipped rule replayed, main.dol OK."
+  },
+  "coverage_range": "0x0:0x8e0 - the whole 568-instruction body; the rule's proof runs over every word.",
+  "function": "function:do_enemies",
+  "id": "attempt.WR_do-enemies-value-equality-recolor-rule.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T03:44:40Z",
+  "refutes": "attempt.SB_do-enemies-neighbour-statement-closes-entry-schedule-window.20260902.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "opcode streams identical (568/568); RAW DIFFERING WORDS = 172 VERBATIM: `game/enemy/enemy::do_enemies (raw postprocess body): 568 insns, DIFFERING WORDS = 172, MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0, PINNED = no`"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "RUN: copy_register_fields (172 words changed), verify_consistent_recolor (REFUSED at +0x738), verify_value_equality_recolor (PROVED, 0 substitutions + 1 comparison exchange), _compare_exchange_is_semantics_preserving (discharged it), verify_relocation_binding (not reached - no permutation stage), and the whole rule through the real apply_patch (BYTE-EQUAL). NOT RUN and why: instruction_permutation - zero unpaired/displaced words, so nothing to move; equivalent_copy_form / mask / zero forms - MNEMONIC DIVERGENCE is 0, no opcode differs; unproven_recolor_audit - deliberately not used.",
+  "windows_tried": "None. No permutation window was tried or is present: the streams are index-aligned with zero displaced atoms."
+}

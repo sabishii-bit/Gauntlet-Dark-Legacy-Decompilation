@@ -791,6 +791,28 @@
     ],
     "game/enemy/enemy": [
     {
+      "function": "do_enemies",
+      "before_sha256": "e23d8d5165fb2b4882b259880ced46d62ffde2a296836e5326c73cbebce9c692",
+      "after_sha256": "496689ed51b163f65a163060bac8bb9f600d98b449beb7c4102c606d67ef568d",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 568
+      },
+      "mechanism": "Executes the MANDATORY STEP-1 hypothesis of attempt.SB_do-enemies-neighbour-statement-closes-entry-schedule-window.20260902.v1 verbatim ('run copy_register_fields and verify_consistent_recolor over the 172 renaming rows and author a WebFrank recolor pin'), which also supplies the source-exhaustion provenance together with attempt.DE_do-enemies-schedule-window-and-group-swap.20260901.v1 (three probed_form axes, typed denial on the declaration-order lever) and attempt.do-enemies-store-reassociation-closure.20260831.v1. Measured run 42 at c117e66da: 568/568, opcode streams identical, `wf_word_diff.py game/enemy/enemy.c do_enemies` reports 172 DIFFERING WORDS, MNEMONIC DIVERGENCE 0, RELOC-SYMBOL MISMATCH 0. The residual is the whole-function callee-saved permutation SB named: GPR {r28,r29,r30} permuted between the streams and an FPR mirror over f25..f31. 171 of the 172 words are proved by the strict position-consistent renaming; the record's prediction that verify_consistent_recolor alone would carry the function is REFUTED by one word. At +0x734 both streams load lbl_803447D8 into f0 with a byte-identical instruction, and at +0x738 the target writes `fcmpu cr0,f26,f0` where ours writes `fcmpu cr0,f0,f30` - our f30 holds what the target's f26 holds, so the compare reads its operands exchanged. cr0's only consumer is the `beq ->7bc` at +0x73c; the operand exchange swaps FL and FG and leaves FE and FU untouched, and _compare_exchange_is_semantics_preserving discharges that mechanically. substitutions is empty. SB's other flagged row, the +0x138 `lfd f1` binding lbl_803468D0 in the target and an anonymous pool entry in ours, is a relocation-SYMBOL difference on words that already agree; this rule does not touch relocations and the row is outside wf_word_diff's mismatch count (reset_sel_menu precedent).",
+      "copy_register_fields": true,
+      "value_equality_recolor": {
+        "audit": "One escape, declared: the fcmpu at +0x738 reads its two operands exchanged because the compared pair is homed in f26/f0 in the target and f0/f30 in ours. No substitutions.",
+        "compare_exchanges": [
+          {
+            "at": "0x738",
+            "bank": "f",
+            "ours": [0, 30],
+            "target": [26, 0]
+          }
+        ]
+      }
+    },
+    {
       "function": "fn_8004646C",
       "before_sha256": "d3c3b670d3014fb59e53dc22a081e1138f6465c05f8efba0b89608975bd96f4a",
       "after_sha256": "6d8e2555909caaf2424c4834bfff7efd8fba1ecb64379f06ea23f278056e4ff4",
@@ -2400,6 +2422,28 @@
     ],
     "game/game/player": [
       {
+        "function": "PlayerProcessPowerups",
+        "before_sha256": "73c976e4194563f573fee3236fea8b3bb4acafb3e2dde638e006b89a57a4e11d",
+        "after_sha256": "014f9cc6ad27f4d6b04d53947335184b485fe6eed5315b5d20db26e98a7c21de",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 1598
+        },
+        "mechanism": "claim.SA_playerprocesspowerups-tier-block-is-a-bijective-scratch-permutation-rule-request.20260903.v1 is the rule request; its source-exhaustion provenance is attempt.SA_playerprocesspowerups-volatile-half-is-a-bijective-scratch-permutation.20260903.v1 (eight literal probed_form axes, five of them aimed at the tier block, plus a typed denial with six negative probes covering the callee-saved half) superseding attempt.SA_playerprocesspowerups-pool-literal-and-propagation-drive.20260902.v1 (four further axes). Measured run 42 at c117e66da: 1598/1598 instructions, opcode multiset IDENTICAL, `wf_word_diff.py game/game/player.c PlayerProcessPowerups` reports 24 DIFFERING WORDS, MNEMONIC DIVERGENCE 0, RELOC-SYMBOL MISMATCH 0. Twenty-three of the 24 are a position-consistent renaming and are proved by the strict transfer function that the value-equality mode runs at every word: the tier-colour prologue at +0xdc0..+0xdf0 (five scratch values in a single 5-cycle target->ours, atree r4->r5, level/tier r3->r6, the constant 10 r0->r4, p->index r6->r0, lbl_80282930@ha r5->r3, all dead where the streams re-converge at +0xdf4), the seven-word r22<->r24 second-lifetime transposition at +0xcfc/+0xd1c/+0xd28/+0xd34/+0xd54/+0xd5c/+0xd8c, the f2-versus-f0 scratch pair at +0x20/+0x30, and the commutative fadd operand rotation at +0x3a4 (target `fadd f1,f1,f5`, ours `fadd f1,f5,f1`), which _recolor_transfer's own commutative pairing accepts. The 24th word is the single declared escape. At +0xe50 the target loads the sdata2 constant lbl_803477AC into f0 and ours into f1; at +0xe64 the target loads 224(r4) into f1 and ours into f0; the fcmpu at +0xe68 is `fcmpu cr0,f1,f0` BYTE-IDENTICAL in both streams and therefore reads its two operands exchanged. Exchanging fcmpu operands swaps FL and FG and leaves FE and FU untouched, and cr0's only consumer here is the `beq ->f08` at +0xe6c, so the equality test is unaffected; _compare_exchange_is_semantics_preserving discharges that obligation mechanically by walking every reader of the field and requiring an FE/FU branch plus deadness at every exit. substitutions is empty: no use outside the strict renaming is accepted anywhere in the function. Also note for a later lane that the +0xe50 relocation binds the named lbl_803477AC in the target and an anonymous pool entry in ours; the reloc KIND and the words agree, so it is outside this rule and outside wf_word_diff's mismatch count.",
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "One escape, declared: the fcmpu at +0xe68 reads its two operands exchanged because +0xe50 and +0xe64 load the compared values into the opposite FPRs. No substitutions - every other use is accepted by the strict position-consistent renaming inside the wider mode.",
+          "compare_exchanges": [
+            {
+              "at": "0xe68",
+              "bank": "f",
+              "ours": [1, 0],
+              "target": [1, 0]
+            }
+          ]
+        }
+      },
+      {
         "function": "do_exit",
         "before_sha256": "772104548cfbb3ebfefe259ddf28643f95feb001d59d7b5a2c7638635b742ebf",
         "after_sha256": "36f50d1902a47b902613c774154160a3d553704b091d225272edbec4027f9ba3",
@@ -2760,6 +2804,47 @@
       }
     ],
     "game/world/tower": [
+    {
+      "function": "towerRecordLevelBeaten",
+      "before_sha256": "dda97de53294f292329500ea5431063e5e04863eee8cb8d0bba78fa64f776d19",
+      "after_sha256": "c7f8f50089473e521ec6248b36daf4752b75c8a207628402acfc6e40b22964b0",
+      "audit": {
+        "classification": "REGISTER_ONLY",
+        "instructions": 79,
+        "permuted_instructions": 2
+      },
+      "mechanism": "Source-exhaustion provenance: attempt.NM_towerrecordlevelbeaten-store-order-and-decl-order-are-both-unreachable.20260902.v1 (three probed_form axes and a typed denial whose scope explicitly leaves the postprocessor path unscreened) and attempt.ES_tower-record-level-beaten-store-order-is-not-source-order.20260903.v1 (a fourth, held_fixed to the statement order alone, NEUTRAL-IDENTICAL: the two stores never reach the scheduler as an ordered pair). Measured run 42 at c117e66da: 79/79, opcode multiset IDENTICAL, `wf_word_diff.py game/world/tower.c towerRecordLevelBeaten` reports 25 DIFFERING WORDS, MNEMONIC DIVERGENCE 0, RELOC-SYMBOL MISMATCH 0. Two of the 25 are the entry store pair the two source records failed to move: the target emits `stw r31,@lbl_803448AC` then `stw r30,@lbl_803448A8` at +0x20/+0x24 and ours emits them in the opposite order, so it is a two-atom PERMUTATION and not a renaming at all - permuting our window [0x20,0x28) with order [1,0] carries both relocations with their atoms and lands both words byte-exact on the target before the register stage runs. The window is a store/store pair, so check_permutation_dependences refuses it under the default single-memory-resource model ('permutation changes the final write of mem, which is live after the region'); it is admitted only by the declared memory_disambiguation, which proves through the split map that the two accesses are 4-byte writes to .sbss 0x803448A8 and 0x803448AC, disjoint and therefore non-aliasing. The remaining 23 words are the loop-body scratch renaming NM diagnosed (target reusing the dead lvl register r7 for the constant 1 where ours spends r11) and they are proved by verify_consistent_recolor in its STRICT form - no value_equality_recolor escape and no unproven audit. That REFUTES the per-function prediction NM carried from claim.RC_block-rotation-population-census-run-39.20260902.v1, which measured this function's best-fit assignment at 80.0% of callee-saved pairs with 30 scratch divergences and concluded the strict proof would refuse; the census's prediction is wrong here because the two-word obstruction is a permutation the census had no way to model. real 48 -> 0.",
+      "instruction_permutation": [
+        {
+          "start": "0x20",
+          "end": "0x28",
+          "order": [1, 0],
+          "before_sha256": "aea222fbee687c1b51e797507bfdf7288a82a719e2cddd32ccfc4f6d375485cc",
+          "after_sha256": "735edfd5298eb7039d780cb4609a7adf671f031b8d546348d23c199b8c9dd0c2",
+          "before_relocations_sha256": "4079e46799f9e68db656733ba2e4ae34765d7e1a70a252931672ae5de08d9713",
+          "after_relocations_sha256": "17923ca9084067a1b64aa963e6251982b60d620857bf19e6caadc52feabbe226"
+        }
+      ],
+      "memory_disambiguation": {
+        "locations": [
+          {
+            "at": "0x20",
+            "symbol": "lbl_803448A8",
+            "section": ".sbss",
+            "address": "0x803448A8",
+            "width": 4
+          },
+          {
+            "at": "0x24",
+            "symbol": "lbl_803448AC",
+            "section": ".sbss",
+            "address": "0x803448AC",
+            "width": 4
+          }
+        ]
+      },
+      "copy_register_fields": true
+    },
     {
       "function": "TowerCheckMessages",
       "before_sha256": "ee9590da37daff4a371cb53c1ddcd353cb27677a23074b619f32d861cc433778",
