@@ -204,28 +204,6 @@ EH_SECTIONS = ("extab", "extabindex", ".extab", ".extabindex",
                ".eh_frame", ".gcc_except_table")
 
 
-def data_section_digests(objfile):
-    """{section: sha1[:12]} over the object's NON-TEXT sections, or None.
-
-    The per-TU DATA baseline (run 34 item 1). defake_gate scores only .text
-    (fndiff over the instruction stream), so a source change that widens a
-    function's callee-saved save area silently DESTROYS its TU's .extab
-    match while every per-function verdict IMPROVES
-    (claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match). The
-    snapshot already banks per-function text signatures; this banks the TU's
-    non-text sections alongside them so `check` can flag a data-section
-    change as its own verdict class. None when the object or objdump is
-    unavailable — a missing measurement never manufactures a verdict.
-    """
-    if not objfile.exists():
-        return None
-    dump = subprocess.run([str(fndiff.OBJDUMP), "-s", str(objfile)],
-                          capture_output=True, text=True)
-    if dump.returncode != 0:
-        return None
-    return parse_section_digests(dump.stdout)
-
-
 def parse_section_digests(dump):
     """{section: sha1[:12]} over an `objdump -s` dump, .text* excluded.
 
@@ -248,33 +226,182 @@ def parse_section_digests(dump):
     return {n: h for n, h in out.items() if not n.startswith(".text")}
 
 
+# The chunked form datadiff.py has used since run 34, not a looser one: the
+# ASCII gutter objdump prints after the hex can itself look like hex ("abcd"),
+# and only the fixed 8-or-9-char chunking keeps it out of the bytes.
+HEX_ROW_RE = re.compile(r"^ ([0-9a-f]+) ((?:[0-9a-f ]{8,9}){1,4})")
+
+
+def parse_section_bytes(dump):
+    """{section: bytes} over an `objdump -s` dump, .text* excluded.
+
+    Pure text -> dict, so the byte accounting below is testable without an
+    object file or a toolchain.
+    """
+    out, cur = {}, None
+    for line in dump.splitlines():
+        head = SECTION_HEAD_RE.match(line.strip())
+        if head:
+            cur = head.group(1)
+            out[cur] = bytearray()
+            continue
+        if cur is None:
+            continue
+        row = HEX_ROW_RE.match(line)
+        if row:
+            hexpart = row.group(2).replace(" ", "")
+            if len(hexpart) % 2:
+                hexpart = hexpart[:-1]
+            out[cur] += bytes.fromhex(hexpart)
+    return {n: bytes(b) for n, b in out.items() if not n.startswith(".text")}
+
+
+# Sections that are not MATCHED DATA and must stay out of the accounting.
+# `.comment` is the toolchain's own version string and `.note.split` is dtk's
+# split annotation, present only on the target side: measured on
+# zlib/inflate.c they contributed 292/316 and 0/244 to an otherwise 495/500
+# picture, which is the kind of noise that trains a reader to ignore a number.
+def is_scored_data(name):
+    return not (name == ".comment" or name.startswith(".note"))
+
+
+def matched_data_bytes(ours, target):
+    """How many of a section's bytes we get RIGHT: {section: (matched, size)}.
+
+    `size` is the TARGET section's length, so a section our object does not
+    emit at all counts its whole size as lost rather than vanishing from the
+    accounting. Sections only WE emit contribute 0/0 and show up as an
+    unclaimed-bytes row instead of silently scoring 100%.
+    """
+    out = {}
+    for name in sorted(set(ours) | set(target)):
+        a, b = ours.get(name, b""), target.get(name, b"")
+        out[name] = (sum(1 for x, y in zip(a, b) if x == y), len(b))
+    return out
+
+
+def data_section_digests(objfile, targetfile=None):
+    """Per-section state for the DATA baseline: sha, size, matched bytes.
+
+    The per-TU DATA baseline (run 34 item 1). defake_gate scores only .text
+    (fndiff over the instruction stream), so a source change that widens a
+    function's callee-saved save area silently DESTROYS its TU's .extab
+    match while every per-function verdict IMPROVES
+    (claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match). None
+    when the object or objdump is unavailable — a missing measurement never
+    manufactures a verdict.
+
+    Run-46 item 3. The run-34 form banked a DIGEST per section, so `check`
+    could say "something moved" and then hand the lane a prose instruction to
+    go arbitrate by hand. A keep that destroyed 144 bytes of matched Data
+    passed every text arbiter that way. A digest cannot be subtracted; a byte
+    count can, so the baseline now banks the count too and `check` prints the
+    DELTA. The digest is kept for change DETECTION (it catches a permutation
+    that preserves the matched-byte count).
+    """
+    if not objfile.exists():
+        return None
+    dump = subprocess.run([str(fndiff.OBJDUMP), "-s", str(objfile)],
+                          capture_output=True, text=True)
+    if dump.returncode != 0:
+        return None
+    digests = {n: d for n, d in parse_section_digests(dump.stdout).items()
+               if is_scored_data(n)}
+    ours = {n: b for n, b in parse_section_bytes(dump.stdout).items()
+            if is_scored_data(n)}
+    target = {}
+    if targetfile is not None and Path(targetfile).exists():
+        tdump = subprocess.run([str(fndiff.OBJDUMP), "-s", str(targetfile)],
+                               capture_output=True, text=True)
+        if tdump.returncode == 0:
+            target = {n: b for n, b in
+                      parse_section_bytes(tdump.stdout).items()
+                      if is_scored_data(n)}
+    scores = matched_data_bytes(ours, target) if target else {}
+    out = {}
+    for name, sha in digests.items():
+        row = {"sha": sha, "size": len(ours.get(name, b""))}
+        if name in scores:
+            row["matched"], row["target_size"] = scores[name]
+        out[name] = row
+    for name, (matched, size) in scores.items():
+        if name not in out and size:
+            out[name] = {"sha": None, "size": 0,
+                         "matched": matched, "target_size": size}
+    return out
+
+
+def _section_row(entry):
+    """(sha, matched, target_size) from either baseline format.
+
+    Pre-run-46 baselines banked a bare digest string; those still detect a
+    change, they just cannot price it.
+    """
+    if isinstance(entry, str):
+        return entry, None, None
+    if isinstance(entry, dict):
+        return entry.get("sha"), entry.get("matched"), entry.get("target_size")
+    return None, None, None
+
+
 def data_section_verdicts(base_entry, cur_entry):
     """DATA-CHANGED verdict rows for moved non-text sections, or [].
 
     Its own verdict class: score-invisible to every per-function row, so it
-    neither passes nor fails the gate on its own — it ORDERS an arbitration
-    (a full `ninja` PROGRESS 'Data:' comparison) the per-function verdicts
-    cannot. None on either side (a baseline taken before this feature, or an
-    unmeasured object) yields no row rather than a false alarm.
+    neither passes nor fails the gate on its own. When BOTH sides carry the
+    run-46 byte accounting it now prices the change in matched DATA BYTES
+    per section plus a net — the number the lane would otherwise have gone
+    to a full `ninja` PROGRESS 'Data:' line to get. None on either side (a
+    baseline taken before this feature, or an unmeasured object) yields no
+    row rather than a false alarm.
     """
     base = (base_entry or {}).get("data")
     cur = (cur_entry or {}).get("data")
     if not isinstance(base, dict) or not isinstance(cur, dict):
         return []
     moved = sorted(n for n in set(base) | set(cur)
-                   if base.get(n) != cur.get(n))
+                   if _section_row(base.get(n))[0]
+                   != _section_row(cur.get(n))[0]
+                   or _section_row(base.get(n))[1]
+                   != _section_row(cur.get(n))[1])
     if not moved:
         return []
     eh = [n for n in moved if n in EH_SECTIONS]
-    detail = ("non-text section(s) " + ", ".join(moved) + " changed — every"
-              " per-function verdict here scores .text ONLY and is blind to"
-              " these bytes")
+    priced, net, unpriced = [], 0, []
+    for name in moved:
+        _, bm, bt = _section_row(base.get(name))
+        _, cm, ct = _section_row(cur.get(name))
+        if bm is None or cm is None:
+            unpriced.append(name)
+            continue
+        delta = cm - bm
+        net += delta
+        priced.append(f"{name} {bm}->{cm} of {ct if ct is not None else bt}"
+                      f" ({delta:+d} B)")
+    if priced:
+        detail = ("matched DATA bytes: " + "; ".join(priced)
+                  + f". NET {net:+d} B of matched Data")
+        if net < 0:
+            detail += (" — THIS KEEP DESTROYS MATCHED DATA and every"
+                       " per-function verdict here scores .text ONLY")
+        elif net > 0:
+            detail += " gained (invisible to every per-function verdict)"
+    else:
+        detail = ("non-text section(s) " + ", ".join(moved) + " changed — every"
+                  " per-function verdict here scores .text ONLY and is blind to"
+                  " these bytes")
+    if unpriced:
+        detail += ("; unpriced section(s) " + ", ".join(unpriced)
+                   + " (baseline predates the run-46 byte accounting — re-take"
+                   " it to price them)")
     if eh:
         detail += ("; exception-table section(s) " + ", ".join(eh)
                    + " moved (the all-or-nothing extab-loss signature — a"
                    " widened callee-saved save area is the usual cause)")
-    detail += (". Arbitrate with a full `ninja` PROGRESS 'Data:' comparison"
-               " (or `datadiff.py <unit> --sections`) before committing")
+    if not priced:
+        detail += (". Arbitrate with a full `ninja` PROGRESS 'Data:'"
+                   " comparison (or `datadiff.py <unit> --sections`) before"
+                   " committing")
     return [("__sections__", "DATA-CHANGED", detail)]
 
 
@@ -1421,7 +1548,9 @@ def measure_unit(unit, arbiter=None):
         # sections, banked under a reserved key so `compare` can flag a
         # score-invisible data-section change (a lost .extab match) as its
         # own verdict class. Kept out of every per-function loop above.
-        data_sections = data_section_digests(objfile)
+        targetfile = Path(
+            f"build/{VERSION}/obj/{re.sub(r'[.](c|cpp)$', '', unit)}.o")
+        data_sections = data_section_digests(objfile, targetfile)
         if data_sections is not None:
             snap["__sections__"] = {"data": data_sections}
     # Genuine structural rows for every function `real` calls imperfect —
@@ -1551,8 +1680,20 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         print(f"baseline: {nfns} functions ({exact} at real 0) -> {path}")
         secs = (snap.get("__sections__") or {}).get("data")
         if secs:
-            print(f"  DATA baseline: {len(secs)} non-text section(s)"
-                  f" digested ({', '.join(sorted(secs))})")
+            priced = {n: _section_row(e) for n, e in secs.items()}
+            have = {n: r for n, r in priced.items() if r[1] is not None}
+            if have:
+                total_m = sum(r[1] for r in have.values())
+                total_t = sum(r[2] or 0 for r in have.values())
+                print(f"  DATA baseline: {len(secs)} non-text section(s),"
+                      f" {total_m}/{total_t} matched bytes"
+                      + "".join(f"; {n} {r[1]}/{r[2]}"
+                                for n, r in sorted(have.items())))
+            else:
+                print(f"  DATA baseline: {len(secs)} non-text section(s)"
+                      f" digested ({', '.join(sorted(secs))}) — NOT priced"
+                      " (no target object to compare against, so `check` can"
+                      " only report that they moved)")
         print(f"  {fuzzy_note}")
         print(f"  anchored to commit {(meta.get('head') or '?')[:9]},"
               f" source sha1 {(meta.get('source_sha1') or '?')[:9]}"
@@ -1627,11 +1768,25 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         print(f"{label:10} {name}  {text}")
     data_changed = [v for v in verdicts if v[1] == "DATA-CHANGED"]
     if data_changed:
-        print("NOTE: DATA-CHANGED — a non-text section moved; NO per-function"
-              " verdict here can see it. A frame-widening keep can improve"
-              " every .text arbiter while destroying its TU's .extab match."
-              " Arbitrate with a full `ninja` PROGRESS 'Data:' comparison"
-              " before committing.")
+        priced = any("NET " in v[2] for v in data_changed)
+        if priced:
+            # Run-46 item 3: the row above now carries the byte delta, so
+            # this note says what to DO with it instead of ordering the
+            # measurement the row already made.
+            print("NOTE: DATA-CHANGED — the byte delta above is matched DATA"
+                  " this keep gains or destroys, and NO per-function verdict"
+                  " here can see it (they score .text only). A negative net"
+                  " is a regression even when every .text arbiter improves"
+                  " (claim.law.WS_frame-widening-silently-breaks-the-tus-"
+                  "extab-match).")
+        else:
+            print("NOTE: DATA-CHANGED — a non-text section moved; NO"
+                  " per-function verdict here can see it. A frame-widening"
+                  " keep can improve every .text arbiter while destroying its"
+                  " TU's .extab match. This baseline predates the run-46 byte"
+                  " accounting, so the change is UNPRICED: re-take the"
+                  " baseline to get the delta, or arbitrate with a full"
+                  " `ninja` PROGRESS 'Data:' comparison before committing.")
     if conflicts and not regressions and arbitrate:
         # Log BEFORE the two return paths below so an accepted override is
         # recorded whether or not the baseline is re-anchored.
