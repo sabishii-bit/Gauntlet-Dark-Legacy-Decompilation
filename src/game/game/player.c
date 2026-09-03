@@ -1599,7 +1599,7 @@ void start_magic(s32 pnum, f32* pos, u32 flags, s32 mode, f32 power_scale) {
         mode = 0;
     }
     if (mode >= 2) {
-        pw = (f32)(-1.5 * (f64)p->throw_str + 5.0);
+        pw = (f32)(1.5 * (f64)p->throw_str + 5.0);
 
         vel[0] = p->mat[8];
         vel[1] = p->mat[9];
@@ -2561,12 +2561,12 @@ void PlayerProcessScale(void* vp) {
         p->pulse_7FC = (f32)PlayerScaleMultiply(s, &lbl_803478E8);
         av = p->pulse_7FC;
         *(u32*)&av &= 0x7FFFFFFF;
-        if (av < 0.01) {
+        if (av < 0.05) {
             zero = 0.0f;
             ambientScale = zero;
             p->pulse_7FC = zero;
         }
-        MBTreeSetAmbientAdd(p->node, (s32)(100.0 * ambientScale), 1);
+        MBTreeSetAmbientAdd(p->node, (s32)(255.0 * ambientScale), 1);
     }
     if (PF(p, 0x7DC, f32) > 0.0f) {
         PF(p, 0x95A, s16) = 1;
@@ -2644,7 +2644,7 @@ static void do_exit(void* vp, s32 dest) {
         {
             s32 skin = lbl_80344BEC;
             f32* fx = (f32*)((u8*)p + 0x7DC);
-            SetSkinFX(1.5f, fx, skin, 10, 1);
+            SetSkinFX(0.4f, fx, skin, 10, 1);
         }
     }
     t = exitPlayer->exit_timer - gFrameTicks;
@@ -2690,7 +2690,7 @@ static s32 do_weakening(Player* p, s32 active) {
     if (p->health < 1.0) {
         return -1;
     }
-    if (active != 0 && p->health <= 150.0f) {
+    if (active != 0 && p->health <= 200.0f) {
         t = p->heartbeat_timer - gFrameTicks;
         p->heartbeat_timer = t;
         if (t <= 0) {
@@ -2699,7 +2699,7 @@ static s32 do_weakening(Player* p, s32 active) {
             }
             if (p->health >= 100.0f) {
                 p->heartbeat_timer = 0x78;
-            } else if (p->health >= 50.0f) {
+            } else if (p->health >= 25.0f) {
                 p->heartbeat_timer = 0x3C;
             } else {
                 p->heartbeat_timer = 0x1E;
@@ -3227,7 +3227,7 @@ static inline void restore_inactive_player(s32 i) {
     f32 cap;
 
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
-        cap = 0.5 * (p->level - 1) + 30.0;
+        cap = 100.0 * (p->level - 1) + 500.0;
         if (cap > 9999.0f) {
             cap = 9999.0f;
         }
@@ -3372,7 +3372,7 @@ void remove_player_geo(s32 i) {
         p->field_A14 = NULL;
     }
     if (p->field_A14 != NULL && *(u32*)((u8*)p->field_A14 + 0x78) != 0) {
-        ErrorPrintf("mikey objgrp OBJ NODE HAS KIDS AFTER ALL REMOVED\n");
+        ErrorPrintf("mikey_objgrp OBJ NODE HAS KIDS AFTER ATREEDELETE");
     }
     /* orphan any remaining children back onto the world */
     if (p->node != NULL && *(u32*)(p->node + 0x78) != 0) {
@@ -3386,7 +3386,7 @@ void remove_player_geo(s32 i) {
     AtreeDelete((void**)((u8*)p + 0x7C));
     if (p->node != NULL) {
         if (p->node != NULL && *(u32*)(p->node + 0x78) != 0) {
-            ErrorPrintf("PLAYER OBJ NODE HAS KIDS AFTER ALL REMOVED\n");
+            ErrorPrintf("PLAYER OBJ NODE HAS KIDS AFTER ATREEDELETE");
         }
         MBRemoveNode(p->node, 1);
         p->node = NULL;
@@ -3457,7 +3457,7 @@ void clear_player(s32 i, s32 full) {
     } else {
         p->gold = 0;
     }
-    p->health = 100.0f;
+    p->health = 500.0f;
     p->runes = 0;
     p->shards = 0;
     PF(p, 0x334C, s32) = 0;
@@ -3600,7 +3600,7 @@ void load_player(s32 i) {
         cp->level = lvl;
         set_player_default_atts(cp);
         check_player_atts(cp, cp->character, NULL);
-        cp->health = 0.5 * (lvl - 1) + 30.0;
+        cp->health = 100.0 * (lvl - 1) + 500.0;
     }
     zero = 0;
     p->node = NULL;
@@ -3766,7 +3766,7 @@ s32 PlayerLoadSaveFile(s32 i, s32 slot) {
     do {
         ok = saveLoad(p->cardFile, p->cardDirectory, p->cardSlot,
                       &p->image, size);
-        if (ok == 0 && memCardErrorPrompt("Game load failed...") == 0) {
+        if (ok == 0 && memCardErrorPrompt("Game load failed !!") == 0) {
             break;
         }
     } while (ok == 0);
@@ -3797,7 +3797,7 @@ s32 PlayerWriteSaveFile(s32 i, s32 slot) {
     do {
         ok = saveSave(p->cardFile, p->cardDirectory, p->cardSlot,
                       &p->image, sizeof(p->image));
-        if (ok == 0 && memCardErrorPrompt("Game save failed...") == 0) {
+        if (ok == 0 && memCardErrorPrompt("Game save failed !!") == 0) {
             break;
         }
     } while (ok == 0);
@@ -3819,7 +3819,7 @@ void PlayersRestoreHealth(void) {
         }
         chartype = p->character;
         if (chartype == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
-            cap = 0.5 * (p->level - 1) + 30.0;
+            cap = 100.0 * (p->level - 1) + 500.0;
             if (cap > 9999.0f) {
                 cap = 9999.0f;
             }
@@ -3836,7 +3836,7 @@ void PlayerRestoreState(s32 player) {
     f32 cap;
 
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
-        cap = 0.5 * (p->level - 1) + 30.0;
+        cap = 100.0 * (p->level - 1) + 500.0;
         if (cap > 9999.0f) {
             cap = 9999.0f;
         }
@@ -3887,14 +3887,14 @@ void player_get_from_save(void* vp, s32 type) {
         *(PlayerSaveImage*)((u8*)p + offsetof(Player, pad_1ECC)) =
             *(PlayerSaveImage*)((u8*)p + offsetof(Player, name));
         p->class_id = 0;
-        ATT_FIGHT(p) = 0.9f;
-        ATT_ARMOR(p) = 0.9f;
-        ATT_MAGIC(p) = 0.9f;
-        ATT_SPEED(p) = 0.9f;
+        ATT_FIGHT(p) = 999.0f;
+        ATT_ARMOR(p) = 999.0f;
+        ATT_MAGIC(p) = 999.0f;
+        ATT_SPEED(p) = 999.0f;
         PlayerUpdateAtts(p);
         p->level = 99;
         p->exp = 0x54218;
-        cap = 0.5 * (p->level - 1) + 30.0;
+        cap = 100.0 * (p->level - 1) + 500.0;
         if (cap > 9999.0f) {
             cap = 9999.0f;
         }
@@ -4878,7 +4878,7 @@ void setup_player_models(void) {
         void* arena;
 
         free0 = BytesFree();
-        bulletproof_printf("Player %d -- MEM %d\n", i, free0);
+        bulletproof_printf("    Player %d... MEM=%d\n", i, free0);
         sprintf(tbuf, "PLAYER %d", i);
         s = &player_multiple_models[i];
         arena = MBOX_AllocModelMem(s->model_max, (s32)s->arena_max, tbuf);
@@ -5836,8 +5836,8 @@ void AppendItemToLevel(f32 x, f32 y, f32 z, char* name, u32 flags) {
     appended_item_template.count = 9;
     appended_item_template.active = 1;
     appended_item_template.pad0A = 0;
-    appended_item_template.scale = 0.6f;
-    appended_item_template.radius = 0.5f;
+    appended_item_template.scale = 0.5f;
+    appended_item_template.radius = 2.0f;
     appended_item_template.pos[0] = 0.0f;
     appended_item_template.pos[1] = 0.0f;
     appended_item_template.rot[1] = 0.0f;
@@ -6100,7 +6100,7 @@ s32 player_get_powerup_state(f32 dt, void* vp, s32 type, u32 mask) {
 void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) {
     PlayerPowerupOverlay* overlay = vp;
     Player* p = vp;
-    f32 best = 1000000.0f;
+    f32 best = -2.0f;
     f32 str;
     f32 w;
     s32 j;
@@ -6114,7 +6114,7 @@ void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) 
                 overlay->powerups[j].attributeadd += duration;
             }
             if (overlay->powerups[j].timeleft >= 0.0f && str > 0.0) {
-                overlay->powerups[j].timeleft += 0.25 * str;
+                overlay->powerups[j].timeleft += 0.5 * str;
             } else if (str < 0.0) {
                 overlay->powerups[j].timeleft = str;
             }
@@ -6128,9 +6128,9 @@ void PlayerAddPowerup(f32 duration, f32 strength, void* vp, s32 type, u32 mask) 
     for (j = 0; j < 11; j++) {
         w = overlay->powerups[j].timeleft;
         if (w < 0.0f) {
-            w = (overlay->powerups[j].type == type) ? 999999.0f : 1000000.0f;
+            w = (overlay->powerups[j].type == type) ? -1.0f : -2.0f;
         }
-        if (best == 2000000.0 || w == 0.0 || (w >= 0.0 && w < best)) {
+        if (best == -2.0 || w == 0.0 || (w >= 0.0 && w < best)) {
             best = w;
             pick = j;
         }
@@ -6207,10 +6207,10 @@ void check_player_atts(void* vp, s32 chartype, f32* stats) {
 
     index = p->index;
     if (p->character == 2 && HIDDEN_CODE(p) == lbl_80343D6C) {
-        ATT_FIGHT(p) = 0.9f;
-        ATT_ARMOR(p) = 0.9f;
-        ATT_MAGIC(p) = 0.9f;
-        ATT_SPEED(p) = 0.9f;
+        ATT_FIGHT(p) = 999.0f;
+        ATT_ARMOR(p) = 999.0f;
+        ATT_MAGIC(p) = 999.0f;
+        ATT_SPEED(p) = 999.0f;
         return;
     }
     if (stats == NULL) {
