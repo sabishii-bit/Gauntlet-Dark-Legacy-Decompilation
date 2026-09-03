@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "game/enemy/critter::CritterGolemAI, first probe of attempt.NM_crittergolemai-ternary-arm-order-and-minus-one-web-split.20260903.v1, measured at commit 0dda4ddc6 with probe.py/fndiff --ops and the aligned fnasm --diff view. The same `<empty then-arm> ; b ; label: assign` layout was independently read in the target of game/enemy/critter::CritterGetTargetPlayers's damage-ratio clamp during the same run, so the shape recurs; only the CritterGolemAI instance was closed.",
+    "tags": [
+      "matching",
+      "switch-form",
+      "decl-order"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function where inverting the ternary's arms leaves the object bytes unchanged (probe.py NEUTRAL-IDENTICAL), or where the target's three-instruction `branch ; b ; label: li` form survives an inversion that already spells the register-reusing arm second. Re-run: `python tools/gdl/fnasm.py game/enemy/critter CritterGolemAI 0xf0:0x108 --diff`, which must show the four rows equal at HEAD.",
+  "id": "claim.law.NM_ternary-arm-order-decides-which-arm-mwcc-leaves-empty.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T01:52:00Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "For a select whose two arms are `<the value already in a register>` and `<a small constant>`, MWCC coalesces the arm that reuses the existing register into NOTHING and emits the layout `<branch-if-cond-true> ->TRUE_ARM ; <empty false arm> ; b ->END ; TRUE_ARM: <li>` - one branch MORE than the collapsed form. Which arm ends up empty follows the SOURCE order of the ternary operands, not the semantics, so `c ? 0 : v` and `!c ? v : 0` are NOT interchangeable at the object level: the first emits `bge ->END ; li rD,0` (2 insns) and the second emits `blt ->TRUE ; b ->END ; TRUE: li rD,0` (3 insns). When a target shows the three-instruction form and ours shows the two-instruction one, invert the ternary rather than probing register or schedule levers. Measured on game/enemy/critter::CritterGolemAI: rewriting `c->curmove < 0 ? 0 : c->curmove` as `c->curmove >= 0 ? c->curmove : 0` made 0xf0-0x104 byte-identical, took the opcode-multiset delta from 4 tokens to 1 and the regnorm genuine structural row count from 1 to 0, and raised fresh objdiff fuzzy 98.5874 -> 98.9963."
+}

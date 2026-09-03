@@ -1,0 +1,20 @@
+{
+  "attributes": {
+    "provenance": "One instance measured end-to-end this run: game/boss/bosscam::CamLimitPlayerDpos, probe 3 of 6 (attempt.NM_camlimitplayerdpos-compared-constant-reuse-closes-it-exact.20260903.v2). Baseline real 36 / fuzzy 95.1788 at commit 7300fe688; after the named-temporary edit real 8 / fuzzy 95.8411; the function subsequently closed byte-exact. The population of the shape image-wide has NOT been censused - that census is the cheap next step for a sweep lane (grep for `} else if (<var> > *(volatile ...)&<sym> && ...) { <var> = <sym>; }`).",
+    "tags": [
+      "matching",
+      "register-web",
+      "cse"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function where the second clamp arm is already spelled as the named compared temporary and our build still keeps the earlier constant load alive across both arms (aligned `fnasm --diff` showing our second-arm assignment sourced from the first load's register), or a case where introducing the named temporary leaves the object bytes unchanged (probe.py NEUTRAL-IDENTICAL) - either would show the coalescing is not source-driven. Re-run: `python tools/gdl/fnasm.py game/boss/bosscam CamLimitPlayerDpos 0x1b0:0x1f0 --diff` at HEAD, which must now be byte-identical.",
+  "id": "claim.law.NM_a-clamp-arm-must-assign-the-value-it-compared.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T01:51:59Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "In a two-armed clamp of the form `if (x < LO) x = LO; else if (x > HI) x = HI;` where LO/HI are the SAME memory constant read twice (one read forced by a volatile-cast scaffold), MWCC coalesces the assignment's source with the register that held the value the comparison used - but only when the source SPELLS them as one value. If the second arm's assignment names the constant symbol again rather than the temporary just compared, our build keeps the FIRST arm's constant load alive across both arms to serve it; that live range occupies one extra FPR and shifts every register home in the surrounding block up by one, which reads in `--ops` as a pure register-colour cascade with an IDENTICAL opcode multiset and hides its own cause. The cure is to name the compared value: `{ f32 t = <the compared read>; if (x > t && ...) x = t; }`. Measured on game/boss/bosscam::CamLimitPlayerDpos: real 36 -> 8 and fuzzy 95.1788 -> 95.8411 in one probe, collapsing an f0-f7 colouring to the target's f0-f6 with no count or multiset change. SCREEN: whenever an aligned view shows our stream reusing an EARLIER constant load where the target reuses the one loaded immediately before the comparison (target `fmr fD,f0` from the second load vs ours `fmr fD,f1` from the first), this is the cause, not register pressure."
+}
