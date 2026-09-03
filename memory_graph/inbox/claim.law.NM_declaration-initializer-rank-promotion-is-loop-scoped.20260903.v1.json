@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py game/world/items.c AddItemInstList -- BASELINE real 10 at insns T100/O100; each of the three demotion forms measures real 36",
+    "tools/gdl/probe.py game/sound/sounds.c ShopMusicStart -- BASELINE real 10 at insns T50/O50; both anchoring forms measure real 25 at insns T50/O51 (the stated boundary)",
+    "tools/gdl/fnasm.py game/world/items.c AddItemInstList 0x14:0x60 --diff -- prints the callee-saved columns the ranking claim is read from",
+    "tools/gdl/composed_census/wf_word_diff.py game/world/items.c AddItemInstList -- 18 raw differing words, 13 mnemonic divergence, count parity 100/100"
+  ],
+  "attributes": {
+    "provenance": "attempt.NM_additeminstlist-index-form-induction.20260903.v1 (5 probed forms, all literal source in its probed_form) and attempt.NM_shopmusicstart-entry-address-materialisation.20260903.v1 (3 probed forms) -- run 42 CLOSE lane, work_claim.nearmiss-round-3.20260903.v1.",
+    "tags": [
+      "matching",
+      "index-form",
+      "entry-schedule",
+      "store-placement"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any counted-loop function in which moving a scalar's `= 0` from its declaration into the for-init leaves the callee-saved assignment UNCHANGED refutes the loop-scoped promotion. Cheapest check: pick a roster function whose loop counter is declaration-initialized, delete the initializer, add it to the for-init, and read the callee-saved columns of `fnasm <unit> <fn> --diff`; if the counter keeps its register the law is wrong. Conversely, a straight-line (loop-free) function in which a declaration initializer DOES promote a local above a later-declared one refutes the stated boundary.",
+  "id": "claim.law.NM_declaration-initializer-rank-promotion-is-loop-scoped.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T03:44:07Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "MWCC GC 1.2.5. In a function with a counted loop, the callee-saved allocation RANK of a scalar local follows the position of its first SURVIVING definition, not its declaration position -- and a declaration initializer is what puts that definition ahead of the loop-invariant address hoists MWCC creates in the loop preheader. MEASURED on AddItemInstList (src/game/world/items.c, 5 probes, 2026-09-03). With all five outer locals declaration-initialized, the ranking r30 downward is instances, i, instance_count, visible_sum_coins, instance_offset, then the two hoisted invariants &gIdentityMatrix and &sNewItemBadIndex at r25/r24 -- byte-identical to target. Removing ONLY the `= 0` from `i` and `instance_offset` and moving those stores into the for-init demotes BOTH below the hoists, to r25/r24, pushing every other web up one slot: measured real 10 -> 36. Re-declaring the same two inside an inner block wrapping the loop measures the SAME demotion and produces a BYTE-IDENTICAL object, so scope depth is not a separate lever. Writing the initializer at the declaration AND again in the for-init also measures 36 and the same object: MWCC deletes the dead declaration store and the rank follows the surviving one, which is the deciding observation -- the rank is not fixed at declaration-parse time. CONSEQUENCE for close-lane work: initializer POSITION and callee-saved RANK are one variable, not two, so a residual that needs a late-emitted counter init AND an early-ranked counter is not source-reachable by moving the initializer, and belongs to the instruction_permutation class instead. BOUNDARY, measured the same session and the reason this law is scoped to loops: on ShopMusicStart (src/game/sound/sounds.c) the promotion does NOT occur. There an explicit `char* buf` anchoring a repeated global address ranked BELOW the later-declared `int ch` (buf=r30, ch=r31, target is the reverse) whether it was written as a statement assignment or as a declaration initializer -- both forms produced byte-identical objects at real 25. That function has no loop and no preheader, so there are no loop-invariant hoists for a declaration initializer to rank ahead of, and the promotion this law describes has nothing to bite on. Do not carry the rule into straight-line functions."
+}

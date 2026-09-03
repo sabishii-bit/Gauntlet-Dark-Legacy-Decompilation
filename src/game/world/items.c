@@ -515,7 +515,6 @@ void AddItemInstList(void)
     s32 i = 0;
     s32 instance_count = gWorldInfo.niteminsts;
     s32 visible_sum_coins = 0;
-    s32 instance_offset = 0;
     u8 frame_pad[8];
     f32 matrix[16];
     u8 unused[4];
@@ -525,13 +524,12 @@ void AddItemInstList(void)
     gMaxItems = instance_count + 500;
     sItems = AllocMem(gMaxItems * sizeof(Item));
 
-    for (; i < instance_count; i++, instance_offset += sizeof(iteminst)) {
+    for (; i < instance_count; i++) {
         Item* item = NewItemPtr();
         iteminst* instance;
         Item* vis;
 
-        if ((instance = (iteminst*)((u8*)instances + instance_offset))
-                ->index < 0) {
+        if ((instance = &instances[i])->index < 0) {
             FatalError(sNewItemBadIndex, 0x800000);
         }
         CopyMat3(gIdentityMatrix, matrix);
