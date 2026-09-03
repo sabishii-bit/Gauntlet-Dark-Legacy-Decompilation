@@ -4583,12 +4583,29 @@ void CritterRotate(Critter *c, CritterMove *move)
 }
 /* 0x8003B1CC -- select the critter's current target/node and refresh the
  * world-space movement matrix used by the active move. */
+/* sCritterMoveNode: the animation node a move drives -- the move's own
+ * anode when it has one, else the critter's default anim node. */
+static inline void *sCritterMoveNode(Critter *c, s32 nodeIndex)
+{
+    void *node;
+
+    node = c->anim;
+    if (nodeIndex < 0) {
+        return node;
+    }
+    {
+        void *candidate = ((void **)((u8 *)c->anodes + nodeIndex * 0x28))[0];
+
+        if (candidate == NULL) {
+            candidate = node;
+        }
+        return candidate;
+    }
+}
+
 s32 CritterMoveSetup(Critter *c, CritterMove *move)
 {
     f32 *target;
-    void *node;
-    void *candidate;
-    s32 nodeIndex;
     s16 currentMove;
     s16 queuedTarget;
 
@@ -4617,17 +4634,7 @@ s32 CritterMoveSetup(Critter *c, CritterMove *move)
             c->emitter = NULL;
         }
 
-        nodeIndex = move->node;
-        node = c->anim;
-        if (nodeIndex >= 0) {
-            candidate = ((void **)((u8 *)c->anodes +
-                                   nodeIndex * 0x28))[0];
-            if (candidate == NULL) {
-                candidate = node;
-            }
-            node = candidate;
-        }
-        c->obj_d0 = node;
+        c->obj_d0 = sCritterMoveNode(c, move->node);
     }
 
     c->moveMatrix[0] = c->moveOrigin[0];

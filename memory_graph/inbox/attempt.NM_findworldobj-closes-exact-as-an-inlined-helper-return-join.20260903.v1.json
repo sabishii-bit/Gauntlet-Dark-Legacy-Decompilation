@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "Break the run-44 compensating pair (branch pair vs single-mr return join) by lifting the whole walk into a static inline helper whose exits are `return`s, so the branch pair comes from the LAW's return rule while the `mr r3,r31` join is the OUTER function's single `return <inline result>`.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 SCREENED and APPLIED -- but via its COROLLARY (lift the loop into a static helper that returns and let it inline), not via its primary form. The primary form (`return node;` written directly in FindWORLDOBJ) is exactly what the superseded record measured and rejected: it wins the branch half and loses the return join. The law's own FOLDS list (`if (c) goto A; goto B;`, `if (c) goto A; else goto B;`, empty-then diamond, `do{...}while(0)` break) ruled out the whole goto-spelling family without a probe, which is why only ONE probe was spent here. claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 SCREENED and not engaged (counts were T43/O42 before, exact after). claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 SCREENED: no dead locals remained in the rewritten body.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "PROBE 1 (KEPT, byte-exact on the FIRST probe). Replaced the goto-join body of FindWORLDOBJ with a helper defined immediately before it:\n\nstatic inline WorldObj* sFindWorldObj(WorldObj* node, char* name) {\n    s16 index;\n\n    while (node != 0) {\n        if (strcmp(name, node->desc) == 0) {\n            return node;\n        }\n        index = node->childidx;\n        if (index >= 0) {\n            WorldObj* r = FindWorldObject(&world_objects[index], name);\n            if (r != 0) {\n                return r;\n            }\n        }\n        index = node->nextidx;\n        if (index >= 0) {\n            node = &world_objects[index];\n        } else {\n            return 0;\n        }\n    }\n    return 0;\n}\n\nWorldObj* FindWORLDOBJ(char* name) {\n    return sFindWorldObj(world_objects, name);\n}\n\nThe `static inline` keyword is LOAD-BEARING and was added as a second step: with a plain `static` helper the object bytes of FindWORLDOBJ were already exact, but MWCC ALSO emitted a standalone sFindWorldObj body, and its exception record cost the TU 144 bytes of matched Data image-wide (ninja PROGRESS Data 177572 -> 177428, Game Code Data 66.06% -> 65.92%). With `static inline` the standalone body is not emitted, defake_gate stops reporting a NEW function, and Data returns to 177572 / 7.52%.",
+    "residual": "None. The superseded record's compensating pair is dissolved, not traded: its falsifier asked for a form holding `bne <search_children>; b <done>` at +0x2c AND `mr r3,r31` as the sole exit move, and the inlined-helper form delivers both, because the pair now comes from the INLINE's return lowering while the `mr` is the outer function's own single return. The corroborating free evidence, read before the probe and worth quoting: the already-matching sibling FindWorldObject (real 0, 72 insns) contains a SECOND, inlined copy of the same walk, and at its inline-return site (+0x64 `bne ->6c` / `b ->cc`) it carries the identical unfused pair -- i.e. the target object itself demonstrates that this TU's unfused pairs are inline-return joins.",
+    "scope": "src/game/world/world.c::FindWORLDOBJ only (plus the new file-local helper). game/world/world stays Object(NonMatching).",
+    "verification": "defake_gate.py baseline game/world/world --at-head anchored to commit b8b146891, source sha1 6272bd658 (23 functions, 19 at real 0). probe.py game/world/world FindWORLDOBJ --ops: BASELINE real 17 (insns T43/O42, multiset 3t, single cluster `replace T[11:13]@2c-34=['bne','b'] O[11:12]@2c-30=['beq']`) -> IMPROVED real 17 -> 0, insns exact, multiset 0t, FRESH objdiff fuzzy 97.4419% -> 100.0000%. TU-scope gate cross-checked against the anchored baseline: no byte-exact sibling lost. fndiff --clean: EXACT, 0 real diff lines; sibling FindWorldObject re-checked EXACT. datadiff.py game/world/world --sections reports only the TU's PRE-EXISTING .data/.sdata2 flip blockers (target 0x0 vs ours 0x38/0x58). Full `ninja -j2` prints `build/GUNE5D/main.dol: OK`. Image: STRICT 56.66% (2581 fns) -> 56.67% (2582 fns), EQUIVALENT 11.02% (151) unchanged, All matched 67.68% -> 67.70%, Data held at 177572 (7.52%). Commit 6bea67bf4 'Match FindWORLDOBJ'."
+  },
+  "function": "function:FindWORLDOBJ",
+  "id": "attempt.NM_findworldobj-closes-exact-as-an-inlined-helper-return-join.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T16:16:00Z",
+  "refutes": "attempt.NM_findworldobj-branch-pair-and-return-join-are-a-compensating-pair.20260903.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "no-residual: real 0, insns exact, multiset 0t"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.NM_findworldobj-branch-pair-and-return-join-are-a-compensating-pair.20260903.v1",
+  "valid_from": "2026-09-03"
+}

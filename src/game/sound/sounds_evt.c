@@ -1390,30 +1390,25 @@ void AudioMapDot(void)
     }
 }
 
+/* sSoundDataEntry: the sound record for an event index, or NULL when the
+ * index or the record's own sound id is unset. */
+static inline u8* sSoundDataEntry(int idx)
+{
+    if (idx >= 0) {
+        u8* e = *(u8**)(gWorldData + 44) + idx * 24;
+
+        if (*(s32*)(e + offsetof(struct sound_data, idx)) >= 0) {
+            return e;
+        }
+    }
+    return 0;
+}
+
 void AudioEnterNextStage(void)
 {
     struct audio_data* level = gCurLevel->audio;
-    int idx = level->entersnd;
-    u8* entry;
-    int entry_id;
+    u8* entry = sSoundDataEntry(level->entersnd);
 
-    if (idx < 0) {
-        goto invalid_entry;
-    }
-    entry = *(u8**)(gWorldData + 44) + idx * 24;
-    entry_id = *(int*)(entry + offsetof(struct sound_data, idx));
-    switch (entry_id) {
-    case 0:
-        goto valid_entry;
-    default:
-        if (entry_id < 0) {
-            goto invalid_entry;
-        }
-        goto valid_entry;
-    }
-invalid_entry:
-    entry = 0;
-valid_entry:
     if (entry != 0) {
         if (level->namesnd >= 0) {
             int sound_id = *(int*)(entry + offsetof(struct sound_data, idx));

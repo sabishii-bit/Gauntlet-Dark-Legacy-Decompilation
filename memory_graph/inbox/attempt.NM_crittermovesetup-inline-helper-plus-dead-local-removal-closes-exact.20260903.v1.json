@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Close the +0xd0 unfused branch pair by lifting the move-node selection into a static inline helper whose exits are `return`s, then close the frame-size delta the lift exposes by deleting the three locals the lift orphaned.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 SCREENED and APPLIED via its corollary. claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 SCREENED and APPLIED -- it is the law that named the second edit: after the lift the outer body still DECLARED `void *node; void *candidate; s32 nodeIndex;`, and MWCC kept nominal frame space for all three (frame target 32 vs ours 48). claim.law.real-can-underweight-a-large-alignment-gain SCREENED and was the reason the intermediate state was NOT read as a regression: probe's slot map showed 3T/3O exclusive slots and a 16-byte frame delta while `real` read 10, and the slot map -- not real -- named the remaining work. The prior park attempt.CT_crittermovesetup-residual-is-count-asymmetric-not-the-form-class.20260901.v2 is an UNGATED-PROSE-DENIAL (weak veto); its premise was re-measured live before editing (real 7, T77/O76) and its axis was the postprocessor form class, not the branch pair, so it does not cover this work.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\", \"claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1\"]",
+    "probed_form": "EDIT 1 (helper lift). Defined immediately before CritterMoveSetup:\n\nstatic inline void *sCritterMoveNode(Critter *c, s32 nodeIndex)\n{\n    void *node;\n\n    node = c->anim;\n    if (nodeIndex < 0) {\n        return node;\n    }\n    {\n        void *candidate = ((void **)((u8 *)c->anodes + nodeIndex * 0x28))[0];\n\n        if (candidate == NULL) {\n            candidate = node;\n        }\n        return candidate;\n    }\n}\n\nand the eleven-line node-selection block inside `if (c->movedone != 0)` replaced by:\n\n        c->obj_d0 = sCritterMoveNode(c, move->node);\n\nMeasured: opcode streams became IDENTICAL (77/77, multiset 0t) with the branch pair exact, but FIVE IMMEDIATE rows remained, ALL of them the frame words -- `stwu r1,-32` vs `-48`, `stmw r29,20` vs `36`, `lmw r29,20` vs `36`, `lwz r0,36` vs `52`, `addi r1,r1,32` vs `48`.\n\nEDIT 2 (dead-local removal), which is what took it to real 0. Declaration list:\n    f32 *target;\n    void *node;        <- deleted\n    void *candidate;   <- deleted\n    s32 nodeIndex;     <- deleted\n    s16 currentMove;\n    s16 queuedTarget;",
+    "residual": "None. WORKFLOW NOTE worth inheriting: this function's first probe of the session was taken AFTER edit 1 was already in the tree (the FIRST-BASELINE TRAP), so probe banked an edited state as the 'baseline' and its warning fired. The result was recoverable only because the pre-edit numbers were independently held by fndiff --ops and by defake_gate's anchored baseline -- which is the argument for taking `defake_gate.py baseline <unit> --at-head` on EVERY unit before the first edit, not only when probe asks for it.",
+    "scope": "src/game/enemy/critter.c::CritterMoveSetup plus the new file-local helper. game/enemy/critter stays Object(NonMatching).",
+    "verification": "defake_gate.py baseline game/enemy/critter --at-head anchored to commit 41340abd2, source sha1 413a927d2 (86 functions, 67 at real 0). Pre-edit residual re-measured live with fndiff --ops: target 77 insns, ours 76, `target-only: +1 b +1 bge / ours-only: -1 blt`, cluster `replace T[52:54]@d0-d8=['bge','b'] O[52:53]@d0-d4=['blt']`. After edit 1: real 10, T77/O77, multiset 0t, frame 32 vs 48. After edit 2: probe.py IMPROVED real 10 -> 0, insns exact, multiset 0t, FRESH objdiff fuzzy 100.0000%. defake_gate check game/enemy/critter --rebuild: `IMPROVED CritterMoveSetup real 7 -> 0`, GATE OK (1 improved), no sibling regressed. Full `ninja -j2` prints `build/GUNE5D/main.dol: OK`. Image: STRICT 56.69% (2583 fns) -> 56.72% (2584 fns), EQUIVALENT 11.02% (151) unchanged, All matched 67.71% -> 67.74%, Data held at 177572 (7.52%). Commit 70d475512 'Match CritterMoveSetup'."
+  },
+  "function": "function:CritterMoveSetup",
+  "held_fixed": "The `if (c->movedone != 0)` block's other statements (moveFlags/moveSfxFlags zeroing, the emitter teardown) and the function's tail (moveMatrix copy, GetWorldMat return) were held constant across both edits; the two edits varied the node-selection block and the declaration list respectively, and each was measured separately.",
+  "id": "attempt.NM_crittermovesetup-inline-helper-plus-dead-local-removal-closes-exact.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T16:17:07Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "no-residual: real 0, insns exact, multiset 0t"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
