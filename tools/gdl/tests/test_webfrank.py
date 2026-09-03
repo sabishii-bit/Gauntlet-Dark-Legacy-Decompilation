@@ -3623,8 +3623,9 @@ class CommutativeExchangeZeroFieldTests(unittest.TestCase):
         caught unsoundness, which is the correct direction for a guard.
 
     Each "delete X and it proves" above is measured, not asserted:
-    WP_scratch/wp_guard_two_sided.py prints the four bodies against the
-    shipped transfer and against one variant per deleted guard.
+    `python tools/gdl/composed_census/wp_guard_two_sided.py` prints the four
+    bodies against the shipped transfer and against one variant per deleted
+    guard.  Only two of the four flip, which is why that table exists.
     """
 
     #  0x0  li r30,0      /  li r28,0        the loop counter
