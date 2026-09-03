@@ -1032,6 +1032,17 @@
           "instructions": 106
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "PlaceItem",
+        "before_sha256": "acdf7e055bdbf9ba8c7688ec9f05b5d4baa786fef383f33ca28f89eb0632d230",
+        "after_sha256": "bd41cd5421951cd53ef355af8851a3a348dbb1087d2484d2c34d0df78f401983",
+        "mechanism": "Three-word allocator recolor over 71 instructions, opcode multiset identical and instruction counts equal at 71/71; every non-register bit, immediate, branch encoding and relocation already equal (wf_word_diff: DIFFERING WORDS = 3, MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0). The differing words are @0xb8 `add`, @0xd0 `addi`, @0xf8 `addi`, each a single GPR field where the target spells g29 and we spell g27: after the search loop the target re-uses dead `i`'s callee-saved register for the iteminfo pointer `d` while our build re-uses the dead &gWorldInfo.iteminfo base. Machine-proven: webfrank.verify_consistent_recolor establishes a position-consistent renaming bisimulation across the whole function CFG from the entry identity map, so the residual is a register-colouring choice with no source carrier; verify_datum_binding passes at full L3 strength against the retail image. SOURCE EXHAUSTION: attempt.NM_placeitem-search-loop-lifts-into-an-inlined-return-helper.20260903.v1 probed four declaration-order forms for `d` (two IMPROVED, one NEUTRAL-IDENTICAL proving `i` and `d` sit in different allocator classes that no reordering moves past each other, one REGRESSED) and carries the typed denial for the axis. Derived from the current raw compiler output and proven by replaying the finished patch through webfrank.apply_patch against the retail bytes.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 71
+        },
+        "copy_register_fields": true
       }
     ],
     "game/sys/memcard": [
