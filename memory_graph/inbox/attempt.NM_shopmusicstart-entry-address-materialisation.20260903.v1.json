@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Zero-record close-lane candidate (nearmiss real 10). Three forms of the one mechanism the residual names: give the repeated &sSpeechNameBuf address a source anchor early enough that MWCC materialises it at function entry instead of at first use.",
+  "attributes": {
+    "law_screen": "The TU's own header comment (src/game/sound/sounds.c lines 43-45) already names this residual: 'ShopMusicStart/Map - global scratch-buffer address scheduling'. Free-evidence-first per AGENTS.md residual-work discipline 4, and it is correct. claim.law.explicit-offset-accumulator-places-induction-updates-early / sizeof-defeats-loop-stride-induction: SCREENED, not applicable -- there is no loop and no induction variable in this function. claim.law.webfrank-pinned-function-source-freeze: SCREENED -- game/sound/sounds has exactly one pin (AudioAmbientUpdate); ShopMusicStart is not pinned and every probe was reverted, so no pin was disturbed. The ranking rule I derived on AddItemInstList this same session (a declaration initializer outranks a statement-assigned local) was APPLIED as an explicit prediction in probe 2 and MEASURED FALSE here -- see claim.law.NM_declaration-initializer-rank-promotion-is-loop-scoped.20260903.v1, which records the boundary.",
+    "probed_form": "PROBE 1 (real 10 -> 25, insns 50 -> 51): added `char* buf;` as the first declaration and `buf = (char*)sSpeechNameBuf;` as the first statement, ahead of `AudioKillBySound(0xC0000);`, rewriting all four consumers (two sprintf, AudioRegisterNameBanks, AudioFindSound) from `(char*)sSpeechNameBuf` to `buf`. PROBE 2 (real 25, byte-identical object): same, but as a declaration initializer -- `char* buf = (char*)sSpeechNameBuf;` with no assignment statement. PROBE 3 (real 25, byte-identical object): probe 2 wrapped in `#pragma opt_propagation off` before the function and `#pragma opt_propagation reset` after it, the scoped form this TU already uses around AudioBuildMusicName at lines 649/701.",
+    "residual": "10 real rows, ONE named mechanism. Target materialises &sSpeechNameBuf at function ENTRY, straddling the prologue: `lis r3,0 @sSpeechNameBuf(ADDR16_HA)` at +0x4 (before the `stwu`) and `addi r31,r3,0 @sSpeechNameBuf(ADDR16_LO)` at +0x14 (immediately AFTER `stmw r30,8(r1)`), giving r31 = buf and r30 = ch. Ours CSEs the same four uses into r31 correctly but materialises the pair late, at first use around +0x5c. HAZARD WORTH THE CAP, and the reason the obvious cure must not be banked: anchoring the address with an explicit local does move the materialisation to entry, but MWCC then schedules the LO `addi` into the pre-prologue gap where r30/r31 are not yet saved, so it lands in r0 (`addi r0,r3,0`) and needs a recovery `mr r30,r0` after the `stmw` -- costing one instruction, LOSING count parity 50/50 -> 51/50, and flipping the coloring to buf=r30 / ch=r31 (target is the reverse). Per probe.py's own class warning, a count-asymmetric residual is outside EVERY postprocessor class, so the 'improvement' would have traded a class-eligible baseline for a state no rule can finish. Baseline is strictly better and is what remains in the tree.",
+    "scope": "src/game/sound/sounds.c ShopMusicStart only; portable C; all three probes reverted with `git checkout --`, file restored byte-identical to HEAD and re-probed to confirm real 10 at insns T50/O50.",
+    "verification": "Baseline banked by probe.py before the first edit (real 10, insns T50/O50, multiset 0t, fresh objdiff fuzzy 91.9000%). Each probe measured by probe.py; the post-revert re-probe printed 'COUNT-PARITY GAINED insns T50/O51 -> T50/O50' and NEUTRAL real 10, confirming the restore. Full ninja -j2 green at the reverted state with build/GUNE5D/main.dol: OK. No commit -- nothing retained."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/probe.py game/sound/sounds.c ShopMusicStart -- if BASELINE no longer reads real 10 at insns T50/O50, the alignment has moved and these three forms are worth re-A/B-ing per the alignment-sensitivity rule.",
+    "falsifier": "Any source form that hoists the &sSpeechNameBuf materialisation to function entry while HOLDING insns at 50/50 refutes the cap. Specifically: an entry-materialised form in which the LO `addi` lands after the `stmw` (target position +0x14) rather than before the `stwu`, so no r0 carrier and no `mr` is needed.",
+    "premise_measurement": "probe.py game/sound/sounds.c ShopMusicStart: BASELINE real 10, insns T50/O50, multiset 0t, fresh fuzzy 91.9000%. All three probes measured real 25 at insns T50/O51 with opcode multiset DIFFERS, ours-only -1 mr, and the identical two clusters `insert T[3:3]@c-c=[] O[3:5]@c-14=['addi','lis']` / `replace T[5:7]@14-1c=['addi','lis'] O[7:8]@1c-20=['mr']`. All three built byte-identical objects.",
+    "scope": "The explicit-local anchoring mechanism on ShopMusicStart only -- three forms of one mechanism. It does NOT deny the function, and it does NOT deny a postprocessor route; the baseline holds count parity 50/50 and is class-eligible."
+  },
+  "function": "function:ShopMusicStart",
+  "held_fixed": "The four call sites that consume the address were held constant (all four rewritten to the same single spelling in every probe); only the DECLARATION/ASSIGNMENT form of the anchoring local and the surrounding pragma scope were varied.",
+  "id": "attempt.NM_shopmusicstart-entry-address-materialisation.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T03:43:52Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "constant-hoist",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset IDENTICAL (50/50); insns T50/O50; target-only lis+addi at entry, ours-only lis+addi at first use"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
