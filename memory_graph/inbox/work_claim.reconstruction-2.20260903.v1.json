@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "game/pb/pb_frame.c"
+    ],
+    "scope": "RECONSTRUCTION lane round 2: (1) pbFrameMode (pb_frame, real 253 after run 49's 391->253 - your own records: attempt.BG_pbframemode-the-tpl-copies-are-u64-gs-registers-and-the-env-copies-are-two-u32-structs.20260903.v1 + claim.law.BG_a-u64-copy-stores-the-high-word-first-a-two-u32-struct-copy-stores-in-field-order.20260903.v1); continue census-decomposition nearest-first; the aRWork compensating pair is INSEPARABLE (FT record) - do not retry; pb_frame closing = a flip candidate, so run the flip screen as step 0 if the TU completes. (2) Second target: pick the largest shaped residual from nearmiss --residuals at selection (structure columns, skip parked, skip TUs owned by run-50 claims; verify cluster lists at HEAD before trusting any inherited signature). Both are multi-session fns - land improvements, bank typed decompositions; count-parity changes categorical; fresh fuzzy per keep; aligned view before every hypothesis; 3-attempt cap per mechanism; pins screened; defake baseline per TU; extend owned_units at selection. Gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:pbFrameMode",
+  "id": "work_claim.reconstruction-2.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-BG",
+  "recorded_at": "2026-09-03T22:18:28Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}

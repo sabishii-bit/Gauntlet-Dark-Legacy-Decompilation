@@ -1,0 +1,18 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "src/dolphin/demo"
+    ],
+    "scope": "CUSTODIAL/INVESTIGATION lane (user-mandated): find what blocks speed and accuracy; observations w/ verbatim output; records for everything; edits ONLY in owned units. (1) DEMOInit .sbss OURS-LARGER: datadiff --sections --matching flags exactly one row image-wide - dolphin/demo/DEMOInit.c .sbss ours 0x28 vs target 0x20, an oversized section on an already-GREEN unit, the case the DOL-range byte check is structurally blind to (T19 handoff). Diagnose which object carries the extra 8 bytes and why the unit still links green; fix at source if reachable (unit must STAY green + retail sha1), else record the mechanism + whether other green units can hide the same shape. (2) drawMemCardMessage: attempt.MC_drawmemcardmessage-every-existing-class-refuses-including-value-equality.20260902.v1 is the ONE accepted record nobody can run the expiry check of (it names a dead scratch path); author the superseding record naming the shipped webfrank entry points so the denial is falsifiable again - record work only, no source edits. (3) REBUILD THE FLIP QUEUE under the step-0 doctrine (run 49: the flip pipeline is EMPTY, atree walled; claim.FQ_image-wide-flip-candidate-screen... v1): census every NonMatching TU's remaining open fns (report.json + fndiff --clean), rank by fns-remaining and residual tractability (structure columns, NOT raw real - see the write_health_and_items ranker defect), publish the roster as a claim record close lanes consume; name the 3 TUs closest to flip and what exactly blocks each. (4) savedregs-pin-flip TRIAGE: claim.law.T19_savedregs-default-read-reports-the-postprocessor-not-the-compiler-on-a-pinned-function.20260903.v1 - 84 of 156 pins FLIP the verdict under --raw; sweep accepted records/caps that cite savedregs output on pinned fns and list which rest on the postprocessor read (triage + record; re-derive only the cheapest 2-3 if decisive). (5) expiry-check sweep: run every accepted record's expiry_check that touches units changed in runs 48-49; report expired denials. NO score movement expected - say so; gate = 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:drawMemCardMessage",
+  "id": "work_claim.custodial-investigation.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CX",
+  "recorded_at": "2026-09-03T22:18:27Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}

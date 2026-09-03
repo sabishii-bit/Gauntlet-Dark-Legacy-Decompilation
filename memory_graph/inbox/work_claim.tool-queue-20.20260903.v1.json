@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "owned_units": [
+      "tools/gdl",
+      "memory_graph"
+    ],
+    "scope": "TOOL lane (owns tools/gdl + memory_graph except webfrank surfaces): run-49 queue; observations w/ verbatim output; two-sided calibration incl. expiry-check sweeps; one commit per item. (1) PROMOTE the two stranded scratch tools now that ownership is freed: FQ's image-wide flip-candidate screen (its run-49 records name the script; claim.FQ_image-wide-flip-candidate-screen-at-c8a28c3bb-has-exactly-one-candidate-and-it-is-walled.20260903.v1) and CV's scalar-datum sweep (CV's run-49 records name it) - each is the only tool of its kind and both lived only in lane scratch; re-derive from the records if the scratch dirs are gone (worktrees retired). (2) defake_gate: the fuzzy-arbitrates-real case (NC: a correct keep per claim.law.EN-equal-count-opcode-respell-must-be-arbitrated-on-fuzzy-not-real printed 'GATE FAILED: 1 regression(s)' - print the cached fuzzy pair beside the real row and emit GATE CONFLICT, not FAILED, when they disagree). (3) probe: a COUNT-PARITY LOST verdict on a -Cpp_exceptions TU is deterministically an extabindex loss - print the byte figure (NC measured -84 B only via defake_gate); ALSO datadiff --sections printed NOTHING AT ALL twice on that state - find and fix the empty-output path. (4) probe --arbitrate: after --discard + re-apply it refused ('the working tree IS the banked rolling snapshot') because the snapshot held an earlier probe's bytes - compare to the BUILT object, cost NC 2 extra --fuzzy calls. (5) nearmiss --residuals: real is contaminated by data-position rows (write_health_and_items ranked #2 at real 68 w/ 3 rows = an 840-byte rodata base offset; attempt.NC_write-health-and-items-real-is-dominated-by-an-840-byte-rodata-pool-offset.20260903.v1) - add a reloc-addend/pool column from the aligned view and rank on the codegen remainder. (6) brief: JOIN laws to residual signatures (BG: HealthMeterUpdate's cure sat in the corpus 5 days; the roster row and the law never met - laws --residual per roster row, in the brief output). (7) propose-record polish: --template with no arg prints the 7 template names not an argparse dump; laws_applied completes a missing date/version suffix against the corpus; Gate I offset-proximity window -> whole-record (NC lost a submission to each). (8) IMPORTABLE CORE: add the purity/no-I-O falsifier test (T19: test_importable_core.py checks names exist, not that they are pure; webfrank_pins reads webfrank.json). (9) chores: the 2 unowned flake8 rows (probe.py E305, datadiff.py E127); AGENTS: 17a extends to the HARNESS scratchpad (T19's msg1.txt was overwritten mid-run by a peer lane - lane-prefix all session-scratch filenames); AGENTS: records closing a defect get screened for what-else-has-this-shape (run-39 fixed probe --discard objects, run-49 fixed its state - same defect one layer apart, nobody noticed for 10 runs). Scoped tests between items; FULL suites per commit; ninja 'main.dol: OK'. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:TextHeightMLines",
+  "id": "work_claim.tool-queue-20.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-T20",
+  "recorded_at": "2026-09-03T22:18:27Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}
