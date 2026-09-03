@@ -154,8 +154,13 @@ annotation of an accepted record is still validated by `validate`/`build`):
    Two correct-alone negative parks that each failed to say what they held
    constant jointly hid a 7-function TU flip.
 
-`brief <tu>` leads with **OPEN 10b HYPOTHESES** (a recorded untried
-hypothesis is mandatory step 1, ranked above fresh analysis), then
+`brief <tu>` leads with **OPEN 10b HYPOTHESES** — rebalanced run 41: a
+record's DIAGNOSIS (which words, which registers, which offsets) transfers
+near-perfectly and verifying it is mandatory step 1; the record's named
+CURE is only the FIRST CANDIDATE, not a mandate (both one-day-old run-40
+cures were wrong while both diagnoses were exact; five mandated levers
+across runs 38-41 regressed or folded). Execute the diagnosis check, then
+treat the lever as one hypothesis among the levers the diagnosis suggests, then
 `vetoed_axes` (with `has_probed_form`: false = an unreproducible, weak veto),
 `refutations`, and `webfrank_pins` with a `provenance` class against the
 Mandatory-policy source-exhaustion bar. **Every number it prints is read from
@@ -429,7 +434,12 @@ one, and supersede the law if your target contradicts it.
    pinned window's relocation addends and abort the build. That is NOT
    a reason to park the upstream function — make the edit, re-derive
    the downstream pin, and verify its body hashes held. The upstream
-   freeze is a re-derivation chore, not a wall.
+   freeze is a re-derivation chore, not a wall. THIRD abort cause
+   (run 41, measured): editing the BODY of a shared static inline
+   helper changes the body hash of every pinned function that INLINES
+   it — the abort names the pinned inliner, not your helper. And a pool
+   renumber is not a wall either (run 40: one crossed five pinned
+   siblings and every name-bound pin replayed).
 16. **Prototype/extern disagreements: run `tools/gdl/abicheck.py`,
    not positional comparison.** PPC EABI assigns GPR and FPR args as
    independent sequences, so most positional "conflicts" are
@@ -1139,7 +1149,25 @@ each screen below costs one command and would have caught its lane):
   ways and steered two lanes.
 - **Calibrate every new gate/classifier against the live corpus before
   shipping it** (hard rule): a run-39 gate would have shipped at a 76%
-  false-positive rate; the census cost ~2 minutes.
+  false-positive rate; the census cost ~2 minutes. Run 41: calibration
+  changed four tool-queue items, and a prose screen keyed on record
+  BODIES was defeated by record IDS (every claim.law.* contains "claim")
+  — calibrate against ids too.
+- **An order proposing a LEVER must cite the last sweep of that lever**
+  — run 41: a "virgin territory" sweep premise was governed by seven
+  records from three days earlier that one search would have surfaced.
+- **An order naming a postprocessor class carries the two differing
+  words AND the decode verdict** — run 41: a class line inherited from a
+  family label was wrong for both customers, refutable in zero builds.
+- **Queue items state the OBSERVATION, never the cure** — run 41: three
+  of ten items stated cures that smuggled untested discriminants;
+  calibration refuted all three while the observations held.
+- **Never write files the toolchain parses with PowerShell redirection
+  or Set-Content** (widened from source files): `-Encoding utf8` injects
+  a BOM that json.load rejects. Python scripts write records.
+- **A failed PowerShell git commit can leave a stale `index.lock`** in
+  the worktree gitdir — on "Another git process seems to be running",
+  check for and remove the lock before diagnosing anything else.
 
 Worktrees: writing workers use separate worktrees/branches; the shared
 checkout is read-only to them. Reuse existing clean campaign worktrees before
