@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py --clean (produces the rows)",
+    "tools/gdl/fnasm.py --ours --raw (screen 1)",
+    "tools/gdl/pooldump.py --ours (resolves our @NNNN entries)"
+  ],
+  "attributes": {
+    "tags": [
+      "pool-layout",
+      "relocation",
+      "metrics",
+      "workflow",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Find a function whose raw-object pool-value multiset equals the target's and which nevertheless carries a source-level wrong constant - i.e. the right SET of values spelled at the wrong SITES in the C source, with the raw object (not the postprocessed one) binding them differently from retail. That would prove multiset equality is not sufficient to clear a function, and the screen would need a per-site pairing on top of it. The converse falsifier: show a VALUE-SET-DIFFERS function whose difference is not a source defect but an artifact of the resolver (e.g. an entry size or a merged string run read wrongly).",
+  "id": "claim.law.CQ_a-pool-defect-row-is-decided-by-the-raw-objects-value-multiset-not-by-position.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T03:59:24Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "A `fndiff --clean` POOL-DEFECT row is an OBSERVATION about the POSTPROCESSED object at one offset. Before it may be read as 'our source spells the wrong constant' it MUST clear two screens, and run 42 measured what each is worth over all 71 flagged functions of claim.T11_score-invisible-pool-and-relocation-defect-census-run-41.20260903.v1.\n\nSCREEN 1 - WHICH OBJECT. If the function is webfrank-pinned, its `real 0` is manufactured by the rule and its register fields come from the rule, not the compiler, so the row may be a rule artifact (see claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-their-relocations.20260903.v1, which is exactly that case). Read the PRE-postprocess body object instead: `fnasm.py <unit> <fn> --ours --raw`, or objdump over build/GUNE5D/src/<dir>/.postprocess/body/<tu>.o.\n\nSCREEN 2 - MULTISET, NOT POSITION. Relocation index k names the same instruction on both sides only where the instruction words already agree. For every other function, compare the MULTISET of resolved pool VALUES (target labels resolved through symbols.txt + the retail DOL; our @NNNN entries resolved through the object's own symbol table, each read at its own symbol SIZE - an 8-byte window over a 4-byte f32 entry reads its neighbour and manufactures differences). If the two multisets are equal, no literal in that function is wrong and any row there is a pairing or binding artifact. If they differ, the difference names the actual wrong value even when no position can be trusted.\n\nMEASURED YIELD over the 71 flagged functions, screened this way in zero builds: 34 SET-EQUAL (no source-value defect exists in the function at all), 22 VALUE-SET-DIFFERS (a real wrong value, findable), 15 UNSCREENED (relocation counts differ, screen inconclusive). So roughly HALF of the flagged population is not source work, and the 23 real-0 headline rows split the same way once the pinned ones are separated.\n\nTHREE ARTIFACT SHAPES THIS SEPARATES, each seen this run. (1) ROTATION UNDER A RULE: move_logic00's pi/2pi row - multiset equal, source correct, the postprocessor did it. (2) DISPLACEMENT: boss::ProcessSpewItems shows target 0.0,0.5,1.0,0.1,4.0,32.0 against ours 0.1,0.0,0.5,1.0,0.1,4.0 - our stream carries one extra pool relocation ahead of the run, so every row after it is shifted by one and reads as six wrong constants. (3) BOTH-PRESENT PAIRING: sfx::UpdateFXStreak +0x40 reads 'target 0.1 vs ours 0.8' while sfx.c:3839-3840 spells 0.8 and 0.1 one line apart and both appear in both streams. Acting positionally on any of the three edits correct source.\n\nA fourth trap belongs to the screen itself: a STRING datum must be compared over its whole NUL-terminated run and a NUMERIC datum over exactly its own entry size, and dtk names a string by the nearest preceding lbl_, so the tool prints a WINDOW around the first differing byte with a `+0xNN` offset that is NOT a relocation addend. Reading that offset as an addend invents a mid-string reference that does not exist."
+}

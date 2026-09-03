@@ -210,7 +210,7 @@ s32 adsMoveCookedToSpu(ADSTREAM* stream) {
             s32 volume;
 
             printf("DCSERROR: ");
-            printf("SPU UNDERRUN, loop-glitch likely");
+            printf("SPU UNDERRUN, loop-glitch likely\n");
             dcsMemTryLock(self->spuReadBase +
                               self->refillState * halfVoiceLoop,
                           self->voice[0], adsLockCallback, 0);

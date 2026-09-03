@@ -1561,7 +1561,8 @@ named_object:
 object_ready:
     if (node->obj == NULL) {
         gErrorCode = 0xFFFF00;
-        FatalError("AtreeNodeInit: MBNewObject returned NULL", 0x804060);
+        FatalError("AtreeNodeInit: MBNewObject return 0 (too many nodes)",
+                   0x804060);
     }
     MBTreeSetFlags(node->obj, def->treeFlags, 0);
 
