@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_word_diff.py (the per-probe word counts quoted below)",
+    "tools/gdl/fnasm.py --raw --diff (the aligned views every register correspondence was read from)",
+    "attempt.PR_distancetoclosestplayer-the-refinement-constants-storage-class-owns-the-hoist.20260903.v2",
+    "attempt.PR_fn80051480-the-accumulator-is-inserted-at-the-top-of-the-descending-group.20260903.v2"
+  ],
+  "attributes": {
+    "tags": [
+      "register-web",
+      "matching",
+      "postprocessor"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A fourth rsqrt-Newton-kernel member whose pre-loop FPR order is UNCHANGED when its two f64 refinement constants are switched between literal and extern-scalar spelling, at equal instruction count. That would show the storage class is not the discriminant and the two members measured here were coincidence. On the other side, a member whose retail relocations name a genuine, non-splitter-invented data symbol for 0.5 or 3.0 would show the literal reconstruction is wrong for that member and the lever must not be applied there.",
+  "id": "claim.law.PR_the-newton-kernel-refinement-constants-storage-class-decides-the-preloop-fpr-order.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T18:42:37Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "THE STORAGE CLASS OF THE TWO f64 REFINEMENT CONSTANTS DECIDES THE ENTIRE PRE-LOOP FPR ORDER OF A NEWTON-RAPHSON RECIPROCAL-SQUARE-ROOT KERNEL. This is the one lever claim.law.PR_the-rsqrt-newton-kernel-volatile-fpr-permutation-is-one-family.20260903.v1 said had to be re-derived per member; it does not. Measured 2026-09-03 on TWO members in TWO different TUs, in opposite directions, with everything else held fixed.\n\nWHAT RETAIL DOES, in every member measured: the kernel hoists four values into volatile FPRs before its loop or guarded branch - the squared distance, the f32 zero the guard compares against, and the two f64 refinement constants (0.5 and 3.0) - and assigns them DESCENDING in the order {distance, guard, half, three}. game/world/items::DistanceToClosestPlayer, second kernel: f5=distance, f4=guard, f3=half, f2=three. game/game/gamemain::fn_80051480: f6=distance, f5=guard, f4=half, f3=three. Same relative order, different base register.\n\nWHAT THE SPELLING DOES. Writing the two refinement constants as C LITERALS (`0.5`, `3.0`) reproduces retail's relative order. Writing them as reads of splitter-named .sdata2 externs (`sArrowFloorYOffset`, `sNewtonThree`, `lbl_80346830`, `lbl_803468B8`) produces {half, three, distance, guard} instead - not a shift of retail's order, a scramble of it. Both halves were measured:\n\n  (a) DistanceToClosestPlayer, extern -> literal, on the in-loop kernel only: 42 -> 23 differing words at 122/122 insns, and the kernel proper (+0x160 to +0x1cc, 28 instructions including all four fnmsub operand triples) went BYTE-IDENTICAL to retail.\n  (b) fn_80051480, literal -> extern, all four pre-loop constants: 40 words before and 40 after at 58/58, but the assignment MOVED from {acc f6, distance f5, guard f4, half f3, three f2} to {acc f6, half f5, three f4, distance f3, guard f2} - the same scramble (a) removed, arriving from the other direction on a different TU.\n\nTHE GUARD CONSTANT IS NOT PART OF THE LEVER, and this was isolated rather than assumed. Converting DistanceToClosestPlayer's guard ALONE to a literal leaves the count at 42 words AND moves its relocation off @sItemZero - strictly worse on both axes. Converting the two refinement constants alone reaches 23 words with the guard's relocation and register both still exactly retail's. So the minimal form of the lever is: the two f64 refinement constants, and nothing else.\n\nTWO FORMS THAT LOOK LIKE THE LEVER AND ARE NOT. Reading the externs into f64 LOCALS declared before the loop - the cure attempt.PR_distancetoclosestplayer-third-member-of-the-rsqrt-volatile-fpr-family.20260903.v1 mandated as its step 1 - measures 42 words, identical to HEAD: it is the memory read that scrambles the order, not where the value is named. And converting a kernel's guard to a literal where the enclosing block ALREADY reads that same extern for another purpose (DistanceToClosestPlayer's `sphere[3] = sItemZero;`) is count-asymmetric, 123 vs 122, because it splits one shared load into two.\n\nTHE COST, WHICH IS WHY THIS LAW DOES NOT AUTHORISE THE EDIT. The literal spelling makes MWCC emit its own anonymous .sdata2 entries, so relocations that named the target's pool objects come to name @NNNN. `fndiff --relocs` resolves addresses and calls the sets IDENTICAL; `defake_gate check` compares symbol NAMES and calls it MOVED-AWAY-FROM-TARGET and exits 1. Applying this lever in a TU whose extern spellings were deliberately introduced as a matching device (game/world/items, per attempt.items-extern-literal-sweep.20260831.v1) therefore reverses an accepted decision and must go to the integrator, not to a probe. The law states which spelling the ALLOCATOR wants; it does not state which spelling the PROJECT wants."
+}
