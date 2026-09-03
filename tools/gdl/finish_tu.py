@@ -94,10 +94,20 @@ def main():
             if r.returncode:
                 print(f"BLOCKED by {u}: fix section claims before flipping (see above)")
                 return 1
+            # datadiff exits 1 only on REAL data defects (a differing
+            # non-relocated word, a NONZERO claim-slack tail, an object
+            # larger than its claim). Zero-filled claim slack prints
+            # DATA-DEBT and does NOT block: the linker regenerates that
+            # padding, and ~44 already-Matching, already-green units carry
+            # it (claim.law.AF_dtk-rejects-an-unaligned-auto-split-start-so-
+            # some-claim-slack-is-structural.20260903.v1). Blocking on it
+            # refused a class this pipeline has already shipped.
             r = run([PY, "tools/gdl/datadiff.py", u.rsplit(".", 1)[0]])
             if r.returncode:
                 print(f"BLOCKED by {u}: data bytes differ from DOL (see above); "
-                      "wrong constants or emission order never link green")
+                      "wrong constants or emission order never link green. "
+                      "(Zero-filled claim slack is NOT this: it prints "
+                      "DATA-DEBT and does not set the exit code.)")
                 return 1
 
         cfg_snapshot = (REPO / "configure.py").read_text(encoding="utf-8")
