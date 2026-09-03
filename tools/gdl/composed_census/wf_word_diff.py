@@ -17,6 +17,13 @@ WebFrank candidacy.
     python tools/gdl/composed_census/wf_word_diff.py <unit> <function>
     python tools/gdl/composed_census/wf_word_diff.py game/movie/movieplayer fn_800D8BCC --list
     python tools/gdl/composed_census/wf_word_diff.py game/movie/movieplayer fn_800D8BCC --by-region
+    python tools/gdl/composed_census/wf_word_diff.py <unit> <fn> --range 0x1c4:0x250 --list
+
+EXIT CODE (run 42): 0 whenever the MEASUREMENT succeeded, whether or not
+words differ.  It used to return 1 on any residual — which is what a normal
+call looks like — so every `&&` chain and CI step around it stopped at the
+first function that had one.  Nonzero now means the measurement did not
+happen (missing object, count-asymmetric function).
 
 Reads the RAW `.postprocess/body` where present, so it scores COMPILER
 output rather than postprocessed output and already-shipped rules stay
@@ -344,6 +351,39 @@ def word_diff(unit, fn):
     return kind, len(ours) // 4, rows, mnemonic_divergence(ours, tgt)
 
 
+def parse_range(text):
+    """`0xA:0xB` -> (lo, hi) TARGET byte offsets, or None.
+
+    Run-42 item 2. A hand grep is what this replaces, and the measured
+    failure mode of the hand grep was UNDER-MATCHING: it counted the rows
+    whose printed `+0x....` happened to match a pattern rather than the
+    rows whose offset falls in the window, which is how a windowed count
+    nearly reached a record (AGENTS.md discipline 8 — write records FROM
+    tool output). `hi` is EXCLUSIVE, matching the `0xA:0xB` spelling every
+    other tool here uses.
+    """
+    if not text:
+        return None
+    parts = text.replace(" ", "").split(":")
+    if len(parts) != 2:
+        raise SystemExit(f"--range wants LO:HI, got {text!r}")
+    try:
+        lo, hi = (int(part, 0) for part in parts)
+    except ValueError:
+        raise SystemExit(f"--range wants two integers, got {text!r}")
+    if hi <= lo:
+        raise SystemExit(f"--range HI must exceed LO, got {text!r}")
+    return lo, hi
+
+
+def rows_in_range(rows, window):
+    """The differing-word rows whose TARGET offset falls in the window."""
+    if window is None:
+        return rows
+    lo, hi = window
+    return [row for row in rows if lo <= row[0] < hi]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("unit")
@@ -354,7 +394,14 @@ def main():
                     help="bucket the differing words into the --ops cluster"
                          " partition, so a residual DECOMPOSITION claim is"
                          " falsifiable in one command")
+    ap.add_argument("--range", dest="window", metavar="0xA:0xB",
+                    help="restrict the listing and the SECOND count to this"
+                         " TARGET byte-offset window (the offsets --ops and"
+                         " fnasm print). The whole-function count is always"
+                         " printed too and is the only one that decides"
+                         " postprocessor candidacy")
     args = ap.parse_args()
+    window = parse_range(args.window)
     unit = args.unit
     if unit.startswith("src/"):
         unit = unit[4:]
@@ -384,6 +431,19 @@ def main():
           f"MNEMONIC DIVERGENCE = {mnem}, "
           f"RELOC-SYMBOL MISMATCH = {reloc_column}, "
           f"PINNED = {'YES' if pinned else 'no'}")
+    windowed = rows_in_range(rows, window)
+    if window is not None:
+        print(f"  IN RANGE +{window[0]:#07x}-{window[1]:#07x}:"
+              f" {len(windowed)} of {len(rows)} differing word(s)"
+              f" ({100.0 * len(windowed) / len(rows):.1f}%)"
+              if rows else
+              f"  IN RANGE +{window[0]:#07x}-{window[1]:#07x}: 0 differing"
+              " words (the whole function has none)")
+        print("  A WINDOWED COUNT IS NOT THE FUNCTION'S RESIDUAL: the RAW"
+              f" whole-function count is {len(rows)}, and that is the number"
+              " that decides postprocessor candidacy (AGENTS.md: any brief"
+              " inheriting a residual signature quotes the raw differing-word"
+              " count).")
     if mismatches:
         print(f"  RELOC-SYMBOL MISMATCH: {len(mismatches)} instruction(s)"
               " whose WORD is identical in both streams relocate a"
@@ -453,9 +513,17 @@ def main():
               " (attempt.MV_fn800d8bcc-duplicated-branch-locals-belong-to-"
               "the-common-block.20260903.v1).")
     if args.list:
-        for off, ow, tw in rows:
+        for off, ow, tw in windowed:
             print(f"  +{off:#06x}  O {ow:08x}  T {tw:08x}")
-    return 0 if not rows else 1
+    # EXIT 0 ON A SUCCESSFUL MEASUREMENT (run-42 item 2). This used to
+    # return 1 whenever the function had any differing word, which is what
+    # a normal call to a residual-measuring tool looks like: every ordinary
+    # invocation read as a failure, so a `&&` chain or a CI step around it
+    # stopped after the first function that had a residual — the thing the
+    # tool exists to find. Failure means the measurement did not happen,
+    # and word_streams already exits nonzero with a message for a missing
+    # object or a count-asymmetric function.
+    return 0
 
 
 if __name__ == "__main__":
