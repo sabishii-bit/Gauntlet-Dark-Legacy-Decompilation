@@ -2204,9 +2204,9 @@
         "function": "vsprintf",
         "before_sha256": "078d9aa441476b7e80cee5c0983c5c9664f34176abf7a9878cda7d9141b7945b",
         "after_sha256": "68ca006330bb48265c63c0cc350efa492146ea9374748ddecf82a1a160282331",
-        "unproven_recolor_audit": "Crossed mr-form moves: raw addi/or copies attach to swapped destinations in the prologue (+0x28-0x44), so the shipped shape-aligned permutation leaves a dataflow crossing; prologue verified equivalent by inspection 2026-08-25; individually reviewed 2026-08-24.",
+        "mechanism": "SOUNDNESS UPGRADE, no byte change: the rule's before/after hashes and the emitted bytes are unchanged and this function's score is unmoved. This rule shipped 2026-08-25 on an \"unproven_recolor_audit\" reading 'Crossed mr-form moves: raw addi/or copies attach to swapped destinations in the prologue (+0x28-0x44), so the shipped shape-aligned permutation leaves a dataflow crossing; prologue verified equivalent by inspection 2026-08-25; individually reviewed 2026-08-24.' The escape is removed and NOTHING replaces it: verify_consistent_recolor now proves the rule outright, with no value_equality_recolor and no audit. The note's diagnosis was exact and its cure was one atom short. The shipped order sent source atom 1 (`mr r28,r5`) to +0x34 and source atom 0 (`addi r27,r4,0`) to +0x40, which is the crossing the note names: at +0x34 our `mr r28,r5` faced the target's `mr r27,r4` and at +0x40 our `addi r27,r4,0` faced the target's `addi r28,r5,0`, so the register stage was asked to renumber two live webs into each other. Exchanging those two destinations -- order index 3 takes source 0 and index 6 takes source 1, every other destination unchanged -- puts each copy under the target word with the SAME destination and the SAME source, leaving a pure ENCODING difference at each: +0x34 our `addi r27,r4,0` against the target's `mr r27,r4`, +0x40 our `mr r28,r5` against the target's `addi r28,r5,0`. Both are copy/copy sites whose destination and source already agree, so `unconditional` equivalent_copy_form applies and neither is a disguised recolor. The two exchanged atoms are independent (one writes r27 reading r4, the other writes r28 reading r5) and neither is relocated, so both window relocation hashes are unchanged from the shipped rule; only the permutation's after_sha256 moves. check_permutation_dependences accepts the new order, and the whole rule replays byte-equal through webfrank.apply_patch. verify_datum_binding proves 43 bindings by name; 8 words rest on the pool correspondence alone (uninitialised data), the pre-existing state this rule does not change.",
         "audit": {
-          "classification": "SCHEDULE_CANDIDATE",
+          "classification": "SCHEDULE",
           "instructions": 665,
           "permuted_instructions": 18,
           "register_field_instructions": 12
@@ -2214,12 +2214,22 @@
         "instruction_permutation": {
           "start": "0x28",
           "end": "0x70",
-          "order": [10, 13, 14, 1, 17, 2, 0, 3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 16],
+          "order": [10, 13, 14, 0, 17, 2, 1, 3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 16],
           "before_sha256": "526ec89477e2ae0caffa832150f5bfc8f4bad4e258e3a7651479c227ac0ad33e",
-          "after_sha256": "2831f0966a36779b82a76707253f51467b50df9287dbda1b6bf2611a926acf2c",
+          "after_sha256": "5650fe988fc50db47b1f64cb6f93664410ed8a2e3762e4a681d69207b27d8150",
           "before_relocations_sha256": "f1fef90b49032be7572927b4493d2b7bfc5a19aa492e79975cb9fcc9fb0c44bf",
           "after_relocations_sha256": "623b769e054c71d5d60ef18d141820e45ce7454aa4945f740ead3b200603a537"
         },
+        "equivalent_copy_form": [
+          {
+            "at": "0x34",
+            "proof": "unconditional"
+          },
+          {
+            "at": "0x40",
+            "proof": "unconditional"
+          }
+        ],
         "copy_register_fields": true
       }
     ],
