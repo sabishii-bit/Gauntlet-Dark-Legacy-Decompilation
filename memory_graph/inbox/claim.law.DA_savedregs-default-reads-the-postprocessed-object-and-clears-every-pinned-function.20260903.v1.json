@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/savedregs.py line 838-844 (`raw = \"--raw\" in sys.argv` then `fnasm.parse_fn(unit, fn, ours=True, raw=raw)`) - the default is raw=False, i.e. the postprocessed object",
+    "tools/gdl/composed_census/wf_word_diff.py (the PIN SCREEN paragraph it prints on every pinned function, which savedregs has no counterpart for)",
+    "attempt.DA_doworldanimation-two-callee-saved-pairs-swap-and-declaration-order-cannot-move-them.20260903.v1",
+    "attempt.DA_inititeminfodata-declaration-scope-moves-webs-but-the-zero-constant-owns-r31.20260903.v2"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "postprocessor",
+      "register-web"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Run `python tools/gdl/savedregs.py <unit> <fn>` without `--raw` on any webfrank-pinned function whose rule adjusts a callee-saved GPR field and observe a ROLE MISMATCH row. That would show the default reads something other than the postprocessed object and this law is wrong. On the other side, a savedregs default invocation that PRINTS a pin warning (the way wf_word_diff's PIN SCREEN paragraph does) would retire the reporting half of this law even if the object choice stays.",
+  "id": "claim.law.DA_savedregs-default-reads-the-postprocessed-object-and-clears-every-pinned-function.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T19:48:47Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "`savedregs.py` READS THE POSTPROCESSED OBJECT BY DEFAULT, SO ON A WEBFRANK-PINNED FUNCTION ITS DEFAULT VERDICT IS `ASSIGNMENT MATCHES` BY CONSTRUCTION, AND IT PRINTS NO PIN WARNING TO SAY SO. This is the savedregs instance of the fndiff hazard AGENTS.md already records ('fndiff scores the POSTPROCESSED object, so every webfrank-pinned function reads real 0 by construction'), and it is worse in one specific way: fndiff's answer is a NUMBER a reader knows to distrust, while savedregs' answer is an English sentence that reads as a cleared axis.\n\nMEASURED 2026-09-03 at commit 27ec16bcc on game/game/gamemain::DoWorldAnimation, a function carrying a copy_register_fields rule over 13 of its 63 instructions. `python tools/gdl/savedregs.py game/game/gamemain DoWorldAnimation` prints a six-row table in which every OURS cell equals its TARGET cell, followed by `ASSIGNMENT MATCHES: every callee-saved register holds the same value at its FIRST definition in both streams. That closes the first-definition assignment question and nothing else`. The SAME command with `--raw` prints `ROLE MISMATCH on 4 web(s)`, `LIFETIME PERMUTATION: 5 live range(s)`, and the four rows the residual actually consists of - `r31: target holds 'li 0', ours holds 'mr r3'` and its three siblings. Both runs are correct about the object they read; only one of them is about the compiler's output.\n\nWHY THIS COSTS MORE THAN A RE-RUN. savedregs is the tool AGENTS.md nominates for exactly this residual class ('savedregs.py <unit> <fn> [--uses] # callee-saved correspondence, BOTH streams, zero builds'), and the class it is nominated for - callee-saved permutations - is heavily populated by pinned functions, because a clean callee-saved permutation is precisely what earns a copy_register_fields rule in the first place. So the default is wrong most often exactly where the tool is most useful. The `--raw` flag IS documented, in the module docstring's usage block ('savedregs.py <unit> <fn> --raw  # pre-webfrank body'), and that is not enough: nothing in the OUTPUT distinguishes a real all-clear from a pinned one, so a lane that never reads the docstring gets a confident false negative with no tell. This lane made that mistake on DoWorldAnimation and had to redo the correspondence.\n\nTHE RULE. On any function that `wf_word_diff` reports as `PINNED = YES`, pass `--raw` to savedregs, and quote the flag in any record that cites a savedregs verdict - a savedregs correspondence quoted without it is not evidence about a pinned function. The tool-side fix is one line of reporting rather than a behaviour change: print the same PIN SCREEN paragraph wf_word_diff prints, naming the rule and the flag, whenever the function is pinned and `--raw` was not passed. Changing the DEFAULT would be the wrong fix, because for the ~2589 unpinned STRICT functions the postprocessed object is the right one to read."
+}

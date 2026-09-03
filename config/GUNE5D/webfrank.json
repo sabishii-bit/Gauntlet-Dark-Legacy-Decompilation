@@ -994,7 +994,7 @@
     "game/world/items": [
       {
         "function": "DistanceToClosestPlayer",
-        "before_sha256": "f1dfc5f5e549bc13e608ce46bc7e6de148e77b9c08feeeac7547e4986928a1d4",
+        "before_sha256": "ef56d986cf97b4ecfca65426cae73d566e483dbda97f9bf29dac5cec2fdc0e3a",
         "after_sha256": "64b7273b09876eb698ec795f3b2b9c7679110b1a539d22ac7c84dc9cac18f6dc",
         "audit": {
           "classification": "REGISTER_ONLY",
