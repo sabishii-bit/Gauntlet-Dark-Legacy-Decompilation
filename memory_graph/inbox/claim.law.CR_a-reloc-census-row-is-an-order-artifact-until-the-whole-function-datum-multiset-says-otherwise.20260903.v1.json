@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/cr_datum_screen.py",
+    "tools/gdl/composed_census/cr_class_image.py",
+    "tools/gdl/composed_census/es_named_reloc_census.py",
+    "git:88fd36cfa"
+  ],
+  "attributes": {
+    "tags": [
+      "relocation",
+      "symbol-identity",
+      "pool-layout",
+      "metrics",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit a function whose whole-function relocation DATUM multiset is equal on both sides (python tools/gdl/composed_census/cr_datum_screen.py <unit> <fn> prints VALUE-EQUAL) and in which a positionally paired census row nevertheless names a datum we read that retail does not. Or the converse: a VALUE-DELTA row whose two blobs are the same bytes at a different splitting granularity, which would mean the prefix reconciliation is wrong. The screen's known and intended blind spot is NOT a falsifier: a TRANSPOSITION preserves the multiset by construction (enemy::move_logic00's swapped pi/2pi reads VALUE-EQUAL and IS a real defect), which is why the two censuses are complements and neither alone is a verdict.",
+  "id": "claim.law.CR_a-reloc-census-row-is-an-order-artifact-until-the-whole-function-datum-multiset-says-otherwise.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T03:53:45Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "A ROW FROM A POSITIONAL RELOCATION CENSUS IS AN EMISSION-ORDER ARTIFACT UNTIL THE WHOLE-FUNCTION DATUM MULTISET SAYS OTHERWISE, and the two questions are different enough that they need different tools. es_named_reloc_census.py pairs relocations inside difflib EQUAL runs; that is sound about WHICH INSTRUCTION a row sits on and says nothing about whether any datum is wrong, because MWCC is free to materialise the same set of pool addresses in a different order and into different registers. MEASURED, run 42 over the live 30-row census: 22 of 30 functions carry NO wrong datum at all, and three of them were read row-by-row in the aligned view to confirm it. WORKED PROOF ON THE QUEUE'S OWN FLAGSHIP, game/pb/pb_diag::pbDiagDrawAudio, which claim.T11_score-invisible-pool-and-relocation-defect-census-run-41.20260903.v1 lists as an INDEX-ALIGNED (firm) 'argument-register SWAP': at +0x4 the target emits `lis r5,0 @buttons` against our `lis r5,0 @lbl_80114E90` and at +0xc the reverse, exactly as that record says. Two instructions later the compensating half appears and the swap cancels: the target's +0x18/+0x1c form r31=buttons and r30=lbl_80114E90, and OURS FORM THE SAME TWO BINDINGS in the opposite emission order (+0x18 r30=lbl_80114E90, +0x1c r31=buttons). The register-to-symbol binding is IDENTICAL in both streams; there is no argument swap and no defect. pbDiagDrawInfo is the same shape one step weaker -- a consistent r29/r31 role exchange, both data correct. sounds::InitNameAudio, the other T11 index-aligned row (10 census rows), is the same again: r24/r25 exchanged for lbl_801200B0 and lbl_80120104, and the 'S_%s%s1S'/'S_%s%s2S' pair lands in the same roles on both sides. select::setup_vmu_entries, the lowest-real row in the whole queue (59/59, real 24), reads the SAME two format strings into the SAME two sprintf calls; only the hoist site of the second address differs. THE DECISION PROCEDURE, zero builds: compare the multiset of relocation DATA over the whole function, keying a pool label by its BYTES rather than its name. tools/gdl/composed_census/cr_datum_screen.py does exactly that and prints VALUE-EQUAL (no datum is wrong -- closing the row is matching work, arbitrated on fuzzy, not a bug fix) or VALUE-DELTA with the differing blobs named. THREE FALSE-POSITIVE CLASSES IT MUST SUPPRESS, each found by calibration rather than by theory: (1) our anonymous `@N` against retail's `lbl_ADDR` for the same bytes -- shop::show_gold reads real 117 with the s32->f64 bias and 0.00390625 exchanged between f30 and f31 and our bias spelled `@193`, which a name-keyed compare calls a defect and a byte-keyed compare calls equal; (2) a relocation-filled table -- `jumptable_*` and address arrays hold resolved addresses in the retail image and ZEROS in our object because our entries live in the relocation table, so the two never compare equal by bytes; suppressing them took the image-wide count from 227 to 71; (3) address arithmetic -- our `gControllerButtons+0x4` and retail's `sFlags` are both 0x803445CC, so the key must be the resolved ADDRESS when there are no bytes to read. CALIBRATION BEFORE SHIPPING, five live controls: PlayerRestoreState (100.0/500.0 vs 0.5/30.0), start_magic (1.5 vs -1.5) and AtreeNodeInit (the two error strings, first differing byte +0x21) all read VALUE-DELTA; init_enemy (byte-exact with a kind-differing pool row, the counterexample in claim.law.T11_a-pool-rows-verdict-is-the-value-behind-the-two-symbols-not-the-kind-of-their-names.20260903.v1) and show_gold both read VALUE-EQUAL. The AtreeNodeInit control also fixes the comparison DEPTH: poolval.py prints 16 bytes and elides the rest, so the screen reads the retail DOL directly -- a 16-byte compare calls those two strings equal."
+}

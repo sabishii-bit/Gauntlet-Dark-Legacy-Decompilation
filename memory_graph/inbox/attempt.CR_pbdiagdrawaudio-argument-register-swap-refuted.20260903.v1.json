@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "T11's index-aligned 'argument-register SWAP' row at +0x4/+0xc: verify it against the retail DOL, then close it by swapping the two head declarations so our address materialisations emit in retail's order",
+  "attributes": {
+    "law_screen": "claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1 APPLIED -- its own usage rule ('a census row is a CANDIDATE, not a verdict; confirm every row against fnasm --diff before editing, and read the ANONYMOUS side too') is exactly what refuted this row. claim.law.T11_a-pool-rows-verdict-is-the-value-behind-the-two-symbols-not-the-kind-of-their-names.20260903.v1 APPLIED -- the verdict is the data behind the symbols, and here the data and the final register bindings are identical. claim.law.SA_a-wrong-global-that-shares-an-instruction-word-is-invisible-to-every-score-including-the-word-count.20260902.v1 APPLIED -- it explains why the two rows exist at all and correctly predicts that closing them moves no number. claim.law.fuzzy-can-underweight-a-real-improvement NOT applicable: fuzzy and real and the raw word count all moved the SAME way here (worse), so there was nothing to arbitrate.",
+    "probed_form": "In src/game/pb/pb_diag.c, pbDiagDrawAudio's head, exactly:\n    u32* b = buttons;\n    char* strs = lbl_80114E90;\n(reversing the shipped order `char* strs = lbl_80114E90;` then `u32* b = buttons;`). Reverted; the file is byte-unchanged at HEAD.",
+    "residual": "THE ROW IS NOT A DEFECT. T11's census lists pbDiagDrawAudio +0x4/+0xc as an INDEX-ALIGNED (firm) 'argument-register SWAP: target `lis r5,@buttons` / `lis r4,@lbl_80114E90`, ours the reverse'. The observation is exactly right and the reading is wrong. Two instructions later the compensating half appears: the target's +0x18 `addi r31,r5,0 @buttons` / +0x1c `addi r30,r4,0 @lbl_80114E90` and our +0x18 `addi r30,r5,0 @lbl_80114E90` / +0x1c `addi r31,r4,0 @buttons` produce THE SAME TWO BINDINGS, r31=buttons and r30=lbl_80114E90, in both streams. Nothing is swapped at the call sites; only the emission order of the two address materialisations differs, and it is coupled to the 39-instruction mnemonic divergence that dominates this function. pbDiagDrawInfo's four rows are the same shape one step weaker -- a consistent r29/r31 role exchange for gDiagData and lbl_80114E90, both data correct -- and its remaining datum rows are our unresolvable `lbl_8023D000`/`lbl_8023D180` externs against retail's `atree_scroll` (0x8023D000, 384B) and `whichatree` (0x8023D180, 96B) at the SAME addresses, which is a naming debt for a de-fakematch lane, not a defect.",
+    "scope": "src/game/pb/pb_diag.c -- probed and reverted, no change retained. pb_diag's four webfrank pins (pbDiagDrawMenu, pbDiagDrawTexture, pbDiagDrawObject, pbResetDiag) were screened before the probe and never edited.",
+    "verification": "defake_gate baseline game/pb/pb_diag (15 functions, 12 at real 0, anchored to c117e66da) taken before the edit; defake_gate check after the revert printed GATE OK, and fuzzy.py re-read 95.2491%."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/wf_word_diff.py game/pb/pb_diag pbDiagDrawAudio -- if DIFFERING WORDS has fallen well below 122 or MNEMONIC DIVERGENCE below 39, the surrounding schedule has moved and the declaration-order probe is worth re-running at the new alignment.",
+    "falsifier": "A declaration or statement order that puts the buttons materialisation first AND holds the word count at or below 122 would show the two are separable; this probe measured them coupled.",
+    "premise_measurement": "python tools/gdl/composed_census/wf_word_diff.py game/pb/pb_diag pbDiagDrawAudio read 122 differing words with 2 RELOC-SYMBOL MISMATCH rows before the edit and 140 differing words with 0 after it; python tools/gdl/defake_gate.py check game/pb/pb_diag --rebuild reported CONFLICT real 250 -> 286 with structural rows 21 -> 19; fresh fuzzy from a full ninja report was 95.2491% before and 95.1337% after.",
+    "scope": "The declaration-order lever on pbDiagDrawAudio ONLY -- swapping `char* strs` and `u32* b` at the head of the function. It says nothing about pbDiagDrawInfo, about the other 37 mnemonic divergences, or about any other pb_diag function."
+  },
+  "function": "function:pbDiagDrawAudio",
+  "id": "attempt.CR_pbdiagdrawaudio-argument-register-swap-refuted.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T03:55:13Z",
+  "refutes": "claim.T11_score-invisible-pool-and-relocation-defect-census-run-41.20260903.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "constant-hoist",
+    "measured_at": "2026-09-03",
+    "signature": "823/823 insns, DIFFERING WORDS 122, MNEMONIC DIVERGENCE 39, RELOC-SYMBOL MISMATCH 2"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
