@@ -1301,9 +1301,12 @@ s32 do_player_select(void)
             }
             case 3: /* name entry */
                 menu = page + moff + 712;
-                if (*(s32*)(pl + offsetof(Player, sel_step)) < 2 && *(s32*)(pl + offsetof(Player, sel_step)) >= 0) {
+                switch (*(s32*)(pl + offsetof(Player, sel_step))) {
+                case 0:
+                case 1:
                     fn_8005AC10(i);
                     *(s32*)(pl + offsetof(Player, sel_step)) = 2;
+                    break;
                 }
                 if (fn_8005A738(i) != 0) {
                     if (set_hidden_player(pl) != 0) {
