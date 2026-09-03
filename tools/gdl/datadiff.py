@@ -105,8 +105,9 @@ def dol_read(va, size):
     data_addr = struct.unpack(">11I", data[0x64:0x90])
     text_size = struct.unpack(">7I", data[0x90:0xAC])
     data_size = struct.unpack(">11I", data[0xAC:0xD8])
-    for off, addr, sz in list(zip(text_off, text_addr, text_size)) + \
-                         list(zip(data_off, data_addr, data_size)):
+    segments = (list(zip(text_off, text_addr, text_size))
+                + list(zip(data_off, data_addr, data_size)))
+    for off, addr, sz in segments:
         if addr and addr <= va and va + size <= addr + sz:
             fo = off + (va - addr)
             return data[fo:fo + size]

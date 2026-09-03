@@ -2847,6 +2847,7 @@ def roll_back_anchor(state):
         " restored state is scored against ITS OWN history, not against"
         " the edit this revert discarded.]")
 
+
 # Fuzzy is a float percentage; anything at or above the anchor is "not a
 # regression". The epsilon keeps float noise from manufacturing a refusal.
 FUZZY_GATE_EPS = 1e-9
