@@ -1,0 +1,25 @@
+{
+  "attempted_axis": "Apply the branch-pair law's `if (A || B) { return; }` form to the one-case-switch type guard.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED (authored this run from this function's own closure plus the matched-code exemplars). claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 SCREENED, not applicable (the residual is a branch pair, not an entry schedule). claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1 SCREENED and REFUTED for this shape: both dual-goto if/else arms collapse identically (measured in attempt.inittexmods-exact-drive.20260831.v2 and re-measured here as a bare goto sequence). claim.law.IT_empty-bodied-if-elides-its-own-comparison.20260901.v1 APPLIED (it is why the empty-then diamond probe was NEUTRAL-IDENTICAL). claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 APPLIED (count parity was the acceptance test on every probe).",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "ONE probe, EXACT. Before:\n`if (inst->_02 != 0) {\\n    return;\\n}\\nswitch (inst->type) {\\ncase 3:\\n    goto draw;\\ndefault:\\n    if (inst->type > 3) {\\n        goto draw;\\n    }\\n    goto done;\\n}\\ndraw:` ... `done:\\n    ;`\nAfter:\n`if (inst->_02 != 0 || inst->type < 3) {\\n    return;\\n}`\nand the now-unreferenced `done:` label removed (a second probe confirmed the label removal is NEUTRAL-IDENTICAL, digest 37d9f9d1516d).",
+    "residual": "none - byte-exact.",
+    "scope": "src/game/mb/mb_poly.c::DoPolyInst only; 1 insertion, 13 deletions; commit 86d9cca83 'Match DoPolyInst'.",
+    "verification": "python tools/gdl/probe.py game/mb/mb_poly DoPolyInst --ops -> IMPROVED real 4 -> 0, insns exact, multiset 0t, FUZZY (fresh report) 97.9688% -> 100.0000%. python tools/gdl/defake_gate.py check game/mb/mb_poly -> GATE OK (1 improved); baseline anchored at commit 7372fee9c, source sha1 9c053b56e, 11 functions / 10 at real 0 before the fix. Full ninja -j2 printed 'build/GUNE5D/main.dol: OK'; STRICT 56.65% (2580) -> 56.66% (2581)."
+  },
+  "function": "function:DoPolyInst",
+  "id": "attempt.NM_dopolyinst-or-guard-return-closes-exact.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T06:46:40Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "DIFFERS target-only: +1 b +1 bge  ours-only: -1 beq -1 ble; insns T32/O32"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

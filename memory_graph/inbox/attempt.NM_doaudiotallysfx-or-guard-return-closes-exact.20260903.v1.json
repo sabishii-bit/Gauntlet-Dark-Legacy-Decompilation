@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Rewrite the two-goto range guard as a single short-circuit `||` guard whose then-block is `return;` (the branch-pair law's winning form), after three distinct construct classes were measured NEUTRAL-IDENTICAL on the same cluster.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED (authored this run from this function's own closure plus the matched-code exemplars). claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 SCREENED, not applicable (the residual is a branch pair, not an entry schedule). claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1 SCREENED and REFUTED for this shape: both dual-goto if/else arms collapse identically (measured in attempt.inittexmods-exact-drive.20260831.v2 and re-measured here as a bare goto sequence). claim.law.IT_empty-bodied-if-elides-its-own-comparison.20260901.v1 APPLIED (it is why the empty-then diamond probe was NEUTRAL-IDENTICAL). claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 APPLIED (count parity was the acceptance test on every probe).",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "PROBE 1 (NEUTRAL-IDENTICAL, bytes 435a20c1bdfc): `if (sel > 10) {\\n} else {\\n    sndFxPlayHandle(...);\\n}` -- the empty then-arm is elided in the front end.\nPROBE 2 (NEUTRAL-IDENTICAL, same digest): `if ((sel = sel_) >= 0) {\\n    if (sel > 10) {\\n        return;\\n    }\\n    sndFxPlayHandle(...);\\n}` -- a nested return also folds when it is the ONLY term.\nPROBE 3 (EXACT): `if ((sel = sel_) < 0 || sel > 10) {\\n    return;\\n}\\nsndFxPlayHandle(lbl_801234B8[sel], 224, sel + 21);`",
+    "residual": "none - byte-exact.",
+    "scope": "src/game/sound/sounds_evt.c::DoAudioTallySFX only; 2 insertions, 9 deletions; commit d2a395611 'Match DoAudioTallySFX'.",
+    "verification": "python tools/gdl/probe.py game/sound/sounds_evt DoAudioTallySFX --ops -> IMPROVED real 5 -> 0, insns exact, multiset 0t, FUZZY (fresh report) 94.5000% -> 100.0000%. python tools/gdl/defake_gate.py check game/sound/sounds_evt -> GATE OK (1 improved), baseline anchored at commit ca4074cb1, source sha1 b9a35d50d, 118 functions / 115 at real 0. Full ninja -j2 printed 'build/GUNE5D/main.dol: OK'; STRICT matched 56.63% (2578 fns) -> 56.64% (2579 fns); Data held at 177572 bytes. The TU carries webfrank pins but none on this function (grep of config/GUNE5D/webfrank.json for '\"function\": ...Tally' returned nothing)."
+  },
+  "function": "function:DoAudioTallySFX",
+  "held_fixed": "the body (sndFxPlayHandle call and its lbl_801234B8[sel] argument) was byte-identical in every probe; only the guard's control-flow spelling varied.",
+  "id": "attempt.NM_doaudiotallysfx-or-guard-return-closes-exact.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T06:46:39Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +1 b +1 ble  ours-only: -1 bgt; insns T20/O19"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

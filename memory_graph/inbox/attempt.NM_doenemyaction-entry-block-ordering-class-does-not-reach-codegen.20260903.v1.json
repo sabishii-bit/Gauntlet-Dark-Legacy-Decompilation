@@ -1,0 +1,33 @@
+{
+  "attempted_axis": "Re-open the hollow 2026-08-31 label-correction park (it explicitly ran NO source probe) and attack the single-word entry-block load/address-computation swap with three construct classes.",
+  "attributes": {
+    "law_screen": "claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 APPLIED and REFUTED FOR THIS FUNCTION -- it is the law that predicts a declaration-vs-statement split controls entry ordering, and the split measured NEUTRAL-IDENTICAL here (probe 2). claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1 APPLIED and REFUTED FOR THIS FUNCTION (probe 3 split the shared `e` carrier and the object did not move). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED (the multiset IS identical here, which is why the aligned view and not the multiset decided the diagnosis). claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 SCREENED, not applicable (no branch pair in this residual).",
+    "laws_applied": "[\"claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1\", \"claim.law.variable-identity-reopens-address-pre-and-zero-copy.20260831.v1\"]",
+    "probed_form": "PROBE 1, statement order: swapped `node = e + 0x1B;` and `cur = e[0x33];` -> NEUTRAL-IDENTICAL.\nPROBE 2, declaration-initializer class: `s32* node = e + 0x1B;` at the declaration (deleting the later assignment statement) -> NEUTRAL-IDENTICAL.\nPROBE 3, variable identity: `s32 next = ((s32*)enemy)[0x34];` so the `next` load binds the raw parameter web while `cur` keeps the `e` web -> NEUTRAL-IDENTICAL.",
+    "residual": "2 words: the target emits `addi r3,r27,108` at +0x28 and then `lwz r28,204(r27)` at +0x2c; we emit `lwz r28,204(r3)` at +0x28 and `addi r3,r27,108` at +0x2c. Both streams keep `node` in r3 for 0x570 bytes (there is no call before AnimateATree at +0x598); the only difference is whether the second enemy-pointer read is served by the incoming r3 copy before it is clobbered, or by the callee-saved r27 copy after.",
+    "scope": "src/game/anim/action.c::DoEnemyAction; ALL probes reverted, working tree restored to HEAD (git status clean apart from the untracked LANE_LOCK). No commit.",
+    "verification": "python tools/gdl/probe.py game/anim/action DoEnemyAction -> BASELINE real 2, FUZZY (fresh report) 99.5851%, insns T482/O482, multiset 0t. python tools/gdl/defake_gate.py baseline game/anim/action --at-head -> anchored to commit ca4074cb1, source sha1 90a6cc4f7, 5 functions / 3 at real 0. config/GUNE5D/webfrank.json carries NO game/anim/action block, so no pin screen constrained the edits."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/probe.py game/anim/action DoEnemyAction --ops -- if real is no longer 2, or the two clusters at @0x28-0x30 have moved, this denial has expired. Also re-probe after any edit to action.c's other functions: the cap is alignment-sensitive by construction.",
+    "falsifier": "Any source edit to DoEnemyAction's prologue that changes the object bytes AT ALL. Every form tried folded before codegen, so a single byte-moving edit in this region refutes the categorical reading and reopens the axis.",
+    "premise_measurement": "Three probes at commit ca4074cb1, all NEUTRAL-IDENTICAL with the same object digest: NEUTRAL-IDENTICAL-PROOF unit=game/anim/action fn=DoEnemyAction bytes=bc393fec00e8 real=2 insns=T482/O482 multiset=0t head=ca4074cb1. probe.py itself escalated after the third to 'RE-PLAN THE AXIS CLASS: 3 consecutive NEUTRAL-IDENTICAL probes'. The target orders the prologue e70(+0x70), defs(+0xD4), next(+0xD0), node(+0x6C), cur(+0xCC); our build orders it e70, defs, next, cur, node, and the source ALREADY spells the target's order, so the divergence is introduced after the front end.",
+    "scope": "ONE axis on ONE function: source-level control over WHERE DoEnemyAction's prologue emits `addi r3,r27,108` (node = e + 0x1B) relative to `lwz r28,204(...)` (cur = e[0x33]). It does not deny any other axis on this function, and it does not deny the postprocessor path."
+  },
+  "function": "function:DoEnemyAction",
+  "held_fixed": "every statement after the prologue was held constant; only the definition placement / declaration class / variable identity of the three prologue values (next, node, cur) varied.",
+  "id": "attempt.NM_doenemyaction-entry-block-ordering-class-does-not-reach-codegen.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T06:46:39Z",
+  "residual": {
+    "capability_needed": "an instruction_permutation window covering the two prologue words at +0x28/+0x2c, composed with the base-register field change r3 -> r27 on the lwz",
+    "family": "schedule-window",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset IDENTICAL (482/482); insert T[10:10]@28-28=[] O[10:11]@28-2c=['lwz'] [SHIFTABLE]; delete T[11:12]@2c-30=['lwz'] O[12:12]@30-30=[]"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.mp-label-correction.doenemyaction.20260831.v1",
+  "valid_from": "2026-09-03"
+}
