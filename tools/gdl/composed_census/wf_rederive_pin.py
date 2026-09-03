@@ -463,10 +463,15 @@ def main():
     rule = next((r for r in rules if r.get("function") == function), None)
     if rule is None:
         raise SystemExit(f"no webfrank rule for {unit}::{function}")
-    if "instruction_permutation" not in rule:
-        raise SystemExit(
-            f"{function} has no instruction_permutation; a pool renumbering "
-            f"cannot invalidate a body-hash-only rule")
+    # A body-hash-only rule cannot be invalidated by a pool renumbering, so
+    # there are no relocation hashes to re-derive for it -- but it still has
+    # DATUM BINDINGS, and those a pool renumbering can absolutely change.
+    # The governance case CR filed is camera_mode_target, a
+    # copy_register_fields + post_recolor_permutation rule that sat pinned at
+    # real 0 with two wrong constants: refusing it at the door here is what
+    # put the screen out of reach of the one rule shape that needed it.  Such
+    # a rule now runs the screen and stops before the paste.
+    has_permutation = "instruction_permutation" in rule
 
     # Derive from an object this tool BUILT, never from whatever is on disk.
     if "--no-build" in sys.argv:
@@ -538,8 +543,18 @@ def main():
         data, sections, symbol.section_index,
         symbol.value, symbol.value + symbol.size)
 
-    windows, ranges = wf.permutation_windows(
-        rule["instruction_permutation"], symbol.size)
+    # Full relocations (with addends) at their RAW positions; the window loop
+    # below moves the ones a permutation carries, and the datum screen after
+    # it compares the result against the target's.
+    text_relocs_full = wf._function_text_relocations_full(
+        data, sections, symbol.section_index,
+        symbol.value, symbol.value + symbol.size)
+    final_relocs = dict(text_relocs_full)
+
+    windows, ranges = (
+        wf.permutation_windows(rule["instruction_permutation"], symbol.size)
+        if has_permutation else ([], [])
+    )
     updates = []
     pairs = []
     for window, (relative_start, relative_end) in zip(windows, ranges):
@@ -561,6 +576,16 @@ def main():
             if region_start <= offset < region_end
         ]
         destination = {source: index for index, source in enumerate(order)}
+        # Mirror the move onto the full (addend-carrying) map the datum
+        # screen below reads, so it sees each relocation where the rule will
+        # actually leave it.
+        for offset, entry in list(text_relocs_full.items()):
+            if not relative_start <= offset < relative_end:
+                continue
+            inside = offset - relative_start
+            final_relocs.pop(offset, None)
+            final_relocs[relative_start
+                         + destination[inside // 4] * 4 + inside % 4] = entry
         moved = sorted(
             ((destination[offset // 4] * 4 + offset % 4, info, addend)
              for offset, info, addend in region_records),
@@ -605,7 +630,66 @@ def main():
         pairs.append((anchor, "after_relocations_sha256",
                       window.get("after_relocations_sha256"), after))
 
+    # THE DATUM SCREEN.  A pool RENUMBER is exactly the event this tool
+    # exists for, and it is also exactly the event that can change WHICH
+    # datum a word binds: our anonymous pool labels are renamed wholesale, so
+    # a rule whose hashes are re-derived and pasted back can be blessed while
+    # binding the wrong constant.  Nothing else in the re-derivation path
+    # looks at what a relocation POINTS AT -- the hashes bind names and
+    # positions only.  The governance case is camera_mode_target, which sat
+    # pinned at real 0 with two wrong constants.
+    print("DATUM BINDINGS -- what each relocated word will bind after the "
+          "link:")
+    binding_ok = True
+    image_path = os.path.join(ROOT, "orig", "GUNE5D", "sys", "main.dol")
+    symbols_path = os.path.join(ROOT, "config", "GUNE5D", "symbols.txt")
+    if not os.path.exists(image_path):
+        binding_ok = False
+        print(f"  REFUSED: the retail image {image_path} is missing, so the "
+              f"bindings cannot be proved; run provision_worktree.py")
+    else:
+        target_relocs_full = wf._function_text_relocations_full(
+            target_data, target_sections, target_symbol.section_index,
+            target_symbol.value, target_symbol.value + target_symbol.size)
+        try:
+            levels = wf.verify_datum_binding(
+                final_relocs, target_relocs_full,
+                [wf._u32(target_body, offset)
+                 for offset in range(0, len(target_body), 4)],
+                our_data=data, our_sections=sections,
+                our_symbols=wf._symbol_index(data, sections),
+                symbol_addresses=(
+                    wf.load_symbol_addresses(symbols_path)
+                    if os.path.exists(symbols_path) else None),
+                image=wf.RetailImage(image_path), function=function)
+        except ValueError as failure:
+            binding_ok = False
+            print(f"  {failure}")
+        else:
+            print(f"  proved: {levels['L1']} by name, {levels['L2']} by "
+                  f"address, {levels['L3']} by datum, {levels['L4']} on the "
+                  f"pool correspondence alone")
+
     print()
+    if ok and not binding_ok:
+        # Reported after the body-hash verdict, because a moved body hash
+        # explains a binding failure and is the more fundamental refusal.
+        print("A DATUM BINDING IS WRONG: the pin's text may be byte-correct "
+              "and still load the wrong constant, which no score in this "
+              "project can see.  Do NOT paste anything -- withdraw or repair "
+              "the rule (claim.law.CQ_copy-register-fields-can-rotate-"
+              "constant-load-homes-without-their-relocations.20260903.v1).")
+        raise SystemExit(2 if apply else 1)
+    if not has_permutation:
+        if not binding_ok:
+            raise SystemExit(
+                f"{function}: a datum binding is WRONG (above).  There are no "
+                f"relocation hashes to re-derive for a body-hash-only rule, "
+                f"but the rule must be withdrawn or repaired.")
+        print(f"{function} has no instruction_permutation, so a pool "
+              f"renumbering cannot invalidate its hashes and there is "
+              f"nothing to paste.  Its datum bindings are proved above.")
+        return
     if not ok:
         print("A BODY HASH MOVED: the source change altered codegen, not just "
               "the symbol table.  Do NOT paste the relocation hashes in -- "
