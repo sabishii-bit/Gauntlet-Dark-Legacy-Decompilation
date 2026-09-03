@@ -3607,8 +3607,8 @@ def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
     return 0
 
 
-def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
-    """Build the report and print this function's fresh objdiff fuzzy.
+def measure_fuzzy(unit, fn, fn_stripped, state, digest=None):
+    """(headline, notes) for a --fuzzy readout; mutates `state`, prints NOTHING.
 
     CONFLICT arbitration used to cost two manual builds per keep; this is
     that loop, made durable. The report build is a full link — expect it
@@ -3618,34 +3618,44 @@ def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
     so a later probe can reuse it only when the bytes are provably the
     same ones — and when those bytes are the BEST state's, it also becomes
     the fuzzy anchor a later CONFLICT prints without spending a build.
+
+    SPLIT FROM ITS PRINTING (run-47 item 8). The number used to be printed
+    from inside this call, which happens AFTER the READOUT line, after the
+    standing verdict (a CONFLICT's annotation runs to several lines) and
+    after the first-bank note: measured at ecf51590f on
+    game/world/camera::camera_mode_dest, `probe.py <unit> <fn> --fuzzy`
+    printed the FUZZY line as line 9 of 10. That is the buried-number
+    variant of AGENTS.md trap 6a — a PowerShell `| Select-Object -First N`
+    both corrupts the exit code AND eats the number, and the number was
+    printed last, so the evidence for the bug it appears to show is exactly
+    what it eats. `headline` is now returned so the caller can print it
+    FIRST; `notes` are the caching lines, which belong at the bottom.
+    `headline` is None when no number was produced.
     """
-    got_number = False
+    notes = []
     try:
-        val = report_fuzzy(unit, fn, fn_stripped)
-        prev_fz = state.get("last_fuzzy")
-        got_number = val is not None
-        if val is not None:
-            arrow = (f" (prev {prev_fz:.4f})"
-                     if isinstance(prev_fz, float) else "")
-            print(f"FUZZY (fresh report): {val:.4f}%{arrow}")
-            state["last_fuzzy"] = val
-            if digest is not None:
-                state["last_fuzzy_bytes"] = digest
-                if state.get("best_bytes") == digest:
-                    state["best_fuzzy"] = val
-                    print("[cached as the BEST-STATE fuzzy anchor — the next"
-                          " CONFLICT prints it without spending a build]")
-                else:
-                    print("[cached against these exact bytes; it becomes the"
-                          " anchor once this state is banked as best]")
-            state_file.write_text(json.dumps(state), encoding="utf-8")
-        else:
-            print("[--fuzzy: no number — the report build FAILED or this"
-                  " function is absent from build/GUNE5D/report.json; no"
-                  " fuzzy readout, and nothing cached]")
+        value = report_fuzzy(unit, fn, fn_stripped)
     except Exception as err:
-        print(f"[--fuzzy: readout failed: {err}]")
-    return got_number
+        return None, [f"[--fuzzy: readout failed: {err}]"]
+    if value is None:
+        return None, ["[--fuzzy: no number — the report build FAILED or this"
+                      " function is absent from build/GUNE5D/report.json; no"
+                      " fuzzy readout, and nothing cached]"]
+    previous = state.get("last_fuzzy")
+    arrow = (f" (prev {previous:.4f})"
+             if isinstance(previous, float) else "")
+    headline = f"FUZZY (fresh report): {value:.4f}%{arrow}"
+    state["last_fuzzy"] = value
+    if digest is not None:
+        state["last_fuzzy_bytes"] = digest
+        if state.get("best_bytes") == digest:
+            state["best_fuzzy"] = value
+            notes.append("[cached as the BEST-STATE fuzzy anchor — the next"
+                         " CONFLICT prints it without spending a build]")
+        else:
+            notes.append("[cached against these exact bytes; it becomes the"
+                         " anchor once this state is banked as best]")
+    return headline, notes
 
 
 REPLAN_AT = 3
@@ -4502,6 +4512,19 @@ def main():
         banked_note = ("no verdict computed; no revert point existed, so"
                        " this readout banked one" if first_bank else
                        "no verdict computed, no revert point banked")
+        # THE NUMBER FIRST (run-47 item 8). This readout exists to hand a
+        # CONFLICT arbitration one number, and it used to print it LAST —
+        # line 9 of 10 on game/world/camera::camera_mode_dest, below the
+        # READOUT line, below a multi-line standing verdict and below the
+        # bank note. A `| Select-Object -First N` then eats the number AND
+        # reports -1 for a run that exited 0 (AGENTS.md trap 6a), so the
+        # number this mode exists for was the first thing a truncated pipe
+        # destroyed. Everything else here is context and can be truncated
+        # harmlessly.
+        headline, fuzzy_notes = measure_fuzzy(unit, fn, fn_stripped, state,
+                                              digest=digest)
+        if headline:
+            print(headline)
         print(f"READOUT   real {real} (insns {insns}{tok})"
               f"  [--fuzzy: {banked_note}]")
         standing = state.get("last_verdict")
@@ -4518,8 +4541,11 @@ def main():
             print("[banked from the CURRENT state — still no verdict and no"
                   " BEST anchor. --revert / --revert-baseline now restore"
                   " THIS state; --no-bank opts out.]")
-        if not fuzzy_readout(unit, fn, fn_stripped, state, state_file,
-                             digest=digest):
+        for note in fuzzy_notes:
+            print(note)
+        if headline:
+            state_file.write_text(json.dumps(state), encoding="utf-8")
+        else:
             # A readout with no number is not a success. It exited 0 before,
             # so a script could not tell a fuzzy of 0 from a failed report
             # build, and the CONFLICT arbitration this readout exists to
