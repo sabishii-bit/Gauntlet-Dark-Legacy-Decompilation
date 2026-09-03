@@ -550,15 +550,15 @@ static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
         f64 guess;
         guess = __frsqrte((f64)length);
         guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * (guess * guess));
+                (lbl_80345DA0 - guess * guess * length);
         guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * (guess * guess));
+                (lbl_80345DA0 - guess * guess * length);
         guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * (guess * guess));
+                (lbl_80345DA0 - guess * guess * length);
         sqrtLocal.result =
             (f32)(length *
                   (lbl_80345D98 * guess *
-                   (lbl_80345DA0 - length * (guess * guess))));
+                   (lbl_80345DA0 - guess * guess * length)));
         length = sqrtLocal.result;
     }
 
@@ -889,17 +889,17 @@ static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
         guess = __frsqrte((f64)length);
 
         guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * guess * guess);
+                (lbl_80345DA0 - guess * guess * length);
         guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * guess * guess);
+                (lbl_80345DA0 - guess * guess * length);
         guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * guess * guess);
+                (lbl_80345DA0 - guess * guess * length);
         sqrtLocal.result = (f32)(length *
                                  (lbl_80345D98 * guess *
-                                  (lbl_80345DA0 - length * guess * guess)));
+                                  (lbl_80345DA0 - guess * guess * length)));
         length = sqrtLocal.result;
     }
-    if (!(f64)length) {
+    if (0.0 == (f64)length) {
         f32 dx = p1->x - p0->x;
         f32 dz = p1->z - p0->z;
         out->x = p1->x;
@@ -912,15 +912,15 @@ static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
     nx = dir->x * inverse;
     ny = dir->y * inverse;
     nz = dir->z * inverse;
-    distance = (p0->x - p1->x) * nx + (p0->z - p1->z) * nz;
+    distance = nx * (p0->x - p1->x) + nz * (p0->z - p1->z);
     if (distance < 0.0f) {
         out->x = p1->x;
         out->y = p1->y;
         out->z = p1->z;
     } else if (distance >= length) {
-        out->x = p1->x + dir->x;
-        out->y = p1->y + dir->y;
-        out->z = p1->z + dir->z;
+        out->x = dir->x + p1->x;
+        out->y = dir->y + p1->y;
+        out->z = dir->z + p1->z;
     } else {
         out->x = nx * distance + p1->x;
         out->y = ny * distance + p1->y;

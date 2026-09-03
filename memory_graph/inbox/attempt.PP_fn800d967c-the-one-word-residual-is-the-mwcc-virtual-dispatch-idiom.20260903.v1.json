@@ -1,0 +1,29 @@
+{
+  "attempted_axis": "Promote a 13-instruction copy_register_fields rule (no mechanism note, no prior attempt record) by removing the named function-pointer temporary so MWCC chains the two loads through one register.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - measured on the raw body object. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED and relevant in the same way it was for PointLineDist2D: the residual reads REGISTER_ONLY while the two streams differ in HOW the callee address is formed, though here both streams do read the same two values, so the recolor proof is sound.",
+    "probed_form": "HEAD form: `register void (*dispatch)(int, u32, u32);` + `dispatch = *(void (**)(int, u32, u32))(*(u32*)(param_1 + 32) + 12);` + two arg loads + `dispatch(param_1, arg2, arg3);`. PROBE: delete the `dispatch` temporary and call the expression directly - `(*(void (**)(int, u32, u32))(*(u32*)(param_1 + 32) + 12))(param_1, arg2, arg3);` with the two arg loads first. BYTE-IDENTICAL: still `lwz r6,32(r3)` / `lwz r12,12(r6)`, and the instruction ORDER was unchanged too. Reverted.",
+    "residual": "The rule stays; this record supplies its missing source-exhaustion provenance and hands the next lane a named, concrete cure that is a TU-shape task rather than a probe.",
+    "scope": "No source change retained. src/game/movie/movieplayer.cpp edited and restored; `git status` clean.",
+    "verification": "defake_gate baseline game/movie/movieplayer --at-head at commit de7b0412d (52 functions, 41 at real 0, source sha1 89bdf2412). Probe measured from a fresh `ninja -j2 build/GUNE5D/src/game/movie/.postprocess/body/movieplayer.o`."
+  },
+  "function": "function:fn_800D967C",
+  "hypothesis": {
+    "cheapest_refuting_observation": "If any purely expression-level rewrite makes MWCC emit `lwz r12,32(r3)` for the intermediate, the virtual-dispatch story is unnecessary. One was tried and was byte-identical (see probed_form), which supports rather than refutes it.",
+    "screened_against_target": "yes - the four-instruction sequence, the r3-unchanged first argument and the +32/+12 offsets were all read from the aligned raw view against the retail bytes.",
+    "statement": "This is not a colouring tie-break at all. The aligned raw rows: @0xc target `lwz r12,32(r3)` against ours `lwz r6,32(r3)`; @0x14 target `lwz r12,12(r12)` against ours `lwz r12,12(r6)`; @0x1c both `mtlr r12`; @0x20 both `blrl`. That target sequence is MWCC's C++ VIRTUAL-DISPATCH shape, in which the vtable pointer is loaded straight into the call-target register r12 and refined in place. Our stream reaches the same values through a raw double-cast expression, which MWCC compiles as an ordinary pointer chase and gives an ordinary scratch (r6) to the intermediate. The source cure is to declare the object as a class with a virtual whose slot is at +12 of a vtable pointer stored at +32 (a secondary/multiple-inheritance vtable given the offset), and to call it as `obj->method(a, b)` - the retail call passes r3 unchanged as the first argument, which is exactly a `this`-call. That is a TU-shape change to movieplayer.cpp, not a one-line edit, which is why it was not executed here."
+  },
+  "id": "attempt.PP_fn800d967c-the-one-word-residual-is-the-mwcc-virtual-dispatch-idiom.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T16:18:26Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "13/13 insns, 2 differing words: target `lwz r12,32(r3)` + `lwz r12,12(r12)`, ours `lwz r6,32(r3)` + `lwz r12,12(r6)`"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

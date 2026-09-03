@@ -1,0 +1,30 @@
+{
+  "attempted_axis": "Promote a 2-instruction instruction_permutation rule (no mechanism note, no prior attempt record) by re-deriving the retail statement order for the two call-argument copies.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - measured on the raw body object. claim.law.WF_a-pool-fix-renumbers-relocation-hashes-not-body-hashes.20260901.v1 SCREENED: the probe changed BODY bytes, so wf_rederive_pin would have refused and correctly - the probe was reverted instead of re-pinned.",
+    "probed_form": "`dest = mlmMemBase + (mlmMemUsed / 4) * 4;` then `avail = mlmMemLimit - mlmMemUsed;` (HEAD) SWAPPED to `avail = ...;` then `dest = ...;`. REGRESSED: the swap moved `subf r25` up to +0x64 and created an extra unpaired row, taking the window from 2 differing words to 3 differing words plus one target-only/ours-only pair. Reverted. This is a REFUTATION of the natural reading of the residual: the retail statement order for the two defs is the one already in the tree, and only the two argument COPIES are exchanged.",
+    "residual": "The rule stays; this record is its missing source-exhaustion provenance. One source axis probed and refuted; the axis that remains is scheduling, which claim.law.CV_pinned-residuals-are-unreachable-across-the-local-mwcc-archive.20260901.v1 already closes for the compiler/flag half.",
+    "scope": "No source change retained. src/game/sys/ml_mem.c edited and restored; `git status` clean.",
+    "verification": "defake_gate baseline game/sys/ml_mem --at-head at commit de7b0412d (26 functions, 26 at real 0, source sha1 eaa037a9c). Probe measured from a fresh `ninja -j2 build/GUNE5D/src/game/sys/.postprocess/body/ml_mem.o`."
+  },
+  "function": "function:AllocFile",
+  "held_fixed": "ONE edit, one variable: only the order of the two defining statements changed. The call itself, its argument list and order, the local declaration block and every other statement in AllocFile were held constant.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Find a source form that changes WHICH of the two values is defined last before the call. Swapping the two defining statements was tried and REGRESSED (see probed_form), which is itself evidence that retail's defining order is the one we already have.",
+    "screened_against_target": "yes - the dependence distance was read from the aligned raw view (`fnasm.py game/sys/ml_mem AllocFile 0x50:0x90 --raw --diff`), and both call-site values are confirmed to live in callee-saved r25/r29 in BOTH streams, so no register-assignment difference is involved.",
+    "statement": "The exchange is the target scheduler hiding a one-cycle result latency, not a source difference. Retail computes `avail` at +0x68 (`subf r25,r7,r0`) and then issues the INDEPENDENT `addi r6,r29,0` at +0x6c before consuming r25 at +0x70; our stream issues `addi r5,r25,0` back-to-back with the subf. Any lever that reaches this is a scheduler lever, not a statement-order one."
+  },
+  "id": "attempt.PP_allocfile-argument-copy-pair-is-latency-hiding-not-statement-order.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T16:18:24Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-03",
+    "signature": "98/98 insns, 2 differing words: +0x6c/+0x70 exchange `addi r6,r29,0` and `addi r5,r25,0` (the 3rd/4th argument copies for xReadFileSection)"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

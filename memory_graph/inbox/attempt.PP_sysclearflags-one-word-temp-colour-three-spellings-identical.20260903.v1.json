@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Promote the smallest webfrank rule in the project (4 instructions, copy_register_fields, NO mechanism note and no prior attempt record) to a source close, so its rule can be deleted.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - all three probes were read from the RAW body object, never from the pinned src/ object. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED and not engaged (no stack slot; the function has no frame). claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED and NOT applicable: this is not a zero-copy site, it is a load destination.",
+    "probed_form": "(1) `gSysFlags &= ~mask;` (HEAD form, baseline). (2) `gSysFlags = gSysFlags & ~mask;`. (3) `u32 flags = gSysFlags;` + blank line + `gSysFlags = flags & ~mask;`. (4) `gSysFlags = ~mask & gSysFlags;`. All four produce BYTE-IDENTICAL output: `lwz r0,0(0) @gSysFlags` / `andc r0,r0,r3` / `stw r0` / `blr`. Three identical A/Bs kill the axis under AGENTS.md iteration discipline. HEAD form (1) restored.",
+    "residual": "The rule stays. This record is the source-exhaustion provenance the Mandatory-result policy requires and the rule did not have: before this run the game/sys/sysservice::sysClearFlags entry carried neither a `mechanism` note nor any attempt record on the function, which is the 'wanton use' shape the provenance audit named. The rule itself is sound (verify_consistent_recolor with no escape); what was missing was the source trail.",
+    "scope": "No source change retained. src/game/sys/sysservice.c was edited and restored; `git status` clean.",
+    "verification": "defake_gate baseline game/sys/sysservice --at-head at commit de7b0412d (17 functions, 16 at real 0, source sha1 ba495ad07). Each probe measured from a fresh `ninja -j2 build/GUNE5D/src/game/sys/.postprocess/body/sysservice.o`."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fnasm.py game/sys/sysservice sysClearFlags --raw --diff - if our +0x0 ever loads into anything but r0, or if the retail row changes, this record has expired.",
+    "falsifier": "Any source spelling of `gSysFlags &= ~mask` that makes MWCC load the global into a non-r0 register while keeping 4 instructions.",
+    "premise_measurement": "`python tools/gdl/fnasm.py game/sys/sysservice sysClearFlags --raw --diff` after each of three rebuilds of build/GUNE5D/src/game/sys/.postprocess/body/sysservice.o printed the SAME two rows every time. The sibling control is decisive: sysSetFlags (`gSysFlags |= mask;`) is byte-identical to retail and uses r0 for the same temp, so the r4 home in retail's sysClearFlags is not a TU-wide convention.",
+    "scope": "The statement-spelling axis on sysClearFlags only. It does NOT deny declaration-class work (making gSysFlags volatile or extern, which would also move sysSetFlags/sysTestFlags and was not tried), and it does not deny the function to a later lane with a new idea."
+  },
+  "function": "function:sysClearFlags",
+  "held_fixed": "The function's signature, the global's storage class (`static u32 gSysFlags`) and the sibling sysSetFlags/sysTestFlags bodies were held constant; only the single statement's spelling varied.",
+  "id": "attempt.PP_sysclearflags-one-word-temp-colour-three-spellings-identical.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T16:17:42Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "4/4 insns, 2 differing words: target `lwz r4,gSysFlags` + `andc r0,r4,r3`, ours `lwz r0,gSysFlags` + `andc r0,r0,r3`"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

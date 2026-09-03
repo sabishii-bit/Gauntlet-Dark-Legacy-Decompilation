@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/fnasm.py (--raw --diff, the aligned view the difference was read from)",
+    "tools/gdl/composed_census/wf_word_diff.py (the RECOLOR verdict this law says is insufficient)",
+    "tools/gdl/webfrank.py verify_consistent_recolor (the positive control: refuses at +0x30 before the fix, proves after)"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "matching",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function whose differing words are register-field-only, whose two streams provably read the same values at every one of them, and where an operand-provenance screen therefore adds nothing - if the screen never changes a verdict across the corpus, it is ceremony. Conversely, evidence that our +0x30 and retail's +0x30 read register pairs holding the same two values would have disproved the PointLineDist2D instance; attempt.WC_pointlinedist2d-its-pin-covers-a-reassociated-product-not-a-recolor.20260903.v1 measured that they do not.",
+  "id": "claim.law.PP_a-register-only-verdict-cannot-see-a-reassociated-fp-product.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T16:17:45Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "A REGISTER_ONLY / RECOLOR verdict is computed from instruction SHAPE and cannot see that the two streams multiply different VALUES, so it must never on its own justify a postprocessor rule on floating-point arithmetic. Measured on game/world/btricol::PointLineDist2D, 2026-09-03: fndiff --classify, webfrank_audit, wf_word_diff (107/107 insns, 0 mnemonic divergence, CLASS: RECOLOR) and the opcode multiset ALL agreed the residual was register-field-only, while our +0x30 emitted `fmul f1,f0,f5` = length*guess and retail emitted `fmul f0,f1,f1` = guess*guess. The whole gap was one source association - `lbl_80345DA0 - length * guess * guess` where retail has `guess * guess * length` - inside the frsqrte Newton-Raphson kernel, and the two forms are NOT IEEE-bit-identical because the inner fmul rounds separately from the fnmsub. Two more source defects sat behind the same clean verdict and were invisible to every score: a reversed fcmpu at +0x84 (`if (!(f64)length)` versus retail's zero-first compare) and a reversed vector add at +0x138-0x150 (`p1 + dir` versus retail's `dir + p1`, decidable from the 4(r5)-before-4(r4) load order). The positive control is that fixing all three made verify_consistent_recolor PROVE the function from the entry identity map with the `unproven_recolor_audit` escape DELETED. The two-sided negative control is a source census of the same idiom: every OTHER reciprocal-square-root site in the tree - src/MSL/math_ppc.h (the reference), game/world/camera.c (5 sites), newcam.c, items.c, world.c - already spells it `guess * guess * x`, so PointLineDist2D was 1 outlier in ~21 sites, and it was exactly the one carrying an unproven pin. The operational rule: a rule proposed on an FP-heavy function needs an operand-PROVENANCE screen (do the two streams read the same values at each differing word), and a grep of the tree for the same idiom is the cheapest form of it."
+}

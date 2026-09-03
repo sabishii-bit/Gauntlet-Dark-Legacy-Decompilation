@@ -1,0 +1,30 @@
+{
+  "attempted_axis": "Promote a 27-instruction copy_register_fields rule (no mechanism note, no prior attempt record) by re-ordering the two polynomial coefficient assignments, on the reading that our anonymous pool holds them in the reverse of retail's order.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - measured on the raw body object. claim.law.symbolified-own-pool-literal-blocks-tu-flip.20260831.v1 SCREENED and NOT engaged: nothing here is symbolified, the pool entries are anonymous on our side by design. The `@@N`-versus-`lbl_ADDR` reading that seeded this probe is exactly the pool-name noise AGENTS.md warns about - an anonymous pool index is not an address ordering.",
+    "probed_form": "`negative = 0.008333334f;` then `coefficient = -0.0001984127f;` (HEAD) SWAPPED to `coefficient = -0.0001984127f;` then `negative = 0.008333334f;`. BYTE-IDENTICAL (14 differing words before and after, same rows). Reverted.",
+    "residual": "The rule stays; this record is its missing source-exhaustion provenance plus a refuted premise other lanes can now screen against - a `@@N`-versus-`lbl_ADDR` index inversion in an aligned view is NOT evidence of a source ordering defect, and the deciding command is `fndiff --datum --raw`.",
+    "scope": "No source change retained. src/game/mb/mb_particle.c edited and restored; `git status` clean.",
+    "verification": "defake_gate baseline game/mb/mb_particle --at-head at commit de7b0412d (51 functions, 43 at real 0, source sha1 f1e428b56). Probe measured from a fresh `ninja -j2 build/GUNE5D/src/game/mb/.postprocess/body/mb_particle.o`."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/mb/mb_particle getSinCos --datum --raw - if this ever reports anything but VALUE-EQUAL, the pool half of this denial has expired.",
+    "falsifier": "A source edit that changes which anonymous pool entry is loaded at +0x24 while keeping 27 instructions.",
+    "premise_measurement": "The premise was that our @@99/@@100 pool INDICES being in the opposite order to retail's lbl_803491D8/DC ADDRESSES meant our source introduced the two literals in the wrong order. Swapping `negative = 0.008333334f;` and `coefficient = -0.0001984127f;` left the object BYTE-IDENTICAL - +0x24 still loads @@100 - so the anonymous-pool index does not track assignment order here. `python tools/gdl/fndiff.py game/mb/mb_particle getSinCos --datum --raw` prints `VALUE-EQUAL getSinCos (relocs target 5 / ours 5)`, so there is no pool-CONTENT defect either and the premise is refuted on both halves.",
+    "scope": "The coefficient-assignment-order axis on getSinCos only. It does not deny declaration-order, type-width or pragma work on the function."
+  },
+  "function": "function:getSinCos",
+  "id": "attempt.PP_getsincos-anonymous-pool-index-does-not-track-assignment-order.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T16:17:44Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "27/27 insns, 14 differing words; the seed row is +0x24/+0x2c where target loads lbl_803491D8 into f3 and lbl_803491DC into f2 and ours loads @@100 into f2 and @@99 into f3"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
