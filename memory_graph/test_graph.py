@@ -5227,8 +5227,51 @@ def changed_paths(base=None, root=core.REPO_ROOT):
     return paths, description
 
 
+def committed_range_base(root=core.REPO_ROOT):
+    """The ref a CLEAN tree should be compared against, or None.
+
+    THE DEFECT (run-49 item 7, DA). `--changed` with no `--since` reads
+    `git status`, which describes the WORKING TREE. The suite is a
+    per-COMMIT gate (AGENTS.md discipline 13), and after the commit the tree
+    is clean — so the gate reads nothing and SKIPs precisely when it is
+    being run for its stated purpose. Reproduced at e78f1d202 on a tree
+    whose only uncommitted path was an untracked LANE_LOCK, one command
+    after a commit touching `tools/gdl/savedregs.py`, a graph BUILD INPUT:
+
+        graph-suite --changed: 1 changed path(s) from `git status ...`
+          irrelevant: LANE_LOCK
+        SKIP: no changed path under memory_graph/, tools/gdl/, ...
+
+    The right question for a clean tree is what this BRANCH has changed, so
+    the base is the merge-base with `main`. On `main` itself (or wherever
+    the merge-base IS HEAD, so the range would be empty) it falls back to
+    `HEAD~1`, which is the per-commit question spelled literally. Returns
+    None only when neither exists — a root commit or a broken git — and the
+    caller then fails OPEN and runs.
+    """
+    import subprocess
+
+    def git(*args):
+        result = subprocess.run(["git", *args], cwd=str(root),
+                                capture_output=True, text=True)
+        return result.stdout.strip() if result.returncode == 0 else None
+
+    head = git("rev-parse", "HEAD")
+    for candidate in (git("merge-base", "HEAD", "main"),
+                      git("rev-parse", "HEAD~1")):
+        if candidate and candidate != head:
+            return candidate
+    return None
+
+
 def changed_gate(base=None, root=core.REPO_ROOT, stream=sys.stdout) -> bool:
-    """True = run the suite. Prints the paths it compared, both ways."""
+    """True = run the suite. Prints the paths it compared, both ways.
+
+    With an explicit `base` this compares that range and nothing else. With
+    no base it reads the working tree FIRST and, when the tree names nothing
+    relevant, ALSO reads the committed range (see `committed_range_base`) —
+    a second look that can only turn a SKIP into a RUN, never the reverse.
+    """
     try:
         paths, description = changed_paths(base=base, root=root)
     except Exception as error:                      # noqa: BLE001
@@ -5250,6 +5293,35 @@ def changed_gate(base=None, root=core.REPO_ROOT, stream=sys.stdout) -> bool:
         print(f"  irrelevant: {rel}", file=stream)
     if len(paths) > 20:
         print(f"  ... and {len(paths) - 20} more", file=stream)
+    if base is None:
+        fallback = committed_range_base(root=root)
+        if fallback is None:
+            print("graph-suite --changed: RUN — the working tree names"
+                  " nothing relevant and no committed range exists to"
+                  " compare against (root commit, or git unreadable)",
+                  file=stream)
+            return True
+        try:
+            committed, description = changed_paths(base=fallback, root=root)
+        except Exception as error:                  # noqa: BLE001
+            print(f"graph-suite --changed: RUN (cannot read the committed"
+                  f" range: {error})", file=stream)
+            return True
+        committed_relevant = graph_suite_relevant(committed)
+        print(f"graph-suite --changed: the working tree decides nothing, so"
+              f" also comparing the COMMITTED range —"
+              f" {len(committed)} path(s) from `{description}`", file=stream)
+        if committed_relevant:
+            for rel in committed_relevant[:20]:
+                print(f"  relevant (committed): {rel}", file=stream)
+            if len(committed_relevant) > 20:
+                print(f"  ... and {len(committed_relevant) - 20} more",
+                      file=stream)
+            print(f"RUN: {len(committed_relevant)} committed path(s) under"
+                  f" {', '.join(GRAPH_SUITE_INPUT_ROOTS)} — this is a"
+                  " per-COMMIT gate, and `git status` cannot see the commit"
+                  " you just made", file=stream)
+            return True
     print(f"SKIP: no changed path under"
           f" {', '.join(GRAPH_SUITE_INPUT_ROOTS)}", file=stream)
     return False
@@ -5342,11 +5414,132 @@ class ChangedModeTests(unittest.TestCase):
         def fake(base=None, root=None):
             return ["src/game/ui/select.c", "AGENTS.md"], "fake"
 
-        with mock.patch.object(sys.modules[__name__], "changed_paths", fake):
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: "abc1234"):
             self.assertFalse(changed_gate(stream=stream))
         text = stream.getvalue()
         self.assertIn("irrelevant: src/game/ui/select.c", text)
         self.assertIn("SKIP:", text)
+
+    # --- run-49 item 7: the per-COMMIT question ---------------------------
+    #
+    # THE DEFECT (DA). The suite is a per-COMMIT gate (AGENTS.md discipline
+    # 13) and bare `--changed` read `git status`, which describes the WORKING
+    # TREE — so after the commit the tree is clean and the gate SKIPs exactly
+    # when it is being run for its stated purpose. Reproduced at e78f1d202,
+    # one command after a commit touching `tools/gdl/savedregs.py` (a graph
+    # BUILD INPUT), on a tree whose only uncommitted path was an untracked
+    # LANE_LOCK:
+    #
+    #     graph-suite --changed: 1 changed path(s) from `git status ...`
+    #       irrelevant: LANE_LOCK
+    #     SKIP: no changed path under memory_graph/, tools/gdl/, ...
+    #
+    # The second look can only turn a SKIP into a RUN, so the gate stays
+    # conservative in the direction that matters.
+    def _clean_tree_then(self, committed):
+        calls = []
+
+        def fake(base=None, root=None):
+            calls.append(base)
+            if base is None:
+                return ["LANE_LOCK"], "git status (clean but for LANE_LOCK)"
+            return committed, f"git diff --name-only {base}..HEAD"
+
+        return fake, calls
+
+    def test_a_clean_tree_falls_back_to_the_committed_range(self):
+        stream = io.StringIO()
+        fake, calls = self._clean_tree_then(["tools/gdl/savedregs.py"])
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: "c8a28c3bb"):
+            self.assertTrue(changed_gate(stream=stream))
+        text = stream.getvalue()
+        self.assertIn("irrelevant: LANE_LOCK", text)
+        self.assertIn("relevant (committed): tools/gdl/savedregs.py", text)
+        self.assertIn("per-COMMIT gate", text)
+        self.assertEqual(calls, [None, "c8a28c3bb"])
+
+    def test_a_clean_tree_whose_commits_are_irrelevant_still_skips(self):
+        """The negative side: the second look must not turn every clean
+        tree into a RUN, or the gate is worth nothing."""
+        stream = io.StringIO()
+        fake, _calls = self._clean_tree_then(["src/game/ui/select.c"])
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: "c8a28c3bb"):
+            self.assertFalse(changed_gate(stream=stream))
+        self.assertIn("SKIP:", stream.getvalue())
+
+    def test_an_explicit_since_is_never_second_guessed(self):
+        """`--since` names the range the caller wants; consulting another
+        one behind their back would make the flag a suggestion."""
+        stream = io.StringIO()
+        calls = []
+
+        def fake(base=None, root=None):
+            calls.append(base)
+            return ["src/game/ui/select.c"], "fake"
+
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake):
+            self.assertFalse(changed_gate(base="deadbee", stream=stream))
+        self.assertEqual(calls, ["deadbee"])
+
+    def test_no_committed_range_at_all_fails_OPEN(self):
+        stream = io.StringIO()
+        fake, _calls = self._clean_tree_then([])
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: None):
+            self.assertTrue(changed_gate(stream=stream))
+        self.assertIn("no committed range exists", stream.getvalue())
+
+    def test_a_broken_committed_range_read_fails_OPEN(self):
+        stream = io.StringIO()
+
+        def fake(base=None, root=None):
+            if base is None:
+                return ["LANE_LOCK"], "status"
+            raise RuntimeError("bad revision")
+
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: "abc1234"):
+            self.assertTrue(changed_gate(stream=stream))
+        self.assertIn("cannot read the committed range", stream.getvalue())
+
+    def test_the_base_prefers_the_merge_base_and_falls_back_to_HEAD_1(self):
+        """On a branch the question is what the BRANCH changed; on main the
+        merge-base IS HEAD, so the literal per-commit range is used."""
+        import subprocess
+
+        def run(argv, **kwargs):
+            key = tuple(argv[1:])
+            table = {
+                ("rev-parse", "HEAD"): "headsha",
+                ("merge-base", "HEAD", "main"): self.merge_base,
+                ("rev-parse", "HEAD~1"): self.parent,
+            }
+            value = table.get(key)
+            return subprocess.CompletedProcess(
+                argv, 0 if value else 1, value or "", "")
+
+        self.merge_base, self.parent = "basesha", "parentsha"
+        with mock.patch("subprocess.run", run):
+            self.assertEqual(committed_range_base(), "basesha")
+        self.merge_base, self.parent = "headsha", "parentsha"
+        with mock.patch("subprocess.run", run):
+            self.assertEqual(committed_range_base(), "parentsha")
+        self.merge_base, self.parent = "headsha", None
+        with mock.patch("subprocess.run", run):
+            self.assertIsNone(committed_range_base())
 
     def test_gate_runs_on_a_graph_path(self):
         stream = io.StringIO()
