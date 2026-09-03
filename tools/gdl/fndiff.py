@@ -61,6 +61,15 @@ unexamined set. Calibrated over all 257 unit pairs: 3,222 rows are
 kind-differing-but-equal, 45 are wrong-datum and 177 wrong-value, and 23
 of the 72 flagged functions read `real 0` today.
 
+--ops leads with BRANCH-TARGET DIVERGENCE when one is present: a
+same-opcode branch row whose DISPLACEMENT differs and which has no unpaired
+cluster between it and its target cannot be explained by instruction drift,
+so the two streams branch to different places. That is a control-flow
+verdict, and it used to print last, under a parenthetical calling these rows
+"usually downstream" — which put the mechanism of a real 60 -> 34 win below
+twelve downstream IMMEDIATE rows. Calibrated: 35 rows in 14 functions,
+against 6,982 raw branch rows in 180.
+
 --ops collapses each function to its opcode stream (registers, operands and
 relocs ignored) and prints only the structurally inserted/deleted/replaced
 clusters. Use it to separate real shape differences (missing statements,
@@ -1276,6 +1285,71 @@ def immediate_deltas(t, b):
     return out
 
 
+_BRANCH_TARGET_INDEX_RE = re.compile(r"<fn\+0x(-?[0-9a-f]+)>")
+
+
+def _branch_target_index(line):
+    """Instruction index a normalized branch row points at, or None."""
+    m = _BRANCH_TARGET_INDEX_RE.search(line)
+    if not m:
+        return None
+    text = m.group(1)
+    value = -int(text[1:], 16) if text.startswith("-") else int(text, 16)
+    return value // 4
+
+
+def branch_divergences(t, b):
+    """[(t_index, o_index, t_target, o_target, structural)] rows.
+
+    Run-41 item 2. `--ops` prints these LAST, after every cluster and every
+    IMMEDIATE row, under a parenthetical calling them "usually downstream of
+    the clusters above". Usually is not always: for CT's MBCameraUpdate the
+    branch divergence WAS the mechanism of a real 60 -> 34 win and it sat
+    below twelve downstream IMMEDIATE rows, where a truncated view drops it
+    entirely.
+
+    STRUCTURAL is the discriminator that makes it a verdict rather than a
+    footnote, and CALIBRATION forced it to be a strict one. `parse`
+    normalizes a branch to its ABSOLUTE target `<fn+0xNN>`, so two
+    BYTE-IDENTICAL branch words sitting at different indices normalize to
+    different targets and land in this list as pure positional artifacts.
+    Ranking on the absolute target alone called 5,286 of 6,982 rows
+    structural (76%, 164 functions) — a headline that fires on three rows
+    in four is a footnote with a louder font. The instruction word encodes
+    the DISPLACEMENT, so the displacement is what must differ; and even
+    then an unpaired cluster between the branch and its target explains the
+    difference as drift. Both conditions are required.
+    """
+    ti, _t_rel = relocated_instructions(t)
+    bi, _b_rel = relocated_instructions(b)
+    to = [ln.split()[0] for ln in ti]
+    bo = [ln.split()[0] for ln in bi]
+    blocks = difflib.SequenceMatcher(
+        None, to, bo, autojunk=False).get_opcodes()
+    t_unpaired = [(i1, i2) for tag, i1, i2, _j1, _j2 in blocks
+                  if tag != "equal" and i2 > i1]
+    o_unpaired = [(j1, j2) for tag, _i1, _i2, j1, j2 in blocks
+                  if tag != "equal" and j2 > j1]
+
+    def spans_clear(unpaired, lo, hi):
+        lo, hi = min(lo, hi), max(lo, hi)
+        return not any(start < hi and lo < end for start, end in unpaired)
+
+    rows = []
+    for t_index, o_index, kind, t_line, b_line in immediate_deltas(t, b):
+        if kind != "branch":
+            continue
+        t_target = _branch_target_index(t_line)
+        o_target = _branch_target_index(b_line)
+        if t_target is None or o_target is None:
+            continue
+        structural = ((t_target - t_index) != (o_target - o_index)
+                      and spans_clear(t_unpaired, t_index, t_target)
+                      and spans_clear(o_unpaired, o_index, o_target))
+        rows.append((t_index, o_index, t_target, o_target, structural))
+    return rows
+
+
 # How many rows either side of an unpaired block are treated as guesses.
 # The matcher's alignment is trustworthy in the MIDDLE of a long equal run
 # and progressively less so as it approaches a boundary it had to choose.
@@ -1556,6 +1630,30 @@ def ops_diff(name, t, b):
         losses = " ".join(f"-{n} {op}" for op, n in sorted(delta[1].items()))
         print(f"  opcode multiset: DIFFERS  target-only: {gains or '(none)'}"
               f"  ours-only: {losses or '(none)'}")
+    # HEADLINE CLASS, ABOVE THE CLUSTERS (run-41 item 2). A branch-target
+    # divergence that drift cannot explain is a CONTROL-FLOW difference, not
+    # a downstream artifact, and printing it last — below every cluster and
+    # every IMMEDIATE row, under a parenthetical saying it is "usually
+    # downstream" — put the mechanism of CT's real 60 -> 34 MBCameraUpdate
+    # win beneath twelve IMMEDIATE rows, where probe's truncated view drops
+    # it. Equal counts alone are not the discriminator (local inserts and
+    # deletes cancel); "no unpaired cluster between the branch and its
+    # target" is.
+    branches = branch_divergences(t, b)
+    structural = [row for row in branches if row[4]]
+    if structural:
+        print(f"  BRANCH-TARGET DIVERGENCE: {len(structural)} of"
+              f" {len(branches)} same-opcode branch row(s) point at a"
+              " DIFFERENT instruction with NO unpaired cluster between the"
+              " branch and its target — instruction drift cannot explain"
+              " these, so the two streams branch to different places. This"
+              " is a control-flow difference, not downstream noise; read it"
+              " before the clusters below.")
+        for t_index, o_index, t_target, o_target, _ in structural:
+            print(f"    BRANCH T[{t_index}]@{t_index * 4:x} ->"
+                  f" @{t_target * 4:x}   O[{o_index}]@{o_index * 4:x} ->"
+                  f" @{o_target * 4:x}"
+                  f"   (target moves {(o_target - t_target) * 4:+d} bytes)")
     # @0x offsets are function-relative byte offsets (index*4), directly
     # usable as fnasm.py 0xA:0xB slices on the target (T) / --ours (O) dumps.
     flagged = 0
@@ -1595,10 +1693,14 @@ def ops_diff(name, t, b):
               " eligibility-deciding word, not schedule noise. Read each at"
               f" `fnasm <unit> {name} 0x{imm[0][0] * 4:x}:0x"
               f"{imm[0][0] * 4 + 4:x} --diff`.")
-    if branch_imm:
-        print(f"  ({len(branch_imm)} further same-opcode row(s) differ only"
-              " in a normalized BRANCH TARGET — usually downstream of the"
-              " clusters above; fix those first and re-read.)")
+    drifting = len(branch_imm) - len(structural)
+    if drifting > 0:
+        print(f"  ({drifting} further same-opcode row(s) differ only in a"
+              " normalized BRANCH TARGET, each with an unpaired cluster"
+              " between the branch and its target — those ARE explainable as"
+              " downstream drift; fix the clusters first and re-read."
+              + (" The structural ones are reported at the top.)"
+                 if structural else ")"))
     if flagged:
         print(f"  {flagged} of {len(clusters)} clusters flagged: SHIFTABLE ="
               " the same edit is expressible at another offset, so THIS"
@@ -1623,6 +1725,18 @@ def truncate_ops(ops_text, limit):
     if len(lines) <= limit:
         return "\n".join(lines)
     kept, dropped = lines[:limit], lines[limit:]
+    # The BRANCH-TARGET DIVERGENCE block is emitted above the clusters
+    # precisely so a cut cannot hide it (run-41 item 2); if a cut ever does
+    # reach it, say so rather than let it vanish the way IMMEDIATE rows did.
+    branch_dropped = sum(
+        1 for line in dropped
+        if line.lstrip().startswith(("BRANCH ", "BRANCH-TARGET")))
+    if branch_dropped:
+        kept.append(
+            f"  ... {branch_dropped} BRANCH-TARGET DIVERGENCE line(s)"
+            " suppressed — a branch that drift cannot explain is a"
+            " control-flow difference, not noise; read the full"
+            " `fndiff --ops`")
     imm_dropped = sum(
         1 for line in dropped if line.lstrip().startswith("IMMEDIATE "))
     if imm_dropped:
