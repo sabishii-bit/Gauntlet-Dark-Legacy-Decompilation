@@ -1,0 +1,32 @@
+{
+  "attempted_axis": "Serve NM's rule request (a composed zero/copy form plus a one-atom permutation) on game/world/newcam::fn_8006F16C with existing classes only, and decide the proof mode from the guard's own refusals rather than from the request's naming.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 APPLIED -- it is the law under which NM's four source axes died and the reason this residual belongs to the postprocessor at all. claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 APPLIED: the payload check proves conservation, not binding, so binding was discharged here by inspection -- exactly one of the two atoms (`lwz r28,@lbl_80344A6C`) carries a relocation and the other (`li r29,0`) carries none, so the (relocation type, symbol) map to the target slot is unambiguous. claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1 APPLIED (the shipped shape runs the permutation first). claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 SCREENED and NOT needed: the swap is legal in our colouring, so the post-recolor stage was an alternative and not a requirement. claim.law.webfrank-reloc-pin-breaks-on-local-symbol-renumber.20260831.v1 SCREENED -- both region relocation hashes are non-empty, so this pin fails closed on a pool renumber, which is the intended behaviour and a re-derivation chore for whoever renumbers.",
+    "laws_applied": "[\"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\", \"claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1\", \"claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1\"]",
+    "probed_form": "No source edit. THE SHIPPED RULE, run through tools/gdl/composed_census/wr_try_rule.py against the retail image: instruction_permutation [{start 0x230, end 0x238, order [1,0]}] with the four region hashes from wr_perm_hash, equivalent_copy_form [{at 0x238, proof constant_dataflow_recolor, our_source 29}], copy_register_fields true. Verdict `BYTE-EQUAL (raw postprocess body); 3 word(s) changed`. THE INSTRUCTIVE REFUSAL, and the reason NM's requested naming does not survive contact: the SAME permutation with the PURE form proof `dominating_def` is REFUSED verbatim `+0x234: relocated word inside the proof span carries relocation type 109, which may rewrite bits outside the immediate field`, because the permutation moves the SDA21-relocated `lwz` into the span between the `li r29,0` definition and the +0x238 rewrite site. Two escapes exist and both were measured BYTE-EQUAL: run the permutation LAST (post_recolor_permutation, which leaves the pure-form proof span empty), or keep it first and use the COMBINED proof, whose prover `prove_constant_dataflow` decides the same relocation soundly through `_relocation_cannot_write`. The combined shape shipped because it is identical to this TU's fn_8006DF34 rule, same window and same order.",
+    "residual": "None. real 4 -> 0.",
+    "scope": "config/GUNE5D/webfrank.json only, one rule added to the existing game/world/newcam block. Commit d9dc114d4. No source file touched.",
+    "verification": "BASELINE `wf_word_diff game/world/newcam fn_8006F16C` at 4726b33ca: 171 insns, DIFFERING WORDS = 3, MNEMONIC DIVERGENCE = 3, PINNED = no; per-word decode OPCODE 3, and the three words are ours [lwz r28 / li r29,0 / li r30,0] against target [li r29,0 / lwz r28 / mr r30,r29]. AFTER: `python configure.py` then full `ninja -j2` printed `build/GUNE5D/main.dol: OK`; `fndiff --clean` reads `MATCH (pool-name noise only), 0 real diff lines`; `defake_gate.py check game/world/newcam` GATE OK (baseline anchored 4726b33ca, source sha1 f3c657c97). Both suites green: `python -m unittest discover tools/gdl/tests -b` Ran 1487 tests OK, `python -m memory_graph.test_graph -b` Ran 374 tests OK. A forced full replay (touch tools/gdl/webfrank.py, full ninja) printed 226 WEBFRANK report lines and `main.dol: OK`, so every shipped rule still replays with this one present. wg_identical_slot_provenance --only fn_8006F16C --unit game/world/newcam: UNDECIDED (depth-limited leaves only; no IDENTICAL-SLOT-VALUE-DIFF firing). PROGRESS moved 67.90 -> 67.96 matched, STRICT held 56.91%, EQUIVALENT 10.99% (151 fns) -> 11.06% (152 fns)."
+  },
+  "differing_words": 3,
+  "function": "function:fn_8006F16C",
+  "id": "attempt.WR_fn8006f16c-served-permute-plus-constant-dataflow-recolor-real-4-to-0.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T18:40:07Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +1 mr  ours-only: -1 li"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "instruction_permutation (permute_instruction_atoms + check_permutation_dependences), equivalent_copy_form via prove_constant_dataflow, copy_register_fields + verify_consistent_recolor, verify_relocation_binding (the window carries an EMB_SDA21 relocation), verify_datum_binding at FULL strength L3 against orig/GUNE5D/sys/main.dol, and wg_identical_slot_provenance. NOT RUN: verify_value_equality_recolor and unproven_recolor_audit -- the strict recolor proof succeeded, and apply_patch reaches the permissive mode only when the strict one fails.",
+  "windows_tried": [
+    "0x230:0x238:1,0 as a PRE-recolor instruction_permutation, with proof dominating_def -- REFUSED",
+    "0x230:0x238:1,0 as a POST-recolor permutation, with proof dominating_def -- BYTE-EQUAL",
+    "0x230:0x238:1,0 as a PRE-recolor instruction_permutation, with proof constant_dataflow_recolor our_source r29 -- BYTE-EQUAL, and this is the shipped shape"
+  ]
+}

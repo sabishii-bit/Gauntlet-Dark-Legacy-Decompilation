@@ -1,0 +1,39 @@
+{
+  "attempted_axis": "Screen game/sys/cardutil::cardDoWrite's two IMMEDIATE rows at +0x3b8/+0x3c0 for the postprocessor path, model them as a permutation under the whole-function recolor, and take the verdict from the guards.",
+  "attributes": {
+    "law_screen": "claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED -- it is exactly why the two IMMEDIATE rows sit inside the matcher's EQUAL runs with `0 ops clusters` above them, and why the park's own signature (`0t ... 0 ops clusters`) understates the residual. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED, not applicable (263/263). claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 SCREENED: both stage orders were tried and both refuse at the same upstream site, so the composition order is not the discriminant here. claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 APPLIED.",
+    "laws_applied": "[\"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\", \"claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1\"]",
+    "probed_form": "No source edit; three rule fragments through the real webfrank.apply_patch with the retail image, each refusal quoted above verbatim. THE SECOND, INDEPENDENT REFUSAL IS PROVENANCE, and it would stand even if a rule had proved: this function's only live record is attempt.mp-label-correction.carddowrite.20260831.v1, whose own scope field says `NO source change` and whose law_screen says `No source probe was run for this function, so no codegen law was exercised`. The Mandatory result policy requires a parked or capped record with literal probed_form axes, or a law proving the class source-unreachable; a label-correction park with zero source probes is neither, so cardDoWrite gets a SOURCE-FIRST pass before any rule. That is the recommended next step, and game/sys/cardutil is unclaimed.",
+    "residual": "REFUSED and RECLASSIFIED to SOURCE-FIRST. The 2 IMMEDIATE rows are NOT the blocker -- they are a permutation the shipped stage accepts. The blocker is the whole-function recolor, whose value-equality relation cannot carry six independently materialised zeros across the loop join at +0x320.",
+    "scope": "config/GUNE5D/webfrank.json -- NO rule authored, NO commit for this function.",
+    "verification": "REFUTATION OF THE PARK'S OWN PREMISE, measured live and worth more than the refusal: attempt.mp-label-correction.carddowrite.20260831.v1 records `2 STRUCTURAL rows ... Row classes: 2 RELOC-SYMBOL` with sample rows `0x0008 RELOC-SYMBOL: T gCardBuf / O ...bss.0` and `0x0024` likewise, and routes the function to the RS lane on that basis. At 4726b33ca `wf_word_diff game/sys/cardutil cardDoWrite` reports RELOC-SYMBOL MISMATCH = 0 and the per-word decode finds no relocation-class difference at +0x8 or +0x24. The relocation defect was fixed at some point between 2026-08-31 and now; the park's routing is stale and the function is not the RS lane's."
+  },
+  "denial": {
+    "expiry_check": "`python tools/gdl/composed_census/wr_ve_derive.py game/sys/cardutil cardDoWrite --extra <the 0x3b8 window>` -- the denial expires the moment that refusal moves past +0x324, which is what a constant map that survives a loop join would do.",
+    "falsifier": "Any composition of the SHIPPED classes that reaches BYTE-EQUAL on this function, or a demonstration that the value-equality relation does hold at +0x324 and the refusal is a checker artefact rather than a fact about the streams.",
+    "premise_measurement": "`wf_word_diff game/sys/cardutil cardDoWrite` at 4726b33ca: 263 insns, DIFFERING WORDS = 46, MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0, PINNED = no, CLASS RECOLOR. Per-word decode: REGFIELD-ONLY 44, IMMEDIATE 2. The two IMMEDIATE rows are +0x3b8 (ours `addi r8,r8,-2` / target `addi r3,r3,-4`) and +0x3c0 (ours `addi r3,r3,-4` / target `addi r4,r4,-2`) -- each stream's word is the other's, one slot away, so they are a permutation and not a wrong constant. The permutation is not the blocker: with it in place the recolor refuses far upstream, verbatim `use of g9 does not correspond to g4 under the running renaming` at +0x314 strictly, and `use of g9 is not value-equal to g4` in the value-equality mode. Turning on the constant-equality closure MOVES the refusal to +0x324 (`use of g3 is not value-equal to g5`) and no further: at +0x2f8..+0x30c both streams materialise SIX independent `li rX,0` in different registers, the closure relates them, and the relation is then intersected away at the loop join before +0x324 uses it.",
+    "scope": "The postprocessor path for game/sys/cardutil::cardDoWrite, under the classes shipped at 4726b33ca. It does NOT deny the source path -- which has never been probed -- and it does not deny a future value-equality mode that carries constants across a loop join."
+  },
+  "differing_words": 46,
+  "function": "function:cardDoWrite",
+  "id": "attempt.WR_carddowrite-refused-twice-the-relation-breaks-at-a-loop-join-and-the-park-never-probed-source.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T18:42:55Z",
+  "refutes": "attempt.mp-label-correction.carddowrite.20260831.v1",
+  "residual": {
+    "capability_needed": "a value-equality relation that survives a loop join where the constant maps are intersected away",
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "0t opcode multiset IDENTICAL (263/263); insns T263/O263; 0 ops clusters; 2 aligned IMMEDIATE rows"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "instruction_permutation, post_recolor_permutation, copy_register_fields + verify_consistent_recolor, verify_value_equality_recolor both with and without the constant-equality closure, verify_datum_binding at FULL strength L3. NOT RUN: unproven_recolor_audit -- it is an unproven escape, this lane's mandate is existing PROVEN classes only, and reaching for it here would be exactly the wanton-use failure mode; and equivalent_copy_form/equivalent_mask_form/equivalent_zero_form, because no differing word in this function decodes as a copy, mask or zero form.",
+  "windows_tried": [
+    "0x3b8:0x3c4:2,1,0 as a PRE-recolor instruction_permutation (accepted by the permutation stage, recolor refused)",
+    "0x3b8:0x3c4:2,1,0 as a POST-recolor permutation (recolor refused at the same site)",
+    "the pre-recolor window plus value_equality_recolor with constant_equality true"
+  ]
+}

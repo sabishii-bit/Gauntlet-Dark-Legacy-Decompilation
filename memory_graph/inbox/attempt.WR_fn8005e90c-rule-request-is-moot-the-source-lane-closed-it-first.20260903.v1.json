@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Serve BP's rule request on game/world/gauntworld::fn_8005E90C (real 14, count parity, IDENTICAL multiset) -- and, per the lane's coordination clause, poll the peer source lane before shipping anything.",
+  "attributes": {
+    "law_screen": "none applicable to a rule that was not authored. The screen that decided this record is the coordination clause of the lane's own work order plus AGENTS.md's Mandatory result policy (source-first; a source-exact close DELETES its rule), not a codegen law. claim.law.fndiff-measures-the-postprocessed-object-so-webfrank-pins-fake-stale-solved.20260831.v1 SCREENED and is the reason the peer's close was verified from its COMMIT and its source diff rather than from a score read in this worktree.",
+    "probed_form": "No rule fragment was written and no apply_patch was run. The decision evidence is `git log --oneline main..claude/nearmiss-round-7-20260904` returning the single commit `8ae0c4c94 Match fn_8005E90C`, and `git show --numstat 8ae0c4c94` showing it touches `src/game/world/gauntworld.c` (3 insertions, 5 deletions) and `config/GUNE5D/webfrank.json` (2 insertions, 2 deletions). The webfrank.json half of that commit is NOT a rule for this function -- it re-derives the two region relocation hashes of the EXISTING game/world/gauntworld::fn_8005FDA8 permutation pin, which the source edit invalidated by renumbering the TU's local symbol pool. So the close is at SOURCE, exactly as claim.law.webfrank-reloc-pin-breaks-on-local-symbol-renumber.20260831.v1 predicts for a sibling edit.",
+    "residual": "MOOT. The rule request is withdrawn: the residual it was written against no longer exists on the peer branch, and shipping a rule for a source-exact function would be a dead pin that the promotion directive would delete on merge. THE TRANSFERABLE POINT: the coordination poll is worth running FIRST, not last -- it cost one `git log` and saved a full derivation on a 270-instruction function.",
+    "scope": "No file touched for this function. game/world/gauntworld is claimed by claude-fleet-worker-NM (tools/gdl/claimscope.py --index, run live).",
+    "verification": "BASELINE screen at 4726b33ca, before the poll: `wf_word_diff game/world/gauntworld fn_8005E90C` = 270 insns, DIFFERING WORDS = 11, MNEMONIC DIVERGENCE = 7, RELOC-SYMBOL MISMATCH = 0, PINNED = no, CLASS SCHEDULE-REORDER; per-word decode over the 11. That screen is superseded by the peer close and is recorded only so a later lane can tell what this lane saw."
+  },
+  "differing_words": 11,
+  "function": "function:fn_8005E90C",
+  "id": "attempt.WR_fn8005e90c-rule-request-is-moot-the-source-lane-closed-it-first.20260903.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-03T18:40:35Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "replace T[120:122]=['bne','b'] O=['beq']"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "NONE, deliberately, and this is the finding rather than a gap: the coordination poll ran BEFORE any derivation and returned a source close, so no verifier was spent on a function that no longer has a residual. The screen that WAS run is read-only: wf_word_diff plus a per-word decode."
+}

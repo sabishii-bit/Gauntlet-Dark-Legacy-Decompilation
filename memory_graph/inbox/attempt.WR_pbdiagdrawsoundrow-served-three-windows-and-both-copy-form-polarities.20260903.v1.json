@@ -1,0 +1,34 @@
+{
+  "attempted_axis": "Execute MF's mandatory step-1 hypothesis verbatim -- run webfrank_audit and wf_word_diff for the RAW differing-word count that decides candidacy -- then derive the composed rule its four-cycle needs.",
+  "attributes": {
+    "law_screen": "claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 APPLIED and CONFIRMED AT BOTH POLARITIES IN ONE FUNCTION, exactly as MF's screen predicted: +0x188 is ours `li r28,0` against the target's `addi r29,r27,0`, while +0x394 and +0x398 are ours `addi r28,r25,0` / `addi r24,r25,0` against the target's `li r23,0` / `li r22,0`. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED: MF read the +0x134/+0x138 IMMEDIATE rows as a local reorder rather than a wrong constant, and that reading is CONFIRMED -- but the reorder is three words wide, not two, and a two-word window is refused where the three-word one is exact. claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1 SCREENED: it is why the four-cycle survived MF's declaration-order lever. claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 APPLIED -- webfrank_audit is silent on this function and the verdict was derived per word instead. claim.law.HV_single-permutation-region-is-the-binding-schema-limit.20260901.v1 APPLIED: the list form carried three disjoint ascending windows and widening any of them would have swallowed a control op.",
+    "laws_applied": "[\"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\", \"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\", \"claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1\", \"claim.law.HV_single-permutation-region-is-the-binding-schema-limit.20260901.v1\"]",
+    "probed_form": "No source edit. THE SHIPPED RULE (config/GUNE5D/webfrank.json, game/pb/pb_diag block, commit 94f6e2ded): instruction_permutation [{0xe4,0xf4,[2,1,3,0]}, {0x124,0x12c,[1,0]}, {0x130,0x13c,[1,2,0]}] with the four region hashes of each from wr_perm_hash; equivalent_copy_form [{at 0x188, proof constant_dataflow_recolor, our_source 26}, {at 0x394, proof constant_dataflow_inverse_recolor}, {at 0x398, proof constant_dataflow_inverse_recolor}]; copy_register_fields true. Verdict from wr_try_rule against the retail image: `BYTE-EQUAL (raw postprocess body); 70 word(s) changed`. THE DERIVATION WAS DRIVEN BY THE GUARD'S OWN REFUSALS, each verbatim and each naming the next window: with only the 0x130 rotation, `use of g8 is not value-equal to g8` at +0x13c (which is why the preheader window exists); with the preheader window added, `base register presence differs (g0 vs g27)` at +0x188 (the forward copy form); with that added, `base register presence differs (g25 vs g0)` at +0x394 (the inverse polarity); with those added, `use of g10 does not correspond to g4 under the running renaming` at +0x124 (the third window). Five refusals, four of them naming their own cure.",
+    "residual": "None. real 122 -> 0.",
+    "scope": "config/GUNE5D/webfrank.json only, one rule added to the existing game/pb/pb_diag block. Commit 94f6e2ded. No source file touched. game/pb/pb_diag is unclaimed by any active lane (tools/gdl/claimscope.py --index, run live).",
+    "verification": "BASELINE `wf_word_diff game/pb/pb_diag pbDiagDrawSoundRow` at d9dc114d4: 283 insns, DIFFERING WORDS = 66, MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0, PINNED = no. MF's cheapest_refuting_observation was that a MNEMONIC DIVERGENCE above the one li-vs-addi pair would mean something structural was hiding: run live, it is 0 at index alignment, so the observation did NOT fire and MF's premise holds. AFTER: `python configure.py` then full `ninja -j2` printed `build/GUNE5D/main.dol: OK`; `fndiff --clean` reads `EXACT, 0 real diff lines`; `defake_gate.py check game/pb/pb_diag` GATE OK (baseline anchored d9dc114d4, source sha1 f1f18db41, 15 functions). Both suites green: unittest 1487 tests OK, memory_graph 374 tests OK. Forced full replay (touch tools/gdl/webfrank.py, full ninja): 226 WEBFRANK report lines and `main.dol: OK`, so the TU's four existing pins (pbDiagDrawTexture, pbDiagDrawObject, pbDiagDrawMenu, pbResetDiag) all replay beside this one. wg_identical_slot_provenance --only pbDiagDrawSoundRow --unit game/pb/pb_diag: UNDECIDED (depth-limited leaves only, no IDENTICAL-SLOT-VALUE-DIFF firing). PROGRESS moved 67.96 -> 68.07 matched, STRICT held 56.91%, EQUIVALENT 11.06% (152 fns) -> 11.16% (153 fns)."
+  },
+  "differing_words": 66,
+  "function": "function:pbDiagDrawSoundRow",
+  "id": "attempt.WR_pbdiagdrawsoundrow-served-three-windows-and-both-copy-form-polarities.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T18:42:12Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "DIFFERS target-only: +1 li ours-only: -1 addi; insns T283/O283; 2 ops clusters"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "instruction_permutation (permute_instruction_atoms + check_permutation_dependences, three windows), equivalent_copy_form at both polarities (prove_constant_dataflow via constant_dataflow_recolor and constant_dataflow_inverse_recolor), copy_register_fields + verify_consistent_recolor, verify_datum_binding at FULL strength L3 against orig/GUNE5D/sys/main.dol, wg_identical_slot_provenance. NOT RUN: verify_value_equality_recolor and unproven_recolor_audit -- the strict recolor proof succeeded once the three windows and three form edits were in place, and apply_patch reaches the permissive mode only after the strict one fails.",
+  "windows_tried": [
+    "0x134:0x13c:1,0 -- the pair MF named; ACCEPTED by the permutation stage but the recolor still refused, because the cluster is a THREE-word rotation and not a pair",
+    "0x130:0x13c:1,2,0 -- the correct rotation, lands all three words byte-identical with no register field touched",
+    "0xe4:0xf4:2,1,3,0 -- the loop preheader's three zero definitions, rotated back under the interleaved lwz",
+    "0x124:0x12c:1,0 -- the two independent loop-tail increments",
+    "the three-window set above, which is the shipped shape"
+  ]
+}
