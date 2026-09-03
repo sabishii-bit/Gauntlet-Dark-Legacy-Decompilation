@@ -54,9 +54,12 @@ you it was accepted. The verdict tuples are unchanged.
 
 IMPORTABLE CORE: snapshot, compare, verdict_row, arbitrate_regressions,
 parse_clean, roster_rows, format_roster, load_baseline, normalize_unit,
-arbitration_event, summarize_arbitrations — pure over parsed tool output
-and baseline dicts; no build and no printing at import (run-43 item 10;
-the convention is documented in AGENTS.md).
+arbitration_event, summarize_arbitrations, conflict_summary — pure over
+parsed tool output and baseline dicts; no build and no printing at import
+(run-43 item 10; the convention is documented in AGENTS.md).
+`arbitrate_regressions` keeps that property by DEFAULTING its cached-fuzzy
+reader to nothing: `check()` injects `cached_report_fuzzy` (which does read
+report.json), so the file read lives at the call site, not in the core.
 
 EVERY ARBITRATION IS LOGGED. `--arbitrate` keeps, `--bank-arbitrated` row
 re-anchors, and refused CONFLICTs all append one json line to
@@ -156,6 +159,21 @@ stays a REGRESSION with real and fuzzy explicitly agreeing. The delta is
 PRINTED in every arbitrated case, so the number behind a manual override is
 in the gate output instead of a separate command. Baselines taken before
 this item carry no fuzzy anchor and say so.
+
+THE CHEAP HALF RUNS UNASKED (run-50 item 2). `--arbiter fuzzy` costs a
+report build, so lanes did not pass it, and an ordinary `check` printed
+`real 403 -> 407` and then `GATE FAILED: 1 regression(s)` for a keep
+claim.law.EN-equal-count-opcode-respell-must-be-arbitrated-on-fuzzy-not-real
+.20260901.v1 makes CORRECT — with the deciding number already sitting in
+build/GUNE5D/report.json. Every disputed row now also reads that report
+WITHOUT building, but ONLY when `report_is_fresh` says it is at least as new
+as the object it describes, so discipline 3's ban on stale fuzzy is
+enforced rather than assumed; a cached number is labelled `[CACHED
+report.json, verified newer than the object]` in the row. A stale or missing
+report yields no number and the row keeps the `--arbiter fuzzy` advice. The
+CONFLICT-only summary is now `GATE CONFLICT: N row(s)` rather than `GATE
+FAILED: N CONFLICT` — same exit 1, but "failed" and "the two metrics
+disagree" are different findings and the lane acts differently on each.
 """
 
 import hashlib
@@ -1128,17 +1146,67 @@ def fresh_fuzzy(bare_unit, _names):
     return read_report_fuzzy(bare_unit)
 
 
-def _fuzzy_note(was, now):
-    """'fuzzy A -> B (+D)' or a reason the delta could not be formed."""
+def conflict_summary(count):
+    """The CONFLICT-only summary line (run-50 item 2).
+
+    It used to read `GATE FAILED: N CONFLICT`, and a lane reading "FAILED"
+    reverts.  A CONFLICT is not a failure: it is the gate saying `real` and
+    the finer metric point opposite ways, which is the state
+    claim.law.EN-equal-count-opcode-respell-must-be-arbitrated-on-fuzzy-not-
+    real.20260901.v1 governs.  The EXIT CODE is deliberately unchanged (1,
+    fail-closed) -- only the word a human reads moves.
+    """
+    return (f"GATE CONFLICT: {count} row(s) — `real` and the finer metric"
+            " DISAGREE. This is NOT a plain failure: read the diff,"
+            " arbitrate on fuzzy, then re-run with --arbitrate to accept, or"
+            " revert. (Exit is still 1: fail-closed until a human decides.)")
+
+
+def cached_report_fuzzy(bare_unit, _names=None):
+    """Per-function fuzzy from the report ALREADY on disk — never a build.
+
+    Run-50 item 2.  The fuzzy arbiter only ever ran behind `--arbiter
+    fuzzy`, so the ordinary `check` printed a bare `real A -> B` and the
+    summary line `GATE FAILED: 1 regression(s)` for a keep that
+    claim.law.EN-equal-count-opcode-respell-must-be-arbitrated-on-fuzzy-not-
+    real.20260901.v1 makes CORRECT — the number that decides the row was
+    sitting in build/GUNE5D/report.json and the gate did not look.
+
+    THE FRESHNESS GUARD IS THE WHOLE SOUNDNESS ARGUMENT.  Discipline 3
+    forbids reading a fuzzy from a report another command left behind, and
+    the report is exactly one full `ninja` old whenever a lane ran
+    `check --rebuild` (which rebuilds the OBJECT and not the report).  So
+    this returns {} unless `report_is_fresh` says the report is at least as
+    new as the object it would be describing; a stale report yields no
+    number and the row keeps the `--arbiter fuzzy` advice.
+    """
+    if not report_is_fresh(bare_unit):
+        return {}
+    return read_report_fuzzy(bare_unit)
+
+
+def _fuzzy_note(was, now, source=None):
+    """'fuzzy A -> B (+D)' or a reason the delta could not be formed.
+
+    ``source`` is 'fresh' (a report this call rebuilt) or 'cached' (a report
+    already on disk and verified newer than the object).  A cached number
+    SAYS SO in the note, because a reader must be able to tell which of the
+    two discipline-3 states produced it.
+    """
     if now is None:
-        return None, ("fuzzy delta UNMEASURED — pass `--arbiter fuzzy` to"
+        return None, ("fuzzy delta UNMEASURED — build/GUNE5D/report.json is"
+                      " older than this object, missing, or does not carry"
+                      " this function, so no cached fuzzy is trustworthy;"
+                      " pass `--arbiter fuzzy` to rebuild the report and"
                       " measure the fuzzy this REGRESSION would override")
     if was is None:
         return None, (f"fresh fuzzy is {now:.4f} but this baseline carries no"
                       " fuzzy anchor to compare it against — re-take the"
                       " baseline to enable the fuzzy arbiter")
     delta = now - was
-    return delta, f"fuzzy {was:.4f} -> {now:.4f} ({delta:+.4f})"
+    tag = (" [CACHED report.json, verified newer than the object]"
+           if source == "cached" else "")
+    return delta, f"fuzzy {was:.4f} -> {now:.4f} ({delta:+.4f}){tag}"
 
 
 def verdict_row(verdict, detail, accepted):
@@ -1159,7 +1227,8 @@ def verdict_row(verdict, detail, accepted):
 
 
 def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
-                          ops_fn=None, fuzzy_fn=None, arbiter=None):
+                          ops_fn=None, fuzzy_fn=None, arbiter=None,
+                          cached_fuzzy_fn=None):
     """Downgrade real-growth REGRESSIONs to CONFLICT when the current state
     is structurally target-identical (equal insn counts, IDENTICAL opcode
     multiset): the growth can be pure naming churn invisible to `real`.
@@ -1180,9 +1249,18 @@ def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
                 and re.match(r"real (\d+) -> (\d+)$", detail)
                 and not detail.startswith("real 0 ")]
     genuine_now = genuine_fn(bare_unit, disputed) if disputed else {}
-    fuzzy_now = {}
+    fuzzy_now, fuzzy_source = {}, None
     if disputed and arbiter == "fuzzy":
         fuzzy_now = (fuzzy_fn or fresh_fuzzy)(bare_unit, disputed) or {}
+        fuzzy_source = "fresh"
+    elif disputed and cached_fuzzy_fn is not None:
+        # Run-50 item 2: the cheap half of the fuzzy arbiter. No build, and
+        # no number at all unless the report on disk is newer than the
+        # object -- `cached_report_fuzzy` enforces that, and `check()`
+        # injects it. The DEFAULT here stays a no-op on purpose: this
+        # function is IMPORTABLE CORE, so it must not acquire a file read.
+        fuzzy_now = cached_fuzzy_fn(bare_unit, disputed) or {}
+        fuzzy_source = "cached" if fuzzy_now else None
     out = []
     for name, verdict, detail in verdicts:
         growth = re.match(r"real (\d+) -> (\d+)$", detail)
@@ -1214,7 +1292,7 @@ def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
             out.append((name, verdict, detail))
             continue
         delta, note = _fuzzy_note(baseline.get(name, {}).get("fuzzy"),
-                                  fuzzy_now.get(name))
+                                  fuzzy_now.get(name), fuzzy_source)
         if now < was:
             out.append((name, "CONFLICT",
                         detail + f" BUT genuine structural rows {was} ->"
@@ -2114,7 +2192,8 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
                        target_relocs=target_relocation_symbols(unit),
                        ours_object=our_object(unit))
     verdicts = arbitrate_regressions(verdicts, unit, baseline,
-                                     arbiter=arbiter)
+                                     arbiter=arbiter,
+                                     cached_fuzzy_fn=cached_report_fuzzy)
     conflicts = [v for v in verdicts if v[1] == "CONFLICT"]
     regressions = [v for v in verdicts if v[1] == "REGRESSION"]
     # Run-43 item 6. A CONFLICT this very call is about to ACCEPT was still
@@ -2182,9 +2261,7 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
         # as unfalsifiable as it was before.
         log_arbitration(arbitration_event(
             unit, "refused", conflicts, arbiter=arbiter, head=git_head()))
-        print(f"GATE FAILED: {len(conflicts)} CONFLICT — arbitrate (diff +"
-              " objdiff fuzzy), then re-run with --arbitrate to accept or"
-              " revert")
+        print(conflict_summary(len(conflicts)))
         return 1
     if regressions:
         print(f"GATE FAILED: {len(regressions)} regression(s) — revert or fix"
