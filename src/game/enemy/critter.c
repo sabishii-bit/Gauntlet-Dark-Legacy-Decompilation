@@ -2148,6 +2148,7 @@ void CritterGetTargetPlayers(Critter *c)
     f32 damage;
     f32 base;
     f64 ratio;
+    f64 quot;
     f32 thr;
     f32 result;
     f64 pt01;
@@ -2196,11 +2197,12 @@ void CritterGetTargetPlayers(Critter *c)
             if (damage < one) {
                 result = one + lbl_80343BEC;
             } else {
-                ratio = base / damage;
-                if (ratio < pt01) {
+                if ((quot = base / damage) < pt01) {
                     ratio = pt01;
-                } else if (ratio > lbl_80343BEC) {
+                } else if (quot > lbl_80343BEC) {
                     ratio = lbl_80343BEC;
+                } else {
+                    ratio = quot;
                 }
                 result = ratio;
             }
