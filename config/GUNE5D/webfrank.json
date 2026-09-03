@@ -1432,12 +1432,39 @@
         "function": "sceRead",
         "before_sha256": "9353cba5c0431258cb246b75fd4c37024d394b5afb14e319c284dc5da2a0fa86",
         "after_sha256": "9b1a33745a5e5986a20bfb8227837ca77638e51c91f8ee76852db29fda2ee4bf",
-        "unproven_recolor_audit": "Copy-propagation residual: retail compares the original register where raw compares its copy (raw addi r5,r29,0 then cmpwi r5 at +0x98/+0xa8 vs retail cmpwi r29); dataflow-equivalent by inspection 2026-08-25.",
+        "mechanism": "SOUNDNESS UPGRADE, no byte change: the before/after hashes and the emitted bytes are unchanged and this function's score is unmoved. This rule shipped 2026-08-25 on an \"unproven_recolor_audit\" reading 'Copy-propagation residual: retail compares the original register where raw compares its copy (raw addi r5,r29,0 then cmpwi r5 at +0x98/+0xa8 vs retail cmpwi r29); dataflow-equivalent by inspection 2026-08-25.' The escape is removed and replaced by machine proofs, and the residual turned out to be TWO mechanisms, not one. (1) The note's own mechanism is proved as it stands: verify_value_equality_recolor's copy closure relates our r5 to the target's r29 at +0xa8 because our r5 is a value-preserving copy of our r29, and that is the single declared substitution below. (2) The note is SILENT about the second obstruction, and it is not a recolor at all. At +0x118 ours emits `mr r3,r27` where the target emits `mr r5,r29`, and at +0x120 ours emits `addi r5,r29,0` where the target emits `addi r3,r27,0`: the same two register copies in the OPPOSITE ORDER, with the two encodings staying at their own positions. Modelled as a 3-atom instruction_permutation over [0x118,0x124) with order [2,1,0] -- the two copies transposed across the independent `lwz r4,4(r28)` at +0x11c, which writes r4 and reads r28 and shares nothing with either copy -- followed by two `unconditional` equivalent_copy_form edits at +0x118 (our `addi r5,r29,0` against the target's `mr r5,r29`) and +0x120 (our `mr r3,r27` against the target's `addi r3,r27,0`), each a copy/copy site whose destination AND source already agree, so neither is a disguised recolor. The window carries no relocations, so both relocation hashes are the empty-window hash. The remaining 10 differing words are register-field-only and are closed by copy_register_fields under the proof below. Derived and verified by replaying every stage in order through webfrank.apply_patch against the retail bytes: BYTE-EQUAL, and check_permutation_dependences accepts the order. verify_datum_binding runs on this rule as on every other.",
         "audit": {
           "classification": "REGISTER_ONLY",
-          "instructions": 152
+          "instructions": 152,
+          "permuted_instructions": 3
         },
-        "copy_register_fields": true
+        "instruction_permutation": {
+          "start": "0x118",
+          "end": "0x124",
+          "order": [2, 1, 0],
+          "before_sha256": "534f8f7ad8e748283841ec66f86417fcfbbd73470948561f1a42008750f5d43b",
+          "after_sha256": "c89029f9e2a261296d744687de69254851be4bff28671e9698d11c9ca2df4a5c",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x118",
+            "proof": "unconditional"
+          },
+          {
+            "at": "0x120",
+            "proof": "unconditional"
+          }
+        ],
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "One copy-closure escape: our r5 is a value-preserving copy of our r29, and the target compares r29 directly at +0xa8. Machine-proved by the shipped relation with no constant-equality closure needed; the escape is declared and fails closed on an undeclared or stale declaration.",
+          "substitutions": [
+            {"at": "0xa8", "bank": "g", "ours": 5, "target": 29}
+          ],
+          "compare_exchanges": []
+        }
       }
     ],
     "game/mb/mb_camera": [
