@@ -380,20 +380,19 @@ s32 fn_800C03E0(s32 mode)
             u32 w;
             u32 color;
             s32 textX;
-            row = &tblB[i];
-            id = row->id;
+            id = tblB[i].id;
             if (id < 0) {
                 goto next2;
             }
             dv = tblA[i * 4 + 3];
-            colorp = &row->color;
+            colorp = &tblB[i].color;
             pct = dv >> 10;
             textX = 0;
             scale = 4882;
             dbgTextPrintfPx(*colorp, textX * 8, line, fmts + 64,
                             pct * 100 / div, pct);
             dbgTextPrintfPx(*colorp, (id + 11) * 8, line,
-                            row->name);
+                            tblB[i].name);
             w = pct * 48;
             j = (s32)(w / scale);
             if (j > 0) {
@@ -430,9 +429,11 @@ s32 fn_800C03E0(s32 mode)
     if (lbl_8034475C == 5) {
         for (i = 0; i < 24; i++) {
             u32 dv;
+            s32 textX;
             row = &tblB[i];
             dv = tblA[i * 4 + 3];
-            dbgTextPrintfPx(row->color, 0, line, &lbl_80348EF4,
+            textX = 0;
+            dbgTextPrintfPx(row->color, textX * 8, line, &lbl_80348EF4,
                             dv >> shift);
             line += 8;
             qline += 8;
