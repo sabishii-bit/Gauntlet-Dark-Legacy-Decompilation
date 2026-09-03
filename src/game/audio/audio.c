@@ -942,6 +942,31 @@ static inline s32 AudioFreeQueueSlot(u8* state)
     return -1;
 }
 
+/* One drain step of the async load wait: returns the current mute counter, or 0
+ * while audio is suspended. */
+static inline s32 AudioLoadPoll(void)
+{
+    s32 cur;
+
+    if (sAudioSuspend != 0) {
+        cur = 0;
+    } else {
+        s32 j;
+
+        lbl_803442A8 = 0;
+        sndSysUpdate(lbl_80345950);
+        if (sAudioMute != 0) {
+            lbl_803442B4++;
+            for (j = 10000; j != 0; j--) {
+            }
+        } else {
+            lbl_803442B4 = 0;
+        }
+        cur = sAudioMute;
+    }
+    return cur;
+}
+
 s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
 {
     char name[64];
@@ -955,7 +980,6 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
     s32 expected;
     s32 retry;
     s32 resp;
-    s32 cur;
     const char* messages = sAudioTimeoutMsg;
     u8* state = sAudioState;
     u8* bankEntry;
@@ -1020,25 +1044,7 @@ s32 AudioLoadPart(s32 bankIdx, s32 partIdx, s32 waitLevel, s32 flag)
             }
         }
         if (waitLevel < 2) {
-            for (;;) {
-                if (sAudioSuspend != 0) {
-                    cur = 0;
-                } else {
-                    lbl_803442A8 = 0;
-                    sndSysUpdate(lbl_80345950);
-                    if (sAudioMute != 0) {
-                        s32 j;
-                        lbl_803442B4++;
-                        for (j = 10000; j != 0; j--) {
-                        }
-                    } else {
-                        lbl_803442B4 = 0;
-                    }
-                    cur = sAudioMute;
-                }
-                if (expected != cur) {
-                    break;
-                }
+            while (expected == AudioLoadPoll()) {
                 lbl_803442A8 = 0;
                 FreeHiMem(1);
             }
