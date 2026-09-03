@@ -1,0 +1,37 @@
+{
+  "attempted_axis": "Fresh roster row (real 68, the lowest unparked real in the >= 98.6 band): decompose the residual from the aligned view before spending any probe, and classify each cluster as source-reachable or not.",
+  "attributes": {
+    "law_screen": "claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1 APPLIED: probe.py's RELOC-SYMBOL SCREEN reads clean here, yet the aligned view shows three ADDEND differences on the same symbol class, which is why the pool question had to be read off the aligned view rather than the screen. claim.law.ES_aligned-positional-pool-relocation-mismatch-is-a-score-invisible-defect-class.20260903.v1 SCREENED and this is the ADJACENT case: the pool entries here are not mismatched, they are correctly ordered and merely offset by a constant 840, so it is a data-population gap and not a wrong-constant bug. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED: all three 840 rows are same-opcode IMMEDIATE rows that the multiset cannot see. Pin screen: no webfrank pin on this function. No source edit was made, so no codegen law was exercised.",
+    "laws_applied": "[\"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "probed_form": "None -- this record is a classification, not a probe. No edit was made to src/game/game/player.c and the file is untouched at HEAD.",
+    "residual": "real 68 decomposes as three rodata-base rows at +840 (data-population, TU-level, not closable here), one bss and one sdata2 pool-naming row of the same class, one two-instruction schedule swap at +0x24c, and one chained-zero row at +0x608. A close-lane roster ranking this row by `real` alone overstates its tractability by a wide margin, which is the transferable finding.",
+    "scope": "src/game/game/player.c::write_health_and_items, read-only analysis. Nothing edited, nothing retained.",
+    "verification": "Baseline measurement only: `probe.py game/game/player write_health_and_items --ops` = real 68, insns T403/O403, multiset 2t, FUZZY (fresh report) 98.9504%. Aligned views taken at 0x0:0x60, 0x100:0x118, 0x240:0x260 and 0x5f8:0x618. Tree unchanged; full `ninja -j2` prints `build/GUNE5D/main.dol: OK`."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/game/player write_health_and_items --ops -- if the three `addi r7,r29,N` IMMEDIATE rows have closed, player.c's .rodata population changed and this row becomes a genuine two-cluster close worth claiming.",
+    "falsifier": "Any measurement showing the three 840-offset rows are register or codegen rows rather than a rodata base difference -- for example a build in which the offsets move without player.c's .rodata content changing.",
+    "premise_measurement": "Baseline at c2a55aa7a, `probe.py game/game/player write_health_and_items --ops`: real 68, insns T403/O403, multiset 2t, FUZZY (fresh report) 98.9504%. Three of the residual's rows are a DATA-POSITION artifact, not codegen: `IMMEDIATE T[68]@110 T: addi r7,r29,868 / O: addi r7,r29,28`, `T[75]@12c T: addi r7,r29,884 / O: addi r7,r29,44`, `T[105]@1a4 T: addi r7,r29,896 / O: addi r7,r29,56`. Every one is off by EXACTLY 840, and the inter-row deltas agree exactly (868->884 = 16 and 884->896 = 12 in the target; 28->44 = 16 and 44->56 = 12 in ours), so the same strings sit in the same order in both streams and only the base differs. The aligned view at 0x0:0x60 names the base: target `@0x34 addi r29,r4,0 @lbl_80113AE0(ADDR16_LO)` against ours `@0x34 addi r29,r4,0 @...rodata.0(ADDR16_LO)`. Our .rodata for player.c is 840 bytes SHORTER ahead of these literals than retail's, which is a TU-level data-reconstruction gap and is unreachable from inside this function. The same view shows two more rows of the same class at `@0x1c lis r3,0 @potionicon_tab(ADDR16_HA)` vs ours `@...bss.0`, and `@0x104 lfs f1,0(0) @lbl_80347778` vs ours `@@298`. Only TWO clusters are actually codegen: `@0x24c` (our `slwi r0,r0,2` emitted before the `lhz r5,1520(r4)` the target puts first -- a two-instruction local schedule swap) and `@0x608` (target `li r25,0` then `addi r24,r25,0`, a chained zero, against our two independent `li`, in the `for (j = 0; j < 7; j++) mbBlitInit3414(pm_blit[i][j], 1);` loop preheader).",
+    "scope": "The claim that write_health_and_items is a cheap close because its `real` is only 68. It denies nothing about any construct: no source edit was made. It scopes ONLY the tractability reading of this row for the close-lane roster."
+  },
+  "function": "function:write_health_and_items",
+  "hypothesis": {
+    "cheapest_refuting_observation": "`python tools/gdl/fnasm.py game/game/player write_health_and_items 0x5fc:0x614 --diff` after the edit: if ours still emits two `li` rather than `li` plus `addi rD,rS,0`, the source cannot reach this CSE and the idea is dead in one build. Note the countervailing evidence already in hand: the SAME copy-vs-li choice appears in the OPPOSITE direction at fn_800C03E0's two trailer loops, where ours emits the copy and the target emits two `li`.",
+    "count_consequence": "Count-neutral. Both clusters are one-for-one at T403/O403 and neither cure changes the instruction count.",
+    "screened_against_target": "yes -- the target rows were read in the aligned view at 0x5f8:0x618 (`@0x604 li r25,0`, `@0x608 addi r24,r25,0`) against ours (`@0x604 li r26,0`, `@0x608 li r24,0`). NOT probed: no edit was built, and the 840-byte pool gap makes an exact close impossible from inside this function anyway.",
+    "statement": "The +0x608 cluster is the same chained-zero shape found in fn_800C03E0 this session and it is the only cheap thing here: the target initialises the strength-reduced `j*4` induction as `addi r24,r25,0`, a COPY of j's zero, while ours emits a second independent `li r24,0`. Since the induction is compiler-generated, the lever is to make it a source variable -- declare a byte-offset local and walk it `+= 4` alongside `j` -- so that MWCC has two source zeros adjacent to CSE rather than one source zero and one synthesised one."
+  },
+  "id": "attempt.NC_write-health-and-items-real-is-dominated-by-an-840-byte-rodata-pool-offset.20260903.v1",
+  "kind": "attempt",
+  "outcome": "neutral",
+  "recorded_at": "2026-09-03T21:39:09Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "pool-order",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset: DIFFERS  target-only: +1 addi  ours-only: -1 li"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

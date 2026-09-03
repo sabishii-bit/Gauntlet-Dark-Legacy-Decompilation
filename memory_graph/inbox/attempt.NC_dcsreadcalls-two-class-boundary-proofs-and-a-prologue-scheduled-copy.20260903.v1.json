@@ -1,0 +1,38 @@
+{
+  "attempted_axis": "Fresh roster row, chosen for lowest records-per-unmatched-function (rec=2, prose-only): decompose dcsReadCalls's single count delta (one surplus `mr`) and its five-web callee-saved permutation, and test whether declaration-list edits reach either.",
+  "attributes": {
+    "law_screen": "claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1 APPLIED and INDEPENDENTLY CONFIRMED: two declaration-list edits crossing the s32/pointer boundary produced byte-identical objects, which is the law's own stated proof shape (a cross-class reorder is byte-identical and proves the boundary rather than moving it). claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 APPLIED: T242/O243 is count-asymmetric, so no postprocessor class can close this function and source is the only path. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 SCREENED, not applicable: frames are equal at 56 and no stack slot moved. claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 SCREENED, not applicable: no local was added or removed. Pin screen: game/audio/dcs carries no webfrank pin on this function.",
+    "laws_applied": "[\"claim.law.MV_callee-saved-numbering-has-a-width-class-ahead-of-declaration-order.20260902.v1\", \"claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1\"]",
+    "probed_form": "PROBE 1: changed `u8* data = (u8*)&dcsBankData;` in the declaration list to `u8* data;` and added `data = (u8*)&dcsBankData;` as the first statement of the body, immediately before `if (BankParseHeader(header, &swap, (u32*)&fmt) >= 0) {`. PROBE 2 (on top of probe 1): moved `s32 count;` from second to FIRST in the declaration list, giving `s32 count; char* strs = lbl_80116F58; u8* data; s32 result = 1;`.",
+    "residual": "One surplus `mr` (T242/O243) plus a five-web callee-saved permutation whose ONLY role difference is `count`'s position relative to the two pointer-derived temps -- and that position is now proved to be on the far side of an allocator class boundary from every declaration-list edit. real 125 is largely downstream misalignment from the single surplus instruction, so the prologue-slot hypothesis above is worth more than any further web work.",
+    "scope": "src/game/audio/dcs.c::dcsReadCalls only. NOTHING RETAINED: both probes were discarded with `probe.py --discard` and the file is at HEAD.",
+    "verification": "Clean-state BASELINE banked before the first edit: real 125, insns T242/O243, multiset 1t, FUZZY (fresh report) 98.6570%. Both probes NEUTRAL-IDENTICAL with the proof line quoted above. Reverted; `git status --short` shows only the untracked LANE_LOCK; full `ninja -j2` prints `build/GUNE5D/main.dol: OK`."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/probe.py game/audio/dcs dcsReadCalls --ops -- if the `replace T[9:10]@24-28=['addi'] O[10:11]@28-2c=['mr']` cluster is gone or real is no longer 125, the alignment moved and both edits are worth one re-probe.",
+    "falsifier": "Any declaration-list edit to dcsReadCalls whose built object bytes differ from dacc8b57ae1e, which would show the two locals are in the same allocator class after all.",
+    "premise_measurement": "Baseline at c2a55aa7a, `probe.py game/audio/dcs dcsReadCalls --ops`: real 125, insns T242/O243, multiset 1t, FUZZY (fresh report) 98.6570%, two clusters -- `insert T[3:3]@c-c=[] O[3:4]@c-10=['addi']` and `replace T[9:10]@24-28=['addi'] O[10:11]@28-2c=['mr']`. The residual is exactly one surplus copy: the target materialises `@0x1c addi r31,r5,0 @lbl_80116F58(ADDR16_LO)` directly into r31 AFTER the `stmw r24,24(r1)`, while ours computes `@0xc addi r0,r5,0 @lbl_80116F58(ADDR16_LO)` into r0 BEFORE the `stwu` (where r31 is not yet saved) and then pays `@0x28 mr r31,r0`. `savedregs.py` gives the role table: TARGET r31=strs, r30=result, r29=`add r27,r3`, r28=`lwz 12(r25)` (count), r27=`addis r26,2`, r26=data, r25=header, r24=file; OURS r31=strs, r30=result, r29=`add r28,r3`, r28=`addis r27,2`, r27=data, r26=`lwz 12(r25)` (count), r25=header, r24=file -- i.e. the only role difference is that the target's `count` sits ABOVE the two pointer-derived temps and ours sits BELOW them. BOTH probes aimed at that and BOTH returned NEUTRAL-IDENTICAL with the same proof line: `NEUTRAL-IDENTICAL-PROOF unit=game/audio/dcs fn=dcsReadCalls bytes=dacc8b57ae1e real=125 insns=T242/O243 multiset=1t head=c2a55aa7a`. Identical object BYTES twice over, from two different declaration-list edits, is the positive form of this verdict: it proves an allocator CLASS BOUNDARY between the s32 `count` and the pointer locals that no further reordering can cross, and it separately proves that initialiser placement is not a codegen input here.",
+    "scope": "The DECLARATION-LIST axis on dcsReadCalls, under the two edits in probed_form: initialiser placement (declaration vs first statement) and the relative order of the s32 `count` against the pointer locals `strs`/`data`. It does NOT deny reordering two locals of the SAME width class, and it does not deny statement-level or scheduling levers on the surplus `mr`."
+  },
+  "function": "function:dcsReadCalls",
+  "held_fixed": "Probe 1 varied ONLY whether `data` is initialised at its declaration or by the first statement of the body, holding declaration ORDER, every type and every other statement fixed. Probe 2 varied ONLY the relative order of `count` (s32, uninitialised) and `strs` (char*, initialised), holding probe 1's body assignment and every statement fixed.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "`python tools/gdl/fnasm.py game/audio/dcs dcsReadCalls 0x0:0x20 --diff` after any such edit: if `addi r0,r5,0 @lbl_80116F58(ADDR16_LO)` is still emitted between `stw r0,4(r1)` and `stwu r1,-56(r1)`, the prologue slot is not source-schedulable in this function and the whole idea dies in one build.",
+    "count_consequence": "The cure must be T/O-1: the function is T242/O243 and the surplus `mr` is the ONLY count delta, so any form that leaves us at 243 has not worked.",
+    "screened_against_target": "yes -- the target prologue was read at 0x0:0x60 in the aligned view and is five instructions (`mflr r0`, `lis r5,HA`, `stw r0,4(r1)`, `stwu`, `stmw`) against our six, with the target's `addi r31,r5,0(LO)` appearing at +0x1c after the stmw. NOT screened: no scheduling edit has been built.",
+    "statement": "The surplus `mr` is a PROLOGUE-SCHEDULING artifact, not an allocation one: MWCC filled the slot between `stw r0,4(r1)` and `stwu r1,-56(r1)` with the low half of the `lbl_80116F58` address and then had to copy it into r31 once r31 became available, while the target left that slot empty and materialised straight into r31 after the `stmw`. The next lane should therefore test what OCCUPIES the prologue slot rather than what is declared: give MWCC a different first computation to schedule there (for example make `result = 1` the first initialiser rather than a later one, or move the `BankParseHeader` argument setup ahead of the string pointer) and watch whether the pre-`stwu` `addi r0,r5,0` disappears."
+  },
+  "id": "attempt.NC_dcsreadcalls-two-class-boundary-proofs-and-a-prologue-scheduled-copy.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T21:39:08Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "prologue-form",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset: DIFFERS  target-only: (none)  ours-only: -1 mr"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
