@@ -115,6 +115,28 @@ class RawWordsLine(unittest.TestCase):
         self.assertNotIn("PINNED", probe.raw_words_line(8, None, 86, 0,
                                                         False))
 
+    def test_the_decode_census_qualifies_the_class_line(self):
+        # Run-48 item 4, carried into the loop: zero mnemonic divergence
+        # reads RECOLOR, and a BRANCH or IMMEDIATE word is not a
+        # register-assignment question however aligned the streams are.
+        decode = {"REGFIELD-ONLY": 0, "IMMEDIATE": 2, "BRANCH": 0,
+                  "OPCODE": 0, "RELOCATED": 0}
+        line = probe.raw_words_line(2, None, 266, 0, True, decode)
+        self.assertIn("RECOLOR-SHAPED BUT NOT RECOLOURABLE", line)
+        self.assertIn("DECODE: REGFIELD-ONLY 0, IMMEDIATE 2", line)
+
+    def test_a_genuine_recolour_keeps_the_recolor_line(self):
+        decode = {"REGFIELD-ONLY": 8, "IMMEDIATE": 0, "BRANCH": 0,
+                  "OPCODE": 0, "RELOCATED": 0}
+        line = probe.raw_words_line(8, None, 86, 0, False, decode)
+        self.assertIn("CLASS: RECOLOR —", line)
+        self.assertNotIn("NOT RECOLOURABLE", line)
+
+    def test_without_a_decode_the_class_line_falls_back(self):
+        line = probe.raw_words_line(8, None, 86, 0, False, None)
+        self.assertIn("CLASS: RECOLOR —", line)
+        self.assertNotIn("DECODE:", line)
+
     def test_unmeasurable_says_so_rather_than_printing_a_zero(self):
         line = probe.raw_words_line(None, None, None, None, False)
         self.assertIn("not measurable", line)

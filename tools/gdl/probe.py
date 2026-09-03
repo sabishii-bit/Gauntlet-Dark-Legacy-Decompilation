@@ -1153,17 +1153,25 @@ def raw_word_residual(unit, fn):
             return None
         _kind, insns, rows, mnemonic = module.word_diff(unit, fn)
         pinned = fn in module.rule_served_functions(unit, module.ROOT)
+        # The PER-WORD decode (run-48 item 4), so the loop's CLASS line is
+        # the same one wf_word_diff prints and carries the same correction:
+        # a MNEMONIC-divergence-of-zero function whose words are branch
+        # displacements or literals is not a register-assignment question.
+        decode = module.decode_counts(
+            rows, module.reloc_types_by_index(unit, fn, insns))
     except Exception:
         return None
-    return len(rows), insns, mnemonic, pinned
+    return len(rows), insns, mnemonic, pinned, decode
 
 
-def raw_words_line(words, prev_words, insns, mnemonic, pinned):
+def raw_words_line(words, prev_words, insns, mnemonic, pinned, decode=None):
     """The RAW-WORD line printed under a `--raw` verdict, or "".
 
     Pure over the measurement so both the delta arithmetic and the class
     call are tested without an object. `prev_words` is the count the last
     probe banked; None means this is the first raw probe of the function.
+    `decode` is wf_word_diff's per-word class census, or None when it could
+    not be taken — the class line then falls back to the mnemonic reading.
     """
     if words is None:
         return ("[RAW WORDS: not measurable — the two streams are"
@@ -1174,15 +1182,31 @@ def raw_words_line(words, prev_words, insns, mnemonic, pinned):
     delta = ("" if prev_words is None
              else f" ({words - prev_words:+d} vs the last probe's"
                   f" {prev_words})")
-    klass = ("RECOLOR — index-aligned, only register fields differ"
-             if mnemonic == 0 else
-             f"SCHEDULE-REORDER — {mnemonic} mnemonic divergence(s), the"
-             " streams are NOT index-aligned")
+    unreachable = (0 if not decode
+                   else decode.get("BRANCH", 0) + decode.get("IMMEDIATE", 0))
+    if mnemonic == 0 and unreachable:
+        klass = (f"RECOLOR-SHAPED BUT NOT RECOLOURABLE — index-aligned, but"
+                 f" {decode.get('BRANCH', 0)} BRANCH and"
+                 f" {decode.get('IMMEDIATE', 0)} IMMEDIATE word(s) sit"
+                 " outside every register slot and no shipped rule reaches"
+                 " them")
+    elif mnemonic == 0:
+        klass = "RECOLOR — index-aligned, only register fields differ"
+    else:
+        klass = (f"SCHEDULE-REORDER — {mnemonic} mnemonic divergence(s), the"
+                 " streams are NOT index-aligned")
+    decode_line = ""
+    if decode:
+        decode_line = ("\n  DECODE: " + ", ".join(
+            f"{name} {decode.get(name, 0)}"
+            for name in ("REGFIELD-ONLY", "IMMEDIATE", "BRANCH", "OPCODE",
+                         "RELOCATED")))
     return (f"RAW WORDS = {words}{delta} of {insns} insns; CLASS: {klass}."
             f" This is the count that decides postprocessor candidacy"
             " (AGENTS.md: any brief inheriting a residual signature quotes"
             " the raw differing-word count), and `real` is not a substitute"
             " for it — `real` counts diff LINES over both streams."
+            + decode_line
             + ("\n  PINNED: a webfrank rule already closes this residual;"
                " the count above is what the rule discharges, not open work."
                if pinned else ""))
@@ -4631,12 +4655,13 @@ def main():
     # only arbiter available on a pinned function, and the loop never printed
     # it — so every promotion A/B across the 155-function pinned backlog was
     # `probe --raw` followed by a hand-paired `wf_word_diff.py` call.
-    raw_words = raw_insns = raw_mnemonic = None
+    raw_words = raw_insns = raw_mnemonic = raw_decode = None
     raw_pinned = False
     if raw:
         measured = raw_word_residual(unit, fn_stripped)
         if measured is not None:
-            raw_words, raw_insns, raw_mnemonic, raw_pinned = measured
+            (raw_words, raw_insns, raw_mnemonic, raw_pinned,
+             raw_decode) = measured
 
     if "--stateless" in sys.argv:
         # Sweep mode: no state read, no banking, no verdict-vs-best —
@@ -4646,7 +4671,7 @@ def main():
               " or compared; pair with git for reverts")
         if raw:
             print(raw_words_line(raw_words, None, raw_insns, raw_mnemonic,
-                                 raw_pinned))
+                                 raw_pinned, raw_decode))
         return 0
 
     # The opcode-multiset token count is the STRUCTURE metric: `real` is a
@@ -4991,7 +5016,7 @@ def main():
     # to fetch with a second, hand-paired tool call on every A/B.
     if raw:
         line = raw_words_line(raw_words, prev_words, raw_insns, raw_mnemonic,
-                              raw_pinned)
+                              raw_pinned, raw_decode)
         if line:
             print(line)
         print(f"  Read the residual with `python tools/gdl/fnasm.py {unit}"
