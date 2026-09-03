@@ -1200,6 +1200,37 @@
     ],
     "game/sfx/psfx": [
       {
+        "function": "LoadPdataFile",
+        "before_sha256": "d2cec584276fbfae04ec1588b0d7deace2624610f63d5ee44ca77170ff0c94a5",
+        "after_sha256": "15a4abfed609ef6d605845f2d73694882772e364263a12765532fea34d78df71",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 88,
+          "permuted_instructions": 2
+        },
+        "mechanism": "88/88 instructions (COUNT PARITY, the deciding fact), RAW DIFFERING WORDS = 17 of 88 measured live with tools/gdl/composed_census/wf_word_diff.py at commit 7300fe688, MNEMONIC DIVERGENCE 0. Banked by claim.NM_close-lane-candidate-census-and-the-two-live-zero-customers-run-40.20260902.v1 as an equivalent_zero_form customer; it is NOT one. The +0x118 pair is `li` against a register copy, which is the half of the live-zero family the EXISTING combined copy-form mode already models per claim.law.WF_live-zero-family-straddles-the-copy-form-boundary-and-only-half-of-it-needed-a-new-class.20260902.v1 - so no new class, no webfrank.py change, and equivalent_zero_form's refusal to compose with a register stage is never reached. SOURCE EXHAUSTION: attempt.loadpdatafile-record-alias-closure.20260829.v1 spent the zero-copy, scope, explicit-global-base, typed-header and old offset/sizePtr axes (89/real97, 90/real86, 91/real41, 88/real36, and three invariant spellings at 88/real32) and records them as do-not-retry; claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 carries the class-level source-unreachability proof across twelve functions in eight TUs. PERMUTATION, [0x118,0x120) order [1,0]: after the first loop exits, `li r23,0` at +0x114 seeds the second loop's counter and the two following atoms are transposed - ours issues the byte-offset induction seed (`li r29,0`) then the stored-zero seed (`li r22,0`), the target the other way round. The two atoms write two DISTINCT registers and neither reads the other's destination, each resource has a single writer inside the region, and the window carries NO relocation in either object (both region relocation hashes are the empty-payload hash, checked and not assumed per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1). Without the transposition the recolor is provably inconsistent: our r29 (defined +0x118, read at +0x124 `add r24,r31,r29` and +0x144) would have to map to the target's r28 at its definition and to r29 at its uses. FORM+RECOLOR, one site at +0x118 after the permutation: our `li r22,0` against the target's `addi r28,r23,0`. The target's SOURCE r23 is the TARGET's colour and says nothing about our stream, so the site is taken by `constant_dataflow_recolor` naming OUR r23 - which the whole-CFG constant dataflow proves holds 0 at that site, seeded by the `li r23,0` at +0x114 that both streams emit identically. The stage rewrites our word to the target's ENCODING around our register (`addi r22,r23,0`), leaving a word that differs from the target in register fields ONLY. RECOLOR: 16 further words, two disjoint transpositions of the first loop's callee-saved webs (ours g28/g26 against the target's g26/g28, ours g24/g25 against the target's g25/g24) plus the second loop's own webs (ours g22/g28/g24 against the target's g28/g26/g27), completed by copy_register_fields and machine-proven by verify_consistent_recolor with NO unproven_recolor_audit escape - which is also what proves the `addi r22,r23,0` the form stage left behind. src/game/sfx/psfx.c is byte-unchanged.",
+        "instruction_permutation": {
+          "start": "0x118",
+          "end": "0x120",
+          "order": [
+            1,
+            0
+          ],
+          "before_sha256": "8c9e81145cec5a0042adb3bbaab0460243ead9c52a22e5c894b45abb34c08e6a",
+          "after_sha256": "455228bd188a176c5bd719a0dc9714dc2c773b7f7990d0d060f1f47e57fe2bc2",
+          "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "equivalent_copy_form": [
+          {
+            "at": "0x118",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 23
+          }
+        ],
+        "copy_register_fields": true
+      },
+      {
         "function": "DoPlyrSfxSub",
         "before_sha256": "71879a9b6202238ef5127c2375e9b5ed8b7cdb78054e206a2833fa8f287a6dda",
         "after_sha256": "47046f8204caff46f5d275a1cbdee930ca9781f6e49cb9bce3c43326313743e8",
@@ -2446,6 +2477,50 @@
       }
     ],
     "game/pb/pb_diag": [
+      {
+        "function": "pbDiagDrawMenu",
+        "before_sha256": "a69c2136c4f51e5b7d731639f2ba58c9e9e68fe8585d6597cca1758e5fc38b2b",
+        "after_sha256": "80a9e69a552fa283c66bb847b87473f67bd0768283d46e31030f1ba1881f6c82",
+        "audit": {
+          "classification": "MIXED",
+          "instructions": 141,
+          "permuted_instructions": 4
+        },
+        "mechanism": "141/141 instructions (COUNT PARITY, the deciding fact), RAW DIFFERING WORDS = 18 of 141 measured live with tools/gdl/composed_census/wf_word_diff.py at commit 7300fe688 (the banked run-40 figure REPRODUCED, not inherited), MNEMONIC DIVERGENCE 0. Banked by claim.NM_close-lane-candidate-census-and-the-two-live-zero-customers-run-40.20260902.v1 as an equivalent_zero_form customer needing a four-stage composed rule; it needs four stages and NONE of them is equivalent_zero_form - the +0x118 pair is `li` against a register copy with the destinations ALREADY AGREEING, which the plain `dominating_def` copy-form mode has modelled since run 30. SOURCE EXHAUSTION: attempt.NM_pbdiagdrawmenu-scoped-opt-propagation-plus-materialised-row.20260902.v1 spent the struct-view respell (NEUTRAL-IDENTICAL, categorical for the whole statement-respell class), the scoped opt_propagation bracket and the row materialisation, and its MANDATORY step-1 hypothesis on the +0x74/+0x78 pair was EXECUTED THIS RUN and REFUTED on its own stated falsifier: naming the two table bases as locals (`u32* t1 = lbl_80240FB0; u32* t2 = lbl_80240FA0;`) hoists both address materialisations out of the loop and LOSES count parity (141/139, real 32 -> 104, multiset 8t), and the counter-form of swapping the two store statements holds parity but introduces two IMMEDIATE divergences the postprocessor may never close (+0xa0/+0xa8 stw displacements 16/32 exchanged, real 32 -> 36). The record's falsifier says exactly this case: the address-materialisation order is scheduler-owned, and the composed rule is the remaining path. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 carries the +0x118 word's class-level proof. PERMUTATION 1, [0x74,0x7c) order [1,0]: the pad-latch loop preheader. Ours forms lbl_80240FA0's address then lbl_80240FB0's, the target the other way round; the two atoms write distinct registers (ours g5 from g3, g7 from g4), neither reads the other's destination, and each resource has a single writer inside the region. This window DOES carry two relocations, ADDR16_LO on lbl_80240FA0 at window offset +0x2 and on lbl_80240FB0 at +0x6, and they MOVE with their own atoms - which is why the before and after relocation hashes differ here. The atom-to-symbol binding is proved against the target object's own relocation table by verify_relocation_binding, not by the payload multiset, per claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1. PERMUTATION 2, [0x148,0x150) order [1,0]: `addi r6,r6,156` and `li r5,2` exchanged in the entry-drawing loop's call setup; both independent, no relocation in either object (empty-payload hashes both sides). FORM, one site at +0x118: our `li r25,0` against the target's `addi r25,r26,0`. Destinations already agree and the source register r26 is identity-coloured here, so the site is taken by the STRICT `dominating_def` mode rather than the recolor-composing one: prove_constant_source finds the dominating `li r26,0` that seeds x = 0 and discharges the value obligation on OUR stream. RECOLOR: the remaining 14 words are a volatile recolor in two disjoint regions, the pad-latch loop (ours g6/g7/g8/g9 against the target's g7/g8/g9/g6, a 4-cycle with g5 fixed) and the three entry-row address computations (ours g6 against the target's g4, g4 and g3 at +0x108/+0x198/+0x1ac), completed by copy_register_fields and machine-proven by verify_consistent_recolor with NO unproven_recolor_audit escape. src/game/pb/pb_diag.c is byte-unchanged; the TU's three existing pins (pbDiagDrawTexture, pbDiagDrawObject, pbResetDiag) are untouched and replay in the same build.",
+        "instruction_permutation": [
+          {
+            "start": "0x74",
+            "end": "0x7c",
+            "order": [
+              1,
+              0
+            ],
+            "before_sha256": "50af8faf68694c7019f42743b7236405c64d4efe9017ccfbb049ca9c415415b6",
+            "after_sha256": "04c7c9007aa181187214cf2a1f9b305cf1b03121103b31c4a5c55d3fe3be7383",
+            "before_relocations_sha256": "20f368ff70bf5c9f9e11ed45b97a816139eee58cec0e5e7df8f85eaa33050676",
+            "after_relocations_sha256": "e99944b47ee51af2d2c00f3f0b55cd48a9597f69787fa403f38efc0a61afed89"
+          },
+          {
+            "start": "0x148",
+            "end": "0x150",
+            "order": [
+              1,
+              0
+            ],
+            "before_sha256": "39c4013de23f60ebda28b263034801af7f6be0afe17e51025e359e1c4f6c3e9f",
+            "after_sha256": "34858fddb5e3b9ff65ce768165576e8bab525a84de9000a3ea2cbee2797ef639",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "equivalent_copy_form": [
+          {
+            "at": "0x118",
+            "proof": "dominating_def"
+          }
+        ],
+        "copy_register_fields": true
+      },
       {
         "function": "pbDiagDrawTexture",
         "before_sha256": "d3e4b4aab2f0d44d3323e9af6d7639877afa4f6e9c57ece5d59966e5f43aef07",
