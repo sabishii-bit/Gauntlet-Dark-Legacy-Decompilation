@@ -185,11 +185,11 @@ void PlayerDoWeapTrail(PlayerTrailState* player)
 {
     f32 matrix[16];
     u8 unused[12];
-    s32 minimumIndex = 0;
-    s32 maximumIndex = 0;
     s32 minimumAlpha = 255;
     s32 maximumAlpha = 0;
-    s32 lastIndex = player->lastTrail;
+    s32 minimumIndex = 0;
+    s32 maximumIndex = 0;
+    s32 lastIndex;
     void** slot;
     s32 offset;
     s32 index;
@@ -201,14 +201,11 @@ void PlayerDoWeapTrail(PlayerTrailState* player)
     f32 dy;
     f32 dz;
 
-    if (player->activeNode == NULL) {
-        goto done;
-    }
-    if (gFrameTicks == 0) {
-        goto done;
+    lastIndex = player->lastTrail;
+    if (player->activeNode == NULL || gFrameTicks == 0) {
+        return;
     }
 
-ticks_active:
     if (lastIndex >= 0 || player->trailActive != 0) {
                 index = 0;
                 offset = 0;
@@ -241,11 +238,9 @@ ticks_active:
                     offset += 4;
                 }
 
-                offset = lastIndex * 4;
                 while (lastIndex >= 0 &&
                        player->trails[lastIndex] == NULL) {
                     lastIndex--;
-                    offset -= 4;
                 }
                 player->lastTrail = lastIndex;
 
@@ -281,8 +276,6 @@ ticks_active:
                     }
                 }
     }
-done:
-    ;
 }
 extern f32 lbl_80347DA4;
 extern f32 lbl_80347DA8;
