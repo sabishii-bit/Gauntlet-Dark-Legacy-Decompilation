@@ -4727,6 +4727,31 @@ def hypothesis_refuter_warning(hypothesis: Any) -> str | None:
 # NON-EXISTENCE sentence with a MANDATE sentence that shares distinctive
 # terms, which is a suggestive coincidence, not a proof. Calibrated over
 # the 1,568-record live corpus before shipping (AGENTS.md hard rule).
+#
+# RUN-43 RE-CALIBRATION, and a REFUTED extension. Re-measured over 1,849
+# records the screen had drifted to FIVE firings, one true positive: the
+# corpus's law_screen habit ("claim.law.X SCREENED and NOT applicable here
+# - it does NOT reach ...") reads as a denial to the regex, and one of
+# those flagged a record for AGREEING with itself. Two narrowings below —
+# skip a sentence naming a record id, and fold a path token with its own
+# basename — take it back to 1 of 1 with the true positive intact.
+#
+# The extension the run-43 queue asked for — pair the hypothesis against
+# the record's OWN TYPED `denial.scope` rather than only against prose that
+# matches the denial regex — is REFUTED as a gate. The typed denial is
+# already inside `_record_text`, so it is screened whenever it is phrased
+# as a denial. Pairing `denial.scope` DIRECTLY with the mandate by shared
+# vocabulary fires on 18 of the 43 records that carry both a typed denial
+# and a hypothesis (42%), and every example read is legitimate: a denial
+# scoped to "axis A on function F ONLY" and a hypothesis mandating "run
+# tool T on function F" share the SUBJECT by construction, which is the
+# normal shape of a well-formed record, not a contradiction. The exemplar
+# (attempt.CL_mbcameraupdate-frame-40-is-source-reachable-and-exclusive-
+# with-the-exact-band.20260903.v2) states its own exclusions in prose --
+# "It does NOT deny the function, does NOT deny the frame ... and does NOT
+# deny lever classes outside offset derivation" -- and its hypothesis names
+# an axis outside them. No mechanical discriminant separates that from a
+# real self-veto, so the screen is NOT extended.
 _DENIAL_SENTENCE_RE = re.compile(
     r"(?:does|do|did|can|could|will|would)\s*n[o']?t\s+"
     r"(?:exist|answer|have|report|resolve|reach|produce|contain|carry|show)"
@@ -4808,6 +4833,21 @@ def _distinctive_terms(sentence: str) -> set[str]:
             lowered = lowered[:-1]
         if lowered not in _CONTRADICTION_STOPWORDS:
             terms.add(lowered)
+    # A PATH and its own components are ONE concept, and counting them
+    # separately manufactures the second "shared term" the threshold asks
+    # for. Measured (run 43): attempt.NM_mbox-bgloadmodeldone-eager-pre-
+    # prologue-address-hoist.20260903.v1 fired on exactly {"game/mb/
+    # mb_model", "mb_model"} — a denial saying that unit carries no
+    # webfrank pins, paired with a mandate to move a declaration in it. The
+    # two sentences share the SUBJECT and nothing else, which is the normal
+    # shape of a record, not a contradiction. Only path components are
+    # folded: an unrelated short word that happens to be a substring of a
+    # long one stays, because dropping those killed the one true positive
+    # ("symbol" against "symbols.txt") in the A/B.
+    for token in [term for term in terms if "/" in term]:
+        for part in token.split("/"):
+            terms.discard(part)
+            terms.discard(part.split(".")[0])
     return terms
 
 
@@ -4849,6 +4889,19 @@ def hypothesis_contradiction_warning(
         for denial in _sentences(source_text):
             if " ".join(denial.split()) in mandate_set:
                 continue  # a sentence cannot contradict itself
+            # A sentence naming another RECORD ID is a law screen, not a
+            # denial that an instrument exists — "claim.law.X SCREENED and
+            # NOT applicable here", "claim.law.Y APPLIED and BOUNDED HARD:
+            # it does NOT reach volatile FPR assignment in this function".
+            # Gate E already drops record-id sentences whole for the same
+            # reason. MEASURED (run 43, whole corpus): three of Gate J's
+            # five live firings were exactly this shape, and one of the
+            # three flagged a record for AGREEING with itself — the
+            # hypothesis said the frame is "NOT declaration-count driven"
+            # and the law screen two fields away said declaration count
+            # "does not reach this function's local area at all".
+            if _RECORD_ID_RE.search(denial):
+                continue
             if not _DENIAL_SENTENCE_RE.search(denial):
                 continue
             denial_terms = _distinctive_terms(denial)
@@ -4875,9 +4928,11 @@ def hypothesis_contradiction_warning(
                     " things, ignore this line — the screen pairs sentences"
                     " by shared vocabulary and cannot decide meaning.\n"
                     "  MEASURED PRECISION: over the whole accepted corpus"
-                    " (1,743 records, 70 with a hypothesis) this screen"
-                    " fires TWICE, and one of the two is a false positive."
-                    " Weight it accordingly; it costs one read to dismiss.")
+                    " (1,849 records) this screen fires ONCE, on the known"
+                    " true positive. Before the run-43 narrowings it fired"
+                    " five times: three law-screen sentences (a sentence"
+                    " naming a record id is now skipped) and one path-vs-"
+                    "basename double count. It costs one read to dismiss.")
     return None
 
 

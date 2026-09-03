@@ -3250,6 +3250,58 @@ class HypothesisContradictionTests(unittest.TestCase):
                 " answer this relocation symbols question."))
         self.assertIsNone(core.hypothesis_contradiction_warning(record))
 
+    def test_a_law_screen_sentence_is_not_a_denial(self):
+        """Run-43: 3 of Gate J's 5 live firings were this shape.
+
+        "claim.law.X SCREENED and NOT applicable here — it does not reach
+        this function's local area at all" is a statement about a CITED
+        LAW's reach, not a denial that an instrument exists. One of the
+        three flagged a record for AGREEING with itself: the hypothesis
+        said the frame is NOT declaration-count driven and the law screen
+        two fields away said declaration count does not reach the function.
+        Gate E already drops record-id sentences whole for the same reason.
+        """
+        record = self._record(
+            statement=("The frame is not declaration-count driven; three"
+                       " declaration probes were NEUTRAL-IDENTICAL."),
+            cheapest_refuting_observation=(
+                "Run probe.py --slots and read the declaration count of the"
+                " NEUTRAL-IDENTICAL local area."))
+        record["attributes"]["law_screen"] = (
+            "claim.law.dead-nominal-local-area-tracks-declaration-count"
+            ".20260831.v1 SCREENED and NOT applicable here - the run-41"
+            " declaration probes were NEUTRAL-IDENTICAL, so declaration"
+            " count does not reach this function's local area at all.")
+        self.assertIsNone(core.hypothesis_contradiction_warning(record))
+
+    def test_a_path_and_its_basename_are_one_shared_term(self):
+        """Run-43: the whole of one firing was {game/mb/mb_model, mb_model}.
+
+        A denial saying that unit carries no webfrank pins, paired with a
+        mandate to move a declaration in it, shares the SUBJECT and nothing
+        else — the normal shape of a record, not a contradiction.
+        """
+        terms = core._distinctive_terms(
+            "game/mb/mb_model carries no webfrank pins")
+        self.assertIn("game/mb/mb_model", terms)
+        self.assertNotIn("mb_model", terms)
+
+    def test_only_path_components_fold_not_every_substring(self):
+        """Folding every substring instead would erase ordinary vocabulary.
+
+        The true positive's two shared terms are the plain words `relocation`
+        and `symbol` — `symbols.txt` is not even an artifact token here, since
+        the pattern recognises .py/.json/paths — so a substring rule would be
+        free to eat them the moment a longer word containing them appeared.
+        """
+        terms = core._distinctive_terms(
+            "run tools/gdl/fnasm.py over the relocation symbols")
+        self.assertIn("tools/gdl/fnasm.py", terms)
+        self.assertNotIn("fnasm.py", terms)     # a component of the path
+        self.assertNotIn("fnasm", terms)        # ...and its bare stem
+        self.assertIn("relocation", terms)      # unrelated words survive
+        self.assertIn("symbol", terms)
+
 
 class RecordSizePreflightTests(unittest.TestCase):
     """T10 run-40 item 1: the 16KB cap now says WHERE the bytes are."""
