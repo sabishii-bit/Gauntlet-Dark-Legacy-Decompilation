@@ -582,6 +582,30 @@ sibling consumers; never invent names.
   authored without any source-work trail, which is the "wanton use"
   failure mode. Functions with no such record get a source-first pass
   BEFORE any rule.
+- **The rule-authoring path, as commands.** Run 44: WS found
+  `webfrank_audit.py` by listing `tools/gdl/`, because nothing named it —
+  the tool that decides ELIGIBILITY was the one step with no pointer.
+
+  ```text
+  python tools/gdl/webfrank_audit.py [--min-insns N] [--grep <prefix>]
+      # ELIGIBILITY, no build and no config written: proves identical
+      # instruction/relocation shape, then that every raw difference sits
+      # in one of PowerPC's four five-bit register slots. Emits the
+      # register-field edits plus whole-function hashes as reviewable JSON.
+      # Its SILENCE is not a verdict of ineligibility
+      # (claim.law.RQ_webfrank-audit-silence-is-not-ineligibility).
+  python tools/gdl/composed_census/wr_try_rule.py <unit> <fn> <fragment.json>
+      # RUN a hand-written rule body through the real apply_patch and its
+      # guards: BYTE-EQUAL / APPLIED-NOT-EQUAL / the guard's verbatim
+      # refusal. It passes the retail DOL, so the datum screen runs at L3
+      # rather than degrading to the pool correspondence, and REFUSES when
+      # the image is missing.
+  python tools/gdl/composed_census/wf_rederive_pin.py <unit> <fn> --apply
+      # re-derive a pin whose window relocations moved (FULL path; body
+      # hashes must return byte-identical — that IS the audit).
+  python configure.py    # a TU's FIRST rule has no WEBFRANK build edge
+                         # until this runs (first-five-minutes trap 6)
+  ```
 - **Commissioning a postprocessor CAPABILITY requires a DEMAND CENSUS
   FIRST** (WF, run 34: a sound, correctly-guarded capability was built and
   shipped with ZERO customers — no parked function in the corpus was
@@ -874,10 +898,16 @@ python tools/gdl/aritycheck.py [--verdict PHANTOM-CANDIDATE]  # parameter
     # externcheck ranks type CLASSES and abicheck models GPR/FPR sequence
     # assignment (discipline 16) — neither reads count, which is why
     # init_enemy's phantom 4th argument had to be found by hand. Zero
-    # builds. Census 2026-09-03: 4 PHANTOM-CANDIDATE, 15 KNR-SHORT-CALL,
-    # 42 UNREAD-TRAILING. A verdict is a place to look: both governing laws
-    # (NM_an-unread-trailing-parameter..., knr-extern-arity-can-be-faithful
-    # -not-a-defect) are settled against the TARGET BYTES at the call site.
+    # builds. REMEASURE, never quote: the census moves as its own rows are
+    # worked. 4/15/42 at run 42; 1 PHANTOM-CANDIDATE / 14 KNR-SHORT-CALL /
+    # 42 UNREAD-TRAILING at ca4074cb1. A verdict is a place to look: both
+    # governing laws (NM_an-unread-trailing-parameter..., knr-extern-arity-
+    # can-be-faithful-not-a-defect) are settled against the TARGET BYTES at
+    # the call site. Every site now prints its CALLER, a WEBFRANK-PIN
+    # marker (a pinned caller reads real 0 by construction, so its aligned
+    # view cannot decide the row — read the target half) and a SHORT/FULL
+    # split (only FULL sites pay for a phantom parameter, so a row with
+    # 0 FULL sites has no payer).
 python tools/gdl/matchtool.py probe <unit> --brief
 python tools/gdl/lowmatch.py --max 50 --min-size 200 --sort impact
 python configure.py progress
@@ -1255,6 +1285,22 @@ each screen below costs one command and would have caught its lane):
   changed four tool-queue items, and a prose screen keyed on record
   BODIES was defeated by record IDS (every claim.law.* contains "claim")
   — calibrate against ids too.
+- **Calibration is TWO-SIDED: count the POSITIVES and the NEGATIVES, and
+  report both numbers.** A trigger measured only on the cases it should
+  catch is half a measurement, and the missing half decides whether the
+  thing ships as a REFUSAL or as an advisory. Both halves paid in run 44:
+  (a) the slot-arbiter gate's positives looked clean until the negative
+  side was counted — 92 anchored corpus records fire its trigger and 40
+  (43%) quote no arbiter, 16 of 58 (28%) among records since 2026-09-01,
+  so it shipped ADVISORY rather than refusing a third of the corpus's slot
+  work; (b) that same gate's first EVIDENCE predicate looked only for the
+  literal tool name and scored eight records as violations that quote the
+  tool's OUTPUT verbatim — a false-positive class visible only by reading
+  the would-be-refused set, not its size. Two intermediate trigger drafts
+  were also killed by the negative side alone (a bare `frame N` mention
+  took the population 92 -> 208 and the miss rate to 72%; `save set`
+  belongs to `savedregs.py` and accounted for 20 of one draft's 67 hits).
+  Name the exclusions in the shipped code with the number each removed.
 - **An order proposing a LEVER must cite the last sweep of that lever**
   — run 41: a "virgin territory" sweep premise was governed by seven
   records from three days earlier that one search would have surfaced.
