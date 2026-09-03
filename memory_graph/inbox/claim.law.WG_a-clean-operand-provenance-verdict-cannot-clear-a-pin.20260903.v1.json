@@ -1,6 +1,7 @@
 {
   "asserted_by": [
     "tools/gdl/composed_census/wg_identical_slot_provenance.py",
+    "tools/gdl/tests/test_wg_identical_slot_provenance.py",
     "tools/gdl/composed_census/wg_identical_slot_provenance.py --calibrate",
     "tools/gdl/composed_census/t15_operand_provenance.py --only pool_garbage_collect",
     "config/GUNE5D/webfrank.json (game/audio/mempool::pool_garbage_collect unproven_recolor_audit)"
