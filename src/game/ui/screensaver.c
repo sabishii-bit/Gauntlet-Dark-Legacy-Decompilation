@@ -753,7 +753,7 @@ void ScreenSaverEnd(void)
 }
 
 int fn_80055F68(int a, int b);
-void DoTexMods(void);
+void DoTexMods(void* seq);
 void PlayerControls(void);
 extern u8 lbl_80240E30[];
 
@@ -808,7 +808,7 @@ void ScreenSaver(void)
                 serve_busy(-1);
                 ClockOncePerFrame();
                 if (sPowerupsBuf != NULL) {
-                    DoTexMods();
+                    DoTexMods(sPowerupsBuf);
                 }
                 for (i = 0; i < 4; i++) {
                     ScreenSaverUpdateWeap(i);
