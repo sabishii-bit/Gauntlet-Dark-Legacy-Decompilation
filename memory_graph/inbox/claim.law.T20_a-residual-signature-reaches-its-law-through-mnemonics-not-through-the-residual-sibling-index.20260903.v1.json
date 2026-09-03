@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py",
+    "memory_graph/test_graph.py"
+  ],
+  "attributes": {
+    "scope": "Retrieval of CODEGEN LAWS from a recorded `fndiff --ops` residual signature, inside `tu_briefing`. It says nothing against the residual-sibling index for its own purpose -- finding the other RECORDS that share a signature, which is what `find --residual` and `similar_residuals` exist for and do correctly.",
+    "tags": [
+      "metrics",
+      "workflow",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A residual signature whose closing law is returned by the residual-sibling index and NOT by a mnemonic query -- one such pair would make the sibling index the right channel for at least part of this population, and this law would narrow to 'use both'. Equally falsifying: a measurement showing the mnemonic query's top five are dominated by laws that do not describe the shape, i.e. that its rank-1 hit on HealthMeterUpdate was luck rather than the term-count ranking.",
+  "id": "claim.law.T20_a-residual-signature-reaches-its-law-through-mnemonics-not-through-the-residual-sibling-index.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T23:27:05Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-03",
+  "value": "THE RESIDUAL-SIBLING INDEX AND THE LAW CORPUS ANSWER DIFFERENT QUESTIONS, AND `laws --residual` IS THE WRONG ONE FOR FINDING THE LAW THAT DESCRIBES A RESIDUAL. That index pairs RECORDS SHARING a signature; a law that DESCRIBES the codegen shape is reached by the signature's OPCODE MNEMONICS. MEASURED at run-50 HEAD on game/boss/boss::HealthMeterUpdate, whose park quoted `DIFFERS target-only: +4 b +2 ble +4 bne +3 cror +2 fsub ours-only: -1 add -1 beq -5 bge -2 fsubs -1 lfd -2 lwz -2 stfd; insns T231/O230; 25 ops clusters` and whose cure was claim.law.compare-form-dictionary.20260829.v1, five days old and decisive: `laws --residual` on that exact signature returns 15 laws and the closing law is NOT among them, and `similar_residuals(signature=...)` returns ZERO laws for it, while `law_corpus(query=<the signature's 12 mnemonics>)` ranks the closing law FIRST of 40 on 7 distinct matched terms. The roster row and the law sat in one database and never met. CONSEQUENCE: `brief` now attaches, to every vetoed-axis row quoting a signature, the best-evidenced laws whose text carries that signature's mnemonics, labelled a LEAD rather than a verdict. POPULATION, both sides: 607 accepted attempt records carry a signature with mnemonics and get the join; 322 carry a signature with none and 398 carry no typed signature at all, and those 720 get nothing rather than an empty list. Per TU the join fires on 8 of 8 vetoed rows in boss, 7 of 12 in player, 9 of 19 in enemy. COST: +1.4s to +2.6s per brief (boss 2.37 -> 4.92s, player 2.53 -> 4.94s, enemy 2.48 -> 3.90s), cached per distinct signature, and `--no-law-join 1` turns it off."
+}

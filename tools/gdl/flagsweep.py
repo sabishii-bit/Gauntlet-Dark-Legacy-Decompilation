@@ -74,6 +74,7 @@ def ninja_base_cmd(src: Path):
             return keep, (m.group(1) if m else "1.2.5n")
     raise SystemExit(f"no mwcc command found for {objpath}")
 
+
 BATTERY = [
     "",  # control
     "-opt nostrength",

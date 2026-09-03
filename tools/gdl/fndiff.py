@@ -211,6 +211,7 @@ def symbol_addresses():
         _SYMBOL_ADDRESSES = table
     return _SYMBOL_ADDRESSES
 
+
 BRANCH_RE = re.compile(
     r"\b(b|bl|ba|bla|beq|bne|bgt|blt|bge|ble|bso|bns|bdnz|bdz)"
     r"([+-]?)\s+(cr\d,)?([0-9a-f]+)\s*$"

@@ -21,7 +21,10 @@ Usage:
       # ONE call, BOTH states: builds and scores the banked snapshot AND the
       # working tree and prints the (real, fuzzy) pair for each, then restores
       # the working tree. --vs-baseline arbitrates against the session's first
-      # banked baseline instead of the rolling snapshot.
+      # banked baseline instead of the rolling snapshot; --vs-head against the
+      # TU's committed bytes. When the chosen state is byte-identical to the
+      # tree the refusal now LISTS all three and says which one is usable,
+      # instead of naming only the one that is not (run-50 item 4).
   python tools/gdl/probe.py game/game/player do_players --reset  # forget best
   python tools/gdl/probe.py game/game/player do_players --rebase-best
       # after a keep arbitrated on fuzzy or on the `--ops` structure view,
@@ -2046,7 +2049,55 @@ def _parity(insns):
     return (int(match.group(1)), int(match.group(2))) if match else None
 
 
-def count_class_line(prev_insns, insns):
+def extab_at_risk(unit, report=None):
+    """[(section, bytes, fuzzy%)] for a unit's LINK-level exception tables.
+
+    Run-50 item 3.  On a `-Cpp_exceptions` TU an instruction-COUNT change
+    relocates every exception range, so a count-parity transition is also a
+    DATA event, and the byte figure was reachable only by running
+    defake_gate afterwards (NC measured `-84 B` on game/pb/dbgtext that
+    way).  These sections exist in NO object -- measured image-wide over 257
+    paired units, zero objects on either side carry an extab-family section
+    -- so objdiff's report is the only place the number lives.
+
+    I/O by design, and OUTSIDE `classify`: the caller reads, the pure
+    verdict functions are handed the rows.
+    """
+    path = Path(report) if report is not None else Path(
+        f"build/{VERSION}/report.json")
+    bare = re.sub(r"\.(c|cpp)$", "", str(unit).replace("\\", "/").strip("/"))
+    if bare.startswith("src/"):
+        bare = bare[len("src/"):]
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:                                          # noqa: BLE001
+        return []
+    for entry in data.get("units", []):
+        if entry.get("name", "").split("/", 1)[-1] == bare:
+            return [(s["name"], int(s["size"]), s.get("fuzzy_match_percent"))
+                    for s in entry.get("sections", [])
+                    if "extab" in s.get("name", "")]
+    return []
+
+
+def extab_note(extab):
+    """The one-line DATA consequence of a count-parity transition."""
+    rows = [row for row in (extab or []) if row[1]]
+    if not rows:
+        return ""
+    total = sum(row[1] for row in rows)
+    detail = ", ".join(
+        f"{name} {size} B at "
+        + ("n/a" if pct is None else f"{pct:.4f}%")
+        for name, size, pct in rows)
+    return (f"  DATA AT RISK: this TU carries {total} bytes of LINK-level"
+            f" exception tables ({detail}). A count change relocates every"
+            " exception range, so the extabindex match is spent by the same"
+            " edit — the figure a lane otherwise had to go find with"
+            " defake_gate.")
+
+
+def count_class_line(prev_insns, insns, extab=None):
     """The CATEGORICAL verdict, printed before any real/fuzzy comparison.
 
     MV, run 39 (run-40 item 8): an instruction-COUNT change is not a
@@ -2078,13 +2129,14 @@ def count_class_line(prev_insns, insns):
                 " is a CLASS change, not a score change — a count-asymmetric"
                 " residual is outside EVERY postprocessor class, and this"
                 " function has just become eligible for one. Read it before"
-                " the real/fuzzy line below.")
+                " the real/fuzzy line below." + extab_note(extab))
     return (f"COUNT-PARITY LOST  insns {prev_insns} -> {insns}:"
             f" ours and target now differ by {abs(now[0] - now[1])}"
             " instruction(s). This is a CLASS change, not a score change —"
             " while the counts differ NO postprocessor rule can close this"
             " function, so a fuzzy or real gain here buys a state no rule"
-            " can finish. Read it before the real/fuzzy line below.")
+            " can finish. Read it before the real/fuzzy line below."
+            + extab_note(extab))
 
 
 def restore_scope_counts(base_text, cur_text, fn):
@@ -2795,6 +2847,7 @@ def roll_back_anchor(state):
         " restored state is scored against ITS OWN history, not against"
         " the edit this revert discarded.]")
 
+
 # Fuzzy is a float percentage; anything at or above the anchor is "not a
 # regression". The epsilon keeps float noise from manufacturing a refusal.
 FUZZY_GATE_EPS = 1e-9
@@ -3472,7 +3525,8 @@ def tu_sibling_regressions(unit):
 
 def classify(state, real, insns, multiset_tokens, rebase_best=False,
              digest=None, source_changed=True, fuzzy=None,
-             accept_fuzzy_loss=False, head=None, tu_at_head=False):
+             accept_fuzzy_loss=False, head=None, tu_at_head=False,
+             extab=None):
     """Pure verdict function: (verdict_text, new_state).
 
     ``state`` is the banked gate state; the returned state carries the
@@ -3763,7 +3817,8 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
     # annotators — dispatches on verdict.startswith(), so a prefix would
     # silently disable banking. It changes what the verdict MEANS, never
     # what it IS.
-    state["count_class"] = count_class_line(state.get("last_insns"), insns)
+    state["count_class"] = count_class_line(state.get("last_insns"), insns,
+                                            extab)
     state["last_real"] = real
     state["last_insns"] = insns
     if multiset_tokens is not None:
@@ -4083,8 +4138,76 @@ def transient_pin_texts(unit):
     return working, banked, []
 
 
+def arbitration_states(unit, source, current_bytes):
+    """[(flag, label, bytes|None, why_absent)] — every state --arbitrate can
+    take as its OTHER half, in the order a lane should prefer them.
+
+    Run-50 item 4.  The refusal `the working tree IS the banked rolling
+    snapshot` is TRUE and was a dead end: it named the one state that could
+    not serve and nothing else.  Measured on the reported sequence
+    (`--discard`, re-apply the same edit, `--arbitrate`) at run-50 HEAD, the
+    rolling snapshot matched the tree byte-for-byte at 48402 bytes while the
+    SESSION BASELINE differed (48333 bytes) and HEAD differed -- so
+    `--vs-baseline` would have worked on the very next line and the message
+    did not mention it.
+
+    The queue item's proposed cure -- compare against the BUILT OBJECT
+    instead -- is REFUTED by the same measurement: with the two sources
+    byte-identical, both halves compile to the same object, so proceeding
+    would spend two builds to print two identical rows.  What was missing
+    was a ROUTER, plus HEAD as a selectable state (the session baseline can
+    itself be an edit -- the FIRST-BASELINE TRAP).
+    """
+    snap = snapshot_path(unit, source)
+    base = snap.with_suffix(snap.suffix + ".base")
+    out = []
+    for flag, label, path in (("(default)", "rolling snapshot", snap),
+                              ("--vs-baseline", "session baseline", base)):
+        if path.exists():
+            out.append((flag, label, path.read_bytes(), None))
+        else:
+            out.append((flag, label, None,
+                        "not banked yet (a BASELINE or IMPROVED probe banks"
+                        " one)"))
+    head = head_bytes(source)
+    out.append(("--vs-head", "the TU's committed bytes at HEAD", head,
+                None if head is not None else
+                "unavailable (untracked file, or git could not be read)"))
+    return out
+
+
+def state_router(states, current_bytes, chosen_label):
+    """The refusal text when the chosen state cannot serve as the other half.
+
+    Prints EVERY candidate with whether it differs from the working tree, so
+    the reader picks the next flag from this output instead of from a second
+    tool call.
+    """
+    lines = [f"nothing to arbitrate against the {chosen_label}: it is"
+             " byte-identical to your working tree, so both halves would"
+             " compile to the same object and measure the same numbers.",
+             "  states available as the OTHER half:"]
+    usable = 0
+    for flag, label, data, why in states:
+        if data is None:
+            lines.append(f"    {flag:<14} {label:<34} UNAVAILABLE — {why}")
+        elif data == current_bytes:
+            lines.append(f"    {flag:<14} {label:<34} same as your working"
+                         " tree — cannot serve")
+        else:
+            usable += 1
+            lines.append(f"    {flag:<14} {label:<34} DIFFERS ({len(data)}"
+                         f" bytes vs {len(current_bytes)}) — usable, re-run"
+                         f" with {flag}")
+    if not usable:
+        lines.append("  every candidate matches your working tree: there is"
+                     " genuinely nothing to compare. Edit first, or use"
+                     " --fuzzy for a single-state readout.")
+    return "\n".join(lines)
+
+
 def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
-                  vs_baseline=False):
+                  vs_baseline=False, vs_head=False):
     """Build+score BOTH the banked and the working state, then restore.
 
     The restore is in a `finally`: a failed build, a KeyboardInterrupt or an
@@ -4096,21 +4219,22 @@ def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
     if source is None:
         print(f"cannot arbitrate: no src source found for {unit}")
         return 1
-    snap = snapshot_path(unit, source)
-    label = "rolling snapshot"
-    if vs_baseline:
-        snap = snap.with_suffix(snap.suffix + ".base")
-        label = "session baseline"
-    if not snap.exists():
-        print(f"cannot arbitrate: no banked {label} for this unit yet"
-              " (a BASELINE or IMPROVED probe banks one)")
-        return 1
     current_bytes = source.read_bytes()
-    banked_bytes = snap.read_bytes()
+    states = arbitration_states(unit, source, current_bytes)
+    if vs_head:
+        label, banked_bytes = "HEAD", states[2][2]
+        if banked_bytes is None:
+            print(f"cannot arbitrate: {states[2][3]}")
+            return 1
+    else:
+        index = 1 if vs_baseline else 0
+        label, banked_bytes = states[index][1], states[index][2]
+        if banked_bytes is None:
+            print(f"cannot arbitrate: no banked {label} for this unit yet"
+                  f" ({states[index][3]})")
+            return 1
     if current_bytes == banked_bytes:
-        print(f"nothing to arbitrate: the working tree IS the banked"
-              f" {label}, so both halves would measure the same bytes."
-              " Edit first, or use --fuzzy for a single-state readout.")
+        print(state_router(states, current_bytes, label))
         return 1
 
     # PIN STATE PAIRS WITH SOURCE STATE (run-39 item 2). webfrank.json is
@@ -4593,7 +4717,7 @@ KNOWN_FLAGS = frozenset((
     "--rederive-pin", "--reset", "--restore", "--revert",
     "--revert-baseline", "--revert-best", "--scaffold", "--scaffold-all",
     "--slots", "--stateless", "--transient", "--verbose", "--vs-baseline",
-    "--whole-file",
+    "--vs-head", "--whole-file",
 ))
 
 # --fuzzy exits with this when the readout produced NO NUMBER. It used to
@@ -4706,7 +4830,8 @@ def main():
         return run_arbitrate(
             unit, fn, re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn), source,
             raw_flag=["--raw"] if "--raw" in sys.argv else [],
-            vs_baseline="--vs-baseline" in sys.argv)
+            vs_baseline="--vs-baseline" in sys.argv,
+            vs_head="--vs-head" in sys.argv)
     if "--discard" in sys.argv:
         # Revert the TU to its last COMMITTED state — the undo people
         # actually want after a neutral probe (NEUTRAL banks, so --revert
@@ -5200,12 +5325,16 @@ def main():
         committed_now = head_bytes(source)
         tu_at_head = (committed_now is not None
                       and source.read_bytes() == committed_now)
+    # The DATA half of a count-parity transition, read here (I/O) and handed
+    # to the pure verdict function (run-50 item 3).
+    extab_rows = extab_at_risk(unit)
     verdict, state = classify(state, real, insns, multiset_tokens,
                               rebase_best=rebase_best,
                               digest=digest, source_changed=source_changed,
                               fuzzy=cached_fuzzy,
                               accept_fuzzy_loss=accept_fuzzy_loss,
-                              head=head_now, tu_at_head=tu_at_head)
+                              head=head_now, tu_at_head=tu_at_head,
+                              extab=extab_rows)
     # FRESH FUZZY BEFORE THE BANK (run-35 item 1). The verdict above is
     # provisional whenever it would move the BEST anchor: a real+multiset
     # win can still be a fuzzy LOSS, and banking one poisons every later
@@ -5264,7 +5393,8 @@ def main():
                                   source_changed=source_changed,
                                   fuzzy=fresh,
                                   accept_fuzzy_loss=accept_fuzzy_loss,
-                                  head=head_now, tu_at_head=tu_at_head)
+                                  head=head_now, tu_at_head=tu_at_head,
+                                  extab=extab_rows)
         if fresh is not None:
             cached_fuzzy = fresh
             state["last_fuzzy"] = fresh

@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/nearmiss.py",
+    "tools/gdl/tests/test_t20_pool_column.py"
+  ],
+  "attributes": {
+    "scope": "The `pool=N` column and the codegen-remainder ranking of `nearmiss.py --residuals`, over functions the objdiff report places in the >=90% band. It is a TRACTABILITY screen, not a defect screen: a pool row is a row the function cannot close, never a wrong constant (that is the scalar-datum sweep's question).",
+    "tags": [
+      "metrics",
+      "relocation",
+      "pool-layout",
+      "workflow",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function where the two streams relocate a row's base against different symbols, the immediate delta recurs, and the rows nevertheless CLOSE under a source edit inside that function -- which would show the condition is not sufficient for unreachability. Equally falsifying: a recount at a later HEAD in which the six-function population is dominated by rows whose data position is identical, i.e. the base-symbol condition admitting the displacement class the recurrence condition let in.",
+  "id": "claim.law.T20_a-recurring-immediate-delta-is-data-position-only-when-the-relocated-base-differs.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T23:27:04Z",
+  "schema_version": 1,
+  "subject": "tool:nearmiss",
+  "valid_from": "2026-09-03",
+  "value": "A RECURRING CONSTANT IMMEDIATE DELTA IS NOT BY ITSELF EVIDENCE OF A DATA-POSITION ARTIFACT, AND USED ALONE IT IS A 40% FALSE-POSITIVE SCREEN. The second condition -- that the two streams relocate the row's BASE against DIFFERENT symbols -- is what makes the row unreachable from inside the function, and it is what separates a pool-offset row from an ordinary struct-field or frame displacement. MEASURED at run-50 HEAD over the 195 functions in the >=90% fuzzy band: recurrence alone fires on 79 of them (40.5%), and its heaviest rows are a delta of -8 recurring 49 times in mb_particle::DrawPsysSub and -4 recurring 33 times in critter::CritterCollidePlayers -- displacements, not data position. Adding the differing-relocated-base condition takes the population to SIX, silent on 189, and all six were independently named in the corpus before this screen existed: player::write_health_and_items, player::do_players, player::setup_player_display and player::create_player_blits are one player.c .rodata population gap, while combat::screen_limitation and audio::AudioStreamPlay are the section-alias base class of attempt.CV_critternewinst-error-string-carried-a-newline-retail-does-not.20260903.v1 and attempt.CB_screen-limitation-string-size-audit-and-reloc-arbiter-bounds.20260901.v1. AND THE HEADLINE THIS REFUTES: `real` is NOT dominated by such rows. They are 1.2% to 16.3% of it on the six that carry any (write_health_and_items 6 lines of 68 = 8.8%, do_players 10 of 836 = 1.2%), against a framing that called one of them 'real is dominated by an 840-byte rodata pool offset'. Ranking the near-miss queue on the codegen remainder moves 26 of 195 positions, of which only TWO move for a reason of their own (AudioStreamPlay 54 -> 48, write_health_and_items 74 -> 63) and the other 24 are neighbours they displace. THE COLUMN EARNS ITS PLACE BY NAMING ROWS A LANE CANNOT CLOSE, not by re-ordering the queue."
+}

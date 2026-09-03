@@ -608,6 +608,42 @@ one, and supersede the law if your target contradicts it.
    directory is already gitignored and per-worktree, so two lanes running
    the same tool cannot overwrite each other at all.
 
+   (d) *The HARNESS SCRATCHPAD is shared too, and it is NOT per-lane.*
+   Rule (a) was written about `XX_scratch/` inside a worktree, and every
+   lane read it as being about the repository. The scratchpad directory
+   the platform hands each session is a SECOND shared namespace, outside
+   git, with no worktree isolation at all: run 49's T19 wrote `msg1.txt`
+   there and a peer lane overwrote it MID-RUN, so the commit message that
+   landed was not the one that was written. Commit-message files, record
+   drafts, census scripts and captured output all live there, and
+   `msg1.txt` / `out.json` / `census.py` are names every lane picks
+   independently. LANE-PREFIX THE BASENAME THERE EXACTLY AS IN THE REPO —
+   `t20_msg1.txt`, `t20_purity_census.py` — and never read back a
+   scratchpad file by a generic name you did not write in the same tool
+   call.
+
+18. **A record closing a defect must screen for WHAT ELSE HAS THIS SHAPE,
+   and say what it found.** Fixing the instance is half the work; the
+   other half is one query asking whether the same mistake exists one
+   layer away, and it is the half that keeps getting skipped. Measured:
+   run 39 fixed `probe --discard` restoring the SOURCE but not the
+   OBJECTS (claim.law.MS_probe-discard-restores-source-but-not-objects-
+   so-object-reading-tools-report-the-discarded-probe.20260902.v1), and
+   run 49 fixed `--discard` restoring the source and the object but not
+   the per-function STATE, so the next probe computed its transitions
+   against a state that no longer existed anywhere and announced a
+   `COUNT-PARITY GAINED` that never happened. One defect, three layers
+   (source / object / state), ten runs apart, and the second fix's own
+   record does not mention the first. The screen is cheap and its answer
+   goes in the record: name the layers the fixed thing has (what else
+   does this operation leave behind?), the sibling call sites of the
+   function you changed, and the other tools that read the same artifact.
+   `gdlmem search "<the defect in five words>"` and a grep for the fixed
+   symbol are the whole cost. A record that closes a defect without this
+   paragraph is incomplete in the same way a park with no `probed_form`
+   is: the next lane cannot tell whether the neighbourhood was examined
+   or merely not mentioned.
+
 Header edits (include/game/*.h): allowed ONLY to the lane whose work_claim
 names it as that header's owner this run — one owner per header per run.
 The owner follows the isolation protocol without exception: exact byte

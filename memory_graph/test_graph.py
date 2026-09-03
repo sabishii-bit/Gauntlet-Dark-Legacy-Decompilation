@@ -27,6 +27,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from memory_graph import core
+from memory_graph import gdlmem
 from memory_graph.core import (
     ATTEMPT_BYTE_CAP,
     LAW_STATUS_ORDER,
@@ -3393,6 +3394,211 @@ class SimilarResidualsTests(unittest.TestCase):
         context = symbol_context("TowerInit", root=REPO_ROOT)
         self.assertIn("similar_residuals", context)
         self.assertIn("rows", context["similar_residuals"])
+
+
+class ProposeRecordPolishTests(unittest.TestCase):
+    """Run-50 item 7: three refusals a lane lost a submission to.
+
+    (a) REPRODUCED: `gdlmem.py propose-record --template` exits 2 with
+        `error: argument --template: expected one argument` over an argparse
+        usage dump. The seven names ARE in that dump, inside a brace list on
+        a wrapped line.
+    (b) A citation missing its `.YYYYMMDD.vN` suffix loses the whole
+        submission to `does not resolve`. Measured over the accepted corpus:
+        1,864 of 2,088 records carry the suffix; stripping it yields 1,727
+        prefixes owning exactly one record against 62 owning two or more,
+        and for LAW ids alone 490 of 497 (98.6%) are completable against 7
+        ambiguous. So 98.6% is filled in and announced, and the ambiguous
+        rest still refuse — with their candidates named.
+    (c) Gate I's advisory demanded a stream offset within 140 CHARACTERS of
+        the citation. Recalibrated: windowed 27 records / 74 gaps, whole
+        record 4 / 17, and all 23 rows that stop firing quote an offset
+        somewhere in the same record.
+    """
+
+    def test_the_template_kinds_are_a_list_not_an_argparse_dump(self):
+        # The names live in ONE place so the CLI and this test cannot drift.
+        self.assertEqual(len(gdlmem.TEMPLATE_KINDS), 7)
+        for kind in gdlmem.TEMPLATE_KINDS:
+            self.assertIsInstance(core.record_template(kind), dict)
+
+    def test_a_unique_prefix_completes(self):
+        completions = core.complete_law_citations(
+            {"attributes": {"laws_applied": ["claim.law.only-one"]}},
+            lambda cited: "claim.law.only-one.20260829.v1"
+            if cited == "claim.law.only-one" else None)
+        self.assertEqual(completions,
+                         [("claim.law.only-one",
+                           "claim.law.only-one.20260829.v1")])
+
+    def test_an_already_suffixed_id_is_left_alone(self):
+        record = {"attributes": {
+            "laws_applied": ["claim.law.only-one.20260829.v1"]}}
+        self.assertEqual(core.complete_law_citations(record, lambda c: None),
+                         [])
+        self.assertEqual(record["attributes"]["laws_applied"],
+                         ["claim.law.only-one.20260829.v1"])
+
+    def test_the_json_encoded_string_spelling_is_rewritten_in_place(self):
+        # 92.6% of this corpus's law citations were written this way.
+        record = {"attributes": {
+            "laws_applied": json.dumps(["claim.law.bare"])}}
+        core.complete_law_citations(
+            record, lambda c: "claim.law.bare.20260901.v1")
+        self.assertEqual(json.loads(record["attributes"]["laws_applied"]),
+                         ["claim.law.bare.20260901.v1"])
+
+    def test_laws_failed_is_completed_too(self):
+        record = {"laws_failed": ["claim.law.bare"]}
+        core.complete_law_citations(
+            record, lambda c: "claim.law.bare.20260901.v1")
+        self.assertEqual(record["laws_failed"],
+                         ["claim.law.bare.20260901.v1"])
+
+    def test_gate_i_advisory_accepts_an_offset_anywhere_in_the_record(self):
+        # The register is quoted in an instruction in one field and the
+        # offset sits 400 characters away in another. That is checkable.
+        statement = "r18 carries the loop base"
+        text = ("addi r18,r31,3136 is what the target forms."
+                + " filler." * 60 + " the aligned view at @0x22c shows it")
+        self.assertEqual(core.register_anchor_gaps(statement, text), [])
+
+    def test_gate_i_advisory_still_fires_with_no_offset_at_all(self):
+        statement = "r18 carries the loop base"
+        text = "addi r18,r31,3136 is what the target forms."
+        self.assertEqual(core.register_anchor_gaps(statement, text), ["r18"])
+
+    def test_the_blocking_half_is_untouched(self):
+        # Gate I's proven catch: a register named in prose with no
+        # instruction quoted anywhere still REFUSES.
+        self.assertEqual(
+            core.register_definition_gaps("the r20 web is the problem",
+                                          "no instruction here at @0x684"),
+            ["r20"])
+
+
+class SignatureLawJoinTests(unittest.TestCase):
+    """Run-50 item 6: the brief joins a park's SIGNATURE to the laws that
+    describe that codegen shape.
+
+    THE OBSERVATION: boss::HealthMeterUpdate's cure was
+    claim.law.compare-form-dictionary.20260829.v1 ("on doubles, a >= K guard
+    emits fcmpo + cror(gt,eq) + bne-skip"), five days old and DECISIVE, while
+    its park sat in the roster quoting `+3 cror +4 bne +2 ble ... -5 bge`.
+    The roster row and the law never met.
+
+    THE PROPOSED CURE WAS THE WRONG INDEX, measured on that exact signature
+    at run-50 HEAD: the residual-SIBLING index (`laws --residual`) returns 15
+    laws and the closing law is NOT among them, because that index pairs
+    records SHARING a signature, not laws DESCRIBING one -- and
+    `similar_residuals(signature=...)` returns 0 laws for it. Querying the
+    signature's OPCODE MNEMONICS ranks the closing law FIRST of 40, on 7
+    distinct terms.
+
+    TWO-SIDED over the live corpus: 607 attempt records carry a signature
+    with mnemonics (the join fires), 322 carry a signature without any (it
+    is silent), and 398 carry no typed signature at all (silent). Per TU:
+    boss 8 of 8 vetoed rows joined, player 7 of 12, enemy 9 of 19. Cost
+    +1.4s to +2.6s per brief (boss 2.37 -> 4.92s), and --no-law-join 1 turns
+    it off.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = make_root()
+        records = cls.root / "memory_graph" / "records"
+        _write(records / "entities" / "entity.compiler-test.json", {
+            "schema_version": 1, "id": "entity.compiler-test",
+            "kind": "entity", "entity_type": "compiler",
+            "key": "compiler:test", "name": "test compiler",
+        })
+        # The law that describes the SHAPE: its prose names the mnemonics.
+        _write(records / "claims" / "claim.law.t20-guard-form.20260903.v1"
+               ".json", {
+                   "schema_version": 1,
+                   "id": "claim.law.t20-guard-form.20260903.v1",
+                   "kind": "claim", "subject": "compiler:test",
+                   "predicate": "codegen_law", "epistemic_state": "verified",
+                   "value": "On doubles a >= K guard emits fcmpo plus cror"
+                            " and a bne skip, while a plain a < K emits bge.",
+                   "valid_from": TODAY,
+                   "falsifier": "a target emitting bge for a >= guard",
+                   "asserted_by": ["tools/gdl/fndiff.py"],
+                   "attributes": {"scope": "MWCC 1.2.5n"},
+               })
+        # A law that shares NO mnemonic with the signature below.
+        _write(records / "claims" / "claim.law.t20-unrelated.20260903.v1"
+               ".json", {
+                   "schema_version": 1,
+                   "id": "claim.law.t20-unrelated.20260903.v1",
+                   "kind": "claim", "subject": "compiler:test",
+                   "predicate": "codegen_law", "epistemic_state": "verified",
+                   "value": "Claim slack that is zero-filled in the DOL is"
+                            " advisory and never blocks a flip.",
+                   "valid_from": TODAY,
+                   "falsifier": "a zero-slack unit that fails to link",
+                   "asserted_by": ["tools/gdl/datadiff.py"],
+                   "attributes": {"scope": "MWCC 1.2.5n"},
+               })
+        # The park, quoting the mnemonics the law names.
+        _write(records / "attempts" / "attempt.t20-guard.v1.json", _attempt(
+            "attempt.t20-guard.v1", "function:test_fn", outcome="parked",
+            axis="guard form park",
+            residual={"signature": "DIFFERS target-only: +3 cror +4 bne"
+                                   " ours-only: -5 bge; insns T231/O230;"
+                                   " 25 ops clusters",
+                      "family": "branch-pair", "capability_needed": None,
+                      "measured_at": "2026-09-01"},
+        ))
+        # A park with a signature that carries NO mnemonics at all.
+        _write(records / "attempts" / "attempt.t20-bare.v1.json", _attempt(
+            "attempt.t20-bare.v1", "function:other_fn", outcome="capped",
+            axis="bare signature park",
+            residual={"signature": "roster screen, no single signature",
+                      "family": "unclassified", "capability_needed": None,
+                      "measured_at": "2026-09-01"},
+        ))
+        build_database(cls.root)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.root, ignore_errors=True)
+
+    def rows(self, **kwargs):
+        brief = tu_briefing("game/test/foo", root=self.root, **kwargs)
+        return {row["function"]: row for row in brief["vetoed_axes"]}
+
+    def test_the_law_that_names_the_signatures_mnemonics_is_attached(self):
+        row = self.rows()["test_fn"]
+        self.assertIn("signature_laws", row)
+        ids = [law["id"] for law in row["signature_laws"]]
+        self.assertIn("claim.law.t20-guard-form.20260903.v1", ids)
+
+    def test_an_unrelated_law_is_not_attached(self):
+        row = self.rows()["test_fn"]
+        ids = [law["id"] for law in row["signature_laws"]]
+        self.assertNotIn("claim.law.t20-unrelated.20260903.v1", ids)
+
+    def test_a_signature_with_no_mnemonics_gets_no_join(self):
+        # The silent half of the census: 322 corpus records are in this
+        # state, and attaching an empty list to each would be noise.
+        row = self.rows()["other_fn"]
+        self.assertNotIn("signature_laws", row)
+
+    def test_the_row_says_the_join_is_a_lead_not_a_verdict(self):
+        note = self.rows()["test_fn"]["signature_laws_note"]
+        self.assertIn("A LEAD, not a verdict", note)
+        self.assertIn("re-verify", note)
+
+    def test_the_join_can_be_turned_off(self):
+        row = self.rows(law_join=False)["test_fn"]
+        self.assertNotIn("signature_laws", row)
+
+    def test_the_law_rows_carry_their_evidence(self):
+        for law in self.rows()["test_fn"]["signature_laws"]:
+            for field in ("status", "n", "successes", "failures",
+                          "query_terms_matched"):
+                self.assertIn(field, law)
 
 
 class DerivedRecountTests(unittest.TestCase):

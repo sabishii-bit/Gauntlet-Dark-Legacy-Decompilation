@@ -81,6 +81,7 @@ neighbouring symbol's addend counts as referenced -- name-only matching
 false-positives on exactly the string literals this law cares about.
 """
 
+import json
 import re
 import struct
 import subprocess
@@ -104,8 +105,9 @@ def dol_read(va, size):
     data_addr = struct.unpack(">11I", data[0x64:0x90])
     text_size = struct.unpack(">7I", data[0x90:0xAC])
     data_size = struct.unpack(">11I", data[0xAC:0xD8])
-    for off, addr, sz in list(zip(text_off, text_addr, text_size)) + \
-                         list(zip(data_off, data_addr, data_size)):
+    segments = (list(zip(text_off, text_addr, text_size))
+                + list(zip(data_off, data_addr, data_size)))
+    for off, addr, sz in segments:
         if addr and addr <= va and va + size <= addr + sz:
             fo = off + (va - addr)
             return data[fo:fo + size]
@@ -547,6 +549,42 @@ GAP_BLURB = {
 }
 
 
+REPORT = REPO / "build" / VERSION / "report.json"
+
+
+def report_extab_sections(base):
+    """[(name, size, fuzzy%)] for a unit's extab-family sections.
+
+    THEY ARE NOT IN ANY OBJECT (run-50 item 3, measured image-wide). This
+    file's section loop has probed `"extab"` and `"extabindex"` since it was
+    written -- spelled WITHOUT the leading dot, which is splits.txt's
+    spelling, while `section_sizes` reads `objdump -h` and every key it can
+    ever produce starts with a dot. So those two probes could never match.
+    Fixing the spelling would change nothing either: over all 257 paired
+    units, ZERO target objects and ZERO of our objects carry an extab-family
+    section under ANY spelling -- exception tables are a LINK-level artifact,
+    and objdiff's report is where they are measured. 95 report units carry
+    one.
+
+    This is the readout that was missing: on a `-Cpp_exceptions` TU an
+    instruction-COUNT change relocates every exception range, so the
+    extabindex match is the DATA a count-parity loss puts at risk, and its
+    size is the byte figure (game/pb/dbgtext: extab 56 at 100%, extabindex
+    84 at 100% -- the 84 a lane measured only by running defake_gate).
+    """
+    try:
+        data = json.loads(REPORT.read_text(encoding="utf-8"))
+    except Exception:                                          # noqa: BLE001
+        return []
+    for unit in data.get("units", []):
+        if unit.get("name", "").split("/", 1)[-1] == base:
+            return [(s["name"], int(s["size"]),
+                     s.get("fuzzy_match_percent"))
+                    for s in unit.get("sections", [])
+                    if "extab" in s.get("name", "")]
+    return []
+
+
 def section_table(unit_key, strict_slack=False, debt=None):
     """--sections: ours-vs-target per-section size + match table.
 
@@ -572,11 +610,12 @@ def section_table(unit_key, strict_slack=False, debt=None):
     content = section_bytes
     ts, os_ = section_sizes(tgt_o), section_sizes(ours_o)
     bad = 0
-    for sec in DATA_SECTIONS + ("extab", "extabindex",
-                                ".bss", ".sbss", ".sbss2"):
+    compared = 0
+    for sec in DATA_SECTIONS + (".bss", ".sbss", ".sbss2"):
         tlen, olen = ts.get(sec), os_.get(sec)
         if tlen is None and olen is None:
             continue
+        compared += 1
         if tlen != olen:
             bss = sec.startswith((".bss", ".sbss"))
             tb = content(tgt_o, sec) if tlen and not bss else b""
@@ -622,6 +661,23 @@ def section_table(unit_key, strict_slack=False, debt=None):
             tail = f" … and {len(diffs) - 16} more" if len(diffs) > 16 else ""
             print(f"[{unit_key}] {sec}: {len(diffs)} byte(s) differ:"
                   f" {head}{tail}")
+    # EMPTY OUTPUT CAN NEVER MEAN SUCCESS (run-50 item 3). `--sections`
+    # printed NOTHING AT ALL for 78 of 257 units -- every unit whose two
+    # objects carry no data-class section between them -- and exited 0, so
+    # "all clear", "this unit has no data" and "I mistyped the unit" were
+    # one output. A lane hit it twice on game/pb/dbgtext and reported the
+    # tool as silent. Every run now ends with a verdict naming the count.
+    for name, size, fuzzy in report_extab_sections(base):
+        pct = "n/a" if fuzzy is None else f"{fuzzy:.4f}%"
+        print(f"[{unit_key}] {name}: {size} bytes, {pct} matched  (LINK-level"
+              " section, from report.json -- no object carries it; an"
+              " instruction-COUNT change on a -Cpp_exceptions TU relocates"
+              " these ranges, and this size is the matched DATA at risk)")
+    print(f"[{unit_key}] --sections: {compared} object data section(s)"
+          f" compared, {bad} blocker(s)"
+          + ("  (NOTHING TO COMPARE: neither object carries a data-class"
+             " section -- this is a verdict, not silence)" if not compared
+             else ""))
     return bad
 
 
