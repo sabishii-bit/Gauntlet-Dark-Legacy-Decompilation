@@ -309,12 +309,9 @@ void DoGoodWizard(void)
             calc_wizard_pos(pos);
             pos[1] = (f32)(pos[1] + lbl_80345A18);
         }
-        node = *pp;
-        *(f32*)((u8*)node + offsetof(MBObject, mat[3][0])) = pos[0];
-        node = *pp;
-        *(f32*)((u8*)node + offsetof(MBObject, mat[3][1])) = pos[1];
-        node = *pp;
-        *(f32*)((u8*)node + offsetof(MBObject, mat[3][2])) = pos[2];
+        *(f32*)((u8*)*pp + offsetof(MBObject, mat[3][0])) = pos[0];
+        *(f32*)((u8*)*pp + offsetof(MBObject, mat[3][1])) = pos[1];
+        *(f32*)((u8*)*pp + offsetof(MBObject, mat[3][2])) = pos[2];
         node = *pp;
         CopyMat4(node, base + offsetof(AuxSceneView, wiz_mtx));
         node = *pp;
