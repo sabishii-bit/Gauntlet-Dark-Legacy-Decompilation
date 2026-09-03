@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/fl_textorder.py",
+    "tools/gdl/composed_census/fl_textorder.py --calibrate"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "build-hygiene",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Exhibit an order/roster/coverage check whose empty-input output is DISTINGUISHABLE from its all-clear output without an explicit refusal -- i.e. a screen where 'I found nothing to compare' and 'I compared everything and it agreed' already read differently to the operator. If such a screen exists in this repo, the necessity clause below is too strong and should be narrowed to screens whose pass message is a bare affirmative.",
+  "id": "claim.law.FL_a-text-order-check-must-refuse-an-empty-roster-because-a-silent-parse-failure-prints-a-clean-pass.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T18:33:25Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "LAW, measured on this lane's own first draft. A check that screens for the ABSENCE of a difference across a ROSTER must treat an empty roster as a REFUSAL, never as a pass, because the two outputs are otherwise identical to the reader and the failure mode is silent.\n\nTHE MEASUREMENT. Flip-audit fingerprint #4 is the .text function-ORDER check: name-paired scores (fndiff, objdiff, claimcheck, datadiff) compare each function to its same-named counterpart, so a TU emitted in the wrong source order can read 100% on every score in the project and still link wrong. The first draft of the check built its two rosters from `fndiff.object_sections(objpath, readable=None)`. That function is documented and correct -- it is the repository's DATA-symbol reader -- and it returns no .text function symbols at all. The draft therefore compared two empty lists, found them equal, and printed for FIVE consecutive units:\n\n    === game/audio/dcsdrv ===\n      target 0 fn(s), ours 0 fn(s)\n      TEXT ORDER: IDENTICAL\n      TEXT OFFSETS: IDENTICAL\n\nEvery word of that is true and the conclusion is worthless. Two of those five units (pb_frame, mb_camera) genuinely DO have .text size deltas, which the working check reports in detail; the vacuous version reported them as clean. The `0 fn(s)` was printed -- it was on screen -- and it does not help, because a roster count is exactly the kind of number a reader skims past on the way to a verdict line that says IDENTICAL twice.\n\nTHE SECOND HALF, which the same draft also got wrong for the same reason: the row parser. objdump -t emits `00000000 g     F .text\\t000001a0 MBWorldToScreen3D`, and the FLAGS field is seven FIXED COLUMNS THAT CONTAIN SPACES. A whitespace-tokenising regex (`^([0-9a-f]{8})\\s+(\\S+)\\s+(\\S+)\\s+([0-9a-f]{8})\\s+(\\S+)$`) matches ZERO rows of that file, because it consumes `g` and `F` as two tokens and then requires eight hex digits where `.text` sits. So even after the reader was pointed at the right command, the parse still produced an empty roster -- and would have printed the same clean pass a second time. The fix is to split on the TAB objdump puts between section and size and then slice by column; the guard is what made the second failure visible instead of silent.\n\nTHE RULE, in three parts: (1) an empty roster is a PARSE FAILURE and the check exits non-zero saying so; (2) the check ships with a `--calibrate` mode that is TWO-SIDED per the AGENTS.md calibration rule -- a known-good pair that must read identical, a synthetic corruption of one side that must be rejected, and a REAL known-bad pair from the live corpus that must be seen; (3) the calibration runs BEFORE the verdicts in the same invocation, so a reader cannot get a verdict without the proof that the reader worked.\n\nWHY THIS GENERALISES BEYOND ORDER CHECKS. This is the same shape as the `-SimpleMatch` trap in AGENTS.md first-five-minutes trap 6b (`'OK|FAILED' -SimpleMatch` returns zero rows and reads as all-clear) and the same shape as the run-32 finding that 92.6% of law evidence was import-invisible and was found only by an independent recount. In all three the tool answered a DIFFERENT question than the one asked -- 'did I find any differences' instead of 'are there any differences' -- and the two questions have the same answer shape and opposite meanings when the input set is empty. Any negative screen (region-untouched claims, coverage audits, roster comparisons, absence assertions) inherits this hazard; the AGENTS.md rule that an order asserting an ABSENCE must quote its query AND its empty result is the reporting-side counterpart of this tooling-side rule."
+}
