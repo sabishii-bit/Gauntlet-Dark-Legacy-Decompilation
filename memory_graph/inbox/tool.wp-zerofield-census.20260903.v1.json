@@ -1,0 +1,27 @@
+{
+  "constraints": [
+    "Read-only: it rewrites nothing and writes only build/GUNE5D/wp_zerofield_census.json. A census hit is a CANDIDATE; the Mandatory-policy source-exhaustion bar still applies to every rule it suggests.",
+    "Requires a completed `ninja` so build/GUNE5D/src and build/GUNE5D/obj are both current; stale objects silently misreport.",
+    "The comparison is LEGACY-vs-SHIPPED, not prototype-vs-shipped, and that is deliberate. The run-44 prototype wc_zerofield_probe.py monkey-patched a refined transfer beside the shipped one; once the refinement shipped that comparison collapses to shipped-vs-shipped and reads a payoff of ZERO, which is indistinguishable from a refutation. This tool carries the pre-run-45 transfer verbatim as `legacy_transfer`, so re-running it at any later commit still reproduces the table.",
+    "Only equal-size function pairs are screened: a count-asymmetric residual is outside every postprocessor class by construction (claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1).",
+    "Read the `first_proof` column, never a wider column alone. apply_patch reaches a later column only when the earlier refuses, so a row whose first_proof is `strict` or `legacy` is a customer for nothing however the shipped column scores it. Omitting this column made the CE model census report four already-proved pins as payoff.",
+    "Read `staging_replayed` before counting any row as demand. This census stages every function one way (raw body -> auto-derived copy-form edits -> copy_register_fields); a pin carrying a permutation, a mask/zero form or its own copy-form edit list is verified by the build over a DIFFERENT intermediate image, so a refusal here says nothing about it. Counting such rows overstated the CE class five-fold.",
+    "Form sites are detected by DECODED COPY FORM, never by wf_census.classify's `regfield` label, per claim.law.CE_a-copy-versus-constant-site-encodes-as-a-pure-register-field-difference.20260903.v1 -- a label-keyed detector misses the copy-versus-constant site entirely."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/wp_zerofield_census.py [--out PATH] [--limit N]",
+  "id": "tool.wp-zerofield-census.20260903.v1",
+  "kind": "tool",
+  "name": "wp_zerofield_census.py",
+  "purpose": "Image-wide demand census AND standing regression control for webfrank's commutative-exchange zero-field refinement: scores every paired equal-size function under three columns in apply_patch's own order (strict recolor, the pre-run-45 POSITION-KEYED relation, and webfrank's current transfer) and reports which rows the refinement is the FIRST column to prove.",
+  "recorded_at": "2026-09-03T16:10:38Z",
+  "schema_version": 1,
+  "status": "active",
+  "tool_key": "tools/gdl/composed_census/wp_zerofield_census.py",
+  "tool_kind": "analysis",
+  "usage": [
+    "Founding run 2026-09-03 at 24bfa0c5a and re-run after the change at dba0a6f48 with identical numbers: 2845 paired, 288 differing, 187 structurally out of scope, 101 fully screened (92 tier 1, 9 tier 2); first proof = strict 80, legacy 9, shipped refinement 1, no column 11. The single payoff row is game/pb/pb_texture::fn_800C72DC and 0 of 89 already-proved rows moved.",
+    "Use it as the regression control whenever `_value_equality_transfer` or the commutative-exchange path changes: the number that must not move is `verdict or declaration count moved by the refinement: 0`. Pair it with tools/gdl/composed_census/wc_control_check.py, which checks the same invariant against the SHIPPED rules' own declarations rather than against the corpus.",
+    "See claim.WP_commutative-exchange-zero-field-demand-census-image-wide.20260903.v1 for the full table and claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1 for the census shape this one inherits."
+  ],
+  "valid_from": "2026-09-03"
+}
