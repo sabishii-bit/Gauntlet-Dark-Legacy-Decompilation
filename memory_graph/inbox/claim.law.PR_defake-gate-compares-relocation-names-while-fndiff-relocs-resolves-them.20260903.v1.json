@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/defake_gate.py (the MOVED-AWAY-FROM-TARGET and DIRECTION-UNKNOWN verdict text quoted below)",
+    "tools/gdl/fndiff.py --relocs (the resolved-address verdict quoted below)",
+    "attempt.PR_distancetoclosestplayer-the-refinement-constants-storage-class-owns-the-hoist.20260903.v2",
+    "attempt.PR_fn80051480-the-accumulator-is-inserted-at-the-top-of-the-descending-group.20260903.v2"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics",
+      "relocation"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A run in which `defake_gate check` and `fndiff --relocs` are shown to answer the same question - i.e. a body on which the gate reports a relocation regression and `fndiff --relocs` also reports the relocation sets DIFFERENT. That would mean the disagreement recorded here was a defect in one of them rather than a difference of question, and the guidance below would be wrong.",
+  "id": "claim.law.PR_defake-gate-compares-relocation-names-while-fndiff-relocs-resolves-them.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T18:42:48Z",
+  "schema_version": 1,
+  "subject": "tool:defake-gate",
+  "valid_from": "2026-09-03",
+  "value": "THE TWO RELOCATION ARBITERS ANSWER DIFFERENT QUESTIONS AND CAN DISAGREE ON THE SAME BODY, so a lane that changes how a floating-point constant is SPELLED must run both and say which it is obeying. Measured 2026-09-03 on two functions in two TUs.\n\nWHAT EACH ONE DOES. `defake_gate.py check <unit>` compares relocation SYMBOL NAMES against the target's and can only resolve names that appear in config/GUNE5D/symbols.txt; an MWCC anonymous pool entry (`@1058`, `@432`) resolves to nothing, so the gate reports either MOVED-AWAY-FROM-TARGET (when our OLD name matched the target and the new one does not) or DIRECTION-UNKNOWN (when neither matches), and exits 1 either way. `fndiff.py <unit> <fn> --relocs` resolves ADDRESSES and compares the resolved sets, so it sees through the anonymous naming.\n\nTHE MEASURED DISAGREEMENT. game/world/items::DistanceToClosestPlayer, on the body that spells its two f64 refinement constants as literals instead of extern reads: `fndiff --relocs` prints `relocation sets IDENTICAL (16 reloc(s), addresses resolved)` and exits 0, while `defake_gate check game/world/items` prints `MOVED-AWAY-FROM-TARGET: 'sArrowFloorYOffset' -> '@433': target reloc[13] is 'sArrowFloorYOffset' (0x80346FB0) - our OLD symbol matched it, the new one does not` and exits 1. game/game/gamemain::fn_80051480, on the body that spells its 100000.0f seed as the extern `lbl_803468B0`: `fndiff --relocs` prints `relocation sets IDENTICAL (7 reloc(s), addresses resolved)` and exits 0, while the gate exits 1 with DIRECTION-UNKNOWN - and that verdict's own text confirms the change was an IMPROVEMENT ('target reloc[3] is lbl_803468B0 - our new symbol MATCHES it'), the three DIRECTION-UNKNOWN rows being nothing but the anonymous pool renumbering that removing one entry forces.\n\nWHY BOTH ARE RIGHT, AND WHICH TO OBEY. The gate is the one that can see a body that has stopped referencing a pool object the target genuinely shares TU-wide; `fndiff --relocs` is the one that can see that a fresh anonymous entry holds the same datum. Neither is redundant. AGENTS.md makes the gate's exit 1 a revert instruction, so the gate governs the KEEP; but a lane must not record a gate exit 1 as 'the relocations are wrong' without running `fndiff --relocs`, because on both bodies above that reading would have been false. This is AGENTS.md discipline 14 (a guard's refusal is a measurement of the guard) applied to the relocation checkers specifically.\n\nPRACTICAL CONSEQUENCE FOR SPELLING WORK. Converting an fp constant literal -> extern GAINS a target-named relocation and, on the same body, may change register allocation (measured: it does, per claim.law.PR_the-newton-kernel-refinement-constants-storage-class-decides-the-preloop-fpr-order.20260903.v1). Converting extern -> literal LOSES the name. A lane doing either must report the word count AND both arbiters' verdicts, and if they disagree the decision belongs to the integrator. One further mechanical fact worth knowing before attempting the extern direction: an edit that removes an anonymous pool entry renumbers the rest, and that alone did NOT invalidate any name-bound webfrank pin - a full `ninja -j2` replayed every shipped rule and printed `build/GUNE5D/main.dol: OK` - whereas an edit that changes the pinned function's BODY BYTES aborts the WEBFRANK step with `input hash ... != expected ...` and needs `t16_rederive_body.py`."
+}
