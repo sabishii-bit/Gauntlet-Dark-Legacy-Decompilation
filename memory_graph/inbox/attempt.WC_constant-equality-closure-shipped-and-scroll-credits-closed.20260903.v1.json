@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "Ship the constant-equality closure into webfrank's value-equality mode as a per-rule opt-in, calibrated two-sided against known positives AND known negatives before any rule rides on it, then serve the one unpinned payoff row the image-wide census named.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and SATISFIED (148/148). claim.law.DC_copy-form-class-is-directional-and-its-inverse-population-is-unserved.20260901.v1 APPLIED - both form sites are the inverse direction (ours is the copy, the target is the `li`). claim.law.CE_a-copy-versus-constant-site-encodes-as-a-pure-register-field-difference.20260903.v1 APPLIED - the two form sites are detected by decode_copy_form, never by the regfield label. claim.law.unpaired-schedule-words-bar-webfrank-candidacy-not-just-its-permute-stage.20260831.v1 SCREENED and SATISFIED - zero unpaired words. claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED - game/ui/attract.c is now source-frozen at scroll_credits and its inlined helpers. claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-their-relocations.20260903.v1 SCREENED - verify_datum_binding runs unconditionally on this rule and passes.",
+    "laws_applied": "[\"claim.law.DC_copy-form-class-is-directional-and-its-inverse-population-is-unserved.20260901.v1\", \"claim.law.CE_a-copy-versus-constant-site-encodes-as-a-pure-register-field-difference.20260903.v1\"]",
+    "probed_form": "No source edit. tools/gdl/webfrank.py gains `_constant_transfer`, `_constant_equality_seeds` and a keyword-only `constant_equality` on verify_value_equality_recolor; config/GUNE5D/webfrank.json gains one rule for game/ui/attract::scroll_credits declaring `value_equality_recolor.constant_equality: true`.",
+    "residual": "None on this function. The closure is OPT-IN per rule, so no existing rule's proof can move under it; apply_patch refuses the opt-in by name if the narrow relation ever proves the rule alone, which is the same anti-rot discipline the strict-succeeds refusal already carries.",
+    "scope": "tools/gdl/webfrank.py, tools/gdl/tests/test_webfrank.py, config/GUNE5D/webfrank.json. Commits 1245bc62c (closure + tests) and 58b28b150 (the rule).",
+    "verification": "STRICT matched 56.63% (2578 fns) UNMOVED; EQUIVALENT 10.97% (150 fns) -> 11.02% (151 fns). `fndiff game/ui/attract scroll_credits --clean` = EXACT, 0 real diff lines. Forced full replay (touch webfrank.py, full ninja): every shipped rule replays and build/GUNE5D/main.dol: OK. Both suites green per commit: `python -m unittest discover tools/gdl/tests` 1285 tests OK, `python -m memory_graph.test_graph --changed` 349 tests OK. configure.py re-run after each webfrank.json edit and the `WEBFRANK game/ui/attract` edge confirmed present."
+  },
+  "function": "function:scroll_credits",
+  "id": "attempt.WC_constant-equality-closure-shipped-and-scroll-credits-closed.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T06:40:28Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset IDENTICAL (148/148); RAW DIFFERING WORDS = 52 VERBATIM: `game/ui/attract::scroll_credits (plain object (no webfrank unit)): 148 insns, DIFFERING WORDS = 52, MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0, PINNED = no`"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "RUN: copy_register_fields, verify_consistent_recolor (REFUSED), equivalent_copy_form in constant_dataflow_inverse_recolor at +0xe4 and +0x174 (both ACCEPTED by the shipped guard, offered by DECODED COPY FORM per claim.law.CE_a-copy-versus-constant-site-encodes-as-a-pure-register-field-difference.20260903.v1), verify_value_equality_recolor WITHOUT the closure (REFUSED: `+0xfc: use of g25 is not value-equal to g27`), verify_value_equality_recolor WITH the closure (PROVED, 6 substitutions, byte-equal), verify_datum_binding (unconditional, passed), and the whole composition through the real apply_patch plus a full ninja printing build/GUNE5D/main.dol: OK. NOT RUN and why: instruction_permutation - zero displaced atoms; equivalent_mask_form - no rlwinm mask difference; equivalent_zero_form - refuses to compose with a register stage by name; unproven_recolor_audit - deliberately not used, the point of the run is to REMOVE audit escapes rather than add one.",
+  "windows_tried": "None - the streams are index-aligned and no permutation window exists. The composition shapes tried were copy-form edit SETS, reproducing the predecessor record's own enumeration: {} , {+0xe4}, {+0xe4,+0x174}; only the last reaches the register stage, and only with the closure does its recolor prove."
+}

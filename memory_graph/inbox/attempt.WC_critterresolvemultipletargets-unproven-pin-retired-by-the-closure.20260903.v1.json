@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "Convert this rule's unproven_recolor_audit escape into a machine proof with the constant-equality closure, exactly as the image-wide demand census predicted, with no byte change.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and SATISFIED (111/111). claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-their-relocations.20260903.v1 APPLIED - the datum screen runs unconditionally and passes, which is the sub-case attempt.WS_equivalent-tier-datum-audit-one-retraction-in-one-hundred-fifty.20260903.v1 had already closed; what remained unproven there was 'a use-side value crossing among NON-RELOCATED registers', and that is exactly what this retirement proves. claim.law.CE_a-copy-versus-constant-site-encodes-as-a-pure-register-field-difference.20260903.v1 SCREENED and NOT ENGAGED - form sites were offered by decoded copy form and none exists here. claim.law.webfrank-pinned-function-source-freeze.20260831.v1 unchanged - the function was already pinned and the before/after hashes do not move.",
+    "laws_applied": "[\"claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-their-relocations.20260903.v1\"]",
+    "probed_form": "No source edit and no byte change. config/GUNE5D/webfrank.json: `unproven_recolor_audit` deleted, `value_equality_recolor` with `constant_equality: true` and four declared substitutions added, and the old audit text preserved verbatim inside the new `mechanism` so the retirement is auditable against what it replaced.",
+    "residual": "None. The rule now carries no audit escape.",
+    "scope": "config/GUNE5D/webfrank.json only. Commit 5b7f91fbd.",
+    "verification": "Byte-identical output: before_sha256 and after_sha256 unchanged, the WEBFRANK line moves from `UNPROVEN recolor equivalence accepted by audit` to `value-equality recolor proved (4 substitution(s), 0 comparison exchange(s); constant-equality closure)`. STRICT 56.63% (2578) and EQUIVALENT 11.02% (151) both unmoved - this is a soundness upgrade, not a score change. Both suites green; configure.py re-run; full ninja prints build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:CritterResolveMultipleTargets",
+  "id": "attempt.WC_critterresolvemultipletargets-unproven-pin-retired-by-the-closure.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T06:40:30Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "111/111 insns, 18 differing words, all register-field-only; strict recolor refuses at `+0x1a8: use of g30 does not correspond to g28 under the running renaming`"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "RUN: copy_register_fields, verify_consistent_recolor (REFUSED at +0x1a8, which is the refusal the audit escape was suppressing), verify_value_equality_recolor WITHOUT the closure (REFUSED: `+0x1a8: use of g30 is not value-equal to g28`), verify_value_equality_recolor WITH the closure (PROVED, 4 substitutions +0x48 g29->g5, +0x19c g30->g28, +0x1a0 g29->g5, +0x1a8 g30->g28, byte-equal), verify_datum_binding (5 bindings proved by name, 2 words rest on the pool correspondence alone - uninitialised data - which is the pre-existing state this rule does not change), and the whole rule through the real apply_patch plus a full ninja printing build/GUNE5D/main.dol: OK. NOT RUN and why: instruction_permutation and equivalent_copy_form - the census's staging IS the build's staging for this rule (it carries no permutation and no form stage), and every differing word is register-field-only, so there is nothing to move and no form to change; equivalent_mask_form / equivalent_zero_form - no mask and no zero-form site.",
+  "windows_tried": "None - no permutation window exists; every differing word is register-field-only at its own position. The configurations tried were the four the sweep runs: narrow relation, closure, narrow + auto-derived copy-form edits, closure + auto-derived copy-form edits. Zero copy-form sites exist (no differing word pair whose decoded copy forms differ), so C and D are identical to A and B."
+}

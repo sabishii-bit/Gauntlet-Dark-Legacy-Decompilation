@@ -1,0 +1,27 @@
+{
+  "attempted_axis": "Retire this rule's unproven_recolor_audit. Its note says the shipped permutation 'leaves a dataflow crossing'; test whether the crossing is a property of the FUNCTION or of the ORDER that was chosen.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and SATISFIED (665/665). claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 APPLIED - the multiset is identical across the window and every wrong order is as invisible to it as the right one, which is precisely how a one-transposition-short order survived nine days behind an audit escape. claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1 APPLIED - the new order is accepted by check_permutation_dependences in the pre-recolor stage exactly as the old one was. claim.law.webfrank-reloc-pin-breaks-on-local-symbol-renumber.20260831.v1 SCREENED and ENGAGED - the window holds 2 relocations, so the rule stays pinned to their symbol indices; the exchanged atoms are not relocated, so both relocation hashes are unchanged and the pin's sensitivity is not increased. claim.law.CE_a-copy-versus-constant-site-encodes-as-a-pure-register-field-difference.20260903.v1 SCREENED and NOT ENGAGED.",
+    "laws_applied": "[\"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\", \"claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1\"]",
+    "probed_form": "No source edit and no byte change. config/GUNE5D/webfrank.json: `unproven_recolor_audit` deleted; the permutation order changed from [10,13,14,1,17,2,0,...] to [10,13,14,0,17,2,1,...] with after_sha256 5650fe988fc50db47b1f64cb6f93664410ed8a2e3762e4a681d69207b27d8150; two `unconditional` equivalent_copy_form edits added at 0x34 and 0x40; audit.classification corrected from SCHEDULE_CANDIDATE to SCHEDULE. The old audit text is preserved verbatim in the new `mechanism`.",
+    "residual": "None, and the audit escape is gone with nothing replacing it - this is the strongest retirement of the run. THE FINDING: the note's DIAGNOSIS was exact ('raw addi/or copies attach to swapped destinations in the prologue (+0x28-0x44)') and its CONCLUSION was wrong ('the shipped shape-aligned permutation leaves a dataflow crossing'). The crossing was a property of the ORDER, not of the function: sending source atom 0 (`addi r27,r4,0`) to +0x34 and source atom 1 (`mr r28,r5`) to +0x40 instead of the reverse puts each copy under a target word with the SAME destination and SAME source, leaving a pure encoding difference at each that `unconditional` copy-form closes. AGENTS.md discipline 1 in its exact form: the diagnosis transferred, the prescription rotted.",
+    "scope": "config/GUNE5D/webfrank.json only. Commit b88986427.",
+    "verification": "Byte-identical output: the rule's before/after hashes are unchanged and the WEBFRANK line no longer prints an UNPROVEN banner at all. STRICT 56.63% (2578) and EQUIVALENT 11.02% (151) unmoved. Both suites green; configure.py re-run; full ninja prints build/GUNE5D/main.dol: OK."
+  },
+  "function": "function:vsprintf",
+  "id": "attempt.WC_vsprintf-unproven-pin-retired-by-one-transposition-in-its-own-permutation.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T06:40:31Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-03",
+    "signature": "665/665 insns; after the shipped 18-atom permutation, 12 differing words remain, all register-field-only; strict recolor refuses at `+0x34: use of g5 does not correspond to g4 under the running renaming`"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "RUN: instruction_permutation with the SHIPPED order (check_permutation_dependences accepts it), copy_register_fields, verify_consistent_recolor (REFUSED at +0x34), verify_value_equality_recolor narrow and with the constant-equality closure over the post-permutation images (both REFUSED at the same +0x34), the same two again with auto-derived copy-form edits offered (zero candidates at the shipped order's positions), then instruction_permutation with ONE destination pair exchanged plus two `unconditional` equivalent_copy_form edits: verify_consistent_recolor PROVES OUTRIGHT and the patch is BYTE-EQUAL, so the rule now carries NO value_equality_recolor and NO audit. check_permutation_dependences accepts the new order. verify_datum_binding proves 43 bindings by name; 8 words rest on the pool correspondence alone (uninitialised data), the pre-existing state this rule does not change. NOT RUN and why: equivalent_mask_form / equivalent_zero_form - no mask and no zero-form site; post_recolor_permutation - unnecessary, the whole schedule difference lives in the existing pre-recolor window.",
+  "windows_tried": "[\"0x28:0x70:10,13,14,1,17,2,0,3,4,5,6,7,8,9,11,12,15,16 (the shipped order - REFUSED)\", \"0x28:0x70:10,13,14,0,17,2,1,3,4,5,6,7,8,9,11,12,15,16 (destinations 3 and 6 exchanged - PROVED)\"]. Two orders over one window; the second differs from the first in exactly two destination slots. The window carries 2 relocations, neither on an exchanged atom, so both relocation hashes are unchanged from the shipped rule and only the permutation's after_sha256 moves."
+}
