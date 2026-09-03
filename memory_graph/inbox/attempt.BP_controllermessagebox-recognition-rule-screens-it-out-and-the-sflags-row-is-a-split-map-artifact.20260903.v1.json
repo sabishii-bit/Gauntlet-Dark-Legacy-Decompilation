@@ -1,0 +1,36 @@
+{
+  "attempted_axis": "Screen the function against the branch-pair law's own recognition rule before spending a probe, and execute attempt.UB_controllermessagebox-goto-spelling-axis-is-measured-dead.20260902.v1's mandatory step-1 hypothesis about the +0x318 sFlags relocation.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v2 and claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1 both SCREENED; the recognition rule in v2 PART 2 is what screened the function OUT, and it is the reason no probe was spent here (UB had already measured three statement spellings NEUTRAL-IDENTICAL and probe.py had raised its RE-PLAN THE AXIS CLASS banner). claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1 SCREENED for (b) and it is the right screen -- but the row it sees here is benign. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and still decisive: at 271/272 (ours/target) the residual is count-asymmetric and no postprocessor class reaches it.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v2\", \"claim.law.regnorm-is-the-only-screen-that-sees-a-wrong-reloc-symbol.20260831.v1\"]",
+    "probed_form": "No source edit was made. The two findings are a read of the aligned view and a read of config/GUNE5D/symbols.txt.",
+    "residual": "Unchanged. Note for the next lane on (b): CLOSING IT BY EDITING symbols.txt IS NOT AVAILABLE -- deleting `sFlags` so the pair becomes one 8-byte object would leave `extern u32 sFlags;` unresolved in at least game/world/newcam.c, game/boss/bosscam.c, game/audio/audio.c, game/audio/soundmgr.c, game/sfx/psfx.c, game/ui/select.c, game/ui/attract.c, game/anim/action.c and game/game/pmotion.c, all of which read 0x803445CC as a live 32-bit global.",
+    "scope": "Read-only. `defake_gate.py baseline game/ui/screensaver --at-head` was taken (anchored to commit c621fcbac, source sha1 c01adda31, 22 functions, 16 at real 0) and `probe.py game/ui/screensaver ControllerMessageBox --ops` was run once for the baseline; nothing was edited or committed.",
+    "verification": "BASELINE real 45, insns 271/272 (ours/target), multiset 3t, FRESH FUZZY 99.2279%. One `--ops` cluster: `replace T[194:196]@308-310=['bne','b'] O[194:195]@308-30c=['beq']`."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/ui/screensaver ControllerMessageBox --ops -- re-probe if the single `replace T[194:196]@308-310=['bne','b'] O[194:195]@308-30c=['beq']` cluster ever changes shape. For (b): re-check whether config/GUNE5D/symbols.txt still declares sFlags as a distinct 4-byte object at 0x803445CC; if the two are ever merged into one 8-byte object the row closes for free.",
+    "falsifier": "(a) Any function in the corpus whose unfused pair's `b` is a loop back-edge and which closes under the inline lift. (b) A source form that makes our object's low-half relocation name `sFlags` while keeping the 64-bit AND -- that would prove the naming is source-reachable after all.",
+    "premise_measurement": "(a) `fnasm game/ui/screensaver ControllerMessageBox 0x2d0:0x340 --diff` at commit c621fcbac: the target's pair is `@0x308 bne ->310` / `@0x30c b ->1a0`, and 0x1a0 is the modal loop's TOP (the `serve_busy(-5)` frame head), i.e. the unconditional branch is a LOOP BACK-EDGE. claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v2 PART 2's recognition rule requires that branch to land on a block that ASSIGNS a value and falls through to its consumer; a back-edge is not that, and there is no inlined callee anywhere near the site -- the tested value comes from `bl fn_80054CDC`, a global in gamemain.c. (b) config/GUNE5D/symbols.txt declares `gControllerButtons = .sbss:0x803445C8; size:0x4` and `sFlags = .sbss:0x803445CC; size:0x4` as two separate four-byte objects. Our screensaver.c declares `extern s64 gControllerButtons;`, so `(gControllerButtons & 8)` is a 64-bit AND whose LOW half our object relocates as `gControllerButtons+0x4`; the dtk-extracted target object has no original relocations at all and names the same address `sFlags` purely by split-map address lookup. Both resolve to 0x803445CC, so there is no defect to fix in source.",
+    "scope": "Two separate denials, both narrow. (a) The inline-helper lift as a cure for the +0x308 branch pair in ControllerMessageBox -- screened out on the law's own recognition rule, NOT probed, and so a weaker finding than a measurement. (b) The +0x318 sFlags-vs-gControllerButtons+0x4 relocation row as a SOURCE-REACHABLE defect. Neither denies the count delta to a future lane with a new construct class."
+  },
+  "function": "function:ControllerMessageBox",
+  "hypothesis": {
+    "cheapest_refuting_observation": "One probe with `#pragma peephole off` / `on` bracketing only ControllerMessageBox. If the `beq` survives, the fold is not the peephole's doing here and every remaining source class is exhausted -- the function is then an honest count-asymmetric park.",
+    "screened_against_target": "yes -- the target's +0x30c `b ->1a0` is a branch-to-next-plus-jump, the canonical peephole-off tell this project already records, which is what keeps the pragma on the candidate list at all. Not probed.",
+    "statement": "UB's remaining named lever, a scoped `#pragma peephole off` around ControllerMessageBox, is the only untried class and it should be probed ONCE despite the recorded hazard, because the function is bracketed by `#pragma opt_propagation off`/`on` already and the pragma can be scoped to exactly that span. NM's law records peephole-off REGRESSING InitTexMods (real 2 -> 18) while still emitting the fused branch, so the prior is against it; a single measurement settles it either way and closes the last class on this function."
+  },
+  "id": "attempt.BP_controllermessagebox-recognition-rule-screens-it-out-and-the-sflags-row-is-a-split-map-artifact.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T17:48:25Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "DIFFERS target-only: +1 b +1 bne ours-only: -1 beq; insns 271/272 (ours/target); 1 ops cluster"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

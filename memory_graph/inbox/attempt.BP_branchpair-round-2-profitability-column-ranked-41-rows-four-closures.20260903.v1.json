@@ -1,0 +1,29 @@
+{
+  "attempted_axis": "Re-run the branch-over-one census live at run 46, compute BF's predicted profitability column (target-minus-ours instruction delta MINUS the missing-site count) over every row, rank by it, and work the owned rows top-down with the inlined-callee-return cure.",
+  "attributes": {
+    "law_screen": "claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1 and claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v2 are the lane's governing laws; both APPLIED and both are extended by the per-function records this run. claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 APPLIED four times (every lift moved the frame and every keep needed the orphaned locals deleted or a pad resized). claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 APPLIED as the keep/park arbiter alongside fresh fuzzy.",
+    "laws_applied": "[\"claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1\", \"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v2\", \"claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1\"]",
+    "residual": "THE PROFITABILITY COLUMN IS CONFIRMED AS A RANKER AND REFUTED AS A PREDICTOR OF CLOSURE. Computed over all 41 live rows, |insn_delta - missing_sites| = 0 for exactly 8: ControllerMessageBox(real 45), get_vmu_directory(65), sndFxStartVoice(93), fn_8005E90C(143), AudioLoadPart(171), player_get_from_save(171), HealthMeterUpdate(261), fn_8005BA1C(627). But the run's four CLOSURES came from BOTH tiers -- fn_8005E90C and AudioLoadPart are prof-0 rows, while PlayerDoWeapTrail(prof -1) and PlyrSfxDoDamage(prof -1) are not -- and two prof-0 rows (ControllerMessageBox, player_get_from_save) did not move at all. So a prof-0 row is NOT 'the pair is the whole residual': it means the COUNTS balance, which two cancelling defects also produce (PlayerDoWeapTrail's baseline was exactly that -- a missing pair and an extra mr summing to parity at T140/O140). Use the column to rank, not to filter.\nDISPOSITION of the 41 rows. OWNED AND CLOSED-OR-IMPROVED 4: PlayerDoWeapTrail (real 102 -> 24, fuzzy 96.7857 -> 99.6286), PlyrSfxDoDamage (88 -> 125 real but fuzzy 98.7577 -> 99.2084 and genuine structural rows 2 -> 1), fn_8005E90C (143 -> 14, fuzzy 95.9407 -> 96.8667), AudioLoadPart (171 -> 128, fuzzy 86.0838 -> 88.9042). OWNED AND PARKED 4: player_get_from_save, update_class_attr, WorldOpen, ControllerMessageBox (each has its own record this run). FENCED BY ANOTHER RUN-46 CLAIM 12: game/game/gamemain x4 (fn_80051E1C, fn_80057024, game_main, init_enemy_vars) and game/world/items SetItem and game/sys/memcard get_vmu_directory are PR's by its named functions (DoWorldAnimation and fn_80051480 are gamemain, DistanceToClosestPlayer is items, drawMemCardMessage is memcard); game/boss/bosscam x2 and game/enemy/critter x4 are NM's. UNWORKED 21.\nTHE ORDER'S OWN SEED get_vmu_directory IS FENCED: it lives in game/sys/memcard.c, the TU of PR's item (3) drawMemCardMessage. Two run-46 claims name functions in one TU; per AGENTS 'assign disjoint TUs only' I did not touch it, and the two-stage-merge question the order asked about it is still open.",
+    "scope": "Ranking script kept UNTRACKED at BP_scratch/bp_rank.py (it imports nm_branchpair_census.load and runs one `fndiff --count` per row); census side files under build/GUNE5D/BP_census/. No source change in this record.",
+    "verification": "`python tools/gdl/composed_census/nm_branchpair_census.py diff --out build/GUNE5D/BP_census` at commit c621fcbac reports 41 functions where the target carries more branch-over-one+b sites than ours (47 at BF's run-45 measurement b8b146891; the six-row fall is run-45's own closures). `python BP_scratch/bp_rank.py` prints all 41 with |delta - missing_sites|; 8 rows score 0."
+  },
+  "function": "tu:game/sfx/psfx",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Compute the screen over the 21 unworked rows and work the two cheapest rows it REJECTS. If either closes with the standard lift, the recognition rule is not the discriminator either and the family needs a different ranker.",
+    "screened_against_target": "yes -- the recognition rule was read off the aligned `fnasm --diff` view for all eight rows this lane opened (four closures, four parks), and it agreed with the outcome in eight of eight. It has not been computed over the 21 unworked rows.",
+    "statement": "Replace the profitability column with a SITE-LOCAL screen instead of a whole-function count identity: for each missing site, read the aligned view at the target's `b` destination and record whether that block ASSIGNS a value and falls through to a consumer (the law's own recognition rule). All four of this run's closures satisfy it and both of its parked prof-0 rows do not -- ControllerMessageBox's `b` lands on a loop back-edge and player_get_from_save's lands on a store the compiler will not let an inline reach. That screen is computable from the two census side files plus one objdump per row, still zero builds."
+  },
+  "id": "attempt.BP_branchpair-round-2-profitability-column-ranked-41-rows-four-closures.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T17:42:45Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "DIFFERS target-only: +1 b +1 b<cond>  ours-only: -1 b<inv>"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

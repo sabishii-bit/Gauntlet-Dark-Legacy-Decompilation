@@ -1,0 +1,38 @@
+{
+  "attempted_axis": "Execute attempt.BF_worldopen-max-accumulator-lift-loses-the-return-register-race.20260903.v1's mandatory step-1 hypothesis -- move the halfword load INSIDE the helper so the value is not already sitting in the caller's r0 when the inline expands -- and then a second, distinct form that removes the return web entirely.",
+  "attributes": {
+    "law_screen": "claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1 APPLIED, including its TWO-STAGE RETURN MERGE sub-clause and its `static inline`-not-bare-`static` clause -- BF's probed form used a bare `static`, so P1 is not a repeat: it fixes that AND moves the load, and the register race survives both corrections. claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1 APPLIED and still explains half the loss: P1's frame grew 48 -> 56 exactly as BF measured. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 screened. No webfrank pin covers WorldOpen (the TU's pins are towerRecordLevelBeaten, TowerCheckMessages and SumnerDoSpeech).",
+    "laws_applied": "[\"claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1\", \"claim.law.dead-nominal-local-area-tracks-declaration-count.20260831.v1\"]",
+    "probed_form": "P1: `static inline s32 towerBestCompletion(s32 best, u8* levelRecord, Player* p) { s32 value = *(s16*)(levelRecord + (s32)p + p->character * CHAR_SAVE_STRIDE + COMPLETION2_OFF); if (best > value) { return best; } best = value; return best; }` with the caller reduced to `levelRecord = (u8*)(requirement * 2); best = towerBestCompletion(best, levelRecord, p);` and the block-local `s32 value;` deleted. The aligned view shows ours `@0x128 ble ->130` / `@0x12c mr r0,r30` / `@0x130 mr r30,r0` against the target's `@0x124 ble ->12c` / `@0x128 b ->130` / `@0x12c mr r27,r0` -- the SAME inversion BF measured, so moving the load does not move the return web and BF's hypothesis is REFUTED. P2: the same helper made `static inline void towerBestCompletion(s32* best, u8* levelRecord, Player* p)` with `if (*best > value) { return; } *best = value;` and the caller `towerBestCompletion(&best, levelRecord, p);` -- the pair REFOLDED to the baseline's single `bgt`, i.e. taking the accumulator by pointer removes the inline's return value and with it the join the pair depends on.",
+    "residual": "Unchanged from baseline, both clusters: the +0x124 pair, and the independent constant-materialisation cluster at +0xc8..+0xe0 where the target emits `li` + `addi` + `addi` and ours emits `mr` + `li` + `li` + `li` in the case-13/5/6/8 prologue.",
+    "scope": "src/game/world/tower.c probed and fully discarded with `probe.py --discard --whole-file`; nothing committed.",
+    "verification": "`defake_gate.py baseline game/world/tower --at-head` anchored to commit 739f56483, source sha1 a794a64c7. Baseline and probe scores as quoted in premise_measurement. Tree restored and the object rebuilt by `--discard`."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/world/tower WorldOpen --ops -- if the `replace T[73:75]@124-12c=['ble','b'] O[74:75]@128-12c=['bgt']` cluster changes shape after the +0xc8..+0xe0 cluster is worked, re-probe the lift: this family is alignment-sensitive and the two clusters share the function's callee-saved pressure.",
+    "falsifier": "Any lift spelling that emits the target's `ble ->12c` / `b ->130` / `mr r27,r0` triple with the copy on the ASSIGN path rather than on the KEEP path.",
+    "premise_measurement": "`probe.py game/world/tower WorldOpen --ops` on 2026-09-03 at commit 739f56483: BASELINE real 40, insns 99/99 (ours/target), multiset 8t, FRESH FUZZY 92.3737%. P1 real 81 at insns 100/99, multiset 8t -> 7t (the `ble` closed, the `b` did not, and TWO `mr` appeared); frame 56 against the target's 48. P2 real 44 at insns 99/99, multiset back to 8t with the fused `bgt` restored.",
+    "scope": "The max-accumulator lift as a cure for WorldOpen's +0x124 branch pair, across all three spellings now measured (BF's bare-static two-stage, this record's static-inline-with-the-load-moved-in, and the pointer-updating void form). It does not deny the +0xc8..+0xe0 constant-materialisation cluster, which is independent and untouched."
+  },
+  "function": "function:WorldOpen",
+  "held_fixed": "Both probes held the case-13/5/6/8 arms, the switch, the `towerLevelStatus` early exit and the `met`/`result` tail identical, and varied only the helper's signature and the one call statement. The independent li/li/li-vs-addi/addi cluster at +0xc8..+0xe0 was not touched in either.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "One probe of the mirror form. If the two `mr` stay where P1 put them, the return web is chosen by the CALLER's assignment target rather than by either exit and no spelling of the helper reaches it.",
+    "screened_against_target": "yes -- `fnasm game/world/tower WorldOpen 0x110:0x140 --diff` was read at baseline and after P1, and the target's triple (`ble ->12c` / `b ->130` / `mr r27,r0`, best in r27 and value in r0) is the shape this hypothesis is fitted to. The mirror form itself is not probed.",
+    "statement": "P1 and P2 bracket the answer: with a returned value the pair appears but the copy lands on the wrong path, and without one the pair vanishes. What has never been varied is WHICH of the two exits is the early return. Probe the mirror, `if (best <= value) { return value; } return best;` -- if the return web then coalesces with `value` (r0) the copy moves to the keep path and the emitted triple becomes the target's."
+  },
+  "id": "attempt.BP_worldopen-load-inside-the-helper-does-not-move-the-return-web-pointer-form-refolds.20260903.v2",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T17:48:24Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +2 addi +1 b +1 ble  ours-only: -1 bgt -2 li -1 mr"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "supersedes": "attempt.BF_worldopen-max-accumulator-lift-loses-the-return-register-race.20260903.v1",
+  "valid_from": "2026-09-03"
+}

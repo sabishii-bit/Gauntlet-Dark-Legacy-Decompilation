@@ -1,0 +1,37 @@
+{
+  "attempted_axis": "Close the +0x220 branch pair in the four-stat 999 clamp loop (target `bge ->228` + `b ->22c` with the then-block `li r0,999`, ours a single `blt ->22c`), in game/ui/select.c.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v2 PART 2 SCREENED and its recognition rule holds -- the target's `b ->22c` lands on `stw r0,0(r4)`, the consumer, and the fallthrough at +0x228 is `li r0,999`, the assignment -- yet the cure fails, so this is a second row (with player_get_from_save) where the rule is necessary and not sufficient. v1's note that the one-case switch WORKED on update_class_spec 'because its arms assign a value' predicted P2 would work here, where the arm also assigns a value; it did not. claim.law.NV_ternary-cure-fails-when-branch-pair-target-is-a-join-block.20260901.v1 SCREENED and is why no ternary was probed: +0x22c is exactly the join block that law describes. The WS branchless-boolean law (a comparison assigned to a variable becomes eqv/subfc/srwi/addze) EXPLAINS P2's regression and is confirmed by it.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v2\", \"claim.law.NV_ternary-cure-fails-when-branch-pair-target-is-a-join-block.20260901.v1\"]",
+    "probed_form": "The tree's form is `for (j = 0; j < 4; j++) { s32 v = stats[j]; if (v < 999) { } else { v = 999; } stats[j] = v; }` -- an if/else diamond with an EMPTY then-arm, which v1 already lists as folding. P1 (inline lift, the law's own cure): `static inline s32 clamp_class_attr(s32 value) { if (value >= 999) { return 999; } return value; }` at file scope before update_class_attr, with the loop body becoming `stats[j] = clamp_class_attr(stats[j]);` -- NEUTRAL-IDENTICAL, the object did not move one byte, so MWCC normalises the lift and the empty-then-arm diamond to the same IR. P2 (one-case switch): `s32 v = stats[j]; switch (v < 999) { case 0: v = 999; break; } stats[j] = v;` -- REGRESSED hard, MWCC answered the boolean switch selector with the branchless idiom `['eqv','subfc','srwi','addze','clrlwi.','beq']` at +0x224 and grew the function by 6 instructions. P3 (both arms assign): `s32 v; if (stats[j] >= 999) { v = 999; } else { v = stats[j]; } stats[j] = v;` -- NEUTRAL-REARRANGED, bytes moved but the branch stayed the fused `blt`.",
+    "residual": "Unchanged: the +0x220 pair, an extra `li` in our stream at +0xac, and two `lfs` reorderings at +0x3cc and +0x42c.",
+    "scope": "src/game/ui/select.c probed and fully discarded with `probe.py --discard --whole-file`; nothing committed.",
+    "verification": "`defake_gate.py baseline game/ui/select --at-head` anchored to commit 25a30491d, source sha1 84ca7274d, 23 functions (15 at real 0). Baseline and all three probe scores as quoted in premise_measurement. Tree restored and the object rebuilt by `--discard`."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/fndiff.py game/ui/select update_class_attr --ops -- if the `replace T[136:138]@220-228=['bge','b']` cluster changes shape after work on the function's other two clusters, re-probe: this family is alignment-sensitive.",
+    "falsifier": "Any of the three probed forms, or a fourth construct class, that moves the object bytes at +0x220 toward the target's two-instruction pair.",
+    "premise_measurement": "`probe.py game/ui/select update_class_attr --ops` on 2026-09-03 at commit 25a30491d: BASELINE real 160, insns 280/280 (ours/target), multiset 4t, FRESH FUZZY 96.3571%. P1 NEUTRAL-IDENTICAL (byte hash 4863c6d87613, object unchanged); P2 REGRESSED real 248 at insns 286/280; P3 NEUTRAL-REARRANGED, real 160, the `blt` still fused. The `replace T[136:138]@220-228=['bge','b'] O[137:138]@224-228=['blt']` cluster is present in all three.",
+    "scope": "The 999 clamp loop in update_class_attr only, and only the three construct classes named in probed_form. It does not deny the function's other two clusters and does not deny the clamp on any other function."
+  },
+  "function": "function:update_class_attr",
+  "held_fixed": "All three probes changed only the four-iteration clamp loop at src/game/ui/select.c:2596-2603. The rest of update_class_attr, including the two other open clusters (an extra `li` at +0xac and the `lfs` pair swaps at +0x3cc and +0x42c), was held byte-identical.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "One probe of the hoisted cap with the tree's existing diamond. If the emitted then-block is still `li r0,999` rather than a copy, MWCC rematerialises the constant regardless of the source and the constant-vs-copy reading is wrong.",
+    "screened_against_target": "yes -- `fnasm game/ui/select update_class_attr 0x208:0x240 --diff` shows the target's then-block is itself `li r0,999`, i.e. the TARGET also rematerialises the constant. That weakens the hypothesis before it is probed and should be weighed against spending the probe at all.",
+    "statement": "The clamp differs from every closure this run in one respect: its then-block assigns a CONSTANT (999) rather than a value already live in a register. The untried construct class is therefore to make the assigned value non-constant at the branch -- hoist the cap into a local (`s32 cap = 999;` before the loop) so the then-arm is a register copy like the closures' `mr`/`li rN,0` joins, and only then re-probe the lift."
+  },
+  "id": "attempt.BP_update-class-attr-clamp-pair-survives-the-lift-the-switch-and-the-diamond.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T17:48:23Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "DIFFERS target-only: +1 b +1 bge  ours-only: -1 blt -1 li; insns 280/280 (ours/target)"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

@@ -1,0 +1,37 @@
+{
+  "attempted_axis": "Close the +0x190 branch pair (target `blt ->198` + `b ->1a4`, ours a single `bge ->1a0`) with the search-loop lift that closed fn_8005E90C and AudioLoadPart the same run: a static inline helper returning the level, leaving the caller a single assignment.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v2 PART 2 APPLIED and its recognition rule CONFIRMED in the aligned view -- the target's `b ->1a4` lands on `stw r28,13092(r29)`, the consumer, the fallthrough at +0x1a0 is `li r28,1`, the not-found assignment, and the join register r28 is the level VARIABLE's register and not r3 -- so this row satisfies every precondition the law names and still fails, for a reason the law does not model. claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1 names `#pragma dont_inline on` covering the call site as the cure's PRECONDITION; that pragma DOES bracket this function at src/game/game/player.c:3884-3965, it was screened, and moving the helper outside the bracket did NOT change the outcome, so the pragma is not the cause here.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v2\", \"claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1\"]",
+    "probed_form": "P1: `static inline s32 player_level_for_exp(s32 exp) { s32 lv = 99; for (;;) { if (exp >= LevelToExp(lv)) { return lv; } if (--lv <= 0) { break; } } return 1; }` defined INSIDE the `#pragma dont_inline on` bracket, with `p->level = player_level_for_exp(exp);` replacing the inline loop and the outer `s32 lv;` deleted. P2: the same helper moved ABOVE `#pragma dont_inline on`. P3: the loop respelt `for (lv = 99; lv > 0; lv--) { if (exp >= LevelToExp(lv)) { return lv; } } return 1;` (call-for-call equivalent -- it still evaluates LevelToExp(1)). P4: `#pragma always_inline on` bracketing the helper with `#pragma always_inline reset` after it. ALL FOUR: insns 161/170 (ours/target), real 175, multiset 11t, with the whole loop `['cmpw','blt','b','addic.','bgt','li']` DELETED from our stream at T[99:105]@18c-1a4 and replaced by the call.",
+    "residual": "Unchanged from baseline: the +0x190 pair, plus an `addi`-vs-`li` row at +0x100, an `add`-vs-`addi` at +0x1c8 and an `lfs`-vs-`lfsx` at +0x1f0, and four IMMEDIATE literal rows at +0xe8..+0xfc that `fndiff` itself flags PAIRING UNRELIABLE.",
+    "scope": "src/game/game/player.c probed and fully discarded with `probe.py --discard --whole-file`; nothing committed, `git status --short` shows only the untracked LANE_LOCK.",
+    "verification": "`probe.py game/game/player player_get_from_save` BASELINE real 171, insns 169/170 (ours/target), multiset 7t, FRESH FUZZY 95.3294%; `defake_gate.py baseline game/game/player --at-head` anchored to commit 739f56483, source sha1 bef8acec9. Every probe re-scored REGRESSED at real 175. Tree restored and the object rebuilt by `--discard`."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/probe.py game/game/player player_get_from_save --ops ; then, after any edit that adds a `static inline` helper to game/game/player.c, `build/binutils/powerpc-eabi-nm.exe build/GUNE5D/src/game/game/player.o | grep <helper>` -- if the symbol is ABSENT the inliner has started expanding helpers in this TU and every probe below is worth re-running.",
+    "falsifier": "Any `static inline` helper added to game/game/player.c that MWCC expands (no standalone symbol in player.o) kills the TU-scoped reading of this cap and makes the refusal a property of this particular helper instead.",
+    "premise_measurement": "Four probes on 2026-09-03 at commit 739f56483, every one landing at exactly insns 161/170 (ours/target), real 175, multiset 11t, against the baseline's 169/170, real 171, multiset 7t: the helper is EMITTED AS A STANDALONE FUNCTION and called, not expanded. Confirmed directly, not inferred from the score -- `build/binutils/powerpc-eabi-nm.exe build/GUNE5D/src/game/game/player.o` prints `000064a4 t player_level_for_exp`. The same command on the two TUs where the identical cure worked prints NOTHING for their helpers (find_keyring_row in gauntworld.o, PlyrSfxWrapTime and PlayerFadeWeapTrail in psfx.o), and all three TUs are `Object(NonMatching, ..., cflags=cflags_demo)` in configure.py, so it is not a cflags difference.",
+    "scope": "The static-inline-helper lift as a cure for the +0x190 branch pair in player_get_from_save ONLY. It does not deny the lift anywhere else in game/game/player.c, and it does not deny any other axis on this function (a guard respell, a declaration-order lever and the address forms at +0x100/+0x1c8/+0x1f0 are all untouched)."
+  },
+  "function": "function:player_get_from_save",
+  "held_fixed": "All four probes held the caller identical apart from the one call statement and the deleted `s32 lv;` declaration; only the helper's DEFINITION and its POSITION relative to the `#pragma dont_inline on` bracket were varied.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Add a throwaway `static inline` helper to game/game/player.c whose body contains a loop and a call to an EXTERNAL function, build, and run nm on player.o. If that one is expanded, the same-TU-callee reading is right; if it is also outlined, the refusal is about loops-with-calls generally and the axis is closed for every helper of this shape.",
+    "screened_against_target": "no -- the three expanded helpers and the one refused helper were compared by construction and by nm, but no controlled probe has isolated the call from the loop.",
+    "statement": "The discriminator between the helpers MWCC expanded (find_keyring_row, PlyrSfxWrapTime, PlayerFadeWeapTrail) and the one it refused (player_level_for_exp) is the only structural difference between them: this helper's loop body contains a REAL `bl` to a same-TU function that MWCC does not itself inline (LevelToExp, a global at player.o+0x2060), whereas find_keyring_row's only call is to strcmp. Test it by hoisting the call out of the helper -- pass the level's required experience in, or split the helper so the loop lives in the caller and only the compare-and-return is inlined."
+  },
+  "id": "attempt.BP_player-get-from-save-mwcc-refuses-to-inline-the-lift-helper-in-this-tu.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T17:48:23Z",
+  "residual": {
+    "capability_needed": "inline-expansion-control",
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "DIFFERS target-only: +1 b +1 blt ours-only: -1 bge; insns 169/170 (ours/target)"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
