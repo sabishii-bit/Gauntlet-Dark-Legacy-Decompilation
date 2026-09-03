@@ -115,5 +115,47 @@ class HiddenRowAccountingTests(unittest.TestCase):
             99.0, 100, "", 0, "fn_80001000", "game/test/foo", ""))
 
 
+class RecordQualityTests(unittest.TestCase):
+    """Run-45 item 9: the record COUNT ranked a zero-probe park as the
+    best-explored function in the image (`rec=3` on a function whose three
+    records never say what was probed). The letter after the count is the
+    strongest EVIDENCE those records carry.
+
+    Measured over the live corpus at 56067bfae: of 466 functions carrying
+    attempt records, 52 reach D (a typed denial), 140 reach P (a literal
+    probed_form) and 274 -- 59% -- are prose only, including nine functions
+    holding FIVE prose-only records each.
+    """
+
+    def test_a_typed_denial_outranks_a_probed_form(self):
+        self.assertEqual(nearmiss.evidence_tier(1, 3), "D")
+        self.assertEqual(nearmiss.evidence_tier(2, 0), "D")
+
+    def test_a_probed_form_alone_is_p(self):
+        self.assertEqual(nearmiss.evidence_tier(0, 1), "P")
+
+    def test_records_with_neither_are_prose(self):
+        self.assertEqual(nearmiss.evidence_tier(0, 0), "-")
+
+    def test_the_defect_row_is_visibly_different_from_a_probed_one(self):
+        prose = nearmiss.format_row(99.17, 2732, "", 3, "game_main",
+                                    "game/game/gamemain", "", "-")
+        probed = nearmiss.format_row(99.38, 1164, "", 3, "EnemyStartMissile",
+                                     "game/game/combat", "", "P")
+        self.assertIn("rec=3-", prose)
+        self.assertIn("rec=3P", probed)
+
+    def test_a_zero_record_row_carries_no_tier_letter(self):
+        row = nearmiss.format_row(99.0, 100, "", 0, "fn_80001000",
+                                  "game/test/foo", "", "-")
+        self.assertIn("rec=0 ", row)
+        self.assertNotIn("rec=0-", row)
+
+    def test_the_footer_explains_the_letter(self):
+        text = nearmiss.summary_line(11, 0, 260, 99.0)
+        self.assertIn("typed denial", text)
+        self.assertIn("prose only", text)
+
+
 if __name__ == "__main__":
     unittest.main()

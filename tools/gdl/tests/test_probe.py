@@ -2954,5 +2954,130 @@ class TuScopeGateTests(unittest.TestCase):
             self.assertEqual(self.BANKED, state)
 
 
+class PartialRestoreTests(unittest.TestCase):
+    """Run-45 item 6: a restore that did not fully arrive must not bank.
+
+    `--revert-best` restores only the named function's hunks, then re-scores
+    and banks the verdict, the BEST anchor and the fresh-fuzzy anchor as
+    though the measured state were the banked one. With a sibling's edit
+    still live it is a Franken-state, and the anchor cached from it (18.9% in
+    the field) then arbitrates every later probe on the function.
+    """
+
+    SNAP = "int a(void) { return 1; }\nint b(void) { return 2; }\n"
+
+    def test_a_complete_restore_is_not_partial(self):
+        self.assertFalse(probe.restore_is_partial(self.SNAP, self.SNAP))
+
+    def test_a_surviving_sibling_hunk_makes_it_partial(self):
+        restored = self.SNAP.replace("return 2", "return 22")
+        self.assertTrue(probe.restore_is_partial(self.SNAP, restored))
+
+    def test_the_refusal_names_the_bank_the_function_and_the_hunks(self):
+        text = probe.franken_readout_refusal(
+            "print_n_of_m", "the BEST-scoring banked state",
+            "1 hunk(s) inside print_n_of_m reverted; 2 hunk(s) elsewhere in"
+            " the TU left untouched", 16, "T68/O68", ", multiset 0t")
+        self.assertIn("REFUSED TO BANK", text)
+        self.assertIn("print_n_of_m", text)
+        self.assertIn("the BEST-scoring banked state", text)
+        self.assertIn("2 hunk(s) elsewhere", text)
+        self.assertIn("--whole-file", text)
+
+    def test_the_refusal_still_reports_the_measurement(self):
+        """The build was paid for; withholding the number too would just
+        make the lane re-run it."""
+        text = probe.franken_readout_refusal(
+            "f", "bank 'x'", "notes", 16, "T68/O68", ", multiset 0t")
+        self.assertTrue(text.startswith("READOUT   real 16"))
+        self.assertIn("T68/O68", text)
+        self.assertIn("multiset 0t", text)
+
+
+class StaleBestAnchorTests(unittest.TestCase):
+    """Run-45 item 4: a BEST anchor left behind by an earlier SESSION.
+
+    The gate state persists across commits while the anchor inside it is a
+    within-session high-water mark, so a lane arriving at a committed, clean
+    tree was scored against the last session's number -- a stale best 130
+    made states BYTE-IDENTICAL TO HEAD read CONFLICT and REGRESSED, i.e. the
+    tool reported the project's own retained result as a regression.
+    """
+
+    OLD = {"best_real": 130, "best_multiset": 4, "best_insns": "T68/O68",
+           "best_head": "aaaaaaaaa1111", "last_real": 130,
+           "last_insns": "T68/O68", "last_multiset": 4}
+
+    def test_a_clean_tree_at_a_later_commit_resets_the_anchor(self):
+        reason = probe.stale_best_anchor(self.OLD, "bbbbbbbbb2222", True)
+        self.assertIn("commits landed since it was banked", reason)
+
+    def test_the_same_commit_is_a_live_anchor_and_never_resets(self):
+        """Within one session the anchor is the session's comparison."""
+        self.assertIsNone(
+            probe.stale_best_anchor(self.OLD, "aaaaaaaaa1111", True))
+
+    def test_an_edited_tree_never_resets_however_old_the_anchor(self):
+        """With an uncommitted edit present, HEAD is not what is measured."""
+        self.assertIsNone(
+            probe.stale_best_anchor(self.OLD, "bbbbbbbbb2222", False))
+
+    def test_an_unstamped_anchor_on_a_clean_tree_resets(self):
+        state = {key: value for key, value in self.OLD.items()
+                 if key != "best_head"}
+        self.assertIn("no commit stamp",
+                      probe.stale_best_anchor(state, "bbbbbbbbb2222", True))
+
+    def test_a_state_with_no_anchor_has_nothing_to_reset(self):
+        self.assertIsNone(probe.stale_best_anchor({}, "bbbbbbbbb2222", True))
+
+    def test_the_reset_turns_the_regression_into_a_baseline(self):
+        """The defect, end to end: real 150 against a stale best 130."""
+        stale, _ = classify(self.OLD, 150, "T68/O68", 4,
+                            head="bbbbbbbbb2222", tu_at_head=False)
+        self.assertTrue(stale.startswith("REGRESSED"), stale)
+        fixed, state = classify(self.OLD, 150, "T68/O68", 4,
+                                head="bbbbbbbbb2222", tu_at_head=True)
+        self.assertTrue(fixed.startswith("BASELINE"), fixed)
+        self.assertIn("BEST ANCHOR RESET", fixed)
+        self.assertIn("130", fixed)
+        self.assertEqual(state["best_real"], 150)
+        self.assertEqual(state["best_head"], "bbbbbbbbb2222")
+
+    def test_an_agreeing_stale_anchor_gets_one_line_not_a_paragraph(self):
+        """After a commit-and-re-probe the anchor is stale by provenance but
+        agrees with the fresh number; re-anchoring changes no verdict, so the
+        note must not read like a finding."""
+        state = dict(self.OLD, best_real=130)
+        verdict, new = classify(state, 130, "T68/O68", 4,
+                                head="bbbbbbbbb2222", tu_at_head=True)
+        self.assertIn("re-anchored at the same real 130", verdict)
+        self.assertNotIn("BEST ANCHOR RESET", verdict)
+        self.assertEqual(new["best_real"], 130)
+        self.assertEqual(new["best_head"], "bbbbbbbbb2222")
+
+    def test_the_reset_names_the_recovery_bank(self):
+        verdict, _ = classify(self.OLD, 150, "T68/O68", 4,
+                              head="bbbbbbbbb2222", tu_at_head=True)
+        self.assertIn(probe.BEST_BANK_TAG, verdict)
+
+    def test_the_rescore_guard_cannot_repeat_a_stale_anchored_verdict(self):
+        """Otherwise the guard would re-emit the very verdict being fixed."""
+        state = dict(self.OLD, last_bytes="d1", last_verdict="CONFLICT  old")
+        verdict, _ = classify(state, 130, "T68/O68", 4, digest="d1",
+                              source_changed=False, head="bbbbbbbbb2222",
+                              tu_at_head=True)
+        self.assertNotIn("RE-SCORE", verdict)
+        self.assertTrue(verdict.startswith("BASELINE"), verdict)
+
+    def test_banking_stamps_the_commit_so_the_next_session_can_tell(self):
+        _verdict, state = classify({}, 120, "T68/O68", 4, head="ccc333")
+        self.assertEqual(state["best_head"], "ccc333")
+
+    def test_a_bank_with_no_head_available_stamps_nothing(self):
+        _verdict, state = classify({"best_head": "old"}, 120, "T68/O68", 4)
+        self.assertNotIn("best_head", state)
+
+
 if __name__ == "__main__":
     unittest.main()

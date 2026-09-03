@@ -1467,6 +1467,46 @@ def scoped_revert(snap_text, cur_text, fn):
     return "".join(out), notes
 
 
+def restore_is_partial(snap_text, restored_text):
+    """Did the restore FAIL to reproduce the state it names?
+
+    A function-scoped restore reaches only ``fn``'s hunks, so whatever else
+    in the TU was edited survives it. The result is a FRANKEN-STATE: the
+    named function's source from the bank, everything else from the working
+    tree. The test is exact and needs no prose parsing — a restore that
+    fully arrived leaves the file byte-identical to the bank.
+    """
+    return snap_text != restored_text
+
+
+def franken_readout_refusal(fn, label, notes, real, insns, tok):
+    """The refusal text for scoring a partially-restored TU (run-45 item 6).
+
+    THE DEFECT. `--revert-best` (and `--revert`/`--restore NAME`) restores
+    only the named function's hunks by default, then RE-SCORES and banks what
+    it measured — verdict, BEST anchor and the fresh-fuzzy anchor — as though
+    it were the banked state. It is not: a sibling's surviving edit moves the
+    TU's pool, its inlines and its layout, so the number banked describes a
+    state that was never banked and does not exist anywhere else. Measured in
+    the field: a fuzzy anchor of 18.9% cached this way, which then arbitrated
+    every later probe on the function.
+
+    So the score is still PRINTED — the measurement is real and cost a build
+    — and nothing is banked from it. `--whole-file` makes the restore
+    complete; a plain probe with no restore flag banks normally, because then
+    the tree is only claiming to be itself.
+    """
+    return (f"READOUT   real {real} (insns {insns}{tok})\n"
+            f"REFUSED TO BANK: the restore of {label} was FUNCTION-SCOPED and"
+            f" did not fully arrive — {notes}. What was just measured is a"
+            f" FRANKEN-STATE ({fn} from the bank, the rest of the TU from the"
+            " working tree), so no verdict, no BEST anchor and no fuzzy"
+            " anchor were written from it (an anchor cached this way"
+            " arbitrates every later probe on the function). Re-run with"
+            " --whole-file to restore the whole TU, or probe with no restore"
+            " flag to score the tree as it actually stands.")
+
+
 def _parity(insns):
     """(target, ours) from a "T<n>/O<n>" string, or None."""
     match = re.match(r"T(\d+)/O(\d+)$", insns or "")
@@ -2026,6 +2066,41 @@ def roll_back_anchor(state):
 # Fuzzy is a float percentage; anything at or above the anchor is "not a
 # regression". The epsilon keeps float noise from manufacturing a refusal.
 FUZZY_GATE_EPS = 1e-9
+
+
+def stale_best_anchor(state, head, tu_at_head):
+    """Why the banked BEST anchor describes a state that is no longer here.
+
+    THE DEFECT (run-45 item 4). The gate state under build/GUNE5D/gate/ is
+    per-function and persists across COMMITS, while the BEST anchor inside it
+    is a rolling within-session high-water mark. So a lane arriving at a
+    committed, clean tree is scored against whatever the last session left
+    behind: a stale `best_real 130` made states that are BYTE-IDENTICAL TO
+    HEAD read CONFLICT and REGRESSED, i.e. the tool told a worker that the
+    project's own retained result was a regression.
+
+    THE DISCRIMINANT is not "the numbers look old". It is two facts that are
+    both cheap and exact: (1) the TU source in the tree is byte-identical to
+    its committed bytes at HEAD, so there is no uncommitted edit for the
+    anchor to be about; and (2) the anchor was banked at a DIFFERENT commit,
+    or carries no commit stamp at all. Under the monotonic-result policy
+    nothing worse than HEAD is ever committed, so at a clean tree HEAD IS the
+    retained best and an anchor that disagrees with it is describing bytes
+    that are neither in the tree nor in history.
+
+    Deliberately does NOT fire within one session (same commit stamp): that
+    anchor is a live high-water mark and resetting it would throw away the
+    session's own comparison. Returns a reason string, or None.
+    """
+    if state.get("best_real") is None or not tu_at_head:
+        return None
+    banked = state.get("best_head")
+    if head and banked and banked == head:
+        return None
+    if banked and head:
+        return ("commits landed since it was banked"
+                f" ({banked[:9]} -> {head[:9]})")
+    return "it carries no commit stamp, so its provenance is unknown"
 
 
 def banks_best(verdict):
@@ -2649,7 +2724,7 @@ def tu_sibling_regressions(unit):
 
 def classify(state, real, insns, multiset_tokens, rebase_best=False,
              digest=None, source_changed=True, fuzzy=None,
-             accept_fuzzy_loss=False):
+             accept_fuzzy_loss=False, head=None, tu_at_head=False):
     """Pure verdict function: (verdict_text, new_state).
 
     ``state`` is the banked gate state; the returned state carries the
@@ -2668,6 +2743,34 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
     the fallback is stated in the verdict text rather than hidden.
     """
     state = dict(state)
+    # STALE-ANCHOR RESET, BEFORE ANY COMPARISON READS IT (run-45 item 4).
+    # Dropping the anchor here rather than adding a branch means the ordinary
+    # `best is None` path runs: the verdict IS a BASELINE, which is what a
+    # clean tree at HEAD is, and every downstream dispatch (banks_best, the
+    # snapshot bank, the fuzzy gate) keeps working unchanged.
+    stale_reason = stale_best_anchor(state, head, tu_at_head)
+    reset_note = ""
+    if stale_reason and state.get("best_real") == real:
+        # The common case once a lane commits and re-probes: the anchor is
+        # stale by provenance but AGREES with the fresh measurement, so the
+        # re-anchor changes no verdict. One line, not a paragraph.
+        reset_note = (f"\n[BEST anchor re-anchored at the same real {real}:"
+                      f" {stale_reason}, and this TU is byte-identical to"
+                      " HEAD.]")
+        for key in BEST_KEYS + ("best_head",):
+            state.pop(key, None)
+    elif stale_reason:
+        reset_note = (
+            f"\n[BEST ANCHOR RESET: the banked best_real"
+            f" {state.get('best_real')} was NOT measured on these bytes —"
+            f" {stale_reason} — and this TU is byte-identical to HEAD, which"
+            " under the monotonic-result policy IS the retained best. The"
+            " verdict above is a fresh BASELINE. If an UNCOMMITTED better"
+            " state existed, its source is in the reserved"
+            f" `{BEST_BANK_TAG}` bank (`probe.py <unit> <fn>"
+            " --revert-best`).]")
+        for key in BEST_KEYS + ("best_head",):
+            state.pop(key, None)
     best = state.get("best_real")
     best_tokens = state.get("best_multiset")
     prev_tokens = state.get("last_multiset")
@@ -2683,6 +2786,12 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
         state["best_real"] = real
         state["best_multiset"] = multiset_tokens
         state["best_insns"] = insns
+        # WHICH COMMIT this anchor was measured at, so the next session can
+        # tell a live high-water mark from one left behind by an older one.
+        if head:
+            state["best_head"] = head
+        else:
+            state.pop("best_head", None)
         if digest is not None:
             # Which BYTES the best state is, so a later fuzzy readout can
             # prove it is measuring the anchor rather than some other probe.
@@ -2714,7 +2823,9 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                  and state.get("last_insns") == insns
                  and state.get("last_multiset") == multiset_tokens
                  and state.get("last_verdict") is not None
-                 and not rebase_best)
+                 and not rebase_best
+                 # A repeated verdict would repeat the STALE-ANCHORED one.
+                 and not stale_reason)
     if unchanged:
         verdict = (f"RE-SCORE  real {real} (insns {insns}{tok}) — nothing"
                    " moved since the last probe; the standing verdict"
@@ -2887,6 +2998,7 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
             bank_best()
         else:
             verdict = f"NEUTRAL   real {real} (insns {insns}{tok})"
+    verdict += reset_note
     # LAST WORD ON EVERY BANK. Nothing above this line may leave a new best
     # standing whose fresh fuzzy fell below the anchor.
     verdict, state = apply_fuzzy_bank_gate(verdict, state, prior_best,
@@ -3778,6 +3890,10 @@ def main():
     # not the snapshot's (run-44 item 1) — read again at BUILD FAILED, which
     # is where the defect actually surfaced.
     coupled_scope = False
+    # Set when a function-scoped restore left the TU differing from the bank
+    # it names (run-45 item 6): the re-score below then reports but banks
+    # NOTHING, because it is not measuring the state the restore claimed.
+    franken_restore = None
     if "--revert" in sys.argv or restore_tag:
         if source is None:
             print(f"cannot revert: no src source found for {unit}")
@@ -3863,6 +3979,8 @@ def main():
             if scope_note:
                 coupled_scope = True
                 print(scope_note)
+            if restore_is_partial(snap_text, new_text):
+                franken_restore = (snap_label, notes)
         # A source revert does not restore webfrank.json; warn if a pin was
         # re-derived since this snapshot was banked (run 34 item 3).
         # A pin re-derived with --transient IS restorable, and is restored
@@ -3955,6 +4073,14 @@ def main():
     elif real == 0:
         multiset_tokens = 0
 
+    if franken_restore is not None:
+        label, notes = franken_restore
+        print(franken_readout_refusal(
+            fn, label, notes, real, insns,
+            f", multiset {multiset_tokens}t"
+            if multiset_tokens is not None else ""))
+        return 0
+
     state = {}
     if state_file.exists():
         state = json.loads(state_file.read_text(encoding="utf-8"))
@@ -4034,11 +4160,20 @@ def main():
     # classify() already returned would compare `real` against a best it
     # had just banked and read every improvement as NEUTRAL.
     state_before = dict(state)
+    # Is this TU byte-identical to its committed bytes at HEAD? That plus the
+    # anchor's own commit stamp is what `stale_best_anchor` decides on.
+    head_now = git_head()
+    tu_at_head = False
+    if source is not None and source.exists():
+        committed_now = head_bytes(source)
+        tu_at_head = (committed_now is not None
+                      and source.read_bytes() == committed_now)
     verdict, state = classify(state, real, insns, multiset_tokens,
                               rebase_best=rebase_best,
                               digest=digest, source_changed=source_changed,
                               fuzzy=cached_fuzzy,
-                              accept_fuzzy_loss=accept_fuzzy_loss)
+                              accept_fuzzy_loss=accept_fuzzy_loss,
+                              head=head_now, tu_at_head=tu_at_head)
     # FRESH FUZZY BEFORE THE BANK (run-35 item 1). The verdict above is
     # provisional whenever it would move the BEST anchor: a real+multiset
     # win can still be a fuzzy LOSS, and banking one poisons every later
@@ -4066,7 +4201,8 @@ def main():
                                   rebase_best=rebase_best, digest=digest,
                                   source_changed=source_changed,
                                   fuzzy=fresh,
-                                  accept_fuzzy_loss=accept_fuzzy_loss)
+                                  accept_fuzzy_loss=accept_fuzzy_loss,
+                                  head=head_now, tu_at_head=tu_at_head)
         if fresh is not None:
             cached_fuzzy = fresh
             state["last_fuzzy"] = fresh

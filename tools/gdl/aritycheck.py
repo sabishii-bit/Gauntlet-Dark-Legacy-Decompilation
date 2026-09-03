@@ -73,11 +73,18 @@ SPLIT (run-44 item 2, from AR). Two things the printed row could not say:
     rows had short calls only. Rows now print `S SHORT + F FULL`, and a
     PHANTOM row with F = 0 is labelled NO PAYER.
 
-CENSUS DRIFT IS EXPECTED — REMEASURE, NEVER QUOTE. The run-42 calibration
-in tools/gdl/tests/test_aritycheck.py reads 4 PHANTOM-CANDIDATE / 15
-KNR-SHORT-CALL / 42 UNREAD-TRAILING; the same command at ca4074cb1 reads
-1 / 14 / 42, because the arity work those rows produced landed. The tests
-pin the two proven instances as fixtures for exactly this reason.
+THE CENSUS IS THIS COMMAND, NOT A NUMBER. `python tools/gdl/aritycheck.py`
+prints the per-verdict tally on its second line; that line is what a record
+or a work order quotes, with the commit it was run at. Three data points, all
+from the same command: 4 PHANTOM-CANDIDATE / 15 KNR-SHORT-CALL / 42
+UNREAD-TRAILING at run 42 (the calibration in tools/gdl/tests/
+test_aritycheck.py), 1 / 14 / 42 at ca4074cb1 once the arity work those rows
+produced landed, and 1 / 14 / 42 again at 0fd3bca5a — UNCHANGED across that
+second interval. So the population neither reliably drifts nor reliably
+holds, which is precisely why the number cannot be inherited from a
+docstring: only a live run distinguishes "nothing moved" from "nobody
+looked". The tests pin the two proven instances as FIXTURES, never the
+tally, so a moving census can never fail the suite.
 
 WHAT IT DOES NOT DO. It never edits, and a verdict is a place to look, not
 a conclusion — both governing laws are settled against the TARGET BYTES at
