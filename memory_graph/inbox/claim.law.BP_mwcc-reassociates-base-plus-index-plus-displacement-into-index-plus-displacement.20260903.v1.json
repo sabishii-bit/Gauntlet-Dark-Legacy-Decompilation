@@ -1,0 +1,29 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py (the NEUTRAL-IDENTICAL-PROOF lines quoted below)",
+    "tools/gdl/fnasm.py <unit> <fn> <a>:<b> --diff (the aligned views the three sites are read from)",
+    "tools/gdl/fndiff.py --ops (the `replace ... ['add','lwz'] ... ['addi','lwzx']` cluster shape)"
+  ],
+  "attributes": {
+    "cited_by": [
+      "attempt.BP_audioloadpart-the-drain-loop-is-a-while-whose-condition-is-an-inlined-helper.20260903.v2",
+      "attempt.BP_init-mapscreen-branch-pair-closes-and-the-second-pointer-costs-the-tus-extab.20260903.v1"
+    ],
+    "provenance": "Authored by the run-47 BP source lane from its own measurements. Every number above was read from a tool run in this session at the commits named; nothing is inherited from a prior record except the class-(3) negative, which is cited to its record.",
+    "tags": [
+      "matching",
+      "index-form",
+      "offsetof-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any C source form, under -O4,p and no inline assembly, that makes MWCC emit `add rD,rBASE,rINDEX` followed by `lwz`/`stw` with the DISPLACEMENT in the instruction, for an address of the shape base + index + constant where index is a runtime value -- at any of the three sites named below or at a fourth of the same shape. A single such form falsifies the law outright. The law is also falsified if a site of this shape is found where our build ALREADY emits the target's form for a reason other than a second use of (base + index) forcing materialisation -- which would show the choice is reachable and merely not by these three classes. Populations: `python tools/gdl/composed_census/nm_branchpair_census.py diff` rows carry it incidentally; the shape itself has no census yet, and building one is the obvious next step.",
+  "id": "claim.law.BP_mwcc-reassociates-base-plus-index-plus-displacement-into-index-plus-displacement.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T18:43:41Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "MWCC GC 1.2.5, -O4,p. For an address expression of the shape `base + index + K` with `base` a pointer, `index` a runtime value and `K` a compile-time constant, MWCC reassociates to `base + (index + K)`: it emits `addi rT,rINDEX,K` and then an INDEXED access `lwzx`/`stwx` on (base, rT). The retail target repeatedly does the opposite -- `add rT,rBASE,rINDEX` and then a D-form access with K as the displacement, `lwz r0,K(rT)` / `stw r0,K(rT)`. THREE CONSTRUCT CLASSES WERE MEASURED AND NONE REACHES THE CHOICE. (1) POINTER-CAST REGROUPING. `((s32*)(state + off))[294]` in place of `*(s32*)(state + off + 1176)`, probed together with `((s32*)(bankEntry + partIdx * 4))[7]` in place of `*(s32*)(bankEntry + partIdx * 4 + 28)`: NEUTRAL-IDENTICAL, `NEUTRAL-IDENTICAL-PROOF unit=game/audio/audio fn=AudioLoadPart bytes=64d2e4603644 real=114 insns=T167/O167 multiset=8t head=01634abba`. The regrouping folds away in the front end, which probe.py's own banner calls categorical for the construct: the compiler never made the decision the edit was aimed at. (2) TYPED MEMBER-PLUS-ARRAY SELECTION. `((AudioRomModeBankEntry*)bankEntry)->partRomBank[partIdx]`, where `partRomBank` is a real GC-verified member at +0x1C and this is the spelling AudioLoadComplete already carries three lines away in the same TU: the object bytes CHANGED, so this class DOES reach codegen -- and both clusters came back verbatim, `replace T[25:27]@64-6c=['add','lwz'] O[25:27]@64-6c=['addi','lwzx']` and `replace T[50:51]@c8-cc=['lwz'] O[49:51]@c4-cc=['addi','lwzx']`, at real 102 and fresh fuzzy 94.9521% both unchanged. That is the important half of the evidence: the reassociation survives a form the compiler demonstrably processes differently. (3) A BLOCK-SCOPED POINTER LOCAL, `u8* entry = state + off;` then `*(s32*)(entry + 1176)`: measured NEGATIVE in attempt.BP_audioloadpart-slot-scan-lift-closes-the-pair-and-the-explicit-offset-fixes-the-address-form.20260903.v1 at real 128 -> 140, the extra local costing more than the form bought. THE THREE MEASURED SITES, all read from aligned views and spanning two TUs, both access directions and both an induction variable and a plain scaled index: game/audio/audio AudioLoadPart `@0x64` target `add r4,r31,r3` + `@0x68 lwz r0,1176(r4)` against ours `@0x64 addi r0,r3,1176` + `@0x68 lwzx r0,r31,r0` (LOAD, induction variable `off`); the same function `@0xc4` target `add r3,r5,r28` + `@0xc8 lwz r0,28(r3)` against ours `@0xc4 addi r0,r3,28` + `@0xc8 lwzx r0,r5,r0` (LOAD, scaled index `partIdx*4`); game/ui/auxscreen init_mapscreen `@0x2b8` target `add r4,r31,r3` + `@0x2bc stw r0,96(r4)` against ours `@0x2b8 addi r0,r3,96` + `@0x2bc stwx r4,r31,r0` (STORE, loop counter `i*4`), where the typed form `((AuxSceneView*)base)->map_route_icon_blit[i] = 0` on a real project struct with the member at +0x60 reproduced the reassociation exactly as class (2) did in the other TU. WHEN OUR BUILD DOES EMIT THE TARGET'S FORM, and this is the one lever the evidence supports: when (base + index) has MORE THAN ONE use, MWCC materialises it and every access then carries its own displacement. init_mapscreen `@0x100` is the control -- `add r23,r31,r27` + `stw r3,64(r23)` + `lwz r3,64(r23)` in OUR object, matching the target's shape opcode for opcode, at a site where the same address is used three times. So the choice is driven by the number of uses of the sub-expression, not by how the expression is spelled, and a source lever that wants the D-form has to create a second use rather than regroup the first. PRACTICAL CONSEQUENCE: treat a lone `add`+`disp` vs `addi`+indexed cluster as a park, not a probe target, unless a second use of the base is independently justified by the target's own stream."
+}
