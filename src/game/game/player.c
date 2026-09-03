@@ -1120,8 +1120,8 @@ static void write_gold(s32 i, s32 show) {
 
 /* Turbo/power meter: bar scale + color, charge flash, drain flash. */
 static void draw_power_meter(s32 i) {
+    Player* p = PT(i);
     s32* table = lbl_8011FC48;
-    Player* p = P(i);
     s32 j;
     s32 zone0;
     s32 zone;
