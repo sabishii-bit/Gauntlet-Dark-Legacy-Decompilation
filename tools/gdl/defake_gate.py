@@ -282,17 +282,79 @@ def is_scored_data(name):
 
 
 def matched_data_bytes(ours, target):
-    """How many of a section's bytes we get RIGHT: {section: (matched, size)}.
+    """POSITIONAL byte agreement per section: {section: (matched, size)}.
 
     `size` is the TARGET section's length, so a section our object does not
     emit at all counts its whole size as lost rather than vanishing from the
     accounting. Sections only WE emit contribute 0/0 and show up as an
     unclaimed-bytes row instead of silently scoring 100%.
+
+    THIS IS THE DIAGNOSTIC NUMBER, NOT THE SCORE (run-48 item 3). It counts
+    every byte that happens to agree, and the image's Data measure does not
+    work that way — see `image_matched_data_bytes`, which is what the gate
+    prices against.
     """
     out = {}
     for name in sorted(set(ours) | set(target)):
         a, b = ours.get(name, b""), target.get(name, b"")
         out[name] = (sum(1 for x, y in zip(a, b) if x == y), len(b))
+    return out
+
+
+def image_matched_data_bytes(ours, target):
+    """The IMAGE's Data accounting: {section: (matched, size)}, ALL-OR-NOTHING.
+
+    THE DEFECT (run-48 item 3, the second DATA blindness). The gate priced a
+    data change by NETTING per-section byte agreement, and the project's Data
+    measure — the PROGRESS `Data:` line, read from build/GUNE5D/report.json —
+    counts a data section as matched only when it matches ENTIRELY. A section
+    that is one byte wrong contributes its FULL size here and ZERO there, so a
+    keep that breaks a section reads NET +0 / GATE OK while the image loses
+    the whole section.
+
+    Reproduced at cdfff02e2 on game/ui/btext, whose extabindex is one byte off:
+
+        GATE per-byte accounting     619/620
+        report.json main/game/ui/btext   matched_data=248  total_data=620
+        all-or-nothing recomputation 248/620   <- agrees with report.json
+
+    So the gate's own baseline printout overstated matched Data by 371 of 620
+    bytes on that one TU, and a change that destroyed the 248-byte extab match
+    while repairing a single byte of extabindex would have netted +1 here
+    against −248 in the image.
+
+    CALIBRATED TWO-SIDED at cdfff02e2 over all 168 unit pairs this gate can
+    price (T18_scratch/t18_calib_item3.py):
+      POSITIVES  91 units / 134 sections where the two accountings DISAGREE
+                 — the per-byte form overstated matched Data by 30,920 bytes
+                 in total, led by game/sound/sounds_evt (2,173 -> 0),
+                 game/anim/action (2,340 -> 220) and game/game/player
+                 (1,386 -> 0).
+      NEGATIVES  77 units / 326 sections where the two are identical, so the
+                 change is inert for them.
+    VALIDATED against report.json's own `matched_data`, restricted to the 129
+    units whose section SET this gate fully covers (objdump -s cannot dump a
+    bss-family section, and the report does not count `.init` as data — the
+    other 39 units are excluded because that measures COVERAGE, not
+    accounting):
+      110 units  reproduce report.json EXACTLY
+       18 units  UNDER-count it (objdiff credits data at symbol granularity
+                 and resolves relocations, so a section holding a pointer
+                 table can be credited there while its raw bytes differ here)
+        1 unit   OVER-counts it, Runtime.PPCEABI.H/NMWException, by 16 bytes
+    So this is a LOWER BOUND on the image's measure, not a reproduction of
+    it, and that is the direction a gate needs: it under-credits rather than
+    manufacturing a pass. The per-byte form is an UPPER bound and did exactly
+    the opposite.
+
+    Pure over two {section: bytes} maps, like the positional form beside it.
+    A section we do not emit at all, or emit at a different length, cannot
+    match: equality is over the WHOLE target section.
+    """
+    out = {}
+    for name in sorted(set(ours) | set(target)):
+        a, b = ours.get(name, b""), target.get(name, b"")
+        out[name] = (len(b) if b and a == b else 0, len(b))
     return out
 
 
@@ -333,31 +395,62 @@ def data_section_digests(objfile, targetfile=None):
             target = {n: b for n, b in
                       parse_section_bytes(tdump.stdout).items()
                       if is_scored_data(n)}
+    # TWO accountings, banked side by side (run-48 item 3). `matched_image`
+    # is the one the gate PRICES on, because it is the one the project's
+    # Data measure uses; `matched` stays the positional diagnostic, and
+    # keeping the old key name is what lets a pre-run-48 baseline still be
+    # recognised — and LABELLED — as positional rather than silently
+    # subtracted from an image number.
     scores = matched_data_bytes(ours, target) if target else {}
+    image = image_matched_data_bytes(ours, target) if target else {}
     out = {}
     for name, sha in digests.items():
         row = {"sha": sha, "size": len(ours.get(name, b""))}
         if name in scores:
             row["matched"], row["target_size"] = scores[name]
+        if name in image:
+            row["matched_image"] = image[name][0]
         out[name] = row
     for name, (matched, size) in scores.items():
         if name not in out and size:
             out[name] = {"sha": None, "size": 0,
-                         "matched": matched, "target_size": size}
+                         "matched": matched, "target_size": size,
+                         "matched_image": image.get(name, (0, size))[0]}
     return out
 
 
 def _section_row(entry):
-    """(sha, matched, target_size) from either baseline format.
+    """(sha, matched, target_size, basis) from any baseline format.
 
     Pre-run-46 baselines banked a bare digest string; those still detect a
     change, they just cannot price it.
+
+    `basis` (run-48 item 3) says WHICH accounting `matched` is in:
+    ``"image"`` = all-or-nothing per section, the same rule the PROGRESS
+    `Data:` line uses, and the only one a NET may be quoted from;
+    ``"positional"`` = the per-byte count a pre-run-48 baseline banked, which
+    OVERSTATES matched Data (619/620 versus the image's 248/620 on
+    game/ui/btext) and must never be silently subtracted from an image
+    number. ``None`` = unpriced.
     """
     if isinstance(entry, str):
-        return entry, None, None
+        return entry, None, None, None
     if isinstance(entry, dict):
-        return entry.get("sha"), entry.get("matched"), entry.get("target_size")
-    return None, None, None
+        if entry.get("matched_image") is not None:
+            return (entry.get("sha"), entry.get("matched_image"),
+                    entry.get("target_size"), "image")
+        if entry.get("matched") is not None:
+            return (entry.get("sha"), entry.get("matched"),
+                    entry.get("target_size"), "positional")
+        return entry.get("sha"), None, entry.get("target_size"), None
+    return None, None, None, None
+
+
+def _positional_matched(entry):
+    """The diagnostic per-byte count banked beside the image one, or None."""
+    if isinstance(entry, dict):
+        return entry.get("matched")
+    return None
 
 
 def data_section_verdicts(base_entry, cur_entry):
@@ -375,25 +468,41 @@ def data_section_verdicts(base_entry, cur_entry):
     cur = (cur_entry or {}).get("data")
     if not isinstance(base, dict) or not isinstance(cur, dict):
         return []
+    # DETECTION stays strictly more sensitive than PRICING: the digest, the
+    # image count and the positional count are all compared, so a change
+    # that moves only one of the three still produces a row.
     moved = sorted(n for n in set(base) | set(cur)
                    if _section_row(base.get(n))[0]
                    != _section_row(cur.get(n))[0]
                    or _section_row(base.get(n))[1]
-                   != _section_row(cur.get(n))[1])
+                   != _section_row(cur.get(n))[1]
+                   or _positional_matched(base.get(n))
+                   != _positional_matched(cur.get(n)))
     if not moved:
         return []
     eh = [n for n in moved if n in EH_SECTIONS]
-    priced, net, unpriced = [], 0, []
+    priced, net, unpriced, positional = [], 0, [], []
     for name in moved:
-        _, bm, bt = _section_row(base.get(name))
-        _, cm, ct = _section_row(cur.get(name))
+        _, bm, bt, b_basis = _section_row(base.get(name))
+        _, cm, ct, c_basis = _section_row(cur.get(name))
         if bm is None or cm is None:
             unpriced.append(name)
             continue
+        if "positional" in (b_basis, c_basis):
+            positional.append(name)
         delta = cm - bm
         net += delta
-        priced.append(f"{name} {bm}->{cm} of {ct if ct is not None else bt}"
-                      f" ({delta:+d} B)")
+        row = (f"{name} {bm}->{cm} of {ct if ct is not None else bt}"
+               f" ({delta:+d} B)")
+        # The per-byte numbers, as a SECOND column when they disagree with
+        # the image's: a section can lose its whole match while nearly every
+        # byte still agrees, and that is the shape a lane must recognise.
+        bp, cp = _positional_matched(base.get(name)), \
+            _positional_matched(cur.get(name))
+        if (bp is not None and cp is not None
+                and (bp, cp) != (bm, cm)):
+            row += f" [per-byte {bp}->{cp}, diagnostic only]"
+        priced.append(row)
     if priced:
         detail = ("matched DATA bytes: " + "; ".join(priced)
                   + f". NET {net:+d} B of matched Data")
@@ -402,13 +511,29 @@ def data_section_verdicts(base_entry, cur_entry):
                        " per-function verdict here scores .text ONLY")
         elif net > 0:
             detail += " gained (invisible to every per-function verdict)"
+        if positional:
+            # RUN-48 ITEM 3. Mixing the two accountings is the defect, so a
+            # NET computed from either side's positional number is LABELLED
+            # rather than quoted as the image's.
+            detail += ("; ACCOUNTING IS POSITIONAL for " + ", ".join(positional)
+                       + " (a pre-run-48 baseline banked per-BYTE agreement,"
+                         " which overstates matched Data — 619/620 against"
+                         " the image's 248/620 on game/ui/btext — because the"
+                         " PROGRESS `Data:` line counts a section as matched"
+                         " only when it matches ENTIRELY). This NET is NOT"
+                         " the image's number; re-take the baseline"
+                         " (`defake_gate.py baseline <unit> --at-head`) to"
+                         " price it all-or-nothing")
+        else:
+            detail += ("; accounting is ALL-OR-NOTHING per section, the same"
+                       " rule the PROGRESS `Data:` line uses")
     else:
         detail = ("non-text section(s) " + ", ".join(moved) + " changed — every"
                   " per-function verdict here scores .text ONLY and is blind to"
                   " these bytes")
     if unpriced:
         detail += ("; unpriced section(s) " + ", ".join(unpriced)
-                   + " (baseline predates the run-46 byte accounting — re-take"
+                   + " (baseline predates the byte accounting — re-take"
                    " it to price them)")
     if eh:
         detail += ("; exception-table section(s) " + ", ".join(eh)
@@ -1901,8 +2026,13 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
             if have:
                 total_m = sum(r[1] for r in have.values())
                 total_t = sum(r[2] or 0 for r in have.values())
+                basis = ("all-or-nothing per section, as the PROGRESS `Data:`"
+                         " line counts it"
+                         if all(r[3] == "image" for r in have.values())
+                         else "POSITIONAL per-byte — this OVERSTATES matched"
+                              " Data; re-take with --at-head")
                 print(f"  DATA baseline: {len(secs)} non-text section(s),"
-                      f" {total_m}/{total_t} matched bytes"
+                      f" {total_m}/{total_t} matched bytes ({basis})"
                       + "".join(f"; {n} {r[1]}/{r[2]}"
                                 for n, r in sorted(have.items())))
             else:
@@ -2010,7 +2140,11 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
                   " here can see it (they score .text only). A negative net"
                   " is a regression even when every .text arbiter improves"
                   " (claim.law.WS_frame-widening-silently-breaks-the-tus-"
-                  "extab-match).")
+                  "extab-match). The delta is ALL-OR-NOTHING per section, the"
+                  " same rule the PROGRESS `Data:` line uses — unless the row"
+                  " says ACCOUNTING IS POSITIONAL, in which case it came from"
+                  " a pre-run-48 baseline and OVERSTATES matched Data"
+                  " (619/620 against the image's 248/620 on game/ui/btext).")
         else:
             print("NOTE: DATA-CHANGED — a non-text section moved; NO"
                   " per-function verdict here can see it. A frame-widening"
