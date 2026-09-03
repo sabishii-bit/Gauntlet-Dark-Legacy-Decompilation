@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py (four byte-exact/structural closures this run)",
+    "tools/gdl/composed_census/nm_branchpair_census.py (ours|target|diff)",
+    "tools/gdl/fndiff.py --ops (the '+1 b +1 b<cond> / -1 b<inv>' signature)"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "peephole",
+      "inline",
+      "switch-form",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function-scope `if (cond) return;` (or `if (A && B) return;`) whose then-block branches to the function's own epilogue and that compiles to the UNFUSED `b<cond> +8` + `b <epilogue>` pair under -O4,p; or a static helper whose `return` is inlined at a merge point and that STILL folds to a single inverted conditional. Either kills the refinement. Re-derive with `python tools/gdl/composed_census/nm_branchpair_census.py diff` and `python tools/gdl/probe.py <unit> <fn> --ops` on the four functions named below.",
+  "id": "claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T16:32:57Z",
+  "refutes": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "MWCC GC 1.2.5, -O4,p. REFINEMENT of claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1, whose discriminator ('a return then-block is never folded') is NOT SUFFICIENT and is refuted in one direction by measurement this run. What actually keeps the `b<cond> <next+4>` + `b <exit>` pair unfused is that the branch is created when a STATIC HELPER'S `return` is INLINED at a merge point inside the caller; the pair is emitted after the fold peephole has run, so nothing inverts it. A `return` written at FUNCTION scope, branching to the function's own epilogue, DOES fold: measured on game/sound/sounds AudioSetupLevelStreams, where the target holds `cmpwi r0,3; ble ->60; b ->2f8` (0x2f8 IS the epilogue: lmw r28,40(r1) / lwz r0,60(r1) / addi r1,r1,56 / mtlr r0 / blr) and THREE distinct source spellings of the same return all produced our single folded `bgt ->2f8`, every one NEUTRAL-IDENTICAL against the same object bytes: (a) `if (sMusicSubState < 2 && sCurMusicVol > 3) { return; }` (the tree's own form), (b) the same split into nested `if`s each with its own `return`, (c) `if (A) goto vol_ok; if (B) goto vol_ok; return; vol_ok:;` -- the goto-to-continue spelling with the return as the fallthrough. THE CURE, four times this run: lift the guarded region into a `static` helper defined BEFORE its caller and let MWCC inline it, writing the early exit as `return`. CLOSURES: CritterMoveSetup (game/enemy/critter, real 7 -> 0 BYTE-EXACT first probe, helper CritterMoveColNode `if (nodeIndex < 0) return node;`); adsMoveRawToCooked (game/audio/adstream, real 74 -> 0 BYTE-EXACT, two helpers closing two sites); cardThreadMain (game/sys/cardutil, real 43 -> 20, opcode multiset 13t -> 0t and COUNT PARITY GAINED, helper cardDoRead replacing a `do { ... break; } while (0)`); LimitCamVal2 (game/boss/bosscam, real 58 -> 52, both sites closed, multiset IDENTICAL 88/88). SECOND, INDEPENDENT SUB-LAW -- THE TWO-STAGE RETURN MERGE. An inlined helper whose two exits are `return <param>` and `return <other param>` splits the value web: MWCC materialises a fresh return temp and emits TWO extra `mr`s (measured verbatim in adsMoveRawToCooked: ours `bge ->70 / mr r0,r4 / b ->74 / mr r0,r7 / mr r4,r0` against the target's `bge ->6c / b ->70 / mr r4,r7`). Writing the second exit as an ASSIGNMENT TO THE PARAMETER followed by a return of that parameter -- `available = space; return available;` instead of `return space;` -- makes MWCC coalesce the return web with the caller's variable and the three `mr`s collapse to the target's one. That single edit took adsMoveRawToCooked from 175/173 insns with 2 residual mr to real 0, fuzzy 100.0000%. PRECONDITION, measured: `#pragma dont_inline on` covering the CALL SITE defeats the whole cure -- adstream.c bracketed adsMoveRawToCooked in one, and the two helpers were emitted as `bl` (real 74 -> a 165/173 count gap) until the pragma was removed. Grep the pragma bracket before probing. WHERE THE CURE COSTS MORE THAN IT PAYS (2 measured): when the caller's destination is not the inline's return register the lift buys the branch and pays a copy -- CritterAnimate (game/enemy/critter) closes the pair exactly (target-only opcodes -> none) and pays `addi r5,r3,0`, fuzzy 98.8564 -> 98.7766; get_vmu_directory (game/sys/memcard) closes the pair and pays `li r0,1` + `mr. r30,r0` because the returned value is a live CONSTANT the inline rematerialises, fuzzy 92.7155 -> 92.1983. Both reverted on the fuzzy arbiter."
+}

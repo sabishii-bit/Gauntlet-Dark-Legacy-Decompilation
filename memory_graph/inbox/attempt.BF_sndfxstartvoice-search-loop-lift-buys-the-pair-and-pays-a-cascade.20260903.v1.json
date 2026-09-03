@@ -1,0 +1,31 @@
+{
+  "attempted_axis": "Apply the PlaceItem corollary: lift the 32-slot free-voice search loop into a static helper that `return`s the index, so the loop-exit branch pair stops folding.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1, COROLLARY (search loop -> static helper returning the index) APPLIED: it works, the pair closes. claim.law.sizeof-defeats-loop-stride-induction.20260831.v1 screened -- no sizeof was used, the stride was written as the literal 48. No webfrank pin covers sndFxStartVoice.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "(1) `static int sndFxFindFreeVoice(SndFxState* stv) { int slot; for (slot = 0; slot < 32; slot++) { if (stv->voice[slot].flags == 0) { return slot; } } return -1; }` replacing `for (slot = 0; slot < 32; slot++) { switch (stv->voice[slot].flags) { case 0: goto have_slot; } } slot = -1; have_slot:`.\n(2) the same helper with the target's offset-accumulator addressing: `int off; for (slot = 0, off = slot; slot < 32; slot++, off += 48) { if (((SndFxState*)((u8*)stv + off))->voice[0].flags == 0) { return slot; } }` -- NEUTRAL-IDENTICAL to (1); MWCC canonicalises the two forms to the same object bytes, so the addressing cluster is NOT source-reachable this way.",
+    "residual": "The lift DID close the branch pair (`+1 b +1 bne / -1 beq` gone) and DID reproduce the target's preheader `mr r3,r30` (off = slot). What it could not pay for: the loop body stays `addi r0,r3,1324; lwzx r0,r31,r0` against the target's `add r4,r31,r3; lwz r0,1324(r4)`, and a NEW three-instruction cluster appears at +0x1b8 (`addi`, `stw`, `add` against the target's nothing) with a matching `addi`-vs-`add` swap at +0x1d4 -- a register-pressure cascade the extra inlined loop introduced downstream. Net 160 insns against the target's 158.",
+    "scope": "src/game/audio/sndfx.c probed and fully reverted; nothing committed.",
+    "verification": "probe.py game/audio/sndfx sndFxStartVoice --arbitrate: BANKED real 93 fuzzy 94.6203% vs CURRENT real 98 fuzzy 93.8987%, DELTA real +5 fuzzy -0.7215, ARBITER: fuzzy FELL -- REVERT. Reverted with `git checkout --`; `git status --short` clean apart from the untracked LANE_LOCK."
+  },
+  "function": "function:sndFxStartVoice",
+  "held_fixed": "The call site `slot = sndFxFindFreeVoice(stv);` and the helper's control flow were held FIXED; only the loop's ADDRESSING form varied between the two probes.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "`python tools/gdl/fnasm.py game/audio/sndfx sndFxStartVoice 0x1b0:0x1e8 --diff` on the CURRENT (unlifted) tree: if the +0x1b8 region already differs before the lift, the cascade is not the lift's doing and this ordering buys nothing.",
+    "screened_against_target": "no -- I read the +0x1b8 cluster only in the lifted state and inferred it was new from the baseline --ops output, which did not list it.",
+    "statement": "The +0x1b8 cascade, not the branch pair, is what makes this row unprofitable, and it is downstream of the lift rather than caused by its shape. Close the +0x190 clrlwi/lhz cluster and the +0x1dc add/lha addressing cluster FIRST -- both are baseline residuals independent of this lane's mechanism -- then re-probe the helper lift at that new alignment, where the register pressure it adds may land free."
+  },
+  "id": "attempt.BF_sndfxstartvoice-search-loop-lift-buys-the-pair-and-pays-a-cascade.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T16:32:55Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +1 add +1 b +1 bne +1 clrlwi +1 lwz +1 mr  ours-only: -1 addi -1 beq -1 lhz -1 li -1 lwzx"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

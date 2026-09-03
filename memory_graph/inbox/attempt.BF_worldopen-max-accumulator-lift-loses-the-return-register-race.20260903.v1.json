@@ -1,0 +1,30 @@
+{
+  "attempted_axis": "Lift the `if (best <= value) { best = value; }` max-accumulator in the per-player scan into a static helper with an early `return best;`, using the two-stage merge spelling that closed adsMoveRawToCooked.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED -- the branch pair closes (`+1 ble` and `+1 b` both leave the multiset) and the keep still loses. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 screened: the lift GREW the frame 48 -> 56 against the target's 48, which is half the reason it loses. No webfrank pin covers WorldOpen in game/world/tower (the TU's pins are towerRecordLevelBeaten and TowerCheckMessages).",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "`static s32 towerBestOf(s32 best, s32 value) { if (best > value) { return best; } best = value; return best; }` replacing `if (best <= value) { best = value; }` with `best = towerBestOf(best, value);`.",
+    "residual": "The inline chose r0 -- the register the loaded `value` already lives in -- as its return web, which inverts the cost: ours emits `@0x128 ble ->130` / `@0x12c mr r0,r25` / `@0x130 mr r25,r0` where the target emits `@0x124 ble ->12c` / `@0x128 b ->130` / `@0x12c mr r27,r0`. So the ASSIGNMENT path is free for us and the KEEP path pays, the exact mirror of the target. The function's other residual (a li/li/li vs addi/addi cluster at +0xc8..+0xe0 in the case-13/5/6/8 prologue) is untouched and independent.",
+    "scope": "src/game/world/tower.c probed and fully reverted; nothing committed.",
+    "verification": "`python tools/gdl/fndiff.py game/world/tower WorldOpen --ops --rebuild` after the edit: insns 99 -> 100 against the target's 99, frame `stwu r1,-48` -> `stwu r1,-56` and `stmw r24,16(r1)` -> `stmw r24,24(r1)` both now IMMEDIATE-differing rows that the baseline did not have. Reverted with `git checkout --`; `git status --short` clean apart from the untracked LANE_LOCK."
+  },
+  "function": "function:WorldOpen",
+  "hypothesis": {
+    "cheapest_refuting_observation": "One probe with `static s32 towerBestOf(s32 best, const u8 *rec)` doing its own `*(s16*)(rec + COMPLETION2_OFF)` load: if the extra `mr` survives, the return-web choice is not about where the value was loaded and the axis is dead.",
+    "screened_against_target": "no -- I read the target's `mr r27,r0` and our `mr r0,r25` at the aligned view but did not probe any form that changes where `value` is produced.",
+    "statement": "The two-stage merge spelling is necessary but not sufficient: it decides WHICH value the return web coalesces with only when the two exits live in different registers to begin with. Here both `best` and `value` are loop-carried in the same scan, so force them apart -- give the helper a third, dead argument or make `value` a fresh load inside the helper (pass the record pointer, not the loaded halfword) so the loaded value is not already sitting in the caller's r0 when the inline is expanded."
+  },
+  "id": "attempt.BF_worldopen-max-accumulator-lift-loses-the-return-register-race.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T16:32:56Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +2 addi +1 b +1 ble  ours-only: -1 bgt -2 li -1 mr"
+  },
+  "residual_class": "MIXED",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

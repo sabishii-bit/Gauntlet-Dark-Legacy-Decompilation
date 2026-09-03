@@ -1,0 +1,32 @@
+{
+  "attempted_axis": "Close the pitch-clamp branch pair with a static return-helper, shed the orphaned locals the lift left behind, then re-colour the loop's three callee-saved webs by declaration order; finally attack the surviving live-zero copy/remat pair.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED (cure) -- but its FIRST spelling, `if (pitch >= bound) return bound;`, REGRESSED real 35 -> 65 because an f32 `>=` emits the NaN-safe `cror 4*cr0+eq,...; bne` instead of the target's bare `bge`; the source condition must keep the `<` polarity the target compares with. That independently reproduces the negative in attempt.limitcamval2-positive-condition-cror-regression.20260830.v1. claim.law.stack-slots-descend-in-declaration-order.20260831.v1 APPLIED (the decl-order swap). claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 APPLIED and CONFIRMED on the residual. No webfrank pin exists for game/world/newcam.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\", \"claim.law.stack-slots-descend-in-declaration-order.20260831.v1\", \"claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1\"]",
+    "probed_form": "AXIS 1 (kept): `static f32 ClampPitchLow(f32 pitch, f32 bound) { if (pitch < bound) { return pitch; } return bound; }` replacing `pitchc = *camera; bound = -...->minpitch; if (pitchc < bound) goto keep_pitch; pitchc = bound; keep_pitch: *camera = pitchc;` with `*camera = ClampPitchLow(*camera, -((NcLevelData*)gCurLevel)->camera->minpitch);`, AND deleting the now-orphaned `f32 pitchc; f32 bound;` declarations (they alone were worth 8 bytes of frame: 64 -> 56, target 56).\nAXIS 2 (kept): declaration order `f32* dir; s32 result; f32 pitch; f64 yaw; s32 successes; s32 iterations; f32* cbase;` (was `... f32* cbase; s32 result; f32 pitch; f64 yaw; s32 iterations; s32 successes;`).\nAXIS 3 (NEUTRAL-IDENTICAL): `successes = iterations = 0; cbase = (f32*)lbl_80344A6C;`.\nAXIS 4 (NEUTRAL-IDENTICAL): `for (successes = iterations; successes < lbl_80343CD0 && iterations < 100;)`.",
+    "residual": "ONE cluster, 4 real lines, at +0x230..+0x23c. Target: `li r29,0` (iterations = 0), then `lwz r28,@lbl_80344A6C` (cbase), then `mr r30,r29` (successes = iterations). Ours: the `lwz` is HOISTED above the `li`, and the copy is REMATERIALISED as `li r28,0`. Register assignment now matches the target exactly (r28 cbase / r29 iterations / r30 successes) -- that was axis 2's gain.",
+    "scope": "src/game/world/newcam.c only; commits 148805d5a and 398fc89c5.",
+    "verification": "probe.py game/world/newcam fn_8006F16C --ops: BASELINE real 35 (T171/O170, fuzzy 96.8421%) -> axis 1 real 12 / fuzzy 97.4854% / COUNT PARITY GAINED T171/O171 -> axis 2 real 4 / fuzzy 97.6316%. Axes 3 and 4 both NEUTRAL-IDENTICAL-PROOF bytes=d32d7cc49b1b real=4 insns=T171/O171 multiset=2t head=148805d5a, and probe.py escalated after the third consecutive one. defake_gate check game/world/newcam: GATE OK (1 improved). Full ninja printed `build/GUNE5D/main.dol: OK`."
+  },
+  "function": "function:fn_8006F16C",
+  "held_fixed": "The ClampPitchLow helper and its call site were held FIXED for both later probes; only the loop preheader's statement/declaration shape varied.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "`python tools/gdl/fnasm.py game/world/newcam fn_8006F16C 0x230:0x240 --diff` after ONE volatile-view probe: if the `lwz` still lands first, the hoist is not what forces the remat and the whole idea dies in one build.",
+    "screened_against_target": "no -- I confirmed the target's ORDER (li, lwz, mr) at the aligned view but never probed the load side; only the copy side was probed, twice, both NEUTRAL-IDENTICAL.",
+    "statement": "The remaining 4 lines are ONE decision -- whether `successes = iterations` is emitted as a copy or rematerialised as `li 0` -- and the statement-shape class does NOT reach it (two NEUTRAL-IDENTICAL proofs above). The untried class is the LOAD side: make `cbase`'s initialiser something MWCC cannot hoist above the `li` (read it through a volatile-qualified view of lbl_80344A6C, or source it from a value already computed after the counter init) and re-read whether the copy survives once the load stops moving."
+  },
+  "id": "attempt.BF_fn8006f16c-clamp-helper-plus-decl-order-and-the-dead-zero-copy.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T16:32:53Z",
+  "residual": {
+    "capability_needed": "instruction_permutation",
+    "family": "live-zero-remat",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +1 mr  ours-only: -1 li"
+  },
+  "residual_class": "SCHEDULE",
+  "schema_version": 1,
+  "supersedes": "attempt.parked.fn-8006f16c.20260830.v1",
+  "valid_from": "2026-09-03"
+}

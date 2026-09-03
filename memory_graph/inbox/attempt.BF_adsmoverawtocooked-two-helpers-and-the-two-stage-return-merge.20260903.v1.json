@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Close both branch-pair sites with static return-helpers, then close the two residual `mr` by writing the helper's second exit as an assignment to its own parameter instead of a direct `return <other>`.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED as the cure and REFINED (see claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1). claim.law.stack-slots-descend-in-declaration-order.20260831.v1 screened: no local declaration was moved, frame held at 72. No webfrank pin exists for game/audio/adstream.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "static u32 adsBlockDivisor(u32 blocks) {\n    if (blocks > 1) {\n        return blocks;\n    }\n    return 1;\n}\n\nstatic u32 adsLimitAvailable(u32 available, u32 space) {\n    if (available < space) {\n        return available;\n    }\n    available = space;\n    return available;\n}\n-- call sites replace `if (divisor > 1) goto Ldiv_done; divisor = 1; Ldiv_done:;` with `divisor = adsBlockDivisor(self->blocks);` and `if (available < space) goto Lavail_done; available = space; Lavail_done:;` with `available = adsLimitAvailable(available, space);`. The `#pragma dont_inline on` that bracketed adsMoveRawToCooked was REMOVED (its `#pragma dont_inline off` at the end of the region stays; the neighbouring dont_inline regions at lines 193/466/557/727 are untouched).",
+    "residual": "None -- byte-exact.",
+    "scope": "src/game/audio/adstream.c only; commit dd1e0d0f5.",
+    "verification": "probe.py game/audio/adstream adsMoveRawToCooked: IMPROVED real 74 -> 0, insns exact 173/173, multiset 0t, FRESH fuzzy 98.7283% -> 100.0000%. fndiff --clean over the TU: every sibling still EXACT, the two helpers report ONLY-IN-BASE (dead-stripped after inlining). defake_gate check game/audio/adstream (baseline anchored 7486ca105): GATE OK (1 improved). Full ninja printed `build/GUNE5D/main.dol: OK`; image STRICT matched 56.69% (2582 fns) -> 56.75% (2583 fns) and Data ROSE 177572 -> 177608 bytes (Game Data 66.06% -> 66.10%)."
+  },
+  "function": "function:adsMoveRawToCooked",
+  "held_fixed": "The two helper bodies and the call sites were held fixed while ONLY the shape of adsLimitAvailable's second exit varied (`return space;` -> `available = space; return available;`); the `#pragma dont_inline on` removal was a separate, earlier probe held fixed thereafter.",
+  "id": "attempt.BF_adsmoverawtocooked-two-helpers-and-the-two-stage-return-merge.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T16:32:49Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +2 b +1 bge +1 ble  ours-only: -1 bgt -1 blt"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}
