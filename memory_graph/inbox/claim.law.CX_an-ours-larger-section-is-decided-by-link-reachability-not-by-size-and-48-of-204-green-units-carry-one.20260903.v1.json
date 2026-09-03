@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/datadiff.py::size_gap_class",
+    "tools/gdl/datadiff.py::section_table",
+    "config/GUNE5D/splits.txt",
+    "build/GUNE5D/main.elf"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "postprocessor",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Re-run the census: for any Matching unit, subtract from each section's (ours - target) surplus the bytes of every object symbol whose name does not land inside that unit's splits.txt claim range in main.elf. A unit with a POSITIVE remainder refutes this law - it would mean our object emits bytes that reach the image and the DOL nevertheless verifies, which is impossible while `ninja` prints `build/GUNE5D/main.dol: OK`. Independently: a Matching unit whose linked .text extent does not equal its splits.txt claim size would refute the claim-range liveness test itself (checked on dolphin/demo/DEMOInit: the 5 surviving functions sum to 0x64C, exactly 0x800CB600..0x800CBC4C).",
+  "id": "claim.law.CX_an-ours-larger-section-is-decided-by-link-reachability-not-by-size-and-48-of-204-green-units-carry-one.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T22:42:02Z",
+  "schema_version": 1,
+  "subject": "tool:datadiff",
+  "valid_from": "2026-09-03",
+  "value": "A section-size OURS-LARGER verdict is a CANDIDATE, never a defect: mwld dead-strips unreferenced code and data, so an object may legitimately emit more than the target claims, and the deciding fact is whether the surplus symbols REACH THE LINK - not their byte count. Census at 1370dce50 over all 204 Object(Matching) units, address-based (a symbol counts as live only if a same-named symbol lands inside that unit's own splits.txt claim range in main.elf): 18 units are ours-larger only in .comment, which is never linked; 48 units carry a real ours-larger section, 49 rows, 15712 surplus bytes; and the number of units whose surplus EXCEEDS the dead-stripped bytes is ZERO. Every one of those units is already Matching, linked, and covered by `ninja` printing `build/GUNE5D/main.dol: OK`, so the surplus is provably absent from the image in all 49 rows. THREE CONSEQUENCES. (1) `datadiff.py --sections` sees exactly ONE of the 49: `.text` carries 48 rows and the tool iterates DATA_SECTIONS + extab/extabindex + .bss/.sbss/.sbss2 only, so its single image-wide FLIP BLOCKER (dolphin/demo/DEMOInit.c .sbss ours 0x28 vs target 0x20, 12 dead bytes less 4 of section alignment) is the smallest member of the class, surfaced because of which section it landed in rather than because of what it is. (2) The tool's `size_gap_class` tests `olen > tlen` BEFORE its bss branch, so on a .bss/.sbss section - where its own comment says 'No contents exist to compare; the sizes decide' and its own blurb says bss 'occupies NO bytes in the DOL' - ours-larger is the one direction that still refuses, with no byte evidence available in either direction. The symmetric argument that made target-larger advisory applies unchanged to ours-larger on bss. (3) datadiff's DEAD-STRIP SCREEN does not catch this: it flags a local data symbol that NO relocation in the same object points at, and these statics ARE relocated against - by functions that are themselves stripped. The class is TRANSITIVELY dead data, and the screen is one level deep. Liveness must be tested by ADDRESS, not by name: EXIBios's static CompleteTransfer (0x164) is stripped while another TU's static of the same name survives at 0x8010d430 size 0x2fc, and a name-only test scored that unit as the census's one unexplained row."
+}
