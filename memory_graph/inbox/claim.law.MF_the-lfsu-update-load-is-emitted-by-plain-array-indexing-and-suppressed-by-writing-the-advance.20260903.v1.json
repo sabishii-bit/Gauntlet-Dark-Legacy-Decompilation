@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/t15_whoemits.py",
+    "src/game/ps2/ml_fmath.c"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "lwzu-fusion",
+      "walked-pointer",
+      "index-form"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function whose target emits lfsu/lwzu on a per-iteration-recomputed base and whose byte-exact source uses an explicit pointer-update expression rather than array indexing; or WPitchMat3 ceasing to be byte-exact under `python tools/gdl/fndiff.py game/ps2/ml_fmath WPitchMat3 --clean` with the array-index body committed at 5086669da. Conversely, a matched sibling pair where the ARRAY form emits the plain lfs and the CURSOR form emits lfsu would invert the law.",
+  "id": "claim.law.MF_the-lfsu-update-load-is-emitted-by-plain-array-indexing-and-suppressed-by-writing-the-advance.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T17:33:21Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "In an MWCC loop whose element base is RECOMPUTED each iteration from a scaled induction variable (`add rB,rBASE,rI` with `addi rI,rI,<stride>`), the load-with-update forms (lfsu/lwzu) are emitted by PLAIN ARRAY INDEXING, and writing the pointer advance explicitly in the source SUPPRESSES them. Two accesses at fixed displacements off such a base, spelled `arr[i*S + a]` and `arr[i*S + b]`, make MWCC materialise the second address by advancing the base register in the load itself (`lfsu fD,b*4(rB)`) so the matching store can use `0(rB)`; the same loop written with a cursor (`f32* v = arr + i*S; ... b = *(v += 2); *v = newB;`) folds the advance away into displacements off the un-advanced base and emits a plain `lfs` plus a displaced store. This is the OPPOSITE direction from the walked-pointer laws (lwzu-idiom-web-retention, block-scope-cursor-restores-lwzu, scalar-read-write-lfsu-mixed-form), all of which describe PRESERVING an update form that a genuinely live, persistent cursor already produced; when the base is dead at the end of each iteration there is no cursor to preserve and the array form is the emitter. METHOD, which is the transferable half: do not respell the idiom -- census the opcode in code that already matches (`tools/gdl/composed_census/t15_whoemits.py lfsu --side ours --exact-only`) and read the source of the nearest emitting sibling. For WPitchMat3 that sibling was PitchMat3, twelve lines away in the same file, and the answer was one probe."
+}

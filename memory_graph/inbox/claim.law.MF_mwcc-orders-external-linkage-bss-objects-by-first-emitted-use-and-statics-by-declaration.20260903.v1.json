@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "config/GUNE5D/symbols.txt",
+    "src/game/anim/atree.c"
+  ],
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "symbol-identity",
+      "sda-global",
+      "decl-order",
+      "relocation"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A TU where two different declaration orders of the same set of external-linkage .bss objects produce DIFFERENT object layouts, or where an object whose first emitted use is last in the code is nevertheless placed at .bss offset 0; either observation refutes the first-use rule. The static half is refuted by any object where a file-scope static's .bss offset does not follow its declaration position, or where a static lands after a global.",
+  "id": "claim.law.MF_mwcc-orders-external-linkage-bss-objects-by-first-emitted-use-and-statics-by-declaration.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T17:33:23Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "Within one TU our MWCC lays out .bss in two stages: FILE-SCOPE STATICS go first, as one anonymous `...bss.0` block in DECLARATION order; EXTERNAL-LINKAGE objects follow, ordered by the position of their FIRST EMITTED USE in the compiled code -- not by declaration order, and not by size, alignment or name. Measured four ways on game/anim/atree.c: two opposite declaration orders of the same three global arrays produce byte-identical layouts; making only one of the three global puts the two remaining statics at offsets 0 and 0x180 with the global appended at 0x1E0; changing which array the FIRST .bss-using function touches moves that array to offset 0; and references that never reach codegen (an uncalled static helper, a dead `if (0)` block) do not count as uses at all -- the uncalled static IS emitted into .text, so this is about the reference reaching the allocator, not about dead-stripping. CONSEQUENCE FOR FLIPS: a TU whose retail .bss is in declaration order while its first-used object is not at offset 0 cannot reproduce that layout with external linkage, so 'just remove static so the other TU links' is not a free move -- it silently relocates every exported object and every relocation into the block. Check the layout with `objdump -t` on the compiled object BEFORE spending any work on the .text."
+}

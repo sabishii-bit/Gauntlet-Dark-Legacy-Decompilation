@@ -1,0 +1,28 @@
+{
+  "attempted_axis": "Find the lfsu emitter in ALREADY-MATCHED code instead of respelling the pointer-update idiom for a sixth time: census `lfsu` across our byte-exact functions with tools/gdl/composed_census/t15_whoemits.py, read the source of the emitting SIBLING IN THE SAME TU, and adopt its shape.",
+  "attributes": {
+    "decisive_finding": "THE V2-V5 PARK CHAIN SPENT FOUR PASSES ON THE WRONG DIRECTION. Its whole family of axes -- update-form SPELLING (four identical A/Bs), pointer DERIVATION (pre- vs post-update aPtr), and the BLOCK-SCOPE CURSOR (twice) -- varied HOW the pointer advance was written, on the shared premise that the source has to express the advance for MWCC to fuse it. The premise is false in this function. `t15_whoemits.py lfsu --side ours --exact-only` reports 64 sites in 17 functions, 29 of them inside functions our build already emits byte-identically, and ONE OF THEM IS IN THIS TU: PitchMat3 at 0x1a08. PitchMat3's source is 25 lines above WPitchMat3's, has NO pointer variable and NO update expression -- it is `f32 a = matrix[4 + i]; f32 b = matrix[8 + i];` -- and its target emits the identical 43-instruction shape `lfs f3,16(r4); addi r5,r4,16; lfsu f4,32(r4); ... stfs f0,0(r4); stfs f2,0(r5)`, the same one WPitchMat3 wanted at stride 16 instead of 4. The lfsu is MWCC's own address-web decision on an INDEXED base recomputed per iteration (`add r4,r31,r3` with `addi r3,r3,<stride>`), and writing the advance by hand is what SUPPRESSED it: with an explicit `v += 2` the compiler folds the advance into displacements off the un-advanced base, which is exactly the mechanism v5's own decisive_finding described correctly and then read as a wall instead of as a signpost. v5's do_not_retry note ends `the source ALREADY contains the canonical update idiom -- the gap is not that the source fails to express the advance`; the missing half of that sentence is that expressing it AT ALL is the defect.",
+    "law_screen": "claim.law.scalar-read-write-lfsu-mixed-form.20260830.v1, claim.law.lwzu-idiom-web-retention.20260830.v1, claim.law.offsetof-rename-preserves-protected-web.20260830.v1 and claim.law.block-scope-cursor-restores-lwzu-where-mutation-sinks.20260831.v1 SCREENED as the lwzu/lfsu-fusion family. NONE OF THEM APPLIED, and that is the finding: every one of them is written about KEEPING or RESTORING a walked-pointer web, i.e. they all presuppose that the update form is what makes the compiler emit the update-load. WPitchMat3's target lfsu is emitted from source that contains NO pointer at all. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 carried forward from the v4/v5 chain: the 0x84 stfs displacement 0-vs-8 was the second word of the same single fold and closed with it. claim.law.sizeof-defeats-loop-stride-induction.20260831.v1 honoured (literal 4 and 16 retained, no sizeof).",
+    "laws_applied": "[\"claim.law.identical-multiset-is-blind-to-displacements.20260831.v1\"]",
+    "probed_form": "ONE edit, first probe, no A/B needed. REMOVED the register qualifier and the entire pointer machinery (`f32* v = matrix + row * 4; f32* aPtr; a = v[1]; aPtr = v + 1; b = *(v += 2); ... *v = newB; *aPtr = newA;`) and replaced the loop body with plain array indexing copied from the byte-exact sibling PitchMat3 twelve lines above it: `f32 a = matrix[row * 4 + 1]; f32 b = matrix[row * 4 + 2]; ... matrix[row * 4 + 2] = newB; matrix[row * 4 + 1] = newA;`. The arithmetic order (`newA = c * a - s * b; newB = c * b + s * a;`) was held UNCHANGED from the v5 state because those four fmuls/fmadds/fmsubs rows were already byte-identical.",
+    "residual": "None. WPitchMat3 was game/ps2/ml_fmath.c's last non-exact function (45 functions, 44 at real 0 at baseline); with it closed the TU flipped to Object(Matching) in commit fdf7e12b2 and project `linked` went 29.59% -> 30.33% (204 -> 205 files), Game Code linked 12.97% -> 13.87% (49 -> 50 files).",
+    "scope": "src/game/ps2/ml_fmath.c::WPitchMat3 only; 5 insertions, 10 deletions. Commit 5086669da. It is also a de-fakematch: `aPtr` and `*(v += 2)` were contrived temporaries introduced by earlier matching passes and are gone.",
+    "verification": "probe.py game/ps2/ml_fmath WPitchMat3 --ops: BASELINE real 4 (T43/O43, multiset 2t, fresh fuzzy 98.5814%) banked from the clean tree BEFORE the edit, then IMPROVED real 4 -> 0, insns exact, multiset 0t, fresh fuzzy 100.0000%. fndiff --clean: `WPitchMat3: EXACT, 0 real diff lines`. defake_gate check game/ps2/ml_fmath --rebuild: `IMPROVED WPitchMat3 real 4 -> 0 / GATE OK (1 improved)` against the baseline anchored at commit c621fcbac, source sha1 436f1f995. Full `ninja -j2`: `build/GUNE5D/main.dol: OK` with main.retail.dol sha1 7cba77aa496eb0fc5ffec60efd9680aa9635d679. Project progress moved 67.83% -> 67.85% matched, STRICT 56.79% -> 56.80% (2585 -> 2586 fns), EQUIVALENT held at 11.05%."
+  },
+  "function": "function:WPitchMat3",
+  "id": "attempt.MF_wpitchmat3-closes-exact-on-the-plain-array-index-form.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T17:33:20Z",
+  "refutes": "attempt.wpitchmat3-cursor-and-derivation-axes-closed.20260831.v5",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-03",
+    "signature": "no-residual (was: DIFFERS target-only: +1 lfsu ours-only: -1 lfs; insns T43/O43)"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.wpitchmat3-cursor-and-derivation-axes-closed.20260831.v5",
+  "valid_from": "2026-09-03"
+}

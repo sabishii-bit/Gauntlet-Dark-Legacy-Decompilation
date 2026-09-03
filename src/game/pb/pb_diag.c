@@ -613,11 +613,11 @@ void pbDiagDrawSoundRow(void)
     u8* voice;
     u32 col3;
     int soff;
-    int koff;
+    int top;
     int sel;
     int flat;
     int t;
-    int top;
+    int koff;
     int flag;
     int id;
     u8* sub;

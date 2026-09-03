@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow",
+      "build-hygiene",
+      "matching"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A project score, gate or report that DOES change when two same-sized functions in a TU are transposed -- run `python tools/gdl/fndiff.py <unit> --count`, `probe.py`, `defake_gate.py check` and `configure.py progress` on a tree with two function definitions swapped and see whether any number moves. If one does, the residual is not score-invisible and the screen is redundant.",
+  "id": "claim.law.MF_every-function-at-real-0-does-not-mean-the-text-order-is-right-and-no-project-score-sees-it.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T17:33:24Z",
+  "schema_version": 1,
+  "subject": "tool:fndiff",
+  "valid_from": "2026-09-03",
+  "value": "A TU can read 100% of its functions at real 0 and still be unflippable because its .text emits them in the WRONG ORDER. fndiff, probe, defake_gate, objdiff fuzzy and the progress report all pair functions BY NAME and never compare position, so a permutation of same-sized function groups is invisible to every score the project computes -- while the linked DOL depends on it completely. game/anim/atree.c carried exactly this for at least four runs: 36/36 functions at real 0 (or rule-served), all five data sections byte-verified by a dedicated run-45 promotion audit, and TWO mis-ordered groups -- ours AtreeFindNodeIdx@0x16c/AtreeFindNode@0x20c against the target's AtreeFindNode@0x16c/AtreeFindNodeIdx@0x228, and ours AtreeSetEmpty/AtreeAlloc/AtreeInitLists/AtreeListLock against the target's AtreeInitLists/AtreeListLock/AtreeAlloc/AtreeSetEmpty. Both groups re-synchronise at the next function, so the sizes are all correct and only the order is wrong. SCREEN, one command, no build: dump `objdump -t` .text symbols from the dtk split object build/GUNE5D/obj/<unit>.o and from our compiled object and compare the two sequences by offset. Run it BEFORE any promotion audit, because a TU that fails it is not 'one function from a flip' whatever its roster says."
+}
