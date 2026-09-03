@@ -23,7 +23,7 @@ from defake_gate import (arbitrate_regressions, arbitration_event, compare,
                          format_roster, parse_clean,
                          read_arbitrations, read_report_fuzzy,
                          relocation_change_direction, roster_rows,
-                         summarize_arbitrations)
+                         summarize_arbitrations, verdict_row)
 
 
 def no_ops(_unit, _name):
@@ -652,6 +652,37 @@ class DataSectionTests(unittest.TestCase):
                "f": {"status": "STRUCTURAL", "real": 4}}
         names = {v[0] for v in compare(base, cur)}
         self.assertNotIn("__sections__", names)
+
+
+class AcceptedConflictRowTests(unittest.TestCase):
+    """Run-43 item 6: the row a call is about to accept said "arbitrate".
+
+    `--arbitrate` printed every CONFLICT verbatim — "...; arbitrate on
+    fuzzy ... (pass --arbitrate to accept)" — and then, two lines below,
+    "GATE OK (arbitrated: 1 CONFLICT accepted)". The row instructed the
+    reader to do what the same call had already done.
+    """
+
+    DETAIL = ("real 48 -> 65 BUT genuine structural rows FLAT; arbitrate on"
+              " fuzzy, do NOT auto-revert (pass --arbitrate to accept)")
+
+    def test_an_accepted_conflict_says_it_was_accepted(self):
+        label, detail = verdict_row("CONFLICT", self.DETAIL, accepted=True)
+        self.assertEqual(label, "ARBITRATED")
+        self.assertIn("ACCEPTED by --arbitrate", detail)
+        self.assertNotIn("pass --arbitrate to accept", detail)
+        self.assertIn("real 48 -> 65", detail)   # the evidence survives
+
+    def test_a_refused_conflict_still_says_how_to_accept(self):
+        label, detail = verdict_row("CONFLICT", self.DETAIL, accepted=False)
+        self.assertEqual(label, "CONFLICT")
+        self.assertEqual(detail, self.DETAIL)
+
+    def test_other_verdicts_are_untouched_in_both_modes(self):
+        for accepted in (True, False):
+            for verdict in ("REGRESSION", "IMPROVED", "DATA-CHANGED", "OK"):
+                self.assertEqual(verdict_row(verdict, "d", accepted),
+                                 (verdict, "d"))
 
 
 class ArbitrationLogTests(unittest.TestCase):

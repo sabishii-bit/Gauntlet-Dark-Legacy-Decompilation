@@ -2923,6 +2923,11 @@ def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
     lines = [
         "ARBITRATION (one call, both states built; no verdict computed,"
         " nothing banked, working tree restored)",
+        "  NOTE: in THIS tool --arbitrate MEASURES. `defake_gate.py"
+        " --arbitrate` is the word for ACCEPTING a CONFLICT there; the accept"
+        " word HERE is --rebase-best (defake_gate now takes that spelling"
+        " too). Same word, two meanings, in two tools one loop alternates"
+        " between — so read the ARBITER line below, then run the accept.",
         f"  BANKED  ({label})  real {base_real}  fuzzy {fz(base_fuzzy)}",
         f"  CURRENT (working)  real {cur_real}  fuzzy {fz(cur_fuzzy)}",
     ]
@@ -3841,6 +3846,12 @@ def main():
         fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=digest)
         return 0
 
+    # NOT aliased to `--arbitrate` (run-43 item 6, and this is why): in THIS
+    # tool `--arbitrate` is a MEASUREMENT — it prints the (real, fuzzy) pair
+    # for both states and banks nothing — while in defake_gate the same word
+    # is the DECISION that accepts a CONFLICT. One word, two meanings, in
+    # two tools a lane alternates between inside one loop. `--rebase-best`
+    # is this tool's accept word; defake_gate now also accepts that spelling.
     rebase_best = "--rebase-best" in sys.argv
     accept_fuzzy_loss = "--accept-fuzzy-loss" in sys.argv
     # The pre-verdict state, kept so the fuzzy gate below can re-run the

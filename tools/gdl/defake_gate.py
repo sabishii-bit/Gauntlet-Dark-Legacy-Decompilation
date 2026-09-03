@@ -38,6 +38,20 @@ Usage:
       Calibrated 2026-09-03 over 256 units / 3032 functions: 58 of 353 open
       rows flagged (16.4%) and zero closed rows.)
 
+ONE DECISION, TWO SPELLINGS (run-43 item 6). `--arbitrate` here is the
+ACCEPT: it takes a checked CONFLICT and passes the gate. probe.py's accept
+word is `--rebase-best`, and this gate now takes that spelling too, so a
+lane alternating between the two tools inside one loop cannot type the
+wrong one. WATCH THE OTHER DIRECTION: `probe.py --arbitrate` is NOT an
+accept at all — it is a MEASUREMENT that builds both states, prints their
+(real, fuzzy) pairs and banks nothing. One word, two meanings; probe's
+readout now says so in its own header, and probe does NOT alias
+`--arbitrate` to its accept.
+
+A CONFLICT this call accepts prints as `ARBITRATED`, not as `CONFLICT ...
+(pass --arbitrate to accept)` above a "GATE OK (arbitrated)" line telling
+you it was accepted. The verdict tuples are unchanged.
+
 EVERY ARBITRATION IS LOGGED. `--arbitrate` keeps, `--bank-arbitrated` row
 re-anchors, and refused CONFLICTs all append one json line to
 build/GUNE5D/gate/arbitrations.jsonl carrying the unit, the commit, the
@@ -708,6 +722,23 @@ def _fuzzy_note(was, now):
     return delta, f"fuzzy {was:.4f} -> {now:.4f} ({delta:+.4f})"
 
 
+def verdict_row(verdict, detail, accepted):
+    """(label, detail) for one printed row — run-43 item 6.
+
+    A CONFLICT the SAME call is about to accept used to print as
+    "CONFLICT ... arbitrate ... (pass --arbitrate to accept)" directly above
+    "GATE OK (arbitrated: N CONFLICT accepted)": the row instructed the
+    reader to do what they had just done. Only the printed LABEL moves —
+    the verdict tuples this function reads are untouched, so nothing that
+    parses verdicts by name is affected.
+    """
+    if accepted and verdict == "CONFLICT":
+        return ("ARBITRATED",
+                detail.split("; arbitrate")[0]
+                + "  — ACCEPTED by --arbitrate on this call")
+    return verdict, detail
+
+
 def arbitrate_regressions(verdicts, unit, baseline=None, genuine_fn=None,
                           ops_fn=None, fuzzy_fn=None, arbiter=None):
     """Downgrade real-growth REGRESSIONs to CONFLICT when the current state
@@ -1176,7 +1207,13 @@ def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     update_improved = "--update-improved" in sys.argv
     rebuild = "--rebuild" in sys.argv or "--build" in sys.argv
-    arbitrate = "--arbitrate" in sys.argv
+    # ONE DECISION, TWO SPELLINGS (run-43 item 6). probe.py spells "accept
+    # this arbitrated keep and move the anchor onto it" `--rebase-best`;
+    # this gate spells it `--arbitrate`. A lane alternates between the two
+    # tools inside one loop, so each now accepts the other's word. Neither
+    # is deprecated: `--rebase-best` names what happens to the anchor and
+    # `--arbitrate` names the decision, and both are in muscle memory.
+    arbitrate = "--arbitrate" in sys.argv or "--rebase-best" in sys.argv
     at_head = "--at-head" in sys.argv
     # `--arbiter fuzzy` and `--arbiter=fuzzy` both work; the space form has
     # to pull its value back out of the positional list.
@@ -1448,8 +1485,17 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
                                      arbiter=arbiter)
     conflicts = [v for v in verdicts if v[1] == "CONFLICT"]
     regressions = [v for v in verdicts if v[1] == "REGRESSION"]
+    # Run-43 item 6. A CONFLICT this very call is about to ACCEPT was still
+    # printed as a bare "CONFLICT ... (pass --arbitrate to accept)" above the
+    # "GATE OK (arbitrated: N CONFLICT accepted)" line — the row told the
+    # reader to do the thing they had just done. The decision is known here,
+    # so the row says which way it went. The verdict TUPLES are untouched:
+    # only the printed label changes, so nothing that parses this output by
+    # verdict name moves.
+    accepted = bool(conflicts) and not regressions and arbitrate
     for name, verdict, detail in verdicts:
-        print(f"{verdict:10} {name}  {detail}")
+        label, text = verdict_row(verdict, detail, accepted)
+        print(f"{label:10} {name}  {text}")
     data_changed = [v for v in verdicts if v[1] == "DATA-CHANGED"]
     if data_changed:
         print("NOTE: DATA-CHANGED — a non-text section moved; NO per-function"
