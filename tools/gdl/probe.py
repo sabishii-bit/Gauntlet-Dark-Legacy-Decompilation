@@ -2208,7 +2208,7 @@ def data_line(prev_data, data, source_changed=True):
     return line
 
 
-def fuzzy_anchor_note(best_fuzzy, cur_fuzzy):
+def fuzzy_anchor_note(best_fuzzy, cur_fuzzy, size=None, total_code=None):
     """What the CONFLICT verdict can say about fuzzy without a build.
 
     CONFLICT is the one verdict that ORDERS a fuzzy arbitration, and it
@@ -2230,7 +2230,8 @@ def fuzzy_anchor_note(best_fuzzy, cur_fuzzy):
     delta = cur_fuzzy - best_fuzzy
     trend = "ROSE" if delta > 0 else ("FELL" if delta < 0 else "is FLAT")
     return (f"\n[FUZZY {best_fuzzy:.4f} -> {cur_fuzzy:.4f} ({delta:+.4f})"
-            f" {trend} — both halves cached against these exact bytes, NO"
+            f" {trend}{weighted_fuzzy_clause(delta, size, total_code)}"
+            " — both halves cached against these exact bytes, NO"
             " build spent. This is the arbiter: keep with --rebase-best if"
             " it rose, revert if it fell]")
 
@@ -2527,6 +2528,25 @@ def reloc_symbol_screen(unit, fn):
         return {"status": "clean", "rows": [],
                 "compared": len(ours) // 4}
     return {"status": "rows", "rows": rows}
+
+
+def insert_after_headline(verdict, line):
+    """Put `line` on line 2 of `verdict`, under the headline it overrules.
+
+    A verdict is a HEADLINE plus trailing annotation paragraphs, and the
+    headline is where the recommendation lives (`[revert advised]`,
+    `[best updated]`). An arbiter that CONTRADICTS the headline has to sit
+    beside it: printed after the whole block it reads as one more footnote,
+    and on a REGRESSED verdict — three printed lines at c8a28c3bb — that is
+    three lines below the advice it exists to overrule.
+
+    A falsy `line` returns the verdict untouched, so every caller can pass
+    an unconditional result.
+    """
+    if not line:
+        return verdict
+    head, sep, rest = verdict.partition("\n")
+    return head + "\n" + line + sep + rest
 
 
 def format_reloc_screen(result):
@@ -3465,7 +3485,9 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                        " updated, do NOT auto-bank. Read the --ops diff and"
                        " arbitrate on fresh fuzzy (--rebase-best banks a"
                        " deliberate keep)")
-            verdict += fuzzy_anchor_note(best_fuzzy, fuzzy)
+            verdict += fuzzy_anchor_note(
+                best_fuzzy, fuzzy, state.get("fn_size"),
+                state.get("total_code"))
             if best_tokens is None:
                 verdict += ("\n[no best_multiset banked (pre-run-29 state) —"
                             " the structure comparison fell back to the"
@@ -3501,7 +3523,9 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                        f" {anchor_name} IMPROVED — structure is converging;"
                        " read the diff and arbitrate, do NOT auto-revert"
                        " (--rebase-best banks an arbitrated keep)")
-            verdict += fuzzy_anchor_note(best_fuzzy, fuzzy)
+            verdict += fuzzy_anchor_note(
+                best_fuzzy, fuzzy, state.get("fn_size"),
+                state.get("total_code"))
             verdict += baseline_clause(state, real)
             # Count distance is the one cheap predictor that agreed with
             # fuzzy in all four field arbitrations of this shape —
@@ -3676,6 +3700,87 @@ def score_function(unit, fn, fn_stripped, raw_flag=()):
     return None, None
 
 
+def function_weight(unit, fn, fn_stripped, report_path=None):
+    """(function size in bytes, project total_code) from the objdiff report.
+
+    NO BUILD. Both numbers are properties of the TARGET image, not of our
+    object, so the last report on disk answers this even when it predates
+    the current edit — and when there is no report at all the answer is
+    (None, None), never a guess.
+
+    This is the missing denominator behind run-48's NC observation. probe
+    prints a function-LOCAL fuzzy delta, and a local delta of -1.10 was
+    read as a project-level loss when the image effect was ~0.001; the only
+    way to settle it was a full ninja plus `configure.py progress`.
+
+    Measured at c8a28c3bb against build/GUNE5D/report.json: the project
+    figure is EXACTLY the size-weighted mean of every function's fuzzy over
+    total_code — sum(size * fuzzy) / sum(size) = 98.53066553650227 against
+    the report's own measures.fuzzy_match_percent 98.53067, and sum(size)
+    = 1,071,824 = measures.total_code to the byte. So the projection below
+    is arithmetic, not a model.
+    """
+    path = Path(report_path) if report_path is not None \
+        else Path(f"build/{VERSION}/report.json")
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None, None
+    try:
+        total = int(report.get("measures", {}).get("total_code", 0))
+    except (TypeError, ValueError):
+        total = 0
+    bare = re.sub(r"\.(c|cpp)$", "", unit)
+    size = None
+    for entry in report.get("units", []):
+        if not entry.get("name", "").endswith(bare):
+            continue
+        for func in entry.get("functions", []):
+            if func["name"] in (fn, fn_stripped) or \
+                    func["name"].startswith(fn + "_80"):
+                try:
+                    size = int(func.get("size", 0))
+                except (TypeError, ValueError):
+                    size = None
+    return size, (total or None)
+
+
+def project_weighted_delta(local_delta, size, total_code):
+    """A function-local fuzzy delta projected onto the project figure."""
+    if local_delta is None or not size or not total_code:
+        return None
+    return local_delta * size / total_code
+
+
+def weighted_fuzzy_clause(local_delta, size, total_code):
+    """The project-weighted twin of a function-local fuzzy delta, or "".
+
+    Two-sided calibration at c8a28c3bb over all 2,990 sized functions in
+    build/GUNE5D/report.json, asking where a 1.00-point LOCAL delta lands
+    on the project figure:
+
+      >= 0.005 (the digit `configure.py progress` prints)   10 fns (0.3%)
+      >= 0.0005 (the 4th decimal of the report figure)     469 fns (15.7%)
+      below both                                         2,521 fns
+
+    Restricted to the 246 functions that are not already 100% — the only
+    ones a probe runs on — it is 6 / 152 / 94. The median function is 164
+    bytes, so the median local number overstates its image effect by about
+    6,500x. That asymmetry is the whole point of printing both: the clause
+    is never a REFUSAL and never suppresses the local number, which remains
+    the right arbiter for the function; it only stops the local number from
+    being quoted as a project-level move.
+    """
+    weighted = project_weighted_delta(local_delta, size, total_code)
+    if weighted is None:
+        return ""
+    share = 100.0 * size / total_code
+    return (f" [= {weighted:+.4f} PROJECT-WEIGHTED: this function is"
+            f" {size:,} B of {total_code:,} ({share:.3f}% of the image) and"
+            " the project fuzzy is the size-weighted mean of every"
+            " function's fuzzy]")
+
+
 def report_fuzzy(unit, fn, fn_stripped):
     """Build the objdiff report and return this function's fuzzy, or None.
 
@@ -3702,7 +3807,7 @@ def report_fuzzy(unit, fn, fn_stripped):
 
 
 def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
-                    moved=()):
+                    moved=(), size=None, total_code=None):
     """The four-number arbitration readout, as pure text.
 
     A real/fuzzy DISAGREEMENT is the whole reason this mode exists, so the
@@ -3733,7 +3838,9 @@ def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
     if base_real is not None and cur_real is not None:
         real_delta = cur_real - base_real
         fuzzy_text = ("n/a" if base_fuzzy is None or cur_fuzzy is None
-                      else f"{cur_fuzzy - base_fuzzy:+.4f}")
+                      else f"{cur_fuzzy - base_fuzzy:+.4f}"
+                      + weighted_fuzzy_clause(cur_fuzzy - base_fuzzy,
+                                              size, total_code))
         lines.append(f"  DELTA              real {real_delta:+d} "
                      f" fuzzy {fuzzy_text}")
     if base_fuzzy is None or cur_fuzzy is None:
@@ -3934,8 +4041,10 @@ def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
               " edit — the source is restored but build/ now holds the"
               " BANKED object. Re-run a plain probe before trusting any"
               " score.")
+    size, total = function_weight(unit, fn, fn_stripped)
     print(arbitrate_table(label, banked[0], banked[2], current[0], current[2],
-                          moved=moved_sections(banked[3], current[3])))
+                          moved=moved_sections(banked[3], current[3]),
+                          size=size, total_code=total))
     return 0
 
 
@@ -3976,6 +4085,14 @@ def measure_fuzzy(unit, fn, fn_stripped, state, digest=None):
     previous = state.get("last_fuzzy")
     arrow = (f" (prev {previous:.4f})"
              if isinstance(previous, float) else "")
+    # THE PROJECT-WEIGHTED TWIN (run-49 item 1). The local delta is the
+    # arbiter for THIS function; the weighted one is the only number that
+    # can be quoted as a project move, and computing it costs no build.
+    size, total = function_weight(unit, fn, fn_stripped)
+    state["fn_size"], state["total_code"] = size, total
+    if isinstance(previous, float):
+        arrow += f" {value - previous:+.4f} local" + weighted_fuzzy_clause(
+            value - previous, size, total)
     headline = f"FUZZY (fresh report): {value:.4f}%{arrow}"
     state["last_fuzzy"] = value
     if digest is not None:
@@ -4975,7 +5092,14 @@ def main():
               " build; --no-fuzzy-gate skips it)]")
         fresh = report_fuzzy(unit, fn, fn_stripped)
         if fresh is not None:
-            print(f"FUZZY (fresh report): {fresh:.4f}%")
+            gate_size, gate_total = function_weight(unit, fn, fn_stripped)
+            state["fn_size"], state["total_code"] = gate_size, gate_total
+            prior = state_before.get("last_fuzzy")
+            move = (f" {fresh - prior:+.4f} local"
+                    + weighted_fuzzy_clause(fresh - prior, gate_size,
+                                            gate_total)
+                    if isinstance(prior, float) else "")
+            print(f"FUZZY (fresh report): {fresh:.4f}%{move}")
         else:
             print("[fuzzy gate: no number — the report build FAILED or this"
                   " function is absent from build/GUNE5D/report.json]")
@@ -5094,17 +5218,26 @@ def main():
     # read as an ordinary numeric move.
     if state.get("count_class"):
         print(state["count_class"])
-    print(verdict)
-    # THE IMMEDIATE-ROW ARBITER (run-47 item 5), directly under the verdict it
-    # qualifies. Only for a multiset-IDENTICAL residual: there the verdict is
-    # `real` alone, `real` counts differing WORDS, and the one word a wrong
-    # literal occupies is invisible beside a register recolour. Silent unless
-    # the count is nonzero now or was last time.
+    # THE IMMEDIATE-ROW ARBITER (run-47 item 5), moved INTO the verdict
+    # (run-49 item 1). Only for a multiset-IDENTICAL residual: there the
+    # verdict is `real` alone, `real` counts differing WORDS, and the one
+    # word a wrong literal occupies is invisible beside a register recolour.
+    # Silent unless the count is nonzero now or was last time.
+    #
+    # It used to print BELOW the whole verdict block, which is not "directly
+    # under the verdict" on the one verdict that most needs it. Measured at
+    # c8a28c3bb: a REGRESSED verdict is three printed lines — the
+    # `[revert advised]` headline, then `baseline_clause`'s SESSION BASELINE
+    # line, then the RE-RUN THIS NEGATIVE paragraph — so the arbiter landed
+    # on line 4, three lines under `[revert advised]`, which is what WF read
+    # on the probe that closed a literal. `insert_after_headline` puts it on
+    # line 2, immediately under the recommendation it overrules; the trailing
+    # annotations keep their order below it.
+    arbiter = None
     if multiset_tokens == 0 and real > 0:
         arbiter = immediate_arbiter_line(
             immediates, prev_immediates, real, prev_real)
-        if arbiter:
-            print(arbiter)
+    print(insert_after_headline(verdict, arbiter))
     # THE RAW WORD COUNT (run-48 item 1), directly under the verdict it
     # qualifies. On the pinned backlog it is the ONLY sound arbiter — fuzzy
     # scores the postprocessed object — and it was the one number a lane had
