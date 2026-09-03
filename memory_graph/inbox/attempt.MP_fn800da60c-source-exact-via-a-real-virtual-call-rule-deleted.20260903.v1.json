@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Carry the virtual-call construct proved on fn_800D967C to this function's own vtable dispatch, whose shipped pin (instruction_permutation + copy_register_fields) had recorded the residual as NOT source-reachable.",
+  "attributes": {
+    "law_screen": "claim.law.MP_the-mwcc-virtual-call-loads-the-vtable-into-r12-and-the-vptr-sits-after-the-class-data.20260903.v1 APPLIED (this is its second closure). claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 SCREENED: it is the law the deleted rule rested on and it remains TRUE about the postprocessor path -- what it could not see is that the transposition it was permuting is the difference between a pointer-chase expression and a virtual call, i.e. a source fact. claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 SCREENED, no longer relevant: there is no permutation stage left. claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED as for fn_800D967C.",
+    "laws_applied": "[\"claim.law.MP_the-mwcc-virtual-call-loads-the-vtable-into-r12-and-the-vptr-sits-after-the-class-data.20260903.v1\"]",
+    "probed_form": "ONE edit, first probe. Replaced the file-local pad struct and its pointer-through-vtable call:\n    typedef struct MovieCloseVTable { u8 pad[28]; void (*close)(u8*); } MovieCloseVTable;\n    ...\n    (*(MovieCloseVTable**)(self + offsetof(MovieState, decoderVtable)))->close(self + 336);\nwith the shared class's slot-5 virtual, the function moved into the cplusplus-on region as extern \"C\":\n    ((MovieCodec*)(self + 336))->close();\nThe pad struct's 28-byte pad was itself the encoded `8 + 4*5` displacement; under the class form the displacement comes from the slot index instead.",
+    "residual": "None. Compiler-exact, no rule.",
+    "scope": "src/game/movie/movieplayer.cpp and config/GUNE5D/webfrank.json (the fn_800DA60C rule, including its instruction_permutation stage, DELETED surgically), one commit a44183132.",
+    "verification": "Before: `fnasm --raw --diff` showed ours `lwz r4,368(r30)` / `addi r3,r30,336` / `lwz r12,28(r4)` against the target's `addi r3,r30,336` / `lwz r12,368(r30)` / `lwz r12,28(r12)`, real 4, 3 differing words. After: every row `=` and `wf_word_diff` = 0 differing words at 38/38. NOTE FOR THE PIN'S OWN TEXT: its mechanism note quotes the site as ending in `mtctr r12`; the retail bytes read `mtlr r12` / `blrl` at +0x58/+0x5c. Rule deleted, configure.py, forced full replay (touch webfrank.py + full ninja): 52 WEBFRANK units replayed, `build/GUNE5D/main.dol: OK`. PROGRESS STRICT 57.15% (2592) -> 57.17% (2593), EQUIVALENT 11.26% (153) -> 11.25% (152). `defake_gate.py check game/movie/movieplayer` GATE OK. Both suites green. `git diff --check HEAD` and `git diff --cached --check` exit 0."
+  },
+  "function": "function:fn_800DA60C",
+  "id": "attempt.MP_fn800da60c-source-exact-via-a-real-virtual-call-rule-deleted.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T23:01:57Z",
+  "refutes": null,
+  "residual": {
+    "capability_needed": null,
+    "family": "schedule-window",
+    "measured_at": "2026-09-03",
+    "signature": "38/38 insns, 0 differing words (was 3, plus a 2-atom transposition the pin permuted)"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

@@ -1,0 +1,26 @@
+{
+  "attempted_axis": "Execute the mandatory step-1 hypothesis of attempt.PP_fn800d967c-the-one-word-residual-is-the-mwcc-virtual-dispatch-idiom.20260903.v1 -- its named cure, a TU-shape change declaring the object as a class with a virtual at slot +12 of a vtable pointer stored at +32 and calling it as `obj->method(a, b)` -- after first spending one probe on the cheaper expression-web axis it left open.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-pinned-function-source-freeze.20260831.v1 APPLIED -- the function was pinned, so every measurement was taken on the RAW body object via `probe --raw` / `fnasm --raw` / wf_word_diff, and the close was landed together with the rule deletion in one commit. claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1 SCREENED and NOT APPLICABLE: neither differing word is a copy or a rematerialised constant, both are `lwz` register fields. claim.law.declaration-order-numbers-the-registers-assignment-order-schedules-the-loads.20260901.v1 SCREENED and NOT REACHED: the predecessor had already measured that the intermediate's colour does not follow the declaration, and this run's web-merge probe (folded away) is the second measurement of the same fact. claim.law.identical-multiset-is-blind-to-displacements.20260831.v1 SCREENED: multiset IDENTICAL here and the residual really was two register fields, so the multiset was not hiding anything -- what it WAS blind to is that a register-field-only residual can still be source-reachable, which is the new law.",
+    "laws_applied": "[\"claim.law.MP_the-mwcc-virtual-call-loads-the-vtable-into-r12-and-the-vptr-sits-after-the-class-data.20260903.v1\"]",
+    "probed_form": "AXIS 1 (NEUTRAL-IDENTICAL, discarded). One web for both loads, so the call's forced r12 would propagate back:\n    dispatch = *(void (**)(int, u32, u32))(param_1 + 32);\n    dispatch = *(void (**)(int, u32, u32))((u32)dispatch + 12);\nreplacing the single-expression\n    dispatch = *(void (**)(int, u32, u32))(*(u32*)(param_1 + 32) + 12);\nprobe verdict NEUTRAL-IDENTICAL, proof line `NEUTRAL-IDENTICAL-PROOF unit=game/movie/movieplayer fn=fn_800D967C bytes=ee4e8c4ed8fe real=4 insns=T13/O13 multiset=0t head=1370dce50`.\n\nAXIS 2 (KEPT, real 4 -> 0). A file-local class in a `#pragma cplusplus on` region plus an `extern \"C\"` definition:\n    class MovieCodec {\n    public:\n        u32 _00[8];\n        virtual void v0();\n        virtual void decode(u32 context, u32 bitmap);\n        ... placeholders through slot 5 ...\n    };\n    extern \"C\" void fn_800D967C(register int param_1, register MovieDecodeCall* param_2) {\n        register u32 arg3; register u32 arg2;\n        arg3 = param_2->bitmap;\n        arg2 = param_2->context;\n        ((MovieCodec*)param_1)->decode(arg2, arg3);\n    }\nFIRST BUILD of axis 2 declared `decode` as the FOURTH virtual and emitted `lwz r12,20(r12)` against the target's `lwz r12,12(r12)` -- both r12 words already correct, only the slot constant wrong. 8+4*slot fixed it in the second build.",
+    "residual": "None. The function is compiler-exact and carries no rule.",
+    "scope": "src/game/movie/movieplayer.cpp (the class declaration + this function) and config/GUNE5D/webfrank.json (the fn_800D967C rule DELETED by a surgical text removal, no json round-trip), one commit 4b44754f1.",
+    "verification": "defake_gate baseline game/movie/movieplayer --at-head at commit 1370dce50, source sha1 4d12c5d40, 52 functions (41 at real 0). `wf_word_diff game/movie/movieplayer fn_800D967C` = 13 insns, DIFFERING WORDS = 0 (was 2). Rule deleted, `python configure.py`, then the forced full replay (touch tools/gdl/webfrank.py + full `ninja -j2`): 52 WEBFRANK units replayed, `build/GUNE5D/main.dol: OK`. PROGRESS moved STRICT 57.15% (2591 fns) -> 57.15% (2592 fns) and EQUIVALENT 11.27% (154) -> 11.26% (153): the promotion, exactly one function crossing from the postprocessor tier to compiler-exact. `defake_gate.py check game/movie/movieplayer` GATE OK. `python -m unittest discover tools/gdl/tests -b` OK (1779 tests); `python -m memory_graph.test_graph --changed -b` OK (426 tests). `git diff --check HEAD` and `git diff --cached --check` both exit 0."
+  },
+  "function": "function:fn_800D967C",
+  "id": "attempt.MP_fn800d967c-source-exact-via-a-real-virtual-call-rule-deleted.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T23:01:56Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "13/13 insns, 0 differing words (was 2: target `lwz r12,32(r3)` + `lwz r12,12(r12)`, ours `lwz r6,32(r3)` + `lwz r12,12(r6)`)"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.PP_fn800d967c-the-one-word-residual-is-the-mwcc-virtual-dispatch-idiom.20260903.v1",
+  "valid_from": "2026-09-03"
+}
