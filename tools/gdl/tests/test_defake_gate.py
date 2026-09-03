@@ -495,6 +495,54 @@ class RosterModeTests(unittest.TestCase):
         out = format_roster("game/x/y", rows, has_baseline=True)
         self.assertNotIn("None/None", out)
 
+    # --- run-42 item 7: the SLOT column -------------------------------
+    # Both of run-41 CL's slot wins on game/mb/mb_camera were visible in
+    # probe's BASELINE banner ("frame size target 40 vs ours 48; slots
+    # differ (4t/4o exclusive)") before any source was read, and the roster
+    # carried nothing about it — so a lane ranking a TU on `real` pointed a
+    # frame residual at the metric that fights it
+    # (claim.law.real-can-underweight-a-large-alignment-gain-so-arbitrate-
+    # conflicts-on-fuzzy.20260831.v1).
+    #
+    # CALIBRATED over every unit with both objects on disk: 256 units,
+    # 3032 functions, 353 open rows (real > 0, unpinned). The column flags
+    # 58 of them — 16.4% — as 17 save-set deltas, 15 frame deltas and 26
+    # exclusive-slot-only rows, and flags ZERO of the closed rows, so it
+    # cannot manufacture noise on finished work.
+
+    def test_the_slot_verdict_reaches_the_row_and_the_table(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN), set(),
+                           slots={"CritterDamage": "frame 40/48,4T/4O"})
+        self.assertEqual("frame 40/48,4T/4O",
+                         {r[0]: r for r in rows}["CritterDamage"][10])
+        out = format_roster("game/enemy/critter", rows, has_baseline=True)
+        self.assertIn("frame 40/48,4T/4O", out)
+        self.assertIn("SLOT", out)
+
+    def test_a_row_with_no_slot_signal_reads_as_a_dash(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN), set())
+        self.assertEqual("-", {r[0]: r for r in rows}["CritterDamage"][10])
+
+    def test_the_footer_fires_only_on_OPEN_slot_rows(self):
+        """A closed row's slot shape is not open work, and the column must
+        not promise any."""
+        closed = roster_rows(self.snap(), parse_clean(self.CLEAN), set(),
+                             slots={"ProcessCritter": "frame 40/48"})
+        self.assertNotIn("SLOT COLUMN:",
+                         format_roster("u", closed, has_baseline=True))
+        opened = roster_rows(self.snap(), parse_clean(self.CLEAN), set(),
+                             slots={"CritterDamage": "frame 40/48"})
+        out = format_roster("u", opened, has_baseline=True)
+        self.assertIn("SLOT COLUMN: 1 open row(s)", out)
+        self.assertIn("NOT ON `real`", out)
+
+    def test_a_pinned_slot_row_does_not_count_as_open_work(self):
+        rows = roster_rows(self.snap(), parse_clean(self.CLEAN),
+                           {"CritterDamage"},
+                           slots={"CritterDamage": "frame 40/48"})
+        self.assertNotIn("SLOT COLUMN:",
+                         format_roster("u", rows, has_baseline=True))
+
 
 class BaselineFormatTests(unittest.TestCase):
     def test_reads_the_pre_run29_bare_dict(self):

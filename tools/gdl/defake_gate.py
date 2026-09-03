@@ -25,13 +25,18 @@ Usage:
   python tools/gdl/defake_gate.py roster game/enemy/critter [--rebuild]
       (the whole per-function sweep in ONE call: status, insn counts,
       `real` with its delta against the gate baseline, genuine structural
-      rows, fndiff --clean's verdict, fuzzy, and which rows are
-      WebFrank-PINNED. Every one of those numbers was already computed
+      rows, fndiff --clean's verdict, fuzzy, the SLOT shape, and which rows
+      are WebFrank-PINNED. Every one of those numbers was already computed
       here to take a baseline and reachable no other way, so a lane
       wanting the per-function view ran fndiff once per function instead
       — 15 subprocess calls for one mandated sweep. Rows sort by `real`
       descending with pinned rows last, because a pinned function reads
-      real 0 by construction and is not open work.)
+      real 0 by construction and is not open work. The SLOT column names a
+      save-set, frame-size or exclusive-slot delta and costs two object
+      parses for the WHOLE unit; `real` actively FIGHTS those rows, so they
+      are arbitrated on `slotdiff.py`, not on the roster's own ranking.
+      Calibrated 2026-09-03 over 256 units / 3032 functions: 58 of 353 open
+      rows flagged (16.4%) and zero closed rows.)
 
 EVERY ARBITRATION IS LOGGED. `--arbitrate` keeps, `--bank-arbitrated` row
 re-anchors, and refused CONFLICTs all append one json line to
@@ -120,6 +125,7 @@ FNDIFF = Path(__file__).resolve().parent / "fndiff.py"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import fndiff  # noqa: E402  (raw_signature: the byte-identity backstop)
 import regnorm  # noqa: E402  (genuine structural rows: the CONFLICT arbiter)
+import slotdiff  # noqa: E402  (the roster's SLOT column: frame/slot shape)
 
 COUNT_RE = re.compile(
     r"^DIFF\s+(\S+)\s+insns\s+(\d+)/(\d+)\s+lines\s+(\d+)\s+real\s+(\d+)\s*$"
@@ -954,15 +960,66 @@ def webfrank_pins(unit):
             if rule.get("function")}
 
 
-def roster_rows(snap, clean, pins, baseline=None):
+def slot_column(unit):
+    """{function: short slot verdict} for a whole TU, in two object parses.
+
+    Run-42 item 7. Both of CL's slot wins on game/mb/mb_camera were visible
+    in probe's BASELINE banner before any source was read — "frame size
+    target 40 vs ours 48; slots differ (4t/4o exclusive)" — but nothing in
+    the ROSTER carried it, so a lane sweeping a TU could not see which rows
+    were frame-shaped without probing each one. `real` is the wrong arbiter
+    for exactly those rows
+    (claim.law.real-can-underweight-a-large-alignment-gain-so-arbitrate-
+    conflicts-on-fuzzy.20260831.v1), so a roster ranked on `real` alone
+    points a frame residual at the metric that fights it.
+
+    Costs two `fndiff.parse` calls for the WHOLE unit — the same two the
+    roster's other columns already pay for — where the alternative is one
+    `slotdiff.py` subprocess per function.
+
+    The verdict is deliberately SHORT and ranked most-decisive first: a
+    save-set delta is an unallocated callee-saved register rather than a
+    local slot, and a worker mis-modelled a session by reading it as one.
+    """
+    try:
+        target = fndiff.parse(Path(f"build/{VERSION}/obj/{unit}.o"))
+        ours = fndiff.parse(Path(f"build/{VERSION}/src/{unit}.o"))
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for name, our_lines in ours.items():
+        target_lines = target.get(name)
+        if target_lines is None:
+            continue
+        t_slots, o_slots = (slotdiff.slot_map(target_lines),
+                            slotdiff.slot_map(our_lines))
+        t_save, o_save = (slotdiff.save_set(target_lines),
+                          slotdiff.save_set(our_lines))
+        t_frame, o_frame = (fndiff.frame_size(target_lines),
+                            fndiff.frame_size(our_lines))
+        parts = []
+        if t_save != o_save:
+            parts.append(f"save {t_save}/{o_save}")
+        if t_frame != o_frame:
+            parts.append(f"frame {t_frame}/{o_frame}")
+        exclusive_t = len(set(t_slots) - set(o_slots))
+        exclusive_o = len(set(o_slots) - set(t_slots))
+        if exclusive_t or exclusive_o:
+            parts.append(f"{exclusive_t}T/{exclusive_o}O")
+        out[name] = ",".join(parts) if parts else "-"
+    return out
+
+
+def roster_rows(snap, clean, pins, baseline=None, slots=None):
     """Sorted roster rows: (name, status, insns, real, genuine, clean,
-    clean_real, fuzzy, pinned, delta).
+    clean_real, fuzzy, pinned, delta, slot).
 
     Ordered by the work each row represents — `real` descending, then
     name — so the roster reads as a queue. Pinned rows sort last whatever
     their score, because their real is not a measurement of open work.
     """
     baseline = baseline or {}
+    slots = slots or {}
     rows = []
     for name, entry in snap.items():
         if name == "__sections__":
@@ -979,14 +1036,16 @@ def roster_rows(snap, clean, pins, baseline=None):
         insns = "-" if ti is None and bi is None else f"{ti}/{bi}"
         rows.append((name, entry.get("status"), insns,
                      real, entry.get("genuine"), clean_status, clean_real,
-                     entry.get("fuzzy"), pinned, delta))
+                     entry.get("fuzzy"), pinned, delta,
+                     slots.get(name, "-")))
     rows.sort(key=lambda row: (row[8], -(row[3] or 0), row[0]))
     return rows
 
 
 def format_roster(unit, rows, has_baseline):
     lines = [f"ROSTER {unit}: {len(rows)} function(s)"
-             f"  [real | genuine structural rows | fndiff --clean | fuzzy]"]
+             f"  [real | genuine structural rows | fndiff --clean | fuzzy"
+             f" | SLOT]"]
     open_rows = [r for r in rows if (r[3] or 0) > 0 and not r[8]]
     exact = sum(1 for r in rows if r[3] == 0 and not r[8])
     pinned = sum(1 for r in rows if r[8])
@@ -994,10 +1053,10 @@ def format_roster(unit, rows, has_baseline):
                  f" {pinned} WebFrank-PINNED (real 0 by construction —"
                  " not open work)")
     header = (f"  {'FUNCTION':<38} {'STATUS':<18} {'INSNS':>9} {'REAL':>6}"
-              f" {'GEN':>5} {'FUZZY':>8}  CLEAN")
+              f" {'GEN':>5} {'FUZZY':>8} {'SLOT':<22}  CLEAN")
     lines.append(header)
     for (name, status, insns, real, genuine, clean_status, clean_real,
-         fuzzy, pinned, delta) in rows:
+         fuzzy, pinned, delta, slot) in rows:
         mark = " [PINNED]" if pinned else ""
         show_real = "-" if real is None else str(real)
         if delta:
@@ -1006,9 +1065,24 @@ def format_roster(unit, rows, has_baseline):
             f"  {name:<38.38} {str(status):<18.18} {insns:>9}"
             f" {show_real:>6} {('-' if genuine is None else genuine):>5}"
             f" {('-' if fuzzy is None else f'{fuzzy:.2f}'):>8}"
-            f"  {clean_status}"
+            f" {slot:<22.22}  {clean_status}"
             + (f" [{clean_real}]" if clean_real not in (None, real) else "")
             + mark)
+    slot_rows = [r for r in rows
+                 if r[10] not in ("-", "") and (r[3] or 0) > 0 and not r[8]]
+    if slot_rows:
+        lines.append(
+            f"  SLOT COLUMN: {len(slot_rows)} open row(s) carry a frame,"
+            " save-set or exclusive-slot delta —"
+            " `save tgt/ours` is an unallocated CALLEE-SAVED register (not a"
+            " local slot), `frame tgt/ours` the frame size, `NT/MO` the"
+            " exclusive slots each side holds. ARBITRATE THESE ON THE SLOT"
+            " MAP (`slotdiff.py <unit> <fn>`), NOT ON `real`, which actively"
+            " fights frame work"
+            " (claim.law.real-can-underweight-a-large-alignment-gain-so-"
+            "arbitrate-conflicts-on-fuzzy.20260831.v1). Both of run-41 CL's"
+            " slot wins were visible in this data before any source was"
+            " read, and the roster did not carry it.")
     if not has_baseline:
         lines.append("  (no gate baseline for this unit, so no REAL delta is"
                      " shown — take one with `defake_gate.py baseline"
@@ -1244,7 +1318,8 @@ def run_roster(unit, rebuild, arbiter=None):
     path = gate_path(unit)
     if path.exists():
         baseline, _meta = load_baseline(path)
-    rows = roster_rows(snap, clean, webfrank_pins(unit), baseline)
+    rows = roster_rows(snap, clean, webfrank_pins(unit), baseline,
+                       slot_column(unit))
     print(format_roster(unit, rows, bool(baseline)))
     print(f"  {fuzzy_note}")
     return 0
