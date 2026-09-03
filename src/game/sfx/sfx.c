@@ -1660,7 +1660,6 @@ s32 StartExplosion(u8* en, s32 type, f32 dmg)
     s32 t;
     s32 i;
     f32 v[3];
-    u8 _spare[8];
 
     t = type;
     if (type == 29) {
