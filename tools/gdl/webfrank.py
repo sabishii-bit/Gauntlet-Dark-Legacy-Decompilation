@@ -932,21 +932,44 @@ def _value_equality_transfer(
     if pair is None and compare_field is not None:
         pair = (16, 11)
     remap: dict[int, int] = {}
+    # THE RA|0 FLAG IS A PROPERTY OF THE FIELD, NOT OF THE POSITION A VALUE
+    # LANDS IN.  Both tests below were keyed on position and refused a
+    # provable commutation for it; each is now keyed on the field that
+    # carries the encoding rule.  See
+    # claim.WC_commutative-exchange-zero-field-precision-proposal.20260903.v1.
+    remap_zero_none: dict[int, bool] = {}
     if pair is not None and all(shift in fields for shift in pair):
         first, second = pair
         bank, _, zero_1, cur_1, tgt_1 = fields[first]
         _, _, zero_2, cur_2, tgt_2 = fields[second]
-        zero_involved = (zero_1 or zero_2) and 0 in (cur_1, cur_2, tgt_1, tgt_2)
+        # The hazard a commutation must not cross is a field whose OWN
+        # encoding gives 0 the "no base register" meaning holding 0 on one
+        # side and a register on the other: `lwzx rD,0,rB` computes rB while
+        # `lwzx rD,rA,0` computes rA + GPR0, so the two are not exchangeable.
+        # A 0 sitting in a field with no such meaning -- canonically the RB
+        # slot of an indexed form -- is an ordinary GPR and blocks nothing.
+        # The old form ORed the flags and then looked for a 0 in ANY of the
+        # four values, so a plain GPR0 in an unflagged field vetoed the
+        # exchange.
+        zero_involved = ((zero_1 and 0 in (cur_1, tgt_1))
+                         or (zero_2 and 0 in (cur_2, tgt_2)))
         straight = ((bank, cur_1, tgt_1) in relation
                     and (bank, cur_2, tgt_2) in relation)
         if not straight and not zero_involved \
                 and (bank, cur_1, tgt_2) in relation \
                 and (bank, cur_2, tgt_1) in relation:
             remap = {first: tgt_2, second: tgt_1}
+            # The expected value for `first` now comes from the target's
+            # `second` field, so the flag that governs it is `second`'s.
+            # Applying the DESTINATION's flag instead read an expected value
+            # that arrived from an RB slot as "the target has no base
+            # register here" and refused the crossing it had just licensed.
+            remap_zero_none = {first: zero_2, second: zero_1}
             if compare_field is not None:
                 exchanges.add((index, bank, cur_1, cur_2, tgt_1, tgt_2))
     for shift, (bank, role, zero_none, cur_r, tgt_r) in fields.items():
         expected = remap.get(shift, tgt_r)
+        zero_none = remap_zero_none.get(shift, zero_none)
         if zero_none and (cur_r == 0 or expected == 0):
             if cur_r != expected:
                 raise ValueError(

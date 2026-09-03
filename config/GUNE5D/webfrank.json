@@ -1712,12 +1712,16 @@
         "function": "fn_800C72DC",
         "before_sha256": "3d06a9b3e531df4c687d5f90c5410a38844f5e4db2b31e60c5de817b7281ae83",
         "after_sha256": "a34e228c3eb6798dfe379acf0b2184927936bf8a7c551f50cd3a4cf377d3da44",
-        "unproven_recolor_audit": "Induction-web routing residual: raw and retail route the loop index through different intermediate homes and swapped lwzx address roles (+0x90-0x9c); byte-equal to retail and individually reviewed 2026-08-24.",
+        "mechanism": "PIN RETIREMENT, run 45: this rule rested on \"unproven_recolor_audit\" (a human review note dated 2026-08-24) from 2026-08-24 to 2026-09-03 and is now MACHINE-PROVEN with zero declared escapes. 65/65 instructions, 18 differing words, every one register-field-only at its own position; no permutation window exists and no form edit is needed. The residual is the induction web the old audit note described: raw and retail route the loop index through different intermediate homes and give the +0x9c `lwzx` swapped address roles. That crossing is a COMMUTATIVE OPERAND EXCHANGE and the relation licenses it: target `+0x9c lwzx r7,r28,r0` against ours `+0x9c lwzx r7,r7,r30`, where our r7 corresponds to the target's r0 (both defined one word earlier by ours `+0x90 addi r7,r6,4` against target `+0x90 addi r0,r4,4`) and our r30 corresponds to the target's r28 (one loop counter, zeroed by ours `+0x24 li r30,0` against target `+0x24 li r28,0` and stepped by ours `+0xc4 addi r30,r30,16` against target `+0xc4 addi r28,r28,16`). Until run 45 two tests inside the exchange path were keyed on operand POSITION where the RA|0 encoding rule they implement is keyed on the FIELD, and refused the crossing at `+0x9c: use of g7 is not value-equal to g28` because a plain GPR0 sat in the target's RB slot; both are now field-keyed and the proof runs with the relation NARROW (no constant-equality closure), declaring 0 substitutions and 0 comparison exchanges. Provenance: attempt.WC_fn800c72dc-the-refusal-measures-the-guard-and-a-field-keyed-zero-test-retires-it.20260903.v1 (the instrumented refusal), claim.WC_commutative-exchange-zero-field-precision-proposal.20260903.v1 (the class-adjacent precision proposal) and its image-wide demand census over 2845 paired functions, in which this is the ONLY payoff row and 0 of 89 already-proved rows moved.",
         "audit": {
           "classification": "REGISTER_ONLY",
           "instructions": 65
         },
-        "copy_register_fields": true
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "substitutions": [],
+          "compare_exchanges": []
+        }
       },
       {
         "function": "pbInitTlutRegions",
