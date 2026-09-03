@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/savedregs.py (is_ambiguous, contenders, unresolved_note)",
+    "tools/gdl/tests/test_t18_savedregs_unresolved.py",
+    "attempt.T18_tool-queue-18-nine-items-one-discriminant-refuted-by-its-own-corpus.20260903.v1"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A row `savedregs --per-web` reports UNRESOLVED whose true mapping is nevertheless derivable from the two streams alone, without reading the aligned view -- i.e. a decision procedure that separates two candidates tied at the same aligned distance in different registers. Producing one would show the refusal is over-cautious. Conversely, a distance-0 candidate that is measurably the WRONG range (check with `fnasm <unit> <fn> 0xA:0xB --diff`) would show distance 0 is not decisive and the shipped rule is too permissive.",
+  "id": "claim.law.T18_a-role-paired-live-range-must-not-be-tie-broken-by-proximity-and-distance-zero-is-the-only-decider.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T20:42:30Z",
+  "schema_version": 1,
+  "subject": "tool:savedregs",
+  "valid_from": "2026-09-03",
+  "value": "A LIVE-RANGE PAIRING MADE ON A ROLE STRING MUST NOT BE TIE-BROKEN BY PROXIMITY: WHERE NOTHING SITS AT THE ALIGNED POSITION AND THE CANDIDATES DISAGREE ABOUT THE REGISTER, THE ANSWER IS UNRESOLVED, NOT THE NEAREST ONE.\n\nA role is a short string. `li 0` is the role of every zero-initialisation in a function, so pairing two streams' definitions by role leaves several candidates, and returning the nearest one AS A REGISTER MAPPING publishes a coin-flip in the vocabulary of a measurement. MEASURED on game/anim/action::DoPlayerAction: the target's `@0x88 li r19,0` has exactly two role-matching candidates, r24 and r18, and BOTH sit 24 aligned rows away.\n\nDISTANCE 0 IS THE DISCRIMINANT, AND IT WAS CHOSEN FROM THREE MEASURED CANDIDATES RATHER THAN REASONED TO. Distance 0 means the two definitions occupy the SAME position in the opcode-sequence alignment -- the alignment's own answer, not a ranking. Swept over every live-range row in the tree (17,688 rows, 2,998 function pairs):\n  A  refuse only an exact tie at the minimum   3 rows /   3 fns (0.02%)\n  B  a UNIQUE candidate at distance 0 decides 98 rows /  52 fns (0.55%)  SHIPPED\n  C  refuse any in-window disagreement       389 rows / 115 fns (2.20%)\nUnder B the census moves PERMUTED 1365->1327, ESCAPED 228->195, INTRUDER 158->134.\n\nTHE NEGATIVE SIDE KILLED C, AND IT IS THE HALF THAT MATTERED. C turns all four of the rows claim.law.T12_pairing-callee-saved-definitions-by-ordinal-within-a-register-fails-exactly-when-a-lifetime-moves.20260903.v1 names in its EXPIRY CHECK (`--per-web` must keep naming r21->r19 x2 and r19->r12 x2) into refusals, and `fnasm game/movie/movieplayer fn_800D8BCC 0x1c0:0x260 --diff` shows every one of them is CORRECT: target `1c4 li r21,0` against our `1c4 li r19,0`, and the whole r21 range at `22c rlwinm`, `23c addi`, `240 cmpw` against our r19 range at the same offsets. Each has a UNIQUE candidate at distance 0 with its alternatives 4, 1, 22 and 1 rows further out. A refusal rule that discards distance-0 evidence refuses MEASUREMENTS, which is the opposite failure to the one it is built for. A is too narrow: an exact numeric tie is an accident, and 95 pure-proximity mappings survive it.\n\nTHE GENERAL FORM: a tool that pairs on a lossy key must report the tie rather than break it, and the SPLIT between 'decidable' and 'guessed' has to be measured against a corpus that already contains verified answers -- otherwise the guard is calibrated only on the cases it should catch, and the ones it should not are exactly where it does damage."
+}
