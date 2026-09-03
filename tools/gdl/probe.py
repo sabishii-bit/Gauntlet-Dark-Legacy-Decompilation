@@ -149,7 +149,33 @@ docstring omitted it — the flags below all work):
                      like a verdict line and exited 0, and was read as a score
                      of the banked state twice.
   --no-bank          score without banking (diagnostic probes)
-  --raw              score the pre-webfrank compiler output (pinned TUs)
+  --raw              score the pre-webfrank compiler output (pinned TUs).
+                     THE PINNED BACKLOG'S WHOLE LOOP IS THIS ONE FLAG
+                     (run-48 item 1): the verdict now carries the RAW
+                     DIFFERING-WORD count — the number AGENTS.md makes
+                     mandatory for a residual-signature claim and the one
+                     that decides postprocessor candidacy — measured
+                     IN-PROCESS on the object --raw just built, with the
+                     delta against the last probe and the RECOLOR /
+                     SCHEDULE-REORDER class, plus the `fnasm --raw` command
+                     for the aligned view. It was the second half of every
+                     promotion A/B and had to be fetched by a hand-paired
+                     `wf_word_diff.py` call.
+                     AND ON A PINNED FUNCTION THAT COUNT IS THE BANK GATE.
+                     objdiff fuzzy comes from a report built over the
+                     POSTPROCESSED object, so on a pinned function it reads
+                     100.0000% on a clean tree however large the raw
+                     residual is, and NOTHING at all once an edit moves the
+                     body hash and the WEBFRANK stage aborts the report
+                     build — both reproduced at c3f3aea99 on
+                     game/ui/btext::DrawGlowText (`FUZZY (fresh report):
+                     100.0000%` beside `BASELINE real 16` and 8 raw words;
+                     then `no number — the report build FAILED`), and the
+                     loop banked on both. RAW-WORDS-REGRESSED refuses a bank
+                     whose raw residual GREW while `real` and the multiset
+                     improved; --rebase-best --accept-fuzzy-loss banks it
+                     deliberately as REBASED-RAW-WORD-LOSS. An UNPINNED
+                     function keeps the fuzzy gate, which is sound there.
   --rederive-pin     one call: build the raw body object, run
                      wf_rederive_pin --apply (guarded: aborts if a BODY hash
                      moved), configure.py, and rebuild the object to confirm
@@ -1077,6 +1103,194 @@ def raw_object_target(unit):
     except Exception:
         pass
     return fallback
+
+
+def _wf_word_diff_module():
+    """The wf_word_diff module, or None. Fail-soft, like every other
+    composed_census import here: a checkout where the census stack cannot
+    import must still run the ordinary loop."""
+    try:
+        for path in (str(TOOLS), str(TOOLS / "composed_census")):
+            if path not in sys.path:
+                sys.path.insert(0, path)
+        import wf_word_diff
+        return wf_word_diff
+    except Exception:
+        return None
+
+
+def raw_word_residual(unit, fn):
+    """(words, insns, mnemonic_divergence, pinned) for the RAW body, or None.
+
+    Run-48 item 1. The differing-WORD count is the number AGENTS.md makes
+    mandatory for any residual-signature claim and the one that decides
+    postprocessor candidacy — and it was the one number this loop never
+    printed, so every promotion A/B on the 155-function pinned backlog was
+    hand-paired: `probe --raw` for `real`, then a second call to
+    `wf_word_diff.py` for the count that actually arbitrates.
+
+    Computed IN-PROCESS from the object `--raw` has already built (the
+    IMPORTABLE-CORE convention), so it costs no build and no subprocess.
+    Returns None whenever the measurement could not be taken — a
+    count-asymmetric function raises SystemExit inside word_streams, and a
+    function outside every postprocessor class by construction has no word
+    residual to report.
+    """
+    module = _wf_word_diff_module()
+    if module is None:
+        return None
+    try:
+        # wf_word_diff resolves the raw object itself (cn_analyze.our_object,
+        # which knows only the `body` stage) while `--raw` builds whatever
+        # fnasm.raw_obj_path names (`frank` first, then `body`). No `frank`
+        # stage is configured in this tree, so the two agree today — but a
+        # number measured on a DIFFERENT object than the verdict is exactly
+        # the defect this item is fixing, so it is checked rather than
+        # assumed.
+        from cn_analyze import our_object as _our_object
+        measured_at = Path(_our_object(unit)[0]).resolve()
+        if measured_at != Path(raw_object_target(unit)).resolve():
+            return None
+        _kind, insns, rows, mnemonic = module.word_diff(unit, fn)
+        pinned = fn in module.rule_served_functions(unit, module.ROOT)
+    except Exception:
+        return None
+    return len(rows), insns, mnemonic, pinned
+
+
+def raw_words_line(words, prev_words, insns, mnemonic, pinned):
+    """The RAW-WORD line printed under a `--raw` verdict, or "".
+
+    Pure over the measurement so both the delta arithmetic and the class
+    call are tested without an object. `prev_words` is the count the last
+    probe banked; None means this is the first raw probe of the function.
+    """
+    if words is None:
+        return ("[RAW WORDS: not measurable — the two streams are"
+                " count-asymmetric, or the raw body could not be read. A"
+                " count-asymmetric function is outside every postprocessor"
+                " class by construction, so there is no word residual to"
+                " arbitrate on.]")
+    delta = ("" if prev_words is None
+             else f" ({words - prev_words:+d} vs the last probe's"
+                  f" {prev_words})")
+    klass = ("RECOLOR — index-aligned, only register fields differ"
+             if mnemonic == 0 else
+             f"SCHEDULE-REORDER — {mnemonic} mnemonic divergence(s), the"
+             " streams are NOT index-aligned")
+    return (f"RAW WORDS = {words}{delta} of {insns} insns; CLASS: {klass}."
+            f" This is the count that decides postprocessor candidacy"
+            " (AGENTS.md: any brief inheriting a residual signature quotes"
+            " the raw differing-word count), and `real` is not a substitute"
+            " for it — `real` counts diff LINES over both streams."
+            + ("\n  PINNED: a webfrank rule already closes this residual;"
+               " the count above is what the rule discharges, not open work."
+               if pinned else ""))
+
+
+def raw_gate_applies(raw, pinned):
+    """Is objdiff fuzzy a MANUFACTURED number for this probe? (run-48 item 1)
+
+    Fuzzy comes from `build/GUNE5D/report.json`, which is generated from the
+    POSTPROCESSED object — the one whose WEBFRANK edge hash-asserts every
+    pin. So on a PINNED function the fuzzy gate has exactly two states and
+    neither is a measurement of the bytes `--raw` just scored:
+
+      clean tree   the rule replays, the postprocessed body IS the target,
+                   and fuzzy reads 100.0000% however large the raw residual
+                   is. Reproduced at c3f3aea99 on game/ui/btext::DrawGlowText:
+                   `probe --raw` printed `FUZZY (fresh report): 100.0000%`
+                   beside `BASELINE real 16` and 8 differing raw words, and
+                   banked that 100 as the fuzzy ANCHOR.
+      edited tree  the body hash moved, the WEBFRANK stage aborts, the report
+                   build fails, and the gate prints "no number — the report
+                   build FAILED". Reproduced on the same function with
+                   `u8 unused[8]` -> `[16]`.
+
+    A gate that reads 100 when it passes and nothing when it does not is not
+    an arbiter, and both halves were banked as if they were one. The RAW-WORD
+    count is computed over the same object the verdict is, so it arbitrates
+    what fuzzy cannot reach.
+
+    NOT gated on `--raw` alone. For an UNPINNED function the postprocessed
+    and raw bodies are the same bytes, so fuzzy is a sound arbiter and keeps
+    its gate. CALIBRATED TWO-SIDED at c3f3aea99 over config/GUNE5D/
+    webfrank.json and build/GUNE5D/report.json:
+      POSITIVES  153 pinned functions in 52 units (155 rule rows —
+                 game/world/btricol::LineLineDist and game/ui/message::
+                 msgDraw each carry two rules) take the raw gate.
+      NEGATIVES  2,837 functions keep the fuzzy gate, and 1,442 of them
+                 live INSIDE those same 52 pinned units. That 1,442 is the
+                 population a `--raw`-only trigger would have misrouted —
+                 they are exactly the functions a lane probes with --raw
+                 while working a pinned TU, and fuzzy is sound for every
+                 one of them. The remaining 1,395 sit in units with no pin
+                 at all.
+    """
+    return bool(raw and pinned)
+
+
+RAW_GATE_UNMEASURED = (
+    "RAW-WORD GATE UNMEASURED: this function is webfrank-pinned, so objdiff"
+    " fuzzy describes the POSTPROCESSED object and cannot arbitrate the raw"
+    " bytes just scored — and the raw word count could not be measured"
+    " either (count-asymmetric, or the raw body could not be read). The best"
+    " is banked with NO arbiter at all; say so in the record.")
+
+
+def apply_raw_word_gate(verdict, state, prior_best, words, prior_best_words,
+                        rebase_best=False, accept_loss=False):
+    """Refuse a bank whose RAW word count rose. (run-48 item 1)
+
+    The same shape as the fuzzy gate, over the number that is actually
+    measurable on a pinned function. `real` counts diff LINES and the opcode
+    multiset is blind to register fields, so both can improve while the raw
+    residual a rule would have to discharge GREW — which is the promotion
+    question this loop exists to answer.
+
+    Pure over the two counts so every branch is decided without a build.
+    """
+    if not banks_best(verdict):
+        return verdict, state
+    if words is None:
+        if prior_best_words is None:
+            return verdict, state
+        return verdict + "\n" + RAW_GATE_UNMEASURED, state
+    if prior_best_words is None or words <= prior_best_words:
+        return verdict, state
+    head = verdict.split("\n", 1)[0]
+    if rebase_best and accept_loss:
+        # The keep proceeds, with the loss IN THE HEADLINE — the same
+        # escape the fuzzy gate offers, spelled the same way, so a record
+        # quoting this verdict cannot omit the regression it was banked on.
+        return (
+            f"REBASED-RAW-WORD-LOSS  best banked at a RAW WORD REGRESSION:"
+            f" {prior_best_words} -> {words}"
+            f" (+{words - prior_best_words}) — ACKNOWLEDGED via"
+            " --accept-fuzzy-loss. Every later probe on this pinned function"
+            " is now anchored on a state whose raw residual is LARGER; say so"
+            " in the record."
+            f"\n[instruction-stream verdict: {head}]"), state
+    state = dict(state)
+    for key, value in prior_best.items():
+        if value is None:
+            state.pop(key, None)
+        else:
+            state[key] = value
+    return (
+        f"RAW-WORDS-REGRESSED  raw differing words {prior_best_words} ->"
+        f" {words} (+{words - prior_best_words}) — best NOT updated and"
+        " NOTHING banked, even though the instruction-stream verdict"
+        " improved. This function is webfrank-pinned, so objdiff fuzzy"
+        " scores the POSTPROCESSED object and is not an arbiter here; the"
+        " raw word count is the obligation a rule must discharge, and it"
+        " GREW. REVERT, or bank the keep deliberately with --rebase-best"
+        " --accept-fuzzy-loss."
+        + ("\n[--rebase-best declared this keep ARBITRATED; the raw word"
+           " count is the arbitration on a pinned function, and it"
+           " rejected the state.]" if rebase_best else "")
+        + f"\n[instruction-stream verdict, SUPERSEDED by the gate: {head}]"
+    ), state
 
 
 def rebuild_after_restore(unit, why):
@@ -4412,12 +4626,27 @@ def main():
               " in the built object")
         return 1
 
+    # THE RAW WORD COUNT, measured on the object `--raw` just built (run-48
+    # item 1). It is the number that decides postprocessor candidacy and the
+    # only arbiter available on a pinned function, and the loop never printed
+    # it — so every promotion A/B across the 155-function pinned backlog was
+    # `probe --raw` followed by a hand-paired `wf_word_diff.py` call.
+    raw_words = raw_insns = raw_mnemonic = None
+    raw_pinned = False
+    if raw:
+        measured = raw_word_residual(unit, fn_stripped)
+        if measured is not None:
+            raw_words, raw_insns, raw_mnemonic, raw_pinned = measured
+
     if "--stateless" in sys.argv:
         # Sweep mode: no state read, no banking, no verdict-vs-best —
         # the sticky per-function best made exhaustive-search output
         # chain nonsensically (`REGRESSED vs best 32: real 64 -> 157`).
         print(f"STATELESS real {real} (insns {insns}) — nothing banked"
               " or compared; pair with git for reverts")
+        if raw:
+            print(raw_words_line(raw_words, None, raw_insns, raw_mnemonic,
+                                 raw_pinned))
         return 0
 
     # The opcode-multiset token count is the STRUCTURE metric: `real` is a
@@ -4596,7 +4825,30 @@ def main():
     # banked at fuzzy 96.8433 against a 97.2692 baseline, with no fuzzy
     # measured at all, and the two probes after it read as REGRESSED. A
     # flag that declares an arbitration is not an arbitration.
-    if (banks_best(verdict) and cached_fuzzy is None
+    #
+    # ON A PINNED FUNCTION THE RAW-WORD GATE REPLACES IT (run-48 item 1).
+    # objdiff fuzzy is read from a report generated over the POSTPROCESSED
+    # object, so on a webfrank-pinned function it reads 100.0000% on a clean
+    # tree however large the raw residual is, and NOTHING at all once the
+    # edit moves the body hash and the WEBFRANK stage aborts the report
+    # build. Both halves were reproduced at c3f3aea99 on
+    # game/ui/btext::DrawGlowText, and the loop banked on both. The raw word
+    # count is computed over the same object the verdict is.
+    if (banks_best(verdict) and raw_gate_applies(raw, raw_pinned)
+            and "--no-fuzzy-gate" not in sys.argv):
+        print("[raw-word gate: this function is webfrank-pinned, so objdiff"
+              " fuzzy would score the POSTPROCESSED object (100% by"
+              " construction on a clean tree, unmeasurable once the pin's"
+              " body hash moves). No report build is spent; the RAW"
+              " differing-word count arbitrates this bank instead.]")
+        verdict, state = apply_raw_word_gate(
+            verdict, state,
+            {key: state_before.get(key) for key in BEST_KEYS},
+            raw_words, state_before.get("best_words"),
+            rebase_best=rebase_best, accept_loss=accept_fuzzy_loss)
+        if banks_best(verdict) and raw_words is not None:
+            state["best_words"] = raw_words
+    elif (banks_best(verdict) and cached_fuzzy is None
             and "--no-fuzzy-gate" not in sys.argv):
         print(f"[fuzzy gate: {verdict.split()[0]} would bank a new BEST —"
               " measuring this state's fresh objdiff fuzzy FIRST (report"
@@ -4709,6 +4961,12 @@ def main():
     if hint:
         verdict += "\n" + hint
         state["last_verdict"] = verdict
+    # The raw word count is banked so the NEXT `--raw` probe can print a
+    # DELTA — on a recolor residual, where the opcode multiset is IDENTICAL
+    # by construction, that delta is the only number that moves.
+    prev_words = state_before.get("last_words")
+    if raw and raw_words is not None:
+        state["last_words"] = raw_words
     state_file.write_text(json.dumps(state), encoding="utf-8")
     # CATEGORICAL FIRST (run-40 item 8). A count-parity change decides which
     # postprocessor classes exist for this function at all; `real` and fuzzy
@@ -4727,6 +4985,19 @@ def main():
             immediates, prev_immediates, real, prev_real)
         if arbiter:
             print(arbiter)
+    # THE RAW WORD COUNT (run-48 item 1), directly under the verdict it
+    # qualifies. On the pinned backlog it is the ONLY sound arbiter — fuzzy
+    # scores the postprocessed object — and it was the one number a lane had
+    # to fetch with a second, hand-paired tool call on every A/B.
+    if raw:
+        line = raw_words_line(raw_words, prev_words, raw_insns, raw_mnemonic,
+                              raw_pinned)
+        if line:
+            print(line)
+        print(f"  Read the residual with `python tools/gdl/fnasm.py {unit}"
+              f" {fn} 0xA:0xB --diff --raw` (the aligned view over the SAME"
+              " pre-postprocess object this count and this verdict were both"
+              " measured on).")
     # The DATA column, printed alongside EVERY verdict (run 34 item 1): the
     # verdict above scores the INSTRUCTION STREAM ONLY, so a moved non-text
     # section — a widened save area losing its .extab match, a corrected pool
