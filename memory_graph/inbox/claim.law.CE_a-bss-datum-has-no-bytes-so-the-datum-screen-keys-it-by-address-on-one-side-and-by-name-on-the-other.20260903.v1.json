@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/cr_datum_screen.py::datum_key",
+    "config/GUNE5D/symbols.txt"
+  ],
+  "attributes": {
+    "tags": [
+      "relocation",
+      "symbol-identity",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A VALUE-DELTA row whose only differing keys are `A:0x...` on one side and `N:<name>` on the other, where the named symbol is NOT in a zero-initialised section and NOT absent from config/GUNE5D/symbols.txt - i.e. where the two keys really do denote different storage. Check with `gdlmem.py struct`-free plumbing: look the name up in symbols.txt and read its section. If a BSS/SBSS pair ever keys the same way on both sides, the mechanism described here has been fixed and this law has expired.",
+  "id": "claim.law.CE_a-bss-datum-has-no-bytes-so-the-datum-screen-keys-it-by-address-on-one-side-and-by-name-on-the-other.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T04:57:57Z",
+  "schema_version": 1,
+  "subject": "tool:composed-census-cr-datum-screen",
+  "valid_from": "2026-09-03",
+  "value": "A ZERO-INITIALISED DATUM CARRIES NO BYTES, SO A BYTES-FIRST DATUM SCREEN FALLS BACK TO A KEY - AND IT PICKS A DIFFERENT KIND OF KEY ON EACH SIDE, WHICH MANUFACTURES A GUARANTEED FALSE VALUE-DELTA FOR EVERY BSS GLOBAL OUR SOURCE NAMES AND RETAIL'S SPLIT DID NOT.\n\nMECHANISM, read from cr_datum_screen.datum_key. The function tries three keys in order: `B:<hex>` when it can read the datum's bytes, `A:0x<addr>` when it can resolve the symbol through config/GUNE5D/symbols.txt but the section is not initialised, and `N:<name>` when it cannot resolve the symbol at all. `.bss` and `.sbss` are in neither INITIALIZED set, so no BSS datum ever gets a `B:` key. Retail's side always resolves - its relocations name dtk's own split symbols, which are exactly what symbols.txt contains - so retail's BSS data key as `A:`. Our side names the same storage with the SOURCE's identifier, and our source's own global names are not rows in retail's symbols.txt, so ours key as `N:`. `A:0x802C9C48` and `N:gNodeStackTop` denote the same 232 bytes of .bss and can never compare equal, because they are not even the same kind of string.\n\nTHE PARADOX WORTH NAMING: the screen is WRONG PRECISELY WHERE OUR NAMING IS RIGHT. A raw `lbl_ADDR` extern on our side would resolve through symbols.txt and key `A:` like retail's, and the row would read VALUE-EQUAL. Adopting the real field name - the thing the de-fakematch campaign exists to do - is what breaks the pairing. So this false positive rate RISES as reconstruction quality rises, and a lane reading the screen naively would see de-fakematch work as introducing datum defects.\n\nMEASURED, run 43 at 9eb99ec5c. Over the 150 webfrank-pinned functions the screen returned 3 VALUE-DELTA rows and 2 of the 3 are this mechanism (game/mb/mb_particle::MBPsysSetDebugNode with four .bss/.sbss labels against four named globals; game/g3d/gcontrolpads::G3DReadControlPadStates with gPadManager, which is in symbols.txt at .bss 0x8029645C and so keys A: on OUR side - the mechanism is symmetric and fires in both directions). Over 1702 NonMatching functions image-wide it returned 49 rows, of which 17 are key-class artifacts with no `B:` key on either side - 8 pure `A:`, 8 mixed `A:`/`N:`, 1 pointer-table `P:`. That is a 35% false-positive rate on the image-wide row set, entirely attributable to keys rather than to data.\n\nTHE RULE FOR READING THE SCREEN. A VALUE-DELTA row is a datum finding ONLY when a `B:` key appears on at least one side. Rows whose differing keys are all `A:`, `N:` or `P:` are naming or representation differences and imply no source edit. `P:<size>` deserves its own note: the pointer-table key embeds the table SIZE, so two tables differing only in length read as different data - a real finding about the table, but never a wrong constant. The mechanical form of this screen is tools/gdl/composed_census/ce_rank_rows.py, which partitions the rows on exactly this test."
+}

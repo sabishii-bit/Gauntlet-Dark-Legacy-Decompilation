@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wf_census.py::classify",
+    "tools/gdl/webfrank.py::decode_copy_form"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A word pair where ours is `addi rD,rS,0` and the target is `li rD',K` (or the reverse) that wf_census.classify labels something OTHER than `regfield`, or any copy-form census keyed on the regfield label that nonetheless surfaces game/ui/attract::scroll_credits' +0xe4 and +0x174 sites. Run `python tools/gdl/composed_census/ce_const_closure_census.py` (or any equivalent detector) and check whether scroll_credits appears with 2 form edits: keyed on the label it appears with 0 and refuses at +0xe4; keyed on decode_copy_form it appears with 2 and proves.",
+  "id": "claim.law.CE_a-copy-versus-constant-site-encodes-as-a-pure-register-field-difference.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T04:57:55Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "A COPY-VERSUS-CONSTANT WORD PAIR IS A PURE REGISTER-FIELD DIFFERENCE AT THE ENCODING LEVEL, SO ANY COPY-FORM DETECTOR KEYED ON A `regfield` CLASSIFICATION IS BLIND TO EXACTLY THE SITES THE COPY-FORM CLASS EXISTS TO SERVE.\n\nMECHANISM. PPC spells both `addi rD,rA,0` (a register copy when rA != 0) and `li rD,K` (`addi rD,r0,K`) in opcode 14. When ours is `addi r26,r25,0` and the target is `li r27,0`, the two words carry the same opcode and the same immediate field and differ ONLY in the rD and rA register fields. wf_census.classify tests `not ((ours ^ target) & ~register_slot_mask(ours))` FIRST and returns `regfield` on that test, before it ever calls decode_copy_form. The four copy-form labels (fwd / fwd_rc / inv / inv_rc) are therefore reachable only for pairs whose IMMEDIATE also differs - the label is a partition of the encoding, not of the semantics, and the semantically interesting half of the class falls into the register-field bucket.\n\nWHY IT MATTERS RATHER THAN BEING A NAMING QUIBBLE. The two words are not value-equal. `addi r26,r25,0` copies whatever r25 holds; `li r27,0` materialises a literal. copy_register_fields will happily rewrite our word to the target's bytes because they differ only in register fields, and then the register proof refuses at the first USE, with a refusal that names registers rather than the form: `base register presence differs (g25 vs g0)`. That refusal string is the tell - g0 appearing as a `base register presence` difference is a copy-versus-constant site wearing a recolor's clothes.\n\nMEASURED. In the run-43 image-wide constant-closure census (claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1) the first pass keyed form sites on the label and scored 91 tier-1 / 2 tier-2 functions; keying them on decode_copy_form instead moved 7 functions into tier 2 and surfaced three additional proofs, INCLUDING game/ui/attract::scroll_credits, which is the payoff row of the very class proposal the census was gating. Of the 19 functions the label-keyed pass left unserved, 9 refused with a `base register presence differs (gX vs g0)` message; the form-keyed pass resolved 7 of those 9.\n\nTHE RULE. Detect copy-form sites by decoding BOTH words with decode_copy_form and comparing the decoded KINDS ('copy' versus 'li'). Offer every differing word to equivalent_copy_form and keep whatever the guard accepts - the guard already refuses a no-op re-encoding by name ('re-encoding is a no-op, so this site is a pure recolor and belongs to the recolor stage'), so nothing is lost by offering too much and a whole class is lost by offering too little."
+}
