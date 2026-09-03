@@ -2926,6 +2926,22 @@ def _defake_gate_module():
         return None
 
 
+def tu_baseline_exists(unit):
+    """Is there a defake_gate baseline for this unit? No build, no measure.
+
+    The TU-scope gate's own header used to promise a cross-check without
+    knowing whether one was possible. This is the cheapest half of that
+    question and it is decidable from a path (run-47 item 7).
+    """
+    module = _defake_gate_module()
+    if module is None:
+        return False
+    try:
+        return module.gate_path(unit).exists()
+    except Exception:
+        return False
+
+
 def tu_sibling_regressions(unit):
     """(verdicts, note) from the TU's defake_gate baseline, or (None, why).
 
@@ -4591,7 +4607,35 @@ def main():
         scope_changes = tu_scope_changes(
             None if committed is None else committed.decode("latin-1"),
             source.read_bytes().decode("latin-1"))
-        if scope_changes:
+        if scope_changes and verdict.startswith("BASELINE"):
+            # RUN-47 ITEM 7. A BASELINE is EXEMPT from this gate by
+            # construction (it banks no improvement claim and is the
+            # session's only revert point), so the cross-check below can
+            # decide nothing here — but the header used to print anyway,
+            # announcing "cross-checking the whole TU against its
+            # defake_gate baseline". Reproduced at a3d735404 on
+            # game/anim/atree::AtreeDelete: with the baseline file MOVED
+            # ASIDE, so no cross-check was even possible, probe printed the
+            # identical output. A lane reads that line, believes its
+            # siblings were checked at the first probe, and finds out later
+            # that they never were — NM paid a re-probe for it. Say what is
+            # actually true instead, and skip the measurement.
+            has_baseline = tu_baseline_exists(unit)
+            print(f"[TU-scope gate: {len(scope_changes)} file-scope"
+                  " change(s) already in this tree. The sibling cross-check"
+                  " is NOT run on a BASELINE — a baseline is exempt from"
+                  " this gate, so the check could not change anything here."
+                  + ("" if has_baseline else
+                     " (There is also no defake_gate baseline for this unit"
+                     f" yet: `defake_gate.py baseline {unit} --at-head`"
+                     " takes one, and the NEXT banking verdict is gated"
+                     " against it.)")
+                  + "]")
+            verdict, state = apply_tu_scope_gate(
+                verdict, state, {key: state_before.get(key)
+                                 for key in BEST_KEYS},
+                scope_changes, None, None, "not run on a BASELINE", unit, fn)
+        elif scope_changes:
             print(f"[TU-scope gate: {len(scope_changes)} file-scope"
                   " change(s) in this diff — cross-checking the whole TU"
                   " against its defake_gate baseline (no build;"
