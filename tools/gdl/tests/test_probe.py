@@ -1544,12 +1544,70 @@ class AnnotateNeutralTests(unittest.TestCase):
                                4, "T50/O50", 0, 0, "T50/O50", "old", "new")
         self.assertIn("NEUTRAL-REARRANGED", out)
 
+    def test_moved_bytes_with_a_flat_triple_name_the_slot_arbiter(self):
+        """Run-44 item 7 (SL): NEUTRAL-REARRANGED's advice was "verify with
+        objdiff fuzzy or revert" — one of the two arbiters, and not the one
+        SL needed four times in a single pass. When real, the instruction
+        count and the multiset are ALL flat, the only things left unmeasured
+        are the frame/slot map and register colour."""
+        out = annotate_neutral("NEUTRAL   real 4 (insns T50/O50, multiset 0t)",
+                               4, "T50/O50", 0, 0, "T50/O50", "old", "new")
+        self.assertIn("NEUTRAL-REARRANGED", out)
+        self.assertIn(probe.SCORE_BLIND_MARK, out)
+        self.assertIn("FRAME/SLOT map", out)
+
     def test_structurally_worse_neutral_is_not_banked(self):
         out = annotate_neutral("NEUTRAL   real 4 (insns T50/O44, multiset 6t)",
                                4, "T50/O44", 6, 2, "T50/O50", "old", "new")
         self.assertTrue(out.startswith("NEUTRAL-WORSE"), out)
         self.assertIn("count distance 0 -> 6", out)
         self.assertIn("multiset 2t -> 6t", out)
+
+
+class ScoreBlindRearrangementTests(unittest.TestCase):
+    """Run-44 item 7: "bytes changed but nothing scored", two-sided.
+
+    The predicate decides whether the slot map is FORCED, so a false
+    positive costs a 60-line map on an unrelated probe and a false negative
+    is the defect itself. `real` equality is implied by the caller — this
+    is only ever consulted on a NEUTRAL verdict.
+    """
+
+    def call(self, **over):
+        args = dict(bytes_identical=False, worse=[], insns="T204/O204",
+                    prev_insns="T204/O204", multiset_tokens=8,
+                    prev_tokens=8, reverted=False)
+        args.update(over)
+        return probe.score_blind_rearrangement(**args)
+
+    def test_moved_bytes_with_a_flat_triple_fire(self):
+        self.assertTrue(self.call())
+
+    def test_identical_bytes_do_not_fire(self):
+        """A fold-away is NEUTRAL-IDENTICAL's case, not this one."""
+        self.assertFalse(self.call(bytes_identical=True))
+        self.assertFalse(self.call(bytes_identical=None))
+
+    def test_a_revert_does_not_fire(self):
+        """The bytes moved because the revert restored them."""
+        self.assertFalse(self.call(reverted=True))
+
+    def test_a_structurally_worse_probe_does_not_fire(self):
+        """NEUTRAL-WORSE owns that case and its advice is different."""
+        self.assertFalse(self.call(worse=["multiset 8t -> 10t"]))
+
+    def test_a_moved_instruction_count_does_not_fire(self):
+        self.assertFalse(self.call(insns="T204/O203"))
+
+    def test_a_moved_multiset_does_not_fire(self):
+        self.assertFalse(self.call(multiset_tokens=6))
+
+    def test_an_unmeasured_metric_is_not_equality(self):
+        """None must never be read as "unchanged" — a metric nobody took
+        cannot license forcing the arbiter."""
+        for over in ({"insns": None}, {"prev_insns": None},
+                     {"multiset_tokens": None}, {"prev_tokens": None}):
+            self.assertFalse(self.call(**over), over)
 
 
 class FuzzyAnchorTests(unittest.TestCase):
@@ -2249,6 +2307,107 @@ class ScopedRevertTests(unittest.TestCase):
         self.assertEqual(out, crlf)
         # every LF is still part of a CRLF — no line ending was rewritten
         self.assertEqual(out.count("\n"), out.count("\r\n"))
+
+
+class CoupledScopeSurvivorTests(unittest.TestCase):
+    """Run-44 item 1: a scoped revert restoring HALF a two-site edit.
+
+    Two-sided by construction. The POSITIVE side is the prototype/arity
+    shape AR measured (decl + call, reproduced at ca4074cb1 on
+    src/game/pb/pb_diag.c: `RandInt(void)` -> `RandInt(s32 n)` with the call
+    inside pbDiagDrawAudio). The NEGATIVE side is every edit that lives in
+    function BODIES — 56 of the 70 single-TU source edits in the last 250
+    commits — where the warning must be silent, because a message that
+    fires on four fifths of reverts is a message nobody reads.
+    """
+
+    PROTO = """\
+#include "game.h"
+
+extern int RandInt(void);
+
+void alpha(Player* p)
+{
+    p->x = RandInt();
+}
+
+void beta(Player* p)
+{
+    p->z = 3;
+}
+"""
+
+    def survivors(self, snapshot, restored):
+        return probe.coupled_scope_survivors(snapshot, restored)
+
+    # --- positives ---------------------------------------------------
+
+    def test_arity_decl_survives_a_function_scoped_revert(self):
+        edited = (self.PROTO
+                  .replace("extern int RandInt(void);",
+                           "extern int RandInt(int n);")
+                  .replace("RandInt();", "RandInt(p->y);"))
+        restored, notes = scoped_revert(self.PROTO, edited, "alpha")
+        self.assertIn("RandInt();", restored)        # the call came back
+        self.assertIn("RandInt(int n)", restored)    # the decl did not
+        self.assertIn("1 hunk(s) elsewhere", notes)
+        changes = self.survivors(self.PROTO, restored)
+        self.assertEqual(1, len(changes))
+        self.assertEqual("decl changed", changes[0][0])
+        self.assertIn("RandInt(int n)", changes[0][1])
+
+    def test_warning_names_the_surviving_item_and_the_remedy(self):
+        changes = [("decl changed",
+                    "extern int RandInt(void)  ->  extern int RandInt(int n)")]
+        text = probe.partial_revert_scope_warning("alpha", changes)
+        self.assertIn("COUPLED FILE-SCOPE HALF", text)
+        self.assertIn("RandInt(int n)", text)
+        self.assertIn("--whole-file", text)
+
+    def test_storage_class_half_is_a_positive_too(self):
+        """The nine-byte-exact-functions lever (PC's storage-class law) is
+        file-scope, so reverting a body while it survives measures the
+        pair, not the snapshot."""
+        edited = self.PROTO.replace("extern int RandInt(void);",
+                                    "static int RandInt(void);")
+        changes = self.survivors(self.PROTO, edited)
+        self.assertEqual(1, len(changes))
+        self.assertEqual("storage-class/linkage", changes[0][0])
+
+    def test_pragma_half_is_a_positive(self):
+        edited = self.PROTO.replace('#include "game.h"',
+                                    '#include "game.h"\n#pragma peephole off')
+        self.assertTrue(self.survivors(self.PROTO, edited))
+
+    # --- negatives ---------------------------------------------------
+
+    def test_sibling_body_edit_is_silent(self):
+        """The common multi-function session: beta's in-progress work is
+        kept by the revert and is NOT a coupled half."""
+        edited = self.PROTO.replace("p->z = 3;", "p->z = 77;")
+        restored, notes = scoped_revert(self.PROTO, edited, "alpha")
+        self.assertIn("1 hunk(s) elsewhere", notes)
+        self.assertEqual([], self.survivors(self.PROTO, restored))
+        self.assertEqual("", probe.partial_revert_scope_warning(
+            "alpha", self.survivors(self.PROTO, restored)))
+
+    def test_body_only_edit_inside_the_function_is_silent(self):
+        edited = self.PROTO.replace("p->x = RandInt();", "p->x = 0;")
+        restored, _ = scoped_revert(self.PROTO, edited, "alpha")
+        self.assertEqual(self.PROTO, restored)
+        self.assertEqual([], self.survivors(self.PROTO, restored))
+
+    def test_comment_and_whitespace_noise_outside_a_function_is_silent(self):
+        edited = (self.PROTO
+                  .replace("extern int RandInt(void);",
+                           "extern  int\n    RandInt(void);   /* rng */"))
+        self.assertEqual([], self.survivors(self.PROTO, edited))
+
+    def test_empty_change_list_produces_no_text(self):
+        self.assertEqual("", probe.partial_revert_scope_warning("alpha", []))
+
+    def test_build_note_names_the_incomplete_revert_not_the_toolchain(self):
+        self.assertIn("incomplete revert", probe.COUPLED_SCOPE_BUILD_NOTE)
 
 
 class CountParityClassTests(unittest.TestCase):

@@ -100,6 +100,17 @@ save_baseline for the reasoning): each records the commit and source
 sha1 it was taken at, `check` says so when HEAD has moved, and --at-head
 regenerates it anywhere.
 
+`--at-head` RESTORES THE SOURCE ONLY — it does NOT restore
+config/GUNE5D/webfrank.json, which is global state pairing with exactly one
+source state. Taken while this unit's rules are uncommitted, the baseline is
+HEAD's source measured against the TREE's pins (no commit's state), and when
+the drift is a re-derived permutation pin the WEBFRANK stage hash-asserts and
+the build aborts naming the PIN rather than the flag: WS spent two builds
+there. It now SAYS SO before spending the build, scoped to this unit's rules.
+Restoring the config was rejected deliberately — it is shared with every
+concurrent lane, so a write would race them, and a rule change needs
+`python configure.py` re-run before its build edge exists at all.
+
 A real-count regression on a fuzzy function whose CURRENT opcode multiset is
 IDENTICAL to target at equal insn counts is reported as CONFLICT instead of
 REGRESSION: structure fully matches target and the extra real lines can be
@@ -1137,6 +1148,92 @@ def run_fndiff(unit, flag):
     return result.stdout
 
 
+WEBFRANK_CONFIG = f"config/{VERSION}/webfrank.json"
+
+
+def _unit_rules(text, unit):
+    """This unit's webfrank rules out of a config blob, or None.
+
+    None means "cannot tell" — no config, or JSON that will not parse — and
+    is never rendered as "no rules": a manufactured all-clear on the
+    question of whether the pins pair with the source is exactly the defect
+    below.
+    """
+    if text is None:
+        return None
+    try:
+        data = json.loads(text)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    return (data.get("units") or {}).get(unit, [])
+
+
+def webfrank_unit_drift(head_text, working_text, unit):
+    """(drifted, detail) for `unit`'s rules between HEAD and the tree.
+
+    Run-44 item 8, from WS. `--at-head` sets the working tree's SOURCE
+    aside and writes HEAD's bytes back, and it does NOT touch
+    config/GUNE5D/webfrank.json — which is global state that pairs with
+    exactly ONE source state. So an at-head baseline taken while this
+    unit's rules are uncommitted is built from HEAD's source against the
+    TREE's pins, which is no commit's state at all; when the drift is a
+    re-derived permutation pin the WEBFRANK stage hash-asserts and the
+    build simply aborts, naming the pin rather than the flag that caused
+    it. WS spent two builds on that.
+
+    Restoring the config here was rejected deliberately: webfrank.json is
+    shared across every concurrent lane, a write would race them, and a
+    rule change needs `configure.py` re-run before the WEBFRANK edge even
+    materialises (AGENTS.md first-five-minutes trap 6). Naming the drift
+    before the build is spent costs nothing and cannot corrupt anyone.
+
+    Pure over two texts so both sides are decided without a git tree.
+    Scoped to THIS UNIT: another lane's rules cannot reach this unit's
+    object, and warning about them would make the notice constant noise in
+    a fleet where webfrank.json is almost always dirty somewhere.
+    """
+    head_rules = _unit_rules(head_text, unit)
+    tree_rules = _unit_rules(working_text, unit)
+    if head_rules is None or tree_rules is None:
+        if head_text is None and working_text is None:
+            return False, ""            # no postprocessor config at all
+        return True, ("this checkout's webfrank.json could not be read on"
+                      " one side, so whether the pins pair with HEAD's"
+                      " source is UNMEASURED")
+    if head_rules == tree_rules:
+        return False, ""
+    head_names = [r.get("function") for r in head_rules if isinstance(r, dict)]
+    tree_names = [r.get("function") for r in tree_rules if isinstance(r, dict)]
+    if head_names != tree_names:
+        return True, (f"the rule SET moved: HEAD has {head_names or 'none'},"
+                      f" the working tree has {tree_names or 'none'}")
+    changed = [name for head_rule, tree_rule, name
+               in zip(head_rules, tree_rules, tree_names)
+               if head_rule != tree_rule]
+    return True, (f"rule BODIES differ for {', '.join(str(n) for n in changed)}"
+                  " (a re-derived pin looks exactly like this)")
+
+
+def webfrank_drift_warning(unit, detail):
+    """What to print when an --at-head baseline would mix source and pins."""
+    return (
+        "WARNING: --at-head restores the SOURCE ONLY, and this unit's"
+        f" webfrank rules are NOT HEAD's — {detail}.\n"
+        "  The baseline below is therefore HEAD's source measured against"
+        " the WORKING TREE's pins, which is not any commit's state. If the"
+        " drift is a re-derived permutation pin the WEBFRANK stage will"
+        " hash-assert and the build will abort naming the PIN, not this"
+        " flag (WS spent two builds there).\n"
+        f"  This tool does not restore {WEBFRANK_CONFIG}: it is global,"
+        " shared with every concurrent lane, and a rule change needs"
+        " `python configure.py` re-run before its build edge even exists."
+        " Commit or revert the rule change first, or re-derive the pin"
+        " against HEAD's source with"
+        " `tools/gdl/composed_census/wf_rederive_pin.py`.")
+
+
 def git_head():
     result = subprocess.run(["git", "rev-parse", "HEAD"],
                             capture_output=True, text=True)
@@ -1391,6 +1488,20 @@ def run_single(mode, unit, rebuild, update_improved, arbitrate, renames=None,
             return 1
         saved = src.read_bytes()
         dirty = saved != shown.stdout
+        # SAY SO BEFORE THE BUILD IS SPENT (run-44 item 8). --at-head moves
+        # the source and nothing else; webfrank.json pairs with exactly one
+        # source state.
+        config = Path(WEBFRANK_CONFIG)
+        head_config = subprocess.run(
+            ["git", "show", f"HEAD:{WEBFRANK_CONFIG}"], capture_output=True)
+        drifted, detail = webfrank_unit_drift(
+            head_config.stdout.decode("utf-8", "replace")
+            if head_config.returncode == 0 else None,
+            config.read_text(encoding="utf-8", errors="replace")
+            if config.exists() else None,
+            re.sub(r"\.(c|cpp)$", "", unit))
+        if drifted:
+            print(webfrank_drift_warning(unit, detail))
         try:
             if dirty:
                 src.write_bytes(shown.stdout)

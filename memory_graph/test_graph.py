@@ -3745,6 +3745,24 @@ class TemplateCliOrderTests(unittest.TestCase):
             self.assertEqual(keys[:3], ["schema_version", "id", "kind"],
                              f"{kind} template head order")
 
+    def test_the_claim_subject_hint_names_every_resolvable_namespace(self):
+        """Run-44 item 5 (T13): the hint named `function:` and `tu:` while
+        `tool:`/`workflow:`/`project:` resolve too, and the only place that
+        was written down was the refusal you get AFTER guessing wrong.
+        T13 burned three refusals reaching for `tool:`. The template is
+        read FIRST, so it carries the directory.
+
+        Asserted against the same four the refusal enumerates
+        (`unknown_entity_message`), so the two cannot drift apart."""
+        subject = core.record_template("claim")["subject"]
+        for namespace in ("function:", "tu:", "tool:", "workflow:",
+                          "project:"):
+            self.assertIn(namespace, subject, namespace)
+        # The catalog key is not the filename — the specific thing T13 got
+        # wrong, and the reason naming the namespace alone is not enough.
+        self.assertIn("gdlmem.py tool", subject)
+        self.assertIn("tool:gdl-memory-graph", subject)
+
 
 class MissingAnchorTests(unittest.TestCase):
     """A record whose anchor file is gone is a REOPEN candidate.
@@ -4207,6 +4225,86 @@ class RegisterDefinitionGapTests(unittest.TestCase):
     def test_an_empty_or_missing_statement_is_not_a_gap(self):
         self.assertEqual([], self.gaps(""))
         self.assertEqual([], self.gaps(None))
+
+
+class SlotClaimArbiterTests(unittest.TestCase):
+    """Gate L (run-44 item 6): a slot/frame decomposition with no arbiter.
+
+    ADVISORY by calibration, not by caution — 40 of the 92 anchored corpus
+    records that fire this trigger quote no arbiter (16 of 58 since
+    2026-09-01), so refusing them would be a toll. Both sides are asserted
+    here: the phrases that must fire, and the four classes that must not.
+    """
+
+    def call(self, substance, text=None):
+        return core.slot_claim_without_slotdiff(
+            substance, substance if text is None else text)
+
+    # --- positives ---------------------------------------------------
+
+    def test_an_exclusive_slot_claim_with_no_arbiter_fires(self):
+        self.assertEqual(
+            "exclusive slots",
+            self.call("Ours holds two exclusive slots at 24 and 28."))
+
+    def test_a_frame_delta_claim_with_no_arbiter_fires(self):
+        self.assertEqual(
+            "frame delta",
+            self.call("The frame delta is 8 bytes of dead nominal area."))
+
+    def test_a_slot_shift_claim_read_off_ops_fires(self):
+        """The refuted shape: a slot fact derived from the opcode view."""
+        self.assertEqual(
+            "slot shift",
+            self.call("`--ops` shows the slot shift is one word."))
+
+    # --- negatives ---------------------------------------------------
+
+    def test_naming_the_tool_discharges_it(self):
+        self.assertIsNone(self.call(
+            "Ours holds two exclusive slots.",
+            "Ours holds two exclusive slots. slotdiff.py game/x/y f: frame"
+            " target 56 ours 64."))
+
+    def test_quoting_the_map_verbatim_discharges_it(self):
+        """Calibration finding: the first evidence predicate looked only
+        for the literal word `slotdiff` and scored 8 records as violations
+        that quote the map itself."""
+        self.assertIsNone(self.call(
+            "The slot map reads TARGET-ONLY slots 24 (2 uses) and 28"
+            " (3 uses) against OURS-ONLY 40 and 44."))
+        self.assertIsNone(self.call(
+            "The slot map is unchanged.", "frame: target 56 ours 56 —"
+            " SLOT MAP IDENTICAL"))
+
+    def test_a_bare_frame_SIZE_is_not_a_decomposition_claim(self):
+        """Reporting the frame is the baseline template AGENTS.md asks for.
+        Including it took the corpus population from 92 to 208 and the miss
+        rate from 43% to 72%."""
+        self.assertIsNone(self.call(
+            "BASELINE real 44, insns T186/O186, frame 72, fuzzy 95.9409."))
+        self.assertIsNone(self.call("frame 0x20 on both sides."))
+
+    def test_a_save_set_claim_belongs_to_savedregs_not_slotdiff(self):
+        """`save set`/`save-set` alone accounted for 20 of the first
+        draft's 67 hits, and savedregs.py is that arbiter."""
+        self.assertIsNone(self.call(
+            "Frame 0xB0 and the target save set r29-r31/f27-f31 recovered."))
+        self.assertIsNone(self.call("The save-set is already exact."))
+
+    def test_evidence_in_verification_discharges_a_claim_in_the_body(self):
+        """The evidence legitimately sits in `verification` or
+        `law_screen`, which gate E's substance projection strips."""
+        self.assertIsNone(self.call(
+            "The local area is 8..127 on both sides.",
+            "The local area is 8..127 on both sides."
+            " VERIFICATION: slotdiff.py game/x/y f."))
+
+    def test_no_slot_language_at_all_is_silent(self):
+        self.assertIsNone(self.call(
+            "A pure recolor: the opcode multiset is identical."))
+        self.assertIsNone(self.call(""))
+        self.assertIsNone(self.call(None, None))
 
 
 class ReportAllGateFailuresTests(unittest.TestCase):

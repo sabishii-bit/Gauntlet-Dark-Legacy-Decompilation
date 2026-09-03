@@ -1,0 +1,22 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py::slot_claim_without_slotdiff",
+    "memory_graph/test_graph.py::SlotClaimArbiterTests"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Take the shipped trigger and evidence regexes out of memory_graph/core.py (_SLOT_DECOMPOSITION_RE, _SLOTDIFF_EVIDENCE_RE), run them over memory_graph/records/ with core.gate_e_substance as the trigger text and core._record_text as the evidence text, and read the would-be-refused set by hand. This law is disproved if the name-only evidence predicate (`slotdiff` alone) yields the same miss set as the widened one, or if the records it adds do not in fact quote slotdiff output. The recount is the same one that produced the numbers above and takes seconds; a count alone cannot check it, which is the law's own point.",
+  "id": "claim.law.T14_a-screens-evidence-predicate-must-accept-the-tools-output-not-only-its-name.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T06:42:13Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-03",
+  "value": "WHEN A GATE ASKS 'DID YOU RUN THE ARBITER', ITS EVIDENCE PREDICATE MUST MATCH THE ARBITER'S OUTPUT VOCABULARY AND NOT ONLY ITS NAME \u2014 AND THE FALSE-POSITIVE CLASS THIS PRODUCES IS INVISIBLE IN THE FIRING COUNT, VISIBLE ONLY BY READING THE WOULD-BE-REFUSED SET. Measured run 44 while calibrating the slot-arbiter advisory (GATE L, memory_graph/core.py): the trigger fires on 92 anchored corpus records, and an evidence predicate looking for the literal token `slotdiff` scored 43 of them as violations. Eight of those 43 quote the tool's own map VERBATIM and had plainly run it \u2014 `the slot map reads TARGET-ONLY slots 24 (2 uses) and 28 (3 uses) against OURS-ONLY 40 and 44`, `frame: target 56 ours 56 -- SLOT MAP IDENTICAL`, `target-only slots -56/16/56/60, ours-only -64/24/64/68`. Records cite an arbiter by pasting what it printed at least as often as by naming the binary, so a name-only predicate taxes exactly the lanes that did the work most thoroughly. Widening the predicate to `slotdiff | SLOT MAP IDENTICAL | frame: target N ours N | target-only slots | ours-only slots | (N uses)` took the miss set 43 -> 40 overall and 19 -> 16 among records written since 2026-09-01. TWO COROLLARIES, both measured on the same gate. (a) THE EVIDENCE PHRASES MUST BE STRICTLY MORE SPECIFIC THAN THE TRIGGER PHRASES, or a phrase satisfies the gate it fires: `slot map` is a trigger term and `SLOT MAP IDENTICAL` is an evidence term, and only the qualifier keeps them apart. (b) THE NEGATIVE SIDE, NOT THE POSITIVE SIDE, DECIDES WHETHER A SCREEN CAN BLOCK: this one shipped ADVISORY because 43% of the corpus (28% of recent records) would have been refused, and two earlier trigger drafts died on the negative side alone \u2014 a bare `frame N` mention took the population from 92 to 208 and the miss rate to 72% (reporting a frame size is the baseline template AGENTS.md asks for, not a decomposition claim), and `save set`/`save-set`, which belong to savedregs.py rather than slotdiff, were 20 of the first draft's 67 hits."
+}

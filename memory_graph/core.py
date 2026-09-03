@@ -373,6 +373,58 @@ _COVERAGE_RANGE_RE = re.compile(
     re.I)
 _CORRESPONDENCE_MIN_ROWS = 4
 
+# Gate L (run-44 item 6, from SL): a record that DECOMPOSES a residual into
+# slot or frame facts should say it ran the slot arbiter.
+#
+# AGENTS.md residual-work discipline 3 names slotdiff.py as the arbiter for
+# slot/frame work ("real actively fights the right answer"), and
+# claim.law.UE_an-immediate-row-naming-a-stack-displacement-must-be-confirmed
+# -by-slotdiff-before-it-is-called-a-slot-delta.20260902.v1 makes the
+# stronger form: an fndiff IMMEDIATE row whose literal is an r1-relative
+# displacement is NOT evidence of a slot assignment at all. Records that
+# asserted slot facts off --ops or off `real` have been refuted for it.
+#
+# ADVISORY, AND THAT IS A MEASURED DECISION, not caution. Calibrated over
+# the accepted corpus (T14_scratch/t14_slotgate_final.py, run 44): 92
+# anchored records fire the trigger below and 40 of them (43%) quote neither
+# the tool nor its output; restricted to records written since 2026-09-01 it
+# is 16 of 58 (28%). A blocking gate refusing a quarter to a half of the
+# corpus's slot work is not a screen, it is a toll — and the calibration
+# also showed WHY: the first evidence predicate looked only for the literal
+# word "slotdiff" and scored 8 further records as violations that quote the
+# map VERBATIM ("target-only slots 24 (2 uses) and 28 (3 uses) against
+# ours-only 40 and 44"). The output vocabulary is part of the evidence.
+#
+# Two things the trigger deliberately does NOT include, both measured:
+#   * a bare FRAME SIZE (`frame 72`, `frame 0x20`). Reporting the frame is
+#     the baseline template AGENTS.md asks for, not a decomposition claim —
+#     including it took the population from 92 to 208 and the miss rate to
+#     72%, and 60 of the extra rows were single mentions of a frame number.
+#   * SAVE SETS. `savedregs.py` is that arbiter, not slotdiff; `save set`
+#     and `save-set` alone accounted for 20 of the first draft's 67 hits.
+_SLOT_DECOMPOSITION_RE = re.compile(
+    r"\bexclusive\s+slots?\b"
+    r"|\bslot\s+map\b"
+    r"|\bstack\s+slots?\b"
+    r"|\bslot\s+(?:delta|shift|surplus|deficit|count|position|positions"
+    r"|layout|assignment)\b"
+    r"|\bslot-exact\b"
+    r"|\blocal\s+area\b"
+    r"|\bframe\s+(?:delta|deficit|surplus|overshoot)\b",
+    re.I,
+)
+# The tool, or its output quoted verbatim. Everything here is STRICTLY more
+# specific than the trigger, so no phrase can satisfy the gate it fires.
+_SLOTDIFF_EVIDENCE_RE = re.compile(
+    r"\bslotdiff\b"
+    r"|\bSLOT MAP IDENTICAL\b"
+    r"|\bframe:\s*target\s*\d+\s*ours\s*\d+"
+    r"|\btarget[- ]only\s+slots?\b"
+    r"|\bours[- ]only\s+slots?\b"
+    r"|\(\d+\s+uses?\)",
+    re.I,
+)
+
 # Gate F (run 36): a work_claim scope asserting that its premise is already
 # recorded. Dispatch reads the scope as the lane's briefing, so an unnamed
 # "banked in the graph" sends a worker after evidence it cannot find — see
@@ -595,6 +647,29 @@ def register_anchor_gaps(statement, record_text):
         if not anchored:
             gaps.append(register)
     return gaps
+
+
+def slot_claim_without_slotdiff(substance, record_text):
+    """The slot/frame phrase a record decomposes a residual with, when it
+    quotes no slot-arbiter evidence anywhere — else None. (Gate L, run 44.)
+
+    `substance` is the record's OWN claim (gate_e_substance: narration
+    fields dropped, sentences quoting another record id dropped), so a
+    record CITING somebody else's slot decomposition is not taxed for it.
+    `record_text` is the WHOLE record, because the evidence may legitimately
+    sit in `verification` or `law_screen` — the citation attributes gate E
+    strips.
+
+    Pure over two strings so both sides of the calibration are decided
+    without a corpus: see the _SLOT_DECOMPOSITION_RE block for the measured
+    population, the miss rate, and the two exclusions.
+    """
+    hit = _SLOT_DECOMPOSITION_RE.search(substance or "")
+    if not hit:
+        return None
+    if _SLOTDIFF_EVIDENCE_RE.search(record_text or ""):
+        return None
+    return " ".join(hit.group(0).split())
 
 
 # Outcomes for which a multi-edit probe must name what it held fixed: only the
@@ -4566,7 +4641,28 @@ def record_template(kind: str) -> dict[str, Any]:
             },
         },
         "claim": {
-            "subject": "<REQUIRED: entity key, e.g. function:name or tu:module>",
+            # Run-44 item 5 (from T13): this hint named TWO of the four
+            # namespaces that resolve, and the only place the other two were
+            # written down was `unknown_entity_message` — the refusal you get
+            # AFTER guessing wrong. T13 burned three refusals reaching
+            # `tool:`, which is the correct home for a law about how a TOOL
+            # behaves and which 130 records spell `project:gdl` instead
+            # because it was advertised-but-unresolvable before run 40. The
+            # template is what a lane reads FIRST, so it carries the
+            # directory now.
+            "subject": "<REQUIRED: entity key. FOUR namespaces resolve:"
+                       " (1) `function:<symbol>` naming one GameCube function;"
+                       " (2) `tu:<module>` naming an object — no `src/`"
+                       " prefix, the .c/.cpp suffix is optional;"
+                       " (3) `tool:<key>` / `workflow:<key>` for a law about"
+                       " how a TOOL or a WORKFLOW behaves — the key is the"
+                       " CATALOG's, printed as `tool_key` by `gdlmem.py tool"
+                       " <name>` (memory_graph/gdlmem.py is"
+                       " `tool:gdl-memory-graph`, not `tool:gdlmem`, and"
+                       " anything under composed_census carries the"
+                       " `tool:composed-census-` prefix);"
+                       " (4) any entity_key already in the graph, e.g."
+                       " `project:gdl`>",
             "predicate": "<REQUIRED: e.g. law|symbol_naming|opportunity>",
             "epistemic_state": "<REQUIRED: e.g. verified|proposed>",
             "value": "<REQUIRED unless 'object' is used: the claim statement>",
@@ -5406,6 +5502,33 @@ def _apply_proposal_gates(
             " records, 29 were this shape and only 2 were a register named"
             " with no instruction quoted anywhere."
         )
+    if anchored:
+        slot_phrase = slot_claim_without_slotdiff(gate_e_text, text)
+        if slot_phrase:
+            warnings.append(
+                "GATE L (advisory): this record decomposes a residual in"
+                f" SLOT/FRAME terms (matched {slot_phrase!r}) and quotes"
+                " neither slotdiff nor its output anywhere. AGENTS.md"
+                " residual-work discipline 3 names slotdiff.py as the"
+                " arbiter for slot and frame work — `real` actively fights"
+                " the right answer there — and"
+                " claim.law.UE_an-immediate-row-naming-a-stack-displacement"
+                "-must-be-confirmed-by-slotdiff-before-it-is-called-a-slot-"
+                "delta.20260902.v1 goes further: an fndiff IMMEDIATE row"
+                " whose literal is an r1-relative displacement is NOT"
+                " evidence that the two streams assign different slots at"
+                " all. Three caps were refuted for asserting slot facts"
+                " that had never been measured.\nDISCHARGE IT: run"
+                " `python tools/gdl/slotdiff.py <unit> <function>` and quote"
+                " its line (the `frame: target N ours N` row, `SLOT MAP"
+                " IDENTICAL`, or the target-only/ours-only slot lists). This"
+                " WARNS rather than refuses because it was calibrated first:"
+                " 92 anchored records in the accepted corpus fire this"
+                " trigger and 40 of them (43%) quote no arbiter — 16 of 58"
+                " (28%) among records written since 2026-09-01. A screen"
+                " that refuses a third of the corpus's slot work is a toll,"
+                " not a gate."
+            )
     return warnings
 
 

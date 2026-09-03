@@ -57,6 +57,17 @@ A real move with the multiset flat, or unmeasurable, keeps its real-only
 verdict; the multiset-GREW-at-flat-real case stays with annotate_neutral's
 NEUTRAL-WORSE, which owns the byte-identity check.
 
+BYTES CHANGED BUT NOTHING SCORED IS ITS OWN VERDICT. When the object's
+bytes MOVE while `real`, the instruction count and the opcode multiset are
+all unchanged, the annotation reads SCORE-BLIND REARRANGEMENT and the slot
+map is FORCED under it. Those three metrics leave exactly two things
+unmeasured — the frame/slot map and pure register colour — and the slot map
+is auto-invoked only on slotdiff's own decisive signal, which an edit that
+lands the frame ON target does not produce. SL arbitrated four of these by
+hand in one pass. An IDENTICAL map under this verdict is itself the answer:
+the rearrangement is pure colour, and fresh fuzzy (`--arbitrate`) is the
+only remaining arbiter.
+
 DATA-ONLY EDITS ARE NOT FOLD-AWAYS. A pooled value (an FP literal, a
 string, a table) is materialized into .sdata2/.rodata and merely LOADED,
 so correcting a wrong constant changes no instruction word — every score
@@ -2367,6 +2378,92 @@ def tu_scope_changes(head_text, cur_text):
     return changes
 
 
+def coupled_scope_survivors(snap_text, restored_text):
+    """File-scope items a function-scoped revert could NOT put back.
+
+    Run-44 item 1, reproduced at ca4074cb1 before this was written. probe's
+    snapshot and probe's TU-SCOPE GATE disagree about what an edit IS: the
+    gate already itemizes file-scope declarations, storage classes and
+    pragmas (`file_scope_items`), while `scoped_revert` restores only the
+    hunks lying inside the named function and reports the rest as "N hunk(s)
+    elsewhere in the TU left untouched". Every prototype or arity edit is
+    two-site by construction — a declaration plus its call — so the revert
+    routinely restores HALF of one.
+
+    Reproduction, verbatim: in src/game/pb/pb_diag.c change line 216 from
+    `extern s32 RandInt(void);` to `extern s32 RandInt(s32 n);` AND line 329
+    from `RandInt()` to `RandInt(gDiag_D58)`, then
+    `probe.py game/pb/pb_diag pbDiagDrawAudio --revert`. The call came back,
+    the declaration did not, and the re-scoring build died with
+    "function call 'RandInt()' does not match 'RandInt(long)' / Too many
+    errors printed, aborting program / ninja: build stopped" — which reads
+    as a broken compiler, not as an incomplete revert
+    (claim.AR_probe-revert-restored-half-a-two-site-edit-and-aritycheck-
+    needs-a-pin-column.20260903.v1).
+
+    The discriminant is SNAPSHOT-relative, not HEAD-relative. probe's
+    existing `warn_outside_edits` compares the tree against HEAD and says
+    the file still differs by +1/-1 — true on every multi-function session
+    and silent about WHAT survived; it printed exactly that in the
+    reproduction and the build failure buried it. What decides whether the
+    re-score describes the banked state is whether the file-scope items the
+    body is compiled against are the SNAPSHOT's, and `tu_scope_changes`
+    already answers that over any two texts.
+
+    Base rate, measured over the last 250 commits (T14_scratch census, 70
+    single-TU source edits): 56 body-only (this stays silent by
+    construction) and 14 with a file-scope change — 12 of those 14 are
+    `decl changed` / `fndef changed` / `decl ADDED` (Random f64->f32,
+    SetEnemyObj's arity, DoTexMods' parameter) and 4 are `pragma ADDED`.
+    So it fires on at most 20% of reverts, and the class it fires on is the
+    prototype/arity family this defect is aimed at.
+    """
+    return tu_scope_changes(snap_text, restored_text)
+
+
+def partial_revert_scope_warning(fn, changes, whole_file=False):
+    """What to say when a revert left a coupled file-scope half, or "".
+
+    Pure over the change list so both sides of the calibration are decided
+    without a tree: an empty list — the body-only case, four fifths of all
+    single-TU edits — returns "" and costs nothing.
+    """
+    if not changes:
+        return ""
+    lines = [
+        "REVERT LEFT A COUPLED FILE-SCOPE HALF — the tree you are about to"
+        " score is NOT the state that was banked:",
+        f"  {len(changes)} file-scope item(s) differ from the snapshot"
+        f" {fn} was just restored from. A function-scoped revert reaches"
+        f" only hunks INSIDE {fn}, so the other half of a two-site edit"
+        " (a prototype, an arity, a storage class, a pragma) stays live and"
+        " the restored body is now compiled against declarations it was"
+        " never measured under:",
+    ]
+    lines.extend(f"    {category}: {description}"
+                 for category, description in changes)
+    lines.append(
+        "  If the build below FAILS, this is why — not your compiler or"
+        " environment. Take the whole edit back with `--revert"
+        " --whole-file`, or undo the surviving half with git; if the"
+        " surviving half is deliberate, the score below is a measurement of"
+        " the PAIR, not of the snapshot.")
+    if whole_file:
+        # --whole-file restored everything, so a non-empty list here means
+        # the snapshot itself disagrees with the tree for some other reason.
+        lines[0] = ("WHOLE-FILE RESTORE DID NOT REPRODUCE THE SNAPSHOT'S"
+                    " FILE-SCOPE ITEMS — report this, it should be"
+                    " impossible:")
+    return "\n".join(lines)
+
+
+COUPLED_SCOPE_BUILD_NOTE = (
+    "BUILD FAILED, AND THE REVERT ABOVE LEFT A COUPLED FILE-SCOPE HALF."
+    " Read that block first: an incomplete revert is far more likely than a"
+    " broken toolchain here, and the two look identical from the compiler"
+    " error alone (measured: `RandInt()` against `RandInt(long)`).")
+
+
 # A REGRESSION whose reason names one of these is the loss of a BYTE-EXACT
 # function — the STRICT column, and the only thing the project's progress
 # number counts as matched. defake_gate.compare writes these three phrasings
@@ -3323,6 +3420,44 @@ def neutral_identical_proof_line(unit, fn, digest, real, insns,
     return "NEUTRAL-IDENTICAL-PROOF " + " ".join(fields)
 
 
+SCORE_BLIND_MARK = "SCORE-BLIND REARRANGEMENT"
+
+
+def score_blind_rearrangement(bytes_identical, worse, insns, prev_insns,
+                              multiset_tokens, prev_tokens, reverted=False):
+    """Did the object MOVE while every score in the loop stayed flat?
+
+    Run-44 item 7, from SL. probe already separates the two ends of a
+    NEUTRAL — NEUTRAL-IDENTICAL (the object did not move, the edit folded
+    away) and NEUTRAL-DATA-ONLY (the text held, a data section moved) — but
+    the middle case had only the generic NEUTRAL-REARRANGED line, whose
+    whole advice was "verify with objdiff fuzzy or revert". That is the
+    case where the instruction stream is DIFFERENT bytes and `real`, the
+    instruction count and the opcode multiset are ALL unchanged, which is
+    exactly a frame/slot or pure-color rearrangement: SL hit it four times
+    in one pass and reached for slotdiff by hand each time, because the
+    slot map is auto-invoked only on slotdiff's own decisive signal and an
+    edit that lands the frame ON target produces no such signal at all.
+
+    `real` equality is implied by the caller: this is only ever consulted
+    on a NEUTRAL verdict, which is defined by `real` matching the anchor.
+    What is asserted here is the rest of the triple.
+
+    Pure over the already-measured values, and DELIBERATELY silent on:
+      * a REVERT (the bytes moved because the revert restored them);
+      * `worse` (count distance or multiset grew — NEUTRAL-WORSE owns it
+        and its advice is different);
+      * an unmeasurable count or multiset (None is not equality).
+    """
+    if reverted or bytes_identical is not False or worse:
+        return False
+    if insns is None or prev_insns is None or insns != prev_insns:
+        return False
+    if multiset_tokens is None or prev_tokens is None:
+        return False
+    return multiset_tokens == prev_tokens
+
+
 def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                      prev_insns, prev_digest, digest,
                      prev_data=None, data=None, source_changed=True,
@@ -3379,6 +3514,31 @@ def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                         " HEAD and still trip this); neutral scores do not"
                         " prove identity — verify with objdiff fuzzy or"
                         " revert]")
+            # The label was already right; the ADVICE was missing (run-44
+            # item 7). "verify with objdiff fuzzy or revert" names one of
+            # the two arbiters and omits the one SL actually needed four
+            # times in a single pass.
+            if score_blind_rearrangement(bytes_identical, worse, insns,
+                                         prev_insns, multiset_tokens,
+                                         prev_tokens, reverted):
+                verdict += (
+                    f"  [{SCORE_BLIND_MARK}: and NOT ONE score in this loop"
+                    " saw it — real, the instruction count"
+                    f" ({insns}) and the opcode multiset ({multiset_tokens}t)"
+                    " are all unchanged. That is neither a null probe nor a"
+                    " fold-away: the edit reached codegen and rearranged"
+                    " something none of the three measures, which leaves"
+                    " exactly two candidates — the FRAME/SLOT map and pure"
+                    " register colour. The slot map is FORCED under this"
+                    " verdict instead of waiting for slotdiff's own decisive"
+                    " signal, because that signal is a residual detector: an"
+                    " edit that lands the frame ON target silences it"
+                    " precisely when you most need to see the move (SL"
+                    " arbitrated four of these by hand in one pass). An"
+                    " IDENTICAL map here is itself the answer — the"
+                    " rearrangement is pure colour, and fresh objdiff fuzzy"
+                    " is then the only remaining arbiter (`--arbitrate`"
+                    " prints both states).]")
         else:
             # DATA-ONLY comes FIRST because NEUTRAL-IDENTICAL's advice is
             # actively wrong for it. The fold-away reading assumes the
@@ -3614,6 +3774,10 @@ def main():
         if "--no-rebuild" not in sys.argv:
             rebuild_after_restore(unit, "--revert-baseline")
         return 0
+    # Set by the revert path when the restore left file-scope items that are
+    # not the snapshot's (run-44 item 1) — read again at BUILD FAILED, which
+    # is where the defect actually surfaced.
+    coupled_scope = False
     if "--revert" in sys.argv or restore_tag:
         if source is None:
             print(f"cannot revert: no src source found for {unit}")
@@ -3690,6 +3854,15 @@ def main():
                 source.write_bytes(new_text.encode("latin-1"))
                 print(f"restored {fn} to {snap_label} — {notes};"
                       " re-scoring:")
+            # The kept hunks are reported as a COUNT ("N hunk(s) elsewhere in
+            # the TU left untouched"), which says nothing about whether they
+            # are coupled to the body just restored. Ask the TU-scope
+            # itemizer, which probe already owns (run-44 item 1).
+            scope_note = partial_revert_scope_warning(
+                fn, coupled_scope_survivors(snap_text, new_text))
+            if scope_note:
+                coupled_scope = True
+                print(scope_note)
         # A source revert does not restore webfrank.json; warn if a pin was
         # re-derived since this snapshot was banked (run 34 item 3).
         # A pin re-derived with --transient IS restorable, and is restored
@@ -3733,6 +3906,8 @@ def main():
         ["ninja", object_target], capture_output=True, text=True,
     )
     if build.returncode != 0:
+        if coupled_scope:
+            print(COUPLED_SCOPE_BUILD_NOTE)
         print("BUILD FAILED:")
         print((build.stdout + build.stderr).strip()[-1500:])
         return 1
@@ -4001,10 +4176,19 @@ def main():
     # rather than reach for the tool that already existed. Gated on real > 0
     # (no residual, nothing to arbitrate) and on slotdiff's own signal, so a
     # register/schedule probe never carries a 60-line map it does not need.
-    if slots_fire or ("--slots" in sys.argv and slots_output):
+    # A SCORE-BLIND REARRANGEMENT forces it (run-44 item 7). slotdiff's own
+    # signal is a residual detector — it fires on a frame or slot DELTA — so
+    # an edit that lands the frame ON target silences it precisely when the
+    # worker most needs to see that. Here the question is not "is there a
+    # slot residual" but "did this edit move the slots at all", and
+    # `SLOT MAP IDENTICAL` is as much of an answer as a delta is.
+    score_blind = SCORE_BLIND_MARK in verdict
+    if slots_fire or ((score_blind or "--slots" in sys.argv) and slots_output):
         print(slot_arbiter_header(
-            slots_reason or "requested with --slots (no decisive slot"
-                            " signal)"))
+            slots_reason
+            or ("the verdict is a SCORE-BLIND REARRANGEMENT, so the map is"
+                " shown whether or not it differs" if score_blind
+                else "requested with --slots (no decisive slot signal)")))
         print(slots_output.strip())
 
     # The census used to print in full on EVERY baseline probe. Measured

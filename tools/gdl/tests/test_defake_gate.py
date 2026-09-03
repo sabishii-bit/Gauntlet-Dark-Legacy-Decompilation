@@ -16,6 +16,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import defake_gate  # noqa: E402
 from defake_gate import (arbitrate_regressions, arbitration_event, compare,
                          data_section_verdicts, format_arbitrations,
                          load_baseline, log_arbitration,
@@ -792,6 +793,88 @@ class ArbitrationLogTests(unittest.TestCase):
             summarize_arbitrations(read_arbitrations(self.log)))
         self.assertIn("25.0%", text)
         self.assertIn("1/4", text)
+
+
+class AtHeadWebfrankDriftTests(unittest.TestCase):
+    """Run-44 item 8 (WS): `--at-head` restores the SOURCE only.
+
+    config/GUNE5D/webfrank.json is global state pairing with exactly ONE
+    source state, so an at-head baseline taken while this unit's rules are
+    uncommitted measures HEAD's source against the TREE's pins. When the
+    drift is a re-derived permutation pin the WEBFRANK stage hash-asserts
+    and the build aborts naming the PIN, not the flag — two builds.
+
+    Restoring the config was rejected on purpose (shared with every
+    concurrent lane; a rule change needs `configure.py` re-run first), so
+    the deliverable is that the tool SAYS SO before the build is spent.
+    Two-sided: it must be silent on the clean case and on another unit's
+    drift, or it becomes constant noise in a fleet where webfrank.json is
+    almost always dirty somewhere.
+    """
+
+    @staticmethod
+    def config(**units):
+        return json.dumps({"units": {
+            unit: rules for unit, rules in units.items()}})
+
+    RULE = {"function": "f", "before_sha256": "aa", "after_sha256": "bb"}
+    REDERIVED = {"function": "f", "before_sha256": "aa", "after_sha256": "cc"}
+
+    def drift(self, head, tree, unit="game/x/y"):
+        return defake_gate.webfrank_unit_drift(head, tree, unit)
+
+    # --- positives ---------------------------------------------------
+
+    def test_a_rederived_pin_body_is_drift(self):
+        drifted, detail = self.drift(
+            self.config(**{"game/x/y": [self.RULE]}),
+            self.config(**{"game/x/y": [self.REDERIVED]}))
+        self.assertTrue(drifted)
+        self.assertIn("rule BODIES differ for f", detail)
+
+    def test_a_new_rule_is_drift(self):
+        drifted, detail = self.drift(
+            self.config(**{"game/x/y": []}),
+            self.config(**{"game/x/y": [self.RULE]}))
+        self.assertTrue(drifted)
+        self.assertIn("rule SET moved", detail)
+
+    def test_an_unreadable_config_is_drift_not_an_all_clear(self):
+        """"Cannot tell" must never render as "clean" — that manufactured
+        all-clear is the defect itself."""
+        drifted, detail = self.drift("{not json", self.config())
+        self.assertTrue(drifted)
+        self.assertIn("UNMEASURED", detail)
+
+    def test_the_warning_names_the_cause_and_refuses_to_write_the_config(self):
+        text = defake_gate.webfrank_drift_warning("game/x/y", "detail here")
+        self.assertIn("restores the SOURCE ONLY", text)
+        self.assertIn("detail here", text)
+        self.assertIn("configure.py", text)
+        self.assertIn("does not restore", text)
+
+    # --- negatives ---------------------------------------------------
+
+    def test_identical_rules_are_silent(self):
+        same = self.config(**{"game/x/y": [self.RULE]})
+        self.assertEqual((False, ""), self.drift(same, same))
+
+    def test_another_units_drift_is_silent(self):
+        """Another lane's rules cannot reach this unit's object, and
+        webfrank.json is dirty somewhere on most days of a fleet run."""
+        self.assertEqual((False, ""), self.drift(
+            self.config(**{"game/x/y": [self.RULE],
+                           "game/a/b": [self.RULE]}),
+            self.config(**{"game/x/y": [self.RULE],
+                           "game/a/b": [self.REDERIVED]})))
+
+    def test_a_unit_with_no_rules_on_either_side_is_silent(self):
+        self.assertEqual((False, ""), self.drift(
+            self.config(**{"game/a/b": [self.RULE]}),
+            self.config(**{"game/a/b": [self.RULE]})))
+
+    def test_no_config_at_all_is_silent(self):
+        self.assertEqual((False, ""), self.drift(None, None))
 
 
 if __name__ == "__main__":
