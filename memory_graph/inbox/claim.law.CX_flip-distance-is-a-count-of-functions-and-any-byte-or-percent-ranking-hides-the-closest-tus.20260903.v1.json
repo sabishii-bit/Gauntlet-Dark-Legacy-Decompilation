@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "build/GUNE5D/report.json",
+    "configure.py",
+    "tools/gdl/nearmiss.py"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A NonMatching TU that flips without every one of its functions reaching matched would refute the premise that flip distance is a function count. Independently, the ranking claim is refuted by any run in which the code-percent band and the function-count ranking select the SAME top three: re-derive both orders from build/GUNE5D/report.json joined to configure.py's Object() states and compare the two top-3 lists.",
+  "id": "claim.law.CX_flip-distance-is-a-count-of-functions-and-any-byte-or-percent-ranking-hides-the-closest-tus.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T22:47:28Z",
+  "schema_version": 1,
+  "subject": "tool:nearmiss",
+  "valid_from": "2026-09-03",
+  "value": "The distance from a NonMatching TU to a flip is the NUMBER of functions still unmatched, and nothing else. Every byte-denominated or percent-denominated proxy for it is wrong in the same direction: it is dominated by function SIZE, so a TU whose one remaining function is large is ranked as far from a flip as a TU with twenty remaining. Measured at 1370dce50 over all 51 NonMatching units: 1 at distance 0, 6 at distance 1, 12 at distance 2, 10 at distance 3, max 19. The run-49 image-wide screen ranked on matched CODE PERCENT and asked for the 98.5%-99.99% band; the three closest units by function count are game/mb/mb_camera at 76.63%, game/world/newcam at 93.91% and game/audio/dcsdrv at 28.65%, so the band saw NONE of them and the screen reported the queue EMPTY (claim.FQ_image-wide-flip-candidate-screen-at-c8a28c3bb-has-exactly-one-candidate-and-it-is-walled.20260903.v1). None of those four units was touched in runs 48-49, so the miss is the method, not the age. THIS IS THE SAME DEFECT SHAPE AS THE nearmiss `real` CONTAMINATION (attempt.NC_write-health-and-items-real-is-dominated-by-an-840-byte-rodata-pool-offset.20260903.v1: real 68 over three rows that are one 840-byte rodata base offset) and as a pinned function reading real 0 by construction: a magnitude is being used where a structural count is the question. THE RULE: rank a flip screen on unmatched-function COUNT, and use bytes only as the tie-break inside one count. Report the whole distance distribution, not just the distance-0 row - a screen that prints only its winners cannot be checked for the candidates its filter removed."
+}
