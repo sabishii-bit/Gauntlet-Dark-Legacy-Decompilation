@@ -2304,8 +2304,8 @@
           ],
           "before_sha256": "9825dfed11307fa54e4dc1d85fe4e15aa1036ac714c4c805b4ea8ca1e976232c",
           "after_sha256": "bb94f17f7f444bad28a698ed338494430b1afed42bd1aa667c18d0133d7f9563",
-          "before_relocations_sha256": "d7b1334a06169b58f86e475293e1ea559aca0b82060beaf1c6a285673eb24205",
-          "after_relocations_sha256": "d5fc256f47f63607d5979ecc309b6cf21df7f4aa47e707a4b74ba884d782d87d"
+          "before_relocations_sha256": "2c41b3820e71b39a1f66fa5457ed181197ffb88d7ad7c10736af9b7865ef60c3",
+          "after_relocations_sha256": "6df84d65758f5670d70899c698ffe0b7d44f0c6394b50d29f97903928073ceed"
         },
         "memory_disambiguation": {
           "audit": "The three EMB_SDA21 accesses in this window address globals the split map places at .sbss 0x80344194, .sdata2 0x80346F50 and .sbss 0x80344190 — pairwise disjoint 4-byte ranges, so the store may cross the load. The two pool loads at +0xf0/+0xf8 and the two lha at +0x120/+0x128 are NOT declared and stay may-alias-everything.",
