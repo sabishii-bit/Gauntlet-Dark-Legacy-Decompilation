@@ -486,13 +486,14 @@ s32 fn_800C03E0(s32 mode)
             u32 color;
             s32 x = 30;
             row = &tblB[i];
+            scale = 4882;
             dv = tblA[i * 4 + 3];
             pct = dv >> 10;
             w = pct * 48;
-            if ((s32)(w / 4882) > 0) {
+            if ((s32)(w / scale) > 0) {
                 quad = MBNewTempQuad();
                 mbBlitCalcWidth(quad, x * 8 + 1, qline + 1, lbl_80348EF0);
-                mbBlitProject(quad, w / 4882, 4);
+                mbBlitProject(quad, w / scale, 4);
                 MBBlitSetColor(quad, 0x10101);
             }
             pct = pct * 48;
@@ -500,7 +501,7 @@ s32 fn_800C03E0(s32 mode)
             if ((s32)(pct / 4882) > 0) {
                 quad = MBNewTempQuad();
                 mbBlitCalcWidth(quad, x * 8, qline + 2, lbl_80348EF0);
-                mbBlitProject(quad, pct / 4882, 4);
+                mbBlitProject(quad, pct / scale, 4);
                 MBBlitSetColor(quad, color);
             }
             line += 8;
