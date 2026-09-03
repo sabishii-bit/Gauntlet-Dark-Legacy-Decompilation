@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, game/game/player.c: finish PlayerProcessPowerups from real 48 / fuzzy 99.9124 / 24 words. STEP 0: gdlmem context; the run-40 SA record's mandatory hypothesis = attack the VOLATILE half of the weaphold-FX block first (the five-way volatile permutation incl. divw operand homes) and see whether the callee-saved source/parent pair follows; the typed denial lists the 3 dead axes - retry nothing. Region (a) is 19 of the 24 words; regions (b)-(d) are 5 words incl. one NEUTRAL-IDENTICAL-proved source-unreachable fadd; ~13 pool-name rows are noise (player.c owns no .sdata2 split range). If the residual lands at scratch-only value-equal shapes: rule-request record citing the chain (you do not own webfrank). Fresh fuzzy per keep; savedregs at every state; pins screened (5 in player.c); TU-scope edits fail-closed by the probe guard. defake_gate baseline step 0; gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:PlayerProcessPowerups",
+  "id": "work_claim.powerups-finish.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-SA",
+  "recorded_at": "2026-09-03T01:06:32Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}

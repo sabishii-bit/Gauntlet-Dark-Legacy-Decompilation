@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "SOURCE lane, tier-2 leftovers with typed next steps: (1) print_n_of_m (ui/screensaver, real 22 after run 40): residual = the legacy pre-prologue ADDR16_LO cluster + ONE transposed callee-saved pair - context first, the run-40 CT record carries the trail; the LO cluster's legacy cap addressed one axis only. (2) MBCameraUpdate (mb/mb_camera, real 34, 18 words scratch-only one-register rotation, class boundary PROVED by two NEUTRAL-IDENTICAL digests): if the rotation words are value-equal scratch shapes, author a rule-request record citing the CT record (you do not own webfrank); otherwise probe the one untried register-pressure form the record names. (3) StringTextWidthSub + DoGoodWizard (btext/auxscreen census rows, never screened): context + savedregs + aligned view first, classify, probe recorded levers, 3-attempt cap. Fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive at one; pins screened per TU (btext has 5 rules, screensaver 1); defake_gate baseline per TU. Gate = 'main.dol: OK'; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:print_n_of_m",
+  "id": "work_claim.tier2-finish.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-CL",
+  "recorded_at": "2026-09-03T01:06:33Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}
