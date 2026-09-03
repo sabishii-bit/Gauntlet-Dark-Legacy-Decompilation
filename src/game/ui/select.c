@@ -474,6 +474,7 @@ s32 do_player_select(void)
     s32 boff;
     s32 moff;
     s32 choice;
+    s32 ch;
     u8 unused[24];
 
     if (lbl_80344BB0 > 0) {
@@ -1542,12 +1543,12 @@ s32 do_player_select(void)
                     *(s32*)(pl + offsetof(Player, motion_state_save)) = 1;
                 }
             }
-            if (*(s32*)(pl + offsetof(Player, character)) == 2 &&
+            ch = *(s32*)(pl + offsetof(Player, character));
+            if (ch == 2 &&
                 *(u32*)(pl + offsetof(Player, hidden_code)) == lbl_80343D6C) {
                 setup_tex(i, 8, 0, 0, pool + 232);
             } else {
-                setup_tex(i, 8, 0, 0, lbl_80347F58,
-                          lbl_801200B0[*(s32*)(pl + offsetof(Player, character))]);
+                setup_tex(i, 8, 0, 0, lbl_80347F58, lbl_801200B0[ch]);
             }
             break;
         case 1:
