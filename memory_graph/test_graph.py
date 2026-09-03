@@ -2825,6 +2825,108 @@ class SupersessionLineageDedupTests(unittest.TestCase):
         self.assertEqual([hit["id"] for hit in hits], ["claim.law.thing.v2"])
 
 
+class MergingSupersessionTests(unittest.TestCase):
+    """Run-47 T17 item 10: a record that MERGES two lineages retires BOTH.
+
+    `supersedes` was read as a SCALAR by the supersession index while the
+    validation path already accepted a LIST, so the two halves of the schema
+    disagreed: a list-valued `supersedes` passed staging and then retired
+    NOTHING, because json_extract hands back the array's JSON TEXT
+    (`["a.v2","b.v1"]`), which equals no record_id anywhere. Reproduced at
+    da451ef28 against the live corpus:
+    claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-
+    return.20260903.v1 read `status: established` with NO superseded_by, while
+    the record that merged it -- NM ...v3 -- named it only in
+    attributes.subsumes, a free-prose key whose corpus population is ONE and
+    which no index reads. v3's own integrator_note names this constant as the
+    reason it could not do better.
+
+    Shapes measured across the accepted corpus at the same commit: 1,433
+    absent, 561 scalar, 0 list -- so nothing was retroactively repaired by the
+    widening; the trap was ARMED and unsprung. Cost of the UNION ALL, measured
+    on 2,000 rows x 20 screens: 0.033s -> 0.040s, and both halves stay
+    non-correlated so the 495x property of SUPERSEDED_RECORD_IDS is intact.
+    """
+
+    def setUp(self):
+        self.root = ev_root()
+        self.claims = self.root / "memory_graph" / "records" / "claims"
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _law(self, name, value, supersedes=None):
+        body = {"schema_version": 1, "id": name, "kind": "claim",
+                "predicate": "codegen_law", "subject": "compiler:test",
+                "epistemic_state": "verified", "valid_from": TODAY,
+                "value": value}
+        if supersedes is not None:
+            body["supersedes"] = supersedes
+        _write(self.claims / f"{name}.json", body)
+
+    def _laws(self):
+        result = law_corpus(root=self.root)
+        return {row["id"]: row
+                for row in result["laws"] + result["provisional_laws"]}
+
+    def test_a_LIST_retires_every_predecessor_it_names(self):
+        self._law("claim.law.alpha.v1", "the first lineage")
+        self._law("claim.law.beta.v1", "the other lineage")
+        self._law("claim.law.alpha.v2", "merged",
+                  supersedes=["claim.law.alpha.v1", "claim.law.beta.v1"])
+        build_database(self.root)
+        rows = self._laws()
+        self.assertEqual(rows["claim.law.alpha.v1"]["superseded_by"],
+                         "claim.law.alpha.v2")
+        self.assertEqual(rows["claim.law.beta.v1"]["superseded_by"],
+                         "claim.law.alpha.v2")
+        self.assertIsNone(rows["claim.law.alpha.v2"]["superseded_by"])
+
+    def test_a_SCALAR_still_retires_its_one_predecessor(self):
+        """The 561 records that use the scalar spelling must not move."""
+        self._law("claim.law.gamma.v1", "the first")
+        self._law("claim.law.gamma.v2", "the second",
+                  supersedes="claim.law.gamma.v1")
+        build_database(self.root)
+        rows = self._laws()
+        self.assertEqual(rows["claim.law.gamma.v1"]["superseded_by"],
+                         "claim.law.gamma.v2")
+        self.assertIsNone(rows["claim.law.gamma.v2"]["superseded_by"])
+
+    def test_a_record_with_no_supersedes_is_never_retired(self):
+        """The 1,433-record majority, and the `IS NOT NULL` hazard: one NULL
+        in a NOT IN list filters EVERY row as false."""
+        self._law("claim.law.delta.v1", "alone")
+        self._law("claim.law.epsilon.v1", "also alone")
+        build_database(self.root)
+        rows = self._laws()
+        self.assertIsNone(rows["claim.law.delta.v1"]["superseded_by"])
+        self.assertIsNone(rows["claim.law.epsilon.v1"]["superseded_by"])
+
+    def test_the_dedup_lineage_walk_follows_a_LIST_parent(self):
+        """A merging v2 must not be told to attach to an ancestor it retired
+        -- on EITHER branch of the merge."""
+        self._law("claim.law.zeta.v1", "a law about a widget")
+        self._law("claim.law.eta.v1", "a law about a widget elsewhere")
+        build_database(self.root)
+        merged = {"schema_version": 1, "id": "claim.law.zeta.v2",
+                  "kind": "claim", "predicate": "codegen_law",
+                  "subject": "compiler:test", "epistemic_state": "verified",
+                  "valid_from": TODAY, "value": "a law about a widget merged",
+                  "supersedes": ["claim.law.zeta.v1", "claim.law.eta.v1"]}
+        self.assertEqual(
+            core._duplicate_claim_candidates(merged, self.root), [])
+
+    def test_both_index_queries_stay_non_correlated(self):
+        source = (Path(core.__file__).read_text(encoding="utf-8"))
+        for name in ("SUPERSEDED_RECORD_IDS", "SUPERSEDING_RECORD_BY_TARGET"):
+            start = source.index(name + " = (")
+            body = source[start:source.index("\n)", start)]
+            self.assertIn("json_each", body)
+            self.assertNotIn("= r.record_id", body)
+            self.assertNotIn("= a.record_id", body)
+
+
 class OwnedUnitsValidationTests(unittest.TestCase):
     """Gate J: a malformed ownership list is refused, an absent one is not."""
 
@@ -4188,8 +4290,16 @@ class SupersessionScreenPerformanceTests(unittest.TestCase):
             flat, ["attempt.a.v2", "attempt.b.v1", "attempt.b.v2",
                    "attempt.c.v1"])
 
-    def test_the_is_not_null_guard_is_load_bearing(self):
-        """Drop it and `NOT IN` returns NOTHING — the silent-empty trap."""
+    def test_the_null_guard_is_load_bearing(self):
+        """Drop it and `NOT IN` returns NOTHING — the silent-empty trap.
+
+        Asserted on the shipped query's OUTPUT, not on the string
+        `IS NOT NULL`: run-47 item 10 replaced that spelling with
+        `json_type(...) = 'text'` / `= 'array'`, which is a strictly narrower
+        guard (it excludes NULL and every other JSON type), and a literal
+        match would have failed a change that made the guard stronger. What
+        must hold is that the screen never yields a NULL row.
+        """
         connection = self._fixture()
         without_guard = connection.execute(
             "SELECT record_id FROM record_ingest WHERE record_id NOT IN ("
@@ -4197,7 +4307,10 @@ class SupersessionScreenPerformanceTests(unittest.TestCase):
             " FROM record_ingest newer WHERE newer.record_state='accepted')"
         ).fetchall()
         self.assertEqual(without_guard, [])
-        self.assertIn("IS NOT NULL", core.SUPERSEDED_RECORD_IDS)
+        emitted = [row[0] for row in
+                   connection.execute(core.SUPERSEDED_RECORD_IDS).fetchall()]
+        self.assertEqual(emitted, ["attempt.a.v1"])
+        self.assertNotIn(None, emitted)
 
     def test_no_correlated_supersedes_subquery_remains_in_core(self):
         """The idiom is quadratic; it must not come back by copy-paste."""

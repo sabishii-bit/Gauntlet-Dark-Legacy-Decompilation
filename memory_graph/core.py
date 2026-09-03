@@ -62,11 +62,34 @@ ATTEMPT_LIMIT_PER_FUNCTION = 5
 # evaluates to NULL — which filters as false — for EVERY row as soon as one
 # NULL is in the list, and most records carry no `supersedes` key at all.
 # Dropping it silently returns zero rows everywhere.
+#
+# BOTH SHAPES (run-47 item 10). `supersedes` was read as a SCALAR here while
+# the validation path (`declared` in the citation screen) already accepted a
+# LIST, so the two halves of the schema disagreed: a list-valued `supersedes`
+# passed staging and then retired NOTHING, because json_extract hands back the
+# array's JSON TEXT — `["a.v2","b.v1"]` — which equals no record_id anywhere.
+# Measured shapes across the accepted corpus at da451ef28: 1,433 absent, 561
+# scalar, 0 list, so nothing is retroactively repaired by this; the trap was
+# ARMED and unsprung, and it is why
+# claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto
+# .20260903.v3 — a record that MERGES two lineages — could name only one of
+# its two predecessors and wrote the other into free prose
+# (attributes.subsumes, corpus population 1), where no index reads it. Its own
+# integrator_note names this constant as the reason.
+# Cost, measured on 2,000 rows x 20 screens: 0.033s -> 0.040s. The UNION ALL
+# keeps both halves non-correlated, so the 495x property above is intact.
 SUPERSEDED_RECORD_IDS = (
     "SELECT json_extract(newer.raw_json, '$.supersedes')"
     " FROM record_ingest newer"
     " WHERE newer.record_state = 'accepted'"
-    "   AND json_extract(newer.raw_json, '$.supersedes') IS NOT NULL"
+    "   AND json_type(newer.raw_json, '$.supersedes') = 'text'"
+    " UNION ALL"
+    " SELECT entry.value"
+    " FROM record_ingest newer,"
+    "      json_each(newer.raw_json, '$.supersedes') AS entry"
+    " WHERE newer.record_state = 'accepted'"
+    "   AND json_type(newer.raw_json, '$.supersedes') = 'array'"
+    "   AND entry.value IS NOT NULL"
 )
 
 # The companion LOOKUP: for each superseded record, WHICH record replaced
@@ -79,11 +102,18 @@ SUPERSEDED_RECORD_IDS = (
 # ORDER BY: same arbitrary pick when there is one successor, deterministic
 # when a record was superseded twice.
 SUPERSEDING_RECORD_BY_TARGET = (
-    "SELECT json_extract(newer.raw_json, '$.supersedes') AS old_id,"
-    " MIN(newer.record_id) AS newer_id"
+    "SELECT old_id, MIN(newer_id) AS newer_id FROM ("
+    " SELECT json_extract(newer.raw_json, '$.supersedes') AS old_id,"
+    " newer.record_id AS newer_id"
     " FROM record_ingest newer"
-    " WHERE json_extract(newer.raw_json, '$.supersedes') IS NOT NULL"
-    " GROUP BY 1"
+    " WHERE json_type(newer.raw_json, '$.supersedes') = 'text'"
+    " UNION ALL"
+    " SELECT entry.value AS old_id, newer.record_id AS newer_id"
+    " FROM record_ingest newer,"
+    "      json_each(newer.raw_json, '$.supersedes') AS entry"
+    " WHERE json_type(newer.raw_json, '$.supersedes') = 'array'"
+    "   AND entry.value IS NOT NULL"
+    " ) GROUP BY old_id"
 )
 
 # Controlled applicability vocabulary for law records (attributes.tags).
@@ -4337,8 +4367,14 @@ def _probe_record_references(
     # typed-denial gate. Resolving it is what makes the documented promise
     # true and keeps the escape from becoming the opt-out it disclaims.
     for citing_key in ("supersedes", "refutes"):
-        if isinstance(record.get(citing_key), str):
-            cited.append(record[citing_key])
+        value = record.get(citing_key)
+        if isinstance(value, str):
+            cited.append(value)
+        elif isinstance(value, list):
+            # A MERGING record names more than one predecessor (run-47 item
+            # 10). Reading only the scalar spelling let every id in a list
+            # skip the resolution check that exists so a citation cannot rot.
+            cited.extend(item for item in value if isinstance(item, str))
     # Read through _record_field, because gate D releases on EITHER spelling
     # (top-level or attributes.) — checking only the top-level one would
     # leave the same hole one level down.
@@ -5634,25 +5670,41 @@ def _duplicate_claim_candidates(
         }
         claim_ids.update(_inbox_claim_ids(root))
         # THE WHOLE LINEAGE, not just the record named in `supersedes`
-        # (run 46). The field is a SCALAR, so a v3 can only name v2 — and v1
-        # is by construction the nearest slug-neighbour of both, so the gate
-        # fired on the retired ancestor of the very chain the v3 continues
-        # and told its author to attach to a record v2 had already replaced.
-        # Walk backwards through the supersession edges and exempt every
-        # ancestor; the bound keeps a cyclic corpus from spinning.
-        ancestors = dict(connection.execute(
+        # (run 46). A v3 names v2 — and v1 is by construction the nearest
+        # slug-neighbour of both, so the gate fired on the retired ancestor
+        # of the very chain the v3 continues and told its author to attach to
+        # a record v2 had already replaced. Walk backwards through the
+        # supersession edges and exempt every ancestor; the bound keeps a
+        # cyclic corpus from spinning.
+        # A MERGING record has more than one parent (run-47 item 10), so the
+        # walk follows a LIST too — reading only the scalar spelling would
+        # exempt one lineage and re-fire on the other, which is the same
+        # defect this walk was built to remove.
+        ancestors: dict[str, list[str]] = {}
+        for row in connection.execute(
             "SELECT record_id, json_extract(raw_json, '$.supersedes')"
             "  FROM record_ingest"
             " WHERE json_extract(raw_json, '$.supersedes') IS NOT NULL"
-        ).fetchall())
+        ).fetchall():
+            parent = row[1]
+            if isinstance(parent, str) and parent.startswith("["):
+                try:
+                    parent = json.loads(parent)
+                except ValueError:
+                    pass
+            if isinstance(parent, str):
+                ancestors[row[0]] = [parent]
+            elif isinstance(parent, list):
+                ancestors[row[0]] = [item for item in parent
+                                     if isinstance(item, str)]
         frontier, seen = list(declared), set(declared)
         while frontier:
             current = frontier.pop()
-            parent = ancestors.get(current)
-            if isinstance(parent, str) and parent not in seen:
-                seen.add(parent)
-                declared.add(parent)
-                frontier.append(parent)
+            for parent in ancestors.get(current, ()):
+                if parent not in seen:
+                    seen.add(parent)
+                    declared.add(parent)
+                    frontier.append(parent)
             if len(seen) > 64:
                 break
         for existing_id in sorted(claim_ids):
