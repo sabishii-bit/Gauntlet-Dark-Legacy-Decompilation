@@ -1,0 +1,31 @@
+{
+  "attributes": {
+    "implementation_anchors": [
+      "tools/gdl/composed_census/wf_ordered_datum_screen.py",
+      "tools/gdl/tests/test_wf_ordered_datum_screen.py"
+    ]
+  },
+  "constraints": [
+    "Read-only: it writes only the optional --out JSON. A DEFECT row is a CANDIDATE for one aligned `fnasm --diff` read, never a licence to edit.",
+    "Requires a completed `ninja` so build/GUNE5D/obj and build/GUNE5D/src are both current; stale objects silently misreport. It reads the plain src object, NOT the raw pre-postprocess body, so on a webfrank-pinned function it scores the POSTPROCESSED relocations.",
+    "It answers the ORDER question only. When the datum MULTISETS differ it returns UNDECIDABLE and never BENIGN, because a value delta is fndiff.datum_multiset_screen's question, not this one.",
+    "UNDECIDABLE is a real answer, not a failure: 175 of 3032 paired functions land there, almost all for UNPAIRED mismatches in streams whose relocation counts agree but whose instruction words do not.",
+    "Two-sided calibration at 5f9ef72ba: positive control (es_named_reloc_census's 8 TRANSPOSED) 6 DEFECT / 2 UNDECIDABLE / 0 BENIGN; negative control (its 7 WRONG-DATUM) 0 DEFECT / 7 UNDECIDABLE / 0 BENIGN; base rate over 3032 paired functions 12 DEFECT (0.40%), 2845 BENIGN, 175 UNDECIDABLE, 84 seconds."
+  ],
+  "entrypoint": "python tools/gdl/composed_census/wf_ordered_datum_screen.py [--census PATH] [--disposition CANDIDATE|'*'] [--unit U --function F] [--sweep] [--out PATH]",
+  "id": "tool.wf-ordered-datum-screen.20260903.v1",
+  "kind": "tool",
+  "name": "wf_ordered_datum_screen.py",
+  "purpose": "The THIRD datum comparison: each function's whole ORDERED sequence of datum keys, target against ours, with every ordered mismatch decided on the REGISTER FIELD -- crossed registers are a schedule reorder, the same register at the same position holding a different datum is a transposition.",
+  "recorded_at": "2026-09-03T20:05:04Z",
+  "schema_version": 1,
+  "status": "active",
+  "tool_key": "tools/gdl/composed_census/wf_ordered_datum_screen.py",
+  "tool_kind": "analysis",
+  "usage": [
+    "Run from the repository root. `--sweep` is the image-wide base rate and needs no census; `--census` re-screens es_named_reloc_census.py's --out (default build/GUNE5D/es_named_census.json); `--unit`/`--function` screens one function.",
+    "Positive control to run before trusting a refinement: `--unit game/enemy/enemy --function move_logic00` must print DEFECT with the f30 pi/2pi DATUM-SWAP row.",
+    "See claim.law.WF_the-register-slot-separates-a-datum-transposition-from-a-schedule-reorder.20260903.v1 for the rule, the exclusion counts and the 11 CANDIDATE dispositions."
+  ],
+  "valid_from": "2026-09-03"
+}

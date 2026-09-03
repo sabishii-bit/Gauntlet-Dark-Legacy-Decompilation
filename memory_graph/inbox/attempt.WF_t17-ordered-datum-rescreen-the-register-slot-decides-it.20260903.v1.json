@@ -1,0 +1,30 @@
+{
+  "attempted_axis": "Execute T17's next-lane hypothesis: re-screen es_named_reloc_census's 11 CANDIDATE rows on the ORDERED datum sequence, the comparison neither the datum multiset nor the row-set permutation test makes, and publish a disposition per row.",
+  "attributes": {
+    "law_screen": "claim.law.SL_pool-constant-errors-are-score-invisible SCREENED and is why the class matters at all. claim.law.SA_a-wrong-global-that-shares-an-instruction-word-is-invisible-to-every-score-including-the-word-count.20260902.v1 APPLIED -- the one DEFECT this pass returns is exactly that shape, a store to the wrong .sbss word. claim.law.MF_every-function-at-real-0-does-not-mean-the-text-order-is-right-and-no-project-score-sees-it.20260903.v1 SCREENED, not applicable (this is a datum question, not a text-order one). No codegen law applied: no game source was edited.",
+    "laws_applied": "[\"claim.law.SA_a-wrong-global-that-shares-an-instruction-word-is-invisible-to-every-score-including-the-word-count.20260902.v1\"]",
+    "probed_form": "NO SOURCE EDIT. New tool `tools/gdl/composed_census/wf_ordered_datum_screen.py` plus `tools/gdl/tests/test_wf_ordered_datum_screen.py` (10 tests), commit 1fee586b6.",
+    "residual": "The one DEFECT is game/sys/memcard::loadGauntletSave, which this lane does not own (owned_units are tools/gdl/webfrank.py, config/GUNE5D/webfrank.json, game/sfx/psfx.c). It is handed to the integrator as a source item, not fixed here.",
+    "scope": "tools/gdl/composed_census/wf_ordered_datum_screen.py (NEW), tools/gdl/tests/test_wf_ordered_datum_screen.py (NEW). No game source, no webfrank rule, no config.",
+    "verification": "`python -m unittest discover tools/gdl/tests -b` = Ran 1587 tests, OK (1577 before). `python -m memory_graph.test_graph --changed -b` = OK, full run (two relevant paths under tools/gdl/). Full `ninja -j2` prints `build/GUNE5D/main.dol: OK`. The promoted tool was RUN ONCE from the repository root before the commit, in all three modes (--unit/--function, census, --sweep). GUARD PROOF, four for four, each test PASSES with its guard and FAILS with it disabled (crossed-register REORDER, same-slot DATUM-SWAP, conversion-magic exclusion, value-delta-never-benign)."
+  },
+  "function": "project:gdl",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Run `wf_ordered_datum_screen.py --unit game/enemy/enemy --function move_logic00`. It must print DEFECT with a DATUM-SWAP row showing `lfd f30` holding 400921fb54524550 in the target and 401921fb54524550 in ours. That function is the transposition fndiff's own datum_screen_from_lines docstring names as its blind spot, it is NOT in es_named_reloc_census's 28, and the screen was not fitted to it -- if a later refinement stops finding it, the refinement is wrong.",
+    "screened_against_target": "yes -- every disposition below is read from the target object under build/GUNE5D/obj against our build/GUNE5D/src object, with each relocation's datum resolved through fndiff.datum_key (bytes when readable, else the linked address), and each mismatch's instruction text quoted.",
+    "statement": "T17's hypothesis is CONFIRMED IN KIND and much narrower than posed: an ordered transposition does hide inside the CANDIDATE set, but the ordered-sequence comparison T17 named (`run it over all 11 in one pass with fndiff.datum_relocs`) cannot see it, because 10 of the 11 have DIFFERING instruction streams and a bare index compare on those is dominated by schedule displacement -- run that way it returns 10 UNDECIDABLE and 1 BENIGN, and it also fabricates apparent transpositions out of pure reorders. What decides an ordered mismatch is the REGISTER FIELD read at the SAME POSITION: crossed registers mean each datum still reaches the same register and only the emission order moved (a schedule fact); the same register at the same position under the same mnemonic receiving a DIFFERENT datum is the transposition. NEXT LANE: the screen is UNDECIDABLE on 175 functions image-wide, almost all of them for `UNPAIRED` mismatches (304 rows) in streams whose relocation counts agree but whose words do not. An alignment (difflib over the key sequences) instead of a raw index compare would decide some of those, and is the cheapest remaining widening."
+  },
+  "id": "attempt.WF_t17-ordered-datum-rescreen-the-register-slot-decides-it.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T20:05:03Z",
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "windows_tried": [
+    "bare ordered index compare (T17's own formulation): 11 CANDIDATE -> 1 BENIGN, 10 UNDECIDABLE. Refuted as a decision procedure.",
+    "index compare + whole-function mirror search: 11 -> 8 DEFECT, 1 BENIGN, 2 UNDECIDABLE. Over-eager: verified by hand on gamemain::fn_80057024, whose 'exchange' is target `lfs f1,255.0f` then `lfs f4,0.0f` against ours `lfs f4,0.0f` then `lfs f1,255.0f` -- f1 holds 255.0 and f4 holds 0.0 in BOTH streams.",
+    "+ conversion-magic and same-instruction exclusions: recall on the 8 known TRANSPOSED collapsed 7/8 -> 1/8. Over-corrected.",
+    "+ the REGISTER-FIELD rule (crossed = REORDER, same-slot = DATUM-SWAP): THE SHIPPED FORM."
+  ]
+}
