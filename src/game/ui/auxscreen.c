@@ -1228,7 +1228,7 @@ s32 init_mapscreen(s32 timer, s32 movie)
     }
 
     for (i = 0; i < 8; i++) {
-        *(s32*)(base + i * 4 + offsetof(AuxSceneView, map_route_icon_blit)) = 0;
+        ((AuxSceneView*)base)->map_route_icon_blit[i] = 0;
     }
     fn_80053C70();
     (void)movie;
