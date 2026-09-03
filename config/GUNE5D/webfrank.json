@@ -1205,6 +1205,40 @@
       "copy_register_fields": true
     },
       {
+        "function": "fn_8006F16C",
+        "before_sha256": "7212daa960d82731f304e0fd6cccfe66aab3d015b85b3ce087088196a8f5a597",
+        "after_sha256": "ea0125d5870e0226b81206880918a4e9e9fe4dd40b9c76842ed9f9418a2b722a",
+        "mechanism": "attempt.NM_fn8006f16c-load-side-hypothesis-refuted-and-a-wrong-global-found-under-it.20260903.v1 is the source-exhaustion provenance: four construct classes (statement shape, declaration order, statement order, addressing form) measured dead on this cluster, two of them NEUTRAL-IDENTICAL (the edit folded away before codegen), under a typed denial whose falsifier is 'any source form that makes MWCC emit `mr r30,r29` instead of a second `li r30,0`'. 171/171 instructions, real 4, three raw differing words, all at +0x230..+0x238. The residual is ONE fact, not two: the target's `mr r30,r29` at +0x238 depends on `li r29,0`, which pins the li first and leaves the scheduler only the load to place, while our three words are mutually independent and the load hoists to the front. Same composition and the same window as this TU's fn_8006DF34 rule directly above: permute [0x230,0x238) order [1,0] (two atoms, dependence-audited in our colouring, strictest form, no exit_dead escape), then the differing-source li-vs-copy site at +0x238 under `constant_dataflow_recolor` naming our source r29, then copy_register_fields under a machine-proven bisimulation. The permuted window carries the EMB_SDA21 relocation on `lwz r28,@lbl_80344A6C` and the other atom (`li r29,0`) carries none, so the moved atom's binding to its target slot is unambiguous by (relocation type, symbol) as claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 requires of the deriver; both region relocation hashes are non-empty and the rule fails closed on a symbol-table renumber. Derived and proved through the real webfrank.apply_patch with the retail image (datum screen at FULL strength, L3), BYTE-EQUAL, 3 words changed. real 4 -> 0.",
+        "audit": {
+          "classification": "SCHEDULE+COPY_FORM",
+          "instructions": 171,
+          "permuted_instructions": 2,
+          "proof": "constant_dataflow_recolor"
+        },
+        "instruction_permutation": [
+          {
+            "start": "0x230",
+            "end": "0x238",
+            "order": [
+              1,
+              0
+            ],
+            "before_sha256": "7c4d5cdd2bd356fb2873ac04b5960c92bb56b717f586af885459abdbf9c93674",
+            "after_sha256": "29e85da6cf6fa557c28fc6d988d3413eae1796a66ca2bdf5d77231469969c055",
+            "before_relocations_sha256": "263d7f4b4eed24f2858ba5c5cedd54523dd8e747c64929edc260011db50daa81",
+            "after_relocations_sha256": "218762eed20f2e53aba92423845bcdfa49f3c38474c9d6a1487aaeda9ad2e834"
+          }
+        ],
+        "equivalent_copy_form": [
+          {
+            "at": "0x238",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 29
+          }
+        ],
+        "copy_register_fields": true
+      },
+      {
         "function": "fn_8006E654",
         "before_sha256": "a8ae1a58e6d35e9719ed4def254daf4aa5e07f86247eb8192c3b8d6589c68a5b",
         "after_sha256": "1cb3b0077ee000c5b6f36bf6ff09399b44bb711e805e3fabd2c4cc31027b4f13",
