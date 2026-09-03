@@ -3213,6 +3213,43 @@
           }
         ]
       }
+    ],
+    "game/ui/attract": [
+      {
+        "function": "scroll_credits",
+        "before_sha256": "cd549bd010f876a2a2c13b0f72cd190ed950d47d026ef0a8bd663aea88fd17b6",
+        "after_sha256": "df8018dbf64a59d0a109bfa1cae77d0dc46cced47258d179344d5faeb8cc8cc3",
+        "mechanism": "SOURCE-EXHAUSTION PROVENANCE: attempt.WR_scroll-credits-needs-a-constant-equality-closure-and-nothing-else.20260903.v1 (outcome capped, residual_class REGISTER_ONLY, typed denial with premise_measurement and expiry_check). That record's denial scope says the cap is 'the EXISTING webfrank class set for scroll_credits, and only that ... it does not deny the postprocessor path once the constant-equality closure named in claim.WR_constant-equality-closure-class-proposal.20260903.v1 is adjudicated'; the closure is the mode this rule opts into. DEMAND: claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1 screened 2842 paired functions and named this one of exactly two real payoff rows, the only unpinned one. RESIDUAL, from the record verbatim: 'opcode multiset IDENTICAL (148/148); RAW DIFFERING WORDS = 52 ... MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0, PINNED = no'. TWO STAGES. (1) FORM, two sites, +0xe4 and +0x174, structurally identical because the block is duplicated: target `li r27,0` against our `addi r26,r25,0`, with our r25 holding 0 from an immediately preceding `li r25,0` that is byte-identical in both streams. The copy-versus-constant direction is the one claim.law.DC_copy-form-class-is-directional-and-its-inverse-population-is-unserved.20260901.v1 names, and `constant_dataflow_inverse_recolor` is the mode equivalent_copy_form itself accepts at both sites; each re-encodes our word to `li r26,0` and leaves the r26-vs-r27 difference to the recolor. Both sites were detected by DECODED COPY FORM rather than by the encoding-level regfield label, per claim.law.CE_a-copy-versus-constant-site-encodes-as-a-pure-register-field-difference.20260903.v1. (2) RECOLOR, copy_register_fields proved by verify_value_equality_recolor with the constant-equality closure. Six uses need our r25 to correspond to the target's r27 or our r26 to the target's r25; both registers provably hold literal 0, but they were materialised by INDEPENDENT `li` instructions, which the relation's copy closure cannot relate. The declared substitutions +0xfc, +0x15c, +0x168, +0x18c, +0x1ec, +0x1f8 are exactly the six the predecessor record's premise_measurement lists. WITHOUT the closure this same rule refuses with '+0xfc: use of g25 is not value-equal to g27' (measured this run), which is why `constant_equality` is declared: apply_patch refuses the opt-in as unnecessary if the narrow relation ever proves it alone. Datum bindings are proved by the screen this rule ships under.",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 148,
+          "differing_words": 52
+        },
+        "copy_register_fields": true,
+        "equivalent_copy_form": [
+          {
+            "at": "0xe4",
+            "proof": "constant_dataflow_inverse_recolor"
+          },
+          {
+            "at": "0x174",
+            "proof": "constant_dataflow_inverse_recolor"
+          }
+        ],
+        "value_equality_recolor": {
+          "audit": "Two independent constant loads of literal 0, one per stream, feeding six uses. Machine-proved by verify_value_equality_recolor with the constant-equality closure; every escape below is declared and fails closed on an undeclared or stale declaration.",
+          "constant_equality": true,
+          "substitutions": [
+            {"at": "0xfc", "bank": "g", "ours": 25, "target": 27},
+            {"at": "0x15c", "bank": "g", "ours": 26, "target": 25},
+            {"at": "0x168", "bank": "g", "ours": 25, "target": 27},
+            {"at": "0x18c", "bank": "g", "ours": 25, "target": 27},
+            {"at": "0x1ec", "bank": "g", "ours": 26, "target": 25},
+            {"at": "0x1f8", "bank": "g", "ours": 25, "target": 27}
+          ],
+          "compare_exchanges": []
+        }
+      }
     ]
   }
 }
