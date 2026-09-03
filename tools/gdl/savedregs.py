@@ -63,6 +63,12 @@ differs, this says what the saved registers are FOR.
 Zero builds by construction: it decodes the objects already on disk through
 fnasm.parse_fn. If an object is missing it says so rather than building one,
 because a build here would silently rescore the thing you are reading.
+
+IMPORTABLE CORE: parse_instruction, first_definitions, all_definitions,
+lifetime_pairs, correspondence, permutation, format_table — all pure over
+decoded row lists, no build and no printing, and importing this module has
+no side effects. Call them in-process for a sweep instead of one subprocess
+per function (run-43 item 10; the convention is documented in AGENTS.md).
 """
 
 import re

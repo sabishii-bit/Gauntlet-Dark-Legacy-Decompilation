@@ -52,6 +52,12 @@ A CONFLICT this call accepts prints as `ARBITRATED`, not as `CONFLICT ...
 (pass --arbitrate to accept)` above a "GATE OK (arbitrated)" line telling
 you it was accepted. The verdict tuples are unchanged.
 
+IMPORTABLE CORE: snapshot, compare, verdict_row, arbitrate_regressions,
+parse_clean, roster_rows, format_roster, load_baseline, normalize_unit,
+arbitration_event, summarize_arbitrations — pure over parsed tool output
+and baseline dicts; no build and no printing at import (run-43 item 10;
+the convention is documented in AGENTS.md).
+
 EVERY ARBITRATION IS LOGGED. `--arbitrate` keeps, `--bank-arbitrated` row
 re-anchors, and refused CONFLICTs all append one json line to
 build/GUNE5D/gate/arbitrations.jsonl carrying the unit, the commit, the

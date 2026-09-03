@@ -117,6 +117,16 @@ agree. SCHEDULE_CANDIDATE is a review queue, not proof of semantic equivalence.
 
 The base object is rebuilt via ninja automatically whenever the source file
 is newer (pass --no-build to skip). This prevents analyzing stale objects.
+
+IMPORTABLE CORE: unit_key, parse, classify_function, count_real,
+instruction_lines, opcode_multiset_signature, pool_row_findings,
+datum_screen_from_lines, datum_multiset_screen, object_sections,
+object_datum_table, target_datum_entry, dol_read, symbol_table — pure
+functions over object paths and parsed line lists; no build, no printing,
+and importing this module has no side effects. A sweep calls them
+in-process (the objdump, DOL and symbols.txt readers are all cached per
+process) instead of spawning one subprocess per function (run-43 item 10;
+the convention is documented in AGENTS.md).
 """
 
 from collections import Counter

@@ -21,6 +21,11 @@ and a verdict line. Frame size and save-set are printed for context.
 Slots are a lower bound on occupancy (a slot only touched through a
 copied pointer stays invisible) — treat IDENTICAL as strong evidence,
 not proof; the gate still owns bytes.
+
+IMPORTABLE CORE: slot_map, save_set — pure over `fndiff.parse` line lists,
+no build, no printing, and importing this module has no side effects. A
+sweep over N functions in one TU costs TWO object parses, not N
+subprocesses (run-43 item 10; the convention is documented in AGENTS.md).
 """
 
 import re

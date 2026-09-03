@@ -29,6 +29,11 @@ records-per-unmatched-function — rec=0 is genuinely unexplored, rec=5 is
 where five lanes already spent their probes — and the run-42 close lane had
 to reconstruct that column by hand.
 
+IMPORTABLE CORE: residual_columns, format_residual, format_row,
+summary_line, load_graph_facts, load_parked — pure over parsed line lists
+(load_graph_facts opens the graph database), no build and no printing at
+import (run-43 item 10; the convention is documented in AGENTS.md).
+
 --residuals prints `real=N`, which is `fndiff --count`'s real (raw diff rows
 with every relocation line dropped) — the same number probe.py prints and the
 one work orders and attempt records quote — and RANKS on it. It used to print

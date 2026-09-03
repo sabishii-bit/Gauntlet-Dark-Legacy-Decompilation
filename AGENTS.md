@@ -926,6 +926,20 @@ tools that take a unit built `build/GUNE5D/obj/{unit}.o` from raw argv, so
 a `.c` spelling produced `...y.c.o` and a MISSING OBJECT, which reads as
 "this function is not in the census" rather than as a spelling.
 
+**IMPORTABLE CORE (run-43 item 10).** A tool whose module docstring
+carries a line beginning `IMPORTABLE CORE:` names functions you may call
+IN-PROCESS: they are pure over parsed data, they never build, and
+importing the module has no side effects. Use them for any sweep — a
+per-function subprocess is the wrong shape when two object parses would
+do (`fndiff`, `slotdiff`, `savedregs`, `defake_gate`, `nearmiss` carry
+the line today; `tools/gdl/tests/test_importable_core.py` fails if a
+marked module stops importing silently or renames a function it
+advertises). Measured over all 62 tools/gdl modules: 51 import silently,
+9 do work at import (abicheck, build_rule and the addr16/addrlo/
+add_remat census family) and 2 fail outright (pdb20_dump, splice_rules
+each open a file at import) — those 11 are library-hostile and are the
+debt this convention makes visible.
+
 Do not invent ad-hoc diff pipelines when a project tool already provides the
 measurement. After each meaningful change: rebuild the owning object, re-score,
 compare against both the original baseline and the best retained result, and
