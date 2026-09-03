@@ -359,19 +359,9 @@ s32 MBDrawPolyInsts(PolyContext* ctx) {
 
 /* 0x800DE4AC - dispatch one instance to the GX submitter for a pass/phase */
 void DoPolyInst(PolyInstance* inst, s32 mode, s32 phase) {
-    if (inst->_02 != 0) {
+    if (inst->_02 != 0 || inst->type < 3) {
         return;
     }
-    switch (inst->type) {
-    case 3:
-        goto draw;
-    default:
-        if (inst->type > 3) {
-            goto draw;
-        }
-        goto done;
-    }
-draw:
     if (phase != 0) {
         if (mode == 11) {
             DoPolyInstSub(inst, 0);
@@ -382,8 +372,6 @@ draw:
     } else {
         DoPolyInstSub(inst, 0);
     }
-done:
-    ;
 }
 
 static inline f32 mbPolyFactor(void) {
