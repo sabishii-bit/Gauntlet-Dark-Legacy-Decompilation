@@ -1,0 +1,17 @@
+{
+  "asserted_by": [
+    "python tools/gdl/probe.py game/enemy/critter CritterGetTargetPlayers --ops",
+    "python tools/gdl/composed_census/wf_word_diff.py game/enemy/critter CritterGetTargetPlayers",
+    "attempt.CL_crittergettargetplayers-assignment-in-condition-splits-the-coalesced-clamp-carrier.20260903.v1"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "A function whose residual is a target-only branch plus an ours-only copy, in which folding the feeding assignment into the first condition leaves the object bytes unchanged (NEUTRAL-IDENTICAL) or loses count parity; or a re-measurement of CritterGetTargetPlayers at or after commit b72e67321 in which `probe.py game/enemy/critter CritterGetTargetPlayers --ops` no longer reports an IDENTICAL 128/128 multiset.",
+  "id": "claim.law.CL_assignment-in-condition-splits-a-carrier-mwcc-coalesces-as-a-statement.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T03:51:01Z",
+  "schema_version": 1,
+  "subject": "function:CritterGetTargetPlayers",
+  "valid_from": "2026-09-03",
+  "value": "When a value is computed once and then clamped or selected into a second value, MWCC coalesces the computation with the carrier if the computation is written as its OWN assignment statement, and it does not if the same assignment is folded into the first branch condition. Measured on CritterGetTargetPlayers: `quot = base / damage; if (quot < pt01) { ratio = pt01; } else if (quot > hi) { ratio = hi; } else { ratio = quot; }` emits a surplus home-materialisation copy (T128/O129, real 45, `fmr` at 0x13c) in all three declaration configurations tried - temp declared before the carrier, after it, and widened into the carrier's own width class - while the identical code written as `if ((quot = base / damage) < pt01) { ... }` emits the target's exact branch skeleton at count parity (T128/O128, opcode multiset IDENTICAL, regnorm genuine structural rows 0, real 20, fresh objdiff fuzzy 98.1250 -> 99.4531). The construct is therefore a LEVER on operand coalescing, not merely a spelling: it reaches codegen where declaration order and declaration width, tested on the same pair in the same session, are both NEUTRAL-IDENTICAL. Reach for it whenever a residual reads as 'the target keeps two live webs where we have one' and the corresponding source has a single-use assignment feeding a conditional."
+}

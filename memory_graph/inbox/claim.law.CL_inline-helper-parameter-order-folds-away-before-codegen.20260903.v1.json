@@ -1,0 +1,16 @@
+{
+  "asserted_by": [
+    "python tools/gdl/probe.py game/ui/btext StringTextWidthSub --ops",
+    "attempt.CL_stringtextwidthsub-mask-at-the-call-argument-and-three-dead-schedule-levers.20260903.v2"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "Any function in which permuting a `static inline` helper's parameter list, with call sites rewritten to match, changes the built object's bytes; the cheapest check is `python tools/gdl/probe.py <unit> <fn>` reporting anything other than NEUTRAL-IDENTICAL after such an edit.",
+  "id": "claim.law.CL_inline-helper-parameter-order-folds-away-before-codegen.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T03:51:02Z",
+  "schema_version": 1,
+  "subject": "function:StringTextWidthSub",
+  "valid_from": "2026-09-03",
+  "value": "Reordering the PARAMETER LIST of a file-local `static inline` helper (with every call site rewritten to match) does not reach MWCC's codegen: the emission order of the inlined copy-in temporaries is decided after inlining and is unaffected by the declared parameter positions. Measured on game/ui/btext::StringTextWidthSub, whose residual includes two sites where the target materialises the inlined loop's buffer base BEFORE the color mask and we emit them the other way round: changing `static inline s32 TextLinesWidth(u8** buf, s32 nlines, s32 color, f32 lh)` to `(s32 color, s32 nlines, u8** buf, f32 lh)` and rewriting both calls produced a BYTE-IDENTICAL object (NEUTRAL-IDENTICAL-PROOF bytes=3d7b1f7fe22a real=72 insns=T121/O121 multiset=0t head=b72e67321). By the NEUTRAL-IDENTICAL rule this is categorical for the construct: no further permutation of an inline helper's parameter list will move an emission-order residual, and a lane that wants to move where an inlined argument's value is materialised must move the EXPRESSION (the mask at the call argument, or a statement inside the helper body), not the parameter position. The same session measured that moving the expression DOES reach codegen - masking at the call argument improved real 78 -> 72 and fuzzy 91.6860 -> 91.8512, and masking inside the helper body moved one of the two sites by exactly one slot - so the boundary is between parameter POSITION (inert) and expression PLACEMENT (live)."
+}
