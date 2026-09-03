@@ -3722,6 +3722,19 @@ def main():
         print(__doc__)
         return 2
     unit, fn = normalize_unit(args[0]), args[1]
+    # Cross-lane ownership screen (run-46 item 1). Refuses ONLY on the
+    # machine-readable channel — another active work_claim's
+    # attributes.owned_units listing this unit — never on scope prose, which
+    # measured 85% false positives over the image. `--ignore-claim` (or
+    # GDL_CLAIM_OVERRIDE=1) is the integrator's escape.
+    try:
+        import claimscope
+        rc = claimscope.warn_or_refuse(
+            unit, "probe", enforce="--ignore-claim" not in sys.argv)
+        if rc:
+            return rc
+    except ImportError:
+        pass
     state_file = state_path(unit, fn)
     source = source_path(unit)
     if "--reset" in sys.argv:

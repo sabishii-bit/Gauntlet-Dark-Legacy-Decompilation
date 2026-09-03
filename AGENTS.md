@@ -1137,6 +1137,26 @@ Cross-fleet concurrency (multiple independent agent fleets sharing `main`):
 - `gdlmem.py claims` lists every fleet's work claims with owner, scope, age,
   and stale flags — check it before claiming instead of reading inbox
   filenames.
+- **Every work_claim carries `attributes.owned_units`** (run 46): a LIST of
+  repo-relative unit paths or directory prefixes
+  (`["game/ps2/ml_fmath.c", "tools/gdl"]`; any spelling the tools accept is
+  normalized on read). The scope PROSE is for the worker; this list is for
+  the tools, and it is the only channel they screen. Measured over all 250
+  `src/` units against run-46's six claims, the prose substring screen fires
+  on 20 units and **17 of those (85%) are units no scope names** —
+  `game/sys/main.c` matches five of six claims on the word "main" (from the
+  `main.dol: OK` gate line) and `game/ui/select.c` matches the tool lane on
+  "Select" (from `Select-Object`) — and it cannot read a negation, so a lane
+  that names another lane's TUs *in order to exclude them* is reported as
+  their co-owner. `probe.py` and `defake_gate.py` refuse (exit 3) when the
+  cwd worktree's lane edits a unit another ACTIVE claim lists; the lane id
+  comes from `LANE_LOCK`'s first line, then `$GDL_LANE`, then the branch.
+  `--ignore-claim` / `GDL_CLAIM_OVERRIDE=1` is the integrator's escape;
+  `GDL_CLAIM_SCREEN=off` disables it entirely. A claim with NO list makes
+  every unit **undecidable, never free** — the tools warn and proceed, so an
+  order that omits the list silently disarms the protection for the whole
+  fleet. `python tools/gdl/claimscope.py --index` prints the live unit→owner
+  map and any two-lane conflicts; `--self` prints the detected lane id.
 - **Commit with explicit pathspecs in the shared checkout**
   (`git commit <paths> -m ...`), never a bare `git commit` after `git add`:
   the index is shared, and a bare commit sweeps in whatever another fleet
