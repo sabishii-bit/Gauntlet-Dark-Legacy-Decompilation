@@ -1190,9 +1190,19 @@ each screen below costs one command and would have caught its lane):
 - **An order naming a postprocessor class carries the two differing
   words AND the decode verdict** — run 41: a class line inherited from a
   family label was wrong for both customers, refutable in zero builds.
-- **Queue items state the OBSERVATION, never the cure** — run 41: three
-  of ten items stated cures that smuggled untested discriminants;
-  calibration refuted all three while the observations held.
+- **Queue items state the OBSERVATION, never the cure AND never the
+  cause** — run 41: three of ten items stated cures that smuggled
+  untested discriminants; run 42: two stated causes were both wrong
+  (one had ZERO live firings while the unnamed cause drove 29 of 33).
+  A number in a brief needs a record id exactly like a "measured run N".
+- **A queue derived from a positional census ships with a datum-multiset
+  column and each row's `real`** — run 42: 22 of 30 rows were order
+  artifacts ("a list of candidates advertised as a list of bugs"), and
+  the row-alignment trustworthiness was decided by `real` values the
+  order never quoted.
+- **Cite the TOOL SURFACES a record shipped, not only the record id** —
+  run 42: a lane rebuilt a value-comparison layer that already existed
+  inside fndiff because the order cited the records but not the code.
 - **Never write files the toolchain parses with PowerShell redirection
   or Set-Content** (widened from source files): `-Encoding utf8` injects
   a BOM that json.load rejects. Python scripts write records.
