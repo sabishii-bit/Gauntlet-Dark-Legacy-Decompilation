@@ -241,6 +241,14 @@ DENIAL_FIELDS = ("scope", "premise_measurement", "expiry_check", "falsifier")
 HYPOTHESIS_FIELDS = ("statement", "cheapest_refuting_observation",
                      "screened_against_target")
 
+# Optional, and TOLERATED rather than required (run-48 item 8): the cure's
+# INSTRUCTION-COUNT consequence. It is not in HYPOTHESIS_FIELDS because that
+# tuple is shape-checked corpus-wide, and 151 of the 183 accepted hypothesis
+# blocks carry no count line — adding it there would invalidate them all.
+# `hypothesis_count_consequence_warning` asks for it at propose time and
+# takes any count figure anywhere in the block as an answer.
+HYPOTHESIS_COUNT_FIELD = "count_consequence"
+
 # A REPRODUCTION is the cap-STRENGTHENING path (run-39 item 7). AGENTS.md
 # already says parked probes are ALIGNMENT-SENSITIVE — "a probe that measured
 # negative may turn positive after surrounding regions improve, so re-A/B
@@ -4664,6 +4672,14 @@ def record_template(kind: str) -> dict[str, Any]:
                                            " already checked against the"
                                            " target bytes? yes/no + what was"
                                            " seen>",
+                "count_consequence": "<OPTIONAL but ASKED FOR: what this cure"
+                " does to the INSTRUCTION COUNT. Count-neutral? Or T+1/O? A"
+                " count-asymmetric cure is outside every postprocessor class"
+                " by construction and is refutable before any register work"
+                " — two of six probed forms in"
+                " attempt.PR_distancetoclosestplayer-...20260903.v2 died on"
+                " exactly that (123 vs 122). Omitting it prints a WARNING,"
+                " never a refusal>",
             },
             "reproductions": [
                 {
@@ -4862,6 +4878,70 @@ def hypothesis_refuter_warning(hypothesis: Any) -> str | None:
         " is correctly phrased in an INSTRUMENT's vocabulary rather than the"
         " mechanism's, this warning is a false positive — it does not block"
         " the proposal.)"
+    )
+
+
+# Run-48 item 8. AGENTS.md proposal gate 2 already makes an instruction count
+# the DECIDING fact for a postprocessor-class claim ("must quote instruction
+# counts as N/N" — a count-asymmetric residual is provably outside every
+# class). A HYPOTHESIS is the next lane's MANDATORY STEP 1 (discipline 10b),
+# and a cure that changes the count is refutable before a single register is
+# read: attempt.PR_distancetoclosestplayer-the-refinement-constants-storage-
+# class-owns-the-hoist.20260903.v2 records SIX probed forms, TWO of which died
+# on the count alone ("count-asymmetric, 123 vs 122 insns"), and the record
+# says so only in `probed_form` — after the builds were spent.
+#
+# WARN-ONLY, and the negative side is why. Calibrated at d240c67bf over all
+# 2,034 records on disk: 183 carry a hypothesis and only 32 (17.5%) state any
+# count consequence, so a refusal would reject 151 accepted-corpus shapes and
+# every lane would learn to route around it. The trigger is deliberately
+# GENEROUS — any mention of a count, a parity, an `N/N`, an `insns` figure or
+# an added/removed instruction silences it — because a false warning taxes a
+# correct record, which is the failure mode this corpus has measured twice
+# (the retired failing_form_undocumented heuristic and the 43/43
+# false-positive reopen queue).
+_COUNT_CONSEQUENCE_RE = re.compile(
+    r"\bcount[- ]asymmetric\b|\bcount[- ]neutral\b|\bcount[- ]symmetric\b"
+    r"|\bcount parity\b|\binstruction count\b|\binsn count\b|\binsns?\b"
+    r"|\bT\d+/O\d+\b|\b\d+\s*/\s*\d+\s*(?:insns?|instructions?)\b"
+    r"|\b\d+\s+vs\.?\s+\d+\b"
+    r"|\b(?:adds?|removes?|drops?|inserts?|deletes?)\s+(?:an|one|a|\d+)"
+    r"\s+instructions?\b",
+    re.IGNORECASE,
+)
+
+
+def hypothesis_count_consequence_warning(hypothesis: Any) -> str | None:
+    """Warn when a hypothesis states no INSTRUCTION-COUNT consequence.
+
+    Returns None when the block is absent, is not the typed object, or
+    already says something about the count anywhere in its text (including
+    in an explicit `count_consequence` key, which the additive schema
+    tolerates and which is the cheapest way to silence this).
+    """
+    if not isinstance(hypothesis, dict):
+        return None
+    text = " ".join(str(value or "") for value in hypothesis.values())
+    if not text.strip():
+        return None
+    if _COUNT_CONSEQUENCE_RE.search(text):
+        return None
+    return (
+        "WARNING: this hypothesis states no INSTRUCTION-COUNT consequence."
+        " Discipline 10b makes it the next lane's MANDATORY STEP 1, and a"
+        " cure that changes the count is refutable in ZERO register work:"
+        " AGENTS.md proposal gate 2 makes the count the deciding fact for a"
+        " postprocessor-class claim, because a count-asymmetric residual is"
+        " outside every class by construction. Two of the six forms probed in"
+        " attempt.PR_distancetoclosestplayer-the-refinement-constants-storage"
+        "-class-owns-the-hoist.20260903.v2 died on exactly that (123 vs 122"
+        " insns) and the record says so only in probed_form, after the builds."
+        " Say whether the cure is count-neutral, and if it is not, say what"
+        " the count becomes — a `count_consequence` key silences this"
+        " (unknown keys are tolerated), as does any count figure in the"
+        " existing text. This does NOT block the proposal: 151 of the 183"
+        " hypothesis blocks in the corpus would fail a refusal, so it is"
+        " advisory by calibration, not by preference."
     )
 
 
@@ -5158,6 +5238,10 @@ def _apply_proposal_gates(
         _record_field(record, "hypothesis"))
     if refuter_warning:
         warnings.append(refuter_warning)
+    count_warning = hypothesis_count_consequence_warning(
+        _record_field(record, "hypothesis"))
+    if count_warning:
+        warnings.append(count_warning)
 
     # Gate A. A law asserting necessity (must/requires/cannot/only) that
     # states no falsifier can never be screened OUT by a later lane; it can
@@ -8205,6 +8289,25 @@ def work_claims(
     OVER-matches: a spurious hit costs one conversation with the owner, while
     a missed hit costs two fleets editing one TU, which is the coupling
     AGENTS.md forbids outright.
+
+    THE TOP-LEVEL VERDICT IS THE DECIDABLE ONE WHENEVER ONE EXISTS (run-48
+    item 9). `verdict` was computed from the claims LIST, which includes
+    scope-prose hits, so it could contradict `structured_verdict` three keys
+    below it and the reader had a coin-flip. Reproduced at dba320633:
+
+        gdlmem claims --owns game/sys/main.c
+          "verdict": "CLAIMED"            <- six claims, ALL scope_prose
+          "structured_verdict": "FREE"
+          "structured_owners": []
+
+    All six matched on the word "main", from the `main.dol: OK` gate line
+    every scope quotes. CALIBRATED TWO-SIDED over all 256 src units against
+    run-48's six claims (T18_scratch/t18_calib_item9.py): 11 units (4.3%)
+    contradicted — MSL/mem, MSL/time, anim, atree, player, sfx, main,
+    sysservice, select, camera, world, every one of them CLAIMED-by-prose and
+    FREE by the list — and 245 agreed. When owned_units cannot decide (any
+    active claim carries no list) the prose screen keeps the headline,
+    flagged: refusing to answer there would remove the only screen there is.
     """
     ensure_database(root, db_path)
     with closing(open_database(root, db_path)) as connection:
@@ -8304,29 +8407,82 @@ def work_claims(
     }
     if owns:
         result["owns_query"] = owns
-        result["verdict"] = "CLAIMED" if claims else "no claim found"
         structured = [c for c in claims if c.get("match") == "owned_units"]
+        prose_only = [c for c in claims if c.get("match") == "scope_prose"]
         # FREE is only sound when EVERY active claim is decidable. One claim
         # without a list leaves the whole question open, however many others
         # carry one -- reporting FREE there would be the exact false all-clear
         # this field exists to remove.
         blind = coverage_total - coverage_with
+        decidable = bool(coverage_total) and not blind
         result["structured_verdict"] = (
             "OWNED" if structured
-            else "FREE" if coverage_total and not blind
+            else "FREE" if decidable
             else f"UNDECIDABLE ({blind} of {coverage_total} active claim(s)"
                  " carry no attributes.owned_units)"
         )
         result["structured_owners"] = sorted({c["owner"] for c in structured})
+        # RUN-48 ITEM 9. The top-level `verdict` was computed from the claims
+        # list, which INCLUDES scope-prose hits, so it could contradict the
+        # decidable answer sitting three keys below it and a reader had a
+        # coin-flip. Reproduced at dba320633:
+        #   gdlmem claims --owns game/sys/main.c
+        #     "verdict": "CLAIMED"          <- six claims, ALL scope_prose
+        #     "structured_verdict": "FREE"
+        #     "structured_owners": []
+        # Every one of the six is a false hit on the word "main", from the
+        # "main.dol: OK" gate line every scope quotes. When owned_units
+        # DECIDES, it IS the verdict and the prose result is demoted to a
+        # note. When it cannot decide (any active claim carries no list) the
+        # prose screen is still the best signal available and keeps the
+        # headline, flagged as such -- refusing to answer there would remove
+        # the only screen that exists.
+        if decidable:
+            result["verdict"] = (
+                "OWNED by " + ", ".join(result["structured_owners"])
+                if structured else "FREE")
+            result["verdict_basis"] = "owned_units"
+            for claim in prose_only:
+                claim["decides"] = False
+            if prose_only:
+                result["scope_prose_note"] = (
+                    f"{len(prose_only)} claim(s) matched the SCOPE PROSE only"
+                    " and decide NOTHING here — they are listed with"
+                    ' "decides": false. The prose screen was measured at 85%'
+                    " false positives over the 250-unit image (game/sys/main.c"
+                    " matches five of six claims on the word \"main\", from"
+                    " the \"main.dol: OK\" gate line), and it cannot read a"
+                    " negation, so a scope that names another lane's TUs in"
+                    " order to EXCLUDE them reports as their co-owner."
+                    " They are demoted, NOT dropped: if one of these lanes"
+                    " really does own this path, its owned_units list is"
+                    " under-specified and the fix is to extend the list —"
+                    " every enforcing tool (probe, defake_gate, claimscope)"
+                    " already screens on owned_units alone, so the list is"
+                    " what protects the path either way. Prose-only hits: "
+                    + ", ".join(f"{c['owner']} ({c['id']})"
+                                for c in prose_only))
+        else:
+            result["verdict"] = "CLAIMED" if claims else "no claim found"
+            result["verdict_basis"] = "scope_prose (owned_units cannot decide)"
         result["owns_note"] = (
             "every claim listed here covers the queried path. An ACTIVE claim"
             " owned by someone else is a VETO on its ENTIRE scope, not just"
             " this file — MWCC couples a whole TU through its constant pool,"
             " declaration order and register allocation, so two writers in one"
             " TU is a merge conflict by construction."
-            " 'no claim found' is NOT a guarantee: an unpushed claim protects"
-            " nothing and cannot be seen from here, and matching is over"
-            " scope PROSE. Screen `git log -- <path>` too before a first edit."
+            " No verdict here is a guarantee: an unpushed claim protects"
+            " nothing and cannot be seen from here. Screen"
+            " `git log -- <path>` too before a first edit."
+            + (" This query was decided by attributes.owned_units; the"
+               " claims marked \"decides\": false matched the scope PROSE"
+               " only and are noise (see scope_prose_note)."
+               if decidable else
+               " This query is decided by the scope PROSE, which was measured"
+               " at 85% false positives over the 250-unit image and cannot"
+               " read a negation — every claim listed may be a false hit."
+               " Ask the integrator to put attributes.owned_units on the"
+               " claims that lack one.")
         )
     return result
 

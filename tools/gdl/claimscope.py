@@ -26,17 +26,53 @@ Lane identity comes from the untracked `LANE_LOCK` file AGENTS.md already
 requires at every worker worktree root (first line = worker id), else
 `$GDL_LANE`, else the git branch name.
 
+WEBFRANK.JSON IS OWNED BY BLOCK, NOT BY FILE (run-48 item 6/7). It is one
+file holding one block per unit, and AGENTS.md first-five-minutes trap 15b
+makes re-deriving a pin the chore of whoever edits the TU -- "the upstream
+freeze is a re-derivation chore, not a wall" -- with `probe --rederive-pin`
+writing the file on the source lane's behalf. File-level ownership therefore
+refused the one edit the workflow REQUIRES of every source lane. Reproduced
+at 33a1bad50 with GDL_LANE=claude-fleet-worker-DA, the lane whose order tells
+it to keep a pinned edit in game/world/items:
+
+  claimscope.py config/GUNE5D/webfrank.json
+    "status": "foreign", owner claude-fleet-worker-WF   exit 3
+
+So `config/GUNE5D/webfrank.json#<unit>` is a first-class scope and resolves
+MOST SPECIFIC FIRST: an explicit block entry in some claim's owned_units;
+else the owner of <unit> itself (the source lane, by trap 15b); else the
+file-level owner (the postprocessor lane, who owns the schema, the rule
+bodies, and every block no source lane claims). Only the first scope that
+matches anything decides. A query for the BARE file keeps file-level
+semantics -- that is genuinely the postprocessor lane's.
+
+CALIBRATED TWO-SIDED at 33a1bad50 over all 52 blocks in webfrank.json against
+run-48's six active claims (T18_scratch/t18_calib_item7.py):
+  POSITIVES   8 blocks resolve through the block's OWN UNIT -- audio,
+              auxscreen (NC), gamemain, items (DA), mb_camera, dbgtext (FT),
+              movieplayer (CU) and psfx (WF, who owns that unit as a source
+              lane too). Seven of those change owner; every one was a
+              foreign-claim refusal for exactly the lane trap 15b requires to
+              make the edit.
+  NEGATIVES  44 blocks resolve file-level and are unchanged.
+File-level ownership is not merely coarse here, it is UNENFORCEABLE: the
+chore is documented-unavoidable, so a screen that refuses it is a screen
+every source lane learns to override.
+
 Usage (from repo root):
   python tools/gdl/claimscope.py game/ps2/ml_fmath.c   # one unit
+  python tools/gdl/claimscope.py 'config/GUNE5D/webfrank.json#game/world/items'
   python tools/gdl/claimscope.py --index               # unit -> owner map
+  python tools/gdl/claimscope.py --blocks              # webfrank block owners
   python tools/gdl/claimscope.py --self                # who am I
 
 Exit 0 ok / 3 foreign / 0 undecidable (a warning, never a hard stop: the
 field's coverage was 0 of 6 active claims when it shipped, and a gate that
 refuses on absence would refuse every lane on day one).
 
-IMPORTABLE CORE: load_claims, check_unit, lane_identity, normalize -- pure
-over the record JSON, no database build and no compile.
+IMPORTABLE CORE: load_claims, check_unit, lane_identity, normalize,
+split_block, resolution_scopes, webfrank_units, webfrank_block_owners --
+pure over the record JSON, no database build and no compile.
 """
 
 import json
@@ -69,6 +105,50 @@ def covers(entry, unit):
     if not entry or not unit:
         return False
     return unit == entry or unit.startswith(entry + "/")
+
+
+# config/GUNE5D/webfrank.json is ONE FILE holding one BLOCK PER UNIT, and
+# AGENTS.md (first-five-minutes trap 15b) makes re-deriving a pin the chore
+# of whoever edits the TU: "the upstream freeze is a re-derivation chore, not
+# a wall", and `probe --rederive-pin` writes this file on the source lane's
+# behalf. File-level ownership therefore refuses the one edit the workflow
+# REQUIRES of every source lane. Reproduced at 33a1bad50 with
+# GDL_LANE=claude-fleet-worker-DA (which owns game/world/items and whose
+# order tells it to keep a pinned edit):
+#
+#   claimscope.py config/GUNE5D/webfrank.json
+#     "status": "foreign", owner claude-fleet-worker-WF   exit 3
+#
+# So the file resolves BY BLOCK. `config/GUNE5D/webfrank.json#<unit>` is a
+# first-class scope, and it resolves through three levels, most specific
+# first: an explicit block entry in some claim's owned_units; else the owner
+# of <unit> ITSELF (the source lane, by trap 15b); else the file-level owner
+# (WF, who owns the schema, the rule bodies and every block no source lane
+# claims). A query for the BARE file keeps file-level semantics — that is
+# genuinely WF's.
+BLOCK_SEPARATOR = "#"
+
+
+def split_block(unit):
+    """(path, block) for a `path#block` scope, else (path, None)."""
+    text = str(unit or "").strip().replace("\\", "/").strip("/")
+    if BLOCK_SEPARATOR not in text:
+        return text, None
+    head, _, tail = text.partition(BLOCK_SEPARATOR)
+    block = normalize(tail)
+    return head.strip().strip("/"), (block or None)
+
+
+def resolution_scopes(unit):
+    """The scopes a query resolves through, MOST SPECIFIC FIRST.
+
+    A bare unit resolves against itself. A block scope resolves against the
+    explicit block entry, then the block's own unit, then the file.
+    """
+    path, block = split_block(unit)
+    if block is None:
+        return [path]
+    return [f"{path}{BLOCK_SEPARATOR}{block}", block, path]
 
 
 def load_claims(repo=REPO):
@@ -138,17 +218,31 @@ def check_unit(unit, lane=None, claims=None, repo=REPO):
     if lane is None:
         lane = lane_identity(repo)[0]
     lane_l = (lane or "").strip().lower()
-    owners, mine = [], []
-    for claim in claims:
-        if not any(covers(entry, unit) for entry in claim["owned_units"]):
-            continue
-        owner = (claim.get("owner") or "").strip()
-        if owner and (owner.lower() == lane_l
-                      or owner.lower() in lane_l
-                      or (lane_l and lane_l in owner.lower())):
-            mine.append(claim)
-        else:
-            owners.append(claim)
+
+    def partition(scope):
+        owned, ours = [], []
+        for claim in claims:
+            if not any(covers(entry, scope)
+                       for entry in claim["owned_units"]):
+                continue
+            owner = (claim.get("owner") or "").strip()
+            if owner and (owner.lower() == lane_l
+                          or owner.lower() in lane_l
+                          or (lane_l and lane_l in owner.lower())):
+                ours.append(claim)
+            else:
+                owned.append(claim)
+        return owned, ours
+
+    # MOST SPECIFIC SCOPE WINS, and only the first scope that matches
+    # anything decides — a block owned by the source lane must not be
+    # overruled by the file's owner further down the list.
+    owners, mine, resolved_by = [], [], None
+    for scope in resolution_scopes(unit):
+        owners, mine = partition(scope)
+        if owners or mine:
+            resolved_by = scope
+            break
     blind = [c for c in claims if not c["declared"]]
     if owners:
         status = "foreign"
@@ -163,7 +257,7 @@ def check_unit(unit, lane=None, claims=None, repo=REPO):
         status = "undecidable"
     else:
         status = "ok"
-    return {
+    verdict = {
         "unit": normalize(unit),
         "lane": lane,
         "status": status,
@@ -172,6 +266,46 @@ def check_unit(unit, lane=None, claims=None, repo=REPO):
         "active_claims": len(claims),
         "claims_without_owned_units": len(blind),
     }
+    _path, block = split_block(unit)
+    if block is not None:
+        verdict["block"] = block
+        verdict["resolved_by"] = resolved_by
+        verdict["resolution_scopes"] = resolution_scopes(unit)
+    return verdict
+
+
+WEBFRANK_CONFIG = "config/GUNE5D/webfrank.json"
+
+
+def webfrank_units(repo=REPO):
+    """Every unit with a block in webfrank.json, in file order."""
+    path = Path(repo) / WEBFRANK_CONFIG
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    units = data.get("units")
+    return list(units) if isinstance(units, dict) else []
+
+
+def webfrank_block_owners(claims=None, repo=REPO):
+    """{unit: {owner, resolved_by}} for every block in webfrank.json.
+
+    The whole point of the block model, made visible: a source lane sees its
+    OWN name against the TU it is working, instead of one file-level owner
+    over a file the workflow requires it to edit.
+    """
+    claims = load_claims(repo) if claims is None else claims
+    out = {}
+    for unit in sorted(webfrank_units(repo)):
+        scope = f"{WEBFRANK_CONFIG}{BLOCK_SEPARATOR}{unit}"
+        verdict = check_unit(scope, lane="", claims=claims, repo=repo)
+        owners = sorted({o["owner"] for o in verdict["owners"] if o["owner"]})
+        out[unit] = {
+            "owners": owners or ["<unclaimed>"],
+            "resolved_by": verdict.get("resolved_by"),
+        }
+    return out
 
 
 def warn_or_refuse(unit, tool, repo=REPO, enforce=True, stream=None):
@@ -192,6 +326,14 @@ def warn_or_refuse(unit, tool, repo=REPO, enforce=True, stream=None):
               f" attributes.owned_units of an active claim owned by {names};"
               f" this worktree's lane is {verdict['lane'] or '<unknown>'}.",
               file=stream)
+        if verdict.get("block") is not None:
+            print(f"[{tool}] (block scope: resolved by"
+                  f" {verdict['resolved_by']!r}, the most specific of"
+                  f" {verdict['resolution_scopes']}. A webfrank block is"
+                  " owned by whoever owns its UNIT — the pin re-derivation is"
+                  " that lane's chore per AGENTS.md trap 15b — and falls back"
+                  " to the file's owner only when no lane claims the unit.)",
+                  file=stream)
         if enforce and os.environ.get("GDL_CLAIM_OVERRIDE") != "1":
             print(f"[{tool}] REFUSING. AGENTS.md: a foreign active claim is a"
                   " VETO on its entire scope. Coordinate through the"
@@ -230,7 +372,11 @@ def main():
                                   for k, v in sorted(index.items())},
             "conflicts": {k: sorted(set(v)) for k, v in sorted(index.items())
                           if len(set(v)) > 1},
+            "webfrank_blocks": webfrank_block_owners(claims),
         }, indent=2))
+        return 0
+    if "--blocks" in args:
+        print(json.dumps(webfrank_block_owners(claims), indent=2))
         return 0
     units = [a for a in args if not a.startswith("-")]
     if not units:

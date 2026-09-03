@@ -83,6 +83,39 @@ holds the two word streams and the repo root:
   fn_800D8BCC's words in one 141-instruction equal run, which is true and
   useless, because a recolor lives entirely inside equal runs.
 
+  DECODE (run 48, T18) — the PER-WORD class, promoted from WR's
+  `WR_scratch/wr_wordscreen.py` prototype, which was a lane scratch file and
+  is gone.  The record that depends on it (attempt.WR_limitcamval2-is-not-
+  postprocessor-eligible-a-branch-displacement-decides-it.20260903.v1) names
+  `python WR_scratch/wr_wordscreen.py game/boss/bosscam LimitCamVal2` as its
+  denial's EXPIRY CHECK — a command nobody but its author could run.  The
+  whole-function CLASS line reads MNEMONIC divergence alone and cannot
+  express what decides candidacy: every differing word is REGFIELD-ONLY,
+  IMMEDIATE, BRANCH, OPCODE or RELOCATED, and only REGFIELD-ONLY is inside a
+  shipped rule class.  The DECODE summary prints unconditionally; `--decode`
+  (and `--list`) adds the per-word column.
+    Reproduces the record's numbers exactly at cdfff02e2: LimitCamVal2, 88
+    insns, DIFFERING WORDS = 29, MNEMONIC DIVERGENCE = 5, RELOC-SYMBOL
+    MISMATCH = 0 -> `REGFIELD-ONLY 23, IMMEDIATE 0, BRANCH 1, OPCODE 5`, and
+    +0x13c reads BRANCH on `O 4081000c / T 40810008`, which is the word the
+    denial turns on.
+    CALIBRATED TWO-SIDED over all 2,883 comparable function pairs (115
+    count-asymmetric, not scored):
+      POSITIVES  16 functions whose CLASS line said RECOLOR — "cure is a
+                 register-assignment question" — while carrying words no
+                 register assignment can reach (sDvdReadSync 5 IMMEDIATE of
+                 5 words; btricol::LineLineDist 4; pbInitTlutRegions 4 of 4).
+                 Those now read RECOLOR-SHAPED BUT NOT RECOLOURABLE.
+      NEGATIVES  99 functions stay RECOLOR (genuinely recolourable) and 162
+                 stay SCHEDULE-REORDER with the verdict unchanged; 2,606
+                 have no residual and print nothing.
+    The RELOCATED class is what makes those numbers honest: 18 differing
+    words image-wide differ ONLY in bits a relocation patches, and without
+    the relocation table four functions (gutil::gstrcmp, gutil::gstrcpy,
+    pbutils::stricmp, OSTime::OSGetTime) read `BRANCH 1` — "no shipped rule
+    reaches it" — on a `R_PPC_REL14` displacement dtk emits with a zero
+    payload.  Those bits are the LINKER's; the positives fell 20 -> 16.
+
   PINNED — claim.law.RC_wf-word-diff-reads-the-raw-pre-postprocess-body-so-
   pinned-functions-rank-first.20260902.v1.  Because this tool reads the RAW
   body, a webfrank-pinned function reports the residual its pin ALREADY
@@ -327,6 +360,178 @@ def mnemonic_divergence(ours, tgt):
     )
 
 
+DECODE_CLASSES = ("REGFIELD-ONLY", "IMMEDIATE", "BRANCH", "OPCODE",
+                  "RELOCATED")
+
+# Every class a shipped postprocessor rule can reach lives inside the four
+# five-bit register slots. `register_slot_mask` returns 0 for a branch and for
+# lmw/stmw, so those words are unreachable by construction, and a word whose
+# difference falls outside the mask is a literal the linker does not own.
+REACHABLE_DECODE_CLASSES = ("REGFIELD-ONLY",)
+
+# RELOCATED is neither: the differing bits belong to the LINKER, so the word
+# is not evidence of a codegen difference at all. It is counted and named
+# separately rather than folded into either side.
+LINKER_OWNED_DECODE_CLASSES = ("RELOCATED",)
+
+# The bits each relocation type patches. A differing bit inside one of these
+# is the linker's, not the compiler's — the same exclusion `fndiff --ops`
+# applies when it refuses to call a relocated field an IMMEDIATE row.
+# Measured need: game/sys/gutil::gstrcmp differs in exactly one word, +0x44
+# `ours 4082ffbc / target 40820000`, and the TARGET side carries
+# `R_PPC_REL14 gstrcmp` there while ours carries none — dtk emits an
+# intra-function branch as a relocation with a zero displacement. Without
+# this table that word reads BRANCH, i.e. "no shipped rule reaches it", when
+# the two streams may link identically.
+_RELOC_FIELD_MASKS = {
+    "R_PPC_REL24": 0x03FFFFFC,
+    "R_PPC_ADDR24": 0x03FFFFFC,
+    "R_PPC_REL14": 0x0000FFFC,
+    "R_PPC_REL14_BRTAKEN": 0x0000FFFC,
+    "R_PPC_REL14_BRNTAKEN": 0x0000FFFC,
+    "R_PPC_ADDR14": 0x0000FFFC,
+    "R_PPC_ADDR14_BRTAKEN": 0x0000FFFC,
+    "R_PPC_ADDR14_BRNTAKEN": 0x0000FFFC,
+    "R_PPC_ADDR16": 0x0000FFFF,
+    "R_PPC_ADDR16_LO": 0x0000FFFF,
+    "R_PPC_ADDR16_HI": 0x0000FFFF,
+    "R_PPC_ADDR16_HA": 0x0000FFFF,
+    "R_PPC_ADDR16_SDA": 0x0000FFFF,
+    "R_PPC_SDAREL16": 0x0000FFFF,
+    # EMB_SDA21 patches the base register field AND the displacement.
+    "R_PPC_EMB_SDA21": 0x001FFFFF,
+}
+# An unknown relocation type owns UNKNOWN bits, so the whole word is treated
+# as the linker's rather than attributed to codegen.
+_UNKNOWN_RELOC_MASK = 0xFFFFFFFF
+
+
+def relocated_field_mask(reloc_types):
+    """Bits owned by the relocations present at one instruction."""
+    mask = 0
+    for name in reloc_types or ():
+        if not name:
+            continue
+        mask |= _RELOC_FIELD_MASKS.get(name, _UNKNOWN_RELOC_MASK)
+    return mask
+
+
+def decode_word_class(ours_word, target_word, reloc_types=()):
+    """Which CLASS of difference one differing word carries (run-48 item 4).
+
+    Promoted from WR's `WR_scratch/wr_wordscreen.py` prototype, which was a
+    lane scratch file and is therefore gone: the run-47 record that depends on
+    it (attempt.WR_limitcamval2-is-not-postprocessor-eligible-a-branch-
+    displacement-decides-it.20260903.v1) names
+    `python WR_scratch/wr_wordscreen.py game/boss/bosscam LimitCamVal2` as its
+    denial's EXPIRY CHECK, and that command cannot be run by anyone but its
+    author. The classification it computed is what decides postprocessor
+    candidacy, and the whole-function CLASS line below cannot express it:
+    LimitCamVal2 is `MNEMONIC DIVERGENCE = 5` so it reads SCHEDULE-REORDER,
+    while the word that actually decides it is a BRANCH DISPLACEMENT no
+    permutation may touch.
+
+      OPCODE         the two words are not the same instruction at this index
+                     (the opcode key differs) — outside every class
+      RELOCATED      same instruction, and every differing bit falls inside a
+                     field a RELOCATION patches. Those bits are the LINKER's,
+                     so the raw difference is not evidence of a codegen
+                     difference either way — read it with `fndiff --relocs`
+      BRANCH         same instruction, and it is a control op (primary 16-19).
+                     `register_slot_mask` is 0 here, so no register-field rule
+                     can reach it, and `permute_instruction_atoms` refuses any
+                     region containing one
+      IMMEDIATE      same instruction, and the differing bits fall OUTSIDE
+                     every register slot — a literal or displacement, which
+                     no shipped class reaches either
+      REGFIELD-ONLY  same instruction, and every differing bit lies inside
+                     one of PowerPC's four five-bit register slots
+
+    The mask is INTERSECTED across the two words rather than read off ours
+    alone: two words with one opcode key can still take different operand
+    forms (`li rD,x` is `addi rD,0,x`), and crediting a bit as a register
+    field on the strength of one side's form would call a real difference
+    recolourable.
+    """
+    if opcode_key(ours_word) != opcode_key(target_word):
+        return "OPCODE"
+    diff = ours_word ^ target_word
+    if not diff & ~relocated_field_mask(reloc_types):
+        return "RELOCATED"
+    if wf._is_control_instruction(ours_word):
+        return "BRANCH"
+    mask = (wf.register_slot_mask(ours_word)
+            & wf.register_slot_mask(target_word))
+    if diff & ~mask:
+        return "IMMEDIATE"
+    return "REGFIELD-ONLY"
+
+
+def decode_rows(rows, reloc_types_by_index=None):
+    """[(offset, ours, target, class)] for the differing words.
+
+    `reloc_types_by_index` is {instruction index: (type, type, ...)} —
+    whatever relocations either object carries at that instruction. None
+    means the tables could not be paired, and the classification then runs
+    without them exactly as before.
+    """
+    types = reloc_types_by_index or {}
+    return [(offset, ours, target,
+             decode_word_class(ours, target, types.get(offset // 4, ())))
+            for offset, ours, target in rows]
+
+
+def decode_counts(rows, reloc_types_by_index=None):
+    """{class: count} over the differing words, every class present."""
+    counts = {name: 0 for name in DECODE_CLASSES}
+    for _offset, _o, _t, name in decode_rows(rows, reloc_types_by_index):
+        counts[name] += 1
+    return counts
+
+
+def reloc_types_by_index(unit, fn, insn_count):
+    """{index: (type, ...)} over BOTH objects, or {} when unpairable."""
+    out = {}
+    for objpath in (target_object(unit), our_object(unit)[0]):
+        table = _reloc_map(objpath, fn, insn_count)
+        if table is None:
+            continue
+        for index, (rtype, _sym) in table.items():
+            out.setdefault(index, set()).add(rtype)
+    return {index: tuple(sorted(types)) for index, types in out.items()}
+
+
+def decode_summary(counts, total):
+    """The one-line DECODE verdict, or "" when there is nothing to decode."""
+    if not total:
+        return ""
+    unreachable = sum(
+        n for name, n in counts.items()
+        if name not in REACHABLE_DECODE_CLASSES
+        and name not in LINKER_OWNED_DECODE_CLASSES)
+    line = ("  DECODE: "
+            + ", ".join(f"{name} {counts[name]}" for name in DECODE_CLASSES))
+    if unreachable:
+        line += (f" — {unreachable} of {total} word(s) lie OUTSIDE every"
+                 " register-field class, so NO copy_register_fields rule can"
+                 " close this residual however small the count is. A BRANCH"
+                 " word is refused twice over: register_slot_mask returns 0"
+                 " for it and permute_instruction_atoms refuses any region"
+                 " containing a control op.")
+    elif counts.get("RELOCATED"):
+        line += (f" — no word here is outside the register-field class, but"
+                 f" {counts['RELOCATED']} differ only in bits a RELOCATION"
+                 " patches; those are the LINKER's and are not evidence of a"
+                 " codegen difference. Read them with `fndiff --relocs`"
+                 " before sizing anything.")
+    else:
+        line += (f" — all {total} differing word(s) are register fields, the"
+                 " only class a shipped rule reaches. Count parity and an"
+                 " identical multiset are NOT sufficient for candidacy; this"
+                 " line is.")
+    return line
+
+
 def word_streams(unit, fn):
     """(kind, ours_bytes, target_bytes) for one function, count-checked."""
     op, kind = our_object(unit)
@@ -390,6 +595,11 @@ def main():
     ap.add_argument("function")
     ap.add_argument("--list", action="store_true",
                     help="print every differing word, not just the count")
+    ap.add_argument("--decode", action="store_true",
+                    help="print the per-word CLASS column (REGFIELD-ONLY /"
+                         " IMMEDIATE / BRANCH / OPCODE) beside every"
+                         " differing word. The DECODE summary line prints"
+                         " unconditionally; this adds the rows")
     ap.add_argument("--by-region", action="store_true",
                     help="bucket the differing words into the --ops cluster"
                          " partition, so a residual DECOMPOSITION claim is"
@@ -468,17 +678,38 @@ def main():
               " could not be paired against these words) — the wrong-symbol"
               " class is UNSCREENED here, not absent; use"
               " `fnasm <unit> <fn> --diff` and read the symbol column.")
+    reloc_index = reloc_types_by_index(unit, args.function, insns)
+    counts = decode_counts(rows, reloc_index)
     if rows:
-        print("  CLASS: " + (
-            "RECOLOR — streams index-aligned, only register fields differ."
-            " Cure is a register-assignment question (declaration order,"
-            " width, type)."
-            if mnem == 0 else
-            f"SCHEDULE-REORDER — {mnem} instruction(s) differ in MNEMONIC at"
-            " the same index, so the streams are not aligned. Cure is an"
-            " emission-order question (statement order, the permutation"
-            " rule class), NOT a recolor. The word count alone cannot tell"
-            " these two apart."))
+        # THE CLASS LINE IS QUALIFIED BY THE DECODE (run-48 item 4). It reads
+        # the MNEMONIC divergence alone, so a function with zero divergence is
+        # called RECOLOR — "cure is a register-assignment question" — even
+        # when some of its words are branch displacements or literals that no
+        # register-assignment change can reach.
+        recolourable = all(
+            counts[name] == 0 for name in DECODE_CLASSES
+            if name not in REACHABLE_DECODE_CLASSES
+            and name not in LINKER_OWNED_DECODE_CLASSES)
+        if mnem == 0 and recolourable:
+            print("  CLASS: RECOLOR — streams index-aligned, only register"
+                  " fields differ. Cure is a register-assignment question"
+                  " (declaration order, width, type).")
+        elif mnem == 0:
+            print("  CLASS: RECOLOR-SHAPED BUT NOT RECOLOURABLE — the streams"
+                  " are index-aligned (0 mnemonic divergence), which is what"
+                  " the old CLASS line read, but"
+                  f" {counts['BRANCH']} BRANCH and {counts['IMMEDIATE']}"
+                  " IMMEDIATE word(s) sit outside every register slot. Those"
+                  " are not a register-assignment question and no shipped"
+                  " rule reaches them — read the DECODE line below before"
+                  " sizing any recolor work.")
+        else:
+            print(f"  CLASS: SCHEDULE-REORDER — {mnem} instruction(s) differ"
+                  " in MNEMONIC at the same index, so the streams are not"
+                  " aligned. Cure is an emission-order question (statement"
+                  " order, the permutation rule class), NOT a recolor. The"
+                  " word count alone cannot tell these two apart.")
+        print(decode_summary(counts, len(rows)))
     if pinned:
         print("  PIN SCREEN: this function carries a webfrank rule, and this"
               " tool reads the RAW pre-postprocess body — the count above is"
@@ -512,9 +743,12 @@ def main():
               " steered three lanes"
               " (attempt.MV_fn800d8bcc-duplicated-branch-locals-belong-to-"
               "the-common-block.20260903.v1).")
-    if args.list:
-        for off, ow, tw in windowed:
-            print(f"  +{off:#06x}  O {ow:08x}  T {tw:08x}")
+    if args.list or args.decode:
+        # The per-word CLASS column, beside the words themselves. `--list`
+        # carries it too: a lane that asked for every differing word wants
+        # the one fact that decides what can close them.
+        for off, ow, tw, klass in decode_rows(windowed, reloc_index):
+            print(f"  +{off:#06x}  O {ow:08x}  T {tw:08x}  {klass}")
     # EXIT 0 ON A SUCCESSFUL MEASUREMENT (run-42 item 2). This used to
     # return 1 whenever the function had any differing word, which is what
     # a normal call to a residual-measuring tool looks like: every ordinary

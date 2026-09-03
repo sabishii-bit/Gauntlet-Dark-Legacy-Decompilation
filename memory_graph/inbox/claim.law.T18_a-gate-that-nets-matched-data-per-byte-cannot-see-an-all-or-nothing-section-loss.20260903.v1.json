@@ -1,0 +1,23 @@
+{
+  "asserted_by": [
+    "tools/gdl/defake_gate.py (image_matched_data_bytes and data_section_verdicts)",
+    "tools/gdl/tests/test_t18_data_accounting.py",
+    "attempt.T18_tool-queue-18-nine-items-one-discriminant-refuted-by-its-own-corpus.20260903.v1"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A unit whose per-BYTE matched-Data total equals report.json's `matched_data`. That would mean the project's Data measure credits partial sections after all, and the netting this law calls blind would be the right accounting. Check with `python T18_scratch/t18_calib_item3.py` or directly: sum `matched` from defake_gate.data_section_digests against build/GUNE5D/report.json's units[].measures.matched_data for the same unit.",
+  "id": "claim.law.T18_a-gate-that-nets-matched-data-per-byte-cannot-see-an-all-or-nothing-section-loss.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T20:42:29Z",
+  "schema_version": 1,
+  "subject": "tool:defake-gate",
+  "valid_from": "2026-09-03",
+  "value": "THE PROJECT'S DATA MEASURE IS ALL-OR-NOTHING PER SECTION, SO ANY GATE THAT NETS MATCHED DATA PER BYTE IS AN UPPER BOUND THAT READS +0 ON A WHOLE-SECTION LOSS. The PROGRESS `Data:` line comes from build/GUNE5D/report.json, and objdiff counts a data section as matched only when it matches ENTIRELY: one wrong byte contributes the section's FULL size to a per-byte accounting and ZERO to the image's.\n\nMEASURED, on game/ui/btext, whose extabindex is one byte off:\n  defake_gate per-section byte accounting  extab 248/248, extabindex 371/372, TOTAL 619/620\n  report.json main/game/ui/btext           matched_data=248  total_data=620\n  all-or-nothing recomputation             248/620   (agrees with report.json)\nThe gate's own baseline printout therefore overstated matched Data by 371 of 620 bytes on ONE TU, and a keep that destroyed the 248-byte extab match while repairing a single byte of extabindex would have netted +1 against the image's -248.\n\nTHE SCALE, over all 168 unit pairs the gate can price: 91 units and 134 sections DISAGREE between the two accountings, for 30,920 bytes of matched Data overstated in total -- game/sound/sounds_evt 2,173 -> 0, game/anim/action 2,340 -> 220, game/game/player 1,386 -> 0, game/enemy/critter 1,369 -> 0. 77 units and 326 sections are identical either way.\n\nTHE ALL-OR-NOTHING RULE IS A LOWER BOUND, NOT A REPRODUCTION, AND THAT IS THE SAFE DIRECTION. Validated against report.json's `matched_data` over the 129 units whose section set objdump -s covers (a bss-family section carries no contents and `.init` is not counted as data): 110 reproduce it EXACTLY, 18 UNDER-count it because objdiff credits data at SYMBOL granularity and RESOLVES RELOCATIONS -- a section holding a pointer table is credited there while its raw bytes differ here -- and 1 over-counts by 16 bytes (Runtime.PPCEABI.H/NMWException). A gate must under-credit rather than manufacture a pass; the per-byte form did exactly the opposite.\n\nA symbol-level rule was measured and is WORSE (105 of 129 exact), because dtk's target symbol names (lbl_/jumptable_) do not correspond to our `@N` pool entries and relocation-filled tables read as zeros in our object.\n\nTHE GENERAL FORM: when a gate prices a change against a project-level measure, it must price it in THAT MEASURE'S UNITS. A finer accounting is not a conservative approximation of a coarser one -- here it is strictly more optimistic, and the direction of the error is what decides whether a gate can pass a loss."
+}
