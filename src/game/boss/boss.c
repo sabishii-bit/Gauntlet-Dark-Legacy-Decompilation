@@ -505,10 +505,11 @@ void HealthMeterUpdate(f32 v, int meter) {
             cv = (f32)(pct * (f32)(256 - flags) + (f32)flags);
         }
         a1 = (int)cv;
-        if ((f32)(pct - 1.0) <= 0.0) {
+        pct = (f32)(pct - 1.0);
+        if (pct <= 0.0) {
             cv = 0.0f;
         } else {
-            cv = (f32)((f32)(pct - 1.0) * (f32)(256 - flags2));
+            cv = (f32)(pct * (f32)(256 - flags2));
         }
         a2 = (int)cv;
         mbBlitProject(HealthMeterFG[meter][0], a1, 0);
@@ -525,11 +526,11 @@ void HealthMeterUpdate(f32 v, int meter) {
         if (HealthMeterFG[meter][0] == 0) {
             return;
         }
-        if (HealthMeterValue[meter] / HealthMeterMaxValue[meter] <= 0.0) {
+        pct = HealthMeterValue[meter] / HealthMeterMaxValue[meter];
+        if (pct <= 0.0) {
             cv = 0.0f;
         } else {
-            cv = (f32)((HealthMeterValue[meter] / HealthMeterMaxValue[meter]) *
-                       (f32)(256 - (flags + flags2)));
+            cv = (f32)(pct * (f32)(256 - (flags + flags2)));
         }
         a1 = (int)cv;
         mbBlitProject(HealthMeterFG[meter][0], a1, 0);
