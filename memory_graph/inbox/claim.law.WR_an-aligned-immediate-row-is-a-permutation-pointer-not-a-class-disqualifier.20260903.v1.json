@@ -1,0 +1,19 @@
+{
+  "asserted_by": [
+    "tools/gdl/webfrank.py::register_slot_mask",
+    "tools/gdl/webfrank.py::permute_instruction_atoms",
+    "tools/gdl/composed_census/wf_word_diff.py",
+    "tools/gdl/composed_census/wr_perm_hash.py",
+    "tools/gdl/composed_census/wr_try_rule.py"
+  ],
+  "epistemic_state": "verified",
+  "falsifier": "An aligned IMMEDIATE row pair in which the two streams' words are NOT each other's -- different literals at both offsets with no local exchange available -- which would be a genuine wrong-constant or a real dataflow difference and outside every class. Also falsified by any function whose only differing words are aligned IMMEDIATE rows forming a local exchange and which the shipped instruction_permutation stage nevertheless refuses on those words.",
+  "id": "claim.law.WR_an-aligned-immediate-row-is-a-permutation-pointer-not-a-class-disqualifier.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T18:44:02Z",
+  "schema_version": 1,
+  "subject": "tool:webfrank",
+  "valid_from": "2026-09-03",
+  "value": "AN ALIGNED IMMEDIATE ROW DISQUALIFIES ITS WORD FROM THE RECOLOR STAGE, NEVER THE FUNCTION FROM THE CLASS -- and read correctly it NAMES the permutation window that closes it. `fndiff --ops` reports such a row as `IMMEDIATE T[n]@off O[n]@off` with the warning that a same-opcode immediate is an eligibility-deciding word, and both that warning and the standing lane advice that immediate rows sit outside every postprocessor class are true of the WORD in isolation. They are false as a verdict on the function, because the commonest producer of an aligned immediate row is not a wrong constant at all: it is two same-opcode words that our stream and the target emit in DIFFERENT ORDER under a register recolor, so each stream's word is the other's, one or two slots away, and the pair is a permutation the shipped instruction_permutation stage accepts outright. MEASURED, run 47, on every function this lane screened that carried aligned IMMEDIATE rows -- three functions, two rows each, 3/3: game/sfx/psfx::PlayerDoWeapTrail +0x14 ours `li r31,255` vs target `li r31,0` and +0x1c ours `li r29,0` vs target `li r29,255`; game/pb/pb_diag::pbDiagDrawSoundRow +0x134 ours `addi r8,r8,1` vs target `addi r3,r3,292` and +0x138 the same two words exchanged; game/sys/cardutil::cardDoWrite +0x3b8 ours `addi r8,r8,-2` vs target `addi r3,r3,-4` and +0x3c0 the same two exchanged. In every one of the three the two words are each other's under the function's own recolor. Two of the three then reached BYTE-EQUAL through the real apply_patch (soundrow shipped; weaptrail proved and withheld on provenance), and the third was refused for a reason that has nothing to do with the immediate rows. THE DECIDING SCREEN IS THE PER-WORD DECODE, NOT THE ROW LABEL: classify every differing word as REGFIELD-ONLY / IMMEDIATE / BRANCH / OPCODE from the raw words, then ask of each IMMEDIATE row whether the two streams' words are a local exchange. WIDTH IS PART OF THE READING AND IS EASY TO GET WRONG: pbDiagDrawSoundRow's two rows at +0x134/+0x138 are a THREE-word rotation spanning +0x130..+0x13c, and the two-word window they appear to name is accepted by the permutation stage and then refused by the recolor -- the correct three-word window lands all three words byte-identical with no register field touched at all. THE CONTRASTING CLASS, so this law is not read too widely: game/boss/bosscam::LimitCamVal2 carries a BRANCH row, not an IMMEDIATE one, at +0x13c (ours 4081000c, target 40810008, a `ble` whose BD displacement differs by one instruction). That word IS a genuine disqualifier, because register_slot_mask returns 0 for a branch and permute_instruction_atoms refuses any region containing a control op, so no stage can reach it. IMMEDIATE points at a window; BRANCH closes the door."
+}

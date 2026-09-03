@@ -1205,6 +1205,40 @@
       "copy_register_fields": true
     },
       {
+        "function": "fn_8006F16C",
+        "before_sha256": "7212daa960d82731f304e0fd6cccfe66aab3d015b85b3ce087088196a8f5a597",
+        "after_sha256": "ea0125d5870e0226b81206880918a4e9e9fe4dd40b9c76842ed9f9418a2b722a",
+        "mechanism": "attempt.NM_fn8006f16c-load-side-hypothesis-refuted-and-a-wrong-global-found-under-it.20260903.v1 is the source-exhaustion provenance: four construct classes (statement shape, declaration order, statement order, addressing form) measured dead on this cluster, two of them NEUTRAL-IDENTICAL (the edit folded away before codegen), under a typed denial whose falsifier is 'any source form that makes MWCC emit `mr r30,r29` instead of a second `li r30,0`'. 171/171 instructions, real 4, three raw differing words, all at +0x230..+0x238. The residual is ONE fact, not two: the target's `mr r30,r29` at +0x238 depends on `li r29,0`, which pins the li first and leaves the scheduler only the load to place, while our three words are mutually independent and the load hoists to the front. Same composition and the same window as this TU's fn_8006DF34 rule directly above: permute [0x230,0x238) order [1,0] (two atoms, dependence-audited in our colouring, strictest form, no exit_dead escape), then the differing-source li-vs-copy site at +0x238 under `constant_dataflow_recolor` naming our source r29, then copy_register_fields under a machine-proven bisimulation. The permuted window carries the EMB_SDA21 relocation on `lwz r28,@lbl_80344A6C` and the other atom (`li r29,0`) carries none, so the moved atom's binding to its target slot is unambiguous by (relocation type, symbol) as claim.law.HV_permute-payload-check-does-not-bind-a-relocation-to-its-atom.20260901.v1 requires of the deriver; both region relocation hashes are non-empty and the rule fails closed on a symbol-table renumber. Derived and proved through the real webfrank.apply_patch with the retail image (datum screen at FULL strength, L3), BYTE-EQUAL, 3 words changed. real 4 -> 0.",
+        "audit": {
+          "classification": "SCHEDULE+COPY_FORM",
+          "instructions": 171,
+          "permuted_instructions": 2,
+          "proof": "constant_dataflow_recolor"
+        },
+        "instruction_permutation": [
+          {
+            "start": "0x230",
+            "end": "0x238",
+            "order": [
+              1,
+              0
+            ],
+            "before_sha256": "7c4d5cdd2bd356fb2873ac04b5960c92bb56b717f586af885459abdbf9c93674",
+            "after_sha256": "29e85da6cf6fa557c28fc6d988d3413eae1796a66ca2bdf5d77231469969c055",
+            "before_relocations_sha256": "263d7f4b4eed24f2858ba5c5cedd54523dd8e747c64929edc260011db50daa81",
+            "after_relocations_sha256": "218762eed20f2e53aba92423845bcdfa49f3c38474c9d6a1487aaeda9ad2e834"
+          }
+        ],
+        "equivalent_copy_form": [
+          {
+            "at": "0x238",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 29
+          }
+        ],
+        "copy_register_fields": true
+      },
+      {
         "function": "fn_8006E654",
         "before_sha256": "a8ae1a58e6d35e9719ed4def254daf4aa5e07f86247eb8192c3b8d6589c68a5b",
         "after_sha256": "1cb3b0077ee000c5b6f36bf6ff09399b44bb711e805e3fabd2c4cc31027b4f13",
@@ -2618,6 +2652,76 @@
       }
     ],
     "game/pb/pb_diag": [
+      {
+        "function": "pbDiagDrawSoundRow",
+        "before_sha256": "18bc8aae1a095fd5ded3c0d227a2067dc936cc18c9730ca645d76b0f5f685a66",
+        "after_sha256": "b4049473da76c8ea3c95452176a7744d99eb286eb6bf2379e65b088f3cfa0e8d",
+        "mechanism": "attempt.MF_pbdiagdrawsoundrow-declaration-order-moves-three-webs-and-a-four-cycle-resists.20260903.v1 is the source-exhaustion provenance and this rule is the request it wrote: four literal probed_form axes (two declaration-order exchanges, one declaration MOVE measured NEUTRAL-IDENTICAL at bytes ef21482278e9, and a scoped opt_propagation bracket that cost real 122 -> 247 and grew the frame), with the decisive finding that the surviving four-cycle 'is not a declaration-list fact' and that at +0x188 the source already literally spells the copy (`row = 0; s = row;`) while MWCC rematerialises it -- claim.law.live-zero-copy-vs-remat-is-allocator-not-source.20260831.v1's allocator-not-source verdict, which is the law this class rests on. 283/283 instructions, real 122, 66 raw differing words, MNEMONIC DIVERGENCE 0 at index alignment (MF's own cheapest_refuting_observation, run live here and NOT fired). Composition, derived word by word through the real webfrank.apply_patch against the retail image at FULL datum strength (L3) and BYTE-EQUAL at 70 words changed: three dependence-audited pre-recolor permutation windows, none containing a control op and all three relocation-free in both objects -- [0xe4,0xf4) order [2,1,3,0] rotates the loop preheader's three zero definitions back under the interleaved `lwz r6,16(r30)`, [0x124,0x12c) order [1,0] swaps the two independent `addi rX,rX,1` increments at the loop tail, and [0x130,0x13c) order [1,2,0] rotates the three exit-block increments (that last window is the pair MF read as 'a local reorder of addi r3,r3,292 and addi r10,r10,1, not a wrong constant' -- confirmed: the rotated words land byte-identical with no register field touched, which is why fndiff reports them as IMMEDIATE rows). Then the live-zero form appears at BOTH polarities in one function, exactly as MF's law screen predicted: +0x188 is ours `li r28,0` against the target's `addi r29,r27,0` and closes as `constant_dataflow_recolor` naming our source r26, while +0x394 and +0x398 are ours `addi r28,r25,0` / `addi r24,r25,0` against the target's `li r23,0` / `li r22,0` and close as `constant_dataflow_inverse_recolor`, whose source is read off our own word and needs no declaration. All three are COMBINED form+recolor modes, so each writes the target's encoding around OUR registers and the unmodified recolor stage proves the renaming. copy_register_fields then discharges the four-cycle under verify_consistent_recolor's bisimulation. wg_identical_slot_provenance --only pbDiagDrawSoundRow: UNDECIDED (depth-limited leaves only, no IDENTICAL-SLOT-VALUE-DIFF firing). real 122 -> 0.",
+        "audit": {
+          "classification": "SCHEDULE+COPY_FORM+REGISTER_ONLY",
+          "instructions": 283,
+          "permuted_instructions": 9,
+          "form_edits": 3,
+          "proof": "constant_dataflow_recolor + constant_dataflow_inverse_recolor"
+        },
+        "instruction_permutation": [
+          {
+            "start": "0xe4",
+            "end": "0xf4",
+            "order": [
+              2,
+              1,
+              3,
+              0
+            ],
+            "before_sha256": "b86e7824e9d84c9626a5159e33cce5af1f5d0ec8dbbec71cb3f35915c95d1735",
+            "after_sha256": "647bab0820a3111744de37ff6e2efef9dbd667dfd58cce110108ea33ea2a8e30",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "start": "0x124",
+            "end": "0x12c",
+            "order": [
+              1,
+              0
+            ],
+            "before_sha256": "188487e9069849e9689d4dee2b1be37dbb72e799f638fa22eac70903a65983c6",
+            "after_sha256": "4fb2b0b696fa343a1c5929107f667a8be79a3a750d25a84d432e1885bfbfd5cc",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "start": "0x130",
+            "end": "0x13c",
+            "order": [
+              1,
+              2,
+              0
+            ],
+            "before_sha256": "20f0dc5a438718b0bd0894c33fec8b0a800ce27f51a53a21f334234786006698",
+            "after_sha256": "a36d8c6546bc985064cd8a28addcbc37deeb779ba259367bece9007aafd41924",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "equivalent_copy_form": [
+          {
+            "at": "0x188",
+            "proof": "constant_dataflow_recolor",
+            "our_source": 26
+          },
+          {
+            "at": "0x394",
+            "proof": "constant_dataflow_inverse_recolor"
+          },
+          {
+            "at": "0x398",
+            "proof": "constant_dataflow_inverse_recolor"
+          }
+        ],
+        "copy_register_fields": true
+      },
       {
         "function": "pbDiagDrawMenu",
         "before_sha256": "a69c2136c4f51e5b7d731639f2ba58c9e9e68fe8585d6597cca1758e5fc38b2b",

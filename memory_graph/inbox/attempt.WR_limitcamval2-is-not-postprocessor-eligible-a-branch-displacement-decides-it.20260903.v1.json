@@ -1,0 +1,38 @@
+{
+  "attempted_axis": "Serve the run-46 rule request on the lane's flagship: derive a composed instruction_permutation + copy_register_fields rule for the tail residual, existing classes only, decode verdict derived live per differing word.",
+  "attributes": {
+    "law_screen": "claim.law.unpaired-schedule-words-bar-webfrank-candidacy-not-just-its-permute-stage.20260831.v1 SCREENED and CONFIRMED from the other direction: webfrank_audit --grep game/boss printed `0 register-only; 0 eligible; 0 rejected`, i.e. SILENCE, and claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 was applied rather than reading that silence as the verdict -- the verdict was then derived per word instead. claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and NOT applicable (count parity 88/88, multiset IDENTICAL). claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1 APPLIED: it is what sends a control op to a refusal rather than to a wider window. claim.law.HV_single-permutation-region-is-the-binding-schema-limit.20260901.v1 SCREENED -- the list form was used (two disjoint ascending windows), so the schema was not the limit here.",
+    "laws_applied": "[\"claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1\", \"claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1\"]",
+    "probed_form": "No source edit. Two rule fragments were run through the real webfrank.apply_patch with the retail image. FRAGMENT A (instruction_permutation [0x140,0x148) order [1,0] -- the tail atoms `fmr f3,f4` and `b +8` -- plus [0x150,0x15c) order [2,0,1] and copy_register_fields): REFUSED verbatim `instruction permutation region contains a control op`. FRAGMENT B (the control-op-free half alone: [0x150,0x15c) order [2,0,1] plus copy_register_fields): REFUSED verbatim `atom 2: permutation region redefines r1`. Both refusals are machine-pinned by existing tests (tools/gdl/tests/test_webfrank.py:815 `contains a control op`, :179 `redefines r1`), so they are guard behaviour a source change cannot dissolve, not this lane's reading. NOTE the epilogue window IS byte-correct after permutation (wr_perm_hash prints all three words equal to target) -- it is refused on the frame-teardown dependence, correctly, and that refusal is a measurement of a guard doing its job (AGENTS.md discipline 14).",
+    "residual": "RECLASSIFIED: game/boss/bosscam::LimitCamVal2 moves from postprocessor-ELIGIBLE (the state NM's record retained) to SOURCE-ONLY. Count parity and an identical opcode multiset are NOT sufficient for candidacy; the raw per-word decode is, and it finds one branch-displacement word plus five opcode-position words. The next lane on this function is a source lane.",
+    "scope": "config/GUNE5D/webfrank.json -- NO rule authored, NO edit committed for this function. Read-only screening plus two apply_patch runs.",
+    "verification": "python tools/gdl/fndiff.py game/boss/bosscam LimitCamVal2 --ops at 4726b33ca: target 88 / ours 88, opcode multiset IDENTICAL (88/88), 4 clusters, 1 flagged SHIFTABLE. python tools/gdl/webfrank_audit.py --grep game/boss: 0 eligible, 0 rejected. Both wr_try_rule runs printed `[datum screen at FULL strength: L3 reads orig/GUNE5D/sys/main.dol]` before refusing."
+  },
+  "denial": {
+    "expiry_check": "`python WR_scratch/wr_wordscreen.py game/boss/bosscam LimitCamVal2` (or `wf_word_diff` for the count) -- the denial expires the moment +0x13c stops reading a BRANCH-class difference, i.e. as soon as any source form makes our `ble` carry the target's displacement.",
+    "falsifier": "Any state of this function in which every differing word is REGFIELD-ONLY, or in which a permutation window covering +0x13c..+0x148 contains no control op. Either would put the residual back inside a shipped class.",
+    "premise_measurement": "`python tools/gdl/composed_census/wf_word_diff.py game/boss/bosscam LimitCamVal2` at 4726b33ca: 88 insns, DIFFERING WORDS = 29, MNEMONIC DIVERGENCE = 5, RELOC-SYMBOL MISMATCH = 0, PINNED = no. Per-word decode over all 29: REGFIELD-ONLY 23, OPCODE 5, BRANCH 1 -- 6 words outside every register-field class. THE DECIDING WORD is +0x13c, `ours 4081000c / target 40810008`: both are `ble`, the xor is 0x00000004, and the whole difference is the BD displacement (target branches to +0x144, ours to +0x148). register_slot_mask returns 0 for a branch, so copy_register_fields cannot touch it; permute_instruction_atoms refuses any region containing a control op, so no permutation can move it or its neighbours. The underlying fact is a control-flow SHAPE difference, not a schedule one: on the `le` path the target executes TWO fmr (+0x144 `fmr f4,f2` falling into +0x148 `fmr f3,f4`) and our stream executes ONE (+0x148 `fmr f3,f0`), which is why the merge and the branch pair compensate.",
+    "scope": "The POSTPROCESSOR path for game/boss/bosscam::LimitCamVal2 only. It says nothing about the source path: NM's compensating-pair denial still governs the helper-body statement-shape class, and the source residual remains open."
+  },
+  "function": "function:LimitCamVal2",
+  "id": "attempt.WR_limitcamval2-is-not-postprocessor-eligible-a-branch-displacement-decides-it.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T18:39:13Z",
+  "refutes": "attempt.NM_limitcamval2-the-merge-and-the-branch-pair-are-a-compensating-pair.20260903.v1",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "insert T[80:80]@140 O[80:81]=['fmr']; delete T[82:83]@148=['fmr']; delete T[84:85]@150=['addi']; insert T[87:87]@15c O[86:87]=['addi']"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "RAN: instruction_permutation (permute_instruction_atoms + check_permutation_dependences, via tools/gdl/composed_census/wr_try_rule.py against the retail image, datum screen at FULL strength L3), copy_register_fields, verify_datum_binding, webfrank_audit. NOT RUN and stated as such: verify_value_equality_recolor and unproven_recolor_audit -- neither can reach a word outside the four register slots, so running them would measure the screen and not the function; and the composition never reached the register stage because both permutation windows are refused before it.",
+  "windows_tried": [
+    "0x140:0x148:1,0",
+    "0x150:0x15c:2,0,1",
+    "both together"
+  ]
+}
