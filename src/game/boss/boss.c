@@ -89,7 +89,7 @@ extern void* CritterNewInst(int a, int b, void* obj);
 extern void* CopyMat4(void* a, void* b);
 extern void* PlaceItem(s32 a, s32 b, char* name, void* mat);
 extern void YawVec3(void* axis, f32* out, f32 angle);
-extern f64  Random(f64 a);
+extern f32  Random(f32 a);
 extern s32  StartFXSub(s32 type, f32* pos, u32 fla, u32 flb, f32 time);
 extern void SfxSetDamage(f32 damage, f32 radius, f32 delay, s32 idx, s32 type, s32 owner);
 
