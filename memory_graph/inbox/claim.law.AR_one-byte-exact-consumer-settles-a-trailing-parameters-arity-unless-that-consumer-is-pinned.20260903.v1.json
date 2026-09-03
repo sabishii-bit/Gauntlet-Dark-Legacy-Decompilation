@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py",
+    "tools/gdl/aritycheck.py",
+    "config/GUNE5D/webfrank.json"
+  ],
+  "attributes": {
+    "provenance": "Derived by claude-fleet-worker-AR in worktree GDL-Claude-ArityFamily while executing work_claim.arity-family.20260903.v1 at commits 9eb99ec5c -> 1b98e9997. Every consumer verdict quoted was produced by `python tools/gdl/fndiff.py <unit> <fn> --clean` in that tree; the pin list by grepping `\"function\"` in config/GUNE5D/webfrank.json; the SDK figures by the `ninja -j2` PROGRESS block of the same run.",
+    "tags": [
+      "matching",
+      "param-retype",
+      "symbol-identity",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A consumer that measures byte-exact while passing N arguments, whose callee nonetheless proves to take fewer than N in retail - i.e. dropping the parameter and the argument leaves that consumer still exact AND improves some other consumer. Re-run: `python tools/gdl/fndiff.py game/audio/adstream AdsSetVolumeDirect --clean` (must stay EXACT while src/game/audio/adstream.c:688 passes three arguments to dcsVoiceSetMaster) and `python tools/gdl/fndiff.py game/audio/dcs dcsVoiceSetMaster --clean` (must stay EXACT at three parameters). The pin clause is falsified by a pinned consumer whose fndiff verdict is shown to be independent of its webfrank rule.",
+  "id": "claim.law.AR_one-byte-exact-consumer-settles-a-trailing-parameters-arity-unless-that-consumer-is-pinned.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T04:53:30Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "A trailing-parameter arity question is DECIDED, in one command and zero source edits, by any single consumer that measures byte-exact while passing the full argument list: if the caller is exact with N arguments, the target materialises all N, so the retail arity is N and the callee's unread Nth parameter is simply ignored by retail - not a phantom. This is the cheap converse of claim.law.NM_an-unread-trailing-parameter-is-invisible-in-the-callee-and-costs-the-caller-an-instruction.20260903.v1, which can only settle arity by EDITING and re-measuring; the callee's own bytes never decide either way, but one exact consumer does. Measured across the whole game half of claim.T12_arity-census-the-unread-trailing-parameter-class-sized-for-the-first-time.20260903.v1 on 2026-09-03: 8 of 14 KNR-SHORT-CALL consumers and 7 of 10 UNREAD-TRAILING consumers came back EXACT or MATCH on the first `fndiff --clean`, refuting their rows outright (dcsVoiceSetMaster's arity of 3 was settled by AdsSetVolumeDirect alone; sceWrite's and SignalSema's by ml_error.c being a Matching TU). The same argument closes 23 census rows at once as a CLASS: `configure.py progress` reports SDK Code 100.00% matched (922/922 functions) and `config/GUNE5D/webfrank.json` contains no dolphin/, MSL/, TRK_MINNOW_DOLPHIN/ or Runtime.PPCEABI.H/ key at all, so every SDK consumer is a RAW-compiler exact passing its full argument list and every SDK row's signature is confirmed correct without a build. THE ONE EXCEPTION, AND IT IS NOT OPTIONAL: a webfrank-pinned consumer reads real 0 BY CONSTRUCTION (AGENTS.md residual-work discipline 3), so its exactness is evidence about the rule, not about the arity. Three of the 15 apparent refutations in this sweep were pinned consumers - fn_800DA60C and fn_800DA6A4 (game/movie/movieplayer, webfrank.json lines 1960 and 1988) and pbDiagDrawTexture (game/pb/pb_diag, line 2569) - and taking them at face value would have silently closed three rows on no evidence. Screen every consumer against webfrank.json BEFORE reading its verdict. When the consumer is pinned, the screen still works from the TARGET half of `fnasm <unit> <caller> --diff`, which is authoritative regardless of what the postprocessor did to our half: that is how fn_800DBA80's arity of 2 was settled (target sets both r3 and r4 at the call) and how mbBlitStub343C was found to cost nothing either way."
+}

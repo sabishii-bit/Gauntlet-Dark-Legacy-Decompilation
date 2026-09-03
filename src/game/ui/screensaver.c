@@ -753,7 +753,7 @@ void ScreenSaverEnd(void)
 }
 
 int fn_80055F68(int a, int b);
-void DoTexMods(void);
+void DoTexMods(void* seq);
 void PlayerControls(void);
 extern u8 lbl_80240E30[];
 
@@ -792,7 +792,7 @@ void ScreenSaver(void)
                 lbl_80344A48 = 0;
             }
         }
-        if ((gControllerButtons & 1) != 0) {
+        if ((gControllerButtons & 0x100000000LL) != 0) {
             lbl_80344A48 = 36000;
         }
         if ((u32)lbl_80344A48 < 36000) {
@@ -808,7 +808,7 @@ void ScreenSaver(void)
                 serve_busy(-1);
                 ClockOncePerFrame();
                 if (sPowerupsBuf != NULL) {
-                    DoTexMods();
+                    DoTexMods(sPowerupsBuf);
                 }
                 for (i = 0; i < 4; i++) {
                     ScreenSaverUpdateWeap(i);

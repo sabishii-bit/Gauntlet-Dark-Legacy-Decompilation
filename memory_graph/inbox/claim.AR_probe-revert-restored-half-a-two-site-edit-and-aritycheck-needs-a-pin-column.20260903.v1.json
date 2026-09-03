@@ -1,0 +1,19 @@
+{
+  "attributes": {
+    "provenance": "Measured by claude-fleet-worker-AR in worktree GDL-Claude-ArityFamily at commit f1834059c (defect 1) and across commits 9eb99ec5c -> 1b98e9997 (defect 2), under work_claim.arity-family.20260903.v1. Defect 1 was recovered by hand-editing the surviving declaration back and confirming `git status --porcelain` clean plus `defake_gate.py check game/pb/pb_diag.c --rebuild` GATE OK. Addressed to the tool lane (worker T13 owns tools/gdl this run); this lane made no change to tools/gdl.",
+    "tags": [
+      "workflow",
+      "matching",
+      "param-retype"
+    ]
+  },
+  "epistemic_state": "verified",
+  "id": "claim.AR_probe-revert-restored-half-a-two-site-edit-and-aritycheck-needs-a-pin-column.20260903.v1",
+  "kind": "claim",
+  "predicate": "opportunity",
+  "recorded_at": "2026-09-03T04:53:32Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "Two tool defects measured while working the arity family, both cheap to fix and both able to corrupt a lane silently. (1) `probe.py <unit> <fn> --revert` RESTORED ONLY THE IN-FUNCTION HALF of a two-site edit and left the file-scope half in place, producing a tree that does not compile. Reproduction, exactly as it happened: in src/game/pb/pb_diag.c change the file-scope declaration at line 216 from `extern s32 RandInt(void);` to `extern s32 RandInt(s32 n);` AND the call inside pbDiagDrawAudio at line 329 from `RandInt()` to `RandInt(gDiag_D58)`, probe, then `python tools/gdl/probe.py game/pb/pb_diag pbDiagDrawAudio --revert`. The revert put the call back to `RandInt()` but left the declaration at `(s32 n)`, and the re-scoring build then died with `'RandInt(long)' / Too many errors printed, aborting program` followed by `ninja: build stopped: subcommand failed` - which reads exactly like a build-environment failure rather than an incomplete revert. `git diff` confirmed one surviving hunk, the declaration line. This matters beyond the inconvenience: probe ALREADY knows about file-scope edits (it printed `[TU-scope gate: 1 file-scope change(s) in this diff - cross-checking the whole TU against its defake_gate baseline]` for the screensaver probe minutes earlier), so the snapshot and the gate disagree about what a probe's edit consists of. Any prototype or arity work is inherently two-site, so this defect is aimed squarely at the lane the census creates. (2) `tools/gdl/aritycheck.py` needs a WEBFRANK-PIN COLUMN on every call site it prints. The census's own decision procedure - 'DECIDE AT THE CALL SITE: read the caller's aligned view for an ours-only -1 lwz|li|mr' - is unsound for a pinned consumer, which reads real 0 by construction (AGENTS.md residual-work discipline 3), and three of this lane's fifteen apparent refutations were pinned consumers: fn_800DA60C and fn_800DA6A4 (config/GUNE5D/webfrank.json lines 1960, 1988) and pbDiagDrawTexture (line 2569). Nothing in the census or the tool's trailer warns about this, and taking those three verdicts at face value would have closed three rows on no evidence at all. The fix is one column, computed from a file the tool can already read, and it converts a silent wrong answer into a visible 'decide from the target half'. Related and smaller: aritycheck reports a call-site COUNT but not how many of those sites pass the SHORT list versus the FULL one, and that ratio is what decides whether a PHANTOM row has any payer - three of the four PHANTOM rows turned out to have short calls only, hence no cost, which the printed row cannot express."
+}
