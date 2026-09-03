@@ -132,6 +132,24 @@ OBJDUMP = Path("build/binutils/powerpc-eabi-objdump.exe")
 SYMBOLS_TXT = Path(f"config/{VERSION}/symbols.txt")
 RETAIL_DOL = Path(f"orig/{VERSION}/sys/main.dol")
 
+def unit_key(unit):
+    """The canonical unit spelling: no `src/`, no `.c`/`.cpp`, forward slashes.
+
+    THE CONVENTION, and why this is exported (run-43 item 8). Core tools
+    (probe, fndiff, fnasm) accept `game/x/y`, `game/x/y.c`, `src/game/x/y.c`
+    and the backslash forms, because a lane types whatever its editor just
+    showed it. Most composed_census tools built `build/GUNE5D/obj/{unit}.o`
+    straight from argv, so `game/x/y.c` became `...y.c.o`, and the tool
+    reported a MISSING OBJECT — which reads as "this function is not in the
+    census", not as "you spelled the unit the other way". Measured: 18
+    census tools take a unit and 16 did not normalize.
+    """
+    text = str(unit).replace("\\", "/").strip().strip("/")
+    if text.startswith("src/"):
+        text = text[len("src/"):]
+    return re.sub(r"\.(c|cpp)$", "", text)
+
+
 _POOL_SYMBOLS = None
 
 
@@ -1323,8 +1341,7 @@ def ours_object_path(unit, raw=False):
 def datum_multiset_screen(unit, fn, raw=False, cap=DATUM_PREFIX_BYTES,
                           placeholder_addresses=False):
     """Screen one function by unit name. None when either object lacks it."""
-    unit = re.sub(r"\.(c|cpp)$", "",
-                  unit.replace("\\", "/").removeprefix("src/"))
+    unit = unit_key(unit)
     target_object = Path(f"build/{VERSION}/obj/{unit}.o")
     ours_object, raw_used = ours_object_path(unit, raw)
     if not target_object.exists() or not ours_object.exists():
@@ -2107,10 +2124,7 @@ def main():
         print(__doc__)
         return 1
 
-    unit = args[0].replace("\\", "/").strip("/")
-    if unit.startswith("src/"):
-        unit = unit[len("src/"):]
-    unit = re.sub(r"\.(c|cpp)$", "", unit)
+    unit = unit_key(args[0])
     target_o = Path(f"build/{VERSION}/obj/{unit}.o")
     base_o = Path(f"build/{VERSION}/src/{unit}.o")
     if raw:

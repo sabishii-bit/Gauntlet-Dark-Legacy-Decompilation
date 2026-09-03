@@ -34,6 +34,7 @@ REPO = Path(__file__).resolve().parents[3]  # repo root (fixed after promotion o
 VERSION = "GUNE5D"
 sys.path.insert(0, str(REPO / "tools" / "gdl"))
 import matchtool  # noqa: E402  (reuse its normalizer + scorer)
+from fndiff import unit_key  # noqa: E402
 
 
 # ---------------------------------------------------------------- ninja parse
@@ -152,7 +153,10 @@ def main():
     a = ap.parse_args()
 
     edges = read_edges()
-    unit = a.unit.replace("\\", "/")
+    # run-43 item 8: the edge keys are the canonical `game/x/y` spelling, so
+    # a `game/x/y.c` argument used to report "no body edge for ..." — which
+    # reads as an unpinned TU, not as a spelling.
+    unit = unit_key(a.unit)
     if unit not in edges:
         print(f"no body edge for {unit}; sample: {list(edges)[:4]}")
         return 1

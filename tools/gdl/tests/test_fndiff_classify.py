@@ -8,7 +8,38 @@ from fndiff import (classify_function, cluster_flags,
                     compiler_private_aliases_from_symbols, count_real,
                     immediate_deltas, immediate_row_reliability,
                     real_reconciliation,
-                    relocated_instructions, reloc_naming_only, shiftable_gap)
+                    relocated_instructions, reloc_naming_only, shiftable_gap,
+                    unit_key)
+
+
+class UnitKeyTests(unittest.TestCase):
+    """Run-43 item 8: one spelling rule for both tool families.
+
+    Core tools took `game/x/y`, `game/x/y.c` and `src/game/x/y.c`; 16 of the
+    18 composed_census tools that take a unit built
+    `build/GUNE5D/obj/{unit}.o` from raw argv, so the `.c` form produced
+    `...y.c.o` and a MISSING OBJECT — which reads as "this function is not
+    in the census" rather than as a spelling.
+    """
+
+    def test_every_spelling_reaches_one_key(self):
+        for spelling in ("game/mb/mb_camera", "game/mb/mb_camera.c",
+                         "src/game/mb/mb_camera.c", "src\\game\\mb\\mb_camera.c",
+                         "  game/mb/mb_camera.c  ", "/game/mb/mb_camera"):
+            self.assertEqual(unit_key(spelling), "game/mb/mb_camera", spelling)
+
+    def test_a_cpp_unit_keeps_its_stem(self):
+        self.assertEqual(unit_key("src/game/movie/movieplayer.cpp"),
+                         "game/movie/movieplayer")
+
+    def test_an_inner_dot_c_is_not_stripped(self):
+        """Only a TRAILING extension goes. `.replace('.c', '')` — the form
+        one census tool used — would eat any inner occurrence."""
+        self.assertEqual(unit_key("game/x/a.c.helper"), "game/x/a.c.helper")
+
+    def test_the_key_is_idempotent(self):
+        once = unit_key("src/game/ui/select.c")
+        self.assertEqual(unit_key(once), once)
 
 
 class ImmediateDeltaTests(unittest.TestCase):

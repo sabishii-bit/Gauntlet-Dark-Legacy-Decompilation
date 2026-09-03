@@ -32,6 +32,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "tools", "gdl"))
 import webfrank as wf  # noqa: E402
+from fndiff import unit_key  # noqa: E402
 
 
 def load(path, function):
@@ -51,7 +52,7 @@ def load(path, function):
 
 
 def our_object(unit):
-    parts = unit.split("/")
+    parts = unit_key(unit).split("/")   # run-43 item 8: accept `.c` too
     body = os.path.join(ROOT, "build", "GUNE5D", "src", *parts[:-1],
                         ".postprocess", "body", parts[-1] + ".o")
     if os.path.exists(body):

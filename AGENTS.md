@@ -918,7 +918,13 @@ objects. Judge the setup by whether `ninja` finishes green, never by the
 size of the first build.ninja. Unit paths for every tool above are
 `game/.../file.c` forms — no `src/` prefix (the tools now strip a stray
 `src/` themselves, but errors from older invocations show the bare
-`missing: build/...` form).
+`missing: build/...` form). Since run 43 the `composed_census/` family
+accepts the same spellings as the core tools (`game/x/y`, `game/x/y.c`,
+`src/game/x/y.c`, backslashes) — `fndiff.unit_key` is the one normalizer
+and the census tools route through it. Before that, 16 of the 18 census
+tools that take a unit built `build/GUNE5D/obj/{unit}.o` from raw argv, so
+a `.c` spelling produced `...y.c.o` and a MISSING OBJECT, which reads as
+"this function is not in the census" rather than as a spelling.
 
 Do not invent ad-hoc diff pipelines when a project tool already provides the
 measurement. After each meaningful change: rebuild the owning object, re-score,

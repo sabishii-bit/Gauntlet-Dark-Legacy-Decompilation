@@ -20,12 +20,14 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))  # tools/gdl (fixed after promotion out of CN_scratch)
 import webfrank as wf  # noqa: E402
+from fndiff import unit_key  # noqa: E402
 from reloc_symbols import moved_symbols, region_symbols  # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))  # repo root (fixed after promotion)
 
 
 def our_object(unit):
+    unit = unit_key(unit)   # run-43 item 8: accept the core tools' `.c` form
     d, base = unit.rsplit("/", 1)
     body = os.path.join(ROOT, "build", "GUNE5D", "src", d, ".postprocess",
                         "body", base + ".o")
