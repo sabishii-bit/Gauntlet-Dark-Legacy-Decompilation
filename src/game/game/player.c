@@ -2124,7 +2124,7 @@ s32 do_players(void) {
                 for (j = 0; j < 4; j++) {
                     s32 st;
 
-                    if (j != i && (st = PT(j)->state) != 0 && st != 2 && st != 3) {
+                    if (i != j && (st = PT(j)->state) != 0 && st != 2 && st != 3) {
                         break;
                     }
                 }
@@ -2155,7 +2155,7 @@ s32 do_players(void) {
                 for (j = 0; j < 4; j++) {
                     s32 st;
 
-                    if (j != i && (st = PT(j)->state) != 0 && st != 2 && st != 3) {
+                    if (i != j && (st = PT(j)->state) != 0 && st != 2 && st != 3) {
                         break;
                     }
                 }

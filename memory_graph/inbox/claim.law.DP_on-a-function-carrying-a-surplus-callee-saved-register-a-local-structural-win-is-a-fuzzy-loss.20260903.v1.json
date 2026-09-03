@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py",
+    "tools/gdl/savedregs.py",
+    "tools/gdl/fnasm.py"
+  ],
+  "attributes": {
+    "tags": [
+      "register-web",
+      "matching",
+      "metrics",
+      "walked-pointer"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A keep on do_players (or any function with a surplus callee-saved register) that closes a per-cluster structural residual and RAISES fresh objdiff fuzzy without changing the save set. Run `python tools/gdl/savedregs.py game/game/player do_players --uses` to read the assignment in both streams, and re-check the save-set delta with `fnasm.py game/game/player do_players 0x8:0x18 --diff`; if the delta has closed, this law's premise is gone and every probe listed above should be re-run at the new alignment.",
+  "id": "claim.law.DP_on-a-function-carrying-a-surplus-callee-saved-register-a-local-structural-win-is-a-fuzzy-loss.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T06:34:34Z",
+  "schema_version": 1,
+  "subject": "function:do_players",
+  "valid_from": "2026-09-03",
+  "value": "When our object saves one MORE callee-saved GPR than the target (do_players: ours `stmw r15,140(r1)` / frame 264 against target `stmw r16,136(r1)` / frame 256), every register number in the body is shifted, so an edit that closes real named structure at ONE site re-rolls the allocation everywhere and loses more fuzzy than the site gains. Five probes across two runs now share this exact signature on do_players and not one of them is a keep: probe A closes both j-loop twins (multiset 14t -> 12t) at 97.2692 -> 96.8433; probes I and J reach EXACT instruction count T1174/O1174 with multiset 12t at 96.8458 and 96.9055; probe N deletes a genuine redundant load and reads 96.7112; probe O reproduces the target's add / displacement-load / addi trio byte-for-byte at +0x10e0 and reads 96.7155. The operational rule is a PRIORITY, not a prohibition: on such a function the save set is the first residual to work and per-cluster structure is the last, because until the surplus register is shed no per-cluster win can survive arbitration \u2014 and correspondingly, a probe on such a function that improves fuzzy WITHOUT touching a long-lived value (do_players PROBE M, a compare operand-order swap: real 840 -> 836, count held, 97.2692 -> 97.2862) is the shape of edit that does pay."
+}
