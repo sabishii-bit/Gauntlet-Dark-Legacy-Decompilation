@@ -1,0 +1,27 @@
+{
+  "asserted_by": [
+    "config/GUNE5D/webfrank.json (game/sys/sysservice::sysResetService)",
+    "tools/gdl/webfrank.py (apply_patch: post_recolor_permutation, unpermute_target_windows, resolve_memory_locations)",
+    "tools/gdl/composed_census/wr_try_rule.py"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "matching",
+      "register-web",
+      "entry-schedule",
+      "relocation",
+      "sda-global"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A composed rule of this shape that the guards accept while the emitted bytes are NOT the target's, or a function where the intermediate order M provably does not exist and this law is read as promising one. The membership test remains a MEASUREMENT, not an assumption: run check_permutation_dependences on the pre order in our colouring, and on the post order after the recolor. Reproduce the whole closure with `python tools/gdl/composed_census/wr_try_rule.py game/sys/sysservice sysResetService <the fragment in attempt.WF_sysresetservice-closes-by-splitting-the-permutation-across-the-recolor.20260903.v1 attributes.probed_form>`; it must print BYTE-EQUAL.",
+  "id": "claim.law.WF_a-permutation-illegal-in-both-colourings-can-still-be-split-across-the-recolor.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T20:05:01Z",
+  "schema_version": 1,
+  "subject": "tool:webfrank",
+  "valid_from": "2026-09-03",
+  "value": "BOUNDARY REFINEMENT of claim.law.C1_permute-recolor-composition-needs-a-permutation-legal-in-our-colouring.20260901.v1 and a PARTIAL REFUTATION of claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1's two named rejections. Both laws are right about what they measured and both conclude too much from it. C1's discriminator says: look at the register the displaced word defines, ask whether any word it crosses reads that register in our colouring, and 'if yes, the function is NOT a member and no rule can be authored'. That last clause is FALSE. The permutation does not have to run in ONE stage.\n\nTHE MECHANISM. apply_patch offers TWO permutation stages around the register stage: `instruction_permutation` runs BEFORE it and is audited in OUR colouring; `post_recolor_permutation` runs AFTER it, is audited in the TARGET's, and aims the recolor at the intermediate image via unpermute_target_windows. So the reachable question is not 'is the whole reorder legal in our colouring' but 'is there an INTERMEDIATE ORDER M such that O->M is legal in ours and M->T is legal in the target's, with the our->target register map a consistent renaming AT M'. Whenever the illegality is caused by ONE register carrying two values whose live ranges only separate under the target's schedule, M exists: put the moves that separate those ranges in the pre stage, and the move that needs the recolor in the post stage.\n\nWORKED CASE, closed exact 2026-09-03: game/sys/sysservice::sysResetService, the function claim.law.webfrank-permutation-is-audited-in-our-colouring names as a REJECTION by name ('sysResetService moves addi r4,r3,@lo past li r3,0'). MEASURED: the single 9-atom permutation over [0x41c,0x440) order [0,1,3,7,4,2,5,8,6] refuses with `instruction permutation breaks def-use chains: [(6, ('g', 3)), (7, 'mem')]`, and refuses IDENTICALLY under exit_dead=lambda r: True. Split it: a 6-atom PRE permutation over [0x424,0x43c) order [1,5,2,0,3,4] that only sinks `lis r3,@ha` below `mtctr`/`rlwinm` and hoists `lwz r5,gPadCur` above them -- every def-use chain and final write preserved in OUR colouring -- then copy_register_fields (verify_consistent_recolor STRICT, no escape), then a 2-atom POST permutation over [0x438,0x440) order [1,0] exchanging `addi r4,r3,@lo` with the now-recoloured `li r6,0`, which is trivially legal in the target's colouring. BYTE-EQUAL, 13 words changed.\n\nTHREE SUB-FACTS a next lane needs, each measured on that closure.\n(1) The `mem` half of the 2026-08-31 law is STALE. That law's second rejection ground -- a load may never hoist over a store because _word_effects classes every non-r1 D-form access as the single resource `mem` -- was true when written and is now discharged by the shipped `memory_disambiguation` declaration, which resolves each SDA word to its LINKED ADDRESS through symbols.txt and refuses anything it cannot prove. It is exactly the sound form that law warned not to fake with symbol names, and here it took the refusal from `[(6, ('g',3)), (7, 'mem')]` to `[(6, ('g',3))]` in one call.\n(2) The PRE stage's verify_relocation_binding binds against the FINAL target, not against the intermediate. So a pre window may not CONTAIN a word the post stage is going to move if that move changes which words carry relocations: measured, the pre window [0x41c,0x440) refuses with `relocation binding: word +0x20 is relocated in the target but not in our object` purely because the target's ADDR16_LO sits at 0x43c only after the post stage runs. The fix is to NARROW the pre window until the post-permuted words fall outside it; the refusal is a WINDOW-SIZING message, not a verdict on the function.\n(3) The post stage takes no memory_locations and no exit_dead (it gets check_permutation_dependences in its strictest form), so any load/store crossing must be placed in the PRE stage where the disambiguation lives. That is a hard constraint on which move goes in which stage, and it is the first thing to check when choosing M."
+}
