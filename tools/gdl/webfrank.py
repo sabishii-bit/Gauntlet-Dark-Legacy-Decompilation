@@ -743,6 +743,65 @@ def _value_preserving_copy(word: int, index: int, relocated: set):
     return None
 
 
+def _constant_transfer(word: int, index: int, relocated: set,
+                       previous: dict) -> dict:
+    """``previous`` (GPR -> literal) updated for one word, failing closed.
+
+    The map's invariant is exactly one sentence: ``map[r] == K`` means this
+    stream's GPR ``r`` provably holds the literal ``K`` at this program
+    point.  Three rules keep it:
+
+      * every register the word DEFINES loses its binding first, so a
+        stale literal can never survive its own overwrite;
+      * a non-relocated ``li rD,K`` binds ``rD`` to ``K``, and a
+        non-relocated ``addi rD,rS,0``/``mr rD,rS`` propagates ``rS``'s
+        binding — a RELOCATED word is never either, because an ADDR16_LO
+        placeholder is a link-time address half and not a literal;
+      * an instruction ``instruction_operands`` cannot decode (``lmw``,
+        ``stmw``, anything unmodelled) drops the WHOLE map, because its
+        write set is unknown.
+
+    Only the GPR bank is tracked: ``li`` has no FPR form, so an FPR
+    constant map would be empty by construction.
+    """
+    try:
+        operands = instruction_operands(word)
+    except ValueError:
+        return {}
+    state = dict(previous)
+    for bank, shift, role, _zero_none in operands:
+        if bank == "g" and role in ("d", "b"):
+            state.pop((word >> shift) & 0x1F, None)
+    if index not in relocated:
+        form = decode_copy_form(word)
+        if form is not None and form[0] == "li":
+            state[form[1]] = form[2]
+        elif form is not None and form[0] == "copy" and form[2] in previous:
+            state[form[1]] = previous[form[2]]
+    return state
+
+
+def _constant_equality_seeds(our_constants: dict, target_constants: dict):
+    """Value-equality pairs justified by two independent constant loads.
+
+    ``(g, o, t)`` whenever our ``o`` and the target's ``t`` provably hold the
+    SAME literal.  The relation's invariant is "these two registers hold the
+    same value here", and two registers holding one literal satisfy it, so
+    this is a second sound SOURCE for the same relation rather than a wider
+    notion of equivalence: it stays inside the value-equality ceiling.
+    """
+    if not our_constants or not target_constants:
+        return set()
+    by_value: dict[int, list] = {}
+    for target_register, literal in target_constants.items():
+        by_value.setdefault(literal, []).append(target_register)
+    return {
+        ("g", our_register, target_register)
+        for our_register, literal in our_constants.items()
+        for target_register in by_value.get(literal, ())
+    }
+
+
 def _compare_result_field(word: int):
     """The CR field number written by an ``fcmpu``/``fcmpo``, else ``None``.
 
@@ -987,6 +1046,7 @@ def verify_value_equality_recolor(
     call_targets=None,
     substitutions=(),
     compare_exchanges=(),
+    constant_equality: bool = False,
 ) -> None:
     """Prove *target* is *current* under a VALUE-equality correspondence.
 
@@ -1017,6 +1077,23 @@ def verify_value_equality_recolor(
     exchange in *compare_exchanges*, and an undeclared escape or a declared
     escape that never fires is an error.  A rule therefore cannot widen
     silently, and a source change that moves the residual fails the build.
+
+    THE CONSTANT-EQUALITY CLOSURE (*constant_equality*, opt-in per rule).
+    The copy closure above relates registers that one stream COPIED from
+    another; it cannot relate two INDEPENDENT ``li`` instructions that
+    materialise one literal into two different registers, because neither
+    stream copied anything.  With *constant_equality* the driver carries a
+    per-stream constant map alongside the relation — a fourth component of
+    the join state, intersected at every merge exactly like the other three
+    — and seeds the relation at each word with every pair whose two
+    registers provably hold the same literal.  That is the SAME invariant
+    from a second sound source, not a new notion of equivalence, so it stays
+    inside the value-equality ceiling; it is opt-in because it is a
+    widening, so no shipped rule's proof can change under it without its own
+    author declaring the change.  Provenance:
+    claim.WR_constant-equality-closure-class-proposal.20260903.v1 and the
+    image-wide demand census
+    claim.CE_constant-equality-closure-demand-census-image-wide.20260903.v1.
     """
     if len(current) != len(target) or len(current) % 4:
         raise ValueError("recolor verification needs equal word-aligned sizes")
@@ -1047,8 +1124,8 @@ def verify_value_equality_recolor(
     }
     identity_renaming = {("g", n): n for n in range(32)}
     identity_renaming.update({("f", n): n for n in range(32)})
-    incoming: dict[int, tuple[set, dict]] = {
-        0: (identity_relation, identity_renaming)
+    incoming: dict[int, tuple[set, dict, dict, dict]] = {
+        0: (identity_relation, identity_renaming, {}, {})
     }
     used_substitutions: set = set()
     used_exchanges: set = set()
@@ -1062,13 +1139,25 @@ def verify_value_equality_recolor(
                 "value-equality verification did not converge within "
                 f"{_VALUE_EQUALITY_STEP_LIMIT} steps"
             )
-        relation, renaming = incoming[index]
+        relation, renaming, our_constants, target_constants = incoming[index]
+        relation = set(relation)
+        if constant_equality:
+            relation |= _constant_equality_seeds(
+                our_constants, target_constants
+            )
         relation, renaming = _value_equality_transfer(
             index, words_cur[index], words_tgt[index],
-            set(relation), dict(renaming),
+            relation, dict(renaming),
             our_copies[index], target_copies[index],
             used_substitutions, used_exchanges,
         )
+        if constant_equality:
+            our_constants = _constant_transfer(
+                words_cur[index], index, our_relocated, our_constants
+            )
+            target_constants = _constant_transfer(
+                words_tgt[index], index, target_relocated, target_constants
+            )
         if calls[index]:
             helper = _helper_call(
                 call_targets.get(index * 4) if call_targets else None
@@ -1086,24 +1175,55 @@ def verify_value_equality_recolor(
                 }
                 for key in _CALL_VOLATILE:
                     renaming.pop(key, None)
+                    if key[0] == "g":
+                        our_constants.pop(key[1], None)
+                        target_constants.pop(key[1], None)
                 for key in _CALL_RETURNS:
                     relation = _relation_define(relation, key[0], key[1],
                                                 key[1])
                     _map_define(renaming, key, key[1])
-            elif helper[0] == "rest":
-                _, bank, first = helper
-                for number in range(first, 32):
-                    relation = _relation_define(relation, bank, number, number)
-                    _map_define(renaming, (bank, number), number)
+            else:
+                # Callee-save millicode preserves every register EXCEPT the
+                # save range it restores and the r11 save-area pointer it
+                # walks, so a binding on either is stale after the call — a
+                # restored register holds whatever the caller saved, not the
+                # value that happened to sit there.
+                #
+                # r11 is retired in the RELATION as well as in the constant
+                # map, and unconditionally.  A pair (11, t) with t != 11 is
+                # false after the millicode clobbers r11, and nothing else in
+                # this loop retires it: the volatile drop above runs only for
+                # a NORMAL call.  Retiring it and re-establishing the identity
+                # leaves the status quo for (11, 11) — which both streams'
+                # millicode leaves holding the same save-area pointer — and
+                # can only make the mode refuse more, never accept more.
+                relation = _relation_define(relation, "g", 11, 11)
+                _map_define(renaming, ("g", 11), 11)
+                our_constants.pop(11, None)
+                target_constants.pop(11, None)
+                if helper[0] == "rest":
+                    _, bank, first = helper
+                    for number in range(first, 32):
+                        relation = _relation_define(relation, bank, number,
+                                                    number)
+                        _map_define(renaming, (bank, number), number)
+                        if bank == "g":
+                            our_constants.pop(number, None)
+                            target_constants.pop(number, None)
         for successor in successors[index]:
             known = incoming.get(successor)
             if known is None:
-                merged = (set(relation), dict(renaming))
+                merged = (set(relation), dict(renaming),
+                          dict(our_constants), dict(target_constants))
             else:
                 merged = (
                     known[0] & relation,
                     {key: value for key, value in known[1].items()
                      if renaming.get(key) == value},
+                    {key: value for key, value in known[2].items()
+                     if our_constants.get(key) == value},
+                    {key: value for key, value in known[3].items()
+                     if target_constants.get(key) == value},
                 )
             if known is None or merged != known:
                 incoming[successor] = merged
@@ -4141,11 +4261,20 @@ def apply_patch(
     # interaction with it is not exercised by a test.
     value_equality = patch.get("value_equality_recolor")
     value_equality_relocations: set = set()
+    constant_equality = False
     if value_equality is not None:
         if not isinstance(value_equality, dict):
             raise ValueError(
                 f"{symbol.name}: \"value_equality_recolor\" must be an object "
                 f"carrying its audit and its declared sites"
+            )
+        constant_equality = bool(value_equality.get("constant_equality"))
+        if "constant_equality" in value_equality \
+                and not isinstance(value_equality["constant_equality"], bool):
+            raise ValueError(
+                f"{symbol.name}: \"constant_equality\" is a boolean opt-in "
+                f"for the constant-equality closure, not "
+                f"{value_equality['constant_equality']!r}"
             )
         if not register_stage:
             raise ValueError(
@@ -4334,17 +4463,38 @@ def apply_patch(
         if strict_failure is not None:
             error = strict_failure
             if value_equality is not None:
+                proof = dict(
+                    jumptable_targets=jumptable_offsets,
+                    relocated_offsets=relocated_offsets,
+                    target_relocated_offsets=value_equality_relocations,
+                    call_targets=call_targets,
+                    substitutions=value_equality.get("substitutions", ()),
+                    compare_exchanges=value_equality.get(
+                        "compare_exchanges", ()
+                    ),
+                )
+                if constant_equality:
+                    # The same anti-rot discipline the strict-succeeds check
+                    # above applies one level down: a rule may not rest on the
+                    # closure once the shipped relation alone carries it.
+                    narrow_failure: ValueError | None = None
+                    try:
+                        verify_value_equality_recolor(
+                            pre_register, recolor_image, **proof
+                        )
+                    except ValueError as narrow:
+                        narrow_failure = narrow
+                    if narrow_failure is None:
+                        raise ValueError(
+                            f"{symbol.name}: \"constant_equality\" is declared "
+                            f"but the value-equality proof succeeds without "
+                            f"the closure — remove the opt-in rather than "
+                            f"leaving the rule resting on the wider relation"
+                        )
                 try:
                     verify_value_equality_recolor(
                         pre_register, recolor_image,
-                        jumptable_targets=jumptable_offsets,
-                        relocated_offsets=relocated_offsets,
-                        target_relocated_offsets=value_equality_relocations,
-                        call_targets=call_targets,
-                        substitutions=value_equality.get("substitutions", ()),
-                        compare_exchanges=value_equality.get(
-                            "compare_exchanges", ()
-                        ),
+                        constant_equality=constant_equality, **proof
                     )
                 except ValueError as wider:
                     raise ValueError(
@@ -4356,7 +4506,8 @@ def apply_patch(
                     f"({len(value_equality.get('substitutions', ()))} "
                     f"substitution(s), "
                     f"{len(value_equality.get('compare_exchanges', ()))} "
-                    f"comparison exchange(s))"
+                    f"comparison exchange(s)"
+                    f"{'; constant-equality closure' if constant_equality else ''})"
                 )
             else:
                 audit = patch.get("unproven_recolor_audit")
