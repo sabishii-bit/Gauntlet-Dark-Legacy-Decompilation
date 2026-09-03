@@ -603,6 +603,16 @@ sibling consumers; never invent names.
   python tools/gdl/composed_census/wf_rederive_pin.py <unit> <fn> --apply
       # re-derive a pin whose window relocations moved (FULL path; body
       # hashes must return byte-identical — that IS the audit).
+  python tools/gdl/composed_census/t16_rederive_body.py <unit> <fn> --apply
+      # re-derive a pin whose BODY hash moved — the case the tool above
+      # refuses. NEVER paste the hash out of webfrank's abort message
+      # ("input hash X != expected Y"): before_sha256 hashes OUR body, so
+      # pasting it re-blesses the new codegen without re-running a single
+      # guard. This derives every slot fresh, re-runs the rule through the
+      # real apply_patch with the retail image, and pastes ONLY on
+      # BYTE-EQUAL; APPLIED-NOT-EQUAL means rule_derive.py, not a hash. A
+      # moved after_sha256 (the TARGET's body) is always a refusal — the
+      # rule is bound to a different symbol now.
   python configure.py    # a TU's FIRST rule has no WEBFRANK build edge
                          # until this runs (first-five-minutes trap 6)
   ```
