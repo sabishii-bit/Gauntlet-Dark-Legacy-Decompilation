@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/savedregs.py::pin_warning",
+    "tools/gdl/savedregs.py::webfrank_pins",
+    "tools/gdl/tests/test_t19_savedregs_pin.py",
+    "config/GUNE5D/webfrank.json"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Re-run the census: pick any pinned function, compare `savedregs.py <unit> <fn>` against `savedregs.py <unit> <fn> --raw`, and a pinned function whose two reads are identical across the whole 156 -- or one where --raw is the LESS faithful read of what the source compiles to -- refutes this. tools/gdl/tests/test_t19_savedregs_pin.py fixes the warning's trigger; the 156-function census is the evidence.",
+  "id": "claim.law.T19_savedregs-default-read-reports-the-postprocessor-not-the-compiler-on-a-pinned-function.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T22:05:45Z",
+  "schema_version": 1,
+  "subject": "tool:savedregs",
+  "valid_from": "2026-09-03",
+  "value": "On a webfrank-PINNED function, savedregs.py without --raw decodes our POSTPROCESSED object, whose body a pin drives toward the target by construction -- so the table reports the postprocessor's work as if it were the compiler's, and its `ASSIGNMENT MATCHES` line is about source that does not produce that assignment. Census at 976321418 over all 156 pinned functions in config/GUNE5D/webfrank.json, every one decodable in both modes: 24 (15%) read identically, 132 (85%) differ, and on 84 (54%) the ASSIGNMENT VERDICT FLIPS. All 84 flip the same way -- the default says MATCHES and --raw contradicts it; none flips the other way. Reproduced end to end on game/anim/anim::InitAnim, where the two modes agree on the assignment table but the default reports 2 differing rows the table cannot see against --raw's 5. ARBITRATE SOURCE WORK ON THE --raw TABLE; the default one is the shipped result. The default is unchanged and correct for UNPINNED functions: there the two reads are the same object (measured identical on game/world/camera::camera_mode_dest and game/game/player::do_players), and in a TU with no .postprocess stage --raw refuses outright, so warning there would be noise and switching the default would break every unpinned caller for nothing. savedregs now prints the pin paragraph on the 156 pinned functions, directly under the verdict it qualifies."
+}

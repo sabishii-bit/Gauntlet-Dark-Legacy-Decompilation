@@ -1,0 +1,25 @@
+{
+  "asserted_by": [
+    "tools/gdl/probe.py::function_weight",
+    "tools/gdl/probe.py::project_weighted_delta",
+    "tools/gdl/probe.py::weighted_fuzzy_clause",
+    "tools/gdl/tests/test_t19_weighted_fuzzy.py",
+    "build/GUNE5D/report.json"
+  ],
+  "attributes": {
+    "tags": [
+      "metrics",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Recompute sum(size*fuzzy)/sum(size) over build/GUNE5D/report.json's function entries and compare with measures.fuzzy_match_percent: a disagreement beyond float rounding, or sum(size) != measures.total_code, refutes the identity and with it every weighted figure probe prints. tools/gdl/tests/test_t19_weighted_fuzzy.py asserts the projection arithmetic; the identity itself is checked against the live report.",
+  "id": "claim.law.T19_project-fuzzy-is-exactly-the-size-weighted-mean-of-every-functions-fuzzy.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T22:05:43Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "The project fuzzy figure IS the size-weighted mean of every function's fuzzy over measures.total_code, so a function-LOCAL fuzzy delta projects onto the project figure by multiplying it by size/total_code. No build and no model are needed to convert one into the other. Measured at c8a28c3bb against build/GUNE5D/report.json: sum(size*fuzzy)/sum(size) = 98.53066553650227 against the report's own measures.fuzzy_match_percent 98.53067, with sum(size) = 1,071,824 = measures.total_code to the byte. THE CONSEQUENCE, and why this is a law rather than a note: the local number overstates the image effect by the reciprocal of that share, and the median function is 164 B of 1,071,824 -- a factor of about 6,500. Over all 2,990 sized functions, a 1.00-point LOCAL delta reaches >= 0.005 (the digit configure.py progress prints) on 10 functions (0.3%), >= 0.0005 (the 4th decimal of the report figure) on 469 (15.7%), and neither on 2,521. Restricted to the 246 functions that are not already 100% -- the only ones a probe runs on -- it is 6 / 152 / 94. NC read a local -1.10 as a project loss when the image effect was ~0.001 and spent a full ninja settling it; probe.py now prints the weighted twin beside every fuzzy delta it emits (function_weight / weighted_fuzzy_clause), so the conversion costs nothing. The local number remains the right arbiter FOR THE FUNCTION and is still printed; what the weighted twin forbids is quoting it as a project-level move."
+}

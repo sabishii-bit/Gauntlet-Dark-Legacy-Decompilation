@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/provision_worktree.py::resplit",
+    "tools/gdl/tests/test_t19_resplit.py",
+    "build.ninja",
+    "AGENTS.md"
+  ],
+  "attributes": {
+    "tags": [
+      "build-hygiene",
+      "workflow"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Grep build.ninja for an edge declaring a build/GUNE5D/obj/*.o as its output: one existing refutes the mechanism, and the hazard is gone. tools/gdl/tests/test_t19_resplit.py::SplitReference asserts the zero-output property directly, so it fails the day that changes.",
+  "id": "claim.law.T19_dtk-split-obj-references-have-no-ninja-output-edge-so-a-deleted-one-never-comes-back.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T22:05:46Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "build/GUNE5D/obj/** is a dtk-split REFERENCE, not a build artifact: its 331 objects are extracted FROM the retail DOL and are the TARGET side of every comparison in the project (fndiff, fnasm, datadiff --sections, regnorm, savedregs, webfrank). They sit under build/ and are gitignored, so they look disposable, and a deleted one is NOT recovered by rebuilding. Measured at cf375c09d: build.ninja references them on 223 lines and declares one as an OUTPUT on ZERO -- the split rule's only declared output is build/GUNE5D/config.json and obj/** is a side effect of it, so ninja cannot know a file is missing. Verified by deleting build/GUNE5D/obj/dolphin/si/SIBios.o: a plain `ninja` left it missing AND stopped the build ('subcommand failed'), while `datadiff.py --sections dolphin/si/SIBios` degraded to `SKIP --sections: missing [...]` -- a comparison silently not made, which is the shape of the incident CU hit. RECOVERY is one command: `python tools/gdl/provision_worktree.py --resplit` deletes config.json so the split rule reruns, re-extracts obj/**, prints the before/after count and runs the full ninja. Verified end to end: `build/GUNE5D/obj: 330 file(s) -> 331` then `build/GUNE5D/main.dol: OK`. It removes config.json rather than invoking dtk by hand deliberately -- re-deriving the rule's arguments is how a recovery path diverges from the one ninja actually runs. COROLLARY: never `git clean -x` a worktree, and never treat anything under build/GUNE5D/obj as regenerable output."
+}
