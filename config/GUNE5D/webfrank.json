@@ -2236,6 +2236,51 @@
           "instructions": 4
         },
         "copy_register_fields": true
+      },
+      {
+        "function": "sysResetService",
+        "before_sha256": "9f0e8ded9b5f9660b86594387d1b25e5c0244e17032227903babfcb4ff9009f9",
+        "after_sha256": "e80dfab34873b37c405584ecbdf8717fb4f79b7000a8f526641280964d92ff10",
+        "mechanism": "The 0x424-0x440 preheader window of the `case 2` else-block. Source provenance is complete and exhausted: attempt.sysresetservice-colour-tiebreak-cluster.20260901.v2 capped declaration order and the timer address spelling, attempt.FL_sysresetservice-the-424-window-is-invariant-under-block-statement-order.20260903.v1 capped block statement order and condition spelling, and no probe has ever moved one word of the window. THE SHAPE BANKED BY THAT RECORD -- ONE 9-atom instruction_permutation over [0x41c,0x440) composed with a 2-row recolor -- IS REFUTED, measured: check_permutation_dependences(region, [0,1,3,7,4,2,5,8,6]) refuses with `breaks def-use chains: [(6, ('g', 3)), (7, 'mem')]`, and it refuses identically under exit_dead=lambda r: True, because exit_dead excuses a changed final write and never a broken chain. Atom 6 is our `addi r4,r3,gPadStartHoldTimer@lo`, whose r3 comes from atom 2 `lis r3,@ha`; the target order puts `li r3,0` (atom 8) in between, so our colouring reuses r3 for two values in an order only the TARGET colouring makes legal -- the r3 lifetime split that claim.law.webfrank-permutation-is-audited-in-our-colouring.20260831.v1 already named sysResetService for by name in 2026-08-31. WHAT ACTUALLY CLOSES IT is splitting that permutation ACROSS the recolor, which is why the single-stage shape reads as unreachable and this one is not. (1) A 6-atom pre-recolor permutation over [0x424,0x43c), order [1,5,2,0,3,4], which only sinks `lis r3,@ha` below `mtctr`/`rlwinm` and hoists `lwz r5,gPadCur` above them; every def-use chain and every final write is preserved IN OUR COLOURING, and the one crossing it needs -- the gPadCur load rising over the gSysFlags store -- is discharged by the declared memory_disambiguation, whose two locations are proved by ADDRESS (.sbss 0x803452e0 against .sdata 0x80344040) and not by symbol name, per the aliasing warning in that same law. The window is narrowed to [0x424,0x43c) deliberately: at [0x41c,0x440) the pre-stage's verify_relocation_binding refuses (`word +0x20 is relocated in the target but not in our object`) because it binds against the FINAL target, whose ADDR16_LO sits at 0x43c only after stage (3) runs. (2) copy_register_fields, aimed by webfrank at the intermediate image (the target with stage 3 undone), recolours the gSysFlags value r4->r3 at 0x41c/0x42c, the byte-offset induction r3->r6 at 0x43c and its r6->r3 consumer chain at 0x44c/0x450; verify_consistent_recolor proves it STRICTLY -- no value_equality_recolor, no unproven_recolor_audit. (3) A 2-atom post_recolor_permutation over [0x438,0x440), order [1,0], exchanging `addi r4,r3,@lo` with the now-recoloured `li r6,0`. That exchange is the move that was illegal in our colouring and is trivially legal in the target's: disjoint definitions (r4 against r6), no memory, no shared read. It gets the strictest form of the audit -- the post stage passes exit_dead=None and no memory_locations -- plus verify_relocation_binding word-by-word against the target for its relocated atom. 13 words changed, byte-equal to the retail body. verify_datum_binding: L1 74 by name, L3 2 against the retail image, L4 0 (nothing rests on the pool correspondence). This closes the 17th of sysservice's 17 functions.",
+        "audit": {
+          "classification": "SCHEDULE",
+          "instructions": 289,
+          "permuted_instructions": 6,
+          "post_recolor_permuted_instructions": 2
+        },
+        "instruction_permutation": {
+          "start": "0x424",
+          "end": "0x43c",
+          "order": [1, 5, 2, 0, 3, 4],
+          "before_sha256": "8cc28feb479751fc66a9304697aefe58bf91d40180ca62e088c9ab994443cc19",
+          "after_sha256": "d0f11dcdeb2695e1e8760d9389a1b5b4daa1b598490a7d50b869f6cf01ea242a",
+          "before_relocations_sha256": "be7aa42c623049ba80b32aa6755f1a2c0fb1ad3115e006f6e8c9b80f82a53344",
+          "after_relocations_sha256": "c21ba77714e34e74c881505389e5915ff883d526a37be7bf7239e4a5fe6fa7c5"
+        },
+        "memory_disambiguation": {
+          "locations": [
+            {
+              "at": "0x430",
+              "symbol": "gSysFlags",
+              "section": ".sbss",
+              "address": "0x803452e0",
+              "width": 4
+            },
+            {
+              "at": "0x438",
+              "symbol": "gPadCur",
+              "section": ".sdata",
+              "address": "0x80344040",
+              "width": 4
+            }
+          ]
+        },
+        "post_recolor_permutation": {
+          "start": "0x438",
+          "end": "0x440",
+          "order": [1, 0]
+        },
+        "copy_register_fields": true
       }
     ],
     "game/crt/vsprintf": [
