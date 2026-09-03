@@ -581,9 +581,14 @@ _STREAM_ANCHOR_RE = re.compile(
     r"|\b0x8[0-9A-Fa-f]{5,7}\b"
     r"|\bT\[\d+\]|\bO\[\d+\]",
 )
-# How many characters may separate the anchor from the defining instruction.
-# Record prose is frequently ONE long paragraph (the PC record's verification
-# has no newlines at all), so this is a character window, never a line.
+# RETIRED run 50 (item 7c). This was how many characters could separate the
+# stream anchor from the defining instruction, and `register_anchor_gaps` now
+# asks whether the record carries an anchor AT ALL. Measured: the windowed
+# form warned on 27 records / 74 register gaps, the whole-record form on 4 /
+# 17, and all 23 rows that stopped firing quote an offset somewhere in the
+# same record — the window was testing sentence layout, not checkability.
+# The constant is kept so a reader of the corpus's older warnings can see
+# what the number was.
 _DEFINITION_WINDOW = 140
 
 # ABI-FIXED registers have no definition site inside a function to quote:
@@ -696,27 +701,33 @@ def register_definition_gaps(statement, record_text):
 
 
 def register_anchor_gaps(statement, record_text):
-    """Registers quoted in an instruction but with no stream ANCHOR nearby.
+    """Registers quoted in an instruction but with no stream ANCHOR at all.
 
     The non-blocking half. An instruction citation says the stream was
     read; the offset beside it says WHERE, which is what makes the citation
     checkable by the next lane without re-deriving it. 29 of 33 corpus gaps
     sit exactly here, which is why this warns rather than refuses.
+
+    THE WINDOW IS THE WHOLE RECORD (run-50 item 7c). It used to be +/-140
+    CHARACTERS around the citation, which asked not "is this checkable" but
+    "did the author put the offset in this sentence" — and record prose is
+    routinely one long paragraph where the aligned view is quoted in
+    `verification` and the hypothesis restates the register in
+    `hypothesis.statement`, 2,000 characters away. Recalibrated over the
+    live corpus at run-50 HEAD (scratch t20_gate_i_census.py): the windowed
+    form warns on 27 records / 74 register gaps, the whole-record form on
+    4 records / 17 gaps. All 23 rows that stop firing quote a stream offset
+    somewhere in the same record — that is what the change measures. The
+    four that REMAIN quote no offset anywhere at all
+    (CH_swbos-by-value..., RC_drawmemcardmessage-param-block...,
+    SL_playercontrols-pair..., SW_stringtextwidthsub-the-base-does-move...),
+    which is exactly the shape the advisory exists for.
     """
     text = record_text or ""
-    gaps = []
-    for register in _named_registers(statement):
-        spans = _cited_instruction_spans(text, register)
-        if not spans:
-            continue                      # the blocking half owns this one
-        anchored = any(
-            _STREAM_ANCHOR_RE.search(
-                text[max(0, start - _DEFINITION_WINDOW):
-                     end + _DEFINITION_WINDOW])
-            for start, end in spans)
-        if not anchored:
-            gaps.append(register)
-    return gaps
+    if not _STREAM_ANCHOR_RE.search(text):
+        return [register for register in _named_registers(statement)
+                if _cited_instruction_spans(text, register)]
+    return []
 
 
 def slot_claim_without_slotdiff(substance, record_text):
@@ -4451,6 +4462,87 @@ def _probe_record_references(
                                       strict_citations=strict_citations)
 
 
+_RECORD_ID_SUFFIX_RE = re.compile(r"\.\d{8}\.v\d+$")
+
+
+def complete_record_id(connection: sqlite3.Connection, cited_id: str,
+                       root: Path) -> tuple[str | None, list[str]]:
+    """(completion, candidates) for a citation missing its date/version.
+
+    Run-50 item 7. A lane that writes `claim.law.compare-form-dictionary`
+    instead of `claim.law.compare-form-dictionary.20260829.v1` has cited the
+    right law and loses the whole submission to a `does not resolve` refusal
+    — and then has to go find a fourteen-character suffix that carries no
+    meaning it did not already state.
+
+    TWO-SIDED over the accepted corpus at run-50 HEAD: 1,864 of 2,088
+    records carry a `.YYYYMMDD.vN` suffix, and stripping it yields 1,727
+    prefixes owning exactly ONE record against 62 owning two or more. For
+    LAW ids alone — the field this serves — it is 490 of 497 (98.6%)
+    completable and 7 ambiguous. So this completes the 98.6% and returns the
+    CANDIDATES for the rest, which still refuse: `claim.law.NM_branch-pair-
+    fusion-is-blocked-by-a-return-not-by-a-goto` has a v2 and a v3, and
+    picking one for the author would be inventing evidence.
+
+    A bare id that is ALREADY suffixed, or that matches nothing, returns
+    (None, []) and the ordinary refusal stands.
+    """
+    if _RECORD_ID_SUFFIX_RE.search(cited_id):
+        return None, []
+    rows = connection.execute(
+        "SELECT record_id FROM record_ingest WHERE record_id LIKE ?",
+        (cited_id + ".%",),
+    ).fetchall()
+    candidates = sorted(
+        row["record_id"] for row in rows
+        if _RECORD_ID_SUFFIX_RE.search(row["record_id"])
+        and _RECORD_ID_SUFFIX_RE.sub("", row["record_id"]) == cited_id)
+    inbox = root / "memory_graph" / "inbox"
+    if inbox.exists():
+        candidates = sorted(set(candidates) | {
+            path.stem for path in inbox.glob(f"{cited_id}.*.json")
+            if _RECORD_ID_SUFFIX_RE.sub("", path.stem) == cited_id})
+    if len(candidates) == 1:
+        return candidates[0], candidates
+    return None, candidates
+
+
+def complete_law_citations(record: dict[str, Any],
+                           resolve) -> list[tuple[str, str]]:
+    """Rewrite completable ids in `laws_applied`/`laws_failed`, in place.
+
+    Returns the [(written, completed)] pairs so the caller can PRINT them:
+    a tool that silently edits an author's citation is worse than one that
+    refuses it. `resolve` is `lambda cited_id -> completion or None`.
+    """
+    completions: list[tuple[str, str]] = []
+    for home in (record, record.get("attributes")):
+        if not isinstance(home, dict):
+            continue
+        for field in ("laws_applied", "laws_failed"):
+            value = home.get(field)
+            encoded = isinstance(value, str)
+            if encoded:
+                try:
+                    value = json.loads(value)
+                except json.JSONDecodeError:
+                    continue
+            if not isinstance(value, list):
+                continue
+            changed = False
+            for index, cited in enumerate(value):
+                if not isinstance(cited, str):
+                    continue
+                completed = resolve(cited)
+                if completed and completed != cited:
+                    value[index] = completed
+                    completions.append((cited, completed))
+                    changed = True
+            if changed:
+                home[field] = json.dumps(value) if encoded else value
+    return completions
+
+
 def _cited_ids_that_resolve(connection: sqlite3.Connection,
                             record: dict[str, Any], root: Path) -> list[str]:
     """Record ids mentioned ANYWHERE in this record that actually resolve.
@@ -4526,6 +4618,22 @@ def _probe_references_with(
                 # records that document it. Collected as debt instead.
                 dangling.append(cited_id)
                 continue
+            # Run-50 item 7: if the id is a prefix of real records, say so
+            # and name them. A citation missing only its `.YYYYMMDD.vN` is
+            # the commonest shape of this refusal, and the old message sent
+            # the author looking for a typo that was not there.
+            _completed, candidates = complete_record_id(
+                connection, cited_id, root)
+            if candidates:
+                raise MemoryGraphError(
+                    f"cited record id {cited_id!r} does not resolve, but it"
+                    " is the AMBIGUOUS prefix of"
+                    f" {len(candidates)} records: {', '.join(candidates)}."
+                    " Pick one and write its full id (a unique prefix is"
+                    " completed for you; this one is not, because choosing"
+                    " between two versions of a law would be inventing"
+                    " evidence)."
+                )
             raise MemoryGraphError(
                 f"cited record id {cited_id!r} does not resolve (check"
                 " supersedes / attributes.laws_applied for typos; if the"
@@ -5828,8 +5936,8 @@ def _apply_proposal_gates(
     if anchor_gaps:
         warnings.append(
             "GATE I (advisory): the record quotes"
-            f" {', '.join(anchor_gaps)} inside a PPC instruction but no"
-            " stream OFFSET sits within 140 characters of the citation, so"
+            f" {', '.join(anchor_gaps)} inside a PPC instruction but the"
+            " record carries no stream OFFSET ANYWHERE, so"
             " the next lane cannot check it without re-deriving the census."
             " Add the offset — `@0x22c addi r18,r31,3136`. This WARNS"
             " rather than refuses because the corpus says the anchor is the"
@@ -6122,6 +6230,34 @@ def stage_record_proposal(
     gate_warnings = _apply_proposal_gates(record, collect_failures=failures)
     if warnings is not None:
         warnings.extend(gate_warnings)
+    # LAW-CITATION SUFFIX COMPLETION (run-50 item 7), BEFORE the reference
+    # probe that would otherwise refuse the whole submission. A lane that
+    # writes `claim.law.compare-form-dictionary` has named the right law and
+    # omitted a fourteen-character suffix carrying no information it did not
+    # already state. Measured over the accepted corpus: 490 of 497 law
+    # prefixes (98.6%) own exactly one record and are completed here; the
+    # other 7 are genuinely ambiguous (a v2 AND a v3) and still refuse, now
+    # with the candidates named. The rewrite is ANNOUNCED as a warning —
+    # a tool that edits an author's citation silently is worse than one
+    # that refuses it.
+    try:
+        ensure_database(root, inbox_may_lag=True)
+        with closing(open_database(root)) as citation_db:
+            completed = complete_law_citations(
+                record, lambda cited: complete_record_id(
+                    citation_db, cited, root)[0])
+    except Exception:                            # no DB: complete nothing
+        completed = []
+    if completed and warnings is not None:
+        warnings.append(
+            "CITATION COMPLETED: "
+            + "; ".join(f"{written!r} -> {full!r}" for written, full
+                        in completed)
+            + ". The date/version suffix was missing and exactly one record"
+              " carries that prefix, so it was filled in rather than"
+              " refusing the submission. Check the completion is the record"
+              " you meant."
+        )
     try:
         _probe_record_references(record, root, inbox_may_lag=True)
     except MemoryGraphError:

@@ -76,6 +76,13 @@ from memory_graph.core import (
 
 SPILL_THRESHOLD = 24000
 
+# The sentinel `--template` takes when it is passed with no argument. It is
+# a `choices` member so argparse accepts it, and it is spelled with a leading
+# dash-free marker no record kind can collide with.
+_TEMPLATE_LIST = "__list__"
+TEMPLATE_KINDS = ("attempt", "claim", "evidence", "entity", "edge",
+                  "work_claim", "tool")
+
 
 def result_row_counts(result: object) -> dict[str, int]:
     """Row counts per top-level key of a result payload.
@@ -182,10 +189,15 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
              " always includes this report beside the gate findings")
     propose_record.add_argument(
         "--template",
-        choices=("attempt", "claim", "evidence", "entity", "edge",
-                 "work_claim", "tool"),
+        nargs="?", const=_TEMPLATE_LIST,
+        choices=TEMPLATE_KINDS + (_TEMPLATE_LIST,),
         help="print a correctly-shaped skeleton for this kind and exit"
-             " (fill <REQUIRED:...>, delete unused <OPTIONAL:...> keys)")
+             " (fill <REQUIRED:...>, delete unused <OPTIONAL:...> keys)."
+             " Pass it with NO argument to list the kinds: run-50 item 7"
+             " measured `--template` alone exiting 2 with"
+             " `error: argument --template: expected one argument` over an"
+             " argparse usage dump — the names were in it, inside a"
+             " brace list on a wrapped line")
 
     event = subparsers.add_parser(
         "event",
@@ -293,7 +305,14 @@ def main(argv: list[str] | None = None) -> int:
                 "next": "review the JSON, then move it from memory_graph/inbox to records",
             }
         elif args.command == "propose-record" and args.template:
-            result = record_template(args.template)
+            if args.template == _TEMPLATE_LIST:
+                result = {
+                    "template_kinds": list(TEMPLATE_KINDS),
+                    "next": "gdlmem.py propose-record --template <kind>"
+                            " prints that kind's skeleton",
+                }
+            else:
+                result = record_template(args.template)
         elif args.command == "propose-record":
             if (args.json_file is not None and args.json_file_opt is not None
                     and args.json_file != args.json_file_opt):
