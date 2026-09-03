@@ -3046,7 +3046,48 @@ def update_neutral_identical_streak(state, verdict):
     return 0
 
 
-def replan_hint(streak):
+# The direction the hint used to prescribe unconditionally, kept as the
+# SLOT-CLASS counter-example rather than deleted: on a frame/local-area
+# residual it is backwards, and it was measured backwards four times in one
+# lane. attempt.CL_mbcameraupdate-derived-iv-order-closes-the-scratch-band-
+# and-costs-8-frame-bytes.20260903.v1 probed MBCameraUpdate's 8-byte frame
+# surplus with FOUR declaration-class levers — hoisting the loop locals to
+# the enclosing block, deleting the block and moving all three ints to
+# function scope, deleting a local by reusing another, and eliminating a
+# named variable in favour of an inline expression — and all four returned
+# NEUTRAL-IDENTICAL against the same object digest 92a95ba06d65. The two
+# probes that DID reach codegen were STATEMENT-shape (an accumulator
+# `dstOffset += 16` at the loop end versus a derived `dstOffset = row * 16`
+# at its top), and the kept win — real 34 -> 10 — was a statement-shape one.
+# Its predecessor record adds two more: CT's probes B and D were both
+# declaration hoists and both NEUTRAL-IDENTICAL at digest 0ee73392d393.
+_SLOT_CLASS_REDIRECT = (
+    " ON THIS FUNCTION THE USUAL ADVICE IS BACKWARDS. The slot arbiter"
+    " fired, so the residual is frame- or slot-shaped, and declaration,"
+    " scope and local-COUNT levers are exactly the ones measured to fold"
+    " away here: MBCameraUpdate's 8-byte frame surplus took four of them"
+    " (hoist the loop locals to the enclosing block; delete the block and"
+    " move the ints to function scope; delete a local by reusing another;"
+    " replace a named variable with an inline expression) and returned the"
+    " SAME object digest 92a95ba06d65 every time, while both probes that"
+    " reached codegen were STATEMENT-shape — an accumulator against a"
+    " derived induction variable — and the statement-shape form is what"
+    " bought real 34 -> 10"
+    " (attempt.CL_mbcameraupdate-derived-iv-order-closes-the-scratch-band-"
+    "and-costs-8-frame-bytes.20260903.v1). Try the statement shape that"
+    " changes WHAT IS LIVE ACROSS THE LOOP, and arbitrate on the slot map"
+    " printed below, not on `real`.")
+
+_LEVER_QUESTION = (
+    " Change the CONSTRUCT CLASS, not the spelling. Which class reaches"
+    " codegen is a fact about this function, not a rule: declaration, type"
+    " and order levers reach it in some functions and fold in others, and"
+    " so do statement-shape levers — pick the class whose OUTPUT you can"
+    " name in the target's aligned view, and `gdlmem laws --query <your"
+    " residual signature>` first.")
+
+
+def replan_hint(streak, slot_class=False):
     """Advice after an edit that never reached codegen at all.
 
     NEUTRAL-IDENTICAL means the object bytes did not move: the edit folded
@@ -3064,9 +3105,19 @@ def replan_hint(streak):
     probe had already shown unreachable. The banner now fires on the first,
     and ESCALATES at REPLAN_AT, where the evidence really has widened from
     one construct to the axis class.
+
+    CLASS-CONDITIONAL FROM RUN 42 (item 5). The digest FACT above is what
+    the banner is for and it is unchanged; the PRESCRIPTION that rode along
+    with it — "a declaration/type/order change rather than a statement
+    respell" — was measured pointing the wrong way six times on one
+    function, because on a frame/slot residual the declaration class is
+    precisely the one that folds. `slot_class` is the slot arbiter's own
+    signal, already computed for the map probe prints under a slot-shaped
+    residual, so the redirect costs no extra measurement.
     """
     if streak < 1:
         return None
+    tail = _SLOT_CLASS_REDIRECT if slot_class else _LEVER_QUESTION
     if streak < REPLAN_AT:
         return (
             "THIS EDIT NEVER REACHED CODEGEN: the object bytes are"
@@ -3077,10 +3128,8 @@ def replan_hint(streak):
             " point either, and re-spelling it is how UA and UB each spent"
             " two more probes for nothing. Before the next probe, establish"
             " that your lever can reach codegen AT ALL (does the construct"
-            " survive to the object? does the target even differ here?), or"
-            " change the LEVER — a declaration/type/order change rather"
-            " than a statement respell. `gdlmem laws --query <your residual"
-            " signature>` first."
+            " survive to the object? does the target even differ here?)."
+            + tail
         )
     return (
         f"RE-PLAN THE AXIS CLASS: {streak} consecutive NEUTRAL-IDENTICAL"
@@ -3088,11 +3137,9 @@ def replan_hint(streak):
         " the object bytes never moved. That is a fact about the AXIS, not"
         " about the spellings: this construct does not reach the compiler's"
         " decision point at all, so a further spelling of it cannot either."
-        " Change the LEVER (a different mechanism, a different function"
-        " boundary, a declaration/type/order change rather than a statement"
-        " respell), or record the axis as measured-dead with these"
-        f" {streak} probed forms. `gdlmem laws --query <your residual"
-        " signature>` before the next probe."
+        " Record the axis as measured-dead with these"
+        f" {streak} probed forms, or move to a different mechanism or"
+        " function boundary." + tail
     )
 
 
@@ -3666,7 +3713,16 @@ def main():
     state["neutral_identical_streak"] = streak
     if data is not None:
         state["last_data"] = data
-    hint = replan_hint(streak)
+    # The slot arbiter's signal is needed BEFORE the replan hint (run-42
+    # item 5): the hint's prescription is class-conditional and the
+    # frame/slot class is where the old unconditional one pointed the wrong
+    # way. Computed once here on exactly the condition the map itself is
+    # gated on, then reused for printing further down — no second slotdiff.
+    slots_output, slots_fire, slots_reason = None, False, ""
+    if real > 0 and "--no-slots" not in sys.argv:
+        slots_output = run_slot_arbiter(unit, fn)
+        slots_fire, slots_reason = slot_arbiter_signal(slots_output)
+    hint = replan_hint(streak, slot_class=slots_fire)
     if hint:
         verdict += "\n" + hint
         state["last_verdict"] = verdict
@@ -3711,13 +3767,11 @@ def main():
     # rather than reach for the tool that already existed. Gated on real > 0
     # (no residual, nothing to arbitrate) and on slotdiff's own signal, so a
     # register/schedule probe never carries a 60-line map it does not need.
-    if real > 0 and "--no-slots" not in sys.argv:
-        slots_output = run_slot_arbiter(unit, fn)
-        fires, reason = slot_arbiter_signal(slots_output)
-        if fires or ("--slots" in sys.argv and slots_output):
-            print(slot_arbiter_header(
-                reason or "requested with --slots (no decisive slot signal)"))
-            print(slots_output.strip())
+    if slots_fire or ("--slots" in sys.argv and slots_output):
+        print(slot_arbiter_header(
+            slots_reason or "requested with --slots (no decisive slot"
+                            " signal)"))
+        print(slots_output.strip())
 
     # The census used to print in full on EVERY baseline probe. Measured
     # 2026-09-02: 22 lines per probe on game/world/camera, game/game/combat,

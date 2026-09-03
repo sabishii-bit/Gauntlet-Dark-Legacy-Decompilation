@@ -1217,6 +1217,41 @@ class ReplanHintTests(unittest.TestCase):
     def test_the_hint_persists_above_the_threshold(self):
         self.assertIsNotNone(replan_hint(9))
 
+    def test_the_prescription_is_class_conditional_run42(self):
+        """Run-42 item 5. The banner used to prescribe "a declaration/type/
+        order change rather than a statement respell" unconditionally, and
+        on a frame/slot residual that is backwards.
+
+        Measured on game/mb/mb_camera::MBCameraUpdate's 8-byte frame
+        surplus: FOUR declaration-class probes (hoist the loop locals to the
+        enclosing block; delete the block and move the ints to function
+        scope; delete a local by reusing another; replace a named variable
+        with an inline expression) all returned NEUTRAL-IDENTICAL at object
+        digest 92a95ba06d65, while both probes that reached codegen were
+        statement-shape and the statement-shape form bought real 34 -> 10
+        (attempt.CL_mbcameraupdate-derived-iv-order-closes-the-scratch-band-
+        and-costs-8-frame-bytes.20260903.v1). Its predecessor adds two more
+        declaration hoists at digest 0ee73392d393
+        (attempt.CT_mbcameraupdate-statement-order-drive.20260903.v1).
+        """
+        for streak in (1, REPLAN_AT):
+            plain = replan_hint(streak, slot_class=False)
+            slots = replan_hint(streak, slot_class=True)
+            self.assertNotIn("declaration/type/order", plain)
+            self.assertIn("BACKWARDS", slots)
+            self.assertIn("92a95ba06d65", slots)
+            self.assertIn("STATEMENT-shape", slots)
+
+    def test_the_digest_fact_survives_in_both_classes(self):
+        """The prescription changed; the measurement it rides on did not."""
+        for slot_class in (False, True):
+            hint = replan_hint(1, slot_class=slot_class)
+            self.assertIn("NEVER REACHED CODEGEN", hint)
+            self.assertIn("CATEGORICAL", hint)
+
+    def test_the_default_is_the_non_slot_wording(self):
+        self.assertEqual(replan_hint(1), replan_hint(1, slot_class=False))
+
 
 class RescoreGuardTests(unittest.TestCase):
     BASE = {"best_real": 48, "best_multiset": 4, "last_real": 65,
