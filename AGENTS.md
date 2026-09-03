@@ -59,6 +59,49 @@
 >    -SimpleMatch` = 1. Drop `-SimpleMatch` whenever the pattern contains
 >    `|`; keep it only for literals with regex metacharacters in them
 >    (`fn_800DACD8(+0x4)`), where it is the right tool.
+> 6c. **A FILTERED grep cannot answer a DOES-IT-EXIST question.** An
+>    empty result from a windowed search reads exactly like "measured
+>    absent" and means only "absent inside my window" — and the window is
+>    usually the one place the answer is not. Measured at 1cb9909d6 in
+>    this tree: `t16_rederive_body` with `glob: "tools/gdl/*.py"` prints
+>    `No matches found` / `Found 0 total occurrences across 0 files`,
+>    while the SAME pattern unfiltered finds 8 occurrences in 4 files —
+>    including the tool itself, its test, and the line in THIS file that
+>    documents it. The glob excludes `tools/gdl/composed_census/`, which
+>    is where half the tool corpus lives; `wf_rederive_pin` through the
+>    same window finds 17 hits in 3 files and still misses its own
+>    definition, so even a NON-empty windowed result is not coverage.
+>    This is the mechanism behind the recorded incident of a lane
+>    reporting `wf_rederive_pin.py` "does not exist" (trap 15b) and behind
+>    run 44's WS finding `webfrank_audit.py` only by listing the
+>    directory. THE RULE: an existence question gets an UNFILTERED search
+>    (or a directory listing), and the absence claim quotes the exact
+>    command with its empty output, per the run-46 absence rule below.
+>    Filters are for narrowing a search you already know succeeds. The
+>    same applies to a result CAP: a `count` or `files_with_matches`
+>    answer that hit `head_limit` is a floor, not a total.
+> 6d. **`git diff --check` does not check what you are about to commit,
+>    and it does not exit 1.** Four states measured at 1cb9909d6 (exit
+>    codes; 0 = clean):
+>
+>    | state | `git diff --check` | `git diff --cached --check` | `git diff --check HEAD` |
+>    |---|---|---|---|
+>    | tracked file, unstaged defect | **2** | 0 | 2 |
+>    | tracked file, defect STAGED | **0** | 2 | 2 |
+>    | NEW file, untracked | **0** | 0 | 0 |
+>    | NEW file, STAGED | **0** | **2** | 2 |
+>
+>    Two consequences, both load-bearing for the verification gate below
+>    ("`git diff --check` passes"). (1) The exit code is **2**, never 1 —
+>    a script testing `-eq 1` reads every defect as clean. (2) Bare `git
+>    diff --check` is blind to the INDEX, and every lane runs `git add`
+>    before committing, so by the time the gate is usually run it has
+>    nothing left to see. A NEW file — every tool, test and record a tool
+>    lane adds — is invisible to it in BOTH states, and
+>    `git diff --cached --check` is the only form that ever sees one.
+>    THE GATE IS `git diff --check HEAD` (tracked, staged or not) plus
+>    `git diff --cached --check` once anything is staged; state it as
+>    those commands exiting 0, never as "git diff --check passes".
 > 6. Adding a TU's FIRST rule to `config/GUNE5D/webfrank.json` does NOT
 >    create its WEBFRANK build edge — a plain `ninja` runs green with the
 >    rule silently unapplied (looks exactly like "the rule didn't work").
@@ -690,7 +733,9 @@ Accepting a non-exact change requires all of: semantics correct or improved;
 the owning object builds; the target function's score objectively improves
 (record before/after instruction counts, fuzzy, `real`); no previously exact
 function regresses; no unrelated regression erases the gain; `git diff
---check` passes; no prohibited assembly. An instruction-count gain that
+--check HEAD` and `git diff --cached --check` both exit 0 (trap 6d: bare
+`git diff --check` is blind to the index and to new files, and exits 2,
+not 1); no prohibited assembly. An instruction-count gain that
 worsens fuzzy/real scoring is not an improvement; when metrics disagree,
 inspect the actual diff, state the conflict, and preserve the best verified
 project-level result.
@@ -1041,7 +1086,8 @@ the first two failed.
 
 Exact result: owning object builds; instruction counts match; `fndiff --ops`
 and `--clean` report exact; no unexpected sibling/data changes; `git diff
---check` passes; no assembly or modified `.s`/`.asm`; full `ninja` succeeds
+--check HEAD` and `git diff --cached --check` both exit 0 (trap 6d); no
+assembly or modified `.s`/`.asm`; full `ninja` succeeds
 and the linked `main.dol` checksum is OK; post-link scoring still exact. Never
 trust a stale `build/GUNE5D/ok` — the current `ninja` invocation itself must
 succeed.
