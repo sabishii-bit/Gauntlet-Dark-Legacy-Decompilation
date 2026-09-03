@@ -294,7 +294,21 @@ void adsArqDone(void) {
 
 /* 0x800D6588  raw ring -> cooked ring: wraps/segments the copy across the ring
  * boundary via memcpy, advances the cooked cursors.  Xbox: adsMoveRawToCooked. */
-#pragma dont_inline on
+static u32 adsBlockDivisor(u32 blocks) {
+    if (blocks > 1) {
+        return blocks;
+    }
+    return 1;
+}
+
+static u32 adsLimitAvailable(u32 available, u32 space) {
+    if (available < space) {
+        return available;
+    }
+    available = space;
+    return available;
+}
+
 #pragma opt_lifetimes off
 #pragma opt_propagation off
 #pragma opt_common_subs off
@@ -322,12 +336,7 @@ s32 adsMoveRawToCooked(ADSTREAM* stream) {
     u32 dead;
 
     self = stream;
-    divisor = self->blocks;
-    if (divisor > 1) {
-        goto Ldiv_done;
-    }
-    divisor = 1;
-Ldiv_done:;
+    divisor = adsBlockDivisor(self->blocks);
 
     ringRead = self->ringRead;
     padding = 0;
@@ -341,11 +350,7 @@ Ldiv_done:;
     rawEnd = (u8*)self->buffer + (ringSize = self->ringSize);
     destination = (u8*)self->cookedPtr + ringWrite;
 
-    if (available < space) {
-        goto Lavail_done;
-    }
-    available = space;
-Lavail_done:;
+    available = adsLimitAvailable(available, space);
     copySize = available;
     if (available < half && ringWrite != half) {
         source = initialSource;
