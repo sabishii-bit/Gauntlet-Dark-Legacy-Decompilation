@@ -2068,16 +2068,6 @@
         "copy_register_fields": true
       },
       {
-        "function": "fn_800D967C",
-        "before_sha256": "fe36fa51cabfcdc667baa8377232c60aa38736fedbed7d1f04a239244779317b",
-        "after_sha256": "3d9ea44e2169f95f896de1e67fa45cd2b82015985bfb6a9ef4b55782a4a15794",
-        "audit": {
-          "classification": "REGISTER_ONLY",
-          "instructions": 13
-        },
-        "copy_register_fields": true
-      },
-      {
         "function": "fn_800DA60C",
         "before_sha256": "917030109a101e353a868101d845220637c97247077274f86026b5e0825330ae",
         "after_sha256": "49295f48155db50864b215975a9837cb8e0e3b883f56bcb9ac18aefff8584086",

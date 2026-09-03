@@ -1136,16 +1136,23 @@ void fn_800D9648(u32* param_1, MovieDecodeCall* param_2) {
     fn_800D93D4(param_1, param_2->flags, arg1, arg2, arg3, arg4);
 }
 
-void fn_800D967C(register int param_1, register MovieDecodeCall* param_2) {
+#pragma cplusplus on
+class MovieDecodeSink {
+public:
+    u32 _00[8];
+    virtual void v0();
+    virtual void decode(u32 context, u32 bitmap);
+};
+
+extern "C" void fn_800D967C(register int param_1, register MovieDecodeCall* param_2) {
     register u32 arg3;
     register u32 arg2;
-    register void (*dispatch)(int, u32, u32);
 
-    dispatch = *(void (**)(int, u32, u32))(*(u32*)(param_1 + 32) + 12);
     arg3 = param_2->bitmap;
     arg2 = param_2->context;
-    dispatch(param_1, arg2, arg3);
+    ((MovieDecodeSink*)param_1)->decode(arg2, arg3);
 }
+#pragma cplusplus off
 
 /* Initialize a VQ frame buffer and its 16-bit component selectors.
  * header's BI_BITFIELDS masks feed the shift/bit fields in reversed order
