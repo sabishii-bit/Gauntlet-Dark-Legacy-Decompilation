@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import aritycheck  # noqa: E402
 
 
-def screen(**files):
+def screen(_pins=frozenset(), **files):
     """Run the whole screen over an in-memory tree."""
     definitions, declarations, calls = [], [], []
     address_taken = set()
@@ -45,7 +45,7 @@ def screen(**files):
         calls += c
         address_taken |= a
     return aritycheck.analyse(definitions, declarations, calls,
-                             address_taken)
+                             address_taken, pins=_pins)
 
 
 class SetEnemyObjCalibrationTests(unittest.TestCase):
@@ -243,6 +243,113 @@ class DeclarationDiscriminantTests(unittest.TestCase):
         definitions, _p, _c, _a = aritycheck.scan_file("a.c", text)
         self.assertEqual([("f", 1)], [(d["name"], d["arity"])
                                       for d in definitions])
+
+
+class PinColumnAndCallSiteSplitTests(unittest.TestCase):
+    """Run-44 item 2 (from AR): the pin column and the short/full split.
+
+    The census prints "DECIDE AT THE CALL SITE: read the caller's aligned
+    view for an ours-only -1" — a procedure that is UNSOUND for a
+    webfrank-pinned caller, which reads real 0 by construction because
+    fndiff scores the postprocessed object. Three of AR's fifteen
+    refutations were pinned consumers (fn_800DA60C, fn_800DA6A4,
+    pbDiagDrawTexture). Live re-measurement over the tree at ca4074cb1: 150
+    pinned functions, 23 marked call-site labels, and TWO rows where every
+    FULL call site is pinned.
+    """
+
+    CALLEE = """
+void mbBlitProject(s32 x, s32 y, s32 height)
+{
+    gX = x; gY = y; gH = height;
+}
+"""
+    PINNED_CALLER = """
+void MBRenderText(void)
+{
+    mbBlitProject(1, 2, 3);
+}
+"""
+    PLAIN_CALLER = """
+void drawMemCardMessage(void)
+{
+    mbBlitProject(1, 2);
+}
+"""
+
+    def rows(self, pins=frozenset()):
+        """The screen over REAL paths — `screen()`'s `__`-to-`/` spelling
+        cannot express a file extension, and the pin lookup is keyed on the
+        unit, which is the path minus `src/` and the extension."""
+        files = {
+            "src/game/mb/mb_blit.c": self.CALLEE,
+            "src/game/mb/mb_font.c": self.PINNED_CALLER,
+            "src/game/sys/memcard.c": self.PLAIN_CALLER,
+        }
+        definitions, declarations, calls = [], [], []
+        address_taken = set()
+        for path, text in files.items():
+            d, p, c, a = aritycheck.scan_file(
+                path, aritycheck.strip_noise(text))
+            definitions += d
+            declarations += p
+            calls += c
+            address_taken |= a
+        return aritycheck.analyse(definitions, declarations, calls,
+                                  address_taken, pins=pins)
+
+    def test_a_call_site_names_its_enclosing_caller(self):
+        row = self.rows()[0]
+        self.assertIn("in drawMemCardMessage", row["short_call_sites"][0])
+
+    def test_a_pinned_caller_is_marked_and_a_plain_one_is_not(self):
+        pins = {("game/mb/mb_font", "MBRenderText")}
+        row = self.rows(pins)[0]
+        self.assertEqual(1, row["pinned_full_call_site_count"])
+        self.assertIn("WEBFRANK-PINNED",
+                      row["pinned_full_call_sites"][0])
+        self.assertNotIn("WEBFRANK-PINNED", row["short_call_sites"][0])
+
+    def test_a_pin_is_keyed_on_unit_AND_function_not_on_the_unit(self):
+        """The live negative: game/sys/memcard IS a pinned unit (five
+        rules), and drawMemCardMessage is not one of them, so its two call
+        sites must stay unmarked."""
+        pins = {("game/sys/memcard", "buildSaveImage")}
+        row = self.rows(pins)[0]
+        self.assertEqual(0, row["pinned_call_site_count"])
+        self.assertNotIn("WEBFRANK-PINNED", row["short_call_sites"][0])
+
+    def test_the_short_full_split_is_reported(self):
+        row = self.rows()[0]
+        self.assertEqual(2, row["call_sites"])
+        self.assertEqual(1, row["short_call_site_count"])
+        self.assertEqual(1, row["full_call_site_count"])
+
+    def test_a_phantom_row_with_no_full_call_site_is_called_out(self):
+        """AR: three of four PHANTOM rows had short calls only, hence no
+        payer — a fact the single call-site COUNT could not express."""
+        rows = screen(
+            src__a_c="void f(s32 a, s32 unused) { gA = a; }",
+            src__b_c="void g(void) { f(1); }")
+        self.assertEqual("PHANTOM-CANDIDATE", rows[0]["verdict"])
+        self.assertEqual(0, rows[0]["full_call_site_count"])
+        self.assertIn("NO PAYER", aritycheck.format_rows(rows))
+
+    def test_a_file_scope_call_has_no_caller_and_no_pin_answer(self):
+        site = {"file": "src/a.c", "line": 3, "arity": 1, "caller": None}
+        self.assertFalse(aritycheck.is_pinned_site(site, {("a", "x")}))
+        self.assertIn("at file scope", aritycheck.site_label(site, set()))
+
+    def test_unit_of_reduces_a_source_path_and_refuses_a_header(self):
+        self.assertEqual("game/pb/pb_diag",
+                         aritycheck.unit_of("src/game/pb/pb_diag.c"))
+        self.assertEqual("game/movie/movieplayer",
+                         aritycheck.unit_of("src/game/movie/movieplayer.cpp"))
+        self.assertIsNone(aritycheck.unit_of("include/game/player.h"))
+
+    def test_a_missing_webfrank_config_fails_soft(self):
+        self.assertEqual(set(), aritycheck.load_webfrank_pins(
+            Path(__file__).resolve().parent / "no-such-root"))
 
 
 if __name__ == "__main__":

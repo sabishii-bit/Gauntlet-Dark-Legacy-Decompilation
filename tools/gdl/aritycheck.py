@@ -55,6 +55,30 @@ VERDICTS, strongest first:
                      argument-register setup at the call site decides, and
                      prototyping it is a codegen change, not a cleanup.
 
+EVERY CALL SITE CARRIES ITS CALLER, A WEBFRANK-PIN MARKER, AND A SHORT/FULL
+SPLIT (run-44 item 2, from AR). Two things the printed row could not say:
+
+  * A PINNED CALLER CANNOT ANSWER THE QUESTION THIS TOOL ASKS. The trailer
+    below sends the reader to the caller's aligned view, and fndiff scores
+    the POSTPROCESSED object, so a webfrank-pinned caller reads `real` 0 by
+    construction (AGENTS.md residual-work discipline 3). Three of AR's
+    fifteen apparent refutations were pinned consumers — fn_800DA60C,
+    fn_800DA6A4 and pbDiagDrawTexture — and taking those verdicts at face
+    value would have closed three rows on no evidence at all. Re-measured
+    at ca4074cb1: 150 pinned functions, 23 marked call-site labels, and two
+    rows in which EVERY full call site is pinned.
+  * WHO PAYS. The whole cost of a phantom trailing parameter is borne by
+    callers that pass the FULL list, so `N call site(s)` alone cannot say
+    whether a PHANTOM row has any payer at all — three of AR's four PHANTOM
+    rows had short calls only. Rows now print `S SHORT + F FULL`, and a
+    PHANTOM row with F = 0 is labelled NO PAYER.
+
+CENSUS DRIFT IS EXPECTED — REMEASURE, NEVER QUOTE. The run-42 calibration
+in tools/gdl/tests/test_aritycheck.py reads 4 PHANTOM-CANDIDATE / 15
+KNR-SHORT-CALL / 42 UNREAD-TRAILING; the same command at ca4074cb1 reads
+1 / 14 / 42, because the arity work those rows produced landed. The tests
+pin the two proven instances as fixtures for exactly this reason.
+
 WHAT IT DOES NOT DO. It never edits, and a verdict is a place to look, not
 a conclusion — both governing laws are settled against the TARGET BYTES at
 the call site, never against the source shape this scan reads. Functions
@@ -258,6 +282,71 @@ def is_knr_parameter_list(tokens):
         re.fullmatch(r"[A-Za-z_]\w*", token) for token in real)
 
 
+def unit_of(path):
+    """`src/game/pb/pb_diag.c` -> `game/pb/pb_diag`; None for a header.
+
+    The webfrank config is keyed by unit, so a call site's file has to be
+    reduced to one before its caller can be screened for a pin.
+    """
+    posix = str(path).replace("\\", "/")
+    if not posix.startswith("src/"):
+        return None
+    if not posix.endswith((".c", ".cpp")):
+        return None
+    return re.sub(r"\.(c|cpp)$", "", posix[len("src/"):])
+
+
+def load_webfrank_pins(root):
+    """{(unit, function)} for every function carrying a webfrank rule.
+
+    Run-44 item 2, from AR. The census's own decision procedure is "read
+    the CALLER's aligned view for an ours-only -1 lwz|li|mr beside the
+    call" — and that procedure is UNSOUND for a pinned caller, which reads
+    `real` 0 by construction because fndiff scores the POSTPROCESSED object
+    (AGENTS.md residual-work discipline 3). Three of AR's fifteen apparent
+    refutations were pinned consumers (fn_800DA60C, fn_800DA6A4,
+    pbDiagDrawTexture), and taking those verdicts at face value would have
+    closed three rows on no evidence at all
+    (claim.AR_probe-revert-restored-half-a-two-site-edit-and-aritycheck-
+    needs-a-pin-column.20260903.v1).
+
+    Reads the file the tool can already reach, and fails SOFT: a checkout
+    with no webfrank.json gets an empty set and every site prints unmarked,
+    which is the same answer it printed before this existed.
+    """
+    config = Path(root) / "config" / "GUNE5D" / "webfrank.json"
+    try:
+        data = json.loads(config.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set()
+    pins = set()
+    for unit, rules in (data.get("units") or {}).items():
+        if not isinstance(rules, list):
+            continue
+        for rule in rules:
+            if isinstance(rule, dict) and rule.get("function"):
+                pins.add((unit, rule["function"]))
+    return pins
+
+
+def attribute_callers(definitions, calls):
+    """Fill each call's `caller` from the definition whose body contains it.
+
+    A call at file scope (a static initializer) has no caller and keeps
+    None — reporting one would be an invention, and the pin question has no
+    answer there.
+    """
+    spans = [(d["span"][0], d["span"][1], d["name"]) for d in definitions
+             if d.get("span")]
+    for call in calls:
+        index = call.get("index")
+        if index is None:
+            continue
+        call["caller"] = next(
+            (name for start, end, name in spans if start <= index < end),
+            None)
+
+
 def scan_file(path, text):
     """(definitions, declarations, calls, address_taken) for one file."""
     definitions, declarations, calls = [], [], []
@@ -287,6 +376,7 @@ def scan_file(path, text):
                 "arity": argument_count(inner),
                 "knr": is_knr_parameter_list(tokens),
                 "body": text[brace:end + 1] if end else "",
+                "span": (brace, end + 1) if end else None,
             })
         elif stripped.startswith(";") and leads_a_declaration(text,
                                                               match.start()
@@ -298,7 +388,9 @@ def scan_file(path, text):
             })
         elif line not in directives:
             calls.append({"name": name, "line": line, "file": str(path),
-                          "arity": argument_count(inner)})
+                          "arity": argument_count(inner),
+                          "index": match.start(), "caller": None})
+    attribute_callers(definitions, calls)
     for match in _IDENT_RE.finditer(text):
         name = match.group(0)
         after = text[match.end():match.end() + 40].lstrip()
@@ -335,7 +427,30 @@ def body_reads(body, name):
     return len(re.findall(rf"\b{re.escape(name)}\b", body))
 
 
-def analyse(definitions, declarations, calls, address_taken):
+def site_label(site, pins):
+    """`file:line (N arg) in <caller>` plus the pin marker when it applies.
+
+    The marker is the whole point of the column: a pinned caller reads
+    `real` 0 by construction, so the aligned-view procedure this tool
+    prints cannot decide the row from that site and must use the target
+    half instead.
+    """
+    unit = unit_of(site["file"])
+    caller = site.get("caller")
+    where = f" in {caller}" if caller else " at file scope"
+    pinned = bool(unit and caller and (unit, caller) in pins)
+    marker = ("  [WEBFRANK-PINNED CALLER — this site reads real 0 by"
+              " construction; decide from the TARGET half]" if pinned else "")
+    return f"{site['file']}:{site['line']} ({site['arity']} arg){where}{marker}"
+
+
+def is_pinned_site(site, pins):
+    unit = unit_of(site["file"])
+    caller = site.get("caller")
+    return bool(unit and caller and (unit, caller) in pins)
+
+
+def analyse(definitions, declarations, calls, address_taken, pins=frozenset()):
     """One row per definition that has an arity question worth reading."""
     by_name = {}
     for call in calls:
@@ -375,6 +490,15 @@ def analyse(definitions, declarations, calls, address_taken):
             verdict = "UNREAD-TRAILING"
         else:
             continue
+        # THE SHORT/FULL SPLIT (run-44 item 2). The printed row carried one
+        # call-site COUNT, and the count cannot express the question that
+        # decides a PHANTOM row: the whole cost of a phantom trailing
+        # parameter is paid by callers that pass the FULL list, so a row
+        # whose sites are ALL short has no payer and dropping the parameter
+        # buys nothing. AR measured three of four PHANTOM rows that way.
+        full = [site for site in sites if site["arity"] >= definition["arity"]]
+        pinned_full = [site for site in full if is_pinned_site(site, pins)]
+        pinned_sites = [site for site in sites if is_pinned_site(site, pins)]
         rows.append({
             "verdict": verdict,
             "function": name,
@@ -383,8 +507,19 @@ def analyse(definitions, declarations, calls, address_taken):
             "trailing_parameter": trailing,
             "trailing_reads_in_body": reads,
             "call_sites": len(sites),
-            "short_call_sites": [f"{s['file']}:{s['line']} ({s['arity']} arg)"
-                                 for s in short],
+            "short_call_site_count": len(short),
+            "full_call_site_count": len(full),
+            "pinned_full_call_site_count": len(pinned_full),
+            "pinned_call_site_count": len(pinned_sites),
+            # SHORT sites are listed individually as before (each carries
+            # its own pin marker). Of the FULL sites only the PINNED ones
+            # are listed and the rest merely counted: a 173-call-site row
+            # would otherwise print 172 lines nobody reads, and the pinned
+            # ones are exactly the sites where the printed decision
+            # procedure does not work.
+            "short_call_sites": [site_label(site, pins) for site in short],
+            "pinned_full_call_sites": [site_label(site, pins)
+                                       for site in pinned_full],
             "unprototyped_declarations": [f"{d['file']}:{d['line']}"
                                           for d in knr_decls],
             "duplicate_definitions": [f"{d['file']}:{d['line']}"
@@ -415,9 +550,28 @@ def format_rows(rows):
             f"  {row['defined_at']}  arity {row['declared_arity']},"
             f" trailing `{row['trailing_parameter']}` read"
             f" {row['trailing_reads_in_body']}x in the body,"
-            f" {row['call_sites']} call site(s)")
+            f" {row['call_sites']} call site(s)"
+            f" = {row['short_call_site_count']} SHORT"
+            f" + {row['full_call_site_count']} FULL"
+            f" ({row['pinned_full_call_site_count']} of the FULL sites"
+            " webfrank-PINNED)")
+        if (row["verdict"] == "PHANTOM-CANDIDATE"
+                and row["full_call_site_count"] == 0):
+            lines.append(
+                "      NO PAYER: every call site is already short, so no"
+                " caller materialises the trailing argument and dropping it"
+                " buys nothing. The row is a naming question, not an"
+                " instruction.")
+        elif row["full_call_site_count"] and row["pinned_full_call_site_count"] \
+                == row["full_call_site_count"]:
+            lines.append(
+                "      EVERY FULL SITE IS PINNED: the aligned-view procedure"
+                " below cannot decide this row — a pinned caller reads real 0"
+                " by construction. Decide from the TARGET half.")
         for site in row["short_call_sites"]:
             lines.append(f"      short call: {site}")
+        for site in row["pinned_full_call_sites"]:
+            lines.append(f"      full call: {site}")
         for site in row["unprototyped_declarations"]:
             lines.append(f"      K&R declaration (no prototype): {site}")
         for site in row["duplicate_definitions"]:
@@ -432,7 +586,22 @@ def format_rows(rows):
             " a genuine arity bug, and one whose target does not is faithful"
             " 2001 source that must be left alone"
             " (claim.law.knr-extern-arity-can-be-faithful-not-a-defect"
-            ".20260831.v1).")
+            ".20260831.v1)."
+            "\n  A WEBFRANK-PINNED CALLER CANNOT BE READ THAT WAY: fndiff"
+            " scores the POSTPROCESSED object, so a pinned function reads"
+            " real 0 by construction (AGENTS.md residual-work discipline 3)"
+            " and its aligned view has nothing to say about the argument"
+            " setup. Three of AR's fifteen refutations were pinned consumers"
+            " and would have closed three rows on no evidence"
+            " (claim.AR_probe-revert-restored-half-a-two-site-edit-and-"
+            "aritycheck-needs-a-pin-column.20260903.v1). At a pinned site"
+            " read the TARGET half instead (`fnasm.py <unit> <caller>"
+            " 0xA:0xB`)."
+            "\n  THE SHORT/FULL SPLIT IS THE PAYOFF: only a caller passing"
+            " the FULL list materialises a phantom trailing argument, so a"
+            " row with 0 FULL sites has no payer and dropping the parameter"
+            " buys nothing — AR measured three of four PHANTOM rows that"
+            " way, which the old single call-site COUNT could not express.")
     return "\n".join(lines)
 
 
@@ -445,7 +614,7 @@ def main():
     ap.add_argument("--out", help="write JSON here instead of stdout")
     args = ap.parse_args()
 
-    rows = analyse(*collect(args.root))
+    rows = analyse(*collect(args.root), pins=load_webfrank_pins(args.root))
     if args.function:
         rows = [row for row in rows if row["function"] == args.function]
     if args.verdict:
