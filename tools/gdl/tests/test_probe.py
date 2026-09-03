@@ -2050,6 +2050,61 @@ class DiscardScopeTests(unittest.TestCase):
         self.assertIn("--discard --whole-file", text)
         self.assertIn("L10-L12", text)
 
+    # --- run-41 item 9: the two classes are reported separately ----------
+    def test_a_straddling_only_refusal_does_not_claim_outside_hunks(self):
+        """The reproduced contradiction: `restore_scope_counts` returns
+        OUTSIDE and STRADDLING hunks in one list while counting only the
+        outside ones, and the refusal printed the COUNT against the whole
+        LIST — verbatim, "0 uncommitted hunk(s) in this TU lie OUTSIDE alpha
+        (straddling L12-L13)"."""
+        edited = TU.replace("}\n\nvoid beta(Player* p)",
+                            "}   /* end of alpha */\nvoid beta(Player* p)")
+        inside, outside, entangled = restore_scope_counts(TU, edited, "alpha")
+        self.assertEqual(outside, 0)
+        self.assertEqual([row[0] for row in entangled], ["straddling"])
+        text = discard_refusal("alpha", "game/x/y", inside, outside,
+                               entangled)
+        self.assertNotIn("0 uncommitted hunk(s)", text)
+        self.assertIn("1 hunk(s) STRADDLE", text)
+        self.assertIn("No hunk lies wholly outside alpha", text)
+
+    def test_a_straddling_hunk_is_not_offered_a_scoped_restore(self):
+        """probe's own control flow refuses --discard --function for exactly
+        this hunk, so offering it as the remedy sent the reader in a
+        circle."""
+        text = discard_refusal("alpha", "game/x/y", 0, 0,
+                               [("straddling", 12, 13)])
+        self.assertIn("--discard --function  WILL REFUSE", text)
+
+    def test_every_printed_count_comes_from_the_list_it_describes(self):
+        text = discard_refusal("alpha", "game/x/y", 1, 2,
+                               [("outside", 10, 12), ("outside", 40, 41),
+                                ("straddling", 60, 62)])
+        self.assertIn("2 uncommitted hunk(s) lie OUTSIDE alpha"
+                      " (L10-L12, L40-L41)", text)
+        self.assertIn("1 hunk(s) STRADDLE alpha's boundary (L60-L62)", text)
+        self.assertNotIn("straddling L", text)
+
+    def test_an_outside_only_refusal_still_offers_the_scoped_restore(self):
+        text = discard_refusal("alpha", "game/x/y", 1, 1,
+                               [("outside", 10, 12)])
+        self.assertIn("--discard --function   restore ONLY", text)
+        self.assertNotIn("STRADDLE", text)
+        self.assertNotIn("No hunk lies wholly outside", text)
+
+    def test_a_nested_block_declaration_hoist_is_all_inside(self):
+        """CT's MBCameraUpdate shape — declarations moved out of a do-loop
+        body into the enclosing block — must not be attributed anywhere but
+        inside the function."""
+        base = TU
+        edited = TU.replace("    p->x = 1;\n",
+                            "    {\n        int t;\n        t = 1;\n"
+                            "        p->x = t;\n    }\n")
+        inside, outside, entangled = restore_scope_counts(base, edited,
+                                                          "alpha")
+        self.assertEqual((outside, entangled), (0, []))
+        self.assertGreaterEqual(inside, 1)
+
 
 class RevertVerdictWordingTests(unittest.TestCase):
     """A reverted state must not read as a FAILED revert.
