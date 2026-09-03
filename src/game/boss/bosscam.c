@@ -456,7 +456,8 @@ void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg) {
         py = (f32*)(buf + 68);
         pz = (f32*)(buf + 72);
         dx = *(f32*)(buf + 64) - (v0 = viewpt[0]);
-        dy = *py - (v1 = viewpt[1]);
+        dy = *py;
+        dy -= (v1 = viewpt[1]);
         dz = *pz - (v2 = viewpt[2]);
         if (planeLR != 0) {
             dx = lbl_80345BA0;
@@ -465,8 +466,11 @@ void CamLimitPlayerDpos(void* camera, u8* ps, f32* dpos, s32 arg) {
         }
         if (dz < lbl_80345BA0 && (flags & 0x230) != 0) {
             dz = lbl_80345BA0;
-        } else if (dz > *(volatile f32*)&lbl_80345BA0 && (flags & 0x130) != 0) {
-            dz = lbl_80345BA0;
+        } else {
+            f32 zlo = *(volatile f32*)&lbl_80345BA0;
+            if (dz > zlo && (flags & 0x130) != 0) {
+                dz = zlo;
+            }
         }
         *(f32*)(buf + 64) = v0 + dx;
         *py = v1 + dy;
