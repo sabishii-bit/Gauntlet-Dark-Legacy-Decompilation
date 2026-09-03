@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py",
+    "tools/gdl/abicheck.py"
+  ],
+  "attributes": {
+    "provenance": "One instance closed end-to-end: game/enemy/enemy::init_enemy plus game/game/gamemain::SetEnemyObj (attempt.NM_init-enemy-setenemyobj-takes-three-args-and-closes-exact.20260903.v1), measured at commits 0dda4ddc6 -> c8229d5ee -> 5aa9fe24b; the function went from real 27 to STRICT exact and the image STRICT count from 2577 to 2578. NOTE ON THE CENSUS, deliberately honest: the SPELLING-based census is nearly empty - grepping src for a definition whose last parameter is literally named `unused` returns only three more sites (dolphin/gx/GXInit.c __GXDefaultTexRegionCallback, game/ui/auxscreen.c hide_rune_stones, MSL/uart_console_io.c __close_console), and all three are single-parameter callbacks whose arity is fixed by a function-pointer type, so none is a candidate. The real population is NOT spelling-detectable and has NOT been counted: the screen that would find it is caller-side (a call-adjacent `ours-only -1 lwz|li|mr` at otherwise-exact count parity), and AGENTS.md discipline 16's abicheck models GPR/FPR sequence assignment rather than parameter COUNT, so it does not currently surface this class. Treat the law as a diagnostic PROCEDURE with one proven instance, not as a sized opportunity.",
+    "tags": [
+      "matching",
+      "param-retype",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A caller whose `ours-only -1 <insn>` residual around a call SURVIVES dropping the suspect trailing parameter, or a callee that stops measuring EXACT when the unread parameter is removed (which would prove the parameter is real and read somewhere the scan missed). Re-run: `python tools/gdl/fndiff.py game/game/gamemain SetEnemyObj --clean` (must stay EXACT at three parameters) and `python tools/gdl/fndiff.py game/enemy/enemy init_enemy --clean` (must stay MATCH).",
+  "id": "claim.law.NM_an-unread-trailing-parameter-is-invisible-in-the-callee-and-costs-the-caller-an-instruction.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T01:52:01Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "A reconstructed prototype carrying one MORE trailing parameter than the retail function is INVISIBLE in the callee - a parameter that is never read emits no prologue code, so the callee can measure byte-EXACT at either arity and its own bytes can never settle the question - while every CALLER pays one or more instructions materialising the phantom argument. The tell is a caller residual of the shape `ours-only -1 <lwz|li|mr>` immediately around the call, with the target holding a value in the argument register that the aligned view shows serving some OTHER purpose (a nearby store). PROCEDURE when a call-site residual survives several argument spellings: stop respelling the argument and settle the arity from evidence OUTSIDE the callee - other call sites in the tree (a K&R `extern f(); ` declaration next to a three-argument call is the loudest), the Xbox PDB signature, and whether the callee ever reads the register. Measured on game/enemy/enemy::init_enemy: four argument spellings (field reload, literal, shared temporary, assignment-in-argument) all held the count at T136/O137, and dropping SetEnemyObj's 4th parameter - named `unused` in its own definition at src/game/game/gamemain.c:837, with a sibling call at src/game/enemy/enemy.c:5269 already passing three - took it to T136/O136 and real 27 -> 10 in one build, with gamemain.c::SetEnemyObj still measuring EXACT afterwards."
+}

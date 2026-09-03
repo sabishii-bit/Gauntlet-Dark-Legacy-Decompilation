@@ -3684,7 +3684,7 @@ s32 CritterGolemAI(Critter *c)
     }
 
     move0 = &(*(CritterMove **)((u8 *)c->hdr + offsetof(CritterPackedType, movesPtr)))[
-                c->curmove < 0 ? 0 : c->curmove];
+                c->curmove >= 0 ? c->curmove : 0];
     mt = -1;
     c->nextmove = mt;
     c->unk11E = mt;

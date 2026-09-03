@@ -834,7 +834,7 @@ void format_brain(s32 index)
 }
 
 /* Rebuild an enemy's animation tree, render object, actions, and shadow. */
-void SetEnemyObj(Enemy* enemy, s32 type, s32 level, s32 unused)
+void SetEnemyObj(Enemy* enemy, s32 type, s32 level)
 {
     void* object;
     s32 shadowObject;
