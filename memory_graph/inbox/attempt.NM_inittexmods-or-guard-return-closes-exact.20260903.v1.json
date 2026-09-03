@@ -1,0 +1,28 @@
+{
+  "attempted_axis": "Re-open the 2026-08-31 five-axis cap (an UNGATED-PROSE-DENIAL, therefore a weak veto) with three construct classes it did not cover, then close the function exact with the `||`-guard-plus-return form.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED (authored this run from this function's own closure plus the matched-code exemplars). claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 SCREENED, not applicable (the residual is a branch pair, not an entry schedule). claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1 SCREENED and REFUTED for this shape: both dual-goto if/else arms collapse identically (measured in attempt.inittexmods-exact-drive.20260831.v2 and re-measured here as a bare goto sequence). claim.law.IT_empty-bodied-if-elides-its-own-comparison.20260901.v1 APPLIED (it is why the empty-then diamond probe was NEUTRAL-IDENTICAL). claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 APPLIED (count parity was the acceptance test on every probe).",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "The superseded record's diagnosis was RIGHT about the residual (+0x1C cmpwi r29,0; +0x20 bge +0x28; +0x24 unconditional b +0x58 vs our blt) and WRONG about the mechanism: it concluded 'the pre-peephole CFG canonicalizer folds the whole pair ... before the peephole-disabled backend can retain target's branch-to-next plus b', i.e. that the shape was source-unreachable. Three new classes measured here:\nPROBE 1 (REGRESSED 26 insns/real 9): bare goto SEQUENCE, not if/else -- `if (texidx >= 0) {\\n    goto init;\\n}\\ngoto done;\\ninit:` -- collapses identically to the if/else forms the cap already killed, so the goto is the folding trigger regardless of if/else framing.\nPROBE 2 (REGRESSED real 2 -> 18, insns T27/O29): scoped `#pragma peephole off` around the function with the natural guard `if (texidx < 0) {\\n    goto done;\\n}`. This REFUTES the peephole reading outright: peephole-off changed `mr.` to `mr`+`cmplwi`, `addi rX,rY,0` to `mr`, and added two spurious `b`, yet STILL emitted the fused `blt`. -O4 has peephole ON by default (configure.py cflags_demo comment, measured 2026-09-01).\nPROBE 3 (REGRESSED 26 insns/real 9): loop-exit branch class -- `do {\\n    if (texidx < 0) {\\n        break;\\n    }\\n    for (...) {...}\\n} while (0);`\nPROBE 4 (EXACT): `if (seq == NULL || texidx < 0) {\\n    return;\\n}\\nfor (i = 0; i < seq->ntexmods; i++) {\\n    tm = (TEXMOD*)((char*)seq->texmods + i * 0x58);\\n    InitTexMod(tm, texidx);\\n}`",
+    "residual": "none - byte-exact.",
+    "scope": "src/game/anim/atree.c::InitTexMods only; 6 insertions, 14 deletions; commit 7372fee9c 'Match InitTexMods'. The TU's webfrank pins (DoAnimateTreeFrame, AtreeInitSub) were screened before editing and the instruction count did not change, so no pin re-derivation was needed and the build did not abort.",
+    "verification": "python tools/gdl/probe.py game/anim/atree InitTexMods --ops -> IMPROVED real 2 -> 0, insns exact, multiset 0t, FUZZY (fresh report) 97.7778% -> 100.0000%. python tools/gdl/defake_gate.py check game/anim/atree -> GATE OK (1 improved); baseline anchored at commit ca4074cb1, source sha1 4e7fddabc, 36 functions / 35 at real 0 before the fix. Full ninja -j2 printed 'build/GUNE5D/main.dol: OK'; STRICT 56.64% (2579) -> 56.65% (2580). NOTE for a later lane: game/anim/atree now measures 36/36 at real 0, which makes it a TU-FLIP CANDIDATE -- the non-text sections and the pinned functions still have to be audited before configure.py is touched."
+  },
+  "function": "function:InitTexMods",
+  "held_fixed": "the texmod loop body and the `seq != NULL` outer guard were held constant in every probe; only the texidx guard's control-flow spelling varied.",
+  "id": "attempt.NM_inittexmods-or-guard-return-closes-exact.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T06:46:41Z",
+  "refutes": "attempt.inittexmods-exact-drive.20260831.v2",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "DIFFERS target-only: +1 b  ours-only: -1 blt; insns T27/O27; 1 ops clusters"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "supersedes": "attempt.inittexmods-exact-drive.20260831.v2",
+  "valid_from": "2026-09-03"
+}

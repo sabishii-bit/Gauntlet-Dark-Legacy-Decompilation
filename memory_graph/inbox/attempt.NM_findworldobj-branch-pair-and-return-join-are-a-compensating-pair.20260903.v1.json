@@ -1,0 +1,37 @@
+{
+  "attempted_axis": "Close the single missing branch-pair word by rewriting the loop's dual-goto guard as `return node;` (the law's form), and measure what that costs the return-value join.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED (authored this run from this function's own closure plus the matched-code exemplars). claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 SCREENED, not applicable (the residual is a branch pair, not an entry schedule). claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1 SCREENED and REFUTED for this shape: both dual-goto if/else arms collapse identically (measured in attempt.inittexmods-exact-drive.20260831.v2 and re-measured here as a bare goto sequence). claim.law.IT_empty-bodied-if-elides-its-own-comparison.20260901.v1 APPLIED (it is why the empty-then diamond probe was NEUTRAL-IDENTICAL). claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 APPLIED (count parity was the acceptance test on every probe). The law's branch half was CONFIRMED here (fourth independent sighting) and its limits were measured: it closes the branch pair but is not free when the function's return value is carried in a callee-saved register.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "PROBE A: `while (node != 0) {\\n    if (strcmp(name, node->desc) == 0) {\\n        return node;\\n    }\\n    ...\\n        if (r != 0) {\\n            return r;\\n        }\\n    ...\\n    } else {\\n        return 0;\\n    }\\n}\\nreturn 0;`\nPROBE B: same, but every exit written as `node = <v>; return node;`.\nPROBE C: probe A's first guard only, with `node = r; goto done;` / `node = 0; goto done;` / `node = 0;\\ndone:\\n    return node;` restored.\nAll three produced the identical object.",
+    "residual": "1 word if the branch half is taken alone (a missing `mr`); 1 word the other way (the unfused pair). They are a compensating pair under every form measured.",
+    "scope": "src/game/world/world.c::FindWORLDOBJ; ALL probes discarded with `python tools/gdl/probe.py game/world/world FindWORLDOBJ --discard`, tree restored to HEAD. No commit.",
+    "verification": "python tools/gdl/probe.py game/world/world FindWORLDOBJ -> BASELINE real 17, FUZZY (fresh report) 97.4419%, insns T43/O42, multiset 3t. python tools/gdl/defake_gate.py baseline game/world/world --at-head -> anchored to commit 86d9cca83, source sha1 6272bd658, 23 functions / 19 at real 0. The keep was refused by probe's own fuzzy gate, which is the arbiter AGENTS.md names for a real-vs-fuzzy disagreement; the instruction-stream verdict (IMPROVED real 17 -> 9) is recorded here so a later lane does not have to re-derive it."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/probe.py game/world/world FindWORLDOBJ --ops ; if real is no longer 17, or the @0x2c cluster has changed shape, re-run the three forms. The compensating pair is the thing to re-test: any lane that learns how to force MWCC to keep a single-`mr` return join should come straight back here, because the branch half is already solved.",
+    "falsifier": "A source form that holds `bne <search_children>; b <done>` at +0x2c AND keeps `mr r3,r31` as the sole exit move. Either half alone is already achieved; the record is only a cap on getting both at once.",
+    "premise_measurement": "Three probes at commit 86d9cca83. The law's form WORKS on the branch half: `if (strcmp(name, node->desc) == 0) { return node; }` takes the --ops signature from `target-only: +1 b +1 bne / ours-only: -1 beq` to `target-only: +1 mr`, i.e. the branch pair matches exactly and the residual becomes a single mr. But it BREAKS the return-value join: the target routes all four exits through r31 and spends ONE `mr r3,r31` at +0x94, while our build then sets r3 at each exit site. Net: real 17 -> 9 and multiset 3t -> 1t, but FRESH objdiff fuzzy 97.4419% -> 92.6744% (-4.7674). probe.py's fuzzy gate refused the keep. Two further forms aimed at restoring the join -- (b) `node = r; return node;` / `node = 0; return node;` at every exit, and (c) `return node;` for the first guard with the original `goto done;` join kept for the other three -- were BOTH byte-identical to (a): MWCC copy-propagates the assignment into the return and the join does not come back.",
+    "scope": "ONE axis on ONE function: closing FindWORLDOBJ's branch pair at +0x2c by converting the `if (strcmp(...) != 0) goto search_children; goto done;` guard into a `return`. It does not deny work on the return-value join itself, nor on any other axis."
+  },
+  "function": "function:FindWORLDOBJ",
+  "held_fixed": "the child-recursion and sibling-advance arms of the loop were held at their committed form in probe 3, so the only variable was the first guard's exit spelling.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Rewrite only the sibling-advance arm as `return node;` and re-probe: if the exit join still collapses to per-site r3 stores, the join is not controlled by the number of assigning exits and this idea is dead.",
+    "screened_against_target": "yes -- python tools/gdl/fnasm.py game/world/world FindWORLDOBJ 0x54:0xa8 --diff shows the target's `mr r31,r3` at +0x5c and `mr r3,r31` at +0x94 both absent from our probe-(a) stream, with `li r31,0` at +0x80/+0x90 becoming `li r3,0`.",
+    "statement": "The two halves are independently reachable and the blocker is MWCC's copy propagation of `node = X; return node;` into `return X;`. A form that keeps the assignment ALIVE past the return -- for instance an exit whose value is read again after the assignment, or a helper boundary like the one that closed PlaceItem -- would let both halves land together and take FindWORLDOBJ to real 0."
+  },
+  "id": "attempt.NM_findworldobj-branch-pair-and-return-join-are-a-compensating-pair.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T06:46:41Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +1 b +1 bne  ours-only: -1 beq; insns T43/O42"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

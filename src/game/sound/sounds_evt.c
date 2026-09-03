@@ -1375,17 +1375,10 @@ void DoAudioTallySFX(int sel_)
 {
     int sel;
 
-    if ((sel = sel_) < 0) {
-        goto done;
+    if ((sel = sel_) < 0 || sel > 10) {
+        return;
     }
-    if (sel <= 10) {
-        goto valid;
-    }
-    goto done;
-valid:
     sndFxPlayHandle(lbl_801234B8[sel], 224, sel + 21);
-done:
-    return;
 }
 
 void AudioMapDot(void)

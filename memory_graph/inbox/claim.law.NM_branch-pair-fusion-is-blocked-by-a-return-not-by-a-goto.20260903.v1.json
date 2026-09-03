@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/fndiff.py --ops (the '+1 b +1 b<cond> / -1 b<cond>' signature)",
+    "tools/gdl/probe.py (three byte-exact closures this run)",
+    "tools/gdl/composed_census/nm_branchpair_census.py (ours|target|diff)"
+  ],
+  "attributes": {
+    "tags": [
+      "matching",
+      "peephole",
+      "switch-form",
+      "inline",
+      "core-screen"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "A function whose then-block is a plain `return;`/`return <v>;` compiles to a single FUSED inverted conditional branch under these cflags (probe it with `python tools/gdl/probe.py <unit> <fn> --ops` after rewriting a folded goto guard as `if (A || B) { return; }`), or a function whose then-block is a `goto` compiles to the UNFUSED pair. Either observation kills the discriminator. Re-run the census with `python tools/gdl/composed_census/nm_branchpair_census.py ours` to re-derive the populations; a large drop in the 503 'ours' sites would mean the shape stopped being reachable.",
+  "id": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T06:45:53Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "MWCC GC 1.2.5, -O4,p. The target's recurring `b<cond> <next+4>` + unconditional `b <exit>` pair (what fndiff --ops reports as `target-only: +1 b +1 bge/ble/bne  ours-only: -1 blt/bgt/beq`) is NOT a peephole artifact and is NOT source-unreachable: our own compiled objects emit the identical shape at 503 sites across 257 objects (census `python tools/gdl/composed_census/nm_branchpair_census.py ours`, run 2026-09-03 at commit ca4074cb1; the retail objects carry 563). What decides the shape is WHAT THE THEN-BLOCK IS. A then-block that leaves the function -- `return;` / `return <value>;` -- is lowered naively as branch-over-one plus an unconditional branch, and is never folded. A then-block that is a `goto <label>` IS folded to a single inverted conditional, and no spelling of the goto escapes it. Measured both directions this run. FOLDS (all NEUTRAL-IDENTICAL or worse, object bytes unchanged): `if (c) goto A; goto B;` (InitTexMods, DoAudioTallySFX, PlaceItem, ControllerMessageBox), `if (c) goto A; else goto B;` (prior record attempt.inittexmods-exact-drive.20260831.v2 axis 3/4), an if/else diamond with an EMPTY then-arm (elided in the front end), and `do { if (c) break; ... } while (0)` (loop-exit branch, 26 insns/real 9 -- the same collapse as the plain goto). DOES NOT FOLD (byte-exact wins): `if (A || B) { return; }` closed DoAudioTallySFX (real 5 -> 0), InitTexMods (real 2 -> 0) and DoPolyInst (real 4 -> 0) EXACT in one probe each. The matched-code exemplars that predict it: MSL/zlib `uncompress` (`if (err != Z_OK) return err;` -> `beq +8; b epilogue`), dolphin/card `__CARDSeek` (`if (result < 0) return result;`), atree `AtreeFindNodeIdx` (`for (...) if (strncmp(...) == 0) return i;` -> `bne <loop step>; b <exit>`), and gcontrolpads `G3DGetControlPadAnalogStick` (a ONE-CASE `switch` -> `beq +8; b <exit>`) -- all at real 0. A ternary whose taken arm is the value already in the destination register produces the same shape from the other side (zlib inflate_flush `q <= s->write ? s->write : s->end`, audio AudioAng). COROLLARY, and the lever when the exit is not a return: when the unfused pair sits at the bottom of a SEARCH LOOP whose result is an index, the source is a helper the compiler inlined -- lift the loop into a static helper that `return`s the index and let it inline. That took PlaceItem from real 45 / 70 insns to real 6 / 71 insns with the opcode multiset IDENTICAL (count parity gained, i.e. postprocessor-eligible), and the Xbox PDB confirms the helper: ITEMS.OBJ carries `FindInfoIndex` (research/xbox_symbols/functions_by_module.txt line 4253). DO NOT reach for `#pragma peephole off`: measured on InitTexMods it regressed real 2 -> 18 (mr. -> mr+cmplwi, addi -> mr, two spurious `b`) and STILL emitted the fused `blt`, which refutes the peephole reading of this residual outright. POPULATION: 51 functions image-wide held at least one such site that our build did not, measured at commit ca4074cb1 with `python tools/gdl/composed_census/nm_branchpair_census.py diff`; the same command re-run after this run's four closures reports 47, which is the queue's own confirmation that the cure moves the census. Among them adsMoveRawToCooked(2), LimitCamVal2(2), PlayerStartMissile(2), fn_80051E1C(2), damage_player(2), cardThreadMain(2), setupNewPMode_800CDCE4(3), update_class_attr(2), fn_8005BA1C(5), SetItem(3), ReadControls(2), CritterDamage(2), MBNewPsysDescrip(2), setWorldParms(2)."
+}

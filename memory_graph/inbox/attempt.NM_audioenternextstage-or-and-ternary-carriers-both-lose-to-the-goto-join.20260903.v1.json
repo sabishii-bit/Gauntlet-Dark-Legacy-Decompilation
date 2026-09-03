@@ -1,0 +1,33 @@
+{
+  "attempted_axis": "Third revisit of the unfused conditional-over-unconditional pair, using the branch-pair law's `||` and ternary carriers -- the two forms the v1 and v3 axis matrices did not contain.",
+  "attributes": {
+    "law_screen": "claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1 APPLIED (authored this run from this function's own closure plus the matched-code exemplars). claim.law.declaration-initializer-split-controls-entry-schedule.20260830.v1 SCREENED, not applicable (the residual is a branch pair, not an entry schedule). claim.law.if-else-arm-swap-controls-fallthrough-placement.20260831.v1 SCREENED and REFUTED for this shape: both dual-goto if/else arms collapse identically (measured in attempt.inittexmods-exact-drive.20260831.v2 and re-measured here as a bare goto sequence). claim.law.IT_empty-bodied-if-elides-its-own-comparison.20260901.v1 APPLIED (it is why the empty-then diamond probe was NEUTRAL-IDENTICAL). claim.law.insn-count-parity-outranks-local-opcode-fidelity.20260831.v1 APPLIED (count parity was the acceptance test on every probe). The law's WINNING form requires the then-block to LEAVE THE FUNCTION. AudioEnterNextStage's then-block is `entry = 0`, a statement feeding a join that the target reaches from two predecessors (+0x1c and +0x38 both branch to the single `li r3,0` at +0x40), so the law's form is structurally unavailable here. That boundary is the finding.",
+    "laws_applied": "[\"claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v1\"]",
+    "probed_form": "PROBE A: `entry = (idx >= 0 && *(int*)(*(u8**)(gWorldData + 44) + idx * 24 + offsetof(struct sound_data, idx)) >= 0) ? *(u8**)(gWorldData + 44) + idx * 24 : 0;`\nPROBE B: `if (idx < 0 || *(int*)((entry = *(u8**)(gWorldData + 44) + idx * 24) + offsetof(struct sound_data, idx)) < 0) {\\n    entry = 0;\\n}`\nPROBE C: `entry = (idx >= 0 && *(int*)((entry = *(u8**)(gWorldData + 44) + idx * 24) + offsetof(struct sound_data, idx)) >= 0) ? entry : 0;`\nAll discarded; the committed source is unchanged.",
+    "residual": "1 word at +0x38: target `blt +0x40` then `b +0x44`; ours a single fused `bge +0x44`. Both +0x1c and +0x38 branch into the same one-instruction `li r3,0` block at +0x40, so the shape is an if/else diamond with an EMPTY then-arm whose else-arm is shared by two predecessors.",
+    "scope": "src/game/sound/sounds_evt.c::AudioEnterNextStage; all probes discarded with `probe.py ... --discard`. No commit. NOTE: the first probe tripped probe.py's FIRST-BASELINE TRAP -- the BASELINE for this function was banked from an already-edited tree because the clean-state probe was never run on it, so its --revert-baseline point is not HEAD. Recovery was `--discard`.",
+    "verification": "Baselines from the committed state: fndiff --ops at commit 7372fee9c reports insns T50/O50 with the single cluster at +0x38, real 4. python tools/gdl/defake_gate.py baseline game/sound/sounds_evt --at-head -> anchored to commit ca4074cb1, source sha1 b9a35d50d, 118 functions / 115 at real 0."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/probe.py game/sound/sounds_evt AudioEnterNextStage --ops -- if real is no longer 4, or the cluster at +0x38 has changed, re-run. Note the sibling DoAudioTallySFX in the same TU went EXACT this run, so the TU's alignment HAS moved since the v3 cap; that is why this revisit was legitimate and why the next one will be too.",
+    "falsifier": "Any `||`/`&&`/ternary spelling of the entry-selection guard that scores better than real 4. All three measured here scored 13, 29 and 34.",
+    "premise_measurement": "Three probes at commit 7372fee9c, every one WORSE than the committed baseline of real 4: (a) a ternary whose condition repeats the entry pointer expression -> real 34, insns T50/O58 (MWCC did NOT CSE the duplicated `*(u8**)(gWorldData + 44) + idx * 24`, it computed it twice); (b) `if (idx < 0 || *(int*)((entry = ...) + offsetof(struct sound_data, idx)) < 0) { entry = 0; }` -> real 13, insns T50/O49, --ops `target-only: +1 b +1 blt / ours-only: -1 bge` -- i.e. for an `if (A||B) { S }` whose S is a STATEMENT (not a return), MWCC emits branch-false-to-skip and falls through into S, which is the opposite layout from the target; (c) `entry = (idx >= 0 && *(int*)((entry = ...) + off) >= 0) ? entry : 0;` -> real 29, insns T50/O55 (the ternary materialised a boolean: extra li/cmpwi/beq/mr).",
+    "scope": "Instruction counts, ours/target: 50/50 at the committed baseline (and 58/50, 49/50, 55/50 for probes a, b, c) -- the counts are EQUAL in the state this record caps, so the function is NOT excluded from the postprocessor class by count asymmetry and this denial is a SOURCE-axis denial only. ONE axis on ONE function: expressing AudioEnterNextStage's entry-selection guard as a short-circuit `||` / `&&` / ternary so that the pair at +0x38 (`blt +0x40` then `b +0x44`) is emitted unfused. It does not deny the postprocessor path, nor the two earlier records' own axes."
+  },
+  "function": "function:AudioEnterNextStage",
+  "held_fixed": "the announcer-queue tail (both sndFxQueAddEx call sites and the good_wiz_state guards) was held constant in all three probes; only the entry-selection expression varied.",
+  "id": "attempt.NM_audioenternextstage-or-and-ternary-carriers-both-lose-to-the-goto-join.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T06:46:38Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "branch-pair",
+    "measured_at": "2026-09-03",
+    "signature": "target-only: +1 b +1 blt  ours-only: -1 bge (at +0x38); insns T50/O50 at baseline"
+  },
+  "residual_class": "STRUCTURAL",
+  "schema_version": 1,
+  "supersedes": "attempt.NV_audioenternextstage-ternary-carrier-dies-on-join-block.20260901.v3",
+  "valid_from": "2026-09-03"
+}

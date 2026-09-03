@@ -856,13 +856,10 @@ void DeleteItem(Item* item, s32 flag)
 }
 
 /* look up an item definition by name (+ type / optional level) and spawn it. */
-Item* PlaceItem(s32 type, s32 level, char* name, void* matrix)
+static s32 FindInfoIndex(s32 type, s32 level, char* name)
 {
-    u8 unused[8];
-    s32 i;
-    Item* item;
-    iteminfo* d;
     iteminfo* def;
+    s32 i;
 
     def = gWorldInfo.iteminfo;
 
@@ -875,11 +872,20 @@ Item* PlaceItem(s32 type, s32 level, char* name, void* matrix)
             continue;
         }
         if (level <= 0 || level == body->subtype) {
-            goto found;
+            return i;
         }
     }
-    i = -1;
-found:
+    return -1;
+}
+
+Item* PlaceItem(s32 type, s32 level, char* name, void* matrix)
+{
+    u8 unused[8];
+    iteminfo* d;
+    s32 i;
+    Item* item;
+
+    i = FindInfoIndex(type, level, name);
     if (i < 0) {
         ErrorPrintf(sUnableToAddItemFmt, name);
         return NULL;
