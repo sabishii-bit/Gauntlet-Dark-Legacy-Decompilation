@@ -2400,6 +2400,28 @@
     ],
     "game/game/player": [
       {
+        "function": "PlayerProcessPowerups",
+        "before_sha256": "73c976e4194563f573fee3236fea8b3bb4acafb3e2dde638e006b89a57a4e11d",
+        "after_sha256": "014f9cc6ad27f4d6b04d53947335184b485fe6eed5315b5d20db26e98a7c21de",
+        "audit": {
+          "classification": "REGISTER_ONLY",
+          "instructions": 1598
+        },
+        "mechanism": "claim.SA_playerprocesspowerups-tier-block-is-a-bijective-scratch-permutation-rule-request.20260903.v1 is the rule request; its source-exhaustion provenance is attempt.SA_playerprocesspowerups-volatile-half-is-a-bijective-scratch-permutation.20260903.v1 (eight literal probed_form axes, five of them aimed at the tier block, plus a typed denial with six negative probes covering the callee-saved half) superseding attempt.SA_playerprocesspowerups-pool-literal-and-propagation-drive.20260902.v1 (four further axes). Measured run 42 at c117e66da: 1598/1598 instructions, opcode multiset IDENTICAL, `wf_word_diff.py game/game/player.c PlayerProcessPowerups` reports 24 DIFFERING WORDS, MNEMONIC DIVERGENCE 0, RELOC-SYMBOL MISMATCH 0. Twenty-three of the 24 are a position-consistent renaming and are proved by the strict transfer function that the value-equality mode runs at every word: the tier-colour prologue at +0xdc0..+0xdf0 (five scratch values in a single 5-cycle target->ours, atree r4->r5, level/tier r3->r6, the constant 10 r0->r4, p->index r6->r0, lbl_80282930@ha r5->r3, all dead where the streams re-converge at +0xdf4), the seven-word r22<->r24 second-lifetime transposition at +0xcfc/+0xd1c/+0xd28/+0xd34/+0xd54/+0xd5c/+0xd8c, the f2-versus-f0 scratch pair at +0x20/+0x30, and the commutative fadd operand rotation at +0x3a4 (target `fadd f1,f1,f5`, ours `fadd f1,f5,f1`), which _recolor_transfer's own commutative pairing accepts. The 24th word is the single declared escape. At +0xe50 the target loads the sdata2 constant lbl_803477AC into f0 and ours into f1; at +0xe64 the target loads 224(r4) into f1 and ours into f0; the fcmpu at +0xe68 is `fcmpu cr0,f1,f0` BYTE-IDENTICAL in both streams and therefore reads its two operands exchanged. Exchanging fcmpu operands swaps FL and FG and leaves FE and FU untouched, and cr0's only consumer here is the `beq ->f08` at +0xe6c, so the equality test is unaffected; _compare_exchange_is_semantics_preserving discharges that obligation mechanically by walking every reader of the field and requiring an FE/FU branch plus deadness at every exit. substitutions is empty: no use outside the strict renaming is accepted anywhere in the function. Also note for a later lane that the +0xe50 relocation binds the named lbl_803477AC in the target and an anonymous pool entry in ours; the reloc KIND and the words agree, so it is outside this rule and outside wf_word_diff's mismatch count.",
+        "copy_register_fields": true,
+        "value_equality_recolor": {
+          "audit": "One escape, declared: the fcmpu at +0xe68 reads its two operands exchanged because +0xe50 and +0xe64 load the compared values into the opposite FPRs. No substitutions - every other use is accepted by the strict position-consistent renaming inside the wider mode.",
+          "compare_exchanges": [
+            {
+              "at": "0xe68",
+              "bank": "f",
+              "ours": [1, 0],
+              "target": [1, 0]
+            }
+          ]
+        }
+      },
+      {
         "function": "do_exit",
         "before_sha256": "772104548cfbb3ebfefe259ddf28643f95feb001d59d7b5a2c7638635b742ebf",
         "after_sha256": "36f50d1902a47b902613c774154160a3d553704b091d225272edbec4027f9ba3",
