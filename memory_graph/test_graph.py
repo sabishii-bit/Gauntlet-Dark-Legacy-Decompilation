@@ -1103,6 +1103,129 @@ class ProposalGateTests(unittest.TestCase):
                         "probed_form": "swapped the two locals"})
         self.assertTrue(stage_record_proposal(record, root=self.root).exists())
 
+    # --- Gate M (run-49 item 5): a dead scratch-path command --------------
+    #
+    # T18 found an accepted record whose denial.expiry_check named only a
+    # lane scratch script. AGENTS.md rule 17 keeps `XX_scratch/` untracked
+    # and per-worktree, so the command is dead the moment the worktree is
+    # removed and the record reads as falsifiable while being unfalsifiable
+    # by anyone else. It stood that way for a full run.
+    #
+    # TWO-SIDED, at 4beafddf7 over all 574 command-bearing typed fields in
+    # records/ + inbox/: 7 name a *_scratch/ path, 6 of those ALSO name a
+    # runnable repo command, 1 is genuinely dead, 567 name no scratch path.
+    # A gate keyed on the scratch path alone would be wrong on 6 of 7 (86%).
+    DENIAL = {
+        "scope": "this function, this alignment",
+        "premise_measurement": "real 84, multiset IDENTICAL, 3 words differ",
+        "falsifier": "any source form that closes the branch displacement",
+    }
+
+    def denial_attempt(self, rid, expiry_check, **fields):
+        denial = dict(self.DENIAL, expiry_check=expiry_check, **fields)
+        return _attempt(rid, "function:test_fn", outcome="parked",
+                        denial=denial,
+                        attributes={"law_screen": "none applicable: test"})
+
+    def test_an_expiry_check_rooted_only_in_lane_scratch_is_refused(self):
+        record = self.denial_attempt(
+            "attempt.dead-expiry.v1",
+            "python MC_scratch/mc_valeq.py game/sys/memcard"
+            " drawMemCardMessage (gates A/B/C in one call, all through"
+            " shipped webfrank code). If gate C ever harvests a non-empty"
+            " substitution list this denial is void.")
+        with self.assertRaisesRegex(MemoryGraphError, "DEAD COMMAND"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_the_refusal_names_all_three_ways_to_discharge_it(self):
+        record = self.denial_attempt("attempt.dead-expiry2.v1",
+                                     "python XX_scratch/x.py foo")
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(record, root=self.root)
+        message = str(caught.exception)
+        self.assertIn("composed_census", message)
+        self.assertIn("beside it", message)
+
+    # The negative side, one test per escape the corpus actually uses.
+    def test_a_scratch_path_beside_a_repo_path_is_accepted(self):
+        record = self.denial_attempt(
+            "attempt.live-expiry-repo.v1",
+            "python MC_scratch/mc_screen_rest.py, or directly: python"
+            " tools/gdl/unabsorbed.py game/sys/memcard and read"
+            " check_prefs_loaded's class.")
+        self.assertTrue(
+            stage_record_proposal(record, root=self.root).exists())
+
+    def test_a_scratch_path_beside_a_build_path_is_accepted(self):
+        record = self.denial_attempt(
+            "attempt.live-expiry-build.v1",
+            "python MF_scratch/mf_bsslayout.py (or"
+            " `build/binutils/powerpc-eabi-objdump.exe -t"
+            " build/GUNE5D/src/game/anim/.postprocess/body/atree.o`)")
+        self.assertTrue(
+            stage_record_proposal(record, root=self.root).exists())
+
+    def test_a_scratch_path_beside_a_backticked_tool_name_is_accepted(self):
+        """WR's form: '(or `wf_word_diff` for the count)'. The tool
+        vocabulary is read from tools/gdl at gate time, so it cannot go
+        stale as tools are promoted or renamed."""
+        record = self.denial_attempt(
+            "attempt.live-expiry-tool.v1",
+            "`python WR_scratch/wr_wordscreen.py game/boss/bosscam"
+            " LimitCamVal2` (or `wf_word_diff` for the count)")
+        self.assertTrue(
+            stage_record_proposal(record, root=self.root).exists())
+
+    def test_an_ordinary_expiry_check_is_untouched(self):
+        """567 of the 574 measured fields are this shape."""
+        record = self.denial_attempt(
+            "attempt.live-expiry-plain.v1",
+            "python tools/gdl/probe.py game/audio/audio AudioLoadPart --ops")
+        self.assertTrue(
+            stage_record_proposal(record, root=self.root).exists())
+
+    def test_the_gate_covers_every_command_bearing_typed_field(self):
+        """premise_measurement and falsifier promise commands too, and one
+        of the seven measured scratch fields is a premise_measurement."""
+        self.assertEqual(
+            set(core.COMMAND_BEARING_FIELDS),
+            {("denial", "expiry_check"), ("denial", "falsifier"),
+             ("denial", "premise_measurement"),
+             ("hypothesis", "cheapest_refuting_observation")})
+
+    def test_a_dead_premise_measurement_is_refused_too(self):
+        record = self.denial_attempt(
+            "attempt.dead-premise.v1",
+            "python tools/gdl/probe.py game/x y --ops",
+            premise_measurement="python WS_scratch/ws_make_perm_rule.py"
+                                " game/world/items AddItemInstList")
+        with self.assertRaisesRegex(MemoryGraphError,
+                                    "premise_measurement"):
+            stage_record_proposal(record, root=self.root)
+
+    def test_the_classifier_is_directly_callable_and_names_the_path(self):
+        self.assertEqual(
+            core.dead_scratch_command("python MC_scratch/mc_valeq.py foo"),
+            "MC_scratch/")
+        self.assertIsNone(core.dead_scratch_command(""))
+        self.assertIsNone(core.dead_scratch_command(None))
+        self.assertIsNone(core.dead_scratch_command("ninja build/x.o"))
+
+    def test_a_bare_script_name_outside_scratch_counts_as_reachable(self):
+        self.assertIsNone(core.dead_scratch_command(
+            "python AA_scratch/a.py, or run wf_rederive_pin.py from the"
+            " repo root"))
+
+    def test_a_bare_tool_word_in_PROSE_does_not_count(self):
+        """'all through shipped webfrank code' names no command — this is
+        the distinction that separates the one true positive from the six
+        false ones, so backticks are required deliberately."""
+        self.assertEqual(
+            core.dead_scratch_command(
+                "python MC_scratch/mc_valeq.py foo (all through shipped"
+                " webfrank code)"),
+            "MC_scratch/")
+
     # --- run-39 item 7: the cap-STRENGTHENING path ------------------------
     # AGENTS.md's alignment-sensitivity rule is written entirely for the case
     # where a re-probed cap FLIPS. The other outcome is evidence too, and the
@@ -1698,9 +1821,15 @@ class RetrievalQueryTests(unittest.TestCase):
         self.assertNotIn(" …", pin["mechanism"])
 
     def test_law_rows_expose_falsifier_and_asserted_by(self):
-        row = law_corpus("live zero remat", root=self.root)["laws"][0]
-        self.assertEqual(row["asserted_by"], ["tools/gdl/webfrank.py"])
-        self.assertTrue(row["falsifier"])
+        """Both fields survive any request that is not the compact query
+        preview (run-49 item 4 moved them behind it — they are 23.5% of a
+        query payload's law bytes and nothing ranks on them)."""
+        for kwargs in ({"full": 1}, {"limit": 50}):
+            row = law_corpus("live zero remat", root=self.root,
+                             **kwargs)["laws"][0]
+            self.assertEqual(row["asserted_by"], ["tools/gdl/webfrank.py"],
+                             kwargs)
+            self.assertTrue(row["falsifier"], kwargs)
 
     # --- run 34 item 6: per-term hit counts + OR-rank --------------------
     def test_or_rank_surfaces_a_partial_match_the_and_filter_dropped(self):
@@ -1723,6 +1852,166 @@ class RetrievalQueryTests(unittest.TestCase):
     def test_a_single_term_query_reports_its_own_hit_count(self):
         result = law_corpus("allocator", root=self.root)
         self.assertEqual(result["query_term_hits"], {"allocator": 1})
+
+    # --- run-49 item 4: the query preview --------------------------------
+    #
+    # THE DEFECT (T18). run-34 item 6 made query terms OR-matched, which
+    # fixed a real failure (a spread query used to AND to zero) but selects
+    # every law carrying ANY term. Measured at 6daaa47b8 over ten queries
+    # against the LIVE corpus: 1,786 rows returned, 188 (10.5%) carry EVERY
+    # term. `laws --query "memory disambiguation"` was 150,351 bytes for 68
+    # rows of which 3 carry both terms -- T18's "~500KB spill for a 3-hit
+    # query" is `"live zero remat"`, 589,131 bytes for 279 rows / 19
+    # all-term. Byte breakdown of that payload's law array: evidence 24.6%,
+    # falsifier 18.9%, scope 5.6%, asserted_by 4.6% -- 53.7% in four fields
+    # nothing ranks on.
+    #
+    # AFTER, same ten queries at the same commit: 3,634,037 -> 242,932 bytes
+    # (93.3% cut); 8 previewed, 2 (`jumptable` 17 rows, `stfsu` 5) already
+    # under the preview and returned whole. `--tag core-screen` is untouched
+    # by construction (50 rows, unchanged), and pin_mechanisms is untouched
+    # by choice (run-37 item 5).
+    def test_a_plain_query_returns_the_compact_preview(self):
+        result = law_corpus("live zero remat", root=self.root)
+        self.assertIn("query_selection_note", result)
+        self.assertIn("laws_projection", result)
+        row = result["laws"][0]
+        for dropped in ("evidence", "scope", "falsifier", "asserted_by"):
+            self.assertNotIn(dropped, row)
+        for kept in ("id", "status", "score", "match",
+                     "query_terms_matched", "head"):
+            self.assertIn(kept, row)
+
+    def test_the_preview_reports_how_many_matched_and_how_many_were_cut(self):
+        """A silent cut reads as 'the corpus holds this many laws', which is
+        the false-all-clear class this corpus already has a rule about."""
+        result = law_corpus("live zero remat", root=self.root)
+        self.assertEqual(
+            result["query_matched_total"],
+            result["count"] + result["truncated"])
+
+    def test_an_explicit_limit_turns_the_preview_off(self):
+        result = law_corpus("live zero remat", root=self.root, limit=50)
+        self.assertNotIn("query_selection_note", result)
+        self.assertIn("falsifier", result["laws"][0])
+
+    def test_full_returns_every_field(self):
+        result = law_corpus("live zero remat", root=self.root, full=1)
+        self.assertNotIn("query_selection_note", result)
+        self.assertIn("evidence", result["laws"][0])
+
+    def test_a_TAG_screen_is_never_previewed(self):
+        """--tag core-screen is the MANDATORY de-fakematch screen; a preview
+        over it is the 'quieter screen nobody knew they ran' failure."""
+        result = law_corpus(root=self.root, tag="core-screen")
+        self.assertNotIn("query_selection_note", result)
+        result = law_corpus("allocator", root=self.root, tag="core-screen")
+        self.assertNotIn("query_selection_note", result)
+
+    def test_a_residual_query_keeps_its_own_projection(self):
+        result = law_corpus(root=self.root, residual="+1 addi -1 li")
+        self.assertNotIn("query_selection_note", result)
+
+    def test_an_unfiltered_browse_is_untouched(self):
+        result = law_corpus(root=self.root, include_provisional=1)
+        self.assertNotIn("query_selection_note", result)
+        self.assertNotIn("laws_projection", result)
+        self.assertIn("falsifier", result["laws"][0])
+
+    def test_pin_mechanisms_are_NOT_truncated_by_the_preview(self):
+        """run-37 item 5 measured that cutting pin prose discards 59.1% of
+        the corpus's derivations with the operative sentence in the tail.
+        Shrinking law rows must not quietly re-impose that cut."""
+        pin = law_corpus("carrier", root=self.root)["pin_mechanisms"][0]
+        self.assertEqual(pin["mechanism_chars"], len(pin["mechanism"]))
+        self.assertNotIn(" …", pin["mechanism"])
+
+    def test_a_query_under_the_preview_size_loses_nothing(self):
+        """The negative side: 2 of the 10 measured queries were already
+        under the preview. Such a query must report truncated 0."""
+        result = law_corpus("allocator", root=self.root)
+        self.assertEqual(result["truncated"], 0)
+        self.assertEqual(result["query_matched_total"], result["count"])
+
+    # --- run-49 item 9: laws --asserted-by, the INVALIDATION LINK ---------
+    #
+    # A law's asserted_by names the code that mechanically asserts it, so
+    # when a mechanism SHIPS the laws resting on that code are the ones
+    # whose grounds may have just moved. WF measured a shipped
+    # memory-disambiguation mechanism clearing the SECOND ground of a
+    # standing refusal, with nothing in the graph connecting the two.
+    #
+    # MATCHING IS BY SUBSTRING, forced by the corpus: 245 of 469
+    # asserted_by entries (52%) are not bare paths -- they carry `::symbol`
+    # suffixes, CLI flags or parenthetical prose. Equality vs substring at
+    # 471abd4ca: tools/gdl/webfrank.py 5 of 17, tools/gdl/probe.py 13 of 51,
+    # memory_graph/core.py 7 of 20, tools/gdl/fndiff.py 14 of 36 --
+    # 61-75% missed. An invalidation sweep that misses the law whose grounds
+    # moved has failed at its one job, so recall wins and every row prints
+    # the entry that matched.
+    def test_a_bare_path_finds_its_laws(self):
+        result = law_corpus(root=self.root, asserted_by="tools/gdl/webfrank.py")
+        ids = {row["id"] for row in result["laws"]}
+        self.assertIn(
+            "claim.law.live-zero-copy-vs-remat-is-allocator-not-source"
+            ".20260831.v1", ids)
+
+    def test_every_row_says_WHICH_entry_matched(self):
+        row = law_corpus(root=self.root,
+                         asserted_by="tools/gdl/webfrank.py")["laws"][0]
+        self.assertEqual(row["asserted_by_match"], ["tools/gdl/webfrank.py"])
+        self.assertIn("asserted-by", row["match"])
+
+    def test_a_directory_prefix_matches_a_whole_family(self):
+        """The right question when a family ships, not one file."""
+        result = law_corpus(root=self.root, asserted_by="tools/gdl/")
+        self.assertTrue(result["laws"])
+
+    def test_a_needle_nothing_names_returns_an_empty_LIST_not_the_corpus(self):
+        result = law_corpus(root=self.root,
+                            asserted_by="tools/gdl/nosuchtool.py")
+        self.assertEqual(result["laws"], [])
+        self.assertEqual(result["count"], 0)
+
+    def test_the_filter_is_HARD_and_outranks_a_query_term(self):
+        """'which laws rest on this code' — a law that does not name it is
+        not an answer however well it matches a term."""
+        result = law_corpus("allocator", root=self.root,
+                            asserted_by="tools/gdl/nosuchtool.py")
+        self.assertEqual(result["laws"], [])
+
+    def test_matching_is_case_and_separator_insensitive(self):
+        for needle in ("TOOLS/GDL/WEBFRANK.PY", "tools\\gdl\\webfrank.py"):
+            self.assertTrue(
+                law_corpus(root=self.root, asserted_by=needle)["laws"], needle)
+
+    def test_necessity_language_is_reported_and_not_ranked_on(self):
+        """Measured 17/17, 46/51, 19/20 on the three live needles, so it
+        separates almost nothing; reporting it beats ordering by it."""
+        result = law_corpus(root=self.root, asserted_by="tools/gdl/webfrank.py")
+        self.assertIn("necessity_language", result["laws"][0])
+        self.assertIn("NOT ranked on", result["asserted_by_note"])
+
+    def test_the_non_law_remainder_is_counted_not_silently_dropped(self):
+        """Attempt records carry asserted_by too, and a mechanism change can
+        invalidate one of those."""
+        result = law_corpus(root=self.root, asserted_by="tools/gdl/webfrank.py")
+        self.assertGreaterEqual(result["asserted_by_records_total"],
+                                result["count"])
+        self.assertIn("asserted_by_non_law_records", result)
+
+    def test_the_filter_is_TARGETED_so_provisional_laws_are_retained(self):
+        """A filter that quietly drops matches turns 'not verified yet' into
+        'the graph is silent' — the rule the provisional policy states."""
+        result = law_corpus(root=self.root, asserted_by="tools/gdl/webfrank.py")
+        self.assertEqual(result["hidden_provisional"], 0)
+
+    def test_the_query_preview_never_projects_an_asserted_by_result(self):
+        """asserted_by_match would be the first thing a projection dropped."""
+        result = law_corpus("live zero remat", root=self.root,
+                            asserted_by="tools/gdl/webfrank.py")
+        self.assertNotIn("query_selection_note", result)
+        self.assertIn("asserted_by_match", result["laws"][0])
 
     # --- laws --residual -------------------------------------------------
     def test_residual_signature_finds_sibling_records(self):
@@ -5018,8 +5307,51 @@ def changed_paths(base=None, root=core.REPO_ROOT):
     return paths, description
 
 
+def committed_range_base(root=core.REPO_ROOT):
+    """The ref a CLEAN tree should be compared against, or None.
+
+    THE DEFECT (run-49 item 7, DA). `--changed` with no `--since` reads
+    `git status`, which describes the WORKING TREE. The suite is a
+    per-COMMIT gate (AGENTS.md discipline 13), and after the commit the tree
+    is clean — so the gate reads nothing and SKIPs precisely when it is
+    being run for its stated purpose. Reproduced at e78f1d202 on a tree
+    whose only uncommitted path was an untracked LANE_LOCK, one command
+    after a commit touching `tools/gdl/savedregs.py`, a graph BUILD INPUT:
+
+        graph-suite --changed: 1 changed path(s) from `git status ...`
+          irrelevant: LANE_LOCK
+        SKIP: no changed path under memory_graph/, tools/gdl/, ...
+
+    The right question for a clean tree is what this BRANCH has changed, so
+    the base is the merge-base with `main`. On `main` itself (or wherever
+    the merge-base IS HEAD, so the range would be empty) it falls back to
+    `HEAD~1`, which is the per-commit question spelled literally. Returns
+    None only when neither exists — a root commit or a broken git — and the
+    caller then fails OPEN and runs.
+    """
+    import subprocess
+
+    def git(*args):
+        result = subprocess.run(["git", *args], cwd=str(root),
+                                capture_output=True, text=True)
+        return result.stdout.strip() if result.returncode == 0 else None
+
+    head = git("rev-parse", "HEAD")
+    for candidate in (git("merge-base", "HEAD", "main"),
+                      git("rev-parse", "HEAD~1")):
+        if candidate and candidate != head:
+            return candidate
+    return None
+
+
 def changed_gate(base=None, root=core.REPO_ROOT, stream=sys.stdout) -> bool:
-    """True = run the suite. Prints the paths it compared, both ways."""
+    """True = run the suite. Prints the paths it compared, both ways.
+
+    With an explicit `base` this compares that range and nothing else. With
+    no base it reads the working tree FIRST and, when the tree names nothing
+    relevant, ALSO reads the committed range (see `committed_range_base`) —
+    a second look that can only turn a SKIP into a RUN, never the reverse.
+    """
     try:
         paths, description = changed_paths(base=base, root=root)
     except Exception as error:                      # noqa: BLE001
@@ -5041,6 +5373,35 @@ def changed_gate(base=None, root=core.REPO_ROOT, stream=sys.stdout) -> bool:
         print(f"  irrelevant: {rel}", file=stream)
     if len(paths) > 20:
         print(f"  ... and {len(paths) - 20} more", file=stream)
+    if base is None:
+        fallback = committed_range_base(root=root)
+        if fallback is None:
+            print("graph-suite --changed: RUN — the working tree names"
+                  " nothing relevant and no committed range exists to"
+                  " compare against (root commit, or git unreadable)",
+                  file=stream)
+            return True
+        try:
+            committed, description = changed_paths(base=fallback, root=root)
+        except Exception as error:                  # noqa: BLE001
+            print(f"graph-suite --changed: RUN (cannot read the committed"
+                  f" range: {error})", file=stream)
+            return True
+        committed_relevant = graph_suite_relevant(committed)
+        print(f"graph-suite --changed: the working tree decides nothing, so"
+              f" also comparing the COMMITTED range —"
+              f" {len(committed)} path(s) from `{description}`", file=stream)
+        if committed_relevant:
+            for rel in committed_relevant[:20]:
+                print(f"  relevant (committed): {rel}", file=stream)
+            if len(committed_relevant) > 20:
+                print(f"  ... and {len(committed_relevant) - 20} more",
+                      file=stream)
+            print(f"RUN: {len(committed_relevant)} committed path(s) under"
+                  f" {', '.join(GRAPH_SUITE_INPUT_ROOTS)} — this is a"
+                  " per-COMMIT gate, and `git status` cannot see the commit"
+                  " you just made", file=stream)
+            return True
     print(f"SKIP: no changed path under"
           f" {', '.join(GRAPH_SUITE_INPUT_ROOTS)}", file=stream)
     return False
@@ -5133,11 +5494,132 @@ class ChangedModeTests(unittest.TestCase):
         def fake(base=None, root=None):
             return ["src/game/ui/select.c", "AGENTS.md"], "fake"
 
-        with mock.patch.object(sys.modules[__name__], "changed_paths", fake):
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: "abc1234"):
             self.assertFalse(changed_gate(stream=stream))
         text = stream.getvalue()
         self.assertIn("irrelevant: src/game/ui/select.c", text)
         self.assertIn("SKIP:", text)
+
+    # --- run-49 item 7: the per-COMMIT question ---------------------------
+    #
+    # THE DEFECT (DA). The suite is a per-COMMIT gate (AGENTS.md discipline
+    # 13) and bare `--changed` read `git status`, which describes the WORKING
+    # TREE — so after the commit the tree is clean and the gate SKIPs exactly
+    # when it is being run for its stated purpose. Reproduced at e78f1d202,
+    # one command after a commit touching `tools/gdl/savedregs.py` (a graph
+    # BUILD INPUT), on a tree whose only uncommitted path was an untracked
+    # LANE_LOCK:
+    #
+    #     graph-suite --changed: 1 changed path(s) from `git status ...`
+    #       irrelevant: LANE_LOCK
+    #     SKIP: no changed path under memory_graph/, tools/gdl/, ...
+    #
+    # The second look can only turn a SKIP into a RUN, so the gate stays
+    # conservative in the direction that matters.
+    def _clean_tree_then(self, committed):
+        calls = []
+
+        def fake(base=None, root=None):
+            calls.append(base)
+            if base is None:
+                return ["LANE_LOCK"], "git status (clean but for LANE_LOCK)"
+            return committed, f"git diff --name-only {base}..HEAD"
+
+        return fake, calls
+
+    def test_a_clean_tree_falls_back_to_the_committed_range(self):
+        stream = io.StringIO()
+        fake, calls = self._clean_tree_then(["tools/gdl/savedregs.py"])
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: "c8a28c3bb"):
+            self.assertTrue(changed_gate(stream=stream))
+        text = stream.getvalue()
+        self.assertIn("irrelevant: LANE_LOCK", text)
+        self.assertIn("relevant (committed): tools/gdl/savedregs.py", text)
+        self.assertIn("per-COMMIT gate", text)
+        self.assertEqual(calls, [None, "c8a28c3bb"])
+
+    def test_a_clean_tree_whose_commits_are_irrelevant_still_skips(self):
+        """The negative side: the second look must not turn every clean
+        tree into a RUN, or the gate is worth nothing."""
+        stream = io.StringIO()
+        fake, _calls = self._clean_tree_then(["src/game/ui/select.c"])
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: "c8a28c3bb"):
+            self.assertFalse(changed_gate(stream=stream))
+        self.assertIn("SKIP:", stream.getvalue())
+
+    def test_an_explicit_since_is_never_second_guessed(self):
+        """`--since` names the range the caller wants; consulting another
+        one behind their back would make the flag a suggestion."""
+        stream = io.StringIO()
+        calls = []
+
+        def fake(base=None, root=None):
+            calls.append(base)
+            return ["src/game/ui/select.c"], "fake"
+
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake):
+            self.assertFalse(changed_gate(base="deadbee", stream=stream))
+        self.assertEqual(calls, ["deadbee"])
+
+    def test_no_committed_range_at_all_fails_OPEN(self):
+        stream = io.StringIO()
+        fake, _calls = self._clean_tree_then([])
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: None):
+            self.assertTrue(changed_gate(stream=stream))
+        self.assertIn("no committed range exists", stream.getvalue())
+
+    def test_a_broken_committed_range_read_fails_OPEN(self):
+        stream = io.StringIO()
+
+        def fake(base=None, root=None):
+            if base is None:
+                return ["LANE_LOCK"], "status"
+            raise RuntimeError("bad revision")
+
+        with mock.patch.object(sys.modules[__name__], "changed_paths", fake), \
+                mock.patch.object(sys.modules[__name__],
+                                  "committed_range_base",
+                                  lambda root=None: "abc1234"):
+            self.assertTrue(changed_gate(stream=stream))
+        self.assertIn("cannot read the committed range", stream.getvalue())
+
+    def test_the_base_prefers_the_merge_base_and_falls_back_to_HEAD_1(self):
+        """On a branch the question is what the BRANCH changed; on main the
+        merge-base IS HEAD, so the literal per-commit range is used."""
+        import subprocess
+
+        def run(argv, **kwargs):
+            key = tuple(argv[1:])
+            table = {
+                ("rev-parse", "HEAD"): "headsha",
+                ("merge-base", "HEAD", "main"): self.merge_base,
+                ("rev-parse", "HEAD~1"): self.parent,
+            }
+            value = table.get(key)
+            return subprocess.CompletedProcess(
+                argv, 0 if value else 1, value or "", "")
+
+        self.merge_base, self.parent = "basesha", "parentsha"
+        with mock.patch("subprocess.run", run):
+            self.assertEqual(committed_range_base(), "basesha")
+        self.merge_base, self.parent = "headsha", "parentsha"
+        with mock.patch("subprocess.run", run):
+            self.assertEqual(committed_range_base(), "parentsha")
+        self.merge_base, self.parent = "headsha", None
+        with mock.patch("subprocess.run", run):
+            self.assertIsNone(committed_range_base())
 
     def test_gate_runs_on_a_graph_path(self):
         stream = io.StringIO()

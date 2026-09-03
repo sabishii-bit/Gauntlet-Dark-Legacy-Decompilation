@@ -1,0 +1,24 @@
+{
+  "asserted_by": [
+    "memory_graph/core.py::dead_scratch_command",
+    "memory_graph/core.py::_apply_proposal_gates",
+    "memory_graph/core.py::COMMAND_BEARING_FIELDS",
+    "memory_graph/test_graph.py::ProposalGateTests"
+  ],
+  "attributes": {
+    "tags": [
+      "workflow",
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Re-run the sweep over every denial/hypothesis command field in memory_graph/records + inbox: a field that names ONLY a *_scratch/ path and is nevertheless runnable by a later lane (because that directory was promoted into the repo, or the convention changed) refutes the 'dead by construction' half. A refused proposal whose scratch script IS reachable refutes the discriminant. memory_graph/test_graph.py ProposalGateTests carries both sides.",
+  "id": "claim.law.T19_an-expiry-check-rooted-only-in-lane-scratch-is-a-dead-command-by-construction.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T22:05:44Z",
+  "schema_version": 1,
+  "subject": "tool:gdl-memory-graph",
+  "valid_from": "2026-09-03",
+  "value": "A typed command field (denial.expiry_check, denial.falsifier, denial.premise_measurement, hypothesis.cheapest_refuting_observation) whose ONLY runnable reference is a `<LANE>_scratch/` path is dead by construction: AGENTS.md rule 17 keeps those directories untracked and per-worktree, so the script is gone the moment its lane's worktree is removed. The record then reads as falsifiable while nobody but its author can ever falsify it. T18 found exactly one such record standing for a full run. THE DISCRIMINANT IS THE FALLBACK, NOT THE SCRATCH PATH, and the negative side is what proves it: measured at 4beafddf7 over all 574 command-bearing typed fields in records/ + inbox/, 7 name a *_scratch/ path and 6 of those ALSO name something runnable -- four name tools/gdl/... outright, one names build/binutils/powerpc-eabi-objdump.exe, one offers `(or `wf_word_diff` for the count)`. A gate keyed on the scratch path alone refuses 7 and is WRONG on 6 (86%). Only one field, the expiry_check of attempt.MC_drawmemcardmessage-every-existing-class-refuses-including-value-equality.20260902.v1, offers nothing but the prose 'all through shipped webfrank code', which names no command. Gate M therefore refuses only when a scratch path is present AND the same field names no repo directory path, no bare <name>.py, no ninja/gdlmem/configure.py, and no BACKTICKED tools/gdl basename; backticks are required deliberately, because matching bare tool words anywhere in the prose accepts that same 'shipped webfrank code' phrase and loses the one true positive. The tool vocabulary is read from tools/gdl and tools/gdl/composed_census at gate time (176 names at 4beafddf7) so it cannot go stale as tools are promoted or renamed. The gate binds NEW proposals only, so no accepted record is retroactively invalidated."
+}

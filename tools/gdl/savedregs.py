@@ -76,19 +76,31 @@ Zero builds by construction: it decodes the objects already on disk through
 fnasm.parse_fn. If an object is missing it says so rather than building one,
 because a build here would silently rescore the thing you are reading.
 
+ON A WEBFRANK-PINNED FUNCTION, READ `--raw` (run-49 item 6). Without it this
+tool decodes our POSTPROCESSED object, whose body a pin drives toward the
+target by construction — so the table reports the postprocessor's work as if
+it were the compiler's. Measured over all 156 pinned functions: 132 (85%)
+read differently under `--raw`, and on 84 (54%) the ASSIGNMENT verdict FLIPS
+(default MATCHES, `--raw` contradicts; never the reverse). The default is
+unchanged — on an UNPINNED function the two reads are the same object, and
+in a TU with no `.postprocess` stage `--raw` refuses outright — but a pinned
+function now prints the paragraph saying which body it read.
+
 IMPORTABLE CORE: parse_instruction, first_definitions, all_definitions,
 lifetime_pairs, correspondence, permutation, format_table, in_window,
-contenders, is_ambiguous, unresolved_note — all pure over
+contenders, is_ambiguous, unresolved_note, pin_warning — all pure over
 decoded row lists, no build and no printing, and importing this module has
 no side effects. Call them in-process for a sweep instead of one subprocess
 per function (run-43 item 10; the convention is documented in AGENTS.md).
 """
 
+import json
 import re
 import sys
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
+REPO = TOOLS.parent.parent
 sys.path.insert(0, str(TOOLS))
 
 import fnasm  # noqa: E402
@@ -858,8 +870,74 @@ def format_per_web(target_rows, our_rows, registers, lpairs=None):
     return lines
 
 
+def webfrank_pins(root=None):
+    """{(unit, function)} for every rule in config/GUNE5D/webfrank.json.
+
+    Fails SOFT: a checkout with no config gets an empty set, and every
+    function then prints exactly what it printed before this existed.
+    """
+    base = Path(root) if root is not None else REPO
+    try:
+        data = json.loads((base / "config" / "GUNE5D" / "webfrank.json")
+                          .read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return set()
+    pins = set()
+    for unit, rules in (data.get("units") or {}).items():
+        if not isinstance(rules, list):
+            continue
+        for rule in rules:
+            if isinstance(rule, dict) and rule.get("function"):
+                pins.add((unit, rule["function"]))
+    return pins
+
+
+def pin_warning(unit, fn, raw, pins):
+    """The paragraph a PINNED function's default read must carry, or None.
+
+    THE DEFECT (run-49 item 6, DA). Without `--raw` this tool decodes our
+    POSTPROCESSED object, and on a webfrank-pinned function that body is
+    driven toward the target by construction — so the table reports the
+    postprocessor's work as if it were the compiler's, and prints
+    `ASSIGNMENT MATCHES` about source that does not produce that assignment.
+
+    TWO-SIDED CENSUS at 976321418 over all 156 pinned functions (every one
+    decodable in both modes):
+
+        default table == --raw table                24  (15%)
+        default table DIFFERS from --raw           132  (85%)
+        ... of which the ASSIGNMENT VERDICT flips    84  (54%)
+
+    All 84 flip the same way — the default says `ASSIGNMENT MATCHES` and
+    `--raw` contradicts it. None flips the other way.
+
+    The NEGATIVE side is why this is a warning on the default rather than a
+    change of default: on an UNPINNED function the two reads are the same
+    object (measured identical on game/world/camera::camera_mode_dest and
+    game/game/player::do_players), and in a TU with no `.postprocess` stage
+    `--raw` REFUSES outright, so warning there would be noise and switching
+    the default would break every unpinned caller for nothing. The default
+    stays; the pinned 156 get told what they are reading.
+    """
+    if raw or (unit, fn) not in pins:
+        return None
+    return (
+        f"  WEBFRANK-PINNED: {unit}::{fn} carries a postprocessor rule, and"
+        " this table decoded our POSTPROCESSED object. Every row above"
+        " therefore describes the body AFTER the rule ran, which is driven"
+        " toward the target by construction — not what your source compiles"
+        " to. Measured over all 156 pinned functions: 132 (85%) read"
+        " differently under `--raw`, and on 84 (54%) the ASSIGNMENT verdict"
+        " FLIPS — the default says MATCHES and `--raw` contradicts it, never"
+        " the other way round."
+        f"\n  RE-READ IT: `python tools/gdl/savedregs.py {unit} {fn} --raw`"
+        " decodes the pre-webfrank body, which is the one your declaration"
+        " list controls. Arbitrate any source work on THAT table; this one"
+        " is the shipped result, not the compiler's answer.")
+
+
 def format_table(unit, fn, target_rows, our_rows, show_uses=False,
-                 per_web=False):
+                 per_web=False, raw=False, pins=None):
     registers = GPR_SAVED + FPR_SAVED
     target_defs = first_definitions(target_rows, registers)
     our_defs = first_definitions(our_rows, registers)
@@ -932,6 +1010,18 @@ def format_table(unit, fn, target_rows, our_rows, show_uses=False,
                      " question and nothing else — read the scope lines"
                      " below before treating it as an all-clear.")
 
+    # THE PIN PARAGRAPH, directly under the verdict it qualifies and ABOVE
+    # the scope lines: on a pinned function it decides whether the verdict
+    # describes the compiler at all, which outranks what the table did not
+    # compare.
+    # `pins` is passed IN rather than read here so format_table keeps its
+    # IMPORTABLE CORE promise (pure over decoded rows, no I/O). main() reads
+    # webfrank.json once; a sweep passes `webfrank_pins()` once for all
+    # functions instead of re-reading the config per call.
+    warning = pin_warning(unit, fn, raw, pins or set())
+    if warning:
+        lines.append(warning)
+
     lpairs = lifetime_pairs(target_rows, our_rows)
     _later_mismatches, count_diffs = web_mismatches(
         target_rows, our_rows, registers)
@@ -986,7 +1076,8 @@ def main():
         return 1
     print(format_table(unit, fn, target_rows, our_rows,
                        show_uses="--uses" in sys.argv,
-                       per_web="--per-web" in sys.argv))
+                       per_web="--per-web" in sys.argv, raw=raw,
+                       pins=webfrank_pins()))
     return 0
 
 

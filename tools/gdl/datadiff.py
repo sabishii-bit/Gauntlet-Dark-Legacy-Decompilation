@@ -48,8 +48,20 @@ claims the range. Measured over the 53 rows: 21 `shrinkable`, 32
 
 NONZERO slack still fails: real bytes are missing from our object.
 
-IMPORTABLE CORE: section_verdict, shrink_reachable -- pure over bytes
-already read, no subprocess and no build.
+`--sections` SPEAKS THE SAME VERDICT (run-49 item 3). It used to call every
+per-section SIZE mismatch a FLIP BLOCKER while the byte mode called the SAME
+bytes advisory: measured at 96d689120 on dolphin/si/SIBios, an
+`Object(Matching, ...)` unit that is linked and green,
+
+    plain      .data: DATA-DEBT 0xCD bytes compared, 0x3 claim slack
+               (zero-filled; structural - advisory, not a flip blocker)  exit 0
+    --sections .data: SIZE target 0xD0 vs ours 0xCD  <- FLIP BLOCKER      exit 1
+
+Three bytes, two labels, opposite exit codes. `size_gap_class` now decides,
+and `--strict-slack` restores the refusing behaviour for both modes at once.
+
+IMPORTABLE CORE: section_verdict, shrink_reachable, size_gap_class -- pure
+over bytes already read, no subprocess and no build.
 
 DEAD-STRIP SCREEN (claim.law.base-cast-reconstruction-deadstrips-sibling-statics)
 --------------------------------------------------------------------------------
@@ -440,7 +452,102 @@ def check_unit(unit, claims, run_deadstrip=True, starts=None,
     return bad
 
 
-def section_table(unit_key):
+def section_sizes(obj):
+    """{section name: size} from `objdump -h`."""
+    out = subprocess.run([str(OBJDUMP), "-h", str(obj)],
+                         capture_output=True, text=True).stdout
+    table = {}
+    for m in re.finditer(
+            r"^\s*\d+\s+(\.\w[\w.]*)\s+([0-9a-f]{8})", out, re.M):
+        table[m.group(1)] = int(m.group(2), 16)
+    return table
+
+
+def section_bytes(obj, sec):
+    """The raw bytes of one section from `objdump -s`."""
+    out = subprocess.run([str(OBJDUMP), "-s", "-j", sec, str(obj)],
+                         capture_output=True, text=True).stdout
+    data = bytearray()
+    for line in out.splitlines():
+        m = re.match(r"^ [0-9a-f]+ ((?:[0-9a-f]{2,8} ?){1,4}) ", line)
+        if m:
+            data += bytes.fromhex(m.group(1).replace(" ", ""))
+    return bytes(data)
+
+
+def size_gap_class(target_bytes, our_bytes, bss=False):
+    """Classify a section SIZE mismatch: 'debt' classes vs 'blocker' classes.
+
+    ONE VERDICT FOR ONE FACT (run-49 item 3). `--sections` called every size
+    mismatch a FLIP BLOCKER while the byte mode called the SAME bytes
+    advisory DATA-DEBT. Measured at 96d689120 on dolphin/si/SIBios — a unit
+    that is `Object(Matching, ...)`, linked, and green:
+
+        plain      .data: DATA-DEBT 0xCD bytes compared, 0x3 claim slack
+                   (zero-filled; structural - advisory, not a flip blocker)
+                   exit 0
+        --sections .data: SIZE target 0xD0 vs ours 0xCD  <- FLIP BLOCKER
+                   exit 1
+
+    Same three bytes, two labels, opposite exit codes. The advisory label is
+    the proven one: the byte mode's own reclassification (docstring above)
+    was justified by 44 already-shipped units, and this unit is one of them.
+
+    TWO-SIDED CENSUS at 96d689120 over `--sections --matching`, i.e. over
+    units that have ALREADY flipped and link green, so every FLIP BLOCKER
+    row there is a false positive by construction: 231 rows printed, 74
+    flagged, and the 74 decompose as
+
+        54  zero-filled tail over an identical head  -> debt-zero-slack
+        19  .bss/.sbss claim slack, target larger    -> debt-bss-slack
+         1  OURS LARGER than target                  -> stays a blocker
+         0  nonzero tail (real bytes missing)        -> stays a blocker
+         0  differing head                           -> stays a blocker
+
+    The 54 are the same rows the byte mode already counts as DATA-DEBT (its
+    own summary reads 54 sections over 45 units), so this is one label
+    removed, not a new leniency. The 19 bss rows are the same argument made
+    stronger: .bss occupies NO DOL bytes, and the byte mode does not screen
+    bss at all, so nothing was ever measured against the image there.
+
+    FALSIFIER: a unit whose only section residue is a zero-filled
+    target-larger tail (or bss claim slack) and which nevertheless fails the
+    full-link `main.dol: OK` gate. `--strict-slack` restores the refusing
+    behaviour for both classes.
+
+    The remaining blocker classes are unchanged, including OURS-LARGER,
+    which is the case this mode exists for: the DOL-range byte check is
+    structurally blind to our object emitting MORE than the target.
+    """
+    tlen = len(target_bytes) if target_bytes is not None else 0
+    olen = len(our_bytes) if our_bytes is not None else 0
+    if olen > tlen:
+        return "blocker-ours-larger"
+    if bss:
+        return "debt-bss-slack"
+    if target_bytes[:olen] != our_bytes:
+        return "blocker-head-differs"
+    if any(target_bytes[olen:]):
+        return "blocker-nonzero-tail"
+    return "debt-zero-slack"
+
+
+GAP_BLURB = {
+    "debt-zero-slack": ("the target's extra bytes are ZERO over an identical"
+                        " head — the same claim slack the byte mode scores"
+                        " advisory; the linker regenerates it"),
+    "debt-bss-slack": ("bss claim slack — bss occupies NO bytes in the DOL,"
+                       " and the byte mode does not screen it at all"),
+    "blocker-ours-larger": ("OURS is LARGER than the target — the DOL-range"
+                            " byte check is structurally blind to this"),
+    "blocker-nonzero-tail": ("the target's extra bytes are NONZERO — real"
+                             " bytes are missing from ours"),
+    "blocker-head-differs": ("the compared head DIFFERS, so this is not a"
+                             " pure claim-slack gap"),
+}
+
+
+def section_table(unit_key, strict_slack=False, debt=None):
     """--sections: ours-vs-target per-section size + match table.
 
     Compares our built object's data-class sections directly against the
@@ -449,6 +556,10 @@ def section_table(unit_key):
     object emitting MORE bytes than the target object (the DOL range
     compares fine; the objects differ), and surfaces the per-section
     match state that objdiff's all-or-nothing matched_data hides.
+
+    A SIZE mismatch is classified by `size_gap_class` rather than being
+    called a FLIP BLOCKER unconditionally — see that function for the
+    contradiction this removes and the census behind it.
     """
     base = unit_key.rsplit(".", 1)[0]
     ours_o = ours_object(base)
@@ -458,26 +569,8 @@ def section_table(unit_key):
         print(f"[{unit_key}] SKIP --sections: missing {missing}")
         return 1
 
-    def sections(obj):
-        out = subprocess.run([str(OBJDUMP), "-h", str(obj)],
-                             capture_output=True, text=True).stdout
-        table = {}
-        for m in re.finditer(
-                r"^\s*\d+\s+(\.\w[\w.]*)\s+([0-9a-f]{8})", out, re.M):
-            table[m.group(1)] = int(m.group(2), 16)
-        return table
-
-    def content(obj, sec):
-        out = subprocess.run([str(OBJDUMP), "-s", "-j", sec, str(obj)],
-                             capture_output=True, text=True).stdout
-        data = bytearray()
-        for line in out.splitlines():
-            m = re.match(r"^ [0-9a-f]+ ((?:[0-9a-f]{2,8} ?){1,4}) ", line)
-            if m:
-                data += bytes.fromhex(m.group(1).replace(" ", ""))
-        return bytes(data)
-
-    ts, os_ = sections(tgt_o), sections(ours_o)
+    content = section_bytes
+    ts, os_ = section_sizes(tgt_o), section_sizes(ours_o)
     bad = 0
     for sec in DATA_SECTIONS + ("extab", "extabindex",
                                 ".bss", ".sbss", ".sbss2"):
@@ -485,9 +578,26 @@ def section_table(unit_key):
         if tlen is None and olen is None:
             continue
         if tlen != olen:
+            bss = sec.startswith((".bss", ".sbss"))
+            tb = content(tgt_o, sec) if tlen and not bss else b""
+            ob = content(ours_o, sec) if olen and not bss else b""
+            if bss:
+                # No contents exist to compare; the sizes decide.
+                gap = ("blocker-ours-larger" if (olen or 0) > (tlen or 0)
+                       else "debt-bss-slack")
+            else:
+                gap = size_gap_class(tb, ob, bss=False)
+            blocks = gap.startswith("blocker") or strict_slack
+            mark = "FLIP BLOCKER" if blocks else "DATA-DEBT"
             print(f"[{unit_key}] {sec}: SIZE target 0x{tlen or 0:X} vs"
-                  f" ours 0x{olen or 0:X}  <- FLIP BLOCKER")
-            bad += 1
+                  f" ours 0x{olen or 0:X}  <- {mark} — {GAP_BLURB[gap]}"
+                  + ("  [--strict-slack: counted as a blocker]"
+                     if strict_slack and not gap.startswith("blocker")
+                     else ""))
+            if blocks:
+                bad += 1
+            elif debt is not None:
+                debt.append((unit_key, sec, (tlen or 0) - (olen or 0), gap))
             continue
         if sec.startswith((".bss", ".sbss")):
             print(f"[{unit_key}] {sec}: size 0x{tlen:X} equal (bss)")
@@ -552,6 +662,7 @@ def main():
     bad = 0
     starts = claimed_starts(units)
     debt = []
+    section_debt = []
     for t in targets:
         key = next((k for k in units if k.rsplit(".", 1)[0] == t or k == t), None)
         if key is None:
@@ -565,7 +676,8 @@ def main():
             deadstrip_check(key, obj, quiet_ok=False)
             continue
         if only_sections:
-            bad += section_table(key)
+            bad += section_table(key, strict_slack=strict_slack,
+                                 debt=section_debt)
             continue
         bad += check_unit(key, units[key], run_deadstrip=run_deadstrip,
                           starts=starts, strict_slack=strict_slack, debt=debt)
@@ -583,6 +695,17 @@ def main():
         print("  structural rows are NOT fixable: claim.law.AF_dtk-rejects-an-"
               "unaligned-auto-split-start-so-some-claim-slack-is-structural"
               ".20260903.v1.")
+    if section_debt:
+        zero = [d for d in section_debt if d[3] == "debt-zero-slack"]
+        total = sum(d[2] for d in section_debt)
+        print(f"\nSECTION-SIZE DEBT (advisory, exit code unaffected):"
+              f" {len(section_debt)} section(s) over"
+              f" {len({d[0] for d in section_debt})} unit(s), {total} bytes;"
+              f" {len(zero)} zero-filled claim slack (the SAME rows the byte"
+              f" mode reports as DATA-DEBT), {len(section_debt)-len(zero)}"
+              " bss claim slack (no DOL bytes).")
+        print("  --strict-slack counts these as flip blockers again;"
+              " OURS-LARGER, a nonzero tail and a differing head always do.")
     return 1 if bad else 0
 
 

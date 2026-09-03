@@ -234,6 +234,38 @@ LAW_STATUS_NOTES = {
 # re-checkable by somebody else.
 DENIAL_FIELDS = ("scope", "premise_measurement", "expiry_check", "falsifier")
 
+# Gate M (run-49 item 5). The four typed fields that promise a COMMAND a
+# later lane can run. Each is the mechanism by which a denial or a hypothesis
+# stops being immortal, so a command nobody can run is the same failure as
+# having no command at all — worse, because the record reads as falsifiable.
+COMMAND_BEARING_FIELDS = (
+    ("denial", "expiry_check"),
+    ("denial", "falsifier"),
+    ("denial", "premise_measurement"),
+    ("hypothesis", "cheapest_refuting_observation"),
+)
+# A lane scratch directory is UNTRACKED and per-worktree by AGENTS.md rule 17
+# ("Lane scratch directories stay UNTRACKED ... never `git add` your
+# XX_scratch/"), so a command rooted there is dead the moment its lane's
+# worktree is removed. This is the only path class that is dead BY
+# CONSTRUCTION rather than by accident.
+_LANE_SCRATCH_RE = re.compile(r"\b[A-Za-z0-9]{1,12}_scratch[\\/]", re.I)
+# What makes a field still runnable. Any ONE of these is enough.
+_REPO_DIR_RE = re.compile(
+    r"\b(?:tools|memory_graph|build|config|src|include|research|orig)[\\/]",
+    re.I)
+_REPO_BARE_RE = re.compile(r"\b(?:ninja|gdlmem|configure\.py)\b", re.I)
+# A bare `<name>.py` with no directory in front of it — "run wf_word_diff.py"
+# — is reachable; one INSIDE a scratch path is not, and the lookbehind is
+# what separates them.
+_BARE_SCRIPT_RE = re.compile(r"(?<![\w\\/])([A-Za-z0-9_]+)\.py\b")
+# A BACKTICKED tool name, which is how the corpus writes an alternative
+# command: "(or `wf_word_diff` for the count)". Backticks are required
+# deliberately — matching bare tool basenames anywhere in the prose accepts
+# "all through shipped webfrank code", which names no command at all and is
+# exactly the record this gate exists to refuse.
+_BACKTICK_RE = re.compile(r"`([^`]*)`")
+
 # A HYPOTHESIS is discipline 10b's payload: the untried idea a record ends on,
 # which becomes the next lane's MANDATORY step 1. Prose hypotheses are
 # extracted by phrase match today, which is a guess; the typed form is exact
@@ -4653,7 +4685,13 @@ def record_template(kind: str) -> dict[str, Any]:
                                        " command and its numbers>",
                 "expiry_check": "<REQUIRED if present: the COMMAND a later"
                                 " lane runs to see whether this still holds."
-                                " A denial with no expiry check is immortal>",
+                                " A denial with no expiry check is immortal;"
+                                " one rooted in YOUR_scratch/ is refused"
+                                " (gate M) because that directory is"
+                                " untracked and per-worktree — promote the"
+                                " script, name the shipped tool it wraps, or"
+                                " put the repo-reachable equivalent beside"
+                                " it>",
                 "falsifier": "<REQUIRED if present: what evidence would"
                              " DISPROVE the denial>",
             },
@@ -4822,6 +4860,65 @@ def _mechanism_terms(text: str) -> set[str]:
     """Content words in ``text`` that could name a mechanism."""
     return {token.lower() for token in _TOKEN_RE.findall(text or "")
             if len(token) >= 4 and token.lower() not in _HYPOTHESIS_STOPWORDS}
+
+
+_TOOL_BASENAME_CACHE: dict[str, frozenset[str]] = {}
+
+
+def repo_tool_basenames(root: Path = REPO_ROOT) -> frozenset[str]:
+    """Every runnable tool basename under tools/gdl, cached per root.
+
+    Read from the filesystem rather than listed here so the vocabulary
+    cannot go stale as tools are added, promoted or renamed. 176 names at
+    4beafddf7 (tools/gdl plus tools/gdl/composed_census).
+    """
+    key = str(root)
+    cached = _TOOL_BASENAME_CACHE.get(key)
+    if cached is not None:
+        return cached
+    names: set[str] = set()
+    tools = Path(root) / "tools" / "gdl"
+    for directory in (tools, tools / "composed_census"):
+        try:
+            names.update(path.stem for path in directory.glob("*.py"))
+        except OSError:
+            continue
+    frozen = frozenset(names)
+    _TOOL_BASENAME_CACHE[key] = frozen
+    return frozen
+
+
+def dead_scratch_command(text: Any, root: Path = REPO_ROOT) -> str | None:
+    """The lane-scratch path making ``text`` unrunnable, or None.
+
+    A command rooted in a `<LANE>_scratch/` directory is dead BY
+    CONSTRUCTION: AGENTS.md rule 17 keeps those directories untracked and
+    per-worktree, so the script is gone the moment the lane's worktree is
+    removed — and a denial whose expiry_check is such a command reads as
+    falsifiable while being unfalsifiable by anyone else.
+
+    Returns None when the SAME field also names something a later lane can
+    actually run: a repo directory path, a bare `<name>.py`, `ninja` /
+    `gdlmem` / `configure.py`, or a BACKTICKED tools/gdl basename (which is
+    how the corpus writes an alternative: "(or `wf_word_diff` for the
+    count)"). That fallback test is the whole gate, not a refinement of it —
+    see the calibration in `_apply_proposal_gates` Gate M.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return None
+    hit = _LANE_SCRATCH_RE.search(text)
+    if not hit:
+        return None
+    if _REPO_DIR_RE.search(text) or _REPO_BARE_RE.search(text):
+        return None
+    if _BARE_SCRIPT_RE.search(text):
+        return None
+    names = repo_tool_basenames(root)
+    for quoted in _BACKTICK_RE.findall(text):
+        for token in re.split(r"[\s(),;]+", quoted):
+            if token.removesuffix(".py") in names:
+                return None
+    return hit.group(0)
 
 
 def hypothesis_refuter_warning(hypothesis: Any) -> str | None:
@@ -5054,6 +5151,38 @@ RESIDUAL_LAW_PREVIEW_KEYS = (
 # post-compaction payload.
 RESIDUAL_PIN_PREVIEW = 6
 RESIDUAL_PIN_MECHANISM_CHARS = 700
+# The same treatment for `--query`, which run-40 item 4 did not reach
+# (run-49 item 3, T18). The OR-matching added in run 34 fixed a real defect —
+# a spread query used to AND to zero — but it SELECTS every law carrying ANY
+# term, and the corpus's common words are carried by most of it. Measured at
+# 6daaa47b8 over ten queries: 1,786 rows returned, 188 (10.5%) carry EVERY
+# term, so 89.5% of what a query returns is single-term neighbours.
+#
+#   laws --query "memory disambiguation"     150,351 B   68 rows,   3 all-term
+#   laws --query "live zero remat"           589,131 B  279 rows,  19 all-term
+#   laws --query "reloc blind real naming"   786,164 B  400 rows,   4 all-term
+#   laws --query "callee saved width class"  599,386 B  305 rows,   7 all-term
+#
+# T18's "~500KB spill for a 3-hit query" is the second row of that table.
+# Byte breakdown of the 589,131: the laws array is 357,802 (60.7%) and inside
+# it `evidence` 24.6%, `falsifier` 18.9%, `scope` 5.6%, `asserted_by` 4.6% —
+# 53.7% in four fields nothing ranks on — with pin_mechanisms another 56,873
+# (9.7%) at the top level. So, exactly as for --residual, the fix is the
+# PREVIEW plus the PROJECTION, not a change to which rows match: the OR
+# selection and its per-term diagnostics are untouched, `truncated` and
+# `query_terms_matched` say what was cut and why each row is here, and
+# `--full 1` returns everything.
+QUERY_LAW_PREVIEW = 25
+QUERY_LAW_PREVIEW_KEYS = (
+    "id", "status", "score", "n", "applied_count", "match",
+    "query_terms_matched", "superseded_by", "age_days", "tags",
+    "needs_revalidation",
+)
+# The limit `laws` uses when the caller names none. An EXPLICIT --limit is
+# honoured exactly and turns the preview off: a cap that swallowed an
+# explicit widening would be a second silent filter, which is the class of
+# defect this item is about.
+LAWS_LIMIT_DEFAULT = 400
 
 
 def _sentences(text: str) -> list[str]:
@@ -5437,6 +5566,63 @@ def _apply_proposal_gates(
                 " SAY SO with the span: a partial table with its bounds is"
                 " useful evidence; the same table without them is a trap."
             )
+
+    # Gate M (run-49 item 5, from T18). A typed field that PROMISES a command
+    # a later lane can run, but names only a `<LANE>_scratch/` script, is a
+    # dead command by construction: AGENTS.md rule 17 keeps those directories
+    # untracked and per-worktree, so the script is gone with the worktree.
+    # The record then reads as falsifiable while nobody but its author could
+    # ever falsify it — T18 found exactly one such record and it stood
+    # unfalsifiable for a whole run.
+    #
+    # TWO-SIDED CALIBRATION at 4beafddf7, over all 574 command-bearing typed
+    # fields in records/ and inbox/ (125 denial.expiry_check, 125
+    # denial.falsifier, 125 denial.premise_measurement, 199
+    # hypothesis.cheapest_refuting_observation):
+    #
+    #   name a *_scratch/ path                          7
+    #   ... of which ALSO name a runnable repo command   6   <- NOT refused
+    #   ... genuinely dead                               1   <- refused
+    #   name no scratch path at all                    567   <- untouched
+    #
+    # The negative half decided the design. A gate that refused on the
+    # scratch path alone would refuse 7 and be WRONG on 6 of them (86%): four
+    # of those name `tools/gdl/...` outright, one names
+    # `build/binutils/powerpc-eabi-objdump.exe`, and one offers "(or
+    # `wf_word_diff` for the count)". Reading the would-be-refused SET, not
+    # its size, is what showed that — the run-44 lesson applied again. The
+    # one refusal is
+    # attempt.MC_drawmemcardmessage-every-existing-class-refuses-including-
+    # value-equality.20260902.v1, whose only escape hatch is the prose "all
+    # through shipped webfrank code", which names no command.
+    for block, field in COMMAND_BEARING_FIELDS:
+        value = _record_field(record, block)
+        if not isinstance(value, dict):
+            continue
+        scratch = dead_scratch_command(value.get(field))
+        if not scratch:
+            continue
+        fail(
+            f"{block}.{field} names only a lane scratch path"
+            f" ({scratch}...) — that is a DEAD COMMAND by construction."
+            " AGENTS.md rule 17 keeps `XX_scratch/` untracked and"
+            " per-worktree, so the script is gone the moment your worktree"
+            " is removed, and this record would read as falsifiable while"
+            " nobody else could ever run the check. T18 found one such"
+            " record standing unfalsifiable for a full run"
+            " (attempt.MC_drawmemcardmessage-every-existing-class-refuses-"
+            "including-value-equality.20260902.v1)."
+            "\nDISCHARGE IT any of three ways, all of which the corpus"
+            " already uses: (a) PROMOTE the script to"
+            " tools/gdl/composed_census/ (lane-prefixed name, repo-root"
+            " paths, run it once from the repo root first) and cite that"
+            " path; (b) name the shipped tool the script wraps, e.g."
+            " `python tools/gdl/composed_census/wf_word_diff.py <unit>"
+            " <fn>`; (c) keep the scratch command as the convenience form"
+            " and add the repo-reachable equivalent beside it — six of the"
+            " seven scratch-naming fields in the corpus already do exactly"
+            " that, and none of them is refused here."
+        )
 
     # Gate C. A park that changed several things at once and does not say
     # which variable it held fixed reads as a veto on every axis it touched.
@@ -7268,10 +7454,11 @@ def law_corpus(
     db_path: Path | None = None,
     tag: str | None = None,
     full: int = 0,
-    limit: int = 100,
+    limit: int | None = None,
     residual: str | None = None,
     include_provisional: int = 0,
     rank: int = 1,
+    asserted_by: str | None = None,
 ) -> dict[str, Any]:
     """List the codegen-law corpus, newest first, with freshness and supersession.
 
@@ -7290,8 +7477,47 @@ def law_corpus(
     finds the laws and sibling attempt records whose recorded
     ``residual.signature`` shares mnemonics with it — "who else had this
     exact residual", which no facet could ask before.
+
+    ``asserted_by`` is THE INVALIDATION LINK (run-49 item 9). A law's
+    ``asserted_by`` names the code that mechanically asserts it, so when a
+    mechanism SHIPS or CHANGES, the laws resting on that code are the ones
+    whose grounds may have just moved — WF measured `memory_disambiguation`
+    clearing the SECOND ground of a standing refusal, and nothing in the
+    graph connected the two. This is that query: pass a file, a
+    ``path.py::symbol``, or a DIRECTORY prefix, and every law whose
+    ``asserted_by`` names it comes back with ``asserted_by_match`` saying
+    which entries matched.
+
+    Matching is by SUBSTRING, which the corpus forces and the calibration
+    settles. 245 of 469 ``asserted_by`` entries (52%) are not bare paths:
+    they carry ``::symbol`` suffixes, CLI flags, or parenthetical prose
+    ("tools/gdl/probe.py (four byte-exact/structural closures this run)").
+    Measured at 471abd4ca, equality vs substring:
+
+        tools/gdl/webfrank.py         5 of 17   (71% missed)
+        tools/gdl/probe.py           13 of 51   (75% missed)
+        memory_graph/core.py          7 of 20   (65% missed)
+        tools/gdl/fndiff.py          14 of 36   (61% missed)
+        config/GUNE5D/webfrank.json   5 of  7   (29% missed)
+
+    An invalidation sweep that misses the law whose grounds just moved has
+    failed at its one job, so recall wins; every match prints the entry that
+    produced it, which is what makes a false positive visible rather than
+    silent. A directory needle works for the same reason —
+    ``tools/gdl/composed_census/`` matches 79 records, which is the right
+    answer when a whole family ships.
+
+    NOT ranked by refusal language, deliberately. Marking the laws a shipped
+    mechanism could invalidate looked like the useful half until the
+    negative side was counted: of the rows each needle returns, 17 of 17
+    (webfrank.py), 46 of 51 (probe.py) and 19 of 20 (core.py) carry
+    necessity or refusal wording, so the flag separates almost nothing. It
+    is reported per row as ``necessity_language`` and decides no ordering.
     """
     ensure_database(root, db_path)
+    explicit_limit = limit is not None
+    if limit is None:
+        limit = LAWS_LIMIT_DEFAULT
     sql = f"""
         SELECT r.record_id, r.record_state, r.valid_from, r.recorded_at,
                c.epistemic_state, c.value_json,
@@ -7434,6 +7660,28 @@ def law_corpus(
                 if row["token_specificity"] < top_specificity / 2)
             if top_specificity > 0 else 0)
 
+    # THE INVALIDATION LINK (run-49 item 9). Read once, for every candidate
+    # row, because the filter has to run BEFORE truncation — the existing
+    # falsifier/asserted_by pass runs after it and would filter a prefix.
+    asserted_index: dict[str, list[str]] = {}
+    if asserted_by:
+        needle = str(asserted_by).replace("\\", "/").lower().strip()
+        with closing(open_database(root, db_path)) as connection:
+            for extra in connection.execute(
+                "SELECT record_id, raw_json FROM record_ingest"
+            ).fetchall():
+                try:
+                    record = json.loads(extra["raw_json"])
+                except (TypeError, json.JSONDecodeError):
+                    continue
+                entries = _record_field(record, "asserted_by")
+                if not isinstance(entries, list):
+                    continue
+                hits = [str(item) for item in entries
+                        if needle in str(item).replace("\\", "/").lower()]
+                if hits:
+                    asserted_index[extra["record_id"]] = hits
+
     tokens = _query_tokens(query) if query else []
     # Per-term OR diagnostics (run 34 item 6). Silent AND-combining returned
     # 0 on a spread query like "reloc blind real naming" — every term is
@@ -7447,11 +7695,19 @@ def law_corpus(
     terms_by_id: dict[str, int] = {}
     selected = []
     for row in rows:
+        # asserted_by is a HARD filter, applied before every other signal:
+        # the question is "which laws rest on this code", and a law that
+        # does not name it is not an answer however well it matches a term.
+        if asserted_by and row["record_id"] not in asserted_index:
+            continue
         if not (query or residual):
-            selected.append((row, None))
+            selected.append(
+                (row, ["asserted-by"] if asserted_by else None))
             continue
         why: list[str] = []
         terms_matched: set[str] = set()
+        if asserted_by:
+            why.append("asserted-by")
         if query:
             lowered = query.lower()
             rid = (row["record_id"] or "").lower()
@@ -7520,6 +7776,14 @@ def law_corpus(
                 "query_terms_matched": terms_by_id.get(row["record_id"], 0),
             }
         )
+        if asserted_by:
+            laws[-1]["asserted_by_match"] = asserted_index.get(
+                row["record_id"], [])
+            # Reported, never ranked on — it separates almost nothing
+            # (17/17, 46/51, 19/20 on the three measured needles).
+            law_text = value if isinstance(value, str) else ""
+            laws[-1]["necessity_language"] = bool(
+                _NECESSITY_RE.search(f"{row['record_id']} {law_text}"))
 
     # --- run-32 evidence layer -------------------------------------------
     # Scores are attached AFTER text filtering and BEFORE truncation, so the
@@ -7570,7 +7834,7 @@ def law_corpus(
     hidden_provisional = 0
     provisional_retained = 0
     provisional_rows: list[dict[str, Any]] = []
-    targeted = bool(tag or query or residual)
+    targeted = bool(tag or query or residual or asserted_by)
     if targeted:
         provisional_retained = sum(
             1 for row in laws if row["status"] == "provisional")
@@ -7658,11 +7922,26 @@ def law_corpus(
         laws = matched_laws
         residual_filtered = True
         limit = min(limit, RESIDUAL_LAW_PREVIEW)
+    # QUERY VOLUME (run-49 item 4). Same treatment, same reasoning, applied
+    # to the surface run-40 item 4 did not reach — see QUERY_LAW_PREVIEW for
+    # the measured table. Deliberately NOT applied when a tag is present:
+    # `--tag core-screen` is the mandatory de-fakematch screen and a preview
+    # over a mandatory screen is the "quieter screen nobody knew they ran"
+    # failure the provisional-suppression comment above already names.
+    query_previewed = (bool(query) and not full and not residual and not tag
+                       and not asserted_by and not explicit_limit)
+    query_matched_total = len(laws)
+    if query_previewed:
+        limit = QUERY_LAW_PREVIEW
     truncated = max(0, len(laws) - limit)
     laws = laws[:limit]
 
     # falsifier/asserted_by come from the raw record, not the claim table.
-    if laws:
+    # PREFILTER BEFORE MATERIALIZING: the projection below drops both fields
+    # (18.9% + 4.6% of a query payload's law bytes), so under a query preview
+    # this second pass over raw_json is not run at all rather than run and
+    # then thrown away.
+    if laws and not query_previewed:
         with closing(open_database(root, db_path)) as connection:
             marks = ",".join("?" * len(laws))
             for extra in connection.execute(
@@ -7762,8 +8041,73 @@ def law_corpus(
             " necessity language as unscreened, not as proven."
         ),
     }
+    if asserted_by:
+        out["asserted_by_filter"] = asserted_by
+        # The index covers EVERY record; `laws` is the law-ish subset the
+        # corpus query selects. Reporting both stops the difference from
+        # being a silent absence: attempt records also carry asserted_by,
+        # and a mechanism change can invalidate one of those too.
+        out["asserted_by_records_total"] = len(asserted_index)
+        out["asserted_by_non_law_records"] = (
+            len(asserted_index) - sum(1 for row in out["laws"]
+                                      if row["id"] in asserted_index)
+            - truncated)
+        out["asserted_by_note"] = (
+            f"THE INVALIDATION LINK: every law here names `{asserted_by}` in"
+            " its `asserted_by`, i.e. this code is what mechanically asserts"
+            " it. When that code SHIPS or CHANGES, these are the laws whose"
+            " grounds may have just moved — WF measured a shipped"
+            " memory-disambiguation mechanism clearing the SECOND ground of a"
+            " standing refusal with nothing connecting the two. Read"
+            " `asserted_by_match` for the entry that matched: matching is by"
+            " SUBSTRING because 52% of the corpus's asserted_by entries carry"
+            " `::symbol` suffixes, CLI flags or parenthetical prose, and"
+            " equality missed 61-75% of the true set on every needle"
+            " measured. `necessity_language` is reported and NOT ranked on:"
+            " on the three measured needles 17/17, 46/51 and 19/20 rows carry"
+            " it, so it separates almost nothing and the list itself is the"
+            " deliverable — read each law."
+            f" `asserted_by_records_total` ({len(asserted_index)}) counts"
+            " EVERY record naming it; the rows above are the LAW-ish subset,"
+            " and `asserted_by_non_law_records` is the remainder — attempt"
+            " records carry asserted_by too, and a mechanism change can"
+            " invalidate one of those. Reach them with"
+            " `gdlmem.py find --query`.")
     if query:
+        # DELIBERATELY NOT PREVIEWED. Pin `mechanism` prose is 9.7% of a
+        # query payload's bytes and the densest derivation of a closed
+        # residual anywhere in the project (AGENTS.md); run-37 item 5
+        # measured that cutting it at 600 chars discarded 59.1% of the
+        # corpus's derivations — 77,547 of 131,115 chars across 82 of 91
+        # pins — with the operative sentence routinely in the tail. Shrinking
+        # the law rows must not quietly re-impose the cut that fix removed.
         out["pin_mechanisms"] = webfrank_pin_mechanisms(root, query)
+    if query_previewed:
+        out["laws"] = [
+            {key: row[key] for key in QUERY_LAW_PREVIEW_KEYS if key in row}
+            | {"head": row.get("head")}
+            for row in out["laws"]
+        ]
+        out["query_matched_total"] = query_matched_total
+        out["laws_projection"] = (
+            "COMPACT query projection: "
+            + ", ".join(QUERY_LAW_PREVIEW_KEYS)
+            + ", head. `evidence`, `scope`, `falsifier` and `asserted_by` are"
+            " omitted — 53.7% of a query payload's law bytes, and nothing"
+            " ranks on them. Fetch a law you actually want with `gdlmem.py"
+            " record <id>`, or re-run with `--full 1`. `pin_mechanisms` is"
+            " NOT previewed: run-37 item 5 measured that truncating pin"
+            " derivations discards the operative sentence.")
+        out["query_selection_note"] = (
+            f"{query_matched_total} law(s) carry at least one of your terms;"
+            f" the top {len(out['laws'])} are returned, ranked by status tier"
+            " then by how many DISTINCT terms each carries (read"
+            " `query_terms_matched` — a row at 1 of 3 is a single-term"
+            " neighbour, and 89.5% of query rows are, measured over ten"
+            " queries). Terms are OR-matched on purpose: an AND filter"
+            " returned zero on spread queries. `--limit N` turns the preview"
+            " off and returns N rows in full, `--full 1` returns every match"
+            " with every field.")
     if residual_filtered:
         out["laws"] = [
             {key: row[key] for key in RESIDUAL_LAW_PREVIEW_KEYS if key in row}
@@ -10124,7 +10468,7 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                 full=kw["full"], limit=kw["limit"],
                 residual=kw["residual"],
                 include_provisional=kw["include_provisional"],
-                rank=kw["rank"]),
+                rank=kw["rank"], asserted_by=kw["asserted_by"]),
             params=(
                 SurfaceParam("query", str, default=None,
                              help="filter over id SLUG WORDS, scope, law text,"
@@ -10135,11 +10479,22 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                                   " the residual signature"),
                 SurfaceParam("tag", str, default=None,
                              help="filter by structured applicability tag"),
+                SurfaceParam("asserted_by", str, default=None,
+                             help="THE INVALIDATION LINK: laws whose"
+                                  " asserted_by names this file,"
+                                  " path.py::symbol, or directory prefix —"
+                                  " run it after shipping or changing a"
+                                  " mechanism to find the laws resting on it"),
                 SurfaceParam("full", int, default=0, maximum=1,
                              help="1 = inline complete law text"),
                 # Default must exceed the corpus: at 100, 36 of 136 laws
                 # were silently invisible to enumeration (audit, 2026-08-31).
-                SurfaceParam("limit", int, default=400, maximum=500),
+                SurfaceParam("limit", int, default=None, maximum=500,
+                             help="rows to return (default"
+                                  f" {LAWS_LIMIT_DEFAULT}). A --query without"
+                                  " --tag, --residual or --full previews the"
+                                  f" top {QUERY_LAW_PREVIEW} instead; naming"
+                                  " any explicit limit turns the preview off"),
                 SurfaceParam("include_provisional", int, default=0, maximum=1,
                              help="1 = also return PROVISIONAL laws (zero"
                                   " verified successes). Hidden by default so"

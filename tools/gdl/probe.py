@@ -1368,6 +1368,145 @@ def rebuild_after_restore(unit, why):
     return False
 
 
+# Everything in the per-function state that describes the PREVIOUS probe,
+# i.e. every field a later probe reads as "what the tree was before this
+# one". A restore that returns early leaves all of them describing a state
+# that no longer exists anywhere.
+PREV_STATE_KEYS = ("last_real", "last_insns", "last_multiset", "last_bytes",
+                   "last_data", "last_immediates", "last_words", "last_fuzzy",
+                   "last_fuzzy_bytes", "last_verdict", "count_class")
+
+
+def _load_state(state_file):
+    if not state_file.exists():
+        return {}
+    try:
+        loaded = json.loads(state_file.read_text(encoding="utf-8"))
+    except ValueError:
+        return {}
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def invalidate_prev_state(state_file, why):
+    """Drop the PREV comparison base rather than leave it describing a
+    state that was just thrown away.
+
+    Fail-closed half of `rescore_after_restore` below: used when the tree
+    was restored but NOT re-measured (`--no-rebuild`, or a build/score that
+    failed). Silence with a stale base is the defect; an absent base makes
+    the next probe's first line a BASELINE, which is true.
+    """
+    state = _load_state(state_file)
+    dropped = [key for key in PREV_STATE_KEYS if key in state]
+    if not dropped:
+        return []
+    for key in dropped:
+        state.pop(key, None)
+    state_file.write_text(json.dumps(state), encoding="utf-8")
+    print(f"[{why}: the tree was restored but NOT re-measured, so the PREV"
+          " comparison base is DROPPED rather than left describing the"
+          f" discarded probe ({len(dropped)} field(s)). The next probe reads"
+          " as a first probe of the restored tree.]")
+    return dropped
+
+
+def rescore_after_restore(unit, fn, state_file, why):
+    """Re-measure the restored tree and refresh the state read against it.
+
+    THE DEFECT (run-49 item 2, FT). `--discard` restores the source, rebuilds
+    the object and RETURNS. The per-function state still holds the DISCARDED
+    probe's numbers, so the next probe computes every transition against a
+    state that no longer exists anywhere — and `count_class_line` is a
+    TRANSITION report, so an edit that lost count parity and was then
+    discarded makes the next probe of the clean tree announce
+    `COUNT-PARITY GAINED insns T682/O680 -> T682/O682`. Nothing was gained;
+    the tree went back to where it started. FT read that banner as a class
+    change.
+
+    `--revert` never had this: it falls through to main()'s own build and
+    re-score, so its state is refreshed before anything reads it. This is
+    that re-score, for the paths that return early.
+
+    No verdict and no banking. A discard is not a probe of an edit: there is
+    nothing to classify, and banking would move the revert point onto HEAD.
+    The point is only that the numbers a later probe compares against
+    describe the tree that is actually here.
+    """
+    fn_stripped = re.sub(r"_80[0-9A-Fa-f]{6}$", "", fn)
+    real, insns = score_function(unit, fn, fn_stripped, [])
+    if real is None:
+        print(f"[{why}: could not re-score {fn} after the restore — fndiff"
+              " --count named no such function in the rebuilt object.]")
+        invalidate_prev_state(state_file, why)
+        return None
+    ops_output, multiset_tokens = None, (0 if real == 0 else None)
+    if real > 0:
+        ops_output = subprocess.run(
+            [sys.executable, str(TOOLS / "fndiff.py"), unit, fn,
+             "--ops", "--no-build"], capture_output=True, text=True).stdout
+        for line in ops_output.splitlines():
+            if "opcode multiset: IDENTICAL" in line:
+                multiset_tokens = 0
+                break
+            if "opcode multiset: DIFFERS" in line:
+                multiset_tokens = sum(
+                    int(n) for n in re.findall(r"[+-](\d+) ", line))
+                break
+    state = _load_state(state_file)
+    prev_real, prev_insns = state.get("last_real"), state.get("last_insns")
+    # The banner the NEXT probe would have printed against the discarded
+    # state. Naming it is the whole point: a suppressed false class change
+    # is invisible, and this is the one line that proves it was suppressed.
+    ghost = count_class_line(prev_insns, insns)
+    tok = f", multiset {multiset_tokens}t" if multiset_tokens is not None else ""
+    readout = (f"RESTORED  real {real} (insns {insns}{tok}) — re-scored after"
+               f" {why}; no verdict computed, nothing banked")
+    print(readout)
+    if prev_real is not None or prev_insns is not None:
+        print(f"[PREV comparison base refreshed: real {prev_real} -> {real},"
+              f" insns {prev_insns} -> {insns}. Every later probe's deltas and"
+              " transition banners are now read against the RESTORED tree, not"
+              " against the discarded probe.]")
+    if ghost:
+        print("[SUPPRESSED, false: the next probe would otherwise have"
+              f" printed `{ghost.split(':')[0]}` — a transition computed"
+              " between the discarded probe and this tree, which is not a"
+              " transition anything went through.]")
+    state["last_real"] = real
+    state["last_insns"] = insns
+    state["last_multiset"] = multiset_tokens
+    # `last_bytes` is deliberately DROPPED, not refreshed. It means "the
+    # object bytes of the previous PROBE", and a restore is not a probe of an
+    # edit: banking it makes the next probe find prev_digest == digest and
+    # annotate its NEUTRAL as NEUTRAL-IDENTICAL — "the edit FOLDED AWAY
+    # before codegen" — about an edit that does not exist. Measured on
+    # game/world/camera::camera_mode_dest while building this fix: refreshing
+    # it traded one false banner for another. Absent, the next probe reads as
+    # the first probe of the restored tree, which is what it is.
+    state.pop("last_bytes", None)
+    state["last_data"] = data_digest(unit)
+    immediates = immediate_row_count(ops_output)
+    if immediates is None:
+        state.pop("last_immediates", None)
+    else:
+        state["last_immediates"] = immediates
+    # A RE-SCORE replays `last_verdict` verbatim; leaving the discarded
+    # probe's verdict there would replay a verdict about bytes that are gone.
+    state["last_verdict"] = readout
+    # Fuzzy and the raw word count are measured by other modes and are not
+    # re-measured here, so they are DROPPED rather than left stale.
+    for key in ("last_fuzzy", "last_fuzzy_bytes", "last_words", "count_class"):
+        state.pop(key, None)
+    best_real = state.get("best_real")
+    state_file.write_text(json.dumps(state), encoding="utf-8")
+    if best_real is not None and best_real != real:
+        print(f"[NOTE: the BEST anchor (real {best_real}) is untouched by a"
+              " discard and may still describe the edit you just discarded —"
+              " the next probe is classified against it. `--reset` re-anchors"
+              " if that is not what you want.]")
+    return real
+
+
 def head_bytes(source):
     """The committed bytes of ``source`` at HEAD, or None when unavailable."""
     shown = subprocess.run(["git", "show", f"HEAD:{source.as_posix()}"],
@@ -2208,7 +2347,7 @@ def data_line(prev_data, data, source_changed=True):
     return line
 
 
-def fuzzy_anchor_note(best_fuzzy, cur_fuzzy):
+def fuzzy_anchor_note(best_fuzzy, cur_fuzzy, size=None, total_code=None):
     """What the CONFLICT verdict can say about fuzzy without a build.
 
     CONFLICT is the one verdict that ORDERS a fuzzy arbitration, and it
@@ -2230,7 +2369,8 @@ def fuzzy_anchor_note(best_fuzzy, cur_fuzzy):
     delta = cur_fuzzy - best_fuzzy
     trend = "ROSE" if delta > 0 else ("FELL" if delta < 0 else "is FLAT")
     return (f"\n[FUZZY {best_fuzzy:.4f} -> {cur_fuzzy:.4f} ({delta:+.4f})"
-            f" {trend} — both halves cached against these exact bytes, NO"
+            f" {trend}{weighted_fuzzy_clause(delta, size, total_code)}"
+            " — both halves cached against these exact bytes, NO"
             " build spent. This is the arbiter: keep with --rebase-best if"
             " it rose, revert if it fell]")
 
@@ -2527,6 +2667,25 @@ def reloc_symbol_screen(unit, fn):
         return {"status": "clean", "rows": [],
                 "compared": len(ours) // 4}
     return {"status": "rows", "rows": rows}
+
+
+def insert_after_headline(verdict, line):
+    """Put `line` on line 2 of `verdict`, under the headline it overrules.
+
+    A verdict is a HEADLINE plus trailing annotation paragraphs, and the
+    headline is where the recommendation lives (`[revert advised]`,
+    `[best updated]`). An arbiter that CONTRADICTS the headline has to sit
+    beside it: printed after the whole block it reads as one more footnote,
+    and on a REGRESSED verdict — three printed lines at c8a28c3bb — that is
+    three lines below the advice it exists to overrule.
+
+    A falsy `line` returns the verdict untouched, so every caller can pass
+    an unconditional result.
+    """
+    if not line:
+        return verdict
+    head, sep, rest = verdict.partition("\n")
+    return head + "\n" + line + sep + rest
 
 
 def format_reloc_screen(result):
@@ -3465,7 +3624,9 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                        " updated, do NOT auto-bank. Read the --ops diff and"
                        " arbitrate on fresh fuzzy (--rebase-best banks a"
                        " deliberate keep)")
-            verdict += fuzzy_anchor_note(best_fuzzy, fuzzy)
+            verdict += fuzzy_anchor_note(
+                best_fuzzy, fuzzy, state.get("fn_size"),
+                state.get("total_code"))
             if best_tokens is None:
                 verdict += ("\n[no best_multiset banked (pre-run-29 state) —"
                             " the structure comparison fell back to the"
@@ -3501,7 +3662,9 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
                        f" {anchor_name} IMPROVED — structure is converging;"
                        " read the diff and arbitrate, do NOT auto-revert"
                        " (--rebase-best banks an arbitrated keep)")
-            verdict += fuzzy_anchor_note(best_fuzzy, fuzzy)
+            verdict += fuzzy_anchor_note(
+                best_fuzzy, fuzzy, state.get("fn_size"),
+                state.get("total_code"))
             verdict += baseline_clause(state, real)
             # Count distance is the one cheap predictor that agreed with
             # fuzzy in all four field arbitrations of this shape —
@@ -3676,6 +3839,87 @@ def score_function(unit, fn, fn_stripped, raw_flag=()):
     return None, None
 
 
+def function_weight(unit, fn, fn_stripped, report_path=None):
+    """(function size in bytes, project total_code) from the objdiff report.
+
+    NO BUILD. Both numbers are properties of the TARGET image, not of our
+    object, so the last report on disk answers this even when it predates
+    the current edit — and when there is no report at all the answer is
+    (None, None), never a guess.
+
+    This is the missing denominator behind run-48's NC observation. probe
+    prints a function-LOCAL fuzzy delta, and a local delta of -1.10 was
+    read as a project-level loss when the image effect was ~0.001; the only
+    way to settle it was a full ninja plus `configure.py progress`.
+
+    Measured at c8a28c3bb against build/GUNE5D/report.json: the project
+    figure is EXACTLY the size-weighted mean of every function's fuzzy over
+    total_code — sum(size * fuzzy) / sum(size) = 98.53066553650227 against
+    the report's own measures.fuzzy_match_percent 98.53067, and sum(size)
+    = 1,071,824 = measures.total_code to the byte. So the projection below
+    is arithmetic, not a model.
+    """
+    path = Path(report_path) if report_path is not None \
+        else Path(f"build/{VERSION}/report.json")
+    try:
+        report = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None, None
+    try:
+        total = int(report.get("measures", {}).get("total_code", 0))
+    except (TypeError, ValueError):
+        total = 0
+    bare = re.sub(r"\.(c|cpp)$", "", unit)
+    size = None
+    for entry in report.get("units", []):
+        if not entry.get("name", "").endswith(bare):
+            continue
+        for func in entry.get("functions", []):
+            if func["name"] in (fn, fn_stripped) or \
+                    func["name"].startswith(fn + "_80"):
+                try:
+                    size = int(func.get("size", 0))
+                except (TypeError, ValueError):
+                    size = None
+    return size, (total or None)
+
+
+def project_weighted_delta(local_delta, size, total_code):
+    """A function-local fuzzy delta projected onto the project figure."""
+    if local_delta is None or not size or not total_code:
+        return None
+    return local_delta * size / total_code
+
+
+def weighted_fuzzy_clause(local_delta, size, total_code):
+    """The project-weighted twin of a function-local fuzzy delta, or "".
+
+    Two-sided calibration at c8a28c3bb over all 2,990 sized functions in
+    build/GUNE5D/report.json, asking where a 1.00-point LOCAL delta lands
+    on the project figure:
+
+      >= 0.005 (the digit `configure.py progress` prints)   10 fns (0.3%)
+      >= 0.0005 (the 4th decimal of the report figure)     469 fns (15.7%)
+      below both                                         2,521 fns
+
+    Restricted to the 246 functions that are not already 100% — the only
+    ones a probe runs on — it is 6 / 152 / 94. The median function is 164
+    bytes, so the median local number overstates its image effect by about
+    6,500x. That asymmetry is the whole point of printing both: the clause
+    is never a REFUSAL and never suppresses the local number, which remains
+    the right arbiter for the function; it only stops the local number from
+    being quoted as a project-level move.
+    """
+    weighted = project_weighted_delta(local_delta, size, total_code)
+    if weighted is None:
+        return ""
+    share = 100.0 * size / total_code
+    return (f" [= {weighted:+.4f} PROJECT-WEIGHTED: this function is"
+            f" {size:,} B of {total_code:,} ({share:.3f}% of the image) and"
+            " the project fuzzy is the size-weighted mean of every"
+            " function's fuzzy]")
+
+
 def report_fuzzy(unit, fn, fn_stripped):
     """Build the objdiff report and return this function's fuzzy, or None.
 
@@ -3702,7 +3946,7 @@ def report_fuzzy(unit, fn, fn_stripped):
 
 
 def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
-                    moved=()):
+                    moved=(), size=None, total_code=None):
     """The four-number arbitration readout, as pure text.
 
     A real/fuzzy DISAGREEMENT is the whole reason this mode exists, so the
@@ -3733,7 +3977,9 @@ def arbitrate_table(label, base_real, base_fuzzy, cur_real, cur_fuzzy,
     if base_real is not None and cur_real is not None:
         real_delta = cur_real - base_real
         fuzzy_text = ("n/a" if base_fuzzy is None or cur_fuzzy is None
-                      else f"{cur_fuzzy - base_fuzzy:+.4f}")
+                      else f"{cur_fuzzy - base_fuzzy:+.4f}"
+                      + weighted_fuzzy_clause(cur_fuzzy - base_fuzzy,
+                                              size, total_code))
         lines.append(f"  DELTA              real {real_delta:+d} "
                      f" fuzzy {fuzzy_text}")
     if base_fuzzy is None or cur_fuzzy is None:
@@ -3934,8 +4180,10 @@ def run_arbitrate(unit, fn, fn_stripped, source, raw_flag=(),
               " edit — the source is restored but build/ now holds the"
               " BANKED object. Re-run a plain probe before trusting any"
               " score.")
+    size, total = function_weight(unit, fn, fn_stripped)
     print(arbitrate_table(label, banked[0], banked[2], current[0], current[2],
-                          moved=moved_sections(banked[3], current[3])))
+                          moved=moved_sections(banked[3], current[3]),
+                          size=size, total_code=total))
     return 0
 
 
@@ -3976,6 +4224,14 @@ def measure_fuzzy(unit, fn, fn_stripped, state, digest=None):
     previous = state.get("last_fuzzy")
     arrow = (f" (prev {previous:.4f})"
              if isinstance(previous, float) else "")
+    # THE PROJECT-WEIGHTED TWIN (run-49 item 1). The local delta is the
+    # arbiter for THIS function; the weighted one is the only number that
+    # can be quoted as a project move, and computing it costs no build.
+    size, total = function_weight(unit, fn, fn_stripped)
+    state["fn_size"], state["total_code"] = size, total
+    if isinstance(previous, float):
+        arrow += f" {value - previous:+.4f} local" + weighted_fuzzy_clause(
+            value - previous, size, total)
     headline = f"FUZZY (fresh report): {value:.4f}%{arrow}"
     state["last_fuzzy"] = value
     if digest is not None:
@@ -4503,8 +4759,13 @@ def main():
                 print(f"discarded (function-scoped): {source} — {notes}")
                 restore_transient_pins(unit)
                 warn_outside_edits(source, None)
-                if "--no-rebuild" not in sys.argv:
-                    rebuild_after_restore(unit, "--discard --function")
+                if "--no-rebuild" in sys.argv:
+                    invalidate_prev_state(state_file, "--discard --function")
+                elif rebuild_after_restore(unit, "--discard --function"):
+                    rescore_after_restore(unit, fn, state_file,
+                                          "--discard --function")
+                else:
+                    invalidate_prev_state(state_file, "--discard --function")
                 return 0
         source.write_bytes(head_bytes_now)
         print(f"discarded: {source} restored to HEAD (whole file —"
@@ -4512,8 +4773,12 @@ def main():
         restore_transient_pins(unit)
         # Even a whole-file discard leaves HEADER edits live (run 34 item 3).
         warn_outside_edits(source, None)
-        if "--no-rebuild" not in sys.argv:
-            rebuild_after_restore(unit, "--discard")
+        if "--no-rebuild" in sys.argv:
+            invalidate_prev_state(state_file, "--discard")
+        elif rebuild_after_restore(unit, "--discard"):
+            rescore_after_restore(unit, fn, state_file, "--discard")
+        else:
+            invalidate_prev_state(state_file, "--discard")
         return 0
     # NAMED BANKS (run-42 item 3). The rolling snapshot is one slot that
     # every banking verdict overwrites, so a multi-axis lane had nowhere to
@@ -4587,8 +4852,16 @@ def main():
         restore_transient_pins(unit)
         warn_pin_drift(unit, base)
         warn_outside_edits(source, None)
-        if "--no-rebuild" not in sys.argv:
-            rebuild_after_restore(unit, "--revert-baseline")
+        # Same early-return class as --discard, same stale PREV state: this
+        # path is the second of the two rebuild_after_restore callers its own
+        # docstring names, and `--revert` (the third restore) is already
+        # covered because it falls through to main()'s build and re-score.
+        if "--no-rebuild" in sys.argv:
+            invalidate_prev_state(state_file, "--revert-baseline")
+        elif rebuild_after_restore(unit, "--revert-baseline"):
+            rescore_after_restore(unit, fn, state_file, "--revert-baseline")
+        else:
+            invalidate_prev_state(state_file, "--revert-baseline")
         return 0
     # Set by the revert path when the restore left file-scope items that are
     # not the snapshot's (run-44 item 1) — read again at BUILD FAILED, which
@@ -4975,7 +5248,14 @@ def main():
               " build; --no-fuzzy-gate skips it)]")
         fresh = report_fuzzy(unit, fn, fn_stripped)
         if fresh is not None:
-            print(f"FUZZY (fresh report): {fresh:.4f}%")
+            gate_size, gate_total = function_weight(unit, fn, fn_stripped)
+            state["fn_size"], state["total_code"] = gate_size, gate_total
+            prior = state_before.get("last_fuzzy")
+            move = (f" {fresh - prior:+.4f} local"
+                    + weighted_fuzzy_clause(fresh - prior, gate_size,
+                                            gate_total)
+                    if isinstance(prior, float) else "")
+            print(f"FUZZY (fresh report): {fresh:.4f}%{move}")
         else:
             print("[fuzzy gate: no number — the report build FAILED or this"
                   " function is absent from build/GUNE5D/report.json]")
@@ -5094,17 +5374,26 @@ def main():
     # read as an ordinary numeric move.
     if state.get("count_class"):
         print(state["count_class"])
-    print(verdict)
-    # THE IMMEDIATE-ROW ARBITER (run-47 item 5), directly under the verdict it
-    # qualifies. Only for a multiset-IDENTICAL residual: there the verdict is
-    # `real` alone, `real` counts differing WORDS, and the one word a wrong
-    # literal occupies is invisible beside a register recolour. Silent unless
-    # the count is nonzero now or was last time.
+    # THE IMMEDIATE-ROW ARBITER (run-47 item 5), moved INTO the verdict
+    # (run-49 item 1). Only for a multiset-IDENTICAL residual: there the
+    # verdict is `real` alone, `real` counts differing WORDS, and the one
+    # word a wrong literal occupies is invisible beside a register recolour.
+    # Silent unless the count is nonzero now or was last time.
+    #
+    # It used to print BELOW the whole verdict block, which is not "directly
+    # under the verdict" on the one verdict that most needs it. Measured at
+    # c8a28c3bb: a REGRESSED verdict is three printed lines — the
+    # `[revert advised]` headline, then `baseline_clause`'s SESSION BASELINE
+    # line, then the RE-RUN THIS NEGATIVE paragraph — so the arbiter landed
+    # on line 4, three lines under `[revert advised]`, which is what WF read
+    # on the probe that closed a literal. `insert_after_headline` puts it on
+    # line 2, immediately under the recommendation it overrules; the trailing
+    # annotations keep their order below it.
+    arbiter = None
     if multiset_tokens == 0 and real > 0:
         arbiter = immediate_arbiter_line(
             immediates, prev_immediates, real, prev_real)
-        if arbiter:
-            print(arbiter)
+    print(insert_after_headline(verdict, arbiter))
     # THE RAW WORD COUNT (run-48 item 1), directly under the verdict it
     # qualifies. On the pinned backlog it is the ONLY sound arbiter — fuzzy
     # scores the postprocessed object — and it was the one number a lane had
