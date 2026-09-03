@@ -1429,6 +1429,39 @@
         "copy_register_fields": true
       }
     ],
+    "game/mb/mb_camera": [
+      {
+        "function": "MBCameraUpdate",
+        "mechanism": "attempt.CL_mbcameraupdate-frame-40-is-source-reachable-and-exclusive-with-the-exact-band.20260903.v2, executing the CLASS decision that record referred to the integrator. The function had two reachable source states and they are in DIFFERENT postprocessor classes: state (i) `dstOffset = row * 16; srcOffset = row * 4;` gave a byte-exact scratch band at frame 48, real 10, fuzzy 99.9685%, but its residual was five aligned IMMEDIATE frame words -- stack-layout words no shipped class can touch, so state (i) could never be finished by a rule. State (ii), PROBE C, makes dstOffset an accumulator (`dstOffset = 0;` before the do-loop, `dstOffset += 16;` after `row++;`) and reaches frame 40/40 with SLOT MAP IDENTICAL at 159/159 and an IDENTICAL opcode multiset, at the sanctioned cost of 0.80 fuzzy and 24 real. Reproduced this run exactly: probe.py real 10 -> 34, insns T159/O159, multiset 0t, slotdiff SLOT MAP IDENTICAL. The residual is then a consistent seven-cycle GPR rotation (r3->r4->r5->r6->r7->r8->r9->r3, read at each definition site: `@0x178 li r8,0` -> `li r9,0`, `@0x1ac add r6,r30,r3` -> `add r7,r30,r4`, `@0x1b4 li r4,0` -> `li r5,0`, `@0x1d4 addi r8,r8,1` -> `addi r9,r9,1`) plus TWO transpositions, not the one the record quoted: the induction updates at +0x1e4/+0x1ec (`addi r9,r9,16`/`addi r3,r3,4` against target's `addi r4,r4,4`/`addi r3,r3,16` -- an IMMEDIATE difference at an aligned same-opcode position, so no recolor can reach it) AND the two loop seeds at +0x17c/+0x184 (`li r3,0`/`li r9,0` against target's `li r3,0`/`li r4,0`). Each is a 3-atom window whose middle atom is a store the two moving atoms neither read nor write: `stfs f0,48(r27)` at +0x180 touches f0/r27, and `stfsx f0,r31,r4` at +0x1e8 touches f0/r31/r4, while the moving atoms define only r3 and r9. check_permutation_dependences accepts both in its strictest form with no exit_dead escape, and the composition reaches the target BYTE-EQUAL. Source exhaustion for the offset-derivation lever class is PROBE A/B/C/D in the record's probed_form; the record's remaining untried axis (MWCC's outgoing-parameter area) belonged to state (i) and is moot now that the frame is exact.",
+        "before_sha256": "0d30323e8686e79b2a8d43dfd20d2c0498a3280d9bb2c253fdef4b3d4eb511a6",
+        "after_sha256": "0817ecee229ed97f5e213b403f70a0a072f3c10e590503e4bd9d644bb6175fd3",
+        "audit": {
+          "classification": "SCHEDULE",
+          "instructions": 159
+        },
+        "instruction_permutation": [
+          {
+            "start": "0x17c",
+            "end": "0x188",
+            "order": [2, 1, 0],
+            "before_sha256": "5a2023b0eee9cdd4f3200a37cc7bbb09fdfd8218559844257a3ec7711a188d11",
+            "after_sha256": "5f45fa235d32cf56afd58a7b09873372eda7b68dad9ab1f31ab76cc4eb9d35a7",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "start": "0x1e4",
+            "end": "0x1f0",
+            "order": [2, 1, 0],
+            "before_sha256": "1b8a22f68161829996be222836097f31b442b33b6d0b068bc4b238b5b94efde2",
+            "after_sha256": "c38306ba379d52c2f250f10fffadf3716cdadb1ef23a1ae2d9f261ae5268a766",
+            "before_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "after_relocations_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        ],
+        "copy_register_fields": true
+      }
+    ],
     "game/mb/mb_blit": [
       {
         "function": "fn_800B27C4",
