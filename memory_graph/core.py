@@ -8289,6 +8289,25 @@ def work_claims(
     OVER-matches: a spurious hit costs one conversation with the owner, while
     a missed hit costs two fleets editing one TU, which is the coupling
     AGENTS.md forbids outright.
+
+    THE TOP-LEVEL VERDICT IS THE DECIDABLE ONE WHENEVER ONE EXISTS (run-48
+    item 9). `verdict` was computed from the claims LIST, which includes
+    scope-prose hits, so it could contradict `structured_verdict` three keys
+    below it and the reader had a coin-flip. Reproduced at dba320633:
+
+        gdlmem claims --owns game/sys/main.c
+          "verdict": "CLAIMED"            <- six claims, ALL scope_prose
+          "structured_verdict": "FREE"
+          "structured_owners": []
+
+    All six matched on the word "main", from the `main.dol: OK` gate line
+    every scope quotes. CALIBRATED TWO-SIDED over all 256 src units against
+    run-48's six claims (T18_scratch/t18_calib_item9.py): 11 units (4.3%)
+    contradicted — MSL/mem, MSL/time, anim, atree, player, sfx, main,
+    sysservice, select, camera, world, every one of them CLAIMED-by-prose and
+    FREE by the list — and 245 agreed. When owned_units cannot decide (any
+    active claim carries no list) the prose screen keeps the headline,
+    flagged: refusing to answer there would remove the only screen there is.
     """
     ensure_database(root, db_path)
     with closing(open_database(root, db_path)) as connection:
@@ -8388,29 +8407,82 @@ def work_claims(
     }
     if owns:
         result["owns_query"] = owns
-        result["verdict"] = "CLAIMED" if claims else "no claim found"
         structured = [c for c in claims if c.get("match") == "owned_units"]
+        prose_only = [c for c in claims if c.get("match") == "scope_prose"]
         # FREE is only sound when EVERY active claim is decidable. One claim
         # without a list leaves the whole question open, however many others
         # carry one -- reporting FREE there would be the exact false all-clear
         # this field exists to remove.
         blind = coverage_total - coverage_with
+        decidable = bool(coverage_total) and not blind
         result["structured_verdict"] = (
             "OWNED" if structured
-            else "FREE" if coverage_total and not blind
+            else "FREE" if decidable
             else f"UNDECIDABLE ({blind} of {coverage_total} active claim(s)"
                  " carry no attributes.owned_units)"
         )
         result["structured_owners"] = sorted({c["owner"] for c in structured})
+        # RUN-48 ITEM 9. The top-level `verdict` was computed from the claims
+        # list, which INCLUDES scope-prose hits, so it could contradict the
+        # decidable answer sitting three keys below it and a reader had a
+        # coin-flip. Reproduced at dba320633:
+        #   gdlmem claims --owns game/sys/main.c
+        #     "verdict": "CLAIMED"          <- six claims, ALL scope_prose
+        #     "structured_verdict": "FREE"
+        #     "structured_owners": []
+        # Every one of the six is a false hit on the word "main", from the
+        # "main.dol: OK" gate line every scope quotes. When owned_units
+        # DECIDES, it IS the verdict and the prose result is demoted to a
+        # note. When it cannot decide (any active claim carries no list) the
+        # prose screen is still the best signal available and keeps the
+        # headline, flagged as such -- refusing to answer there would remove
+        # the only screen that exists.
+        if decidable:
+            result["verdict"] = (
+                "OWNED by " + ", ".join(result["structured_owners"])
+                if structured else "FREE")
+            result["verdict_basis"] = "owned_units"
+            for claim in prose_only:
+                claim["decides"] = False
+            if prose_only:
+                result["scope_prose_note"] = (
+                    f"{len(prose_only)} claim(s) matched the SCOPE PROSE only"
+                    " and decide NOTHING here — they are listed with"
+                    ' "decides": false. The prose screen was measured at 85%'
+                    " false positives over the 250-unit image (game/sys/main.c"
+                    " matches five of six claims on the word \"main\", from"
+                    " the \"main.dol: OK\" gate line), and it cannot read a"
+                    " negation, so a scope that names another lane's TUs in"
+                    " order to EXCLUDE them reports as their co-owner."
+                    " They are demoted, NOT dropped: if one of these lanes"
+                    " really does own this path, its owned_units list is"
+                    " under-specified and the fix is to extend the list —"
+                    " every enforcing tool (probe, defake_gate, claimscope)"
+                    " already screens on owned_units alone, so the list is"
+                    " what protects the path either way. Prose-only hits: "
+                    + ", ".join(f"{c['owner']} ({c['id']})"
+                                for c in prose_only))
+        else:
+            result["verdict"] = "CLAIMED" if claims else "no claim found"
+            result["verdict_basis"] = "scope_prose (owned_units cannot decide)"
         result["owns_note"] = (
             "every claim listed here covers the queried path. An ACTIVE claim"
             " owned by someone else is a VETO on its ENTIRE scope, not just"
             " this file — MWCC couples a whole TU through its constant pool,"
             " declaration order and register allocation, so two writers in one"
             " TU is a merge conflict by construction."
-            " 'no claim found' is NOT a guarantee: an unpushed claim protects"
-            " nothing and cannot be seen from here, and matching is over"
-            " scope PROSE. Screen `git log -- <path>` too before a first edit."
+            " No verdict here is a guarantee: an unpushed claim protects"
+            " nothing and cannot be seen from here. Screen"
+            " `git log -- <path>` too before a first edit."
+            + (" This query was decided by attributes.owned_units; the"
+               " claims marked \"decides\": false matched the scope PROSE"
+               " only and are noise (see scope_prose_note)."
+               if decidable else
+               " This query is decided by the scope PROSE, which was measured"
+               " at 85% false positives over the 250-unit image and cannot"
+               " read a negation — every claim listed may be a false hit."
+               " Ask the integrator to put attributes.owned_units on the"
+               " claims that lack one.")
         )
     return result
 

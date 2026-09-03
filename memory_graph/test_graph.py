@@ -2753,6 +2753,50 @@ class OwnedUnitsTests(unittest.TestCase):
             result["structured_verdict"])
         self.assertIn("1 of 2", result["structured_verdict"])
 
+    def test_a_prose_only_hit_does_not_set_the_headline_when_decidable(self):
+        """T18 run-48 item 9: the top-level verdict is the decidable one.
+
+        Reproduced at dba320633 on the live corpus:
+          gdlmem claims --owns game/sys/main.c
+            "verdict": "CLAIMED"           <- six claims, ALL scope_prose
+            "structured_verdict": "FREE"
+        Every one matched on the word "main", from the `main.dol: OK` gate
+        line every scope quotes. Calibrated over all 256 src units against
+        run-48's six claims: 11 contradicted (4.3%), 245 agreed.
+        """
+        # `flip lane` is the scope prose; querying "flip" matches it and
+        # nothing in owned_units.
+        result = work_claims(root=self.root, owns="flip")
+        self.assertEqual(result["count"], 1)
+        self.assertEqual(result["claims"][0]["match"], "scope_prose")
+        self.assertEqual(result["structured_verdict"], "FREE")
+        self.assertEqual(result["verdict"], "FREE")
+        self.assertEqual(result["verdict_basis"], "owned_units")
+        self.assertFalse(result["claims"][0]["decides"])
+        self.assertIn("decide NOTHING here", result["scope_prose_note"])
+
+    def test_a_structured_hit_names_its_owner_in_the_headline(self):
+        result = work_claims(root=self.root, owns="game/anim/atree.c")
+        self.assertEqual(result["verdict"], "OWNED by worker-mf")
+        self.assertEqual(result["verdict_basis"], "owned_units")
+        self.assertNotIn("decides", result["claims"][0])
+
+    def test_prose_keeps_the_headline_when_nothing_can_decide(self):
+        # The negative half: with an undeclared claim present, owned_units
+        # cannot clear anything and removing the prose headline would leave
+        # no screen at all.
+        _write(self.root / "memory_graph" / "inbox" / "wc9.json", {
+            "schema_version": 1, "id": "work_claim.blind.v1",
+            "kind": "work_claim", "function": "function:test_fn",
+            "owner": "worker-blind", "state": "active", "claimed_at": TODAY,
+            "attributes": {"scope": "open-ended sweep"},
+        })
+        build_database(self.root)
+        result = work_claims(root=self.root, owns="flip")
+        self.assertEqual(result["verdict"], "CLAIMED")
+        self.assertIn("owned_units cannot decide", result["verdict_basis"])
+        self.assertNotIn("scope_prose_note", result)
+
     def test_the_index_and_conflicts_are_derived(self):
         _write(self.root / "memory_graph" / "inbox" / "wc3.json", {
             "schema_version": 1, "id": "work_claim.nm.v1",
