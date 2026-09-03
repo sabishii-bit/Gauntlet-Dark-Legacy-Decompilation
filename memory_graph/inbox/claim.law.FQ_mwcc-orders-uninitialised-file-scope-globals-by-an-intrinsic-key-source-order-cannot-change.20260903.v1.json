@@ -1,0 +1,20 @@
+{
+  "asserted_by": [
+    "attempt.FQ_atree-flip-is-blocked-by-a-linkage-vs-layout-contradiction-mwcc-cannot-satisfy.20260903.v1"
+  ],
+  "attributes": {
+    "tags": [
+      "build-hygiene"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "Any TU under these cflags where changing the DECLARATION ORDER of two uninitialised file-scope globals of equal alignment changes their .bss offsets in the compiled object (read with `objdump -t` on the pre-postprocess body object, not on the link), or any source form / cflags variant that emits a 1-byte-aligned .bss global between two 4-byte-aligned ones. Either observation disproves the intrinsic-key claim. A counterexample under a DIFFERENT compiler or flag set does not: the claim is scoped to GC/1.2.5 with cflags_demo, and claim.law.bss-reverse-declaration-order.20260829.v1 may well still hold where it was measured.",
+  "id": "claim.law.FQ_mwcc-orders-uninitialised-file-scope-globals-by-an-intrinsic-key-source-order-cannot-change.20260903.v1",
+  "kind": "claim",
+  "predicate": "codegen_law",
+  "recorded_at": "2026-09-03T21:32:39Z",
+  "schema_version": 1,
+  "subject": "compiler:mwcc-gc-1.2.5",
+  "valid_from": "2026-09-03",
+  "value": "For a game-lib TU under GC/1.2.5 with the cflags_demo set, MWCC lays out UNINITIALISED FILE-SCOPE GLOBALS in .bss by an INTRINSIC key (measured consistent with alignment descending, then symbol name descending), NOT by declaration order and NOT by reverse declaration order, and the emission is INVARIANT under `-common off`. Statics are the opposite: MWCC merges them into the anonymous `...bss.0` block in DECLARATION order, which is why a static block and a global set of the same three arrays produce DIFFERENT layouts from identical source text. CONSEQUENCE, and this is the load-bearing half: when a target's own code addresses several same-TU .bss objects from ONE base with fixed displacements, that layout is a fact about the STATIC block and a TU whose .bss layout interleaves alignment classes (a 1-byte-aligned object BETWEEN two 4-byte-aligned ones, as game/anim/atree.c's atree_handles +0 / atree_scroll +0x60 / whichatree +0x1E0 does) is UNREACHABLE from external linkage by any source ordering. Measured on game/anim/atree.c 2026-09-03 at c8a28c3bb, four ways: declaration order (atree_handles, atree_scroll, whichatree) and the reversed order (whichatree, atree_scroll, atree_handles) each emit `objdump -t build/GUNE5D/src/game/anim/.postprocess/body/atree.o` = `whichatree .bss+0 (0x60)`, `atree_handles .bss+0x60 (0x60)`, `atree_scroll .bss+0xC0 (0x180)`; adding `DECL_SECT(\".data\")` to all three puts them inside the `...bss.0` block and leaves that order unchanged; and a per-Object `-common off` cflags variant leaves it unchanged again. `DECL_SECT(\".bss\")` is not a spelling of this at all -- MWCC refuses it outright with `only use the initialized section name to refer to the section / '.bss' is the name of an uninitialized data section`. The same measurement REFUTES claim.law.bss-reverse-declaration-order.20260829.v1 for this compiler and flag set: reverse-declaration order predicts the two source orders emit DIFFERENT layouts, and they emit the same one."
+}

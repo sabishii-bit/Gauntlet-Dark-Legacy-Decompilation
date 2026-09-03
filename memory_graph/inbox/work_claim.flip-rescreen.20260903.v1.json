@@ -2,7 +2,8 @@
   "attributes": {
     "integrator": "claude-fable-integrator",
     "owned_units": [
-      "game/mb/mb_camera.c"
+      "game/mb/mb_camera.c",
+      "game/anim/atree.c"
     ],
     "scope": "FLIP lane: (1) RE-RUN the image-wide flip-candidate screen at HEAD (AF's zero-candidates predates runs 45-48's closes: PlayerDoWeapTrail/fn_8005E90C/CritterMoveSetup/FindWORLDOBJ/AudioEnterNextStage/adsMoveRawToCooked etc. may have completed their TUs; report.json matched==total + fndiff --clean + textorder + full data audit per candidate; flip everything that passes via finish_tu, full ninja + sha1 each). (2) MBWorldToScreen3D (mb_camera, real 84, count-asymmetric T104/O102): the FT run-48 record reclassifies it as a register-PROMOTION gap (target uses 15 FPRs/f31 saved, ours 13) w/ the GPR side of the same fn as the in-function control - probe promotion-forcing constructs (address-taken FP local? volatile? a second live FP range?) against the record's census; typed park if it walls (mb_camera flip is gated on this one fn). Extend owned_units per candidate TU at selection; defake baseline per TU; pins screened; fresh fuzzy per keep; 3-attempt cap. Gate = 'main.dol: OK' + sha1 per flip. Promotion directive in force: source-exact closes DELETE their rule in the same commit.; parallel fleets please pick other TUs"
   },
