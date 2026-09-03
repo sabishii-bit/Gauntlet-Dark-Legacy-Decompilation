@@ -2046,7 +2046,55 @@ def _parity(insns):
     return (int(match.group(1)), int(match.group(2))) if match else None
 
 
-def count_class_line(prev_insns, insns):
+def extab_at_risk(unit, report=None):
+    """[(section, bytes, fuzzy%)] for a unit's LINK-level exception tables.
+
+    Run-50 item 3.  On a `-Cpp_exceptions` TU an instruction-COUNT change
+    relocates every exception range, so a count-parity transition is also a
+    DATA event, and the byte figure was reachable only by running
+    defake_gate afterwards (NC measured `-84 B` on game/pb/dbgtext that
+    way).  These sections exist in NO object -- measured image-wide over 257
+    paired units, zero objects on either side carry an extab-family section
+    -- so objdiff's report is the only place the number lives.
+
+    I/O by design, and OUTSIDE `classify`: the caller reads, the pure
+    verdict functions are handed the rows.
+    """
+    path = Path(report) if report is not None else Path(
+        f"build/{VERSION}/report.json")
+    bare = re.sub(r"\.(c|cpp)$", "", str(unit).replace("\\", "/").strip("/"))
+    if bare.startswith("src/"):
+        bare = bare[len("src/"):]
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:                                          # noqa: BLE001
+        return []
+    for entry in data.get("units", []):
+        if entry.get("name", "").split("/", 1)[-1] == bare:
+            return [(s["name"], int(s["size"]), s.get("fuzzy_match_percent"))
+                    for s in entry.get("sections", [])
+                    if "extab" in s.get("name", "")]
+    return []
+
+
+def extab_note(extab):
+    """The one-line DATA consequence of a count-parity transition."""
+    rows = [row for row in (extab or []) if row[1]]
+    if not rows:
+        return ""
+    total = sum(row[1] for row in rows)
+    detail = ", ".join(
+        f"{name} {size} B at "
+        + ("n/a" if pct is None else f"{pct:.4f}%")
+        for name, size, pct in rows)
+    return (f"  DATA AT RISK: this TU carries {total} bytes of LINK-level"
+            f" exception tables ({detail}). A count change relocates every"
+            " exception range, so the extabindex match is spent by the same"
+            " edit — the figure a lane otherwise had to go find with"
+            " defake_gate.")
+
+
+def count_class_line(prev_insns, insns, extab=None):
     """The CATEGORICAL verdict, printed before any real/fuzzy comparison.
 
     MV, run 39 (run-40 item 8): an instruction-COUNT change is not a
@@ -2078,13 +2126,14 @@ def count_class_line(prev_insns, insns):
                 " is a CLASS change, not a score change — a count-asymmetric"
                 " residual is outside EVERY postprocessor class, and this"
                 " function has just become eligible for one. Read it before"
-                " the real/fuzzy line below.")
+                " the real/fuzzy line below." + extab_note(extab))
     return (f"COUNT-PARITY LOST  insns {prev_insns} -> {insns}:"
             f" ours and target now differ by {abs(now[0] - now[1])}"
             " instruction(s). This is a CLASS change, not a score change —"
             " while the counts differ NO postprocessor rule can close this"
             " function, so a fuzzy or real gain here buys a state no rule"
-            " can finish. Read it before the real/fuzzy line below.")
+            " can finish. Read it before the real/fuzzy line below."
+            + extab_note(extab))
 
 
 def restore_scope_counts(base_text, cur_text, fn):
@@ -3472,7 +3521,8 @@ def tu_sibling_regressions(unit):
 
 def classify(state, real, insns, multiset_tokens, rebase_best=False,
              digest=None, source_changed=True, fuzzy=None,
-             accept_fuzzy_loss=False, head=None, tu_at_head=False):
+             accept_fuzzy_loss=False, head=None, tu_at_head=False,
+             extab=None):
     """Pure verdict function: (verdict_text, new_state).
 
     ``state`` is the banked gate state; the returned state carries the
@@ -3763,7 +3813,8 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
     # annotators — dispatches on verdict.startswith(), so a prefix would
     # silently disable banking. It changes what the verdict MEANS, never
     # what it IS.
-    state["count_class"] = count_class_line(state.get("last_insns"), insns)
+    state["count_class"] = count_class_line(state.get("last_insns"), insns,
+                                            extab)
     state["last_real"] = real
     state["last_insns"] = insns
     if multiset_tokens is not None:
@@ -5200,12 +5251,16 @@ def main():
         committed_now = head_bytes(source)
         tu_at_head = (committed_now is not None
                       and source.read_bytes() == committed_now)
+    # The DATA half of a count-parity transition, read here (I/O) and handed
+    # to the pure verdict function (run-50 item 3).
+    extab_rows = extab_at_risk(unit)
     verdict, state = classify(state, real, insns, multiset_tokens,
                               rebase_best=rebase_best,
                               digest=digest, source_changed=source_changed,
                               fuzzy=cached_fuzzy,
                               accept_fuzzy_loss=accept_fuzzy_loss,
-                              head=head_now, tu_at_head=tu_at_head)
+                              head=head_now, tu_at_head=tu_at_head,
+                              extab=extab_rows)
     # FRESH FUZZY BEFORE THE BANK (run-35 item 1). The verdict above is
     # provisional whenever it would move the BEST anchor: a real+multiset
     # win can still be a fuzzy LOSS, and banking one poisons every later
@@ -5264,7 +5319,8 @@ def main():
                                   source_changed=source_changed,
                                   fuzzy=fresh,
                                   accept_fuzzy_loss=accept_fuzzy_loss,
-                                  head=head_now, tu_at_head=tu_at_head)
+                                  head=head_now, tu_at_head=tu_at_head,
+                                  extab=extab_rows)
         if fresh is not None:
             cached_fuzzy = fresh
             state["last_fuzzy"] = fresh
