@@ -1,0 +1,34 @@
+{
+  "attempted_axis": "Serve the WZ group-B refusal row at +0xe4 with existing webfrank classes, then - when they refused - instrument the refusal precisely enough to say WHICH proof step is missing and what it would be worth.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and SATISFIED (148/148). claim.law.DC_copy-form-class-is-directional-and-its-inverse-population-is-unserved.20260901.v1 APPLIED and it is what identified the +0xe4 and +0x174 mode: ours is the copy and the target is the `li`, the inverse direction. claim.law.unpaired-schedule-words-bar-webfrank-candidacy-not-just-its-permute-stage.20260831.v1 SCREENED and SATISFIED - zero unpaired words. claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 APPLIED: the audit was never consulted, the shipped guards were run directly. claim.law.HV_emb-sda21-relocation-offset-differs-between-our-objects-and-the-target.20260901.v1 SCREENED and NOT ENGAGED - neither copy-form site is relocated in either object.",
+    "laws_applied": "[\"claim.law.DC_copy-form-class-is-directional-and-its-inverse-population-is-unserved.20260901.v1\"]",
+    "probed_form": "No source edit and no shipped rule. Rule fragments were run through apply_patch in memory only.",
+    "residual": "EXACTLY ONE PROOF STEP IS MISSING, and it is named. The residual decomposes into two parts, both understood. (1) TWO COPY-VERSUS-CONSTANT WORDS, +0xe4 and +0x174, structurally identical because the block is duplicated: target `li r27,0` against ours `addi r26,r25,0`, with our r25 holding 0 from an immediately preceding `li r25,0` that is BYTE-IDENTICAL in both streams. These are served today by equivalent_copy_form's `constant_dataflow_inverse_recolor`, which re-encodes our word to `li r26,0` and leaves the r26-vs-r27 difference for the recolor. (2) SIX USES where our r25 must correspond to the target's r27 (or our r26 to the target's r25). Both registers provably hold literal 0, but they were loaded by INDEPENDENT `li` instructions, and verify_value_equality_recolor's relation is seeded with the identity and then closed only over VALUE-PRESERVING COPIES (_value_preserving_copy accepts `mr`/`addi rD,rS,0`/`fmr` and rejects `li` by construction). Two independent constant loads of the same literal are therefore never related, however obviously equal, and the six uses are refused. With a per-stream constant map added alongside the relation the function is BYTE-EQUAL to the target. That is a class widening, so it is proposed to the integrator as claim.WR_constant-equality-closure-class-proposal.20260903.v1 and NOT shipped here; the run-42 postprocessor order was 'existing classes ONLY'.",
+    "scope": "No file touched. game/ui/attract.c byte-unchanged; no webfrank.json entry was added for this function.",
+    "verification": "Aligned views from `fnasm.py game/ui/attract.c scroll_credits 0xd8:0x120 --diff` and `0x160:0x190 --diff`, quoted in the residual note. Probe control: the same wr_const_closure_probe.py run on PlayerProcessPowerups reproduces the SHIPPED mode's verdict exactly (PROVED, 0 substitutions / 1 exchange +0xe68 (f1,f0)<->(f1,f0), byte-equal True) under both settings, so the prototype's shipped-mode column is not a re-implementation with different behaviour."
+  },
+  "coverage_range": "0x0:0x250 - the whole 148-instruction body; both the shipped mode and the candidate were run over every word.",
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/wr_const_closure_probe.py game/ui/attract scroll_credits - if the shipped mode ever PROVES, the closure gap has been filled or the residual has moved and this cap has expired.",
+    "falsifier": "Any existing-class composition reaching BYTE-EQUAL on this function, or any evidence that our r25 and the target's r27 do not both hold literal 0 at +0xfc.",
+    "premise_measurement": "`tools/gdl/composed_census/wr_const_closure_probe.py game/ui/attract scroll_credits --extra <both copy-form edits>` prints, at c117e66da: `shipped value-equality : REFUSED -- +0xfc: use of g25 is not value-equal to g27` and `+ constant-equality : PROVED; would declare 6 substitution(s), 0 exchange(s) ... byte-equal to target: True`. The six substitutions are +0xfc g25->g27, +0x15c g26->g25, +0x168 g25->g27, +0x18c g25->g27, +0x1ec g26->g25, +0x1f8 g25->g27.",
+    "scope": "The EXISTING webfrank class set for scroll_credits, and only that. It denies nothing about source work on game/ui/attract.c, and it does not deny the postprocessor path once the constant-equality closure named in claim.WR_constant-equality-closure-class-proposal.20260903.v1 is adjudicated."
+  },
+  "function": "function:scroll_credits",
+  "id": "attempt.WR_scroll-credits-needs-a-constant-equality-closure-and-nothing-else.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T03:46:46Z",
+  "residual": {
+    "capability_needed": "webfrank value-equality relation closed over INDEPENDENT CONSTANT LOADS, not only over value-preserving copies - see claim.WR_constant-equality-closure-class-proposal.20260903.v1",
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset IDENTICAL (148/148); RAW DIFFERING WORDS = 52 VERBATIM: `game/ui/attract::scroll_credits (plain object (no webfrank unit)): 148 insns, DIFFERING WORDS = 52, MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0, PINNED = no`"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "RUN: copy_register_fields, verify_consistent_recolor (REFUSED: `+0xfc: use of g25 does not correspond to g27 under the running renaming`), equivalent_copy_form in three modes at +0xe4 (`dominating_def_inverse` REFUSED with `destination differs (r26 vs r27) - that is a recolor, not a form change`; `constant_dataflow_inverse_recolor` ACCEPTED at both +0xe4 and +0x174), verify_value_equality_recolor (REFUSED: `+0xfc: use of g25 is not value-equal to g27`), and the composition through the real apply_patch. NOT RUN and why: instruction_permutation - zero displaced atoms, nothing to move; equivalent_mask_form - no rlwinm mask difference; equivalent_zero_form - it refuses to compose with a register stage by name and this residual needs one; unproven_recolor_audit - deliberately NOT used, the whole point of this record is to name the missing PROOF rather than to assert equivalence by hand.",
+  "windows_tried": "None - no permutation window exists to try, the streams are index-aligned. The composition shapes tried were copy-form edit SETS: {} (refused at +0xfc), {+0xe4} (refused at +0x174), {+0xe4, +0x174} (refused at +0xfc under the shipped relation, PROVED under the candidate closure)."
+}

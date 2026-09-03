@@ -1,0 +1,26 @@
+{
+  "asserted_by": [
+    "tools/gdl/composed_census/wr_ve_derive.py",
+    "tools/gdl/composed_census/wr_perm_hash.py",
+    "tools/gdl/webfrank.py::verify_consistent_recolor",
+    "tools/gdl/webfrank.py::check_permutation_dependences"
+  ],
+  "attributes": {
+    "tags": [
+      "postprocessor",
+      "register-web",
+      "workflow",
+      "metrics"
+    ]
+  },
+  "epistemic_state": "verified",
+  "falsifier": "An assignment census whose 'no bijection' verdict is confirmed by verify_consistent_recolor on a function where a permutation window was actually tried - that would show the two agree and the census verdict is not a lower bound but the answer. Equally falsifying: a case where the census reports a bijection EXISTS and the strict proof refuses for a reason a permutation cannot fix, which would make the census an upper bound instead. The check is `tools/gdl/composed_census/wr_ve_derive.py` plus `wr_perm_hash.py` against the census rows of claim.RC_block-rotation-population-census-run-39.20260902.v1.",
+  "id": "claim.law.WR_a-best-fit-assignment-census-is-a-lower-bound-on-recolor-eligibility-never-a-verdict.20260903.v1",
+  "kind": "claim",
+  "predicate": "law",
+  "recorded_at": "2026-09-03T03:48:23Z",
+  "schema_version": 1,
+  "subject": "project:gdl",
+  "valid_from": "2026-09-03",
+  "value": "A REGISTER-ASSIGNMENT CENSUS THAT SCORES A FIXED POSITIONAL PAIRING CANNOT SEE A PERMUTATION, SO ITS 'NO CONSISTENT BIJECTION EXISTS' VERDICT IS A LOWER BOUND ON RECOLOR ELIGIBILITY AND MUST NEVER BE QUOTED AS A REASON NOT TO RUN THE REAL PROOF. The real proof is one command and it disagrees.\n\nMEASURED, run 42. claim.RC_block-rotation-population-census-run-39.20260902.v1 measured game/world/tower::towerRecordLevelBeaten's best-fit assignment at 80.0% of callee-saved pairs with 30 scratch divergences outside the bank, and attempt.NM_towerrecordlevelbeaten-store-order-and-decl-order-are-both-unreachable.20260902.v1 carried that forward as `capability_needed: copy_register_fields, IF a consistent bijection exists ... it predicts the strict proof REFUSES`, adding honestly that the prediction had not been executed. Executed: verify_consistent_recolor ACCEPTS, in its strictest form with no value-equality escape, all 23 of the function's remaining differing words - once a TWO-ATOM instruction_permutation over [0x20,0x28) removes the one obstruction that is not a renaming at all. The function is now byte-equal to the target.\n\nTHE MECHANISM OF THE CENSUS ERROR. Two of the 25 differing words were the function's entry stores emitted in the opposite ORDER (target `stw r31,@lbl_803448AC` then `stw r30,@lbl_803448A8`, ours the reverse). A positional census pairs word i with word i, sees two register mismatches it cannot reconcile with any single assignment, and reports the whole function unbijectable - the two order-only words poison the score for the 23 that are a clean renaming. The same structure produced the shipped precedent in game/world/tower::TowerCheckMessages, whose own rule prose already records that every census built to date is 'structurally blind' to a window contributing zero unabsorbed words. This law generalises that note from the census-authoring side to the census-READING side.\n\nTHE RULE THIS IMPLIES. Before quoting any assignment census as a negative, run the composition itself: `tools/gdl/composed_census/wr_ve_derive.py <unit> <fn>` for the register stage alone, and if it refuses on a word whose difference is an emission ORDER rather than a register field, try the smallest permutation window over that word's neighbourhood with `tools/gdl/composed_census/wr_perm_hash.py` and re-run. Both cost seconds and neither needs a build. A census verdict is a ranking input; the guard is the arbiter.\n\nSECOND-ORDER NOTE, same run and same shape: when the permutation's two atoms are both STORES, check_permutation_dependences refuses under its default single-memory-resource model with `permutation changes the final write of mem, which is live after the region`. That is not a park either - it is the prompt to declare a memory_disambiguation, which proves through the split map that the two accesses are disjoint. Read that refusal as 'declare your memory', not as 'the permutation is illegal'."
+}

@@ -1,0 +1,38 @@
+{
+  "attempted_axis": "Re-screen MBCameraUpdate at its NEW state as the run-42 postprocessor work order directed ('CL's run-41 source work removed the exact words WZ's refusal cited - re-run the composed synthesis'), by running the shipped composition through the real apply_patch at current main.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and SATISFIED, and it is NOT the bar here - counts are equal at 159/159, which is exactly why the function looked like a candidate. claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1 APPLIED and CONFIRMED at this site: --ops reports an IDENTICAL multiset and is structurally blind to a whole frame-size difference, which is the case that law names. claim.law.webfrank-cannot-close-a-count-asymmetric-residual.20260831.v1 SCREENED and NOT ENGAGED. The Mandatory result policy's 'never use postprocessing to hide structural, operand, relocation-payload, ABI, semantic, or data differences' is the governing rule, and a frame size is an operand and a stack-layout fact.",
+    "laws_applied": "[\"claim.law.EN-ops-multiset-cannot-classify-a-residual-run-slotdiff-first.20260901.v1\"]",
+    "probed_form": "No edit of any kind. Read-only screens only.",
+    "residual": "REFUTES THE WORK ORDER'S PREMISE, which is the deliverable here. The order said CL's run-41 source work 'removed the exact words WZ's refusal cited' and asked for the composed synthesis to be re-run. It was: the words WZ cited are indeed gone and the function is down to five words, but what remains is a class the postprocessor is fail-closed against by construction, not a smaller version of the old residual. Re-running the synthesis was the right instruction and it produced a RECLASSIFICATION rather than a rule. Note also, for whoever maintains wf_word_diff: its CLASS line says `RECOLOR - streams index-aligned, only register fields differ` for this function, which is false. The heading is derived from MNEMONIC DIVERGENCE = 0 and cannot see an immediate difference, so a lane that trusts the heading over the word list will queue a frame-size residual as a recolor. That is a real trap and it is one line to fix.",
+    "scope": "No file touched. game/mb/mb_camera.c is owned by another lane this run and was not read for editing.",
+    "verification": "wz_try_compose.py and wr_ve_derive.py both run at c117e66da against build/GUNE5D/src/game/mb/mb_camera.o and build/GUNE5D/obj/game/mb/mb_camera.o; identical verbatim refusal from both. wf_word_diff --list quoted above in full."
+  },
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/wf_word_diff.py game/mb/mb_camera.c MBCameraUpdate --list - if the +0x14 row (O 9421ffd0 / T 9421ffd8) is gone, the frame sizes agree, this denial has expired and the function is a fresh postprocessor candidate.",
+    "falsifier": "Any measurement showing the five rows are not all frame-size immediates, or any webfrank stage accepting a non-register bit difference. Either would disprove it.",
+    "premise_measurement": "`wf_word_diff.py game/mb/mb_camera.c MBCameraUpdate --list` at c117e66da prints exactly five rows and every one is a frame-size immediate: +0x0014 O 9421ffd0 T 9421ffd8 (`stwu r1,-0x30(r1)` vs `-0x28(r1)`), +0x0018 O bf410018 T bf410010 (`stmw r26,0x18(r1)` vs `0x10(r1)`), +0x0268 O 80010034 T 8001002c (`lwz r0,0x34(r1)` vs `0x2c(r1)`), +0x026c O bb410018 T bb410010 (`lmw r26,0x18(r1)` vs `0x10(r1)`), +0x0270 O 38210030 T 38210028 (`addi r1,r1,0x30` vs `0x28`). Our frame is 0x30 bytes where the target's is 0x28: an 8-byte SURPLUS on our side, with the saved-register block and every frame reference shifted by the same 8. Instruction counts are equal at 159/159 and the register fields agree everywhere, which is why wf_word_diff's own CLASS heading reads RECOLOR - that heading is keyed on MNEMONIC DIVERGENCE and is WRONG here.",
+    "scope": "The POSTPROCESSOR path for MBCameraUpdate, and only that. It denies nothing about source work on game/mb/mb_camera.c, which is where this residual belongs and which the CL lane owns this run."
+  },
+  "function": "function:MBCameraUpdate",
+  "hypothesis": {
+    "cheapest_refuting_observation": "python tools/gdl/slotdiff.py game/mb/mb_camera.c MBCameraUpdate - if the slot MAP is identical and only the frame total differs, the surplus is padding rather than an extra live local, and the two cures are different.",
+    "screened_against_target": "yes - the aligned entry and exit words were read from the objects (both streams save r26-r31 with stmw/lmw and differ only in the displacement), so the save set is identical and the surplus is below the save area, not inside it.",
+    "statement": "The whole residual is 8 bytes of stack our build allocates and the target does not, so it is a SOURCE question with a known idiom: either eight bytes of local declarations we carry that the target folds away, or - per the AGENTS.md pad note - a missing inline whose expansion would reuse the space. The next lane on mb_camera.c should attack the local set of MBCameraUpdate directly and should NOT spend a postprocessor probe here."
+  },
+  "id": "attempt.WR_mbcameraupdate-residual-is-an-eight-byte-frame-surplus-not-a-recolor.20260903.v1",
+  "kind": "attempt",
+  "outcome": "negative",
+  "recorded_at": "2026-09-03T03:46:45Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "frame-slot",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset IDENTICAL (159/159); RAW DIFFERING WORDS = 5 VERBATIM: `game/mb/mb_camera::MBCameraUpdate (plain object (no webfrank unit)): 159 insns, DIFFERING WORDS = 5, MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0, PINNED = no`"
+  },
+  "residual_class": "STACK_LAYOUT",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "RUN: the shipped composition through the real apply_patch (equivalent_copy_form synthesis by shape, then copy_register_fields) via tools/gdl/composed_census/wz_try_compose.py, and again via wr_ve_derive.py with value_equality_recolor. BOTH refuse at the FIRST differing word with the same verbatim message: `non-register instruction bits differ at +0x14: 0x00000008`. NOT RUN and why: instruction_permutation, equivalent_copy_form, equivalent_mask_form, equivalent_zero_form, verify_consistent_recolor, verify_value_equality_recolor - none of them can be reached or can help, because the refusal is on NON-REGISTER bits and every one of those stages is fail-closed on exactly that. unproven_recolor_audit - not used; it would launder a frame-size difference, which the Mandatory result policy prohibits by name.",
+  "windows_tried": "None, and none is possible: the five differing words are not displaced, they are the same five slots in both streams carrying different IMMEDIATES. A permutation cannot change an immediate."
+}

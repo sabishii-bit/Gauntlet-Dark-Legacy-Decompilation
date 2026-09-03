@@ -1,0 +1,39 @@
+{
+  "attempted_axis": "Serve the WZ group-B refusal row at +0x84 with existing webfrank classes at the function's current state, and - when they refused - measure whether the same missing proof step that scroll_credits needs would close this one too.",
+  "attributes": {
+    "law_screen": "claim.law.webfrank-cannot-close-instruction-count-deltas.20260831.v1 SCREENED and SATISFIED (204/204). claim.law.unpaired-schedule-words-bar-webfrank-candidacy-not-just-its-permute-stage.20260831.v1 SCREENED and SATISFIED. claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1 APPLIED - the guards were run directly rather than consulting the audit. AGENTS.md residual-work discipline 14 ('a guard's refusal is a measurement of the guard') APPLIED as the method: both refusals were instrumented to the check, the word and the registers before either was recorded as a cap.",
+    "laws_applied": "[\"claim.law.RQ_webfrank-audit-silence-is-not-ineligibility.20260901.v1\"]",
+    "probed_form": "No source edit and no shipped rule; the compositions were run through apply_patch in memory only.",
+    "residual": "TWO independent obstructions, and this record's contribution is separating them. (1) +0x84, the FILED row, is the two-independent-constant-loads gap that also blocks scroll_credits, and the candidate closure SERVES it - measured, not argued: the refusal moves off +0x84 entirely. (2) +0x1ec is a different animal and is not a correspondence gap: our r28 and the target's r25 carry different ROLES over part of the function (ours a stack address, the target's a counter), with different definition counts. This upholds and sharpens the four standing caps on this function (RC, MS, MC, HV) rather than overturning any of them: MC's attempt.MC_drawmemcardmessage-every-existing-class-refuses-including-value-equality.20260902.v1 said the existing classes all refuse and that is CONFIRMED at the current state, with the refusal offset re-measured live (+0x84) rather than inherited.",
+    "scope": "No file touched. game/sys/memcard.c byte-unchanged; no webfrank.json entry was added for this function.",
+    "verification": "Aligned views from `fnasm.py game/sys/memcard.c drawMemCardMessage 0x0:0x9c --diff` and `0x1c0:0x200 --diff`. The +0x84 mechanism, read from those views: +0x24 `li r26,0` is BYTE-IDENTICAL in both streams; +0x28 is target `li r22,0` against ours `li r29,0`; +0x80 (inside a doubly-guarded block) is target `addi r22,r3,4` against ours `addi r26,r3,4`; +0x84 is the JOIN, target `cmplwi r22,0` against ours `cmplwi r26,0`. On the +0x80 path the pair (g26,g22) is bound by the common definition; on the fall-through path our r26 and the target's r22 both hold literal 0 from independent `li` instructions, the relation cannot see that, and the join intersects the pair away. That is the whole of the filed refusal."
+  },
+  "coverage_range": "0x0:0x330 - the whole 204-instruction body; both proofs were run over every word.",
+  "denial": {
+    "expiry_check": "python tools/gdl/composed_census/wr_const_closure_probe.py game/sys/memcard drawMemCardMessage - if either column stops refusing, or the second refusal moves off +0x1ec, the premise has changed.",
+    "falsifier": "Any existing-class composition reaching BYTE-EQUAL, or evidence that our r28 and the target's r25 hold the same value on every path reaching +0x1ec.",
+    "premise_measurement": "`tools/gdl/composed_census/wr_const_closure_probe.py game/sys/memcard drawMemCardMessage` at c117e66da prints: `shipped value-equality : REFUSED -- +0x84: use of g26 is not value-equal to g22` and `+ constant-equality : REFUSED -- +0x1ec: use of g28 is not value-equal to g25`. The refusal MOVES, which is the measurement: the closure serves the filed row and is defeated by a different one 0x168 bytes later.",
+    "scope": "The EXISTING webfrank class set for drawMemCardMessage, and additionally the candidate constant-equality closure of claim.WR_constant-equality-closure-class-proposal.20260903.v1 - measured, not assumed, insufficient here. It denies nothing about source work on game/sys/memcard.c."
+  },
+  "function": "function:drawMemCardMessage",
+  "hypothesis": {
+    "cheapest_refuting_observation": "python tools/gdl/composed_census/wr_defs-equivalent scan, or by hand: list every definition of our r28 and of the target's r25 (done above). If a later source change makes the two def COUNTS equal at the same offsets, the role difference is gone and the register stage should be re-run before any further source work.",
+    "screened_against_target": "yes - both def lists were read from the object bytes at c117e66da: ours r28 at +0x00cc/+0x022c/+0x027c, target r25 at +0x00cc/+0x0234/+0x0268/+0x027c.",
+    "statement": "The second obstruction is not a value-correspondence gap at all but a role difference: our r28 and the target's r25 share a definition site at +0xcc (`mr r28,r3` against `mr r25,r3`, same shape) yet their DEFINITION COUNTS differ - our r28 has three defs (+0xcc, +0x22c `addi r28,r1,72`, +0x27c) against the target r25's four (+0xcc, +0x234 `li r25,0`, +0x268 `addi r25,r25,4`, +0x27c). Ours homes a STACK ADDRESS in the register where the target keeps a counter, so the two registers are not two colourings of one value web and no relational widening can make them one. That is the same params-versus-locals block rotation attempt.MS_drawmemcardmessage-source-side-cap-the-residual-is-one-params-versus-locals-block-rotation.20260902.v2 named from the source side, now visible from the object side as a def-count asymmetry."
+  },
+  "id": "attempt.WR_drawmemcardmessage-constant-closure-serves-the-filed-row-but-a-second-obstruction-stands.20260903.v1",
+  "kind": "attempt",
+  "outcome": "capped",
+  "recorded_at": "2026-09-03T03:46:47Z",
+  "residual": {
+    "capability_needed": "NOT the constant-equality closure alone - that clears +0x84 and then stops at +0x1ec. See the residual note; no named capability closes this function today.",
+    "family": "regalloc-web",
+    "measured_at": "2026-09-03",
+    "signature": "opcode multiset IDENTICAL (204/204); RAW DIFFERING WORDS = 61 VERBATIM: `game/sys/memcard::drawMemCardMessage (raw postprocess body): 204 insns, DIFFERING WORDS = 61, MNEMONIC DIVERGENCE = 0, RELOC-SYMBOL MISMATCH = 0, PINNED = no`"
+  },
+  "residual_class": "REGISTER_ONLY",
+  "schema_version": 1,
+  "valid_from": "2026-09-03",
+  "verifiers_run": "RUN: copy_register_fields, verify_consistent_recolor (REFUSED), verify_value_equality_recolor (REFUSED: `+0x84: use of g26 is not value-equal to g22`), and the candidate constant-equality closure via tools/gdl/composed_census/wr_const_closure_probe.py (REFUSED at a DIFFERENT site: `+0x1ec: use of g28 is not value-equal to g25`). NOT RUN and why: instruction_permutation - zero displaced atoms, MNEMONIC DIVERGENCE 0, nothing to move; equivalent_copy_form / mask / zero forms - no opcode differs anywhere in the function, so no site is a form-change candidate; unproven_recolor_audit - not used.",
+  "windows_tried": "None. No permutation window exists: the streams are index-aligned with zero unpaired words, so the shape tried was the register stage alone, twice - once under the shipped relation and once under the candidate closure."
+}
