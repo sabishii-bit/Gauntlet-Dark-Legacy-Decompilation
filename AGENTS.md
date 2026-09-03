@@ -305,7 +305,18 @@ one, and supersede the law if your target contradicts it.
    wrong-symbol/pool defects -> dump the function's RELOCATION SYMBOLS
    (no score sees them; three real bugs found that way in one session —
    for a named-pool TU, "no @NN remains" is a complete decision
-   procedure).
+   procedure). **Never compare two pool entries by their FULL byte
+   arrays**: dtk names a whole contiguous `.rodata` run with ONE `lbl_ADDR`
+   symbol — `lbl_80116BD8` is 0xB4 bytes covering four string literals —
+   while our compiler emits each literal as its own `@N` object of 0x28
+   bytes, so the two entries legitimately differ in LENGTH at the same
+   datum. The relocation points at the START of both, so the decidable
+   question is whether the shorter is a PREFIX of the longer. Measured
+   (attempt.T11_tool-queue-11-ten-items-with-three-calibration-narrowings
+   .20260903.v1): full-array comparison called 337 rows in 123 functions
+   wrong, including byte-identical functions inside the 100%-matched SDK
+   (DEMOInit::LoadMemInfo at real 0); the prefix comparison `fndiff` now
+   ships (`_datum_prefix_equal`) takes it to 177 rows in 58 functions.
 4. **Free evidence first:** the TU's own header comments (one carried the
    correct diagnosis two passes missed); the target's function address
    order (= source order); callee prototypes; `nm`/UND tables for link
@@ -784,6 +795,16 @@ python configure.py
 ninja build/GUNE5D/<object-path>.o
 python tools/gdl/probe.py <unit> <fn> [--ops | --revert]  # MATCHING loop: build+score+verdict, one call
 python tools/gdl/defake_gate.py check <unit> --rebuild  # DEFAKE loop: build+gate, one call
+python tools/gdl/defake_gate.py baseline <unit> --at-head
+    # THE ANCHORED BASELINE. Gate baselines are keyed to the COMMIT, not
+    # committed to git, so a lane that finds none (or finds one taken at a
+    # different HEAD) does not have to re-take it by hand off whatever the
+    # working tree happens to hold: --at-head sets working-tree edits aside,
+    # rebuilds the baseline THIS COMMIT implies, and restores them. It
+    # prints the commit and source sha1 it anchored to, and that line is
+    # what a record quotes (attempt.NM_init-enemy-setenemyobj-takes-three-
+    # args-and-closes-exact.20260903.v1 quotes exactly it). The flag existed
+    # since run 37 and was reachable only from defake_gate's own docstring.
 python tools/gdl/fnasm.py <unit> <fn> [0xA:0xB | i:j] [--ours | --diff]
 python tools/gdl/fndiff.py <unit> <function> --count | --ops | --clean
 python tools/gdl/savedregs.py <unit> <fn> [--uses]  # callee-saved
