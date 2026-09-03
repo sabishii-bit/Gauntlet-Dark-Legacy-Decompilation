@@ -325,6 +325,7 @@ game/mb/mb_camera.c:
 	extab       start:0x80007768 end:0x80007798
 	extabindex  start:0x8000BB6C end:0x8000BBB4
 	.text       start:0x800B53B4 end:0x800B5AA8
+	.sdata2     start:0x80348B30 end:0x80348B38
 
 game/mb/mb_font.c:
 	extab       start:0x80007798 end:0x800077C8
