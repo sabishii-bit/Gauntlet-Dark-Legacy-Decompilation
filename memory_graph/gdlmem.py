@@ -165,6 +165,8 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
                                 default=None,
                                 help="alias for the positional json_file")
     propose_record.add_argument("--dry-run", action="store_true",
+                                # run-41 item 7: reports EVERY gate failure
+                                # and the size preflight in one call.
                                 help="validate fully but write nothing")
     propose_record.add_argument(
         "--confirm-new", action="store_true",
@@ -176,7 +178,8 @@ def build_parser() -> tuple[argparse.ArgumentParser, dict[str, object]]:
              " attempt cap, with the largest fields, and exit. Runs no"
              " validation and stages nothing, so it works on a half-written"
              " draft — trim before authoring the rest, not after ten"
-             " round-trips of guessing")
+             " round-trips of guessing. It COMPOSES with --dry-run, which"
+             " always includes this report beside the gate findings")
     propose_record.add_argument(
         "--template",
         choices=("attempt", "claim", "evidence", "entity", "edge",
@@ -304,7 +307,8 @@ def main(argv: list[str] | None = None) -> int:
             if not isinstance(record, dict):
                 parser.error(f"{json_file}: top-level JSON value must be an object")
             record_id_in_flight = record.get("id")
-            if args.size:
+
+            def size_report():
                 report = record_size_report(record)
                 report["largest_fields_line"] = format_size_fields(
                     report["largest_fields"])
@@ -316,7 +320,16 @@ def main(argv: list[str] | None = None) -> int:
                     if report["cap_applies"] else
                     f"no size cap applies to a {report['kind']!r} record"
                 )
-                result = report
+                return report
+
+            # --size COMPOSES with --dry-run (run-41 item 7). It used to be a
+            # mutually exclusive branch: asking for the size preflight meant
+            # the gates never ran in that call, so an author serialized "check
+            # size, fix, run gates, fix, run gates..." — MV's 17 attempts. A
+            # dry run now answers both questions at once, and --size alone
+            # stays the cheap preflight that reads no database.
+            if args.size and not args.dry_run:
+                result = size_report()
             else:
                 source = json_file.resolve()
                 inbox_dir = (root / "memory_graph" / "inbox").resolve()
@@ -326,11 +339,33 @@ def main(argv: list[str] | None = None) -> int:
                 # still stages, but the author sees what a reviewer would
                 # have said.
                 gate_warnings: list[str] = []
-                path = stage_record_proposal(record, root=root,
-                                             in_place=in_place,
-                                             dry_run=args.dry_run,
-                                             confirm_new=args.confirm_new,
-                                             warnings=gate_warnings)
+                # A dry run reports ALL independent gate failures at once
+                # (run-41 item 7); a real staging still stops at the first,
+                # because by then the author has already seen the full list.
+                try:
+                    path = stage_record_proposal(
+                        record, root=root, in_place=in_place,
+                        dry_run=args.dry_run,
+                        confirm_new=args.confirm_new,
+                        warnings=gate_warnings,
+                        report_all=args.dry_run)
+                except MemoryGraphError as error:
+                    if not args.dry_run:
+                        raise
+                    # A dry run is a REPORT, not an attempt to write: emit
+                    # the whole problem set alongside the size preflight and
+                    # any warnings, so one read tells the author everything
+                    # that needs fixing.
+                    result = {
+                        "review_state": "invalid (not staged)",
+                        "problems": str(error),
+                        "size": size_report(),
+                        "next": "fix every problem above, then re-run",
+                    }
+                    if gate_warnings:
+                        result["warnings"] = gate_warnings
+                    print(json.dumps(result, indent=2, sort_keys=False))
+                    return 1
                 result = {
                     "proposal": str(path),
                     "review_state": "valid (not staged)" if args.dry_run
@@ -340,6 +375,8 @@ def main(argv: list[str] | None = None) -> int:
                              "review the JSON, then move it from"
                              " memory_graph/inbox to records"),
                 }
+                if args.dry_run:
+                    result["size"] = size_report()
                 if gate_warnings:
                     result["warnings"] = gate_warnings
         elif args.command == "event":

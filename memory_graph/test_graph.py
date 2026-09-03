@@ -4104,5 +4104,93 @@ class RegisterDefinitionGapTests(unittest.TestCase):
         self.assertEqual([], self.gaps(None))
 
 
+class ReportAllGateFailuresTests(unittest.TestCase):
+    """Run-41 item 7: --dry-run reports EVERY gate failure in one call.
+
+    The gates are independent `if` blocks over one record, but each raised on
+    the spot, so a draft violating five of them cost five author round-trips:
+    NM paid exactly that, and MV paid seventeen attempts once the `--size`
+    preflight — a mutually exclusive CLI branch that could not run in the same
+    call as the gates — is counted. Calibrated against a deliberately invalid
+    draft: three gates (missing law_screen, an unknown tag, an unquoted
+    postprocessor reclassification) now arrive together with the size report.
+
+    Which drafts are REFUSED must not change; only how many calls it takes to
+    learn why. Both directions are asserted below.
+    """
+
+    def setUp(self):
+        self.root = make_root(with_symbols=False)
+        self._probe = core._probe_record_references
+        core._probe_record_references = lambda *a, **k: None
+
+    def tearDown(self):
+        core._probe_record_references = self._probe
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _bad_attempt(self):
+        return {
+            "schema_version": 1,
+            "id": "attempt.report-all-calibration.v1",
+            "kind": "attempt",
+            "function": "function:TextHeightMLines",
+            "attempted_axis": "a deliberately invalid draft",
+            "outcome": "parked",
+            "attributes": {
+                "tags": ["not-a-real-tag"],
+                "residual": "reclassified postprocessor-class: a pure"
+                            " recolor, eligible for a rule.",
+            },
+        }
+
+    def test_one_call_names_every_independent_failure(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(self._bad_attempt(), root=self.root,
+                                  dry_run=True, report_all=True)
+        text = str(caught.exception)
+        self.assertIn("law_screen", text)
+        self.assertIn("not-a-real-tag", text)
+        self.assertIn("N/N", text)
+        self.assertIn("proposal problem(s)", text)
+        self.assertIn("[1]", text)
+        self.assertIn("[3]", text)
+
+    def test_without_report_all_it_still_stops_at_the_first(self):
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal(self._bad_attempt(), root=self.root,
+                                  dry_run=True)
+        text = str(caught.exception)
+        self.assertIn("law_screen", text)
+        self.assertNotIn("not-a-real-tag", text)
+
+    def test_report_all_refuses_exactly_what_the_gates_refused(self):
+        """The collector must not make a bad draft pass."""
+        for report_all in (False, True):
+            with self.subTest(report_all=report_all):
+                with self.assertRaises(MemoryGraphError):
+                    stage_record_proposal(self._bad_attempt(), root=self.root,
+                                          dry_run=True,
+                                          report_all=report_all)
+
+    def test_a_valid_record_still_stages_under_report_all(self):
+        law = {"schema_version": 1, "id": "claim.law.report-all-ok.v1",
+               "kind": "claim", "subject": "compiler:test",
+               "predicate": "codegen_law", "epistemic_state": "verified",
+               "value": "MWCC emits the second addend first here."}
+        path = stage_record_proposal(law, root=self.root, dry_run=True,
+                                     report_all=True)
+        self.assertFalse(path.exists())      # dry run writes nothing
+        self.assertTrue(stage_record_proposal(law, root=self.root).exists())
+
+    def test_a_structurally_invalid_record_reports_and_stops(self):
+        """`id` and `kind` are what every later check reads, so a schema
+        failure cannot be carried forward without inventing answers."""
+        with self.assertRaises(MemoryGraphError) as caught:
+            stage_record_proposal({"schema_version": 1, "kind": "attempt"},
+                                  root=self.root, dry_run=True,
+                                  report_all=True)
+        self.assertIn("missing record fields", str(caught.exception))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
