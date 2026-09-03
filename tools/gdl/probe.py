@@ -201,6 +201,19 @@ docstring omitted it — the flags below all work):
                      state. The baseline is created by the first bank on a
                      unit whatever verdict caused it, and is never
                      overwritten silently; this is the override
+  --force-baseline   CREATE a session baseline from a tree that differs from
+                     HEAD. Since run 48 that is REFUSED by default: a
+                     baseline banked from an edited tree is not a baseline,
+                     and --revert-baseline would restore YOUR EDITS while
+                     calling them the pre-edit state (reproduced at
+                     c3f3aea99 — the receipt "[session baseline banked]" and
+                     the warning "BANKED FROM AN EDITED TREE" printed one
+                     under the other, after the bank). Nothing is written on
+                     a refusal, the ROLLING revert point still banks, and
+                     `--discard` restores HEAD itself. Use this flag for a
+                     deliberate mid-session anchor or when the tree's edits
+                     are the thing being measured; --rebaseline counts as
+                     the same declaration of intent
   --no-fuzzy-gate    skip the pre-bank fresh-fuzzy measurement (below).
                      Faster, and how the loop behaved before run 36 — but
                      a keep banked this way is unarbitrated
@@ -1427,10 +1440,64 @@ def bank_warning(kind, changed_lines, unit=None, fn=None):
     return ""
 
 
-def baseline_bank_decision(kind, base_exists, rebaseline=False):
+BASELINE_FORCE_FLAGS = ("--force-baseline", "--rebaseline")
+
+
+def baseline_bank_decision(kind, base_exists, rebaseline=False,
+                           changed_lines=None, force=False, unit=None,
+                           fn=None):
     """(action, message) for the SESSION BASELINE file on one bank.
 
-    action is "create", "keep" or "overwrite".
+    action is "create", "keep", "overwrite" or "refuse".
+
+    RUN-48 ITEM 5: A FIRST BASELINE OVER AN EDITED TREE IS REFUSED, not
+    warned about. The session baseline's entire meaning is "the state before
+    your edits", `--revert-baseline` is documented as restoring it, and probe
+    banks whatever state it FIRST sees per function — so a first probe run
+    after an edit wrote the EDITED bytes into the one revert point nothing
+    ever overwrites, and `--revert-baseline` then restored the edits while
+    calling them the baseline. Reproduced at c3f3aea99 on
+    game/ui/btext::DrawGlowText with `u8 unused[8]` -> `[16]` in the tree:
+
+        [session baseline banked: probe.py --revert-baseline restores THIS
+         state]
+        WARNING: BASELINE BANKED FROM AN EDITED TREE — this unit's source
+        differs from HEAD by 1 line(s), so the 'baseline' revert point is NOT
+        the pre-edit state: --revert-baseline will restore YOUR EDITS. ...
+
+    Both lines are true and they contradict each other, the first one is the
+    receipt, and the bank had already happened by the time the second printed.
+    This is the THIRD sighting of the shape (the run-34 warning, the run-36
+    first-bank-whatever-the-verdict change, and this).
+
+    NOT banking is strictly better than banking the wrong bytes:
+    `--revert-baseline` then reports that no baseline exists, and `--discard`
+    (which restores HEAD itself and is always safe) is the way back. The
+    ROLLING snapshot is untouched — refusing that would throw away gated
+    neutral work, which is a regression this tool already fixed once.
+
+    SCOPE, deliberately narrow: only a MEASURED divergence refuses. An
+    UNMEASURABLE comparison (untracked source, git unavailable) keeps the
+    old warn-and-bank behaviour, because a brand-new TU has no HEAD bytes to
+    be the pre-edit state and refusing there would deny a baseline to work
+    that never had the defect.
+
+    `--force-baseline` is the escape, and `--rebaseline` — already documented
+    as "deliberately MOVE the session baseline to the current state" — counts
+    as the same declaration of intent.
+
+    CALIBRATED TWO-SIDED at bb44ef4ab (T18_scratch/t18_calib_item5.py):
+      NEGATIVES  11 first probes on a CLEAN tree across 11 different units
+                 (btext, zlib/inflate, gutil, camera, bosscam, message,
+                 pb_diag, enemy, action, worldcol, vsprintf) — 11 baselines
+                 CREATED, 0 refusals. A guard that fires on the ordinary case
+                 is a broken loop, and this is the half that says it does not.
+                 One case skipped as unscorable (sounds::sndPlaySound).
+      POSITIVE   the same probe with `u8 unused[8]` -> `[16]` in btext:
+                 baseline written = False, refusal printed = True; and with
+                 --force-baseline, baseline written = True. `--revert-baseline`
+                 after the refusal exits 1 with "no session baseline banked
+                 for this unit" instead of restoring the edit.
 
     Run-35 criticism (CL): the session baseline was written only when the
     VERDICT was BASELINE. A worker whose first probe on a function landed
@@ -1459,6 +1526,24 @@ def baseline_bank_decision(kind, base_exists, rebaseline=False):
             " overwritten — a BASELINE verdict here re-banked only the"
             " ROLLING revert point. --revert-baseline still reaches the"
             " ORIGINAL baseline; --rebaseline moves it here deliberately.]")
+    if changed_lines and not force:
+        where = f" {unit} {fn}" if unit and fn else " <unit> <fn>"
+        return "refuse", (
+            "SESSION BASELINE REFUSED — this unit's source differs from HEAD"
+            f" by {changed_lines} line(s), and a baseline banked from an"
+            " EDITED tree is not a baseline: --revert-baseline would restore"
+            " YOUR EDITS while calling them the pre-edit state, and nothing"
+            " overwrites that bank once it exists (the FIRST-BASELINE TRAP)."
+            " NOTHING was written, so --revert-baseline will say there is no"
+            " baseline rather than hand you the wrong bytes. The ROLLING"
+            " revert point WAS banked and --revert still works.\n"
+            f"  To baseline the clean state: `probe.py{where} --discard`"
+            " (restores the TU to HEAD — always safe), then"
+            f" `probe.py{where} --reset`, then probe again BEFORE your first"
+            " edit.\n"
+            "  To baseline THIS edited state deliberately (a mid-session"
+            " re-anchor, or a probe of work already in the tree):"
+            f" `probe.py{where} --force-baseline`.")
     return "create", (
         "[session baseline banked: probe.py --revert-baseline restores THIS"
         " state]" if kind == "BASELINE" else
@@ -1504,7 +1589,14 @@ def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None,
     # 36 required the first verdict to BE a BASELINE.
     base = snap.with_suffix(snap.suffix + ".base")
     kind = verdict_kind or ("BASELINE" if baseline else "BANK")
-    action, note = baseline_bank_decision(kind, base.exists(), rebaseline)
+    # Measured BEFORE the decision (run-48 item 5): the divergence is what
+    # decides whether a first baseline may be created at all, and it used to
+    # be computed only afterwards, for a warning printed under the receipt.
+    changed_lines = bank_divergence(source.read_bytes(), head_bytes(source))
+    action, note = baseline_bank_decision(
+        kind, base.exists(), rebaseline, changed_lines=changed_lines,
+        force=any(flag in sys.argv for flag in BASELINE_FORCE_FLAGS),
+        unit=unit, fn=fn)
     created_baseline = action in ("create", "overwrite")
     if created_baseline:
         shutil.copyfile(source, base)
@@ -1526,10 +1618,12 @@ def bank_snapshot(unit, source, baseline=False, verdict_kind=None, fn=None,
     # tree is not a baseline, and a NEUTRAL bank moves the revert point onto
     # an edit — both silent until now. (`kind` is the one computed above;
     # its "BANK" fallback matches neither arm, exactly as the old None did.)
-    if kind in ("BASELINE", "NEUTRAL"):
-        warning = bank_warning(
-            kind, bank_divergence(source.read_bytes(), head_bytes(source)),
-            unit=unit, fn=fn)
+    # The BASELINE arm of this warning is now the REFUSAL above, so printing
+    # it too would say the same thing twice with two different endings. The
+    # NEUTRAL arm still applies: a NEUTRAL bank deliberately moves the
+    # ROLLING revert point onto an edit, which is kept behaviour.
+    if kind == "NEUTRAL" or (kind == "BASELINE" and action != "refuse"):
+        warning = bank_warning(kind, changed_lines, unit=unit, fn=fn)
         if warning:
             print(warning)
     # Whether the SESSION BASELINE file was (re)written here — the caller
@@ -4234,7 +4328,8 @@ def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
 # listed once; their values are positional and never start with `--`.
 KNOWN_FLAGS = frozenset((
     "--accept-fuzzy-loss", "--apply", "--arbitrate", "--bank", "--count",
-    "--discard", "--force-stale-revert", "--function", "--fuzzy", "--help",
+    "--discard", "--force-baseline", "--force-stale-revert", "--function",
+    "--fuzzy", "--help",
     "--ignore-claim", "--list-banks", "--no-bank", "--no-build",
     "--no-fuzzy-gate", "--no-rebuild", "--no-reloc-screen", "--no-slots",
     "--no-tu-gate",
