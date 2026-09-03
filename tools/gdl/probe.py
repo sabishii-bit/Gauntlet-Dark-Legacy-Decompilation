@@ -24,7 +24,8 @@ Usage:
       # banked baseline instead of the rolling snapshot.
   python tools/gdl/probe.py game/game/player do_players --reset  # forget best
   python tools/gdl/probe.py game/game/player do_players --rebase-best
-      # after a fuzzy/--ops-arbitrated keep of a real-regressed state:
+      # after a keep arbitrated on fuzzy or on the `--ops` structure view,
+      # of a real-regressed state:
       # accept the CURRENT state as the new best and revert point
 
 Output: one line per probe —
@@ -130,7 +131,14 @@ docstring omitted it — the flags below all work):
                      itself whenever a verdict moves the anchor, so
                      recovering a best state after two later probes banked
                      over it is one call instead of the three hand Edits and
-                     ~60s CL measured per recovery
+                     ~60s CL measured per recovery.
+                     SCOPE: --revert, --restore NAME and --revert-best are
+                     FUNCTION-SCOPED by default and take --whole-file to
+                     restore the whole TU; --discard is the other way round
+                     (whole-file by default, --function to scope it). Both
+                     words are accepted by both families so the one you type
+                     is the one you get, and passing both is REFUSED rather
+                     than resolved by whichever branch tests first.
   --no-bank          score without banking (diagnostic probes)
   --raw              score the pre-webfrank compiler output (pinned TUs)
   --rederive-pin     one call: build the raw body object, run
@@ -3362,9 +3370,11 @@ def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
     same ones — and when those bytes are the BEST state's, it also becomes
     the fuzzy anchor a later CONFLICT prints without spending a build.
     """
+    got_number = False
     try:
         val = report_fuzzy(unit, fn, fn_stripped)
         prev_fz = state.get("last_fuzzy")
+        got_number = val is not None
         if val is not None:
             arrow = (f" (prev {prev_fz:.4f})"
                      if isinstance(prev_fz, float) else "")
@@ -3386,6 +3396,7 @@ def fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=None):
                   " fuzzy readout, and nothing cached]")
     except Exception as err:
         print(f"[--fuzzy: readout failed: {err}]")
+    return got_number
 
 
 REPLAN_AT = 3
@@ -3716,12 +3727,102 @@ def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
     return verdict
 
 
+# Every flag this tool understands. probe parses by membership testing
+# (`"--revert" in sys.argv`), so before run 46 an UNRECOGNISED flag was
+# silently dropped and the run continued as if it had not been typed.
+# Measured at ea9341850: `probe.py zlib/inflate inflate --revert-bset` exited
+# 0 having run an ordinary probe and BANKED a BASELINE — a mistyped revert
+# quietly became a bank, which is the worst possible direction for the typo
+# to fail in. Flags taking a value (`--bank NAME`, `--restore NAME`) are
+# listed once; their values are positional and never start with `--`.
+KNOWN_FLAGS = frozenset((
+    "--accept-fuzzy-loss", "--apply", "--arbitrate", "--bank", "--count",
+    "--discard", "--force-stale-revert", "--function", "--fuzzy", "--help",
+    "--ignore-claim", "--list-banks", "--no-bank", "--no-build",
+    "--no-fuzzy-gate", "--no-rebuild", "--no-slots", "--no-tu-gate",
+    "--numstat", "--ops", "--raw", "--rebase-best", "--rebaseline",
+    "--rederive-pin", "--reset", "--restore", "--revert",
+    "--revert-baseline", "--revert-best", "--scaffold", "--scaffold-all",
+    "--slots", "--stateless", "--transient", "--verbose", "--vs-baseline",
+    "--whole-file",
+))
+
+# --fuzzy exits with this when the readout produced NO NUMBER. It used to
+# exit 0, so "the report build failed" and "here is your fuzzy" were the same
+# exit code to any script. (The 255 seen in run 45 was NOT this: it is
+# AGENTS.md trap 6a — a PowerShell `| Select-Object -First N` on a python
+# pipe reports -1 for a run that exited 0, and truncates the FUZZY line,
+# which is printed last. Reproduced at ea9341850: captured, exit 0 with
+# "FUZZY (fresh report): 100.0000%"; through `-First 2`, exit -1 and no
+# number.)
+FUZZY_NO_NUMBER_EXIT = 4
+
+
+def unknown_flags(argv, known=KNOWN_FLAGS):
+    """[(flag, [suggestions])] for every `--flag` this tool does not know."""
+    import difflib
+    out = []
+    for token in argv:
+        if not token.startswith("--") or token == "--":
+            continue
+        name = token.split("=", 1)[0]
+        if name in known:
+            continue
+        out.append((token, difflib.get_close_matches(name, sorted(known), 3)))
+    return out
+
+
+def scope_conflict(argv):
+    """The message for a contradictory restore scope, or None.
+
+    `--function` and `--whole-file` name opposite scopes, and the tool's two
+    restore families take OPPOSITE defaults for them: `--revert` /
+    `--restore` / `--revert-best` are function-scoped unless `--whole-file`
+    is given, while `--discard` is whole-file unless `--function` is. A lane
+    alternating between them types both words, and passing both was accepted
+    in silence with whichever branch happened to test first winning.
+    """
+    if "--function" in argv and "--whole-file" in argv:
+        return ("--function and --whole-file name opposite restore scopes;"
+                " pass one. (The defaults differ by family: --revert /"
+                " --restore / --revert-best are FUNCTION-scoped unless you"
+                " pass --whole-file; --discard is WHOLE-FILE unless you pass"
+                " --function.)")
+    return None
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) < 2 or args[0] in ("--help", "-h"):
         print(__doc__)
         return 2
+    unknown = unknown_flags(sys.argv[1:])
+    if unknown:
+        for flag, close in unknown:
+            hint = f"  did you mean {', '.join(close)}?" if close else ""
+            print(f"unknown flag {flag}{hint}")
+        print("REFUSED: probe tests flags by membership, so an unrecognised"
+              " one used to be dropped in silence — a mistyped --revert ran"
+              " an ordinary probe and BANKED instead of restoring.")
+        return 2
+    conflict = scope_conflict(sys.argv[1:])
+    if conflict:
+        print(f"REFUSED: {conflict}")
+        return 2
     unit, fn = normalize_unit(args[0]), args[1]
+    # Cross-lane ownership screen (run-46 item 1). Refuses ONLY on the
+    # machine-readable channel — another active work_claim's
+    # attributes.owned_units listing this unit — never on scope prose, which
+    # measured 85% false positives over the image. `--ignore-claim` (or
+    # GDL_CLAIM_OVERRIDE=1) is the integrator's escape.
+    try:
+        import claimscope
+        rc = claimscope.warn_or_refuse(
+            unit, "probe", enforce="--ignore-claim" not in sys.argv)
+        if rc:
+            return rc
+    except ImportError:
+        pass
     state_file = state_path(unit, fn)
     source = source_path(unit)
     if "--reset" in sys.argv:
@@ -4144,7 +4245,17 @@ def main():
             print("[banked from the CURRENT state — still no verdict and no"
                   " BEST anchor. --revert / --revert-baseline now restore"
                   " THIS state; --no-bank opts out.]")
-        fuzzy_readout(unit, fn, fn_stripped, state, state_file, digest=digest)
+        if not fuzzy_readout(unit, fn, fn_stripped, state, state_file,
+                             digest=digest):
+            # A readout with no number is not a success. It exited 0 before,
+            # so a script could not tell a fuzzy of 0 from a failed report
+            # build, and the CONFLICT arbitration this readout exists to
+            # serve is exactly the caller that must know.
+            print(f"[--fuzzy: exiting {FUZZY_NO_NUMBER_EXIT} — NO NUMBER was"
+                  " produced. (Exit 255/-1 instead means a PowerShell"
+                  " `| Select-Object -First N` truncated the pipe, AGENTS.md"
+                  " trap 6a: capture first, then slice.)]")
+            return FUZZY_NO_NUMBER_EXIT
         return 0
 
     # NOT aliased to `--arbitrate` (run-43 item 6, and this is why): in THIS

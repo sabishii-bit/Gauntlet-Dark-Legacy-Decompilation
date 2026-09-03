@@ -118,7 +118,7 @@ agree. SCHEDULE_CANDIDATE is a review queue, not proof of semantic equivalence.
 The base object is rebuilt via ninja automatically whenever the source file
 is newer (pass --no-build to skip). This prevents analyzing stale objects.
 
-IMPORTABLE CORE: unit_key, parse, classify_function, count_real,
+IMPORTABLE CORE: objdump, unit_key, parse, classify_function, count_real,
 instruction_lines, opcode_multiset_signature, pool_row_findings,
 datum_screen_from_lines, datum_multiset_screen, object_sections,
 object_datum_table, target_datum_entry, dol_read, symbol_table — pure
@@ -245,11 +245,52 @@ def compiler_private_aliases_from_symbols(symbol_table):
     return aliases
 
 
+_OBJDUMP_CACHE: dict[tuple, str] = {}
+
+
+def objdump(objfile, *flags):
+    """`objdump <flags> <objfile>`, memoized per PROCESS on the file's identity.
+
+    Run-46 item 5. Every census re-parses the objects it reads, and nothing
+    below this line was cached: `parse()` alone spawns TWO objdumps per call
+    (the symbol table for the alias map, then the disassembly), so a sweep
+    that visits an object twice pays twice. Measured at 05b3e534a over the
+    first 40 objects of build/GUNE5D/src: 0.66s for the first pass and 0.52s
+    for an identical second pass in the same process — the second is what
+    this removes, ~4s per repeated image pass over all 310 objects.
+
+    THE KEY INCLUDES mtime_ns AND SIZE, not just the path. probe.py builds an
+    object and then reads it in the SAME process; a path-keyed memo would
+    serve it the pre-build disassembly, which is the single worst failure
+    this project has (a green gate describing bytes that no longer exist).
+    A rebuilt object has a new mtime, so it simply misses.
+
+    Deliberately NOT persisted to disk. The demand census that would justify
+    that does not exist: the seven heaviest image passes in the tree measured
+    0.4s to 13.2s at this commit (webfrank_audit 11.1s,
+    t15_operand_provenance 13.2s, nearmiss 6.0s, lowmatch 6.4s,
+    t15_whoemits 3.1s, mt_region_census 0.4s), not the minutes a cross-
+    process cache would need to pay for its staleness surface.
+    """
+    path = Path(objfile)
+    try:
+        stat = path.stat()
+        key = (str(path), tuple(flags), stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        key = None
+    if key is not None and key in _OBJDUMP_CACHE:
+        return _OBJDUMP_CACHE[key]
+    out = subprocess.run([str(OBJDUMP), *flags, str(path)],
+                         capture_output=True, text=True).stdout
+    if key is not None:
+        if len(_OBJDUMP_CACHE) > 4096:      # a sweep, not a leak
+            _OBJDUMP_CACHE.clear()
+        _OBJDUMP_CACHE[key] = out
+    return out
+
+
 def compiler_private_aliases(objfile: Path):
-    out = subprocess.run(
-        [str(OBJDUMP), "-t", str(objfile)], capture_output=True, text=True
-    ).stdout
-    return compiler_private_aliases_from_symbols(out)
+    return compiler_private_aliases_from_symbols(objdump(objfile, "-t"))
 
 
 STALE_SUFFIX = ".stale"
@@ -293,9 +334,7 @@ def stale_object_warning(objfile) -> str:
 def parse(objfile: Path):
     """Return {function_name: [normalized instruction/reloc lines]}."""
     aliases = compiler_private_aliases(objfile)
-    out = subprocess.run(
-        [str(OBJDUMP), "-dr", str(objfile)], capture_output=True, text=True
-    ).stdout
+    out = objdump(objfile, "-dr")
     # First pass: which stripped names are UNIQUE? dtk-suffixed names strip
     # to their base for pairing, but two functions whose bases collide
     # (dtor_800DB21C / dtor_800DBB94 -> "dtor") must KEEP their suffixes —
@@ -394,9 +433,7 @@ def raw_words_signature(objfile: Path):
     is naming-only — four workers hand-arbitrated exactly this case.
     """
     import hashlib
-    out = subprocess.run(
-        [str(OBJDUMP), "-dr", str(objfile)], capture_output=True, text=True
-    ).stdout
+    out = objdump(objfile, "-dr")
     raw_names = re.findall(r"^[0-9a-f]+ <(.+)>:$", out, re.M)
     strip_counts: dict[str, int] = {}
     for name in raw_names:
@@ -438,9 +475,7 @@ def raw_signature(objfile: Path):
     identity; this hash can. Compare ours-vs-ours across an edit.
     """
     import hashlib
-    out = subprocess.run(
-        [str(OBJDUMP), "-dr", str(objfile)], capture_output=True, text=True
-    ).stdout
+    out = objdump(objfile, "-dr")
     raw_names = re.findall(r"^[0-9a-f]+ <(.+)>:$", out, re.M)
     strip_counts: dict[str, int] = {}
     for name in raw_names:
@@ -1092,14 +1127,24 @@ def object_sections(objfile, readable=INITIALIZED_SECTIONS):
     section bytes. Sections outside `readable` are listed but not dumped;
     pass `readable=None` to dump every section that carries contents.
     """
-    key = (str(objfile), None if readable is None else tuple(sorted(readable)))
+    # The identity, not just the path (run-46 item 5). This memo was keyed on
+    # the path alone, so a process that BUILDS an object and then reads it
+    # twice — probe.py's ordinary shape — was served the pre-build sections
+    # on the second read. objdump() above uses the same key for the same
+    # reason; a rebuilt object simply misses.
+    try:
+        stat = Path(objfile).stat()
+        stamp = (stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        stamp = None
+    key = (str(objfile), None if readable is None else tuple(sorted(readable)),
+           stamp)
     cached = _SECTION_CACHE.get(key)
     if cached is not None:
         return cached
     wanted, sections = {}, set()
     try:
-        listing = subprocess.run([str(OBJDUMP), "-t", str(objfile)],
-                                 capture_output=True, text=True).stdout
+        listing = objdump(objfile, "-t")
     except OSError:
         _SECTION_CACHE[key] = ({}, {})
         return {}, {}
@@ -1128,9 +1173,7 @@ def object_sections(objfile, readable=INITIALIZED_SECTIONS):
         if readable is not None and section not in readable:
             continue
         try:
-            dump = subprocess.run(
-                [str(OBJDUMP), "-s", "-j", section, str(objfile)],
-                capture_output=True, text=True).stdout
+            dump = objdump(objfile, "-s", "-j", section)
         except OSError:
             continue
         data = bytearray()

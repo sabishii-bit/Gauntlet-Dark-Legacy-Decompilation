@@ -4464,6 +4464,28 @@ def _probe_references_with(
     # screen already says citations must resolve to record ids; this is that
     # screen, enforced where the claim is written rather than where it is
     # read.
+    # Gate J (run 46). A work_claim's OWNED UNITS must be machine-readable
+    # when present. The scope prose cannot be screened by a tool: measured
+    # over 250 src units against run-46's six claims, the substring screen
+    # fires on 20 units and 17 (85%) are units no scope names, and it reports
+    # a lane as co-owner of the three TUs its scope names in order to EXCLUDE
+    # them. A malformed list is refused rather than ignored, because the
+    # field's only value is that a gate may trust it.
+    if kind == "work_claim":
+        problems = validate_owned_units(record)
+        if problems:
+            raise MemoryGraphError(
+                "attributes.owned_units is malformed: "
+                + "; ".join(problems)
+                + ". It is a LIST of repo-relative unit paths or directory"
+                " prefixes ([\"game/ps2/ml_fmath.c\", \"tools/gdl\"]); every"
+                " spelling the tools accept is fine (src/ prefix, .c/.cpp"
+                " suffix, backslashes) and is normalized on read. Omit the"
+                " field only when the lane's scope genuinely cannot be"
+                " enumerated at dispatch — an absent list is UNDECIDABLE and"
+                " leaves probe/defake_gate unable to protect the lane."
+            )
+
     if kind == "work_claim":
         banked = _BANKED_EVIDENCE_RE.search(_record_text(record))
         if banked and not _cited_ids_that_resolve(connection, record, root):
@@ -4698,7 +4720,14 @@ def record_template(kind: str) -> dict[str, Any]:
             "owner": "<REQUIRED: worker identity>",
             "state": "active",
             "claimed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-            "attributes": {"scope": "<REQUIRED: exclusive file/TU scope>"},
+            "attributes": {
+                "scope": "<REQUIRED: exclusive file/TU scope>",
+                "owned_units": ["<STRONGLY RECOMMENDED: repo-relative unit"
+                                " paths or directory prefixes this lane owns"
+                                " — the machine-readable form of the scope"
+                                " prose; probe/defake_gate refuse a foreign"
+                                " edit only when this list says so>"],
+            },
         },
         "tool": {
             "tool_key": "<REQUIRED: stable key>",
@@ -5604,6 +5633,28 @@ def _duplicate_claim_candidates(
             ).fetchall()
         }
         claim_ids.update(_inbox_claim_ids(root))
+        # THE WHOLE LINEAGE, not just the record named in `supersedes`
+        # (run 46). The field is a SCALAR, so a v3 can only name v2 — and v1
+        # is by construction the nearest slug-neighbour of both, so the gate
+        # fired on the retired ancestor of the very chain the v3 continues
+        # and told its author to attach to a record v2 had already replaced.
+        # Walk backwards through the supersession edges and exempt every
+        # ancestor; the bound keeps a cyclic corpus from spinning.
+        ancestors = dict(connection.execute(
+            "SELECT record_id, json_extract(raw_json, '$.supersedes')"
+            "  FROM record_ingest"
+            " WHERE json_extract(raw_json, '$.supersedes') IS NOT NULL"
+        ).fetchall())
+        frontier, seen = list(declared), set(declared)
+        while frontier:
+            current = frontier.pop()
+            parent = ancestors.get(current)
+            if isinstance(parent, str) and parent not in seen:
+                seen.add(parent)
+                declared.add(parent)
+                frontier.append(parent)
+            if len(seen) > 64:
+                break
         for existing_id in sorted(claim_ids):
             if existing_id == record.get("id") or existing_id in declared:
                 continue
@@ -7992,6 +8043,94 @@ def similar_residuals(
     return result
 
 
+def normalize_owned_unit(value: str) -> str:
+    """One canonical spelling for a claim's owned path.
+
+    Accepts every spelling the tools already accept (`game/x/y`,
+    `game/x/y.c`, `src/game/x/y.c`, backslashes) plus bare directories
+    (`tools/gdl`), and returns the extension-less, `src/`-less POSIX form.
+    fndiff.unit_key is the equivalent normalizer on the tools side; this one
+    also has to cope with directory entries, which units never are.
+    """
+    text = str(value or "").strip().replace("\\", "/").strip("/")
+    while text.startswith("./"):
+        text = text[2:]
+    if text.startswith("src/"):
+        text = text[4:]
+    for ext in (".cpp", ".c", ".o", ".s"):
+        if text.endswith(ext):
+            text = text[: -len(ext)]
+            break
+    return text
+
+
+def owned_units_of(raw: Any) -> list[str]:
+    """The normalized `attributes.owned_units` list of one work_claim.
+
+    Returns [] when the field is absent — which is NOT the same as "owns
+    nothing": see `ownership_coverage` in `work_claims`. An absent list is
+    UNDECIDABLE and must never be read as FREE.
+    """
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except (TypeError, ValueError):
+            return []
+    if isinstance(raw, dict):
+        raw = raw.get("owned_units")
+    if not isinstance(raw, list):
+        return []
+    out = []
+    for item in raw:
+        norm = normalize_owned_unit(item) if isinstance(item, str) else ""
+        if norm and norm not in out:
+            out.append(norm)
+    return out
+
+
+def owned_unit_covers(entry: str, unit: str) -> bool:
+    """Does one owned_units entry cover this unit? Exact or directory prefix."""
+    entry, unit = normalize_owned_unit(entry), normalize_owned_unit(unit)
+    if not entry or not unit:
+        return False
+    return unit == entry or unit.startswith(entry + "/")
+
+
+def validate_owned_units(record: dict[str, Any]) -> list[str]:
+    """Refusal messages for a malformed `attributes.owned_units`.
+
+    Absence is not an error here (the corpus predates the field and the gate
+    would refuse every historical claim); a MALFORMED value is, because a
+    silently-ignored ownership list is worse than none — the whole point of
+    the field is that a machine can trust it.
+    """
+    attrs = record.get("attributes")
+    if not isinstance(attrs, dict) or "owned_units" not in attrs:
+        return []
+    raw = attrs.get("owned_units")
+    problems: list[str] = []
+    if not isinstance(raw, list):
+        return ["attributes.owned_units must be a LIST of repo-relative unit"
+                f" paths, got {type(raw).__name__}"]
+    if not raw:
+        return ["attributes.owned_units is an empty list; omit the field"
+                " entirely rather than asserting an empty ownership set"
+                " (empty reads as 'owns nothing', which no active claim means)"]
+    for item in raw:
+        if not isinstance(item, str) or not item.strip():
+            problems.append(f"owned_units entry {item!r} is not a nonempty"
+                            " string")
+            continue
+        text = item.strip().replace("\\", "/")
+        if text.startswith("/") or ":" in text:
+            problems.append(f"owned_units entry {item!r} is not repo-relative")
+        if ".." in text.split("/"):
+            problems.append(f"owned_units entry {item!r} escapes the repo")
+        if not normalize_owned_unit(item):
+            problems.append(f"owned_units entry {item!r} normalizes to nothing")
+    return problems
+
+
 def work_claims(
     *,
     root: Path = REPO_ROOT,
@@ -8022,7 +8161,9 @@ def work_claims(
             SELECT w.record_id, w.owner, w.state, w.claimed_at, w.released_at,
                    e.name AS function,
                    r.valid_from, r.recorded_at,
-                   json_extract(r.raw_json, '$.attributes.scope') AS scope
+                   json_extract(r.raw_json, '$.attributes.scope') AS scope,
+                   json_extract(r.raw_json, '$.attributes.owned_units')
+                       AS owned_units
             FROM work_claim w
             JOIN entity e ON e.id = w.function_entity_id
             JOIN record_ingest r ON r.record_id = w.record_id
@@ -8031,6 +8172,9 @@ def work_claims(
         ).fetchall()
     claims = []
     stale_count = 0
+    coverage_total = 0
+    coverage_with = 0
+    unit_index: dict[str, list[str]] = {}
     for row in rows:
         released = row["released_at"] is not None or row["state"] in (
             "released", "done"
@@ -8039,15 +8183,25 @@ def work_claims(
             continue
         age = _record_age_days(row["claimed_at"], row["recorded_at"])
         stale = bool(not released and age is not None and age > stale_after)
+        units = owned_units_of(row["owned_units"])
+        if not released:
+            coverage_total += 1
+            coverage_with += bool(units)
+            for entry in units:
+                unit_index.setdefault(entry, []).append(row["owner"])
+        match = None
         if owns:
+            structured = any(owned_unit_covers(entry, owns) for entry in units)
             needle = owns.replace("\\", "/").strip().lower()
             haystack = " ".join(filter(None, (
                 str(row["scope"] or ""), str(row["function"] or ""),
             ))).replace("\\", "/").lower()
             stem = needle.rsplit("/", 1)[-1].rsplit(".", 1)[0]
-            if not (needle and needle in haystack) and not (
-                    stem and len(stem) > 2 and stem in haystack):
+            prose = bool(needle and needle in haystack) or bool(
+                stem and len(stem) > 2 and stem in haystack)
+            if not structured and not prose:
                 continue
+            match = "owned_units" if structured else "scope_prose"
         stale_count += stale
         claims.append(
             {
@@ -8059,6 +8213,8 @@ def work_claims(
                 "age_days": age,
                 "stale": stale,
                 "scope": row["scope"],
+                "owned_units": units,
+                **({"match": match} if match else {}),
             }
         )
     result = {
@@ -8071,10 +8227,45 @@ def work_claims(
             " confirm the owner is really gone (branch activity, inbox files)"
             " before treating the scope as free"
         ),
+        # MACHINE-READABLE OWNERSHIP (run 46). The scope-prose screen below
+        # cannot be trusted by a tool: measured over all 250 src units at
+        # c621fcbac with run-46's six claims, it fires on 20 and 17 of those
+        # (85%) are units no scope names -- `game/sys/main.c` matches FIVE of
+        # six claims on the word "main" (from the "main.dol: OK" gate line),
+        # `game/ui/select.c` matches T16 on "Select" (from "Select-Object").
+        # It also cannot tell "I own X" from "MF owns X, keep off": BP's
+        # scope names MF's three TUs in order to EXCLUDE them and the screen
+        # reports BP as a co-owner of all three. attributes.owned_units is
+        # the decidable channel; ownership_coverage says how far it reaches.
+        "ownership_coverage": {
+            "active_claims": coverage_total,
+            "with_owned_units": coverage_with,
+            "note": ("a claim with no owned_units is UNDECIDABLE, never FREE:"
+                     " tools must warn, not clear it"),
+        },
+        "owned_units_index": {u: sorted(set(o))
+                              for u, o in sorted(unit_index.items())},
+        "owned_units_conflicts": {
+            u: sorted(set(o)) for u, o in sorted(unit_index.items())
+            if len(set(o)) > 1
+        },
     }
     if owns:
         result["owns_query"] = owns
         result["verdict"] = "CLAIMED" if claims else "no claim found"
+        structured = [c for c in claims if c.get("match") == "owned_units"]
+        # FREE is only sound when EVERY active claim is decidable. One claim
+        # without a list leaves the whole question open, however many others
+        # carry one -- reporting FREE there would be the exact false all-clear
+        # this field exists to remove.
+        blind = coverage_total - coverage_with
+        result["structured_verdict"] = (
+            "OWNED" if structured
+            else "FREE" if coverage_total and not blind
+            else f"UNDECIDABLE ({blind} of {coverage_total} active claim(s)"
+                 " carry no attributes.owned_units)"
+        )
+        result["structured_owners"] = sorted({c["owner"] for c in structured})
         result["owns_note"] = (
             "every claim listed here covers the queried path. An ACTIVE claim"
             " owned by someone else is a VETO on its ENTIRE scope, not just"

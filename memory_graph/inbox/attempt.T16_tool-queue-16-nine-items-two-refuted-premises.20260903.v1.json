@@ -1,0 +1,29 @@
+{
+  "attempted_axis": "Run-46 TOOL lane, nine queue items, each reproduced from its own symptom before any edit and each calibrated two-sided (positives AND negatives counted) before shipping a refusal.",
+  "attributes": {
+    "law_screen": "claim.law.AF_dtk-rejects-an-unaligned-auto-split-start-so-some-claim-slack-is-structural.20260903.v1 APPLIED (item 2: its alignment half became the shrinkable/structural classifier, 21/32; its pipeline-consequence half is fixed and an evidence record is filed against it). claim.law.splits-claim-can-swallow-link-alignment-padding.20260901.v1 SCREENED and PARTLY CONTRADICTED (its 'zeroes the section's credit' phrasing does not hold for 20 of the 44 affected units). claim.law.WS_frame-widening-silently-breaks-the-tus-extab-match APPLIED (item 3: the DATA delta prices exactly that class; 46 units currently lose 1866 B of exception-table bytes). claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto.20260903.v2 and claim.law.BF_the-unfused-branch-pair-is-an-inlined-callee-return-not-any-return.20260903.v1 MERGED into v3 (item 7). claim.law.CQ_copy-register-fields-can-rotate-constant-load-homes-without-their-relocations.20260903.v1 APPLIED (item 4: the re-derive tool refuses without the retail image rather than degrading the datum screen to L4). claim.law.RQ_webfrank-audit-silence-is-not-ineligibility SCREENED, not applicable: no rule was authored. No webfrank.py or webfrank.json edit was made -- WG owns those surfaces.",
+    "residual": "Item 1 ships INERT: 0 of the 6 run-46 claims carry attributes.owned_units, so the refusal cannot fire until an integrator adds the lists. That is the one action this lane cannot take for itself (a worker does not edit the inbox claims another lane owns, and editing its own would prove nothing). Item 7's v3 can only name ONE predecessor because `supersedes` is a scalar; BF v1 is listed in attributes.subsumes and needs the integrator to retire it. Item 6's ranking is shipped as a ranking, not a predictor, because the exact-closure premise did not survive measurement.",
+    "scope": "tools/gdl/{datadiff,finish_tu,defake_gate,fndiff,probe,claimscope}.py; tools/gdl/composed_census/{t16_rederive_body,nm_branchpair_census}.py; memory_graph/core.py; memory_graph/test_graph.py; AGENTS.md; six new test modules. Commits 3a1020a9a, 6aff9e8cf, 05b3e534a, 8cc85aa42, d9d4c9ae7, ea9341850, a2bbb2ffb, 81fbe1d2c, 962cdb618 (one per item, in queue-priority order).",
+    "verification": "Full `python -m unittest discover tools/gdl/tests -b` and `python -m memory_graph.test_graph -b` green at every commit (1400 -> 1479 tool tests, 359 -> 374 graph tests). `gdlmem.py validate` valid. Final `ninja -j2` printed `build/GUNE5D/main.dol: OK` (re-run after `ninja -t clean build/GUNE5D/main.dol` so the CHECK step actually executed). Scores unchanged BY DESIGN -- a tool lane -- at 98.51% fuzzy, matched 67.83% = STRICT 56.79% (2585 fns) + EQUIVALENT 11.05% (152 fns)."
+  },
+  "function": "tu:game/ui/message",
+  "held_fixed": "Each item was committed BEFORE the next began, so no two items' edits ever sat in one working tree; the full suites were re-run per commit rather than per edit.",
+  "hypothesis": {
+    "cheapest_refuting_observation": "Shrink ONE of the 21 (dolphin/gx/GXTev.c .data, end 0x8023AE5C, 4 bytes) and run `python configure.py` -- if dtk rejects the auto split at an address that IS 4-aligned, the classifier's positive half is wrong and the whole 21 is unreachable too.",
+    "screened_against_target": "no -- the classification is derived from splits.txt claim ends and object extents only; no shrink was attempted this run, because splits.txt/symbols.txt are outside the TOOL lane's owned surfaces.",
+    "statement": "The 21 SHRINKABLE zero-slack rows datadiff now reports are recoverable matched-Data debt: each is a splits.txt end plus its owning symbols.txt size, shrunk in one edit per the parent law, and the 4-byte-aligned half is exactly the half dtk will accept. The 32 structural rows are not, and no amount of source work reaches them."
+  },
+  "id": "attempt.T16_tool-queue-16-nine-items-two-refuted-premises.20260903.v1",
+  "kind": "attempt",
+  "outcome": "improved",
+  "recorded_at": "2026-09-03T17:55:44Z",
+  "residual": {
+    "capability_needed": null,
+    "family": "no-residual",
+    "measured_at": "2026-09-03",
+    "signature": "no-residual"
+  },
+  "residual_class": "NONE",
+  "schema_version": 1,
+  "valid_from": "2026-09-03"
+}

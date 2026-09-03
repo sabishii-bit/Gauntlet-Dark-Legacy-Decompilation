@@ -39,6 +39,17 @@
 >    stops exits 0 — so one clean observation does not mean you are safe.
 >    NEVER read an exit code through a `-First` pipe: that is a gate
 >    reporting a failure that did not happen.
+>    **THE RULE IS NOW CAPTURE-FORM-ONLY**: never pipe a python tool
+>    into `Select-Object` at all. Assign first (`$o = python ...;
+>    $ec = $LASTEXITCODE`), then slice `$o`. Two more sightings in run 46,
+>    and the second cost a whole diagnosis: `probe.py <unit> <fn> --fuzzy`
+>    captured exits 0 and prints `FUZZY (fresh report): 100.0000%`, while
+>    the SAME command through `| Select-Object -First 2` exits -1 AND the
+>    FUZZY line is gone, because it is printed last. That pair —
+>    "255 with no number" — was carried into a work order as a probe
+>    defect; probe was fine both times. `-First` truncates the OUTPUT as
+>    well as corrupting the exit code, so the evidence for the bug it
+>    appears to show is exactly what it eats.
 > 6b. `Select-String -Pattern 'A|B' -SimpleMatch` matches NOTHING.
 >    `-SimpleMatch` takes the pattern literally, so the alternation is
 >    searched for as the six characters `A|B` and the result is an empty
@@ -603,6 +614,16 @@ sibling consumers; never invent names.
   python tools/gdl/composed_census/wf_rederive_pin.py <unit> <fn> --apply
       # re-derive a pin whose window relocations moved (FULL path; body
       # hashes must return byte-identical — that IS the audit).
+  python tools/gdl/composed_census/t16_rederive_body.py <unit> <fn> --apply
+      # re-derive a pin whose BODY hash moved — the case the tool above
+      # refuses. NEVER paste the hash out of webfrank's abort message
+      # ("input hash X != expected Y"): before_sha256 hashes OUR body, so
+      # pasting it re-blesses the new codegen without re-running a single
+      # guard. This derives every slot fresh, re-runs the rule through the
+      # real apply_patch with the retail image, and pastes ONLY on
+      # BYTE-EQUAL; APPLIED-NOT-EQUAL means rule_derive.py, not a hash. A
+      # moved after_sha256 (the TARGET's body) is always a refusal — the
+      # rule is bound to a different symbol now.
   python configure.py    # a TU's FIRST rule has no WEBFRANK build edge
                          # until this runs (first-five-minutes trap 6)
   ```
@@ -1137,6 +1158,26 @@ Cross-fleet concurrency (multiple independent agent fleets sharing `main`):
 - `gdlmem.py claims` lists every fleet's work claims with owner, scope, age,
   and stale flags — check it before claiming instead of reading inbox
   filenames.
+- **Every work_claim carries `attributes.owned_units`** (run 46): a LIST of
+  repo-relative unit paths or directory prefixes
+  (`["game/ps2/ml_fmath.c", "tools/gdl"]`; any spelling the tools accept is
+  normalized on read). The scope PROSE is for the worker; this list is for
+  the tools, and it is the only channel they screen. Measured over all 250
+  `src/` units against run-46's six claims, the prose substring screen fires
+  on 20 units and **17 of those (85%) are units no scope names** —
+  `game/sys/main.c` matches five of six claims on the word "main" (from the
+  `main.dol: OK` gate line) and `game/ui/select.c` matches the tool lane on
+  "Select" (from `Select-Object`) — and it cannot read a negation, so a lane
+  that names another lane's TUs *in order to exclude them* is reported as
+  their co-owner. `probe.py` and `defake_gate.py` refuse (exit 3) when the
+  cwd worktree's lane edits a unit another ACTIVE claim lists; the lane id
+  comes from `LANE_LOCK`'s first line, then `$GDL_LANE`, then the branch.
+  `--ignore-claim` / `GDL_CLAIM_OVERRIDE=1` is the integrator's escape;
+  `GDL_CLAIM_SCREEN=off` disables it entirely. A claim with NO list makes
+  every unit **undecidable, never free** — the tools warn and proceed, so an
+  order that omits the list silently disarms the protection for the whole
+  fleet. `python tools/gdl/claimscope.py --index` prints the live unit→owner
+  map and any two-lane conflicts; `--self` prints the detected lane id.
 - **Commit with explicit pathspecs in the shared checkout**
   (`git commit <paths> -m ...`), never a bare `git commit` after `git add`:
   the index is shared, and a bare commit sweeps in whatever another fleet
@@ -1331,6 +1372,27 @@ each screen below costs one command and would have caught its lane):
 - **A failed PowerShell git commit can leave a stale `index.lock`** in
   the worktree gitdir — on "Another git process seems to be running",
   check for and remove the lock before diagnosing anything else.
+- **An order that asserts an ABSENCE quotes the query and its empty
+  result** (run 46). "there is no tool for X", "no record covers Y", "no
+  lane owns this TU" are the cheapest claims to write and the most
+  expensive to act on, because a worker cannot distinguish "measured
+  absent" from "did not look". Every one of them is one command:
+  `gdlmem.py search "<terms>"` / `find --function <f>` /
+  `claims --owns <path>` / `Get-ChildItem tools/gdl -Filter "*x*"`, and
+  the order pastes the command AND the empty output beside the claim.
+  Measured in run 46's own queue: item 5 asserted "6 image passes at 2-4
+  min each"; the seven heaviest passes in the tree measured 0.4s to
+  13.2s, so the lane built the cheap fix and reported the refutation
+  instead of a cache nothing needed. Item 8 asserted a probe defect
+  ("--fuzzy on CONFLICT exits 255 with no number") that was trap 6a in
+  the reporter's own shell. A present-tense number in an order needs a
+  record id (already a rule above); an ABSENCE needs its query, which is
+  the same rule pointed at the other kind of claim.
+- **A tool item's fix belongs to the lane that owns the tool, but the
+  MEASUREMENT belongs to the reporter** — quote the failing command and
+  its verbatim output in the item, not a paraphrase of what it seemed to
+  do. Both refuted run-46 items above were paraphrases of a real
+  symptom whose cause the paraphrase had already discarded.
 
 Worktrees: writing workers use separate worktrees/branches; the shared
 checkout is read-only to them. Reuse existing clean campaign worktrees before

@@ -53,9 +53,14 @@ from memory_graph.core import (
     stage_record_proposal,
     symbol_context,
     tu_briefing,
+    validate_owned_units,
     wilson_lower_bound,
     work_claims,
 )
+
+# sentinel for "the field is not present at all", which is a DIFFERENT case
+# from an empty list: absence is accepted, emptiness is refused.
+_ABSENT = object()
 
 # Dynamic: a hardcoded date made the age-skew assertion break the moment the
 # calendar advanced past it, failing every fleet's test run for an unrelated
@@ -2687,6 +2692,174 @@ class ClaimsOwnsTests(unittest.TestCase):
         result = work_claims(root=self.root)
         self.assertNotIn("verdict", result)
         self.assertEqual(result["count"], 1)
+
+
+class OwnedUnitsTests(unittest.TestCase):
+    """Run-46 T16 item 1: the machine-readable half of a work_claim scope.
+
+    Two-sided: each test that a listed unit is OWNED is paired with one that
+    an unlisted unit is not, because the prose screen these replace was
+    measured at 85% false positives over the 250-unit image and shipping a
+    refusal on that side would have been worse than shipping nothing.
+    """
+
+    def setUp(self):
+        self.root = ev_root()
+        _write(self.root / "memory_graph" / "inbox" / "wc1.json", {
+            "schema_version": 1, "id": "work_claim.mf.v1",
+            "kind": "work_claim", "function": "function:test_fn",
+            "owner": "worker-mf", "state": "active", "claimed_at": TODAY,
+            "attributes": {"scope": "flip lane",
+                           "owned_units": ["src/game/ps2/ml_fmath.c",
+                                           "game/anim/atree"]},
+        })
+        build_database(self.root)
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def test_the_list_is_normalized_on_read(self):
+        result = work_claims(root=self.root)
+        self.assertEqual(result["claims"][0]["owned_units"],
+                         ["game/ps2/ml_fmath", "game/anim/atree"])
+
+    def test_coverage_is_reported_so_absence_is_visible(self):
+        result = work_claims(root=self.root)
+        self.assertEqual(result["ownership_coverage"],
+                         {"active_claims": 1, "with_owned_units": 1,
+                          "note": result["ownership_coverage"]["note"]})
+
+    def test_a_listed_unit_matches_structurally(self):
+        result = work_claims(root=self.root, owns=r"src\game\anim\atree.c")
+        self.assertEqual(result["structured_verdict"], "OWNED")
+        self.assertEqual(result["claims"][0]["match"], "owned_units")
+        self.assertEqual(result["structured_owners"], ["worker-mf"])
+
+    def test_an_unlisted_unit_is_free_when_every_claim_declares(self):
+        result = work_claims(root=self.root, owns="game/world/world.c")
+        self.assertEqual(result["structured_verdict"], "FREE")
+
+    def test_one_claim_without_a_list_makes_everything_undecidable(self):
+        _write(self.root / "memory_graph" / "inbox" / "wc2.json", {
+            "schema_version": 1, "id": "work_claim.bp.v1",
+            "kind": "work_claim", "function": "function:test_fn",
+            "owner": "worker-bp", "state": "active", "claimed_at": TODAY,
+            "attributes": {"scope": "open-ended sweep"},
+        })
+        build_database(self.root)
+        result = work_claims(root=self.root, owns="game/world/world.c")
+        self.assertTrue(
+            result["structured_verdict"].startswith("UNDECIDABLE"),
+            result["structured_verdict"])
+        self.assertIn("1 of 2", result["structured_verdict"])
+
+    def test_the_index_and_conflicts_are_derived(self):
+        _write(self.root / "memory_graph" / "inbox" / "wc3.json", {
+            "schema_version": 1, "id": "work_claim.nm.v1",
+            "kind": "work_claim", "function": "function:test_fn",
+            "owner": "worker-nm", "state": "active", "claimed_at": TODAY,
+            "attributes": {"scope": "close lane",
+                           "owned_units": ["game/anim/atree.c"]},
+        })
+        build_database(self.root)
+        result = work_claims(root=self.root)
+        self.assertEqual(result["owned_units_conflicts"],
+                         {"game/anim/atree": ["worker-mf", "worker-nm"]})
+        self.assertIn("game/ps2/ml_fmath", result["owned_units_index"])
+
+
+class SupersessionLineageDedupTests(unittest.TestCase):
+    """Run-46 T16: a v3 is not a duplicate of the v1 its v2 retired.
+
+    `supersedes` is a SCALAR, so a v3 can only name v2 — and v1, being the
+    nearest slug-neighbour of both, tripped the dedup screen and told the
+    author to attach to a record v2 had already replaced. Measured on
+    claim.law.NM_branch-pair-fusion-is-blocked-by-a-return-not-by-a-goto:
+    proposing .v3 with supersedes=.v2 was refused, naming .v1.
+    """
+
+    def setUp(self):
+        self.root = ev_root()
+        records = self.root / "memory_graph" / "records" / "claims"
+        for version, parent in (("v1", None), ("v2", "claim.law.thing.v1")):
+            body = {
+                "schema_version": 1, "id": f"claim.law.thing.{version}",
+                "kind": "claim", "predicate": "codegen_law",
+                "subject": "compiler:test",
+                "epistemic_state": "verified",
+                "value": "a law about a thing", "valid_from": TODAY,
+            }
+            if parent:
+                body["supersedes"] = parent
+            _write(records / f"claim.law.thing.{version}.json", body)
+        build_database(self.root)
+
+    def tearDown(self):
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def _v3(self):
+        return {
+            "schema_version": 1, "id": "claim.law.thing.v3", "kind": "claim",
+            "predicate": "codegen_law", "subject": "compiler:test",
+            "epistemic_state": "verified", "valid_from": TODAY,
+            "supersedes": "claim.law.thing.v2",
+            "value": "a law about a thing, merged",
+        }
+
+    def test_the_retired_ancestor_no_longer_blocks_the_v3(self):
+        self.assertEqual(
+            core._duplicate_claim_candidates(self._v3(), self.root), [])
+
+    def test_an_unrelated_near_duplicate_still_fires(self):
+        fresh = dict(self._v3())
+        del fresh["supersedes"]
+        hits = core._duplicate_claim_candidates(fresh, self.root)
+        self.assertTrue(hits, "the screen must still catch a bare re-derivation")
+
+    def test_naming_the_grandparent_directly_also_works(self):
+        direct = dict(self._v3())
+        direct["supersedes"] = "claim.law.thing.v1"
+        # v2 is not an ancestor of v1, so it is still screened — the walk
+        # goes BACKWARDS only, which is the direction supersession runs.
+        hits = core._duplicate_claim_candidates(direct, self.root)
+        self.assertEqual([hit["id"] for hit in hits], ["claim.law.thing.v2"])
+
+
+class OwnedUnitsValidationTests(unittest.TestCase):
+    """Gate J: a malformed ownership list is refused, an absent one is not."""
+
+    def _claim(self, value):
+        record = {"schema_version": 1, "id": "work_claim.x.v1",
+                  "kind": "work_claim", "function": "function:test_fn",
+                  "owner": "worker-x", "state": "active",
+                  "claimed_at": TODAY,
+                  "attributes": {"scope": "s"}}
+        if value is not _ABSENT:
+            record["attributes"]["owned_units"] = value
+        return record
+
+    def test_absence_is_accepted(self):
+        self.assertEqual(validate_owned_units(self._claim(_ABSENT)), [])
+
+    def test_a_good_list_is_accepted(self):
+        self.assertEqual(
+            validate_owned_units(self._claim(["game/a/b.c", "tools/gdl"])), [])
+
+    def test_a_string_is_refused(self):
+        self.assertTrue(validate_owned_units(self._claim("game/a/b.c")))
+
+    def test_an_empty_list_is_refused(self):
+        problems = validate_owned_units(self._claim([]))
+        self.assertTrue(problems)
+        self.assertIn("owns nothing", problems[0])
+
+    def test_absolute_and_escaping_paths_are_refused(self):
+        self.assertTrue(validate_owned_units(self._claim(["/etc/passwd"])))
+        self.assertTrue(validate_owned_units(self._claim(["../../x.c"])))
+        self.assertTrue(validate_owned_units(self._claim(["W:/x.c"])))
+
+    def test_a_nonstring_entry_is_refused(self):
+        self.assertTrue(validate_owned_units(self._claim(["a/b.c", 7])))
 
 
 class ReorderIndexTests(unittest.TestCase):
