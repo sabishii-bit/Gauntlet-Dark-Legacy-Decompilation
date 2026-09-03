@@ -3395,6 +3395,130 @@ class SimilarResidualsTests(unittest.TestCase):
         self.assertIn("rows", context["similar_residuals"])
 
 
+class SignatureLawJoinTests(unittest.TestCase):
+    """Run-50 item 6: the brief joins a park's SIGNATURE to the laws that
+    describe that codegen shape.
+
+    THE OBSERVATION: boss::HealthMeterUpdate's cure was
+    claim.law.compare-form-dictionary.20260829.v1 ("on doubles, a >= K guard
+    emits fcmpo + cror(gt,eq) + bne-skip"), five days old and DECISIVE, while
+    its park sat in the roster quoting `+3 cror +4 bne +2 ble ... -5 bge`.
+    The roster row and the law never met.
+
+    THE PROPOSED CURE WAS THE WRONG INDEX, measured on that exact signature
+    at run-50 HEAD: the residual-SIBLING index (`laws --residual`) returns 15
+    laws and the closing law is NOT among them, because that index pairs
+    records SHARING a signature, not laws DESCRIBING one -- and
+    `similar_residuals(signature=...)` returns 0 laws for it. Querying the
+    signature's OPCODE MNEMONICS ranks the closing law FIRST of 40, on 7
+    distinct terms.
+
+    TWO-SIDED over the live corpus: 607 attempt records carry a signature
+    with mnemonics (the join fires), 322 carry a signature without any (it
+    is silent), and 398 carry no typed signature at all (silent). Per TU:
+    boss 8 of 8 vetoed rows joined, player 7 of 12, enemy 9 of 19. Cost
+    +1.4s to +2.6s per brief (boss 2.37 -> 4.92s), and --no-law-join 1 turns
+    it off.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = make_root()
+        records = cls.root / "memory_graph" / "records"
+        _write(records / "entities" / "entity.compiler-test.json", {
+            "schema_version": 1, "id": "entity.compiler-test",
+            "kind": "entity", "entity_type": "compiler",
+            "key": "compiler:test", "name": "test compiler",
+        })
+        # The law that describes the SHAPE: its prose names the mnemonics.
+        _write(records / "claims" / "claim.law.t20-guard-form.20260903.v1"
+               ".json", {
+                   "schema_version": 1,
+                   "id": "claim.law.t20-guard-form.20260903.v1",
+                   "kind": "claim", "subject": "compiler:test",
+                   "predicate": "codegen_law", "epistemic_state": "verified",
+                   "value": "On doubles a >= K guard emits fcmpo plus cror"
+                            " and a bne skip, while a plain a < K emits bge.",
+                   "valid_from": TODAY,
+                   "falsifier": "a target emitting bge for a >= guard",
+                   "asserted_by": ["tools/gdl/fndiff.py"],
+                   "attributes": {"scope": "MWCC 1.2.5n"},
+               })
+        # A law that shares NO mnemonic with the signature below.
+        _write(records / "claims" / "claim.law.t20-unrelated.20260903.v1"
+               ".json", {
+                   "schema_version": 1,
+                   "id": "claim.law.t20-unrelated.20260903.v1",
+                   "kind": "claim", "subject": "compiler:test",
+                   "predicate": "codegen_law", "epistemic_state": "verified",
+                   "value": "Claim slack that is zero-filled in the DOL is"
+                            " advisory and never blocks a flip.",
+                   "valid_from": TODAY,
+                   "falsifier": "a zero-slack unit that fails to link",
+                   "asserted_by": ["tools/gdl/datadiff.py"],
+                   "attributes": {"scope": "MWCC 1.2.5n"},
+               })
+        # The park, quoting the mnemonics the law names.
+        _write(records / "attempts" / "attempt.t20-guard.v1.json", _attempt(
+            "attempt.t20-guard.v1", "function:test_fn", outcome="parked",
+            axis="guard form park",
+            residual={"signature": "DIFFERS target-only: +3 cror +4 bne"
+                                   " ours-only: -5 bge; insns T231/O230;"
+                                   " 25 ops clusters",
+                      "family": "branch-pair", "capability_needed": None,
+                      "measured_at": "2026-09-01"},
+        ))
+        # A park with a signature that carries NO mnemonics at all.
+        _write(records / "attempts" / "attempt.t20-bare.v1.json", _attempt(
+            "attempt.t20-bare.v1", "function:other_fn", outcome="capped",
+            axis="bare signature park",
+            residual={"signature": "roster screen, no single signature",
+                      "family": "unclassified", "capability_needed": None,
+                      "measured_at": "2026-09-01"},
+        ))
+        build_database(cls.root)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.root, ignore_errors=True)
+
+    def rows(self, **kwargs):
+        brief = tu_briefing("game/test/foo", root=self.root, **kwargs)
+        return {row["function"]: row for row in brief["vetoed_axes"]}
+
+    def test_the_law_that_names_the_signatures_mnemonics_is_attached(self):
+        row = self.rows()["test_fn"]
+        self.assertIn("signature_laws", row)
+        ids = [law["id"] for law in row["signature_laws"]]
+        self.assertIn("claim.law.t20-guard-form.20260903.v1", ids)
+
+    def test_an_unrelated_law_is_not_attached(self):
+        row = self.rows()["test_fn"]
+        ids = [law["id"] for law in row["signature_laws"]]
+        self.assertNotIn("claim.law.t20-unrelated.20260903.v1", ids)
+
+    def test_a_signature_with_no_mnemonics_gets_no_join(self):
+        # The silent half of the census: 322 corpus records are in this
+        # state, and attaching an empty list to each would be noise.
+        row = self.rows()["other_fn"]
+        self.assertNotIn("signature_laws", row)
+
+    def test_the_row_says_the_join_is_a_lead_not_a_verdict(self):
+        note = self.rows()["test_fn"]["signature_laws_note"]
+        self.assertIn("A LEAD, not a verdict", note)
+        self.assertIn("re-verify", note)
+
+    def test_the_join_can_be_turned_off(self):
+        row = self.rows(law_join=False)["test_fn"]
+        self.assertNotIn("signature_laws", row)
+
+    def test_the_law_rows_carry_their_evidence(self):
+        for law in self.rows()["test_fn"]["signature_laws"]:
+            for field in ("status", "n", "successes", "failures",
+                          "query_terms_matched"):
+                self.assertIn(field, law)
+
+
 class DerivedRecountTests(unittest.TestCase):
     """RG run-33 deliverable 4: independent recounts for every derived table."""
 

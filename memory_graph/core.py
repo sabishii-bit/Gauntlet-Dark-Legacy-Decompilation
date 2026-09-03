@@ -9551,6 +9551,7 @@ def tu_briefing(
     db_path: Path | None = None,
     limit: int = 100,
     roster_only: bool = False,
+    law_join: bool = True,
 ) -> dict[str, Any]:
     """One-call spawn briefing for a TU-scoped pass.
 
@@ -9559,6 +9560,10 @@ def tu_briefing(
     (parks and caps first), active claims touching the TU, the core-screen
     law list plus laws that mention this TU, and the raw-offset debt count.
     Heads only — fetch forensics per record id.
+
+    ``law_join`` (run-50 item 6) attaches, to every vetoed-axis row quoting a
+    residual signature, the laws whose text carries that signature's OPCODE
+    MNEMONICS. It is on by default and costs +1.4s to +2.6s per brief.
 
     ``roster_only`` returns JUST the scored roster (run-39 item 9): a full
     brief on game/game/player measures 201,535 bytes, of which the roster is
@@ -9939,6 +9944,62 @@ def tu_briefing(
         if row.get("needs_revalidation"):
             head["needs_revalidation"] = row["needs_revalidation"]
         return head
+
+    # THE LAW JOIN (run-50 item 6). A roster row carrying a residual
+    # SIGNATURE and a law corpus describing that exact codegen shape sat in
+    # the same database and never met: boss::HealthMeterUpdate's cure was
+    # claim.law.compare-form-dictionary.20260829.v1, five days old and
+    # DECISIVE ("on doubles, a >= K guard emits fcmpo + cror(gt,eq) +
+    # bne-skip"), while its park quoted `+3 cror +4 bne ... -5 bge`.
+    #
+    # THE JOIN KEY IS THE SIGNATURE'S MNEMONICS, NOT `--residual`. Measured
+    # on that exact signature: the residual-SIBLING index returns laws and
+    # the closing law is NOT among them (gdlmem's `laws --residual` returns
+    # 15, none of them it; `similar_residuals(signature=...)` returns 0),
+    # because that index pairs records SHARING a signature, not laws that
+    # DESCRIBE one. Querying the signature's opcode mnemonics ranks the
+    # closing law FIRST of 40, on 7 distinct terms. The proposed cure was
+    # the wrong index; this is the one that answers.
+    _signature_law_cache: dict[str, list[dict[str, Any]]] = {}
+
+    def _laws_for_signature(signature: str) -> list[dict[str, Any]]:
+        opcodes = parse_residual_signature(signature)["opcodes"]
+        if not opcodes:
+            return []
+        key = " ".join(opcodes)
+        if key not in _signature_law_cache:
+            try:
+                rows = law_corpus(query=key, root=root, db_path=db_path,
+                                  limit=5)["laws"]
+            except MemoryGraphError:
+                rows = []
+            _signature_law_cache[key] = [
+                _law_head(row) | {
+                    "query_terms_matched": row.get("query_terms_matched"),
+                    "age_days": row["age_days"],
+                }
+                for row in rows
+            ]
+        return _signature_law_cache[key]
+
+    for row in (vetoed_axes if law_join else []):
+        signature = (row.get("residual") or {}).get("signature") \
+            if isinstance(row.get("residual"), dict) else None
+        if not signature:
+            continue
+        joined = _laws_for_signature(signature)
+        if joined:
+            row["signature_laws"] = joined
+            row["signature_laws_note"] = (
+                "laws whose text carries this signature's OPCODE MNEMONICS,"
+                " best-evidenced first. A LEAD, not a verdict: re-verify"
+                " against your target bytes (AGENTS.md — a search hit is"
+                " evidence, not instruction). This join exists because"
+                " boss::HealthMeterUpdate's cure sat in the corpus for five"
+                " days while its park quoted the very mnemonics the law"
+                " names; the residual-sibling index does NOT find it, so"
+                " `laws --residual` is not a substitute for this row."
+            )
     # Matching sessions need the schedule/register/entry levers too —
     # core-screen is the de-fakematch set, not the whole toolbox.
     matching_laws = []
@@ -10581,11 +10642,21 @@ def build_surface_ops() -> tuple[SurfaceOp, ...]:
                  "raw-offset debt."),
             call=lambda root, db, **kw: tu_briefing(
                 kw["tu"], root=root, db_path=db, limit=kw["limit"],
-                roster_only=bool(kw["roster_only"])),
+                roster_only=bool(kw["roster_only"]),
+                law_join=not kw["no_law_join"]),
             params=(
                 SurfaceParam("tu", str, required=True,
                              help="TU path fragment, e.g. game/enemy/enemy"),
                 SurfaceParam("limit", int, default=100, maximum=200),
+                SurfaceParam("no_law_join", int, default=0, maximum=1,
+                             help="1 to skip the per-signature law join."
+                                  " Measured cost +1.4s to +2.6s per brief"
+                                  " (boss 2.37 -> 4.92, player 2.53 -> 4.94,"
+                                  " enemy 2.48 -> 3.90); it is on by default"
+                                  " because a five-day-old decisive law that"
+                                  " nobody joined to its roster row cost more"
+                                  " than every brief in this project put"
+                                  " together"),
                 SurfaceParam("roster_only", int, default=0, maximum=1,
                              help="1 for the SCORED ROSTER ONLY (a full brief"
                                   " on game/game/player is 201,535 bytes and"
