@@ -1,0 +1,15 @@
+{
+  "attributes": {
+    "integrator": "claude-fable-integrator",
+    "scope": "CLOSE lane, round 5: re-derive the roster (nearmiss real-ranked, parked rows visible; rec-quality caveat: a high rec= can hide zero-probe parks - read the records). Zero-record and stale-parked first, expiry checks run, typed DO-NOT-RETRY respected. Skip TUs claimed by PP/AF/BF/WP (gdlmem claims). Seeds: FindWORLDOBJ (world/worldobj?, real 17, run-44 compensating-pair cap - the joint-probe discipline applies), AudioEnterNextStage (sounds_evt, real 4, run-44 supersede notes the TU alignment moved), DoEnemyAction is BF's. Work top 4-6: diagnosis-first, byte-exact (STRICT) or typed park, one commit per landed fn. Fresh fuzzy per keep; NEUTRAL-IDENTICAL decisive at one; 3-attempt cap; pins screened; defake baseline per TU; gate = 'main.dol: OK'. USER DIRECTIVE 2026-09-03 (promotion backlog): every rule-served fn is promotion debt - a close that lands source-exact DELETES its rule in the same commit; EQ->STRICT promotions are pure honesty gains.; parallel fleets please pick other TUs"
+  },
+  "claimed_at": "2026-09-03",
+  "function": "function:FindWORLDOBJ",
+  "id": "work_claim.nearmiss-round-5.20260903.v1",
+  "kind": "work_claim",
+  "owner": "claude-fleet-worker-NM",
+  "recorded_at": "2026-09-03T15:44:33Z",
+  "schema_version": 1,
+  "state": "active",
+  "valid_from": "2026-09-03"
+}
