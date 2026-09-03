@@ -550,15 +550,15 @@ static f32 LineLineDist3D2D(Vec* a0, Vec* a1, Vec* out,
         f64 guess;
         guess = __frsqrte((f64)length);
         guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * (guess * guess));
+                (lbl_80345DA0 - guess * guess * length);
         guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * (guess * guess));
+                (lbl_80345DA0 - guess * guess * length);
         guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * (guess * guess));
+                (lbl_80345DA0 - guess * guess * length);
         sqrtLocal.result =
             (f32)(length *
                   (lbl_80345D98 * guess *
-                   (lbl_80345DA0 - length * (guess * guess))));
+                   (lbl_80345DA0 - guess * guess * length)));
         length = sqrtLocal.result;
     }
 
@@ -889,14 +889,14 @@ static f32 PointLineDist2D(Vec* p0, Vec* p1, Vec* dir, Vec* out) {
         guess = __frsqrte((f64)length);
 
         guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * (guess * guess));
+                (lbl_80345DA0 - guess * guess * length);
         guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * (guess * guess));
+                (lbl_80345DA0 - guess * guess * length);
         guess = lbl_80345D98 * guess *
-                (lbl_80345DA0 - length * (guess * guess));
+                (lbl_80345DA0 - guess * guess * length);
         sqrtLocal.result = (f32)(length *
                                  (lbl_80345D98 * guess *
-                                  (lbl_80345DA0 - length * (guess * guess))));
+                                  (lbl_80345DA0 - guess * guess * length)));
         length = sqrtLocal.result;
     }
     if (0.0 == (f64)length) {
