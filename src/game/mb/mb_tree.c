@@ -72,6 +72,7 @@ extern f32 light_color[4];
 extern void* gWinGlobals;
 
 const char lbl_801160B0[] = "Too many UV Scale Add nodes active\n";
+const char lbl_801160D4[] = "Too many nodes";
 
 static f32 MBTreePoolHugeFloat(void)
 {
@@ -857,7 +858,7 @@ MBTreeNode* MBNewNode(MBTreeNode* parent, const f32* matrix, s32 type)
         node->id = lbl_80344EC8;
         lbl_80344EC8++;
         if (lbl_80344EC8 >= 0x3000)
-            FatalError("Too many nodes", 0x804000);
+            FatalError(lbl_801160D4, 0x804000);
     }
 
     if (node != 0) {
@@ -913,7 +914,7 @@ MBTreeNode* MBCreateNode(void)
         node->id = lbl_80344EC8;
         lbl_80344EC8++;
         if (lbl_80344EC8 >= 0x3000)
-            FatalError("Too many nodes", 0x804000);
+            FatalError(lbl_801160D4, 0x804000);
     }
     return node;
 }
