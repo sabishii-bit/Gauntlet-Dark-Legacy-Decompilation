@@ -467,10 +467,10 @@ static s32 cardDoWrite(s32 chan, CARDStat* stat, void* data) {
     }
     *(u32*)(e + 0x5ab0) = 0;
     if (stat->bannerFormat != 0 || stat->iconFormat != 0) {
-        s32 iconCount;
-        s32 ciCount;
-        int spShift;
         int fmtShift;
+        int spShift;
+        s32 ciCount;
+        s32 iconCount;
 
         memmove(e, (u8*)data + stat->iconAddr, stat->offsetData - stat->iconAddr);
         DCFlushRange(e, stat->offsetData - stat->iconAddr);
