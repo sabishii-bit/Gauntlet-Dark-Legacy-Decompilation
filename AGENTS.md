@@ -39,6 +39,17 @@
 >    stops exits 0 — so one clean observation does not mean you are safe.
 >    NEVER read an exit code through a `-First` pipe: that is a gate
 >    reporting a failure that did not happen.
+>    **THE RULE IS NOW CAPTURE-FORM-ONLY**: never pipe a python tool
+>    into `Select-Object` at all. Assign first (`$o = python ...;
+>    $ec = $LASTEXITCODE`), then slice `$o`. Two more sightings in run 46,
+>    and the second cost a whole diagnosis: `probe.py <unit> <fn> --fuzzy`
+>    captured exits 0 and prints `FUZZY (fresh report): 100.0000%`, while
+>    the SAME command through `| Select-Object -First 2` exits -1 AND the
+>    FUZZY line is gone, because it is printed last. That pair —
+>    "255 with no number" — was carried into a work order as a probe
+>    defect; probe was fine both times. `-First` truncates the OUTPUT as
+>    well as corrupting the exit code, so the evidence for the bug it
+>    appears to show is exactly what it eats.
 > 6b. `Select-String -Pattern 'A|B' -SimpleMatch` matches NOTHING.
 >    `-SimpleMatch` takes the pattern literally, so the alternation is
 >    searched for as the six characters `A|B` and the result is an empty
@@ -1361,6 +1372,27 @@ each screen below costs one command and would have caught its lane):
 - **A failed PowerShell git commit can leave a stale `index.lock`** in
   the worktree gitdir — on "Another git process seems to be running",
   check for and remove the lock before diagnosing anything else.
+- **An order that asserts an ABSENCE quotes the query and its empty
+  result** (run 46). "there is no tool for X", "no record covers Y", "no
+  lane owns this TU" are the cheapest claims to write and the most
+  expensive to act on, because a worker cannot distinguish "measured
+  absent" from "did not look". Every one of them is one command:
+  `gdlmem.py search "<terms>"` / `find --function <f>` /
+  `claims --owns <path>` / `Get-ChildItem tools/gdl -Filter "*x*"`, and
+  the order pastes the command AND the empty output beside the claim.
+  Measured in run 46's own queue: item 5 asserted "6 image passes at 2-4
+  min each"; the seven heaviest passes in the tree measured 0.4s to
+  13.2s, so the lane built the cheap fix and reported the refutation
+  instead of a cache nothing needed. Item 8 asserted a probe defect
+  ("--fuzzy on CONFLICT exits 255 with no number") that was trap 6a in
+  the reporter's own shell. A present-tense number in an order needs a
+  record id (already a rule above); an ABSENCE needs its query, which is
+  the same rule pointed at the other kind of claim.
+- **A tool item's fix belongs to the lane that owns the tool, but the
+  MEASUREMENT belongs to the reporter** — quote the failing command and
+  its verbatim output in the item, not a paraphrase of what it seemed to
+  do. Both refuted run-46 items above were paraphrases of a real
+  symptom whose cause the paraphrase had already discarded.
 
 Worktrees: writing workers use separate worktrees/branches; the shared
 checkout is read-only to them. Reuse existing clean campaign worktrees before
