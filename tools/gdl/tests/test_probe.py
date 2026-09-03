@@ -2954,6 +2954,46 @@ class TuScopeGateTests(unittest.TestCase):
             self.assertEqual(self.BANKED, state)
 
 
+class PartialRestoreTests(unittest.TestCase):
+    """Run-45 item 6: a restore that did not fully arrive must not bank.
+
+    `--revert-best` restores only the named function's hunks, then re-scores
+    and banks the verdict, the BEST anchor and the fresh-fuzzy anchor as
+    though the measured state were the banked one. With a sibling's edit
+    still live it is a Franken-state, and the anchor cached from it (18.9% in
+    the field) then arbitrates every later probe on the function.
+    """
+
+    SNAP = "int a(void) { return 1; }\nint b(void) { return 2; }\n"
+
+    def test_a_complete_restore_is_not_partial(self):
+        self.assertFalse(probe.restore_is_partial(self.SNAP, self.SNAP))
+
+    def test_a_surviving_sibling_hunk_makes_it_partial(self):
+        restored = self.SNAP.replace("return 2", "return 22")
+        self.assertTrue(probe.restore_is_partial(self.SNAP, restored))
+
+    def test_the_refusal_names_the_bank_the_function_and_the_hunks(self):
+        text = probe.franken_readout_refusal(
+            "print_n_of_m", "the BEST-scoring banked state",
+            "1 hunk(s) inside print_n_of_m reverted; 2 hunk(s) elsewhere in"
+            " the TU left untouched", 16, "T68/O68", ", multiset 0t")
+        self.assertIn("REFUSED TO BANK", text)
+        self.assertIn("print_n_of_m", text)
+        self.assertIn("the BEST-scoring banked state", text)
+        self.assertIn("2 hunk(s) elsewhere", text)
+        self.assertIn("--whole-file", text)
+
+    def test_the_refusal_still_reports_the_measurement(self):
+        """The build was paid for; withholding the number too would just
+        make the lane re-run it."""
+        text = probe.franken_readout_refusal(
+            "f", "bank 'x'", "notes", 16, "T68/O68", ", multiset 0t")
+        self.assertTrue(text.startswith("READOUT   real 16"))
+        self.assertIn("T68/O68", text)
+        self.assertIn("multiset 0t", text)
+
+
 class StaleBestAnchorTests(unittest.TestCase):
     """Run-45 item 4: a BEST anchor left behind by an earlier SESSION.
 
@@ -3003,6 +3043,18 @@ class StaleBestAnchorTests(unittest.TestCase):
         self.assertIn("130", fixed)
         self.assertEqual(state["best_real"], 150)
         self.assertEqual(state["best_head"], "bbbbbbbbb2222")
+
+    def test_an_agreeing_stale_anchor_gets_one_line_not_a_paragraph(self):
+        """After a commit-and-re-probe the anchor is stale by provenance but
+        agrees with the fresh number; re-anchoring changes no verdict, so the
+        note must not read like a finding."""
+        state = dict(self.OLD, best_real=130)
+        verdict, new = classify(state, 130, "T68/O68", 4,
+                                head="bbbbbbbbb2222", tu_at_head=True)
+        self.assertIn("re-anchored at the same real 130", verdict)
+        self.assertNotIn("BEST ANCHOR RESET", verdict)
+        self.assertEqual(new["best_real"], 130)
+        self.assertEqual(new["best_head"], "bbbbbbbbb2222")
 
     def test_the_reset_names_the_recovery_bank(self):
         verdict, _ = classify(self.OLD, 150, "T68/O68", 4,

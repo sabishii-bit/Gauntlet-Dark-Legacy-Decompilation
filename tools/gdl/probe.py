@@ -1467,6 +1467,46 @@ def scoped_revert(snap_text, cur_text, fn):
     return "".join(out), notes
 
 
+def restore_is_partial(snap_text, restored_text):
+    """Did the restore FAIL to reproduce the state it names?
+
+    A function-scoped restore reaches only ``fn``'s hunks, so whatever else
+    in the TU was edited survives it. The result is a FRANKEN-STATE: the
+    named function's source from the bank, everything else from the working
+    tree. The test is exact and needs no prose parsing — a restore that
+    fully arrived leaves the file byte-identical to the bank.
+    """
+    return snap_text != restored_text
+
+
+def franken_readout_refusal(fn, label, notes, real, insns, tok):
+    """The refusal text for scoring a partially-restored TU (run-45 item 6).
+
+    THE DEFECT. `--revert-best` (and `--revert`/`--restore NAME`) restores
+    only the named function's hunks by default, then RE-SCORES and banks what
+    it measured — verdict, BEST anchor and the fresh-fuzzy anchor — as though
+    it were the banked state. It is not: a sibling's surviving edit moves the
+    TU's pool, its inlines and its layout, so the number banked describes a
+    state that was never banked and does not exist anywhere else. Measured in
+    the field: a fuzzy anchor of 18.9% cached this way, which then arbitrated
+    every later probe on the function.
+
+    So the score is still PRINTED — the measurement is real and cost a build
+    — and nothing is banked from it. `--whole-file` makes the restore
+    complete; a plain probe with no restore flag banks normally, because then
+    the tree is only claiming to be itself.
+    """
+    return (f"READOUT   real {real} (insns {insns}{tok})\n"
+            f"REFUSED TO BANK: the restore of {label} was FUNCTION-SCOPED and"
+            f" did not fully arrive — {notes}. What was just measured is a"
+            f" FRANKEN-STATE ({fn} from the bank, the rest of the TU from the"
+            " working tree), so no verdict, no BEST anchor and no fuzzy"
+            " anchor were written from it (an anchor cached this way"
+            " arbitrates every later probe on the function). Re-run with"
+            " --whole-file to restore the whole TU, or probe with no restore"
+            " flag to score the tree as it actually stands.")
+
+
 def _parity(insns):
     """(target, ours) from a "T<n>/O<n>" string, or None."""
     match = re.match(r"T(\d+)/O(\d+)$", insns or "")
@@ -2710,7 +2750,16 @@ def classify(state, real, insns, multiset_tokens, rebase_best=False,
     # snapshot bank, the fuzzy gate) keeps working unchanged.
     stale_reason = stale_best_anchor(state, head, tu_at_head)
     reset_note = ""
-    if stale_reason:
+    if stale_reason and state.get("best_real") == real:
+        # The common case once a lane commits and re-probes: the anchor is
+        # stale by provenance but AGREES with the fresh measurement, so the
+        # re-anchor changes no verdict. One line, not a paragraph.
+        reset_note = (f"\n[BEST anchor re-anchored at the same real {real}:"
+                      f" {stale_reason}, and this TU is byte-identical to"
+                      " HEAD.]")
+        for key in BEST_KEYS + ("best_head",):
+            state.pop(key, None)
+    elif stale_reason:
         reset_note = (
             f"\n[BEST ANCHOR RESET: the banked best_real"
             f" {state.get('best_real')} was NOT measured on these bytes —"
@@ -3841,6 +3890,10 @@ def main():
     # not the snapshot's (run-44 item 1) — read again at BUILD FAILED, which
     # is where the defect actually surfaced.
     coupled_scope = False
+    # Set when a function-scoped restore left the TU differing from the bank
+    # it names (run-45 item 6): the re-score below then reports but banks
+    # NOTHING, because it is not measuring the state the restore claimed.
+    franken_restore = None
     if "--revert" in sys.argv or restore_tag:
         if source is None:
             print(f"cannot revert: no src source found for {unit}")
@@ -3926,6 +3979,8 @@ def main():
             if scope_note:
                 coupled_scope = True
                 print(scope_note)
+            if restore_is_partial(snap_text, new_text):
+                franken_restore = (snap_label, notes)
         # A source revert does not restore webfrank.json; warn if a pin was
         # re-derived since this snapshot was banked (run 34 item 3).
         # A pin re-derived with --transient IS restorable, and is restored
@@ -4017,6 +4072,14 @@ def main():
                 break
     elif real == 0:
         multiset_tokens = 0
+
+    if franken_restore is not None:
+        label, notes = franken_restore
+        print(franken_readout_refusal(
+            fn, label, notes, real, insns,
+            f", multiset {multiset_tokens}t"
+            if multiset_tokens is not None else ""))
+        return 0
 
     state = {}
     if state_file.exists():
