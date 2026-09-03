@@ -218,7 +218,7 @@ typedef struct CameraCollideScratch {
 /* per-frame turn/oscillation rates recovered from the sdata2 pool */
 #define CAM_TURN_RATE_2DEG 0.03489724 /* lbl_80346000 (~2 deg) */
 #define CAM_TURN_RATE_1DEG 0.01744862 /* lbl_80346068 (~1 deg) */
-#define SHAKE_FREQ         0.66313    /* lbl_80346028 */
+#define SHAKE_FREQ         0.6632251158444444 /* lbl_80346028 = 38 deg at CAM_PI */
 
 /* --- camera shake state (CAMERA.OBJ .sbss globals, names from PDB) --- */
 extern s32 shake_type;      /* 0x80344478 */
