@@ -1544,12 +1544,70 @@ class AnnotateNeutralTests(unittest.TestCase):
                                4, "T50/O50", 0, 0, "T50/O50", "old", "new")
         self.assertIn("NEUTRAL-REARRANGED", out)
 
+    def test_moved_bytes_with_a_flat_triple_name_the_slot_arbiter(self):
+        """Run-44 item 7 (SL): NEUTRAL-REARRANGED's advice was "verify with
+        objdiff fuzzy or revert" — one of the two arbiters, and not the one
+        SL needed four times in a single pass. When real, the instruction
+        count and the multiset are ALL flat, the only things left unmeasured
+        are the frame/slot map and register colour."""
+        out = annotate_neutral("NEUTRAL   real 4 (insns T50/O50, multiset 0t)",
+                               4, "T50/O50", 0, 0, "T50/O50", "old", "new")
+        self.assertIn("NEUTRAL-REARRANGED", out)
+        self.assertIn(probe.SCORE_BLIND_MARK, out)
+        self.assertIn("FRAME/SLOT map", out)
+
     def test_structurally_worse_neutral_is_not_banked(self):
         out = annotate_neutral("NEUTRAL   real 4 (insns T50/O44, multiset 6t)",
                                4, "T50/O44", 6, 2, "T50/O50", "old", "new")
         self.assertTrue(out.startswith("NEUTRAL-WORSE"), out)
         self.assertIn("count distance 0 -> 6", out)
         self.assertIn("multiset 2t -> 6t", out)
+
+
+class ScoreBlindRearrangementTests(unittest.TestCase):
+    """Run-44 item 7: "bytes changed but nothing scored", two-sided.
+
+    The predicate decides whether the slot map is FORCED, so a false
+    positive costs a 60-line map on an unrelated probe and a false negative
+    is the defect itself. `real` equality is implied by the caller — this
+    is only ever consulted on a NEUTRAL verdict.
+    """
+
+    def call(self, **over):
+        args = dict(bytes_identical=False, worse=[], insns="T204/O204",
+                    prev_insns="T204/O204", multiset_tokens=8,
+                    prev_tokens=8, reverted=False)
+        args.update(over)
+        return probe.score_blind_rearrangement(**args)
+
+    def test_moved_bytes_with_a_flat_triple_fire(self):
+        self.assertTrue(self.call())
+
+    def test_identical_bytes_do_not_fire(self):
+        """A fold-away is NEUTRAL-IDENTICAL's case, not this one."""
+        self.assertFalse(self.call(bytes_identical=True))
+        self.assertFalse(self.call(bytes_identical=None))
+
+    def test_a_revert_does_not_fire(self):
+        """The bytes moved because the revert restored them."""
+        self.assertFalse(self.call(reverted=True))
+
+    def test_a_structurally_worse_probe_does_not_fire(self):
+        """NEUTRAL-WORSE owns that case and its advice is different."""
+        self.assertFalse(self.call(worse=["multiset 8t -> 10t"]))
+
+    def test_a_moved_instruction_count_does_not_fire(self):
+        self.assertFalse(self.call(insns="T204/O203"))
+
+    def test_a_moved_multiset_does_not_fire(self):
+        self.assertFalse(self.call(multiset_tokens=6))
+
+    def test_an_unmeasured_metric_is_not_equality(self):
+        """None must never be read as "unchanged" — a metric nobody took
+        cannot license forcing the arbiter."""
+        for over in ({"insns": None}, {"prev_insns": None},
+                     {"multiset_tokens": None}, {"prev_tokens": None}):
+            self.assertFalse(self.call(**over), over)
 
 
 class FuzzyAnchorTests(unittest.TestCase):

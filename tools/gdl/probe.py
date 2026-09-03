@@ -57,6 +57,17 @@ A real move with the multiset flat, or unmeasurable, keeps its real-only
 verdict; the multiset-GREW-at-flat-real case stays with annotate_neutral's
 NEUTRAL-WORSE, which owns the byte-identity check.
 
+BYTES CHANGED BUT NOTHING SCORED IS ITS OWN VERDICT. When the object's
+bytes MOVE while `real`, the instruction count and the opcode multiset are
+all unchanged, the annotation reads SCORE-BLIND REARRANGEMENT and the slot
+map is FORCED under it. Those three metrics leave exactly two things
+unmeasured — the frame/slot map and pure register colour — and the slot map
+is auto-invoked only on slotdiff's own decisive signal, which an edit that
+lands the frame ON target does not produce. SL arbitrated four of these by
+hand in one pass. An IDENTICAL map under this verdict is itself the answer:
+the rearrangement is pure colour, and fresh fuzzy (`--arbitrate`) is the
+only remaining arbiter.
+
 DATA-ONLY EDITS ARE NOT FOLD-AWAYS. A pooled value (an FP literal, a
 string, a table) is materialized into .sdata2/.rodata and merely LOADED,
 so correcting a wrong constant changes no instruction word — every score
@@ -3409,6 +3420,44 @@ def neutral_identical_proof_line(unit, fn, digest, real, insns,
     return "NEUTRAL-IDENTICAL-PROOF " + " ".join(fields)
 
 
+SCORE_BLIND_MARK = "SCORE-BLIND REARRANGEMENT"
+
+
+def score_blind_rearrangement(bytes_identical, worse, insns, prev_insns,
+                              multiset_tokens, prev_tokens, reverted=False):
+    """Did the object MOVE while every score in the loop stayed flat?
+
+    Run-44 item 7, from SL. probe already separates the two ends of a
+    NEUTRAL — NEUTRAL-IDENTICAL (the object did not move, the edit folded
+    away) and NEUTRAL-DATA-ONLY (the text held, a data section moved) — but
+    the middle case had only the generic NEUTRAL-REARRANGED line, whose
+    whole advice was "verify with objdiff fuzzy or revert". That is the
+    case where the instruction stream is DIFFERENT bytes and `real`, the
+    instruction count and the opcode multiset are ALL unchanged, which is
+    exactly a frame/slot or pure-color rearrangement: SL hit it four times
+    in one pass and reached for slotdiff by hand each time, because the
+    slot map is auto-invoked only on slotdiff's own decisive signal and an
+    edit that lands the frame ON target produces no such signal at all.
+
+    `real` equality is implied by the caller: this is only ever consulted
+    on a NEUTRAL verdict, which is defined by `real` matching the anchor.
+    What is asserted here is the rest of the triple.
+
+    Pure over the already-measured values, and DELIBERATELY silent on:
+      * a REVERT (the bytes moved because the revert restored them);
+      * `worse` (count distance or multiset grew — NEUTRAL-WORSE owns it
+        and its advice is different);
+      * an unmeasurable count or multiset (None is not equality).
+    """
+    if reverted or bytes_identical is not False or worse:
+        return False
+    if insns is None or prev_insns is None or insns != prev_insns:
+        return False
+    if multiset_tokens is None or prev_tokens is None:
+        return False
+    return multiset_tokens == prev_tokens
+
+
 def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                      prev_insns, prev_digest, digest,
                      prev_data=None, data=None, source_changed=True,
@@ -3465,6 +3514,31 @@ def annotate_neutral(verdict, real, insns, multiset_tokens, prev_tokens,
                         " HEAD and still trip this); neutral scores do not"
                         " prove identity — verify with objdiff fuzzy or"
                         " revert]")
+            # The label was already right; the ADVICE was missing (run-44
+            # item 7). "verify with objdiff fuzzy or revert" names one of
+            # the two arbiters and omits the one SL actually needed four
+            # times in a single pass.
+            if score_blind_rearrangement(bytes_identical, worse, insns,
+                                         prev_insns, multiset_tokens,
+                                         prev_tokens, reverted):
+                verdict += (
+                    f"  [{SCORE_BLIND_MARK}: and NOT ONE score in this loop"
+                    " saw it — real, the instruction count"
+                    f" ({insns}) and the opcode multiset ({multiset_tokens}t)"
+                    " are all unchanged. That is neither a null probe nor a"
+                    " fold-away: the edit reached codegen and rearranged"
+                    " something none of the three measures, which leaves"
+                    " exactly two candidates — the FRAME/SLOT map and pure"
+                    " register colour. The slot map is FORCED under this"
+                    " verdict instead of waiting for slotdiff's own decisive"
+                    " signal, because that signal is a residual detector: an"
+                    " edit that lands the frame ON target silences it"
+                    " precisely when you most need to see the move (SL"
+                    " arbitrated four of these by hand in one pass). An"
+                    " IDENTICAL map here is itself the answer — the"
+                    " rearrangement is pure colour, and fresh objdiff fuzzy"
+                    " is then the only remaining arbiter (`--arbitrate`"
+                    " prints both states).]")
         else:
             # DATA-ONLY comes FIRST because NEUTRAL-IDENTICAL's advice is
             # actively wrong for it. The fold-away reading assumes the
@@ -4102,10 +4176,19 @@ def main():
     # rather than reach for the tool that already existed. Gated on real > 0
     # (no residual, nothing to arbitrate) and on slotdiff's own signal, so a
     # register/schedule probe never carries a 60-line map it does not need.
-    if slots_fire or ("--slots" in sys.argv and slots_output):
+    # A SCORE-BLIND REARRANGEMENT forces it (run-44 item 7). slotdiff's own
+    # signal is a residual detector — it fires on a frame or slot DELTA — so
+    # an edit that lands the frame ON target silences it precisely when the
+    # worker most needs to see that. Here the question is not "is there a
+    # slot residual" but "did this edit move the slots at all", and
+    # `SLOT MAP IDENTICAL` is as much of an answer as a delta is.
+    score_blind = SCORE_BLIND_MARK in verdict
+    if slots_fire or ((score_blind or "--slots" in sys.argv) and slots_output):
         print(slot_arbiter_header(
-            slots_reason or "requested with --slots (no decisive slot"
-                            " signal)"))
+            slots_reason
+            or ("the verdict is a SCORE-BLIND REARRANGEMENT, so the map is"
+                " shown whether or not it differs" if score_blind
+                else "requested with --slots (no decisive slot signal)")))
         print(slots_output.strip())
 
     # The census used to print in full on EVERY baseline probe. Measured
